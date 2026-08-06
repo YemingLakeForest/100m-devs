@@ -1,0 +1,284 @@
+/*
+ * The interface — ART_DIRECTION §1, right-hand column.
+ *
+ * Flat, screen-aligned, one hue at a time, four values, hard 1px rules and
+ * brackets. No drop shadows, no bevels, no rounded corners, no gradients:
+ * this is emissive phosphor burned into glass, not a lit object sitting on
+ * top of one.
+ *
+ * Every colour here is --p0..--p3, which the entropy driver rewrites every
+ * frame. Nothing in this file names a phosphor value directly — that is what
+ * makes the whole interface obey one variable.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--n0);
+}
+
+body {
+  font-family: var(--font-terminal);
+  font-size: var(--type-1x);
+  color: var(--p2);
+  /* The clicker layer taps constantly; text selection would fight every poke. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  /* No smoothing — the font is a pixel face and must land on the grid. */
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  text-rendering: geometricPrecision;
+}
+
+.app {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.app__canvas {
+  position: absolute;
+  inset: 0;
+  /* Pixi owns this element entirely. */
+  touch-action: none;
+}
+
+/*
+ * The HUD is a Layer (GDD §7.1). It never eats a pointer event except on the
+ * few controls that need one — the simulation behind it must stay pokeable
+ * through the whole overlay.
+ */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: env(safe-area-inset-top, 8px) 8px 8px;
+  display: grid;
+  grid-template-areas:
+    'top     top'
+    'burn    perf'
+    '.       .'
+    'entropy entropy'
+    'ctrl    ctrl';
+  grid-template-rows: auto auto 1fr auto auto;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.hud__top {
+  grid-area: top;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: var(--rule) solid var(--p1);
+  padding-bottom: 4px;
+}
+
+.hud__stat {
+  color: var(--p1);
+  letter-spacing: 1px;
+}
+
+.hud__stat b {
+  color: var(--p3);
+  font-weight: 400;
+}
+
+/* --- the one DOM element over the canvas, ADR §7.2 item 5 --------------- */
+
+.hud__velocity {
+  grid-area: perf;
+  align-self: start;
+  justify-self: end;
+  text-align: right;
+  /* Brackets, not a box. §1: 1px rules and brackets. */
+  border-right: var(--rule) solid var(--p2);
+  border-top: var(--rule) solid var(--p2);
+  padding: 4px 6px 2px;
+}
+
+.hud__velocity-label {
+  display: block;
+  color: var(--p1);
+  letter-spacing: 2px;
+}
+
+.hud__velocity-value {
+  display: block;
+  font-size: var(--type-3x);
+  color: var(--p3);
+  /* Tabular so the counter does not jitter while counting up (§3 rule 3). */
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__velocity-unit {
+  display: block;
+  color: var(--p1);
+  letter-spacing: 2px;
+}
+
+/* --- burn-down, GDD §10.4 ---------------------------------------------- */
+
+.burndown {
+  grid-area: burn;
+  align-self: start;
+  max-width: 180px;
+}
+
+.burndown__label {
+  color: var(--p1);
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.burndown__chart {
+  display: block;
+  width: 100%;
+  height: 44px;
+  border-left: var(--rule) solid var(--p1);
+  border-bottom: var(--rule) solid var(--p1);
+}
+
+.burndown__ideal {
+  fill: none;
+  stroke: var(--p1);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.burndown__actual {
+  fill: none;
+  stroke: var(--p2);
+  stroke-width: 1;
+}
+
+.burndown__readout {
+  color: var(--p2);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+/* --- entropy speedometer, GDD §4.3 ------------------------------------- */
+
+.hud__entropy {
+  grid-area: entropy;
+}
+
+.hud__entropy-bar {
+  height: 4px;
+  border: var(--rule) solid var(--p1);
+  margin-top: 3px;
+}
+
+.hud__entropy-fill {
+  height: 100%;
+  background: var(--p2);
+  /* No transition: the readout must be instantaneous truth, not an animation. */
+}
+
+.hud__lock {
+  margin-top: 4px;
+  color: var(--p3);
+  background: var(--p0);
+  border: var(--rule) solid var(--p2);
+  padding: 2px 4px;
+  letter-spacing: 3px;
+  text-align: center;
+  animation: lock-blink 0.6s steps(2, end) infinite;
+}
+
+@keyframes lock-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* GDD §10.5 — reduce-motion shortens the flicker; it never removes the
+     readout, which is load-bearing information rather than juice. */
+  .hud__lock {
+    animation: none;
+  }
+}
+
+/* --- spike instrumentation --------------------------------------------- */
+
+.hud__perf {
+  grid-area: perf;
+  align-self: end;
+  justify-self: end;
+  display: flex;
+  gap: 8px;
+  color: var(--p1);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__perf .is-bad {
+  color: var(--alarm-2);
+}
+
+.hud__controls {
+  grid-area: ctrl;
+  pointer-events: auto;
+  border-top: var(--rule) solid var(--p1);
+  padding-top: 6px;
+  display: grid;
+  gap: 6px;
+}
+
+.hud__control {
+  display: grid;
+  gap: 2px;
+  color: var(--p1);
+}
+
+.hud__control input[type='range'] {
+  appearance: none;
+  width: 100%;
+  height: 12px;
+  background: transparent;
+}
+
+.hud__control input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--p1);
+}
+
+.hud__control input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 12px;
+  margin-top: -5px;
+  background: var(--p2);
+  /* Square. A round thumb is a native form control, GDD §10.6 anti-pattern. */
+  border-radius: 0;
+}
+
+.hud__states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hud__states button {
+  font: inherit;
+  color: var(--p1);
+  background: transparent;
+  border: var(--rule) solid var(--p1);
+  border-radius: 0;
+  padding: 3px 5px;
+  cursor: pointer;
+}
+
+.hud__states button.is-active {
+  color: var(--n0);
+  background: var(--p2);
+  border-color: var(--p2);
+}

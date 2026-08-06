@@ -316,6 +316,55 @@ spent discovering it is not.
 
 ---
 
+## 7.7 Spike findings log
+
+Recorded as the spike is built. Measurements against §7.5 go here too, per §8 of the
+runbook.
+
+### 7.7.1 The DOM HUD cannot pass through the Pixi glass **[OPEN — needs a decision]**
+
+ART_DIRECTION §6 states the post-process stack is "applied over **both** the world canvas
+and the interface layer", and calls pass 6 (barrel curvature + vignette) "the weld… never
+apply it to only one layer."
+
+**That is not achievable as specified with a DOM HUD.** §3.2 of this ADR puts all
+structured text, numbers and navigation in React/DOM, and a DOM element cannot be fed
+through a WebGL filter chain. As built, the world is welded and the interface is not: the
+HUD sits *above* the glass rather than being burned into it.
+
+This is a real tension between two documents that were each individually right, and it was
+invisible until there was a running frame. Three ways out:
+
+1. **CSS-side approximation** — reproduce curvature/vignette/scanlines on the HUD layer
+   with CSS (`mask-image`, a repeating-gradient scanline overlay, a subtle
+   `transform: perspective()`). Cheap, and it never matches exactly.
+2. **Move the HUD into Pixi** — genuinely welded, and it discards §3.2, the single
+   strongest argument for this stack. Not recommended.
+3. **Accept the split deliberately** — the interface is a separate physical layer of glass
+   in front of the CRT rather than phosphor burned into it. This is a coherent fiction and
+   costs nothing, but it is a change to ART_DIRECTION §1 and §6 and must be recorded there
+   rather than allowed to happen by default.
+
+**The spike currently does (3) by omission, which is the one option that must not stand
+unrecorded.** Decide before the vertical slice.
+
+### 7.7.2 TiltShiftFilter cannot sit in the shared chain
+
+Stacking `TiltShiftFilter` ahead of bloom/RGB-split/CRT in one `filters` array renders the
+canvas **fully black** — no console error. Each of the five passes is fine in isolation;
+the chain is not. TiltShift is internally two axis passes and its padding does not survive
+being fed into the rest.
+
+**Resolved:** depth of field is applied to the *world* container and passes 2–6 to the
+container above it. This is arguably more correct anyway — DOF models a camera focusing on
+a plane among the desks, and a HUD has no focal plane. Note that its `start`/`end` band is
+therefore in **world-local** coordinates, not screen coordinates.
+
+`?nopost` and `?post=bloom,crt` were added to bisect the stack without a rebuild, and are
+worth keeping for the §7.5 frame-budget work.
+
+---
+
 ## 8. Revisit Triggers
 
 Reopen this ADR if:

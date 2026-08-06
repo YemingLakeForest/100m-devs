@@ -194,13 +194,20 @@ $$D_{cap}(\text{BP}_{\text{alloc}}) = D_{base} \cdot \left(1 + \mu \cdot (\text{
 
 **The gate's real shape.** "100,000,000 developers at 100% efficiency" does *not* mean
 $D_{cap} = 10^{8}$ — at exactly capacity, efficiency is 50%. Running $10^{8}$ devs at 99%
-efficiency requires $L \approx 0.40$, and therefore:
+efficiency requires $L = 0.39892$, and therefore:
 
-$$D_{cap} \ge 2.5 \times 10^{8}$$
+$$D_{cap} \ge 2.5068 \times 10^{8}$$
 
 The player must build **two and a half times more capacity than headcount** to clear the
 gate. This is the single most important tuning target in the game, and it is what makes
 the last stretch of the climb about Communication Infra rather than about hiring.
+
+> **Precision note.** An earlier draft rounded $L$ to $0.40$ and the threshold to
+> $2.5 \times 10^{8}$. That rounding goes the wrong way: at $D_{cap} = 2.5 \times 10^{8}$
+> efficiency is **98.99%**, which is *below* the 99% the gate asks for. The figures above
+> are the exact ones. Implementation derives the threshold from $\rho$ rather than
+> hard-coding it (`capacityForEfficiency` in `src/sim/entropy.ts`), so it stays correct if
+> $\rho$ is retuned — and §4.1 names $\rho$ as the knob most likely to move.
 
 **Verified against the design's own stated figures:**
 

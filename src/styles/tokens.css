@@ -1,0 +1,25 @@
+/*
+ * Type and geometry tokens — ART_DIRECTION §3.
+ *
+ * The palette deliberately is NOT here. Every colour variable (--n0..--n8,
+ * --glow-*, --calm-*, --warn-*, --alarm-*, and the live --p0..--p3) is
+ * injected at startup by src/art/cssTokens.ts, straight from the one palette
+ * source of truth. Restating 37 hex values in a second file is exactly the
+ * kind of quiet divergence ART_DIRECTION §0 exists to prevent.
+ */
+
+:root {
+  /*
+   * Type scale — §3 rule 2: integer multiples only, never fractional.
+   * Departure Mono's design size is 11px, so the scale is built from that
+   * rather than from a round CSS number that would land the face off-grid.
+   */
+  --type-1x: 11px;
+  --type-2x: 22px;
+  --type-3x: 33px;
+
+  --font-terminal: 'Departure Mono', ui-monospace, monospace;
+
+  /* The interface is drawn in 1px rules and brackets. Never a bevel. */
+  --rule: 1px;
+}

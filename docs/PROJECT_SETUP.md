@@ -13,21 +13,23 @@ work down §8 in order.
 
 | Field | Value |
 |---|---|
-| **Application ID** | `com.mercilessstudio.devs100m` ⚠ see below |
-| **Android namespace** | `com.mercilessstudio.devs100m` |
-| **iOS bundle ID** | `com.mercilessstudio.devs100m` (keep identical across platforms) |
+| **Application ID** | `com.mercilessstudio.m100devs` ✅ **confirmed 2026-08-06** |
+| **Android namespace** | `com.mercilessstudio.m100devs` |
+| **iOS bundle ID** | `com.mercilessstudio.m100devs` (keep identical across platforms) |
 | **Store display name** | **100M Developers** |
 | **In-game title** | *100000000 Developers* — the long form stays on the title screen, where the joke lands |
 | **Repo** | `github.com/YemingLakeForest/100m-devs` |
 | **Studio** | MercilessStudio |
 
-> ⚠ **Confirm the application ID before the first Play Console upload. It is permanent.**
+> ✅ **Decided 2026-08-06 and now set in `capacitor.config.ts` and
+> `android/app/build.gradle`.** Treat it as permanent.
 >
-> The originally chosen `com.mercilessstudio.100mdev` is **invalid**: Android requires every
-> segment of an application ID to begin with a letter, and the namespace additionally has to
-> be a legal Java package name, so a segment cannot start with a digit. `devs100m` is the
-> closest valid form to the original intent. Alternatives, if preferred:
-> `com.mercilessstudio.m100devs` or `com.mercilessstudio.hundredmdevs`.
+> Both `com.mercilessstudio.100mdev` and `com.mercilessstudio.100mdevs` are **invalid**:
+> Android requires every segment of an application ID to begin with a letter, and the
+> namespace additionally has to be a legal Java package name, so a segment cannot start
+> with a digit. AGP fails at `:app:processDebugManifest`, so this is not a lint rule that
+> can be waived. `m100devs` reads as "100M devs" and was chosen over `devs100m` on that
+> basis.
 >
 > House convention across the studio is `com.mercilessstudio.<slug>` — `mtg`,
 > `dungeondoomdash`.
@@ -62,9 +64,16 @@ Fixed by ADR 0001. Match `mind-the-gap`'s versions to keep one toolchain across 
 | **Node + npm** | Build | £0 | Match the version used by `mind-the-gap` |
 | **Android Studio + SDK** | Android builds | £0 | Already installed |
 | **JDK 17+** | AGP | £0 | Bundled with Android Studio |
-| **Aseprite** | Pixel authoring | ~£20 one-off | The standard. **LibreSprite** or **Pixelorama** are free if preferred. |
-| **ImageMagick** | Palette quantiser (ART_DIRECTION §5) | £0 | Must be on `PATH` for `npm run art:check` |
-| **Departure Mono** | Terminal/HUD font | £0 | **Verify the OFL licence terms before shipping.** |
+| **Aseprite** | Pixel authoring | ~£20 one-off | ✅ Installed. Load `assets/palette/master.gpl` as the locked palette. |
+| ~~ImageMagick~~ | ~~Palette quantiser~~ | — | ❌ **No longer needed** — see below |
+| **Departure Mono** | Terminal/HUD font | £0 | ✅ v1.500 vendored at `src/assets/fonts/`. Licence verified: **SIL OFL 1.1** — embedding in the app is permitted; the licence text ships alongside it and must stay. |
+
+> **ImageMagick was dropped.** ART_DIRECTION §5 specified `magick -remap`, but the
+> quantiser and the `art:check` gate are implemented with **sharp**, which is already a
+> house dependency. Two reasons: it removes a `PATH` prerequisite from CI, where a missing
+> binary would silently skip the gate rather than fail it; and it lets the gate share one
+> palette source of truth with the app (`src/art/palette.ts`) instead of reading a second
+> copy. The operation is identical — nearest colour in the master palette, no dithering.
 
 ---
 
@@ -79,9 +88,18 @@ npm i @capacitor/haptics @capacitor-community/native-audio
 
 # Studio packages, consumed by git tag per house convention.
 # Run `git fetch --tags` in the sibling checkouts first — they run behind the published tags.
-npm i github:YemingLakeForest/game-cloud#v0.3.1
-npm i github:YemingLakeForest/game-monetise#v0.2.1
+# NOT YET INSTALLED — deliberately deferred, see below.
+npm i github:YemingLakeForest/game-cloud#v0.4.1
+npm i github:YemingLakeForest/game-monetise#v0.2.2
 ```
+
+> **Tags corrected 2026-08-06.** The versions above were stale: `git fetch --tags` shows
+> `game-cloud` at **v0.4.1** (not v0.3.1) and `game-monetise` at **v0.2.2** (not v0.2.1).
+>
+> **Both are deliberately not installed yet.** ADR 0001 §7.3 puts ads, IAP, save and cloud
+> explicitly out of the spike, and `game-monetise` wants an AdMob app ID in the manifest —
+> which would break §8 step 5's "verify a *blank* app builds and launches" before the spike
+> has answered anything. Install them when the vertical slice starts, not before.
 
 **Why `native-audio` is not optional:** Web Audio in an Android WebView can carry 100–300 ms
 of latency, which would be fatal for poke feel. Poke and UI SFX go through the native path;
@@ -153,17 +171,22 @@ Work down. Each step is small.
 
 **Foundations**
 
-1. [ ] **Confirm the application ID** (§1) — permanent, do it first
-2. [ ] Scaffold Vite + React + TypeScript, matching `mind-the-gap`'s versions
-3. [ ] Add Capacitor 8, `npx cap add android`, set the namespace and app ID
-4. [ ] Install §4 dependencies
+1. [x] **Confirm the application ID** (§1) — `com.mercilessstudio.m100devs`
+2. [x] Scaffold Vite + React + TypeScript, matching `mind-the-gap`'s versions
+3. [x] Add Capacitor 8, `npx cap add android`, set the namespace and app ID
+4. [x] Install §4 dependencies *(studio packages deferred — see §4)*
 5. [ ] Verify a blank app builds and launches on the physical test device **before writing any game code**
+       — APK builds (`android/app/build/outputs/apk/debug/`) and the app runs in-browser.
+       **Not yet launched on a device**; see §6, the low-end phone is still the gap.
 
 **Art system**
 
-6. [ ] Create `assets/palette/master.png` and `master.gpl` from ART_DIRECTION §2.2
-7. [ ] Install Departure Mono; set up the type scale at integer multiples only
-8. [ ] Write the quantiser script and wire `npm run art:check` into CI (ART_DIRECTION §5)
+6. [x] Create `assets/palette/master.png` and `master.gpl` from ART_DIRECTION §2.2
+       — both **generated** from `src/art/palette.ts` by `npm run art:build-palette`.
+7. [x] Install Departure Mono; set up the type scale at integer multiples only
+8. [x] Write the quantiser script and wire `npm run art:check` into CI (ART_DIRECTION §5)
+       — `npm run art:check` / `art:quantise`. **CI itself is not set up yet**; the task
+       exists and passes locally, but nothing runs it automatically.
 9. [ ] **Validate the palette on the physical device in daylight** — the phosphor ramps are the risk (ART_DIRECTION §11.1)
 
 **Services**

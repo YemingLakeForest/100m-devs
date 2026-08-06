@@ -7,7 +7,33 @@ up linearly — provided you can survive the catastrophic Communication Entropy.
 You start alone in a bedroom writing a Flappy Bird clone. You end shipping simulated
 multiverses at one project per Planck time.
 
-**Status:** design phase. No code yet.
+**Status:** the ADR 0001 feel spike is being built. The stack runs, the simulation maths is
+implemented and tested against the GDD's own figures, and the art pipeline is wired.
+The spike has **not** yet been measured on a low-end device, which is the gate that decides
+whether the engine choice stands.
+
+## Running it
+
+```bash
+npm install
+npm run dev            # http://localhost:5176
+npm test               # simulation + art system
+npm run art:check      # the ART_DIRECTION §5 palette gate
+```
+
+Useful while working on the render stack:
+
+| URL | Effect |
+|---|---|
+| `?nopost` | Drop the post-process entirely — isolates scene cost from filter cost |
+| `?post=bloom,crt` | Attach only the named passes (`tilt`, `zoom`, `bloom`, `rgb`, `crt`) |
+
+Android:
+
+```bash
+npm run build && npx cap sync android
+cd android && ./gradlew assembleDebug
+```
 
 ## Documents
 
