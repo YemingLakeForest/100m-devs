@@ -252,11 +252,35 @@ codebase has any weight, not discovered in month six.
 5. One DOM HUD element over the canvas — the Velocity readout — proving the boundary.
 6. A frame-time and input-latency overlay.
 
+### 7.2a Scope amendment — the spike carries the vibe
+
+The original §7.2 called for placeholder art. **That has been deliberately widened.** The
+poke "feel" this spike exists to measure genuinely includes the phosphor grade, the floating
+numeral and the sound — a grey box responding in 40 ms does not answer whether *the game*
+feels good.
+
+Added, and nothing beyond this list:
+
+- The v0 palette as a real file, with the quantiser wired in (ART_DIRECTION §2.2, §5)
+- Departure Mono and the terminal type scale
+- The full post-process stack — scanlines, bloom, barrel curvature, chromatic fringe.
+  **Shader work, not art work**, and it carries most of the vibe.
+- **One** hero portrait — James at Junior — proving the parts-library method end to end
+- **One** desk, chair, monitor and mug at desk zoom
+- Interface hue driven by Entropy (ART_DIRECTION §1.1)
+
+**Cost:** roughly 2–3 days on top of the original spike.
+
+**The §7.5 pass criteria are unchanged.** Widening the scope must not soften the gate, and
+if the added work starts pushing against the §7.1 timebox, cut art before cutting
+measurement.
+
 ### 7.3 Explicitly out of scope
 
-No ads, no IAP, no save, no cloud, no tech trees, no prestige, no cards, no entropy
-simulation, no real art beyond one placeholder sprite and one placeholder globe. **Anything
-not in §7.2 is a distraction from the question being asked.**
+No ads, no IAP, no save, no cloud, no tech trees, no prestige, no card board, no org chart,
+no entropy simulation beyond driving the interface hue, no buildings, no globe, no
+Multiverse dimension, and no hero art beyond the single James portrait. **Anything not in
+§7.2 or §7.2a is a distraction from the question being asked.**
 
 ### 7.4 Test device
 

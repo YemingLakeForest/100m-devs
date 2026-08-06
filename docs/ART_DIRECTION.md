@@ -212,7 +212,7 @@ magick in.png -dither None -remap assets/palette/master.png out.png
 
 ### 5.1 Build gate
 
-A `pnpm run art:check` task, wired into CI, that fails when any asset in `assets/`:
+A `npm run art:check` task, wired into CI, that fails when any asset in `assets/`:
 
 1. contains a colour absent from `master.png`;
 2. is not on the integer pixel grid (fractional dimensions, or scaled non-integer);
