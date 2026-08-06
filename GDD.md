@@ -12,23 +12,16 @@ placements, IAP catalogue, and the design guardrails that protect the Early Game
 
 ## 0. Document Control
 
-### 0.1 Provenance
+### 0.1 About this document
 
-This GDD consolidates the full design conversation captured in
-`GDD_100000000developers.pdf` (source: <https://gemini.google.com/app/ff39b2066bf825f9>,
-exported 6 Aug 2026). The source contained **three successive GDD drafts** plus **nine
-specification expansions**. Everything from that source is preserved here — nothing has
-been dropped. Where later drafts revised earlier material, the later version is canon in
-the main body and the earlier version is preserved verbatim in **Appendix A**.
-
-Three inline code strings ran off the right edge of the source PDF's page and were
-reconstructed from names used elsewhere in the same document: the final loop step
-`[Ship Game]` (§3), the fifth comm tier `5. Quantum Hivemind` (§A.10), and the sixth
-Branch B node `[Quantum Entanglement Sync]` (§11.2).
+This GDD consolidates **three successive design drafts** plus **nine specification
+expansions** into a single canonical document. Nothing from the earlier drafts has been
+dropped: where a later draft revised earlier material, the later version is canon in the
+main body and the earlier version is preserved verbatim in **Appendix A**.
 
 ### 0.2 Version lineage
 
-| Version | Source title | What changed |
+| Version | Draft title | What changed |
 |---|---|---|
 | **v0** | *Extreme Game Dev Idle Game Concept* | Original premise, working titles, dev tiers, Ship It! button, "Tech Stack Rewrite" prestige, first random-event batch |
 | **v0.5** | *Fractal Zoom & Communication Entropy* | Communication Entropy becomes the core mechanic; fractal zoom; T1–T6 comm tech; "Protocol Paradigm Shift" prestige replaces Tech Stack Rewrite |
@@ -41,9 +34,9 @@ Branch B node `[Quantum Entanglement Sync]` (§11.2).
 
 - **[CANON]** — current design intent.
 - **[LEGACY]** — superseded, preserved for reference (see Appendix A).
-- **[CONFLICT]** — the source specifies two different numbers; both are recorded and the
-  discrepancy is listed in **Appendix C** for a balance pass.
-- **[EDITORIAL]** — added while assembling this document; not present in the source.
+- **[CONFLICT]** — two drafts specify different numbers for the same value; both are
+  recorded and the discrepancy is listed in **Appendix C** for a balance pass.
+- **[EDITORIAL]** — added while assembling this document; not present in the drafts.
 
 ---
 
@@ -1794,8 +1787,8 @@ complete the main story arc by launching **"Simulated Universe 1.0."**
 
 ## Appendix C — Balance Conflicts To Resolve **[CONFLICT]**
 
-The source specifies different values for the same thing in different drafts. Each needs a
-single canonical number before implementation.
+Different drafts specify different values for the same thing. Each needs a single canonical
+number before implementation.
 
 | # | Item | Value A | Value B | Value C |
 |---|---|---|---|---|
@@ -1815,7 +1808,8 @@ single canonical number before implementation.
 
 ## Appendix D — Production Risk Notes **[EDITORIAL]**
 
-Not from the source. Flagged because the visual ambition here is the main cost driver.
+Not from the design drafts. Flagged because the visual ambition here is the main cost
+driver.
 
 1. **The Omni-Lens is the whole game and the whole budget.** Seamless zoom across 9+ orders
    of magnitude with live sprites at every level is the single hardest technical
@@ -1845,10 +1839,10 @@ Not from the source. Flagged because the visual ambition here is the main cost d
 
 ---
 
-## Appendix E — Source Prompt Log
+## Appendix E — Design Direction Log
 
-The design brief evolved through these prompts (preserved verbatim, including typos, as
-they record the designer's intent):
+The brief evolved through these directions, in order. Preserved verbatim, including typos,
+because they record the original intent behind each system:
 
 1. *"Game idea, I find the throw more people in and the project gets done faster premises very funny, any idea to do a idle/game dev game on mobile that gets that to extereme, throw millions of developers to do project in Milli seconds, help me develop that idea?"*
 2. *"Draft a mobile UI layout and wireframe for this idle game_dev concept"*
