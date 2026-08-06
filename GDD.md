@@ -2539,7 +2539,8 @@ number before implementation.
 ## Appendix D — Production Risk Notes **[EDITORIAL]**
 
 Not from the design drafts. Flagged because the visual ambition here is the main cost
-driver.
+driver. The engine choice that follows from these risks is recorded in
+[ADR 0001](./docs/adr/0001-engine-and-rendering-stack.md).
 
 1. **The Omni-Lens is the whole game and the whole budget.** Seamless zoom across 9+ orders
    of magnitude with live sprites at every level is the single hardest technical
