@@ -15,6 +15,7 @@ multiverses at one project per Planck time.
 |---|---|
 | [`GDD.md`](./GDD.md) | Full game design document — core loop, Communication Entropy engine, the Omni-Lens zoom architecture, upgrade and three-layer prestige trees with full mathematics, endgame, events, dialogue, audio spec, and onboarding script. |
 | [`MONETISATION.md`](./MONETISATION.md) | Revenue model, rewarded-ad placements, IAP catalogue, subscription design, launch phasing, and the guardrails protecting the Early Game Trap. |
+| [`docs/ART_DIRECTION.md`](./docs/ART_DIRECTION.md) | Palette, type, the two-register look, how each asset tier is produced, the build-step quantiser, and the acceptance checklist every asset must pass. |
 | [`docs/adr/`](./docs/adr) | Architecture decisions. [ADR 0001](./docs/adr/0001-engine-and-rendering-stack.md) picks the engine and defines the feel spike that must pass before it is final. |
 | [`assets/concept/`](./assets/concept) | Concept art and UI sketches. |
 

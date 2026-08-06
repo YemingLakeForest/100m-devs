@@ -2159,9 +2159,10 @@ That is the entire emotional design of the collection layer in one object.
 |  ♦ JAMES                              [ JUNIOR ] |
 +--------------------------------------------------+
 |                                                  |
-|              [ 48x48 pixel bust ]                |
+|         [ 64x64 half-body portrait ]             |
 |         glasses · thick beard · white shirt      |
-|                  · hole in elbow ·               |
+|            · hole in the left elbow ·            |
+|              (arms in frame, always)             |
 |                                                  |
 +--------------------------------------------------+
 |  "Hey, this actually works!                      |
@@ -2289,10 +2290,15 @@ it is a deliberate scope decision made explicitly, not a drift.
 
 | Asset | Count | Notes |
 |---|---|---|
-| Character busts | **12** | 48×48 pixel portraits. One per hero. Static — no idle animation. |
+| Character portraits | **12** | **64×64, framed at half-body** — head, torso and both arms in shot. One per hero. Static — no idle animation. |
 | Card frame | **1** | A single frame asset, palette-swapped 7 ways for the rarity tiers |
-| James promotion variants | **7** | The *only* card with per-tier art. Every other card keeps one bust across all tiers; only its frame changes. |
+| James promotion variants | **7** | The *only* card with per-tier art. Every other card keeps one portrait across all tiers; only its frame changes. |
 | Org chart board | 0 | Boxes and connector lines, drawn in code |
+
+> **Why 64×64 half-body, not a 48×48 bust.** A head-and-shoulders bust crops the elbow out
+> of frame, which would delete James's defining visual detail (§22.3) before it ever
+> rendered. Arms must be in shot at every tier. This changes the canvas size, not the
+> sprite count. See [Art Direction §4.2](./docs/ART_DIRECTION.md#42-jamess-card-canvas--spec-correction).
 
 **Total bespoke art for the entire collectable system: 19 small sprites.**
 
