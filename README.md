@@ -7,10 +7,13 @@ up linearly — provided you can survive the catastrophic Communication Entropy.
 You start alone in a bedroom writing a Flappy Bird clone. You end shipping simulated
 multiverses at one project per Planck time.
 
-**Status:** the ADR 0001 feel spike is being built. The stack runs, the simulation maths is
-implemented and tested against the GDD's own figures, and the art pipeline is wired.
-The spike has **not** yet been measured on a low-end device, which is the gate that decides
-whether the engine choice stands.
+**Status:** **Run 1 — The Trap is playable end to end.** Poke, hire James, ship *Flappy
+Square*, take the mass-hire bait, watch the studio seize at 99.999% entropy, and go
+bankrupt in about twenty seconds. Every number in that sequence is produced by the §4
+simulation rather than scripted.
+
+The spike has **not** been measured on a low-end device, which is the ADR 0001 gate that
+decides whether the engine choice stands.
 
 ## Running it
 
@@ -27,6 +30,7 @@ Useful while working on the render stack:
 |---|---|
 | `?nopost` | Drop the post-process entirely — isolates scene cost from filter cost |
 | `?post=bloom,crt` | Attach only the named passes (`tilt`, `zoom`, `bloom`, `rgb`, `crt`) |
+| `?act=act5_bleeding` | Jump the §21 script. Run 1 is paced to take ~4 minutes by design, which is right for a player and unworkable for iterating on Act V's copy. |
 
 Android:
 

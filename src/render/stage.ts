@@ -89,7 +89,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
     playSfx(result.crit ? 'poke-crit' : result.sp === 0 ? 'poke-void' : pokeSfxForZoom(camera.level))
-    pokeHaptic(getState().devState)
+    pokeHaptic(getState().dev.state)
 
     if (result.crit) critPunch = 1
 
@@ -167,6 +167,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   let frameMs = 16.7
   let lastFrame = performance.now()
+  /** §21 Act IV's scripted dolly. Null when the camera is the player's again. */
+  let dollyTarget: number | null = null
+  let dollyFired = false
 
   app.ticker.add(() => {
     const now = performance.now()
@@ -175,10 +178,29 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     frameMs += ((now - lastFrame + dt * 1000) - frameMs) * 0.1
 
     tick(dt)
+
+    const state = getState()
+
+    // §21 Act IV: "a heavy bass-drop THUD shakes the screen as the camera
+    // violently zooms out to Level 2." Driven here rather than by the store,
+    // because the camera is the renderer's business — the store just says the
+    // swarm arrived.
+    if (state.massHired && !dollyFired) {
+      dollyFired = true
+      dollyTarget = 0.35
+      playSfx('zoom-out')
+    }
+    if (dollyTarget !== null) {
+      // Eased rather than snapped: §10.5 says nothing cuts, and the zoom-blur
+      // pass needs real velocity to have anything to smear.
+      const next = camera.z + (dollyTarget - camera.z) * Math.min(1, dt * 2.2)
+      camera.set(next)
+      if (Math.abs(dollyTarget - camera.z) < 0.002) dollyTarget = null
+    }
+
     camera.sample(dt)
     critPunch = Math.max(0, critPunch - dt * 4)
 
-    const state = getState()
     const level = camera.level
     if (level !== state.zoom) setZoom(level)
 

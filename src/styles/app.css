@@ -62,13 +62,21 @@ body {
   pointer-events: none;
   padding: env(safe-area-inset-top, 8px) 8px 8px;
   display: grid;
+  /*
+   * Every element gets its own cell. An earlier revision shared `burn` between
+   * the burn-down and the terminal banner, and `ctrl` between the advisor and
+   * the action button — grid happily stacks children in one area, so both
+   * pairs rendered on top of each other.
+   */
   grid-template-areas:
-    'top     top'
-    'burn    perf'
-    '.       .'
-    'entropy entropy'
-    'ctrl    ctrl';
-  grid-template-rows: auto auto 1fr auto auto;
+    'top      top'
+    'burn     vel'
+    'terminal terminal'
+    'bubble   bubble'
+    'entropy  entropy'
+    'advisor  advisor'
+    'actions  perf';
+  grid-template-rows: auto auto auto 1fr auto auto auto;
   grid-template-columns: 1fr auto;
   gap: 8px;
 }
@@ -94,7 +102,7 @@ body {
 /* --- the one DOM element over the canvas, ADR §7.2 item 5 --------------- */
 
 .hud__velocity {
-  grid-area: perf;
+  grid-area: vel;
   align-self: start;
   justify-self: end;
   text-align: right;
@@ -224,61 +232,156 @@ body {
   color: var(--alarm-2);
 }
 
-.hud__controls {
-  grid-area: ctrl;
-  pointer-events: auto;
-  border-top: var(--rule) solid var(--p1);
-  padding-top: 6px;
-  display: grid;
-  gap: 6px;
-}
+/* --- the §21 script ----------------------------------------------------- */
 
-.hud__control {
-  display: grid;
-  gap: 2px;
-  color: var(--p1);
-}
-
-.hud__control input[type='range'] {
-  appearance: none;
-  width: 100%;
-  height: 12px;
-  background: transparent;
-}
-
-.hud__control input[type='range']::-webkit-slider-runnable-track {
-  height: 2px;
-  background: var(--p1);
-}
-
-.hud__control input[type='range']::-webkit-slider-thumb {
-  appearance: none;
-  width: 10px;
-  height: 12px;
-  margin-top: -5px;
-  background: var(--p2);
-  /* Square. A round thumb is a native form control, GDD §10.6 anti-pattern. */
-  border-radius: 0;
-}
-
-.hud__states {
+.hud__cash {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.3;
 }
 
-.hud__states button {
+.hud__cash .is-bad,
+.hud__burn.is-bad {
+  color: var(--alarm-2);
+}
+
+.hud__burn {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The CRT terminal banner. Retro, monospace, and doing the comedy work. */
+.hud__terminal {
+  grid-area: terminal;
+  align-self: start;
+  margin: 0;
   font: inherit;
-  color: var(--p1);
-  background: transparent;
-  border: var(--rule) solid var(--p1);
-  border-radius: 0;
-  padding: 3px 5px;
-  cursor: pointer;
+  color: var(--p2);
+  border-left: var(--rule) solid var(--p2);
+  padding-left: 6px;
+  white-space: pre;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
-.hud__states button.is-active {
+/* Speech bubble over the developer — GDD §7.5 L1, §6.3. */
+.hud__bubble {
+  grid-area: bubble;
+  justify-self: center;
+  align-self: center;
+  max-width: 22em;
+  color: var(--p3);
+  background: color-mix(in srgb, var(--n0) 82%, transparent);
+  border: var(--rule) solid var(--p2);
+  padding: 5px 7px;
+  text-align: center;
+}
+
+/* The sarcastic tutorial assistant. */
+.hud__advisor {
+  grid-area: advisor;
+  align-self: end;
+  margin: 0 0 4px;
+  color: var(--p1);
+  border-top: var(--rule) solid var(--p1);
+  padding-top: 5px;
+  max-width: 40em;
+}
+
+.hud__actions {
+  grid-area: actions;
+  align-self: end;
+  justify-self: center;
+  pointer-events: auto;
+  padding-bottom: 4px;
+}
+
+.btn {
+  font: inherit;
+  font-size: var(--type-2x);
   color: var(--n0);
   background: var(--p2);
-  border-color: var(--p2);
+  border: var(--rule) solid var(--p3);
+  border-radius: 0;
+  padding: 8px 14px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  display: grid;
+  gap: 2px;
+}
+
+.btn small {
+  font-size: var(--type-1x);
+  letter-spacing: 0;
+}
+
+/*
+ * The mousetrap — §21 Act III wants it "big, glowing, pulsing golden" and
+ * right in the centre. It is the only element in the game permitted to beg.
+ */
+.btn--bait {
+  color: var(--n0);
+  background: var(--warn-2);
+  border-color: var(--warn-3);
+  animation: bait-pulse 1.1s steps(2, end) infinite;
+}
+
+@keyframes bait-pulse {
+  50% {
+    background: var(--warn-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn--bait {
+    animation: none;
+  }
+}
+
+/* --- Act V -------------------------------------------------------------- */
+
+.hud--modal {
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--n0) 85%, transparent);
+}
+
+.bankruptcy {
+  max-width: 32em;
+  text-align: center;
+  border: var(--rule) solid var(--p2);
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+  color: var(--p2);
+}
+
+.bankruptcy h1 {
+  margin: 0;
+  font-size: var(--type-3x);
+  font-weight: 400;
+  letter-spacing: 4px;
+  color: var(--p3);
+}
+
+.bankruptcy p {
+  margin: 0;
+}
+
+.bankruptcy__result {
+  color: var(--p3);
+  letter-spacing: 2px;
+}
+
+.bankruptcy__lesson {
+  border-top: var(--rule) solid var(--p1);
+  border-bottom: var(--rule) solid var(--p1);
+  padding: 10px 0;
+  color: var(--p3);
+}
+
+/* He is the only thing that survives the run, so he gets the last line. */
+.bankruptcy__james {
+  color: var(--p1);
 }

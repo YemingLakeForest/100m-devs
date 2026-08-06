@@ -1,32 +1,37 @@
 import { useEffect, useState } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
-import { currentEntropy, currentVelocity, setDevs, setDevState } from '../game/store.ts'
-import { optimalHeadcount } from '../sim/entropy.ts'
-import type { DevState } from '../sim/poke.ts'
+import {
+  currentEntropy,
+  currentPayroll,
+  currentVelocity,
+  hireDeveloper,
+  massHire,
+  triggerParadigmShift,
+  type GameState,
+} from '../game/store.ts'
+import { PHASE_COPY } from '../game/onboarding.ts'
+import { secondsUntilBankrupt } from '../sim/economy.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { BurnDown } from './BurnDown.tsx'
 import { useGameState } from './useGameState.ts'
 
 /**
- * The HUD — GDD §7.1, §10.1.
+ * The HUD — GDD §7.1, §10.1, and the §21 script.
  *
  * The UI is a Layer: overlayed, semi-transparent, contextual. The simulation
  * stays 100% visible behind it. Nothing here is opaque and nothing here is a
  * window box.
  *
- * ADR §7.2 item 5 asks for exactly one DOM element over the canvas to prove
- * the boundary. That is the Velocity readout; everything else on this screen
- * is spike instrumentation (§7.2 item 6) or the burn-down the spike is
- * required to bind to real state (item 4).
+ * Per ART_DIRECTION §1.0a this layer is a second pane of glass in front of the
+ * tube rather than phosphor burned into it — it does not pass through the Pixi
+ * post-process, and it is held together by the palette and the type system
+ * instead.
  */
-
-const DEV_STATES: DevState[] = ['working', 'slacking', 'flow', 'overwhelmed', 'rogue', 'tenx']
-
 export function Hud({ stage }: { stage: StageHandle | null }) {
   const state = useGameState()
   const entropy = currentEntropy(state)
-  const velocity = currentVelocity(state)
   const theme = entropyTheme(entropy)
+  const copy = PHASE_COPY[state.phase]
 
   // The interface hue is a direct function of Entropy — ART_DIRECTION §1.1.
   // Written to the document root so the CSS token cascade carries it to every
@@ -35,23 +40,29 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
     applyEntropyTheme(theme, document.documentElement)
   }, [theme])
 
+  if (state.phase === 'bankrupt') return <Bankruptcy />
+
   return (
     <div className="hud">
       <header className="hud__top">
         <span className="hud__stat">
           DEVS <b>{state.devs.toLocaleString()}</b>
         </span>
-        <span className="hud__stat">
-          CAP <b>{state.devCap.toLocaleString()}</b>
-        </span>
+        <Cash state={state} />
       </header>
 
-      {/* ADR §7.2 item 5 — the one DOM element over the canvas. */}
+      {/* ADR §7.2 item 5 — the DOM element over the canvas. */}
       <div className="hud__velocity">
         <span className="hud__velocity-label">VELOCITY</span>
-        <span className="hud__velocity-value">{formatVelocity(velocity)}</span>
+        <span className="hud__velocity-value">{formatVelocity(currentVelocity(state))}</span>
         <span className="hud__velocity-unit">SP/SEC</span>
       </div>
+
+      {copy.terminal && (
+        <pre className="hud__terminal">{copy.terminal.join('\n')}</pre>
+      )}
+
+      {state.bubble && <div className="hud__bubble">{state.bubble.text}</div>}
 
       <div className="hud__entropy">
         <span className="hud__stat">
@@ -65,54 +76,95 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
 
       <BurnDown state={state} />
 
-      <SpikeControls devs={state.devs} devCap={state.devCap} devState={state.devState} />
+      {copy.advisor && <p className="hud__advisor">{copy.advisor}</p>}
+
+      <Actions state={state} />
       <PerfOverlay stage={stage} />
     </div>
   )
 }
 
 /**
- * Spike-only controls.
+ * Cash, and the runway once it starts draining.
  *
- * ADR §7.3 puts entropy simulation out of scope "beyond driving the interface
- * hue" — so headcount is exposed directly rather than simulated. Dragging it
- * past the optimum is also the fastest possible demonstration of the §4.1
- * curve, which is the thing most worth having in front of a playtester.
+ * §21 Act V walks the player down through −$10,000 and −$100,000. Showing the
+ * seconds remaining is what turns that from a cutscene into a panic — and the
+ * panic is the point, because §6.3 wants the player tapping harder.
  */
-function SpikeControls({
-  devs,
-  devCap,
-  devState,
-}: {
-  devs: number
-  devCap: number
-  devState: DevState
-}) {
-  const optimum = Math.round(optimalHeadcount(devCap))
+function Cash({ state }: { state: GameState }) {
+  const payroll = currentPayroll(state)
+  const runway = secondsUntilBankrupt(state.cash, state.devs)
 
   return (
-    <div className="hud__controls">
-      <label className="hud__control">
-        <span>HEADCOUNT — optimum {optimum}</span>
-        <input
-          type="range"
-          min={1}
-          max={400}
-          value={devs}
-          onChange={(e) => setDevs(Number(e.target.value))}
-        />
-      </label>
-      <div className="hud__states">
-        {DEV_STATES.map((s) => (
-          <button
-            key={s}
-            type="button"
-            className={s === devState ? 'is-active' : undefined}
-            onClick={() => setDevState(s)}
-          >
-            {s.toUpperCase()}
+    <span className="hud__stat hud__cash">
+      <b className={state.cash < 0 ? 'is-bad' : undefined}>{formatMoney(state.cash)}</b>
+      {payroll > 0 && (
+        <>
+          <span className="hud__burn is-bad">−{formatMoney(payroll)}/SEC</span>
+          {Number.isFinite(runway) && runway < 90 && (
+            <span className="hud__burn is-bad">{runway.toFixed(0)}s TO BANKRUPTCY</span>
+          )}
+        </>
+      )}
+    </span>
+  )
+}
+
+/**
+ * The action the current beat is waiting on.
+ *
+ * Exactly one button at a time. §21 is a funnel, and offering a second choice
+ * anywhere in it would let the player sidestep the trap they are supposed to
+ * walk into.
+ */
+function Actions({ state }: { state: GameState }) {
+  switch (state.phase) {
+    case 'act2_offer_hire':
+      return (
+        <div className="hud__actions">
+          <button type="button" className="btn" onClick={hireDeveloper}>
+            HIRE DEVELOPER
           </button>
-        ))}
+        </div>
+      )
+
+    case 'act3_bait':
+      return (
+        <div className="hud__actions">
+          {/* Glowing, pulsing, golden, and right in the middle of the UI. */}
+          <button type="button" className="btn btn--bait" onClick={massHire}>
+            HIRE 1,000 DEVS NOW
+            <small>Cost: FREE (Trial Promo)</small>
+          </button>
+        </div>
+      )
+
+    default:
+      return null
+  }
+}
+
+/** §21 Act V. */
+function Bankruptcy() {
+  return (
+    <div className="hud hud--modal">
+      <div className="bankruptcy">
+        <h1>BANKRUPTCY</h1>
+        <p>
+          Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds
+          coding.
+        </p>
+        <p className="bankruptcy__result">$0 REVENUE — TOTAL LIQUIDATION</p>
+        <p className="bankruptcy__lesson">
+          LESSON LEARNED:
+          <br />
+          Manpower without Communication Infrastructure is Chaos.
+        </p>
+        <button type="button" className="btn btn--bait" onClick={triggerParadigmShift}>
+          TRIGGER PARADIGM SHIFT
+        </button>
+        {/* James survives. Every other developer is liquidated. */}
+        <p className="bankruptcy__james">James stayed.</p>
       </div>
     </div>
   )
@@ -154,4 +206,13 @@ function formatVelocity(v: number): string {
   if (v < 0.001) return v.toExponential(2)
   if (v < 1000) return v.toFixed(2)
   return v.toLocaleString(undefined, { maximumFractionDigits: 0 })
+}
+
+function formatMoney(v: number): string {
+  const sign = v < 0 ? '−' : ''
+  const n = Math.abs(v)
+  if (n >= 1e9) return `${sign}$${(n / 1e9).toFixed(2)}B`
+  if (n >= 1e6) return `${sign}$${(n / 1e6).toFixed(2)}M`
+  if (n >= 1e3) return `${sign}$${(n / 1e3).toFixed(1)}K`
+  return `${sign}$${n.toFixed(0)}`
 }

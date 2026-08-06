@@ -38,10 +38,43 @@ glass.
 | **Light** | Directional, top-left, consistent | None. It is emissive phosphor, not a lit object. |
 | **Depth** | Occlusion, shadow, atmospheric fade | Flat. Never a drop shadow, never a bevel. |
 
-**The glass unites them.** Both layers pass through the same post-process — scanlines,
-bloom, slight barrel curvature at the edges, chromatic fringe. The world sits *behind* the
-glass; the interface is *burned into* it. That single shared grade is what makes assets
-from different sources read as one product.
+**The glass unites them.** Scanlines, bloom, slight barrel curvature at the edges,
+chromatic fringe. The world sits *behind* the glass.
+
+### 1.0a Where the interface sits — **amended 2026-08-06**
+
+An earlier draft said the interface is *burned into* the glass, and that both layers pass
+through the same post-process. **That is not buildable on this stack, and the amendment is
+deliberate rather than a concession.**
+
+ADR 0001 §3.2 puts every menu, tree, card and counter in React and the DOM, which is the
+strongest single reason the stack was chosen. A DOM element cannot be fed through a WebGL
+filter chain. So the world can be graded and the interface cannot — the two cannot share
+one shader.
+
+**The resolution: the interface is a second pane of glass in front of the tube, not
+phosphor burned into the first.**
+
+```
+[ you ]  ->  [ interface glass: flat, screen-aligned, emissive ]
+         ->  [ CRT glass: curvature, scanlines, bloom, fringe   ]
+         ->  [ the world: 2:1 isometric, lit, dense             ]
+```
+
+This is a coherent fiction — it is what a heads-up display over a monitor actually is —
+and it costs nothing to build. It also *sharpens* §1's central instruction rather than
+softening it: the two registers were always meant to be separated hard, and giving them
+physically distinct planes is a stronger separation than a shared grade.
+
+**What this does not license.** The interface still obeys one hue at a time, four values,
+hard 1px rules, no bevels and no drop shadows. It is still driven by Entropy (§1.1). The
+cohesion mechanism for the *interface* is the palette and the type system; the shared
+shader was never what was holding it together. It is the **world** layer — where assets
+come from mixed sources — that the grade in §6 exists to weld, and that still happens.
+
+If the split ever reads as two products rather than two planes, the cheap fix is a CSS
+scanline and vignette overlay on the HUD layer, approximating the grade without a shader.
+That is a polish item, not a prerequisite.
 
 ### 1.1 The interface is alive, and Entropy drives it
 
@@ -231,19 +264,26 @@ what makes sourcing T3 commodity art safe.
 
 ## 6. Post-Process Stack
 
-Applied over **both** the world canvas and the interface layer, in this order:
+Applied over the **world canvas**, in this order. (Not the interface layer — see §1.0a.
+The interface is a separate plane in front of the tube and is graded by palette and type
+rather than by shader.)
 
 | # | Pass | Driven by | Notes |
 |---|---|---|---|
-| 1 | Tilt-shift depth of field | Zoom level | Desk zoom only; keeps the target row sharp (GDD §8.1) |
+| 1 | Tilt-shift depth of field | Zoom level | Desk zoom only; keeps the target row sharp (GDD §8.1). Applied to the **world container specifically**, not the shared chain — it models a focal plane among the desks, and chaining it ahead of the others renders black (ADR §7.7.2). |
 | 2 | Radial / zoom blur | Camera velocity | Fires on rapid zoom (GDD §8.1, §20.4) |
 | 3 | Bloom | Entropy $E$ | Rises with strain |
 | 4 | Chromatic aberration | Entropy $E$ + poke crits | Subtle; a brief punch on Flow State and 10x pokes |
 | 5 | Scanlines + roll | Entropy $E$ | The core CRT signature |
 | 6 | Barrel curvature + vignette | Fixed | Slight. This is the glass, and it must be constant. |
 
-**Pass 6 is the weld.** It is the reason a purchased desk sprite and a hand-drawn card
-frame read as the same product. Never disable it, and never apply it to only one layer.
+**Pass 6 is the weld.** It is the reason a purchased desk sprite and a generated prop read
+as the same product. Never disable it, and never apply it to only part of the world.
+
+Per §1.0a it does **not** extend to the interface, which is a separate plane. The weld's
+job is reconciling assets of mixed origin, and every asset of mixed origin lives in the
+world layer — the interface is authored entirely in code from one palette and one type
+system, so it has nothing to reconcile.
 
 Reduce-motion accessibility (GDD §10.5) shortens passes 2 and 5; it never removes pass 6.
 

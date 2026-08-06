@@ -321,7 +321,16 @@ spent discovering it is not.
 Recorded as the spike is built. Measurements against §7.5 go here too, per §8 of the
 runbook.
 
-### 7.7.1 The DOM HUD cannot pass through the Pixi glass **[OPEN — needs a decision]**
+### 7.7.1 The DOM HUD cannot pass through the Pixi glass **[RESOLVED 2026-08-06]**
+
+**Decision: option 3.** The interface is a second pane of glass in front of the tube
+rather than phosphor burned into it. Recorded in
+[ART_DIRECTION §1.0a](../ART_DIRECTION.md), with §6 amended to match. §3.2 stands
+unchanged — React keeps the UI, which was the point.
+
+The original finding follows.
+
+---
 
 ART_DIRECTION §6 states the post-process stack is "applied over **both** the world canvas
 and the interface layer", and calls pass 6 (barrel curvature + vignette) "the weld… never

@@ -372,6 +372,46 @@ This is the whole game compressed into one interaction: **more input, more overh
 
 ---
 
+### 4.10 The Run 1 Economy **[CANON — added 2026-08-06]**
+
+The design previously specified no economy at all. It gave exactly two numbers, both in
+§21, and under a flat per-developer wage they are irreconcilable:
+
+| Where | Figure |
+|---|---|
+| §21 Act II | *"Game Published! Profit: +$50"* — 2 people, first project |
+| §21 Act V | *"Payroll Burn Rate: $50,000 / sec"* — ~1,000 developers |
+
+$50,000/sec across 1,000 developers is **$50/dev/sec**, which would cost tens of thousands
+of dollars to ship the Act II project that earns fifty.
+
+**The resolution is in §21's own scene setting: it is a garage.** *"A single developer sits
+in a messy bedroom/garage."* You and James are two friends building a game, not employees.
+Neither of you draws a salary. Payroll begins with the Mass Hire, whose 1,000 developers
+arrive on the "FREE trial promo" and start costing money the moment it lapses.
+
+| Parameter | Value | Notes |
+|---|---|---|
+| **Unpaid founders** | **2** | You and James. A narrative constant, not a balance knob — it is why the opening is survivable and why the Mass Hire feels like a decision. |
+| **Wage** | **$50 / paid dev / sec** | Derived from §21 Act V |
+| **Revenue** | **$0.05 / SP shipped** | Calibrated so *Flappy Square 1.0* (1,000 SP) pays the +$50 §21 states |
+| **Bankruptcy** | **−$1,000,000** | §21 Act V walks the player down through −$10,000 and −$100,000 first |
+
+Both stated figures now fall out of the model rather than being asserted:
+
+| Scenario | Paid heads | Payroll | Matches |
+|---|---|---|---|
+| Act II, the garage | 0 | **$0/sec**, profit **+$50** | §21 Act II |
+| Act V, after the Mass Hire | 1,000 | **$50,000/sec** | §21 Act V |
+
+**Payroll is deliberately linear.** §6.1 makes payroll the *timer* that converts frozen
+production into bankruptcy — it is not the trap. A superlinear wage would be doing
+Communication Entropy's job, and the lesson has to come from §4.1 or it is a different
+lesson. With $50 banked and 1,002 developers, the run ends in **about 20 seconds**, inside
+the "within 60 seconds" §6.1 calls for.
+
+---
+
 ## 5. Progression Eras
 
 Three narrative eras frame the whole run structure. (Original era framing from v0 —
