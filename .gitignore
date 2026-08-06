@@ -1,0 +1,27 @@
+# Environment / secrets
+.env
+.env.*
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+bash.exe.stackdump
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Node (for when implementation starts)
+node_modules
+dist
+dist-ssr
+*.local
+coverage/
+
+# Git worktrees created by Claude Code. Full repo checkouts -- never commit these.
+.claude/worktrees/
