@@ -102,9 +102,15 @@ function buildDesk(): Container {
 }
 
 /**
- * The developer. A placeholder body until the §4.1 parts library is authored
- * in Aseprite — the recipe format and compositor exist (src/art/parts.ts), the
- * pixels do not yet.
+ * The developer — a PLACEHOLDER, drawn from rectangles.
+ *
+ * This is not the parts-library method from ART_DIRECTION §4.1 and should not
+ * be mistaken for it. None of that exists yet: no head, no wardrobe, no recipe
+ * format, no compositor, and no authored pixels. The §22.7 budget is 19
+ * sprites and the current count is zero.
+ *
+ * It is here so the poke has something to land on while the feel is measured,
+ * and it should be deleted the moment a real bust exists.
  */
 function buildDeveloper(): Container {
   const dev = new Container()
