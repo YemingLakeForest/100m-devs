@@ -120,31 +120,58 @@ halves that must be read together:
 
 ### 4.1 Entropy Efficiency Equation **[CANON]**
 
-Production speed is governed by:
-
-$$\text{Effective Speed} = \text{Total Devs} \times \left( \frac{1}{1 + e^{\text{Entropy}}} \right)$$
-
-Plain form: `effective_speed = total_devs * (1 / (1 + exp(entropy)))`
-
-The generalised statement of the same idea, from the first pass:
+The general statement, unchanged from the first pass:
 
 $$\text{Effective Speed} = \text{Total Devs} \times \text{Efficiency factor}$$
 
-…where the **Efficiency factor decays exponentially as the workforce grows**, unless your
-Communication Infrastructure keeps up.
+…where the **Efficiency factor decays as the workforce outgrows your Communication
+Infrastructure.**
 
-### 4.2 Entropy vs. Developer Cap **[CANON]**
+The canonical form is a **load curve**. Let $L$ be the studio's *communication load* — the
+ratio of headcount to the capacity your comm tech can actually sustain:
 
-The core benefit of Bandwidth Points spent in the Protocol Tree is expanding the
-**Effective Developer Cap ($D_{cap}$)** before exponential entropy sets in:
+$$L = \frac{D}{D_{cap}} \qquad\qquad \eta(L) = \frac{1}{1 + L^{\rho}} \qquad\qquad E = 1 - \eta$$
 
-$$\text{Entropy}_{\text{Effective}}(D) = \frac{1}{1 + e^{-\left(\frac{D - D_{cap}}{\sigma}\right)}}$$
+$$\boxed{\ \text{Effective Speed} = D \cdot \eta = \frac{D}{1 + \left(\frac{D}{D_{cap}}\right)^{\rho}}\ }$$
 
-Where $D$ is the current active developer count, $D_{cap}$ is the effective capacity, and
-$\sigma$ is the softness of the knee.
+Plain form: `efficiency = 1 / (1 + (devs / dev_cap) ** RHO)`
 
-$D_{cap}$ dynamically expands based on Bandwidth Points allocated into *Telepathic
-Compression* nodes:
+| Parameter | Value | Purpose |
+|---|---|---|
+| **Overhead Exponent ($\rho$)** | **5** | How violently the studio collapses past capacity. The single most important tuning knob in the game. |
+
+**Why this shape.** It is the only form that satisfies all four things the design demands
+at once:
+
+| Requirement | Behaviour |
+|---|---|
+| A studio inside its capacity runs at full speed | $L = 0.01$ → $\eta = 0.99999$ — a solo dev with $D_{cap}=100$ produces the full **1 SP/sec** baseline of §4.4 |
+| Entropy Lock must be reachable | $\eta \to 0$ as $L$ grows; at $L = 100$, $\eta = 10^{-10}$ and production is *"0.00000x"* exactly as §21 Act V states |
+| The trap must actually bite | 1,000 devs against $D_{cap} = 100$ gives $L=10$, $\eta = 10^{-5}$, **total output 0.01 SP/sec** — precisely the "production drops to 0.01x, a single solo dev was faster" figure in §6.2, now derived rather than asserted |
+| More people must be able to make things *worse* | See below |
+
+**There is an optimum headcount, and it is below your cap.** Because total output
+$D \cdot \eta$ rises and then *falls*, the curve has a peak:
+
+$$D_{\text{optimal}} = D_{cap} \cdot (\rho - 1)^{-1/\rho} \approx 0.76 \, D_{cap}$$
+
+At $\rho = 5$ the studio's best possible output is about $0.61 \, D_{cap}$, achieved at
+roughly **76% of capacity**. Every hire past that point makes the company slower. That is
+*The Mythical Man-Month* stated as a derivative, and it is the mathematical heart of the
+game: the player's job is not to maximise headcount, it is to keep raising $D_{cap}$ so
+that the optimum moves.
+
+**Resolution note.** Earlier drafts wrote this as $1/(1+e^{E})$, which returns 0.50 at zero
+entropy and 0.27 at maximum — it could never reach full efficiency, never reach lock, and
+spanned less than a 2× range where the design needs five orders of magnitude. That form is
+superseded; see Appendix C #12.
+
+### 4.2 The Developer Cap **[CANON]**
+
+$D_{cap}$ is the only defence against §4.1, which makes it the thing every Communication
+Infra upgrade and every Telepathic Compression node is really buying.
+
+$$D_{cap}(\text{BP}_{\text{alloc}}) = D_{base} \cdot \left(1 + \mu \cdot (\text{BP}_{\text{alloc}})^{\phi}\right)$$
 
 $$D_{cap}(\text{BP}_{\text{alloc}}) = D_{base} \cdot \left(1 + \mu \cdot (\text{BP}_{\text{alloc}})^{\phi}\right)$$
 
@@ -156,10 +183,40 @@ $$D_{cap}(\text{BP}_{\text{alloc}}) = D_{base} \cdot \left(1 + \mu \cdot (\text{
 | Prestige Scaling Multiplier ($\mu$) | **1000** | — |
 | Compression Exponent ($\phi$) | **1.35** | Allows late-game prestige to push capacity into millions/billions of devs without breaking the entropy math |
 
+**Worked capacity ladder** (what the player is climbing toward the 100M gate):
+
+| $D_{cap}$ | Optimal headcount (~0.76·cap) | Best output | Reached by |
+|---|---|---|---|
+| 100 | 76 | ~61 SP/s | Run 1, no upgrades |
+| 10,000 | 7,600 | ~6.1k SP/s | Comm Infra T2–T3 |
+| $10^{6}$ | 760,000 | ~610k SP/s | Sub-Dermal Neural Sync + early Telepathic Compression |
+| $10^{8}$ | 76,000,000 | ~61M SP/s | **The 100M gate (§13.5)** — requires Quantum Entanglement Sync and deep Telepathic Compression |
+
+**The gate's real shape.** "100,000,000 developers at 100% efficiency" does *not* mean
+$D_{cap} = 10^{8}$ — at exactly capacity, efficiency is 50%. Running $10^{8}$ devs at 99%
+efficiency requires $L \approx 0.40$, and therefore:
+
+$$D_{cap} \ge 2.5 \times 10^{8}$$
+
+The player must build **two and a half times more capacity than headcount** to clear the
+gate. This is the single most important tuning target in the game, and it is what makes
+the last stretch of the climb about Communication Infra rather than about hiring.
+
+**Verified against the design's own stated figures:**
+
+| Scenario | $D$ | $D_{cap}$ | $\eta$ | Output | Matches |
+|---|---|---|---|---|---|
+| Solo dev, Run 1 | 1 | 100 | 1.000 | **1 SP/s** | §4.4 baseline, §21 Act I (0.1%/sec) |
+| Optimum headcount | 76 | 100 | 0.798 | 60.6 SP/s | $D_{optimal}$ |
+| At capacity | 100 | 100 | 0.500 | 50 SP/s | — |
+| **The trap** | 1,000 | 100 | $10^{-5}$ | **0.01 SP/s** | §6.2 "production drops to 0.01x", and a solo dev is genuinely 100× faster |
+| Run 1 Act V | 10,000 | 100 | $10^{-10}$ | $10^{-6}$ SP/s | §21 "Production Speed: 0.00000x" |
+
 ### 4.3 The Entropy Speedometer
 
-The player-facing readout of $E$. Shows **real-time effective output (%) vs. total
-output**. It decays rapidly as devs are added.
+The player-facing readout is $E = 1 - \eta$, displayed as a percentage. It is literally
+**effective output as a fraction of nominal output**, so 0% means every developer is
+producing their full 1 SP/sec and 99.999% means the studio has seized.
 
 - **High Entropy** → Red / vibrating.
 - **Low Entropy** → Smooth / blue.
@@ -285,7 +342,13 @@ extract from a specific high-value developer.
 Every poke adds local Entropy to the developer you poked. You interrupted them; that is
 what an interruption does.
 
-$$E_{\text{local}} \mathrel{+}= \epsilon \cdot \text{SP}_{\text{poke}}$$
+$$E_{\text{local}} \mathrel{+}= \epsilon \cdot \text{SP}_{\text{poke}}
+\qquad\qquad
+\eta_{\text{dev}} = \eta(L) \cdot \frac{1}{1 + E_{\text{local}}}$$
+
+Local entropy multiplies *against* the studio-wide load efficiency from §4.1, so a poked
+developer is temporarily worse than their peers, and a heavily-mashed one contributes
+almost nothing until they recover.
 
 | Parameter | Value | Notes |
 |---|---|---|
@@ -2218,23 +2281,33 @@ punish it hardest.
 **What may be sold:** cosmetic card *frames* and alternate portrait art (e.g. a
 "Hawaiian Shirt James" variant that, obviously, still has the elbow hole).
 
-### 22.7 Art Budget **[EDITORIAL]**
+### 22.7 Art Budget — Hard Cap **[CANON]**
 
-The collection system must not become the project's art sink. Scoped precisely:
+**This is a constraint, not a guideline.** The collection system is the most likely route
+by which this project's art budget escapes, so the ceiling is fixed here and any change to
+it is a deliberate scope decision made explicitly, not a drift.
 
 | Asset | Count | Notes |
 |---|---|---|
-| Character busts | **12** | 48×48 pixel portraits. One per hero. |
-| Card frame | **1** | Single frame asset, palette-swapped 7 ways for rarity |
-| Promotion variants | **7 for James only** | Every other card keeps one bust across all tiers; only the frame changes |
-| Org chart board | boxes and lines | Effectively free |
+| Character busts | **12** | 48×48 pixel portraits. One per hero. Static — no idle animation. |
+| Card frame | **1** | A single frame asset, palette-swapped 7 ways for the rarity tiers |
+| James promotion variants | **7** | The *only* card with per-tier art. Every other card keeps one bust across all tiers; only its frame changes. |
+| Org chart board | 0 | Boxes and connector lines, drawn in code |
 
-Total bespoke art: **19 small sprites**. That is the entire collectable system.
+**Total bespoke art for the entire collectable system: 19 small sprites.**
 
-**Do not expand this to a large collection.** Fifty cards would be a different, more
-expensive game, and the earlier constraint against big bespoke card-art sets applies
-directly here. If more content is needed, add *seasonal* cards at 1–2 per season, or sell
-frames — never a roster expansion.
+**Rules:**
+
+1. **The roster is capped at 12.** Fifty cards would be a different, more expensive game.
+2. **Only James gets promotion art.** Everyone else is one bust plus a frame swap. This is
+   what makes 12 heroes cost 12 sprites instead of 84.
+3. **No animated cards.** No foil shaders, no idle loops, no reveal animations beyond the
+   deal-in transition, which is a transform on a static sprite.
+4. **Growth goes to seasons or frames, never the roster.** If more collectable content is
+   needed: 1–2 seasonal cards per season, or new palette-swapped frames. A roster expansion
+   is the one thing that is off the table.
+
+Anything that would breach this table needs an explicit decision recorded here first.
 
 ---
 
@@ -2399,9 +2472,12 @@ complete the main story arc by launching **"Simulated Universe 1.0."**
 
 | Symbol / Term | Meaning |
 |---|---|
-| $E$ | Communication Entropy |
+| $E$ | Communication Entropy, $= 1 - \eta$. Displayed as the Entropy Speedometer percentage. |
 | $E_{local}$ | Per-developer entropy added by poking (§4.9) |
-| $\eta(E)$ | Efficiency factor — the multiplier Entropy applies to all output, passive and poked |
+| $L$ | Communication load, $= D / D_{cap}$ (§4.1) |
+| $\eta$ | Efficiency factor, $= 1/(1+L^{\rho})$ — the multiplier applied to all output, passive and poked |
+| $\rho$ | Overhead Exponent (**5**) — how violently the studio collapses past capacity |
+| $D_{\text{optimal}}$ | Peak-output headcount, $\approx 0.76\,D_{cap}$ — hiring past this makes the studio slower |
 | **SP** | Story Points — the universal unit of project progress (§4.4) |
 | **Velocity** | SP per second, passive + active |
 | **Sprint Commitment** | A project's total SP cost |
@@ -2456,7 +2532,7 @@ number before implementation.
 | 9 | **Quantum Buffer** node | Present in v2 Protocol Engine tree (Auto-Clear Pings) | Absent from v3 / node index | — |
 | 10 | **Poke → Slacking dev** speed boost | +50% for 10s (poke table) | +100% for 10s (node C1 *Nitro Cold Brew*) | C1 is an upgrade *on top of* base — confirm stacking |
 | 11 | **Zone boundaries** for audio vs. poke SFX | Zones 0/1/2/3 at 0.2 / 0.5 / 0.8 | Volume curve breakpoints at 0.25 / 0.55 / 0.75 | Align the two tables |
-| 12 | **The efficiency factor never reaches 1 or 0** | $\eta = 1/(1+e^{E})$ gives 0.50 at $E=0$ and 0.27 at $E=1$ — a solo dev at zero entropy produces half of nominal, and Entropy Lock is impossible | The Story Point baseline (§4.4) assumes $\eta(0) = 1$ | **Recommend normalising to $\eta(E) = 2/(1+e^{E})$**, or redefining $E$ over a wider domain. Must be settled before any SP number is tuned. |
+| 12 | ~~**The efficiency factor never reaches 1 or 0**~~ | ~~$\eta = 1/(1+e^{E})$ gives 0.50 at $E=0$ and 0.27 at $E=1$~~ | ~~Story Point baseline assumes $\eta(0)=1$~~ | ✅ **RESOLVED.** Replaced with the load curve $\eta = 1/(1+(D/D_{cap})^{\rho})$, $\rho=5$ — see §4.1. Reaches 1, reaches 0, spans five orders of magnitude, derives the 0.01x trap figure, and produces a genuine optimum headcount below capacity. |
 
 ---
 
@@ -2497,8 +2573,9 @@ driver.
 12. **Transitions (§10.5) are a fixed, non-negotiable cost.** They are what separates this
     from a web page, and they must be budgeted at the start rather than retrofitted.
     Retrofitting motion onto a screen system built around instant swaps is a rewrite.
-13. **Hero Cards are capped at 12 for a reason (§22.7).** 19 small sprites total. Roster
-    expansion is the most likely route by which this project's art budget escapes.
+13. **Hero Cards are capped at 12, and §22.7 is now a hard constraint rather than advice.**
+    19 small sprites total, with per-tier art for James alone. Treat any proposal to expand
+    the roster as a scope change requiring an explicit decision, not a content task.
 14. **The 100M gate is a long climb by design (§13.5).** Verify with telemetry that the
     stretch from ~10M to 100M does not become a dead zone; that band is where an
     incremental game of this shape most often loses players.
