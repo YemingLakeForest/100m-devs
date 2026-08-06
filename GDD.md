@@ -50,10 +50,22 @@ main body and the earlier version is preserved verbatim in **Appendix A**.
 | **Core Premise** | A satirical take on *The Mythical Man-Month*. Adding developers to a software project **always** speeds it up linearly — **provided you can survive the catastrophic Communication Entropy.** |
 | **Core Philosophy** | High "game juice" tactile feedback combined with a deliberate progression puzzle. Player intuition (hire as many devs as possible) is *actively punished* until they learn to balance the Communication Entropy Engine. |
 | **Visual Hook** | Seamless "Omni-Lens" pixel-art zoom extending from a single developer's desk all the way out to an Inter-Galactic Developer Network. |
-| **Ultimate Victory Condition** | Successfully deploy a galactic game project using **100,000,000 active developers at 100% efficiency**, unlocking **Infinite Multiverse Mode**. |
+| **Active Layer** | A clicker layer — **poke developers to squeeze out Story Points**, the unit all project progress is denominated in (§4.4). |
+| **Collectables** | **Hero Cards** — a tight roster of named, placeable developer cards with board-wide effects (§22). |
+| **The Gate / Victory Condition** | **100,000,000 active developers at 100% efficiency**, shipping one project at that headcount. The title gate: it ends the main story arc and unlocks the Layer 2 Codebase Fork (§13.5). |
 | **Endgame Hook** | Scaling dev swarms to the theoretical limit of physical reality — shipping entire simulated multiverses at **1 project per Planck Time** ($t_P \approx 5.39 \times 10^{-44}$ s). |
 
-The central tension of the entire game is **Manpower ($M$) vs. Entropy ($E$)**.
+The central tension of the entire game is **Manpower ($M$) vs. Entropy ($E$)** — and the
+clicker layer restates that exact tension at the scale of a single tap: **every poke
+extracts Story Points and adds Entropy.**
+
+**The three layers of play:**
+
+| Layer | What the player is doing | Timescale |
+|---|---|---|
+| **Active (clicker)** | Poking devs for Story Points, clearing pings, slicing meetings | Seconds |
+| **Idle (incremental)** | The swarm produces passively; hire, upgrade, ship, prestige | Minutes to hours |
+| **Meta (collection)** | Earning and placing Hero Cards; three prestige layers | Days to months |
 
 ---
 
@@ -80,21 +92,31 @@ headcount.
 ## 3. Core Gameplay Loop
 
 ```
-[Hire Dev Swarm] → [Communication Entropy Spikes] → [Poke Devs / Clear Slack Pings]
-                 → [Upgrade Comm Tech] → [Ship Game] → (repeat)
+[Hire Dev Swarm] → [Communication Entropy Spikes] → [Poke Devs for Story Points]
+                 → [Burn Down the Sprint] → [Upgrade Comm Tech] → [Ship Game] → (repeat)
 ```
 
 1. **Hire Mass Devs** — tap to flood the workspace with hundreds to billions of developers.
 2. **Manage Entropy** — communication overhead slows production down exponentially unless mitigated.
-3. **Active Intervention** — poke sleepy/distracted devs, slice through unproductive meetings, and tap `@everyone` notification storms.
-4. **Upgrade Infrastructure** — invest in communication tech (from shouting across desks to Neural Sync and Interstellar Relays).
-5. **Ship & Scale** — publish AAA titles in milliseconds, collect trillions, and expand across planets and galaxies.
+3. **Poke for Story Points** — tap individual developers to squeeze **Story Points (SP)** out of them. SP is the unit every project's progress is measured in, so the clicker layer feeds the same meter the idle swarm does (§4.4).
+4. **Active Intervention** — poke sleepy/distracted devs, slice through unproductive meetings, and tap `@everyone` notification storms.
+5. **Upgrade Infrastructure** — invest in communication tech (from shouting across desks to Neural Sync and Interstellar Relays).
+6. **Ship & Scale** — burn the sprint down to zero, publish AAA titles in milliseconds, collect trillions, and expand across planets and galaxies.
+
+**The active/idle contract:** the swarm produces SP whether you are watching or not. Poking
+produces SP *faster* but adds Entropy, which slows the swarm. Active play is therefore a
+short-term overdraft against your passive rate — never a replacement for it.
 
 ---
 
-## 4. The Communication Entropy Engine
+## 4. The Production Engine: Story Points & Communication Entropy
 
-This is the core system. Everything else in the game feeds it or fights it.
+This is the core system. Everything else in the game feeds it or fights it. It has two
+halves that must be read together:
+
+- **§4.1–4.3 — Communication Entropy**, the tax on all production.
+- **§4.4–4.9 — Story Points**, the thing being produced, and the clicker layer that
+  extracts them by hand.
 
 ### 4.1 Entropy Efficiency Equation **[CANON]**
 
@@ -144,6 +166,139 @@ output**. It decays rapidly as devs are added.
 
 At >80% entropy the entire screen micro-jitters and red scanlines flicker across the UI.
 At 99.9% the speedometer slams into **ENTROPY LOCK** and production halts.
+
+---
+
+### 4.4 Story Points — The Universal Unit of Progress **[CANON]**
+
+**Every project in the game is denominated in Story Points (SP).** Not seconds, not lines
+of code — Story Points, the famously arbitrary Agile estimation unit that is definitely
+not hours and that everybody secretly treats as hours.
+
+A project is not a timer. It is a **Sprint Commitment**: a pile of SP that must be burned
+down to zero before the project ships.
+
+```
+Project: "Flappy Square 1.0"
+Sprint Commitment: 1,000 SP     ← the "1,000 lines of code" the solo dev promises in §21
+Burned:              412 SP
+Remaining:           588 SP     ← the burn-down bar
+```
+
+SP comes from exactly two places, and they add into the same pool:
+
+$$\text{Velocity} = \underbrace{D \cdot \eta(E)}_{\text{passive — the swarm}} \;+\; \underbrace{\textstyle\sum \text{SP}_{\text{poke}}}_{\text{active — the clicker layer}}$$
+
+Where $\eta(E)$ is the efficiency factor from §4.1 and $D$ is the active developer count.
+
+**Baseline calibration:** one developer at full efficiency produces **1 SP/sec**. So a solo
+dev burns down *Flappy Square 1.0* (1,000 SP) in 1,000 seconds — which is exactly the
+0.1%/sec fill rate specified in the onboarding script (§21, Act I). Every other number in
+the game hangs off this one.
+
+**Why SP instead of a plain progress bar:** it gives the clicker layer something concrete
+to produce, it makes active and idle play commensurable (both output the same unit), and
+it lets the satire do mechanical work — *Scope Creep* can raise a Sprint Commitment
+mid-sprint (§18.4), and estimation upgrades become real numeric progression (§4.6).
+
+### 4.5 The Poke — "Status Check"
+
+The clicker layer. Tap a developer and they blurt out a number.
+
+In fiction, the poke is a **status check**: you, the manager, tapping someone on the
+shoulder to ask how it's going. The game's central joke is that this is *simultaneously*
+how work gets extracted and how work gets destroyed — which is precisely why it costs
+Entropy.
+
+**One tap resolves as:**
+
+$$\text{SP}_{\text{poke}} = F(\text{tier}) \times S(\text{state}) \times Z(\text{zoom}) \times \eta(E)$$
+
+| Term | Meaning | See |
+|---|---|---|
+| $F(\text{tier})$ | Fibonacci estimation ladder — base points per dev | §4.6 |
+| $S(\text{state})$ | Multiplier from what the dev is currently doing | §4.7 |
+| $Z(\text{zoom})$ | How many devs the tap hits, and how much each gives | §4.8 |
+| $\eta(E)$ | Global efficiency — pokes are taxed by Entropy exactly like passive output | §4.1 |
+
+That last term is load-bearing: **at high Entropy, poking stops working too.** A player
+in Entropy Lock cannot tap their way out. See §6.3.
+
+### 4.6 The Fibonacci Estimation Ladder
+
+Developers estimate in Fibonacci numbers because that is what Agile does, and the numbers
+are arbitrary because they were always arbitrary. Upgrades move you **up the ladder** rather
+than multiplying a float — so progression reads as "we estimate at 8 points now," which is
+both funnier and more legible than "+340% click power."
+
+| Tier | SP per poke | Typically unlocked by |
+|---|---|---|
+| **F1** | 1 | Base — available from the first tap of the game |
+| **F2** | 2 | Branch C: *Sandbagging* |
+| **F3** | 3 | Branch C: *Planning Poker* |
+| **F4** | 5 | Branch C: *Velocity Inflation* |
+| **F5** | 8 | Branch C: *Consultant Estimates* |
+| **F6** | 13 | Prestige L1: *Story Point Inflation* (lvl 1–2) |
+| **F7** | 21 | Prestige L1: *Story Point Inflation* (lvl 3) |
+
+Beyond F7 the ladder continues procedurally (34, 55, 89, …) through the Layer 3 Infinite
+Grid, so the clicker layer never becomes irrelevant at cosmic scale.
+
+### 4.7 Dev State Multipliers — The Poke Decision
+
+Poking is not mashing. **What the developer is currently doing decides whether the tap is
+worth it**, and the best targets are the ones that cost you the most to interrupt.
+
+| Dev State | $S$ (SP multiplier) | The trade |
+|---|---|---|
+| **Working (default)** | ×1 | Baseline. Small entropy cost. |
+| **Slacking (retro RPG)** | ×0.5 | Low points — they had nothing in progress — but the poke's real value is the +50% speed boost (§8.2). |
+| **Focused / Flow State** | **×3** | The biggest single-tap payout in the game, **and it ends their Flow State**. You are cashing in a multiplier you were supposed to protect. |
+| **Overwhelmed (Entropy Lock)** | ×0 | Zero SP. The poke's value is clearing their lockup. |
+| **Rogue Refactorer** | **negative** | They give back points they already deleted. Poke to cancel the refactor, not for profit. |
+| **10x Engineer** | **×10** | Enormous — **and they quit on the spot** (§13.3). A one-time cash-out of a permanent unit. |
+
+The 10x Engineer interaction is the sharpest decision in the game: a rare, permanently
+valuable unit whose quit condition is the exact action the clicker layer trains you to
+spam. Placing a **hero card** that suppresses quitting (§22) is one way to resolve it.
+
+### 4.8 Zoom-Scaled Poking
+
+You cannot tap 100,000,000 developers individually. The Omni-Lens (§7) solves this: **the
+tap's blast radius scales with how far out the camera is, and per-dev yield falls as it
+does.** The further you are from the work, the less each status check is worth — which is
+both a real management truth and a free joke.
+
+| Zoom | One tap hits | $Z$ per-dev factor | Net effect |
+|---|---|---|---|
+| **L1 Desk** | 1 developer | ×1.00 | Highest per-dev yield. Surgical: hunt Flow States and 10x Engineers. |
+| **L2 Floor** | 1 row (~8–20 devs) | ×0.40 | The everyday working zoom. |
+| **L3 Global** | 1 sector (a city) | ×0.08 | Broad sustained sweeping. |
+| **L4 Cosmic** | 1 planetary hive | ×0.01 | Highest raw total, lowest respect for the individual. |
+
+This gives the zoom system a **mechanical** reason to exist rather than a purely visual
+one, and it creates a genuine strategic rhythm: zoom out to sweep for volume, punch in to
+extract from a specific high-value developer.
+
+### 4.9 The Context Switch Penalty — Why You Cannot Just Mash
+
+Every poke adds local Entropy to the developer you poked. You interrupted them; that is
+what an interruption does.
+
+$$E_{\text{local}} \mathrel{+}= \epsilon \cdot \text{SP}_{\text{poke}}$$
+
+| Parameter | Value | Notes |
+|---|---|---|
+| **Context Switch Coefficient ($\epsilon$)** | **0.02** base | Reduced by Async-First Culture and the Culture & Juice branch |
+| **Local decay** | ~8 seconds to baseline | Long enough to punish mashing, short enough to reward rhythm |
+
+**The consequence:** higher-tier pokes cost proportionally more Entropy, so climbing the
+Fibonacci ladder is not free power — it raises both the reward and the tax. Sustained
+mashing drives local Entropy up, which drags $\eta(E)$ down, which reduces *both* your
+passive rate *and* the value of the next poke. The optimal play is **rhythmic, targeted
+poking**, not maximum taps per second.
+
+This is the whole game compressed into one interaction: **more input, more overhead.**
 
 ---
 
@@ -204,6 +359,30 @@ Run 2: Slow Hire → Hit T3 Slack Web → Notification Overload → Burnout Coll
    actually faster, because the 1,000 devs spend 99.9% of their time in meetings, arguing
    over tab vs. space formatting, and replying to Slack threads. Without upgraded
    communication infrastructure, **Communication Entropy spikes to 99%**.
+
+### 6.3 The clicker dimension of the trap
+
+The Story Point layer makes the trap sharper, because it gives the panicking player
+something to do wrong.
+
+When production freezes, **the player's instinct is to tap harder.** Every one of those
+taps is a status check, and every status check adds context-switch Entropy (§4.9). Poke
+yield is itself multiplied by $\eta(E)$, so as Entropy climbs toward lock, each frantic tap
+returns less than the one before it while making the next one worse still.
+
+The player therefore experiences the game's thesis *through their thumb* before they read
+it on the bankruptcy screen: **interrupting people harder does not make them finish
+faster.**
+
+The tutorial line writes itself, and should appear as a dev speech bubble around the
+twentieth desperate tap:
+
+> *"Poking me again isn't making the meeting end sooner."*
+
+**Design rule:** never let tapping rescue a run from Entropy Lock. The clicker layer is an
+accelerator on a healthy studio, never a bailout for a broken one. If playtesting shows
+players tapping out of the trap, lower the poke $\eta(E)$ exponent rather than capping taps
+— the lesson must come from the simulation, not from a disabled button.
 
 The full scripted onboarding of this trap is in **§21**.
 
@@ -314,14 +493,23 @@ semi-transparent HUD overlay.
 ### 8.2 "Poking" mechanics & tactile juice **[CANON]**
 
 Tapping individual developers delivers immediate visual, haptic, and mechanical responses
-depending on their current state:
+depending on their current state. **Every poke also extracts Story Points** (§4.5–4.7) —
+the SP column below is the clicker layer's payout, the Gameplay Effect column is the state
+side-effect.
 
-| Dev State | Visual Response to "Poke" | Haptic Feedback | Gameplay Effect |
-|---|---|---|---|
-| **Slacking (Playing Retro RPG)** | Sprite flinches, monitor snaps back to code, exclamation mark `!` pops up. | Sharp, double tap | Instantly boosts dev speed by **+50% for 10 seconds**. |
-| **Overwhelmed (Entropy Lock)** | Dev drops head onto keyboard, tiny squished-face pixel icon appears. | Long rumble | Temporarily clears their local communication lockup. |
-| **Focused / Flow State** | Tiny pixel stars explode around their head; steam vents from their ears. | Light tickle / high-freq | Prolongs their Flow State multiplier by **+5s**. |
-| **Rogue Refactorer** | Dev turns bright purple and starts frantically typing in Assembly. | Warning pulse | Cancels their rogue refactor that was about to break the build. |
+| Dev State | Visual Response to "Poke" | Haptic Feedback | **SP Yield** | Gameplay Effect |
+|---|---|---|---|---|
+| **Working (default)** | Sprite jolts upright, types visibly faster for a beat. | Short tick | **×1** | Baseline poke. |
+| **Slacking (Playing Retro RPG)** | Sprite flinches, monitor snaps back to code, exclamation mark `!` pops up. | Sharp, double tap | **×0.5** | Instantly boosts dev speed by **+50% for 10 seconds**. |
+| **Overwhelmed (Entropy Lock)** | Dev drops head onto keyboard, tiny squished-face pixel icon appears. | Long rumble | **×0** | Temporarily clears their local communication lockup. |
+| **Focused / Flow State** | Tiny pixel stars explode around their head; steam vents from their ears. | Light tickle / high-freq | **×3** | Prolongs their Flow State multiplier by **+5s** *if* you have the Culture upgrade — otherwise the poke **ends** Flow State. |
+| **Rogue Refactorer** | Dev turns bright purple and starts frantically typing in Assembly. | Warning pulse | **negative** | Cancels their rogue refactor that was about to break the build. |
+| **10x Engineer** | Sprite freezes, turns to face the camera, then walks off-screen. | Heavy double thud | **×10** | **They quit permanently.** A one-time cash-out of a rare unit. |
+
+**The SP number must fly.** Every poke spawns a floating Fibonacci numeral (`+8`) that arcs
+up and fades — this is the clicker layer's entire feedback loop and it has to feel
+generous. Crits (Flow State, 10x) spawn a larger numeral with a brief chromatic-aberration
+punch on the HUD.
 
 ### 8.3 Haptics & polish
 
@@ -356,7 +544,8 @@ the swarm screen to clear bottlenecks:
 | Component | Description & Function | UI Mockup Concept |
 |---|---|---|
 | **Top Bar (Resource HUD)** | Persistent information. Transparent bar, high contrast text. Shows Currency (e.g. $1.2 T) and Total Dev Count (e.g. 5.3 M) with small trending arrows. | `[$][ $1.2T ]` |
-| **Active Project (Top-Left)** | Non-obtrusive summary of the *next* milestone progress. | `PROJECT: [██ _]`<br>`Simulating Universe T-0.03s` |
+| **Active Project (Top-Left)** | Non-obtrusive summary of the *next* milestone progress. Rendered as a **sprint burn-down** — a descending line, not a filling bar (§10.4). | `PROJECT: [██ _]`<br>`Simulating Universe T-0.03s`<br>`588 / 1,000 SP remaining` |
+| **Velocity Readout (under Entropy Speedometer)** | Story Points per second, passive + active split. The clicker layer's scoreboard. Spikes visibly while poking, settles back to the passive rate. | `VELOCITY: 4,120 SP/s`<br>`(3,880 swarm + 240 poke)` |
 | **Simulation Area (Main)** | The Omni-Lens view of the swarm. Takes up 100% of the screen. | `[ VISUAL SWARM IS ACTIVE HERE ]` |
 | **Entropy Speedometer (Mid-Left)** | Shows real-time effective output (%) vs total output. Decays rapidly as devs are added. High Entropy = Red/Vibrating; Low = Smooth/Blue. | `SPEED: [ 60% < ]`<br>`(Entropy High!)` |
 | **Mini-Map (Top-Right)** | Crucial for Global/Cosmic scale navigation. Shows high-entropy hotspots. Can be tapped to instantly jump the lens. | `[ (•) (•) (•) ] [ WORLD MAP ICON ]` |
@@ -413,6 +602,91 @@ From `assets/concept/ui-wireframe-mobile-layout.png`:
 |  [SHOP] [MANAGEMENT] [STATS] [REWRITE]           |
 +--------------------------------------------------+
 ```
+
+### 10.4 The Sprint Burn-Down
+
+The project progress indicator is **a burn-down chart, not a progress bar.** A descending
+line that must reach zero. It is the single most recognisable artefact in Agile project
+management, it is instantly legible to the target audience, and it costs almost nothing to
+render — one polyline and an axis.
+
+```
+SP │╲
+   │ ╲___                    ← ideal line (dotted)
+   │     ╲╲                  ← actual line (solid, live)
+   │       ╲╲___
+   │            ╲╲
+  0└────────────────╲──────  DONE
+    sprint start        now
+```
+
+- The **ideal line** is dotted and always shown. Being above it is being behind schedule.
+- Each poke visibly **notches the actual line down**, so the clicker layer has a persistent
+  visual consequence rather than only a floating numeral.
+- **Scope Creep** (§18.4) makes the line jump *upward* mid-sprint. This is the most
+  viscerally annoying thing the game can do to a developer, and it is completely free.
+- At zero, the line hits the axis and the **Definition of Done** stamp lands.
+
+### 10.5 Screen & Scene Transitions **[CANON]**
+
+**Nothing in this game cuts.** Every screen change, panel open, zoom step, prestige reset,
+and modal is animated. The stated design intent from the first brief was *"Visual is
+everything, I don't want yet another web page-y game"* — instant state swaps are precisely
+what makes software feel like a web page, and they would undo the Omni-Lens, the game
+juice, and the entire premise that the screen is a living simulation.
+
+**Baseline motion budget:**
+
+| Transition | Duration | Curve | Notes |
+|---|---|---|---|
+| Panel / drawer slide-in (Query Panel, node inspector) | 180–240 ms | `easeOutCubic` | Slides from the edge it belongs to, never fades in place |
+| Panel dismiss | 140–180 ms | `easeInCubic` | Faster out than in — always |
+| Nav tab change (Swarm ↔ Upgrades ↔ Releases ↔ Prestige) | 260 ms | `easeInOutCubic` | Cross-slide with parallax on the simulation behind; the swarm stays visible and keeps simulating |
+| Zoom step (Omni-Lens L1↔L2↔L3↔L4) | 400–600 ms | `easeInOutQuart` | Continuous camera dolly with the blur and whoosh from §8.1 and §20.4. **Never a hard cut between zoom levels.** |
+| Modal open (Paradigm Shift, Codebase Fork) | 320 ms | `easeOutBack` (slight overshoot) | Background blurs up over the same 320 ms rather than snapping to blurred |
+| Prestige execution | 1.2–2.0 s | scripted | CRT reboot wipe → camera punch-in to a single desk (§15.1). This one is allowed to be long; it is a ceremony. |
+| Hero card place / remove | 240 ms | `easeOutBack` | Card physically travels to the slot; it does not teleport |
+| Shop / storefront open | 280 ms | `easeOutCubic` | Terminal boot-scan reveal, top to bottom |
+
+**Rules:**
+
+1. **Every transition preserves continuity of place.** The player must always be able to
+   see where they came from — the simulation persists behind overlays, and outgoing
+   elements exit toward where they went.
+2. **No transition blocks input for longer than it lasts.** All of them are interruptible
+   except the prestige ceremony.
+3. **Motion is skippable but not disable-able by default** — a tap during a transition
+   completes it instantly rather than cancelling it. Offer a *Reduce Motion* accessibility
+   toggle that shortens durations to ~40% and drops parallax, but never one that turns
+   transitions into hard cuts.
+4. **Nothing pops into existence.** New devs drop in, new panels slide, new cards deal in,
+   numbers count up rather than snapping.
+5. **The 60fps floor is a hard requirement for transitions specifically.** A janky
+   transition is worse than no transition; if a screen cannot animate at frame rate on the
+   target device, simplify the screen, not the animation.
+
+### 10.6 UI Anti-Patterns — Things That Make It Feel Like A Web Page
+
+An explicit list of things to avoid. If a build exhibits any of these, it has drifted from
+the design.
+
+| ❌ Anti-pattern | Why it kills the game | ✅ Instead |
+|---|---|---|
+| **Hard-cut screen changes** — new screen appears instantly | The single biggest "this is a web page" tell | Animate every change (§10.5) |
+| **Full-screen opaque menus** that hide the simulation | The screen *is* the studio; covering it ends the immersion the whole game is built on | Semi-transparent overlays with background blur; the swarm keeps moving underneath |
+| **Discrete zoom levels with a hard swap** | Destroys the Omni-Lens, which is the visual hook | Continuous camera dolly with blur (§8.1) |
+| **Scrolling lists of text rows as the primary upgrade UI** | This is the "spreadsheet game" the design explicitly rejects | Node trees with pixel-art frames and connection cables (§15.1) |
+| **Numbers that snap to new values** | Reads as a data table refreshing | Count-up tweens on every counter; digits roll |
+| **Default system fonts and OS-native controls** | Instantly reads as a wrapped web app | The CRT/terminal type system throughout, including in modals and the store |
+| **Rectangular flat-colour buttons with rounded corners and a drop shadow** | Generic web/material vocabulary | Pixel-art frames, terminal brackets `[ LIKE THIS ]`, scanline treatments |
+| **Toast notifications sliding in from the top** | Web convention with no place in a simulation | Diegetic surfaces — ticker tape (§18.5), speech bubbles, terminal lines |
+| **Loading spinners** | Admits there is a web page behind the curtain | Nothing in this game should need one; if it does, mask it with the CRT boot animation |
+| **Static, un-simulated backgrounds behind menus** | Breaks the "living simulation" contract | The swarm continues to simulate and animate behind every overlay |
+| **Instant-appearing modals** | Jarring, cheap | Scale-and-blur-up over ~320 ms |
+| **A separate "settings page" that looks like a form** | Web app tell | Style it as a `STUDIO_OS` config terminal |
+
+**The test:** screenshot any two consecutive frames during a screen change. If nothing is
+mid-motion, it is a cut, and it needs fixing.
 
 ---
 
@@ -489,12 +763,14 @@ $$\text{Cost}(N) = \text{Base Cost} \times (\text{Multiplier})^{N}$$
 - **T5: Anti-AI Slop Filters** (removes Code Bloat Entropy generated by late-game LLM code generators)
 - **T6: Quantum Entanglement Sync** (zero-latency communication across planetary systems; sets base Entropy decay to 0)
 
-### 11.3 Branch C — Culture & Juice (Active Mechanics & Multipliers)
+### 11.3 Branch C — Culture & Juice (Active Mechanics & Story Point Yield)
 
-*Enhances the tactile "poke" mechanics, click feedback, and active gameplay multipliers.*
+*Enhances the tactile "poke" mechanics, click feedback, and Story Point extraction. This is
+the clicker layer's upgrade branch.*
 
 ```
 [Nitro Cold Brew] → [Ergonomic Chairs] → [Clicker Keyboards] → [Automated Ping Slicers] → [Reality Stabilizers]
+                 ↘ [Sandbagging] → [Planning Poker] → [Velocity Inflation] → [Consultant Estimates]
 ```
 
 | Node | Name | Flavor | Base Cost | Mult. | Effect |
@@ -504,6 +780,20 @@ $$\text{Cost}(N) = \text{Base Cost} \times (\text{Multiplier})^{N}$$
 | **C3** | Clicker Mechanical Keyboards | *"Blue switches so loud they shake the camera frame."* | $500,000 | 1.13 | Increases haptic feedback intensity and yields extra cash per poke/click |
 | **C4** | Automated Ping Slicers | *"Swiping across notification bubbles slices them out of existence."* | $500,000,000 | 1.16 | Swiping across Slack pings automatically pops adjacent notification bubbles in a radius |
 | **C5** | Reality Stabilizers | *"Keeps the studio from tearing a hole in space-time when shipping at subatomic speeds."* | $10^{15} | 1.22 | Prevents frame stuttering and camera shake at high production velocities |
+
+#### Branch C — Estimation sub-branch (the Fibonacci ladder)
+
+These move you up the estimation ladder from §4.6, and are the clicker layer's core
+progression. Each raises the Context Switch Penalty proportionally — more points per poke
+means more interruption per poke.
+
+| Node | Name | Flavor | Base Cost | Mult. | Effect |
+|---|---|---|---|---|---|
+| **C6** | Sandbagging | *"Every estimate doubles on the way to the planning meeting, as tradition demands."* | $2,000 | 1.10 | Estimation ladder **F1 → F2** (1 → 2 SP per poke) |
+| **C7** | Planning Poker | *"Everyone reveals a card at once so nobody can be individually blamed for the number."* | $250,000 | 1.13 | Ladder **F2 → F3**. Poke yield now rolls between the current tier and the next, so some pokes pay double |
+| **C8** | Velocity Inflation | *"Last sprint we did 40 points. This sprint we will also do 40 points. The points are smaller now."* | $80,000,000 | 1.17 | Ladder **F3 → F4** (5 SP). Additionally inflates the Velocity readout by **+10% with no change to actual output** — a purely cosmetic number to show a stakeholder |
+| **C9** | Consultant Estimates | *"An external firm assessed the work at eight points and invoiced for eleven."* | $400,000,000,000 | 1.21 | Ladder **F4 → F5** (8 SP), but takes a **10% cut of all project revenue** |
+| **C10** | Definition of Done (Ambiguous) | *"It's basically done. It just needs testing, documentation, and to actually work."* | $10^{14}$ | 1.24 | Projects ship at **95% of Sprint Commitment** rather than 100% — a flat 5% off every burn-down, forever |
 
 **Tier summary (alternate phrasing):**
 
@@ -602,7 +892,7 @@ LAYER 3: Multiverse Compiler (Resets Universe       → Rewards Planck Cores)
 | Feature / Dimension | **Layer 1: Paradigm Shift** | **Layer 2: Codebase Fork** | **Layer 3: Multiverse Compiler** |
 |---|---|---|---|
 | **Theme / Narrative** | *Rewrite the Core* (Architecture Shift) | *Fork the Lineage* (Class Trait Evolution) | *Subatomic Compression* (Dimensional Expansion) |
-| **Trigger Condition** | Max Entropy stall / Bankruptcy / Forced liquidation | Reaching 1,000,000 active developers in a run | Reaching 1 Release / $t_P$ ($5.39 \times 10^{-44}$ s) |
+| **Trigger Condition** | Max Entropy stall / Bankruptcy / Forced liquidation | **Reaching 100,000,000 active developers in a run** (the title gate) | Reaching 1 Release / $t_P$ ($5.39 \times 10^{-44}$ s) |
 | **Prestige Currency** | **Bandwidth Points (BP)** | **Git Branch Points (GP)** | **Planck Cores (PC)** |
 | **Yield Formula** | $\propto (\$_{total})^{0.20} \cdot \log_{10}(D_{peak})$ | $\propto \sqrt{\text{BP}_{total}}$ | $\propto \log_{2}(\text{Universes Rendered / sec})$ |
 | **What is Reset?** | In-run cash, active dev swarm, office tech | BP, Paradigm Tree, cash, active dev swarm | Everything from Layer 1 & Layer 2, physical universe |
@@ -649,19 +939,28 @@ LAYER 3: Multiverse Compiler (Resets Universe       → Rewards Planck Cores)
 |---|---|---|---|---|
 | **L1-1B** | Telepathic Compression | 25 BP | 10 | Increases effective developer capacity ($D_{cap}$) before exponential Entropy kicks in by **+1,000× per level**. |
 | **L1-2B** | Chained Poke Reaction | 500 BP | 3 | Poking a single developer causes a shockwave that wakes up **1 additional row** of developers per level. |
-| **L1-3B** | Subatomic Auto-Poker | 10,000 BP | 5 | Automatically pokes **100 random developers per second** across all zoom layers. |
+| **L1-3B** | Subatomic Auto-Poker | 10,000 BP | 5 | Automatically pokes **100 random developers per second** across all zoom layers. The idle version of the clicker layer — auto-pokes obey the same Context Switch Penalty (§4.9), so this node is a rate, not a free lunch. |
+| **L1-4B** | Story Point Inflation | 1,200 BP | 3 | Permanently raises the Fibonacci estimation ladder (§4.6) by **+1 tier per level**, carrying the clicker layer from F5 up to **F7 (21 SP per poke)**. |
 
 **Other named Paradigm perks (from earlier drafts, same tree):**
 - **Automated Ping Slicer:** poking one dev automatically triggers a chain reaction that wakes up all adjacent devs on the same office row.
 
 ### 13.3 Layer 2 — Codebase Fork (Currency: Git Branch Points, GP)
 
-- **Trigger:** reaching **1,000,000 active developers** in a single run.
+- **Trigger:** reaching **100,000,000 active developers** in a single run — **the title
+  gate**. This is the number on the box, and it is deliberately the hardest single
+  milestone in the game. See §13.5.
 - **Resets:** Bandwidth Points, Paradigm Tree, Cash, and Dev Swarm.
 - **Unlocks:** **Specialized Developer Lineages & Class Traits.**
 
 Instead of numerical boosts, Git Branch Points are spent on unlocking specialized classes
 of developers that spawn naturally in future runs.
+
+> **Classes vs. Hero Cards.** The three classes below are *generic* — anonymous units that
+> spawn by probability and behave identically to one another. They are distinct from
+> **Hero Cards** (§22), which are unique named individuals you collect and place on the
+> org chart. Unlocking a class here raises the chance that its matching hero card's
+> effects have something to act on.
 
 ```
                  [CODEBASE FORK ORIGIN]
@@ -725,6 +1024,40 @@ adjacent nodes by **1.15×**, allowing endless progression.
 **Infinite stat sinks:**
 - *Dimensional Bandwidth:* increases total universes rendered per second.
 - *Subatomic Auto-Poker:* automatically pokes 10,000 developers per microsecond across all dimensions.
+
+### 13.5 The 100,000,000 Gate **[CANON]**
+
+The game is named after a number, so the number must be a wall the player can see coming
+from hours away and remembers crossing.
+
+**100,000,000 simultaneous active developers is the single official gate of the game.**
+It is the trigger for the Layer 2 Codebase Fork, and it is the victory condition.
+Everything before it is "getting to 100M"; everything after it is endgame.
+
+| | |
+|---|---|
+| **Gate condition** | 100,000,000 active developers alive simultaneously, at **100% efficiency** (Entropy fully suppressed), long enough to ship one project at that headcount |
+| **What it gates** | Layer 2 Codebase Fork — the second prestige layer |
+| **Expected time to first clear** | Days to weeks of play, across many Layer 1 Paradigm Shifts |
+| **Narrative beat** | Shipping *"Simulated Universe 1.0"* — the completion of the main story arc (§16) |
+
+**Why both efficiency and headcount.** Raw headcount alone is trivially reachable by
+spamming Branch A; the game's whole thesis is that headcount without communication
+infrastructure is worthless. Requiring **100M devs at 100% efficiency** means the player
+must have maxed the Communication Infra branch *and* banked enough Telepathic Compression
+levels to push $D_{cap}$ past $10^8$. The gate is therefore a test of the actual core
+system, not of idle time.
+
+**Anti-climb protections.** $D_{cap}(\text{BP}_{alloc})$ from §4.2 with $D_{base} = 100$,
+$\mu = 1000$, $\phi = 1.35$ means reaching an effective cap of $10^8$ requires a
+substantial Telepathic Compression investment, which requires many Layer 1 cycles, which
+is exactly the intended pacing. **Do not add a cash shortcut to this gate** — see the
+monetisation guardrails.
+
+**Presentation.** The counter in the Top Bar should render the full number, unabbreviated,
+for the last stretch — `99,412,880 DEVS` reads as a countdown in a way that `99.4M` does
+not. Cross the line and the HUD punches to `100,000,000 DEVS` in the title's own
+typography, the swarm goes silent for one beat, and then the Codebase Fork terminal boots.
 
 ---
 
@@ -842,7 +1175,7 @@ $$M_{cash} = 1 + \omega \cdot \left( \frac{\text{BP}_{sacrificed}}{10^{6}} \righ
 | Layer | Currency | Reset Threshold | Yield Formula Scaling |
 |---|---|---|---|
 | **L1: Paradigm Shift** | Bandwidth Points (BP) | Max Entropy Stall / Run Fail | $\propto (\$_{total})^{0.20} \cdot \log_{10}(D_{peak})$ |
-| **L2: Codebase Fork** | Git Points (GP) | 1,000,000 Devs | $\propto \sqrt{\text{Total BP Sacrificed}}$ |
+| **L2: Codebase Fork** | Git Points (GP) | **100,000,000 Devs** | $\propto \sqrt{\text{Total BP Sacrificed}}$ |
 | **L3: Multiverse Compiler** | Planck Cores (PC) | 1 Release per $t_P$ ($5.39\times10^{-44}$ s) | $\propto \log_{2}(\text{Universes Rendered / sec})$ |
 
 ---
@@ -967,7 +1300,7 @@ BP perks applied.
 ### 15.2 Layer 2 screen — Codebase Fork Terminal
 
 Overlays a semi-transparent dark terminal HUD over a blurred, pulsing view of your
-1,000,000+ developer swarm map.
+100,000,000+ developer swarm map.
 
 ```
 +---------------------------------------------------------------------+
@@ -1079,9 +1412,16 @@ animation:
 
 ## 16. Endgame: The Planck Time Speed Barrier
 
-Once the player reaches **100,000,000 Developers** at **100% efficiency**, software
-production breaks the laws of physics. They complete the main story arc by launching
-**"Simulated Universe 1.0."**
+Once the player crosses **the 100,000,000 gate** (§13.5) — 100 million developers at 100%
+efficiency — software production breaks the laws of physics. They complete the main story
+arc by launching **"Simulated Universe 1.0."**
+
+Crossing the gate does three things at once:
+
+1. **Ends the main story arc.** *Simulated Universe 1.0* ships. Credits, if you want them.
+2. **Unlocks the Layer 2 Codebase Fork** (§13.3) — the game's second prestige layer.
+3. **Opens the road to Layer 3**, which is no longer gated on headcount at all but on
+   *speed*: driving release frequency down to one project per Planck time.
 
 ```
 [Release/Sec] → [Release/Microsec] → [Release/Nanosec] → [1 Project per Planck Time (t_P)]
@@ -1234,7 +1574,39 @@ while testing different aspects of the player's entropy management.
 > *"Your dev swarm copy-pasted a snippet from Stack Overflow so many times that the universe's memory buffer ran out."*
 - **Effect:** reality stutters. All current project progress instantly fills to 100%, but all dev icons briefly turn into pixelated ducks.
 
-### 18.4 Recurring Passive Events (Ticker Tape / News Banner)
+### 18.4 Sprint & Story Point Events
+
+*Events that act on the burn-down chart directly. These are the clicker layer's pressure
+valves — they cost nothing to build and they are the most viscerally recognisable jokes in
+the game to the target audience.*
+
+#### 📈 Scope Creep
+> *"The stakeholder saw a demo. They loved it. They have some small ideas."*
+- **Effect:** the active Sprint Commitment **increases by 20–40%** mid-sprint. The
+  burn-down line jumps *upward*, which is the single most annoying thing this game can do
+  to a developer, and it is free.
+- **Choice A [Absorb It]:** accept the new commitment.
+- **Choice B [Push to Next Sprint]:** commitment unchanged, but the deferred points are
+  added to your *next* project, compounding if you keep deferring.
+
+#### 🃏 Re-Estimation Meeting
+> *"The team has gathered to argue about whether this is a 5 or an 8. It is neither. It is four hours."*
+- **Effect:** all poking is disabled for 20 seconds, after which the Fibonacci ladder
+  (§4.6) is **temporarily raised by one tier for 2 minutes**.
+
+#### 🎯 Velocity Review
+> *"Leadership has noticed your velocity dipped last sprint and would like to understand why."*
+- **Trigger:** fires when passive Velocity drops more than 40% below its recent peak.
+- **Choice A [Explain the Entropy]:** nothing happens. Nobody understood.
+- **Choice B [Inflate the Numbers]:** displayed Velocity **+50%**, actual output unchanged,
+  and the next Scope Creep event is **guaranteed** because expectations are now higher.
+
+#### ✅ Definition of Done Dispute
+> *"QA says it isn't done. Engineering says it's done. Product has left the building."*
+- **Effect:** the project sits at **99% burned down** and will not ship until the player
+  manually pokes **20 developers in 10 seconds** to force the last point through.
+
+### 18.5 Recurring Passive Events (Ticker Tape / News Banner)
 
 These scroll across the top of the UI during normal gameplay to keep the humor constant:
 
@@ -1244,7 +1616,7 @@ These scroll across the top of the UI during normal gameplay to keep the humor c
 - *"Quantum computer successfully renders a single blade of grass in 8K; explodes immediately."*
 - *"Company motto changed from 'Move Fast and Break Things' to 'Throw People at It Until It Works'."*
 
-### 18.5 Multiverse Dimension Random Events
+### 18.6 Multiverse Dimension Random Events
 
 #### Cyberpunk Sub-Grid — ⚡ Netrunner Memory Leak
 - **Trigger:** spawns during high-velocity compilation runs.
@@ -1358,6 +1730,25 @@ These appear in a semi-transparent pixel-thought-bubble when tapping a developer
 | **Caffeinated Boost** | *"SPEED MAXIMUM!"* / *"I CAN SEE THE CODE IN 4D!"* |
 | **Poke While Overwhelmed** | *"Stop poking, my Slack is exploding!"* / *"ANOTHER PING?!"* |
 | **Poke While Rogue** | *"Fine! I'll put the legacy code back!"* |
+| **Poke During Entropy Lock** | *"Poking me again isn't making the meeting end sooner."* / *"I am in four meetings right now."* |
+| **Poke a 10x Engineer** | *"That's it. I'm going to a startup."* |
+
+### 19.8 Story Point Estimation Lines
+
+*Spoken alongside the floating SP numeral when the player pokes. Weight these so the
+absurd ones are rare — the joke is the arbitrariness of the estimate, and it lands best
+when it interrupts an otherwise ordinary rhythm.*
+
+- *"It's a three. Maybe a five. It's a five."*
+- *"Two points. But that's assuming the API works, which it does not."*
+- *"Eight. I'm saying eight because thirteen makes people ask questions."*
+- *"One point! ...it's going to take four days."*
+- *"I'd rather not estimate this until I've seen the requirements."* → yields **0 SP**
+- *"Twenty-one. I have no idea what this ticket means and neither do you."*
+- *"Half a point. I already did it last week and forgot to close the ticket."*
+- *"Points aren't hours. Please stop converting them to hours."*
+- *"Same as the last one. The last one took a month."*
+- *"Can we call it a spike?"*
 
 ---
 
@@ -1493,16 +1884,25 @@ UI guidance to lure the player into making the classic "hire everyone immediatel
 ```
 STUDIO_OS v0.0.1 initialized.
 Project: "Flappy Square 1.0"
+Sprint Commitment: 1,000 SP
 Developer Count: 1
 ```
 
 **TEXT BUBBLE (Over Solo Dev Sprite):**
 > *"Okay... just need to write 1,000 lines of code. Simple enough."*
 
-*(The player is instructed via a glowing hand icon to tap the `[ Ship It! ]` button or poke the developer.)*
+*(The player is instructed via a glowing hand icon to poke the developer.)*
 
-- **Action:** player taps a few times. Progress bar fills slowly (0.1%/sec).
+- **Action:** player pokes. A `+1` floats up off the dev's head and the burn-down line
+  notches down. The solo dev also produces 1 SP/sec passively, so the bar moves at
+  0.1%/sec on its own.
+- **First poke teaching moment:** the dev's speech bubble reads *"It's a one. Everything is
+  a one right now."* — establishing the Fibonacci ladder in a single line without a
+  tutorial box.
 - **SFX:** satisfying mechanical keyboard clacks with pitch-shifted pops per tap.
+- The player will poke roughly 3–5 times a second and see the burn-down visibly outpace
+  the passive rate. **This is the moment the clicker layer sells itself**, and it must feel
+  good before anything else is introduced.
 
 ### ACT II: The Illusion of Efficiency
 
@@ -1514,12 +1914,36 @@ Developer Count: 1
 **TUTORIAL PROMPT:**
 > *"Hire your first buddy to help out!"*
 
-- **Action:** player hires **Dev #2**.
-- **Visual:** camera zooms out slightly. A second desk slides in next to the first.
-- **Progress Speed:** project completes **2× faster**! A small popup shows: **"Game Published! Profit: +$50"**
+- **Action:** player hires **Dev #2 — James** (§22.3). He is the first named character in
+  the game and the player's first Hero Card.
+- **Visual:** camera zooms out slightly. A second desk slides in next to the first — no
+  cut, a physical slide (§10.5). James sits down, adjusts his glasses, and gets to work.
+- **Progress Speed:** Velocity doubles to 2 SP/sec. Project completes **2× faster**! A
+  small popup shows: **"Game Published! Profit: +$50"**
 
-**TEXT BUBBLE (Dev #1):**
+**TEXT BUBBLE (James):**
 > *"Hey, this actually works! More people = faster games!"*
+
+*(This line is James's card flavour text forever. It is the thesis of the game, said
+sincerely, by the person who will be proven wrong four minutes from now and will stay
+anyway.)*
+
+**CARD AWARD (first collectable, deliberately un-gated and un-random):**
+
+```
++------------------------------------+
+|  ★ NEW HIRE ON THE ORG CHART       |
+|                                    |
+|        [ pixel bust: JAMES ]       |
+|                                    |
+|  JAMES                    JUNIOR   |
+|  "Your first buddy."               |
+|                                    |
+|  Never quits when poked.           |
+|                                    |
+|            [ PLACE ]               |
++------------------------------------+
+```
 
 ### ACT III: The Mousetrap Is Baited
 
@@ -1591,6 +2015,226 @@ Developer Count: 1
 *(Tapping `[ TRIGGER PARADIGM SHIFT ]` unlocks the **Layer 1 Prestige Tree** for the first
 time, granting your first **Bandwidth Points (BP)** to begin buying Async Communication
 protocols for Run 2.)*
+
+**James survives the bankruptcy.** Every other developer is liquidated; his card stays on
+the org chart. The first Paradigm Shift screen shows the empty office with one desk still
+occupied, and his speech bubble reads:
+
+> *"So. Same time tomorrow?"*
+
+---
+
+## 22. Hero Cards & Collectables
+
+### 22.1 The System
+
+**Hero Cards are unique, named developers you collect and place on your org chart.** Unlike
+the generic Hero Classes from Layer 2 (§13.3), which are anonymous units that spawn by
+probability, each Hero Card is a specific person with a portrait, a personality, a quote,
+and one board-wide mechanical effect.
+
+They are presented as **trading cards** — pixel-art bust, rarity frame, stat block, flavour
+line — and they are the game's collection meta-layer, sitting alongside the three prestige
+layers on a timescale of days to months.
+
+**Why this format fits this project specifically:**
+
+- A card is a **static pixel portrait plus a frame**. No animation, no sprite sheets, no
+  bespoke scenes. This is the cheapest collectable format that exists.
+- The placement board is an **org chart** — boxes and reporting lines. Free art.
+- Rarity tiers are the **corporate promotion ladder**, so the frame colour *is* the joke.
+- Effects hook into systems that already exist (SP yield, Entropy, the Fibonacci ladder,
+  offline accrual), so no new simulation code is required to make a card matter.
+
+### 22.2 The Org Chart (Placement Board)
+
+Cards do nothing in your collection. They must be **placed**.
+
+```
+                    +------------------+
+                    |   [ YOU ]        |
+                    |   Founder        |
+                    +--------+---------+
+                             |
+        +--------------------+--------------------+
+        |                    |                    |
+  +-----+------+      +------+-----+      +-------+----+
+  |  SLOT 1    |      |  SLOT 2    |      |  SLOT 3    |
+  |  [ JAMES ] |      |  [ empty ] |      |  ( locked )|
+  |  Junior    |      |            |      |            |
+  +-----+------+      +------+-----+      +-------+----+
+        |                    |
+  +-----+------+      +------+-----+
+  |  SLOT 4    |      |  SLOT 5    |
+  |  ( locked )|      |  ( locked )|
+  +------------+      +------------+
+```
+
+| Rule | Detail |
+|---|---|
+| **Starting slots** | 2 (Slot 1 filled by James in the tutorial) |
+| **Maximum slots** | 6 |
+| **Slot unlocks** | Slots 3–6 unlock at the first Paradigm Shift, the first Codebase Fork, the 100M gate, and the first Planck Core respectively |
+| **Reassignment** | Free and instant, but triggers a **10-second re-org** during which all placed card effects are inactive — you cannot hot-swap a card in to counter an event |
+| **Direct reports** | Cards placed *below* another card on the chart receive **+25% of that card's effect** if both are the same rarity tier or higher going up. This is the only combo rule; keep it that simple. |
+
+**Satirical framing:** the reassignment penalty is a re-org. The tooltip reads *"A
+reorganisation is in progress. Productivity will return shortly. It always does."*
+
+### 22.3 Hero Card: JAMES — the anchor of the whole system
+
+James is the first named character in the game, awarded in the tutorial (§21, Act II) as
+Dev #2 — your first buddy. He is deliberately **not** rare, **not** random, and **not**
+purchasable. Every player gets him, in the same minute, for free.
+
+He is also the only card in the game promotable all the way to **Legendary**, which means
+the first card you are ever given is the one you are still investing in three months later.
+That is the entire emotional design of the collection layer in one object.
+
+```
++--------------------------------------------------+
+|  ♦ JAMES                              [ JUNIOR ] |
++--------------------------------------------------+
+|                                                  |
+|              [ 48x48 pixel bust ]                |
+|         glasses · thick beard · white shirt      |
+|                  · hole in elbow ·               |
+|                                                  |
++--------------------------------------------------+
+|  "Hey, this actually works!                      |
+|   More people = faster games!"                   |
++--------------------------------------------------+
+|  LOYAL      Never quits when poked.              |
+|  FIRST HIRE +1 SP per poke on Slot 1's desk.     |
++--------------------------------------------------+
+|  PROMOTION: 1 / 2 duplicates    [ WRITE PACKET ] |
++--------------------------------------------------+
+```
+
+**Visual design — the constant and the variable.**
+
+James's appearance is fixed across every promotion tier in three respects, and these are
+non-negotiable because they are how the player recognises him at a glance from Junior to
+Legendary:
+
+1. **Glasses.** Thick-rimmed, always.
+2. **Thick facial hair.** A full beard, which greys as he is promoted.
+3. **A plain white shirt — with a hole worn through the left elbow.**
+
+**The elbow hole never gets fixed.** Not at Staff, not at Principal, not at Legendary when
+he is a glowing post-human node in a quantum hivemind. The shirt gets better — pressed,
+then tailored, then wreathed in cosmic light — and the hole is always still there. It is
+the single running visual gag of the collection system, it costs four pixels, and it is the
+first thing players will notice and post about.
+
+**Promotion ladder (James is the only card that goes the full distance):**
+
+| Tier | Title | Dupes to promote | Effect at tier |
+|---|---|---|---|
+| **Junior** | *Dev #2* | — | +1 SP per poke on Slot 1's desk. Never quits when poked. |
+| **Mid** | *James, Actually Quite Good Now* | 2 | +1 SP per poke, studio-wide. |
+| **Senior** | *Senior Engineer James* | 3 | Above, plus **−10% Context Switch Penalty** ($\epsilon$) studio-wide. |
+| **Staff** | *Staff Engineer James* | 5 | Above, plus adjacent org-chart cards gain **+15% effect**. |
+| **Principal** | *Principal Engineer James* | 8 | Above, plus **+1 Fibonacci ladder tier** while placed. |
+| **Distinguished** | *Distinguished Engineer James* | 13 | Above, plus **10x Engineers no longer quit when poked**. |
+| **Legendary** | *James, Who Was There At The Beginning* | 21 | Above, plus **+1% of all Story Points ever produced by the studio, per second**, forever. |
+
+Promotion costs follow the Fibonacci ladder deliberately — the amount of evidence required
+to promote someone grows absurdly and the justification does not. Each promotion also
+requires a **Promo Packet**, purchased with Bandwidth Points, whose confirm button reads
+`[ SUBMIT FOR CALIBRATION ]`.
+
+**Flavour lines by tier** (spoken when you tap his card):
+
+- *Junior:* "Hey, this actually works! More people = faster games!"
+- *Mid:* "I've been reading about this 'communication overhead' thing."
+- *Senior:* "I told you about the communication overhead."
+- *Staff:* "I've stopped writing code. I mostly write documents about writing code now."
+- *Principal:* "I'm not sure what I do anymore, but the org chart says it's important."
+- *Distinguished:* "I have outlasted eleven paradigm shifts and four heat deaths."
+- *Legendary:* "Still here. Still got the shirt."
+
+### 22.4 Rarity Tiers
+
+Rarity is the corporate promotion ladder, which means the tier name is the joke and the
+frame is a palette swap.
+
+| Tier | Frame | Typical effect magnitude |
+|---|---|---|
+| **Junior** | Dull grey wire | Small, single-slot |
+| **Mid** | Plain steel | Small, studio-wide |
+| **Senior** | Warm bronze | Meaningful modifier to one system |
+| **Staff** | Cool silver | Modifier plus a board interaction |
+| **Principal** | Gold | Changes how a system behaves |
+| **Distinguished** | Deep violet, faint pulse | Removes a downside from the game |
+| **Legendary** | Cyan, animated scanline | Rewrites a rule |
+
+### 22.5 Launch Roster
+
+**Twelve cards at launch.** This is a deliberate cap — see §22.7 on art budget. All are
+earned through play; none are randomised or purchasable.
+
+| # | Card | Tier at acquisition | Effect | How it is earned |
+|---|---|---|---|---|
+| 1 | **James** — *your first buddy* | Junior → Legendary | §22.3 | Tutorial, Act II. Everyone gets him. |
+| 2 | **Intern #42** | Junior | +20% SP from pokes at **Desk zoom** only. Infinite enthusiasm, zero context. | Poke 1,000 developers total |
+| 3 | **The Scrum Master** | Mid | Removes the *Daily Standups* cyclic pause, but takes 5% of revenue | Buy the Daily Standups node in 3 separate runs |
+| 4 | **Chad from Sales** | Mid | **+40% project revenue, +15% base Entropy.** A liability you choose to carry. | Ship 50 projects |
+| 5 | **Dana, Keeper of the Monolith** | Senior | Prevents the *Merge Conflict Catastrophe* fail state; nobody else understands the legacy system | Survive a Merge Conflict Catastrophe and reach the next release |
+| 6 | **Bruno, On-Call** | Senior | Auto-clears one entropy event every 5 minutes **while the app is closed** | Accumulate 24 hours of offline time |
+| 7 | **The Greybeard** | Principal | Writes in C, refuses all frameworks. Negates **50% of Code Bloat Entropy** from AI Slop | Reach the AI Slop era without ever buying an AI upgrade |
+| 8 | **The Architect** | Distinguished | Suppresses Entropy on their entire floor by 40%; turtleneck, never speaks | Unlock the Architect Archetype class in Layer 2 |
+| 9 | **PROMPT-9000** | Staff | +300% SP generation, but generates Code Bloat Entropy. Pairs with The Greybeard, who hates it. | Trigger the Synthetic AI Slop Injection event 10 times |
+| 10 | **Marguerite, VP of Documentation** | Distinguished | Passive multipliers +15%. Nobody has read a word she has written. | Resolve *The 400-Billion-Page Documentation* event in favour of the docs |
+| 11 | **Yuki, the 10x** | Legendary | Operates at 10× speed, 0 Entropy — **and quits if you poke her card**, permanently, until the next Codebase Fork | Cross the 100,000,000 gate (§13.5) |
+| 12 | **Hive Fragment 7** | Legendary | Poke effects apply across **all parallel dimensions** simultaneously | Compile your first Planck Core (Layer 3) |
+
+**Named synergies** (kept few and legible):
+
+- **James + Intern #42 — "The Old Guard"**: +1 additional SP per poke. The two people who have been here longest and understand the least.
+- **The Greybeard + PROMPT-9000 — "Irreconcilable Differences"**: both effects reduced 50%. They will not sit near each other.
+- **The Architect + Marguerite — "Nobody Reads It"**: Entropy suppression doubled, revenue −10%.
+- **Chad from Sales + anyone at Principal or above — "Escalation Path"**: Chad's Entropy penalty halved.
+
+### 22.6 Acquisition — Earned, Never Randomised
+
+**Cards and duplicates come only from play:**
+
+| Source | Yield |
+|---|---|
+| Milestone achievements | The card itself, first time |
+| Repeating that milestone | 1 duplicate |
+| Paradigm Shift (L1) | 1 random duplicate of an owned card, every 5th shift |
+| Codebase Fork (L2) | 2 duplicates of choice |
+| Clearing a Multiverse dimension | That dimension's themed card or duplicate |
+| Seasonal events | Time-limited card, later added to the permanent pool |
+
+**Explicitly excluded, permanently:** card packs, gacha pulls, randomised paid rewards,
+paid duplicates, and any purchase that accelerates promotion. This is a hard line and it is
+consistent with the monetisation guardrails — a collection system is precisely where a game
+like this would be tempted into loot boxes, and precisely where a developer audience would
+punish it hardest.
+
+**What may be sold:** cosmetic card *frames* and alternate portrait art (e.g. a
+"Hawaiian Shirt James" variant that, obviously, still has the elbow hole).
+
+### 22.7 Art Budget **[EDITORIAL]**
+
+The collection system must not become the project's art sink. Scoped precisely:
+
+| Asset | Count | Notes |
+|---|---|---|
+| Character busts | **12** | 48×48 pixel portraits. One per hero. |
+| Card frame | **1** | Single frame asset, palette-swapped 7 ways for rarity |
+| Promotion variants | **7 for James only** | Every other card keeps one bust across all tiers; only the frame changes |
+| Org chart board | boxes and lines | Effectively free |
+
+Total bespoke art: **19 small sprites**. That is the entire collectable system.
+
+**Do not expand this to a large collection.** Fifty cards would be a different, more
+expensive game, and the earlier constraint against big bespoke card-art sets applies
+directly here. If more content is needed, add *seasonal* cards at 1–2 per season, or sell
+frames — never a roster expansion.
 
 ---
 
@@ -1756,6 +2400,15 @@ complete the main story arc by launching **"Simulated Universe 1.0."**
 | Symbol / Term | Meaning |
 |---|---|
 | $E$ | Communication Entropy |
+| $E_{local}$ | Per-developer entropy added by poking (§4.9) |
+| $\eta(E)$ | Efficiency factor — the multiplier Entropy applies to all output, passive and poked |
+| **SP** | Story Points — the universal unit of project progress (§4.4) |
+| **Velocity** | SP per second, passive + active |
+| **Sprint Commitment** | A project's total SP cost |
+| $F(\text{tier})$ | Fibonacci estimation ladder value: 1, 2, 3, 5, 8, 13, 21, … (§4.6) |
+| $S(\text{state})$ | Poke multiplier from the target developer's current state (§4.7) |
+| $Z(\text{zoom})$ | Poke per-dev yield factor by camera zoom level (§4.8) |
+| $\epsilon$ | Context Switch Coefficient — entropy added per SP poked (0.02 base) |
 | $M$ | Manpower |
 | $D$ | Active developer count |
 | $D_{peak}$ | Peak active developer count in a run |
@@ -1803,6 +2456,7 @@ number before implementation.
 | 9 | **Quantum Buffer** node | Present in v2 Protocol Engine tree (Auto-Clear Pings) | Absent from v3 / node index | — |
 | 10 | **Poke → Slacking dev** speed boost | +50% for 10s (poke table) | +100% for 10s (node C1 *Nitro Cold Brew*) | C1 is an upgrade *on top of* base — confirm stacking |
 | 11 | **Zone boundaries** for audio vs. poke SFX | Zones 0/1/2/3 at 0.2 / 0.5 / 0.8 | Volume curve breakpoints at 0.25 / 0.55 / 0.75 | Align the two tables |
+| 12 | **The efficiency factor never reaches 1 or 0** | $\eta = 1/(1+e^{E})$ gives 0.50 at $E=0$ and 0.27 at $E=1$ — a solo dev at zero entropy produces half of nominal, and Entropy Lock is impossible | The Story Point baseline (§4.4) assumes $\eta(0) = 1$ | **Recommend normalising to $\eta(E) = 2/(1+e^{E})$**, or redefining $E$ over a wider domain. Must be settled before any SP number is tuned. |
 
 ---
 
@@ -1826,7 +2480,7 @@ driver.
 5. **Animation budget:** the poke states (§8.2) need only 4 sprite reactions plus a
    particle effect each. That is the correct scope. Resist per-tier unique idle animations.
 6. **Text does the comedy work, not art.** The dialogue library (§19), events (§18), and
-   ticker tape (§18.4) are the humour delivery system and cost nothing to produce.
+   ticker tape (§18.5) are the humour delivery system and cost nothing to produce.
 7. **Six multiverse dimensions = six palette swaps + six audio stems + one mechanical
    twist each.** Explicitly designed to be cheap re-skins. Keep it that way.
 8. **The audio spec (§20) is more expensive than it looks** — 4 zones × multiple stems,
@@ -1836,6 +2490,18 @@ driver.
    first content update, L3 later.
 10. **The Early Game Trap deliberately makes players lose 3–5 runs.** This is a retention
     risk as much as a design feature. Instrument the funnel around Run 1 Act V heavily.
+11. **The clicker layer is the cheapest system in the game and carries the most feel.**
+    Floating Fibonacci numerals, a burn-down line, and haptics — no new art. Prioritise
+    getting the poke to feel good before anything else; if the first thirty seconds of
+    tapping is not satisfying, none of the rest matters.
+12. **Transitions (§10.5) are a fixed, non-negotiable cost.** They are what separates this
+    from a web page, and they must be budgeted at the start rather than retrofitted.
+    Retrofitting motion onto a screen system built around instant swaps is a rewrite.
+13. **Hero Cards are capped at 12 for a reason (§22.7).** 19 small sprites total. Roster
+    expansion is the most likely route by which this project's art budget escapes.
+14. **The 100M gate is a long climb by design (§13.5).** Verify with telemetry that the
+    stretch from ~10M to 100M does not become a dead zone; that band is where an
+    incremental game of this shape most often loses players.
 
 ---
 
@@ -1870,3 +2536,8 @@ because they record the original intent behind each system:
 24. *"Create a detailed summary table of all three prestige layers"*
 25. *"Draft UI layout wireframes for the Codebase Fork Layer 2 prestige screen"*
 26. *"Write an introductory narrative script for the early game trap"*
+27. *"There should be a idle game clicker layer as well in the form of 'poking' developer to squezze out 'story points' that progresses towards dev progress"*
+28. *"given we are called 100M devs, the official pre-prestege gate should be at 100M"*
+29. *"there should be collectables, one idea is 'hero' class in form of pokemon cards that can be placed and effect on the game. put some listings of heros in GDD, first one should be call James, your first buddy, glassed bloke with thick facial hair"*
+30. *"also UI front, all scene, screen transitions must be animated appropriately, not a direct immediate jump, feeling like web page. Add that to anti pattern/ to be avoided"*
+31. *"one feature on James, he always wear a white shirt, but elbow always has a whole"*

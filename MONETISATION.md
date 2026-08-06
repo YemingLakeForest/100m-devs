@@ -28,15 +28,17 @@ sell a way past it.
 
 ## 2. Design Guardrails — What Must Never Be Sold
 
-This game has an unusually fragile progression spine. Four things are load-bearing, and
+This game has an unusually fragile progression spine. Six things are load-bearing, and
 selling any of them collapses the design.
 
 | Never sell | Why it breaks the game |
 |---|---|
-| **A way past the Early Game Trap** (§6) | The first 3–5 runs failing *is the tutorial and the thesis*. A "Skip the Bankruptcy" IAP would sell the player out of the only lesson the game teaches, and would read as cynical to exactly the audience (developers) most likely to notice. |
-| **Bandwidth Points / Git Points / Planck Cores directly** | The three prestige layers (§13) are the entire long-term structure. Direct currency sale flattens L1→L2→L3 into a credit card, and the yield formulas in §14 are tuned assuming earned currency. |
+| **A way past the Early Game Trap** (GDD §6) | The first 3–5 runs failing *is the tutorial and the thesis*. A "Skip the Bankruptcy" IAP would sell the player out of the only lesson the game teaches, and would read as cynical to exactly the audience (developers) most likely to notice. |
+| **Bandwidth Points / Git Points / Planck Cores directly** | The three prestige layers (GDD §13) are the entire long-term structure. Direct currency sale flattens L1→L2→L3 into a credit card, and the yield formulas in GDD §14 are tuned assuming earned currency. |
 | **Entropy immunity or an entropy cap raise** | Entropy *is* the game. Selling relief from it is selling the removal of gameplay. |
-| **Anything that substitutes for Communication Infra upgrades** | The core lesson (§6.1.3) is "comm tech dictates workforce capacity, not cash." A cash-for-capacity purchase inverts the game's central joke. |
+| **Anything that substitutes for Communication Infra upgrades** | The core lesson (GDD §6.1.3) is "comm tech dictates workforce capacity, not cash." A cash-for-capacity purchase inverts the game's central joke. |
+| **Hero Cards, duplicates, or promotions — in any randomised or purchasable form** | GDD §22.6 makes this a hard line. A card collection is exactly where a game like this drifts into gacha, and a developer audience will punish it harder than any other. Cards are earned through milestones only. Cosmetic frames and alternate portraits are sellable; the cards themselves are not. |
+| **A shortcut to the 100,000,000 gate** | The title gate (GDD §13.5) requires 100M devs *at 100% efficiency*, which is a test of whether the player has understood the core system. Selling a bypass sells the ending. |
 
 **Corollary — no loot boxes, no gacha, no randomised paid rewards.** Beyond the ethics,
 they now carry disclosure requirements on both stores, active regulatory attention in the
@@ -83,8 +85,8 @@ reduce the "I'm being sold to" friction, and this game's premise makes them free
 | **R1** | **OVERNIGHT BUILD** | On app open after ≥30 min away, on the offline-earnings summary | **2× offline earnings** | 1 per return, max 4/day | The single highest-value placement in any idle game. Must be the *first* thing a returning player sees, above the collect button. |
 | **R2** | **EMERGENCY CONTRACTOR SURGE** | Persistent HUD button, greyed during cooldown | **+100% total dev output for 30 min**, stacking additively with in-run multipliers | 1 active at a time, 6/day | The workhorse. Cooldown = duration, so an engaged player re-ups continuously. |
 | **R3** | **PITCH TO INVESTORS** | Cash-starved state (can't afford next Branch A/B node for >60s) | Instant cash = **30 min of current production** | 3/day | Contextual, so it appears exactly when it's wanted. Never offer when the player is flush. |
-| **R4** | **BANDWIDTH GRANT** | On the *Trigger Paradigm Shift* confirm modal (§15.1), beside `[ REWRITE CODEBASE ]` | **+20% BP** on this shift | 1 per prestige, 5/day | Highest-intent moment in the game — the player has already decided to sacrifice everything. The $\gamma = 0.20$ damping in §14.1 keeps this from inflating the curve. |
-| **R5** | **AUTO-POKE DRONE** | HUD, unlocked after first Paradigm Shift | **10 min of auto-poking** at 25 pokes/sec | 4/day | Must stay materially weaker than the owned *Subatomic Auto-Poker* node (L1-3B, 100/sec) so it never devalues a 10,000 BP purchase. |
+| **R4** | **BANDWIDTH GRANT** | On the *Trigger Paradigm Shift* confirm modal (GDD §15.1), beside `[ REWRITE CODEBASE ]` | **+20% BP** on this shift | 1 per prestige, 5/day | Highest-intent moment in the game — the player has already decided to sacrifice everything. The $\gamma = 0.20$ damping in GDD §14.1 keeps this from inflating the curve. |
+| **R5** | **AUTO-POKE DRONE** | HUD, unlocked after first Paradigm Shift | **10 min of auto-poking** at 25 pokes/sec | 4/day | Now one of the strongest offers in the game, since poking generates Story Points directly (GDD §4.5). Must stay materially weaker than the owned *Subatomic Auto-Poker* node (L1-3B, 100/sec) so it never devalues a 10,000 BP purchase. Auto-pokes still incur the Context Switch Penalty — this buys a rate, not an exemption. |
 | **R6** | **PAGERDUTY ESCALATION** | Inside an active Slack Storm / entropy event | Auto-clears the event | 3/day | Sells *convenience*, not power — the player could have tapped it out. Ideal for lapsed-attention moments. |
 | **R7** | **DIMENSION TRIAL** | On a locked Multiverse dimension (Layer 3) | Play that dimension free for **one run** | 1/day per dimension | Doubles as the storefront demo. Trial-to-purchase is the main conversion path for dimension packs. |
 | **R8** | **SEVERANCE PACKAGE** | On an *unintended* bankruptcy — **locked until after the player's 5th run** | Retain **25% of pending BP** | 2/day | **Hard-gated so it can never appear during the scripted Run 1–3 trap.** See §2. |
@@ -92,7 +94,7 @@ reduce the "I'm being sold to" friction, and this game's premise makes them free
 ### Placement rules
 
 - **No rewarded offer of any kind before the first Paradigm Shift.** Acts I–V of the
-  onboarding script (§21) run clean. The first ad the player ever sees should be R1 on
+  onboarding script (GDD §21) run clean. The first ad the player ever sees should be R1 on
   their second session, or R4 on the confirm modal — both after the lesson has landed.
 - Every offer states the exact reward and duration on the button face. No "?" rewards.
 - Failed/abandoned ad loads must grant nothing but must never block the underlying action.
@@ -103,7 +105,7 @@ reduce the "I'm being sold to" friction, and this game's premise makes them free
 
 ## 5. Interstitials
 
-The riskiest stream for a game whose Layer 1 prestige loop can be **minutes** long (§13.1).
+The riskiest stream for a game whose Layer 1 prestige loop can be **minutes** long (GDD §13.1).
 An interstitial on every prestige would be intolerable.
 
 **Rules:**
@@ -133,6 +135,7 @@ rewarded stream is worth more than the interstitial stream in this genre anyway.
 | **SEED ROUND** (starter pack) | $2.99 | One-time, offer-gated | +50% permanent cash multiplier, 24h Contractor Surge, 3 Dimension Trials. Offered once, ~48h after the player's first successful Paradigm Shift. |
 | **REMOVE FORCED ADS** | $4.99 | One-time | Removes all interstitials permanently. **Does not remove rewarded offers** — see §6.2. |
 | **DIMENSION PACK** (each) | $3.99 | One-time | One Multiverse dimension: art palette, audio stems, signature mod, dimension-specific events. |
+| **WARDROBE PACK** | $1.99 | One-time, cosmetic | Alternate Hero Card frames and portrait variants — including *Hawaiian Shirt James*, which still has the hole in the elbow. Cosmetic only; no card, duplicate, or promotion is ever sold. |
 | **MULTIVERSE BUNDLE** | $9.99 | One-time | All four paid dimensions. Discounted vs. buying separately. |
 | **FOUNDER'S EQUITY** | $9.99 | One-time | Permanent +25% cash production, +10% BP yield, exclusive `[FOUNDER]` HUD badge. |
 | **THE IPO** | $34.99 | One-time | Everything: all dimensions, Remove Ads, Founder's Equity, all subscription perks permanently. The "I like this, stop asking me" tier. |
@@ -227,7 +230,9 @@ cheap (text and UI panels — no new art), it is the kind of thing that gets scr
 and shared, and it converts better than a generic gem shop because it does not break the
 fiction.
 
-- The shop is the **PROCUREMENT PORTAL**, styled as the CRT terminal HUD from §21.
+- The shop is the **PROCUREMENT PORTAL**, styled as the CRT terminal HUD from GDD §21. It
+  opens with a boot-scan reveal, never an instant appearance — the transition rules in
+  GDD §10.5 apply to the storefront exactly as they apply to everything else.
 - Purchases are **budget approvals**: `PO #4471 — REQUISITION APPROVED. Thank you for your business.`
 - The subscription paywall is a **term sheet**, with the price in a "valuation" box.
 - Rewarded ads are **investor pitches**: `[ PITCH TO INVESTORS (2 min) ]`.
@@ -254,7 +259,7 @@ financial instrument or return.
 Idle games live or die on **long-horizon retention** — a D30 player is worth many times a
 D1 player because ad revenue accrues daily and compounds with session frequency.
 
-- **Sessions 1–3: zero ads.** No exceptions. The onboarding trap (§21) needs a clean run.
+- **Sessions 1–3: zero ads.** No exceptions. The onboarding trap (GDD §21) needs a clean run.
 - **Day 2–7:** rewarded offers only. Interstitials still off.
 - **Day 8+:** interstitials enabled at the §5 caps.
 - Never interrupt: the Bankruptcy screen, any mini-game, the prestige confirm modal (R4
@@ -324,6 +329,9 @@ Notes:
 - **Run 1 funnel: Act I → Act V completion**, and **Run-1 → Run-2 continuation** ← the most important number in the game
 - % reaching first Paradigm Shift; runs to first shift
 - Time to Layer 2 (Codebase Fork); time to Layer 3
+- **Pokes per session and SP-from-poke vs. SP-from-swarm ratio** — if active SP share collapses after the early game, the clicker layer has stopped mattering and the Fibonacci ladder needs re-tuning
+- **Time from ~10M to 100M devs** (the title gate) — the most likely dead zone in the progression
+- Hero Cards owned and org-chart slots filled, by cohort week
 - Offline return rate; median offline duration (this sizes the R1 cap and the subscription's accrual benefit)
 - Session length and sessions/day by cohort week
 

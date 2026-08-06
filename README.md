@@ -20,9 +20,20 @@ multiverses at one project per Planck time.
 ## The pitch, in one loop
 
 ```
-[Hire Dev Swarm] → [Communication Entropy Spikes] → [Poke Devs / Clear Slack Pings]
-                 → [Upgrade Comm Tech] → [Ship Game] → (repeat)
+[Hire Dev Swarm] → [Communication Entropy Spikes] → [Poke Devs for Story Points]
+                 → [Burn Down the Sprint] → [Upgrade Comm Tech] → [Ship Game] → (repeat)
 ```
 
 Hiring 1,000 developers on your first run will bankrupt you in sixty seconds. That is the
 tutorial.
+
+## Three layers of play
+
+- **Active** — poke developers to squeeze out Story Points. Every poke also adds Entropy,
+  so tapping harder makes everything slower. That is the whole game, in one thumb.
+- **Idle** — the swarm produces while you're away. Hire, upgrade, ship, prestige.
+- **Meta** — collect and place Hero Cards on your org chart, and grind toward the number on
+  the box: **100,000,000 simultaneous developers at 100% efficiency.**
+
+James was your second hire. He wears a white shirt with a hole in the elbow, and by the
+time he's Legendary the shirt is wreathed in cosmic light and the hole is still there.
