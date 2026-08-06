@@ -70,6 +70,13 @@ Verified against the sibling repos rather than assumed:
   `@revenuecat/purchases-capacitor`, and `@capacitor-firebase/*`.
 - **No renderer is present in any of them** — no Pixi, Phaser, or Three. A renderer is new
   learning regardless of which option is chosen here.
+- **`gullfather` is a Godot 4.6 project** with custom `.gdshader` work, an in-house editor
+  addon, export presets, and deploy scripting. **Godot fluency at this studio is real and
+  should not be counted as a cost of choosing it.**
+- **`gullfather` also has no monetisation or cloud integration whatsoever** — no AdMob, no
+  RevenueCat, no Firebase, no Play Games. The one Godot project in the studio has never
+  needed the commercial stack, which means choosing Godot here makes that entire layer
+  greenfield rather than partially solved.
 - `@mercilessstudio/game-cloud` and `@mercilessstudio/game-monetise` are **Capacitor
   plugins**, consumed by git tag. `game-cloud` includes a native Kotlin
   `PlayGamesPlugin.kt`.
@@ -130,10 +137,20 @@ shockwave for the Chained Poke Reaction. These would otherwise be hand-written G
 - **More rendering headroom** on low-end hardware.
 - **Continuous 2D camera zoom is native** to `Camera2D`.
 
-**Why it lost:** §3.1 and §3.2. The rebuild cost of the plugin layer is concrete and large,
-the RevenueCat gap is a genuine blocker, and the UI-heavy nature of the game plays against
-Godot's strengths. Its rendering advantages apply most at scales the design has already
-declared sprite-free.
+- **Engine fluency already exists.** `gullfather` is a Godot 4.6 project with hand-written
+  shaders and a custom editor addon. This is *not* a cost of choosing Godot, and an earlier
+  draft of this ADR was wrong to list it as one.
+
+**Why it lost:** §3.1 and §3.2 — and neither is about familiarity. The rebuild cost of the
+plugin layer is concrete and large, the RevenueCat gap is a genuine blocker, and the
+UI-heavy nature of the game plays against Godot's strengths. Its rendering advantages apply
+most at scales the design has already declared sprite-free.
+
+The evidence sharpens rather than softens this: the studio's one Godot project carries no
+AdMob, RevenueCat, Firebase, or Play Games integration at all. Choosing Godot would mean
+building the commercial stack from zero, in an engine where RevenueCat has no official SDK,
+for a game whose monetisation design (MONETISATION §4–7) depends on eight rewarded
+placements, a subscription entitlement, and per-SKU entitlement checks.
 
 **This is the option to revisit if the spike fails.** See §8.
 
@@ -167,7 +184,8 @@ the role it keeps in this decision.
 
 - **WebView input and audio latency is a standing risk to poke feel.** Mitigated by the
   native-audio path, and measured by the spike.
-- PixiJS is new learning, though less than a full engine.
+- PixiJS is new learning, and it is learning that does not transfer to `gullfather` — the
+  studio will be maintaining two rendering stacks.
 - A performance ceiling on low-end Android that a native build would not have.
 - Two rendering systems in one app — DOM HUD over a Pixi canvas — requires a clear boundary
   and disciplined state ownership.
