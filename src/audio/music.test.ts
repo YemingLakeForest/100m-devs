@@ -4,8 +4,10 @@ import {
   ACT_IV_DROP_MS,
   ACT_IV_GAP_MS,
   STRAIN_LAYERS,
+  TITLE_BED,
   ZONE_BEDS,
   actIVEnvelope,
+  titleHandoffGains,
   mix,
   strainLayerGains,
   zoneBedGains,
@@ -159,5 +161,33 @@ describe('mix — the whole score as a pure function of (Z, Entropy, Act IV stat
     const state = mix(0.5, 0.2, collapseStart + 1)
     expect(state.layers['layer-calm']).toBe(0)
     expect(state.layers['layer-strained']).toBe(0)
+  })
+})
+
+describe('the title hand-off — GDD §10.9.4, §20.7.2a', () => {
+  it('is a crossfade with no gap, at every point', () => {
+    // §10.9.4 forbids a fade to black on start, and the audio equivalent is a
+    // moment of silence between the title bed ending and the room beginning.
+    // Summing to 1 throughout is what makes it a level change rather than a
+    // cut the player hears.
+    for (let t = 0; t <= 1.0001; t += 0.05) {
+      const g = titleHandoffGains(t)
+      expect(g.title + g.gameplay).toBeCloseTo(1, 6)
+    }
+  })
+
+  it('starts on the title and ends in the room', () => {
+    expect(titleHandoffGains(0)).toEqual({ title: 1, gameplay: 0 })
+    expect(titleHandoffGains(1)).toEqual({ title: 0, gameplay: 1 })
+  })
+
+  it('clamps rather than overshooting past either end', () => {
+    expect(titleHandoffGains(-3).title).toBe(1)
+    expect(titleHandoffGains(9).gameplay).toBe(1)
+  })
+
+  it('keeps the title bed out of the gameplay mix entirely', () => {
+    // A title bed that leaked into ZONE_BEDS would play under the game.
+    expect(ZONE_BEDS as readonly string[]).not.toContain(TITLE_BED)
   })
 })

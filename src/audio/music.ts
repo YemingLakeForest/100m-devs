@@ -44,6 +44,29 @@ export const ZONE_BEDS = ['bed-desk', 'bed-floor', 'bed-global', 'bed-cosmic'] a
 export type ZoneBed = (typeof ZONE_BEDS)[number]
 
 /**
+ * §10.9 / §20.7.2a — the title bed.
+ *
+ * Deliberately NOT a zone bed. It is the only stem that plays outside the
+ * gameplay mix, and it hands over to `bed-desk` on a crossfade under the
+ * camera push into the room (§10.9.4), never a cut. Kept separate so it can
+ * never be picked up by `zoneBedGains` and mixed into the game by accident.
+ */
+export const TITLE_BED = 'bed-title' as const
+
+/**
+ * Gain for the title bed and for the gameplay mix as a whole, during the
+ * hand-off. `t` runs 0 (title) to 1 (in the room).
+ *
+ * They sum to 1 at every point, so the hand-off is a crossfade and never a gap
+ * — §10.5's "nothing cuts" applied to the one transition every player makes.
+ */
+export function titleHandoffGains(t: number): { title: number; gameplay: number } {
+  const u = Math.min(1, Math.max(0, t))
+  const eased = u * u * (3 - 2 * u)
+  return { title: 1 - eased, gameplay: eased }
+}
+
+/**
  * Zone 0-3 (§20.2) map onto ZoomLevel 1-4 (§7.4) one-for-one — the levels are
  * the zones. Keyed off {@link ZoomLevel} rather than repeated here so a
  * renumbering upstream cannot silently desync bed from picture.

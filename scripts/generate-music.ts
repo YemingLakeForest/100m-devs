@@ -84,6 +84,18 @@ interface MusicStem {
 const STEMS: MusicStem[] = [
   // --- GDD §20.7.2, four zone beds — same band edges as src/render/omniLens.ts ---
   {
+    // §10.9 / §20.7.2a. The one stem outside the gameplay mix: it plays alone
+    // under the title and hands over to bed-desk on a crossfade as the camera
+    // pushes into the room, so it has to sit in the same key and tempo as
+    // everything else despite never being mixed with it.
+    stem: 'bed-title',
+    prompt:
+      'Cozy lofi synth loop, sparse and slow, one held pad underneath. Spacious, ' +
+      'patient, a title screen at night with one monitor on. Fewer elements than a ' +
+      `full arrangement — it has to sit under a logo. ${CONSTRAINTS}`,
+    durationMs: EIGHT_BARS_MS,
+  },
+  {
     stem: 'bed-desk',
     // Zone 0 palette (§20.2): intimate, tactile, mechanical, low-latency.
     prompt:

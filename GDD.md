@@ -1404,6 +1404,28 @@ its results screen. That is correct for a stats table and forbidden for dialogue
 
 ---
 
+#### The gate covers every scene, without exception
+
+F1–F6 are not a gameplay standard with menus exempted. **Every scene below is held to all
+six**, and the title screen is held to them first, because it is where the player decides
+what kind of product this is before they have pressed anything.
+
+| Scene | Spec |
+|---|---|
+| **Title screen** | §10.9 |
+| Boot sequence | §10.9.3 |
+| The room / swarm — all four zoom tiers | §7.8, §7.7 |
+| Hiring and rung promotions | §7.7.2 |
+| Dialogue | §10.7 |
+| §21 Act IV collapse | §21 |
+| Bankruptcy and Paradigm Shift | §21 Act V, §13 |
+| Tech tree, prestige trees, org chart, card inspector | §11, §13, §15, §22 |
+| Storefront, releases, stats, events, settings | §10.1 |
+| Ad and IAP surfaces | MONETISATION §4–7 |
+
+**A scene that has not been checked has not passed.** The list exists so "all scenes" is
+countable rather than a sentiment.
+
 **How this gets applied:** the gate runs per *feature*, not per release, and it runs on the
 device. The reviewer's job is to sit with the thing and try each of F1–F6 in turn. It takes
 about two minutes and it is the difference between the product this document describes and a
@@ -1412,6 +1434,111 @@ functioning web app with pixel art in it.
 **F1 and F2 are the ones that will actually be violated**, because they are the ones that
 are invisible when you are the person who built the feature and already know it works.
 
+---
+
+### 10.9 The Title Screen **[CANON]**
+
+The first thing anyone sees, and until now the one screen this document never
+mentioned. It has to do three jobs before the player has pressed anything:
+say what the game is, say what it *feels* like, and make them want to press the button.
+
+#### 10.9.1 The core idea — the title is the game
+
+**The room is the title screen.** Not a separate illustration: the actual §7.8.1 room, at
+night, before anyone has sat down. One monitor is on. The chair is empty. The camera drifts
+slowly. It is the same geometry the game already renders, which means the title screen costs
+almost no new art and — more importantly — **the first cut of the game is not a cut at all**.
+Press start and the light comes on, someone sits down, and you are playing. §10.5's "nothing
+cuts" applied to the most conspicuous transition in any game.
+
+**And the logo counts.**
+
+```
+                          1  DEVELOPERS
+                         14  DEVELOPERS          ← ~1.4 s of counting
+                      1,092  DEVELOPERS
+                  4,318,779  DEVELOPERS
+                100,000,000  DEVELOPERS          ← lands, bounces, settles
+```
+
+The title animates from `1` to `100,000,000` on arrival, in about a second and a half, and
+then sits. It is the entire game compressed into the length of a logo sting: one developer
+becomes a hundred million, and the joke, the premise and the scale all land before a word of
+copy. It also uses machinery that already exists — §10.8a's *counters roll and bounce on
+arrival*, and `formatCount`.
+
+**On a return visit the count is faster** (about 0.5 s) but never skipped, for the same
+reason §10.7 rule 3 exists: it is the game's signature and it is over in a moment.
+
+#### 10.9.2 Layout — landscape, per §23.4.2
+
+```
++--------------------------------------------------------------------------+
+|  STUDIO_OS v0.0.1                                          [ ]  [ ]  ⌁ 60 |
+|                                                                          |
+|                                                                          |
+|         1 0 0 , 0 0 0 , 0 0 0                                            |
+|         D E V E L O P E R S                                              |
+|         ────────────────────                                             |
+|         an idle game about too many people                               |
+|                                                                          |
+|      [ START ]                                                           |
+|      [ OPTIONS ]                    ·· the room, dark, one monitor lit ··|
+|      [ CREDITS ]                                                         |
+|                                                                          |
++--------------------------------------------------------------------------+
+```
+
+- **Logo left, room right.** The 2:1 iso room is a wide object and it wants the right two
+  thirds; the type stacks into the left third. Centring the logo over the room would put
+  text across the one lit thing on screen.
+- **Numerals are the display element.** `100,000,000` at the largest type scale in the
+  product, letter-spaced wide, with `DEVELOPERS` beneath it at a quarter the size and the
+  same total width — the two lines justify to each other. That relationship *is* the logo;
+  there is no wordmark to draw.
+- **A rule under the logo**, then the tagline in body size. Brackets and rules, per
+  ART_DIRECTION §1 — never a box.
+- **Menu items are §10.8a skewed slabs**, bottom-left, using the existing `Button`.
+- **`STUDIO_OS v0.0.1` top-left** in small type. The fiction is that the title screen is the
+  OS, not a menu bolted onto a game.
+
+#### 10.9.3 The boot — first launch only
+
+Cold first launch types a short boot sequence before the logo, in the §10.7 typewriter:
+
+```
+STUDIO_OS v0.0.1
+  checking payroll .......... OK
+  checking morale ........... OK
+  checking headcount ........ 1
+  checking ambition ......... UNBOUNDED
+ready.
+```
+
+Roughly two seconds. **Every subsequent launch skips straight to the logo** — a boot sequence
+you have seen forty times is an obstacle, and unlike §10.7's dialogue it carries no jokes the
+player has not already had.
+
+#### 10.9.4 Motion — the §10.8 gate applies here first
+
+The title screen is where a player decides what kind of game this is, so F1–F6 are not
+negotiable on it:
+
+| | |
+|---|---|
+| **Entry** | Boot types → logo numerals count up and bounce → rule draws left-to-right → menu items stagger in on 60 ms offsets. Nothing appears |
+| **Idle** | The room's camera drifts slowly and never stops. The lit monitor flickers. Scanlines roll. **A still title screen reads as a broken build** |
+| **Hover / press** | Menu slabs depress and spring back, sound on down (§10.8 F2) |
+| **Exit to game** | The logo and menu leave on a stagger, the room lights come up, the camera pushes in to the desk. **No fade to black.** The room is continuous from title to gameplay and that continuity is the point |
+
+#### 10.9.5 What it must never be
+
+- **A static image with a Play button.** §10.8 F1 and F2 both fail.
+- **A separate art asset.** The room already exists; a bespoke title illustration would be
+  the only piece of art in the game with no gameplay use, and §22.7's budget has no room.
+- **A fade to black on start.** §10.5, and it throws away the one transition the whole
+  concept is built on.
+- **A logo that does not count.** The count *is* the wordmark.
 ---
 
 ## 11. In-Run Tech Tree (Purchased with Cash `$`)
@@ -2626,14 +2753,35 @@ prompt, not in a review note afterwards.
 |---|---|---|
 | **Zone beds** | **4** | One per §20.2 zone — desk, floor, global, cosmic. Crossfaded by camera Z, exactly as §20.3's DSP matrix already does for ambience |
 | **Strain layers** | **3** | Mixed in by Entropy: *calm*, *strained*, *collapse*. Zone-agnostic — they sit over whichever bed is playing |
+| **Title bed** | **1** | §10.9. The only stem that is not part of the gameplay mix — see 20.7.2a |
 | **Stingers** | **2** | §7.7.2 rung promotion; §13 Paradigm Shift. One-shots, in key, that land on the beat |
 | **Silence** | 0 | Not a stem. See 20.7.5 |
 
-**Total: 9 pieces. Hard cap 12.**
+**Total: 10 pieces. Hard cap 12.**
 
 Four beds × three strain layers gives twelve distinct-sounding states from nine assets,
 because the strain layers are **overlays rather than variants**. Writing 4 × 3 = 12 separate
 beds would sound identical to the player and cost a third more to make and maintain.
+
+##### 20.7.2a Every scene has a scored state — but not every scene gets a track
+
+**The mix is per scene, the stems are not.** §10.8's gate covers every screen in the product
+(title, trees, storefront, prestige, ads), and every one of them needs to sound like
+somewhere — but ten screens do not need ten songs. They need ten *mixes* of the same ten
+stems, and because §20.7.1 puts every stem in one key and tempo, moving between them is a
+level change rather than a transition.
+
+| Scene | What plays |
+|---|---|
+| **Title (§10.9)** | `bed-title` alone. The one stem outside the gameplay mix, because the title is outside the game — and because the hand-off into gameplay is a crossfade to `bed-desk` under a camera push, not a cut |
+| **Boot (§10.9.3)** | Nothing but the typewriter. Music enters *with* the logo |
+| **Gameplay** | Zone bed by camera Z, strain layer by Entropy (§20.7.3) |
+| **Dialogue (§10.7)** | Whatever was playing, ducked to ~40%. Never stopped — a scene that kills the music to talk announces that talking is an interruption |
+| **Tech / prestige trees, org chart, storefront** | The current zone bed, low-passed and ducked. You are still in the studio; you are looking at a screen in it |
+| **§21 Act IV** | The §20.7.4 override |
+| **Act V / bankruptcy** | `layer-collapse` alone, no bed |
+| **Paradigm Shift (§13)** | `sting-paradigm`, then `bed-desk` comes up under the empty office |
+| **Rewarded ad / IAP** | Ducked to ~25% and **never stopped**, so returning from an ad is a level change rather than a restart (§10.8 F3) |
 
 **Rules, and they mirror §22.7 because the failure mode is identical:**
 
@@ -2725,10 +2873,11 @@ and tempo rule exists:**
 | `layer-calm` | Sparse: a soft pad and an occasional bell. Barely present |
 | `layer-strained` | A pulsing bass and a ticking percussive figure that will not resolve |
 | `layer-collapse` | Detuned, dissonant, an alarm-pitched figure fighting the key it is in |
+| `bed-title` | The same cosy lofi as the desk bed, sparser and slower, with one held pad underneath. It has to work under a logo and hand over to `bed-desk` without a seam |
 | `sting-promotion` | Four bars, rising, triumphant, faintly ridiculous |
 | `sting-paradigm` | Two bars, descending then resolving. A reset, not a defeat |
 
-**The whole score is nine loops of eight bars.** That is a weekend of generation and curation,
+**The whole score is ten loops of eight bars.** That is a weekend of generation and curation,
 not a commission — which is the point of capping it here rather than discovering the scope
 at the end.
 
