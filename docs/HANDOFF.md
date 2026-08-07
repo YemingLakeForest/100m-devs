@@ -53,12 +53,23 @@ ART_DIRECTION §1's 2:1 isometric projection: the 1,000-dev floor is exactly 992
 units, which fills **90% of a landscape display and 22% of a portrait one**. Zooming in does
 not fix it — it just shows less of the swarm.
 
-Two things this creates, both listed in ADR 0002 §6.2 and neither done:
+**Validated on the running app the same day, and it corrected the ADR.** The 90% / 22%
+figures are *ceilings*, not measurements of this build — `stage.ts` scales the world by
+`1/(1 + z·9)` with **no screen term**, so the swarm renders 239 x 120 px on any display and
+fills 6.4% in *either* orientation. Orientation currently changes nothing on screen.
 
+Things this creates, listed in ADR 0002 §6.2. **None are done:**
+
+0. **Make the camera viewport-aware — do this first.** Fit the active tier to the shorter
+   axis, with Z modulating around the fit instead of replacing it. Until this lands, ADR 0002
+   delivers zero visible benefit. Re-run `?bench` afterwards: it changes how much of the
+   1,000-sprite floor is on screen, which is what ADR 0001 criterion 4 measures.
 1. **GDD §10.3's wireframe is void** and needs redrawing in landscape.
 2. **ADR 0001 §7.5 criterion 7 has never been run in landscape.** It passed in portrait, on
    a desk-zoom tapping test, so it does not transfer. One tap, 80 seconds — do it before the
    vertical slice is called done.
+3. `app.renderer.resize()` wherever the canvas host resizes without a window resize — Pixi's
+   `resizeTo` listens for window resize events and does **not** observe the host element.
 
 **Everything in step 1 below is laid out landscape from the first line.** Building the juice
 kit against a portrait assumption and re-flowing it later is the expensive version.

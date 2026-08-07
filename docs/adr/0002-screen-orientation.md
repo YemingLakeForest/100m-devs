@@ -44,6 +44,38 @@ HUD or empty, and it cannot be recovered by zooming in — zooming in means show
 the swarm, and the swarm is the picture. Portrait forces a permanent trade between "fill the
 screen" and "see the game", and there is no setting of the camera that wins both.
 
+> ### **Correction, 2026-08-07 — validated on the running app**
+>
+> **The table above is the *achievable* fit, not a measurement of the current build, and it
+> was written as though it were the latter.** That was wrong and this note is the correction.
+>
+> `stage.ts` computes world scale as **`s = 1 / (1 + z · 9)`** — a function of camera Z with
+> **no screen dimension in it at all.** Only the world's *position* is viewport-aware
+> (`world.position.set(screen.width/2, screen.height/2)`). So at the floor tier's band centre
+> (z = 0.35, s = 0.241) the swarm renders at **239 × 120 CSS px on any display**, which on
+> either a 448 × 997 portrait or a 997 × 448 landscape viewport is **6.4% of the display —
+> identical, because the areas are equal.**
+>
+> **Landscape therefore buys nothing on its own.** Measured in the browser at a device-sized
+> landscape box, the floor filled 8% of the frame.
+>
+> **This does not change the decision, and it is important to be precise about why.** §2.1's
+> numbers are *ceilings*: the most a correctly-framed 2:1 object can ever occupy is 90% of a
+> landscape display and 22% of a portrait one. That comparison is unaffected by the camera
+> being wrong today — portrait's ceiling is 22% however the camera is written, and no amount
+> of framing work recovers it.
+>
+> **What it does change is that a required piece of work now exists**, without which this ADR
+> delivers no benefit: **make the camera viewport-aware** — fit the active tier to the
+> shorter axis rather than scaling by Z alone. Recorded in §6.2 as item 0, ahead of
+> everything else, because until it is done the game looks the same in both orientations.
+>
+> **Also found while validating:** Pixi's `resizeTo: host` recalculates on **window** resize
+> events, not on the host element changing size. A container-only resize leaves the canvas at
+> its old dimensions. A real device rotation resizes the window so this works in practice,
+> but any in-app layout change that resizes the canvas host will need an explicit
+> `app.renderer.resize()`.
+
 This generalises up the §7.7 Construction Ladder rather than being a floor-tier quirk:
 every rung is drawn in the same 2:1 projection, so campuses, towns, nations and planets are
 all wide. The one exception is rung 3, "a tower growing storey by storey", which is
@@ -186,9 +218,22 @@ Phone landscape is **not** 16:9. It runs from about **1.78 : 1** (older 16:9 dev
 
 ### 6.2 Follow-on work this creates
 
+**0. Make the camera viewport-aware. Nothing else in this ADR pays off until this is done.**
+   `stage.ts` currently scales the world by `1 / (1 + z·9)` with no screen term, so the
+   swarm is 239 × 120 px on every display and orientation changes nothing (see the
+   correction in §2.1). The active tier should fit the **shorter axis** of the viewport,
+   with Z modulating around that fit rather than replacing it. This is the change that
+   converts the §2.1 ceiling into actual pixels.
+
+   *Note the interaction with ADR 0001 §7.5 criterion 4:* a viewport-aware camera changes how
+   much of the 1,000-sprite floor is on screen at floor zoom, which is exactly what that
+   criterion measures. Re-run `?bench` after this lands.
+
 1. Redraw GDD §10.3's wireframe in landscape.
 2. Re-run ADR 0001 §7.5 criterion 7 in landscape before the vertical slice is called done.
 3. Frame rung 3's tower deliberately (§5).
+4. Add an explicit `app.renderer.resize()` wherever the canvas host is resized without a
+   window resize — Pixi's `resizeTo` does not observe the element (§2.1 correction).
 
 ---
 
