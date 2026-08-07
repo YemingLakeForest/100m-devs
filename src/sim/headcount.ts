@@ -139,6 +139,42 @@ export function rungCrossed(before: number, after: number): Rung | null {
   return to.rung > from.rung ? to : null
 }
 
+/**
+ * How far the camera may pull back at this headcount — GDD §7.7.1.
+ *
+ * **The studio you can see is the studio you have.** With two developers there
+ * is no campus to look at, no globe, no galaxy — there is a desk and the person
+ * next to you, and the lens must not be able to leave them. A camera that can
+ * reach galactic zoom over an empty world tells the player the game is a
+ * backdrop they are pointing at rather than a place they are filling.
+ *
+ * Returned as a maximum Z on the §7.2 ladder, mapped to the §7.4 canonical
+ * levels: you may see one level beyond nothing, and the ceiling lifts as the
+ * headcount earns it. Each lift is a §7.7.2 promotion and should be scored.
+ *
+ * The floor of 0 is never clamped — pinching all the way *in* is always allowed,
+ * because §7.7.4 makes returning to James an absolute guarantee.
+ */
+export function maxZoomFor(devs: number): number {
+  if (!Number.isFinite(devs)) return 1
+  // Desk and huddle. One room, and you cannot leave it.
+  if (devs < 1e2) return 0.2
+  // The open floor.
+  if (devs < 1e4) return 0.5
+  // Towers, blocks, campuses — the global grid opens up.
+  if (devs < 1e7) return 0.8
+  // Towns, nations, planets, galaxies. The whole ladder.
+  return 1
+}
+
+/**
+ * Did this hire lift the zoom ceiling? A reveal beat, not a state change —
+ * the camera gains a whole register and the player should be shown it.
+ */
+export function zoomCeilingLifted(before: number, after: number): boolean {
+  return maxZoomFor(after) > maxZoomFor(before)
+}
+
 const MAGNITUDES = [
   { at: 1e12, suffix: 'T' },
   { at: 1e9, suffix: 'B' },

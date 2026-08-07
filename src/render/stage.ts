@@ -16,6 +16,7 @@ import { pokeHaptic } from '../audio/haptics.ts'
 import { LensCamera, lodWeights, tierScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { TIER_EXTENTS, buildScene } from './scene.ts'
+import { maxZoomFor } from '../sim/headcount.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
@@ -260,6 +261,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       camera.set(next)
       if (Math.abs(dollyTarget - camera.z) < 0.002) dollyTarget = null
     }
+
+    // GDD §7.7.1 — the studio you can see is the studio you have. Applied
+    // every frame rather than only on input, because the scripted dolly, the
+    // wheel and the pinch are three separate paths into the camera and a
+    // ceiling enforced on one of them is not a ceiling.
+    const ceiling = maxZoomFor(state.devs)
+    if (camera.z > ceiling) camera.set(ceiling)
 
     camera.sample(dt)
     critPunch = Math.max(0, critPunch - dt * 4)

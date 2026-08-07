@@ -6,11 +6,13 @@ import {
   cohortSize,
   formatCount,
   isLiteral,
+  maxZoomFor,
   rungCrossed,
   rungFor,
   scaleBar,
   spawnBurst,
   visibleSprites,
+  zoomCeilingLifted,
 } from './headcount.ts'
 
 describe('spawnBurst — §7.7.3, the requirement that hiring stays visible', () => {
@@ -174,5 +176,49 @@ describe('formatCount', () => {
 
   it('drops the decimal once it stops meaning anything', () => {
     expect(formatCount(250_300)).toBe('250 K')
+  })
+})
+
+describe('maxZoomFor — §7.7.1, the studio you can see is the studio you have', () => {
+  it('will not let two developers see a galaxy', () => {
+    // The complaint that produced this: the lens could reach cosmic zoom over
+    // an empty world, which tells the player the game is a backdrop they point
+    // at rather than a place they fill.
+    expect(maxZoomFor(1)).toBe(0.2)
+    expect(maxZoomFor(2)).toBe(0.2)
+    expect(maxZoomFor(99)).toBe(0.2)
+  })
+
+  it('opens the floor once there is a floor to see', () => {
+    expect(maxZoomFor(1e2)).toBe(0.5)
+    expect(maxZoomFor(1002)).toBe(0.5)
+  })
+
+  it('opens the whole ladder only at town scale and beyond', () => {
+    expect(maxZoomFor(1e4)).toBe(0.8)
+    expect(maxZoomFor(1e7)).toBe(1)
+    expect(maxZoomFor(1e15)).toBe(1)
+  })
+
+  it('never rises as the studio shrinks, and never exceeds the ladder', () => {
+    let previous = 0
+    for (const devs of [1, 10, 1e2, 1e3, 1e4, 1e6, 1e7, 1e12]) {
+      const z = maxZoomFor(devs)
+      expect(z).toBeGreaterThanOrEqual(previous)
+      expect(z).toBeLessThanOrEqual(1)
+      previous = z
+    }
+  })
+
+  it('reports the lift, because gaining a register is a scored beat', () => {
+    expect(zoomCeilingLifted(99, 100)).toBe(true)
+    expect(zoomCeilingLifted(100, 500)).toBe(false)
+    // Act V liquidates the studio. Losing the register is not a beat.
+    expect(zoomCeilingLifted(1e6, 2)).toBe(false)
+  })
+
+  it('always allows pinching all the way in — §7.7.4 is absolute', () => {
+    // Whatever the ceiling, the floor is 0: James is always reachable.
+    for (const devs of [1, 1e3, 1e12]) expect(maxZoomFor(devs)).toBeGreaterThan(0)
   })
 })
