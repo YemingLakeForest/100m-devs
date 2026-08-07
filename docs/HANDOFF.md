@@ -26,6 +26,27 @@ written** — decisions of that weight land in §23.
 
 ---
 
+## Before calling anything complete
+
+**[GDD Appendix F](../GDD.md) — the Shipping Readiness Register.** Audited 2026-08-07 after
+the §10.9 title screen turned out to be missing entirely. It lists what is specified
+**nowhere**, separated into blockers and everything else.
+
+Five blockers, and two of them have architectural reach:
+
+- **F1.1 Save** — no format, no schema version, no migration, no corruption handling, no
+  statement of what survives a prestige. `game-cloud` is in the stack and nothing says what
+  it stores.
+- **F1.2 Offline progression** — MONETISATION sells doubling it as the game's highest-value
+  ad placement, and the GDD defines no offline model at all.
+- **F1.3** age rating and target audience · **F1.4** privacy policy and data deletion ·
+  **F1.5** restore purchases.
+
+**F1.1 and F1.2 are cheaper to decide now** than after the tech tree and prestige layers add
+state that has to persist.
+
+---
+
 ## Where the project is
 
 **Run 1 — The Trap is playable end to end**, in the browser and on an Android device. Poke,

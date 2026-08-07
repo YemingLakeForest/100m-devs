@@ -53,6 +53,10 @@ attached, so that this document does not become an index into a pile of others.
   recorded and the discrepancy is listed in **Appendix C** for a balance pass.
 - **[EDITORIAL]** — added while assembling this document; not present in the drafts.
 
+**Before treating this document as complete, read [Appendix F](#appendix-f--shipping-readiness-register).**
+It is the register of what is *specified nowhere* — audited rather than remembered, because
+the §10.9 title screen was found missing only when somebody happened to ask about it.
+
 ---
 
 ## 1. Executive Summary
@@ -3975,3 +3979,72 @@ because they record the original intent behind each system:
 29. *"there should be collectables, one idea is 'hero' class in form of pokemon cards that can be placed and effect on the game. put some listings of heros in GDD, first one should be call James, your first buddy, glassed bloke with thick facial hair"*
 30. *"also UI front, all scene, screen transitions must be animated appropriately, not a direct immediate jump, feeling like web page. Add that to anti pattern/ to be avoided"*
 31. *"one feature on James, he always wear a white shirt, but elbow always has a whole"*
+
+---
+
+## Appendix F — Shipping Readiness Register **[CANON]**
+
+**Why this exists.** The §10.9 title screen was found missing only when someone asked about
+it — the first screen every player sees, entirely unspecified, in a document that otherwise
+reads as finished. That is the failure mode this appendix exists to prevent: **a design
+document that appears complete while describing an unshippable product.**
+
+Everything below was audited against the docs on 2026-08-07. **A gap here is not a to-do —
+it is a claim that the game cannot ship until it is closed.** Anything marked ❌ has *no
+specification anywhere*, not a thin one.
+
+---
+
+### F.1 Blockers — the game cannot ship without these
+
+| # | Gap | Status | Why it blocks |
+|---|---|---|---|
+| **F1.1** | **Save / persistence** | ❌ **Nothing** | There is no save specification of any kind: no format, no schema version, no migration path, no corruption handling, no statement of what survives a Paradigm Shift versus a Codebase Fork, no local-vs-cloud conflict resolution. `@mercilessstudio/game-cloud` is named in §23.1 and **nothing says what it stores.** An idle game that forgets everything on close is not a game |
+| **F1.2** | **Offline progression** | ❌ **Nothing in the GDD** | MONETISATION §4 R1 calls doubling offline earnings *"the single highest-value placement in any idle game"* and §6 sells an *"offline accrual cap 4h → 16h"*. **The GDD defines no offline model at all** — no accrual rate, no cap, no statement of what accrues (SP? cash? both? does Entropy decay?), and no offline-summary screen, which R1 requires to exist *and* requires the ad to sit above its collect button. The monetisation document is selling a system the design document never designed |
+| **F1.3** | **Age rating & target audience** | ❌ **Nothing** | Google Play requires a content-rating questionnaire and a target-audience declaration at submission. This is not paperwork: declaring child appeal forces the Families policy, bans personalised ads, and changes the AdMob and analytics configuration. It has to be decided *before* the ad stack is built, not at upload |
+| **F1.4** | **Privacy policy & data deletion** | ❌ **Nothing** | Play requires a published privacy policy and an in-app data-deletion route for any app that collects data. Firebase, AdMob and RevenueCat all collect. MONETISATION §10 correctly orders the UMP and ATT prompts, but nothing states what data is collected, where the policy lives, or how a player deletes their account |
+| **F1.5** | **Restore purchases** | ⚠️ **One line** | Required by both stores for non-consumables and subscriptions. MONETISATION mentions it once; there is no UI entry point specified, and §10.9's menu does not include one |
+
+### F.2 Major gaps — shippable, but visibly unfinished
+
+| # | Gap | Status | Note |
+|---|---|---|---|
+| **F2.1** | **Settings screen** | ❌ | §10.6 says style it as a `STUDIO_OS` config terminal and §10.8 lists it as a scene. Nothing says *what is in it.* At minimum: master / music / SFX volume — §20 specifies a four-tier mixer that nothing exposes — haptics on/off, reduce motion, language, and **reset progress**, which is a support necessity and a store requirement in some jurisdictions |
+| **F2.2** | **Localisation** | ❌ | Not "English-only, decided" — simply unaddressed. It has teeth: §10.7's per-character typewriter behaves differently in CJK, §22 card names are jokes, and §18/§19/§21 are almost entirely wordplay that does not survive literal translation. **Decide English-only and record it**, or the decision gets made by accident at the first translation request |
+| **F2.3** | **Error and empty states** | ❌ | Nothing specifies what the screen does when: a rewarded ad fails to load (R1 says a missing ad is *"revenue that does not exist"* but not what the player sees), an IAP fails or goes pending, there is no network, a cloud save conflicts, or a save is corrupt. These are most of the states a real player meets on a bad train |
+| **F2.4** | **Push notifications** | ❌ | Zero mentions. Idle games depend on re-engagement, it interacts directly with F1.2's offline accrual (*"your build is ready"*), and it carries its own permission prompt and policy implications |
+| **F2.5** | **Store listing assets** | ❌ | §22.7 caps *in-game* art at 19 sprites and is silent on the icon, feature graphic and screenshots. Those are a separate art requirement with a separate budget, and the icon in particular is the single most-viewed asset the project will ever produce |
+| **F2.6** | **App lifecycle** | ⚠️ | §23.3 knows Chrome suspends `rAF` in a hidden tab. Nothing says what the *game* does on backgrounding, an incoming call, or an audio-focus loss — which is also where F1.1 and F1.2 meet, because that is when a save must happen |
+
+### F.3 Smaller, still real
+
+| # | Gap | Note |
+|---|---|---|
+| **F3.1** | **Credits content** | §10.9 puts CREDITS in the menu; nothing specifies it. Departure Mono ships under the SIL OFL and its licence text **must** be reachable in-product |
+| **F3.2** | **Analytics event schema** | MONETISATION §12 lists metrics and Appendix D says to instrument the Run 1 funnel *"heavily"*. No event names, properties or schema exist, so two people will invent two |
+| **F3.3** | **Tutorial beyond Run 1** | §21 scripts Run 1 exhaustively. Nothing teaches the tech tree, the org chart, or the Multiverse grid when they first unlock |
+| **F3.4** | **Live-ops / remote config** | MONETISATION §10 requires every ad placement behind remote config. Nothing specifies the config schema, defaults, or what happens when the fetch fails |
+
+### F.4 Audited and genuinely covered
+
+Recorded so the register is honest about what is *not* missing:
+
+- **Platform** — Android-first, iOS deferred with the reasoning and the cost (PROJECT_SETUP §5.3)
+- **Consent ordering** — UMP and ATT before `useAdMobInit` (MONETISATION §10)
+- **Reduce motion** — §10.5, §10.7, §10.8
+- **Performance budget** — §23.3, with an honest column on what is actually proven
+- **Orientation** — §23.4, forced by the projection and measured
+- **Art budget** — §22.7, hard-capped, with the escape routes named
+- **Music budget** — §20.7, hard-capped, with the per-scene mix map
+- **The presentation gate** — §10.8, with a scene inventory so "all scenes" is countable
+
+### F.5 How to use this
+
+**Close a gap by writing the specification into the body of this document**, then strike the
+row here with the section number that now owns it. Do not close a row by building the
+feature — an undocumented feature is the same failure this appendix exists to catch, arriving
+from the other direction.
+
+**F1 is ordered.** F1.1 and F1.2 are the ones with architectural reach: save shape and the
+offline model both constrain the store, and both are cheaper to decide before the tech tree
+and prestige layers add state that has to persist.
