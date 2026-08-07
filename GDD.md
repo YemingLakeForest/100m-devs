@@ -455,13 +455,21 @@ the last, and with it the entire loop.
 
 | | |
 |---|---|
-| Cost of the next developer | `4 × 1.07^(devs − 1)`, rounded, minimum $1 |
-| At 1 / 10 / 20 / 39 developers | $4 / $8 / $15 / $52 |
-| Total to reach ~40 | **$743** |
+| Cost of the next developer | `1 × 1.08^(devs − 1)`, **not rounded** |
+| At 1 / 10 / 20 / 39 developers | $1.00 / $2.00 / $4.32 / $18.63 |
+| Total to reach ~40 | **$239**, of roughly $320 the loop earns |
 | The Mass Hire | **The player's entire treasury.** Minimum $50 |
 
 **Geometric, not linear.** Velocity is linear in headcount, so a linear cost would make each
 hire *more* affordable than the last relative to income and Act IIa would have no tension.
+
+**The base is a dollar, and that is the joke rather than a rounding problem.** A developer
+costs $1 to hire and **$50 a second to keep**. The hire is cheap; the payroll is what ends the
+company — §6's entire lesson stated in two constants.
+
+**Not rounded to whole dollars.** At a $1 base, rounding flattens the first ten hires to
+"$1, $1, $1, $2", deleting exactly the stretch where the player is learning that hiring has a
+price at all. Cash is already fractional; the HUD rounds for display.
 
 **The Mass Hire is priced at literally everything**, which is more robust than a figure and
 funnier than one. It is always affordable and always ruinous, it leaves exactly zero buffer —
@@ -3031,32 +3039,37 @@ Act IIa at ~10, where $E$ is 0.001% — the curve is *flat*, not gentle, and the
 have got no hint at all rather than a faint one. Ending on the first twitch is what buys the
 "I saw that and ignored it" that makes the trap land.
 
-> **Measured 2026-08-07 while implementing this, and it does not fit.** At the §21 project
-> ladder's commitments, shipping is slow at the headcounts Act IIa passes through:
+> **Measured while implementing this, and it did not fit — so the ladder moved.**
 >
-> | Devs | 1 | 2 | 5 | 10 | 20 | 40 |
-> |---|---|---|---|---|---|---|
-> | Passive SP/sec | 1.0 | 2.0 | 5.0 | 10.0 | 20.0 | 39.6 |
-> | *Flappy Square 1.0* (1,000 SP) | 1,000 s | 500 s | 200 s | 100 s | 50 s | 25 s |
-> | *Untitled Roguelike* (8,000 SP) | 8,000 s | 4,000 s | 1,600 s | 800 s | 400 s | 202 s |
+> The old project ladder climbed 1,000 → 2,500 → 8,000 SP. Simulated against the headcounts
+> Act IIa actually passes through, that put Run 1 at **11.4 minutes and still only reached 36
+> developers**, because each project grew faster than velocity did.
 >
-> Reaching ~40 developers costs **$743** in hires (§4.10a), and the ladder's top project pays
-> $400 a ship — so Act IIa is roughly **two ships of the top project plus the earlier ones**,
-> which lands Run 1 nearer **8–10 minutes than 4**.
+> **The fix was the ladder, not the target.** Of the three options — accept a longer run, end
+> Act IIa lower, or resize the projects — only the third costs nothing conceptually. Ending
+> lower would have given up the one thing Act IIa exists for: 40 is where the readout first
+> says `CHATTY`, and §21.0's whole point is that the player gets one hint and waves it away.
 >
-> **Three ways out, and it is a design call rather than an implementation one:**
+> **Act I keeps its canonical 1,000 SP.** It is the teaching project, shipped almost entirely
+> by thumb, and it is now the *only* large one. Everything after it is sized against the
+> headcount the player has when they reach it:
 >
-> 1. **Accept a longer Run 1.** Eight minutes is not unusual for a first idle-game session,
->    and §21's script has enough beats to carry it.
-> 2. **Shrink the middle commitments.** The ladder was written for Act I's teaching pace, not
->    for a loop that turns over four times.
-> 3. **End Act IIa lower than 40.** Cheapest, and it costs the most: 40 is where the readout
->    first says `CHATTY`, and §21.0's whole point is that the player gets one hint and waves
->    it away.
+> | Project | SP | Pays | Roughly |
+> |---|---|---|---|
+> | *Flappy Square 1.0* | 1,000 | $50 | 2.8 min, mostly poking |
+> | *Flappy Square 2.0 (Now With Ads)* | 400 | $20 | 40 s |
+> | *Untitled Roguelike Deckbuilder* | 1,000 | $50 | 50 s |
+> | *Open-World Survival Craft (Early Access)* | 4,000 | $200 | 100 s |
 >
-> **Nothing is decided here.** The mechanics are built and the numbers above are real.
+> The names still escalate in ambition while the commitments do not, which is its own joke
+> about scope.
+>
+> **Simulated result: 40 developers in 6.1 minutes**, having spent $238 of ~$320 earned,
+> leaving roughly $82 to gamble on the Mass Hire.
 
-**Pacing target: Run 1 is about 4 minutes.** Act IIa is roughly half of it. If playtesting
+**Pacing target: Run 1 is about 6 minutes.** Four minutes was the original figure and the
+ arithmetic never supported it once Act IIa existed — the teaching project alone is nearly
+three of those minutes. Act IIa is roughly half the run. If playtesting
 shows players hiring past ~10 without being offered the bait, offer it sooner; the trap must
 spring while the model still reads as reliable, never after the player has already noticed
 the readout climbing on their own.

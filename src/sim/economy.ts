@@ -76,18 +76,27 @@ export function projectRevenue(sprintCommitment: number): number {
  * velocity is linear in headcount — a linear cost would make each hire *more*
  * affordable than the last and the loop would have no tension at all.
  *
- * The base is deliberately small. Total revenue across the §21 project ladder
- * is a few hundred dollars (§4.10's REVENUE_PER_SP is 0.05), so a hire priced
- * in hundreds would make Act IIa unreachable. **These are first-pass numbers
- * that want a playtest**, not derived constants like the wage or the
- * bankruptcy threshold.
+ * The base is deliberately tiny, and that is the joke rather than a rounding
+ * problem: **a developer costs a dollar to hire and $50 a second to keep.**
+ * The hire is cheap; the payroll is what ends the company. §6's lesson stated
+ * in two constants.
+ *
+ * Simulated against the §21 ladder, reaching 40 developers costs $238 of the
+ * ~$320 the loop earns, leaving a treasury to gamble on the Mass Hire.
+ * **First-pass numbers that want a playtest**, unlike the wage and the
+ * bankruptcy threshold, which are derived.
  */
-export const HIRE_BASE_COST = 4
-export const HIRE_COST_GROWTH = 1.07
+export const HIRE_BASE_COST = 1
+export const HIRE_COST_GROWTH = 1.08
 
 export function hireCost(devs: number): number {
   const n = Math.max(1, Math.floor(devs))
-  return Math.max(1, Math.round(HIRE_BASE_COST * HIRE_COST_GROWTH ** (n - 1)))
+  // Deliberately NOT rounded to whole dollars. At a $1 base, rounding flattens
+  // the first ten hires to "$1, $1, $1, $2" — the curve exists to make late
+  // hires feel like decisions, and rounding deletes exactly the part of it
+  // where the player is learning that hiring has a price. Cash is already
+  // fractional (§4.10's revenue is $0.05/SP); the HUD rounds for display.
+  return HIRE_BASE_COST * HIRE_COST_GROWTH ** (n - 1)
 }
 
 /** Total to grow from `from` developers to `to`. Act IIa's whole cost. */

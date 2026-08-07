@@ -71,13 +71,25 @@ import { REVENUE_PER_SP } from '../sim/economy.ts'
  *
  * *Flappy Square 1.0* is 1,000 SP because §21 Act I says so, and because at
  * the 1 SP/sec baseline that is exactly the 0.1%/sec fill rate the script
- * states. Everything after it exists so that shipping is not a dead end if
- * the player somehow survives.
+ * states. **It is the only large one**, and deliberately so: it is the
+ * teaching project, shipped almost entirely by thumb.
+ *
+ * Everything after it was resized on 2026-08-07 for §21.0's Act IIa loop. The
+ * old ladder climbed 1,000 → 2,500 → 8,000, which was written for Act I's pace
+ * and not for a loop that turns over four times: simulated, it put Run 1 at
+ * **11.4 minutes and still only reached 36 developers**, because each project
+ * grew faster than velocity did. Sized against the headcount the player
+ * actually has when they reach each one, the same loop hits 40 developers in
+ * **6.1 minutes** with a treasury left to gamble.
+ *
+ * The names still escalate in ambition while the commitments do not, which is
+ * its own joke about scope.
  */
 export const PROJECTS = [
   { name: 'Flappy Square 1.0', commitment: 1000 },
-  { name: 'Flappy Square 2.0 (Now With Ads)', commitment: 2500 },
-  { name: 'Untitled Roguelike Deckbuilder', commitment: 8000 },
+  { name: 'Flappy Square 2.0 (Now With Ads)', commitment: 400 },
+  { name: 'Untitled Roguelike Deckbuilder', commitment: 1000 },
+  { name: 'Open-World Survival Craft (Early Access)', commitment: 4000 },
 ] as const
 
 export interface FloatingNumeral {
