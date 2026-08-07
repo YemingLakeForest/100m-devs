@@ -12,6 +12,7 @@
  */
 
 import type { LensCamera } from '../render/omniLens.ts'
+import { FLOOR_SPRITE_COUNT } from '../render/scene.ts'
 import {
   FrameSampler,
   LatencySampler,
@@ -28,6 +29,15 @@ export interface BenchHooks {
   tapLatency: LatencySampler
   /** Lower-bound audio latency — see the CAVEAT in metrics.ts. */
   audioLatency: LatencySampler
+  /**
+   * Force the floor tier to its full sprite budget, or null to release it.
+   *
+   * The floor follows the headcount in play (GDD §7.7.1), so without this
+   * criterion 4 would measure whatever the player happens to have hired —
+   * usually one developer — and pass on a scene a thousandth of the weight the
+   * criterion actually names.
+   */
+  setFloorPopulationOverride: (n: number | null) => void
 }
 
 export interface BenchResult {
@@ -87,10 +97,13 @@ async function measureFloor(hooks: BenchHooks, frames: FrameSampler): Promise<nu
   // z = 0.35 is the centre of the Level 2 band, so the floor tier is at full
   // cross-fade weight and every one of the 1,000 particles is being submitted.
   hooks.camera.set(0.35)
+  hooks.setFloorPopulationOverride(FLOOR_SPRITE_COUNT)
   await sleep(500) // let the tier fade in before sampling
   frames.clear()
   await sleep(5000)
-  return frames.fps5th
+  const fps = frames.fps5th
+  hooks.setFloorPopulationOverride(null)
+  return fps
 }
 
 /**

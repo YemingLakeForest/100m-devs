@@ -137,6 +137,26 @@ export interface FloorSwarm {
    * with 1 forever after the drop is a no-op rather than a per-frame upload.
    */
   setDropProgress(t: number): void
+  /**
+   * How many of the 1,000 are actually people — GDD §7.7.1.
+   *
+   * The tier allocates the full {@link FLOOR_SPRITE_COUNT} because §23.3
+   * criterion 4 measures exactly that, but it must not *show* a studio the
+   * player has not hired. Rendering all thousand at every headcount put a
+   * ghost of a full office behind two developers at the zoom ceiling, which
+   * is the opposite of §7.7's promise that the studio you see is the studio
+   * you have.
+   */
+  setPopulation(devs: number): void
+  /**
+   * Force the full thousand regardless of headcount, for the §23.3 criterion 4
+   * measurement. Pass null to hand control back to {@link setPopulation}.
+   *
+   * Without this the benchmark would quietly measure however many developers
+   * happened to be hired — usually one — and report a pass on a scene 1/1000th
+   * the weight of the one the criterion names.
+   */
+  setPopulationOverride(n: number | null): void
 }
 
 /**
@@ -165,7 +185,9 @@ function buildFloor(renderer: Renderer): FloorSwarm {
   // the criterion-4 measurement — costs exactly what it did before the
   // spectacle existed. Making it dynamic would have moved that cost onto every
   // frame of the game to serve two seconds of it.
-  const particles = new ParticleContainer({
+  // Typed on Particle rather than the default IParticle: alpha is what drives
+  // the population, and IParticle does not declare it.
+  const particles = new ParticleContainer<Particle>({
     dynamicProperties: { position: false, scale: false, rotation: false, color: true },
   })
 
@@ -201,9 +223,34 @@ function buildFloor(renderer: Renderer): FloorSwarm {
   root.pivot.set(0, (cols * TILE_H) / 4)
 
   let lastT = 1
+  let population = 0
+  let override: number | null = null
+
+  /** Alpha is a dynamic particle property, so this costs an upload and no more. */
+  function applyPopulation() {
+    const shown = override ?? population
+    const children = particles.particleChildren
+    for (let i = 0; i < children.length; i++) children[i].alpha = i < shown ? 1 : 0
+  }
+
+  applyPopulation()
 
   return {
     container: root,
+    setPopulation(devs: number) {
+      // Saturates at the sprite budget. Above 1,000 the Construction Ladder
+      // says this tier should become towers (§7.8.2) and that geometry does
+      // not exist yet, so it holds at a full floor rather than pretending.
+      const next = Math.max(0, Math.min(FLOOR_SPRITE_COUNT, Math.floor(devs)))
+      if (next === population) return
+      population = next
+      if (override === null) applyPopulation()
+    },
+    setPopulationOverride(n: number | null) {
+      if (n === override) return
+      override = n
+      applyPopulation()
+    },
     desks,
     webLayer,
     setDropProgress(t: number) {

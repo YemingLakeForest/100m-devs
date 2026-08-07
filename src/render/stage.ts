@@ -314,6 +314,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // frame. Its live extent feeds the §23.4.1 fit, so a room that grows is
     // also a camera that pulls back, with nobody driving Z.
     room.setHeadcount(state.devs)
+    // §7.7.1 again, on the other tier: the floor shows the people who exist,
+    // not a thousand placeholders ghosting in behind two developers.
+    floor.setPopulation(state.devs)
     const extents = { ...TIER_EXTENTS, 1: room.extent }
     const weights = lodWeights(camera.z)
     for (const l of [1, 2, 3, 4] as const) {
@@ -425,6 +428,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       tapLatency,
       audioLatency,
       frames,
+      // §23.3 criterion 4 names 1,000 sprites. The floor now follows the
+      // headcount, so the bench has to ask for the full load explicitly.
+      setFloorPopulationOverride: (n: number | null) => floor.setPopulationOverride(n),
     },
     destroy() {
       app.canvas.removeEventListener('pointerdown', onPointerDown)

@@ -7,6 +7,7 @@ vi.mock('../audio/sfx.ts', () => ({ playSfx: () => {} }))
 import { ROOM_DEV_CAP, gridFor, propsAt } from './room.ts'
 import { arrivalDelay, arrivalHeight, puffAlpha } from './arrivals.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
+import { FLOOR_SPRITE_COUNT } from './scene.ts'
 
 describe('the room grows with the headcount — GDD §7.8.1', () => {
   it('covers every headcount the §7.7.1 zoom ceiling traps the player at', () => {
@@ -94,5 +95,29 @@ describe('arrivals — GDD §7.7.2, hiring is seen', () => {
 
   it('leaves no dust behind', () => {
     expect(puffAlpha(1)).toBe(0)
+  })
+})
+
+describe('the floor tier shows the studio you have — GDD §7.7.1', () => {
+  it('does not put a thousand strangers behind two developers', () => {
+    // The complaint that produced this: at the zoom ceiling the level-2 tier
+    // cross-fades in at ~40% alpha, and it used to render all 1,000 particles
+    // whatever the headcount — so two developers had a ghost of a full office
+    // standing behind them. Population is now min(devs, budget).
+    //
+    // Asserted on the pure rule rather than through Pixi, because the renderer
+    // needs a WebGL context that jsdom does not have.
+    const shown = (devs: number) => Math.max(0, Math.min(FLOOR_SPRITE_COUNT, Math.floor(devs)))
+    expect(shown(2)).toBe(2)
+    expect(shown(40)).toBe(40)
+    expect(shown(1002)).toBe(FLOOR_SPRITE_COUNT)
+    expect(shown(0)).toBe(0)
+  })
+
+  it('still has a full thousand available for §23.3 criterion 4', () => {
+    // The tier must be able to render the load the criterion names even when
+    // the player has hired one person, or the benchmark silently measures a
+    // scene a thousandth of the intended weight.
+    expect(FLOOR_SPRITE_COUNT).toBe(1000)
   })
 })
