@@ -30,6 +30,7 @@ Useful while working on the render stack:
 |---|---|
 | `?nopost` | Drop the post-process entirely — isolates scene cost from filter cost |
 | `?post=bloom,crt` | Attach only the named passes (`tilt`, `zoom`, `bloom`, `rgb`, `crt`) |
+| `?bench` | Run the ADR §7.5 acceptance sequence and print a pass/fail table. `?bench=10` shortens the 60s sustained-tap leg. |
 | `?act=act5_bleeding` | Jump the §21 script. Run 1 is paced to take ~4 minutes by design, which is right for a player and unworkable for iterating on Act V's copy. |
 
 Android:

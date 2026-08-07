@@ -385,3 +385,23 @@ body {
 .bankruptcy__james {
   color: var(--p1);
 }
+
+/* --- ADR §7.5 acceptance report, `?bench` ------------------------------- */
+
+.bench-report {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  font: inherit;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--calm-3);
+  background: color-mix(in srgb, var(--n0) 94%, transparent);
+  /* Not phosphor-driven: this is instrumentation, and it has to stay legible
+     regardless of what Entropy is doing to the interface. */
+  white-space: pre;
+  pointer-events: auto;
+  z-index: 10;
+}

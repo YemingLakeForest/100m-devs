@@ -14,6 +14,8 @@ import { pokeHaptic } from '../audio/haptics.ts'
 import { LensCamera, lodWeights } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
+import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
+import type { BenchHooks } from '../perf/bench.ts'
 
 export interface StageHandle {
   /** Rolling frame time in ms, for the ADR §7.5 overlay. */
@@ -21,6 +23,8 @@ export interface StageHandle {
   /** p95 tap -> numeral latency in ms. Criterion 1's threshold is 80 ms. */
   readonly latencyP95: number
   readonly camera: LensCamera
+  /** Everything the ADR §7.5 acceptance run needs to drive and measure the app. */
+  readonly bench: BenchHooks & { frames: FrameSampler }
   destroy(): void
 }
 
@@ -79,16 +83,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // going straight to the DOM event removes a layer of dispatch from the path
   // ADR §7.5 criteria 1 and 2 measure.
 
-  const latencies: number[] = []
+  const tapLatency = new LatencySampler(LATENCY_WINDOW)
+  const audioLatency = new LatencySampler(LATENCY_WINDOW)
+  const frames = new FrameSampler()
   let critPunch = 0
 
-  const onPointerDown = (ev: PointerEvent) => {
-    const t0 = ev.timeStamp || performance.now()
-
-    const result = poke(ev.clientX, ev.clientY)
+  /** The whole tap path, shared by real pointers and the §7.5 bench. */
+  const doPoke = (x: number, y: number, t0: number) => {
+    const result = poke(x, y)
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
     playSfx(result.crit ? 'poke-crit' : result.sp === 0 ? 'poke-void' : pokeSfxForZoom(camera.level))
+    // Only the JS half of the audio path. See the CAVEAT in perf/metrics.ts —
+    // the mixer, buffer, DAC and speaker are invisible from here, so this is a
+    // lower bound and criterion 2 cannot be passed on it alone.
+    audioLatency.push(performance.now() - t0)
+
     pokeHaptic(getState().dev.state)
 
     if (result.crit) critPunch = 1
@@ -96,10 +106,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // Measured on the next frame, which is when the numeral is actually
     // visible — measuring at dispatch would report the number we want rather
     // than the one the thumb feels.
-    requestAnimationFrame(() => {
-      latencies.push(performance.now() - t0)
-      if (latencies.length > LATENCY_WINDOW) latencies.shift()
-    })
+    requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
+  }
+
+  const onPointerDown = (ev: PointerEvent) => {
+    doPoke(ev.clientX, ev.clientY, ev.timeStamp || performance.now())
   }
 
   app.canvas.addEventListener('pointerdown', onPointerDown, { passive: true })
@@ -165,7 +176,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   // --- frame loop --------------------------------------------------------
 
-  let frameMs = 16.7
   let lastFrame = performance.now()
   /** §21 Act IV's scripted dolly. Null when the camera is the player's again. */
   let dollyTarget: number | null = null
@@ -173,9 +183,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   app.ticker.add(() => {
     const now = performance.now()
-    const dt = Math.min(0.1, (now - lastFrame) / 1000)
+    const rawFrameMs = now - lastFrame
+    const dt = Math.min(0.1, rawFrameMs / 1000)
     lastFrame = now
-    frameMs += ((now - lastFrame + dt * 1000) - frameMs) * 0.1
+    frames.sample(rawFrameMs)
 
     tick(dt)
 
@@ -262,11 +273,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return app.ticker.deltaMS
     },
     get latencyP95() {
-      if (latencies.length === 0) return 0
-      const sorted = [...latencies].sort((a, b) => a - b)
-      return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]
+      return tapLatency.p95
     },
     camera,
+    bench: {
+      camera,
+      tap: () => doPoke(app.screen.width / 2, app.screen.height / 2, performance.now()),
+      tapLatency,
+      audioLatency,
+      frames,
+    },
     destroy() {
       app.canvas.removeEventListener('pointerdown', onPointerDown)
       app.canvas.removeEventListener('pointerdown', trackPointer)

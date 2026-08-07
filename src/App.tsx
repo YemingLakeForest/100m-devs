@@ -4,6 +4,7 @@ import { jumpToPhase } from './game/store.ts'
 import { PHASE_ORDER, type Phase } from './game/onboarding.ts'
 import { Hud } from './hud/Hud.tsx'
 import { createStage, type StageHandle } from './render/stage.ts'
+import { runBench } from './perf/bench.ts'
 
 /**
  * The spike — ADR 0001 §7.2 and §7.2a.
@@ -14,6 +15,7 @@ import { createStage, type StageHandle } from './render/stage.ts'
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null)
   const [stage, setStage] = useState<StageHandle | null>(null)
+  const [benchText, setBenchText] = useState<string | null>(null)
 
   useEffect(() => {
     const host = hostRef.current
@@ -41,6 +43,20 @@ export default function App() {
       }
       handle = h
       setStage(h)
+
+      // ?bench runs the ADR §7.5 acceptance sequence. ?bench=10 shortens the
+      // 60-second sustained-tap leg, for checking the harness itself without
+      // sitting through the real thing.
+      const bench = new URLSearchParams(location.search).get('bench')
+      if (bench !== null) {
+        const seconds = Number(bench) > 0 ? Number(bench) : 60
+        void runBench(h.bench, h.bench.frames, { sustainedSeconds: seconds }).then((r) => {
+          setBenchText(r.text)
+          // Also to the console, so it can be pulled off a device over adb
+          // logcat without anyone transcribing numbers off a photo of a phone.
+          console.log(r.text)
+        })
+      }
     })
 
     return () => {
@@ -53,6 +69,7 @@ export default function App() {
     <div className="app">
       <div className="app__canvas" ref={hostRef} />
       <Hud stage={stage} />
+      {benchText !== null && <pre className="bench-report">{benchText}</pre>}
     </div>
   )
 }

@@ -97,11 +97,20 @@ Firebase, Play Games, and both shared studio packages including native Kotlin. T
 weeks of work on the critical path producing **zero player-visible value**, and it forks the
 studio's shared packages so that this game no longer benefits from work done on the others.
 
-**RevenueCat is the specific blocker.** There is no official Godot SDK at the time of
-writing. The options would be writing a GDExtension wrapper, or dropping back to raw Play
-Billing and StoreKit and losing the cross-platform entitlement layer standardised across
-three shipped games. *(Verify current SDK availability before treating this as settled — it
-is the single fact most likely to have changed.)*
+**RevenueCat is the specific blocker.** There is no official Godot SDK. The options would be
+writing a GDExtension wrapper, or dropping back to raw Play Billing and StoreKit and losing
+the cross-platform entitlement layer standardised across three shipped games.
+
+> **Verified 2026-08-07.** Still no official SDK, and RevenueCat have said in their own
+> community forum that they do not plan to support Godot. A credible community bridge now
+> exists — [`godot-x/revenuecat`](https://github.com/godot-x/revenuecat), native `.xcframework`
+> and `.aar` wrapping the official SDKs, listed in the Godot Asset Library since June 2026.
+>
+> **This does not fire the §8 revisit trigger**, which requires an *official* SDK **and**
+> the studio packages ported. Neither holds. The §3.1 argument stands, though it is weaker
+> than when written: the gap is now bridgeable by a third-party dependency rather than
+> absent entirely. Re-check if that bridge becomes the de-facto standard, or if RevenueCat
+> reverse their position.
 
 ### 3.2 This game is mostly UI, and React is much faster at UI
 
@@ -356,6 +365,44 @@ invisible until there was a running frame. Three ways out:
 
 **The spike currently does (3) by omission, which is the one option that must not stand
 unrecorded.** Decide before the vertical slice.
+
+### 7.7.3 The acceptance harness — `?bench`
+
+§7.5 specifies *scenarios*, not just numbers: "during a full L1→L4 zoom dolly", "at floor
+zoom with 1,000 sprites", "sustained tapping at 5 taps/sec for 60 s". Measured by hand
+those are a different test every time, so they are scripted. `?bench` runs the sequence and
+prints a pass/fail table; `?bench=10` shortens the sustained leg for checking the harness
+itself. Output also goes to the console, so it can be pulled off a device with
+`adb logcat` rather than transcribed from a photo of a phone.
+
+**Two rules the harness enforces, both learned the hard way while building it:**
+
+1. **A criterion with no samples is UNKNOWN, never FAIL.** Chrome suspends
+   `requestAnimationFrame` and the Pixi ticker in a backgrounded or unfocused tab, which
+   produces zero samples. The first version reported that as `0.0 fps — FAIL`. Since §7.6
+   makes a failed frame-rate gate a trigger to reopen this ADR and rebuild the spike in
+   Godot, **a minimised window must not be able to send the project to another engine.**
+   The run also self-invalidates if the page was ever hidden.
+2. **Value and sample count are read in the same breath.** Reading them seconds apart
+   produced `PASS — 0.0 ms` on criterion 1: an empty sampler's zero judged against a count
+   that had since filled from drained callbacks. A false pass on the tightest gate in the
+   ADR is worse than no harness at all.
+
+**Criterion 2 is not measurable in-process and is reported as UNKNOWN.** What JavaScript
+can see is tap → the audio API accepting the call. The mixer, buffer, DAC and speaker are
+invisible, and on Android that is *exactly* where WebView latency hides — so the number is
+a lower bound and the harness says so rather than quietly reporting it as the real thing.
+A genuine criterion-2 measurement needs an external capture: record a tap on a hard surface
+and the resulting click on another device, then read the gap in an audio editor.
+
+**First run — desktop Chrome, and therefore not a pass.** 3: 58.8 fps, 4: 59.2 fps with
+1,000 sprites, 6: 0.4 s cold start. Recorded only to show the harness works.
+
+> **On the test device.** §7.4 is right that a flagship or a desktop browser cannot produce
+> a *pass*. It can, however, produce a *fail* — and a fail is decisive on any hardware. So
+> running `?bench` on whatever phone is to hand is a cheap falsification test worth doing
+> immediately, as long as nobody reads a green table on it as clearing the gate. The
+> harness prints that warning on every run.
 
 ### 7.7.2 TiltShiftFilter cannot sit in the shared chain
 

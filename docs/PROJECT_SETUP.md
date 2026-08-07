@@ -198,8 +198,11 @@ Work down. Each step is small.
 
 **The spike** — ADR 0001 §7, scope per §9 below
 
-14. [ ] Build it
+14. [x] Build it — Run 1 is playable end to end
 15. [ ] Measure against ADR §7.5 and record the numbers in the ADR
+       — **harness built** (`?bench`, ADR §7.7.3). Criteria 1 and 3–6 are instrumented and
+       self-reporting; criterion 2 needs an external audio capture and criterion 7 needs a
+       person. Desktop numbers recorded, which per §7.4 prove nothing. **Awaiting a device run.**
 16. [ ] Promote ADR 0001 from *provisional* to *accepted*, or trigger §7.6
 
 ---
