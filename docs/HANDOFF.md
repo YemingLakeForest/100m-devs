@@ -84,8 +84,9 @@ Until then, one committer running `npm run check` is the same coverage without t
 
 ## Local-only things a cloud session cannot do
 
-- **ElevenLabs SFX generation** needs `.env` (gitignored). The thirteen clips are committed,
-  so this only matters for new sounds.
+- **ElevenLabs generation** needs `.env` (gitignored). The thirteen SFX clips are committed;
+  the §20.7 music stems are **not generated yet** and the endpoint and commercial licence
+  tier both need confirming against ElevenLabs' current docs first (§20.7.6).
 - **Android build, install, and the `?bench` device run** need the local SDK and a phone.
 - **Visual verification.** Anything that has to be *looked at* needs a session that can
   screenshot. A cloud agent should take the logic-heavy work — tech tree, prestige, save,

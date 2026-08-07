@@ -841,6 +841,96 @@ get lost in a galaxy with no way back to James.
 
 ---
 
+### 7.8 The Populated Scene — what is actually on screen, and what moves **[CANON]**
+
+§7.7 says what the *unit* is at each scale. This says what the **screen looks like** at each
+headcount, and what animates. It is the brief an artist or a renderer works from.
+
+**The standing constraint, restated because it governs everything below:** low budget,
+**minimal animation**, achievable with mostly static pixel art. Nothing in this section may
+be read as licence for frame-by-frame spritesheets.
+
+#### 7.8.1 Population steps — rungs 0–2, where one sprite is one person
+
+This is the whole of Run 1 (§21) and where the fiction is established. The room grows with
+the headcount; the camera pulls back continuously (§7.2), never in steps.
+
+| Devs | What is on screen | What arrives with it |
+|---|---|---|
+| **1** | One desk in a dark bedroom, lit only by the monitor. A mug. A chair. | — |
+| **2** | A second desk pushed alongside, close enough to touch. The room light comes up one notch. | **James.** The first other person |
+| **3–5** | Desks in a huddle facing inward. A whiteboard on the wall. The first plant. | Whiteboard, plant |
+| **6–10** | A small office: two short rows, a walkway between. A coffee machine in the corner. | Coffee machine, walkway |
+| **11–30** | Walls push outward. Cubicle dividers appear between desks. A server rack hums against one wall. | Dividers, server rack |
+| **31–100** | A full open-plan floor. Desks on the iso grid. Cable runs cross the floor. Ceiling strips overhead. | Cable runs, meeting pod |
+| **101–300** | The floor is busy. Walkways narrow. Meeting pods along one edge, occupied. | Second meeting pod |
+| **301–1000** | **Shoulder to shoulder.** Desks touching, no walkways left, dividers gone because there is no room for them. | Nothing. There is no space left to add anything |
+
+**The 301–1000 band is the §21 Act IV image and it is deliberately claustrophobic.** The
+props *stop arriving* and then start disappearing — the dividers go, the plant is gone, the
+walkway is desks now. **The room gets worse as it gets fuller**, and that is the §6 thesis
+told in set dressing before any number says it.
+
+**Everything in the "arrives with it" column is T3 commodity** (ART_DIRECTION §4) — desks,
+chairs, monitors, plants, server racks, whiteboards. Buy a pack or generate, then run it
+through §5's quantiser. None of it is bespoke.
+
+#### 7.8.2 Population steps — rungs 3+, where the unit is architecture
+
+Above 1,000 the individual is gone and §7.7's Construction Ladder takes over. What the
+camera holds:
+
+| Devs | Unit | The frame |
+|---|---|---|
+| **1 K – 10 K** | **Floor** | A tower, 1–10 storeys. Each storey is a lit band of the same crammed floor, seen edge-on. Storeys arrive by dropping onto the stack (§7.7.2) |
+| **10 K – 100 K** | **Building** | A block. 1–10 towers, each 10 storeys. Lit windows flicker at different rates |
+| **100 K – 1 M** | **Campus** | A business park. Buildings in formation, connecting walkways, car parks that are always full |
+| **1 M – 100 M** | **Town** | Sprawl to the horizon. Street grids, a ring road, an airport |
+| **100 M – 10 B** | **Nation** | A continent seen at night, lit by density. Coastlines readable |
+| **10 B – 10 T** | **Planet** | A system. The planet's dark side glows with the swarm |
+| **10 T +** | **Galaxy** | A cluster. Points of light, each one a civilisation of developers |
+
+**All of this is T0 procedural or T3 commodity.** A tower is a repeated storey band; a city
+is instanced blocks with varied heights; a planet is geometry and a shader. **No rung above 2
+requires a single bespoke sprite**, which is the whole reason the §22.7 art budget can be 19.
+
+#### 7.8.3 What animates, and how — **the budget rule**
+
+**Nothing is a spritesheet.** Every motion below is either a code-driven transform on a
+static part, or a shader. This is what makes "minimal animation" and "the swarm is alive"
+compatible instead of contradictory.
+
+| Zoom | What moves | How |
+|---|---|---|
+| **L1 desk** | The developer **types** — a two-frame hand bob, a shoulder rise-and-fall, an occasional head turn to the second monitor. Steam curls off the mug. The monitor's code scrolls. | **Transforms on parts library pieces** (ART_DIRECTION §4.1). The arms, head and torso are separate sprites; typing is a 2 px vertical oscillation on the arms at ~6 Hz with a per-dev phase offset. No new art |
+| **L2 floor** | Every one of the 1,000 **bobs slightly, out of phase**. Chairs swivel occasionally. Monitor glints twinkle. | A shared time value plus a **per-particle phase offset**, applied in the `ParticleContainer`. One uniform, no per-sprite CPU work. This is the only technique that survives 1,000 sprites |
+| **L3 global / L4 cosmic** | Data pulses along pipes, hubs breathe, planets rotate | **Shaders.** §7.5 states no individual sprites remain here, so there is nothing to animate — it is all T0 |
+| **Any zoom** | The §8.2 poke responses, the §7.7.2 arrival gags, §21 Act IV | Already specified in their own sections |
+
+**Per-developer phase offset is non-negotiable at every tier.** A thousand sprites bobbing in
+unison reads as a single breathing object, not as a thousand people. The offset is derived
+from the sprite index by a hash, so it is deterministic and free.
+
+#### 7.8.4 Idle states — what a developer looks like before you poke it
+
+§8.2 specifies the *reaction* to a poke. This is the resting state, which is what the player
+actually spends their time looking at:
+
+| State | Idle appearance |
+|---|---|
+| **Working** | Typing bob, steady. Monitor scrolling code |
+| **Slacking** | Bob stopped. Monitor shows a bright non-code colour field. Head tilted back |
+| **Flow** | Fast bob, slight forward lean. Monitor scrolling twice as fast. A faint glow |
+| **Overwhelmed** | Head down on the desk, no motion at all. Monitor full of stacked notification rectangles |
+| **Rogue Refactorer** | Violent bob. Monitor is a wall of dense text. Tinted toward the RARITY violet |
+| **10x Engineer** | Perfectly still, facing the camera. Nothing on the monitor |
+
+**Stillness is a state, and it must read as deliberate rather than as a dropped frame.** The
+Overwhelmed and 10x developers are the only two that do not move, and both are surrounded by
+a floor that does — which is what makes them legible.
+
+---
+
 ## 8. Game Juice: Camera, Poking & Feedback
 
 The visual simulation is the entire game — the UI floats on top as a clean,
@@ -2470,6 +2560,151 @@ Poking a developer triggers distinct sound effects based on the current camera z
 
 ---
 
+### 20.7 Music — Hard Cap **[CANON]**
+
+**§20.1–20.6 specify ambience, foley and DSP. They do not specify music, and until this
+section existed the game had none.** The word appeared four times in this document, twice of
+which were §10.8 saying it must not restart.
+
+That was a real gap with three things already depending on it: §10.8 F3 makes silence a
+FAIL and demands music that is continuous and reactive; §21 Act IV's central beat is *"cozy
+lofi music abruptly cuts out"* — which subtracts nothing if there was never any lofi; and
+§17 says each Multiverse dimension "alters music style", which is unbounded scope on the
+most expensive asset class in the project.
+
+#### 20.7.1 One adaptive score, not a playlist **[CANON]**
+
+**The game has no tracks. It has stems.** §20.1's architecture is a four-zone crossfade bus
+and §10.8 F3 forbids a restart on any screen change — both of which rule out a playlist. A
+track that swaps is a cut, and §10.5 says nothing cuts.
+
+So the score is a set of loops that are **all playing, all the time**, at volumes the
+simulation sets. The player never hears a transition because there never is one; they hear
+the mix change.
+
+**The rule that makes this work, and it is the single most important line in this section:**
+
+> **Every stem is written in the same key, at the same tempo, in the same bar length.**
+
+`A minor, 84 BPM, 8-bar loops.` Any stem can be faded against any other at any moment with
+no beat-matching, no transition bar, and no crossfade artefact. **A stem that does not meet
+this is unusable regardless of how good it sounds** — this constraint goes in the generation
+prompt, not in a review note afterwards.
+
+#### 20.7.2 The budget
+
+| Stem | Count | Purpose |
+|---|---|---|
+| **Zone beds** | **4** | One per §20.2 zone — desk, floor, global, cosmic. Crossfaded by camera Z, exactly as §20.3's DSP matrix already does for ambience |
+| **Strain layers** | **3** | Mixed in by Entropy: *calm*, *strained*, *collapse*. Zone-agnostic — they sit over whichever bed is playing |
+| **Stingers** | **2** | §7.7.2 rung promotion; §13 Paradigm Shift. One-shots, in key, that land on the beat |
+| **Silence** | 0 | Not a stem. See 20.7.5 |
+
+**Total: 9 pieces. Hard cap 12.**
+
+Four beds × three strain layers gives twelve distinct-sounding states from nine assets,
+because the strain layers are **overlays rather than variants**. Writing 4 × 3 = 12 separate
+beds would sound identical to the player and cost a third more to make and maintain.
+
+**Rules, and they mirror §22.7 because the failure mode is identical:**
+
+1. **The cap is 12.** Anything that would breach it needs a decision recorded here first.
+2. **Growth goes to layers, never to tracks.** More variety means another strain overlay or a
+   filtered variant of an existing bed — never a new song.
+3. **§17's Multiverse dimensions do not get their own scores.** A dimension re-skins the
+   music by **DSP and instrumentation swap on the existing beds** — the Cyberpunk grid is the
+   Zone 2 bed through a resonant filter with a different lead; the 8-Bit Realm is the same
+   bed bitcrushed. Six dimensions × four beds would be twenty-four tracks and is the exact
+   scope escape §22.7 exists to prevent on the art side.
+4. **No stem is longer than 8 bars.** A long loop is not more interesting; it is more
+   expensive and it is heard less often than you think.
+
+#### 20.7.3 How the mix is driven
+
+Both inputs already exist in the simulation and are already driving the picture, so the music
+costs no new state:
+
+| Input | Drives | Behaviour |
+|---|---|---|
+| **Camera Z** (§7.2) | Zone bed crossfade | The same weights as §20.3's DSP matrix and §7's LOD cross-fade. Picture, ambience and music change register on the same frame — that is the point of sharing the band edges |
+| **Entropy $E$** (§4.1) | Strain layer mix | `calm` at $E$ < 10%, `strained` peaking around 40–70%, `collapse` from 90% up. Crossfaded, never switched. **The same variable already driving the interface hue** (ART_DIRECTION §1.1), so the screen and the score go wrong together |
+
+**Everything the player hears is therefore a reading of the simulation.** Music that
+escalates because the studio is failing is drama; music that escalates on a timer is a
+soundtrack, and the player learns to ignore it.
+
+#### 20.7.4 §21 Act IV — the one scripted override
+
+Act IV is the single place the mix is *not* purely reactive. §21 requires the cozy lofi to
+**abruptly cut out** — and this is the one permitted exception to §10.5, because the cut is
+the joke.
+
+| | |
+|---|---|
+| On Mass Hire | **All zone beds duck to zero over 120 ms.** Not a fade — a drop |
+| The gap | ~400 ms of nothing but the §21 impact, siren and chatter |
+| Then | The `collapse` strain layer comes up **alone**, no bed under it, and stays there through Act V |
+
+**The absence is the effect.** The player has had a bed under everything for four minutes;
+taking it away is the loudest thing the audio layer does all run.
+
+#### 20.7.5 Silence is composed, not left over
+
+§10.8 F3 fails a screen the player can operate in silence — but that is about *feedback*, not
+about wall-to-wall music. The bed is allowed to thin to almost nothing at desk zoom in Act I,
+because §21's opening is "soft ambient hum of a PC fan, gentle keyboard clacks, and a cozy
+lofi synth melody" — the foley carries it and the melody is barely there.
+
+**Quiet must be a mix decision written into the stem, never an empty channel.**
+
+#### 20.7.6 Generation — ElevenLabs Music **[CANON]**
+
+Music is generated with **ElevenLabs Music**, mirroring the existing SFX pipeline:
+`scripts/generate-music.ts` alongside `scripts/generate-sfx.ts`, prompts source-controlled
+so the audio is reproducible, MP3s treated as build output, `--force` to regenerate, key from
+the same gitignored `.env`.
+
+**Two things to settle before generating the final set, both flagged rather than assumed:**
+
+1. **Confirm the current API endpoint and request shape from ElevenLabs' own docs.** The SFX
+   script uses `/v1/sound-generation`, which is a different product; do not guess the music
+   route by analogy.
+2. **Confirm the licence tier covers commercial game distribution.** This is a shipping
+   product with IAP (MONETISATION §4–7), not a demo. Generated music carrying a
+   non-commercial or attribution-only licence is unusable here no matter how good it is, and
+   finding that out after the score is finished is the expensive order to discover it in.
+
+**Prompt requirements — every music prompt must carry these, and they are why §20.7.1's key
+and tempo rule exists:**
+
+- `A minor, 84 BPM, 8 bars, loopable, seamless loop point`
+- `no vocals` — the §10.7 dialogue and §21 script own all the words
+- `no fade in, no fade out` — the mix bus owns the levels; a baked fade fights it
+- The §20.2 zone's palette, verbatim, so the music and the ambience agree about the place
+- **Chiptune/synth register throughout.** ART_DIRECTION's product is a CRT terminal in a real
+  office; an orchestral score would be the audio equivalent of the anti-aliased-font failure
+  in §3 rule 1
+
+**Seed briefs:**
+
+| Stem | Brief |
+|---|---|
+| `bed-desk` | Cozy lofi synth. Warm, slow, unhurried, a little wistful. The sound of one person who thinks this is going to be fine |
+| `bed-floor` | The same progression, busier. Arpeggios enter. Corporate optimism with an edge |
+| `bed-global` | Modular synth arpeggios, pulsing telemetry. Wide, cold, impressive, inhuman |
+| `bed-cosmic` | Existential synth pads over a 40 Hz sub. Almost ambient. Enormous and empty |
+| `layer-calm` | Sparse: a soft pad and an occasional bell. Barely present |
+| `layer-strained` | A pulsing bass and a ticking percussive figure that will not resolve |
+| `layer-collapse` | Detuned, dissonant, an alarm-pitched figure fighting the key it is in |
+| `sting-promotion` | Four bars, rising, triumphant, faintly ridiculous |
+| `sting-paradigm` | Two bars, descending then resolving. A reset, not a defeat |
+
+**The whole score is nine loops of eight bars.** That is a weekend of generation and curation,
+not a commission — which is the point of capping it here rather than discovering the scope
+at the end.
+
+---
+
 ## 21. Onboarding Narrative Script — Run 1 (The Trap)
 
 Designed to seamlessly guide the player into the Communication Entropy Trap during their
@@ -3027,6 +3262,18 @@ checkouts run behind published tags. Capacitor ≥ 8 is a peer requirement.
 the monetisation and cloud layer is the real cost centre and it is already solved on
 Capacitor — and that RevenueCat has no official Godot SDK.
 
+### 23.1a The standing production constraint **[CANON]**
+
+**Solo developer. Low budget. Minimal animation. Achievable with mostly static pixel art.**
+
+This governed the engine choice and it governs everything downstream, so it is restated here
+rather than left in a frozen ADR. It is why §7.8.3's motion is code-driven transforms on
+static parts instead of spritesheets, why §22.7 caps bespoke art at 19 sprites, why §20.7
+caps the score at 12 stems, and why §7.8.2's rungs above 2 are procedural and commodity.
+
+**Shipping velocity is the scarce resource.** Any proposal that trades it for fidelity needs
+to say so out loud.
+
 ### 23.2 The five non-negotiables **[CANON]**
 
 Break any of these and the thing they protect breaks with them.
@@ -3207,6 +3454,8 @@ spectacle are all real, tested work, and the DOM/canvas boundary in §23.2.3 hel
 | §7.7.2 the arrival gag | `SpawnEvent` is already published and unconsumed |
 | §7.7.4 Hero Anchor | The desk tier is currently generic |
 | §11 tech tree, §13 prestige, §22 cards, save, ads | The above |
+| **§20.7 music** | Nothing. Zero of the 9 stems exist, `src/audio/ambience.ts` is referenced in a comment and has never been written, and there is no `generate-music.ts`. §21 Act IV's "the music cuts out" currently subtracts nothing |
+| **§7.8 developer animation** | Nothing moves. The desk developer is a static placeholder; the 1,000 floor particles do not bob |
 | **Authored art** | **Zero of the 19 §22.7 sprites exist** |
 
 **Nothing currently passes §10.8.** The HUD has no press-down state, no overscroll, no panel
