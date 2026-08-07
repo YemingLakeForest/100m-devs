@@ -18,7 +18,7 @@
  */
 
 /**
- * Sprites the renderer will hold. The same 1,000 ADR 0001 §7.5 criterion 4
+ * Sprites the renderer will hold. The same 1,000 GDD §23.3 criterion 4
  * measures — above this, one sprite stops being one developer (see
  * {@link cohortSize}).
  */

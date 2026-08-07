@@ -1,7 +1,7 @@
 /**
  * The Pixi stage — simulation canvas, camera, and the post-process weld.
  *
- * ADR 0001 §5 mitigation 3 fixes the boundary: simulation, camera and
+ * GDD §23.2 non-negotiable 3 fixes the boundary: simulation, camera and
  * particles live here; everything with structured text, numbers or navigation
  * is React. Structured text stays there; the poke numeral and its GDD §8.2a
  * code line are drawn here because they are scenery that must sit under the
@@ -22,12 +22,12 @@ import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 
 export interface StageHandle {
-  /** Rolling frame time in ms, for the ADR §7.5 overlay. */
+  /** Rolling frame time in ms, for the GDD §23.3 overlay. */
   readonly frameMs: number
   /** p95 tap -> numeral latency in ms. Criterion 1's threshold is 80 ms. */
   readonly latencyP95: number
   readonly camera: LensCamera
-  /** Everything the ADR §7.5 acceptance run needs to drive and measure the app. */
+  /** Everything the GDD §23.3 acceptance run needs to drive and measure the app. */
   readonly bench: BenchHooks & { frames: FrameSampler }
   destroy(): void
 }
@@ -44,7 +44,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     resolution: Math.min(window.devicePixelRatio || 1, 2),
     autoDensity: true,
     resizeTo: host,
-    // powerPreference matters on the §7.4 test device, where the default can
+    // powerPreference matters on the §23.3 test device, where the default can
     // land on the integrated path and cost the criterion-3 dolly its margin.
     powerPreference: 'high-performance',
   })
@@ -91,14 +91,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // Bound on the canvas rather than through Pixi's event system: the tap must
   // reach the store, the sound and the haptic before anything yields, and
   // going straight to the DOM event removes a layer of dispatch from the path
-  // ADR §7.5 criteria 1 and 2 measure.
+  // GDD §23.3 criteria 1 and 2 measure.
 
   const tapLatency = new LatencySampler(LATENCY_WINDOW)
   const audioLatency = new LatencySampler(LATENCY_WINDOW)
   const frames = new FrameSampler()
   let critPunch = 0
 
-  /** The whole tap path, shared by real pointers and the §7.5 bench. */
+  /** The whole tap path, shared by real pointers and the §23.3 bench. */
   const doPoke = (x: number, y: number, t0: number) => {
     const result = poke(x, y)
 

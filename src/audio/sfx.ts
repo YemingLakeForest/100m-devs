@@ -1,9 +1,9 @@
 /**
  * Poke and UI sound effects — the NATIVE audio path.
  *
- * ADR 0001 §5 mitigation 1, non-negotiable: poke SFX go through native audio,
+ * GDD §23.2 non-negotiable 1, non-negotiable: poke SFX go through native audio,
  * never Web Audio. Web Audio in an Android WebView can carry 100–300 ms of
- * latency against a 60 ms p95 budget (ADR §7.5 criterion 2), and this is the
+ * latency against a 60 ms p95 budget (GDD §23.3 criterion 2), and this is the
  * single largest feel risk in the project.
  *
  * Web Audio keeps the GDD §20 ambient bus and DSP layers, where 100 ms is
@@ -13,7 +13,7 @@
 import { Capacitor } from '@capacitor/core'
 import { NativeAudio } from '@capacitor-community/native-audio'
 
-/** Every clip the spike loads. Stems match scripts/generate-sfx.ts. */
+/** Every clip loaded at startup. Stems match scripts/generate-sfx.ts. */
 export const SFX = [
   'poke-desk',
   'poke-floor',
@@ -38,7 +38,7 @@ export type SfxId = (typeof SFX)[number]
 /**
  * Voices per clip. Sustained tapping at 5 taps/sec against a 0.5 s clip needs
  * ~3 overlapping voices; 6 leaves headroom for the burst a player actually
- * produces. ADR §7.6 names audio pool exhaustion as a kill criterion, so this
+ * produces. GDD §23.3 names audio pool exhaustion as a kill criterion, so this
  * is deliberately generous rather than minimal.
  */
 const VOICES = 6
@@ -52,7 +52,7 @@ const webCursor = new Map<SfxId, number>()
 let ready = false
 
 /**
- * Preload every clip. Call once, early — ADR §7.5 criterion 6 gives cold start
+ * Preload every clip. Call once, early — GDD §23.3 criterion 6 gives cold start
  * to interactive a 3 s budget, and decoding on first tap would show up as
  * latency on exactly the tap being measured.
  */

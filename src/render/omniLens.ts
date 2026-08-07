@@ -3,7 +3,7 @@
  *
  * One continuous zoom parameter Z in [0, 1] spans roughly nine orders of
  * magnitude, desk (1:1) to galactic (1:10^9). This is the game's visual hook
- * and, per ADR 0001 §2.1, its hardest technical requirement.
+ * and, per GDD §7, its hardest technical requirement.
  *
  * The four canonical levels (§7.4) are bands of Z, not separate cameras. They
  * cross-fade, so nothing ever cuts (§10.5). The band edges are shared with the

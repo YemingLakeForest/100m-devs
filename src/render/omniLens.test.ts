@@ -26,7 +26,7 @@ describe('the four canonical levels (GDD §7.4)', () => {
   })
 })
 
-describe('scale spans nine orders of magnitude (ADR §2.1)', () => {
+describe('scale spans nine orders of magnitude (GDD §7.2)', () => {
   it('is 1:1 at the desk and 1:1e9 at galactic', () => {
     expect(scaleAt(0)).toBe(1)
     expect(scaleAt(1)).toBeCloseTo(1e-9, 12)

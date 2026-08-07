@@ -8,6 +8,20 @@
   §10.8 (Presentation Gate); [`ART_DIRECTION.md`](../ART_DIRECTION.md) §1 (2:1 isometric);
   [`MONETISATION.md`](../../MONETISATION.md) §4–7
 
+
+> ## FROZEN — historical record, 2026-08-07
+>
+> **This ADR is closed and will not be amended.** Its decision, the 2:1 framing argument, the design box and the viewport-camera
+> requirement are folded into **GDD §23.4**, which supersedes this file for all building
+> purposes.
+>
+> It is kept because it records *how* the decision was reached, what was rejected and
+> on what evidence — which §23 deliberately does not repeat. Read it once for context.
+> **Where it and §23 disagree, §23 is right.**
+>
+> **No further ADRs will be written for this project.** Decisions of this weight now
+> land in GDD §23.
+
 ---
 
 ## 1. Decision

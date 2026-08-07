@@ -16,7 +16,7 @@
  * Part 1 (the camera) lives in stage.ts, because the camera is the renderer's
  * and there was already a dolly there. Parts 2–4 are here.
  *
- * **On the DOM/canvas boundary.** ADR 0001 §5 mitigation 3 puts "everything
+ * **On the DOM/canvas boundary.** GDD §23.2 non-negotiable 3 puts "everything
  * with structured text, numbers or navigation" in React. The chatter bubbles
  * carry text and are still drawn in Pixi, which is a deliberate reading of that
  * rule rather than an exception to it. They are scenery: nothing reads them for
@@ -396,7 +396,7 @@ export function createCollapse({ renderer, floor, reduceMotion = false }: Collap
 
       // The ping *sound*, throttled hard. One clip per badge would be several
       // hundred voices a second and would exhaust the native pool — the exact
-      // failure ADR §7.6 names as a kill criterion. Four a second is already
+      // failure GDD §23.3 names as a kill criterion. Four a second is already
       // read as "constant".
       pingSfxCooldown -= dt
       if (surge > 0.3 && pingSfxCooldown <= 0) {

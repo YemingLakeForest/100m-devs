@@ -1,5 +1,5 @@
 /**
- * The ADR 0001 §7.5 acceptance run — `?bench`.
+ * The GDD §23.3 acceptance run — `?bench`.
  *
  * Each criterion specifies a *scenario*, not just a number: "during a full
  * L1->L4 zoom dolly", "at floor zoom with 1,000 sprites", "sustained tapping
@@ -44,9 +44,9 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
  * collected nothing — which happens routinely, because Chrome suspends
  * requestAnimationFrame and the Pixi ticker in a backgrounded or unfocused
  * tab. That is the same mistake as reporting a pass on no data, and worse in
- * consequence: §7.6 says a failed frame-rate gate reopens the ADR and sends
- * the project to rebuild the spike in Godot. A throttled tab must never be
- * able to trigger that.
+ * consequence: a failed frame-rate gate is a regression signal serious enough
+ * to stop other work (GDD §23.3). A throttled tab must never be able to
+ * trigger that.
  */
 function judge(value: number, count: number, ok: (v: number) => boolean): {
   pass: boolean | null
@@ -98,8 +98,9 @@ async function measureFloor(hooks: BenchHooks, frames: FrameSampler): Promise<nu
  *
  * The gate has three parts and all of them matter: the 99th-percentile frame
  * stays at or above 50 fps, no audio dropout, and no latency drift. Drift is
- * the one most likely to fire — §7.6 names audio pool exhaustion as a kill
- * criterion, and it looks like a run whose second half is worse than its first.
+ * the one most likely to fire — GDD §23.3 names audio pool exhaustion as a
+ * standing risk, and it looks like a run whose second half is worse than its
+ * first.
  *
  * The frame part was a worst-frame test until 2026-08-07; see `fps99th` in
  * metrics.ts for why it is a percentile now. `worstFps` is still returned and
@@ -165,7 +166,7 @@ export async function runBench(
   // later — long enough for rAF callbacks queued by a throttled tab to drain,
   // which produced "PASS, 0.0 ms" for criterion 1: an empty sampler's zero,
   // judged against a count that had since become non-zero. A false pass on the
-  // tightest latency gate in the ADR is the worst failure this file could have.
+  // tightest latency gate in §23.3 is the worst failure this file could have.
   const tapP95 = hooks.tapLatency.p95
   const tapCount = hooks.tapLatency.count
   const audioP95 = hooks.audioLatency.p95
@@ -221,7 +222,7 @@ export async function runBench(
       // The note goes BEFORE the spread so that judge()'s "NO SAMPLES" warning
       // wins when there is no data. judge() omits `note` entirely when it has
       // samples, so this one survives the normal case.
-      note: `worst single frame ${sustained.worstFps.toFixed(1)} fps — not a gate, see ADR §7.7.4`,
+      note: `worst single frame ${sustained.worstFps.toFixed(1)} fps — not a gate, see GDD §23.3`,
       ...judge(sustained.fps99th, sustained.frameCount, (v) => v >= 50),
     },
     {
@@ -248,7 +249,7 @@ export async function runBench(
       unit: '',
       threshold: 'a human, for 60s',
       pass: null,
-      note: 'outranks every number above — ADR §7.5',
+      note: 'outranks every number above — GDD §23.3',
     },
   ]
 
@@ -257,7 +258,7 @@ export async function runBench(
   const unknown = results.filter((r) => r.pass === null)
 
   const text = [
-    'ADR 0001 §7.5 — acceptance run',
+    'GDD §23.3 — acceptance run',
     `device: ${navigator.userAgent}`,
     `dpr: ${devicePixelRatio}  viewport: ${innerWidth}x${innerHeight}`,
     '',
@@ -272,7 +273,7 @@ export async function runBench(
       : '',
     '',
     // The one thing this harness must not let anyone forget.
-    'NOTE: ADR §7.4 — a pass on a flagship or a desktop browser proves nothing.',
+    'NOTE: GDD §23.3 — a pass on a flagship or a desktop browser proves nothing.',
     'A FAIL here is decisive; a PASS is not. The gate needs a ~2021 budget phone.',
   ].join('\n')
 

@@ -16,7 +16,7 @@ const isNative = Capacitor.isNativePlatform()
  * Fire the haptic for a poked developer's state.
  *
  * Un-awaited on purpose: the plugin call crosses the bridge, and awaiting it
- * would put bridge latency inside the tap handler that ADR §7.5 criterion 1
+ * would put bridge latency inside the tap handler that GDD §23.3 criterion 1
  * measures.
  */
 export function pokeHaptic(state: DevState): void {

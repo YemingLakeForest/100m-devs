@@ -2,8 +2,7 @@
  * The four LOD tiers — GDD §7.5.
  *
  * Everything here is drawn in code from the master palette rather than loaded
- * from assets/. That is deliberate for the spike and is not a placeholder
- * shortcut: §7.5 states that at Global and Cosmic zoom "developers fuse into a
+ * from assets/. That is deliberate and is not a placeholder shortcut: §7.5 states that at Global and Cosmic zoom "developers fuse into a
  * geometric grid with no individual sprites remaining", and ART_DIRECTION §4
  * classes those tiers as T0 — Procedural. They are shaders and geometry, not
  * art. The desk tier's props are T3 commodity and stand in until authored
@@ -31,7 +30,7 @@ function c(hex: string): number {
 const TILE_W = 64
 const TILE_H = 32
 
-/** ADR §7.5 criterion 4: floor zoom must hold 55 fps with 1,000 sprites. */
+/** GDD §23.3 criterion 4: floor zoom must hold 55 fps with 1,000 sprites. */
 export const FLOOR_SPRITE_COUNT = 1000
 
 function isoQuad(g: Graphics, cx: number, cy: number, w: number, h: number, fill: number) {
@@ -196,7 +195,7 @@ export function dropOffset(index: number, t: number): number {
  * The Level 2 floor, plus the handles §21 Act IV needs to wreck it.
  *
  * The collapse does not build a swarm of its own — it animates *this* one. That
- * matters for more than tidiness: ADR §7.5 criterion 4 measures 1,000 sprites
+ * matters for more than tidiness: GDD §23.3 criterion 4 measures 1,000 sprites
  * at floor zoom, and a second thousand spawned for the drop would mean the
  * spectacle runs at double the sprite cost the gate ever measured.
  */
@@ -219,10 +218,10 @@ export interface FloorSwarm {
 /**
  * Level 2 — the open office floor (GDD §7.4).
  *
- * Built as a real ParticleContainer at FLOOR_SPRITE_COUNT, because ADR §7.5
+ * Built as a real ParticleContainer at FLOOR_SPRITE_COUNT, because GDD §23.3
  * criterion 4 measures exactly this: 1,000 sprites at floor zoom, 55 fps
  * 5th percentile. A prettier scene with 40 sprites would pass the eye and fail
- * the gate it exists to answer. ADR §5 mitigation 2 names ParticleContainer
+ * the gate it exists to answer. GDD §23.2 non-negotiable 2 names ParticleContainer
  * as the committed approach.
  */
 function buildFloor(renderer: Renderer): FloorSwarm {

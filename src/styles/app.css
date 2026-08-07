@@ -112,7 +112,7 @@ body {
   letter-spacing: 1px;
 }
 
-/* --- the one DOM element over the canvas, ADR §7.2 item 5 --------------- */
+/* --- the one DOM element over the canvas, GDD §23.2 non-negotiable 3 ---- */
 
 .hud__velocity {
   grid-area: vel;
@@ -229,7 +229,7 @@ body {
   }
 }
 
-/* --- spike instrumentation --------------------------------------------- */
+/* --- performance overlay, GDD §23.3 ------------------------------------ */
 
 .hud__perf {
   grid-area: perf;
@@ -399,7 +399,7 @@ body {
   color: var(--p1);
 }
 
-/* --- ADR §7.5 acceptance report, `?bench` ------------------------------- */
+/* --- GDD §23.3 acceptance report, `?bench` ----------------------------- */
 
 .bench-report {
   position: absolute;

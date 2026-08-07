@@ -6,6 +6,19 @@
 - **Supersedes:** —
 - **Related:** [`GDD.md`](../../GDD.md) §7 (Omni-Lens), §8 (game juice), §10.5–10.6 (transitions), §20 (audio); [`MONETISATION.md`](../../MONETISATION.md) §10
 
+
+> ## FROZEN — historical record, 2026-08-07
+>
+> **This ADR is closed and will not be amended.** Its decisions, mitigations, findings and the §7.5 performance budget are folded into
+> **GDD §23.1–23.3 and §23.5**, which supersede this file for all building purposes.
+>
+> It is kept because it records *how* the decision was reached, what was rejected and
+> on what evidence — which §23 deliberately does not repeat. Read it once for context.
+> **Where it and §23 disagree, §23 is right.**
+>
+> **No further ADRs will be written for this project.** Decisions of this weight now
+> land in GDD §23.
+
 ---
 
 ## 1. Decision

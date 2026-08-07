@@ -3,7 +3,7 @@
  *
  * Every tap throws off `+8` and a short line of source. Both are typeset ONCE
  * at construction and reused as texture references thereafter, which is the
- * only structure that is safe on this path: ADR 0001 §7.5 criterion 1 measures
+ * only structure that is safe on this path: GDD §23.3 criterion 1 measures
  * tap → numeral visible at an 80 ms p95, and laying out canvas text on the tap
  * frame would put font measurement inside the exact number being gated.
  *
@@ -11,7 +11,7 @@
  * has its own texture. Building one floater is then a handful of Sprite
  * allocations with no layout at all.
  *
- * These are drawn in Pixi rather than the DOM deliberately. ADR §5 mitigation 3
+ * These are drawn in Pixi rather than the DOM deliberately. GDD §23.2 non-negotiable 3
  * puts structured text in React, and this is not structured text — it is
  * scenery that churns five times a second and has to sit *under* the CRT glass
  * to be welded (ART_DIRECTION §6). A DOM numeral would float above the barrel

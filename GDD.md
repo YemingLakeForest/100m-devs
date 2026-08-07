@@ -30,6 +30,21 @@ main body and the earlier version is preserved verbatim in **Appendix A**.
 | **v3.0** | *GAME DESIGN DOCUMENT: 100000000 DEVELOPERS (v3.0)* | Planck-time endgame barrier; Agile→AI-Slop satirical tech tree; multi-layer prestige |
 | **v3.0+** | Nine expansion specs | Deep upgrade/prestige architecture, prestige math, full node index, prestige UI wireframes, multiverse dimension themes, dimension random events, Layer-2 math, Desk Query dialogue library, onboarding narrative script |
 
+### 0.2a This document is self-sufficient — **added 2026-08-07**
+
+**Everything needed to build the game is in here.** Technical decisions that were taken as
+Architecture Decision Records — the engine and rendering stack, the performance budget,
+screen orientation, and the constraints and gotchas found while proving them — are folded
+into **§23**, which is canon.
+
+`docs/adr/0001` and `docs/adr/0002` remain in the repository as **history**. They record how
+those decisions were reached, what was rejected and why, and what the evidence was. Read them
+once for context; **do not consult them to build.** Where §23 and an ADR appear to disagree,
+§23 is right and the ADR is a snapshot.
+
+**No further ADRs will be written.** Decisions of that weight land in §23, with the reasoning
+attached, so that this document does not become an index into a pile of others.
+
 ### 0.3 Status legend
 
 - **[CANON]** — current design intent.
@@ -2974,6 +2989,252 @@ it is a deliberate scope decision made explicitly, not a drift.
    is the one thing that is off the table.
 
 Anything that would breach this table needs an explicit decision recorded here first.
+
+---
+
+## 23. Technical Constraints & Build Readiness **[CANON]**
+
+Everything decided in ADR 0001 (engine and rendering stack) and ADR 0002 (screen
+orientation), folded in. **This section is the source of truth. The ADRs are history** —
+they record how these were reached and what was rejected, and they are worth reading once,
+but nothing in them needs consulting to build from this document.
+
+**No further ADRs.** Decisions of this weight now land here, in this section, with the
+reasoning attached.
+
+---
+
+### 23.1 The stack **[CANON]**
+
+| Concern | Choice |
+|---|---|
+| Shell / native bridge | **Capacitor 8** |
+| UI, menus, trees, cards, modals | **React 19 + CSS**, DOM-rendered |
+| Simulation canvas — the swarm, the Omni-Lens (§7) | **PixiJS v8**, WebGL/WebGPU |
+| Post-processing (§8.1, ART_DIRECTION §6) | **pixi-filters** |
+| Large numbers (§14) | **break_infinity.js** |
+| Poke / click SFX (§8.2) | **Native audio via a Capacitor plugin** — never Web Audio |
+| Ambient, DSP, zoom crossfade bus (§20) | **Web Audio API** |
+| Haptics (§8.2) | **`@capacitor/haptics`** |
+| Ads, IAP, entitlements | **`@mercilessstudio/game-monetise`** |
+| Cloud save, Play Games, leaderboards | **`@mercilessstudio/game-cloud`** |
+| Build tooling | **Vite**, matching `mind-the-gap`'s versions |
+
+Both studio packages are consumed **by git tag** — `git fetch --tags` first; local sibling
+checkouts run behind published tags. Capacitor ≥ 8 is a peer requirement.
+
+**Rejected:** Godot 4, React Native, DOM/CSS-only rendering. The deciding argument was that
+the monetisation and cloud layer is the real cost centre and it is already solved on
+Capacitor — and that RevenueCat has no official Godot SDK.
+
+### 23.2 The five non-negotiables **[CANON]**
+
+Break any of these and the thing they protect breaks with them.
+
+1. **Poke SFX go through native audio, never Web Audio.** Web Audio in an Android WebView
+   can carry 100–300 ms against a 60 ms budget. This is the single largest feel risk in the
+   project. Web Audio keeps §20's ambient bus and DSP, where 100 ms is inaudible.
+2. **The swarm is a `ParticleContainer`**, dropping to a shader-driven heatmap at Global
+   zoom and beyond per §7.5. Not individual display objects.
+3. **The DOM/canvas boundary is fixed:** simulation, camera, particles and scenery in Pixi;
+   everything with structured text, numbers or navigation in React. **Game state lives in
+   one store both read from.** Scenery text — floating numerals (§8.2), code snippets
+   (§8.2a), Act IV chatter (§21) — is Pixi, because it must sit *under* the CRT glass and it
+   churns several times a second.
+4. **The interface is a second pane of glass, not phosphor.** ART_DIRECTION §6's post-process
+   stack cannot be applied to DOM. The HUD sits in front of the tube rather than being burned
+   into it; this is a deliberate fiction, recorded in ART_DIRECTION §1.0a, and it is why
+   non-negotiable 3 can hold at all.
+5. **Depth of field is applied to the *world* container, not the shared chain.** Stacking
+   `TiltShiftFilter` ahead of bloom/RGB-split/CRT in one `filters` array renders the canvas
+   **fully black, with no console error.** It is internally two axis passes whose padding
+   does not survive being fed onward. Its `start`/`end` band is therefore in **world-local**
+   coordinates, not screen coordinates.
+
+### 23.3 The performance budget **[CANON]**
+
+These began as the spike's acceptance gate. They are now the standing budget: any build that
+fails one has regressed, and §7.6's Construction Ladder and §21's Act IV spectacle are the
+two features most likely to cause it.
+
+| # | Metric | Threshold |
+|---|---|---|
+| 1 | Tap → numeral visible | **≤ 80 ms**, p95 |
+| 2 | Tap → click audible, native path | **≤ 60 ms**, p95 |
+| 3 | Frame rate during a full L1→L4 zoom dolly | **≥ 55 fps**, 5th percentile |
+| 4 | Frame rate at floor zoom with 1,000 sprites | **≥ 55 fps**, 5th percentile |
+| 5 | Sustained tapping, 5 taps/sec for 60 s | **99th-percentile frame ≥ 50 fps**, no audio dropout, no latency drift |
+| 6 | Cold start to interactive | **≤ 3 s** |
+| 7 | **The subjective gate** | Hand it to someone who has not seen it. If they keep tapping for a full minute unprompted, it passes. If they stop, it fails — regardless of the numbers above |
+
+**Criterion 7 outranks the rest.** The measurements exist to explain a failure, not to
+overrule a verdict the thumb has already delivered.
+
+`?bench` runs 1–6 and prints a pass/fail table; `?bench=10` shortens the sustained leg.
+Output also goes to the console so it can be pulled off a device with `adb logcat`.
+
+**Two rules the harness enforces, both learned the hard way:**
+
+- **A criterion with no samples is UNKNOWN, never FAIL.** Chrome suspends `requestAnimationFrame`
+  in a backgrounded tab, producing zero samples. A minimised window must not be able to
+  report a frame-rate failure.
+- **Value and sample count are read in the same breath.** Reading them seconds apart once
+  produced `PASS — 0.0 ms` on criterion 1: an empty sampler's zero judged against a count
+  that had since filled.
+
+#### What is actually proven, and what is not
+
+Honest status, so nobody mistakes the green table for a clean bill:
+
+| # | Status |
+|---|---|
+| 1 | ✅ **Proven.** 7–10 ms on a Pixel 8 Pro against an 80 ms budget — an 8× margin, through a WebView, on the risk §23.2.1 exists to manage. The one result that generalises to weaker hardware |
+| 2 | ❓ **Unmeasurable in-process, permanently.** JavaScript sees tap → the audio API accepting the call; the mixer, buffer, DAC and speaker are invisible, and on Android that is exactly where WebView latency hides. Needs an external capture: record a tap on a hard surface and the resulting click on a second device, read the gap in an audio editor |
+| 3, 4 | ⚠️ **Measured on a flagship only** — 110 fps against a 55 fps floor, a 2× margin that says nothing about a device with half the fill rate. Effectively unmeasured for the target audience |
+| 5 | ❓ **Unmeasured under its current wording.** The two device runs recorded worst-frame numbers; the criterion was restated as a percentile afterwards and the two cannot be honestly converted |
+| 6 | ✅ 0.8 s against 3 s, though cold start scales with storage and a budget phone could plausibly triple it |
+| 7 | ✅ **Passed** — but in **portrait**, before §23.4. It has never been run in the shipping orientation |
+
+**Re-run the whole gate the moment any cheap Android handset comes to hand.** No low-end
+device is available and one is not being bought; this is a deliberate scope decision, not an
+oversight. The harness is a single tap and takes 80 seconds.
+
+**A pass on good hardware is a *ceiling* measurement.** The honest reading is "nothing about
+this stack fails on good hardware" — weaker than a gate is meant to deliver, but a fail
+would have been decisive and there wasn't one.
+
+### 23.4 Orientation and framing **[CANON]**
+
+**The game is landscape.** `android:screenOrientation="sensorLandscape"` — both landscape
+rotations, portrait never.
+
+**This is forced by ART_DIRECTION §1's 2:1 isometric projection, not chosen for taste.** A
+2:1 iso grid is exactly twice as wide as tall and cannot be anything else; the 1,000-dev
+floor measures **992 × 496 world units**. Correctly framed, that fills **90% of a landscape
+display and 22% of a portrait one** — and portrait's 22% ceiling holds however the camera is
+written. Zooming in does not recover it; it just shows less of the swarm, which is the
+picture.
+
+It generalises up the §7.7 ladder: campuses, towns, nations and planets are all drawn in the
+same projection and all wide. Rung 3's tower is the one genuinely vertical unit — one rung
+of ten, and it needs framing work the others do not.
+
+**Accepted costs:** idle games are portrait by convention, so a landscape listing reads as a
+different product before anyone plays it — that is a store-conversion risk and it is the one
+thing that would reopen this. One-handed play is gone, though §7.7.6's drag-pan and
+pinch-zoom had already spent most of it.
+
+#### 23.4.1 The camera must be viewport-aware — **REQUIRED, NOT DONE**
+
+The renderer currently scales the world by `s = 1 / (1 + z · 9)` — **a function of camera Z
+with no screen dimension in it.** Only the world's *position* is viewport-aware. So the
+swarm renders at a fixed 239 × 120 px on every display and fills **6.4% of either
+orientation, identically**.
+
+**Until this is fixed, landscape delivers nothing visible.** The active tier must fit the
+**shorter axis** of the viewport, with Z modulating around that fit rather than replacing
+it. This is the change that converts the 90% ceiling into pixels, and it must land before
+any layout work is done against a frame that is 92% empty.
+
+It moves criterion 4 (how much of the 1,000-sprite floor is on screen at floor zoom), so
+re-run `?bench` after it lands.
+
+#### 23.4.2 The design box
+
+Phone landscape is **not** 16:9. It runs from about **1.78 : 1** to **2.4 : 1**; the Pixel 8
+Pro is **2.23 : 1**. Reference footage from PC games is 16:9 and is narrower than any phone —
+do not compose to it.
+
+- **Compose for 2.0 : 1; guarantee legibility from 1.78 : 1 to 2.4 : 1.**
+- The iso floor centres and fits to **height**. Being 2:1, it leaves side margin on wider
+  devices — that margin is where the HUD lives, and it is a feature, not waste.
+- HUD elements anchor to **edges**, never to fractions of the width.
+- Nothing load-bearing within 5% of the left or right edge — notches, gesture bars, curved
+  cutoff.
+
+#### 23.4.3 Renderer gotcha
+
+Pixi's `resizeTo: host` recalculates on **window** resize events and does **not** observe the
+host element. A container-only resize leaves the canvas at its old dimensions. Device
+rotation resizes the window so this works in practice, but any in-app layout change that
+resizes the canvas host needs an explicit `app.renderer.resize()`.
+
+### 23.5 The spike is the product **[CANON]**
+
+The codebase built to answer "does the poke feel good" is the codebase the game ships on.
+This is deliberate: the simulation, economy, art pipeline, post-process stack and Act IV
+spectacle are all real, tested work, and the DOM/canvas boundary in §23.2.3 held.
+
+**Consequences that must be handled rather than inherited:**
+
+1. **The developer sprite is a placeholder** drawn from rectangles. It is *not* the
+   ART_DIRECTION §4.1 parts-library method — none of that exists yet: no head, no wardrobe,
+   no recipe format, no compositor, no authored pixels. **Delete it the moment a real bust
+   exists.** The §22.7 budget is 19 sprites and the current count is zero.
+2. **Debug seams must not ship.** `?act=` (jumps the entire §21 script), `?bench`, `?post=`
+   and `?nopost` are currently **unguarded** — they are unreachable inside a Capacitor shell
+   only because there is no query string, which is packaging luck rather than a decision.
+   The first web build exposes all four. Guard them behind a dev flag.
+3. **`window.__stage`** (camera Z, LOD weights, collapse state) is dev-only and guarded. Keep
+   it — "nothing is on screen" is the same symptom for a store flag, a stalled dolly and a
+   culled tier, and it has already paid for itself once.
+
+### 23.6 Build readiness — what is proven and what is not
+
+**Built, tested and seen running:**
+
+| | |
+|---|---|
+| Simulation (§4, §6, §21) | Against the GDD's own stated figures |
+| Economy (§4.10) | The model was derived here; the GDD had none |
+| Run 1 end to end (§21) | Playable in browser and on device |
+| Art pipeline — palette, quantiser, `art:check` | Including the ART_DIRECTION §3.1 emoji gate |
+| Post-process / CRT grade (ART_DIRECTION §6) | Carries most of the visible vibe |
+| Act IV spectacle (§21) | Swarm drop, Slack web, `@everyone` flood, chatter, shake, four SFX |
+| Poke feedback (§8.2, §8.2a) | Numeral plus the code-snippet joke line |
+| Construction Ladder **model** (§7.7) | Rungs, ratio-scaled arrival weight, cohort, scale bar |
+| Player-facing vocabulary (§4.3a) | Re-banded against the real curve |
+
+**Specified here, with no implementation:**
+
+| Item | Blocked on |
+|---|---|
+| **§23.4.1 viewport-aware camera** | Nothing — do this first |
+| §10.7 dialogue system + the §10.8 juice kit | Nothing — do this second |
+| §21.0 reshaped Run 1, priced Mass Hire | §10.7 |
+| §21.6 James / Instant Messenger | §10.7 |
+| §7.7.6 drag-pan, per-developer poke, unit selection | Needs a spatial index beside the ParticleContainer |
+| §7.7.2 the arrival gag | `SpawnEvent` is already published and unconsumed |
+| §7.7.4 Hero Anchor | The desk tier is currently generic |
+| §11 tech tree, §13 prestige, §22 cards, save, ads | The above |
+| **Authored art** | **Zero of the 19 §22.7 sprites exist** |
+
+**Nothing currently passes §10.8.** The HUD has no press-down state, no overscroll, no panel
+transitions, and most state changes are silent. That is why the juice kit is step two and
+the HUD is retrofitted inside it.
+
+#### The order, and why
+
+1. **§23.4.1 viewport-aware camera.** Small, self-contained, and until it lands every layout
+   decision is made against a frame that is 92% empty.
+2. **§10.7 dialogue + the §10.8 juice kit**, with the existing HUD retrofitted. The kit —
+   `Panel`, `Button`, spring/momentum hooks, `Typewriter`, `uiSfx` — is built once here
+   because dialogue is the first feature that needs all of it at once. If it cannot absorb
+   the buttons that already exist, it is the wrong abstraction, and that is far cheaper to
+   discover now.
+3. **§21.0 loop reshape** → **§21.6 James scene** → **§7.7.6 navigation** → **§7.7.2 arrival
+   gag**.
+
+Each ships only when it passes §10.8 F1–F6 **on the device**.
+
+#### Still owed to a human, not to code
+
+- **Criterion 2** needs an external audio capture (§23.3).
+- **Criterion 7** needs re-running in landscape (§23.3).
+- **The whole gate** needs a cheap Android handset (§23.3).
+- **Visual verification.** Anything that has to be *looked at* needs a session that can
+  screenshot.
+- **ElevenLabs SFX generation** needs `.env`, which is gitignored.
 
 ---
 

@@ -8,10 +8,10 @@ import { runBench } from './perf/bench.ts'
 import { markInteractive } from './perf/metrics.ts'
 
 /**
- * The spike — ADR 0001 §7.2 and §7.2a.
+ * App root — the Pixi canvas under the React HUD.
  *
- * A Pixi canvas under a React HUD, which is the whole architectural claim the
- * ADR is making. If the boundary is wrong, it is wrong here first.
+ * The DOM/canvas boundary of GDD §23.2 non-negotiable 3 lives here: if it is
+ * wrong, it is wrong here first.
  */
 export default function App() {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -49,7 +49,7 @@ export default function App() {
       markInteractive()
       setStage(h)
 
-      // ?bench runs the ADR §7.5 acceptance sequence. ?bench=10 shortens the
+      // ?bench runs the GDD §23.3 acceptance sequence. ?bench=10 shortens the
       // 60-second sustained-tap leg, for checking the harness itself without
       // sitting through the real thing.
       const bench = new URLSearchParams(location.search).get('bench')
@@ -68,7 +68,7 @@ export default function App() {
    * does not depend on anyone transcribing numbers off a photo of a phone.
    */
   function startBench(handle: StageHandle, seconds: number) {
-    setBenchText('ADR §7.5 acceptance run — measuring…')
+    setBenchText('GDD §23.3 acceptance run — measuring…')
     void runBench(handle.bench, handle.bench.frames, { sustainedSeconds: seconds }).then((r) => {
       setBenchText(r.text)
       console.log('[BENCH] ' + r.text.replace(/\n/g, ' | '))

@@ -123,7 +123,7 @@ export function resolvePoke({ tier, state, zoom, efficiency }: PokeInput): PokeR
  * Does poking this developer end something the player wanted?
  *
  * GDD §8.2: poking a Flow State dev *prolongs* it by +5s if the Culture upgrade
- * is owned, and otherwise ends it. The spike has no upgrade tree, so this
+ * is owned, and otherwise ends it. The §11 tree does not exist yet, so this
  * defaults to the punishing branch — which is the one that teaches the lesson.
  */
 export function pokeEndsFlow(state: DevState, hasCultureUpgrade: boolean): boolean {

@@ -1,10 +1,10 @@
 /**
- * Measurement for the ADR 0001 §7.5 acceptance criteria.
+ * Measurement for the GDD §23.3 performance budget.
  *
- * The ADR makes the engine decision conditional on seven thresholds, and five
- * of them were not instrumented at all — the spike could show a frame counter
- * and nothing that could actually pass or fail a gate. This module is the
- * missing half: percentile-accurate samplers for each measurable criterion.
+ * §23.3 states seven thresholds. Five of them were not instrumented at all —
+ * there was a frame counter and nothing that could pass or fail a gate. This
+ * module is the missing half: percentile-accurate samplers for each
+ * measurable criterion.
  *
  *   1  tap -> numeral visible          <= 80 ms  p95
  *   2  tap -> click audible            <= 60 ms  p95   (see CAVEAT below)
@@ -122,7 +122,7 @@ export class FrameSampler {
    * fps at the 99th-percentile frame — criterion 5's sustained-smoothness gate.
    *
    * This replaced `fpsWorst` as the criterion 5 measurement on 2026-08-07, by
-   * decision of the ADR's owner (ADR §7.5, §7.7.4). The original wording, "no
+   * decision of the design owner (GDD §23.3). The original wording, "no
    * frame drops below 50 fps", is a *single worst frame* over 60 seconds — at
    * 120 Hz that is one bad frame in roughly 7,200, so a single 23 ms GC pause
    * fails the run. Two consecutive device runs of an identical build gave

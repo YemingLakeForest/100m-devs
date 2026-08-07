@@ -51,7 +51,7 @@ describe('spawnBurst — §7.7.3, the requirement that hiring stays visible', ()
   })
 
   it('caps the deluge', () => {
-    // The §22.7 art budget and the ADR §7.5 criterion-4 sprite ceiling are both
+    // The §22.7 art budget and the GDD §23.3 criterion-4 sprite ceiling are both
     // real, and past ~100 arrivals the eye stops counting anyway.
     expect(spawnBurst(1, 1e30)).toBeLessThanOrEqual(MAX_BURST)
     expect(spawnBurst(0, 1e6)).toBeLessThanOrEqual(MAX_BURST)

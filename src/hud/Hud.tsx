@@ -59,7 +59,7 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
         <Cash state={state} />
       </header>
 
-      {/* ADR §7.2 item 5 — the DOM element over the canvas. */}
+      {/* GDD §23.2 non-negotiable 3 — the DOM element over the canvas. */}
       <div className="hud__velocity">
         <span className="hud__velocity-label">VELOCITY</span>
         <span className="hud__velocity-value">{formatVelocity(currentVelocity(state))}</span>
@@ -183,7 +183,7 @@ function Bankruptcy() {
   )
 }
 
-/** ADR §7.2 item 6 — frame-time and input-latency overlay. */
+/** GDD §23.3 — frame-time and input-latency overlay. */
 function PerfOverlay({ stage }: { stage: StageHandle | null }) {
   const [, force] = useState(0)
 
@@ -201,7 +201,7 @@ function PerfOverlay({ stage }: { stage: StageHandle | null }) {
 
   return (
     <div className="hud__perf">
-      {/* Thresholds from ADR §7.5. Red means the gate is failing right now. */}
+      {/* Thresholds from GDD §23.3. Red means the gate is failing right now. */}
       <span className={fps < 55 ? 'is-bad' : undefined}>{fps.toFixed(0)} FPS</span>
       <span className={latency > 80 ? 'is-bad' : undefined}>
         {latency > 0 ? `${latency.toFixed(0)}ms TAP` : '— TAP'}

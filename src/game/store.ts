@@ -1,7 +1,7 @@
 /**
  * Run 1 game state — GDD §4 (production), §6 (the trap), §21 (the script).
  *
- * A tiny external store rather than a state library: ADR 0001 §5 mitigation 3
+ * A tiny external store rather than a state library: GDD §23.2 non-negotiable 3
  * fixes the DOM/canvas boundary and requires that "game state lives in one
  * store both read from". Pixi reads it every frame; React subscribes. Adding
  * a dependency to hold twenty numbers would obscure that boundary rather than
@@ -397,7 +397,7 @@ export function setZoom(zoom: ZoomLevel): void {
   if (zoom !== state.zoom) set({ zoom })
 }
 
-/** Test/debug seam — the state selector in the spike HUD. */
+/** Test/debug seam — drives the dev-only dev-state selector. */
 export function setDevState(devState: DevState): void {
   set({ dev: { state: devState, elapsed: 0 } })
 }
