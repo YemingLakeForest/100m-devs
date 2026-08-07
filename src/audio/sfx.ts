@@ -24,6 +24,13 @@ export const SFX = [
   'zoom-in',
   'zoom-out',
   'entropy-lock',
+  // §21 Act IV part 4 — "the cozy lofi music abruptly cuts out, replaced by an
+  // overwhelming, chaotic wall of overlapping notification pings, loud
+  // overlapping chatter, and an alarm siren."
+  'collapse-thud',
+  'collapse-siren',
+  'collapse-chatter',
+  'collapse-ping',
 ] as const
 
 export type SfxId = (typeof SFX)[number]

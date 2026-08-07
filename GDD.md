@@ -229,7 +229,47 @@ producing their full 1 SP/sec and 99.999% means the studio has seized.
 - **Low Entropy** → Smooth / blue.
 
 At >80% entropy the entire screen micro-jitters and red scanlines flicker across the UI.
-At 99.9% the speedometer slams into **ENTROPY LOCK** and production halts.
+At 99.9% the speedometer slams into lock and production halts.
+
+#### 4.3a "Entropy" is an internal word — the player never sees it **[CANON]**
+
+**$E$ is the model. It is not the label.** "Communication Entropy" is precise, it is the
+right name for the variable, and it appears throughout this document, in the source, and in
+every balance discussion. **It appears nowhere the player can read it.**
+
+Two reasons, and the second is the real one:
+
+1. **It is jargon.** "Entropy" costs a non-technical player a beat of translation on a
+   readout they are supposed to glance at four times a second.
+2. **One word cannot carry a five-act arc.** The same number means "things are going fine",
+   "this is getting silly" and "the company is on fire". A fixed label makes the drama the
+   *colour's* job alone. **Escalating the vocabulary is free drama**: the readout changing
+   its own name is how the player learns the situation changed, before they have parsed the
+   number.
+
+**The ladder. The label escalates with $E$; the number underneath is unchanged.**
+
+| $E$ | Player-facing label | Register |
+|---|---|---|
+| 0 – 20% | `IN SYNC` | Everything is fine and nobody is thinking about it |
+| 20 – 45% | `CHATTY` | The first hint, delivered as a joke |
+| 45 – 65% | `BOGGED DOWN` | Recognisable to anyone who has had a job |
+| 65 – 80% | `PRODUCTIVITY BREAKDOWN` | The corporate euphemism, deadpan |
+| 80 – 95% | `TOTAL GRIDLOCK` | No euphemism left |
+| 95 – 99% | `MELTDOWN` | |
+| 99%+ | `STUDIO SEIZED` | Replaces "ENTROPY LOCK" everywhere the player sees it |
+
+**Rules:**
+
+- **The number is always shown beside the label.** The escalating word is drama; the
+  percentage is the honest reading, and hiding it would make the HUD a mood ring.
+- **The label is the readout's name, not a status message.** It reads
+  `PRODUCTIVITY BREAKDOWN 71%`, not "Warning: productivity breakdown detected".
+- **Internal names stay internal.** `entropy()`, $E$, `ENTROPY_LOCK` and this document's
+  prose keep the precise term. Renaming the model would cost clarity for everyone who has to
+  reason about it, and gains the player nothing they can see.
+- **§21's script uses the ladder.** Act V's terminal banner reads
+  `CRITICAL SYSTEM FAILURE: STUDIO SEIZED`, not "COMMUNICATION ENTROPY 100%".
 
 ---
 
@@ -586,6 +626,181 @@ the map reveals a tiny individual developer frantically typing or getting distra
 
 ---
 
+### 7.7 The Construction Ladder — hiring must be *visible*, at every scale **[CANON]**
+
+**Requirement.** Adding a developer is the game's primary verb, and it must be seen, not
+read off a counter. Hire one: *puff* — someone is sitting at the desk beside you. And the
+hire at 10¹² must land as hard as the hire at 1.
+
+**Why this is hard, stated plainly.** One sprite per head is correct up to about 10³ and
+then fails twice over. It fails technically, because 10¹² sprites is not a rendering problem
+but an impossibility. And it fails *perceptually*, well before that: a player at 10¹² who
+hires 10⁹ more has added 0.1%, and no honest linear picture of 0.1% is a feeling. Games that
+ignore this end up with a number going up beside a picture that stopped moving hours ago.
+
+**The answer is to change what is being built, not to shrink what is being shown.** The
+studio grows the way a city grows. First you fill a floor with people. Then you stop adding
+people and start adding *floors*. Then buildings, then campuses, then towns, nations,
+planets, galaxies. At every rung the player is still watching something physically arrive —
+it is just a bigger thing.
+
+#### 7.7.1 The ladder
+
+| Rung | Headcount | The unit that arrives | What the camera holds |
+|---|---|---|---|
+| 0 | 1 – 10 | **a person** | one desk, then a huddle |
+| 1 | 10 – 10² | **a person** | a room of desks |
+| 2 | 10² – 10³ | **a person** | one full floor, rank and file |
+| 3 | 10³ – 10⁴ | **a floor** | a tower growing storey by storey |
+| 4 | 10⁴ – 10⁵ | **a building** | a block |
+| 5 | 10⁵ – 10⁶ | **a campus** | a business park |
+| 6 | 10⁶ – 10⁸ | **a town** | a sprawl to the horizon |
+| 7 | 10⁸ – 10¹⁰ | **a nation** | a continent, lit at night |
+| 8 | 10¹⁰ – 10¹³ | **a planet** | a system |
+| 9 | 10¹³ + | **a galaxy** | a cluster |
+
+**Rungs 0–2 are the same picture at three densities, and that is the point.** This is where
+one sprite means one person, where the fiction is established, and where the entire Run 1
+script (§21) takes place. Nothing above rung 2 is allowed to make this stop being true.
+
+#### 7.7.2 The arrival gag — *slap another floor on it*
+
+Every rung change from 3 upward is a **physical construction joke**, and it is the single
+highest-value piece of animation in the game because the player will see it hundreds of
+times across a run.
+
+The register is deadpan slapstick — the studio expands the way a cartoon builds a house:
+
+- **Rung 3, a floor arrives.** A complete, furnished, already-populated storey drops out of
+  the sky and lands on top of the tower with a *whump*. The building squashes, wobbles, and
+  settles one floor taller. Dust rings out from the base. Nobody inside reacts.
+- **Rung 4, a building arrives.** A whole tower slams down beside the last one, hard enough
+  to make the neighbours sway. A tiny crane wanders off screen having done nothing.
+- **Rung 5, a campus.** Several buildings land at once, in formation, like a dropped tray.
+- **Rung 6+, towns, nations, planets.** The same beat at absurd scale: an entire town slides
+  into frame and parks. A continent is placed. A planet is set down, and it bounces once.
+
+**The comedy is in the deadpan and the speed, not in a wacky animation.** These objects
+behave like furniture being put down by something enormous and bored. That reads as funny,
+and — this matters more — it reads as *the studio no longer being a place where anyone
+thinks about people*, which is the game's actual thesis (§6) arriving through the visuals
+instead of through a text box.
+
+**Every hire produces an arrival, even below a rung change.** Within a rung the unit is
+partial: a half-built floor gains a storey of scaffolding, a campus gains a car park. The
+rule is that the screen must never be still after a hire.
+
+#### 7.7.3 How big the gag is — the ratio rule
+
+What scales the arrival is the **ratio**, never the raw number:
+
+> **arrival weight = clamp(1, 120, round(40 × log₁₀(after / before)))**
+
+| Hire | Ratio | Weight | Reads as |
+|---|---|---|---|
+| 1 → 2 | ×2 | 12 | a person, unmissable |
+| 2 → 1,002 (the §6 Mass Hire) | ×501 | 108 | a deluge |
+| 10¹² → 10¹² + 10⁹ | ×1.001 | 1 | a trickle — *correctly* |
+| 10¹² → 2 × 10¹² | ×2 | 12 | exactly what 1 → 2 felt like |
+
+Nobody experiences "plus a billion". They experience "×2, something" or "×1.001, nothing".
+The bottom two rows are the whole design: a late-game hire that doubles the studio gets the
+same punch as the very first one, and a late-game hire that barely moves the needle is
+*allowed* to feel like it barely moved the needle. That is information, not a failure.
+
+The 120 cap exists because the ADR §7.5 criterion-4 sprite ceiling is real, and because past
+roughly a hundred simultaneous arrivals the eye stops counting anyway.
+
+#### 7.7.4 The Hero Anchor — you can always zoom back to James **[CANON]**
+
+**However large the studio gets, pinching all the way in lands on one specific floor: the
+one with the player's desk and every Hero Card character on the org chart (§22).** James is
+at that desk in Run 1 and in Run 400. He is never fused into an aggregate, never becomes a
+statistic, and never has to be found.
+
+This is a hard rule and it is the most important line in §7.7:
+
+- **It is the emotional anchor.** A game about a hundred million developers that never shows
+  you one is an abstract number going up. The zoom-in is the promise that there are still
+  people down there, and §22.3 spends the entire Hero Card system on making the player care
+  about one of them specifically.
+- **It is what makes the ladder legible.** The rungs above are only readable *as* growth
+  because the player can compare them against a floor they know. Zoom out from James's desk
+  to a galaxy and back, and the scale means something. Without the anchor it is just
+  differently-sized wallpaper.
+- **It pays off §21's ending.** Act V leaves one desk occupied — "*So. Same time tomorrow?*"
+  — and that lands only if the player already knows exactly which desk that is.
+
+**Implementation constraints this places on everything else:**
+
+1. Hero characters are **never** part of the cohort/aggregate representation. They are
+   individually rendered sprites at desk zoom at any headcount.
+2. The Omni-Lens (§7.2) always has a defined path from the top rung down to the Hero floor.
+   There is no headcount at which the desk tier stops existing.
+3. The Hero floor keeps its identity as the surroundings change — it is the *same room*
+   inside a bigger and bigger building, not a fresh one generated per rung.
+
+#### 7.7.5 The scale bar — never a silent unit change
+
+From rung 3 the HUD states what one marker means, exactly as a map states its scale, because
+a picture whose units silently changed is a lie:
+
+```
++----------------------------------------+
+|  DEVS  4.2 T        1 FLOOR = 1 K DEVS |
++----------------------------------------+
+```
+
+A player at rung 7 who thinks one dot is one developer has been misled by their own game.
+
+#### 7.7.6 Navigation — drag to move, tap to poke, tap to select **[CANON]**
+
+The Omni-Lens is not a fixed camera that only zooms. **The player can drag the world around
+at every rung**, and everything on screen is individually addressable.
+
+| Gesture | Effect |
+|---|---|
+| **Drag** | Pan the camera across the current rung. Momentum, then friction — never a rubber-band snap-back |
+| **Pinch** | Zoom, continuously, across the whole ladder (§7.2) |
+| **Tap a developer** | Poke them (§4.5, §8.2) — *any* of them, not a designated one |
+| **Tap a unit** (floor, building, campus, town, planet) | Select it: the camera frames it and the Query Panel opens on it |
+| **Double-tap a unit** | Zoom into it — one rung down, centred on what was tapped |
+| **Tap empty space** | Deselect |
+
+**Two requirements this places on the renderer, both load-bearing:**
+
+1. **Every one of the 1,000 floor sprites is individually hit-testable and pokeable.** Not a
+   proxy, not the nearest of nine anchor points — the actual developer under the thumb.
+   §4.5's poke is the game's primary verb and §8.2's per-developer states (Slacking, Flow,
+   Rogue, 10x) are *per developer*; a swarm you cannot address one member of makes all of
+   that decoration. The ParticleContainer holding them therefore needs a spatial index
+   alongside it, because particles carry no hit area of their own.
+2. **Selection is defined at every rung.** At rung 3 you select a floor, at rung 7 a nation.
+   "Our floor, our building, our city, our planet" has to be a thing the player can point at
+   and act on, or the ladder is scenery rather than a place.
+
+**Panning must not fight poking.** A tap is a pointer-down and -up within ~10 px and ~250 ms;
+anything longer or further is a drag and yields no poke. Getting this wrong in either
+direction is fatal: a poke that pans loses the clicker layer, and a pan that pokes means
+every attempt to look around costs the player Entropy (§4.9).
+
+**The Hero Anchor (§7.7.4) is a navigation guarantee too.** There is always a "return to my
+desk" affordance — pinching all the way in, or a single HUD control — so the player can never
+get lost in a galaxy with no way back to James.
+
+#### 7.7.7 What this must never become
+
+- **A counter with a particle effect.** If nothing physically arrived, the hire did not
+  happen as far as the player is concerned.
+- **A silent unit change.** §7.7.5 is not optional decoration.
+- **A ladder you cannot walk around in.** §7.7.6 is canon: drag, poke any individual, select any unit.
+- **A ladder that abandons the ground.** §7.7.4 is canon. The moment the player cannot get
+  back to James, the game has become a spreadsheet.
+- **A rung change that can be missed.** Rung promotions are rare and enormous. They get the
+  camera, the audio and the screen; they do not get a toast.
+
+---
+
 ## 8. Game Juice: Camera, Poking & Feedback
 
 The visual simulation is the entire game — the UI floats on top as a clean,
@@ -620,6 +835,59 @@ side-effect.
 up and fades — this is the clicker layer's entire feedback loop and it has to feel
 generous. Crits (Flow State, 10x) spawn a larger numeral with a brief chromatic-aberration
 punch on the HUD.
+
+#### 8.2a The poke also emits a line of code **[CANON]**
+
+Beside the numeral, every poke throws off **one short line of source code** that arcs, fades
+and is gone in under a second. This is what the developer just wrote because you interrupted
+them, and it is the game's highest-frequency joke delivery: at 4–5 taps a second in the first
+thirty seconds, it is the line the player reads more than any other text in the product.
+
+```
+                 while (true) { ... }
+              +8      ^ arcs up and fades
+        [ dev sprite ]
+```
+
+**The writing brief, and it is narrow.** Each line must clear three bars at once:
+
+1. **A developer laughs.** The joke is real to someone who writes code for a living.
+2. **A non-specialist gets it anyway.** `while (true)` reads as "this never stops" to anyone
+   who has met a computer. Nothing requiring a language, a framework or a war story.
+3. **It fits on one line at HUD size.** Roughly 28 characters. If it needs two lines it is
+   an essay, not a joke.
+
+**Seed set** — the register, not the full list:
+
+| Line | Why it lands for both audiences |
+|---|---|
+| `while (true) { }` | The universal "this is never going to finish" |
+| `// TODO: fix this` | Everyone has written this note and abandoned it |
+| `git commit -m "stuff"` | The unhelpful label, in every profession |
+| `it works on my machine` | Already a civilian phrase |
+| `console.log("here")` | Debugging by shouting into the void |
+| `// don't touch this` | Fear of one's own past work |
+| `rm -rf /` *(crit only)* | Reads as catastrophic even without knowing why |
+| `undefined is not a function` | Comedy of the machine complaining in riddles |
+| `catch (e) { }` | Ignoring a problem, expressed as syntax |
+| `sudo make me a sandwich` | The oldest joke in the trade, and legible cold |
+
+**Rules:**
+
+- **Never repeat consecutively.** Shuffle-bag, not random draw — a repeated line at 5 taps a
+  second reads as a bug in the game rather than a joke.
+- **State-flavoured.** The dev's §8.2 state picks the pool: a Rogue Refactorer emits
+  Assembly, an Overwhelmed dev emits `` (empty), and the 10x Engineer's farewell poke emits
+  a resignation one-liner.
+- **Typeset in Departure Mono, in the palette, with no syntax highlighting.** It is a
+  fragment from the same CRT the monitor is showing, not an IDE screenshot.
+- **It never carries information.** A player who never reads a single one loses nothing
+  mechanical. This is texture, and it must not become a tutorial channel.
+
+**This replaces the placeholder bar.** The spike drew the floating numeral as an untyped
+rectangle, on the reasoning that text belongs in React (ADR 0001 §5 mitigation 3). That
+reasoning holds for the HUD and not for this: the code line is scenery, it must sit *under*
+the CRT glass to be welded (ART_DIRECTION §6), and it churns several times a second.
 
 ### 8.3 Haptics & polish
 
@@ -665,14 +933,15 @@ the swarm screen to clear bottlenecks:
 ### 10.2 Per-zoom HUD readouts (from concept art)
 
 The "GAME UI CONCEPT: SWARM DEV" sheet establishes the HUD reading at each zoom level.
-Format: `[ $ cash ] [ 👤 devs ] [ 🔥 entropy/speed ]`.
+Format: `[ $ cash ] [ DEVS n ] [ ENTROPY n% ]`, each mark a procedural pixel icon
+per ART_DIRECTION §3.1 — bracketed words here because a mock is a layout, not an asset.
 
 | Panel | Zoom Level | HUD | Active Project | On-screen affordances |
 |---|---|---|---|---|
-| **1. Micro Zoom: Desk Query** | 1:1 | `[$ 1.2K] [👤 8] [🔥 60%]` | `Build 'Flappy Cube' (T-5s)` | Ping! bubbles, `--- DEV: INTERN #42 ---` panel: `ASK: What are you doing?` → "Writing redundant CSS."; `ASK: Status?` → "Panicked, but caffeinated."; `[ ☕ Give Coffee (+5%) ]` |
-| **2. Mid Zoom: Open Office Slicing** | 1:1,000 | `[$ 900M] [👤 25K] [🔥 30%]` | `Generate 'Matrix' Sequence (T-0.1s)` | Swaying "Entropy" bar (vibrates when red) → **TAP: Clear Node!**; **SLACK NOISE Web**; **MEETING BUSTER: swipe to cancel** |
-| **3. Macro Zoom: Global Grid** | 1:1,000,000 | `[$ 1.5T] [👤 5.3M] [🔥 90%]` | `Simulate Multiverse v1.0 (T-0.03s)` | **Entropy Heatmap**; `[ SENSORS ]` / `[ COMM TECH ]` side rail listing `T3: Agile Standups`, `T4: Neural Sync`, `T5: Neuro-Relay`; **SECTOR: upgrade connection hubs**; **MAP: jump lens via tap**; PRESTIGE tab glowing |
-| **4. Cosmic Zoom: Inter-Galactic Network** | 1:1,000,000,000 | `[$ 90Q] [🏛 12.1B] [💧 99%]` | `Re-code Physics Constants (T-0.0001s)` | **PLANETARY HUBS: manage latency**; **INTER-STELLAR PATHS: upgrade protocols**; **ZOOM PATH: Micro → Macro** |
+| **1. Micro Zoom: Desk Query** | 1:1 | `[$ 1.2K] [DEVS 8] [ENT 60%]` | `Build 'Flappy Cube' (T-5s)` | Ping! bubbles, `--- DEV: INTERN #42 ---` panel: `ASK: What are you doing?` → "Writing redundant CSS."; `ASK: Status?` → "Panicked, but caffeinated."; `[ Give Coffee (+5%) ]` |
+| **2. Mid Zoom: Open Office Slicing** | 1:1,000 | `[$ 900M] [DEVS 25K] [ENT 30%]` | `Generate 'Matrix' Sequence (T-0.1s)` | Swaying "Entropy" bar (vibrates when red) → **TAP: Clear Node!**; **SLACK NOISE Web**; **MEETING BUSTER: swipe to cancel** |
+| **3. Macro Zoom: Global Grid** | 1:1,000,000 | `[$ 1.5T] [DEVS 5.3M] [ENT 90%]` | `Simulate Multiverse v1.0 (T-0.03s)` | **Entropy Heatmap**; `[ SENSORS ]` / `[ COMM TECH ]` side rail listing `T3: Agile Standups`, `T4: Neural Sync`, `T5: Neuro-Relay`; **SECTOR: upgrade connection hubs**; **MAP: jump lens via tap**; PRESTIGE tab glowing |
+| **4. Cosmic Zoom: Inter-Galactic Network** | 1:1,000,000,000 | `[$ 90Q] [DEVS 12.1B] [ENT 99%]` | `Re-code Physics Constants (T-0.0001s)` | **PLANETARY HUBS: manage latency**; **INTER-STELLAR PATHS: upgrade protocols**; **ZOOM PATH: Micro → Macro** |
 
 All four panels carry the same bottom nav: `[SWARM] [UPGRADES] [RELEASES] [PRESTIGE]`.
 
@@ -683,7 +952,7 @@ From `assets/concept/ui-wireframe-mobile-layout.png`:
 ```
 +--------------------------------------------------+
 | HEADER / RESOURCES BAR                           |
-|  [$] $ Trillions ↑     [👤] DEVS Count (2.5 M)   |
+|  [$] $ Trillions ^     [DEVS] Count (2.5 M)     |
 +--------------------------------------------------+
 | CURRENT PROJECT   (speedily rapid progress)      |
 |  SIMULATING MULTIVERSE (AAA+)                    |
@@ -797,6 +1066,57 @@ the design.
 
 **The test:** screenshot any two consecutive frames during a screen change. If nothing is
 mid-motion, it is a cut, and it needs fixing.
+
+---
+
+### 10.7 The Dialogue System — typed out, and unskippable **[CANON]**
+
+All character dialogue is delivered **one letter at a time**, in the manner of a Game Boy
+Pokémon text box. This is the game's voice, and it is not decoration.
+
+**Presentation:**
+
+- **Departure Mono**, at the terminal type scale. It is already the only face in the product
+  (ART_DIRECTION §3), and a fixed-width face is what makes character-by-character reveal
+  legible — proportional type reflows as it types, which reads as a rendering fault.
+- **A framed box** anchored to the bottom of the screen, semi-transparent over the
+  simulation, per §7.1. It never covers the speaker.
+- **A speaker name plate** above the box: `JAMES`, `ADVISOR`, `STUDIO_OS`.
+- **A blinking advance caret** in the bottom-right of the box once a page has finished
+  typing, exactly where a Game Boy puts it.
+- **Letters land with a tick.** One short click per character, pitched to the speaker,
+  throttled so a fast line does not become a buzz.
+
+**Timing:**
+
+| | |
+|---|---|
+| Base rate | **28 characters/second** |
+| After `,` | pause 120 ms |
+| After `.` `?` `!` | pause 260 ms |
+| After `—` | pause 200 ms |
+| Page length | 3 lines max, then wait for advance |
+
+**Rules, and the third one is the point:**
+
+1. **Tapping mid-page completes the page instantly.** Impatience is served — but it fills
+   the text in, it does not move past it.
+2. **Advancing requires a deliberate second tap** once the page is complete. A single tap
+   can never both finish a page and dismiss it, or a fast tapper skips the whole scene by
+   accident. This game trains players to tap 5×/second in Act I; the dialogue system has to
+   survive that thumb.
+3. **There is no skip.** No "skip cutscene", no hold-to-fast-forward, no auto-advance timer.
+   The player reads it, or they sit there. Every line in this game is a joke or a setup for
+   one, the script *is* the product (Appendix D: text does the comedy work, not art), and a
+   skip button is an admission that it is filler.
+
+**The one exception, and it is not a skip:** dialogue already seen in a previous run may be
+advanced faster (rule 1 with no per-character delay), because a player on Run 40 has read
+James's introduction forty times. **First viewing of any line is always fully typed.**
+
+**Accessibility:** an OS-level reduce-motion preference sets the rate to instant-fill per
+page. That is a rendering accommodation and still requires the deliberate advance tap of
+rule 2 — the content is never shortened or auto-dismissed.
 
 ---
 
@@ -1385,19 +1705,19 @@ triggers a full-screen confirmation overlay over the active swarm:
 
 ```
 +---------------------------------------------------------------------+
-|                    ⚠ INITIATE PARADIGM SHIFT ⚠                      |
+|                 [!] INITIATE PARADIGM SHIFT [!]                    |
 +---------------------------------------------------------------------+
 | You are about to liquidate your studio and rebuild under a new      |
 | architectural paradigm.                                             |
 |                                                                     |
 | WHAT YOU SACRIFICE:                                                 |
-| ❌ 1,200,000 Active Developers                                      |
-| ❌ $4.2 Trillion Current Cash                                       |
-| ❌ In-Run Office Infrastructure                                     |
+| [-] 1,200,000 Active Developers                                      |
+| [-] $4.2 Trillion Current Cash                                       |
+| [-] In-Run Office Infrastructure                                     |
 |                                                                     |
 | WHAT YOU EARN:                                                      |
-| ⚡ +1,850 Bandwidth Points (BP)                                     |
-| 🔓 Unlock Tier III Paradigm Tree Nodes                              |
+| [+] +1,850 Bandwidth Points (BP)                                     |
+| [+] Unlock Tier III Paradigm Tree Nodes                              |
 |                                                                     |
 |                  [ ABORT ]    [ REWRITE CODEBASE ]                  |
 +---------------------------------------------------------------------+
@@ -1499,20 +1819,20 @@ animation:
 
 ```
 +---------------------------------------------------------------------+
-|                    ⚡ `git checkout -b fork/v2.0`                    |
+|                    >>  `git checkout -b fork/v2.0`                 |
 +---------------------------------------------------------------------+
 | You are about to execute a Layer 2 Codebase Fork.                   |
 | This will reset your Layer 1 Bandwidth Points and Paradigm Tree.     |
 |                                                                     |
 | WHAT YOU SACRIFICE:                                                 |
-| ❌ All Active Developers & In-Run Cash                              |
-| ❌ 14,250 Bandwidth Points (BP)                                     |
-| ❌ Unlocked Layer 1 Paradigm Tree Perks                             |
+| [-] All Active Developers & In-Run Cash                              |
+| [-] 14,250 Bandwidth Points (BP)                                     |
+| [-] Unlocked Layer 1 Paradigm Tree Perks                             |
 |                                                                     |
 | WHAT YOU EARN & KEEP:                                               |
-| 🟢 +18 Git Branch Points (GP)                                       |
-| 🔵 Permanent Cash Multiplier Boost (+35%)                           |
-| 🚀 All Unlocked Hero Lineages & CI/CD Autopilot Perks               |
+| [+] +18 Git Branch Points (GP)                                       |
+| [+] Permanent Cash Multiplier Boost (+35%)                           |
+| [+] All Unlocked Hero Lineages & CI/CD Autopilot Perks               |
 |                                                                     |
 |                   [ CANCEL ]    [ FORK & HARD RESET ]               |
 +---------------------------------------------------------------------+
@@ -1987,6 +2307,54 @@ UI guidance to lure the player into making the classic "hire everyone immediatel
   chunky CRT monitor.
 - **Audio:** soft ambient hum of a PC fan, gentle keyboard clacks, and a cozy lofi synth melody.
 
+### 21.0 The shape of Run 1 — earn it, then fall for it **[CANON — revised]**
+
+**An earlier draft of this script went 1 dev → 2 devs → 1,000 devs.** That is too fast, and
+it breaks the trap it exists to set. A player handed a free thousand-developer button ninety
+seconds in has not yet learned that hiring *works*, so when it stops working they have
+learned nothing — they were never invested. **A trap only springs on someone who walked into
+it confidently.**
+
+So Run 1 is a real loop first, and the trap is what the loop earns:
+
+| Beat | Devs | The player is learning |
+|---|---|---|
+| **Act I** | 1 | Poking works. Ship *Flappy Square 1.0* almost entirely by thumb. |
+| **Act II** | 1 → 2 | Cash buys a developer. James arrives. Velocity visibly doubles. |
+| **Act IIa — the honest loop** | 2 → ~10 | **Ship, earn, hire, ship faster, earn more, hire again.** Three or four projects. Each hire is bought with money the player made, costs more than the last, and *works*. |
+| **Act III** | ~10 | The bait. |
+| **Act IV–V** | 1,010 | The collapse. |
+
+**Act IIa is the load-bearing beat and it did not exist before.** Four things have to be true
+by the end of it:
+
+1. **The player has hired several times, deliberately, with earned cash.** Hiring is now a
+   habit and a reward, not a tutorial step.
+2. **It has always worked.** At 10 developers against the §4.2 cap, the readout still says
+   `IN SYNC` or `CHATTY`. Communication cost is *present in the model the whole time* — it
+   is simply not yet large enough to notice, which is exactly how the real thing works.
+3. **The player has a mental model, and it is wrong.** "More developers, more speed." They
+   built it themselves out of evidence, which is why it will hold right up until it doesn't.
+4. **They can just about afford the Mass Hire.** See below.
+
+**The Mass Hire is no longer free.** "Cost: FREE (Trial Promo)" made it a button rather than
+a decision, and §6 is explicit that the lesson needs the player to *choose* it. It is now
+priced at **roughly the entire treasury they have accumulated by Act III** — affordable, and
+only just. That does three things at once:
+
+- It is a **commitment**, so the collapse costs them something they earned.
+- It makes the greed real: the offer is only tempting because they can now reach it.
+- It leaves **no cash buffer** when payroll starts, which is what makes Act V's bankruptcy
+  arrive in seconds rather than needing a scripted nudge.
+
+The advisor's pitch is unchanged and lands harder for it: *"Math doesn't lie!"* — and the
+player has four projects' worth of personal evidence that it doesn't.
+
+**Pacing target: Run 1 is about 4 minutes.** Act IIa is roughly half of it. If playtesting
+shows players hiring past ~10 without being offered the bait, offer it sooner; the trap must
+spring while the model still reads as reliable, never after the player has already noticed
+the readout climbing on their own.
+
 ### ACT I: The Innocent Beginning
 
 **[ON-SCREEN TERMINAL PROMPT (Retro Green Text)]**
@@ -2061,7 +2429,7 @@ anyway.)*
 
 ```
 +----------------------------------------------------------+
-|  🔥 LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED! 🔥       |
+|  ** LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED! **       |
 |  "Why hire one by one when you can hire an entire swarm?" |
 |                                                          |
 |                 [ HIRE 1,000 DEVS NOW ]                  |
@@ -2096,7 +2464,7 @@ anyway.)*
 *(The project progress bar freezes completely at 99.9%. The **Entropy Speedometer** slams to **99.9% ENTROPY LOCK**.)*
 
 **SYSTEM WARNING (Flashing Red HUD):**
-> ⚠ **CRITICAL SYSTEM FAILURE: COMMUNICATION ENTROPY 100%**
+> **[!] CRITICAL SYSTEM FAILURE: COMMUNICATION ENTROPY 100%**
 >
 > *Production Speed: 0.00000x*
 > *Payroll Burn Rate: $50,000 / sec*
@@ -2108,7 +2476,7 @@ anyway.)*
 
 ```
 +----------------------------------------------------------+
-|                    💸 BANKRUPTCY! 💸                      |
+|                    ** BANKRUPTCY! **                     |
 +----------------------------------------------------------+
 | Your 1,000 developers spent 100% of their time arguing in|
 | Slack and zero seconds coding.                           |
@@ -2131,6 +2499,74 @@ the org chart. The first Paradigm Shift screen shows the empty office with one d
 occupied, and his speech bubble reads:
 
 > *"So. Same time tomorrow?"*
+
+---
+
+### 21.6 Run 2, Act 0 — "How did you find me in every single reality?" **[CANON]**
+
+*(The first thing after the first Paradigm Shift. Delivered through the §10.7 dialogue
+system: typed out, unskippable. The office is empty except for two desks.)*
+
+This scene does three jobs and has to do all of them in under a minute: it establishes that
+**James is the constant across every run**, it lands the game's best running joke, and it
+hands the player their **first Paradigm-tree tool** — Instant Messenger — as a punchline
+rather than as an unlock notification.
+
+**PLAYER:**
+> *"James. You again."*
+>
+> *"How did you find me in every single reality?"*
+
+**JAMES:**
+> *"I saw the job posting."*
+
+*(beat)*
+
+> *"Anyway — I brought something. Look at this."*
+
+**[ STUDIO_OS — NEW PROTOCOL AVAILABLE ]**
+```
++----------------------------------------------------------+
+|  INSTANT MESSENGER                                        |
+|  Asynchronous text. Tier 1 Communication Infrastructure.  |
++----------------------------------------------------------+
+```
+
+**JAMES:**
+> *"Instant Messenger. So we don't have to speak to each other any more."*
+
+**PLAYER:**
+> *"James, we literally sit side by side."*
+
+**JAMES:**
+> *"Exactly. That's the whole point."*
+>
+> *"Now we don't even have to talk. Neat, right?"*
+
+*(He turns back to his monitor. A tiny message notification appears over the player's desk.
+It says `hey`. He is two feet away.)*
+
+**PLAYER:**
+> *"…"*
+
+**JAMES:**
+> *"Check your messages."*
+
+**Why this scene is here, in design terms:**
+
+- **It teaches the thesis in reverse.** Run 1 taught that adding people costs
+  communication. Run 2 opens by teaching that *communication tooling is the thing you buy to
+  survive people* — and it does it as a joke about two men sitting next to each other typing.
+- **Every prestige tier gets one of these.** The Paradigm tree is a ladder of communication
+  protocols (§13), and each one gets a James scene where he introduces it with total
+  sincerity and it is faintly horrifying: stand-ups, ticketing, "async-first", neural sync.
+  The tools get better and the humans get further apart. **That is the whole arc**, and it is
+  delivered entirely in dialogue.
+- **It makes James the player's relationship with the game.** §22.3 spends the Hero Card
+  system on making one developer matter. This is where that starts paying.
+
+**Constraint:** the `hey` notification is a **procedural pixel icon** with typed text, not an
+emoji and not a system toast (ART_DIRECTION §3.1, GDD §10.6).
 
 ---
 

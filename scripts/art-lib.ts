@@ -65,6 +65,32 @@ export function rel(file: string): string {
   return path.relative(path.join(import.meta.dirname, '..'), file).replaceAll('\\', '/')
 }
 
+/** Product source — where player-facing strings live. Excludes tests. */
+export const SRC_DIR = path.join(import.meta.dirname, '..', 'src')
+
+/**
+ * Every shipped `.ts`/`.tsx` under `src/`, for the ART_DIRECTION §3.1 emoji
+ * gate. Tests are excluded deliberately: a test asserting that an emoji is
+ * absent has to be able to name the emoji.
+ */
+export async function listSourceFiles(): Promise<string[]> {
+  const out: string[] = []
+
+  async function walk(dir: string) {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        await walk(full)
+      } else if (/\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) {
+        out.push(full)
+      }
+    }
+  }
+
+  await walk(SRC_DIR)
+  return out.sort()
+}
+
 /**
  * Nearest palette entry by squared distance in sRGB.
  *

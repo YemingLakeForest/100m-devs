@@ -10,7 +10,7 @@
  *   2  tap -> click audible            <= 60 ms  p95   (see CAVEAT below)
  *   3  fps during a full L1->L4 dolly  >= 55     5th percentile
  *   4  fps at floor zoom, 1000 sprites >= 55     5th percentile
- *   5  5 taps/sec for 60 s             no drop below 50 fps, no drift
+ *   5  5 taps/sec for 60 s             99th pct frame >= 50 fps, no drift
  *   6  cold start to interactive       <= 3 s
  *   7  the subjective gate             a human, not a number
  *
@@ -118,7 +118,33 @@ export class FrameSampler {
     return m > 0 ? 1000 / m : 0
   }
 
-  /** The single worst frame, which is what criterion 5 forbids dropping below 50 fps. */
+  /**
+   * fps at the 99th-percentile frame — criterion 5's sustained-smoothness gate.
+   *
+   * This replaced `fpsWorst` as the criterion 5 measurement on 2026-08-07, by
+   * decision of the ADR's owner (ADR §7.5, §7.7.4). The original wording, "no
+   * frame drops below 50 fps", is a *single worst frame* over 60 seconds — at
+   * 120 Hz that is one bad frame in roughly 7,200, so a single 23 ms GC pause
+   * fails the run. Two consecutive device runs of an identical build gave
+   * 57.5 fps (pass) and 44.1 fps (fail). A gate that flips on noise is not
+   * measuring anything.
+   *
+   * The 99th percentile still catches the thing the criterion means — a run
+   * that is genuinely hitching hitches far more than 1% of the time — while
+   * tolerating the isolated pause that no renderer can prevent. It is a
+   * deliberate loosening and is recorded as one.
+   */
+  get fps99th(): number {
+    const worst = this.frameMs.percentile(0.99)
+    return worst > 0 ? 1000 / worst : 0
+  }
+
+  /**
+   * The single worst frame. No longer a gate (see {@link fps99th}), but still
+   * reported alongside it: when the 99th percentile passes and this is far
+   * below it, that is the isolated GC pause, and seeing it is how you tell
+   * that case apart from a genuine regression.
+   */
   get fpsWorst(): number {
     const values = this.frameMs.values()
     if (values.length === 0) return 0

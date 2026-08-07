@@ -99,6 +99,19 @@ body {
   font-weight: 400;
 }
 
+/*
+ * GDD §7.7.5 — the scale bar. Sits under the headcount, quieter than it, and
+ * only appears above rung 2. Block-level so its arrival does not shove the
+ * cash readout sideways.
+ */
+.hud__scale {
+  display: block;
+  color: var(--p1);
+  opacity: 0.7;
+  font-size: 0.68em;
+  letter-spacing: 1px;
+}
+
 /* --- the one DOM element over the canvas, ADR §7.2 item 5 --------------- */
 
 .hud__velocity {

@@ -71,11 +71,31 @@ describe('FrameSampler — criteria 3 and 4', () => {
     expect(f.fps5th).toBeLessThan(55)
   })
 
-  it('reports the single worst frame for criterion 5', () => {
+  it('still reports the single worst frame as a diagnostic', () => {
     const f = new FrameSampler()
     for (let i = 0; i < 50; i++) f.sample(16.7)
     f.sample(25) // one 40fps frame
     expect(f.fpsWorst).toBeCloseTo(40, 0)
+  })
+
+  it('criterion 5 survives one isolated GC pause — the flap it was restated to fix', () => {
+    // This is the §7.7.4 device run reproduced: 60 s at 120 Hz is ~7,200 frames,
+    // and run 2 failed on a single 23 ms pause while the run overall was
+    // smoother than run 1. The old worst-frame gate fails here; the percentile
+    // must not, or the restatement bought nothing.
+    const f = new FrameSampler(8192)
+    for (let i = 0; i < 7200; i++) f.sample(8.3)
+    f.sample(23)
+    expect(f.fpsWorst).toBeLessThan(50) // what used to fail the run
+    expect(f.fps99th).toBeGreaterThanOrEqual(50)
+  })
+
+  it('criterion 5 still fails a run that hitches persistently', () => {
+    // The loosening must not make the gate unfailable. 2% of frames at 25 ms is
+    // visible, sustained stutter rather than one pause, and it is caught.
+    const f = new FrameSampler(8192)
+    for (let i = 0; i < 7200; i++) f.sample(i % 50 === 0 ? 25 : 8.3)
+    expect(f.fps99th).toBeLessThan(50)
   })
 
   it('discards frames long enough to be a paused tab, not a render', () => {

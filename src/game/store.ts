@@ -32,6 +32,8 @@ import {
   pokeDevState,
   type DevStateMachine,
 } from '../sim/devStates.ts'
+import { rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
+import { SnippetBag } from './snippets.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
 import {
@@ -62,6 +64,27 @@ export interface FloatingNumeral {
   x: number
   y: number
   crit: boolean
+  bornAt: number
+  /**
+   * GDD §8.2a — the line of code the poke knocked loose. Null for an
+   * Overwhelmed developer, who has nothing to say.
+   */
+  snippet: string | null
+}
+
+/**
+ * GDD §7.7.2 — one hire, as the renderer needs to see it.
+ *
+ * The store publishes the *ratio-scaled* body count rather than the raw number
+ * hired, because §7.7 is explicit that the raw number is the thing that stops
+ * being a feeling: at 10¹² a hire of 10⁹ is 0.1%, and the picture has to say so.
+ */
+export interface SpawnEvent {
+  id: number
+  /** Bodies to visibly drop in — {@link spawnBurst}, 1..120. */
+  bodies: number
+  /** Set when this hire crossed a §7.7.4 rung, which is a scored beat. */
+  promotedTo: Rung | null
   bornAt: number
 }
 
@@ -94,6 +117,8 @@ export interface GameState {
 
   floaters: FloatingNumeral[]
   bubble: Bubble | null
+  /** GDD §7.7 — the most recent hire, for the renderer's spawn puff. */
+  spawn: SpawnEvent | null
 
   pokeCount: number
   /** Taps made while the studio is locked — drives the §6.3 rebuke. */
@@ -122,6 +147,7 @@ function freshRun(): GameState {
     zoom: 1,
     floaters: [],
     bubble: null,
+    spawn: null,
     pokeCount: 0,
     desperateTaps: 0,
     phase: 'act1_poke',
@@ -132,6 +158,14 @@ function freshRun(): GameState {
 let state: GameState = freshRun()
 const listeners = new Set<() => void>()
 let nextFloaterId = 1
+let nextSpawnId = 1
+
+/**
+ * GDD §8.2a. Module-level rather than per-poke so the shuffle bag persists —
+ * a bag rebuilt on every tap would be an independent random draw, which is the
+ * thing it exists not to be.
+ */
+const snippets = new SnippetBag()
 
 export function getState(): GameState {
   return state
@@ -274,6 +308,9 @@ export function poke(x: number, y: number) {
     y,
     crit: result.crit,
     bornAt: performance.now(),
+    // Read from the state BEFORE the poke resolved: the line is what they were
+    // doing when you interrupted them, not what your interruption made of them.
+    snippet: snippets.next(state.dev.state),
   }
 
   const locked = isLocked()
@@ -303,16 +340,35 @@ export function poke(x: number, y: number) {
   return result
 }
 
+/**
+ * GDD §7.7.2 — the patch that makes a hire visible.
+ *
+ * Every path that changes headcount upward goes through here, so there is
+ * exactly one place the ladder can be forgotten. The renderer reads `spawn`;
+ * nothing else does.
+ */
+function hire(before: number, after: number): Partial<GameState> {
+  return {
+    devs: after,
+    spawn: {
+      id: nextSpawnId++,
+      bodies: spawnBurst(before, after),
+      promotedTo: rungCrossed(before, after),
+      bornAt: performance.now(),
+    },
+  }
+}
+
 /** §21 Act II — hire James, the first named character and first Hero Card. */
 export function hireDeveloper(): void {
-  set({ devs: state.devs + 1 })
+  set(hire(state.devs, state.devs + 1))
 }
 
 /** §21 Act III/IV — the mousetrap. */
 export function massHire(): void {
   if (state.massHired) return
   set({
-    devs: state.devs + MASS_HIRE_COUNT,
+    ...hire(state.devs, state.devs + MASS_HIRE_COUNT),
     massHired: true,
     ...showBubble('Wait — who’s writing this function?', 6000),
   })
@@ -349,6 +405,7 @@ export function setDevState(devState: DevState): void {
 export function __resetStore(): void {
   state = freshRun()
   nextFloaterId = 1
+  nextSpawnId = 1
   for (const fn of listeners) fn()
 }
 

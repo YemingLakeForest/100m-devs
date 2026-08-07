@@ -3,10 +3,12 @@
  *
  * ADR 0001 §5 mitigation 3 fixes the boundary: simulation, camera and
  * particles live here; everything with structured text, numbers or navigation
- * is React. This module never renders a glyph.
+ * is React. Structured text stays there; the poke numeral and its GDD §8.2a
+ * code line are drawn here because they are scenery that must sit under the
+ * glass — see pokeText.ts.
  */
 
-import { Application, Container, Graphics } from 'pixi.js'
+import { Application, Container } from 'pixi.js'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import { currentEntropy, getState, poke, setZoom, tick } from '../game/store.ts'
 import { pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
@@ -14,6 +16,8 @@ import { pokeHaptic } from '../audio/haptics.ts'
 import { LensCamera, lodWeights } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
+import { createCollapse } from './collapse.ts'
+import { createPokeTypeset } from './pokeText.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 
@@ -71,8 +75,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   if (post.worldFilters.length > 0) world.filters = post.worldFilters
   if (post.filters.length > 0) glass.filters = post.filters
 
-  const tiers = buildScene(app.renderer)
+  const { tiers, floor } = buildScene(app.renderer)
   for (const level of [4, 3, 2, 1] as const) world.addChild(tiers[level])
+
+  // §21 Act IV. Its overlay goes inside the glass, above the world and below
+  // the numerals — the badges and chatter are scenery and must never bury the
+  // one piece of feedback the clicker layer depends on (GDD §8.2).
+  const collapse = createCollapse({ renderer: app.renderer, floor, reduceMotion })
+  glass.addChild(collapse.overlay)
 
   const camera = new LensCamera(0)
 
@@ -172,7 +182,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // The numerals are inside the glass too, so they share the grade.
   glass.addChild(numerals)
 
-  const numeralGfx = new Map<number, Graphics>()
+  // GDD §8.2 + §8.2a. Built once — see pokeText.ts for why nothing here may
+  // typeset on the tap frame.
+  const typeset = createPokeTypeset(app.renderer)
+  const numeralGfx = new Map<number, Container>()
 
   // --- frame loop --------------------------------------------------------
 
@@ -200,6 +213,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       dollyFired = true
       dollyTarget = 0.35
       playSfx('zoom-out')
+      // Parts 2–4 of the same beat: the swarm falling, the Slack web, the
+      // @everyone flood and the audio shift.
+      collapse.trigger()
+    }
+    // A Paradigm Shift clears massHired for the next run. Without this the
+    // dolly and the whole Act IV beat are one-shot for the lifetime of the
+    // page, so a player who springs the trap again in Run 2 gets silence.
+    if (!state.massHired && dollyFired) {
+      dollyFired = false
+      collapse.reset()
     }
     if (dollyTarget !== null) {
       // Eased rather than snapped: §10.5 says nothing cuts, and the zoom-blur
@@ -232,18 +255,31 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     world.scale.set(s)
     world.position.set(app.screen.width / 2, app.screen.height / 2)
 
+    // §21 Act IV. The sustained level is Entropy rather than a timer: the room
+    // does not calm down in Act V, and reading it off the simulation means the
+    // noise is a symptom of the studio's state rather than a scripted flourish
+    // that happens to coincide with it.
+    const shake = collapse.update({
+      dt,
+      width: app.screen.width,
+      height: app.screen.height,
+      intensity: Math.min(1, currentEntropy() / 0.99),
+    })
+    // Applied to the glass, so the world, the numerals and the Act IV overlay
+    // all shake together. Shaking only the world would slide the picture out
+    // from under its own scanlines.
+    glass.position.set(shake.x, shake.y)
+
     // Numerals arc up and fade over ~900 ms (GDD §8.2).
     const live = new Set<number>()
     for (const f of state.floaters) {
       live.add(f.id)
       let g = numeralGfx.get(f.id)
       if (!g) {
-        g = new Graphics()
-        const size = f.crit ? 5 : 3
-        const colour = f.sp < 0 ? 0xe03c3c : f.crit ? 0xb8f4ff : 0x35c9d9
-        // A bar rather than a glyph: text lives in React, and the numeral's
-        // *value* is read from the HUD. This is the motion, not the number.
-        g.rect(0, 0, size * 6, size).fill(colour)
+        // The real numeral and the §8.2a code line. This was a plain rectangle
+        // during the spike, on the reasoning that text belongs in React — that
+        // holds for the HUD and not for this, which is scenery under the glass.
+        g = typeset.build(f.sp, f.crit, f.snippet)
         numerals.addChild(g)
         numeralGfx.set(f.id, g)
       }
@@ -255,6 +291,21 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       if (!live.has(id)) {
         g.destroy()
         numeralGfx.delete(id)
+      }
+    }
+
+    // Dev-only inspection seam, in the same family as ?bench / ?act / ?nopost.
+    // The Act IV beat is three systems deep — store flag, camera dolly, LOD
+    // weight — and "nothing is on screen" is the same symptom for all three.
+    if (import.meta.env.DEV) {
+      ;(window as unknown as Record<string, unknown>).__stage = {
+        z: camera.z,
+        level: camera.level,
+        weights,
+        massHired: state.massHired,
+        collapseActive: collapse.active,
+        floorRenderable: tiers[2].renderable,
+        floorAlpha: tiers[2].alpha,
       }
     }
 
@@ -290,6 +341,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       app.canvas.removeEventListener('pointerup', onPointerUp)
       app.canvas.removeEventListener('pointercancel', onPointerUp)
       app.canvas.removeEventListener('wheel', onWheel)
+      collapse.destroy()
+      typeset.destroy()
       post.destroy()
       app.destroy(true, { children: true })
     },

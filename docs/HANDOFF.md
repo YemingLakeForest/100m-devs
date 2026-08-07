@@ -21,10 +21,33 @@ sequence is produced by the GDD §4 simulation, not scripted.
 | Art pipeline (palette, quantiser, `art:check`) | Built |
 | Post-process / CRT grade | Built — carries most of the visible vibe |
 | **Authored art** | **Zero.** 0 of the 19 sprites in the §22.7 budget |
-| **Act IV spectacle** (§21) | **Not built.** No Slack web, no ping bubbles, no falling swarm |
+| **Act IV spectacle** (§21) | **Built and verified on screen** — swarm drops from the sky, red Slack web, `@everyone` flood, chatter bubbles, screen shake, four new SFX |
+| Poke code snippets (§8.2a) | Built — real `+N` numeral plus a typed joke line, replacing the placeholder bar |
+| Construction Ladder model (§7.7) | **Model + store wiring built; the renderer is not.** See below |
+| Player-facing vocabulary (§4.3a) | Built — "entropy" no longer reaches the player |
+| Emoji ban (ART_DIRECTION §3.1) | Built **and gated** — `art:check` fails on an emoji in any player-facing string |
 | Tech tree, prestige, cards, save, ads | Not started |
 
-Roughly: simulation ~60%, art 0%, spectacle ~5%, UI surface ~15%.
+**213 tests.** Roughly: simulation ~65%, art 0%, spectacle ~40%, UI surface ~15%.
+
+---
+
+## Specified but NOT built — read this before picking anything up
+
+These landed in the GDD this session as canon. **Nothing below has a renderer yet.**
+
+| Spec | What exists | What does not |
+|---|---|---|
+| **§7.7 Construction Ladder** — floors → buildings → campuses → towns → nations → planets → galaxies | `src/sim/headcount.ts` (rungs, ratio-scaled arrival weight, cohort size, scale bar) + `store.spawn` events + the HUD scale bar | **The arrival gag.** Nothing drops a floor onto the tower. `SpawnEvent` is published every hire and no renderer consumes it |
+| **§7.7.4 Hero Anchor** — pinching in always lands on James's floor | — | All of it. Currently the desk tier is generic |
+| **§7.7.6 Navigation** — drag to pan, poke *any* of the 1,000, select a floor/city/planet | Pinch-zoom only | Drag-pan, the tap-vs-drag discriminator, per-particle hit testing (needs a spatial index beside the ParticleContainer), unit selection |
+| **§10.7 Dialogue system** — Pokémon-style typed letters, unskippable | — | All of it. This gates §21.6 |
+| **§21.0 Reshaped Run 1** — earn/hire/ship loop to ~10 devs, then a *paid* Mass Hire | Current build still goes 1 → 2 → 1,000 with a free button | Act IIa entirely; pricing the Mass Hire at the player's treasury |
+| **§21.6 Run 2 Act 0** — "How did you find me in every single reality?", James introduces Instant Messenger | — | Needs §10.7 first |
+
+The natural order is: **§10.7 dialogue → §21.0 loop reshape → §21.6 scene → §7.7.6
+navigation → §7.7.2 arrival gag.** Dialogue first because two other items are blocked on it
+and it is self-contained.
 
 ---
 
@@ -34,17 +57,14 @@ The spike passed. The engine question is closed and the vertical slice is open.
 
 ## The one decision still waiting for a human
 
-**ADR §7.7.4 — criterion 5 is flapping and the criterion is the problem.**
+~~**ADR §7.7.4 — criterion 5 is flapping.**~~ **RESOLVED 2026-08-07 by the decision owner:
+restated as "99th-percentile frame ≥ 50 fps".** Recorded as a deliberate loosening in ADR
+§7.5, with what it gives up; the harness now gates on the percentile and prints the worst
+single frame beside it as an ungated diagnostic.
 
-It reads "no frame drops below 50 fps" over 60 seconds of sustained tapping. That is a
-*single worst frame* test; at 120 Hz it is one bad frame in ~7,200. Two consecutive device
-runs gave 57.5 fps (pass) and 44.1 fps (fail) with no code change. Drift over the same run
-was **−1.2 ms** — the second half was faster than the first, so there is no degradation and
-§7.6's kill criterion does not fire.
-
-Restating it as a percentile (99th frame ≥ 50 fps) would measure sustained smoothness
-rather than the worst GC pause in a minute. **That is a loosening of a gate and is the
-decision owner's call.** It has deliberately not been done.
+**Criterion 5 is therefore unmeasured under its current wording.** The two Pixel runs
+recorded worst-frame numbers and the percentile was not captured, so they cannot be
+honestly converted. The next device run measures it properly for the first time.
 
 ---
 
@@ -132,6 +152,7 @@ is at risk.
 | URL | Effect |
 |---|---|
 | `?bench` | ADR §7.5 acceptance run. `?bench=10` shortens the 60 s leg |
+| `window.__stage` | Dev builds only — camera Z, LOD weights, collapse state. Added because "nothing is on screen" is the same symptom for a store flag, a stalled dolly and a culled tier |
 | `?act=act5_bleeding` | Jump the §21 script — Run 1 takes ~4 minutes by design |
 | `?nopost` / `?post=bloom,crt` | Drop or select post-process passes |
 

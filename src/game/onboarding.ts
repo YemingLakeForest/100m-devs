@@ -64,7 +64,15 @@ export interface OnboardingSnapshot {
   bankrupt: boolean
 }
 
-/** Copy for each phase. Text does the comedy work, not art (Appendix D #6). */
+/**
+ * Copy for each phase. Text does the comedy work, not art (Appendix D #6).
+ *
+ * **No emoji** — ART_DIRECTION §3.1, enforced by `npm run art:check`. The
+ * banners below used 🔥, ⚠ and 💸 until 2026-08-07. Emphasis is carried by
+ * `**` and `[!]` instead, which are in Departure Mono, in the palette, and the
+ * same picture on every device. Where a real mark is wanted, it is a procedural
+ * pixel icon drawn beside the text, not a codepoint inside it.
+ */
 export interface PhaseCopy {
   /** Terminal banner, rendered in the CRT type. */
   terminal?: string[]
@@ -104,7 +112,7 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
 
   act3_bait: {
     terminal: [
-      '🔥 LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED! 🔥',
+      '** LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED! **',
       '"Why hire one by one when you can hire an entire swarm?"',
       'Cost: FREE (Trial Promo)',
     ],
@@ -120,7 +128,8 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
 
   act5_bleeding: {
     terminal: [
-      '⚠ CRITICAL SYSTEM FAILURE: COMMUNICATION ENTROPY 100%',
+      // GDD §4.3a — the player-facing word, never "entropy".
+      '[!] CRITICAL SYSTEM FAILURE: STUDIO SEIZED',
       'Production Speed: 0.00000x',
     ],
     bubble: 'I can’t push my line of code because 999 other people are trying to edit the same file!',
@@ -128,7 +137,7 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
 
   bankrupt: {
     terminal: [
-      '💸 BANKRUPTCY 💸',
+      '** BANKRUPTCY **',
       'Your 1,000 developers spent 100% of their time arguing in Slack',
       'and zero seconds coding.',
       '',

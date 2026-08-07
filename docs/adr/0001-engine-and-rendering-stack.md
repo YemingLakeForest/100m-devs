@@ -327,12 +327,25 @@ handset in a drawer, a colleague's. The harness is a single tap and takes 80 sec
 | 2 | Tap → click audible (native path) | **≤ 60 ms**, p95 |
 | 3 | Frame rate during a full L1→L4 zoom dolly | **≥ 55 fps**, 5th percentile |
 | 4 | Frame rate at floor zoom with 1,000 sprites | **≥ 55 fps**, 5th percentile |
-| 5 | Sustained tapping at 5 taps/sec for 60 s | No frame drops below 50 fps, no audio dropout, no latency drift |
+| 5 | Sustained tapping at 5 taps/sec for 60 s | **99th-percentile frame ≥ 50 fps**, no audio dropout, no latency drift |
 | 6 | Cold start to interactive | **≤ 3 s** |
 | 7 | **The subjective gate** | Hand it to someone who has not seen it. If they keep tapping for a full minute without being asked to, it passes. If they stop, it fails — regardless of the numbers above. |
 
 Criterion 7 outranks the rest. The measurements exist to explain a failure, not to overrule
 a verdict the thumb has already delivered.
+
+> **Criterion 5 amended 2026-08-07 by the decision owner.** It originally read "no frame
+> drops below 50 fps" — a *single worst frame* over 60 seconds, which at 120 Hz is one frame
+> in ~7,200. It flapped between pass and fail on an identical build (§7.7.4). It is now a
+> 99th percentile, which measures the sustained smoothness the criterion was always
+> reaching for instead of the worst GC pause in a minute.
+>
+> **This is a deliberate loosening of a gate and is recorded as one.** What it gives up: a
+> run may now contain up to 1% hitching frames and still pass, so a regression that shows up
+> as rare-but-severe stutter would be caught later than before. What protects against that:
+> the drift check (5.1) is untouched and still fires on any *degradation*, which is the
+> failure mode §7.6 actually names, and the harness still prints the worst single frame
+> next to the percentile so the isolated pause stays visible even though it no longer votes.
 
 ### 7.6 Kill criteria — reopen this ADR if any occur
 
@@ -449,7 +462,7 @@ reconstruct them later:
 | | Risk | Why it is acceptable |
 |---|---|---|
 | **Criterion 2 unmeasured** | Audio latency has no hard number | §7.6's kill criterion is *"cannot be brought under 60 ms even on the native path"* — nothing observed suggests that. Native audio preloaded and drift was negative over 300 taps. |
-| **Criterion 5 flaps** | Worst-frame test failed one run of two | Drift was −1.2 ms; there is no degradation, so §7.6's "sustained tapping degrades" does not fire. The criterion is a single-sample test — see the open question in §7.7.4. |
+| **Criterion 5 unmeasured under its new wording** | The two runs recorded worst-frame, not the 99th percentile the gate now asks for | Drift was −1.2 ms; there is no degradation, so §7.6's "sustained tapping degrades" does not fire either way. The criterion was restated on 2026-08-07 (§7.5) *after* these runs, so it gets its first real measurement on the next device run. |
 | **§7.4 relaxed to a flagship** | Criteria 3 and 4 unmeasured for the target audience | A fail would have been decisive and there wasn't one. Re-run the moment a cheap handset is available; it is one tap and 80 seconds. |
 
 **What would reopen this ADR** is unchanged and lives in §8. The most likely trigger is now
@@ -474,7 +487,7 @@ Bundled debug APK, cold launch, `VITE_BENCH=1` build.
 | 2 | tap → audio call accepted | 0.2 ms | 0.3 ms | ≤ 60 p95 | ❓ lower bound only |
 | 3 | fps, full L1→L4 dolly | 109.9 | 112.4 | ≥ 55 5th pct | ✅ |
 | 4 | fps, floor zoom, 1,000 sprites | 111.1 | 109.9 | ≥ 55 5th pct | ✅ |
-| 5 | sustained 5/sec 60 s, worst frame | 57.5 | **44.1** | ≥ 50 | ⚠️ **flapping** |
+| 5 | sustained 5/sec 60 s, worst frame | 57.5 | **44.1** | ≥ 50 *(superseded)* | ⚠️ **flapping** |
 | 5.1 | sustained, latency drift | +1.8 ms | −1.2 ms | ~0 | ✅ |
 | 6 | cold start to interactive | *(invalid)* | 0.8 s | ≤ 3 s | ✅ |
 | 7 | the subjective gate | — | — | a human | ❓ **not yet run** |
@@ -496,6 +509,17 @@ does not fire.** This is one isolated hitch, not a trend.
 > frame ≥ 50 fps") would measure the thing it means — sustained smoothness — instead of
 > the worst GC pause in a minute. **That is a deliberate loosening of a gate and must be
 > your call, not an implementer's**, so it is recorded here rather than done.
+>
+> **ANSWERED 2026-08-07 — the owner took the percentile.** §7.5 criterion 5 now reads
+> "99th-percentile frame ≥ 50 fps"; the rationale and what it costs are recorded there. The
+> harness reports the percentile as the gate and prints the worst single frame beside it as
+> an ungated diagnostic, so the two runs above remain readable rather than being erased.
+>
+> **The runs above are not restated.** Run 1 (57.5) and run 2 (44.1) are worst-frame
+> figures and the percentile was not captured at the time, so they cannot be honestly
+> converted. The next device run measures criterion 5 properly for the first time; until
+> then criterion 5 is **unmeasured under its current wording**, which is a weaker claim than
+> the table below makes and is the reason this note exists.
 
 **Criterion 6's first reading of 4.6 s was a harness bug, not the app.** `coldStartMs()`
 was read when the acceptance run *started*, which on a device is however long it took a

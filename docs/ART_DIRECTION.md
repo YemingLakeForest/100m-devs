@@ -165,6 +165,40 @@ to this project.
 2. Render at integer multiples only — 1×, 2×, 3×. Never fractional scaling.
 3. Numbers are monospace and tabular so counters don't jitter while counting up.
 
+### 3.1 Iconography — **no emoji, anywhere in the product**
+
+**Rule: emoji never ship.** Not in the HUD, not in terminal banners, not in tooltips, not in
+store copy, not as a placeholder "until the real icon lands". Every glyph the player sees is
+one of exactly two things:
+
+| Kind | How it is made | Examples |
+|---|---|---|
+| **Procedural pixel icon** | Drawn in code from the §2 palette, on the integer grid. T0 under §4 — geometry, not art, so it costs nothing and cannot drift. | Headcount marker, currency mark, entropy flame, the `@` badge, warning chevron, tier pips |
+| **Authored pixel icon** | Made under §4.1 or sourced from a pack and passed through §5's quantiser. Only when an icon carries identity a rectangle cannot. | Hero Card rarity marks, project-type marks |
+
+**Why this is a hard rule and not a preference.** An emoji is a font glyph owned by the
+operating system. That means it is:
+
+- **Anti-aliased and vector**, which §3 rule 1 already forbids as "the single most common
+  cohesion failure". A colour emoji beside Departure Mono is that failure at its most
+  obvious.
+- **Not in the palette.** Apple's 🔥 and Google's 🔥 are different pictures in colours
+  §5's quantiser has never seen and `art:check` cannot police, because they are not in any
+  asset — they arrive at runtime from a font.
+- **Different on every device.** The Act III bait banner is a joke about a hard sell; it
+  cannot be a joke if a third of players see a flat outline and another third see a 3-D
+  glossy rendering of somebody else's brand.
+- **Owned by someone else.** It is the one category of "art" in the product that carries no
+  studio decision at all.
+
+**In ASCII mocks in the design documents**, use a bracketed word — `[DEVS]`, `[HOT]`,
+`[WARN]` — and let the implementation choose the pixel icon. A mock is a layout, not an
+asset, and reaching for an emoji there is how they get into the build.
+
+**This rule is enforced.** `npm run art:check` fails on an emoji codepoint in any
+player-facing string. It does not police the design documents, engineering comments, or
+console output from the build scripts — those are not the product.
+
 ---
 
 ## 4. Asset Tiers — What Is Made How
@@ -336,6 +370,7 @@ pack** — see §9.
 | **Generate the T1 identity assets** | Generation cannot hold a palette, a light direction, or "same character, seven variants, only the shirt changes" across a set. This is exactly where the previous project broke. |
 | **Use AI output as a final asset** | Its correct role is §10. |
 | **Mix a vector/anti-aliased font with pixel art** | The most visible cohesion failure available, and one already made once at this studio. |
+| **Ship an emoji** | See §3.1. It is the same failure as the row above, arriving through a door nobody guards — and it is somebody else's art, rendered differently on every device, in colours outside the palette. |
 | **Approve an asset in isolation** | See §7. |
 | **Expand the Hero roster** | GDD §22.7 is a hard cap. |
 | **Add a third font, or a colour outside the palette, "just for this one screen"** | This is how systems die. Amend the palette deliberately, or don't. |

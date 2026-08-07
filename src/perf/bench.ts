@@ -96,16 +96,20 @@ async function measureFloor(hooks: BenchHooks, frames: FrameSampler): Promise<nu
 /**
  * Criterion 5 — 5 taps/sec for 60 s.
  *
- * The gate has three parts and all of them matter: no frame below 50 fps, no
- * audio dropout, and no latency drift. Drift is the one most likely to fire —
- * §7.6 names audio pool exhaustion as a kill criterion, and it looks like a
- * run whose second half is worse than its first.
+ * The gate has three parts and all of them matter: the 99th-percentile frame
+ * stays at or above 50 fps, no audio dropout, and no latency drift. Drift is
+ * the one most likely to fire — §7.6 names audio pool exhaustion as a kill
+ * criterion, and it looks like a run whose second half is worse than its first.
+ *
+ * The frame part was a worst-frame test until 2026-08-07; see `fps99th` in
+ * metrics.ts for why it is a percentile now. `worstFps` is still returned and
+ * still printed, just no longer judged.
  */
 async function measureSustained(
   hooks: BenchHooks,
   frames: FrameSampler,
   seconds: number,
-): Promise<{ worstFps: number; driftMs: number; frameCount: number }> {
+): Promise<{ fps99th: number; worstFps: number; driftMs: number; frameCount: number }> {
   hooks.camera.set(0)
   frames.clear()
   hooks.tapLatency.clear()
@@ -123,6 +127,7 @@ async function measureSustained(
   }
 
   return {
+    fps99th: frames.fps99th,
     worstFps: frames.fpsWorst,
     driftMs: hooks.tapLatency.driftMs,
     frameCount: frames.count,
@@ -209,11 +214,15 @@ export async function runBench(
     },
     {
       id: 5,
-      name: `sustained 5/sec for ${sustainedSeconds}s — worst frame`,
-      value: sustained.worstFps,
+      name: `sustained 5/sec for ${sustainedSeconds}s — 99th pct frame`,
+      value: sustained.fps99th,
       unit: 'fps',
-      threshold: '>= 50',
-      ...judge(sustained.worstFps, sustained.frameCount, (v) => v >= 50),
+      threshold: '>= 50 99th pct',
+      // The note goes BEFORE the spread so that judge()'s "NO SAMPLES" warning
+      // wins when there is no data. judge() omits `note` entirely when it has
+      // samples, so this one survives the normal case.
+      note: `worst single frame ${sustained.worstFps.toFixed(1)} fps — not a gate, see ADR §7.7.4`,
+      ...judge(sustained.fps99th, sustained.frameCount, (v) => v >= 50),
     },
     {
       id: 5.1 as unknown as number,
@@ -221,8 +230,8 @@ export async function runBench(
       value: sustained.driftMs,
       unit: 'ms',
       threshold: '~0',
-      ...judge(sustained.driftMs, tapCount, (v) => v < 15),
       note: 'p95 second half minus first half; §7.6 audio pool exhaustion',
+      ...judge(sustained.driftMs, tapCount, (v) => v < 15),
     },
     {
       id: 6,

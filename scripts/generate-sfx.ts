@@ -134,6 +134,48 @@ const SOUNDS: Sfx[] = [
     duration: 1.6,
     influence: 0.75,
   },
+
+  // --- GDD §21 Act IV, the Entropy Collapse -------------------------------
+  //
+  // The one place the game deliberately becomes unpleasant to listen to. §21
+  // asks for "an overwhelming, chaotic wall" — these are meant to stack on top
+  // of each other and fight, which is why they are not dried out like the poke
+  // clips above and why the STYLE suffix is not applied to all of them.
+  {
+    stem: 'collapse-thud',
+    // "A heavy bass-drop THUD shakes the screen." The impact the shake scores.
+    prompt:
+      'a single heavy cinematic bass drop impact, deep sub-bass thud with a ' +
+      'short body hit, one hit only, no music, no melody, no speech',
+    duration: 1.5,
+    influence: 0.8,
+  },
+  {
+    stem: 'collapse-siren',
+    prompt:
+      'an industrial alarm siren rising and wailing, harsh emergency klaxon in ' +
+      'an office building, no music, no speech',
+    duration: 4,
+    influence: 0.75,
+  },
+  {
+    stem: 'collapse-chatter',
+    // The one clip that WANTS speech: §21 asks for "loud overlapping chatter".
+    // Unintelligible is the goal — individual words would pull focus from the
+    // speech bubbles, which are where the actual jokes are.
+    prompt:
+      'a crowded open-plan office full of people all talking over each other, ' +
+      'unintelligible overlapping argument, room tone, no music',
+    duration: 6,
+    influence: 0.6,
+  },
+  {
+    stem: 'collapse-ping',
+    prompt:
+      `a single bright chat app notification ping, short digital blip, ${STYLE}`,
+    duration: 0.5,
+    influence: 0.85,
+  },
 ]
 
 async function loadKey(): Promise<string> {

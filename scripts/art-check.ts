@@ -15,7 +15,8 @@
  */
 import sharp from 'sharp'
 import { MASTER_PALETTE, hexToRgb } from '../src/art/palette.ts'
-import { listPolicedAssets, loadPaletteFromPng, rel } from './art-lib.ts'
+import { readFile } from 'node:fs/promises'
+import { listPolicedAssets, listSourceFiles, loadPaletteFromPng, rel } from './art-lib.ts'
 
 /** GDD §22.7 — hard cap. Breaching this needs a decision recorded in the GDD first. */
 const SPRITE_CAPS = [
@@ -118,6 +119,49 @@ for (const { dir, cap, what } of SPRITE_CAPS) {
         `This is a scope decision — record it in the GDD before raising the cap.`,
     )
   }
+}
+
+/*
+ * (5) No emoji in player-facing strings — ART_DIRECTION §3.1.
+ *
+ * An emoji is the one piece of "art" in the product that arrives at runtime
+ * from the operating system's font: anti-aliased, outside the palette, a
+ * different picture on every device, and invisible to every other check in this
+ * file because it is not in an asset. So it is policed at the source, where it
+ * actually lives.
+ *
+ * Scope is deliberately narrow — the *product*, not the project. Design
+ * documents, engineering comments and this script's own console output are not
+ * things a player sees, and a gate that fires on a tick in a Markdown table
+ * would be turned off within a week.
+ */
+// U+FE0F, the emoji variation selector, is deliberately NOT in this class: it
+// is a combining character, it only ever follows a base codepoint that is
+// already matched here, and including it makes the class misleading (eslint
+// no-misleading-character-class flags exactly that).
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{26A0}]/u
+
+const stringLiterals = /(['"`])((?:\\.|(?!\1)[^\\])*)\1/g
+
+for (const file of await listSourceFiles()) {
+  const source = await readFile(file, 'utf8')
+  const lines = source.split('\n')
+
+  lines.forEach((line, i) => {
+    // Comments are engineering notes, not product. This is a deliberately
+    // simple test: a `//` anywhere before the match is treated as a comment,
+    // which over-forgives a `//` inside a string and never under-forgives.
+    const code = line.split('//')[0]
+    for (const [, , body] of code.matchAll(stringLiterals)) {
+      const found = body.match(EMOJI)
+      if (found) {
+        failures.push(
+          `${rel(file)}:${i + 1}: emoji ${JSON.stringify(found[0])} in a player-facing string. ` +
+            'ART_DIRECTION §3.1 — use a procedural pixel icon or bracketed text.',
+        )
+      }
+    }
+  })
 }
 
 const counted = files.length

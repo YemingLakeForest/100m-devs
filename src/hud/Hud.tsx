@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
+import { entropyLabel } from '../game/vocabulary.ts'
+import { formatCount, scaleBar } from '../sim/headcount.ts'
 import {
   currentEntropy,
   currentPayroll,
@@ -45,8 +47,14 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
   return (
     <div className="hud">
       <header className="hud__top">
+        {/*
+          GDD §7.7.5 — once one on-screen unit stops being one developer, the
+          HUD says so, exactly as a map states its scale. A picture whose units
+          silently changed is a lie.
+        */}
         <span className="hud__stat">
-          DEVS <b>{state.devs.toLocaleString()}</b>
+          DEVS <b>{formatCount(state.devs)}</b>
+          {scaleBar(state.devs) && <small className="hud__scale">{scaleBar(state.devs)}</small>}
         </span>
         <Cash state={state} />
       </header>
@@ -64,14 +72,19 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
 
       {state.bubble && <div className="hud__bubble">{state.bubble.text}</div>}
 
+      {/*
+        GDD §4.3a — the readout escalates its own name as E climbs, and the
+        word "entropy" never appears. The class names keep the model's term
+        because they are read by engineers, not players.
+      */}
       <div className="hud__entropy">
         <span className="hud__stat">
-          ENTROPY <b>{(entropy * 100).toFixed(entropy > 0.99 ? 3 : 1)}%</b>
+          {entropyLabel(entropy)} <b>{(entropy * 100).toFixed(entropy > 0.99 ? 3 : 1)}%</b>
         </span>
         <div className="hud__entropy-bar">
           <div className="hud__entropy-fill" style={{ width: `${entropy * 100}%` }} />
         </div>
-        {theme.state === 'lock' && <div className="hud__lock">ENTROPY LOCK</div>}
+        {theme.state === 'lock' && <div className="hud__lock">STUDIO SEIZED</div>}
       </div>
 
       <BurnDown state={state} />
