@@ -500,8 +500,9 @@ Run 2: Slow Hire → Hit T3 Slack Web → Notification Overload → Burnout Coll
 
 ### 6.2 The trap in detail (visual + mechanical)
 
-1. The player unlocks the **"Mass Hire"** button early on and hires 1,000 developers,
-   expecting $1{,}000\times$ speed.
+1. The player is offered the **"Mass Hire"** button once the earn-and-hire loop has taught
+   them that hiring works — around 10 developers, priced at roughly everything they have
+   earned (§21.0) — and takes it, expecting $1{,}000\times$ speed.
 2. **Visual Impact:** instantly, thousands of tiny sprites spawn, crashing into each
    other. Screen fills with red `@everyone` ping icons, unread notification bubbles, and
    overlapping speech bubbles saying *"Wait, who's writing this function?"*
@@ -558,7 +559,15 @@ To maximise immersion, the entire screen is always the visual simulation. No hea
 [Level 0: Solo Dev Desk] → [Level 1: Open Office Floor] → [Level 2: Mega Campus] → [Level 3: Global Grid]
 ```
 
-### 7.3 Seamless camera scaling (by headcount)
+### 7.3 Seamless camera scaling (by headcount) — **superseded by §7.7.1 for the numbers**
+
+> **Read §7.7.1 first.** This table predates the Construction Ladder and disagrees with it on
+> where the rungs sit — it puts a skyscraper at 10⁴ and a planetary view at 10⁹, where §7.7.1
+> puts a *building* at 10⁴ and a planet at 10¹⁰. **§7.7.1 is canon for the thresholds and the
+> unit names.** What survives here, and is still the best description of it anywhere in this
+> document, is the *texture* of each scale — buses dumping 2-pixel workers into a lobby,
+> regions lighting up as heatmaps, the dark side of Earth glowing with data cables. Use it as
+> art direction, not as a spec.
 
 | Headcount | What the camera shows |
 |---|---|
@@ -925,7 +934,7 @@ the swarm screen to clear bottlenecks:
 | **Active Project (Top-Left)** | Non-obtrusive summary of the *next* milestone progress. Rendered as a **sprint burn-down** — a descending line, not a filling bar (§10.4). | `PROJECT: [██ _]`<br>`Simulating Universe T-0.03s`<br>`588 / 1,000 SP remaining` |
 | **Velocity Readout (under Entropy Speedometer)** | Story Points per second, passive + active split. The clicker layer's scoreboard. Spikes visibly while poking, settles back to the passive rate. | `VELOCITY: 4,120 SP/s`<br>`(3,880 swarm + 240 poke)` |
 | **Simulation Area (Main)** | The Omni-Lens view of the swarm. Takes up 100% of the screen. | `[ VISUAL SWARM IS ACTIVE HERE ]` |
-| **Entropy Speedometer (Mid-Left)** | Shows real-time effective output (%) vs total output. Decays rapidly as devs are added. High Entropy = Red/Vibrating; Low = Smooth/Blue. | `SPEED: [ 60% < ]`<br>`(Entropy High!)` |
+| **Entropy Speedometer (Mid-Left)** — *internal name; §4.3a governs what it is called on screen* | Shows real-time effective output (%) vs total output. Decays rapidly as devs are added. High = Red/Vibrating; Low = Smooth/Blue. | `BOGGED DOWN 60%`<br>`[=====-----]` |
 | **Mini-Map (Top-Right)** | Crucial for Global/Cosmic scale navigation. Shows high-entropy hotspots. Can be tapped to instantly jump the lens. | `[ (•) (•) (•) ] [ WORLD MAP ICON ]` |
 | **Contextual "Query Panel" (Slides in on Dev-Tap)** | Only appears at Micro-Zoom. Slides in smoothly from the screen edge. Semi-transparent. Contains buttons to "Query" status and apply temporary boosts. | `--- [ DEV: INTERN #42 ] ---`<br>`What are you doing? > [ WRITE CSS ]`<br>`Status? > [ OVERLOADED ]`<br>`Action? > [ Give Coffee ]` |
 | **Navigation Bar (Bottom)** | Structured menu access (transparent buttons). Highlights: **"Swarm"** (main screen), **"Upgrades"** (Communication Tech Tree), **"Releases"** (list of past successful games), **"PRESTIGE"** (Paradigm Shift). | `[ SWARM ] [ UPGRADES ] [ RELS ] [ PRESTIGE ]` |
@@ -1117,6 +1126,81 @@ James's introduction forty times. **First viewing of any line is always fully ty
 **Accessibility:** an OS-level reduce-motion preference sets the rate to instant-fill per
 page. That is a rendering accommodation and still requires the deliberate advance tap of
 rule 2 — the content is never shortened or auto-dismissed.
+
+---
+
+### 10.8 The Presentation Gate — what "done" means **[CANON]**
+
+§10.5 says how transitions work and §10.6 lists what not to do. **This section makes them a
+gate**: a feature is not finished when it functions, it is finished when it passes the list
+below. ADR 0001 §7.5 does this for performance; nothing did it for presentation, and
+"we'll juice it later" is how a game ships feeling like a web page.
+
+**Every one of these is a FAIL, not a nit.**
+
+#### F1 — Anything pops in or out
+
+**A cutscene, modal, panel, screen or dialogue box that appears or disappears without a
+directed transition fails.** This is the single named failure condition. No opacity-0-to-1
+snap, no `display: none`, no instant page swap. Everything enters and leaves with motion that
+has a direction, a duration and an ease. §10.5 is the spec; this is the gate.
+
+**Test:** capture two consecutive frames at any state change. If nothing is mid-motion, it
+is a cut. Fail.
+
+#### F2 — A UI element that does not respond to being touched
+
+Every interactive element acknowledges the finger **before** it acknowledges the action:
+
+| Element | Required response |
+|---|---|
+| **Button** | Depresses on press-down — scale ≤ 0.96, shadow collapses, colour shifts. Releases with a spring overshoot, not a linear return. Sound on down, not on up |
+| **Scroll / list** | Momentum with friction, and **rubber-band overscroll at both ends**. A list that stops dead at its boundary fails |
+| **Pull-down** | Real elastic resistance that increases with distance, and snaps back with a spring. Never a linear drag |
+| **Drag (the §7.7.6 camera)** | Momentum, friction, and no snap-back |
+| **Toggle / slider** | The handle carries weight — it arrives with a small overshoot |
+| **Card / tile** | Tilts or lifts under the thumb |
+
+**Test:** press and hold every interactive element without releasing. If nothing changed, fail.
+
+#### F3 — Silence
+
+**Every state change makes a sound.** Button down, panel open, panel close, tab change,
+purchase, error, dialogue letter, transition whoosh. A screen the player can operate in
+silence fails.
+
+**Music is continuous and reactive, never a loop that restarts on a screen change.** The
+§20 four-tier bus crossfades; it does not cut. A music track that restarts when a menu opens
+fails.
+
+#### F4 — Placeholder art in a shipped build
+
+No grey boxes, no untextured rectangles, no "programmer art" outside a dev build. Anything
+the player can see is either an authored asset that passed ART_DIRECTION §7, or a deliberate
+procedural T0 object (ART_DIRECTION §4) — never a stand-in that survived.
+
+#### F5 — A cutscene that is not directed
+
+Cutscenes are camera work, not slideshows. Each beat needs at least one of: a camera move, a
+scored moment, a parallax layer, an entrance animation. **A cutscene that is a sequence of
+static frames with text fails** — including the §21.6 dialogue scenes, which get camera
+pushes on the beats even though the shot is two men at desks.
+
+#### F6 — A transition the player waits through
+
+Juice is not delay. Every animation in F1 runs in **under 400 ms** unless it is a deliberate
+scored beat (a §7.7.2 rung promotion, a Paradigm Shift). If the player is waiting for the
+game to finish being beautiful, it is not beautiful.
+
+---
+
+**How this gets applied:** the gate runs per *feature*, not per release, and it runs on the
+device. The reviewer's job is to sit with the thing and try each of F1–F6 in turn. It takes
+about two minutes and it is the difference between the product this document describes and a
+functioning web app with pixel art in it.
+
+**F1 and F2 are the ones that will actually be violated**, because they are the ones that
+are invisible when you are the person who built the feature and already know it works.
 
 ---
 
@@ -2350,6 +2434,31 @@ only just. That does three things at once:
 The advisor's pitch is unchanged and lands harder for it: *"Math doesn't lie!"* — and the
 player has four projects' worth of personal evidence that it doesn't.
 
+**Measured 2026-08-07, against the shipped `entropy()` and the §4.2 cap of 100:**
+
+| Devs | E | Readout (§4.3a) |
+|---|---|---|
+| 1–8 | 0.000% | `IN SYNC` |
+| 10 | 0.001% | `IN SYNC` |
+| 20 | 0.032% | `IN SYNC` |
+| 50 | 3.03% | `IN SYNC` |
+| 100 | 50.0% | `BOGGED DOWN` |
+| 1,010 | 99.999% | `STUDIO SEIZED` |
+
+Requirement 2 above holds: at 10 developers the readout is `IN SYNC` and the player has no
+reason to doubt anything. **Two consequences worth deciding on before Act IIa is built:**
+
+- **The curve is flatter than it reads.** Nothing moves at all below ~30 developers, so
+  Act IIa gives the player *zero* signal rather than a faint one. A trap is slightly better
+  if there was a hint the player dismissed. Pushing Act IIa to ~30–50 developers would put
+  the readout at `IN SYNC 3%` — still reassuring, visibly non-zero.
+- **Five of the seven §4.3a labels are unreachable in Run 1.** `CHATTY` needs ~90
+  developers; the run goes straight from `IN SYNC` to `STUDIO SEIZED`. That may be correct —
+  the ladder exists for later runs with raised caps — but if the escalating vocabulary is
+  meant to carry drama *inside* Run 1, it currently cannot.
+
+**Both are balance decisions, recorded rather than taken.** See Appendix C.
+
 **Pacing target: Run 1 is about 4 minutes.** Act IIa is roughly half of it. If playtesting
 shows players hiring past ~10 without being offered the bait, offer it sooner; the trap must
 spring while the model still reads as reliable, never after the player has already noticed
@@ -2433,7 +2542,7 @@ anyway.)*
 |  "Why hire one by one when you can hire an entire swarm?" |
 |                                                          |
 |                 [ HIRE 1,000 DEVS NOW ]                  |
-|                 Cost: FREE (Trial Promo)                 |
+|                 Cost: $  (see 21.0 -- ~their whole till)  |
 +----------------------------------------------------------+
 ```
 
@@ -2461,10 +2570,10 @@ anyway.)*
 
 ### ACT V: Bankruptcy & The Lesson
 
-*(The project progress bar freezes completely at 99.9%. The **Entropy Speedometer** slams to **99.9% ENTROPY LOCK**.)*
+*(The project progress bar freezes completely at 99.9%. The speedometer slams to **99.9% — STUDIO SEIZED**. Per §4.3a the player never reads the word "entropy"; the internal name for this readout is the Entropy Speedometer and it stays internal.)*
 
 **SYSTEM WARNING (Flashing Red HUD):**
-> **[!] CRITICAL SYSTEM FAILURE: COMMUNICATION ENTROPY 100%**
+> **[!] CRITICAL SYSTEM FAILURE: STUDIO SEIZED**
 >
 > *Production Speed: 0.00000x*
 > *Payroll Burn Rate: $50,000 / sec*
@@ -3021,6 +3130,8 @@ number before implementation.
 | 9 | **Quantum Buffer** node | Present in v2 Protocol Engine tree (Auto-Clear Pings) | Absent from v3 / node index | — |
 | 10 | **Poke → Slacking dev** speed boost | +50% for 10s (poke table) | +100% for 10s (node C1 *Nitro Cold Brew*) | C1 is an upgrade *on top of* base — confirm stacking |
 | 11 | **Zone boundaries** for audio vs. poke SFX | Zones 0/1/2/3 at 0.2 / 0.5 / 0.8 | Volume curve breakpoints at 0.25 / 0.55 / 0.75 | Align the two tables |
+| 13 | **Act IIa signal is flat** — §21.0 asks the earn-and-hire loop to reach ~10 developers before the trap. Measured against the shipped `entropy()` and the §4.2 cap of 100, E at 10 devs is **0.001%**, and nothing moves below ~30. | Leave it — Act IIa's job is that hiring *works*, and a hint the player could dismiss is a hint they might not | Push Act IIa to ~30–50 devs, putting the readout at a visible-but-reassuring `IN SYNC 3%` | Lower the §4.2 Run 1 cap so ρ bites earlier — **changes the §6.2 0.01x trap figure, so this one is not free** |
+| 14 | **Five of seven §4.3a labels are unreachable in Run 1** — `CHATTY` needs ~90 devs; the run goes `IN SYNC` → `STUDIO SEIZED` with nothing between | Correct as designed: the ladder exists for later runs with raised caps | Re-band the labels against the *Run 1* curve so the escalation carries drama inside the first four minutes | Both — Run 1 bands and a raised-cap set |
 | 12 | ~~**The efficiency factor never reaches 1 or 0**~~ | ~~$\eta = 1/(1+e^{E})$ gives 0.50 at $E=0$ and 0.27 at $E=1$~~ | ~~Story Point baseline assumes $\eta(0)=1$~~ | ✅ **RESOLVED.** Replaced with the load curve $\eta = 1/(1+(D/D_{cap})^{\rho})$, $\rho=5$ — see §4.1. Reaches 1, reaches 0, spans five orders of magnitude, derives the 0.01x trap figure, and produces a genuine optimum headcount below capacity. |
 
 ---

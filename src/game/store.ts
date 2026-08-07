@@ -73,7 +73,7 @@ export interface FloatingNumeral {
 }
 
 /**
- * GDD §7.7.2 — one hire, as the renderer needs to see it.
+ * GDD §7.7.2–7.7.3 — one hire, as the renderer needs to see it.
  *
  * The store publishes the *ratio-scaled* body count rather than the raw number
  * hired, because §7.7 is explicit that the raw number is the thing that stops
@@ -81,9 +81,9 @@ export interface FloatingNumeral {
  */
 export interface SpawnEvent {
   id: number
-  /** Bodies to visibly drop in — {@link spawnBurst}, 1..120. */
+  /** §7.7.3 arrival weight — {@link spawnBurst}, 1..120. */
   bodies: number
-  /** Set when this hire crossed a §7.7.4 rung, which is a scored beat. */
+  /** Set when this hire crossed a §7.7.1 rung — a scored §7.7.2 construction gag. */
   promotedTo: Rung | null
   bornAt: number
 }
@@ -341,7 +341,7 @@ export function poke(x: number, y: number) {
 }
 
 /**
- * GDD §7.7.2 — the patch that makes a hire visible.
+ * GDD §7.7.2–7.7.3 — the patch that makes a hire visible.
  *
  * Every path that changes headcount upward goes through here, so there is
  * exactly one place the ladder can be forgotten. The renderer reads `spawn`;

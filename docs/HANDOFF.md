@@ -44,10 +44,49 @@ These landed in the GDD this session as canon. **Nothing below has a renderer ye
 | **§10.7 Dialogue system** — Pokémon-style typed letters, unskippable | — | All of it. This gates §21.6 |
 | **§21.0 Reshaped Run 1** — earn/hire/ship loop to ~10 devs, then a *paid* Mass Hire | Current build still goes 1 → 2 → 1,000 with a free button | Act IIa entirely; pricing the Mass Hire at the player's treasury |
 | **§21.6 Run 2 Act 0** — "How did you find me in every single reality?", James introduces Instant Messenger | — | Needs §10.7 first |
+| **§10.8 Presentation Gate** — F1–F6, the definition of "done" for feel | Written as canon | **Nothing currently passes it.** The HUD has no button physics, no overscroll, no press-down state; panels appear without transitions; most state changes are silent |
 
 The natural order is: **§10.7 dialogue → §21.0 loop reshape → §21.6 scene → §7.7.6
 navigation → §7.7.2 arrival gag.** Dialogue first because two other items are blocked on it
 and it is self-contained.
+
+**§10.8 is not an item in that list — it applies to every one of them.** Each feature above
+ships only when it passes F1–F6 on the device. Building them first and juicing them later is
+the failure mode §10.8 exists to prevent, and it is how the current HUD ended up where it is.
+
+## The GDD was swept on 2026-08-07 — what it turned up
+
+A consistency pass after the session's edits. Fixed in place:
+
+- **§21 Act III still advertised "Cost: FREE (Trial Promo)"** while §21.0 had made the Mass
+  Hire cost the player's whole treasury. The document contradicted itself on the single most
+  important decision in Run 1. *(The code still says FREE — that is §21.0 being unbuilt, and
+  it is listed above.)*
+- **§6.2 said the Mass Hire unlocks "early on"**, which is the shape §21.0 replaced.
+- **§21 Act V's banner and stage direction still read "COMMUNICATION ENTROPY 100%"** after
+  §4.3a made that word internal-only. §4.3a explicitly names this line as the one that must
+  change, and it had not been.
+- **§10.1's HUD mock printed `(Entropy High!)`** — same leak, in the component table.
+- **§7.3 specifies a different ladder from §7.7.1** — skyscraper at 10⁴ and planetary at 10⁹,
+  against §7.7.1's building at 10⁴ and planet at 10¹⁰. §7.3 is now marked superseded for its
+  numbers and kept for its art direction, which is still the best description of each scale
+  anywhere in the document.
+
+Left alone deliberately: §7.5's transcribed sketch annotations still say "COMMUNICATION
+ENTROPY!" because they are a *transcription of concept art that exists*, and editing them
+would falsify the record rather than fix anything.
+
+**New in Appendix C (#13, #14), and they need a decision before Act IIa is built.** Measured
+against the shipped `entropy()` and the §4.2 cap of 100:
+
+| Devs | 1–8 | 10 | 20 | 50 | 100 | 1,010 |
+|---|---|---|---|---|---|---|
+| E | 0.000% | 0.001% | 0.032% | 3.03% | 50.0% | 99.999% |
+
+§21.0's claim holds — at 10 developers the readout is `IN SYNC` and the player has no reason
+to doubt anything. But the curve is *flat*, not gentle: Act IIa as specified gives zero
+signal rather than a faint one, and **five of the seven §4.3a labels are unreachable in
+Run 1** — it goes straight from `IN SYNC` to `STUDIO SEIZED` with nothing in between.
 
 ---
 
