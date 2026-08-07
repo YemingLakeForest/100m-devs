@@ -903,9 +903,20 @@ compatible instead of contradictory.
 | Zoom | What moves | How |
 |---|---|---|
 | **L1 desk** | The developer **types** — a two-frame hand bob, a shoulder rise-and-fall, an occasional head turn to the second monitor. Steam curls off the mug. The monitor's code scrolls. | **Transforms on parts library pieces** (ART_DIRECTION §4.1). The arms, head and torso are separate sprites; typing is a 2 px vertical oscillation on the arms at ~6 Hz with a per-dev phase offset. No new art |
-| **L2 floor** | Every one of the 1,000 **bobs slightly, out of phase**. Chairs swivel occasionally. Monitor glints twinkle. | A shared time value plus a **per-particle phase offset**, applied in the `ParticleContainer`. One uniform, no per-sprite CPU work. This is the only technique that survives 1,000 sprites |
+| **L2 floor** | Every one of the 1,000 **bobs slightly, out of phase**. Chairs swivel occasionally. Monitor glints twinkle. | A shared time value plus a **per-particle phase offset**. **DEFERRED — see below** |
 | **L3 global / L4 cosmic** | Data pulses along pipes, hubs breathe, planets rotate | **Shaders.** §7.5 states no individual sprites remain here, so there is nothing to animate — it is all T0 |
 | **Any zoom** | The §8.2 poke responses, the §7.7.2 arrival gags, §21 Act IV | Already specified in their own sections |
+
+> **The L2 bob is deferred, and the reason is worth knowing.** The floor's
+> `ParticleContainer` holds particle position as a **static** property, which is
+> what keeps §23.3 criterion 4 affordable — static means the buffer uploads only
+> when asked, so the 1,000-sprite floor costs almost nothing per frame. Bobbing
+> them on the CPU means making position dynamic, which is a per-frame upload of
+> all 1,000 and **changes the cost of the exact scene criterion 4 measures**.
+> That is not a change to make casually and then re-benchmark; the honest route
+> is a shader that offsets Y from a time uniform, leaving position static. Until
+> then the floor tier is still and the room tier is not. The room is where all
+> of Run 1 happens, so the visible cost is low.
 
 **Per-developer phase offset is non-negotiable at every tier.** A thousand sprites bobbing in
 unison reads as a single breathing object, not as a thousand people. The offset is derived

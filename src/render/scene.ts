@@ -131,6 +131,14 @@ export interface FloorSwarm {
   /** Parent for the Slack web, above the particles. */
   readonly webLayer: Container
   /**
+   * Every seat, in floor-local coordinates — GDD §7.7.6's hit test.
+   *
+   * Distinct from {@link desks}, which is the every-twelfth subset the Slack
+   * web anchors to. Poking needs all of them: "the actual developer under the
+   * thumb", not the nearest of eighty-three.
+   */
+  readonly seats: ReadonlyArray<{ x: number; y: number }>
+  /**
    * §21 Act IV — "1,000 pixel developers drop from the sky".
    *
    * `t` runs 0 (all airborne) to 1 (all landed) and is clamped, so calling it
@@ -196,6 +204,7 @@ function buildFloor(renderer: Renderer): FloorSwarm {
   const cols = Math.ceil(Math.sqrt(FLOOR_SPRITE_COUNT))
   const restY = new Float64Array(FLOOR_SPRITE_COUNT)
   const desks: Array<readonly [number, number]> = []
+  const seats: Array<{ x: number; y: number }> = []
 
   for (let i = 0; i < FLOOR_SPRITE_COUNT; i++) {
     const col = i % cols
@@ -206,6 +215,7 @@ function buildFloor(renderer: Renderer): FloorSwarm {
     // Every 12th desk anchors the web. All 1,000 would be an opaque red sheet
     // rather than a web, and 83 endpoints already reads as "everyone".
     if (i % 12 === 0) desks.push([x, y])
+    seats.push({ x, y })
     particles.addParticle(
       new Particle({
         texture,
@@ -237,6 +247,9 @@ function buildFloor(renderer: Renderer): FloorSwarm {
 
   return {
     container: root,
+    desks,
+    seats,
+    webLayer,
     setPopulation(devs: number) {
       // Saturates at the sprite budget. Above 1,000 the Construction Ladder
       // says this tier should become towers (§7.8.2) and that geometry does
@@ -251,8 +264,6 @@ function buildFloor(renderer: Renderer): FloorSwarm {
       override = n
       applyPopulation()
     },
-    desks,
-    webLayer,
     setDropProgress(t: number) {
       const clamped = Math.min(1, Math.max(0, t))
       // Landed and already settled — skip the upload entirely.

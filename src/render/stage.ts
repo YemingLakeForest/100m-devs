@@ -20,6 +20,16 @@ import { maxZoomFor, zoomCeilingLifted } from '../sim/headcount.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { createArrivals } from './arrivals.ts'
+import {
+  clampPan,
+  flingVelocity,
+  initPan,
+  isTap,
+  panLimit,
+  pickNearest,
+  stepPan,
+  type PanState,
+} from './navigation.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 
@@ -92,6 +102,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   room.container.addChild(arrivals.layer)
 
   const camera = new LensCamera(0)
+  /** Latest tier extents, published for the hit test outside the ticker. */
+  let currentExtents: Record<1 | 2 | 3 | 4, { w: number; h: number }> = {
+    ...TIER_EXTENTS,
+    1: room.extent,
+  }
 
   // --- poke input --------------------------------------------------------
   //
@@ -105,8 +120,43 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const frames = new FrameSampler()
   let critPunch = 0
 
+  /**
+   * Screen point -> the index of the developer under it, or -1.
+   *
+   * §7.7.6 requires that "every one of the 1,000 floor sprites is individually
+   * hit-testable... the actual developer under the thumb", and a
+   * ParticleContainer offers nothing here — particles are not display objects
+   * and Pixi will not test them. So the pick is done in tier-local space:
+   * undo the world translation, the pan and the tier's own scale, then find
+   * the nearest desk.
+   */
+  const pickDeveloper = (x: number, y: number): number => {
+    const level = camera.level
+    if (level > 2) return -1
+    const scale = tierScale(level, camera.z, { w: app.screen.width, h: app.screen.height }, currentExtents)
+    if (!(scale > 0)) return -1
+
+    const tier = tiers[level]
+    // Screen -> tier-local. The tier's pivot is baked into its own transform,
+    // so working through the container is safer than re-deriving it here.
+    const local = tier.toLocal({ x, y })
+    const seats = level === 1 ? roomSeats() : floor.seats
+    // A generous radius: a fingertip is about 9 mm and the desks are small.
+    // Scaled into tier space so it stays a thumb-sized target at any zoom.
+    return pickNearest(seats, local.x, local.y, 26 / Math.max(0.15, scale) + 14)
+  }
+
+  const roomSeats = () => Array.from({ length: room.drawn }, (_, i) => room.deskAt(i)!)
+
   /** The whole tap path, shared by real pointers and the §23.3 bench. */
   const doPoke = (x: number, y: number, t0: number) => {
+    // Who was actually poked. -1 means empty floor, which is a miss rather
+    // than a free point — §7.7.6 makes the world addressable, and an
+    // addressable world has places where nobody is sitting.
+    const target = pickDeveloper(x, y)
+    if (target < 0) return
+    if (camera.level === 1) room.jolt(target)
+
     const result = poke(x, y)
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
@@ -126,11 +176,71 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
   }
 
+  // --- pan, and telling a tap from a drag (GDD §7.7.6) --------------------
+  //
+  // The poke no longer fires on pointerdown. It fires on pointer*up*, and only
+  // if the pointer barely moved — §7.7.6 is explicit that a pan which pokes
+  // costs the player Entropy every time they look around, and a poke which
+  // pans loses the clicker layer. The cost is that criterion 1's stopwatch now
+  // starts at the release rather than the press, which is the same instant a
+  // player perceives their own tap.
+
+  let pan: PanState = initPan()
+  /** The in-progress drag, or null. */
+  let drag: { id: number; x0: number; y0: number; px: number; py: number; t0: number; panX: number; panY: number } | null = null
+  /** Live pan limits, recomputed each frame from the dominant tier's size. */
+  let limitX = 0
+  let limitY = 0
+
   const onPointerDown = (ev: PointerEvent) => {
-    doPoke(ev.clientX, ev.clientY, ev.timeStamp || performance.now())
+    const t = ev.timeStamp || performance.now()
+    // Only the first finger drags; a second means a pinch, handled below.
+    if (drag === null && pointers.size === 0) {
+      drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY, t0: t, panX: pan.x, panY: pan.y }
+      pan.vx = 0
+      pan.vy = 0
+    }
+  }
+
+  const onDragMove = (ev: PointerEvent) => {
+    if (!drag || ev.pointerId !== drag.id || pointers.size >= 2) return
+    const t = ev.timeStamp || performance.now()
+    const dt = Math.max(1, t - (drag.t0 + 0)) / 1000
+    pan = clampPan(
+      { ...pan, x: drag.panX + (ev.clientX - drag.x0), y: drag.panY + (ev.clientY - drag.y0) },
+      limitX,
+      limitY,
+    )
+    // Instantaneous velocity from the last move, which is what a flick is.
+    pan.vx = (ev.clientX - drag.px) / Math.max(0.008, dt)
+    pan.vy = (ev.clientY - drag.py) / Math.max(0.008, dt)
+    drag.px = ev.clientX
+    drag.py = ev.clientY
+  }
+
+  const onDragEnd = (ev: PointerEvent) => {
+    if (!drag || ev.pointerId !== drag.id) return
+    const t = ev.timeStamp || performance.now()
+    const dx = ev.clientX - drag.x0
+    const dy = ev.clientY - drag.y0
+    const tapped = isTap(dx, dy, t - drag.t0)
+    drag = null
+
+    if (tapped) {
+      pan.vx = 0
+      pan.vy = 0
+      doPoke(ev.clientX, ev.clientY, t)
+    } else {
+      const f = flingVelocity(pan.vx, pan.vy)
+      pan.vx = f.vx
+      pan.vy = f.vy
+    }
   }
 
   app.canvas.addEventListener('pointerdown', onPointerDown, { passive: true })
+  app.canvas.addEventListener('pointermove', onDragMove, { passive: true })
+  app.canvas.addEventListener('pointerup', onDragEnd, { passive: true })
+  app.canvas.addEventListener('pointercancel', onDragEnd, { passive: true })
 
   // --- pinch zoom --------------------------------------------------------
 
@@ -289,6 +399,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
     devsBefore = state.devs
     arrivals.update(now)
+    // §7.8.3 — everybody types. Cheap: one sine per visible developer.
+    room.animate(now / 1000, state.dev.state)
 
     // GDD §7.7.1 — the studio you can see is the studio you have. Applied
     // every frame rather than only on input, because the scripted dolly, the
@@ -318,6 +430,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // not a thousand placeholders ghosting in behind two developers.
     floor.setPopulation(state.devs)
     const extents = { ...TIER_EXTENTS, 1: room.extent }
+    currentExtents = extents
     const weights = lodWeights(camera.z)
     for (const l of [1, 2, 3, 4] as const) {
       const tier = tiers[l]
@@ -330,7 +443,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       if (tier.renderable) tier.scale.set(tierScale(l, camera.z, viewport, extents))
     }
 
-    world.position.set(app.screen.width / 2, app.screen.height / 2)
+    // §7.7.6 — pan. Limits come from how far the dominant tier overhangs the
+    // frame, so a tier that already fits does not slide around: panning
+    // something that fits is how a player ends up lost in an empty frame.
+    const domScale = tierScale(camera.level, camera.z, viewport, extents)
+    limitX = panLimit(extents[camera.level].w * domScale, viewport.w)
+    limitY = panLimit(extents[camera.level].h * domScale, viewport.h)
+    if (!drag) pan = stepPan(pan, dt, limitX, limitY)
+    else pan = clampPan(pan, limitX, limitY)
+
+    world.position.set(app.screen.width / 2 + pan.x, app.screen.height / 2 + pan.y)
 
     // §21 Act IV. The sustained level is Entropy rather than a timer: the room
     // does not calm down in Act V, and reading it off the simulation means the
@@ -434,6 +556,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     destroy() {
       app.canvas.removeEventListener('pointerdown', onPointerDown)
+      app.canvas.removeEventListener('pointermove', onDragMove)
+      app.canvas.removeEventListener('pointerup', onDragEnd)
+      app.canvas.removeEventListener('pointercancel', onDragEnd)
       app.canvas.removeEventListener('pointerdown', trackPointer)
       app.canvas.removeEventListener('pointermove', onPointerMove)
       app.canvas.removeEventListener('pointerup', onPointerUp)

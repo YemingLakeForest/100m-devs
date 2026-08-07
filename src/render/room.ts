@@ -61,6 +61,13 @@ export interface RoomHandle {
    * this rebuilds geometry and is far too expensive for the ticker.
    */
   setHeadcount(devs: number): void
+  /**
+   * Advance the §7.8.3 idle animation. `elapsed` in seconds, `state` is the
+   * shared §8.2 dev state (the store models one machine, not one per person).
+   */
+  animate(elapsed: number, state: string): void
+  /** Jolt developer `i` — the §8.2 poke reaction. */
+  jolt(i: number): void
   /** Where developer `i` sits, in room-local coordinates. Null if not drawn. */
   deskAt(i: number): { x: number; y: number } | null
   /** How many developers are actually on screen. */
@@ -194,6 +201,8 @@ export function buildRoom(): RoomHandle {
   root.addChild(shell, light, furniture, devLayer)
 
   const devs: Container[] = []
+  /** Per-developer jolt decay, 1 -> 0. The §8.2 poke reaction. */
+  const jolts: number[] = []
   const desks: Array<{ x: number; y: number }> = []
   let lastDevs = -1
   const extent = { w: TILE_W * 3, h: 156 }
@@ -335,6 +344,7 @@ export function buildRoom(): RoomHandle {
     while (devs.length < n) {
       const d = buildDeveloper()
       devs.push(d)
+      jolts.push(0)
       devLayer.addChild(d)
     }
     for (let i = 0; i < devs.length; i++) {
@@ -366,6 +376,36 @@ export function buildRoom(): RoomHandle {
       if (clamped === lastDevs) return
       lastDevs = clamped
       rebuild(clamped)
+    },
+    animate(elapsed: number, state: string) {
+      // §7.8.3 — a transform on a static part, never a spritesheet. The whole
+      // motion budget for a hundred people is one sine per person per frame.
+      //
+      // Stillness is a state and must read as deliberate: an Overwhelmed
+      // developer has their head on the desk and a 10x Engineer is facing the
+      // camera, and both are legible *because* the floor around them moves.
+      const still = state === 'overwhelmed' || state === 'tenx'
+      const rate = state === 'flow' ? 11 : state === 'rogue' ? 15 : state === 'slacking' ? 2.5 : 6.2
+      const reach = state === 'slacking' ? 0.6 : 1
+
+      for (let i = 0; i < desks.length; i++) {
+        const d = devs[i]
+        if (!d.visible) continue
+        // Per-developer phase offset, hashed from the index rather than drawn
+        // at random so it is identical every run. Without it a hundred people
+        // bob in unison and read as one breathing object rather than a crowd —
+        // §7.8.3 calls this non-negotiable and it is the single cheapest thing
+        // that makes the room feel populated.
+        const phase = ((i * 2654435761) % 1024) / 1024
+        const bob = still ? 0 : Math.sin((elapsed * rate + phase * 6.283)) * 1.6 * reach
+
+        if (jolts[i] > 0) jolts[i] = Math.max(0, jolts[i] - 0.06)
+        // The jolt sits on top of the bob: §8.2's "sprite jolts upright".
+        d.position.set(desks[i].x, desks[i].y + 6 + bob - jolts[i] * 5)
+      }
+    },
+    jolt(i: number) {
+      if (i >= 0 && i < jolts.length) jolts[i] = 1
     },
     deskAt(i: number) {
       return desks[i] ?? null
