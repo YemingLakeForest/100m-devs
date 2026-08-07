@@ -405,3 +405,20 @@ body {
   pointer-events: auto;
   z-index: 10;
 }
+
+/* Dev-only §7.5 trigger. Present only in a VITE_BENCH=1 build. */
+.bench-trigger {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 11;
+  font: inherit;
+  font-size: var(--type-2x);
+  color: var(--n0);
+  background: var(--calm-2);
+  border: var(--rule) solid var(--calm-3);
+  border-radius: 0;
+  padding: 18px 26px;
+  pointer-events: auto;
+}

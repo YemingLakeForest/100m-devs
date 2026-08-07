@@ -291,11 +291,33 @@ no entropy simulation beyond driving the interface hue, no buildings, no globe, 
 Multiverse dimension, and no hero art beyond the single James portrait. **Anything not in
 §7.2 or §7.2a is a distraction from the question being asked.**
 
-### 7.4 Test device
+### 7.4 Test device — **amended 2026-08-07**
 
-The **lowest-end Android device available** — target roughly a 2021 budget phone
-(Snapdragon 68x-class, 4GB RAM). Testing this on a desktop browser or a current flagship
-proves nothing and is the most likely way to get a false pass.
+The original requirement was the **lowest-end Android device available**, roughly a 2021
+budget phone (Snapdragon 68x-class, 4GB RAM), on the grounds that a flagship "proves
+nothing and is the most likely way to get a false pass."
+
+**Decision: the Pixel 8 Pro is the gate.** No low-end device is available and one is not
+being bought. This is a deliberate scope decision by the decision owner, recorded here
+rather than left as an unmet requirement.
+
+**What it costs, stated plainly so nobody later mistakes this for a clean pass:**
+
+- The Pixel is a 120 Hz flagship. §7.7.4 measures the dolly at ~110 fps against a 55 fps
+  floor — **a 2× margin that says nothing about a device with half the fill rate.**
+  Criteria 3 and 4 are effectively unmeasured for the target audience.
+- Criterion 1's margin (7–10 ms vs 80 ms) is large enough to survive a substantial
+  hardware downgrade, so it is the one result that likely generalises.
+- Criterion 6 at 0.8 s vs a 3 s budget has real headroom, but cold start scales with
+  storage and CPU and a budget phone could plausibly triple it.
+
+**The original §7.4 reasoning is not wrong and has not been repealed.** A pass here is a
+*ceiling* measurement. The honest reading of §7.7.4 is "nothing about this stack fails on
+good hardware", which is weaker than the gate was designed to deliver but is not nothing:
+a fail would have been decisive, and there wasn't one.
+
+**Revisit the moment any cheap Android device comes to hand** — a borrowed phone, an old
+handset in a drawer, a colleague's. The harness is a single tap and takes 80 seconds.
 
 ### 7.5 Pass criteria — all must hold
 
@@ -403,6 +425,45 @@ and the resulting click on another device, then read the gap in an audio editor.
 > running `?bench` on whatever phone is to hand is a cheap falsification test worth doing
 > immediately, as long as nobody reads a green table on it as clearing the gate. The
 > harness prints that warning on every run.
+
+### 7.7.4 Device run — Pixel 8 Pro, 2026-08-07 **[the §7.5 measurement]**
+
+Android 16, Chrome WebView 150, viewport 448×997 @ dpr 2.25, **120 Hz display**.
+Bundled debug APK, cold launch, `VITE_BENCH=1` build.
+
+| # | Criterion | Run 1 | Run 2 | Threshold | |
+|---|---|---|---|---|---|
+| 1 | tap → numeral visible | 7.0 ms | 10.3 ms | ≤ 80 p95 | ✅ |
+| 2 | tap → audio call accepted | 0.2 ms | 0.3 ms | ≤ 60 p95 | ❓ lower bound only |
+| 3 | fps, full L1→L4 dolly | 109.9 | 112.4 | ≥ 55 5th pct | ✅ |
+| 4 | fps, floor zoom, 1,000 sprites | 111.1 | 109.9 | ≥ 55 5th pct | ✅ |
+| 5 | sustained 5/sec 60 s, worst frame | 57.5 | **44.1** | ≥ 50 | ⚠️ **flapping** |
+| 5.1 | sustained, latency drift | +1.8 ms | −1.2 ms | ~0 | ✅ |
+| 6 | cold start to interactive | *(invalid)* | 0.8 s | ≤ 3 s | ✅ |
+| 7 | the subjective gate | — | — | a human | ❓ **not yet run** |
+
+**Criterion 1 has a 8× margin.** 7–10 ms against an 80 ms budget, through a WebView, is
+the single most reassuring number here: it is the one ADR §5 called "a standing risk to
+poke feel", and on this hardware it is not close.
+
+**Criterion 5 is flapping, and the criterion itself is the problem.** It is written as
+"no frame drops below 50 fps" — a *single worst frame* over 60 seconds. At 120 Hz that is
+roughly 7,200 frames, so one 23 ms GC pause fails the run. Run 1 passed at 57.5 fps and
+run 2 failed at 44.1 fps with no code change between them. Meanwhile **5.1 shows drift of
+−1.2 ms**, i.e. the second half was *faster* than the first: there is no degradation, no
+audio pool exhaustion, and therefore **§7.6's "sustained tapping degrades" kill criterion
+does not fire.** This is one isolated hitch, not a trend.
+
+> **Open question for whoever promotes this ADR:** criterion 5 as written is a
+> single-sample test and will flap forever. Restating it as a percentile ("99th percentile
+> frame ≥ 50 fps") would measure the thing it means — sustained smoothness — instead of
+> the worst GC pause in a minute. **That is a deliberate loosening of a gate and must be
+> your call, not an implementer's**, so it is recorded here rather than done.
+
+**Criterion 6's first reading of 4.6 s was a harness bug, not the app.** `coldStartMs()`
+was read when the acceptance run *started*, which on a device is however long it took a
+human to reach for the screen. It is now a mark laid down when the renderer comes up. The
+corrected figure is 0.8 s.
 
 ### 7.7.2 TiltShiftFilter cannot sit in the shared chain
 

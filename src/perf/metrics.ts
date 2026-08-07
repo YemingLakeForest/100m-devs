@@ -178,17 +178,38 @@ export class LatencySampler {
   }
 }
 
+let interactiveAtMs: number | null = null
+
+/**
+ * Mark the instant the app became interactive — call once, when the renderer
+ * is up and the first frame can be poked.
+ *
+ * This has to be a mark rather than a reading taken later. An earlier version
+ * simply called `coldStartMs()` at the top of the acceptance run, which meant
+ * criterion 6 measured "time from navigation until someone pressed the bench
+ * button" — on a device that is however long it took a human to reach for the
+ * screen. It reported 4.6 s on a Pixel 8 Pro and failed a 3 s gate that the
+ * app was not actually missing.
+ */
+export function markInteractive(): void {
+  if (interactiveAtMs === null) interactiveAtMs = performance.now()
+}
+
 /**
  * Criterion 6 — cold start to interactive.
  *
  * Measured from the navigation start the browser records, not from when this
  * module happens to execute: bundle parse and evaluation are part of a cold
  * start and excluding them would be measuring the wrong thing.
+ *
+ * Returns NaN if {@link markInteractive} was never called, so the criterion
+ * reports as unmeasured rather than as a number that means something else.
  */
 export function coldStartMs(): number {
+  if (interactiveAtMs === null) return Number.NaN
   const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
   const origin = nav ? nav.startTime : 0
-  return performance.now() - origin
+  return interactiveAtMs - origin
 }
 
 export interface CriterionResult {

@@ -141,7 +141,8 @@ export async function runBench(
     if (document.hidden) wasHidden = true
   }
   document.addEventListener('visibilitychange', onVisibility)
-  // Criterion 6 first — it is only meaningful before anything else has run.
+  // Read from the mark laid down when the renderer came up, NOT from now —
+  // see markInteractive() in metrics.ts.
   const cold = coldStartMs()
 
   // Warm up the tap path so criterion 1 measures steady state rather than
@@ -229,7 +230,7 @@ export async function runBench(
       value: cold / 1000,
       unit: 's',
       threshold: '<= 3',
-      pass: cold <= 3000,
+      ...judge(cold, Number.isFinite(cold) ? 1 : 0, () => cold <= 3000),
     },
     {
       id: 7,

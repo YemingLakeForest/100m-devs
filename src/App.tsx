@@ -5,6 +5,7 @@ import { PHASE_ORDER, type Phase } from './game/onboarding.ts'
 import { Hud } from './hud/Hud.tsx'
 import { createStage, type StageHandle } from './render/stage.ts'
 import { runBench } from './perf/bench.ts'
+import { markInteractive } from './perf/metrics.ts'
 
 /**
  * The spike — ADR 0001 §7.2 and §7.2a.
@@ -42,21 +43,17 @@ export default function App() {
         return
       }
       handle = h
+      // Criterion 6's stopwatch stops here: the renderer is up and the first
+      // frame is pokeable. Anything after this is the player's own reaction
+      // time, not the app's cold start.
+      markInteractive()
       setStage(h)
 
       // ?bench runs the ADR §7.5 acceptance sequence. ?bench=10 shortens the
       // 60-second sustained-tap leg, for checking the harness itself without
       // sitting through the real thing.
       const bench = new URLSearchParams(location.search).get('bench')
-      if (bench !== null) {
-        const seconds = Number(bench) > 0 ? Number(bench) : 60
-        void runBench(h.bench, h.bench.frames, { sustainedSeconds: seconds }).then((r) => {
-          setBenchText(r.text)
-          // Also to the console, so it can be pulled off a device over adb
-          // logcat without anyone transcribing numbers off a photo of a phone.
-          console.log(r.text)
-        })
-      }
+      if (bench !== null) startBench(h, Number(bench) > 0 ? Number(bench) : 60)
     })
 
     return () => {
@@ -65,10 +62,34 @@ export default function App() {
     }
   }, [])
 
+  /**
+   * Kick off the §7.5 run and publish the report both on screen and to the
+   * console — the console copy is what `adb logcat` picks up, so a device run
+   * does not depend on anyone transcribing numbers off a photo of a phone.
+   */
+  function startBench(handle: StageHandle, seconds: number) {
+    setBenchText('ADR §7.5 acceptance run — measuring…')
+    void runBench(handle.bench, handle.bench.frames, { sustainedSeconds: seconds }).then((r) => {
+      setBenchText(r.text)
+      console.log('[BENCH] ' + r.text.replace(/\n/g, ' | '))
+    })
+  }
+
   return (
     <div className="app">
       <div className="app__canvas" ref={hostRef} />
       <Hud stage={stage} />
+      {/*
+        A Capacitor-bundled app has no query string, so ?bench cannot reach it
+        on a device. This is the on-device trigger, and it is compiled out of
+        any build that does not explicitly ask for it — build with
+        VITE_BENCH=1 to get it, and a shipping build never will.
+      */}
+      {import.meta.env.VITE_BENCH === '1' && stage && benchText === null && (
+        <button type="button" className="bench-trigger" onClick={() => startBench(stage, 60)}>
+          RUN §7.5
+        </button>
+      )}
       {benchText !== null && <pre className="bench-report">{benchText}</pre>}
     </div>
   )
