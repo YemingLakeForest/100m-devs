@@ -9,6 +9,22 @@ work down §8 in order.
 
 ---
 
+> ## Follow the studio playbook — do not re-derive it
+>
+> **[`mercilessstudio-platform`](../../mercilessstudio-platform/README.md) is the source of
+> truth for everything cross-game**, and it is the runbook rather than a reference:
+> `STUDIO_PLAYBOOK.md` for the end-to-end recipe, `FIREBASE.md`, `MONETIZATION_SETUP.md`,
+> `PLAY_STORE.md`, `MARKETING.md`, and `TRAPS.md` for the cross-game log of failures three
+> shipped games have already paid for.
+>
+> **This document keeps only what is specific to *this* game** — the application ID, the
+> dependency versions, the hardware, the spike scope. §5 (Accounts & Services), §8's
+> Services steps and §10 (Secrets) all describe work the playbook covers in more detail and
+> with API calls instead of dashboard clicks. **Where they differ, the playbook is right.**
+>
+> House rule, from the playbook: **API or CLI over dashboards.** Anything that can be code
+> should be code.
+
 ## 1. Identity
 
 | Field | Value |

@@ -42,8 +42,16 @@ Five blockers, and two of them have architectural reach:
 - **F1.3** age rating and target audience · **F1.4** privacy policy and data deletion ·
   **F1.5** restore purchases.
 
-**F1.1 and F1.2 are cheaper to decide now** than after the tech tree and prestige layers add
-state that has to persist.
+**Re-scoped against the studio platform.** `mercilessstudio-platform` owns cloud save
+transport, Firestore rules, RevenueCat, restore purchases, consent ordering, content rating
+and listing-as-code — see GDD §23.1b. Every Appendix F row is now narrowed to the part the
+platform cannot know: **the values, not the mechanism.** Re-specifying a mechanism the
+playbook already covers is itself a defect.
+
+That leaves **F1.1 and F1.2 as the only true blockers with no studio answer** — the save
+document's *contents*, and the offline model, both of which are pure game design. They are
+cheaper to decide now than after the tech tree and prestige layers add state that has to
+persist.
 
 ---
 

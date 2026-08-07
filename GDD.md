@@ -3456,6 +3456,33 @@ caps the score at 12 stems, and why §7.8.2's rungs above 2 are procedural and c
 **Shipping velocity is the scarce resource.** Any proposal that trades it for fidelity needs
 to say so out loud.
 
+### 23.1b The studio platform owns the infrastructure **[CANON]**
+
+**`mercilessstudio-platform` is the source of truth for everything cross-game.** It is not a
+reference; it is the runbook, and this game follows it rather than deriving its own.
+
+| Runbook | Owns |
+|---|---|
+| `playbook/STUDIO_PLAYBOOK.md` | **Start here.** End-to-end: cloud save, RevenueCat, AdMob, Firebase, Play release, and the `platform/` infrastructure-as-code pattern |
+| `playbook/FIREBASE.md` | Firebase project, Firestore rules and indexes, `google-services.json` — including the canonical `/saves/{uid}` self-access rules |
+| `playbook/MONETIZATION_SETUP.md` | RevenueCat, Play products, Play Games auth, restore purchases, consent |
+| `playbook/PLAY_STORE.md` | Gradle Play Publisher, tracks, listing-as-code, content rating, privacy policy |
+| `playbook/MARKETING.md` | ASO, launch angles, review prompts |
+| `playbook/TRAPS.md` | Cross-game root-cause log — symptom to fix, so a mistake made on one game is not repeated on this one |
+| `game-cloud` / `game-monetise` | The Capacitor plugins themselves, consumed by git tag |
+
+**The house rule is API and CLI over dashboards**, and GeoDaily is the reference
+implementation. Three shipped games have already paid for these mistakes.
+
+**What that leaves this document responsible for**, and it is a much shorter list than it
+looks: the platform owns every *mechanism* and this game owns every *value*. Firestore's save
+transport is theirs; **what is in the save document is ours** (§24). RevenueCat's plumbing is
+theirs; the SKUs are MONETISATION's. The content-rating questionnaire is theirs; **the
+answers are ours**. Appendix F is scoped on exactly that line.
+
+**Reinventing any of it is a defect**, not a preference. If something here disagrees with the
+playbook, the playbook is right and this document is stale.
+
 ### 23.2 The five non-negotiables **[CANON]**
 
 Break any of these and the thing they protect breaks with them.
@@ -3995,35 +4022,46 @@ specification anywhere*, not a thin one.
 
 ---
 
+> ### Re-scoped against `mercilessstudio-platform`, 2026-08-07
+>
+> The first draft of this register treated every gap as this project's to solve. **Most of
+> them are already solved at studio level** and the playbook (§23.1b) owns them: cloud save
+> transport, Firestore rules, RevenueCat, restore purchases, consent ordering, content
+> rating, privacy policy, listing-as-code. Three shipped games have paid for those lessons
+> and `TRAPS.md` records what went wrong.
+>
+> **Every row below is therefore narrowed to the part the platform cannot know** — the values,
+> not the mechanism. Re-specifying a mechanism the playbook already covers is itself a defect.
+
 ### F.1 Blockers — the game cannot ship without these
 
-| # | Gap | Status | Why it blocks |
+| # | Gap | Platform provides | **What is still ours** |
 |---|---|---|---|
-| **F1.1** | **Save / persistence** | ❌ **Nothing** | There is no save specification of any kind: no format, no schema version, no migration path, no corruption handling, no statement of what survives a Paradigm Shift versus a Codebase Fork, no local-vs-cloud conflict resolution. `@mercilessstudio/game-cloud` is named in §23.1 and **nothing says what it stores.** An idle game that forgets everything on close is not a game |
-| **F1.2** | **Offline progression** | ❌ **Nothing in the GDD** | MONETISATION §4 R1 calls doubling offline earnings *"the single highest-value placement in any idle game"* and §6 sells an *"offline accrual cap 4h → 16h"*. **The GDD defines no offline model at all** — no accrual rate, no cap, no statement of what accrues (SP? cash? both? does Entropy decay?), and no offline-summary screen, which R1 requires to exist *and* requires the ad to sit above its collect button. The monetisation document is selling a system the design document never designed |
-| **F1.3** | **Age rating & target audience** | ❌ **Nothing** | Google Play requires a content-rating questionnaire and a target-audience declaration at submission. This is not paperwork: declaring child appeal forces the Families policy, bans personalised ads, and changes the AdMob and analytics configuration. It has to be decided *before* the ad stack is built, not at upload |
-| **F1.4** | **Privacy policy & data deletion** | ❌ **Nothing** | Play requires a published privacy policy and an in-app data-deletion route for any app that collects data. Firebase, AdMob and RevenueCat all collect. MONETISATION §10 correctly orders the UMP and ATT prompts, but nothing states what data is collected, where the policy lives, or how a player deletes their account |
-| **F1.5** | **Restore purchases** | ⚠️ **One line** | Required by both stores for non-consumables and subscriptions. MONETISATION mentions it once; there is no UI entry point specified, and §10.9's menu does not include one |
+| **F1.1** | **Save** | Firestore `/saves/{uid}` with self-only rules (`FIREBASE.md`), Play Games auth for cross-device, `game-cloud` as a Capacitor plugin, the whole transport | ❌ **The save document's contents.** What fields, what schema version, what migrates, what survives a Paradigm Shift versus a Codebase Fork, and what a corrupt or conflicting doc resolves to. The platform will store anything; it cannot tell us what a run *is*. **→ §24** |
+| **F1.2** | **Offline progression** | Nothing — and correctly so, this is pure game design | ❌ **All of it.** No accrual rate, no cap, no statement of what accrues, no summary screen. MONETISATION §4 R1 already sells doubling it as the highest-value placement in the game and requires that screen to exist. **→ §24** |
+| **F1.3** | **Age rating & target audience** | The submission process and the questionnaire mechanics (`PLAY_STORE.md`) | ⚠️ **The answers**, and the consequence: declaring child appeal forces the Families policy and bans personalised ads, so it changes the AdMob configuration the playbook sets up. Decide before the ad stack is built |
+| **F1.4** | **Privacy policy & data deletion** | Policy hosting and the Play requirement (`PLAY_STORE.md`, `MONETIZATION_SETUP.md`) | ⚠️ **The data inventory** — what this game actually collects beyond the studio baseline — and the in-app deletion entry point, which is a §10.9 menu item nobody has specified |
+| **F1.5** | **Restore purchases** | RevenueCat's restore flow (`MONETIZATION_SETUP.md`) | ⚠️ **The UI entry point only.** Not in §10.9's menu and not in the §F2.1 settings screen, because neither exists |
 
 ### F.2 Major gaps — shippable, but visibly unfinished
 
-| # | Gap | Status | Note |
+| # | Gap | Platform provides | **What is still ours** |
 |---|---|---|---|
-| **F2.1** | **Settings screen** | ❌ | §10.6 says style it as a `STUDIO_OS` config terminal and §10.8 lists it as a scene. Nothing says *what is in it.* At minimum: master / music / SFX volume — §20 specifies a four-tier mixer that nothing exposes — haptics on/off, reduce motion, language, and **reset progress**, which is a support necessity and a store requirement in some jurisdictions |
-| **F2.2** | **Localisation** | ❌ | Not "English-only, decided" — simply unaddressed. It has teeth: §10.7's per-character typewriter behaves differently in CJK, §22 card names are jokes, and §18/§19/§21 are almost entirely wordplay that does not survive literal translation. **Decide English-only and record it**, or the decision gets made by accident at the first translation request |
-| **F2.3** | **Error and empty states** | ❌ | Nothing specifies what the screen does when: a rewarded ad fails to load (R1 says a missing ad is *"revenue that does not exist"* but not what the player sees), an IAP fails or goes pending, there is no network, a cloud save conflicts, or a save is corrupt. These are most of the states a real player meets on a bad train |
-| **F2.4** | **Push notifications** | ❌ | Zero mentions. Idle games depend on re-engagement, it interacts directly with F1.2's offline accrual (*"your build is ready"*), and it carries its own permission prompt and policy implications |
-| **F2.5** | **Store listing assets** | ❌ | §22.7 caps *in-game* art at 19 sprites and is silent on the icon, feature graphic and screenshots. Those are a separate art requirement with a separate budget, and the icon in particular is the single most-viewed asset the project will ever produce |
-| **F2.6** | **App lifecycle** | ⚠️ | §23.3 knows Chrome suspends `rAF` in a hidden tab. Nothing says what the *game* does on backgrounding, an incoming call, or an audio-focus loss — which is also where F1.1 and F1.2 meet, because that is when a save must happen |
+| **F2.1** | **Settings screen** | — | ❌ All of it. §10.6 says style it as a `STUDIO_OS` terminal and §10.8 lists it as a scene; nothing says what is *in* it. At minimum: the §20 mixer that nothing currently exposes, haptics, reduce motion, restore purchases (F1.5), data deletion (F1.4), and reset progress |
+| **F2.2** | **Localisation** | — | ❌ Undecided, not decided-against. §10.7's per-character typewriter behaves differently in CJK and §18/§19/§21 are almost entirely wordplay. **Record English-only**, or it gets decided by accident |
+| **F2.3** | **Error and empty states** | `TRAPS.md` records the failures that actually happen in production | ❌ What the *screen* does when an ad fails to load, an IAP goes pending, the network is gone, a cloud save conflicts, or a save is corrupt |
+| **F2.4** | **Push notifications** | Firebase messaging is available in the stack | ❌ Whether we use them at all, and what they say. Interacts directly with F1.2 |
+| **F2.5** | **Store listing assets** | Listing-as-code and ASO guidance (`PLAY_STORE.md`, `MARKETING.md`) | ⚠️ **The art.** Icon, feature graphic, screenshots — a real art requirement outside §22.7's 19-sprite cap, and the icon is the most-viewed asset the project will produce |
+| **F2.6** | **App lifecycle** | — | ⚠️ What the game does on backgrounding, a call, or audio-focus loss. Also where F1.1 and F1.2 meet: backgrounding is when a save must happen and when the offline clock starts |
 
 ### F.3 Smaller, still real
 
 | # | Gap | Note |
 |---|---|---|
-| **F3.1** | **Credits content** | §10.9 puts CREDITS in the menu; nothing specifies it. Departure Mono ships under the SIL OFL and its licence text **must** be reachable in-product |
-| **F3.2** | **Analytics event schema** | MONETISATION §12 lists metrics and Appendix D says to instrument the Run 1 funnel *"heavily"*. No event names, properties or schema exist, so two people will invent two |
-| **F3.3** | **Tutorial beyond Run 1** | §21 scripts Run 1 exhaustively. Nothing teaches the tech tree, the org chart, or the Multiverse grid when they first unlock |
-| **F3.4** | **Live-ops / remote config** | MONETISATION §10 requires every ad placement behind remote config. Nothing specifies the config schema, defaults, or what happens when the fetch fails |
+| **F3.1** | **Credits content** | §10.9 puts CREDITS in the menu; nothing specifies it. Departure Mono ships under the SIL OFL and its licence **must** be reachable in-product |
+| **F3.2** | **Analytics event schema** | MONETISATION §12 lists metrics, Appendix D says instrument the Run 1 funnel *"heavily"*, PROJECT_SETUP §8 step 11 has it as an open task. No event names or properties exist, so two people will invent two |
+| **F3.3** | **Tutorial beyond Run 1** | §21 scripts Run 1 exhaustively. Nothing teaches the tech tree, org chart or Multiverse grid when they first unlock |
+| **F3.4** | **Live-ops / remote config** | MONETISATION §10 requires every ad placement behind remote config. No schema, no defaults, no fetch-failure behaviour |
 
 ### F.4 Audited and genuinely covered
 
@@ -4037,6 +4075,9 @@ Recorded so the register is honest about what is *not* missing:
 - **Art budget** — §22.7, hard-capped, with the escape routes named
 - **Music budget** — §20.7, hard-capped, with the per-scene mix map
 - **The presentation gate** — §10.8, with a scene inventory so "all scenes" is countable
+- **All cross-game infrastructure** — `mercilessstudio-platform` (§23.1b). Cloud save
+  transport, Firestore rules, RevenueCat, consent ordering, Play release, listing-as-code
+  and a cross-game trap log, paid for by three shipped games
 
 ### F.5 How to use this
 
