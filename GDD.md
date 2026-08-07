@@ -970,7 +970,13 @@ per ART_DIRECTION §3.1 — bracketed words here because a mock is a layout, not
 
 All four panels carry the same bottom nav: `[SWARM] [UPGRADES] [RELEASES] [PRESTIGE]`.
 
-### 10.3 First-pass mobile wireframe (annotated)
+### 10.3 First-pass mobile wireframe (annotated) — **VOID, portrait**
+
+> **Superseded by [ADR 0002](adr/0002-screen-orientation.md): the game is landscape.** This
+> wireframe is portrait and its layout is therefore void — kept only for the component
+> inventory it names, which is still correct. **Do not lay anything out from it.** A 2:1
+> isometric floor in a portrait window uses 22% of the display; the measurement is in
+> ADR 0002 §2.1.
 
 From `assets/concept/ui-wireframe-mobile-layout.png`:
 
@@ -1207,6 +1213,60 @@ pushes on the beats even though the shot is two men at desks.
 Juice is not delay. Every animation in F1 runs in **under 400 ms** unless it is a deliberate
 scored beat (a §7.7.2 rung promotion, a Paradigm Shift). If the player is waiting for the
 game to finish being beautiful, it is not beautiful.
+
+---
+
+#### 10.8a The juice vocabulary — techniques, from references **[CANON]**
+
+F1–F6 say what must not happen. This says what *does*, in named techniques, so "make it
+juicy" is a spec rather than a mood. Every one below was observed in a shipped game and is
+achievable with the ADR 0001 stack.
+
+**Transitions — never a fade**
+
+| Technique | What it is |
+|---|---|
+| **Hard-edged wipe** | A solid diagonal band sweeps edge-to-edge; the outgoing screen is behind it going out, the incoming screen behind it coming in. ~300–500 ms. **Not a cross-fade** — a cross-fade is a slow cut |
+| **Staggered exit and entry** | List and menu items leave one at a time on ~40–60 ms offsets, and arrive the same way. Never as a block. This single technique does most of the work |
+| **Per-screen colour identity** | Each screen re-tints the whole frame — pause red, options blue, audio red, settings amber. The player knows where they are before reading a word. Ours is already built: the ART_DIRECTION §1.1 Entropy hue is the same mechanism, driven by state instead of by route |
+
+**Shapes and type**
+
+| Technique | What it is |
+|---|---|
+| **Skewed slabs, never rectangles** | Menu rows are slanted parallelograms. An axis-aligned rounded rectangle is the single most web-page-looking object available; a 4–8° skew costs nothing and removes it |
+| **Filled selection** | The selected row is a solid filled slab with knocked-out text; unselected rows are text alone. Selection is a *shape* change, not a colour change |
+| **Rotated marquee type** | Oversized display text running vertically up the frame edges, clipped. Fills dead margin — and ADR 0002 §6.1 says landscape gives us margin at the sides by construction |
+
+**Numbers and counters** — this is the group most directly ours
+
+| Technique | What it is |
+|---|---|
+| **Bars squash and stretch** | A progress bar that fills also *skews and wobbles*, overshooting and settling. Observed on an XP bar and it is the difference between a bar and a *filling* bar |
+| **Counters roll, never set** | A treasury going 4,907 → 11,392 tweens through the intermediate values and **bounces on arrival** — scale overshoot on the digits. It must never simply become the new number |
+| **Running tallies accumulate in place** | `x15 x5 x1` item counts sit in a row and tick up individually, each with its icon |
+| **Gain stacks** | Recent gains stack as a short column that pushes older entries down and out |
+| **Numerals in volume** | Dozens of small `+6` / `×10` numerals on screen at once, at different sizes and colours. Ours is GDD §8.2 and §8.2a and it is already built — the reference confirms the density to aim for is *higher* than feels reasonable |
+
+**Summary and results screens**
+
+| Technique | What it is |
+|---|---|
+| **Rows reveal one at a time** | A day-end table adds its rows on a stagger, not as a finished table |
+| **Bars grow from zero** | Result bar charts animate up, with the value counting alongside |
+| **The total counts last** | The headline figure tweens up *after* the rows have landed, so it reads as a summation rather than a lookup |
+
+**The frame itself**
+
+| Technique | What it is |
+|---|---|
+| **The background is never still** | A continuously animating element behind everything — a silhouette walking, gears turning, a slow plasma drift. A static background reads as a stopped game |
+| **Placement produces particles** | Anything landing anywhere throws a short white spark burst |
+| **The whole frame is a CRT** | Barrel curvature, vignette and scanlines over *everything* including the interface. Already ours — ART_DIRECTION §6, built |
+
+**What we deliberately do not copy:** the references skip freely — one has a SKIP button on
+its results screen. That is correct for a stats table and forbidden for dialogue; §10.7 rule
+3 stands.
 
 ---
 

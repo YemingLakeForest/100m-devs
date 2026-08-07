@@ -46,6 +46,23 @@ These landed in the GDD this session as canon. **Nothing below has a renderer ye
 | **§21.6 Run 2 Act 0** — "How did you find me in every single reality?", James introduces Instant Messenger | — | Needs §10.7 first |
 | **§10.8 Presentation Gate** — F1–F6, the definition of "done" for feel | Written as canon | **Nothing currently passes it.** The HUD has no button physics, no overscroll, no press-down state; panels appear without transitions; most state changes are silent |
 
+### ADR 0002 — the game is landscape
+
+**Accepted 2026-08-07.** `sensorLandscape` is set in the manifest. The decision is forced by
+ART_DIRECTION §1's 2:1 isometric projection: the 1,000-dev floor is exactly 992 x 496 world
+units, which fills **90% of a landscape display and 22% of a portrait one**. Zooming in does
+not fix it — it just shows less of the swarm.
+
+Two things this creates, both listed in ADR 0002 §6.2 and neither done:
+
+1. **GDD §10.3's wireframe is void** and needs redrawing in landscape.
+2. **ADR 0001 §7.5 criterion 7 has never been run in landscape.** It passed in portrait, on
+   a desk-zoom tapping test, so it does not transfer. One tap, 80 seconds — do it before the
+   vertical slice is called done.
+
+**Everything in step 1 below is laid out landscape from the first line.** Building the juice
+kit against a portrait assumption and re-flowing it later is the expensive version.
+
 ### The build order
 
 **Step 1 — the juice kit, built inside the §10.7 dialogue work.**
