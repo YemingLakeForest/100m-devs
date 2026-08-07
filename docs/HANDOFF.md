@@ -105,6 +105,21 @@ Until then, one committer running `npm run check` is the same coverage without t
 
 ---
 
+## Running it
+
+```bash
+./start-dev.sh              # the game, on a pinned port
+./start-dev.sh act3_bait    # jump the §21 script
+./start-dev.sh dialogue     # the §10.7 preview
+```
+
+The game is landscape-locked, so a desktop window is the wrong shape to judge
+anything by. **[LANDSCAPE.md](../LANDSCAPE.md)** has the DevTools device presets —
+997 x 448 @ dpr 2.25 is the Pixel 8 Pro from the §23.3 device run, and therefore
+the one viewport the performance numbers actually refer to.
+
+---
+
 ## Verifying visually — read this before automating a browser
 
 **The Pixi ticker stops dead in a hidden tab.** Chrome suspends `requestAnimationFrame`
