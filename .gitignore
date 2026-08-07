@@ -26,13 +26,3 @@ coverage/
 # Git worktrees created by Claude Code. Full repo checkouts -- never commit these.
 .claude/worktrees/
 
-# CI is written but parked — see docs/HANDOFF.md.
-#
-# Ignored rather than merely uncommitted because pushing .github/workflows/
-# needs a token with `workflow` scope, and this repo's credential (Git
-# Credential Manager) does not have it. A committed workflow file therefore
-# blocks EVERY subsequent push, not just its own — so a stray `git add -A`
-# would wedge the repo for reasons that look nothing like the cause.
-#
-# To enable: get a token with `workflow` scope, then `git add -f .github`.
-.github/

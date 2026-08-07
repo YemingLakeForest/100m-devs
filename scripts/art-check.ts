@@ -14,6 +14,7 @@
  *   npm run art:check
  */
 import sharp from 'sharp'
+import { MASTER_PALETTE, hexToRgb } from '../src/art/palette.ts'
 import { listPolicedAssets, loadPaletteFromPng, rel } from './art-lib.ts'
 
 /** GDD §22.7 — hard cap. Breaching this needs a decision recorded in the GDD first. */
@@ -26,6 +27,33 @@ const SPRITE_CAPS = [
 const failures: string[] = []
 
 const palette = await loadPaletteFromPng()
+
+/*
+ * (0) The gate validates its own reference before it validates anything else.
+ *
+ * master.png is GENERATED from src/art/palette.ts, and every check below reads
+ * the PNG. So if the palette is edited and `art:build-palette` is not re-run,
+ * this script goes on cheerfully enforcing the old palette against the new
+ * source of truth — passing assets it should reject and rejecting ones it
+ * should pass, while reporting success. A gate measuring against a stale
+ * reference is worse than no gate, because it is trusted.
+ */
+const expected = MASTER_PALETTE.map(hexToRgb)
+const stale =
+  expected.length !== palette.length ||
+  expected.some(([r, g, b], i) => r !== palette[i][0] || g !== palette[i][1] || b !== palette[i][2])
+
+if (stale) {
+  console.error(
+    'art:check FAILED — assets/palette/master.png is stale.\n\n' +
+      `  master.png holds ${palette.length} colour(s); src/art/palette.ts defines ${expected.length}.\n` +
+      '  Every check in this script reads the PNG, so it would be enforcing the\n' +
+      '  old palette against the new source of truth.\n\n' +
+      '  Fix: npm run art:build-palette   (then commit assets/palette/)',
+  )
+  process.exit(1)
+}
+
 const allowed = new Set(palette.map(([r, g, b]) => (r << 16) | (g << 8) | b))
 const files = await listPolicedAssets()
 

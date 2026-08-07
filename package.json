@@ -4,17 +4,18 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest --watch",
-    "test:coverage": "vitest run --coverage",
+    "art:build-palette": "tsx scripts/build-palette.ts",
     "art:check": "tsx scripts/art-check.ts",
     "art:quantise": "tsx scripts/art-quantise.ts",
+    "build": "tsc -b && vite build",
+    "check": "npm run lint && tsc -b && vitest run && npm run art:check",
+    "dev": "vite",
+    "lint": "eslint .",
+    "preview": "vite preview",
     "sfx:generate": "tsx scripts/generate-sfx.ts",
-    "art:build-palette": "tsx scripts/build-palette.ts"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@capacitor-community/native-audio": "^8.0.0",

@@ -62,31 +62,36 @@ decision owner's call.** It has deliberately not been done.
 
 ---
 
-## CI, and why it is parked
+## There is no CI, deliberately
 
-`.github/workflows/ci.yml` is written, correct, and **gitignored**. It runs lint, types,
-tests, the art gate, and a check that the generated palette has not gone stale against
-`src/art/palette.ts`.
+`.github/` has been **deleted**, not parked. `gh` is not a dependency of this project
+either — it is GitHub's API client (pull requests, issues, releases) and adds nothing over
+plain `git` for clone/commit/push/pull.
 
-**It is not committed because it cannot be.** Pushing anything under `.github/workflows/`
-needs a token with `workflow` scope. This repo pushes through Git Credential Manager, whose
-stored OAuth token has `repo` only — and note that `gh auth refresh` does **not** fix this,
-because git never consults `gh`'s token. That is a real trap: it looks like it should work.
+Everything the workflow would have run is one command:
 
-**Worse, a committed workflow file blocks every subsequent push, not just its own.** It is
-therefore in `.gitignore`, so a stray `git add -A` cannot wedge the repo for reasons that
-look nothing like the cause. To enable it later: obtain a token with `workflow` scope, then
-`git add -f .github`.
+```bash
+npm run check     # lint + typecheck + tests + the art gate
+```
 
-**Why parking it is the right call for now.** One committer, one machine, and the workflow
-runs exactly what a local `npm run lint && npx tsc -b && npm test && npm run art:check`
-runs — which passes. CI earns its keep when a *second* writer appears. The specific trigger
-to revisit: **the first time a cloud agent pushes code that no human watched it write.** At
-that point CI stops being a convenience and becomes the only thing checking the work.
+**Nothing was lost in the deletion.** The workflow had exactly one check with no local
+equivalent — verifying that `assets/palette/master.png` had not gone stale against
+`src/art/palette.ts`. That is now *inside* `art:check` itself, which is where it belonged:
+the gate reads the PNG, so it validates its own reference before validating anything else.
+A gate measuring against a stale reference is worse than no gate, because it is trusted.
 
-`gh` itself is not a dependency of this project and nothing here needs it. It is GitHub's
-API client — pull requests, issues, releases — and adds nothing over plain `git` for
-clone/commit/push/pull.
+**Two hazards worth knowing, both hit during this session:**
+
+- Pushing anything under `.github/workflows/` needs a token with `workflow` scope, and this
+  repo pushes via Git Credential Manager, whose token has `repo` only. `gh auth refresh`
+  does **not** fix it — git never consults `gh`'s token. It looks exactly like it should work.
+- A committed workflow file rejects **every subsequent push**, not just its own. So the
+  failure surfaces later, on unrelated work, pointing at CI.
+
+**When to revisit:** the first time a cloud agent pushes code no human watched it write.
+At that point CI stops being ceremony and becomes the only thing checking the work. Until
+then, one committer on one machine running `npm run check` is the same coverage without
+the tooling.
 
 ---
 

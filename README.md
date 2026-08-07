@@ -23,7 +23,7 @@ slice.
 npm install
 npm run dev            # http://localhost:5176
 npm test               # simulation + art system
-npm run art:check      # the ART_DIRECTION §5 palette gate
+npm run check          # everything: lint + types + tests + the art gate
 ```
 
 Useful while working on the render stack:
