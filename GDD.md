@@ -3651,6 +3651,7 @@ spectacle are all real, tested work, and the DOM/canvas boundary in §23.2.3 hel
 | Poke feedback (§8.2, §8.2a) | Numeral plus the code-snippet joke line |
 | Construction Ladder **model** (§7.7) | Rungs, ratio-scaled arrival weight, cohort, scale bar |
 | Player-facing vocabulary (§4.3a) | Re-banded against the real curve |
+| Save and offline accrual (§24) | Local only. The document, migration, the monotonic merge and the closed-form offline model, with tests. **`game-cloud` is not wired** and the §24.8 report screen is spec only |
 
 **Specified here, with no implementation:**
 
@@ -3694,6 +3695,369 @@ Each ships only when it passes §10.8 F1–F6 **on the device**.
 - **Visual verification.** Anything that has to be *looked at* needs a session that can
   screenshot.
 - **ElevenLabs SFX generation** needs `.env`, which is gitignored.
+
+---
+
+## 24. Save & Offline Progression **[CANON]**
+
+Closes Appendix **F1.1** and **F1.2**.
+
+`playbook/SAVE.md` is the studio contract and this section does not restate it. Per §23.1b,
+the platform owns the *mechanism* — the `SaveData` shape, `SAVE_VERSION` migration rules,
+last-write-wins on `savedAt`, the two-tier reconciliation — and this game owns the *values*
+and the one decision the playbook explicitly hands back: **which of our state is permanent.**
+
+**Where we disagree with the playbook, the playbook is right and this is stale.** Where the
+playbook has nothing — offline progression, which no studio game ships — §24.5 onward is the
+first answer, and §24.10 records what goes back.
+
+---
+
+### 24.1 The save document **[CANON]**
+
+One module, `src/game/save.ts`, exporting the four things `SAVE.md` §1 requires.
+
+| | |
+|---|---|
+| `SAVE_VERSION` | **1**. This game has never shipped a save; there is no history to migrate *from* yet, and inventing one to look thorough would be a lie in the one place a lie corrupts data |
+| `SAVE_KEY` | **`m100devs_save`**. The game prefix is not decoration — `SAVE.md` §4 lists key collision on a shared web origin as a trap, and we share an origin with every other studio game in a browser build |
+
+```ts
+interface SaveData {
+  version: number      // ALWAYS first
+  savedAt: number      // epoch ms, stamped at serialize time, never carried over
+  run: RunSave         // last-write-wins
+  permanent: PermanentSave
+}
+```
+
+**`savedAt` is load-bearing twice over.** It is the last-write-wins input *and* it is the
+offline clock (§24.5). There is deliberately no second timestamp: `SAVE.md` §5.2 is right that
+a separate away-clock is a second thing to disagree, and it would disagree exactly when a
+player switches device.
+
+**Every large number is serialised as a `break_infinity.js` decimal string, never a float.**
+Sprint Commitment and burn-down are `Decimal` in the store and a `10^308` overflow written
+into a save is not recoverable by a migration. The save holds strings; the store holds
+`Decimal`; the conversion happens in exactly one place.
+
+---
+
+### 24.2 Three tiers, not two **[CANON]**
+
+`SAVE.md` §3 splits state into run and permanent. **We need a third: state that is never
+serialised at all.**
+
+| Tier | Rule | Ours |
+|---|---|---|
+| **Ephemeral** | **Not in the save document.** Reconstructed on load | Floating numerals (§8.2), speech bubbles, `SpawnEvent` (§7.7), zoom level, the poked developer's local entropy (§4.9) |
+| **Run state** | Last-write-wins on `savedAt`. One device's session is the truth | Headcount, cash, current project and burn-down, in-run tech tree, §21 phase, `devCap` |
+| **Permanent state** | **Monotonic merge — union, never overwrite** | Hero Cards and the org chart, prestige currency and nodes, lifetime aggregates, entitlements |
+
+**Why the third tier earns its place.** A floating numeral has a `bornAt` from
+`performance.now()`, which is a *page-lifetime* clock — persisting it and restoring it into a
+new page produces a numeral born 400,000 ms in the future that never expires. That class of
+bug is silent, arrives far from the load, and is avoided entirely by declaring the tier. The
+same goes for local entropy: §4.9 decays it to baseline in ~8 seconds, so any absence long
+enough to save through has already erased it. **It restores to zero by definition, not by
+choice.**
+
+#### The run block
+
+`RunSave` is exactly what a Paradigm Shift throws away (§24.4), which is not a coincidence —
+it is the reason the block exists as its own object.
+
+| Field | Note |
+|---|---|
+| `devs`, `devCap` | Headcount and the capacity comm tech sustains (§4.2) |
+| `cash` | In-run dollars (§4.10) |
+| `projectIndex`, `commitment`, `burned` | The Sprint Burn-Down (§10.4). Decimal strings |
+| `projectsShipped` | **This run**. The lifetime figure lives in `permanent` |
+| `hasCultureUpgrade` and the §11 tech tree | Purchased with in-run cash, reset with it |
+| `phase` | The §21 script position, so a player killed mid-Act-IV returns mid-Act-IV |
+| `massHired` | The collapse beat fires once per run |
+
+#### The permanent block, sub-split by prestige layer
+
+```
+permanent
+├── layer1   BP balance, Paradigm Tree node levels          — cleared by a Codebase Fork
+└── meta     Hero Cards, org chart, GP, Fork nodes,         — cleared by nothing
+             Planck Cores, dimensions, lifetime aggregates,
+             entitlements, milestone flags
+```
+
+**Permanent does not mean immortal.** §13.3's Codebase Fork resets Bandwidth Points and the
+Paradigm Tree — which are permanent against a *sync race* and impermanent against a *player
+decision*. Those are different questions and a single flat "permanent" bag conflates them, so
+the split is in the document shape rather than in a comment. §24.4 is then a statement about
+which sub-object a prestige clears, and it cannot drift from the code.
+
+---
+
+### 24.3 The monotonic merge **[CANON]**
+
+`SAVE.md` §3 is explicit that the platform cannot infer this, because "monotonic" means four
+different things here. Each field declares which.
+
+| Kind | Merge | Ours |
+|---|---|---|
+| **Set** | **Union** | Owned Hero Card IDs, unlocked Paradigm/Fork node IDs, unlocked Multiverse dimensions, milestone flags, entitlements |
+| **High-water integer** | **`max`** | Lifetime revenue, peak headcount $D_{peak}$, lifetime projects shipped, card duplicate counts, card promotion tier, per-node level, **total offline seconds** |
+| **Spendable balance** | **Derived, never merged** | BP, GP, PC |
+| **Org chart placement** | **The `savedAt` winner's layout, filtered to the merged card set** | §22.2 slots |
+
+**Total offline seconds is not bookkeeping.** §22.5 card #6, *Bruno, On-Call*, is earned by
+accumulating 24 hours of offline time. A player who accrues 20 hours on a phone and 6 on a
+tablet has earned Bruno, and a last-write-wins save loses him. It is on the high-water list
+for that reason and no other.
+
+#### Balances are derived, and this is the interesting case
+
+A currency balance is the one thing that is neither a union nor a maximum. Two devices each
+spend 10 BP on a different node; `max` on the balance hands back both nodes and keeps the
+money, and `min` confiscates a node the player legitimately owns.
+
+**So the balance is not stored as a mergeable field at all:**
+
+```
+balance = max(0, lifetimeEarned  −  cost(mergedNodeSet))
+```
+
+`lifetimeEarned` is a high-water integer and merges by `max`. Spend is *recomputed* from the
+merged node union against §14.2's deterministic cost table. The player therefore keeps every
+node either device bought, and pays for both out of one earning history — clamped at zero, so
+a double-spend race costs residual currency rather than an unlock.
+
+**This is deliberately generous in the player's direction.** The alternative loses an unlock,
+and §22.6 already establishes that this game does not take things away from a collection. The
+worst case is bounded by one race and is not exploitable at scale: earning BP requires
+finishing runs, which does not parallelise across two devices sharing one save.
+
+**Lifetime BP earned survives a Codebase Fork** even though the BP balance does not, because
+§14.3 computes GP from $\sqrt{\text{BP}_{total}}$ and *total* must mean total. It therefore
+lives in `meta`, not `layer1`.
+
+---
+
+### 24.4 Paradigm Shift vs Codebase Fork — different answers **[CANON]**
+
+| | **Paradigm Shift (L1)** | **Codebase Fork (L2)** | **Multiverse Compiler (L3)** |
+|---|---|---|---|
+| **Clears** | `run`, in full | `run` **and `permanent.layer1`, in full** | `run`, `permanent.layer1`, and the L2 node set |
+| **Keeps** | All of `permanent` | All of `permanent.meta` | `meta` cards, dimensions, lifetime aggregates, entitlements |
+| **In one line** | `{ ...save, run: freshRun() }` | `{ run: freshRun(), permanent: { layer1: empty(), meta: save.permanent.meta } }` | As L2, plus the Fork node set |
+
+**A Paradigm Shift touches nothing in the permanent block.** That is the whole invariant, and
+it is worth stating as an invariant rather than as a list because the list will grow: every
+future field only has to answer "run or permanent", and its prestige behaviour follows.
+
+**Two things the tables above would get wrong on their own:**
+
+1. **Hero Cards survive everything, including a Multiverse Compiler.** §22.6 earns cards
+   through milestones and never randomises them; a prestige that deleted a collection would
+   be the harshest reset in a game whose collection layer is explicitly a months-long
+   timescale.
+2. **A Codebase Fork clears Yuki's quit flag.** §22.5 card #11 quits permanently "until the
+   next Codebase Fork". Her flag therefore lives in `meta` alongside the card — she is not
+   un-owned, she is refusing to work — and the Fork's reset explicitly clears it. This is the
+   one piece of card state a prestige is allowed to touch, and it is a repair, not a loss.
+
+---
+
+### 24.5 The offline model **[CANON]**
+
+| Parameter | Value | Why |
+|---|---|---|
+| **Starting cap** | **2 hours** | `SAVE.md` §5.3 puts the genre band at 2–4h and warns that a generous starting cap is a revenue floor given away for nothing. 2h leaves *two* upgrade steps to sell, not one |
+| **First raise** | **2h → 4h**, a Paradigm Tree node | Free, earned, and it teaches the axis exists before anything is sold on it |
+| **Subscription raise** | **4h → 16h**, SERIES A | This is MONETISATION §7 exactly. See the reconciliation below |
+| **Offline rate** | **50%** of the active passive rate | `SAVE.md` §5.3's band is 50–100%; we sit at the floor, because §6's thesis requires that attention beats absence |
+| **Rate raises** | Paradigm node **+25%/level**; SERIES A **+50%** | The other half of the same upgrade axis |
+| **Minimum absence to report** | **30 minutes** | MONETISATION §4 R1's own trigger |
+| **Unlocked at** | **The first Paradigm Shift** | Below |
+
+**Reconciling the 4h in MONETISATION §7.** That document sells the cap as "4h → 16h", which
+reads as a contradiction with a 2h start and is not one: **4h is the cap of every player who
+will ever be offered a subscription.** MONETISATION §4's placement rules forbid any offer
+before the first Paradigm Shift, and the first Paradigm Shift is where the 2h → 4h node
+becomes purchasable. A player at 2h has never seen a store. Both documents are correct about
+the player each is describing.
+
+**Offline accrual does not exist during Run 1.** §21 paces Run 1 at about four minutes and
+scripts every beat of it; an overnight summary landing in the middle of the trap would resolve
+the lesson while the player was asleep, which is precisely the failure §6.3 exists to prevent.
+The system unlocks with the first Paradigm Shift, alongside the first ad the player ever sees.
+
+#### The away clock
+
+Derived from `savedAt` and nothing else:
+
+```
+awaySeconds = clamp(0, (now − save.savedAt) / 1000, capSeconds)
+```
+
+**The lower clamp is not padding.** Device clocks move backwards — timezone changes, NTP
+corrections, and players who wind the clock forward to farm and then wind it back. A negative
+interval must pay zero.
+
+**We do not attempt to defeat clock tampering**, per `SAVE.md` §5.2. The cap bounds the exploit
+to one payout, and this is a single-player game with no competitive surface: §22.6 forbids
+randomised rewards, there is no trading, and the leaderboards `game-cloud` offers are not
+wired. The cost of anti-cheat here is false positives on players who genuinely travelled.
+
+---
+
+### 24.6 What accrues, and what deliberately does not **[CANON]**
+
+| | Offline | Reasoning |
+|---|---|---|
+| **Story Points** | **Yes**, at 50% of the frozen rate | §4.4 makes SP the universal unit of progress. If anything accrues, this does |
+| **The Sprint Burn-Down** | **Fills, and stops at 100%** | Below |
+| **Projects shipping** | **No — unless CI/CD Autopilot (L2-2B) is owned** | Below |
+| **Revenue** | **Only from offline ships**, so only with L2-2B | Revenue is realised on ship (§4.10), not continuously. Nothing changes here |
+| **Payroll** | **No. The burn clock stops.** | Below — this is the load-bearing one |
+| **Communication Entropy** | **Nothing to decay** | Below |
+| **Random events (§18)** | **No** | `SAVE.md` §5.5: a player who returns to eight hours of resolved events has been told the game plays itself |
+| **Hires** | **No** | Headcount is a decision, and §6 is a game about that decision |
+
+#### Payroll does not run while the app is closed
+
+**This is the single most important number in §24 and it is a zero.**
+
+Under §4.10, payroll is $50 per paid developer per second. A mid-game studio of 100,000
+developers burns $5,000,000/sec; the §4.10 bankruptcy threshold of −$1,000,000 is crossed in
+under a fifth of a second. **Every player who closed the app would return, without exception,
+to a bankruptcy screen.** `SAVE.md` §5.5 states the principle — nothing that can go *wrong*
+should happen while away, or the player is punished for closing the app — and this is the
+sharpest possible instance of it.
+
+**The diegetic reading is better than the mechanical one:** nobody is being paid for hours
+nobody logged. The studio is closed. It is a garage (§4.10) and then an office, and offices
+have nights.
+
+This has a consequence worth stating out loud: **the §6 trap cannot close while the player is
+away.** An entropy-locked studio produces ~0 SP offline (its η is ~0, and 50% of nothing is
+nothing) and burns nothing, so it is waiting in exactly the state it was left in. The trap is
+sprung by the thumb or not at all, which is what §6.3 requires.
+
+#### The burn-down fills and stops, and that is what L2-2B is for
+
+Without **CI/CD Autopilot** (§13.3, L2-2B), offline SP fills the current Sprint Commitment and
+**clamps there**. The project sits at 100%, complete, waiting on the ship. Shipping is a
+player action until the node that automates it is bought — which is the node's entire premise,
+and it gives L2-2B a concrete, sellable meaning it did not previously have: *with it, an
+overnight absence chain-ships and banks revenue; without it, one project completes and the
+line goes flat.*
+
+That is also the honest reading of `SAVE.md` §5.5. Shipping is a decision right up until the
+player buys the thing whose name is "you no longer decide this".
+
+#### Entropy does not decay while away, because it is not a stored quantity
+
+The question in F1.2 answers itself out of §4.1: **Communication Entropy is derived**,
+$E = 1 - 1/(1 + (D/D_{cap})^\rho)$, a pure function of headcount against capacity. Neither
+moves while the app is closed, so $E$ on return is $E$ at save, exactly, with nothing to
+integrate. The only entropy that decays is §4.9's per-developer context-switch penalty, which
+is ephemeral (§24.2) and reaches baseline in ~8 seconds.
+
+---
+
+### 24.7 Integrate, never simulate **[CANON]**
+
+`SAVE.md` §5.1 calls this the rule most likely to be got wrong by a team with a good
+simulation, and we have a good simulation. **`src/sim/offline.ts` must never call `tick()`.**
+
+**Our accrual is closed form, not even bucketed**, and it is worth understanding why the
+closed form is available: headcount, `devCap` and therefore η are all frozen during the
+absence (§24.6 — nothing hires, nothing decays). Velocity is a constant, so the whole yield is
+
+```
+storyPoints = velocity × 0.5 × awaySeconds
+```
+
+The only iterative piece is L2-2B chain-shipping, which walks the project ladder crediting
+revenue and is **hard-bounded at 64 ships** — a few dozen steps, exactly the budget §5.1
+allows. If a future upgrade makes the offline rate time-varying, it becomes a fixed bucket
+count and the approximation is accepted; consistency across devices matters more than
+precision, and the player cannot tell.
+
+**The property that must hold, and that the tests assert:** integrating one long absence
+yields the same result as summing many short ones, within the cap. If that breaks, the model
+has become device-dependent and two phones will disagree about the same eight hours.
+
+---
+
+### 24.8 The Overnight Build Report **[CANON]**
+
+The return screen MONETISATION §4 R1 requires. **Specified here; it is a §10.8 scene and it
+is held to F1–F6 like every other one.**
+
+**In fiction it is a CI job summary.** `STUDIO_OS` ran the build overnight and this is the
+log. That framing is free: the 2× rewarded offer is *"RUN IT AGAIN"*, and a capped-out
+accrual is *"BUILD SERVER IDLE"*, which is a real thing that annoys real developers and is
+therefore an upsell that lands as a joke.
+
+| Rule | Detail |
+|---|---|
+| **When** | First thing on app open after **≥ 30 minutes** away, once offline is unlocked. Before the swarm, before the HUD |
+| **Never** | During Run 1, or on any absence under 30 minutes — a report saying "you earned 40 SP" cheapens every later one |
+| **Layout** | §10.8a's summary kit, verbatim: rows reveal on a 40–60 ms stagger, counters **roll and bounce**, and the headline total tweens up **last**, so it reads as a summation |
+| **Rows** | Time away · Story Points · projects shipped (only if any) · revenue (only if any). A row with a zero value is **not rendered**, never rendered as `0` |
+| **The 2× button** | **Above** `[ COLLECT ]`. Not beside it, not after it. Labelled with the exact reward on the button face — MONETISATION §4 forbids a `?` |
+| **Collect** | **Always available, never gated, never on a timer.** The ad is an upgrade to a payout the player already owns |
+| **Ad readiness** | Pre-loaded **before the screen renders**. If it is not filled, the 2× button is **absent**, not greyed — a dead button is a broken promise, and this is the one placement per session at peak intent |
+| **Cap reached** | An extra line: `BUILD SERVER IDLE — 3h 12m`, with the upgrade path. This is the diegetic sell for the cap raise and it is the honest one: the player is being shown what they actually lost |
+| **Copy** | No emoji, ART_DIRECTION §3.1, enforced by `art:check`. Emphasis is `**` and `[!]` |
+| **Exit** | Hard-edged wipe into the swarm (§10.8a), never a fade |
+
+**On the collect:** the yield is applied to the burn-down as one write, and the Sprint
+Burn-Down bar animates from its old value to its new one *after* the wipe, so the player sees
+where the numbers went. A summary screen whose figures do not visibly land somewhere reads as
+a lie.
+
+---
+
+### 24.9 App lifecycle — when a save is written **[CANON]**
+
+Partially answers F2.6, which is where F1.1 and F1.2 meet.
+
+| Trigger | Action |
+|---|---|
+| `visibilitychange` → `hidden` | **Save.** This is the primary path |
+| `pagehide` | Save. Belt and braces; a WebView is not obliged to give us both |
+| Paradigm Shift / Codebase Fork | Save immediately — a prestige is the highest-value write in the game |
+| Quit | Not relied upon. Mobile apps are killed without warning |
+
+**Backgrounding, not quitting, is when the save must happen** (`SAVE.md` §5.2). A save written
+at the last *interaction* under-counts the away period by however long the phone sat on the
+desk with the game open — which is the most common way an idle game is left, and the player
+would be silently robbed of that time every session.
+
+The simulation tick also stops on `hidden`, so no frames are integrated against a throttled
+background timer. Offline accrual is the only thing that runs while away, and it runs once, on
+return.
+
+---
+
+### 24.10 What goes back to `playbook/SAVE.md`
+
+§5 of that document says it explicitly: no studio game has offline accrual, and the first one
+to ship it rewrites the section. Four things we found that it does not currently cover.
+
+1. **The three-tier split.** §3 gives run and permanent; there is a third tier of state that
+   must not be serialised at all, and the trap it prevents — persisting a `performance.now()`
+   timestamp into a new page lifetime — is silent and lands far from the load.
+2. **A spendable balance is not a mergeable field.** §3 says "monotonic means different things
+   for a currency balance" and stops there. The answer is to store lifetime *earned* as a
+   high-water mark, recompute *spent* from the merged unlock set, and clamp at zero (§24.3).
+3. **Nested prestige needs the permanent block sub-split by layer** (§24.2). "Permanent" is
+   two different questions — permanent against a sync race, permanent against a player
+   decision — and a flat bag conflates them.
+4. **§5.5 needs a stronger clause about costs, not just risks.** It says nothing that can go
+   *wrong* should happen while away. Our payroll is not a risk, it is a certainty, and it
+   would have bankrupted every returning player in under a second. **A continuous cost must
+   not run offline unless the design has deliberately decided it should** (§24.6).
 
 ---
 
@@ -4038,8 +4402,8 @@ specification anywhere*, not a thin one.
 
 | # | Gap | Platform provides | **What is still ours** |
 |---|---|---|---|
-| **F1.1** | **Save** | The transport *and now the shape* — `playbook/SAVE.md` gives the `SaveData` contract, `SAVE_VERSION` migration rules and the two-tier reconciliation, extracted from two shipped games | ⚠️ **Our fields, and which of them are permanent.** The playbook's two-tier rule needs us to say what is run state and what must monotonically merge — Hero Cards (§22) and prestige currency must survive losing a sync race; an in-progress run need not. **→ §24** |
-| **F1.2** | **Offline progression** | A genre recommendation, not a studio pattern — `playbook/SAVE.md` §5. Integrate rather than simulate, away time from `savedAt`, the cap as a design lever, the return screen as a monetisation surface | ⚠️ **Our numbers and our answer.** Starting cap, accrual rate, what accrues (SP? cash? does Entropy decay while away?), and the §10.9-class summary screen MONETISATION §4 R1 requires. **We are the first studio game to do this, so whatever we learn goes back to `SAVE.md` §5.** **→ §24** |
+| ~~**F1.1**~~ | ~~**Save**~~ | — | **CLOSED — owned by §24.** The save document, the three-tier split, the per-field monotonic merge, and what each prestige layer resets |
+| ~~**F1.2**~~ | ~~**Offline progression**~~ | — | **CLOSED — owned by §24.** 2h starting cap, 50% rate, SP accrues and payroll does not, the closed-form model, and the Overnight Build Report. §24.10 is what goes back to `playbook/SAVE.md` §5 |
 | **F1.3** | **Age rating & target audience** | The submission process and the questionnaire mechanics (`PLAY_STORE.md`) | ⚠️ **The answers**, and the consequence: declaring child appeal forces the Families policy and bans personalised ads, so it changes the AdMob configuration the playbook sets up. Decide before the ad stack is built |
 | **F1.4** | **Privacy policy & data deletion** | Policy hosting and the Play requirement (`PLAY_STORE.md`, `MONETIZATION_SETUP.md`) | ⚠️ **The data inventory** — what this game actually collects beyond the studio baseline — and the in-app deletion entry point, which is a §10.9 menu item nobody has specified |
 | **F1.5** | **Restore purchases** | RevenueCat's restore flow (`MONETIZATION_SETUP.md`) | ⚠️ **The UI entry point only.** Not in §10.9's menu and not in the §F2.1 settings screen, because neither exists |
@@ -4087,6 +4451,7 @@ row here with the section number that now owns it. Do not close a row by buildin
 feature — an undocumented feature is the same failure this appendix exists to catch, arriving
 from the other direction.
 
-**F1 is ordered.** F1.1 and F1.2 are the ones with architectural reach: save shape and the
-offline model both constrain the store, and both are cheaper to decide before the tech tree
-and prestige layers add state that has to persist.
+**F1 is ordered.** F1.1 and F1.2 were the ones with architectural reach: save shape and the
+offline model both constrain the store, and both were cheaper to decide before the tech tree
+and prestige layers added state that has to persist. **Both are now closed by §24**, which is
+why the remaining F1 rows are all store-and-policy work rather than design work.

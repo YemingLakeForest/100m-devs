@@ -52,189 +52,384 @@ body {
 }
 
 /*
- * The HUD is a Layer (GDD §7.1). It never eats a pointer event except on the
- * few controls that need one — the simulation behind it must stay pokeable
- * through the whole overlay.
+ * ========================================================================
+ * The HUD — GDD §7.1 (the UI is a Layer), §10.1 (what it says), §23.4.2
+ * (the design box it says it in).
+ * ========================================================================
+ *
+ * **The layout is two rails pinned to the two edges, with the simulation
+ * between them.** §23.4.2: the 2:1 isometric floor fits to *height*, so on any
+ * frame wider than 2:1 the leftover width shows up at the sides, and that
+ * margin is where the HUD lives. Pinning a fixed-width rail to each edge means
+ * every extra pixel of device width goes to the picture — the rails do not
+ * move, the gap between them grows. That is what "anchor to edges, never to
+ * fractions of the width" buys, and it is why `--hud-rail` is a length rather
+ * than a percentage.
+ *
+ * At the narrow end of the design box (1.78:1) the margin is not there and the
+ * rails sit over the edges of the floor. That is fine and it is the plan: §7.1
+ * makes the interface a semi-transparent Layer precisely so it can be *over*
+ * the simulation without hiding it, and the interesting part of the floor —
+ * the desks, the bodies, James — is centred, where the rails are not.
+ *
+ * The frame it replaced was seven full-width stacked rows composed against a
+ * tall window. At 1144x514 the terminal banner, the advisor copy, the chart and
+ * the velocity readout were all inside each other.
  */
+
 .hud {
   position: absolute;
   inset: 0;
+  /*
+   * §7.1 — the Layer never eats a pointer event except on the few controls that
+   * need one. The renderer's tap handling listens on the canvas underneath, so
+   * this is load-bearing rather than tidy: anything here that takes pointers
+   * without needing them puts a dead patch on the simulation.
+   */
   pointer-events: none;
-  padding: env(safe-area-inset-top, 8px) 8px 8px;
+  padding: var(--edge-top) var(--edge-x) var(--edge-y);
+
   display: grid;
   /*
-   * Every element gets its own cell. An earlier revision shared `burn` between
-   * the burn-down and the terminal banner, and `ctrl` between the advisor and
-   * the action button — grid happily stacks children in one area, so both
-   * pairs rendered on top of each other.
+   * Every element gets its own cell, and the areas are named for what they are
+   * rather than for where they sit. Grid will happily stack two children in one
+   * area and draw them on top of each other — that is exactly how the previous
+   * revision's advisor copy ended up underneath its own action button.
    */
+  grid-template-columns: var(--hud-rail) minmax(0, 1fr) var(--hud-rail);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    'top      top'
-    'burn     vel'
-    'terminal terminal'
-    'bubble   bubble'
-    'entropy  entropy'
-    'advisor  advisor'
-    'actions  perf';
-  grid-template-rows: auto auto auto 1fr auto auto auto;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+    'project bubble  resources'
+    'gauges  actions resources'
+    'script  script  controls';
+  column-gap: 12px;
+  row-gap: 8px;
 }
 
-.hud__top {
-  grid-area: top;
-  display: flex;
-  justify-content: space-between;
-  border-bottom: var(--rule) solid var(--p1);
-  padding-bottom: 4px;
+.hud__project {
+  grid-area: project;
+  align-self: start;
 }
 
-.hud__stat {
-  color: var(--p1);
-  letter-spacing: 1px;
+.hud__gauges {
+  grid-area: gauges;
+  align-self: start;
+  display: grid;
+  gap: 6px;
 }
 
-.hud__stat b {
-  color: var(--p3);
-  font-weight: 400;
+.hud__resources {
+  grid-area: resources;
+  align-self: start;
+  display: grid;
+  gap: 6px;
+  justify-items: stretch;
 }
+
+.hud__script {
+  grid-area: script;
+  align-self: end;
+  display: grid;
+  gap: 5px;
+  /* The banner is drawn `pre` and a long line must not be able to push the
+     grid column wider than the rail arithmetic allows. */
+  min-width: 0;
+}
+
+.hud__controls {
+  grid-area: controls;
+  align-self: end;
+  justify-self: end;
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+}
+
+/* --- the readout block, the one repeated shape ------------------------- */
 
 /*
- * GDD §7.7.5 — the scale bar. Sits under the headcount, quieter than it, and
- * only appears above rung 2. Block-level so its arrival does not shove the
- * cash readout sideways.
+ * A block is a label, a numeral and an optional sub-line, against a 1px rule.
+ *
+ * The backing is a 58% wash of the darkest neutral, not a panel. §7.1 forbids
+ * "heavy, opaque window boxes" and this is neither — the swarm reads straight
+ * through it, which you can check by watching a sprite walk behind one — but
+ * some backing is not optional either: at 1.78:1 these sit over the floor, and
+ * phosphor text on a lit isometric room with no separation is unreadable in
+ * exactly the frames where it matters most. The precedent is the §10.7 dialogue
+ * box, which is 80%.
  */
-.hud__scale {
-  display: block;
+.hud__block {
+  display: grid;
+  gap: 1px;
+  padding: 3px 7px 4px;
+  border-left: var(--rule) solid var(--p1);
+  background: color-mix(in srgb, var(--n0) 58%, transparent);
+}
+
+.hud__label {
   color: var(--p1);
-  opacity: 0.7;
-  font-size: 0.68em;
   letter-spacing: 1px;
+  line-height: 1.25;
+  /* The §4.3a labels run to 22 characters and must never wrap the rail into a
+     second line — a readout that changes height as it escalates would shove
+     everything under it down the screen. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
-/* --- the one DOM element over the canvas, GDD §23.2 non-negotiable 3 ---- */
-
-.hud__velocity {
-  grid-area: vel;
-  align-self: start;
-  justify-self: end;
-  text-align: right;
-  /* Brackets, not a box. §1: 1px rules and brackets. */
-  border-right: var(--rule) solid var(--p2);
-  border-top: var(--rule) solid var(--p2);
-  padding: 4px 6px 2px;
-}
-
-.hud__velocity-label {
-  display: block;
-  color: var(--p1);
-  letter-spacing: 2px;
-}
-
-.hud__velocity-value {
-  display: block;
-  font-size: var(--type-3x);
+.hud__num {
   color: var(--p3);
-  /* Tabular so the counter does not jitter while counting up (§3 rule 3). */
+  font-weight: 400;
+  line-height: 1.2;
+  /* Tabular so a counting numeral does not jitter — ART_DIRECTION §3 rule 3. */
   font-variant-numeric: tabular-nums;
 }
 
-.hud__velocity-unit {
-  display: block;
-  color: var(--p1);
-  letter-spacing: 2px;
+.hud__num--major {
+  font-size: var(--type-2x);
 }
 
-/* --- burn-down, GDD §10.4 ---------------------------------------------- */
-
-.burndown {
-  grid-area: burn;
-  align-self: start;
-  max-width: 180px;
+.hud__sub {
+  color: var(--p1);
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
 }
 
-.burndown__label {
-  color: var(--p1);
-  letter-spacing: 1px;
-  margin-bottom: 2px;
+.hud__num.is-bad,
+.hud__sub.is-bad {
+  color: var(--alarm-2);
+}
+
+/*
+ * §10.8a — "counters roll, never set ... and bounce on arrival, scale overshoot
+ * on the digits". The roll is the spring in Counter.tsx; this is the arrival.
+ */
+.hud__num.is-arriving {
+  animation: hud-num-arrive 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes hud-num-arrive {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* --- resources, right rail --------------------------------------------- */
+
+/*
+ * The right rail mirrors: rule on the outside, text toward the edge it is
+ * anchored to. Reading the two rails as a pair is what makes the frame feel
+ * composed rather than merely filled.
+ */
+.hud__resources .hud__block {
+  border-left: none;
+  border-right: var(--rule) solid var(--p1);
+  justify-items: end;
+  text-align: right;
+}
+
+.hud__block--cash .hud__num--major {
+  font-size: var(--type-3x);
+}
+
+/*
+ * The runway clock. §21 Act V is a panic and a panic has a clock; the blink is
+ * what stops it reading as one more row of telemetry.
+ */
+.hud__sub--blink {
+  animation: hud-blink 0.9s steps(2, end) infinite;
+}
+
+@keyframes hud-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* --- the speedometer, GDD §4.3 / §4.3a --------------------------------- */
+
+.hud__gauge-track {
+  height: 5px;
+  margin-top: 2px;
+  border: var(--rule) solid var(--p1);
+}
+
+.hud__gauge-fill {
+  height: 100%;
+  background: var(--p2);
+  /* No CSS transition. The travel is the spring in Readouts.tsx, which is
+     frame-rate independent and shares its value with the numeral above — a
+     transition here would put the bar and the number on two different clocks. */
+}
+
+/*
+ * Seized. The label already reads STUDIO SEIZED (§4.3a replaces "ENTROPY LOCK"
+ * everywhere the player can see it), so this is not a second banner saying the
+ * same thing — it is the block itself going alarm-red and unstable, which is
+ * ART_DIRECTION §1.1's lock row applied to the one element that reports it.
+ */
+.hud__gauge.is-seized {
+  border-left-color: var(--p3);
+  animation: hud-blink 0.6s steps(2, end) infinite;
+}
+
+/* --- the project burn-down, GDD §10.4 ---------------------------------- */
+
+.burndown__name {
+  color: var(--p2);
+  line-height: 1.25;
+  /* One line, always. Project names run long and the chart under them must not
+     move up and down as they change. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .burndown__chart {
   display: block;
   width: 100%;
-  height: 44px;
+  height: 40px;
+  margin: 2px 0;
   border-left: var(--rule) solid var(--p1);
   border-bottom: var(--rule) solid var(--p1);
 }
 
-.burndown__ideal {
+.burndown__ideal,
+.burndown__actual {
   fill: none;
-  stroke: var(--p1);
   stroke-width: 1;
+  /* The chart stretches to the rail, so without this the non-uniform scale
+     would thicken the vertical strokes and thin the horizontal ones — a
+     smoothed, uneven edge beside a pixel face, which ART_DIRECTION §3 rule 1
+     names as the most common cohesion failure there is. */
+  vector-effect: non-scaling-stroke;
+}
+
+.burndown__ideal {
+  stroke: var(--p1);
   stroke-dasharray: 2 3;
 }
 
 .burndown__actual {
-  fill: none;
-  stroke: var(--p2);
-  stroke-width: 1;
+  stroke: var(--p3);
 }
 
-.burndown__readout {
+/* --- the §21 script ----------------------------------------------------- */
+
+/* The CRT terminal banner. Retro, monospace, and doing the comedy work. */
+.hud__terminal {
+  margin: 0;
+  font: inherit;
   color: var(--p2);
-  font-variant-numeric: tabular-nums;
-  margin-top: 2px;
+  border-left: var(--rule) solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 58%, transparent);
+  padding: 3px 7px 4px;
+  line-height: 1.3;
+  white-space: pre;
+  /* Clipped rather than scrolled: a scrollbar over the simulation is the
+     §10.6 web-page tell, and every authored banner fits the span by design. */
+  overflow: hidden;
 }
 
-/* --- entropy speedometer, GDD §4.3 ------------------------------------- */
-
-.hud__entropy {
-  grid-area: entropy;
+/* The sarcastic tutorial assistant. */
+.hud__advisor {
+  margin: 0;
+  color: var(--p1);
+  border-left: var(--rule) solid var(--p1);
+  background: color-mix(in srgb, var(--n0) 58%, transparent);
+  padding: 3px 7px 4px;
+  line-height: 1.35;
 }
 
-.hud__entropy-bar {
-  height: 4px;
-  border: var(--rule) solid var(--p1);
-  margin-top: 3px;
+/*
+ * The action bar is a Panel, so this styles the panel element itself. It is one
+ * of the three places in the Layer that takes pointer events.
+ */
+.hud__actions {
+  grid-area: actions;
+  align-self: end;
+  justify-self: center;
+  pointer-events: auto;
+  padding-bottom: 2px;
 }
 
-.hud__entropy-fill {
-  height: 100%;
-  background: var(--p2);
-  /* No transition: the readout must be instantaneous truth, not an animation. */
-}
-
-.hud__lock {
+/* Speech bubble over the developer — GDD §7.5 L1, §6.3. Also a Panel. */
+.hud__bubble {
+  grid-area: bubble;
+  justify-self: center;
+  align-self: start;
+  max-width: 28em;
   margin-top: 4px;
   color: var(--p3);
-  background: var(--p0);
+  background: color-mix(in srgb, var(--n0) 82%, transparent);
   border: var(--rule) solid var(--p2);
-  padding: 2px 4px;
-  letter-spacing: 3px;
+  padding: 5px 8px;
   text-align: center;
-  animation: lock-blink 0.6s steps(2, end) infinite;
+  line-height: 1.3;
 }
 
-@keyframes lock-blink {
-  50% {
-    opacity: 0.35;
-  }
+/* --- upgrades, GDD §10.1 nav / §11 ------------------------------------- */
+
+.hud__nav {
+  pointer-events: auto;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* GDD §10.5 — reduce-motion shortens the flicker; it never removes the
-     readout, which is load-bearing information rather than juice. */
-  .hud__lock {
-    animation: none;
-  }
+.hud__nav .ui-btn {
+  font-size: var(--type-1x);
+  padding: 7px 12px;
+}
+
+/*
+ * A right-edge drawer, not a modal: §7.1 keeps the swarm visible and pokeable
+ * everywhere the panel is not, and §10.5 rule 1 sends a surface back out the
+ * edge it came from. Anchored to `--edge-x` so it clears a curved cutoff, and
+ * sat directly above the button that opened it so the motion has somewhere
+ * obvious to have come from.
+ */
+.hud__upgrades {
+  position: absolute;
+  right: var(--edge-x);
+  bottom: calc(var(--edge-y) + 46px);
+  width: 340px;
+  max-width: calc(100% - 2 * var(--edge-x));
+  pointer-events: auto;
+  border: var(--rule) solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 88%, transparent);
+}
+
+.hud__upgrades-body {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 10px 12px 12px;
+}
+
+.hud__upgrades-title {
+  margin: 0;
+  font-size: var(--type-2x);
+  font-weight: 400;
+  letter-spacing: 3px;
+  color: var(--p3);
+}
+
+.hud__upgrades-copy {
+  margin: 0;
+  font: inherit;
+  color: var(--p2);
+  line-height: 1.35;
+  white-space: pre-wrap;
 }
 
 /* --- performance overlay, GDD §23.3 ------------------------------------ */
 
 .hud__perf {
-  grid-area: perf;
-  align-self: end;
-  justify-self: end;
   display: flex;
   gap: 8px;
   color: var(--p1);
@@ -245,87 +440,24 @@ body {
   color: var(--alarm-2);
 }
 
-/* --- the §21 script ----------------------------------------------------- */
-
-.hud__cash {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.3;
-}
-
-.hud__cash .is-bad,
-.hud__burn.is-bad {
-  color: var(--alarm-2);
-}
-
-.hud__burn {
-  font-variant-numeric: tabular-nums;
-}
-
-/* The CRT terminal banner. Retro, monospace, and doing the comedy work. */
-.hud__terminal {
-  grid-area: terminal;
-  align-self: start;
-  margin: 0;
-  font: inherit;
-  color: var(--p2);
-  border-left: var(--rule) solid var(--p2);
-  padding-left: 6px;
-  white-space: pre;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-/* Speech bubble over the developer — GDD §7.5 L1, §6.3. */
-.hud__bubble {
-  grid-area: bubble;
-  justify-self: center;
-  align-self: center;
-  max-width: 22em;
-  color: var(--p3);
-  background: color-mix(in srgb, var(--n0) 82%, transparent);
-  border: var(--rule) solid var(--p2);
-  padding: 5px 7px;
-  text-align: center;
-}
-
-/* The sarcastic tutorial assistant. */
-.hud__advisor {
-  grid-area: advisor;
-  align-self: end;
-  margin: 0 0 4px;
-  color: var(--p1);
-  border-top: var(--rule) solid var(--p1);
-  padding-top: 5px;
-  max-width: 40em;
-}
-
-.hud__actions {
-  grid-area: actions;
-  align-self: end;
-  justify-self: center;
-  pointer-events: auto;
-  padding-bottom: 4px;
-}
-
 /* --- Act V -------------------------------------------------------------- */
 
-.hud--modal {
-  display: grid;
-  place-items: center;
-  pointer-events: auto;
-  /* The scrim belongs to Panel now — it has to blur *up* over the same 320 ms
-     rather than being present the moment the element mounts (§10.6). */
-}
-
+/*
+ * The bankruptcy panel is a modal `Panel`, which brings its own absolutely
+ * positioned scrim — so it is out of the grid entirely and the live HUD keeps
+ * rendering underneath it. §10.6: the studio is still there, still simulating,
+ * behind the scrim rather than covered by a sheet.
+ */
 .bankruptcy {
-  max-width: 32em;
+  max-width: min(34em, calc(100% - 2 * var(--edge-x)));
+  max-height: calc(100% - 2 * var(--edge-y));
+  overflow: auto;
   text-align: center;
   border: var(--rule) solid var(--p2);
-  padding: 18px;
+  background: color-mix(in srgb, var(--n0) 88%, transparent);
+  padding: 16px 18px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
   color: var(--p2);
 }
 
@@ -349,7 +481,7 @@ body {
 .bankruptcy__lesson {
   border-top: var(--rule) solid var(--p1);
   border-bottom: var(--rule) solid var(--p1);
-  padding: 10px 0;
+  padding: 8px 0;
   color: var(--p3);
 }
 
@@ -358,6 +490,55 @@ body {
   color: var(--p1);
 }
 
+/* --- holding the design box, 1.78:1 to 2.4:1 --------------------------- */
+
+/*
+ * The rails are sized for the composition target (2.0:1) and the guarantee runs
+ * from 1.78:1 to 2.4:1. Only the narrow end needs help, and it needs it as a
+ * function of the *shorter* dimension rather than of the aspect: a 1.78:1 phone
+ * is around 640 CSS px wide in landscape, which is where two 176px rails plus
+ * two 5% gutters stop leaving the simulation a usable middle.
+ */
+@media (max-width: 760px) {
+  .hud {
+    --hud-rail: 146px;
+    column-gap: 8px;
+  }
+
+  .hud__block--cash .hud__num--major {
+    /* §3 rule 2 — integer multiples only. Dropping a whole step, never a clamp. */
+    font-size: var(--type-2x);
+  }
+}
+
+/*
+ * Short frames are the other failure mode, and they are not the same devices:
+ * 1080x450 is wide and short at once. The chart is the one element with height
+ * to give back, and a shorter burn-down is still a burn-down.
+ */
+@media (max-height: 420px) {
+  .burndown__chart {
+    height: 28px;
+  }
+
+  .hud {
+    row-gap: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * GDD §10.5 rule 3 — reduce-motion shortens motion; it never removes a
+   * readout. The blinks below are attention devices rather than information,
+   * and the information they sit on (the runway string, the STUDIO SEIZED
+   * label) is still on screen with them switched off.
+   */
+  .hud__sub--blink,
+  .hud__gauge.is-seized,
+  .hud__num.is-arriving {
+    animation: none;
+  }
+}
 /* ======================================================================== */
 /* The juice kit — src/ui, GDD §10.5 and the §10.8 gate.                    */
 /*                                                                          */

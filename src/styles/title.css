@@ -1,0 +1,531 @@
+/*
+ * The title screen — GDD §10.9.
+ *
+ * Every entrance and exit here is a keyframe animation with
+ * `animation-fill-mode: both` and a delay taken from src/title/titleSequence.ts.
+ * That combination is the whole F1 story: the from-state is held for the
+ * length of the delay, so an element that has not arrived yet is *already
+ * rendering, invisibly, in its start position* rather than waiting to be
+ * inserted. Nothing on this screen is ever mounted mid-motion.
+ *
+ * No colour below is a hex value. The night, the desk light and the type are
+ * all palette tokens — --n* for the world's neutrals, --glow-* for what a
+ * monitor emits, --p0..--p3 for the interface phosphor.
+ *
+ * Composed for 2.0:1 per GDD §23.4.2 and anchored to --edge-x / --edge-y,
+ * which already encode the 5% side clearance. Nothing here is positioned at a
+ * fraction of the width.
+ */
+
+/* --- the room behind the title ------------------------------------------ */
+
+/*
+ * §10.9.2 — "logo left, room right... centring the logo over the room would
+ * put text across the one lit thing on screen."
+ *
+ * The Pixi world centres itself in the viewport and its pan is internal to the
+ * stage, so the room is nudged into its right-hand two thirds by translating
+ * the canvas element. The nudge is undone over the push-in, which means the
+ * room slides to centre as the logo leaves — part of the §10.9.4 move rather
+ * than a correction applied after it.
+ */
+.app.is-title .app__canvas {
+  transform: translateX(13%);
+  /* The title owns the pointer while it is up. Without this a tap aimed at a
+     menu slab that misses lands as a poke on a developer who has not been
+     hired yet, at coordinates the transform has already invalidated. */
+  pointer-events: none;
+}
+
+.app.is-title-exiting .app__canvas {
+  animation: title-room-centre var(--title-push, 420ms) cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+
+@keyframes title-room-centre {
+  from {
+    transform: translateX(13%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* --- the frame ----------------------------------------------------------- */
+
+.title {
+  position: absolute;
+  inset: 0;
+  /* A Layer, like the HUD (GDD §7.1). Only the slabs take a pointer. */
+  pointer-events: none;
+  display: grid;
+  /* The §10.9.2 thirds, as a ratio rather than as pixels, so the split holds
+     across the whole 1.78:1 – 2.4:1 design box. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    'os   room'
+    'logo room'
+    'menu room';
+  padding: var(--edge-y) var(--edge-x);
+  gap: 8px;
+  color: var(--p2);
+}
+
+/* --- night, and one lit monitor — §10.9.1 -------------------------------- */
+
+.title__night {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * The dark. Heaviest at the edges and thinnest over the room's centre — which
+ * the canvas nudge has put at about 63% of the width — so the picture reads as
+ * one light source in an unlit room rather than as a screen-wide dimmer.
+ */
+.title__night::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 34% 46% at 63% 48%,
+    color-mix(in srgb, var(--n0) 30%, transparent) 0%,
+    color-mix(in srgb, var(--n0) 74%, transparent) 55%,
+    var(--n0) 100%
+  );
+}
+
+/*
+ * The monitor itself. §10.9.4: "the lit monitor flickers." A CRT does not fade
+ * — it drops a field and comes back — so the flicker is stepped rather than
+ * eased, and irregular, because a metronome reads as an animation and a
+ * stutter reads as a tube.
+ */
+.title__night::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 15% 20% at 63% 46%,
+    color-mix(in srgb, var(--glow-2) 26%, transparent) 0%,
+    color-mix(in srgb, var(--glow-0) 14%, transparent) 60%,
+    transparent 100%
+  );
+  animation: title-flicker 3.7s steps(1, end) infinite;
+}
+
+@keyframes title-flicker {
+  0%,
+  46%,
+  52%,
+  81%,
+  100% {
+    opacity: 1;
+  }
+  47%,
+  82% {
+    opacity: 0.82;
+  }
+  49% {
+    opacity: 0.93;
+  }
+}
+
+/* "The room lights come up." No fade to black — §10.9.4, §10.9.5. */
+.title[data-phase='exit'] .title__night {
+  animation: title-lights-up 380ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+@keyframes title-lights-up {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+ * §10.9.4, "scanlines roll". ART_DIRECTION §1.0a: the Pixi CRT pass grades the
+ * world but cannot reach the DOM, so without this the type would be the only
+ * thing on screen not behind glass. §1.0a names this exact fix.
+ *
+ * Animated with a transform of exactly one period, so the loop is seamless and
+ * the work stays on the compositor — animating background-position would not.
+ */
+.title__scanlines {
+  position: absolute;
+  inset: -4px 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--n0) 40%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+  animation: title-scan 5.5s linear infinite;
+}
+
+@keyframes title-scan {
+  to {
+    transform: translateY(3px);
+  }
+}
+
+.title[data-phase='exit'] .title__scanlines {
+  animation:
+    title-scan 5.5s linear infinite,
+    title-lights-up 380ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+/* --- the OS banner — §10.9.2 --------------------------------------------- */
+
+.title__os {
+  grid-area: os;
+  align-self: start;
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
+}
+
+/* --- the boot — §10.9.3 -------------------------------------------------- */
+
+.title__boot {
+  grid-area: logo;
+  align-self: center;
+  margin: 0;
+  font: inherit;
+  font-size: var(--type-1x);
+  line-height: 1.6;
+  color: var(--p2);
+  white-space: pre;
+  animation-name: title-boot-out;
+  animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
+  animation-fill-mode: both;
+}
+
+/* Lifts away as the logo arrives in the same cell. It does not blink out. */
+@keyframes title-boot-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/* --- the logo — §10.9.2 -------------------------------------------------- */
+
+.title__logo {
+  grid-area: logo;
+  align-self: center;
+  display: grid;
+  /* Sized by the widest thing in it, which is the nine-digit ghost. Everything
+     below the numerals then justifies to exactly that width. */
+  grid-template-columns: max-content;
+  gap: 6px;
+}
+
+.title__count {
+  position: relative;
+  /*
+   * §10.9.2 — "the largest type scale in the product". --type-3x is the top of
+   * the ART_DIRECTION §3 scale; the wider breakpoint steps to 4x rather than
+   * to some fraction between, because rule 2 allows integer multiples only.
+   */
+  --title-ls: 6px;
+
+  font-size: var(--type-3x);
+  line-height: 1;
+  letter-spacing: var(--title-ls);
+  color: var(--p3);
+}
+
+.title__count-ghost {
+  /* In flow and invisible: it is what reserves the width. `visibility` rather
+     than `display: none` so it still lays out. */
+  visibility: hidden;
+  /* Cancels the letter-space trailing the final glyph, so the box measures
+     eleven advances plus ten gaps — which is exactly what the ten letters of
+     DEVELOPERS are then spread across. */
+  margin-right: calc(-1 * var(--title-ls));
+}
+
+.title__count-live {
+  position: absolute;
+  inset: 0 auto auto 0;
+  /* The §10.8a arrival bounce. Origin at the left edge so the overshoot grows
+     the numerals rather than sliding them. */
+  transform-origin: 0 50%;
+  animation-name: title-count-land;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-fill-mode: both;
+}
+
+/* "Lands, bounces, settles" — §10.9.1. A counter that simply becomes the new
+   number is the §10.8a failure this is here to avoid. */
+@keyframes title-count-land {
+  0% {
+    transform: scale(1);
+  }
+  38% {
+    transform: scale(1.12);
+  }
+  72% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.title__word {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--type-1x);
+  line-height: 1;
+  color: var(--p2);
+}
+
+.title__rule {
+  height: var(--rule);
+  background: var(--p1);
+  /* Draws left to right — §10.9.4. */
+  transform-origin: 0 50%;
+  animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  animation-fill-mode: both;
+}
+
+.title[data-phase='in'] .title__rule {
+  animation-name: title-rule-draw;
+}
+
+.title[data-phase='exit'] .title__rule {
+  animation-name: title-rule-draw;
+  animation-direction: reverse;
+  animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
+}
+
+@keyframes title-rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.title__tagline {
+  margin: 0;
+  /* Zero-width with a 100% minimum: the tagline fills the logo's width without
+     being allowed to *set* it. The numerals set it, and only the numerals. */
+  width: 0;
+  min-width: 100%;
+  font-size: var(--type-1x);
+  line-height: 1.4;
+  color: var(--p1);
+}
+
+/* --- the menu — §10.9.2, §10.8a skewed slabs ----------------------------- */
+
+.title__menu {
+  grid-area: menu;
+  align-self: end;
+  justify-self: start;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.title__slab {
+  pointer-events: auto;
+}
+
+/* Tighter than the in-game default: three slabs plus the logo have to clear a
+   frame that is only about 400 CSS px tall at the bottom of the design box. */
+.title__slab .ui-btn {
+  padding: 4px 12px;
+}
+
+/* Desktop only, and additive — F2's contract is the press, which Button owns. */
+@media (hover: hover) {
+  .title__slab .ui-btn:hover {
+    background: var(--p3);
+  }
+}
+
+/* --- OPTIONS / CREDITS stubs -------------------------------------------- */
+
+.title__stub {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 14px 18px;
+  border: var(--rule) solid var(--p1);
+  background: color-mix(in srgb, var(--n0) 88%, transparent);
+  pointer-events: auto;
+}
+
+.title__stub-copy {
+  margin: 0;
+  font: inherit;
+  font-size: var(--type-1x);
+  line-height: 1.7;
+  letter-spacing: 1px;
+  color: var(--p2);
+  white-space: pre;
+}
+
+/* --- shared entrance / exit --------------------------------------------- */
+
+.title[data-phase='in'] .title__os,
+.title[data-phase='in'] .title__logo,
+.title[data-phase='in'] .title__tagline,
+.title[data-phase='in'] .title__slab {
+  animation-name: title-slide-in;
+  animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+  animation-fill-mode: both;
+}
+
+/*
+ * §10.5 rule 1 — outgoing elements exit toward where they came from, which for
+ * a left-anchored column is the left edge. The exit is faster than the
+ * entrance and travels further, so it reads as leaving rather than as the
+ * entrance played backwards.
+ */
+.title[data-phase='exit'] .title__os,
+.title[data-phase='exit'] .title__logo,
+.title[data-phase='exit'] .title__tagline,
+.title[data-phase='exit'] .title__slab {
+  animation-name: title-slide-out;
+  animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
+  animation-fill-mode: both;
+}
+
+@keyframes title-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes title-slide-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+}
+
+/* --- the hand-off to gameplay — §10.9.4 --------------------------------- */
+
+/*
+ * The HUD mounts while the title is still leaving and arrives on the tail of
+ * the stagger. Mounting it after the title had gone would be a bare interface
+ * appearing on a lit room — F1, one frame after passing F1.
+ */
+.title-handoff {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* The delay is roughly half the exit, so the HUD is arriving while the last
+     slab is still on its way out — a cross-stagger, not a hand-over. */
+  animation: title-handoff-in var(--title-handoff, 260ms) cubic-bezier(0.33, 1, 0.68, 1)
+    var(--title-handoff-delay, 240ms) both;
+}
+
+@keyframes title-handoff-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- §23.4.2 breakpoints ------------------------------------------------- */
+
+/*
+ * Above ~900 CSS px of width the left third is roomy enough for the next
+ * integer step of the type scale. Below it, --type-3x is already the largest
+ * size in the product.
+ */
+@media (min-width: 900px) {
+  .title__count {
+    --title-ls: 8px;
+
+    font-size: calc(var(--type-1x) * 4);
+  }
+
+  .title__word {
+    /* At 4x the numerals, DEVELOPERS is exactly the quarter §10.9.2 asks for. */
+    font-size: var(--type-1x);
+  }
+}
+
+/*
+ * Landscape only (GDD §23.4) — the manifest locks the orientation and this
+ * never runs on a device. It exists so a portrait browser window during
+ * development shows a legible screen rather than an overlapping one, and it
+ * deliberately does not attempt a portrait *composition*.
+ */
+@media (orientation: portrait) {
+  .title {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'os'
+      'logo'
+      'menu';
+  }
+
+  .title__count {
+    font-size: var(--type-2x);
+  }
+}
+
+/* --- §10.5 rule 3 -------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * The two infinite idle loops stop. This is the one place the rule bends:
+   * shortening a loop that never ends does nothing for a viewer who asked for
+   * stillness. Every *transition* on this screen is still shortened rather
+   * than removed — src/ui/motion.ts scales the durations, and the count still
+   * counts (§10.9.1: never skipped).
+   */
+  .title__night::after,
+  .title__scanlines {
+    animation: none;
+  }
+
+  .title[data-phase='exit'] .title__scanlines {
+    animation: title-lights-up 152ms linear both;
+  }
+
+  /*
+   * The two durations the stylesheet owns outright, scaled by the §10.5 rule 3
+   * factor of ~40% with the same 64 ms floor src/ui/motion.ts applies. Every
+   * other duration on this screen comes down from `motionMs` as an inline
+   * property and is already scaled by the time it gets here.
+   */
+  .app {
+    --title-push: 168ms;
+  }
+
+  .title-handoff {
+    --title-handoff: 104ms;
+    --title-handoff-delay: 96ms;
+  }
+}

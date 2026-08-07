@@ -8,7 +8,9 @@
  * clarify it.
  *
  * Scope is Run 1 only. No tech tree, no prestige beyond the button that ends
- * the run, no save, no cloud.
+ * the run. **Save is local only** — GDD §24 decides the document and the
+ * offline model, `save.ts` implements them, and `game-cloud` is a separate task
+ * that needs Firebase credentials.
  */
 
 import Decimal from 'break_infinity.js'
@@ -43,6 +45,24 @@ import {
   shouldRebuke,
   type Phase,
 } from './onboarding.ts'
+import {
+  NODE_CI_CD_AUTOPILOT,
+  offlineCapSeconds,
+  offlineRateMultiplier,
+  offlineYield,
+  type OfflineReport,
+} from '../sim/offline.ts'
+import {
+  emptyPermanent,
+  getPermanent,
+  makeSaveData,
+  paradigmShiftPermanent,
+  readSave,
+  setPermanent,
+  toDecimal,
+  writeSave,
+} from './save.ts'
+import { REVENUE_PER_SP } from '../sim/economy.ts'
 
 /**
  * The Run 1 project ladder — GDD §5, Era 1.
@@ -127,6 +147,26 @@ export interface GameState {
   phase: Phase
   /** Set once, so the collapse beat only fires its camera kick a single time. */
   massHired: boolean
+
+  /**
+   * GDD §24.8 — the Overnight Build Report waiting to be shown, or null.
+   *
+   * The store owns the numbers; the HUD owns the screen. Ephemeral (§24.2):
+   * never serialised, recomputed from `savedAt` on every load.
+   */
+  pendingOffline: OfflineReport | null
+}
+
+/**
+ * The Sprint Commitment of the nth project, clamped to the ladder's end.
+ *
+ * Exported because §24.6's offline chain-shipping walks it, and it must be the
+ * same walk the live game does or an absence and a session disagree about what
+ * project the player is on.
+ */
+export function commitmentFor(index: number): Decimal {
+  const clamped = Math.min(Math.max(0, Math.floor(index)), PROJECTS.length - 1)
+  return new Decimal(PROJECTS[clamped].commitment)
 }
 
 function freshRun(): GameState {
@@ -152,6 +192,7 @@ function freshRun(): GameState {
     desperateTaps: 0,
     phase: 'act1_poke',
     massHired: false,
+    pendingOffline: null,
   }
 }
 
@@ -383,6 +424,9 @@ export function massHire(): void {
  */
 export function triggerParadigmShift(): void {
   const run = freshRun()
+  // §24.4 — a Paradigm Shift clears the run and touches nothing permanent.
+  // §24.5 gates offline accrual on the first one, so the counter is the unlock.
+  setPermanent(paradigmShiftPermanent(getPermanent()))
   set({
     ...run,
     // "So. Same time tomorrow?"
@@ -391,6 +435,9 @@ export function triggerParadigmShift(): void {
     projectsShipped: 1,
     ...showBubble('So. Same time tomorrow?', 6000),
   })
+  // §24.9 — a prestige is the highest-value write in the game. Do not wait for
+  // a backgrounding that may never come.
+  saveGame()
 }
 
 export function setZoom(zoom: ZoomLevel): void {
@@ -406,8 +453,218 @@ export function __resetStore(): void {
   state = freshRun()
   nextFloaterId = 1
   nextSpawnId = 1
+  setPermanent(emptyPermanent())
+  pendingSnapshot = null
   for (const fn of listeners) fn()
 }
+
+// --- persistence -----------------------------------------------------------
+//
+// GDD §24. The document lives in save.ts; this is the wiring. `game-cloud` is
+// not connected — that needs Firebase credentials and is its own task — but
+// `makeSaveData` is already exactly the `serialize` contract it will call, so
+// the wiring is additive rather than a rewrite.
+
+/**
+ * The absence being reported, kept so the MONETISATION §4 R1 2x offer can be
+ * *recomputed* rather than post-multiplied.
+ *
+ * Doubling `report.storyPoints` after the fact would be wrong the moment
+ * chain-shipping is in play: twice the Story Points can ship a further project,
+ * and a doubled total that ships one fewer game is a number the player can
+ * catch us on.
+ */
+let pendingSnapshot: { savedAt: number; rateMultiplier: number; capSeconds: number } | null = null
+
+/** Write the save. Cheap enough to call on any beat worth not losing. */
+export function saveGame(): boolean {
+  return writeSave(makeSaveData(state))
+}
+
+/**
+ * Load, and resolve the absence — §24.5.
+ *
+ * `now` is a parameter rather than a call to `Date.now()` so the whole path is
+ * testable without touching the system clock, which is the one thing a save
+ * system must be able to lie about in a test.
+ *
+ * Returns the §24.8 report if one should be shown, and null otherwise. The
+ * yield is **not applied here**: it lands on collect, so the player sees where
+ * the numbers went (§24.8).
+ */
+export function loadGame(now: number = Date.now()): OfflineReport | null {
+  const save = readSave()
+  if (!save) return null
+
+  setPermanent(save.permanent)
+  const { layer1, meta } = save.permanent
+  const r = save.run
+
+  const commitment = toDecimal(r.commitment, commitmentFor(r.projectIndex))
+  const restored: GameState = {
+    ...freshRun(),
+    devs: r.devs,
+    devCap: r.devCap,
+    cash: r.cash,
+    projectIndex: r.projectIndex,
+    sprintName: PROJECTS[Math.min(r.projectIndex, PROJECTS.length - 1)].name,
+    commitment,
+    burned: toDecimal(r.burned, new Decimal(0)),
+    projectsShipped: r.projectsShipped,
+    lifetimeRevenue: meta.lifetimeRevenue,
+    hasCultureUpgrade: r.hasCultureUpgrade,
+    tier: r.tier,
+    pokeCount: r.pokeCount,
+    desperateTaps: r.desperateTaps,
+    phase: r.phase,
+    massHired: r.massHired,
+    // localEntropy, floaters, bubble, spawn and zoom are §24.2 ephemeral. Local
+    // entropy in particular decays to baseline in ~8 seconds (§4.9), so any
+    // absence long enough to save through has already erased it — it restores
+    // to zero by definition, not by choice.
+  }
+
+  const capSeconds = offlineCapSeconds(layer1.paradigmNodes, meta.entitlements)
+  const rateMultiplier = offlineRateMultiplier(layer1.paradigmLevels, meta.entitlements)
+  const config = {
+    capSeconds,
+    rateMultiplier,
+    // §24.5 — offline accrual does not exist during Run 1. §21 paces Run 1 at
+    // about four minutes and scripts every beat of it; an overnight summary
+    // landing mid-trap would resolve §6's lesson while the player was asleep.
+    unlocked: meta.paradigmShifts > 0,
+  }
+
+  const report = offlineYield(
+    {
+      savedAt: save.savedAt,
+      // Recomputed from the restored run rather than stored, so it can never
+      // disagree with the state it is derived from.
+      velocity: currentVelocity(restored),
+      maxProjectIndex: PROJECTS.length - 1,
+      commitment: restored.commitment,
+      burned: restored.burned,
+      projectIndex: restored.projectIndex,
+      commitmentFor,
+      revenuePerSp: REVENUE_PER_SP,
+      autoShip: meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT),
+    },
+    config,
+    now,
+  )
+
+  pendingSnapshot = report.qualifies ? { savedAt: save.savedAt, rateMultiplier, capSeconds } : null
+  state = { ...restored, pendingOffline: report.qualifies ? report : null }
+  for (const fn of listeners) fn()
+  return state.pendingOffline
+}
+
+/**
+ * Bank the offline yield — the §24.8 collect button.
+ *
+ * `rewardMultiplier` is 2 for MONETISATION §4 R1's OVERNIGHT BUILD. **Collect
+ * is never gated on it**: the ad is an upgrade to a payout the player already
+ * owns, so a 1x collect must always be available and must always work.
+ */
+export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): void {
+  const snap = pendingSnapshot
+  if (!snap || !state.pendingOffline) return
+
+  const report = offlineYield(
+    {
+      savedAt: snap.savedAt,
+      velocity: currentVelocity(state),
+      maxProjectIndex: PROJECTS.length - 1,
+      commitment: state.commitment,
+      burned: state.burned,
+      projectIndex: state.projectIndex,
+      commitmentFor,
+      revenuePerSp: REVENUE_PER_SP,
+      autoShip: getPermanent().meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT),
+    },
+    {
+      capSeconds: snap.capSeconds,
+      rateMultiplier: snap.rateMultiplier * Math.max(1, rewardMultiplier),
+      unlocked: true,
+    },
+    now,
+  )
+
+  const revenue = report.revenue.toNumber()
+  const permanent = getPermanent()
+  setPermanent({
+    ...permanent,
+    meta: {
+      ...permanent.meta,
+      // Capped seconds, not elapsed: §22.5 #6 rewards banked offline time, and
+      // crediting a fortnight's absence as a fortnight would earn Bruno for
+      // uninstalling the game.
+      totalOfflineSeconds: permanent.meta.totalOfflineSeconds + report.paidSeconds,
+      lifetimeRevenue: permanent.meta.lifetimeRevenue + revenue,
+      lifetimeProjectsShipped: permanent.meta.lifetimeProjectsShipped + report.projectsShipped,
+    },
+  })
+
+  pendingSnapshot = null
+  set({
+    burned: report.burned,
+    commitment: report.commitment,
+    projectIndex: report.projectIndex,
+    sprintName: PROJECTS[Math.min(report.projectIndex, PROJECTS.length - 1)].name,
+    projectsShipped: state.projectsShipped + report.projectsShipped,
+    cash: state.cash + revenue,
+    lifetimeRevenue: state.lifetimeRevenue + revenue,
+    pendingOffline: null,
+  })
+  saveGame()
+}
+
+/**
+ * Save on backgrounding, not on quit — SAVE.md §5.2, GDD §24.9.
+ *
+ * A save written at the last *interaction* under-counts the away period by
+ * however long the phone sat on the desk with the game open, which is the most
+ * common way an idle game is left. `pagehide` is belt and braces: an Android
+ * WebView is not obliged to give us both, and the one it withholds is the one
+ * that mattered.
+ */
+export function installAutoSave(): () => void {
+  if (typeof document === 'undefined') return () => {}
+
+  const onHide = () => {
+    if (document.visibilityState === 'hidden') saveGame()
+  }
+  const onPageHide = () => saveGame()
+
+  document.addEventListener('visibilitychange', onHide)
+  window.addEventListener('pagehide', onPageHide)
+  return () => {
+    document.removeEventListener('visibilitychange', onHide)
+    window.removeEventListener('pagehide', onPageHide)
+  }
+}
+
+/**
+ * Load the save and start persisting. Idempotent.
+ *
+ * Called at module scope below rather than from `App.tsx`, which another agent
+ * owns — and because the load must happen before the first render reads state,
+ * not inside an effect that runs after it.
+ */
+let persistenceStarted = false
+
+export function initPersistence(now: number = Date.now()): OfflineReport | null {
+  if (persistenceStarted) return state.pendingOffline
+  persistenceStarted = true
+  const report = loadGame(now)
+  installAutoSave()
+  return report
+}
+
+// Not under test: a test importing this module must not inherit whatever save
+// the last test left in jsdom's localStorage, and every save test drives
+// loadGame/saveGame explicitly anyway.
+if (import.meta.env?.MODE !== 'test') initPersistence()
 
 /**
  * Jump the script to a phase — `?act=act3_bait`.

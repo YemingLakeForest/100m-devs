@@ -1,23 +1,16 @@
 import { useEffect, useState } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
-import { entropyLabel } from '../game/vocabulary.ts'
-import { formatCount, scaleBar } from '../sim/headcount.ts'
-import {
-  currentEntropy,
-  currentPayroll,
-  currentVelocity,
-  hireDeveloper,
-  massHire,
-  triggerParadigmShift,
-  type GameState,
-} from '../game/store.ts'
+import { currentEntropy, hireDeveloper, massHire, triggerParadigmShift } from '../game/store.ts'
 import { PHASE_COPY } from '../game/onboarding.ts'
-import { secondsUntilBankrupt } from '../sim/economy.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
+import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
+import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
+import { Upgrades } from './Upgrades.tsx'
+import { actionFor, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
 
 /**
@@ -30,11 +23,23 @@ const PREVIEW_DIALOGUE =
   typeof location !== 'undefined' && new URLSearchParams(location.search).has('dialogue')
 
 /**
- * The HUD — GDD §7.1, §10.1, and the §21 script.
+ * The HUD — GDD §7.1, §10.1, §23.4.2, and the §21 script.
  *
- * The UI is a Layer: overlayed, semi-transparent, contextual. The simulation
- * stays 100% visible behind it. Nothing here is opaque and nothing here is a
- * window box.
+ * **The frame is landscape and the layout is anchored to its edges.** §23.4.2
+ * is the constraint that shapes everything below: phone landscape runs from
+ * 1.78:1 to 2.4:1, the 2:1 isometric floor fits to *height* and therefore
+ * leaves margin at the sides on anything wider than 2:1, and that margin is
+ * where the HUD lives. So the frame is two fixed-width rails pinned to the left
+ * and right edges with the simulation breathing between them: as the device
+ * gets wider the rails stay put and the gap grows, which is the behaviour
+ * "anchor to edges, never to fractions of the width" is asking for. The
+ * previous layout stacked seven full-width rows and folded in on itself the
+ * moment the frame was shorter than it was tall.
+ *
+ * The UI is a Layer (§7.1): overlayed, semi-transparent, contextual, and
+ * `pointer-events: none` except on real controls, because the simulation behind
+ * it must stay pokeable straight through the overlay. Nothing here is opaque
+ * and nothing here is a window box.
  *
  * Per ART_DIRECTION §1.0a this layer is a second pane of glass in front of the
  * tube rather than phosphor burned into it — it does not pass through the Pixi
@@ -50,155 +55,164 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
   // The interface hue is a direct function of Entropy — ART_DIRECTION §1.1.
   // Written to the document root so the CSS token cascade carries it to every
   // element at once, rather than each component subscribing to entropy itself.
+  //
+  // Driven by the true entropy rather than by the speedometer's sprung value:
+  // colour is allowed to lead the number, and it should — the frame going amber
+  // before the readout has finished climbing is the situation announcing itself.
   useEffect(() => {
     applyEntropyTheme(theme, document.documentElement)
   }, [theme])
 
-  if (state.phase === 'bankrupt') return <Bankruptcy />
-
   return (
     <div className="hud">
-      <header className="hud__top">
-        {/*
-          GDD §7.7.5 — once one on-screen unit stops being one developer, the
-          HUD says so, exactly as a map states its scale. A picture whose units
-          silently changed is a lie.
-        */}
-        <span className="hud__stat">
-          DEVS <b>{formatCount(state.devs)}</b>
-          {scaleBar(state.devs) && <small className="hud__scale">{scaleBar(state.devs)}</small>}
-        </span>
+      {/* Top-left — §10.1's Active Project, "a descending line, not a filling bar". */}
+      <div className="hud__project">
+        <BurnDown state={state} />
+      </div>
+
+      {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}
+      <div className="hud__gauges">
+        <Speedometer entropy={entropy} />
+        <Velocity state={state} />
+      </div>
+
+      {/* Top-right — §10.1's resource bar, turned on its side to use the margin. */}
+      <div className="hud__resources">
         <Cash state={state} />
-      </header>
-
-      {/* GDD §23.2 non-negotiable 3 — the DOM element over the canvas. */}
-      <div className="hud__velocity">
-        <span className="hud__velocity-label">VELOCITY</span>
-        <span className="hud__velocity-value">{formatVelocity(currentVelocity(state))}</span>
-        <span className="hud__velocity-unit">SP/SEC</span>
+        <Devs state={state} />
+        <Shipped state={state} />
       </div>
 
-      {copy.terminal && (
-        <pre className="hud__terminal">{copy.terminal.join('\n')}</pre>
-      )}
+      <Bubble text={state.bubble?.text ?? null} />
+      <ActionBar spec={actionFor(state.phase)} />
 
-      {state.bubble && <div className="hud__bubble">{state.bubble.text}</div>}
-
-      {/*
-        GDD §4.3a — the readout escalates its own name as E climbs, and the
-        word "entropy" never appears. The class names keep the model's term
-        because they are read by engineers, not players.
-      */}
-      <div className="hud__entropy">
-        <span className="hud__stat">
-          {entropyLabel(entropy)} <b>{(entropy * 100).toFixed(entropy > 0.99 ? 3 : 1)}%</b>
-        </span>
-        <div className="hud__entropy-bar">
-          <div className="hud__entropy-fill" style={{ width: `${entropy * 100}%` }} />
-        </div>
-        {theme.state === 'lock' && <div className="hud__lock">STUDIO SEIZED</div>}
+      <div className="hud__script">
+        {/*
+          The banner types itself in rather than appearing. A phase change that
+          swaps one block of terminal text for another with no motion between
+          them is F1 by the letter — and a terminal that types is the register
+          the whole product is written in anyway (§10.7).
+        */}
+        {copy.terminal && (
+          <pre className="hud__terminal">
+            <Typewriter text={copy.terminal.join('\n')} />
+          </pre>
+        )}
+        {copy.advisor && (
+          <p className="hud__advisor">
+            {/* The advisor is a character, so its letters land with a tick
+                (§10.7). The banner above is machine output and stays silent —
+                two typewriters ticking at once is a buzz, not a voice. */}
+            <Typewriter text={copy.advisor} sound />
+          </p>
+        )}
       </div>
 
-      <BurnDown state={state} />
+      <div className="hud__controls">
+        <PerfOverlay stage={stage} />
+        <Upgrades />
+      </div>
 
-      {copy.advisor && <p className="hud__advisor">{copy.advisor}</p>}
-
-      <Actions state={state} />
-      <PerfOverlay stage={stage} />
+      <Bankruptcy open={state.phase === 'bankrupt'} />
       {PREVIEW_DIALOGUE && <DialoguePreview />}
     </div>
   )
 }
 
+/** The three store verbs this layer is allowed to call, by `ActionSpec.action`. */
+const RUN_ACTIONS: Record<ActionSpec['action'], () => void> = {
+  hire: hireDeveloper,
+  massHire,
+  paradigmShift: triggerParadigmShift,
+}
+
 /**
- * Cash, and the runway once it starts draining.
+ * The action the current beat is waiting on — §10.8 F1.
  *
- * §21 Act V walks the player down through −$10,000 and −$100,000. Showing the
- * seconds remaining is what turns that from a cutscene into a panic — and the
- * panic is the point, because §6.3 wants the player tapping harder.
+ * The button used to be mounted and unmounted by a `switch` on the phase, which
+ * meant it appeared and vanished on the frame the state flipped: the named F1
+ * failure, on the most important control in the game. It now rides a `Panel`,
+ * which keeps its children mounted through the exit so there is something left
+ * to animate out.
+ *
+ * The spec is latched for exactly that reason. Once the phase has moved on
+ * `actionFor` returns null, and rendering that directly would slide an empty
+ * box down the screen while the button it was holding had already blinked out.
  */
-function Cash({ state }: { state: GameState }) {
-  const payroll = currentPayroll(state)
-  const runway = secondsUntilBankrupt(state.cash, state.devs)
+function ActionBar({ spec }: { spec: ActionSpec | null }) {
+  // React's "adjusting state when a prop changes" pattern: set during render,
+  // never in an effect, so the latched spec and the `open` flag are committed
+  // in the same paint. An effect would give the panel one frame holding the
+  // wrong content, which is a flicker on the frame it is trying to smooth.
+  // Compared by identity — `actionFor` returns module constants for this.
+  const [shown, setShown] = useState(spec)
+  if (spec !== null && spec !== shown) setShown(spec)
 
   return (
-    <span className="hud__stat hud__cash">
-      <b className={state.cash < 0 ? 'is-bad' : undefined}>{formatMoney(state.cash)}</b>
-      {payroll > 0 && (
-        <>
-          <span className="hud__burn is-bad">−{formatMoney(payroll)}/SEC</span>
-          {Number.isFinite(runway) && runway < 90 && (
-            <span className="hud__burn is-bad">{runway.toFixed(0)}s TO BANKRUPTCY</span>
-          )}
-        </>
+    <Panel open={spec !== null} from="bottom" className="hud__actions">
+      {shown && (
+        <Button variant={shown.variant} onClick={RUN_ACTIONS[shown.action]}>
+          {shown.label}
+          {shown.note && <small>{shown.note}</small>}
+        </Button>
       )}
-    </span>
+    </Panel>
   )
 }
 
 /**
- * The action the current beat is waiting on.
+ * A line over the developer's head — §7.5 L1, §6.3.
  *
- * Exactly one button at a time. §21 is a funnel, and offering a second choice
- * anywhere in it would let the player sidestep the trap they are supposed to
- * walk into.
+ * Same latch as the action bar, and for the same reason: the store clears
+ * `bubble` when its TTL expires, so the text is gone before the panel has
+ * finished leaving.
+ *
+ * Silent, unusually for a Panel. The bubble is always a consequence of
+ * something that already made a noise — a poke, a hire, a phase turning over —
+ * and F3 asks for a sound per state change, not per surface.
  */
-function Actions({ state }: { state: GameState }) {
-  switch (state.phase) {
-    case 'act2_offer_hire':
-      return (
-        <div className="hud__actions">
-          <Button onClick={hireDeveloper}>HIRE DEVELOPER</Button>
-        </div>
-      )
+function Bubble({ text }: { text: string | null }) {
+  const [shown, setShown] = useState(text)
+  if (text !== null && text !== shown) setShown(text)
 
-    case 'act3_bait':
-      return (
-        <div className="hud__actions">
-          {/* Glowing, pulsing, golden, and right in the middle of the UI. */}
-          <Button variant="bait" onClick={massHire}>
-            HIRE 1,000 DEVS NOW
-            <small>Cost: FREE (Trial Promo)</small>
-          </Button>
-        </div>
-      )
-
-    default:
-      return null
-  }
+  return (
+    <Panel open={text !== null} from="top" silent className="hud__bubble">
+      <span>{shown}</span>
+    </Panel>
+  )
 }
 
 /**
  * §21 Act V.
  *
- * Through `Panel` rather than rendered flat: this screen used to appear the
- * frame the phase flipped, which is precisely the §10.8 F1 failure — "a modal
- * that appears without a directed transition". It now scales and blurs up over
- * the §10.5 modal budget, and the swarm keeps simulating behind the scrim
- * instead of being covered by an opaque sheet (§10.6).
+ * Rendered inside the live HUD rather than replacing it. The previous version
+ * early-returned a different tree the frame the phase flipped, so every readout
+ * on screen vanished in one frame while the modal faded up over nothing — the
+ * modal itself animated correctly and everything around it cut. Keeping the HUD
+ * mounted underneath also satisfies §10.6: the studio is still there behind the
+ * scrim, still simulating, which is what makes the bankruptcy land on a place
+ * rather than on a screen.
  */
-function Bankruptcy() {
+function Bankruptcy({ open }: { open: boolean }) {
   return (
-    <div className="hud hud--modal">
-      <Panel open modal from="centre" className="bankruptcy">
-        <h1>BANKRUPTCY</h1>
-        <p>
-          Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds
-          coding.
-        </p>
-        <p className="bankruptcy__result">$0 REVENUE — TOTAL LIQUIDATION</p>
-        <p className="bankruptcy__lesson">
-          LESSON LEARNED:
-          <br />
-          Manpower without Communication Infrastructure is Chaos.
-        </p>
-        <Button variant="bait" onClick={triggerParadigmShift}>
-          TRIGGER PARADIGM SHIFT
-        </Button>
-        {/* James survives. Every other developer is liquidated. */}
-        <p className="bankruptcy__james">James stayed.</p>
-      </Panel>
-    </div>
+    <Panel open={open} modal from="centre" className="bankruptcy">
+      <h1>BANKRUPTCY</h1>
+      <p>
+        Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds
+        coding.
+      </p>
+      <p className="bankruptcy__result">$0 REVENUE — TOTAL LIQUIDATION</p>
+      <p className="bankruptcy__lesson">
+        LESSON LEARNED:
+        <br />
+        Manpower without Communication Infrastructure is Chaos.
+      </p>
+      <Button variant="bait" onClick={triggerParadigmShift}>
+        TRIGGER PARADIGM SHIFT
+      </Button>
+      {/* James survives. Every other developer is liquidated. */}
+      <p className="bankruptcy__james">James stayed.</p>
+    </Panel>
   )
 }
 
@@ -227,24 +241,4 @@ function PerfOverlay({ stage }: { stage: StageHandle | null }) {
       </span>
     </div>
   )
-}
-
-/**
- * Velocity spans from 1e-6 SP/s in Entropy Lock to millions at scale, so a
- * fixed format is unreadable at one end or the other.
- */
-function formatVelocity(v: number): string {
-  if (v === 0) return '0'
-  if (v < 0.001) return v.toExponential(2)
-  if (v < 1000) return v.toFixed(2)
-  return v.toLocaleString(undefined, { maximumFractionDigits: 0 })
-}
-
-function formatMoney(v: number): string {
-  const sign = v < 0 ? '−' : ''
-  const n = Math.abs(v)
-  if (n >= 1e9) return `${sign}$${(n / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `${sign}$${(n / 1e6).toFixed(2)}M`
-  if (n >= 1e3) return `${sign}$${(n / 1e3).toFixed(1)}K`
-  return `${sign}$${n.toFixed(0)}`
 }

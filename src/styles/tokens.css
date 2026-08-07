@@ -32,6 +32,24 @@
    */
   --edge-x: max(5vw, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   --edge-y: max(12px, env(safe-area-inset-bottom, 0px));
+  --edge-top: max(10px, env(safe-area-inset-top, 0px));
+
+  /*
+   * The width of one HUD rail — §23.4.2's side margin, made a number.
+   *
+   * A *fixed* width is the whole point and the reason it is a token rather than
+   * a percentage. The 2:1 iso floor fits to height, so on anything wider than
+   * 2:1 the leftover width appears at the sides; pinning a fixed rail to each
+   * edge means the extra width all goes to the simulation as the device gets
+   * wider, which is what "anchor to edges, never to fractions of the width"
+   * produces when you follow it. A percentage rail would instead grow into the
+   * picture on exactly the devices that have the most room for the picture.
+   *
+   * 176px is 26 columns of the 11px terminal face — enough for the longest
+   * §4.3a label (`PRODUCTIVITY BREAKDOWN`) on one line, which is the widest
+   * string either rail ever has to hold.
+   */
+  --hud-rail: 176px;
 
   /*
    * Motion defaults, so a surface that forgets to set them still transitions
