@@ -7,17 +7,20 @@
  * a second Web Audio path for interface clicks would be exactly the 100–300 ms
  * WebView latency that non-negotiable is there to keep out of the product.
  *
- * TODO(sfx): four clips are owed and none exist yet. Add these stems to
- * `SOUNDS` in scripts/generate-sfx.ts and to `SFX` in src/audio/sfx.ts, then
- * delete the corresponding row from FALLBACK below:
+ * The four interface clips now exist and each sound has its own. They used to
+ * borrow from the gameplay bank, and it was wrong in a way that only becomes
+ * obvious out loud: opening a panel played `zoom-in`, a 1.2 s rising suction
+ * whoosh written for a camera crossing nine orders of magnitude. It sang, and
+ * it was still singing after the 320 ms panel had settled.
  *
- *   ui-click.mp3   0.15s  a short dry interface click, one press, no tail
- *   ui-whoosh.mp3  0.30s  a soft panel-open air movement, no pitch
- *   ui-close.mp3   0.25s  the same, reversed and shorter
- *   ui-tick.mp3    0.05s  a very quiet typewriter tick, the §10.7 letter sound
+ * The lesson is worth keeping even though the TODO is gone: **a sound borrowed
+ * from another context brings that context's length with it.** A whoosh built
+ * for a camera move is not a short whoosh, and no amount of it being the right
+ * *kind* of sound fixes being four times too long.
  *
- * Until they land, every sound below routes to an existing clip that is close
- * enough to be right rather than to nothing — F3 is failed by silence, not by
+ * FALLBACK still exists and still points at gameplay clips, because a missing
+ * file must degrade to something rather than to nothing — F3 is failed by
+ * silence, not by
  * approximation. Anything with no honest stand-in resolves to null and no-ops.
  */
 
@@ -34,29 +37,58 @@ export type UiSound =
   | 'tick'
 
 /**
- * Interim routing. `poke-desk` is a single sharp mechanical keycap click, which
- * is both the right sound for a UI press and, at a lower rate, the right sound
- * for a letter landing in a terminal — a Game Boy text tick is a click. The
- * zoom whooshes are longer than an interface transition wants but they are
- * directional air movement, which is the property that matters.
+ * Which clips are actually in the bundle.
+ *
+ * Vite's glob rather than `node:fs` because this is shipped code, and a clip
+ * that is listed in `SFX` but absent from `public/sfx` would otherwise route a
+ * sound to silence with nothing to say so.
+ */
+const SHIPPED = new Set(
+  Object.keys(import.meta.glob('../../public/sfx/*.mp3')).map((f) =>
+    f.slice(f.lastIndexOf('/') + 1, -4),
+  ),
+)
+
+function hasClip(id: SfxId): boolean {
+  return SHIPPED.has(id)
+}
+
+/** Each interface sound has its own clip — GDD §10.7, §10.8 F2 and F3. */
+const UI_CLIP: Record<UiSound, SfxId> = {
+  click: 'ui-click',
+  whoosh: 'ui-whoosh',
+  close: 'ui-close',
+  tick: 'ui-tick',
+}
+
+/**
+ * Where each sound goes if its clip is missing from the bank.
+ *
+ * Deliberately *not* the zoom whooshes any more. A panel falling back to a
+ * 1.2 s camera sweep is worse than a panel falling back to a click: the click
+ * is merely plain, and the sweep is a different scene arriving.
  */
 const FALLBACK: Record<UiSound, SfxId | null> = {
   click: 'poke-desk',
-  whoosh: 'zoom-in',
-  close: 'zoom-out',
+  whoosh: 'poke-desk',
+  close: 'poke-desk',
   tick: 'poke-desk',
 }
 
 /**
  * §10.7: "throttled so a fast line does not become a buzz."
  *
- * 90 ms caps the tick at ~11/sec against a reveal running at 28 chars/sec, so
- * roughly every third letter sounds. Faster than this and the stand-in clip's
- * 0.5 s tail overlaps itself into a drone; slower and the tick stops reading as
- * belonging to the text. Revisit once ui-tick.mp3 exists — a 50 ms clip can be
- * driven considerably harder.
+ * Was 90 ms, which capped the tick at ~11/sec and sounded detached from a
+ * reveal running at 28 chars/sec — roughly every third letter. That rate was
+ * not a choice about how text should sound; it was the shortest interval at
+ * which the stand-in clip's half-second tail stopped overlapping itself into a
+ * drone. The clip was setting the design.
+ *
+ * With a real tick, 55 ms puts it at ~18/sec — about every other letter, which
+ * is where a Game Boy text box sits. Still throttled, because §10.7 asks for
+ * exactly that: one tick per character at 28/sec is a buzz, not a voice.
  */
-export const TICK_THROTTLE_MS = 90
+export const TICK_THROTTLE_MS = 55
 
 /** Pure half of the throttle, so the rate can be pinned in a test. */
 export function shouldTick(lastAt: number | null, now: number): boolean {
@@ -64,7 +96,8 @@ export function shouldTick(lastAt: number | null, now: number): boolean {
 }
 
 export function resolveUiSound(sound: UiSound): SfxId | null {
-  return FALLBACK[sound]
+  const clip = UI_CLIP[sound]
+  return hasClip(clip) ? clip : FALLBACK[sound]
 }
 
 let lastTickAt: number | null = null

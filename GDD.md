@@ -1242,9 +1242,17 @@ Pokémon text box. This is the game's voice, and it is not decoration.
   > pitch or rate control, and adding one would mean either a Web Audio path — which breaks
   > that non-negotiable on the one path where latency matters most — or one clip per speaker.
   > The cheapest real fix is three generated `ui-tick-*` variants, and until they exist the
-  > tick is unpitched. **The current tick is also a stand-in**: `poke-desk` is a 0.5 s keycap
-  > click, the right *kind* of sound but far too long, throttled to ~11/sec to cope. Revisit
-  > the throttle when a 50 ms `ui-tick.mp3` exists.
+  > tick is unpitched.
+  >
+  > **The tick itself is no longer a stand-in.** `ui-tick.mp3` exists and the throttle moved
+  > from 90 ms to 55 ms with it — about every other letter, where a Game Boy text box sits.
+  > The old rate was never a decision about how text should sound; it was the shortest
+  > interval at which a borrowed half-second keycap click stopped overlapping itself into a
+  > drone. **The clip was setting the design**, which is worth watching for elsewhere: the
+  > interface bank had also been routing a panel open to `zoom-in`, a 1.2 s camera sweep
+  > written for nine orders of magnitude, still moving long after the 320 ms panel had
+  > settled. A sound borrowed from another context brings that context's *length* with it,
+  > and being the right kind of sound does not fix being four times too long.
 
 **Timing:**
 

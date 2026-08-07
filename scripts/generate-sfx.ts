@@ -135,6 +135,51 @@ const SOUNDS: Sfx[] = [
     influence: 0.75,
   },
 
+  // --- Interface, GDD §10.7 / §10.8 F2 + F3 --------------------------------
+  //
+  // Short. These are the most-heard sounds in the product by an order of
+  // magnitude — a button is pressed hundreds of times a session and a letter
+  // ticks 28 times a second — so anything with a tail becomes a drone, and
+  // anything with a pitch sweep becomes a personality the tenth time you hear
+  // it. Dry, flat and forgettable is the brief.
+  {
+    stem: 'ui-click',
+    // The press-down of §10.8 F2. Fired on pointerdown, never on release.
+    prompt:
+      'a single short dry interface click, small hard plastic button press, ' +
+      `no pitch sweep, no tail, one press only, ${STYLE}`,
+    duration: 0.5,
+    influence: 0.9,
+  },
+  {
+    stem: 'ui-whoosh',
+    // A §10.5 panel arriving. Must finish inside the 320 ms animation, or it
+    // is still moving after the panel has settled.
+    prompt:
+      'a very short soft air movement, a panel sliding open, quiet and neutral, ' +
+      `no pitch sweep, no whistle, no tail, ${STYLE}`,
+    duration: 0.5,
+    influence: 0.8,
+  },
+  {
+    stem: 'ui-close',
+    prompt:
+      'a very short soft air movement closing, a panel sliding shut, quieter and ' +
+      `duller than opening, no pitch sweep, no tail, ${STYLE}`,
+    duration: 0.5,
+    influence: 0.8,
+  },
+  {
+    stem: 'ui-tick',
+    // §10.7's letter tick. A Game Boy text tick is a click, not a beep, and it
+    // fires often enough that any tone at all becomes a melody.
+    prompt:
+      'an extremely short quiet typewriter tick, a single tiny mechanical tap, ' +
+      `almost inaudible, no tone, no tail, ${STYLE}`,
+    duration: 0.5,
+    influence: 0.9,
+  },
+
   // --- GDD §21 Act IV, the Entropy Collapse -------------------------------
   //
   // The one place the game deliberately becomes unpleasant to listen to. §21

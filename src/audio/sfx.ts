@@ -31,6 +31,12 @@ export const SFX = [
   'collapse-siren',
   'collapse-chatter',
   'collapse-ping',
+  // §10.7 / §10.8 F2 + F3 — the interface bank. The most-heard sounds in the
+  // product, so they are the shortest and the least characterful.
+  'ui-click',
+  'ui-whoosh',
+  'ui-close',
+  'ui-tick',
 ] as const
 
 export type SfxId = (typeof SFX)[number]
