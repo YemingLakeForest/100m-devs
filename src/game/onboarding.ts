@@ -114,7 +114,7 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
     terminal: [
       '** LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED! **',
       '"Why hire one by one when you can hire an entire swarm?"',
-      'Cost: FREE (Trial Promo)',
+      'Cost: YOUR ENTIRE TREASURY',
     ],
     advisor:
       'Math doesn’t lie! If 2 devs make games 2× faster, 1,000 devs will make games 1,000× faster! Tap the button. Do it. What could possibly go wrong?',

@@ -32,8 +32,24 @@ function c(hex: string): number {
   return (r << 16) | (g << 8) | b
 }
 
-/** How long one arrival takes, from drop to settle. */
-export const ARRIVAL_MS = 620
+/** How long one seat's full assembly takes — GDD §7.8.5, desk to lit monitor. */
+export const ARRIVAL_MS = 560
+
+/**
+ * §7.8.5 — a hire is three beats, not one.
+ *
+ * A body fading in at a desk that was always there tells the player a number
+ * changed. Watching the workspace get built tells them they bought something,
+ * and **beat 3 must land last**: the desk and chair are setup, the person
+ * arriving is the payload. Reversed, with furniture assembling around someone
+ * already sitting, it reads as a glitch.
+ */
+export const BEAT = {
+  desk: 0,
+  chair: 120 / ARRIVAL_MS,
+  person: 240 / ARRIVAL_MS,
+  monitor: 380 / ARRIVAL_MS,
+} as const
 /** How far above its desk an arriving body starts, in room units. */
 export const ARRIVAL_HEIGHT = 190
 /** Puff rings per arrival. Three reads as dust; more reads as an explosion. */
@@ -64,15 +80,64 @@ export function puffAlpha(t: number): number {
 }
 
 /**
- * Stagger for arrival `i` of `n`, as a fraction of the whole beat.
+ * §7.8.5 — a batch cascades across the room in **seat order**.
  *
- * A hundred bodies landing on one frame is a wipe. Derived from the index by a
- * hash rather than a random draw so a bad-looking arrival is reproducible.
+ * Deliberately the opposite of §21 Act IV's swarm drop, which scatters by hash.
+ * The difference is the batch size: at counts the eye can actually follow,
+ * order reads as a row being placed and looks intentional; at swarm sizes the
+ * same ordering sweeps the iso grid corner to corner and reads as a diagonal
+ * wipe. Legible order and a thousand bodies want opposite treatments.
+ *
+ * Returns a delay in *seconds*, compressing as the batch grows so a hundred
+ * arrivals do not take seven seconds.
  */
-export function arrivalDelay(i: number, n: number): number {
+export const CASCADE_STEP_MS = 70
+export const CASCADE_MAX_MS = 1200
+
+export function cascadeDelay(i: number, n: number): number {
   if (n <= 1) return 0
-  const scatter = ((i * 2654435761) % 4096) / 4096
-  return scatter * 0.55
+  const span = Math.min(CASCADE_MAX_MS, (n - 1) * CASCADE_STEP_MS)
+  return (i / (n - 1)) * (span / 1000)
+}
+
+/** Squash on landing, 1 = at rest. The person gets the biggest — §7.8.5. */
+export function landingSquash(t: number, strength: number): number {
+  if (t <= 0 || t >= 1) return 1
+  const impact = Math.max(0, (t - 0.62) / 0.38)
+  if (impact <= 0) return 1
+  return 1 - Math.sin(impact * Math.PI) * strength * (1 - impact * 0.4)
+}
+
+/**
+ * Run one beat of the assembly if its start has passed.
+ *
+ * `t` is progress through the whole seat; `start` is where this beat begins.
+ * The beat is handed its own 0..1 so each one falls and squashes independently
+ * rather than sharing a single curve.
+ */
+function drawBeat(
+  g: Graphics,
+  x: number,
+  y: number,
+  t: number,
+  start: number,
+  draw: (g: Graphics, x: number, y: number, u: number) => void,
+) {
+  if (t < start) return
+  draw(g, x, y, Math.min(1, (t - start) / (1 - start)))
+}
+
+function puff(g: Graphics, x: number, y: number, u: number, from: number) {
+  const p = Math.min(1, (u - from) / (1 - from))
+  if (p <= 0) return
+  for (let r = 0; r < PUFF_RINGS; r++) {
+    const rr = puffRadius(p) * (10 + r * 6)
+    g.ellipse(x, y, rr, rr * 0.5).stroke({
+      width: 1,
+      color: c(RAMPS.NEUTRAL[5]),
+      alpha: puffAlpha(p),
+    })
+  }
 }
 
 interface Live {
@@ -120,7 +185,7 @@ export function createArrivals(): Arrivals {
       // who were already sitting there.
       for (let i = 0; i < n; i++) {
         const desk = desks[desks.length - n + i]
-        live.push({ x: desk.x, y: desk.y, born: now, delay: arrivalDelay(i, n), gfx: take() })
+        live.push({ x: desk.x, y: desk.y, born: now, delay: cascadeDelay(i, n), gfx: take() })
       }
       // One sound for the whole batch, not one per body — a hundred overlapping
       // clips is the audio-pool exhaustion §23.3 names as a standing risk.
@@ -130,8 +195,10 @@ export function createArrivals(): Arrivals {
     update(now) {
       for (let i = live.length - 1; i >= 0; i--) {
         const a = live[i]
-        const raw = (now - a.born) / ARRIVAL_MS
-        const t = (raw - a.delay) / (1 - a.delay)
+        // `delay` is a wall-clock offset in seconds (§7.8.5's cascade), not a
+        // fraction of the beat: each seat runs its own full assembly, they are
+        // merely started at different times.
+        const t = (now - a.born - a.delay * 1000) / ARRIVAL_MS
 
         if (t >= 1) {
           a.gfx.clear()
@@ -145,26 +212,45 @@ export function createArrivals(): Arrivals {
         a.gfx.clear()
         if (t <= 0) continue
 
-        // The falling body. Deliberately a silhouette rather than a copy of
-        // the developer sprite: it is in the air for 300 ms and reads as a
-        // person arriving, and drawing the real thing would tie this file to
-        // the room's art.
-        const h = arrivalHeight(t)
-        a.gfx.rect(a.x - 7, a.y - 16 - h, 14, 22).fill(c(RAMPS.NEUTRAL[6]))
-        a.gfx.rect(a.x - 6, a.y - 30 - h, 12, 12).fill(c(RAMPS.SKIN[0]))
+        // §7.8.5's three beats, each running its own fall from its own start.
+        // Everything here is a silhouette rather than a copy of the room's
+        // sprites: these are in frame for a few hundred milliseconds, and
+        // drawing the real thing would tie this file to the room's art.
+        drawBeat(a.gfx, a.x, a.y, t, BEAT.desk, (g, x, y, u) => {
+          const h = arrivalHeight(u)
+          const sq = landingSquash(u, 0.18)
+          g.moveTo(x - 26, y - h)
+            .lineTo(x, y + 13 * sq - h)
+            .lineTo(x + 26, y - h)
+            .lineTo(x, y - 13 * sq - h)
+            .closePath()
+            .fill(c(RAMPS.WOOD[2]))
+          if (h <= 0.01) puff(g, x, y + 6, u, 0.82)
+        })
 
-        // The puff, once they have landed.
-        if (h <= 0.01) {
-          const p = Math.min(1, (t - 0.82) / 0.18)
-          if (p > 0) {
-            for (let r = 0; r < PUFF_RINGS; r++) {
-              const rr = puffRadius(p) * (12 + r * 7)
-              a.gfx
-                .ellipse(a.x, a.y + 6, rr, rr * 0.5)
-                .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: puffAlpha(p) })
-            }
-          }
-        }
+        drawBeat(a.gfx, a.x, a.y, t, BEAT.chair, (g, x, y, u) => {
+          const h = arrivalHeight(u) * 0.7
+          const sq = landingSquash(u, 0.22)
+          g.rect(x - 8, y + 4 - h, 16, 20 * sq).fill(c(RAMPS.NEUTRAL[2]))
+        })
+
+        // Beat 3 is the payload: the biggest squash, and the reason the other
+        // two exist. §7.8.5 — "the bum-hits-seat beat".
+        drawBeat(a.gfx, a.x, a.y, t, BEAT.person, (g, x, y, u) => {
+          const h = arrivalHeight(u)
+          const sq = landingSquash(u, 0.34)
+          g.rect(x - 7, y - 14 - h, 14, 20 * sq).fill(c(RAMPS.NEUTRAL[6]))
+          g.rect(x - 6, y - 28 - h, 12, 12).fill(c(RAMPS.SKIN[0]))
+          if (h <= 0.01) puff(g, x, y + 6, u, 0.7)
+        })
+
+        drawBeat(a.gfx, a.x, a.y, t, BEAT.monitor, (g, x, y, u) => {
+          // Dark, then a flicker, then code — a monitor waking, not appearing.
+          const on = u > 0.35 && (u > 0.55 || Math.floor(u * 40) % 2 === 0)
+          g.rect(x - 11, y - 44, 22, 15).fill(c(RAMPS.NEUTRAL[2]))
+          g.rect(x - 9, y - 42, 18, 11).fill(c(on ? RAMPS.GLOW[0] : RAMPS.NEUTRAL[0]))
+          if (on) g.rect(x - 7, y - 39, 9, 1.5).fill(c(RAMPS.GLOW[2]))
+        })
       }
       return live.length > 0
     },

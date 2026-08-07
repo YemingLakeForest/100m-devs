@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 // never play anything.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: () => {} }))
 import { ROOM_DEV_CAP, gridFor, propsAt } from './room.ts'
-import { arrivalDelay, arrivalHeight, puffAlpha } from './arrivals.ts'
+import { BEAT, cascadeDelay, arrivalHeight, landingSquash, puffAlpha } from './arrivals.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
 import { FLOOR_SPRITE_COUNT } from './scene.ts'
 
@@ -84,13 +84,38 @@ describe('arrivals — GDD §7.7.2, hiring is seen', () => {
     expect(arrivalHeight(1)).toBe(0)
   })
 
-  it('staggers a batch so it reads as a shower, not a wipe', () => {
-    const delays = new Set(Array.from({ length: 60 }, (_, i) => arrivalDelay(i, 60).toFixed(3)))
-    expect(delays.size).toBeGreaterThan(20)
+  it('cascades a batch across the room in seat order — GDD §7.8.5', () => {
+    // Deliberately ordered, unlike Act IV's hashed swarm drop. At counts the
+    // eye can follow, order reads as a row being placed; the hash is for a
+    // thousand bodies, where the same ordering sweeps the grid diagonally.
+    const delays = Array.from({ length: 8 }, (_, i) => cascadeDelay(i, 8))
+    for (let i = 1; i < delays.length; i++) {
+      expect(delays[i]).toBeGreaterThan(delays[i - 1])
+    }
   })
 
-  it('lands a single hire immediately — one person does not need a stagger', () => {
-    expect(arrivalDelay(0, 1)).toBe(0)
+  it('lands a single hire immediately — one person does not need a cascade', () => {
+    expect(cascadeDelay(0, 1)).toBe(0)
+  })
+
+  it('caps the cascade so a big hire is not a seven-second queue', () => {
+    expect(cascadeDelay(99, 100)).toBeLessThanOrEqual(1.2)
+    expect(cascadeDelay(999, 1000)).toBeLessThanOrEqual(1.2)
+  })
+
+  it('lands the person LAST — §7.8.5, the desk and chair are setup', () => {
+    // Reversed, with furniture assembling around someone already sitting, it
+    // reads as a glitch rather than as a workspace being built.
+    expect(BEAT.desk).toBeLessThan(BEAT.chair)
+    expect(BEAT.chair).toBeLessThan(BEAT.person)
+    expect(BEAT.person).toBeLessThan(BEAT.monitor)
+  })
+
+  it('gives the person the biggest squash, because it is the payload', () => {
+    const at = (strength: number) =>
+      Math.min(...Array.from({ length: 60 }, (_, i) => landingSquash(0.6 + i * 0.0066, strength)))
+    expect(at(0.34)).toBeLessThan(at(0.22))
+    expect(at(0.22)).toBeLessThan(at(0.18))
   })
 
   it('leaves no dust behind', () => {

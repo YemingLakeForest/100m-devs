@@ -447,6 +447,31 @@ This is the whole game compressed into one interaction: **more input, more overh
 
 ---
 
+### 4.10a The cost of a developer **[CANON — added 2026-08-07]**
+
+§21.0's Act IIa needs hiring to cost money — "each hire is bought with money the player made,
+costs more than the last, and *works*". Hiring was free, which removed all three clauses but
+the last, and with it the entire loop.
+
+| | |
+|---|---|
+| Cost of the next developer | `4 × 1.07^(devs − 1)`, rounded, minimum $1 |
+| At 1 / 10 / 20 / 39 developers | $4 / $8 / $15 / $52 |
+| Total to reach ~40 | **$743** |
+| The Mass Hire | **The player's entire treasury.** Minimum $50 |
+
+**Geometric, not linear.** Velocity is linear in headcount, so a linear cost would make each
+hire *more* affordable than the last relative to income and Act IIa would have no tension.
+
+**The Mass Hire is priced at literally everything**, which is more robust than a figure and
+funnier than one. It is always affordable and always ruinous, it leaves exactly zero buffer —
+which is what §21.0 says makes Act V's bankruptcy arrive in seconds — and it cannot be broken
+by any later rebalancing of §4.10. A fixed price would silently become unreachable or trivial
+every time revenue moved, and nobody would notice until the trap stopped springing.
+
+**These are first-pass numbers and want a playtest**, unlike the wage and the bankruptcy
+threshold, which are derived. See the pacing note in §21.0.
+
 ### 4.10 The Run 1 Economy **[CANON — added 2026-08-06]**
 
 The design previously specified no economy at all. It gave exactly two numbers, both in
@@ -925,6 +950,45 @@ compatible instead of contradictory.
 **Per-developer phase offset is non-negotiable at every tier.** A thousand sprites bobbing in
 unison reads as a single breathing object, not as a thousand people. The offset is derived
 from the sprite index by a hash, so it is deterministic and free.
+
+#### 7.8.5 The hire assembly — a desk, a chair, then a person **[CANON]**
+
+**A hire is three beats, not one.** A body fading in at a desk that was always there tells
+the player a number changed. Watching the workspace get *built* tells them they bought
+something.
+
+| Beat | What lands | Offset |
+|---|---|---|
+| 1 | **The desk** drops in and settles. Dust ring | 0 ms |
+| 2 | **The chair** drops behind it, a smaller impact | +120 ms |
+| 3 | **The developer** lands in the chair — the bum-hits-seat beat, with the biggest squash of the three | +240 ms |
+| 4 | The monitor wakes: dark, then a flicker, then code | +380 ms |
+
+**Beat 3 is the payload and it must land last.** The desk and chair are setup; the person
+arriving is the joke, the reward and the thing the sound is scored to. Reversing the order —
+person first, furniture assembling around them — reads as a glitch.
+
+The whole assembly is **~500 ms**, inside §10.8 F6's 400 ms rule for ordinary transitions
+plus the deliberate-beat allowance, because a hire *is* a scored beat.
+
+##### Multiple hires cascade — they never land together
+
+**A batch is a wave crossing the room, not a simultaneous appearance.** Ten desks landing on
+one frame is a wipe; §7.7.2 already says this about the Act IV drop and it is more important
+here, because a batch hire is something the player *chose* and is watching for.
+
+- **Stagger by seat order, not at random.** The wave sweeps across the room in the order the
+  desks are laid out, so it reads as a row being placed rather than as scattered popping.
+  Act IV's swarm drop deliberately does the opposite — a hashed scatter — because a thousand
+  bodies falling in grid order reads as a diagonal wipe. **At batch sizes the eye can count,
+  order is legible and looks deliberate; at swarm sizes it looks like a bug.**
+- **~70 ms between seats**, compressing as the batch grows so a hundred arrivals do not take
+  seven seconds. The whole cascade is capped at about **1.2 s** however large the hire.
+- **One sound for the batch**, pitched or layered — not one clip per seat, which is the audio
+  pool exhaustion §23.3 names as a standing risk.
+
+**The camera does not move for a hire.** It moves for a *rung promotion* (§7.7.2), and a
+camera that reacts to both makes the smaller event feel like the larger one.
 
 #### 7.8.4 Idle states — what a developer looks like before you poke it
 
@@ -2966,6 +3030,31 @@ headcount at which the readout says something other than `IN SYNC`. An earlier d
 Act IIa at ~10, where $E$ is 0.001% — the curve is *flat*, not gentle, and the player would
 have got no hint at all rather than a faint one. Ending on the first twitch is what buys the
 "I saw that and ignored it" that makes the trap land.
+
+> **Measured 2026-08-07 while implementing this, and it does not fit.** At the §21 project
+> ladder's commitments, shipping is slow at the headcounts Act IIa passes through:
+>
+> | Devs | 1 | 2 | 5 | 10 | 20 | 40 |
+> |---|---|---|---|---|---|---|
+> | Passive SP/sec | 1.0 | 2.0 | 5.0 | 10.0 | 20.0 | 39.6 |
+> | *Flappy Square 1.0* (1,000 SP) | 1,000 s | 500 s | 200 s | 100 s | 50 s | 25 s |
+> | *Untitled Roguelike* (8,000 SP) | 8,000 s | 4,000 s | 1,600 s | 800 s | 400 s | 202 s |
+>
+> Reaching ~40 developers costs **$743** in hires (§4.10a), and the ladder's top project pays
+> $400 a ship — so Act IIa is roughly **two ships of the top project plus the earlier ones**,
+> which lands Run 1 nearer **8–10 minutes than 4**.
+>
+> **Three ways out, and it is a design call rather than an implementation one:**
+>
+> 1. **Accept a longer Run 1.** Eight minutes is not unusual for a first idle-game session,
+>    and §21's script has enough beats to carry it.
+> 2. **Shrink the middle commitments.** The ladder was written for Act I's teaching pace, not
+>    for a loop that turns over four times.
+> 3. **End Act IIa lower than 40.** Cheapest, and it costs the most: 40 is where the readout
+>    first says `CHATTY`, and §21.0's whole point is that the player gets one hint and waves
+>    it away.
+>
+> **Nothing is decided here.** The mechanics are built and the numbers above are real.
 
 **Pacing target: Run 1 is about 4 minutes.** Act IIa is roughly half of it. If playtesting
 shows players hiring past ~10 without being offered the bait, offer it sooner; the trap must

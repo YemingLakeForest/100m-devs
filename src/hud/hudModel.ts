@@ -114,6 +114,15 @@ export interface ActionSpec {
   note?: string
   variant: 'default' | 'bait'
   action: 'hire' | 'massHire' | 'paradigmShift'
+  /**
+   * Render the live price beneath the label — §21.0, hiring costs money.
+   *
+   * A flag rather than the price itself, because these specs are compared by
+   * identity (see below) and a note containing the current cost would produce
+   * a fresh object every time cash changed. The action bar would then read
+   * every tick as a new action and re-run its entrance animation.
+   */
+  showsHireCost?: boolean
 }
 
 /**
@@ -123,11 +132,19 @@ export interface ActionSpec {
  * out (§10.8 F1), and the latch compares by identity — a fresh object every
  * render would look like a new action on every frame.
  */
-const HIRE: ActionSpec = { label: 'HIRE DEVELOPER', variant: 'default', action: 'hire' }
+const HIRE: ActionSpec = {
+  label: 'HIRE DEVELOPER',
+  variant: 'default',
+  action: 'hire',
+  showsHireCost: true,
+}
 
 const MASS_HIRE: ActionSpec = {
   label: 'HIRE 1,000 DEVS NOW',
-  note: 'Cost: FREE (Trial Promo)',
+  // §21.0 — no longer free. "Cost: FREE (Trial Promo)" made it a button rather
+  // than a decision, and §6 needs the player to *choose* it. Taking the whole
+  // treasury is also the better joke, and the same joke the offer is making.
+  note: 'Cost: YOUR ENTIRE TREASURY',
   variant: 'bait',
   action: 'massHire',
 }

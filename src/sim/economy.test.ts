@@ -3,7 +3,10 @@ import {
   BANKRUPTCY_THRESHOLD,
   REVENUE_PER_SP,
   UNPAID_FOUNDERS,
+  hireCost,
+  hireCostTotal,
   isBankrupt,
+  massHireCost,
   paidHeadcount,
   payrollPerSecond,
   projectRevenue,
@@ -89,5 +92,69 @@ describe('bankruptcy', () => {
     // §21 shows −$10,000 and −$100,000 as beats on the way down, not endings.
     expect(isBankrupt(-10_000)).toBe(false)
     expect(isBankrupt(-100_000)).toBe(false)
+  })
+})
+
+describe('hiring costs money — GDD §21.0', () => {
+  it('charges for the very first developer', () => {
+    // Hiring used to be free, which removed the whole of Act IIa: with no cost
+    // there is no loop, no reason to ship, and no treasury to spend on the trap.
+    expect(hireCost(1)).toBeGreaterThan(0)
+  })
+
+  it('costs more every time, so late hires are decisions not impulses', () => {
+    let previous = 0
+    for (const devs of [1, 5, 10, 20, 39]) {
+      const cost = hireCost(devs)
+      expect(cost).toBeGreaterThan(previous)
+      previous = cost
+    }
+  })
+
+  it('escalates geometrically, because velocity is linear in headcount', () => {
+    // A linear cost curve would make each hire *more* affordable than the last
+    // relative to income, and Act IIa would have no tension at all.
+    const early = hireCost(10) - hireCost(9)
+    const late = hireCost(30) - hireCost(29)
+    expect(late).toBeGreaterThan(early)
+  })
+
+  it('keeps Act IIa reachable in a handful of ships', () => {
+    // The loop must be completable, or Act IIa is a wall rather than a ramp
+    // and the player never reaches the bait.
+    //
+    // Revenue is NOT capped at one pass of the ladder: §21's project list
+    // clamps at its last entry and repeats, so a player can keep shipping the
+    // top project. The real constraint is therefore *how many* ships Act IIa
+    // costs, not a fixed total — and past about three the loop stops being a
+    // ramp and starts being a grind.
+    const topProjectRevenue = projectRevenue(8000)
+    expect(hireCostTotal(1, 40)).toBeLessThan(topProjectRevenue * 3)
+  })
+
+  it('survives nonsense rather than pricing a hire at NaN', () => {
+    expect(hireCost(0)).toBeGreaterThan(0)
+    expect(hireCost(-3)).toBeGreaterThan(0)
+  })
+})
+
+describe('the Mass Hire takes everything — GDD §21.0', () => {
+  it('costs exactly the treasury, so it always leaves zero buffer', () => {
+    // §21.0: no cash buffer is what makes Act V's bankruptcy arrive in seconds
+    // rather than needing a scripted nudge.
+    expect(massHireCost(4210)).toBe(4210)
+  })
+
+  it('is always affordable, so the beat cannot be broken by rebalancing', () => {
+    // A fixed price would silently become unreachable or trivial every time
+    // §4.10 moved, and nobody would notice until the trap stopped springing.
+    for (const cash of [50, 500, 5000, 1_000_000]) {
+      expect(massHireCost(cash)).toBeLessThanOrEqual(cash)
+    }
+  })
+
+  it('still charges a broke player something', () => {
+    expect(massHireCost(0)).toBeGreaterThan(0)
+    expect(massHireCost(-99)).toBeGreaterThan(0)
   })
 })

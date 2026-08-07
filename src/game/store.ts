@@ -16,6 +16,8 @@
 import Decimal from 'break_infinity.js'
 import {
   BANKRUPTCY_THRESHOLD,
+  hireCost,
+  massHireCost,
   isBankrupt,
   payrollPerSecond,
   projectRevenue,
@@ -400,19 +402,58 @@ function hire(before: number, after: number): Partial<GameState> {
   }
 }
 
-/** §21 Act II — hire James, the first named character and first Hero Card. */
-export function hireDeveloper(): void {
-  set(hire(state.devs, state.devs + 1))
+/** What the next developer costs right now — §21.0. */
+export function nextHireCost(s: GameState = state): number {
+  return hireCost(s.devs)
 }
 
-/** §21 Act III/IV — the mousetrap. */
-export function massHire(): void {
-  if (state.massHired) return
+export function canHire(s: GameState = state): boolean {
+  return s.cash >= nextHireCost(s)
+}
+
+/**
+ * §21 Act II and the §21.0 loop — hire one developer, for money.
+ *
+ * Hiring used to be free, which quietly removed the whole of Act IIa: with no
+ * cost there is no loop, no reason to ship, and no treasury to spend on the
+ * trap. §21.0's "each hire is bought with money the player made, costs more
+ * than the last, and *works*" needs all three clauses, and only the third was
+ * true.
+ *
+ * Returns false rather than throwing or silently succeeding, so the caller can
+ * say why. A hire the player cannot afford must not leave them poorer.
+ */
+export function hireDeveloper(): boolean {
+  const cost = nextHireCost()
+  if (state.cash < cost) return false
+  set({ ...hire(state.devs, state.devs + 1), cash: state.cash - cost })
+  return true
+}
+
+/** What the mousetrap costs — §21.0. Everything, by design. */
+export function currentMassHireCost(s: GameState = state): number {
+  return massHireCost(s.cash)
+}
+
+/**
+ * §21 Act III/IV — the mousetrap, and it is no longer free.
+ *
+ * "Cost: FREE (Trial Promo)" made it a button rather than a decision, and §6
+ * is explicit that the lesson needs the player to *choose* it. It now takes
+ * the entire treasury: always affordable, always ruinous, and leaving exactly
+ * zero buffer — which is what makes Act V's bankruptcy arrive in seconds
+ * rather than needing a scripted nudge.
+ */
+export function massHire(): boolean {
+  if (state.massHired) return false
+  const cost = currentMassHireCost()
   set({
     ...hire(state.devs, state.devs + MASS_HIRE_COUNT),
+    cash: state.cash - cost,
     massHired: true,
     ...showBubble('Wait — who’s writing this function?', 6000),
   })
+  return true
 }
 
 /**

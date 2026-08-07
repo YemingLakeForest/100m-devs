@@ -114,7 +114,7 @@ describe('the action bar — §21 is a funnel', () => {
   it('makes the mousetrap the one control permitted to beg', () => {
     expect(actionFor('act2_offer_hire')?.variant).toBe('default')
     expect(actionFor('act3_bait')?.variant).toBe('bait')
-    expect(actionFor('act3_bait')?.note).toContain('FREE')
+    expect(actionFor('act3_bait')?.note).toContain('TREASURY')
   })
 
   it('leaves the bankruptcy decision to the bankruptcy panel', () => {

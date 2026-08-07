@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
-import { currentEntropy, hireDeveloper, massHire, triggerParadigmShift } from '../game/store.ts'
+import {
+  canHire,
+  currentEntropy,
+  hireDeveloper,
+  massHire,
+  nextHireCost,
+  triggerParadigmShift,
+  type GameState,
+} from '../game/store.ts'
 import { PHASE_COPY } from '../game/onboarding.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
@@ -10,7 +18,7 @@ import { BurnDown } from './BurnDown.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
 import { Upgrades } from './Upgrades.tsx'
-import { actionFor, type ActionSpec } from './hudModel.ts'
+import { actionFor, formatMoney, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
 
 /**
@@ -84,7 +92,7 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
       </div>
 
       <Bubble text={state.bubble?.text ?? null} />
-      <ActionBar spec={actionFor(state.phase)} />
+      <ActionBar spec={actionFor(state.phase)} state={state} />
 
       <div className="hud__script">
         {/*
@@ -139,7 +147,7 @@ const RUN_ACTIONS: Record<ActionSpec['action'], () => void> = {
  * `actionFor` returns null, and rendering that directly would slide an empty
  * box down the screen while the button it was holding had already blinked out.
  */
-function ActionBar({ spec }: { spec: ActionSpec | null }) {
+function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState }) {
   // React's "adjusting state when a prop changes" pattern: set during render,
   // never in an effect, so the latched spec and the `open` flag are committed
   // in the same paint. An effect would give the panel one frame holding the
@@ -151,8 +159,16 @@ function ActionBar({ spec }: { spec: ActionSpec | null }) {
   return (
     <Panel open={spec !== null} from="bottom" className="hud__actions">
       {shown && (
-        <Button variant={shown.variant} onClick={RUN_ACTIONS[shown.action]}>
+        <Button
+          variant={shown.variant}
+          onClick={RUN_ACTIONS[shown.action]}
+          // §21.0 — a hire the player cannot afford is refused by the store
+          // anyway, but a button that looks live and does nothing is worse
+          // than one that says so.
+          disabled={shown.showsHireCost && !canHire(state)}
+        >
           {shown.label}
+          {shown.showsHireCost && <small>{formatMoney(nextHireCost(state))}</small>}
           {shown.note && <small>{shown.note}</small>}
         </Button>
       )}

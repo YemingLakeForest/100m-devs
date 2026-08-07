@@ -68,6 +68,60 @@ export function projectRevenue(sprintCommitment: number): number {
   return sprintCommitment * REVENUE_PER_SP
 }
 
+/**
+ * §21.0 — what the next developer costs.
+ *
+ * Escalating, so Act IIa's loop has a shape: the first hires are impulse buys
+ * and the later ones are decisions. Geometric rather than linear because
+ * velocity is linear in headcount — a linear cost would make each hire *more*
+ * affordable than the last and the loop would have no tension at all.
+ *
+ * The base is deliberately small. Total revenue across the §21 project ladder
+ * is a few hundred dollars (§4.10's REVENUE_PER_SP is 0.05), so a hire priced
+ * in hundreds would make Act IIa unreachable. **These are first-pass numbers
+ * that want a playtest**, not derived constants like the wage or the
+ * bankruptcy threshold.
+ */
+export const HIRE_BASE_COST = 4
+export const HIRE_COST_GROWTH = 1.07
+
+export function hireCost(devs: number): number {
+  const n = Math.max(1, Math.floor(devs))
+  return Math.max(1, Math.round(HIRE_BASE_COST * HIRE_COST_GROWTH ** (n - 1)))
+}
+
+/** Total to grow from `from` developers to `to`. Act IIa's whole cost. */
+export function hireCostTotal(from: number, to: number): number {
+  let total = 0
+  for (let n = Math.floor(from); n < Math.floor(to); n++) total += hireCost(n)
+  return total
+}
+
+/**
+ * §21.0 — the Mass Hire is priced at **everything the player has**.
+ *
+ * "Roughly the entire treasury they have accumulated by Act III — affordable,
+ * and only just." Taking it literally rather than picking a number is the
+ * robust reading and the funnier one:
+ *
+ * - It is **always affordable and always ruinous**, so the beat cannot be
+ *   broken by any later change to revenue or hire costs. A fixed price would
+ *   have to be re-tuned every time §4.10 moved, and would silently become
+ *   either unreachable or trivial when nobody was looking.
+ * - It leaves **exactly zero buffer**, which is what §21.0 says makes Act V's
+ *   bankruptcy arrive in seconds rather than needing a scripted nudge.
+ * - "Cost: YOUR ENTIRE TREASURY" is a better joke than any figure, and it is
+ *   the same joke the offer is already making.
+ *
+ * The floor exists so a player who somehow arrives broke still pays something
+ * and still feels the transaction.
+ */
+export const MASS_HIRE_MIN_COST = 50
+
+export function massHireCost(cash: number): number {
+  return Math.max(MASS_HIRE_MIN_COST, Math.floor(Math.max(0, cash)))
+}
+
 export function isBankrupt(cash: number): boolean {
   return cash <= BANKRUPTCY_THRESHOLD
 }
