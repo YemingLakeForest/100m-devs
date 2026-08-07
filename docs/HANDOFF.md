@@ -48,6 +48,13 @@ and listing-as-code — see GDD §23.1b. Every Appendix F row is now narrowed to
 platform cannot know: **the values, not the mechanism.** Re-specifying a mechanism the
 playbook already covers is itself a defect.
 
+**Both remaining blockers now have a studio answer too.** `playbook/SAVE.md` was written
+from what `mind-the-gap` and `dungeon-doom-dash` actually ship — the save contract,
+migration rules, and the two-tier reconciliation (last-write-wins for run state, monotonic
+union for permanent state, because the device that loses a sync race must not lose its
+unlocks). Offline progression is in there as a genre recommendation rather than a pattern,
+since **this is the studio's first idle game** — whatever we learn goes back into §5 of it.
+
 That leaves **F1.1 and F1.2 as the only true blockers with no studio answer** — the save
 document's *contents*, and the offline model, both of which are pure game design. They are
 cheaper to decide now than after the tech tree and prestige layers add state that has to

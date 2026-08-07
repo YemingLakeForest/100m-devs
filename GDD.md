@@ -3465,6 +3465,7 @@ reference; it is the runbook, and this game follows it rather than deriving its 
 |---|---|
 | `playbook/STUDIO_PLAYBOOK.md` | **Start here.** End-to-end: cloud save, RevenueCat, AdMob, Firebase, Play release, and the `platform/` infrastructure-as-code pattern |
 | `playbook/FIREBASE.md` | Firebase project, Firestore rules and indexes, `google-services.json` — including the canonical `/saves/{uid}` self-access rules |
+| `playbook/SAVE.md` | **Save document shape, `SAVE_VERSION` and migration, and cloud reconciliation** — last-write-wins for run state, monotonic union for permanent state. Plus offline progression as a genre recommendation, since no studio game ships one |
 | `playbook/MONETIZATION_SETUP.md` | RevenueCat, Play products, Play Games auth, restore purchases, consent |
 | `playbook/PLAY_STORE.md` | Gradle Play Publisher, tracks, listing-as-code, content rating, privacy policy |
 | `playbook/MARKETING.md` | ASO, launch angles, review prompts |
@@ -4037,8 +4038,8 @@ specification anywhere*, not a thin one.
 
 | # | Gap | Platform provides | **What is still ours** |
 |---|---|---|---|
-| **F1.1** | **Save** | Firestore `/saves/{uid}` with self-only rules (`FIREBASE.md`), Play Games auth for cross-device, `game-cloud` as a Capacitor plugin, the whole transport | ❌ **The save document's contents.** What fields, what schema version, what migrates, what survives a Paradigm Shift versus a Codebase Fork, and what a corrupt or conflicting doc resolves to. The platform will store anything; it cannot tell us what a run *is*. **→ §24** |
-| **F1.2** | **Offline progression** | Nothing — and correctly so, this is pure game design | ❌ **All of it.** No accrual rate, no cap, no statement of what accrues, no summary screen. MONETISATION §4 R1 already sells doubling it as the highest-value placement in the game and requires that screen to exist. **→ §24** |
+| **F1.1** | **Save** | The transport *and now the shape* — `playbook/SAVE.md` gives the `SaveData` contract, `SAVE_VERSION` migration rules and the two-tier reconciliation, extracted from two shipped games | ⚠️ **Our fields, and which of them are permanent.** The playbook's two-tier rule needs us to say what is run state and what must monotonically merge — Hero Cards (§22) and prestige currency must survive losing a sync race; an in-progress run need not. **→ §24** |
+| **F1.2** | **Offline progression** | A genre recommendation, not a studio pattern — `playbook/SAVE.md` §5. Integrate rather than simulate, away time from `savedAt`, the cap as a design lever, the return screen as a monetisation surface | ⚠️ **Our numbers and our answer.** Starting cap, accrual rate, what accrues (SP? cash? does Entropy decay while away?), and the §10.9-class summary screen MONETISATION §4 R1 requires. **We are the first studio game to do this, so whatever we learn goes back to `SAVE.md` §5.** **→ §24** |
 | **F1.3** | **Age rating & target audience** | The submission process and the questionnaire mechanics (`PLAY_STORE.md`) | ⚠️ **The answers**, and the consequence: declaring child appeal forces the Families policy and bans personalised ads, so it changes the AdMob configuration the playbook sets up. Decide before the ad stack is built |
 | **F1.4** | **Privacy policy & data deletion** | Policy hosting and the Play requirement (`PLAY_STORE.md`, `MONETIZATION_SETUP.md`) | ⚠️ **The data inventory** — what this game actually collects beyond the studio baseline — and the in-app deletion entry point, which is a §10.9 menu item nobody has specified |
 | **F1.5** | **Restore purchases** | RevenueCat's restore flow (`MONETIZATION_SETUP.md`) | ⚠️ **The UI entry point only.** Not in §10.9's menu and not in the §F2.1 settings screen, because neither exists |
