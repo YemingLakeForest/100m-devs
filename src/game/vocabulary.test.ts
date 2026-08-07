@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PHASE_COPY } from './onboarding.ts'
+import { D_BASE, entropy } from '../sim/entropy.ts'
 import { ENTROPY_LABELS, entropyLabel, entropyReadout, isSeized } from './vocabulary.ts'
 
 describe('the player never reads the word "entropy" — GDD §4.3a', () => {
@@ -33,13 +34,24 @@ describe('the escalation ladder — GDD §4.3a', () => {
   })
 
   it('escalates as the studio degrades — the free drama', () => {
-    expect(entropyLabel(0.05)).toBe('IN SYNC')
-    expect(entropyLabel(0.3)).toBe('CHATTY')
-    expect(entropyLabel(0.55)).toBe('BOGGED DOWN')
-    expect(entropyLabel(0.71)).toBe('PRODUCTIVITY BREAKDOWN')
-    expect(entropyLabel(0.9)).toBe('TOTAL GRIDLOCK')
-    expect(entropyLabel(0.97)).toBe('MELTDOWN')
+    expect(entropyLabel(0.005)).toBe('IN SYNC')
+    expect(entropyLabel(0.03)).toBe('CHATTY')
+    expect(entropyLabel(0.3)).toBe('BOGGED DOWN')
+    expect(entropyLabel(0.5)).toBe('PRODUCTIVITY BREAKDOWN')
+    expect(entropyLabel(0.85)).toBe('TOTAL GRIDLOCK')
+    expect(entropyLabel(0.95)).toBe('MELTDOWN')
     expect(entropyLabel(0.999)).toBe('STUDIO SEIZED')
+  })
+
+  it('reaches CHATTY inside the §21.0 loop — Appendix C #14', () => {
+    // The bug this pins: bands spread evenly over 0-100% left five of seven
+    // labels unreachable in Run 1, because the load curve keeps E under 3%
+    // until ~50 developers. A player must meet CHATTY during the earn-and-hire
+    // loop, dismiss it, and only then be offered the trap.
+    expect(entropyLabel(entropy(40, D_BASE))).toBe('CHATTY')
+    expect(entropyLabel(entropy(50, D_BASE))).toBe('CHATTY')
+    // ...and must NOT meet it while hiring is still teaching them it works.
+    expect(entropyLabel(entropy(10, D_BASE))).toBe('IN SYNC')
   })
 
   it('never goes backwards as E climbs', () => {
@@ -56,8 +68,8 @@ describe('the readout — GDD §4.3a', () => {
   it('always shows the number beside the word', () => {
     // The escalating word is drama; the percentage is the honest reading.
     // Hiding it would turn the HUD into a mood ring.
-    expect(entropyReadout(0.71)).toBe('PRODUCTIVITY BREAKDOWN 71%')
-    expect(entropyReadout(0.05)).toMatch(/^IN SYNC \d+%$/)
+    expect(entropyReadout(0.5)).toBe('PRODUCTIVITY BREAKDOWN 50%')
+    expect(entropyReadout(0.005)).toMatch(/^IN SYNC \d+%$/)
   })
 
   it('keeps a decimal in the last stretch, where 99.0 and 99.9 differ', () => {

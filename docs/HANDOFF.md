@@ -42,7 +42,7 @@ These landed in the GDD this session as canon. **Nothing below has a renderer ye
 | **§7.7.4 Hero Anchor** — pinching in always lands on James's floor | — | All of it. Currently the desk tier is generic |
 | **§7.7.6 Navigation** — drag to pan, poke *any* of the 1,000, select a floor/city/planet | Pinch-zoom only | Drag-pan, the tap-vs-drag discriminator, per-particle hit testing (needs a spatial index beside the ParticleContainer), unit selection |
 | **§10.7 Dialogue system** — Pokémon-style typed letters, unskippable | — | All of it. This gates §21.6 |
-| **§21.0 Reshaped Run 1** — earn/hire/ship loop to ~10 devs, then a *paid* Mass Hire | Current build still goes 1 → 2 → 1,000 with a free button | Act IIa entirely; pricing the Mass Hire at the player's treasury |
+| **§21.0 Reshaped Run 1** — earn/hire/ship loop to **~40 devs**, then a *paid* Mass Hire | Current build still goes 1 → 2 → 1,000 with a free button | Act IIa entirely; pricing the Mass Hire at the player's treasury |
 | **§21.6 Run 2 Act 0** — "How did you find me in every single reality?", James introduces Instant Messenger | — | Needs §10.7 first |
 | **§10.8 Presentation Gate** — F1–F6, the definition of "done" for feel | Written as canon | **Nothing currently passes it.** The HUD has no button physics, no overscroll, no press-down state; panels appear without transitions; most state changes are silent |
 
@@ -100,124 +100,19 @@ Left alone deliberately: §7.5's transcribed sketch annotations still say "COMMU
 ENTROPY!" because they are a *transcription of concept art that exists*, and editing them
 would falsify the record rather than fix anything.
 
-**New in Appendix C (#13, #14), and they need a decision before Act IIa is built.** Measured
-against the shipped `entropy()` and the §4.2 cap of 100:
+**Appendix C #13 and #14 are now RESOLVED** (decision owner, 2026-08-07):
 
-| Devs | 1–8 | 10 | 20 | 50 | 100 | 1,010 |
-|---|---|---|---|---|---|---|
-| E | 0.000% | 0.001% | 0.032% | 3.03% | 50.0% | 99.999% |
+- **#13 — Act IIa runs to ~40 developers**, not ~10. That is the first headcount where the
+  readout stops saying `IN SYNC` (E = 1.01%). The §4.2 cap is untouched, so §6.2's canonical
+  0.01x figure and §21 Act V's 0.00000x both stand.
+- **#14 — the §4.3a labels are re-banded against the curve** (1 / 10 / 40 / 70 / 90 / 99%)
+  rather than spread evenly across the axis. Applied in `src/game/vocabulary.ts`, with a
+  test pinning `CHATTY` at 40 devs and `IN SYNC` at 10.
 
-§21.0's claim holds — at 10 developers the readout is `IN SYNC` and the player has no reason
-to doubt anything. But the curve is *flat*, not gentle: Act IIa as specified gives zero
-signal rather than a faint one, and **five of the seven §4.3a labels are unreachable in
-Run 1** — it goes straight from `IN SYNC` to `STUDIO SEIZED` with nothing in between.
-
----
-
-## ADR 0001 is accepted
-
-The spike passed. The engine question is closed and the vertical slice is open.
-
-## The one decision still waiting for a human
-
-~~**ADR §7.7.4 — criterion 5 is flapping.**~~ **RESOLVED 2026-08-07 by the decision owner:
-restated as "99th-percentile frame ≥ 50 fps".** Recorded as a deliberate loosening in ADR
-§7.5, with what it gives up; the harness now gates on the percentile and prints the worst
-single frame beside it as an ungated diagnostic.
-
-**Criterion 5 is therefore unmeasured under its current wording.** The two Pixel runs
-recorded worst-frame numbers and the percentile was not captured, so they cannot be
-honestly converted. The next device run measures it properly for the first time.
-
----
-
-## Also blocked on a person, not on code
-
-1. ~~**Criterion 7, the subjective gate.**~~ ✅ **PASSED 2026-08-07** — a person who had
-   not seen the game was handed the Pixel and kept tapping. **ADR 0001 is now Accepted**,
-   and §7.3's out-of-scope list no longer constrains the work. Residual risks in ADR §7.7.5.
-2. **Criterion 2, audio latency.** Unmeasurable from JavaScript — the mixer, buffer, DAC
-   and speaker are invisible, and on Android that is exactly where WebView latency hides.
-   Needs an external capture: record a tap on a hard surface and the resulting click on a
-   second device, read the gap in an audio editor.
-3. ~~**CI is written but unpushed.**~~ **Parked deliberately — do not spend time on it.**
-   See "CI, and why it is parked" below.
-
----
-
-## There is no CI, deliberately
-
-`.github/` has been **deleted**, not parked. `gh` is not a dependency of this project
-either — it is GitHub's API client (pull requests, issues, releases) and adds nothing over
-plain `git` for clone/commit/push/pull.
-
-Everything the workflow would have run is one command:
-
-```bash
-npm run check     # lint + typecheck + tests + the art gate
-```
-
-**Nothing was lost in the deletion.** The workflow had exactly one check with no local
-equivalent — verifying that `assets/palette/master.png` had not gone stale against
-`src/art/palette.ts`. That is now *inside* `art:check` itself, which is where it belonged:
-the gate reads the PNG, so it validates its own reference before validating anything else.
-A gate measuring against a stale reference is worse than no gate, because it is trusted.
-
-**Two hazards worth knowing, both hit during this session:**
-
-- Pushing anything under `.github/workflows/` needs a token with `workflow` scope, and this
-  repo pushes via Git Credential Manager, whose token has `repo` only. `gh auth refresh`
-  does **not** fix it — git never consults `gh`'s token. It looks exactly like it should work.
-- A committed workflow file rejects **every subsequent push**, not just its own. So the
-  failure surfaces later, on unrelated work, pointing at CI.
-
-**When to revisit:** the first time a cloud agent pushes code no human watched it write.
-At that point CI stops being ceremony and becomes the only thing checking the work. Until
-then, one committer on one machine running `npm run check` is the same coverage without
-the tooling.
-
----
-
-## What to build next, and why in this order
-
-1. **Act IV's spectacle** (§21 Act IV, §6.2). The GDD promises 1,000 devs dropping from the
-   sky, a red Slack spiderweb, `@everyone` bubbles flooding the screen, the music cutting
-   to sirens. What currently happens is a number changing colour. It is the emotional core
-   of Run 1 and the biggest gap between document and product — **and it needs no authored
-   art**, being entirely procedural.
-2. **Two James busts via ART_DIRECTION §4.1.** Find out whether self-authoring the parts
-   library works before committing to the other ten. The method (one head plus a wardrobe,
-   characters as recipes) does not exist yet in any form — no compositor, no parts, no
-   pixels.
-3. **In-run tech tree (§11).** Makes Run 2 mean something. Currently the Paradigm Shift
-   button restarts the run without granting anything, because the Layer 1 tree is not
-   built.
-
-**Do not do more render/post-process work.** That layer is proven adequate and is not what
-is at risk.
-
----
-
-## Local-only things a cloud session cannot do
-
-- **ElevenLabs SFX generation** needs `.env` (gitignored). The nine clips are committed, so
-  this only matters for new sounds.
-- **Android build, install and the `?bench` device run** need the local SDK and a phone.
-- **Visual verification.** Anything that has to be *looked at* — the spectacle work above
-  especially — needs a session that can screenshot. A cloud agent should take the
-  logic-heavy work (tech tree, prestige, save, §18 events, §19 dialogue), all of which is
-  data plus tested logic.
-
----
-
-## Flags worth knowing
-
-| URL | Effect |
-|---|---|
-| `?bench` | ADR §7.5 acceptance run. `?bench=10` shortens the 60 s leg |
-| `window.__stage` | Dev builds only — camera Z, LOD weights, collapse state. Added because "nothing is on screen" is the same symptom for a store flag, a stalled dolly and a culled tier |
-| `?act=act5_bleeding` | Jump the §21 script — Run 1 takes ~4 minutes by design |
-| `?nopost` / `?post=bloom,crt` | Drop or select post-process passes |
-
-On device there is no query string, so the bench is a button — build with `VITE_BENCH=1`.
-A shipping build never contains it.
+**One follow-on, worth doing the next time Act IV is touched.** The Mass Hire adds 1,000
+developers in a single frame, so even re-banded the readout jumps `CHATTY` → `STUDIO SEIZED`
+and the four middle labels are traversed instantaneously. Driving the readout off *landed*
+developers instead of hired ones makes the Act IV drop — which already runs 2.2 s and
+already has a progress value in `dropProgress()` — sweep the player through `BOGGED DOWN`,
+`PRODUCTIVITY BREAKDOWN`, `TOTAL GRIDLOCK` and `MELTDOWN` as the bodies come down. The whole
+ladder, used, during the beat it was written for. Recorded in GDD §4.3a.

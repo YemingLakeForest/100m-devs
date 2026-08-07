@@ -249,15 +249,22 @@ Two reasons, and the second is the real one:
 
 **The ladder. The label escalates with $E$; the number underneath is unchanged.**
 
-| $E$ | Player-facing label | Register |
-|---|---|---|
-| 0 – 20% | `IN SYNC` | Everything is fine and nobody is thinking about it |
-| 20 – 45% | `CHATTY` | The first hint, delivered as a joke |
-| 45 – 65% | `BOGGED DOWN` | Recognisable to anyone who has had a job |
-| 65 – 80% | `PRODUCTIVITY BREAKDOWN` | The corporate euphemism, deadpan |
-| 80 – 95% | `TOTAL GRIDLOCK` | No euphemism left |
-| 95 – 99% | `MELTDOWN` | |
-| 99%+ | `STUDIO SEIZED` | Replaces "ENTROPY LOCK" everywhere the player sees it |
+**Banded against the curve, not against the axis — resolved 2026-08-07 (Appendix C #14).**
+An even 0–100% spread reads sensibly and is wrong: $\eta = 1/(1+(D/D_{cap})^5)$ is not
+linear, and against the §4.2 cap of 100 it holds $E$ under 3% until ~50 developers. Evenly
+spread bands left **five of the seven labels unreachable in Run 1** — it went straight from
+`IN SYNC` to `STUDIO SEIZED`, and the ladder spent all its drama in one jump. The bands sit
+where the curve actually is:
+
+| $E$ | Player-facing label | Devs (Run 1, cap 100) | Register |
+|---|---|---|---|
+| 0 – 1% | `IN SYNC` | 1 – 30 | Everything is fine and nobody is thinking about it |
+| 1 – 10% | `CHATTY` | 40 – 60 | The first hint, delivered as a joke. **§21.0 Act IIa ends here** |
+| 10 – 40% | `BOGGED DOWN` | ~80 | Recognisable to anyone who has had a job |
+| 40 – 70% | `PRODUCTIVITY BREAKDOWN` | ~100 | The corporate euphemism, deadpan |
+| 70 – 90% | `TOTAL GRIDLOCK` | ~130 | No euphemism left |
+| 90 – 99% | `MELTDOWN` | ~200 | |
+| 99%+ | `STUDIO SEIZED` | 500+ | Replaces "ENTROPY LOCK" everywhere the player sees it |
 
 **Rules:**
 
@@ -270,6 +277,15 @@ Two reasons, and the second is the real one:
   reason about it, and gains the player nothing they can see.
 - **§21's script uses the ladder.** Act V's terminal banner reads
   `CRITICAL SYSTEM FAILURE: STUDIO SEIZED`, not "COMMUNICATION ENTROPY 100%".
+
+**One consequence, and it is a build item rather than a caveat.** The Mass Hire adds 1,000
+developers in a single frame, so even re-banded the readout jumps `CHATTY` → `STUDIO SEIZED`
+with the four middle labels traversed instantaneously between roughly 80 and 200 developers.
+**Drive the readout off *landed* developers rather than hired ones** and the §21 Act IV drop
+— which already takes 2.2 seconds and already has a progress value — sweeps the player
+through `BOGGED DOWN`, `PRODUCTIVITY BREAKDOWN`, `TOTAL GRIDLOCK` and `MELTDOWN` as the
+bodies come down. That is the entire ladder, used, for free, during the beat it was written
+for. Do this when Act IV is next touched.
 
 ---
 
@@ -2405,18 +2421,21 @@ So Run 1 is a real loop first, and the trap is what the loop earns:
 |---|---|---|
 | **Act I** | 1 | Poking works. Ship *Flappy Square 1.0* almost entirely by thumb. |
 | **Act II** | 1 → 2 | Cash buys a developer. James arrives. Velocity visibly doubles. |
-| **Act IIa — the honest loop** | 2 → ~10 | **Ship, earn, hire, ship faster, earn more, hire again.** Three or four projects. Each hire is bought with money the player made, costs more than the last, and *works*. |
-| **Act III** | ~10 | The bait. |
-| **Act IV–V** | 1,010 | The collapse. |
+| **Act IIa — the honest loop** | 2 → ~40 | **Ship, earn, hire, ship faster, earn more, hire again.** Four or five projects. Each hire is bought with money the player made, costs more than the last, and *works*. |
+| **Act III** | ~40 | The bait. |
+| **Act IV–V** | ~1,040 | The collapse. |
 
 **Act IIa is the load-bearing beat and it did not exist before.** Four things have to be true
 by the end of it:
 
 1. **The player has hired several times, deliberately, with earned cash.** Hiring is now a
    habit and a reward, not a tutorial step.
-2. **It has always worked.** At 10 developers against the §4.2 cap, the readout still says
-   `IN SYNC` or `CHATTY`. Communication cost is *present in the model the whole time* — it
-   is simply not yet large enough to notice, which is exactly how the real thing works.
+2. **It has always worked — but the readout has just started to twitch.** At ~40 developers
+   the readout reads `CHATTY 1%`: visibly non-zero, entirely dismissable. Communication cost
+   is *present in the model the whole time*, and Act IIa now ends at the first moment it is
+   large enough to see. **The player must get one hint and wave it away.** That is what makes
+   the collapse land as a betrayal rather than as a surprise — they were told, and they were
+   right to ignore it, and they were wrong.
 3. **The player has a mental model, and it is wrong.** "More developers, more speed." They
    built it themselves out of evidence, which is why it will hold right up until it doesn't.
 4. **They can just about afford the Mass Hire.** See below.
@@ -2434,30 +2453,19 @@ only just. That does three things at once:
 The advisor's pitch is unchanged and lands harder for it: *"Math doesn't lie!"* — and the
 player has four projects' worth of personal evidence that it doesn't.
 
-**Measured 2026-08-07, against the shipped `entropy()` and the §4.2 cap of 100:**
+**Measured 2026-08-07, against the shipped `entropy()` and the §4.2 cap of 100. These are
+the numbers Act IIa's length was chosen from, not a justification written after it:**
 
-| Devs | E | Readout (§4.3a) |
-|---|---|---|
-| 1–8 | 0.000% | `IN SYNC` |
-| 10 | 0.001% | `IN SYNC` |
-| 20 | 0.032% | `IN SYNC` |
-| 50 | 3.03% | `IN SYNC` |
-| 100 | 50.0% | `BOGGED DOWN` |
-| 1,010 | 99.999% | `STUDIO SEIZED` |
+| Devs | 1 | 10 | 20 | 30 | **40** | 50 | 60 | 80 | 100 | ~1,040 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| $E$ | 0.000% | 0.001% | 0.032% | 0.242% | **1.01%** | 3.03% | 7.22% | 24.7% | 50.0% | 99.999% |
+| Readout | `IN SYNC` | `IN SYNC` | `IN SYNC` | `IN SYNC` | **`CHATTY`** | `CHATTY` | `CHATTY` | `BOGGED DOWN` | `PRODUCTIVITY BREAKDOWN` | `STUDIO SEIZED` |
 
-Requirement 2 above holds: at 10 developers the readout is `IN SYNC` and the player has no
-reason to doubt anything. **Two consequences worth deciding on before Act IIa is built:**
-
-- **The curve is flatter than it reads.** Nothing moves at all below ~30 developers, so
-  Act IIa gives the player *zero* signal rather than a faint one. A trap is slightly better
-  if there was a hint the player dismissed. Pushing Act IIa to ~30–50 developers would put
-  the readout at `IN SYNC 3%` — still reassuring, visibly non-zero.
-- **Five of the seven §4.3a labels are unreachable in Run 1.** `CHATTY` needs ~90
-  developers; the run goes straight from `IN SYNC` to `STUDIO SEIZED`. That may be correct —
-  the ladder exists for later runs with raised caps — but if the escalating vocabulary is
-  meant to carry drama *inside* Run 1, it currently cannot.
-
-**Both are balance decisions, recorded rather than taken.** See Appendix C.
+**~40 developers is where Act IIa ends, and the number is not arbitrary.** It is the first
+headcount at which the readout says something other than `IN SYNC`. An earlier draft ended
+Act IIa at ~10, where $E$ is 0.001% — the curve is *flat*, not gentle, and the player would
+have got no hint at all rather than a faint one. Ending on the first twitch is what buys the
+"I saw that and ignored it" that makes the trap land.
 
 **Pacing target: Run 1 is about 4 minutes.** Act IIa is roughly half of it. If playtesting
 shows players hiring past ~10 without being offered the bait, offer it sooner; the trap must
@@ -3117,8 +3125,8 @@ complete the main story arc by launching **"Simulated Universe 1.0."**
 Different drafts specify different values for the same thing. Each needs a single canonical
 number before implementation.
 
-| # | Item | Value A | Value B | Value C |
-|---|---|---|---|---|
+| # | Item | Value A | Value B | Value C | Resolution |
+|---|---|---|---|---|---|
 | 1 | **Async-First Culture** — Slack noise reduction | −50% (v2/v3 text; node L1-1A = 10%/level × 5) | −30% (v2 tree diagram) | — |
 | 2 | **Telepathic Compression** — entropy cap increase | +1,000× (v1/v2 text; node = +1,000×/level) | +10,000× (v3 tree diagram) | +3,000× at Lvl 3/10 (prestige UI) — implies +1,000×/level, so **A is likely canon** |
 | 3 | **Daily Standups** — entropy effect | Reduces entropy by 30% (legacy T2 table) | Reduces base entropy growth by 15% + cyclic pause (Agile ritual) | Caps max entropy at 80% + cyclic pause (node B2) |
@@ -3130,8 +3138,8 @@ number before implementation.
 | 9 | **Quantum Buffer** node | Present in v2 Protocol Engine tree (Auto-Clear Pings) | Absent from v3 / node index | — |
 | 10 | **Poke → Slacking dev** speed boost | +50% for 10s (poke table) | +100% for 10s (node C1 *Nitro Cold Brew*) | C1 is an upgrade *on top of* base — confirm stacking |
 | 11 | **Zone boundaries** for audio vs. poke SFX | Zones 0/1/2/3 at 0.2 / 0.5 / 0.8 | Volume curve breakpoints at 0.25 / 0.55 / 0.75 | Align the two tables |
-| 13 | **Act IIa signal is flat** — §21.0 asks the earn-and-hire loop to reach ~10 developers before the trap. Measured against the shipped `entropy()` and the §4.2 cap of 100, E at 10 devs is **0.001%**, and nothing moves below ~30. | Leave it — Act IIa's job is that hiring *works*, and a hint the player could dismiss is a hint they might not | Push Act IIa to ~30–50 devs, putting the readout at a visible-but-reassuring `IN SYNC 3%` | Lower the §4.2 Run 1 cap so ρ bites earlier — **changes the §6.2 0.01x trap figure, so this one is not free** |
-| 14 | **Five of seven §4.3a labels are unreachable in Run 1** — `CHATTY` needs ~90 devs; the run goes `IN SYNC` → `STUDIO SEIZED` with nothing between | Correct as designed: the ladder exists for later runs with raised caps | Re-band the labels against the *Run 1* curve so the escalation carries drama inside the first four minutes | Both — Run 1 bands and a raised-cap set |
+| 13 | ~~**Act IIa signal is flat**~~ | ~~Leave it at ~10 devs~~ | ~~Push to ~30–50~~ | ~~Lower the §4.2 cap~~ | ✅ **RESOLVED 2026-08-07 — Act IIa now runs to ~40 developers**, the first headcount where the readout stops saying `IN SYNC`. The §4.2 cap is untouched, so §6.2's canonical 0.01x figure and §21 Act V's 0.00000x both stand unchanged. See §21.0. |
+| 14 | ~~**Five of seven §4.3a labels unreachable in Run 1**~~ | ~~Correct as designed~~ | ~~Re-band against the Run 1 curve~~ | ~~Two band sets~~ | ✅ **RESOLVED 2026-08-07 — re-banded against the curve** (1% / 10% / 40% / 70% / 90% / 99%) rather than evenly across the axis. One band set, not two. `CHATTY` now lands at ~40 devs, inside Act IIa. See §4.3a — which also records the follow-on: drive the readout off *landed* developers so the Act IV drop sweeps the middle four labels instead of skipping them. |
 | 12 | ~~**The efficiency factor never reaches 1 or 0**~~ | ~~$\eta = 1/(1+e^{E})$ gives 0.50 at $E=0$ and 0.27 at $E=1$~~ | ~~Story Point baseline assumes $\eta(0)=1$~~ | ✅ **RESOLVED.** Replaced with the load curve $\eta = 1/(1+(D/D_{cap})^{\rho})$, $\rho=5$ — see §4.1. Reaches 1, reaches 0, spans five orders of magnitude, derives the 0.01x trap figure, and produces a genuine optimum headcount below capacity. |
 
 ---

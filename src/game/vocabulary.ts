@@ -22,13 +22,26 @@ export interface EntropyLabel {
   label: string
 }
 
-/** GDD §4.3a — the escalation ladder, in order. */
+/**
+ * GDD §4.3a — the escalation ladder, in order.
+ *
+ * **Re-banded 2026-08-07 against the actual Run 1 curve** (Appendix C #14). The
+ * first bands were spread evenly across 0–100%, which reads sensibly and was
+ * wrong: η = 1/(1+(D/D_cap)^5) is not linear, and measured against the §4.2 cap
+ * of 100 it leaves E below 3% until ~50 developers. Five of the seven labels
+ * were therefore unreachable in Run 1 — the run went straight from `IN SYNC` to
+ * `STUDIO SEIZED` and the escalating vocabulary, whose entire job is to carry
+ * drama, spent all of it in one jump.
+ *
+ * The bands are now placed where the curve actually is, so `CHATTY` lands
+ * during the §21.0 earn-and-hire loop as the hint the player dismisses.
+ */
 export const ENTROPY_LABELS: readonly EntropyLabel[] = [
-  { upTo: 0.2, label: 'IN SYNC' },
-  { upTo: 0.45, label: 'CHATTY' },
-  { upTo: 0.65, label: 'BOGGED DOWN' },
-  { upTo: 0.8, label: 'PRODUCTIVITY BREAKDOWN' },
-  { upTo: 0.95, label: 'TOTAL GRIDLOCK' },
+  { upTo: 0.01, label: 'IN SYNC' },
+  { upTo: 0.1, label: 'CHATTY' },
+  { upTo: 0.4, label: 'BOGGED DOWN' },
+  { upTo: 0.7, label: 'PRODUCTIVITY BREAKDOWN' },
+  { upTo: 0.9, label: 'TOTAL GRIDLOCK' },
   { upTo: 0.99, label: 'MELTDOWN' },
   { upTo: Number.POSITIVE_INFINITY, label: 'STUDIO SEIZED' },
 ]
