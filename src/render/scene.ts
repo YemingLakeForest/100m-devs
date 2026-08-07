@@ -20,6 +20,7 @@ import {
 } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { buildRoom, type RoomHandle } from './room.ts'
+import { buildTower, type TowerHandle } from './tower.ts'
 
 /** Palette colour as the 0xrrggbb number Pixi wants. */
 function c(hex: string): number {
@@ -383,21 +384,35 @@ export interface Scene {
   floor: FloorSwarm
   /** Level 1 — the room, which grows with the headcount (§7.8.1). */
   room: RoomHandle
+  /**
+   * Rung 3 — the tower (§7.7.1). Shares the Level 2 slot with the floor swarm:
+   * below 1,000 developers you are looking at a floor of people, above it at a
+   * stack of floors. Only one is ever visible, and the swap is what §7.7.1
+   * means by the *unit* changing.
+   */
+  tower: TowerHandle
 }
 
 /** Build all four tiers. The caller parents them and drives their alpha. */
 export function buildScene(renderer: Renderer): Scene {
   const floor = buildFloor(renderer)
   const room = buildRoom()
+  const tower = buildTower()
+
+  // Both occupy Level 2. The stage shows whichever the headcount calls for.
+  const levelTwo = new Container()
+  levelTwo.addChild(floor.container, tower.container)
+
   return {
     tiers: {
       1: room.container,
-      2: floor.container,
+      2: levelTwo,
       3: buildGlobal(),
       4: buildCosmic(),
     },
     floor,
     room,
+    tower,
   }
 }
 

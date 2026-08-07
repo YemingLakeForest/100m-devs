@@ -77,6 +77,18 @@ Full built / not-built tables are in **§23.6** rather than duplicated here.
 
 ---
 
+## Rung 3 exists now
+
+Hiring past 1,000 used to produce nothing — the level-2 swarm saturated at its sprite budget
+and the picture stopped answering at exactly the point the numbers get interesting.
+`src/render/tower.ts` gives rungs 1,000–10,000 a tower that grows a storey at a time, with
+§7.7.2's arrival: a furnished storey falls under gravity, lands, and the stack squashes and
+wobbles back.
+
+**Rungs 4 and above are still not built** — building, campus, town, nation, planet, galaxy.
+Above 10,000 the tower caps at ten storeys and stops growing. That is the next piece of
+§7.8.2, and it is the same shape of work.
+
 ## The next three things, in order
 
 1. **§23.4.1 — make the camera viewport-aware.** Small and self-contained. Until it lands,
