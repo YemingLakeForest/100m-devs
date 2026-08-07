@@ -12,8 +12,10 @@ Square*, take the mass-hire bait, watch the studio seize at 99.999% entropy, and
 bankrupt in about twenty seconds. Every number in that sequence is produced by the §4
 simulation rather than scripted.
 
-The spike has **not** been measured on a low-end device, which is the ADR 0001 gate that
-decides whether the engine choice stands.
+**ADR 0001 is accepted.** The feel spike passed on device — tap-to-numeral at 7–10 ms
+against an 80 ms budget, and criterion 7, the subjective gate, cleared by a person who had
+not seen the game and kept tapping. The stack is settled; work proceeds to the vertical
+slice.
 
 ## Running it
 

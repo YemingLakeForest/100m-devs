@@ -203,7 +203,9 @@ Work down. Each step is small.
        — **harness built** (`?bench`, ADR §7.7.3). Criteria 1 and 3–6 are instrumented and
        self-reporting; criterion 2 needs an external audio capture and criterion 7 needs a
        person. Desktop numbers recorded, which per §7.4 prove nothing. **Awaiting a device run.**
-16. [ ] Promote ADR 0001 from *provisional* to *accepted*, or trigger §7.6
+16. [x] Promote ADR 0001 from *provisional* to *accepted*, or trigger §7.6
+       — **Accepted 2026-08-07** on criterion 7, the subjective gate, which §7.5 says
+       outranks every measurement. Residual risks recorded in ADR §7.7.5.
 
 ---
 

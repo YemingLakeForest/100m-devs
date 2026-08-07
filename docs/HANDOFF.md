@@ -28,7 +28,11 @@ Roughly: simulation ~60%, art 0%, spectacle ~5%, UI surface ~15%.
 
 ---
 
-## The one decision waiting for a human
+## ADR 0001 is accepted
+
+The spike passed. The engine question is closed and the vertical slice is open.
+
+## The one decision still waiting for a human
 
 **ADR §7.7.4 — criterion 5 is flapping and the criterion is the problem.**
 
@@ -46,10 +50,9 @@ decision owner's call.** It has deliberately not been done.
 
 ## Also blocked on a person, not on code
 
-1. **Criterion 7, the subjective gate.** "Hand it to someone who has not seen it. If they
-   keep tapping for a full minute without being asked to, it passes." §7.5 says this
-   **outranks every number above it**. It has not been run. The app is installed on the
-   Pixel right now.
+1. ~~**Criterion 7, the subjective gate.**~~ ✅ **PASSED 2026-08-07** — a person who had
+   not seen the game was handed the Pixel and kept tapping. **ADR 0001 is now Accepted**,
+   and §7.3's out-of-scope list no longer constrains the work. Residual risks in ADR §7.7.5.
 2. **Criterion 2, audio latency.** Unmeasurable from JavaScript — the mixer, buffer, DAC
    and speaker are invisible, and on Android that is exactly where WebView latency hides.
    Needs an external capture: record a tap on a hard surface and the resulting click on a

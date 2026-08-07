@@ -1,7 +1,7 @@
 # ADR 0001 — Engine and Rendering Stack
 
-- **Status:** Accepted, provisional — conditional on the spike in §7 passing
-- **Date:** 2026-08-06
+- **Status:** **Accepted** — the §7 spike passed. Promoted 2026-08-07.
+- **Date:** 2026-08-06 (proposed) · 2026-08-07 (accepted)
 - **Decision owner:** Yeming Huang
 - **Supersedes:** —
 - **Related:** [`GDD.md`](../../GDD.md) §7 (Omni-Lens), §8 (game juice), §10.5–10.6 (transitions), §20 (audio); [`MONETISATION.md`](../../MONETISATION.md) §10
@@ -425,6 +425,43 @@ and the resulting click on another device, then read the gap in an audio editor.
 > running `?bench` on whatever phone is to hand is a cheap falsification test worth doing
 > immediately, as long as nobody reads a green table on it as clearing the gate. The
 > harness prints that warning on every run.
+
+### 7.7.5 Criterion 7 — **PASSED 2026-08-07**
+
+A person who had not seen the game was handed the Pixel. They kept tapping. **Accepted.**
+
+§7.5 is explicit that this outranks everything else: *"The measurements exist to explain a
+failure, not to overrule a verdict the thumb has already delivered."* The thumb has
+delivered one, and this ADR is promoted from provisional to **Accepted** on it.
+
+**This also does most of the work criterion 2 could not.** Criterion 2 asks whether the
+click is audible within 60 ms, and no in-process measurement can answer it (§7.7.3). But a
+person tapping a screen for a minute *is* an integration test of the whole feel — visual,
+haptic and audible together. Latency severe enough to fail criterion 2 is latency a tester
+would have felt as sponginess and stopped. That is weaker evidence than a measurement and
+it is not nothing.
+
+#### Residual risk, carried knowingly
+
+Accepting on criterion 7 means accepting these, and they are listed so nobody has to
+reconstruct them later:
+
+| | Risk | Why it is acceptable |
+|---|---|---|
+| **Criterion 2 unmeasured** | Audio latency has no hard number | §7.6's kill criterion is *"cannot be brought under 60 ms even on the native path"* — nothing observed suggests that. Native audio preloaded and drift was negative over 300 taps. |
+| **Criterion 5 flaps** | Worst-frame test failed one run of two | Drift was −1.2 ms; there is no degradation, so §7.6's "sustained tapping degrades" does not fire. The criterion is a single-sample test — see the open question in §7.7.4. |
+| **§7.4 relaxed to a flagship** | Criteria 3 and 4 unmeasured for the target audience | A fail would have been decisive and there wasn't one. Re-run the moment a cheap handset is available; it is one tap and 80 seconds. |
+
+**What would reopen this ADR** is unchanged and lives in §8. The most likely trigger is now
+low-end performance during production — which is precisely the measurement §7.4 could not
+take.
+
+#### The spike is over
+
+§7.3's out-of-scope list — ads, IAP, save, cloud, tech trees, prestige, card board, org
+chart, buildings, the globe, Multiverse dimensions — was scoped to protect the spike from
+becoming the game. **That constraint is now lifted.** Work proceeds to the vertical slice;
+see [`../HANDOFF.md`](../HANDOFF.md) for the order.
 
 ### 7.7.4 Device run — Pixel 8 Pro, 2026-08-07 **[the §7.5 measurement]**
 
