@@ -16,9 +16,10 @@ import { pokeHaptic } from '../audio/haptics.ts'
 import { LensCamera, lodWeights, tierScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { TIER_EXTENTS, buildScene } from './scene.ts'
-import { maxZoomFor } from '../sim/headcount.ts'
+import { maxZoomFor, zoomCeilingLifted } from '../sim/headcount.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
+import { createArrivals } from './arrivals.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 
@@ -76,7 +77,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   if (post.worldFilters.length > 0) world.filters = post.worldFilters
   if (post.filters.length > 0) glass.filters = post.filters
 
-  const { tiers, floor } = buildScene(app.renderer)
+  const { tiers, floor, room } = buildScene(app.renderer)
   for (const level of [4, 3, 2, 1] as const) world.addChild(tiers[level])
 
   // §21 Act IV. Its overlay goes inside the glass, above the world and below
@@ -84,6 +85,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // one piece of feedback the clicker layer depends on (GDD §8.2).
   const collapse = createCollapse({ renderer: app.renderer, floor, reduceMotion })
   glass.addChild(collapse.overlay)
+
+  // §7.7.2 — hires arrive on screen. Parented into the room so they share its
+  // transform and its cross-fade, and land in room-local coordinates.
+  const arrivals = createArrivals()
+  room.container.addChild(arrivals.layer)
 
   const camera = new LensCamera(0)
 
@@ -223,6 +229,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** §21 Act IV's scripted dolly. Null when the camera is the player's again. */
   let dollyTarget: number | null = null
   let dollyFired = false
+  /** Last consumed §7.7.2 spawn, so one hire produces one arrival. */
+  let lastSpawnId = 0
+  let devsBefore = getState().devs
 
   app.ticker.add(() => {
     const now = performance.now()
@@ -262,6 +271,25 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       if (Math.abs(dollyTarget - camera.z) < 0.002) dollyTarget = null
     }
 
+    // §7.7.2 — consume the store's SpawnEvent. Until this existed the
+    // headcount changed and the screen did not.
+    if (state.spawn && state.spawn.id !== lastSpawnId) {
+      const first = lastSpawnId === 0
+      lastSpawnId = state.spawn.id
+      const deskList = Array.from({ length: room.drawn }, (_, i) => room.deskAt(i)!)
+      arrivals.spawn(deskList, state.spawn.bodies, now)
+      // A hire that buys a whole new register of the lens is a reveal, not a
+      // hire. Kick the camera out to show what just opened up. Skipped on the
+      // first observed event, which may be a jumped-to phase rather than a
+      // hire the player made.
+      if (!first && zoomCeilingLifted(devsBefore, state.devs)) {
+        dollyTarget = maxZoomFor(state.devs)
+        playSfx('zoom-out')
+      }
+    }
+    devsBefore = state.devs
+    arrivals.update(now)
+
     // GDD §7.7.1 — the studio you can see is the studio you have. Applied
     // every frame rather than only on input, because the scripted dolly, the
     // wheel and the pinch are three separate paths into the camera and a
@@ -282,6 +310,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // the desk and the floor. See tierScale() for what that cost when it was
     // one shared value.
     const viewport = { w: app.screen.width, h: app.screen.height }
+    // §7.8.1 — the room is rebuilt when the headcount changes, never per
+    // frame. Its live extent feeds the §23.4.1 fit, so a room that grows is
+    // also a camera that pulls back, with nobody driving Z.
+    room.setHeadcount(state.devs)
+    const extents = { ...TIER_EXTENTS, 1: room.extent }
     const weights = lodWeights(camera.z)
     for (const l of [1, 2, 3, 4] as const) {
       const tier = tiers[l]
@@ -291,7 +324,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // frame even at galactic zoom.
       tier.renderable = weights[l] > 0.002
       // Only the visible ones need their transform recomputed.
-      if (tier.renderable) tier.scale.set(tierScale(l, camera.z, viewport, TIER_EXTENTS))
+      if (tier.renderable) tier.scale.set(tierScale(l, camera.z, viewport, extents))
     }
 
     world.position.set(app.screen.width / 2, app.screen.height / 2)
@@ -342,19 +375,19 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const snapshot = {
         z: +camera.z.toFixed(4),
         level: camera.level,
-        scale: +tierScale(camera.level, camera.z, viewport, TIER_EXTENTS).toFixed(5),
+        scale: +tierScale(camera.level, camera.z, viewport, extents).toFixed(5),
         // What the dominant tier actually measures on screen, in CSS px. This
         // is the number GDD §23.4.1 exists to make non-zero, so it is the one
         // worth being able to read without a screenshot.
         tierPx: (() => {
-          const ts = tierScale(camera.level, camera.z, viewport, TIER_EXTENTS)
-          return `${Math.round(TIER_EXTENTS[camera.level].w * ts)}x${Math.round(TIER_EXTENTS[camera.level].h * ts)}`
+          const ts = tierScale(camera.level, camera.z, viewport, extents)
+          return `${Math.round(extents[camera.level].w * ts)}x${Math.round(extents[camera.level].h * ts)}`
         })(),
         fillShortAxis: +(() => {
-          const ts = tierScale(camera.level, camera.z, viewport, TIER_EXTENTS)
+          const ts = tierScale(camera.level, camera.z, viewport, extents)
           return Math.max(
-            (TIER_EXTENTS[camera.level].w * ts) / app.screen.width,
-            (TIER_EXTENTS[camera.level].h * ts) / app.screen.height,
+            (extents[camera.level].w * ts) / app.screen.width,
+            (extents[camera.level].h * ts) / app.screen.height,
           )
         })().toFixed(3),
         viewport: `${Math.round(app.screen.width)}x${Math.round(app.screen.height)}`,
@@ -401,6 +434,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       app.canvas.removeEventListener('pointercancel', onPointerUp)
       app.canvas.removeEventListener('pointerleave', onPointerUp)
       app.canvas.removeEventListener('wheel', onWheel)
+      arrivals.destroy()
       collapse.destroy()
       typeset.destroy()
       post.destroy()

@@ -19,6 +19,7 @@ import {
   type Renderer,
 } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
+import { buildRoom, type RoomHandle } from './room.ts'
 
 /** Palette colour as the 0xrrggbb number Pixi wants. */
 function c(hex: string): number {
@@ -45,8 +46,10 @@ export const FLOOR_SPRITE_COUNT = 1000
  * a 2:1 object in a portrait window can never fill more than 22% of it.
  */
 export const TIER_EXTENTS: Record<1 | 2 | 3 | 4, { w: number; h: number }> = {
-  // Desk: floor tile is TILE_W*3 wide; vertical span is the monitor top
-  // (y = -66) to the bottom of the chair and floor tile (y ≈ +88).
+  // Level 1 is a PLACEHOLDER here and is overridden every frame from
+  // `room.extent`: the room grows with the headcount (§7.8.1), so its size is
+  // not a constant. Leaving a stale constant in the fit would make the camera
+  // frame a one-desk bedroom while showing a hundred-desk floor.
   1: { w: TILE_W * 3, h: 156 },
   // Floor: a 32x32 iso grid at TILE_W/4 x TILE_H/4 spacing. Exactly 2:1.
   2: {
@@ -59,111 +62,6 @@ export const TIER_EXTENTS: Record<1 | 2 | 3 | 4, { w: number; h: number }> = {
   4: { w: 480, h: 300 },
 }
 
-function isoQuad(g: Graphics, cx: number, cy: number, w: number, h: number, fill: number) {
-  g.moveTo(cx, cy - h / 2)
-    .lineTo(cx + w / 2, cy)
-    .lineTo(cx, cy + h / 2)
-    .lineTo(cx - w / 2, cy)
-    .closePath()
-    .fill(fill)
-}
-
-/**
- * Level 1 — the desk (GDD §7.4).
- *
- * One developer at a messy desk with a glowing CRT monitor and a mug. Light is
- * a single top-left source, which is the one rule that has to hold here by
- * hand: ART_DIRECTION §7 cannot automate it, so it is built into the draw
- * order — left faces take the lighter neutral, right faces the darker.
- */
-function buildDesk(): Container {
-  const root = new Container()
-  const g = new Graphics()
-
-  // Floor tile the desk sits on.
-  isoQuad(g, 0, 40, TILE_W * 3, TILE_H * 3, c(RAMPS.NEUTRAL[1]))
-  isoQuad(g, 0, 40, TILE_W * 3 - 8, TILE_H * 3 - 4, c(RAMPS.NEUTRAL[2]))
-
-  // Desk surface, then the two visible sides. Left catches the light.
-  isoQuad(g, 0, 0, TILE_W * 2, TILE_H * 2, c(RAMPS.WOOD[2]))
-  g.moveTo(-TILE_W, 0)
-    .lineTo(0, TILE_H)
-    .lineTo(0, TILE_H + 18)
-    .lineTo(-TILE_W, 18)
-    .closePath()
-    .fill(c(RAMPS.WOOD[1]))
-  g.moveTo(TILE_W, 0)
-    .lineTo(0, TILE_H)
-    .lineTo(0, TILE_H + 18)
-    .lineTo(TILE_W, 18)
-    .closePath()
-    .fill(c(RAMPS.WOOD[0]))
-
-  // Monitor: bezel, then the screen. The screen is the one emissive thing in
-  // the world layer, so it uses the GLOW ramp rather than a phosphor one —
-  // phosphor belongs to the interface, and mixing them would blur the two
-  // registers ART_DIRECTION §1 exists to keep apart.
-  g.rect(-26, -66, 52, 40).fill(c(RAMPS.NEUTRAL[2]))
-  g.rect(-22, -62, 44, 32).fill(c(RAMPS.GLOW[0]))
-  for (let i = 0; i < 6; i++) {
-    // Fake code, scrolling in the real thing (§7.5 L1).
-    const w = 8 + ((i * 13) % 26)
-    g.rect(-18, -58 + i * 5, w, 2).fill(c(i % 3 === 0 ? RAMPS.GLOW[2] : RAMPS.GLOW[1]))
-  }
-  g.rect(-6, -26, 12, 6).fill(c(RAMPS.NEUTRAL[2]))
-  g.rect(-14, -20, 28, 4).fill(c(RAMPS.NEUTRAL[3]))
-
-  // Mug.
-  g.rect(34, -20, 12, 14).fill(c(RAMPS.NEUTRAL[7]))
-  g.rect(36, -18, 8, 4).fill(c(RAMPS.WOOD[0]))
-  g.rect(46, -17, 4, 8).fill(c(RAMPS.NEUTRAL[6]))
-
-  // Chair back, behind the developer.
-  g.rect(-10, 34, 20, 26).fill(c(RAMPS.NEUTRAL[2]))
-
-  root.addChild(g)
-  root.addChild(buildDeveloper())
-  return root
-}
-
-/**
- * The developer — a PLACEHOLDER, drawn from rectangles.
- *
- * This is not the parts-library method from ART_DIRECTION §4.1 and should not
- * be mistaken for it. None of that exists yet: no head, no wardrobe, no recipe
- * format, no compositor, and no authored pixels. The §22.7 budget is 19
- * sprites and the current count is zero.
- *
- * It is here so the poke has something to land on while the feel is measured,
- * and it should be deleted the moment a real bust exists.
- */
-function buildDeveloper(): Container {
-  const dev = new Container()
-  const g = new Graphics()
-
-  // Torso — James's white shirt. The elbow hole is a torso variant, so it does
-  // not appear on this stand-in.
-  g.rect(-11, 6, 22, 24).fill(c(RAMPS.NEUTRAL[7]))
-  // Arms forward, as if at the desk.
-  g.rect(-16, 10, 6, 16).fill(c(RAMPS.NEUTRAL[6]))
-  g.rect(10, 10, 6, 16).fill(c(RAMPS.NEUTRAL[6]))
-  // Hands.
-  g.rect(-16, 24, 6, 5).fill(c(RAMPS.SKIN[1]))
-  g.rect(10, 24, 6, 5).fill(c(RAMPS.SKIN[1]))
-  // Head and hair.
-  g.rect(-9, -12, 18, 18).fill(c(RAMPS.SKIN[0]))
-  g.rect(-10, -14, 20, 7).fill(c(RAMPS.WOOD[0]))
-  // Glasses.
-  g.rect(-8, -4, 6, 4).fill(c(RAMPS.NEUTRAL[1]))
-  g.rect(2, -4, 6, 4).fill(c(RAMPS.NEUTRAL[1]))
-  g.rect(-2, -3, 4, 1).fill(c(RAMPS.NEUTRAL[1]))
-
-  dev.addChild(g)
-  dev.position.set(0, 4)
-  // Named so the poke hit-test can find it without walking the tree.
-  dev.label = 'developer'
-  return dev
-}
 
 /**
  * How far above its desk particle `i` is at drop progress `t`, in world units.
@@ -425,19 +323,23 @@ export interface Scene {
   tiers: LodTiers
   /** The Level 2 swarm, exposed so §21 Act IV can drop it out of the sky. */
   floor: FloorSwarm
+  /** Level 1 — the room, which grows with the headcount (§7.8.1). */
+  room: RoomHandle
 }
 
 /** Build all four tiers. The caller parents them and drives their alpha. */
 export function buildScene(renderer: Renderer): Scene {
   const floor = buildFloor(renderer)
+  const room = buildRoom()
   return {
     tiers: {
-      1: buildDesk(),
+      1: room.container,
       2: floor.container,
       3: buildGlobal(),
       4: buildCosmic(),
     },
     floor,
+    room,
   }
 }
 
