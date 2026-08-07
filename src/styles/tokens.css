@@ -22,4 +22,23 @@
 
   /* The interface is drawn in 1px rules and brackets. Never a bevel. */
   --rule: 1px;
+
+  /*
+   * The §23.4.2 design box. Phone landscape runs 1.78:1 to 2.4:1 and nothing
+   * load-bearing may sit within 5% of a side edge — notches, gesture bars and
+   * curved cutoff all live there. The gutter is the larger of that clearance
+   * and whatever the OS reports, so an element anchored to it is anchored to
+   * a real edge rather than to a fraction of a box it happens to be inside.
+   */
+  --edge-x: max(5vw, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  --edge-y: max(12px, env(safe-area-inset-bottom, 0px));
+
+  /*
+   * Motion defaults, so a surface that forgets to set them still transitions
+   * rather than cutting. The real numbers come from src/ui/motion.ts as inline
+   * custom properties — they have to be scalable for reduce-motion (§10.5
+   * rule 3), and a media query in CSS would mean restating every duration.
+   */
+  --ui-in: 320ms;
+  --ui-out: 180ms;
 }

@@ -11,6 +11,7 @@
     "check": "npm run lint && tsc -b && vitest run && npm run art:check",
     "dev": "vite",
     "lint": "eslint .",
+    "music:generate": "tsx scripts/generate-music.ts",
     "preview": "vite preview",
     "sfx:generate": "tsx scripts/generate-sfx.ts",
     "test": "vitest run",

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { TIER_EXTENTS } from './scene.ts'
 import {
   BAND_EDGES,
   LensCamera,
+  FIT_MARGIN,
   ORDERS_OF_MAGNITUDE,
+  tierScale,
   lodWeights,
   scaleAt,
   zoomForScale,
@@ -130,5 +133,109 @@ describe('LensCamera', () => {
     const cam = new LensCamera(0.5)
     cam.sample(0)
     expect(Number.isFinite(cam.velocity)).toBe(true)
+  })
+})
+
+describe('tierScale — GDD §23.4.1, the camera answers to the viewport', () => {
+  const LANDSCAPE = { w: 997, h: 448 }
+  const PORTRAIT = { w: 448, h: 997 }
+  const LEVELS = [1, 2, 3, 4] as const
+  const CENTRE: Record<1 | 2 | 3 | 4, number> = { 1: 0.1, 2: 0.35, 3: 0.65, 4: 0.9 }
+
+  /** Fraction of the display the tier occupies at scale `s`. */
+  function coverage(level: 1 | 2 | 3 | 4, s: number, vp: { w: number; h: number }) {
+    const e = TIER_EXTENTS[level]
+    return ((e.w * s) / vp.w) * ((e.h * s) / vp.h)
+  }
+
+  it('makes the floor fill the frame at its band centre', () => {
+    // The bug this pins is the one that shipped: world scale was
+    // `1/(1 + z*9)` with no screen term, so the swarm rendered at a fixed
+    // 239x120 px and filled 6.4% of the display in EITHER orientation. The
+    // landscape decision delivered nothing until this function existed.
+    const s = tierScale(2, 0.35, LANDSCAPE, TIER_EXTENTS)
+    expect(coverage(2, s, LANDSCAPE)).toBeGreaterThan(0.65)
+  })
+
+  it('fills the constrained axis at every band centre, not just the floor', () => {
+    // The invariant is "fits the shorter axis" (§23.4.1), NOT "covers N% of
+    // the display". Those differ, and the difference is a feature: the desk
+    // tier is 1.23:1 in a 2.23:1 window, so filling the height still leaves
+    // a wide side margin. §23.4.2 puts the HUD there. An area threshold here
+    // would have been a wrong test failing right code.
+    for (const level of LEVELS) {
+      const s = tierScale(level, CENTRE[level], LANDSCAPE, TIER_EXTENTS)
+      const e = TIER_EXTENTS[level]
+      const filled = Math.max((e.w * s) / LANDSCAPE.w, (e.h * s) / LANDSCAPE.h)
+      expect(filled).toBeCloseTo(FIT_MARGIN, 2)
+    }
+  })
+
+  it('never renders a visible tier grossly oversized — the shared-scale bug', () => {
+    // Scale used to be ONE value for all four tiers, blended by LOD weight.
+    // The tiers differ in intrinsic size by more than 5x, so the blend fitted
+    // neither: at desk zoom the cross-fading floor tier rendered 3,780 px wide
+    // inside a 1,023 px viewport. Any tier the player can actually see must
+    // stay within a sane multiple of the frame.
+    for (let z = 0; z <= 1; z += 0.01) {
+      const w = lodWeights(z)
+      for (const level of LEVELS) {
+        if (w[level] <= 0.002) continue
+        const s = tierScale(level, z, LANDSCAPE, TIER_EXTENTS)
+        expect((TIER_EXTENTS[level].w * s) / LANDSCAPE.w).toBeLessThan(2)
+      }
+    }
+  })
+
+  it('gives the 2:1 floor far more of a landscape display than a portrait one', () => {
+    // §23.4's entire argument, now exercised rather than asserted in a
+    // document. Same tier, same pixel count, different shape of window.
+    const land = coverage(2, tierScale(2, 0.35, LANDSCAPE, TIER_EXTENTS), LANDSCAPE)
+    const port = coverage(2, tierScale(2, 0.35, PORTRAIT, TIER_EXTENTS), PORTRAIT)
+    expect(land).toBeGreaterThan(port * 2.5)
+  })
+
+  it('is continuous in Z for every tier — no step at a band edge', () => {
+    // §10.5: nothing cuts. A scale that jumped would be the most visible cut
+    // the renderer could produce.
+    for (const level of LEVELS) {
+      let previous = tierScale(level, 0, LANDSCAPE, TIER_EXTENTS)
+      for (let z = 0.005; z <= 1; z += 0.005) {
+        const s = tierScale(level, z, LANDSCAPE, TIER_EXTENTS)
+        expect(Math.abs(s - previous) / previous).toBeLessThan(0.05)
+        previous = s
+      }
+    }
+  })
+
+  it('still zooms within a band, so pinching does something', () => {
+    // A pure fit would make the camera cross-fade and never zoom, which reads
+    // as the gesture being ignored.
+    expect(tierScale(2, 0.28, LANDSCAPE, TIER_EXTENTS)).toBeGreaterThan(
+      tierScale(2, 0.35, LANDSCAPE, TIER_EXTENTS),
+    )
+    expect(tierScale(2, 0.42, LANDSCAPE, TIER_EXTENTS)).toBeLessThan(
+      tierScale(2, 0.35, LANDSCAPE, TIER_EXTENTS),
+    )
+  })
+
+  it('pulls back monotonically across the whole dolly, for every tier', () => {
+    // The tiers are framed independently now, so "it still reads as one
+    // continuous pull-back" is a claim worth pinning: on the way out, every
+    // tier must be shrinking, never one growing while another shrinks.
+    for (const level of LEVELS) {
+      let previous = Number.POSITIVE_INFINITY
+      for (let z = 0; z <= 1; z += 0.01) {
+        const s = tierScale(level, z, LANDSCAPE, TIER_EXTENTS)
+        expect(s).toBeLessThanOrEqual(previous + 1e-9)
+        previous = s
+      }
+    }
+  })
+
+  it('survives a zero-sized viewport rather than poisoning every transform', () => {
+    // Happens for a frame during startup and on some rotation paths.
+    expect(tierScale(2, 0.35, { w: 0, h: 0 }, TIER_EXTENTS)).toBe(1)
+    expect(Number.isFinite(tierScale(2, 0.35, { w: 997, h: 0 }, TIER_EXTENTS))).toBe(true)
   })
 })

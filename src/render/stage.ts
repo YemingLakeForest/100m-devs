@@ -13,9 +13,9 @@ import { entropyTheme } from '../art/entropyTheme.ts'
 import { currentEntropy, getState, poke, setZoom, tick } from '../game/store.ts'
 import { pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
-import { LensCamera, lodWeights } from './omniLens.ts'
+import { LensCamera, lodWeights, tierScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
-import { buildScene } from './scene.ts'
+import { TIER_EXTENTS, buildScene } from './scene.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
@@ -127,12 +127,35 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   // --- pinch zoom --------------------------------------------------------
 
-  const pointers = new Map<number, { x: number; y: number }>()
+  const pointers = new Map<number, { x: number; y: number; seen: number }>()
   let pinchStart: { distance: number; z: number } | null = null
 
+  /**
+   * A finger that has not been heard from in this long is not on the glass.
+   *
+   * `pointerup` is not guaranteed to arrive: it is lost on alt-tab, on some
+   * pointercancel paths, and whenever a synthetic `pointerdown` arrives with
+   * no partner — which is exactly what browser automation produces. A leaked
+   * entry is not harmless, because two of them put the camera permanently into
+   * pinch mode, where every later `pointermove` rewrites Z. The symptom is the
+   * camera drifting on its own and scripted dollies appearing never to arrive,
+   * which is very hard to read from the outside; it cost most of a session
+   * once. Expiring by age fixes it without trusting any event to be delivered.
+   */
+  const POINTER_STALE_MS = 2000
+
+  function expireStalePointers(now: number) {
+    for (const [id, p] of pointers) {
+      if (now - p.seen > POINTER_STALE_MS) pointers.delete(id)
+    }
+    if (pointers.size < 2) pinchStart = null
+  }
+
   const onPointerMove = (ev: PointerEvent) => {
+    const now = ev.timeStamp || performance.now()
+    expireStalePointers(now)
     if (!pointers.has(ev.pointerId)) return
-    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY })
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, seen: now })
 
     if (pointers.size !== 2) return
     const [a, b] = [...pointers.values()]
@@ -156,12 +179,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if (pointers.size < 2) pinchStart = null
   }
 
-  const trackPointer = (ev: PointerEvent) => pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY })
+  const trackPointer = (ev: PointerEvent) => {
+    const now = ev.timeStamp || performance.now()
+    expireStalePointers(now)
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, seen: now })
+  }
 
   app.canvas.addEventListener('pointerdown', trackPointer, { passive: true })
   app.canvas.addEventListener('pointermove', onPointerMove, { passive: true })
   app.canvas.addEventListener('pointerup', onPointerUp, { passive: true })
   app.canvas.addEventListener('pointercancel', onPointerUp, { passive: true })
+  app.canvas.addEventListener('pointerleave', onPointerUp, { passive: true })
+
 
   // Desktop convenience — the dolly needs to be drivable without a touchscreen
   // while developing. Never the path a pass/fail is measured on.
@@ -238,7 +267,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const level = camera.level
     if (level !== state.zoom) setZoom(level)
 
-    // Cross-fade the tiers. Nothing cuts (GDD §10.5).
+    // Cross-fade the tiers, and frame each one — GDD §10.5, §23.4.1.
+    //
+    // Scale is applied PER TIER rather than to `world`, because the tiers
+    // differ in intrinsic size by more than 5x and no single scale frames both
+    // the desk and the floor. See tierScale() for what that cost when it was
+    // one shared value.
+    const viewport = { w: app.screen.width, h: app.screen.height }
     const weights = lodWeights(camera.z)
     for (const l of [1, 2, 3, 4] as const) {
       const tier = tiers[l]
@@ -247,12 +282,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // affordable: without it the 1,000-particle floor is submitted every
       // frame even at galactic zoom.
       tier.renderable = weights[l] > 0.002
+      // Only the visible ones need their transform recomputed.
+      if (tier.renderable) tier.scale.set(tierScale(l, camera.z, viewport, TIER_EXTENTS))
     }
 
-    // World scale. The desk tier is authored at 1:1, so the camera scale is
-    // applied relative to it and the other tiers ride the cross-fade.
-    const s = 1 / (1 + camera.z * 9)
-    world.scale.set(s)
     world.position.set(app.screen.width / 2, app.screen.height / 2)
 
     // §21 Act IV. The sustained level is Entropy rather than a timer: the room
@@ -298,15 +331,33 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // The Act IV beat is three systems deep — store flag, camera dolly, LOD
     // weight — and "nothing is on screen" is the same symptom for all three.
     if (import.meta.env.DEV) {
-      ;(window as unknown as Record<string, unknown>).__stage = {
-        z: camera.z,
+      const snapshot = {
+        z: +camera.z.toFixed(4),
         level: camera.level,
+        scale: +tierScale(camera.level, camera.z, viewport, TIER_EXTENTS).toFixed(5),
+        // What the dominant tier actually measures on screen, in CSS px. This
+        // is the number GDD §23.4.1 exists to make non-zero, so it is the one
+        // worth being able to read without a screenshot.
+        tierPx: (() => {
+          const ts = tierScale(camera.level, camera.z, viewport, TIER_EXTENTS)
+          return `${Math.round(TIER_EXTENTS[camera.level].w * ts)}x${Math.round(TIER_EXTENTS[camera.level].h * ts)}`
+        })(),
+        fillShortAxis: +(() => {
+          const ts = tierScale(camera.level, camera.z, viewport, TIER_EXTENTS)
+          return Math.max(
+            (TIER_EXTENTS[camera.level].w * ts) / app.screen.width,
+            (TIER_EXTENTS[camera.level].h * ts) / app.screen.height,
+          )
+        })().toFixed(3),
+        viewport: `${Math.round(app.screen.width)}x${Math.round(app.screen.height)}`,
         weights,
         massHired: state.massHired,
+        dollyTarget,
+        dollyFired,
+        dt: +dt.toFixed(4),
         collapseActive: collapse.active,
-        floorRenderable: tiers[2].renderable,
-        floorAlpha: tiers[2].alpha,
       }
+      ;(window as unknown as Record<string, unknown>).__stage = snapshot
     }
 
     post.update({
@@ -340,6 +391,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       app.canvas.removeEventListener('pointermove', onPointerMove)
       app.canvas.removeEventListener('pointerup', onPointerUp)
       app.canvas.removeEventListener('pointercancel', onPointerUp)
+      app.canvas.removeEventListener('pointerleave', onPointerUp)
       app.canvas.removeEventListener('wheel', onWheel)
       collapse.destroy()
       typeset.destroy()

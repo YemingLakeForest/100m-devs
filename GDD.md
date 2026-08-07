@@ -1220,8 +1220,16 @@ Pokémon text box. This is the game's voice, and it is not decoration.
 - **A speaker name plate** above the box: `JAMES`, `ADVISOR`, `STUDIO_OS`.
 - **A blinking advance caret** in the bottom-right of the box once a page has finished
   typing, exactly where a Game Boy puts it.
-- **Letters land with a tick.** One short click per character, pitched to the speaker,
-  throttled so a fast line does not become a buzz.
+- **Letters land with a tick.** One short click per character, throttled so a fast line does
+  not become a buzz.
+
+  > **Per-speaker pitch is deferred.** The native audio path (§23.2 non-negotiable 1) has no
+  > pitch or rate control, and adding one would mean either a Web Audio path — which breaks
+  > that non-negotiable on the one path where latency matters most — or one clip per speaker.
+  > The cheapest real fix is three generated `ui-tick-*` variants, and until they exist the
+  > tick is unpitched. **The current tick is also a stand-in**: `poke-desk` is a 0.5 s keycap
+  > click, the right *kind* of sound but far too long, throttled to ~11/sec to cope. Revisit
+  > the throttle when a 50 ms `ui-tick.mp3` exists.
 
 **Timing:**
 
@@ -1241,6 +1249,16 @@ Pokémon text box. This is the game's voice, and it is not decoration.
    can never both finish a page and dismiss it, or a fast tapper skips the whole scene by
    accident. This game trains players to tap 5×/second in Act I; the dialogue system has to
    survive that thumb.
+
+   > **Refined in implementation, 2026-08-07.** A second tap alone is not enough. The arming
+   > window is **260 ms of *quiet*, not merely of elapsed time**: a tap arriving inside the
+   > window is swallowed **and restarts it**. Counting taps satisfies the rule literally, but
+   > a trained 5 Hz thumb (200 ms gaps) would then clear a page every 260 ms for as long as
+   > it mashed — the rule would slow the skip down rather than prevent it. With the restart,
+   > sustained mashing holds the page open indefinitely and the caret lights the instant the
+   > player stops. **The blinking caret appears exactly when the window closes**, so the
+   > affordance and the rule are the same event: a tap while the caret is dark is a tap the
+   > box has already said would not count.
 3. **There is no skip.** No "skip cutscene", no hold-to-fast-forward, no auto-advance timer.
    The player reads it, or they sit there. Every line in this game is a joke or a setup for
    one, the script *is* the product (Appendix D: text does the comedy work, not art), and a

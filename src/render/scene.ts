@@ -33,6 +33,32 @@ const TILE_H = 32
 /** GDD §23.3 criterion 4: floor zoom must hold 55 fps with 1,000 sprites. */
 export const FLOOR_SPRITE_COUNT = 1000
 
+/**
+ * How large each tier is, in world units — GDD §23.4.1.
+ *
+ * The camera fits the dominant tier to the viewport (see `fitScale` in
+ * omniLens.ts), so it has to know how big each tier actually is. These are
+ * measured from the geometry built below, not guessed, and the comment on each
+ * says where the number comes from so a change to the scene is caught here.
+ *
+ * The floor's 2:1 ratio is the whole reason the game is landscape (§23.4):
+ * a 2:1 object in a portrait window can never fill more than 22% of it.
+ */
+export const TIER_EXTENTS: Record<1 | 2 | 3 | 4, { w: number; h: number }> = {
+  // Desk: floor tile is TILE_W*3 wide; vertical span is the monitor top
+  // (y = -66) to the bottom of the chair and floor tile (y ≈ +88).
+  1: { w: TILE_W * 3, h: 156 },
+  // Floor: a 32x32 iso grid at TILE_W/4 x TILE_H/4 spacing. Exactly 2:1.
+  2: {
+    w: (Math.ceil(Math.sqrt(FLOOR_SPRITE_COUNT)) - 1) * (TILE_W / 4) * 2,
+    h: (Math.ceil(Math.sqrt(FLOOR_SPRITE_COUNT)) - 1) * (TILE_H / 4) * 2,
+  },
+  // Global: the grid disc, radius 260, squashed 2:1 into the iso projection.
+  3: { w: 520, h: 260 },
+  // Cosmic: the bounding box of the five planets plus their radii.
+  4: { w: 480, h: 300 },
+}
+
 function isoQuad(g: Graphics, cx: number, cy: number, w: number, h: number, fill: number) {
   g.moveTo(cx, cy - h / 2)
     .lineTo(cx + w / 2, cy)

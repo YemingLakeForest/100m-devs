@@ -309,55 +309,14 @@ body {
   padding-bottom: 4px;
 }
 
-.btn {
-  font: inherit;
-  font-size: var(--type-2x);
-  color: var(--n0);
-  background: var(--p2);
-  border: var(--rule) solid var(--p3);
-  border-radius: 0;
-  padding: 8px 14px;
-  cursor: pointer;
-  letter-spacing: 1px;
-  display: grid;
-  gap: 2px;
-}
-
-.btn small {
-  font-size: var(--type-1x);
-  letter-spacing: 0;
-}
-
-/*
- * The mousetrap — §21 Act III wants it "big, glowing, pulsing golden" and
- * right in the centre. It is the only element in the game permitted to beg.
- */
-.btn--bait {
-  color: var(--n0);
-  background: var(--warn-2);
-  border-color: var(--warn-3);
-  animation: bait-pulse 1.1s steps(2, end) infinite;
-}
-
-@keyframes bait-pulse {
-  50% {
-    background: var(--warn-3);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .btn--bait {
-    animation: none;
-  }
-}
-
 /* --- Act V -------------------------------------------------------------- */
 
 .hud--modal {
   display: grid;
   place-items: center;
   pointer-events: auto;
-  background: color-mix(in srgb, var(--n0) 85%, transparent);
+  /* The scrim belongs to Panel now — it has to blur *up* over the same 320 ms
+     rather than being present the moment the element mounts (§10.6). */
 }
 
 .bankruptcy {
@@ -397,6 +356,338 @@ body {
 /* He is the only thing that survives the run, so he gets the last line. */
 .bankruptcy__james {
   color: var(--p1);
+}
+
+/* ======================================================================== */
+/* The juice kit — src/ui, GDD §10.5 and the §10.8 gate.                    */
+/*                                                                          */
+/* Durations arrive as the inline --ui-in / --ui-out custom properties that  */
+/* src/ui/motion.ts resolves, because reduce-motion scales them (§10.5       */
+/* rule 3) rather than switching them off. Nothing below may reintroduce a   */
+/* fade-only change of state: F1 fails an opacity snap, and an opacity ramp  */
+/* with no direction is the same failure taking longer.                      */
+/* ======================================================================== */
+
+/* --- Panel, F1 ---------------------------------------------------------- */
+
+/*
+ * Keyframes rather than transitions. A transition needs the element painted
+ * once in its start state, which costs a two-frame class flip that degrades
+ * silently to a pop the moment the two frames get batched; an animation runs
+ * from insertion. See the note in src/ui/Panel.tsx.
+ *
+ * The direction is a custom property so there is one pair of keyframes for all
+ * five origins. §10.5 rule 1 sends an element back out the way it came in, so
+ * the exit is the entrance reversed rather than a second set of geometry.
+ */
+.ui-panel {
+  --ui-offset: translateY(18%);
+}
+
+.ui-panel--top {
+  --ui-offset: translateY(-18%);
+}
+
+.ui-panel--left {
+  --ui-offset: translateX(-18%);
+}
+
+.ui-panel--right {
+  --ui-offset: translateX(18%);
+}
+
+.ui-panel--centre {
+  --ui-offset: translateY(0);
+}
+
+.ui-panel[data-phase='in'] {
+  animation: ui-panel-in var(--ui-in) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.ui-panel[data-phase='exit'] {
+  /* "Faster out than in — always." */
+  animation: ui-panel-out var(--ui-out) cubic-bezier(0.32, 0, 0.67, 0) both;
+}
+
+@keyframes ui-panel-in {
+  from {
+    opacity: 0;
+    /* The §10.6 scale-and-blur-up, plus the direction — a panel that only
+       scales has no edge it belongs to. */
+    transform: var(--ui-offset) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0) scale(1);
+  }
+}
+
+@keyframes ui-panel-out {
+  from {
+    opacity: 1;
+    transform: translate(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: var(--ui-offset) scale(0.94);
+  }
+}
+
+/*
+ * The modal scrim. Semi-transparent and blurred rather than opaque: §10.6 is
+ * explicit that the simulation keeps running and stays visible underneath
+ * every overlay, because the screen *is* the studio.
+ */
+.ui-scrim {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+}
+
+.ui-scrim[data-phase='in'] {
+  animation: ui-scrim-in var(--ui-in) cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+.ui-scrim[data-phase='exit'] {
+  animation: ui-scrim-in var(--ui-out) cubic-bezier(0.32, 0, 0.67, 0) both reverse;
+}
+
+@keyframes ui-scrim-in {
+  from {
+    background: transparent;
+    backdrop-filter: blur(0);
+  }
+  to {
+    background: color-mix(in srgb, var(--n0) 72%, transparent);
+    backdrop-filter: blur(3px);
+  }
+}
+
+/* --- Button, F2 --------------------------------------------------------- */
+
+.ui-btn {
+  /* §10.8a — skewed slabs, never rectangles. An axis-aligned rounded
+     rectangle is the most web-page-looking object available and the skew
+     costs nothing. The label is counter-skewed back to upright. */
+  --btn-skew: -4deg;
+  --btn-release: 200ms;
+
+  font: inherit;
+  font-size: var(--type-2x);
+  color: var(--n0);
+  background: var(--p2);
+  border: var(--rule) solid var(--p3);
+  border-radius: 0;
+  padding: 8px 14px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transform: skewX(var(--btn-skew)) scale(1);
+  /*
+   * Not a drop shadow. ART_DIRECTION §1 forbids shadows and bevels outright,
+   * so F2's "shadow collapses" is rendered as a hard offset block of the
+   * darkest phosphor value at zero blur — the offset-slab idiom of a terminal,
+   * which reads as depth without being a lit object.
+   */
+  box-shadow: 3px 3px 0 0 var(--p0);
+  transition:
+    transform 70ms cubic-bezier(0.32, 0, 0.67, 0),
+    box-shadow 70ms cubic-bezier(0.32, 0, 0.67, 0),
+    background 70ms linear;
+}
+
+.ui-btn__face {
+  display: grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 6px;
+  transform: skewX(calc(-1 * var(--btn-skew)));
+}
+
+.ui-btn__label {
+  display: grid;
+  gap: 2px;
+}
+
+.ui-btn__bracket {
+  color: var(--n0);
+  opacity: 0.65;
+}
+
+.ui-btn small {
+  font-size: var(--type-1x);
+  letter-spacing: 0;
+}
+
+/*
+ * Press-down. Three changes at once, all on pointer-down: the slab depresses,
+ * the offset block collapses under it, and the fill steps one phosphor value
+ * brighter. F2's test is press-and-hold without releasing.
+ */
+.ui-btn.is-pressed {
+  transform: skewX(var(--btn-skew)) scale(0.96);
+  box-shadow: 0 0 0 0 var(--p0);
+  background: var(--p3);
+}
+
+.ui-btn.is-releasing {
+  animation: ui-btn-release var(--btn-release) cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* The overshoot F2 asks for — a linear return fails the row. */
+@keyframes ui-btn-release {
+  0% {
+    transform: skewX(var(--btn-skew)) scale(0.96);
+  }
+  55% {
+    transform: skewX(var(--btn-skew)) scale(1.03);
+  }
+  100% {
+    transform: skewX(var(--btn-skew)) scale(1);
+  }
+}
+
+/*
+ * The mousetrap — §21 Act III wants it "big, glowing, pulsing golden" and
+ * right in the centre. It is the only element in the game permitted to beg.
+ */
+.ui-btn--bait {
+  color: var(--n0);
+  background: var(--warn-2);
+  border-color: var(--warn-3);
+  box-shadow: 3px 3px 0 0 var(--warn-1);
+  animation: bait-pulse 1.1s steps(2, end) infinite;
+}
+
+.ui-btn--bait.is-pressed {
+  background: var(--warn-3);
+  box-shadow: 0 0 0 0 var(--warn-1);
+}
+
+@keyframes bait-pulse {
+  50% {
+    background: var(--warn-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-btn {
+    /* Shortened, not removed: §10.5 rule 3 never turns a transition into a
+       cut, and F2's acknowledgement of the finger is not optional. */
+    --btn-release: 80ms;
+  }
+
+  .ui-btn--bait {
+    animation: none;
+  }
+}
+
+/* --- Dialogue, GDD §10.7 ------------------------------------------------ */
+
+/*
+ * Bottom-anchored to the real edge (§23.4.2 --edge-*), never to a fraction of
+ * the width, and only ever three lines tall — §10.7 says the box never covers
+ * the speaker, and a known height is what lets the camera be composed against
+ * it across the whole 1.78:1 – 2.4:1 box.
+ */
+.ui-panel.ui-dialogue {
+  position: absolute;
+  left: var(--edge-x);
+  right: var(--edge-x);
+  bottom: var(--edge-y);
+  display: flex;
+  justify-content: center;
+  /* While a page is up, every tap belongs to the dialogue. The HUD is
+     otherwise transparent to pointers so the swarm stays pokeable (§7.1). */
+  pointer-events: auto;
+}
+
+.ui-dialogue__hit {
+  max-width: 100%;
+}
+
+/* The name plate sits above the box and overlaps its top rule, where a Game
+   Boy puts it. Filled slab with knocked-out text — §10.8a, filled selection. */
+.ui-dialogue__plate {
+  display: inline-block;
+  position: relative;
+  top: var(--rule);
+  margin-left: 10px;
+  padding: 1px 7px;
+  color: var(--n0);
+  background: var(--p2);
+  border: var(--rule) solid var(--p3);
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+}
+
+.ui-dialogue__box {
+  position: relative;
+  border: var(--rule) solid var(--p2);
+  /* Semi-transparent over the simulation, per §7.1 and §10.6. */
+  background: color-mix(in srgb, var(--n0) 80%, transparent);
+  padding: 9px 12px 12px;
+}
+
+.ui-dialogue__text {
+  display: block;
+  /* Pre-wrapped upstream by `paginate`, drawn with `pre` here: together they
+     are why no glyph ever moves once it has been drawn. §10.7 calls a
+     reflowing reveal a rendering fault. */
+  white-space: pre;
+  overflow: hidden;
+  font-size: var(--type-2x);
+  line-height: 1.35;
+  color: var(--p3);
+}
+
+/*
+ * The unrevealed remainder, in transparent ink. It holds the box at its final
+ * size from the first character, so the frame never grows while the text
+ * arrives.
+ */
+.ui-type__ghost {
+  color: transparent;
+}
+
+/*
+ * A 1.78:1 handset is ~640 CSS px wide in landscape, which 40 columns of 2x
+ * type will not fit. Dropping a whole step keeps §3 rule 2's integer multiples
+ * — a fractional clamp() would put the pixel face off the grid.
+ */
+@media (max-width: 660px) {
+  .ui-dialogue__text {
+    font-size: var(--type-1x);
+  }
+}
+
+/*
+ * The advance caret. A solid phosphor block rather than a glyph: it is a
+ * procedural pixel icon under ART_DIRECTION §3.1, so it cannot arrive from the
+ * OS font and cannot land off the grid. It appears when rule 2's advance tap
+ * arms, which is what makes the rule visible instead of merely correct.
+ */
+.ui-dialogue__caret {
+  position: absolute;
+  right: 9px;
+  bottom: 7px;
+  width: 8px;
+  height: 8px;
+  background: var(--p3);
+  animation: ui-caret-blink 0.7s steps(2, end) infinite;
+}
+
+@keyframes ui-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialogue__caret {
+    animation: none;
+  }
 }
 
 /* --- GDD §23.3 acceptance report, `?bench` ----------------------------- */

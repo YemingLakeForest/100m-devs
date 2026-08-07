@@ -14,8 +14,20 @@ import {
 import { PHASE_COPY } from '../game/onboarding.ts'
 import { secondsUntilBankrupt } from '../sim/economy.ts'
 import type { StageHandle } from '../render/stage.ts'
+import { Button } from '../ui/Button.tsx'
+import { Panel } from '../ui/Panel.tsx'
 import { BurnDown } from './BurnDown.tsx'
+import { DialoguePreview } from './DialoguePreview.tsx'
 import { useGameState } from './useGameState.ts'
+
+/**
+ * Dev-only §10.7 preview — `?dialogue`. Read once, at module load, for the
+ * same reason App.tsx reads `?act` there: a query string cannot change
+ * mid-session, and re-parsing it every render would be work done 60 times a
+ * second to reach the same answer.
+ */
+const PREVIEW_DIALOGUE =
+  typeof location !== 'undefined' && new URLSearchParams(location.search).has('dialogue')
 
 /**
  * The HUD — GDD §7.1, §10.1, and the §21 script.
@@ -93,6 +105,7 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
 
       <Actions state={state} />
       <PerfOverlay stage={stage} />
+      {PREVIEW_DIALOGUE && <DialoguePreview />}
     </div>
   )
 }
@@ -135,9 +148,7 @@ function Actions({ state }: { state: GameState }) {
     case 'act2_offer_hire':
       return (
         <div className="hud__actions">
-          <button type="button" className="btn" onClick={hireDeveloper}>
-            HIRE DEVELOPER
-          </button>
+          <Button onClick={hireDeveloper}>HIRE DEVELOPER</Button>
         </div>
       )
 
@@ -145,10 +156,10 @@ function Actions({ state }: { state: GameState }) {
       return (
         <div className="hud__actions">
           {/* Glowing, pulsing, golden, and right in the middle of the UI. */}
-          <button type="button" className="btn btn--bait" onClick={massHire}>
+          <Button variant="bait" onClick={massHire}>
             HIRE 1,000 DEVS NOW
             <small>Cost: FREE (Trial Promo)</small>
-          </button>
+          </Button>
         </div>
       )
 
@@ -157,11 +168,19 @@ function Actions({ state }: { state: GameState }) {
   }
 }
 
-/** §21 Act V. */
+/**
+ * §21 Act V.
+ *
+ * Through `Panel` rather than rendered flat: this screen used to appear the
+ * frame the phase flipped, which is precisely the §10.8 F1 failure — "a modal
+ * that appears without a directed transition". It now scales and blurs up over
+ * the §10.5 modal budget, and the swarm keeps simulating behind the scrim
+ * instead of being covered by an opaque sheet (§10.6).
+ */
 function Bankruptcy() {
   return (
     <div className="hud hud--modal">
-      <div className="bankruptcy">
+      <Panel open modal from="centre" className="bankruptcy">
         <h1>BANKRUPTCY</h1>
         <p>
           Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds
@@ -173,12 +192,12 @@ function Bankruptcy() {
           <br />
           Manpower without Communication Infrastructure is Chaos.
         </p>
-        <button type="button" className="btn btn--bait" onClick={triggerParadigmShift}>
+        <Button variant="bait" onClick={triggerParadigmShift}>
           TRIGGER PARADIGM SHIFT
-        </button>
+        </Button>
         {/* James survives. Every other developer is liquidated. */}
         <p className="bankruptcy__james">James stayed.</p>
-      </div>
+      </Panel>
     </div>
   )
 }

@@ -1,0 +1,160 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useReducedMotion } from './motion.ts'
+import { Panel } from './Panel.tsx'
+import { Typewriter } from './Typewriter.tsx'
+import { paginate, revealTimeline, typingDuration } from './typewriter.ts'
+import {
+  dialogueReducer,
+  initDialogue,
+  isArmed,
+  isComplete,
+  type DialogueEvent,
+  type DialogueState,
+} from './dialogue.ts'
+
+/**
+ * The §10.7 dialogue box.
+ *
+ * Departure Mono, bottom-anchored, semi-transparent over a simulation that
+ * keeps running behind it, a speaker name plate above and a blinking advance
+ * caret in the corner a Game Boy would put it. The rules it exists to enforce
+ * are in dialogue.ts, where they can be tested; this file is the box.
+ *
+ * Three things here are load-bearing rather than decorative:
+ *
+ * 1. The box is short and anchored to the bottom edge, because §10.7 says it
+ *    never covers the speaker and §23.4.2 says nothing anchors to a fraction of
+ *    the width. Three lines of pre-wrapped monospace is a known height, so the
+ *    frame is the same size on a 1.78:1 phone and a 2.4:1 one and the camera
+ *    can be composed against it.
+ * 2. The whole overlay takes pointer events. The HUD is otherwise transparent
+ *    to taps so the swarm stays pokeable through it (§7.1) — but while a page
+ *    is on screen every tap belongs to the dialogue, or a player mashing at
+ *    5 Hz would be poking developers through the text they are supposed to be
+ *    reading.
+ * 3. There is no close button and no skip. §10.7 rule 3.
+ */
+
+export interface DialogueLine {
+  /** `JAMES`, `ADVISOR`, `STUDIO_OS`. Rendered as given. */
+  speaker: string
+  text: string
+}
+
+export interface DialogueProps {
+  script: readonly DialogueLine[]
+  /** Called once the box has finished its exit transition, not when the last page is tapped. */
+  onFinished?: () => void
+  /**
+   * §10.7's one exception: dialogue already seen in a previous run fills
+   * instantly. It is not a skip — rule 2's deliberate advance tap still applies
+   * to every page. First viewing of any line is always fully typed, so this is
+   * the caller's fact to know, not this component's.
+   */
+  seen?: boolean
+  /**
+   * Box width in characters. Fixed rather than measured: a monospace face plus
+   * a fixed column count is what makes the reveal reflow-free, and a box that
+   * re-wraps on a device rotation mid-scene would re-paginate under the player.
+   */
+  columns?: number
+}
+
+interface Page {
+  speaker: string
+  text: string
+}
+
+const DEFAULT_COLUMNS = 40
+
+export function Dialogue({
+  script,
+  onFinished,
+  seen = false,
+  columns = DEFAULT_COLUMNS,
+}: DialogueProps) {
+  const reduced = useReducedMotion()
+
+  const pages = useMemo<Page[]>(
+    () =>
+      script.flatMap((line) =>
+        paginate(line.text, columns).map((lines) => ({
+          speaker: line.speaker,
+          text: lines.join('\n'),
+        })),
+      ),
+    [script, columns],
+  )
+
+  const durations = useMemo(
+    // Instant-fill is a rendering accommodation in both cases — reduce-motion
+    // (§10.7 accessibility) and the previously-seen replay. Neither shortens
+    // the script or removes a tap.
+    () => pages.map((p) => (reduced || seen ? 0 : typingDuration(revealTimeline(p.text)))),
+    [pages, reduced, seen],
+  )
+
+  const [state, setState] = useState<DialogueState>(initDialogue)
+
+  // The reducer is pure and takes the page durations as an argument, so it is
+  // driven through a state updater rather than through `useReducer` — that
+  // keeps `durations` a plain value in render scope instead of something that
+  // has to be smuggled into the reducer through a ref.
+  const send = useCallback(
+    (event: DialogueEvent) => setState((s) => dialogueReducer(s, event, durations)),
+    [durations],
+  )
+
+  // The clock. It runs while the page is still typing and through the rule-2
+  // arming window, then stops — once the caret is blinking nothing else is a
+  // function of time, and a rAF loop left running behind a static box would be
+  // spending frames out of the §23.3 budget for nothing.
+  const armed = isArmed(state)
+  useEffect(() => {
+    if (state.finished || armed) return
+
+    let frame = 0
+    let last = performance.now()
+    const step = (now: number) => {
+      send({ type: 'tick', dt: now - last })
+      last = now
+      frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(frame)
+  }, [state.finished, armed, state.page, send])
+
+  // Pointer-down, not click: F2 wants the acknowledgement on the way down, and
+  // a `click` only resolves on release, which on a phone is 60–100 ms later.
+  const onPointerDown = useCallback(() => send({ type: 'tap' }), [send])
+
+  const page = pages[Math.min(state.page, pages.length - 1)]
+  if (!page) return null
+
+  // Panel's `open` is the machine's own terminal state: the box leaves when the
+  // script is over, and Panel is what keeps it alive long enough to leave with
+  // a transition rather than vanishing (F1).
+  return (
+    <Panel open={!state.finished} from="bottom" className="ui-dialogue" onExited={onFinished}>
+      <div className="ui-dialogue__hit" onPointerDown={onPointerDown}>
+        <div className="ui-dialogue__plate">{page.speaker}</div>
+        <div className="ui-dialogue__box">
+          <Typewriter
+            className="ui-dialogue__text"
+            text={page.text}
+            elapsedMs={state.elapsed}
+            complete={isComplete(state)}
+            sound
+          />
+          {/*
+            The caret is the affordance for rule 2, so it appears exactly when
+            the advance tap arms — not when the page completes. A player who
+            taps while it is dark has their tap swallowed, and the box has
+            already told them why.
+          */}
+          {armed && <span className="ui-dialogue__caret" aria-hidden="true" />}
+        </div>
+      </div>
+    </Panel>
+  )
+}

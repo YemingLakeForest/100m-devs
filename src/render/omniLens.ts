@@ -94,6 +94,84 @@ export function lodWeights(z: number): Record<ZoomLevel, number> {
 }
 
 /**
+ * Fraction of the shorter viewport axis the dominant tier fills — GDD §23.4.2.
+ *
+ * Not 1.0: §23.4.2 keeps the margin on the wider axis for the HUD, and a tier
+ * pressed flush to two edges reads as cropped rather than framed.
+ */
+export const FIT_MARGIN = 0.88
+
+export interface Extent {
+  w: number
+  h: number
+}
+
+/**
+ * World scale at Z, for a given viewport — GDD §23.4.1.
+ *
+ * **This replaced a viewport-independent `1 / (1 + z·9)`.** That formula had no
+ * screen dimension in it at all, so the swarm rendered at a fixed 239 × 120 px
+ * on every display and filled 6.4% of *either* orientation, identically. The
+ * landscape decision (§23.4) delivered nothing visible until this existed,
+ * because there was no code path by which the viewport could affect the
+ * picture.
+ *
+ * **Scale is PER TIER, not one world scale**, and that is the whole trick. The
+ * four tiers differ in intrinsic size by more than 5× — the desk is 192 world
+ * units across, the floor is 992. A single shared scale cannot frame both, and
+ * the first version of this function tried: blending the per-tier fits by LOD
+ * weight produced a scale that fitted neither, and at desk zoom it rendered the
+ * cross-fading floor tier **3,780 px wide inside a 1,023 px viewport**.
+ *
+ * So each tier is framed independently and the cross-fade does opacity only,
+ * which is also a truer reading of §7.5: the tiers are four *representations of
+ * the same space*, not four objects in one space.
+ *
+ * Two parts:
+ *
+ *  1. **Fit.** `min(vw/w, vh/h)` — the tier fills the shorter axis, leaving the
+ *     margin on the wider one for the HUD (§23.4.2).
+ *  2. **Modulation.** A fit alone would make pinching within a band do nothing
+ *     but cross-fade, which reads as the gesture being ignored. The old
+ *     relative curve is kept and *normalised by its value at this tier's own
+ *     band centre*: exactly 1 at the centre, so the tier exactly fits there,
+ *     and drifting either side zooms as the thumb expects.
+ *
+ * The dolly still reads as one continuous pull-back, because on the way out the
+ * near tier shrinks below its fit while the far tier arrives above its fit and
+ * settles into frame — the two motions are in the same direction.
+ *
+ * Pure, so the framing can be tested without a renderer — which matters,
+ * because "the game fills the screen" was asserted rather than measured once
+ * already.
+ */
+export function tierScale(
+  level: ZoomLevel,
+  z: number,
+  viewport: Extent,
+  extents: Record<ZoomLevel, Extent>,
+): number {
+  // A zero-sized viewport happens for a frame during startup and on some
+  // rotation paths. Returning 0 would collapse the world to a point and
+  // returning NaN would poison every transform downstream.
+  if (!(viewport.w > 0) || !(viewport.h > 0)) return 1
+
+  const e = extents[level]
+  const fit = Math.min(viewport.w / e.w, viewport.h / e.h) * FIT_MARGIN
+
+  return fit * (relativeCurve(z) / relativeCurve(CENTRES[level]))
+}
+
+/**
+ * The pre-§23.4.1 zoom curve, kept only as the *shape* of within-band zoom.
+ * Its absolute value no longer means anything — {@link fitScale} divides it by
+ * its own value at the band centre, so only its slope survives.
+ */
+function relativeCurve(z: number): number {
+  return 1 / (1 + clamp01(z) * 9)
+}
+
+/**
  * Tracks Z and its velocity across frames.
  *
  * Velocity drives the radial smear (ART_DIRECTION §6 pass 2) and the §20.4

@@ -105,6 +105,34 @@ Until then, one committer running `npm run check` is the same coverage without t
 
 ---
 
+## Verifying visually — read this before automating a browser
+
+**The Pixi ticker stops dead in a hidden tab.** Chrome suspends `requestAnimationFrame`
+whenever `document.hidden` is true, which includes a background window and a minimised one.
+The React HUD keeps rendering and `window.__stage` keeps returning its last value, so the
+app looks alive while the simulation, the camera and every animation are frozen mid-flight.
+
+This is the same hazard `?bench` already guards against (a criterion with no samples reports
+UNKNOWN, never FAIL). It costs a session if you meet it without knowing:
+
+- **Symptom:** a scripted camera move appears to stall partway and never arrive, or a value
+  freezes at an arbitrary number while `dt` still reads 0.0167.
+- **Check first:** `document.hidden`. Not `document.hasFocus()` — a tab can report focused
+  and hidden at the same time, and it is `hidden` that suspends rAF.
+- **Fix:** bring the window to the front. There is no code-side workaround, and there should
+  not be one.
+
+Two more automation notes, both learned the hard way:
+
+- `javascript_tool` inside a `browser_batch` may evaluate in a stale context after a
+  `navigate`. Issue one throwaway call first, then read.
+- Synthesising a tap with `pointerdown` alone leaves a permanent entry in the pinch-tracking
+  map, and two of them put the camera into pinch mode where every mouse move rewrites Z.
+  `stage.ts` now expires pointers after 2 s so this cannot wedge the camera, but dispatch
+  `pointerup` too.
+
+---
+
 ## Flags worth knowing
 
 | Flag | Effect |
