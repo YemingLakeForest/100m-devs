@@ -46,13 +46,37 @@ These landed in the GDD this session as canon. **Nothing below has a renderer ye
 | **§21.6 Run 2 Act 0** — "How did you find me in every single reality?", James introduces Instant Messenger | — | Needs §10.7 first |
 | **§10.8 Presentation Gate** — F1–F6, the definition of "done" for feel | Written as canon | **Nothing currently passes it.** The HUD has no button physics, no overscroll, no press-down state; panels appear without transitions; most state changes are silent |
 
-The natural order is: **§10.7 dialogue → §21.0 loop reshape → §21.6 scene → §7.7.6
-navigation → §7.7.2 arrival gag.** Dialogue first because two other items are blocked on it
-and it is self-contained.
+### The build order
 
-**§10.8 is not an item in that list — it applies to every one of them.** Each feature above
-ships only when it passes F1–F6 on the device. Building them first and juicing them later is
-the failure mode §10.8 exists to prevent, and it is how the current HUD ended up where it is.
+**Step 1 — the juice kit, built inside the §10.7 dialogue work.**
+
+§10.8 applies to every feature below, so the primitives it demands get built *once*, and the
+dialogue system is the right place because it is the first thing that needs all of them at
+the same time: a panel that enters and leaves (F1), an advance control that answers the
+thumb (F2), a per-letter tick and an open/close sound (F3), and a camera push on the beat
+(F5). Building them here and reusing them is the difference between a juice pass and a
+juice rewrite.
+
+What comes out of step 1, as reusable pieces rather than as dialogue-specific code:
+
+| Piece | Serves | Used next by |
+|---|---|---|
+| `Panel` — directed enter/exit, scale-and-blur per §10.5 | F1 | every modal, the Query Panel, the tech tree |
+| `Button` — press-down depression, spring release, sound on *down* | F2 | the whole HUD, immediately |
+| `useSpring` / `useMomentum` — overscroll, pull-down elasticity, drag friction | F2 | §7.7.6 camera pan, every list |
+| `Typewriter` — per-character reveal with punctuation pauses | F5 | terminal banners, the advisor, §21.6 |
+| `uiSfx` — a click/whoosh/tick bank on the native path | F3 | everything |
+| **A §10.8 checklist in the PR template** | F1–F6 | every feature after this |
+
+**Then, in order:** §21.0 loop reshape → §21.6 James scene → §7.7.6 navigation →
+§7.7.2 arrival gag. Each one ships only when it passes F1–F6 **on the device**, using the
+kit above rather than hand-rolling its own motion.
+
+**The existing HUD gets retrofitted as part of step 1**, not later — it is the largest
+surface in the product and it currently fails F1, F2 and F3 outright. Retrofitting it is
+also the cheapest proof that the kit is actually reusable, because if `Button` cannot
+absorb the HUD's existing buttons it is the wrong abstraction and better to learn that in
+step 1 than in step 5.
 
 ## The GDD was swept on 2026-08-07 — what it turned up
 
