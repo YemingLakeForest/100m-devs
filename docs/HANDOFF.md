@@ -57,9 +57,36 @@ decision owner's call.** It has deliberately not been done.
    and speaker are invisible, and on Android that is exactly where WebView latency hides.
    Needs an external capture: record a tap on a hard surface and the resulting click on a
    second device, read the gap in an audio editor.
-3. **CI is written but unpushed.** `.github/workflows/ci.yml` sits untracked because the
-   git token has `repo` but not `workflow` scope. Fix:
-   `gh auth refresh -s workflow`, then commit it.
+3. ~~**CI is written but unpushed.**~~ **Parked deliberately — do not spend time on it.**
+   See "CI, and why it is parked" below.
+
+---
+
+## CI, and why it is parked
+
+`.github/workflows/ci.yml` is written, correct, and **gitignored**. It runs lint, types,
+tests, the art gate, and a check that the generated palette has not gone stale against
+`src/art/palette.ts`.
+
+**It is not committed because it cannot be.** Pushing anything under `.github/workflows/`
+needs a token with `workflow` scope. This repo pushes through Git Credential Manager, whose
+stored OAuth token has `repo` only — and note that `gh auth refresh` does **not** fix this,
+because git never consults `gh`'s token. That is a real trap: it looks like it should work.
+
+**Worse, a committed workflow file blocks every subsequent push, not just its own.** It is
+therefore in `.gitignore`, so a stray `git add -A` cannot wedge the repo for reasons that
+look nothing like the cause. To enable it later: obtain a token with `workflow` scope, then
+`git add -f .github`.
+
+**Why parking it is the right call for now.** One committer, one machine, and the workflow
+runs exactly what a local `npm run lint && npx tsc -b && npm test && npm run art:check`
+runs — which passes. CI earns its keep when a *second* writer appears. The specific trigger
+to revisit: **the first time a cloud agent pushes code that no human watched it write.** At
+that point CI stops being a convenience and becomes the only thing checking the work.
+
+`gh` itself is not a dependency of this project and nothing here needs it. It is GitHub's
+API client — pull requests, issues, releases — and adds nothing over plain `git` for
+clone/commit/push/pull.
 
 ---
 
