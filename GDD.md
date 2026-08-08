@@ -1655,6 +1655,50 @@ negotiable on it:
 | **Hover / press** | Menu slabs depress and spring back, sound on down (§10.8 F2) |
 | **Exit to game** | The logo and menu leave on a stagger, the room lights come up, the camera pushes in to the desk. **No fade to black.** The room is continuous from title to gameplay and that continuity is the point |
 
+#### 10.9.6 Depth — three planes, no new art **[CANON]**
+
+§10.9.5 forbids a bespoke title illustration and §10.9.1 explains why: the room *is* the
+title. But the first build of that idea had a flaw §10.9.2's layout diagram cannot show.
+It had exactly **two planes** — the room, and the type in front of it — and two planes read
+as a photograph with a caption. Nothing was between the camera and the subject, so the
+camera did not feel like it was anywhere.
+
+The fix is depth, not decoration, and none of it is an asset:
+
+| Plane | What it is | Why |
+|---|---|---|
+| **Near** | An empty chair and the edge of its desk, cropped by the frame, thrown out of focus | The camera is *in* the room rather than looking at a picture of one |
+| **Middle** | Dust drifting through the monitor's beam, on three sub-planes at three speeds | Parallax is the only depth cue a still frame keeps |
+| **Far** | The room, as §10.9.1 already has it | — |
+
+Three rules govern this, and each was learned by getting it wrong:
+
+1. **The near field is a silhouette, never a drawing.** An unlit object between the camera
+   and the room's one light source shows no surface at all, so shading it would be *wrong*
+   as well as expensive. It is a hole in the picture in the shape of a chair. That is what
+   keeps it clear of §10.9.5 and of §22.7's sprite budget — there is no illustration.
+   §10.9.1 already says "the chair is empty"; this is where that sentence lands.
+2. **The near field must be placed where the light is.** The first attempt tucked it into
+   the bottom-right corner, which is exactly where §10.9.1's night wash is heaviest, and a
+   black silhouette on a black ground is not a silhouette. **A foreground object is only
+   visible when it takes light away**, so it is positioned to cross the lit desks rather
+   than to sit politely out of the composition.
+3. **Parallax is carried by rate, not by size.** Motes at different sizes read as
+   different-sized dust; motes at different *speeds* read as distance. Sizes vary as well,
+   and the nearest plane is blurred because it is closer than the plane in focus, but the
+   speed difference is the one doing the work.
+
+**The numerals are a lit display element, not printed type.** §10.9.2 rules out a wordmark,
+which leaves the numerals carrying the whole title alone — and a flat fill at one colour is
+not enough weight for that job. They get phosphor bloom and a hair of chromatic split, both
+from the CRT vocabulary ART_DIRECTION already owns, and neither a gradient nor a bevel
+(ART_DIRECTION §7 forbids both in assets, and it would be strange for the interface to break
+a rule the art obeys). **`DEVELOPERS` deliberately does not get the same treatment**: if
+both lines glow, neither is the headline, and the contrast between a lit line and an unlit
+one is most of what makes the pair look designed.
+
+The whole of §10.9.6 costs three DOM elements, one text-shadow and no files.
+
 #### 10.9.5 What it must never be
 
 - **A static image with a Play button.** §10.8 F1 and F2 both fail.

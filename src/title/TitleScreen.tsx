@@ -225,10 +225,49 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
         aria-hidden="true"
       />
       {/*
+        §10.9.6 — the middle distance.
+
+        Dust in the monitor's beam, on three planes moving at three speeds.
+        Nothing here is an object; it is the *air*, and it exists because a
+        blurred room behind a wash gives the eye one distance to sit at. Motes
+        crossing in front of it at different rates are the cheapest parallax
+        there is, and parallax is the only depth cue a still frame keeps.
+      */}
+      <div className="title__motes" data-plane="far" aria-hidden="true" />
+      <div className="title__motes" data-plane="mid" aria-hidden="true" />
+      <div className="title__motes" data-plane="near" aria-hidden="true" />
+
+      {/*
+        §10.9.6 — the near field.
+
+        An empty chair and the edge of the desk it belongs to, in the immediate
+        foreground, cropped by the frame and thrown out of focus. Silhouette
+        only: an unlit object between the camera and the one light in the room
+        has no visible surface, so this is a *hole* in the picture rather than a
+        drawing of a chair — which is why it costs no art and cannot go out of
+        step with §22.7.
+
+        It is doing the job §10.9.5 forbids solving with an illustration. The
+        composition had two planes, the room and the type, and two planes read
+        as a photograph with a caption. A third in front of both makes the
+        camera feel like it is *in* the room rather than looking at a picture
+        of one, and it does it with the room's own 2:1 geometry.
+      */}
+      <div className="title__near" aria-hidden="true">
+        <div className="title__near-back" />
+        <div className="title__near-seat" />
+        <div className="title__near-post" />
+        <div className="title__near-desk" />
+      </div>
+
+      {/*
         §10.9.4, "scanlines roll". The Pixi CRT pass grades the world but not
         the DOM (ART_DIRECTION §1.0a), so without this the type would be the
         one thing on screen not behind glass. This is §1.0a's own named cheap
         fix, scoped to the title.
+
+        Above the near field on purpose: the glass is in front of everything in
+        the room, including the things nearest the camera.
       */}
       <div className="title__scanlines" aria-hidden="true" />
 

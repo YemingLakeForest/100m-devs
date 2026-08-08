@@ -179,6 +179,182 @@
     title-lights-up 380ms cubic-bezier(0.33, 1, 0.68, 1) both;
 }
 
+/* --- the middle distance: dust — §10.9.6 -------------------------------- */
+
+/*
+ * Three planes of motes drifting through the monitor's beam.
+ *
+ * Each plane is one element painting several dots as radial gradients, rather
+ * than one element per mote: a dozen absolutely-positioned divs would each be
+ * a composited layer, and this whole effect has to cost less than the room it
+ * sits in front of. One transform per plane, three layers, done.
+ *
+ * The parallax is the entire point and it is carried by *rate*, not by size:
+ * far drifts slowest, near drifts fastest, and the eye resolves that into
+ * depth without being told. Sizes vary too, but a size difference alone reads
+ * as different-sized dust rather than as distance.
+ */
+.title__motes {
+  position: absolute;
+  /* Overscanned so a plane that has translated is still painting at the edge
+     it is drifting away from. */
+  inset: -12% -8%;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  will-change: transform;
+}
+
+.title__motes[data-plane='far'] {
+  opacity: 0.34;
+  background-image:
+    radial-gradient(circle 1px at 58% 22%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 1px at 71% 39%, var(--glow-1) 100%, transparent),
+    radial-gradient(circle 1px at 64% 58%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 1px at 79% 67%, var(--glow-1) 100%, transparent),
+      radial-gradient(circle 1px at 52% 74%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 1px at 45% 34%, var(--glow-1) 100%, transparent),
+    radial-gradient(circle 1px at 86% 47%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 1px at 74% 84%, var(--glow-1) 100%, transparent),
+    radial-gradient(circle 1px at 39% 52%, var(--glow-2) 100%, transparent);
+  animation: title-drift-far 41s linear infinite;
+}
+
+.title__motes[data-plane='mid'] {
+  opacity: 0.5;
+  background-image:
+    radial-gradient(circle 1.5px at 61% 31%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 1.5px at 74% 52%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 1.5px at 55% 63%, var(--glow-1) 100%, transparent),
+      radial-gradient(circle 1.5px at 68% 78%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 1.5px at 84% 36%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 1.5px at 43% 45%, var(--glow-1) 100%, transparent),
+    radial-gradient(circle 1.5px at 77% 88%, var(--glow-2) 100%, transparent);
+  animation: title-drift-mid 27s linear infinite;
+}
+
+/*
+ * The near plane is blurred, because it is closer to the camera than the thing
+ * the camera is focused on. One plane in focus and two soft is what makes the
+ * set read as three distances rather than as three opacities.
+ */
+.title__motes[data-plane='near'] {
+  opacity: 0.55;
+  filter: blur(1px);
+  background-image:
+    radial-gradient(circle 2.5px at 66% 44%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 2px at 48% 69%, var(--glow-1) 100%, transparent),
+      radial-gradient(circle 2.5px at 82% 28%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 2px at 71% 85%, var(--glow-2) 100%, transparent),
+    radial-gradient(circle 3px at 57% 18%, var(--glow-1) 100%, transparent);
+  animation: title-drift-near 16s linear infinite;
+}
+
+/* Each ends exactly where it began, so the loop has no seam. Dust in still air
+   falls; it does not blow sideways, so all three go gently down and slightly
+   right, toward the light. */
+@keyframes title-drift-far {
+  to {
+    transform: translate(14px, 46px);
+  }
+}
+
+@keyframes title-drift-mid {
+  to {
+    transform: translate(22px, 74px);
+  }
+}
+
+@keyframes title-drift-near {
+  to {
+    transform: translate(34px, 108px);
+  }
+}
+
+/* --- the near field: an empty chair — §10.9.6 --------------------------- */
+
+/*
+ * §10.9.1 says "the chair is empty". This is that chair, in the foreground,
+ * where the sentence actually lands.
+ *
+ * Everything below is pure --n0 silhouette. An unlit object between the camera
+ * and the room's one light source shows no surface at all, so drawing shading
+ * on it would be *wrong* rather than merely expensive — and that is why this
+ * satisfies §10.9.5's ban on a bespoke title illustration. There is no
+ * illustration. There is an absence in the shape of a chair.
+ *
+ * The 2:1 projection is held by `skewY(26.565deg)`, whose tangent is exactly
+ * 0.5. A rectangle put through it is an iso-correct parallelogram, which keeps
+ * these in the same world as the room behind them without a single hand-tuned
+ * vertex.
+ */
+.title__near {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Out of focus: it is nearer to the camera than the thing in focus. The blur
+     is what stops it reading as a black shape stuck on the lens. */
+  filter: blur(2.5px);
+}
+
+.title__near > * {
+  position: absolute;
+  background: var(--n0);
+}
+
+/*
+ * Placement is the whole trick, and the first attempt got it wrong in an
+ * instructive way: the chair was tucked into the bottom-right *corner*, which
+ * is exactly where §10.9.1's night wash is heaviest. A black silhouette on a
+ * black ground is not a silhouette. A foreground object is only visible when
+ * it **takes light away**, so this is positioned to cross the lit desks rather
+ * than to sit politely out of the composition.
+ *
+ * Cropped by two edges on purpose — a foreground object wholly inside the
+ * frame is a prop; one running out of frame is a place.
+ */
+.title__near-back {
+  right: 4%;
+  bottom: 20%;
+  width: 32%;
+  height: 34%;
+  transform: skewY(26.565deg);
+  border-radius: 10px 10px 4px 4px;
+}
+
+.title__near-seat {
+  right: 4%;
+  bottom: 6%;
+  width: 34%;
+  height: 11%;
+  transform: skewY(26.565deg);
+  border-radius: 6px;
+}
+
+.title__near-post {
+  right: 17%;
+  bottom: -6%;
+  width: 3.5%;
+  height: 16%;
+}
+
+/* The desk edge, running off the left of the frame along the other iso axis,
+   so the two foreground objects sit on the same ground plane. */
+.title__near-desk {
+  left: 6%;
+  bottom: -12%;
+  width: 62%;
+  height: 16%;
+  transform: skewY(-26.565deg);
+}
+
+/* The near field lifts away with the lights, not after them: it is part of the
+   room, so it cannot outlast the darkness that justified it. */
+.title[data-phase='exit'] .title__near,
+.title[data-phase='exit'] .title__motes {
+  animation: title-lights-up 380ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
 /* --- the OS banner — §10.9.2 --------------------------------------------- */
 
 .title__os {
@@ -243,6 +419,43 @@
   letter-spacing: var(--title-ls);
   color: var(--p3);
 }
+
+/*
+ * §10.9.6 — the numerals are a lit display element, not printed type.
+ *
+ * §10.9.2 rules out a wordmark: "that relationship *is* the logo; there is no
+ * wordmark to draw." Which leaves the numerals carrying the whole title on
+ * their own, and flat fill at one colour is not enough weight for that job —
+ * it reads as a large label rather than as the thing the screen is *about*.
+ *
+ * Two effects, both from the CRT vocabulary ART_DIRECTION already owns and
+ * neither of them a gradient or a bevel (§7 forbids both in assets, and it
+ * would be strange for the interface to break a rule the art obeys):
+ *
+ *  1. **Bloom.** Phosphor spills. A real tube cannot hold a hard edge at this
+ *     brightness, so the glyphs bleed a little into the dark around them.
+ *  2. **Chromatic split.** A hair of red left and cyan right — the same
+ *     aberration §8.2 uses to score a crit, held at a fraction of a pixel so
+ *     it registers as *fringing on a lens* rather than as an effect. This is
+ *     the one that does the work: it is what your eye reads as "a screen".
+ *
+ * Both are text-shadow rather than filter, so the whole thing stays on one
+ * paint and none of it disturbs the layout the ghost is holding open.
+ */
+.title__count-live {
+  text-shadow:
+    -0.5px 0 0 color-mix(in srgb, var(--alarm-2) 55%, transparent),
+    0.5px 0 0 color-mix(in srgb, var(--glow-2) 55%, transparent),
+    0 0 6px color-mix(in srgb, var(--p3) 45%, transparent),
+    0 0 22px color-mix(in srgb, var(--glow-1) 30%, transparent);
+}
+
+/*
+ * DEVELOPERS is *not* given the same treatment, and that is the composition
+ * rather than an omission: if both lines glow, neither is the headline. The
+ * word is the quiet half of the pair, and the contrast between a lit line and
+ * an unlit one is most of what makes the logo look designed.
+ */
 
 .title__count-ghost {
   /* In flow and invisible: it is what reserves the width. `visibility` rather
@@ -506,9 +719,13 @@
    * counts (§10.9.1: never skipped).
    */
   .title__night::after,
-  .title__scanlines {
+  .title__scanlines,
+  .title__motes {
     animation: none;
   }
+
+  /* The motes stay — they are still three planes at three depths, and the
+     blur and the sizes carry that on their own. Only the drift stops. */
 
   .title[data-phase='exit'] .title__scanlines {
     animation: title-lights-up 152ms linear both;
