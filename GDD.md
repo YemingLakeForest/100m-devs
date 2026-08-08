@@ -536,6 +536,43 @@ Communication Entropy's job, and the lesson has to come from §4.1 or it is a di
 lesson. With $50 banked and 1,002 developers, the run ends in **about 20 seconds**, inside
 the "within 60 seconds" §6.1 calls for.
 
+#### 4.10d Cash is lumpy, and the interface reads it as failure **[observed 2026-08-08]**
+
+§4.10c closed the loop and left a presentation problem behind it that is worth recording
+before anyone tunes it by feel.
+
+Payroll is continuous and revenue arrives **on ship**. At forty developers that is $1,900/sec
+out against $550,000 in every hundred seconds, which is comfortably profitable *on average*
+and looks like this on the way:
+
+```
+  +$550K ┤        ┌╴ship                    ┌╴ship
+         │        │                         │
+       0 ┼────────┼───────────╴────────────┼──────
+         │         ╲                        ╲
+  −$190K ┤          ╲___________╱            ╲____
+```
+
+So the studio spends most of each project **overdrawn**, and the HUD says so in alarm red
+with every button dead. A player watching `CASH −$11.8K` and a greyed HIRE has no way to know
+they are eighty seconds from a half-million-dollar payout; the readout is telling them they
+are losing, and it is not wrong, and it is not what is happening.
+
+Two knock-on effects, both real:
+
+- **Act III's offer is only takeable in a window.** §21.0a wants the Mass Hire "affordable,
+  and only just" — instead it is affordable for the first stretch after each ship and dead
+  for the rest, which makes the temptation intermittent rather than constant.
+- **It teaches the wrong lesson at the wrong time.** §6 wants bankruptcy to arrive *after*
+  the trap. Going deeply negative every project during the honest loop spends that feeling
+  early.
+
+**Not fixed here, and deliberately.** The candidate fixes are all real design changes —
+revenue accruing continuously as work is done rather than in a lump; payroll drawn from a
+separate line; a runway readout that says "eighty seconds to payout" instead of a bare
+negative — and picking one by feel is how §4.10 got into trouble in the first place. What is
+certain is that the arithmetic is sound and the *presentation* is lying.
+
 #### 4.10b **BLOCKING — the Act IIa economy does not close** [added 2026-08-08]
 
 §4.10 above is correct for the two scenarios it derives from, and **both of them have zero
