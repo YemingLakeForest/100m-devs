@@ -174,6 +174,15 @@ export interface GameState {
    * simulation's own velocity would pay for every tap twice.
    */
   pokeRate: number
+  /**
+   * §7.8.7 — the seed every developer's name, face and stats are generated
+   * from. One integer stands in for the entire roster.
+   *
+   * Part of the *run*, not of permanent state, so a Paradigm Shift returns a
+   * different studio with the same James in it (§21.6). Persisted, because a
+   * reload that reshuffled forty faces would undo the whole point of them.
+   */
+  runSeed: number
 
   /**
    * GDD §24.8 — the Overnight Build Report waiting to be shown, or null.
@@ -205,8 +214,20 @@ export function commitmentFor(index: number): Decimal {
   return new Decimal(PROJECTS[clamped].commitment)
 }
 
+/**
+ * A new studio.
+ *
+ * `Date.now()` rather than `Math.random()` so a save written and reloaded in
+ * the same millisecond is still the same studio, and so the value is a plain
+ * integer the save format already knows how to carry.
+ */
+function newSeed(): number {
+  return (Date.now() ^ (Date.now() >>> 9)) >>> 0
+}
+
 function freshRun(): GameState {
   return {
+    runSeed: newSeed(),
     devs: 1,
     devCap: D_BASE,
     cash: 0,

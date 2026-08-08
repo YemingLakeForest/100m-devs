@@ -1,0 +1,145 @@
+import { describe, expect, it } from 'vitest'
+import {
+  HAIR_COLOURS,
+  HAIR_SHAPES,
+  JAMES,
+  SHIRT_COLOURS,
+  SKIN_TONES,
+  TRAITS,
+  developerAt,
+  draw,
+  identityFor,
+} from './identity.ts'
+
+const SEED = 20260808
+
+describe('generated, never stored — GDD §7.8.7', () => {
+  it('gives the same developer the same identity every time', () => {
+    // The property the whole approach rests on. If this is not exact, a
+    // developer changes their name between frames and the feature is worse
+    // than not having it.
+    for (const i of [1, 2, 7, 40, 999, 1_000_000]) {
+      expect(identityFor(SEED, i)).toEqual(identityFor(SEED, i))
+    }
+  })
+
+  it('gives neighbours different identities', () => {
+    // A hash that correlates on adjacent indices produces a floor of identical
+    // twins in rows, which is exactly where the eye notices it.
+    const names = new Set<string>()
+    for (let i = 0; i < 60; i++) names.add(identityFor(SEED, i).name)
+    expect(names.size).toBeGreaterThan(45)
+  })
+
+  it('gives different runs different studios', () => {
+    // §13.2 — a Paradigm Shift should return a *different* company. Same
+    // indices, different seed, different people.
+    const a = Array.from({ length: 30 }, (_, i) => identityFor(1, i).name)
+    const b = Array.from({ length: 30 }, (_, i) => identityFor(2, i).name)
+    const shared = a.filter((n, i) => n === b[i]).length
+    expect(shared).toBeLessThan(5)
+  })
+
+  it('never lets two fields share a draw', () => {
+    // Every field reads its own channel. If two shared one, hair colour and
+    // shirt colour would be perfectly correlated across the entire floor — the
+    // kind of bug that looks like a deliberate art choice until somebody counts.
+    const hair: number[] = []
+    const shirt: number[] = []
+    for (let i = 0; i < 400; i++) {
+      const { look } = identityFor(SEED, i)
+      hair.push(look.hair)
+      shirt.push(look.shirt)
+    }
+    const agree = hair.filter((h, i) => h === shirt[i]).length
+    // Independent draws over 4 and 5 buckets agree about 1 time in 5.
+    expect(agree).toBeLessThan(400 * 0.35)
+  })
+
+  it('is stable across engines by construction', () => {
+    // `Math.imul` and `>>> 0` are exact in every JS engine; `*` on large
+    // integers is not. A developer whose hair changes colour between the
+    // player's phone and their tablet is a bug no single-machine test catches,
+    // so the guard is that every draw stays a finite 0..1.
+    for (let i = 0; i < 200; i++) {
+      for (let ch = 0; ch < 16; ch++) {
+        const r = draw(SEED, i, ch)
+        expect(Number.isFinite(r)).toBe(true)
+        expect(r).toBeGreaterThanOrEqual(0)
+        expect(r).toBeLessThan(1)
+      }
+    }
+  })
+})
+
+describe('what varies', () => {
+  it('keeps every look index inside the renderer’s tables', () => {
+    // An out-of-range part index is an invisible developer or a crash, and it
+    // would only show up for one person in a thousand.
+    for (let i = 0; i < 3000; i++) {
+      const { look } = identityFor(SEED, i)
+      expect(look.hair).toBeGreaterThanOrEqual(0)
+      expect(look.hair).toBeLessThan(HAIR_SHAPES)
+      expect(look.hairColour).toBeLessThan(HAIR_COLOURS)
+      expect(look.skin).toBeLessThan(SKIN_TONES)
+      expect(look.shirt).toBeLessThan(SHIRT_COLOURS)
+      expect(Math.abs(look.slouch)).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('uses the whole of every part table', () => {
+    // A `Math.floor(r * n)` that never reaches the last bucket is the classic
+    // off-by-one here, and it silently costs a quarter of the variety.
+    const seen = { hair: new Set(), shirt: new Set(), skin: new Set() }
+    for (let i = 0; i < 2000; i++) {
+      const { look } = identityFor(SEED, i)
+      seen.hair.add(look.hair)
+      seen.shirt.add(look.shirt)
+      seen.skin.add(look.skin)
+    }
+    expect(seen.hair.size).toBe(HAIR_SHAPES)
+    expect(seen.shirt.size).toBe(SHIRT_COLOURS)
+    expect(seen.skin.size).toBe(SKIN_TONES)
+  })
+
+  it('keeps stats in range', () => {
+    for (let i = 0; i < 1000; i++) {
+      const { stats } = identityFor(SEED, i)
+      for (const v of [stats.focus, stats.chatter, stats.seniority]) {
+        expect(v).toBeGreaterThanOrEqual(0)
+        expect(v).toBeLessThanOrEqual(100)
+      }
+    }
+  })
+
+  it('gives roughly one in eight a trait', () => {
+    let n = 0
+    for (let i = 0; i < 4000; i++) if (identityFor(SEED, i).trait !== null) n++
+    expect(n / 4000).toBeGreaterThan(0.08)
+    expect(n / 4000).toBeLessThan(0.18)
+  })
+
+  it('only ever names a trait that exists', () => {
+    for (let i = 0; i < 2000; i++) {
+      const t = identityFor(SEED, i).trait
+      if (t !== null) expect(TRAITS).toContain(t)
+    }
+  })
+})
+
+describe('James — §21.6', () => {
+  it('is the same person in every run', () => {
+    // He is the one fixed point in the game: the studio changes, he does not.
+    expect(developerAt(1, 1)).toEqual(JAMES)
+    expect(developerAt(999999, 1)).toEqual(JAMES)
+  })
+
+  it('is not generated over the top of somebody else', () => {
+    expect(developerAt(SEED, 2)).not.toEqual(JAMES)
+  })
+
+  it('is a Meeting Magnet who talks more than he focuses', () => {
+    // Character as data. He is sincere, wrong, and the reason Act IV happens.
+    expect(JAMES.stats.chatter).toBeGreaterThan(JAMES.stats.focus)
+  })
+})

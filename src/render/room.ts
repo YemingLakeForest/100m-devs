@@ -30,6 +30,7 @@
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { createAmbient, type Seat } from './ambient.ts'
+import { developerAt, type Look } from '../sim/identity.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -121,6 +122,8 @@ export interface RoomHandle {
    * this rebuilds geometry and is far too expensive for the ticker.
    */
   setHeadcount(devs: number): void
+  /** §7.8.7 — set the run seed. Rebuilds every developer's appearance. */
+  setSeed(seed: number): void
   /**
    * Advance the §7.8.3 idle animation. `elapsed` in seconds, `state` is the
    * shared §8.2 dev state (the store models one machine, not one per person).
@@ -413,18 +416,69 @@ export function perimeterPoint(
  * properly — the standing brief for them is a **turn on poke** (§8.2), which
  * buys the face back at the exact moment the player has asked for attention.
  */
-function buildDeveloper(): Container {
+/**
+ * §7.8.7's part tables. Indices into these are what `identityFor` rolls, so the
+ * palette stays in the renderer and the generator stays testable without one.
+ *
+ * Everything here reads at the size a developer actually occupies on a floor of
+ * eighty, which rules out most of what "variety" usually means: a different
+ * nose is four identical people. Silhouette and block colour are the only two
+ * channels that survive, so those are the two that vary.
+ */
+const HAIR: ReadonlyArray<{ w: number; h: number; y: number }> = [
+  { w: 14, h: 12, y: -18 }, // full
+  { w: 15, h: 9, y: -18 }, // cropped
+  { w: 13, h: 15, y: -18 }, // tall
+  { w: 16, h: 11, y: -17 }, // wide, low
+]
+const HAIR_RAMP: ReadonlyArray<readonly [readonly string[], number]> = [
+  [RAMPS.WOOD, 1],
+  [RAMPS.WOOD, 0],
+  [RAMPS.NEUTRAL, 1],
+  [RAMPS.WOOD, 2],
+]
+const SKIN_BASE = [0, 1, 3, 5] as const
+const SHIRT: ReadonlyArray<readonly [readonly string[], number]> = [
+  [RAMPS.NEUTRAL, 6],
+  [RAMPS.CALM, 1],
+  [RAMPS.WARN, 1],
+  [RAMPS.FOLIAGE, 1],
+  [RAMPS.NEUTRAL, 3],
+]
+
+function buildDeveloper(look: Look): Container {
   const dev = new Container()
   const g = new Graphics()
 
+  const [shirtRamp, shirtBase] = SHIRT[look.shirt % SHIRT.length]
+  const [hairRamp, hairBase] = HAIR_RAMP[look.hairColour % HAIR_RAMP.length]
+  const hair = HAIR[look.hair % HAIR.length]
+  const skin = SKIN_BASE[look.skin % SKIN_BASE.length]
+
   // Torso and head, as solids. Lighter on the south-west face, darker on the
   // back — the same top-left key the props and the walls obey.
-  isoBox(g, 0, 5, 17, 19, RAMPS.NEUTRAL, 6, false)
+  isoBox(g, 0, 5, 17, 19, shirtRamp, shirtBase, false)
   // The neck, showing under the hair. One band, and it is the only skin
   // visible on a figure seen from behind.
-  isoBox(g, 0, -14, 10, 4, RAMPS.SKIN, 0, false)
+  isoBox(g, 0, -14, 10, 4, RAMPS.SKIN, skin, false)
   // Hair, covering the whole back of the head.
-  isoBox(g, 0, -18, 14, 12, RAMPS.WOOD, 1, false)
+  isoBox(g, 0, hair.y, hair.w, hair.h, hairRamp, hairBase, false)
+
+  // Headphones — a band over the hair and a cup on the near side. The clearest
+  // silhouette change available at this size, which is why about a quarter of
+  // the floor has them.
+  if (look.headphones) {
+    g.rect(-hair.w / 2 - 1, hair.y - hair.h + 1, hair.w + 2, 2.5).fill(c(RAMPS.NEUTRAL[1]))
+    g.rect(-hair.w / 2 - 2, hair.y - hair.h + 3, 3.5, 6).fill(c(RAMPS.NEUTRAL[2]))
+  }
+  // Glasses read from behind as the arm over the ear — two pixels, and it is
+  // the only way spectacles are visible on a figure facing away.
+  if (look.glasses) {
+    g.rect(-hair.w / 2 - 1, hair.y - hair.h / 2, 4, 1.5).fill(c(RAMPS.NEUTRAL[2]))
+  }
+  // A slight lean. Nothing else varies posture and nothing else needs to: a row
+  // of figures at identical angles is what reads as clones.
+  dev.skew.x = look.slouch * 0.05
 
   // Elbows, out to the sides. From behind, the forearms are hidden by the
   // torso and the elbows are the only part of the arms that reads — which is
@@ -725,6 +779,12 @@ export function buildRoom(): RoomHandle {
   root.addChild(shell, light, furniture, devLayer, ambient.layer)
 
   const devs: Container[] = []
+  /**
+   * §7.8.7's run seed. Held here rather than passed per rebuild because the
+   * identities must not change while a run is being played — the store owns the
+   * value and hands it over once.
+   */
+  let seed = 1
   /** Per-developer jolt decay, 1 -> 0. The §8.2 poke reaction. */
   const jolts: number[] = []
   const desks: Array<{ x: number; y: number }> = []
@@ -969,7 +1029,10 @@ export function buildRoom(): RoomHandle {
     // Reuse developer containers across rebuilds — a hire should not rebuild
     // ninety-nine sprites that did not change.
     while (devs.length < n) {
-      const d = buildDeveloper()
+      // §7.8.7 — index 1 is James and is never generated. Containers are reused
+      // across rebuilds, so a developer's look is fixed at the moment their
+      // seat first exists and never churns underneath them.
+      const d = buildDeveloper(developerAt(seed, devs.length).look)
       devs.push(d)
       jolts.push(0)
       devLayer.addChild(d)
@@ -1046,6 +1109,18 @@ export function buildRoom(): RoomHandle {
         // The jolt sits on top of the bob: §8.2's "sprite jolts upright".
         d.position.set(desks[i].x + walk.x, desks[i].y + 6 + bob + walk.y - jolts[i] * 5)
       }
+    },
+    setSeed(next: number) {
+      if (next === seed) return
+      seed = next
+      // Every look is baked into a Graphics at construction, so a new seed
+      // means new containers rather than a repaint. Only ever happens on a
+      // Paradigm Shift, which is already a scene change.
+      for (const d of devs) d.destroy()
+      devs.length = 0
+      jolts.length = 0
+      devLayer.removeChildren()
+      lastDevs = -1
     },
     jolt(i: number) {
       if (i >= 0 && i < jolts.length) jolts[i] = 1

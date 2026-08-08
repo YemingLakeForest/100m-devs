@@ -113,7 +113,16 @@ export function walkBob(t: number, moving: boolean): number {
   return Math.abs(Math.sin(t * Math.PI * 14)) * 2.2
 }
 
-export function createAmbient(): Ambient {
+/**
+ * @param rng Injected so the floor is reproducible under test.
+ *
+ * Not a testability nicety: the first version of the test suite asserted a hard
+ * bound on how many people are up at once on a calm floor, against
+ * `Math.random()`, and failed roughly one run in six. A statistical claim about
+ * a random process either needs a seeded source or a bound so loose it asserts
+ * nothing. Seeding it is the version that still catches a regression.
+ */
+export function createAmbient(rng: () => number = Math.random): Ambient {
   const layer = new Container()
   const g = new Graphics()
   layer.addChild(g)
@@ -134,7 +143,7 @@ export function createAmbient(): Ambient {
     // tries finds one almost always and giving up costs nothing but one
     // behaviour that did not start.
     for (let tries = 0; tries < 8; tries++) {
-      const i = Math.floor(Math.random() * seats.length)
+      const i = Math.floor(rng() * seats.length)
       if (!busy.has(i)) return i
     }
     return -1
@@ -169,7 +178,7 @@ export function createAmbient(): Ambient {
 
     if (kind === 'water') {
       if (props.length === 0) return
-      const at = props[Math.floor(Math.random() * props.length)]
+      const at = props[Math.floor(rng() * props.length)]
       a.target = { x: at.x, y: at.y }
     }
 
@@ -197,8 +206,8 @@ export function createAmbient(): Ambient {
         if (a.age >= a.life) end(a)
       }
 
-      if (live.length < ambientBudget(devs) && shouldStart(entropy, dt, Math.random())) {
-        begin(pickBehaviour(entropy, Math.random()), seats, props)
+      if (live.length < ambientBudget(devs) && shouldStart(entropy, dt, rng())) {
+        begin(pickBehaviour(entropy, rng()), seats, props)
       }
 
       // --- bubbles ---------------------------------------------------------

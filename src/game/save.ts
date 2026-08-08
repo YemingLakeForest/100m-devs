@@ -75,6 +75,7 @@ export interface RunSave {
   phase: Phase
   massHired: boolean
   hireMultiplier: number | 'max'
+  runSeed: number
 }
 
 /**
@@ -248,6 +249,7 @@ export function makeSaveData(state: GameState): SaveData {
       phase: state.phase,
       massHired: state.massHired,
       hireMultiplier: state.hireMultiplier,
+      runSeed: state.runSeed,
     },
     permanent: {
       layer1: { ...permanent.layer1 },
@@ -409,6 +411,10 @@ function normaliseRun(value: unknown): RunSave {
     // would price a batch nothing in the interface can explain.
     hireMultiplier:
       r.hireMultiplier === 'max' || typeof r.hireMultiplier === 'number' ? r.hireMultiplier : 1,
+    // §7.8.7 — a save without a seed is one written before identities existed.
+    // It gets a fresh studio rather than a crash, which is the correct
+    // migration: nobody had names to lose.
+    runSeed: typeof r.runSeed === 'number' && r.runSeed > 0 ? r.runSeed : (Date.now() >>> 0),
   }
 }
 

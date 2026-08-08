@@ -17,6 +17,21 @@ import { createAmbient, walkBob, walkOffset, walkPhase } from './ambient.ts'
 const SEATS = Array.from({ length: 40 }, (_, i) => ({ x: i * 30, y: (i % 5) * 20 }))
 const PROPS = [{ x: -200, y: 120 }]
 
+/**
+ * A seeded source, so every assertion below is about the *rules* rather than
+ * about today's luck. An earlier version of this file ran against
+ * `Math.random()` and failed about one run in six on a hard bound — which is
+ * the worst kind of test, because it fails on whatever unrelated change
+ * happened to be in flight.
+ */
+function seeded(seed = 1): () => number {
+  let x = seed >>> 0
+  return () => {
+    x = (Math.imul(x, 1664525) + 1013904223) >>> 0
+    return x / 0x100000000
+  }
+}
+
 /** Run `seconds` of frames at 60 Hz. */
 function pump(a: ReturnType<typeof createAmbient>, seconds: number, entropy: number) {
   const dt = 1 / 60
@@ -91,7 +106,7 @@ describe('the floor over time — GDD §7.8.6', () => {
     // The headline claim of the whole section, and the one thing no unit test
     // of the model alone can make: given a bogged-down floor and ten seconds,
     // at least one person is somewhere other than their desk.
-    const a = createAmbient()
+    const a = createAmbient(seeded())
     let walked = 0
     for (let i = 0; i < 600; i++) {
       a.update(1 / 60, {
@@ -116,7 +131,7 @@ describe('the floor over time — GDD §7.8.6', () => {
     // how many people are up *at once*: one person fetching a drink is a quiet
     // office, and five people milling about is not.
     const peak = (entropy: number) => {
-      const a = createAmbient()
+      const a = createAmbient(seeded())
       let most = 0
       for (let i = 0; i < 1800; i++) {
         a.update(1 / 60, {
@@ -143,7 +158,7 @@ describe('the floor over time — GDD §7.8.6', () => {
   it('draws nothing at all above rung 2', () => {
     // Rule 4. The failure being avoided is not cost, it is a system running
     // where nobody can see it and therefore going wrong where nobody can see it.
-    const a = createAmbient()
+    const a = createAmbient(seeded())
     for (let i = 0; i < 600; i++) {
       a.update(1 / 60, {
         seats: SEATS,
@@ -160,7 +175,7 @@ describe('the floor over time — GDD §7.8.6', () => {
   it('returns everybody to their desk when it switches off mid-behaviour', () => {
     // Crossing a rung boundary while eight people are up and about must not
     // leave eight developers stranded in the aisle for the rest of the run.
-    const a = createAmbient()
+    const a = createAmbient(seeded())
     pump(a, 10, 0.9)
     a.update(1 / 60, {
       seats: SEATS,
@@ -177,7 +192,7 @@ describe('the floor over time — GDD §7.8.6', () => {
     // §7.8.6's nicest consequence: a crowded floor stops being able to reach
     // the cooler, which is a better joke than the walk was. Modelled by the
     // room passing no destinations at all.
-    const a = createAmbient()
+    const a = createAmbient(seeded())
     for (let i = 0; i < 900; i++) {
       a.update(1 / 60, {
         seats: SEATS,
@@ -195,7 +210,7 @@ describe('the floor over time — GDD §7.8.6', () => {
   it('never puts two behaviours on one developer', () => {
     // A double-booked seat is how somebody ends up walking to the cooler and
     // holding a conversation at their own desk at the same time.
-    const a = createAmbient()
+    const a = createAmbient(seeded())
     for (let i = 0; i < 1200; i++) {
       a.update(1 / 60, {
         seats: SEATS,
@@ -213,7 +228,7 @@ describe('the floor over time — GDD §7.8.6', () => {
   })
 
   it('sends a poked developer straight back to their desk — rule 5', () => {
-    const a = createAmbient()
+    const a = createAmbient(seeded())
     pump(a, 12, 0.95)
     for (let i = 0; i < SEATS.length; i++) a.interrupt(i)
     expect(maxOffset(a)).toBe(0)
@@ -223,7 +238,7 @@ describe('the floor over time — GDD §7.8.6', () => {
   it('survives the seat list shrinking under it', () => {
     // The room rebuilds `desks` on every hire, and a behaviour started at seat
     // 39 outlives a rebuild that leaves twelve seats.
-    const a = createAmbient()
+    const a = createAmbient(seeded())
     pump(a, 8, 0.9)
     const few = SEATS.slice(0, 12)
     for (let i = 0; i < 120; i++) {

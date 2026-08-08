@@ -433,6 +433,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // §7.8.1 — the room is rebuilt when the headcount changes, never per
     // frame. Its live extent feeds the §23.4.1 fit, so a room that grows is
     // also a camera that pulls back, with nobody driving Z.
+    // §7.8.7 — identities before headcount, so a rebuild triggered by the seed
+    // does not immediately get overwritten by one triggered by the count.
+    room.setSeed(state.runSeed)
     room.setHeadcount(state.devs)
     // §7.7.1 again, on the other tier: the floor shows the people who exist,
     // not a thousand placeholders ghosting in behind two developers.
