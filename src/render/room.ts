@@ -348,14 +348,51 @@ function drawDesk(g: Graphics, x: number, y: number) {
     .closePath()
     .fill(c(RAMPS.WOOD[0]))
 
-  // Monitor: bezel, then the emissive screen. The screen is the room's light.
-  g.rect(x - 13, y - 30, 26, 20).fill(c(RAMPS.NEUTRAL[2]))
-  g.rect(x - 11, y - 28, 22, 16).fill(c(RAMPS.GLOW[0]))
+  // The monitor. A screen is a flat panel, so it is drawn the way every other
+  // flat panel in this room is drawn: lying in a plane, not parallel to the
+  // glass. Its face is the down-left one — the same plane the wall dressing
+  // uses, which is what makes a monitor and a whiteboard look like they are in
+  // the same room.
+  //
+  // This is the one prop where getting it wrong was least obvious and most
+  // damaging: it is repeated once per developer, so an upright rectangle here
+  // was not one mistake but a hundred, tiling the whole floor.
+  const mx = x + 3
+  const my = y - 30
+  const S = 0.5
+
+  // The stand, first, so the panel sits over it.
+  isoBox(g, x + 3, y - 9, 8, 5, RAMPS.NEUTRAL, 2, false)
+  g.rect(mx - 1, my + 17, 3, 6).fill(c(RAMPS.NEUTRAL[2]))
+
+  // Bezel, then the emissive face. The screen is the room's only light source,
+  // so it is the one surface here allowed to ignore the top-left key.
+  wallQuad(g, mx, my - 2, 30, 21, S, c(RAMPS.NEUTRAL[2]))
+  wallQuad(g, mx, my, 26, 17, S, c(RAMPS.GLOW[0]))
+  // Code on it. Each line is a strip in the same plane, left-aligned along the
+  // panel, so the text runs across the screen rather than across the viewport.
   for (let i = 0; i < 4; i++) {
     const w = 5 + ((i * 7) % 13)
-    g.rect(x - 9, y - 26 + i * 4, w, 1.5).fill(c(i % 2 === 0 ? RAMPS.GLOW[2] : RAMPS.GLOW[1]))
+    const off = -(26 - w) / 2 + 2
+    wallQuad(
+      g,
+      mx + off,
+      my + 2 + i * 4 + S * off,
+      w,
+      1.5,
+      S,
+      c(i % 2 === 0 ? RAMPS.GLOW[2] : RAMPS.GLOW[1]),
+    )
   }
-  g.rect(x - 3, y - 10, 6, 3).fill(c(RAMPS.NEUTRAL[2]))
+  // The dark right-hand edge — the sliver of the monitor's own side that a
+  // panel turned away from the camera shows. Two pixels, and it is the whole
+  // difference between a screen and a decal.
+  g.moveTo(mx + 15, my + 5.5)
+    .lineTo(mx + 17, my + 6.5)
+    .lineTo(mx + 17, my + 25.5)
+    .lineTo(mx + 15, my + 24.5)
+    .closePath()
+    .fill(c(RAMPS.NEUTRAL[1]))
 }
 
 /** A pot plant. The most-repeated prop, so it varies by index. */
