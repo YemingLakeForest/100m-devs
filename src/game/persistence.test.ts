@@ -23,9 +23,14 @@ import {
   installAutoSave,
   loadGame,
   saveGame,
+  dismissScene,
+  hasSeenScene,
+  poke,
+  showScene,
   triggerParadigmShift,
 } from './store.ts'
 import { PROJECTS } from './store.ts'
+import { SCENE_JAMES_INSTANT_MESSENGER } from './scenes.ts'
 import {
   ENTITLEMENT_SERIES_A,
   NODE_CI_CD_AUTOPILOT,
@@ -323,5 +328,62 @@ describe('the §24.9 lifecycle', () => {
     })
     expect(saveGame()).toBe(false)
     setItem.mockRestore()
+  })
+})
+
+describe('§21.6 scenes', () => {
+  it('opens Run 2 on James, after the first Paradigm Shift', () => {
+    expect(getState().scene).toBeNull()
+    triggerParadigmShift()
+    expect(getState().scene).toBe(SCENE_JAMES_INSTANT_MESSENGER.id)
+  })
+
+  it('eats taps while a scene is up — §10.7 rule 2 and §4.9', () => {
+    // The dialogue box is using those taps for its own advance. A tap that
+    // both advances a page and banks a Story Point charges the player Entropy
+    // for reading, which is the resource the entire game is about.
+    triggerParadigmShift()
+    const before = getState().pokeCount
+    poke(10, 10)
+    expect(getState().pokeCount).toBe(before)
+  })
+
+  it('pokes again once the scene is dismissed', () => {
+    triggerParadigmShift()
+    dismissScene()
+    const before = getState().pokeCount
+    poke(10, 10)
+    expect(getState().pokeCount).toBe(before + 1)
+  })
+
+  it('remembers a scene across a Paradigm Shift — §24.3, §10.7', () => {
+    // "Seen" is permanent, not run state. A player on Run 40 made to sit
+    // through James's introduction at full typing speed for the fortieth time
+    // will hate the one thing this game is made of.
+    triggerParadigmShift()
+    expect(hasSeenScene(SCENE_JAMES_INSTANT_MESSENGER.id)).toBe(false)
+    dismissScene()
+    expect(hasSeenScene(SCENE_JAMES_INSTANT_MESSENGER.id)).toBe(true)
+
+    triggerParadigmShift()
+    expect(hasSeenScene(SCENE_JAMES_INSTANT_MESSENGER.id)).toBe(true)
+  })
+
+  it('persists seen scenes to the save immediately', () => {
+    // A scene is cheap to re-show and expensive to lose, so it is written on
+    // dismissal rather than waiting for a backgrounding that may never come.
+    triggerParadigmShift()
+    dismissScene()
+    expect(readSave()!.permanent.meta.milestones).toContain(SCENE_JAMES_INSTANT_MESSENGER.id)
+  })
+
+  it('does not restart a scene that is already showing', () => {
+    // The phase machine can satisfy a trigger on several consecutive frames,
+    // and restarting a typed page under the player's thumb is the worst
+    // possible failure of §10.7 rule 2.
+    triggerParadigmShift()
+    const id = getState().scene
+    showScene(SCENE_JAMES_INSTANT_MESSENGER.id)
+    expect(getState().scene).toBe(id)
   })
 })

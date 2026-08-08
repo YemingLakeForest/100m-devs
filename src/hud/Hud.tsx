@@ -4,6 +4,8 @@ import {
   canHire,
   collectOffline,
   currentEntropy,
+  dismissScene,
+  hasSeenScene,
   hireDeveloper,
   massHire,
   nextHireCost,
@@ -20,6 +22,8 @@ import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
+import { Dialogue } from '../ui/Dialogue.tsx'
+import { SCENES } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
 import { Upgrades } from './Upgrades.tsx'
 import { actionFor, formatMoney, type ActionSpec } from './hudModel.ts'
@@ -155,6 +159,20 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
           // value rather than a placeholder that flatters the screenshot.
           adReady={FAKE_AD_READY}
           onCollect={collectOffline}
+        />
+      )}
+
+      {/*
+        §21.6 and its ladder. Rendered above the HUD and below nothing: while a
+        scene is up the poke path is inert (see `poke` in the store), so the
+        box is the only thing taking taps.
+      */}
+      {state.scene && SCENES[state.scene] && (
+        <Dialogue
+          key={state.scene}
+          script={SCENES[state.scene].script}
+          seen={hasSeenScene(state.scene)}
+          onFinished={dismissScene}
         />
       )}
 

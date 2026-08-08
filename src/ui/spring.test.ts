@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
+import { useSpring } from './useSpring.ts'
 import {
   FRICTION,
   SPRING_HEAVY,
@@ -143,5 +145,31 @@ describe('clamp', () => {
     expect(clamp(5, 0, 10)).toBe(5)
     expect(clamp(-5, 0, 10)).toBe(0)
     expect(clamp(50, 0, 10)).toBe(10)
+  })
+})
+
+describe('a hidden tab must not freeze the numbers', () => {
+  it('snaps to the target rather than holding a stale value', async () => {
+    // The bug: Chrome suspends requestAnimationFrame when document.hidden is
+    // true, so the spring never ran and the displayed value sat on whatever it
+    // held when the tab was backgrounded. That is not a dropped animation, it
+    // is a wrong number — the HUD read DEVS 2 while the store held 1,002.
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+    const raf = vi
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation(() => 0 as unknown as number)
+    try {
+      const { result, rerender } = renderHook(({ v }) => useSpring(v), {
+        initialProps: { v: 2 },
+      })
+      rerender({ v: 1002 })
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 20))
+      })
+      expect(result.current).toBe(1002)
+    } finally {
+      raf.mockRestore()
+      hidden.mockRestore()
+    }
   })
 })

@@ -189,6 +189,9 @@ Two more automation notes, both learned the hard way:
 
 - `javascript_tool` inside a `browser_batch` may evaluate in a stale context after a
   `navigate`. Issue one throwaway call first, then read.
+- **`window.__store`** (dev builds) exposes the game state. Added because "the HUD shows 2
+  but the scale bar says 1,000" is not a question a screenshot can answer — and the answer
+  turned out to be a real bug, twice.
 - Synthesising a tap with `pointerdown` alone leaves a permanent entry in the pinch-tracking
   map, and two of them put the camera into pinch mode where every mouse move rewrites Z.
   `stage.ts` now expires pointers after 2 s so this cannot wedge the camera, but dispatch

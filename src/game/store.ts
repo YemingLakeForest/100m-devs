@@ -38,6 +38,7 @@ import {
 } from '../sim/devStates.ts'
 import { rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
 import { SnippetBag } from './snippets.ts'
+import { SCENE_JAMES_INSTANT_MESSENGER } from './scenes.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
 import {
@@ -169,6 +170,15 @@ export interface GameState {
    * never serialised, recomputed from `savedAt` on every load.
    */
   pendingOffline: OfflineReport | null
+  /**
+   * The §21.6-class scene currently on screen, or null.
+   *
+   * Only the id lives in state; the script is looked up from `SCENES`. Keeping
+   * the lines out of the store means a scene cannot end up in the save
+   * document, where it would be a copy of the script frozen at whatever
+   * revision the player last played.
+   */
+  scene: string | null
 }
 
 /**
@@ -207,6 +217,7 @@ function freshRun(): GameState {
     phase: 'act1_poke',
     massHired: false,
     pendingOffline: null,
+    scene: null,
   }
 }
 
@@ -233,6 +244,13 @@ export function subscribe(fn: () => void): () => void {
 
 function set(patch: Partial<GameState>): void {
   state = { ...state, ...patch }
+  // Dev-only inspection seam, in the same family as `window.__stage`. Reading
+  // the store from a console or a browser-automation session was otherwise
+  // impossible, and "the HUD shows 2 but the scale bar says 1,000" is not a
+  // question a screenshot can answer.
+  if (import.meta.env?.DEV) {
+    ;(globalThis as unknown as Record<string, unknown>).__store = state
+  }
   for (const fn of listeners) fn()
 }
 
@@ -343,6 +361,13 @@ export function tick(dtSeconds: number): void {
 
 /** Resolve one tap — the whole clicker layer, GDD §4.5. */
 export function poke(x: number, y: number) {
+  // §10.6 says the swarm keeps simulating behind a panel, but the poke path is
+  // inert while a scene is up: the dialogue box is eating those taps for its
+  // own advance, and a tap that both advances a page and banks a Story Point
+  // is the player being charged Entropy for reading.
+  if (state.scene !== null) {
+    return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
+  }
   if (state.phase === 'bankrupt') {
     return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
   }
@@ -486,11 +511,58 @@ export function triggerParadigmShift(): void {
     devs: 2,
     phase: 'act3_bait',
     projectsShipped: 1,
+    // §21.6 — Run 2 opens on James. The scene rather than the bubble carries
+    // the beat now; the bubble stays for the runs after this one, when the
+    // scene has already played and the line is all that is left of it.
+    scene: SCENE_JAMES_INSTANT_MESSENGER.id,
     ...showBubble('So. Same time tomorrow?', 6000),
   })
   // §24.9 — a prestige is the highest-value write in the game. Do not wait for
   // a backgrounding that may never come.
   saveGame()
+}
+
+/**
+ * Put a scene on screen — GDD §21.6.
+ *
+ * Idempotent for the scene already showing, because the phase machine can
+ * satisfy a trigger on several consecutive frames and restarting a typed page
+ * under the player's thumb is the worst possible failure of §10.7 rule 2.
+ */
+export function showScene(id: string): void {
+  if (state.scene === id) return
+  set({ scene: id })
+}
+
+/**
+ * Dismiss the current scene and mark it seen.
+ *
+ * `milestones` is a monotonic union in permanent state (§24.3), so "seen" is
+ * one of the few facts that survives a Paradigm Shift, a Codebase Fork and a
+ * reinstall-with-cloud-save. That is deliberate: §10.7's faster replay is
+ * per-line across runs, and a player on Run 40 who is made to sit through
+ * James's introduction at full typing speed for the fortieth time will hate
+ * the one thing this game is made of.
+ */
+export function dismissScene(): void {
+  const id = state.scene
+  if (!id) return
+  const permanent = getPermanent()
+  if (!permanent.meta.milestones.includes(id)) {
+    setPermanent({
+      ...permanent,
+      meta: { ...permanent.meta, milestones: [...permanent.meta.milestones, id] },
+    })
+    // A scene is cheap to re-show and expensive to lose. Write now rather than
+    // waiting for a backgrounding that may never come (§24.9).
+    saveGame()
+  }
+  set({ scene: null })
+}
+
+/** Has this scene been played to the end before? §10.7's replay exception. */
+export function hasSeenScene(id: string): boolean {
+  return getPermanent().meta.milestones.includes(id)
 }
 
 export function setZoom(zoom: ZoomLevel): void {

@@ -61,7 +61,26 @@ export function Panel({
   onExited,
 }: PanelProps) {
   const reduced = useReducedMotion()
-  const [mounted, setMounted] = useState(open)
+  // `mounted` is DERIVED, not stored: the panel exists while it is open, and
+  // for the length of its exit after it closes. Deriving it means opening can
+  // never depend on a frame callback — an earlier version scheduled the mount
+  // inside `requestAnimationFrame`, and Chrome suspends rAF whenever
+  // `document.hidden` is true, so a panel opened in a background tab never
+  // appeared at all. That cost the game its only exit from Run 1: the
+  // bankruptcy screen holds the sole route into Run 2.
+  const [exiting, setExiting] = useState(false)
+  const [prevOpen, setPrevOpen] = useState(open)
+
+  // Adjusting state during render rather than in an effect — React's documented
+  // "a prop changed" pattern, and the reason the exit is not a frame late. The
+  // previous value is state rather than a ref because refs must not be read
+  // during render.
+  if (prevOpen !== open) {
+    setPrevOpen(open)
+    if (!open) setExiting(true)
+  }
+
+  const mounted = open || exiting
 
   // Latched rather than depended on: an inline arrow from the caller would
   // otherwise change identity on every parent render and restart the exit
@@ -74,24 +93,26 @@ export function Panel({
   const inMs = motionMs(DURATION.panelIn, reduced)
   const outMs = motionMs(DURATION.panelOut, reduced)
 
+  // Sound is a side effect of opening and closing, so it belongs in an effect
+  // rather than in the render branch above. Skipped on the very first run for
+  // a panel that starts closed, which would otherwise announce a close that
+  // never happened.
+  const announced = useRef(open)
   useEffect(() => {
-    if (open === mounted) return
+    if (announced.current === open) return
+    announced.current = open
+    if (silent) return
+    playUi(open ? 'whoosh' : 'close')
+  }, [open, silent])
 
-    if (open) {
-      if (!silent) playUi('whoosh')
-      const frame = requestAnimationFrame(() => setMounted(true))
-      return () => cancelAnimationFrame(frame)
-    }
-
-    if (!silent) playUi('close')
-    // The element is already rendering at data-phase="exit" by now — this only
-    // decides when it stops existing.
+  useEffect(() => {
+    if (!exiting) return
     const timer = setTimeout(() => {
-      setMounted(false)
+      setExiting(false)
       exited.current?.()
     }, outMs)
     return () => clearTimeout(timer)
-  }, [open, mounted, outMs, silent])
+  }, [exiting, outMs])
 
   if (!mounted) return null
 
