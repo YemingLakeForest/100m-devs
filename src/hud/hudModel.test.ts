@@ -127,6 +127,20 @@ describe('the action bar — §21 is a funnel', () => {
     expect(actionFor('act3_bait')?.note).toContain('TREASURY')
   })
 
+  it('prices every action it offers', () => {
+    // The gap the mousetrap fell through. `disabled` was gated on
+    // `showsHireCost`, which MASS_HIRE does not set, so the bait button was
+    // live at every cash level -- including zero, where it charged $50 the
+    // player did not have. Any action that costs money must say how it is
+    // priced, or the action bar has no way to know when it is dead.
+    for (const phase of PHASE_ORDER) {
+      const spec = actionFor(phase)
+      if (spec && spec.action !== 'paradigmShift') {
+        expect(spec.priced).toBeDefined()
+      }
+    }
+  })
+
   it('leaves the bankruptcy decision to the bankruptcy panel', () => {
     // Two surfaces competing for one decision, one sliding up underneath the
     // other, is not a choice — it is a collision.

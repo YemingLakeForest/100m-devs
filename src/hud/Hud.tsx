@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
 import {
-  canHire,
+
+  canMassHire,
   collectOffline,
+  currentMassHireCost,
   currentEntropy,
   dismissScene,
   hasSeenScene,
@@ -13,7 +15,7 @@ import {
   triggerParadigmShift,
   type GameState,
 } from '../game/store.ts'
-import { PHASE_COPY } from '../game/onboarding.ts'
+import { MASS_HIRE_COUNT, PHASE_COPY } from '../game/onboarding.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
@@ -216,9 +218,20 @@ function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState 
   const [shown, setShown] = useState(spec)
   if (spec !== null && spec !== shown) setShown(spec)
 
-  // §10.10 — what the dial is currently offering. Only the hire action reads
-  // it; the mousetrap and the paradigm shift are fixed-price beats.
-  const q = hireQuote(state)
+  // What the shown action costs and whether it can be paid for — **one path
+  // for every priced action**, keyed off `ActionSpec.priced`.
+  //
+  // These were separate before and the mousetrap fell through the gap: its
+  // `disabled` was gated on `showsHireCost`, which it does not set, so it was
+  // live at every cash level including zero. A button that says "Cost: YOUR
+  // ENTIRE TREASURY" and works when the treasury is empty is the interface
+  // telling the player the price is fiction.
+  const q =
+    shown?.priced === 'hire'
+      ? hireQuote(state)
+      : shown?.priced === 'massHire'
+        ? { count: MASS_HIRE_COUNT, cost: currentMassHireCost(state), affordable: canMassHire(state) }
+        : null
 
   return (
     <Panel open={spec !== null} from="bottom" className="hud__actions">
@@ -240,7 +253,7 @@ function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState 
           // §21.0 — a hire the player cannot afford is refused by the store
           // anyway, but a button that looks live and does nothing is worse
           // than one that says so.
-          disabled={shown.showsHireCost && !canHire(state)}
+          disabled={q !== null && !q.affordable}
         >
           {/*
             The face carries the batch, because at x100 "HIRE DEVELOPER" is a
@@ -248,15 +261,21 @@ function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState 
             exactly as it always did — the multiplier is 1 and the count is
             suppressed rather than rendered as "x1".
           */}
-          {shown.showsHireCost && q.count > 1 ? `${shown.label}  x${q.count}` : shown.label}
+          {shown.showsHireCost && q && q.count > 1 ? `${shown.label}  x${q.count}` : shown.label}
           {/*
             §10.10.1 — the TRUE sum of the next n hires, never n x current.
             `hireQuote` takes it from the closed form; `nextHireCost` is only
             right for a batch of one and would understate every other batch,
             which would read as a lie the first time a player checked.
           */}
-          {shown.showsHireCost && <small>{formatMoney(q.cost)}</small>}
+          {/*
+            The mousetrap shows its joke *and* its figure. "Cost: YOUR ENTIRE
+            TREASURY" is funny while there is a treasury and says nothing at
+            all when there is not, so the number goes underneath it — which is
+            also what tells a broke player what they are waiting for.
+          */}
           {shown.note && <small>{shown.note}</small>}
+          {q && <small>{formatMoney(q.cost)}</small>}
         </Button>
       )}
     </Panel>

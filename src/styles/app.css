@@ -818,6 +818,39 @@ body {
   }
 }
 
+/* --- a button that cannot be pressed must not look pressable ------------ */
+
+/*
+ * There was no disabled state at all. `disabled` was set correctly on the
+ * element and styled nowhere, so a dead control kept full contrast, its raised
+ * offset slab, and `cursor: pointer` — indistinguishable from a live one. That
+ * is the same defect as not disabling it: the player taps, nothing happens, and
+ * the game looks broken rather than the price looking unmet.
+ *
+ * The offset slab collapses, because depth is what says "this is a thing you
+ * can push". Contrast drops but stays legible: §10.10.3's rule about
+ * unaffordable prices applies here too — a dead button still has to be
+ * readable, because reading it is how the player learns what they are waiting
+ * for. Kept as one rule for every button rather than per-variant, so a control
+ * added later cannot forget it.
+ */
+.ui-btn:disabled {
+  color: var(--p1);
+  background: color-mix(in srgb, var(--p0) 55%, transparent);
+  border-color: var(--p1);
+  box-shadow: 0 0 0 0 transparent;
+  cursor: default;
+  /* Nothing dead is allowed to move. The bait's pulse is the game *begging*,
+     and an offer begging for money the player does not have is a nag rather
+     than a joke. */
+  animation: none;
+  transform: skewX(var(--btn-skew)) scale(1);
+}
+
+.ui-btn:disabled small {
+  color: var(--p1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-btn {
     /* Shortened, not removed: §10.5 rule 3 never turns a transition into a

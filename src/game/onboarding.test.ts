@@ -27,14 +27,38 @@ const at = (p: Partial<OnboardingSnapshot>) => ({ ...base, ...p })
 describe('the funnel only moves forward', () => {
   it('never skips a beat', () => {
     // Even a snapshot satisfying every condition at once advances one step.
+    //
+    // `bankrupt` is deliberately false here, and that is a correction rather
+    // than a convenience: bankruptcy is an **exit** from the funnel, not a
+    // step along it, so it has no business in an assertion about the forward
+    // path. The version of this test that set it true was pinning the bug
+    // below — a studio that had run out of money being told to keep poking.
     const everything = at({
       pokeCount: 999,
       devs: 5000,
       projectsShipped: 9,
       entropy: 1,
-      bankrupt: true,
     })
     expect(advanceOnboarding('act1_poke', everything)).toBe('act2_offer_hire')
+  })
+
+  it('ends the run from any act once the money is gone', () => {
+    // Bankruptcy used to be checked only in `act5_bleeding`, on the assumption
+    // that it could only follow the Mass Hire. Payroll does not know that. A
+    // player who overhired during Act IIa, or who sat in Act III unable to
+    // afford the offer, dropped past -$1,000,000 and stayed there for ever:
+    // no ending, no prestige screen, and the only control on the beat dead
+    // because they could not pay for it. **A run has to be able to end.**
+    const broke = at({ bankrupt: true })
+    for (const phase of PHASE_ORDER) {
+      expect(advanceOnboarding(phase, broke)).toBe('bankrupt')
+    }
+  })
+
+  it('does not end a run that still has money', () => {
+    for (const phase of PHASE_ORDER.filter((p) => p !== 'bankrupt')) {
+      expect(advanceOnboarding(phase, base)).not.toBe('bankrupt')
+    }
   })
 
   it('never runs backwards', () => {

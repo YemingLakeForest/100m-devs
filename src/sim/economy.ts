@@ -113,10 +113,14 @@ export function hireCostTotal(from: number, to: number): number {
  * and only just." Taking it literally rather than picking a number is the
  * robust reading and the funnier one:
  *
- * - It is **always affordable and always ruinous**, so the beat cannot be
- *   broken by any later change to revenue or hire costs. A fixed price would
- *   have to be re-tuned every time §4.10 moved, and would silently become
- *   either unreachable or trivial when nobody was looking.
+ * - It is **always ruinous**, so the beat cannot be broken by any later change
+ *   to revenue or hire costs. A fixed price would have to be re-tuned every
+ *   time §4.10 moved, and would silently become either unreachable or trivial
+ *   when nobody was looking.
+ * - It is **not always affordable**, which an earlier draft of this comment
+ *   claimed. Payroll runs continuously and can empty the treasury faster than
+ *   shipping refills it, so a studio can sit in Act III below the floor. The
+ *   caller must check — see `canMassHire`.
  * - It leaves **exactly zero buffer**, which is what §21.0 says makes Act V's
  *   bankruptcy arrive in seconds rather than needing a scripted nudge.
  * - "Cost: YOUR ENTIRE TREASURY" is a better joke than any figure, and it is

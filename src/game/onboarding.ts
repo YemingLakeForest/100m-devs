@@ -196,6 +196,15 @@ export const PLAYER_GATED: ReadonlySet<Phase> = new Set([
  * satisfies two conditions at once still plays both beats.
  */
 export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
+  // Running the studio into the ground ends the run, **whatever act it happens
+  // in**. This used to be checked only in `act5_bleeding`, on the assumption
+  // that bankruptcy could only follow the Mass Hire — and payroll does not know
+  // that. A player who overhired during Act IIa, or who sat in Act III unable
+  // to afford the offer, would drop past -$1,000,000 and simply stay there:
+  // no ending, no prestige, no screen, and the only control on the beat dead
+  // because they could not pay for it. A run has to be able to end.
+  if (s.bankrupt && phase !== 'bankrupt') return 'bankrupt'
+
   switch (phase) {
     case 'act1_poke':
       // The clicker layer has to sell itself before anything else appears.
@@ -229,6 +238,7 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
       return s.entropy >= 0.99 ? 'act5_bleeding' : phase
 
     case 'act5_bleeding':
+      // Handled by the guard above; kept explicit so the act reads completely.
       return s.bankrupt ? 'bankrupt' : phase
 
     case 'bankrupt':

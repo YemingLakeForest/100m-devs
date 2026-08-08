@@ -241,6 +241,18 @@ export function getState(): GameState {
   return state
 }
 
+/**
+ * Test-only state injection, in the same family as `__resetStore`.
+ *
+ * Exists so a test can put the run in a state the *simulation* would take
+ * minutes to reach — an Act III studio with an empty treasury, for instance,
+ * which is a real and reachable state and a tedious one to arrive at honestly.
+ * Not exported from anything the game imports.
+ */
+export function __setState(patch: Partial<GameState>): void {
+  set(patch)
+}
+
 export function subscribe(fn: () => void): () => void {
   listeners.add(fn)
   return () => listeners.delete(fn)
@@ -495,6 +507,19 @@ export function currentMassHireCost(s: GameState = state): number {
 }
 
 /**
+ * Can the player actually spring the trap right now?
+ *
+ * §4.10a claimed the Mass Hire was "always affordable and always ruinous",
+ * which is true of the *price* and not of the player: payroll runs continuously
+ * and can empty the treasury faster than shipping refills it, so a studio can
+ * sit in Act III with less than the minimum. The offer stays on screen, priced
+ * and disabled — hiding it would delete the beat the whole act is built on.
+ */
+export function canMassHire(s: GameState = state): boolean {
+  return !s.massHired && s.cash >= currentMassHireCost(s)
+}
+
+/**
  * §21 Act III/IV — the mousetrap, and it is no longer free.
  *
  * "Cost: FREE (Trial Promo)" made it a button rather than a decision, and §6
@@ -506,6 +531,12 @@ export function currentMassHireCost(s: GameState = state): number {
 export function massHire(): boolean {
   if (state.massHired) return false
   const cost = currentMassHireCost()
+  // The offer is priced at the whole treasury with a floor under it, so a
+  // player whose treasury is *below* that floor cannot pay — and this was not
+  // checked. Pressing it at $0 charged $50 and took them to -$50: a control
+  // labelled "Cost: YOUR ENTIRE TREASURY" completing successfully against an
+  // empty one. Every other spend in the game refuses; this one has to as well.
+  if (state.cash < cost) return false
   set({
     ...hire(state.devs, state.devs + MASS_HIRE_COUNT),
     cash: state.cash - cost,

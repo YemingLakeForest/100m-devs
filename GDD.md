@@ -472,10 +472,28 @@ company — §6's entire lesson stated in two constants.
 price at all. Cash is already fractional; the HUD rounds for display.
 
 **The Mass Hire is priced at literally everything**, which is more robust than a figure and
-funnier than one. It is always affordable and always ruinous, it leaves exactly zero buffer —
-which is what §21.0 says makes Act V's bankruptcy arrive in seconds — and it cannot be broken
-by any later rebalancing of §4.10. A fixed price would silently become unreachable or trivial
-every time revenue moved, and nobody would notice until the trap stopped springing.
+funnier than one. It is always ruinous, it leaves exactly zero buffer — which is what §21.0
+says makes Act V's bankruptcy arrive in seconds — and it cannot be broken by any later
+rebalancing of §4.10. A fixed price would silently become unreachable or trivial every time
+revenue moved, and nobody would notice until the trap stopped springing.
+
+> **It is not, however, *always affordable*, and this section said it was.** Payroll runs
+> continuously and can empty the treasury faster than shipping refills it, so a studio can
+> sit in Act III below the $50 floor for minutes at a time. When the offer cannot be paid
+> for it stays on screen, **priced and disabled** — hiding it would delete the beat the whole
+> act is built on, and leaving it live meant a control reading "Cost: YOUR ENTIRE TREASURY"
+> completing successfully against an empty one and pushing the player to −$50.
+>
+> Two rules follow, and both are general rather than about this button:
+>
+> 1. **Every action that costs money declares how it is priced.** The action bar derived
+>    `disabled` from whether a *figure was drawn*, which the mousetrap does not draw — so it
+>    was never disabled at any cash level. Pricing and display are now separate fields.
+> 2. **A control that cannot be pressed must not look pressable.** There was no disabled
+>    style at all: `disabled` was set on the element and styled nowhere, so a dead button
+>    kept full contrast, its raised slab and `cursor: pointer`. From the player's side that
+>    is the same defect as not disabling it — they tap, nothing happens, and the game looks
+>    broken rather than the price looking unmet.
 
 **These are first-pass numbers and want a playtest**, unlike the wage and the bankruptcy
 threshold, which are derived. See the pacing note in §21.0.

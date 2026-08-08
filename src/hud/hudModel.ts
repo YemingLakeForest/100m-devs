@@ -123,6 +123,16 @@ export interface ActionSpec {
    * every tick as a new action and re-run its entrance animation.
    */
   showsHireCost?: boolean
+  /**
+   * How this action is priced, and therefore when it is dead.
+   *
+   * The action bar used to gate `disabled` on `showsHireCost`, which meant the
+   * **mousetrap was never disabled at any cash level** — a bait button reading
+   * "Cost: YOUR ENTIRE TREASURY" stayed live and pressable against an empty
+   * treasury. Naming the pricing separately from whether a figure is drawn is
+   * what stops the two ever drifting apart again.
+   */
+  priced?: 'hire' | 'massHire'
 }
 
 /**
@@ -137,6 +147,7 @@ const HIRE: ActionSpec = {
   variant: 'default',
   action: 'hire',
   showsHireCost: true,
+  priced: 'hire',
 }
 
 const MASS_HIRE: ActionSpec = {
@@ -147,6 +158,7 @@ const MASS_HIRE: ActionSpec = {
   note: 'Cost: YOUR ENTIRE TREASURY',
   variant: 'bait',
   action: 'massHire',
+  priced: 'massHire',
 }
 
 /**
