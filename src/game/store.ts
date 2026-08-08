@@ -16,6 +16,7 @@
 import Decimal from 'break_infinity.js'
 import { quote, type Multiplier, type Quote } from '../sim/hireDial.ts'
 import { developerAt, type Identity } from '../sim/identity.ts'
+import { NODE_BY_ID, bpFor, canAfford, devCapFor, nodeCost } from '../sim/prestige.ts'
 import {
   BANKRUPTCY_THRESHOLD,
   hireCost,
@@ -215,6 +216,14 @@ export interface GameState {
    */
   runSeed: number
   /**
+   * §14.1 — the highest headcount this run reached.
+   *
+   * Tracked rather than read off `devs` at shift time, because Act V ends with
+   * a bankruptcy that has already liquidated the swarm: a player who peaked at
+   * a thousand and prestiges at two must be paid for the thousand.
+   */
+  peakDevs: number
+  /**
    * The last project to ship, and what it paid — §10.8a.
    *
    * Held as an *event* with an id rather than as a flag, so the renderer and
@@ -311,6 +320,7 @@ function freshRun(): GameState {
     massHired: false,
     hireMultiplier: 1,
     pokeRate: 0,
+    peakDevs: 1,
     ship: null,
     seedTaken: false,
     selected: null,
@@ -606,6 +616,7 @@ export function poke(x: number, y: number) {
 function hire(before: number, after: number): Partial<GameState> {
   return {
     devs: after,
+    peakDevs: Math.max(state.peakDevs, after),
     spawn: {
       id: nextSpawnId++,
       bodies: spawnBurst(before, after),
@@ -614,6 +625,54 @@ function hire(before: number, after: number): Partial<GameState> {
     },
   }
 }
+
+/**
+ * §14.1 — BP awarded by the most recent Paradigm Shift, for the screen that
+ * announces it. Module state rather than game state: it belongs to the moment
+ * rather than to the run, and a run that has just been replaced cannot hold it.
+ */
+let lastShiftBp = 0
+
+export function bpFromLastShift(): number {
+  return lastShiftBp
+}
+
+/** §13.2 — spend BP on a Paradigm Tree node. */
+export function buyParadigmNode(id: string): boolean {
+  const node = NODE_BY_ID.get(id)
+  if (!node) return false
+  const p = getPermanent()
+  const level = p.layer1.paradigmLevels[id] ?? 0
+  if (!canAfford(node, level, p.layer1.bp)) return false
+
+  const levels = { ...p.layer1.paradigmLevels, [id]: level + 1 }
+  setPermanent({
+    ...p,
+    layer1: {
+      ...p.layer1,
+      bp: p.layer1.bp - nodeCost(node, level),
+      paradigmNodes: p.layer1.paradigmNodes.includes(id)
+        ? p.layer1.paradigmNodes
+        : [...p.layer1.paradigmNodes, id],
+      paradigmLevels: levels,
+    },
+  })
+  // §4.2 — the cap moves immediately. Buying capacity and not feeling it until
+  // the next run would make the tree a shopping list rather than a decision.
+  set({ devCap: devCapFor(levels) })
+  saveGame()
+  return true
+}
+
+/**
+ * §13.2 — the permanent block, re-exported for the tree screen.
+ *
+ * It lives in `save.ts` and the interface has no business importing from there:
+ * §24's document format is the store's private business, and a component
+ * reaching past the store to read it is how a save-format change starts
+ * breaking panels.
+ */
+export { getPermanent }
 
 /** What the next developer costs right now — §21.0. */
 export function nextHireCost(s: GameState = state): number {
@@ -757,15 +816,48 @@ export function massHire(): boolean {
  */
 export function triggerParadigmShift(): void {
   const run = freshRun()
-  // §24.4 — a Paradigm Shift clears the run and touches nothing permanent.
-  // §24.5 gates offline accrual on the first one, so the counter is the unlock.
-  setPermanent(paradigmShiftPermanent(getPermanent()))
+  // §14.1 — what the run was worth. Computed before the reset, and from the
+  // *permanent* high-water marks rather than the live ones: Act V ends with a
+  // bankruptcy that has already liquidated the swarm, so a player who peaked at
+  // a thousand developers and prestiges at two must be paid for the thousand.
+  const before = getPermanent()
+  const earned = bpFor(
+    Math.max(before.meta.lifetimeRevenue, state.lifetimeRevenue),
+    Math.max(before.meta.peakDevs, state.peakDevs),
+  )
+  lastShiftBp = earned
+
+  // §24.4 — a Paradigm Shift clears the run and touches nothing permanent
+  // except Layer 1. §24.5 gates offline accrual on the first one, so the
+  // counter is the unlock.
+  setPermanent(paradigmShiftPermanent(before, earned))
   set({
     ...run,
+    // §4.2 — the cap the tree has bought, applied to the new run. Reading it
+    // from `freshRun()` would hand every prestige back the base hundred.
+    devCap: devCapFor(getPermanent().layer1.paradigmLevels),
     // "So. Same time tomorrow?"
     devs: 2,
-    phase: 'act3_bait',
+    /**
+     * **Run 2 opens on the loop, not on the trap.**
+     *
+     * This said `act3_bait`, which meant a Paradigm Shift dropped the player at
+     * Act III with two developers and no money: the mousetrap on screen, priced
+     * at a treasury they did not have, and the only exit from that phase being
+     * `devs > 502`. There is no way to hire five hundred people on nothing, so
+     * the offer sat there greyed out **for ever** and the run could not advance.
+     * That is what "the HIRE 1,000 DEVS button is always there" was.
+     *
+     * §21.6 is Run 2 *Act 0* — James arriving with Instant Messenger — and Act 0
+     * is the start of a run, not its penultimate beat.
+     */
+    phase: 'act2b_loop',
     projectsShipped: 1,
+    // §10.10.2 — "outside Run 1 the dial is simply present from the first
+    // frame. The funnel is a first-run device and re-teaching it is an insult."
+    // The seed round is the same: it is a story beat, and it has happened.
+    seedTaken: true,
+    dialUnlocked: true,
     // §21.6 — Run 2 opens on James. The scene rather than the bubble carries
     // the beat now; the bubble stays for the runs after this one, when the
     // scene has already played and the line is all that is left of it.
@@ -884,7 +976,11 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
   const restored: GameState = {
     ...freshRun(),
     devs: r.devs,
-    devCap: r.devCap,
+    peakDevs: Math.max(r.devs, save.permanent.meta.peakDevs),
+    // §4.2 — derived from the tree, never from the saved run. A cap read back
+    // out of run state would silently keep whatever it was when the file was
+    // written, so a node bought on another device would appear to do nothing.
+    devCap: devCapFor(save.permanent.layer1.paradigmLevels),
     cash: r.cash,
     projectIndex: r.projectIndex,
     sprintName: PROJECTS[Math.min(r.projectIndex, PROJECTS.length - 1)].name,

@@ -10,6 +10,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { SEED_ROUND_AT, SEED_ROUND_CASH } from './onboarding.ts'
 import { segmentsFor } from '../sim/hireDial.ts'
+import { actionFor, offerFor } from '../hud/hudModel.ts'
 import {
   __resetStore,
   __setState,
@@ -19,6 +20,7 @@ import {
   setHireMultiplier,
   takeSeedRound,
   tick,
+  triggerParadigmShift,
 } from './store.ts'
 
 beforeEach(() => {
@@ -60,6 +62,32 @@ describe('the dial is gated on the round, not on a headcount — §10.10.2', () 
     // window: an x1M segment at twelve developers would be absurd.
     expect(segmentsFor(12)).toEqual([])
     expect(segmentsFor(60)).toHaveLength(4)
+  })
+})
+
+describe('Run 2 opens on the loop, not on the trap — §21.6', () => {
+  it('does not drop a prestiged player at Act III with two developers', () => {
+    // The bug this pins was reported three times as "the HIRE 1,000 DEVS button
+    // is always there", and it was: a Paradigm Shift set the phase to
+    // `act3_bait` with two developers and no money, so the mousetrap sat on
+    // screen priced at a treasury the player did not have — and the only exit
+    // from that phase is `devs > 502`, which is unreachable on nothing.
+    // **The run could not advance.**
+    __setState({ lifetimeRevenue: 1_000_000, peakDevs: 1_042, devs: 1_042 })
+    triggerParadigmShift()
+    tick(0.05)
+    expect(getState().phase).not.toBe('act3_bait')
+    expect(offerFor(getState().phase, getState().massHired)).toBeNull()
+    expect(actionFor(getState().phase)?.action).toBe('hire')
+  })
+
+  it('does not re-teach the funnel', () => {
+    // §10.10.2 — "outside Run 1 the dial is simply present from the first
+    // frame. The funnel is a first-run device and re-teaching it is an insult."
+    // The seed round is the same: a story beat that has already happened.
+    triggerParadigmShift()
+    expect(getState().dialUnlocked).toBe(true)
+    expect(getState().seedTaken).toBe(true)
   })
 })
 

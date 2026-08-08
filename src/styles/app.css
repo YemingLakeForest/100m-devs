@@ -416,6 +416,116 @@ body {
   margin-bottom: 2px;
 }
 
+/* --- the Paradigm Tree — GDD §13.2, §15.1 ------------------------------ */
+
+.paradigm {
+  display: grid;
+  gap: 10px;
+  width: min(46em, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 14px 18px;
+  border: var(--rule) solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+}
+
+.paradigm__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.paradigm__title {
+  margin: 0;
+  font-size: var(--type-2x);
+  letter-spacing: 3px;
+  color: var(--p3);
+}
+
+/* The balance, in the colour a currency arrives in — the same green the ship
+   celebration and the incoming-payout line use. */
+.paradigm__bp {
+  margin: 0;
+  font-size: var(--type-2x);
+  color: var(--foliage-1);
+}
+
+/* §4.2 calls the cap "the only defence against §4.1", so it is stated rather
+   than left to be inferred from a node description. */
+.paradigm__cap {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.paradigm__cap b {
+  color: var(--p3);
+}
+
+.paradigm__branches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15em, 1fr));
+  gap: 12px;
+}
+
+.paradigm__branch {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.paradigm__branch-name {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
+}
+
+.paradigm__node {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  padding: 7px 9px;
+  border-left: var(--rule) solid var(--p0);
+}
+
+/* Owned nodes take the phosphor rule. Depth is read down the column, so the
+   only state a node needs to advertise is whether you have it. */
+.paradigm__node[data-owned='true'] {
+  border-left-color: var(--p3);
+}
+
+.paradigm__node-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.paradigm__node-name {
+  color: var(--p3);
+}
+
+.paradigm__node-level {
+  color: var(--p1);
+  font-variant-numeric: tabular-nums;
+}
+
+.paradigm__node-effect {
+  margin: 0 0 3px;
+  font-size: var(--type-1x);
+  line-height: 1.35;
+  color: var(--p2);
+}
+
+.paradigm__soon {
+  color: var(--p0);
+  font-style: italic;
+}
+
 /* --- the developer card — GDD §7.8.8 ----------------------------------- */
 
 /*

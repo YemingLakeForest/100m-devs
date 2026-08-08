@@ -1154,6 +1154,10 @@ export function buildRoom(): RoomHandle {
         devs: desks.length,
         entropy,
         drawnIndividually: true,
+        // Read off the live world transform rather than plumbed down from the
+        // stage: the camera's scale is already baked into it, and a second copy
+        // passed by hand is a second thing that can be one frame stale.
+        worldScale: root.worldTransform.a,
       })
 
       // §7.8.3 — a transform on a static part, never a spritesheet. The whole

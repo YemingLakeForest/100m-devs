@@ -90,6 +90,17 @@ export interface Ambient {
       devs: number
       entropy: number
       drawnIndividually: boolean
+      /**
+       * The tier's current on-screen scale, so bubbles can be drawn at a
+       * constant *screen* size.
+       *
+       * They are parented into the room and therefore scale with the camera,
+       * which at the Hero Anchor zoom made a speech bubble taller than the HUD
+       * and wider than four desks. Text pinned to a world object still has to
+       * be legible rather than proportional — this is the same reason a map
+       * label does not grow when you zoom in.
+       */
+      worldScale: number
     },
   ): void
   /** Room-local offset for the developer in seat `i`. Zero unless walking. */
@@ -297,7 +308,7 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
   return {
     layer,
 
-    update(dt, { seats, props, devs, entropy, drawnIndividually }) {
+    update(dt, { seats, props, devs, entropy, drawnIndividually, worldScale }) {
       g.clear()
       // Labels are claimed from the pool as bubbles are drawn; whatever is left
       // over from last frame gets hidden at the end.
@@ -350,7 +361,20 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
           // A bubble follows its speaker. The instigator of a walk is the one
           // who moves; everybody else bubbles over their own desk.
           const off = i === a.who[0] ? walkOffset(a, t) : ZERO
-          bubble(label, g, seat.x + off.x, seat.y + off.y - 46, t, a.kind, a.says[n] ?? a.says[0])
+          // Clamped rather than a straight inverse: at the swarm zoom the
+          // inverse explodes, and a bubble that never shrinks would cover the
+          // floor it is meant to be sitting on.
+          const inv = Math.min(2.4, 1 / Math.max(0.35, worldScale))
+          bubble(
+            label,
+            g,
+            seat.x + off.x,
+            seat.y + off.y - 46,
+            t,
+            a.kind,
+            a.says[n] ?? a.says[0],
+            inv,
+          )
         }
       }
 
@@ -482,6 +506,7 @@ function bubble(
   t: number,
   kind: Behaviour,
   says: string,
+  inv: number,
 ) {
   // Pops in, holds, pops out. Nothing on this floor appears or vanishes.
   const grow = Math.min(1, t / 0.12)
@@ -494,20 +519,21 @@ function bubble(
 
   const node = label(says)
   if (node) {
-    node.scale.set(s)
+    node.scale.set(s * inv)
     node.tint = c(ink)
   }
 
-  const w = (says.length * 5.4 + 10) * s
-  const h = 15 * s
+  const w = (says.length * 5.4 + 10) * s * inv
+  const h = 15 * s * inv
 
-  g.roundRect(x - w / 2, y - h, w, h, 3 * s).fill({ color: c(fill), alpha: 0.95 })
+  const k = s * inv
+  g.roundRect(x - w / 2, y - h, w, h, 3 * k).fill({ color: c(fill), alpha: 0.95 })
   // The tail, pointing down at whoever is speaking.
-  g.moveTo(x - 3 * s, y)
-    .lineTo(x + 2 * s, y)
-    .lineTo(x - 1 * s, y + 5 * s)
+  g.moveTo(x - 3 * k, y)
+    .lineTo(x + 2 * k, y)
+    .lineTo(x - 1 * k, y + 5 * k)
     .closePath()
     .fill({ color: c(fill), alpha: 0.95 })
 
-  node?.position.set(x, y - h + 3 * s)
+  node?.position.set(x, y - h + 3 * k)
 }

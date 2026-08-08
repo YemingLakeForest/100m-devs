@@ -233,11 +233,11 @@ describe('the monotonic merge — SAVE.md §3, GDD §24.3', () => {
 
   it('unions unlocked nodes and takes the higher level on each', () => {
     const a: PermanentSave = {
-      layer1: { paradigmNodes: ['L1-1A'], paradigmLevels: { 'L1-1A': 3 } },
+      layer1: { bp: 0, paradigmNodes: ['L1-1A'], paradigmLevels: { 'L1-1A': 3 } },
       meta: emptyPermanent().meta,
     }
     const b: PermanentSave = {
-      layer1: { paradigmNodes: ['L1-1B'], paradigmLevels: { 'L1-1A': 1, 'L1-1B': 2 } },
+      layer1: { bp: 0, paradigmNodes: ['L1-1B'], paradigmLevels: { 'L1-1A': 1, 'L1-1B': 2 } },
       meta: emptyPermanent().meta,
     }
     const m = mergePermanent(a, b).layer1
@@ -251,11 +251,11 @@ describe('a spendable balance is derived, never merged — GDD §24.3', () => {
 
   it('keeps both nodes when two devices spend the same currency differently', () => {
     const a: PermanentSave = {
-      layer1: { paradigmNodes: ['X'], paradigmLevels: { X: 1 } },
+      layer1: { bp: 0, paradigmNodes: ['X'], paradigmLevels: { X: 1 } },
       meta: { ...emptyPermanent().meta, bpEarnedLifetime: 15 },
     }
     const b: PermanentSave = {
-      layer1: { paradigmNodes: ['Y'], paradigmLevels: { Y: 1 } },
+      layer1: { bp: 0, paradigmNodes: ['Y'], paradigmLevels: { Y: 1 } },
       meta: { ...emptyPermanent().meta, bpEarnedLifetime: 15 },
     }
     const merged = mergePermanent(a, b)
@@ -282,7 +282,7 @@ describe('a spendable balance is derived, never merged — GDD §24.3', () => {
 
 describe('prestige resets — GDD §24.4', () => {
   const rich = (): PermanentSave => ({
-    layer1: { paradigmNodes: ['L1-1A'], paradigmLevels: { 'L1-1A': 4 } },
+    layer1: { bp: 0, paradigmNodes: ['L1-1A'], paradigmLevels: { 'L1-1A': 4 } },
     meta: {
       ...emptyPermanent().meta,
       heroCards: ['james', 'yuki'],

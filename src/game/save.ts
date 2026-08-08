@@ -89,6 +89,20 @@ export interface RunSave {
  * single flat "permanent" bag conflates them.
  */
 export interface Layer1Save {
+  /**
+   * Spendable Bandwidth Points — §14.1.
+   *
+   * The *balance*, which a Codebase Fork clears; `meta.bpEarnedLifetime` is the
+   * total, which nothing clears, because §14.3 computes GP from it and total
+   * has to mean total.
+   *
+   * Merges by **max**, like every other high-water mark. It is not strictly a
+   * high-water mark — spending lowers it — but §24.3's alternative is worse:
+   * last-write-wins on a balance loses whichever device prestiged, and a player
+   * who earned BP on a phone and spent it on a tablet should keep both the
+   * purchase and the points.
+   */
+  bp: number
   /** Unlocked Paradigm Tree node IDs — merges by **union**. */
   paradigmNodes: string[]
   /** Level per node — merges by **max**. */
@@ -169,7 +183,7 @@ export interface SaveData {
 // --- defaults --------------------------------------------------------------
 
 export function emptyLayer1(): Layer1Save {
-  return { paradigmNodes: [], paradigmLevels: {} }
+  return { bp: 0, paradigmNodes: [], paradigmLevels: {} }
 }
 
 export function emptyMeta(): MetaSave {
@@ -431,6 +445,7 @@ function normalisePermanent(value: unknown): PermanentSave {
   const base = emptyMeta()
   return {
     layer1: {
+      bp: Math.max(0, Number(l1.bp) || 0),
       paradigmNodes: stringList(l1.paradigmNodes),
       paradigmLevels: numberMap(l1.paradigmLevels),
     },
@@ -509,6 +524,12 @@ export function mergePermanent(
 
   return {
     layer1: {
+      // §24.3 — max, like every other permanent figure. Not strictly a
+      // high-water mark (spending lowers it) and the alternative is worse:
+      // last-write-wins on a balance loses whichever device prestiged, and a
+      // player who earned BP on a phone and spent it on a tablet should end up
+      // with the purchase *and* the points rather than neither.
+      bp: Math.max(local.layer1.bp, remote.layer1.bp),
       paradigmNodes: union(local.layer1.paradigmNodes, remote.layer1.paradigmNodes),
       paradigmLevels: maxMap(local.layer1.paradigmLevels, remote.layer1.paradigmLevels),
     },
@@ -583,8 +604,20 @@ export function nodeSpend(
  * field only has to answer "run or permanent", and its prestige behaviour
  * follows without anyone editing this function.
  */
-export function paradigmShiftPermanent(p: PermanentSave): PermanentSave {
-  return { layer1: { ...p.layer1 }, meta: { ...p.meta, paradigmShifts: p.meta.paradigmShifts + 1 } }
+export function paradigmShiftPermanent(p: PermanentSave, bpEarned = 0): PermanentSave {
+  const earned = Math.max(0, Math.floor(bpEarned))
+  return {
+    // §14.1 — the shift *pays*. Until this argument existed the function bumped
+    // a counter and handed the player nothing, so Run 2 was Run 1 again.
+    layer1: { ...p.layer1, bp: p.layer1.bp + earned },
+    meta: {
+      ...p.meta,
+      paradigmShifts: p.meta.paradigmShifts + 1,
+      // The balance is spendable and clearable; the lifetime total is neither,
+      // because §14.3 computes GP from it.
+      bpEarnedLifetime: p.meta.bpEarnedLifetime + earned,
+    },
+  }
 }
 
 /**

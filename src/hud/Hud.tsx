@@ -5,6 +5,7 @@ import {
   canMassHire,
   collectOffline,
   currentMassHireCost,
+  getPermanent,
   currentEntropy,
   dismissScene,
   hasSeenScene,
@@ -33,6 +34,7 @@ import { Dialogue } from '../ui/Dialogue.tsx'
 import { SCENES } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
 import { Upgrades } from './Upgrades.tsx'
+import { ParadigmTree } from './ParadigmTree.tsx'
 import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
 
@@ -87,6 +89,7 @@ const PREVIEW_DIALOGUE =
  */
 export function Hud({ stage }: { stage: StageHandle | null }) {
   const state = useGameState()
+  const [treeOpen, setTreeOpen] = useState(false)
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -151,8 +154,17 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
 
       <div className="hud__controls">
         <PerfOverlay stage={stage} />
+        {/*
+          §13.2 — the tree appears only once a Paradigm Shift has happened.
+          Before the first one BP does not exist, and a permanently visible
+          button onto an empty currency would be the §10.6 web-page tell.
+        */}
+        {getPermanent().meta.paradigmShifts > 0 && (
+          <Button onClick={() => setTreeOpen(true)}>PARADIGM</Button>
+        )}
         <Upgrades />
       </div>
+      <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
 
       <Bankruptcy open={state.phase === 'bankrupt'} />
       {/*

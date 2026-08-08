@@ -32,6 +32,7 @@ function floorWith(seconds: number, entropy = 0.5) {
       devs: SEATS.length,
       entropy,
       drawnIndividually: true,
+      worldScale: 1,
     })
   }
   return a
@@ -123,6 +124,7 @@ describe('picking somebody up', () => {
         devs: SEATS.length,
         entropy: 0.5,
         drawnIndividually: true,
+        worldScale: 1,
       })
     }
     expect(a.carrying).toBe(who)
@@ -183,6 +185,7 @@ describe('putting them down', () => {
       devs: 5000,
       entropy: 0.5,
       drawnIndividually: false,
+      worldScale: 1,
     })
     expect(a.carrying).toBe(-1)
     a.destroy()

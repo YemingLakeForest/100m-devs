@@ -36,7 +36,7 @@ function seeded(seed = 1): () => number {
 function pump(a: ReturnType<typeof createAmbient>, seconds: number, entropy: number) {
   const dt = 1 / 60
   for (let i = 0; i < Math.round(seconds / dt); i++) {
-    a.update(dt, { seats: SEATS, props: PROPS, devs: SEATS.length, entropy, drawnIndividually: true })
+    a.update(dt, { seats: SEATS, props: PROPS, devs: SEATS.length, entropy, drawnIndividually: true, worldScale: 1 })
   }
 }
 
@@ -115,6 +115,7 @@ describe('the floor over time — GDD §7.8.6', () => {
         devs: SEATS.length,
         entropy: 0.9,
         drawnIndividually: true,
+        worldScale: 1,
       })
       if (maxOffset(a) > 1) walked++
     }
@@ -140,6 +141,7 @@ describe('the floor over time — GDD §7.8.6', () => {
           devs: SEATS.length,
           entropy,
           drawnIndividually: true,
+          worldScale: 1,
         })
         let up = 0
         for (let s = 0; s < SEATS.length; s++) {
@@ -166,6 +168,7 @@ describe('the floor over time — GDD §7.8.6', () => {
         devs: 5000,
         entropy: 0.9,
         drawnIndividually: false,
+        worldScale: 1,
       })
     }
     expect(maxOffset(a)).toBe(0)
@@ -183,6 +186,7 @@ describe('the floor over time — GDD §7.8.6', () => {
       devs: 5000,
       entropy: 0.9,
       drawnIndividually: false,
+      worldScale: 1,
     })
     expect(maxOffset(a)).toBe(0)
     a.destroy()
@@ -207,6 +211,7 @@ describe('the floor over time — GDD §7.8.6', () => {
         devs: SEATS.length,
         entropy: 0.3,
         drawnIndividually: true,
+        worldScale: 1,
       })
       farthest = Math.max(farthest, maxOffset(near))
     }
@@ -226,6 +231,7 @@ describe('the floor over time — GDD §7.8.6', () => {
         devs: SEATS.length,
         entropy: 0.3,
         drawnIndividually: true,
+        worldScale: 1,
       })
       farthest = Math.max(farthest, maxOffset(a))
     }
@@ -244,6 +250,7 @@ describe('the floor over time — GDD §7.8.6', () => {
         devs: SEATS.length,
         entropy: 0.95,
         drawnIndividually: true,
+        worldScale: 1,
       })
       for (let s = 0; s < SEATS.length; s++) {
         const o = a.offsetFor(s)
@@ -268,7 +275,7 @@ describe('the floor over time — GDD §7.8.6', () => {
     pump(a, 8, 0.9)
     const few = SEATS.slice(0, 12)
     for (let i = 0; i < 120; i++) {
-      a.update(1 / 60, { seats: few, props: PROPS, devs: few.length, entropy: 0.9, drawnIndividually: true })
+      a.update(1 / 60, { seats: few, props: PROPS, devs: few.length, entropy: 0.9, drawnIndividually: true, worldScale: 1 })
     }
     expect(Number.isFinite(maxOffset(a))).toBe(true)
     a.destroy()
