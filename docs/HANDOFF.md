@@ -1,213 +1,197 @@
-# Handoff — 2026-08-07
+# Handoff — 2026-08-08
 
-Short by design. **The detail lives in [`GDD.md` §23](../GDD.md) — Technical Constraints &
-Build Readiness — which is the single source of truth for building.** This file is a pointer
-and a status line, nothing more.
+Short by design. **The detail lives in [`GDD.md`](../GDD.md), which is the single source of
+truth.** This file is a status line, a list of traps, and what to do next.
 
 ---
 
 ## Read this first
 
-**[`GDD.md` §23](../GDD.md)** carries everything you need:
+**[`GDD.md` §23](../GDD.md)** — Technical Constraints & Build Readiness — carries the stack,
+the five non-negotiables, the performance budget, and the build order. **The ADRs are frozen
+history**; where they and §23 disagree, §23 is right, and no further ADRs will be written.
 
-| | |
-|---|---|
-| §23.1 | The stack |
-| §23.2 | The five non-negotiables — break one and the thing it protects breaks |
-| §23.3 | The performance budget, and honestly what is proven vs not |
-| §23.4 | Orientation, framing, and the camera work that has to happen first |
-| §23.5 | The spike is the product — and what that leaves to clean up |
-| §23.6 | Build readiness and the order |
-
-**The ADRs are frozen history.** `docs/adr/0001` and `0002` record how the engine and
-orientation decisions were reached and what was rejected. Read them once for context; do not
-consult them to build. Where they and §23 disagree, §23 is right. **No further ADRs will be
-written** — decisions of that weight land in §23.
-
----
-
-## Before calling anything complete
-
-**[GDD Appendix F](../GDD.md) — the Shipping Readiness Register.** Audited 2026-08-07 after
-the §10.9 title screen turned out to be missing entirely. It lists what is specified
-**nowhere**, separated into blockers and everything else.
-
-Five blockers, and two of them have architectural reach:
-
-- **F1.1 Save** — no format, no schema version, no migration, no corruption handling, no
-  statement of what survives a prestige. `game-cloud` is in the stack and nothing says what
-  it stores.
-- **F1.2 Offline progression** — MONETISATION sells doubling it as the game's highest-value
-  ad placement, and the GDD defines no offline model at all.
-- **F1.3** age rating and target audience · **F1.4** privacy policy and data deletion ·
-  **F1.5** restore purchases.
-
-**Re-scoped against the studio platform.** `mercilessstudio-platform` owns cloud save
-transport, Firestore rules, RevenueCat, restore purchases, consent ordering, content rating
-and listing-as-code — see GDD §23.1b. Every Appendix F row is now narrowed to the part the
-platform cannot know: **the values, not the mechanism.** Re-specifying a mechanism the
-playbook already covers is itself a defect.
-
-**Both remaining blockers now have a studio answer too.** `playbook/SAVE.md` was written
-from what `mind-the-gap` and `dungeon-doom-dash` actually ship — the save contract,
-migration rules, and the two-tier reconciliation (last-write-wins for run state, monotonic
-union for permanent state, because the device that loses a sync race must not lose its
-unlocks). Offline progression is in there as a genre recommendation rather than a pattern,
-since **this is the studio's first idle game** — whatever we learn goes back into §5 of it.
-
-That leaves **F1.1 and F1.2 as the only true blockers with no studio answer** — the save
-document's *contents*, and the offline model, both of which are pure game design. They are
-cheaper to decide now than after the tech tree and prestige layers add state that has to
-persist.
-
----
-
-## Where the project is
-
-**Run 1 — The Trap is playable end to end**, in the browser and on an Android device. Poke,
-hire James, ship *Flappy Square*, take the mass-hire bait, watch the studio seize, go
-bankrupt, Paradigm Shift, loop. Every number in that sequence comes from the §4 simulation,
-not from a script.
-
-**214 tests.** Lint, types and the art gate are clean.
-
-Roughly: simulation ~65%, art **0%**, spectacle ~40%, UI surface ~15%.
-
-Full built / not-built tables are in **§23.6** rather than duplicated here.
-
----
-
-## Rung 3 exists now
-
-Hiring past 1,000 used to produce nothing — the level-2 swarm saturated at its sprite budget
-and the picture stopped answering at exactly the point the numbers get interesting.
-`src/render/tower.ts` gives rungs 1,000–10,000 a tower that grows a storey at a time, with
-§7.7.2's arrival: a furnished storey falls under gravity, lands, and the stack squashes and
-wobbles back.
-
-**Rungs 4 and above are still not built** — building, campus, town, nation, planet, galaxy.
-Above 10,000 the tower caps at ten storeys and stops growing. That is the next piece of
-§7.8.2, and it is the same shape of work.
-
-## The next three things, in order
-
-1. **§23.4.1 — make the camera viewport-aware.** Small and self-contained. Until it lands,
-   landscape delivers nothing visible and every layout decision is being made against a frame
-   that is 92% empty. Re-run `?bench` afterwards; it moves criterion 4.
-2. **§10.7 dialogue + the §10.8 juice kit**, with the existing HUD retrofitted. `Panel`,
-   `Button`, spring/momentum hooks, `Typewriter`, `uiSfx` — built once here because dialogue
-   is the first feature that needs all of them at once.
-3. **§21.0 loop reshape → §21.6 James scene → §7.7.6 navigation → §7.7.2 arrival gag.**
-
-Each ships only when it passes **§10.8 F1–F6 on the device.**
-
----
-
-## There is no CI, deliberately
-
-`.github/` has been **deleted**, not parked. Everything a workflow would run is one command:
+One command gates everything:
 
 ```bash
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**Nothing was lost.** The workflow had exactly one check with no local equivalent —
-verifying `assets/palette/master.png` had not gone stale against `src/art/palette.ts`. That
-now lives *inside* `art:check`, which is where it belonged: the gate reads the PNG, so it
-validates its own reference before validating anything else. A gate measuring against a
-stale reference is worse than no gate, because it is trusted.
-
-**Two hazards, both hit for real:**
-
-- Pushing anything under `.github/workflows/` needs a token with `workflow` scope. This repo
-  pushes via Git Credential Manager, whose token has `repo` only. `gh auth refresh` does
-  **not** fix it — git never consults `gh`'s token. It looks exactly like it should work.
-- A committed workflow file rejects **every subsequent push**, not just its own, so the
-  failure surfaces later on unrelated work, pointing at CI.
-
-**When to revisit:** the first time a cloud agent pushes code no human watched it write.
-Until then, one committer running `npm run check` is the same coverage without the tooling.
+**743 tests.** Lint, types and the art gate clean.
 
 ---
 
-## Local-only things a cloud session cannot do
+## Where the project is
 
-- **ElevenLabs generation** needs `.env` (gitignored). The thirteen SFX clips are committed;
-  the §20.7 music stems are **not generated yet** and the endpoint and commercial licence
-  tier both need confirming against ElevenLabs' current docs first (§20.7.6).
-- **Android build, install, and the `?bench` device run** need the local SDK and a phone.
-- **Visual verification.** Anything that has to be *looked at* needs a session that can
-  screenshot. A cloud agent should take the logic-heavy work — tech tree, prestige, save,
-  §18 events, §19 dialogue — all of which is data plus tested logic.
+**Run 1 is playable end to end and the economy now closes.** Poke → ship *Flappy Square* →
+hire James → ship again → Seed Round at 10 → hire to 40 → the offer appears → collapse →
+bankruptcy → Paradigm Shift → **Run 2 with prestige bonuses**. Every number comes from the §4
+simulation.
+
+| | State |
+|---|---|
+| **Simulation** | Run 1 closed and simulated end to end (`runOne.test.ts` plays it) |
+| **Prestige** | Layer 1 built — BP earned, banked, spent on the Paradigm Tree; 2 of 5 nodes wired |
+| **Audio** | 13 SFX + 10 music stems generated and playing |
+| **Art** | **0 of §22.7's 19 authored sprites.** Everything on screen is code-drawn from the palette |
+| **Rungs** | 0–3 built (room, tower). **4+ unbuilt** — building, campus, town, nation, planet, galaxy |
+
+### Built this session
+
+Developer identity (generated, never stored) · selection with the turn-to-camera · ambient
+life · the god-mode floor (pick people up) · the hire dial · Act IIa/IIb + the Seed Round ·
+the bait as a pull rather than a shove · the ship celebration · Layer 1 prestige · the music
+bus + stems · horizontal desk rows · isometric props with contact shadows.
+
+### Specced, not built
+
+- **§13.6 Hero Cards** — cards slotted onto Construction Ladder rungs, REACH/DEPTH/TRAIT
+  trees. The design is complete and it is the largest unbuilt system.
+- **§7.8.2 rungs 4+** — above 10,000 the tower caps at ten storeys and stops growing.
+- **§13.2's other three Paradigm nodes** — they say *"not wired up yet"* on the card, which
+  is deliberate: a tree that takes currency and changes nothing is worse than one that admits
+  it.
 
 ---
 
-## Still owed to a human, not to code
+## Do this next
 
-- **§23.3 criterion 2** — audio latency needs an external capture. Record a tap on a hard
-  surface and the resulting click on a second device; read the gap in an audio editor.
-- **§23.3 criterion 7** — has never been run in landscape. It passed in portrait on a
-  desk-zoom tapping test, so it does not transfer. One tap, 80 seconds.
-- **The whole gate on a cheap Android handset.** Everything measured so far is a flagship
-  ceiling. Borrowed, second-hand, a colleague's — any of them.
+**The developer/desk model.** Asked for and not yet done:
+
+> simple desk, PC on top, chair behind, and on top a person — waist up, no feet, and they
+> hop about.
+
+`src/render/room.ts`, `buildDeveloper` and `drawDesk`. Note the current figure faces
+**north-west** into its monitor (§7.8.8) and has a second front-facing pose used by the
+selection turn — both poses need the change. There is no chair currently: one was removed
+because at eighty developers it read as eighty grey slabs in the near field, so re-adding it
+means keeping it small and low-contrast.
+
+Then, in rough order of value: **§13.6 Hero Cards**, **rungs 4+**, **§22.7's sprites**.
+
+---
+
+## Blocked on a human
+
+- **ElevenLabs Music API** needs a paid plan. The ten stems currently come from the *free*
+  Sound Effects endpoint, which §20.7.1a makes the correct choice for an ambient score rather
+  than a concession — but nobody has listened to them yet. **Do `layer-strained` and
+  `bed-desk` sit together without clashing?** That is the whole ten-stem design and it needs
+  ears. `npm run music:generate -- --force <stem>` rerolls one.
+- **§4.10d's cash curve** — the arithmetic is sound and the *shape* is lumpy: payroll is
+  continuous, revenue arrives on ship, so the studio is overdrawn for most of every project.
+  The readout no longer lies about it, but whether it *feels* right is a play-test question.
+- **F1.3 age rating / target audience.** Still blocks ad configuration. Declaring child
+  appeal bans personalised ads.
+- **§23.3 criterion 2** (audio latency, needs an external capture) and **criterion 7**
+  (never run in landscape). **The whole gate on a cheap handset** — everything measured so
+  far is a flagship ceiling.
+
+---
+
+## Traps — read before debugging anything
+
+Every one of these cost real time this session.
+
+### 1. A stale `dist/` looks exactly like a bug that will not die
+
+Six hours of fixes were reported as still broken. They were: `dist/` had been built that
+morning and never rebuilt. **The HUD now prints the build timestamp beside the FPS counter** —
+check it before believing a bug report, including your own.
+
+### 2. Fix the *save*, not just the code
+
+A bug was reported three times. Twice it was "fixed" correctly and uselessly, because the bad
+state was already **written into the player's save** and every reload restored it.
+
+> **A code fix that requires the player to clear localStorage is not a fix.**
+
+`repairStrandedBait` in `save.ts` is the pattern: detect the impossible shape on load and
+repair it, narrowly. And write the test **from the save file inwards** — *this is the state
+that was on screen, this is what loading it must produce* — not outward from the function you
+suspect. Writing it the other way round is why it survived two fixes.
+
+### 3. `document.hidden` suspends the ticker
+
+Chrome stops `requestAnimationFrame` in a background or minimised window. The React HUD keeps
+rendering and `window.__store` keeps answering, so the app looks alive while the simulation,
+camera and every animation are frozen. Check `document.hidden` — **not** `hasFocus()`, a tab
+can be focused and hidden at once. Bring the window forward; there is no code-side fix.
+
+### 4. Screenshots: use `npm run shot`, not the browser extension
+
+The extension capture silently clips the right ~7% of the viewport — exactly where the
+CASH/DEVS/SHIPPED rail lives, so every screenshot taken for review was missing a readout.
+
+```bash
+WAIT=9000 npm run shot -- "http://localhost:5180/?act=act3_bait&nopost" out.png 1280 620
+```
+
+**`WAIT` matters.** §10.7's typewriter runs at 28 chars/sec and Act III's advisor line is
+~150 characters, so a capture at 2.5 s shows half a sentence and reads exactly like clipped
+copy. It is not. Give any screen with script on it ten seconds.
+
+### 5. Generated values are equal by content, never by reference
+
+§7.8.7 generates identities on demand, so `identityFor()` returns a fresh object every call.
+Latching one the way every other panel latches its subject (`if (who !== held) setHeld(who)`)
+is an infinite render loop that blanks the whole app. **Key off the seed, not the object** —
+and the same mistake in a `useEffect` dependency fails *silently*.
+
+### 6. Synthetic pointer events do not reach the canvas
+
+Which is why `?select=4` exists, alongside `?overnight`, `?ad` and `?dialogue`. Add a seam
+rather than fighting the automation; they have each paid for themselves.
+
+---
+
+## There is no CI, deliberately
+
+`.github/` was **deleted**, not parked — everything a workflow would run is `npm run check`,
+and the one check with no local equivalent (palette drift) now lives inside `art:check`.
+
+Two hazards, both hit for real: pushing under `.github/workflows/` needs a token with
+`workflow` scope, which this repo's Git Credential Manager token does not have and
+`gh auth refresh` does **not** fix; and a committed workflow file rejects *every subsequent
+push*, so the failure surfaces later on unrelated work.
+
+**Revisit when a cloud agent first pushes code no human watched it write.**
 
 ---
 
 ## Running it
 
 ```bash
-./start-dev.sh              # the game, on a pinned port
-./start-dev.sh act3_bait    # jump the §21 script
-./start-dev.sh dialogue     # the §10.7 preview
+./start-dev.sh                 # the game, on a pinned port
+npm run dev                    # same, if you want the raw vite output
+npm run shot -- <url> <out>    # full-frame screenshot, no extension needed
+npm run music:generate         # regenerate stems (needs .env)
 ```
 
-The game is landscape-locked, so a desktop window is the wrong shape to judge
-anything by. **[LANDSCAPE.md](../LANDSCAPE.md)** has the DevTools device presets —
-997 x 448 @ dpr 2.25 is the Pixel 8 Pro from the §23.3 device run, and therefore
-the one viewport the performance numbers actually refer to.
+The game is landscape-locked; a desktop window is the wrong shape to judge anything by.
+**[LANDSCAPE.md](../LANDSCAPE.md)** has the DevTools presets — 997 × 448 @ dpr 2.25 is the
+Pixel 8 Pro the §23.3 numbers refer to.
 
----
-
-## Verifying visually — read this before automating a browser
-
-**The Pixi ticker stops dead in a hidden tab.** Chrome suspends `requestAnimationFrame`
-whenever `document.hidden` is true, which includes a background window and a minimised one.
-The React HUD keeps rendering and `window.__stage` keeps returning its last value, so the
-app looks alive while the simulation, the camera and every animation are frozen mid-flight.
-
-This is the same hazard `?bench` already guards against (a criterion with no samples reports
-UNKNOWN, never FAIL). It costs a session if you meet it without knowing:
-
-- **Symptom:** a scripted camera move appears to stall partway and never arrive, or a value
-  freezes at an arbitrary number while `dt` still reads 0.0167.
-- **Check first:** `document.hidden`. Not `document.hasFocus()` — a tab can report focused
-  and hidden at the same time, and it is `hidden` that suspends rAF.
-- **Fix:** bring the window to the front. There is no code-side workaround, and there should
-  not be one.
-
-Two more automation notes, both learned the hard way:
-
-- `javascript_tool` inside a `browser_batch` may evaluate in a stale context after a
-  `navigate`. Issue one throwaway call first, then read.
-- **`window.__store`** (dev builds) exposes the game state. Added because "the HUD shows 2
-  but the scale bar says 1,000" is not a question a screenshot can answer — and the answer
-  turned out to be a real bug, twice.
-- Synthesising a tap with `pointerdown` alone leaves a permanent entry in the pinch-tracking
-  map, and two of them put the camera into pinch mode where every mouse move rewrites Z.
-  `stage.ts` now expires pointers after 2 s so this cannot wedge the camera, but dispatch
-  `pointerup` too.
-
----
-
-## Flags worth knowing
+### Flags
 
 | Flag | Effect |
 |---|---|
+| `?act=act2b_loop` | Jump the §21 script. Every phase name works |
+| `?select=4` | §7.8.8 — select a developer without holding on one |
 | `?bench` | §23.3 acceptance run. `?bench=10` shortens the 60 s leg |
-| `?act=act5_bleeding` | Jump the §21 script — Run 1 takes ~4 minutes by design |
 | `?nopost` / `?post=bloom,crt` | Drop or select post-process passes |
-| `window.__stage` | Dev builds only — camera Z, LOD weights, collapse state |
+| `?overnight` · `?ad` · `?dialogue` | Preview those surfaces |
+| `window.__store` · `window.__stage` | Dev builds only — live game and camera state |
 
-**The first three are unguarded and would ship in a web build** — see §23.5 item 2. On
-device there is no query string, so the bench is a button: build with `VITE_BENCH=1`, and a
-shipping build never contains it.
+**The `?act=` seam pins the phase on every reload**, which is how a debug URL left in the
+address bar can look like a stuck game. `?act=` and `?bench` are unguarded and would ship in
+a web build — see §23.5 item 2. On device there is no query string.
+
+---
+
+## Local-only
+
+- **ElevenLabs generation** needs `.env` (gitignored). SFX and music are committed.
+- **Android build, install and the `?bench` device run** need the SDK and a phone.
+- **Anything that has to be looked at.** A cloud session should take the logic-heavy work —
+  Hero Cards, §18 events, the remaining Paradigm nodes — all data plus tested logic.
