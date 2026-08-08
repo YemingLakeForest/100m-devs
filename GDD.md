@@ -3761,7 +3761,8 @@ spectacle are all real, tested work, and the DOM/canvas boundary in §23.2.3 hel
 | Poke feedback (§8.2, §8.2a) | Numeral plus the code-snippet joke line |
 | Construction Ladder **model** (§7.7) | Rungs, ratio-scaled arrival weight, cohort, scale bar |
 | Player-facing vocabulary (§4.3a) | Re-banded against the real curve |
-| Save and offline accrual (§24) | Local only. The document, migration, the monotonic merge and the closed-form offline model, with tests. **`game-cloud` is not wired** and the §24.8 report screen is spec only |
+| Save and offline accrual (§24) | Local only. The document, migration, the monotonic merge and the closed-form offline model, with tests. **`game-cloud` is not wired** |
+| §24.8 Overnight Build Report | Built. Staggered rows, headline last, the honest cap line, and the 2× offer above collect. **The 2× button is absent** because no ad network is wired — which is §24.8's correct behaviour for an unfilled slot, not a stub. `?overnight` and `?ad` make it inspectable |
 
 **Specified here, with no implementation:**
 

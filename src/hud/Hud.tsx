@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
 import {
   canHire,
+  collectOffline,
   currentEntropy,
   hireDeveloper,
   massHire,
@@ -17,6 +18,9 @@ import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
+import { OvernightReport } from './OvernightReport.tsx'
+import { OvernightPreview } from './OvernightPreview.tsx'
+import { shouldShowReport } from './overnightModel.ts'
 import { Upgrades } from './Upgrades.tsx'
 import { actionFor, formatMoney, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
@@ -27,6 +31,22 @@ import { useGameState } from './useGameState.ts'
  * mid-session, and re-parsing it every render would be work done 60 times a
  * second to reach the same answer.
  */
+/**
+ * `?ad` pretends a rewarded ad is filled, so §24.8's 2x path can be seen and
+ * §10.8-gated before AdMob is wired.
+ *
+ * Without it the button is correctly *absent* — no ad network means no fill —
+ * which is the right shipping behaviour and completely untestable by eye.
+ */
+const FAKE_AD_READY =
+  typeof location !== 'undefined' && new URLSearchParams(location.search).has('ad')
+
+const PREVIEW_OVERNIGHT =
+  typeof location !== 'undefined' && new URLSearchParams(location.search).has('overnight')
+const PREVIEW_OVERNIGHT_CAPPED =
+  typeof location !== 'undefined' &&
+  new URLSearchParams(location.search).get('overnight') === 'capped'
+
 const PREVIEW_DIALOGUE =
   typeof location !== 'undefined' && new URLSearchParams(location.search).has('dialogue')
 
@@ -122,6 +142,26 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
       </div>
 
       <Bankruptcy open={state.phase === 'bankrupt'} />
+      {/*
+        §24.8 — before the swarm, before the rest of the HUD. `collectOffline`
+        clears `pendingOffline`, so this unmounts on collect and the Panel
+        plays its exit rather than vanishing.
+      */}
+      {shouldShowReport(state.pendingOffline) && (
+        <OvernightReport
+          report={state.pendingOffline}
+          // Hard false until game-monetise is wired. §24.8 says an unfilled
+          // slot means the button is absent, so this is the correct shipping
+          // value rather than a placeholder that flatters the screenshot.
+          adReady={FAKE_AD_READY}
+          onCollect={collectOffline}
+        />
+      )}
+
+      {PREVIEW_OVERNIGHT && (
+        <OvernightPreview capped={PREVIEW_OVERNIGHT_CAPPED} adReady={FAKE_AD_READY} />
+      )}
+
       {PREVIEW_DIALOGUE && <DialoguePreview />}
     </div>
   )

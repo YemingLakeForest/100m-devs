@@ -907,3 +907,104 @@ body {
   padding: 18px 26px;
   pointer-events: auto;
 }
+
+/* --- the Overnight Build Report, GDD §24.8 ------------------------------ */
+
+.overnight {
+  pointer-events: auto;
+  min-width: min(46ch, 70vw);
+  padding: 14px 18px 16px;
+  border: var(--rule) solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+}
+
+.overnight__title {
+  margin: 0 0 10px;
+  font-size: var(--type-2x);
+  font-weight: 400;
+  color: var(--p3);
+  letter-spacing: 3px;
+  border-bottom: var(--rule) solid var(--p1);
+  padding-bottom: 6px;
+}
+
+.overnight__rows {
+  margin: 0 0 10px;
+}
+
+/*
+ * Rows are present from the first frame and revealed by opacity, never mounted
+ * late. A table that grows as it reveals pushes the collect button down the
+ * screen under a thumb that is already reaching for it.
+ */
+.overnight__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 2ch;
+  padding: 3px 0;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+}
+
+.overnight__row[data-revealed='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+.overnight__row dt {
+  color: var(--p1);
+  letter-spacing: 1px;
+}
+
+.overnight__row dd {
+  margin: 0;
+  color: var(--p2);
+  font-variant-numeric: tabular-nums;
+}
+
+.overnight__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2ch;
+  margin: 0 0 4px;
+  padding-top: 8px;
+  border-top: var(--rule) solid var(--p1);
+  font-size: var(--type-2x);
+  color: var(--p3);
+  font-variant-numeric: tabular-nums;
+  min-height: 1.4em;
+}
+
+.overnight__total-label {
+  font-size: var(--type-1x);
+  color: var(--p1);
+  letter-spacing: 2px;
+}
+
+/* The honest cap sell. Quieter than the payout it is standing next to. */
+.overnight__idle {
+  margin: 0 0 10px;
+  color: var(--p1);
+  opacity: 0.85;
+  letter-spacing: 1px;
+}
+
+/*
+ * MONETISATION §4 R1 — the 2x offer sits ABOVE collect. Column order is the
+ * placement, so this is load-bearing rather than cosmetic.
+ */
+.overnight__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overnight__row {
+    transition: none;
+  }
+}
