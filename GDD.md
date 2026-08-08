@@ -1561,6 +1561,24 @@ visible fraction of the studio is simply milling about.
 4. **Physics stays cartoon.** No ragdoll, no collision, no stacking. A dangling sprite with a
    leg cycle and a squash on landing is the entire implementation.
 
+##### Built — two things the spec did not anticipate **[2026-08-08]**
+
+1. **Loitering is a population, not an event.** §7.8.6's concurrency budget is sized for
+   *interruptions*, which last two to six seconds. Loitering lasts twenty-two. Drawing both
+   from one budget means the long state squats on every slot and the floor goes silent —
+   which is exactly what happened the first time. It has its own cap now (`loiterCap`,
+   ~4–14% of headcount rising with entropy, floor of one, ceiling of eight) and the two
+   never compete.
+2. **Standing about happens where you already were.** The first version sent loiterers to a
+   random desk, which is not loitering — a person who gets up and crosses the whole floor to
+   stand beside a stranger is on their way somewhere. They now stand at a prop, or just
+   outside their own desk. That also keeps §7.8.6's crowding joke intact for free: a floor
+   that has lost its walkway has people on their feet and **nobody at the cooler**.
+
+And one rule the spec should have stated outright: **only loiterers can be picked up.**
+Somebody mid-conversation is *busy*, and pulling them out of one makes the drag read as an
+interruption rather than as a tidy-up, which is the opposite of the joke.
+
 ##### Why this is in the design document rather than in a backlog
 
 Because it is the answer to "what is there to *do* while the numbers go up", and idle games

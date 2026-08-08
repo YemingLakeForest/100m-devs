@@ -232,9 +232,39 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** Live pan limits, recomputed each frame from the dominant tier's size. */
   let limitX = 0
   let limitY = 0
+  /** §7.8.9 — the pointer currently carrying somebody, or -1. */
+  let carryId = -1
+
+  /**
+   * §7.8.9 — screen coordinates to room-local, for carrying somebody.
+   *
+   * The tier's pivot is baked into its own transform, so `toLocal` is both
+   * shorter and safer than re-deriving the camera's arithmetic here.
+   */
+  const toRoom = (x: number, y: number) => tiers[1].toLocal({ x, y })
 
   const onPointerDown = (ev: PointerEvent) => {
     const t = ev.timeStamp || performance.now()
+
+    // §7.8.9 — the floor as a toy. A press that lands on somebody standing
+    // about picks them up instead of panning the camera.
+    //
+    // Checked *before* the pan, and only for loiterers: somebody mid-
+    // conversation is busy, and pulling them out of one would make the drag
+    // read as an interruption rather than as a tidy-up — the opposite of the
+    // joke. Everything else about the pointer is unchanged, so a press on empty
+    // floor still pans and a press on a seated developer still pokes.
+    if (drag === null && pointers.size === 0 && camera.level === 1) {
+      const who = pickDeveloper(ev.clientX, ev.clientY)
+      if (who >= 0 && room.hands.isLoitering(who) && room.hands.pickUp(who)) {
+        const at = toRoom(ev.clientX, ev.clientY)
+        room.hands.carryTo(at.x, at.y)
+        carryId = ev.pointerId
+        playUi('click')
+        return
+      }
+    }
+
     // Only the first finger drags; a second means a pinch, handled below.
     if (drag === null && pointers.size === 0) {
       drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY, t0: t, panX: pan.x, panY: pan.y }
@@ -244,6 +274,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   const onDragMove = (ev: PointerEvent) => {
+    if (carryId === ev.pointerId) {
+      const at = toRoom(ev.clientX, ev.clientY)
+      room.hands.carryTo(at.x, at.y)
+      return
+    }
     if (!drag || ev.pointerId !== drag.id || pointers.size >= 2) return
     const t = ev.timeStamp || performance.now()
     const dt = Math.max(1, t - (drag.t0 + 0)) / 1000
@@ -260,6 +295,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   const onDragEnd = (ev: PointerEvent) => {
+    if (carryId === ev.pointerId) {
+      carryId = -1
+      // Dropped onto a seat, or onto the floor. `pickDeveloper` answers "whose
+      // desk is under the finger", which is exactly the question.
+      const onto = pickDeveloper(ev.clientX, ev.clientY)
+      const what = room.hands.drop(onto)
+      // §7.8.5's bum-hits-seat for a landing, the close whisper for a shrug.
+      // §7.8.6 rule 2 still holds: neither changes a single Story Point.
+      if (what === 'seated') playSfx('poke-floor')
+      else if (what === 'walking') playUi('close')
+      return
+    }
     if (!drag || ev.pointerId !== drag.id) return
     const t = ev.timeStamp || performance.now()
     const dx = ev.clientX - drag.x0

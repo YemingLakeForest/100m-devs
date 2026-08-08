@@ -32,6 +32,7 @@ import {
   PARTICIPANTS,
   ambientBudget,
   ambientRuns,
+  loiterCap,
   pickBehaviour,
   shouldStart,
   type Behaviour,
@@ -95,6 +96,25 @@ export interface Ambient {
   offsetFor(i: number): { x: number; y: number }
   /** §7.8.6 rule 5 — a poke wins. Ends whatever this developer was doing. */
   interrupt(i: number): void
+  /**
+   * §7.8.9 — is this developer away from their desk and pickup-able?
+   *
+   * Only loiterers. Somebody mid-conversation is *busy*, and yanking them out
+   * of one would make the drag feel like an interruption rather than like a
+   * tidy-up — which is the opposite of the joke.
+   */
+  isLoitering(i: number): boolean
+  /** §7.8.9 — pick somebody up. Returns false if they are not available. */
+  pickUp(i: number): boolean
+  /** Move the carried developer. Room-local coordinates. */
+  carryTo(x: number, y: number): void
+  /**
+   * Put them down. `seat` is the seat they were dropped on, or null for the
+   * floor. Returns what happened, for the renderer to score.
+   */
+  drop(seat: number | null): 'seated' | 'walking' | 'none'
+  /** Who is being carried, or -1. */
+  readonly carrying: number
   clear(): void
   destroy(): void
 }
@@ -149,6 +169,11 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
    * shared pool would have two rooms writing over each other's words, and
    * `destroy` on one would take the other's labels with it.
    */
+  /** §7.8.9 — the developer in the player's hand, and where their hand is. */
+  let carried: Live | null = null
+  let carryX = 0
+  let carryY = 0
+
   const labels: Text[] = []
   let labelsUsed = 0
   /**
@@ -251,6 +276,20 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
       a.target = { x: at.x, y: at.y }
     }
 
+    if (kind === 'loiter') {
+      // Somewhere to stand. The cooler or the sofa if the room still has them
+      // (§7.8.9), and otherwise **just outside their own desk** — standing
+      // about happens where you already were, and a person who gets up and
+      // crosses the whole floor to stand next to a stranger is not loitering,
+      // they are on their way somewhere.
+      //
+      // It also keeps §7.8.6's promise intact: a crowded floor that has lost
+      // its walkway has people on their feet and *nobody at the cooler*, which
+      // is the joke rather than a compromise.
+      const near = props.length > 0 && rng() < 0.7 ? props[Math.floor(rng() * props.length)] : from
+      a.target = { x: near.x + (rng() - 0.5) * 44, y: near.y + 24 + rng() * 16 }
+    }
+
     for (const i of a.who) busy.set(i, a)
     live.push(a)
   }
@@ -266,6 +305,7 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
 
       if (!ambientRuns(devs, drawnIndividually) || seats.length === 0) {
         if (live.length > 0) {
+          carried = null
           live.length = 0
           busy.clear()
         }
@@ -275,12 +315,24 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
 
       for (let i = live.length - 1; i >= 0; i--) {
         const a = live[i]
+        // The carried one does not age. §7.8.9's toy has no timer, and a
+        // developer who expired in the player's hand would be one.
+        if (a === carried) continue
         a.age += dt
         if (a.age >= a.life) end(a)
       }
 
       if (live.length < ambientBudget(devs) && shouldStart(entropy, dt, rng())) {
         begin(pickBehaviour(entropy, rng()), seats, props)
+      }
+
+      // §7.8.9 — top the loitering population up toward its own cap. A separate
+      // budget from the interruptions above, because a 22-second state and a
+      // 3-second one cannot share a slot count without the long one winning.
+      let loiterers = 0
+      for (const a of live) if (a.kind === 'loiter') loiterers++
+      if (loiterers < loiterCap(devs, entropy) && rng() < dt * 0.6) {
+        begin('loiter', seats, props)
       }
 
       // --- bubbles ---------------------------------------------------------
@@ -308,15 +360,68 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
     offsetFor(i) {
       const a = busy.get(i)
       if (!a || a.who[0] !== i) return ZERO
+      // §7.8.9 — a carried developer is wherever the finger is, full stop. No
+      // easing: a held object that lags the pointer does not feel held.
+      if (a === carried) return { x: carryX - a.home.x, y: carryY - a.home.y }
       return walkOffset(a, a.age / a.life)
     },
 
     interrupt(i) {
       const a = busy.get(i)
-      if (a) end(a)
+      // Not the one in the player's hand. A poke that landed on a carried
+      // developer and dropped them would be two verbs fighting over one finger.
+      if (a && a !== carried) end(a)
+    },
+
+    isLoitering(i) {
+      const a = busy.get(i)
+      return a?.kind === 'loiter' && a !== carried
+    },
+
+    pickUp(i) {
+      const a = busy.get(i)
+      if (!a || a.kind !== 'loiter' || carried) return false
+      carried = a
+      // Held at the top of its life so it cannot expire mid-carry and vanish
+      // out of the player's hand.
+      a.age = 0
+      return true
+    },
+
+    carryTo(x, y) {
+      carryX = x
+      carryY = y
+    },
+
+    drop(seat) {
+      const a = carried
+      if (!a) return 'none'
+      carried = null
+      // Free, or their own — the carried developer still holds their own seat
+      // in `busy`, so the naive "is this seat taken" check refused to put
+      // somebody back where they came from, which is the most obvious drop a
+      // player will try.
+      const free = seat !== null && (!busy.has(seat) || busy.get(seat) === a)
+      if (free) {
+        // §7.8.5's bum-hits-seat, at the seat they were dropped on. Ending the
+        // behaviour is what puts them back in a chair.
+        end(a)
+        return 'seated'
+      }
+      // §7.8.9 — dropped anywhere else they walk back, unhurried, which is
+      // funnier than obeying. Rewinding to the *return* half of the walk is how
+      // that happens without a second state machine.
+      a.home = { x: carryX, y: carryY }
+      a.age = a.life * (1 - TRAVEL)
+      return 'walking'
+    },
+
+    get carrying() {
+      return carried ? carried.who[0] : -1
     },
 
     clear() {
+      carried = null
       live.length = 0
       busy.clear()
       g.clear()

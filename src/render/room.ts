@@ -146,6 +146,14 @@ export interface RoomHandle {
   setSeed(seed: number): void
   /** §7.8.8 — who is turned round to face the camera. -1 for nobody. */
   setSelected(index: number): void
+  /** §7.8.9 — the floor as a toy. Room-local coordinates throughout. */
+  readonly hands: {
+    isLoitering(i: number): boolean
+    pickUp(i: number): boolean
+    carryTo(x: number, y: number): void
+    drop(seat: number | null): 'seated' | 'walking' | 'none'
+    readonly carrying: number
+  }
   /**
    * Advance the §7.8.3 idle animation. `elapsed` in seconds, `state` is the
    * shared §8.2 dev state (the store models one machine, not one per person).
@@ -1187,10 +1195,20 @@ export function buildRoom(): RoomHandle {
 
         if (jolts[i] > 0) jolts[i] = Math.max(0, jolts[i] - 0.06)
         const walk = ambient.offsetFor(i)
+        // §7.8.9 — a developer in the player's hand dangles. Legs cycling, a
+        // slight swing, and lifted clear of the floor, because the whole read
+        // is "held by the scruff" and a held figure that stays upright looks
+        // like it is flying.
+        const held = i === ambient.carrying
+        d.rotation = held ? Math.sin(elapsed * 9) * 0.12 : 0
         // The jolt sits on top of the bob: §8.2's "sprite jolts upright".
-        d.position.set(desks[i].x + walk.x, desks[i].y + 6 + bob + walk.y - jolts[i] * 5)
+        d.position.set(
+          desks[i].x + walk.x,
+          desks[i].y + 6 + bob + walk.y - jolts[i] * 5 - (held ? 16 : 0),
+        )
       }
     },
+    hands: ambient,
     setSelected(index: number) {
       if (index === selected) return
       // Both the outgoing and the incoming developer have to turn, so the two

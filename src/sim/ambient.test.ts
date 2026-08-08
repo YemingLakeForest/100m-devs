@@ -16,7 +16,13 @@ import {
 
 /** Sample the distribution at a given entropy, deterministically. */
 function census(entropy: number, samples = 4000): Record<Behaviour, number> {
-  const out: Record<Behaviour, number> = { chatter: 0, smalltalk: 0, water: 0, driveby: 0 }
+  const out: Record<Behaviour, number> = {
+    chatter: 0,
+    smalltalk: 0,
+    water: 0,
+    driveby: 0,
+    loiter: 0,
+  }
   for (let i = 0; i < samples; i++) out[pickBehaviour(entropy, (i + 0.5) / samples)]++
   return out
 }
@@ -94,6 +100,18 @@ describe('what people do — GDD §7.8.6', () => {
     expect(share(0.1)).toBe(0)
     expect(share(0.5)).toBeGreaterThan(0)
     expect(share(0.95)).toBeGreaterThan(share(0.5))
+  })
+
+  it('offers every behaviour it weighs — none is defined and then orphaned', () => {
+    // The failure this catches is silent by construction: a behaviour added to
+    // the union gets a weight, gets tested for that weight, and is never once
+    // chosen because the sampler's own list was not updated. `loiter` shipped
+    // exactly like that for about a minute.
+    const seen = new Set<Behaviour>()
+    for (let i = 0; i < 4000; i++) seen.add(pickBehaviour(0.95, (i + 0.5) / 4000))
+    for (const k of Object.keys(weightsFor(0.95)) as Behaviour[]) {
+      if (weightsFor(0.95)[k] > 0) expect(seen).toContain(k)
+    }
   })
 
   it('never returns a behaviour with zero weight', () => {

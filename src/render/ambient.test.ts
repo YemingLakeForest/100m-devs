@@ -190,21 +190,47 @@ describe('the floor over time — GDD §7.8.6', () => {
 
   it('stops the water trips when crowding takes the walkway', () => {
     // §7.8.6's nicest consequence: a crowded floor stops being able to reach
-    // the cooler, which is a better joke than the walk was. Modelled by the
-    // room passing no destinations at all.
-    const a = createAmbient(seeded())
+    // the cooler, which is a better joke than the walk was.
+    //
+    // Measured as *distance*, not as stillness. §7.8.9's loitering keeps people
+    // on their feet whether or not there is anywhere to go — they stand just
+    // outside their own desks — so "nobody moves" was the wrong assertion and
+    // only held while loitering did not exist. What the section actually
+    // promises is that nobody crosses the floor to a prop, and the cooler in
+    // this fixture is several hundred pixels away from every seat.
+    const near = createAmbient(seeded())
+    let farthest = 0
     for (let i = 0; i < 900; i++) {
-      a.update(1 / 60, {
+      near.update(1 / 60, {
         seats: SEATS,
         props: [],
         devs: SEATS.length,
         entropy: 0.3,
         drawnIndividually: true,
       })
-      // Below the drive-by threshold, so nothing else can move anyone.
-      expect(maxOffset(a)).toBe(0)
+      farthest = Math.max(farthest, maxOffset(near))
+    }
+    near.destroy()
+    expect(farthest).toBeLessThan(120)
+  })
+
+  it('does send people to the cooler when there is one', () => {
+    // The other half, and without it the test above passes on a floor where
+    // nothing ever happens.
+    const a = createAmbient(seeded())
+    let farthest = 0
+    for (let i = 0; i < 1800; i++) {
+      a.update(1 / 60, {
+        seats: SEATS,
+        props: PROPS,
+        devs: SEATS.length,
+        entropy: 0.3,
+        drawnIndividually: true,
+      })
+      farthest = Math.max(farthest, maxOffset(a))
     }
     a.destroy()
+    expect(farthest).toBeGreaterThan(200)
   })
 
   it('never puts two behaviours on one developer', () => {
