@@ -97,8 +97,17 @@ export interface OfflineSnapshot {
   maxProjectIndex: number
   /** Sprint Commitment of the nth project. Walked only when chain-shipping. */
   commitmentFor: (index: number) => Decimal
-  /** GDD §4.10 — dollars per Story Point shipped. */
-  revenuePerSp: number
+  /**
+   * GDD §4.10c — what project `index` pays on ship.
+   *
+   * A function of the ladder position rather than a rate per Story Point. It
+   * was `revenuePerSp: number`, which stopped being right the moment revenue
+   * became a property of the project instead of of the work: an overnight
+   * chain-ship would have paid $0.05 a point while the online path paid $137,
+   * and the player's own idle progress would have been worth two thousand
+   * times less than the same shipping done in front of them.
+   */
+  revenueFor: (index: number) => number
   /** Does the player own CI/CD Autopilot (§13.3 L2-2B)? See {@link offlineYield}. */
   autoShip: boolean
 }
@@ -253,7 +262,7 @@ export function offlineYield(
         shipCapReached = true
         break
       }
-      revenue = revenue.plus(commitment.times(snap.revenuePerSp))
+      revenue = revenue.plus(snap.revenueFor(projectIndex))
       burned = burned.minus(commitment)
       // Clamped exactly as the online ship path clamps it: the ladder ends,
       // and its last project repeats rather than the index running past it.

@@ -285,11 +285,18 @@ body {
 .burndown__name {
   color: var(--p2);
   line-height: 1.25;
-  /* One line, always. Project names run long and the chart under them must not
-     move up and down as they change. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /*
+   * Wraps to two lines, and the space for both is *reserved* whether or not the
+   * second is used — which is what the old `nowrap` + ellipsis was really
+   * protecting: the chart underneath must not move as the project changes.
+   *
+   * Truncating was the wrong way to buy that. **The project names are jokes**
+   * (Appendix D — text does the comedy work), and `OPEN-WORLD SURVIVAL CRAFT
+   * (EARLY ACC…` throws away the punchline to save four pixels. Reserving the
+   * line costs the same four pixels permanently and keeps every name whole.
+   */
+  min-height: 2.5em;
+  overflow-wrap: break-word;
 }
 
 .burndown__chart {

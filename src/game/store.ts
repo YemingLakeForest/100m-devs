@@ -68,7 +68,6 @@ import {
   toDecimal,
   writeSave,
 } from './save.ts'
-import { REVENUE_PER_SP } from '../sim/economy.ts'
 
 /**
  * The Run 1 project ladder — GDD §5, Era 1.
@@ -89,11 +88,40 @@ import { REVENUE_PER_SP } from '../sim/economy.ts'
  * The names still escalate in ambition while the commitments do not, which is
  * its own joke about scope.
  */
+/**
+ * The Run 1 ladder — GDD §4.10c.
+ *
+ * `payout` is authored per project rather than derived from `commitment`,
+ * because **revenue per Story Point is not a constant of the universe, it is a
+ * fact about your studio's reputation.** A flat $/SP was §4.10's first
+ * assumption and it made the game unplayable from three developers onward: the
+ * cost of a Story Point is `wage × (n−2)/n`, which climbs toward $50 and stays
+ * there, so a flat $0.05/SP is six hundred times underwater at n = 5.
+ *
+ * The rule the ladder has to satisfy is short enough to state exactly, and
+ * §4.10c derives it: profit per second is `n·r − n·W + 2·W`, so
+ *
+ *     d(profit)/dn = r − W
+ *
+ * **Hiring pays if and only if revenue per Story Point exceeds the wage per
+ * developer per second.** Every payout below is chosen against that one line.
+ *
+ * *Flappy Square 1.0* keeps its $50 (§21 Act II states it) and is therefore
+ * catastrophically below the line — which is not a flaw but the best detail in
+ * the table: **your first game would have lost money the instant you hired
+ * anybody.** It only turns a profit because you and James are not paid.
+ */
 export const PROJECTS = [
-  { name: 'Flappy Square 1.0', commitment: 1000 },
-  { name: 'Flappy Square 2.0 (Now With Ads)', commitment: 400 },
-  { name: 'Untitled Roguelike Deckbuilder', commitment: 1000 },
-  { name: 'Open-World Survival Craft (Early Access)', commitment: 4000 },
+  // r = $0.05/SP. The joke, and a loss-maker the moment payroll starts.
+  { name: 'Flappy Square 1.0', commitment: 1000, payout: 50 },
+  // r = $62.50/SP. The first project that clears the wage, and the one that
+  // funds Act IIa — shipped at two unpaid founders, so all of it is profit.
+  { name: 'Flappy Square 2.0 (Now With Ads)', commitment: 400, payout: 25_000 },
+  // r = $120/SP.
+  { name: 'Untitled Roguelike Deckbuilder', commitment: 1000, payout: 120_000 },
+  // r = $137.50/SP. The ladder's terminal rung — `maxProjectIndex` repeats it,
+  // so this is the rate the studio runs at for the rest of the run.
+  { name: 'Open-World Survival Craft (Early Access)', commitment: 4000, payout: 550_000 },
 ] as const
 
 export interface FloatingNumeral {
@@ -405,7 +433,7 @@ function showBubble(text: string, ttl = 4000): Partial<GameState> {
 
 /** Ship the current project and roll to the next — §21 Act II. */
 function shipProject(s: GameState): Partial<GameState> {
-  const revenue = projectRevenue(s.commitment.toNumber())
+  const revenue = projectRevenue(s.projectIndex)
   const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
   const next = PROJECTS[nextIndex]
 
@@ -851,7 +879,7 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       burned: restored.burned,
       projectIndex: restored.projectIndex,
       commitmentFor,
-      revenuePerSp: REVENUE_PER_SP,
+      revenueFor: projectRevenue,
       autoShip: meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT),
     },
     config,
@@ -884,7 +912,7 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
       burned: state.burned,
       projectIndex: state.projectIndex,
       commitmentFor,
-      revenuePerSp: REVENUE_PER_SP,
+      revenueFor: projectRevenue,
       autoShip: getPermanent().meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT),
     },
     {

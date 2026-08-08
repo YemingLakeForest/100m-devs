@@ -577,6 +577,73 @@ currently a flat $0.05/SP, which is the assumption that a forty-person studio's 
 worth exactly forty times a solo developer's. It is not, and §5's era table already says so:
 Phase 1 ships *Flappy Square*, Phase 2 ships **MMORPGs and game engines**.
 
+#### 4.10c The fix — revenue is a fact about your studio, not about a Story Point **[CANON — added 2026-08-08]**
+
+##### The one relation that decides everything
+
+At headcount $n$ with revenue $r$ per Story Point and wage $W$ per paid developer per second,
+velocity is $n$ points per second and payroll is $W(n-2)$ dollars per second, so:
+
+$$	ext{profit/sec} = n\,r - W(n-2) \qquad\Rightarrow\qquad rac{d(	ext{profit})}{dn} = r - W$$
+
+**Hiring pays if and only if revenue per Story Point exceeds the wage per developer per
+second.** Everything else is detail. $r$ was $0.05$ against a $W$ of $50$, which is why every
+hire made the studio poorer and why the loop could not be played.
+
+The corollary is just as useful: the *cost* of a Story Point is $W(n-2)/n$, which is
+**constant in headcount** and climbs toward $W$ as the two unpaid founders are diluted away.
+More developers finish sooner and cost proportionally more; linear payroll over linear
+velocity cancels.
+
+##### And the corollary that turns out to be §6
+
+Velocity is not actually linear — §4.1 taxes it — so the true cost of a point is
+$W(n-2)/(n\,\eta)$, and $\eta$ collapses long before the numerator stops growing. At a
+hundred developers against a cap of a hundred, a Story Point costs **double** the wage.
+
+**This is the game's thesis denominated in dollars**, and it is worth stating because it
+means §6.1's insistence that payroll stay linear is not a limitation. The trap does not need
+payroll to be superlinear. It only needs payroll to be linear while output is not.
+
+##### The ladder
+
+Revenue is authored per project rather than derived from the commitment, because **a Story
+Point is not worth a fixed amount of money — a forty-person studio's output is worth
+disproportionately more than a solo developer's.** §5's era table already says so: Phase 1
+ships *Flappy Square*, Phase 2 ships MMORPGs.
+
+| # | Project | SP | Payout | $r$ | vs $W$ |
+|---|---|---|---|---|---|
+| 1 | Flappy Square 1.0 | 1,000 | **$50** | $0.05 | **far below** |
+| 2 | Flappy Square 2.0 (Now With Ads) | 400 | $25,000 | $62.50 | above |
+| 3 | Untitled Roguelike Deckbuilder | 1,000 | $120,000 | $120 | above |
+| 4 | Open-World Survival Craft (Early Access) | 4,000 | $550,000 | $137.50 | above |
+
+**Project 1 is deliberately below the line, and it is the best detail in the table.** Your
+first game turns a profit only because you and James are not paid; it would have lost money
+the instant you hired anybody. §21 Act II's "+$50" survives intact and gains a second meaning.
+
+##### Two consequences that had to follow
+
+- **Act IIa opens after the *second* project, not the first.** Payroll starts with the third
+  developer and *Flappy Square 1.0* pays fifty dollars, so opening the hire prompt on one
+  shipped project handed the player a HIRE button, a $50 treasury and a $50/sec burn — one
+  second of runway and a slow slide to a bankruptcy they could neither see coming nor avoid.
+  Project 2 ships at two unpaid founders, so all $25,000 of it is profit, and *that* is the
+  money Act IIa is played with. It sharpens the joke rather than blunting it: your first game
+  earns fifty dollars, your second earns twenty-five thousand, and only then can you afford
+  people.
+- **James cannot be hired until project 1 ships.** He costs a dollar and the player starts
+  with none, so Act II's beat is gated on Act I's payout without anything having to say so.
+  Found by simulating the run, not by reading it.
+
+##### How it is kept honest
+
+`runOne.test.ts` **plays the run** — pokes, ships, hires, ships faster — rather than asserting
+about its parts. The economy is the one system whose failure is invisible to unit tests:
+`payrollPerSecond`, `projectRevenue` and `hireCost` all passed their own tests for two turns
+while a 1,000 SP project cost forty thousand dollars in wages and paid fifty.
+
 ##### Why it is written down rather than guessed at
 
 Revenue scaling and the §4.10's project ladder have to be designed *together* — a curve

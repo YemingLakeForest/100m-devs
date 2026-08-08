@@ -266,8 +266,20 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
       return s.devs >= 2 ? 'act2_ship' : phase
 
     case 'act2_ship':
-      // Waits on Flappy Square actually shipping.
-      return s.projectsShipped >= 1 ? 'act2a_loop' : phase
+      // **Two** projects, not one — §4.10c.
+      //
+      // Payroll starts with the third developer, and *Flappy Square 1.0* pays
+      // fifty dollars. Opening Act IIa's hire prompt on one shipped project
+      // handed the player a HIRE button, a $50 treasury and a $50/sec burn:
+      // one second of runway, then a slow slide to bankruptcy they could not
+      // see coming and could not have avoided.
+      //
+      // The second project ships at two unpaid founders, so all $25,000 of it
+      // is profit, and *that* is the money Act IIa is played with. It also
+      // sharpens Act II's joke rather than blunting it: your first game earns
+      // fifty dollars, your second earns twenty-five thousand, and only then
+      // can you afford people.
+      return s.projectsShipped >= 2 ? 'act2a_loop' : phase
 
     case 'act2a_loop':
       // §21.0a — the term sheet arrives once the loop is a habit.

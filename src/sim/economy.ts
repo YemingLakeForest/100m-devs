@@ -63,10 +63,29 @@ export function payrollPerSecond(devs: number): number {
   return paidHeadcount(devs) * WAGE_PER_DEV_PER_SEC
 }
 
-/** What a project pays on ship. */
-export function projectRevenue(sprintCommitment: number): number {
-  return sprintCommitment * REVENUE_PER_SP
+/**
+ * What project `index` pays on ship — GDD §4.10c.
+ *
+ * Takes a ladder index, not a Story Point count. Revenue used to be
+ * `commitment × REVENUE_PER_SP`, on the assumption that a Story Point is worth
+ * a fixed amount of money whoever ships it. It is not: a forty-person studio's
+ * output is not worth forty times a solo developer's, it is worth
+ * *disproportionately* more, which is both true of real games and the only
+ * shape that makes the loop solvable — see §4.10c and `PROJECTS`.
+ */
+export function projectRevenue(index: number): number {
+  const ladder = PROJECT_PAYOUTS
+  return ladder[Math.max(0, Math.min(ladder.length - 1, Math.floor(index)))]
 }
+
+/**
+ * Payouts, mirrored here so `economy.ts` stays free of store imports.
+ *
+ * Kept in step with `PROJECTS` by test rather than by discipline — two lists
+ * that must agree and are edited in different files is exactly the pairing that
+ * silently drifts.
+ */
+export const PROJECT_PAYOUTS: readonly number[] = [50, 25_000, 120_000, 550_000]
 
 /**
  * §21.0 — what the next developer costs.

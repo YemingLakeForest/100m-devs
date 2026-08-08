@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   BANKRUPTCY_THRESHOLD,
-  REVENUE_PER_SP,
   UNPAID_FOUNDERS,
   hireCost,
   hireCostTotal,
@@ -11,12 +10,16 @@ import {
   payrollPerSecond,
   projectRevenue,
   secondsUntilBankrupt,
+  PROJECT_PAYOUTS,
+  WAGE_PER_DEV_PER_SEC,
 } from './economy.ts'
+import { PROJECTS } from '../game/store.ts'
 import { efficiency, passiveVelocity } from './entropy.ts'
 
 describe('the two figures the GDD actually states (§21)', () => {
   it('Act II: the first project pays exactly +$50', () => {
-    expect(projectRevenue(1000)).toBe(50)
+    // Indexed on the ladder now, not on the Story Point count — §4.10c.
+    expect(projectRevenue(0)).toBe(50)
   })
 
   it('Act II: two people in a garage draw no payroll', () => {
@@ -47,10 +50,42 @@ describe('payroll', () => {
   })
 })
 
-describe('revenue scales with the work committed', () => {
-  it('pays proportionally to the Sprint Commitment', () => {
-    expect(projectRevenue(2000)).toBe(2 * projectRevenue(1000))
-    expect(REVENUE_PER_SP).toBeGreaterThan(0)
+describe('revenue scales with the studio, not with the Story Point — §4.10c', () => {
+  it('pays more per project as the ladder climbs', () => {
+    for (let i = 1; i < PROJECT_PAYOUTS.length; i++) {
+      expect(projectRevenue(i)).toBeGreaterThan(projectRevenue(i - 1))
+    }
+  })
+
+  it('clears the wage from the second project onward, which is the whole rule', () => {
+    // profit/sec = n*r - n*W + 2*W, so d(profit)/dn = r - W: **hiring pays if
+    // and only if revenue per Story Point exceeds the wage per developer per
+    // second.** Every payout on the ladder is chosen against this one line, and
+    // a flat $/SP failed it by a factor of six hundred.
+    for (let i = 1; i < PROJECT_PAYOUTS.length; i++) {
+      const r = projectRevenue(i) / PROJECTS[i].commitment
+      expect(r).toBeGreaterThan(WAGE_PER_DEV_PER_SEC)
+    }
+  })
+
+  it('leaves the first game below the line, which is the joke', () => {
+    // Your first game would have lost money the instant you hired anybody. It
+    // turns a profit only because you and James are not paid.
+    const r = projectRevenue(0) / PROJECTS[0].commitment
+    expect(r).toBeLessThan(WAGE_PER_DEV_PER_SEC)
+  })
+
+  it('keeps the two payout lists in step', () => {
+    // `PROJECTS` lives in the store and `PROJECT_PAYOUTS` in the sim, so that
+    // economy.ts stays free of store imports. Two lists that must agree and are
+    // edited in different files is exactly the pairing that silently drifts.
+    expect(PROJECT_PAYOUTS).toEqual(PROJECTS.map((p) => p.payout))
+  })
+
+  it('clamps rather than returning undefined past the end of the ladder', () => {
+    // §21's list repeats its last entry, and `maxProjectIndex` relies on this.
+    expect(projectRevenue(99)).toBe(projectRevenue(PROJECT_PAYOUTS.length - 1))
+    expect(projectRevenue(-3)).toBe(projectRevenue(0))
   })
 })
 
@@ -128,7 +163,7 @@ describe('hiring costs money — GDD §21.0', () => {
     // top project. The real constraint is therefore *how many* ships Act IIa
     // costs, not a fixed total — and past about three the loop stops being a
     // ramp and starts being a grind.
-    const topProjectRevenue = projectRevenue(8000)
+    const topProjectRevenue = projectRevenue(PROJECT_PAYOUTS.length - 1)
     expect(hireCostTotal(1, 40)).toBeLessThan(topProjectRevenue * 3)
   })
 

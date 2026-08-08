@@ -32,7 +32,8 @@ function snapshot(over: Partial<OfflineSnapshot> = {}): OfflineSnapshot {
     // does not interfere; the test that cares about it sets its own.
     maxProjectIndex: 999,
     commitmentFor: () => new Decimal(1000),
-    revenuePerSp: 0.05,
+    // §4.10c — a payout per ladder position, not a rate per Story Point.
+    revenueFor: () => 50,
     autoShip: false,
     ...over,
   }
