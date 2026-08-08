@@ -925,6 +925,29 @@ cardboard. A room that merely emptied would read as a budget cut. A room that fi
 boxes while the plants die reads as a place that stopped being looked after, which is the
 §6 thesis about people rather than about money.
 
+##### Two rules that make or break the projection
+
+Both were got wrong first time, and both are invisible in a still until you know
+to look:
+
+1. **Anything with volume is drawn as a box, not a rectangle.** A cabinet drawn
+   as an upright screen-aligned rectangle, in a room where the floor, desks and
+   walls all recede, reads as a sticker on the glass. The eye finds it instantly
+   and cannot say why. Flat panels are legal only when they lie *in* a plane —
+   a whiteboard on a wall is a parallelogram on screen, not a rectangle.
+2. **Every free-standing object gets a contact shadow.** The projection throws
+   away the depth cue that says *this is standing on that*, so a solid with
+   nothing beneath its base floats however correctly it is positioned. This is
+   the fix; repositioning is not. Anything stacked on something else is exempt —
+   it has a contact patch, not a floor.
+
+The lighting corollary is worth stating because it is counter-intuitive:
+ART_DIRECTION §7's source is top-left, both visible vertical faces of a box
+point *downward*, so the **left** face is the lit one and the right is the
+shaded one. The two back walls, which face the camera, take the opposite
+assignment for the same reason — the back-**right** wall is the lighter of the
+two.
+
 **Everything above is T3 commodity** (ART_DIRECTION §4) — desks, chairs, monitors, plants,
 server racks, whiteboards, coolers. Buy a pack or generate, then run it through §5's
 quantiser. None of it is bespoke, and none of it counts against §22.7's 19 sprites.
