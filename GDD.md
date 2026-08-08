@@ -1819,8 +1819,7 @@ at ten million developers is not a choice, it is clutter.
 | Headcount | Segments offered |
 |---|---|
 | 1 – 24 | *(no dial — one button, one hire)* |
-| 25 – 249 | `x1` `x10` `MAX` |
-| 250 – 9,999 | `x1` `x10` `x100` `MAX` |
+| 25 – 9,999 | `x1` `x10` `x100` `MAX` |
 | 10 K – 999 K | `x10` `x100` `x1K` `MAX` |
 | 1 M – 999 M | `x1K` `x10K` `x100K` `MAX` |
 | 1 B + | `x100K` `x1M` `x10M` `MAX` |
@@ -1828,6 +1827,12 @@ at ten million developers is not a choice, it is clutter.
 **Four segments, always.** Never five, never a scrolling list. The window slides up the ladder
 and the shape of the control never changes, which is what lets a player who learned it at
 fifty developers still recognise it at a billion.
+
+The opening band offers `x100` long before anyone can afford it, and that is the rule below
+working rather than an oversight: an unaffordable multiplier is **shown and priced**, which is
+how the player learns what to save for. An earlier draft gave the first band three segments
+and introduced the fourth at 250 — which made the control change shape once, early, for no
+reason the player could see.
 
 **The dial does not appear until 25 developers**, because §21's Run 1 is a scripted funnel and
 a multiplier in Act I would let the player skip the beat where hiring one person is the whole
@@ -1840,10 +1845,18 @@ that it did not narrate.
    Hiding it removes the information the player needs to decide what to save for. This is the
    opposite of §24.8's rewarded-ad rule (where a dead button *is* a broken promise), and the
    difference is that a hire button is a price tag and an ad button is an offer.
-2. **MAX never spends the last dollar.** §4.10a's Mass Hire deliberately takes the entire
-   treasury, because that is Act III's trap and it is *supposed* to ruin you. The ordinary
-   MAX is not that: it leaves the player solvent. Two controls that look alike and behave
-   differently would make Act III's trap feel like a bug rather than a betrayal.
+2. **MAX never spends the last dollar** — concretely, **it keeps back a tenth of the
+   treasury**. §4.10a's Mass Hire deliberately takes *everything*, because that is Act III's
+   trap and it is supposed to ruin you; two controls that look alike and differ on whether
+   they bankrupt you would make the trap read as a bug rather than as a betrayal.
+
+   > **The reserve is a fraction rather than a duration, and the first draft got that
+   > wrong.** Deriving it from §4.10's wage — "five seconds of the payroll you will have
+   > after the hire" — reads better and is unusable: at thirty developers that is $7,000,
+   > which is more money than an Act IIa player has ever held, so MAX would have been dead
+   > for the whole of the act that introduces it. A fraction is always satisfiable and
+   > scales without tuning. **A segment that never lights up is worse than one that was not
+   > shipped.**
 3. **Every hire in a batch is a §7.8.5 arrival.** A x100 hire cascades a hundred seats in seat
    order, compressed by `cascadeDelay` so it stays inside its cap. **The batch is never a
    number going up.** If a multiplier is large enough that the room cannot show it, that is

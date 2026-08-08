@@ -74,6 +74,7 @@ export interface RunSave {
   desperateTaps: number
   phase: Phase
   massHired: boolean
+  hireMultiplier: number | 'max'
 }
 
 /**
@@ -246,6 +247,7 @@ export function makeSaveData(state: GameState): SaveData {
       desperateTaps: state.desperateTaps,
       phase: state.phase,
       massHired: state.massHired,
+      hireMultiplier: state.hireMultiplier,
     },
     permanent: {
       layer1: { ...permanent.layer1 },
@@ -402,6 +404,11 @@ function normaliseRun(value: unknown): RunSave {
     desperateTaps: Math.max(0, Math.floor(nonNegative(r.desperateTaps, 0))),
     phase: phase(r.phase),
     massHired: bool(r.massHired, false),
+    // §10.10 — the dial's selection survives a session. Validated rather than
+    // trusted: a hand-edited save naming a multiplier the dial never offers
+    // would price a batch nothing in the interface can explain.
+    hireMultiplier:
+      r.hireMultiplier === 'max' || typeof r.hireMultiplier === 'number' ? r.hireMultiplier : 1,
   }
 }
 

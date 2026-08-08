@@ -356,8 +356,69 @@ body {
   grid-area: actions;
   align-self: end;
   justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
   pointer-events: auto;
   padding-bottom: 2px;
+}
+
+/* --- the hire dial — GDD §10.10 ----------------------------------------- */
+
+/*
+ * A row of segments, sharing one frame. Brackets and rules per ART_DIRECTION
+ * §1 — the group has a border and the segments have dividers, so it reads as
+ * one control with parts rather than as four buttons that happen to be
+ * adjacent. That distinction is the whole difference between a dial and a
+ * toolbar.
+ */
+.hire-dial {
+  display: flex;
+  border: var(--rule) solid var(--p1);
+  background: color-mix(in srgb, var(--n0) 82%, transparent);
+}
+
+.hire-dial__seg {
+  min-width: 3.6em;
+  padding: 3px 9px;
+  font: inherit;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p2);
+  background: none;
+  border: 0;
+  border-left: var(--rule) solid var(--p1);
+  cursor: pointer;
+  /* Touch target. The visible segment is small because four of them have to
+     fit the frame; the tappable one is not. */
+  min-height: 30px;
+}
+
+.hire-dial__seg:first-child {
+  border-left: 0;
+}
+
+/* The selection. Inverted rather than tinted — at this type size a background
+   wash is the only state change that survives a phone screen in daylight. */
+.hire-dial__seg[data-selected='true'] {
+  color: var(--n0);
+  background: var(--p3);
+}
+
+/*
+ * §10.10.3 rule 1 — an unaffordable multiplier is dimmed, never hidden and
+ * never disabled. Still selectable: the player is allowed to point the control
+ * at the thing they are saving up for, and the HIRE button below is what
+ * refuses. `:disabled` here would be the interface telling them not to have a
+ * plan.
+ */
+.hire-dial__seg[data-affordable='false'] {
+  color: var(--p0);
+}
+
+.hire-dial__seg[data-affordable='false'][data-selected='true'] {
+  color: var(--n0);
+  background: var(--p1);
 }
 
 /* Speech bubble over the developer — GDD §7.5 L1, §6.3. Also a Panel. */

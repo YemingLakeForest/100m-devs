@@ -17,6 +17,8 @@ export type Phase =
   | 'act2_offer_hire'
   /** Act II — James is here; ship the thing. */
   | 'act2_ship'
+  /** Act IIa — the honest loop. Ship, earn, hire, repeat, to ~40. */
+  | 'act2a_loop'
   /** Act III — the mousetrap is baited. */
   | 'act3_bait'
   /** Act IV — 1,000 devs land, entropy surges. */
@@ -30,6 +32,7 @@ export const PHASE_ORDER: readonly Phase[] = [
   'act1_poke',
   'act2_offer_hire',
   'act2_ship',
+  'act2a_loop',
   'act3_bait',
   'act4_collapse',
   'act5_bleeding',
@@ -110,6 +113,16 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
     advisor: 'Velocity doubled. Burn it down.',
   },
 
+  act2a_loop: {
+    // §21.0's load-bearing beat, and the one that must NOT be narrated. The
+    // player is being left alone to build a mental model out of evidence —
+    // "more developers, more speed" — which they will hold right up until it
+    // fails. A line of advisor copy telling them hiring works would replace
+    // that evidence with an assertion, and an assertion is not something you
+    // feel betrayed by. The only thing here is the verb.
+    advisor: 'Ship it. Hire. Ship it again.',
+  },
+
   act3_bait: {
     terminal: [
       '** LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED! **',
@@ -154,6 +167,15 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
  * Against the Run 1 cap of 100 this gives L = 10 and efficiency 1e-5, which is
  * exactly the "production drops to 0.01x" figure §6.2 asserts.
  */
+/**
+ * Where Act IIa ends — §21.0's measured table.
+ *
+ * The first headcount whose readout is not `IN SYNC`. At 30 developers E is
+ * 0.242% and rounds to nothing; at 40 it is 1.01% and the speedometer says
+ * `CHATTY`. **The player must get exactly one hint and wave it away.**
+ */
+export const ACT2A_ENDS_AT = 40
+
 export const MASS_HIRE_COUNT = 1000
 
 /**
@@ -185,7 +207,16 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
 
     case 'act2_ship':
       // Waits on Flappy Square actually shipping.
-      return s.projectsShipped >= 1 ? 'act3_bait' : phase
+      return s.projectsShipped >= 1 ? 'act2a_loop' : phase
+
+    case 'act2a_loop':
+      // §21.0: Act IIa ends at ~40 developers, and the number is not
+      // arbitrary — it is the first headcount at which the readout says
+      // something other than `IN SYNC` (E = 1.01%). Ending on that first
+      // twitch is what buys the "I saw that and ignored it" the collapse
+      // needs. Measured against the shipped `entropy()`, not chosen to be
+      // round.
+      return s.devs >= ACT2A_ENDS_AT ? 'act3_bait' : phase
 
     case 'act3_bait':
       // Waits on the player springing the trap themselves. It matters that

@@ -106,9 +106,19 @@ describe('the speedometer numeral — GDD §4.3a', () => {
 })
 
 describe('the action bar — §21 is a funnel', () => {
-  it('offers exactly the two beats that wait on a player decision', () => {
+  it('offers exactly the beats that wait on a player decision', () => {
+    // §21 is a funnel; a second choice anywhere in it would let the player
+    // sidestep the trap. Act IIa joins the list because §21.0 makes hiring the
+    // whole interface of that beat -- but it is the *same* control as Act II's,
+    // not a second one, which is why the funnel is still a funnel.
     const offered = PHASE_ORDER.filter((p) => actionFor(p) !== null)
-    expect(offered).toEqual<Phase[]>(['act2_offer_hire', 'act3_bait'])
+    expect(offered).toEqual<Phase[]>(['act2_offer_hire', 'act2a_loop', 'act3_bait'])
+  })
+
+  it('gives Act IIa the ordinary hire control, not a second flavour of it', () => {
+    // If these ever diverge, the game has two hire buttons and the player has
+    // to learn which one they are looking at.
+    expect(actionFor('act2a_loop')).toBe(actionFor('act2_offer_hire'))
   })
 
   it('makes the mousetrap the one control permitted to beg', () => {

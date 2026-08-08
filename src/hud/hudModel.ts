@@ -160,6 +160,13 @@ const MASS_HIRE: ActionSpec = {
 export function actionFor(phase: Phase): ActionSpec | null {
   switch (phase) {
     case 'act2_offer_hire':
+    // §21.0's Act IIa is the honest loop — "ship, earn, hire, ship faster" —
+    // so the hire control is the *whole* interface of that beat and must be
+    // continuously available through it. It was previously offered for the
+    // single hire that brings James and then taken away again, which left the
+    // act with a verb and no button.
+    // falls through
+    case 'act2a_loop':
       return HIRE
     case 'act3_bait':
       return MASS_HIRE

@@ -7,8 +7,9 @@ import {
   dismissScene,
   hasSeenScene,
   hireDeveloper,
+  hireQuote,
   massHire,
-  nextHireCost,
+  setHireMultiplier,
   triggerParadigmShift,
   type GameState,
 } from '../game/store.ts'
@@ -18,6 +19,7 @@ import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
 import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
+import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
 import { OvernightReport } from './OvernightReport.tsx'
@@ -214,8 +216,23 @@ function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState 
   const [shown, setShown] = useState(spec)
   if (spec !== null && spec !== shown) setShown(spec)
 
+  // §10.10 — what the dial is currently offering. Only the hire action reads
+  // it; the mousetrap and the paradigm shift are fixed-price beats.
+  const q = hireQuote(state)
+
   return (
     <Panel open={spec !== null} from="bottom" className="hud__actions">
+      {shown?.showsHireCost && (
+        // Above the button, per §10.10.1's layout: the multiplier is chosen
+        // and *then* committed, so it belongs earlier in the reading order and
+        // further from the thumb than the thing it commits.
+        <HireDial
+          devs={state.devs}
+          cash={state.cash}
+          value={state.hireMultiplier}
+          onChange={setHireMultiplier}
+        />
+      )}
       {shown && (
         <Button
           variant={shown.variant}
@@ -225,8 +242,20 @@ function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState 
           // than one that says so.
           disabled={shown.showsHireCost && !canHire(state)}
         >
-          {shown.label}
-          {shown.showsHireCost && <small>{formatMoney(nextHireCost(state))}</small>}
+          {/*
+            The face carries the batch, because at x100 "HIRE DEVELOPER" is a
+            lie about what the tap does. Below the dial's unlock it reads
+            exactly as it always did — the multiplier is 1 and the count is
+            suppressed rather than rendered as "x1".
+          */}
+          {shown.showsHireCost && q.count > 1 ? `${shown.label}  x${q.count}` : shown.label}
+          {/*
+            §10.10.1 — the TRUE sum of the next n hires, never n x current.
+            `hireQuote` takes it from the closed form; `nextHireCost` is only
+            right for a batch of one and would understate every other batch,
+            which would read as a lie the first time a player checked.
+          */}
+          {shown.showsHireCost && <small>{formatMoney(q.cost)}</small>}
           {shown.note && <small>{shown.note}</small>}
         </Button>
       )}

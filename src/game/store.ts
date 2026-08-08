@@ -14,6 +14,7 @@
  */
 
 import Decimal from 'break_infinity.js'
+import { quote, type Multiplier, type Quote } from '../sim/hireDial.ts'
 import {
   BANKRUPTCY_THRESHOLD,
   hireCost,
@@ -162,6 +163,8 @@ export interface GameState {
   phase: Phase
   /** Set once, so the collapse beat only fires its camera kick a single time. */
   massHired: boolean
+  /** §10.10 — the hire dial's selection. Persists; a player who chose MAX meant it. */
+  hireMultiplier: Multiplier
 
   /**
    * GDD §24.8 — the Overnight Build Report waiting to be shown, or null.
@@ -216,6 +219,7 @@ function freshRun(): GameState {
     desperateTaps: 0,
     phase: 'act1_poke',
     massHired: false,
+    hireMultiplier: 1,
     pendingOffline: null,
     scene: null,
   }
@@ -445,11 +449,27 @@ export function nextHireCost(s: GameState = state): number {
 }
 
 export function canHire(s: GameState = state): boolean {
-  return s.cash >= nextHireCost(s)
+  return hireQuote(s).affordable
+}
+
+/** §10.10 — set the dial. Pure selection; nothing is bought until HIRE. */
+export function setHireMultiplier(m: Multiplier): void {
+  set({ hireMultiplier: m })
 }
 
 /**
- * §21 Act II and the §21.0 loop — hire one developer, for money.
+ * What the dial is currently offering — count, price, and whether it is live.
+ *
+ * Derived rather than stored, because MAX's count changes on its own as cash
+ * accrues (§10.10.1) and a stored copy would be one frame stale on the only
+ * segment where that is visible.
+ */
+export function hireQuote(s: GameState = state): Quote {
+  return quote(s.devs, s.cash, s.hireMultiplier)
+}
+
+/**
+ * §21 Act II and the §21.0 loop — hire developers, for money.
  *
  * Hiring used to be free, which quietly removed the whole of Act IIa: with no
  * cost there is no loop, no reason to ship, and no treasury to spend on the
@@ -461,9 +481,11 @@ export function canHire(s: GameState = state): boolean {
  * say why. A hire the player cannot afford must not leave them poorer.
  */
 export function hireDeveloper(): boolean {
-  const cost = nextHireCost()
-  if (state.cash < cost) return false
-  set({ ...hire(state.devs, state.devs + 1), cash: state.cash - cost })
+  // §10.10 — the dial decides the batch. It reads 1 until the dial unlocks at
+  // 25 developers, so Act I and Act II behave exactly as they did.
+  const { count, cost, affordable } = hireQuote()
+  if (!affordable || count <= 0) return false
+  set({ ...hire(state.devs, state.devs + count), cash: state.cash - cost })
   return true
 }
 
@@ -809,6 +831,12 @@ export function jumpToPhase(phase: Phase): void {
       break
     case 'act2_ship':
       set({ ...run, phase, devs: 2, pokeCount: 12 })
+      break
+    case 'act2a_loop':
+      // Mid-loop rather than at either end: §21.0's Act IIa runs 2 -> ~40, and
+      // the interesting states are all in the middle of it — the dial has just
+      // unlocked at 25 and the readout has not twitched yet.
+      set({ ...run, phase, devs: 26, projectsShipped: 1, cash: 2_000, projectIndex: 1 })
       break
     case 'act3_bait':
       set({ ...run, phase, devs: 2, projectsShipped: 1, cash: 50, projectIndex: 1 })
