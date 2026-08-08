@@ -113,28 +113,98 @@ export function gridFor(devs: number): { cols: number; rows: number } {
  * each prop is a testable fact. The departures above {@link CROWDING_STARTS}
  * are the half that matters.
  */
-export function propsAt(devs: number): {
+export interface RoomProps {
   whiteboard: boolean
-  plant: boolean
+  /** A second board once there is a wall spare — §7.8.1's 11–30 band. */
+  whiteboardRight: boolean
+  /** How many pot plants. They multiply while there is floor, then all go. */
+  plants: number
   coffee: boolean
+  /** The water cooler. The other thing people stand around instead of working. */
+  waterCooler: boolean
+  filingCabinet: boolean
+  printer: boolean
+  /** Breakout seating. The first casualty of a full floor after the plants. */
+  sofa: boolean
+  /** Unpacked cardboard. Appears when the studio grows faster than it tidies. */
+  boxes: number
+  bin: boolean
+  posters: number
   dividers: boolean
   serverRack: boolean
   cables: boolean
   walkway: boolean
-} {
+  /** A rug under the first desks. A bedroom has one; an office never does. */
+  rug: boolean
+}
+
+export function propsAt(devs: number): RoomProps {
   const crowded = devs >= CROWDING_STARTS * 2
+  // Floor space runs out before wall space does, which is why the two lists
+  // below empty at different rates. Anything that needs somebody to walk
+  // around it goes first.
+  const roomy = !crowded
+
   return {
     whiteboard: devs >= 3,
-    // The plant is the first thing to go. Nobody waters it once there are
-    // eighty people.
-    plant: devs >= 3 && !crowded,
+    whiteboardRight: devs >= 11,
+    // Plants multiply while anyone still has time to water them, then vanish
+    // together. Nobody waters anything once there are eighty people.
+    plants: crowded ? 0 : devs >= 24 ? 4 : devs >= 11 ? 3 : devs >= 6 ? 2 : devs >= 3 ? 1 : 0,
     coffee: devs >= 6,
+    waterCooler: devs >= 8,
+    filingCabinet: devs >= 14,
+    printer: devs >= 18,
+    // Breakout seating is the most floor per person in the room, so it is the
+    // first real furniture to be sacrificed.
+    sofa: devs >= 20 && roomy,
+    // Cardboard arrives when hiring outruns tidying, and it never leaves —
+    // §7.8.1's crowding takes away the things people chose and keeps the
+    // things nobody did.
+    boxes: devs >= 31 ? (crowded ? 5 : 3) : devs >= 20 ? 1 : 0,
+    bin: devs >= 6,
+    posters: devs >= 24 ? 3 : devs >= 11 ? 2 : devs >= 5 ? 1 : 0,
     // Dividers need floor space between desks, and that is exactly what runs
     // out first.
-    dividers: devs >= 11 && !crowded,
+    dividers: devs >= 11 && roomy,
     serverRack: devs >= 11,
     cables: devs >= 31,
     walkway: devs < CROWDING_STARTS,
+    // A rug is a bedroom thing. It goes the moment this is an office.
+    rug: devs <= 5,
+  }
+}
+
+/**
+ * A point on the floor's perimeter, `t` around the diamond from the top corner.
+ *
+ * Props live in the margin between the desk grid and the walls, so they need
+ * positions that follow the room as it grows rather than fractions of a fixed
+ * box. `inset` pulls them off the wall so nothing is embedded in it.
+ */
+export function perimeterPoint(
+  t: number,
+  cx: number,
+  cy: number,
+  halfW: number,
+  halfH: number,
+  inset: number,
+): { x: number; y: number } {
+  const u = ((t % 1) + 1) % 1
+  const w = Math.max(0, halfW - inset)
+  const h = Math.max(0, halfH - inset * 0.5)
+  // Four edges of the iso diamond, a quarter of the parameter each.
+  const edge = Math.floor(u * 4)
+  const f = u * 4 - edge
+  switch (edge) {
+    case 0:
+      return { x: cx + w * f, y: cy - h + h * f }
+    case 1:
+      return { x: cx + w - w * f, y: cy + h * f }
+    case 2:
+      return { x: cx - w * f, y: cy + h - h * f }
+    default:
+      return { x: cx - w + w * f, y: cy - h * f }
   }
 }
 
@@ -187,6 +257,106 @@ function drawDesk(g: Graphics, x: number, y: number) {
     g.rect(x - 9, y - 26 + i * 4, w, 1.5).fill(c(i % 2 === 0 ? RAMPS.GLOW[2] : RAMPS.GLOW[1]))
   }
   g.rect(x - 3, y - 10, 6, 3).fill(c(RAMPS.NEUTRAL[2]))
+}
+
+/** A pot plant. The most-repeated prop, so it varies by index. */
+function drawPlant(g: Graphics, x: number, y: number, i: number) {
+  const tall = i % 2 === 0
+  g.rect(x - 6, y - 10, 12, 10).fill(c(RAMPS.WOOD[1]))
+  g.rect(x - 6, y - 10, 12, 2).fill(c(RAMPS.WOOD[0]))
+  if (tall) {
+    g.rect(x - 1, y - 30, 2, 20).fill(c(RAMPS.FOLIAGE[0]))
+    g.ellipse(x - 5, y - 28, 7, 5).fill(c(RAMPS.FOLIAGE[0]))
+    g.ellipse(x + 5, y - 24, 7, 5).fill(c(RAMPS.FOLIAGE[1]))
+    g.ellipse(x, y - 34, 6, 5).fill(c(RAMPS.FOLIAGE[1]))
+  } else {
+    g.ellipse(x, y - 18, 12, 10).fill(c(RAMPS.FOLIAGE[0]))
+    g.ellipse(x - 4, y - 22, 7, 6).fill(c(RAMPS.FOLIAGE[1]))
+  }
+}
+
+/** The water cooler. The other thing people stand around instead of working. */
+function drawWaterCooler(g: Graphics, x: number, y: number) {
+  g.rect(x - 7, y - 22, 14, 22).fill(c(RAMPS.NEUTRAL[6]))
+  // The bottle. GLOW rather than a blue-grey because it is the one translucent
+  // object in the room and it should catch the monitor light.
+  g.rect(x - 6, y - 40, 12, 18).fill({ color: c(RAMPS.GLOW[1]), alpha: 0.75 })
+  g.rect(x - 6, y - 40, 12, 3).fill(c(RAMPS.NEUTRAL[4]))
+  g.rect(x - 3, y - 18, 6, 3).fill(c(RAMPS.NEUTRAL[2]))
+}
+
+function drawCoffee(g: Graphics, x: number, y: number) {
+  g.rect(x - 9, y - 26, 18, 26).fill(c(RAMPS.NEUTRAL[3]))
+  g.rect(x - 6, y - 21, 12, 8).fill(c(RAMPS.NEUTRAL[0]))
+  g.rect(x - 4, y - 9, 8, 5).fill(c(RAMPS.WOOD[1]))
+  g.rect(x + 2, y - 24, 4, 2).fill(c(RAMPS.ALARM[2]))
+}
+
+function drawFilingCabinet(g: Graphics, x: number, y: number) {
+  g.rect(x - 9, y - 28, 18, 28).fill(c(RAMPS.NEUTRAL[4]))
+  for (let d = 0; d < 3; d++) {
+    g.rect(x - 7, y - 25 + d * 9, 14, 7).fill(c(RAMPS.NEUTRAL[3]))
+    g.rect(x - 2, y - 22 + d * 9, 4, 1.5).fill(c(RAMPS.NEUTRAL[6]))
+  }
+}
+
+function drawPrinter(g: Graphics, x: number, y: number) {
+  g.rect(x - 11, y - 14, 22, 14).fill(c(RAMPS.NEUTRAL[5]))
+  g.rect(x - 8, y - 18, 16, 4).fill(c(RAMPS.NEUTRAL[6]))
+  // Paper, permanently half-fed. It is a printer.
+  g.rect(x - 5, y - 22, 10, 5).fill(c(RAMPS.NEUTRAL[8]))
+  g.rect(x + 6, y - 11, 2, 2).fill(c(RAMPS.WARN[2]))
+}
+
+function drawSofa(g: Graphics, x: number, y: number) {
+  g.rect(x - 22, y - 14, 44, 14).fill(c(RAMPS.NEUTRAL[3]))
+  g.rect(x - 22, y - 24, 44, 11).fill(c(RAMPS.NEUTRAL[4]))
+  g.rect(x - 22, y - 20, 8, 20).fill(c(RAMPS.NEUTRAL[3]))
+  g.rect(x + 14, y - 20, 8, 20).fill(c(RAMPS.NEUTRAL[3]))
+}
+
+/** Unpacked cardboard. Arrives when hiring outruns tidying and never leaves. */
+function drawBoxes(g: Graphics, x: number, y: number, i: number) {
+  const h = 12 + (i % 3) * 4
+  g.rect(x - 10, y - h, 20, h).fill(c(RAMPS.WOOD[2]))
+  g.rect(x - 10, y - h, 20, 2).fill(c(RAMPS.WOOD[1]))
+  g.rect(x - 2, y - h, 4, h).fill({ color: c(RAMPS.WOOD[1]), alpha: 0.7 })
+  if (i % 2 === 0) {
+    g.rect(x - 6, y - h - 9, 12, 9).fill(c(RAMPS.WOOD[2]))
+    g.rect(x - 6, y - h - 9, 12, 1.5).fill(c(RAMPS.WOOD[1]))
+  }
+}
+
+function drawBin(g: Graphics, x: number, y: number) {
+  g.moveTo(x - 6, y - 14)
+    .lineTo(x + 6, y - 14)
+    .lineTo(x + 4, y)
+    .lineTo(x - 4, y)
+    .closePath()
+    .fill(c(RAMPS.NEUTRAL[3]))
+  // Overflowing, because nobody empties it either.
+  g.rect(x - 4, y - 17, 3, 3).fill(c(RAMPS.NEUTRAL[7]))
+  g.rect(x + 1, y - 16, 3, 3).fill(c(RAMPS.NEUTRAL[8]))
+}
+
+/** A poster on a wall. Flat, screen-aligned, never a lit object. */
+function drawPoster(g: Graphics, x: number, y: number, i: number) {
+  const w = 22 + (i % 2) * 8
+  const h = 28
+  g.rect(x - w / 2, y, w, h).fill(c(RAMPS.NEUTRAL[2]))
+  g.rect(x - w / 2 + 2, y + 2, w - 4, h - 4).fill(c(i % 2 === 0 ? RAMPS.CALM[0] : RAMPS.WARN[0]))
+  // A motivational block of nothing.
+  g.rect(x - w / 2 + 5, y + h - 9, w - 10, 2).fill(c(RAMPS.NEUTRAL[5]))
+  g.rect(x - w / 2 + 5, y + h - 5, (w - 10) * 0.6, 2).fill(c(RAMPS.NEUTRAL[4]))
+}
+
+function drawWhiteboard(g: Graphics, x: number, y: number, seed: number) {
+  g.rect(x - 30, y, 60, 34).fill(c(RAMPS.NEUTRAL[7]))
+  g.rect(x - 30, y + 32, 60, 3).fill(c(RAMPS.NEUTRAL[4]))
+  for (let i = 0; i < 3; i++) {
+    const w = 18 + ((seed + i * 13) % 26)
+    g.rect(x - 27, y + 4 + i * 7, w, 2).fill(c(RAMPS.NEUTRAL[4]))
+  }
 }
 
 export function buildRoom(): RoomHandle {
@@ -279,41 +449,72 @@ export function buildRoom(): RoomHandle {
       light.ellipse(cx, cy - TILE_H * 0.2, r, r * 0.5).fill({ color: c(RAMPS.GLOW[1]), alpha })
     }
 
+    // A rug under the first desks. A bedroom has one; an office never does,
+    // which is why it leaves rather than accumulating like everything else.
+    if (props.rug) {
+      isoQuad(shell, cx, cy + TILE_H * 0.2, floorW * 1.05, floorH * 1.05, c(RAMPS.WOOD[1]))
+      isoQuad(shell, cx, cy + TILE_H * 0.2, floorW * 0.9, floorH * 0.9, c(RAMPS.WOOD[2]))
+    }
+
     // --- props -------------------------------------------------------------
 
+    // --- wall dressing -----------------------------------------------------
+    //
+    // Wall space survives crowding; floor space does not. That asymmetry is
+    // §7.8.1's whole point, so the two are drawn from separate budgets.
+
     if (props.whiteboard) {
-      const wx = topX - floorW * 0.45
-      const wy = topY - floorH * 0.02 - WALL_H * 0.62
-      shell.rect(wx - 30, wy, 60, 34).fill(c(RAMPS.NEUTRAL[7]))
-      shell.rect(wx - 27, wy + 4, 30, 2).fill(c(RAMPS.NEUTRAL[4]))
-      shell.rect(wx - 27, wy + 11, 44, 2).fill(c(RAMPS.NEUTRAL[4]))
-      shell.rect(wx - 27, wy + 18, 22, 2).fill(c(RAMPS.NEUTRAL[4]))
+      drawWhiteboard(shell, topX - floorW * 0.42, topY - floorH * 0.02 - WALL_H * 0.66, 3)
+    }
+    if (props.whiteboardRight) {
+      drawWhiteboard(shell, topX + floorW * 0.40, topY + floorH * 0.02 - WALL_H * 0.62, 17)
+    }
+    for (let i = 0; i < props.posters; i++) {
+      // Alternating walls, marching outward from the corner so a second poster
+      // never lands on the first.
+      const left = i % 2 === 0
+      const along = 0.18 + Math.floor(i / 2) * 0.3
+      const px = left ? topX - floorW * along : topX + floorW * along
+      const py = topY + floorH * along * 0.02 - WALL_H * (0.5 - (i % 3) * 0.08)
+      drawPoster(shell, px, py, i)
+    }
+
+    // --- floor furniture ---------------------------------------------------
+    //
+    // Placed on the perimeter between the desk grid and the walls, so the
+    // dressing follows the room as it grows instead of sitting at fractions of
+    // a box that changes size underneath it.
+
+    const ring: Array<(x: number, y: number, i: number) => void> = []
+    if (props.coffee) ring.push((x, y) => drawCoffee(furniture, x, y))
+    if (props.waterCooler) ring.push((x, y) => drawWaterCooler(furniture, x, y))
+    if (props.filingCabinet) ring.push((x, y) => drawFilingCabinet(furniture, x, y))
+    if (props.printer) ring.push((x, y) => drawPrinter(furniture, x, y))
+    if (props.sofa) ring.push((x, y) => drawSofa(furniture, x, y))
+    if (props.bin) ring.push((x, y) => drawBin(furniture, x, y))
+    for (let i = 0; i < props.plants; i++) ring.push((x, y) => drawPlant(furniture, x, y, i))
+    for (let i = 0; i < props.boxes; i++) ring.push((x, y) => drawBoxes(furniture, x, y, i))
+
+    // Spread evenly around the ring rather than clustered, and offset by a
+    // quarter turn so nothing sits exactly on the near corner where it would
+    // occlude the desks the camera is framing.
+    const inset = TILE_W * 0.42
+    for (let i = 0; i < ring.length; i++) {
+      const t = 0.125 + i / Math.max(1, ring.length)
+      const at = perimeterPoint(t, cx, cy, floorW, floorH, inset)
+      ring[i](at.x, at.y, i)
     }
 
     if (props.serverRack) {
-      const sx = topX + floorW * 0.5
-      const sy = topY + floorH * 0.35
+      // Corner-mounted rather than on the ring: it is the one thing that wants
+      // a wall behind it and it never moves once installed.
+      const sx = topX + floorW * 0.52
+      const sy = topY + floorH * 0.36
       furniture.rect(sx - 12, sy - 54, 24, 54).fill(c(RAMPS.NEUTRAL[1]))
       for (let i = 0; i < 6; i++) {
         furniture.rect(sx - 8, sy - 50 + i * 8, 16, 3).fill(c(RAMPS.NEUTRAL[2]))
         furniture.rect(sx + 4, sy - 50 + i * 8, 2, 3).fill(c(RAMPS.GLOW[2]))
       }
-    }
-
-    if (props.coffee) {
-      const kx = leftX + floorW * 0.32
-      const ky = cy - floorH * 0.28
-      furniture.rect(kx - 9, ky - 26, 18, 26).fill(c(RAMPS.NEUTRAL[3]))
-      furniture.rect(kx - 6, ky - 21, 12, 8).fill(c(RAMPS.NEUTRAL[0]))
-      furniture.rect(kx - 4, ky - 9, 8, 5).fill(c(RAMPS.WOOD[1]))
-    }
-
-    if (props.plant) {
-      const px = rightX - floorW * 0.3
-      const py = cy - floorH * 0.22
-      furniture.rect(px - 6, py - 10, 12, 10).fill(c(RAMPS.WOOD[1]))
-      furniture.ellipse(px, py - 18, 12, 11).fill(c(RAMPS.FOLIAGE[0]))
-      furniture.ellipse(px - 3, py - 22, 8, 7).fill(c(RAMPS.FOLIAGE[1]))
     }
 
     // --- desks and people --------------------------------------------------

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 // initialise under jsdom. These tests cover the fall and puff curves, which
 // never play anything.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: () => {} }))
-import { ROOM_DEV_CAP, gridFor, propsAt } from './room.ts'
+import { ROOM_DEV_CAP, gridFor, perimeterPoint, propsAt } from './room.ts'
 import { BEAT, cascadeDelay, arrivalHeight, landingSquash, puffAlpha } from './arrivals.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
 import { FLOOR_SPRITE_COUNT } from './scene.ts'
@@ -35,17 +35,38 @@ describe('props arrive on the §7.8.1 thresholds', () => {
   it('starts with nothing but a desk in a dark room', () => {
     const p = propsAt(1)
     expect(p.whiteboard).toBe(false)
-    expect(p.plant).toBe(false)
+    expect(p.plants).toBe(0)
     expect(p.coffee).toBe(false)
+    expect(p.waterCooler).toBe(false)
+  })
+
+  it('keeps the rug only while this is still a bedroom', () => {
+    // A rug is a bedroom thing. It is the one prop that leaves early rather
+    // than at the crowding threshold, because an office simply never has one.
+    expect(propsAt(1).rug).toBe(true)
+    expect(propsAt(20).rug).toBe(false)
   })
 
   it('fills the room out as the studio grows', () => {
     expect(propsAt(3).whiteboard).toBe(true)
-    expect(propsAt(3).plant).toBe(true)
+    expect(propsAt(3).plants).toBeGreaterThan(0)
     expect(propsAt(6).coffee).toBe(true)
+    expect(propsAt(8).waterCooler).toBe(true)
     expect(propsAt(11).dividers).toBe(true)
     expect(propsAt(11).serverRack).toBe(true)
+    expect(propsAt(11).whiteboardRight).toBe(true)
+    expect(propsAt(14).filingCabinet).toBe(true)
+    expect(propsAt(18).printer).toBe(true)
+    expect(propsAt(20).sofa).toBe(true)
     expect(propsAt(31).cables).toBe(true)
+  })
+
+  it('adds plants and posters as there is room for them', () => {
+    // They multiply rather than appearing once, so the room reads as being
+    // lived in for longer as it grows.
+    expect(propsAt(6).plants).toBeGreaterThan(propsAt(3).plants)
+    expect(propsAt(24).plants).toBeGreaterThan(propsAt(6).plants)
+    expect(propsAt(24).posters).toBeGreaterThan(propsAt(5).posters)
   })
 
   it('TAKES THINGS AWAY once it crowds — the §6 thesis in set dressing', () => {
@@ -55,19 +76,58 @@ describe('props arrive on the §7.8.1 thresholds', () => {
     // growth, the set dressing has stopped telling the story.
     const roomy = propsAt(20)
     const crowded = propsAt(120)
-    expect(roomy.plant).toBe(true)
-    expect(crowded.plant).toBe(false)
+    expect(roomy.plants).toBeGreaterThan(0)
+    expect(crowded.plants).toBe(0)
     expect(roomy.dividers).toBe(true)
     expect(crowded.dividers).toBe(false)
+    expect(roomy.sofa).toBe(true)
+    expect(crowded.sofa).toBe(false)
     expect(propsAt(20).walkway).toBe(true)
     expect(propsAt(120).walkway).toBe(false)
   })
 
+  it('keeps the mess nobody chose while removing the things they did', () => {
+    // The cruellest half of §7.8.1. Crowding takes the plants and the sofa —
+    // things somebody decided to put there — and leaves more cardboard, which
+    // nobody decided anything about.
+    expect(propsAt(120).boxes).toBeGreaterThan(propsAt(31).boxes)
+    expect(propsAt(120).plants).toBe(0)
+  })
+
   it('keeps the things that do not need floor space', () => {
     // The whiteboard is on a wall and the servers are in a corner. Crowding
-    // takes the floor, not the walls.
+    // takes the floor, not the walls — which is why the two are drawn from
+    // separate budgets rather than one list of booleans.
     expect(propsAt(120).whiteboard).toBe(true)
+    expect(propsAt(120).whiteboardRight).toBe(true)
+    expect(propsAt(120).posters).toBeGreaterThan(0)
     expect(propsAt(120).serverRack).toBe(true)
+  })
+})
+
+describe('perimeter placement', () => {
+  it('walks all the way round without repeating a position', () => {
+    const seen = new Set(
+      Array.from({ length: 12 }, (_, i) =>
+        JSON.stringify(perimeterPoint(i / 12, 0, 0, 100, 50, 10)),
+      ),
+    )
+    expect(seen.size).toBe(12)
+  })
+
+  it('closes the loop, so a full turn returns to the start', () => {
+    const a = perimeterPoint(0, 0, 0, 100, 50, 10)
+    const b = perimeterPoint(1, 0, 0, 100, 50, 10)
+    expect(b.x).toBeCloseTo(a.x, 6)
+    expect(b.y).toBeCloseTo(a.y, 6)
+  })
+
+  it('stays inside the floor, so nothing is embedded in a wall', () => {
+    for (let i = 0; i < 40; i++) {
+      const p = perimeterPoint(i / 40, 0, 0, 100, 50, 12)
+      // Inside the diamond |x|/w + |y|/h <= 1, with a little slack for the inset.
+      expect(Math.abs(p.x) / 100 + Math.abs(p.y) / 50).toBeLessThanOrEqual(1.001)
+    }
   })
 })
 

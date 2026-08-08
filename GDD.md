@@ -898,8 +898,8 @@ the headcount; the camera pulls back continuously (§7.2), never in steps.
 | **2** | A second desk pushed alongside, close enough to touch. The room light comes up one notch. | **James.** The first other person |
 | **3–5** | Desks in a huddle facing inward. A whiteboard on the wall. The first plant. | Whiteboard, plant |
 | **6–10** | A small office: two short rows, a walkway between. A coffee machine in the corner. | Coffee machine, walkway |
-| **11–30** | Walls push outward. Cubicle dividers appear between desks. A server rack hums against one wall. | Dividers, server rack |
-| **31–100** | A full open-plan floor. Desks on the iso grid. Cable runs cross the floor. Ceiling strips overhead. | Cable runs, meeting pod |
+| **11–30** | Walls push outward. Cubicle dividers appear between desks. A server rack hums against one wall. | Dividers, server rack, second whiteboard, filing cabinet, printer |
+| **31–100** | A full open-plan floor. Desks on the iso grid. Cable runs cross the floor. Ceiling strips overhead. | Cable runs, breakout sofa, unpacked cardboard |
 | **101–300** | The floor is busy. Walkways narrow. Meeting pods along one edge, occupied. | Second meeting pod |
 | **301–1000** | **Shoulder to shoulder.** Desks touching, no walkways left, dividers gone because there is no room for them. | Nothing. There is no space left to add anything |
 
@@ -908,9 +908,26 @@ props *stop arriving* and then start disappearing — the dividers go, the plant
 walkway is desks now. **The room gets worse as it gets fuller**, and that is the §6 thesis
 told in set dressing before any number says it.
 
-**Everything in the "arrives with it" column is T3 commodity** (ART_DIRECTION §4) — desks,
-chairs, monitors, plants, server racks, whiteboards. Buy a pack or generate, then run it
-through §5's quantiser. None of it is bespoke.
+##### The dressing, and why it empties unevenly
+
+**Wall space survives crowding; floor space does not**, so the two are drawn from separate
+budgets rather than one list:
+
+| | |
+|---|---|
+| **Floor** — plants ×1–4, coffee machine, water cooler, filing cabinet, printer, breakout sofa, bin, cardboard | Placed on the perimeter between the desk grid and the walls, so the dressing follows the room as it grows rather than sitting at fractions of a box that changes size underneath it |
+| **Wall** — whiteboards ×2, posters ×1–3 | Never removed. Nobody has to walk around a poster |
+| **Bedroom only** — a rug under the first desks | The one prop that leaves *early*, at 6 developers. An office simply never has one |
+
+**The cruellest detail, and the one worth protecting:** crowding removes the things somebody
+*chose* — the plants, the sofa — and **adds more of the thing nobody chose**, the unpacked
+cardboard. A room that merely emptied would read as a budget cut. A room that fills with
+boxes while the plants die reads as a place that stopped being looked after, which is the
+§6 thesis about people rather than about money.
+
+**Everything above is T3 commodity** (ART_DIRECTION §4) — desks, chairs, monitors, plants,
+server racks, whiteboards, coolers. Buy a pack or generate, then run it through §5's
+quantiser. None of it is bespoke, and none of it counts against §22.7's 19 sprites.
 
 #### 7.8.2 Population steps — rungs 3+, where the unit is architecture
 
