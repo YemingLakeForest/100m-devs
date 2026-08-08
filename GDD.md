@@ -567,11 +567,34 @@ Two knock-on effects, both real:
   the trap. Going deeply negative every project during the honest loop spends that feeling
   early.
 
-**Not fixed here, and deliberately.** The candidate fixes are all real design changes —
-revenue accruing continuously as work is done rather than in a lump; payroll drawn from a
-separate line; a runway readout that says "eighty seconds to payout" instead of a bare
-negative — and picking one by feel is how §4.10 got into trouble in the first place. What is
-certain is that the arithmetic is sound and the *presentation* is lying.
+##### The fix — a predicate, not a feel **[CANON — 2026-08-08]**
+
+Of the three candidates, two change the economy and one changes what the interface *claims*.
+The arithmetic is sound, so the interface was the thing that was wrong:
+
+> **The readout coloured on `cash < 0`. The predicate the player cares about is
+> *can I reach the next payout*.**
+
+That is computable rather than felt. Project the burn forward over the time the current
+project still needs and ask whether it crosses the bankruptcy threshold before the money
+lands (`isCashCritical`). A studio eleven thousand in the red and eighty seconds from a
+half-million-dollar ship is in perfect health, and now reads that way.
+
+Paired with the missing half of the number: **`+$550K IN 82s`**, under the burn, in green —
+the only other green in the interface besides the ship celebration, so green means *incoming*
+and nothing else.
+
+Two cases the predicate has to keep separate, and does:
+
+- **The garage.** No burn, so no runway to run out of; the only failure left is the
+  bankruptcy floor itself.
+- **A seized studio (§21 Act V).** Production has stopped, so no payout is coming,
+  `secondsToPayout` is infinite, and a negative balance really is a slow death. **It gets no
+  reassurance, because none would be true** — inventing one for that beat would undo it.
+
+Revenue deliberately still arrives *on ship*. Accruing it continuously would smooth the curve
+and delete §10.8a's ship celebration, which is the loop's payoff and the one moment per
+project the player is told they won.
 
 #### 4.10b **BLOCKING — the Act IIa economy does not close** [added 2026-08-08]
 

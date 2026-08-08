@@ -1,7 +1,13 @@
 import { entropyLabel } from '../game/vocabulary.ts'
-import { currentEffectiveVelocity, currentPayroll, type GameState } from '../game/store.ts'
+import {
+  currentEffectiveVelocity,
+  currentPayroll,
+  nextPayout,
+  secondsToPayout,
+  type GameState,
+} from '../game/store.ts'
 import { formatCount, scaleBar } from '../sim/headcount.ts'
-import { secondsUntilBankrupt } from '../sim/economy.ts'
+import { isCashCritical, secondsUntilBankrupt } from '../sim/economy.ts'
 import { useSpring } from '../ui/useSpring.ts'
 import { SPRING_HEAVY } from '../ui/spring.ts'
 import { Counter } from './Counter.tsx'
@@ -10,6 +16,7 @@ import {
   entropyPercent,
   formatMoney,
   formatVelocity,
+  payoutReadout,
   runwayReadout,
 } from './hudModel.ts'
 
@@ -45,8 +52,14 @@ import {
 export function Cash({ state }: { state: GameState }) {
   const payroll = currentPayroll(state)
   const burn = burnReadout(payroll)
+  const toPayout = secondsToPayout(state)
+  const payout = payoutReadout(nextPayout(state), toPayout)
   const runway = runwayReadout(secondsUntilBankrupt(state.cash, state.devs))
-  const bad = state.cash < 0
+  // §4.10d — alarm on whether the payout is reachable, not on the sign of the
+  // balance. Revenue arrives on ship and payroll runs continuously, so a
+  // perfectly healthy studio is overdrawn for most of every project; colouring
+  // on `cash < 0` told that player they were failing while they were winning.
+  const bad = isCashCritical(state.cash, state.devs, toPayout)
 
   return (
     <div className="hud__block hud__block--cash">
@@ -56,6 +69,10 @@ export function Cash({ state }: { state: GameState }) {
           exists exactly while somebody is being paid, and the clock exists
           exactly while the runway is short enough to be a threat. */}
       {burn && <span className="hud__sub is-bad">{burn}</span>}
+      {/* The money on its way, in the colour money arrives in. Shown whenever
+          there is a burn to explain rather than only when the balance is
+          negative: the point is context, not consolation. */}
+      {burn && payout && <span className="hud__sub is-good">{payout}</span>}
       {burn && runway && <span className="hud__sub is-bad hud__sub--blink">{runway}</span>}
     </div>
   )

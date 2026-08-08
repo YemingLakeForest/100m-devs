@@ -208,6 +208,18 @@ body {
 }
 
 /*
+ * §4.10d — money arriving, in the colour money arrives in.
+ *
+ * The only green in the interface besides the ship celebration, and both mark
+ * the same event: the readouts otherwise spend the entire run counting down in
+ * alarm red, so green means *incoming* and nothing else. Using it anywhere
+ * decorative would spend that.
+ */
+.hud__sub.is-good {
+  color: var(--foliage-1);
+}
+
+/*
  * §10.8a — "counters roll, never set ... and bounce on arrival, scale overshoot
  * on the digits". The roll is the spring in Counter.tsx; this is the arrival.
  */

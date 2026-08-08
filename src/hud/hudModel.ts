@@ -96,6 +96,24 @@ export function burnReadout(payrollPerSecond: number): string | null {
  */
 export const RUNWAY_WARN_SECONDS = 90
 
+/**
+ * §4.10d — "+$550K IN 82s", the line that stops the negative from lying.
+ *
+ * A player watching `CASH −$11.8K` with every button greyed has no way to know
+ * they are eighty seconds from the biggest payment they have ever received. The
+ * balance is true and it is not what is happening; this is the missing half.
+ *
+ * Only shown while somebody is being paid — in the garage there is no hole to
+ * explain — and only while a payout is actually on its way. A seized studio
+ * (§21 Act V) gets nothing here, because nothing is coming, and inventing a
+ * reassurance for that beat would undo it.
+ */
+export function payoutReadout(amount: number, seconds: number): string | null {
+  if (!Number.isFinite(seconds) || amount <= 0) return null
+  if (seconds > 600) return null
+  return `+${formatMoney(amount)} IN ${Math.max(1, Math.round(seconds))}s`
+}
+
 export function runwayReadout(secondsRemaining: number): string | null {
   if (!Number.isFinite(secondsRemaining)) return null
   if (secondsRemaining >= RUNWAY_WARN_SECONDS) return null

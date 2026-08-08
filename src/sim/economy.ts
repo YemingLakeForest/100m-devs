@@ -169,3 +169,35 @@ export function secondsUntilBankrupt(cash: number, devs: number): number {
   if (burn <= 0) return Infinity
   return Math.max(0, (cash - BANKRUPTCY_THRESHOLD) / burn)
 }
+
+/**
+ * Is the studio in real trouble, or merely between milestones? — §4.10d.
+ *
+ * These are not the same thing and the interface was treating them as one. It
+ * coloured the cash readout on `cash < 0`, which sounds obviously right and is
+ * obviously wrong once §4.10c makes revenue arrive **on ship**: payroll runs
+ * continuously and payouts land in lumps, so a healthy studio at forty
+ * developers spends most of every project overdrawn by five figures on its way
+ * to a half-million-dollar payment. Colouring on the *sign* tells that player
+ * they are failing, at the exact moment they are eighty seconds from the
+ * biggest cheque they have ever seen.
+ *
+ * The predicate the player actually cares about is **can I reach the next
+ * payout**. That is computable rather than felt: project the burn forward over
+ * the time the current project still needs, and ask whether it crosses the
+ * bankruptcy threshold before the money arrives.
+ *
+ * `secondsToPayout` is `Infinity` when nothing is being worked on, which
+ * correctly falls back to "any negative balance is a slow death" — the Act V
+ * case, where production has stopped and no payout is coming.
+ */
+export function isCashCritical(
+  cash: number,
+  devs: number,
+  secondsToPayout: number,
+): boolean {
+  const burn = payrollPerSecond(devs)
+  if (burn <= 0) return cash <= BANKRUPTCY_THRESHOLD
+  if (!Number.isFinite(secondsToPayout)) return cash < 0
+  return cash - burn * secondsToPayout <= BANKRUPTCY_THRESHOLD
+}

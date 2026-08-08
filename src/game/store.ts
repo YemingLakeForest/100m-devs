@@ -409,6 +409,25 @@ export function currentEffectiveVelocity(s: GameState = state): number {
  */
 export const POKE_RATE_TAU = 2
 
+/**
+ * Seconds until the current project ships, at the rate it is actually going.
+ *
+ * `Infinity` when nothing is moving — a seized studio (§21 Act V) is not
+ * "eighty seconds from a payout", it is never getting one, and §4.10d's
+ * criticality test depends on telling those two apart.
+ */
+export function secondsToPayout(s: GameState = state): number {
+  const remaining = s.commitment.minus(s.burned).toNumber()
+  if (remaining <= 0) return 0
+  const rate = currentEffectiveVelocity(s)
+  return rate > 0 ? remaining / rate : Number.POSITIVE_INFINITY
+}
+
+/** §4.10d — what the next ship is worth, for the runway readout. */
+export function nextPayout(s: GameState = state): number {
+  return projectRevenue(s.projectIndex)
+}
+
 export function currentPayroll(s: GameState = state): number {
   return payrollPerSecond(s.devs)
 }
