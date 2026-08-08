@@ -413,7 +413,12 @@ body {
  * plan.
  */
 .hire-dial__seg[data-affordable='false'] {
-  color: var(--p0);
+  /* --p1, not --p0. The dimmest phosphor is the frame colour for things that
+     are barely there at all, and on a segment label it disappeared entirely —
+     which turns "shown and priced" back into "hidden", the exact failure the
+     rule exists to prevent. One step down from the live label is the whole
+     signal needed. */
+  color: var(--p1);
 }
 
 .hire-dial__seg[data-affordable='false'][data-selected='true'] {

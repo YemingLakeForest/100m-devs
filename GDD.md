@@ -908,6 +908,26 @@ props *stop arriving* and then start disappearing — the dividers go, the plant
 walkway is desks now. **The room gets worse as it gets fuller**, and that is the §6 thesis
 told in set dressing before any number says it.
 
+##### The floor has a grain **[added 2026-08-08]**
+
+**Desks are not spaced equally in all directions.** They go shoulder to shoulder along a
+row, and the space comes out *behind* the row, where somebody has to be able to walk.
+
+A single uniform pitch — which is what a naive iso grid gives you — reads as a **car park**:
+a lattice of identical objects with no front, no grain, and no indication of which way anyone
+is meant to move through it. Splitting the pitch is a two-line change and it is the
+difference between "some figures on a tiled floor" and "an office".
+
+Two consequences worth stating, because both are easy to get wrong:
+
+- **The grid is wider than it is deep, always.** With rows set ~1.7× further apart than desks
+  within a row, a literally square *count* draws a floor half again as deep as it is wide —
+  a corridor. What this section wants at every size is a square **footprint**, so the column
+  count solves for that instead. At 8 developers this lands on two rows of four, which is
+  what the table above already asked for.
+- **Dividers fill the gap along a row and never between rows.** The gap between rows is an
+  aisle; a panel across it would be a wall.
+
 ##### The dressing, and why it empties unevenly
 
 **Wall space survives crowding; floor space does not**, so the two are drawn from separate

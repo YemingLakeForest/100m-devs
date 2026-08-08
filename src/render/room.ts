@@ -48,8 +48,24 @@ const TILE_H = 32
  */
 export const ROOM_DEV_CAP = 120
 
-/** Desk pitch on the iso grid. Wide enough to walk between, until it isn't. */
-const PITCH = 1.15
+/**
+ * Desk pitch — **different along a row and between rows**, which is the whole
+ * of why an office looks like an office.
+ *
+ * A single uniform pitch spaces every desk equally in all four directions, and
+ * the result reads as a *car park*: a lattice of identical objects with no
+ * grain, no front, and no way to tell which direction anyone is meant to walk.
+ * Real floors are not laid out that way. Desks are butted together
+ * shoulder-to-shoulder into rows, and the space is taken out *behind* the row,
+ * where people actually need to get past.
+ *
+ * `isoAt`'s `col` runs along a row and `row` steps back to the next one, so
+ * the two pitches map straight onto that: tight across, generous behind. The
+ * ratio between them is the aisle, and it is the reason a floor at forty
+ * developers reads as rows of workers rather than as a grid of dots.
+ */
+export const PITCH_COL = 0.96
+export const PITCH_ROW = 1.62
 
 /** §7.8.1 — the headcount at which the room stops gaining and starts losing. */
 const CROWDING_STARTS = 40
@@ -78,9 +94,11 @@ export interface RoomHandle {
 
 /** Iso projection of a grid cell. */
 function isoAt(col: number, row: number) {
+  const a = col * PITCH_COL
+  const b = row * PITCH_ROW
   return {
-    x: (col - row) * (TILE_W / 2) * PITCH,
-    y: (col + row) * (TILE_H / 2) * PITCH,
+    x: (a - b) * (TILE_W / 2),
+    y: (a + b) * (TILE_H / 2),
   }
 }
 
@@ -201,7 +219,13 @@ function wallQuad(
  */
 export function gridFor(devs: number): { cols: number; rows: number } {
   const n = Math.max(1, Math.min(ROOM_DEV_CAP, Math.floor(devs)))
-  const cols = Math.max(1, Math.ceil(Math.sqrt(n)))
+  // Wider than deep, by exactly the ratio of the two pitches. A literally
+  // square grid was right when the spacing was uniform and is wrong now: with
+  // rows set 1.7x further apart than desks within a row, an n x n grid draws a
+  // floor half again as deep as it is wide — a corridor, not a floor. Solving
+  // for a square *footprint* instead of a square count keeps §7.8.1's "huddle
+  // at 3-5, floor at 31+" reading at both ends.
+  const cols = Math.max(1, Math.round(Math.sqrt((n * PITCH_ROW) / PITCH_COL)))
   return { cols, rows: Math.ceil(n / cols) }
 }
 
@@ -666,11 +690,17 @@ export function buildRoom(): RoomHandle {
     const roomy = props.walkway ? 1.5 : 0.6
     const TIGHTEST = 1.05
     const margin = TIGHTEST + Math.min(roomy - TIGHTEST, (n / 14) * (roomy - TIGHTEST))
-    const halfW = (cols + rows) / 2 + margin
-    const floorW = halfW * TILE_W * PITCH
-    const floorH = halfW * TILE_H * PITCH
-    const cx = ((cols - 1) - (rows - 1)) * (TILE_W / 2) * PITCH * 0.5
-    const cy = ((cols - 1) + (rows - 1)) * (TILE_H / 2) * PITCH * 0.5
+    // Derived from where the desks actually are rather than from a count of
+    // them, because the two pitches now differ: a grid that is six wide and
+    // three deep is no longer six-and-three tiles across. `span` is the
+    // diamond's diagonal in tile units, which is the one quantity both axes
+    // agree on — the floor stays a true 2:1 diamond whatever the pitches are.
+    const span = (cols - 1) * PITCH_COL + (rows - 1) * PITCH_ROW
+    const halfW = span / 2 + margin
+    const floorW = halfW * TILE_W
+    const floorH = halfW * TILE_H
+    const cx = ((cols - 1) * PITCH_COL - (rows - 1) * PITCH_ROW) * (TILE_W / 4)
+    const cy = ((cols - 1) * PITCH_COL + (rows - 1) * PITCH_ROW) * (TILE_H / 4)
 
     // The wall planes' screen slope, from the room's own geometry rather than
     // a literal 0.5, so wall-mounted things stay in plane if the projection
@@ -822,8 +852,10 @@ export function buildRoom(): RoomHandle {
       if (props.dividers && col < cols - 1) {
         // A panel standing between two desks, so it runs along the grid axis
         // rather than straight up the screen.
-        const dx = x + TILE_W * 0.5 * PITCH
-        const dy = y + TILE_H * 0.5 * PITCH
+        // Halfway to the next desk *along the row*, which is the only gap a
+        // divider ever fills. Between rows there is an aisle, not a panel.
+        const dx = x + TILE_W * 0.5 * PITCH_COL
+        const dy = y + TILE_H * 0.5 * PITCH_COL
         furniture
           .moveTo(dx - 10, dy - 5 - 18)
           .lineTo(dx + 10, dy + 5 - 18)

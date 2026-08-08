@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 // initialise under jsdom. These tests cover the fall and puff curves, which
 // never play anything.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: () => {} }))
-import { ROOM_DEV_CAP, gridFor, perimeterPoint, propsAt } from './room.ts'
+import { PITCH_COL, PITCH_ROW, ROOM_DEV_CAP, gridFor, perimeterPoint, propsAt } from './room.ts'
 import { BEAT, cascadeDelay, arrivalHeight, landingSquash, puffAlpha } from './arrivals.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
 import { FLOOR_SPRITE_COUNT } from './scene.ts'
@@ -19,10 +19,36 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     expect(maxZoomFor(trappedAt)).toBe(0.2)
   })
 
-  it('lays a huddle out squarish, not as a call-centre row', () => {
+  it('lays the floor out in rows — wider than it is deep, always', () => {
+    // A floor has a grain. Desks go shoulder to shoulder along a row and the
+    // space is taken out behind it, so there are always at least as many desks
+    // per row as there are rows. A grid deeper than it is wide is a corridor.
+    for (const n of [1, 2, 4, 8, 12, 26, 40, 77, 120]) {
+      const { cols, rows } = gridFor(n)
+      expect(cols).toBeGreaterThanOrEqual(rows)
+    }
+  })
+
+  it('keeps the footprint squarish, which is not the same as the count', () => {
+    // The invariant that replaced "cols === rows". A literally square *count*
+    // was right when the spacing was uniform in both axes and became wrong the
+    // moment rows were set 1.7x further apart than desks within a row: an n x n
+    // grid then draws a floor half again as deep as it is wide. What §7.8.1
+    // actually wants — "a huddle at 3-5, a floor at 31+" — is a square
+    // footprint, so that is what is pinned.
+    for (const n of [4, 9, 20, 40, 80, 120]) {
+      const { cols, rows } = gridFor(n)
+      const aspect = (cols * PITCH_COL) / (rows * PITCH_ROW)
+      expect(aspect).toBeGreaterThan(0.6)
+      expect(aspect).toBeLessThan(1.9)
+    }
+  })
+
+  it('matches §7.8.1 at the headcounts the table names', () => {
+    // "1: one desk. 2: a second desk pushed alongside. 6-10: two rows."
     expect(gridFor(1)).toEqual({ cols: 1, rows: 1 })
-    expect(gridFor(4)).toEqual({ cols: 2, rows: 2 })
-    expect(gridFor(9)).toEqual({ cols: 3, rows: 3 })
+    expect(gridFor(2)).toEqual({ cols: 2, rows: 1 })
+    expect(gridFor(8).rows).toBe(2)
   })
 
   it('never lays out more desks than it will draw', () => {

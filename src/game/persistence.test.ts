@@ -56,6 +56,23 @@ function prestiged(over: Partial<PermanentSave['meta']> = {}): PermanentSave {
 beforeEach(() => {
   localStorage.clear()
   __resetStore()
+  // Freeze the clock, and only the clock.
+  //
+  // `seed` stamps a save with `Date.now() - agoMs` and `loadGame` measures the
+  // absence with a *second* `Date.now()`. Any millisecond of real drift between
+  // the two makes the elapsed time `agoMs + 1`, which is invisible in the
+  // capped `paidSeconds` and lands squarely on `idleSeconds` — 21600.001
+  // seconds instead of 21600. That failed about one run in three, which is the
+  // worst frequency a flake can have: often enough to waste time, rare enough
+  // to look like a real regression on whatever was being changed at the time.
+  //
+  // Only Date is faked. Faking the timer queue as well would silently stop any
+  // `setTimeout` in this file from ever running.
+  vi.useFakeTimers({ toFake: ['Date'] })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('load', () => {
