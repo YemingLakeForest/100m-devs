@@ -206,6 +206,55 @@ if (targets.length === 0) {
 }
 
 const key = await loadKey()
+
+/**
+ * Check the account tier before spending a request on it.
+ *
+ * The Music API is paid-only while the Sound Effects API — which produced this
+ * project's entire SFX bank — is not, so a key that works perfectly for
+ * `generate-sfx.ts` fails here with a bare `402 Payment Required`. That error
+ * is true and useless: it says nothing about *which* key, and the natural
+ * reading is "my subscription is not working" rather than "this repo has a
+ * different key from the one I pay for".
+ *
+ * Which is exactly what happened. Three ElevenLabs keys exist across these
+ * projects; this one reports `tier: free`, and the other two are API key *IDs*
+ * rather than keys, which ElevenLabs rejects outright.
+ *
+ * So the preflight names the account, and costs one free request.
+ */
+async function preflight(): Promise<void> {
+  const res = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
+    headers: { 'xi-api-key': key },
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    console.error(`Could not read the account for this key (${res.status}).\n${body}`)
+    console.error(
+      '\nIf the message mentions "API key ID", the value in .env is the key\'s identifier',
+    )
+    console.error('rather than the key itself. Real keys begin with "sk_".')
+    process.exit(1)
+  }
+
+  const sub = (await res.json()) as { tier?: string }
+  console.log(`  account  tier: ${sub.tier ?? 'unknown'}  (key ${key.slice(0, 6)}…)`)
+  if (sub.tier === 'free') {
+    console.error(
+      [
+        '',
+        'The Music API is not available on the free tier. Sound Effects IS, which is why',
+        'generate-sfx.ts works with this same key and this does not — the script is fine.',
+        '',
+        'ELEVENLABS_API_KEY in .env belongs to a free account. Paste the key from the paid',
+        'account into .env and re-run. See GDD §20.7.6a.',
+      ].join('\n'),
+    )
+    process.exit(1)
+  }
+}
+
+await preflight()
 await mkdir(OUT_DIR, { recursive: true })
 
 let generated = 0

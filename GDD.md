@@ -3728,8 +3728,26 @@ and the prompts are written. Running it returns:
 ```
 
 The Sound Effects API — which produced the entire §20.5 bank already in the build — is
-available on the free tier. **Music is not.** This is a purchase decision and it is the
-user's, so it is recorded here rather than worked around.
+available on the free tier. **Music is not.**
+
+**And the reason is the key in this repo, not the subscription.** Checked against
+`/v1/user/subscription`, which is free to call:
+
+| Where | Key | Account |
+|---|---|---|
+| `100m-devs/.env` | `sk_0e7…` | **`tier: free`** |
+| `geodaily/.env` | `cfd6…` | *rejected* — "API key ID used as API key" |
+| `dungeon-doom-dash/.env` | `cfd6…` | same |
+
+Only one of the three is a key at all; real ElevenLabs keys begin with `sk_`. The other two
+are the key's *identifier*, which the API refuses outright — so they cannot have generated
+anything either. **There is no paid key anywhere in these projects.** The subscription is
+real; the credential sitting next to the code is not connected to it.
+
+`scripts/generate-music.ts` now checks the tier before spending a request and says all of
+this by name. A bare `402 Payment Required` is true and useless: it says nothing about which
+key, and the natural reading is "my subscription is broken" rather than "this repo has a
+different key from the one I pay for".
 
 **Nothing else is waiting on it.** The mix (`src/audio/music.ts`) is complete and tested:
 zone beds, strain layers, stingers, the §20.7.4 override and the §10.9 title hand-off, all as
