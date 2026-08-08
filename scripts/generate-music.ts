@@ -1,51 +1,38 @@
 /**
- * Generate the adaptive score's nine stems via ElevenLabs Music.
+ * Generate the adaptive score's ten stems — GDD §20.7.
  *
- * Prompts are source-controlled here so the score is reproducible — the MP3s
- * are build output, this file is the asset. Mirrors scripts/generate-sfx.ts
- * (key from .env, skip existing, --force to overwrite, positional args to
- * target a subset) because GDD §20.7.6 says to.
+ * Prompts are source-controlled here so the score is reproducible: the MP3s are
+ * build output, this file is the asset. Mirrors scripts/generate-sfx.ts (key
+ * from .env, skip existing, --force to overwrite, positional args to target a
+ * subset) because §20.7.6 says to.
  *
  *   npm run music:generate                # generate whatever is missing
  *   npm run music:generate -- --force     # regenerate everything
  *   npm run music:generate -- bed-desk    # just one, by stem
  *
- * Stems are specified by GDD §20.7.2 (the nine-piece budget) and §20.7.6
- * (seed briefs). This is Web Audio material, not native audio — GDD §23.2
- * non-negotiable 1 draws that line and it is why this writes to public/music,
- * never through @capacitor-community/native-audio.
+ * Web Audio material, not native audio — §23.2 non-negotiable 1 draws that line,
+ * and it is why this writes to public/music and never goes through
+ * @capacitor-community/native-audio.
  *
- * -------------------------------------------------------------------------
- * TWO THINGS THE GDD FLAGS AS "CONFIRM, DO NOT ASSUME" (§20.7.6):
+ * ---------------------------------------------------------------------------
+ * WHICH API, AND WHY IT IS NOT THE ONE CALLED "MUSIC"
  *
- * 1. Endpoint. `generate-sfx.ts` posts to /v1/sound-generation, which is
- *    ElevenLabs' Sound Effects product, not Music — a different route with a
- *    different request shape. Per ElevenLabs' own API reference
- *    (https://elevenlabs.io/docs/api-reference/music/compose, checked
- *    2026-08-07), music generation is:
+ * `/v1/music` is paid-only and this project's key is on a free account
+ * (§20.7.6a). `/v1/sound-generation` is free.
  *
- *      POST https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128
- *      body: { prompt: string, music_length_ms: number, model_id?: string }
- *      -> raw audio bytes (application/octet-stream), not JSON.
+ * That sounds like a downgrade and for an *ambient* score it is not, because it
+ * changes which of §20.7.1's two guarantees the stems need. Composed loops have
+ * to share a key and a tempo or they fight; **ambient textures have no pulse to
+ * disagree about**, so any two of them can be crossfaded at any moment for free.
+ * §20.7.1a records the amended rule. The score is drones and pads rather than
+ * beats, which is what the game wanted under a room at night anyway.
  *
- *    This has been checked against the docs, not guessed by analogy — but
- *    ElevenLabs ships API changes faster than this comment gets reread, so
- *    reconfirm against the reference above before the first real run if any
- *    time has passed.
- *
- * 2. Commercial licence. ElevenLabs' own docs state Music V2 is "cleared for
- *    nearly all commercial uses, from film and television to podcasts and
- *    social media videos, and from advertisements to gaming" (Eleven Music
- *    overview), and the published usage tiers explicitly name an "Offline"
- *    tier covering "games, apps, live events". Game development is not on
- *    the excluded-sectors list in elevenlabs.io/music-terms. That is a real
- *    green light, but it was read off marketing copy plus the general
- *    service terms, not the "Eleven Music Model-Specific Terms" the service
- *    terms defer to for conflicts, and not confirmed against whichever plan
- *    tier this project is actually subscribed to. Read that document once
- *    before the final generation pass — this comment is a strong steer, not
- *    a signed-off legal confirmation.
- * -------------------------------------------------------------------------
+ * GeoDaily reached this same endpoint by asking for music, catching the 402 and
+ * falling back silently — printing one line nobody read, which cost three
+ * exchanges to unpick a year later. **This does not fall back.** It posts to
+ * sound-generation on purpose and writes music.manifest.json saying so, so
+ * nobody ever has to reverse-engineer the provenance from MP3 durations again.
+ * ---------------------------------------------------------------------------
  */
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -57,21 +44,41 @@ const OUT_DIR = path.join(ROOT, 'public', 'music')
 // compose route, not the /v1/sound-generation route generate-sfx.ts uses.
 // Re-check https://elevenlabs.io/docs/api-reference/music/compose before the
 // real run if this file has aged.
-const ENDPOINT = 'https://api.elevenlabs.io/v1/music?output_format=mp3_44100_128'
+/**
+ * **The Sound Effects endpoint, not the Music one.**
+ *
+ * `/v1/music` is paid-only (§20.7.6a) and this project's key is on a free
+ * account. `/v1/sound-generation` is free, and for an *ambient* score it is the
+ * right tool anyway — see §20.7.1a. Thirty seconds is its ceiling: 30 returns
+ * audio, 45 returns an error.
+ *
+ * GeoDaily reached the same place by falling back silently and printing one
+ * line nobody read, which cost three exchanges to unpick. This one does not
+ * fall back at all: it posts here on purpose, and `music.manifest.json` records
+ * that it did.
+ */
+const ENDPOINT = 'https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128'
+
+/** The API's ceiling. 30 works, 45 does not. */
+const MAX_SECONDS = 30
 
 /**
- * Shared constraint suffix. GDD §20.7.1: "every stem is written in the same
- * key, at the same tempo, in the same bar length" is the single rule that
- * lets any stem crossfade against any other with no beat-matching — a stem
- * that drifts from this is unusable regardless of how good it sounds, so it
- * belongs in every prompt rather than in a review note afterwards.
+ * Shared constraint suffix — §20.7.1a, and it is the load-bearing line here.
+ *
+ * §20.7.1 originally required one key, one tempo and one bar length, because
+ * that is what lets *composed* loops crossfade with no beat-matching. This
+ * score is ambient, so the constraint is met the other way round: **no pulse at
+ * all.** Two drones layer cleanly because neither has a beat to be out of step
+ * with, and no amount of prompting will hold a generator to 84 BPM anyway.
+ *
+ * So the prompts ask for the absence of rhythm rather than for agreement about
+ * it, which is a promise the model can actually keep. A stem that arrives with
+ * a discernible beat is unusable however good it sounds — it will phase against
+ * every other stem the moment the mix moves.
  */
 const CONSTRAINTS =
-  'A minor, 84 BPM, 8 bars, loopable, seamless loop point, no vocals, ' +
-  'no fade in, no fade out, chiptune synth register throughout, no orchestral instrumentation'
-
-/** 8 bars at 84 BPM, 4/4: 8 * 4 * (60000 / 84) ~= 22857 ms. */
-const EIGHT_BARS_MS = Math.round(8 * 4 * (60_000 / 84))
+  'no beat, no rhythm, no percussion, no melody, no vocals, ' +
+  'continuous even texture, no fade in, no fade out, no build, seamless loop'
 
 interface MusicStem {
   stem: string
@@ -81,88 +88,94 @@ interface MusicStem {
   durationMs: number
 }
 
+/** Every bed and layer is this long. Longer means the loop is less obvious. */
+const BED_MS = MAX_SECONDS * 1000
+
 const STEMS: MusicStem[] = [
-  // --- GDD §20.7.2, four zone beds — same band edges as src/render/omniLens.ts ---
+  // --- §20.7.2, four zone beds — same band edges as src/render/omniLens.ts ---
   {
     // §10.9 / §20.7.2a. The one stem outside the gameplay mix: it plays alone
     // under the title and hands over to bed-desk on a crossfade as the camera
-    // pushes into the room, so it has to sit in the same key and tempo as
-    // everything else despite never being mixed with it.
+    // pushes into the room.
     stem: 'bed-title',
     prompt:
-      'Cozy lofi synth loop, sparse and slow, one held pad underneath. Spacious, ' +
-      'patient, a title screen at night with one monitor on. Fewer elements than a ' +
-      `full arrangement — it has to sit under a logo. ${CONSTRAINTS}`,
-    durationMs: EIGHT_BARS_MS,
+      'Sparse warm ambient drone, one slow held synth pad, distant and patient, ' +
+      `a dark room at night with one monitor on. ${CONSTRAINTS}`,
+    durationMs: BED_MS,
   },
   {
     stem: 'bed-desk',
-    // Zone 0 palette (§20.2): intimate, tactile, mechanical, low-latency.
+    // Zone 0 (§20.2): intimate, tactile, close.
     prompt:
-      'Cozy lofi synth loop. Warm, slow, unhurried, a little wistful — the sound of one ' +
-      `person who thinks this is going to be fine. ${CONSTRAINTS}`,
-    durationMs: EIGHT_BARS_MS,
+      'Warm cosy ambient drone, soft analogue synth pad, faint tape hiss, close and ' +
+      `unhurried, the sound of one person who thinks this is going to be fine. ${CONSTRAINTS}`,
+    durationMs: BED_MS,
   },
   {
     stem: 'bed-floor',
-    // Zone 1 palette: chaotic corporate drone, overlapping clutter.
+    // Zone 1: corporate clutter, more air moving.
     prompt:
-      'The same lofi progression as a cozy desk theme, but busier — arpeggios enter. ' +
-      `Corporate optimism with an edge. ${CONSTRAINTS}`,
-    durationMs: EIGHT_BARS_MS,
+      'Ambient office drone, warm pad with a faint air-conditioning hum underneath, ' +
+      `slightly brighter and busier than a quiet room, corporate calm. ${CONSTRAINTS}`,
+    durationMs: BED_MS,
   },
   {
     stem: 'bed-global',
-    // Zone 2 palette: high-tech data streams, rhythmic telemetry.
+    // Zone 2: wide, cold, telemetric.
     prompt:
-      `Modular synth arpeggios, pulsing telemetry. Wide, cold, impressive, inhuman. ${CONSTRAINTS}`,
-    durationMs: EIGHT_BARS_MS,
+      'Wide cold ambient synth drone, glassy shimmering texture, vast and inhuman, ' +
+      `distant data-centre hum. ${CONSTRAINTS}`,
+    durationMs: BED_MS,
   },
   {
     stem: 'bed-cosmic',
-    // Zone 3 palette: massive cosmic scale, existential synth pads.
+    // Zone 3: enormous and empty.
     prompt:
-      'Existential synth pads over a 40 Hz sub. Almost ambient. Enormous and empty. ' +
-      CONSTRAINTS,
-    durationMs: EIGHT_BARS_MS,
+      'Enormous empty ambient space drone, deep sub-bass swell, slow evolving pad, ' +
+      `existential and almost silent. ${CONSTRAINTS}`,
+    durationMs: BED_MS,
   },
 
-  // --- GDD §20.7.2, three strain layers — mixed in by Entropy, zone-agnostic ---
+  // --- §20.7.2, three strain layers — mixed in by Entropy, zone-agnostic ---
   {
     stem: 'layer-calm',
-    prompt: `Sparse: a soft pad and an occasional bell. Barely present. ${CONSTRAINTS}`,
-    durationMs: EIGHT_BARS_MS,
+    prompt:
+      'Barely-there ambient shimmer, one soft high pad, occasional faint bell tone, ' +
+      `almost nothing. ${CONSTRAINTS}`,
+    durationMs: BED_MS,
   },
   {
     stem: 'layer-strained',
     prompt:
-      `A pulsing bass and a ticking percussive figure that will not resolve. ${CONSTRAINTS}`,
-    durationMs: EIGHT_BARS_MS,
+      'Uneasy ambient texture, slowly detuning synth pad, faint restless flutter, ' +
+      `tension without resolution. ${CONSTRAINTS}`,
+    durationMs: BED_MS,
   },
   {
     stem: 'layer-collapse',
     prompt:
-      'Detuned, dissonant, an alarm-pitched figure fighting the key it is written in. ' +
-      CONSTRAINTS,
-    durationMs: EIGHT_BARS_MS,
+      'Harsh dissonant ambient drone, detuned clashing pads, distant alarm-pitched ' +
+      `whine, oppressive and wrong. ${CONSTRAINTS}`,
+    durationMs: BED_MS,
   },
 
-  // --- GDD §20.7.2, two stingers — one-shots, in key, land on the beat ---
+  // --- §20.7.2, two stingers — one-shots. These MAY have rhythm: nothing is
+  // layered against them, so §20.7.1a's no-pulse rule does not apply.
   {
     stem: 'sting-promotion',
-    // §7.7.2 rung promotion. Four bars, not eight — §20.7.2 caps length, not floor.
+    // §7.7.2 rung promotion.
     prompt:
-      'Four-bar rising musical stinger, triumphant, faintly ridiculous, resolves cleanly ' +
-      `on the downbeat. A minor, 84 BPM, no vocals, no fade in, no fade out, chiptune synth register.`,
-    durationMs: Math.round(4 * 4 * (60_000 / 84)),
+      'Short rising musical sting, warm synth, triumphant and faintly ridiculous, ' +
+      'resolves cleanly, one shot, no vocals, no fade in, no fade out',
+    durationMs: 2600,
   },
   {
     stem: 'sting-paradigm',
-    // §13 Paradigm Shift. Two bars: a reset, not a defeat.
+    // §13 Paradigm Shift — a reset, not a defeat.
     prompt:
-      'Two-bar musical stinger, descending then resolving — a reset, not a defeat. ' +
-      'A minor, 84 BPM, no vocals, no fade in, no fade out, chiptune synth register.',
-    durationMs: Math.round(2 * 4 * (60_000 / 84)),
+      'Short descending then resolving musical sting, warm synth, a reset rather than ' +
+      'a defeat, one shot, no vocals, no fade in, no fade out',
+    durationMs: 2600,
   },
 ]
 
@@ -207,54 +220,6 @@ if (targets.length === 0) {
 
 const key = await loadKey()
 
-/**
- * Check the account tier before spending a request on it.
- *
- * The Music API is paid-only while the Sound Effects API — which produced this
- * project's entire SFX bank — is not, so a key that works perfectly for
- * `generate-sfx.ts` fails here with a bare `402 Payment Required`. That error
- * is true and useless: it says nothing about *which* key, and the natural
- * reading is "my subscription is not working" rather than "this repo has a
- * different key from the one I pay for".
- *
- * Which is exactly what happened. Three ElevenLabs keys exist across these
- * projects; this one reports `tier: free`, and the other two are API key *IDs*
- * rather than keys, which ElevenLabs rejects outright.
- *
- * So the preflight names the account, and costs one free request.
- */
-async function preflight(): Promise<void> {
-  const res = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
-    headers: { 'xi-api-key': key },
-  })
-  if (!res.ok) {
-    const body = await res.text()
-    console.error(`Could not read the account for this key (${res.status}).\n${body}`)
-    console.error(
-      '\nIf the message mentions "API key ID", the value in .env is the key\'s identifier',
-    )
-    console.error('rather than the key itself. Real keys begin with "sk_".')
-    process.exit(1)
-  }
-
-  const sub = (await res.json()) as { tier?: string }
-  console.log(`  account  tier: ${sub.tier ?? 'unknown'}  (key ${key.slice(0, 6)}…)`)
-  if (sub.tier === 'free') {
-    console.error(
-      [
-        '',
-        'The Music API is not available on the free tier. Sound Effects IS, which is why',
-        'generate-sfx.ts works with this same key and this does not — the script is fine.',
-        '',
-        'ELEVENLABS_API_KEY in .env belongs to a free account. Paste the key from the paid',
-        'account into .env and re-run. See GDD §20.7.6a.',
-      ].join('\n'),
-    )
-    process.exit(1)
-  }
-}
-
-await preflight()
 await mkdir(OUT_DIR, { recursive: true })
 
 let generated = 0
@@ -273,8 +238,14 @@ for (const stem of targets) {
     method: 'POST',
     headers: { 'xi-api-key': key, 'content-type': 'application/json' },
     body: JSON.stringify({
-      prompt: stem.prompt,
-      music_length_ms: stem.durationMs,
+      text: stem.prompt,
+      duration_seconds: stem.durationMs / 1000,
+      // `loop` is accepted and may or may not be honoured; harmless either way,
+      // and the bus loops the buffer regardless.
+      loop: true,
+      // Low, deliberately. High influence on a texture prompt produces a
+      // literal-minded sound effect; low lets it stay musical.
+      prompt_influence: 0.3,
     }),
   })
 
@@ -288,5 +259,22 @@ for (const stem of targets) {
   console.log(`  ok    ${stem.stem}.mp3  ${(stem.durationMs / 1000).toFixed(1)}s  ${kb} KB`)
   generated++
 }
+
+// §20.7.6a — provenance, written every run. The whole point of this file is
+// that nobody should ever again have to work out which endpoint made a stem by
+// measuring its duration.
+await writeFile(
+  path.join(OUT_DIR, 'music.manifest.json'),
+  `${JSON.stringify(
+    {
+      generatedAt: new Date().toISOString(),
+      endpoint: ENDPOINT,
+      note: 'ElevenLabs Sound Effects, not the Music API. See GDD 20.7.1a and 20.7.6a.',
+      stems: STEMS.map((s) => ({ stem: s.stem, seconds: s.durationMs / 1000, prompt: s.prompt })),
+    },
+    null,
+    2,
+  )}\n`,
+)
 
 console.log(`\n${generated} generated, ${skipped} skipped -> public/music/`)

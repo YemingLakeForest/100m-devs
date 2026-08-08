@@ -3683,12 +3683,31 @@ the mix change.
 
 **The rule that makes this work, and it is the single most important line in this section:**
 
-> **Every stem is written in the same key, at the same tempo, in the same bar length.**
+> **Any stem must be able to fade against any other at any moment**, with no beat-matching,
+> no transition bar and no crossfade artefact.
 
-`A minor, 84 BPM, 8-bar loops.` Any stem can be faded against any other at any moment with
-no beat-matching, no transition bar, and no crossfade artefact. **A stem that does not meet
-this is unusable regardless of how good it sounds** — this constraint goes in the generation
-prompt, not in a review note afterwards.
+##### 20.7.1a How that rule is actually met — the score is ambient **[CANON — revised 2026-08-08]**
+
+The original wording was *"every stem is written in the same key, at the same tempo, in the
+same bar length"* — `A minor, 84 BPM, 8-bar loops`. That is the right answer for **composed**
+music and it is a promise no generator will keep: prompt an audio model for 84 BPM ten times
+and you get ten tempos.
+
+**The score is ambient instead, and ambient meets the same rule from the other side: two
+drones layer cleanly because neither has a beat to be out of step with.** Pads, drones and
+room tone, not loops with a pulse. The constraint in every prompt is therefore the *absence*
+of rhythm — `no beat, no rhythm, no percussion, no melody, continuous even texture` — which
+is a promise a generator can keep.
+
+**A stem that arrives with a discernible beat is unusable however good it sounds**, because it
+will phase against every other stem the moment the mix moves.
+
+Two things fall out of this and both are gains:
+
+- **It suits the game.** §21's opening is a room at night with a PC fan and a monitor. A beat
+  under that is a different, busier game.
+- **The stingers are exempt.** §20.7.2's two one-shots are never layered against anything, so
+  they may have rhythm — and should, because landing on a beat is what makes a sting land.
 
 #### 20.7.2 The budget
 
@@ -3794,7 +3813,22 @@ the same gitignored `.env`.
    non-commercial or attribution-only licence is unusable here no matter how good it is, and
    finding that out after the score is finished is the expensive order to discover it in.
 
-##### 20.7.6a **BLOCKED — the Music API needs a paid plan** [added 2026-08-08]
+##### 20.7.6b **Generated — on the free Sound Effects endpoint** [2026-08-08]
+
+All ten stems exist. They were made by **`/v1/sound-generation`**, not `/v1/music`, which
+§20.7.1a makes the correct choice rather than a concession: the API is free, it takes no key
+or tempo parameters, and an ambient score does not need them. Beds and layers are **30
+seconds** — the endpoint's ceiling, established by trying 45 and getting an error — and
+longer means the loop is less obvious.
+
+`public/music/music.manifest.json` is written on every run and records the endpoint, the
+date and every prompt. **That file exists because of how this was diagnosed.** GeoDaily
+reached the same endpoint by asking for Music, catching the 402 and falling back silently; a
+year later the only way to establish what had made those files was to measure their duration
+— 22.1 seconds, which is the fallback's length and not the 60 seconds the Music call asked
+for. Provenance is cheaper to write down than to reconstruct.
+
+##### 20.7.6a **The Music API needs a paid plan** [added 2026-08-08]
 
 The generation script is finished, the endpoint is confirmed against ElevenLabs' reference,
 and the prompts are written. Running it returns:

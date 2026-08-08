@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-08-08T15:01:59.955Z",
+  "endpoint": "https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128",
+  "note": "ElevenLabs Sound Effects, not the Music API. See GDD 20.7.1a and 20.7.6a.",
+  "stems": [
+    {
+      "stem": "bed-title",
+      "seconds": 30,
+      "prompt": "Sparse warm ambient drone, one slow held synth pad, distant and patient, a dark room at night with one monitor on. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+    },
+    {
+      "stem": "bed-desk",
+      "seconds": 30,
+      "prompt": "Warm cosy ambient drone, soft analogue synth pad, faint tape hiss, close and unhurried, the sound of one person who thinks this is going to be fine. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+    },
+    {
+      "stem": "bed-floor",
+      "seconds": 30,
+      "prompt": "Ambient office drone, warm pad with a faint air-conditioning hum underneath, slightly brighter and busier than a quiet room, corporate calm. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+    },
+    {
+      "stem": "bed-global",
+      "seconds": 30,
+      "prompt": "Wide cold ambient synth drone, glassy shimmering texture, vast and inhuman, distant data-centre hum. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+    },
+    {
+      "stem": "bed-cosmic",
+      "seconds": 30,
+      "prompt": "Enormous empty ambient space drone, deep sub-bass swell, slow evolving pad, existential and almost silent. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+    },
+    {
+      "stem": "layer-calm",
+      "seconds": 30,
+      "prompt": "Barely-there ambient shimmer, one soft high pad, occasional faint bell tone, almost nothing. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+    },
+    {
+      "stem": "layer-strained",
+      "seconds": 30,
+      "prompt": "Uneasy ambient texture, slowly detuning synth pad, faint restless flutter, tension without resolution. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+    },
+    {
+      "stem": "layer-collapse",
+      "seconds": 30,
+      "prompt": "Harsh dissonant ambient drone, detuned clashing pads, distant alarm-pitched whine, oppressive and wrong. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+    },
+    {
+      "stem": "sting-promotion",
+      "seconds": 2.6,
+      "prompt": "Short rising musical sting, warm synth, triumphant and faintly ridiculous, resolves cleanly, one shot, no vocals, no fade in, no fade out"
+    },
+    {
+      "stem": "sting-paradigm",
+      "seconds": 2.6,
+      "prompt": "Short descending then resolving musical sting, warm synth, a reset rather than a defeat, one shot, no vocals, no fade in, no fade out"
+    }
+  ]
+}
