@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { initSfx } from './audio/sfx.ts'
-import { jumpToPhase } from './game/store.ts'
+import { jumpToPhase, selectDeveloper } from './game/store.ts'
 import { PHASE_ORDER, type Phase } from './game/onboarding.ts'
 import { Hud } from './hud/Hud.tsx'
 import { createStage, type StageHandle } from './render/stage.ts'
@@ -73,6 +73,14 @@ export default function App() {
     if (act && (PHASE_ORDER as readonly string[]).includes(act)) {
       jumpToPhase(act as Phase)
     }
+
+    // ?select=4 selects a developer without holding on one — §7.8.8, in the
+    // same family as ?overnight and ?dialogue. Worth having for the same reason
+    // those were: the card's copy, its live §19 quote and the turn animation
+    // all want iterating on, and reaching them by hand means finding a specific
+    // seat in a room that has been panned somewhere else.
+    const select = new URLSearchParams(location.search).get('select')
+    if (select !== null) selectDeveloper(Number(select))
 
     void createStage(host).then((h) => {
       if (cancelled) {

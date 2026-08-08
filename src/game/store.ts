@@ -15,6 +15,7 @@
 
 import Decimal from 'break_infinity.js'
 import { quote, type Multiplier, type Quote } from '../sim/hireDial.ts'
+import { developerAt, type Identity } from '../sim/identity.ts'
 import {
   BANKRUPTCY_THRESHOLD,
   hireCost,
@@ -226,6 +227,13 @@ export interface GameState {
   /** §21.0a — the term sheet has been signed. Grants cash and the dial. */
   seedTaken: boolean
   /**
+   * §7.8.8 — the selected developer's seat index, or null.
+   *
+   * A seat, not an identity. The identity is generated from it on demand
+   * (§7.8.7), so selection costs one integer and survives a rebuild.
+   */
+  selected: number | null
+  /**
    * §10.10.2 — is the hire dial available?
    *
    * Gated on the Seed Round rather than on a headcount. A capability that
@@ -305,6 +313,7 @@ function freshRun(): GameState {
     pokeRate: 0,
     ship: null,
     seedTaken: false,
+    selected: null,
     dialUnlocked: false,
     pendingOffline: null,
     scene: null,
@@ -614,6 +623,25 @@ export function takeSeedRound(): boolean {
     ...showBubble('Wait, we can just… hire more people now?', 6000),
   })
   return true
+}
+
+/**
+ * §7.8.8 — select a developer, or clear the selection.
+ *
+ * Deliberately *not* a poke. §8.2's tap is the game's primary verb and fires
+ * hundreds of times a session; selection is a different intent with a different
+ * payoff, and giving the two the same gesture would mean either poking opened a
+ * panel — unusable — or selection needed a mode.
+ */
+export function selectDeveloper(index: number | null): void {
+  const next = index !== null && index >= 0 ? index : null
+  if (next === state.selected) return
+  set({ selected: next })
+}
+
+/** §7.8.8 — who is selected, generated on demand. Null if nobody. */
+export function selectedIdentity(s: GameState = state): Identity | null {
+  return s.selected === null ? null : developerAt(s.runSeed, s.selected)
 }
 
 /** §10.10 — set the dial. Pure selection; nothing is bought until HIRE. */

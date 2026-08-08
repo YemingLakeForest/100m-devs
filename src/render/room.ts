@@ -115,6 +115,26 @@ export const ROW_ASPECT = 2
 /** §7.8.1 — the headcount at which the room stops gaining and starts losing. */
 const CROWDING_STARTS = 40
 
+/** §7.8.8 — how long a developer takes to turn round. */
+export const TURN_MS = 400
+
+/**
+ * The horizontal squash through a turn, and where the pose swaps.
+ *
+ * A 2D figure turns by being squashed to nothing and coming back the other way
+ * round; the pose swaps at the pinch, where there is nothing on screen to see it
+ * happen. It is the oldest trick in sprite animation and still the only one
+ * that works without a second set of art.
+ *
+ * Returns the x-scale, 1 -> 0 -> 1. Eased so the pinch is quick and the arrival
+ * has weight — a linear turn reads as a card flipping, not as a person moving.
+ */
+export function turnScale(t: number): number {
+  if (t <= 0 || t >= 1) return 1
+  const u = Math.abs(t * 2 - 1)
+  return 0.06 + 0.94 * u * u
+}
+
 export interface RoomHandle {
   container: Container
   /**
@@ -124,6 +144,8 @@ export interface RoomHandle {
   setHeadcount(devs: number): void
   /** §7.8.7 — set the run seed. Rebuilds every developer's appearance. */
   setSeed(seed: number): void
+  /** §7.8.8 — who is turned round to face the camera. -1 for nobody. */
+  setSelected(index: number): void
   /**
    * Advance the §7.8.3 idle animation. `elapsed` in seconds, `state` is the
    * shared §8.2 dev state (the store models one machine, not one per person).
@@ -446,6 +468,47 @@ const SHIRT: ReadonlyArray<readonly [readonly string[], number]> = [
   [RAMPS.NEUTRAL, 3],
 ]
 
+/**
+ * The front pose — §7.8.8.
+ *
+ * Turning everyone north-west into their monitors was right and it cost the
+ * game its faces. This is where they come back, and **only** where: a selected
+ * developer turns round, and nobody else ever does. That is what makes it worth
+ * something rather than a style choice.
+ *
+ * Drawn as a sibling of the back pose and toggled, rather than redrawn, because
+ * the turn has to be able to swap poses on a single frame at the midpoint of
+ * the spin.
+ */
+function drawFront(g: Graphics, look: Look) {
+  const [shirtRamp, shirtBase] = SHIRT[look.shirt % SHIRT.length]
+  const [hairRamp, hairBase] = HAIR_RAMP[look.hairColour % HAIR_RAMP.length]
+  const hair = HAIR[look.hair % HAIR.length]
+  const skin = SKIN_BASE[look.skin % SKIN_BASE.length]
+
+  isoBox(g, 0, 5, 17, 19, shirtRamp, shirtBase, false)
+  // The face. A flat panel rather than a box: it is turned to the camera, so
+  // its two vertical faces are edge-on and drawing them would be a lie.
+  g.rect(-6, -26, 12, 14).fill(c(RAMPS.SKIN[skin]))
+  // Hair over the crown and down the sides, leaving the face clear.
+  g.rect(-hair.w / 2, -26 - hair.h + 8, hair.w, hair.h - 6).fill(c(hairRamp[hairBase]))
+  g.rect(-hair.w / 2, -24, 2, 8).fill(c(hairRamp[hairBase]))
+  g.rect(hair.w / 2 - 2, -24, 2, 8).fill(c(hairRamp[hairBase]))
+  // Eyes. Two pixels each, and they are the whole payoff of the section.
+  g.rect(-4, -20, 2.5, 2).fill(c(RAMPS.NEUTRAL[0]))
+  g.rect(1.5, -20, 2.5, 2).fill(c(RAMPS.NEUTRAL[0]))
+  if (look.glasses) {
+    g.rect(-6, -21.5, 5, 4.5).fill({ color: c(RAMPS.NEUTRAL[2]), alpha: 0.55 })
+    g.rect(1, -21.5, 5, 4.5).fill({ color: c(RAMPS.NEUTRAL[2]), alpha: 0.55 })
+    g.rect(-1, -20, 2, 1).fill(c(RAMPS.NEUTRAL[2]))
+  }
+  if (look.headphones) {
+    g.rect(-hair.w / 2 - 1, -26 - hair.h + 7, hair.w + 2, 2.5).fill(c(RAMPS.NEUTRAL[1]))
+    g.rect(-hair.w / 2 - 3, -24, 3.5, 6).fill(c(RAMPS.NEUTRAL[2]))
+    g.rect(hair.w / 2 - 0.5, -24, 3.5, 6).fill(c(RAMPS.NEUTRAL[2]))
+  }
+}
+
 function buildDeveloper(look: Look): Container {
   const dev = new Container()
   const g = new Graphics()
@@ -498,7 +561,11 @@ function buildDeveloper(look: Look): Container {
   // lower half of it, so the chair was carrying no information the picture did
   // not already have. Removing it is a straight gain in legibility.
 
-  dev.addChild(g)
+  const front = new Graphics()
+  drawFront(front, look)
+  front.visible = false
+
+  dev.addChild(g, front)
   dev.label = 'developer'
   return dev
 }
@@ -779,6 +846,10 @@ export function buildRoom(): RoomHandle {
    * value and hands it over once.
    */
   let seed = 1
+  /** §7.8.8 — the selected seat, and the spin's clock. */
+  let selected = -1
+  let turningOut = -1
+  let turnAt = 0
   /** Per-developer jolt decay, 1 -> 0. The §8.2 poke reaction. */
   const jolts: number[] = []
   const desks: Array<{ x: number; y: number }> = []
@@ -1087,9 +1158,25 @@ export function buildRoom(): RoomHandle {
       const rate = state === 'flow' ? 11 : state === 'rogue' ? 15 : state === 'slacking' ? 2.5 : 6.2
       const reach = state === 'slacking' ? 0.6 : 1
 
+      // §7.8.8 — the spin. At most two people are ever mid-turn (the one
+      // arriving and the one leaving), so this is two lerps, not a pass.
+      const turnT = Math.min(1, (performance.now() - turnAt) / TURN_MS)
+      if (turnT >= 1 && turningOut >= 0) turningOut = -1
+
       for (let i = 0; i < desks.length; i++) {
         const d = devs[i]
         if (!d.visible) continue
+
+        const turning = i === selected || i === turningOut
+        const facing = i === selected
+        const t = turning ? turnT : 1
+        // Halfway through the squash there is nothing on screen, so the pose
+        // swap is invisible — which is the entire point of the squash.
+        const shown = turning && t < 0.5 ? !facing : facing
+        const [back, front] = d.children as Graphics[]
+        back.visible = !shown
+        front.visible = shown
+        d.scale.x = turning ? turnScale(t) : 1
         // Per-developer phase offset, hashed from the index rather than drawn
         // at random so it is identical every run. Without it a hundred people
         // bob in unison and read as one breathing object rather than a crowd —
@@ -1103,6 +1190,14 @@ export function buildRoom(): RoomHandle {
         // The jolt sits on top of the bob: §8.2's "sprite jolts upright".
         d.position.set(desks[i].x + walk.x, desks[i].y + 6 + bob + walk.y - jolts[i] * 5)
       }
+    },
+    setSelected(index: number) {
+      if (index === selected) return
+      // Both the outgoing and the incoming developer have to turn, so the two
+      // are tracked separately and the animation runs on whichever is mid-spin.
+      turningOut = selected
+      selected = index
+      turnAt = performance.now()
     },
     setSeed(next: number) {
       if (next === seed) return

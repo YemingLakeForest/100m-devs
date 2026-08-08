@@ -27,6 +27,25 @@ import { FRICTION, clamp, decayVelocity } from '../ui/spring.ts'
 export const TAP_SLOP = 10
 export const TAP_MS = 250
 
+/**
+ * §7.8.8 — how long a finger must rest before a tap becomes a *selection*.
+ *
+ * Selection needs a gesture of its own, because §8.2's poke is the game's
+ * primary verb and fires hundreds of times a session: giving both the same
+ * gesture would mean either poking opens a panel — unusable — or selection
+ * needs a mode.
+ *
+ * 380 ms sits above the fastest deliberate double-tap and well below the point
+ * where a held finger feels ignored. It is longer than {@link TAP_MS}, which is
+ * what makes the two mutually exclusive by construction rather than by a flag.
+ */
+export const HOLD_MS = 380
+
+/** Did this pointer rest in one place long enough to be a hold? */
+export function isHold(dx: number, dy: number, elapsedMs: number): boolean {
+  return Math.hypot(dx, dy) <= TAP_SLOP && elapsedMs >= HOLD_MS
+}
+
 /** Below this, a flick is a hand tremor rather than an instruction. */
 const MIN_FLING = 40
 

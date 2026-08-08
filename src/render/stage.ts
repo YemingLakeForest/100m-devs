@@ -10,8 +10,16 @@
 
 import { Application, Container } from 'pixi.js'
 import { entropyTheme } from '../art/entropyTheme.ts'
-import { currentEntropy, getState, poke, setZoom, tick } from '../game/store.ts'
+import {
+  currentEntropy,
+  getState,
+  poke,
+  selectDeveloper,
+  setZoom,
+  tick,
+} from '../game/store.ts'
 import { pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
+import { playUi } from '../ui/uiSfx.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
 import { LensCamera, lodWeights, tierScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
@@ -25,6 +33,7 @@ import {
   clampPan,
   flingVelocity,
   initPan,
+  isHold,
   isTap,
   panLimit,
   pickNearest,
@@ -164,6 +173,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const roomSeats = () => Array.from({ length: room.drawn }, (_, i) => room.deskAt(i)!)
 
   /** The whole tap path, shared by real pointers and the §23.3 bench. */
+  /**
+   * §7.8.8 — hold to select.
+   *
+   * Rung 2 only. You cannot select a person who is two pixels wide, and
+   * §7.7.4's promise that the player can always zoom back to a floor with
+   * people on it is what makes that a scope rather than a limitation. Holding
+   * on empty floor deselects, which is the only way out that does not need a
+   * close button to be within reach of a thumb.
+   */
+  const doSelect = (x: number, y: number) => {
+    if (camera.level !== 1) return
+    const target = pickDeveloper(x, y)
+    selectDeveloper(target < 0 ? null : target)
+    playUi(target < 0 ? 'close' : 'whoosh')
+  }
+
   const doPoke = (x: number, y: number, t0: number) => {
     // Who was actually poked. -1 means empty floor, which is a miss rather
     // than a free point — §7.7.6 makes the world addressable, and an
@@ -239,9 +264,17 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const dx = ev.clientX - drag.x0
     const dy = ev.clientY - drag.y0
     const tapped = isTap(dx, dy, t - drag.t0)
+    const held = isHold(dx, dy, t - drag.t0)
     drag = null
 
-    if (tapped) {
+    if (held) {
+      // §7.8.8 — a hold selects rather than pokes. Mutually exclusive with a
+      // tap by construction: `HOLD_MS` is longer than `TAP_MS`, so a pointer
+      // cannot satisfy both.
+      pan.vx = 0
+      pan.vy = 0
+      doSelect(ev.clientX, ev.clientY)
+    } else if (tapped) {
       pan.vx = 0
       pan.vy = 0
       doPoke(ev.clientX, ev.clientY, t)
@@ -446,6 +479,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // §7.8.7 — identities before headcount, so a rebuild triggered by the seed
     // does not immediately get overwritten by one triggered by the count.
     room.setSeed(state.runSeed)
+    room.setSelected(state.selected ?? -1)
     room.setHeadcount(state.devs)
     // §7.7.1 again, on the other tier: the floor shows the people who exist,
     // not a thousand placeholders ghosting in behind two developers.

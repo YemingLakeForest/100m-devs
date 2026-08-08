@@ -1424,6 +1424,22 @@ A panel slides in from the side (§10.5, never a modal — the floor keeps runni
   has named a developer after themselves, or after a friend, has a reason to open the game
   that no amount of numbers provides.
 
+##### The trap in generating rather than storing **[added 2026-08-08]**
+
+§7.8.7's identities are **generated on demand**, which means `identityFor(seed, i)` returns a
+*fresh object every call*. Equal by content, never by reference.
+
+That is fine everywhere except React, and it blanked the entire app the first time anybody
+was selected. The card latched its subject the way every other panel in this interface
+latches one — `if (who !== held) setHeld(who)` — which is correct for a stored value and an
+infinite render loop for a generated one: state set during render, rendering again, forever.
+The same mistake in the live-quote effect's dependency array would have failed *silently*,
+clearing and restarting the interval every render so the quote never changed once.
+
+**Anything keyed off a generated value must key off the seed, not the object.** It is the one
+cost of not having a database and it is worth paying, but it has to be written down, because
+the failure looks like a React bug rather than like a consequence of §7.8.7.
+
 ##### What it must never be
 
 - **A roster screen.** There is no list of all developers, at any point, ever. Selection

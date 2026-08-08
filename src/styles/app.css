@@ -383,6 +383,84 @@ body {
   margin-bottom: 2px;
 }
 
+/* --- the developer card — GDD §7.8.8 ----------------------------------- */
+
+/*
+ * Right-hand side, clear of the left rail and of the action bar. Takes the
+ * pointer for its own controls and nothing else — §10.6, the floor keeps
+ * running and the player keeps poking behind it.
+ */
+.devcard {
+  position: absolute;
+  top: var(--edge-y);
+  right: var(--edge-x);
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  width: 15em;
+  padding: 10px 12px;
+  border: var(--rule) solid var(--p1);
+  background: color-mix(in srgb, var(--n0) 88%, transparent);
+  pointer-events: auto;
+}
+
+.devcard__name {
+  margin: 0;
+  font-size: var(--type-2x);
+  color: var(--p3);
+}
+
+.devcard__sub {
+  margin: 0 0 4px;
+  font-size: var(--type-1x);
+  color: var(--p1);
+}
+
+.devcard__stats {
+  display: grid;
+  gap: 1px;
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.devcard__stat {
+  display: grid;
+  grid-template-columns: 5.5em 1fr auto;
+  gap: 6px;
+  align-items: baseline;
+  font-size: var(--type-1x);
+}
+
+.devcard__stat-label {
+  color: var(--p1);
+}
+
+/* Ten cells, some lit. ART_DIRECTION §1 -- brackets and rules, never a filled
+   progress bar, which at this type size is a smudge rather than a reading. */
+.devcard__stat-bar {
+  color: var(--p2);
+  letter-spacing: 1px;
+}
+
+.devcard__stat-value {
+  color: var(--p3);
+}
+
+/*
+ * The live quote. Italic and indented so it reads as *speech* rather than as
+ * another field -- it is the one part of this panel that changes while you are
+ * looking at it, and it has to look like the reason to keep looking.
+ */
+.devcard__quote {
+  margin: 2px 0 6px;
+  padding-left: 6px;
+  border-left: var(--rule) solid var(--p1);
+  font-size: var(--type-1x);
+  line-height: 1.45;
+  color: var(--p2);
+  font-style: italic;
+}
+
 /* --- the ship celebration — GDD §10.8a --------------------------------- */
 
 /*
