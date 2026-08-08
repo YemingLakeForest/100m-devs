@@ -307,24 +307,64 @@ export function perimeterPoint(
   }
 }
 
-/** One developer at a desk, as a container so it can animate and be hit-tested. */
+/**
+ * One developer at a desk, facing **north-west** — into their monitor.
+ *
+ * They used to face the camera, which is how every placeholder figure starts
+ * and is wrong for two reasons. It breaks the projection, in the same way the
+ * upright props did: a room where the furniture recedes and the people stare
+ * out of the screen is two drawings in one frame. And it inverts the joke —
+ * §6 is about a hundred people who are all *very busy*, and a hundred people
+ * looking straight at you are not busy, they are posing.
+ *
+ * Turned away, the anatomy falls out of {@link isoBox} for free. A figure
+ * facing north-west shows a south-camera exactly two faces: their left side
+ * (south-west) and their back (south-east) — which are precisely the two faces
+ * an iso box draws. The body is a box. That is not a simplification, it is
+ * what the projection says a turned figure *is*.
+ *
+ * The cost is the face. The glasses and the two-pixel eyes were the most
+ * charming thing in the room and they are gone, because you cannot see
+ * somebody's face from behind. §22.7's authored sprites get to solve that
+ * properly — the standing brief for them is a **turn on poke** (§8.2), which
+ * buys the face back at the exact moment the player has asked for attention.
+ */
 function buildDeveloper(): Container {
   const dev = new Container()
   const g = new Graphics()
 
-  // Chair back, behind them.
-  g.rect(-9, 6, 18, 22).fill(c(RAMPS.NEUTRAL[2]))
-  // Torso.
-  g.rect(-9, -2, 18, 20).fill(c(RAMPS.NEUTRAL[7]))
-  // Arms forward, toward the keyboard.
-  g.rect(-13, 2, 5, 13).fill(c(RAMPS.NEUTRAL[6]))
-  g.rect(8, 2, 5, 13).fill(c(RAMPS.NEUTRAL[6]))
-  // Head and hair.
-  g.rect(-7, -16, 14, 15).fill(c(RAMPS.SKIN[0]))
-  g.rect(-8, -18, 16, 6).fill(c(RAMPS.WOOD[0]))
-  // Glasses — two dark rectangles read as spectacles at this size.
-  g.rect(-6, -9, 5, 3).fill(c(RAMPS.NEUTRAL[1]))
-  g.rect(1, -9, 5, 3).fill(c(RAMPS.NEUTRAL[1]))
+  // Torso and head, as solids. Lighter on the south-west face, darker on the
+  // back — the same top-left key the props and the walls obey.
+  isoBox(g, 0, 5, 17, 19, RAMPS.NEUTRAL, 6, false)
+  // The neck, showing under the hair. One band, and it is the only skin
+  // visible on a figure seen from behind.
+  isoBox(g, 0, -14, 10, 4, RAMPS.SKIN, 0, false)
+  // Hair, covering the whole back of the head.
+  isoBox(g, 0, -18, 14, 12, RAMPS.WOOD, 1, false)
+
+  // Elbows, out to the sides. From behind, the forearms are hidden by the
+  // torso and the elbows are the only part of the arms that reads — which is
+  // also true of the real thing.
+  g.moveTo(-11, -6).lineTo(-6, -4).lineTo(-6, 3).lineTo(-11, 1).closePath().fill(c(RAMPS.NEUTRAL[5]))
+  g.moveTo(11, -10).lineTo(6, -8).lineTo(6, -1).lineTo(11, -3).closePath().fill(c(RAMPS.NEUTRAL[4]))
+
+  // The chair back, LAST and in front of them: their back faces south-east, so
+  // the chair between it and the camera is nearer than they are. Drawing it
+  // behind — where a front-facing figure would have wanted it — is what would
+  // give away that the figure had been turned round rather than redrawn.
+  //
+  // Kept low and mid-toned. The first pass had it full-height in NEUTRAL[2],
+  // which made every developer on the floor read as a large dark slab with a
+  // head on top — the chair was bigger than the person, and at ninety of them
+  // the room looked like a server hall. A chair back is a *support*; it only
+  // needs to reach the shoulder blades to be read as one.
+  g.moveTo(-9, 8)
+    .lineTo(9, -1)
+    .lineTo(9, 12)
+    .lineTo(-9, 21)
+    .closePath()
+    .fill(c(RAMPS.NEUTRAL[3]))
+  g.moveTo(-9, 8).lineTo(9, -1).lineTo(9, 1.5).lineTo(-9, 10.5).closePath().fill(c(RAMPS.NEUTRAL[4]))
 
   dev.addChild(g)
   dev.label = 'developer'
@@ -357,13 +397,18 @@ function drawDesk(g: Graphics, x: number, y: number) {
   // This is the one prop where getting it wrong was least obvious and most
   // damaging: it is repeated once per developer, so an upright rectangle here
   // was not one mistake but a hundred, tiling the whole floor.
-  const mx = x + 3
-  const my = y - 30
-  const S = 0.5
+  //
+  // It sits **north-west** on the desk and its face turns south-east, because
+  // that is the direction the person at it is looking (`buildDeveloper`). The
+  // two were specified independently at first and pointed the same way, which
+  // is a room full of people reading the backs of their own screens.
+  const mx = x - 9
+  const my = y - 31
+  const S = -0.5
 
   // The stand, first, so the panel sits over it.
-  isoBox(g, x + 3, y - 9, 8, 5, RAMPS.NEUTRAL, 2, false)
-  g.rect(mx - 1, my + 17, 3, 6).fill(c(RAMPS.NEUTRAL[2]))
+  isoBox(g, mx, y - 11, 8, 5, RAMPS.NEUTRAL, 2, false)
+  g.rect(mx - 1, my + 15, 3, 8).fill(c(RAMPS.NEUTRAL[2]))
 
   // Bezel, then the emissive face. The screen is the room's only light source,
   // so it is the one surface here allowed to ignore the top-left key.
@@ -384,13 +429,13 @@ function drawDesk(g: Graphics, x: number, y: number) {
       c(i % 2 === 0 ? RAMPS.GLOW[2] : RAMPS.GLOW[1]),
     )
   }
-  // The dark right-hand edge — the sliver of the monitor's own side that a
-  // panel turned away from the camera shows. Two pixels, and it is the whole
-  // difference between a screen and a decal.
-  g.moveTo(mx + 15, my + 5.5)
-    .lineTo(mx + 17, my + 6.5)
-    .lineTo(mx + 17, my + 25.5)
-    .lineTo(mx + 15, my + 24.5)
+  // The sliver of the monitor's own side that a panel turned away from the
+  // camera shows. Two pixels, and it is the whole difference between a screen
+  // and a decal. On the north-east edge, which is the one turning away now.
+  g.moveTo(mx + 15, my - 9.5)
+    .lineTo(mx + 17, my - 8.5)
+    .lineTo(mx + 17, my + 10.5)
+    .lineTo(mx + 15, my + 9.5)
     .closePath()
     .fill(c(RAMPS.NEUTRAL[1]))
 }
