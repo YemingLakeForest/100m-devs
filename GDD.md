@@ -1058,6 +1058,79 @@ a floor that does — which is what makes them legible.
 
 ---
 
+#### 7.8.6 Ambient life — the floor is a place, not a grid **[CANON — added 2026-08-08]**
+
+§7.8.4 gives each developer an idle state. That is enough to stop the floor looking frozen
+and nowhere near enough to make it look **inhabited**, because every one of those states is a
+person alone at a desk. A room where nobody ever speaks to anybody is not a quiet office; it
+is a diorama.
+
+**The thesis needs this more than the juice does.** §6 is about communication overhead, and
+§4.1 charges the player for it in a number — but a number is an assertion. The player should
+be able to *watch* the overhead happen: at three developers the floor is calm and someone
+occasionally says something; at eighty it is a churn of interruptions, conversations, and
+people walking away from their desks. **The entropy curve should be legible with the HUD
+switched off.**
+
+##### The four behaviours
+
+| | What it looks like | What it means |
+|---|---|---|
+| **Chatter** | A speech bubble pops over one developer, holds, pops out | Somebody said something. Cheapest and most frequent |
+| **Small talk** | Two neighbours turn to face each other, bubbles alternate between them, then both turn back | A conversation. Costs two developers their idle animation |
+| **The water trip** | A developer stands, walks to the cooler or the coffee machine, pauses, walks back | The floor's only pathing. Uses §7.8.1's props as destinations, which is most of why they exist |
+| **The drive-by** | A developer walks to *another developer's* desk, stands beside it, both bubble, then walks back | The most expensive interruption in real life and the most expensive here. Reserved for high entropy |
+
+##### The rules that keep it from becoming noise
+
+1. **Rate scales with entropy, not with headcount.** More people does not mean more
+   chatter per person — §4.1 says it means more *interruption*, which is a different
+   thing. At `IN SYNC` the floor is nearly silent and a bubble is an event; at
+   `PRODUCTIVITY BREAKDOWN` every third developer is talking and the drive-bys start.
+   That is the equation, dramatised.
+2. **Nothing ambient ever changes the simulation.** Not one Story Point, in either
+   direction. The moment a water trip costs output, the player starts trying to prevent
+   water trips, and the game becomes about micro-managing forty walk cycles. This layer is
+   *evidence* of the model, never an input to it. **A player who ignores it entirely loses
+   nothing.**
+3. **It is budgeted, and the budget is a headcount fraction.** At most `clamp(1, 12,
+   round(devs × 0.08))` behaviours run at once, whatever the headcount — so the cost is
+   flat above ~150 developers and the floor at 100 is not twelve times busier than the
+   floor at 10, it is *proportionally* busier. §7.8.3's rule still holds: no spritesheets,
+   every one of these is a code-driven transform.
+4. **Above rung 2 it becomes a texture.** Individual behaviours are meaningless when a
+   person is two pixels. At the floor tier and above, ambient life collapses into what
+   §7.8.2 already draws — window flicker rates, the density of lit desks — and the
+   per-person system switches off entirely rather than running invisibly.
+5. **Poking beats ambience.** A developer who is walking, talking or being talked at is
+   still pokeable, and the poke interrupts the behaviour immediately (§8.2's jolt wins).
+   A player who taps someone and gets no reaction because that person was busy chatting
+   has been told the game is a cutscene.
+
+##### What the bubbles say
+
+Nothing new needs writing: §19's Desk Query Dialogue Library already has state-banded lines,
+and §19.2's overwhelmed lines *are* the high-entropy chatter. Small talk and drive-bys draw
+from the same bands as the speakers' current §7.8.4 state. **Text does the comedy work**
+(Appendix D), and this is the cheapest comedy surface in the product — a joke that costs one
+string and no art.
+
+The one addition: **drive-by pairs draw a two-line exchange rather than two independent
+lines**, because the joke in an interruption is the reply. `"Quick question —"` / `"It is
+never a quick question."`
+
+##### Failure modes
+
+- **A floor where everybody is always talking.** Reads as a party, not an office. The rate
+  floor at low entropy exists precisely so the busy state has something to contrast against.
+- **Walk cycles that clip through desks.** The water trip is the only pathing in the game
+  and it may take the §7.8.1 walkway or nothing — if the walkway is gone to crowding, the
+  trips stop with it. **A crowded floor stops being able to reach the cooler**, which is
+  both the correct behaviour and a better joke than the walk was.
+- **Ambient motion competing with the hire assembly.** §7.8.5's cascade is the game's most
+  important feedback. Ambience suspends for its duration; nothing wanders during a hire.
+
+
 ## 8. Game Juice: Camera, Poking & Feedback
 
 The visual simulation is the entire game — the UI floats on top as a clean,
@@ -1709,6 +1782,86 @@ The whole of §10.9.6 costs three DOM elements, one text-shadow and no files.
 - **A logo that does not count.** The count *is* the wordmark.
 ---
 
+### 10.10 The Hire Control — the dial **[CANON — added 2026-08-08]**
+
+Hiring is the game's primary verb (§7.7) and for the whole of Run 1 it has exactly one shape:
+a button that hires one developer. That is correct at two developers and absurd at two
+million, and the fix is not a bigger button. **It is a multiplier dial.**
+
+#### 10.10.1 The control
+
+```
+  +---------------------------------------------+
+  |   [ x1 ]  [ x10 ]  [ x100 ]  [ MAX ]        |   <- the dial
+  |                                             |
+  |   +-------------------------------------+   |
+  |   |          HIRE  x100                 |   |   <- the button
+  |   |            $1.4M                    |   |
+  |   +-------------------------------------+   |
+  +---------------------------------------------+
+```
+
+- **The dial is a row of segments, not a stepper.** One tap changes the multiplier; there is
+  never a sequence of taps to get to the one you want. A stepper at x1,000,000 is forty taps.
+- **The button below shows the multiplier and the total cost**, and the total is §4.10a's
+  `hireCostTotal` — the true sum of the next *n* hires, never `n × current`, which
+  understates it and would read as a lie the first time a player checked.
+- **The selection persists** across sessions in the run state (§24.3). A player who chose
+  MAX meant it.
+- **MAX is "as many as I can afford right now"**, recomputed every frame, and it is the only
+  segment whose count changes without the player touching anything.
+
+#### 10.10.2 The dial grows with the studio
+
+New segments unlock as headcount does, and **the smallest ones are retired** — a x1 segment
+at ten million developers is not a choice, it is clutter.
+
+| Headcount | Segments offered |
+|---|---|
+| 1 – 24 | *(no dial — one button, one hire)* |
+| 25 – 249 | `x1` `x10` `MAX` |
+| 250 – 9,999 | `x1` `x10` `x100` `MAX` |
+| 10 K – 999 K | `x10` `x100` `x1K` `MAX` |
+| 1 M – 999 M | `x1K` `x10K` `x100K` `MAX` |
+| 1 B + | `x100K` `x1M` `x10M` `MAX` |
+
+**Four segments, always.** Never five, never a scrolling list. The window slides up the ladder
+and the shape of the control never changes, which is what lets a player who learned it at
+fifty developers still recognise it at a billion.
+
+**The dial does not appear until 25 developers**, because §21's Run 1 is a scripted funnel and
+a multiplier in Act I would let the player skip the beat where hiring one person is the whole
+game. It arrives during Act IIa, unannounced, as the first thing the game gives the player
+that it did not narrate.
+
+#### 10.10.3 The rules
+
+1. **A multiplier the player cannot afford is shown, priced, and disabled** — never hidden.
+   Hiding it removes the information the player needs to decide what to save for. This is the
+   opposite of §24.8's rewarded-ad rule (where a dead button *is* a broken promise), and the
+   difference is that a hire button is a price tag and an ad button is an offer.
+2. **MAX never spends the last dollar.** §4.10a's Mass Hire deliberately takes the entire
+   treasury, because that is Act III's trap and it is *supposed* to ruin you. The ordinary
+   MAX is not that: it leaves the player solvent. Two controls that look alike and behave
+   differently would make Act III's trap feel like a bug rather than a betrayal.
+3. **Every hire in a batch is a §7.8.5 arrival.** A x100 hire cascades a hundred seats in seat
+   order, compressed by `cascadeDelay` so it stays inside its cap. **The batch is never a
+   number going up.** If a multiplier is large enough that the room cannot show it, that is
+   §7.7's signal to change rungs, not to skip the animation.
+4. **The dial is not the Act III bait.** Act III's `HIRE 1,000 DEVS NOW` is a scripted,
+   one-shot, treasury-emptying offer with its own `bait` styling (§21). It sits *above* the
+   ordinary hire control rather than replacing it, and it leaves for good once taken. **A
+   player must be able to look at the real control and the trap side by side** — the trap
+   works because it is obviously a worse deal, not because it was the only option.
+
+#### 10.10.4 What it must never be
+
+- **A hold-to-repeat button.** Buying 4,000 developers must cost one tap, not a held thumb.
+- **A slider.** Continuous input for a quantity the player thinks about in orders of magnitude.
+- **An auto-buyer, in Run 1.** Automation is §11 tech-tree content and it is a *reward*;
+  handing it over as a default deletes the verb.
+
+
 ## 11. In-Run Tech Tree (Purchased with Cash `$`)
 
 The in-run tree features **three parallel branches**. Upgrading Workforce without
@@ -2079,6 +2232,156 @@ not. Cross the line and the HUD punches to `100,000,000 DEVS` in the title's own
 typography, the swarm goes silent for one beat, and then the Codebase Fork terminal boots.
 
 ---
+
+### 13.6 Hero Cards — the command layer **[CANON — added 2026-08-08]**
+
+§14.4 models hero classes as a **spawn probability**: play long enough, roll well, and a 10x
+Engineer appears somewhere in the swarm and multiplies something. That is a stat, and it has
+two problems. It is invisible — at ten thousand developers nobody can see which one is
+special — and it is passive: the player never makes a decision about it.
+
+**Hero Cards replace that with a placement decision.** §14.4's curves survive as the rules
+governing *how you acquire* cards; everything about how they are used is below.
+
+#### 13.6.1 The core idea
+
+A Hero is a **card you slot onto a rung of the §7.7 Construction Ladder.**
+
+```
+       CARD                    SLOTTED ONTO              AFFECTS
+  +---------------+
+  |  SCRUM MASTER |   ----->   one ROW                   the ~8 devs in that row
+  |  * . . . .    |
+  |  -12% entropy |
+  +---------------+
+  +---------------+
+  |  FLOOR MASTER |   ----->   one FLOOR                 every dev on that floor
+  |  * * * . .    |
+  +---------------+
+```
+
+The ladder is already the game's spine — row, floor, building, campus, town, nation, planet,
+galaxy — and it is already what the camera navigates. Hero Cards make it **the progression
+board as well as the view**. Zooming out to see your studio and zooming out to manage it
+become the same action, which is the strongest thing this design does: *the Omni-Lens
+acquires a reason to exist beyond spectacle.*
+
+#### 13.6.2 The rule that makes it a system
+
+**A card is only effective at the tier it has been upgraded to reach.**
+
+You may slot any card onto any rung from the moment you own it. What you cannot do is have
+it *work* up there. A Scrum Master dropped onto a Building does not scale up to cover the
+building; it covers **one row of it**, and the rest of the building is told, plainly, that
+it is not covered:
+
+```
+  BUILDING  ·  4,000 DEVS
+  +--------------------------------------+
+  |  SCRUM MASTER            REACH: ROW  |
+  |  covering 8 of 4,000 (0.2%)          |
+  |                                      |
+  |  ! Upgrade REACH to FLOOR to cover   |
+  |    this building.   -- 4 GP --       |
+  +--------------------------------------+
+```
+
+This is the whole economy of the system. It creates the mid-game question the game currently
+lacks: **do I broaden one hero or acquire another?** A wide-reach Scrum Master covering a
+whole campus at a small percentage, or three narrow specialists covering three floors deeply.
+Both are correct at different times, which is the definition of a decision worth making.
+
+**It also solves the idle-genre scaling problem honestly.** A flat multiplier is worthless
+two prestiges later; a *reach* upgrade is worth exactly as much as the studio you point it
+at. Heroes never obsolete, and they never trivialise, because reach costs more the further
+up the ladder it goes (§13.6.5).
+
+#### 13.6.3 The cards
+
+Each card has a **home rung** — the tier it is thematically about, where it is cheapest to
+be effective and where its unique effect is strongest.
+
+| Card | Home rung | Effect | The joke |
+|---|---|---|---|
+| **Scrum Master** | Row | −entropy within reach; a daily stand-up pulses output | Fixes communication overhead by adding a meeting |
+| **Floor Master** | Floor | +Story Point yield within reach; immune to the §7.8.6 drive-by | Middle management, rendered as a buff |
+| **Tech Lead** | Floor | Poking anyone in reach also pokes their neighbours | Does not write code any more, but knows who to ask |
+| **Architect** | Building | Raises §4.2's developer soft cap within reach | Draws the diagram nobody implements |
+| **VP of Engineering** | Campus | Multiplies *other heroes'* effects in reach; alone, does nothing | Has no output of their own, by design |
+| **CTO** | Town | Converts a percentage of entropy into cash | Monetises the dysfunction |
+| **Chief Vision Officer** | Nation | Doubles yield, doubles entropy | Not obviously good |
+| **The Compiler** | Planet | Ignores reach; effect is global and small | The only thing at this scale that still works |
+| **James** | Any | Effect is small at every rung and never scales | §21.6 — he is the constant, and that is the point |
+
+**James is a Hero Card and he is deliberately a bad one.** He is the first card the player
+ever gets, he can be slotted anywhere, and he never becomes strong. Players will keep him
+placed anyway. That is the joke, and it is also §2's thesis: the game is about the people you
+carry with you.
+
+#### 13.6.4 Upgrade trees
+
+Every card carries its own small tree — four to six nodes, never a wall — with exactly three
+kinds of node:
+
+| Node kind | What it does | Constraint |
+|---|---|---|
+| **REACH** | Moves the card one rung up the ladder | The spine. Always the most expensive node available |
+| **DEPTH** | Strengthens the effect at the current reach | Cheap, repeatable, diminishing |
+| **TRAIT** | One-off rule change unique to the card | At most two per card, and they are the personality |
+
+**Reach and depth trade against each other on purpose.** Depth bought at a low reach is not
+refunded when reach increases — a hero broadened is a hero diluted, and the player who rushed
+reach on a card they had already deepened will feel it. This is the one place the game is
+allowed to punish a plan, because it is a plan the player made with full information.
+
+#### 13.6.5 Costs
+
+Cards are acquired with **GP** (§13.3, Layer 2) — they are a permanent, cross-run identity,
+which is what makes placing them feel like building a company rather than shopping.
+
+Node costs follow §14.5's Git Branch Tree curve, with reach scaled by the ladder gap it
+crosses — reusing §7.7.3's ratio rule, so one constant governs both what a jump *looks* like
+and what it *costs*:
+
+$$\text{Cost}_{\text{reach}}(r \rightarrow r{+}1) = C_0 \cdot \gamma^{\,r} \cdot \log_{10}\!\left(\frac{\text{unit}_{r+1}}{\text{unit}_r}\right)$$
+
+Depth nodes are flat-scaled per card; trait nodes are fixed and expensive.
+
+#### 13.6.6 The interface
+
+**The card board is the world.** There is no separate management screen — §10.6 forbids one,
+and building one would waste the Omni-Lens.
+
+- **Zoom to a rung, and its slots become visible** as skewed frames (§10.8a) anchored to the
+  thing they govern: over a row, over a floor's edge, over a building's face.
+- **Drag a card from the tray onto a slot.** The tray is a §10.5 bottom sheet, summoned and
+  dismissed, never permanent furniture.
+- **A slotted card renders in the world** — a small marker at the rung, drawn at the scale of
+  that rung, so a campus with four heroes on it *looks* commanded. This is the only new sprite
+  class the system needs, and it is one icon per card (§22.7 must absorb nine, or they are
+  procedural per ART_DIRECTION §4 T0).
+- **Coverage is drawn, not stated.** Selecting a card tints exactly the developers it reaches.
+  A Scrum Master on a building lights up eight desks in a tower of four thousand, and the
+  player understands the reach rule without reading a word of it.
+
+#### 13.6.7 What it must never be
+
+- **A second inventory screen.** If the player is managing heroes on a grid instead of in the
+  world, the entire reason for this design has been thrown away.
+- **A gacha.** Cards come from GP spent deliberately, never from a roll. MONETISATION's
+  no-loot-box position is not negotiable, and this is the most tempting place in the game to
+  break it.
+- **Numerically mandatory.** A player who never slots a card must still be able to finish a
+  run. Heroes are amplitude, not gate.
+- **Auto-placed.** An "optimise" button deletes the only decision the system contains.
+
+#### 13.6.8 Relationship to §14.4
+
+§14.4's spawn curves are **retained and repurposed**: $P_{class}$ now governs the rate at
+which *card fragments* drop during a run, and $M_{hero}$'s GP-scaling term becomes the global
+multiplier applied to every card's depth. The equations survive; what they multiply changes.
+No maths in §14 is invalidated by this section.
+
 
 ## 14. Prestige & Scaling Mathematics
 
