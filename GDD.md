@@ -1130,6 +1130,7 @@ switched off.**
 | **Small talk** | Two neighbours turn to face each other, bubbles alternate between them, then both turn back | A conversation. Costs two developers their idle animation |
 | **The water trip** | A developer stands, walks to the cooler or the coffee machine, pauses, walks back | The floor's only pathing. Uses §7.8.1's props as destinations, which is most of why they exist |
 | **The drive-by** | A developer walks to *another developer's* desk, stands beside it, both bubble, then walks back | The most expensive interruption in real life and the most expensive here. Reserved for high entropy |
+| **Loitering** | Standing at the cooler, sitting on the sofa, or simply standing somewhere doing nothing, for tens of seconds | The long-duration states §7.8.9 needs. A floor with nobody idle on it has nothing to pick up |
 
 ##### The rules that keep it from becoming noise
 
@@ -1195,6 +1196,182 @@ never a quick question."`
 - **Ambient motion competing with the hire assembly.** §7.8.5's cascade is the game's most
   important feedback. Ambience suspends for its duration; nothing wanders during a hire.
 
+
+#### 7.8.7 Every developer is somebody — identity without a database **[CANON — added 2026-08-08]**
+
+Right now a developer is a rectangle with a hash-derived bob phase, and every one of them is
+the same rectangle. That is fine at ten thousand and wrong at ten, because §7.7.4's Hero
+Anchor promises the player can always come back to a floor with **people** on it, and the
+promise is empty if they are interchangeable.
+
+**Every individual developer has a name, an appearance and stats. None of them are stored.**
+
+##### Generated, not tracked
+
+Everything about developer *i* is a pure function of a seed:
+
+```
+identity(runSeed, i) -> { name, appearance, stats, hiredAt }
+```
+
+so a million developers cost **one integer**, the run seed, and the same developer is the same
+person on every frame, after a reload, and in a screenshot taken a week later. This is the
+whole reason the feature is affordable at §1's headcounts, and it is not a compromise — a
+stored roster would be strictly worse: it would need migration (§24), it would bloat the save
+by megabytes, and it would have to answer what happens to Steve when the swarm is culled.
+
+The one thing that *is* stored is the short list of developers the player has interacted with
+(§7.8.8) — pinned, promoted, or renamed. A handful of exceptions to a generated world, which
+is how every large procedural game does this.
+
+##### What varies
+
+| | |
+|---|---|
+| **Name** | First + last from weighted lists. Real-sounding, never joke names — the comedy is in what they *say* (Appendix D), and a floor full of "Chad Bugsworth" burns the joke on the first read |
+| **Appearance** | Hair shape and colour, skin tone, shirt colour, glasses, headphones, posture. Combinatorially large from a handful of parts, all T3 commodity, all in the master palette |
+| **Stats** | Three numbers: **Focus**, **Chatter**, **Seniority**. Rolled per developer from the seed |
+| **Trait** | About one in eight has one. `Night Owl`, `Meeting Magnet`, `Ex-Founder`, `Types Loudly` |
+| **Hired at** | Which project they joined during. Free, from the index, and it is what makes "one of the originals" mean something |
+
+**The stats must be visible in the world before they are ever read in a panel.** A high-Chatter
+developer bubbles more often (§7.8.6); a high-Focus one bobs faster and leaves their desk less;
+Seniority shows in posture. A stat the player can only discover by opening a screen is a
+spreadsheet entry, not a character.
+
+##### Stats are flavour, and mostly stay flavour
+
+§4.1's equation takes headcount and cap, not a roster. **Per-developer stats do not enter the
+production maths in Run 1**, and that restraint is deliberate: the moment Focus multiplies
+output, the player is expected to audit forty people and the game becomes a spreadsheet — the
+exact §6 failure mode the design is satirising, delivered sincerely.
+
+Where they *do* bite is local and bounded:
+
+- **Poking** — poke yield varies with the individual's Focus and current state (§4.7 already
+  varies by state; this varies it by person).
+- **§7.8.6 ambient rates** — Chatter drives how often that specific developer interrupts.
+- **§13.6 Hero Cards** — a card's coverage is a set of individuals, so who is under it matters.
+
+That is enough for the player to *care* about who is where without being obliged to manage it.
+
+#### 7.8.8 Selecting a developer — the turn, and the card **[CANON — added 2026-08-08]**
+
+Tapping a developer already pokes them (§8.2). **Holding, or tapping their name tag, selects
+them** — a different verb with a different payoff, and the game's first moment of intimacy at
+any scale.
+
+##### The turn
+
+The selected developer **rotates to face the camera** — a spin, over about 400 ms, with the
+§10.8a arrival bounce at the end. The floor dims behind them and the camera eases in a little.
+
+This is the single best thing in this section and it is worth being precise about why: §7.8.6
+turned everyone away from the player, facing north-west into their monitors, which is correct
+and which cost the game its faces. **The turn buys the face back at the exact moment the
+player has asked for a person's attention.** It also gives §22.7's authored sprite brief a
+second pose to draw — front and back — which is a cheap way to make one sprite feel like a
+character.
+
+They turn back when deselected. Nobody stays facing the player.
+
+##### The card
+
+A panel slides in from the side (§10.5, never a modal — the floor keeps running behind it):
+
+```
++------------------------------------------+
+|  PRIYA RAMANATHAN            [ x ]       |
+|  Senior  ·  joined during FLAPPY SQUARE   |
+|                                          |
+|  FOCUS     ########....   72             |
+|  CHATTER   ##........     19             |
+|  SENIORITY #######.....   64             |
+|                                          |
+|  TRAIT   Night Owl                       |
+|  "I've been stuck on Level 4 of          |
+|   'Flappy Pixel' for two hours."         |
+|                                          |
+|  [ PIN ]   [ RENAME ]                    |
++------------------------------------------+
+```
+
+- **The quote is live**, drawn from §19 for their current state. It changes while the panel is
+  open, which is what makes the panel feel like a window onto a person rather than a record.
+- **PIN** adds them to the stored short list, so the player can find them again. Pinning is the
+  only way a generated developer becomes persistent, and pinned developers survive a Paradigm
+  Shift — §13.6's James is the archetype.
+- **RENAME** is the strongest retention hook in this document and costs nothing: a player who
+  has named a developer after themselves, or after a friend, has a reason to open the game
+  that no amount of numbers provides.
+
+##### What it must never be
+
+- **A roster screen.** There is no list of all developers, at any point, ever. Selection
+  happens *in the world*, by pointing at somebody.
+- **A stat-management surface.** No reassigning, no training, no equipment slots. §13.6 is
+  where deliberate optimisation lives, and it operates on rungs rather than on individuals for
+  exactly this reason.
+- **Available above rung 2.** You cannot select a person who is two pixels wide. Selection is
+  a Hero Anchor feature, and §7.7.4's promise that you can always zoom back to a floor with
+  people on it is what makes that acceptable rather than a limitation.
+
+#### 7.8.9 The floor as a toy — drag, drop, and the god-mode read **[CANON — added 2026-08-08]**
+
+§7.8.6 gets people out of their chairs. This is what the player is allowed to do about it.
+
+**A developer who is away from their desk can be picked up and dropped back into a seat.**
+Drag them and they dangle, legs cycling, protesting in a speech bubble; drop them on a chair
+and they land with §7.8.5's bum-hits-seat beat; drop them anywhere else and they walk back to
+wherever they were going, unhurried, which is funnier than obeying.
+
+That single interaction does three jobs:
+
+1. **It makes the scene a toy rather than a diorama.** The floor is the largest surface in the
+   game and until now nothing on it could be touched except to poke it.
+2. **It states the game's actual power fantasy.** You are not a developer. You are the thing
+   above the developers, and picking one up by the scruff is the most direct possible statement
+   of that.
+3. **It sets up the joke.** Dropping people back at their desks *looks* like productivity and
+   §7.8.6 rule 2 guarantees it changes nothing at all. The player who spends thirty seconds
+   herding eight wanderers has produced exactly zero extra Story Points. **That is §6, played
+   as a minigame** — the manager who feels most effective is the one achieving least.
+
+##### The wandering population
+
+§7.8.6's behaviours are joined by longer, more visible states, so there is always something to
+pick up:
+
+| State | What it looks like | Roughly how many |
+|---|---|---|
+| **At the cooler** | Standing by the water cooler, bubbling occasionally | 1–2% of headcount |
+| **On the sofa** | Sitting on the breakout seating, doing nothing | 1–2%, and 0 once §7.8.1's crowding takes the sofa |
+| **Just standing** | Somewhere on the floor, facing nothing in particular | 1% |
+| **Circulating** | Walking a slow loop with no destination | 1% |
+
+Percentages of headcount, so the floor is proportionally as lively at 8 as at 80, and all of
+it is inside §7.8.6 rule 3's concurrency budget. **The percentage rises with entropy**, which
+is the same claim §7.8.6 makes and the most legible version of it: at `TOTAL GRIDLOCK` a
+visible fraction of the studio is simply milling about.
+
+##### Rules
+
+1. **Never a fail state, never a timer, never a score.** The moment there is a counter for
+   developers-returned, this stops being a toy and becomes a chore with a number on it.
+2. **Nothing is ever forced back.** There is no "return all" button. An automation upgrade for
+   this would be the game solving its own joke.
+3. **It stays available at the Hero Anchor at every scale.** Like §7.8.8, this is a rung-2
+   feature and does not need to work at galaxy scale — but the player must always be able to
+   *get* to a floor where it works.
+4. **Physics stays cartoon.** No ragdoll, no collision, no stacking. A dangling sprite with a
+   leg cycle and a squash on landing is the entire implementation.
+
+##### Why this is in the design document rather than in a backlog
+
+Because it is the answer to "what is there to *do* while the numbers go up", and idle games
+that never answer that are the ones players describe as "just watching a bar fill". §8.2's
+poke is the answer for the first four minutes. This is the answer for the next four hours, and
+it costs one drag handler and a walk cycle that §7.8.6 has already paid for.
 
 ## 8. Game Juice: Camera, Poking & Feedback
 
@@ -1899,10 +2076,14 @@ how the player learns what to save for. An earlier draft gave the first band thr
 and introduced the fourth at 250 — which made the control change shape once, early, for no
 reason the player could see.
 
-**The dial does not appear until 25 developers**, because §21's Run 1 is a scripted funnel and
-a multiplier in Act I would let the player skip the beat where hiring one person is the whole
-game. It arrives during Act IIa, unannounced, as the first thing the game gives the player
-that it did not narrate.
+**The dial is unlocked by §21.0a's Seed Round, at 10 developers** — not by a headcount
+threshold. A multiplier in Act I would let the player skip the beat where hiring one person is
+the whole game, so it has to be gated; gating it on *an event they earned* rather than on a
+number crossing 25 gives the unlock a reason. An earlier draft used the bare threshold and it
+arrived unannounced, which is a worse version of the same thing: capability without cause.
+
+Outside Run 1 — every subsequent run, having prestiged — the dial is simply present from the
+first frame. The funnel is a first-run device and re-teaching it is an insult.
 
 #### 10.10.3 The rules
 
@@ -3538,6 +3719,101 @@ three of those minutes. Act IIa is roughly half the run. If playtesting
 shows players hiring past ~10 without being offered the bait, offer it sooner; the trap must
 spring while the model still reads as reliable, never after the player has already noticed
 the readout climbing on their own.
+
+#### 21.0a The Seed Round — earning the right to expand **[CANON — added 2026-08-08]**
+
+§21.0 fixed the pacing problem it named (1 → 2 → 1,000 was too fast) by inserting Act IIa's
+honest loop. Playing it revealed a second, quieter one: **Act IIa is a four-minute stretch with
+no events in it.** Ship, earn, hire, repeat, from two developers to forty, with nothing marking
+the difference between the eighth hire and the twenty-eighth. It is correct and it is flat.
+
+And the transition out of it was worse. At forty developers the ordinary HIRE control was
+*replaced* by the mousetrap, which meant the game took the verb away and handed the player one
+option. **A trap the player is manoeuvred into is not a trap, it is a corridor**, and §6's
+lesson needs a decision that was genuinely theirs.
+
+##### The beat
+
+**At 10 developers, the studio takes seed funding.**
+
+```
+  STUDIO_OS
+  > INCOMING: TERM SHEET
+
+  "We love what you're building. We think you can build it FASTER."
+
+  SEED ROUND CLOSED  --  $50,000
+  HIRING CAPACITY UNLOCKED
+```
+
+Ten is chosen for the same kind of reason forty was: it is the first headcount at which the
+player has hired **enough times to have a habit** and not yet enough to be bored of it. They
+have shipped two projects and hired eight people, all with money they made. The round is a
+reward for a loop they already understand.
+
+Three things arrive with it, and each one is a *capability* rather than a number going up:
+
+| | |
+|---|---|
+| **Cash** | A lump sum, roughly ten hires' worth. Enough to feel like a different game for a minute |
+| **The hire dial** (§10.10) | The multiplier appears. §10.10.2 sets its unlock at 25 on the basis that a multiplier in Act I would break the funnel — **the seed round is the better trigger**, because it gives the unlock a reason instead of a threshold |
+| **The story turn** | The studio stops being two people in a bedroom and becomes a company that owes somebody an outcome. Everything after this is spending someone else's money |
+
+The last is the one that pays off in Act V. **The bankruptcy is not the player losing their
+savings; it is the player losing an investor's.** That is a materially funnier and more
+uncomfortable ending, and it costs one screen here.
+
+##### The mousetrap becomes a pull
+
+**Act III's offer no longer replaces the hire control. It appears above it.**
+
+```
+        ** LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED! **
+        +--------------------------------------------+
+        |         HIRE 1,000 DEVS NOW                |     <- the bait
+        |      Cost: YOUR ENTIRE TREASURY            |
+        +--------------------------------------------+
+
+           [ x1 ] [ x10 ] [ x100 ] [ MAX ]
+           +----------------------------+
+           |   HIRE DEVELOPER   x10     |                <- still there
+           |         $412               |
+           +----------------------------+
+```
+
+**Both are live, and the player may ignore the offer indefinitely.** They can keep playing the
+Act IIa loop for as long as they like; hiring past the threshold by ordinary means is a
+perfectly good way to reach Act IV, and it takes longer and costs more, which is the point.
+
+The offer has to win on temptation alone:
+
+- **It appears the moment the seed money makes it reachable**, not on a headcount. Being able
+  to afford something is what makes wanting it feel like the player's own idea.
+- **It is priced at the whole treasury** (§4.10a) — always ruinous, and visibly a worse deal
+  per developer than the dial next to it. The player who does the arithmetic will notice. Most
+  will not, and the advisor is counting on it.
+- **The advisor copy does the work**, unchanged and now correctly placed: *"Math doesn't lie!
+  If 2 devs make games 2× faster, 1,000 devs will make games 1,000× faster!"* — landing on a
+  player with four projects' worth of personal evidence that it does not lie.
+- **It nags, gently.** The §10.8a bait pulse, and a re-pitch every couple of projects. Never a
+  countdown, never a modal, never a dismissal that hides it for good.
+
+**The design test for this beat:** a player who takes the offer should feel that they chose it
+and be embarrassed about that afterwards. A player who never takes it should still reach Act IV
+eventually and get the same lesson delivered more slowly and more expensively — which is, if
+anything, the more honest version.
+
+##### Revised shape of Run 1
+
+| Beat | Devs | The player is learning |
+|---|---|---|
+| **Act I** | 1 | Poking works |
+| **Act II** | 1 → 2 | Cash buys a developer. James arrives |
+| **Act IIa** | 2 → 10 | Ship, earn, hire. The loop, learned |
+| **§21.0a — the Seed Round** | 10 | **Somebody else believes in this. Here is capacity** |
+| **Act IIb** | 10 → ~40 | The loop again, faster, with the dial. The readout starts to twitch |
+| **Act III** | ~40 | The offer *appears*. It does not take anything away |
+| **Act IV–V** | ~1,040 | The collapse, on money that was not theirs |
 
 ### ACT I: The Innocent Beginning
 
