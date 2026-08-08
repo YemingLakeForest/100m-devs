@@ -3716,6 +3716,31 @@ the same gitignored `.env`.
    non-commercial or attribution-only licence is unusable here no matter how good it is, and
    finding that out after the score is finished is the expensive order to discover it in.
 
+##### 20.7.6a **BLOCKED — the Music API needs a paid plan** [added 2026-08-08]
+
+The generation script is finished, the endpoint is confirmed against ElevenLabs' reference,
+and the prompts are written. Running it returns:
+
+```
+402 Payment Required
+{"code":"paid_plan_required",
+ "message":"Music API is not available for free users."}
+```
+
+The Sound Effects API — which produced the entire §20.5 bank already in the build — is
+available on the free tier. **Music is not.** This is a purchase decision and it is the
+user's, so it is recorded here rather than worked around.
+
+**Nothing else is waiting on it.** The mix (`src/audio/music.ts`) is complete and tested:
+zone beds, strain layers, stingers, the §20.7.4 override and the §10.9 title hand-off, all as
+pure functions over camera Z and Entropy. The bus is wired into the frame loop, so the score
+is *running* — every stem is at the gain the simulation asks for, and every stem is missing.
+
+**A missing stem is exactly a stem at gain zero**, which is why that is not a stub: the day
+the MP3s land, nothing in the code changes. The one thing that cannot be known until then is
+whether the generated material actually holds §20.7.1's key-and-tempo rule, and a stem that
+does not is unusable however good it sounds.
+
 **Prompt requirements — every music prompt must carry these, and they are why §20.7.1's key
 and tempo rule exists:**
 

@@ -20,6 +20,7 @@ import {
 } from '../game/store.ts'
 import { pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
+import { MusicBus } from '../audio/music.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
 import { LensCamera, lodWeights, tierScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
@@ -389,6 +390,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let dollyFired = false
   /** Last consumed §7.7.2 spawn, so one hire produces one arrival. */
   let lastSpawnId = 0
+  /** §20.7.4 fires once per run; a Paradigm Shift clears `massHired` and this. */
+  let musicCollapsed = false
+  const music = new MusicBus()
+  // Not awaited. A missing stem set — which is every stem, until §20.7.6's
+  // paid-plan blocker clears — must not hold up the first frame, and the bus
+  // is silent rather than absent until its buffers arrive.
+  void music.init()
   let devsBefore = getState().devs
 
   app.ticker.add(() => {
@@ -406,6 +414,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // violently zooms out to Level 2." Driven here rather than by the store,
     // because the camera is the renderer's business — the store just says the
     // swarm arrived.
+    // §20.7.4 — the one scripted override. Fires once, on the frame the trap
+    // springs, and the bus owns the three beats from there.
+    if (state.massHired && !musicCollapsed) {
+      musicCollapsed = true
+      music.triggerActIV()
+    }
     if (state.massHired && !dollyFired) {
       dollyFired = true
       dollyTarget = 0.35
@@ -420,6 +434,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if (!state.massHired && dollyFired) {
       dollyFired = false
       collapse.reset()
+      // §20.7.4 is once per run, and a Paradigm Shift starts a new one. Without
+      // this the score would stay collapsed for every subsequent run — four
+      // minutes of Act I under a stem written for a seized studio.
+      musicCollapsed = false
     }
     if (dollyTarget !== null) {
       // Eased rather than snapped: §10.5 says nothing cuts, and the zoom-blur
@@ -440,6 +458,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // hire. Kick the camera out to show what just opened up. Skipped on the
       // first observed event, which may be a jumped-to phase rather than a
       // hire the player made.
+      // §20.7.2 — a rung promotion gets a stinger. One-shot, in key, landing
+      // on the beat; the mix underneath it never changes.
+      if (!first && state.spawn.promotedTo !== null) void music.playStinger('sting-promotion')
       if (!first && zoomCeilingLifted(devsBefore, state.devs)) {
         dollyTarget = maxZoomFor(state.devs)
         playSfx('zoom-out')
@@ -447,6 +468,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
     devsBefore = state.devs
     arrivals.update(now)
+    // §20.7.3 — the score is a mix, not a playlist. Driven every frame from
+    // the same camera Z the picture uses and the same Entropy the readout
+    // does, so picture, ambience and music change register on the same frame.
+    // Costs a handful of gain writes; `update` skips any that have not moved.
+    music.update(camera.z, currentEntropy(state))
+
     // §7.8.3 — everybody types. Cheap: one sine per visible developer.
     // §7.8.6 — and some of them get up. Entropy drives the rate, so the floor
     // gets visibly busier as the studio gets worse at its job: the §4.1 curve
@@ -642,6 +669,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       app.canvas.removeEventListener('wheel', onWheel)
       arrivals.destroy()
       collapse.destroy()
+      void music.unload()
       typeset.destroy()
       post.destroy()
       app.destroy(true, { children: true })
