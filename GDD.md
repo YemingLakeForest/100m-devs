@@ -1127,6 +1127,21 @@ switched off.**
    A player who taps someone and gets no reaction because that person was busy chatting
    has been told the game is a cutscene.
 
+##### What the bubbles are, in the room **[added 2026-08-08]**
+
+**They are abstract, not typed** — a balloon with two dashes in it, in the same visual
+language as the code on the monitors.
+
+§19's lines are *sentences*, and at the size one developer occupies on a floor of eighty a
+sentence is a grey smear; forty of them are a fog. The abstract balloon reads instantly as
+**speech** at every zoom the room tier reaches, and it costs no text atlas. The legible line
+belongs to the §7.5 HUD bubble, which is already how this game says something the player is
+meant to actually read.
+
+Typed per-developer bubbles are not ruled out — they become reasonable at the Hero Anchor
+zoom (§7.7.4), where three or four people fill the frame. **Legible ambient text is a
+zoomed-in feature, and treating it as one is what stops it being a performance problem.**
+
 ##### What the bubbles say
 
 Nothing new needs writing: §19's Desk Query Dialogue Library already has state-banded lines,

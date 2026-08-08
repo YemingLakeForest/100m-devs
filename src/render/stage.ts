@@ -405,7 +405,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     devsBefore = state.devs
     arrivals.update(now)
     // §7.8.3 — everybody types. Cheap: one sine per visible developer.
-    room.animate(now / 1000, state.dev.state)
+    // §7.8.6 — and some of them get up. Entropy drives the rate, so the floor
+    // gets visibly busier as the studio gets worse at its job: the §4.1 curve
+    // told in behaviour rather than in a number.
+    room.animate(now / 1000, state.dev.state, dt, currentEntropy(state))
 
     // GDD §7.7.1 — the studio you can see is the studio you have. Applied
     // every frame rather than only on input, because the scripted dolly, the

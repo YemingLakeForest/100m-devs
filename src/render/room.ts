@@ -29,6 +29,7 @@
 
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
+import { createAmbient, type Seat } from './ambient.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -63,9 +64,17 @@ export const ROOM_DEV_CAP = 120
  * the two pitches map straight onto that: tight across, generous behind. The
  * ratio between them is the aisle, and it is the reason a floor at forty
  * developers reads as rows of workers rather than as a grid of dots.
+ *
+ * **The ratio wants to be larger than it first looks.** A first pass at
+ * 0.96/1.62 was already a clear improvement over uniform spacing and still read
+ * as a slightly-stretched grid: at 2.3x the desks are unmistakably *in rows*,
+ * with a gap you could walk down. The reason is that the aisle competes with a
+ * desk's own footprint, not with the gap between desks — the desk is nearly a
+ * tile wide on its own, so an aisle only reads as an aisle once it is wider
+ * than the thing it runs past.
  */
-export const PITCH_COL = 0.96
-export const PITCH_ROW = 1.62
+export const PITCH_COL = 0.92
+export const PITCH_ROW = 2.15
 
 /** §7.8.1 — the headcount at which the room stops gaining and starts losing. */
 const CROWDING_STARTS = 40
@@ -81,7 +90,14 @@ export interface RoomHandle {
    * Advance the §7.8.3 idle animation. `elapsed` in seconds, `state` is the
    * shared §8.2 dev state (the store models one machine, not one per person).
    */
-  animate(elapsed: number, state: string): void
+  /**
+   * Advance the §7.8.3 idle animation and §7.8.6's ambient life.
+   *
+   * `dt` is separate from `elapsed` because the two want different clocks: the
+   * bob is a function of absolute time, so it is continuous across a rebuild,
+   * while ambient behaviours age and must not jump when a hidden tab wakes up.
+   */
+  animate(elapsed: number, state: string, dt?: number, entropy?: number): void
   /** Jolt developer `i` — the §8.2 poke reaction. */
   jolt(i: number): void
   /** Where developer `i` sits, in room-local coordinates. Null if not drawn. */
@@ -225,7 +241,12 @@ export function gridFor(devs: number): { cols: number; rows: number } {
   // floor half again as deep as it is wide — a corridor, not a floor. Solving
   // for a square *footprint* instead of a square count keeps §7.8.1's "huddle
   // at 3-5, floor at 31+" reading at both ends.
-  const cols = Math.max(1, Math.round(Math.sqrt((n * PITCH_ROW) / PITCH_COL)))
+  // Capped at the headcount, which only bites at the very bottom and matters
+  // there more than anywhere: with a wide aisle the square-footprint solve
+  // wants two columns for a single developer, and the floor is sized from the
+  // *grid* rather than from the people on it — so one person would sit in a
+  // room built for two. §7.8.1's first frame is a bedroom and has to hug them.
+  const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt((n * PITCH_ROW) / PITCH_COL))))
   return { cols, rows: Math.ceil(n / cols) }
 }
 
@@ -659,12 +680,25 @@ export function buildRoom(): RoomHandle {
   const light = new Graphics()
   const furniture = new Graphics()
   const devLayer = new Container()
-  root.addChild(shell, light, furniture, devLayer)
+  const ambient = createAmbient()
+  // Bubbles go above everyone, including the people in the front row — a
+  // speech bubble occluded by the desk in front of it is not a speech bubble.
+  root.addChild(shell, light, furniture, devLayer, ambient.layer)
 
   const devs: Container[] = []
   /** Per-developer jolt decay, 1 -> 0. The §8.2 poke reaction. */
   const jolts: number[] = []
   const desks: Array<{ x: number; y: number }> = []
+  /**
+   * Where §7.8.6's water trips go — the cooler and the coffee machine, as
+   * placed on this rebuild's perimeter ring.
+   *
+   * Recorded rather than recomputed, because the ring's slot allocation depends
+   * on which props are present at this headcount and duplicating that logic in
+   * the walker is how the two quietly disagree.
+   */
+  const walkTargets: Seat[] = []
+  let currentProps = propsAt(1)
   let lastDevs = -1
   const extent = { w: TILE_W * 3, h: 156 }
 
@@ -672,11 +706,13 @@ export function buildRoom(): RoomHandle {
     const n = Math.max(1, Math.min(ROOM_DEV_CAP, Math.floor(headcount)))
     const { cols, rows } = gridFor(n)
     const props = propsAt(headcount)
+    currentProps = props
 
     shell.clear()
     light.clear()
     furniture.clear()
     desks.length = 0
+    walkTargets.length = 0
 
     // --- the shell ---------------------------------------------------------
     //
@@ -793,8 +829,19 @@ export function buildRoom(): RoomHandle {
     // a box that changes size underneath it.
 
     const ring: Array<(x: number, y: number, i: number) => void> = []
-    if (props.coffee) ring.push((x, y) => drawCoffee(furniture, x, y))
-    if (props.waterCooler) ring.push((x, y) => drawWaterCooler(furniture, x, y))
+    // The two props people actually walk to. §7.8.1 puts them on the ring for
+    // dressing; §7.8.6 gives them a second job as destinations, which is most
+    // of why the room has them.
+    if (props.coffee)
+      ring.push((x, y) => {
+        walkTargets.push({ x, y })
+        drawCoffee(furniture, x, y)
+      })
+    if (props.waterCooler)
+      ring.push((x, y) => {
+        walkTargets.push({ x, y })
+        drawWaterCooler(furniture, x, y)
+      })
     if (props.filingCabinet) ring.push((x, y) => drawFilingCabinet(furniture, x, y))
     if (props.printer) ring.push((x, y) => drawPrinter(furniture, x, y))
     if (props.sofa) ring.push((x, y) => drawSofa(furniture, x, y))
@@ -912,7 +959,22 @@ export function buildRoom(): RoomHandle {
       lastDevs = clamped
       rebuild(clamped)
     },
-    animate(elapsed: number, state: string) {
+    animate(elapsed: number, state: string, dt = 1 / 60, entropy = 0) {
+      // §7.8.6 — ambient life. Fed the desks and the walkable destinations; it
+      // decides who is doing what and hands back an offset per seat.
+      //
+      // `walkTargets` is empty once §7.8.1's crowding has taken the walkway,
+      // which stops the water trips with it. That is the correct behaviour and
+      // a better joke than the walk was: **a crowded floor stops being able to
+      // reach the cooler.**
+      ambient.update(dt, {
+        seats: desks,
+        props: currentProps.walkway ? walkTargets : [],
+        devs: desks.length,
+        entropy,
+        drawnIndividually: true,
+      })
+
       // §7.8.3 — a transform on a static part, never a spritesheet. The whole
       // motion budget for a hundred people is one sine per person per frame.
       //
@@ -935,12 +997,17 @@ export function buildRoom(): RoomHandle {
         const bob = still ? 0 : Math.sin((elapsed * rate + phase * 6.283)) * 1.6 * reach
 
         if (jolts[i] > 0) jolts[i] = Math.max(0, jolts[i] - 0.06)
+        const walk = ambient.offsetFor(i)
         // The jolt sits on top of the bob: §8.2's "sprite jolts upright".
-        d.position.set(desks[i].x, desks[i].y + 6 + bob - jolts[i] * 5)
+        d.position.set(desks[i].x + walk.x, desks[i].y + 6 + bob + walk.y - jolts[i] * 5)
       }
     },
     jolt(i: number) {
       if (i >= 0 && i < jolts.length) jolts[i] = 1
+      // §7.8.6 rule 5 — a poke beats ambience. A player who taps somebody and
+      // gets no reaction because that person happened to be chatting has been
+      // told the game is a cutscene.
+      ambient.interrupt(i)
     },
     deskAt(i: number) {
       return desks[i] ?? null
