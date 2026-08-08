@@ -1,5 +1,5 @@
 import { entropyLabel } from '../game/vocabulary.ts'
-import { currentPayroll, currentVelocity, type GameState } from '../game/store.ts'
+import { currentEffectiveVelocity, currentPayroll, type GameState } from '../game/store.ts'
 import { formatCount, scaleBar } from '../sim/headcount.ts'
 import { secondsUntilBankrupt } from '../sim/economy.ts'
 import { useSpring } from '../ui/useSpring.ts'
@@ -154,7 +154,7 @@ export function Velocity({ state }: { state: GameState }) {
   return (
     <div className="hud__block">
       <span className="hud__label">VELOCITY</span>
-      <b className="hud__num hud__num--major">{formatVelocity(currentVelocity(state))}</b>
+      <b className="hud__num hud__num--major">{formatVelocity(currentEffectiveVelocity(state))}</b>
       <span className="hud__sub">SP/SEC</span>
     </div>
   )

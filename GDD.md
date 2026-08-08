@@ -931,6 +931,18 @@ told in set dressing before any number says it.
 **Desks are not spaced equally in all directions.** They go shoulder to shoulder along a
 row, and the space comes out *behind* the row, where somebody has to be able to walk.
 
+**And rows run level across the screen, not along an isometric axis.** Projecting a square
+grid index is what a renderer gives you for free, and it puts every row on a 26.5° diagonal:
+people appear to sit *behind and above* each other rather than side by side, which reads as a
+queue at eight developers and as a staircase at forty. The objects stay in the 2:1 projection
+— desks, monitors and bodies all recede exactly as before — and only the **arrangement** is
+screen-aligned. That is legal here precisely because this floor draws no tile grid for a level
+row to disagree with.
+
+Each row behind is sheared about half a tile to the left, which keeps the receding-into-the-
+room read and staggers the desks so the person behind is not perfectly eclipsed by the person
+in front. Zero shear would stack the rows in a flat column and throw the isometry away.
+
 A single uniform pitch — which is what a naive iso grid gives you — reads as a **car park**:
 a lattice of identical objects with no front, no grain, and no indication of which way anyone
 is meant to move through it. Splitting the pitch is a two-line change and it is the
@@ -938,11 +950,11 @@ difference between "some figures on a tiled floor" and "an office".
 
 Two consequences worth stating, because both are easy to get wrong:
 
-- **The grid is wider than it is deep, always.** With rows set ~1.7× further apart than desks
-  within a row, a literally square *count* draws a floor half again as deep as it is wide —
-  a corridor. What this section wants at every size is a square **footprint**, so the column
-  count solves for that instead. At 8 developers this lands on two rows of four, which is
-  what the table above already asked for.
+- **Rows are twice as wide as the block is deep.** Fitting the desks to the floor diamond's
+  own 2:1 was the first instinct and produces three rows of three for eight people; the table
+  above says 6–10 is "a small office, **two rows**, a walkway", and a real office of eight is
+  two rows of four. Offices are wide because a row is limited by the wall it runs along, not
+  by the floor area.
 - **Dividers fill the gap along a row and never between rows.** The gap between rows is an
   aisle; a panel across it would be a wall.
 

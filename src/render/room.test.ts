@@ -29,18 +29,17 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     }
   })
 
-  it('keeps the footprint squarish, which is not the same as the count', () => {
-    // The invariant that replaced "cols === rows". A literally square *count*
-    // was right when the spacing was uniform in both axes and became wrong the
-    // moment rows were set 1.7x further apart than desks within a row: an n x n
-    // grid then draws a floor half again as deep as it is wide. What §7.8.1
-    // actually wants — "a huddle at 3-5, a floor at 31+" — is a square
-    // footprint, so that is what is pinned.
+  it('keeps the block wider than it is deep, on screen', () => {
+    // Measured in *screen* units, which is the only place the question means
+    // anything now that rows run level and step back on their own pitch. Two
+    // earlier versions of this test measured the wrong thing: first a square
+    // count, then a square ratio of the two pitches. Neither is what anybody
+    // looks at.
     for (const n of [4, 9, 20, 40, 80, 120]) {
       const { cols, rows } = gridFor(n)
-      const aspect = (cols * PITCH_COL) / (rows * PITCH_ROW)
-      expect(aspect).toBeGreaterThan(0.6)
-      expect(aspect).toBeLessThan(1.9)
+      const screenW = cols * PITCH_COL * 64
+      const screenH = rows * PITCH_ROW * 16
+      expect(screenW).toBeGreaterThan(screenH)
     }
   })
 
@@ -48,7 +47,7 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     // "1: one desk. 2: a second desk pushed alongside. 6-10: two rows."
     expect(gridFor(1)).toEqual({ cols: 1, rows: 1 })
     expect(gridFor(2)).toEqual({ cols: 2, rows: 1 })
-    expect(gridFor(8).rows).toBe(2)
+    expect(gridFor(8)).toEqual({ cols: 4, rows: 2 })
   })
 
   it('never lays out more desks than it will draw', () => {

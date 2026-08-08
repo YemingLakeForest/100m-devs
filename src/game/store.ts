@@ -165,6 +165,15 @@ export interface GameState {
   massHired: boolean
   /** §10.10 — the hire dial's selection. Persists; a player who chose MAX meant it. */
   hireMultiplier: Multiplier
+  /**
+   * Story Points per second currently coming from the *thumb* — §10.1.
+   *
+   * A decaying rate estimate rather than a counter, so it converges on the true
+   * poking rate and falls away when the player stops. Display only: `tick`
+   * banks poke SP at the moment of the poke, so including this in the
+   * simulation's own velocity would pay for every tap twice.
+   */
+  pokeRate: number
 
   /**
    * GDD §24.8 — the Overnight Build Report waiting to be shown, or null.
@@ -220,6 +229,7 @@ function freshRun(): GameState {
     phase: 'act1_poke',
     massHired: false,
     hireMultiplier: 1,
+    pokeRate: 0,
     pendingOffline: null,
     scene: null,
   }
@@ -285,6 +295,33 @@ export function currentVelocity(s: GameState = state): number {
   return passiveVelocity(s.devs, s.devCap) * devEfficiency(1, s.localEntropy)
 }
 
+/**
+ * How fast the studio is *actually* going — passive output plus the thumb.
+ *
+ * §10.1 calls the VELOCITY readout "the clicker layer's scoreboard", and it was
+ * showing a number the clicker layer had no effect on. In Act I that is not a
+ * rounding error, it is the whole beat inverted: §21's opening asks the player
+ * to poke "3–5 times a second" and feel the burn-down outpace the passive rate,
+ * and the one readout claiming to measure that sat flat while they did it.
+ *
+ * **Display only.** `tick` banks passive SP and `poke` banks tapped SP at the
+ * moment of the tap, so feeding this back into the simulation would pay for
+ * every poke twice. The separation is the point of having two functions.
+ */
+export function currentEffectiveVelocity(s: GameState = state): number {
+  return currentVelocity(s) + Math.max(0, s.pokeRate)
+}
+
+/**
+ * How quickly the poke rate forgets, in seconds.
+ *
+ * Short enough that letting go shows up almost immediately — this is feedback
+ * on what the player is doing *now* — and long enough that the number does not
+ * flicker between taps at a human tapping speed. Two seconds is about four
+ * pokes at §21's target rate.
+ */
+export const POKE_RATE_TAU = 2
+
 export function currentPayroll(s: GameState = state): number {
   return payrollPerSecond(s.devs)
 }
@@ -339,10 +376,16 @@ export function tick(dtSeconds: number): void {
 
   const e = currentEntropy()
   const localEntropy = decayLocalEntropy(state.localEntropy, dtSeconds)
+  // NOT `currentEffectiveVelocity` — see its note. Poke SP is banked by `poke`.
   const gained = currentVelocity({ ...state, localEntropy }) * dtSeconds
 
   let patch: Partial<GameState> = {
     localEntropy,
+    // Exponential decay towards zero. Paired with the impulse `poke` adds, this
+    // settles on the player's true taps-per-second rather than spiking on each
+    // one — a readout that jumped to a huge number and back on every tap would
+    // be unreadable at the rate §21 asks them to tap.
+    pokeRate: state.pokeRate * Math.exp(-dtSeconds / POKE_RATE_TAU),
     dev: advanceDevState(state.dev, dtSeconds, { entropy: e }),
     cash: state.cash - currentPayroll() * dtSeconds,
     burned: gained > 0 ? state.burned.plus(gained) : state.burned,
@@ -415,6 +458,9 @@ export function poke(x: number, y: number) {
   const patch: Partial<GameState> = {
     burned: state.burned.plus(result.sp),
     localEntropy: state.localEntropy + result.localEntropyAdded,
+    // The impulse half of the rate estimate. Dividing by the time constant is
+    // what makes a steady R points per second converge on exactly R.
+    pokeRate: state.pokeRate + result.sp / POKE_RATE_TAU,
     floaters: [...state.floaters, floater],
     pokeCount: state.pokeCount + 1,
     desperateTaps,

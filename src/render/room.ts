@@ -53,6 +53,18 @@ export const ROOM_DEV_CAP = 120
  * Desk pitch — **different along a row and between rows**, which is the whole
  * of why an office looks like an office.
  *
+ * And rows run **horizontally across the screen**. That is a deliberate break
+ * from laying them along an isometric axis, which is what a grid-index
+ * projection gives you for free and which put every row on a 26.5-degree
+ * diagonal. People sit *side by side*. A row climbing away up-right reads as a
+ * queue rather than as a bank of desks, and at forty of them the floor looks
+ * like a staircase.
+ *
+ * The objects are still drawn in the 2:1 projection — desks, monitors and
+ * bodies all recede exactly as before. Only their *arrangement* is
+ * screen-aligned, which is legal here because this floor has no drawn tile
+ * grid for a horizontal line to disagree with.
+ *
  * A single uniform pitch spaces every desk equally in all four directions, and
  * the result reads as a *car park*: a lattice of identical objects with no
  * grain, no front, and no way to tell which direction anyone is meant to walk.
@@ -73,8 +85,31 @@ export const ROOM_DEV_CAP = 120
  * tile wide on its own, so an aisle only reads as an aisle once it is wider
  * than the thing it runs past.
  */
+/** Desk-to-desk along a row, in tile widths. Tight — shoulder to shoulder. */
 export const PITCH_COL = 0.92
+/** Row to row, in tile heights. The aisle. */
 export const PITCH_ROW = 2.15
+/**
+ * How far each row behind is pushed to the left.
+ *
+ * Zero would stack the rows in a flat column and throw the isometry away
+ * entirely; a half-tile keeps the receding-into-the-room read while leaving the
+ * rows themselves level. It also staggers the desks between rows, so the person
+ * behind is not perfectly hidden by the person in front.
+ */
+export const ROW_SHEAR = 0.42
+
+/**
+ * How many desks per row, per row of desks.
+ *
+ * Twice as wide as deep. Fitting the block to the floor diamond's own 2:1 was
+ * the first instinct and it produces three rows of three for eight people;
+ * §7.8.1's table says 6–10 developers is "a small office, **two rows**, a
+ * walkway", and a real office of eight is two rows of four rather than a
+ * square. Offices are wide because rooms are wide and because a row is limited
+ * by the wall it runs along, not by the floor area.
+ */
+export const ROW_ASPECT = 2
 
 /** §7.8.1 — the headcount at which the room stops gaining and starts losing. */
 const CROWDING_STARTS = 40
@@ -108,13 +143,17 @@ export interface RoomHandle {
   readonly extent: { w: number; h: number }
 }
 
-/** Iso projection of a grid cell. */
+/**
+ * Where seat (`col`, `row`) sits, in room-local coordinates.
+ *
+ * `col` runs level across the screen; `row` steps back into the room, up and to
+ * the left. Increasing `row` therefore *decreases* y — row 0 is the front row,
+ * nearest the camera, which is also the draw order the depth sort wants.
+ */
 function isoAt(col: number, row: number) {
-  const a = col * PITCH_COL
-  const b = row * PITCH_ROW
   return {
-    x: (a - b) * (TILE_W / 2),
-    y: (a + b) * (TILE_H / 2),
+    x: col * PITCH_COL * TILE_W - row * ROW_SHEAR * TILE_W,
+    y: row * PITCH_ROW * (TILE_H / 2),
   }
 }
 
@@ -246,7 +285,7 @@ export function gridFor(devs: number): { cols: number; rows: number } {
   // wants two columns for a single developer, and the floor is sized from the
   // *grid* rather than from the people on it — so one person would sit in a
   // room built for two. §7.8.1's first frame is a bedroom and has to hug them.
-  const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt((n * PITCH_ROW) / PITCH_COL))))
+  const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * ROW_ASPECT))))
   return { cols, rows: Math.ceil(n / cols) }
 }
 
@@ -731,12 +770,17 @@ export function buildRoom(): RoomHandle {
     // three deep is no longer six-and-three tiles across. `span` is the
     // diamond's diagonal in tile units, which is the one quantity both axes
     // agree on — the floor stays a true 2:1 diamond whatever the pitches are.
-    const span = (cols - 1) * PITCH_COL + (rows - 1) * PITCH_ROW
-    const halfW = span / 2 + margin
+    // Sized from the seats' real bounding box rather than from a tile count,
+    // because the arrangement is no longer a projection of a square grid. The
+    // floor is still a 2:1 diamond; it just has to be big enough to contain a
+    // block of desks that is wider than it is deep.
+    const seatW = (cols - 1) * PITCH_COL + (rows - 1) * ROW_SHEAR
+    const seatH = ((rows - 1) * PITCH_ROW) / 2
+    const halfW = Math.max(seatW, seatH * 2) / 2 + margin
     const floorW = halfW * TILE_W
     const floorH = halfW * TILE_H
-    const cx = ((cols - 1) * PITCH_COL - (rows - 1) * PITCH_ROW) * (TILE_W / 4)
-    const cy = ((cols - 1) * PITCH_COL + (rows - 1) * PITCH_ROW) * (TILE_H / 4)
+    const cx = ((cols - 1) * PITCH_COL - (rows - 1) * ROW_SHEAR) * (TILE_W / 2)
+    const cy = ((rows - 1) * PITCH_ROW * (TILE_H / 2)) / 2
 
     // The wall planes' screen slope, from the room's own geometry rather than
     // a literal 0.5, so wall-mounted things stay in plane if the projection
@@ -901,8 +945,9 @@ export function buildRoom(): RoomHandle {
         // rather than straight up the screen.
         // Halfway to the next desk *along the row*, which is the only gap a
         // divider ever fills. Between rows there is an aisle, not a panel.
+        // Level, because the row is.
         const dx = x + TILE_W * 0.5 * PITCH_COL
-        const dy = y + TILE_H * 0.5 * PITCH_COL
+        const dy = y
         furniture
           .moveTo(dx - 10, dy - 5 - 18)
           .lineTo(dx + 10, dy + 5 - 18)
