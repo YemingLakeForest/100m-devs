@@ -12,6 +12,7 @@ import {
   hireQuote,
   massHire,
   setHireMultiplier,
+  takeSeedRound,
   triggerParadigmShift,
   type GameState,
 } from '../game/store.ts'
@@ -30,7 +31,7 @@ import { Dialogue } from '../ui/Dialogue.tsx'
 import { SCENES } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
 import { Upgrades } from './Upgrades.tsx'
-import { actionFor, formatMoney, type ActionSpec } from './hudModel.ts'
+import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
 
 /**
@@ -120,7 +121,7 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
       </div>
 
       <Bubble text={state.bubble?.text ?? null} />
-      <ActionBar spec={actionFor(state.phase)} state={state} />
+      <ActionBar spec={actionFor(state.phase)} offer={offerFor(state.phase)} state={state} />
 
       <div className="hud__script">
         {/*
@@ -189,11 +190,63 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
   )
 }
 
-/** The three store verbs this layer is allowed to call, by `ActionSpec.action`. */
+/** The store verbs this layer is allowed to call, by `ActionSpec.action`. */
 const RUN_ACTIONS: Record<ActionSpec['action'], () => void> = {
   hire: hireDeveloper,
   massHire,
   paradigmShift: triggerParadigmShift,
+  takeSeed: takeSeedRound,
+}
+
+/** What an action costs right now, or null if it is free. */
+function priceOf(spec: ActionSpec | null, state: GameState) {
+  if (spec?.priced === 'hire') return hireQuote(state)
+  if (spec?.priced === 'massHire') {
+    return {
+      count: MASS_HIRE_COUNT,
+      cost: currentMassHireCost(state),
+      affordable: canMassHire(state),
+    }
+  }
+  return null
+}
+
+/**
+ * One button, priced and gated.
+ *
+ * Shared by the primary action and §21.0a's offer, because they are now on
+ * screen together and the two must not drift: a temptation styled or gated
+ * differently from the control beside it is a second thing to keep in sync
+ * every time either changes.
+ */
+function ActionButton({ spec, state }: { spec: ActionSpec; state: GameState }) {
+  const q = priceOf(spec, state)
+  return (
+    <Button
+      variant={spec.variant}
+      onClick={RUN_ACTIONS[spec.action]}
+      // §21.0 — a purchase the player cannot afford is refused by the store
+      // anyway, but a button that looks live and does nothing is worse than one
+      // that says so.
+      disabled={q !== null && !q.affordable}
+    >
+      {/*
+        The face carries the batch, because at x100 "HIRE DEVELOPER" is a lie
+        about what the tap does. Below the dial's unlock it reads exactly as it
+        always did — the multiplier is 1 and the count is suppressed rather than
+        rendered as "x1".
+      */}
+      {spec.showsHireCost && q && q.count > 1 ? `${spec.label}  x${q.count}` : spec.label}
+      {/*
+        The mousetrap shows its joke *and* its figure. "Cost: YOUR ENTIRE
+        TREASURY" is funny while there is a treasury and says nothing at all
+        when there is not, so the number goes underneath it — which is also
+        what tells a broke player what they are waiting for.
+      */}
+      {spec.note && <small>{spec.note}</small>}
+      {q && <small>{formatMoney(q.cost)}</small>}
+    </Button>
+  )
 }
 
 /**
@@ -209,7 +262,15 @@ const RUN_ACTIONS: Record<ActionSpec['action'], () => void> = {
  * `actionFor` returns null, and rendering that directly would slide an empty
  * box down the screen while the button it was holding had already blinked out.
  */
-function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState }) {
+function ActionBar({
+  spec,
+  offer,
+  state,
+}: {
+  spec: ActionSpec | null
+  offer: ActionSpec | null
+  state: GameState
+}) {
   // React's "adjusting state when a prop changes" pattern: set during render,
   // never in an effect, so the latched spec and the `open` flag are committed
   // in the same paint. An effect would give the panel one frame holding the
@@ -218,24 +279,25 @@ function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState 
   const [shown, setShown] = useState(spec)
   if (spec !== null && spec !== shown) setShown(spec)
 
-  // What the shown action costs and whether it can be paid for — **one path
-  // for every priced action**, keyed off `ActionSpec.priced`.
-  //
-  // These were separate before and the mousetrap fell through the gap: its
-  // `disabled` was gated on `showsHireCost`, which it does not set, so it was
-  // live at every cash level including zero. A button that says "Cost: YOUR
-  // ENTIRE TREASURY" and works when the treasury is empty is the interface
-  // telling the player the price is fiction.
-  const q =
-    shown?.priced === 'hire'
-      ? hireQuote(state)
-      : shown?.priced === 'massHire'
-        ? { count: MASS_HIRE_COUNT, cost: currentMassHireCost(state), affordable: canMassHire(state) }
-        : null
+  // The offer is latched the same way and for the same reason, but separately:
+  // it arrives and leaves on its own schedule and must not drag the primary
+  // control's animation with it.
+  const [shownOffer, setShownOffer] = useState(offer)
+  if (offer !== null && offer !== shownOffer) setShownOffer(offer)
 
   return (
     <Panel open={spec !== null} from="bottom" className="hud__actions">
-      {shown?.showsHireCost && (
+      {/*
+        §21.0a — the temptation sits ABOVE the ordinary control, and both are
+        live. Act III used to *replace* the hire button with this, which turns a
+        trap into a corridor: a player left no alternative has not chosen
+        anything, and §6's lesson only lands if the decision was theirs.
+      */}
+      <Panel open={offer !== null} from="bottom" className="hud__offer" silent>
+        {shownOffer && <ActionButton spec={shownOffer} state={state} />}
+      </Panel>
+
+      {shown?.showsHireCost && state.dialUnlocked && (
         // Above the button, per §10.10.1's layout: the multiplier is chosen
         // and *then* committed, so it belongs earlier in the reading order and
         // further from the thumb than the thing it commits.
@@ -246,38 +308,7 @@ function ActionBar({ spec, state }: { spec: ActionSpec | null; state: GameState 
           onChange={setHireMultiplier}
         />
       )}
-      {shown && (
-        <Button
-          variant={shown.variant}
-          onClick={RUN_ACTIONS[shown.action]}
-          // §21.0 — a hire the player cannot afford is refused by the store
-          // anyway, but a button that looks live and does nothing is worse
-          // than one that says so.
-          disabled={q !== null && !q.affordable}
-        >
-          {/*
-            The face carries the batch, because at x100 "HIRE DEVELOPER" is a
-            lie about what the tap does. Below the dial's unlock it reads
-            exactly as it always did — the multiplier is 1 and the count is
-            suppressed rather than rendered as "x1".
-          */}
-          {shown.showsHireCost && q && q.count > 1 ? `${shown.label}  x${q.count}` : shown.label}
-          {/*
-            §10.10.1 — the TRUE sum of the next n hires, never n x current.
-            `hireQuote` takes it from the closed form; `nextHireCost` is only
-            right for a batch of one and would understate every other batch,
-            which would read as a lie the first time a player checked.
-          */}
-          {/*
-            The mousetrap shows its joke *and* its figure. "Cost: YOUR ENTIRE
-            TREASURY" is funny while there is a treasury and says nothing at
-            all when there is not, so the number goes underneath it — which is
-            also what tells a broke player what they are waiting for.
-          */}
-          {shown.note && <small>{shown.note}</small>}
-          {q && <small>{formatMoney(q.cost)}</small>}
-        </Button>
-      )}
+      {shown && <ActionButton spec={shown} state={state} />}
     </Panel>
   )
 }

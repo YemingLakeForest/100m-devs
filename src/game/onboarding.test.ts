@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ACT1_POKES_REQUIRED,
   ACT2A_ENDS_AT,
+  SEED_ROUND_AT,
   DESPERATE_TAPS_BEFORE_REBUKE,
   MASS_HIRE_COUNT,
   PHASE_COPY,
@@ -20,6 +21,7 @@ const base: OnboardingSnapshot = {
   cash: 0,
   entropy: 0,
   bankrupt: false,
+  seedTaken: false,
 }
 
 const at = (p: Partial<OnboardingSnapshot>) => ({ ...base, ...p })
@@ -103,20 +105,35 @@ describe('Act II — James', () => {
     expect(advanceOnboarding('act2_ship', at({ devs: 2, projectsShipped: 1 }))).toBe('act2a_loop')
   })
 
-  it('does not hand over the bait until Act IIa has been played', () => {
+  it('does not hand over the bait until the loop has been played', () => {
     // §21.0: "An earlier draft of this script went 1 dev -> 2 devs -> 1,000
     // devs. That is too fast, and it breaks the trap it exists to set." The
     // loop between shipping and the offer is the whole reason the collapse
-    // lands as a betrayal, so the jump straight from act2_ship to act3_bait
-    // is pinned shut here rather than left to a reading of the phase list.
+    // lands as a betrayal, so the jump straight from act2_ship to act3_bait is
+    // pinned shut here rather than left to a reading of the phase list.
     expect(advanceOnboarding('act2a_loop', at({ devs: 2, projectsShipped: 1 }))).toBe('act2a_loop')
-    expect(advanceOnboarding('act2a_loop', at({ devs: 39, projectsShipped: 4 }))).toBe('act2a_loop')
+    expect(advanceOnboarding('act2b_loop', at({ devs: 39, projectsShipped: 4 }))).toBe('act2b_loop')
   })
 
-  it('ends Act IIa on the first twitch of the readout, not on a round number', () => {
+  it('puts the Seed Round where hiring has become a habit — §21.0a', () => {
+    // Ten: enough hires to have a habit, not enough to be bored of it. Act IIa
+    // was a four-minute stretch with no events in it before this landed.
+    expect(advanceOnboarding('act2a_loop', at({ devs: SEED_ROUND_AT - 1 }))).toBe('act2a_loop')
+    expect(advanceOnboarding('act2a_loop', at({ devs: SEED_ROUND_AT }))).toBe('act2a_seed')
+  })
+
+  it('waits for the player to actually sign', () => {
+    // The one beat in Run 1 that is pure upside, and it still has to be taken:
+    // §6's lesson needs every step into the trap to have been a decision,
+    // including the ones that felt like good news.
+    expect(advanceOnboarding('act2a_seed', at({ devs: 200 }))).toBe('act2a_seed')
+    expect(advanceOnboarding('act2a_seed', at({ seedTaken: true }))).toBe('act2b_loop')
+  })
+
+  it('ends Act II on the first twitch of the readout, not on a round number', () => {
     // 40 is where E first reads as something other than IN SYNC. The player
     // must get exactly one hint and wave it away.
-    expect(advanceOnboarding('act2a_loop', at({ devs: ACT2A_ENDS_AT }))).toBe('act3_bait')
+    expect(advanceOnboarding('act2b_loop', at({ devs: ACT2A_ENDS_AT }))).toBe('act3_bait')
   })
 
   it('really is twice as fast with James — the premise has to be true', () => {

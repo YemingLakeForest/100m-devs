@@ -17,8 +17,12 @@ export type Phase =
   | 'act2_offer_hire'
   /** Act II — James is here; ship the thing. */
   | 'act2_ship'
-  /** Act IIa — the honest loop. Ship, earn, hire, repeat, to ~40. */
+  /** Act IIa — the honest loop. Ship, earn, hire, repeat, to 10. */
   | 'act2a_loop'
+  /** §21.0a — the term sheet is on the table. Waits on the player taking it. */
+  | 'act2a_seed'
+  /** Act IIb — the loop again, with capacity, to ~40. */
+  | 'act2b_loop'
   /** Act III — the mousetrap is baited. */
   | 'act3_bait'
   /** Act IV — 1,000 devs land, entropy surges. */
@@ -33,6 +37,8 @@ export const PHASE_ORDER: readonly Phase[] = [
   'act2_offer_hire',
   'act2_ship',
   'act2a_loop',
+  'act2a_seed',
+  'act2b_loop',
   'act3_bait',
   'act4_collapse',
   'act5_bleeding',
@@ -65,6 +71,8 @@ export interface OnboardingSnapshot {
   cash: number
   entropy: number
   bankrupt: boolean
+  /** §21.0a — has the player accepted the term sheet? */
+  seedTaken: boolean
 }
 
 /**
@@ -123,6 +131,28 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
     advisor: 'Ship it. Hire. Ship it again.',
   },
 
+  act2a_seed: {
+    // §21.0a. Sincere, and the last time anybody in this game is.
+    terminal: [
+      '> INCOMING: TERM SHEET',
+      '',
+      '"We love what you’re building.',
+      ' We think you can build it FASTER."',
+      '',
+      'SEED ROUND OFFERED  --  $50,000',
+    ],
+    advisor:
+      'Somebody with money believes in you. That has never gone wrong for anyone.',
+    action: 'ACCEPT TERM SHEET',
+  },
+
+  act2b_loop: {
+    // Still no narration. §21.0a's Act IIb is Act IIa with capacity, and the
+    // player has just been handed the two things that change it — cash and the
+    // dial. Telling them what to do with those would take the discovery away.
+    advisor: 'Capacity unlocked. Spend it however you like.',
+  },
+
   act3_bait: {
     terminal: [
       '** LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED! **',
@@ -176,6 +206,27 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
  */
 export const ACT2A_ENDS_AT = 40
 
+/**
+ * §21.0a — where the Seed Round lands.
+ *
+ * Ten is chosen the same way forty was: it is the first headcount at which the
+ * player has hired **enough times to have a habit** and not yet enough to be
+ * bored of it. Two projects shipped, eight people hired, all with money they
+ * made. The round is a reward for a loop they already understand rather than a
+ * gift that arrives before they know what it is for.
+ */
+export const SEED_ROUND_AT = 10
+
+/**
+ * What the round is worth.
+ *
+ * Roughly ten hires at the price they will be paying just after it — enough to
+ * "feel like a different game for a minute" (§21.0a) without skipping Act IIb.
+ * A figure rather than a formula because it is a story beat: an investor wrote
+ * a number on a term sheet, and round numbers are what investors write.
+ */
+export const SEED_ROUND_CASH = 50_000
+
 export const MASS_HIRE_COUNT = 1000
 
 /**
@@ -219,12 +270,21 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
       return s.projectsShipped >= 1 ? 'act2a_loop' : phase
 
     case 'act2a_loop':
-      // §21.0: Act IIa ends at ~40 developers, and the number is not
-      // arbitrary — it is the first headcount at which the readout says
-      // something other than `IN SYNC` (E = 1.01%). Ending on that first
-      // twitch is what buys the "I saw that and ignored it" the collapse
-      // needs. Measured against the shipped `entropy()`, not chosen to be
-      // round.
+      // §21.0a — the term sheet arrives once the loop is a habit.
+      return s.devs >= SEED_ROUND_AT ? 'act2a_seed' : phase
+
+    case 'act2a_seed':
+      // Waits on the player accepting. It is the only beat in Run 1 that is
+      // pure upside, and it still has to be *taken* — §6's lesson needs every
+      // step into the trap to have been a decision.
+      return s.seedTaken ? 'act2b_loop' : phase
+
+    case 'act2b_loop':
+      // §21.0: Act II ends at ~40 developers, and the number is not arbitrary
+      // — it is the first headcount at which the readout says something other
+      // than `IN SYNC` (E = 1.01%). Ending on that first twitch is what buys
+      // the "I saw that and ignored it" the collapse needs. Measured against
+      // the shipped `entropy()`, not chosen to be round.
       return s.devs >= ACT2A_ENDS_AT ? 'act3_bait' : phase
 
     case 'act3_bait':

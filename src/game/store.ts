@@ -44,6 +44,8 @@ import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
 import {
   MASS_HIRE_COUNT,
+  SEED_ROUND_AT,
+  SEED_ROUND_CASH,
   REBUKE_LINE,
   advanceOnboarding,
   shouldRebuke,
@@ -183,6 +185,18 @@ export interface GameState {
    * reload that reshuffled forty faces would undo the whole point of them.
    */
   runSeed: number
+  /** §21.0a — the term sheet has been signed. Grants cash and the dial. */
+  seedTaken: boolean
+  /**
+   * §10.10.2 — is the hire dial available?
+   *
+   * Gated on the Seed Round rather than on a headcount. A capability that
+   * arrives because the player earned an event is a reward; one that arrives
+   * because a counter crossed 25 is a surprise, and the earlier draft was the
+   * latter. Outside Run 1 this is simply true from the first frame — the funnel
+   * is a first-run device and re-teaching it is an insult.
+   */
+  dialUnlocked: boolean
 
   /**
    * GDD §24.8 — the Overnight Build Report waiting to be shown, or null.
@@ -251,6 +265,8 @@ function freshRun(): GameState {
     massHired: false,
     hireMultiplier: 1,
     pokeRate: 0,
+    seedTaken: false,
+    dialUnlocked: false,
     pendingOffline: null,
     scene: null,
   }
@@ -428,6 +444,7 @@ export function tick(dtSeconds: number): void {
   const bankrupt = isBankrupt(after.cash)
 
   patch.phase = advanceOnboarding(after.phase, {
+    seedTaken: after.seedTaken,
     pokeCount: after.pokeCount,
     devs: after.devs,
     projectsShipped: after.projectsShipped,
@@ -531,6 +548,26 @@ export function canHire(s: GameState = state): boolean {
   return hireQuote(s).affordable
 }
 
+/**
+ * §21.0a — accept the term sheet.
+ *
+ * The only beat in Run 1 that is pure upside, and it still has to be *taken*:
+ * §6's lesson needs every step into the trap to have been a decision, including
+ * the ones that felt like good news at the time. It is also the moment the
+ * money stops being the player's — which is what makes Act V's bankruptcy land
+ * on somebody else's investment rather than on their savings.
+ */
+export function takeSeedRound(): boolean {
+  if (state.seedTaken) return false
+  set({
+    seedTaken: true,
+    dialUnlocked: true,
+    cash: state.cash + SEED_ROUND_CASH,
+    ...showBubble('Wait, we can just… hire more people now?', 6000),
+  })
+  return true
+}
+
 /** §10.10 — set the dial. Pure selection; nothing is bought until HIRE. */
 export function setHireMultiplier(m: Multiplier): void {
   set({ hireMultiplier: m })
@@ -544,7 +581,10 @@ export function setHireMultiplier(m: Multiplier): void {
  * segment where that is visible.
  */
 export function hireQuote(s: GameState = state): Quote {
-  return quote(s.devs, s.cash, s.hireMultiplier)
+  // A locked dial is pinned to one at a time, whatever the stored selection
+  // says — a save carried across a Paradigm Shift must not hand a fresh Act I
+  // player a x100 button.
+  return quote(s.devs, s.cash, s.dialUnlocked ? s.hireMultiplier : 1)
 }
 
 /**
@@ -936,8 +976,36 @@ export function jumpToPhase(phase: Phase): void {
       // unlocked at 25 and the readout has not twitched yet.
       set({ ...run, phase, devs: 26, projectsShipped: 1, cash: 2_000, projectIndex: 1 })
       break
+    case 'act2a_seed':
+      set({ ...run, phase, devs: SEED_ROUND_AT, projectsShipped: 2, cash: 400, projectIndex: 1 })
+      break
+    case 'act2b_loop':
+      // Post-round: the money is in and the dial is live, which is the state
+      // §21.0a's Act IIb actually starts from.
+      set({
+        ...run,
+        phase,
+        devs: SEED_ROUND_AT,
+        projectsShipped: 2,
+        cash: SEED_ROUND_CASH,
+        projectIndex: 1,
+        seedTaken: true,
+        dialUnlocked: true,
+      })
+      break
     case 'act3_bait':
-      set({ ...run, phase, devs: 2, projectsShipped: 1, cash: 50, projectIndex: 1 })
+      // The offer is a temptation beside the ordinary control now, so this
+      // seam has to set up a studio that could plausibly take it *or not*.
+      set({
+        ...run,
+        phase,
+        devs: 40,
+        projectsShipped: 3,
+        cash: 8_000,
+        projectIndex: 1,
+        seedTaken: true,
+        dialUnlocked: true,
+      })
       break
     case 'act4_collapse':
     case 'act5_bleeding':

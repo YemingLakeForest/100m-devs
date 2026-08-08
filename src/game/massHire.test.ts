@@ -27,9 +27,15 @@ import {
   massHire,
 } from './store.ts'
 
+/** Whatever headcount Act III starts from. Read, never hard-coded — §21.0a
+ *  moved it from 2 to 40 and three assertions here silently became about the
+ *  debug seam's numbers rather than about the refusal they were checking. */
+let startDevs = 0
+
 beforeEach(() => {
   __resetStore()
   jumpToPhase('act3_bait')
+  startDevs = getState().devs
 })
 
 describe('affordability', () => {
@@ -40,7 +46,7 @@ describe('affordability', () => {
     // And, crucially, changed nothing. A refused purchase that still moves the
     // headcount or the money is worse than one that succeeds.
     expect(getState().cash).toBe(0)
-    expect(getState().devs).toBe(2)
+    expect(getState().devs).toBe(startDevs)
     expect(getState().massHired).toBe(false)
   })
 
@@ -54,7 +60,7 @@ describe('affordability', () => {
     setState({ cash: -5_000 })
     expect(canMassHire()).toBe(false)
     expect(massHire()).toBe(false)
-    expect(getState().devs).toBe(2)
+    expect(getState().devs).toBe(startDevs)
   })
 
   it('takes the whole treasury when there is one', () => {
@@ -64,7 +70,7 @@ describe('affordability', () => {
     expect(canMassHire()).toBe(true)
     expect(massHire()).toBe(true)
     expect(getState().cash).toBe(0)
-    expect(getState().devs).toBe(2 + MASS_HIRE_COUNT)
+    expect(getState().devs).toBe(startDevs + MASS_HIRE_COUNT)
   })
 
   it('is affordable exactly at the floor and not a penny below', () => {

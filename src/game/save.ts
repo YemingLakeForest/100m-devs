@@ -76,6 +76,8 @@ export interface RunSave {
   massHired: boolean
   hireMultiplier: number | 'max'
   runSeed: number
+  seedTaken: boolean
+  dialUnlocked: boolean
 }
 
 /**
@@ -250,6 +252,8 @@ export function makeSaveData(state: GameState): SaveData {
       massHired: state.massHired,
       hireMultiplier: state.hireMultiplier,
       runSeed: state.runSeed,
+      seedTaken: state.seedTaken,
+      dialUnlocked: state.dialUnlocked,
     },
     permanent: {
       layer1: { ...permanent.layer1 },
@@ -415,6 +419,8 @@ function normaliseRun(value: unknown): RunSave {
     // It gets a fresh studio rather than a crash, which is the correct
     // migration: nobody had names to lose.
     runSeed: typeof r.runSeed === 'number' && r.runSeed > 0 ? r.runSeed : (Date.now() >>> 0),
+    seedTaken: bool(r.seedTaken, false),
+    dialUnlocked: bool(r.dialUnlocked, false),
   }
 }
 

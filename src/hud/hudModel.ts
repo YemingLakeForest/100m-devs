@@ -113,7 +113,7 @@ export interface ActionSpec {
   /** Second line, smaller. The Act III promo pitch. */
   note?: string
   variant: 'default' | 'bait'
-  action: 'hire' | 'massHire' | 'paradigmShift'
+  action: 'hire' | 'massHire' | 'paradigmShift' | 'takeSeed'
   /**
    * Render the live price beneath the label — §21.0, hiring costs money.
    *
@@ -150,6 +150,13 @@ const HIRE: ActionSpec = {
   priced: 'hire',
 }
 
+const TAKE_SEED: ActionSpec = {
+  label: 'ACCEPT TERM SHEET',
+  note: '+$50,000',
+  variant: 'default',
+  action: 'takeSeed',
+}
+
 const MASS_HIRE: ActionSpec = {
   label: 'HIRE 1,000 DEVS NOW',
   // §21.0 — no longer free. "Cost: FREE (Trial Promo)" made it a button rather
@@ -179,12 +186,34 @@ export function actionFor(phase: Phase): ActionSpec | null {
     // act with a verb and no button.
     // falls through
     case 'act2a_loop':
-      return HIRE
+    case 'act2b_loop':
+    // §21.0a — **the mousetrap no longer replaces the hire control.** Act III
+    // keeps the ordinary verb; the offer arrives beside it as `offerFor`.
+    // falls through
     case 'act3_bait':
-      return MASS_HIRE
+      return HIRE
+    case 'act2a_seed':
+      return TAKE_SEED
     default:
       return null
   }
+}
+
+/**
+ * The temptation, if this beat has one — §21.0a.
+ *
+ * Separate from {@link actionFor} because it is a *second* control on screen at
+ * the same time, which is the one place §21's funnel deliberately widens. The
+ * earlier design had Act III swap the hire button for the offer, and that turns
+ * a trap into a corridor: **a player who is left no alternative has not chosen
+ * anything**, and §6's lesson is only a lesson if the decision was theirs.
+ *
+ * So both are live. Hiring past the threshold by ordinary means still reaches
+ * Act IV; it just takes longer and costs more, which is the point — and is, if
+ * anything, the more honest version of the lesson.
+ */
+export function offerFor(phase: Phase): ActionSpec | null {
+  return phase === 'act3_bait' ? MASS_HIRE : null
 }
 
 /* --- the upgrades entry point, GDD §11 ----------------------------------- */

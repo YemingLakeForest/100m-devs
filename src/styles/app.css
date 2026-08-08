@@ -363,6 +363,19 @@ body {
   padding-bottom: 2px;
 }
 
+/*
+ * §21.0a — the Act III offer, stacked above the ordinary hire control.
+ *
+ * A Panel of its own so it can arrive and leave on its own schedule: the
+ * temptation appears mid-act while the hire button has been there for minutes,
+ * and one shared entrance would re-animate a control the player is mid-tap on.
+ */
+.hud__offer {
+  display: grid;
+  justify-items: center;
+  margin-bottom: 2px;
+}
+
 /* --- the hire dial — GDD §10.10 ----------------------------------------- */
 
 /*

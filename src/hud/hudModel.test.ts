@@ -9,6 +9,7 @@ import {
   entropyPercent,
   formatMoney,
   formatVelocity,
+  offerFor,
   runwayReadout,
 } from './hudModel.ts'
 
@@ -112,7 +113,27 @@ describe('the action bar — §21 is a funnel', () => {
     // whole interface of that beat -- but it is the *same* control as Act II's,
     // not a second one, which is why the funnel is still a funnel.
     const offered = PHASE_ORDER.filter((p) => actionFor(p) !== null)
-    expect(offered).toEqual<Phase[]>(['act2_offer_hire', 'act2a_loop', 'act3_bait'])
+    expect(offered).toEqual<Phase[]>([
+      'act2_offer_hire',
+      'act2a_loop',
+      'act2a_seed',
+      'act2b_loop',
+      'act3_bait',
+    ])
+  })
+
+  it('offers the temptation on exactly one beat, and never as the only option', () => {
+    // §21.0a — the mousetrap no longer *replaces* the hire control. Act III
+    // used to swap one for the other, which turns a trap into a corridor: a
+    // player left no alternative has not chosen anything, and §6's lesson only
+    // lands if the decision was theirs. So wherever an offer exists, an
+    // ordinary action must exist beside it.
+    const tempted = PHASE_ORDER.filter((p) => offerFor(p) !== null)
+    expect(tempted).toEqual<Phase[]>(['act3_bait'])
+    for (const p of tempted) {
+      expect(actionFor(p)).not.toBeNull()
+      expect(actionFor(p)?.action).toBe('hire')
+    }
   })
 
   it('gives Act IIa the ordinary hire control, not a second flavour of it', () => {
@@ -123,8 +144,10 @@ describe('the action bar — §21 is a funnel', () => {
 
   it('makes the mousetrap the one control permitted to beg', () => {
     expect(actionFor('act2_offer_hire')?.variant).toBe('default')
-    expect(actionFor('act3_bait')?.variant).toBe('bait')
-    expect(actionFor('act3_bait')?.note).toContain('TREASURY')
+    expect(offerFor('act3_bait')?.variant).toBe('bait')
+    expect(offerFor('act3_bait')?.note).toContain('TREASURY')
+    // And the ordinary control beside it does not beg.
+    expect(actionFor('act3_bait')?.variant).toBe('default')
   })
 
   it('prices every action it offers', () => {
@@ -135,7 +158,7 @@ describe('the action bar — §21 is a funnel', () => {
     // priced, or the action bar has no way to know when it is dead.
     for (const phase of PHASE_ORDER) {
       const spec = actionFor(phase)
-      if (spec && spec.action !== 'paradigmShift') {
+      if (spec && spec.action !== 'paradigmShift' && spec.action !== 'takeSeed') {
         expect(spec.priced).toBeDefined()
       }
     }
