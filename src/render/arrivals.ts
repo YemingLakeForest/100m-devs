@@ -92,7 +92,16 @@ export function puffAlpha(t: number): number {
  * arrivals do not take seven seconds.
  */
 export const CASCADE_STEP_MS = 70
-export const CASCADE_MAX_MS = 1200
+/**
+ * The longest a cascade may take.
+ *
+ * Raised for the Mass Hire. At 1.2 s a hundred and twenty bodies land in under
+ * ten frames each and the wave is over before the eye has followed it across
+ * the room; at 2.2 s it reads as a *flood* filling the floor, which is what
+ * §21's Act IV is for. Still bounded, because a cascade the player is waiting
+ * on has stopped being feedback.
+ */
+export const CASCADE_MAX_MS = 2200
 
 export function cascadeDelay(i: number, n: number): number {
   if (n <= 1) return 0

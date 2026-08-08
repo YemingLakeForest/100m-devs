@@ -7,22 +7,26 @@
  * drive-bys are the high-entropy behaviour, nothing touches the simulation —
  * are all testable without a renderer.
  *
- * **The bubbles are abstract**, not typed. §7.8.6 points at §19's dialogue
- * library for what they say, and §19's lines are sentences: at the size one
- * developer occupies on a floor of eighty, a sentence is a grey smear and forty
- * of them are a fog. So a bubble here is a balloon with two or three dashes in
- * it, in the same visual language as the code on the monitors — which reads
- * instantly as *speech* at every zoom the room tier reaches. The legible line
- * belongs to the §7.5 HUD bubble, which is already how the game says something
- * the player is meant to actually read.
+ * **The bubbles carry text.** They were abstract dashes first, on the argument
+ * that §19's sentences are a grey smear at the size one developer occupies —
+ * which is true of §19's sentences and was the wrong conclusion. The fix is
+ * shorter lines, not no lines: `chatter.ts` writes to about thirty characters,
+ * which fits. This is the cheapest comedy surface in the product, one string
+ * and no art, and a wordless bubble spends the whole animation and keeps none
+ * of the joke.
+ *
+ * Text is baked to a texture once per line and cached, never constructed per
+ * frame — there are at most twelve bubbles up at a time (§7.8.6 rule 3) and
+ * about forty distinct lines, so the cache is small and warm within a minute.
  *
  * §7.8.6 rule 2 is the one to protect: **nothing here is ever read back by the
  * simulation**. This module exports no state and the room never asks it a
  * question — it only tells it how much time has passed.
  */
 
-import { Container, Graphics } from 'pixi.js'
+import { Container, Graphics, Text } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
+import { chatterLine, exchange, loiterLine } from '../game/chatter.ts'
 import {
   DURATION,
   PARTICIPANTS,
@@ -52,6 +56,8 @@ export interface Seat {
 
 interface Live {
   kind: Behaviour
+  /** What is said. One line, or two for an exchange. */
+  says: readonly string[]
   /** Seat indices taking part. First is the instigator. */
   who: number[]
   /**
@@ -131,6 +137,62 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
   /** Seat index -> the behaviour occupying it, so nobody is double-booked. */
   const busy = new Map<number, Live>()
 
+  /**
+   * Speech-bubble labels, pooled **per instance**.
+   *
+   * `Text` is expensive to construct and cheap to move, so they are made once,
+   * parked, and re-pointed at whatever is being said this frame. At most twelve
+   * bubbles exist at once (§7.8.6 rule 3), so the pool never grows past about
+   * that.
+   *
+   * Instance-local rather than module-local, which was the first draft: a
+   * shared pool would have two rooms writing over each other's words, and
+   * `destroy` on one would take the other's labels with it.
+   */
+  const labels: Text[] = []
+  let labelsUsed = 0
+  /**
+   * Set once if `Text` cannot be constructed — which happens wherever there is
+   * no canvas to measure against. The bubble then draws without words rather
+   * than throwing, so the *behaviour* stays testable headlessly and a real
+   * device that somehow fails to make a Text loses the joke rather than the
+   * frame.
+   */
+  let textUnavailable = false
+
+  function label(text: string): Text | null {
+    if (textUnavailable) return null
+    let t = labels[labelsUsed]
+    if (!t) {
+      try {
+        t = new Text({
+          style: {
+            // ART_DIRECTION §3 — the one face. The generic fallback matters:
+            // the woff2 may not have loaded, and a missing font must degrade to
+            // the wrong monospace rather than to no words at all.
+            fontFamily: 'Departure Mono, monospace',
+            fontSize: 9,
+            fill: 0xffffff,
+          },
+        })
+        t.anchor.set(0.5, 0)
+      } catch {
+        textUnavailable = true
+        return null
+      }
+      labels.push(t)
+      layer.addChild(t)
+    }
+    labelsUsed++
+    if (t.text !== text) t.text = text
+    t.visible = true
+    return t
+  }
+
+  function hideLabels(from = 0) {
+    for (let i = from; i < labels.length; i++) labels[i].visible = false
+  }
+
   function end(a: Live) {
     for (const i of a.who) if (busy.get(i) === a) busy.delete(i)
     const at = live.indexOf(a)
@@ -153,8 +215,15 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
     const first = freeSeat(seats)
     if (first < 0) return
     const from = seats[first]
+    // Drawn once, at the start, and held for the life of the behaviour: a line
+    // re-rolled per frame would be a slot machine rather than a sentence.
+    const pair = exchange(rng())
+    const says =
+      PARTICIPANTS[kind] === 2 ? pair : [kind === 'water' ? loiterLine(rng()) : chatterLine(rng())]
+
     const a: Live = {
       kind,
+      says,
       who: [first],
       home: { x: from.x, y: from.y },
       target: null,
@@ -191,12 +260,16 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
 
     update(dt, { seats, props, devs, entropy, drawnIndividually }) {
       g.clear()
+      // Labels are claimed from the pool as bubbles are drawn; whatever is left
+      // over from last frame gets hidden at the end.
+      labelsUsed = 0
 
       if (!ambientRuns(devs, drawnIndividually) || seats.length === 0) {
         if (live.length > 0) {
           live.length = 0
           busy.clear()
         }
+        hideLabels()
         return
       }
 
@@ -225,9 +298,11 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
           // A bubble follows its speaker. The instigator of a walk is the one
           // who moves; everybody else bubbles over their own desk.
           const off = i === a.who[0] ? walkOffset(a, t) : ZERO
-          bubble(g, seat.x + off.x, seat.y + off.y - 46, t, a.kind)
+          bubble(label, g, seat.x + off.x, seat.y + off.y - 46, t, a.kind, a.says[n] ?? a.says[0])
         }
       }
+
+      hideLabels(labelsUsed)
     },
 
     offsetFor(i) {
@@ -245,6 +320,7 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
       live.length = 0
       busy.clear()
       g.clear()
+      hideLabels()
     },
 
     destroy() {
@@ -285,28 +361,48 @@ export function walkOffset(
  * the ramps the room already speaks: interface phosphor for talking, warn for
  * an interruption somebody did not ask for.
  */
-function bubble(g: Graphics, x: number, y: number, t: number, kind: Behaviour) {
+/**
+ * A speech balloon with words in it.
+ *
+ * Sized to its text rather than to a constant, so a two-word line does not sit
+ * in a box built for six. The balloon is drawn into the shared `Graphics` and
+ * the words are a pooled `Text` on top — one draw call for every bubble on the
+ * floor plus one node each for the labels.
+ */
+function bubble(
+  label: (text: string) => Text | null,
+  g: Graphics,
+  x: number,
+  y: number,
+  t: number,
+  kind: Behaviour,
+  says: string,
+) {
   // Pops in, holds, pops out. Nothing on this floor appears or vanishes.
   const grow = Math.min(1, t / 0.12)
   const fade = Math.min(1, (1 - t) / 0.15)
   const s = Math.min(grow, fade)
   if (s <= 0.01) return
 
-  const w = 22 * s
-  const h = 13 * s
   const fill = kind === 'driveby' ? RAMPS.WARN[0] : RAMPS.NEUTRAL[7]
-  const ink = kind === 'driveby' ? RAMPS.WARN[2] : RAMPS.NEUTRAL[4]
+  const ink = kind === 'driveby' ? RAMPS.NEUTRAL[0] : RAMPS.NEUTRAL[0]
 
-  g.roundRect(x - w / 2, y - h, w, h, 3 * s).fill({ color: c(fill), alpha: 0.92 })
+  const node = label(says)
+  if (node) {
+    node.scale.set(s)
+    node.tint = c(ink)
+  }
+
+  const w = (says.length * 5.4 + 10) * s
+  const h = 15 * s
+
+  g.roundRect(x - w / 2, y - h, w, h, 3 * s).fill({ color: c(fill), alpha: 0.95 })
   // The tail, pointing down at whoever is speaking.
   g.moveTo(x - 3 * s, y)
     .lineTo(x + 2 * s, y)
     .lineTo(x - 1 * s, y + 5 * s)
     .closePath()
-    .fill({ color: c(fill), alpha: 0.92 })
+    .fill({ color: c(fill), alpha: 0.95 })
 
-  for (let i = 0; i < 2; i++) {
-    const lw = (i === 0 ? 13 : 8) * s
-    g.rect(x - w / 2 + 3 * s, y - h + (4 + i * 4) * s, lw, 1.5 * s).fill(c(ink))
-  }
+  node?.position.set(x, y - h + 3 * s)
 }

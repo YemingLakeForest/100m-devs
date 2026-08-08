@@ -185,6 +185,16 @@ export interface GameState {
    * reload that reshuffled forty faces would undo the whole point of them.
    */
   runSeed: number
+  /**
+   * The last project to ship, and what it paid — §10.8a.
+   *
+   * Held as an *event* with an id rather than as a flag, so the renderer and
+   * the HUD can both notice it exactly once. Shipping is the loop's payoff and
+   * it was completely silent: the burn-down reset, the cash readout stepped up,
+   * and nothing marked the moment. A player in Act I could ship their first
+   * project without realising they had.
+   */
+  ship: { id: number; name: string; revenue: number; at: number } | null
   /** §21.0a — the term sheet has been signed. Grants cash and the dial. */
   seedTaken: boolean
   /**
@@ -265,6 +275,7 @@ function freshRun(): GameState {
     massHired: false,
     hireMultiplier: 1,
     pokeRate: 0,
+    ship: null,
     seedTaken: false,
     dialUnlocked: false,
     pendingOffline: null,
@@ -283,6 +294,8 @@ let nextSpawnId = 1
  * thing it exists not to be.
  */
 const snippets = new SnippetBag()
+
+let nextShipId = 1
 
 export function getState(): GameState {
   return state
@@ -397,6 +410,11 @@ function shipProject(s: GameState): Partial<GameState> {
   const next = PROJECTS[nextIndex]
 
   return {
+    // §10.8a — the moment gets an event. Named with the project that just
+    // shipped rather than the one now starting: the celebration is *for* the
+    // thing that finished, and by the time it renders `sprintName` has already
+    // moved on.
+    ship: { id: nextShipId++, name: s.sprintName, revenue, at: performance.now() },
     cash: s.cash + revenue,
     lifetimeRevenue: s.lifetimeRevenue + revenue,
     projectsShipped: s.projectsShipped + 1,
@@ -474,6 +492,8 @@ export function poke(x: number, y: number) {
     state: state.dev.state,
     zoom: state.zoom,
     efficiency: currentEfficiency(),
+    // §4.8 — a cosmic-zoom tap on a studio of forty hits forty people.
+    devs: state.devs,
   })
 
   const { machine, devLeaves } = pokeDevState(state.dev, state.hasCultureUpgrade)

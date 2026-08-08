@@ -91,6 +91,8 @@ export interface PokeInput {
   zoom: ZoomLevel
   /** Global efficiency eta from GDD §4.1 — pokes are taxed exactly like passive output. */
   efficiency: number
+  /** Headcount, so the blast radius cannot reach people who are not there. */
+  devs: number
 }
 
 export interface PokeResult {
@@ -104,9 +106,37 @@ export interface PokeResult {
   quits: boolean
 }
 
-/** Resolve one tap. */
-export function resolvePoke({ tier, state, zoom, efficiency }: PokeInput): PokeResult {
-  const sp = fibonacciTier(tier) * STATE_MULTIPLIER[state] * ZOOM_YIELD[zoom] * efficiency
+/**
+ * How many developers this tap actually lands on.
+ *
+ * The radius is a *ceiling*, not a promise: a cosmic-zoom tap on a studio of
+ * forty hits forty people, not a million.
+ */
+export function pokeReach(zoom: ZoomLevel, devs: number): number {
+  return Math.max(1, Math.min(ZOOM_BLAST_RADIUS[zoom], Math.floor(devs)))
+}
+
+/**
+ * Resolve one tap.
+ *
+ * **The blast radius multiplies the yield**, and until now it did not — the
+ * constant was declared, documented, and read by nothing. Half of §4.8 was
+ * therefore live and half was not: the per-dev penalty applied and the reach
+ * that pays for it did not, so zooming out was strictly worse at every
+ * headcount and the whole "zoom out to sweep, punch in to extract" rhythm the
+ * section exists to create was inverted.
+ *
+ * It also produced the visible symptom: a tap at L3 yielded 0.08 SP, which the
+ * floater rounded to `+0` while the simulation quietly banked it. A number that
+ * says nothing happened while something happens is worse than no number.
+ */
+export function resolvePoke({ tier, state, zoom, efficiency, devs }: PokeInput): PokeResult {
+  const sp =
+    fibonacciTier(tier) *
+    STATE_MULTIPLIER[state] *
+    ZOOM_YIELD[zoom] *
+    efficiency *
+    pokeReach(zoom, devs)
 
   return {
     sp,

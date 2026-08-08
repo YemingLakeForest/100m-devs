@@ -212,8 +212,13 @@ export function actionFor(phase: Phase): ActionSpec | null {
  * Act IV; it just takes longer and costs more, which is the point — and is, if
  * anything, the more honest version of the lesson.
  */
-export function offerFor(phase: Phase): ActionSpec | null {
-  return phase === 'act3_bait' ? MASS_HIRE : null
+export function offerFor(phase: Phase, massHired = false): ActionSpec | null {
+  // **A one-shot offer disappears once it has been taken.** It stayed, greyed
+  // out, because `canMassHire` correctly refuses a second Mass Hire and the
+  // disabled styling then did its job on a control that had no business still
+  // being there. A dead button is honest about a price the player cannot meet
+  // yet; it is just clutter for an offer that is over.
+  return phase === 'act3_bait' && !massHired ? MASS_HIRE : null
 }
 
 /* --- the upgrades entry point, GDD §11 ----------------------------------- */

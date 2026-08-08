@@ -376,6 +376,68 @@ body {
   margin-bottom: 2px;
 }
 
+/* --- the ship celebration — GDD §10.8a --------------------------------- */
+
+/*
+ * Centred over the room, above everything. Shipping is the loop's payoff and it
+ * was completely silent — this is the one moment per project that is allowed to
+ * take the middle of the screen.
+ *
+ * It does not take the pointer. §10.6: the swarm keeps simulating and the
+ * player keeps poking through it; a celebration that blocks the verb it is
+ * celebrating is a punishment.
+ */
+.ship-toast {
+  position: absolute;
+  inset: 22% 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  pointer-events: none;
+  text-align: center;
+  transition:
+    opacity 180ms linear,
+    transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ship-toast[data-open='false'] {
+  opacity: 0;
+  /* Leaves upward, the direction money goes. */
+  transform: translateY(-14px);
+}
+
+.ship-toast[data-open='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+.ship-toast__label {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 4px;
+  color: var(--p1);
+}
+
+.ship-toast__name {
+  margin: 0;
+  font-size: var(--type-2x);
+  color: var(--p3);
+}
+
+/*
+ * The number, and the reason the toast exists. Green, because this is the only
+ * place in the game where money moves in the player's favour -- the cash
+ * readout spends the whole run in --alarm, counting down. Seeing the same
+ * quantity in the opposite colour is what makes shipping feel like relief.
+ */
+.ship-toast__cash {
+  margin: 2px 0 0;
+  font-size: var(--type-3x);
+  line-height: 1;
+  color: var(--foliage-1);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--foliage-1) 45%, transparent);
+}
+
 /* --- the hire dial — GDD §10.10 ----------------------------------------- */
 
 /*

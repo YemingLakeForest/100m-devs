@@ -486,23 +486,17 @@ function buildDeveloper(look: Look): Container {
   g.moveTo(-11, -6).lineTo(-6, -4).lineTo(-6, 3).lineTo(-11, 1).closePath().fill(c(RAMPS.NEUTRAL[5]))
   g.moveTo(11, -10).lineTo(6, -8).lineTo(6, -1).lineTo(11, -3).closePath().fill(c(RAMPS.NEUTRAL[4]))
 
-  // The chair back, LAST and in front of them: their back faces south-east, so
-  // the chair between it and the camera is nearer than they are. Drawing it
-  // behind — where a front-facing figure would have wanted it — is what would
-  // give away that the figure had been turned round rather than redrawn.
+  // **No chair back.** There was one — a low mid-grey slab in front of the
+  // body, on the argument that a figure whose back faces the camera has their
+  // chair between them and the lens. That is true and it does not survive
+  // contact with the floor: at eighty developers it is eighty grey rectangles
+  // in front of eighty people, and because it sits in the near field it is the
+  // first thing the eye lands on. It read as an unidentifiable grey bit rather
+  // than as furniture.
   //
-  // Kept low and mid-toned. The first pass had it full-height in NEUTRAL[2],
-  // which made every developer on the floor read as a large dark slab with a
-  // head on top — the chair was bigger than the person, and at ninety of them
-  // the room looked like a server hall. A chair back is a *support*; it only
-  // needs to reach the shoulder blades to be read as one.
-  g.moveTo(-9, 8)
-    .lineTo(9, -1)
-    .lineTo(9, 12)
-    .lineTo(-9, 21)
-    .closePath()
-    .fill(c(RAMPS.NEUTRAL[3]))
-  g.moveTo(-9, 8).lineTo(9, -1).lineTo(9, 1.5).lineTo(-9, 10.5).closePath().fill(c(RAMPS.NEUTRAL[4]))
+  // The body already sits at desk height and the desk already occludes the
+  // lower half of it, so the chair was carrying no information the picture did
+  // not already have. Removing it is a straight gain in legibility.
 
   dev.addChild(g)
   dev.label = 'developer'

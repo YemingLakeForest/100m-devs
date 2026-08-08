@@ -4,8 +4,11 @@ import { __resetStore, jumpToPhase } from '../game/store.ts'
 import { Hud } from './Hud.tsx'
 
 // The kit's sound bank goes through the native path, which has no business
-// being loaded by a layout test.
+// being loaded by a layout test. `sfx.ts` joined the list when the ship
+// celebration started scoring itself: it pulls in the Capacitor native-audio
+// plugin, which throws at import time under jsdom.
 vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn() }))
+vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
 
 afterEach(() => {
   cleanup()

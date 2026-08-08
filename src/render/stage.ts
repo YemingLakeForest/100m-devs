@@ -48,6 +48,16 @@ export interface StageHandle {
 /** Samples kept for the latency percentile. 120 taps is ~24 s at 5 taps/sec. */
 const LATENCY_WINDOW = 120
 
+/**
+ * How long a poke floater lives, and what fraction of that is the fade.
+ *
+ * Longer and later than the first pass. The numeral reads instantly; the §8.2a
+ * code snippet beside it is the payload, and a line of code that starts fading
+ * on the frame it appears is a joke told at a volume nobody can hear.
+ */
+const FLOATER_MS = 1500
+const FLOATER_FADE = 0.3
+
 export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const app = new Application()
 
@@ -508,9 +518,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         numerals.addChild(g)
         numeralGfx.set(f.id, g)
       }
-      const age = (now - f.bornAt) / 900
-      g.position.set(f.x, f.y - age * 70)
-      g.alpha = Math.max(0, 1 - age)
+      // §8.2a — the snippet is a *joke*, and a joke has to be finished being
+      // read. At 900 ms fading linearly from the first frame it was gone before
+      // it registered: the numeral is a number and reads instantly, but
+      // `while (true) { }` is four words and needs about a second of full
+      // opacity before it starts leaving.
+      const age = (now - f.bornAt) / FLOATER_MS
+      g.position.set(f.x, f.y - age * 58)
+      g.alpha = Math.max(0, Math.min(1, (1 - age) / FLOATER_FADE))
     }
     for (const [id, g] of numeralGfx) {
       if (!live.has(id)) {

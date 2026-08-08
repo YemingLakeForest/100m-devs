@@ -49,6 +49,13 @@ export function spawnBurst(before: number, after: number): number {
   if (before <= 0) return MAX_BURST
 
   const decades = Math.log10(after / before)
+  // **A tenfold hire fills the frame.** The ratio rule alone gave the Act III
+  // Mass Hire — forty developers to one thousand and forty — fifty-seven bodies
+  // across a hundred and twenty desks, so the single largest event in the run
+  // landed as a sprinkle over a half-empty room. Any hire that multiplies the
+  // studio by ten or more is not a hire, it is a transformation, and §7.7.2
+  // asks for it to be *seen*: every visible seat gets somebody dropped into it.
+  if (decades >= 1) return MAX_BURST
   return Math.min(MAX_BURST, Math.max(MIN_BURST, Math.round(BODIES_PER_DECADE * decades)))
 }
 

@@ -536,6 +536,58 @@ Communication Entropy's job, and the lesson has to come from §4.1 or it is a di
 lesson. With $50 banked and 1,002 developers, the run ends in **about 20 seconds**, inside
 the "within 60 seconds" §6.1 calls for.
 
+#### 4.10b **BLOCKING — the Act IIa economy does not close** [added 2026-08-08]
+
+§4.10 above is correct for the two scenarios it derives from, and **both of them have zero
+paid developers or one thousand**. §21.0 later inserted Act IIa — the honest loop from two
+developers to forty — and nobody re-derived the economy for the range in between. It does not
+work. Measured against the shipped constants:
+
+| Devs | Velocity | Time to ship 1,000 SP | Wages over that | Revenue |
+|---|---|---|---|---|
+| 2 | 2 SP/s | 500 s | **$0** | $50 |
+| 5 | 5 SP/s | 200 s | **$30,000** | $50 |
+| 10 | 10 SP/s | 100 s | **$40,000** | $50 |
+| 20 | 20 SP/s | 50 s | **$45,014** | $50 |
+| 40 | 39.6 SP/s | 25 s | **$47,986** | $50 |
+
+**A studio of five is already six hundred times underwater, and it gets worse with scale.**
+The loop §21.0 calls "load-bearing" — ship, earn, hire, ship faster — cannot be played: every
+hire makes the next project *less* affordable, and the only reason a run survives Act IIb at
+all is §21.0a's seed round, which then drains in about two minutes.
+
+This is not a tuning pass. It is a missing curve.
+
+##### The constraints any fix must respect
+
+1. **Wage stays at $50/paid dev/sec.** §21 Act V's "$50,000/sec" is stated copy and the
+   Act V beat is derived from it.
+2. **Two founders stay unpaid.** It is why the opening is survivable and why the Mass Hire
+   feels like a decision.
+3. ***Flappy Square 1.0* still pays about $50.** §21 Act II states it, and it is the joke —
+   the first game you ship earns pocket change.
+4. **Payroll stays linear.** §6.1 makes it the *timer*, not the trap; a superlinear wage
+   would be doing Communication Entropy's job and the lesson has to come from §4.1.
+
+Constraints 1–3 pin revenue at the bottom of the range and payroll everywhere, which means
+**the only free variable is how revenue scales with project size** — and the project ladder
+along with it. A studio ships bigger things, and bigger things earn disproportionately more;
+that is true of real games and it is the standard idle-genre answer. `REVENUE_PER_SP` is
+currently a flat $0.05/SP, which is the assumption that a forty-person studio's output is
+worth exactly forty times a solo developer's. It is not, and §5's era table already says so:
+Phase 1 ships *Flappy Square*, Phase 2 ships **MMORPGs and game engines**.
+
+##### Why it is written down rather than guessed at
+
+Revenue scaling and the §4.10's project ladder have to be designed *together* — a curve
+chosen without the ladder produces a run that is either trivial or impossible, and the
+ladder was already retuned once (§21.0) to fit a run length. Picking an exponent in
+isolation would be the third retune and the second one to miss this.
+
+**Nothing downstream of this is trustworthy until it is fixed**: Act IIa's length, Act IIb's
+length, the seed round's size, and the Mass Hire's price are all quoted in a currency the
+player cannot currently earn.
+
 ---
 
 ## 5. Progression Eras

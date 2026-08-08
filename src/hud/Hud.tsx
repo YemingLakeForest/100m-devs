@@ -22,6 +22,7 @@ import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
 import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
+import { ShipToast } from './ShipToast.tsx'
 import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
@@ -121,7 +122,8 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
       </div>
 
       <Bubble text={state.bubble?.text ?? null} />
-      <ActionBar spec={actionFor(state.phase)} offer={offerFor(state.phase)} state={state} />
+      <ShipToast state={state} />
+      <ActionBar spec={actionFor(state.phase)} offer={offerFor(state.phase, state.massHired)} state={state} />
 
       <div className="hud__script">
         {/*

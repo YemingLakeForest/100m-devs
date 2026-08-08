@@ -112,7 +112,13 @@ export function createPokeTypeset(renderer: Renderer): PokeTypeset {
     if (n >= 1e9) return `${sign}${(n / 1e9).toFixed(1)}B`
     if (n >= 1e6) return `${sign}${(n / 1e6).toFixed(1)}M`
     if (n >= 1e4) return `${sign}${(n / 1e3).toFixed(0)}K`
-    return `${sign}${Math.round(n)}`
+    // Below ten, round to a decimal rather than to an integer. `Math.round`
+    // turned every fractional yield into `+0` — a floater announcing that
+    // nothing happened while the simulation banked the points, which is the
+    // one thing a feedback numeral must never do.
+    if (n >= 10) return `${sign}${Math.round(n)}`
+    if (n >= 1) return `${sign}${n.toFixed(1).replace(/\.0$/, '')}`
+    return `${sign}${n.toFixed(2)}`
   }
 
   return {

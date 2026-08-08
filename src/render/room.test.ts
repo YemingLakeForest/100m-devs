@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 // never play anything.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: () => {} }))
 import { PITCH_COL, PITCH_ROW, ROOM_DEV_CAP, gridFor, perimeterPoint, propsAt } from './room.ts'
-import { BEAT, cascadeDelay, arrivalHeight, landingSquash, puffAlpha } from './arrivals.ts'
+import { BEAT, CASCADE_MAX_MS, cascadeDelay, arrivalHeight, landingSquash, puffAlpha } from './arrivals.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
 import { FLOOR_SPRITE_COUNT } from './scene.ts'
 
@@ -184,8 +184,13 @@ describe('arrivals — GDD §7.7.2, hiring is seen', () => {
   })
 
   it('caps the cascade so a big hire is not a seven-second queue', () => {
-    expect(cascadeDelay(99, 100)).toBeLessThanOrEqual(1.2)
-    expect(cascadeDelay(999, 1000)).toBeLessThanOrEqual(1.2)
+    // Bounded, not fast. The cap moved from 1.2 s to 2.2 s so the Act III Mass
+    // Hire reads as a flood filling the floor rather than as a wave that is
+    // over before the eye has crossed the room — but it stays bounded, because
+    // a cascade the player is waiting on has stopped being feedback.
+    expect(cascadeDelay(99, 100)).toBeLessThanOrEqual(CASCADE_MAX_MS / 1000)
+    expect(cascadeDelay(999, 1000)).toBeLessThanOrEqual(CASCADE_MAX_MS / 1000)
+    expect(CASCADE_MAX_MS).toBeLessThanOrEqual(2500)
   })
 
   it('lands the person LAST — §7.8.5, the desk and chair are setup', () => {
