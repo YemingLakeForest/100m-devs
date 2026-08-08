@@ -993,6 +993,11 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     pokeCount: r.pokeCount,
     desperateTaps: r.desperateTaps,
     phase: r.phase,
+    // §21.0a — both were persisted and neither was read back, so a returning
+    // player lost the dial and was offered the term sheet a second time. The
+    // save has carried these since they existed; only the restore was missing.
+    seedTaken: r.seedTaken,
+    dialUnlocked: r.dialUnlocked,
     massHired: r.massHired,
     // localEntropy, floaters, bubble, spawn and zoom are §24.2 ephemeral. Local
     // entropy in particular decays to baseline in ~8 seconds (§4.9), so any

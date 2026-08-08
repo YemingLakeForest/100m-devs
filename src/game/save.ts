@@ -329,8 +329,39 @@ export function migrate(data: SaveData): SaveData | null {
   return {
     version: SAVE_VERSION,
     savedAt: typeof data.savedAt === 'number' && Number.isFinite(data.savedAt) ? data.savedAt : 0,
-    run: normaliseRun(data.run),
+    run: repairStrandedBait(normaliseRun(data.run)),
     permanent: normalisePermanent(data.permanent),
+  }
+}
+
+/**
+ * Rescue a save stranded at Act III by the old Paradigm Shift.
+ *
+ * `triggerParadigmShift` used to set `phase: 'act3_bait'` with **two
+ * developers and no money**, so Run 2 opened at the mousetrap: the offer on
+ * screen, priced at a treasury the player did not have, and the only exit from
+ * that phase being `devs > 502`. The shift is fixed, and that fixes nothing for
+ * anybody who already prestiged — the broken phase is *written into their save*
+ * and every reload restores it.
+ *
+ * **A code fix that requires the player to clear localStorage is not a fix.**
+ * This is the repair, and it belongs on the load path rather than in a version
+ * migration because the saves are not a different *version*, they are a
+ * different *shape* that the current version can still produce a file in.
+ *
+ * The condition is deliberately narrow. A legitimate Act III has around forty
+ * developers, because that is the only way the phase machine reaches it; two
+ * developers who have never mass-hired can only have arrived by prestige.
+ */
+function repairStrandedBait(run: RunSave): RunSave {
+  const stranded = run.phase === 'act3_bait' && !run.massHired && run.devs < 10
+  if (!stranded) return run
+  return {
+    ...run,
+    phase: 'act2b_loop',
+    // §10.10.2 — a prestiged player does not get the funnel again.
+    seedTaken: true,
+    dialUnlocked: true,
   }
 }
 
