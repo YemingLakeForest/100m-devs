@@ -27,12 +27,38 @@ export function formatMoney(v: number): string {
   const sign = v < 0 ? '−' : ''
   const n = Math.abs(v)
   if (!Number.isFinite(n)) return `${sign}$∞`
-  if (n >= 1e12) return `${sign}$${(n / 1e12).toFixed(2)}T`
-  if (n >= 1e9) return `${sign}$${(n / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `${sign}$${(n / 1e6).toFixed(2)}M`
-  if (n >= 1e3) return `${sign}$${(n / 1e3).toFixed(1)}K`
+  if (n >= 1e3) {
+    // The ladder runs out long before this game's numbers do. It used to stop
+    // at T, so anything past a trillion fell through `(n/1e12).toFixed(2)` and
+    // printed **`$5.3368125747253396e+22T`** — a hire price at a thousand
+    // developers, where 1.08^n has already passed 10^34. Scientific notation
+    // with a magnitude suffix stuck on the end is not a number anybody can read
+    // and it is not a shape the interface uses anywhere else.
+    const magnitude = Math.floor(Math.log10(n) / 3)
+    if (magnitude >= SUFFIXES.length) {
+      // Past the ladder entirely. An exponent with no suffix is honest and
+      // short; an exponent *with* one is the bug this replaced.
+      return `${sign}$${n.toExponential(1).replace('e+', 'e')}`
+    }
+    const scaled = n / 10 ** (magnitude * 3)
+    // Precision matches what the shorter ladder used: one decimal at K, two
+    // above it. Changing that would move every figure in the interface for no
+    // reason connected to the fix.
+    return `${sign}$${scaled.toFixed(magnitude === 1 ? 1 : 2)}${SUFFIXES[magnitude]}`
+  }
   return `${sign}$${n.toFixed(0)}`
 }
+
+/**
+ * Short-scale magnitude suffixes, to a decillion.
+ *
+ * §1 promises 10^8 developers and §16's endgame goes further, and hire costs
+ * are *geometric* in headcount — so the money outruns the people by a wide
+ * margin and the ladder has to be long enough that nothing falls off the end.
+ * Past decillion the numbers stop being read and start being watched, which is
+ * what break_infinity.js is for; this is the display path, not the model.
+ */
+const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'] as const
 
 /**
  * Velocity spans 1e-6 SP/s in a seized studio to millions at scale, so a fixed

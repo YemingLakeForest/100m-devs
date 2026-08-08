@@ -396,6 +396,13 @@ function PerfOverlay({ stage }: { stage: StageHandle | null }) {
       <span className={latency > 80 ? 'is-bad' : undefined}>
         {latency > 0 ? `${latency.toFixed(0)}ms TAP` : '— TAP'}
       </span>
+      {/*
+        The build stamp. Small, permanently on, and worth every pixel: a stale
+        bundle is indistinguishable from a bug that will not die, and this turns
+        "am I looking at the code you just changed" into something a screenshot
+        answers.
+      */}
+      <span className="hud__build">{__BUILD_AT__}</span>
     </div>
   )
 }

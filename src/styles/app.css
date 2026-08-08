@@ -655,6 +655,12 @@ body {
 
 /* --- performance overlay, GDD §23.3 ------------------------------------ */
 
+.hud__build {
+  /* Dimmer than the gate readouts beside it: it is a fact about the bundle, not
+     a measurement, and it must never compete with a red FPS number. */
+  color: var(--p0);
+}
+
 .hud__perf {
   display: flex;
   gap: 8px;

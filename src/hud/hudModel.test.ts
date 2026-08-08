@@ -14,6 +14,30 @@ import {
 } from './hudModel.ts'
 
 describe('formatMoney', () => {
+  it('never falls off the end of its own suffix ladder', () => {
+    // The bug this caught, seen in a real production build: a hire price at a
+    // thousand developers is 1.08^1039, and the ladder stopped at T — so it
+    // printed `$5.3368125747253396e+22T`. Scientific notation with a magnitude
+    // suffix stuck on the end is not a number anybody can read.
+    for (let e = 3; e <= 36; e += 3) {
+      const out = formatMoney(10 ** e)
+      expect(out).not.toContain('e+')
+      expect(out).not.toContain('NaN')
+      expect(out.length).toBeLessThan(12)
+    }
+  })
+
+  it('degrades to a bare exponent past the ladder, never a hybrid', () => {
+    // Beyond a decillion the numbers stop being read and start being watched.
+    // An exponent on its own is fine there; an exponent with a magnitude suffix
+    // glued to the end is the thing that was wrong.
+    for (const v of [1e40, 1e120, Number.MAX_VALUE]) {
+      const out = formatMoney(v)
+      expect(out).not.toMatch(/e\d+[A-Za-z]/)
+      expect(out.length).toBeLessThan(12)
+    }
+  })
+
   it('short-forms up the magnitudes', () => {
     expect(formatMoney(0)).toBe('$0')
     expect(formatMoney(50)).toBe('$50')
