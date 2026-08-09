@@ -107,28 +107,40 @@ find_adb() {
 
 # ─── Wi-Fi debugging ──────────────────────────────────────────────────────────
 
+# The serial of the first wireless (ip:port) device connected as "device", if any.
+wifi_device_serial() {
+    "$ADB_PATH" devices | grep -E '^[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]+[[:space:]]+device$' \
+        | head -1 | awk '{print $1}' | tr -d '\r'
+}
+
 # Returns 0 if at least one wireless (ip:port) device is connected as "device".
 wifi_device_connected() {
-    "$ADB_PATH" devices | grep -qE '^[0-9]{1,3}(\.[0-9]{1,3}){3}:[0-9]+[[:space:]]+device$'
+    [[ -n "$(wifi_device_serial)" ]]
 }
 
 # Strip carriage returns / surrounding whitespace (MinGW `read` can leave \r).
 _clean() { echo "$1" | tr -d '\r' | xargs; }
 
 # Wait for an authorized USB device, prompting through the auth dialog if needed.
+#
+# `-d` throughout this section: it means "the one connected USB device", which
+# is exactly what these three functions are talking to. Bare `adb get-state` /
+# `adb shell` fail with "more than one device/emulator" the moment anything else
+# is attached, and this whole path exists to run *while* setting up a second
+# (wireless) entry for the same handset.
 ensure_usb_authorized() {
     if "$ADB_PATH" devices | grep -q "unauthorized"; then
         echo -e "${YELLOW}Phone shows 'unauthorized'. Accept the 'Allow USB debugging' dialog on the phone${NC}"
         read -rp "(check 'Always allow from this computer'), then press Enter... " _
     fi
-    [[ "$("$ADB_PATH" get-state 2>/dev/null | tr -d '\r')" == "device" ]]
+    [[ "$("$ADB_PATH" -d get-state 2>/dev/null | tr -d '\r')" == "device" ]]
 }
 
 # Auto-detect the phone's Wi-Fi (wlan0) IP via the authorized USB device.
 detect_phone_ip() {
     local ip
-    ip=$("$ADB_PATH" shell ip -f inet addr show wlan0 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print $2}' | head -1 | tr -d '\r')
-    [[ -z "$ip" ]] && ip=$("$ADB_PATH" shell ip route 2>/dev/null | grep -oE 'src [0-9.]+' | awk '{print $2}' | head -1 | tr -d '\r')
+    ip=$("$ADB_PATH" -d shell ip -f inet addr show wlan0 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print $2}' | head -1 | tr -d '\r')
+    [[ -z "$ip" ]] && ip=$("$ADB_PATH" -d shell ip route 2>/dev/null | grep -oE 'src [0-9.]+' | awk '{print $2}' | head -1 | tr -d '\r')
     echo "$ip"
 }
 
@@ -163,14 +175,17 @@ try_connect() {
 #   5. common home-network IPs
 #   6. fall back to plain USB install if a cable is attached
 connect_wifi_if_needed() {
-    if wifi_device_connected; then
-        echo -e "${GREEN}✓ Wireless device already connected${NC}"
-        return 0
-    fi
-
+    # --ip is checked before the already-connected shortcut, not after: asking
+    # for a specific handset while a different one happens to be connected is
+    # exactly when the flag is being used, and the shortcut would swallow it.
     if [[ -n "$TARGET_IP" ]]; then
         try_connect "$TARGET_IP" && return 0
         echo -e "${RED}Could not connect to ${TARGET_IP}.${NC}"
+    fi
+
+    if wifi_device_connected; then
+        echo -e "${GREEN}✓ Wireless device already connected${NC}"
+        return 0
     fi
 
     if [[ -f "$IP_CACHE" ]]; then
@@ -182,7 +197,7 @@ connect_wifi_if_needed() {
         if ensure_usb_authorized; then
             local phone_ip
             phone_ip=$(detect_phone_ip)
-            "$ADB_PATH" tcpip 5555 || true
+            "$ADB_PATH" -d tcpip 5555 || true
             sleep 2
             if [[ -n "$phone_ip" ]] && try_connect "$phone_ip"; then
                 echo -e "${YELLOW}You can unplug the USB cable now.${NC}"
@@ -231,17 +246,56 @@ echo -e "${GREEN}Found ADB at: $ADB_PATH${NC}"
 
 connect_wifi_if_needed
 
+# ─── Pick one device ──────────────────────────────────────────────────────────
+#
+# **Every adb call from here down is `-s "$ADB_TARGET"`, and that is the whole
+# point of this block.** The success case of `connect_wifi_if_needed` is a phone
+# attached over USB *and* connected over Wi-Fi — the same handset, listed twice,
+# because switching it to `tcpip 5555` does not unplug the cable. Bare
+# `adb install` then fails with "more than one device/emulator" and reports it
+# as an installation failure, which sends you looking at storage space and USB
+# cables for a problem that is neither.
+#
+# Wireless wins the tie: it is the connection this script goes out of its way to
+# establish, and preferring it means the cable can come out mid-session without
+# the next run behaving differently.
+
 echo -e "${CYAN}Checking for connected devices...${NC}"
-DEVICES=$("$ADB_PATH" devices | grep -E "device$|emulator-" | wc -l)
-if [[ $DEVICES -eq 0 ]]; then
-    echo -e "${RED}No Android device connected via USB/ADB.${NC}"
-    echo -e "${YELLOW}  1. Connect your phone via USB${NC}"
-    echo -e "${YELLOW}  2. Enable Developer Options${NC}"
-    echo -e "${YELLOW}  3. Enable USB Debugging${NC}"
-    echo -e "${YELLOW}  4. Check 'Always allow from this computer' when prompted${NC}"
-    exit 1
+
+# An explicit --ip is the answer to "which device", if it connected.
+ADB_TARGET=""
+if [[ -n "$TARGET_IP" ]]; then
+    WANTED=$(_clean "$TARGET_IP")
+    [[ "$WANTED" != *:* ]] && WANTED="${WANTED}:5555"
+    "$ADB_PATH" devices | grep -E "[[:space:]]device$" | grep -q "^${WANTED}" && ADB_TARGET="$WANTED"
 fi
-echo -e "${GREEN}✓ Device detected${NC}"
+
+[[ -z "$ADB_TARGET" ]] && ADB_TARGET=$(wifi_device_serial)
+if [[ -n "$ADB_TARGET" ]]; then
+    echo -e "${GREEN}✓ Target: ${ADB_TARGET} (wireless)${NC}"
+else
+    # Anything left that is ready: a USB handset, or an emulator if that is all
+    # there is. `tail -n +2` drops the "List of devices attached" header.
+    ADB_TARGET=$("$ADB_PATH" devices | tail -n +2 | grep -E "[[:space:]]device$" \
+        | head -1 | awk '{print $1}' | tr -d '\r')
+    if [[ -z "$ADB_TARGET" ]]; then
+        echo -e "${RED}No Android device connected via USB/ADB.${NC}"
+        echo -e "${YELLOW}  1. Connect your phone via USB${NC}"
+        echo -e "${YELLOW}  2. Enable Developer Options${NC}"
+        echo -e "${YELLOW}  3. Enable USB Debugging${NC}"
+        echo -e "${YELLOW}  4. Check 'Always allow from this computer' when prompted${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Target: ${ADB_TARGET}${NC}"
+fi
+
+# Say so when there is more than one, because "it installed on the other phone"
+# is otherwise a silent outcome.
+DEVICE_COUNT=$("$ADB_PATH" devices | tail -n +2 | grep -cE "[[:space:]]device$" || true)
+if [[ $DEVICE_COUNT -gt 1 ]]; then
+    echo -e "${YELLOW}  ($DEVICE_COUNT devices attached — installing to ${ADB_TARGET} only.${NC}"
+    echo -e "${YELLOW}   Use --ip <addr> to pick a different one.)${NC}"
+fi
 
 if [[ $SKIP_BUILD -eq 0 ]]; then
     echo -e "${CYAN}Building APK...${NC}"
@@ -273,11 +327,11 @@ if [[ "$PLATFORM" == "Cygwin" || "$PLATFORM" == "MinGW" || "$PLATFORM" == "MSYS"
 fi
 
 echo -e "${CYAN}Installing APK (streamed)...${NC}"
-if "$ADB_PATH" install -r "$APK_PATH"; then
+if "$ADB_PATH" -s "$ADB_TARGET" install -r "$APK_PATH"; then
     echo -e "${GREEN}✓ APK installed${NC}"
 else
     echo -e "${YELLOW}Retrying without -r flag...${NC}"
-    if "$ADB_PATH" install "$APK_PATH"; then
+    if "$ADB_PATH" -s "$ADB_TARGET" install "$APK_PATH"; then
         echo -e "${GREEN}✓ APK installed${NC}"
     else
         echo -e "${RED}APK installation failed!${NC}"
@@ -290,7 +344,7 @@ fi
 
 if [[ $LAUNCH -eq 1 ]]; then
     echo -e "${CYAN}Launching app...${NC}"
-    if "$ADB_PATH" shell am start -n ${APP_ID}/.MainActivity; then
+    if "$ADB_PATH" -s "$ADB_TARGET" shell am start -n ${APP_ID}/.MainActivity; then
         echo -e "${GREEN}✓ App launched${NC}"
     else
         echo -e "${YELLOW}Could not launch automatically — open the app manually.${NC}"
@@ -299,4 +353,4 @@ fi
 
 echo -e "${GREEN}✅ Mobile deploy complete!${NC}"
 echo -e "${CYAN}APK: $LATEST_APK${NC}"
-echo -e "${CYAN}Logs: adb logcat -s Capacitor:V Capacitor/Console:V${NC}"
+echo -e "${CYAN}Logs: adb -s $ADB_TARGET logcat -s Capacitor:V Capacitor/Console:V${NC}"
