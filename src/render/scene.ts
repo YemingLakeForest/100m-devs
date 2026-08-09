@@ -22,6 +22,7 @@ import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { buildRoom, type RoomHandle } from './room.ts'
 import { buildTower, type TowerHandle } from './tower.ts'
 import { buildCity, type CityHandle } from './city.ts'
+import type { ViewKind } from '../sim/ladder.ts'
 
 /** Palette colour as the 0xrrggbb number Pixi wants. */
 function c(hex: string): number {
@@ -372,52 +373,81 @@ function buildCosmic(): Container {
   return root
 }
 
-export interface LodTiers {
-  1: Container
-  2: Container
-  3: Container
-  4: Container
-}
-
 export interface Scene {
-  tiers: LodTiers
+  /**
+   * One container per §7.4a navigation stop, in far-to-near parent order.
+   *
+   * **This replaced a map of four tiers.** The tiers were the *rendering*
+   * concept and the camera was using them as the navigation one, which is the
+   * whole of §7.4a: with four containers there were four places to stop, so
+   * pulling back from a floor arrived at a galaxy. There are now eight, one per
+   * rung of §7.7.1 (two rungs share the room and two share the cosmic tier),
+   * and the geometry behind them is unchanged — only what the camera can stop
+   * at is different.
+   */
+  views: Record<ViewKind, Container>
+  /** How big each view is right now, for the §23.4.1 fit. Some of them grow. */
+  extentOf(view: ViewKind): { w: number; h: number }
   /** The Level 2 swarm, exposed so §21 Act IV can drop it out of the sky. */
   floor: FloorSwarm
-  /** Level 1 — the room, which grows with the headcount (§7.8.1). */
+  /** Rungs 0-1 — the room, which grows with the headcount (§7.8.1). */
   room: RoomHandle
-  /**
-   * Rung 3 — the tower (§7.7.1). Shares the Level 2 slot with the floor swarm:
-   * below 1,000 developers you are looking at a floor of people, above it at a
-   * stack of floors. Only one is ever visible, and the swap is what §7.7.1
-   * means by the *unit* changing.
-   */
+  /** Rung 3 — the tower (§7.7.1). A stack of floors, one storey per thousand. */
   tower: TowerHandle
   /**
-   * Rungs 4-6 — the city (§7.8.2). The third occupant of the Level 2 slot:
-   * below 1,000 a floor of people, to 10,000 a stack of floors, and above that
-   * a block, a business park, a sprawl. Exactly one is ever visible, and the
-   * swap is what §7.7.1 means by the *unit* changing.
+   * Rungs 4-6 — the city (§7.8.2), one instance per rung: a block of buildings,
+   * a business park of campuses, a sprawl of towns. Three rather than one
+   * because §7.4a makes each a place the camera can stop, and a single instance
+   * that reshaped itself as the camera moved would be a cut mid-pinch.
    */
-  city: CityHandle
+  city: Record<4 | 5 | 6, CityHandle>
 }
 
-/** Build all four tiers. The caller parents them and drives their alpha. */
+/** Build every view. The caller parents them and drives their alpha. */
 export function buildScene(renderer: Renderer): Scene {
   const floor = buildFloor(renderer)
   const room = buildRoom()
   const tower = buildTower()
-  const city = buildCity()
+  const city: Record<4 | 5 | 6, CityHandle> = {
+    4: buildCity(4),
+    5: buildCity(5),
+    6: buildCity(6),
+  }
+  const grid = buildGlobal()
+  const cosmic = buildCosmic()
 
-  // All three occupy Level 2. The stage shows whichever the headcount calls for.
-  const levelTwo = new Container()
-  levelTwo.addChild(floor.container, tower.container, city.container)
+  const views: Record<ViewKind, Container> = {
+    room: room.container,
+    floor: floor.container,
+    tower: tower.container,
+    block: city[4].container,
+    park: city[5].container,
+    sprawl: city[6].container,
+    grid,
+    cosmic,
+  }
 
   return {
-    tiers: {
-      1: room.container,
-      2: levelTwo,
-      3: buildGlobal(),
-      4: buildCosmic(),
+    views,
+    extentOf(view) {
+      switch (view) {
+        case 'room':
+          return room.extent
+        case 'floor':
+          return TIER_EXTENTS[2]
+        case 'tower':
+          return tower.extent
+        case 'block':
+          return city[4].extent
+        case 'park':
+          return city[5].extent
+        case 'sprawl':
+          return city[6].extent
+        case 'grid':
+          return TIER_EXTENTS[3]
+        case 'cosmic':
+          return TIER_EXTENTS[4]
+      }
     },
     floor,
     room,

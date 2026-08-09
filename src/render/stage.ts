@@ -12,6 +12,8 @@ import { Application, Container } from 'pixi.js'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   currentEntropy,
+  currentVelocity,
+  developerShare,
   getState,
   poke,
   selectDeveloper,
@@ -21,23 +23,33 @@ import {
 import { pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
 import { MusicBus } from '../audio/music.ts'
-import { pokeHaptic } from '../audio/haptics.ts'
-import { LensCamera, lodWeights, tierScale } from './omniLens.ts'
+import { holdHaptic, pokeHaptic } from '../audio/haptics.ts'
+import { LensCamera, fitScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
-import { TIER_EXTENTS, buildScene } from './scene.ts'
-import { DEVS_PER_STOREY, MAX_STOREYS } from './tower.ts'
-import { maxZoomFor, zoomCeilingLifted } from '../sim/headcount.ts'
+import { buildScene } from './scene.ts'
+import { maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
+import {
+  VIEWS,
+  dominantView,
+  earnedViewWeights,
+  rungAt,
+  viewStopZ,
+  zAtRung,
+  type ViewKind,
+} from '../sim/ladder.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
+import { createTallies, tallySources, type TallySource } from './tallies.ts'
 import { createArrivals } from './arrivals.ts'
 import {
+  HOLD_MS,
   clampPan,
+  exceedsSlop,
   flingVelocity,
   initPan,
-  isHold,
-  isTap,
   panLimit,
   pickNearest,
+  resolveGesture,
   stepPan,
   type PanState,
 } from './navigation.ts'
@@ -67,6 +79,9 @@ const LATENCY_WINDOW = 120
  */
 const FLOATER_MS = 1500
 const FLOATER_FADE = 0.3
+
+/** Shared empty list, so a rung with no heads does not allocate one per frame. */
+const NO_TALLIES: readonly TallySource[] = []
 
 export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const app = new Application()
@@ -108,8 +123,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   if (post.worldFilters.length > 0) world.filters = post.worldFilters
   if (post.filters.length > 0) glass.filters = post.filters
 
-  const { tiers, floor, room, tower, city } = buildScene(app.renderer)
-  for (const level of [4, 3, 2, 1] as const) world.addChild(tiers[level])
+  const scene = buildScene(app.renderer)
+  const { views, floor, room, tower, city } = scene
+  // §7.4a — far to near, so the galaxy is behind the room rather than over it.
+  // One container per rung of the ladder, which is what makes every rung a
+  // place the camera can stop instead of a tier it has to skip.
+  const FAR_TO_NEAR = [...VIEWS].reverse().map((v) => v.view)
+  for (const view of FAR_TO_NEAR) world.addChild(views[view])
 
   // §21 Act IV. Its overlay goes inside the glass, above the world and below
   // the numerals — the badges and chatter are scenery and must never bury the
@@ -122,36 +142,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const arrivals = createArrivals()
   room.container.addChild(arrivals.layer)
 
-  /**
-   * §7.7.1 — which of Level 2's three representations the headcount calls for.
-   *
-   * One function rather than a chain of comparisons at each use site, because
-   * the visibility flags, the camera extent and the hit test all have to agree
-   * about it and three copies of the same two thresholds is three chances to
-   * disagree.
-   */
-  const CITY_FROM = DEVS_PER_STOREY * MAX_STOREYS
-  const levelTwoKind = (devs: number): 'floor' | 'tower' | 'city' =>
-    devs >= CITY_FROM ? 'city' : devs >= DEVS_PER_STOREY ? 'tower' : 'floor'
-
-  /** Level 2's live extent — whichever of the three is standing. */
-  const towerRungExtent = () => {
-    switch (levelTwoKind(getState().devs)) {
-      case 'city':
-        return city.extent
-      case 'tower':
-        return tower.extent
-      default:
-        return TIER_EXTENTS[2]
-    }
-  }
-
   const camera = new LensCamera(0)
-  /** Latest tier extents, published for the hit test outside the ticker. */
-  let currentExtents: Record<1 | 2 | 3 | 4, { w: number; h: number }> = {
-    ...TIER_EXTENTS,
-    1: room.extent,
-  }
+
+  /**
+   * The view the camera is looking at, and the scale it is drawn at.
+   *
+   * Published out of the ticker because the hit test, the pan limits and the
+   * pinch anchor all have to agree with what was last *drawn* — deriving each
+   * of them from Z independently is three chances to disagree by a frame, and
+   * the one that shows is the poke landing on the wrong developer.
+   */
+  let currentView: ViewKind = 'room'
+  let currentScale = 1
 
   // --- poke input --------------------------------------------------------
   //
@@ -176,22 +178,40 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * the nearest desk.
    */
   const pickDeveloper = (x: number, y: number): number => {
-    const level = camera.level
-    if (level > 2) return -1
-    const scale = tierScale(level, camera.z, { w: app.screen.width, h: app.screen.height }, currentExtents)
-    if (!(scale > 0)) return -1
+    // §7.4a — only the two rungs where one sprite is one person have anybody
+    // to pick. Above them the unit is a floor, a building, a town, and the
+    // right answer to "who is under the thumb" is nobody.
+    if (currentView !== 'room' && currentView !== 'floor') return -1
+    if (!(currentScale > 0)) return -1
 
-    const tier = tiers[level]
-    // Screen -> tier-local. The tier's pivot is baked into its own transform,
+    const container = views[currentView]
+    // Screen -> view-local. The view's pivot is baked into its own transform,
     // so working through the container is safer than re-deriving it here.
-    const local = tier.toLocal({ x, y })
-    const seats = level === 1 ? roomSeats() : floor.seats
+    const local = container.toLocal({ x, y })
+    const seats = currentView === 'room' ? roomSeats() : floor.seats
     // A generous radius: a fingertip is about 9 mm and the desks are small.
-    // Scaled into tier space so it stays a thumb-sized target at any zoom.
-    return pickNearest(seats, local.x, local.y, 26 / Math.max(0.15, scale) + 14)
+    // Scaled into view space so it stays a thumb-sized target at any zoom.
+    return pickNearest(seats, local.x, local.y, 26 / Math.max(0.15, currentScale) + 14)
   }
 
-  const roomSeats = () => Array.from({ length: room.drawn }, (_, i) => room.deskAt(i)!)
+  /**
+   * The room's desks, in room-local coordinates.
+   *
+   * Cached on the drawn count rather than rebuilt per call. It was rebuilt per
+   * *tap*, which was free; §8.2b's tallies now ask for it every frame, and a
+   * hundred and twenty object literals sixty times a second is a GC churn the
+   * §23.3 frame budget should not be paying for a list that changes only when
+   * somebody is hired.
+   */
+  let seatCache: Array<{ x: number; y: number }> = []
+  let seatCacheFor = -1
+  const roomSeats = () => {
+    if (seatCacheFor !== room.drawn) {
+      seatCache = Array.from({ length: room.drawn }, (_, i) => room.deskAt(i)!)
+      seatCacheFor = room.drawn
+    }
+    return seatCache
+  }
 
   /** The whole tap path, shared by real pointers and the §23.3 bench. */
   /**
@@ -203,11 +223,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * on empty floor deselects, which is the only way out that does not need a
    * close button to be within reach of a thumb.
    */
-  const doSelect = (x: number, y: number) => {
-    if (camera.level !== 1) return
+  const doSelect = (x: number, y: number): boolean => {
+    if (currentView !== 'room') return false
     const target = pickDeveloper(x, y)
     selectDeveloper(target < 0 ? null : target)
     playUi(target < 0 ? 'close' : 'whoosh')
+    return true
   }
 
   const doPoke = (x: number, y: number, t0: number) => {
@@ -216,9 +237,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // addressable world has places where nobody is sitting.
     const target = pickDeveloper(x, y)
     if (target < 0) return
-    if (camera.level === 1) room.jolt(target)
+    if (currentView === 'room') room.jolt(target)
 
-    const result = poke(x, y)
+    const result = poke(x, y, target)
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
     playSfx(result.crit ? 'poke-crit' : result.sp === 0 ? 'poke-void' : pokeSfxForZoom(camera.level))
@@ -256,40 +277,133 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let carryId = -1
 
   /**
+   * §7.7.6 — the screen point the lens is zooming toward, or null for the
+   * middle of the frame.
+   *
+   * Without it a pinch scales about the centre of the screen, so zooming in on
+   * a squad at the edge of the floor walks the squad off it — which is exactly
+   * the "zoom to any squad" half of R5 failing for a reason that has nothing to
+   * do with squads. Anchoring the gesture at its own focal point is the whole
+   * fix, and it generalises: it is also what makes a double-tap land on the
+   * building that was tapped.
+   */
+  let focal: { x: number; y: number } | null = null
+  /** The dominant view's scale last frame, which is what the anchor corrects against. */
+  let lastScale = 0
+  let lastScaleView: ViewKind = 'room'
+
+  /**
+   * §7.7.6 — "double-tap a unit: zoom into it, one rung down, centred on what
+   * was tapped."
+   *
+   * Live only where a tap is *not* already the poke. At the room and the floor
+   * §8.2's primary verb owns the gesture, and making every poke wait 300 ms to
+   * find out whether a second one is coming would put the clicker layer behind
+   * a timer — §23.3 criterion 1 measures that path at 80 ms.
+   */
+  const DOUBLE_TAP_MS = 300
+  const DOUBLE_TAP_SLOP = 24
+  let lastTap = { t: 0, x: 0, y: 0 }
+
+  const tapIsAPoke = () => currentView === 'room' || currentView === 'floor'
+
+  /** §21 Act IV's scripted dolly, and §7.7.6's double-tap. Null when the camera is the player's again. */
+  let dollyTarget: number | null = null
+
+  /**
+   * §7.7.6 — descend one rung of the §7.4a ladder, centred on `(x, y)`.
+   *
+   * One rung, never "back to the desk". §7.4a's complaint is precisely that the
+   * lens *skipped*, and a control that jumps four rungs inward to fix a control
+   * that jumped four rungs outward would be the same bug facing the other way.
+   */
+  const descendOneRung = (x: number, y: number): boolean => {
+    const rung = Math.round(rungAt(camera.z))
+    if (rung <= 0) return false
+    focal = { x, y }
+    dollyTarget = zAtRung(rung - 1)
+    playUi('whoosh')
+    return true
+  }
+
+  /**
    * §7.8.9 — screen coordinates to room-local, for carrying somebody.
    *
    * The tier's pivot is baked into its own transform, so `toLocal` is both
    * shorter and safer than re-deriving the camera's arithmetic here.
    */
-  const toRoom = (x: number, y: number) => tiers[1].toLocal({ x, y })
+  const toRoom = (x: number, y: number) => views.room.toLocal({ x, y })
 
-  const onPointerDown = (ev: PointerEvent) => {
-    const t = ev.timeStamp || performance.now()
+  /**
+   * §7.7.6a — the hold timer, and the whole of R9.
+   *
+   * **The grab used to fire on `pointerdown`.** A press that landed on somebody
+   * standing about picked them up immediately, with no timer, no announcement
+   * and nothing to tell it from a poke — which is exactly the failure §7.7.6a
+   * calls a shipping blocker for the god-mode floor: on a touch screen there is
+   * no cursor, so the player discovered the mode change by watching a developer
+   * they did not mean to pick up follow their thumb around.
+   *
+   * Now nothing happens on the press. The finger has to *stay still* for
+   * {@link HOLD_MS}, and when it does the hold fires **while the finger is
+   * still on the glass** — a haptic tick, a sound, and the developer visibly
+   * lifting — rather than at release. That instant is what makes the boundary
+   * learnable in one accidental attempt.
+   */
+  let holdTimer: ReturnType<typeof setTimeout> | null = null
 
-    // §7.8.9 — the floor as a toy. A press that lands on somebody standing
-    // about picks them up instead of panning the camera.
-    //
-    // Checked *before* the pan, and only for loiterers: somebody mid-
-    // conversation is busy, and pulling them out of one would make the drag
-    // read as an interruption rather than as a tidy-up — the opposite of the
-    // joke. Everything else about the pointer is unchanged, so a press on empty
-    // floor still pans and a press on a seated developer still pokes.
-    if (drag === null && pointers.size === 0 && camera.level === 1) {
-      const who = pickDeveloper(ev.clientX, ev.clientY)
+  const cancelHold = () => {
+    if (holdTimer === null) return
+    clearTimeout(holdTimer)
+    holdTimer = null
+  }
+
+  /**
+   * The hold fired. Pick somebody up, or select them.
+   *
+   * Which one depends on who is under the thumb, and that is a distinction the
+   * player can *see*: somebody standing about gets picked up (§7.8.9), somebody
+   * at a desk gets selected (§7.8.8). Loiterers only, for the pick-up —
+   * somebody mid-conversation is busy, and pulling them out of one would read
+   * as an interruption rather than as a tidy-up, which is the opposite joke.
+   */
+  const onHold = (x: number, y: number, pointerId: number) => {
+    holdTimer = null
+
+    if (currentView === 'room') {
+      const who = pickDeveloper(x, y)
       if (who >= 0 && room.hands.isLoitering(who) && room.hands.pickUp(who)) {
-        const at = toRoom(ev.clientX, ev.clientY)
+        const at = toRoom(x, y)
         room.hands.carryTo(at.x, at.y)
-        carryId = ev.pointerId
+        carryId = pointerId
+        // The camera must let go of the world the instant the hand takes hold
+        // of somebody, or the grab drags the floor along with the developer.
+        drag = null
+        // §7.7.6a — "a haptic tick fires at the moment the hold registers,
+        // before the finger has moved". This line is the whole requirement.
+        holdHaptic()
         playUi('click')
         return
       }
     }
+
+    // Fired only where something actually changed. A tick at a rung with
+    // nothing to hold would be announcing a mode the press did not enter,
+    // which is the same lie as no tick at all told the other way round.
+    if (doSelect(x, y)) holdHaptic()
+  }
+
+  const onPointerDown = (ev: PointerEvent) => {
+    const t = ev.timeStamp || performance.now()
 
     // Only the first finger drags; a second means a pinch, handled below.
     if (drag === null && pointers.size === 0) {
       drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY, t0: t, panX: pan.x, panY: pan.y }
       pan.vx = 0
       pan.vy = 0
+      const { clientX, clientY, pointerId } = ev
+      cancelHold()
+      holdTimer = setTimeout(() => onHold(clientX, clientY, pointerId), HOLD_MS)
     }
   }
 
@@ -300,6 +414,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return
     }
     if (!drag || ev.pointerId !== drag.id || pointers.size >= 2) return
+    // §7.7.6a — **motion beats time.** A finger that has travelled is dragging
+    // whatever the clock says, which is what stops a slow, sloppy pan from
+    // turning into a grab three hundred milliseconds in.
+    if (exceedsSlop(ev.clientX - drag.x0, ev.clientY - drag.y0)) cancelHold()
     const t = ev.timeStamp || performance.now()
     const dt = Math.max(1, t - (drag.t0 + 0)) / 1000
     pan = clampPan(
@@ -315,6 +433,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   const onDragEnd = (ev: PointerEvent) => {
+    cancelHold()
     if (carryId === ev.pointerId) {
       carryId = -1
       // Dropped onto a seat, or onto the floor. `pickDeveloper` answers "whose
@@ -331,20 +450,29 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const t = ev.timeStamp || performance.now()
     const dx = ev.clientX - drag.x0
     const dy = ev.clientY - drag.y0
-    const tapped = isTap(dx, dy, t - drag.t0)
-    const held = isHold(dx, dy, t - drag.t0)
+    const gesture = resolveGesture(dx, dy, t - drag.t0)
     drag = null
 
-    if (held) {
-      // §7.8.8 — a hold selects rather than pokes. Mutually exclusive with a
-      // tap by construction: `HOLD_MS` is longer than `TAP_MS`, so a pointer
-      // cannot satisfy both.
+    if (gesture === 'hold') {
+      // §7.7.6a — the hold already fired, on the timer, with the finger still
+      // down. Nothing is owed at release except stopping the camera: acting
+      // again here is how a hold used to both select somebody and leave the
+      // world coasting away from them.
       pan.vx = 0
       pan.vy = 0
-      doSelect(ev.clientX, ev.clientY)
-    } else if (tapped) {
+    } else if (gesture === 'poke') {
       pan.vx = 0
       pan.vy = 0
+      if (!tapIsAPoke()) {
+        const near =
+          Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) <= DOUBLE_TAP_SLOP
+        if (near && t - lastTap.t < DOUBLE_TAP_MS) {
+          lastTap = { t: 0, x: 0, y: 0 }
+          descendOneRung(ev.clientX, ev.clientY)
+          return
+        }
+        lastTap = { t, x: ev.clientX, y: ev.clientY }
+      }
       doPoke(ev.clientX, ev.clientY, t)
     } else {
       const f = flingVelocity(pan.vx, pan.vy)
@@ -394,6 +522,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const [a, b] = [...pointers.values()]
     const distance = Math.hypot(a.x - b.x, a.y - b.y)
 
+    // §7.7.6 — the pinch zooms toward the point between the fingers. Updated
+    // every move rather than latched at the start, because a two-finger gesture
+    // drifts and a stale anchor would slowly drag the world away from the hands
+    // holding it.
+    focal = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+
     if (!pinchStart) {
       pinchStart = { distance, z: camera.z }
       return
@@ -429,6 +563,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // while developing. Never the path a pass/fail is measured on.
   const onWheel = (ev: WheelEvent) => {
     ev.preventDefault()
+    focal = { x: ev.clientX, y: ev.clientY }
     camera.nudge(ev.deltaY * 0.0008)
   }
   app.canvas.addEventListener('wheel', onWheel, { passive: false })
@@ -449,11 +584,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const typeset = createPokeTypeset(app.renderer)
   const numeralGfx = new Map<number, Container>()
 
+  // §8.2b — the passive `+1`s. *Below* the poke numerals in the same container,
+  // so a tap is never buried under the heartbeat it interrupted.
+  const tallies = createTallies(app.renderer)
+  numerals.addChildAt(tallies.container, 0)
+
   // --- frame loop --------------------------------------------------------
 
   let lastFrame = performance.now()
-  /** §21 Act IV's scripted dolly. Null when the camera is the player's again. */
-  let dollyTarget: number | null = null
   let dollyFired = false
   /** Last consumed §7.7.2 spawn, so one hire produces one arrival. */
   let lastSpawnId = 0
@@ -575,50 +713,70 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     room.setSeed(state.runSeed)
     room.setSelected(state.selected ?? -1)
     room.setHeadcount(state.devs)
-    // §7.7.1 again, on the other tier: the floor shows the people who exist,
+    // §7.7.1 again, on the other rungs: every view shows the people who exist,
     // not a thousand placeholders ghosting in behind two developers.
     floor.setPopulation(state.devs)
-    // §7.7.1 — above a thousand the unit is a floor, not a person. The two
-    // representations share the Level 2 slot and swap rather than coexisting:
-    // showing a floor of people *and* a stack of floors at once would be the
-    // same studio counted twice.
-    // §7.8.2 — and above ten storeys the unit changes again, to a building, a
-    // campus, a town. `tower.ts` used to cap here and the picture simply stopped
-    // answering while the headcount carried on.
+    // §7.4a — **all of them, every frame.** These used to be mutually exclusive,
+    // chosen by headcount, and that was the bug: a studio of three million was
+    // *only ever* a sprawl, so the tower and the block it was built out of could
+    // not be looked at. Each is now fed the same headcount and answers for its
+    // own rung — three million is three towns, or thirty campuses, or three
+    // hundred buildings saturating at ten. The camera picks which is true today.
     tower.setHeadcount(state.devs)
-    city.setHeadcount(state.devs)
-    const kind = levelTwoKind(state.devs)
-    floor.container.visible = kind === 'floor'
-    tower.container.visible = kind === 'tower'
-    city.container.visible = kind === 'city'
-    tower.update(now)
-    city.update(now)
-    const extents = {
-      ...TIER_EXTENTS,
-      1: room.extent,
-      // Level 2's size depends on which representation is showing, and the
-      // tower grows a storey at a time.
-      2: towerRungExtent(),
+    for (const r of [4, 5, 6] as const) {
+      city[r].setHeadcount(state.devs)
+      city[r].update(now)
     }
-    currentExtents = extents
-    const weights = lodWeights(camera.z)
-    for (const l of [1, 2, 3, 4] as const) {
-      const tier = tiers[l]
-      tier.alpha = weights[l]
-      // Culling the invisible tiers is what keeps the criterion-3 dolly
+    tower.update(now)
+
+    // §7.4a — the cross-fade is per *rung* now, not per tier. Weights come from
+    // where the camera is on the ladder, and the studio's own rung gates what
+    // may light up at all: the ceiling stops the camera short of an unearned
+    // rung, but the fade reaches one rung past wherever it is parked, so
+    // without the gate the campus the player has not built ghosts in behind the
+    // block they have.
+    const studioRung = rungFor(state.devs).rung
+    const weights = earnedViewWeights(camera.z, studioRung)
+    const view = dominantView(camera.z)
+    for (const spec of VIEWS) {
+      const container = views[spec.view]
+      container.alpha = weights[spec.view]
+      // Culling the invisible views is what keeps the criterion-3 dolly
       // affordable: without it the 1,000-particle floor is submitted every
       // frame even at galactic zoom.
-      tier.renderable = weights[l] > 0.002
+      container.renderable = weights[spec.view] > 0.002
       // Only the visible ones need their transform recomputed.
-      if (tier.renderable) tier.scale.set(tierScale(l, camera.z, viewport, extents))
+      if (container.renderable) {
+        container.scale.set(
+          fitScale(scene.extentOf(spec.view), viewport, camera.z, viewStopZ(spec.view)),
+        )
+      }
     }
 
-    // §7.7.6 — pan. Limits come from how far the dominant tier overhangs the
-    // frame, so a tier that already fits does not slide around: panning
+    // §7.7.6 — pan. Limits come from how far the dominant view overhangs the
+    // frame, so a view that already fits does not slide around: panning
     // something that fits is how a player ends up lost in an empty frame.
-    const domScale = tierScale(camera.level, camera.z, viewport, extents)
-    limitX = panLimit(extents[camera.level].w * domScale, viewport.w)
-    limitY = panLimit(extents[camera.level].h * domScale, viewport.h)
+    const domExtent = scene.extentOf(view)
+    const domScale = fitScale(domExtent, viewport, camera.z, viewStopZ(view))
+    currentView = view
+    currentScale = domScale
+
+    // §7.7.6 — hold the focal point still while the scale changes underneath
+    // it. A view-local point q sits at `centre + pan + q·scale`, so keeping q
+    // fixed across a scale change is one subtraction per axis. Skipped across a
+    // change of view, where the two scales are not measuring the same object
+    // and the correction would be a lurch rather than an anchor.
+    if (focal && lastScale > 0 && view === lastScaleView && domScale !== lastScale) {
+      const qx = (focal.x - (viewport.w / 2 + pan.x)) / lastScale
+      const qy = (focal.y - (viewport.h / 2 + pan.y)) / lastScale
+      pan.x += qx * (lastScale - domScale)
+      pan.y += qy * (lastScale - domScale)
+    }
+    lastScale = domScale
+    lastScaleView = view
+
+    limitX = panLimit(domExtent.w * domScale, viewport.w)
+    limitY = panLimit(domExtent.h * domScale, viewport.h)
     if (!drag) pan = stepPan(pan, dt, limitX, limitY)
     else pan = clampPan(pan, limitX, limitY)
 
@@ -638,6 +796,40 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // all shake together. Shaking only the world would slide the picture out
     // from under its own scanlines.
     glass.position.set(shake.x, shake.y)
+
+    // §8.2b — the passive `+1`s over each head.
+    //
+    // Only at the two rungs where one sprite is one person: above them the unit
+    // on screen is a floor or a building, and "+1 over each head" has no head
+    // to sit over. That is a scope rather than a gap — §8.2b's thinning rule
+    // aggregates *within* a floor of people, and the rung above it is already
+    // the aggregate.
+    if (currentView === 'room' || currentView === 'floor') {
+      const seats = currentView === 'room' ? roomSeats() : floor.seats
+      const drawn = currentView === 'room' ? room.drawn : Math.min(seats.length, state.devs)
+      // §4.9a — each seat's share of the studio, so the numerals differ by as
+      // much as the people do. The shares sum to the headcount, so the numerals
+      // on screen add up to the velocity in the readout.
+      const perDev = state.devs > 0 ? currentVelocity(state) / state.devs : 0
+      const sources = tallySources(seats, drawn, (i) => perDev * developerShare(i, state))
+      const container = views[currentView]
+      for (const source of sources) {
+        // View-local -> screen. The offset is applied *before* the transform so
+        // it is measured in desks rather than in pixels: the numeral sits over
+        // the head at every zoom instead of drifting off it as the room grows.
+        //
+        // Clear of the monitor as well as the head. §8.2b says "over the
+        // person, not under the thumb", and at 16 it sat across the screen the
+        // person is typing at — technically above the desk and reading as part
+        // of the furniture.
+        const at = container.toGlobal({ x: source.x, y: source.y - 30 })
+        source.x = at.x
+        source.y = at.y
+      }
+      tallies.update(now, dt, sources)
+    } else {
+      tallies.update(now, dt, NO_TALLIES)
+    }
 
     // Numerals arc up and fade over ~900 ms (GDD §8.2).
     const live = new Set<number>()
@@ -675,21 +867,23 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const snapshot = {
         z: +camera.z.toFixed(4),
         level: camera.level,
-        scale: +tierScale(camera.level, camera.z, viewport, extents).toFixed(5),
-        // What the dominant tier actually measures on screen, in CSS px. This
+        // §7.4a — the two numbers that used to be one. `rung` is where the
+        // camera is on the Construction Ladder and `view` is what that makes it
+        // a picture of; `level` is only which tier's geometry is behind it.
+        // Reading them apart is the difference between "the camera skipped the
+        // city" and "the city is not drawing".
+        rung: +rungAt(camera.z).toFixed(2),
+        view,
+        ceilingRung: rungFor(state.devs).rung,
+        scale: +domScale.toFixed(5),
+        // What the dominant view actually measures on screen, in CSS px. This
         // is the number GDD §23.4.1 exists to make non-zero, so it is the one
         // worth being able to read without a screenshot.
-        tierPx: (() => {
-          const ts = tierScale(camera.level, camera.z, viewport, extents)
-          return `${Math.round(extents[camera.level].w * ts)}x${Math.round(extents[camera.level].h * ts)}`
-        })(),
-        fillShortAxis: +(() => {
-          const ts = tierScale(camera.level, camera.z, viewport, extents)
-          return Math.max(
-            (extents[camera.level].w * ts) / app.screen.width,
-            (extents[camera.level].h * ts) / app.screen.height,
-          )
-        })().toFixed(3),
+        tierPx: `${Math.round(domExtent.w * domScale)}x${Math.round(domExtent.h * domScale)}`,
+        fillShortAxis: +Math.max(
+          (domExtent.w * domScale) / app.screen.width,
+          (domExtent.h * domScale) / app.screen.height,
+        ).toFixed(3),
         viewport: `${Math.round(app.screen.width)}x${Math.round(app.screen.height)}`,
         weights,
         massHired: state.massHired,
@@ -742,6 +936,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       app.canvas.removeEventListener('wheel', onWheel)
       arrivals.destroy()
       collapse.destroy()
+      tallies.destroy()
       void music.unload()
       typeset.destroy()
       post.destroy()

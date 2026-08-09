@@ -37,6 +37,7 @@ import {
 } from './room.ts'
 import { BEAT, CASCADE_MAX_MS, cascadeDelay, arrivalHeight, landingSquash, puffAlpha } from './arrivals.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
+import { zAtRung } from '../sim/ladder.ts'
 import { FLOOR_SPRITE_COUNT } from './scene.ts'
 
 describe('the room grows with the headcount — GDD §7.8.1', () => {
@@ -46,7 +47,9 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     // player would be locked into a room that could not show their studio.
     const trappedAt = 99
     expect(ROOM_DEV_CAP).toBeGreaterThanOrEqual(trappedAt)
-    expect(maxZoomFor(trappedAt)).toBe(0.2)
+    // §7.4a — rung 1 is the room, and below a hundred developers it is also the
+    // ceiling. There is nowhere else to look, so this tier has to draw all 99.
+    expect(maxZoomFor(trappedAt)).toBe(zAtRung(1))
   })
 
   it('never moves somebody who is already sitting down — §7.8.1b', () => {

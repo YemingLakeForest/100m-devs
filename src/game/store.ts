@@ -16,6 +16,14 @@
 import Decimal from 'break_infinity.js'
 import { quote, type Multiplier, type Quote } from '../sim/hireDial.ts'
 import { developerAt, type Identity } from '../sim/identity.ts'
+import { outputClass, outputShare, type OutputClass } from '../sim/output.ts'
+import {
+  advanceTail,
+  catalogueIncome,
+  catalogueOutstanding,
+  rollShape,
+  type Release,
+} from '../sim/revenue.ts'
 import { NODE_BY_ID, bpFor, canAfford, devCapFor, nodeCost } from '../sim/prestige.ts'
 import {
   BANKRUPTCY_THRESHOLD,
@@ -247,6 +255,17 @@ export interface GameState {
    * project without realising they had.
    */
   ship: { id: number; name: string; revenue: number; at: number } | null
+  /**
+   * §4.10e — the back catalogue. Every game still earning, and what it has
+   * paid so far.
+   *
+   * Run state, not permanent: a Paradigm Shift liquidates the studio and its
+   * catalogue with it. Persisted, because a reload that wiped five shipped
+   * games would take the player's runway with it and look exactly like the
+   * bug §4.10d was reported as.
+   */
+  releases: Release[]
+
   /** §21.0a — the term sheet has been signed. Grants cash and the dial. */
   seedTaken: boolean
   /**
@@ -336,6 +355,7 @@ function freshRun(): GameState {
     pokeRate: 0,
     peakDevs: 1,
     ship: null,
+    releases: [],
     seedTaken: false,
     selected: null,
     dialUnlocked: false,
@@ -357,6 +377,8 @@ let nextSpawnId = 1
 const snippets = new SnippetBag()
 
 let nextShipId = 1
+/** §4.10e — one id per game put on sale, so the graph can key its bands. */
+let nextReleaseId = 1
 
 export function getState(): GameState {
   return state
@@ -423,6 +445,51 @@ export function currentEffectiveVelocity(s: GameState = state): number {
   return currentVelocity(s) + Math.max(0, s.pokeRate)
 }
 
+// --- per-developer output — GDD §4.9a ---------------------------------------
+//
+// The store modelled *one* studio: one velocity, one dev-state machine, one of
+// everything. §4.9a's whole point is that a studio where everybody produces the
+// mean is a spreadsheet, so this is the seam where the singular becomes plural.
+//
+// It is a seam and not a table. Nothing per-developer is *stored* — the roll
+// comes from the seat index and the run seed, the same contract §7.8.7 uses for
+// names and faces — so a studio of ten trillion still costs one integer, and
+// the person who is a 10x Engineer is the same person after a reload.
+
+/**
+ * Seat `index`'s output, as a multiple of the average developer — §4.9a.
+ *
+ * Exported rather than folded into {@link developerVelocity} because §8.2b's
+ * numeral, §7.8.8's card and §14.4's hero classes all want the *ratio* rather
+ * than the rate: "worth ten of the person next to them" is a comparison, and a
+ * SP/sec figure at a hundred thousand developers is not one.
+ */
+export function developerShare(index: number, s: GameState = state): number {
+  return outputShare(s.runSeed, s.devs, index)
+}
+
+/**
+ * What seat `index` is producing right now, in Story Points per second — §8.2b.
+ *
+ * The studio's passive velocity divided among its people in proportion to their
+ * roll. **The sum over the roster is the studio's velocity exactly** — see
+ * `outputShare`; the shares are normalised by the mean the roster actually
+ * rolled, so widening §4.9a's spread cannot move the total by a single point.
+ *
+ * Passive only, deliberately. The thumb's contribution is §10.1's separate
+ * `poke` half of the readout and belongs to whoever was tapped, not spread
+ * across a floor that was not.
+ */
+export function developerVelocity(index: number, s: GameState = state): number {
+  if (s.devs <= 0) return 0
+  return (currentVelocity(s) / s.devs) * developerShare(index, s)
+}
+
+/** §14.4 — which band of the roll this seat is in, for a card or a badge. */
+export function developerClass(index: number, s: GameState = state): OutputClass {
+  return outputClass(developerShare(index, s))
+}
+
 /**
  * How quickly the poke rate forgets, in seconds.
  *
@@ -456,11 +523,36 @@ export function currentPayroll(s: GameState = state): number {
   return payrollPerSecond(s.devs)
 }
 
-/** Net dollars per second — what the player actually watches in Act V. */
+/**
+ * §4.10e — dollars a second coming in from games already on sale.
+ *
+ * Zero in Act I, and it stays zero until something ships. That is the readout
+ * earning its place rather than a gap: a studio with no back catalogue *has* no
+ * income between payouts, and the line arriving the moment the first game ships
+ * is the clearest possible statement of what shipping bought.
+ */
+export function catalogueRate(s: GameState = state): number {
+  return catalogueIncome(s.releases)
+}
+
+/** §4.10e — money already earned that has not arrived yet. The runway behind the runway. */
+export function outstandingRevenue(s: GameState = state): number {
+  return catalogueOutstanding(s.releases)
+}
+
+/**
+ * Net dollars per second — what the player actually watches in Act V.
+ *
+ * **This used to be the burn alone**, on the correct reasoning that revenue was
+ * realised on ship and there was no such thing as a running income. §4.10e
+ * makes that false: the back catalogue pays continuously, and a "net" figure
+ * that ignored half the flow would be the *readout* telling the lie §4.10e
+ * exists to stop the *economy* telling. Act V is no less brutal for it — the
+ * catalogue is four minutes deep and payroll at a thousand developers is
+ * $50,000 a second, so the sign does not change; it is simply now true.
+ */
 export function netCashFlow(s: GameState = state): number {
-  // Revenue is realised on ship, not continuously, so the running rate is the
-  // burn alone. That is deliberate: it is what makes the Act V readout brutal.
-  return -currentPayroll(s)
+  return catalogueRate(s) - currentPayroll(s)
 }
 
 export function remaining(s: GameState = state): Decimal {
@@ -494,9 +586,26 @@ function shipProject(s: GameState): Partial<GameState> {
     // shipped rather than the one now starting: the celebration is *for* the
     // thing that finished, and by the time it renders `sprintName` has already
     // moved on.
+    //
+    // `revenue` here is still the whole §4.10c payout, and the toast still
+    // announces all of it. §4.10e changes when the money *arrives*, not what
+    // the game is worth, and a celebration that read "+$3,200, the rest to
+    // follow" would be describing an accounting policy rather than a launch.
     ship: { id: nextShipId++, name: s.sprintName, revenue, at: performance.now() },
-    cash: s.cash + revenue,
-    lifetimeRevenue: s.lifetimeRevenue + revenue,
+    // §4.10e — no lump. The game goes on sale and starts earning; `tick` banks
+    // the tail. The books stay afloat between ships because the *catalogue*
+    // covers the burn, which is the whole point of the change.
+    releases: [
+      ...s.releases,
+      {
+        id: nextReleaseId++,
+        name: s.sprintName,
+        payout: revenue,
+        age: 0,
+        paid: 0,
+        shape: rollShape(s.runSeed, s.projectsShipped),
+      },
+    ],
     projectsShipped: s.projectsShipped + 1,
     projectIndex: nextIndex,
     sprintName: next.name,
@@ -514,6 +623,9 @@ export function tick(dtSeconds: number): void {
   // NOT `currentEffectiveVelocity` — see its note. Poke SP is banked by `poke`.
   const gained = currentVelocity({ ...state, localEntropy }) * dtSeconds
 
+  // §4.10e — the back catalogue pays first, before anything reads the cash.
+  const tail = advanceTail(state.releases, dtSeconds)
+
   let patch: Partial<GameState> = {
     localEntropy,
     // Exponential decay towards zero. Paired with the impulse `poke` adds, this
@@ -522,7 +634,9 @@ export function tick(dtSeconds: number): void {
     // be unreadable at the rate §21 asks them to tap.
     pokeRate: state.pokeRate * Math.exp(-dtSeconds / POKE_RATE_TAU),
     dev: advanceDevState(state.dev, dtSeconds, { entropy: e }),
-    cash: state.cash - currentPayroll() * dtSeconds,
+    cash: state.cash - currentPayroll() * dtSeconds + tail.earned,
+    lifetimeRevenue: state.lifetimeRevenue + tail.earned,
+    releases: tail.releases,
     burned: gained > 0 ? state.burned.plus(gained) : state.burned,
   }
 
@@ -554,8 +668,17 @@ export function tick(dtSeconds: number): void {
   set(patch)
 }
 
-/** Resolve one tap — the whole clicker layer, GDD §4.5. */
-export function poke(x: number, y: number) {
+/**
+ * Resolve one tap — the whole clicker layer, GDD §4.5.
+ *
+ * `who` is the seat that was actually under the thumb, or null where the
+ * caller has no individual to name (the §23.3 bench, a tap at a rung where the
+ * unit is a building). §4.9a: a poke is worth what the person you poked is
+ * worth, which is what "gives §4.5a's poke a target worth choosing" means —
+ * without it every developer on the floor is an identical button and the whole
+ * roll is a hidden number with no consequence.
+ */
+export function poke(x: number, y: number, who: number | null = null) {
   // §10.6 says the swarm keeps simulating behind a panel, but the poke path is
   // inert while a scene is up: the dialogue box is eating those taps for its
   // own advance, and a tap that both advances a page and banks a Story Point
@@ -567,7 +690,7 @@ export function poke(x: number, y: number) {
     return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
   }
 
-  const result = resolvePoke({
+  const base = resolvePoke({
     tier: state.tier,
     state: state.dev.state,
     zoom: state.zoom,
@@ -575,6 +698,13 @@ export function poke(x: number, y: number) {
     // §4.8 — a cosmic-zoom tap on a studio of forty hits forty people.
     devs: state.devs,
   })
+
+  // §4.9a — the tap is worth what the person is worth. Applied to the Story
+  // Points only: the Entropy a context switch costs is a fact about being
+  // interrupted, and a 10x Engineer is not cheaper to interrupt than anybody
+  // else. If anything they are dearer, but that is §4.5c's business.
+  const share = who === null ? 1 : developerShare(who)
+  const result = { ...base, sp: base.sp * share }
 
   const { machine, devLeaves } = pokeDevState(state.dev, state.hasCultureUpgrade)
 
@@ -1016,6 +1146,18 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     seedTaken: r.seedTaken,
     dialUnlocked: r.dialUnlocked,
     massHired: r.massHired,
+    // §4.10e — the back catalogue comes back with its ages and its shapes. A
+    // reload that wiped five shipped games would take the studio's whole
+    // runway with it, and would be reported as exactly the §4.10d bug the
+    // tail was built to fix.
+    releases: (r.releases ?? []).map((rel) => ({
+      id: rel.id,
+      name: rel.name,
+      payout: rel.payout,
+      age: rel.age,
+      paid: rel.paid,
+      shape: { spikeShare: rel.spikeShare, spikeTau: rel.spikeTau, tailTau: rel.tailTau },
+    })),
     // localEntropy, floaters, bubble, spawn and zoom are §24.2 ephemeral. Local
     // entropy in particular decays to baseline in ~8 seconds (§4.9), so any
     // absence long enough to save through has already erased it — it restores

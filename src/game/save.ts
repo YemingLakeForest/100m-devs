@@ -78,6 +78,28 @@ export interface RunSave {
   runSeed: number
   seedTaken: boolean
   dialUnlocked: boolean
+  /**
+   * §4.10e — the back catalogue: every game still on sale and what it has paid.
+   *
+   * Optional, because saves written before §4.10e existed do not have it and a
+   * missing catalogue is a correct description of a studio that shipped its
+   * games under the old lump-payout rule — they were paid in full on ship, so
+   * there is nothing outstanding. That makes this an additive field rather than
+   * a reinterpreted one, which is the test `SAVE_VERSION` asks (rule 1).
+   */
+  releases?: ReleaseSave[]
+}
+
+/** One game on sale, as §24 stores it. The shape is rolled once and kept. */
+export interface ReleaseSave {
+  id: number
+  name: string
+  payout: number
+  age: number
+  paid: number
+  spikeShare: number
+  spikeTau: number
+  tailTau: number
 }
 
 /**
@@ -268,6 +290,18 @@ export function makeSaveData(state: GameState): SaveData {
       runSeed: state.runSeed,
       seedTaken: state.seedTaken,
       dialUnlocked: state.dialUnlocked,
+      // §4.10e — flattened rather than nested, so the shape cannot arrive back
+      // as a half-object that `collectedFraction` would turn into NaN dollars.
+      releases: state.releases.map((r) => ({
+        id: r.id,
+        name: r.name,
+        payout: r.payout,
+        age: r.age,
+        paid: r.paid,
+        spikeShare: r.shape.spikeShare,
+        spikeTau: r.shape.spikeTau,
+        tailTau: r.shape.tailTau,
+      })),
     },
     permanent: {
       layer1: { ...permanent.layer1 },
@@ -466,7 +500,43 @@ function normaliseRun(value: unknown): RunSave {
     runSeed: typeof r.runSeed === 'number' && r.runSeed > 0 ? r.runSeed : (Date.now() >>> 0),
     seedTaken: bool(r.seedTaken, false),
     dialUnlocked: bool(r.dialUnlocked, false),
+    releases: normaliseReleases(r.releases),
   }
+}
+
+/**
+ * §4.10e — the back catalogue, defended field by field.
+ *
+ * Every number here divides or exponentiates something. A `tailTau` of zero
+ * out of a truncated or hand-edited save is `exp(-t/0)` and then `NaN` dollars,
+ * and cash is one of the few values in this game that a single NaN destroys
+ * permanently — it propagates into the treasury on the next tick and every
+ * readout afterwards reads `$NaN`. So the taus have floors rather than
+ * defaults, and a release that cannot be repaired is dropped: losing one game's
+ * tail costs the player money they can see, which is recoverable, and a
+ * poisoned treasury is not.
+ */
+function normaliseReleases(value: unknown): ReleaseSave[] {
+  if (!Array.isArray(value)) return []
+  const out: ReleaseSave[] = []
+  for (const raw of value) {
+    const r = (raw ?? {}) as Partial<ReleaseSave>
+    const payout = nonNegative(r.payout, 0)
+    if (!(payout > 0)) continue
+    out.push({
+      id: Math.max(0, Math.floor(nonNegative(r.id, 0))),
+      name: typeof r.name === 'string' ? r.name : 'A Shipped Game',
+      payout,
+      age: nonNegative(r.age, 0),
+      // Clamped to the payout: a `paid` above it would make the next tick's
+      // difference negative and *charge* the player for owning a back catalogue.
+      paid: Math.min(payout, nonNegative(r.paid, 0)),
+      spikeShare: Math.min(1, Math.max(0, num(r.spikeShare, 0.6))),
+      spikeTau: Math.max(0.5, nonNegative(r.spikeTau, 6)),
+      tailTau: Math.max(1, nonNegative(r.tailTau, 50)),
+    })
+  }
+  return out
 }
 
 function normalisePermanent(value: unknown): PermanentSave {

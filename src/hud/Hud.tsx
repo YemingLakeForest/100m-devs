@@ -23,6 +23,7 @@ import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
 import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
+import { RevenueGraph } from './RevenueGraph.tsx'
 import { ShipToast } from './ShipToast.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HireDial } from './HireDial.tsx'
@@ -110,6 +111,14 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
       {/* Top-left — §10.1's Active Project, "a descending line, not a filling bar". */}
       <div className="hud__project">
         <BurnDown state={state} />
+        {/*
+          §4.10e — the back catalogue, under the burn-down that will join it.
+          Directly under on purpose: the two charts are the same story told at
+          two ends, work going down and money coming in, and the whole reason
+          the revenue graph exists is that a player watching only the first one
+          concluded they were failing.
+        */}
+        <RevenueGraph state={state} />
       </div>
 
       {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}

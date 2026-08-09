@@ -7,6 +7,7 @@ import {
   towerSquash,
 } from './tower.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
+import { zAtRung } from '../sim/ladder.ts'
 
 describe('storeysFor — GDD §7.7.1, the unit becomes a floor', () => {
   it('shows no tower while one sprite is still one person', () => {
@@ -31,11 +32,12 @@ describe('storeysFor — GDD §7.7.1, the unit becomes a floor', () => {
   })
 
   it('covers the whole span the zoom ceiling traps the player in', () => {
-    // maxZoomFor opens the global grid at 1e4, so the tower has to carry
-    // everything from 1e3 to 1e4 on its own — 1 to 10 storeys.
+    // §7.4a — the ceiling is rung 3 for the whole of this decade, and rung 3 is
+    // the tower. So the tower has to carry everything from 1e3 to 1e4 on its
+    // own — 1 to 10 storeys — because it is the furthest out the camera goes.
     expect(storeysFor(1e3)).toBe(1)
     expect(storeysFor(9999)).toBe(9)
-    expect(maxZoomFor(9999)).toBe(0.5)
+    expect(maxZoomFor(9999)).toBe(zAtRung(3))
   })
 
   it('survives nonsense rather than drawing NaN storeys', () => {

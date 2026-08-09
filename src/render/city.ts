@@ -33,7 +33,7 @@
 
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
-import { rungFor } from '../sim/headcount.ts'
+import { RUNGS, rungFor } from '../sim/headcount.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -101,6 +101,27 @@ export function unitsFor(devs: number): CityCount {
   // it never stops existing.
   const size = at === rung.rung ? rung.unitSize : 1e6
   return { rung: at, count: Math.max(1, Math.min(MAX_UNITS, Math.floor(devs / size))) }
+}
+
+/**
+ * How many of rung `rung`'s unit a headcount amounts to — GDD §7.4a.
+ *
+ * {@link unitsFor} answers "what should the *picture* be", which was the right
+ * question while the headcount chose the rung. It no longer does: §7.4a makes
+ * the **camera** choose, so a studio of three million can be looked at as a
+ * sprawl of three towns *or* as a business park of thirty campuses, saturating
+ * at ten, and both are true statements about the same studio.
+ *
+ * Returns 0 below the rung's first unit, which is what makes an unearned rung
+ * draw nothing rather than draw a lie — the camera ceiling should never let it
+ * be seen, and a picture that is honest without the ceiling is one less thing
+ * that can quietly disagree with it.
+ */
+export function unitsAtRung(devs: number, rung: number): number {
+  if (!Number.isFinite(devs) || devs <= 0) return 0
+  const spec = RUNGS.find((r) => r.rung === rung)
+  if (!spec) return 0
+  return Math.min(MAX_UNITS, Math.floor(devs / spec.unitSize))
 }
 
 /**
@@ -354,7 +375,17 @@ export interface CityHandle {
   readonly units: number
 }
 
-export function buildCity(): CityHandle {
+/**
+ * @param fixedRung Pin this city to one rung of the ladder — GDD §7.4a.
+ *
+ * Three of these are built rather than one, one per rung, because §7.4a makes
+ * the block, the business park and the sprawl three *places the camera can
+ * stop* rather than three states of one place. One instance that swapped its
+ * own geometry as the camera moved would be a cut in the middle of a pinch,
+ * which §10.5 forbids; three that cross-fade are three tenths of a Graphics
+ * each and hand-off for free.
+ */
+export function buildCity(fixedRung?: number): CityHandle {
   const root = new Container()
   const standing = new Container()
   const settled = new Graphics()
@@ -362,7 +393,7 @@ export function buildCity(): CityHandle {
   standing.addChild(settled)
   root.addChild(standing, falling)
 
-  let rung = CITY_FIRST_RUNG
+  let rung = fixedRung ?? CITY_FIRST_RUNG
   let units = 0
   let arriving = false
   let arrivalStart = 0
@@ -407,7 +438,10 @@ export function buildCity(): CityHandle {
     container: root,
 
     setHeadcount(devs: number) {
-      const next = unitsFor(devs)
+      const next =
+        fixedRung === undefined
+          ? unitsFor(devs)
+          : { rung: fixedRung, count: unitsAtRung(devs, fixedRung) }
       if (next.rung === rung && next.count === units) return
       // A rung change replaces every unit at once — a block does not become a
       // business park by growing, it becomes one because the thing being counted

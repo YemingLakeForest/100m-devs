@@ -46,6 +46,50 @@ export function isHold(dx: number, dy: number, elapsedMs: number): boolean {
   return Math.hypot(dx, dy) <= TAP_SLOP && elapsedMs >= HOLD_MS
 }
 
+/** Has this pointer travelled far enough to stop being a tap or a hold? */
+export function exceedsSlop(dx: number, dy: number): boolean {
+  return Math.hypot(dx, dy) > TAP_SLOP
+}
+
+export type Gesture = 'poke' | 'drag' | 'hold'
+
+/**
+ * What a finger just did — GDD §7.7.6a.
+ *
+ * §7.7.6 gives a finger three jobs and, on a desktop, a cursor change can
+ * disambiguate them. **A touch screen has no cursor and no hover**, so the
+ * affordance has to be built out of time and motion instead — and §7.7.6a is
+ * explicit that this is a shipping blocker rather than a polish item, "because
+ * a player who cannot tell the two apart will trigger the wrong one and
+ * conclude the game is unreliable".
+ *
+ * The order the gestures resolve in is the design, and it is not the order they
+ * would fall out of if written naively:
+ *
+ * | Down, up quickly, barely moved | **Poke** — instant, and it is the *default*: the common action must never be the one that needs learning |
+ * | Moved past the slop before the timer | **Camera drag** — the world moves under the finger immediately |
+ * | Still, held past the timer | **Hold** — pick up (§7.8.9) or select (§7.8.8), depending on who is under the thumb |
+ *
+ * Motion beats time. A finger that has travelled is dragging *whatever* the
+ * clock says, which is what stops a slow, sloppy pan from resolving as a grab
+ * three hundred milliseconds in.
+ *
+ * The `hold` case is deliberately *not* decided here. Whether a hold picks
+ * somebody up or selects them depends on who is under the finger, which is the
+ * renderer's question — and the player's answer to it is that they can see the
+ * difference between a person standing about and a person at a desk.
+ */
+export function resolveGesture(dx: number, dy: number, elapsedMs: number): Gesture {
+  if (exceedsSlop(dx, dy)) return 'drag'
+  if (elapsedMs >= HOLD_MS) return 'hold'
+  if (elapsedMs <= TAP_MS) return 'poke'
+  // Between TAP_MS and HOLD_MS, still. Not quick enough to have been a tap and
+  // not patient enough to have been a hold — a hesitation. It resolves as a
+  // drag of zero distance, which does nothing, because the alternative is
+  // guessing on the player's behalf in the one window where they have not said.
+  return 'drag'
+}
+
 /** Below this, a flick is a hand tremor rather than an instruction. */
 const MIN_FLING = 40
 

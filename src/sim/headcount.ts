@@ -17,6 +17,8 @@
  * is testable without a renderer.
  */
 
+import { ceilingZForRung } from './ladder.ts'
+
 /**
  * Sprites the renderer will hold. The same 1,000 GDD §23.3 criterion 4
  * measures — above this, one sprite stops being one developer (see
@@ -155,23 +157,19 @@ export function rungCrossed(before: number, after: number): Rung | null {
  * reach galactic zoom over an empty world tells the player the game is a
  * backdrop they are pointing at rather than a place they are filling.
  *
- * Returned as a maximum Z on the §7.2 ladder, mapped to the §7.4 canonical
- * levels: you may see one level beyond nothing, and the ceiling lifts as the
- * headcount earns it. Each lift is a §7.7.2 promotion and should be scored.
+ * Returned as a maximum Z on the §7.2 ladder, and the ceiling is now **the
+ * player's own rung** rather than one of §7.4's four bands. That is §7.4a: the
+ * bands were a rendering concept standing in for a navigation one, so a studio
+ * of three thousand could pull back to "the global grid" — three rungs past
+ * anything it had built — while never being shown the tower it *had*. Each lift
+ * is one rung and is a §7.7.2 promotion, so each one should be scored.
  *
  * The floor of 0 is never clamped — pinching all the way *in* is always allowed,
  * because §7.7.4 makes returning to James an absolute guarantee.
  */
 export function maxZoomFor(devs: number): number {
   if (!Number.isFinite(devs)) return 1
-  // Desk and huddle. One room, and you cannot leave it.
-  if (devs < 1e2) return 0.2
-  // The open floor.
-  if (devs < 1e4) return 0.5
-  // Towers, blocks, campuses — the global grid opens up.
-  if (devs < 1e7) return 0.8
-  // Towns, nations, planets, galaxies. The whole ladder.
-  return 1
+  return ceilingZForRung(rungFor(devs).rung)
 }
 
 /**

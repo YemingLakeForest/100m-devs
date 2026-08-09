@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**815 tests.** Lint, types and the art gate clean.
+**894 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -34,7 +34,9 @@ simulation.
 | **Prestige** | Layer 1 built — BP earned, banked, spent on the Paradigm Tree; 2 of 5 nodes wired |
 | **Audio** | 13 SFX + 10 music stems generated and playing |
 | **Art** | **0 of §22.7's 19 authored sprites.** Everything on screen is code-drawn from the palette |
-| **Rungs** | 0–6 built (room, tower, block, business park, sprawl). **7–9 unbuilt** — nation, planet, galaxy |
+| **Rungs** | 0–6 built (room, tower, block, business park, sprawl), **and the lens now visits every one of them** (§7.4a). 7–9 have no geometry of their own — §7.4's grid and cosmic tiers stand in |
+| **The clicker** | Per-developer output (§4.9a) and the `+1` over each head (§8.2b). A poke is worth what the person is worth. **A poke still pays once rather than buffing** — R14 |
+| **The economy** | Long-tailed revenue with a back catalogue, and the graph that shows it (§4.10e) |
 | **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. Desks no longer leave the plate |
 | **Hero Cards** | §13.6's rules and data built and tested. **Not wired** — see below |
 
@@ -45,7 +47,10 @@ life · the god-mode floor (pick people up) · the hire dial · Act IIa/IIb + th
 the bait as a pull rather than a shove · the ship celebration · Layer 1 prestige · the music
 bus + stems · horizontal desk rows · isometric props with contact shadows · **the desk unit
 and the hop** · **§13.6 Hero Cards** (rules + data) · **§7.8.2 rungs 4–6** (the city) ·
-**§7.8.1a/b/c — squads, the ten-thousand floor, and the unfold** (R4–R7).
+**§7.8.1a/b/c — squads, the ten-thousand floor, and the unfold** (R4–R7) · **§7.4a the lens
+climbing the ladder** (R8, and R5's camera half) · **§4.9a per-developer output** (R17) ·
+**§8.2b the `+1` over each head** (R10) · **§4.10e long-tailed revenue and its graph** (R2) ·
+**§7.7.6a poke vs drag on touch** (R9).
 
 ### Specced, not built
 
@@ -55,8 +60,11 @@ and the hop** · **§13.6 Hero Cards** (rules + data) · **§7.8.2 rungs 4–6**
   stated. It is not wired to the store and should not be until it can be reached — cards cost
   GP, GP needs Layer 2, Layer 2 needs 100,000 BP. **Layer 2 is the actual blocker.**
 - **§7.8.2 rungs 7–9** — nation, planet, galaxy. A different register from rungs 4–6 (a lit
-  coastline, a world, a cluster, not more architecture), and §7.4's Level 3 and 4 tiers
-  already hold that scale from the camera's side.
+  coastline, a world, a cluster, not more architecture). §7.4's grid and cosmic tiers stand in
+  for them and **the camera now stops at all three**, so this is no longer a hole in the
+  ladder — it is three views that are placeholder art rather than three rungs that are
+  missing. `sim/ladder.ts` names them `grid` and `cosmic`; giving them real geometry is
+  swapping what `scene.ts` builds for those keys and nothing else.
 - **§13.2's other three Paradigm nodes** — they say *"not yet implemented"* on the card, which
   is deliberate: a tree that takes currency and changes nothing is worse than one that admits
   it.
@@ -68,73 +76,49 @@ and the hop** · **§13.6 Hero Cards** (rules + data) · **§7.8.2 rungs 4–6**
 **[`GDD.md` §25](../GDD.md) is the ledger — 18 requirements, tracked with status.** A row leaves
 that table when the thing is built and *seen working*, not when it is specced.
 
-Eight are done (R3, R4, R5, R6, R7, R11, R12, R13-partial). The rest sequence into the phases
-below, and the sequence still matters more than the list: two of them rewrite the same files.
+Thirteen are done or partial (R2–R13, R17). **Four are left and they are one piece of work
+plus three loose ends.**
 
 ### ~~Phase 1 — the floor (R4, R5, R6, R7)~~ — **done 2026-08-09**
 
-All four landed as one change to `render/room.ts`. Squads of 10 × 10, a floor of 10 × 10
-squads with corridors, one reading order at both scales, and the ×100 unfold at the hundredth
-hire. Seen working at 8, 40, 99, 110 and 120 developers.
-
-**Three things a reader should know before touching it again:**
+Three things a reader should know before touching `room.ts` again:
 
 1. **The row width is a constant ten, and that is load-bearing.** The old square-footprint
    solve changed it at 7, 11, 13, 19, 25…, and every one of those hires picked up everybody
-   already seated and moved them. It cost §7.8.1's "6–10: two rows" line, which is recorded in
-   §7.8.1b along with why.
+   already seated and moved them. It cost §7.8.1's "6–10: two rows" line, recorded in §7.8.1b.
 2. **R6 had two causes, not one.** The plate was sized `max(width, height)` for a block that
    is *sheared*, and separately the margin interpolated on an unbounded `n / 14` and went
-   **negative** above fourteen developers once crowding flipped its target. Either alone puts
-   desks over the edge.
-3. **The unfold is not scored here on purpose.** A hundred developers is a §7.7.1 rung
-   boundary, so `stage.ts` already fires the promotion stinger, the zoom reveal and the dolly
-   on that hire.
+   **negative** above fourteen developers. Either alone puts desks over the edge.
+3. **The unfold is not scored there on purpose.** A hundred developers is a §7.7.1 rung
+   boundary, so `stage.ts` already fires the promotion stinger and the dolly on that hire.
 
-Still open from R5: **zoom to any squad, poke any individual in it.** That is the camera's
-half and it belongs to Phase 2.
+### ~~Phase 2 — the lens climbs the ladder (R8)~~ — **done 2026-08-09**
+### ~~Phase 4 — the economy reads honestly (R2)~~ — **done 2026-08-09**
 
-### Phase 2 — the lens climbs the ladder (R8). Do this next.
+### Phase 3 — finish the clicker rework (R14, R15). Do this next.
 
-Zoom out today and you arrive at a *galaxy*, skipping the building, campus and town that
-`render/city.ts` **already draws**. §7.4a: rendering tiers are not navigation rungs, and the
-camera has been using one as the other.
+Half of it landed. **R17 (per-developer output) and R10 (the `+1` over each head) are in**, and
+between them they turned the roll from a hidden number into the thing on screen: at forty
+developers you can read `+5.7` beside `+0.08` without a readout. What is left is what the
+player *does* about it:
 
-**Why now:** it is the cheapest large win left — the geometry exists and is tested; what is
-missing is the camera visiting it. Phase 1 is underneath it, so the bottom of the climb is a
-real floor, and R5's second half (*zoom to any squad*) is the same piece of work: `room.ts`
-now knows which squad a seat is in, so a lens that can stop at one has a unit to stop at.
-
-### Phase 3 — the clicker rework (R17, R10, R14, R15). The biggest design change.
-
-In dependency order, because each is the previous one's payoff:
-
-1. **R17 — per-developer output**, rolled from seat index and run seed, wide spread, **mean
-   pinned** (§4.9a). This is the store change everything else needs: the store models *one*
-   dev-state machine today, and per-person anything requires per-person state.
-2. **R10 — `+1` over each head** (§8.2b). The display of R17, and the thing that makes the
-   variance real rather than a hidden roll.
-3. **R14 — a poke buffs that individual** rather than paying out once (§4.5a).
-4. **R15 — poke any unit** on the ladder (§4.5b), with the buff percentage falling as the unit
-   grows so "always poke the biggest thing" is never the answer.
-
-**Why third:** it is the most valuable and the most invasive. It wants the floor structured
-(Phase 1) so a "squad" is a thing that can be poked.
-
-### Phase 4 — the economy reads honestly (R2).
-
-Long-tailed randomised revenue plus the **revenue graph** (§4.10e). Independent of Phases 1–3;
-pure economics and one HUD component, so it can be done in parallel or slotted whenever.
-
-**The constraint that keeps it honest:** randomise the *shape*, never the *total*. A player who
-ships the same game must not be able to be unlucky with it.
+1. **R14 — a poke buffs that individual** rather than paying out once (§4.5a). The store now
+   answers `developerShare(i)` and `developerVelocity(i)`, and `poke(x, y, who)` already knows
+   who was hit — so the seam exists. What does not exist is any *per-seat mutable state*, and
+   a buff has a duration. That is the piece to design: a sparse overlay of recently-poked
+   seats, bounded and decaying, rather than a table with ten trillion rows.
+2. **R15 — poke any unit** on the ladder (§4.5b), with the buff percentage falling as the unit
+   grows so "always poke the biggest thing" is never the answer. R8 makes this cheap in one
+   respect and honest in another: `dominantView(camera.z)` already says what unit is under the
+   thumb, and above the floor `pickDeveloper` deliberately returns −1, so **a tap at rung 4
+   currently does nothing at all**. That is the gap R15 fills.
 
 ### Phase 5 — the rest
 
-- **R9** — poke vs drag on touch (§7.7.6a). Small, and a shipping blocker for the god-mode
-  floor. Could be pulled forward any time.
-- **R13 remainder** — cash / developers / entropy keywords, and the §10.7 typed script.
-- **R16** — the Founder's desk and coding tree (§4.5d). Wants Phase 3's poke model first.
+- ~~**R9** — poke vs drag on touch (§7.7.6a)~~ — **done.** Needs a phone to judge the tick.
+- **R13 remainder** — the entropy and developers keywords, and the §10.7 typed script. Cash
+  landed with the revenue graph's readout.
+- **R16** — the Founder's desk and coding tree (§4.5d). Wants R14's poke model first.
 
 ### Blocked, not scheduled
 
@@ -153,9 +137,21 @@ ships the same game must not be able to be unlucky with it.
   than a concession — but nobody has listened to them yet. **Do `layer-strained` and
   `bed-desk` sit together without clashing?** That is the whole ten-stem design and it needs
   ears. `npm run music:generate -- --force <stem>` rerolls one.
-- **§4.10d's cash curve** — the arithmetic is sound and the *shape* is lumpy: payroll is
-  continuous, revenue arrives on ship, so the studio is overdrawn for most of every project.
-  The readout no longer lies about it, but whether it *feels* right is a play-test question.
+- **§4.10e's tail, now that it exists.** §4.10d's lumpiness is *fixed* — the catalogue pays
+  continuously and the graph draws it — but the constants are a first pass. A launch spike of
+  4–8 s over a tail of 30–70 s was chosen so Act IIa's "ship, earn, hire" stays playable, and
+  whether the back catalogue *feels* like a back catalogue is a question for a person, not a
+  test. The totals cannot drift, so this is safe to retune: `SPIKE_TAU`, `TAIL_TAU` and
+  `SPIKE_SHARE` in `sim/revenue.ts`, and the payout is invariant to all three by construction.
+- **§7.7.6a's hold tick needs a phone.** The whole of R9 turns on a haptic firing at the
+  instant the grab registers, and `Capacitor.isNativePlatform()` is false in a browser, so
+  **nothing that has been looked at so far has felt it**. The timing and the escape are
+  tested; the feel is not testable here.
+- **§4.9a's spread, at the table.** σ = 0.9 puts the 1st percentile at 0.08× and the 99.9th at
+  10.8×, which is §4.9a's own two examples almost exactly. Whether a floor where the median
+  developer produces two thirds of the average reads as *funny* or as *broken* is the play-test
+  question the section is really asking, and widening or narrowing it cannot change the
+  economy — the mean is pinned twice.
 - **F1.3 age rating / target audience.** Still blocks ad configuration. Declaring child
   appeal bans personalised ads.
 - **§23.3 criterion 2** (audio latency, needs an external capture) and **criterion 7**
@@ -237,7 +233,30 @@ new drawn per seat gets its depth sorting for free as long as it is drawn **insi
 loop**. Draw it in a layer of its own instead and a back-row prop lands on a front-row
 monitor.
 
-### 8. Synthetic pointer events do not reach the canvas
+### 8. A constant derived from a number that moved is a silent still frame
+
+`useTitleCamera` drifted the lens around `Z = 0.15`, with a comment saying "comfortably inside
+the rung-0 ceiling of 0.2". §7.4a moved that ceiling to 1/9 ≈ 0.111 underneath it, and the
+stage's per-frame clamp then flattened the drift into **a completely still title screen** —
+which §10.9.4 names as the thing that reads as a broken build. Nothing threw, nothing failed,
+and no test covered it, because the number was correct when it was written.
+
+The fix is not a new number; it is `const CEILING = maxZoomFor(1)` and fractions of it.
+**Grep for hardcoded Z values before touching the ladder**, and prefer deriving over copying
+anywhere a comment has to explain which other constant a number is under.
+
+### 9. A responsive breakpoint that excludes the reference device is decoration
+
+The left rail's short-frame rule was `@media (max-height: 420px)`. The frame everything is
+judged at — 997 × 448, the Pixel 8 Pro §23.3 refers to — is *above* it, so it got the tall
+layout, and adding §4.10e's revenue graph pushed the gauges down through §21's script. The
+collision was obvious in a screenshot and invisible in all 894 tests.
+
+It is 520 now. **Screenshot at 448 before believing anything new fits in the left rail** — the
+HUD grid's middle row is `1fr` and it will let its contents overflow into the row below
+rather than complain.
+
+### 10. Synthetic pointer events do not reach the canvas
 
 Which is why `?select=4` exists, alongside `?overnight`, `?ad` and `?dialogue`. Add a seam
 rather than fighting the automation; they have each paid for themselves.
@@ -277,7 +296,8 @@ Pixel 8 Pro the §23.3 numbers refer to.
 |---|---|
 | `?act=act2b_loop` | Jump the §21 script. Every phase name works |
 | `?devs=300000` | Force a headcount — the only way to see §7.8.2's rungs. Brings cash and dev cap with it, or the studio bankrupts inside a tick |
-| `?z=0.42` | Park the Omni-Lens, so a screenshot is of a *tier* rather than of wherever the camera drifted |
+| `?z=0.42` | Park the Omni-Lens on a rung, so a screenshot is of a *place* rather than of wherever the camera drifted. **Pair it with `?notitle`** — the §10.9.1 title screen drives the same camera and will overwrite it |
+| `?notitle` | Skip the title. Implied by `?act=` and `?bench`. The rung stops are `?z=` 0.111 room · 0.222 floor · 0.333 tower · 0.444 block · 0.556 park · 0.667 sprawl · 0.778 grid · 0.889 cosmic |
 | `?select=4` | §7.8.8 — select a developer without holding on one |
 | `?bench` | §23.3 acceptance run. `?bench=10` shortens the 60 s leg |
 | `?nopost` / `?post=bloom,crt` | Drop or select post-process passes |

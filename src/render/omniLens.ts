@@ -12,9 +12,21 @@
  */
 
 import type { ZoomLevel } from '../sim/poke.ts'
+import { zAtRung } from '../sim/ladder.ts'
 
-/** Z at which each level's band ends — GDD §20.2 zone boundaries. */
-export const BAND_EDGES = [0.2, 0.5, 0.8] as const
+/**
+ * Z at which each level's band ends — GDD §20.2 zone boundaries.
+ *
+ * **Derived from the §7.4a ladder rather than chosen.** These used to be
+ * `[0.2, 0.5, 0.8]`, three round numbers with nothing under them, and that was
+ * the visible half of the bug §7.4a names: the bands *were* the navigation, so
+ * pulling back crossed four of them and arrived at a galaxy. The bands are now
+ * where the ladder's tier changes — halfway between the last rung drawn from
+ * one tier's geometry and the first rung drawn from the next — so the picture's
+ * register and the sound's still change on the same frame (§20.2) and both now
+ * change at a rung boundary rather than at a round number.
+ */
+export const BAND_EDGES = [zAtRung(1.5), zAtRung(3.5), zAtRung(7.5)] as const
 
 /** The scale span the lens covers: 1:1 at the desk to 1:10^9 at galactic. */
 export const ORDERS_OF_MAGNITUDE = 9
@@ -41,12 +53,22 @@ export function zoomForScale(scale: number): number {
   return clamp01(-Math.log10(scale) / ORDERS_OF_MAGNITUDE)
 }
 
-/** Centre of each level's band, used as the peak of its cross-fade. */
-const CENTRES: Record<ZoomLevel, number> = {
-  1: 0.1,
-  2: 0.35,
-  3: 0.65,
-  4: 0.9,
+/**
+ * Centre of each level's band, used as the peak of its cross-fade.
+ *
+ * The midpoint of the band, which is now a fact about the §7.4a ladder rather
+ * than a hand-picked number: level 3 is wide because four rungs — block,
+ * campus, town, nation — are all drawn from the same tier's geometry.
+ *
+ * Exported because the fit normalises by it, so a test that asserts "a tier
+ * exactly fills the frame at its own centre" has to be able to ask where that
+ * is rather than keeping its own copy.
+ */
+export const CENTRES: Record<ZoomLevel, number> = {
+  1: (0 + BAND_EDGES[0]) / 2,
+  2: (BAND_EDGES[0] + BAND_EDGES[1]) / 2,
+  3: (BAND_EDGES[1] + BAND_EDGES[2]) / 2,
+  4: (BAND_EDGES[2] + 1) / 2,
 }
 
 /**
@@ -54,10 +76,10 @@ const CENTRES: Record<ZoomLevel, number> = {
  * neighbours overlap and the hand-off is a fade rather than a swap.
  */
 const HALF_WIDTHS: Record<ZoomLevel, number> = {
-  1: 0.22,
-  2: 0.26,
-  3: 0.26,
-  4: 0.22,
+  1: 0.19,
+  2: 0.24,
+  3: 0.3,
+  4: 0.2,
 }
 
 /**
@@ -151,15 +173,37 @@ export function tierScale(
   viewport: Extent,
   extents: Record<ZoomLevel, Extent>,
 ): number {
+  return fitScale(extents[level], viewport, z, CENTRES[level])
+}
+
+/**
+ * The same framing, for one object at one stop on the §7.4a ladder.
+ *
+ * {@link tierScale} was written when a tier and a navigation stop were the same
+ * thing. They are not — §7.4a — and level 2 alone now holds two stops while
+ * level 3 holds four, so the normalising point has to be the *stop's* Z rather
+ * than the tier's band centre. Framed at its own stop and only its own stop, a
+ * town fills the frame exactly as a floor did, which is §7.7.1's promise that
+ * the unit changes rather than the studio receding.
+ *
+ * `tierScale` is now a thin call into this and is kept because §23.3's bench,
+ * the debug snapshot and the tests all still reason in tiers.
+ */
+export function fitScale(
+  extent: Extent,
+  viewport: Extent,
+  z: number,
+  stopZ: number,
+): number {
   // A zero-sized viewport happens for a frame during startup and on some
   // rotation paths. Returning 0 would collapse the world to a point and
   // returning NaN would poison every transform downstream.
   if (!(viewport.w > 0) || !(viewport.h > 0)) return 1
+  if (!(extent.w > 0) || !(extent.h > 0)) return 1
 
-  const e = extents[level]
-  const fit = Math.min(viewport.w / e.w, viewport.h / e.h) * FIT_MARGIN
+  const fit = Math.min(viewport.w / extent.w, viewport.h / extent.h) * FIT_MARGIN
 
-  return fit * (relativeCurve(z) / relativeCurve(CENTRES[level]))
+  return fit * (relativeCurve(z) / relativeCurve(stopZ))
 }
 
 /**

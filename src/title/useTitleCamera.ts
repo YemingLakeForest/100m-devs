@@ -8,23 +8,31 @@
  * fake the drift and the push-in becomes a hand-off between two cameras, which
  * is a cut wearing a dolly's clothes.
  *
- * The Z band is bounded by the game's own ceiling. `maxZoomFor(1)` is 0.2 for
- * a one-developer studio and the stage ticker re-clamps to it every frame, so
- * a drift that reached past it would be silently flattened into a still frame
- * at exactly the moment §10.9.4 forbids one.
+ * The Z band is bounded by the game's own ceiling. `maxZoomFor(1)` is rung 1 —
+ * the room — and the stage ticker re-clamps to it every frame, so a drift that
+ * reached past it would be silently flattened into a still frame at exactly the
+ * moment §10.9.4 forbids one. That is not hypothetical: the band used to be
+ * centred on 0.15 against a ceiling of 0.2, and §7.4a's ladder moved the
+ * ceiling to 1/9 ≈ 0.111 underneath it. The numbers below are derived from
+ * `maxZoomFor(1)` rather than written down, so the next time the ladder moves
+ * this file moves with it instead of quietly going still.
  */
 
 import { useEffect, useRef } from 'react'
 import type { StageHandle } from '../render/stage.ts'
+import { maxZoomFor } from '../sim/headcount.ts'
 
-/** Centre of the drift. Comfortably inside the rung-0 ceiling of 0.2. */
-const DRIFT_Z = 0.15
-const DRIFT_AMPLITUDE = 0.035
+/** The furthest out the lens may go over a one-developer studio — §7.7.1. */
+const CEILING = maxZoomFor(1)
+/** Centre of the drift, and its swing. Both a fraction of the ceiling, so the
+ *  whole band stays comfortably inside it however the ladder is retuned. */
+const DRIFT_Z = CEILING * 0.68
+const DRIFT_AMPLITUDE = CEILING * 0.26
 /** Radians/sec. ~28 s per cycle — movement you notice only if you look for it. */
 const DRIFT_RATE = 0.22
 
 /** Where the push-in lands: the desk, as close as the lens goes. */
-const PUSH_IN_Z = 0.02
+const PUSH_IN_Z = CEILING * 0.18
 
 /**
  * Approach rates, per second. The drift is slack enough that arriving at the

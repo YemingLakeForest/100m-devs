@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  HOLD_MS,
   TAP_MS,
   TAP_SLOP,
   clampPan,
+  exceedsSlop,
+  resolveGesture,
   flingVelocity,
   initPan,
   isTap,
@@ -30,6 +33,59 @@ describe('tap vs drag — GDD §7.7.6', () => {
     // The other half of the same rule: a poke that pans loses the clicker
     // layer. A finger resting on the glass is not a tap.
     expect(isTap(0, 0, TAP_MS + 1)).toBe(false)
+  })
+})
+
+describe('poke or drag — how a thumb tells the difference, GDD §7.7.6a', () => {
+  it('makes the poke the default, because it is the common action', () => {
+    // §7.7.6a: "it is instant, and it is the default — the common action must
+    // never be the one that needs learning."
+    expect(resolveGesture(0, 0, 0)).toBe('poke')
+    expect(resolveGesture(2, 2, 80)).toBe('poke')
+    expect(resolveGesture(0, 0, TAP_MS)).toBe('poke')
+  })
+
+  it('lets motion beat time, at every duration', () => {
+    // The rule that stops a slow, sloppy pan resolving as a grab three hundred
+    // milliseconds in. A finger that has travelled is dragging whatever the
+    // clock says — including well past the hold timer.
+    for (const ms of [0, 100, TAP_MS, HOLD_MS, HOLD_MS + 2000]) {
+      expect(resolveGesture(TAP_SLOP + 1, 0, ms)).toBe('drag')
+      expect(resolveGesture(0, 300, ms)).toBe('drag')
+    }
+  })
+
+  it('resolves a still, patient finger as a hold', () => {
+    expect(resolveGesture(0, 0, HOLD_MS)).toBe('hold')
+    expect(resolveGesture(TAP_SLOP, 0, HOLD_MS + 500)).toBe('hold')
+  })
+
+  it('never lets one press be two gestures', () => {
+    // Mutually exclusive by construction rather than by a flag: `HOLD_MS` is
+    // longer than `TAP_MS`, so no journey can satisfy both, and the resolver
+    // returns exactly one answer for every one of them.
+    expect(HOLD_MS).toBeGreaterThan(TAP_MS)
+    for (const d of [0, 3, TAP_SLOP, TAP_SLOP + 1, 90]) {
+      for (const ms of [0, 40, TAP_MS, TAP_MS + 1, HOLD_MS - 1, HOLD_MS, 4000]) {
+        expect(['poke', 'drag', 'hold']).toContain(resolveGesture(d, 0, ms))
+      }
+    }
+  })
+
+  it('guesses nothing in the window where the player has not said', () => {
+    // Still, but slower than a tap and quicker than a hold. Resolving it as
+    // either would be acting on the player's behalf in the one case where they
+    // have given no signal, so it resolves as a drag of no distance — which
+    // does nothing at all.
+    expect(resolveGesture(0, 0, TAP_MS + 1)).toBe('drag')
+    expect(resolveGesture(0, 0, HOLD_MS - 1)).toBe('drag')
+  })
+
+  it('agrees with the slop test the drag path uses to cancel the timer', () => {
+    expect(exceedsSlop(0, 0)).toBe(false)
+    expect(exceedsSlop(TAP_SLOP, 0)).toBe(false)
+    expect(exceedsSlop(TAP_SLOP + 1, 0)).toBe(true)
+    expect(exceedsSlop(8, 8)).toBe(true)
   })
 })
 

@@ -19,6 +19,27 @@ const isNative = Capacitor.isNativePlatform()
  * would put bridge latency inside the tap handler that GDD §23.3 criterion 1
  * measures.
  */
+/**
+ * The hold has registered — GDD §7.7.6a.
+ *
+ * **The one place §8.1's haptics are load-bearing rather than juice.** A touch
+ * screen has no cursor, so the moment a press stops being a poke and becomes a
+ * grab is otherwise invisible: the player finds out by watching a developer
+ * they did not mean to pick up follow their thumb around.
+ *
+ * This fires *at the instant the timer elapses*, while the finger is still on
+ * the glass and before anything has moved. That is the whole solution — it
+ * converts an invisible mode change into a felt one, so the boundary is learned
+ * in one accidental attempt rather than in twenty.
+ *
+ * Medium rather than Light: it has to be distinguishable from the Light tick a
+ * routine poke fires, or it is telling the player something they cannot hear.
+ */
+export function holdHaptic(): void {
+  if (!isNative) return
+  void Haptics.impact({ style: ImpactStyle.Medium })
+}
+
 export function pokeHaptic(state: DevState): void {
   if (!isNative) return
 

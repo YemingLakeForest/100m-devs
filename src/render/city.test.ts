@@ -16,6 +16,7 @@ import {
   neighbourSway,
   slotAt,
   unitDropHeight,
+  unitsAtRung,
   unitsFor,
 } from './city.ts'
 import { DEVS_PER_STOREY, MAX_STOREYS, storeysFor } from './tower.ts'
@@ -84,6 +85,33 @@ describe('the picture keeps answering above ten thousand', () => {
     // saturated sprawl is honest; an empty slot is a bug.
     expect(unitsFor(1e12).rung).toBe(CITY_LAST_RUNG)
     expect(unitsFor(1e12).count).toBe(MAX_UNITS)
+  })
+})
+
+describe('unitsAtRung — §7.4a, the camera chooses the rung, not the headcount', () => {
+  it('answers for any rung, so one studio can be looked at three ways', () => {
+    // Three million developers. As a sprawl that is three towns; as a business
+    // park it is thirty campuses saturating at ten; as a block it is three
+    // hundred buildings, also saturating. All three are true and, before
+    // §7.4a, only the first could ever be seen.
+    expect(unitsAtRung(3e6, 6)).toBe(3)
+    expect(unitsAtRung(3e6, 5)).toBe(MAX_UNITS)
+    expect(unitsAtRung(3e6, 4)).toBe(MAX_UNITS)
+  })
+
+  it('draws nothing at a rung the studio has not reached', () => {
+    // The camera ceiling should never let an unearned rung be looked at. A
+    // picture that is honest without the ceiling is one less thing that can
+    // quietly disagree with it.
+    expect(unitsAtRung(5_000, 4)).toBe(0)
+    expect(unitsAtRung(50_000, 5)).toBe(0)
+    expect(unitsAtRung(50_000, 4)).toBe(5)
+  })
+
+  it('survives nonsense rather than drawing NaN buildings', () => {
+    expect(unitsAtRung(Number.NaN, 4)).toBe(0)
+    expect(unitsAtRung(-5, 4)).toBe(0)
+    expect(unitsAtRung(1e6, 99)).toBe(0)
   })
 })
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { TIER_EXTENTS } from './scene.ts'
+import { zAtRung } from '../sim/ladder.ts'
 import {
   BAND_EDGES,
+  CENTRES,
   LensCamera,
   FIT_MARGIN,
   ORDERS_OF_MAGNITUDE,
@@ -13,18 +15,26 @@ import {
 } from './omniLens.ts'
 
 describe('the four canonical levels (GDD §7.4)', () => {
-  it('bands Z on the §20.2 audio zone edges', () => {
-    expect(BAND_EDGES).toEqual([0.2, 0.5, 0.8])
+  it('bands Z where the §7.4a ladder changes tier, not on round numbers', () => {
+    // The bands used to be [0.2, 0.5, 0.8] — three round numbers with nothing
+    // underneath them, which is the visible half of §7.4a's complaint: the
+    // bands *were* the navigation, so a pull-back crossed four of them and
+    // arrived at a galaxy. A band edge is now the midpoint between the last
+    // rung one tier's geometry draws and the first rung the next one does.
+    expect(BAND_EDGES).toEqual([zAtRung(1.5), zAtRung(3.5), zAtRung(7.5)])
   })
 
   it('maps each band to its level', () => {
-    expect(zoomLevel(0)).toBe(1)
-    expect(zoomLevel(0.19)).toBe(1)
-    expect(zoomLevel(0.2)).toBe(2)
-    expect(zoomLevel(0.49)).toBe(2)
-    expect(zoomLevel(0.5)).toBe(3)
-    expect(zoomLevel(0.79)).toBe(3)
-    expect(zoomLevel(0.8)).toBe(4)
+    // Rungs 0–1 are the room, 2–3 the floor and the tower, 4–7 the city and the
+    // grid, 8–9 the cosmos. Sampled just inside each rung stop rather than at
+    // the edges, because an edge is a cross-fade and belongs to both.
+    expect(zoomLevel(zAtRung(0))).toBe(1)
+    expect(zoomLevel(zAtRung(1))).toBe(1)
+    expect(zoomLevel(zAtRung(2))).toBe(2)
+    expect(zoomLevel(zAtRung(3))).toBe(2)
+    expect(zoomLevel(zAtRung(4))).toBe(3)
+    expect(zoomLevel(zAtRung(7))).toBe(3)
+    expect(zoomLevel(zAtRung(8))).toBe(4)
     expect(zoomLevel(1)).toBe(4)
   })
 })
@@ -140,7 +150,10 @@ describe('tierScale — GDD §23.4.1, the camera answers to the viewport', () =>
   const LANDSCAPE = { w: 997, h: 448 }
   const PORTRAIT = { w: 448, h: 997 }
   const LEVELS = [1, 2, 3, 4] as const
-  const CENTRE: Record<1 | 2 | 3 | 4, number> = { 1: 0.1, 2: 0.35, 3: 0.65, 4: 0.9 }
+  // Imported rather than restated: the fit normalises by the band centre, so a
+  // test keeping its own copy would silently stop testing the thing it names
+  // the moment §7.4a moved the bands — which it did.
+  const CENTRE = CENTRES
 
   /** Fraction of the display the tier occupies at scale `s`. */
   function coverage(level: 1 | 2 | 3 | 4, s: number, vp: { w: number; h: number }) {
@@ -153,7 +166,7 @@ describe('tierScale — GDD §23.4.1, the camera answers to the viewport', () =>
     // `1/(1 + z*9)` with no screen term, so the swarm rendered at a fixed
     // 239x120 px and filled 6.4% of the display in EITHER orientation. The
     // landscape decision delivered nothing until this function existed.
-    const s = tierScale(2, 0.35, LANDSCAPE, TIER_EXTENTS)
+    const s = tierScale(2, CENTRE[2], LANDSCAPE, TIER_EXTENTS)
     expect(coverage(2, s, LANDSCAPE)).toBeGreaterThan(0.65)
   })
 

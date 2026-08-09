@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { zAtRung } from './ladder.ts'
 import {
   MAX_BURST,
   MIN_BURST,
@@ -184,19 +185,33 @@ describe('maxZoomFor — §7.7.1, the studio you can see is the studio you have'
     // The complaint that produced this: the lens could reach cosmic zoom over
     // an empty world, which tells the player the game is a backdrop they point
     // at rather than a place they fill.
-    expect(maxZoomFor(1)).toBe(0.2)
-    expect(maxZoomFor(2)).toBe(0.2)
-    expect(maxZoomFor(99)).toBe(0.2)
+    expect(maxZoomFor(1)).toBe(zAtRung(1))
+    expect(maxZoomFor(2)).toBe(zAtRung(1))
+    expect(maxZoomFor(99)).toBe(zAtRung(1))
   })
 
-  it('opens the floor once there is a floor to see', () => {
-    expect(maxZoomFor(1e2)).toBe(0.5)
-    expect(maxZoomFor(1002)).toBe(0.5)
+  it('stops the camera exactly one rung above nothing, never four — §7.4a', () => {
+    // The whole of R8 in one assertion. The ceiling is the *player's own rung*,
+    // so a studio of three thousand may look at its tower and no further; the
+    // old four-band ceiling let it reach "the global grid", three rungs past
+    // anything it had built, while never showing it the tower it had.
+    for (const devs of [1, 40, 400, 4_000, 40_000, 4e5, 4e6, 4e8, 4e10, 4e13]) {
+      expect(maxZoomFor(devs)).toBe(zAtRung(Math.max(1, rungFor(devs).rung)))
+    }
   })
 
-  it('opens the whole ladder only at town scale and beyond', () => {
-    expect(maxZoomFor(1e4)).toBe(0.8)
-    expect(maxZoomFor(1e7)).toBe(1)
+  it('opens one rung per rung earned, and each lift is a promotion', () => {
+    // Every rung boundary in §7.7.1's table lifts the ceiling by exactly one
+    // step, which is what makes `zoomCeilingLifted` a reveal beat rather than
+    // an occasional one.
+    expect(maxZoomFor(1e2)).toBe(zAtRung(2))
+    expect(maxZoomFor(1e3)).toBe(zAtRung(3))
+    expect(maxZoomFor(1e4)).toBe(zAtRung(4))
+    expect(maxZoomFor(1e5)).toBe(zAtRung(5))
+    expect(maxZoomFor(1e6)).toBe(zAtRung(6))
+    expect(maxZoomFor(1e8)).toBe(zAtRung(7))
+    expect(maxZoomFor(1e10)).toBe(zAtRung(8))
+    expect(maxZoomFor(1e13)).toBe(1)
     expect(maxZoomFor(1e15)).toBe(1)
   })
 

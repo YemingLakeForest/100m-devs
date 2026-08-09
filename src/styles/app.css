@@ -346,6 +346,66 @@ body {
   stroke: var(--p3);
 }
 
+/* --- the revenue graph, GDD §4.10e -------------------------------------- */
+
+.revenue {
+  margin-top: 5px;
+}
+
+/* Label and income on one line — see the note in RevenueGraph.tsx. */
+.revenue__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.revenue__rates {
+  color: var(--p2);
+}
+
+.revenue__chart {
+  display: block;
+  width: 100%;
+  height: 26px;
+  margin: 2px 0;
+  border-left: var(--rule) solid var(--p1);
+  border-bottom: var(--rule) solid var(--p1);
+}
+
+/*
+ * One band per still-earning game.
+ *
+ * Four steps of the *same* hue rather than four different ones. The bands are
+ * not four categories to be told apart — they are one quantity, arriving from
+ * several places, and colouring them separately would invite the player to
+ * track which is which. What has to read at a glance is the stack getting
+ * thicker or thinner, and a single hue in four values says that and nothing
+ * else. Newer releases are lighter, so the launch sits on top of the catalogue
+ * the way it does in the arithmetic.
+ */
+.revenue__band {
+  stroke: none;
+}
+
+.revenue__band--0 { fill: var(--p1); }
+.revenue__band--1 { fill: var(--p1); opacity: 0.72; }
+.revenue__band--2 { fill: var(--p2); opacity: 0.68; }
+.revenue__band--3 { fill: var(--p2); }
+
+/*
+ * The payroll line, over the bands rather than under them. Where it sits above
+ * the stack the studio is losing money that second, and that crossing is the
+ * one thing on this chart worth reading precisely — so it is a hard line on top
+ * of soft fills rather than another band competing with them.
+ */
+.revenue__payroll {
+  fill: none;
+  stroke: var(--p3);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
 /* --- the §21 script ----------------------------------------------------- */
 
 /* The CRT terminal banner. Retro, monospace, and doing the comedy work. */
@@ -906,9 +966,25 @@ body {
  * 1080x450 is wide and short at once. The chart is the one element with height
  * to give back, and a shorter burn-down is still a burn-down.
  */
-@media (max-height: 420px) {
+/*
+ * The breakpoint moved from 420 to 520 when §4.10e's revenue graph arrived.
+ *
+ * 997x448 — the Pixel 8 Pro §23.3 is measured on, and the frame every
+ * screenshot is taken at — sat *above* the old threshold and got the tall
+ * layout, which is how a second chart in the left rail pushed the gauges down
+ * over §21's script. A breakpoint that excludes the reference device is not a
+ * breakpoint, it is a decoration.
+ */
+@media (max-height: 520px) {
   .burndown__chart {
     height: 28px;
+  }
+
+  /* Both charts give height back on a short frame, and the revenue graph gives
+     more: a burn-down needs its slope legible, a stack of bands only needs its
+     thickness. */
+  .revenue__chart {
+    height: 20px;
   }
 
   .hud {
