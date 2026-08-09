@@ -191,3 +191,58 @@ export function shouldStart(entropy: number, dt: number, r: number): boolean {
   const step = Math.max(0, Math.min(MAX_STEP_SECONDS, dt))
   return r < eventsPerSecond(entropy) * step
 }
+
+/**
+ * How a speech bubble opens and shuts — GDD §8.3's tactile juice.
+ *
+ * **In wall-clock milliseconds, not as a fraction of the behaviour.** The pop
+ * used to run over 12% of a behaviour's life, and a behaviour is seconds long:
+ * a six-second exchange spent seven hundred milliseconds growing the bubble and
+ * nine hundred shrinking it, with the words scaling along with the box. That is
+ * a zoom, and it was reported as one. Speech does not zoom. It arrives.
+ *
+ * So: a hard snap open with a slight overshoot, a hold, and a shut that closes
+ * vertically while staying wide — the shape a comic bubble makes, and the shape
+ * a mouth makes. The whole opening is over in a tenth of a second, which is
+ * about as long as it takes to notice something appeared.
+ */
+export const BUBBLE_IN_MS = 110
+export const BUBBLE_OUT_MS = 90
+/** How far past full size the snap overshoots. Enough to feel, not to notice. */
+const BUBBLE_OVERSHOOT = 1.7
+
+export interface BubblePop {
+  /** Horizontal scale. */
+  sx: number
+  /** Vertical scale — this is the one that carries the snap. */
+  sy: number
+  /** Are the words up? They are either fully there or not there at all. */
+  ink: boolean
+}
+
+/** Back-out easing: overshoots 1 and settles. The snap, in one line. */
+function overshoot(u: number): number {
+  const p = u - 1
+  return 1 + (BUBBLE_OVERSHOOT + 1) * p * p * p + BUBBLE_OVERSHOOT * p * p
+}
+
+export function bubblePop(ageMs: number, remainMs: number): BubblePop {
+  if (ageMs <= 0 || remainMs <= 0) return { sx: 0, sy: 0, ink: false }
+
+  if (remainMs < BUBBLE_OUT_MS) {
+    // Shutting. Vertical collapses and horizontal barely moves, so it reads as
+    // a bubble snapping closed rather than as one receding into the distance.
+    const v = remainMs / BUBBLE_OUT_MS
+    return { sx: 0.55 + 0.45 * v, sy: v * v, ink: false }
+  }
+
+  if (ageMs < BUBBLE_IN_MS) {
+    const u = ageMs / BUBBLE_IN_MS
+    const s = overshoot(u)
+    // The horizontal leads and the vertical overshoots, which is squash and
+    // stretch on a box: it arrives wide and settles.
+    return { sx: Math.min(1.06, 0.35 + u * 0.75), sy: s, ink: s > 0.72 }
+  }
+
+  return { sx: 1, sy: 1, ink: true }
+}

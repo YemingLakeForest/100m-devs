@@ -117,9 +117,23 @@ body {
   align-self: start;
 }
 
+/*
+ * **Anchored to the bottom of its row, not the top**, and that is a priority
+ * decision rather than a taste one.
+ *
+ * The middle row is `1fr`, so when the frame is short it is the row that
+ * shrinks — and a block anchored to the top of a row shorter than its own
+ * content overflows *downward*, straight over §21's script. That happened twice
+ * in one session, once when the revenue graph arrived and again when the
+ * man-week readout did, and both times the copy is what got buried.
+ *
+ * Anchored to the end, the overflow goes upward into the simulation instead,
+ * which is exactly the order §10.1 asks for: "the simulation can be squeezed
+ * and the copy cannot, because the copy is the product".
+ */
 .hud__gauges {
   grid-area: gauges;
-  align-self: start;
+  align-self: end;
   display: grid;
   gap: 6px;
 }
@@ -986,6 +1000,23 @@ body {
   .revenue__chart {
     height: 20px;
   }
+}
+
+/*
+ * The reference frame is 448 px tall and the left rail now carries five blocks
+ * plus §21's script. Under 470 the revenue *chart* is the first thing to go —
+ * its two numbers say everything the shape does at a glance, and the shape is
+ * the part that costs twenty pixels. The burn-down keeps its chart because a
+ * burn-down without a line is a number in a box, which §10.4 forbids by name.
+ */
+@media (max-height: 470px) {
+  .revenue__chart {
+    display: none;
+  }
+
+  .hud {
+    row-gap: 6px;
+  }
 
   .hud {
     row-gap: 6px;
@@ -1551,4 +1582,44 @@ body {
  */
 .hud__sub--split {
   opacity: 0.75;
+}
+
+/* --- man-weeks, planned against delivered -------------------------------- */
+
+/*
+ * The one readout that is not a measurement. See `manWeeks.ts`: every other
+ * block reports what the studio is doing, and this reports what the player
+ * assumed it would do — so the two lines have to read as *claim* and
+ * *correction*, not as two statistics.
+ *
+ * The claim is set in the normal numeral weight and the correction is set
+ * against it in colour, which is the only place in the HUD a sub-line is
+ * allowed to be louder than the figure above it.
+ */
+.hud__block--plan .hud__num--major {
+  font-size: var(--type-2x);
+}
+
+.hud__plan-real {
+  font-weight: 700;
+}
+
+/* Holding: the plan is roughly the reality, which is only true early. */
+.hud__block--plan.is-holding .hud__plan-real {
+  color: var(--calm-2);
+}
+
+/* Slipping: §4.1's curve has started to bite and the gap is now readable. */
+.hud__block--plan.is-slipping .hud__plan-real {
+  color: var(--warn-2);
+}
+
+/*
+ * Gone. A thousand on paper and eight delivered — §21 Act IV, in the units of
+ * the plan that produced it. It blinks for the same reason the runway clock
+ * does: at this point the number is not information, it is an alarm.
+ */
+.hud__block--plan.is-gone .hud__plan-real {
+  color: var(--alarm-2);
+  animation: hud-blink 0.9s steps(2, end) infinite;
 }

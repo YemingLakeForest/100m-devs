@@ -44,6 +44,15 @@ import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
+import {
+  BODY_BASE,
+  buildDeveloper,
+  drawDeskBank,
+  drawWorkstation,
+  seatGrid,
+  seatPosition,
+} from './room.ts'
+import { developerAt } from '../sim/identity.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -184,25 +193,30 @@ interface Live {
   /** Which beats have already made a noise, so each fires once. */
   rung: number
   sounded: boolean
-  gfx: Graphics
+  /** The real desk bank, the real workstation, and the real person. */
+  deskG: Graphics
+  kitG: Graphics
+  dev: Container
+  dust: Graphics
 }
 
 export interface Arrivals {
   /** Parented into the room so arrivals share its transform and cross-fade. */
   readonly layer: Container
   /**
-   * Land the seats `[from, to)` at the given room-local positions.
+   * Land the seats `[from, to)`.
    *
-   * `positions[k]` is the desk for seat `from + k`. The caller knows the
-   * layout; this only knows how to drop things onto it.
+   * `seed` is the run seed, because §7.8.7 generates a developer from their
+   * seat and the run — so an arrival knows exactly who is coming and can drop
+   * *them* rather than a stand-in.
    */
-  spawn(positions: ReadonlyArray<{ x: number; y: number }>, from: number, now: number): void
+  spawn(from: number, to: number, seed: number, now: number): void
   /**
    * How many seats the room may draw — everything below this has landed.
    *
-   * `Infinity` when nothing is arriving. This is fault 2 in the header: without
-   * it the room draws the hire on the frame the store publishes them, and the
-   * falling silhouette lands on a person who is already sitting in the chair.
+   * `Infinity` when nothing is arriving. Without it the room draws the hire on
+   * the frame the store publishes them, and the falling figure lands on a
+   * person who is already sitting in the chair.
    */
   readonly revealed: number
   /** Advance. Returns true while anything is still falling. */
@@ -213,22 +227,26 @@ export interface Arrivals {
 export function createArrivals(): Arrivals {
   const layer = new Container()
   const live: Live[] = []
-  const pool: Graphics[] = []
   let revealFrom = Number.POSITIVE_INFINITY
 
-  function take(): Graphics {
-    const g = pool.pop() ?? new Graphics()
-    g.visible = true
-    layer.addChild(g)
-    return g
+  function retire(a: Live, i: number) {
+    a.deskG.destroy()
+    a.kitG.destroy()
+    a.dust.destroy()
+    a.dev.destroy({ children: true })
+    live.splice(i, 1)
   }
 
-  function retire(a: Live, i: number) {
-    a.gfx.clear()
-    a.gfx.visible = false
-    layer.removeChild(a.gfx)
-    pool.push(a.gfx)
-    live.splice(i, 1)
+  /**
+   * Park a piece at its landing place, so the fall is a transform on top of it.
+   *
+   * The contents are drawn in room coordinates, so the pivot has to be moved to
+   * the desk before anything is scaled — otherwise the squash also throws the
+   * piece across the floor, scaled about the room's origin.
+   */
+  function anchor(node: Container, x: number, y: number) {
+    node.pivot.set(x, y)
+    node.position.set(x, y)
   }
 
   return {
@@ -238,24 +256,52 @@ export function createArrivals(): Arrivals {
       return revealFrom
     },
 
-    spawn(positions, from, now) {
-      if (positions.length === 0) return
+    spawn(from, to, seed, now) {
+      const count = Math.max(0, Math.floor(to) - Math.floor(from))
+      if (count === 0) return
       // A batch landing on top of a batch would leave the earlier one's seats
       // withheld for ever, because `revealed` only ever counts forward. Finish
       // the old one instantly rather than interleaving two cascades.
       for (let i = live.length - 1; i >= 0; i--) retire(live[i], i)
 
       revealFrom = from
-      for (let i = 0; i < positions.length; i++) {
+      for (let i = 0; i < count; i++) {
+        const seat = from + i
+        const at = seatPosition(seat)
+        const grid = seatGrid(seat)
+
+        // **The real art, from the first frame.**
+        //
+        // These used to be grey silhouettes that swapped for the generated
+        // developer on landing, so every hire arrived as a white figure that
+        // changed colour the instant it touched the chair. There was never a
+        // reason for it: §7.8.7 generates a developer from their seat and the
+        // run seed, and both are in hand right here, so the person who is
+        // arriving is knowable before they have left the ceiling.
+        const deskG = new Graphics()
+        drawDeskBank(deskG, grid.col, grid.col, grid.row)
+        anchor(deskG, at.x, at.y)
+
+        const kitG = new Graphics()
+        drawWorkstation(kitG, at.x, at.y)
+        anchor(kitG, at.x, at.y)
+
+        const dev = buildDeveloper(developerAt(seed, seat).look)
+        const dust = new Graphics()
+
+        layer.addChild(deskG, kitG, dev, dust)
         live.push({
-          seat: from + i,
-          x: positions[i].x,
-          y: positions[i].y,
+          seat,
+          x: at.x,
+          y: at.y,
           born: now,
-          delay: cascadeDelay(i, positions.length),
+          delay: cascadeDelay(i, count),
           rung: -1,
           sounded: i < SOUNDED_ARRIVALS,
-          gfx: take(),
+          deskG,
+          kitG,
+          dev,
+          dust,
         })
       }
     },
@@ -276,63 +322,47 @@ export function createArrivals(): Arrivals {
           continue
         }
 
-        a.gfx.clear()
-        if (t <= 0) continue
+        a.dust.clear()
+        const waiting = t <= 0
+        a.deskG.visible = !waiting && t >= BEAT.desk
+        a.kitG.visible = !waiting && t >= BEAT.computer
+        a.dev.visible = !waiting && t >= BEAT.person
+        if (waiting) continue
 
         // --- the three things, each falling on its own clock ----------------
-        //
-        // Silhouettes rather than copies of the room's sprites: they are in
-        // frame for a few hundred milliseconds, and drawing the real thing
-        // would tie this file to the room's art. What they must do is *stop
-        // where the real art starts*, or the seat visibly jumps on the frame
-        // the assembly hands over.
 
         // 1. The desk. The heaviest thing, so the biggest dust.
-        if (t >= BEAT.desk) {
+        if (a.deskG.visible) {
           const u = beatProgress(t, BEAT.desk)
           const h = fallHeight(u) * ARRIVAL_HEIGHT
-          const sq = contactSquash(u, 0.20)
-          const st = contactStretch(u, 0.20)
-          const w = 28 * st
-          const d = 13 * sq
-          a.gfx
-            .moveTo(a.x - w, a.y - h)
-            .lineTo(a.x, a.y + d - h)
-            .lineTo(a.x + w, a.y - h)
-            .lineTo(a.x, a.y - d - h)
-            .closePath()
-            .fill(c(RAMPS.WOOD[2]))
-          if (crossed(a, 0, u)) thump(a, 'desk')
-          if (h <= 0.5) puff(a.gfx, a.x, a.y + 6, u, 0.72, 1)
+          a.deskG.position.set(a.x, a.y - h)
+          a.deskG.scale.set(contactStretch(u, 0.2), contactSquash(u, 0.2))
+          if (crossed(a, 0, u)) thump('desk')
+          if (h <= 0.5) puff(a.dust, a.x, a.y + 6, u, 0.72, 1)
         }
 
         // 2. The computer, onto the desk that just landed.
-        if (t >= BEAT.computer) {
+        if (a.kitG.visible) {
           const u = beatProgress(t, BEAT.computer)
           const h = fallHeight(u) * ARRIVAL_HEIGHT * 0.8
-          const sq = contactSquash(u, 0.16)
-          const st = contactStretch(u, 0.16)
-          const on = u > 0.78 && (u > 0.9 || Math.floor(u * 60) % 2 === 0)
-          a.gfx.rect(a.x - 11 * st, a.y - 44 - h, 22 * st, 15 * sq).fill(c(RAMPS.NEUTRAL[2]))
-          a.gfx
-            .rect(a.x - 9 * st, a.y - 42 - h, 18 * st, 11 * sq)
-            .fill(c(on ? RAMPS.GLOW[0] : RAMPS.NEUTRAL[0]))
-          if (crossed(a, 1, u)) thump(a, 'computer')
+          a.kitG.position.set(a.x, a.y - h)
+          a.kitG.scale.set(contactStretch(u, 0.14), contactSquash(u, 0.14))
+          if (crossed(a, 1, u)) thump('computer')
         }
 
         // 3. The person. The payload, the biggest squash, and the beat §7.8.5
         //    calls "bum hits seat".
-        if (t >= BEAT.person) {
+        if (a.dev.visible) {
           const u = beatProgress(t, BEAT.person)
           const h = fallHeight(u) * ARRIVAL_HEIGHT
           const sq = contactSquash(u, 0.34)
-          const st = contactStretch(u, 0.34)
-          a.gfx.rect(a.x - 7 * st, a.y - 14 - h, 14 * st, 20 * sq).fill(c(RAMPS.NEUTRAL[6]))
-          a.gfx
-            .rect(a.x - 6 * st, a.y - 14 - h - 14 * sq, 12 * st, 12 * sq)
-            .fill(c(RAMPS.SKIN[0]))
-          if (crossed(a, 2, u)) thump(a, 'person')
-          if (h <= 0.5) puff(a.gfx, a.x, a.y + 6, u, 0.72, 0.7)
+          // `BODY_BASE` compensates the squash, exactly as the room's own idle
+          // does: the figure hangs below its origin, so scaling Y about that
+          // origin would lift its feet off the seat.
+          a.dev.position.set(a.x, a.y + 6 - h + BODY_BASE * (1 - sq))
+          a.dev.scale.set(contactStretch(u, 0.34), sq)
+          if (crossed(a, 2, u)) thump('person')
+          if (h <= 0.5) puff(a.dust, a.x, a.y + 6, u, 0.72, 0.7)
         }
       }
 
@@ -346,7 +376,6 @@ export function createArrivals(): Arrivals {
     destroy() {
       layer.destroy({ children: true })
       live.length = 0
-      pool.length = 0
     },
   }
 }
@@ -370,8 +399,7 @@ function crossed(a: Live, index: number, u: number): boolean {
 }
 
 /** §8.3 — each landing has its own weight, and the ear can tell them apart. */
-function thump(a: Live, what: 'desk' | 'computer' | 'person') {
-  void a
+function thump(what: 'desk' | 'computer' | 'person') {
   if (what === 'desk') playSfx('poke-floor')
   // A light clack: a monitor set down is the smallest of the three sounds and
   // the only one that is not a body hitting something.

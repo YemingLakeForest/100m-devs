@@ -5879,6 +5879,23 @@ table when the thing is built and seen working** — not when it is specced, and
 
 ---
 
+### 25.0 Intake — 2026-08-09, reported by eye **[CANON]**
+
+Six things found by looking at the running game rather than by reading a
+requirement. They are recorded here for the same reason §25 exists — so they are
+not told to us twice — and every one is built.
+
+| # | Reported as | Owner § | Status |
+|---|---|---|---|
+| E1 | "Your rows are diagonal, not horizontal ... I mean horizontal to the office layout, horizontal to the wall ... row means developers sitting next to each other, not in front and behind" | §7.8.1 | **Built.** `isoAt` is a real 2:1 isometric map and a row runs **across the way developers face**, parallel to the left-hand wall. A run of desks is one continuous bank. Which axis is not a free choice — see the trap in `docs/HANDOFF.md` |
+| E2 | "The hiring animation, the fall goes down to the person before ... you literally need 3 things, a desk falldown, a computer fall down, a person fall down" | §7.8.5 | **Built.** Exactly three, each under gravity with one bounce, squash and stretch at both contacts, dust and its own sound. Landing on the seats the hire actually filled, with the room withholding a seat until its arrival lands |
+| E3 | "Why are they white to start with and change into their colour?" | §7.8.7 | **Built.** The arrival draws the real desk, the real workstation and the **real generated developer**. Nothing is a placeholder for something we already know |
+| E4 | "There's a big shade of black on title screen, what is that" | §10.9.6 | **Built — needs eyes.** The near field was a hard-edged slab of background colour over a third of the frame. Now a heavily blurred crop off two edges with a lit rim |
+| E5 | "I want to see some stats that reports Man-Week, the key metric the users are tracking in their head, but not the actual velocity they get" | §10.1a | **Built.** `MAN-WEEKS` — the plan against what lands, in the plan's own unit. At Act IV it reads `1.0K` over `0 DELIVERED` |
+| E6 | "The speech bubble in and out animation ... they zoom and way too slow" | §8.3 | **Built.** Wall-clock 110 ms snap with an overshoot, a shut that collapses vertically, and words that never scale — they are up at full size or not up at all |
+
+---
+
 ### 25.1 R11, diagnosed — what "+0" actually is **[CANON]**
 
 Two separate things were happening and they had one symptom, which is why it read as a single

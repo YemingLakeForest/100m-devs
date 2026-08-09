@@ -27,7 +27,7 @@ import { RevenueGraph } from './RevenueGraph.tsx'
 import { ShipToast } from './ShipToast.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HireDial } from './HireDial.tsx'
-import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
+import { Cash, Devs, ManWeeks, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
@@ -131,6 +131,8 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
       <div className="hud__resources">
         <Cash state={state} />
         <Devs state={state} />
+        {/* Directly under the headcount it is derived from — see Readouts.tsx. */}
+        <ManWeeks state={state} />
         <Shipped state={state} />
       </div>
 

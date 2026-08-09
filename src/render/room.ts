@@ -86,51 +86,26 @@ export const ROOM_DEV_CAP = 120
  * tile wide on its own, so an aisle only reads as an aisle once it is wider
  * than the thing it runs past.
  */
-/** Desk-to-desk along a row, in tile widths. Tight — shoulder to shoulder. */
-export const PITCH_COL = 0.92
 /**
- * Row to row, in tile heights. The aisle.
- *
- * **This has to beat the column pitch on screen, and it did not.** At 2.15 a
- * row was 34 px behind the one in front while neighbours along a row were 59 px
- * apart — so the nearest seat to anybody was not the person beside them, it was
- * the person diagonally behind. The eye groups by proximity and it grouped the
- * diagonals, which is why a floor of level rows read as a lattice of diagonal
- * chains however level the rows actually were.
- *
- * **3.6 tile-heights, and the value is pinned between two walls that are only
- * just far enough apart.** The seat behind is offset by half a column pitch
- * sideways as well as `PITCH_ROW` back, so what has to beat the 59 px along a
- * row is the *hypotenuse*, not the row pitch itself:
- *
- *   sqrt(29.4^2 + 57.6^2) = 64.7 px  >  58.9 px      rows win, by 10%
- *
- * The wall on the other side is §7.8.1's grain: a full 10 x 10 squad must stay
- * wider than it is deep on screen or a floor becomes a corridor, which caps the
- * pitch at 3.68. There is no room above that and none below 3.19, and the
- * shear is what opened the gap at all — see {@link ROW_SHEAR}.
- *
- * The pitch is the smaller half of the fix. The larger half is that a row is
- * now drawn as **one continuous bank** rather than ten butted diamonds; see
- * `drawDeskBank`.
+ * Desk-to-desk **along a row**, in floor tiles. Exactly one, so a row of desks
+ * is a continuous run with no gap and no overlap — shoulder to shoulder.
  */
-export const PITCH_ROW = 3.6
+export const PITCH_COL = 1
 /**
- * How far each row behind is pushed to the left.
+ * Row to row, **across** the rows, in floor tiles. The aisle.
  *
- * Zero would stack the rows in a flat column and throw the isometry away
- * entirely; a half-tile keeps the receding-into-the-room read while leaving the
- * rows themselves level. It also staggers the desks between rows, so the person
- * behind is not perfectly hidden by the person in front.
+ * Bigger than one, and that gap is the whole grain of the floor: desks are
+ * butted together along a row and the space is taken out *behind* it, where
+ * people actually need to get past. 2.1 tiles leaves an aisle a little wider
+ * than a desk is deep, which is about what an office gives you.
  *
- * **Exactly half {@link PITCH_COL}, and that is the maximum rather than a
- * round number.** The two seats in the row behind sit at horizontal offsets of
- * `−shear` and `pitch − shear`; the nearer of the two is furthest away when
- * those are equal, which is at half the pitch. Any other value brings some
- * diagonal neighbour closer than the person sitting next to you, and a diagonal
- * that is closer than a row is a diagonal the eye will read as the row.
+ * There is no shear constant any more. Rows step back along the floor's own
+ * second axis, so the offset between one row and the next is a fact about the
+ * projection rather than a number somebody chose — which is what
+ * {@link ROW_SHEAR} was, and it existed only to prop up a layout that ran the
+ * rows across the screen instead of across the floor.
  */
-export const ROW_SHEAR = PITCH_COL / 2
+export const PITCH_ROW = 2.1
 
 /**
  * §7.8.1a — **the squad**. Ten by ten desks, a hundred people who can see each
@@ -341,20 +316,62 @@ export interface RoomHandle {
 }
 
 /**
+ * A point on the floor grid, projected — the one place the 2:1 goes in.
+ *
+ * `gx` runs along the rows and `gy` across them, both in tile widths. This is
+ * the standard 2:1 isometric map and everything on the floor goes through it,
+ * so nothing can end up in a different projection from the room it is in.
+ */
+function gridToScreen(gx: number, gy: number) {
+  return { x: (gx - gy) * (TILE_W / 2), y: (gx + gy) * (TILE_H / 2) }
+}
+
+/**
  * Where seat (`col`, `row`) sits, in room-local coordinates.
  *
- * `col` runs level across the screen; `row` steps *forward* out of the room,
- * down and to the left. **Row 0 is the back row**, furthest from the camera,
- * and increasing `row` walks toward the lens — which is what makes drawing the
- * seats in plain index order the correct painter order, with no depth sort.
- * Worth stating explicitly because the sign reads the other way round at a
- * glance and anything drawn per-seat inherits the ordering for free.
+ * **The rows run along the floor, parallel to the wall.** That is what a row
+ * *is* in an isometric room, and it is the correction to the version of this
+ * function that stood here for months:
+ *
+ *     x = col * PITCH_COL * TILE_W - row * ROW_SHEAR * TILE_W
+ *     y = row * PITCH_ROW * (TILE_H / 2)
+ *
+ * — which laid the rows out **level across the screen**, deliberately, with a
+ * long comment defending it ("people sit side by side; a row climbing away
+ * up-right reads as a queue"). The reasoning is what you get from looking at a
+ * row in isolation, and it is wrong as soon as the row is in a room: the walls,
+ * the floor plate, the corridors, the desks and the props all recede along the
+ * isometric axes, and a bank of desks running flat across the frame is the one
+ * thing in the picture that does not lie in the floor plane. It reads as
+ * furniture skewed off the ground — which is exactly how it was reported, as
+ * rows that "are diagonal, not horizontal to the office layout".
+ *
+ * A row is horizontal **to the room**, not to the monitor. On screen that is a
+ * 26.5-degree line, parallel to a wall, and it is the same line the plate edges
+ * and the corridors already run along.
+ *
+ * **Which of the two floor axes is not a free choice**, and picking the wrong
+ * one produces a picture that is isometrically correct and still wrong. A row
+ * is *people sitting next to each other*, so it has to run **across** the way
+ * they are facing. `drawWorkstation` turns the screen south-east, which puts
+ * the developer looking north-west — so laying the row along that same axis
+ * sits every developer directly behind the next one. That is a queue, not a
+ * row, and it is what the first attempt at this built.
+ *
+ * So a row runs **south-west**, along `gy`, and the next row steps south-east
+ * along `gx`, toward the camera. Shoulder to shoulder across the frame,
+ * parallel to the left-hand wall, with the row in front and the row behind
+ * where those words say they should be.
+ *
+ * **Row 0 is still the back row**, and index order is still very nearly the
+ * painter order: every seat that can overlap another has a greater `y` than the
+ * one it covers, because both axes push down the screen. The pairs where index
+ * order and depth disagree are more than a desk apart on screen and cannot
+ * overlap at all.
  */
 function isoAt(col: number, row: number) {
-  return {
-    x: col * PITCH_COL * TILE_W - row * ROW_SHEAR * TILE_W,
-    y: row * PITCH_ROW * (TILE_H / 2),
-  }
+  // `col` — the seat's place *along* its row — drives `gy`; `row` drives `gx`.
+  return gridToScreen(row * PITCH_ROW, col * PITCH_COL)
 }
 
 function isoQuad(g: Graphics, cx: number, cy: number, w: number, h: number, fill: number) {
@@ -525,6 +542,19 @@ export function seatGrid(index: number): { col: number; row: number } {
 }
 
 /**
+ * Where seat `index` sits, in room-local coordinates — the pure form.
+ *
+ * `RoomHandle.deskFor` is this, and so is the position the build loop lays
+ * out. Exported because it is the only honest way to ask "which direction does
+ * a row run" without standing up a renderer, and that question has now been got
+ * wrong twice.
+ */
+export function seatPosition(index: number): { x: number; y: number } {
+  const { col, row } = seatGrid(index)
+  return isoAt(col, row)
+}
+
+/**
  * The screen bounding box of everything between two grid coordinates.
  *
  * The one piece of arithmetic R6 turns on. The desk block is **sheared** —
@@ -541,11 +571,16 @@ export function blockBox(
   maxRow: number,
 ): { minX: number; maxX: number; minY: number; maxY: number } {
   return {
-    // Furthest left is the near-left corner: lowest column, deepest row.
-    minX: isoAt(minCol, maxRow).x,
-    maxX: isoAt(maxCol, minRow).x,
+    // Each screen extreme is one corner of the grid rectangle, and they are
+    // four *different* corners: `x` runs on `row − col` and `y` on `row + col`,
+    // so left and right are the two off-diagonal corners and top and bottom the
+    // two on-diagonal ones. Under the old level-row layout `y` did not depend
+    // on the column at all and `x` barely on the row, so three of these four
+    // could be read off the wrong corner and still come out right.
+    minX: isoAt(maxCol, minRow).x,
+    maxX: isoAt(minCol, maxRow).x,
     minY: isoAt(minCol, minRow).y,
-    maxY: isoAt(minCol, maxRow).y,
+    maxY: isoAt(maxCol, maxRow).y,
   }
 }
 
@@ -820,7 +855,7 @@ function drawFront(g: Graphics, look: Look) {
   }
 }
 
-function buildDeveloper(look: Look): Container {
+export function buildDeveloper(look: Look): Container {
   const dev = new Container()
   const g = new Graphics()
 
@@ -891,16 +926,23 @@ function buildDeveloper(look: Look): Container {
  *
  * The easy way to get this wrong is to read the ratio off the picture.
  */
-/** Screen width of the desk diamond. Matches {@link PITCH_COL}, so a row butts. */
-export const DESK_W = TILE_W * 0.9
 /**
- * Screen *height* of that diamond — a quarter of the width, not a half.
+ * The desk footprint, **in floor tiles rather than in screen pixels.**
  *
- * w / 2 is what the 2:1 projection gives a square, and w / 4 is what it gives a
- * 2:1 rectangle laid along the row. That factor of two is the entire fix and it
- * is one character.
+ * A desk is a rectangle on the ground: one tile along the row, a little over
+ * half a tile deep. Stating it in grid units is what stops it drifting out of
+ * the projection — the old `DESK_W` / `DESK_D` pair was a screen width and a
+ * screen height, and a screen diamond of width `w` and height `w / 4` is not a
+ * 2:1 rectangle seen in isometric. It is not a ground-aligned shape at all: a
+ * 2:1 rectangle on the floor projects to a *parallelogram*, and only a square
+ * projects to a diamond. The comment that used to sit here derived `w / 4` very
+ * carefully from the wrong premise.
  */
-export const DESK_D = DESK_W / 4
+export const DESK_SPAN = PITCH_COL
+export const DESK_DEPTH = 0.62
+/** Kept for the room's other props, which are still placed in screen units. */
+export const DESK_W = TILE_W * DESK_SPAN
+export const DESK_D = (TILE_H * DESK_DEPTH) / 2
 /** Apron depth — the drop from the surface to the underside. */
 const DESK_LIP = 8
 
@@ -940,42 +982,48 @@ const DESK_LIP = 8
  * has meant since §7.8.1 was written. A real bank of desks is a continuous
  * surface; the individual desk is an accounting fiction.
  */
-function drawDeskBank(g: Graphics, xFrom: number, xTo: number, y: number) {
-  const half = DESK_D / 2
-  const w = DESK_W / 2
-  const left = xFrom - w
-  const right = xTo + w
+export function drawDeskBank(g: Graphics, colFrom: number, colTo: number, row: number) {
+  // The run goes along `gy` — the row's axis — and is `DESK_DEPTH` across it.
+  const gy0 = colFrom * PITCH_COL - DESK_SPAN / 2
+  const gy1 = colTo * PITCH_COL + DESK_SPAN / 2
+  const gx = row * PITCH_ROW
+  const d = DESK_DEPTH / 2
 
-  g.moveTo(left, y)
-    .lineTo(xFrom, y - half)
-    .lineTo(xTo, y - half)
-    .lineTo(right, y)
-    .lineTo(xTo, y + half)
-    .lineTo(xFrom, y + half)
+  // The four corners of a rectangle **on the floor**, projected. Not a
+  // screen-space shape that happens to look isometric: a run of desks is a
+  // rectangle in the room, so its outline is whatever the projection makes of
+  // one, and its two long edges come out parallel to the wall for free.
+  const back = gridToScreen(gx - d, gy0)
+  const far = gridToScreen(gx - d, gy1)
+  const front = gridToScreen(gx + d, gy1)
+  const near = gridToScreen(gx + d, gy0)
+
+  g.moveTo(back.x, back.y)
+    .lineTo(far.x, far.y)
+    .lineTo(front.x, front.y)
+    .lineTo(near.x, near.y)
     .closePath()
     .fill(c(RAMPS.WOOD[2]))
 
-  // The apron. Three faces, because the bank has three downward edges and
-  // ART_DIRECTION §7's single top-left source hits them differently: the
-  // south-west end cap catches the light, the long front is square to the
-  // camera, and the south-east cap turns away.
-  g.moveTo(left, y)
-    .lineTo(xFrom, y + half)
-    .lineTo(xFrom, y + half + DESK_LIP)
-    .lineTo(left, y + DESK_LIP)
-    .closePath()
-    .fill(c(RAMPS.WOOD[1]))
-  g.rect(xFrom, y + half, Math.max(0, xTo - xFrom), DESK_LIP).fill(c(RAMPS.WOOD[1]))
-  g.moveTo(right, y)
-    .lineTo(xTo, y + half)
-    .lineTo(xTo, y + half + DESK_LIP)
-    .lineTo(right, y + DESK_LIP)
+  // The apron, on the two edges that face the camera. ART_DIRECTION §7's single
+  // top-left source: the long south-east side of the run turns away from it,
+  // and the south-west end cap catches it.
+  g.moveTo(near.x, near.y)
+    .lineTo(front.x, front.y)
+    .lineTo(front.x, front.y + DESK_LIP)
+    .lineTo(near.x, near.y + DESK_LIP)
     .closePath()
     .fill(c(RAMPS.WOOD[0]))
+  g.moveTo(far.x, far.y)
+    .lineTo(front.x, front.y)
+    .lineTo(front.x, front.y + DESK_LIP)
+    .lineTo(far.x, far.y + DESK_LIP)
+    .closePath()
+    .fill(c(RAMPS.WOOD[1]))
 }
 
 /** One person's kit on the bank — the screen they are looking at and the box under it. */
-function drawWorkstation(g: Graphics, x: number, y: number) {
+export function drawWorkstation(g: Graphics, x: number, y: number) {
   // The monitor. A screen is a flat panel, so it is drawn the way every other
   // flat panel in this room is drawn: lying in a plane, not parallel to the
   // glass. Its face is the down-left one — the same plane the wall dressing
@@ -1035,17 +1083,25 @@ function drawWorkstation(g: Graphics, x: number, y: number) {
     .closePath()
     .fill(c(RAMPS.NEUTRAL[1]))
 
-  // The machine itself, on the desk's east corner. `grounded` is false — it is
-  // standing on the desk, so it gets a contact patch from the surface under it
-  // rather than a floor shadow, which is §7.8.1's second projection rule.
+  // The machine itself, standing on the desk beside the screen.
+  //
+  // **Placed through the projection, not with a screen offset.** `x + 21` put
+  // it on the desk's east corner while rows ran flat across the frame, and the
+  // moment they ran along the floor instead the same offset put it in mid-air
+  // beside the developer — which is exactly how it was reported: "what's the
+  // grey thing on the right hand side of a person?". A prop positioned in
+  // screen pixels is a prop that does not know which way the room is facing.
   //
   // It is here because a desk with only a screen on it is a desk with a screen
   // *floating* over it; the tower is the one prop that says the surface is a
-  // work surface. Kept small and tucked against the far edge, clear of both the
-  // monitor's panel and the body in front of it, because this is drawn once per
-  // developer and anything in the near field is drawn a hundred times.
-  const px = x + 21
-  const py = y - 1
+  // work surface. Kept small and tucked toward the back of the desk, clear of
+  // both the panel and the body in front of it.
+  const stand = gridToScreen(-DESK_DEPTH * 0.22, PITCH_COL * 0.34)
+  const px = x + stand.x
+  const py = y + stand.y
+  // `grounded` is false — it is standing on the desk, so it gets a contact
+  // patch from the surface under it rather than a floor shadow, which is
+  // §7.8.1's second projection rule.
   isoBox(g, px, py, 8, 11, RAMPS.NEUTRAL, 3, false)
   // A power light. Two pixels of GLOW, and at forty desks it is the cheapest
   // thing in the room that says the machines are *on*.
@@ -1572,7 +1628,9 @@ export function buildRoom(): RoomHandle {
       const place = seatFor(i)
       let end = i + 1
       while (end < n && seatFor(end).col !== 0) end++
-      drawDeskBank(squadDesks[place.squad], desks[i].x, desks[end - 1].x, desks[i].y)
+      const first = seatGrid(i)
+      const last = seatGrid(end - 1)
+      drawDeskBank(squadDesks[place.squad], first.col, last.col, first.row)
       i = end
     }
 
@@ -1586,23 +1644,33 @@ export function buildRoom(): RoomHandle {
       // the next column along; at the squad's edge the next seat is across a
       // corridor, and a panel standing in a corridor is a barricade.
       if (props.dividers && col < SQUAD_COLS - 1 && i + 1 < n) {
-        // A panel standing between two desks, so it runs along the grid axis
-        // rather than straight up the screen.
-        // Halfway to the next desk *along the row*, which is the only gap a
-        // divider ever fills. Between rows there is an aisle, not a panel.
-        // Level, because the row is.
-        const dx = x + TILE_W * 0.5 * PITCH_COL
-        const dy = y
-        g.moveTo(dx - 10, dy - 5 - 18)
-          .lineTo(dx + 10, dy + 5 - 18)
-          .lineTo(dx + 10, dy + 5)
-          .lineTo(dx - 10, dy - 5)
+        // A panel standing between two desks, halfway to the next seat *along
+        // the row* — the only gap a divider ever fills. Between rows there is
+        // an aisle, and a panel across an aisle is a barricade.
+        //
+        // Placed by stepping half a pitch through the projection rather than by
+        // adding a screen offset. The screen offset that used to be here was
+        // correct only while rows ran flat across the frame, and it would have
+        // put every divider on the floor's other axis the moment they did not.
+        const half = gridToScreen(0, PITCH_COL / 2)
+        const dx = x + half.x
+        const dy = y + half.y
+        // The panel stands *across* the gap, so its footprint runs on `gx`.
+        const across = gridToScreen(DESK_DEPTH / 2, 0)
+        g.moveTo(dx - across.x, dy - across.y - 18)
+          .lineTo(dx + across.x, dy + across.y - 18)
+          .lineTo(dx + across.x, dy + across.y)
+          .lineTo(dx - across.x, dy - across.y)
           .closePath()
           .fill({ color: c(RAMPS.NEUTRAL[3]), alpha: 0.8 })
       }
       if (props.cables) {
-        g.moveTo(x - TILE_W * 0.4, y + 12)
-          .lineTo(x + TILE_W * 0.4, y + 14)
+        // A short run along the front edge of the bank, on the floor's axis
+        // like everything else on it.
+        const a = gridToScreen(DESK_DEPTH * 0.55, -PITCH_COL * 0.42)
+        const b = gridToScreen(DESK_DEPTH * 0.55, PITCH_COL * 0.42)
+        g.moveTo(x + a.x, y + a.y)
+          .lineTo(x + b.x, y + b.y)
           .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.7 })
       }
 
@@ -1679,11 +1747,21 @@ export function buildRoom(): RoomHandle {
    * picture of a floor that holds ten thousand.
    */
   function floorBox(squadsUsed: number) {
-    const wide = Math.min(FLOOR_COLS, Math.max(1, squadsUsed) + 1)
-    const deep = Math.min(FLOOR_ROWS, Math.ceil(Math.max(1, squadsUsed) / FLOOR_COLS) + 1)
-    const maxCol = (wide - 1) * SQUAD_STRIDE_COLS + SQUAD_COLS - 1 + PLATE_PAD_COLS
-    const maxRow = (deep - 1) * SQUAD_STRIDE_ROWS + SQUAD_ROWS - 1 + PLATE_PAD_ROWS
-    return blockBox(-PLATE_PAD_COLS, -PLATE_PAD_ROWS, maxCol, maxRow)
+    const used = Math.max(1, squadsUsed)
+    const wide = Math.min(FLOOR_COLS, used)
+    const deep = Math.ceil(used / FLOOR_COLS)
+    const maxCol = (wide - 1) * SQUAD_STRIDE_COLS + SQUAD_COLS - 1
+    const maxRow = (deep - 1) * SQUAD_STRIDE_ROWS + SQUAD_ROWS - 1
+    // **Headroom on all four sides, not only two.** The previous version framed
+    // the occupied squads *plus a whole further squad* in +col and +row and
+    // nothing on the other two, so at exactly a hundred developers — the moment
+    // the floor unfolds and the player is watching hardest — the studio sat in
+    // one corner of a frame three-quarters empty. Half a squad, symmetric,
+    // puts the people in the middle and still shows somewhere for the next
+    // hundred to go.
+    const pad = SQUAD_COLS * 0.45
+    const padRows = SQUAD_ROWS * 0.45
+    return blockBox(-pad, -padRows, maxCol + pad, maxRow + padRows)
   }
 
   /**
@@ -1940,8 +2018,7 @@ export function buildRoom(): RoomHandle {
       ambient.interrupt(i)
     },
     deskFor(i: number) {
-      const { col, row } = seatGrid(i)
-      return isoAt(col, row)
+      return seatPosition(i)
     },
 
     deskAt(i: number) {

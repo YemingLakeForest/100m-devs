@@ -33,6 +33,7 @@ import {
   ambientBudget,
   ambientRuns,
   loiterCap,
+  bubblePop,
   pickBehaviour,
   shouldStart,
   type Behaviour,
@@ -370,7 +371,12 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
             g,
             seat.x + off.x,
             seat.y + off.y - 46,
-            t,
+            // Wall-clock, not a fraction of the behaviour's life. The pop used
+            // to run over 12% of `a.life`, so a six-second exchange spent
+            // seven hundred milliseconds zooming open and nine hundred zooming
+            // shut — reported, accurately, as "they zoom and way too slow".
+            a.age * 1000,
+            (a.life - a.age) * 1000,
             a.kind,
             a.says[n] ?? a.says[0],
             inv,
@@ -503,30 +509,33 @@ function bubble(
   g: Graphics,
   x: number,
   y: number,
-  t: number,
+  ageMs: number,
+  remainMs: number,
   kind: Behaviour,
   says: string,
   inv: number,
 ) {
-  // Pops in, holds, pops out. Nothing on this floor appears or vanishes.
-  const grow = Math.min(1, t / 0.12)
-  const fade = Math.min(1, (1 - t) / 0.15)
-  const s = Math.min(grow, fade)
-  if (s <= 0.01) return
+  const pop = bubblePop(ageMs, remainMs)
+  if (pop.sy <= 0.01) return
 
   const fill = kind === 'driveby' ? RAMPS.WARN[0] : RAMPS.NEUTRAL[7]
   const ink = kind === 'driveby' ? RAMPS.NEUTRAL[0] : RAMPS.NEUTRAL[0]
 
-  const node = label(says)
+  // **The words do not scale with the box.** A bubble whose text grows out of
+  // nothing is a zoom; a bubble that snaps open and then has words in it is
+  // somebody speaking. So the box pops and the label is either there at full
+  // size or not there at all — which also means the text is never drawn at a
+  // size nobody could read, on any frame.
+  const node = pop.ink ? label(says) : null
   if (node) {
-    node.scale.set(s * inv)
+    node.scale.set(inv)
     node.tint = c(ink)
   }
 
-  const w = (says.length * 5.4 + 10) * s * inv
-  const h = 15 * s * inv
+  const w = (says.length * 5.4 + 10) * pop.sx * inv
+  const h = 15 * pop.sy * inv
 
-  const k = s * inv
+  const k = pop.sy * inv
   g.roundRect(x - w / 2, y - h, w, h, 3 * k).fill({ color: c(fill), alpha: 0.95 })
   // The tail, pointing down at whoever is speaking.
   g.moveTo(x - 3 * k, y)
@@ -535,5 +544,5 @@ function bubble(
     .closePath()
     .fill({ color: c(fill), alpha: 0.95 })
 
-  node?.position.set(x, y - h + 3 * k)
+  node?.position.set(x, y - h + 3 * inv)
 }

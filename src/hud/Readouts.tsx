@@ -22,6 +22,7 @@ import {
   runwayReadout,
   velocitySplit,
 } from './hudModel.ts'
+import { formatManWeeks, manWeekReport, planState } from './manWeeks.ts'
 
 /**
  * The readouts of GDD §10.1 and §10.2, as edge-anchored blocks.
@@ -99,6 +100,38 @@ export function Devs({ state }: { state: GameState }) {
       <span className="hud__label">DEVS</span>
       <Counter value={state.devs} format={formatCount} bounce />
       {bar && <span className="hud__sub hud__scale">{bar}</span>}
+    </div>
+  )
+}
+
+/**
+ * Man-weeks, planned against delivered — the unit the player is thinking in.
+ *
+ * Every other readout says what the studio *is doing*. This one says what the
+ * player **assumed** it would do, and puts the truth on the line underneath.
+ * See `manWeeks.ts` for why that is a different statement from the Entropy
+ * percentage rather than a second copy of it.
+ *
+ * Sits directly under DEVS on purpose. The headcount is where the assumption
+ * comes from — forty people, forty man-weeks — so the assumption and its
+ * refutation are two lines apart, and the player does the subtraction
+ * themselves. That is the joke landing rather than being explained.
+ */
+export function ManWeeks({ state }: { state: GameState }) {
+  const report = manWeekReport(state.devs, currentVelocity(state))
+  const state_ = planState(report.ratio)
+
+  return (
+    <div className={`hud__block hud__block--plan is-${state_}`}>
+      <span className="hud__label">MAN-WEEKS</span>
+      {/* The number in their head is the *major* one. It is also the only
+          figure on screen that is not a measurement, which is the point.
+          The word "planned" is left off: the rail is nine characters wide and
+          the line below says DELIVERED, so the contrast carries it. */}
+      <b className="hud__num hud__num--major">{formatManWeeks(report.planned)}</b>
+      <span className="hud__sub hud__plan-real">
+        {formatManWeeks(report.delivered)} DELIVERED
+      </span>
     </div>
   )
 }

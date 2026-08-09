@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**903 tests.** Lint, types and the art gate clean.
+**919 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -37,8 +37,9 @@ simulation.
 | **Rungs** | 0–6 built (room, tower, block, business park, sprawl), **and the lens now visits every one of them** (§7.4a). 7–9 have no geometry of their own — §7.4's grid and cosmic tiers stand in |
 | **The clicker** | Per-developer output (§4.9a) and the `+1` over each head (§8.2b). A poke is worth what the person is worth. **A poke still pays once rather than buffing** — R14 |
 | **The economy** | Long-tailed revenue with a back catalogue, and the graph that shows it (§4.10e) |
-| **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. Desks no longer leave the plate, and a row is now **one continuous bank** rather than ten butted diamonds |
-| **Hiring** | Three things fall — a desk, a computer, a person — on the seats the hire actually took, and the room withholds a seat until its arrival lands |
+| **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. **Rows now run along the floor**, parallel to the wall and across the way people face, as one continuous desk bank |
+| **Hiring** | Three things fall — a desk, a computer, **the actual generated developer** — on the seats the hire actually took, and the room withholds a seat until its arrival lands |
+| **The readouts** | §10.1's rail, plus §4.10e's revenue graph and **MAN-WEEKS**: what the plan says against what lands. At Act IV it reads `1.0K ON PAPER · 0 DELIVERED` |
 | **Hero Cards** | §13.6's rules and data built and tested. **Not wired** — see below |
 
 ### Built this session
@@ -51,10 +52,11 @@ and the hop** · **§13.6 Hero Cards** (rules + data) · **§7.8.2 rungs 4–6**
 **§7.8.1a/b/c — squads, the ten-thousand floor, and the unfold** (R4–R7) · **§7.4a the lens
 climbing the ladder** (R8, and R5's camera half) · **§4.9a per-developer output** (R17) ·
 **§8.2b the `+1` over each head** (R10) · **§4.10e long-tailed revenue and its graph** (R2) ·
-**§7.7.6a poke vs drag on touch** (R9) · **the rows made horizontal**, the
-**hire animation rebuilt** and the **title screen's near field cut back** —
-three things reported by eye, none of which any test could have caught.
-Recorded as traps 10, 11 and 12.
+**§7.7.6a poke vs drag on touch** (R9) · **the floor put back into its own
+projection**, the **hire animation rebuilt out of three falling things**, the
+**title screen's near field cut back**, the **man-week readout**, and a
+**speech bubble that pops instead of zooming** — all reported by eye, none of
+them catchable by a test. Recorded as traps 10–13.
 
 ### Specced, not built
 
@@ -235,12 +237,15 @@ and the same mistake in a `useEffect` dependency fails *silently*.
 
 ### 7. In `room.ts`, row 0 is the BACK row
 
-`isoAt`'s comment said the opposite for months and the code always did this: `row` *increases*
-y, so higher row index is nearer the camera. It happens not to matter, because it makes plain
-index order the correct painter order — which is exactly why nobody noticed, and why anything
-new drawn per seat gets its depth sorting for free as long as it is drawn **inside that
-loop**. Draw it in a layer of its own instead and a back-row prop lands on a front-row
-monitor.
+Still true, and the reason it matters has changed. It used to be that `row`
+alone drove `y`, so plain index order *was* painter order and anything drawn
+per-seat inherited depth sorting for free. Under the isometric layout both axes
+push down the screen, so index order is only *very nearly* depth order — the
+pairs where they disagree are more than a desk apart and cannot overlap.
+
+That is still enough, and it is a narrower guarantee than the one that used to
+be here. **Anything new drawn per seat is fine inside the seat loop and is not
+automatically fine anywhere else.**
 
 ### 8. A constant derived from a number that moved is a silent still frame
 
@@ -265,26 +270,38 @@ It is 520 now. **Screenshot at 448 before believing anything new fits in the lef
 HUD grid's middle row is `1fr` and it will let its contents overflow into the row below
 rather than complain.
 
-### 10. Level rows can still read as diagonals, and the seats are not the cause
+### 10. An isometric floor has two axes, and neither of them is the screen
 
-Reported as "your rows are diagonal, not horizontal". Every seat was exactly
-where it should have been — `isoAt` makes `y` a function of the row alone, so
-rows have always been mathematically level. Two other things made them read as
-diagonals, and neither is visible in the seat maths:
+Reported three times before it was right, and each report was correcting a
+different wrong answer. Worth reading in order, because the class of mistake is
+common and the first two fixes both *looked* like progress.
 
-1. **A row of butted desk diamonds is a sawtooth.** Ten thin diamonds side by
-   side make twenty 26.5-degree edges, and those were the longest straight lines
-   in the room. A row is now drawn as **one continuous bank** with flat top and
-   bottom edges (`drawDeskBank`), which is also what §7.8.1 has meant by
-   "shoulder to shoulder" since it was written.
-2. **The nearest person was the one diagonally behind.** At `PITCH_ROW = 2.15` a
-   row sat 34 px behind the one in front while neighbours along a row were 59 px
-   apart, so proximity grouped the diagonals. It is 3.6 now, and pinned between
-   two walls only just far enough apart — see the comment on the constant.
+1. **"Your rows are diagonal, not horizontal."** `isoAt` laid seats out level
+   across the screen — deliberately, with a long comment defending it. The
+   first fix made them *more* level: a continuous desk bank and a bigger row
+   pitch so proximity grouped horizontally.
+2. **"I mean horizontal to the office layout, horizontal to the wall."** A row
+   is horizontal **to the room**, not to the monitor. Everything else in the
+   picture lies in the 2:1 floor plane, so a bank of desks running flat across
+   the frame is the one thing that does not, and it reads as furniture skewed
+   off the ground. `isoAt` is a real isometric map now.
+3. **"Rows first — row means developers sitting next to each other, not in
+   front and behind."** Correct projection, wrong axis. `drawWorkstation` turns
+   the screen south-east, so the developer looks north-west; a row laid along
+   *that* axis puts every developer directly behind the next. Isometrically
+   perfect, and a queue. Rows run south-west, across the facing.
 
-**The lesson generalises: check the drawn shape and the spacing before the
-coordinates.** Gestalt proximity decides what a player sees as a row, and no
-amount of correct geometry overrides it.
+**The rule to carry forward: which axis is not a free choice.** It is fixed by
+whichever way the sprites face, and the only way to see it is to look at the
+picture. `seatPosition` is exported purely so the question can be asked in a
+test, and `room.test.ts` now pins the direction, the 2:1 of it, and the fact
+that two rows are parallel.
+
+The same mistake was underneath two other things at once: `blockBox` read three
+of its four corners off the wrong grid corner and got away with it while `y` did
+not depend on the column, and the PC tower was positioned at `x + 21` screen
+pixels — which put it in mid-air beside the developer the moment the room turned.
+**A prop placed in screen pixels does not know which way the room is facing.**
 
 ### 11. A ratio-scaled count is not a number of seats
 
@@ -296,14 +313,27 @@ with two desks that is both of them, so the founder got a stranger dropped on
 their head on every early hire.
 
 Compounding it, the room drew the new hire on the frame the store published
-them, so the falling silhouette landed on a person already sitting in the chair.
+them, so the falling figure landed on a person already sitting in the chair.
 
 `SpawnEvent` now carries `from` and `to` — the seats the hire actually filled —
 and `arrivals.revealed` withholds a seat from the room until its arrival lands.
 **Anything that positions itself on a seat wants the range; only the swarm
 tiers want the weight.**
 
-### 12. A guard copied onto a second call site is a guard in the wrong place
+### 12. If you know what is arriving, drop *that*
+
+Asked as "why are they white to start with and change into their colour? why
+not just create the person well in the first place?" — and there was no answer.
+The arrival drew grey silhouettes that swapped for the generated developer on
+landing, when §7.8.7 generates a developer from their seat and the run seed and
+both are in hand before the fall starts. Arrivals now build the real desk bank,
+the real workstation and the real person, and animate *those*.
+
+It also deleted a whole class of bug: a placeholder has to be kept in step with
+the thing it stands in for, and this one had already drifted (a chair beat, for
+a chair the room does not draw).
+
+### 13. A guard copied onto a second call site is a guard in the wrong place
 
 While fixing trap 11 the `!first` guard — which correctly stops §21's *camera
 reveal* firing on a jumped-to phase — got copied onto `arrivals.spawn` as well.
@@ -312,7 +342,7 @@ Nothing publishes a spawn event except a real hire, so `first` is the player's
 appeared with no animation at all. It survived a full test run and was found
 only by clicking the button and watching.
 
-### 13. Synthetic pointer events do not reach the canvas
+### 14. Synthetic pointer events do not reach the canvas
 
 Which is why `?select=4` exists, alongside `?overnight`, `?ad` and `?dialogue`. Add a seam
 rather than fighting the automation; they have each paid for themselves.

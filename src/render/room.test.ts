@@ -17,10 +17,12 @@ import {
   SQUAD_ROWS,
   SQUAD_SIZE,
   UNFOLD_MS,
+  DESK_DEPTH,
+  DESK_SPAN,
   blockBox,
   buildRoom,
+  seatPosition,
   PITCH_ROW,
-  ROW_SHEAR,
   ROOM_DEV_CAP,
   gridFor,
   hopHeight,
@@ -119,51 +121,69 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     }
   })
 
-  it('puts the person NEXT to you closer than the person behind you', () => {
-    // The bug this pins, reported as "your rows are diagonal, not horizontal".
-    // The rows were level the whole time and the seats were right: what was
-    // wrong is that a row pitch of 2.15 put the seat diagonally behind at 44 px
-    // while the seat beside was 59 px away. The eye groups by proximity, so it
-    // grouped the diagonals, and a floor of level rows read as a lattice of
-    // diagonal chains.
+  it('seats a row ACROSS the way people face, not along it', () => {
+    // Reported three times, and the third time is the one that says it exactly:
+    // "row means developers sitting next to each other, not in front and
+    // behind."
     //
-    // Measured in screen pixels, because that is the only place "diagonal"
-    // means anything, and against the *hypotenuse*, because the seat behind is
-    // offset sideways by the shear as well as back by the pitch.
-    const along = PITCH_COL * 64
-    const behind = Math.hypot(ROW_SHEAR * 64, PITCH_ROW * 16)
-    expect(behind).toBeGreaterThan(along)
+    // `drawWorkstation` turns the screen south-east, so the developer at it
+    // looks north-west. A row laid along *that* axis puts every developer
+    // directly behind the next one — isometrically correct, and a queue. The
+    // row therefore runs south-west, across the facing, which is also parallel
+    // to the left-hand wall.
+    const a = seatPosition(0)
+    const b = seatPosition(1)
+    // South-west: leftward and down the screen, at the 2:1 of the projection.
+    expect(b.x).toBeLessThan(a.x)
+    expect(b.y).toBeGreaterThan(a.y)
+    expect((a.x - b.x) / (b.y - a.y)).toBeCloseTo(2, 9)
   })
 
-  it('staggers by exactly half a pitch, which is the value that maximises that gap', () => {
-    // The seats in the row behind sit at `-shear` and `pitch - shear`. The
-    // nearer of the two is as far away as it can be when those are equal, so
-    // any other shear brings some diagonal neighbour closer than the person
-    // sitting next to you — and a diagonal closer than a row *is* the row, as
-    // far as the eye is concerned.
-    const nearestBehind = (shear: number) =>
-      Math.min(
-        Math.hypot(shear * 64, PITCH_ROW * 16),
-        Math.hypot((PITCH_COL - shear) * 64, PITCH_ROW * 16),
-      )
-    const best = nearestBehind(ROW_SHEAR)
-    for (const shear of [0, 0.1, 0.25, 0.35, 0.55, 0.7, 0.92]) {
-      expect(nearestBehind(shear)).toBeLessThanOrEqual(best + 1e-9)
+  it('steps the next row toward the camera, along the other axis', () => {
+    // The row in front is in *front* — south-east, nearer the lens — so "the
+    // row behind" and "the row in front" mean what they say. There is no shear
+    // constant any more either: the offset is a fact about the projection.
+    const first = seatPosition(0)
+    const nextRow = seatPosition(SQUAD_COLS)
+    expect(nextRow.x).toBeGreaterThan(first.x)
+    expect(nextRow.y).toBeGreaterThan(first.y)
+    expect((nextRow.x - first.x) / (nextRow.y - first.y)).toBeCloseTo(2, 9)
+  })
+
+  it('runs a row and the row behind it on parallel lines', () => {
+    // Two rows are two parallel banks. If these ever stop being parallel the
+    // floor has stopped being a grid.
+    const along = (i: number, j: number) => {
+      const p = seatPosition(i)
+      const q = seatPosition(j)
+      return (q.y - p.y) / (q.x - p.x)
     }
-    expect(ROW_SHEAR).toBeCloseTo(PITCH_COL / 2, 10)
+    expect(along(0, 9)).toBeCloseTo(along(SQUAD_COLS, SQUAD_COLS + 9), 9)
+  })
+
+  it('butts the desks along a row with no gap and no overlap', () => {
+    // A row is one continuous bank of desks. `PITCH_COL` of exactly one tile
+    // is what makes that true by construction rather than by eye.
+    expect(PITCH_COL).toBe(1)
+    expect(DESK_SPAN).toBe(PITCH_COL)
+  })
+
+  it('takes the space out behind the row, where people walk', () => {
+    // §7.8.1's grain: shoulder to shoulder along the row, an aisle behind it.
+    expect(PITCH_ROW).toBeGreaterThan(PITCH_COL)
+    expect(PITCH_ROW).toBeGreaterThan(DESK_DEPTH * 2)
   })
 
   it('keeps the block wider than it is deep, on screen', () => {
     // Measured in *screen* units, which is the only place the question means
-    // anything now that rows run level and step back on their own pitch. Two
-    // earlier versions of this test measured the wrong thing: first a square
-    // count, then a square ratio of the two pitches. Neither is what anybody
-    // looks at.
+    // anything. Three earlier versions measured the wrong thing: a square
+    // count, then a ratio of the two pitches, then the pitches again after the
+    // projection under them had changed. Measuring the projected corners cannot
+    // go out of step with the projection.
     for (const n of [4, 9, 20, 40, 80, 120]) {
       const { cols, rows } = gridFor(n)
-      const screenW = cols * PITCH_COL * 64
-      const screenH = rows * PITCH_ROW * 16
-      expect(screenW).toBeGreaterThan(screenH)
+      const box = blockBox(0, 0, cols - 1, rows - 1)
+      expect(box.maxX - box.minX).toBeGreaterThan(box.maxY - box.minY)
     }
   })
 
@@ -590,7 +610,7 @@ describe('arrivals — GDD §7.7.2, hiring is seen', () => {
     expect(arrivals.revealed).toBe(Number.POSITIVE_INFINITY)
 
     const now = 1000
-    arrivals.spawn([{ x: 0, y: 0 }, { x: 10, y: 0 }], 4, now)
+    arrivals.spawn(4, 6, 1234, now)
     expect(arrivals.revealed).toBe(4)
 
     // Mid-flight, still withheld.

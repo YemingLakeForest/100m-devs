@@ -666,14 +666,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // floor tier.
       const from = Math.min(state.spawn.from, ROOM_DEV_CAP)
       const to = Math.min(state.spawn.to, ROOM_DEV_CAP)
-      const seats: Array<{ x: number; y: number }> = []
-      for (let i = from; i < to; i++) seats.push(room.deskFor(i))
       // **Not** gated on `first`, unlike the camera reveal below. A spawn event
       // is only ever published by a real hire — `jumpToPhase`, `loadGame` and
       // `?devs=` all leave it null — so the "first observed event" is the
       // player's first hire of the session, and skipping it meant the very
       // first developer anybody hires appeared with no animation at all.
-      arrivals.spawn(seats, from, now)
+      arrivals.spawn(from, to, state.runSeed, now)
       // A hire that buys a whole new register of the lens is a reveal, not a
       // hire. Kick the camera out to show what just opened up. Skipped on the
       // first observed event, which may be a jumped-to phase rather than a

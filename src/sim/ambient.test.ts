@@ -12,6 +12,9 @@ import {
   shouldStart,
   weightsFor,
   type Behaviour,
+  BUBBLE_IN_MS,
+  BUBBLE_OUT_MS,
+  bubblePop,
 } from './ambient.ts'
 
 /** Sample the distribution at a given entropy, deterministically. */
@@ -159,5 +162,52 @@ describe('rung gating — GDD §7.8.6 rule 4', () => {
     expect(ambientRuns(80, true)).toBe(true)
     expect(ambientRuns(80, false)).toBe(false)
     expect(ambientRuns(1, true)).toBe(false)
+  })
+})
+
+describe('the speech bubble pops — GDD §8.3, reported as "they zoom and way too slow"', () => {
+  it('is open inside a tenth of a second, whatever the behaviour lasts', () => {
+    // The bug: the pop ran over 12% of the behaviour's *life*, so a six-second
+    // exchange took 700 ms to open. Wall-clock means a bubble on a three-second
+    // drive-by and one on a twenty-second loiter snap at the same speed.
+    expect(BUBBLE_IN_MS).toBeLessThanOrEqual(140)
+    expect(bubblePop(BUBBLE_IN_MS, 5000).sy).toBeCloseTo(1, 6)
+    expect(bubblePop(BUBBLE_IN_MS, 60_000).sy).toBeCloseTo(1, 6)
+  })
+
+  it('overshoots on the way in, so it snaps rather than grows', () => {
+    // A scale that eases monotonically to 1 is a zoom. The overshoot is the
+    // whole difference between a bubble arriving and a bubble being resized.
+    const peak = Math.max(
+      ...Array.from({ length: 60 }, (_, i) => bubblePop((i / 59) * BUBBLE_IN_MS, 5000).sy),
+    )
+    expect(peak).toBeGreaterThan(1.05)
+    expect(peak).toBeLessThan(1.3)
+  })
+
+  it('shuts vertically while staying wide', () => {
+    // The shape a comic bubble makes closing, and the shape a mouth makes.
+    // Shrinking both axes together is the same zoom played backwards.
+    const half = bubblePop(5000, BUBBLE_OUT_MS / 2)
+    expect(half.sy).toBeLessThan(0.4)
+    expect(half.sx).toBeGreaterThan(0.7)
+  })
+
+  it('never draws words at a size nobody could read', () => {
+    // The label is either up at full size or not up at all. Text that scales
+    // with the box spends the whole pop being illegible and is most of why the
+    // old animation read as a zoom.
+    for (const age of [0, 10, 40, 70]) {
+      const p = bubblePop(age, 5000)
+      if (p.ink) expect(p.sy).toBeGreaterThan(0.7)
+    }
+    expect(bubblePop(5000, 30).ink).toBe(false)
+  })
+
+  it('is closed before it has begun and after it has ended', () => {
+    expect(bubblePop(0, 5000).sy).toBe(0)
+    expect(bubblePop(-5, 5000).sy).toBe(0)
+    expect(bubblePop(5000, 0).sy).toBe(0)
+    expect(bubblePop(5000, -20).sy).toBe(0)
   })
 })
