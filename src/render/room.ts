@@ -101,16 +101,57 @@ export const PITCH_ROW = 2.15
 export const ROW_SHEAR = 0.42
 
 /**
- * How many desks per row, per row of desks.
+ * §7.8.1a — **the squad**. Ten by ten desks, a hundred people who can see each
+ * other, and the unit a poke lands in.
  *
- * Twice as wide as deep. Fitting the block to the floor diamond's own 2:1 was
- * the first instinct and it produces three rows of three for eight people;
- * §7.8.1's table says 6–10 developers is "a small office, **two rows**, a
- * walkway", and a real office of eight is two rows of four rather than a
- * square. Offices are wide because rooms are wide and because a row is limited
- * by the wall it runs along, not by the floor area.
+ * The row width is a *constant*, and that is the whole of §7.8.1b. What was
+ * here before solved for a square-ish footprint at every headcount, so the row
+ * width changed as the studio grew — and a row that widens **moves everybody
+ * already sitting in it**. Hiring the seventh developer re-flowed the other
+ * six into different seats, which is precisely the failure §7.8.1b names: *a
+ * scattered fill is indistinguishable from a redraw*. The player cannot see
+ * where the last hire went if the last hire rearranged the room.
+ *
+ * The cost is one line of §7.8.1's older table: "6–10, a small office, **two
+ * rows**". Eight developers now sit in one row of eight rather than two of
+ * four, because the alternative is a floor that reshuffles under them. §7.8.1a
+ * and §7.8.1b are the later canon and they win; the table's other bands are
+ * unaffected, and "2 — a second desk pushed alongside" still reads exactly as
+ * written.
  */
-export const ROW_ASPECT = 2
+export const SQUAD_COLS = 10
+export const SQUAD_ROWS = 10
+/** One squad — §7.8.1a's hundred, and the size the room starts out fitting. */
+export const SQUAD_SIZE = SQUAD_COLS * SQUAD_ROWS
+
+/** §7.8.1a — **the floor**. Ten by ten squads, so ten thousand people. */
+export const FLOOR_COLS = 10
+export const FLOOR_ROWS = 10
+export const FLOOR_SQUADS = FLOOR_COLS * FLOOR_ROWS
+export const FLOOR_SIZE = SQUAD_SIZE * FLOOR_SQUADS
+
+/**
+ * §7.8.1a — **the corridor**, in the same units as the two desk pitches.
+ *
+ * Not decoration. It is what makes a hundred squads read as a hundred *squads*
+ * rather than as ten thousand identical dots, and §7.8.6's walkers belong in
+ * it. Wider across than back for the same reason the desk pitches are: a
+ * corridor has to beat a desk's own footprint before it reads as a corridor,
+ * and a desk is nearly a tile wide.
+ */
+export const CORRIDOR_COLS = 2.6
+export const CORRIDOR_ROWS = 2.0
+/** Squad origin to squad origin, in seat units. */
+export const SQUAD_STRIDE_COLS = SQUAD_COLS + CORRIDOR_COLS
+export const SQUAD_STRIDE_ROWS = SQUAD_ROWS + CORRIDOR_ROWS
+/**
+ * How much of the corridor the squad's own floor plate takes, each side.
+ *
+ * Less than half, so what is left between two plates is a visible gap rather
+ * than a seam. That gap *is* the corridor; the plates do not draw it.
+ */
+const PLATE_PAD_COLS = 0.8
+const PLATE_PAD_ROWS = 0.6
 
 /** §7.8.1 — the headcount at which the room stops gaining and starts losing. */
 const CROWDING_STARTS = 40
@@ -134,6 +175,83 @@ export function turnScale(t: number): number {
   const u = Math.abs(t * 2 - 1)
   return 0.06 + 0.94 * u * u
 }
+
+/**
+ * §7.8.3's idle, as a **hop** rather than a bob.
+ *
+ * The idle used to be `sin(t)` on Y, which is a float: the figure is never
+ * still, never in contact with anything, and spends exactly as long going up as
+ * coming down. At one developer it reads as breathing and at forty it reads as
+ * a field of buoys.
+ *
+ * A hop is the same one-sine budget spent differently, and the difference is
+ * entirely in the **contact**. Half the cycle is airborne on a ballistic arc;
+ * the other half the figure is *down*, planted, doing nothing. Stillness is what
+ * makes the motion read as a push against something, and it is also what keeps
+ * a crowd legible — at any instant about half the floor is at rest, so the eye
+ * has somewhere to land.
+ *
+ * Split into three pure functions of one phase because they are the only part
+ * of the figure a test can see. `phase` is in whole hops: its integer part
+ * counts hops taken, its fraction is the position within the current one.
+ */
+/** Fraction of a hop spent in the air. The rest is planted. */
+export const HOP_AIRBORNE = 0.5
+/** Peak height of a hop, in room units. */
+export const HOP_HEIGHT = 4.2
+/** Sideways lean at the top of a hop. This is the "about" in "hop about". */
+export const HOP_SWAY = 1.3
+/** How far the figure compresses on impact and again into the next launch. */
+export const HOP_SQUASH = 0.1
+
+/** Height of the hop at `phase`, 0 (planted) to 1 (top of the arc). */
+export function hopHeight(phase: number): number {
+  const u = phase - Math.floor(phase)
+  if (u >= HOP_AIRBORNE) return 0
+  const a = u / HOP_AIRBORNE
+  // A parabola, not a sine half-cycle: gravity means the figure hangs near the
+  // top and is quickest at take-off and landing. Peaks at exactly 1.
+  return 1 - (2 * a - 1) ** 2
+}
+
+/**
+ * Sideways lean at `phase`, -1..1, alternating direction each hop.
+ *
+ * A hop that only goes up and down is a pogo stick. Alternating the lean turns
+ * the same motion into somebody shifting their weight about, and because it is
+ * tied to {@link hopHeight} it is exactly zero whenever they are on the ground —
+ * so nobody drifts off their desk however long the game runs.
+ */
+export function hopSway(phase: number): number {
+  const dir = Math.floor(phase) % 2 === 0 ? 1 : -1
+  return dir * hopHeight(phase)
+}
+
+/**
+ * Vertical scale at `phase`. 1 at rest, less when compressed.
+ *
+ * Deepest on the frame of impact and again at the crouch that launches the next
+ * hop — both discontinuities are deliberate. An impact that eases *in* is not an
+ * impact, and the release at take-off is the whole point of the crouch.
+ */
+export function hopSquash(phase: number): number {
+  const u = phase - Math.floor(phase)
+  if (u < HOP_AIRBORNE) return 1
+  const g = (u - HOP_AIRBORNE) / (1 - HOP_AIRBORNE)
+  const land = Math.max(0, 1 - g / 0.35)
+  const crouch = Math.max(0, (g - 0.75) / 0.25)
+  return 1 - HOP_SQUASH * Math.min(1, Math.max(land, crouch))
+}
+
+/**
+ * How far the drawn body sits below its container's origin.
+ *
+ * {@link hopSquash} scales about that origin, and the origin is at the waist
+ * rather than under the seat — so a squash would lift the bottom of the figure
+ * off the chair unless it is compensated. One multiply, and without it the
+ * whole floor twitches upward on every landing.
+ */
+export const BODY_BASE = 9
 
 export interface RoomHandle {
   container: Container
@@ -179,9 +297,12 @@ export interface RoomHandle {
 /**
  * Where seat (`col`, `row`) sits, in room-local coordinates.
  *
- * `col` runs level across the screen; `row` steps back into the room, up and to
- * the left. Increasing `row` therefore *decreases* y — row 0 is the front row,
- * nearest the camera, which is also the draw order the depth sort wants.
+ * `col` runs level across the screen; `row` steps *forward* out of the room,
+ * down and to the left. **Row 0 is the back row**, furthest from the camera,
+ * and increasing `row` walks toward the lens — which is what makes drawing the
+ * seats in plain index order the correct painter order, with no depth sort.
+ * Worth stating explicitly because the sign reads the other way round at a
+ * glance and anything drawn per-seat inherits the ordering for free.
  */
 function isoAt(col: number, row: number) {
   return {
@@ -299,27 +420,163 @@ function wallQuad(
 }
 
 /**
- * Grid dimensions for a headcount.
+ * The occupied block **inside one squad** at this headcount.
  *
- * Kept squarish rather than in long rows: §7.8.1 wants a *huddle* at 3–5 and a
- * *floor* at 31+, and a square grid reads as both at the right sizes where a
- * 4-wide row would read as a call centre at every size.
+ * Rows are ten wide and fill left to right; the block is as many rows deep as
+ * the headcount has started. That is §7.8.1b stated as arithmetic, and the
+ * property that matters is the one it is easy to miss: `cols` does not depend
+ * on `devs` above ten, so **a seat, once taken, never moves**.
+ *
+ * The floor plate is sized from this rather than from the squad, so §7.8.1's
+ * first frame is still a bedroom that hugs the one person in it.
  */
 export function gridFor(devs: number): { cols: number; rows: number } {
-  const n = Math.max(1, Math.min(ROOM_DEV_CAP, Math.floor(devs)))
-  // Wider than deep, by exactly the ratio of the two pitches. A literally
-  // square grid was right when the spacing was uniform and is wrong now: with
-  // rows set 1.7x further apart than desks within a row, an n x n grid draws a
-  // floor half again as deep as it is wide — a corridor, not a floor. Solving
-  // for a square *footprint* instead of a square count keeps §7.8.1's "huddle
-  // at 3-5, floor at 31+" reading at both ends.
-  // Capped at the headcount, which only bites at the very bottom and matters
-  // there more than anywhere: with a wide aisle the square-footprint solve
-  // wants two columns for a single developer, and the floor is sized from the
-  // *grid* rather than from the people on it — so one person would sit in a
-  // room built for two. §7.8.1's first frame is a bedroom and has to hug them.
-  const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * ROW_ASPECT))))
-  return { cols, rows: Math.ceil(n / cols) }
+  const n = Math.max(1, Math.min(SQUAD_SIZE, Math.floor(devs)))
+  const cols = Math.min(SQUAD_COLS, n)
+  return { cols, rows: Math.ceil(n / SQUAD_COLS) }
+}
+
+/** Where seat `index` sits — §7.8.1a's two scales, and §7.8.1b's reading order. */
+export interface SeatPlace {
+  /** Which of the floor's hundred squads. */
+  squad: number
+  /** Column and row **within** that squad, 0–9. */
+  col: number
+  row: number
+  /** The squad's own column and row on the floor, 0–9. */
+  squadCol: number
+  squadRow: number
+}
+
+/**
+ * §7.8.1b — seat `index`, at both scales, in one reading order.
+ *
+ * Hire one and they take the next seat in the current row; fill the row and
+ * the next row starts; fill the squad and the next squad starts, **and squads
+ * fill row by row too**. The same two lines of arithmetic express both,
+ * which is the point: the rule is meant to read identically at either scale.
+ */
+export function seatFor(index: number): SeatPlace {
+  const i = Math.max(0, Math.floor(index))
+  const squad = Math.floor(i / SQUAD_SIZE)
+  const within = i % SQUAD_SIZE
+  return {
+    squad,
+    col: within % SQUAD_COLS,
+    row: Math.floor(within / SQUAD_COLS),
+    squadCol: squad % FLOOR_COLS,
+    squadRow: Math.floor(squad / FLOOR_COLS),
+  }
+}
+
+/** Seat `index` as absolute grid coordinates, corridors included. */
+export function seatGrid(index: number): { col: number; row: number } {
+  const p = seatFor(index)
+  return {
+    col: p.squadCol * SQUAD_STRIDE_COLS + p.col,
+    row: p.squadRow * SQUAD_STRIDE_ROWS + p.row,
+  }
+}
+
+/**
+ * The screen bounding box of everything between two grid coordinates.
+ *
+ * The one piece of arithmetic R6 turns on. The desk block is **sheared** —
+ * rows run level and each row behind steps left by {@link ROW_SHEAR} — so its
+ * four screen corners are not the four grid corners, and sizing the floor from
+ * a count of desks (which is what this replaced) leaves the corners of the
+ * block hanging over the edge of the plate. That is the "desks walk off the
+ * floor" defect, and it is visible from about forty developers.
+ */
+export function blockBox(
+  minCol: number,
+  minRow: number,
+  maxCol: number,
+  maxRow: number,
+): { minX: number; maxX: number; minY: number; maxY: number } {
+  return {
+    // Furthest left is the near-left corner: lowest column, deepest row.
+    minX: isoAt(minCol, maxRow).x,
+    maxX: isoAt(maxCol, minRow).x,
+    minY: isoAt(minCol, minRow).y,
+    maxY: isoAt(minCol, maxRow).y,
+  }
+}
+
+/**
+ * The half-width of the iso floor diamond that **contains** a block of that
+ * size — §7.8.1a, "nothing is ever placed outside the plate".
+ *
+ * A diamond with half-extents (W, W/2) contains a box of half-extents (bw, bh)
+ * only when `bw / W + bh / (W / 2) <= 1`, so the width has to cover the block's
+ * height twice over. Sizing it as `max(width, height)` — the previous rule —
+ * satisfies that only while the block is nearly flat, which is exactly why the
+ * overflow appeared as the studio got deeper rather than wider.
+ */
+export function plateHalfWidth(bw: number, bh: number, margin: number): number {
+  return bw + 2 * bh + margin * TILE_W
+}
+
+/**
+ * §7.8.1c — the unfold. **The hundredth hire fills the first squad, and the
+ * room has nowhere to put the hundred and first.**
+ *
+ * Three curves, pure, because the animation is the whole requirement and none
+ * of it is checkable through Pixi. `t` is progress through the whole event;
+ * each panel gets its own window inside it.
+ *
+ * It is **not scored here**, and that is not an omission: a hundred developers
+ * is a §7.7.1 rung boundary, so `stage.ts` is already firing the promotion
+ * stinger, the zoom-ceiling reveal and the dolly on that exact hire. A second
+ * cue laid on top would be two things scoring one event.
+ */
+export const UNFOLD_MS = 2600
+/** Fraction of the event spent releasing panels; the rest is one panel's turn. */
+const UNFOLD_STAGGER = 0.55
+
+/**
+ * When panel (`squadCol`, `squadRow`) starts turning, 0..{@link UNFOLD_STAGGER}.
+ *
+ * Ordered by distance from squad 0, so the wave leaves the occupied squad and
+ * runs outward — the floor opening *away* from the people rather than sweeping
+ * across them. It is also §7.8.1b's reading order, which is not a coincidence:
+ * the squads are being laid down in the order they will be filled.
+ */
+export function panelDelay(squadCol: number, squadRow: number): number {
+  const far = FLOOR_COLS - 1 + (FLOOR_ROWS - 1)
+  return ((squadCol + squadRow) / far) * UNFOLD_STAGGER
+}
+
+/**
+ * How far one panel has turned, 0 (folded away to nothing) to 1 (flat).
+ *
+ * Overshoots slightly and settles back, because paper does. A monotonic ease
+ * reads as a panel being *scaled*, which is the one thing §7.8.1c says this
+ * must not be.
+ */
+/** How far past flat a panel swings before it settles. Paper, not rubber. */
+const PANEL_OVERSHOOT = 0.9
+
+export function panelOpen(t: number): number {
+  if (t <= 0) return 0
+  if (t >= 1) return 1
+  const u = t - 1
+  return 1 + (PANEL_OVERSHOOT + 1) * u * u * u + PANEL_OVERSHOOT * u * u
+}
+
+/**
+ * The light a panel catches as it turns — §7.8.1c, "catch the light as they
+ * turn". Zero folded, zero flat, brightest edge-on halfway through.
+ */
+export function panelLight(t: number): number {
+  if (t <= 0 || t >= 1) return 0
+  return Math.sin(Math.PI * t)
+}
+
+/** Panel `squad`'s own progress at overall progress `t`. */
+export function panelProgress(t: number, squadCol: number, squadRow: number): number {
+  const u = (t - panelDelay(squadCol, squadRow)) / (1 - UNFOLD_STAGGER)
+  return Math.min(1, Math.max(0, u))
 }
 
 /**
@@ -557,17 +814,16 @@ function buildDeveloper(look: Look): Container {
   g.moveTo(-11, -6).lineTo(-6, -4).lineTo(-6, 3).lineTo(-11, 1).closePath().fill(c(RAMPS.NEUTRAL[5]))
   g.moveTo(11, -10).lineTo(6, -8).lineTo(6, -1).lineTo(11, -3).closePath().fill(c(RAMPS.NEUTRAL[4]))
 
-  // **No chair back.** There was one — a low mid-grey slab in front of the
-  // body, on the argument that a figure whose back faces the camera has their
-  // chair between them and the lens. That is true and it does not survive
-  // contact with the floor: at eighty developers it is eighty grey rectangles
-  // in front of eighty people, and because it sits in the near field it is the
-  // first thing the eye lands on. It read as an unidentifiable grey bit rather
-  // than as furniture.
+  // **No chair, and no legs.** §7.8.1 records three attempts at a chair and why
+  // the third was still wrong; the short version is that the honest depth order
+  // puts it between the camera and a figure facing away, so it either covers
+  // the person or shows only slivers the eye reads as more person.
   //
-  // The body already sits at desk height and the desk already occludes the
-  // lower half of it, so the chair was carrying no information the picture did
-  // not already have. Removing it is a straight gain in legibility.
+  // The legs are the same argument one step further. §7.8.1's figure is waist
+  // up: a seated person's legs are under a desk, so drawing them is drawing
+  // what nothing can see — and at forty desks it is forty invisible pairs of
+  // legs costing real geometry. The torso ends at the waist and the desk in
+  // front of it closes the silhouette.
 
   const front = new Graphics()
   drawFront(front, look)
@@ -578,20 +834,57 @@ function buildDeveloper(look: Look): Container {
   return dev
 }
 
-/** A desk with its monitor. Drawn into a shared Graphics — these never animate. */
+/**
+ * The desk footprint — **a 2:1 rectangle, not a square.**
+ *
+ * The first version drew a screen diamond of {@link TILE_W} x {@link TILE_H},
+ * which is 2:1 *on screen* and therefore a **square** on the ground: the 2:1
+ * projection is exactly the thing that turns a square plan into a 2:1 diamond.
+ * A square desk is a card table. A desk is roughly twice as wide as it is deep,
+ * so its diamond has to be twice as flat again — 4:1 on screen.
+ *
+ * The easy way to get this wrong is to read the ratio off the picture.
+ */
+/** Screen width of the desk diamond. Matches {@link PITCH_COL}, so a row butts. */
+export const DESK_W = TILE_W * 0.9
+/**
+ * Screen *height* of that diamond — a quarter of the width, not a half.
+ *
+ * w / 2 is what the 2:1 projection gives a square, and w / 4 is what it gives a
+ * 2:1 rectangle laid along the row. That factor of two is the entire fix and it
+ * is one character.
+ */
+export const DESK_D = DESK_W / 4
+/** Apron depth — the drop from the surface to the underside. */
+const DESK_LIP = 8
+
+/**
+ * A desk, the PC on it, and the person's place in front of it.
+ *
+ * Drawn into a shared Graphics; none of it animates, and none of it moves when
+ * the person does.
+ *
+ * **There is no chair.** Three attempts at one are recorded in §7.8.1 and the
+ * third still did not read: the honest depth order puts a chair back between
+ * the camera and a figure facing away, so it either covers the person or, drawn
+ * behind them, shows only slivers that the eye reads as more person. The
+ * silhouette is better without it, and a desk, a lit screen and somebody at it
+ * is already the whole picture.
+ */
 function drawDesk(g: Graphics, x: number, y: number) {
   // Desk surface and its two visible sides. Left catches the light.
-  isoQuad(g, x, y, TILE_W * 0.9, TILE_H * 0.9, c(RAMPS.WOOD[2]))
-  g.moveTo(x - TILE_W * 0.45, y)
-    .lineTo(x, y + TILE_H * 0.45)
-    .lineTo(x, y + TILE_H * 0.45 + 9)
-    .lineTo(x - TILE_W * 0.45, y + 9)
+  const half = DESK_D / 2
+  isoQuad(g, x, y, DESK_W, DESK_D, c(RAMPS.WOOD[2]))
+  g.moveTo(x - DESK_W / 2, y)
+    .lineTo(x, y + half)
+    .lineTo(x, y + half + DESK_LIP)
+    .lineTo(x - DESK_W / 2, y + DESK_LIP)
     .closePath()
     .fill(c(RAMPS.WOOD[1]))
-  g.moveTo(x + TILE_W * 0.45, y)
-    .lineTo(x, y + TILE_H * 0.45)
-    .lineTo(x, y + TILE_H * 0.45 + 9)
-    .lineTo(x + TILE_W * 0.45, y + 9)
+  g.moveTo(x + DESK_W / 2, y)
+    .lineTo(x, y + half)
+    .lineTo(x, y + half + DESK_LIP)
+    .lineTo(x + DESK_W / 2, y + DESK_LIP)
     .closePath()
     .fill(c(RAMPS.WOOD[0]))
 
@@ -605,17 +898,25 @@ function drawDesk(g: Graphics, x: number, y: number) {
   // damaging: it is repeated once per developer, so an upright rectangle here
   // was not one mistake but a hundred, tiling the whole floor.
   //
-  // It sits **north-west** on the desk and its face turns south-east, because
+  // It sits on the desk's centre line and its face turns south-east, because
   // that is the direction the person at it is looking (`buildDeveloper`). The
   // two were specified independently at first and pointed the same way, which
   // is a room full of people reading the backs of their own screens.
-  const mx = x - 9
+  //
+  // Centred rather than offset north-west, so the developer, the screen and the
+  // desk are one column: the figure stands **directly in front of** the thing
+  // they are looking at, which is what a workstation looks like from behind and
+  // is a stronger read than any amount of furniture around it.
+  const mx = x
   const my = y - 31
   const S = -0.5
 
-  // The stand, first, so the panel sits over it.
-  isoBox(g, mx, y - 11, 8, 5, RAMPS.NEUTRAL, 2, false)
-  g.rect(mx - 1, my + 15, 3, 8).fill(c(RAMPS.NEUTRAL[2]))
+  // The stand, first, so the panel sits over it. Based on the desk's **back
+  // half**, which is now only seven pixels deep — the old base at y-11 sat
+  // behind the far edge of a surface that used to be twice as deep, so it would
+  // hang off the back of the new one.
+  isoBox(g, mx, y - 3, 8, 4, RAMPS.NEUTRAL, 2, false)
+  g.rect(mx - 1, my + 15, 3, 13).fill(c(RAMPS.NEUTRAL[2]))
 
   // Bezel, then the emissive face. The screen is the room's only light source,
   // so it is the one surface here allowed to ignore the top-left key.
@@ -645,6 +946,23 @@ function drawDesk(g: Graphics, x: number, y: number) {
     .lineTo(mx + 15, my + 9.5)
     .closePath()
     .fill(c(RAMPS.NEUTRAL[1]))
+
+  // The machine itself, on the desk's east corner. `grounded` is false — it is
+  // standing on the desk, so it gets a contact patch from the surface under it
+  // rather than a floor shadow, which is §7.8.1's second projection rule.
+  //
+  // It is here because a desk with only a screen on it is a desk with a screen
+  // *floating* over it; the tower is the one prop that says the surface is a
+  // work surface. Kept small and tucked against the far edge, clear of both the
+  // monitor's panel and the body in front of it, because this is drawn once per
+  // developer and anything in the near field is drawn a hundred times.
+  const px = x + 21
+  const py = y - 1
+  isoBox(g, px, py, 8, 11, RAMPS.NEUTRAL, 3, false)
+  // A power light. Two pixels of GLOW, and at forty desks it is the cheapest
+  // thing in the room that says the machines are *on*.
+  g.rect(px - 2, py - 9, 1.5, 1.5).fill(c(RAMPS.GLOW[2]))
+
 }
 
 /** A pot plant. The most-repeated prop, so it varies by index. */
@@ -836,16 +1154,48 @@ function drawWhiteboard(g: Graphics, x: number, y: number, seed: number, slope: 
 export function buildRoom(): RoomHandle {
   const root = new Container()
 
-  // Draw order is the whole illusion: walls behind, floor, then light, then
+  // Draw order is the whole illusion: floor plates, walls, then light, then
   // desks, then people in front of their own desks.
+  //
+  // §7.8.1c is why the floor is a layer of its own rather than part of the
+  // shell: a hundred panels that hinge outward one after another have to be a
+  // hundred display objects. Below a hundred developers exactly one of them is
+  // ever visible and it is the room's floor, so the split costs nothing until
+  // the moment it is needed.
+  const plates = new Container()
   const shell = new Graphics()
   const light = new Graphics()
   const furniture = new Graphics()
+  // Desks, one Graphics per squad. Split so a squad's desks can be withheld
+  // until its panel has finished turning — trap 7 still holds *within* each
+  // one, and squads are themselves laid down in painter order, so index order
+  // is still the correct depth order end to end.
+  const deskLayer = new Container()
   const devLayer = new Container()
+  // Labelled because the layer list is now long enough that finding it by
+  // child index is a test that breaks every time a layer is added.
+  devLayer.label = 'developers'
+  plates.label = 'plates'
+  deskLayer.label = 'desks'
   const ambient = createAmbient()
   // Bubbles go above everyone, including the people in the front row — a
   // speech bubble occluded by the desk in front of it is not a speech bubble.
-  root.addChild(shell, light, furniture, devLayer, ambient.layer)
+  // Panels sit *above* the shell's own floor and below everything else: the
+  // shell's diamond and its walls are what the unfold fades away, and the two
+  // never overlap on screen because the walls rise from behind the deepest
+  // plate.
+  root.addChild(shell, plates, light, furniture, deskLayer, devLayer, ambient.layer)
+
+  /** One §7.8.1c panel: the plate itself, and the light it catches turning. */
+  interface Panel {
+    root: Container
+    base: Graphics
+    sheen: Graphics
+    squadCol: number
+    squadRow: number
+  }
+  const panels: Panel[] = []
+  const squadDesks: Graphics[] = []
 
   const devs: Container[] = []
   /**
@@ -874,8 +1224,45 @@ export function buildRoom(): RoomHandle {
   let lastDevs = -1
   const extent = { w: TILE_W * 3, h: 156 }
 
+  /**
+   * §7.8.1c's clock. -1 until the hundredth hire, then 0..1 once, then 1.
+   *
+   * Held across rebuilds, because a hire *during* the unfold must not restart
+   * it — §7.8.1c says it happens once.
+   */
+  let unfoldT = -1
+  /**
+   * What the §23.4.1 camera fit sees, folded and open. The camera pulls back
+   * *with* the unfold rather than after it, so both are computed at rebuild and
+   * interpolated per frame. Snapping the extent at the hundredth hire would
+   * make the fit cut on a frame where §10.5 says nothing cuts.
+   */
+  const foldedFit = { w: TILE_W * 3, h: 156, px: 0, py: 0 }
+  const openFit = { w: TILE_W * 3, h: 156, px: 0, py: 0 }
+
+  /**
+   * Push the fit for a given unfold progress onto the extent and the pivot.
+   *
+   * Eased on the same curve the panels use so the pull-back tracks the picture;
+   * a linear camera against an eased floor reads as two events.
+   */
+  function applyFit(t: number) {
+    const k = t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) ** 3
+    extent.w = foldedFit.w + (openFit.w - foldedFit.w) * k
+    extent.h = foldedFit.h + (openFit.h - foldedFit.h) * k
+    root.pivot.set(
+      foldedFit.px + (openFit.px - foldedFit.px) * k,
+      foldedFit.py + (openFit.py - foldedFit.py) * k,
+    )
+  }
+
   function rebuild(headcount: number) {
     const n = Math.max(1, Math.min(ROOM_DEV_CAP, Math.floor(headcount)))
+    // §7.8.1c — the hundredth hire fills the squad, so the floor has to open.
+    // Once started, never unstarted for this run: the unfold is a one-shot and
+    // the floor does not fold back up if the studio shrinks.
+    if (unfoldT < 0 && n >= SQUAD_SIZE) unfoldT = 0
+    const unfolded = unfoldT >= 0
     const { cols, rows } = gridFor(n)
     const props = propsAt(headcount)
     currentProps = props
@@ -897,23 +1284,26 @@ export function buildRoom(): RoomHandle {
     // before it can feel like it is filling up.
     const roomy = props.walkway ? 1.5 : 0.6
     const TIGHTEST = 1.05
-    const margin = TIGHTEST + Math.min(roomy - TIGHTEST, (n / 14) * (roomy - TIGHTEST))
-    // Derived from where the desks actually are rather than from a count of
-    // them, because the two pitches now differ: a grid that is six wide and
-    // three deep is no longer six-and-three tiles across. `span` is the
-    // diamond's diagonal in tile units, which is the one quantity both axes
-    // agree on — the floor stays a true 2:1 diamond whatever the pitches are.
-    // Sized from the seats' real bounding box rather than from a tile count,
-    // because the arrangement is no longer a projection of a square grid. The
-    // floor is still a 2:1 diamond; it just has to be big enough to contain a
-    // block of desks that is wider than it is deep.
-    const seatW = (cols - 1) * PITCH_COL + (rows - 1) * ROW_SHEAR
-    const seatH = ((rows - 1) * PITCH_ROW) / 2
-    const halfW = Math.max(seatW, seatH * 2) / 2 + margin
-    const floorW = halfW * TILE_W
-    const floorH = halfW * TILE_H
-    const cx = ((cols - 1) * PITCH_COL - (rows - 1) * ROW_SHEAR) * (TILE_W / 2)
-    const cy = ((rows - 1) * PITCH_ROW * (TILE_H / 2)) / 2
+    // Clamped at both ends. The old form interpolated on an *unbounded*
+    // `n / 14`, which is only an interpolation while the room is opening up —
+    // once crowding flips `roomy` below `TIGHTEST` the same expression runs
+    // away downward, and by forty developers the margin was **negative**: a
+    // floor plate smaller than the block of desks standing on it. That is the
+    // second half of R6, and it is the half no amount of geometry would have
+    // fixed.
+    const margin = TIGHTEST + Math.min(1, n / 14) * (roomy - TIGHTEST)
+    // Sized from the seats' real screen bounding box, and then from the rule
+    // that actually contains it — see `blockBox` and `plateHalfWidth`. The
+    // previous `max(width, height)` was correct only for a nearly flat block
+    // and let the corners of a deep one hang over the edge of the plate.
+    const box = blockBox(0, 0, cols - 1, rows - 1)
+    const bw = (box.maxX - box.minX) / 2
+    const bh = (box.maxY - box.minY) / 2
+    const floorW = plateHalfWidth(bw, bh, margin)
+    const floorH = floorW / 2
+    const halfW = floorW / TILE_W
+    const cx = (box.minX + box.maxX) / 2
+    const cy = (box.minY + box.maxY) / 2
 
     // The wall planes' screen slope, from the room's own geometry rather than
     // a literal 0.5, so wall-mounted things stay in plane if the projection
@@ -1067,13 +1457,28 @@ export function buildRoom(): RoomHandle {
 
     // --- desks and people --------------------------------------------------
 
-    for (let i = 0; i < n; i++) {
-      const col = i % cols
-      const row = Math.floor(i / cols)
-      const { x, y } = isoAt(col, row)
-      desks.push({ x, y })
+    // One Graphics per occupied squad. Cleared and re-filled rather than
+    // rebuilt, so a hire inside squad 0 does not churn squad 1's geometry.
+    const squadsUsed = Math.ceil(n / SQUAD_SIZE)
+    while (squadDesks.length < squadsUsed) {
+      const g = new Graphics()
+      squadDesks.push(g)
+      deskLayer.addChild(g)
+    }
+    for (const g of squadDesks) g.clear()
 
-      if (props.dividers && col < cols - 1) {
+    for (let i = 0; i < n; i++) {
+      const place = seatFor(i)
+      const { col: gcol, row: grow } = seatGrid(i)
+      const { x, y } = isoAt(gcol, grow)
+      desks.push({ x, y })
+      const g = squadDesks[place.squad]
+      const col = place.col
+
+      // A divider needs a neighbour to divide from. Inside the squad that is
+      // the next column along; at the squad's edge the next seat is across a
+      // corridor, and a panel standing in a corridor is a barricade.
+      if (props.dividers && col < SQUAD_COLS - 1 && i + 1 < n) {
         // A panel standing between two desks, so it runs along the grid axis
         // rather than straight up the screen.
         // Halfway to the next desk *along the row*, which is the only gap a
@@ -1081,8 +1486,7 @@ export function buildRoom(): RoomHandle {
         // Level, because the row is.
         const dx = x + TILE_W * 0.5 * PITCH_COL
         const dy = y
-        furniture
-          .moveTo(dx - 10, dy - 5 - 18)
+        g.moveTo(dx - 10, dy - 5 - 18)
           .lineTo(dx + 10, dy + 5 - 18)
           .lineTo(dx + 10, dy + 5)
           .lineTo(dx - 10, dy - 5)
@@ -1090,13 +1494,12 @@ export function buildRoom(): RoomHandle {
           .fill({ color: c(RAMPS.NEUTRAL[3]), alpha: 0.8 })
       }
       if (props.cables) {
-        furniture
-          .moveTo(x - TILE_W * 0.4, y + 12)
+        g.moveTo(x - TILE_W * 0.4, y + 12)
           .lineTo(x + TILE_W * 0.4, y + 14)
           .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.7 })
       }
 
-      drawDesk(furniture, x, y)
+      drawDesk(g, x, y)
     }
 
     // Reuse developer containers across rebuilds — a hire should not rebuild
@@ -1116,18 +1519,168 @@ export function buildRoom(): RoomHandle {
       if (visible) devs[i].position.set(desks[i].x, desks[i].y + 6)
     }
 
+    // --- §7.8.1c, the hundred panels ---------------------------------------
+    //
+    // Built only once the floor has unfolded, and built once: below a hundred
+    // developers this layer is empty and the room is exactly what it was.
+    plates.visible = unfolded
+    shell.alpha = 1
+    light.alpha = 1
+    if (unfolded && panels.length === 0) buildPanels()
+    if (unfolded) applyUnfold(unfoldT)
+
     // The camera fit reads this every frame (§23.4.1), so the room growing is
     // also the camera pulling back — without anyone driving Z.
     // The camera fit reads these, so they must describe the *drawn* bounds:
     // floor plus the walls standing behind it, and a pivot at the true centre
     // of that box rather than at the floor's centre. Pivoting on the floor
     // pushes the whole room down the frame by half a wall.
-    extent.w = floorW * 2
-    extent.h = floorH * 2 + WALL_H
+    foldedFit.w = floorW * 2
+    foldedFit.h = floorH * 2 + WALL_H
     // Biased toward the desks rather than the true centre of the bounding box.
     // Centring the box geometrically is correct and composes badly: it puts
     // half a wall above the people and drops them low in frame.
-    root.pivot.set(cx, cy - WALL_H * 0.3)
+    foldedFit.px = cx
+    foldedFit.py = cy - WALL_H * 0.3
+    if (unfolded) {
+      const f = floorBox(squadsUsed)
+      openFit.w = f.maxX - f.minX
+      openFit.h = f.maxY - f.minY
+      openFit.px = (f.minX + f.maxX) / 2
+      openFit.py = (f.minY + f.maxY) / 2
+    }
+    applyFit(Math.max(0, unfoldT))
+  }
+
+  /**
+   * The screen box the camera should frame once the floor is open.
+   *
+   * **Not all hundred plates**, and that is a decision worth defending. The
+   * unfold really does lay out ten thousand seats, and framing all of them puts
+   * a hundred developers in about one percent of the picture: the first version
+   * of this did exactly that, and the result was a screen full of empty floor
+   * with the studio somewhere off the top-left corner. §7.7's promise is the
+   * other way round — *the studio you see is the studio you have* — and §7.8.1a
+   * already says the way to see the rest is to **zoom to it**, not to be shown
+   * all of it at once.
+   *
+   * So the fit covers the squads that have people in them plus one squad of
+   * headroom in each direction: the player watches the floor open, keeps their
+   * own hundred at a readable size, and can see there is somewhere for the next
+   * hundred to go. The other ninety-odd plates are still there and still
+   * unfold; they simply run off the edge of the frame, which is the honest
+   * picture of a floor that holds ten thousand.
+   */
+  function floorBox(squadsUsed: number) {
+    const wide = Math.min(FLOOR_COLS, Math.max(1, squadsUsed) + 1)
+    const deep = Math.min(FLOOR_ROWS, Math.ceil(Math.max(1, squadsUsed) / FLOOR_COLS) + 1)
+    const maxCol = (wide - 1) * SQUAD_STRIDE_COLS + SQUAD_COLS - 1 + PLATE_PAD_COLS
+    const maxRow = (deep - 1) * SQUAD_STRIDE_ROWS + SQUAD_ROWS - 1 + PLATE_PAD_ROWS
+    return blockBox(-PLATE_PAD_COLS, -PLATE_PAD_ROWS, maxCol, maxRow)
+  }
+
+  /**
+   * One squad's plate, as a parallelogram in the seat grid's own axes.
+   *
+   * **Not a diamond.** The room's plate is a diamond because a room is a box
+   * seen in projection; a hundred squad plates have to *tile*, and the diamond
+   * that contains a squad's block of desks is nearly twice the block's width
+   * (see `plateHalfWidth`) — laid out in a grid they would either overlap into
+   * a blob or leave corridors as wide as the squads. The grid axes are affine
+   * under `isoAt`, so a rectangle in seat units is a parallelogram on screen,
+   * which tiles exactly and still recedes.
+   */
+  function platePoints(squadCol: number, squadRow: number, padCol: number, padRow: number) {
+    const c0 = squadCol * SQUAD_STRIDE_COLS - padCol
+    const r0 = squadRow * SQUAD_STRIDE_ROWS - padRow
+    const c1 = c0 + SQUAD_COLS - 1 + padCol * 2
+    const r1 = r0 + SQUAD_ROWS - 1 + padRow * 2
+    return [isoAt(c0, r0), isoAt(c1, r0), isoAt(c1, r1), isoAt(c0, r1)]
+  }
+
+  function fillPlate(g: Graphics, pts: Array<{ x: number; y: number }>, fill: number) {
+    g.moveTo(pts[0].x, pts[0].y)
+    for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y)
+    g.closePath().fill(fill)
+  }
+
+  function buildPanels() {
+    for (let s = 0; s < FLOOR_SQUADS; s++) {
+      const squadCol = s % FLOOR_COLS
+      const squadRow = Math.floor(s / FLOOR_COLS)
+      // Two footprints per panel. The apron takes half the corridor on every
+      // side, so panels **tile with no gaps**: the corridor is a darker band of
+      // floor between two plates rather than a hole through to the background.
+      // §7.8.1a puts §7.8.6's walkers in it, and they cannot walk on a hole.
+      const apron = platePoints(squadCol, squadRow, CORRIDOR_COLS / 2, CORRIDOR_ROWS / 2)
+      const pts = platePoints(squadCol, squadRow, PLATE_PAD_COLS, PLATE_PAD_ROWS)
+      const base = new Graphics()
+      fillPlate(base, apron, c(RAMPS.NEUTRAL[1]))
+      fillPlate(base, pts, c(RAMPS.WOOD[0]))
+      // The plate's own edge, so a squad reads as a plate rather than as a
+      // region of one continuous floor. The corridor is the gap; this is the
+      // lip that makes the gap visible.
+      base
+        .moveTo(pts[0].x, pts[0].y)
+        .lineTo(pts[1].x, pts[1].y)
+        .lineTo(pts[2].x, pts[2].y)
+        .lineTo(pts[3].x, pts[3].y)
+        .closePath()
+        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[2]) })
+      const sheen = new Graphics()
+      fillPlate(sheen, apron, c(RAMPS.GLOW[1]))
+      sheen.alpha = 0
+
+      const holder = new Container()
+      holder.addChild(base, sheen)
+      // Hinged on the corner facing squad 0, so the panel swings out of its
+      // neighbour rather than growing out of its own middle. Pivot and
+      // position are the same point because the geometry is drawn in room
+      // coordinates — the panel does not move, it opens.
+      holder.pivot.set(apron[0].x, apron[0].y)
+      holder.position.set(apron[0].x, apron[0].y)
+      panels.push({ root: holder, base, sheen, squadCol, squadRow })
+      plates.addChild(holder)
+    }
+    applyUnfold(unfoldT < 0 ? 0 : unfoldT)
+  }
+
+  /** Put every panel where progress `t` says it is. */
+  function applyUnfold(t: number) {
+    for (const p of panels) {
+      const u = panelProgress(t, p.squadCol, p.squadRow)
+      const open = panelOpen(u)
+      // Sideways or forward, whichever direction the panel is mostly opening
+      // in. A single axis is enough: the other one is the hinge.
+      const sideways = p.squadCol >= p.squadRow
+      p.root.scale.set(sideways ? open : 1, sideways ? 1 : open)
+      p.root.visible = u > 0
+      p.sheen.alpha = panelLight(u) * 0.35
+    }
+    // Squad 0 is already open and stays open — §7.8.1c, "the single squad
+    // stays where it is and stays the size it is."
+    if (panels.length > 0) {
+      panels[0].root.scale.set(1, 1)
+      panels[0].root.visible = true
+      panels[0].sheen.alpha = 0
+    }
+    // A squad's desks wait for its panel. Landing a desk on a panel that is
+    // still edge-on is the one thing that would give the trick away.
+    for (let s = 0; s < squadDesks.length; s++) {
+      const p = panels[s]
+      // Squad 0 is exempt: its panel never turns, so its hundred people must
+      // never blink out. They are the reason the floor is opening.
+      squadDesks[s].visible = s === 0 || !p || panelProgress(t, p.squadCol, p.squadRow) >= 0.5
+    }
+    for (let i = 0; i < devs.length; i++) {
+      const g = squadDesks[Math.floor(i / SQUAD_SIZE)]
+      devs[i].visible = i < desks.length && (!g || g.visible)
+    }
+    // The room folds away as the floor opens: its walls, its dressing and the
+    // surplus of plate around squad 0 all belong to a room that has just been
+    // outgrown.
+    shell.alpha = 1 - Math.min(1, t / 0.6)
+    light.alpha = shell.alpha
   }
 
   rebuild(1)
@@ -1141,6 +1694,14 @@ export function buildRoom(): RoomHandle {
       rebuild(clamped)
     },
     animate(elapsed: number, state: string, dt = 1 / 60, entropy = 0) {
+      // §7.8.1c — the unfold, on `dt` rather than on `elapsed`, because it is
+      // an event with a start and must not jump forward while the tab is
+      // hidden (trap 3). Once it lands it costs one comparison a frame.
+      if (unfoldT >= 0 && unfoldT < 1) {
+        unfoldT = Math.min(1, unfoldT + (dt * 1000) / UNFOLD_MS)
+        applyUnfold(unfoldT)
+        applyFit(unfoldT)
+      }
       // §7.8.6 — ambient life. Fed the desks and the walkable destinations; it
       // decides who is doing what and hands back an offset per seat.
       //
@@ -1161,13 +1722,17 @@ export function buildRoom(): RoomHandle {
       })
 
       // §7.8.3 — a transform on a static part, never a spritesheet. The whole
-      // motion budget for a hundred people is one sine per person per frame.
+      // motion budget for a hundred people is one hop per person per frame.
       //
       // Stillness is a state and must read as deliberate: an Overwhelmed
       // developer has their head on the desk and a 10x Engineer is facing the
       // camera, and both are legible *because* the floor around them moves.
       const still = state === 'overwhelmed' || state === 'tenx'
-      const rate = state === 'flow' ? 11 : state === 'rogue' ? 15 : state === 'slacking' ? 2.5 : 6.2
+      // Hops per second. Carried over from the old bob's angular rates divided
+      // by 2π rather than retuned, because those were tuned against the §8.2
+      // state list and the *relative* speeds are the part that carries meaning:
+      // Flow is not "fast", it is faster than Working.
+      const hz = (state === 'flow' ? 11 : state === 'rogue' ? 15 : state === 'slacking' ? 2.5 : 6.2) / 6.283
       const reach = state === 'slacking' ? 0.6 : 1
 
       // §7.8.8 — the spin. At most two people are ever mid-turn (the one
@@ -1188,27 +1753,41 @@ export function buildRoom(): RoomHandle {
         const [back, front] = d.children as Graphics[]
         back.visible = !shown
         front.visible = shown
-        d.scale.x = turning ? turnScale(t) : 1
         // Per-developer phase offset, hashed from the index rather than drawn
         // at random so it is identical every run. Without it a hundred people
-        // bob in unison and read as one breathing object rather than a crowd —
+        // hop in unison and read as one bouncing object rather than a crowd —
         // §7.8.3 calls this non-negotiable and it is the single cheapest thing
-        // that makes the room feel populated.
-        const phase = ((i * 2654435761) % 1024) / 1024
-        const bob = still ? 0 : Math.sin((elapsed * rate + phase * 6.283)) * 1.6 * reach
+        // that makes the room feel populated. It matters more for a hop than it
+        // did for the old bob: forty figures leaving the ground on the same
+        // frame is a Mexican wave.
+        const offset = ((i * 2654435761) % 1024) / 1024
 
         if (jolts[i] > 0) jolts[i] = Math.max(0, jolts[i] - 0.06)
         const walk = ambient.offsetFor(i)
         // §7.8.9 — a developer in the player's hand dangles. Legs cycling, a
         // slight swing, and lifted clear of the floor, because the whole read
         // is "held by the scruff" and a held figure that stays upright looks
-        // like it is flying.
+        // like it is flying. They do not hop while held: whatever they are
+        // doing in mid-air, pushing off it is not it.
         const held = i === ambient.carrying
+        const hopping = !still && !held
+        const phase = elapsed * hz + offset
+        const lift = hopping ? hopHeight(phase) * HOP_HEIGHT * reach : 0
+        const sway = hopping ? hopSway(phase) * HOP_SWAY * reach : 0
+        const squash = hopping ? hopSquash(phase) : 1
+
+        d.scale.x = turning ? turnScale(t) : 1
+        d.scale.y = squash
         d.rotation = held ? Math.sin(elapsed * 9) * 0.12 : 0
-        // The jolt sits on top of the bob: §8.2's "sprite jolts upright".
+        // The jolt sits on top of the hop: §8.2's "sprite jolts upright".
+        //
+        // `BODY_BASE` compensates the squash. The container's origin is at the
+        // waist and the drawn figure hangs below it, so scaling Y about the
+        // origin lifts the bottom of the body off the seat — the one place a
+        // squash must never move.
         d.position.set(
-          desks[i].x + walk.x,
-          desks[i].y + 6 + bob + walk.y - jolts[i] * 5 - (held ? 16 : 0),
+          desks[i].x + walk.x + sway,
+          desks[i].y + 6 - lift + walk.y - jolts[i] * 5 - (held ? 16 : 0) + BODY_BASE * (1 - squash),
         )
       }
     },
@@ -1232,6 +1811,19 @@ export function buildRoom(): RoomHandle {
       jolts.length = 0
       devLayer.removeChildren()
       lastDevs = -1
+      // §7.8.1c happens once *per run*. A Paradigm Shift is a new run and a new
+      // studio of one, so the floor folds back up with everything else —
+      // otherwise the biggest one-shot in the tier is spent for the lifetime of
+      // the page, which is the same bug the Act IV dolly had.
+      unfoldT = -1
+      for (const p of panels) p.root.destroy({ children: true })
+      panels.length = 0
+      plates.removeChildren()
+      for (const g of squadDesks) g.destroy()
+      squadDesks.length = 0
+      deskLayer.removeChildren()
+      shell.alpha = 1
+      light.alpha = 1
     },
     jolt(i: number) {
       if (i >= 0 && i < jolts.length) jolts[i] = 1

@@ -4,7 +4,37 @@ import { describe, expect, it, vi } from 'vitest'
 // initialise under jsdom. These tests cover the fall and puff curves, which
 // never play anything.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: () => {} }))
-import { PITCH_COL, PITCH_ROW, ROOM_DEV_CAP, gridFor, perimeterPoint, propsAt } from './room.ts'
+import type { Container } from 'pixi.js'
+import {
+  FLOOR_COLS,
+  FLOOR_ROWS,
+  FLOOR_SIZE,
+  HOP_AIRBORNE,
+  HOP_HEIGHT,
+  HOP_SQUASH,
+  PITCH_COL,
+  SQUAD_COLS,
+  SQUAD_ROWS,
+  SQUAD_SIZE,
+  UNFOLD_MS,
+  blockBox,
+  buildRoom,
+  PITCH_ROW,
+  ROOM_DEV_CAP,
+  gridFor,
+  hopHeight,
+  hopSquash,
+  hopSway,
+  panelDelay,
+  panelLight,
+  panelOpen,
+  panelProgress,
+  perimeterPoint,
+  plateHalfWidth,
+  propsAt,
+  seatFor,
+  seatGrid,
+} from './room.ts'
 import { BEAT, CASCADE_MAX_MS, cascadeDelay, arrivalHeight, landingSquash, puffAlpha } from './arrivals.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
 import { FLOOR_SPRITE_COUNT } from './scene.ts'
@@ -17,6 +47,51 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     const trappedAt = 99
     expect(ROOM_DEV_CAP).toBeGreaterThanOrEqual(trappedAt)
     expect(maxZoomFor(trappedAt)).toBe(0.2)
+  })
+
+  it('never moves somebody who is already sitting down — §7.8.1b', () => {
+    // The property the whole squad structure exists for, and the one the old
+    // square-footprint solve could not have: hiring never re-flows the room.
+    // Before this, `gridFor(6)` was 3 wide and `gridFor(7)` was 4, so the
+    // seventh hire picked the other six up and put them somewhere else — which
+    // §7.8.1b calls indistinguishable from a redraw.
+    const seats = Array.from({ length: 250 }, (_, i) => seatGrid(i))
+    for (let n = 1; n <= 250; n++) {
+      for (let i = 0; i < n; i++) {
+        expect(seatGrid(i)).toEqual(seats[i])
+      }
+    }
+  })
+
+  it('fills row by row at BOTH scales — §7.8.1b', () => {
+    // Seats within a squad, squads within the floor, one reading order.
+    expect(seatFor(0)).toMatchObject({ squad: 0, col: 0, row: 0 })
+    expect(seatFor(9)).toMatchObject({ squad: 0, col: 9, row: 0 })
+    // The tenth hire starts the next row rather than widening the first.
+    expect(seatFor(10)).toMatchObject({ squad: 0, col: 0, row: 1 })
+    // The hundredth fills the squad; the hundred and first starts the next one,
+    // and it starts at *its* first seat, not somewhere in the middle.
+    expect(seatFor(99)).toMatchObject({ squad: 0, col: 9, row: 9 })
+    expect(seatFor(100)).toMatchObject({ squad: 1, col: 0, row: 0, squadCol: 1, squadRow: 0 })
+    // And squads themselves wrap to the next row of squads at ten.
+    expect(seatFor(10 * SQUAD_SIZE)).toMatchObject({ squadCol: 0, squadRow: 1 })
+  })
+
+  it('puts a corridor between squads, not between desks — §7.8.1a', () => {
+    // Two desks side by side inside a squad are a pitch apart. The desk across
+    // a squad boundary is much further, and that gap is the corridor.
+    const within = seatGrid(1).col - seatGrid(0).col
+    const across = seatGrid(100).col - seatGrid(9).col
+    expect(within).toBe(1)
+    expect(across).toBeGreaterThan(within * 2)
+  })
+
+  it('holds exactly ten thousand — §7.8.1a', () => {
+    expect(SQUAD_SIZE).toBe(100)
+    expect(FLOOR_SIZE).toBe(10_000)
+    // The last seat on the floor is in the last squad's last row, and it is
+    // still on the grid rather than off the end of it.
+    expect(seatFor(FLOOR_SIZE - 1)).toMatchObject({ squadCol: 9, squadRow: 9, col: 9, row: 9 })
   })
 
   it('lays the floor out in rows — wider than it is deep, always', () => {
@@ -44,15 +119,113 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
   })
 
   it('matches §7.8.1 at the headcounts the table names', () => {
-    // "1: one desk. 2: a second desk pushed alongside. 6-10: two rows."
+    // "1: one desk. 2: a second desk pushed alongside."
     expect(gridFor(1)).toEqual({ cols: 1, rows: 1 })
     expect(gridFor(2)).toEqual({ cols: 2, rows: 1 })
-    expect(gridFor(8)).toEqual({ cols: 4, rows: 2 })
+    // The table's "6-10: two rows" is the one line §7.8.1a and §7.8.1b
+    // supersede: eight people sit in one row of eight, because a row that
+    // widens as the studio grows moves everybody already in it. The later
+    // canon wins, and the trade is recorded on SQUAD_COLS.
+    expect(gridFor(8)).toEqual({ cols: 8, rows: 1 })
+    // A full squad, and the shape §7.8.1a names.
+    expect(gridFor(100)).toEqual({ cols: 10, rows: 10 })
   })
 
-  it('never lays out more desks than it will draw', () => {
+  it('never lays out a block bigger than one squad — §7.8.1a', () => {
+    // The room is sized for exactly one squad, and nothing above a hundred
+    // makes the block deeper: past that the *floor* grows (§7.8.1c), not the
+    // room. Without this the plate is sized for a block that will never exist.
     const { cols, rows } = gridFor(1e9)
-    expect(cols * rows).toBeLessThanOrEqual(ROOM_DEV_CAP + cols)
+    expect(cols).toBe(SQUAD_COLS)
+    expect(rows).toBe(SQUAD_ROWS)
+    expect(cols * rows).toBe(SQUAD_SIZE)
+  })
+})
+
+describe('the desks never leave the plate — GDD §7.8.1a, R6', () => {
+  /**
+   * The plainest "this is broken" in the build: past about forty developers
+   * the corners of the desk block hung over the edge of the floor they were
+   * standing on. Two independent causes, and both are asserted here rather
+   * than through Pixi, because the geometry is what was wrong.
+   */
+  /**
+   * The block's far corner in the plate diamond's own normalised coordinates:
+   * `|x| / W + |y| / H`, which is ≤ 1 exactly when the corner is on the floor.
+   *
+   * `margin` is the tightest the room ever chooses — the crowded floor's — so
+   * this is the worst case rather than a comfortable one.
+   */
+  const contains = (n: number, margin = 0.6) => {
+    const { cols, rows } = gridFor(n)
+    const box = blockBox(0, 0, cols - 1, rows - 1)
+    const bw = (box.maxX - box.minX) / 2
+    const bh = (box.maxY - box.minY) / 2
+    const half = plateHalfWidth(bw, bh, margin)
+    return bw / half + bh / (half / 2)
+  }
+
+  it('contains the block at every headcount the room can draw', () => {
+    for (let n = 1; n <= ROOM_DEV_CAP; n++) {
+      expect(contains(n)).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('is tight — the plate is not simply enormous', () => {
+    // The other half of the fix. A plate ten times too big would pass the test
+    // above and frame the studio as a speck (§23.4.1 fits the tier to the
+    // frame), so the containment has to be nearly exact at zero margin.
+    expect(contains(100, 0)).toBeCloseTo(1, 6)
+  })
+
+  it('holds the corners of a DEEP block, which is where it failed', () => {
+    // A wide flat block is contained by almost any rule; the old
+    // `max(width, height)` was one of them. It broke as the block got deeper,
+    // which is exactly the direction hiring takes it.
+    const box = blockBox(0, 0, SQUAD_COLS - 1, SQUAD_ROWS - 1)
+    const bw = (box.maxX - box.minX) / 2
+    const bh = (box.maxY - box.minY) / 2
+    expect(Math.max(bw, bh * 2) / 2).toBeLessThan(plateHalfWidth(bw, bh, 0))
+  })
+})
+
+describe('the floor unfolds at a hundred — GDD §7.8.1c, R7', () => {
+  it('is folded away to nothing before it starts, and flat when it ends', () => {
+    expect(panelOpen(0)).toBe(0)
+    expect(panelOpen(1)).toBe(1)
+  })
+
+  it('swings past flat and settles back, because paper does', () => {
+    // Not a scale. A monotonic ease into 1 reads as a panel being resized,
+    // which is the one thing §7.8.1c rules out.
+    const peak = Math.max(...Array.from({ length: 99 }, (_, i) => panelOpen((i + 1) / 100)))
+    expect(peak).toBeGreaterThan(1)
+    expect(peak).toBeLessThan(1.15)
+  })
+
+  it('opens outward from the squad that is already full', () => {
+    // The wave leaves squad 0 rather than sweeping across it, so the hundred
+    // people the player just hired are never the thing being folded.
+    expect(panelDelay(0, 0)).toBe(0)
+    expect(panelDelay(9, 9)).toBeGreaterThan(panelDelay(4, 4))
+    expect(panelDelay(4, 4)).toBeGreaterThan(panelDelay(1, 0))
+  })
+
+  it('finishes every panel by the time the event does', () => {
+    // The far corner is the last to start; if its window ran past the end it
+    // would snap flat on the final frame.
+    expect(panelProgress(1, FLOOR_COLS - 1, FLOOR_ROWS - 1)).toBe(1)
+    expect(panelProgress(0.99, FLOOR_COLS - 1, FLOOR_ROWS - 1)).toBeLessThan(1)
+  })
+
+  it('catches the light edge-on and nowhere else', () => {
+    expect(panelLight(0)).toBe(0)
+    expect(panelLight(1)).toBe(0)
+    expect(panelLight(0.5)).toBeGreaterThan(0.9)
+  })
+
+  it('is over quickly enough to be an event rather than a wait', () => {
+    expect(UNFOLD_MS).toBeLessThanOrEqual(3000)
   })
 })
 
@@ -127,6 +300,125 @@ describe('props arrive on the §7.8.1 thresholds', () => {
     expect(propsAt(120).whiteboardRight).toBe(true)
     expect(propsAt(120).posters).toBeGreaterThan(0)
     expect(propsAt(120).serverRack).toBe(true)
+  })
+})
+
+describe('the idle is a hop, not a bob — GDD §7.8.3', () => {
+  it('spends part of every cycle ON THE GROUND', () => {
+    // The whole difference between a hop and the sine bob it replaced. A figure
+    // that is never at rest is floating, however small the amplitude, and forty
+    // of them read as buoys rather than as people. Contact is what makes the
+    // motion look like a push against something.
+    const grounded = Array.from({ length: 200 }, (_, i) => hopHeight(i / 200)).filter(
+      (h) => h === 0,
+    )
+    expect(grounded.length).toBeGreaterThan(60)
+  })
+
+  it('leaves the ground and comes back, exactly once per cycle', () => {
+    expect(hopHeight(0)).toBe(0)
+    expect(hopHeight(HOP_AIRBORNE / 2)).toBeCloseTo(1, 6)
+    expect(hopHeight(HOP_AIRBORNE)).toBe(0)
+    expect(hopHeight(0.999)).toBe(0)
+  })
+
+  it('never goes below the ground or above the arc', () => {
+    for (let i = 0; i < 400; i++) {
+      const h = hopHeight(i / 97)
+      expect(h).toBeGreaterThanOrEqual(0)
+      expect(h).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('repeats — phase 3.2 is the same hop as phase 0.2', () => {
+    // The renderer feeds it `elapsed * hz + offset`, which grows without bound.
+    // If this were not periodic the floor would drift out of the room.
+    for (const u of [0.05, 0.2, 0.49, 0.5, 0.8]) {
+      expect(hopHeight(u + 3)).toBeCloseTo(hopHeight(u), 12)
+      expect(hopSquash(u + 7)).toBeCloseTo(hopSquash(u), 12)
+    }
+  })
+
+  it('leans a different way each hop, and is centred whenever it lands', () => {
+    // The "about" in "hop about". Alternating means the figure shifts its weight
+    // rather than pogoing; tying it to the height means the sway is exactly zero
+    // on the ground, so nobody creeps off their desk over a long session.
+    expect(hopSway(0.25)).toBeGreaterThan(0)
+    expect(hopSway(1.25)).toBeLessThan(0)
+    expect(hopSway(2.25)).toBeGreaterThan(0)
+    for (let n = 0; n < 6; n++) {
+      // `toBeCloseTo` rather than `toBe`, because a leftward lean of zero is
+      // -0 and no position on screen cares.
+      expect(hopSway(n)).toBeCloseTo(0, 12)
+      expect(hopSway(n + 0.9)).toBeCloseTo(0, 12)
+    }
+  })
+
+  it('compresses on landing and again into the launch, and nowhere else', () => {
+    // Squash-and-stretch, and it only means anything at the two moments the
+    // figure is in contact with something. Compressing mid-air is a balloon.
+    expect(hopSquash(HOP_AIRBORNE * 0.5)).toBe(1)
+    expect(hopSquash(HOP_AIRBORNE)).toBeLessThan(1)
+    expect(hopSquash(0.999)).toBeLessThan(1)
+    // And halfway through the grounded half it has recovered.
+    expect(hopSquash(HOP_AIRBORNE + (1 - HOP_AIRBORNE) * 0.5)).toBe(1)
+  })
+
+  it('never stretches, and never squashes past the limit', () => {
+    for (let i = 0; i < 400; i++) {
+      const s = hopSquash(i / 97)
+      expect(s).toBeLessThanOrEqual(1)
+      expect(s).toBeGreaterThanOrEqual(1 - HOP_SQUASH)
+    }
+  })
+})
+
+describe('the room actually drives the hop', () => {
+  /**
+   * The curves above are pure and provable; this is the wiring, which is where
+   * an idle animation really goes wrong. A sign flip, a phase in the wrong
+   * units, or an `elapsed` that turns out to be milliseconds all leave every
+   * curve test passing and the floor either motionless or vibrating.
+   *
+   * `dt = 0` freezes §7.8.6's ambient life so the only thing moving anybody is
+   * the hop — otherwise somebody wanders to the coffee machine mid-assertion.
+   */
+  function sampleSeat(frames: number) {
+    const room = buildRoom()
+    room.setHeadcount(1)
+    const dev = (room.container.getChildByLabel('developers') as Container).children[0]
+    const desk = room.deskAt(0)!
+    const ys: number[] = []
+    const xs: number[] = []
+    for (let f = 0; f < frames; f++) {
+      room.animate(f / 60, 'working', 0)
+      ys.push(dev.position.y)
+      xs.push(dev.position.x)
+    }
+    return { ys, xs, restY: desk.y + 6, restX: desk.x }
+  }
+
+  it('leaves the seat by about a hop and comes back down to it', () => {
+    const { ys, restY } = sampleSeat(180)
+    // Up is -y.
+    expect(restY - Math.min(...ys)).toBeGreaterThan(HOP_HEIGHT * 0.8)
+    expect(restY - Math.min(...ys)).toBeLessThanOrEqual(HOP_HEIGHT + 0.001)
+    expect(Math.max(...ys)).toBeLessThanOrEqual(restY + 1)
+  })
+
+  it('is planted for a good share of the time, not floating', () => {
+    const { ys, restY } = sampleSeat(180)
+    const planted = ys.filter((y) => Math.abs(y - restY) < 1e-9)
+    expect(planted.length).toBeGreaterThan(30)
+  })
+
+  it('never drifts off its own desk, however long it runs', () => {
+    // The sway is the one part of the hop that could accumulate. Three seconds
+    // is three hops, and the figure has to be exactly back over its desk on
+    // every landing or a floor left running overnight ends up in the corridor.
+    const { xs, restX } = sampleSeat(180)
+    expect(Math.max(...xs.map((x) => Math.abs(x - restX)))).toBeLessThanOrEqual(HOP_HEIGHT)
+    expect(xs.filter((x) => Math.abs(x - restX) < 1e-9).length).toBeGreaterThan(30)
   })
 })
 

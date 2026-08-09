@@ -342,6 +342,12 @@ mid-sprint (§18.4), and estimation upgrades become real numeric progression (§
 
 ### 4.5 The Poke — "Status Check"
 
+> **Superseded in part by §4.5a.** The formula below is intact and still produces the
+> number; what changed is where that number goes. A poke now *buffs the individual's own
+> output rate* rather than paying out once, it applies to **any unit on the Construction
+> Ladder** rather than only to a person, and §4.5d gives the founder a desk of their own.
+> Read 4.5a-4.5d before implementing anything here.
+
 The clicker layer. Tap a developer and they blurt out a number.
 
 In fiction, the poke is a **status check**: you, the manager, tapping someone on the
@@ -362,6 +368,113 @@ $$\text{SP}_{\text{poke}} = F(\text{tier}) \times S(\text{state}) \times Z(\text
 
 That last term is load-bearing: **at high Entropy, poking stops working too.** A player
 in Entropy Lock cannot tap their way out. See §6.3.
+
+### 4.5a The poke is a BUFF, not a payout **[CANON - added 2026-08-08]** - R14
+
+**Section 4.5's tap pays out once and is forgotten.** That is a clicker, and it is the shallow
+half of one: the tap is worth the same whoever you aim it at, so there is no reason to aim.
+
+**A poke now raises that individual's own output rate**, for a while. What you are doing is
+still a status check - you are still interrupting them, and it still costs Entropy - but what
+it buys is *that person working harder*, not a coin.
+
+Everything that follows from that is the point:
+
+- **Who you poke matters.** A poke on a developer carrying a good modifier (4.5c) is worth
+  more than the same poke on the person beside them. The player is choosing a target rather
+  than choosing a rate.
+- **Poking is an investment with a decay.** The buff fades, so the loop is *maintain the
+  people who are worth maintaining* rather than *tap the screen as fast as possible*. A tap
+  that pays instantly rewards a macro; a tap that decays rewards attention.
+- **It composes with everything already specified.** 4.7's dev states still scale it, 4.6's
+  Fibonacci ladder still sets the base, and 4.1's Entropy still taxes it. What changes is the
+  *destination* of the number, not the formula that produces it.
+
+**The architectural consequence, stated plainly because it is not small:** the store currently
+models **one** dev-state machine for the whole studio - "the store models one machine, not one
+per person". A per-employee buff needs per-employee state. That is the first thing this
+requires and there is no way around it: a shared machine cannot hold a buff belonging to
+seat 41.
+
+**The one-off payout does not vanish entirely.** A poke still emits its 8.2 numeral, because
+instant feedback on a tap is non-negotiable (10.8 F2). It is now the *smaller* half of what a
+poke does, and the buff is the larger.
+
+### 4.5b Anything you can see, you can poke **[CANON - added 2026-08-08]** - R15
+
+The poke generalises **up the Construction Ladder**. Whatever unit 7.7.1 says the camera is
+currently holding - a person, a squad, a floor, a building, a campus, a town, a nation, a
+planet, a galaxy - **that unit is the thing a tap lands on**, and the buff applies to
+everything inside it.
+
+This is the single idea that keeps the clicker alive at 10^12 developers. 4.6's Fibonacci
+ladder was the previous answer and it only ever scaled the *number*; this scales the **verb**.
+Poking a building is not a bigger poke, it is a different poke, and it is available exactly
+when a building is the thing on screen.
+
+**The rule that stops it collapsing:** the buff **percentage falls as the unit grows**, on the
+same shape as 4.8's `Z`. A poke on one person is a large boost to one person; a poke on a city
+is a tiny boost to millions. Both are worth doing and neither dominates - and the player who
+punches in to buff a specific squad hard is making a real trade against the player who sweeps
+a nation for a little.
+
+> **Without that rule the game has one strategy: always poke the biggest thing.** Any tuning
+> that makes the largest unit the best target has deleted the zoom.
+
+**And it is the same gesture at every rung**, which is what makes it teachable once. 7.7.6a's
+poke-versus-drag rule therefore has to hold at every scale too.
+
+### 4.5c Modifiers live on the individual **[CANON - added 2026-08-08]** - R14
+
+A poke's value is multiplied by whatever is **attached to the thing being poked**. A developer
+carries modifiers; so does a squad, a floor, a building.
+
+Sources, all of which already exist or are specified:
+
+| Source | See |
+|---|---|
+| The developer's own innate output roll | 4.9a |
+| Hero Card coverage - a card whose reach includes them | 13.6.2 |
+| **Items** bought with cash and equipped to a hero | 13.6.9 |
+| The current dev state | 4.7 |
+| The in-run tech tree, where a node names individuals | 11 |
+
+**Modifiers must be legible on the target**, not buried in a panel. A developer worth poking
+should look worth poking - 7.8.7 already gives every one of them a distinct silhouette, and
+this is what that distinctness is *for*.
+
+### 4.5d The Founder's desk - your own coding tree **[CANON - added 2026-08-08]** - R16
+
+**The player is a developer too, and they have a desk.**
+
+There is one seat on the floor that is yours. It is the first desk in the room (7.8.1's "one
+desk in a dark bedroom"), it is where 7.7.4's Hero Anchor lands, and it never goes away - at
+ten thousand developers your desk is still there, still yours, and still clickable.
+
+**Clicking your own desk generates story points on its own growth curve**, upgraded through a
+**Founder tree** that is separate from everything else in the game:
+
+- **It does not scale with headcount.** Every other source in the game is multiplied by the
+  swarm and divided by 4.1's Entropy. Yours is not. It grows only because *you* got better.
+- **Which is the 6 thesis, inverted, and it is the best joke in the design.** You are the only
+  developer in the company whose output did not collapse when you hired everybody. The founder
+  who codes is worth more than the hundredth hire, and the game never says so out loud - the
+  two curves say it.
+- **It is the floor under the clicker.** 4.6 worried that tapping becomes irrelevant at cosmic
+  scale. A curve that never dilutes is the answer: late game, your own hands are a small but
+  *reliable* contribution in a studio where nothing else is reliable.
+- **It is clickable from anywhere.** You do not have to fly the camera home to use it. The desk
+  is where it *lives*, and 7.7.4 guarantees you can always return to look at it, but the action
+  is available at every zoom - because it is you, and you are always present.
+
+**The tree itself** is a small personal ladder - the skills a founder actually loses while
+managing. Names are flavour and the shape is the spec: *learn a thing, get slower at managing,
+get faster at coding*. Exactly where it trades against the rest of the game is the interesting
+part, and is deliberately left open until 4.5a is built and can be felt.
+
+**What it must never be:** an idle generator that plays itself, or a strictly-better
+alternative to hiring. If the optimal play is to fire everyone and code alone, the satire has
+eaten the game.
 
 ### 4.6 The Fibonacci Estimation Ladder
 
@@ -446,6 +559,18 @@ poking**, not maximum taps per second.
 This is the whole game compressed into one interaction: **more input, more overhead.**
 
 ---
+
+#### 4.8a A tap is worth a fraction out here, and must say so **[added 2026-08-08]** - R11
+
+The `Z` multipliers above make a tap worth **0.08** per developer at global zoom and **0.01**
+at cosmic, times the blast radius. That is the design working: the further you are from the
+work, the less each status check is worth.
+
+It also means **the honest numeral is fractional** - `+0.80`, `+0.10` - and any formatting
+that rounds to an integer prints `+0` on a tap that really did bank points. It did once, and
+it produced a bug report about the button being broken. Feedback numerals below 10 carry a
+decimal. See 25.1 for the full diagnosis, including the half of it that is not a formatting
+problem.
 
 ### 4.10a The cost of a developer **[CANON — added 2026-08-07]**
 
@@ -596,6 +721,39 @@ Revenue deliberately still arrives *on ship*. Accruing it continuously would smo
 and delete §10.8a's ship celebration, which is the loop's payoff and the one moment per
 project the player is told they won.
 
+#### 4.10e Revenue is a long tail, not a lump **[CANON - added 2026-08-08]** - R2
+
+**Section 4.10c's payout-on-ship is replaced.** The ladder of what a project is *worth*
+survives untouched; what changes is **when the money arrives**.
+
+The problem is 4.10d's, observed and then play-tested: payroll runs continuously and revenue
+lands in a single lump, so the studio crosses zero on every project cycle. It is arithmetically
+solvent and it *reads* as permanently failing, which is the wrong feeling for a studio that is
+in fact growing. 4.10d recorded this as an open question. This is the answer.
+
+**A shipped game earns for as long as it is on sale**, on a decaying tail:
+
+- The total over the tail is the 4.10c ladder payout. **No project becomes worth more or less
+  than it already was** - this changes cash *flow*, not cash.
+- The tail is **front-loaded and long**: a launch spike, then a decay, then a floor that never
+  quite reaches zero. A back catalogue is a real thing and a studio with five shipped games
+  should feel it.
+- It is **randomised** per project, so two runs of the same ladder do not produce identical
+  graphs. Randomised in the *shape*, never in the *total* - a player who ships the same game
+  must not be able to be unlucky with it. That line is what keeps this from being gambling.
+- **Old projects keep paying while the new one is in development.** That is the whole point:
+  the books stay afloat between ships, and the burn is covered by the catalogue rather than by
+  the player's nerve.
+
+**And it must be drawn.** A revenue stream nobody can see is indistinguishable from the lump
+it replaced, so this ships with a **revenue graph** in the HUD: income over time, one band per
+still-earning project, against the payroll line. That component is what turns "I am always
+losing money" into "this one is tailing off and the next one has to land". 10.4's burn-down
+is the model - a shape that carries a story, not a number in a box.
+
+**What it must never become:** a second idle currency to babysit, or a reason to keep shipping
+the same game. The tail is passive, automatic, and invisible in the decision layer.
+
 #### 4.10b **BLOCKING — the Act IIa economy does not close** [added 2026-08-08]
 
 §4.10 above is correct for the two scenarios it derives from, and **both of them have zero
@@ -716,6 +874,34 @@ length, the seed round's size, and the Mass Hire's price are all quoted in a cur
 player cannot currently earn.
 
 ---
+
+### 4.9a Every developer's output is their own, and the spread is WIDE **[CANON - added 2026-08-08]** - R17
+
+Section 7.8.7 gives every developer a face. **This gives them an output**, rolled the same way
+- from the seat index and the run seed, never stored - and the instruction is to
+**exaggerate it**.
+
+- Some people are worth ten of the person next to them. Some are worth a tenth. That is true
+  of real teams, it is the observation the whole game is built on, and a studio where everyone
+  produces the mean is a spreadsheet.
+- **The spread is wide on purpose and gets wider as it earns it.** 14.4's hero classes are the
+  tail of this distribution rather than a separate system bolted on: a 10x Engineer is not a
+  special unit type, it is *the top of the roll*, and the same is true downward.
+
+**The mean is pinned, and this is the constraint that keeps it honest.** Widening the spread
+must not change the total - section 4's economy is calibrated on the sum, and a distribution
+that drifts its own mean silently rebalances the whole game. **Exaggerate the variance; hold
+the average.** Anything else is a balance change wearing a flavour costume.
+
+**And it must be VISIBLE, or it is only noise.** A hidden roll is indistinguishable from a
+random number generator nobody can see:
+
+- 8.2b's per-head numerals are the display for it. One developer emitting `+5` beside one
+  emitting `+0.2` is the entire idea, on screen, with no readout.
+- It gives 4.5a's poke a target worth choosing, and 4.5c a modifier worth reading.
+- It gives 7.8.7's identities a *reason*. Until now they were decoration; now the person who
+  looks distinct is also the person who performs distinctly, and the player will start
+  recognising individuals - which is section 2's premise arriving through mechanics.
 
 ## 5. Progression Eras
 
@@ -881,6 +1067,28 @@ the map reveals a tiny individual developer frantically typing or getting distra
 - **Visuals:** swarms and data grids become visible on the surface of planets. Giant holographic projection beams or orbiting satellite arrays connect entire planets. Deep-space connection lines represent inter-galactic protocols.
 - **Interaction:** managing planet-to-planet latency. Upgrading interstellar Neuro-Relays.
 
+### 7.4a The lens must visit every rung it built **[CANON - added 2026-08-08]** - R8
+
+**The four zoom levels above are not the Construction Ladder**, and letting them stand in for
+it is a bug the player meets immediately: pull back from a floor and the camera arrives at a
+*galaxy*, having skipped the building, the campus, the town and the nation that 7.7.1 spends
+ten rungs establishing. The studio the player built is not on screen at any point during that
+move.
+
+**Zooming out must climb the ladder, one rung at a time.** A floor becomes a building becomes
+a campus becomes a city becomes a nation becomes a planet becomes a galaxy - each one a place
+the camera can stop, look at, and be poked in. 7.4's four levels are a *rendering* concept
+(which tier's geometry is resident) and must stop being the *navigation* concept.
+
+Two consequences, both non-negotiable:
+
+- **A rung the player has not earned is not reachable** - 7.7.1's existing zoom ceiling
+  already says this and it stays. The complaint is not that the lens stops early; it is that
+  it *skips*.
+- **A rung that exists in the simulation must exist in the lens.** Rungs 4-6 are built
+  (`render/city.ts`) and the camera never shows them, which is the same failure as not having
+  built them, and more expensive.
+
 ### 7.6 Concept art
 
 | Reference | File |
@@ -899,6 +1107,24 @@ the map reveals a tiny individual developer frantically typing or getting distra
 4. **Inter-Galactic Network (Scale 1 Trillion+):** gigantic dev hive mind, dev stars, gigantic holographic projections, stats readout `RELEASES/MILLISECOND: ∞`, zoom-to-micro/macro arrows.
 
 ---
+
+### 7.6a The post-process is too heavy **[CANON - added 2026-08-08]** - R3
+
+**The lens is doing too much.** Bloom, blur and the CRT pass together have crossed from
+*evoking* a look into *being* a filter, and the cost lands on the one thing the game cannot
+afford to lose: at high headcount the 6.3 speech bubbles - which are dialogue, which is the
+product - are no longer readable.
+
+**The rule: the vibe, not the effect.** The passes exist to make the picture feel like a
+CRT-lit room at night. They do not exist to reproduce a CRT. Where the two disagree,
+legibility wins, every time.
+
+- **Text is never blurred.** Bubbles, numerals and HUD copy sit above the post chain, or the
+  chain does not touch them.
+- **Bloom is a suggestion, not a glow.** It marks the monitor as the light source; it does not
+  wash the room.
+- **Readability is tested at the headcount that breaks it**, not at one developer. The failure
+  only appears when the floor is full, which is exactly when nobody is looking for it.
 
 ### 7.7 The Construction Ladder — hiring must be *visible*, at every scale **[CANON]**
 
@@ -1062,6 +1288,31 @@ every attempt to look around costs the player Entropy (§4.9).
 desk" affordance — pinching all the way in, or a single HUD control — so the player can never
 get lost in a galaxy with no way back to James.
 
+##### 7.7.6a Poke or drag - how a thumb tells the difference **[CANON - added 2026-08-08]** - R9
+
+Section 7.7.6 gives a finger three jobs - drag the camera, tap to poke, tap-and-hold to pick a
+developer up (7.8.9) - and on a desktop a cursor change can disambiguate them. **A touch
+screen has no cursor and no hover**, so the affordance has to be built out of time and motion
+instead. This is the missing half of 7.7.6 and it is a shipping blocker for the god-mode
+floor, because a player who cannot tell the two apart will trigger the wrong one and conclude
+the game is unreliable.
+
+The rule, in the order the gestures resolve:
+
+| Gesture | Resolves as | How the player knows |
+|---|---|---|
+| **Down, up quickly, barely moved** | **Poke** | The numeral. It is instant, and it is the default - the common action must never be the one that needs learning |
+| **Down, moved past the slop threshold before the hold timer** | **Camera drag** | The world moves under the finger, immediately |
+| **Down, still, held past the timer** | **Pick up** (7.8.9) | **The developer must announce it** - they lift slightly, the frame around them changes, and a haptic tick fires *at the moment the hold registers*, before the finger has moved |
+
+**The hold-to-grab tick is the whole solution.** It converts an invisible mode change into a
+felt one, at the instant it happens and while the finger is still on the glass, so the player
+learns the boundary in one accidental attempt rather than in twenty. Section 8.1's haptics are
+already specified; this is the one place they are load-bearing rather than juice.
+
+**And a grab must be escapable.** Lift without moving and the developer sits back down, no
+harm done. A mode the player cannot back out of is worse than a mode they entered by mistake.
+
 #### 7.7.7 What this must never become
 
 - **A counter with a particle effect.** If nothing physically arrived, the hire did not
@@ -1129,13 +1380,145 @@ difference between "some figures on a tiled floor" and "an office".
 
 Two consequences worth stating, because both are easy to get wrong:
 
-- **Rows are twice as wide as the block is deep.** Fitting the desks to the floor diamond's
-  own 2:1 was the first instinct and produces three rows of three for eight people; the table
-  above says 6–10 is "a small office, **two rows**, a walkway", and a real office of eight is
-  two rows of four. Offices are wide because a row is limited by the wall it runs along, not
-  by the floor area.
+- ~~**Rows are twice as wide as the block is deep.**~~ **Superseded by 7.8.1b
+  [2026-08-09].** Solving for a square-ish footprint at every headcount means the row *width*
+  changes as the studio grows, and a row that widens moves everybody already sitting in it.
+  The row is now a constant ten — see 7.8.1b, which records what that costs the table's
+  "6–10: two rows" line and why it is worth paying.
 - **Dividers fill the gap along a row and never between rows.** The gap between rows is an
   aisle; a panel across it would be a wall.
+
+##### One seat is four things **[added 2026-08-08]**
+
+The repeated unit of this whole tier — drawn up to 120 times, so every decision in it is
+multiplied by 120:
+
+| | |
+|---|---|
+| **A simple desk** | **A 2:1 rectangle, not a square.** The easy way to get this wrong is to read the ratio off the picture: a screen diamond of 2:1 *is* a square on the ground, because the 2:1 projection is exactly the thing that turns a square plan into a 2:1 diamond. A desk is twice as wide as it is deep, so its diamond has to be twice as flat again — **4:1 on screen** |
+| **The PC on top of it** | The monitor, **centred on the desk** and turned south-east — the direction the person at it is looking — plus a small tower on the east corner with a two-pixel power light. A desk with only a screen on it is a desk with a screen *floating* over it |
+| **A person, waist up** | Standing **directly in front of** the desk and the screen, so developer, monitor and desk are one column. That is what a workstation looks like from behind, and it is a stronger read than any amount of furniture around it |
+| **No legs, and no chair** | See below |
+
+**There is no chair, after three attempts at one.** The order they failed in is worth keeping,
+because each looked reasonable going in:
+
+1. **In front of the body**, which is where a chair back honestly is when the figure faces
+   away — eighty mid-grey slabs in the near field, the first thing the eye lands on, reading
+   as an unidentifiable grey bit rather than as furniture.
+2. **Behind the body, tall and dark** — a black monolith per seat. At eighty of them the floor
+   was a graveyard.
+3. **Behind the body, shrunk** — the same width and tone as the torso, so the two merged into
+   one column and the chair read as *more person*. Adding a light top rail rescued it enough
+   to be legible and never enough to be right.
+
+The conclusion is the useful part: **the honest depth order puts a chair between the camera
+and a figure facing away**, so it either covers the person or, drawn behind them, shows only
+slivers the eye assigns to the person anyway. A desk, a lit screen and somebody at it is
+already the whole picture, and the silhouette is better without it.
+
+**And no legs**, which is the same argument one step further. A seated person's legs are under
+a desk, so drawing them is drawing what nothing can see — at forty desks it is forty invisible
+pairs of legs costing real geometry. The torso ends at the waist and the desk in front of it
+closes the silhouette.
+
+##### 7.8.1a The floor is squads of 100, and it never overflows **[CANON - added 2026-08-08]** - R4, R5, R6
+
+The room as built grows a desk grid that keeps growing, and past about a hundred developers
+**the desks walk off the floor they are standing on**. That is not a tuning problem. It is the
+absence of a structure, and this is the structure.
+
+**A floor holds 10,000 developers, as 100 squads of 100.**
+
+| | |
+|---|---|
+| **A squad** | 10 x 10 desks. One hundred people who can see each other. This is the unit the camera can reach and the unit a poke lands in |
+| **A floor** | 10 x 10 squads, with **corridors between them**. Ten thousand people |
+| **The corridor** | Not decoration. It is what makes a hundred squads read as a hundred *squads* rather than as ten thousand identical dots, and it is where 7.8.6's ambient walkers belong |
+
+**The room starts sized for exactly one squad.** One hundred desks, no more, and the floor
+plate is drawn to fit them. Nothing is ever placed outside it - if there is no room, the room
+has to grow first (7.8.1c), and growing the room is an *event*, not a silent resize.
+
+*Read as a ceiling rather than a starting size* **[2026-08-09]**: the plate is drawn around the
+seats that are **occupied**, and one squad is the most it will ever have to hold before the
+unfold. Sizing it for a hundred desks from the first frame would put one developer in a room
+built for a hundred, and 7.8.1's first frame is a bedroom that has to hug the person in it.
+The guarantee the requirement actually wants — *nothing is ever placed outside the plate* — is
+kept by measuring the plate from the seats rather than by making it large.
+
+**The plate has to contain a *sheared* block, and that is the whole of the bug.** Rows run
+level across the screen and each row behind steps left, so the block's four screen corners are
+not its four grid corners. An iso diamond with half-extents `(W, W/2)` contains a box of
+half-extents `(bw, bh)` only when `bw / W + bh / (W / 2) <= 1` — the width must cover the
+block's height **twice over**. Sizing it as `max(width, height)` holds only while the block is
+nearly flat, which is why the overflow appeared as the studio got *deeper* rather than wider,
+and why it read as a tuning problem for months.
+
+**Zoom is continuous through this.** Pull back from a desk and you see the squad; pull back
+again and you see the floor of squads. Push into any squad and its hundred people are
+individuals again, each one pokeable. That is 7.7.4's Hero Anchor promise applied to every
+squad rather than only to James: **there is no level at which a person stops being a person
+you can reach.**
+
+##### 7.8.1b Developers arrive ROW BY ROW **[CANON - added 2026-08-08]** - R4
+
+**At every scale, and with no exceptions.** Hire one and they take the next seat in the
+current row. Fill the row and the next row starts. Fill the squad and the next squad starts -
+and squads fill row by row too, in the same reading order.
+
+This replaces any arrangement that fills by index hash, by nearest gap, or by anything else
+that scatters. The reason is not tidiness:
+
+- **A row filling left to right is legible growth.** The player can see where the last hire
+  went and where the next one will go, which makes the primary verb feel like placing
+  something rather than incrementing something.
+- **A scattered fill is indistinguishable from a redraw.** If bodies appear in arbitrary
+  places, a hire looks like the scene refreshed, and 7.7's whole requirement - *adding a
+  developer must be seen* - fails silently.
+- **It survives every scale.** At ten thousand the unit being placed row by row is a squad
+  rather than a person, and the rule reads identically.
+
+7.7.2's cascade already staggers a batch in seat order; this makes the seat order itself the
+spec rather than an implementation detail.
+
+**What this costs, decided 2026-08-09.** A row that never re-flows has to be a *constant* ten
+wide, which means eight developers sit in one row of eight rather than in the two rows of four
+7.8.1's older table asks for. The table's line loses. The reason is that the alternative is
+not "two rows at eight people" — it is **a floor that rearranges itself on almost every hire
+below fifty**, because a square-footprint solve changes the row width at 7, 11, 13, 19, 25 and
+so on. Each of those hires picked up everyone already seated and put them somewhere else,
+which is exactly the failure this section names: *a scattered fill is indistinguishable from a
+redraw*. Every other band of the table is unaffected, and "2 — a second desk pushed alongside"
+still reads exactly as written.
+
+##### 7.8.1c The floor unfolds at 100 **[CANON - added 2026-08-08]** - R7
+
+The hundredth hire fills the first squad, and the room has nowhere to put the hundred and
+first. **So the floor unfolds - x100, like a sheet of paper opening out.**
+
+- The single squad stays where it is and stays the size it is. The **floor unfolds around it**,
+  panel by panel, until a hundred squad plates are laid out with their corridors between them.
+- It is a **3D paper unfold**, not a fade and not a scale: panels hinge outward, catch the
+  light as they turn, and settle. The player watches the building make room.
+- The camera pulls back with it, because 23.4.1 already fits the tier to the frame and the
+  tier just became a hundred times larger. **But not by a hundred** *(decided 2026-08-09)*:
+  the fit covers the squads that have people in them plus one squad of headroom, not all
+  hundred plates. Framing ten thousand seats puts a hundred developers in about one percent of
+  the picture, and 7.7's promise is the other way round — *the studio you see is the studio you
+  have*. The far panels still unfold; they hinge off the edge of the frame, which is the honest
+  picture of a floor that holds ten thousand, and 7.8.1a already says the way to see the rest
+  is to **zoom to it**.
+- **It happens once**, at the hundredth developer, and it is scored (7.7.2's promotion
+  register). A transition this large that is not scored reads as a glitch. *Once per **run***
+  — a Paradigm Shift starts a new studio of one and the floor folds back up with it, or the
+  biggest one-shot in the tier is spent for the lifetime of the page. **The scoring is already
+  there and must not be doubled**: a hundred developers is a 7.7.1 rung boundary, so the
+  promotion stinger, the zoom-ceiling reveal and the dolly all fire on that exact hire. A cue
+  added here would be two things scoring one event.
+
+This is the same joke as 7.7.2's arriving floors told one rung lower: the studio expands the
+way a cartoon builds a house, and nobody inside reacts.
 
 ##### The dressing, and why it empties unevenly
 
@@ -1196,6 +1579,31 @@ camera holds:
 | **10 B – 10 T** | **Planet** | A system. The planet's dark side glows with the swarm |
 | **10 T +** | **Galaxy** | A cluster. Points of light, each one a civilisation of developers |
 
+##### Built, and not built **[added 2026-08-08]**
+
+| Rungs | State |
+|---|---|
+| **3** — tower | Built. Storeys drop onto the stack, the building squashes and settles |
+| **4–6** — building, campus, town | Built. `render/city.ts` |
+| **7–9** — nation, planet, galaxy | **Not built.** A different register — a lit coastline, a world, a cluster — rather than more architecture, and §7.4's Level 3 and Level 4 tiers already hold that scale from the camera's side. Building them badly to fill the table would be worse than the honest gap |
+
+Two rules the built half is worth stating, because both were got wrong first:
+
+1. **Every unit is drawn at the same footprint.** The promise of §7.7.1 is that the *unit*
+   changes, not that the same unit gets smaller — a town occupies exactly as much screen as a
+   building did, and the difference between them is what is inside it. Shrinking is cheaper
+   and says the opposite thing: that the studio is receding rather than growing.
+2. **A rung change has to change the silhouette.** A business park drawn with towers the
+   height of rung 4's reads as *more towers, closer together*, which is the one thing a rung
+   change must never look like. Campuses are low-rise on a visible plinth; a town's blocks are
+   squat, because a horizon is made of things wider than they are tall.
+
+And a third that cost a screenshot: **the formation has a grain**, exactly as §7.8.1's desks
+do. Placing units on a square plan and projecting it puts two of them on the *same screen x*
+whenever their plan coordinates differ by (1, 1), which at these heights reads as one building
+stacked on another. Units run level across a row, rows step back, each row behind is sheared
+half a pitch. The objects stay in the 2:1 projection; only where they stand is screen-aligned.
+
 **All of this is T0 procedural or T3 commodity.** A tower is a repeated storey band; a city
 is instanced blocks with varied heights; a planet is geometry and a shader. **No rung above 2
 requires a single bespoke sprite**, which is the whole reason the §22.7 art budget can be 19.
@@ -1208,7 +1616,7 @@ compatible instead of contradictory.
 
 | Zoom | What moves | How |
 |---|---|---|
-| **L1 desk** | The developer **types** — a two-frame hand bob, a shoulder rise-and-fall, an occasional head turn to the second monitor. Steam curls off the mug. The monitor's code scrolls. | **Transforms on parts library pieces** (ART_DIRECTION §4.1). The arms, head and torso are separate sprites; typing is a 2 px vertical oscillation on the arms at ~6 Hz with a per-dev phase offset. No new art |
+| **L1 desk** | The developer **hops** at their desk — see below. Steam curls off the mug. The monitor's code scrolls. | **Transforms on parts library pieces** (ART_DIRECTION §4.1). One curve per person per frame, with a per-dev phase offset. No new art |
 | **L2 floor** | Every one of the 1,000 **bobs slightly, out of phase**. Chairs swivel occasionally. Monitor glints twinkle. | A shared time value plus a **per-particle phase offset**. **DEFERRED — see below** |
 | **L3 global / L4 cosmic** | Data pulses along pipes, hubs breathe, planets rotate | **Shaders.** §7.5 states no individual sprites remain here, so there is nothing to animate — it is all T0 |
 | **Any zoom** | The §8.2 poke responses, the §7.7.2 arrival gags, §21 Act IV | Already specified in their own sections |
@@ -1227,6 +1635,30 @@ compatible instead of contradictory.
 **Per-developer phase offset is non-negotiable at every tier.** A thousand sprites bobbing in
 unison reads as a single breathing object, not as a thousand people. The offset is derived
 from the sprite index by a hash, so it is deterministic and free.
+
+##### The L1 idle is a HOP, not a bob **[added 2026-08-08]**
+
+The room tier's idle was `sin(t)` on Y, and it spent the whole cycle in the air: never still,
+never in contact with anything, exactly as long going up as coming down. At one developer
+that reads as breathing and at forty it reads as **a field of buoys**.
+
+A hop is the same one-curve budget spent differently, and **the whole of the difference is
+the contact**:
+
+| | |
+|---|---|
+| **Half the cycle airborne** | On a ballistic arc — `1 - (2a-1)²`, not a sine half-cycle. Gravity means the figure hangs near the top and is quickest at take-off and landing |
+| **Half the cycle planted** | Doing nothing. This is the half that matters: stillness is what makes the motion read as a push against something, and at any instant about half the floor is at rest, so the eye has somewhere to land |
+| **A lean, alternating each hop** | The "about" in *hop about*. A hop that only goes up and down is a pogo stick. Tied to the height, so it is exactly zero on every landing and **nobody drifts off their desk** however long a session runs |
+| **Squash on the two contacts** | Deepest on the frame of impact and again in the crouch that launches the next hop. Both discontinuities are deliberate — an impact that eases *in* is not an impact |
+
+**Rate is per §7.8.4 state**, carried over from the old bob's angular rates divided by 2π
+rather than retuned: the *relative* speeds are what carry the meaning. Flow is not "fast", it
+is faster than Working. Overwhelmed and 10x stay still, and a developer in the player's hand
+(§7.8.9) does not hop — whatever they are doing in mid-air, pushing off it is not it.
+
+The squash scales about the container origin, which is at the **waist** rather than under the
+seat, so it has to be compensated on Y or the whole floor twitches upward on every landing.
 
 #### 7.8.5 The hire assembly — a desk, a chair, then a person **[CANON]**
 
@@ -1674,6 +2106,25 @@ rectangle, on the reasoning that text belongs in React (ADR 0001 §5 mitigation 
 reasoning holds for the HUD and not for this: the code line is scenery, it must sit *under*
 the CRT glass to be welded (ART_DIRECTION §6), and it churns several times a second.
 
+#### 8.2b The points appear over the person, not under the thumb **[CANON - added 2026-08-08]** - R10
+
+A poke's numeral rises from where the finger landed. That is correct for the *tap* and it is
+not enough for the *work*: developers generate story points continuously whether or not
+anybody is poking them, and none of that is visible.
+
+**A developer producing story points shows them.** A small `+1` drifts up from their head as
+they earn, per developer, at the rate they are actually earning.
+
+- It is the clearest possible statement of the 6 thesis. One person emitting a steady `+1` is
+  a studio working; a hundred people each emitting `+1` while the total barely moves is the
+  joke the whole game is about, told without a number.
+- It must **thin out as the floor fills**, not stop. Above the point where individual numerals
+  become noise they aggregate - per row, then per squad - so the picture stays legible and the
+  information survives. 7.8.3's budget rule applies: this is a transform on a pooled sprite,
+  never a per-developer allocation.
+- It is **distinct from the poke numeral** (8.2), which is larger, coloured, and carries the
+  8.2a code snippet. Passive output is quiet; a tap is an event.
+
 ### 8.3 Haptics & polish
 
 - **Haptic Feedback:** short, snappy vibration bursts when popping Slack pings or poking developers.
@@ -1715,6 +2166,24 @@ the swarm screen to clear bottlenecks:
 | **Contextual "Query Panel" (Slides in on Dev-Tap)** | Only appears at Micro-Zoom. Slides in smoothly from the screen edge. Semi-transparent. Contains buttons to "Query" status and apply temporary boosts. | `--- [ DEV: INTERN #42 ] ---`<br>`What are you doing? > [ WRITE CSS ]`<br>`Status? > [ OVERLOADED ]`<br>`Action? > [ Give Coffee ]` |
 | **Navigation Bar (Bottom)** | Structured menu access (transparent buttons). Highlights: **"Swarm"** (main screen), **"Upgrades"** (Communication Tech Tree), **"Releases"** (list of past successful games), **"PRESTIGE"** (Paradigm Shift). | `[ SWARM ] [ UPGRADES ] [ RELS ] [ PRESTIGE ]` |
 
+#### 10.1a The primary action lives on the right rail **[added 2026-08-08]**
+
+**Not in the middle.** HIRE DEVELOPER was centred along the bottom edge, and centred it sat on
+top of the thing it was acting on: the studio is the subject of every frame, and the one
+control the player presses constantly was parked across the middle of it — over the desks at
+rung 0, over the block at rung 4.
+
+Nothing else in the Layer does that. §7.1's whole arrangement is a clear centre with the
+instrumentation pushed to the edges, and the action button was the single element exempted
+from it for no stated reason.
+
+The right rail is also **where the thumb already is**: the game is landscape-locked (§23.4),
+so the right edge is the hand holding the phone. And it puts the button directly under the
+CASH readout it spends, which is the one adjacency worth having on a screen full of numbers.
+
+The §21.0a offer and the §10.10 dial stack above it and right-align with it, because a
+temptation aligned differently from the control beside it is a second thing to keep in sync.
+
 ### 10.2 Per-zoom HUD readouts (from concept art)
 
 The "GAME UI CONCEPT: SWARM DEV" sheet establishes the HUD reading at each zoom level.
@@ -1729,6 +2198,29 @@ per ART_DIRECTION §3.1 — bracketed words here because a mock is a layout, not
 | **4. Cosmic Zoom: Inter-Galactic Network** | 1:1,000,000,000 | `[$ 90Q] [DEVS 12.1B] [ENT 99%]` | `Re-code Physics Constants (T-0.0001s)` | **PLANETARY HUBS: manage latency**; **INTER-STELLAR PATHS: upgrade protocols**; **ZOOM PATH: Micro → Macro** |
 
 All four panels carry the same bottom nav: `[SWARM] [UPGRADES] [RELEASES] [PRESTIGE]`.
+
+### 10.2a Say "story point", and colour the words that matter **[CANON - added 2026-08-08]** - R12, R13
+
+**Never "SP".** It is an abbreviation that means something to the people who wrote it and
+nothing to anybody else, and it appears in the largest readouts on the screen. Write **story
+point** and **story points** in full - in the HUD, in the burn-down, in the script, in the
+speech bubbles, everywhere. Where a line is genuinely too tight for the full phrase, the line
+is too tight and something else gives.
+
+The same applies to any other in-house shorthand that reaches the glass. If a player would
+have to be told what it stands for, it is not ready to be on screen.
+
+**And the words that matter are coloured.** Running copy is one colour and the nouns the player
+is meant to track are another, so a value jumps out of a sentence without needing to be
+formatted into a box:
+
+- **Story points** first, because they are the thing the whole burn-down is about.
+- Then the others as they earn it - cash, developers, entropy, velocity.
+- The colours come from 2.2's master palette. This adds no colours to the system; it *uses*
+  the ones the ramps already carry, which is what a semantic palette is for.
+
+**One noun, one colour, everywhere it appears.** A story point tinted one way in the HUD and
+another in a speech bubble teaches the player that the colour means nothing.
 
 ### 10.3 First-pass mobile wireframe (annotated) — **VOID, portrait**
 
@@ -2836,6 +3328,65 @@ and building one would waste the Omni-Lens.
   A Scrum Master on a building lights up eight desks in a tower of four thousand, and the
   player understands the reach rule without reading a word of it.
 
+#### 13.6.9 Items - equipment, bought with cash **[CANON - added 2026-08-08]** - R18
+
+Cards are bought with **GP** and are permanent identity (13.6.5). **Items are bought with
+cash and are equipment.** That split is the whole reason to have both:
+
+| | Currency | Lifetime | What it means |
+|---|---|---|---|
+| **Card** | GP | Across runs | *Who* is in your company |
+| **Item** | Cash `$` | This run | *What you gave them to work with* |
+
+An item is **equipped to a hero** and it modifies what that hero does. It therefore inherits
+the hero's **reach** (13.6.2) for free, which is the mechanic that makes items interesting
+rather than a shopping list: **the same item is worth a hundred times more on a card that
+covers a campus than on one that covers a row.** Broadening a hero broadens their equipment
+with them, and that is a second reason to pay for reach.
+
+**What items may modify:**
+
+- **Story-point generation** of everyone the hero reaches - the common case.
+- **How that hero scales with headcount** - some items are worth more the more developers are
+  under them, some are worth less, and the choice of which is the design.
+- **Entropy**, up or down. The interesting items do both.
+- **4.5a's poke buff** - its size, its decay, or its blast radius.
+
+##### The launch roster
+
+Deliberately mundane objects, because the joke only works if the equipment is the equipment a
+real studio actually buys. Numbers are first guesses; the *shape* of each is the spec.
+
+| Item | Cost | Effect | The joke |
+|---|---|---|---|
+| **The Whip** | Cheap | Large output boost within reach, large Entropy increase | It works. That is the uncomfortable part |
+| **Second Monitor** | Cheap | Flat output boost, no downside | The one purchase in the game nobody will argue about |
+| **Mechanical Keyboard** | Cheap | Boosts its holder, **reduces the output of everyone adjacent** | Correct, and the player will buy it anyway |
+| **Noise-Cancelling Headphones** | Mid | Immune to 7.8.6's drive-by interruptions and to the neighbour above | Solves the problem the last item caused, for money |
+| **Standing Desk** | Mid | Small permanent boost that does not decay | Bought once, mentioned for years |
+| **Energy Drink Fridge** | Mid | Sharp output spike, then a crash below baseline | Net positive only if you ship before the crash |
+| **Ping-Pong Table** | Expensive | Reduces Entropy meaningfully, reduces raw output | Culture is real and it costs velocity |
+| **The Gantt Chart** | Expensive | Changes **nothing** about production. Makes the 10.4 burn-down *project* a better date | It only lies to the person reading it, and 21's advisor will recommend it |
+| **Company Hoodie** | Cheap | No mechanical effect whatsoever | Players will equip it. That is the finding, not the bug |
+
+**The Gantt Chart is the one to be careful with.** A game must not lie to its player about
+their own state - so it lies about a **forecast**, which is a thing that is allowed to be
+wrong, and 10.4's actual burn-down line stays true underneath. If that distinction ever blurs,
+cut the item.
+
+##### The rules, which are 13.6.7's rules
+
+- **Bought, never dropped.** A price, never a roll. MONETISATION's no-loot-box position covers
+  equipment exactly as it covers cards.
+- **Never mandatory.** A run must be completable with nothing equipped.
+- **Not an inventory screen.** An item is equipped where the hero is, on the world (13.6.6),
+  and it **renders on the desk** it applies to - a second monitor is a second monitor, on a
+  desk, at 7.8.1's scale. If the player has to open a grid to find out what they own, the
+  design has been thrown away.
+- **Cash is the constraint that makes it a decision.** Cash is also payroll (4.10a) and also
+  hiring, so an item is always bought instead of something else. That is the tension; do not
+  relieve it with a separate item currency.
+
 #### 13.6.7 What it must never be
 
 - **A second inventory screen.** If the player is managing heroes on a grid instead of in the
@@ -2846,6 +3397,27 @@ and building one would waste the Omni-Lens.
 - **Numerically mandatory.** A player who never slots a card must still be able to finish a
   run. Heroes are amplitude, not gate.
 - **Auto-placed.** An "optimise" button deletes the only decision the system contains.
+
+#### 13.6.7a Build state **[added 2026-08-08]**
+
+**`sim/heroes.ts` is the rules and the data; nothing is wired to the store, and that is
+deliberate rather than unfinished.** Cards are bought with GP (§13.3), GP needs Layer 2, and
+Layer 2 needs 100,000 BP — so no reachable state in the game today can own a card. §13.6.6's
+interface additionally needs the rungs above 3. Shipping a tray the player can open onto a
+board with no rungs is the same mistake as a Paradigm node that takes currency and changes
+nothing (§13.2).
+
+Three things §13.6 left open, decided in the build and recorded here so they are not decided
+twice:
+
+| | |
+|---|---|
+| **γ in §13.6.5** | The log term **is not monotonic on its own** — row → floor crosses 2.1 decades and floor → building crosses 1, so a naive reading prices the second rung *below* the first. γ has to beat a decade of gap unaided. At 2.4 it does; at 1.9 it does not |
+| **Depth is priced as a share of the reach node**, not on a curve of its own | §13.6.4 says REACH is "always the most expensive node available". On two independent curves that is a *hope*: depth compounds at κ and overtakes reach somewhere mid-ladder, exactly where nobody would look. Tying them makes the sentence an invariant |
+| **Dilution is per depth level, stamped with the reach it was bought at** | §13.6.4's "depth bought at a low reach is not refunded when reach increases" is unimplementable against a level *count*, because nothing remembers when the level was bought. A level bought three rungs ago is worth δ³ of one bought now: not refunded, not deleted — **thinner**, which is what broadening a hero means |
+
+**James is exempt from all three**, and from the §13.6.8 global multiplier. Every mechanism
+that would make him scale has to skip him, or the joke stops being true.
 
 #### 13.6.8 Relationship to §14.4
 
@@ -3708,6 +4280,74 @@ Two things fall out of this and both are gains:
   under that is a different, busier game.
 - **The stingers are exempt.** §20.7.2's two one-shots are never layered against anything, so
   they may have rhythm — and should, because landing on a beat is what makes a sting land.
+
+##### 20.7.1b The correction — harmony does not phase **[CANON — added 2026-08-08]**
+
+**20.7.1a banned melody as well as rhythm, and that was one ban too many.** Ten stems of pure
+texture is not a score, it is **white noise with moods**, and the first person to listen to it
+said exactly that. The rule was over-applied and the whole soundtrack paid for it.
+
+The thing that phases is a **pulse**, not a **harmony**. Two loops with beats drift against
+each other within seconds and no amount of prompting fixes it. Two loops in the same key sound
+like the same piece however they overlap, because harmony has no clock to be wrong about. So
+the rule splits in two, and only half of it survives:
+
+| | |
+|---|---|
+| **No percussion, ever** | The half 20.7.1a got right. Non-negotiable for anything audible at the same time as anything else |
+| **One key, and melody is allowed** | Which is what §20.7.1's original *"same key"* clause was asking for all along. 20.7.1a met it by removing the thing that needed a key |
+
+**The register is *sovietwave*** — the warm melancholy of an analogue synth through a tape
+machine. Slow pads, simple minor-key motifs, wistful rather than tense, cosy rather than cold.
+It sits under a room at night better than a drone did, and it is a *score* rather than a
+texture, which is the whole point of the correction.
+
+**A minor**, because sovietwave is built on it and because a natural minor has no leading tone
+to clash when two stems happen to overlap on different scale degrees.
+
+The strain layers stay closer to texture — they are the thing mixed *over* whichever bed is
+playing, and a second melody on top of the first is the one arrangement this does not solve.
+
+##### 20.7.1c Melody is the essence of it - the two failed attempts **[CANON - added 2026-08-08]** - R1
+
+20.7.1b allowed melody and the prompts duly asked for it. **`npm run music:check` then measured
+seven of the ten stems as drones**, and the brief has not been met. The record of what did not
+work is the useful part, because the next attempt must not repeat it:
+
+| Attempt | Prompt said | Result |
+|---|---|---|
+| 1 (20.7.1a) | `no melody, continuous even texture` | Drones. Correctly - it was asked for |
+| 2 (20.7.1b) | "a simple wistful melody on a soft lead" | 7/10 still drones |
+| 3 | "arpeggio", "chord progression Am F C G", "a repeating four-note figure" | Untested at time of writing |
+
+**Attempt 2's lesson, measured:** the single stem that passed was the only one whose prompt
+contained the word **arpeggio**. This generator responds to a concrete musical noun and ignores
+an adjective - "melodic", "wistful", "a lead line" are adjectives; "arpeggio", "Am F C G", "a
+four-note figure" are things a musician could play. The suffix was also carrying four separate
+instructions to hold still (`continuous`, `even texture`, `slow and unhurried`, `no beat`)
+wrapped around one polite request for a tune, and a generator resolves that contradiction the
+easy way every time.
+
+**The brief, restated so it cannot be softened again:**
+
+- **Upbeat.** Not ambient, not a bed, not a texture. The earlier brief's "cosy and unhurried"
+  pulled every prompt toward stillness and has been overcorrecting the result since.
+- **Retro sovietwave, minor key.** Warm analogue synth, tape saturation, the specific
+  melancholy of that genre - but with momentum.
+- **A melody, and a short one is fine.** Comparable games in this house carry a short melodic
+  loop and it works. Length is not the constraint; the presence of a tune is.
+
+**And it is now measurable, so it stops being an argument.** `npm run music:check` folds each
+stem's spectrum into twelve pitch classes and reports how many notes sound and how often the
+note changes. Fewer than four distinct notes, or fewer than eight changes, is a drone. **No
+stem ships without passing it**, and no report may claim melody without running it - the second
+attempt was reported as done on the strength of the prompt alone, which is how a whole
+soundtrack shipped as hiss.
+
+**If the free endpoint cannot do it, that is a finding, not a failure to work around.** 20.7.6a
+already records that `/v1/music` needs a paid plan; if attempt 3 fails the measurement too,
+the honest conclusion is that a **sound-effects** model cannot be made to compose, and the
+paid endpoint becomes a blocking dependency rather than a nice-to-have.
 
 #### 20.7.2 The budget
 
@@ -5200,6 +5840,84 @@ to ship it rewrites the section. Four things we found that it does not currently
    *wrong* should happen while away. Our payroll is not a risk, it is a certainty, and it
    would have bankrupted every returning player in under a second. **A continuous cost must
    not run offline unless the design has deliberately decided it should** (§24.6).
+
+---
+
+## 25. Requirements Ledger — 2026-08-08 intake **[CANON]**
+
+**Why this section exists.** Batches of directed requirements arrive in single messages, and
+the instruction attached to the first was explicit: *"if not already in GDD, add them in, just ensure
+don't lose them, I don't want to tell you the same thing multiple times."*
+
+R1-R13 came in one message and R14-R18 in the next; the table grows rather than being
+replaced. So each item below is written **twice on purpose**: once here as a one-line row with a status,
+and once in full in the section that owns it. The row is the guarantee that it is not lost;
+the section is where an implementer will actually look. **A row is only allowed to leave this
+table when the thing is built and seen working** — not when it is specced, and not when it is
+"mostly done".
+
+| # | Requirement | Owner § | Status |
+|---|---|---|---|
+| R1 | Music must have **melody**. Upbeat, retro, minor key, sovietwave. Short loops are fine | §20.7.1c | **Open** — prompts rewritten twice, 7/10 stems still measured as drones |
+| R2 | Revenue is a **long-tailed randomised stream**, not a lump on ship. Plus a **revenue graph** in the HUD | §4.10e | **Open** |
+| R3 | The lens is **too blurry**. Vibe, not a lo-fi filter. Speech bubbles must stay readable at high headcount | §7.6a | **Built — needs eyes.** Focal band 110→420, tilt 6→2, bloom halved, fringing halved, scanline contrast halved. Bubbles legible at 40 |
+| R4 | Developers arrive **row by row**, never scattered — at every scale | §7.8.1b | **Built.** `seatFor` is one reading order at both scales; the row is a constant ten, so a seat once taken never moves. Costs the table's "6–10: two rows" line — recorded in §7.8.1b |
+| R5 | A floor holds **10,000**: 100 squads of 100, corridors between them. Zoom to any squad, poke any individual | §7.8.1a | **Built — geometry.** 100 plates, corridors as darker floor between them, seats addressed to 10,000. *Zoom to any squad* is the camera's half and belongs to R8 |
+| R6 | Desks must **not overflow the floor**. The room starts sized for 100 | §7.8.1a | **Built.** Two causes, both fixed: the plate was sized `max(w, h)` for a sheared block, and the margin ran *negative* above 14 developers once crowding flipped it. Asserted at every headcount the tier can draw |
+| R7 | At 100 developers the floor **unfolds** ×100, like paper | §7.8.1c | **Built — needs eyes.** 100 hinged panels, staggered outward from squad 0, overshoot and settle, light caught edge-on; squad 0 never moves and the camera pulls back with it. Scored by the existing rung promotion |
+| R8 | Zooming out must climb **floor → building → campus → city → …**, not jump to a galaxy | §7.4a | **Open** — rungs 4–6 exist but the camera does not visit them |
+| R9 | **Poke vs drag must be distinguishable on a touch screen**, with no cursor to help | §7.7.6a | **Open** |
+| R10 | Story points appear as **+1 +1 over each developer's head**, not only under the thumb | §8.2b | **Open** |
+| R11 | A poke reading **"+0"** while the counters move is a lie. Fix the case and separate passive from active | §4.8a, §25.1 | **Built — needs eyes.** §10.1's `swarm + you` split shipped; an Overwhelmed poke now reads `UNBLOCKED` in amber instead of `+0` |
+| R12 | Never write **"SP"**. It is "story point" | §10.2a | **Built.** Every user-facing use replaced, and `Hud.test.tsx` now fails on `/\bSP\b/` so it cannot come back one label at a time |
+| R13 | **Colour-code the words that matter** — story points first, others later | §10.2a | **Partial.** `<Kw>` component + palette mapping shipped; story points coloured in the HUD. Cash / developers / entropy defined but not yet applied, and the §10.7 typed script is untouched |
+| R14 | A poke **buffs that individual's output rate**, scaled by modifiers on them — it is not a one-off payout | §4.5a, §4.5c | **Open** |
+| R15 | **Any unit is pokeable** — person, squad, floor, building, campus, city, on up the ladder | §4.5b | **Open** |
+| R16 | The **Founder has a desk and their own coding tree**, clickable anywhere, on a curve that never dilutes | §4.5d | **Open** |
+| R17 | **Exaggerate per-developer output variance**, and make it visible | §4.9a | **Open** |
+| R18 | **Hero items**, bought with cash, equipped to a card, inheriting its reach | §13.6.9 | **Open** |
+
+---
+
+### 25.1 R11, diagnosed — what "+0" actually is **[CANON]**
+
+Two separate things were happening and they had one symptom, which is why it read as a single
+bug:
+
+**a. A tap on an Overwhelmed developer is worth exactly zero.** §4.7's `STATE_MULTIPLIER` sets
+`overwhelmed: 0` deliberately — "the poke's value is clearing their lockup, not the points".
+The maths is right and **the interface is wrong**: a numeral reading `+0` is indistinguishable
+from a broken button, and the one thing a feedback numeral must never do is announce that
+nothing happened when something did. The floater must say what the poke *achieved*
+(§8.2 — the lockup cleared) rather than what it paid.
+
+**b. Nothing on screen separates the swarm's output from the player's.** The commitment burns
+down continuously from passive velocity whatever the player does, so a tap worth `+0.80` at
+global zoom looks like it did nothing while the burn-down visibly moves and velocity rises.
+
+§10.1's component table **already specified the fix** and it was never built:
+
+> `VELOCITY: 4,120 SP/s` / `(3,880 swarm + 240 poke)`
+
+The split is not decoration. It is the only thing on screen that can answer "did my tap do
+anything", and without it every fractional yield reads as a bug.
+
+**And the yields are fractional by design.** §4.8 makes a tap worth less per developer the
+further out you are — `Z = 1.0 / 0.4 / 0.08 / 0.01` — so at global zoom a real tap is `+0.80`
+and at cosmic `+0.10`. Those are correct, they are not zero, and the earlier `Math.round`
+that turned them into `+0` is fixed. If a build still shows a bare `+0` for a working
+developer, **check the build timestamp before believing it** — a stale `dist/` predating that
+fix is the known cause and has cost this project a day before.
+
+---
+
+### 25.2 What is deliberately NOT decided here
+
+R2's distribution shape, R5's corridor width and R7's unfold timing are all numbers that want
+play-testing rather than a spec. This section records **what must be true**; the sections it
+points at record what it must be true *of*. Where a number is genuinely arbitrary, it is
+marked as a first guess in the owning section rather than being written here as if it were
+canon.
 
 ---
 
