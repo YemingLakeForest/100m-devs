@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**894 tests.** Lint, types and the art gate clean.
+**903 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -37,7 +37,8 @@ simulation.
 | **Rungs** | 0–6 built (room, tower, block, business park, sprawl), **and the lens now visits every one of them** (§7.4a). 7–9 have no geometry of their own — §7.4's grid and cosmic tiers stand in |
 | **The clicker** | Per-developer output (§4.9a) and the `+1` over each head (§8.2b). A poke is worth what the person is worth. **A poke still pays once rather than buffing** — R14 |
 | **The economy** | Long-tailed revenue with a back catalogue, and the graph that shows it (§4.10e) |
-| **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. Desks no longer leave the plate |
+| **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. Desks no longer leave the plate, and a row is now **one continuous bank** rather than ten butted diamonds |
+| **Hiring** | Three things fall — a desk, a computer, a person — on the seats the hire actually took, and the room withholds a seat until its arrival lands |
 | **Hero Cards** | §13.6's rules and data built and tested. **Not wired** — see below |
 
 ### Built this session
@@ -50,7 +51,10 @@ and the hop** · **§13.6 Hero Cards** (rules + data) · **§7.8.2 rungs 4–6**
 **§7.8.1a/b/c — squads, the ten-thousand floor, and the unfold** (R4–R7) · **§7.4a the lens
 climbing the ladder** (R8, and R5's camera half) · **§4.9a per-developer output** (R17) ·
 **§8.2b the `+1` over each head** (R10) · **§4.10e long-tailed revenue and its graph** (R2) ·
-**§7.7.6a poke vs drag on touch** (R9).
+**§7.7.6a poke vs drag on touch** (R9) · **the rows made horizontal**, the
+**hire animation rebuilt** and the **title screen's near field cut back** —
+three things reported by eye, none of which any test could have caught.
+Recorded as traps 10, 11 and 12.
 
 ### Specced, not built
 
@@ -65,6 +69,11 @@ climbing the ladder** (R8, and R5's camera half) · **§4.9a per-developer outpu
   ladder — it is three views that are placeholder art rather than three rungs that are
   missing. `sim/ladder.ts` names them `grid` and `cosmic`; giving them real geometry is
   swapping what `scene.ts` builds for those keys and nothing else.
+- **§10.9.6's near field is now nearly invisible, and that is the safer end.**
+  It was a hard-edged black slab over a third of the title screen — asked about
+  as "what is that" — and is now a heavily blurred crop running off two edges
+  with a lit rim. It reads as depth rather than as a fault, but whether it still
+  does the compositional job §10.9.6 wants is a question for eyes.
 - **§13.2's other three Paradigm nodes** — they say *"not yet implemented"* on the card, which
   is deliberate: a tree that takes currency and changes nothing is worse than one that admits
   it.
@@ -256,7 +265,54 @@ It is 520 now. **Screenshot at 448 before believing anything new fits in the lef
 HUD grid's middle row is `1fr` and it will let its contents overflow into the row below
 rather than complain.
 
-### 10. Synthetic pointer events do not reach the canvas
+### 10. Level rows can still read as diagonals, and the seats are not the cause
+
+Reported as "your rows are diagonal, not horizontal". Every seat was exactly
+where it should have been — `isoAt` makes `y` a function of the row alone, so
+rows have always been mathematically level. Two other things made them read as
+diagonals, and neither is visible in the seat maths:
+
+1. **A row of butted desk diamonds is a sawtooth.** Ten thin diamonds side by
+   side make twenty 26.5-degree edges, and those were the longest straight lines
+   in the room. A row is now drawn as **one continuous bank** with flat top and
+   bottom edges (`drawDeskBank`), which is also what §7.8.1 has meant by
+   "shoulder to shoulder" since it was written.
+2. **The nearest person was the one diagonally behind.** At `PITCH_ROW = 2.15` a
+   row sat 34 px behind the one in front while neighbours along a row were 59 px
+   apart, so proximity grouped the diagonals. It is 3.6 now, and pinned between
+   two walls only just far enough apart — see the comment on the constant.
+
+**The lesson generalises: check the drawn shape and the spacing before the
+coordinates.** Gestalt proximity decides what a player sees as a row, and no
+amount of correct geometry overrides it.
+
+### 11. A ratio-scaled count is not a number of seats
+
+Reported as "the hiring animation, the fall goes down to the person before".
+§7.7.3's `spawnBurst` is the *spectacle* weight — twelve bodies for the hire
+that takes a studio from one developer to two — and `arrivals.spawn` was
+treating it as a number of desks to fill, from the end of the list. On a floor
+with two desks that is both of them, so the founder got a stranger dropped on
+their head on every early hire.
+
+Compounding it, the room drew the new hire on the frame the store published
+them, so the falling silhouette landed on a person already sitting in the chair.
+
+`SpawnEvent` now carries `from` and `to` — the seats the hire actually filled —
+and `arrivals.revealed` withholds a seat from the room until its arrival lands.
+**Anything that positions itself on a seat wants the range; only the swarm
+tiers want the weight.**
+
+### 12. A guard copied onto a second call site is a guard in the wrong place
+
+While fixing trap 11 the `!first` guard — which correctly stops §21's *camera
+reveal* firing on a jumped-to phase — got copied onto `arrivals.spawn` as well.
+Nothing publishes a spawn event except a real hire, so `first` is the player's
+**first hire of the session**, and the very first developer anybody hired
+appeared with no animation at all. It survived a full test run and was found
+only by clicking the button and watching.
+
+### 13. Synthetic pointer events do not reach the canvas
 
 Which is why `?select=4` exists, alongside `?overnight`, `?ad` and `?dialogue`. Add a seam
 rather than fighting the automation; they have each paid for themselves.

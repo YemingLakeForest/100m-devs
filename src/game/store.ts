@@ -171,8 +171,21 @@ export interface FloatingNumeral {
  */
 export interface SpawnEvent {
   id: number
-  /** §7.7.3 arrival weight — {@link spawnBurst}, 1..120. */
+  /**
+   * §7.7.3 arrival weight — {@link spawnBurst}, 1..120.
+   *
+   * The *spectacle* size, for tiers where one sprite is not one person. It is
+   * emphatically **not** how many developers arrived, and using it as though it
+   * were is what made every early hire drop a body onto the founder's head:
+   * §7.7.3 scales it by the ratio, so the hire that takes a studio from one
+   * developer to two is worth twelve bodies. Anything that lands on a *seat*
+   * wants {@link from} and {@link to} instead.
+   */
   bodies: number
+  /** First seat index this hire filled, inclusive. */
+  from: number
+  /** Last seat index this hire filled, exclusive. */
+  to: number
   /** Set when this hire crossed a §7.7.1 rung — a scored §7.7.2 construction gag. */
   promotedTo: Rung | null
   bornAt: number
@@ -767,6 +780,11 @@ function hire(before: number, after: number): Partial<GameState> {
     spawn: {
       id: nextSpawnId++,
       bodies: spawnBurst(before, after),
+      // The seats this hire actually took. Every path that changes headcount
+      // upward goes through here, so this is the one place the range can be
+      // wrong — and the one place it can be right.
+      from: Math.max(0, Math.floor(before)),
+      to: Math.max(0, Math.floor(after)),
       promotedTo: rungCrossed(before, after),
       bornAt: performance.now(),
     },

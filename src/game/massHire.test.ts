@@ -23,6 +23,7 @@ import {
   canMassHire,
   currentMassHireCost,
   getState,
+  hireDeveloper,
   jumpToPhase,
   massHire,
 } from './store.ts'
@@ -93,5 +94,62 @@ describe('affordability', () => {
     // has no idea whether they need fifty dollars or fifty thousand.
     setState({ cash: 0 })
     expect(currentMassHireCost()).toBe(MASS_HIRE_MIN_COST)
+  })
+})
+
+describe('the spawn event names the seats, not a body count — §7.7.2', () => {
+  beforeEach(() => {
+    __resetStore()
+  })
+
+  it('reports the range this hire actually filled', () => {
+    // The bug: arrivals were handed §7.7.3's *ratio-scaled* body count and
+    // landed it on the last N desks. That count is twelve for the hire that
+    // takes a studio from one developer to two, so on a floor with two desks it
+    // dropped somebody on the founder's head — reported as "the fall goes down
+    // to the person before". A seat range cannot be wrong that way.
+    setState({ devs: 10, cash: 1e6 })
+    hireDeveloper()
+    const spawn = getState().spawn!
+    expect(spawn.from).toBe(10)
+    expect(spawn.to).toBe(getState().devs)
+    expect(spawn.to - spawn.from).toBe(1)
+  })
+
+  it('never overlaps a seat that was already taken', () => {
+    setState({ devs: 1, cash: 1e9 })
+    let previousTo = 1
+    for (let i = 0; i < 30; i++) {
+      hireDeveloper()
+      const spawn = getState().spawn!
+      // The seats a hire fills start exactly where the last one stopped, so no
+      // arrival can ever land on somebody already sitting down.
+      expect(spawn.from).toBe(previousTo)
+      expect(spawn.to).toBeGreaterThan(spawn.from)
+      previousTo = spawn.to
+    }
+    expect(previousTo).toBe(getState().devs)
+  })
+
+  it('keeps the ratio-scaled body count as a separate number', () => {
+    // §7.7.3's weight is still right for what it is for — the spectacle at
+    // tiers where one sprite is not one person — and is wrong for anything
+    // that lands on a seat. Both are published, and they disagree, which is
+    // the whole reason the seat range had to exist.
+    setState({ devs: 1, cash: 1e6 })
+    hireDeveloper()
+    const spawn = getState().spawn!
+    expect(spawn.to - spawn.from).toBe(1)
+    expect(spawn.bodies).toBeGreaterThan(1)
+  })
+
+  it('covers the whole swarm when the trap springs', () => {
+    jumpToPhase('act3_bait')
+    setState({ cash: 100_000 })
+    const before = getState().devs
+    massHire()
+    const spawn = getState().spawn!
+    expect(spawn.from).toBe(before)
+    expect(spawn.to).toBe(before + MASS_HIRE_COUNT)
   })
 })

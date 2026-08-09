@@ -41,6 +41,7 @@ import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { createTallies, tallySources, type TallySource } from './tallies.ts'
 import { createArrivals } from './arrivals.ts'
+import { ROOM_DEV_CAP } from './room.ts'
 import {
   HOLD_MS,
   clampPan,
@@ -657,8 +658,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if (state.spawn && state.spawn.id !== lastSpawnId) {
       const first = lastSpawnId === 0
       lastSpawnId = state.spawn.id
-      const deskList = Array.from({ length: room.drawn }, (_, i) => room.deskAt(i)!)
-      arrivals.spawn(deskList, state.spawn.bodies, now)
+      // §7.7.2 — the seats this hire actually took, not §7.7.3's ratio-scaled
+      // body count. Handing the weight to something that lands on *seats* is
+      // what dropped a stranger onto the founder on every early hire; see the
+      // header of arrivals.ts. Clamped to the room's cap, because above it the
+      // unit on screen stops being a person and the spectacle belongs to the
+      // floor tier.
+      const from = Math.min(state.spawn.from, ROOM_DEV_CAP)
+      const to = Math.min(state.spawn.to, ROOM_DEV_CAP)
+      const seats: Array<{ x: number; y: number }> = []
+      for (let i = from; i < to; i++) seats.push(room.deskFor(i))
+      // **Not** gated on `first`, unlike the camera reveal below. A spawn event
+      // is only ever published by a real hire — `jumpToPhase`, `loadGame` and
+      // `?devs=` all leave it null — so the "first observed event" is the
+      // player's first hire of the session, and skipping it meant the very
+      // first developer anybody hires appeared with no animation at all.
+      arrivals.spawn(seats, from, now)
       // A hire that buys a whole new register of the lens is a reveal, not a
       // hire. Kick the camera out to show what just opened up. Skipped on the
       // first observed event, which may be a jumped-to phase rather than a
@@ -712,7 +727,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // does not immediately get overwritten by one triggered by the count.
     room.setSeed(state.runSeed)
     room.setSelected(state.selected ?? -1)
-    room.setHeadcount(state.devs)
+    // §7.7.2 — a seat is withheld until its arrival has landed. Without this
+    // the room draws the hire on the frame the store publishes them and the
+    // falling silhouette lands on somebody already sitting in the chair, which
+    // is most of why a hire read as a glitch.
+    room.setHeadcount(Math.min(state.devs, arrivals.revealed))
     // §7.7.1 again, on the other rungs: every view shows the people who exist,
     // not a thousand placeholders ghosting in behind two developers.
     floor.setPopulation(state.devs)

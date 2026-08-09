@@ -20,6 +20,7 @@ import {
   blockBox,
   buildRoom,
   PITCH_ROW,
+  ROW_SHEAR,
   ROOM_DEV_CAP,
   gridFor,
   hopHeight,
@@ -35,7 +36,18 @@ import {
   seatFor,
   seatGrid,
 } from './room.ts'
-import { BEAT, CASCADE_MAX_MS, cascadeDelay, arrivalHeight, landingSquash, puffAlpha } from './arrivals.ts'
+import {
+  ARRIVAL_MS,
+  BEAT,
+  CASCADE_MAX_MS,
+  LAND_AT,
+  cascadeDelay,
+  contactSquash,
+  createArrivals,
+  contactStretch,
+  fallHeight,
+  puffAlpha,
+} from './arrivals.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
 import { zAtRung } from '../sim/ladder.ts'
 import { FLOOR_SPRITE_COUNT } from './scene.ts'
@@ -105,6 +117,40 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
       const { cols, rows } = gridFor(n)
       expect(cols).toBeGreaterThanOrEqual(rows)
     }
+  })
+
+  it('puts the person NEXT to you closer than the person behind you', () => {
+    // The bug this pins, reported as "your rows are diagonal, not horizontal".
+    // The rows were level the whole time and the seats were right: what was
+    // wrong is that a row pitch of 2.15 put the seat diagonally behind at 44 px
+    // while the seat beside was 59 px away. The eye groups by proximity, so it
+    // grouped the diagonals, and a floor of level rows read as a lattice of
+    // diagonal chains.
+    //
+    // Measured in screen pixels, because that is the only place "diagonal"
+    // means anything, and against the *hypotenuse*, because the seat behind is
+    // offset sideways by the shear as well as back by the pitch.
+    const along = PITCH_COL * 64
+    const behind = Math.hypot(ROW_SHEAR * 64, PITCH_ROW * 16)
+    expect(behind).toBeGreaterThan(along)
+  })
+
+  it('staggers by exactly half a pitch, which is the value that maximises that gap', () => {
+    // The seats in the row behind sit at `-shear` and `pitch - shear`. The
+    // nearer of the two is as far away as it can be when those are equal, so
+    // any other shear brings some diagonal neighbour closer than the person
+    // sitting next to you — and a diagonal closer than a row *is* the row, as
+    // far as the eye is concerned.
+    const nearestBehind = (shear: number) =>
+      Math.min(
+        Math.hypot(shear * 64, PITCH_ROW * 16),
+        Math.hypot((PITCH_COL - shear) * 64, PITCH_ROW * 16),
+      )
+    const best = nearestBehind(ROW_SHEAR)
+    for (const shear of [0, 0.1, 0.25, 0.35, 0.55, 0.7, 0.92]) {
+      expect(nearestBehind(shear)).toBeLessThanOrEqual(best + 1e-9)
+    }
+    expect(ROW_SHEAR).toBeCloseTo(PITCH_COL / 2, 10)
   })
 
   it('keeps the block wider than it is deep, on screen', () => {
@@ -452,18 +498,6 @@ describe('perimeter placement', () => {
 })
 
 describe('arrivals — GDD §7.7.2, hiring is seen', () => {
-  it('falls under gravity rather than descending like a lift', () => {
-    // Ground covered in the second half of the fall must exceed the first.
-    const first = arrivalHeight(0.2) - arrivalHeight(0.5)
-    const second = arrivalHeight(0.5) - arrivalHeight(0.8)
-    expect(second).toBeGreaterThan(first)
-  })
-
-  it('starts in the air and ends on the desk', () => {
-    expect(arrivalHeight(0)).toBeGreaterThan(0)
-    expect(arrivalHeight(1)).toBe(0)
-  })
-
   it('cascades a batch across the room in seat order — GDD §7.8.5', () => {
     // Deliberately ordered, unlike Act IV's hashed swarm drop. At counts the
     // eye can follow, order reads as a row being placed; the hash is for a
@@ -488,23 +522,89 @@ describe('arrivals — GDD §7.7.2, hiring is seen', () => {
     expect(CASCADE_MAX_MS).toBeLessThanOrEqual(2500)
   })
 
-  it('lands the person LAST — §7.8.5, the desk and chair are setup', () => {
+  it('is three things falling, and nothing else', () => {
+    // The whole brief. A desk, the computer that goes on it, the person who
+    // sits at it. The chair that used to be beat 2 is gone — §7.8.1 records
+    // three failed attempts at drawing one anywhere else in the room, and a
+    // silhouette of a thing the room does not have is not a shortcut, it is a
+    // fourth thing that pops out of existence on landing.
+    expect(Object.keys(BEAT)).toEqual(['desk', 'computer', 'person'])
+  })
+
+  it('lands the person LAST — §7.8.5, the desk and the computer are setup', () => {
     // Reversed, with furniture assembling around someone already sitting, it
     // reads as a glitch rather than as a workspace being built.
-    expect(BEAT.desk).toBeLessThan(BEAT.chair)
-    expect(BEAT.chair).toBeLessThan(BEAT.person)
-    expect(BEAT.person).toBeLessThan(BEAT.monitor)
+    expect(BEAT.desk).toBeLessThan(BEAT.computer)
+    expect(BEAT.computer).toBeLessThan(BEAT.person)
+  })
+
+  it('falls under gravity and bounces once, rather than easing to a stop', () => {
+    // Free fall — distance as t², so it is moving fastest at the instant it
+    // lands. An ease-out decelerates into the floor and reads as a crane
+    // lowering it; stopping dead reads as a sprite being switched on.
+    expect(fallHeight(0)).toBe(1)
+    expect(fallHeight(1)).toBe(0)
+    // Second half of the fall covers more ground than the first — that is what
+    // makes it a fall rather than a descent.
+    const first = fallHeight(0) - fallHeight(LAND_AT / 2)
+    const second = fallHeight(LAND_AT / 2) - fallHeight(LAND_AT)
+    expect(second).toBeGreaterThan(first)
+    // Touches down, comes back up, and settles.
+    expect(fallHeight(LAND_AT)).toBeCloseTo(0, 6)
+    expect(fallHeight((LAND_AT + 1) / 2)).toBeGreaterThan(0.02)
+    expect(fallHeight(0.999)).toBeLessThan(0.01)
   })
 
   it('gives the person the biggest squash, because it is the payload', () => {
-    const at = (strength: number) =>
-      Math.min(...Array.from({ length: 60 }, (_, i) => landingSquash(0.6 + i * 0.0066, strength)))
-    expect(at(0.34)).toBeLessThan(at(0.22))
-    expect(at(0.22)).toBeLessThan(at(0.18))
+    const deepest = (strength: number) =>
+      Math.min(...Array.from({ length: 200 }, (_, i) => contactSquash(i / 199, strength)))
+    expect(deepest(0.34)).toBeLessThan(deepest(0.2))
+    expect(deepest(0.2)).toBeLessThan(deepest(0.16))
+  })
+
+  it('conserves volume — it stretches as much as it squashes', () => {
+    // Squash without stretch looks like something being crushed. §8.3's juice
+    // is the pair, not the dip.
+    for (const t of [0.2, LAND_AT, 0.85, 1]) {
+      expect(contactSquash(t, 0.3) * contactStretch(t, 0.3)).toBeCloseTo(1, 10)
+    }
+  })
+
+  it('is at rest before it starts and after it finishes', () => {
+    expect(contactSquash(0, 0.34)).toBe(1)
+    expect(contactSquash(1.4, 0.34)).toBe(1)
+    expect(contactSquash(-1, 0.34)).toBe(1)
   })
 
   it('leaves no dust behind', () => {
     expect(puffAlpha(1)).toBe(0)
+  })
+
+  it('withholds a seat from the room until its arrival has landed', () => {
+    // The other half of "the fall goes down to the person before": the room
+    // drew the hire on the frame the store published them, so the falling
+    // silhouette landed on somebody already sitting in the chair. `revealed`
+    // is what the stage clamps `setHeadcount` to.
+    const arrivals = createArrivals()
+    // Nothing arriving: the room owns every seat.
+    expect(arrivals.revealed).toBe(Number.POSITIVE_INFINITY)
+
+    const now = 1000
+    arrivals.spawn([{ x: 0, y: 0 }, { x: 10, y: 0 }], 4, now)
+    expect(arrivals.revealed).toBe(4)
+
+    // Mid-flight, still withheld.
+    arrivals.update(now + ARRIVAL_MS / 2)
+    expect(arrivals.revealed).toBe(4)
+
+    // The first lands — and only the first.
+    arrivals.update(now + ARRIVAL_MS + 10)
+    expect(arrivals.revealed).toBe(5)
+
+    // Everything down, and the room has its seats back.
+    arrivals.update(now + ARRIVAL_MS + CASCADE_MAX_MS + 1000)
+    expect(arrivals.revealed).toBe(Number.POSITIVE_INFINITY)
+    arrivals.destroy()
   })
 })
 

@@ -292,14 +292,38 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  /* Out of focus: it is nearer to the camera than the thing in focus. The blur
-     is what stops it reading as a black shape stuck on the lens. */
-  filter: blur(2.5px);
+  /*
+   * Out of focus, and **much further out of focus than the first pass had it.**
+   * At 2.5 px the silhouette had legible straight edges, and a hard-edged black
+   * shape over the one lit thing in the frame does not read as an object in the
+   * near field — it reads as a rendering fault. It was reported as one: "there
+   * is a big shade of black on the title screen, what is that".
+   *
+   * A real object this close to the lens, with the focus on the far side of the
+   * room, would be a soft mass with no edge at all. 9 px is that, and the
+   * softness is also what lets it be *small* — a blurred crop reads as depth
+   * where a sharp one has to be big enough to be identifiable.
+   */
+  filter: blur(9px);
 }
 
 .title__near > * {
   position: absolute;
   background: var(--n0);
+  /*
+   * A rim of the room's own light along the top-left edge — the side facing
+   * ART_DIRECTION §7's single source.
+   *
+   * This is the fix that made the difference, and it is one line. The original
+   * comment had the principle right ("a foreground object is only visible when
+   * it takes light away") and drew the conclusion wrong: an unlit shape on an
+   * unlit ground takes nothing away, it just *is* the ground, and the eye reads
+   * a hole. Two pixels of light catching one edge is the whole difference
+   * between a silhouette and a hole, and under the blur above it becomes a soft
+   * wrap rather than a line.
+   */
+  border-top: 2px solid rgb(255 255 255 / 9%);
+  border-left: 2px solid rgb(255 255 255 / 7%);
 }
 
 /*
@@ -313,38 +337,52 @@
  * Cropped by two edges on purpose — a foreground object wholly inside the
  * frame is a prop; one running out of frame is a place.
  */
+/*
+ * **Cropped, not composed.** The first pass put a 32% x 34% slab in the middle
+ * of the right-hand side, which is neither out of frame nor identifiable — it
+ * simply covered the room. A near-field object earns its place by being mostly
+ * *outside* the picture: the eye completes the shape from the sliver that is in
+ * it, and the sliver costs almost none of the composition.
+ *
+ * So the chair now runs off the right and bottom edges and takes about a
+ * seventh of the width. It is deliberately over the *edge* of the lit floor
+ * rather than its middle: it still takes light away — which is the original and
+ * correct principle — without standing between the player and the studio.
+ */
 .title__near-back {
-  right: 4%;
-  bottom: 20%;
-  width: 32%;
-  height: 34%;
+  right: -7%;
+  bottom: 8%;
+  width: 17%;
+  height: 33%;
   transform: skewY(26.565deg);
-  border-radius: 10px 10px 4px 4px;
+  border-radius: 12px 12px 4px 4px;
 }
 
 .title__near-seat {
-  right: 4%;
-  bottom: 6%;
-  width: 34%;
-  height: 11%;
+  right: -6%;
+  bottom: -2%;
+  width: 20%;
+  height: 8%;
   transform: skewY(26.565deg);
   border-radius: 6px;
 }
 
 .title__near-post {
-  right: 17%;
-  bottom: -6%;
-  width: 3.5%;
-  height: 16%;
+  right: 4%;
+  bottom: -10%;
+  width: 2.4%;
+  height: 15%;
 }
 
 /* The desk edge, running off the left of the frame along the other iso axis,
-   so the two foreground objects sit on the same ground plane. */
+   so the two foreground objects sit on the same ground plane. Lower and
+   thinner than the chair: it is the bottom of the frame, not a second object
+   competing with it. */
 .title__near-desk {
-  left: 6%;
-  bottom: -12%;
-  width: 62%;
-  height: 16%;
+  left: -4%;
+  bottom: -13%;
+  width: 44%;
+  height: 12%;
   transform: skewY(-26.565deg);
 }
 

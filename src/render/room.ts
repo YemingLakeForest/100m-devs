@@ -88,8 +88,33 @@ export const ROOM_DEV_CAP = 120
  */
 /** Desk-to-desk along a row, in tile widths. Tight — shoulder to shoulder. */
 export const PITCH_COL = 0.92
-/** Row to row, in tile heights. The aisle. */
-export const PITCH_ROW = 2.15
+/**
+ * Row to row, in tile heights. The aisle.
+ *
+ * **This has to beat the column pitch on screen, and it did not.** At 2.15 a
+ * row was 34 px behind the one in front while neighbours along a row were 59 px
+ * apart — so the nearest seat to anybody was not the person beside them, it was
+ * the person diagonally behind. The eye groups by proximity and it grouped the
+ * diagonals, which is why a floor of level rows read as a lattice of diagonal
+ * chains however level the rows actually were.
+ *
+ * **3.6 tile-heights, and the value is pinned between two walls that are only
+ * just far enough apart.** The seat behind is offset by half a column pitch
+ * sideways as well as `PITCH_ROW` back, so what has to beat the 59 px along a
+ * row is the *hypotenuse*, not the row pitch itself:
+ *
+ *   sqrt(29.4^2 + 57.6^2) = 64.7 px  >  58.9 px      rows win, by 10%
+ *
+ * The wall on the other side is §7.8.1's grain: a full 10 x 10 squad must stay
+ * wider than it is deep on screen or a floor becomes a corridor, which caps the
+ * pitch at 3.68. There is no room above that and none below 3.19, and the
+ * shear is what opened the gap at all — see {@link ROW_SHEAR}.
+ *
+ * The pitch is the smaller half of the fix. The larger half is that a row is
+ * now drawn as **one continuous bank** rather than ten butted diamonds; see
+ * `drawDeskBank`.
+ */
+export const PITCH_ROW = 3.6
 /**
  * How far each row behind is pushed to the left.
  *
@@ -97,8 +122,15 @@ export const PITCH_ROW = 2.15
  * entirely; a half-tile keeps the receding-into-the-room read while leaving the
  * rows themselves level. It also staggers the desks between rows, so the person
  * behind is not perfectly hidden by the person in front.
+ *
+ * **Exactly half {@link PITCH_COL}, and that is the maximum rather than a
+ * round number.** The two seats in the row behind sit at horizontal offsets of
+ * `−shear` and `pitch − shear`; the nearer of the two is furthest away when
+ * those are equal, which is at half the pitch. Any other value brings some
+ * diagonal neighbour closer than the person sitting next to you, and a diagonal
+ * that is closer than a row is a diagonal the eye will read as the row.
  */
-export const ROW_SHEAR = 0.42
+export const ROW_SHEAR = PITCH_COL / 2
 
 /**
  * §7.8.1a — **the squad**. Ten by ten desks, a hundred people who can see each
@@ -288,6 +320,20 @@ export interface RoomHandle {
   jolt(i: number): void
   /** Where developer `i` sits, in room-local coordinates. Null if not drawn. */
   deskAt(i: number): { x: number; y: number } | null
+  /**
+   * Where seat `i` *would* be, drawn or not — §7.7.2's arrivals.
+   *
+   * {@link deskAt} answers only for seats the room has already built, and an
+   * arrival needs the position of a seat precisely while it is being withheld:
+   * the room must not draw the new hire until the falling silhouette has
+   * landed, so for the whole of the animation the one position the renderer
+   * needs is the one `deskAt` returns null for.
+   *
+   * Pure, and independent of the pivot — everything under `container` shares
+   * that transform, so a seat's local coordinates do not move when the plate
+   * re-centres around a hire.
+   */
+  deskFor(i: number): { x: number; y: number }
   /** How many developers are actually on screen. */
   readonly drawn: number
   /** Live bounding size, for the §23.4.1 camera fit. Grows with the room. */
@@ -871,23 +917,65 @@ const DESK_LIP = 8
  * silhouette is better without it, and a desk, a lit screen and somebody at it
  * is already the whole picture.
  */
-function drawDesk(g: Graphics, x: number, y: number) {
-  // Desk surface and its two visible sides. Left catches the light.
+/**
+ * **A bank of desks, drawn as one surface** — the fix for §7.8.1's rows reading
+ * as diagonals.
+ *
+ * Each desk used to be its own diamond, butted against its neighbour at exactly
+ * {@link PITCH_COL}. Butted diamonds do not make a bank; they make a **sawtooth**,
+ * and every one of its teeth is a 26.5-degree edge. Those edges are the longest
+ * straight lines in the room, so they are what the eye follows — and with the
+ * rows half-staggered behind each other the teeth line up across rows into
+ * unbroken diagonal chains. The seats were level the whole time. It was the
+ * furniture that was diagonal, and no amount of adjusting the seat pitch could
+ * have fixed it.
+ *
+ * One run of desks is now one shape: a hexagon, pointed at each end where the
+ * outermost desk still has its corner, and **flat along the top and bottom in
+ * between**. Those two long horizontal edges are now the longest lines in the
+ * room, which is the whole point — a row is legible because its front edge is
+ * one line rather than ten.
+ *
+ * It is also what "desks are butted together shoulder-to-shoulder into rows"
+ * has meant since §7.8.1 was written. A real bank of desks is a continuous
+ * surface; the individual desk is an accounting fiction.
+ */
+function drawDeskBank(g: Graphics, xFrom: number, xTo: number, y: number) {
   const half = DESK_D / 2
-  isoQuad(g, x, y, DESK_W, DESK_D, c(RAMPS.WOOD[2]))
-  g.moveTo(x - DESK_W / 2, y)
-    .lineTo(x, y + half)
-    .lineTo(x, y + half + DESK_LIP)
-    .lineTo(x - DESK_W / 2, y + DESK_LIP)
+  const w = DESK_W / 2
+  const left = xFrom - w
+  const right = xTo + w
+
+  g.moveTo(left, y)
+    .lineTo(xFrom, y - half)
+    .lineTo(xTo, y - half)
+    .lineTo(right, y)
+    .lineTo(xTo, y + half)
+    .lineTo(xFrom, y + half)
+    .closePath()
+    .fill(c(RAMPS.WOOD[2]))
+
+  // The apron. Three faces, because the bank has three downward edges and
+  // ART_DIRECTION §7's single top-left source hits them differently: the
+  // south-west end cap catches the light, the long front is square to the
+  // camera, and the south-east cap turns away.
+  g.moveTo(left, y)
+    .lineTo(xFrom, y + half)
+    .lineTo(xFrom, y + half + DESK_LIP)
+    .lineTo(left, y + DESK_LIP)
     .closePath()
     .fill(c(RAMPS.WOOD[1]))
-  g.moveTo(x + DESK_W / 2, y)
-    .lineTo(x, y + half)
-    .lineTo(x, y + half + DESK_LIP)
-    .lineTo(x + DESK_W / 2, y + DESK_LIP)
+  g.rect(xFrom, y + half, Math.max(0, xTo - xFrom), DESK_LIP).fill(c(RAMPS.WOOD[1]))
+  g.moveTo(right, y)
+    .lineTo(xTo, y + half)
+    .lineTo(xTo, y + half + DESK_LIP)
+    .lineTo(right, y + DESK_LIP)
     .closePath()
     .fill(c(RAMPS.WOOD[0]))
+}
 
+/** One person's kit on the bank — the screen they are looking at and the box under it. */
+function drawWorkstation(g: Graphics, x: number, y: number) {
   // The monitor. A screen is a flat panel, so it is drawn the way every other
   // flat panel in this room is drawn: lying in a plane, not parallel to the
   // glass. Its face is the down-left one — the same plane the wall dressing
@@ -1467,11 +1555,30 @@ export function buildRoom(): RoomHandle {
     }
     for (const g of squadDesks) g.clear()
 
+    // §7.8.1 — **the bank first, then the kit on it.** Consecutive seats that
+    // share a squad and a row are one run of desks and are drawn as one shape;
+    // see `drawDeskBank` for why ten separate diamonds were the diagonal the
+    // rows appeared to have.
+    //
+    // Two passes, and the split is load-bearing rather than tidy: a bank has to
+    // be under the screens standing on it, so every seat's position must be
+    // known before the first shape is drawn. Computing and drawing in one loop
+    // put each row's surface on top of its own monitors.
+    for (let i = 0; i < n; i++) {
+      const { col: gcol, row: grow } = seatGrid(i)
+      desks.push(isoAt(gcol, grow))
+    }
+    for (let i = 0; i < n; ) {
+      const place = seatFor(i)
+      let end = i + 1
+      while (end < n && seatFor(end).col !== 0) end++
+      drawDeskBank(squadDesks[place.squad], desks[i].x, desks[end - 1].x, desks[i].y)
+      i = end
+    }
+
     for (let i = 0; i < n; i++) {
       const place = seatFor(i)
-      const { col: gcol, row: grow } = seatGrid(i)
-      const { x, y } = isoAt(gcol, grow)
-      desks.push({ x, y })
+      const { x, y } = desks[i]
       const g = squadDesks[place.squad]
       const col = place.col
 
@@ -1499,7 +1606,7 @@ export function buildRoom(): RoomHandle {
           .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.7 })
       }
 
-      drawDesk(g, x, y)
+      drawWorkstation(g, x, y)
     }
 
     // Reuse developer containers across rebuilds — a hire should not rebuild
@@ -1832,6 +1939,11 @@ export function buildRoom(): RoomHandle {
       // told the game is a cutscene.
       ambient.interrupt(i)
     },
+    deskFor(i: number) {
+      const { col, row } = seatGrid(i)
+      return isoAt(col, row)
+    },
+
     deskAt(i: number) {
       return desks[i] ?? null
     },
