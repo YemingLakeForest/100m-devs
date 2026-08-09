@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { burnedFraction, remaining, type GameState } from '../game/store.ts'
+import { Kw } from './Kw.tsx'
 
 /**
  * The sprint burn-down — GDD §10.1, §10.4.
@@ -85,7 +86,7 @@ export function BurnDown({ state }: { state: GameState }) {
         {history.length > 1 && <polyline className="burndown__actual" points={points} />}
       </svg>
       <span className="hud__sub burndown__readout">
-        {left.toFixed(0)} / {state.commitment.toFixed(0)} SP LEFT
+        {left.toFixed(0)} / {state.commitment.toFixed(0)} <Kw>STORY POINTS</Kw> LEFT
       </span>
     </div>
   )

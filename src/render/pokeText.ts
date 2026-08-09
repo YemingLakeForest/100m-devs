@@ -27,8 +27,15 @@ function c(hex: string): number {
   return (r << 16) | (g << 8) | b
 }
 
-/** Glyphs the numeral can be built from. */
-const GLYPHS = '0123456789+-.KMBT' as const
+/**
+ * Glyphs the numeral can be built from.
+ *
+ * Digits, the magnitude suffixes, and the seven extra letters that spell
+ * UNBLOCKED (§25.1) — an unbaked glyph is skipped *silently* by `build`, so a
+ * word added without its letters renders as nothing at all rather than as a
+ * visible mistake. That is the one failure mode this list has.
+ */
+const GLYPHS = '0123456789+-.KMBTUNLOCED' as const
 
 const NUMERAL_SIZE = 20
 const CRIT_SIZE = 30
@@ -41,7 +48,7 @@ export interface PokeTypeset {
    * Returns a fresh Container each call — the caller pools by floater id and
    * destroys on expiry, which it already does for the numerals it replaced.
    */
-  build(sp: number, crit: boolean, snippet: string | null): Container
+  build(sp: number, crit: boolean, snippet: string | null, unblocked?: boolean): Container
   destroy(): void
 }
 
@@ -122,13 +129,21 @@ export function createPokeTypeset(renderer: Renderer): PokeTypeset {
   }
 
   return {
-    build(sp, crit, snippet) {
+    build(sp, crit, snippet, unblocked = false) {
       const root = new Container()
       const size = crit ? CRIT_SIZE : NUMERAL_SIZE
-      const colour = numeralColour(sp, crit)
+      const colour = unblocked ? c(RAMPS.WARN[2]) : numeralColour(sp, crit)
 
+      // §25.1, R11 — an Overwhelmed developer pays nothing and that is the
+      // design (§4.7). So the floater reports what the poke **achieved**
+      // instead of what it paid: `+0` announces that nothing happened, which
+      // is the one thing a feedback numeral must never do.
+      //
+      // WARN amber rather than the CALM phosphor of a points numeral, because
+      // it is a different kind of event and the player should be able to tell
+      // at a glance without reading it.
       let x = 0
-      for (const glyph of format(sp)) {
+      for (const glyph of unblocked ? 'UNBLOCKED' : format(sp)) {
         const texture = glyphs.get(`${size}:${colour}:${glyph}`)
         // A glyph outside GLYPHS would be a formatting bug rather than a
         // reason to drop the whole numeral, so it is skipped silently.

@@ -100,7 +100,7 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
     terminal: [
       'STUDIO_OS v0.0.1 initialized.',
       'Project: "Flappy Square 1.0"',
-      'Sprint Commitment: 1,000 SP',
+      'Sprint Commitment: 1,000 story points',
       'Developer Count: 1',
     ],
     bubble: 'Okay... just need to write 1,000 lines of code. Simple enough.',

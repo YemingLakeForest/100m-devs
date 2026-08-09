@@ -75,6 +75,30 @@ export function formatVelocity(v: number): string {
 }
 
 /**
+ * §10.1's velocity split — `3,880 swarm + 240 you` — GDD §25.1, R11.
+ *
+ * §10.1 has specified this since the beginning and it was never built:
+ *
+ * > `VELOCITY: 4,120 SP/s` / `(3,880 swarm + 240 poke)`
+ *
+ * Its absence produced a real bug report, and a fair one. The commitment burns
+ * down continuously from passive output whatever the player does, so a tap
+ * worth `+0.80` at global zoom looks like it did nothing while the burn-down
+ * visibly moves and the total velocity rises. **Nothing on screen could answer
+ * "did my tap do anything".**
+ *
+ * "you" rather than §10.1's "poke", because the player is not thinking about a
+ * mechanic called a poke; they are thinking about whether *they* are helping.
+ *
+ * Null while the thumb is idle — a permanent `+ 0` is furniture, and this line
+ * is only interesting when there is something in it.
+ */
+export function velocitySplit(swarm: number, poke: number): string | null {
+  if (!(poke > 0.005)) return null
+  return `${formatVelocity(swarm)} swarm + ${formatVelocity(poke)} you`
+}
+
+/**
  * The burn line — `−$50.0K/SEC` — or null when nothing is draining.
  *
  * §21's economy has no payroll until the Mass Hire (the founders are in a

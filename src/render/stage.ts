@@ -25,7 +25,7 @@ import { pokeHaptic } from '../audio/haptics.ts'
 import { LensCamera, lodWeights, tierScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { TIER_EXTENTS, buildScene } from './scene.ts'
-import { DEVS_PER_STOREY } from './tower.ts'
+import { DEVS_PER_STOREY, MAX_STOREYS } from './tower.ts'
 import { maxZoomFor, zoomCeilingLifted } from '../sim/headcount.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
@@ -108,7 +108,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   if (post.worldFilters.length > 0) world.filters = post.worldFilters
   if (post.filters.length > 0) glass.filters = post.filters
 
-  const { tiers, floor, room, tower } = buildScene(app.renderer)
+  const { tiers, floor, room, tower, city } = buildScene(app.renderer)
   for (const level of [4, 3, 2, 1] as const) world.addChild(tiers[level])
 
   // §21 Act IV. Its overlay goes inside the glass, above the world and below
@@ -122,9 +122,29 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const arrivals = createArrivals()
   room.container.addChild(arrivals.layer)
 
-  /** Level 2's live extent — the floor swarm, or the tower once it is taller. */
-  const towerRungExtent = () =>
-    getState().devs >= DEVS_PER_STOREY ? tower.extent : TIER_EXTENTS[2]
+  /**
+   * §7.7.1 — which of Level 2's three representations the headcount calls for.
+   *
+   * One function rather than a chain of comparisons at each use site, because
+   * the visibility flags, the camera extent and the hit test all have to agree
+   * about it and three copies of the same two thresholds is three chances to
+   * disagree.
+   */
+  const CITY_FROM = DEVS_PER_STOREY * MAX_STOREYS
+  const levelTwoKind = (devs: number): 'floor' | 'tower' | 'city' =>
+    devs >= CITY_FROM ? 'city' : devs >= DEVS_PER_STOREY ? 'tower' : 'floor'
+
+  /** Level 2's live extent — whichever of the three is standing. */
+  const towerRungExtent = () => {
+    switch (levelTwoKind(getState().devs)) {
+      case 'city':
+        return city.extent
+      case 'tower':
+        return tower.extent
+      default:
+        return TIER_EXTENTS[2]
+    }
+  }
 
   const camera = new LensCamera(0)
   /** Latest tier extents, published for the hit test outside the ticker. */
@@ -562,11 +582,17 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // representations share the Level 2 slot and swap rather than coexisting:
     // showing a floor of people *and* a stack of floors at once would be the
     // same studio counted twice.
+    // §7.8.2 — and above ten storeys the unit changes again, to a building, a
+    // campus, a town. `tower.ts` used to cap here and the picture simply stopped
+    // answering while the headcount carried on.
     tower.setHeadcount(state.devs)
-    const towerRung = state.devs >= DEVS_PER_STOREY
-    floor.container.visible = !towerRung
-    tower.container.visible = towerRung
+    city.setHeadcount(state.devs)
+    const kind = levelTwoKind(state.devs)
+    floor.container.visible = kind === 'floor'
+    tower.container.visible = kind === 'tower'
+    city.container.visible = kind === 'city'
     tower.update(now)
+    city.update(now)
     const extents = {
       ...TIER_EXTENTS,
       1: room.extent,
@@ -622,7 +648,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // The real numeral and the §8.2a code line. This was a plain rectangle
         // during the spike, on the reasoning that text belongs in React — that
         // holds for the HUD and not for this, which is scenery under the glass.
-        g = typeset.build(f.sp, f.crit, f.snippet)
+        g = typeset.build(f.sp, f.crit, f.snippet, f.unblocked)
         numerals.addChild(g)
         numeralGfx.set(f.id, g)
       }

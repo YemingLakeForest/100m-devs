@@ -17,7 +17,8 @@
     "sfx:generate": "tsx scripts/generate-sfx.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "music:check": "tsx scripts/music-check.ts"
   },
   "dependencies": {
     "@capacitor-community/native-audio": "^8.0.0",

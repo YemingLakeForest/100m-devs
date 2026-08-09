@@ -128,7 +128,7 @@ export function idleLine(report: OfflineReport): string | null {
  */
 export function doubleLabel(report: OfflineReport): string {
   const sp = num(report.storyPoints)
-  return `WATCH AD FOR ${compact(sp * 2)} SP`
+  return `WATCH AD FOR ${compact(sp * 2)} STORY POINTS`
 }
 
 /**

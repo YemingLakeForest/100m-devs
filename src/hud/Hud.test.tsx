@@ -174,7 +174,13 @@ describe('the readouts', () => {
     expect(text).toContain('DEVS')
     expect(text).toContain('VELOCITY')
     expect(text).toContain('PROJECT')
-    expect(text).toContain('SP LEFT')
+    expect(text).toContain('STORY POINTS LEFT')
+    // §10.2a, R12 — **never "SP"**. An abbreviation that means something to the
+    // people who wrote it and nothing to anybody else, sitting in the largest
+    // readouts on the screen. Asserted as an absence because that is the only
+    // way this stays fixed: the phrase is easy to reintroduce one label at a
+    // time, and each one looks harmless on its own.
+    expect(text).not.toMatch(/\bSP\b/)
     // §4.3a's ladder, at its bottom rung.
     expect(text).toContain('IN SYNC')
   })

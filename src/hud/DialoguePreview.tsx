@@ -18,7 +18,7 @@ import { Dialogue, type DialogueLine } from '../ui/Dialogue.tsx'
 const SCRIPT: readonly DialogueLine[] = [
   {
     speaker: 'STUDIO_OS',
-    text: 'STUDIO_OS v0.0.1 initialized. Project: "Flappy Square 1.0". Sprint commitment: 1,000 SP. Developer count: 1.',
+    text: 'STUDIO_OS v0.0.1 initialized. Project: "Flappy Square 1.0". Sprint commitment: 1,000 story points. Developer count: 1.',
   },
   {
     speaker: 'JAMES',

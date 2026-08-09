@@ -66,19 +66,68 @@ const MAX_SECONDS = 30
  * Shared constraint suffix — §20.7.1a, and it is the load-bearing line here.
  *
  * §20.7.1 originally required one key, one tempo and one bar length, because
- * that is what lets *composed* loops crossfade with no beat-matching. This
- * score is ambient, so the constraint is met the other way round: **no pulse at
- * all.** Two drones layer cleanly because neither has a beat to be out of step
- * with, and no amount of prompting will hold a generator to 84 BPM anyway.
+ * that is what lets *composed* loops crossfade with no beat-matching. §20.7.1a
+ * then met the constraint the other way round — **no pulse and no melody at
+ * all** — on the grounds that two drones layer cleanly because neither has
+ * anything to be out of step with.
  *
- * So the prompts ask for the absence of rhythm rather than for agreement about
- * it, which is a promise the model can actually keep. A stem that arrives with
- * a discernible beat is unusable however good it sounds — it will phase against
- * every other stem the moment the mix moves.
+ * That worked, and what it produced was **white noise**. Ten stems of pure
+ * texture is not a score, it is a hiss with moods, and the first person to
+ * listen to it said exactly that.
+ *
+ * So this is the third position, and it is the right one: **the thing that
+ * phases is a pulse, not a harmony.** Two loops with beats drift against each
+ * other within seconds and no amount of prompting fixes it; two loops in the
+ * same key sound like the same piece however they overlap, because harmony has
+ * no clock to be wrong about. The rule therefore splits in two:
+ *
+ *   - **No percussion, ever.** That is the half §20.7.1a got right, and it is
+ *     non-negotiable for anything audible at the same time as anything else.
+ *   - **One key, and melody is allowed.** A slow line in A minor over a pad in
+ *     A minor is consonant at every offset. That is the whole trick, and it is
+ *     what §20.7.1's original "one key" clause was asking for all along.
+ *
+ * A minor because the register the brief now asks for — *sovietwave*: the warm
+ * melancholy of an analogue synth through a tape machine — is built on it, and
+ * because a natural minor has no leading tone to clash when two stems happen to
+ * overlap on different scale degrees.
+ */
+/**
+ * The chord progression, named explicitly.
+ *
+ * §20.7.1b said "melody is allowed" and the prompts duly asked for "a simple
+ * wistful melody on a soft lead". **`npm run music:check` then measured seven
+ * of the ten stems as drones**, which is what asking a *sound-effects* model
+ * (§20.7.6a) for an abstraction gets you.
+ *
+ * The one stem that passed on the first attempt was the one whose prompt
+ * contained the word **arpeggio**. That is the whole lesson: this model
+ * responds to a concrete musical noun and ignores an adjective. "Melodic",
+ * "wistful", "a lead line" are adjectives. "Arpeggio", "Am F C G", "a repeating
+ * four-note figure" are things a musician could play.
+ *
+ * So the key is not stated as a key any more, it is stated as **chords**.
+ */
+const KEY = 'in A minor, chord progression Am F C G'
+
+/**
+ * Shared constraint suffix.
+ *
+ * Note what is **absent** from it, because the absences were the bug. The
+ * previous version carried `continuous`, `even texture`, `slow and unhurried`
+ * and `no beat` — four separate instructions to hold still, wrapped around one
+ * polite request for a tune. A generator resolves that contradiction the easy
+ * way every time.
+ *
+ * What remains is only the constraint that actually matters when stems overlap:
+ * **no drums.** A percussion loop phases against every other loop in the mix
+ * within seconds and no prompt fixes it. A melody does not — two lines over the
+ * same chords are consonant at any offset, which is §20.7.1b's whole point.
  */
 const CONSTRAINTS =
-  'no beat, no rhythm, no percussion, no melody, no vocals, ' +
-  'continuous even texture, no fade in, no fade out, no build, seamless loop'
+  `upbeat retro sovietwave instrumental ${KEY}, a clear repeating melody the ` +
+  'whole way through, warm analogue synth, tape saturation, ' +
+  'no drums, no percussion, no vocals, seamless loop, no fade in, no fade out'
 
 interface MusicStem {
   stem: string
@@ -99,7 +148,8 @@ const STEMS: MusicStem[] = [
     // pushes into the room.
     stem: 'bed-title',
     prompt:
-      'Sparse warm ambient drone, one slow held synth pad, distant and patient, ' +
+      'Cosy sovietwave synth instrumental. A soft lead plays a slow four-note ' +
+      'arpeggio over a warm pad, wistful and patient, ' +
       `a dark room at night with one monitor on. ${CONSTRAINTS}`,
     durationMs: BED_MS,
   },
@@ -107,32 +157,36 @@ const STEMS: MusicStem[] = [
     stem: 'bed-desk',
     // Zone 0 (§20.2): intimate, tactile, close.
     prompt:
-      'Warm cosy ambient drone, soft analogue synth pad, faint tape hiss, close and ' +
-      `unhurried, the sound of one person who thinks this is going to be fine. ${CONSTRAINTS}`,
+      'Cosy sovietwave synth instrumental, warm analogue pad over a slow gentle ' +
+      'arpeggio, tape hiss, close and a little melancholy, ' +
+      `the sound of one person who thinks this is going to be fine. ${CONSTRAINTS}`,
     durationMs: BED_MS,
   },
   {
     stem: 'bed-floor',
     // Zone 1: corporate clutter, more air moving.
     prompt:
-      'Ambient office drone, warm pad with a faint air-conditioning hum underneath, ' +
-      `slightly brighter and busier than a quiet room, corporate calm. ${CONSTRAINTS}`,
+      'Retro sovietwave synth instrumental. A chorused lead plays a plain ' +
+      'repeating eight-note phrase over an arpeggiated pad, air-conditioning hum ' +
+      `underneath, brighter and busier than a quiet room. ${CONSTRAINTS}`,
     durationMs: BED_MS,
   },
   {
     stem: 'bed-global',
     // Zone 2: wide, cold, telemetric.
     prompt:
-      'Wide cold ambient synth drone, glassy shimmering texture, vast and inhuman, ' +
-      `distant data-centre hum. ${CONSTRAINTS}`,
+      'Cold wide sovietwave synth instrumental. A glassy detuned lead plays a slow ' +
+      'descending arpeggio over a wide pad, vast and inhuman, ' +
+      `the hum of a data centre somebody was proud of once. ${CONSTRAINTS}`,
     durationMs: BED_MS,
   },
   {
     stem: 'bed-cosmic',
     // Zone 3: enormous and empty.
     prompt:
-      'Enormous empty ambient space drone, deep sub-bass swell, slow evolving pad, ' +
-      `existential and almost silent. ${CONSTRAINTS}`,
+      'Enormous empty sovietwave synth instrumental. One very slow arpeggio on a ' +
+      'distant bell-like lead over a deep sub-bass swell, tape-saturated, ' +
+      `existential. ${CONSTRAINTS}`,
     durationMs: BED_MS,
   },
 
@@ -140,22 +194,25 @@ const STEMS: MusicStem[] = [
   {
     stem: 'layer-calm',
     prompt:
-      'Barely-there ambient shimmer, one soft high pad, occasional faint bell tone, ' +
-      `almost nothing. ${CONSTRAINTS}`,
+      'Sparse sovietwave synth instrumental. A soft high bell plays a few slow ' +
+      'separated notes over a quiet pad, unhurried, almost nothing there. ' +
+      `${CONSTRAINTS}`,
     durationMs: BED_MS,
   },
   {
     stem: 'layer-strained',
     prompt:
-      'Uneasy ambient texture, slowly detuning synth pad, faint restless flutter, ' +
-      `tension without resolution. ${CONSTRAINTS}`,
+      'Uneasy sovietwave synth instrumental. A slowly detuning lead plays a short ' +
+      'repeating figure that never resolves, restless tape flutter underneath. ' +
+      `${CONSTRAINTS}`,
     durationMs: BED_MS,
   },
   {
     stem: 'layer-collapse',
     prompt:
-      'Harsh dissonant ambient drone, detuned clashing pads, distant alarm-pitched ' +
-      `whine, oppressive and wrong. ${CONSTRAINTS}`,
+      'Harsh sovietwave synth instrumental. A badly detuned lead lurches between ' +
+      'clashing notes over an oppressive pad, distant alarm-pitched whine, wrong. ' +
+      `${CONSTRAINTS}`,
     durationMs: BED_MS,
   },
 
@@ -165,16 +222,16 @@ const STEMS: MusicStem[] = [
     stem: 'sting-promotion',
     // §7.7.2 rung promotion.
     prompt:
-      'Short rising musical sting, warm synth, triumphant and faintly ridiculous, ' +
-      'resolves cleanly, one shot, no vocals, no fade in, no fade out',
+      'Short rising sovietwave sting, warm analogue synth, triumphant and faintly ' +
+      `ridiculous, resolves cleanly, one shot, ${KEY}, no vocals, no fade in, no fade out`,
     durationMs: 2600,
   },
   {
     stem: 'sting-paradigm',
     // §13 Paradigm Shift — a reset, not a defeat.
     prompt:
-      'Short descending then resolving musical sting, warm synth, a reset rather than ' +
-      'a defeat, one shot, no vocals, no fade in, no fade out',
+      'Short descending then resolving sovietwave sting, warm analogue synth, a reset ' +
+      `rather than a defeat, one shot, ${KEY}, no vocals, no fade in, no fade out`,
     durationMs: 2600,
   },
 ]

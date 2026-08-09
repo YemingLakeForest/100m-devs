@@ -2,6 +2,7 @@ import { entropyLabel } from '../game/vocabulary.ts'
 import {
   currentEffectiveVelocity,
   currentPayroll,
+  currentVelocity,
   nextPayout,
   secondsToPayout,
   type GameState,
@@ -11,6 +12,7 @@ import { isCashCritical, secondsUntilBankrupt } from '../sim/economy.ts'
 import { useSpring } from '../ui/useSpring.ts'
 import { SPRING_HEAVY } from '../ui/spring.ts'
 import { Counter } from './Counter.tsx'
+import { Kw } from './Kw.tsx'
 import {
   burnReadout,
   entropyPercent,
@@ -18,6 +20,7 @@ import {
   formatVelocity,
   payoutReadout,
   runwayReadout,
+  velocitySplit,
 } from './hudModel.ts'
 
 /**
@@ -168,11 +171,22 @@ export function Speedometer({ entropy }: { entropy: number }) {
  * row exists to give.
  */
 export function Velocity({ state }: { state: GameState }) {
+  // The two halves come from the store already separated — `currentVelocity` is
+  // the swarm and `pokeRate` is the thumb — and the readout was summing them and
+  // throwing the split away. See §25.1: that is most of why a fractional poke
+  // read as a broken button.
+  const swarm = currentVelocity(state)
+  const split = velocitySplit(swarm, Math.max(0, state.pokeRate))
   return (
     <div className="hud__block">
       <span className="hud__label">VELOCITY</span>
       <b className="hud__num hud__num--major">{formatVelocity(currentEffectiveVelocity(state))}</b>
-      <span className="hud__sub">SP/SEC</span>
+      <span className="hud__sub">
+        <Kw>story points</Kw>/SEC
+      </span>
+      {/* Only while the player is actually poking, so the row is an event
+          rather than furniture. */}
+      {split && <span className="hud__sub hud__sub--split">{split}</span>}
     </div>
   )
 }

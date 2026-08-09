@@ -114,7 +114,7 @@ describe('load', () => {
     // page it is a numeral born minutes in the future that never expires, and
     // the bug lands nowhere near the load.
     seed(
-      { localEntropy: 0.9, floaters: [{ id: 1, sp: 1, x: 0, y: 0, crit: false, bornAt: 5, snippet: null }] },
+      { localEntropy: 0.9, floaters: [{ id: 1, sp: 1, x: 0, y: 0, crit: false, bornAt: 5, snippet: null, unblocked: false }] },
       prestiged(),
       0,
     )

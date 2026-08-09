@@ -74,10 +74,22 @@ export type PassName = 'tilt' | 'zoom' | 'bloom' | 'rgb' | 'crt'
 
 /**
  * Half-height of the in-focus band, in world units either side of the focal
- * desk. The desk assembly spans roughly -70..+60 locally, so 110 keeps the
- * monitor and the developer's hands sharp and lets the floor fall away.
+ * desk.
+ *
+ * **Was 110**, sized to one desk assembly (-70..+60) so the monitor and hands
+ * stayed sharp and the floor fell away. That is the correct number for a photo
+ * of one desk and the wrong one for a *room*: at ten developers the §7.8.1 floor
+ * is several hundred units deep, so most of the studio sat outside the band —
+ * and with it the §6.3 speech bubbles, which are dialogue, which is the product.
+ * They arrived as an illegible smear and §7.6a is unambiguous about that.
+ *
+ * Widened to cover the room the camera is actually framing. The pass still
+ * falls off past the floor's edge, which is all it was ever contributing to an
+ * **isometric** scene — a projection with no perspective has no focal plane to
+ * shift, so a literal depth of field here was always decoration rather than a
+ * camera model.
  */
-const FOCAL_HALF_HEIGHT = 110
+const FOCAL_HALF_HEIGHT = 420
 
 export const ALL_PASSES: readonly PassName[] = ['tilt', 'zoom', 'bloom', 'rgb', 'crt']
 
@@ -102,9 +114,12 @@ export function createPostProcess({
   // curvature has to be applied to the scanlines too — a flat scanline over a
   // curved image reads as an overlay rather than as glass.
   const crt = new CRTFilter({
+    // Curvature stays: it is pass 6, the weld, and §6 forbids removing it. What
+    // came down is the scanline contrast — a hard dark line every 1.4px over a
+    // 9px glyph removes about a third of the glyph.
     curvature: 3,
     lineWidth: 1.4,
-    lineContrast: 0.22,
+    lineContrast: 0.14,
     verticalLine: false,
     noise: 0,
     noiseSize: 1,
@@ -138,8 +153,14 @@ export function createPostProcess({
       // 6px, not the 14 an earlier pass used: at 14 the blur was wide enough to
       // smear the desk itself rather than just the surround, which reads as an
       // out-of-focus photograph instead of a tilt-shifted one.
+      // **The vibe, not the effect** — GDD §7.6a. At 6px this was a real
+      // tilt-shift and it was doing real damage: the §6.3 speech bubbles, which
+      // are dialogue, which is the product, stopped being readable the moment
+      // the floor filled up. The pass exists to say "a camera is focused on
+      // something here", and 2px says that. Where legibility and the filter
+      // disagree, legibility wins — every time, and without a setting.
       const deskness = Math.max(0, 1 - zoom * 3)
-      tiltShift.blur = reduceMotion ? 0 : 6 * deskness
+      tiltShift.blur = reduceMotion ? 0 : 2 * deskness
       // The band is expressed in the WORLD container's local space, not the
       // screen's — this filter hangs off `world`, whose origin is the focal
       // desk. Using screen coordinates here put the sharp band somewhere above
@@ -149,14 +170,23 @@ export function createPostProcess({
 
       // 2. Velocity-driven smear. Clamped: a fling gesture can produce a
       // spike large enough to white out the frame otherwise.
-      zoomBlur.strength = reduceMotion ? 0 : Math.min(0.35, zoomVelocity * 0.9)
+      // Halved, and clamped harder. §7.6a again: a dolly should feel like
+      // movement, not like the picture coming apart, and this pass fires during
+      // exactly the gesture the player uses to go and read something.
+      zoomBlur.strength = reduceMotion ? 0 : Math.min(0.18, zoomVelocity * 0.45)
       zoomBlur.center = { x: width / 2, y: height / 2 }
 
-      // 3.
-      bloom.strength = 2 + glass.bloom * 10
+      // 3. **Bloom is a suggestion, not a glow** (§7.6a). At `2 + E*10` a strained
+      // studio washed out, and a wash is the same as a blur for anything with
+      // text on it. It still rises with strain — that reading is load-bearing
+      // for §21 Act IV — it just stops arriving as fog.
+      bloom.strength = 1 + glass.bloom * 3.5
 
       // 4. Entropy sets the floor, a crit adds a punch on top of it.
-      const split = glass.chromaticAberration * 4 + critPunch * 6
+      // Fringing is the single worst pass for small text, because it attacks the
+      // edges glyphs are made of. Enough to see on a crit, not enough to double
+      // a letterform.
+      const split = glass.chromaticAberration * 2 + critPunch * 3
       rgbSplit.red = { x: -split, y: 0 }
       rgbSplit.green = { x: 0, y: 0 }
       rgbSplit.blue = { x: split, y: 0 }
@@ -164,8 +194,8 @@ export function createPostProcess({
       // 5. The roll is a slow vertical drift, not an animation loop — under
       // load the picture should look like it is failing to hold sync.
       crt.time = reduceMotion ? 0 : elapsed * (0.25 + glass.scanlineRoll * 2.5)
-      crt.noise = glass.scanlineNoise * 0.18
-      crt.lineContrast = 0.22 + glass.scanlineNoise * 0.2
+      crt.noise = glass.scanlineNoise * 0.09
+      crt.lineContrast = 0.14 + glass.scanlineNoise * 0.1
 
       // Entropy Lock: horizontal tear. Driving seed rather than curvature
       // keeps the glass itself constant, which §6 requires.

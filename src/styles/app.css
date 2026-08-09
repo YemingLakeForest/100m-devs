@@ -105,9 +105,9 @@ body {
    */
   grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    'project bubble  resources'
-    'gauges  actions resources'
-    'script  script  controls';
+    'project bubble resources'
+    'gauges  bubble actions'
+    'script  script controls';
   column-gap: 12px;
   row-gap: 8px;
 }
@@ -392,12 +392,27 @@ body {
  * The action bar is a Panel, so this styles the panel element itself. It is one
  * of the three places in the Layer that takes pointer events.
  */
+/*
+ * The primary action lives **on the right rail**, not in the middle.
+ *
+ * Centred, it sat on top of the thing it was acting on: the studio is the
+ * subject of every frame and the one control the player presses constantly was
+ * parked across the middle of it, covering the desks at rung 0 and the block at
+ * rung 4. Nothing else in the Layer does that — §7.1's whole arrangement is a
+ * clear centre with the instrumentation pushed to the edges, and the action was
+ * the one thing exempted from it.
+ *
+ * The right rail is also where the thumb already is. The game is landscape-
+ * locked (§23.4), so the right edge is the hand holding the phone, and it puts
+ * the button directly under the CASH readout it spends — which is the one
+ * adjacency worth having on a screen full of numbers.
+ */
 .hud__actions {
   grid-area: actions;
   align-self: end;
-  justify-self: center;
+  justify-self: end;
   display: grid;
-  justify-items: center;
+  justify-items: end;
   gap: 5px;
   pointer-events: auto;
   padding-bottom: 2px;
@@ -412,7 +427,7 @@ body {
  */
 .hud__offer {
   display: grid;
-  justify-items: center;
+  justify-items: end;
   margin-bottom: 2px;
 }
 
@@ -1415,4 +1430,49 @@ body {
   .overnight__row {
     transition: none;
   }
+}
+
+/* --- keywords — GDD §10.2a, R12/R13 ------------------------------------- */
+
+/*
+ * The nouns the player is meant to track, coloured so they lift out of a line
+ * of copy without being boxed.
+ *
+ * These are §2.2 ramp entries, not new colours. The mapping is the design:
+ * story points take the same CALM phosphor the §8.2 poke numerals are drawn in,
+ * so the number that floats off a developer's head and the words in the readout
+ * are visibly the same substance. That correspondence is the whole reason to
+ * colour anything.
+ */
+.kw {
+  color: var(--kw, inherit);
+  /* Weight, not just hue — §11.1 has not validated these ramps on a cheap LCD
+     in daylight yet, and a colour-only distinction is the first thing to fail
+     that test. */
+  font-weight: 700;
+}
+
+.kw--story {
+  --kw: #35c9d9; /* CALM[2] — the poke numeral */
+}
+
+.kw--cash {
+  --kw: #e0a52e; /* WARN[2] */
+}
+
+.kw--devs {
+  --kw: #b8aeb3; /* NEUTRAL[6] */
+}
+
+.kw--entropy {
+  --kw: #e03c3c; /* ALARM[2] */
+}
+
+/*
+ * §10.1's velocity split. Quieter than the sub-line above it: it answers a
+ * question the player only asks while their thumb is down, and it must not
+ * compete with the figure it is decomposing.
+ */
+.hud__sub--split {
+  opacity: 0.75;
 }

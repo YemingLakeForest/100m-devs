@@ -240,7 +240,11 @@ export function createArrivals(): Arrivals {
         drawBeat(a.gfx, a.x, a.y, t, BEAT.chair, (g, x, y, u) => {
           const h = arrivalHeight(u) * 0.7
           const sq = landingSquash(u, 0.22)
-          g.rect(x - 8, y + 4 - h, 16, 20 * sq).fill(c(RAMPS.NEUTRAL[2]))
+          // Sized and placed to land where `drawChair` will draw the real one.
+          // A silhouette does not have to be the same art, but it does have to
+          // stop in the same place, or the seat visibly jumps on the frame the
+          // assembly hands over to the room.
+          g.rect(x - 11, y + 17 - 30 * sq - h, 22, 30 * sq).fill(c(RAMPS.NEUTRAL[1]))
         })
 
         // Beat 3 is the payload: the biggest squash, and the reason the other

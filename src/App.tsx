@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { initSfx } from './audio/sfx.ts'
-import { jumpToPhase, selectDeveloper } from './game/store.ts'
+import { __setState, jumpToPhase, selectDeveloper } from './game/store.ts'
 import { PHASE_ORDER, type Phase } from './game/onboarding.ts'
 import { Hud } from './hud/Hud.tsx'
 import { createStage, type StageHandle } from './render/stage.ts'
@@ -82,12 +82,37 @@ export default function App() {
     const select = new URLSearchParams(location.search).get('select')
     if (select !== null) selectDeveloper(Number(select))
 
+    // ?devs=250000 forces a headcount, for looking at the §7.8.2 rungs.
+    //
+    // Same family as ?select and ?act, and it exists for the same reason they
+    // do: rung 5 is a hundred thousand developers, and there is no way to reach
+    // that by playing that does not take longer than a session. Deliberately
+    // *not* routed through the economy — it sets the count and nothing else, so
+    // what you are looking at is the renderer's answer to a headcount and not a
+    // save file somebody has to unpick afterwards.
+    const devs = new URLSearchParams(location.search).get('devs')
+    if (devs !== null && Number.isFinite(Number(devs))) {
+      const n = Math.max(1, Math.floor(Number(devs)))
+      // Cash comes with it, because §4.10d's payroll is continuous and a studio
+      // of forty thousand people handed no money bankrupts inside one tick —
+      // which is correct behaviour and is not what anybody typing this flag is
+      // trying to look at.
+      __setState({ devs: n, cash: n * 1e6, devCap: n * 2 })
+    }
+
     void createStage(host).then((h) => {
       if (cancelled) {
         h.destroy()
         return
       }
       handle = h
+
+      // ?z=0.5 parks the Omni-Lens, so a screenshot can be taken of a tier
+      // rather than of whatever the camera happened to be doing. Clamped by
+      // §7.7.1's zoom ceiling like every other way of moving the lens — the
+      // studio you can see is still the studio you have.
+      const z = new URLSearchParams(location.search).get('z')
+      if (z !== null && Number.isFinite(Number(z))) h.camera.set(Number(z))
       // Criterion 6's stopwatch stops here: the renderer is up and the first
       // frame is pokeable. Anything after this is the player's own reaction
       // time, not the app's cold start.

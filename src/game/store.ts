@@ -138,6 +138,20 @@ export interface FloatingNumeral {
    * Overwhelmed developer, who has nothing to say.
    */
   snippet: string | null
+  /**
+   * GDD §25.1, R11 — this poke was worth zero points **and that was the point**.
+   *
+   * §4.7 sets an Overwhelmed developer's multiplier to exactly 0: "the poke's
+   * value is clearing their lockup, not the points". The maths is right and
+   * the readout was wrong — a numeral saying `+0` is indistinguishable from a
+   * broken button, and it was reported as one.
+   *
+   * Set here rather than inferred from `sp === 0` downstream, because there is
+   * a second way to reach zero — §4.1's Entropy Lock taxes every poke to
+   * nothing — and telling the player they *unblocked* somebody when the whole
+   * studio is seized would be a worse lie than the one being fixed.
+   */
+  unblocked: boolean
 }
 
 /**
@@ -570,6 +584,9 @@ export function poke(x: number, y: number) {
     x,
     y,
     crit: result.crit,
+    // Read from the state before the poke resolved, like the snippet below and
+    // for the same reason: what you interrupted, not what you made of them.
+    unblocked: state.dev.state === 'overwhelmed',
     bornAt: performance.now(),
     // Read from the state BEFORE the poke resolved: the line is what they were
     // doing when you interrupted them, not what your interruption made of them.
@@ -1156,6 +1173,31 @@ if (import.meta.env?.MODE !== 'test') initPersistence()
  * addressable. Sets up whatever state the phase assumes, so the jump lands on
  * a coherent run rather than a contradictory one.
  */
+/**
+ * Put the run *on* a project — name, commitment and burn-down together.
+ *
+ * `shipProject` sets all four of these in one object and they are only correct
+ * as a set. {@link jumpToPhase} used to write `projectIndex` alone on top of a
+ * fresh run, which left the studio on project 1's **payout** with project 0's
+ * **name** and project 0's **1,000-point commitment** — a HUD reading
+ * "FLAPPY SQUARE 1.0 · 915 / 1000 SP LEFT · +$25.0K IN 91s", which is three
+ * numbers from two different projects and cannot happen in play.
+ *
+ * That is worse than a cosmetic bug, because handoff trap 4 makes these seams
+ * the way screenshots are taken: **every frame reviewed from `?act=` was of a
+ * state the game cannot reach**, and the cash arithmetic in it was being read
+ * as if it were real.
+ */
+function onProject(index: number): Partial<GameState> {
+  const clamped = Math.min(Math.max(0, Math.floor(index)), PROJECTS.length - 1)
+  return {
+    projectIndex: clamped,
+    sprintName: PROJECTS[clamped].name,
+    commitment: commitmentFor(clamped),
+    burned: new Decimal(0),
+  }
+}
+
 export function jumpToPhase(phase: Phase): void {
   const run = freshRun()
 
@@ -1170,10 +1212,10 @@ export function jumpToPhase(phase: Phase): void {
       // Mid-loop rather than at either end: §21.0's Act IIa runs 2 -> ~40, and
       // the interesting states are all in the middle of it — the dial has just
       // unlocked at 25 and the readout has not twitched yet.
-      set({ ...run, phase, devs: 26, projectsShipped: 1, cash: 2_000, projectIndex: 1 })
+      set({ ...run, phase, devs: 26, projectsShipped: 1, cash: 2_000, ...onProject(1) })
       break
     case 'act2a_seed':
-      set({ ...run, phase, devs: SEED_ROUND_AT, projectsShipped: 2, cash: 400, projectIndex: 1 })
+      set({ ...run, phase, devs: SEED_ROUND_AT, projectsShipped: 2, cash: 400, ...onProject(2) })
       break
     case 'act2b_loop':
       // Post-round: the money is in and the dial is live, which is the state
@@ -1184,7 +1226,7 @@ export function jumpToPhase(phase: Phase): void {
         devs: SEED_ROUND_AT,
         projectsShipped: 2,
         cash: SEED_ROUND_CASH,
-        projectIndex: 1,
+        ...onProject(2),
         seedTaken: true,
         dialUnlocked: true,
       })
@@ -1198,7 +1240,7 @@ export function jumpToPhase(phase: Phase): void {
         devs: 40,
         projectsShipped: 3,
         cash: 8_000,
-        projectIndex: 1,
+        ...onProject(3),
         seedTaken: true,
         dialUnlocked: true,
       })
@@ -1211,6 +1253,7 @@ export function jumpToPhase(phase: Phase): void {
         devs: 2 + MASS_HIRE_COUNT,
         projectsShipped: 1,
         cash: 50,
+        ...onProject(1),
         massHired: true,
       })
       break

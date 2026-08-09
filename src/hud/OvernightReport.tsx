@@ -108,7 +108,7 @@ export function OvernightReport({ report, adReady, onCollect }: OvernightReportP
       */}
       <p className="overnight__total" data-revealed={revealed.total ? 'true' : 'false'}>
         <span className="overnight__total-label">BANKED</span>
-        {revealed.total && <Counter value={storyPoints} format={(n) => `${Math.round(n)} SP`} bounce />}
+        {revealed.total && <Counter value={storyPoints} format={(n) => `${Math.round(n)} STORY POINTS`} bounce />}
       </p>
 
       {idle && (

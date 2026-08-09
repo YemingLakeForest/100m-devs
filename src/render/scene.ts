@@ -21,6 +21,7 @@ import {
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { buildRoom, type RoomHandle } from './room.ts'
 import { buildTower, type TowerHandle } from './tower.ts'
+import { buildCity, type CityHandle } from './city.ts'
 
 /** Palette colour as the 0xrrggbb number Pixi wants. */
 function c(hex: string): number {
@@ -391,6 +392,13 @@ export interface Scene {
    * means by the *unit* changing.
    */
   tower: TowerHandle
+  /**
+   * Rungs 4-6 — the city (§7.8.2). The third occupant of the Level 2 slot:
+   * below 1,000 a floor of people, to 10,000 a stack of floors, and above that
+   * a block, a business park, a sprawl. Exactly one is ever visible, and the
+   * swap is what §7.7.1 means by the *unit* changing.
+   */
+  city: CityHandle
 }
 
 /** Build all four tiers. The caller parents them and drives their alpha. */
@@ -398,10 +406,11 @@ export function buildScene(renderer: Renderer): Scene {
   const floor = buildFloor(renderer)
   const room = buildRoom()
   const tower = buildTower()
+  const city = buildCity()
 
-  // Both occupy Level 2. The stage shows whichever the headcount calls for.
+  // All three occupy Level 2. The stage shows whichever the headcount calls for.
   const levelTwo = new Container()
-  levelTwo.addChild(floor.container, tower.container)
+  levelTwo.addChild(floor.container, tower.container, city.container)
 
   return {
     tiers: {
@@ -413,6 +422,7 @@ export function buildScene(renderer: Renderer): Scene {
     floor,
     room,
     tower,
+    city,
   }
 }
 

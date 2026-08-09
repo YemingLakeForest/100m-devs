@@ -1,57 +1,57 @@
 {
-  "generatedAt": "2026-08-08T15:01:59.955Z",
+  "generatedAt": "2026-08-08T21:30:54.485Z",
   "endpoint": "https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128",
   "note": "ElevenLabs Sound Effects, not the Music API. See GDD 20.7.1a and 20.7.6a.",
   "stems": [
     {
       "stem": "bed-title",
       "seconds": 30,
-      "prompt": "Sparse warm ambient drone, one slow held synth pad, distant and patient, a dark room at night with one monitor on. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+      "prompt": "Cosy sovietwave synth instrumental. A soft lead plays a slow four-note arpeggio over a warm pad, wistful and patient, a dark room at night with one monitor on. instrumental music in A minor, chord progression Am F C G, clear melodic movement, warm analogue synth, tape saturation, no drums, no percussion, no vocals, seamless loop, no fade in, no fade out"
     },
     {
       "stem": "bed-desk",
       "seconds": 30,
-      "prompt": "Warm cosy ambient drone, soft analogue synth pad, faint tape hiss, close and unhurried, the sound of one person who thinks this is going to be fine. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+      "prompt": "Cosy sovietwave synth instrumental, warm analogue pad over a slow gentle arpeggio, tape hiss, close and a little melancholy, the sound of one person who thinks this is going to be fine. instrumental music in A minor, chord progression Am F C G, clear melodic movement, warm analogue synth, tape saturation, no drums, no percussion, no vocals, seamless loop, no fade in, no fade out"
     },
     {
       "stem": "bed-floor",
       "seconds": 30,
-      "prompt": "Ambient office drone, warm pad with a faint air-conditioning hum underneath, slightly brighter and busier than a quiet room, corporate calm. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+      "prompt": "Retro sovietwave synth instrumental. A chorused lead plays a plain repeating eight-note phrase over an arpeggiated pad, air-conditioning hum underneath, brighter and busier than a quiet room. instrumental music in A minor, chord progression Am F C G, clear melodic movement, warm analogue synth, tape saturation, no drums, no percussion, no vocals, seamless loop, no fade in, no fade out"
     },
     {
       "stem": "bed-global",
       "seconds": 30,
-      "prompt": "Wide cold ambient synth drone, glassy shimmering texture, vast and inhuman, distant data-centre hum. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+      "prompt": "Cold wide sovietwave synth instrumental. A glassy detuned lead plays a slow descending arpeggio over a wide pad, vast and inhuman, the hum of a data centre somebody was proud of once. instrumental music in A minor, chord progression Am F C G, clear melodic movement, warm analogue synth, tape saturation, no drums, no percussion, no vocals, seamless loop, no fade in, no fade out"
     },
     {
       "stem": "bed-cosmic",
       "seconds": 30,
-      "prompt": "Enormous empty ambient space drone, deep sub-bass swell, slow evolving pad, existential and almost silent. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+      "prompt": "Enormous empty sovietwave synth instrumental. One very slow arpeggio on a distant bell-like lead over a deep sub-bass swell, tape-saturated, existential. instrumental music in A minor, chord progression Am F C G, clear melodic movement, warm analogue synth, tape saturation, no drums, no percussion, no vocals, seamless loop, no fade in, no fade out"
     },
     {
       "stem": "layer-calm",
       "seconds": 30,
-      "prompt": "Barely-there ambient shimmer, one soft high pad, occasional faint bell tone, almost nothing. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+      "prompt": "Sparse sovietwave synth instrumental. A soft high bell plays a few slow separated notes over a quiet pad, unhurried, almost nothing there. instrumental music in A minor, chord progression Am F C G, clear melodic movement, warm analogue synth, tape saturation, no drums, no percussion, no vocals, seamless loop, no fade in, no fade out"
     },
     {
       "stem": "layer-strained",
       "seconds": 30,
-      "prompt": "Uneasy ambient texture, slowly detuning synth pad, faint restless flutter, tension without resolution. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+      "prompt": "Uneasy sovietwave synth instrumental. A slowly detuning lead plays a short repeating figure that never resolves, restless tape flutter underneath. instrumental music in A minor, chord progression Am F C G, clear melodic movement, warm analogue synth, tape saturation, no drums, no percussion, no vocals, seamless loop, no fade in, no fade out"
     },
     {
       "stem": "layer-collapse",
       "seconds": 30,
-      "prompt": "Harsh dissonant ambient drone, detuned clashing pads, distant alarm-pitched whine, oppressive and wrong. no beat, no rhythm, no percussion, no melody, no vocals, continuous even texture, no fade in, no fade out, no build, seamless loop"
+      "prompt": "Harsh sovietwave synth instrumental. A badly detuned lead lurches between clashing notes over an oppressive pad, distant alarm-pitched whine, wrong. instrumental music in A minor, chord progression Am F C G, clear melodic movement, warm analogue synth, tape saturation, no drums, no percussion, no vocals, seamless loop, no fade in, no fade out"
     },
     {
       "stem": "sting-promotion",
       "seconds": 2.6,
-      "prompt": "Short rising musical sting, warm synth, triumphant and faintly ridiculous, resolves cleanly, one shot, no vocals, no fade in, no fade out"
+      "prompt": "Short rising sovietwave sting, warm analogue synth, triumphant and faintly ridiculous, resolves cleanly, one shot, in A minor, chord progression Am F C G, no vocals, no fade in, no fade out"
     },
     {
       "stem": "sting-paradigm",
       "seconds": 2.6,
-      "prompt": "Short descending then resolving musical sting, warm synth, a reset rather than a defeat, one shot, no vocals, no fade in, no fade out"
+      "prompt": "Short descending then resolving sovietwave sting, warm analogue synth, a reset rather than a defeat, one shot, in A minor, chord progression Am F C G, no vocals, no fade in, no fade out"
     }
   ]
 }
