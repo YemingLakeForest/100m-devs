@@ -16,12 +16,137 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
   margin: 0;
   overflow: hidden;
   background: var(--n0);
+}
+
+/*
+ * ========================================================================
+ * The frame — how a landscape-locked game sits in a browser window.
+ * ========================================================================
+ *
+ * On a handset this is a no-op: `sensorLandscape` (AndroidManifest) means the
+ * window is always inside the §23.4.2 design box, so the clamps below never
+ * bite and `#root` is the viewport, exactly as it was.
+ *
+ * The web has no orientation lock. A browser window is any shape the person
+ * dragged it to — a tall thin one, an ultrawide one, a 16:10 laptop — and
+ * three of those are outside the box the whole layout is composed against.
+ * Rather than let the composition break at the edges of a range it was never
+ * designed for, the game is given a box of a legal shape and the leftover
+ * window is left dark around it.
+ *
+ * The arithmetic, with W = 100vw and H = 100vh:
+ *
+ *   width  = min(W, H * 2.4)    never wider than 2.4:1
+ *   height = min(H, W / 1.78)   never taller than 1.78:1
+ *
+ * which is the largest box of a legal aspect that fits — W x H untouched
+ * whenever W/H is already between 1.78 and 2.4, letterboxed above and below
+ * when the window is too tall, pillarboxed left and right when it is too wide.
+ * One pair of `min()`s rather than a media query, so it is continuous while
+ * the window is being dragged instead of snapping at a breakpoint.
+ *
+ * The 1px phosphor rule is an `outline` and not a `border`: a border is inside
+ * the box and would eat a pixel row off the picture on a phone, where the box
+ * *is* the screen and there is no margin for it to sit in.
+ */
+#root {
+  width: min(100vw, calc(100vh * 2.4));
+  height: min(100vh, calc(100vw / 1.78));
+  /*
+   * Absolute + `inset: 0` + a fixed size + `margin: auto` centres on both axes
+   * without giving `body` a layout mode, so nothing inside the app has to know
+   * it is in a box rather than in the window.
+   */
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  overflow: hidden;
+  background: var(--n0);
+  outline: var(--rule) solid var(--p1);
+
+  /*
+   * `--edge-x` is `max(5vw, ...)` — five percent of the *window*, which stops
+   * being five percent of the picture the moment the picture is pillarboxed.
+   * Making this a size container lets that token resolve in `cqw` against the
+   * frame instead, so the §23.4.2 side clearance is a fraction of the thing it
+   * is clearing. On a phone `cqw == vw` and nothing changes.
+   */
+  container-type: size;
+  container-name: frame;
+}
+
+/*
+ * Portrait on the web — the one shape no amount of letterboxing rescues.
+ *
+ * A 9:16 phone browser clamped to 1.78:1 leaves a strip a third of the screen
+ * tall, and the HUD's two edge rails (176px each) would meet in the middle of
+ * it. So say so instead of rendering it. Static markup in index.html rather
+ * than a React branch: it has to be right before the bundle has parsed, which
+ * is precisely when someone opens the link on a phone held upright.
+ *
+ * `max-aspect-ratio: 1/1` and not an `orientation` query — a short wide
+ * desktop window is landscape by orientation and perfectly fine, and a square
+ * one is neither.
+ */
+.rotate-me {
+  display: none;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  #root {
+    display: none;
+  }
+
+  .rotate-me {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--type-2x);
+    padding: var(--type-3x);
+    text-align: center;
+    background: var(--n0);
+    color: var(--p2);
+    font-family: var(--font-terminal);
+    font-size: var(--type-2x);
+    line-height: 1.4;
+  }
+
+  .rotate-me__rule {
+    color: var(--p1);
+    font-size: var(--type-1x);
+    letter-spacing: 0.15em;
+  }
+
+  /*
+   * A phone, turning. Two hard-edged boxes and a step animation — the same
+   * rule as everything else on screen: no easing curve that implies a lit
+   * object, no rounded corner, no shadow.
+   */
+  .rotate-me__phone {
+    width: 44px;
+    height: 76px;
+    border: 2px solid var(--p2);
+    animation: rotate-me-turn 2.4s steps(1, end) infinite;
+  }
+}
+
+@keyframes rotate-me-turn {
+  0%,
+  40% {
+    transform: rotate(0deg);
+  }
+  50%,
+  100% {
+    transform: rotate(-90deg);
+  }
 }
 
 body {

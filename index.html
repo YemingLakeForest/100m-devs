@@ -11,6 +11,26 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#14121a" />
     <meta name="apple-mobile-web-app-title" content="100M Developers" />
+
+    <!--
+      Temporary generated icon — `npm run art:icon` (scripts/build-icon.ts).
+      Not a hand-exported PNG: the script is the source, so replacing it with
+      real key art is one edit rather than an archaeology exercise.
+    -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- What a shared link unfurls to. -->
+    <meta name="description" content="Hire developers. Ship nothing. An idle game about scale." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="100,000,000 Developers" />
+    <meta
+      property="og:description"
+      content="Hire developers. Ship nothing. An idle game about scale."
+    />
+    <meta property="og:image" content="/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
     <!--
       No webfont CDN link. ART_DIRECTION §3 rule 1 forbids anti-aliased/vector
       faces anywhere in the product; Departure Mono is self-hosted from
@@ -20,6 +40,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      The game is landscape-only (GDD §23.4). On a phone this is enforced by
+      the OS and this markup is dead weight; in a browser nothing enforces it,
+      so a portrait window gets told, by CSS alone (app.css, `.rotate-me`).
+      Static markup and a media query rather than a React branch: a production
+      build's stylesheet is a render-blocking `<link>`, so this is right on the
+      first paint rather than after the bundle has parsed and mounted — which
+      is the difference on the phone someone just opened the link on.
+    -->
+    <div class="rotate-me">
+      <div class="rotate-me__phone"></div>
+      <div>ROTATE YOUR DEVICE</div>
+      <div class="rotate-me__rule">100,000,000 DEVELOPERS RUNS IN LANDSCAPE</div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

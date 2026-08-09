@@ -29,8 +29,15 @@
    * curved cutoff all live there. The gutter is the larger of that clearance
    * and whatever the OS reports, so an element anchored to it is anchored to
    * a real edge rather than to a fraction of a box it happens to be inside.
+   *
+   * `cqw` and not `vw`: on the web the game is letterboxed into a legal
+   * aspect (app.css, `#root`), and on an ultrawide window five percent of the
+   * *window* is a good deal more than five percent of the *picture* — the
+   * rails would drift inward on exactly the monitors with the most room. The
+   * container is `#root` itself, so on a handset, where the frame is the
+   * screen, `cqw` and `vw` are the same number.
    */
-  --edge-x: max(5vw, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  --edge-x: max(5cqw, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   --edge-y: max(12px, env(safe-area-inset-bottom, 0px));
   --edge-top: max(10px, env(safe-area-inset-top, 0px));
 

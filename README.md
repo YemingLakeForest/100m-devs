@@ -35,12 +35,17 @@ Useful while working on the render stack:
 | `?bench` | Run the ADR §7.5 acceptance sequence and print a pass/fail table. `?bench=10` shortens the 60s sustained-tap leg. |
 | `?act=act5_bleeding` | Jump the §21 script. Run 1 is paced to take ~4 minutes by design, which is right for a player and unworkable for iterating on Act V's copy. |
 
-Android:
+On a phone, and on the web:
 
 ```bash
-npm run build && npx cap sync android
-cd android && ./gradlew assembleDebug
+./deploy.sh --launch   # build the snapshot APK, install it over Wi-Fi ADB, start it
+npm run art:icon       # regenerate the (temporary) launcher icon
 ```
+
+The web build ships to **https://100mdevs.mercilessstudio.com** from GitHub
+Actions on every push to `main`. Both, and how a landscape-locked game is framed
+in a browser window that is any shape at all, are in
+[`docs/DEPLOY.md`](./docs/DEPLOY.md).
 
 ## Documents
 
@@ -48,6 +53,7 @@ cd android && ./gradlew assembleDebug
 |---|---|
 | [`GDD.md`](./GDD.md) | Full game design document — core loop, Communication Entropy engine, the Omni-Lens zoom architecture, upgrade and three-layer prestige trees with full mathematics, endgame, events, dialogue, audio spec, and onboarding script. |
 | [`MONETISATION.md`](./MONETISATION.md) | Revenue model, rewarded-ad placements, IAP catalogue, subscription design, launch phasing, and the guardrails protecting the Early Game Trap. |
+| [`docs/DEPLOY.md`](./docs/DEPLOY.md) | Getting it onto a phone and onto the web — `deploy.sh`, the Cloudflare Pages pipeline, and how the landscape lock survives a browser window. |
 | [`docs/HANDOFF.md`](./docs/HANDOFF.md) | **Start here.** Current state, the one decision waiting on a human, and what to build next. |
 | [`docs/PROJECT_SETUP.md`](./docs/PROJECT_SETUP.md) | Runbook from empty repo to first build — identity, toolchain, dependencies, accounts, costs, and the setup order. |
 | [`docs/ART_DIRECTION.md`](./docs/ART_DIRECTION.md) | Palette, type, the two-register look, how each asset tier is produced, the build-step quantiser, and the acceptance checklist every asset must pass. |

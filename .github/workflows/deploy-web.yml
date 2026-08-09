@@ -1,0 +1,43 @@
+# Deploy the web build to Cloudflare Pages (100mdevs.mercilessstudio.com) on
+# every push to main. Needs two repo secrets (one-time setup):
+#   CLOUDFLARE_API_TOKEN   - API token with the "Cloudflare Pages: Edit" permission
+#   CLOUDFLARE_ACCOUNT_ID  - dashboard -> Workers & Pages -> account id (right rail)
+# and a one-time Pages project + custom domain — see docs/DEPLOY.md §2.
+#
+# Unlike the other studio games this needs no GH_PACKAGES_TOKEN: nothing here
+# depends on the private @mercilessstudio packages yet. Add the token and the
+# `insteadOf` git rewrite (copy geodaily's workflow) on the day game-cloud or
+# game-monetise lands in package.json, because the lockfile pins those as
+# git+ssh and the runner has no SSH key.
+name: deploy-web
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # `build` is `tsc -b && vite build`, so a type error fails the deploy
+      # rather than shipping. The rest of `npm run check` (lint, vitest, the
+      # art gate) belongs on the PR, not in front of the deploy.
+      - run: npm run build
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # --branch=main: checkout is a detached HEAD, so without this wrangler
+          # files the deploy as a preview and production never updates.
+          command: pages deploy dist --project-name=100mdevs --branch=main

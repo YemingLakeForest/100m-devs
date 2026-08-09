@@ -23,6 +23,11 @@ dist-ssr
 *.local
 coverage/
 
+# Snapshot APKs and the phone address deploy.sh caches — build outputs, and a
+# machine's own LAN, neither of which belongs to anybody else's checkout.
+.apk/
+.adb-wifi-ip
+
 # Git worktrees created by Claude Code. Full repo checkouts -- never commit these.
 .claude/worktrees/
 
