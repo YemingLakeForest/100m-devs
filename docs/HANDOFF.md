@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**919 tests.** Lint, types and the art gate clean.
+**921 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -34,7 +34,7 @@ simulation.
 | **Prestige** | Layer 1 built — BP earned, banked, spent on the Paradigm Tree; 2 of 5 nodes wired |
 | **Audio** | 13 SFX + 10 music stems generated and playing |
 | **Art** | **0 of §22.7's 19 authored sprites.** Everything on screen is code-drawn from the palette |
-| **Rungs** | 0–6 built (room, tower, block, business park, sprawl), **and the lens now visits every one of them** (§7.4a). 7–9 have no geometry of their own — §7.4's grid and cosmic tiers stand in |
+| **Rungs** | 0–6 built and the lens visits every one (§7.4a). **Rungs 0–2 are all the room** — a desk, a huddle and a full floor of a thousand, with walls, plates and individuals throughout. 7–9 have no geometry of their own; §7.4's grid and cosmic tiers stand in |
 | **The clicker** | Per-developer output (§4.9a) and the `+1` over each head (§8.2b). A poke is worth what the person is worth. **A poke still pays once rather than buffing** — R14 |
 | **The economy** | Long-tailed revenue with a back catalogue, and the graph that shows it (§4.10e) |
 | **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. **Rows now run along the floor**, parallel to the wall and across the way people face, as one continuous desk bank |
@@ -303,7 +303,26 @@ not depend on the column, and the PC tower was positioned at `x + 21` screen
 pixels — which put it in mid-air beside the developer the moment the room turned.
 **A prop placed in screen pixels does not know which way the room is facing.**
 
-### 11. A ratio-scaled count is not a number of seats
+### 11. A placeholder outlives the reason for it
+
+The abstract particle floor existed because a thousand real developers were
+assumed to be unaffordable. **Measured, the room holds a thousand `Container`s
+at 59 fps** — the same figure the particles were getting. The cost was never
+charged, and in the meantime rung 2 (a hundred to a thousand developers, which
+is most of the game) was drawn as a grid of dots with no walls, no floor plates
+and nobody in it you could zoom to or hire onto.
+
+Three separate things were downstream of that one assumption and all three were
+wrong at once: a single hire above 120 developers produced **no animation at
+all** (the arrival range was clamped to the old cap), §7.8.1c's unfold
+**dissolved the room's walls** on the reading that the studio had outgrown them,
+and §21 Act IV's dolly was a hardcoded `0.35` that under the §7.4a ladder points
+at the *tower* rather than at the floor the thousand developers just landed on.
+
+**Measure the constraint before designing around it**, and when a placeholder is
+replaced, go looking for what else was shaped by it.
+
+### 12. A ratio-scaled count is not a number of seats
 
 Reported as "the hiring animation, the fall goes down to the person before".
 §7.7.3's `spawnBurst` is the *spectacle* weight — twelve bodies for the hire
@@ -320,7 +339,7 @@ and `arrivals.revealed` withholds a seat from the room until its arrival lands.
 **Anything that positions itself on a seat wants the range; only the swarm
 tiers want the weight.**
 
-### 12. If you know what is arriving, drop *that*
+### 13. If you know what is arriving, drop *that*
 
 Asked as "why are they white to start with and change into their colour? why
 not just create the person well in the first place?" — and there was no answer.
@@ -333,7 +352,7 @@ It also deleted a whole class of bug: a placeholder has to be kept in step with
 the thing it stands in for, and this one had already drifted (a chair beat, for
 a chair the room does not draw).
 
-### 13. A guard copied onto a second call site is a guard in the wrong place
+### 14. A guard copied onto a second call site is a guard in the wrong place
 
 While fixing trap 11 the `!first` guard — which correctly stops §21's *camera
 reveal* firing on a jumped-to phase — got copied onto `arrivals.spawn` as well.
@@ -342,7 +361,7 @@ Nothing publishes a spawn event except a real hire, so `first` is the player's
 appeared with no animation at all. It survived a full test run and was found
 only by clicking the button and watching.
 
-### 14. Synthetic pointer events do not reach the canvas
+### 15. Synthetic pointer events do not reach the canvas
 
 Which is why `?select=4` exists, alongside `?overnight`, `?ad` and `?dialogue`. Add a seam
 rather than fighting the automation; they have each paid for themselves.

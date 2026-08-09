@@ -44,11 +44,20 @@ const TILE_H = 32
 /**
  * Most developers this tier ever draws individually.
  *
- * §7.7.1's zoom ceiling opens the floor tier at 100, so this only has to cover
- * rungs 0–2 with headroom. Past it the swarm is the floor's job and these
- * become 1,000 particles instead.
+ * **A full floor — §7.8.1a's own number, and §23.3 criterion 4's.** It was 120,
+ * on the reasoning that "past it the swarm is the floor's job and these become
+ * 1,000 particles instead", and that handover was the whole problem: rung 2 is
+ * where the entire hundred-to-a-thousand band of the game lives, and it was
+ * being drawn as an abstract particle grid with no walls, no plates and no
+ * individuals in it.
+ *
+ * The perf reason turned out not to exist. Measured at a thousand real
+ * developers — a thousand `Container`s with their own faces, hops and idle
+ * animation — the room holds **59 fps** on the desktop reference, which is the
+ * same figure the particle floor was getting. The particle path was bought with
+ * a cost that was never charged.
  */
-export const ROOM_DEV_CAP = 120
+export const ROOM_DEV_CAP = 1000
 
 /**
  * Desk pitch — **different along a row and between rows**, which is the whole
@@ -1440,10 +1449,21 @@ export function buildRoom(): RoomHandle {
     // that actually contains it — see `blockBox` and `plateHalfWidth`. The
     // previous `max(width, height)` was correct only for a nearly flat block
     // and let the corners of a deep one hang over the edge of the plate.
-    const box = blockBox(0, 0, cols - 1, rows - 1)
+    // **The shell encloses whatever the studio actually occupies.**
+    //
+    // It used to be sized from the block inside a single squad and then faded
+    // to nothing by the unfold, on the reading that "its walls and its dressing
+    // belong to a room that has just been outgrown". That left every headcount
+    // above a hundred standing on bare plates in the dark — no walls, no floor,
+    // no room. A studio that grows does not stop being in a building; it takes
+    // more of one. So past the unfold the shell is sized from the *floor*
+    // rather than from the squad, and it stays.
+    const box = unfolded
+      ? floorBox(Math.ceil(n / SQUAD_SIZE))
+      : blockBox(0, 0, cols - 1, rows - 1)
     const bw = (box.maxX - box.minX) / 2
     const bh = (box.maxY - box.minY) / 2
-    const floorW = plateHalfWidth(bw, bh, margin)
+    const floorW = unfolded ? Math.max(bw, bh * 2) * margin : plateHalfWidth(bw, bh, margin)
     const floorH = floorW / 2
     const halfW = floorW / TILE_W
     const cx = (box.minX + box.maxX) / 2
@@ -1861,11 +1881,12 @@ export function buildRoom(): RoomHandle {
       const g = squadDesks[Math.floor(i / SQUAD_SIZE)]
       devs[i].visible = i < desks.length && (!g || g.visible)
     }
-    // The room folds away as the floor opens: its walls, its dressing and the
-    // surplus of plate around squad 0 all belong to a room that has just been
-    // outgrown.
-    shell.alpha = 1 - Math.min(1, t / 0.6)
-    light.alpha = shell.alpha
+    // **The room does not fold away.** It used to: the shell dissolved over the
+    // first 60% of the unfold, on the reading that its walls belonged to a room
+    // the studio had outgrown. What that produced was a floor with no building
+    // round it at every headcount past a hundred. The shell is sized from the
+    // whole occupied floor now (see `rebuild`), so it is the *same* room, with
+    // the walls pushed out to where the desks reached.
   }
 
   rebuild(1)

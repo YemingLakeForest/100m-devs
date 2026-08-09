@@ -8,16 +8,16 @@
  * at any point during the move.
  *
  * So the thing the camera travels along is the **Construction Ladder**, rung by
- * rung, and each rung has a *view*: the picture that rung is a picture of. Two
- * rungs share the room (a desk and a huddle are the same room seen from two
- * distances) and two share the cosmic tier (a system and a cluster likewise);
- * everything between them is one rung, one view, one place the camera can stop.
+ * rung, and each rung has a *view*: the picture that rung is a picture of.
+ * Three rungs share the room — a desk, a huddle and a full floor are the same
+ * room seen from three distances — and two share the cosmic tier; everything
+ * between them is one rung, one view, one place the camera can stop.
  *
  * | Rung | §7.7.1 unit | View | §7.4 tier |
  * |---|---|---|---|
  * | 0 | person | `room` | 1 |
  * | 1 | person | `room` | 1 |
- * | 2 | person | `floor` | 2 |
+ * | 2 | person | `room` | 2 |
  * | 3 | floor | `tower` | 2 |
  * | 4 | building | `block` | 3 |
  * | 5 | campus | `park` | 3 |
@@ -40,10 +40,19 @@ import type { ZoomLevel } from './poke.ts'
 export const TOP_RUNG = 9
 
 /** What the camera is looking at, at each stop on the ladder. */
-export type ViewKind = 'room' | 'floor' | 'tower' | 'block' | 'park' | 'sprawl' | 'grid' | 'cosmic'
+export type ViewKind = 'room' | 'tower' | 'block' | 'park' | 'sprawl' | 'grid' | 'cosmic'
 
 export interface LadderView {
   view: ViewKind
+  /**
+   * The lowest rung this view covers.
+   *
+   * Separate from {@link stop}, and the separation is load-bearing: `room`
+   * spans rungs 0 to 2 and fits at 2, so "is this view earned" cannot be asked
+   * of the stop. Deriving the gate from the stop said a one-developer studio
+   * had not earned the room it was sitting in.
+   */
+  from: number
   /**
    * The rung this view is the picture of, and the Z at which it exactly fits
    * the frame. Fractional for the two views that span a pair of rungs, so the
@@ -60,23 +69,26 @@ export interface LadderView {
   halfWidth: number
 }
 
-/**
- * Every stop, in ladder order.
- *
- * `room` sits at rung 1 rather than 0 because rung 0 is the *inside* of the
- * room — pinching below its stop scales the room up, which is §7.7.4's Hero
- * Anchor: all the way in is always James's desk, and it costs nothing to
- * implement because it is simply the bottom of the same curve.
- */
+/** Every stop, in ladder order. */
 export const VIEWS: readonly LadderView[] = [
-  { view: 'room', stop: 1, tier: 1, halfWidth: 1.25 },
-  { view: 'floor', stop: 2, tier: 2, halfWidth: 1.25 },
-  { view: 'tower', stop: 3, tier: 2, halfWidth: 1.25 },
-  { view: 'block', stop: 4, tier: 3, halfWidth: 1.15 },
-  { view: 'park', stop: 5, tier: 3, halfWidth: 1.15 },
-  { view: 'sprawl', stop: 6, tier: 3, halfWidth: 1.15 },
-  { view: 'grid', stop: 7, tier: 3, halfWidth: 1.25 },
-  { view: 'cosmic', stop: 8.5, tier: 4, halfWidth: 1.9 },
+  // **Rungs 0, 1 and 2 are all the room**, and the third of those is the
+  // correction. Rung 2 used to be a separate `floor` view — an abstract grid of
+  // particles with no walls, no plates and no individuals in it — on the
+  // assumption that a thousand real developers could not be drawn. They can:
+  // measured at 59 fps, the same figure the particles were getting. So the
+  // whole hundred-to-a-thousand band, which is most of the game, is the room
+  // the player already knows, seen from further out and fuller.
+  //
+  // The stop is rung 2 because that is where the *full* floor exactly fits.
+  // Pinching in from there over-scales the same geometry toward the desk, which
+  // is §7.7.4's Hero Anchor and is exactly how rung 0 already worked.
+  { view: 'room', from: 0, stop: 2, tier: 1, halfWidth: 2.1 },
+  { view: 'tower', from: 3, stop: 3, tier: 2, halfWidth: 1.25 },
+  { view: 'block', from: 4, stop: 4, tier: 3, halfWidth: 1.15 },
+  { view: 'park', from: 5, stop: 5, tier: 3, halfWidth: 1.15 },
+  { view: 'sprawl', from: 6, stop: 6, tier: 3, halfWidth: 1.15 },
+  { view: 'grid', from: 7, stop: 7, tier: 3, halfWidth: 1.25 },
+  { view: 'cosmic', from: 8, stop: 8.5, tier: 4, halfWidth: 1.9 },
 ] as const
 
 export const VIEW_KINDS: readonly ViewKind[] = VIEWS.map((v) => v.view)
@@ -187,7 +199,7 @@ export function ceilingZForRung(rung: number): number {
  * campus the player has not built ghosts in behind the block they have.
  */
 export function viewEarnedAt(view: ViewKind, rung: number): boolean {
-  return viewSpec(view).stop <= Math.max(1, rung) + 0.5
+  return viewSpec(view).from <= Math.max(1, rung)
 }
 
 /**

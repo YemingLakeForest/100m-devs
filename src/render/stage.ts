@@ -179,17 +179,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * the nearest desk.
    */
   const pickDeveloper = (x: number, y: number): number => {
-    // §7.4a — only the two rungs where one sprite is one person have anybody
-    // to pick. Above them the unit is a floor, a building, a town, and the
-    // right answer to "who is under the thumb" is nobody.
-    if (currentView !== 'room' && currentView !== 'floor') return -1
+    // §7.4a — only the room has anybody to pick, and the room is now all three
+    // rungs where one sprite is one person. Above it the unit is a floor, a
+    // building, a town, and the right answer to "who is under the thumb" is
+    // nobody.
+    if (currentView !== 'room') return -1
     if (!(currentScale > 0)) return -1
 
     const container = views[currentView]
     // Screen -> view-local. The view's pivot is baked into its own transform,
     // so working through the container is safer than re-deriving it here.
     const local = container.toLocal({ x, y })
-    const seats = currentView === 'room' ? roomSeats() : floor.seats
+    const seats = roomSeats()
     // A generous radius: a fingertip is about 9 mm and the desks are small.
     // Scaled into view space so it stays a thumb-sized target at any zoom.
     return pickNearest(seats, local.x, local.y, 26 / Math.max(0.15, currentScale) + 14)
@@ -306,7 +307,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const DOUBLE_TAP_SLOP = 24
   let lastTap = { t: 0, x: 0, y: 0 }
 
-  const tapIsAPoke = () => currentView === 'room' || currentView === 'floor'
+  const tapIsAPoke = () => currentView === 'room'
 
   /** §21 Act IV's scripted dolly, and §7.7.6's double-tap. Null when the camera is the player's again. */
   let dollyTarget: number | null = null
@@ -628,7 +629,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
     if (state.massHired && !dollyFired) {
       dollyFired = true
-      dollyTarget = 0.35
+      // §21 Act IV — "the camera violently zooms out to Level 2", which is the
+      // *floor*. This was a hardcoded 0.35, written when Z was four uneven
+      // bands; under §7.4a's ladder 0.35 is rung 3.15, so the trap sprang and
+      // the camera pulled back to a one-storey tower instead of to the floor
+      // the thousand developers had just landed on. A regression introduced by
+      // the ladder and invisible until somebody watched Act IV.
+      dollyTarget = zAtRung(2)
       playSfx('zoom-out')
       // Parts 2–4 of the same beat: the swarm falling, the Slack web, the
       // @everyone flood and the audio shift.
@@ -730,9 +737,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // falling silhouette lands on somebody already sitting in the chair, which
     // is most of why a hire read as a glitch.
     room.setHeadcount(Math.min(state.devs, arrivals.revealed))
-    // §7.7.1 again, on the other rungs: every view shows the people who exist,
-    // not a thousand placeholders ghosting in behind two developers.
-    floor.setPopulation(state.devs)
+    // §21 Act IV only. The particle swarm is no longer a ladder stop — the room
+    // draws the people at every rung where a person is a person — so it shows
+    // nobody unless the trap has sprung and there is a thousand-body drop to
+    // stage. See scene.ts.
+    floor.setPopulation(collapse.active ? state.devs : 0)
     // §7.4a — **all of them, every frame.** These used to be mutually exclusive,
     // chosen by headcount, and that was the bug: a studio of three million was
     // *only ever* a sprawl, so the tower and the block it was built out of could
@@ -821,9 +830,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // to sit over. That is a scope rather than a gap — §8.2b's thinning rule
     // aggregates *within* a floor of people, and the rung above it is already
     // the aggregate.
-    if (currentView === 'room' || currentView === 'floor') {
-      const seats = currentView === 'room' ? roomSeats() : floor.seats
-      const drawn = currentView === 'room' ? room.drawn : Math.min(seats.length, state.devs)
+    if (currentView === 'room') {
+      const seats = roomSeats()
+      const drawn = room.drawn
       // §4.9a — each seat's share of the studio, so the numerals differ by as
       // much as the people do. The shares sum to the headcount, so the numerals
       // on screen add up to the velocity in the readout.

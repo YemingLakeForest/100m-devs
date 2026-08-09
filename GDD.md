@@ -5893,6 +5893,7 @@ not told to us twice — and every one is built.
 | E4 | "There's a big shade of black on title screen, what is that" | §10.9.6 | **Built — needs eyes.** The near field was a hard-edged slab of background colour over a third of the frame. Now a heavily blurred crop off two edges with a lit rim |
 | E5 | "I want to see some stats that reports Man-Week, the key metric the users are tracking in their head, but not the actual velocity they get" | §10.1a | **Built.** `MAN-WEEKS` — the plan against what lands, in the plan's own unit. At Act IV it reads `1.0K` over `0 DELIVERED` |
 | E6 | "The speech bubble in and out animation ... they zoom and way too slow" | §8.3 | **Built.** Wall-clock 110 ms snap with an overshoot, a shut that collapses vertically, and words that never scale — they are up at full size or not up at all |
+| E7 | "On floor view (>100 dev) it should still be on a floor, with wall and stuff. And you should still be able to zoom to individual level. Hire 1x should still be visible" | §7.8.1, §7.4a | **Built.** Rung 2 is the **room**, not an abstract particle grid: `ROOM_DEV_CAP` is a full thousand (measured at 59 fps, the same as the particles), the unfold no longer dissolves the walls, and the shell is sized from the whole occupied floor. Individuals are drawn, pokeable and zoomable at every headcount to a thousand, and a single hire animates at any of them |
 
 ---
 

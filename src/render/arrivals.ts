@@ -182,6 +182,22 @@ export function cascadeDelay(i: number, n: number): number {
  */
 export const SOUNDED_ARRIVALS = 4
 
+/**
+ * Most bodies animated for one hire, however many were hired.
+ *
+ * A hire now lands the *real* desk, workstation and developer, which is three
+ * display objects each — so §21 Act IV's thousand-strong Mass Hire would build
+ * three thousand of them inside a single frame. That is a hitch on the one beat
+ * the whole run is built toward.
+ *
+ * A hundred and twenty is about the most bodies the eye can follow landing
+ * anyway (§7.7.3 caps its own arrival weight at the same figure and for the
+ * same reason). Seats past it are simply revealed when the cascade finishes,
+ * and at the only headcount where that happens the §21 Act IV particle drop is
+ * on screen doing the spectacle.
+ */
+export const MAX_ARRIVAL_BODIES = 120
+
 interface Live {
   /** The seat this is filling. */
   seat: number
@@ -257,7 +273,8 @@ export function createArrivals(): Arrivals {
     },
 
     spawn(from, to, seed, now) {
-      const count = Math.max(0, Math.floor(to) - Math.floor(from))
+      const hired = Math.max(0, Math.floor(to) - Math.floor(from))
+      const count = Math.min(hired, MAX_ARRIVAL_BODIES)
       if (count === 0) return
       // A batch landing on top of a batch would leave the earlier one's seats
       // withheld for ever, because `revealed` only ever counts forward. Finish

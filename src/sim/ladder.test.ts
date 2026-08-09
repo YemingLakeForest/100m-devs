@@ -30,7 +30,7 @@ describe('the ladder is the navigation — GDD §7.4a', () => {
 
   it('climbs one rung at a time and never skips one', () => {
     // §7.4a: "Zoom out today and you arrive at a galaxy, skipping the building,
-    // the campus and the town." Walking Z from the desk to the galaxy must now
+    // the campus and the town." Walking Z from the desk to the galaxy must
     // visit *every* view in ladder order, with nothing jumped over.
     const seen: ViewKind[] = []
     for (let z = 0; z <= 1.0001; z += 0.002) {
@@ -38,6 +38,24 @@ describe('the ladder is the navigation — GDD §7.4a', () => {
       if (seen[seen.length - 1] !== view) seen.push(view)
     }
     expect(seen).toEqual(VIEWS.map((v) => v.view))
+  })
+
+  it('keeps the room a room for the whole hundred-to-a-thousand band', () => {
+    // Rung 2 used to be a separate particle grid with no walls and no
+    // individuals in it, which is most of the game drawn as an abstraction.
+    // The room covers rungs 0, 1 and 2 — a desk, a huddle and a full floor are
+    // the same room from three distances.
+    expect(dominantView(zAtRung(0))).toBe('room')
+    expect(dominantView(zAtRung(1))).toBe('room')
+    expect(dominantView(zAtRung(2))).toBe('room')
+    expect(dominantView(zAtRung(3))).toBe('tower')
+  })
+
+  it('lets a studio of any size see the room it is standing in', () => {
+    // The gate is the view's *lowest* rung, not its fit. Deriving it from the
+    // stop said a one-developer studio had not earned the room around it, and
+    // blanked the screen at the one headcount the game opens on.
+    for (const rung of RUNGS) expect(viewEarnedAt('room', rung.rung)).toBe(true)
   })
 
   it('puts the building, the campus and the town between the tower and the stars', () => {

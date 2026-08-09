@@ -19,7 +19,7 @@ import {
   type Renderer,
 } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
-import { buildRoom, type RoomHandle } from './room.ts'
+import { buildRoom, seatPosition, type RoomHandle } from './room.ts'
 import { buildTower, type TowerHandle } from './tower.ts'
 import { buildCity, type CityHandle } from './city.ts'
 import type { ViewKind } from '../sim/ladder.ts'
@@ -210,10 +210,14 @@ function buildFloor(renderer: Renderer): FloorSwarm {
   const seats: Array<{ x: number; y: number }> = []
 
   for (let i = 0; i < FLOOR_SPRITE_COUNT; i++) {
-    const col = i % cols
-    const row = Math.floor(i / cols)
-    const x = (col - row) * (TILE_W / 4)
-    const y = (col + row) * (TILE_H / 4)
+    // **On the room's own seats**, not on a private 32x32 grid.
+    //
+    // The swarm used to have a layout of its own because it was a separate
+    // ladder stop with its own camera fit. It is now §21 Act IV's drop and
+    // nothing else, parented inside the room — so a body has to fall onto the
+    // desk it is going to occupy, or the thousand developers land in a
+    // rectangle beside the floor they were hired onto.
+    const { x, y } = seatPosition(i)
     restY[i] = y
     // Every 12th desk anchors the web. All 1,000 would be an opaque red sheet
     // rather than a web, and 83 endpoints already reads as "everyone".
@@ -416,9 +420,16 @@ export function buildScene(renderer: Renderer): Scene {
   const grid = buildGlobal()
   const cosmic = buildCosmic()
 
+  // §7.8.1a — the particle swarm is **not a ladder stop any more.** It exists
+  // solely as §21 Act IV's subject: a thousand bodies that can be dropped out
+  // of the sky at once, which is a spectacle the room's own developers cannot
+  // afford to be (three display objects each, built in a single frame). It is
+  // parented into the room so it lands on the room's floor, in the room's
+  // transform, and it draws nobody until the trap springs.
+  room.container.addChild(floor.container)
+
   const views: Record<ViewKind, Container> = {
     room: room.container,
-    floor: floor.container,
     tower: tower.container,
     block: city[4].container,
     park: city[5].container,
@@ -433,8 +444,6 @@ export function buildScene(renderer: Renderer): Scene {
       switch (view) {
         case 'room':
           return room.extent
-        case 'floor':
-          return TIER_EXTENTS[2]
         case 'tower':
           return tower.extent
         case 'block':
