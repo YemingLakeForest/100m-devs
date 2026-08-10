@@ -12,8 +12,7 @@ import { Application, Container } from 'pixi.js'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   currentEntropy,
-  currentVelocity,
-  developerShare,
+  developerVelocity,
   getState,
   poke,
   selectDeveloper,
@@ -919,8 +918,17 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // §4.9a — each seat's share of the studio, so the numerals differ by as
       // much as the people do. The shares sum to the headcount, so the numerals
       // on screen add up to the velocity in the readout.
-      const perDev = state.devs > 0 ? currentVelocity(state) / state.devs : 0
-      const sources = tallySources(seats, drawn, (i) => perDev * developerShare(i, state))
+      //
+      // **Asked of the store rather than reconstructed here**, and after R14
+      // that is load-bearing rather than tidiness. This used to be
+      // `currentVelocity / devs * developerShare(i)`, which was the same number
+      // until §4.5a's buffs existed — a buff raises `currentVelocity`, so the
+      // hand-rolled version spreads one poked developer's lift evenly over
+      // every head on the floor. §4.5c requires the opposite: "modifiers must be
+      // legible on the target, not buried in a panel." `developerVelocity`
+      // carries only that seat's own buff, so the numeral over the person you
+      // poked is the one that speeds up. Pinned in `pokeBuff.test.ts`.
+      const sources = tallySources(seats, drawn, (i) => developerVelocity(i, state))
       const container = views[currentView]
       for (const source of sources) {
         // View-local -> screen. The offset is applied *before* the transform so

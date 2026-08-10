@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { __resetStore, jumpToPhase } from '../game/store.ts'
+import { __resetStore, __setState, baseVelocity, getState, jumpToPhase, poke, pokeVelocity, tick } from '../game/store.ts'
 import { Hud } from './Hud.tsx'
 
 // The kit's sound bank goes through the native path, which has no business
@@ -253,5 +253,59 @@ describe('the Layer', () => {
       .filter(Boolean)
 
     expect(new Set(areas).size).toBe(areas.length)
+  })
+})
+
+describe('§10.1’s velocity split after R14 — the "you" half is the whole of you', () => {
+  /** The two numbers out of `3,880 swarm + 240 you`. */
+  function splitFrom(container: HTMLElement): { swarm: number; you: number } | null {
+    const line = [...container.querySelectorAll('.hud__sub--split')]
+      .map((n) => n.textContent ?? '')
+      .find((t) => t.includes('swarm'))
+    if (!line) return null
+    const m = line.match(/^([\d,.]+) swarm \+ ([\d,.]+) you$/)
+    if (!m) throw new Error(`unreadable split: ${line}`)
+    return { swarm: Number(m[1].replace(/,/g, '')), you: Number(m[2].replace(/,/g, '')) }
+  }
+
+  it('counts a buff as the player’s work, not as the swarm’s', () => {
+    // R14 routes three quarters of a poke into a buff on the people poked, and
+    // that buff raises `currentVelocity`. So the old reading — swarm =
+    // `currentVelocity`, you = `pokeRate` — now credits the swarm with most of
+    // what the player just did, which is §25.1's original complaint arriving
+    // through the opposite door.
+    // A studio big enough that one buffed developer is a visible slice of it,
+    // so the two halves are told apart by the readout rather than by rounding.
+    __setState({ devs: 4, devCap: 80, peakDevs: 4 })
+
+    act(() => {
+      for (let i = 0; i < 6; i++) poke(0, 0, { rung: 2, index: 1 })
+    })
+    const { container } = render(<Hud stage={null} />)
+
+    const split = splitFrom(container)
+    expect(split).not.toBeNull()
+    // Exactly the two numbers the store separates, to the precision they are
+    // printed at. The swarm half is the *passive* rate; everything the buff is
+    // adding belongs on the other side of the plus sign.
+    expect(split!.swarm).toBeCloseTo(baseVelocity(), 2)
+    expect(split!.you).toBeCloseTo(pokeVelocity(), 2)
+    expect(pokeVelocity()).toBeGreaterThan(getState().pokeRate)
+  })
+
+  it('keeps reading while the buff lasts, not just while the thumb moves', () => {
+    // §4.5a's loop is "maintain the people who are worth maintaining", and this
+    // line is the only thing on screen that can show it decaying.
+    __setState({ devs: 40, devCap: 80, peakDevs: 40 })
+    act(() => {
+      poke(0, 0, { rung: 2, index: 7 })
+      // Long enough that `pokeRate` has all but emptied (tau = 2 s) while the
+      // buff (tau = 5 s) is still plainly up.
+      for (let i = 0; i < 60 * 6; i++) tick(1 / 60)
+    })
+
+    const { container } = render(<Hud stage={null} />)
+    expect(getState().pokeRate).toBeLessThan(0.02)
+    expect(splitFrom(container)!.you).toBeGreaterThan(0)
   })
 })

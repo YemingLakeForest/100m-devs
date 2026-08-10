@@ -21,6 +21,7 @@ import {
   __setState,
   baseVelocity,
   currentVelocity,
+  developerShare,
   developerVelocity,
   getState,
   poke,
@@ -192,6 +193,28 @@ describe('the numerals still add up to the readout (GDD §8.2b, §10.1)', () => 
 
     idle(2)
     expect(sum()).toBeCloseTo(currentVelocity(), 8)
+  })
+})
+
+describe('the shortcut for a seat’s rate stops working once anyone is buffed', () => {
+  it('is not velocity-over-headcount times the share, and must not be written as one', () => {
+    // A guard against re-deriving §8.2b's per-head rate by hand. Before R14 the
+    // two were identical — `currentVelocity / devs * developerShare(i)` — and
+    // `render/stage.ts` fed the tallies exactly that. A buff makes them differ
+    // in the one way that matters: the hand-rolled version pushes the studio's
+    // whole lift through *every* seat evenly, so poking one developer would
+    // raise the numeral over all forty heads by a fortieth each.
+    //
+    // That is §4.5c's requirement inverted — "modifiers must be legible on the
+    // target" — and it would read as the buff doing nothing in particular.
+    studio()
+    poke(0, 0, { rung: 2, index: 7 })
+    const s = getState()
+
+    const shortcut = (i: number) => (currentVelocity(s) / s.devs) * developerShare(i, s)
+
+    expect(developerVelocity(7, s)).toBeGreaterThan(shortcut(7))
+    expect(developerVelocity(8, s)).toBeLessThan(shortcut(8))
   })
 })
 

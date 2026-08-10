@@ -532,6 +532,21 @@ This gives the zoom system a **mechanical** reason to exist rather than a purely
 one, and it creates a genuine strategic rhythm: zoom out to sweep for volume, punch in to
 extract from a specific high-value developer.
 
+> **The four rows are a curve now, not a table — R15, added 2026-08-10.** §4.5b makes the
+> reach *the unit that was hit*, and §7.7.1 names a unit at every rung, so `Z` has to answer
+> for a unit of 37,000 people and not only for four sizes. `sizeYield` interpolates **this
+> table** in log-log space and passes through all four rows exactly, so there is one copy of
+> these numbers and nothing to drift from.
+>
+> **Where that changes an answer, this table was the one that was wrong.** L2's "1 row
+> (~8–20 devs)" was written when a floor zoom meant the camera could not resolve
+> individuals. §7.4a then made rungs 0, 1 and 2 *all the room*, and §7.7.6 requires that
+> "every one of the 1,000 floor sprites is individually hit-testable ... the actual developer
+> under the thumb" — so a tap on **one** developer was being paid for fourteen. A tap in the
+> room now reaches one person at any zoom, which is what §7.7.6 always promised. This is
+> exactly the shape of the trap `docs/HANDOFF.md` records at number 8: a constant that was
+> correct when it was written, underneath a number that later moved.
+
 ### 4.9 The Context Switch Penalty — Why You Cannot Just Mash
 
 Every poke adds local Entropy to the developer you poked. You interrupted them; that is
@@ -5871,8 +5886,8 @@ table when the thing is built and seen working** — not when it is specced, and
 | R11 | A poke reading **"+0"** while the counters move is a lie. Fix the case and separate passive from active | §4.8a, §25.1 | **Built — needs eyes.** §10.1's `swarm + you` split shipped; an Overwhelmed poke now reads `UNBLOCKED` in amber instead of `+0` |
 | R12 | Never write **"SP"**. It is "story point" | §10.2a | **Built.** Every user-facing use replaced, and `Hud.test.tsx` now fails on `/\bSP\b/` so it cannot come back one label at a time |
 | R13 | **Colour-code the words that matter** — story points first, others later | §10.2a | **Partial.** `<Kw>` component + palette mapping shipped; story points coloured in the HUD. Cash / developers / entropy defined but not yet applied, and the §10.7 typed script is untouched |
-| R14 | A poke **buffs that individual's output rate**, scaled by modifiers on them — it is not a one-off payout | §4.5a, §4.5c | **Open** |
-| R15 | **Any unit is pokeable** — person, squad, floor, building, campus, city, on up the ladder | §4.5b | **Open** |
+| R14 | A poke **buffs that individual's output rate**, scaled by modifiers on them — it is not a one-off payout | §4.5a, §4.5c | **Built — needs eyes.** `sim/buffs.ts`: a sparse overlay of recently-poked units, capped at 64 and decaying on τ = 5 s. **The strength is solved, not chosen** — a buff of `s` on a unit producing `u` delivers `s·u·τ`, so the story points §4.5's formula already produced are converted back into the `s` that pays them. §4.10 therefore needs no rebalancing, which is §4.5a's own claim that only the *destination* changes. A quarter is still paid on the frame of the tap (§10.8 F2). Verified in the running game: five taps on one developer read `+69%`, decaying to `+2%` over eighteen seconds, with the neighbours untouched |
+| R15 | **Any unit is pokeable** — person, squad, floor, building, campus, city, on up the ladder | §4.5b | **Built — needs eyes.** `sim/units.ts` reads §7.7.1's own headcount bands, so the unit size *is* the band's lower bound and cannot drift from the table. Towers answer which storey, cities which unit, rungs 7–9 are one thing. **§4.5b's "the buff percentage falls as the unit grows" arrives for free**: a unit of `n` produces ~`n` times as much and a poke on it is worth ~`Z(n)·n`, so `s ∝ Z(n)` with no second curve to tune. Verified at rung 4: a tap buffs one building of ten thousand by 10% |
 | R16 | The **Founder has a desk and their own coding tree**, clickable anywhere, on a curve that never dilutes | §4.5d | **Open** |
 | R17 | **Exaggerate per-developer output variance**, and make it visible | §4.9a | **Built — needs eyes.** Log-normal at σ = 0.9, rolled from seat and run seed, never stored: 1st percentile 0.08×, 99.9th 10.8×, so §14.4's 10x Engineer *is* the top of the roll. Mean pinned twice — `μ = −σ²/2` in the distribution, and every share divided by the mean the roster actually rolled, so the sum is the headcount exactly. Visible through R10 |
 | R18 | **Hero items**, bought with cash, equipped to a card, inheriting its reach | §13.6.9 | **Open** |

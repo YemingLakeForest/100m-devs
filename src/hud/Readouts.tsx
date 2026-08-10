@@ -1,9 +1,10 @@
 import { entropyLabel } from '../game/vocabulary.ts'
 import {
+  baseVelocity,
   currentEffectiveVelocity,
   currentPayroll,
-  currentVelocity,
   nextPayout,
+  pokeVelocity,
   secondsToPayout,
   type GameState,
 } from '../game/store.ts'
@@ -185,12 +186,19 @@ export function Speedometer({ entropy }: { entropy: number }) {
  * row exists to give.
  */
 export function Velocity({ state }: { state: GameState }) {
-  // The two halves come from the store already separated — `currentVelocity` is
-  // the swarm and `pokeRate` is the thumb — and the readout was summing them and
-  // throwing the split away. See §25.1: that is most of why a fractional poke
-  // read as a broken button.
-  const swarm = currentVelocity(state)
-  const split = velocitySplit(swarm, Math.max(0, state.pokeRate))
+  // The two halves come from the store already separated, and R14 moved where
+  // the line between them falls. It used to be `currentVelocity` against
+  // `pokeRate`; §4.5a then routed three quarters of every poke into a buff on
+  // the people poked, and a buff raises `currentVelocity` — so that reading now
+  // credits **the swarm** with most of what the player just did. Which is §25.1's
+  // original complaint arriving through the opposite door, and just as untrue.
+  //
+  // `baseVelocity` is the swarm on its own; `pokeVelocity` is the instant
+  // payout plus everything the player's buffs are adding. The good side effect
+  // is that the line stops emptying two seconds after the last tap and instead
+  // sags as the buffs do — which is §4.5a's maintenance loop, finally legible.
+  const swarm = baseVelocity(state)
+  const split = velocitySplit(swarm, pokeVelocity(state))
   return (
     <div className="hud__block">
       <span className="hud__label">VELOCITY</span>

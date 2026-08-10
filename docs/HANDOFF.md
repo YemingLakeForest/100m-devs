@@ -1,4 +1,4 @@
-# Handoff — 2026-08-09
+# Handoff — 2026-08-10
 
 Short by design. **The detail lives in [`GDD.md`](../GDD.md), which is the single source of
 truth.** This file is a status line, a list of traps, and what to do next.
@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**921 tests.** Lint, types and the art gate clean.
+**995 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -35,7 +35,7 @@ simulation.
 | **Audio** | 13 SFX + 10 music stems generated and playing |
 | **Art** | **0 of §22.7's 19 authored sprites.** Everything on screen is code-drawn from the palette |
 | **Rungs** | 0–6 built and the lens visits every one (§7.4a). **Rungs 0–2 are all the room** — a desk, a huddle and a full floor of a thousand, with walls, plates and individuals throughout. 7–9 have no geometry of their own; §7.4's grid and cosmic tiers stand in |
-| **The clicker** | Per-developer output (§4.9a) and the `+1` over each head (§8.2b). A poke is worth what the person is worth. **A poke still pays once rather than buffing** — R14 |
+| **The clicker** | Per-developer output (§4.9a), the `+1` over each head (§8.2b), and **a poke that buffs what it lands on rather than paying a coin** (§4.5a). **Any unit is pokeable** — a person, a storey, a building — so a tap at rung 4 finally does something (§4.5b). R14 and R15 done |
 | **The economy** | Long-tailed revenue with a back catalogue, and the graph that shows it (§4.10e) |
 | **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. **Rows now run along the floor**, parallel to the wall and across the way people face, as one continuous desk bank. **The bank is set back from the seats**, so people sit *at* their desks rather than on them |
 | **Hiring** | Three things fall — a desk, a computer, **the actual generated developer** — on the seats the hire actually took, and the room withholds a seat until its arrival lands |
@@ -72,6 +72,32 @@ first fix moved the collision one level out into §21's copy, and the
 arrangement that actually holds is rails owning their columns outright with the
 script in the middle. Verified by measuring every readout, control and line of
 copy against every other one across eight acts and seven frame sizes.
+
+Then **R14 and R15 — the clicker rework**, which are one piece of work. A poke
+raises the output rate of what it landed on and fades over about fifteen
+seconds, and what it lands on is whatever §7.7.1 has the camera holding.
+
+Two things are worth knowing before touching either.
+
+**The buff strength is solved, not chosen.** A buff of strength `s` on a unit
+producing `u` story points a second delivers `s·u·τ` over its life, so the
+points §4.5's formula already produced are converted *back* into the `s` that
+pays them. That is why §4.10 needed no rebalancing — §4.5a only ever asked for
+the *destination* of the number to change — and it is why picking a percentage
+would have been the wrong move even though it is the obvious one. It also hands
+§4.5b its "the buff percentage falls as the unit grows" rule for free: a unit of
+`n` people produces about `n` times as much and a poke on it is worth about
+`Z(n)·n`, so `s ∝ Z(n)` with no second curve to tune or to disagree with §4.8.
+
+**Nothing is lost at either end**, and both ends needed work. A unit already at
+the strength ceiling overflows back into the instant payout, and an expiring
+buff hands back what it still owed — that second one matters more than it looks,
+because the loss would otherwise have scaled with headcount. See trap 17.
+
+Verified in the running game rather than only in tests: five taps on one
+developer read `+69%` and decay to `+2%` over eighteen seconds with the
+neighbours untouched, and a tap at rung 4 buffs one building of ten thousand by
+10%.
 
 ### Specced, not built
 
@@ -121,23 +147,35 @@ Three things a reader should know before touching `room.ts` again:
 ### ~~Phase 2 — the lens climbs the ladder (R8)~~ — **done 2026-08-09**
 ### ~~Phase 4 — the economy reads honestly (R2)~~ — **done 2026-08-09**
 
-### Phase 3 — finish the clicker rework (R14, R15). Do this next.
+### ~~Phase 3 — the clicker rework (R14, R15)~~ — **done 2026-08-10**
 
-Half of it landed. **R17 (per-developer output) and R10 (the `+1` over each head) are in**, and
-between them they turned the roll from a hidden number into the thing on screen: at forty
-developers you can read `+5.7` beside `+0.08` without a readout. What is left is what the
-player *does* about it:
+### Phase 6 — the 2026-08-10 intake (§25.3). Do this next.
 
-1. **R14 — a poke buffs that individual** rather than paying out once (§4.5a). The store now
-   answers `developerShare(i)` and `developerVelocity(i)`, and `poke(x, y, who)` already knows
-   who was hit — so the seam exists. What does not exist is any *per-seat mutable state*, and
-   a buff has a duration. That is the piece to design: a sparse overlay of recently-poked
-   seats, bounded and decaying, rather than a table with ten trillion rows.
-2. **R15 — poke any unit** on the ladder (§4.5b), with the buff percentage falling as the unit
-   grows so "always poke the biggest thing" is never the answer. R8 makes this cheap in one
-   respect and honest in another: `dominantView(camera.z)` already says what unit is under the
-   thumb, and above the floor `pickDeveloper` deliberately returns −1, so **a tap at rung 4
-   currently does nothing at all**. That is the gap R15 fills.
+**Eight new requirements arrived in one message and every one of them is
+specced in the GDD and built nowhere** — see **§25.3**, which is the ledger row
+for each, and §4.11, §4.12, §13.7, §13.8 and §22.8, which are where an
+implementer should actually look.
+
+They are not eight separate features. They are **one system with five faces**,
+and reading them as separate work is the way to build it wrong:
+
+> Developers stop being homogeneous (R19) → the roles that appear are the ones
+> that answer the two new failure sources, bugs (R21) and tickets (R22) → what
+> those failures cost is the game's **rating** (R23), which is the first thing in
+> the design that judges the *quality* of a run rather than its size → heroes
+> gain a class per role and a tree each (R24), and **you** are the one who gets
+> all of them badly (R20).
+
+**Start with R23, the rating.** It is the only one that is pure economics, it
+has no art and no interface, and every other item in the batch is scored by it —
+building bugs before there is anything for a bug to damage means guessing at
+what a bug is worth. R21's defect stream is the natural second, because it is
+the thing R23 measures and it can run headless.
+
+**R25 (hero placement as a management minigame) is last on purpose.** It is the
+one that needs the floor to already have roles on it, rows worth assigning
+somebody to, and a rating that makes a placement right or wrong. Built first it
+is a card that goes in a slot for no reason.
 
 ### Phase 5 — the rest
 
@@ -375,6 +413,58 @@ Nothing publishes a spawn event except a real hire, so `first` is the player's
 **first hire of the session**, and the very first developer anybody hired
 appeared with no animation at all. It survived a full test run and was found
 only by clicking the button and watching.
+
+### 16. A poke makes the studio *slower* for a moment, and always did
+
+Reported by a test rather than by an eye, and it cost an hour of chasing a bug
+that was not there. R14's first tests asserted "velocity is higher after a poke
+than before it" and failed: at forty developers the tap **lowered** the studio's
+rate.
+
+That is §4.9 working. Every poke adds local Entropy — "you interrupted them;
+that is what an interruption does" — and at a small headcount the context
+switch costs more per frame than one buffed developer adds. It was equally true
+before R14; nobody had noticed because the poke's value used to land as a lump
+in `burned` where no velocity readout could be compared against it.
+
+**So "before the tap versus after the tap" measures §4.9 and not §4.5a.** The
+buff is measured against `baseVelocity` at the *same* instant, which puts both
+terms on the same Entropy trajectory and cancels it. Whether a poke should be
+net negative at forty developers is a real balance question and is now written
+down as one — it is not a regression, and it is not something R14 introduced.
+
+### 17. A cutoff that loses a *fraction* is a leak that moves with headcount
+
+The buff overlay drops an entry once it decays below a floor, which is what
+stops one living for as long as floating point can halve it. The tail it
+discards is `MIN_STRENGTH / peak` of the poke — about 4% — and the temptation is
+to call that rounding.
+
+It is not, because **the peak is larger for a smaller unit**. The same poke
+therefore loses a different fraction at forty developers than at forty thousand,
+which is a silent rebalance of the economy disguised as a rounding error. It is
+precisely the failure `output.ts` pins the roster mean twice to rule out.
+
+`decayBuffs` returns what it dropped and the store banks the remainder. **The
+test that catches this class is the one that measures the same quantity at two
+tick rates**: a shortfall that halves when the step halves is integration error,
+and one that does not is a leak. Asserting a single tolerance would have passed
+just as happily on either.
+
+### 18. A long-window economy test will silently measure a *ship*
+
+R14's end-to-end test ran a hundred seconds of simulation to let a buff expire,
+and compared `burned` with and without a poke. It reported a 23% shortfall.
+
+There was no shortfall. At forty developers the studio shipped the project four
+times inside that window, and `shipProject` resets `burned` to zero — so the
+comparison was between two arbitrary points in two different projects. A
+bankruptcy would have done something similar by stopping `tick` outright.
+
+Both leave **a plausible-looking number** behind rather than an error, which is
+what makes this worth a trap. Any test that integrates over more than a few
+seconds wants a commitment nothing can burn down and a treasury nothing can
+exhaust, and should say why in a comment.
 
 ### 15. Synthetic pointer events do not reach the canvas
 
