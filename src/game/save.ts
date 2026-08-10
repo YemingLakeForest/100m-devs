@@ -22,6 +22,7 @@ import type { GameState } from './store.ts'
 import type { Phase } from './onboarding.ts'
 import { PHASE_ORDER } from './onboarding.ts'
 import { D_BASE } from '../sim/entropy.ts'
+import { TECH_BY_ID } from '../sim/techTree.ts'
 
 /**
  * **1.** This game has never shipped a save, so there is no history to migrate
@@ -88,6 +89,17 @@ export interface RunSave {
    * a reinterpreted one, which is the test `SAVE_VERSION` asks (rule 1).
    */
   releases?: ReleaseSave[]
+  /**
+   * §11 — levels bought in the in-run tech tree, by node id.
+   *
+   * Additive and optional, on the same rule `releases` follows: a save written
+   * before the tree existed describes a studio that bought nothing, which is
+   * exactly what an absent field means. No `SAVE_VERSION` bump — nothing that
+   * was already written has been reinterpreted.
+   */
+  tech?: Record<string, number>
+  /** §11.2 B2's meeting clock, in simulated seconds. Optional for the same reason. */
+  runSeconds?: number
 }
 
 /** One game on sale, as §24 stores it. The shape is rolled once and kept. */
@@ -290,6 +302,8 @@ export function makeSaveData(state: GameState): SaveData {
       runSeed: state.runSeed,
       seedTaken: state.seedTaken,
       dialUnlocked: state.dialUnlocked,
+      tech: { ...state.tech },
+      runSeconds: state.runSeconds,
       // §4.10e — flattened rather than nested, so the shape cannot arrive back
       // as a half-object that `collectedFraction` would turn into NaN dollars.
       releases: state.releases.map((r) => ({
@@ -501,7 +515,31 @@ function normaliseRun(value: unknown): RunSave {
     seedTaken: bool(r.seedTaken, false),
     dialUnlocked: bool(r.dialUnlocked, false),
     releases: normaliseReleases(r.releases),
+    tech: normaliseTech(r.tech),
+    runSeconds: nonNegative(r.runSeconds, 0),
   }
+}
+
+/**
+ * §11 — the tech levels, defended.
+ *
+ * Unknown ids are dropped rather than carried. A save naming a node this build
+ * does not have is either hand-edited or written by a *newer* build, and in
+ * both cases the honest answer is that this game does not know what it does —
+ * keeping it would mean `techEffects` silently ignoring a level the save
+ * screen would still have to price. Levels are floored at zero and left
+ * unclamped at the top, because the node's own `maxLevel` is what clamps them
+ * and `techEffects` already clamps every effect it derives.
+ */
+function normaliseTech(value: unknown): Record<string, number> {
+  if (typeof value !== 'object' || value === null) return {}
+  const out: Record<string, number> = {}
+  for (const [id, level] of Object.entries(value as Record<string, unknown>)) {
+    if (!TECH_BY_ID.has(id)) continue
+    const n = Math.floor(nonNegative(level, 0))
+    if (n > 0) out[id] = n
+  }
+  return out
 }
 
 /**

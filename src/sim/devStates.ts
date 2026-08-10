@@ -50,6 +50,15 @@ export interface TransitionContext {
   entropy: number
   /** 0–1. Rises with prestige upgrades; Run 1 is 0. */
   tenxBonus?: number
+  /**
+   * §11.3 C2, Ergonomic Chairs — scales how long the Overwhelmed lockup lasts.
+   *
+   * Only that state, and deliberately so. The node's line is "reduces developer
+   * Overwhelmed lockup duration by 30%", and a general dwell scale would also
+   * shorten Flow — selling the player a chair that takes away the one state
+   * they were trying to protect.
+   */
+  overwhelmedScale?: number
 }
 
 /**
@@ -112,7 +121,8 @@ export function advanceDevState(
   rng: () => number = Math.random,
 ): DevStateMachine {
   const elapsed = machine.elapsed + dtSeconds
-  const dwell = DWELL_SECONDS[machine.state]
+  const scale = machine.state === 'overwhelmed' ? Math.max(0, ctx.overwhelmedScale ?? 1) : 1
+  const dwell = DWELL_SECONDS[machine.state] * scale
 
   if (!Number.isFinite(dwell) || elapsed < dwell) {
     return { state: machine.state, elapsed }

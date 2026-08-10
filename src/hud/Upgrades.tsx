@@ -1,36 +1,107 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
-import { UPGRADES_COPY } from './hudModel.ts'
+import { TECH_TREE, type TechBranch, type TechNode } from '../sim/techTree.ts'
+import { buyTech, techQuote, type GameState } from '../game/store.ts'
+import { formatMoney } from './hudModel.ts'
+import { useGameState } from './useGameState.ts'
+
+import '../styles/tech.css'
 
 /**
- * The upgrades entry point — GDD §10.1's bottom-nav `UPGRADES` tab, and the
- * door §11's Communication Tech tree will eventually be behind.
+ * The §11 in-run tech tree — GDD §10.1's bottom-nav `UPGRADES` tab.
  *
- * The tree does not exist. This is deliberately *not* a hidden tab that appears
- * when the feature lands: the frame is being divided in this pass, and a
- * control introduced later would have to be wedged into a layout that had
- * already agreed how to spend its edges. The door is built now, at the size and
- * in the place the real one will occupy, and it opens onto an honest empty
- * room.
+ * **This door was built empty on purpose and this is it opening.** The previous
+ * version's note is worth keeping in mind: the frame was divided while the tree
+ * did not exist, at the size and in the place the real one would occupy, so
+ * that the control would not later have to be wedged into a layout that had
+ * already agreed how to spend its edges. Nothing about the frame changed here.
+ * Only the room behind it.
  *
  * The drawer slides from the right edge because that is the edge its button
  * lives on — §10.5 rule 1, an element enters from where it belongs and exits
  * back toward it. It is a drawer rather than a modal for §7.1: the swarm stays
- * visible and pokeable everywhere the panel is not.
+ * visible and pokeable everywhere the panel is not, which matters more now that
+ * the panel is somewhere a player will stand for a while.
  */
+
+const BRANCH_NAME: Record<TechBranch, string> = {
+  protocol: 'COMMUNICATION PROTOCOLS',
+  culture: 'CULTURE & JUICE',
+}
+
+/** §11.2 and §11.3's own one-line theses, for the branch headers. */
+const BRANCH_BLURB: Record<TechBranch, string> = {
+  protocol: 'Suppress the entropy. Everything here has a price you keep paying.',
+  culture: 'Sharpen the thumb. Every point you add, you add to the interruption.',
+}
+
+function Node({ node, state }: { node: TechNode; state: GameState }) {
+  const q = techQuote(node.id, state)
+  if (!q) return null
+
+  return (
+    <div
+      className="tech__node"
+      data-owned={q.level > 0 ? 'true' : 'false'}
+      data-locked={q.unlocked ? 'false' : 'true'}
+    >
+      <div className="tech__node-head">
+        <span className="tech__node-name">{node.name}</span>
+        {node.maxLevel > 1 && (
+          <span className="tech__node-level">
+            {q.level}/{node.maxLevel}
+          </span>
+        )}
+      </div>
+
+      {/*
+        The flavour line is half the reason §11 exists — the tree is the game's
+        satire delivered as a shopping list — so it is not a tooltip. On a phone
+        there is nowhere for a tooltip to live and nothing to hover with.
+      */}
+      <p className="tech__node-flavour">{node.flavour}</p>
+      <p className="tech__node-effect">{node.effect}</p>
+
+      {q.unlocked ? (
+        <Button onClick={() => buyTech(node.id)} disabled={!q.affordable}>
+          {q.maxed ? 'OWNED' : formatMoney(q.cost)}
+        </Button>
+      ) : (
+        // Named rather than hidden. A tree that reveals nodes as you buy them
+        // cannot be planned, and planning is the whole of §11's "upgrading
+        // Workforce without Communication Infra" warning.
+        <p className="tech__node-locked">NEEDS {node.requires}</p>
+      )}
+    </div>
+  )
+}
+
 export function Upgrades() {
   const [open, setOpen] = useState(false)
+  const state = useGameState()
 
   return (
     <>
       <Panel open={open} from="right" className="hud__upgrades">
         <div className="hud__upgrades-body">
-          <h2 className="hud__upgrades-title">UPGRADES</h2>
-          {/* `pre` rather than paragraphs: the copy is authored as terminal
-              output at a fixed column width, and re-wrapping it would put the
-              pixel face on a different grid every viewport. */}
-          <pre className="hud__upgrades-copy">{UPGRADES_COPY.join('\n')}</pre>
+          <div className="tech__head">
+            <h2 className="hud__upgrades-title">UPGRADES</h2>
+            <span className="tech__cash">{formatMoney(state.cash)}</span>
+          </div>
+
+          <div className="tech__branches">
+            {(['protocol', 'culture'] as const).map((branch) => (
+              <section key={branch} className="tech__branch">
+                <h3 className="tech__branch-name">{BRANCH_NAME[branch]}</h3>
+                <p className="tech__branch-blurb">{BRANCH_BLURB[branch]}</p>
+                {TECH_TREE.filter((n) => n.branch === branch).map((node) => (
+                  <Node key={node.id} node={node} state={state} />
+                ))}
+              </section>
+            ))}
+          </div>
+
           <Button onClick={() => setOpen(false)}>BACK</Button>
         </div>
       </Panel>

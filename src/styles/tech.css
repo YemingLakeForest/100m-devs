@@ -1,0 +1,122 @@
+/*
+ * The §11 tech tree, inside the drawer app.css already owns.
+ *
+ * `.hud__upgrades` keeps its frame, its width and its slide; everything here
+ * lays out what is now inside it. In its own file rather than appended to
+ * app.css because this is one feature's worth of rules and app.css is already
+ * 2,000 lines of everything.
+ *
+ * **The list scrolls, it never hides.** §25.4 records a `display: none` in a
+ * media query deleting the revenue graph on every phone ever used to review the
+ * build. Nothing here has one: at a short frame the drawer gives up padding and
+ * the list scrolls inside itself.
+ */
+
+.tech__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.tech__cash {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p3);
+}
+
+.tech__branches {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tech__branch {
+  display: grid;
+  gap: 6px;
+}
+
+.tech__branch-name {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
+}
+
+.tech__branch-blurb {
+  margin: 0 0 2px;
+  max-width: 44ch;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p1);
+}
+
+.tech__node {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  padding: 8px 10px;
+  border: var(--rule) solid var(--p0);
+}
+
+/* Owned is a brightness step on the frame, never a fill — ART_DIRECTION §1. */
+.tech__node[data-owned='true'] {
+  border-color: var(--p2);
+}
+
+/*
+ * A locked node is legible, not hidden. §11's warning — buy workforce without
+ * communication infrastructure and the trap fires — can only be heeded by a
+ * player who can see what is further up the branch than they have reached.
+ */
+.tech__node[data-locked='true'] {
+  opacity: 0.55;
+}
+
+.tech__node-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.tech__node-name {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p3);
+}
+
+.tech__node-level {
+  font-size: var(--type-1x);
+  color: var(--p1);
+}
+
+/* The joke, set a step down the ramp from the effect it is attached to. */
+.tech__node-flavour {
+  margin: 0;
+  max-width: 42ch;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p1);
+  font-style: italic;
+}
+
+.tech__node-effect {
+  margin: 0 0 2px;
+  max-width: 42ch;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p2);
+}
+
+.tech__node-locked {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}

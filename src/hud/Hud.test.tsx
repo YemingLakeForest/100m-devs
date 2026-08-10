@@ -132,7 +132,7 @@ describe('§10.8 F2 — every control answers the finger first', () => {
   })
 })
 
-/** GDD §11 has no tech tree yet, so the door has to be honest about it. */
+/** GDD §11 — the door, and the tree that now stands behind it. */
 describe('the upgrades entry point', () => {
   it('is present from the first frame, before anything is buyable', () => {
     render(<Hud stage={null} />)
@@ -150,10 +150,41 @@ describe('the upgrades entry point', () => {
     // §10.5 rule 1 — enters from the edge it belongs to, exits back toward it.
     expect(drawer?.className).toContain('ui-panel--right')
     expect(drawer?.getAttribute('data-phase')).toBe('in')
-    expect(drawer?.textContent).toContain('COMMUNICATION TECH TREE')
+    // §11.2 and §11.3, the two branches that shipped. This used to assert the
+    // placeholder's heading; the placeholder is gone and the tree is here.
+    expect(drawer?.textContent).toContain('COMMUNICATION PROTOCOLS')
+    expect(drawer?.textContent).toContain('CULTURE & JUICE')
+    expect(drawer?.textContent).toContain('Voice Shouting')
 
     fireEvent.click(screen.getByRole('button', { name: /BACK/ }))
     expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('exit')
+  })
+
+  it('shows a locked node by name rather than hiding it', async () => {
+    // §11's warning — buy the workforce without the communication infra and the
+    // trap fires — can only be heeded by a player who can see what is further
+    // up the branch than they have reached.
+    const { container } = render(<Hud stage={null} />)
+    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
+    await frame()
+
+    const drawer = container.querySelector('.hud__upgrades')
+    expect(drawer?.textContent).toContain('Daily Standups')
+    expect(drawer?.querySelector('.tech__node[data-locked="true"]')).not.toBeNull()
+    expect(drawer?.textContent).toContain('NEEDS B1')
+  })
+
+  it('prices a root node the player cannot yet afford, and refuses it', async () => {
+    __setState({ cash: 0 })
+    const { container } = render(<Hud stage={null} />)
+    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
+    await frame()
+
+    // §11.2 B1 is $50. A button that looks live and does nothing is worse than
+    // one that says so — the same rule §21.0 applies to the hire control.
+    const buy = screen.getByRole('button', { name: /^\$50$/ })
+    expect(buy).toBeDisabled()
+    expect(container.querySelector('.tech__node[data-owned="true"]')).toBeNull()
   })
 
   it('is a drawer, not a modal — the swarm stays visible and pokeable beside it', async () => {

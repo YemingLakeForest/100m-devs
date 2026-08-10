@@ -289,24 +289,12 @@ export function offerFor(phase: Phase, massHired = false): ActionSpec | null {
   return phase === 'act3_bait' && !massHired ? MASS_HIRE : null
 }
 
-/* --- the upgrades entry point, GDD §11 ----------------------------------- */
-
-/**
- * §11's tech tree does not exist, and the honest thing is to say so in the
- * game's own voice rather than to hide the tab.
+/* --- the upgrades entry point, GDD §11 -----------------------------------
  *
- * The button has to be here now regardless, because §10.1's bottom nav lists
- * UPGRADES as persistent furniture and because the shape of the HUD is being
- * settled in this pass — a control added later would have to be squeezed in
- * beside a layout that had already agreed how to divide the frame.
+ * `UPGRADES_COPY` used to live here: eight lines of terminal output saying the
+ * tech tree was specified and not built, shown inside a drawer that was built
+ * at full size so the real tree would have somewhere to arrive. The tree is in
+ * `sim/techTree.ts` now and the drawer renders it, so the placeholder is gone
+ * rather than commented out — a stub kept "for reference" beside the thing that
+ * replaced it is the next contributor's afternoon.
  */
-export const UPGRADES_COPY: readonly string[] = [
-  'COMMUNICATION TECH TREE',
-  '',
-  'No nodes available.',
-  '',
-  'Workforce Scale, Communication Protocols and',
-  'Culture & Juice are specified but not built.',
-  'Run 1 has nothing to buy — and buying your way',
-  'out is the lesson this run is withholding.',
-]

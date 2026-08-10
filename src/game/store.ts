@@ -35,12 +35,21 @@ import {
 } from '../sim/economy.ts'
 import {
   D_BASE,
+  SP_PER_DEV_PER_SEC,
   decayLocalEntropy,
   devEfficiency,
   efficiency,
-  entropy,
-  passiveVelocity,
 } from '../sim/entropy.ts'
+import {
+  TECH_BY_ID,
+  canBuyTech,
+  inStandup,
+  standupFactor,
+  techCost,
+  techEffects,
+  techLevel,
+  type TechEffects,
+} from '../sim/techTree.ts'
 import {
   advanceDevState,
   initialDevState,
@@ -347,6 +356,26 @@ export interface GameState {
    * revision the player last played.
    */
   scene: string | null
+
+  /**
+   * §11 — levels bought in the in-run tech tree, by node id.
+   *
+   * In the *run* block rather than the permanent one because §13.2 says a
+   * Paradigm Shift "resets Cash, Dev Swarm Count, and In-Run Tech Upgrades".
+   * The tree is what you built this time; the Paradigm Tree is what you learned.
+   */
+  tech: Record<string, number>
+
+  /**
+   * Seconds of simulated time since this run began — §11.2 B2's meeting clock.
+   *
+   * Wall-clock elapsed would drift from the simulation every time the tab was
+   * backgrounded or a frame was long, and §24's offline resolution advances the
+   * economy without advancing `performance.now()`. This counts the same seconds
+   * the studio was actually paid for, so a meeting cannot happen while nobody
+   * is working.
+   */
+  runSeconds: number
 }
 
 /**
@@ -408,6 +437,8 @@ function freshRun(): GameState {
     dialUnlocked: false,
     pendingOffline: null,
     scene: null,
+    tech: {},
+    runSeconds: 0,
   }
 }
 
@@ -462,12 +493,56 @@ function set(patch: Partial<GameState>): void {
 
 // --- derived ---------------------------------------------------------------
 
+/** §11 — what the in-run tree currently does. One object, computed in one place. */
+export function techOf(s: GameState = state): TechEffects {
+  return techEffects(s.tech)
+}
+
+/**
+ * §4.2's capacity with §11.2's protocol nodes on it.
+ *
+ * The tree multiplies the cap rather than subtracting from the load because
+ * §4.1 only ever sees the ratio — see the note on `TechEffects.devCapMultiplier`.
+ */
+export function effectiveDevCap(s: GameState = state): number {
+  return s.devCap * techOf(s).devCapMultiplier
+}
+
+/**
+ * Developers actually at a keyboard this frame — §11.2 B2 and B3.
+ *
+ * **Deliberately not the same number that generates communication load.** A
+ * developer in a meeting is not coding and is *emphatically* still
+ * communicating; a pair-programming studio has half as many keyboards and
+ * exactly as many people to keep in the loop. So this reduces output and the
+ * load keeps counting everybody, which is why §11.2 B3 has to state its 60%
+ * entropy cut separately — if halving the workforce also halved the load, the
+ * node would pay twice and be the only purchase in the branch worth making.
+ */
+export function workingDevs(s: GameState = state): number {
+  const t = techOf(s)
+  return s.devs * t.activeDevFraction * standupFactor(s.runSeconds, t.standups)
+}
+
+/** §11.2 — is the studio in its daily standup right now? */
+export function inMeeting(s: GameState = state): boolean {
+  return inStandup(s.runSeconds, techOf(s).standups)
+}
+
 export function currentEfficiency(s: GameState = state): number {
-  return efficiency(s.devs, s.devCap)
+  const raw = efficiency(s.devs, effectiveDevCap(s))
+  // §11.2's entropy caps, applied as an efficiency *floor* so the two readouts
+  // cannot disagree — `currentEntropy` is defined as one minus this.
+  //
+  // Note what B2 and B4 therefore buy: at an 80% ceiling §6.3's Entropy Lock
+  // can never fire again. That is the node working, not a hole. The player paid
+  // for a company that cannot seize, and §25.3.2's "none of this may become a
+  // fail state" is untouched — this removes one, it does not add one.
+  return Math.max(1 - techOf(s).entropyCap, raw)
 }
 
 export function currentEntropy(s: GameState = state): number {
-  return entropy(s.devs, s.devCap)
+  return 1 - currentEfficiency(s)
 }
 
 /**
@@ -481,7 +556,11 @@ export function currentEntropy(s: GameState = state): number {
  * separately rather than their sum.
  */
 export function baseVelocity(s: GameState = state): number {
-  return passiveVelocity(s.devs, s.devCap) * devEfficiency(1, s.localEntropy)
+  // Not `passiveVelocity(devs, cap)` any more: §11 splits the headcount that
+  // *produces* from the headcount that *costs*, so the two arguments come from
+  // different places. With an empty tree they are the same two numbers and this
+  // is the same product it always was.
+  return workingDevs(s) * currentEfficiency(s) * SP_PER_DEV_PER_SEC * devEfficiency(1, s.localEntropy)
 }
 
 /**
@@ -683,7 +762,11 @@ function showBubble(text: string, ttl = 4000): Partial<GameState> {
 
 /** Ship the current project and roll to the next — §21 Act II. */
 function shipProject(s: GameState): Partial<GameState> {
-  const revenue = projectRevenue(s.projectIndex)
+  const tech = techEffects(s.tech)
+  // §11.2 B3 doubles the payout and §11.3 C9 takes the consultants' 10%. Both
+  // land on the ladder's figure rather than on the tail, so §4.10e's integral
+  // still pays out exactly what the release says it is worth.
+  const revenue = projectRevenue(s.projectIndex) * tech.revenueMultiplier
   const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
   const next = PROJECTS[nextIndex]
 
@@ -715,7 +798,11 @@ function shipProject(s: GameState): Partial<GameState> {
     projectsShipped: s.projectsShipped + 1,
     projectIndex: nextIndex,
     sprintName: next.name,
-    commitment: new Decimal(next.commitment),
+    // §11.3 C10 — "it's basically done". A flat 5% off every burn-down, for
+    // ever. Applied to the commitment itself rather than to the ship test, so
+    // §10.4's burn-down bar still reaches its own end and the player is not
+    // watching a gauge that ships at 95% full.
+    commitment: new Decimal(next.commitment).times(tech.commitmentFraction),
     burned: new Decimal(0),
   }
 }
@@ -768,12 +855,20 @@ export function tick(dtSeconds: number): void {
   let patch: Partial<GameState> = {
     localEntropy,
     buffs,
+    // §11.2 B2's meeting clock. Simulated seconds, not wall-clock — see the
+    // field's note. Advanced before anything reads it so the standup boundary
+    // lands on the same frame the velocity does.
+    runSeconds: state.runSeconds + dtSeconds,
     // Exponential decay towards zero. Paired with the impulse `poke` adds, this
     // settles on the player's true taps-per-second rather than spiking on each
     // one — a readout that jumped to a huge number and back on every tap would
     // be unreadable at the rate §21 asks them to tap.
     pokeRate: state.pokeRate * Math.exp(-dtSeconds / POKE_RATE_TAU),
-    dev: advanceDevState(state.dev, dtSeconds, { entropy: e }),
+    dev: advanceDevState(state.dev, dtSeconds, {
+      entropy: e,
+      // §11.3 C2 — the chairs only shorten the lockup, never Flow.
+      overwhelmedScale: techOf().overwhelmedScale,
+    }),
     cash: state.cash - currentPayroll() * dtSeconds + tail.earned,
     lifetimeRevenue: state.lifetimeRevenue + tail.earned,
     releases: tail.releases,
@@ -870,7 +965,11 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
   const seats = unitSeats(rung, index, state.devs)
 
   const base = resolvePoke({
-    tier: state.tier,
+    // §11.3's estimation sub-branch is the only thing that moves the ladder, so
+    // the tree's tier wins wherever it is higher. `state.tier` stays as the
+    // floor rather than being deleted: §24 already persists it, and a save from
+    // before the tree existed carries a tier that was legitimately earned.
+    tier: Math.max(state.tier, techOf().estimationTier),
     state: state.dev.state,
     zoom: state.zoom,
     efficiency: currentEfficiency(),
@@ -898,7 +997,13 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
   const converted = result.sp > 0 ? result.sp - banked : 0
   const buffed = addBuff(state.buffs, { rung, index }, converted, unitOutput)
 
-  const { machine, devLeaves } = pokeDevState(state.dev, state.hasCultureUpgrade)
+  // §11.3 C1 — Nitro Cold Brew. `hasCultureUpgrade` was this effect before
+  // there was a tree to own it, and it is still honoured: the field predates
+  // §11 and a save that has it set earned it.
+  const { machine, devLeaves } = pokeDevState(
+    state.dev,
+    state.hasCultureUpgrade || techOf().flowSurvivesPoke,
+  )
 
   const floater: FloatingNumeral = {
     id: nextFloaterId++,
@@ -987,6 +1092,42 @@ let lastShiftBp = 0
 
 export function bpFromLastShift(): number {
   return lastShiftBp
+}
+
+/**
+ * §11 — spend cash on an in-run tech node.
+ *
+ * Saves on purchase, like `buyParadigmNode`: a node bought and then lost to a
+ * crash is money the player watched leave and got nothing for, which is the
+ * one accounting error an idle game may never make.
+ */
+export function buyTech(id: string): boolean {
+  const node = TECH_BY_ID.get(id)
+  if (!node) return false
+  const level = techLevel(state.tech, id)
+  if (!canBuyTech(node, state.tech, state.cash)) return false
+
+  set({
+    cash: state.cash - techCost(node, level),
+    tech: { ...state.tech, [id]: level + 1 },
+  })
+  saveGame()
+  return true
+}
+
+/** What the next level of a node costs, or null if it cannot be bought at all. */
+export function techQuote(id: string, s: GameState = state) {
+  const node = TECH_BY_ID.get(id)
+  if (!node) return null
+  const level = techLevel(s.tech, id)
+  return {
+    node,
+    level,
+    cost: techCost(node, level),
+    maxed: level >= node.maxLevel,
+    unlocked: node.requires === undefined || techLevel(s.tech, node.requires) > 0,
+    affordable: canBuyTech(node, s.tech, s.cash),
+  }
 }
 
 /** §13.2 — spend BP on a Paradigm Tree node. */
@@ -1371,6 +1512,12 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     seedTaken: r.seedTaken,
     dialUnlocked: r.dialUnlocked,
     massHired: r.massHired,
+    // §11 — the tree you built this run, and the meeting clock that goes with
+    // it. `?? {}` rather than a bare read: the fields are optional on the save
+    // (older documents predate the tree) and a spread of `undefined` would put
+    // `undefined` into a field every derived function indexes.
+    tech: r.tech ?? {},
+    runSeconds: r.runSeconds ?? 0,
     // §4.10e — the back catalogue comes back with its ages and its shapes. A
     // reload that wiped five shipped games would take the studio's whole
     // runway with it, and would be reported as exactly the §4.10d bug the
