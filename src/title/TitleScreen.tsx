@@ -1,5 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactElement,
+} from 'react'
 import type { StageHandle } from '../render/stage.ts'
+import { Credits } from './Credits.tsx'
+import { Options } from './Options.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
 import { Typewriter } from '../ui/Typewriter.tsx'
@@ -68,22 +78,19 @@ export interface TitleScreenProps {
   firstLaunch: boolean
 }
 
-/** OPTIONS and CREDITS are §10.9.2 stubs: the slabs are real, the screens are not. */
+/**
+ * The two menu items that are not START.
+ *
+ * Both were §10.9.2 stubs reading *"NOT WIRED UP YET"* — real slabs opening
+ * onto a promise. They are now the screens Appendix F2.1 and F3.1 ask for, and
+ * F3.1's half of that is an obligation rather than a feature: the Departure
+ * Mono licence has to be reachable from inside the product.
+ */
 type Stub = Exclude<MenuItem, 'START'>
 
-const STUB_COPY: Record<Stub, readonly string[]> = {
-  OPTIONS: [
-    'OPTIONS  --  NOT WIRED UP YET',
-    '',
-    'SOUND, HAPTICS AND REDUCE MOTION LAND',
-    'WITH THE STUDIO_OS CONFIG TERMINAL.',
-  ],
-  CREDITS: [
-    'CREDITS  --  NOT WIRED UP YET',
-    '',
-    '100,000,000 DEVELOPERS',
-    'A STUDIO_OS PRODUCTION.',
-  ],
+const STUB_SCREEN: Record<Stub, () => ReactElement> = {
+  OPTIONS: Options,
+  CREDITS: Credits,
 }
 
 export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScreenProps) {
@@ -97,6 +104,7 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
   // through the exit animation and children derived straight from `stub` would
   // blank on the frame it goes null.
   const [stubShown, setStubShown] = useState<Stub>('OPTIONS')
+  const StubScreen = STUB_SCREEN[stubShown]
 
   useTitleCamera(stage, exiting)
 
@@ -367,7 +375,10 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
         also the honest thing to show given there is nothing else to show yet.
       */}
       <Panel open={stub !== null} from="left" modal className="title__stub">
-        <pre className="title__stub-copy">{STUB_COPY[stubShown].join('\n')}</pre>
+        {/* Latched, not derived: `Panel` keeps its children mounted through the
+            exit animation, so a screen read straight off `stub` would blank on
+            the frame it goes null and the panel would slide out empty. */}
+        {StubScreen && <StubScreen />}
         <Button onClick={() => setStub(null)}>CLOSE</Button>
       </Panel>
     </div>

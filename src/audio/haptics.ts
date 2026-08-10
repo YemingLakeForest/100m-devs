@@ -8,9 +8,25 @@
 
 import { Capacitor } from '@capacitor/core'
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics'
+import { getSettings } from '../settings/settings.ts'
 import type { DevState } from '../sim/poke.ts'
 
 const isNative = Capacitor.isNativePlatform()
+
+/**
+ * Whether to buzz at all — Appendix F2.1.
+ *
+ * Read live rather than mirrored, unlike `sfx.ts`'s volume: this is a property
+ * lookup on a module object, the native calls below are already un-awaited, and
+ * the setting has to be able to stop a haptic that is about to fire on the very
+ * next tap after the toggle.
+ *
+ * A phone that vibrates in a quiet room is the one piece of feedback in this
+ * game that can embarrass its player, and until now it could not be turned off.
+ */
+function enabled(): boolean {
+  return isNative && getSettings().haptics
+}
 
 /**
  * Fire the haptic for a poked developer's state.
@@ -36,12 +52,12 @@ const isNative = Capacitor.isNativePlatform()
  * routine poke fires, or it is telling the player something they cannot hear.
  */
 export function holdHaptic(): void {
-  if (!isNative) return
+  if (!enabled()) return
   void Haptics.impact({ style: ImpactStyle.Medium })
 }
 
 export function pokeHaptic(state: DevState): void {
-  if (!isNative) return
+  if (!enabled()) return
 
   switch (state) {
     // "Short tick" — the baseline poke.

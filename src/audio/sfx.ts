@@ -12,6 +12,7 @@
 
 import { Capacitor } from '@capacitor/core'
 import { NativeAudio } from '@capacitor-community/native-audio'
+import { getSettings, subscribeSettings } from '../settings/settings.ts'
 
 /** Every clip loaded at startup. Stems match scripts/generate-sfx.ts. */
 export const SFX = [
@@ -61,6 +62,38 @@ const webCursor = new Map<SfxId, number>()
 let ready = false
 
 /**
+ * The F2.1 effects volume, mirrored locally.
+ *
+ * **Read from a plain number rather than from `getSettings()` on every play.**
+ * `playSfx` runs inside the tap handler §23.3 criterion 1 measures against a
+ * 60 ms p95 budget, and the whole reason this file exists is that the audio
+ * path is the single largest feel risk in the project. A push-on-change mirror
+ * costs nothing on the hot path; a native `setVolume` call per poke would cross
+ * the Capacitor bridge inside the measurement.
+ */
+let volume = getSettings().sfx
+
+subscribeSettings((s) => {
+  if (s.sfx === volume) return
+  volume = s.sfx
+  applyNativeVolume()
+})
+
+/**
+ * Native volume is set per asset, once, on change — not per play.
+ *
+ * The plugin has no master, so every preloaded clip carries its own gain and a
+ * change has to walk the whole bank. That is fine at the rate a human moves a
+ * slider and would not be fine at the rate a human pokes.
+ */
+function applyNativeVolume(): void {
+  if (!isNative || !ready) return
+  for (const id of SFX) {
+    void NativeAudio.setVolume({ assetId: id, volume }).catch(() => {})
+  }
+}
+
+/**
  * Preload every clip. Call once, early — GDD §23.3 criterion 6 gives cold start
  * to interactive a 3 s budget, and decoding on first tap would show up as
  * latency on exactly the tap being measured.
@@ -95,6 +128,9 @@ export async function initSfx(): Promise<void> {
   }
 
   ready = true
+  // The bank exists now, so the stored preference can finally be applied to it.
+  // Before this line there was nothing to set a volume on.
+  applyNativeVolume()
 }
 
 /**
@@ -103,6 +139,9 @@ export async function initSfx(): Promise<void> {
  */
 export function playSfx(id: SfxId): void {
   if (!ready) return
+  // Silence is a real setting, and starting a voice at zero gain still burns a
+  // pool slot and a bridge call to produce nothing.
+  if (volume <= 0) return
 
   if (isNative) {
     void NativeAudio.play({ assetId: id })
@@ -119,6 +158,9 @@ export function playSfx(id: SfxId): void {
 
   const el = voices[i]
   el.currentTime = 0
+  // Per-element rather than per-bank: the web path has no shared node, and
+  // assigning a float costs nothing next to the `play()` below.
+  el.volume = volume
   // Autoplay policy rejects this until the first user gesture. The first poke
   // *is* a gesture, so this only ever silently no-ops before the game starts.
   void el.play().catch(() => {})

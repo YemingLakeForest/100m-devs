@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { getSettings, resolveReducedMotion, subscribeSettings } from '../settings/settings.ts'
 
 /**
  * The §10.5 curve column, as CSS timing functions.
@@ -52,11 +53,24 @@ const MIN_MS = 64
 
 const QUERY = '(prefers-reduced-motion: reduce)'
 
-export function prefersReducedMotion(): boolean {
+function systemPrefersReducedMotion(): boolean {
   // jsdom has no matchMedia, and neither does a server render. Absence means
   // no stated preference, which is the default: full motion.
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
   return window.matchMedia(QUERY).matches
+}
+
+/**
+ * The answer everything in the UI actually asks for — the player's preference
+ * resolved against the system's (Appendix F2.1, §10.5 rule 3).
+ *
+ * The media query used to *be* this function, which meant the accommodation was
+ * whatever the operating system said and the game had no opinion. It still
+ * defaults to that, and it can now be overridden in both directions, because an
+ * OS motion setting is one switch for every app on the device.
+ */
+export function prefersReducedMotion(): boolean {
+  return resolveReducedMotion(getSettings().motion, systemPrefersReducedMotion())
 }
 
 /** Scale one duration for the current preference. Pure when `reduced` is passed. */
@@ -69,16 +83,29 @@ export function motionMs(ms: number, reduced: boolean = prefersReducedMotion()):
  * Subscribed rather than read once: the preference can be toggled while the
  * app is running, and a panel that keeps animating at full length after the
  * user has asked it not to is the failure this accommodation exists to avoid.
+ *
+ * **Two sources, one answer.** The OS query can change under a running app and
+ * so can the F2.1 setting — and the setting's own screen is a panel, so it
+ * animates using the value it is in the middle of changing. Both are subscribed
+ * so the toggle takes effect on the frame it is pressed rather than at the next
+ * launch, which is the only way a player can tell what the control does.
  */
 export function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(prefersReducedMotion)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const sync = () => setReduced(prefersReducedMotion())
+    const offSettings = subscribeSettings(sync)
+
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return offSettings
+    }
     const mq = window.matchMedia(QUERY)
-    const onChange = () => setReduced(mq.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
+    mq.addEventListener('change', sync)
+    return () => {
+      offSettings()
+      mq.removeEventListener('change', sync)
+    }
   }, [])
 
   return reduced

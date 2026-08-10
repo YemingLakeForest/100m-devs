@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { TextureStyle } from 'pixi.js'
 import App from './App.tsx'
 import { installPaletteTokens } from './art/cssTokens.ts'
+import { loadSettings } from './settings/settings.ts'
 
 import './styles/fonts.css'
 import './styles/tokens.css'
@@ -11,6 +12,12 @@ import './styles/app.css'
 // Publish the master palette to CSS before the first paint, so no element ever
 // renders against an unset custom property.
 installPaletteTokens(document.documentElement)
+
+// Appendix F2.1 — before anything can make a sound or animate. `App` preloads
+// the SFX bank in its first effect and the title's boot sequence is the first
+// motion in the product, so a settings read that happened any later would let
+// one launch play at the wrong volume and animate at the wrong length.
+loadSettings()
 
 /**
  * Nearest-neighbour everywhere, set before any texture is created.

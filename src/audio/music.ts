@@ -29,6 +29,7 @@
  */
 
 import { lodWeights } from '../render/omniLens.ts'
+import { getSettings, subscribeSettings } from '../settings/settings.ts'
 import type { ZoomLevel } from '../sim/poke.ts'
 
 function clamp01(x: number): number {
@@ -278,6 +279,8 @@ export class MusicBus {
   private readonly stingerBuffers = new Map<Stinger, AudioBuffer>()
   /** ctx.currentTime (ms) at which triggerActIV() was called, or null. */
   private act4StartMs: number | null = null
+  /** Unsubscribe for the F2.1 music volume. Held so `unload` can let go. */
+  private offSettings: (() => void) | null = null
 
   /**
    * Boots the bus and starts every stem looping at zero gain. Must never
@@ -301,6 +304,15 @@ export class MusicBus {
       this.ctx = new AudioContext()
       this.master = this.ctx.createGain()
       this.master.connect(this.ctx.destination)
+      // Appendix F2.1 — the music half of the §20 mixer. It lands on the master
+      // node rather than on the stems because the simulation owns every stem
+      // gain frame by frame (§20.3's DSP matrix), so a player preference
+      // written there would be overwritten on the next tick. One node above all
+      // of them is the only place a volume can survive the mix.
+      this.master.gain.value = getSettings().music
+      this.offSettings = subscribeSettings((s) => {
+        if (this.master) this.master.gain.value = s.music
+      })
     } catch (err) {
       console.warn('[music] AudioContext failed to start — running silent.', err)
       this.ctx = null
@@ -401,6 +413,11 @@ export class MusicBus {
   }
 
   async unload(): Promise<void> {
+    // Before the nodes go: a live subscription holding a disconnected master
+    // node would keep this bus alive for the lifetime of the settings module.
+    this.offSettings?.()
+    this.offSettings = null
+
     for (const gain of this.gains.values()) gain.disconnect()
     this.gains.clear()
     this.stingerBuffers.clear()

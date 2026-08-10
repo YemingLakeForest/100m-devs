@@ -784,3 +784,135 @@
     --title-handoff-delay: 96ms;
   }
 }
+
+/* --- OPTIONS and CREDITS, Appendix F2.1 / F3.1 -------------------------- */
+
+/*
+ * Both screens live inside `.title__stub`, which already owns the frame, the
+ * background wash and the pointer-events. These rules only lay out what is
+ * inside it — and they cap their own height rather than the panel's, because
+ * §25.4's lesson is that a rule which hides a feature below a breakpoint is a
+ * feature deletion on every device inside it. Nothing here has a `display:
+ * none`; the licence box gives up height instead.
+ */
+
+.opt,
+.credits {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  /* The design box is 448px tall (§23.4) and the panel has its own padding. */
+  max-height: 62vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.opt__title,
+.credits__title {
+  margin: 0;
+  font-size: var(--type-2x);
+  letter-spacing: 2px;
+  color: var(--p3);
+}
+
+.opt__row {
+  display: grid;
+  grid-template-columns: 8ch 1fr;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.opt__label {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.opt__control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/*
+ * The meter is typed, not drawn — §10.6 rejects the native widget, and a bar
+ * built from block glyphs is set in the same face as everything else, so it
+ * cannot drift off the pixel grid the way a styled `<input>` would.
+ */
+.opt__meter {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p3);
+  white-space: pre;
+}
+
+.opt__value {
+  min-width: 4ch;
+  font-size: var(--type-1x);
+  color: var(--p2);
+  text-align: right;
+}
+
+/* The chosen side of a two-way switch. A brightness step, never a tint. */
+.opt__control .ui-btn.is-chosen {
+  color: var(--p3);
+}
+
+.opt__row--danger .opt__label {
+  color: var(--p2);
+}
+
+.opt__warning {
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--type-1x);
+  line-height: 1.6;
+  color: var(--p3);
+}
+
+.credits__list {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  font-size: var(--type-1x);
+  line-height: 1.6;
+}
+
+.credits__list dt {
+  color: var(--p1);
+  letter-spacing: 1px;
+}
+
+.credits__list dd {
+  margin: 0 0 8px;
+  max-width: 46ch;
+  color: var(--p3);
+}
+
+.credits__licence-head {
+  margin: 4px 0 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+/*
+ * The one scroll box in the product. The OFL is a fixed-width legal document,
+ * so it keeps its own wrapping and scrolls inside itself — the page never
+ * scrolls horizontally, which is the rule the rest of the HUD is built on.
+ */
+.credits__licence {
+  margin: 0;
+  max-height: 22vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 8px 10px;
+  border: var(--rule) solid var(--p0);
+  font: inherit;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p2);
+  white-space: pre-wrap;
+}
