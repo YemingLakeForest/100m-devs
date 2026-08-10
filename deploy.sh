@@ -327,19 +327,58 @@ if [[ "$PLATFORM" == "Cygwin" || "$PLATFORM" == "MinGW" || "$PLATFORM" == "MSYS"
 fi
 
 echo -e "${CYAN}Installing APK (streamed)...${NC}"
-if "$ADB_PATH" -s "$ADB_TARGET" install -r "$APK_PATH"; then
+
+# **adb says why it failed. Print that.**
+#
+# This block used to swallow adb's output and offer three guesses — uninstall,
+# storage space, USB cable — none of which is the usual cause and all of which
+# take a while to rule out. The block twenty lines above already makes this
+# complaint about a different failure ("sends you looking at storage space and
+# USB cables for a problem that is neither") and then this one did it anyway.
+#
+# Every real cause names itself in the output. INSTALL_FAILED_UPDATE_INCOMPATIBLE
+# is a signing-key mismatch and is by far the most common: a snapshot built here
+# and a build from another machine are signed with *different debug keys*, so the
+# phone refuses the upgrade. INSTALL_FAILED_INSUFFICIENT_STORAGE is the one the
+# old advice was written for and is rare. So the output is captured and shown,
+# and the hint is chosen from what adb actually said.
+install_apk() {
+    "$ADB_PATH" -s "$ADB_TARGET" install "$@" "$APK_PATH" 2>&1
+}
+
+INSTALL_OUT=$(install_apk -r) && INSTALL_OK=1 || INSTALL_OK=0
+if [[ $INSTALL_OK -eq 0 ]]; then
+    echo -e "${YELLOW}Retrying without -r flag...${NC}"
+    INSTALL_OUT=$(install_apk) && INSTALL_OK=1 || INSTALL_OK=0
+fi
+
+if [[ $INSTALL_OK -eq 1 ]]; then
     echo -e "${GREEN}✓ APK installed${NC}"
 else
-    echo -e "${YELLOW}Retrying without -r flag...${NC}"
-    if "$ADB_PATH" -s "$ADB_TARGET" install "$APK_PATH"; then
-        echo -e "${GREEN}✓ APK installed${NC}"
-    else
-        echo -e "${RED}APK installation failed!${NC}"
-        echo -e "${YELLOW}  1. Uninstall existing app from phone (adb uninstall ${APP_ID})${NC}"
-        echo -e "${YELLOW}  2. Check phone storage space${NC}"
-        echo -e "${YELLOW}  3. Verify USB connection${NC}"
-        exit 1
-    fi
+    echo -e "${RED}APK installation failed. adb said:${NC}"
+    echo "$INSTALL_OUT" | sed 's/^/    /'
+    echo ""
+    case "$INSTALL_OUT" in
+        *UPDATE_INCOMPATIBLE*|*INCONSISTENT_CERTIFICATES*|*signatures\ do\ not\ match*)
+            echo -e "${YELLOW}The installed app is signed with a different key — usually because it${NC}"
+            echo -e "${YELLOW}was built on another machine, whose debug keystore is not this one.${NC}"
+            echo -e "${YELLOW}The app's data will be lost, which for a snapshot build is fine:${NC}"
+            echo -e "${BOLD}    $ADB_PATH -s $ADB_TARGET uninstall ${APP_ID}${NC}"
+            echo -e "${YELLOW}then re-run this script.${NC}"
+            ;;
+        *INSUFFICIENT_STORAGE*)
+            echo -e "${YELLOW}The phone is out of space. Free some and re-run.${NC}"
+            ;;
+        *device\ offline*|*device\ not\ found*|*closed*)
+            echo -e "${YELLOW}Lost the device mid-install. If this was the Wi-Fi connection, replug${NC}"
+            echo -e "${YELLOW}the cable and re-run — the script will re-establish it.${NC}"
+            ;;
+        *)
+            echo -e "${YELLOW}Not a failure this script has a canned answer for — the adb line above${NC}"
+            echo -e "${YELLOW}is the thing to search for.${NC}"
+            ;;
+    esac
+    exit 1
 fi
 
 if [[ $LAUNCH -eq 1 ]]; then

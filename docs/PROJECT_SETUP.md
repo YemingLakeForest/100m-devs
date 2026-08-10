@@ -84,32 +84,31 @@ Fixed by ADR 0001. Match `mind-the-gap`'s versions to keep one toolchain across 
 | ~~ImageMagick~~ | ~~Palette quantiser~~ | — | ❌ **No longer needed** — see below |
 | **Departure Mono** | Terminal/HUD font | £0 | ✅ v1.500 vendored at `src/assets/fonts/`. Licence verified: **SIL OFL 1.1** — embedding in the app is permitted; the licence text ships alongside it and must stay. |
 
-> ### The Android build needs `android/local.properties`, and it is gitignored
+> ### The Android SDK is discovered, not configured — nothing to set up
 >
-> A fresh clone cannot build the APK. Gradle stops with:
+> `./deploy.sh` and `./build-snapshot.sh` **find the SDK themselves** and write
+> `android/local.properties` if it is missing or stale. A fresh clone on a new machine
+> builds with no Android setup step at all, which is the point: that file is gitignored
+> (correctly — it holds a machine-specific absolute path), so requiring it by hand meant it
+> was missing on every new machine, forever.
 >
-> ```
-> SDK location not found. Define a valid SDK location with an ANDROID_HOME
-> environment variable or by setting the sdk.dir path in your project's local
-> properties file at '.../android/local.properties'.
-> ```
+> It searches `$ANDROID_HOME`, `$ANDROID_SDK_ROOT`, the standard per-OS locations, and
+> finally two directories above `adb` if that is on `PATH` — accepting only a directory that
+> has both `platforms/` and `platform-tools/`, because an SDK without `platforms/` cannot
+> resolve `compileSdkVersion` and would fail later and less clearly.
 >
-> **This is correct behaviour, not a broken checkout.** `local.properties` holds a machine
-> specific absolute path, so `android/.gitignore` excludes it — which means it is missing on
-> every new machine and after every fresh clone, forever. Create it:
+> **If you keep two SDKs, the existing `local.properties` wins** and is never overwritten;
+> delete it to have the path rediscovered.
 >
-> ```properties
-> # android/local.properties
-> sdk.dir=C:/Users/<you>/AppData/Local/Android/Sdk
-> ```
+> Two notes worth keeping, because both cost time before this was automatic:
 >
-> **Forward slashes.** It is a `java.util.Properties` file, where a backslash is an escape
-> character — `C:\Users\...` silently parses as `C:Users...` and Gradle reports the same
-> "SDK location not found" as if the file were absent, which is a considerably worse
-> half hour than the original error.
->
-> Setting `ANDROID_HOME` in the environment works too and is what CI would do; the file is
-> the lower-friction choice on a workstation because it survives shell restarts.
+> - **Forward slashes, always.** `local.properties` is a `java.util.Properties` file, where a
+>   backslash is an escape character — `C:\Users\...` silently parses as `C:Users...` and
+>   Gradle then reports the *identical* "SDK location not found" as if the file were absent.
+>   The generator uses `cygpath -m` on Windows for exactly this reason.
+> - **Not `ANDROID_HOME`.** Exporting it looks tidier but breaks on MinGW, where the value is
+>   a `/c/Users/...` string the JVM does not understand. The file takes the same form on
+>   every platform, and is what Android Studio writes anyway.
 
 > **ImageMagick was dropped.** ART_DIRECTION §5 specified `magick -remap`, but the
 > quantiser and the `art:check` gate are implemented with **sharp**, which is already a
