@@ -1,14 +1,19 @@
 /**
- * The launcher icon — TEMPORARY, generated rather than drawn.
+ * The launcher, web and store icons — every size, from one source.
  *
- * `npm run art:icon`
+ *   npm run art:icon                                  # from the 32x32 grid below
+ *   npm run art:icon -- --from store/icon-master-512.png   # from real art
  *
- * This is a placeholder standing in until there is real key art (GDD §22).
- * It is a *script* and not a checked-in PNG on purpose: a hand-exported icon
- * has no source, so the day the real one arrives nobody can tell which of the
- * fifteen PNGs in `android/app/src/main/res` were regenerated and which are
- * stale leftovers. Everything this writes is reproducible from the grid below,
- * and deleting the script's outputs costs one command.
+ * **The second form is the live one.** `store/icon-master-512.png` is the
+ * shipping icon: a CRT with a floor of developers inside it, remapped to the
+ * §2.2 master palette so it agrees with everything else in the product. The
+ * grid below is kept as the fallback that needs no art to exist.
+ *
+ * It is a *script* and not fifteen hand-exported PNGs on purpose: a
+ * hand-exported icon has no source, so nobody can tell which of the files in
+ * `android/app/src/main/res` were regenerated and which are stale leftovers.
+ * Everything this writes is reproducible from one input, and deleting the
+ * outputs costs one command.
  *
  * The art is a 32x32 pixel grid — a CRT with a rising bar chart on it, which is
  * the whole game in two nouns — drawn from the ART_DIRECTION §2.2 master
@@ -35,6 +40,35 @@ import { hexToRgb } from '../src/art/palette.ts'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const RES = join(ROOT, 'android/app/src/main/res')
 const PUBLIC = join(ROOT, 'public')
+/**
+ * Store listing art. **Not shipped inside the app** — this is uploaded to the
+ * Play Console by hand, which is exactly why it needs a home in the repo and a
+ * generator: an icon that only exists in a browser upload form has no source.
+ */
+const STORE = join(ROOT, 'store')
+
+/**
+ * Google Play's listing icon — the one hard external requirement in this file.
+ *
+ * | Rule | Value |
+ * |---|---|
+ * | Size | **exactly 512 x 512** |
+ * | Format | 32-bit PNG |
+ * | Weight | under 1 MB |
+ * | Corners | **square, full bleed** |
+ * | Shadow | none |
+ *
+ * The last two are the ones that get baked in by mistake. **Play applies its
+ * own rounded-corner mask and its own drop shadow**, so art that arrives with
+ * either already drawn on gets it twice — a second corner radius inside the
+ * first, and a shadow that clips at the mask edge. It has to be a plain opaque
+ * square; the launcher does the rounding.
+ *
+ * Enforced in `art-check.ts` rather than trusted, because it is a number that
+ * is checked once at submission and then never again until it fails one.
+ */
+export const PLAY_ICON_PX = 512
+export const PLAY_ICON_MAX_BYTES = 1024 * 1024
 
 /** The grid is 32x32 and every coordinate below is in those units. */
 const G = 32
@@ -175,7 +209,98 @@ async function main() {
     await write(join(PUBLIC, `icon-${size}.png`), opaque, size)
   }
 
+  console.log('\nGoogle Play listing:')
+  // 32 x 16 = 512 exactly, so the store icon is the grid at a clean sixteen
+  // times and every edge stays on the pixel lattice. Full-bleed and square by
+  // construction — see PLAY_ICON_PX for why baking corners here would be wrong.
+  await write(join(STORE, 'play-store-icon-512.png'), opaque, PLAY_ICON_PX)
+
   console.log('\n✓ Icon written. This is a placeholder — replace before store submission.')
 }
 
-await main()
+/**
+ * Build every size from an **existing 512 x 512 master** instead of the grid.
+ *
+ *   npm run art:icon -- --from path/to/icon-512.png
+ *
+ * The route for art that was drawn or generated elsewhere. Play's listing icon
+ * is the largest thing anybody makes, so it is the natural master and
+ * everything else is a reduction of it — which is the one ordering that cannot
+ * produce a store icon that disagrees with the launcher icon.
+ *
+ * **Every resize is nearest-neighbour**, including the downscales. A smooth
+ * kernel would average neighbouring pixels into new in-between colours, and
+ * ART_DIRECTION §3 rule 1 names anti-aliased edges as "the single most common
+ * cohesion failure" — a 48 px launcher icon full of colours that are in no ramp
+ * is that failure, arriving through the build rather than through the art.
+ *
+ * The cost is honest and worth stating: 512 does not divide evenly into 48, 72
+ * or 180, so those reductions duplicate rows unevenly and the glyph will shimmer
+ * slightly against the grid. **Art authored on a 32 or 64 grid survives this;
+ * art with fine detail does not**, which is a fact about the art rather than
+ * about the resampler.
+ */
+async function fromMaster(src: string) {
+  const image = sharp(src)
+  const meta = await image.metadata()
+
+  if (meta.width !== PLAY_ICON_PX || meta.height !== PLAY_ICON_PX) {
+    throw new Error(
+      `master must be exactly ${PLAY_ICON_PX}x${PLAY_ICON_PX} (Google Play's listing size, ` +
+        `and the largest asset anything else is reduced from) — got ${meta.width}x${meta.height}`,
+    )
+  }
+
+  const master = await image.png().toBuffer()
+  const emit = async (path: string, size: number) => {
+    await mkdir(dirname(path), { recursive: true })
+    await sharp(master)
+      .resize({ width: size, height: size, kernel: 'nearest' })
+      .png({ compressionLevel: 9 })
+      .toFile(path)
+    console.log(`  ${path.slice(ROOT.length + 1).replace(/\\/g, '/')}  ${size}px`)
+  }
+
+  console.log(`Icon from master — ${rel(src)}, nearest-neighbour only\n`)
+
+  console.log('Android:')
+  for (const [dir, legacy, foreground] of DENSITIES) {
+    await emit(join(RES, dir, 'ic_launcher.png'), legacy)
+    await emit(join(RES, dir, 'ic_launcher_round.png'), legacy)
+    // **Full-bleed, not inset.** The adaptive canvas is 108dp with a 72dp safe
+    // zone, so a master drawn edge to edge would need shrinking to two thirds.
+    // This one does not: the artwork occupies 60% of its own square, which is
+    // 65dp of the 108 — already inside the safe zone with room to spare. And
+    // the master's field quantises to exactly #14121a, the colour
+    // `ic_launcher_background.xml` paints underneath, so the foreground's own
+    // background is invisible against it rather than a square on a square.
+    //
+    // Insetting anyway would put the art at 43dp in a 72dp window and read as a
+    // small picture in a large frame, which is the commonest way an adaptive
+    // icon comes out looking wrong.
+    await emit(join(RES, dir, 'ic_launcher_foreground.png'), foreground)
+  }
+
+  console.log('\nWeb:')
+  for (const size of [32, 180, 192, 512]) await emit(join(PUBLIC, `icon-${size}.png`), size)
+
+  console.log('\nGoogle Play listing:')
+  await emit(join(STORE, 'play-store-icon-512.png'), PLAY_ICON_PX)
+
+  console.log('\n✓ Icon written from master.')
+}
+
+function rel(p: string): string {
+  return p.startsWith(ROOT) ? p.slice(ROOT.length + 1).replace(/\\/g, '/') : p
+}
+
+// `--from <master.png>` builds every size by reducing an existing 512 master;
+// with no argument the temporary grid above is the source.
+const fromArg = process.argv.indexOf('--from')
+if (fromArg !== -1) {
+  const src = process.argv[fromArg + 1]
+  if (!src) throw new Error('--from needs a path to a 512x512 PNG')
+  await fromMaster(src)
+} else {
+  await main()
+}

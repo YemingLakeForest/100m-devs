@@ -15,7 +15,9 @@
  */
 import sharp from 'sharp'
 import { MASTER_PALETTE, hexToRgb } from '../src/art/palette.ts'
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { listPolicedAssets, listSourceFiles, loadPaletteFromPng, rel } from './art-lib.ts'
 
 /** GDD §22.7 — hard cap. Breaching this needs a decision recorded in the GDD first. */
@@ -162,6 +164,58 @@ for (const file of await listSourceFiles()) {
       }
     }
   })
+}
+
+/*
+ * (5) Google Play's listing icon.
+ *
+ * Checked here rather than remembered, because it is a rule that is verified
+ * once — at submission, by an upload form, months after the art was made — and
+ * the failure mode is a rejected release rather than a wrong-looking picture.
+ *
+ * Three of the four rules are dimensions and weight. The fourth is the one that
+ * is actually easy to get wrong: **the icon must be a plain opaque square.**
+ * Play applies its own rounded-corner mask and its own drop shadow, so corners
+ * or a shadow baked into the art get applied twice — a second radius inside the
+ * first, and a shadow clipped at the mask edge. Transparent corner pixels are
+ * the signature of exactly that mistake, so they are what this looks for.
+ */
+const PLAY_ICON = 'store/play-store-icon-512.png'
+const playIcon = join(import.meta.dirname, '..', PLAY_ICON)
+
+if (existsSync(playIcon)) {
+  const meta = await sharp(playIcon).metadata()
+  const bytes = (await stat(playIcon)).size
+
+  if (meta.width !== 512 || meta.height !== 512) {
+    failures.push(`${PLAY_ICON}: Google Play requires exactly 512x512 — got ${meta.width}x${meta.height}.`)
+  }
+  if (meta.format !== 'png') {
+    failures.push(`${PLAY_ICON}: Google Play requires a 32-bit PNG — got ${meta.format}.`)
+  }
+  if (bytes > 1024 * 1024) {
+    failures.push(`${PLAY_ICON}: ${(bytes / 1024 / 1024).toFixed(2)} MB exceeds Google Play's 1 MB limit.`)
+  }
+
+  // The corners, one pixel in from each edge. Any alpha below full means the
+  // art has been pre-rounded or carries a baked shadow.
+  const { data, info } = await sharp(playIcon)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const alphaAt = (x: number, y: number) => data[(y * info.width + x) * info.channels + 3]
+  const corners = [
+    [1, 1],
+    [info.width - 2, 1],
+    [1, info.height - 2],
+    [info.width - 2, info.height - 2],
+  ] as const
+  if (corners.some(([x, y]) => alphaAt(x, y) < 255)) {
+    failures.push(
+      `${PLAY_ICON}: has transparent corners. Play masks and shadows the icon itself, so the ` +
+        'art must be a full-bleed opaque square — pre-rounding it applies the radius twice.',
+    )
+  }
 }
 
 const counted = files.length
