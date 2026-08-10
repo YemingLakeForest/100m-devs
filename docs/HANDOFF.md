@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**998 tests.** Lint, types and the art gate clean.
+**1034 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -41,6 +41,7 @@ simulation.
 | **Hiring** | Three things fall — a desk, a computer, **the actual generated developer** — on the seats the hire actually took, and the room withholds a seat until its arrival lands |
 | **The readouts** | §10.1's rail plus §4.10e's revenue graph, in **two full-height rails with the copy between them** — nothing in a rail can collide with another rail or with §21's script at any frame height in the box. **MAN-WEEKS is gone**, withdrawn by the author of the idea |
 | **Hero Cards** | §13.6's rules and data built and tested. **Not wired** — see below |
+| **The rating** | §4.14 built and tested — three weighted terms, reputation, and the three multipliers it feeds. **Not wired**, and R21 is the switch. §4.14.1 is the part to read |
 
 ### Built this session
 
@@ -169,12 +170,44 @@ sides**, and reading them as separate work is the way to build it wrong:
 > visible from every rung (R26) → and **you** (R20) are the one person with all
 > five classes who is bad at all of them.
 
-**Start with R23, the rating.** It is pure economics — no art, no interface, no
-renderer — and every other item in the batch is scored by it. Building R21's
-defects first means guessing what a bug is worth, and a guess made at that point
-becomes canon by accident. R21 is the natural second: it is the thing R23
-measures, it runs headless, and its coefficient is the batch's one genuinely
-load-bearing number.
+**~~Start with R23, the rating.~~ Done 2026-08-10 — `sim/rating.ts`, pure and
+tested. Start with R21, and read §4.14.1 first.**
+
+R23 shipped the way `sim/heroes.ts` did: rules and data, **not wired**. That is
+not a half-finish, it is the only safe order, and the reason is worth carrying
+into R21 because it is also R21's acceptance test:
+
+> With no defect system the defect term reads **zero on every release**, so
+> every game rates 60 against a garage baseline of 35, and §4.10's revenue
+> inflates by a quarter **for a reason no player did anything to cause.**
+
+So the rating stays dark until defects can feed it, and **R21 is the switch**.
+
+Two things were solved rather than chosen while building it, both now canon in
+§4.14.1, and both are the sort of thing that is expensive to discover late:
+
+**The neutral point is derived from the garage, not picked at 50.** The rating
+multiplies revenue, and §4.10 is calibrated against §21's stated +$50. A Run 1
+studio has no heroes and cannot reach 50 under any weighting, so a mid-scale
+neutral point would have taxed the whole opening act for the absence of a system
+that does not exist — and would have made hero coverage a *gate* on the rating,
+which §13.6.7 forbids. `BASELINE_RATING` is computed from the weights instead,
+and every multiplier is ×1 there **by construction**, so a player who ignores
+this entire batch earns exactly what they earned before it.
+
+**β is anchored to the rating, not the rating to β.** §25.3.1 orders the build
+this way to stop the defect coefficient becoming canon by accident; anchoring is
+stronger than ordering. `DEFECT_DENSITY_ANCHOR` lives in `rating.ts` and §4.12's
+β *is* that constant, so a studio with no QA scores exactly half on defects
+**whatever β turns out to be**. Retuning how fast bugs arrive changes how quickly
+the incident threshold is reached and changes nothing about what a shipped game
+is worth. **Do not invert this when building R21** — a β chosen independently and
+a rating calibrated against it puts the batch's one load-bearing number in two
+places at once, which is exactly what §25.3.2 is trying to prevent.
+
+R21 is now the natural next item rather than merely the recommended one: it is
+the thing R23 measures, it runs headless, and it is what lets the rating be
+switched on.
 
 **R25 is last on purpose.** It needs a floor that already has roles on it, rows
 worth assigning somebody to, and a rating that makes a placement right or wrong.
@@ -219,6 +252,13 @@ the game's one seizure and it is load-bearing.
   much of a tap lands instantly. **Neither can change what a poke is worth** —
   the strength is solved against the same τ — so both are safe to retune by feel,
   which is exactly the §25.2 condition for a number that wants a person.
+- **§4.14's three weights, and the density a garage ships at.** `RATING_WEIGHTS`
+  is 0.5 / 0.3 / 0.2 and `DEFECT_DENSITY_ANCHOR` is one defect per fifty story
+  points. §4.14 fixes only the *order* of the weights and §25.3.2 refuses to fix
+  the values, so both are first passes wanting a table. **Neither can move the
+  existing economy** — §4.14.1's baseline is derived from whatever they are, so
+  the garage release is ×1 at every setting — which is precisely the §25.2
+  condition for a number that is safe to hand to a person.
 - **Is a poke supposed to be net negative at forty developers?** Trap 16. §4.9's
   context switch costs more per frame than one buffed developer adds, and it did
   before R14 too — R14 only made it visible. A real balance question that nobody
