@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**1034 tests.** Lint, types and the art gate clean.
+**1053 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -208,6 +208,24 @@ places at once, which is exactly what §25.3.2 is trying to prevent.
 R21 is now the natural next item rather than merely the recommended one: it is
 the thing R23 measures, it runs headless, and it is what lets the rating be
 switched on.
+
+**R19's model landed alongside it, also unwired** — `sim/roles.ts`, because R21
+and R22 have no counter-mechanism without somebody to be QA and somebody to
+answer the phone. One thing in it is worth knowing before touching it, and it is
+recorded as §4.11.3:
+
+> **The roster is the hire history run-length encoded, not four counters.**
+> Four counters cannot give §4.11.2 its bands without ordering the roles and
+> laying them out — and then hiring one developer relabels every QA above them.
+> §7.8.7 generates the face from the seat, so the player would watch a specific
+> person change jobs because somebody else was hired.
+
+Its two live effects are anchored the way §4.14.1 anchors the rating: QA are
+described by *the share at which the defect rate halves*, not by a coefficient
+in an exponent, because choosing that coefficient **is** choosing the role ratio
+§25.3.2 refuses to choose. What is still missing is the dial's role selector,
+§19's per-role speech, §7.8.6's behaviour and §7.8.7's silhouette — the half of
+R19 that has to be looked at rather than tested.
 
 **R25 is last on purpose.** It needs a floor that already has roles on it, rows
 worth assigning somebody to, and a rating that makes a placement right or wrong.
