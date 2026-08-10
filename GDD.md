@@ -6202,6 +6202,19 @@ not told to us twice — and every one is built.
 
 ---
 
+### 25.0a Intake — 2026-08-10, reported by eye **[CANON]**
+
+Three more found by looking at the running game. All three are **the same class
+of mistake as §25.0's**: correct in the code, wrong in the picture.
+
+| # | Reported as | Owner § | Status |
+|---|---|---|---|
+| E8 | "I don't like the siiuuuuuu sound when I click start on main menu" | §10.9.4, §10.8 F3 | **Built.** START fired `zoom-in` — **1.2 s** of descending swoop written for a camera crossing nine orders of magnitude — over a push-in that is `PUSH_IN_MS = 420 ms`. It was still going long after the title had gone, and it is **the first sound in the game**. This is the trap `uiSfx.ts` already records having fixed for panels, found a second time in the worst place, and defended by a comment. `start` is now its own sound, routed through the fallback table so a bespoke clip drops in with no code change |
+| E9 | "there's a horizontal bar black one across the desk, why is that, remove it" | §7.8.1 | **Built.** The monitor lead — a 1 px stroke from the tower to the panel. Two faults compounding: the two props stand on the same surface so the lead was **flat**, in a picture whose rule is that nothing is flat (trap 10); and a stroke width is in room units, so it was sub-pixel at a full floor and **a dozen screen pixels at rung 0**. Never the width of a cable — either nothing or a girder. Removed |
+| E10 | "the lines 'Progress is dangerously slow...' is very unreadable. make it, and other similar style lines more visible" | §10.7, §21 | **Built.** §21's advisor was styled as a *readout* — `--p1` ink on a 58% wash, the treatment every rail label gets — when it is a character speaking, lying across the middle of the frame over the brightest part of the lit room, and the only thing on screen that teaches the player what to do. The game already had the answer written down: §10.7's dialogue box is `--p3` on 80%. Both script lines now take that treatment, the terminal staying a step down the ramp at `--p2` so the register distinction is *which colour*, not whether you can read it |
+
+---
+
 ### 25.1 R11, diagnosed — what "+0" actually is **[CANON]**
 
 Two separate things were happening and they had one symptom, which is why it read as a single

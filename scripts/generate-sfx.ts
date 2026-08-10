@@ -162,6 +162,18 @@ const SOUNDS: Sfx[] = [
     influence: 0.8,
   },
   {
+    stem: 'title-start',
+    // GDD 10.9.4 - START pressed. Sized to PUSH_IN_MS = 420 ms, and the
+    // "no pitch sweep" is the whole brief: this slot used to hold `zoom-in`,
+    // a 1.2 s descending swoop written for a nine-orders-of-magnitude camera
+    // move, and it was the first sound in the game.
+    prompt:
+      'a short warm soft thump with a brief bloom of air, a room light switching ' +
+      `on, confident and clean, no pitch sweep, no whistle, no tail, ${STYLE}`,
+    duration: 0.5,
+    influence: 0.8,
+  },
+  {
     stem: 'ui-close',
     prompt:
       'a very short soft air movement closing, a panel sliding shut, quieter and ' +

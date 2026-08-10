@@ -608,13 +608,19 @@ body {
 /* --- the §21 script ----------------------------------------------------- */
 
 /* The CRT terminal banner. Retro, monospace, and doing the comedy work. */
+/*
+ * The banner above the advisor. Machine output rather than a voice, so it stays
+ * a step down the ramp at `--p2` — but it sits over the same lit room and takes
+ * the same 80% backing, because the register distinction is supposed to be
+ * *which colour it is*, not whether you can read it.
+ */
 .hud__terminal {
   margin: 0;
   font: inherit;
   color: var(--p2);
   border-left: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 58%, transparent);
-  padding: 3px 7px 4px;
+  background: color-mix(in srgb, var(--n0) 80%, transparent);
+  padding: 4px 8px 5px;
   line-height: 1.3;
   /*
    * `pre-wrap`, not `pre` plus `overflow: hidden`.
@@ -634,16 +640,32 @@ body {
 }
 
 /* The sarcastic tutorial assistant. */
+/*
+ * §21's advisor — the script, and the most important text in the product.
+ *
+ * **It was styled as a readout and it is not one.** `--p1` ink on a 58% wash is
+ * the treatment every label and sub-line in the rail gets, and those are
+ * glanceable numbers sitting in a rail's own column. This is a *character
+ * speaking*, it lies across the middle of the frame over the brightest,
+ * busiest part of the lit room, and it is the only thing on screen that
+ * teaches the player what to do — so at 58% and two steps down the phosphor
+ * ramp it was reported, correctly, as unreadable.
+ *
+ * The game already had the right answer written down: §10.7's dialogue box is
+ * `--p3` on 80%, for exactly this kind of content. This is that treatment,
+ * because narrative text having one legibility standard is worth more than
+ * this line having a look of its own.
+ */
 .hud__advisor {
   margin: 0;
   /* Reserved so the line does not grow the row as the §10.7 typewriter fills
      it. Act III's pitch is the longest in the script and wraps to two lines;
      without this the burn-down chart above it shifts up as the words arrive. */
   min-height: 2.7em;
-  color: var(--p1);
-  border-left: var(--rule) solid var(--p1);
-  background: color-mix(in srgb, var(--n0) 58%, transparent);
-  padding: 3px 7px 4px;
+  color: var(--p3);
+  border-left: var(--rule) solid var(--p3);
+  background: color-mix(in srgb, var(--n0) 80%, transparent);
+  padding: 4px 8px 5px;
   line-height: 1.35;
 }
 

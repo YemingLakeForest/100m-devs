@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { playSfx } from '../audio/sfx.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
@@ -166,9 +165,15 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
     if (exiting) return
     setExiting(true)
     onStart()
-    // The push-in is a zoom, so it gets the zoom's voice rather than a UI
-    // sound: this is the camera moving, not a control acknowledging a finger.
-    playSfx('zoom-in')
+    // §10.9.4 — the lights coming up and the camera pushing in, in one sound.
+    //
+    // This used to be `playSfx('zoom-in')`, defended by a comment saying the
+    // push-in is a zoom and so deserves the zoom's voice. The reasoning was
+    // right and the conclusion did not follow: `PUSH_IN_MS` is **420 ms** and
+    // that clip is **1.2 s** of descending swoop, so it was still going long
+    // after the title had gone — and it is the first sound in the game.
+    // See the `start` entry in uiSfx.ts.
+    playUi('start')
   }, [exiting, onStart])
 
   // Latched rather than depended on, as in Panel: an inline arrow from the

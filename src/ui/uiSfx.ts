@@ -35,6 +35,24 @@ export type UiSound =
   | 'close'
   /** One revealed character — §10.7, "letters land with a tick". */
   | 'tick'
+  /**
+   * §10.9.4 — START pressed, the lights coming up and the camera pushing in.
+   *
+   * **The same trap this file's header describes, found a second time and in
+   * the worst possible place.** The title screen fired `zoom-in` — 1.2 seconds
+   * of "down-pitched laser chirp rushing toward the listener", written for a
+   * camera crossing nine orders of magnitude — over a push-in that is
+   * `PUSH_IN_MS = 420 ms`. It was still swooping most of a second after the
+   * title had gone, and it is the **first sound anybody ever hears from this
+   * game**.
+   *
+   * It had a comment defending it: "this is the camera moving, not a control
+   * acknowledging a finger." That reasoning is right and the conclusion did not
+   * follow — the camera move is 420 ms, so a 1.2 s clip is not this camera's
+   * voice either. Being the right *kind* of sound never fixes being three times
+   * too long.
+   */
+  | 'start'
 
 /**
  * Which clips are actually in the bundle.
@@ -59,6 +77,11 @@ const UI_CLIP: Record<UiSound, SfxId> = {
   whoosh: 'ui-whoosh',
   close: 'ui-close',
   tick: 'ui-tick',
+  // Not generated yet — `scripts/generate-sfx.ts` carries the spec and it needs
+  // an ElevenLabs key. Until somebody has one this resolves through FALLBACK,
+  // which is exactly what the fallback table is for: the clip can be dropped in
+  // later and picked up with no code change.
+  start: 'title-start',
 }
 
 /**
@@ -73,6 +96,10 @@ const FALLBACK: Record<UiSound, SfxId | null> = {
   whoosh: 'poke-desk',
   close: 'poke-desk',
   tick: 'poke-desk',
+  // **Not a zoom**, which is the whole point of this entry existing. `ui-whoosh`
+  // is half a second and is prompted "no pitch sweep, no whistle, no tail" —
+  // the three properties that made the old sound a swoop rather than a start.
+  start: 'ui-whoosh',
 }
 
 /**

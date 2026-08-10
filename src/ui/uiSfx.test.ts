@@ -91,3 +91,35 @@ describe('the bank can be silenced without taking a control with it', () => {
     expect(playSfx).not.toHaveBeenCalled()
   })
 })
+
+describe('starting the game — the first sound anybody hears', () => {
+  it('has a sound of its own rather than borrowing the camera’s', () => {
+    // §10.9.4's push-in is PUSH_IN_MS = 420 ms. The title screen was firing
+    // `zoom-in`, a **1.2 s** "down-pitched laser chirp rushing toward the
+    // listener" written for a camera crossing nine orders of magnitude — so the
+    // sound was still swooping most of a second after the title had gone.
+    //
+    // This is the exact trap the header of `uiSfx.ts` records having fixed for
+    // panels: "a sound borrowed from another context brings that context's
+    // length with it." The fix landed on panels and never reached the title,
+    // where it was defended by a comment and where it is the *first* thing a
+    // player ever hears.
+    expect(resolveUiSound('start')).not.toBe('zoom-in')
+    expect(resolveUiSound('start')).not.toBe('zoom-out')
+  })
+
+  it('falls back to a clip that finishes inside the push-in', () => {
+    // `title-start.mp3` needs an ElevenLabs key nobody in this session has, so
+    // it is absent and resolves to the fallback. That fallback has to be one of
+    // the 0.5 s interface clips — every one of which is prompted "no pitch
+    // sweep, no whistle, no tail", which is precisely what was wrong with the
+    // swoop.
+    expect(['ui-whoosh', 'ui-click']).toContain(resolveUiSound('start'))
+  })
+
+  it('routes to a clip that is on disk, like every other sound', () => {
+    const id = resolveUiSound('start')
+    expect(id).not.toBeNull()
+    expect(SHIPPED.some((f) => f.endsWith(`/${id}.mp3`))).toBe(true)
+  })
+})

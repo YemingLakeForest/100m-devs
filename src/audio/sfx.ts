@@ -37,6 +37,9 @@ export const SFX = [
   'ui-whoosh',
   'ui-close',
   'ui-tick',
+  // GDD 10.9.4 - START pressed. Not generated yet; uiSfx.ts routes it through
+  // FALLBACK until it is, which is what the fallback table is for.
+  'title-start',
 ] as const
 
 export type SfxId = (typeof SFX)[number]

@@ -1317,11 +1317,26 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0) {
   // A power light. Two pixels of GLOW, and at forty desks it is the cheapest
   // thing in the room that says the machines are *on*.
   g.rect(px - 2, py - 9, 1.5, 1.5).fill(c(RAMPS.GLOW[2]))
-  // The lead from the tower up to the panel. One stroke, and it is the thing
-  // that stops the two objects reading as two objects.
-  g.moveTo(px - 3, py - 6)
-    .lineTo(sx + 5, sy - 3)
-    .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.8 })
+  //
+  // **There is no cable, and there was.** A one-pixel stroke ran from the tower
+  // up to the panel, to "stop the two objects reading as two objects". It was
+  // reported off a screenshot as "a horizontal black bar across the desk", and
+  // that is exactly what it was, for two reasons that compound:
+  //
+  // 1. **It is nearly flat.** The tower and the monitor's foot stand on the
+  //    same surface a few tiles apart, so the lead's rise is about a pixel over
+  //    its whole run — a horizontal line in a picture where §7.8.1's rule is
+  //    that nothing is horizontal. Trap 10 in `docs/HANDOFF.md` is this same
+  //    mistake in the floor layout; a screen-flat line reads as a girder bolted
+  //    across the room rather than as anything lying in it.
+  // 2. **A stroke width is in room units, so it scales with the room.** At the
+  //    full floor the lead is sub-pixel and invisible; at rung 0, where the room
+  //    is scaled up more than tenfold, that same one pixel is a dozen on screen.
+  //    It is never the width of a cable — it is either nothing or a scaffolding
+  //    pole, and there is no zoom at which it is a wire.
+  //
+  // Anything drawn between two props at this scale wants to be geometry with a
+  // footprint, not a stroke. The desk already reads as one object without it.
 
   // A desk lamp on about one desk in five. Vertical interest along a row that
   // is otherwise nine copies of the same silhouette.
