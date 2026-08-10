@@ -60,11 +60,19 @@ export interface ParadigmNode {
 /**
  * The Paradigm Talent Tree — §13.2, verbatim on names, costs and max levels.
  *
- * Only the two level-one nodes have their effects wired so far, and they are
- * the two that matter: everything else in this list is a cost and a promise.
- * Shipping the tree with four inert nodes would be worse than shipping two, so
- * `effect` says plainly which is which and `EFFECTIVE` is the list that is
- * actually live.
+ * **All five are wired.** Three of them said "not yet implemented" on the card
+ * for as long as the tree existed, which was the honest thing to do at the time
+ * and a bad thing to ship: a tree whose top half is a promise is a tree the
+ * player stops climbing. Meeting Ban needed §11's standup to exist before it
+ * had anything to cancel, and now it does.
+ *
+ * Two §13.2 nodes are still absent rather than inert — L1-3B Subatomic
+ * Auto-Poker and L1-4B Story Point Inflation. The auto-poker is an idle layer
+ * for the clicker and wants §4.9's context-switch penalty measured against it
+ * before it is priced; Story Point Inflation moves the §4.6 ladder that §11.3's
+ * estimation sub-branch now owns, and two systems raising the same tier is how
+ * a player ends up paying twice for one step. Both are deferred decisions, not
+ * forgotten ones.
  */
 export const PARADIGM_TREE: readonly ParadigmNode[] = [
   {
@@ -83,7 +91,7 @@ export const PARADIGM_TREE: readonly ParadigmNode[] = [
     depth: 1,
     baseCost: 150,
     maxLevel: 1,
-    effect: 'Removes the daily standup pause — not yet implemented',
+    effect: 'Cancels the Daily Standups pause — you keep the ceiling, they lose the meeting',
   },
   {
     id: 'L1-3A',
@@ -92,7 +100,7 @@ export const PARADIGM_TREE: readonly ParadigmNode[] = [
     depth: 2,
     baseCost: 2_500,
     maxLevel: 1,
-    effect: 'Eliminates the Rogue Refactorer — not yet implemented',
+    effect: 'Nobody goes rogue. The refactor into a dead language never happens again',
   },
   {
     id: 'L1-1B',
@@ -110,12 +118,21 @@ export const PARADIGM_TREE: readonly ParadigmNode[] = [
     depth: 1,
     baseCost: 500,
     maxLevel: 3,
-    effect: 'One poke wakes a row — not yet implemented',
+    effect: 'A poke shockwaves into 1 more row of developers per level',
   },
 ]
 
-/** The nodes whose effects are actually wired. */
-export const EFFECTIVE = new Set(['L1-1A', 'L1-1B'])
+/**
+ * The nodes whose effects are actually wired — now all of them.
+ *
+ * Kept rather than deleted, and kept as a *set of ids* rather than a boolean
+ * flag on the node, because it is the thing `ParadigmTree.tsx` asks before it
+ * prints a warning on a card. Emptying it silently would remove the mechanism
+ * that made shipping an inert node visible; a test asserts it covers the tree,
+ * so the next node added to `PARADIGM_TREE` without an effect fails the build
+ * rather than taking somebody's Bandwidth Points.
+ */
+export const EFFECTIVE = new Set(['L1-1A', 'L1-1B', 'L1-2A', 'L1-2B', 'L1-3A'])
 
 export const NODE_BY_ID = new Map(PARADIGM_TREE.map((n) => [n.id, n]))
 

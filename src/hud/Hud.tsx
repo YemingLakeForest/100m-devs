@@ -5,7 +5,7 @@ import {
   canMassHire,
   collectOffline,
   currentMassHireCost,
-  getPermanent,
+  hasPrestiged,
   currentEntropy,
   dismissScene,
   hasSeenScene,
@@ -91,7 +91,9 @@ const PREVIEW_DIALOGUE =
  */
 export function Hud({ stage }: { stage: StageHandle | null }) {
   const state = useGameState()
+  // §13.2's tree and §11's tree are two doors, and they now hang off one bar.
   const [treeOpen, setTreeOpen] = useState(false)
+  const [upgradesOpen, setUpgradesOpen] = useState(false)
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -182,14 +184,22 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
           <TouchSwitch state={state} />
           <PerfOverlay stage={stage} />
           {/*
+            §10.1's nav — **one bar, and it is owned here now.** `Upgrades` used
+            to render its own `.hud__nav` while the PARADIGM button sat loose in
+            this column, so the two doors were furniture of different kinds in
+            the same corner. Both panels are opened from the same place and
+            neither owns the bar it hangs from.
+
             §13.2 — the tree appears only once a Paradigm Shift has happened.
             Before the first one BP does not exist, and a permanently visible
             button onto an empty currency would be the §10.6 web-page tell.
           */}
-          {getPermanent().meta.paradigmShifts > 0 && (
-            <Button onClick={() => setTreeOpen(true)}>PARADIGM</Button>
-          )}
-          <Upgrades />
+          <div className="hud__nav">
+            <Button onClick={() => setUpgradesOpen((was) => !was)}>UPGRADES</Button>
+            {hasPrestiged() && (
+              <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -218,6 +228,7 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
         )}
       </div>
 
+      <Upgrades open={upgradesOpen} onClose={() => setUpgradesOpen(false)} />
       <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
 
       <Bankruptcy open={state.phase === 'bankrupt'} />

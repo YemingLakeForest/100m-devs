@@ -18,7 +18,10 @@ import {
   canAfford,
   devCapFor,
   nodeCost,
+  chainedPokeRows,
+  meetingBanActive,
   totalLevels,
+  zeroTrustActive,
 } from './prestige.ts'
 
 describe('BP yield — §14.1', () => {
@@ -156,17 +159,59 @@ describe('the tree itself — §13.2', () => {
     expect(NODE_BY_ID.size).toBe(PARADIGM_TREE.length)
   })
 
-  it('says which nodes are wired and which are promises', () => {
-    // §13.2 lists five and two are live. A tree with three buttons that take
-    // the player's currency and change nothing is worse than three that say so.
+  it('has no node that takes Bandwidth Points and changes nothing', () => {
+    // This test used to assert the opposite half — that the three unwired nodes
+    // *said so* on the card. All five are wired now, and the assertion flips to
+    // the invariant that mattered underneath both versions: adding a node to
+    // PARADIGM_TREE without wiring an effect fails the build rather than
+    // quietly taking somebody's currency.
     for (const id of EFFECTIVE) expect(NODE_BY_ID.has(id)).toBe(true)
-    const inert = PARADIGM_TREE.filter((n) => !EFFECTIVE.has(n.id))
-    expect(inert.length).toBeGreaterThan(0)
-    for (const n of inert) expect(n.effect).toContain('not yet implemented')
+    for (const n of PARADIGM_TREE) expect(EFFECTIVE.has(n.id)).toBe(true)
+  })
+
+  it('never leaves "not yet implemented" on a card that is implemented', () => {
+    for (const n of PARADIGM_TREE) expect(n.effect).not.toContain('not yet implemented')
   })
 
   it('counts levels across the whole tree', () => {
     expect(totalLevels({})).toBe(0)
     expect(totalLevels({ 'L1-1A': 2, 'L1-1B': 1, unknown: 9 })).toBe(3)
+  })
+})
+
+describe('what the tree does to the rest of the game — §13.2', () => {
+  it('Meeting Ban is off until it is bought, and absolute once it is', () => {
+    expect(meetingBanActive({})).toBe(false)
+    expect(meetingBanActive({ 'L1-2A': 0 })).toBe(false)
+    expect(meetingBanActive({ 'L1-2A': 1 })).toBe(true)
+  })
+
+  it('Zero-Trust is off until it is bought', () => {
+    expect(zeroTrustActive({})).toBe(false)
+    expect(zeroTrustActive({ 'L1-3A': 1 })).toBe(true)
+  })
+
+  it('Chained Poke reaches one more row per level, and stops at three', () => {
+    expect(chainedPokeRows({})).toBe(0)
+    expect(chainedPokeRows({ 'L1-2B': 1 })).toBe(1)
+    expect(chainedPokeRows({ 'L1-2B': 3 })).toBe(3)
+    // §13.2's max level is 3. A save claiming more does not buy more.
+    expect(chainedPokeRows({ 'L1-2B': 99 })).toBe(3)
+  })
+
+  it('survives a levels map with junk in it', () => {
+    // Hand-edited saves and saves from a newer build both land here.
+    const junk = { 'L1-2A': Number.NaN, 'L1-2B': -4, 'L1-3A': 0.5 } as Record<string, number>
+    // NaN compares false against everything, so a corrupted level reads as
+    // unbought rather than as owned — the safe direction for a node the player
+    // did not pay for.
+    expect(meetingBanActive(junk)).toBe(false)
+    // A negative level cannot buy reach.
+    expect(chainedPokeRows(junk)).toBe(0)
+    // The two booleans ask `> 0` rather than flooring, so any positive level at
+    // all counts as owned. 0.5 is a level nobody can buy through the store, and
+    // treating a half-bought node as bought is the forgiving answer — the
+    // alternative takes 2,500 Bandwidth Points and gives nothing back.
+    expect(zeroTrustActive(junk)).toBe(true)
   })
 })

@@ -59,6 +59,17 @@ export interface TransitionContext {
    * they were trying to protect.
    */
   overwhelmedScale?: number
+  /**
+   * §13.2 L1-3A, Zero-Trust Architecture — "completely eliminates the Rogue
+   * Refactorer event".
+   *
+   * A weight of zero rather than a filter after the roll, so the probability
+   * mass it was holding is redistributed across the remaining states instead of
+   * being re-rolled. The developers who would have gone rogue go back to work,
+   * which is what the node claims; re-rolling would have quietly changed the
+   * whole distribution's shape as a side effect of removing one state.
+   */
+  zeroTrust?: boolean
 }
 
 /**
@@ -68,7 +79,11 @@ export interface TransitionContext {
  * balance: it makes `overwhelmed` possible at all, and it crowds out `flow`.
  * Nobody reaches flow state in a studio that is 90% meetings.
  */
-export function stateWeights({ entropy, tenxBonus = 0 }: TransitionContext): Record<DevState, number> {
+export function stateWeights({
+  entropy,
+  tenxBonus = 0,
+  zeroTrust = false,
+}: TransitionContext): Record<DevState, number> {
   const e = Math.min(1, Math.max(0, entropy))
 
   return {
@@ -78,7 +93,8 @@ export function stateWeights({ entropy, tenxBonus = 0 }: TransitionContext): Rec
     flow: BASE_WEIGHTS.flow * (1 - e) ** 2,
     // Overwhelmed is purely a function of load — it is Entropy Lock, locally.
     overwhelmed: 90 * e ** 3,
-    rogue: BASE_WEIGHTS.rogue,
+    // §13.2 L1-3A — zeroed, not filtered. See `TransitionContext.zeroTrust`.
+    rogue: zeroTrust ? 0 : BASE_WEIGHTS.rogue,
     tenx: BASE_WEIGHTS.tenx * (1 + tenxBonus * 4),
   }
 }

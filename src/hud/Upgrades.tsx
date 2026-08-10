@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
 import { TECH_TREE, type TechBranch, type TechNode } from '../sim/techTree.ts'
@@ -77,8 +76,14 @@ function Node({ node, state }: { node: TechNode; state: GameState }) {
   )
 }
 
-export function Upgrades() {
-  const [open, setOpen] = useState(false)
+/**
+ * The panel only. **The nav bar it used to carry moved up to `Hud`** when the
+ * Paradigm Tree gained a door of its own: two components each rendering their
+ * own `.hud__nav` would be two absolutely-positioned bars in the same corner,
+ * and the second one to mount would win. One bar, owned by the thing that owns
+ * the frame, with the panels beneath it.
+ */
+export function Upgrades({ open, onClose }: { open: boolean; onClose: () => void }) {
   const state = useGameState()
 
   return (
@@ -102,13 +107,9 @@ export function Upgrades() {
             ))}
           </div>
 
-          <Button onClick={() => setOpen(false)}>BACK</Button>
+          <Button onClick={onClose}>BACK</Button>
         </div>
       </Panel>
-
-      <div className="hud__nav">
-        <Button onClick={() => setOpen((was) => !was)}>UPGRADES</Button>
-      </div>
     </>
   )
 }

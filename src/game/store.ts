@@ -24,7 +24,16 @@ import {
   rollShape,
   type Release,
 } from '../sim/revenue.ts'
-import { NODE_BY_ID, bpFor, canAfford, devCapFor, nodeCost } from '../sim/prestige.ts'
+import {
+  NODE_BY_ID,
+  bpFor,
+  canAfford,
+  chainedPokeRows,
+  devCapFor,
+  meetingBanActive,
+  nodeCost,
+  zeroTrustActive,
+} from '../sim/prestige.ts'
 import {
   BANKRUPTCY_THRESHOLD,
   hireCost,
@@ -521,12 +530,26 @@ export function effectiveDevCap(s: GameState = state): number {
  */
 export function workingDevs(s: GameState = state): number {
   const t = techOf(s)
-  return s.devs * t.activeDevFraction * standupFactor(s.runSeconds, t.standups)
+  return s.devs * t.activeDevFraction * standupFactor(s.runSeconds, standupsRunning(s))
+}
+
+/**
+ * §11.2 B2 bought the meeting; §13.2 L1-2A cancels it.
+ *
+ * **This is the single most satisfying purchase in the Paradigm Tree**, and it
+ * is only satisfying because the pause is real: B2's entropy ceiling is
+ * enormous and its cost is that the company stops to talk about itself every
+ * minute, for ever, and there is nothing the player can do about it inside a
+ * run. Meeting Ban is the thing they can do about it across runs. The node
+ * keeps the ceiling and deletes the meeting.
+ */
+function standupsRunning(s: GameState = state): boolean {
+  return techOf(s).standups && !meetingBanActive(getPermanent().layer1.paradigmLevels)
 }
 
 /** §11.2 — is the studio in its daily standup right now? */
 export function inMeeting(s: GameState = state): boolean {
-  return inStandup(s.runSeconds, techOf(s).standups)
+  return inStandup(s.runSeconds, standupsRunning(s))
 }
 
 export function currentEfficiency(s: GameState = state): number {
@@ -868,6 +891,8 @@ export function tick(dtSeconds: number): void {
       entropy: e,
       // §11.3 C2 — the chairs only shorten the lockup, never Flow.
       overwhelmedScale: techOf().overwhelmedScale,
+      // §13.2 L1-3A — nobody goes rogue in a zero-trust codebase.
+      zeroTrust: zeroTrustActive(getPermanent().layer1.paradigmLevels),
     }),
     cash: state.cash - currentPayroll() * dtSeconds + tail.earned,
     lifetimeRevenue: state.lifetimeRevenue + tail.earned,
@@ -927,6 +952,16 @@ export interface PokeTarget {
  * it is worth.
  */
 export const POKE_PAYOUT_SHARE = 0.25
+
+/**
+ * What a chained row gets, as a share of what the poked unit got — §13.2 L1-2B.
+ *
+ * A first guess, and marked as one. A half is the largest number that keeps the
+ * node an *amplifier* rather than a replacement for aiming: at 1.0 the player
+ * stops caring which unit they hit, which would delete §4.5c's "who you poke
+ * matters" for anyone who bought it. Wants play-testing against §4.9a's spread.
+ */
+export const CHAIN_SHARE = 0.5
 
 /**
  * Resolve one tap — the whole clicker layer, GDD §4.5, §4.5a, §4.5b.
@@ -997,6 +1032,36 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
   const converted = result.sp > 0 ? result.sp - banked : 0
   const buffed = addBuff(state.buffs, { rung, index }, converted, unitOutput)
 
+  /**
+   * §13.2 L1-2B, Chained Poke Reaction — "a shockwave that wakes up 1
+   * additional row of developers per level".
+   *
+   * The chain **adds** value rather than dividing the tap's. That is the
+   * distinction between a prestige node and a rebalance: 500 BP has to buy
+   * something, and a shockwave that made the person you actually poked weaker
+   * would be a downgrade dressed as an unlock. Each neighbouring unit gets half
+   * of what the target got, so the node is worth 1.5x, 2x, 2.5x at its three
+   * levels — real, and short of doubling the clicker layer at level one.
+   *
+   * Neighbours are the *next* units along at the same rung, which in the room
+   * is literally the next row of desks and above it the next building along.
+   * Units past the end of the studio are skipped rather than clamped: buffing
+   * seat range [n, n) is an entry in the overlay that decays to nothing while
+   * occupying one of §4.5a's 64 slots.
+   */
+  const chainRows = chainedPokeRows(getPermanent().layer1.paradigmLevels)
+  let buffs = buffed.buffs
+  let chainOverflow = 0
+  for (let k = 1; k <= chainRows; k++) {
+    const neighbour = index + k
+    if (unitSeats(rung, neighbour, state.devs).to <= unitSeats(rung, neighbour, state.devs).from) {
+      break
+    }
+    const chained = addBuff(buffs, { rung, index: neighbour }, converted * CHAIN_SHARE, unitOutput)
+    buffs = chained.buffs
+    chainOverflow += chained.overflow
+  }
+
   // §11.3 C1 — Nitro Cold Brew. `hasCultureUpgrade` was this effect before
   // there was a tree to own it, and it is still honoured: the field predates
   // §11 and a save that has it set earned it.
@@ -1028,12 +1093,14 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
   // or a seized studio with no rate to raise. Nothing is lost in either
   // direction, which is what makes "a poke is worth what §4.5 says it is" an
   // invariant rather than an intention.
-  const paidNow = banked + buffed.overflow
+  // The chained rows' overflow is paid the same way the target's is — a
+  // shockwave landing on a unit already at the ceiling still owes its points.
+  const paidNow = banked + buffed.overflow + chainOverflow
 
   const patch: Partial<GameState> = {
     burned: state.burned.plus(paidNow),
     localEntropy: state.localEntropy + result.localEntropyAdded,
-    buffs: buffed.buffs,
+    buffs,
     // The impulse half of the rate estimate. Dividing by the time constant is
     // what makes a steady R points per second converge on exactly R.
     pokeRate: state.pokeRate + paidNow / POKE_RATE_TAU,
@@ -1128,6 +1195,41 @@ export function techQuote(id: string, s: GameState = state) {
     unlocked: node.requires === undefined || techLevel(s.tech, node.requires) > 0,
     affordable: canBuyTech(node, s.tech, s.cash),
   }
+}
+
+/**
+ * §13.1 — what a Paradigm Shift is worth right now, and whether it is offered.
+ *
+ * §13.1's trigger row reads "Max Entropy stall / **Bankruptcy** / Forced
+ * liquidation", and only the middle one was ever built: the shift lived on the
+ * §21 Act V bankruptcy modal and nowhere else. That is one prestige per
+ * playthrough, in a game whose entire second half is the loop — a player who
+ * stalls at forty developers with a healthy treasury has no way out but to wait
+ * to go broke.
+ *
+ * **Offered from the second run onward, and never during the first.** §21's
+ * trap is the first run's whole argument and a visible escape hatch during Act
+ * III is an invitation to skip it; by Act V the bankruptcy modal is the door.
+ * After that the player knows what a shift is, so it is simply available —
+ * `paradigmShifts` is the flag, and it is the same counter §24.5 already uses
+ * to unlock offline accrual.
+ *
+ * The quote is live rather than computed on press. §14.1 pays on *lifetime*
+ * revenue and *peak* headcount, so it only ever goes up, and watching it climb
+ * is the argument for playing another twenty minutes before cashing out.
+ */
+export function paradigmShiftOffer(s: GameState = state): { bp: number; available: boolean } {
+  const p = getPermanent()
+  const bp = bpFor(
+    Math.max(p.meta.lifetimeRevenue, s.lifetimeRevenue),
+    Math.max(p.meta.peakDevs, s.peakDevs),
+  )
+  return { bp, available: p.meta.paradigmShifts > 0 && s.phase !== 'bankrupt' }
+}
+
+/** §13.2 — has the player ever prestiged? The Paradigm Tree's door. */
+export function hasPrestiged(): boolean {
+  return getPermanent().meta.paradigmShifts > 0
 }
 
 /** §13.2 — spend BP on a Paradigm Tree node. */

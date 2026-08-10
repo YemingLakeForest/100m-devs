@@ -11,6 +11,7 @@
  * make *about* a company that is already running.
  */
 
+import { useState } from 'react'
 import { Panel } from '../ui/Panel.tsx'
 import { Button } from '../ui/Button.tsx'
 import {
@@ -20,7 +21,13 @@ import {
   nodeCost,
   type ParadigmNode,
 } from '../sim/prestige.ts'
-import { buyParadigmNode, getPermanent, type GameState } from '../game/store.ts'
+import {
+  buyParadigmNode,
+  getPermanent,
+  paradigmShiftOffer,
+  triggerParadigmShift,
+  type GameState,
+} from '../game/store.ts'
 import { formatCount } from '../sim/headcount.ts'
 
 function Node({
@@ -49,10 +56,12 @@ function Node({
       <p className="paradigm__node-effect">
         {node.effect}
         {/*
-          §13.2 lists five nodes and two of them are wired. Saying so on the
-          card is the only honest option: a tree with three buttons that take
-          the player's currency and change nothing is worse than a tree with
-          three buttons that say they are not ready.
+          Every node in §13.2's five is wired now, so this never renders — and
+          it stays, because it is the thing that makes shipping an inert node
+          *visible*. A tree with a button that takes the player's currency and
+          changes nothing is worse than one that admits it is not ready, and the
+          next node added without an effect should say so on its own card rather
+          than pass quietly.
         */}
         {!EFFECTIVE.has(node.id) && <em className="paradigm__soon"> — not wired up yet</em>}
       </p>
@@ -113,7 +122,53 @@ export function ParadigmTree({
         ))}
       </div>
 
+      <ShiftOffer state={state} />
+
       <Button onClick={onClose}>CLOSE</Button>
     </Panel>
+  )
+}
+
+/**
+ * §13.1 — taking a Paradigm Shift on purpose.
+ *
+ * §13.1's trigger row lists three ways in, and only bankruptcy was ever built:
+ * the shift lived on the Act V modal and nowhere else, which is **one prestige
+ * per playthrough** in a game whose whole second half is the loop. A player
+ * stalled at forty developers with money in the bank had to wait to go broke.
+ *
+ * The quote is live and it only ever goes up — §14.1 pays on lifetime revenue
+ * and peak headcount, neither of which can fall — so watching this number climb
+ * is the argument for playing another twenty minutes before cashing out. That
+ * is the whole reason it is shown *before* the decision rather than after it.
+ *
+ * Two presses, and the second one says what it costs. This throws the run away.
+ */
+function ShiftOffer({ state }: { state: GameState }) {
+  const [armed, setArmed] = useState(false)
+  const offer = paradigmShiftOffer(state)
+
+  if (!offer.available) return null
+
+  return (
+    <div className="paradigm__shift">
+      <p className="paradigm__shift-quote">
+        THIS RUN IS WORTH <b>{offer.bp}</b> BP
+      </p>
+      {armed ? (
+        <>
+          <p className="paradigm__shift-warning">
+            Rewrite the core. You keep every Bandwidth Point and every node; you lose the
+            treasury, the swarm and everything bought with cash this run.
+          </p>
+          <Button variant="bait" onClick={triggerParadigmShift}>
+            REWRITE THE CORE
+          </Button>
+          <Button onClick={() => setArmed(false)}>NOT YET</Button>
+        </>
+      ) : (
+        <Button onClick={() => setArmed(true)}>PARADIGM SHIFT</Button>
+      )}
+    </div>
   )
 }

@@ -2120,3 +2120,38 @@ body {
     padding: 2px 7px;
   }
 }
+
+/* --- the voluntary Paradigm Shift, GDD §13.1 ---------------------------- */
+
+/*
+ * Set apart from the nodes above it with a rule, because it is the one control
+ * in the panel that is not a purchase — everything else spends a currency and
+ * this one ends the run that earns it.
+ */
+.paradigm__shift {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  width: 100%;
+  padding-top: 10px;
+  border-top: var(--rule) solid var(--p0);
+}
+
+.paradigm__shift-quote {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p2);
+}
+
+.paradigm__shift-quote b {
+  color: var(--p3);
+}
+
+.paradigm__shift-warning {
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--type-1x);
+  line-height: 1.6;
+  color: var(--p3);
+}
