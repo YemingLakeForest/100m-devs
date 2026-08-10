@@ -3112,6 +3112,67 @@ The whole of §10.9.6 costs three DOM elements, one text-shadow and no files.
 - **A fade to black on start.** §10.5, and it throws away the one transition the whole
   concept is built on.
 - **A logo that does not count.** The count *is* the wordmark.
+
+#### 10.9.7 OPTIONS and CREDITS — what is behind the other two slabs **[CANON - added 2026-08-10]**
+
+**Closes Appendix F2.1 and F3.1.** Both menu items existed as §10.9.2 stubs — real slabs
+opening onto the words *"NOT WIRED UP YET"* — and F2.1 was the register's bluntest row: "❌ All
+of it."
+
+**The design principle for both screens is that every accommodation in this game was, until
+now, a decision the operating system made for the player.** Reduce motion came from a media
+query, volume came from the hardware keys, and haptics could not be turned off at all. That is
+defensible for motion and indefensible for the other two: **a phone's volume rocker is a single
+control**, so "quiet music, loud pokes" was a position the player could not express.
+
+##### OPTIONS
+
+| Row | What it does | Why it is here |
+|---|---|---|
+| **MUSIC** | §20.1's bus, in tenths | Lands on the **master node**, never the stems — §20.3's DSP matrix rewrites every stem gain each frame, so a preference written there is gone by the next tick |
+| **EFFECTS** | §20.5's interaction bank, in tenths | Mirrored into a plain number rather than read per sound: `playSfx` runs inside the tap handler §23.3 criterion 1 measures, and a native volume call per poke puts bridge latency inside the measurement |
+| **HAPTICS** | On / off | §8.3. The one piece of feedback in this game that can embarrass its player in a quiet room, and it had no off switch |
+| **MOTION** | SYSTEM / FULL / REDUCED | §10.5 rule 3 is the *system's* answer. `SYSTEM` defers and is the default; the two explicit values exist because the OS setting is one switch for every app on the device, and wanting reduced motion in an email client and the full thing in a game is a coherent position |
+| **RESET** | Two presses; the second names what it erases | The local half of F1.4. **A save that cannot be cleared is a game that can only be reviewed once** |
+
+**Restore purchases (F1.5) is deliberately absent rather than stubbed.** There is no RevenueCat
+in this build, and a button that cannot restore anything is a worse answer to that row than an
+honest gap.
+
+**Rendered as readouts, not as form controls.** §10.6 names the axis-aligned rounded rectangle
+and the native widget as the two things that make a screen look like a web page, so a volume is
+a **ten-cell meter that is typed** rather than an `<input type="range">`, and a toggle is a pair
+of bracketed words. The reset is two presses rather than a confirm dialog for the same reason.
+
+##### Where the settings live **[CANON]**
+
+**Outside §24's save document, and this is load-bearing.** The save is the run and the prestige
+layers: it is merged, migrated, and deliberately erased by §13.3's Codebase Fork. A volume
+slider is none of those things — it belongs to the *device*, it must survive a prestige that
+erases everything else by design, and it must be readable **before the store loads**, so the
+first sound the game makes is already at the volume the player chose. Putting it in `SaveData`
+would make "what does a prestige reset" a harder question for no gain.
+
+It carries the `m100devs_` key prefix for the reason SAVE.md §4 gives: a browser build shares an
+origin with every other studio game, and a collision here would be *quieter* than one on the
+save — another game's settings object would parse, coerce to something plausible, and silently
+re-mix this one.
+
+##### CREDITS
+
+Deliberately thin — §22.7 caps the art budget at nineteen sprites and none of them is a credits
+illustration. One obligation, and it is not optional:
+
+> **Departure Mono ships under the SIL Open Font License 1.1 and its licence must be reachable
+> from inside the product.**
+
+**The licence text is imported from the file that ships in the bundle, never pasted in.** A copy
+is a second text that can drift from the one actually governing the font, and the failure mode
+of that drift is a licence violation that no test can see. Importing the real file also makes
+the bundler prove it is present: delete the licence and the build breaks, which is the correct
+relationship between an obligation and a build. It is set in the font it licenses, because
+ART_DIRECTION §3 rule 1 admits no exception for legal text.
+
 ---
 
 ### 10.10 The Hire Control — the dial **[CANON — added 2026-08-08]**
@@ -6482,7 +6543,7 @@ table when the thing is built and seen working** — not when it is specced, and
 | R13 | **Colour-code the words that matter** — story points first, others later | §10.2a | **Partial.** `<Kw>` component + palette mapping shipped; story points coloured in the HUD. Cash / developers / entropy defined but not yet applied, and the §10.7 typed script is untouched |
 | R14 | A poke **buffs that individual's output rate**, scaled by modifiers on them — it is not a one-off payout | §4.5a, §4.5c | **Built — needs eyes.** `sim/buffs.ts`: a sparse overlay of recently-poked units, capped at 64 and decaying on τ = 5 s. **The strength is solved, not chosen** — a buff of `s` on a unit producing `u` delivers `s·u·τ`, so the story points §4.5's formula already produced are converted back into the `s` that pays them. §4.10 therefore needs no rebalancing, which is §4.5a's own claim that only the *destination* changes. A quarter is still paid on the frame of the tap (§10.8 F2). Verified in the running game: five taps on one developer read `+69%`, decaying to `+2%` over eighteen seconds, with the neighbours untouched |
 | R15 | **Any unit is pokeable** — person, squad, floor, building, campus, city, on up the ladder | §4.5b | **Built — needs eyes.** `sim/units.ts` reads §7.7.1's own headcount bands, so the unit size *is* the band's lower bound and cannot drift from the table. Towers answer which storey, cities which unit, rungs 7–9 are one thing. **§4.5b's "the buff percentage falls as the unit grows" arrives for free**: a unit of `n` produces ~`n` times as much and a poke on it is worth ~`Z(n)·n`, so `s ∝ Z(n)` with no second curve to tune. Verified at rung 4: a tap buffs one building of ten thousand by 10% |
-| R16 | The **Founder has a desk and their own coding tree**, clickable anywhere, on a curve that never dilutes | §4.5d | **Open** |
+| R16 | The **Founder has a desk and their own coding tree**, clickable anywhere, on a curve that never dilutes | §4.5d | **Built — needs eyes.** `sim/founder.ts`: your own rate is the one number in the game not multiplied by the swarm and not divided by §4.1, and the function takes no `GameState` at all — there is no headcount argument and no efficiency argument because neither can reach it. It lands in §10.1's `you` half, which R11 built for exactly this and which until now only counted pokes. **Both of §4.5d's failure conditions are tests rather than intentions**: the tap is worth more than the trickle (not an idler), and the whole tree maxed loses to the swarm at its §4.1 optimum, across the reachable headcount band, with the gap *required to widen* per Telepathic Compression level. Still missing: §7.8.10's corner desk in the room — the action is reachable at every zoom, which is what §4.5d requires, but you cannot yet see yourself sitting there |
 | R17 | **Exaggerate per-developer output variance**, and make it visible | §4.9a | **Built — needs eyes.** Log-normal at σ = 0.9, rolled from seat and run seed, never stored: 1st percentile 0.08×, 99.9th 10.8×, so §14.4's 10x Engineer *is* the top of the roll. Mean pinned twice — `μ = −σ²/2` in the distribution, and every share divided by the mean the roster actually rolled, so the sum is the headcount exactly. Visible through R10 |
 | R18 | **Hero items**, bought with cash, equipped to a card, inheriting its reach | §13.6.9 | **Open** |
 
@@ -6567,7 +6628,7 @@ the dependency runs rather than the order they were said:
 | # | Requirement | Owner § | Status |
 |---|---|---|---|
 | R19 | Developers are **not homogeneous**. Types of hire — **dev, QA, support, SRE** — assignable to particular rows, each with its own speech and behaviour | §4.11, §4.11.3 | **Partial — the model built, not wired.** `sim/roles.ts` holds the four functions, the roster, the per-role effects QA and Support carry, and §4.11.2's bands. **The roster is the hire history run-length encoded, not four counters** — see §4.11.3, which is the whole reason the file is shaped as it is. Still missing: the hire dial's role selector, §19's per-role speech, §7.8.6's per-role behaviour and §7.8.7's silhouette |
-| R20 | **You** sit at the corner of the floor, apart from the rank and file and **facing them**, always clickable — and the Management tree is a diluted copy of every other class | §7.8.10, §13.7.1, §4.5d | **Specced, not built.** Extends R16, which stays open |
+| R20 | **You** sit at the corner of the floor, apart from the rank and file and **facing them**, always clickable — and the Management tree is a diluted copy of every other class | §7.8.10, §13.7.1, §4.5d | **Half built.** The **tree is done**: five nodes, every one a weaker copy of a class §13.7 has not built yet, with the borrowed class printed on the card so the joke is legible before the specialists exist. `MANAGEMENT_DILUTION` is a named constant precisely so "weaker" is not re-guessed when they arrive. Levels persist in `meta`, not `layer1` — §4.5d's "grows only because *you* got better" means a rewrite of the company's architecture does not take it away. **The corner desk is not built**: the always-available affordance is a rail control, and §7.8.10's seat — turned ninety degrees, facing back down the rows — is still only a picture in this document |
 | R21 | A **defect system**. Bugs are generated by the work itself and damage what you shipped; QA suppress the rate, SRE clear the backlog | §4.12 | **Specced, not built** |
 | R22 | A **support role**. Tickets are raised against the back catalogue forever and somebody has to answer them | §4.13 | **Specced, not built** |
 | R23 | A **rating** for each shipped game, judged on defects, hero ability and the craft of the developers who built it — feeding revenue, reputation and prestige | §4.14, §4.14.1 | **Built, not wired.** `sim/rating.ts` holds the three weighted terms, reputation as a slow average, and the three multipliers it feeds — revenue, revenue-per-story-point, banked BP — all pure and tested. **The neutral point is derived from the garage rather than picked at 50** (§4.14.1), so wiring it cannot move §21's +$50. Not wired for one reason and it is not readiness: with no §4.12 the defect term reads zero, every release rates 60, and revenue would inflate ×1.23 **with no gameplay cause**. R21 is the switch — see §25.3.1 |
@@ -6629,6 +6690,44 @@ control back over something the interface took from them, and the third is a new
 > breakpoint**, and §23.4's design box tops out at 448 px — so "below 470" meant "always". Any
 > future `display: none` in a media query owes an answer to "on which device is this still
 > visible?"
+
+### 25.5 Intake — 2026-08-10, third message **[CANON]**
+
+> *"Tighten the loose ends and ship one playable version. Prestige, upgrade, heroes (the You)
+> are the three big things missing."*
+
+Not a requirements batch — a **scope call**. Three systems named, and the instruction is that
+the game is not playable without them. All three are built; what each one cost is below,
+because in every case the interesting part was a decision the GDD had left open.
+
+| # | Named as | Owner § | Status |
+|---|---|---|---|
+| S1 | **Upgrade** — the in-run tech tree | §11 | **Built — needs eyes.** `sim/techTree.ts`. Two branches, eleven nodes, every one wired. **§11.1's Branch A is deliberately not shipped** and that is the section's one real design decision: its nodes add developers on their own, and in this build hiring is §10.10's dial — a chosen act, priced by §4.10a, paid for forever by §4.10d. An upgrade that spawns free developers per second deletes the price of a hire and with it §6's trap, which only works because the player *decides* to hire the hundredth person. **The hire dial is the workforce branch.** §11.2's documented `[CONFLICT]` on B4's cap is resolved to 60% in the module, with the reasoning |
+| S2 | **Prestige** — Layer 1, finished | §13.1, §13.2 | **Built — needs eyes.** All five Paradigm nodes wired; three had said *"not yet implemented"* on the card since the tree shipped. Meeting Ban was waiting on S1's standup to exist before it had anything to cancel, which is the pairing worth having — the pause is a real cost inside a run and this is the only thing that answers it across runs. **And §13.1's trigger row finally has more than one entry**: the shift lived on the Act V bankruptcy modal and nowhere else, which is one prestige per playthrough in a game whose second half *is* the loop |
+| S3 | **Heroes (the You)** | §4.5d, §13.7.1 | **Half built — see R16 and R20.** The founder's curve and the Management tree are done and tested; §7.8.10's corner desk is not. Hero *cards* (§13.6) are untouched and remain correctly unreachable: they cost GP, GP needs Layer 2, and Layer 2 needs 100,000 BP |
+
+#### 25.5.1 What was deliberately left out, and why
+
+**Prestige Layers 2 and 3.** §13.3's Codebase Fork is gated on 100,000,000 simultaneous
+developers and §13.4's Multiverse Compiler on a release every Planck time. Neither is
+reachable in the version this session was asked to ship, and building a currency nobody can
+earn is the same defect as a node that changes nothing — it is just harder to see. Layer 2
+remains the single blocker on §13.6's Hero Cards, and that dependency is now the only thing
+standing between the card rules (built, tested, unwired since 2026-08-08) and a player.
+
+**§11's late nodes** — B5, B6, C3–C5 — act on systems that do not exist: code-bloat entropy,
+swipeable notification bubbles, frame stutter at relativistic ship rates. **A shorter honest
+tree beats a complete inert one**, which is the rule §13.2's cards were already following from
+the other direction.
+
+#### 25.5.2 One bug worth recording, because it is a whole class
+
+`Math.max(0, Math.floor(NaN))` is **`NaN`**, not zero — `Math.max` propagates it rather than
+treating it as the smaller operand. All three level maps written this session had it, and in
+the tech tree the value reaches §4.1's efficiency curve, where a single `NaN` turns the studio
+into `NaN` output and the treasury into `$NaN` on the following tick. Levels are read from a
+save document, which is the one input in this game that can contain anything at all. §24's
+`normaliseReleases` already carries the same scar and the same comment.
 
 ### 25.2 What is deliberately NOT decided here
 
@@ -6984,14 +7083,14 @@ specification anywhere*, not a thin one.
 | ~~**F1.1**~~ | ~~**Save**~~ | — | **CLOSED — owned by §24.** The save document, the three-tier split, the per-field monotonic merge, and what each prestige layer resets |
 | ~~**F1.2**~~ | ~~**Offline progression**~~ | — | **CLOSED — owned by §24.** 2h starting cap, 50% rate, SP accrues and payroll does not, the closed-form model, and the Overnight Build Report. §24.10 is what goes back to `playbook/SAVE.md` §5 |
 | **F1.3** | **Age rating & target audience** | The submission process and the questionnaire mechanics (`PLAY_STORE.md`) | ⚠️ **The answers**, and the consequence: declaring child appeal forces the Families policy and bans personalised ads, so it changes the AdMob configuration the playbook sets up. Decide before the ad stack is built |
-| **F1.4** | **Privacy policy & data deletion** | Policy hosting and the Play requirement (`PLAY_STORE.md`, `MONETIZATION_SETUP.md`) | ⚠️ **The data inventory** — what this game actually collects beyond the studio baseline — and the in-app deletion entry point, which is a §10.9 menu item nobody has specified |
+| **F1.4** | **Privacy policy & data deletion** | Policy hosting and the Play requirement (`PLAY_STORE.md`, `MONETIZATION_SETUP.md`) | ⚠️ **The data inventory** — what this game actually collects beyond the studio baseline. **The in-app deletion entry point is now built** (§10.9.7's RESET, two presses, and the second one says what it erases); what is still open is the inventory and the cloud half, which does not exist until `game-cloud` is wired |
 | **F1.5** | **Restore purchases** | RevenueCat's restore flow (`MONETIZATION_SETUP.md`) | ⚠️ **The UI entry point only.** Not in §10.9's menu and not in the §F2.1 settings screen, because neither exists |
 
 ### F.2 Major gaps — shippable, but visibly unfinished
 
 | # | Gap | Platform provides | **What is still ours** |
 |---|---|---|---|
-| **F2.1** | **Settings screen** | — | ❌ All of it. §10.6 says style it as a `STUDIO_OS` terminal and §10.8 lists it as a scene; nothing says what is *in* it. At minimum: the §20 mixer that nothing currently exposes, haptics, reduce motion, restore purchases (F1.5), data deletion (F1.4), and reset progress |
+| ~~**F2.1**~~ | ~~**Settings screen**~~ | — | **CLOSED — owned by §10.9.7.** Music and effects volumes on the §20 mixer, haptics, a three-way reduce-motion preference that can override the OS in *both* directions, and reset progress. Held **outside** §24's save document on purpose: a prestige resets the run, a Codebase Fork erases the lot, and a volume slider must survive both — it must also be readable before the store loads so the first sound the game makes is already at the chosen volume. Restore purchases (F1.5) is still absent rather than stubbed, because there is no RevenueCat in this build and a button that cannot restore anything is a worse answer than an honest gap |
 | **F2.2** | **Localisation** | — | ❌ Undecided, not decided-against. §10.7's per-character typewriter behaves differently in CJK and §18/§19/§21 are almost entirely wordplay. **Record English-only**, or it gets decided by accident |
 | **F2.3** | **Error and empty states** | `TRAPS.md` records the failures that actually happen in production | ❌ What the *screen* does when an ad fails to load, an IAP goes pending, the network is gone, a cloud save conflicts, or a save is corrupt |
 | **F2.4** | **Push notifications** | Firebase messaging is available in the stack | ❌ Whether we use them at all, and what they say. Interacts directly with F1.2 |
@@ -7002,7 +7101,7 @@ specification anywhere*, not a thin one.
 
 | # | Gap | Note |
 |---|---|---|
-| **F3.1** | **Credits content** | §10.9 puts CREDITS in the menu; nothing specifies it. Departure Mono ships under the SIL OFL and its licence **must** be reachable in-product |
+| ~~**F3.1**~~ | **Credits content** | **CLOSED — owned by §10.9.7.** The licence is `?raw`-imported from the file that ships in the bundle rather than pasted in: a copy can drift from the text actually governing the font, and the failure mode of that drift is a licence violation no test can see. Importing the real file also makes the bundler prove it is present |
 | **F3.2** | **Analytics event schema** | MONETISATION §12 lists metrics, Appendix D says instrument the Run 1 funnel *"heavily"*, PROJECT_SETUP §8 step 11 has it as an open task. No event names or properties exist, so two people will invent two |
 | **F3.3** | **Tutorial beyond Run 1** | §21 scripts Run 1 exhaustively. Nothing teaches the tech tree, org chart or Multiverse grid when they first unlock |
 | **F3.4** | **Live-ops / remote config** | MONETISATION §10 requires every ad placement behind remote config. No schema, no defaults, no fetch-failure behaviour |

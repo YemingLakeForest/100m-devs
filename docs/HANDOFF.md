@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**1053 tests.** Lint, types and the art gate clean.
+**1127 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -31,7 +31,7 @@ simulation.
 | | State |
 |---|---|
 | **Simulation** | Run 1 closed and simulated end to end (`runOne.test.ts` plays it) |
-| **Prestige** | Layer 1 built — BP earned, banked, spent on the Paradigm Tree; 2 of 5 nodes wired |
+| **Prestige** | Layer 1 **finished** — BP earned, banked, spent, and **all 5 nodes wired**. A shift can now be taken **on purpose** (§13.1), not only by going broke. Layers 2 and 3 are deliberately not built — both are gated past anything reachable in this version |
 | **Audio** | 13 SFX + 10 music stems generated and playing |
 | **Art** | **0 of §22.7's 19 authored sprites.** Everything on screen is code-drawn from the palette |
 | **Rungs** | 0–6 built and the lens visits every one (§7.4a). **Rungs 0–2 are all the room** — a desk, a huddle and a full floor of a thousand, with walls, plates and individuals throughout. 7–9 have no geometry of their own; §7.4's grid and cosmic tiers stand in |
@@ -40,7 +40,10 @@ simulation.
 | **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. **Rows now run along the floor**, parallel to the wall and across the way people face, as one continuous desk bank. **The bank is set back from the seats**, so people sit *at* their desks rather than on them |
 | **Hiring** | Three things fall — a desk, a computer, **the actual generated developer** — on the seats the hire actually took, and the room withholds a seat until its arrival lands |
 | **The readouts** | §10.1's rail plus §4.10e's revenue graph, in **two full-height rails with the copy between them** — nothing in a rail can collide with another rail or with §21's script at any frame height in the box. **MAN-WEEKS is gone**, withdrawn by the author of the idea |
-| **Hero Cards** | §13.6's rules and data built and tested. **Not wired** — see below |
+| **Hero Cards** | §13.6's rules and data built and tested. **Not wired**, and Layer 2 is still the only blocker |
+| **Upgrades** | §11's in-run tech tree **built** — two branches, eleven nodes, all wired, bought with cash. Branch A deliberately cut; the hire dial *is* the workforce branch (§25.5) |
+| **You** | §4.5d's curve and §13.7.1's Management tree **built**. The one rate not multiplied by the swarm or divided by §4.1. §7.8.10's corner desk is **not** built — see below |
+| **Settings** | §10.9.7 — the §20 mixer, haptics, a reduce-motion override, reset progress, and the font licence in CREDITS. Closes Appendix F2.1 and F3.1 |
 | **The rating** | §4.14 built and tested — three weighted terms, reputation, and the three multipliers it feeds. **Not wired**, and R21 is the switch. §4.14.1 is the part to read |
 
 ### Built this session
@@ -100,6 +103,30 @@ developer read `+69%` and decay to `+2%` over eighteen seconds with the
 neighbours untouched, and a tap at rung 4 buffs one building of ten thousand by
 10%.
 
+### Built this session — prestige, upgrades, and you
+
+Three systems named as the gap between this and a playable version (§25.5), plus the two
+Appendix F rows that were blocking a store submission rather than a play session.
+
+Four things a reader should know before touching any of them:
+
+1. **The headcount that *produces* and the headcount that *costs* are now two different
+   numbers.** §11.2's B2 and B3 split them: a developer in a standup is not coding and is
+   emphatically still communicating, and a pair-programming studio has half the keyboards and
+   exactly as many people to keep in the loop. That is why B3 has to state its 60% entropy cut
+   separately — if halving the workforce also halved the load, it would pay twice and be the
+   only purchase in the branch worth making.
+2. **§11.1's Branch A is cut, not deferred.** Its nodes add developers on their own, and in
+   this build hiring is §10.10's dial — a chosen act with a price and a payroll. An upgrade
+   that spawns free developers per second repeals §6's trap, which only works because the
+   player *decides* to hire the hundredth person. Do not add it back without reading §25.5.
+3. **`Math.max(0, Math.floor(NaN))` is `NaN`.** All three level maps had it. In `techTree.ts`
+   that value reaches §4.1's efficiency curve, where one `NaN` becomes `NaN` output and a
+   `$NaN` treasury on the next tick. Levels come from a save file. Recorded as §25.5.2.
+4. **The founder's rate function takes no `GameState`, and that signature is the spec.** There
+   is no headcount argument and no efficiency argument because §4.5d says neither can reach it.
+   If a future change gives it one, that change is wrong.
+
 ### Specced, not built
 
 - **§13.6 Hero Cards — the interface.** `sim/heroes.ts` now holds the ladder, the nine cards,
@@ -118,9 +145,18 @@ neighbours untouched, and a tap at rung 4 buffs one building of ten thousand by
   as "what is that" — and is now a heavily blurred crop running off two edges
   with a lit rim. It reads as depth rather than as a fault, but whether it still
   does the compositional job §10.9.6 wants is a question for eyes.
-- **§13.2's other three Paradigm nodes** — they say *"not yet implemented"* on the card, which
-  is deliberate: a tree that takes currency and changes nothing is worse than one that admits
-  it.
+- **§7.8.10's corner desk — the one visible half of "you" that is missing.** The action is
+  reachable at every zoom, which is what §4.5d actually requires, and the Management tree is
+  done. What does not exist is the *picture*: a seat at the corner of the floor, apart from the
+  rows, turned ninety degrees to face back down them. §7.8.10 argues that placement is worth
+  three things at once — you are never built over as the floor fills, you are visibly not one of
+  them at a glance and for the cost of one rotation, and it is §6's thesis as a camera angle.
+  Read the `room.ts` traps on which isometric axis is which before starting; that mistake has
+  already cost this project a rebuild.
+- **Prestige Layer 2, and therefore Hero Cards.** §13.3's Codebase Fork is gated on 100,000,000
+  simultaneous developers. It is the *only* thing standing between `sim/heroes.ts` — built,
+  tested and unwired since 2026-08-08 — and a player, because cards cost GP and GP comes from
+  the fork. Nothing else about the card system is missing.
 
 ---
 
