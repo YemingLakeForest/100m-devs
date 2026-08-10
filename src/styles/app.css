@@ -1122,6 +1122,89 @@ body {
   white-space: pre-wrap;
 }
 
+/* --- the touch switch, GDD §7.7.6b ------------------------------------- */
+
+/*
+ * Two latches and a caption, at the foot of the right rail.
+ *
+ * **One backed block, not three floating things.** The first cut let the
+ * caption sit as bare phosphor over the room and it was E10's complaint
+ * verbatim — `--p1` ink on a lit isometric floor is unreadable in exactly the
+ * frames where somebody is looking for it, which is while they are wondering
+ * why their last tap did nothing. So the whole control takes the §7.1 readout
+ * treatment it should have had: the 58% wash, the rail's rule, and the caption
+ * *inside* it rather than trailing off the bottom into the §23.3 overlay.
+ *
+ * Sized to its content and right-aligned with everything else in the rail. It
+ * is allowed to be narrower than `--hud-rail` — unlike a readout, whose width
+ * is what keeps the column from breathing, this is a control, and one wider
+ * than its labels is a bigger tap target carrying no information.
+ */
+.touch {
+  pointer-events: auto;
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  padding: 4px 6px 4px 7px;
+  border-left: var(--rule) solid var(--p1);
+  background: color-mix(in srgb, var(--n0) 58%, transparent);
+}
+
+.touch__latches {
+  display: flex;
+  gap: 3px;
+}
+
+/*
+ * A latch is a readout that can be pressed, not a §10.8 F2 slab.
+ *
+ * The unlit state is the rail's own idiom — phosphor ink, a 1px rule, nothing
+ * filled — so an untouched control reads as part of the frame rather than as a
+ * button demanding attention. The lit state **inverts**: solid phosphor, dark
+ * ink. Inversion rather than a brighter fill because this has to be readable at
+ * a glance from across a landscape frame while the thumb is somewhere else, and
+ * two values of one hue is what the burn-down and the §4.10e bands already
+ * spend everywhere else in this rail.
+ */
+.touch__latch {
+  appearance: none;
+  margin: 0;
+  padding: 3px 8px 4px;
+  font: inherit;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+  background: transparent;
+  border: var(--rule) solid var(--p1);
+  cursor: pointer;
+  /* §10.6 — the axis-aligned rounded rectangle is the most web-page-looking
+     object available. Corners stay hard. */
+  border-radius: 0;
+  /* ART_DIRECTION §1 — the change is a colour swap on a hard edge, and the
+     `--ui-in` scale is what reduce-motion already shortens. */
+  transition: background-color var(--ui-in, 90ms) linear, color var(--ui-in, 90ms) linear;
+}
+
+.touch__latch.is-lit {
+  color: var(--n0);
+  background: var(--p3);
+  border-color: var(--p3);
+}
+
+/*
+ * The caption, and the reason the neutral mode is not a dead control.
+ *
+ * A step down the ramp from the latches, the same way §21's terminal banner
+ * sits below its advisor: it is a consequence of the choice above it rather
+ * than a second choice.
+ */
+.touch__hint {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p2);
+  white-space: nowrap;
+}
+
 /* --- performance overlay, GDD §23.3 ------------------------------------ */
 
 .hud__build {
@@ -1240,15 +1323,29 @@ body {
 }
 
 /*
- * The reference frame is 448 px tall and the left rail now carries five blocks
- * plus §21's script. Under 470 the revenue *chart* is the first thing to go —
- * its two numbers say everything the shape does at a glance, and the shape is
- * the part that costs twenty pixels. The burn-down keeps its chart because a
- * burn-down without a line is a number in a box, which §10.4 forbids by name.
+ * The reference frame is 448 px tall and the left rail carries five blocks plus
+ * §21's script, so under 470 everything in it is on rations.
+ *
+ * **The revenue chart is not deleted here, and it was.** The rule this replaces
+ * hid it outright below 470 on the argument that "its two numbers say
+ * everything the shape does at a glance" — which is precisely backwards, and
+ * §4.10e says so in its own second paragraph: *the bands are the point, not the
+ * total*. A rate and a payroll figure are the summary a player already had when
+ * they concluded they were failing; the moving stack is the thing that says the
+ * money is arriving from several games at once and that the one launching today
+ * is tomorrow's thin band. Hiding it below 470 hid it on **every phone**,
+ * including the 997x448 reference device every screenshot is taken on — so the
+ * feature shipped, was reviewed on a desktop, and did not exist on the hardware
+ * it was built for. It was asked for back by the person who asked for it.
+ *
+ * Fourteen pixels is enough. A burn-down needs its *slope* legible and so keeps
+ * a taller box; a stack of bands only needs its thickness, which is why this is
+ * the chart that gives height back first and gives more of it.
  */
 @media (max-height: 470px) {
   .revenue__chart {
-    display: none;
+    height: 14px;
+    margin: 1px 0;
   }
 
   .hud {
@@ -1323,9 +1420,73 @@ body {
     height: 20px;
   }
 
+  /* Ten pixels of bands. Below this it stops being a stack and becomes a rule
+     that changes colour, and at that point the honest thing would be to drop
+     it — but 336 is the bottom of §23.4's design box and it still reads. */
+  .revenue__chart {
+    height: 10px;
+  }
+
   .hud__left,
   .hud__right {
     gap: 6px;
+  }
+
+  /*
+   * §7.7.6b's switch moves onto the nav's line, and gives up its caption to
+   * get there.
+   *
+   * **Measured, not guessed.** At 748x336 in Act III — the shortest frame in
+   * §23.4's design box, in the act that also carries the §21.0a offer and the
+   * §10.10 dial — the right rail runs to 345 px against a usable 324. It had
+   * about nine pixels of slack before this control existed and the control is
+   * thirty, so a row has to go rather than be trimmed for; shaving two pixels
+   * off five things recovers sixteen and leaves everything cramped and still
+   * broken. What was falling off the bottom was §10.1's UPGRADES nav, and a new
+   * control does not get to evict canon.
+   *
+   * So the latches sit beside the nav: 95 px and 114 px against the 266 the
+   * rail and its overhang allow. The caption is what does not fit in that sum,
+   * and it is the right thing to lose — the latches still *name* both modes, so
+   * all that goes is the word for the neutral one, on the smallest phone the
+   * game supports. Every taller frame keeps it.
+   */
+  .hud__controls {
+    grid-template-columns: auto auto;
+    justify-content: end;
+    align-items: center;
+  }
+
+  .touch {
+    grid-row: 1;
+    grid-column: 1;
+    gap: 6px;
+    padding: 2px 6px 3px 7px;
+  }
+
+  .hud__nav {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  .hud__perf {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+
+  /* §13.2's PARADIGM, when it exists. Under the pair rather than over it: it is
+     the rarest control in the rail and the only one that is not always there. */
+  .hud__controls > .ui-btn {
+    grid-row: 3;
+    grid-column: 1 / -1;
+  }
+
+  .touch__hint {
+    display: none;
+  }
+
+  .touch__latch {
+    padding: 2px 6px 3px;
   }
 
   /*

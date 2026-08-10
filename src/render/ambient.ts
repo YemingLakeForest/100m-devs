@@ -109,14 +109,29 @@ export interface Ambient {
   /** §7.8.6 rule 5 — a poke wins. Ends whatever this developer was doing. */
   interrupt(i: number): void
   /**
-   * §7.8.9 — is this developer away from their desk and pickup-able?
+   * §7.8.9 — is this developer away from their desk and standing about?
    *
-   * Only loiterers. Somebody mid-conversation is *busy*, and yanking them out
-   * of one would make the drag feel like an interruption rather than like a
-   * tidy-up — which is the opposite of the joke.
+   * Not the same question as "can I pick them up" any more — see
+   * {@link Ambient.pickUp}. This one is about what they are visibly doing.
    */
   isLoitering(i: number): boolean
-  /** §7.8.9 — pick somebody up. Returns false if they are not available. */
+  /**
+   * §7.8.9, §7.7.6b — pick somebody up. Returns false if they are not
+   * available.
+   *
+   * **Anybody at rest, not only a loiterer.** §7.8.9 restricted this to people
+   * already standing about because the grab was fired by a hold timer that the
+   * player might not have meant: picking a loiterer up is legible as a
+   * tidy-up, and hoisting somebody out of their chair by accident is not.
+   * §7.7.6b removed the accident — the player latched GRAB and the HUD says
+   * DRAG PEOPLE — and with it the reason to refuse. A god-mode floor where two
+   * thirds of the room is nailed down is a toy that mostly says no.
+   *
+   * What is still refused is somebody **mid-behaviour**: a conversation, a
+   * drive-by, a trip to the cooler. That was always the good half of the rule —
+   * yanking somebody out of a conversation reads as an interruption rather than
+   * as a tidy-up, which is the opposite joke — and it survives intact.
+   */
   pickUp(i: number): boolean
   /** Move the carried developer. Room-local coordinates. */
   carryTo(x: number, y: number): void
@@ -185,6 +200,16 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
   let carried: Live | null = null
   let carryX = 0
   let carryY = 0
+  /**
+   * The desks as of the last frame.
+   *
+   * Held because §7.7.6b's grab reaches somebody who is doing *nothing*, and a
+   * developer with no behaviour has no recorded position — the only place their
+   * desk is written down is the array `update` is handed. Kept as the reference
+   * rather than a copy: the room rebuilds this array on a hire rather than
+   * mutating it, so holding it costs nothing and cannot go half-stale.
+   */
+  let lastSeats: readonly Seat[] = []
 
   const labels: Text[] = []
   let labelsUsed = 0
@@ -310,6 +335,7 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
     layer,
 
     update(dt, { seats, props, devs, entropy, drawnIndividually, worldScale }) {
+      lastSeats = seats
       g.clear()
       // Labels are claimed from the pool as bubbles are drawn; whatever is left
       // over from last frame gets hidden at the end.
@@ -409,12 +435,42 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
     },
 
     pickUp(i) {
+      if (carried) return false
+
       const a = busy.get(i)
-      if (!a || a.kind !== 'loiter' || carried) return false
-      carried = a
-      // Held at the top of its life so it cannot expire mid-carry and vanish
-      // out of the player's hand.
-      a.age = 0
+      if (a) {
+        // Mid-conversation, mid-drive-by, mid-trip to the cooler: busy.
+        if (a.kind !== 'loiter') return false
+        carried = a
+        // Held at the top of its life so it cannot expire mid-carry and vanish
+        // out of the player's hand.
+        a.age = 0
+        return true
+      }
+
+      // §7.7.6b — at their desk and doing nothing that has a bubble over it, so
+      // they are lifted *into* a loiter. Standing them up as a real behaviour
+      // rather than as a special case is what makes the drop work: `drop` puts
+      // a loiterer back in a chair or sends them walking, and a carried
+      // developer with no behaviour to end would have neither ending available.
+      const seat = lastSeats[i]
+      if (!seat) return false
+      const lifted: Live = {
+        kind: 'loiter',
+        says: [loiterLine(rng())],
+        who: [i],
+        home: { x: seat.x, y: seat.y },
+        // Somewhere to stand once they are put down, jittered off their own
+        // desk exactly as `begin` does it — a dropped developer with no
+        // destination has nowhere to walk back *from* and snaps into their
+        // chair instead of returning to it.
+        target: { x: seat.x + (rng() - 0.5) * 44, y: seat.y + 24 + rng() * 16 },
+        age: 0,
+        life: DURATION.loiter,
+      }
+      busy.set(i, lifted)
+      live.push(lifted)
+      carried = lifted
       return true
     },
 
@@ -452,6 +508,7 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
 
     clear() {
       carried = null
+      lastSeats = []
       live.length = 0
       busy.clear()
       g.clear()

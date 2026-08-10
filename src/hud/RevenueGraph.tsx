@@ -48,7 +48,19 @@ export function RevenueGraph({ state }: { state: GameState }) {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setHistory((h) => [...h, latest.current].slice(-SAMPLES))
+      setHistory((h) => {
+        const s = latest.current
+        // **Do not start the window until there is something in it.** §21 Act I
+        // is one unpaid founder with nothing shipped, so every sample is a
+        // zero — and a zero is still a sample, which made `history.length`
+        // non-empty after one second and defeated the guard below. The block
+        // then drew an empty chart from the first frame of the game, which is
+        // exactly the "component apologising for itself" it is written not to
+        // be. Invisible until the graph was restored on short frames, because
+        // the chart it was drawing was the thing being hidden.
+        if (h.length === 0 && s.payroll === 0 && s.bands.length === 0) return h
+        return [...h, s].slice(-SAMPLES)
+      })
     }, 1000)
     return () => clearInterval(id)
   }, [])

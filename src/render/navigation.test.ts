@@ -1,23 +1,25 @@
 import { describe, expect, it } from 'vitest'
 import {
-  HOLD_MS,
-  TAP_MS,
   TAP_SLOP,
   clampPan,
   exceedsSlop,
-  resolveGesture,
   flingVelocity,
   initPan,
-  isTap,
   panLimit,
   pickNearest,
   stepPan,
 } from './navigation.ts'
 
-describe('tap vs drag — GDD §7.7.6', () => {
-  it('treats a still finger as a tap', () => {
-    expect(isTap(0, 0, 40)).toBe(true)
-    expect(isTap(3, 4, 120)).toBe(true)
+describe('tap vs drag — GDD §7.7.6, §7.7.6b', () => {
+  it('treats a still finger as a tap, however long it rested', () => {
+    // **The whole of §7.7.6b in one assertion.** There is no duration argument
+    // to pass any more: a slow tap and a quick tap are the same tap, and what
+    // that tap *means* is the mode on the HUD rather than the clock. Restoring
+    // a time threshold here would restore the thing that was reported as being
+    // hard to control.
+    expect(exceedsSlop(0, 0)).toBe(false)
+    expect(exceedsSlop(3, 4)).toBe(false)
+    expect(exceedsSlop(TAP_SLOP, 0)).toBe(false)
   })
 
   it('treats a travelled finger as a look-around, not a poke', () => {
@@ -25,67 +27,17 @@ describe('tap vs drag — GDD §7.7.6', () => {
     // player Entropy". Entropy is the resource the whole game is about, so
     // this is not a papercut — it is the player being taxed for using the
     // camera.
-    expect(isTap(TAP_SLOP + 1, 0, 100)).toBe(false)
-    expect(isTap(40, 40, 100)).toBe(false)
-  })
-
-  it('treats a long press as a drag even if it did not move', () => {
-    // The other half of the same rule: a poke that pans loses the clicker
-    // layer. A finger resting on the glass is not a tap.
-    expect(isTap(0, 0, TAP_MS + 1)).toBe(false)
-  })
-})
-
-describe('poke or drag — how a thumb tells the difference, GDD §7.7.6a', () => {
-  it('makes the poke the default, because it is the common action', () => {
-    // §7.7.6a: "it is instant, and it is the default — the common action must
-    // never be the one that needs learning."
-    expect(resolveGesture(0, 0, 0)).toBe('poke')
-    expect(resolveGesture(2, 2, 80)).toBe('poke')
-    expect(resolveGesture(0, 0, TAP_MS)).toBe('poke')
-  })
-
-  it('lets motion beat time, at every duration', () => {
-    // The rule that stops a slow, sloppy pan resolving as a grab three hundred
-    // milliseconds in. A finger that has travelled is dragging whatever the
-    // clock says — including well past the hold timer.
-    for (const ms of [0, 100, TAP_MS, HOLD_MS, HOLD_MS + 2000]) {
-      expect(resolveGesture(TAP_SLOP + 1, 0, ms)).toBe('drag')
-      expect(resolveGesture(0, 300, ms)).toBe('drag')
-    }
-  })
-
-  it('resolves a still, patient finger as a hold', () => {
-    expect(resolveGesture(0, 0, HOLD_MS)).toBe('hold')
-    expect(resolveGesture(TAP_SLOP, 0, HOLD_MS + 500)).toBe('hold')
-  })
-
-  it('never lets one press be two gestures', () => {
-    // Mutually exclusive by construction rather than by a flag: `HOLD_MS` is
-    // longer than `TAP_MS`, so no journey can satisfy both, and the resolver
-    // returns exactly one answer for every one of them.
-    expect(HOLD_MS).toBeGreaterThan(TAP_MS)
-    for (const d of [0, 3, TAP_SLOP, TAP_SLOP + 1, 90]) {
-      for (const ms of [0, 40, TAP_MS, TAP_MS + 1, HOLD_MS - 1, HOLD_MS, 4000]) {
-        expect(['poke', 'drag', 'hold']).toContain(resolveGesture(d, 0, ms))
-      }
-    }
-  })
-
-  it('guesses nothing in the window where the player has not said', () => {
-    // Still, but slower than a tap and quicker than a hold. Resolving it as
-    // either would be acting on the player's behalf in the one case where they
-    // have given no signal, so it resolves as a drag of no distance — which
-    // does nothing at all.
-    expect(resolveGesture(0, 0, TAP_MS + 1)).toBe('drag')
-    expect(resolveGesture(0, 0, HOLD_MS - 1)).toBe('drag')
-  })
-
-  it('agrees with the slop test the drag path uses to cancel the timer', () => {
-    expect(exceedsSlop(0, 0)).toBe(false)
-    expect(exceedsSlop(TAP_SLOP, 0)).toBe(false)
     expect(exceedsSlop(TAP_SLOP + 1, 0)).toBe(true)
+    expect(exceedsSlop(40, 40)).toBe(true)
     expect(exceedsSlop(8, 8)).toBe(true)
+  })
+
+  it('is symmetric, so a diagonal drag is not a cheaper one', () => {
+    // Euclidean rather than per-axis: a box would let a finger travel 14 px
+    // north-east and still poke, which is a drag on any device.
+    expect(exceedsSlop(0, TAP_SLOP + 1)).toBe(true)
+    expect(exceedsSlop(-TAP_SLOP - 1, 0)).toBe(true)
+    expect(exceedsSlop(0, -TAP_SLOP - 1)).toBe(true)
   })
 })
 

@@ -12,8 +12,18 @@
  *  2. **Tell a tap from a drag.** §7.7.6: "Getting this wrong in either
  *     direction is fatal: a poke that pans loses the clicker layer, and a pan
  *     that pokes means every attempt to look around costs the player Entropy."
- *     A tap is a pointer that travelled under {@link TAP_SLOP} px in under
- *     {@link TAP_MS} ms. Anything else is a drag and yields no poke.
+ *     A tap is a pointer that travelled under {@link TAP_SLOP} px. Anything
+ *     further is a drag and yields no poke.
+ *
+ * **There is no clock in that sentence any more, and there used to be.**
+ * §7.7.6a resolved three gestures out of time and motion together — a quick
+ * still tap poked, a still finger past 380 ms picked somebody up or opened
+ * their card — and §7.7.6b replaced the timing half with a mode the player sets
+ * on the HUD, because the timing half was reported from a phone as
+ * uncontrollable. What a still finger *means* is now `game/touchMode.ts`'s
+ * question. All that is left here is whether it stayed still, which is the one
+ * distinction the camera has always needed and the only one that never had a
+ * threshold a player could miss.
  *
  * The momentum maths is imported from the §10.8 juice kit rather than written
  * again here — it is the same spring and friction model the UI scrolls on, and
@@ -25,69 +35,16 @@ import { FRICTION, clamp, decayVelocity } from '../ui/spring.ts'
 
 /** §7.7.6 — a tap is a pointer that barely moved. */
 export const TAP_SLOP = 10
-export const TAP_MS = 250
 
 /**
- * §7.8.8 — how long a finger must rest before a tap becomes a *selection*.
+ * Has this pointer travelled far enough to be the camera rather than a tap?
  *
- * Selection needs a gesture of its own, because §8.2's poke is the game's
- * primary verb and fires hundreds of times a session: giving both the same
- * gesture would mean either poking opens a panel — unusable — or selection
- * needs a mode.
- *
- * 380 ms sits above the fastest deliberate double-tap and well below the point
- * where a held finger feels ignored. It is longer than {@link TAP_MS}, which is
- * what makes the two mutually exclusive by construction rather than by a flag.
+ * The whole of §7.7.6b's gesture resolution: false means the latched verb, true
+ * means a pan. Both halves of §7.7.6's fatal error are this one predicate — too
+ * small a slop and a look-around pokes, too large and a poke pans.
  */
-export const HOLD_MS = 380
-
-/** Did this pointer rest in one place long enough to be a hold? */
-export function isHold(dx: number, dy: number, elapsedMs: number): boolean {
-  return Math.hypot(dx, dy) <= TAP_SLOP && elapsedMs >= HOLD_MS
-}
-
-/** Has this pointer travelled far enough to stop being a tap or a hold? */
 export function exceedsSlop(dx: number, dy: number): boolean {
   return Math.hypot(dx, dy) > TAP_SLOP
-}
-
-export type Gesture = 'poke' | 'drag' | 'hold'
-
-/**
- * What a finger just did — GDD §7.7.6a.
- *
- * §7.7.6 gives a finger three jobs and, on a desktop, a cursor change can
- * disambiguate them. **A touch screen has no cursor and no hover**, so the
- * affordance has to be built out of time and motion instead — and §7.7.6a is
- * explicit that this is a shipping blocker rather than a polish item, "because
- * a player who cannot tell the two apart will trigger the wrong one and
- * conclude the game is unreliable".
- *
- * The order the gestures resolve in is the design, and it is not the order they
- * would fall out of if written naively:
- *
- * | Down, up quickly, barely moved | **Poke** — instant, and it is the *default*: the common action must never be the one that needs learning |
- * | Moved past the slop before the timer | **Camera drag** — the world moves under the finger immediately |
- * | Still, held past the timer | **Hold** — pick up (§7.8.9) or select (§7.8.8), depending on who is under the thumb |
- *
- * Motion beats time. A finger that has travelled is dragging *whatever* the
- * clock says, which is what stops a slow, sloppy pan from resolving as a grab
- * three hundred milliseconds in.
- *
- * The `hold` case is deliberately *not* decided here. Whether a hold picks
- * somebody up or selects them depends on who is under the finger, which is the
- * renderer's question — and the player's answer to it is that they can see the
- * difference between a person standing about and a person at a desk.
- */
-export function resolveGesture(dx: number, dy: number, elapsedMs: number): Gesture {
-  if (exceedsSlop(dx, dy)) return 'drag'
-  if (elapsedMs >= HOLD_MS) return 'hold'
-  if (elapsedMs <= TAP_MS) return 'poke'
-  // Between TAP_MS and HOLD_MS, still. Not quick enough to have been a tap and
-  // not patient enough to have been a hold — a hesitation. It resolves as a
-  // drag of zero distance, which does nothing, because the alternative is
-  // guessing on the player's behalf in the one window where they have not said.
-  return 'drag'
 }
 
 /** Below this, a flick is a hand tremor rather than an instruction. */
@@ -150,11 +107,6 @@ export function stepPan(pan: PanState, dt: number, limitX: number, limitY: numbe
     vx: cx !== nx || Math.abs(vx) < 8 ? 0 : vx,
     vy: cy !== ny || Math.abs(vy) < 8 ? 0 : vy,
   }
-}
-
-/** Is this pointer journey a tap, or was the player looking around? */
-export function isTap(dx: number, dy: number, elapsedMs: number): boolean {
-  return Math.hypot(dx, dy) <= TAP_SLOP && elapsedMs <= TAP_MS
 }
 
 /** A flick below this is not a flick. Exported so the release path can agree. */

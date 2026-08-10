@@ -1424,7 +1424,7 @@ at every rung**, and everything on screen is individually addressable.
 |---|---|
 | **Drag** | Pan the camera across the current rung. Momentum, then friction — never a rubber-band snap-back |
 | **Pinch** | Zoom, continuously, across the whole ladder (§7.2) |
-| **Tap a developer** | Poke them (§4.5, §8.2) — *any* of them, not a designated one |
+| **Tap a developer** | Whatever §7.7.6b's latched mode says: poke them (§4.5, §8.2), pick them up (§7.8.9), or open their card (§7.8.8) — on *any* of them, not a designated one |
 | **Tap a unit** (floor, building, campus, town, planet) | Select it: the camera frames it and the Query Panel opens on it |
 | **Double-tap a unit** | Zoom into it — one rung down, centred on what was tapped |
 | **Tap empty space** | Deselect |
@@ -1441,10 +1441,14 @@ at every rung**, and everything on screen is individually addressable.
    "Our floor, our building, our city, our planet" has to be a thing the player can point at
    and act on, or the ladder is scenery rather than a place.
 
-**Panning must not fight poking.** A tap is a pointer-down and -up within ~10 px and ~250 ms;
-anything longer or further is a drag and yields no poke. Getting this wrong in either
-direction is fatal: a poke that pans loses the clicker layer, and a pan that pokes means
-every attempt to look around costs the player Entropy (§4.9).
+**Panning must not fight poking.** A tap is a pointer-down and -up within ~10 px; anything
+further is a drag and yields no poke. Getting this wrong in either direction is fatal: a poke
+that pans loses the clicker layer, and a pan that pokes means every attempt to look around
+costs the player Entropy (§4.9).
+
+> This used to read "within ~10 px **and ~250 ms**". The duration is gone — §7.7.6b — because
+> it was the second half of a three-way timing model that a player could not feel. Distance
+> stayed, because it is the one threshold nobody has to learn: the world moved or it did not.
 
 **The Hero Anchor (§7.7.4) is a navigation guarantee too.** There is always a "return to my
 desk" affordance — pinching all the way in, or a single HUD control — so the player can never
@@ -1474,6 +1478,82 @@ already specified; this is the one place they are load-bearing rather than juice
 
 **And a grab must be escapable.** Lift without moving and the developer sits back down, no
 harm done. A mode the player cannot back out of is worse than a mode they entered by mistake.
+
+> **7.7.6a's timing model is superseded by 7.7.6b below, and its diagnosis is not.** Everything
+> above about a touch screen having no cursor is still true, and the escapability rule still
+> stands. What changed is the answer: the affordance is built out of a control the player can
+> see rather than out of durations they have to feel.
+
+##### 7.7.6b Poke, grab or check — the mode is on the HUD **[CANON - added 2026-08-10]** - R27
+
+Section 7.7.6a built the distinction out of **time**, and it was reported from a phone in one
+sentence: *"hard to control how to poke or grab or look at person."*
+
+**The thresholds were not the problem.** 380 ms is a reasonable hold and 10 px is a reasonable
+slop. The problem is that three verbs came off one finger with **nothing on screen saying
+which one was armed**, so the only way to find out what mode you were in was to watch the
+wrong thing happen — and 7.7.6a's own haptic tick, which was supposed to teach the boundary,
+can only fire *after* the press has already committed. An affordance that announces a mode you
+did not choose is a better error message, not a control.
+
+So the mode is now **said out loud, on the HUD, before the finger lands.**
+
+| Control | Lit | A tap on the room means |
+|---|---|---|
+| **POKE** | yes | §4.5's poke. The primary verb, and the mode the game opens in |
+| **GRAB** | yes | §7.8.9's pick-up, on the **press**, no timer |
+| *neither* | — | §7.8.8's card. "Check people" — the neutral mode |
+
+**Two latches, not a three-way picker.** Pressing the lit one puts it out, and both out is the
+third mode. A picker with three segments makes the default a *choice*; a pair of latches makes
+it the resting state of a control nobody has touched, which is what a default is.
+
+**The rules:**
+
+1. **Nothing inside a mode is a timer.** There is one question left for a finger — did it
+   travel past the slop — and the two answers are "the camera" and "the latched verb". A slow
+   tap and a quick tap are the same tap. This is the whole of the fix: restoring any duration
+   threshold restores the complaint.
+2. **The game opens in POKE, and that is the one place "default to checking people" cannot be
+   taken literally.** §21 Act I's script is TAP TO CODE. A first tap that opened a personnel
+   card would leave a new player looking at a stat block with no evidence the game had
+   started. Neutral is where the control *rests*; POKE is where the game *starts*.
+3. **GRAB fires on `pointerdown` — and this is not 7.7.6a's bug returning.** That rule existed
+   because a press might pick up somebody the player never meant to touch. With GRAB latched
+   and lit and the caption reading DRAG PEOPLE, there is nothing left to disambiguate, and
+   every millisecond the press waits is lag on the only verb the mode has. The haptic tick
+   stays, demoted from an announcement to an acknowledgement.
+4. **In GRAB, anybody at rest can be lifted — not only a loiterer.** §7.8.9 restricted the
+   grab to people already standing about, for rule 3's reason. That reason is gone; the
+   restriction is not, and a god-mode floor where two thirds of the room is nailed down is a
+   toy that mostly says no. **Somebody mid-behaviour is still refused** — a conversation, a
+   drive-by, a trip to the cooler — because yanking them out of one reads as an interruption
+   rather than as a tidy-up, which was always the good half of the rule.
+5. **The modes only exist where there are people.** Above the room a unit is a floor, a
+   building, a city; there is nobody to pick up and nobody whose card to open, so §4.5b takes
+   the tap back and it is a poke whatever the latch says. A mode that silently switched the
+   game's primary verb off at the top of the ladder is the exact failure §4.5b was written to
+   have fixed.
+6. **The mode owns the hand.** Leaving GRAB — by latch, or by zooming out of the room — puts
+   down whoever is being carried, via §7.8.9's walk-back rather than a teleport. A developer
+   stranded in mid-air by a button press on the other side of the screen is 7.7.6a's failure
+   with a new cause.
+7. **The mode is never restored from a save.** It is ephemeral (§24.2). An input mode carried
+   across a reload is a control the player did not set, looking exactly like a game that has
+   stopped responding: you tap a developer, no numeral appears, and nothing explains why until
+   you find the switch.
+
+**The caption is part of the control.** Under the latches is one line naming the consequence —
+`TAP TO CODE`, `DRAG PEOPLE`, `TAP TO CHECK` — and it matters most in the neutral mode, where
+an unlit pair of latches with nothing under them reads as a control that is switched off
+rather than one that is in its third state.
+
+> **The one concession to §23.4's shortest frame.** At 336 px the right rail already carries
+> the resource blocks, §21.0a's offer, §10.10's dial, the hire button, the §23.3 overlay and
+> §10.1's nav; the switch does not fit stacked, and what it pushed off the bottom was the nav.
+> So below 400 px the latches sit *beside* the nav and the caption is dropped. The latches
+> still name both modes, so what is lost is the word for the neutral one, on the smallest
+> phone the game supports. Every taller frame keeps it.
 
 #### 7.7.7 What this must never become
 
@@ -2109,10 +2189,18 @@ the failure looks like a React bug rather than like a consequence of §7.8.7.
 
 §7.8.6 gets people out of their chairs. This is what the player is allowed to do about it.
 
-**A developer who is away from their desk can be picked up and dropped back into a seat.**
-Drag them and they dangle, legs cycling, protesting in a speech bubble; drop them on a chair
-and they land with §7.8.5's bum-hits-seat beat; drop them anywhere else and they walk back to
-wherever they were going, unhurried, which is funnier than obeying.
+**A developer can be picked up and dropped back into a seat.** Drag them and they dangle, legs
+cycling, protesting in a speech bubble; drop them on a chair and they land with §7.8.5's
+bum-hits-seat beat; drop them anywhere else and they walk back to wherever they were going,
+unhurried, which is funnier than obeying.
+
+> **This used to say "a developer who is away from their desk", and §7.7.6b widened it.** The
+> restriction to people already standing about existed because the grab fired off a hold timer
+> that the player might not have meant; with GRAB latched and lit there is no accident left to
+> guard against, and a toy that refuses two thirds of the room mostly says no. Somebody
+> **mid-behaviour** — a conversation, a drive-by, a trip to the cooler — is still refused, for
+> the reason that was always the good half of the rule: yanking them out of one reads as an
+> interruption rather than as a tidy-up, which is the opposite joke.
 
 That single interaction does three jobs:
 
@@ -3046,6 +3134,147 @@ first frame. The funnel is a first-run device and re-teaching it is an insult.
 - **A slider.** Continuous input for a quantity the player thinks about in orders of magnitude.
 - **An auto-buyer, in Run 1.** Automation is §11 tech-tree content and it is a *reward*;
   handing it over as a default deletes the verb.
+
+### 10.11 The Release Gallery — what you have actually made **[CANON - added 2026-08-10]** - R28
+
+**Shipping is the loop's payoff and it currently leaves nothing behind.** §4.10e turned the
+back catalogue into a *rate* — a stack of bands 120 px wide — and that is the right readout
+for "am I earning". It is the wrong readout, and the only one, for "what have I made". The
+instant a project lands, the burn-down resets, the name changes, and four minutes of play
+becomes a thin band under tomorrow's launch. §4.12's defects, §4.13's tickets and §4.14's
+rating all attach to a *release*, and there is nowhere in the interface a release exists.
+
+**The gallery is where a run acquires a history.** It is also the only place §4.14's rating can
+be compared: one rating is a score, and twelve ratings in a column is a trend. §4.14 says the
+rating is the first quantity in this game that can go down while everything else goes up —
+that sentence is invisible until the ratings sit next to each other.
+
+#### 10.11.1 The card
+
+Newest first. One row per release, four facts and a picture.
+
+```
+  +-------------------------------------------------------------+
+  |  +------+  UNTITLED ROGUELIKE DECKBUILDER                    |
+  |  |######|  #7 - shipped 4 minutes ago                        |
+  |  |# /\ #|                                                    |
+  |  |#/  \#|  RATING    68/100  #######...                      |
+  |  +------+  REVENUE   $1.24M  -  $6.1K/s, still earning       |
+  |            LABOUR    4.8 man-millennia                       |
+  +-------------------------------------------------------------+
+```
+
+- **Rating** — §4.14's score out of 100, on the ten-cell block bar §7.8.8's card already
+  spends. Not a star rating. Not a percentage with a coloured ring.
+- **Revenue** — total handed over *so far*, and the live rate beside it. A release whose tail
+  has been paid out reads `RETIRED` where the rate was, which is §4.10e's long tail made
+  visible per game instead of only in aggregate.
+- **Labour** — the man-days. §10.11.2, which is the whole design problem.
+- **Cover** — generated, never authored. §10.11.3.
+
+#### 10.11.2 The labour figure — man-days at 10⁹ developers
+
+**The definition, and the one thing that must never be "corrected": labour is headcount
+integrated over build time, and it is NOT divided by efficiency.**
+
+```
+  manDays  =  ∫ D dt / 86,400
+```
+
+A studio at 3% efficiency (§4.1) spends thirty-three times the labour on the same game, and
+the gallery says so. **That is the number this entire product is about.** Dividing by
+efficiency — or deriving labour from story points delivered, which is the same mistake wearing
+a hat — produces a figure that is flat across the whole run, because useful work is by
+construction proportional to the size of the game. It would be a tidier number and it would
+delete the joke, which is that **you paid for all of it.** §6's trap is a sentence the player
+already half-believes; this is the receipt.
+
+**The representation problem, stated in numbers.** The wall clock barely moves across the whole
+game — a project is minutes at every scale — so labour is headcount, and headcount is nine
+orders of magnitude:
+
+| Studio | Build time | Labour | Written naively |
+|---|---|---|---|
+| Act I — 1 developer | ~2 min | 0.0014 man-days | `0.0014` |
+| Act IIb — 40 | 90 s | 0.042 man-days | `0.042` |
+| 100,000 | 90 s | 104 man-days | `104` |
+| 100,000,000 (the title) | 90 s | 104,167 man-days | `104167` |
+| 1,000,000,000 | 90 s | 1,041,667 man-days | `1041667` |
+| 10¹² | 90 s | 1.04 billion man-days | `1041666667` |
+
+This is §7.7.1's problem restated in a different unit, so it gets §7.7.1's answer.
+
+**The unit climbs a ladder; the number stays in a band a person can read.** Each rung is
+roughly a thousand times the last, so the figure lives at 1–999 for almost the whole run:
+
+| Labour | Unit | Reads as |
+|---|---|---|
+| under a man-day | **man-hours** | `34 man-hours` |
+| 1 – 999 man-days | **man-days** | `212 man-days` |
+| 1 – 999 man-years (365 man-days) | **man-years** | `4.8 man-years` |
+| 1 – 999 man-millennia (1,000 man-years) | **man-millennia** | `2.9 man-millennia` |
+| 1 man-aeon and up (10⁶ man-years) | **man-aeons**, then §10.2's suffix ladder | `41 man-aeons`, `4.1M man-aeons` |
+
+**Four rules, and the third is the design:**
+
+1. **The unit is spelled out, never abbreviated.** `4.8 man-millennia` is the entire gag;
+   `4.8 mm` is a spreadsheet. This is the one figure in the interface allowed to cost that
+   many characters.
+2. **Centuries are skipped deliberately.** A century is only ten years and a millennium is a
+   thousand, so including both would give one rung a ×10 step and break the band. Millennium
+   is also the better word.
+3. **Each release is shown in its *own* unit — the column is never normalised.** Release #1
+   reads `34 man-hours` and release #12 reads `2.9 man-millennia`, and the unit changing as
+   the eye travels down the column **is the readout**. Normalising the column to man-hours
+   would put the same information on screen as fifteen-digit numbers nobody compares. This is
+   the whole reason the gallery is a list and not a chart.
+4. **Above a man-aeon the ladder stops and the number grows**, on §10.2's existing K/M/B
+   suffixes. Inventing a fifth word is how a unit ladder turns into a bestiary; an exponent
+   with a suffix stuck on it is the bug `formatMoney` already records having fixed.
+
+> **This is not E5's `MAN-WEEKS` coming back.** That was a **live gauge in the left rail**,
+> competing for space with §4.10e's graph and §10.1's speedometer, and it was withdrawn on
+> sight by the person who asked for it. This is a **fact about a finished thing, on a screen of
+> its own**, next to what that thing scored and what it earned. The unit is the same; the
+> reason it earns its pixels is not. E5 stays closed.
+
+#### 10.11.3 Cover art, and why it cannot be a sprite
+
+**Releases are unbounded.** A long run ships dozens and every prestige run ships more, so no
+release may cost an asset — §22.7's hard cap is 19 sprites for the entire collectable system
+and this would be the hole in the bottom of it. Cover art is **generated from the release's own
+seed**, the same contract §7.8.7 uses for faces: rolled on demand, never stored, identical
+across a reload.
+
+- A small square tile — 48×48 — **drawn in code**, not composited from art.
+- Ground from the genre's ramp. §4.10's project ladder already names a genre in every title.
+- **One primitive glyph**, from a short library of code-drawn shapes: a die, a sword, a rocket,
+  a spreadsheet. A dozen shapes covers the ladder and each is a handful of polygons.
+- Title lettering at that size is **dashes, not words** — the decision `ambient.ts` made for
+  speech bubbles and then reversed. It stays dashes here, because a bubble holds thirty
+  characters and a 48 px cover holds none.
+- **§4.14's rating tints the frame.** The score picks the ramp step, so a wall of covers reads
+  as a quality history *before a single number has been read*. This is the rule that makes the
+  gallery a picture rather than a table.
+
+#### 10.11.4 Where it lives
+
+Behind §10.1's nav, beside `UPGRADES`, as a **right-edge drawer and not a modal** — §7.1 and
+§10.5 rule 1, the same shape §11's door already is. The swarm keeps simulating behind it, and
+the player can keep poking everywhere the panel is not.
+
+#### 10.11.5 What it must never become
+
+- **A leaderboard**, or anything with a global ranking in it.
+- **A screen that pauses the game.** §10.6.
+- **A place where releases can be managed.** §4.10e's tail is a fact, not a lever. A "remaster"
+  button turns the catalogue into a second idle game running beside the first, and Layer 1
+  already exists for wanting more.
+- **A shopfront pastiche.** Not a store page, not review quotes, not a wishlist count. The joke
+  is the studio, not the storefront.
+- **A gallery that hides the bad ones.** Every ship goes in, including the 12/100s. §4.14 is
+  explicit that shipping a 12 and making a fortune must stay possible and funny — and the
+  trend in §10.11.2 rule 3 means nothing if the column is curated.
 
 
 ## 11. In-Run Tech Tree (Purchased with Cash `$`)
@@ -6154,8 +6383,8 @@ to ship it rewrites the section. Four things we found that it does not currently
 the instruction attached to the first was explicit: *"if not already in GDD, add them in, just ensure
 don't lose them, I don't want to tell you the same thing multiple times."*
 
-R1-R13 came in one message, R14-R18 in the next, and R19-R26 in a third on 2026-08-10; the
-table grows rather than being replaced. So each item below is written **twice on purpose**: once here as a one-line row with a status,
+R1-R13 came in one message, R14-R18 in the next, R19-R26 in a third on 2026-08-10 and R27-R28
+in a fourth the same day (§25.4); the table grows rather than being replaced. So each item below is written **twice on purpose**: once here as a one-line row with a status,
 and once in full in the section that owns it. The row is the guarantee that it is not lost;
 the section is where an implementer will actually look. **A row is only allowed to leave this
 table when the thing is built and seen working** — not when it is specced, and not when it is
@@ -6164,14 +6393,14 @@ table when the thing is built and seen working** — not when it is specced, and
 | # | Requirement | Owner § | Status |
 |---|---|---|---|
 | R1 | Music must have **melody**. Upbeat, retro, minor key, sovietwave. Short loops are fine | §20.7.1c | **Open** — prompts rewritten twice, 7/10 stems still measured as drones |
-| R2 | Revenue is a **long-tailed randomised stream**, not a lump on ship. Plus a **revenue graph** in the HUD | §4.10e | **Built — needs eyes.** Two summed exponentials, a launch spike over a long tail; each written in normalised form so the integral is the ladder payout **exactly**, for every seed and every frame rate. Retirement pays the remainder, so nothing leaks. Persisted (§24) — a reload keeps the catalogue. Graph in the left rail: one band per still-earning game, payroll as a dashed line over them |
+| R2 | Revenue is a **long-tailed randomised stream**, not a lump on ship. Plus a **revenue graph** in the HUD | §4.10e | **Built — needs eyes.** Two summed exponentials, a launch spike over a long tail; each written in normalised form so the integral is the ladder payout **exactly**, for every seed and every frame rate. Retirement pays the remainder, so nothing leaks. Persisted (§24) — a reload keeps the catalogue. Graph in the left rail: one band per still-earning game, payroll as a dashed line over them. **The chart was then hidden on every phone by a `max-height: 470px` rule and had to be asked for back — see §25.4.** It now shortens instead of vanishing |
 | R3 | The lens is **too blurry**. Vibe, not a lo-fi filter. Speech bubbles must stay readable at high headcount | §7.6a | **Built — needs eyes.** Focal band 110→420, tilt 6→2, bloom halved, fringing halved, scanline contrast halved. Bubbles legible at 40 |
 | R4 | Developers arrive **row by row**, never scattered — at every scale | §7.8.1b | **Built.** `seatFor` is one reading order at both scales; the row is a constant ten, so a seat once taken never moves. Costs the table's "6–10: two rows" line — recorded in §7.8.1b |
 | R5 | A floor holds **10,000**: 100 squads of 100, corridors between them. Zoom to any squad, poke any individual | §7.8.1a | **Built.** 100 plates, corridors as darker floor between them, seats addressed to 10,000. *Zoom to any squad* landed with R8: the pinch now anchors on its own focal point, so pinching in on a squad frames that squad rather than sliding it off the edge — the general fix, and the one that also makes §7.7.6's double-tap land on what was tapped |
 | R6 | Desks must **not overflow the floor**. The room starts sized for 100 | §7.8.1a | **Built.** Two causes, both fixed: the plate was sized `max(w, h)` for a sheared block, and the margin ran *negative* above 14 developers once crowding flipped it. Asserted at every headcount the tier can draw |
 | R7 | At 100 developers the floor **unfolds** ×100, like paper | §7.8.1c | **Built — needs eyes.** 100 hinged panels, staggered outward from squad 0, overshoot and settle, light caught edge-on; squad 0 never moves and the camera pulls back with it. Scored by the existing rung promotion |
 | R8 | Zooming out must climb **floor → building → campus → city → …**, not jump to a galaxy | §7.4a | **Built — needs eyes.** `sim/ladder.ts` makes the rung the navigation unit and the tier only a rendering one: eight views, one per rung, cross-fading in rung space. The city is three instances rather than one, so block → park → sprawl is a fade and not a cut. Ceiling is now the studio's own rung. Seen at rungs 1–6 with 3 M developers |
-| R9 | **Poke vs drag must be distinguishable on a touch screen**, with no cursor to help | §7.7.6a | **Built — needs a phone.** `resolveGesture` resolves poke / drag / hold, motion beating time. The grab moved off `pointerdown` onto the hold timer and now fires **while the finger is down**, with `holdHaptic` at that instant. Escapable: lift without moving and they sit back down. **The tick itself needs a device to judge** |
+| R9 | **Poke vs drag must be distinguishable on a touch screen**, with no cursor to help | §7.7.6a, §7.7.6b | **Built, then rebuilt on the phone's verdict.** The timing model shipped — poke / drag / hold, motion beating time, the grab firing while the finger was still down — and came back as *"hard to control how to poke or grab or look at person"*. The diagnosis survived and the answer did not: the mode is now a control on the HUD (R27, §7.7.6b) and the only thing time decides is nothing. Poke vs **drag** is still the one distinction, and it is still the slop threshold |
 | R10 | Story points appear as **+1 +1 over each developer's head**, not only under the thumb | §8.2b | **Built — needs eyes.** `render/tallies.ts`: one numeral per developer to a squad of 100, then per row, then per squad — thinning, never stopping. Pooled sprites, pre-baked glyphs, no per-developer allocation. Quiet and small; distinct from §8.2's poke numeral |
 | R11 | A poke reading **"+0"** while the counters move is a lie. Fix the case and separate passive from active | §4.8a, §25.1 | **Built — needs eyes.** §10.1's `swarm + you` split shipped; an Overwhelmed poke now reads `UNBLOCKED` in amber instead of `+0` |
 | R12 | Never write **"SP"**. It is "story point" | §10.2a | **Built.** Every user-facing use replaced, and `Hud.test.tsx` now fails on `/\bSP\b/` so it cannot come back one label at a time |
@@ -6300,6 +6529,24 @@ and written as canon is a balance decision nobody measured:
 And one thing that is decided and must not drift: **none of this may become a fail state.**
 §6.3's Entropy Lock is the game's one seizure and it is load-bearing. A second one competing
 with it reads as a broken build rather than as a point being made.
+
+### 25.4 Intake — 2026-08-10, second message **[CANON]**
+
+Three things in one message, and they are not one system: two are the player asking for
+control back over something the interface took from them, and the third is a new screen.
+
+| # | Requirement | Owner § | Status |
+|---|---|---|---|
+| R27 | "Hard to control how to poke or grab or look at person. Make **2 modes** you can toggle on the UI, a POKE or a GRAB. If not selected, default to **check people**" | §7.7.6b | **Built — needs a phone.** Two latches at the foot of the right rail; neither lit is §7.8.8's card. Every duration threshold is gone from the input path — `resolveGesture`, `isTap`, `isHold` and `HOLD_MS` are deleted, not bypassed — so a slow tap and a quick tap are the same tap. GRAB fires on the press and reaches **anybody at rest**, not only §7.8.9's loiterers. Verified in the running game: GRAB lifts a seated developer with `pokeCount` still at 0, and unlatching drops them and opens the card |
+| R28 | A **release gallery** — rating, revenue, cover art, and the **man-days** spent, represented so it still reads when the studio ships a billion a second | §10.11 | **Specced, not built.** Depends on R23's rating (§25.3.1 already puts that first). The spec's load-bearing half is §10.11.2: labour is headcount integrated over build time and is **not** divided by efficiency, and the unit climbs a ladder per release so the column is never normalised |
+| — | "I like the moving revenue stream graph we had before, can we have it back" | §4.10e | **Built.** It was never removed — it was `display: none` below 470 px, which is **every phone**, including the 997x448 reference frame every screenshot is taken on. The feature shipped, was reviewed on a desktop, and did not exist on the hardware it was built for. The chart now gives height back instead of vanishing: 14 px under 470, 10 px under 400 |
+
+> **The revenue-graph row has no R number on purpose.** It is not a new requirement; it is R2,
+> reported as missing by the person who asked for R2. The lesson is worth more than the fix:
+> **a responsive rule that hides a feature is a feature deletion on every device inside the
+> breakpoint**, and §23.4's design box tops out at 448 px — so "below 470" meant "always". Any
+> future `display: none` in a media query owes an answer to "on which device is this still
+> visible?"
 
 ### 25.2 What is deliberately NOT decided here
 

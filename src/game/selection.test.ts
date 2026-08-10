@@ -3,7 +3,8 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
-import { HOLD_MS, TAP_MS, isHold, isTap } from '../render/navigation.ts'
+import { exceedsSlop } from '../render/navigation.ts'
+import { tapVerb } from './touchMode.ts'
 import { turnScale } from '../render/room.ts'
 import { DESK_LINES, deskLine } from './deskLines.ts'
 import { __resetStore, getState, selectDeveloper, selectedIdentity } from './store.ts'
@@ -13,22 +14,22 @@ beforeEach(() => {
 })
 
 describe('the gesture', () => {
-  it('cannot be both a tap and a hold', () => {
-    // Selection needs a gesture of its own because §8.2's poke is the primary
-    // verb and fires hundreds of times a session. The two are mutually
-    // exclusive *by construction* — HOLD_MS is longer than TAP_MS — rather than
-    // by a flag somewhere deciding which one won.
-    expect(HOLD_MS).toBeGreaterThan(TAP_MS)
-    for (const ms of [0, 100, TAP_MS, HOLD_MS, 900]) {
-      expect(isTap(0, 0, ms) && isHold(0, 0, ms)).toBe(false)
-    }
+  it('is a mode rather than a duration — §7.7.6b', () => {
+    // Selection needed a gesture of its own because §8.2's poke is the primary
+    // verb and fires hundreds of times a session. That gesture used to be a
+    // *slow* tap, told apart from a poke by a 380 ms timer, and it was reported
+    // from a phone as impossible to control. It is now the neutral latch: the
+    // same tap, and the player has said in advance what it means.
+    expect(tapVerb('inspect', true)).toBe('inspect')
+    expect(tapVerb('poke', true)).toBe('poke')
   })
 
-  it('is not a hold if the finger moved', () => {
-    // Otherwise a drag that happens to end slowly opens a panel over the room
-    // the player was panning.
-    expect(isHold(40, 0, 900)).toBe(false)
-    expect(isHold(0, 0, 900)).toBe(true)
+  it('is still the camera if the finger moved', () => {
+    // The one distinction left, and the only one that never had a threshold a
+    // player could miss. Otherwise a pan that happens to end over somebody
+    // opens a panel across the room they were looking at.
+    expect(exceedsSlop(40, 0)).toBe(true)
+    expect(exceedsSlop(0, 0)).toBe(false)
   })
 })
 

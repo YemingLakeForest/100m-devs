@@ -80,14 +80,71 @@ describe('picking somebody up', () => {
     a.destroy()
   })
 
-  it('refuses somebody who is not loitering', () => {
+  it('refuses somebody mid-behaviour, and only them', () => {
     // §7.8.9 — a person mid-conversation is *busy*, and yanking them out of one
     // would make the drag read as an interruption rather than as a tidy-up,
-    // which is the opposite of the joke.
+    // which is the opposite of the joke. That half of the rule survives
+    // §7.7.6b intact.
     const a = floorWith(30)
-    let refused = 0
-    for (let i = 0; i < SEATS.length; i++) if (!a.isLoitering(i) && !a.pickUp(i)) refused++
-    expect(refused).toBeGreaterThan(0)
+    let busy = -1
+    for (let i = 0; i < SEATS.length; i++) {
+      if (!a.isLoitering(i) && !a.pickUp(i)) {
+        busy = i
+        break
+      }
+    }
+    expect(busy).toBeGreaterThanOrEqual(0)
+    a.destroy()
+  })
+
+  it('picks up somebody sitting quietly at their desk — §7.7.6b', () => {
+    // §7.8.9 restricted the grab to loiterers because a hold timer might fire
+    // on somebody the player never meant to touch. §7.7.6b removed the
+    // accident — GRAB is latched and lit before the finger lands — and with it
+    // the reason to refuse. A god-mode floor where two thirds of the room is
+    // nailed down is a toy that mostly says no.
+    const a = floorWith(30)
+    let idle = -1
+    for (let i = 0; i < SEATS.length; i++) {
+      if (a.offsetFor(i).x === 0 && a.offsetFor(i).y === 0 && !a.isLoitering(i)) {
+        // Not in any behaviour at all: no offset and not standing about. The
+        // conversation seats are the ones this must still skip, and they are
+        // excluded by `pickUp` itself returning false.
+        if (a.pickUp(i)) {
+          idle = i
+          break
+        }
+      }
+    }
+    expect(idle).toBeGreaterThanOrEqual(0)
+    expect(a.carrying).toBe(idle)
+    a.destroy()
+  })
+
+  it('carries a lifted desk-sitter by the hand, like any other', () => {
+    // The lift has to produce a *real* behaviour rather than a special case, or
+    // the carry and the drop have two code paths that can disagree.
+    const a = floorWith(30)
+    let who = -1
+    for (let i = 0; i < SEATS.length; i++) if (!a.isLoitering(i) && a.pickUp(i)) { who = i; break }
+    expect(who).toBeGreaterThanOrEqual(0)
+    a.carryTo(410, 260)
+    const at = a.offsetFor(who)
+    expect(at.x + SEATS[who].x).toBeCloseTo(410, 0)
+    expect(at.y + SEATS[who].y).toBeCloseTo(260, 0)
+    // And they can be put back, which is the half that would break if the lift
+    // had no behaviour to end.
+    expect(a.drop(who)).toBe('seated')
+    expect(a.offsetFor(who)).toEqual({ x: 0, y: 0 })
+    a.destroy()
+  })
+
+  it('still carries only one person, however they were picked up', () => {
+    const a = floorWith(30)
+    let first = -1
+    for (let i = 0; i < SEATS.length; i++) if (!a.isLoitering(i) && a.pickUp(i)) { first = i; break }
+    expect(first).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i < SEATS.length; i++) if (i !== first) expect(a.pickUp(i)).toBe(false)
     a.destroy()
   })
 

@@ -46,17 +46,16 @@ import { createTallies, tallySources, type TallySource } from './tallies.ts'
 import { createArrivals } from './arrivals.ts'
 import { ROOM_DEV_CAP } from './room.ts'
 import {
-  HOLD_MS,
   clampPan,
   exceedsSlop,
   flingVelocity,
   initPan,
   panLimit,
   pickNearest,
-  resolveGesture,
   stepPan,
   type PanState,
 } from './navigation.ts'
+import { tapVerb } from '../game/touchMode.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 
@@ -279,12 +278,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   /** The whole tap path, shared by real pointers and the §23.3 bench. */
   /**
-   * §7.8.8 — hold to select.
+   * §7.8.8 — the neutral mode's tap.
    *
    * Rung 2 only. You cannot select a person who is two pixels wide, and
    * §7.7.4's promise that the player can always zoom back to a floor with
-   * people on it is what makes that a scope rather than a limitation. Holding
-   * on empty floor deselects, which is the only way out that does not need a
+   * people on it is what makes that a scope rather than a limitation. Tapping
+   * empty floor deselects, which is the only way out that does not need a
    * close button to be within reach of a thumb.
    */
   const doSelect = (x: number, y: number): boolean => {
@@ -323,7 +322,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
   }
 
-  // --- pan, and telling a tap from a drag (GDD §7.7.6) --------------------
+  // --- pan, and telling a tap from a drag (GDD §7.7.6, §7.7.6b) ------------
   //
   // The poke no longer fires on pointerdown. It fires on pointer*up*, and only
   // if the pointer barely moved — §7.7.6 is explicit that a pan which pokes
@@ -331,6 +330,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // pans loses the clicker layer. The cost is that criterion 1's stopwatch now
   // starts at the release rather than the press, which is the same instant a
   // player perceives their own tap.
+  //
+  // **What the release then does is the §7.7.6b mode, not the clock.** There is
+  // one question left for a finger to answer — did it travel — and the two
+  // answers are "the camera" and "whatever the HUD says is latched". Every
+  // duration threshold that used to sit here is gone: a slow tap and a quick
+  // tap are the same tap, which is the whole of what was reported as being
+  // hard to control.
 
   let pan: PanState = initPan()
   /** The in-progress drag, or null. */
@@ -412,62 +418,36 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const toRoom = (x: number, y: number) => views.room.toLocal({ x, y })
 
   /**
-   * §7.7.6a — the hold timer, and the whole of R9.
+   * §7.7.6b — the grab, on the press, because the player already said GRAB.
    *
-   * **The grab used to fire on `pointerdown`.** A press that landed on somebody
-   * standing about picked them up immediately, with no timer, no announcement
-   * and nothing to tell it from a poke — which is exactly the failure §7.7.6a
-   * calls a shipping blocker for the god-mode floor: on a touch screen there is
-   * no cursor, so the player discovered the mode change by watching a developer
-   * they did not mean to pick up follow their thumb around.
+   * **This is `pointerdown` again, and that is not a regression.** §7.7.6a
+   * moved the grab off the press onto a hold timer, and its reasoning was
+   * exactly right *for a game with no mode switch*: a press that silently
+   * picked somebody up taught the player about a mode change by making them
+   * watch a developer they did not mean to touch follow their thumb around.
    *
-   * Now nothing happens on the press. The finger has to *stay still* for
-   * {@link HOLD_MS}, and when it does the hold fires **while the finger is
-   * still on the glass** — a haptic tick, a sound, and the developer visibly
-   * lifting — rather than at release. That instant is what makes the boundary
-   * learnable in one accidental attempt.
+   * With GRAB latched on the HUD, that sentence no longer describes anything.
+   * The mode was entered deliberately, it is lit on screen, and the caption
+   * under it says DRAG PEOPLE — so the press has nothing left to disambiguate
+   * and every millisecond it waits is lag on the only verb the mode has. The
+   * haptic tick §7.7.6a made load-bearing stays: it is now an acknowledgement
+   * rather than an announcement, which is the cheaper job it was always doing
+   * best.
+   *
+   * Returns true if somebody was picked up, in which case the press is not
+   * also the start of a camera drag.
    */
-  let holdTimer: ReturnType<typeof setTimeout> | null = null
+  const tryGrab = (x: number, y: number, pointerId: number): boolean => {
+    if (currentView !== 'room') return false
+    const who = pickDeveloper(x, y)
+    if (who < 0 || !room.hands.pickUp(who)) return false
 
-  const cancelHold = () => {
-    if (holdTimer === null) return
-    clearTimeout(holdTimer)
-    holdTimer = null
-  }
-
-  /**
-   * The hold fired. Pick somebody up, or select them.
-   *
-   * Which one depends on who is under the thumb, and that is a distinction the
-   * player can *see*: somebody standing about gets picked up (§7.8.9), somebody
-   * at a desk gets selected (§7.8.8). Loiterers only, for the pick-up —
-   * somebody mid-conversation is busy, and pulling them out of one would read
-   * as an interruption rather than as a tidy-up, which is the opposite joke.
-   */
-  const onHold = (x: number, y: number, pointerId: number) => {
-    holdTimer = null
-
-    if (currentView === 'room') {
-      const who = pickDeveloper(x, y)
-      if (who >= 0 && room.hands.isLoitering(who) && room.hands.pickUp(who)) {
-        const at = toRoom(x, y)
-        room.hands.carryTo(at.x, at.y)
-        carryId = pointerId
-        // The camera must let go of the world the instant the hand takes hold
-        // of somebody, or the grab drags the floor along with the developer.
-        drag = null
-        // §7.7.6a — "a haptic tick fires at the moment the hold registers,
-        // before the finger has moved". This line is the whole requirement.
-        holdHaptic()
-        playUi('click')
-        return
-      }
-    }
-
-    // Fired only where something actually changed. A tick at a rung with
-    // nothing to hold would be announcing a mode the press did not enter,
-    // which is the same lie as no tick at all told the other way round.
-    if (doSelect(x, y)) holdHaptic()
+    const at = toRoom(x, y)
+    room.hands.carryTo(at.x, at.y)
+    carryId = pointerId
+    holdHaptic()
+    playUi('click')
+    return true
   }
 
   const onPointerDown = (ev: PointerEvent) => {
@@ -475,12 +455,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     // Only the first finger drags; a second means a pinch, handled below.
     if (drag === null && pointers.size === 0) {
+      // The grab is checked first and, when it lands, no drag is started at
+      // all: the camera must let go of the world the instant the hand takes
+      // hold of somebody, or the grab drags the floor along with the developer.
+      if (tapVerb(getState().touchMode, currentView === 'room') === 'grab') {
+        if (tryGrab(ev.clientX, ev.clientY, ev.pointerId)) return
+      }
       drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY, t0: t, panX: pan.x, panY: pan.y }
       pan.vx = 0
       pan.vy = 0
-      const { clientX, clientY, pointerId } = ev
-      cancelHold()
-      holdTimer = setTimeout(() => onHold(clientX, clientY, pointerId), HOLD_MS)
     }
   }
 
@@ -491,10 +474,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return
     }
     if (!drag || ev.pointerId !== drag.id || pointers.size >= 2) return
-    // §7.7.6a — **motion beats time.** A finger that has travelled is dragging
-    // whatever the clock says, which is what stops a slow, sloppy pan from
-    // turning into a grab three hundred milliseconds in.
-    if (exceedsSlop(ev.clientX - drag.x0, ev.clientY - drag.y0)) cancelHold()
     const t = ev.timeStamp || performance.now()
     const dt = Math.max(1, t - (drag.t0 + 0)) / 1000
     pan = clampPan(
@@ -510,7 +489,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   const onDragEnd = (ev: PointerEvent) => {
-    cancelHold()
     if (carryId === ev.pointerId) {
       carryId = -1
       // Dropped onto a seat, or onto the floor. `pickDeveloper` answers "whose
@@ -527,41 +505,51 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const t = ev.timeStamp || performance.now()
     const dx = ev.clientX - drag.x0
     const dy = ev.clientY - drag.y0
-    const gesture = resolveGesture(dx, dy, t - drag.t0)
+    // §7.7.6b — one question, and it is not "how long". A finger that travelled
+    // was the camera; a finger that stayed put meant the latched verb, however
+    // long it took to say so.
+    const travelled = exceedsSlop(dx, dy)
     drag = null
 
-    if (gesture === 'hold') {
-      // §7.7.6a — the hold already fired, on the timer, with the finger still
-      // down. Nothing is owed at release except stopping the camera: acting
-      // again here is how a hold used to both select somebody and leave the
-      // world coasting away from them.
-      pan.vx = 0
-      pan.vy = 0
-    } else if (gesture === 'poke') {
-      pan.vx = 0
-      pan.vy = 0
-      if (doubleTapDescends()) {
-        const near =
-          Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) <= DOUBLE_TAP_SLOP
-        if (near && t - lastTap.t < DOUBLE_TAP_MS) {
-          lastTap = { t: 0, x: 0, y: 0 }
-          descendOneRung(ev.clientX, ev.clientY)
-          return
-        }
-        lastTap = { t, x: ev.clientX, y: ev.clientY }
-      }
-      // The *first* tap of a descend still pokes, and after R15 that now costs
-      // §4.9 Entropy where it used to cost nothing. Left deliberately: the only
-      // way to avoid it is to hold every poke above the room for
-      // DOUBLE_TAP_MS to see whether a second one is coming, and §23.3
-      // criterion 1 gives the whole tap-to-numeral path eighty milliseconds.
-      // A navigation gesture that also buffs the thing you navigated to is a
-      // far smaller sin than a clicker with 300 ms of input lag.
-      doPoke(ev.clientX, ev.clientY, t)
-    } else {
+    if (travelled) {
       const f = flingVelocity(pan.vx, pan.vy)
       pan.vx = f.vx
       pan.vy = f.vy
+      return
+    }
+
+    pan.vx = 0
+    pan.vy = 0
+
+    if (doubleTapDescends()) {
+      const near = Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) <= DOUBLE_TAP_SLOP
+      if (near && t - lastTap.t < DOUBLE_TAP_MS) {
+        lastTap = { t: 0, x: 0, y: 0 }
+        descendOneRung(ev.clientX, ev.clientY)
+        return
+      }
+      lastTap = { t, x: ev.clientX, y: ev.clientY }
+    }
+
+    switch (tapVerb(getState().touchMode, currentView === 'room')) {
+      case 'inspect':
+        doSelect(ev.clientX, ev.clientY)
+        break
+      case 'grab':
+        // The press already picked somebody up and the release already put them
+        // down, both above. A release that gets here in GRAB mode landed on
+        // nobody — and doing anything at all with it would be the mode reaching
+        // past what it says it does.
+        break
+      default:
+        // The *first* tap of a descend still pokes, and after R15 that now costs
+        // §4.9 Entropy where it used to cost nothing. Left deliberately: the only
+        // way to avoid it is to hold every poke above the room for
+        // DOUBLE_TAP_MS to see whether a second one is coming, and §23.3
+        // criterion 1 gives the whole tap-to-numeral path eighty milliseconds.
+        // A navigation gesture that also buffs the thing you navigated to is a
+        // far smaller sin than a clicker with 300 ms of input lag.
+        doPoke(ev.clientX, ev.clientY, t)
     }
   }
 
@@ -882,6 +870,19 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
     lastScale = domScale
     lastScaleView = view
+
+    // §7.7.6b — the mode owns the hand, so leaving GRAB puts down whoever is in
+    // it. Without this a developer is left stranded in mid-air by a button
+    // press on the other side of the screen, following a finger that is no
+    // longer allowed to be carrying them. `drop(null)` is §7.8.9's escape:
+    // they walk back to their desk, unhurried, rather than teleporting.
+    //
+    // Zooming out of the room does the same thing, and for the same reason —
+    // there is no hand at rung 3.
+    if (carryId >= 0 && tapVerb(state.touchMode, view === 'room') !== 'grab') {
+      room.hands.drop(null)
+      carryId = -1
+    }
 
     limitX = panLimit(domExtent.w * domScale, viewport.w)
     limitY = panLimit(domExtent.h * domScale, viewport.h)

@@ -25,6 +25,7 @@ import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
 import { RevenueGraph } from './RevenueGraph.tsx'
 import { ShipToast } from './ShipToast.tsx'
+import { TouchSwitch } from './TouchSwitch.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
@@ -173,6 +174,12 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
           now spans the full height of the frame — see the note on `.hud`.
         */}
         <div className="hud__controls">
+          {/*
+            §7.7.6b — what the finger does, above the nav and under the button,
+            because it is the control the thumb reaches for *between* pokes
+            rather than once a session.
+          */}
+          <TouchSwitch state={state} />
           <PerfOverlay stage={stage} />
           {/*
             §13.2 — the tree appears only once a Paradigm Shift has happened.
