@@ -84,6 +84,53 @@ export const ZOOM_BLAST_RADIUS: Record<ZoomLevel, number> = {
   4: 1_000_000,
 }
 
+/**
+ * §4.8's `Z` for a unit of any size — GDD §4.5b.
+ *
+ * §4.5b says the buff percentage falls as the unit grows "on the same shape as
+ * 4.8's `Z`", and §4.8 names exactly four sizes. R15 pokes units of 1, 1,000,
+ * 10,000, 100,000, a million, a hundred million — so the curve has to be
+ * readable between the anchors and past the last one.
+ *
+ * **It is the same table, interpolated, rather than a second curve.** Fitting a
+ * power law by eye was the obvious alternative and it is the wrong one: §4.8's
+ * four points are not on a single power law (the log-log slopes are −0.35,
+ * −0.27 and −0.39), so any fit disagrees with the canon numbers at three of the
+ * four places anybody would check. Interpolating in log-log space passes
+ * through all four exactly and cannot drift from them, because there is nothing
+ * to drift *from* — {@link ZOOM_YIELD} is the only copy.
+ *
+ * Past a million it continues on the last segment's slope. That is an
+ * extrapolation and it is the honest one: §4.8's own trend, carried on, rather
+ * than a floor invented to stop the number getting small. It stays positive at
+ * every size — a rung whose buff is exactly zero is a rung where the game's
+ * primary verb does nothing, which is what R15 exists to fix.
+ */
+export function sizeYield(size: number): number {
+  if (!(size > 1)) return ZOOM_YIELD[1]
+
+  const levels: ZoomLevel[] = [1, 2, 3, 4]
+  const x = Math.log(size)
+
+  for (let i = 1; i < levels.length; i++) {
+    const lo = levels[i - 1]
+    const hi = levels[i]
+    const x0 = Math.log(ZOOM_BLAST_RADIUS[lo])
+    const x1 = Math.log(ZOOM_BLAST_RADIUS[hi])
+    const y0 = Math.log(ZOOM_YIELD[lo])
+    const y1 = Math.log(ZOOM_YIELD[hi])
+
+    // The last segment is not bounded above: it carries the trend onward
+    // rather than clamping, so a galaxy is worth less than a town by the same
+    // rule that makes a town worth less than a floor.
+    if (x <= x1 || i === levels.length - 1) {
+      return Math.exp(y0 + ((y1 - y0) * (x - x0)) / (x1 - x0))
+    }
+  }
+
+  return ZOOM_YIELD[4]
+}
+
 export interface PokeInput {
   /** Fibonacci ladder tier, 1-indexed. F1 from the first tap of the game. */
   tier: number
@@ -93,6 +140,25 @@ export interface PokeInput {
   efficiency: number
   /** Headcount, so the blast radius cannot reach people who are not there. */
   devs: number
+  /**
+   * How many developers are in the unit that was actually hit — GDD §4.5b, R15.
+   *
+   * When given it **replaces both halves of §4.8's `Z`**: the reach becomes the
+   * unit's own size and the per-developer yield becomes {@link sizeYield} of it,
+   * rather than whichever of four bands the camera happens to be in.
+   *
+   * That is §4.5b's generalisation rather than a second mechanism — the four
+   * band sizes still give the four band yields exactly, because `sizeYield`
+   * interpolates that same table. What it fixes is the case in between: §7.4a
+   * made rungs 0, 1 and 2 all the room, so at rung 2 a tap on **one** developer
+   * was being paid for fourteen while §7.7.6 promised it landed on "the actual
+   * developer under the thumb".
+   *
+   * Omitted only by a caller with no unit to name, which after R15 is nobody in
+   * the game — the §4.8 band path stays because it is canon and because
+   * `resolvePoke` should still answer the question §4.8 asks.
+   */
+  unitSize?: number
 }
 
 export interface PokeResult {
@@ -130,13 +196,16 @@ export function pokeReach(zoom: ZoomLevel, devs: number): number {
  * floater rounded to `+0` while the simulation quietly banked it. A number that
  * says nothing happened while something happens is worse than no number.
  */
-export function resolvePoke({ tier, state, zoom, efficiency, devs }: PokeInput): PokeResult {
-  const sp =
-    fibonacciTier(tier) *
-    STATE_MULTIPLIER[state] *
-    ZOOM_YIELD[zoom] *
-    efficiency *
-    pokeReach(zoom, devs)
+export function resolvePoke({ tier, state, zoom, efficiency, devs, unitSize }: PokeInput): PokeResult {
+  // §4.5b — the unit that was hit, clamped to the studio, or §4.8's band for a
+  // caller with no unit to name.
+  const reach =
+    unitSize === undefined
+      ? pokeReach(zoom, devs)
+      : Math.max(1, Math.min(Math.floor(unitSize), Math.max(1, Math.floor(devs))))
+  const z = unitSize === undefined ? ZOOM_YIELD[zoom] : sizeYield(reach)
+
+  const sp = fibonacciTier(tier) * STATE_MULTIPLIER[state] * z * efficiency * reach
 
   return {
     sp,

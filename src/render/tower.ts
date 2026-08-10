@@ -39,6 +39,15 @@ const STOREY_H = 34
 const TOWER_W = 210
 const TOWER_D = 105
 
+/**
+ * The pitch of the stack, exported for R15's hit test.
+ *
+ * Which storey a tap landed on is geometry, and geometry lives here — a caller
+ * re-deriving it from a screen offset is trap 10's "a prop placed in screen
+ * pixels does not know which way the room is facing", one scale up.
+ */
+export const STOREY_HEIGHT = STOREY_H
+
 /** How long one storey takes to fall onto the stack. */
 export const STOREY_DROP_MS = 700
 
@@ -79,6 +88,31 @@ export function towerSquash(t: number): number {
   if (t <= 0.82 || t >= 1) return 1
   const b = (t - 0.82) / 0.18
   return 1 - Math.sin(b * Math.PI * 2) * 0.055 * (1 - b)
+}
+
+/**
+ * Which storey a tower-local point is on, or −1 for a miss — GDD §4.5b, R15.
+ *
+ * Rung 3's unit is a *floor*, so a tap has to name which one: storey 6 and
+ * storey 1 are two different thousand-person units and §4.5b makes each of them
+ * a target with its own buff.
+ *
+ * The horizontal test is what keeps the sky a miss. §7.7.6 makes the world
+ * addressable and an addressable world has places where nothing is standing —
+ * the same rule that makes a tap on empty floor a miss rather than a free
+ * point.
+ */
+export function storeyAtLocal(localX: number, localY: number, storeys: number): number {
+  if (!(storeys > 0)) return -1
+  // A little wider than the slab, because the whole tower is a thumb-sized
+  // target at the Z where rung 3 fits the frame.
+  if (Math.abs(localX) > TOWER_W * 0.62) return -1
+
+  // Storey `i` is drawn at `y = -i * STOREY_H`, so the index runs *up* the
+  // screen. Clamped rather than rejected: a tap above the roof means the top
+  // floor, which is what the player was aiming at.
+  const i = Math.round(-localY / STOREY_H)
+  return Math.max(0, Math.min(Math.floor(storeys) - 1, i))
 }
 
 export interface TowerHandle {

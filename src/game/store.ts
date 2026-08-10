@@ -16,7 +16,7 @@
 import Decimal from 'break_infinity.js'
 import { quote, type Multiplier, type Quote } from '../sim/hireDial.ts'
 import { developerAt, type Identity } from '../sim/identity.ts'
-import { outputClass, outputShare, type OutputClass } from '../sim/output.ts'
+import { outputClass, outputShare, shareSum, type OutputClass } from '../sim/output.ts'
 import {
   advanceTail,
   catalogueIncome,
@@ -52,6 +52,8 @@ import { SnippetBag } from './snippets.ts'
 import { SCENE_JAMES_INSTANT_MESSENGER } from './scenes.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
+import { BUFF_TAU, addBuff, buffLift, decayBuffs, strengthOnSeat, type Buff } from '../sim/buffs.ts'
+import { unitSeats, unitSizeAt } from '../sim/units.ts'
 import {
   MASS_HIRE_COUNT,
   SEED_ROUND_AT,
@@ -242,6 +244,20 @@ export interface GameState {
    */
   pokeRate: number
   /**
+   * §4.5a — the units the player has recently poked, and by how much.
+   *
+   * **The per-employee state §4.5a says there is no way around**, kept as a
+   * sparse decaying overlay rather than a table: a studio of ten trillion
+   * carries at most `MAX_BUFFS` small objects and usually none. Unlike
+   * `pokeRate` this is *not* display only — it is a real change to the rate,
+   * and `tick` integrates it.
+   *
+   * §24.2 ephemeral, alongside `localEntropy` and `floaters`. A buff's whole
+   * life is fifteen seconds; carrying one across a reload would mean restoring a
+   * state the player cannot see the cause of.
+   */
+  buffs: Buff[]
+  /**
    * §7.8.7 — the seed every developer's name, face and stats are generated
    * from. One integer stands in for the entire roster.
    *
@@ -366,6 +382,7 @@ function freshRun(): GameState {
     massHired: false,
     hireMultiplier: 1,
     pokeRate: 0,
+    buffs: [],
     peakDevs: 1,
     ship: null,
     releases: [],
@@ -436,9 +453,42 @@ export function currentEntropy(s: GameState = state): number {
   return entropy(s.devs, s.devCap)
 }
 
-/** Passive swarm output, taxed by the poked developer's local entropy. */
-export function currentVelocity(s: GameState = state): number {
+/**
+ * Passive swarm output, taxed by the poked developer's local entropy — and
+ * **without §4.5a's buffs**.
+ *
+ * The unbuffed rate has to be nameable for two reasons. §24's offline
+ * resolution multiplies a velocity by hours, and a player who was mid-buff when
+ * they closed the tab must not earn eight hours of a fifteen-second effect. And
+ * §10.1's readout splits the swarm from the thumb, which needs the two halves
+ * separately rather than their sum.
+ */
+export function baseVelocity(s: GameState = state): number {
   return passiveVelocity(s.devs, s.devCap) * devEfficiency(1, s.localEntropy)
+}
+
+/**
+ * What §4.5a's buffs are adding, as a fraction of the passive rate.
+ *
+ * Weighted by §4.9a's shares, so buffing a 10x Engineer lifts the studio by ten
+ * times what buffing the person beside them would — "who you poke matters", as
+ * arithmetic rather than as a second rule.
+ */
+export function buffMultiplier(s: GameState = state): number {
+  if (s.buffs.length === 0) return 1
+  return 1 + buffLift(s.buffs, s.devs, (from, to) => shareSum(s.runSeed, s.devs, from, to))
+}
+
+/**
+ * The rate the studio is actually producing at — GDD §4.5a.
+ *
+ * Passive output with the buffs on it. **This is a real rate and `tick`
+ * integrates it**, which is the whole of R14: §4.5's tap used to pay a coin and
+ * be forgotten, and now most of what it is worth arrives through here over the
+ * next few seconds instead.
+ */
+export function currentVelocity(s: GameState = state): number {
+  return baseVelocity(s) * buffMultiplier(s)
 }
 
 /**
@@ -456,6 +506,26 @@ export function currentVelocity(s: GameState = state): number {
  */
 export function currentEffectiveVelocity(s: GameState = state): number {
   return currentVelocity(s) + Math.max(0, s.pokeRate)
+}
+
+/**
+ * The half of the velocity that is **the player** — §10.1, §25.1.
+ *
+ * > `VELOCITY: 4,120 SP/s` / `(3,880 swarm + 240 poke)`
+ *
+ * §25.1 calls that split "the only thing on screen that can answer *did my tap
+ * do anything*", and R14 both complicates and completes it. Complicates,
+ * because a poke's Story Points now arrive in two places: a quarter on the
+ * frame of the tap (`pokeRate`) and the rest as a lift on the people poked
+ * (`currentVelocity − baseVelocity`). Completes, because summing them is what
+ * the player is actually owed an answer about — and unlike `pokeRate`, which
+ * empties two seconds after they stop, this number **holds while the buffs do**.
+ *
+ * That is the readout finally describing the loop §4.5a asks for: it stays up
+ * while the player maintains their targets and sags when they neglect them.
+ */
+export function pokeVelocity(s: GameState = state): number {
+  return Math.max(0, s.pokeRate) + (currentVelocity(s) - baseVelocity(s))
 }
 
 // --- per-developer output — GDD §4.9a ---------------------------------------
@@ -495,7 +565,13 @@ export function developerShare(index: number, s: GameState = state): number {
  */
 export function developerVelocity(index: number, s: GameState = state): number {
   if (s.devs <= 0) return 0
-  return (currentVelocity(s) / s.devs) * developerShare(index, s)
+  // §4.5a — plus whatever the player has recently poked onto this seat, so a
+  // buffed developer's §8.2b numeral visibly speeds up. **The two are the same
+  // sum grouped differently**: adding this over the roster gives
+  // `currentVelocity` exactly, because `buffLift` divides by the same headcount
+  // and `units.ts` guarantees the seat ranges tile it.
+  const lift = 1 + strengthOnSeat(s.buffs, Math.max(0, Math.floor(index)), s.devs)
+  return (baseVelocity(s) / s.devs) * developerShare(index, s) * lift
 }
 
 /** §14.4 — which band of the roll this seat is in, for a card or a badge. */
@@ -627,20 +703,54 @@ function shipProject(s: GameState): Partial<GameState> {
   }
 }
 
+/**
+ * The Story Points a set of just-expired buffs still owed — GDD §4.5a.
+ *
+ * A buff of strength `s` on a unit producing `u` per second is worth `s · u ·
+ * τ` from here on, which is the same arithmetic `sim/buffs.ts` used to create
+ * it, run backwards. `buffs.ts` cannot do this itself because it deliberately
+ * does not know what a developer is worth (§4.9a) — it takes the shares as a
+ * question, and this is the answer.
+ */
+function settleDroppedBuffs(dropped: readonly Buff[], s: GameState): number {
+  if (dropped.length === 0 || s.devs <= 0) return 0
+  const perSecond = baseVelocity(s) / s.devs
+  if (!(perSecond > 0)) return 0
+
+  let owed = 0
+  for (const b of dropped) {
+    const { from, to } = unitSeats(b.rung, b.index, s.devs)
+    if (to > from) owed += b.strength * perSecond * shareSum(s.runSeed, s.devs, from, to) * BUFF_TAU
+  }
+  return owed
+}
+
 /** Advance the simulation. Driven by the Pixi ticker so both layers share a clock. */
 export function tick(dtSeconds: number): void {
   if (dtSeconds <= 0 || state.phase === 'bankrupt') return
 
   const e = currentEntropy()
   const localEntropy = decayLocalEntropy(state.localEntropy, dtSeconds)
-  // NOT `currentEffectiveVelocity` — see its note. Poke SP is banked by `poke`.
-  const gained = currentVelocity({ ...state, localEntropy }) * dtSeconds
+  // §4.5a — the buffs fade before they are integrated, so a poke pays for the
+  // frame after it and not for the frame it happened on. That frame's value is
+  // the instant payout `poke` already banked.
+  const decayed = decayBuffs(state.buffs, dtSeconds)
+  const buffs = decayed.buffs
+  // NOT `currentEffectiveVelocity` — see its note. `currentVelocity` carries
+  // §4.5a's buffs because they are a real rate; `pokeRate` is display only and
+  // its Story Points were banked by `poke` at the moment of the tap.
+  const gained = currentVelocity({ ...state, localEntropy, buffs }) * dtSeconds
+  // What the buffs that just expired had left to give — see `decayBuffs`. The
+  // last few per cent of a poke, paid rather than swallowed, so what a tap is
+  // worth does not quietly depend on how big the studio was when it landed.
+  const settled = settleDroppedBuffs(decayed.dropped, { ...state, localEntropy })
 
   // §4.10e — the back catalogue pays first, before anything reads the cash.
   const tail = advanceTail(state.releases, dtSeconds)
 
   let patch: Partial<GameState> = {
     localEntropy,
+    buffs,
     // Exponential decay towards zero. Paired with the impulse `poke` adds, this
     // settles on the player's true taps-per-second rather than spiking on each
     // one — a readout that jumped to a huge number and back on every tap would
@@ -650,7 +760,7 @@ export function tick(dtSeconds: number): void {
     cash: state.cash - currentPayroll() * dtSeconds + tail.earned,
     lifetimeRevenue: state.lifetimeRevenue + tail.earned,
     releases: tail.releases,
-    burned: gained > 0 ? state.burned.plus(gained) : state.burned,
+    burned: gained + settled > 0 ? state.burned.plus(gained + settled) : state.burned,
   }
 
   const now = performance.now()
@@ -682,16 +792,45 @@ export function tick(dtSeconds: number): void {
 }
 
 /**
- * Resolve one tap — the whole clicker layer, GDD §4.5.
+ * What a tap landed on — GDD §4.5b, §7.7.1.
  *
- * `who` is the seat that was actually under the thumb, or null where the
- * caller has no individual to name (the §23.3 bench, a tap at a rung where the
- * unit is a building). §4.9a: a poke is worth what the person you poked is
- * worth, which is what "gives §4.5a's poke a target worth choosing" means —
- * without it every developer on the floor is an identical button and the whole
- * roll is a hidden number with no consequence.
+ * A rung and which unit at it. In the room that is a seat; above it a floor, a
+ * building, a town. `units.ts` turns the pair into the seats it covers.
  */
-export function poke(x: number, y: number, who: number | null = null) {
+export interface PokeTarget {
+  rung: number
+  index: number
+}
+
+/**
+ * How much of a poke is paid on the frame of the tap — GDD §4.5a.
+ *
+ * > The one-off payout does not vanish entirely, because instant feedback on a
+ * > tap is non-negotiable (10.8 F2). It is now the *smaller* half of what a poke
+ * > does, and the buff is the larger.
+ *
+ * A quarter is unambiguously the smaller half. **It is not a balance knob** —
+ * the other three quarters are converted into a buff that pays them back over
+ * {@link BUFF_TAU}, so moving this changes when a poke arrives and never what
+ * it is worth.
+ */
+export const POKE_PAYOUT_SHARE = 0.25
+
+/**
+ * Resolve one tap — the whole clicker layer, GDD §4.5, §4.5a, §4.5b.
+ *
+ * `target` is the unit that was under the thumb. Defaulting it to one
+ * developer at rung 0 is what `poke(x, y)` means for the §23.3 bench and for
+ * Run 1's simulation: the founder's own desk, one person, §4.8's L1 yield.
+ *
+ * **The formula below is §4.5's, unchanged.** §4.5a is explicit that "4.7's dev
+ * states still scale it, 4.6's Fibonacci ladder still sets the base, and 4.1's
+ * Entropy still taxes it. What changes is the *destination* of the number." So
+ * what changed here is the last third of the function: a quarter of the Story
+ * Points are banked now, and the rest becomes a buff on the thing that was
+ * poked.
+ */
+export function poke(x: number, y: number, target: PokeTarget | null = null) {
   // §10.6 says the swarm keeps simulating behind a panel, but the poke path is
   // inert while a scene is up: the dialogue box is eating those taps for its
   // own advance, and a tap that both advances a page and banks a Story Point
@@ -703,21 +842,44 @@ export function poke(x: number, y: number, who: number | null = null) {
     return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
   }
 
+  const rung = Math.max(0, Math.floor(target?.rung ?? 0))
+  const index = Math.max(0, Math.floor(target?.index ?? 0))
+
+  // §4.5b — the reach is the unit that was actually hit, not a zoom band. A tap
+  // in the room lands on one person, which is what §7.7.6's "the actual
+  // developer under the thumb" has always promised and what §4.8's row-shaped
+  // blast radius quietly contradicted once §7.4a made rungs 0–2 all the room.
+  const unitSize = Math.max(1, unitSizeAt(rung, index, state.devs))
+  const seats = unitSeats(rung, index, state.devs)
+
   const base = resolvePoke({
     tier: state.tier,
     state: state.dev.state,
     zoom: state.zoom,
     efficiency: currentEfficiency(),
-    // §4.8 — a cosmic-zoom tap on a studio of forty hits forty people.
     devs: state.devs,
+    unitSize,
   })
 
-  // §4.9a — the tap is worth what the person is worth. Applied to the Story
-  // Points only: the Entropy a context switch costs is a fact about being
-  // interrupted, and a 10x Engineer is not cheaper to interrupt than anybody
-  // else. If anything they are dearer, but that is §4.5c's business.
-  const share = who === null ? 1 : developerShare(who)
-  const result = { ...base, sp: base.sp * share }
+  // §4.9a — the tap is worth what the people you poked are worth, summed over
+  // the unit and divided by its size because `resolvePoke` has already charged
+  // for the reach. In the room that is exactly `developerShare(index)`.
+  //
+  // Applied to the Story Points only: the Entropy a context switch costs is a
+  // fact about being interrupted, and a 10x Engineer is not cheaper to
+  // interrupt than anybody else. If anything they are dearer, but that is
+  // §4.5c's business.
+  const unitWorth = seats.to > seats.from ? shareSum(state.runSeed, state.devs, seats.from, seats.to) : 1
+  const result = { ...base, sp: (base.sp * unitWorth) / unitSize }
+
+  // §4.5a — the destination. What the unit currently produces is what a
+  // percentage has to be a percentage *of*, so the strength is solved against
+  // it rather than picked; see `sim/buffs.ts`. A negative poke (a Rogue
+  // Refactorer gives points back) is not a buff and is paid straight through.
+  const unitOutput = state.devs > 0 ? (baseVelocity() / state.devs) * unitWorth : 0
+  const banked = result.sp > 0 ? result.sp * POKE_PAYOUT_SHARE : result.sp
+  const converted = result.sp > 0 ? result.sp - banked : 0
+  const buffed = addBuff(state.buffs, { rung, index }, converted, unitOutput)
 
   const { machine, devLeaves } = pokeDevState(state.dev, state.hasCultureUpgrade)
 
@@ -739,12 +901,20 @@ export function poke(x: number, y: number, who: number | null = null) {
   const locked = isLocked()
   const desperateTaps = locked ? state.desperateTaps + 1 : state.desperateTaps
 
+  // §4.5a — what lands now. The quarter this poke pays immediately, plus
+  // anything the buff could not take: a unit already at the strength ceiling,
+  // or a seized studio with no rate to raise. Nothing is lost in either
+  // direction, which is what makes "a poke is worth what §4.5 says it is" an
+  // invariant rather than an intention.
+  const paidNow = banked + buffed.overflow
+
   const patch: Partial<GameState> = {
-    burned: state.burned.plus(result.sp),
+    burned: state.burned.plus(paidNow),
     localEntropy: state.localEntropy + result.localEntropyAdded,
+    buffs: buffed.buffs,
     // The impulse half of the rate estimate. Dividing by the time constant is
     // what makes a steady R points per second converge on exactly R.
-    pokeRate: state.pokeRate + result.sp / POKE_RATE_TAU,
+    pokeRate: state.pokeRate + paidNow / POKE_RATE_TAU,
     floaters: [...state.floaters, floater],
     pokeCount: state.pokeCount + 1,
     desperateTaps,
@@ -1197,8 +1367,11 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     {
       savedAt: save.savedAt,
       // Recomputed from the restored run rather than stored, so it can never
-      // disagree with the state it is derived from.
-      velocity: currentVelocity(restored),
+      // disagree with the state it is derived from. **Unbuffed** — §4.5a's
+      // buffs live fifteen seconds and this number is about to be multiplied by
+      // hours; a restored run has none anyway (§24.2), and naming the base rate
+      // here is what keeps that true if one ever survives a reload.
+      velocity: baseVelocity(restored),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: restored.commitment,
       burned: restored.burned,
@@ -1231,7 +1404,10 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
   const report = offlineYield(
     {
       savedAt: snap.savedAt,
-      velocity: currentVelocity(state),
+      // Unbuffed, for the same reason as the restore path above: a player who
+      // was mid-poke when they closed the tab must not earn eight hours of a
+      // buff that would have faded in fifteen seconds.
+      velocity: baseVelocity(state),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: state.commitment,
       burned: state.burned,

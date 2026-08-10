@@ -181,6 +181,32 @@ export function outputShare(seed: number, devs: number, index: number): number {
 }
 
 /**
+ * The shares of a whole seat range, summed — GDD §4.5b.
+ *
+ * R14 buffs a **unit**, and above the room a unit is a floor, a building, a
+ * town. Asking {@link outputShare} a million times to find out what a town is
+ * worth is not a thing to do on a tick, and the prefix sums that already exist
+ * for {@link rosterMean} answer it in two array reads.
+ *
+ * Past {@link ROSTER_CAP} every seat's share is exactly 1 — individuals are
+ * neither drawn nor pokeable there, so there is nobody for them to differ from
+ * — which makes the tail of the range simply its length. Without that a buff on
+ * a town of a million would evaluate to zero and R15's whole top half of the
+ * ladder would be a verb that does nothing, which is the bug it exists to fix.
+ */
+export function shareSum(seed: number, devs: number, from: number, to: number): number {
+  const lo = Math.max(0, Math.floor(from))
+  const hi = Math.floor(to)
+  if (hi <= lo) return 0
+
+  const table = prefixSums(seed)
+  const rolled = Math.min(hi, ROSTER_CAP)
+  const summed = rolled > lo ? (table[rolled] - table[lo]) / rosterMean(seed, devs) : 0
+
+  return summed + Math.max(0, hi - Math.max(lo, ROSTER_CAP))
+}
+
+/**
  * What to call a developer's output — §14.4's hero classes, as bands of the
  * roll rather than as a separate system.
  *

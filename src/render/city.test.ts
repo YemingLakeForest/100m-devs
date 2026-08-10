@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CITY_FIRST_RUNG,
+  unitAtLocal,
   CITY_LAST_RUNG,
   MAX_UNITS,
   neighbourSway,
@@ -229,5 +230,27 @@ describe('the formation — §7.7.2, a thing lands rather than a scene rearrangi
     expect(Math.abs(slotAt(1, CITY_LAST_RUNG).x)).toBeGreaterThan(
       Math.abs(slotAt(1, CITY_FIRST_RUNG).x),
     )
+  })
+})
+
+describe('which unit is under the thumb (GDD §4.5b, R15)', () => {
+  it('finds the unit standing nearest the tap', () => {
+    for (const i of [0, 1, 4, 7]) {
+      const at = slotAt(i, CITY_FIRST_RUNG)
+      expect(unitAtLocal(at.x, at.y, MAX_UNITS, CITY_FIRST_RUNG)).toBe(i)
+    }
+  })
+
+  it('only offers the units that have actually been built', () => {
+    // Three towers on the block means three things to poke. Returning slot 7
+    // for a tap on empty ground would buff ten thousand developers who are not
+    // there — and `units.ts` would clamp the range to nothing, so the poke
+    // would silently do nothing at all.
+    const at = slotAt(7, CITY_FIRST_RUNG)
+    expect(unitAtLocal(at.x, at.y, 3, CITY_FIRST_RUNG)).toBe(-1)
+  })
+
+  it('misses on open ground between the units', () => {
+    expect(unitAtLocal(4000, 4000, MAX_UNITS, CITY_FIRST_RUNG)).toBe(-1)
   })
 })

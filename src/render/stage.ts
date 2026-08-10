@@ -19,6 +19,7 @@ import {
   selectDeveloper,
   setZoom,
   tick,
+  type PokeTarget,
 } from '../game/store.ts'
 import { pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
@@ -29,6 +30,7 @@ import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
 import { maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
 import {
+  TOP_RUNG,
   VIEWS,
   dominantView,
   earnedViewWeights,
@@ -37,6 +39,8 @@ import {
   zAtRung,
   type ViewKind,
 } from '../sim/ladder.ts'
+import { storeyAtLocal, storeysFor } from './tower.ts'
+import { unitAtLocal } from './city.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { createTallies, tallySources, type TallySource } from './tallies.ts'
@@ -83,6 +87,15 @@ const FLOATER_FADE = 0.3
 
 /** Shared empty list, so a rung with no heads does not allocate one per frame. */
 const NO_TALLIES: readonly TallySource[] = []
+
+/**
+ * Which of the three city instances draws each view — GDD §7.4a.
+ *
+ * `scene.city` is keyed by the rung an instance *is*, and the cross-fade means
+ * the rung the camera is nearest is not always that one. Kept as a table so the
+ * R15 hit test asks the geometry that is actually on screen.
+ */
+const CITY_RUNG_OF = { block: 4, park: 5, sprawl: 6 } as const
 
 export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const app = new Application()
@@ -197,6 +210,56 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   /**
+   * Screen point -> the §7.7.1 unit under it, or null — GDD §4.5b, R15.
+   *
+   * **The gap this closes.** `pickDeveloper` deliberately answers −1 above the
+   * room, because above the room there is no developer to name — and `doPoke`
+   * took that as a miss and returned. So a tap at rung 4 did *nothing at all*:
+   * the game's primary verb switched itself off at exactly the headcount where
+   * the player has the most developers to be doing something with.
+   *
+   * §4.5b's answer is that a tap lands on "whatever unit §7.7.1 says the camera
+   * is currently holding", so this asks each view what it is showing and lets
+   * `sim/units.ts` turn the answer into the seats it covers. The rung comes
+   * from the camera rather than from the view because two of the views span a
+   * pair of rungs, and the rung is what decides how big the unit is.
+   */
+  const pickUnit = (x: number, y: number): PokeTarget | null => {
+    const rung = Math.max(0, Math.min(TOP_RUNG, Math.round(rungAt(camera.z))))
+
+    switch (currentView) {
+      case 'room': {
+        // Rungs 0–2 — one sprite is one person, and empty floor is a miss.
+        const seat = pickDeveloper(x, y)
+        return seat < 0 ? null : { rung, index: seat }
+      }
+      case 'tower': {
+        const local = views.tower.toLocal({ x, y })
+        const storey = storeyAtLocal(local.x, local.y, storeysFor(getState().devs))
+        return storey < 0 ? null : { rung, index: storey }
+      }
+      case 'block':
+      case 'park':
+      case 'sprawl': {
+        // The three city instances are keyed by the rung each one *is*, which
+        // is not necessarily the rung the camera is nearest — the cross-fade
+        // reaches a rung either side. Asking the handle keeps the hit test on
+        // the geometry that is actually drawn.
+        const handle = scene.city[CITY_RUNG_OF[currentView]]
+        const local = views[currentView].toLocal({ x, y })
+        const unit = unitAtLocal(local.x, local.y, handle.units, handle.rung)
+        return unit < 0 ? null : { rung, index: unit }
+      }
+      default:
+        // §7.8.2 — rungs 7–9 have no geometry of their own yet, so there is one
+        // thing on screen and a tap lands on it. That is not a placeholder for
+        // the hit test: a nation *is* one unit at rung 7, and when the lit
+        // coastline is built this stays true and only gets more to aim at.
+        return { rung, index: 0 }
+    }
+  }
+
+  /**
    * The room's desks, in room-local coordinates.
    *
    * Cached on the drawn count rather than rebuilt per call. It was rebuilt per
@@ -234,12 +297,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   const doPoke = (x: number, y: number, t0: number) => {
-    // Who was actually poked. -1 means empty floor, which is a miss rather
-    // than a free point — §7.7.6 makes the world addressable, and an
-    // addressable world has places where nobody is sitting.
-    const target = pickDeveloper(x, y)
-    if (target < 0) return
-    if (currentView === 'room') room.jolt(target)
+    // §4.5b — what was actually poked. Null means the tap landed on empty
+    // floor, open ground or sky, which is a miss rather than a free point:
+    // §7.7.6 makes the world addressable, and an addressable world has places
+    // where nothing is standing.
+    const target = pickUnit(x, y)
+    if (!target) return
+    if (currentView === 'room') room.jolt(target.index)
 
     const result = poke(x, y, target)
 
@@ -307,7 +371,19 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const DOUBLE_TAP_SLOP = 24
   let lastTap = { t: 0, x: 0, y: 0 }
 
-  const tapIsAPoke = () => currentView === 'room'
+  /**
+   * §7.7.6 — is double-tap-to-descend available here?
+   *
+   * Only above the room, because the room is the bottom of the ladder and
+   * there is nothing below it to descend to.
+   *
+   * **This used to be called `tapIsAPoke`, and after R15 that name was a lie.**
+   * A tap is a poke at every rung now (§4.5b), so the thing this actually
+   * decides is whether a second tap means "go in" — and a predicate whose name
+   * has stopped describing what it returns is how a reader ends up believing
+   * pokes are still room-only.
+   */
+  const doubleTapDescends = () => currentView !== 'room'
 
   /** §21 Act IV's scripted dolly, and §7.7.6's double-tap. Null when the camera is the player's again. */
   let dollyTarget: number | null = null
@@ -465,7 +541,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     } else if (gesture === 'poke') {
       pan.vx = 0
       pan.vy = 0
-      if (!tapIsAPoke()) {
+      if (doubleTapDescends()) {
         const near =
           Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) <= DOUBLE_TAP_SLOP
         if (near && t - lastTap.t < DOUBLE_TAP_MS) {
@@ -475,6 +551,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         }
         lastTap = { t, x: ev.clientX, y: ev.clientY }
       }
+      // The *first* tap of a descend still pokes, and after R15 that now costs
+      // §4.9 Entropy where it used to cost nothing. Left deliberately: the only
+      // way to avoid it is to hold every poke above the room for
+      // DOUBLE_TAP_MS to see whether a second one is coming, and §23.3
+      // criterion 1 gives the whole tap-to-numeral path eighty milliseconds.
+      // A navigation gesture that also buffs the thing you navigated to is a
+      // far smaller sin than a clicker with 300 ms of input lag.
       doPoke(ev.clientX, ev.clientY, t)
     } else {
       const f = flingVelocity(pan.vx, pan.vy)

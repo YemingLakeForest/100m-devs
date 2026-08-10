@@ -12,10 +12,12 @@ import {
   POKE_RATE_TAU,
   __resetStore,
   __setState,
+  baseVelocity,
   currentEffectiveVelocity,
   currentVelocity,
   getState,
   poke,
+  pokeVelocity,
   tick,
 } from './store.ts'
 
@@ -52,12 +54,27 @@ describe('effective velocity', () => {
     // The property that makes the readout usable at §21's target tapping
     // speed. An impulse-per-tap counter would jump to a huge number and back
     // sixty times a second and be unreadable; this settles on taps x SP.
+    //
+    // Measured on `pokeVelocity` rather than on `pokeRate` alone, because R14
+    // moved three quarters of a poke out of the instant payout and into a buff.
+    // `pokeRate` on its own now reads a quarter of what the player is doing,
+    // which is exactly the under-reporting §25.1 exists to stop.
     tap(4, 6)
-    const s = getState()
     // Every Act I poke is worth 1 SP (the Fibonacci ladder starts there), so
     // four pokes a second is four points a second.
-    expect(s.pokeRate).toBeGreaterThan(3)
-    expect(s.pokeRate).toBeLessThan(5)
+    expect(pokeVelocity()).toBeGreaterThan(3)
+    expect(pokeVelocity()).toBeLessThan(5)
+  })
+
+  it('keeps reading the player’s contribution while their buffs are still up', () => {
+    // §4.5a's loop, in the one readout that can show it. The old `pokeRate`
+    // emptied two seconds after the last tap whatever the taps had bought; the
+    // player's actual contribution now decays on the buff's time constant,
+    // because that is when their work actually stops arriving.
+    tap(5, 4)
+    for (let i = 0; i < 60 * 3; i++) tick(1 / 60)
+    expect(getState().pokeRate).toBeLessThan(0.3)
+    expect(pokeVelocity()).toBeGreaterThan(1)
   })
 
   it('falls away when the player stops', () => {
@@ -79,31 +96,34 @@ describe('effective velocity', () => {
 describe('the simulation is not charged twice', () => {
   it('does not feed the poke rate back into banked output', () => {
     // The one way this feature could corrupt the game rather than merely
-    // mis-report it. `poke` banks its own Story Points at the moment of the
-    // tap; if `tick` also integrated the poke rate, every tap would be paid for
-    // twice and Act I would be trivially winnable by mashing.
+    // mis-report it. `poke` banks its Story Points itself — a quarter on the
+    // tap and the rest through §4.5a's buff — so if `tick` *also* integrated
+    // `pokeRate`, every tap would be paid for twice and Act I would be
+    // trivially winnable by mashing.
+    //
+    // Asserted directly rather than by counting taps: a poke's worth now
+    // arrives over about fifteen seconds, so a three-second window measures the
+    // buff's ramp rather than the double-count this is guarding against. The
+    // full accounting is pinned in `pokeBuff.test.ts`.
     __resetStore()
-    tap(5, 3)
-    const banked = getState().burned.toNumber()
+    for (let i = 0; i < 60; i++) tick(1 / 60)
+    const honest = getState().burned.toNumber()
 
     __resetStore()
-    // Same elapsed time, same passive rate, no taps at all.
-    for (let i = 0; i < 60 * 3; i++) tick(1 / 60)
-    const passiveOnly = getState().burned.toNumber()
+    __setState({ pokeRate: 500 })
+    for (let i = 0; i < 60; i++) tick(1 / 60)
 
-    const fromTaps = banked - passiveOnly
-    // Fifteen pokes at 1 SP. Allowing a little slack for the tap scheduler,
-    // but nothing like the 2x a double-count would produce.
-    expect(fromTaps).toBeGreaterThan(12)
-    expect(fromTaps).toBeLessThan(20)
+    expect(getState().burned.toNumber()).toBeCloseTo(honest, 8)
   })
 
-  it('keeps currentVelocity free of the thumb, for tick and for offline', () => {
-    // `currentVelocity` is what `tick` integrates and what §24's offline
-    // resolution extrapolates. A player who was mashing when they closed the
-    // tab must not earn eight hours of mashing while they sleep.
+  it('keeps the banked rate free of the thumb, for tick and for offline', () => {
+    // `baseVelocity` is what §24's offline resolution extrapolates. A player who
+    // was mashing when they closed the tab must not earn eight hours of mashing
+    // while they sleep — and `currentVelocity` is no longer the right question,
+    // because R14's buffs are a real rate that `tick` is *supposed* to integrate.
     __setState({ pokeRate: 999 })
     expect(currentVelocity()).not.toBeGreaterThan(currentEffectiveVelocity() - 900)
     expect(currentVelocity()).toBe(currentVelocity({ ...getState(), pokeRate: 0 }))
+    expect(baseVelocity()).toBe(baseVelocity({ ...getState(), pokeRate: 0, buffs: [] }))
   })
 })

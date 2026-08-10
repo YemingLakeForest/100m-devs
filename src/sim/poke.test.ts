@@ -9,6 +9,7 @@ import {
   pokeEndsFlow,
   pokeReach,
   resolvePoke,
+  sizeYield,
   type DevState,
   type ZoomLevel,
 } from './poke.ts'
@@ -90,6 +91,89 @@ describe('zoom-scaled poking (GDD §4.8)', () => {
       const sp = resolvePoke({ tier: 1, state: 'working', zoom, efficiency: 1, devs: 60 }).sp
       expect(sp).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('sizeYield — §4.8’s Z, read continuously (GDD §4.5b)', () => {
+  it('agrees with §4.8’s table at every one of its own anchors', () => {
+    // The whole reason it is derived rather than written down a second time:
+    // R15 needs a Z for a unit of 37,000 people, and §4.8 only names four
+    // sizes. A separate curve fitted by eye would be a table that can drift
+    // from the canon one silently.
+    expect(sizeYield(ZOOM_BLAST_RADIUS[1])).toBeCloseTo(ZOOM_YIELD[1], 10)
+    expect(sizeYield(ZOOM_BLAST_RADIUS[2])).toBeCloseTo(ZOOM_YIELD[2], 10)
+    expect(sizeYield(ZOOM_BLAST_RADIUS[3])).toBeCloseTo(ZOOM_YIELD[3], 10)
+    expect(sizeYield(ZOOM_BLAST_RADIUS[4])).toBeCloseTo(ZOOM_YIELD[4], 10)
+  })
+
+  it('falls as the unit grows, without ever reaching zero', () => {
+    // §4.5b: "the buff percentage falls as the unit grows". And a rung whose
+    // buff is exactly zero is a rung where the primary verb does nothing,
+    // which is the thing R15 exists to stop.
+    const sizes = [1, 10, 100, 1e3, 1e6, 1e9, 1e13]
+    const ys = sizes.map(sizeYield)
+    expect(ys).toEqual([...ys].sort((a, b) => b - a))
+    expect(ys[ys.length - 1]).toBeGreaterThan(0)
+  })
+
+  it('never pays more for a bigger unit than for one person', () => {
+    expect(sizeYield(0)).toBe(1)
+    expect(sizeYield(0.5)).toBe(1)
+  })
+})
+
+describe('the unit is the reach (GDD §4.5b, R15)', () => {
+  it('agrees with the zoom band when the unit is that band’s size', () => {
+    // The generalisation has to contain the thing it generalises, or §4.8's
+    // four rows have quietly become five.
+    const byZoom = resolvePoke({ tier: 3, state: 'working', zoom: 3, efficiency: 1, devs: 1e9 })
+    const byUnit = resolvePoke({
+      tier: 3,
+      state: 'working',
+      zoom: 3,
+      efficiency: 1,
+      devs: 1e9,
+      unitSize: ZOOM_BLAST_RADIUS[3],
+    })
+    expect(byUnit.sp).toBeCloseTo(byZoom.sp, 8)
+  })
+
+  it('reaches exactly the unit, not the zoom band it happens to be seen at', () => {
+    // The bug R15 replaces: at tier 2 a tap on one developer was paid for
+    // fourteen of them, while §7.7.6 promised it landed on "the actual
+    // developer under the thumb". One person is one person at any zoom.
+    const one = resolvePoke({
+      tier: 1,
+      state: 'working',
+      zoom: 2,
+      efficiency: 1,
+      devs: 500,
+      unitSize: 1,
+    })
+    expect(one.sp).toBeCloseTo(1, 10)
+  })
+
+  it('is worth more in total for a bigger unit, and less per developer', () => {
+    // §4.8's own rhythm, now measured against units rather than bands: "zoom
+    // out to sweep for volume, punch in to extract from a specific
+    // high-value developer".
+    const at = (unitSize: number) =>
+      resolvePoke({ tier: 1, state: 'working', zoom: 1, efficiency: 1, devs: 1e9, unitSize }).sp
+
+    expect(at(1e4)).toBeGreaterThan(at(1e3))
+    expect(at(1e4) / 1e4).toBeLessThan(at(1e3) / 1e3)
+  })
+
+  it('cannot reach past the studio', () => {
+    const { sp } = resolvePoke({
+      tier: 1,
+      state: 'working',
+      zoom: 1,
+      efficiency: 1,
+      devs: 40,
+      unitSize: 1_000_000,
+    })
+    expect(sp).toBeCloseTo(sizeYield(40) * 40, 8)
   })
 })
 

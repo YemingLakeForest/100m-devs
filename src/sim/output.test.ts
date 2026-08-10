@@ -8,6 +8,7 @@ import {
   outputRoll,
   outputShare,
   rosterMean,
+  shareSum,
 } from './output.ts'
 
 const SEEDS = [1, 7, 42, 1234, 0x9e3779b9, 2_147_483_647]
@@ -172,5 +173,41 @@ describe('outputClass — §14.4, the hero classes are bands of the roll', () =>
 describe('sigma is the knob, and it is documented', () => {
   it('is the value the percentile table in the header was computed at', () => {
     expect(OUTPUT_SIGMA).toBe(0.9)
+  })
+})
+
+describe('shareSum — a whole unit’s worth, in one query (GDD §4.5b)', () => {
+  it('agrees with adding the shares up one at a time', () => {
+    for (const seed of SEEDS) {
+      let by1 = 0
+      for (let i = 120; i < 260; i++) by1 += outputShare(seed, 400, i)
+      expect(shareSum(seed, 400, 120, 260)).toBeCloseTo(by1, 8)
+    }
+  })
+
+  it('sums to the headcount exactly over the whole roster', () => {
+    // §4.9a's "hold the average", asked of the range query rather than of the
+    // individual one. R14 buffs a *unit*, so this is the path the economy now
+    // runs through and it has to carry the same guarantee.
+    for (const seed of SEEDS) {
+      expect(shareSum(seed, 640, 0, 640)).toBeCloseTo(640, 6)
+    }
+  })
+
+  it('is nothing across an empty or backwards range', () => {
+    expect(shareSum(7, 400, 200, 200)).toBe(0)
+    expect(shareSum(7, 400, 260, 120)).toBe(0)
+  })
+
+  it('counts a seat past the roster cap as an average developer', () => {
+    // `outputShare` returns exactly 1 past ROSTER_CAP — individuals are neither
+    // drawn nor pokeable there — so a unit of a million people beyond it is
+    // worth a million, and a town-sized buff does not silently evaluate to zero.
+    expect(shareSum(7, 2_000_000, ROSTER_CAP, ROSTER_CAP + 5_000)).toBeCloseTo(5_000, 6)
+  })
+
+  it('handles a unit straddling the cap', () => {
+    const below = shareSum(7, 2_000_000, ROSTER_CAP - 100, ROSTER_CAP)
+    expect(shareSum(7, 2_000_000, ROSTER_CAP - 100, ROSTER_CAP + 100)).toBeCloseTo(below + 100, 6)
   })
 })

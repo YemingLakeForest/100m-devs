@@ -200,6 +200,45 @@ export function slotAt(i: number, rung = CITY_FIRST_RUNG): { x: number; y: numbe
   return { x: across * UNIT_W * spread.x, y: 0 - back * spread.y }
 }
 
+/**
+ * Which unit a city-local point is standing on, or −1 — GDD §4.5b, R15.
+ *
+ * Nearest slot within a unit's own footprint, which is the honest radius: the
+ * units are laid out on {@link slotAt}'s grain and the gaps between them are
+ * where §7.8.2's walkways and car parks are. A tap there is a miss.
+ *
+ * `units` is how many have actually been built. Offering slot 7 on a block with
+ * three towers on it would buff ten thousand developers who are not there —
+ * and `sim/units.ts` would clamp that range to nothing, so the poke would
+ * silently do nothing at all rather than visibly miss.
+ */
+export function unitAtLocal(
+  localX: number,
+  localY: number,
+  units: number,
+  rung = CITY_FIRST_RUNG,
+): number {
+  const n = Math.min(MAX_UNITS, Math.max(0, Math.floor(units)))
+  if (n === 0) return -1
+
+  let best = -1
+  let bestD = Infinity
+  for (let i = 0; i < n; i++) {
+    const at = slotAt(i, rung)
+    // Measured in the 2:1 projection the units stand in, so the catchment is
+    // the plot's shape on the ground rather than a circle drawn on the screen.
+    const dx = (localX - at.x) / (UNIT_W * 0.5)
+    const dy = (localY - at.y) / UNIT_D
+    const d = dx * dx + dy * dy
+    if (d < bestD) {
+      bestD = d
+      best = i
+    }
+  }
+
+  return bestD <= 1 ? best : -1
+}
+
 // ---------------------------------------------------------------------------
 // The units
 // ---------------------------------------------------------------------------

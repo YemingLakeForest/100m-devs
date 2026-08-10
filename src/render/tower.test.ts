@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEVS_PER_STOREY,
+  STOREY_HEIGHT,
+  storeyAtLocal,
   MAX_STOREYS,
   storeyDropHeight,
   storeysFor,
@@ -83,5 +85,31 @@ describe('the arrival — §7.7.2, a storey drops out of the sky', () => {
       expect(towerSquash(t)).toBeGreaterThan(0.93)
       expect(towerSquash(t)).toBeLessThan(1.07)
     }
+  })
+})
+
+describe('which storey is under the thumb (GDD §4.5b, R15)', () => {
+  it('finds the storey a point sits on', () => {
+    // Rung 3's unit is a floor, so a tap has to name *which* floor — the
+    // sixth storey and the first are two different thousand-person units and
+    // §4.5b makes each of them a target.
+    expect(storeyAtLocal(0, 0, 6)).toBe(0)
+    expect(storeyAtLocal(0, -STOREY_HEIGHT * 3, 6)).toBe(3)
+    expect(storeyAtLocal(0, -STOREY_HEIGHT * 5, 6)).toBe(5)
+  })
+
+  it('clamps to the storeys that exist rather than inventing one', () => {
+    expect(storeyAtLocal(0, -STOREY_HEIGHT * 40, 6)).toBe(5)
+    expect(storeyAtLocal(0, STOREY_HEIGHT * 10, 6)).toBe(0)
+  })
+
+  it('misses when the tap is beside the building, not on it', () => {
+    // §7.7.6 makes the world addressable, and an addressable world has sky in
+    // it. A tap on the sky is a miss, exactly as a tap on empty floor is.
+    expect(storeyAtLocal(900, 0, 6)).toBe(-1)
+  })
+
+  it('has nothing to hit before the tower is built', () => {
+    expect(storeyAtLocal(0, 0, 0)).toBe(-1)
   })
 })
