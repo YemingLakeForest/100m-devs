@@ -1,22 +1,12 @@
-import { useState } from 'react'
 import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
 import {
   FOUNDER_TREE,
   founderCost,
   founderLevel,
-  founderTotalLevels,
   type FounderNode,
 } from '../sim/founder.ts'
-import {
-  buyFounderNode,
-  founderOf,
-  founderVelocity,
-  getPermanent,
-  pokeFounder,
-} from '../game/store.ts'
+import { buyFounderNode, founderOf, getPermanent, pokeFounder } from '../game/store.ts'
 import { formatMoney } from './hudModel.ts'
-import { useGameState } from './useGameState.ts'
 
 import '../styles/founder.css'
 
@@ -30,40 +20,24 @@ import '../styles/founder.css'
  * > use it. The desk is where it *lives* … but the action is available at every
  * > zoom — because it is you, and you are always present.
  *
- * A control that only worked when the camera happened to be in the room would
+ * A control that only worked while the camera happened to be in the room would
  * fail that sentence at rung 3 and above, which is most of the game. So the
- * desk has a permanent affordance in the rail, and §7.8.10's corner seat is the
- * *picture* of the same thing rather than the only way to reach it.
+ * action has a permanent affordance, and §7.8.10's corner seat is the *picture*
+ * of the same thing rather than the only way to reach it.
  *
- * §7.7.7 forbids "a menu with a picture behind it", and this is deliberately
- * not one: it is a single slab that does one thing, sitting with the other
- * controls the thumb already lives on, and the tree behind it is a panel like
- * every other tree in the product.
+ * **One button, and that is a hard constraint rather than a preference.** The
+ * right rail was measured at every frame in §23.4's design box, and the note on
+ * the 336 px media query records that adding §7.7.6b's touch latches already
+ * cost the rail a row — "a new control does not get to evict canon". So the
+ * desk is a single slab that shares §13.2's row, the rate it produces is read
+ * off §10.1's `swarm + you` split where it already appears, and the Management
+ * tree lives in the UPGRADES drawer beside the other things cash buys.
  */
 export function FounderDesk() {
-  const [treeOpen, setTreeOpen] = useState(false)
-  const rate = founderVelocity()
-
   return (
-    <>
-      <div className="founder__desk">
-        {/*
-          The rate is on the control because it is the only number in the game
-          that answers "what am I worth" rather than "what is the company
-          worth", and §10.1's split cannot show it alone — there it is summed
-          with the thumb.
-        */}
-        <Button className="founder__tap" onClick={() => pokeFounder()}>
-          YOUR DESK
-        </Button>
-        <span className="founder__rate">{rate.toFixed(1)}/s</span>
-        <Button className="founder__tree-door" onClick={() => setTreeOpen((was) => !was)}>
-          SKILLS
-        </Button>
-      </div>
-
-      <FounderTree open={treeOpen} onClose={() => setTreeOpen(false)} />
-    </>
+    <Button className="founder__tap" onClick={() => pokeFounder()}>
+      YOUR DESK
+    </Button>
   )
 }
 
@@ -96,51 +70,40 @@ function Node({ node, cash }: { node: FounderNode; cash: number }) {
 }
 
 /**
- * The Management tree — §13.7.1.
+ * The Management tree — §13.7.1, rendered as a branch of the §11 drawer.
  *
  * > The Management tree contains a diluted copy of every other tree's spine,
  * > and nothing of its own. You can do a bit of engineering, a bit of QA, a bit
  * > of support, a bit of ops. Each node is meaningfully weaker than the
  * > specialist equivalent, costs more, and is available earlier.
  *
- * The header says so out loud, once, because that is the game's thesis and this
- * screen is where a player meets it as a *purchase* rather than as a curve.
- * Nothing else in the panel explains it — §13.7.1 is explicit that the player
- * should "discover this by buying the nodes and watching them underperform".
+ * **It sits inside UPGRADES rather than behind a door of its own**, and that is
+ * a design answer as much as a layout one: this is bought with cash, like every
+ * §11 node, so putting it anywhere else would mean two screens spending one
+ * currency. It also lands the joke without a line of copy — your own skills are
+ * a line item in the same budget as the coffee machine.
+ *
+ * The header states the thesis once. Nothing else explains it, because §13.7.1
+ * is explicit that the player should "discover this by buying the nodes and
+ * watching them underperform".
  */
-export function FounderTree({ open, onClose }: { open: boolean; onClose: () => void }) {
-  // Subscribed here rather than taking `state` as a prop: this panel is mounted
-  // from the rail control rather than from `Hud`, and threading the whole game
-  // state through two components to price five buttons is a prop nobody would
-  // keep correct.
-  const cash = useGameState().cash
-  const levels = getPermanent().meta.founderLevels ?? {}
+export function FounderBranch({ cash }: { cash: number }) {
   const f = founderOf()
 
   return (
-    <Panel open={open} modal from="centre" className="founder">
-      <div className="founder__head">
-        <h1 className="founder__title">MANAGEMENT</h1>
-        <p className="founder__learned">{founderTotalLevels(levels)} LEARNED</p>
-      </div>
-
-      <p className="founder__thesis">
+    <section className="tech__branch">
+      <h3 className="tech__branch-name">MANAGEMENT — YOU</h3>
+      <p className="tech__branch-blurb">
         A bit of engineering, a bit of QA, a bit of support, a bit of ops. You are the only
         person here who can do all five.
       </p>
-
       <p className="founder__rate-line">
         YOUR OUTPUT <b>{f.rate.toFixed(1)}</b> story points a second — and nothing the studio
         does can raise it or take it away.
       </p>
-
-      <div className="founder__nodes">
-        {FOUNDER_TREE.map((node) => (
-          <Node key={node.id} node={node} cash={cash} />
-        ))}
-      </div>
-
-      <Button onClick={onClose}>CLOSE</Button>
-    </Panel>
+      {FOUNDER_TREE.map((node) => (
+        <Node key={node.id} node={node} cash={cash} />
+      ))}
+    </section>
   )
 }

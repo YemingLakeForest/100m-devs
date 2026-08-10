@@ -31,6 +31,21 @@
   gap: 14px;
   width: 100%;
   min-height: 0;
+  /*
+   * An explicit cap, not `1fr` inside the drawer's grid.
+   *
+   * The drawer is `position: absolute` and anchored to its *bottom* edge, so a
+   * list taller than the frame grows upward and out of the screen; bounding the
+   * drawer alone was not enough, because `Panel` puts a wrapper between it and
+   * this element and the `minmax(0, 1fr)` row therefore never applied to the
+   * thing that actually scrolls. A viewport-relative cap answers the question
+   * directly and is what the §F2.1 screens already use.
+   *
+   * 46vh is 206 px at the 997x448 reference frame and 155 px at the 336 px
+   * floor of §23.4's design box — in both cases leaving room for the header and
+   * the BACK button inside the panel's own border.
+   */
+  max-height: 46vh;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

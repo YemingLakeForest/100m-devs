@@ -1,68 +1,23 @@
 /*
  * You — GDD §4.5d, §13.7.1.
  *
- * Two things: a control in the right rail that is always reachable, and the
- * Management tree behind it. The control is the load-bearing half — §4.5d
- * requires the desk be actionable at *every* zoom, and a control that scrolled
- * away or collapsed under a breakpoint would fail that on the frame sizes
- * §23.4's design box actually covers. Nothing here has a `display: none`.
+ * Two things, and the split between them is the layout lesson this file exists
+ * to record. §4.5d requires the desk be actionable at *every* zoom, so the tap
+ * is a permanent control in the right rail — but the rail's rows were measured
+ * at every frame in §23.4's design box, and the 336 px media query in app.css
+ * already had to evict a row once to fit §7.7.6b's latches. So the control is
+ * **one slab and nothing else**: no rate readout beside it (§10.1's split
+ * already carries that number) and no second door.
+ *
+ * The Management tree therefore lives inside the §11 drawer instead, which is
+ * also where it belongs on its own merits — it is bought with cash, like every
+ * §11 node, and two screens spending one currency is a worse answer than one.
+ *
+ * The first draft of this control was a three-item flex row. It overflowed the
+ * rail on the 997x448 reference frame and landed on top of the §23.3 perf
+ * overlay and §7.7.6b's caption. Caught by taking a screenshot, which is the
+ * only thing that catches this class of fault (§25.0, §25.0a).
  */
-
-.founder__desk {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  pointer-events: auto;
-}
-
-/* Your own rate, beside the slab that raises it. The one number in the game
-   that answers "what am I worth" rather than "what is the company worth". */
-.founder__rate {
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-  color: var(--p3);
-}
-
-.founder {
-  display: grid;
-  gap: 10px;
-  justify-items: start;
-  max-height: 76vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.founder__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-}
-
-.founder__title {
-  margin: 0;
-  font-size: var(--type-2x);
-  letter-spacing: 2px;
-  color: var(--p3);
-}
-
-.founder__learned {
-  margin: 0;
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-  color: var(--p1);
-}
-
-/* §13.7.1's joke, stated once and never explained. */
-.founder__thesis {
-  margin: 0;
-  max-width: 48ch;
-  font-size: var(--type-1x);
-  line-height: 1.6;
-  color: var(--p2);
-}
 
 .founder__rate-line {
   margin: 0;

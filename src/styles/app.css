@@ -1092,6 +1092,15 @@ body {
   position: absolute;
   right: var(--edge-x);
   bottom: calc(var(--edge-y) + 46px);
+  /*
+   * Bounded, so the list inside can scroll rather than climb out of the frame.
+   * The subtraction is the drawer's own offset plus a top margin — §23.4's
+   * design box is 448 px at the reference frame and 336 at the smallest, and
+   * the tree is longer than both.
+   */
+  max-height: calc(100% - var(--edge-y) - 46px - 12px);
+  /* Nothing may cross the border. The panel is a surface, not a viewport. */
+  overflow: hidden;
   width: 340px;
   max-width: calc(100% - 2 * var(--edge-x));
   pointer-events: auto;
@@ -1101,9 +1110,24 @@ body {
 
 .hud__upgrades-body {
   display: grid;
+  /*
+   * `auto 1fr auto` — head, scrolling list, BACK. Not three `auto` rows: the
+   * drawer is anchored to its bottom edge, so a list taller than the frame
+   * grows *upward* and the title leaves through the top of the screen. That is
+   * what happened the moment §11's real tree replaced the eight-line
+   * placeholder this drawer was built around, and it is invisible until
+   * somebody opens it on a short frame.
+   *
+   * `min-height: 0` on the middle row is the half that actually does the work —
+   * a grid row's default `min-height: auto` refuses to shrink below its
+   * content, so the `overflow-y: auto` on `.tech__branches` would never engage.
+   */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 8px;
   justify-items: start;
   padding: 10px 12px 12px;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .hud__upgrades-title {

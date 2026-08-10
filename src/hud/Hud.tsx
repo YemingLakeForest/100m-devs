@@ -188,24 +188,26 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
             nav rather than in it because it is an *action* the thumb takes
             during play, like TouchSwitch, and not a door onto a screen.
           */}
-          <FounderDesk />
           <PerfOverlay stage={stage} />
           {/*
-            §10.1's nav — **one bar, and it is owned here now.** `Upgrades` used
-            to render its own `.hud__nav` while the PARADIGM button sat loose in
-            this column, so the two doors were furniture of different kinds in
-            the same corner. Both panels are opened from the same place and
-            neither owns the bar it hangs from.
-
+            §4.5d — your own desk, reachable at every zoom. A direct child of the
+            column, like PARADIGM, because the 336 px media query below places
+            both by hand: the rail's rows were measured at every frame in
+            §23.4's design box and "a new control does not get to evict canon".
+          */}
+          <FounderDesk />
+          {/*
             §13.2 — the tree appears only once a Paradigm Shift has happened.
             Before the first one BP does not exist, and a permanently visible
             button onto an empty currency would be the §10.6 web-page tell.
           */}
+          {hasPrestiged() && (
+            <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
+          )}
+          {/* §10.1's UPGRADES nav, which is where §11's tree and §13.7.1's
+              Management branch both live — one drawer, one currency. */}
           <div className="hud__nav">
             <Button onClick={() => setUpgradesOpen((was) => !was)}>UPGRADES</Button>
-            {hasPrestiged() && (
-              <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
-            )}
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
 import { TECH_TREE, type TechBranch, type TechNode } from '../sim/techTree.ts'
 import { buyTech, techQuote, type GameState } from '../game/store.ts'
+import { FounderBranch } from './Founder.tsx'
 import { formatMoney } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
 
@@ -105,6 +106,8 @@ export function Upgrades({ open, onClose }: { open: boolean; onClose: () => void
                 ))}
               </section>
             ))}
+            {/* §13.7.1 — you, in the same budget as the coffee machine. */}
+            <FounderBranch cash={state.cash} />
           </div>
 
           <Button onClick={onClose}>BACK</Button>
