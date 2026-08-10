@@ -17,7 +17,7 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**995 tests.** Lint, types and the art gate clean.
+**998 tests.** Lint, types and the art gate clean.
 
 ---
 
@@ -209,6 +209,20 @@ the game's one seizure and it is load-bearing.
 
 ## Blocked on a human
 
+- **§10.9.4's START sound.** `title-start` is specced in `scripts/generate-sfx.ts`
+  and **not generated** — it needs the same ElevenLabs key. Until then `playUi('start')`
+  falls through to `ui-whoosh`, which is short and sweep-free and is a real fix
+  rather than a placeholder; the bespoke clip would be an improvement, not a
+  repair. `npm run sfx:generate -- title-start` once there is a key.
+- **§4.5a's two pacing knobs, now that the buff exists.** `BUFF_TAU` = 5 s and
+  `POKE_PAYOUT_SHARE` = 0.25 decide how long a buff is worth maintaining and how
+  much of a tap lands instantly. **Neither can change what a poke is worth** —
+  the strength is solved against the same τ — so both are safe to retune by feel,
+  which is exactly the §25.2 condition for a number that wants a person.
+- **Is a poke supposed to be net negative at forty developers?** Trap 16. §4.9's
+  context switch costs more per frame than one buffed developer adds, and it did
+  before R14 too — R14 only made it visible. A real balance question that nobody
+  has decided.
 - **ElevenLabs Music API** needs a paid plan. The ten stems currently come from the *free*
   Sound Effects endpoint, which §20.7.1a makes the correct choice for an ambient score rather
   than a concession — but nobody has listened to them yet. **Do `layer-strained` and
