@@ -84,6 +84,33 @@ Fixed by ADR 0001. Match `mind-the-gap`'s versions to keep one toolchain across 
 | ~~ImageMagick~~ | ~~Palette quantiser~~ | — | ❌ **No longer needed** — see below |
 | **Departure Mono** | Terminal/HUD font | £0 | ✅ v1.500 vendored at `src/assets/fonts/`. Licence verified: **SIL OFL 1.1** — embedding in the app is permitted; the licence text ships alongside it and must stay. |
 
+> ### The Android build needs `android/local.properties`, and it is gitignored
+>
+> A fresh clone cannot build the APK. Gradle stops with:
+>
+> ```
+> SDK location not found. Define a valid SDK location with an ANDROID_HOME
+> environment variable or by setting the sdk.dir path in your project's local
+> properties file at '.../android/local.properties'.
+> ```
+>
+> **This is correct behaviour, not a broken checkout.** `local.properties` holds a machine
+> specific absolute path, so `android/.gitignore` excludes it — which means it is missing on
+> every new machine and after every fresh clone, forever. Create it:
+>
+> ```properties
+> # android/local.properties
+> sdk.dir=C:/Users/<you>/AppData/Local/Android/Sdk
+> ```
+>
+> **Forward slashes.** It is a `java.util.Properties` file, where a backslash is an escape
+> character — `C:\Users\...` silently parses as `C:Users...` and Gradle reports the same
+> "SDK location not found" as if the file were absent, which is a considerably worse
+> half hour than the original error.
+>
+> Setting `ANDROID_HOME` in the environment works too and is what CI would do; the file is
+> the lower-friction choice on a workstation because it survives shell restarts.
+
 > **ImageMagick was dropped.** ART_DIRECTION §5 specified `magick -remap`, but the
 > quantiser and the `art:check` gate are implemented with **sharp**, which is already a
 > house dependency. Two reasons: it removes a `PATH` prerequisite from CI, where a missing

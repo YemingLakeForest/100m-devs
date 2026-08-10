@@ -252,12 +252,72 @@ async function fromMaster(src: string) {
   }
 
   const master = await image.png().toBuffer()
-  const emit = async (path: string, size: number) => {
+
+  /**
+   * How far the artwork has to shrink to survive a **circular** launcher mask.
+   *
+   * This is the one piece of adaptive-icon arithmetic that is easy to get wrong,
+   * and getting it wrong is invisible until the icon is on a home screen. The
+   * safe zone is a 72dp *circle* inside a 108dp canvas — not a 72dp square. So
+   * the measurement that matters is the artwork's **diagonal**, not its width:
+   * a 65dp-wide picture has corners 93dp apart, and a circle of 72 clips them.
+   *
+   * Measured off the master rather than hardcoded, so replacing the art cannot
+   * silently break the fit. Clamped at 1 — art that already fits is left alone.
+   */
+  const { data, info } = await sharp(master).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const field = [data[0], data[1], data[2]]
+  let minX = info.width, minY = info.height, maxX = -1, maxY = -1
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      const o = (y * info.width + x) * info.channels
+      if (
+        Math.abs(data[o] - field[0]) < 6 &&
+        Math.abs(data[o + 1] - field[1]) < 6 &&
+        Math.abs(data[o + 2] - field[2]) < 6
+      ) continue
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
+  }
+  const artW = maxX - minX + 1
+  const artH = maxY - minY + 1
+  const diagonal = Math.hypot(artW, artH) / info.width
+  // 4% off the theoretical maximum. Solving the fit exactly puts the artwork's
+  // corners *on* the safe circle, where per-density rounding then pushes them a
+  // pixel or two outside it — measured at +1.7px on the 432 canvas. A margin is
+  // cheaper than a launcher-specific rounding argument, and no eye can tell 96%
+  // of the safe zone from 100% of it.
+  const fit = Math.min(1, (72 / 108 / diagonal) * 0.96)
+  console.log(
+    `art ${artW}x${artH} of ${info.width} — diagonal ${(diagonal * 100).toFixed(1)}% of the canvas, ` +
+      `foreground scaled to ${(fit * 100).toFixed(1)}% so a round mask cannot clip it\n`,
+  )
+
+  const emit = async (path: string, size: number, adaptive = false) => {
     await mkdir(dirname(path), { recursive: true })
-    await sharp(master)
-      .resize({ width: size, height: size, kernel: 'nearest' })
-      .png({ compressionLevel: 9 })
-      .toFile(path)
+
+    if (!adaptive) {
+      await sharp(master)
+        .resize({ width: size, height: size, kernel: 'nearest' })
+        .png({ compressionLevel: 9 })
+        .toFile(path)
+    } else {
+      // Centred on a transparent canvas. The launcher paints
+      // `ic_launcher_background` underneath, and the master's own field is that
+      // same colour, so the inset square is invisible rather than a tile.
+      const art = Math.round(size * fit)
+      const scaled = await sharp(master).resize({ width: art, height: art, kernel: 'nearest' }).toBuffer()
+      await sharp({
+        create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+      })
+        .composite([{ input: scaled, gravity: 'centre' }])
+        .png({ compressionLevel: 9 })
+        .toFile(path)
+    }
+
     console.log(`  ${path.slice(ROOT.length + 1).replace(/\\/g, '/')}  ${size}px`)
   }
 
@@ -267,18 +327,10 @@ async function fromMaster(src: string) {
   for (const [dir, legacy, foreground] of DENSITIES) {
     await emit(join(RES, dir, 'ic_launcher.png'), legacy)
     await emit(join(RES, dir, 'ic_launcher_round.png'), legacy)
-    // **Full-bleed, not inset.** The adaptive canvas is 108dp with a 72dp safe
-    // zone, so a master drawn edge to edge would need shrinking to two thirds.
-    // This one does not: the artwork occupies 60% of its own square, which is
-    // 65dp of the 108 — already inside the safe zone with room to spare. And
-    // the master's field quantises to exactly #14121a, the colour
-    // `ic_launcher_background.xml` paints underneath, so the foreground's own
-    // background is invisible against it rather than a square on a square.
-    //
-    // Insetting anyway would put the art at 43dp in a 72dp window and read as a
-    // small picture in a large frame, which is the commonest way an adaptive
-    // icon comes out looking wrong.
-    await emit(join(RES, dir, 'ic_launcher_foreground.png'), foreground)
+    // Inset by the measured fit above — see the note on `fit`. Getting this
+    // wrong does not fail a build, it ships an icon with its corners sliced off
+    // on every phone whose launcher uses a round mask.
+    await emit(join(RES, dir, 'ic_launcher_foreground.png'), foreground, true)
   }
 
   console.log('\nWeb:')
