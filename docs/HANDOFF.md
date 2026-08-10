@@ -151,38 +151,51 @@ Three things a reader should know before touching `room.ts` again:
 
 ### Phase 6 — the 2026-08-10 intake (§25.3). Do this next.
 
-**Eight new requirements arrived in one message and every one of them is
-specced in the GDD and built nowhere** — see **§25.3**, which is the ledger row
-for each, and §4.11, §4.12, §13.7, §13.8 and §22.8, which are where an
-implementer should actually look.
+**Eight requirements (R19–R26) arrived in one message, and every one is specced
+in the GDD and built nowhere.** §25.3 is the ledger row for each; the sections
+an implementer should actually read are **§4.11** (roles), **§4.12** (defects),
+**§4.13** (support), **§4.14** (the rating), **§13.7** (a hero class per role,
+and the Management tree), **§13.8** (placement as the minigame), **§7.8.10**
+(where you sit) and **§7.8.11** (a hero visible from orbit).
 
-They are not eight separate features. They are **one system with five faces**,
-and reading them as separate work is the way to build it wrong:
+They are not eight separate features. They are **one system seen from five
+sides**, and reading them as separate work is the way to build it wrong:
 
-> Developers stop being homogeneous (R19) → the roles that appear are the ones
-> that answer the two new failure sources, bugs (R21) and tickets (R22) → what
-> those failures cost is the game's **rating** (R23), which is the first thing in
-> the design that judges the *quality* of a run rather than its size → heroes
-> gain a class per role and a tree each (R24), and **you** are the one who gets
-> all of them badly (R20).
+> Developers stop being interchangeable (R19) → the roles that appear are the
+> ones that answer two new ways to fail, defects (R21) and tickets (R22) → what
+> those failures cost is a **rating** (R23), the first number in this game that
+> can go *down* while everything else goes up → heroes gain a class per role and
+> a tree each (R24), placed on the floor as the management game (R25) and
+> visible from every rung (R26) → and **you** (R20) are the one person with all
+> five classes who is bad at all of them.
 
-**Start with R23, the rating.** It is the only one that is pure economics, it
-has no art and no interface, and every other item in the batch is scored by it —
-building bugs before there is anything for a bug to damage means guessing at
-what a bug is worth. R21's defect stream is the natural second, because it is
-the thing R23 measures and it can run headless.
+**Start with R23, the rating.** It is pure economics — no art, no interface, no
+renderer — and every other item in the batch is scored by it. Building R21's
+defects first means guessing what a bug is worth, and a guess made at that point
+becomes canon by accident. R21 is the natural second: it is the thing R23
+measures, it runs headless, and its coefficient is the batch's one genuinely
+load-bearing number.
 
-**R25 (hero placement as a management minigame) is last on purpose.** It is the
-one that needs the floor to already have roles on it, rows worth assigning
-somebody to, and a rating that makes a placement right or wrong. Built first it
-is a card that goes in a slot for no reason.
+**R25 is last on purpose.** It needs a floor that already has roles on it, rows
+worth assigning somebody to, and a rating that makes a placement right or wrong.
+Built first it is a card that goes in a slot for no reason — which is what
+§13.6.6 already is, and is exactly why that section has sat unbuilt.
+
+§25.3.2 lists the three numbers this batch deliberately does *not* decide (the
+role ratio, the defect coefficient, the rating's weights) and the one rule that
+must not drift: **none of it may become a fail state.** §6.3's Entropy Lock is
+the game's one seizure and it is load-bearing.
 
 ### Phase 5 — the rest
 
 - ~~**R9** — poke vs drag on touch (§7.7.6a)~~ — **done.** Needs a phone to judge the tick.
 - **R13 remainder** — the entropy and developers keywords, and the §10.7 typed script. Cash
   landed with the revenue graph's readout.
-- **R16** — the Founder's desk and coding tree (§4.5d). Wants R14's poke model first.
+- **R16** — the Founder's desk and coding tree (§4.5d). **R14's poke model now
+  exists, so this is unblocked** — and R20 has since decided the two things
+  §4.5d left open: the desk sits at the corner facing the floor (§7.8.10), and
+  the tree is §13.7.1's Management class. Build R16 and R20 together; they are
+  the same desk.
 
 ### Blocked, not scheduled
 

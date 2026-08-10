@@ -451,6 +451,13 @@ There is one seat on the floor that is yours. It is the first desk in the room (
 desk in a dark bedroom"), it is where 7.7.4's Hero Anchor lands, and it never goes away - at
 ten thousand developers your desk is still there, still yours, and still clickable.
 
+> **§7.8.10 and §13.7.1 finish this section — R20, added 2026-08-10.** *Where* the desk is was
+> left open here and is now canon: the **corner** of the floor, apart from the rows and
+> **facing back down them**, which is what keeps it clickable once §7.8.1b's reading order
+> fills the room over it. And the "Founder tree" this section asks for is now the
+> **Management class** — a deliberately weaker copy of all four of §13.7's role trees, which
+> is this section's joke stated as a skill tree rather than as a curve.
+
 **Clicking your own desk generates story points on its own growth curve**, upgraded through a
 **Founder tree** that is separate from everything else in the game:
 
@@ -917,6 +924,146 @@ random number generator nobody can see:
 - It gives 7.8.7's identities a *reason*. Until now they were decoration; now the person who
   looks distinct is also the person who performs distinctly, and the player will start
   recognising individuals - which is section 2's premise arriving through mechanics.
+
+### 4.11 Roles — the studio stops being one kind of person **[CANON - added 2026-08-10]** - R19
+
+**Every developer in the game does the same job, and that is a hole in the middle of the
+premise.** §4.9a made them differ in *how much* they produce; §7.8.7 made them differ in *what
+they look like*. Neither made them differ in **what they are for** — so a studio of a hundred
+thousand is one number wearing a hundred thousand faces, and "managing" it means picking who
+to tap.
+
+There are four functions, and they exist because §4.12 and §4.13 give the studio two ways to
+fail that writing more code cannot fix:
+
+| Role | Produces | Consumes | The joke |
+|---|---|---|---|
+| **Developer** | Story Points (§4.1) | — | Ships the feature and the defect in the same commit |
+| **QA** | defect capacity (§4.12) | — | Finds the bug before the player does, and is resented for it |
+| **Support** | ticket capacity (§4.13) | — | Absorbs the consequences of decisions they were not in the room for |
+| **SRE** | incident capacity (§4.12) | — | Paid to be bored, blamed when they are not |
+
+**A role is chosen at hire, not reassigned.** §10.10's dial gains a role selector and that is
+the whole interface: you are buying a *kind* of person. Reassignment is deliberately absent —
+it would turn every failure into a slider adjustment, and the game's thesis (§6) is that you
+cannot fix an organisation by moving people around after the fact.
+
+#### 4.11.1 What a role changes on screen
+
+Each role gets **its own speech and its own behaviour**, because a role the player cannot see
+is a spreadsheet column:
+
+- **§19's desk-query lines are per role.** A developer says *"writing redundant CSS"*; QA says
+  *"this reproduces on my machine, which is the problem"*; Support says *"I have told them
+  three times"*; SRE says *"it is fine, it is fine, it is fine."*
+- **§7.8.6's ambient life is per role.** Developers stare at monitors. QA walk between desks.
+  Support wear headsets and never leave theirs. SRE are motionless until §4.12's incident,
+  and then they are the only thing moving on the floor.
+- **§7.8.7's silhouette carries it.** The role must be readable from the shape at rung 2
+  *without* a badge, on the same argument §7.8.7 makes about identity: a label floating over a
+  sprite is an admission that the sprite failed.
+
+#### 4.11.2 Roles sit together — the row is the unit of assignment
+
+**A role is assigned to rows, not scattered.** §7.8.1b's reading order already fills the floor
+row by row and §4.5b already makes a row-sized unit pokeable; this makes the row *mean*
+something. A floor reads as bands — four rows of developers, a row of QA, half a row of
+support — and the shape of the studio is legible from the shape of the floor.
+
+That is also what makes §13.8's placement a game rather than a menu: a hero covers an area
+(§13.6.2), an area is some rows, and rows are roles. **Where you put somebody decides what
+they are covering.**
+
+> **The number of each role you should have is deliberately not written here.** It is the
+> single most play-test-dependent quantity in this batch, and §25.2's rule applies: a ratio
+> invented at design time and written as canon is a balance decision nobody measured.
+
+### 4.12 Defects — a shipped game keeps costing you **[CANON - added 2026-08-10]** - R21
+
+**Shipping is currently the end of a project's story**, and it is the wrong end. §4.10e made
+revenue a long tail; this makes *quality* one. A game goes out, and then it starts breaking.
+
+**Defects accrue from the work itself.** They are not an event and not bad luck — they are a
+by-product of production, in proportion to it:
+
+$$\frac{dB}{dt} = \beta \cdot V \cdot \eta_{\text{def}}(\text{QA})$$
+
+where `V` is §4.1's velocity. **The faster you go, the more you break**, which is the §6
+thesis restated in a second currency and is the reason this system belongs in the game at
+all. Poking makes it worse: §4.5's interruption is exactly how defects get written, so a poke
+adds defects on the same coefficient §4.9 uses for Entropy.
+
+| | Effect |
+|---|---|
+| **On the release** | Defects suppress §4.10e's tail. A buggy game earns its spike and then dies, which is a curve players recognise |
+| **On the rating** | §4.14's score is dominated by them |
+| **On the studio** | Past a threshold a defect becomes an **incident** — the tail stops entirely until SRE clear it |
+
+**QA reduce the rate; SRE clear the backlog.** The distinction is the point and it is a real
+one: QA change how fast defects arrive, SRE change how fast they leave. A studio with no QA
+and heroic SRE is permanently on fire and shipping; a studio with heavy QA and no SRE is slow
+and never breaks. Both are viable, both are funny, and neither is optimal — which is the
+condition §4.5b insists on for every choice in this game.
+
+> **Nothing here may become a fail state that stops the clicker.** §6.3's Entropy Lock is
+> already the game's one seizure and it is load-bearing; a second one competing with it would
+> read as the game being broken rather than as the game making a point.
+
+### 4.13 Support — the tickets do not stop **[CANON - added 2026-08-10]** - R22
+
+**Every shipped game generates support tickets forever.** Where §4.12's defects are about the
+product, tickets are about the *people who bought it*, and they behave completely differently:
+defects can be driven to zero, tickets cannot.
+
+$$\frac{dT}{dt} = \tau \cdot (\text{lifetime players}) + \sigma \cdot B$$
+
+Two terms, and the second is the interesting one. **Tickets scale with your back catalogue,
+not with what you are currently building** — §4.10e's catalogue is already the thing that pays
+the bills, and this makes it the thing that also sends the bill. The bigger your body of work,
+the larger the standing army you need for games you finished years ago, and **no upgrade ever
+removes that floor.**
+
+- **Unanswered tickets suppress revenue**, and they do it on the catalogue rather than on the
+  current project — you are losing money on the games you already made.
+- **Support capacity is headcount**, straightforwardly. This is the one part of the game where
+  throwing people at a problem simply works, which is a deliberate exception: it is the only
+  place §6's dilution does not apply, and the exception is what makes the rule visible.
+- **Tickets are the studio's ambient noise.** §20's mix gains a low, continuous, quiet layer
+  that never fully stops. It is the sound of the back catalogue.
+
+### 4.14 The Rating — the only number that judges a run **[CANON - added 2026-08-10]** - R23
+
+**Every score in this game measures size.** Cash, headcount, Story Points, the whole
+Construction Ladder — all of them go up and none of them is ever *bad*. The rating is the
+first quantity in the design that can go **down while everything else goes up**, which is what
+makes it the one number that can say the studio is doing badly.
+
+A shipped game is rated out of 100 from three inputs, and they are the three things the
+player actually controls:
+
+| Input | Weight | Source | What it is really measuring |
+|---|---|---|---|
+| **Defects** | dominant | §4.12's backlog at ship, per Story Point | Did you ship it, or did you *finish* it |
+| **Hero ability** | strong | §13.6 coverage over the team that built it | Did the right people touch it |
+| **Craft** | moderate | §4.9a's realised output share of the developers on it | Was it built by the people or by the headcount |
+
+**Defects dominate deliberately.** The other two are things the player arranges in advance;
+defects are the thing they are choosing to ignore *right now* in exchange for going faster.
+
+Ratings feed everything downstream, and this is where they stop being decoration:
+
+- **Revenue.** §4.10e's payout scales with the rating, which finally makes quality worth
+  money and gives §4.12 and §4.13 a reason to be more than a tax.
+- **Reputation**, a slow-moving average of recent ratings, which scales §4.10c's revenue *per
+  Story Point* — the studio's rate is a fact about its reputation, which is what §4.10c
+  already says and never had a mechanism for.
+- **§14's prestige.** Banked Paradigm Points scale with reputation, so a run can be good
+  rather than merely long. **This is the first thing in the game that rewards playing well
+  instead of playing more**, and it is the reason the whole batch is worth building.
+
+> **The satire has to survive the scoring.** A studio that ships a 12/100 and makes a fortune
+> is the funniest outcome available and must remain *possible* — reputation decays slowly
+> enough to be outrun by volume for a while. The rating is a pressure, not a morality.
 
 ## 5. Progression Eras
 
@@ -2032,6 +2179,66 @@ Because it is the answer to "what is there to *do* while the numbers go up", and
 that never answer that are the ones players describe as "just watching a bar fill". §8.2's
 poke is the answer for the first four minutes. This is the answer for the next four hours, and
 it costs one drag handler and a walk cycle that §7.8.6 has already paid for.
+
+#### 7.8.10 Where you sit — the corner desk, facing the wrong way **[CANON - added 2026-08-10]** - R20
+
+§4.5d says the founder has a desk and that it is always there. **This says where it is, and
+which way it points**, and both are load-bearing.
+
+**Your desk is at the corner of the floor, set apart from the rank and file, and it faces
+them.** Everybody else faces north-west into a monitor (§7.8.6, and §7.8.1's row grain runs
+across that facing). You face *back down the rows*, along the grain, looking at the studio.
+
+Three things follow from one placement decision, which is why it is worth stating as canon:
+
+1. **You are always clickable.** §4.5d requires the founder's desk be actionable at every
+   zoom, and a seat inside the reading order would be buried under §7.8.1b's rows the moment
+   the floor fills. The corner is the one position that never gets built over.
+2. **You are visibly not one of them**, at a glance and without a label. A single sprite
+   turned ninety degrees from a thousand identical ones is the strongest silhouette signal
+   available, and it costs one rotation.
+3. **It is the §6 thesis as a camera angle.** The only person in the building looking *at* the
+   company rather than at their own work is the one who stopped doing the work. Nobody has to
+   say this; the floor says it every frame, and §7.8.6's turned-away crowd is what makes it
+   legible.
+
+**Heroes are placed on the same principle.** A hero assigned to rows (§13.8) sits at the
+*head* of them, turned to face along the row rather than into a monitor — so the floor reads
+as blocks of work with somebody standing over each one, and an unclaimed block is visibly
+unclaimed.
+
+> §7.7.4's Hero Anchor already guarantees the camera can always return to this desk. That
+> promise now has a specific thing to return *to*, rather than "wherever seat 0 ended up".
+
+#### 7.8.11 A hero has to be visible from orbit **[CANON - added 2026-08-10]** - R26
+
+**§13.6's cards are currently invisible in the world.** A hero covers an area, the area does
+something, and there is nothing on screen that says so — which makes §13.8's placement game a
+puzzle played against a HUD panel rather than against the studio.
+
+**A hero is marked at every rung, and the mark changes register as the ladder climbs:**
+
+| Rung | What you see |
+|---|---|
+| **0–2** — the room | The person themself, at the head of their rows (§7.8.10), with a §7.8.7 silhouette that is *theirs* rather than rolled. Coverage drawn on the floor in the class colour |
+| **3** — the tower | A **portrait plate** on the storey they cover — a small framed face on the building, one per hero, readable at the size a storey actually is |
+| **4–6** — the city | The plate scales to the unit. A building with a hero on it wears their face; a campus wears the face of whoever covers it |
+| **7–9** — nation and up | Reduced to the class colour alone. A face at galaxy scale is a lie about resolution |
+
+**The portrait is the same generated face §7.8.7 already draws**, framed rather than
+redrawn — so this costs a frame, a plate and a scale rule, and **no new art**, which is what
+keeps §22.7's nineteen-sprite budget intact.
+
+Two rules, both of which exist because this is the kind of feature that quietly turns a city
+into a scoreboard:
+
+- **Only heroes get a face.** The moment ordinary units carry portraits the mark means
+  nothing, and §7.8.2's "a rung change has to change the silhouette" is broken by a layer of
+  identical badges.
+- **The plate is architecture, not UI.** It sits in the world, in the 2:1 projection, lit by
+  §7's single source, and it occludes and is occluded like anything else on the building.
+  A screen-space badge would float free of the city and read as a map pin — which is
+  §7.7.7's "never a menu with a picture behind it".
 
 ## 8. Game Juice: Camera, Poking & Feedback
 
@@ -3440,6 +3647,89 @@ that would make him scale has to skip him, or the joke stops being true.
 which *card fragments* drop during a run, and $M_{hero}$'s GP-scaling term becomes the global
 multiplier applied to every card's depth. The equations survive; what they multiply changes.
 No maths in §14 is invalidated by this section.
+
+### 13.7 A class per role, and the five trees **[CANON - added 2026-08-10]** - R24, R20
+
+§13.6's cards are all the same *kind* of thing — they cover an area and multiply what is in
+it. Once §4.11 gives the floor four functions, that is no longer enough: **a hero who is
+brilliant at QA and a hero who is brilliant at shipping are not the same card with a different
+number**, and a system that models them as one has thrown away the only thing roles were for.
+
+**Every hero belongs to a class, and the class is a role.** Four of them, plus you:
+
+| Class | Multiplies | Its tree is about |
+|---|---|---|
+| **Engineering** | §4.1 velocity of the developers it covers | Throughput, and what throughput costs — most nodes here make §4.12's defect rate worse |
+| **Quality** | §4.12's defect suppression | Finding things earlier. Nodes trade coverage breadth against catch rate |
+| **Support** | §4.13's ticket capacity | Deflection — closing tickets that were never raised. The only tree that acts on the *catalogue* rather than on the current project |
+| **Reliability** | §4.12's incident clearance | Time-to-recover, and the standing cost of being ready. Nodes are cheap to buy and expensive to hold |
+| **Management** — **you** | see §13.7.1 | Breadth. Every node is a weaker version of somebody else's |
+
+**A class only multiplies its own role.** An Engineering hero placed over a row of QA does
+nothing, and that is the constraint that makes §13.8's placement a decision rather than a
+tidying exercise. It is the same rule §13.6.2 already applies to reach, moved onto a second
+axis: a hero has a *where* and a *what*, and both have to be right.
+
+**Each tree is §13.6.4's three node kinds, unchanged.** REACH, DEPTH, TRAIT — one grammar, five
+vocabularies. Five separate node systems would be five things to balance and five things to
+learn, and the existing one already does the job.
+
+#### 13.7.1 You are the fifth tree, and you are worse at everything **[CANON]** - R20
+
+§4.5d gave the founder a desk and a coding curve. **This makes it a class**, and the shape of
+it is the joke:
+
+> **The Management tree contains a diluted copy of every other tree's spine, and nothing of
+> its own.** You can do a bit of engineering, a bit of QA, a bit of support, a bit of ops.
+> Each node is meaningfully weaker than the specialist equivalent, costs more, and is
+> available earlier.
+
+That is the whole design, and it is the game's thesis (§6) written as a skill tree rather than
+as a curve. The manager is the only person in the company who can do everything, which is
+precisely why they are the worst person to do any of it — and the player will discover this by
+buying the nodes and watching them underperform, not by being told.
+
+Two rules keep it from eating the game:
+
+- **§4.5d's promise holds: your own output never dilutes.** The Management tree is the one
+  curve in the game §4.1's Entropy does not tax. It stays small and it stays *reliable*, which
+  at cosmic scale is worth more than it looks.
+- **It must never beat hiring.** §4.5d already states the failure condition — "if the optimal
+  play is to fire everyone and code alone, the satire has eaten the game" — and the breadth
+  penalty is the mechanism that enforces it.
+
+### 13.8 Placing heroes — management *is* the minigame **[CANON - added 2026-08-10]** - R25
+
+**§13.6.6's tray puts cards in slots. This makes the floor the slots.**
+
+The player has more heroes than places worth putting them, roles that only some heroes help,
+and rows that only sometimes need helping — so placement is a standing puzzle that is
+re-answered every time the studio changes shape. **That is the management game**, and it is
+the first thing in the design where the player's job is arranging people rather than tapping
+them.
+
+The rules, and each one exists to stop a specific way this collapses into a menu:
+
+1. **A hero occupies a physical place**, dropped onto the floor with §7.8.9's existing carry
+   gesture. Not a list — the whole point is that you can see the shape of your coverage
+   without opening anything.
+2. **Coverage is drawn, not stated.** §13.6.6 already requires this and it becomes
+   load-bearing here: a footprint on the floor, in the class's colour, that visibly does or
+   does not contain the rows you care about.
+3. **Overlap is waste, and it is waste you can see.** Two heroes of the same class covering
+   the same rows do not stack — §13.6.4's dilution rule applied spatially. This is what makes
+   the puzzle a *packing* problem rather than a stacking one.
+4. **Moving a hero costs time, not money.** A relocation has a settling period during which
+   the hero covers nothing. Free instant reassignment would make the optimal play a
+   micro-management treadmill, which §13.6.7 already forbids in another form.
+5. **The studio keeps changing under it.** Every hire adds rows (§7.8.1b), and every §7.7
+   rung change reshapes the floor entirely — so a placement that was correct an hour ago is
+   quietly wrong now. **The puzzle is never solved, only re-solved**, which is what makes it a
+   loop rather than a task.
+
+> **What this must never become: a placement the player is required to keep optimal to
+> progress.** §13.6.7's "never a second job" applies with full force. A good placement should
+> be worth having and a stale one should cost a percentage — never a wall.
 
 
 ## 14. Prestige & Scaling Mathematics
@@ -5864,8 +6154,8 @@ to ship it rewrites the section. Four things we found that it does not currently
 the instruction attached to the first was explicit: *"if not already in GDD, add them in, just ensure
 don't lose them, I don't want to tell you the same thing multiple times."*
 
-R1-R13 came in one message and R14-R18 in the next; the table grows rather than being
-replaced. So each item below is written **twice on purpose**: once here as a one-line row with a status,
+R1-R13 came in one message, R14-R18 in the next, and R19-R26 in a third on 2026-08-10; the
+table grows rather than being replaced. So each item below is written **twice on purpose**: once here as a one-line row with a status,
 and once in full in the section that owns it. The row is the guarantee that it is not lost;
 the section is where an implementer will actually look. **A row is only allowed to leave this
 table when the thing is built and seen working** — not when it is specced, and not when it is
@@ -5943,6 +6233,60 @@ developer, **check the build timestamp before believing it** — a stale `dist/`
 fix is the known cause and has cost this project a day before.
 
 ---
+
+### 25.3 Intake — 2026-08-10 **[CANON]**
+
+Eight requirements in one message, and unlike §25's first two batches they are **not eight
+features**. They are one system seen from five sides, and the ledger is written in the order
+the dependency runs rather than the order they were said:
+
+> Developers stop being interchangeable (**R19**) → the roles that appear are the ones that
+> answer two new ways to fail, defects (**R21**) and tickets (**R22**) → what those failures
+> cost is a **rating** (**R23**), the first number in this game that can go down → heroes gain
+> a class per role and a tree each (**R24**), placed on the floor as the management game
+> (**R25**), visible from every rung (**R26**) → and **you** (**R20**) are the one person who
+> has all five classes and is bad at all of them.
+
+| # | Requirement | Owner § | Status |
+|---|---|---|---|
+| R19 | Developers are **not homogeneous**. Types of hire — **dev, QA, support, SRE** — assignable to particular rows, each with its own speech and behaviour | §4.11 | **Specced, not built** |
+| R20 | **You** sit at the corner of the floor, apart from the rank and file and **facing them**, always clickable — and the Management tree is a diluted copy of every other class | §7.8.10, §13.7.1, §4.5d | **Specced, not built.** Extends R16, which stays open |
+| R21 | A **defect system**. Bugs are generated by the work itself and damage what you shipped; QA suppress the rate, SRE clear the backlog | §4.12 | **Specced, not built** |
+| R22 | A **support role**. Tickets are raised against the back catalogue forever and somebody has to answer them | §4.13 | **Specced, not built** |
+| R23 | A **rating** for each shipped game, judged on defects, hero ability and the craft of the developers who built it — feeding revenue, reputation and prestige | §4.14 | **Specced, not built.** Build this first — see below |
+| R24 | Each function — **dev, QA, support, SRE** — has its **own hero class and upgrade tree**, and a class only multiplies its own role | §13.7 | **Specced, not built** |
+| R25 | Hero cards are **placed in the world** as a management minigame, not slotted into a tray | §13.8 | **Specced, not built.** Build this last — see below |
+| R26 | A hero is **visibly a hero**, including a **portrait carried on the floor, the building and the city** when zoomed out | §7.8.11 | **Specced, not built** |
+
+#### 25.3.1 The order to build them in, and why it is not the order above
+
+**R23, the rating, comes first.** It is pure economics — no art, no interface, no renderer —
+and it is what every other item in the batch is *scored by*. Building R21's defects before
+there is a rating means guessing what a bug is worth, and a guess made at that point becomes
+canon by accident.
+
+**R21 second**, because it is the thing R23 measures, it runs headless, and its coefficient is
+the batch's one genuinely load-bearing number.
+
+**R25 last, and deliberately.** It needs a floor that already has roles on it, rows worth
+assigning somebody to, and a rating that makes a placement right or wrong. Built first it is a
+card that goes into a slot for no reason — which is what §13.6.6 already is, and is why that
+section has sat unbuilt.
+
+#### 25.3.2 What this batch does *not* decide
+
+Three numbers are deliberately absent, on §25.2's rule that a quantity invented at design time
+and written as canon is a balance decision nobody measured:
+
+- **The role ratio.** How much QA a studio needs per developer is the single most
+  play-test-dependent quantity here.
+- **The defect coefficient β.** It sets how punishing speed is, which is the whole feel of R21.
+- **The rating's three weights.** §4.14 fixes their *order* — defects dominate — and not their
+  values.
+
+And one thing that is decided and must not drift: **none of this may become a fail state.**
+§6.3's Entropy Lock is the game's one seizure and it is load-bearing. A second one competing
+with it reads as a broken build rather than as a point being made.
 
 ### 25.2 What is deliberately NOT decided here
 
