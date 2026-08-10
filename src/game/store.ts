@@ -50,6 +50,15 @@ import {
   efficiency,
 } from '../sim/entropy.ts'
 import {
+  FOUNDER_BY_ID,
+  MANAGEMENT_DILUTION,
+  canBuyFounder,
+  founderCost,
+  founderEffects,
+  founderLevel,
+  type FounderEffects,
+} from '../sim/founder.ts'
+import {
   TECH_BY_ID,
   canBuyTech,
   inStandup,
@@ -624,7 +633,7 @@ export function currentVelocity(s: GameState = state): number {
  * every poke twice. The separation is the point of having two functions.
  */
 export function currentEffectiveVelocity(s: GameState = state): number {
-  return currentVelocity(s) + Math.max(0, s.pokeRate)
+  return currentVelocity(s) + Math.max(0, s.pokeRate) + founderVelocity()
 }
 
 /**
@@ -644,7 +653,111 @@ export function currentEffectiveVelocity(s: GameState = state): number {
  * while the player maintains their targets and sags when they neglect them.
  */
 export function pokeVelocity(s: GameState = state): number {
-  return Math.max(0, s.pokeRate) + (currentVelocity(s) - baseVelocity(s))
+  return Math.max(0, s.pokeRate) + (currentVelocity(s) - baseVelocity(s)) + founderVelocity()
+}
+
+// --- you — GDD §4.5d, §7.8.10, §13.7.1 -------------------------------------
+
+/** §13.7.1 — the Management tree's current effects. Permanent, never per-run. */
+export function founderOf(): FounderEffects {
+  return founderEffects(getPermanent().meta.founderLevels)
+}
+
+/**
+ * Your own output, in story points a second — §4.5d.
+ *
+ * **The one rate in this game that is not multiplied by the swarm and not
+ * divided by §4.1's Entropy.** It takes no `GameState` at all, and that is the
+ * signature saying so: there is no headcount argument and no efficiency
+ * argument because neither can reach it. Every other velocity function in this
+ * file takes the studio; this one takes nothing, because it is you.
+ *
+ * It lands in §10.1's `you` half rather than the `swarm` half, which is what
+ * R11 built that split for — the readout can finally answer "what am *I*
+ * contributing" with something that is true even when the player's thumb is
+ * still.
+ */
+export function founderVelocity(): number {
+  return founderOf().rate
+}
+
+/**
+ * A tap on your own desk — §4.5d, "clicking your own desk generates story
+ * points on its own growth curve".
+ *
+ * Separate from `poke` on purpose. `poke` resolves §4.7's dev state, §4.8's
+ * zoom yield, §4.9's context switch and §4.5a's buff, every one of which is a
+ * statement about *somebody else* being interrupted. None of them applies to
+ * you: you do not have a mood the player has to read, your yield does not fall
+ * as the camera pulls back — §4.5d's "clickable from anywhere" is exactly the
+ * claim that it does not — and you cannot interrupt yourself.
+ *
+ * §13.7.1's Support node is the only thing that also pays cash, because a
+ * founder answering the support mail is the one kind of work in this game that
+ * bills directly.
+ */
+export function pokeFounder(): number {
+  if (state.scene !== null || state.phase === 'bankrupt') return 0
+
+  const f = founderOf()
+  const sp = f.tapValue
+  const patch: Partial<GameState> = {
+    burned: state.burned.plus(sp),
+    pokeRate: state.pokeRate + sp / POKE_RATE_TAU,
+    pokeCount: state.pokeCount + 1,
+  }
+  if (f.cashPerPoint > 0) patch.cash = state.cash + sp * f.cashPerPoint
+
+  // §13.7.1's REACH node, and it is deliberately a weaker Chained Poke (§13.2
+  // L1-2B) — "every node is a weaker version of somebody else's". Walking the
+  // floor nudges the rows nearest your corner, at the diluted share.
+  if (f.reachRows > 0 && state.devs > 0) {
+    const unitOutput = baseVelocity() / state.devs
+    let buffs = state.buffs
+    let overflow = 0
+    for (let i = 0; i < f.reachRows; i++) {
+      const chained = addBuff(buffs, { rung: 2, index: i }, sp * MANAGEMENT_DILUTION, unitOutput)
+      buffs = chained.buffs
+      overflow += chained.overflow
+    }
+    patch.buffs = buffs
+    if (overflow > 0) patch.burned = state.burned.plus(sp + overflow)
+  }
+
+  set(patch)
+  return sp
+}
+
+/**
+ * §13.7.1's Always On Call — what your desk contributes to §24.5's absence.
+ *
+ * Zero unless the node is owned, which is what makes it a node rather than a
+ * gift. It is the one place the founder's curve touches the offline model, and
+ * it is the Reliability spine diluted into something a studio with no incidents
+ * can still feel: the specialist version will shorten time-to-recover; yours
+ * just means you never really stopped.
+ */
+function offlineFounderVelocity(): number {
+  const f = founderOf()
+  return f.worksOffline ? f.rate : 0
+}
+
+/** §13.7.1 — buy a Management node with cash. The levels are permanent. */
+export function buyFounderNode(id: string): boolean {
+  const node = FOUNDER_BY_ID.get(id)
+  if (!node) return false
+  const p = getPermanent()
+  const levels = p.meta.founderLevels ?? {}
+  if (!canBuyFounder(node, levels, state.cash)) return false
+
+  const level = founderLevel(levels, id)
+  setPermanent({
+    ...p,
+    meta: { ...p.meta, founderLevels: { ...levels, [id]: level + 1 } },
+  })
+  set({ cash: state.cash - founderCost(node, level) })
+  saveGame()
+  return true
 }
 
 // --- per-developer output — GDD §4.9a ---------------------------------------
@@ -866,7 +979,11 @@ export function tick(dtSeconds: number): void {
   // NOT `currentEffectiveVelocity` — see its note. `currentVelocity` carries
   // §4.5a's buffs because they are a real rate; `pokeRate` is display only and
   // its Story Points were banked by `poke` at the moment of the tap.
-  const gained = currentVelocity({ ...state, localEntropy, buffs }) * dtSeconds
+  // §4.5d — your own desk, added rather than multiplied in. It is outside the
+  // §4.1 curve entirely, which is the whole point of the section: this is the
+  // one term that does not fall when the studio does.
+  const gained =
+    currentVelocity({ ...state, localEntropy, buffs }) * dtSeconds + founderVelocity() * dtSeconds
   // What the buffs that just expired had left to give — see `decayBuffs`. The
   // last few per cent of a poke, paid rather than swallowed, so what a tap is
   // worth does not quietly depend on how big the studio was when it landed.
@@ -894,7 +1011,14 @@ export function tick(dtSeconds: number): void {
       // §13.2 L1-3A — nobody goes rogue in a zero-trust codebase.
       zeroTrust: zeroTrustActive(getPermanent().layer1.paradigmLevels),
     }),
-    cash: state.cash - currentPayroll() * dtSeconds + tail.earned,
+    // §13.7.1's Support spine — "the work you do personally also earns cash",
+    // which has to include the work you do while not tapping, or the node would
+    // quietly be a tap bonus wearing a sales node's name.
+    cash:
+      state.cash -
+      currentPayroll() * dtSeconds +
+      tail.earned +
+      founderVelocity() * dtSeconds * founderOf().cashPerPoint,
     lifetimeRevenue: state.lifetimeRevenue + tail.earned,
     releases: tail.releases,
     burned: gained + settled > 0 ? state.burned.plus(gained + settled) : state.burned,
@@ -1099,7 +1223,9 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
 
   const patch: Partial<GameState> = {
     burned: state.burned.plus(paidNow),
-    localEntropy: state.localEntropy + result.localEntropyAdded,
+    // §13.7.1's borrowed Quality spine — a manager who reads it back before
+    // they speak costs the studio less concentration per interruption.
+    localEntropy: state.localEntropy + result.localEntropyAdded * founderOf().contextSwitchScale,
     buffs,
     // The impulse half of the rate estimate. Dividing by the time constant is
     // what makes a steady R points per second converge on exactly R.
@@ -1657,7 +1783,7 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       // buffs live fifteen seconds and this number is about to be multiplied by
       // hours; a restored run has none anyway (§24.2), and naming the base rate
       // here is what keeps that true if one ever survives a reload.
-      velocity: baseVelocity(restored),
+      velocity: baseVelocity(restored) + offlineFounderVelocity(),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: restored.commitment,
       burned: restored.burned,
@@ -1693,7 +1819,7 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
       // Unbuffed, for the same reason as the restore path above: a player who
       // was mid-poke when they closed the tab must not earn eight hours of a
       // buff that would have faded in fifteen seconds.
-      velocity: baseVelocity(state),
+      velocity: baseVelocity(state) + offlineFounderVelocity(),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: state.commitment,
       burned: state.burned,

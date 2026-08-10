@@ -26,6 +26,7 @@ import { BurnDown } from './BurnDown.tsx'
 import { RevenueGraph } from './RevenueGraph.tsx'
 import { ShipToast } from './ShipToast.tsx'
 import { TouchSwitch } from './TouchSwitch.tsx'
+import { FounderDesk } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
@@ -182,6 +183,12 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
             rather than once a session.
           */}
           <TouchSwitch state={state} />
+          {/*
+            §4.5d — your own desk, reachable at every zoom. It sits above the
+            nav rather than in it because it is an *action* the thumb takes
+            during play, like TouchSwitch, and not a door onto a screen.
+          */}
+          <FounderDesk />
           <PerfOverlay stage={stage} />
           {/*
             §10.1's nav — **one bar, and it is owned here now.** `Upgrades` used

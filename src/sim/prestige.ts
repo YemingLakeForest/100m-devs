@@ -214,5 +214,9 @@ export function zeroTrustActive(levels: Readonly<Record<string, number>>): boole
 
 /** §13.2 L1-2B — extra rows of developers a single poke reaches. */
 export function chainedPokeRows(levels: Readonly<Record<string, number>>): number {
-  return Math.max(0, Math.min(3, Math.floor(levels['L1-2B'] ?? 0)))
+  // Floor first, then reject a non-finite result: `Math.max(0, NaN)` is `NaN`,
+  // so a corrupt save level would otherwise become a `NaN` loop bound.
+  const n = Math.floor(levels['L1-2B'] ?? 0)
+  if (!Number.isFinite(n)) return 0
+  return Math.max(0, Math.min(3, n))
 }

@@ -193,6 +193,18 @@ export interface MetaSave {
   pcEarnedLifetime: number
   /** §24.5 gates offline accrual on the first Paradigm Shift. Also §22.6's "every 5th". */
   paradigmShifts: number
+
+  /**
+   * §13.7.1's Management tree — levels per node, merged by **max**.
+   *
+   * In `meta` rather than `layer1`, so it survives a Codebase Fork as well as a
+   * Paradigm Shift. §4.5d is explicit that this curve "grows only because *you*
+   * got better", and a skill you learned is not something a rewrite of the
+   * company's architecture takes away. It is bought with cash — the currency
+   * that is reachable in Run 1, where your desk is sometimes the only thing on
+   * screen — and what persists is the *level*, never the money.
+   */
+  founderLevels?: Record<string, number>
 }
 
 export interface PermanentSave {
@@ -239,6 +251,7 @@ export function emptyMeta(): MetaSave {
     gpEarnedLifetime: 0,
     pcEarnedLifetime: 0,
     paradigmShifts: 0,
+    founderLevels: {},
   }
 }
 
@@ -606,6 +619,9 @@ function normalisePermanent(value: unknown): PermanentSave {
       gpEarnedLifetime: nonNegative(m.gpEarnedLifetime, 0),
       pcEarnedLifetime: nonNegative(m.pcEarnedLifetime, 0),
       paradigmShifts: nonNegative(m.paradigmShifts, 0),
+      // §13.7.1. Absent on every save written before the Management tree, which
+      // correctly describes a founder who has learned nothing yet.
+      founderLevels: numberMap(m.founderLevels),
     },
   }
 }
@@ -693,6 +709,9 @@ export function mergePermanent(
       gpEarnedLifetime: Math.max(a.gpEarnedLifetime, b.gpEarnedLifetime),
       pcEarnedLifetime: Math.max(a.pcEarnedLifetime, b.pcEarnedLifetime),
       paradigmShifts: Math.max(a.paradigmShifts, b.paradigmShifts),
+      // §13.7.1 — max per node, like every other levels map. A skill learned on
+      // one device is learned.
+      founderLevels: maxMap(a.founderLevels ?? {}, b.founderLevels ?? {}),
     },
   }
 }

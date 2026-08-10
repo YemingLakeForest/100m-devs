@@ -1,0 +1,133 @@
+/*
+ * You — GDD §4.5d, §13.7.1.
+ *
+ * Two things: a control in the right rail that is always reachable, and the
+ * Management tree behind it. The control is the load-bearing half — §4.5d
+ * requires the desk be actionable at *every* zoom, and a control that scrolled
+ * away or collapsed under a breakpoint would fail that on the frame sizes
+ * §23.4's design box actually covers. Nothing here has a `display: none`.
+ */
+
+.founder__desk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  pointer-events: auto;
+}
+
+/* Your own rate, beside the slab that raises it. The one number in the game
+   that answers "what am I worth" rather than "what is the company worth". */
+.founder__rate {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p3);
+}
+
+.founder {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  max-height: 76vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.founder__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.founder__title {
+  margin: 0;
+  font-size: var(--type-2x);
+  letter-spacing: 2px;
+  color: var(--p3);
+}
+
+.founder__learned {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+/* §13.7.1's joke, stated once and never explained. */
+.founder__thesis {
+  margin: 0;
+  max-width: 48ch;
+  font-size: var(--type-1x);
+  line-height: 1.6;
+  color: var(--p2);
+}
+
+.founder__rate-line {
+  margin: 0;
+  max-width: 48ch;
+  font-size: var(--type-1x);
+  line-height: 1.6;
+  color: var(--p1);
+}
+
+.founder__rate-line b {
+  color: var(--p3);
+}
+
+.founder__nodes {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.founder__node {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  padding: 8px 10px;
+  border: var(--rule) solid var(--p0);
+}
+
+.founder__node[data-owned='true'] {
+  border-color: var(--p2);
+}
+
+.founder__node-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.founder__node-name {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p3);
+}
+
+/* Whose skill this actually is. The label is the whole of §13.7.1. */
+.founder__node-borrowed {
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
+}
+
+.founder__node-flavour {
+  margin: 0;
+  max-width: 42ch;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p1);
+  font-style: italic;
+}
+
+.founder__node-effect {
+  margin: 0 0 2px;
+  max-width: 42ch;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p2);
+}

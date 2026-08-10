@@ -217,7 +217,13 @@ export function techCost(node: TechNode, currentLevel: number): number {
 export type TechLevels = Readonly<Record<string, number>> | undefined
 
 export function techLevel(levels: TechLevels, id: string): number {
-  return Math.max(0, Math.floor(levels?.[id] ?? 0))
+  // `Math.max(0, Math.floor(NaN))` is `NaN` — `Math.max` propagates it instead
+  // of treating it as the smaller operand — and this value reaches §4.1's
+  // efficiency curve, where one NaN turns the whole studio into `NaN` output
+  // and the treasury into `$NaN` on the next tick. Levels come from a save.
+  const raw = levels?.[id]
+  const n = typeof raw === 'number' ? Math.floor(raw) : 0
+  return Number.isFinite(n) ? Math.max(0, n) : 0
 }
 
 /** Is this node's prerequisite satisfied? */
