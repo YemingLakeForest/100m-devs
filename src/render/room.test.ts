@@ -9,6 +9,7 @@ import {
   FLOOR_COLS,
   FLOOR_ROWS,
   FLOOR_SIZE,
+  FOUNDER_CORNER_COL,
   HOP_AIRBORNE,
   HOP_HEIGHT,
   HOP_SQUASH,
@@ -28,6 +29,7 @@ import {
   PITCH_ROW,
   ROOM_DEV_CAP,
   gridFor,
+  founderDeskPosition,
   hopHeight,
   hopSquash,
   hopSway,
@@ -239,6 +241,39 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     expect(cols).toBe(SQUAD_COLS)
     expect(rows).toBe(SQUAD_ROWS)
     expect(cols * rows).toBe(SQUAD_SIZE)
+  })
+})
+
+describe('your corner desk — GDD §7.8.10', () => {
+  it('sits beyond the north-east end of the rows, never inside their reading order', () => {
+    const you = founderDeskPosition()
+    const first = seatPosition(0)
+    expect(FOUNDER_CORNER_COL).toBeLessThan(0)
+    expect(you.x).toBeGreaterThan(first.x)
+    expect(you.y).toBeLessThan(first.y)
+  })
+
+  it('looks back down the row grain at the developers', () => {
+    const you = founderDeskPosition()
+    const first = seatPosition(0)
+    const second = seatPosition(1)
+    // You -> first and first -> second are the same projected direction:
+    // south-west down the row, rather than north-west into a monitor.
+    expect(first.x - you.x).toBeLessThan(0)
+    expect(first.y - you.y).toBeGreaterThan(0)
+    expect((you.x - first.x) / (first.y - you.y)).toBeCloseTo(
+      (first.x - second.x) / (second.y - first.y),
+      9,
+    )
+  })
+
+  it('does not move when the team grows around it', () => {
+    const room = buildRoom()
+    const atOne = room.founderDeskAt()
+    room.setHeadcount(80)
+    expect(room.founderDeskAt()).toEqual(atOne)
+    room.setHeadcount(1_000)
+    expect(room.founderDeskAt()).toEqual(atOne)
   })
 })
 

@@ -26,7 +26,7 @@ import { BurnDown } from './BurnDown.tsx'
 import { RevenueGraph } from './RevenueGraph.tsx'
 import { ShipToast } from './ShipToast.tsx'
 import { TouchSwitch } from './TouchSwitch.tsx'
-import { FounderDesk } from './Founder.tsx'
+import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
@@ -95,6 +95,7 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
   // §13.2's tree and §11's tree are two doors, and they now hang off one bar.
   const [treeOpen, setTreeOpen] = useState(false)
   const [upgradesOpen, setUpgradesOpen] = useState(false)
+  const [founderOpen, setFounderOpen] = useState(false)
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -109,6 +110,16 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
   useEffect(() => {
     applyEntropyTheme(theme, document.documentElement)
   }, [theme])
+
+  useEffect(() => {
+    if (!stage) return
+    stage.setFounderInspect(() => {
+      setUpgradesOpen(false)
+      setTreeOpen(false)
+      setFounderOpen(true)
+    })
+    return () => stage.setFounderInspect(null)
+  }, [stage])
 
   return (
     <div className="hud">
@@ -195,7 +206,7 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
             both by hand: the rail's rows were measured at every frame in
             §23.4's design box and "a new control does not get to evict canon".
           */}
-          <FounderDesk />
+          <FounderDesk stage={stage} />
           {/*
             §13.2 — the tree appears only once a Paradigm Shift has happened.
             Before the first one BP does not exist, and a permanently visible
@@ -204,8 +215,8 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
           {hasPrestiged() && (
             <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
           )}
-          {/* §10.1's UPGRADES nav, which is where §11's tree and §13.7.1's
-              Management branch both live — one drawer, one currency. */}
+          {/* §10.1's UPGRADES nav. The founder's personal Management tree now
+              opens from their world avatar; this remains the studio tree. */}
           <div className="hud__nav">
             <Button onClick={() => setUpgradesOpen((was) => !was)}>UPGRADES</Button>
           </div>
@@ -239,6 +250,7 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
 
       <Upgrades open={upgradesOpen} onClose={() => setUpgradesOpen(false)} />
       <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
+      <FounderProfilePanel open={founderOpen} onClose={() => setFounderOpen(false)} />
 
       <Bankruptcy open={state.phase === 'bankrupt'} />
       {/*

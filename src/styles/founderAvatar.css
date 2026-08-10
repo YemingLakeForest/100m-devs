@@ -1,0 +1,222 @@
+/* A close-up of the room's block people, built from hard square parts only. */
+
+.founder-avatar {
+  position: relative;
+  width: 196px;
+  height: 176px;
+  margin: 2px auto 0;
+  align-self: center;
+  image-rendering: pixelated;
+}
+
+.founder-avatar__signal {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  padding: 2px 7px;
+  border: 1px solid var(--p2);
+  color: var(--p3);
+  letter-spacing: 3px;
+}
+
+.founder-avatar__signal::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 28px;
+  background: var(--p2);
+}
+
+.founder-avatar__person {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 110px;
+  height: 154px;
+  transform: translateX(-50%);
+}
+
+.founder-avatar__head {
+  position: absolute;
+  z-index: 4;
+  top: 12px;
+  left: 28px;
+  width: 54px;
+  height: 52px;
+  background: var(--skin-3);
+  box-shadow: inset -8px 0 0 var(--skin-1), inset 0 -6px 0 var(--skin-2);
+}
+
+/* Isometric top and side planes echo the Graphics isoBox used in the room. */
+.founder-avatar__head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  width: 54px;
+  height: 12px;
+  background: var(--skin-2);
+  clip-path: polygon(15% 100%, 50% 0, 100% 0, 85% 100%);
+}
+
+.founder-avatar__head::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 9px;
+  height: 52px;
+  background: var(--skin-1);
+  clip-path: polygon(0 0, 100% 8px, 100% 44px, 0 100%);
+}
+
+.founder-avatar__face {
+  position: absolute;
+  inset: 0;
+}
+
+.founder-avatar__face i {
+  position: absolute;
+  top: 24px;
+  width: 6px;
+  height: 6px;
+  background: var(--n0);
+}
+
+.founder-avatar__face i:first-child { left: 11px; }
+.founder-avatar__face i:last-child { right: 15px; }
+
+.founder-avatar__hair {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  top: -8px;
+  width: 54px;
+  height: 19px;
+  background: var(--wood-1);
+  box-shadow: inset -8px 0 0 var(--wood-0);
+}
+
+.founder-avatar[data-head='wave'] .founder-avatar__hair {
+  top: -12px;
+  height: 27px;
+  clip-path: polygon(0 0, 76% 0, 76% 20%, 100% 20%, 100% 100%, 82% 100%, 82% 56%, 0 56%);
+}
+
+.founder-avatar[data-head='coil'] .founder-avatar__hair {
+  top: -13px;
+  left: -3px;
+  width: 60px;
+  height: 26px;
+  background: var(--n1);
+  box-shadow:
+    7px -5px 0 var(--wood-1),
+    22px -7px 0 var(--n1),
+    39px -4px 0 var(--wood-1);
+}
+
+.founder-avatar[data-head='phones'] .founder-avatar__hair {
+  top: -5px;
+  height: 14px;
+  background: var(--n1);
+  box-shadow: inset -8px 0 0 var(--n0);
+}
+
+.founder-avatar__phones { display: none; }
+
+.founder-avatar[data-head='phones'] .founder-avatar__phones {
+  position: absolute;
+  z-index: 5;
+  display: block;
+  left: -5px;
+  top: -10px;
+  width: 59px;
+  height: 36px;
+  border: 5px solid var(--p1);
+  border-bottom: 0;
+}
+
+.founder-avatar__body {
+  position: absolute;
+  z-index: 3;
+  top: 68px;
+  left: 23px;
+  width: 64px;
+  height: 61px;
+  background: var(--calm-1);
+  box-shadow: inset -9px 0 0 var(--calm-0), inset 0 -7px 0 var(--n1);
+}
+
+.founder-avatar__body::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  width: 64px;
+  height: 10px;
+  background: var(--calm-2);
+  clip-path: polygon(15% 100%, 50% 0, 100% 0, 85% 100%);
+}
+
+.founder-avatar[data-body='tee'] .founder-avatar__body { background: var(--warn-1); box-shadow: inset -9px 0 var(--warn-0), inset 0 -7px var(--n1); }
+.founder-avatar[data-body='tee'] .founder-avatar__body::before { background: var(--warn-2); }
+.founder-avatar[data-body='jacket'] .founder-avatar__body { background: var(--n4); box-shadow: inset -9px 0 var(--n2), inset 0 -7px var(--n1); }
+.founder-avatar[data-body='jacket'] .founder-avatar__body::before { background: var(--n5); }
+.founder-avatar[data-body='knit'] .founder-avatar__body { background: var(--foliage-1); box-shadow: inset -9px 0 var(--foliage-0), inset 0 -7px var(--n1); }
+.founder-avatar[data-body='knit'] .founder-avatar__body::before { background: var(--foliage-2); }
+
+.founder-avatar__collar {
+  width: 28px;
+  height: 11px;
+  margin: 0 auto;
+  background: var(--n1);
+  clip-path: polygon(0 0, 50% 100%, 100% 0);
+}
+
+.founder-avatar[data-body='tee'] .founder-avatar__collar,
+.founder-avatar[data-body='knit'] .founder-avatar__collar { display: none; }
+
+.founder-avatar__zip {
+  width: 3px;
+  height: 48px;
+  margin: 0 auto;
+  background: var(--n2);
+}
+
+.founder-avatar[data-body='tee'] .founder-avatar__zip,
+.founder-avatar[data-body='knit'] .founder-avatar__zip { display: none; }
+
+.founder-avatar__arm {
+  position: absolute;
+  z-index: 2;
+  top: 72px;
+  width: 20px;
+  height: 56px;
+  background: var(--calm-0);
+  box-shadow: inset 0 -13px var(--skin-2);
+}
+
+.founder-avatar__arm--left { left: 2px; }
+.founder-avatar__arm--right { right: 1px; background: var(--calm-1); }
+.founder-avatar[data-body='tee'] .founder-avatar__arm { background: var(--warn-0); }
+.founder-avatar[data-body='jacket'] .founder-avatar__arm { background: var(--n3); }
+.founder-avatar[data-body='knit'] .founder-avatar__arm { background: var(--foliage-0); }
+
+.founder-avatar__leg {
+  position: absolute;
+  z-index: 1;
+  top: 127px;
+  width: 27px;
+  height: 27px;
+  background: var(--n2);
+  box-shadow: inset 0 -6px var(--n0);
+}
+
+.founder-avatar__leg--left { left: 26px; }
+.founder-avatar__leg--right { right: 26px; background: var(--n1); }
+
+@container frame (max-height: 390px) {
+  .founder-avatar { transform: scale(0.82); margin: -10px auto -18px; }
+}

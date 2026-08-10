@@ -7,7 +7,13 @@ import { createStage, type StageHandle } from './render/stage.ts'
 import { runBench } from './perf/bench.ts'
 import { markInteractive } from './perf/metrics.ts'
 import { TitleScreen } from './title/TitleScreen.tsx'
+import { FounderSetup } from './title/FounderSetup.tsx'
 import { hasBooted, markBooted } from './title/bootFlag.ts'
+import {
+  DEFAULT_FOUNDER,
+  readFounderProfile,
+  type FounderProfile,
+} from './game/founderProfile.ts'
 
 import './styles/title.css'
 
@@ -49,11 +55,20 @@ export default function App() {
   // below; `markBooted` is idempotent and this initialiser is not re-run.
   const [firstLaunch] = useState(() => !SKIP_TITLE && !hasBooted())
   const [titleUp, setTitleUp] = useState(!SKIP_TITLE)
+  const [titleExiting, setTitleExiting] = useState(false)
   const [started, setStarted] = useState(SKIP_TITLE)
+  const [founderSetupUp, setFounderSetupUp] = useState(false)
+  const [founderProfile, setFounderProfile] = useState<FounderProfile | null>(() =>
+    readFounderProfile(),
+  )
 
   useEffect(() => {
     if (!SKIP_TITLE) markBooted()
   }, [])
+
+  useEffect(() => {
+    stage?.setFounderProfile(founderProfile ?? DEFAULT_FOUNDER)
+  }, [stage, founderProfile])
 
   useEffect(() => {
     const host = hostRef.current
@@ -145,7 +160,7 @@ export default function App() {
     })
   }
 
-  const appClass = ['app', titleUp && 'is-title', titleUp && started && 'is-title-exiting']
+  const appClass = ['app', titleUp && 'is-title', titleUp && titleExiting && 'is-title-exiting']
     .filter(Boolean)
     .join(' ')
 
@@ -156,8 +171,26 @@ export default function App() {
         <TitleScreen
           stage={stage}
           firstLaunch={firstLaunch}
-          onStart={() => setStarted(true)}
-          onExited={() => setTitleUp(false)}
+          onStart={() => {
+            // The title still owns the first frame. START hands a new install
+            // to identity setup, then identity setup hands it to the game.
+            // A returning player goes straight through the same camera push.
+            setTitleExiting(true)
+            if (founderProfile) setStarted(true)
+          }}
+          onExited={() => {
+            setTitleUp(false)
+            if (!founderProfile) setFounderSetupUp(true)
+          }}
+        />
+      )}
+      {founderSetupUp && (
+        <FounderSetup
+          onComplete={(profile) => {
+            setFounderProfile(profile)
+            setFounderSetupUp(false)
+            setStarted(true)
+          }}
         />
       )}
       {/*

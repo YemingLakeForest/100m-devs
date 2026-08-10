@@ -1498,10 +1498,21 @@ body {
     grid-column: 1 / -1;
   }
 
+  .founder__corner {
+    grid-row: 3;
+    grid-column: 1 / -1;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .founder__corner-label {
+    display: none;
+  }
+
   /* §13.2's PARADIGM, when it exists. Under the pair rather than over it: it is
      the rarest control in the rail and the only one that is not always there. */
   .hud__controls > .ui-btn {
-    grid-row: 3;
+    grid-row: 4;
     grid-column: 1 / -1;
   }
 

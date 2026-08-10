@@ -31,6 +31,11 @@ import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { createAmbient, type Seat } from './ambient.ts'
 import { developerAt, type Look } from '../sim/identity.ts'
+import {
+  DEFAULT_FOUNDER,
+  founderLook,
+  type FounderProfile,
+} from '../game/founderProfile.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -276,6 +281,8 @@ export interface RoomHandle {
    * this rebuilds geometry and is far too expensive for the ticker.
    */
   setHeadcount(devs: number): void
+  /** The install identity drawn at §7.8.10's permanent corner desk. */
+  setFounderProfile(profile: FounderProfile): void
   /** §7.8.7 — set the run seed. Rebuilds every developer's appearance. */
   setSeed(seed: number): void
   /** §7.8.8 — who is turned round to face the camera. -1 for nobody. */
@@ -302,6 +309,10 @@ export interface RoomHandle {
   animate(elapsed: number, state: string, dt?: number, entropy?: number): void
   /** Jolt developer `i` — the §8.2 poke reaction. */
   jolt(i: number): void
+  /** Your CODE action has its own physical reaction at the corner desk. */
+  joltFounder(): void
+  /** Room-local Hero Anchor for the desk-focused camera move. */
+  founderDeskAt(): { x: number; y: number }
   /** Where developer `i` sits, in room-local coordinates. Null if not drawn. */
   deskAt(i: number): { x: number; y: number } | null
   /**
@@ -561,6 +572,19 @@ export function seatGrid(index: number): { col: number; row: number } {
 export function seatPosition(index: number): { x: number; y: number } {
   const { col, row } = seatGrid(index)
   return isoAt(col, row)
+}
+
+/**
+ * §7.8.10 — your desk lives past the north-east end of row zero.
+ *
+ * Developer rows extend south-west as `col` rises. A negative column is
+ * therefore the one corner that can never be built over, and looking toward
+ * positive `col` points the founder back down the rows at the people in them.
+ */
+export const FOUNDER_CORNER_COL = -2.35
+
+export function founderDeskPosition(): { x: number; y: number } {
+  return isoAt(FOUNDER_CORNER_COL, 0)
 }
 
 /**
@@ -1567,6 +1591,31 @@ function drawWhiteboard(g: Graphics, x: number, y: number, seed: number, slope: 
   }
 }
 
+/**
+ * The founder gets the same proven workstation as every developer.
+ *
+ * The first pass drew a unique rotated desk here. Its monitor was a separate
+ * hand-built projection, the person used a separate anatomy, and the result
+ * looked like the founder was standing on a distorted PC. A manager is still
+ * a developer: use the exact desk bank, monitor, tower and dressing primitives
+ * the rest of the room uses, then place that coherent unit at the fixed corner.
+ */
+function drawFounderWorkstation(g: Graphics, x: number, y: number) {
+  g.position.set(x, y)
+  drawDeskBank(g, 0, 0, 0)
+  drawWorkstation(g, 0, 0, 997)
+}
+
+/** Your personalised block developer, facing out toward the studio. */
+function buildFounderAvatar(profile: FounderProfile): Container {
+  const avatar = buildDeveloper(founderLook(profile))
+  const [back, front] = avatar.children as Graphics[]
+  back.visible = false
+  front.visible = true
+  avatar.label = `founder:${profile.name}`
+  return avatar
+}
+
 export function buildRoom(): RoomHandle {
   const root = new Container()
 
@@ -1582,15 +1631,18 @@ export function buildRoom(): RoomHandle {
   const shell = new Graphics()
   const light = new Graphics()
   const furniture = new Graphics()
+  const managerDesk = new Graphics()
   // Desks, one Graphics per squad. Split so a squad's desks can be withheld
   // until its panel has finished turning — trap 7 still holds *within* each
   // one, and squads are themselves laid down in painter order, so index order
   // is still the correct depth order end to end.
   const deskLayer = new Container()
   const devLayer = new Container()
+  const founderLayer = new Container()
   // Labelled because the layer list is now long enough that finding it by
   // child index is a test that breaks every time a layer is added.
   devLayer.label = 'developers'
+  founderLayer.label = 'founder'
   plates.label = 'plates'
   deskLayer.label = 'desks'
   const ambient = createAmbient()
@@ -1600,7 +1652,7 @@ export function buildRoom(): RoomHandle {
   // shell's diamond and its walls are what the unfold fades away, and the two
   // never overlap on screen because the walls rise from behind the deepest
   // plate.
-  root.addChild(shell, plates, light, furniture, deskLayer, devLayer, ambient.layer)
+  root.addChild(shell, plates, light, furniture, deskLayer, managerDesk, devLayer, founderLayer, ambient.layer)
 
   /** One §7.8.1c panel: the plate itself, and the light it catches turning. */
   interface Panel {
@@ -1614,6 +1666,10 @@ export function buildRoom(): RoomHandle {
   const squadDesks: Graphics[] = []
 
   const devs: Container[] = []
+  let founderProfile = DEFAULT_FOUNDER
+  let founder = buildFounderAvatar(founderProfile)
+  let founderHopStartedAt = Number.NEGATIVE_INFINITY
+  founderLayer.addChild(founder)
   /**
    * §7.8.7's run seed. Held here rather than passed per rebuild because the
    * identities must not change while a run is being played — the store owns the
@@ -1686,6 +1742,7 @@ export function buildRoom(): RoomHandle {
     shell.clear()
     light.clear()
     furniture.clear()
+    managerDesk.clear()
     desks.length = 0
     walkTargets.length = 0
 
@@ -1723,7 +1780,7 @@ export function buildRoom(): RoomHandle {
     // rather than from the squad, and it stays.
     const box = unfolded
       ? floorBox(Math.ceil(n / SQUAD_SIZE))
-      : blockBox(0, 0, cols - 1, rows - 1)
+      : blockBox(FOUNDER_CORNER_COL - 0.95, -0.2, cols - 1, rows - 1)
     const bw = (box.maxX - box.minX) / 2
     const bh = (box.maxY - box.minY) / 2
     const floorW = unfolded ? Math.max(bw, bh * 2) * margin : plateHalfWidth(bw, bh, margin)
@@ -2040,6 +2097,12 @@ export function buildRoom(): RoomHandle {
       drawWorkstation(g, x, y, i)
     }
 
+    // §7.8.10 — one non-row workstation, held outside the reading order and
+    // turned across it. It is redrawn only on hire, like every other desk.
+    const founderAt = founderDeskPosition()
+    drawFounderWorkstation(managerDesk, founderAt.x, founderAt.y)
+    founder.position.set(founderAt.x, founderAt.y + 6)
+
     // Reuse developer containers across rebuilds — a hire should not rebuild
     // ninety-nine sprites that did not change.
     while (devs.length < n) {
@@ -2339,8 +2402,34 @@ export function buildRoom(): RoomHandle {
           desks[i].y + 6 - lift + walk.y - jolts[i] * 5 - (held ? 16 : 0) + BODY_BASE * (1 - squash),
         )
       }
+
+      const founderAt = founderDeskPosition()
+      const founderHopAge = elapsed - founderHopStartedAt
+      const founderHopping = founderHopAge >= 0 && founderHopAge < 0.55
+      const founderPhase = founderHopping ? founderHopAge / 0.55 : 1
+      const founderLift = founderHopping ? hopHeight(founderPhase) * HOP_HEIGHT * 1.35 : 0
+      const founderSway = founderHopping ? hopSway(founderPhase) * HOP_SWAY : 0
+      const founderSquash = founderHopping ? hopSquash(founderPhase) : 1
+      founder.scale.set(1, founderSquash)
+      founder.position.set(
+        founderAt.x + founderSway,
+        founderAt.y + 6 - founderLift + BODY_BASE * (1 - founderSquash),
+      )
     },
     hands: ambient,
+    setFounderProfile(next: FounderProfile) {
+      if (
+        next.name === founderProfile.name &&
+        next.head === founderProfile.head &&
+        next.body === founderProfile.body
+      ) return
+      founderProfile = next
+      const replacement = buildFounderAvatar(founderProfile)
+      replacement.position.copyFrom(founder.position)
+      founder.destroy({ children: true })
+      founder = replacement
+      founderLayer.addChild(founder)
+    },
     setSelected(index: number) {
       if (index === selected) return
       // Both the outgoing and the incoming developer have to turn, so the two
@@ -2380,6 +2469,12 @@ export function buildRoom(): RoomHandle {
       // gets no reaction because that person happened to be chatting has been
       // told the game is a cutscene.
       ambient.interrupt(i)
+    },
+    joltFounder() {
+      founderHopStartedAt = performance.now() / 1000
+    },
+    founderDeskAt() {
+      return founderDeskPosition()
     },
     deskFor(i: number) {
       return seatPosition(i)

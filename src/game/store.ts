@@ -696,7 +696,7 @@ export function founderVelocity(): number {
  * founder answering the support mail is the one kind of work in this game that
  * bills directly.
  */
-export function pokeFounder(): number {
+export function pokeFounder(x = 0, y = 0): number {
   if (state.scene !== null || state.phase === 'bankrupt') return 0
 
   const f = founderOf()
@@ -705,6 +705,23 @@ export function pokeFounder(): number {
     burned: state.burned.plus(sp),
     pokeRate: state.pokeRate + sp / POKE_RATE_TAU,
     pokeCount: state.pokeCount + 1,
+    // Your code is still code. Use the same flying Story Point and source-line
+    // feedback as every other developer instead of silently changing numbers
+    // in the HUD. The stage supplies the founder's screen position; tests and
+    // non-rendered callers safely fall back to the origin.
+    floaters: [
+      ...state.floaters,
+      {
+        id: nextFloaterId++,
+        sp,
+        x,
+        y,
+        crit: false,
+        bornAt: performance.now(),
+        snippet: snippets.next('working'),
+        unblocked: false,
+      },
+    ],
   }
   if (f.cashPerPoint > 0) patch.cash = state.cash + sp * f.cashPerPoint
 

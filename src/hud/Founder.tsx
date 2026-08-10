@@ -1,4 +1,6 @@
 import { Button } from '../ui/Button.tsx'
+import { Panel } from '../ui/Panel.tsx'
+import { FounderAvatar } from '../ui/FounderAvatar.tsx'
 import {
   FOUNDER_TREE,
   founderCost,
@@ -7,6 +9,9 @@ import {
 } from '../sim/founder.ts'
 import { buyFounderNode, founderOf, getPermanent, pokeFounder } from '../game/store.ts'
 import { formatMoney } from './hudModel.ts'
+import { DEFAULT_FOUNDER, readFounderProfile } from '../game/founderProfile.ts'
+import type { StageHandle } from '../render/stage.ts'
+import { useGameState } from './useGameState.ts'
 
 import '../styles/founder.css'
 
@@ -29,15 +34,29 @@ import '../styles/founder.css'
  * right rail was measured at every frame in §23.4's design box, and the note on
  * the 336 px media query records that adding §7.7.6b's touch latches already
  * cost the rail a row — "a new control does not get to evict canon". So the
- * desk is a single slab that shares §13.2's row, the rate it produces is read
- * off §10.1's `swarm + you` split where it already appears, and the Management
- * tree lives in the UPGRADES drawer beside the other things cash buys.
+ * desk is a single slab that shares §13.2's row, and the rate it produces is
+ * read off §10.1's `swarm + you` split where it already appears. The person's
+ * own world hit target opens the identity/tree screen; CODE remains only CODE.
  */
-export function FounderDesk() {
+export function FounderDesk({ stage }: { stage: StageHandle | null }) {
+  const founder = readFounderProfile() ?? DEFAULT_FOUNDER
+
   return (
-    <Button className="founder__tap" onClick={() => pokeFounder()}>
-      YOUR DESK
-    </Button>
+    <div className="founder__corner">
+      <div className="founder__corner-label">
+        <span>MANAGER CORNER</span>
+        <b>{founder.name.toUpperCase()}</b>
+      </div>
+      <Button
+        className="founder__tap"
+        onClick={() => {
+          if (stage) stage.codeFounder()
+          else pokeFounder()
+        }}
+      >
+        CODE — YOU
+      </Button>
+    </div>
   )
 }
 
@@ -70,18 +89,16 @@ function Node({ node, cash }: { node: FounderNode; cash: number }) {
 }
 
 /**
- * The Management tree — §13.7.1, rendered as a branch of the §11 drawer.
+ * The Management tree — §13.7.1, rendered inside the founder profile screen.
  *
  * > The Management tree contains a diluted copy of every other tree's spine,
  * > and nothing of its own. You can do a bit of engineering, a bit of QA, a bit
  * > of support, a bit of ops. Each node is meaningfully weaker than the
  * > specialist equivalent, costs more, and is available earlier.
  *
- * **It sits inside UPGRADES rather than behind a door of its own**, and that is
- * a design answer as much as a layout one: this is bought with cash, like every
- * §11 node, so putting it anywhere else would mean two screens spending one
- * currency. It also lands the joke without a line of copy — your own skills are
- * a line item in the same budget as the coffee machine.
+ * The founder portrait and live personal output sit beside it, so each purchase
+ * has a visible owner. It still spends the same cash as §11; the separation is
+ * about whose screen the skills belong to, not a second economy.
  *
  * The header states the thesis once. Nothing else explains it, because §13.7.1
  * is explicit that the player should "discover this by buying the nodes and
@@ -105,5 +122,44 @@ export function FounderBranch({ cash }: { cash: number }) {
         <Node key={node.id} node={node} cash={cash} />
       ))}
     </section>
+  )
+}
+
+/**
+ * Clicking the person in the room opens their own surface: identity on the
+ * left, the permanent Management tree on the right. Coding stays on the rail
+ * button, so inspecting yourself never spends a tap and tapping CODE never
+ * unexpectedly opens navigation.
+ */
+export function FounderProfilePanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const state = useGameState()
+  const founder = readFounderProfile() ?? DEFAULT_FOUNDER
+
+  return (
+    <Panel open={open} modal from="centre" className="founder-profile">
+      <div className="founder-profile__head">
+        <div>
+          <span className="founder-profile__kicker">PERSONNEL // 00</span>
+          <h2>{founder.name.toUpperCase()}</h2>
+          <p>FOUNDER · MANAGEMENT · STILL CODES</p>
+        </div>
+        <Button onClick={onClose}>BACK</Button>
+      </div>
+
+      <div className="founder-profile__body">
+        <aside className="founder-profile__identity">
+          <FounderAvatar head={founder.head} body={founder.body} label="YOU" />
+          <dl>
+            <div><dt>OUTPUT</dt><dd>{founderOf().rate.toFixed(1)} SP/S</dd></div>
+            <div><dt>PER TAP</dt><dd>+{founderOf().tapValue.toFixed(0)} SP</dd></div>
+            <div><dt>PAYROLL</dt><dd>$0</dd></div>
+          </dl>
+        </aside>
+
+        <div className="founder-profile__tree">
+          <FounderBranch cash={state.cash} />
+        </div>
+      </div>
+    </Panel>
   )
 }

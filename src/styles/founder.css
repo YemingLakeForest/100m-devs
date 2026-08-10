@@ -9,9 +9,9 @@
  * **one slab and nothing else**: no rate readout beside it (§10.1's split
  * already carries that number) and no second door.
  *
- * The Management tree therefore lives inside the §11 drawer instead, which is
- * also where it belongs on its own merits — it is bought with cash, like every
- * §11 node, and two screens spending one currency is a worse answer than one.
+ * The Management tree lives on the founder's profile screen, opened from the
+ * world avatar. CODE stays a verb, while the person is the route to identity
+ * and progression; both still spend the same studio cash.
  *
  * The first draft of this control was a three-item flex row. It overflowed the
  * rail on the 997x448 reference frame and landed on top of the §23.3 perf
@@ -29,6 +29,35 @@
 
 .founder__rate-line b {
   color: var(--p3);
+}
+
+.founder__corner {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding-top: 3px;
+  border-top: var(--rule) solid var(--p0);
+  pointer-events: auto;
+}
+
+.founder__corner-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  color: var(--p1);
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+.founder__corner-label b {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--p3);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .founder__nodes {
@@ -85,4 +114,138 @@
   font-size: var(--type-1x);
   line-height: 1.5;
   color: var(--p2);
+}
+
+/* --- the founder's own screen ------------------------------------------ */
+
+.founder-profile {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  width: min(760px, calc(100% - 2 * var(--edge-x)));
+  max-height: calc(100% - 2 * var(--edge-y));
+  padding: 12px 14px 14px;
+  overflow: hidden;
+  pointer-events: auto;
+  border: var(--rule) solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+}
+
+.founder-profile__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: var(--rule) solid var(--p1);
+}
+
+.founder-profile__kicker {
+  color: var(--p1);
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+}
+
+.founder-profile h2 {
+  margin: 2px 0 0;
+  color: var(--p3);
+  font-size: var(--type-3x);
+  font-weight: 400;
+  letter-spacing: 3px;
+}
+
+.founder-profile__head p {
+  margin: 2px 0 0;
+  color: var(--p1);
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+}
+
+.founder-profile__head .ui-btn {
+  flex: 0 0 auto;
+  font-size: var(--type-1x);
+}
+
+.founder-profile__body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.founder-profile__identity {
+  display: grid;
+  align-content: start;
+  border-right: var(--rule) solid var(--p0);
+}
+
+.founder-profile__identity dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-right: 14px;
+}
+
+.founder-profile__identity dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: var(--rule) solid var(--p0);
+}
+
+.founder-profile__identity dt {
+  color: var(--p1);
+}
+
+.founder-profile__identity dd {
+  margin: 0;
+  color: var(--p3);
+}
+
+.founder-profile__tree {
+  min-height: 0;
+  padding-right: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--p1) var(--n0);
+}
+
+.founder-profile__tree::-webkit-scrollbar {
+  width: 7px;
+}
+
+.founder-profile__tree::-webkit-scrollbar-track {
+  background: var(--n0);
+}
+
+.founder-profile__tree::-webkit-scrollbar-thumb {
+  background: var(--p1);
+  border: 2px solid var(--n0);
+}
+
+@container frame (max-height: 390px) {
+  .founder-profile {
+    gap: 6px;
+    padding: 8px 10px 10px;
+  }
+
+  .founder-profile h2 {
+    font-size: var(--type-2x);
+  }
+
+  .founder-profile__head p {
+    display: none;
+  }
+
+  .founder-profile__body {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .founder-profile__identity .founder-avatar {
+    margin: -23px auto -31px;
+    transform: scale(0.66);
+  }
 }

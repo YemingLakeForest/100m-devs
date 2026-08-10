@@ -102,6 +102,14 @@ describe('tapping your own desk — §4.5d', () => {
     expect(getState().burned.toNumber() - before).toBeCloseTo(paid, 8)
   })
 
+  it('throws the same Story Point and code-line feedback as a developer', () => {
+    const paid = pokeFounder(123, 234)
+    const floater = getState().floaters.at(-1)
+
+    expect(floater).toMatchObject({ sp: paid, x: 123, y: 234, crit: false })
+    expect(floater?.snippet).toBeTruthy()
+  })
+
   it('is worth more than standing still, or it is an idler and not a clicker', () => {
     // §4.5d failure condition 1.
     expect(pokeFounder()).toBeGreaterThan(founderVelocity())

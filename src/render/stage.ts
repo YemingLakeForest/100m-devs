@@ -15,6 +15,7 @@ import {
   developerVelocity,
   getState,
   poke,
+  pokeFounder,
   selectDeveloper,
   setZoom,
   tick,
@@ -58,6 +59,7 @@ import {
 import { tapVerb } from '../game/touchMode.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
+import type { FounderProfile } from '../game/founderProfile.ts'
 
 export interface StageHandle {
   /** Rolling frame time in ms, for the GDD §23.3 overlay. */
@@ -65,6 +67,14 @@ export interface StageHandle {
   /** p95 tap -> numeral latency in ms. Criterion 1's threshold is 80 ms. */
   readonly latencyP95: number
   readonly camera: LensCamera
+  /** §7.8.10 Hero Anchor: return smoothly to the manager corner. */
+  focusFounder(): void
+  /** Code at your own desk with the standard numeral/snippet feedback. */
+  codeFounder(): number
+  /** React hook for opening the founder profile when the world avatar is tapped. */
+  setFounderInspect(handler: (() => void) | null): void
+  /** Replace the default figure once first-start setup has been submitted. */
+  setFounderProfile(profile: FounderProfile): void
   /** Everything the GDD §23.3 acceptance run needs to drive and measure the app. */
   readonly bench: BenchHooks & { frames: FrameSampler }
   destroy(): void
@@ -276,6 +286,29 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     return seatCache
   }
 
+  const founderHit = (x: number, y: number): 'avatar' | 'desk' | null => {
+    if (currentView !== 'room' || !(currentScale > 0)) return null
+    const local = views.room.toLocal({ x, y })
+    const at = room.founderDeskAt()
+    const reach = 10 / Math.max(0.15, currentScale) + 4
+
+    // The person owns the upper/front part of the workstation. It is checked
+    // first so tapping YOU opens YOU even where their body overlaps the desk.
+    if (
+      Math.abs(local.x - at.x) <= 12 + reach &&
+      local.y >= at.y - 34 - reach &&
+      local.y <= at.y + 10 + reach
+    ) return 'avatar'
+
+    // The normal developer desk sits north-west of its seat. Keep this a large
+    // thumb target without swallowing the avatar above it.
+    const deskX = at.x - 13
+    const deskY = at.y - 8
+    return Math.hypot(local.x - deskX, local.y - deskY) <= 24 + reach ? 'desk' : null
+  }
+
+  let founderInspect: (() => void) | null = null
+
   /** The whole tap path, shared by real pointers and the §23.3 bench. */
   /**
    * §7.8.8 — the neutral mode's tap.
@@ -288,6 +321,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   const doSelect = (x: number, y: number): boolean => {
     if (currentView !== 'room') return false
+    if (founderHit(x, y)) {
+      selectDeveloper(null)
+      playUi('click')
+      founderInspect?.()
+      return true
+    }
     const target = pickDeveloper(x, y)
     selectDeveloper(target < 0 ? null : target)
     playUi(target < 0 ? 'close' : 'whoosh')
@@ -295,6 +334,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   const doPoke = (x: number, y: number, t0: number) => {
+    const founderTarget = founderHit(x, y)
+    if (founderTarget === 'avatar') {
+      selectDeveloper(null)
+      playUi('click')
+      founderInspect?.()
+      return
+    }
+    if (founderTarget === 'desk') {
+      codeAtFounderDesk(t0, true)
+      return
+    }
+
     // §4.5b — what was actually poked. Null means the tap landed on empty
     // floor, open ground or sky, which is a miss rather than a free point:
     // §7.7.6 makes the world addressable, and an addressable world has places
@@ -392,6 +443,31 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   /** §21 Act IV's scripted dolly, and §7.7.6's double-tap. Null when the camera is the player's again. */
   let dollyTarget: number | null = null
+  /** The rail's CODE — YOU action owns the lens until the corner desk lands. */
+  let founderFocus = false
+
+  const focusFounderCamera = () => {
+    founderFocus = true
+    focal = null
+    pan.vx = 0
+    pan.vy = 0
+    dollyTarget = zAtRung(0)
+  }
+
+  const codeAtFounderDesk = (t0?: number, sound = false): number => {
+    const local = room.founderDeskAt()
+    const at = views.room.toGlobal({ x: local.x, y: local.y - 30 })
+    const paid = pokeFounder(at.x, at.y)
+    if (paid <= 0) return 0
+
+    focusFounderCamera()
+    room.joltFounder()
+    if (sound) playUi('click')
+    if (t0 !== undefined) {
+      requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
+    }
+    return paid
+  }
 
   /**
    * §7.7.6 — descend one rung of the §7.4a ladder, centred on `(x, y)`.
@@ -452,6 +528,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   const onPointerDown = (ev: PointerEvent) => {
     const t = ev.timeStamp || performance.now()
+    // A hand on the world takes the camera back from a scripted Hero Anchor.
+    founderFocus = false
 
     // Only the first finger drags; a second means a pinch, handled below.
     if (drag === null && pointers.size === 0) {
@@ -635,6 +713,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // while developing. Never the path a pass/fail is measured on.
   const onWheel = (ev: WheelEvent) => {
     ev.preventDefault()
+    founderFocus = false
     focal = { x: ev.clientX, y: ev.clientY }
     camera.nudge(ev.deltaY * 0.0008)
   }
@@ -886,6 +965,20 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     limitX = panLimit(domExtent.w * domScale, viewport.w)
     limitY = panLimit(domExtent.h * domScale, viewport.h)
+    if (founderFocus && view === 'room') {
+      const at = room.founderDeskAt()
+      const roomView = views.room
+      const targetX = Math.min(limitX, Math.max(-limitX, -(at.x - roomView.pivot.x) * domScale))
+      const targetY = Math.min(limitY, Math.max(-limitY, -(at.y - roomView.pivot.y) * domScale))
+      const move = Math.min(1, dt * 6.5)
+      pan.x += (targetX - pan.x) * move
+      pan.y += (targetY - pan.y) * move
+      pan.vx = 0
+      pan.vy = 0
+      if (camera.z < 0.002 && Math.hypot(targetX - pan.x, targetY - pan.y) < 0.8) {
+        founderFocus = false
+      }
+    }
     if (!drag) pan = stepPan(pan, dt, limitX, limitY)
     else pan = clampPan(pan, limitX, limitY)
 
@@ -1031,6 +1124,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return tapLatency.p95
     },
     camera,
+    focusFounder() {
+      focusFounderCamera()
+    },
+    codeFounder() {
+      return codeAtFounderDesk()
+    },
+    setFounderInspect(handler: (() => void) | null) {
+      founderInspect = handler
+    },
+    setFounderProfile(profile: FounderProfile) {
+      room.setFounderProfile(profile)
+    },
     bench: {
       camera,
       tap: () => doPoke(app.screen.width / 2, app.screen.height / 2, performance.now()),
