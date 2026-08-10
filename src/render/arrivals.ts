@@ -300,7 +300,7 @@ export function createArrivals(): Arrivals {
         anchor(deskG, at.x, at.y)
 
         const kitG = new Graphics()
-        drawWorkstation(kitG, at.x, at.y)
+        drawWorkstation(kitG, at.x, at.y, seat)
         anchor(kitG, at.x, at.y)
 
         const dev = buildDeveloper(developerAt(seed, seat).look)

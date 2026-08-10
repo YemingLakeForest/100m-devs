@@ -221,54 +221,114 @@ body {
    * area and draw them on top of each other — that is exactly how the previous
    * revision's advisor copy ended up underneath its own action button.
    */
-  grid-template-columns: var(--hud-rail) minmax(0, 1fr) var(--hud-rail);
   /*
-   * The script row is `auto`, so it takes what it needs and the middle row
-   * gives way. That ordering is the point: the simulation can be squeezed and
-   * the copy cannot, because the copy is the product (Appendix D) and the
-   * simulation is still perfectly legible with less of it showing.
+   * The right-hand column may grow past the rail by up to `--hud-overhang` to
+   * fit a control that is wider than a readout — the §21 action button and the
+   * §23.3 overlay both are. The middle column gives up exactly that width, so
+   * the copy is never drawn under a button and no control ever overflows the
+   * frame. See `--hud-overhang`.
    */
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: var(--hud-rail) minmax(0, 1fr) minmax(var(--hud-rail), auto);
+  /*
+   * **Two rails, full height, and the copy between them.** This is the fix for
+   * the overlap reported off a handset, and it took two goes to get right.
+   *
+   * The frame this replaced gave each rail two rows — an `auto` one pinned to
+   * the top and a `1fr` one pinned to the bottom. On a 336 px-tall phone the
+   * `1fr` row collapses shorter than what is in it, and a bottom-pinned block
+   * that does not fit its row overflows *upward*, over the readout above it.
+   * Both rails did it at once: the speedometer came up through the revenue
+   * graph and the hire button came up through SHIPPED.
+   *
+   * Making each rail a single column fixed that pair and produced the same
+   * failure one level out: the script row is `auto`, so a four-line §21 banner
+   * takes its height off the rails' row, and the bottom of the left rail then
+   * overflowed into the copy. Which is the worse of the two — §10.1 is explicit
+   * that the copy is the product and the simulation is what gives way.
+   *
+   * So the rails span **both** rows and own their columns outright, and §21's
+   * script takes the middle column only. Nothing in a rail can now collide with
+   * anything in another rail or with the copy, at any frame height, because
+   * they no longer share a single pixel of the grid. The copy is narrower and
+   * grows upward *over the simulation* when it needs more room, which is
+   * exactly the order §10.1 asks for.
+   */
+  grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas:
-    'project bubble resources'
-    'gauges  bubble actions'
-    'script  script controls';
+    'left bubble right'
+    'left script right';
   column-gap: 12px;
   row-gap: 8px;
 }
 
-.hud__project {
-  grid-area: project;
-  align-self: start;
+/*
+ * The two rails. Top-aligned content, with the bottom element of each pinned
+ * down by an auto margin — §10.1's composition when there is room for it, and a
+ * plain stack when there is not.
+ *
+ * `min-height: 0` so the rail may be shorter than its contents rather than
+ * forcing the grid row open: when the frame really is too short, the rails give
+ * way into the simulation behind them, which is the §7.1 Layer working as
+ * designed. What they no longer do is give way into each other.
+ */
+.hud__left,
+.hud__right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.hud__left {
+  grid-area: left;
+}
+
+.hud__right {
+  grid-area: right;
+  /* Everything in the rail hangs off its right edge, so a control wider than a
+     readout grows leftward rather than pushing the readouts about. */
+  align-items: flex-end;
 }
 
 /*
- * **Anchored to the bottom of its row, not the top**, and that is a priority
- * decision rather than a taste one.
- *
- * The middle row is `1fr`, so when the frame is short it is the row that
- * shrinks — and a block anchored to the top of a row shorter than its own
- * content overflows *downward*, straight over §21's script. That happened twice
- * in one session, once when the revenue graph arrived and again when the
- * man-week readout did, and both times the copy is what got buried.
- *
- * Anchored to the end, the overflow goes upward into the simulation instead,
- * which is exactly the order §10.1 asks for: "the simulation can be squeezed
- * and the copy cannot, because the copy is the product".
+ * §10.1's nav and the §23.3 overlay, at the foot of the right rail — under the
+ * action button, which is under the CASH readout it spends. They used to have a
+ * grid area of their own in the bottom-right cell; with the rail spanning the
+ * full height there is no bottom-right cell to have, and the reading order down
+ * the rail is the same one it always was.
+ */
+.hud__controls {
+  align-self: flex-end;
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+}
+
+.hud__project {
+  flex: 0 0 auto;
+}
+
+/*
+ * Pinned to the bottom of the rail rather than sitting under the project block,
+ * which is §10.1's "speedometer mid-left, velocity directly under it". The auto
+ * margin collapses to nothing the moment the rail is full, so a short frame
+ * degrades to a plain stack instead of to an overlap.
  */
 .hud__gauges {
-  grid-area: gauges;
-  align-self: end;
+  flex: 0 0 auto;
+  margin-top: auto;
   display: grid;
   gap: 6px;
 }
 
 .hud__resources {
-  grid-area: resources;
-  align-self: start;
+  flex: 0 0 auto;
   display: grid;
   gap: 6px;
   justify-items: stretch;
+  /* Pinned to the rail, not to the column: the column breathes to fit the
+     action button and the readouts must not breathe with it. */
+  width: var(--hud-rail);
 }
 
 .hud__script {
@@ -279,15 +339,6 @@ body {
   /* The banner is drawn `pre` and a long line must not be able to push the
      grid column wider than the rail arithmetic allows. */
   min-width: 0;
-}
-
-.hud__controls {
-  grid-area: controls;
-  align-self: end;
-  justify-self: end;
-  display: grid;
-  gap: 5px;
-  justify-items: end;
 }
 
 /* --- the readout block, the one repeated shape ------------------------- */
@@ -495,11 +546,20 @@ body {
 .revenue__head {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
 }
 
+/*
+ * The one label in the HUD that carries a figure, so it is the one that runs
+ * out of rail: `REVENUE $0.0/s IN` at the shared label tracking is a couple of
+ * pixels wider than 146, and `.hud__label` clips rather than wrapping — so the
+ * readout lost its last character on every phone. The word keeps its tracking;
+ * the number gives it up, because a tabular numeral does not need letter
+ * spacing to be read.
+ */
 .revenue__rates {
   color: var(--p2);
+  letter-spacing: 0;
 }
 
 .revenue__chart {
@@ -607,14 +667,43 @@ body {
  * adjacency worth having on a screen full of numbers.
  */
 .hud__actions {
-  grid-area: actions;
-  align-self: end;
-  justify-self: end;
+  /* Bottom of the right rail, under the CASH readout it spends. `margin-top`
+     rather than a grid row of its own — see the note on `.hud` for why the
+     rails stopped being two rows each. */
+  margin-top: auto;
+  align-self: flex-end;
   display: grid;
+  /*
+   * `minmax(0, 1fr)` rather than the default `auto` track. An `auto` track
+   * grows to its content's max-content size and **overflows a fixed-width grid
+   * container rather than shrinking**, so capping this panel's width did
+   * nothing at all: the panel measured 266 px and the button inside it measured
+   * 362, hanging off the right-hand edge of the phone. A `1fr` track with a zero
+   * minimum is allowed to be smaller than its content, which is what makes the
+   * label wrap instead.
+   */
+  grid-template-columns: minmax(0, 1fr);
   justify-items: end;
   gap: 5px;
   pointer-events: auto;
   padding-bottom: 2px;
+  /*
+   * **The buttons may be wider than the rail.** The rail is sized for the
+   * readouts (`--hud-rail`, 26 columns of the 11 px face), and a 22 px button
+   * label inside it gets about eleven characters a line — so `HIRE 1,000 DEVS
+   * NOW` came out as a three-line tower, the offer, the dial and the ordinary
+   * hire button together stood 284 px tall, and the stack ran off the bottom of
+   * every frame in the §23.4.2 box including the tallest.
+   *
+   * Growing leftward over the simulation is the right way out. The §7.1 Layer
+   * is allowed to be over the picture — that is what it is — and a control is
+   * the one thing on it the player is actually reaching for. `min-width: 100%`
+   * keeps it flush with the rail when the label is short, so nothing moves on
+   * the frames where there was never a problem.
+   */
+  width: max-content;
+  min-width: var(--hud-rail);
+  max-width: calc(var(--hud-rail) + var(--hud-overhang));
 }
 
 /*
@@ -626,6 +715,7 @@ body {
  */
 .hud__offer {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: end;
   margin-bottom: 2px;
 }
@@ -1142,10 +1232,113 @@ body {
   .hud {
     row-gap: 6px;
   }
+}
 
-  .hud {
-    row-gap: 6px;
+/*
+ * Short frames, part one — the arrangement.
+ *
+ * 448 px is the reference frame and the §21 Act III beat is what does not fit
+ * in it: the resource rail, an offer, the hire dial, the ordinary hire button
+ * and the nav come to about 470 px of column. Everything below buys that back
+ * out of spacing and out of one arrangement decision, and none of it changes
+ * what any readout says.
+ */
+@media (max-height: 470px) {
+  /* Two pixels off each block, which at four blocks in a rail is most of the
+     shortfall on its own and is invisible on any of them. */
+  .hud__block,
+  .hud__terminal,
+  .hud__advisor {
+    padding: 2px 6px 3px;
   }
+
+  .hud__block {
+    gap: 0;
+  }
+
+  .hud__resources {
+    gap: 4px;
+  }
+
+  .hud__gauge-track {
+    height: 4px;
+    margin-top: 1px;
+  }
+
+  .hud__actions {
+    gap: 4px;
+    padding-bottom: 0;
+  }
+
+  .hud__offer {
+    margin-bottom: 0;
+  }
+
+  .hud__nav .ui-btn {
+    padding: 5px 10px;
+  }
+
+  .hud__controls {
+    gap: 4px;
+  }
+}
+
+/*
+ * Short frames, part two — the bottom of the design box, and the frame the
+ * overlap was reported on.
+ *
+ * A 2.22:1 handset at 3x is **336 CSS pixels tall**. At that height the left
+ * rail is longer than the room it has even with the trims above, so the chart
+ * gives up eight more pixels and the rails tighten again.
+ *
+ * Verified rather than guessed: every readout, control and line of copy is
+ * measured against every other one at 640x360, 720x324, 748x336, 816x366,
+ * 854x384, 997x448, 1024x420 and 1280x600, in every §21 act, and nothing
+ * overlaps anything or leaves the frame.
+ */
+@media (max-height: 400px) {
+  .burndown__chart {
+    height: 20px;
+  }
+
+  .hud__left,
+  .hud__right {
+    gap: 6px;
+  }
+
+  /*
+   * DEVS and SHIPPED share a row, and CASH keeps the full rail.
+   *
+   * The last twenty pixels the right rail owes at 336, and the only way of
+   * finding them that does not delete a readout. Cash is the number the run
+   * turns on and stays whole; the other two are a single figure each and read
+   * perfectly well at half a rail.
+   */
+  .hud__resources {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hud__block--cash {
+    grid-column: 1 / -1;
+  }
+}
+
+/*
+ * The §23.3 readouts are three tokens on one line, not six on two.
+ *
+ * The row is a flex container and its items shrink to min-content inside a
+ * 146 px rail, so `60 FPS`, `— TAP` and the build stamp each wrapped in the
+ * middle and the overlay cost a line that was entirely whitespace. Sized to its
+ * content and allowed to overhang the rail leftward, over the simulation, like
+ * the action bar above it.
+ */
+.hud__perf {
+  width: max-content;
+  max-width: calc(var(--hud-rail) + var(--hud-overhang));
+}
+
+.hud__perf > span {
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1709,42 +1902,38 @@ body {
   opacity: 0.75;
 }
 
-/* --- man-weeks, planned against delivered -------------------------------- */
-
 /*
- * The one readout that is not a measurement. See `manWeeks.ts`: every other
- * block reports what the studio is doing, and this reports what the player
- * assumed it would do — so the two lines have to read as *claim* and
- * *correction*, not as two statistics.
- *
- * The claim is set in the normal numeral weight and the correction is set
- * against it in colour, which is the only place in the HUD a sub-line is
- * allowed to be louder than the figure above it.
+ * The MAN-WEEKS block's styling lived here and has gone with the readout — see
+ * the note in Readouts.tsx. Nothing else used `.hud__block--plan`.
  */
-.hud__block--plan .hud__num--major {
-  font-size: var(--type-2x);
-}
 
-.hud__plan-real {
-  font-weight: 700;
-}
+/* ======================================================================== */
+/* Short frames, part two — the controls.                                    */
+/*                                                                          */
+/* Last in the file on purpose. The juice kit above defines `.ui-btn` at the */
+/* same specificity as anything a media query can say about it, so a rule    */
+/* written earlier loses the cascade however narrow its condition is. This   */
+/* is where the trims that apply to buttons have to live.                    */
+/* ======================================================================== */
 
-/* Holding: the plan is roughly the reality, which is only true early. */
-.hud__block--plan.is-holding .hud__plan-real {
-  color: var(--calm-2);
-}
+@media (max-height: 470px) {
+  /*
+   * §3 rule 2 — a whole step down, never a clamp. The same trade the CASH
+   * numeral and the §10.7 dialogue box already make at the narrow end of the
+   * box, applied to the controls.
+   *
+   * Act III has an offer, a dial and an ordinary hire button live at once, and
+   * at 22 px that stack is 186 px of button in a rail holding 314 px total —
+   * three readouts and the nav included. The whole lot ran off the bottom of
+   * the frame, taking UPGRADES with it, on every device in §23.4.2's box.
+   */
+  .ui-btn {
+    font-size: var(--type-1x);
+    padding: 6px 12px;
+  }
 
-/* Slipping: §4.1's curve has started to bite and the gap is now readable. */
-.hud__block--plan.is-slipping .hud__plan-real {
-  color: var(--warn-2);
-}
-
-/*
- * Gone. A thousand on paper and eight delivered — §21 Act IV, in the units of
- * the plan that produced it. It blinks for the same reason the runway clock
- * does: at this point the number is not information, it is an alarm.
- */
-.hud__block--plan.is-gone .hud__plan-real {
-  color: var(--alarm-2);
-  animation: hud-blink 0.9s steps(2, end) infinite;
+  .hire-dial__seg {
+    min-height: 26px;
+    padding: 2px 7px;
+  }
 }

@@ -37,9 +37,9 @@ simulation.
 | **Rungs** | 0–6 built and the lens visits every one (§7.4a). **Rungs 0–2 are all the room** — a desk, a huddle and a full floor of a thousand, with walls, plates and individuals throughout. 7–9 have no geometry of their own; §7.4's grid and cosmic tiers stand in |
 | **The clicker** | Per-developer output (§4.9a) and the `+1` over each head (§8.2b). A poke is worth what the person is worth. **A poke still pays once rather than buffing** — R14 |
 | **The economy** | Long-tailed revenue with a back catalogue, and the graph that shows it (§4.10e) |
-| **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. **Rows now run along the floor**, parallel to the wall and across the way people face, as one continuous desk bank |
+| **The floor** | §7.8.1a's structure built — squads of 100, a floor of 10,000, corridors, the ×100 unfold. **Rows now run along the floor**, parallel to the wall and across the way people face, as one continuous desk bank. **The bank is set back from the seats**, so people sit *at* their desks rather than on them |
 | **Hiring** | Three things fall — a desk, a computer, **the actual generated developer** — on the seats the hire actually took, and the room withholds a seat until its arrival lands |
-| **The readouts** | §10.1's rail, plus §4.10e's revenue graph and **MAN-WEEKS**: what the plan says against what lands. At Act IV it reads `1.0K ON PAPER · 0 DELIVERED` |
+| **The readouts** | §10.1's rail plus §4.10e's revenue graph, in **two full-height rails with the copy between them** — nothing in a rail can collide with another rail or with §21's script at any frame height in the box. **MAN-WEEKS is gone**, withdrawn by the author of the idea |
 | **Hero Cards** | §13.6's rules and data built and tested. **Not wired** — see below |
 
 ### Built this session
@@ -54,9 +54,24 @@ climbing the ladder** (R8, and R5's camera half) · **§4.9a per-developer outpu
 **§8.2b the `+1` over each head** (R10) · **§4.10e long-tailed revenue and its graph** (R2) ·
 **§7.7.6a poke vs drag on touch** (R9) · **the floor put back into its own
 projection**, the **hire animation rebuilt out of three falling things**, the
-**title screen's near field cut back**, the **man-week readout**, and a
+**title screen's near field cut back**, and a
 **speech bubble that pops instead of zooming** — all reported by eye, none of
 them catchable by a test. Recorded as traps 10–13.
+
+Then, all five reported off a phone in one go: **the desk set back from the
+seat** (people were drawn standing on their own tables) and **dressed** —
+keyboard, mouse, mug, papers, sticky note, lamp, legs, seams, a contact
+shadow, all rolled per seat and stable across rebuilds · **props moved onto
+the two back walls** with their back faces against the skirting, instead of
+spread round a perimeter ring that put a water cooler in the dark past the
+front corner · **a skirting board** along both back walls, which is what gives
+the wall/floor junction an edge and the wall a scale · **MAN-WEEKS removed** ·
+and the **HUD rebuilt as two full-height rails**. The last one is worth reading
+the note on `.hud` for: the readouts overlapped on a 336 px-tall handset, the
+first fix moved the collision one level out into §21's copy, and the
+arrangement that actually holds is rails owning their columns outright with the
+script in the middle. Verified by measuring every readout, control and line of
+copy against every other one across eight acts and seven frame sizes.
 
 ### Specced, not built
 

@@ -27,7 +27,7 @@ import { RevenueGraph } from './RevenueGraph.tsx'
 import { ShipToast } from './ShipToast.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HireDial } from './HireDial.tsx'
-import { Cash, Devs, ManWeeks, Shipped, Speedometer, Velocity } from './Readouts.tsx'
+import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
@@ -108,38 +108,86 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
 
   return (
     <div className="hud">
-      {/* Top-left — §10.1's Active Project, "a descending line, not a filling bar". */}
-      <div className="hud__project">
-        <BurnDown state={state} />
-        {/*
-          §4.10e — the back catalogue, under the burn-down that will join it.
-          Directly under on purpose: the two charts are the same story told at
-          two ends, work going down and money coming in, and the whole reason
-          the revenue graph exists is that a player watching only the first one
-          concluded they were failing.
-        */}
-        <RevenueGraph state={state} />
-      </div>
+      {/*
+        The left rail — **one column, not two grid rows.**
 
-      {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}
-      <div className="hud__gauges">
-        <Speedometer entropy={entropy} />
-        <Velocity state={state} />
-      </div>
+        §10.1 puts the project at the top and the gauges under it, and the
+        previous frame expressed that as two grid areas: project in an `auto`
+        row anchored to the top, gauges in a `1fr` row anchored to the bottom.
+        On a phone that is *332 CSS pixels tall* the 1fr row is shorter than the
+        gauges are, and a block anchored to the end of a row it does not fit
+        overflows upward — straight through the revenue graph above it. It was
+        reported from a handset and it reproduces exactly at 748x336.
 
-      {/* Top-right — §10.1's resource bar, turned on its side to use the margin. */}
-      <div className="hud__resources">
-        <Cash state={state} />
-        <Devs state={state} />
-        {/* Directly under the headcount it is derived from — see Readouts.tsx. */}
-        <ManWeeks state={state} />
-        <Shipped state={state} />
+        Stacked in one flow the two can no longer be laid on top of each other
+        by any frame size, because that is not something a column does. The
+        gauges keep their pin to the bottom (`margin-top: auto`), so on a frame
+        with room to spare the composition is the one §10.1 asks for.
+      */}
+      <div className="hud__left">
+        {/* Top-left — §10.1's Active Project, "a descending line, not a filling bar". */}
+        <div className="hud__project">
+          <BurnDown state={state} />
+          {/*
+            §4.10e — the back catalogue, under the burn-down that will join it.
+            Directly under on purpose: the two charts are the same story told at
+            two ends, work going down and money coming in, and the whole reason
+            the revenue graph exists is that a player watching only the first one
+            concluded they were failing.
+          */}
+          <RevenueGraph state={state} />
+        </div>
+
+        {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}
+        <div className="hud__gauges">
+          <Speedometer entropy={entropy} />
+          <Velocity state={state} />
+        </div>
       </div>
 
       <Bubble text={state.bubble?.text ?? null} />
+
+      {/*
+        The right rail, and the same fix for the same defect: the resource
+        blocks were in the top row and the action bar in the middle one, and at
+        336 px the HIRE DEVELOPER button was drawn straight over the SHIPPED
+        readout. One column, button pinned to the bottom.
+      */}
+      <div className="hud__right">
+        {/* Top-right — §10.1's resource bar, turned on its side to use the margin. */}
+        <div className="hud__resources">
+          <Cash state={state} />
+          <Devs state={state} />
+          <Shipped state={state} />
+        </div>
+        <ActionBar
+          spec={actionFor(state.phase)}
+          offer={offerFor(state.phase, state.massHired)}
+          state={state}
+        />
+
+        {/*
+          The foot of the right rail: the §23.3 overlay and §10.1's nav, under
+          the button they sit under on every frame that has room for all three.
+          Inside the rail rather than in a cell of their own, because the rail
+          now spans the full height of the frame — see the note on `.hud`.
+        */}
+        <div className="hud__controls">
+          <PerfOverlay stage={stage} />
+          {/*
+            §13.2 — the tree appears only once a Paradigm Shift has happened.
+            Before the first one BP does not exist, and a permanently visible
+            button onto an empty currency would be the §10.6 web-page tell.
+          */}
+          {getPermanent().meta.paradigmShifts > 0 && (
+            <Button onClick={() => setTreeOpen(true)}>PARADIGM</Button>
+          )}
+          <Upgrades />
+        </div>
+      </div>
+
       <ShipToast state={state} />
       <DevCard state={state} />
-      <ActionBar spec={actionFor(state.phase)} offer={offerFor(state.phase, state.massHired)} state={state} />
 
       <div className="hud__script">
         {/*
@@ -163,18 +211,6 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
         )}
       </div>
 
-      <div className="hud__controls">
-        <PerfOverlay stage={stage} />
-        {/*
-          §13.2 — the tree appears only once a Paradigm Shift has happened.
-          Before the first one BP does not exist, and a permanently visible
-          button onto an empty currency would be the §10.6 web-page tell.
-        */}
-        {getPermanent().meta.paradigmShifts > 0 && (
-          <Button onClick={() => setTreeOpen(true)}>PARADIGM</Button>
-        )}
-        <Upgrades />
-      </div>
       <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
 
       <Bankruptcy open={state.phase === 'bankrupt'} />

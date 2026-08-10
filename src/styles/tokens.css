@@ -59,6 +59,26 @@
   --hud-rail: 176px;
 
   /*
+   * How far a *control* in a rail may hang past it, into the middle column.
+   *
+   * The rail is sized for the readouts — 26 columns of the 11px face — and two
+   * things on it are wider than a readout: the §21 action button, whose label
+   * is a sentence, and the §23.3 overlay, which is three measurements and a
+   * build stamp on one line. Squeezed into 176px the first became a three-line
+   * tower and the second wrapped into two lines of mostly whitespace, and
+   * together they pushed Act III's stack off the bottom of every frame in the
+   * design box.
+   *
+   * So the right-hand grid column is allowed to grow this far past the rail to
+   * fit them, and the middle column gives up the width. The readouts keep the
+   * rail exactly — a CASH block that changed width when an offer appeared would
+   * be worse than either problem. The alternative to reserving the gutter in the
+   * grid is a control overflowing on top of the copy, or off the edge of the
+   * frame, and both were tried on the way here.
+   */
+  --hud-overhang: 90px;
+
+  /*
    * Motion defaults, so a surface that forgets to set them still transitions
    * rather than cutting. The real numbers come from src/ui/motion.ts as inline
    * custom properties — they have to be scalable for reduce-motion (§10.5

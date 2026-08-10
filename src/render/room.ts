@@ -739,36 +739,48 @@ export function propsAt(devs: number): RoomProps {
 }
 
 /**
- * A point on the floor's perimeter, `t` around the diamond from the top corner.
+ * The gap left between a prop's back face and the wall behind it, in tiles.
  *
- * Props live in the margin between the desk grid and the walls, so they need
- * positions that follow the room as it grows rather than fractions of a fixed
- * box. `inset` pulls them off the wall so nothing is embedded in it.
+ * Deliberately tiny — about four pixels. A prop pushed *into* the wall is a
+ * modelling error and a prop standing off it is a prop nobody put there: real
+ * furniture is against the skirting, with just enough clearance to show a line
+ * of shadow. Both failures were on screen at once before this, and the second
+ * was the reported one.
  */
-export function perimeterPoint(
-  t: number,
+export const WALL_GAP = 0.06
+
+/**
+ * A standing place **against one of the two back walls**, in room-local
+ * coordinates.
+ *
+ * Props used to be spread evenly round the whole floor diamond at an inset of up
+ * to sixteen percent of it, which produced both halves of the reported defect at
+ * once: the ones on the two *front* edges had no wall behind them at all — the
+ * room is open toward the camera — so a water cooler sat in the dark past the
+ * front corner looking like it was floating, and the ones that did have a wall
+ * were most of a metre off it.
+ *
+ * The fix is to stop parameterising the perimeter and start naming the wall. The
+ * floor diamond is a square in the grid's own axes, so the back-left wall is
+ * simply `gx = -s` and the back-right is `gy = -s`, and standing something
+ * against one is a matter of adding its own half-depth back on. `u` runs 0..1
+ * along the wall from the back corner outward; `depth` is the prop's footprint
+ * in tiles, so a wide cabinet and a narrow bin both end up with their backs on
+ * the same line rather than their centres.
+ */
+export function wallSpot(
+  wall: 'left' | 'right',
+  u: number,
   cx: number,
   cy: number,
-  halfW: number,
-  halfH: number,
-  inset: number,
+  halfTiles: number,
+  depth: number,
 ): { x: number; y: number } {
-  const u = ((t % 1) + 1) % 1
-  const w = Math.max(0, halfW - inset)
-  const h = Math.max(0, halfH - inset * 0.5)
-  // Four edges of the iso diamond, a quarter of the parameter each.
-  const edge = Math.floor(u * 4)
-  const f = u * 4 - edge
-  switch (edge) {
-    case 0:
-      return { x: cx + w * f, y: cy - h + h * f }
-    case 1:
-      return { x: cx + w - w * f, y: cy + h * f }
-    case 2:
-      return { x: cx - w * f, y: cy + h - h * f }
-    default:
-      return { x: cx - w + w * f, y: cy - h * f }
-  }
+  const s = halfTiles
+  const along = -s + Math.min(1, Math.max(0, u)) * 2 * s
+  const back = -s + depth / 2 + WALL_GAP
+  const p = wall === 'left' ? gridToScreen(back, along) : gridToScreen(along, back)
+  return { x: cx + p.x, y: cy + p.y }
 }
 
 /**
@@ -940,20 +952,61 @@ export function buildDeveloper(look: Look): Container {
  *
  * A desk is a rectangle on the ground: one tile along the row, a little over
  * half a tile deep. Stating it in grid units is what stops it drifting out of
- * the projection — the old `DESK_W` / `DESK_D` pair was a screen width and a
- * screen height, and a screen diamond of width `w` and height `w / 4` is not a
+ * the projection — the pair this replaced was a screen width and a screen
+ * height, and a screen diamond of width `w` and height `w / 4` is not a
  * 2:1 rectangle seen in isometric. It is not a ground-aligned shape at all: a
  * 2:1 rectangle on the floor projects to a *parallelogram*, and only a square
  * projects to a diamond. The comment that used to sit here derived `w / 4` very
  * carefully from the wrong premise.
  */
 export const DESK_SPAN = PITCH_COL
-export const DESK_DEPTH = 0.62
-/** Kept for the room's other props, which are still placed in screen units. */
-export const DESK_W = TILE_W * DESK_SPAN
-export const DESK_D = (TILE_H * DESK_DEPTH) / 2
-/** Apron depth — the drop from the surface to the underside. */
-const DESK_LIP = 8
+/**
+ * How deep a desk is, across the row, in floor tiles.
+ *
+ * Was 0.62 and reported as "the table [is] too deep". It was: a desk is about
+ * 1.5 m along the row and 0.7 m across it, and `PITCH_COL` is that 1.5 m, so
+ * the honest ratio is a little under a half rather than nearly two thirds.
+ */
+export const DESK_DEPTH = 0.46
+/**
+ * How far the bank sits **behind** the seat, in floor tiles — and the fix for
+ * the plainest defect in the room.
+ *
+ * The desk used to be drawn centred on the seat point, which is also where the
+ * person is drawn. The two therefore occupied the same footprint, the desk was
+ * painted first, and the figure came down on top of it: reported as *"person is
+ * placed wrong, it shows that he is on top of the table"*, which is exactly what
+ * it looked like.
+ *
+ * A person at a desk is **in front of it**. They face north-west into their
+ * monitor (see `buildDeveloper`), so their desk is north-west of them — further
+ * from the camera, up and left on screen, and partly hidden behind their own
+ * back. Setting the bank back by rather more than half its own depth puts the
+ * surface at chest height with the body in front of it, which is what sitting at
+ * a desk looks like from behind.
+ *
+ * Comfortably inside {@link PITCH_ROW}, so the row behind still has its aisle.
+ */
+export const DESK_SETBACK = 0.32
+/**
+ * How far the surface stands proud of its own footprint, in screen pixels.
+ *
+ * Small on purpose. The seated figure is drawn waist-up with its mass sunk
+ * below the seat point, so a desk lifted to a *measured* 0.73 m would sit at the
+ * shoulders of the person at it. Five pixels is enough to put a lit edge and a
+ * shadow between the surface and the floor, which is all the height a 2:1
+ * projection can show anyway.
+ */
+const DESK_H = 5
+/** Valance depth — the drop from the surface to the underside. */
+const DESK_LIP = 11
+/** Leg width, in screen pixels. Two per end of a run. */
+const DESK_LEG = 3
+
+/** The screen offset from a seat to the centre of the desk it sits at. */
+function deskOffset() {
+  return gridToScreen(-DESK_SETBACK, 0)
+}
 
 /**
  * A desk, the PC on it, and the person's place in front of it.
@@ -995,28 +1048,58 @@ export function drawDeskBank(g: Graphics, colFrom: number, colTo: number, row: n
   // The run goes along `gy` — the row's axis — and is `DESK_DEPTH` across it.
   const gy0 = colFrom * PITCH_COL - DESK_SPAN / 2
   const gy1 = colTo * PITCH_COL + DESK_SPAN / 2
-  const gx = row * PITCH_ROW
+  // Set back from the seats — see {@link DESK_SETBACK}. This one subtraction is
+  // the difference between a person at a desk and a person standing on one.
+  const gx = row * PITCH_ROW - DESK_SETBACK
   const d = DESK_DEPTH / 2
 
   // The four corners of a rectangle **on the floor**, projected. Not a
   // screen-space shape that happens to look isometric: a run of desks is a
   // rectangle in the room, so its outline is whatever the projection makes of
   // one, and its two long edges come out parallel to the wall for free.
-  const back = gridToScreen(gx - d, gy0)
-  const far = gridToScreen(gx - d, gy1)
-  const front = gridToScreen(gx + d, gy1)
-  const near = gridToScreen(gx + d, gy0)
+  //
+  // `back` is the topmost corner on screen, `far` the leftmost, `front` the
+  // bottom and `near` the right — so the two edges turned toward the camera are
+  // `far`–`front` (the south-west end cap) and `front`–`near` (the long side).
+  const foot = {
+    back: gridToScreen(gx - d, gy0),
+    far: gridToScreen(gx - d, gy1),
+    front: gridToScreen(gx + d, gy1),
+    near: gridToScreen(gx + d, gy0),
+  }
+  const lift = (p: { x: number; y: number }) => ({ x: p.x, y: p.y - DESK_H })
+  const back = lift(foot.back)
+  const far = lift(foot.far)
+  const front = lift(foot.front)
+  const near = lift(foot.near)
 
-  g.moveTo(back.x, back.y)
-    .lineTo(far.x, far.y)
-    .lineTo(front.x, front.y)
-    .lineTo(near.x, near.y)
+  // The shadow the bank casts on the floor it stands on. Same argument as
+  // `isoBox`'s contact ellipse: the projection throws away occlusion at the
+  // base, so without something under it a surface reads as floating however
+  // correctly it is placed. Offset down-right, away from §7's top-left key.
+  g.moveTo(foot.back.x + 3, foot.back.y + 2)
+    .lineTo(foot.far.x + 3, foot.far.y + 2)
+    .lineTo(foot.front.x + 3, foot.front.y + 2)
+    .lineTo(foot.near.x + 3, foot.near.y + 2)
     .closePath()
-    .fill(c(RAMPS.WOOD[2]))
+    .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.38 })
 
-  // The apron, on the two edges that face the camera. ART_DIRECTION §7's single
-  // top-left source: the long south-east side of the run turns away from it,
-  // and the south-west end cap catches it.
+  // Legs, at the two ends of the run. A bank standing on nothing is a plank,
+  // and the legs are also what the shadow above is a shadow *of*.
+  for (const [corner, side] of [
+    [foot.far, foot.front],
+    [foot.near, foot.front],
+  ] as const) {
+    // Pulled a little way in from the corner, the way a real frame is — a leg
+    // flush with the end of the top reads as a solid block.
+    const lx = corner.x + (side.x - corner.x) * 0.12
+    const ly = corner.y + (side.y - corner.y) * 0.12
+    g.rect(lx - DESK_LEG / 2, ly - DESK_H, DESK_LEG, DESK_H + DESK_LIP).fill(c(RAMPS.WOOD[0]))
+  }
+
+  // The valance, on the two edges that face the camera. ART_DIRECTION §7's
+  // single top-left source: the long south-east side of the run turns away from
+  // it, and the south-west end cap catches it.
   g.moveTo(near.x, near.y)
     .lineTo(front.x, front.y)
     .lineTo(front.x, front.y + DESK_LIP)
@@ -1029,10 +1112,89 @@ export function drawDeskBank(g: Graphics, colFrom: number, colTo: number, row: n
     .lineTo(far.x, far.y + DESK_LIP)
     .closePath()
     .fill(c(RAMPS.WOOD[1]))
+
+  g.moveTo(back.x, back.y)
+    .lineTo(far.x, far.y)
+    .lineTo(front.x, front.y)
+    .lineTo(near.x, near.y)
+    .closePath()
+    .fill(c(RAMPS.WOOD[2]))
+
+  // The lit edge along the two far sides, where the top-left source catches the
+  // lip of the surface. One pixel, and it is what separates the top of the desk
+  // from the floor beyond it at the point they meet.
+  g.moveTo(far.x, far.y)
+    .lineTo(back.x, back.y)
+    .lineTo(near.x, near.y)
+    .stroke({ width: 1, color: c(RAMPS.WOOD[3]) })
+  // And the shadow line under the surface, where the top meets the valance.
+  g.moveTo(far.x, far.y)
+    .lineTo(front.x, front.y)
+    .lineTo(near.x, near.y)
+    .stroke({ width: 1, color: c(RAMPS.WOOD[1]) })
+
+  // A seam per desk along the run, so a bank of eight reads as eight desks
+  // pushed together rather than as one very long table. Interior joints only —
+  // the ends already have the outline.
+  for (let col = colFrom + 1; col <= colTo; col++) {
+    const gy = col * PITCH_COL - DESK_SPAN / 2
+    const a = lift(gridToScreen(gx - d, gy))
+    const b = lift(gridToScreen(gx + d, gy))
+    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: c(RAMPS.WOOD[1]), alpha: 0.7 })
+  }
+}
+
+/**
+ * A rectangle lying **flat on the desk surface**, in the floor's own axes.
+ *
+ * `across` runs toward the camera and `along` runs down the row, both in floor
+ * tiles, so a keyboard is stated as "half a tile wide and a fifth deep" rather
+ * than as a screen shape somebody eyeballed. Everything on the desk goes through
+ * here for the same reason every solid goes through {@link isoBox}: a flat item
+ * drawn as a screen-space rectangle is the fastest way to break the projection,
+ * and there are as many of these as there are developers.
+ */
+function deskQuad(
+  g: Graphics,
+  sx: number,
+  sy: number,
+  across: number,
+  along: number,
+  w: number,
+  d: number,
+  fill: number,
+) {
+  const at = (a: number, b: number) => {
+    const p = gridToScreen(across + a, along + b)
+    return { x: sx + p.x, y: sy + p.y }
+  }
+  const p0 = at(-d / 2, -w / 2)
+  const p1 = at(-d / 2, w / 2)
+  const p2 = at(d / 2, w / 2)
+  const p3 = at(d / 2, -w / 2)
+  g.moveTo(p0.x, p0.y)
+    .lineTo(p1.x, p1.y)
+    .lineTo(p2.x, p2.y)
+    .lineTo(p3.x, p3.y)
+    .closePath()
+    .fill(fill)
+}
+
+/**
+ * Deterministic 0..1 per seat and per question.
+ *
+ * The dressing on a desk has to be *stable* — a mug that appears and disappears
+ * every time the room rebuilds is worse than no mug — and it has to be free,
+ * because there is one of these per developer up to a thousand of them. A hash
+ * of the seat index is both: no state, no storage, identical every run.
+ */
+function deskRoll(seat: number, salt: number): number {
+  const h = (Math.imul(seat + 1, 2654435761) ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0
+  return (h % 1000) / 1000
 }
 
 /** One person's kit on the bank — the screen they are looking at and the box under it. */
-export function drawWorkstation(g: Graphics, x: number, y: number) {
+export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0) {
   // The monitor. A screen is a flat panel, so it is drawn the way every other
   // flat panel in this room is drawn: lying in a plane, not parallel to the
   // glass. Its face is the down-left one — the same plane the wall dressing
@@ -1048,34 +1210,65 @@ export function drawWorkstation(g: Graphics, x: number, y: number) {
   // two were specified independently at first and pointed the same way, which
   // is a room full of people reading the backs of their own screens.
   //
-  // Centred rather than offset north-west, so the developer, the screen and the
-  // desk are one column: the figure stands **directly in front of** the thing
-  // they are looking at, which is what a workstation looks like from behind and
-  // is a stronger read than any amount of furniture around it.
-  const mx = x
-  const my = y - 31
+  // **Everything here is placed against the desk, not against the seat.** The
+  // kit stands on a surface that is set back from the person (`DESK_SETBACK`)
+  // and proud of the floor (`DESK_H`), so this is where those two offsets are
+  // paid: `(sx, sy)` is the point on the desk surface directly in front of the
+  // developer, and every item below is a displacement from it in the floor's
+  // own axes.
+  const off = deskOffset()
+  const sx = x + off.x
+  const sy = y + off.y - DESK_H
   const S = -0.5
 
-  // The stand, first, so the panel sits over it. Based on the desk's **back
-  // half**, which is now only seven pixels deep — the old base at y-11 sat
-  // behind the far edge of a surface that used to be twice as deep, so it would
-  // hang off the back of the new one.
-  isoBox(g, mx, y - 3, 8, 4, RAMPS.NEUTRAL, 2, false)
-  g.rect(mx - 1, my + 15, 3, 13).fill(c(RAMPS.NEUTRAL[2]))
+  // --- what is on the surface, back to front ------------------------------
+  //
+  // The desk is a tile wide and a little under half a tile deep, so there are
+  // exactly two useful rows on it: a back row against the screen (monitor,
+  // tower, and whatever the person has stopped looking at) and a front row
+  // under their hands (keyboard, mouse, mug). Everything below is placed in one
+  // of those two, in floor tiles, and the layout is spaced so no two items on
+  // this desk or the next one along can occupy the same square inch.
+  //
+  // Painter order runs back to front, so the mug in front of the keyboard
+  // covers a corner of it rather than being swallowed by it.
+  const BACK = -0.14
+  const FRONT = 0.12
+  // Which hand the mouse is under. A floor of a hundred right-handers is a
+  // pattern the eye finds, so it is rolled — and everything else on the front
+  // row is placed against it, so nobody has their coffee where their mouse is.
+  const hand = deskRoll(seat, 5) < 0.82 ? 1 : -1
+  // One desk in five has a lamp; the rest have paper they have stopped reading.
+  // Mutually exclusive because they want the same corner, and a corner with
+  // both in it is where two props intersect.
+  const lamp = deskRoll(seat, 4) < 0.2
+
+  // Papers, pushed to the back corner where they have been for a fortnight.
+  if (!lamp && deskRoll(seat, 1) < 0.55) {
+    deskQuad(g, sx, sy, BACK, -0.32, 0.26, 0.16, c(RAMPS.NEUTRAL[7]))
+    deskQuad(g, sx, sy, BACK - 0.01, -0.33, 0.22, 0.12, c(RAMPS.NEUTRAL[8]))
+  }
+
+  // The monitor's foot, then its neck, then the panel over both.
+  isoBox(g, sx, sy - 1, 9, 3, RAMPS.NEUTRAL, 2, false)
+  const my = sy - 30
+  g.rect(sx - 1.5, my + 14, 3, 14).fill(c(RAMPS.NEUTRAL[2]))
 
   // Bezel, then the emissive face. The screen is the room's only light source,
   // so it is the one surface here allowed to ignore the top-left key.
-  wallQuad(g, mx, my - 2, 30, 21, S, c(RAMPS.NEUTRAL[2]))
-  wallQuad(g, mx, my, 26, 17, S, c(RAMPS.GLOW[0]))
+  wallQuad(g, sx, my - 2, 30, 21, S, c(RAMPS.NEUTRAL[2]))
+  wallQuad(g, sx, my, 26, 17, S, c(RAMPS.GLOW[0]))
   // Code on it. Each line is a strip in the same plane, left-aligned along the
   // panel, so the text runs across the screen rather than across the viewport.
+  // Indented from the seat rather than from a constant, so no two screens in a
+  // row are showing the same file.
   for (let i = 0; i < 4; i++) {
-    const w = 5 + ((i * 7) % 13)
-    const off = -(26 - w) / 2 + 2
+    const w = 5 + ((i * 7 + Math.floor(deskRoll(seat, 2) * 9)) % 13)
+    const line = -(26 - w) / 2 + 2
     wallQuad(
       g,
-      mx + off,
-      my + 2 + i * 4 + S * off,
+      sx + line,
+      my + 2 + i * 4 + S * line,
       w,
       1.5,
       S,
@@ -1085,12 +1278,21 @@ export function drawWorkstation(g: Graphics, x: number, y: number) {
   // The sliver of the monitor's own side that a panel turned away from the
   // camera shows. Two pixels, and it is the whole difference between a screen
   // and a decal. On the north-east edge, which is the one turning away now.
-  g.moveTo(mx + 15, my - 9.5)
-    .lineTo(mx + 17, my - 8.5)
-    .lineTo(mx + 17, my + 10.5)
-    .lineTo(mx + 15, my + 9.5)
+  g.moveTo(sx + 15, my - 9.5)
+    .lineTo(sx + 17, my - 8.5)
+    .lineTo(sx + 17, my + 10.5)
+    .lineTo(sx + 15, my + 9.5)
     .closePath()
     .fill(c(RAMPS.NEUTRAL[1]))
+  // A sticky note on the bezel, on about half the screens. Four pixels of WARN
+  // in the plane of the panel — the one piece of desk dressing that reads at a
+  // full floor, because it is the only warm colour in a room lit by a blue
+  // screen. Stuck *on* the bezel rather than beside it: at `sx - 16` it hung
+  // off the edge of the monitor and read as a little pennant.
+  if (deskRoll(seat, 3) < 0.45) {
+    const nx = -11
+    wallQuad(g, sx + nx, my + 4 + S * nx, 4.5, 4.5, S, c(RAMPS.WARN[2]))
+  }
 
   // The machine itself, standing on the desk beside the screen.
   //
@@ -1105,9 +1307,9 @@ export function drawWorkstation(g: Graphics, x: number, y: number) {
   // *floating* over it; the tower is the one prop that says the surface is a
   // work surface. Kept small and tucked toward the back of the desk, clear of
   // both the panel and the body in front of it.
-  const stand = gridToScreen(-DESK_DEPTH * 0.22, PITCH_COL * 0.34)
-  const px = x + stand.x
-  const py = y + stand.y
+  const stand = gridToScreen(BACK, 0.33)
+  const px = sx + stand.x
+  const py = sy + stand.y
   // `grounded` is false — it is standing on the desk, so it gets a contact
   // patch from the surface under it rather than a floor shadow, which is
   // §7.8.1's second projection rule.
@@ -1115,7 +1317,53 @@ export function drawWorkstation(g: Graphics, x: number, y: number) {
   // A power light. Two pixels of GLOW, and at forty desks it is the cheapest
   // thing in the room that says the machines are *on*.
   g.rect(px - 2, py - 9, 1.5, 1.5).fill(c(RAMPS.GLOW[2]))
+  // The lead from the tower up to the panel. One stroke, and it is the thing
+  // that stops the two objects reading as two objects.
+  g.moveTo(px - 3, py - 6)
+    .lineTo(sx + 5, sy - 3)
+    .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.8 })
 
+  // A desk lamp on about one desk in five. Vertical interest along a row that
+  // is otherwise nine copies of the same silhouette.
+  if (lamp) {
+    const at = gridToScreen(BACK, -0.34)
+    const lx = sx + at.x
+    const ly = sy + at.y
+    isoBox(g, lx, ly, 7, 2, RAMPS.NEUTRAL, 3, false)
+    g.rect(lx - 0.75, ly - 17, 1.5, 15).fill(c(RAMPS.NEUTRAL[3]))
+    g.moveTo(lx - 5, ly - 17)
+      .lineTo(lx + 3, ly - 20)
+      .lineTo(lx + 4, ly - 16)
+      .lineTo(lx - 4, ly - 13)
+      .closePath()
+      .fill(c(RAMPS.NEUTRAL[4]))
+    g.ellipse(lx - 1, ly - 13, 4, 2).fill({ color: c(RAMPS.WARN[3]), alpha: 0.5 })
+  }
+
+  // --- and what is in reach: keyboard, mouse, mug -------------------------
+
+  // The keyboard, square on to the screen, half a desk wide. Two quads: the
+  // case and the key field inset into it, which is the whole of what a keyboard
+  // looks like once it is eleven pixels across.
+  deskQuad(g, sx, sy, FRONT, 0, 0.52, 0.15, c(RAMPS.NEUTRAL[2]))
+  deskQuad(g, sx, sy, FRONT, 0, 0.46, 0.1, c(RAMPS.NEUTRAL[4]))
+  // The mouse, to one side of it, and a mat under it.
+  deskQuad(g, sx, sy, FRONT, hand * 0.36, 0.18, 0.14, c(RAMPS.NEUTRAL[1]))
+  deskQuad(g, sx, sy, FRONT, hand * 0.36, 0.08, 0.06, c(RAMPS.NEUTRAL[5]))
+
+  // The mug, on the other hand's side. Most desks have one, and it is the one
+  // object here that says somebody has been sitting at this desk for a while.
+  const mug = deskRoll(seat, 6)
+  if (mug < 0.62) {
+    const at = gridToScreen(FRONT - 0.02, -hand * 0.36)
+    const cxm = sx + at.x
+    const cym = sy + at.y
+    const ramp = mug < 0.2 ? RAMPS.ALARM : mug < 0.4 ? RAMPS.CALM : RAMPS.NEUTRAL
+    const base = mug < 0.4 ? 1 : 6
+    isoBox(g, cxm, cym, 7, 7, ramp, base, false)
+    // The handle, on the side turned toward the camera so it is not a rumour.
+    g.rect(cxm + 3, cym - 6, 2, 3.5).fill(c(ramp[Math.max(0, base - 1)]))
+  }
 }
 
 /** A pot plant. The most-repeated prop, so it varies by index. */
@@ -1511,6 +1759,48 @@ export function buildRoom(): RoomHandle {
     // folded shape.
     shell.moveTo(topX, topY).lineTo(topX, topY - WALL_H).stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]) })
 
+    // --- the skirting -------------------------------------------------------
+    //
+    // A board along the bottom of both back walls, and the cheapest possible
+    // way to make a room look like a room.
+    //
+    // The wall and the floor are two flat fills meeting on a line, and a
+    // wall/floor junction with nothing in it is the tell that says "two
+    // polygons" rather than "a building" — the eye has nothing to measure the
+    // wall against, so the floor reads as continuing up it. A skirting board is
+    // a horizontal band at a *known* height, so it gives the wall a scale, it
+    // gives the junction an edge, and it gives every prop standing against the
+    // wall something to stand against.
+    //
+    // Drawn as a band in the wall plane rather than a stroke: it runs down the
+    // wall's own slope, catches the same top-left key the wall does (right wall
+    // lighter, left wall darker), and takes a lit top rule where the light
+    // clips its upper edge.
+    const SKIRT_H = Math.max(5, Math.min(9, WALL_H * 0.09))
+    const skirt = (fromX: number, fromY: number, base: number) => {
+      shell
+        .moveTo(fromX, fromY)
+        .lineTo(topX, topY)
+        .lineTo(topX, topY - SKIRT_H)
+        .lineTo(fromX, fromY - SKIRT_H)
+        .closePath()
+        .fill(c(RAMPS.NEUTRAL[base]))
+      // The rule along the top of the board. One pixel, lighter than the board,
+      // and it is what actually reads at a distance.
+      shell
+        .moveTo(fromX, fromY - SKIRT_H)
+        .lineTo(topX, topY - SKIRT_H)
+        .stroke({ width: 1, color: c(RAMPS.NEUTRAL[base + 2]) })
+      // And the shadow it casts into the floor at its foot, which is what stops
+      // the board reading as painted on.
+      shell
+        .moveTo(fromX, fromY)
+        .lineTo(topX, topY)
+        .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]) })
+    }
+    skirt(leftX, cy, 3)
+    skirt(rightX, cy, 4)
+
     // --- light -------------------------------------------------------------
     //
     // §7.8.1: "lit only by the glow of a chunky CRT monitor". The pool is drawn
@@ -1559,49 +1849,82 @@ export function buildRoom(): RoomHandle {
     // dressing follows the room as it grows instead of sitting at fractions of
     // a box that changes size underneath it.
 
-    const ring: Array<(x: number, y: number, i: number) => void> = []
-    // The two props people actually walk to. §7.8.1 puts them on the ring for
-    // dressing; §7.8.6 gives them a second job as destinations, which is most
-    // of why the room has them.
+    /**
+     * One prop, and how wide its footprint is.
+     *
+     * The width is carried rather than assumed, because "against the wall"
+     * means *its back face* is against the wall — a filing cabinet and a bin
+     * standing on the same centre line are not standing against the same thing.
+     */
+    interface WallProp {
+      /** Footprint width in screen pixels — what `isoBox` is given. */
+      w: number
+      draw: (x: number, y: number) => void
+    }
+    const ring: WallProp[] = []
+    // The two props people actually walk to. §7.8.1 puts them against the wall
+    // for dressing; §7.8.6 gives them a second job as destinations, which is
+    // most of why the room has them.
     if (props.coffee)
-      ring.push((x, y) => {
-        walkTargets.push({ x, y })
-        drawCoffee(furniture, x, y)
+      ring.push({
+        w: 18,
+        draw: (x, y) => {
+          walkTargets.push({ x, y })
+          drawCoffee(furniture, x, y)
+        },
       })
     if (props.waterCooler)
-      ring.push((x, y) => {
-        walkTargets.push({ x, y })
-        drawWaterCooler(furniture, x, y)
+      ring.push({
+        w: 15,
+        draw: (x, y) => {
+          walkTargets.push({ x, y })
+          drawWaterCooler(furniture, x, y)
+        },
       })
-    if (props.filingCabinet) ring.push((x, y) => drawFilingCabinet(furniture, x, y))
-    if (props.printer) ring.push((x, y) => drawPrinter(furniture, x, y))
-    if (props.sofa) ring.push((x, y) => drawSofa(furniture, x, y))
-    if (props.bin) ring.push((x, y) => drawBin(furniture, x, y))
-    for (let i = 0; i < props.plants; i++) ring.push((x, y) => drawPlant(furniture, x, y, i))
-    for (let i = 0; i < props.boxes; i++) ring.push((x, y) => drawBoxes(furniture, x, y, i))
+    if (props.filingCabinet) ring.push({ w: 18, draw: (x, y) => drawFilingCabinet(furniture, x, y) })
+    if (props.printer) ring.push({ w: 22, draw: (x, y) => drawPrinter(furniture, x, y) })
+    if (props.sofa) ring.push({ w: 46, draw: (x, y) => drawSofa(furniture, x, y) })
+    if (props.bin) ring.push({ w: 13, draw: (x, y) => drawBin(furniture, x, y) })
+    for (let i = 0; i < props.plants; i++)
+      ring.push({ w: 14, draw: (x, y) => drawPlant(furniture, x, y, i) })
+    for (let i = 0; i < props.boxes; i++)
+      ring.push({ w: 20, draw: (x, y) => drawBoxes(furniture, x, y, i) })
 
-    // Spread evenly around the ring rather than clustered, and offset by a
-    // quarter turn so nothing sits exactly on the near corner where it would
-    // occlude the desks the camera is framing.
-    // Proportional, with a floor. A fixed pixel inset is a *shrinking fraction*
-    // as the room grows — at twenty-six developers it put the ring 95% of the
-    // way to the wall, where a plant's foliage crosses the skirting line and
-    // the prop reads as standing outside the room rather than against its wall.
-    const inset = Math.max(TILE_W * 0.42, floorW * 0.16)
+    // **Both back walls, and only the back walls.**
+    //
+    // The room is open toward the camera, so its two front edges are not walls
+    // and never were — anything placed against one of them stands in the dark
+    // past the corner with nothing behind it. Alternating the two real walls
+    // dresses them evenly and keeps the near half of the floor clear, which is
+    // also the half the camera is framing the desks in.
+    const walls = ['left', 'right'] as const
+    const counts = [0, 0]
+    for (let i = 0; i < ring.length; i++) counts[i % 2]++
+    const placed = [0, 0]
+    // The server rack takes the first slot on the right-hand wall, so the run
+    // of props starts after it rather than through it.
+    if (props.serverRack) placed[1] = 1
     for (let i = 0; i < ring.length; i++) {
-      const t = 0.125 + i / Math.max(1, ring.length)
-      const at = perimeterPoint(t, cx, cy, floorW, floorH, inset)
-      ring[i](at.x, at.y, i)
+      const side = i % 2
+      const wall = walls[side]
+      const slots = counts[side] + (side === 1 && props.serverRack ? 1 : 0)
+      // Inset from both corners: the back corner is where the two walls meet
+      // and the far ones are where the wall runs out, and a prop half off the
+      // end of a wall is the same defect this whole change is fixing.
+      const u = 0.1 + ((placed[side] + 0.5) / slots) * 0.82
+      placed[side]++
+      const at = wallSpot(wall, u, cx, cy, halfW, ring[i].w / TILE_W)
+      ring[i].draw(at.x, at.y)
     }
 
     if (props.serverRack) {
-      // Corner-mounted rather than on the ring: it is the one thing that wants
-      // a wall behind it and it never moves once installed.
-      // Norm 0.44 + 0.44 = 0.88 — against the corner but wholly on the
-      // floor. At 1.0 it straddled the wall seam, where no contact shadow can
-      // help because half the base is on a vertical surface.
-      const sx = topX + floorW * 0.44
-      const sy = topY + floorH * 0.56
+      // Against the back-right wall by the corner, where a rack goes: it is the
+      // one thing in the room that wants a wall behind it, it is never in
+      // anybody's way there, and it does not move as the dressing around it
+      // comes and goes.
+      const at = wallSpot('right', 0.08, cx, cy, halfW, 24 / TILE_W)
+      const sx = at.x
+      const sy = at.y
       isoBox(furniture, sx, sy, 24, 54, RAMPS.NEUTRAL, 1)
       // Rack units and their status LEDs, sheared into the near-left face. The
       // LEDs are the point: six green pinpricks in the dark corner are the
@@ -1672,7 +1995,11 @@ export function buildRoom(): RoomHandle {
         // adding a screen offset. The screen offset that used to be here was
         // correct only while rows ran flat across the frame, and it would have
         // put every divider on the floor's other axis the moment they did not.
-        const half = gridToScreen(0, PITCH_COL / 2)
+        //
+        // Set back with the bank, because a divider divides *desks*: left on
+        // the seat line it would stand in the aisle behind the people it is
+        // supposed to be between.
+        const half = gridToScreen(-DESK_SETBACK, PITCH_COL / 2)
         const dx = x + half.x
         const dy = y + half.y
         // The panel stands *across* the gap, so its footprint runs on `gx`.
@@ -1686,15 +2013,16 @@ export function buildRoom(): RoomHandle {
       }
       if (props.cables) {
         // A short run along the front edge of the bank, on the floor's axis
-        // like everything else on it.
-        const a = gridToScreen(DESK_DEPTH * 0.55, -PITCH_COL * 0.42)
-        const b = gridToScreen(DESK_DEPTH * 0.55, PITCH_COL * 0.42)
+        // like everything else on it — and set back with the bank it belongs
+        // to, since the cable tray is bolted under the desk.
+        const a = gridToScreen(-DESK_SETBACK + DESK_DEPTH * 0.55, -PITCH_COL * 0.42)
+        const b = gridToScreen(-DESK_SETBACK + DESK_DEPTH * 0.55, PITCH_COL * 0.42)
         g.moveTo(x + a.x, y + a.y)
           .lineTo(x + b.x, y + b.y)
           .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.7 })
       }
 
-      drawWorkstation(g, x, y)
+      drawWorkstation(g, x, y, i)
     }
 
     // Reuse developer containers across rebuilds — a hire should not rebuild

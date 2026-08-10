@@ -18,7 +18,10 @@ import {
   SQUAD_SIZE,
   UNFOLD_MS,
   DESK_DEPTH,
+  DESK_SETBACK,
   DESK_SPAN,
+  WALL_GAP,
+  wallSpot,
   blockBox,
   buildRoom,
   seatPosition,
@@ -32,7 +35,6 @@ import {
   panelLight,
   panelOpen,
   panelProgress,
-  perimeterPoint,
   plateHalfWidth,
   propsAt,
   seatFor,
@@ -174,6 +176,35 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     expect(PITCH_ROW).toBeGreaterThan(DESK_DEPTH * 2)
   })
 
+  it('is a desk, not a card table — wider along the row than it is deep', () => {
+    // Reported as "the table [is] too deep". A desk is about 1.5 m along the
+    // row and 0.7 m across it, and `PITCH_COL` is that 1.5 m, so anything much
+    // past a half reads as furniture nobody has ever sat at.
+    expect(DESK_DEPTH).toBeLessThan(DESK_SPAN * 0.55)
+  })
+
+  it('SITS the person at the desk rather than on top of it — §7.8.1', () => {
+    // The plainest defect in the room, and the one that produced "person is
+    // placed wrong, it shows that he is on top of the table".
+    //
+    // The bank used to be drawn centred on the seat point, which is also where
+    // the figure is drawn, so the two shared a footprint and the person was
+    // painted on top of their own desk. A person at a desk is *in front of* it:
+    // the surface has to be set back by more than its own half-depth, or the
+    // near edge is still under the body.
+    expect(DESK_SETBACK).toBeGreaterThan(DESK_DEPTH / 2)
+  })
+
+  it('keeps the desk in its own row, clear of the aisle behind it', () => {
+    // The other end of the same trade. Set the bank back far enough and it
+    // reaches the row behind — so the whole desk, front edge to back edge, has
+    // to fit between the seat and the previous row's seats.
+    const backEdge = DESK_SETBACK + DESK_DEPTH / 2
+    expect(backEdge).toBeLessThan(PITCH_ROW)
+    // And the front edge is still behind the person rather than through them.
+    expect(DESK_SETBACK - DESK_DEPTH / 2).toBeGreaterThan(0)
+  })
+
   it('keeps the block wider than it is deep, on screen', () => {
     // Measured in *screen* units, which is the only place the question means
     // anything. Three earlier versions measured the wrong thing: a square
@@ -208,6 +239,72 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     expect(cols).toBe(SQUAD_COLS)
     expect(rows).toBe(SQUAD_ROWS)
     expect(cols * rows).toBe(SQUAD_SIZE)
+  })
+})
+
+describe('the dressing stands against a wall — §7.8.1', () => {
+  /**
+   * The projection's tile width, read back out of the layout rather than
+   * restated. `seatPosition(1)` is one desk pitch along the row, which the 2:1
+   * puts at (−PITCH_COL·TILE_W/2, +PITCH_COL·TILE_H/2).
+   */
+  const TILE_W = (-2 * seatPosition(1).x) / PITCH_COL
+
+  /** Screen offset back to grid coordinates — `gridToScreen` inverted. */
+  const toGrid = (x: number, y: number) => ({
+    gx: y / (TILE_W / 2) + x / TILE_W,
+    gy: y / (TILE_W / 2) - x / TILE_W,
+  })
+
+  it('puts a prop against the back-LEFT wall with its back face on it', () => {
+    // The floor diamond is a square in the grid's own axes, so the back-left
+    // wall is the line `gx = -s`. A prop standing against it has its centre
+    // half its own depth in front of that, and nothing else.
+    const s = 6
+    const depth = 0.5
+    const p = wallSpot('left', 0.5, 0, 0, s, depth)
+    expect(toGrid(p.x, p.y).gx).toBeCloseTo(-s + depth / 2 + WALL_GAP, 9)
+  })
+
+  it('puts a prop against the back-RIGHT wall the same way', () => {
+    const s = 6
+    const depth = 0.3
+    const p = wallSpot('right', 0.2, 0, 0, s, depth)
+    expect(toGrid(p.x, p.y).gy).toBeCloseTo(-s + depth / 2 + WALL_GAP, 9)
+  })
+
+  it('never leaves the prop standing off the wall', () => {
+    // The reported half of the defect: the old ring inset props by up to 16% of
+    // the floor, which at any real headcount is most of a metre of empty carpet
+    // behind a plant. The gap is now a constant, and a small one.
+    expect(WALL_GAP).toBeLessThan(0.1)
+  })
+
+  it('never places anything on the two edges that are NOT walls', () => {
+    // The other half. The room is open toward the camera, so the front two
+    // edges of the diamond have nothing behind them — a cooler placed there
+    // stood in the dark past the corner looking like it was floating. Every
+    // spot this function can return is on a back wall, whatever `u` is.
+    const s = 8
+    for (let i = 0; i <= 20; i++) {
+      for (const wall of ['left', 'right'] as const) {
+        const at = wallSpot(wall, i / 20, 0, 0, s, 0.4)
+        const g = toGrid(at.x, at.y)
+        // On a back wall means pinned on one axis and free on the other, and
+        // the pinned one is always the far side of the floor.
+        const pinned = wall === 'left' ? g.gx : g.gy
+        const along = wall === 'left' ? g.gy : g.gx
+        expect(pinned).toBeCloseTo(-s + 0.2 + WALL_GAP, 9)
+        expect(along).toBeGreaterThanOrEqual(-s - 1e-9)
+        expect(along).toBeLessThanOrEqual(s + 1e-9)
+      }
+    }
+  })
+
+  it('clamps `u` rather than walking off the end of the wall', () => {
+    const s = 5
+    expect(wallSpot('left', -3, 0, 0, s, 0.4)).toEqual(wallSpot('left', 0, 0, 0, s, 0.4))
+    expect(wallSpot('left', 7, 0, 0, s, 0.4)).toEqual(wallSpot('left', 1, 0, 0, s, 0.4))
   })
 })
 
@@ -488,32 +585,6 @@ describe('the room actually drives the hop', () => {
     const { xs, restX } = sampleSeat(180)
     expect(Math.max(...xs.map((x) => Math.abs(x - restX)))).toBeLessThanOrEqual(HOP_HEIGHT)
     expect(xs.filter((x) => Math.abs(x - restX) < 1e-9).length).toBeGreaterThan(30)
-  })
-})
-
-describe('perimeter placement', () => {
-  it('walks all the way round without repeating a position', () => {
-    const seen = new Set(
-      Array.from({ length: 12 }, (_, i) =>
-        JSON.stringify(perimeterPoint(i / 12, 0, 0, 100, 50, 10)),
-      ),
-    )
-    expect(seen.size).toBe(12)
-  })
-
-  it('closes the loop, so a full turn returns to the start', () => {
-    const a = perimeterPoint(0, 0, 0, 100, 50, 10)
-    const b = perimeterPoint(1, 0, 0, 100, 50, 10)
-    expect(b.x).toBeCloseTo(a.x, 6)
-    expect(b.y).toBeCloseTo(a.y, 6)
-  })
-
-  it('stays inside the floor, so nothing is embedded in a wall', () => {
-    for (let i = 0; i < 40; i++) {
-      const p = perimeterPoint(i / 40, 0, 0, 100, 50, 12)
-      // Inside the diamond |x|/w + |y|/h <= 1, with a little slack for the inset.
-      expect(Math.abs(p.x) / 100 + Math.abs(p.y) / 50).toBeLessThanOrEqual(1.001)
-    }
   })
 })
 
