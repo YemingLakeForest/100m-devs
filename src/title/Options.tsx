@@ -113,7 +113,12 @@ function ChoiceRow<T extends string>({
   return (
     <div className="opt__row">
       <span className="opt__label">{label}</span>
-      <div className="opt__control">
+      {/*
+        A separate modifier from the volume rows: the unselected options in a
+        choice are dimmed to show which one is live, and the − / + on a volume
+        are never "unselected" — dimming them would read as disabled.
+      */}
+      <div className="opt__control opt__control--choice">
         {options.map((o) => (
           <Button
             key={o.value}

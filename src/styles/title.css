@@ -855,9 +855,18 @@
   text-align: right;
 }
 
-/* The chosen side of a two-way switch. A brightness step, never a tint. */
-.opt__control .ui-btn.is-chosen {
-  color: var(--p3);
+/*
+ * Which option is live.
+ *
+ * Stated by **dimming the others**, not by brightening the chosen one. The
+ * first attempt set `color: var(--p3)` on the selection and was invisible in a
+ * screenshot: a `.ui-btn` is a filled slab with dark text, so a brighter *ink*
+ * value has almost nowhere to go. Opacity on the alternatives is the same idiom
+ * `.tech__node[data-locked]` already uses, and it survives the entropy hue
+ * shifting every colour token underneath it.
+ */
+.opt__control--choice .ui-btn:not(.is-chosen) {
+  opacity: 0.45;
 }
 
 .opt__row--danger .opt__label {
