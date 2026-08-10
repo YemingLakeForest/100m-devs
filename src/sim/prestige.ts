@@ -168,3 +168,34 @@ export function totalLevels(levels: Readonly<Record<string, number>>): number {
   for (const node of PARADIGM_TREE) n += Math.max(0, levels[node.id] ?? 0)
   return n
 }
+
+// --- what the tree does to the rest of the game ----------------------------
+
+/**
+ * The queries every *other* system asks of the tree — §13.2.
+ *
+ * They live here, as pure functions of the levels map, for one reason: a
+ * Paradigm node's effect is almost never felt in the prestige screen. Meeting
+ * Ban cancels a pause that §11's tech tree creates; Zero-Trust deletes a §18
+ * event; Chained Poke changes what `store.poke` lands on. If each of those
+ * systems read `levels['L1-2A']` for itself, the node IDs would be spread
+ * across the codebase and renaming one would be a five-file change with no
+ * compiler help.
+ *
+ * So the tree exports *verbs*, and the ID stays in this file.
+ */
+
+/** §13.2 L1-2A — the §11 B2 standup pause is cancelled outright. */
+export function meetingBanActive(levels: Readonly<Record<string, number>>): boolean {
+  return (levels['L1-2A'] ?? 0) > 0
+}
+
+/** §13.2 L1-3A — the §18 Rogue Refactorer never fires again. */
+export function zeroTrustActive(levels: Readonly<Record<string, number>>): boolean {
+  return (levels['L1-3A'] ?? 0) > 0
+}
+
+/** §13.2 L1-2B — extra rows of developers a single poke reaches. */
+export function chainedPokeRows(levels: Readonly<Record<string, number>>): number {
+  return Math.max(0, Math.min(3, Math.floor(levels['L1-2B'] ?? 0)))
+}
