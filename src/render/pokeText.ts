@@ -52,6 +52,33 @@ export interface PokeTypeset {
   destroy(): void
 }
 
+export interface PokeTextOffsets {
+  numeralX: number
+  numeralY: number
+  snippetX: number
+  snippetY: number
+}
+
+/**
+ * Give repeated pokes a loose, readable spray while keeping the code line well
+ * clear of the numeral. Injecting the draw makes the envelope deterministic in
+ * tests without making live feedback repeat a pattern.
+ */
+export function pokeTextOffsets(
+  numeralSize: number,
+  random: () => number = Math.random,
+): PokeTextOffsets {
+  const draw = () => Math.min(1, Math.max(0, random()))
+  return {
+    numeralX: -8 + draw() * 16,
+    numeralY: -4 + draw() * 8,
+    snippetX: -24 + draw() * 48,
+    // The old 0.95 × size baseline touched the outlined glyph texture. This
+    // leaves at least 18px of air, then varies the gap by another 16px.
+    snippetY: numeralSize + 18 + draw() * 16,
+  }
+}
+
 /** Which palette entry a numeral takes — GDD §8.2. */
 function numeralColour(sp: number, crit: boolean): number {
   // A Rogue Refactorer gives back points they already deleted, so a negative
@@ -60,7 +87,7 @@ function numeralColour(sp: number, crit: boolean): number {
   return crit ? c(RAMPS.CALM[3]) : c(RAMPS.CALM[2])
 }
 
-export function createPokeTypeset(renderer: Renderer): PokeTypeset {
+export function createPokeTypeset(renderer: Renderer, random: () => number = Math.random): PokeTypeset {
   /** `${size}:${colour}:${glyph}` -> texture. */
   const glyphs = new Map<string, Texture>()
   const snippets = new Map<string, Texture>()
@@ -133,6 +160,7 @@ export function createPokeTypeset(renderer: Renderer): PokeTypeset {
       const root = new Container()
       const size = crit ? CRIT_SIZE : NUMERAL_SIZE
       const colour = unblocked ? c(RAMPS.WARN[2]) : numeralColour(sp, crit)
+      const offsets = pokeTextOffsets(size, random)
 
       // §25.1, R11 — an Overwhelmed developer pays nothing and that is the
       // design (§4.7). So the floater reports what the poke **achieved**
@@ -142,16 +170,17 @@ export function createPokeTypeset(renderer: Renderer): PokeTypeset {
       // WARN amber rather than the CALM phosphor of a points numeral, because
       // it is a different kind of event and the player should be able to tell
       // at a glance without reading it.
-      let x = 0
+      let width = 0
       for (const glyph of unblocked ? 'UNBLOCKED' : format(sp)) {
         const texture = glyphs.get(`${size}:${colour}:${glyph}`)
         // A glyph outside GLYPHS would be a formatting bug rather than a
         // reason to drop the whole numeral, so it is skipped silently.
         if (!texture) continue
         const sprite = new Sprite(texture)
-        sprite.x = x
+        sprite.x = offsets.numeralX + width
+        sprite.y = offsets.numeralY
         root.addChild(sprite)
-        x += texture.width - size * 0.28 // tighten the outline padding
+        width += texture.width - size * 0.28 // tighten the outline padding
       }
 
       // §8.2a. Null for an Overwhelmed developer, who has nothing to say — and
@@ -162,8 +191,8 @@ export function createPokeTypeset(renderer: Renderer): PokeTypeset {
           const line = new Sprite(texture)
           // Centred under the numeral and slightly transparent: the number is
           // the feedback, the code is the texture around it.
-          line.x = x / 2 - texture.width / 2
-          line.y = size * 0.95
+          line.x = offsets.numeralX + width / 2 - texture.width / 2 + offsets.snippetX
+          line.y = offsets.snippetY
           line.alpha = 0.85
           root.addChild(line)
         }

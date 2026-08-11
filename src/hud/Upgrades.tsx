@@ -4,6 +4,8 @@ import { TECH_TREE, type TechBranch, type TechNode } from '../sim/techTree.ts'
 import { buyTech, techQuote, type GameState } from '../game/store.ts'
 import { formatMoney } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
+import { ConceptText } from '../ui/ConceptText.tsx'
+import { Kw } from './Kw.tsx'
 
 import '../styles/tech.css'
 
@@ -59,8 +61,8 @@ function Node({ node, state }: { node: TechNode; state: GameState }) {
         satire delivered as a shopping list — so it is not a tooltip. On a phone
         there is nowhere for a tooltip to live and nothing to hover with.
       */}
-      <p className="tech__node-flavour">{node.flavour}</p>
-      <p className="tech__node-effect">{node.effect}</p>
+      <p className="tech__node-flavour"><ConceptText text={node.flavour} /></p>
+      <p className="tech__node-effect"><ConceptText text={node.effect} /></p>
 
       {q.unlocked ? (
         <Button onClick={() => buyTech(node.id)} disabled={!q.affordable}>
@@ -91,7 +93,7 @@ export function Upgrades({ open, onClose }: { open: boolean; onClose: () => void
       <Panel open={open} from="right" className="hud__upgrades">
         <div className="hud__upgrades-body">
           <div className="tech__head">
-            <h2 className="hud__upgrades-title">UPGRADES</h2>
+            <h2 className="hud__upgrades-title"><Kw kind="upgrades">UPGRADES</Kw></h2>
             <span className="tech__cash">{formatMoney(state.cash)}</span>
           </div>
 
@@ -99,7 +101,7 @@ export function Upgrades({ open, onClose }: { open: boolean; onClose: () => void
             {(['protocol', 'culture'] as const).map((branch) => (
               <section key={branch} className="tech__branch">
                 <h3 className="tech__branch-name">{BRANCH_NAME[branch]}</h3>
-                <p className="tech__branch-blurb">{BRANCH_BLURB[branch]}</p>
+                <p className="tech__branch-blurb"><ConceptText text={BRANCH_BLURB[branch]} /></p>
                 {TECH_TREE.filter((n) => n.branch === branch).map((node) => (
                   <Node key={node.id} node={node} state={state} />
                 ))}

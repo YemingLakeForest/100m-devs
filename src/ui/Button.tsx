@@ -1,5 +1,7 @@
-import { useCallback, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { Children, useCallback, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { playUi } from './uiSfx.ts'
+import { ConceptText } from './ConceptText.tsx'
+import { conceptsIn, type Concept } from './concepts.ts'
 
 /**
  * The pressable control — GDD §10.8 F2, and §10.6's "rectangular flat-colour
@@ -30,12 +32,17 @@ import { playUi } from './uiSfx.ts'
 export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onPointerDown'> {
   /** `bait` is the §21 Act III mousetrap — the one control permitted to beg. */
   variant?: 'default' | 'bait'
+  /** A button named entirely for one tracked concept keeps that concept's ink. */
+  concept?: Concept
   children: ReactNode
 }
 
-export function Button({ variant = 'default', className, children, ...rest }: ButtonProps) {
+export function Button({ variant = 'default', concept, className, children, ...rest }: ButtonProps) {
   const [pressed, setPressed] = useState(false)
   const [releasing, setReleasing] = useState(false)
+  const hasConceptLabel = Children.toArray(children).some(
+    (child) => typeof child === 'string' && conceptsIn(child).length > 0,
+  )
 
   const onPointerDown = useCallback(() => {
     setPressed(true)
@@ -57,12 +64,17 @@ export function Button({ variant = 'default', className, children, ...rest }: Bu
   const classes = [
     'ui-btn',
     variant === 'bait' && 'ui-btn--bait',
+    hasConceptLabel && 'ui-btn--has-concept',
+    concept && `ui-btn--concept kw--${concept}`,
     pressed && 'is-pressed',
     releasing && 'is-releasing',
     className,
   ]
     .filter(Boolean)
     .join(' ')
+  const label = Children.map(children, (child) =>
+    typeof child === 'string' ? <ConceptText text={child} /> : child,
+  )
 
   return (
     <button
@@ -79,7 +91,7 @@ export function Button({ variant = 'default', className, children, ...rest }: Bu
         <span className="ui-btn__bracket" aria-hidden="true">
           [
         </span>
-        <span className="ui-btn__label">{children}</span>
+        <span className="ui-btn__label">{label}</span>
         <span className="ui-btn__bracket" aria-hidden="true">
           ]
         </span>

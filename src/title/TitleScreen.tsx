@@ -72,6 +72,8 @@ export interface TitleScreenProps {
   stage: StageHandle | null
   /** Fired on press, before the exit runs — the game may start arriving. */
   onStart: () => void
+  /** Reset progress, then take the same continuous-camera hand-off into play. */
+  onNewGame: () => void
   /** Fired when the last slab has left. The title may be unmounted. */
   onExited: () => void
   /** §10.9.3 — true replays the boot sequence. Injected so it is testable. */
@@ -86,20 +88,21 @@ export interface TitleScreenProps {
  * F3.1's half of that is an obligation rather than a feature: the Departure
  * Mono licence has to be reachable from inside the product.
  */
-type Stub = Exclude<MenuItem, 'START'>
+type Stub = Exclude<MenuItem, 'START' | 'NEW GAME'>
 
 const STUB_SCREEN: Record<Stub, () => ReactElement> = {
   OPTIONS: Options,
   CREDITS: Credits,
 }
 
-export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScreenProps) {
+export function TitleScreen({ stage, onStart, onNewGame, onExited, firstLaunch }: TitleScreenProps) {
   const reduced = useReducedMotion()
   const t = useMemo(() => titleTimeline(firstLaunch, reduced), [firstLaunch, reduced])
 
   const [exiting, setExiting] = useState(false)
   const [count, setCount] = useState(() => countAt(0, t.countMs))
   const [stub, setStub] = useState<Stub | null>(null)
+  const [confirmNewGame, setConfirmNewGame] = useState(false)
   // Latched separately from `stub`, because `Panel` keeps its children mounted
   // through the exit animation and children derived straight from `stub` would
   // blank on the frame it goes null.
@@ -169,10 +172,11 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
 
   // --- exit — §10.9.4 ------------------------------------------------------
 
-  const start = useCallback(() => {
+  const leave = useCallback((newGame: boolean) => {
     if (exiting) return
     setExiting(true)
-    onStart()
+    if (newGame) onNewGame()
+    else onStart()
     // §10.9.4 — the lights coming up and the camera pushing in, in one sound.
     //
     // This used to be `playSfx('zoom-in')`, defended by a comment saying the
@@ -182,7 +186,7 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
     // after the title had gone — and it is the first sound in the game.
     // See the `start` entry in uiSfx.ts.
     playUi('start')
-  }, [exiting, onStart])
+  }, [exiting, onNewGame, onStart])
 
   // Latched rather than depended on, as in Panel: an inline arrow from the
   // caller changes identity on every parent render and would restart the exit
@@ -330,7 +334,7 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
           spread across eleven numerals is the relationship the logo *is*, so
           it may not rest on a property that can silently no-op.
         */}
-        <div className="title__word" aria-label="DEVELOPERS">
+        <div className="title__word kw kw--devs" aria-label="DEVELOPERS">
           {'DEVELOPERS'.split('').map((ch, i) => (
             <span key={i} aria-hidden="true">
               {ch}
@@ -364,7 +368,15 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
               EXIT_ITEM_MS,
             )}
           >
-            <Button onClick={() => (item === 'START' ? start() : openStub(item))}>{item}</Button>
+            <Button
+              onClick={() => {
+                if (item === 'START') leave(false)
+                else if (item === 'NEW GAME') setConfirmNewGame(true)
+                else openStub(item)
+              }}
+            >
+              {item}
+            </Button>
           </div>
         ))}
       </nav>
@@ -380,6 +392,23 @@ export function TitleScreen({ stage, onStart, onExited, firstLaunch }: TitleScre
             the frame it goes null and the panel would slide out empty. */}
         {StubScreen && <StubScreen />}
         <Button onClick={() => setStub(null)}>CLOSE</Button>
+      </Panel>
+
+      <Panel open={confirmNewGame} from="centre" modal className="title__new-game">
+        <h2>START A NEW GAME?</h2>
+        <p>Your studio progress will be erased. Your founder profile stays.</p>
+        <div className="title__new-game-actions">
+          <Button onClick={() => setConfirmNewGame(false)}>CANCEL</Button>
+          <Button
+            variant="bait"
+            onClick={() => {
+              setConfirmNewGame(false)
+              leave(true)
+            }}
+          >
+            ERASE &amp; START
+          </Button>
+        </div>
       </Panel>
     </div>
   )

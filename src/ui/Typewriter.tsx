@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from './motion.ts'
 import { playUi } from './uiSfx.ts'
 import { charsRevealedAt, revealTimeline, typingDuration } from './typewriter.ts'
+import { ConceptText } from './ConceptText.tsx'
 
 /**
  * Per-character reveal — GDD §10.7's timing table, rendered.
@@ -101,7 +102,7 @@ export function Typewriter({
 
   return (
     <span className={className}>
-      {text.slice(0, revealed)}
+      <ConceptText text={text} to={revealed} />
       {/*
         The unrevealed remainder is still laid out, in transparent ink. Without
         it the box would resize as the last line fills, and a frame that
@@ -109,7 +110,7 @@ export function Typewriter({
         failure wearing a different hat.
       */}
       <span className="ui-type__ghost" aria-hidden="true">
-        {text.slice(revealed)}
+        <ConceptText text={text} from={revealed} />
       </span>
     </span>
   )

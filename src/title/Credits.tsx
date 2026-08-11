@@ -19,6 +19,7 @@
  */
 
 import licence from '../assets/fonts/DepartureMono-LICENSE.txt?raw'
+import { Kw } from '../hud/Kw.tsx'
 
 export function Credits() {
   return (
@@ -26,7 +27,7 @@ export function Credits() {
       <h2 className="credits__title">CREDITS</h2>
 
       <dl className="credits__list">
-        <dt>100,000,000 DEVELOPERS</dt>
+        <dt>100,000,000 <Kw kind="devs">DEVELOPERS</Kw></dt>
         <dd>A STUDIO_OS production.</dd>
 
         <dt>DESIGN, CODE, SOUND</dt>

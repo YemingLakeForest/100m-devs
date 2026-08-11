@@ -40,6 +40,7 @@ import { Upgrades } from './Upgrades.tsx'
 import { ParadigmTree } from './ParadigmTree.tsx'
 import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
+import { ConceptText } from '../ui/ConceptText.tsx'
 
 /**
  * Dev-only §10.7 preview — `?dialogue`. Read once, at module load, for the
@@ -90,12 +91,13 @@ const PREVIEW_DIALOGUE =
  * post-process, and it is held together by the palette and the type system
  * instead.
  */
-export function Hud({ stage }: { stage: StageHandle | null }) {
+export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMenu?: () => void }) {
   const state = useGameState()
   // §13.2's tree and §11's tree are two doors, and they now hang off one bar.
   const [treeOpen, setTreeOpen] = useState(false)
   const [upgradesOpen, setUpgradesOpen] = useState(false)
   const [founderOpen, setFounderOpen] = useState(false)
+  const [gameMenuOpen, setGameMenuOpen] = useState(false)
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -218,7 +220,27 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
           {/* §10.1's UPGRADES nav. The founder's personal Management tree now
               opens from their world avatar; this remains the studio tree. */}
           <div className="hud__nav">
-            <Button onClick={() => setUpgradesOpen((was) => !was)}>UPGRADES</Button>
+            <Button
+              onClick={() => {
+                setTreeOpen(false)
+                setFounderOpen(false)
+                setGameMenuOpen(false)
+                setUpgradesOpen((was) => !was)
+              }}
+              concept="upgrades"
+            >
+              UPGRADES
+            </Button>
+            <Button
+              onClick={() => {
+                setTreeOpen(false)
+                setFounderOpen(false)
+                setUpgradesOpen(false)
+                setGameMenuOpen(true)
+              }}
+            >
+              MENU
+            </Button>
           </div>
         </div>
       </div>
@@ -251,6 +273,14 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
       <Upgrades open={upgradesOpen} onClose={() => setUpgradesOpen(false)} />
       <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
       <FounderProfilePanel open={founderOpen} onClose={() => setFounderOpen(false)} />
+      <GameMenu
+        open={gameMenuOpen}
+        onResume={() => setGameMenuOpen(false)}
+        onMainMenu={() => {
+          setGameMenuOpen(false)
+          onMainMenu?.()
+        }}
+      />
 
       <Bankruptcy open={state.phase === 'bankrupt'} />
       {/*
@@ -289,6 +319,25 @@ export function Hud({ stage }: { stage: StageHandle | null }) {
 
       {PREVIEW_DIALOGUE && <DialoguePreview />}
     </div>
+  )
+}
+
+function GameMenu({
+  open,
+  onResume,
+  onMainMenu,
+}: {
+  open: boolean
+  onResume: () => void
+  onMainMenu: () => void
+}) {
+  return (
+    <Panel open={open} modal from="centre" className="game-menu">
+      <h2>GAME MENU</h2>
+      <p>Your studio keeps working while this menu is open.</p>
+      <Button onClick={onResume}>RESUME</Button>
+      <Button onClick={onMainMenu}>MAIN SCREEN</Button>
+    </Panel>
   )
 }
 
@@ -453,8 +502,7 @@ function Bankruptcy({ open }: { open: boolean }) {
     <Panel open={open} modal from="centre" className="bankruptcy">
       <h1>BANKRUPTCY</h1>
       <p>
-        Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds
-        coding.
+        <ConceptText text="Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds coding." />
       </p>
       <p className="bankruptcy__result">$0 REVENUE — TOTAL LIQUIDATION</p>
       <p className="bankruptcy__lesson">

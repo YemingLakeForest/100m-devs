@@ -22,7 +22,9 @@
  * palette is for.
  */
 
-export type Keyword = 'story' | 'cash' | 'devs' | 'entropy'
+import { Kw as ConceptKeyword, type Concept } from '../ui/ConceptText.tsx'
+
+export type Keyword = Concept
 
 /**
  * The default is `story` because it is the overwhelming majority of uses and
@@ -35,7 +37,7 @@ export function Kw({
   kind?: Keyword
   children?: React.ReactNode
 }) {
-  return <span className={`kw kw--${kind}`}>{children}</span>
+  return <ConceptKeyword concept={kind}>{children}</ConceptKeyword>
 }
 
 /**

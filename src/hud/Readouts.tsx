@@ -14,6 +14,7 @@ import { useSpring } from '../ui/useSpring.ts'
 import { SPRING_HEAVY } from '../ui/spring.ts'
 import { Counter } from './Counter.tsx'
 import { Kw } from './Kw.tsx'
+import { ConceptText } from '../ui/ConceptText.tsx'
 import {
   burnReadout,
   entropyPercent,
@@ -67,7 +68,7 @@ export function Cash({ state }: { state: GameState }) {
 
   return (
     <div className="hud__block hud__block--cash">
-      <span className="hud__label">CASH</span>
+      <span className="hud__label"><Kw kind="cash">CASH</Kw></span>
       <b className={`hud__num hud__num--major${bad ? ' is-bad' : ''}`}>{formatMoney(state.cash)}</b>
       {/* Both rows are conditional on the economy, not on the script: the burn
           exists exactly while somebody is being paid, and the clock exists
@@ -97,9 +98,9 @@ export function Devs({ state }: { state: GameState }) {
 
   return (
     <div className="hud__block">
-      <span className="hud__label">DEVS</span>
+      <span className="hud__label"><Kw kind="devs">DEVS</Kw></span>
       <Counter value={state.devs} format={formatCount} bounce />
-      {bar && <span className="hud__sub hud__scale">{bar}</span>}
+      {bar && <span className="hud__sub hud__scale"><ConceptText text={bar} /></span>}
     </div>
   )
 }
@@ -201,7 +202,7 @@ export function Velocity({ state }: { state: GameState }) {
   const split = velocitySplit(swarm, pokeVelocity(state))
   return (
     <div className="hud__block">
-      <span className="hud__label">VELOCITY</span>
+      <span className="hud__label"><Kw kind="velocity">VELOCITY</Kw></span>
       <b className="hud__num hud__num--major">{formatVelocity(currentEffectiveVelocity(state))}</b>
       <span className="hud__sub">
         <Kw>story points</Kw>/SEC

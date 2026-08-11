@@ -43,8 +43,8 @@ export const MENU_ITEM_MS = 220
 /** §10.9.4 — "menu items stagger in on 60 ms offsets". §10.8a's 40–60 ms band. */
 export const STAGGER_MS = 60
 
-/** The three §10.9.2 menu slabs. Exported so the stagger can be tested against it. */
-export const MENU_ITEMS = ['START', 'OPTIONS', 'CREDITS'] as const
+/** The landing-screen slabs. Exported so the stagger can be tested against it. */
+export const MENU_ITEMS = ['START', 'NEW GAME', 'OPTIONS', 'CREDITS'] as const
 export type MenuItem = (typeof MENU_ITEMS)[number]
 
 /** §10.9.4 exit — each part's own animation, all comfortably inside F6's 400 ms. */

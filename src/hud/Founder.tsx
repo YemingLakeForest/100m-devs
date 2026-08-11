@@ -12,6 +12,8 @@ import { formatMoney } from './hudModel.ts'
 import { DEFAULT_FOUNDER, readFounderProfile } from '../game/founderProfile.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { useGameState } from './useGameState.ts'
+import { ConceptText } from '../ui/ConceptText.tsx'
+import { Kw } from './Kw.tsx'
 
 import '../styles/founder.css'
 
@@ -78,8 +80,8 @@ function Node({ node, cash }: { node: FounderNode; cash: number }) {
         */}
         <span className="founder__node-borrowed">{node.borrowedFrom.toUpperCase()}</span>
       </div>
-      <p className="founder__node-flavour">{node.flavour}</p>
-      <p className="founder__node-effect">{node.effect}</p>
+      <p className="founder__node-flavour"><ConceptText text={node.flavour} /></p>
+      <p className="founder__node-effect"><ConceptText text={node.effect} /></p>
       <Button onClick={() => buyFounderNode(node.id)} disabled={maxed || cash < cost}>
         {maxed ? 'LEARNED' : formatMoney(cost)}
         {node.maxLevel > 1 && !maxed && ` · ${level}/${node.maxLevel}`}
@@ -115,7 +117,7 @@ export function FounderBranch({ cash }: { cash: number }) {
         person here who can do all five.
       </p>
       <p className="founder__rate-line">
-        YOUR OUTPUT <b>{f.rate.toFixed(1)}</b> story points a second — and nothing the studio
+        YOUR OUTPUT <b>{f.rate.toFixed(1)}</b> <Kw>story points</Kw> a second — and nothing the studio
         does can raise it or take it away.
       </p>
       {FOUNDER_TREE.map((node) => (
@@ -150,8 +152,8 @@ export function FounderProfilePanel({ open, onClose }: { open: boolean; onClose:
         <aside className="founder-profile__identity">
           <FounderAvatar head={founder.head} body={founder.body} label="YOU" />
           <dl>
-            <div><dt>OUTPUT</dt><dd>{founderOf().rate.toFixed(1)} SP/S</dd></div>
-            <div><dt>PER TAP</dt><dd>+{founderOf().tapValue.toFixed(0)} SP</dd></div>
+            <div><dt>OUTPUT</dt><dd>{founderOf().rate.toFixed(1)} <Kw>STORY POINTS</Kw>/S</dd></div>
+            <div><dt>PER TAP</dt><dd>+{founderOf().tapValue.toFixed(0)} <Kw>STORY POINTS</Kw></dd></div>
             <div><dt>PAYROLL</dt><dd>$0</dd></div>
           </dl>
         </aside>

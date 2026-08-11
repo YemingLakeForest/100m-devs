@@ -195,6 +195,23 @@ describe('the upgrades entry point', () => {
   })
 })
 
+describe('the in-game menu', () => {
+  it('opens from gameplay, resumes, and can hand back to the main screen', () => {
+    const onMainMenu = vi.fn()
+    render(<Hud stage={null} onMainMenu={onMainMenu} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'MENU' }))
+    expect(screen.getByText('GAME MENU')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'RESUME' }))
+    expect(onMainMenu).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'MENU' }))
+    fireEvent.click(screen.getByRole('button', { name: 'MAIN SCREEN' }))
+    expect(onMainMenu).toHaveBeenCalledOnce()
+  })
+})
+
 /** GDD §10.1 / §10.2 — what the HUD is actually obliged to say. */
 describe('the readouts', () => {
   it('shows cash, headcount, velocity, the project and the speedometer at once', () => {

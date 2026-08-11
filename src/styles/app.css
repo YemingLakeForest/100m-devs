@@ -866,11 +866,16 @@ body {
   display: grid;
   justify-items: start;
   gap: 4px;
-  width: 15em;
+  /* The stat row is three real columns: a 5.5em label, ten fixed-width cells,
+     and a numeric value. At 15em the grid's min-content width was wider than
+     the card, so the ########## cells escaped through the right border. */
+  width: 22em;
+  max-width: calc(100% - 2 * var(--edge-x));
   padding: 10px 12px;
   border: var(--rule) solid var(--p1);
   background: color-mix(in srgb, var(--n0) 88%, transparent);
   pointer-events: auto;
+  overflow: hidden;
 }
 
 .devcard__name {
@@ -894,7 +899,7 @@ body {
 
 .devcard__stat {
   display: grid;
-  grid-template-columns: 5.5em 1fr auto;
+  grid-template-columns: 5.5em minmax(0, 1fr) 3ch;
   gap: 6px;
   align-items: baseline;
   font-size: var(--type-1x);
@@ -908,11 +913,14 @@ body {
    progress bar, which at this type size is a smudge rather than a reading. */
 .devcard__stat-bar {
   color: var(--p2);
-  letter-spacing: 1px;
+  min-width: 0;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
 }
 
 .devcard__stat-value {
   color: var(--p3);
+  text-align: right;
 }
 
 /*
@@ -1074,6 +1082,25 @@ body {
 
 .hud__nav {
   pointer-events: auto;
+  display: flex;
+  gap: 5px;
+  justify-content: flex-end;
+}
+
+.game-menu {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  width: min(32em, calc(100% - 2 * var(--edge-x)));
+  padding: 14px 18px;
+  border: var(--rule) solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 90%, transparent);
+  pointer-events: auto;
+}
+
+.game-menu h2,
+.game-menu p {
+  margin: 0;
 }
 
 .hud__nav .ui-btn {
@@ -1802,9 +1829,9 @@ body {
  * added later cannot forget it.
  */
 .ui-btn:disabled {
-  color: var(--p1);
-  background: color-mix(in srgb, var(--p0) 55%, transparent);
-  border-color: var(--p1);
+  color: var(--n6);
+  background: var(--n0);
+  border-color: var(--n4);
   box-shadow: 0 0 0 0 transparent;
   cursor: default;
   /* Nothing dead is allowed to move. The bait's pulse is the game *begging*,
@@ -1815,7 +1842,7 @@ body {
 }
 
 .ui-btn:disabled small {
-  color: var(--p1);
+  color: var(--n6);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1895,6 +1922,11 @@ body {
  * arrives.
  */
 .ui-type__ghost {
+  color: transparent;
+}
+
+/* Semantic spans set their own ink, so inheritance alone cannot hide them. */
+.ui-type__ghost .kw {
   color: transparent;
 }
 
@@ -2109,6 +2141,81 @@ body {
 
 .kw--entropy {
   --kw: #e03c3c; /* ALARM[2] */
+}
+
+.kw--velocity {
+  --kw: #7fd4e8; /* GLOW[2] */
+}
+
+.kw--upgrades {
+  --kw: #c19366; /* WOOD[3] */
+}
+
+.kw--heroes {
+  --kw: #968a96; /* NEUTRAL[5], shared by the hero-card rarity ramp */
+}
+
+/* Mixed labels such as HIRE DEVELOPER need a backing that works for both the
+   ordinary copy and the concept's fixed semantic ink. */
+.ui-btn--has-concept {
+  color: var(--n7);
+  background: var(--n0);
+  border-color: var(--p2);
+}
+
+.ui-btn--has-concept .ui-btn__bracket {
+  color: var(--n5);
+}
+
+.ui-btn--has-concept.is-pressed {
+  color: var(--n7);
+  background: var(--n1);
+}
+
+/* Concept-only controls keep the same ink as the word everywhere else. The
+   slab changes its dark backing on press, so F2 remains visible without
+   temporarily changing the semantic colour. */
+.ui-btn--concept {
+  color: var(--kw);
+  background: var(--n0);
+  border-color: var(--kw);
+}
+
+.ui-btn--concept .ui-btn__bracket {
+  color: currentColor;
+}
+
+.ui-btn--concept.is-pressed {
+  color: var(--kw);
+  background: var(--n1);
+}
+
+/* The Act III bait animation must not flash a concept label back onto its old
+   light fill. It pulses the dark slab, alarm border, and offset block instead. */
+.ui-btn--bait.ui-btn--has-concept {
+  background: var(--n0);
+  border-color: var(--warn-3);
+  animation-name: bait-pulse-dark;
+}
+
+.ui-btn--bait.ui-btn--has-concept.is-pressed {
+  background: var(--n1);
+}
+
+.ui-btn.ui-btn--has-concept:disabled,
+.ui-btn.ui-btn--concept:disabled {
+  color: var(--n6);
+  background: var(--n0);
+  border-color: var(--n4);
+  animation: none;
+}
+
+@keyframes bait-pulse-dark {
+  50% {
+    background: var(--n1);
+    border-color: var(--warn-2);
+    box-shadow: 4px 4px 0 color-mix(in srgb, var(--warn-1) 35%, transparent);
+  }
 }
 
 /*

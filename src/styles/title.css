@@ -541,6 +541,10 @@
   color: var(--p2);
 }
 
+.title__word.kw {
+  color: var(--kw);
+}
+
 .title__rule {
   height: var(--rule);
   background: var(--p1);
@@ -595,7 +599,7 @@
   pointer-events: auto;
 }
 
-/* Tighter than the in-game default: three slabs plus the logo have to clear a
+/* Tighter than the in-game default: four slabs plus the logo have to clear a
    frame that is only about 400 CSS px tall at the bottom of the design box. */
 .title__slab .ui-btn {
   padding: 4px 12px;
@@ -618,6 +622,28 @@
   border: var(--rule) solid var(--p1);
   background: color-mix(in srgb, var(--n0) 88%, transparent);
   pointer-events: auto;
+}
+
+.title__new-game {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  width: min(34em, calc(100% - 2 * var(--edge-x)));
+  padding: 14px 18px;
+  border: var(--rule) solid var(--alarm-2);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  pointer-events: auto;
+}
+
+.title__new-game h2,
+.title__new-game p {
+  margin: 0;
+}
+
+.title__new-game-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .title__stub-copy {

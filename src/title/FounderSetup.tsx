@@ -13,6 +13,7 @@ import {
 } from '../game/founderProfile.ts'
 import { Button } from '../ui/Button.tsx'
 import { FounderAvatar } from '../ui/FounderAvatar.tsx'
+import { Kw } from '../hud/Kw.tsx'
 
 import '../styles/founderSetup.css'
 
@@ -64,7 +65,7 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
         <FounderAvatar head={head} body={body} />
         <div className="founder-setup__badge">
           <span>ROLE</span>
-          <b>MANAGER / DEVELOPER</b>
+          <b>MANAGER / <Kw kind="devs">DEVELOPER</Kw></b>
         </div>
       </section>
 

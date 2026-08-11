@@ -73,6 +73,17 @@ describe('the frame is a terminal control, not a web one', () => {
     expect(screen.getByRole('button').textContent).toBe('[HIRE DEVELOPER]')
   })
 
+  it('uses the contrast-safe slab whenever its label contains a concept', () => {
+    render(<Button>HIRE DEVELOPER</Button>)
+    expect(screen.getByRole('button')).toHaveClass('ui-btn--has-concept')
+    expect(screen.getByText('DEVELOPER')).toHaveClass('kw--devs')
+  })
+
+  it('keeps an ordinary label on the standard slab', () => {
+    render(<Button>ACCEPT TERM SHEET</Button>)
+    expect(screen.getByRole('button')).not.toHaveClass('ui-btn--has-concept')
+  })
+
   it('carries the bait variant through', () => {
     render(<Button variant="bait">HIRE 1,000 DEVS NOW</Button>)
     expect(screen.getByRole('button').className).toContain('ui-btn--bait')

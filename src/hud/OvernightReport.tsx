@@ -23,6 +23,8 @@ import {
   rowDelay,
   totalDelay,
 } from './overnightModel.ts'
+import { ConceptText } from '../ui/ConceptText.tsx'
+import { Kw } from './Kw.tsx'
 
 export interface OvernightReportProps {
   report: OfflineReport
@@ -89,7 +91,7 @@ export function OvernightReport({ report, adReady, onCollect }: OvernightReportP
             // screen under the player's thumb.
             data-revealed={i < revealed.rows ? 'true' : 'false'}
           >
-            <dt>{row.label}</dt>
+            <dt><ConceptText text={row.label} /></dt>
             <dd>
               {i < revealed.rows ? (
                 <Counter value={row.value} format={row.format} bounce />
@@ -108,14 +110,19 @@ export function OvernightReport({ report, adReady, onCollect }: OvernightReportP
       */}
       <p className="overnight__total" data-revealed={revealed.total ? 'true' : 'false'}>
         <span className="overnight__total-label">BANKED</span>
-        {revealed.total && <Counter value={storyPoints} format={(n) => `${Math.round(n)} STORY POINTS`} bounce />}
+        {revealed.total && (
+          <span className="overnight__total-value">
+            <Counter value={storyPoints} format={(n) => String(Math.round(n))} bounce />{' '}
+            <Kw>STORY POINTS</Kw>
+          </span>
+        )}
       </p>
 
       {idle && (
         // The diegetic sell for the cap raise, and the honest one: this is
         // time the player actually lost, stated plainly rather than as an
         // upsell wearing a costume.
-        <p className="overnight__idle">{idle}</p>
+        <p className="overnight__idle"><ConceptText text={idle} /></p>
       )}
 
       <div className="overnight__actions">

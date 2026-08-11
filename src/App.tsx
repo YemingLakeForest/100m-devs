@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { initSfx } from './audio/sfx.ts'
-import { __setState, jumpToPhase, selectDeveloper } from './game/store.ts'
+import { __setState, jumpToPhase, saveGame, selectDeveloper, startNewGame } from './game/store.ts'
 import { PHASE_ORDER, type Phase } from './game/onboarding.ts'
 import { Hud } from './hud/Hud.tsx'
 import { createStage, type StageHandle } from './render/stage.ts'
@@ -61,6 +61,7 @@ export default function App() {
   const [founderProfile, setFounderProfile] = useState<FounderProfile | null>(() =>
     readFounderProfile(),
   )
+  const [titleVisit, setTitleVisit] = useState(0)
 
   useEffect(() => {
     if (!SKIP_TITLE) markBooted()
@@ -164,17 +165,31 @@ export default function App() {
     .filter(Boolean)
     .join(' ')
 
+  function returnToMainScreen() {
+    saveGame()
+    setStarted(false)
+    setFounderSetupUp(false)
+    setTitleExiting(false)
+    setTitleVisit((visit) => visit + 1)
+    setTitleUp(true)
+  }
+
   return (
     <div className={appClass}>
       <div className="app__canvas" ref={hostRef} />
       {titleUp && (
         <TitleScreen
           stage={stage}
-          firstLaunch={firstLaunch}
+          firstLaunch={firstLaunch && titleVisit === 0}
           onStart={() => {
             // The title still owns the first frame. START hands a new install
             // to identity setup, then identity setup hands it to the game.
             // A returning player goes straight through the same camera push.
+            setTitleExiting(true)
+            if (founderProfile) setStarted(true)
+          }}
+          onNewGame={() => {
+            startNewGame()
             setTitleExiting(true)
             if (founderProfile) setStarted(true)
           }}
@@ -202,10 +217,16 @@ export default function App() {
       */}
       {started &&
         (SKIP_TITLE ? (
-          <Hud stage={stage} />
+          <Hud
+            stage={stage}
+            onMainMenu={returnToMainScreen}
+          />
         ) : (
           <div className="title-handoff">
-            <Hud stage={stage} />
+            <Hud
+              stage={stage}
+              onMainMenu={returnToMainScreen}
+            />
           </div>
         ))}
       {/*

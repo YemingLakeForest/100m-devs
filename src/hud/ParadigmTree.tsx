@@ -29,6 +29,7 @@ import {
   type GameState,
 } from '../game/store.ts'
 import { formatCount } from '../sim/headcount.ts'
+import { ConceptText } from '../ui/ConceptText.tsx'
 
 function Node({
   node,
@@ -54,7 +55,7 @@ function Node({
         </span>
       </div>
       <p className="paradigm__node-effect">
-        {node.effect}
+        <ConceptText text={node.effect} />
         {/*
           Every node in §13.2's five is wired now, so this never renders — and
           it stays, because it is the thing that makes shipping an inert node
@@ -100,7 +101,7 @@ export function ParadigmTree({
         left to be inferred from a node description.
       */}
       <p className="paradigm__cap">
-        DEVELOPER CAPACITY <b>{formatCount(Math.round(state.devCap))}</b>
+        <ConceptText text="DEVELOPER CAPACITY" /> <b>{formatCount(Math.round(state.devCap))}</b>
       </p>
 
       <div className="paradigm__branches">
@@ -158,8 +159,7 @@ function ShiftOffer({ state }: { state: GameState }) {
       {armed ? (
         <>
           <p className="paradigm__shift-warning">
-            Rewrite the core. You keep every Bandwidth Point and every node; you lose the
-            treasury, the swarm and everything bought with cash this run.
+            <ConceptText text="Rewrite the core. You keep every Bandwidth Point and every node; you lose the treasury, the swarm and everything bought with cash this run." />
           </p>
           <Button variant="bait" onClick={triggerParadigmShift}>
             REWRITE THE CORE

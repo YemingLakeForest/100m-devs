@@ -104,6 +104,7 @@ import {
   type OfflineReport,
 } from '../sim/offline.ts'
 import {
+  clearSave,
   emptyPermanent,
   getPermanent,
   makeSaveData,
@@ -1686,6 +1687,26 @@ export function __resetStore(): void {
   setPermanent(emptyPermanent())
   pendingSnapshot = null
   for (const fn of listeners) fn()
+}
+
+/**
+ * Begin again from the landing screen. This is deliberately stronger than a
+ * Paradigm Shift: run progress and permanent progression are replaced by a
+ * clean studio. Install identity lives under its own key and is retained.
+ */
+export function startNewGame(): void {
+  clearSave()
+  state = freshRun()
+  nextFloaterId = 1
+  nextSpawnId = 1
+  nextShipId = 1
+  nextReleaseId = 1
+  setPermanent(emptyPermanent())
+  pendingSnapshot = null
+  for (const fn of listeners) fn()
+  // Write the replacement immediately. Closing the app on the first frame of
+  // the new run must not allow the erased studio to return.
+  saveGame()
 }
 
 // --- persistence -----------------------------------------------------------
