@@ -1212,9 +1212,17 @@ was written for the things a studio **produces**. These are the things a studio
 
 | | Concept token | Colour role | The component |
 |---|---|---|---|
-| **Defect** | `defects` | **Amber.** The warning colour, because a defect is still a thing you can fix before it matters | A **counter with a density readout** beside the burn-down — `48 DEFECTS · 1 per 21 SP`. It sits next to §10.4 because it is a tax on that number |
-| **Incident** | `incidents` | **Red, and the only pulsing element in the HUD.** It is the one quantity in the game actively costing money *right now* | A **stack of open incident chips**, one per affected release, each naming its game. Not a total — a total hides which game is on fire, and §10.11's gallery is where the player already keeps that map |
+| **Defect** | `defects` | **The warning family**, because a defect is still a thing you can fix before it matters | A **counter with a density readout** beside the burn-down — `48 DEFECTS · 1 per 21 SP`. It sits next to §10.4 because it is a tax on that number |
+| **Incident** | `incidents` | **The alarm family, and the only pulsing element in the HUD.** It is the one quantity in the game actively costing money *right now* | A **stack of open incident chips**, one per affected release, each naming its game. Not a total — a total hides which game is on fire, and §10.11's gallery is where the player already keeps that map |
 | **Ticket** | `tickets` | **Cool grey-blue. Deliberately drab.** §4.13 calls tickets "the studio's ambient noise" and a colour that shouts contradicts the section | A **queue depth bar** with a served/arriving ratio, legible as "keeping up" or "falling behind" without a number being read |
+
+> **Amended in the build, 2026-08-11.** This table originally said *amber* and
+> *red*, and **both were already spoken for**: `cash` owns `WARN[2]` and `entropy`
+> owns `ALARM[2]`. Taking either would have broken the one rule §10.2a exists to
+> enforce — *one noun, one colour, everywhere it appears*. So each backlog takes
+> the **bright end of the ramp its section names**: defects `WARN[3]`, incidents
+> `ALARM[3]`, tickets `GLOW[1]`. The family still reads (a defect is a warning, an
+> incident is an alarm) and no colour was added to the system.
 
 **The three rules that make this a system rather than three widgets:**
 

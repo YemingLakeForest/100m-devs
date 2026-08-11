@@ -2239,6 +2239,27 @@ body {
   --kw: #968a96; /* NEUTRAL[5], shared by the hero-card rarity ramp */
 }
 
+/* §4.15 — the three backlogs.
+ *
+ * The section asks for amber, red and a drab grey-blue, and two of those three
+ * were already spoken for: cash owns WARN[2] and entropy owns ALARM[2]. Taking
+ * either would have broken the one rule this block exists to enforce — one
+ * noun, one colour — so each backlog takes the *bright* end of the ramp its
+ * section names, which keeps the family reading (a defect is a warning, an
+ * incident is an alarm) while staying a different ink from the thing that
+ * already lives there. Still no colours added to the system. */
+.kw--defects {
+  --kw: #ffe9b0; /* WARN[3] — a warning you can still act on */
+}
+
+.kw--incidents {
+  --kw: #ffb8b8; /* ALARM[3] — the alarm family, and not entropy's red */
+}
+
+.kw--tickets {
+  --kw: #4a8fa8; /* GLOW[1] — velocity's drab cousin. §4.13 calls it ambient noise */
+}
+
 /* Mixed labels such as HIRE DEVELOPER need a backing that works for both the
    ordinary copy and the concept's fixed semantic ink. */
 .ui-btn--has-concept {
@@ -2380,4 +2401,143 @@ body {
   font-size: var(--type-1x);
   line-height: 1.6;
   color: var(--p3);
+}
+
+/* --- the three backlogs, GDD §4.15 -------------------------------------- */
+
+/*
+ * Three components, never one. §4.15's rule 2 forbids a combined "problems"
+ * total, and the shared class here is layout only — each backlog carries its
+ * own concept ink from `.kw--*` and its own component shape, because the
+ * player's answer to each is a different hire.
+ */
+.backlog {
+  display: grid;
+  gap: 2px;
+  font-size: var(--type-1x);
+  line-height: 1.25;
+  padding: 3px 0 3px 6px;
+  border-left: var(--rule) solid var(--p1);
+}
+
+.backlog__count b {
+  font-size: var(--type-2x);
+}
+
+.backlog__head {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.backlog__note {
+  color: var(--n5);
+  letter-spacing: 0.04em;
+}
+
+/*
+ * §4.15 rule 1 — it names the cure, in the cure's colour, and only while the
+ * cure is missing. The HUD never explains a mechanic in a paragraph; it points
+ * at the person who fixes it.
+ */
+.backlog__cure {
+  letter-spacing: 0.08em;
+  color: var(--n6);
+}
+
+.backlog__cure--qa {
+  color: #ffe9b0;
+}
+
+.backlog__cure--sre {
+  color: #ffb8b8;
+}
+
+.backlog__cure--support {
+  color: #4a8fa8;
+}
+
+/* --- incidents: the HUD's one animating element ------------------------- */
+
+.backlog__chips {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * §4.15 rule 3. §10.6 forbids ambient motion in the HUD and this is its single
+ * exception, bought with the argument that an incident is the only element on
+ * screen describing money leaving *at this moment*.
+ *
+ * The pulse is on the chip's own background rather than on its text, so the
+ * reduced-motion fallback below can drop to a static tint and still read as
+ * "this one is different" rather than as nothing at all.
+ */
+.backlog__chip {
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  padding: 1px 4px;
+  background: color-mix(in srgb, var(--alarm-2) 18%, transparent);
+  animation: backlog-pulse 1.6s ease-in-out infinite;
+}
+
+.backlog__chip-name {
+  color: var(--n7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backlog__chip-state {
+  color: #ffb8b8;
+  flex: 0 0 auto;
+}
+
+@keyframes backlog-pulse {
+  50% {
+    background: color-mix(in srgb, var(--alarm-2) 42%, transparent);
+  }
+}
+
+/* --- tickets: deliberately the quietest thing here ---------------------- */
+
+.backlog__bar {
+  block-size: 4px;
+  background: var(--p1);
+}
+
+.backlog__bar-fill {
+  block-size: 100%;
+  background: #4a8fa8;
+}
+
+/* Falling behind is the only state this component raises its voice for, and it
+   raises it by one ramp step rather than by changing colour family. */
+.backlog--tickets[data-behind='true'] .backlog__bar-fill {
+  background: #e0a52e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backlog__chip {
+    animation: none;
+    background: color-mix(in srgb, var(--alarm-2) 34%, transparent);
+  }
+}
+
+/*
+ * §4.11's role row, above §10.10's multiplier row.
+ *
+ * Same grammar, deliberately: it is the same kind of control making the same
+ * kind of choice, and giving it a second visual language would imply it worked
+ * differently. Only the type size differs, because DEVELOPER is nine characters
+ * where x10 is three and four of them will not fit on the rail otherwise.
+ */
+.hire-dial--role {
+  font-size: 9px;
+  letter-spacing: 0;
 }

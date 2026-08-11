@@ -13,6 +13,7 @@ import {
   hireQuote,
   massHire,
   setHireMultiplier,
+  setHireRole,
   takeSeedRound,
   triggerParadigmShift,
   type GameState,
@@ -31,6 +32,8 @@ import { DevCard } from './DevCard.tsx'
 import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
+import { Defects, Incidents, Tickets } from './Backlogs.tsx'
+import { countsOf, type Role } from '../sim/roles.ts'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
 import { Dialogue } from '../ui/Dialogue.tsx'
@@ -67,6 +70,33 @@ const PREVIEW_OVERNIGHT_CAPPED =
 
 const PREVIEW_DIALOGUE =
   typeof location !== 'undefined' && new URLSearchParams(location.search).has('dialogue')
+
+/**
+ * §4.11 — which jobs the studio has a reason to hire for yet.
+ *
+ * **Roles arrive when the problem does, never on a headcount.** §4.11's joke —
+ * that a studio stops being one kind of person — only lands once the player has
+ * been given something to protect, and each of the three support functions has
+ * a moment where the player is looking straight at the thing it fixes:
+ *
+ * | Role | Appears when |
+ * |---|---|
+ * | **QA** | The defect counter is on screen, which is the first time §4.15 shows one |
+ * | **Support** | Something has shipped, so there is a back catalogue to answer for |
+ * | **SRE** | A game is actually down |
+ *
+ * Each row of the dial therefore arrives beside the readout that explains it,
+ * and the player never chooses between four jobs they have no information
+ * about. Once earned a role stays — a studio that has cleared its incidents has
+ * not forgotten how to hire SRE.
+ */
+function rolesAvailable(state: GameState): Role[] {
+  const roles: Role[] = ['dev']
+  if (state.defects >= 1) roles.push('qa')
+  if (state.projectsShipped > 0) roles.push('support')
+  if (state.incidents.length > 0 || countsOf(state.roster).sre > 0) roles.push('sre')
+  return roles
+}
 
 /**
  * The HUD — GDD §7.1, §10.1, §23.4.2, and the §21 script.
@@ -154,6 +184,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             concluded they were failing.
           */}
           <RevenueGraph state={state} />
+          {/*
+            §4.15 — the defect counter sits with the burn-down because it is a
+            tax on that number: the two are the same project measured by what is
+            finished and by what is broken. It is hidden at zero, so it appearing
+            is itself the notification.
+          */}
+          <Defects state={state} />
         </div>
 
         {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}
@@ -177,6 +214,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           <Cash state={state} />
           <Devs state={state} />
           <Shipped state={state} />
+          {/*
+            §4.15 — the two backlogs that belong to the *catalogue* sit with the
+            catalogue's readouts, under SHIPPED. Both are silent until there is
+            something shipped to be wrong with, so Act I's frame is unchanged.
+          */}
+          <Incidents state={state} />
+          <Tickets state={state} />
         </div>
         <div className="hud__bottom">
           <ActionBar
@@ -450,15 +494,25 @@ function ActionBar({
         {shownOffer && <ActionButton spec={shownOffer} state={state} />}
       </Panel>
 
-      {shown?.showsHireCost && state.dialUnlocked && (
+      {shown?.showsHireCost && (
         // Above the button, per §10.10.1's layout: the multiplier is chosen
         // and *then* committed, so it belongs earlier in the reading order and
         // further from the thumb than the thing it commits.
+        //
+        // No longer gated on `dialUnlocked`: that flag is §10.10.2's gate on the
+        // *multiplier*, and the role row has a different answer. A studio of ten
+        // that has just shipped a buggy game needs to be able to hire QA, and it
+        // reaches ten well before it reaches the seed round. `HireDial` renders
+        // the multiplier only when `segmentsFor` offers segments, so passing a
+        // pinned value here changes nothing about §10.10.2.
         <HireDial
-          devs={state.devs}
+          devs={state.dialUnlocked ? state.devs : 0}
           cash={state.cash}
           value={state.hireMultiplier}
           onChange={setHireMultiplier}
+          role={state.hireRole}
+          onRoleChange={setHireRole}
+          availableRoles={rolesAvailable(state)}
         />
       )}
       {shown && <ActionButton spec={shown} state={state} />}
