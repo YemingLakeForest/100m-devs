@@ -154,7 +154,9 @@ describe('the upgrades entry point', () => {
     // placeholder's heading; the placeholder is gone and the tree is here.
     expect(drawer?.textContent).toContain('COMMUNICATION PROTOCOLS')
     expect(drawer?.textContent).toContain('CULTURE & JUICE')
-    expect(drawer?.textContent).toContain('Voice Shouting')
+    // §11.5 — B1 is Instant Messenger now. Voice Shouting is what the studio
+    // does before it owns anything, not something anybody buys.
+    expect(drawer?.textContent).toContain('Instant Messenger')
 
     fireEvent.click(screen.getByRole('button', { name: /BACK/ }))
     expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('exit')
@@ -174,17 +176,34 @@ describe('the upgrades entry point', () => {
     expect(drawer?.textContent).toContain('NEEDS B1')
   })
 
-  it('prices a root node the player cannot yet afford, and refuses it', async () => {
+  it('prices a node the player cannot yet afford, and refuses it', async () => {
     __setState({ cash: 0 })
     const { container } = render(<Hud stage={null} />)
     fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
     await frame()
 
-    // §11.2 B1 is $50. A button that looks live and does nothing is worse than
+    // §11.3 C1 is $100. A button that looks live and does nothing is worse than
     // one that says so — the same rule §21.0 applies to the hire control.
-    const buy = screen.getByRole('button', { name: /^\$50$/ })
+    const buy = screen.getByRole('button', { name: /^\$100$/ })
     expect(buy).toBeDisabled()
     expect(container.querySelector('.tech__node[data-owned="true"]')).toBeNull()
+  })
+
+  /**
+   * §11.5 — Instant Messenger has **no price and no button**. An enabled control
+   * that cannot do anything is worse than no control, and a disabled one priced
+   * at $0 reads as a bug rather than as a gift.
+   */
+  it('never offers the granted node for sale, at any price', async () => {
+    __setState({ cash: 1e9 })
+    const { container } = render(<Hud stage={null} />)
+    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
+    await frame()
+
+    const drawer = container.querySelector('.hud__upgrades')
+    expect(drawer?.textContent).toContain('Instant Messenger')
+    expect(drawer?.querySelector('.tech__node-granted')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: /^\$0$/ })).toBeNull()
   })
 
   it('is a drawer, not a modal — the swarm stays visible and pokeable beside it', async () => {
@@ -344,7 +363,13 @@ describe('§10.1’s velocity split after R14 — the "you" half is the whole of
   it('keeps reading while the buff lasts, not just while the thumb moves', () => {
     // §4.5a's loop is "maintain the people who are worth maintaining", and this
     // line is the only thing on screen that can show it decaying.
-    __setState({ devs: 40, devCap: 80, peakDevs: 40 })
+    // `dev` is pinned to `working`, and that is not decoration. It is one
+    // studio-wide machine that transitions on a real dice roll, and a poke
+    // landing while it happens to be in `tenx` cashes that developer out — the
+    // headcount drops, the poked unit can end up empty, and the buff this test
+    // is actually about contributes nothing. That made it fail about one run in
+    // three for a reason with nothing to do with buff decay.
+    __setState({ devs: 40, devCap: 80, peakDevs: 40, dev: { state: 'working', elapsed: 0 } })
     act(() => {
       poke(0, 0, { rung: 2, index: 7 })
       // Long enough that `pokeRate` has all but emptied (tau = 2 s) while the

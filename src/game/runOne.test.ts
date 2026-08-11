@@ -19,10 +19,29 @@ import {
   payrollPerSecond,
 } from '../sim/economy.ts'
 import { passiveVelocity } from '../sim/entropy.ts'
-import { PROJECTS, __resetStore, getState, hireDeveloper, poke, tick } from './store.ts'
+import {
+  PROJECTS,
+  __resetStore,
+  __setState,
+  dismissScene,
+  getState,
+  hireDeveloper,
+  poke,
+  tick,
+} from './store.ts'
+
+/**
+ * §7.8.7's run seed is `Date.now()`-based, so every run of this file gets a
+ * different set of §4.9a output shares and therefore a different velocity. That
+ * is right for the game and wrong for a test that asserts a treasury: this file
+ * measures the *economy*, and letting the dice into it makes a solvency canary
+ * fail once every few runs for reasons that have nothing to do with solvency.
+ */
+const FIXED_SEED = 0x5eed
 
 beforeEach(() => {
   __resetStore()
+  __setState({ runSeed: FIXED_SEED })
 })
 
 /** Run the simulation for `seconds`, poking `pokesPerSecond` throughout. */
@@ -30,6 +49,10 @@ function play(seconds: number, pokesPerSecond = 0) {
   const step = 1 / 30
   let owed = 0
   for (let t = 0; t < seconds; t += step) {
+    // §21.7 — a scene stops the world and `poke` is inert while one is up, so
+    // the harness taps through it exactly as a player would. Without this, Act
+    // I's arrival scene simply parks the run.
+    if (getState().scene !== null) dismissScene()
     owed += pokesPerSecond * step
     while (owed >= 1) {
       poke(0, 0)
@@ -83,19 +106,42 @@ describe('a player who does what the game says does not go broke', () => {
     // §21 Act I and II. Both founders unpaid, so this is pure profit, and it is
     // the money Act IIa is played with.
     //
-    // Note the ordering, which the first draft of this test got wrong and which
-    // is a fact about the design rather than about the test: **James cannot be
-    // hired until the first project ships**, because the player starts with no
-    // money at all and he costs a dollar. Act II's beat is gated on Act I's
-    // payout without anything having to say so.
+    // **§21.0b changed the ordering and it is worth recording what it was.**
+    // James used to cost a dollar against a treasury of nothing, so the real
+    // gate on the first hire was shipping the whole of *Flappy Square* alone —
+    // Act II's beat was gated on Act I's payout without anything saying so, and
+    // that is precisely the brutality R41 was reported for. He is free now, and
+    // arrives fifty pokes in, so the first hire the player *pays* for is the
+    // third person.
     play(240, 4)
     expect(getState().projectsShipped).toBeGreaterThanOrEqual(1)
+    // James is already at a desk; this is employee number two.
+    expect(getState().devs).toBe(1)
     expect(hireDeveloper()).toBe(true)
-    play(200, 4)
+
+    // Played to the beat rather than to a stopwatch. A fixed 200 seconds put
+    // the second ship on a knife edge, so the assertions below were testing
+    // *timing* — which legitimately varies, because §8.2's crits are a real
+    // dice roll and no seed pins them — instead of solvency.
+    for (let i = 0; i < 40 && getState().projectsShipped < 2; i++) play(30, 4)
+    // §4.10e pays on a tail, so a treasury read on the frame a game ships is a
+    // treasury read before it has been paid. Let the catalogue settle.
+    play(120, 4)
+
     const s = getState()
     expect(s.projectsShipped).toBeGreaterThanOrEqual(2)
-    expect(s.cash).toBeGreaterThan(20_000)
     expect(s.phase).toBe('act2a_loop')
+
+    /**
+     * The canary: **the loop pays for itself.** Two unpaid founders and one
+     * wage against two shipped games, so the treasury has to hold most of what
+     * the catalogue has paid out. Stated as a share of §4.10e's realised
+     * revenue rather than as a round number, because §4.14 now scales the
+     * payout by the rating — a literal would have been re-tuned every time
+     * quality moved, which is how a canary stops being one.
+     */
+    expect(s.lifetimeRevenue).toBeGreaterThan(10_000)
+    expect(s.cash).toBeGreaterThan(0.8 * s.lifetimeRevenue)
   })
 
   it('survives hiring to forty, which is what Act IIa asks for', () => {

@@ -24,7 +24,15 @@ import {
   rollShape,
   type Release,
 } from '../sim/revenue.ts'
-import { addHires, countsOf, newRoster, roleShare, type Role, type Roster } from '../sim/roles.ts'
+import {
+  addHires,
+  countsOf,
+  newRoster,
+  removeAtSeat,
+  roleShare,
+  type Role,
+  type Roster,
+} from '../sim/roles.ts'
 import { advanceDefects, defectsFromPoke, shipDefects } from '../sim/defects.ts'
 import {
   advanceIncidents,
@@ -78,6 +86,7 @@ import {
   type FounderEffects,
 } from '../sim/founder.ts'
 import {
+  FIRST_PROTOCOL_NODE,
   TECH_BY_ID,
   canBuyTech,
   inStandup,
@@ -101,7 +110,11 @@ import {
   type TouchLatch,
   type TouchMode,
 } from './touchMode.ts'
-import { SCENE_JAMES_INSTANT_MESSENGER } from './scenes.ts'
+import {
+  SCENE_INSTANT_MESSENGER,
+  SCENE_JAMES_ARRIVES,
+  SCENE_JAMES_INSTANT_MESSENGER,
+} from './scenes.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
 import { BUFF_TAU, addBuff, buffLift, decayBuffs, strengthOnSeat, type Buff } from '../sim/buffs.ts'
@@ -1278,6 +1291,44 @@ export function tick(dtSeconds: number): void {
   })
 
   set(patch)
+  // §21.0b — after `set`, because the beat reads the phase the machine just
+  // moved to and grants a hire, which is a second write. Running it inside the
+  // patch would mean composing a hire into a partial state that has not been
+  // published yet, and `hire` reads `state` for the roster.
+  advanceAct1(after.phase, patch.phase)
+}
+
+/**
+ * §21.0b / §21.7 — Act I's story beats, which are hires rather than banners.
+ *
+ * Two things happen here that happen nowhere else in the game: **somebody is
+ * given to the player for free**, and **an upgrade is given to the player for
+ * free**. Both are §21.7's rule — *a hero arrives the first time you feel the
+ * problem they solve* — applied to the two problems Act I actually has, which
+ * are being alone and having to talk to the person next to you.
+ *
+ * Driven off the phase *transition* rather than off the phase, so each fires
+ * exactly once even though the machine can sit in a phase for thousands of
+ * frames.
+ */
+function advanceAct1(from: Phase, to: Phase | undefined): void {
+  if (to === undefined || to === from) return
+
+  if (to === 'act1_james' && state.devs === 0) {
+    // He is not hired. He turns up, he is free, and §4.10a's payroll already
+    // starts at the third head — so this costs the economy exactly nothing and
+    // needs no exception anywhere in `economy.ts`.
+    set({ ...hire(0, 1, 'dev'), scene: SCENE_JAMES_ARRIVES.id })
+  }
+
+  if (to === 'act2_offer_hire') {
+    // §11.5 — Instant Messenger, given rather than sold, at the centre of
+    // §11.4's board. It is the only free node in the game.
+    set({
+      scene: SCENE_INSTANT_MESSENGER.id,
+      tech: { ...state.tech, [FIRST_PROTOCOL_NODE]: 1 },
+    })
+  }
 }
 
 /**
@@ -1417,10 +1468,27 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
   // §11.3 C1 — Nitro Cold Brew. `hasCultureUpgrade` was this effect before
   // there was a tree to own it, and it is still honoured: the field predates
   // §11 and a save that has it set earned it.
-  const { machine, devLeaves } = pokeDevState(
+  const { machine, devLeaves: wouldLeave } = pokeDevState(
     state.dev,
     state.hasCultureUpgrade || techOf().flowSurvivesPoke,
   )
+
+  /**
+   * §22.3 — **LOYAL: never quits when poked.** James is seat 0 and he is the
+   * one developer in the game who cannot be lost.
+   *
+   * This is canon and it was also a live bug. `dev` is one studio-wide state
+   * machine, so it can enter `tenx` while the studio *is* James — and a poke
+   * then cashed him out, leaving Act I with zero developers, a phase machine
+   * already past the beat that grants him, and no way back. It reproduced
+   * intermittently, because whether the machine is in `tenx` on the frame the
+   * player happens to tap is a real dice roll.
+   *
+   * Guarded on the seat rather than on the headcount: "the last developer never
+   * leaves" would be a different rule that happens to cover this case today and
+   * would stop covering it the moment somebody is hired.
+   */
+  const devLeaves = wouldLeave && seats.from > 0
 
   const floater: FloatingNumeral = {
     id: nextFloaterId++,
@@ -1474,6 +1542,15 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
     defects: state.defects + defectsFromPoke(paidNow, roleShare(countsOf(state.roster), 'qa')),
     // The 10x Engineer quits permanently on the poke that cashes them out.
     devs: devLeaves ? Math.max(0, state.devs - 1) : state.devs,
+    // §4.11 — **and the roster shrinks with them.** `headcountOf(roster)` and
+    // `devs` are the same number, kept equal by there being one writer for each
+    // direction; `hire` is the other one. Without this a departure leaves the
+    // roster describing somebody who is not there, and every role share in
+    // §4.12–§4.13 is divided by a denominator that is too large.
+    //
+    // Found by a test that asserts the two agree, which failed intermittently
+    // because whether seat 0 is a 10x Engineer depends on the run seed.
+    roster: devLeaves ? removeAtSeat(state.roster, seats.from) : state.roster,
   }
 
   // §6.3 — the thesis, delivered by the person being interrupted.

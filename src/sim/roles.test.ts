@@ -9,6 +9,7 @@ import {
   defectSuppression,
   headcountOf,
   newRoster,
+  removeAtSeat,
   roleAtSeat,
   roleBands,
   roleShare,
@@ -187,5 +188,47 @@ describe('roleShare', () => {
 
   it('is zero for an empty studio rather than NaN', () => {
     expect(roleShare({ dev: 0, qa: 0, support: 0, sre: 0 }, 'qa')).toBe(0)
+  })
+})
+
+/**
+ * §22.5's 10x Engineer quits permanently when poked, and the roster has to
+ * shrink with the headcount.
+ *
+ * This was a real bug and an intermittent one: the store decremented `devs` on
+ * a departure and left the roster alone, so every share below was divided by a
+ * denominator that was too large. It only reproduced when the run seed happened
+ * to make the poked seat a 10x Engineer, which is why the invariant is pinned
+ * here rather than left to the integration test that caught it.
+ */
+describe('§4.11 — somebody leaves', () => {
+  const mixed = addHires(addHires(newRoster(2), 'qa', 2), 'sre', 1)
+
+  it('keeps the headcount and the roster the same number', () => {
+    expect(headcountOf(removeAtSeat(mixed, 0))).toBe(headcountOf(mixed) - 1)
+    expect(headcountOf(removeAtSeat(mixed, 4))).toBe(headcountOf(mixed) - 1)
+  })
+
+  it('costs the studio the job the leaver was doing', () => {
+    // A QA who quits costs a QA, not whoever happens to be last in the list.
+    expect(countsOf(removeAtSeat(mixed, 2)).qa).toBe(1)
+    expect(countsOf(removeAtSeat(mixed, 2)).dev).toBe(2)
+    expect(countsOf(removeAtSeat(mixed, 0)).dev).toBe(1)
+    expect(countsOf(removeAtSeat(mixed, 4)).sre).toBe(0)
+  })
+
+  it('drops a run rather than leaving an empty one behind', () => {
+    const solo = removeAtSeat(newRoster(1), 0)
+    expect(solo).toEqual([])
+    expect(headcountOf(solo)).toBe(0)
+  })
+
+  it('returns the roster untouched when nobody is there to leave', () => {
+    // The renderer asks speculatively (traps 12 and 13), so an out-of-range
+    // seat is a no-op rather than a throw — and the same reference, so a caller
+    // spreading it into a patch does not publish a new array every frame.
+    expect(removeAtSeat(mixed, 99)).toBe(mixed)
+    expect(removeAtSeat(mixed, -1)).toBe(mixed)
+    expect(removeAtSeat([], 0)).toEqual([])
   })
 })

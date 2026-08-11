@@ -56,10 +56,12 @@ describe('the tree itself', () => {
 
 describe('costs — §11.0', () => {
   it('is BaseCost x Multiplier^N', () => {
-    const b1 = TECH_BY_ID.get('B1')!
-    expect(techCost(b1, 0)).toBe(50)
-    expect(techCost(b1, 1)).toBe(Math.round(50 * 1.08))
-    expect(techCost(b1, 3)).toBe(Math.round(50 * 1.08 ** 3))
+    // C1 rather than B1: §11.5 made B1 a *granted* node with no price, so the
+    // cost curve needs a node that actually has one.
+    const c1 = TECH_BY_ID.get('C1')!
+    expect(techCost(c1, 0)).toBe(100)
+    expect(techCost(c1, 1)).toBe(Math.round(100 * 1.09))
+    expect(techCost(c1, 3)).toBe(Math.round(100 * 1.09 ** 3))
   })
 
   it('treats a negative level as zero rather than making a node cheaper', () => {

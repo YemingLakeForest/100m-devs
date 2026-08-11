@@ -7,6 +7,7 @@ import {
   MASS_HIRE_COUNT,
   PHASE_COPY,
   PHASE_ORDER,
+  SCENE_PHASES,
   advanceOnboarding,
   shouldRebuke,
   type OnboardingSnapshot,
@@ -41,7 +42,7 @@ describe('the funnel only moves forward', () => {
       projectsShipped: 9,
       entropy: 1,
     })
-    expect(advanceOnboarding('act1_poke', everything)).toBe('act2_offer_hire')
+    expect(advanceOnboarding('act1_poke', everything)).toBe('act1_james')
   })
 
   it('ends the run from any act once the money is gone', () => {
@@ -82,22 +83,47 @@ describe('Act I — the clicker layer sells itself first', () => {
     )
   })
 
-  it('opens hiring only once poking has landed', () => {
+  it('sends James in once poking has landed', () => {
     expect(advanceOnboarding('act1_poke', at({ pokeCount: ACT1_POKES_REQUIRED }))).toBe(
-      'act2_offer_hire',
+      'act1_james',
     )
   })
 
-  it('is short enough not to outstay the joke', () => {
-    // ~3 seconds at the 3-5 taps/sec §21 predicts.
-    expect(ACT1_POKES_REQUIRED).toBeLessThanOrEqual(20)
+  /**
+   * §21.0b, R41. Fifty taps is ~15 seconds at the 3–5 a second §21 predicts:
+   * **long enough that the player has felt the size of 1,000 Story Points, and
+   * short enough that they have not yet decided the game is a grind.**
+   *
+   * The old bound was twenty, and it was measuring the wrong thing — at twelve
+   * pokes the script offered a hire button costing a dollar against a treasury
+   * of nothing, so the *real* gate on the first help was shipping the whole
+   * project alone. Both ends are pinned now, because this number is only
+   * correct between them.
+   */
+  it('gives the player time to feel the size of it, and no more', () => {
+    expect(ACT1_POKES_REQUIRED).toBeGreaterThanOrEqual(30)
+    expect(ACT1_POKES_REQUIRED).toBeLessThanOrEqual(80)
+  })
+
+  /**
+   * §21.0b — **he is not hired, he turns up.** The beat waits on him being at a
+   * desk rather than on the player pressing anything, because there is nothing
+   * to press: the store grants him free on entry to the phase.
+   */
+  it('waits for James to sit down, and there is no button to press', () => {
+    expect(advanceOnboarding('act1_james', at({ devs: 0, cash: 0 }))).toBe('act1_james')
+    expect(advanceOnboarding('act1_james', at({ devs: 1, cash: 0 }))).toBe('act2_offer_hire')
+    expect(PHASE_COPY.act1_james.action).toBeUndefined()
   })
 })
 
-describe('Act II — James', () => {
+describe('Act II — the first hire the player pays for', () => {
   it('waits for the player to hire, not for a timer', () => {
-    expect(advanceOnboarding('act2_offer_hire', at({ devs: 0 }))).toBe('act2_offer_hire')
-    expect(advanceOnboarding('act2_offer_hire', at({ devs: 1 }))).toBe('act2_ship')
+    // §21.0b — the offer is now about the *second* employee, because James is
+    // already at a desk. It lands on somebody who has just watched their
+    // velocity double, which is the evidence §6 needs them to have.
+    expect(advanceOnboarding('act2_offer_hire', at({ devs: 1 }))).toBe('act2_offer_hire')
+    expect(advanceOnboarding('act2_offer_hire', at({ devs: 2 }))).toBe('act2_ship')
   })
 
   it('waits for the project to actually ship', () => {
@@ -203,8 +229,18 @@ describe('the §6.3 rebuke', () => {
 
 describe('every phase has something to say', () => {
   it.each(PHASE_ORDER)('%s has copy', (phase: Phase) => {
+    // §21.7 — a beat carried by a scene is exempt, and only those. A phase the
+    // game passes through in silence is a beat the player experiences as the
+    // game having stopped.
+    if (SCENE_PHASES.has(phase)) return
     const copy = PHASE_COPY[phase]
     expect(copy.terminal || copy.bubble || copy.advisor).toBeTruthy()
+  })
+
+  it('keeps the scene exemption to beats that actually have one', () => {
+    // The exemption is a stated design fact, so it is pinned: adding a phase to
+    // SCENE_PHASES without writing it a scene is how a silent beat gets in.
+    expect([...SCENE_PHASES]).toEqual(['act1_james'])
   })
 
   it('gives the player-gated phases a button label', () => {

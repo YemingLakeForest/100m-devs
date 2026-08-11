@@ -60,6 +60,15 @@ export interface TechNode {
   maxLevel: number
   /** The node that must be owned first. Branch chains, not a shop. */
   requires?: string
+  /**
+   * §11.5 — the player is *given* this one, by the story, and can never buy it.
+   *
+   * A flag rather than a `baseCost` of zero, because those are different
+   * statements: a free node is one anybody can take at any time, and a granted
+   * node is one that arrives when the script says so. {@link canBuyTech} refuses
+   * it outright, so no interface can offer a purchase that would be a no-op.
+   */
+  granted?: boolean
 }
 
 /**
@@ -74,14 +83,27 @@ export interface TechNode {
 export const TECH_TREE: readonly TechNode[] = [
   // --- Branch B — Communication Protocols (§11.2) --------------------------
   {
+    /**
+     * §11.5 — **Instant Messenger, and it is given rather than sold.**
+     *
+     * This slot used to be *Voice Shouting*, which is the thing Instant
+     * Messenger replaces — so the studio now *starts* shouting across the desk
+     * cluster (that is what having no protocol means) and James brings the
+     * first real tool in §21.7.2. The −5% and the slot are unchanged; what moved
+     * is who hands it to you and what it costs.
+     *
+     * `maxLevel: 1` rather than the old 5: a granted node has no second level
+     * to grant, and §11.4.1 turns levels into separate nodes anyway.
+     */
     id: 'B1',
     branch: 'protocol',
-    name: 'Voice Shouting',
-    flavour: 'Yelling across the desk cluster. Cheap, loud, horribly inefficient.',
-    effect: 'Communication load −5% per level',
-    baseCost: 50,
-    mult: 1.08,
-    maxLevel: 5,
+    name: 'Instant Messenger',
+    flavour: 'Asynchronous text. So you don’t have to speak to each other any more.',
+    effect: 'Communication load −5%',
+    baseCost: 0,
+    mult: 1,
+    maxLevel: 1,
+    granted: true,
   },
   {
     id: 'B2',
@@ -199,6 +221,27 @@ export const TECH_TREE: readonly TechNode[] = [
 
 export const TECH_BY_ID = new Map(TECH_TREE.map((n) => [n.id, n]))
 
+/**
+ * §11.5, §21.7.2 — the node James hands over, at the centre of §11.4's board.
+ *
+ * Named rather than spelled `'B1'` at the call site, because the store grants it
+ * from the §21 script and §11's node ids are the *save's* vocabulary, not the
+ * story's. If the centre of the board ever moves, it moves here.
+ */
+export const FIRST_PROTOCOL_NODE = 'B1'
+
+/**
+ * §11.5 — what the studio is doing before it owns anything.
+ *
+ * Voice Shouting is no longer a purchase; it is the starting condition, stated
+ * on the empty board in the centre slot as the thing about to be replaced.
+ * Nobody buys it and everybody starts with it.
+ */
+export const STARTING_PROTOCOL = {
+  name: 'Voice Shouting',
+  flavour: 'Yelling across the desk cluster. Cheap, loud, horribly inefficient.',
+} as const
+
 /** §11.0 — `Cost(N) = BaseCost × Multiplier^N`, for the *next* level. */
 export function techCost(node: TechNode, currentLevel: number): number {
   return Math.round(node.baseCost * node.mult ** Math.max(0, currentLevel))
@@ -232,6 +275,8 @@ export function techUnlocked(node: TechNode, levels: TechLevels): boolean {
 }
 
 export function canBuyTech(node: TechNode, levels: TechLevels, cash: number): boolean {
+  // §11.5 — a granted node is never for sale, at any price, in any state.
+  if (node.granted) return false
   const level = techLevel(levels, node.id)
   if (level >= node.maxLevel) return false
   if (!techUnlocked(node, levels)) return false

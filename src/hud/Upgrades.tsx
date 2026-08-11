@@ -64,7 +64,13 @@ function Node({ node, state }: { node: TechNode; state: GameState }) {
       <p className="tech__node-flavour"><ConceptText text={node.flavour} /></p>
       <p className="tech__node-effect"><ConceptText text={node.effect} /></p>
 
-      {q.unlocked ? (
+      {node.granted ? (
+        // §11.5 — Instant Messenger is *given*, by James, in §21.7.2. It is the
+        // only node in the game with no price, so it has no button: an enabled
+        // control that cannot do anything is worse than no control, and a
+        // disabled one priced at $0 reads as a bug.
+        <p className="tech__node-granted">{q.level > 0 ? 'A GIFT FROM JAMES' : 'NOT YET'}</p>
+      ) : q.unlocked ? (
         <Button onClick={() => buyTech(node.id)} disabled={!q.affordable}>
           {q.maxed ? 'OWNED' : formatMoney(q.cost)}
         </Button>

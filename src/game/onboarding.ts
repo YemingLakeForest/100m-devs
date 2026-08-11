@@ -13,6 +13,8 @@
 export type Phase =
   /** Act I — one dev, one project, learn to poke. */
   | 'act1_poke'
+  /** §21.0b — James turns up, free, part-way through Act I. */
+  | 'act1_james'
   /** Act II — the OS suggests scaling up; HIRE unlocks. */
   | 'act2_offer_hire'
   /** Act II — James is here; ship the thing. */
@@ -34,6 +36,7 @@ export type Phase =
 
 export const PHASE_ORDER: readonly Phase[] = [
   'act1_poke',
+  'act1_james',
   'act2_offer_hire',
   'act2_ship',
   'act2a_loop',
@@ -46,15 +49,29 @@ export const PHASE_ORDER: readonly Phase[] = [
 ]
 
 /**
- * Pokes required before the OS starts nagging about speed.
+ * Pokes before James turns up — §21.0b, R41.
  *
- * §21 Act I wants the player to poke "roughly 3–5 times a second" and feel the
- * burn-down outpace the passive rate — "this is the moment the clicker layer
- * sells itself, and it must feel good before anything else is introduced."
- * Twelve taps is about three seconds of that, which is long enough to land and
- * short enough not to outstay the joke.
+ * **Fifty, and he is free.** The previous twelve was the number of taps needed
+ * to prove that tapping did something, and it was measured against a beat that
+ * no longer exists: at twelve pokes the script offered a `[ HIRE DEVELOPER ]`
+ * button costing a dollar, from a treasury holding nothing, so the *real* gate
+ * on the first hire was shipping *Flappy Square* — 1,000 Story Points, alone,
+ * by thumb. **The first help in the game arrived after the hardest part of the
+ * game was over**, which inverts §21.0's own thesis: Act I exists so the
+ * clicker layer sells itself, and a sale takes about ten seconds.
+ *
+ * Fifty is chosen the way §21.0's forty was. At §21's stated 3–5 taps a second
+ * it is about fifteen seconds — long enough that the player has felt the size
+ * of 1,000, and **short enough that they have not yet decided the game is a
+ * grind.** The help arrives at the first moment it would be a relief and before
+ * it would be a rescue.
+ *
+ * The trap is untouched. Act IIa still buys every subsequent hire with earned
+ * cash, the price still climbs, and the collapse still costs a treasury the
+ * player built. What has gone is the unpaid labour before the loop starts,
+ * which was teaching nothing the loop does not teach better.
  */
-export const ACT1_POKES_REQUIRED = 12
+export const ACT1_POKES_REQUIRED = 50
 
 /**
  * §6.3 — the line that appears "around the twentieth desperate tap" once the
@@ -107,7 +124,17 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
     advisor: 'Choose CODE, then tap yourself or your desk.',
   },
 
+  act1_james: {
+    // §21.0b — no advisor line and no action. The beat is §21.7.1's scene and
+    // then a second desk: the burn-down moving twice as fast is the whole
+    // notification, and a banner announcing it would be the game explaining a
+    // thing the player can see.
+  },
+
   act2_offer_hire: {
+    // Unchanged, and it lands harder one beat later than it used to: the player
+    // now has evidence that a second person doubled their speed, so the pitch is
+    // arriving at somebody who already agrees with it.
     advisor:
       'Progress is dangerously slow! At this rate, your indie game will launch after the sun dies. Let’s scale up!',
     action: 'HIRE DEVELOPER',
@@ -230,6 +257,21 @@ export const SEED_ROUND_CASH = 50_000
 export const MASS_HIRE_COUNT = 1000
 
 /**
+ * Phases whose words are a §21.7 **scene** rather than a banner.
+ *
+ * Every other phase in {@link PHASE_COPY} carries terminal text, a bubble or an
+ * advisor line, and a test asserts it — a beat the game passes through in
+ * silence is a beat the player experiences as the game having stopped.
+ *
+ * These are the exception and they are louder rather than quieter: the dialogue
+ * box takes the whole screen and the simulation waits behind it. Filling in an
+ * advisor line as well would be the game narrating a scene that is currently
+ * playing. Listed here so the exemption is a stated design fact rather than a
+ * hole in the test.
+ */
+export const SCENE_PHASES: ReadonlySet<Phase> = new Set(['act1_james'])
+
+/**
  * Phases the player advances by acting, not by the simulation reaching a state.
  * Listed so the UI knows to render a button and the machine knows not to
  * advance past them on its own.
@@ -259,11 +301,18 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
   switch (phase) {
     case 'act1_poke':
       // The clicker layer has to sell itself before anything else appears.
-      return s.pokeCount >= ACT1_POKES_REQUIRED ? 'act2_offer_hire' : phase
+      return s.pokeCount >= ACT1_POKES_REQUIRED ? 'act1_james' : phase
+
+    case 'act1_james':
+      // §21.0b — he is not hired, he turns up. The store grants him free on
+      // entry to this phase and the beat waits on him being at a desk rather
+      // than on the player pressing anything: there is nothing to press.
+      return s.devs >= 1 ? 'act2_offer_hire' : phase
 
     case 'act2_offer_hire':
-      // Waits on the player hiring James.
-      return s.devs >= 1 ? 'act2_ship' : phase
+      // §21.0b — the offer is now about the *second* employee, and it is the
+      // first one the player pays for. It waits on that purchase.
+      return s.devs >= 2 ? 'act2_ship' : phase
 
     case 'act2_ship':
       // **Two** projects, not one — §4.10c.

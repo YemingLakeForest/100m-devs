@@ -135,3 +135,15 @@
   letter-spacing: 1px;
   color: var(--p1);
 }
+
+/*
+ * §11.5 — the granted node's non-button.
+ *
+ * Instant Messenger has no price, so it has no control. The line sits where the
+ * buy button would, in the same rhythm, so the node does not read as unfinished.
+ */
+.tech__node-granted {
+  color: var(--p1);
+  letter-spacing: 0.08em;
+  padding: 4px 0;
+}

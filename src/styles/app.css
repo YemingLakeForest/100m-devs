@@ -1944,16 +1944,30 @@ body {
 /* --- Dialogue, GDD §10.7 ------------------------------------------------ */
 
 /*
- * Bottom-anchored to the real edge (§23.4.2 --edge-*), never to a fraction of
- * the width, and only ever three lines tall — §10.7 says the box never covers
- * the speaker, and a known height is what lets the camera be composed against
- * it across the whole 1.78:1 – 2.4:1 box.
+ * §10.7a.2 — **the lower third, centred, with air beneath it.**
+ *
+ * §10.7 put this on the bottom edge at the terminal type scale, and it was too
+ * small and too far away for the thing it carries: the script *is* the product
+ * (Appendix D) and it was being rendered as a status bar.
+ *
+ * §10.7's "it never covers the speaker" is not repealed by moving up — it is
+ * finally *enforceable*. The rule used to be a hope about where the camera
+ * happened to be; §10.7a.1 now frames the speaker in the upper half
+ * deliberately, so a box that has grown and risen still sits clear of them by
+ * construction rather than by luck.
+ *
+ * Still anchored to the real edge (§23.4.2 --edge-*) and never to a fraction of
+ * the width. The height is still known — two lines instead of three — so the
+ * camera can be composed against it across the whole 1.78:1 – 2.4:1 box.
  */
 .ui-panel.ui-dialogue {
   position: absolute;
   left: var(--edge-x);
   right: var(--edge-x);
-  bottom: var(--edge-y);
+  /* The air beneath it. A proportion of the frame's own height rather than a
+     fixed pixel gap, so the lower third stays the lower third on a 336 px
+     handset and on a tablet. */
+  bottom: calc(var(--edge-y) + 8%);
   display: flex;
   justify-content: center;
   /* While a page is up, every tap belongs to the dialogue. The HUD is
@@ -1995,7 +2009,11 @@ body {
      reflowing reveal a rendering fault. */
   white-space: pre;
   overflow: hidden;
-  font-size: var(--type-2x);
+  /* §10.7a.2 — roughly 1.5x the terminal scale: large enough to read at arm's
+     length without leaning in. The column count drops to match (see
+     `DEFAULT_COLUMNS`), so the physical measure is unchanged and only the
+     apparent size moves. */
+  font-size: calc(var(--type-2x) * 1.5);
   line-height: 1.35;
   color: var(--p3);
 }
@@ -2015,13 +2033,19 @@ body {
 }
 
 /*
- * A 1.78:1 handset is ~640 CSS px wide in landscape, which 40 columns of 2x
- * type will not fit. Dropping a whole step keeps §3 rule 2's integer multiples
- * — a fractional clamp() would put the pixel face off the grid.
+ * A 1.78:1 handset is ~640 CSS px wide in landscape. §10.7a.2's 28 columns at
+ * 1.5x the 2x step is ~33 px a glyph, or ~550 px of text plus padding, which
+ * fits — but only just, and not once §23.4.2's edge inset is taken off both
+ * sides. Dropping to the plain 2x step keeps §3 rule 2's integer multiples; a
+ * fractional clamp() would put the pixel face off the grid.
+ *
+ * It no longer falls all the way to 1x. That was sized for forty columns; at
+ * twenty-eight the same physical measure is reached one step higher, so the
+ * narrow frame keeps most of what §10.7a.2 was asking for.
  */
 @media (max-width: 660px) {
   .ui-dialogue__text {
-    font-size: var(--type-1x);
+    font-size: var(--type-2x);
   }
 }
 

@@ -15,18 +15,21 @@ import {
 /**
  * The §10.7 dialogue box.
  *
- * Departure Mono, bottom-anchored, semi-transparent over a simulation that
- * keeps running behind it, a speaker name plate above and a blinking advance
- * caret in the corner a Game Boy would put it. The rules it exists to enforce
- * are in dialogue.ts, where they can be tested; this file is the box.
+ * Departure Mono, semi-transparent over a simulation that keeps running behind
+ * it, a speaker name plate above and a blinking advance caret in the corner a
+ * Game Boy would put it. The rules it exists to enforce are in dialogue.ts,
+ * where they can be tested; this file is the box.
  *
  * Three things here are load-bearing rather than decorative:
  *
- * 1. The box is short and anchored to the bottom edge, because §10.7 says it
- *    never covers the speaker and §23.4.2 says nothing anchors to a fraction of
- *    the width. Three lines of pre-wrapped monospace is a known height, so the
- *    frame is the same size on a 1.78:1 phone and a 2.4:1 one and the camera
- *    can be composed against it.
+ * 1. The box is short and anchored to the real edge — **§10.7a.2 moves it to
+ *    the lower third and grows the type**, because the script is the product
+ *    and it was being rendered as a status bar. §10.7's "it never covers the
+ *    speaker" survives the move and is finally *enforceable*: §10.7a.1 frames
+ *    the speaker in the upper half deliberately, so the clearance is by
+ *    construction rather than by luck. Two lines of pre-wrapped monospace is
+ *    still a known height, so the frame is the same size on a 1.78:1 phone and
+ *    a 2.4:1 one and the camera can be composed against it.
  * 2. The whole overlay takes pointer events. The HUD is otherwise transparent
  *    to taps so the swarm stays pokeable through it (§7.1) — but while a page
  *    is on screen every tap belongs to the dialogue, or a player mashing at
@@ -35,10 +38,32 @@ import {
  * 3. There is no close button and no skip. §10.7 rule 3.
  */
 
+/**
+ * §10.7a.1 — who is speaking, *in the world*.
+ *
+ * `'founder'` is the corner desk (§7.8.10); a number is a seat index. `null` —
+ * or an absent `focus` — means nobody: `STUDIO_OS` has no body, and the camera
+ * holds wherever it is rather than cutting to a machine.
+ *
+ * A seat rather than an identity, on the same argument §7.8.8 makes for
+ * selection: identities are generated from the seat on demand (§7.8.7), so a
+ * script costs one integer per line and survives a rebuild.
+ */
+export type SpeakerFocus = 'founder' | number | null
+
 export interface DialogueLine {
   /** `JAMES`, `ADVISOR`, `STUDIO_OS`. Rendered as given. */
   speaker: string
   text: string
+  /**
+   * §10.7a.1 — where the lens goes for this line.
+   *
+   * Optional, and an absent value is not "unknown" but "nobody" — see
+   * {@link SpeakerFocus}. Held on the line rather than derived from `speaker`
+   * because the same name can be at different desks in different scenes, and a
+   * lookup table from name to seat is a second place the two could disagree.
+   */
+  focus?: SpeakerFocus
 }
 
 export interface DialogueProps {
@@ -65,7 +90,25 @@ interface Page {
   text: string
 }
 
-const DEFAULT_COLUMNS = 40
+/**
+ * §10.7a.2 — **narrower in characters, wider on screen.**
+ *
+ * Forty columns at the terminal scale became twenty-eight at 1.5x it: the same
+ * physical measure, a larger apparent size, and a better ragged edge. Fixed
+ * rather than measured for the reason {@link DialogueProps.columns} gives — a
+ * monospace face plus a fixed column count is what makes the reveal
+ * reflow-free.
+ */
+const DEFAULT_COLUMNS = 28
+
+/**
+ * §10.7a.2 — two lines a page, not three.
+ *
+ * Fewer words, larger, more pages. A page turn is a beat, and §10.7's rule 2
+ * already made turning one a deliberate act — so spending more of them is
+ * spending the thing the scene is made of rather than padding it.
+ */
+const LINES_PER_PAGE = 2
 
 export function Dialogue({
   script,
@@ -78,7 +121,7 @@ export function Dialogue({
   const pages = useMemo<Page[]>(
     () =>
       script.flatMap((line) =>
-        paginate(line.text, columns).map((lines) => ({
+        paginate(line.text, columns, LINES_PER_PAGE).map((lines) => ({
           speaker: line.speaker,
           text: lines.join('\n'),
         })),

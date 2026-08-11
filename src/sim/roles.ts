@@ -117,6 +117,49 @@ export function addHires(roster: Roster, role: Role, count: number): Roster {
 }
 
 /**
+ * Somebody leaves — §22.5's 10x Engineer, who quits permanently when poked.
+ *
+ * **The roster has to shrink when the headcount does.** `headcountOf(roster)`
+ * and the store's `devs` are the same number kept equal by there being exactly
+ * one writer for each direction, and this is the other direction: without it a
+ * departure decrements the count and leaves the roster describing somebody who
+ * is not there, so every {@link roleShare} in §4.12–§4.13 is computed against a
+ * denominator that is too large and the whole studio quietly under-performs.
+ *
+ * Removed from the run **containing that seat**, so a QA who quits costs the
+ * studio a QA rather than costing it whoever happens to be last in the list.
+ * Seats above shift down by one, which is the same thing the count already does
+ * — §7.8.1b's "a seat once taken never moves" is a rule about *hiring* not
+ * reshuffling the floor, and there is no representation of a headcount in which
+ * a departure leaves the people after it where they were.
+ *
+ * A seat past the end, or an empty roster, is returned unchanged: the renderer
+ * asks speculatively (traps 12 and 13) and a throw on that path is a blank frame.
+ */
+export function removeAtSeat(roster: Roster, seat: number): Roster {
+  if (!Number.isFinite(seat) || seat < 0) return roster
+  const out: RoleRun[] = []
+  let cursor = 0
+  let removed = false
+
+  for (const run of roster) {
+    const next = cursor + run.count
+    if (!removed && seat < next) {
+      removed = true
+      if (run.count > 1) out.push({ role: run.role, count: run.count - 1 })
+    } else {
+      out.push(run)
+    }
+    cursor = next
+  }
+
+  // Out of range. Nobody left, so nothing changes — and returning the original
+  // reference means a caller spreading this into a patch does not publish a new
+  // array every frame for no reason.
+  return removed ? out : roster
+}
+
+/**
  * What the person in this seat was hired to do.
  *
  * Out-of-range seats read as `dev` rather than throwing. The renderer asks

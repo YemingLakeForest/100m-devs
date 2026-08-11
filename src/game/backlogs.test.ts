@@ -10,7 +10,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   __resetStore,
+  __setState,
   catalogueRate,
+  dismissScene,
   getState,
   hireDeveloper,
   poke,
@@ -22,10 +24,24 @@ import { BASELINE_RATING } from '../sim/rating.ts'
 import { countsOf, headcountOf } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 
+/**
+ * §21.7 — a scene stops the world, so the harness has to tap through it.
+ *
+ * `poke` is deliberately inert while a scene is up (the dialogue box is eating
+ * those taps for its own advance), so a test that pokes through Act I without
+ * dismissing James's arrival simply stops making progress. Dismissing on sight
+ * is what a player does; not doing it was the harness pretending scenes did not
+ * exist.
+ */
+function clearScene() {
+  if (getState().scene !== null) dismissScene()
+}
+
 function play(seconds: number, pokesPerSecond = 0) {
   const dt = 1 / 30
   let owed = 0
   for (let t = 0; t < seconds; t += dt) {
+    clearScene()
     owed += pokesPerSecond * dt
     while (owed >= 1) {
       poke(0, 0, { rung: 0, index: 0 })
@@ -47,6 +63,7 @@ function playUntilShipped(pokesPerSecond = 0, limit = 4000) {
   const dt = 1 / 30
   let owed = 0
   for (let t = 0; t < limit; t += dt) {
+    clearScene()
     owed += pokesPerSecond * dt
     while (owed >= 1) {
       poke(0, 0, { rung: 0, index: 0 })
@@ -83,7 +100,9 @@ describe('§4.11 — the roster and the headcount are the same number', () => {
     expect(counts.qa).toBe(1)
     expect(counts.sre).toBe(1)
     expect(counts.support).toBe(1)
-    expect(counts.dev).toBe(2)
+    // Three, not two: §21.0b's James is a free `dev` hire during Act I, so the
+    // studio already had one before the loop above hired any.
+    expect(counts.dev).toBe(3)
   })
 
   it('hires into the role the dial is set to, and never reassigns', () => {
@@ -121,37 +140,49 @@ describe('§4.12 — defects accrue from the work itself', () => {
     expect(getState().defects).toBeGreaterThan(passive)
   })
 
+  /**
+   * The store-level half of the QA curve: that the **roster's** share reaches
+   * §4.12's accrual at all. `defects.test.ts` already pins the curve's shape;
+   * what can only be wrong here is the wiring.
+   *
+   * Measured over a short window with a ship guard, because shipping zeroes the
+   * bench (§4.12 transfers the backlog rather than forgiving it) — a window that
+   * straddles a ship measures a *negative* delta and says nothing about QA.
+   */
   it('is suppressed by hiring QA', () => {
-    play(240, 4)
-    for (let i = 0; i < 6; i++) {
-      setHireRole('qa')
-      hireDeveloper()
+    function accrualOver(role: 'qa' | 'dev'): number {
+      __resetStore()
+      play(240, 4)
+      for (let i = 0; i < 6; i++) {
+        setHireRole(role)
+        hireDeveloper()
+      }
+      const shippedBefore = getState().projectsShipped
+      const before = getState().defects
+      play(3)
+      expect(getState().projectsShipped).toBe(shippedBefore)
+      return getState().defects - before
     }
-    const before = getState().defects
-    play(20)
-    const withQa = getState().defects - before
 
-    __resetStore()
-    play(240, 4)
-    for (let i = 0; i < 6; i++) {
-      setHireRole('dev')
-      hireDeveloper()
-    }
-    const base = getState().defects
-    play(20)
-    expect(getState().defects - base).toBeGreaterThan(withQa)
+    const withQa = accrualOver('qa')
+    const withDevs = accrualOver('dev')
+    expect(withQa).toBeGreaterThan(0)
+    expect(withDevs).toBeGreaterThan(withQa)
   })
 })
 
 describe('§4.12 / §4.12a — shipping transfers the backlog, it does not forgive it', () => {
   it('clears the bench and stamps the release with what it went out at', () => {
-    play(240, 4)
-    const s = getState()
-    expect(s.projectsShipped).toBeGreaterThanOrEqual(1)
-    // The bench is clear the frame after a ship. It may have accrued a little
-    // again since, so this is bounded rather than exactly zero.
-    expect(s.defects).toBeLessThan(5)
-    expect(s.releases[0].defectDensity).toBeGreaterThan(0)
+    // `playUntilShipped` returns on the very tick the release appears, so the
+    // bench holds at most one frame's accrual — anything more would mean the
+    // transfer had not happened.
+    const release = playUntilShipped(4)
+    const carried = release.defectDensity * getState().releases[0].payout
+
+    expect(release.defectDensity).toBeGreaterThan(0)
+    expect(carried).toBeGreaterThan(0)
+    // What left with the game is orders of magnitude more than what stayed.
+    expect(getState().defects).toBeLessThan(release.defectDensity * 1000 * 0.02)
   })
 
   /**
@@ -275,5 +306,43 @@ describe('§4.14 — reputation is a fact about this studio', () => {
     const s = getState()
     expect(s.reputation).toBeLessThan(BASELINE_RATING)
     expect(s.reputation).toBeGreaterThan(s.releases[0].rating)
+  })
+})
+
+/**
+ * §22.3 — **LOYAL: never quits when poked.**
+ *
+ * A live bug, not a hypothetical: `dev` is one studio-wide state machine, so it
+ * can enter `tenx` while the studio *is* James — and a poke then cashed him
+ * out, leaving Act I with zero developers, a phase machine already past the
+ * beat that grants him, and no way back. It reproduced intermittently, because
+ * whether the machine is in `tenx` on the frame the player taps is a real dice
+ * roll, so it is pinned deterministically here.
+ */
+describe('§22.3 — James does not quit', () => {
+  it('survives being poked in the state that cashes everybody else out', () => {
+    play(30, 4)
+    expect(getState().devs).toBe(1)
+
+    for (let i = 0; i < 50; i++) {
+      __setState({ dev: { state: 'tenx', elapsed: 0 } })
+      poke(0, 0, { rung: 0, index: 0 })
+      expect(getState().devs).toBe(1)
+      expect(headcountOf(getState().roster)).toBe(1)
+    }
+  })
+
+  it('does not make everybody else immortal', () => {
+    play(240, 4)
+    setHireRole('dev')
+    hireDeveloper()
+    const before = getState().devs
+    expect(before).toBe(2)
+
+    __setState({ dev: { state: 'tenx', elapsed: 0 } })
+    // Seat 1 is not James, and the 10x cash-out is a real mechanic.
+    poke(0, 0, { rung: 0, index: 1 })
+    expect(getState().devs).toBe(before - 1)
+    expect(headcountOf(getState().roster)).toBe(before - 1)
   })
 })
