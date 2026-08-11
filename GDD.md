@@ -7552,6 +7552,37 @@ pipe** (§4.12a.1). Prevention and response are genuinely different jobs, a stud
 and not the other is visibly broken in a specific direction, and that is the only reason to
 model a pipe with two ends.
 
+#### 25.6.2a Three things the build settled that the sections above did not **[CANON - added 2026-08-11]**
+
+**1. *Flappy Square* now pays $45, and that is §4.14 working rather than the anchor moving.**
+§4.10's economy is calibrated against §21's stated figure of **+$50**, and §4.14.1 promises
+that "a player who ignores this entire batch earns exactly what they earned before it existed,
+at every multiplier". Both still hold — **the $50 is the §4.10c *ladder* payout, and the
+rating multiplies it**, which is exactly what §4.14 asks for when it says the payout scales
+with the rating. What changed is that a player cannot ignore the batch during Act I, because
+§21 asks them to burn 1,000 Story Points by thumb and §4.12 charges a poked point `β + ε`.
+**Act I ships a rushed game and is paid for a rushed game**, roughly 10% under the ladder.
+That is the system's first sentence and it should be the first one the player hears.
+
+**2. `ι` is anchored at a *tenth* of a page per garage release, not one.** §4.12a's derivation
+gives `ι = (pages per garage release) / β` and left the numerator implicit at 1. Measured, that
+put a garage release **off sale for half of its life** — two incidents per game, each taking
+`INCIDENT_WORK_SECONDS` at the founder's diluted clearance rate, against a four-minute tail.
+Act II became a game about outages, which is not the act §21 wrote. At a tenth, **a studio
+needs ten mediocre games before the pager is a standing feature**, which is the same shape
+§4.13 already gives tickets and keeps Run 1 clean. The numerator is now a named constant.
+
+**3. The founder covers every role they have not hired for, at §13.7.1's dilution.** This was
+specified as a *tree* and had to be true of the floor as well, because two systems divide by a
+headcount a garage does not have. §4.13's `clearanceWait` is infinite the moment a queue exists
+with nobody on it, so a studio would take the full catalogue penalty from its first shipped
+game. **§4.12a's is worse and is a fail state**: with no SRE, clearance capacity is zero, an
+incident never closes, and a frozen tail never resumes — one page in Act II would take a game
+off sale *permanently*, which §4.12's standing warning forbids outright. So you answer the
+email and you carry the pager, at two-fifths of somebody who does it for a living: enough for
+four games, hopeless after that, which is §13.7.1's "available earlier, meaningfully weaker"
+landing on the floor instead of on a tree.
+
 #### 25.6.3 What this batch does not decide
 
 **No coefficient in it.** `ι` in §4.12a, `ξ` in §13.10, `Φ` in §11.4.6, the XP curve's `X₀`

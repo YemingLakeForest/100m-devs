@@ -88,13 +88,33 @@ import { BETA } from './defects.ts'
 import { earningRate, type Release } from './revenue.ts'
 
 /**
+ * **The anchoring sentence, as a number.** How many times a release shipped at
+ * the garage density pages you over its entire life.
+ *
+ * A tenth: **you need a catalogue of ten mediocre games before the pager is a
+ * standing feature of the studio.** That is the shape §4.13 already establishes
+ * for tickets — the back catalogue is what sends the bill — and it is what keeps
+ * §21's Run 1 clean: a studio with one or two releases essentially never sees an
+ * incident, and a mature one sees them constantly.
+ *
+ * **Measured at 1.0 first, and it was wrong by a mile.** At one page per release
+ * a garage spent *half of every release's life off sale*: two incidents per
+ * game, each taking {@link INCIDENT_WORK_SECONDS} at the founder's diluted
+ * clearance rate (§13.7.1), against a four-minute tail. Act II became a game
+ * about outages, which is not the act §21 wrote. The number is recorded here as
+ * a stated design quantity rather than left implicit in ι, so that retuning it
+ * is one edit and reading it is one sentence.
+ */
+export const INCIDENTS_PER_GARAGE_RELEASE = 0.1
+
+/**
  * §4.12a's `ι`, derived rather than chosen — see the file header.
  *
- * `1 / β` is exactly the value that makes "a garage release generates one
- * incident in its lifetime" true, and it is written as the division so that the
- * sentence survives any retune of β rather than quietly becoming false.
+ * Written as the division so the sentence above survives any retune of β rather
+ * than quietly becoming false. β is what a studio with nobody checking ships at,
+ * so `ι · β` is by construction the lifetime page count of exactly that studio.
  */
-export const IOTA = 1 / BETA
+export const IOTA = INCIDENTS_PER_GARAGE_RELEASE / BETA
 
 /**
  * The SRE share at which the incident arrival rate halves — §4.12a.1.

@@ -102,6 +102,19 @@ export interface Release {
   /** Dollars handed over so far. */
   paid: number
   shape: ReleaseShape
+  /**
+   * §4.12's defect backlog at ship, per Story Point — what the game went out
+   * with, and what §4.12a charges it for forever.
+   *
+   * **Carried here rather than in a map beside the catalogue**, because a
+   * release *is* the thing quality is a fact about: §4.12a's incident rate, the
+   * §10.11 gallery and §4.14's score all ask the same record the same question,
+   * and a second structure keyed by release id is a second thing that can fall
+   * out of step with this one. Nothing in this module's arithmetic reads it.
+   */
+  defectDensity: number
+  /** §4.14's score out of 100, fixed at ship. Also inert here; §10.11 tints by it. */
+  rating: number
 }
 
 function lerp(range: readonly [number, number], t: number): number {
@@ -164,8 +177,23 @@ export interface TailStep {
  * **A release that retires pays its exact remainder**, so the sum of everything
  * this function ever returns for one release is its ladder payout to the cent.
  * That is the §4.10e constraint enforced at the only place it can leak.
+ *
+ * `held` is §4.12a's incident freeze: a release in that set **does not age**, so
+ * its tail pauses and later resumes. That is why an incident is a freeze rather
+ * than a deletion — the invariant above is the one thing this file exists to
+ * protect, and a mechanic that destroyed tail revenue would break it and take
+ * the books with it. The money still all arrives; it arrives *later*, while
+ * §4.10d's payroll runs the whole time, so an incident is priced in runway.
+ *
+ * A held release is also excluded from retirement, so a game cannot quietly go
+ * off sale while it is down and hand over its remainder as a reward for
+ * neglecting it.
  */
-export function advanceTail(releases: readonly Release[], dt: number): TailStep {
+export function advanceTail(
+  releases: readonly Release[],
+  dt: number,
+  held: ReadonlySet<number> = new Set(),
+): TailStep {
   if (!(dt > 0) || releases.length === 0) {
     return { releases: releases as Release[], earned: 0 }
   }
@@ -174,6 +202,10 @@ export function advanceTail(releases: readonly Release[], dt: number): TailStep 
   let earned = 0
 
   for (const release of releases) {
+    if (held.has(release.id)) {
+      next.push(release)
+      continue
+    }
     const age = release.age + dt
 
     if (age >= RETIRE_AFTER_SECONDS) {
@@ -190,10 +222,23 @@ export function advanceTail(releases: readonly Release[], dt: number): TailStep 
   return { releases: next, earned }
 }
 
-/** Dollars per second the whole catalogue is currently bringing in — §4.10d. */
-export function catalogueIncome(releases: readonly Release[]): number {
+/**
+ * Dollars per second the whole catalogue is currently bringing in — §4.10d.
+ *
+ * `held` is §4.12a's freeze again. A release that is down earns nothing and must
+ * read as earning nothing, or §10.1's income line would keep quoting money the
+ * player is not receiving — which is the class of lie §4.10e was written to stop
+ * the economy telling and §10.6 forbids the readouts from telling separately.
+ */
+export function catalogueIncome(
+  releases: readonly Release[],
+  held: ReadonlySet<number> = new Set(),
+): number {
   let total = 0
-  for (const release of releases) total += earningRate(release)
+  for (const release of releases) {
+    if (held.has(release.id)) continue
+    total += earningRate(release)
+  }
   return total
 }
 

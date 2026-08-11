@@ -24,6 +24,24 @@ import {
   rollShape,
   type Release,
 } from '../sim/revenue.ts'
+import { addHires, countsOf, newRoster, roleShare, type Role, type Roster } from '../sim/roles.ts'
+import { advanceDefects, defectsFromPoke, shipDefects } from '../sim/defects.ts'
+import {
+  advanceIncidents,
+  clearanceCapacity,
+  incidentRate,
+  suppressedReleases,
+  type Incident,
+} from '../sim/incidents.ts'
+import { advanceTickets, catalogueMultiplier } from '../sim/support.ts'
+import {
+  BASELINE_RATING,
+  DEFECT_DENSITY_ANCHOR,
+  advanceReputation,
+  rateRelease,
+  reputationMultiplier,
+  revenueMultiplier,
+} from '../sim/rating.ts'
 import {
   NODE_BY_ID,
   bpFor,
@@ -51,6 +69,7 @@ import {
 } from '../sim/entropy.ts'
 import {
   FOUNDER_BY_ID,
+  FOUNDER_ROLE_HEADS,
   MANAGEMENT_DILUTION,
   canBuyFounder,
   founderCost,
@@ -380,6 +399,69 @@ export interface GameState {
   scene: string | null
 
   /**
+   * §4.11 — who you hired, in the order you hired them.
+   *
+   * The run-length-encoded hire history from `roles.ts`, not four counters:
+   * a seat has to know its own role, and four counters can only derive that by
+   * ordering the roles and laying them out — which relabels every QA above a
+   * newly hired developer. §7.8.7 generates a face from the seat index, so the
+   * player would watch a specific person change jobs because somebody else was
+   * hired.
+   *
+   * `headcountOf(roster)` and {@link GameState.devs} are the same number. The
+   * count is kept because every hot path in the game reads it and a scan per
+   * frame over a list is a scan nobody needs; the roster is the *shape* of that
+   * number. `hire` is the one place both move, which is what keeps them equal.
+   */
+  roster: Roster
+  /**
+   * §4.11, §10.10 — which job the dial is hiring into.
+   *
+   * Persists, like the multiplier and for the same reason: a player who
+   * selected QA meant it, and a control that silently reset to DEVELOPER
+   * between sessions would spend the player's money on the wrong people.
+   */
+  hireRole: Role
+  /**
+   * §4.12 — defects on the bench, for the project currently being built.
+   *
+   * Run state. Reset to zero on ship, because shipping does not forgive the
+   * backlog: it **transfers** it to the release as a density, where §4.12a
+   * charges it forever. Anyone tempted to make this persist across a ship has
+   * confused the two sections.
+   */
+  defects: number
+  /**
+   * §4.12a — open incidents, one per downed release, oldest first.
+   *
+   * Persisted rather than ephemeral, unlike §4.5a's buffs: an incident is a
+   * *state of the world* rather than a fading effect, its release is frozen
+   * while it is open, and a reload that quietly cleared them would be a reload
+   * that repaired the studio.
+   */
+  incidents: Incident[]
+  /**
+   * The fractional part of §4.12a's arrival, carried between ticks.
+   *
+   * Without it an arrival rate of 0.3/s raises nothing at all at 60 fps,
+   * because every individual step floors to zero. Ephemeral — at most one
+   * incident's worth, and restoring it would be restoring a state the player
+   * cannot see the cause of.
+   */
+  incidentPending: number
+  /** §4.13 — tickets waiting. Never reaches zero for long, and never can. */
+  tickets: number
+  /**
+   * §4.14 — a slow-moving average of recent ratings.
+   *
+   * Run state, and that is a decision rather than an oversight: reputation is
+   * a fact about *this studio*, and §13.2 liquidates the studio at a Paradigm
+   * Shift. Carrying it across would make the first release of Run 9 be judged
+   * on games built in a universe that no longer exists.
+   */
+  reputation: number
+
+  /**
    * §11 — levels bought in the in-run tech tree, by node id.
    *
    * In the *run* block rather than the permanent one because §13.2 says a
@@ -463,6 +545,15 @@ function freshRun(): GameState {
     scene: null,
     tech: {},
     runSeconds: 0,
+    // §4.11 — an empty studio. There is no QA in a garage, and the joke §4.11
+    // is making only lands once the player has been given something to protect.
+    roster: newRoster(0),
+    hireRole: 'dev',
+    defects: 0,
+    incidents: [],
+    incidentPending: 0,
+    tickets: 0,
+    reputation: BASELINE_RATING,
   }
 }
 
@@ -481,6 +572,23 @@ const snippets = new SnippetBag()
 let nextShipId = 1
 /** §4.10e — one id per game put on sale, so the graph can key its bands. */
 let nextReleaseId = 1
+/** §4.12a — one id per page, so §4.15's chip stack can key and animate them. */
+let nextIncidentId = 1
+
+/**
+ * §4.12a — every release's shipped defect density, keyed by release id.
+ *
+ * Built per frame rather than cached, and that is a deliberate non-optimisation:
+ * §4.10e retires a release after four minutes, so the catalogue is bounded at a
+ * few dozen entries however long the session runs. A cache here would be a
+ * second copy of a fact the releases already hold, invalidated on ship and on
+ * retire, to save a loop over thirty objects.
+ */
+function densitiesOf(releases: readonly Release[]): Map<number, number> {
+  const out = new Map<number, number>()
+  for (const r of releases) out.set(r.id, r.defectDensity)
+  return out
+}
 
 export function getState(): GameState {
   return state
@@ -876,7 +984,14 @@ export function currentPayroll(s: GameState = state): number {
  * is the clearest possible statement of what shipping bought.
  */
 export function catalogueRate(s: GameState = state): number {
-  return catalogueIncome(s.releases)
+  // §4.12a and §4.13 — the readout must agree with the till. A downed release
+  // is earning nothing and a queue nobody is answering is taking a share of
+  // what the rest earn, and both have to be *in* this number rather than
+  // applied somewhere further along: §10.6's rule is that the interface never
+  // tells the player something the simulation is not doing.
+  const held = suppressedReleases(s.incidents)
+  const support = countsOf(s.roster).support + FOUNDER_ROLE_HEADS
+  return catalogueIncome(s.releases, held) * catalogueMultiplier(s.tickets, support)
 }
 
 /** §4.10e — money already earned that has not arrived yet. The runway behind the runway. */
@@ -922,14 +1037,50 @@ function showBubble(text: string, ttl = 4000): Partial<GameState> {
 /** Ship the current project and roll to the next — §21 Act II. */
 function shipProject(s: GameState): Partial<GameState> {
   const tech = techEffects(s.tech)
+
+  /**
+   * §4.14 — the only number in this game that can go **down** while everything
+   * else goes up, and the first thing that rewards playing well rather than
+   * playing more.
+   *
+   * §4.12: shipping does not forgive the defect backlog, it **transfers** it.
+   * The bench goes to zero and the density leaves with the release, where
+   * §4.12a charges it for as long as anybody is still playing.
+   */
+  const { density } = shipDefects(s.defects, s.commitment.toNumber())
+  const rating = rateRelease({
+    defects: s.defects,
+    storyPoints: s.commitment.toNumber(),
+    // §13.6 coverage over the team that built it. No hero cards are reachable
+    // yet (§13.6.7a), so this is honestly zero rather than optimistically
+    // absent — and §4.14.1's baseline is derived *from* a studio with no
+    // heroes, so a garage still scores exactly ×1. See `rating.ts`.
+    heroCoverage: 0,
+    // §4.9a pins the roster mean at 1.0, and `craftScore` turns that into ½.
+    // The term goes quiet as the studio grows, which §4.14 says is the design.
+    craft: 1,
+  })
+
   // §11.2 B3 doubles the payout and §11.3 C9 takes the consultants' 10%. Both
   // land on the ladder's figure rather than on the tail, so §4.10e's integral
   // still pays out exactly what the release says it is worth.
-  const revenue = projectRevenue(s.projectIndex) * tech.revenueMultiplier
+  //
+  // §4.14 adds two more, and this is where quality finally becomes money: the
+  // release's own score, and the studio's standing reputation. Both are applied
+  // to the payout rather than to the tail, for the same reason the tech
+  // multipliers are — the release must be worth exactly what it says it is.
+  const revenue =
+    projectRevenue(s.projectIndex) *
+    tech.revenueMultiplier *
+    revenueMultiplier(rating) *
+    reputationMultiplier(s.reputation)
   const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
   const next = PROJECTS[nextIndex]
 
   return {
+    // The bench is clear. Whatever was on it is now the release's problem.
+    defects: 0,
+    reputation: advanceReputation(s.reputation, rating),
     // §10.8a — the moment gets an event. Named with the project that just
     // shipped rather than the one now starting: the celebration is *for* the
     // thing that finished, and by the time it renders `sprintName` has already
@@ -952,6 +1103,8 @@ function shipProject(s: GameState): Partial<GameState> {
         age: 0,
         paid: 0,
         shape: rollShape(s.runSeed, s.projectsShipped),
+        defectDensity: density,
+        rating,
       },
     ],
     projectsShipped: s.projectsShipped + 1,
@@ -1012,12 +1165,64 @@ export function tick(dtSeconds: number): void {
   // worth does not quietly depend on how big the studio was when it landed.
   const settled = settleDroppedBuffs(decayed.dropped, { ...state, localEntropy })
 
+  // §4.11 — who is on the floor, read once and shared by all three backlogs.
+  const counts = countsOf(state.roster)
+  const qaShare = roleShare(counts, 'qa')
+  const sreShare = roleShare(counts, 'sre')
+
+  // §4.12a — a downed release does not age, does not earn, and does not page.
+  // Computed before the tail so all three agree about the same frame.
+  const held = suppressedReleases(state.incidents)
+
   // §4.10e — the back catalogue pays first, before anything reads the cash.
-  const tail = advanceTail(state.releases, dtSeconds)
+  const tail = advanceTail(state.releases, dtSeconds, held)
+
+  // §4.12 — defects accrue from the work itself, in proportion to it. Charged
+  // against `gained`, which is realised output *after* §4.1: a studio in §6.3's
+  // lock produces nothing and therefore breaks nothing.
+  const defects = advanceDefects(state.defects, gained / dtSeconds, qaShare, dtSeconds)
+
+  // §4.12a — the released catalogue pages you, weighted by who is still playing.
+  const incidents = advanceIncidents(
+    state.incidents,
+    incidentRate(tail.releases, densitiesOf(tail.releases), sreShare, held),
+    // §13.7.1 — you carry the pager when nobody else does. Without the founder
+    // term `clearanceCapacity(0)` is zero, an incident never closes, and a
+    // frozen release never comes back: a fail state, which §4.12 forbids.
+    clearanceCapacity(counts.sre + FOUNDER_ROLE_HEADS),
+    dtSeconds,
+    state.incidentPending,
+    nextIncidentId,
+    tail.releases,
+  )
+  // Ids only ever increase, so the high-water mark is the whole bookkeeping.
+  // Deriving it from the returned list rather than counting arrivals means a
+  // change to how `advanceIncidents` raises them cannot silently start reusing
+  // an id, which §4.15's chip stack keys on.
+  for (const i of incidents.incidents) nextIncidentId = Math.max(nextIncidentId, i.id + 1)
+
+  // §4.13 — and the people who bought them write in, forever.
+  const support = counts.support + FOUNDER_ROLE_HEADS
+  const tickets = advanceTickets(
+    state.tickets,
+    state.projectsShipped,
+    defects,
+    support,
+    dtSeconds,
+  )
+
+  // §4.13 — unanswered tickets tax the **catalogue**, never the current
+  // project. You are losing money on the games you already made, which is the
+  // whole sentence, and a player in trouble can always still ship their way out.
+  const ticketTax = catalogueMultiplier(tickets.queue, support)
 
   let patch: Partial<GameState> = {
     localEntropy,
     buffs,
+    defects,
+    incidents: incidents.incidents,
+    incidentPending: incidents.pending,
+    tickets: tickets.queue,
     // §11.2 B2's meeting clock. Simulated seconds, not wall-clock — see the
     // field's note. Advanced before anything reads it so the standup boundary
     // lands on the same frame the velocity does.
@@ -1040,9 +1245,9 @@ export function tick(dtSeconds: number): void {
     cash:
       state.cash -
       currentPayroll() * dtSeconds +
-      tail.earned +
+      tail.earned * ticketTax +
       founderVelocity() * dtSeconds * founderOf().cashPerPoint,
-    lifetimeRevenue: state.lifetimeRevenue + tail.earned,
+    lifetimeRevenue: state.lifetimeRevenue + tail.earned * ticketTax,
     releases: tail.releases,
     burned: gained + settled > 0 ? state.burned.plus(gained + settled) : state.burned,
   }
@@ -1257,6 +1462,16 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
     pokeCount: state.pokeCount + 1,
     desperateTaps,
     dev: machine,
+    // §4.12 — **interrupting somebody is how defects get written.** Charged on
+    // the points this poke actually banked, at `β + ε` where ε is the same
+    // context-switch coefficient §4.9 uses for Entropy, so a poked Story Point
+    // carries twice the bugs of a passively-produced one.
+    //
+    // Charged on `paidNow` rather than on the poke's full value because the
+    // rest arrives as a §4.5a buff, and the buff's points are ordinary work
+    // that `tick` already charges at β. Charging the whole poke here would bill
+    // three quarters of it twice.
+    defects: state.defects + defectsFromPoke(paidNow, roleShare(countsOf(state.roster), 'qa')),
     // The 10x Engineer quits permanently on the poke that cashes them out.
     devs: devLeaves ? Math.max(0, state.devs - 1) : state.devs,
   }
@@ -1281,9 +1496,14 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
  * exactly one place the ladder can be forgotten. The renderer reads `spawn`;
  * nothing else does.
  */
-function hire(before: number, after: number): Partial<GameState> {
+function hire(before: number, after: number, role: Role = 'dev'): Partial<GameState> {
   return {
     devs: after,
+    // §4.11 — the roster and the count move together, here and nowhere else.
+    // Every path that raises headcount goes through this function, which is
+    // what keeps `headcountOf(roster)` equal to `devs` without a reconciliation
+    // step that could disagree.
+    roster: addHires(state.roster, role, Math.max(0, Math.floor(after) - Math.floor(before))),
     peakDevs: Math.max(state.peakDevs, after),
     spawn: {
       id: nextSpawnId++,
@@ -1492,6 +1712,24 @@ export function setHireMultiplier(m: Multiplier): void {
 }
 
 /**
+ * §4.11 — pick the job the next hire is for.
+ *
+ * There is deliberately no companion function that *moves* somebody between
+ * roles. §4.11: "A role is chosen at hire, not reassigned." Its absence is the
+ * design — reassignment would turn every failure into a slider adjustment, and
+ * §6's thesis is that you cannot fix an organisation by moving people around
+ * after the fact.
+ */
+export function setHireRole(role: Role): void {
+  set({ hireRole: role })
+}
+
+/** §4.11 — how many of each kind the studio has. Derived; never stored. */
+export function roleCounts(s: GameState = state) {
+  return countsOf(s.roster)
+}
+
+/**
  * What the dial is currently offering — count, price, and whether it is live.
  *
  * Derived rather than stored, because MAX's count changes on its own as cash
@@ -1522,7 +1760,7 @@ export function hireDeveloper(): boolean {
   // 25 developers, so Act I and Act II behave exactly as they did.
   const { count, cost, affordable } = hireQuote()
   if (!affordable || count <= 0) return false
-  set({ ...hire(state.devs, state.devs + count), cash: state.cash - cost })
+  set({ ...hire(state.devs, state.devs + count, state.hireRole), cash: state.cash - cost })
   return true
 }
 
@@ -1602,6 +1840,11 @@ export function triggerParadigmShift(): void {
     devCap: devCapFor(getPermanent().layer1.paradigmLevels),
     // "So. Same time tomorrow?"
     devs: 2,
+    // §4.11 — and the roster has to say the same thing. `freshRun()` returns an
+    // empty studio, so leaving this out would hand Run 2 two people that
+    // `roleAtSeat` reads as developers by fallback rather than by record — the
+    // two numbers would agree by luck, and stop agreeing at the first hire.
+    roster: newRoster(2),
     /**
      * **Run 2 opens on the loop, not on the trap.**
      *
@@ -1800,7 +2043,27 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       age: rel.age,
       paid: rel.paid,
       shape: { spikeShare: rel.spikeShare, spikeTau: rel.spikeTau, tailTau: rel.tailTau },
+      // Defaulted by `normaliseReleases` to the garage figures, never to zero —
+      // a restored release with no density would be a *flawless* game, and a
+      // reload would silently upgrade the whole back catalogue and mute §4.12a.
+      defectDensity: rel.defectDensity ?? DEFECT_DENSITY_ANCHOR,
+      rating: rel.rating ?? BASELINE_RATING,
     })),
+    // §4.11 — `normaliseRoster` has already reconciled this against `devs`, so
+    // it is taken as given rather than re-derived here. One repair, in the
+    // module that owns the document.
+    roster: (r.roster ?? [{ role: 'dev' as const, count: r.devs }]).map((run) => ({
+      role: run.role as Role,
+      count: run.count,
+    })),
+    hireRole: (r.hireRole ?? 'dev') as Role,
+    defects: r.defects ?? 0,
+    tickets: r.tickets ?? 0,
+    reputation: r.reputation ?? BASELINE_RATING,
+    incidents: (r.incidents ?? []).map((i) => ({ ...i })),
+    // §24.2 ephemeral — at most one incident's worth of fraction, and a state
+    // the player cannot see the cause of.
+    incidentPending: 0,
     // localEntropy, floaters, bubble, spawn and zoom are §24.2 ephemeral. Local
     // entropy in particular decays to baseline in ~8 seconds (§4.9), so any
     // absence long enough to save through has already erased it — it restores

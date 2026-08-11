@@ -20,6 +20,10 @@ function release(seed: number, ordinal: number, payout: number): Release {
     age: 0,
     paid: 0,
     shape: rollShape(seed, ordinal),
+    // Quality is carried on the release but no arithmetic in `revenue.ts`
+    // reads it — these are here to satisfy the record, not the maths.
+    defectDensity: 0,
+    rating: 50,
   }
 }
 

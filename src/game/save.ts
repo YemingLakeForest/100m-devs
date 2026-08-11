@@ -23,6 +23,9 @@ import type { Phase } from './onboarding.ts'
 import { PHASE_ORDER } from './onboarding.ts'
 import { D_BASE } from '../sim/entropy.ts'
 import { TECH_BY_ID } from '../sim/techTree.ts'
+import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
+import { ROLES, type Role } from '../sim/roles.ts'
+import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 
 /**
  * **1.** This game has never shipped a save, so there is no history to migrate
@@ -100,6 +103,39 @@ export interface RunSave {
   tech?: Record<string, number>
   /** §11.2 B2's meeting clock, in simulated seconds. Optional for the same reason. */
   runSeconds?: number
+  /**
+   * §4.11 — the hire history, run-length encoded, and the dial's role.
+   *
+   * Additive on the same rule as `releases` and `tech`. **An absent roster is a
+   * studio of developers**, which is exactly what every save written before
+   * roles existed describes, so `normaliseRoster` fills it from `devs` rather
+   * than leaving it empty — an empty roster against a non-zero `devs` would put
+   * every existing player's whole studio on the floor with no job.
+   */
+  roster?: { role: string; count: number }[]
+  hireRole?: string
+  /**
+   * §4.12, §4.12a, §4.13, §4.14 — the three backlogs and the studio's standing.
+   *
+   * Absent means zero for the three queues, which is the honest reading: a save
+   * from before quality existed is a studio that had not yet been charged for
+   * any of it. Reputation defaults to the §4.14.1 baseline rather than to zero,
+   * because a studio that has shipped nothing has a garage's reputation and
+   * starting at zero would tax it for the crime of being first.
+   */
+  defects?: number
+  tickets?: number
+  reputation?: number
+  incidents?: IncidentSave[]
+}
+
+/** §4.12a — one open page, as §24 stores it. */
+export interface IncidentSave {
+  id: number
+  releaseId: number
+  releaseName: string
+  age: number
+  work: number
 }
 
 /** One game on sale, as §24 stores it. The shape is rolled once and kept. */
@@ -112,6 +148,19 @@ export interface ReleaseSave {
   spikeShare: number
   spikeTau: number
   tailTau: number
+  /**
+   * §4.12a — the defect density this game shipped with, and §4.14's score.
+   *
+   * **Optional, and a document without them is a document from before quality
+   * existed.** They default to the garage figures on load rather than to zero:
+   * a release restored with `defectDensity: 0` would be a *flawless* game, so a
+   * player reloading an old save would find their entire back catalogue
+   * silently upgraded to perfect and their pager silent forever. The honest
+   * default for "we do not know what this shipped at" is what a studio with
+   * nobody checking ships at, which is exactly what §4.14.1's baseline is for.
+   */
+  defectDensity?: number
+  rating?: number
 }
 
 /**
@@ -328,7 +377,19 @@ export function makeSaveData(state: GameState): SaveData {
         spikeShare: r.shape.spikeShare,
         spikeTau: r.shape.spikeTau,
         tailTau: r.shape.tailTau,
+        defectDensity: r.defectDensity,
+        rating: r.rating,
       })),
+      // §4.11 — the shape of the studio, not just its size.
+      roster: state.roster.map((run) => ({ role: run.role, count: run.count })),
+      hireRole: state.hireRole,
+      // §4.12–§4.14. `incidentPending` is deliberately absent: it is at most one
+      // incident's worth of fraction and §24.2 ephemeral, and restoring it would
+      // be restoring a state the player cannot see the cause of.
+      defects: state.defects,
+      tickets: state.tickets,
+      reputation: state.reputation,
+      incidents: state.incidents.map((i) => ({ ...i })),
     },
     permanent: {
       layer1: { ...permanent.layer1 },
@@ -502,8 +563,12 @@ function phase(value: unknown): Phase {
 
 function normaliseRun(value: unknown): RunSave {
   const r = (value ?? {}) as Partial<RunSave>
+  // Read once, because the roster has to be reconciled *against* it — see
+  // `normaliseRoster`. Recomputing the expression there would be two places
+  // that have to agree about what a headcount is.
+  const devs = Math.max(0, Math.floor(nonNegative(r.devs, 0)))
   return {
-    devs: Math.max(0, Math.floor(nonNegative(r.devs, 0))),
+    devs,
     devCap: Math.max(1, nonNegative(r.devCap, D_BASE)),
     cash: num(r.cash, 0),
     projectIndex: Math.max(0, Math.floor(nonNegative(r.projectIndex, 0))),
@@ -530,7 +595,84 @@ function normaliseRun(value: unknown): RunSave {
     releases: normaliseReleases(r.releases),
     tech: normaliseTech(r.tech),
     runSeconds: nonNegative(r.runSeconds, 0),
+    roster: normaliseRoster(r.roster, devs),
+    hireRole: ROLE_SET.has(r.hireRole as Role) ? (r.hireRole as Role) : 'dev',
+    defects: nonNegative(r.defects, 0),
+    tickets: nonNegative(r.tickets, 0),
+    reputation: Math.min(100, nonNegative(r.reputation, BASELINE_RATING)),
+    incidents: normaliseIncidents(r.incidents),
   }
+}
+
+const ROLE_SET = new Set<Role>(ROLES)
+
+/**
+ * §4.11 — the hire history, repaired against the headcount it has to describe.
+ *
+ * Two things can be wrong with a stored roster and both are silent:
+ *
+ * 1. **It is missing**, because the document predates roles. Every such studio
+ *    was all developers, so that is what it becomes — filling it from `devs`
+ *    rather than leaving it empty, which would put an existing player's entire
+ *    company on the floor with no job.
+ * 2. **It does not sum to `devs`.** The two are kept equal by `hire` being the
+ *    only writer, but a save is the one input in this game that can contain
+ *    anything at all, and `roleAtSeat` scans the roster while everything else
+ *    reads the count. A short roster means seats past the end silently read as
+ *    developers; a long one means people who are not there. Reconciled here, by
+ *    trimming or by appending developers, so the invariant holds from the first
+ *    frame after a load rather than approximately.
+ */
+function normaliseRoster(value: unknown, devs: number): { role: Role; count: number }[] {
+  const target = Math.max(0, Math.floor(devs))
+  const out: { role: Role; count: number }[] = []
+  let total = 0
+
+  if (Array.isArray(value)) {
+    for (const raw of value) {
+      const run = (raw ?? {}) as { role?: string; count?: number }
+      const role = ROLE_SET.has(run.role as Role) ? (run.role as Role) : 'dev'
+      const count = Math.min(target - total, Math.max(0, Math.floor(nonNegative(run.count, 0))))
+      if (count <= 0) continue
+      total += count
+      const last = out[out.length - 1]
+      if (last && last.role === role) last.count += count
+      else out.push({ role, count })
+      if (total >= target) break
+    }
+  }
+
+  if (total < target) {
+    const last = out[out.length - 1]
+    if (last && last.role === 'dev') last.count += target - total
+    else out.push({ role: 'dev', count: target - total })
+  }
+  return out
+}
+
+/** §4.12a — open pages, dropped rather than repaired when they name nothing. */
+function normaliseIncidents(value: unknown): IncidentSave[] {
+  if (!Array.isArray(value)) return []
+  const out: IncidentSave[] = []
+  const seen = new Set<number>()
+  for (const raw of value) {
+    const i = (raw ?? {}) as Partial<IncidentSave>
+    const releaseId = Math.floor(nonNegative(i.releaseId, -1))
+    // A page about no release cannot be shown, cleared, or attached to a frozen
+    // tail — §4.15's chip has nothing to name. Dropped, not defaulted.
+    if (!(releaseId >= 0) || seen.has(releaseId)) continue
+    seen.add(releaseId)
+    out.push({
+      id: Math.max(0, Math.floor(nonNegative(i.id, 0))),
+      releaseId,
+      releaseName: typeof i.releaseName === 'string' ? i.releaseName : 'A Shipped Game',
+      age: nonNegative(i.age, 0),
+      // Clamped above zero: an incident stored with no work left would never
+      // close on its own and would freeze its release for the rest of the run.
+      work: Math.max(1, nonNegative(i.work, INCIDENT_WORK_SECONDS)),
+    })
+  }
+  return out
 }
 
 /**
@@ -585,6 +727,11 @@ function normaliseReleases(value: unknown): ReleaseSave[] {
       spikeShare: Math.min(1, Math.max(0, num(r.spikeShare, 0.6))),
       spikeTau: Math.max(0.5, nonNegative(r.spikeTau, 6)),
       tailTau: Math.max(1, nonNegative(r.tailTau, 50)),
+      // Defaulted to the garage, never to zero — see `ReleaseSave`. A missing
+      // density is "we do not know", and the honest guess for an unknown game
+      // is what a studio with nobody checking ships at.
+      defectDensity: nonNegative(r.defectDensity, DEFECT_DENSITY_ANCHOR),
+      rating: Math.min(100, nonNegative(r.rating, BASELINE_RATING)),
     })
   }
   return out

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  INCIDENTS_PER_GARAGE_RELEASE,
   INCIDENT_HALVING_SRE_SHARE,
   INCIDENT_WORK_SECONDS,
   IOTA,
@@ -16,12 +17,12 @@ import { BETA } from './defects.ts'
 import { advanceTail, rollShape, type Release } from './revenue.ts'
 
 function release(id: number, payout = 1_000, age = 0): Release {
-  return { id, name: `Game ${id}`, payout, age, paid: 0, shape: rollShape(1234, id) }
+  return { id, name: `Game ${id}`, payout, age, paid: 0, shape: rollShape(1234, id), defectDensity: 0, rating: 50 }
 }
 
 describe('§4.12a — ι is anchored to the tail, not chosen', () => {
-  it('is 1/β, so the anchoring sentence survives a retune of β', () => {
-    expect(IOTA).toBeCloseTo(1 / BETA, 12)
+  it('is the stated page count over β, so the sentence survives a retune of β', () => {
+    expect(IOTA).toBeCloseTo(INCIDENTS_PER_GARAGE_RELEASE / BETA, 12)
   })
 
   /**
@@ -43,7 +44,7 @@ describe('§4.12a — ι is anchored to the tail, not chosen', () => {
    * off sale. The bound below is the retirement remainder, not slack in the
    * derivation.
    */
-  it('raises one incident over a garage release lifetime, less the retirement remainder', () => {
+  it('raises the stated page count over a garage release lifetime, less the retirement remainder', () => {
     for (const seed of [1, 7, 99, 40_000]) {
       let releases: Release[] = [{ ...release(1), shape: rollShape(seed, 1) }]
       const densities = new Map([[1, BETA]])
@@ -54,14 +55,14 @@ describe('§4.12a — ι is anchored to the tail, not chosen', () => {
         total += incidentRate(releases, densities, 0) * dt
         releases = advanceTail(releases, dt).releases
       }
-      expect(total).toBeLessThanOrEqual(1)
-      expect(total).toBeGreaterThan(0.99)
+      expect(total).toBeLessThanOrEqual(INCIDENTS_PER_GARAGE_RELEASE)
+      expect(total).toBeGreaterThan(INCIDENTS_PER_GARAGE_RELEASE * 0.99)
     }
   })
 
   it('scales that count linearly with the density shipped', () => {
-    expect(lifetimeIncidents(BETA)).toBeCloseTo(1, 12)
-    expect(lifetimeIncidents(BETA / 2)).toBeCloseTo(0.5, 12)
+    expect(lifetimeIncidents(BETA)).toBeCloseTo(INCIDENTS_PER_GARAGE_RELEASE, 12)
+    expect(lifetimeIncidents(BETA / 2)).toBeCloseTo(INCIDENTS_PER_GARAGE_RELEASE / 2, 12)
     expect(lifetimeIncidents(0)).toBe(0)
   })
 

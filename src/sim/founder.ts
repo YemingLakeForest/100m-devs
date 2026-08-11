@@ -63,6 +63,40 @@ export const MANAGEMENT_DILUTION = 0.4
 /** The four functions §4.11 gives the floor, plus the one that is only yours. */
 export type BorrowedFrom = 'engineering' | 'quality' | 'support' | 'reliability'
 
+/**
+ * What the founder is worth in **every** role they have not hired for — §13.7.1.
+ *
+ * "The manager is the only person in the company who can do everything, which
+ * is precisely why they are the worst person to do any of it." Before this, that
+ * was a statement about a *tree*; it also has to be true of the floor, because
+ * two systems in §4 divide by a headcount that a garage does not have:
+ *
+ * - **§4.13's support tax.** `clearanceWait` is `Infinity` the moment a queue
+ *   exists with nobody on it, so a studio would be docked the full catalogue
+ *   penalty from the second its *first* game shipped, for a queue of one ticket
+ *   a person could clear in a second. That is a tax on having shipped anything
+ *   at all, which inverts the section: §4.13 is about a catalogue outgrowing the
+ *   people looking after it, and a catalogue of one has not outgrown anybody.
+ * - **§4.12a's incident clearance.** This one is worse and it is a *fail state*.
+ *   `clearanceCapacity(0)` is zero, so a studio with no SRE can never close an
+ *   incident, and an incident freezes its release's tail — **a single page in
+ *   Act II would take a game off sale permanently.** §4.12 forbids exactly this:
+ *   "nothing here may become a fail state that stops the clicker", and §6.3's
+ *   Entropy Lock is the game's one seizure.
+ *
+ * So you answer the email and you carry the pager, at {@link
+ * MANAGEMENT_DILUTION} of somebody who does it for a living. Two-fifths of a
+ * head covers the first four games (§4.13 prices one head at ten) and is
+ * hopeless after that — which is precisely when the player should be hiring, and
+ * is the whole shape §13.7.1 asks for: available earlier, meaningfully weaker.
+ *
+ * **It is one constant rather than one per role** because §13.7.1's claim is
+ * about breadth, not about any particular skill. A founder who was better at
+ * support than at ops would be a founder with a specialism, which is the one
+ * thing the Management class is defined by not having.
+ */
+export const FOUNDER_ROLE_HEADS = MANAGEMENT_DILUTION
+
 /** §13.6.4's three node kinds — one grammar, five vocabularies. */
 export type FounderNodeKind = 'DEPTH' | 'TRAIT' | 'REACH'
 

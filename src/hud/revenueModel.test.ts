@@ -11,6 +11,8 @@ function withReleases(count: number): GameState {
     age: 1,
     paid: 0,
     shape: rollShape(1, i),
+    defectDensity: 0,
+    rating: 50,
   }))
   return { releases } as GameState
 }
