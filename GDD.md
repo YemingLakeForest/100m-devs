@@ -1037,6 +1037,65 @@ condition §4.5b insists on for every choice in this game.
 > already the game's one seizure and it is load-bearing; a second one competing with it would
 > read as the game being broken rather than as the game making a point.
 
+### 4.12a Incidents — what a shipped game does at 3 a.m. **[CANON - added 2026-08-11]** - R29
+
+§4.12 makes an incident **a defect that crossed a threshold**, and that is the wrong shape. A
+threshold is a state change inside the project on the bench, which confines incidents to the
+thing you are currently building — while the one thing §4.13 is most certain about is that
+**the back catalogue is what sends the bill.** An incident that can only happen to unreleased
+software is an incident that has never happened.
+
+So the two backlogs are separated by **where they live**, not by how large they grew:
+
+| | Arrives from | Lives on | Acted on by |
+|---|---|---|---|
+| **Defect** | The work itself — §4.12's $dB/dt$ | **The project on the bench.** It ships with the game and §4.14 scores it | **QA** — they slow the arrival |
+| **Incident** | The **released** catalogue, forever | Every game you have ever shipped | **SRE** — they slow the arrival *and* clear the backlog |
+
+$$\frac{dI}{dt} = \iota \cdot \sum_{r \in \text{releases}} d_r \cdot a_r \cdot \eta_{\text{inc}}(\text{SRE})$$
+
+where $d_r$ is **the defect density the release shipped with** and $a_r$ is §4.10e's decaying
+audience. That line is the whole design and it is worth reading twice: **the bugs you chose
+not to fix become a permanent operational cost, weighted by how many people are still
+playing.** A game nobody plays cannot page you. A hit you rushed will page you forever.
+
+Three consequences, and each one repairs something that was previously loose:
+
+- **§4.14's rating finally has teeth after the fact.** A release was scored once, at ship, and
+  then the number was history. Now the score you shipped is the rate you pay, every second,
+  for as long as anyone is playing — so a 30/100 is not an insult, it is a *liability on the
+  balance sheet*, and it stays there while you build the next one.
+- **Defects become decisions with a horizon.** Holding a game back to let QA burn the backlog
+  down costs velocity now and buys quiet forever, and neither side of that is obviously
+  right — which is §4.5b's standing requirement for anything the player chooses.
+- **SRE stop being QA with a different label.** QA act on a project, once. SRE act on the
+  catalogue, continuously. They are not the same job and they no longer have the same shape.
+
+**An unhandled incident suppresses that release's tail outright** — §4.12's "the tail stops
+entirely until SRE clear it", kept exactly, and now attached to a specific game rather than to
+the studio. The player watches one line on §10.11's gallery go flat while the others keep
+earning, which is the clearest possible statement of what an incident *is*.
+
+> **Still no second seizure.** §4.12's warning stands unchanged and applies here with more
+> force, because incidents accumulate on a catalogue that only grows. A studio drowning in
+> incidents loses its *tail revenue* and never its ability to click, ship or hire. §6.3's
+> Entropy Lock remains the game's one seizure.
+
+#### 4.12a.1 Prevention and response are two different heroes **[CANON - added 2026-08-11]** - R29
+
+Headcount and heroes act on this system from opposite ends, and the split is deliberate:
+
+| | Bends | Who |
+|---|---|---|
+| **SRE headcount** | Both terms — fewer incidents, and faster clearance | §4.11's role, unchanged |
+| **The Reliability hero** | **$\eta_{\text{inc}}$ — the arrival rate.** Hardening, runbooks, error budgets: the incident that never happened | §22.8's Serena |
+| **The Support hero** | **Clearance.** The person actually talking to the players while it burns | §22.8's Matt |
+
+This is the §4.12 sentence — "QA change how fast defects arrive, SRE change how fast they
+leave" — kept for *roles* and deliberately crossed for *heroes*. A studio that has hired for
+one and not the other is visibly, differently broken in each direction, and that is the only
+reason to model two ends of the same pipe.
+
 ### 4.13 Support — the tickets do not stop **[CANON - added 2026-08-10]** - R22
 
 **Every shipped game generates support tickets forever.** Where §4.12's defects are about the
@@ -1139,6 +1198,39 @@ them**, which is the question the player is actually being asked.
 > million people. §4.14 asks whether a game was "built by the people or by the headcount"; at
 > a million developers the honest answer is always the headcount, and the term says so by
 > falling silent rather than by being switched off.
+
+### 4.15 Three backlogs, three colours, three components **[CANON - added 2026-08-11]** - R30
+
+Defects, incidents and tickets are three different numbers that all go up, all mean "something
+is wrong", and all get worse when you go faster. **A player who cannot tell them apart at a
+glance has three copies of one anxiety instead of three problems with three answers** — and
+the answers are completely different: hire QA, hire SRE, hire Support.
+
+§10.2a already establishes the rule this extends — *"colour the words that matter"* — and it
+was written for the things a studio **produces**. These are the things a studio
+**accumulates**, and they need the same treatment on the other side of the ledger.
+
+| | Concept token | Colour role | The component |
+|---|---|---|---|
+| **Defect** | `defects` | **Amber.** The warning colour, because a defect is still a thing you can fix before it matters | A **counter with a density readout** beside the burn-down — `48 DEFECTS · 1 per 21 SP`. It sits next to §10.4 because it is a tax on that number |
+| **Incident** | `incidents` | **Red, and the only pulsing element in the HUD.** It is the one quantity in the game actively costing money *right now* | A **stack of open incident chips**, one per affected release, each naming its game. Not a total — a total hides which game is on fire, and §10.11's gallery is where the player already keeps that map |
+| **Ticket** | `tickets` | **Cool grey-blue. Deliberately drab.** §4.13 calls tickets "the studio's ambient noise" and a colour that shouts contradicts the section | A **queue depth bar** with a served/arriving ratio, legible as "keeping up" or "falling behind" without a number being read |
+
+**The three rules that make this a system rather than three widgets:**
+
+1. **Each one names its cure, in the cure's colour.** Tapping the defect counter says `QA
+   REDUCE THIS`, in the QA role's own colour from §4.11. The HUD never explains a mechanic in
+   a paragraph; it points at the person who fixes it.
+2. **They never merge into a "problems" total.** A single health bar is the most natural thing
+   to build here and it would delete the entire point of §4.11's four roles.
+3. **Incidents are the only one allowed to animate.** §10.6's anti-pattern list forbids
+   ambient motion in the HUD, and this is its single exception — bought with the argument that
+   an incident is the only element on screen describing money leaving *at this moment*.
+
+> **The colours are load-bearing, so they are palette entries and never literals.**
+> ART_DIRECTION §2 owns them, `art:check` polices them, and the same three tokens are what
+> §10.11's gallery tints a cover with and what §13.11 tints a coverage footprint with. One
+> name, one colour, everywhere it appears.
 
 ## 5. Progression Eras
 
@@ -2814,6 +2906,60 @@ rule 2 — the content is never shortened or auto-dismissed.
 
 ---
 
+### 10.7a The camera is part of the dialogue **[CANON - added 2026-08-11]** - R31
+
+**§10.7 specifies a box. It never specifies where anybody is standing**, and the result is
+that every scene in the game so far has been two name plates trading text over a wide shot of
+an unrelated crowd. The script is the product (Appendix D); the staging was left to whatever
+the camera happened to be doing when the scene fired.
+
+**When a line begins, the lens goes to the person saying it.** That is the whole of this
+section, and everything below is what it costs.
+
+#### 10.7a.1 The shot
+
+| | |
+|---|---|
+| **On scene start** | The camera drops to §7.4's Desk zoom over the pair, from wherever it was, on §10.5's transition curve. The studio keeps running behind them — this is a push, never a cut to a cutscene |
+| **On each line** | It re-centres on the **current speaker** with a short, small move. Not a whip: the speaker is already in frame, and the move is the ~15% of screen width that says *this one is talking* |
+| **The speaker turns to camera** | §7.8.7's people are drawn at a fixed three-quarter angle. A speaking character swaps to their **front-facing** pose for the duration of their line and turns back at the end of it |
+| **Everyone else keeps working** | The listener does not freeze. §7.8's ambient loops continue, because a studio that stops to watch two people talk is a diorama |
+| **On scene end** | The camera returns to where it was, on the same curve. A scene never leaves the player somewhere they did not choose to be |
+
+**The front-facing pose is the only new art this section needs**, and under ART_DIRECTION
+§4.1's parts-library method it is one extra torso and one extra head per character rather than
+a new sprite per person — the parts already exist, the assembly is different. §22.7's cap is
+untouched: it counts *portraits*, and this is the world sprite.
+
+> **Why the speaker turns rather than the camera cutting between two shots.** A cut needs two
+> composed frames and a rule for which one you are in; a turn needs one frame and a pose swap,
+> and it reads instantly at Desk zoom because at that scale the player is looking at faces
+> anyway. It is also the cheaper thing by a wide margin, which under §23.1a is the argument
+> that actually decides it.
+
+#### 10.7a.2 The subtitle grows and moves up
+
+§10.7's box is bottom-anchored, three lines, at the terminal type scale. **It is too small and
+too far away for the thing it is carrying.** The script is the product and it was being
+rendered as a status bar.
+
+| | Was | Now |
+|---|---|---|
+| **Position** | Bottom edge | **Lower third, centred** — the box floats, with air beneath it |
+| **Type size** | Terminal scale | **Roughly 1.5× it.** Large enough to read at arm's length without leaning in |
+| **Width** | 40 columns | **Narrower in characters, wider on screen.** ~28 columns at the larger size, which keeps the same physical measure and improves the ragged edge |
+| **Page length** | 3 lines | **2 lines.** Fewer words, larger, more pages — a page turn is a beat, and §10.7's rule 2 already made turning one deliberate |
+
+**§10.7's "it never covers the speaker" is not repealed — it is finally enforceable.** The
+rule was previously a hope about where the camera happened to be. With §10.7a.1 the speaker is
+framed in the **upper half** deliberately, so a box that has grown and moved up still sits
+clear of them, and now does so by construction rather than by luck.
+
+Everything else in §10.7 is unchanged and unchallenged: the per-character reveal, the tick,
+the 260 ms quiet window, the deliberate advance tap, and **no skip**.
+
+---
+
 ### 10.8 The Presentation Gate — what "done" means **[CANON]**
 
 §10.5 says how transitions work and §10.6 lists what not to do. **This section makes them a
@@ -3477,9 +3623,15 @@ $$\text{Cost}(N) = \text{Base Cost} \times (\text{Multiplier})^{N}$$
 | **B5** | Anti-AI Slop Filter | *"Deploy specialized AI models whose sole job is to destroy code written by other AI models."* | $1,000,000,000,000 | 1.18 | Completely negates **Code Bloat Entropy** generated by late-game synthetic code tools |
 | **B6** | Quantum Entanglement Sync | *"Subatomic particle pairs link developer minds instantaneously across galaxy clusters."* | $10^{18} | 1.25 | Reduces Entropy decay to **0** (zero-latency communication across planetary systems) |
 
+> **B1 is superseded by §11.5 — amended 2026-08-11.** Voice Shouting is no longer a purchase.
+> It is the studio's **starting condition**, stated on the empty board as the thing about to be
+> replaced, and the B1 slot is taken by **Instant Messenger** — given free by James in §21.7's
+> first scene, at the centre of §11.4's board. The effect and the −5% are carried over
+> unchanged; only who hands it to you and what it costs have moved.
+
 **Tier summary (alternate phrasing):**
 
-- **T1: Shouting Across Desks** (reduces noise penalty by 5%)
+- **T1: Shouting Across Desks** (reduces noise penalty by 5%) — **superseded, see §11.5**
 - **T2: Daily Standups** (capping max Entropy at 80%, but introduces 5s cyclic meeting pauses)
 - **T3: Pair Programming** (halves active workforce, but cuts Entropy growth rate by 60%)
 - **T4: JIRA Ticket Flooding** (caps max Entropy at 60%, adds +0.5s static release latency)
@@ -3524,6 +3676,172 @@ means more interruption per poke.
 - **T2: Ergonomic Gaming Chairs** (reduces dev "Overwhelmed" burnout rate by 30%)
 - **T3: Mechanical Keyboard Clickers** (increases screen-shake and click revenue per poke)
 - **T4: Automated Ping Slicers** (swiping across Slack notifications clears adjacent pings automatically)
+
+---
+
+### 11.4 The tree is a tree **[CANON - added 2026-08-11]** - R33, R34, R35
+
+**§11 has always called this a tree and it has always been rendered as two lists.** Two
+columns of cards, every node visible from the first frame, levels hidden inside a `3/5`
+counter. That is a shop with prerequisites. The thing this genre is actually good at — a board
+that grows outward under the player, where buying one node lights up three you had not seen —
+was specified nowhere and therefore built nowhere.
+
+#### 11.4.1 The board
+
+```
+                             .  .  .
+                             |
+                   [C2]--[C1]|
+                             |
+        .  .  .              |
+             |               |
+   [B3]--[B2]+[B1]--------[ IM ]--------[F1]--[F2]--.  .  .
+             |               |            |
+             |               |          [F3]
+             .               |            .
+                       [D1]--+--[D2]
+                             |
+                             .
+```
+
+| | |
+|---|---|
+| **Origin** | **The centre of the board is Instant Messenger** (§11.5), and it is the only node the player is ever given rather than sold |
+| **Growth** | Outward in **all four directions**. A branch is a compass heading, not a column |
+| **Geometry** | **Right angles only.** Orthogonal connectors on a fixed grid — no curves, no diagonals, no bezier splines. §10.6's anti-patterns forbid the organic-blob talent tree, and a grid is the only shape that survives Departure Mono, the §2 palette and a 5-inch phone at once |
+| **A level is a node** | §11.0's `maxLevel` counters are gone from the face of the tree. **Voice Shouting at 5 levels is five nodes in a chain**, each with its own price, its own icon state and its own purchase moment. A `3/5` counter is a spreadsheet cell; five lit nodes is a road you can see you are on |
+| **Size** | The board is **larger than the viewport in every direction and is panned**, which is how it is bigger without a line of copy claiming it is. §10.6: an interface that announces its own size is a web page |
+
+**Why the centre-out shape rather than a root at one edge.** A tree with a root has a
+direction, and a direction implies an order — the player reads it as a queue and works down
+it. A tree with a *centre* has five ways to be wrong, all visible at once, and the first real
+decision in §11 is which direction to spend in. It is also the same shape as §13.9's hero
+tree, deliberately: **one board grammar, learned once, used in two places.**
+
+#### 11.4.2 Progressive reveal, and the argument it overturns
+
+The shipped implementation names every locked node — `NEEDS B1` — on an explicit argument
+recorded in the module: *"a tree that reveals nodes as you buy them cannot be planned, and
+planning is the whole of §11's warning."* **That argument is right about planning and wrong
+about how far ahead planning needs to see.** Three states, not two:
+
+| State | What the player sees |
+|---|---|
+| **Live** — affordable or owned | Everything. Icon, name, effect, flavour, price |
+| **Adjacent** — one node from something owned | **Silhouette.** Icon and price, in outline, no text. Enough to plan the next purchase and to want it |
+| **Dark** — further out | **The connector, and a stub.** You can see the branch continues and how far, and nothing about what is on it |
+
+Planning survives because §11's warning — *"upgrading Workforce without Communication Infra
+rapidly triggers the trap"* — is a warning about **the next purchase**, and the adjacent ring
+is exactly that. What it gives up is planning six nodes ahead, which no player was doing and
+which was costing the game every reveal it had.
+
+> **A dark node still shows its connector.** The board's *shape* is never hidden, only its
+> contents. A player must always be able to see that the branch they are on goes somewhere,
+> or the tree reads as finished and they stop looking at it.
+
+#### 11.4.3 The guide layer
+
+**Tapping a node opens it; it does not buy it.** A purchase that fires on the same tap that
+first shows the price is how a player buys the wrong thing on a phone, once, and stops
+trusting the screen.
+
+An opened node raises a **guide layer** over the board — the node enlarged in place, dimming
+everything else, carrying:
+
+- The **icon**, at four times board size, where its detail is finally legible.
+- **Name, flavour, effect**, in that order. §11's flavour column is half the reason the tree
+  exists and it is not a tooltip.
+- **What it unlocks**, drawn as the connectors lighting up on the dimmed board behind — so
+  the consequence of the purchase is shown on the map rather than described in the panel.
+- **The price, on the only button.** One button, one action.
+
+#### 11.4.4 Icons
+
+**One procedural pixel icon per node.** ART_DIRECTION §3.1 T0 — geometry from the §2 palette
+on the integer grid, drawn in code, no emoji anywhere near it. A node's icon is a picture of
+the *thing*, not of its category: Instant Messenger is a speech bubble with a lightning bolt
+through it, Daily Standups is three figures and a clock, JIRA Ticket Flooding is a stack of
+tickets deep enough to be a joke about itself.
+
+Icons carry **state**, which is most of their job: dark outline when unaffordable, filled and
+palette-coloured when owned, and a one-frame flash on purchase. That is three renderings of
+one 16×16 grid and no new assets.
+
+#### 11.4.5 Buying one has to feel like something **[CANON]** - R35
+
+§8's game juice is specified for poking and for the camera and for nothing else, so the single
+most consequential act in §11 — spending money you will not get back — currently resolves as a
+number changing colour.
+
+| | |
+|---|---|
+| **Visual** | The node **snaps to its owned state** on a short overshoot spring (§10.5's curve, not a new one). A ring pulse leaves it along the connectors, and **the adjacent nodes it just unlocked resolve out of silhouette as the pulse reaches them** — so the reward for buying is watching the map grow |
+| **Camera** | A ~2% board-scale kick, damped in 200 ms. Enough to be felt, small enough to survive being done forty times |
+| **Audio** | A **two-part** cue: a short mechanical latch on the press, and a resolving tone on the unlock, ~120 ms apart. The gap is what makes it read as *cause and effect* rather than as one noise |
+| **Haptics** | §8.3's medium impact on the latch. Nothing on the unlock — a double buzz is a phone malfunctioning |
+
+**The pulse is the only element that scales with what was bought.** A cheap node pulses once
+to its neighbour; a branch-terminal node pulses down every connector it just opened. The
+player learns the size of a purchase from how far the light travels, which is a thing the
+price tag cannot tell them.
+
+#### 11.4.6 The tree is not available at the start **[CANON]** - R34
+
+**§11's tree opens at $50 in Act I, and it should not exist yet.** Run 1 is §21's trap — a
+tight eleven-minute argument with one lesson in it — and a shop full of entropy suppression is
+the *answer* to that lesson handed over before the question has been asked. A player who buys
+Voice Shouting in Act II has been sold the moral of the story for fifty dollars.
+
+**Nodes are gated by ring, and rings are gated by prestige:**
+
+| Ring | Contents | Opened by |
+|---|---|---|
+| **0** | Instant Messenger, alone | **§21's story.** James brings it. It is not bought and it has no price |
+| **1** | The first node of each of the four branches | The **first Paradigm Shift** |
+| **2** | The second of each | Two shifts, or the first Codebase Fork, whichever the player reaches |
+| **3+** | The rest | One ring per shift thereafter, and §13.5's gate opens the last |
+
+**And costs scale with prestige as well as with ring**, so a tree does not become trivial two
+shifts after it opened:
+
+$$\text{Cost} = \text{BaseCost} \cdot \text{Mult}^{N} \cdot \Phi^{\,s}$$
+
+where `s` is shifts taken and `Φ` is a little above 1. §11.0's curve is untouched inside a
+run; this is what stops Run 6 buying the whole board in its first minute with Run 5's economy.
+
+> **What this must not become: a tree the player cannot afford to finish.** The ring gate is
+> about *when a decision is interesting*, not about slowing anyone down. Every ring that is
+> open must be completable within the run that opened it, or §11 has been turned into a second
+> prestige currency wearing a dollar sign.
+
+### 11.5 Instant Messenger is the first node **[CANON - added 2026-08-11]** - R32
+
+§21.6's scene is the best thing in the script — James introduces asynchronous text messaging,
+with total sincerity, *to the person sitting next to him* — and the upgrade it introduces
+does not exist. §11.2's first purchase is **Voice Shouting**, which is the thing Instant
+Messenger replaces.
+
+**So B1 stops being a purchase and becomes the starting condition.** Voice Shouting is what
+the studio is doing before it owns anything: it is stated on the empty board, in the centre
+slot, greyed, as the thing about to be replaced. Nobody buys it; everybody starts with it.
+
+| | |
+|---|---|
+| **The node** | **Instant Messenger** — Tier 1 Communication Infrastructure, §11.2's B1 slot, at the centre of §11.4's board |
+| **Cost** | **None.** It is given, by James, in the scene. It is the only free node in the game |
+| **Effect** | §11.2's B1 effect, kept — communication load −5% — because the joke needs the first real tool to be *almost useless*, and because §21.0's measured entropy table was calibrated with it absent |
+| **When** | The end of §21.7's first James scene |
+
+**The tree opens on the purchase, and the scene and the node use the same visual.** This is
+the requirement that makes the beat land rather than just occur: the notification that appears
+over the player's desk in §21.6 — the one that says `hey` while he sits two feet away — is
+drawn from **the same icon and the same pulse** as §11.4.4's Instant Messenger node and
+§11.4.5's purchase effect. The player sees the joke, the board opens, and the thing at the
+centre of it is the picture they were just laughing at. **Recognition is the tutorial**: no
+line of copy has to explain that a scene and an upgrade are connected, because they are
+visibly the same object.
 
 ---
 
@@ -4039,6 +4357,16 @@ axis: a hero has a *where* and a *what*, and both have to be right.
 vocabularies. Five separate node systems would be five things to balance and five things to
 learn, and the existing one already does the job.
 
+> **Amended 2026-08-11 — §13.9 collapses the five trees into one board.** The paragraph above
+> argues against five *node systems* and then specifies five *trees*, which is the same cost
+> paid a different way. §13.9 keeps every word of this section that matters — the classes, the
+> "a class only multiplies its own role" constraint, and the one grammar — and makes the five
+> vocabularies **five branches of a single centre-out board** rather than five screens.
+> **Cloud is added as a sixth area and Melany's branch** (§13.9.2); Engineering moves to the
+> trunk, because it is the thing everybody did before they specialised. §13.7.1's Management
+> tree is untouched and stays the founder's own — it is a diluted copy of the branches, which
+> is easier to state now that they are branches.
+
 #### 13.7.1 You are the fifth tree, and you are worse at everything **[CANON]** - R20
 
 §4.5d gave the founder a desk and a coding curve. **This makes it a class**, and the shape of
@@ -4096,6 +4424,168 @@ The rules, and each one exists to stop a specific way this collapses into a menu
 > progress.** §13.6.7's "never a second job" applies with full force. A good placement should
 > be worth having and a stale one should cost a percentage — never a wall.
 
+
+### 13.9 One tree, five branches, and every hero shares it **[CANON - added 2026-08-11]** - R36, R37
+
+§13.7 gives each class its own tree — *"one grammar, five vocabularies"* — and building the
+rest of this batch made the cost of that obvious. **Five trees is five things to balance, five
+things to learn, and five screens**, and the player's actual question is never "what does the
+Quality tree look like"; it is *"what do I want Mo to be good at."*
+
+**So there is one tree. Every hero opens the same board, and what differs is where they
+already are on it.**
+
+```
+                          [ QUALITY ]
+                               |
+                          o--o--o
+                               |
+      [ COHESION ]---o--o--o---+---o--o--o---[ RELIABILITY ]
+                               |
+                          [ ENGINEERING ]
+                          the trunk, at the centre
+                               |
+                          o--o--o
+                        /             \
+             [ SUPPORT ]               [ CLOUD ]
+```
+
+| | Branch | Bends | Its hero |
+|---|---|---|---|
+| **centre** | **Engineering** | §4.1 velocity. What everybody does, before they specialised | **James** — §22.8's jack of all trades, and the only hero who starts *at* the centre |
+| N | **Quality** | §4.12's defect arrival rate | **Mo** |
+| E | **Reliability** | §4.12a's incident arrival rate | **Serena** |
+| S-E | **Cloud** | §4.2's developer cap — and the bill | **Melany** |
+| S-W | **Support** | §4.13's ticket capacity, and §4.12a's incident *clearance* | **Matt** |
+| W | **Cohesion** | §4.1's Entropy directly | **Billy** |
+
+**§13.6.4's three node kinds are unchanged and now genuinely shared**: REACH moves a hero up
+§7.7's ladder, DEPTH strengthens what they do at the reach they have, TRAIT is a one-off rule
+change. What a DEPTH node *means* is read off the branch it sits in, which is what makes one
+board carry five vocabularies without five implementations.
+
+#### 13.9.1 A story hire arrives already good at their job **[CANON]**
+
+**Every hero the story gives you arrives with nodes pre-bought in their own branch, and
+nothing else.** Mo shows up three nodes deep into Quality. Serena shows up three nodes deep
+into Reliability. Neither has spent a point at the centre, and neither has touched anybody
+else's branch.
+
+That does three things, and the third is the one worth building it for:
+
+1. **It states the character mechanically before a line of dialogue does.** You know what Mo is
+   for by looking at the board she came with.
+2. **It teaches the tree by example.** A player's first sight of the board is a shape somebody
+   already made, which is a far better tutorial than an empty grid and a legend.
+3. **It is the beginning of an argument, not the end of one.** §13.9's whole point is that
+   **it is up to the player to upgrade them as they see fit.** Nothing stops Mo going down
+   Cloud. She will be worse at it than Melany — the branch is not hers and the centre-out
+   distance is longer — and a player who does it anyway has made a real decision about a
+   specific person. **A hero is a starting position, not a role.**
+
+> **What this must never become: a correct build per hero.** If there is one right way to
+> spend Mo's points, §13.9 has produced five trees again with extra steps. The branches trade
+> against systems that pull in different directions at different times — defects matter while
+> you are building, incidents matter once you have shipped — so the answer changes with the
+> studio, which is §13.8's standing requirement restated for the tree.
+
+#### 13.9.2 Melany and the Cloud branch **[CANON - added 2026-08-11]**
+
+Cloud is the branch §13.7 did not have, and it exists because **§4.2's developer cap is the
+only defence against §4.1 and only one system in the game touches it.** §11's protocol tree
+raises the cap by *reducing what communication costs*. Cloud raises it by **paying for
+capacity you did not have to organise** — which is a genuinely different move and the funnier
+one:
+
+| | |
+|---|---|
+| **Effect** | Raises §4.2's cap within reach, and hires take effect **immediately** — no ramp, no onboarding |
+| **The cost** | A **standing bill that scales superlinearly with headcount**, drawn from cash every second, forever. It is not an event. Nobody reads it |
+| **The joke** | Infinite elasticity, invoiced monthly. The only branch in the game whose upgrades make a line item worse |
+| **The trade** | Cloud is the fastest way to survive §6's trap and the fastest way to go bankrupt in §4.10d's payroll model. Both, at once, from the same purchase |
+
+Melany's TRAIT nodes are the reserved-instance joke: commit to a headcount in advance for a
+discount, and pay through the nose the moment you exceed it.
+
+### 13.10 Heroes earn XP where you put them **[CANON - added 2026-08-11]** - R39
+
+§4.5d gave the founder a curve that grows because *you* got better. **Heroes need the same
+thing and had nothing** — §13.6.5 buys their nodes with GP, which is prestige currency, which
+means a hero could only ever improve between runs and never during one.
+
+**A placed hero earns XP from the work done under their coverage.**
+
+$$\frac{dX_h}{dt} = \xi \cdot V_{\text{covered}(h)}$$
+
+`V` is §4.1's velocity, restricted to the developers §13.6.2's coverage rule says the hero
+actually reaches. Everything about that is deliberate:
+
+- **An unplaced hero earns nothing.** A card in the tray is a person on the bench. This is the
+  second reason §13.8's placement matters and it is a compounding one: the hero you use is the
+  hero who gets better, so a board left alone falls behind a board that is tended.
+- **XP scales with coverage, so REACH pays twice.** Broadening a hero widens what they affect
+  *and* what they learn from, which is the first thing in §13.6.4 that makes the reach/depth
+  trade lean rather than balance — and it leans toward the expensive node, which is where
+  §13.6.4 wanted it.
+- **A hero placed over a quiet corner of the studio learns slowly**, and the player can see
+  exactly why by looking at the floor.
+
+| | |
+|---|---|
+| **What XP buys** | Nodes on §13.9's board. **XP is the in-run currency of the hero tree**, standing in the same relation to GP that cash does to BP |
+| **What GP still buys** | The card itself (§13.6.5), and TRAIT nodes, which stay expensive and stay prestige-priced. Personality is not something you grind |
+| **Lifetime** | **Permanent, per hero**, alongside `founderLevels` in the save's `meta` block — so it survives a Paradigm Shift *and* a Codebase Fork. A hero you have carried through nine runs is better than one you just met, which is §22.3's entire emotional design applied to the mechanical layer |
+| **Curve** | Node `n` costs $X_0 \kappa^n$ on §14.5's shape. Rate `ξ` is set so a hero at a rung they cover completely gains about one node per project shipped, early |
+
+> **XP must not make an unplaced hero worthless.** §13.6.7's "amplitude, not gate" applies:
+> the gap between a tended hero and a benched one is a percentage that grows, never a
+> threshold that locks. A player who ignores this system entirely still finishes runs.
+
+### 13.11 Showing where everybody is **[CANON - added 2026-08-11]** - R40
+
+§13.8 makes placement the management game and §13.6.6 forbids a management screen. **Both are
+right and together they specify nothing**, so this is the missing half: what the player
+actually looks at.
+
+Three views, and each answers a different question the player is really asking.
+
+#### 13.11.1 On the world — *"who covers this?"*
+
+The default, and the one §13.6.6 already requires. At any rung, a hero placed on it renders as
+a **badge on the unit's face** — a block of 100, a floor of 10,000, a building — drawn at that
+rung's scale, in their branch's colour.
+
+- **The footprint is drawn, not stated.** Selecting a hero tints exactly the developers they
+  reach, in the branch colour, and everything they do not reach goes flat grey. §13.6.2's rule
+  is learned by looking, not by reading `covering 8 of 4,000`.
+- **Overlap is visibly wasted.** §13.8's rule 3 — two heroes of one class over the same rows
+  do not stack — is rendered as **cross-hatching** where the footprints intersect. The player
+  is never told they have made a mistake; they can just see the hatched area and move
+  somebody.
+- **A settling hero is drawn faded**, with a countdown ring, for §13.8's rule 4 relocation
+  period. Coverage costs time, so time is on screen.
+
+#### 13.11.2 The roster strip — *"who is idle?"*
+
+A **single row of small cards** along the bottom edge of the world when the tray is summoned —
+§10.5's bottom sheet, dismissed when you are done, never permanent furniture. Each card shows
+portrait, branch colour, current reach, and **one line: where they are, or `BENCHED`.**
+
+`BENCHED` is the only word on this strip that is allowed to be red, because §13.10 makes it
+the one that is actively costing the player something.
+
+#### 13.11.3 The org chart — *"what does my company look like?"*
+
+§22.2's board, kept, and it is the **only** screen in this system — earned because it answers a
+question the world cannot: reporting structure is a relationship between heroes, not a place
+on a floor. It is where §22.2's direct-report bonus is arranged and where a promotion is
+witnessed.
+
+**It is never where placement happens.** Dragging a card on the org chart changes who reports
+to whom; dragging a card on the world changes who covers what. Two boards, two verbs, and
+§13.6.7's "if the player is managing heroes on a grid instead of in the world, the entire
+reason for this design has been thrown away" survives because the grid cannot do the thing the
+world does.
 
 ## 14. Prestige & Scaling Mathematics
 
@@ -5415,7 +5905,46 @@ anything, the more honest version.
 | **Act III** | ~40 | The offer *appears*. It does not take anything away |
 | **Act IV–V** | ~1,040 | The collapse, on money that was not theirs |
 
+#### 21.0b Act I is not a thousand points alone **[CANON — revised 2026-08-11]** - R41
+
+**As built, Act I asks one person to burn 1,000 Story Points by thumb before anything happens,
+and it is brutal.** The arithmetic says so plainly: the founder produces 0.5 SP/sec passively
+(§4.5d), a poke is worth 1 SP at the base ladder tier (§4.6), and James — the thing that makes
+it stop being lonely — is gated behind *shipping the project*, because he costs a dollar and
+the player has none until Flappy Square pays out. **The first help in the game arrives after
+the hardest part of the game is over.**
+
+That inverts §21.0's own thesis. Act I exists so that "the clicker layer sells itself", and a
+sale takes about ten seconds; the remaining several minutes are the game proving it can
+outlast the player.
+
+**So James arrives during Act I, free, at fifty pokes.**
+
+| | Was | Now |
+|---|---|---|
+| **When** | After shipping *Flappy Square 1.0* alone | **At 50 pokes**, roughly 15 seconds in, mid-burn-down |
+| **How** | `[ HIRE DEVELOPER ]`, $1, from a treasury holding $0 | **A scene.** He is not hired; he turns up. §21.7.1 |
+| **Cost** | $1, and payroll from the third head | **Nothing, and nothing.** §4.10a's payroll already starts at the third developer, so the free hire costs the economy exactly zero and needs no exception |
+| **Act I's commitment** | 1,000 SP | **1,000 SP, kept.** §21.0 is explicit that Act I keeps the canonical figure. It is not the number that was wrong — it is who was carrying it |
+
+**Fifty is chosen the way forty was.** Twelve pokes is three seconds: long enough to prove a
+tap does something, too short to have earned anything. Fifty is about fifteen seconds of
+sustained 3–5 Hz poking — long enough that the player has felt the size of 1,000, and
+**short enough that they have not yet decided the game is a grind.** The help arrives at the
+first moment it would be a relief and before it would be a rescue.
+
+> **The trap is unaffected, and this is the thing to check.** §6's lesson needs the player to
+> believe hiring works, and James arriving free makes that belief *cheaper to acquire*, not
+> weaker. Act IIa still buys every subsequent hire with earned cash, the price still climbs,
+> and the collapse still costs them a treasury they built. What has been removed is the
+> unpaid labour before the loop starts, which was teaching nothing the loop does not teach
+> better.
+
 ### ACT I: The Innocent Beginning
+
+> **Revised 2026-08-11 — see §21.0b.** James arrives free at 50 pokes, part-way through this
+> act rather than after it. The terminal banner, the bubble and the first-poke teaching moment
+> below are unchanged; what follows the fiftieth poke is §21.7.1's scene.
 
 **[ON-SCREEN TERMINAL PROMPT (Retro Green Text)]**
 
@@ -5629,6 +6158,181 @@ It says `hey`. He is two feet away.)*
 emoji and not a system toast (ART_DIRECTION §3.1, GDD §10.6).
 
 ---
+
+### 21.7 The story going forward — people arrive because you needed them **[CANON - added 2026-08-11]** - R42
+
+§21 scripts Run 1 and §21.6 scripts one scene of Run 2. **After that the game has no story at
+all** — it has systems, and the systems announce themselves with terminal banners. This section
+is the arc that carries the rest of it, and it has exactly one rule:
+
+> **A hero arrives the first time the player feels the problem that hero solves, and never
+> before.** Not at a headcount, not at a shift, not on a timer. The scene is the answer to a
+> question the player has just asked out loud at their screen.
+
+That rule is doing real work. It means every named character in the game is introduced as
+*relief*, the player already understands what the hero is for before the hero says anything,
+and §13.9.1's pre-bought branch reads as a fact about the person rather than as a starting
+bonus. It also means the story cannot be told out of order, because the systems decide the
+order.
+
+#### 21.7.0 James, written down **[CANON]**
+
+He is the anchor of the whole system (§22.3) and he has never had a voice specification, so
+here it is. **Everything he says can be derived from these five facts:**
+
+1. **Extreme focus.** He is not distracted, ever. When he is working, he is working, and §7.8's
+   ambient drive-by interruptions do not land on him.
+2. **He prefers as few human interactions as possible**, and he is not rude about it — he is
+   *sincere* about it. Every tool he ever brings you is a tool for talking to people less, and
+   he presents each one as good news, because to him it is.
+3. **Correct grammar, always.** *Fewer* and *less*. He will correct you, once, without
+   emphasis, and then continue his sentence. He never explains the correction unless asked,
+   and if asked he explains it completely.
+4. **He lives on Diet Coke.** Not coffee. The desk sprite has a can on it at every promotion
+   tier, beside the elbow hole that never gets fixed.
+5. **The gym, ten to eleven, every day.** Every single day. Through the collapse, through the
+   bankruptcy, through the heat death of four universes. If the player pokes his desk between
+   10:00 and 11:00 studio time, **he is not there**, and the desk says so.
+
+**Rule 5 is a mechanic and it should be built as one.** An hour a day where the game's most
+reliable card is simply absent is funnier than any line about it, it is the only scheduled
+event in the game, and it costs one boolean.
+
+> **What James is not:** sarcastic, wry, or in on the joke. He means every word. The comedy in
+> every James scene comes from him being **completely correct about a small thing** while the
+> large thing goes wrong behind him. If a line of his reads as a wink, it is the wrong line.
+
+#### 21.7.1 Act I — *"Is this seat taken?"* **[CANON]**
+
+Fires at §21.0b's fiftieth poke. James is free.
+
+```
+STUDIO_OS   > APPLICANT AT DOOR.
+
+YOU         Can I help you?
+JAMES       You posted a job.
+YOU         I posted that eleven minutes ago.
+JAMES       I have fewer commitments than most people.
+YOU         ...Fewer?
+JAMES       Fewer. It's countable.
+
+            (He sits down at the empty desk. He opens a Diet Coke.)
+
+YOU         I can't pay you.
+JAMES       I know. I read the posting.
+JAMES       I'm here eleven to seven. I go to the gym at ten.
+YOU         Every day?
+JAMES       Every single day.
+```
+
+He starts working. Velocity doubles. **No card award popup, no fanfare, no `NEW HERO
+ACQUIRED`** — the second desk and the burn-down moving twice as fast is the entire
+notification. §22.3's card is awarded silently and found later.
+
+#### 21.7.2 Act I — Instant Messenger **[CANON]** - R32
+
+Fires a short while after §21.7.1, still inside Act I. This is §11.5's node arriving, and it is
+the first thing in the game the player is *given* rather than sold.
+
+```
+JAMES       Can I show you something.
+
+STUDIO_OS   > NEW PROTOCOL AVAILABLE -- INSTANT MESSENGER
+            > Asynchronous text. Tier 1 Communication Infrastructure.
+
+JAMES       Instant Messenger. So we don't have to speak to each
+            other any more.
+YOU         James, we're sitting side by side.
+JAMES       Yes. That's the inefficiency.
+
+            (He turns back to his monitor. A notification appears
+             over the player's desk. It says `hey`. He is two feet
+             away.)
+
+YOU         ...
+JAMES       Check your messages.
+```
+
+The `hey` notification is drawn from **§11.4.4's Instant Messenger icon and §11.4.5's purchase
+pulse** — the same picture, so that when the board opens on the next tap the player recognises
+the node at its centre without being told. §11.5 is the specification; this is the beat.
+
+> **§21.6 moves up a protocol.** *"How did you find me in every single reality?"* is the best
+> opening line in the script and it stays exactly where it is, at the top of Run 2 — but the
+> tool he brings there is now the **ring-1 protocol** §11.4.6 unlocks at the first Paradigm
+> Shift, not Instant Messenger. The joke is structural rather than specific: **James turns up
+> in every reality holding the next thing that lets people avoid each other**, and it works
+> for any tool in the branch. Run 3 gets one too. So does Run 9.
+
+#### 21.7.3 The hire ladder — who arrives, and what it took **[CANON]**
+
+Five more people, each one gated on a *feeling* rather than on a number. §22.8 is the roster;
+this is when each of them walks in.
+
+| Hero | Arrives the first time... | Because the player has just... |
+|---|---|---|
+| **Mo** — Quality | A release is rated below the §4.14 baseline **on defects alone** | ...watched a game they were proud of score 31 and seen exactly why |
+| **Serena** — Reliability | An incident (§4.12a) suppresses a release's tail for the first time | ...watched a game that *was* earning stop earning, overnight, with no input from them |
+| **Matt** — Support | The ticket queue (§4.13) goes unserved for a sustained period | ...seen the drab grey bar fill up and learned that the back catalogue sends a bill |
+| **Melany** — Cloud | The studio hits §4.2's developer cap with cash still in the bank | ...tried to solve a problem by hiring and discovered the cap for the first time |
+| **Billy** — Cohesion | The speedometer first reads past `CHATTY` **outside Run 1** | ...met §4.1 as an ongoing condition rather than as Run 1's punchline |
+
+**Every one of those triggers is a system the player already has on screen.** Nothing here
+needs a new counter, and each scene is the first time the game says out loud what a readout has
+been saying quietly.
+
+Three shape rules for these scenes, so the set stays a set:
+
+1. **Under twelve lines.** §21.7.1 is the length; nothing later is longer. A hero introduction
+   is a handshake, not an act.
+2. **The hero fixes nothing during the scene.** They arrive, they say who they are, they sit
+   down. The number improves afterwards, from their work, where the player can see the cause.
+3. **James is in every one of them, and he says one line.** He is the constant (§13.6.3) and
+   the recurring cast member the player actually knows. His line is always about the *tool* or
+   the *process*, never about the person — he does not notice people arriving.
+
+#### 21.7.4 Global Head of His Desk **[CANON]**
+
+Fires when James is promoted onto a management row — §22.2's org chart, the first time a card
+is placed above another card.
+
+```
+STUDIO_OS   > ORG CHANGE COMMITTED.
+            > J. -- GLOBAL HEAD OF HIS DESK
+
+YOU         James. Congratulations. You're Global Head now.
+JAMES       Of what?
+YOU         Of your desk.
+JAMES       I was already doing that.
+YOU         Now it's global.
+JAMES       ...Is it a different desk?
+YOU         It's the same desk.
+JAMES       Good.
+
+            (Beat.)
+
+JAMES       Fewer surprises.
+```
+
+**The title is real and it renders**, on the card, on the org chart, and on the desk plate in
+the world at Desk zoom: `GLOBAL HEAD OF HIS DESK`. It is never explained again and it is never
+retracted. Every subsequent promotion extends it rather than replacing it — *Global Head of
+His Desk and Surrounding Area*, and so on — which is the corporate ladder rendered as a string
+that only gets longer.
+
+#### 21.7.5 What the arc is actually about **[CANON]**
+
+§2 says the game is about the people you carry with you and §21.6 says *"the tools get better
+and the humans get further apart — that is the whole arc."* Both are true and they are the
+same arc read from two ends, so the set of scenes has to land both:
+
+- **Every protocol James brings you works**, and every one of them removes a reason to speak to
+  somebody. By the late game the studio communicates perfectly and nobody has met.
+- **Every hero who arrives is a person you needed**, and the player will remember which
+  disaster brought each of them in.
+- **Nobody ever leaves.** There is no departure scene in this game, at any tier, for any
+  character. §22.5's Yuki quitting is a *mechanic* and it is pointedly the only one — which is
+  why it lands.
 
 ## 22. Hero Cards & Collectables
 
@@ -5859,6 +6563,69 @@ it is a deliberate scope decision made explicitly, not a drift.
 Anything that would breach this table needs an explicit decision recorded here first.
 
 ---
+
+### 22.8 The story roster — six people, one per branch **[CANON - added 2026-08-11]** - R38
+
+**This design has had three rosters and no people.** §13.6.3 lists nine cards named after
+*job titles* — Scrum Master, Floor Master, VP of Engineering — which were job descriptions
+standing in for characters who did not exist. §22.5 lists twelve named cards, most of them
+gated behind late-game milestones nobody has reached. §13.9 now needs one hero per branch, and
+§21.7 needs each of them to walk through a door.
+
+**So the six below are the roster. They are people, they are named, and each one owns a branch
+of §13.9's board.**
+
+| Hero | Branch | Bends | Arrives (§21.7.3) |
+|---|---|---|---|
+| **James** | **Engineering** — the trunk | §4.1 velocity, weakly, everywhere | Act I, 50 pokes, free |
+| **Mo** | Quality | §4.12's **defect arrival rate** | First release rated below baseline on defects |
+| **Serena** | Reliability | §4.12a's **incident arrival rate** | First incident to kill a release's tail |
+| **Matt** | Support | §4.13 ticket capacity, and §4.12a **incident clearance** | First sustained unserved queue |
+| **Melany** | Cloud | §4.2's **developer cap** — and the bill (§13.9.2) | First time the cap is hit with cash spare |
+| **Billy** | Cohesion | §4.1's **Entropy** directly | First `CHATTY` outside Run 1 |
+
+#### 22.8.1 What happens to the other two rosters
+
+| | |
+|---|---|
+| **§13.6.3's nine titles** | **Become the branch vocabulary, not cards.** "Scrum Master" is what Billy *is*; "Architect" is a Cloud-branch TRAIT node; "VP of Engineering" is §22.2's org-chart amplification, which is a board rule and was never a person. **James's row survives verbatim** — home rung `any`, effect small at every rung, never scales |
+| **§22.5's twelve** | **Six of them are these six** (James, and five replacing the title-cards). The remaining six — Intern #42, Chad from Sales, Dana, Bruno, The Greybeard, Yuki — stay exactly as specified, as the **collection long tail**: earned from milestones, no branch of their own, and they arrive after the story roster is complete |
+| **§22.7's art cap** | **Unchanged at 12 portraits.** Six story heroes plus six collectables is twelve, which is the number that was already budgeted. Nothing about this section costs a sprite |
+
+#### 22.8.2 The five, briefly — enough to write them **[CANON]**
+
+Each is one sentence of who they are, one of how they talk, and their card's flavour line.
+§21.7.0 does this for James at length because he is in every scene; these five need less.
+
+**MO — Quality.** *Reads everything twice, ships nothing twice.* Speaks in short complete
+sentences and asks the question you were avoiding, kindly, at the worst possible moment. Does
+not think of herself as slow.
+> *"I'm not blocking it. I'm just asking what happens if someone taps it twice."*
+
+**SERENA — Reliability.** *Has a runbook for this. She wrote it before this happened.* Calm in
+inverse proportion to how bad things are; the more the graph falls, the flatter her voice.
+Deeply uninterested in whose fault it was.
+> *"It's up. It was never really down. It was degraded. There's a difference and it matters."*
+
+**MATT — Support.** *The only person in the company who has spoken to a player.* Warm, fast,
+knows every customer's name and none of the acronyms. Quotes the forums in meetings, which
+everyone finds annoying and nobody can argue with.
+> *"Four hundred people wrote in about the same button. I don't know what it does either."*
+
+**MELANY — Cloud.** *Can give you infinite capacity by Thursday.* Enthusiastic, extremely
+competent, allergic to reading an invoice. Solves every problem by making it somebody's
+metered resource.
+> *"We can absolutely scale to that. I'd want to talk about the bill afterwards. Afterwards is fine."*
+
+**BILLY — Cohesion.** *Believes in process, sincerely, in a way that is slightly moving.*
+Facilitates. Has a deck. Genuinely does reduce Entropy, which is the uncomfortable part —
+§13.6.3's joke was that he fixes communication overhead by adding a meeting, **and it works.**
+> *"I've booked fifteen minutes. If we don't need fifteen minutes, we'll give them back."*
+
+> **None of these five is a joke at the expense of their job.** §4.11 exists because a studio
+> needs all four functions and the game is funnier when each of them is *right*. The comedy
+> comes from an organisation that cannot hold five correct people at once, which is §6 again,
+> with faces on it.
 
 ## 23. Technical Constraints & Build Readiness **[CANON]**
 
@@ -6728,6 +7495,74 @@ the tech tree the value reaches §4.1's efficiency curve, where a single `NaN` t
 into `NaN` output and the treasury into `$NaN` on the following tick. Levels are read from a
 save document, which is the one input in this game that can contain anything at all. §24's
 `normaliseReleases` already carries the same scar and the same comment.
+
+### 25.6 Intake — 2026-08-11 **[CANON]**
+
+> *"Story / Heroes / Upgrades / Mechanics."*
+
+The largest single batch since the ledger opened, and unusually it is **mostly repair rather
+than addition**: five of the fourteen rows below name something the GDD already specified and
+built wrong, or specified and never built. The requirements are recorded verbatim in intent
+below; the owning sections carry the design.
+
+| # | Requirement | Owner § | Status |
+|---|---|---|---|
+| **R29** | Defects generated alongside development, cleared by QA. **Incidents generated after a game has launched**, dealt with by SRE | **§4.12a** *(new)* | **Specified.** §4.12 made an incident "a defect past a threshold", which confines incidents to unreleased software. Now incidents arrive from the **released catalogue**, at a rate set by the defect density each release shipped with. Unbuilt: there is no `defects.ts`, no `incidents.ts`, no `support.ts` |
+| **R30** | Different text colours and UI components to track them | **§4.15** *(new)* | **Specified.** Three concept tokens (`defects` amber, `incidents` red, `tickets` grey-blue), three distinct components, and a rule against ever merging them into one "problems" total |
+| **R31** | More immersive story. **Focus down to the speaker, facing camera.** Speech subtitle bigger and more central | **§10.7a** *(new)* | **Specified.** §10.7 specified a box and never specified where anybody was standing. The camera now pushes to Desk zoom and re-centres per line; the speaker turns front-facing for their line. The box grows ~1.5×, moves to the lower third, and drops to two lines |
+| **R32** | Instant Messenger is the **first upgrade**, with the same visual effect in the tree | **§11.5**, §21.7.2 | **Specified.** §11.2's B1 was Voice Shouting — *the thing IM replaces*. Voice Shouting becomes the starting condition; IM takes the B1 slot, is given free by James in Act I, and the scene's `hey` notification is drawn from the node's own icon and pulse |
+| **R33** | Clicking upgrade shows **the tree**. Incremental reveal — unlocking one shows others — with a guide layer on tap | **§11.4.1–3** *(new)* | **Specified.** Three visibility states (live / silhouette / dark-with-connector). **This overturns a recorded decision** — see 25.6.1 |
+| **R34** | Upgrades **scale with prestige** and are **not available at the start** | **§11.4.6** | **Specified.** Node rings gated on shifts taken; ring 0 is Instant Messenger alone, given by the story. Costs gain a `Φ^s` prestige term |
+| **R35** | Centre-out tree, **right angles**, **a node per upgrade level**. Icons. Purchase juice. A bigger screen, without saying so | **§11.4.1**, §11.4.4, §11.4.5 | **Specified.** `maxLevel` counters become chains of nodes; one procedural pixel icon per node with three states; a two-part audio cue and a pulse that travels the connectors it just unlocked; the board is pannable and larger than the viewport, which is how it is bigger without a line of copy saying so |
+| **R36** | Heroes share **one upgrade tree**, branched into five areas | **§13.9** *(new)* | **Specified.** §13.7's five separate trees collapse into one centre-out board — Engineering at the trunk, five branches out. Same three node kinds |
+| **R37** | Story hires arrive with **some skills pre-clicked** in their expertise; the player owns the rest | **§13.9.1** | **Specified.** A hero is a *starting position*, not a role. Nothing stops Mo going down Cloud |
+| **R38** | The named roster and their effects. **Suggest the Cloud effect** | **§22.8** *(new)*, §13.9.2 | **Specified, and it is a proposal.** Melany/Cloud raises §4.2's developer cap and makes hires take effect immediately, paid for by a standing bill that scales superlinearly with headcount. Chosen because the cap is the only defence against §4.1 and only §11 touched it, and because it is the one branch whose upgrades make a line item *worse* |
+| **R39** | **Heroes generate XP**, like the founder | **§13.10** *(new)* | **Specified.** XP accrues from work done under coverage, so an unplaced hero earns nothing and REACH pays twice. XP buys DEPTH/REACH; GP still buys the card and its TRAITs |
+| **R40** | Heroes slot onto **units** (block of 100, floor of 10,000, building). **Design how assignment is displayed** | **§13.11** *(new)* | **Specified.** Three views: badges and tinted footprints on the world, a roster strip for who is benched, and §22.2's org chart for reporting lines only. Placement never happens on the chart |
+| **R41** | The 1,000-point first level alone is **too brutal**. James at **~50 clicks as a free hire** | **§21.0b** | **Specified.** Fifty pokes, free, mid-Act-I. The arithmetic that made it brutal is recorded: James cost $1 from a $0 treasury, so the first help arrived *after* the hardest part |
+| **R42** | Author a **new set of stories going forward**, tied to hero acquisition. Promote James — "global head of his desk" | **§21.7** *(new)* | **Specified.** One rule — *a hero arrives the first time you feel the problem they solve* — a voice bible for James, five gated arrivals, and the promotion scene |
+
+#### 25.6.1 One recorded decision is overturned, deliberately
+
+`hud/Upgrades.tsx` names every locked node and argues for it in a comment: *"A tree that
+reveals nodes as you buy them cannot be planned, and planning is the whole of §11's 'upgrading
+Workforce without Communication Infra' warning."*
+
+**That argument is right about planning and wrong about its range.** §11's warning is about the
+*next* purchase — do not buy capacity before you buy the thing that makes capacity work — and
+§11.4.2's silhouette ring shows exactly that. What progressive reveal gives up is planning six
+nodes ahead, which no player was doing, in exchange for every unlock in the tree being an
+event. Recorded here rather than quietly deleted, because the comment was a real decision and
+this is a real reversal of it.
+
+#### 25.6.2 Two conflicts inside the batch, and how they are resolved
+
+**The dialogue box cannot be both bigger-and-more-central and never cover the speaker.** §10.7
+promised the second and enforced it by luck, since nothing specified where the camera was.
+R31's own first half is the fix: with the speaker deliberately framed in the upper half
+(§10.7a.1), a larger box in the lower third clears them **by construction**. The two halves of
+R31 are not in tension — the first one is what makes the second one affordable.
+
+**SRE and Support cross over on incidents.** §4.12 gives SRE the incident backlog end to end —
+*"QA change how fast defects arrive, SRE change how fast they leave"* — while R29 and the
+roster give **Serena (SRE) the arrival rate** and **Matt (Support) the resolution rate.**
+Resolved by scope rather than by picking a side: **§4.12's sentence holds for roles**, where
+SRE headcount still bends both terms, and the **heroes specialise at opposite ends of the same
+pipe** (§4.12a.1). Prevention and response are genuinely different jobs, a studio that has one
+and not the other is visibly broken in a specific direction, and that is the only reason to
+model a pipe with two ends.
+
+#### 25.6.3 What this batch does not decide
+
+**No coefficient in it.** `ι` in §4.12a, `ξ` in §13.10, `Φ` in §11.4.6, the XP curve's `X₀`
+and the ring-to-shift mapping are all first passes and are marked as such where they live.
+§25.2's standing position applies to every one of them: what must be *true* is recorded here,
+what it must be true *of* is recorded in the owning section, and the numbers want a playtest.
+
+**And the build order is stated, because R29 has the same trap R21 had.** §4.14's rating is
+already anchored so that `β` cannot secretly rebalance it; `ι` must be anchored the same way,
+against **§4.10e's tail**, before any hero that bends it exists — or the first Reliability node
+written will fix the meaning of an incident by accident.
 
 ### 25.2 What is deliberately NOT decided here
 
