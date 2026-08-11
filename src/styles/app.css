@@ -304,6 +304,14 @@ body {
   justify-items: end;
 }
 
+.hud__bottom {
+  align-self: flex-end;
+  margin-top: auto;
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
 .hud__project {
   flex: 0 0 auto;
 }
@@ -445,6 +453,13 @@ body {
 
 .hud__block--cash .hud__num--major {
   font-size: var(--type-3x);
+  color: var(--warn-2);
+  text-shadow: 0 0 9px color-mix(in srgb, var(--warn-2) 36%, transparent);
+}
+
+.hud__cash-flow {
+  min-width: 15ch;
+  text-align: right;
 }
 
 /*
@@ -692,7 +707,7 @@ body {
   /* Bottom of the right rail, under the CASH readout it spends. `margin-top`
      rather than a grid row of its own — see the note on `.hud` for why the
      rails stopped being two rows each. */
-  margin-top: auto;
+  margin-top: 0;
   align-self: flex-end;
   display: grid;
   /*
@@ -1091,11 +1106,45 @@ body {
   display: grid;
   justify-items: start;
   gap: 10px;
-  width: min(32em, calc(100% - 2 * var(--edge-x)));
+  width: min(48em, calc(100% - 2 * var(--edge-x)));
+  max-height: calc(100% - 2 * var(--edge-y));
+  overflow: auto;
   padding: 14px 18px;
   border: var(--rule) solid var(--p2);
   background: color-mix(in srgb, var(--n0) 90%, transparent);
   pointer-events: auto;
+}
+
+.game-menu__options {
+  width: 100%;
+  padding: 8px 0;
+  border-top: var(--rule) solid var(--p0);
+  border-bottom: var(--rule) solid var(--p0);
+}
+
+.game-menu__options .opt {
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+}
+
+.game-menu__options .opt__title {
+  display: none;
+}
+
+@media (max-height: 400px) {
+  .game-menu {
+    gap: 5px;
+    padding: 8px 12px;
+  }
+
+  .game-menu__options {
+    padding: 4px 0;
+  }
+
+  .game-menu__options .opt {
+    gap: 4px;
+  }
 }
 
 .game-menu h2,
@@ -1202,7 +1251,8 @@ body {
 }
 
 .touch__latches {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(42px, 1fr));
   gap: 3px;
 }
 
@@ -1220,7 +1270,13 @@ body {
 .touch__latch {
   appearance: none;
   margin: 0;
-  padding: 3px 8px 4px;
+  display: grid;
+  grid-template-columns: auto auto;
+  place-content: center;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 3px 6px 4px;
   font: inherit;
   font-size: var(--type-1x);
   letter-spacing: 1px;
@@ -1234,6 +1290,19 @@ body {
   /* ART_DIRECTION §1 — the change is a colour swap on a hard edge, and the
      `--ui-in` scale is what reduce-motion already shortens. */
   transition: background-color var(--ui-in, 90ms) linear, color var(--ui-in, 90ms) linear;
+}
+
+.touch__icon {
+  display: inline-grid;
+  place-items: center;
+  min-width: 14px;
+  color: var(--p2);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.touch__latch.is-lit .touch__icon {
+  color: var(--n0);
 }
 
 .touch__latch.is-lit {
@@ -1548,7 +1617,12 @@ body {
   }
 
   .touch__latch {
-    padding: 2px 6px 3px;
+    min-height: 29px;
+    padding: 2px 4px 3px;
+  }
+
+  .touch__latch > span:last-child {
+    font-size: 8px;
   }
 
   /*
@@ -1584,6 +1658,16 @@ body {
 
 .hud__perf > span {
   white-space: nowrap;
+  display: inline-block;
+  text-align: right;
+}
+
+.hud__perf-fps {
+  width: 6ch;
+}
+
+.hud__perf-latency {
+  width: 8ch;
 }
 
 @media (prefers-reduced-motion: reduce) {

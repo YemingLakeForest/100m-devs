@@ -44,7 +44,7 @@ export const MENU_ITEM_MS = 220
 export const STAGGER_MS = 60
 
 /** The landing-screen slabs. Exported so the stagger can be tested against it. */
-export const MENU_ITEMS = ['START', 'NEW GAME', 'OPTIONS', 'CREDITS'] as const
+export const MENU_ITEMS = ['CONTINUE', 'NEW GAME', 'OPTIONS', 'CREDITS'] as const
 export type MenuItem = (typeof MENU_ITEMS)[number]
 
 /** §10.9.4 exit — each part's own animation, all comfortably inside F6's 400 ms. */

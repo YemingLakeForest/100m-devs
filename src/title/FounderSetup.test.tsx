@@ -17,15 +17,30 @@ describe('first-start founder setup', () => {
     expect(enter).toBeDisabled()
 
     fireEvent.change(screen.getByLabelText('YOUR NAME'), { target: { value: '  Ada   Lovelace ' } })
-    fireEvent.click(screen.getByRole('button', { name: '02WAVE' }))
-    fireEvent.click(screen.getByRole('button', { name: '03JACKET' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hair shape WIDE' }))
+    fireEvent.click(screen.getByRole('button', { name: 'MOUSTACHE' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Body shape JACKET' }))
     fireEvent.click(enter)
 
-    expect(complete).toHaveBeenCalledWith({ name: 'Ada Lovelace', head: 'wave', body: 'jacket' })
+    expect(complete).toHaveBeenCalledWith({
+      name: 'Ada Lovelace',
+      head: 'wave',
+      hairColour: 0,
+      skin: 2,
+      accessory: 'none',
+      facialHair: 'moustache',
+      body: 'jacket',
+      bodyColour: 1,
+    })
     expect(JSON.parse(localStorage.getItem(FOUNDER_PROFILE_KEY)!)).toEqual({
       name: 'Ada Lovelace',
       head: 'wave',
+      hairColour: 0,
+      skin: 2,
+      accessory: 'none',
+      facialHair: 'moustache',
       body: 'jacket',
+      bodyColour: 1,
     })
   })
 

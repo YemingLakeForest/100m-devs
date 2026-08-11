@@ -34,10 +34,12 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   variant?: 'default' | 'bait'
   /** A button named entirely for one tracked concept keeps that concept's ink. */
   concept?: Concept
+  /** Opt out when the action has a more specific press sound of its own. */
+  sound?: boolean
   children: ReactNode
 }
 
-export function Button({ variant = 'default', concept, className, children, ...rest }: ButtonProps) {
+export function Button({ variant = 'default', concept, sound = true, className, children, ...rest }: ButtonProps) {
   const [pressed, setPressed] = useState(false)
   const [releasing, setReleasing] = useState(false)
   const hasConceptLabel = Children.toArray(children).some(
@@ -45,12 +47,15 @@ export function Button({ variant = 'default', concept, className, children, ...r
   )
 
   const onPointerDown = useCallback(() => {
+    // Start audio before scheduling any React work. On a mobile WebView the
+    // native bridge is the slowest part of this path, so it gets first use of
+    // the input event rather than waiting behind a render notification.
+    if (sound) playUi('click')
     setPressed(true)
     setReleasing(false)
     // F2, and F3: the acknowledgement of the finger is the sound, so it belongs
     // to the press and not to the click event that may never arrive.
-    playUi('click')
-  }, [])
+  }, [sound])
 
   const onRelease = useCallback(() => {
     setPressed((was) => {

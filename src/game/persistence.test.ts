@@ -78,7 +78,7 @@ afterEach(() => {
 describe('load', () => {
   it('returns null and leaves a fresh run when there is nothing to load', () => {
     expect(loadGame()).toBeNull()
-    expect(getState().devs).toBe(1)
+    expect(getState().devs).toBe(0)
   })
 
   it('restores the run state a Paradigm Shift would throw away', () => {
@@ -133,7 +133,7 @@ describe('load', () => {
   it('survives a corrupt save rather than wedging the game', () => {
     localStorage.setItem(SAVE_KEY, '{"version":1,"run":')
     expect(loadGame()).toBeNull()
-    expect(getState().devs).toBe(1)
+    expect(getState().devs).toBe(0)
   })
 })
 

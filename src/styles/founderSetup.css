@@ -12,7 +12,8 @@
     'preview form';
   padding: var(--edge-top) var(--edge-x) var(--edge-y);
   gap: 16px 28px;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
   color: var(--p2);
   background: color-mix(in srgb, var(--n0) 91%, transparent);
   animation: founder-setup-in 360ms steps(6, end) both;
@@ -105,14 +106,22 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 10px;
+  gap: 7px;
   padding: 0 2px;
+}
+
+.founder-setup__traits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 10px;
+  min-height: 0;
 }
 
 .founder-setup__name-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 58px;
+  grid-template-columns: minmax(0, 1fr) 72px;
   gap: 8px;
+  min-width: 0;
 }
 
 .founder-setup input {
@@ -158,6 +167,14 @@
   gap: 6px;
 }
 
+.founder-setup__options--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.founder-setup__options--five {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .founder-setup__option {
   min-width: 0;
   height: 38px;
@@ -188,12 +205,45 @@
   color: var(--p2);
 }
 
+.founder-setup__swatch {
+  display: grid;
+  place-items: center;
+  padding: 4px;
+}
+
+.founder-setup__swatch i {
+  display: block;
+  width: 100%;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, currentColor 65%, transparent);
+  background: var(--swatch);
+}
+
+.founder-setup__swatch[data-kind='hair'][data-swatch='0'] { --swatch: var(--wood-1); }
+.founder-setup__swatch[data-kind='hair'][data-swatch='1'] { --swatch: var(--wood-0); }
+.founder-setup__swatch[data-kind='hair'][data-swatch='2'] { --swatch: var(--n1); }
+.founder-setup__swatch[data-kind='hair'][data-swatch='3'] { --swatch: var(--wood-2); }
+.founder-setup__swatch[data-kind='skin'][data-swatch='0'] { --swatch: var(--skin-0); }
+.founder-setup__swatch[data-kind='skin'][data-swatch='1'] { --swatch: var(--skin-1); }
+.founder-setup__swatch[data-kind='skin'][data-swatch='2'] { --swatch: var(--skin-3); }
+.founder-setup__swatch[data-kind='skin'][data-swatch='3'] { --swatch: var(--skin-5); }
+.founder-setup__swatch[data-kind='body'][data-swatch='0'] { --swatch: var(--n6); }
+.founder-setup__swatch[data-kind='body'][data-swatch='1'] { --swatch: var(--calm-1); }
+.founder-setup__swatch[data-kind='body'][data-swatch='2'] { --swatch: var(--warn-1); }
+.founder-setup__swatch[data-kind='body'][data-swatch='3'] { --swatch: var(--foliage-1); }
+.founder-setup__swatch[data-kind='body'][data-swatch='4'] { --swatch: var(--n3); }
+
 .founder-setup__actions {
   display: flex;
   align-items: stretch;
   justify-content: space-between;
   gap: 8px;
   padding-top: 2px;
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
 }
 
 .founder-setup__actions .ui-btn {
@@ -210,8 +260,36 @@
 }
 
 .founder-setup__dice-btn .ui-btn__label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.founder-setup__dice-btn .ui-btn__face {
+  position: relative;
+  left: -6px;
+  width: 100%;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 4px;
+}
+
+.founder-setup__dice-btn .ui-btn__bracket:first-child { justify-self: end; }
+.founder-setup__dice-btn .ui-btn__bracket:last-child { justify-self: start; }
+
+.founder-setup__dice-btn {
   display: grid;
   place-items: center;
+  min-width: 0;
+  overflow: hidden;
+  padding-inline: 6px;
+}
+
+.founder-setup__random .ui-btn__label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
 }
 
 .founder-setup__die {
@@ -241,6 +319,15 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+@container frame (max-height: 470px) {
+  .founder-setup__dice-btn .ui-btn__face {
+    /* The global short-frame button trim halves the vertical padding. That
+       changes the counter-skew's visual centre, so the desktop correction is
+       no longer needed at keyboard height. */
+    left: 0;
+  }
+}
+
 @container frame (max-height: 390px) {
   .founder-setup {
     grid-template-columns: minmax(240px, 0.72fr) minmax(420px, 1.28fr);
@@ -250,7 +337,29 @@
   .founder-setup__preview > p { display: none; }
   .founder-avatar { transform: scale(0.82); margin: -10px auto -18px; }
   .founder-setup__form { gap: 5px; }
+  .founder-setup__traits { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 6px; }
   .founder-setup__option { height: 31px; }
   .founder-setup input { height: 38px; font-size: var(--type-1x); }
   .founder-setup__actions .ui-btn { min-height: 36px; }
+}
+
+/* Mobile keyboards take most of a landscape frame. While the name field is
+   active, give the editor the whole viewport and keep the actions reachable;
+   the portrait returns as soon as typing finishes. */
+@container frame (max-height: 390px) {
+  .founder-setup:has(#founder-name:focus) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'header'
+      'form';
+    padding-top: max(4px, env(safe-area-inset-top));
+  }
+
+  .founder-setup:has(#founder-name:focus) .founder-setup__preview {
+    display: none;
+  }
+
+  .founder-setup:has(#founder-name:focus) .founder-setup__form {
+    justify-content: start;
+  }
 }

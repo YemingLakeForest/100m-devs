@@ -1,6 +1,14 @@
 /* A close-up of the room's block people, built from hard square parts only. */
 
 .founder-avatar {
+  --avatar-skin: var(--skin-3);
+  --avatar-skin-side: var(--skin-1);
+  --avatar-skin-top: var(--skin-2);
+  --avatar-hair: var(--wood-1);
+  --avatar-hair-side: var(--wood-0);
+  --avatar-shirt: var(--calm-1);
+  --avatar-shirt-side: var(--calm-0);
+  --avatar-shirt-top: var(--calm-2);
   position: relative;
   width: 196px;
   height: 176px;
@@ -45,48 +53,36 @@
   left: 28px;
   width: 54px;
   height: 52px;
-  background: var(--skin-3);
-  box-shadow: inset -8px 0 0 var(--skin-1), inset 0 -6px 0 var(--skin-2);
+  background: var(--avatar-skin);
+  box-shadow: none;
 }
 
-/* Isometric top and side planes echo the Graphics isoBox used in the room. */
+/* The in-room founder permanently uses buildDeveloper's front pose: a flat
+   face, not the isometric back-of-head solid used by seated employees. */
 .founder-avatar__head::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 100%;
-  width: 54px;
-  height: 12px;
-  background: var(--skin-2);
-  clip-path: polygon(15% 100%, 50% 0, 100% 0, 85% 100%);
+  display: none;
 }
 
 .founder-avatar__head::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 100%;
-  width: 9px;
-  height: 52px;
-  background: var(--skin-1);
-  clip-path: polygon(0 0, 100% 8px, 100% 44px, 0 100%);
+  display: none;
 }
 
-.founder-avatar__face {
+.founder-avatar__face-parts {
   position: absolute;
+  z-index: 6;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 
-.founder-avatar__face i {
-  position: absolute;
-  top: 24px;
-  width: 6px;
-  height: 6px;
-  background: var(--n0);
-}
-
-.founder-avatar__face i:first-child { left: 11px; }
-.founder-avatar__face i:last-child { right: 15px; }
+.founder-avatar__part--ink { fill: var(--n0); }
+.founder-avatar__part--mouth { fill: var(--n1); }
+.founder-avatar__part--hair { fill: var(--avatar-hair); }
+.founder-avatar__part--glasses { fill: var(--n2); }
+.founder-avatar__part--phone-band { fill: var(--n1); }
+.founder-avatar__part--phone-cup { fill: var(--n2); }
 
 .founder-avatar__hair {
   position: absolute;
@@ -95,82 +91,105 @@
   top: -8px;
   width: 54px;
   height: 19px;
-  background: var(--wood-1);
-  box-shadow: inset -8px 0 0 var(--wood-0);
+  background: var(--avatar-hair);
+  box-shadow: none;
 }
 
-.founder-avatar[data-head='wave'] .founder-avatar__hair {
-  top: -12px;
-  height: 27px;
-  clip-path: polygon(0 0, 76% 0, 76% 20%, 100% 20%, 100% 100%, 82% 100%, 82% 56%, 0 56%);
-}
+/* Exact enlarged versions of room.ts's HAIR crown and side strips. */
+.founder-avatar[data-hair-shape='0'] .founder-avatar__hair { --hair-side-top: 24px; top: -16px; left: -1px; width: 56px; height: 24px; }
+.founder-avatar[data-hair-shape='1'] .founder-avatar__hair { --hair-side-top: 12px; top: -4px; left: -3px; width: 60px; height: 12px; }
+.founder-avatar[data-hair-shape='2'] .founder-avatar__hair { --hair-side-top: 36px; top: -28px; left: 1px; width: 52px; height: 36px; }
+.founder-avatar[data-hair-shape='3'] .founder-avatar__hair { --hair-side-top: 20px; top: -12px; left: -5px; width: 64px; height: 20px; }
 
-.founder-avatar[data-head='coil'] .founder-avatar__hair {
-  top: -13px;
-  left: -3px;
-  width: 60px;
-  height: 26px;
-  background: var(--n1);
-  box-shadow:
-    7px -5px 0 var(--wood-1),
-    22px -7px 0 var(--n1),
-    39px -4px 0 var(--wood-1);
-}
-
-.founder-avatar[data-head='phones'] .founder-avatar__hair {
-  top: -5px;
-  height: 14px;
-  background: var(--n1);
-  box-shadow: inset -8px 0 0 var(--n0);
-}
-
-.founder-avatar__phones { display: none; }
-
-.founder-avatar[data-head='phones'] .founder-avatar__phones {
+.founder-avatar__hair::before,
+.founder-avatar__hair::after {
+  content: '';
   position: absolute;
-  z-index: 5;
-  display: block;
-  left: -5px;
-  top: -10px;
-  width: 59px;
-  height: 36px;
-  border: 5px solid var(--p1);
-  border-bottom: 0;
+  top: var(--hair-side-top, 12px);
+  width: 8px;
+  height: 32px;
+  background: var(--avatar-hair);
 }
+
+.founder-avatar__hair::before { left: 0; }
+.founder-avatar__hair::after { right: 0; }
 
 .founder-avatar__body {
+  --body-width: 64px;
+  --body-depth: 30px;
+  --body-half-depth: 15px;
+  --body-side-height: 61px;
   position: absolute;
   z-index: 3;
-  top: 68px;
-  left: 23px;
-  width: 64px;
-  height: 61px;
-  background: var(--calm-1);
-  box-shadow: inset -9px 0 0 var(--calm-0), inset 0 -7px 0 var(--n1);
+  top: 50px;
+  left: 50%;
+  width: var(--body-width);
+  height: calc(var(--body-side-height) + var(--body-depth));
+  transform: translateX(-50%);
+  background: transparent;
 }
 
 .founder-avatar__body::before {
   content: '';
   position: absolute;
+  z-index: 1;
   left: 0;
-  bottom: 100%;
-  width: 64px;
-  height: 10px;
-  background: var(--calm-2);
-  clip-path: polygon(15% 100%, 50% 0, 100% 0, 85% 100%);
+  top: 0;
+  width: 100%;
+  height: var(--body-depth);
+  background: var(--avatar-shirt-top);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 
-.founder-avatar[data-body='tee'] .founder-avatar__body { background: var(--warn-1); box-shadow: inset -9px 0 var(--warn-0), inset 0 -7px var(--n1); }
-.founder-avatar[data-body='tee'] .founder-avatar__body::before { background: var(--warn-2); }
-.founder-avatar[data-body='jacket'] .founder-avatar__body { background: var(--n4); box-shadow: inset -9px 0 var(--n2), inset 0 -7px var(--n1); }
-.founder-avatar[data-body='jacket'] .founder-avatar__body::before { background: var(--n5); }
-.founder-avatar[data-body='knit'] .founder-avatar__body { background: var(--foliage-1); box-shadow: inset -9px 0 var(--foliage-0), inset 0 -7px var(--n1); }
-.founder-avatar[data-body='knit'] .founder-avatar__body::before { background: var(--foliage-2); }
+.founder-avatar__body::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  top: var(--body-half-depth);
+  width: 100%;
+  height: calc(var(--body-side-height) + var(--body-half-depth));
+  background: linear-gradient(90deg, var(--avatar-shirt) 0 50%, var(--avatar-shirt-side) 50% 100%);
+  clip-path: polygon(
+    0 0,
+    50% var(--body-half-depth),
+    100% 0,
+    100% var(--body-side-height),
+    50% 100%,
+    0 var(--body-side-height)
+  );
+}
+
+.founder-avatar[data-body='tee'] .founder-avatar__body {
+  --body-width: 58px;
+  --body-depth: 28px;
+  --body-half-depth: 14px;
+  --body-side-height: 58px;
+}
+
+.founder-avatar[data-body='jacket'] .founder-avatar__body {
+  --body-width: 70px;
+  --body-depth: 34px;
+  --body-half-depth: 17px;
+  --body-side-height: 61px;
+}
+
+.founder-avatar[data-body='knit'] .founder-avatar__body {
+  --body-width: 64px;
+  --body-depth: 30px;
+  --body-half-depth: 15px;
+  --body-side-height: 67px;
+}
+
+.founder-avatar__body > * {
+  position: relative;
+  z-index: 2;
+}
 
 .founder-avatar__collar {
   width: 28px;
   height: 11px;
-  margin: 0 auto;
+  margin: 15px auto 0;
   background: var(--n1);
   clip-path: polygon(0 0, 50% 100%, 100% 0);
 }
@@ -180,7 +199,7 @@
 
 .founder-avatar__zip {
   width: 3px;
-  height: 48px;
+  height: 45px;
   margin: 0 auto;
   background: var(--n2);
 }
@@ -194,15 +213,28 @@
   top: 72px;
   width: 20px;
   height: 56px;
-  background: var(--calm-0);
-  box-shadow: inset 0 -13px var(--skin-2);
+  background: var(--avatar-shirt-side);
+  box-shadow: inset 0 -13px var(--avatar-skin-top);
 }
 
 .founder-avatar__arm--left { left: 2px; }
-.founder-avatar__arm--right { right: 1px; background: var(--calm-1); }
-.founder-avatar[data-body='tee'] .founder-avatar__arm { background: var(--warn-0); }
-.founder-avatar[data-body='jacket'] .founder-avatar__arm { background: var(--n3); }
-.founder-avatar[data-body='knit'] .founder-avatar__arm { background: var(--foliage-0); }
+.founder-avatar__arm--right { right: 1px; background: var(--avatar-shirt); }
+
+.founder-avatar[data-skin='0'] { --avatar-skin: var(--skin-0); --avatar-skin-side: var(--skin-0); --avatar-skin-top: var(--skin-1); }
+.founder-avatar[data-skin='1'] { --avatar-skin: var(--skin-1); --avatar-skin-side: var(--skin-0); --avatar-skin-top: var(--skin-2); }
+.founder-avatar[data-skin='2'] { --avatar-skin: var(--skin-3); --avatar-skin-side: var(--skin-1); --avatar-skin-top: var(--skin-4); }
+.founder-avatar[data-skin='3'] { --avatar-skin: var(--skin-5); --avatar-skin-side: var(--skin-3); --avatar-skin-top: var(--skin-6); }
+
+.founder-avatar[data-hair-colour='0'] { --avatar-hair: var(--wood-1); --avatar-hair-side: var(--wood-0); }
+.founder-avatar[data-hair-colour='1'] { --avatar-hair: var(--wood-0); --avatar-hair-side: var(--n0); }
+.founder-avatar[data-hair-colour='2'] { --avatar-hair: var(--n1); --avatar-hair-side: var(--n0); }
+.founder-avatar[data-hair-colour='3'] { --avatar-hair: var(--wood-2); --avatar-hair-side: var(--wood-1); }
+
+.founder-avatar[data-body-colour='0'] { --avatar-shirt: var(--n6); --avatar-shirt-side: var(--n5); --avatar-shirt-top: var(--n7); }
+.founder-avatar[data-body-colour='1'] { --avatar-shirt: var(--calm-1); --avatar-shirt-side: var(--calm-0); --avatar-shirt-top: var(--calm-2); }
+.founder-avatar[data-body-colour='2'] { --avatar-shirt: var(--warn-1); --avatar-shirt-side: var(--warn-0); --avatar-shirt-top: var(--warn-2); }
+.founder-avatar[data-body-colour='3'] { --avatar-shirt: var(--foliage-1); --avatar-shirt-side: var(--foliage-0); --avatar-shirt-top: var(--foliage-2); }
+.founder-avatar[data-body-colour='4'] { --avatar-shirt: var(--n3); --avatar-shirt-side: var(--n2); --avatar-shirt-top: var(--n4); }
 
 .founder-avatar__leg {
   position: absolute;
@@ -216,6 +248,13 @@
 
 .founder-avatar__leg--left { left: 26px; }
 .founder-avatar__leg--right { right: 26px; background: var(--n1); }
+
+/* The room pose is waist-up. Previewing arms and legs promised geometry the
+   selected in-game person could never show. */
+.founder-avatar__arm,
+.founder-avatar__leg {
+  display: none;
+}
 
 @container frame (max-height: 390px) {
   .founder-avatar { transform: scale(0.82); margin: -10px auto -18px; }

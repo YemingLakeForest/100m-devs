@@ -41,6 +41,7 @@ import { ParadigmTree } from './ParadigmTree.tsx'
 import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
 import { ConceptText } from '../ui/ConceptText.tsx'
+import { Options } from '../title/Options.tsx'
 
 /**
  * Dev-only §10.7 preview — `?dialogue`. Read once, at module load, for the
@@ -177,19 +178,16 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           <Devs state={state} />
           <Shipped state={state} />
         </div>
-        <ActionBar
-          spec={actionFor(state.phase)}
-          offer={offerFor(state.phase, state.massHired)}
-          state={state}
-        />
+        <div className="hud__bottom">
+          <ActionBar
+            spec={actionFor(state.phase)}
+            offer={offerFor(state.phase, state.massHired)}
+            state={state}
+          />
 
-        {/*
-          The foot of the right rail: the §23.3 overlay and §10.1's nav, under
-          the button they sit under on every frame that has room for all three.
-          Inside the rail rather than in a cell of their own, because the rail
-          now spans the full height of the frame — see the note on `.hud`.
-        */}
-        <div className="hud__controls">
+          {/* The play tools stay pinned to the bottom. New hire actions stack
+              immediately above them instead of moving the tools around. */}
+          <div className="hud__controls">
           {/*
             §7.7.6b — what the finger does, above the nav and under the button,
             because it is the control the thumb reaches for *between* pokes
@@ -241,6 +239,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             >
               MENU
             </Button>
+          </div>
           </div>
         </div>
       </div>
@@ -335,6 +334,9 @@ function GameMenu({
     <Panel open={open} modal from="centre" className="game-menu">
       <h2>GAME MENU</h2>
       <p>Your studio keeps working while this menu is open.</p>
+      <div className="game-menu__options">
+        <Options />
+      </div>
       <Button onClick={onResume}>RESUME</Button>
       <Button onClick={onMainMenu}>MAIN SCREEN</Button>
     </Panel>
@@ -538,8 +540,8 @@ function PerfOverlay({ stage }: { stage: StageHandle | null }) {
   return (
     <div className="hud__perf">
       {/* Thresholds from GDD §23.3. Red means the gate is failing right now. */}
-      <span className={fps < 55 ? 'is-bad' : undefined}>{fps.toFixed(0)} FPS</span>
-      <span className={latency > 80 ? 'is-bad' : undefined}>
+      <span className={`hud__perf-fps${fps < 55 ? ' is-bad' : ''}`}>{fps.toFixed(0)} FPS</span>
+      <span className={`hud__perf-latency${latency > 80 ? ' is-bad' : ''}`}>
         {latency > 0 ? `${latency.toFixed(0)}ms TAP` : '— TAP'}
       </span>
       {/*

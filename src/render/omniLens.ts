@@ -251,6 +251,11 @@ export class LensCamera {
   }
 
   set(z: number): void {
+    // A cancelled/degenerate pinch can briefly produce NaN (two touch points
+    // on exactly the same pixel gives a 0/0 ratio). Never let that poison the
+    // LOD weights: NaN makes every view non-renderable while the DOM HUD keeps
+    // drawing, which presents as a completely dark game screen.
+    if (!Number.isFinite(z)) return
     this._z = clamp01(z)
   }
 
@@ -271,5 +276,8 @@ export class LensCamera {
 }
 
 function clamp01(v: number): number {
+  // Pure camera helpers are also called directly by visual tests and debug
+  // paths, so they need the same fail-visible guarantee as LensCamera.set().
+  if (!Number.isFinite(v)) return 0
   return Math.min(1, Math.max(0, v))
 }

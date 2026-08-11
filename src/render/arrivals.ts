@@ -209,6 +209,8 @@ interface Live {
   /** Which beats have already made a noise, so each fires once. */
   rung: number
   sounded: boolean
+  /** 0..1 batch-scaled weight for smoke and camera impulse. */
+  impactStrength: number
   /** The real desk bank, the real workstation, and the real person. */
   deskG: Graphics
   kitG: Graphics
@@ -237,6 +239,8 @@ export interface Arrivals {
   readonly revealed: number
   /** Advance. Returns true while anything is still falling. */
   update(now: number): boolean
+  /** Strongest landing since the last frame, consumed once by the camera. */
+  consumeImpact(): number
   destroy(): void
 }
 
@@ -244,6 +248,7 @@ export function createArrivals(): Arrivals {
   const layer = new Container()
   const live: Live[] = []
   let revealFrom = Number.POSITIVE_INFINITY
+  let pendingImpact = 0
 
   function retire(a: Live, i: number) {
     a.deskG.destroy()
@@ -282,6 +287,7 @@ export function createArrivals(): Arrivals {
       for (let i = live.length - 1; i >= 0; i--) retire(live[i], i)
 
       revealFrom = from
+      const impactStrength = Math.min(1, 0.32 + Math.log2(hired + 1) / 8)
       for (let i = 0; i < count; i++) {
         const seat = from + i
         const at = seatPosition(seat)
@@ -315,6 +321,7 @@ export function createArrivals(): Arrivals {
           delay: cascadeDelay(i, count),
           rung: -1,
           sounded: i < SOUNDED_ARRIVALS,
+          impactStrength,
           deskG,
           kitG,
           dev,
@@ -354,8 +361,11 @@ export function createArrivals(): Arrivals {
           const h = fallHeight(u) * ARRIVAL_HEIGHT
           a.deskG.position.set(a.x, a.y - h)
           a.deskG.scale.set(contactStretch(u, 0.2), contactSquash(u, 0.2))
-          if (crossed(a, 0, u)) thump('desk')
-          if (h <= 0.5) puff(a.dust, a.x, a.y + 6, u, 0.72, 1)
+          if (crossed(a, 0, u)) {
+            thump('desk')
+            pendingImpact = Math.max(pendingImpact, a.impactStrength * 0.72)
+          }
+          if (h <= 0.5) puff(a.dust, a.x, a.y + 6, u, 0.72, 0.9 + a.impactStrength * 0.35)
         }
 
         // 2. The computer, onto the desk that just landed.
@@ -378,8 +388,11 @@ export function createArrivals(): Arrivals {
           // origin would lift its feet off the seat.
           a.dev.position.set(a.x, a.y + 6 - h + BODY_BASE * (1 - sq))
           a.dev.scale.set(contactStretch(u, 0.34), sq)
-          if (crossed(a, 2, u)) thump('person')
-          if (h <= 0.5) puff(a.dust, a.x, a.y + 6, u, 0.72, 0.7)
+          if (crossed(a, 2, u)) {
+            thump('person')
+            pendingImpact = Math.max(pendingImpact, a.impactStrength)
+          }
+          if (h <= 0.5) puff(a.dust, a.x, a.y + 6, u, 0.72, 0.65 + a.impactStrength * 0.25)
         }
       }
 
@@ -388,6 +401,12 @@ export function createArrivals(): Arrivals {
       else revealFrom = Math.max(revealFrom, landedTo)
 
       return live.length > 0
+    },
+
+    consumeImpact() {
+      const value = pendingImpact
+      pendingImpact = 0
+      return value
     },
 
     destroy() {

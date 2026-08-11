@@ -281,6 +281,42 @@ export class MusicBus {
   private act4StartMs: number | null = null
   /** Unsubscribe for the F2.1 music volume. Held so `unload` can let go. */
   private offSettings: (() => void) | null = null
+  private suspendedByPage = false
+  private lifecycleBound = false
+
+  private readonly suspendForPage = () => {
+    if (!this.ctx || this.ctx.state === 'closed') return
+    this.suspendedByPage = true
+    void this.ctx.suspend().catch(() => {})
+  }
+
+  private readonly resumeForPage = () => {
+    if (!this.ctx || !this.suspendedByPage || this.ctx.state === 'closed') return
+    this.suspendedByPage = false
+    void this.ctx.resume().catch(() => {})
+  }
+
+  private readonly onVisibility = () => {
+    if (document.hidden) this.suspendForPage()
+    else this.resumeForPage()
+  }
+
+  private bindLifecycle() {
+    if (this.lifecycleBound || typeof document === 'undefined' || typeof window === 'undefined') return
+    document.addEventListener('visibilitychange', this.onVisibility)
+    window.addEventListener('pagehide', this.suspendForPage)
+    window.addEventListener('pageshow', this.resumeForPage)
+    this.lifecycleBound = true
+  }
+
+  private unbindLifecycle() {
+    if (!this.lifecycleBound || typeof document === 'undefined' || typeof window === 'undefined') return
+    document.removeEventListener('visibilitychange', this.onVisibility)
+    window.removeEventListener('pagehide', this.suspendForPage)
+    window.removeEventListener('pageshow', this.resumeForPage)
+    this.lifecycleBound = false
+    this.suspendedByPage = false
+  }
 
   /**
    * Boots the bus and starts every stem looping at zero gain. Must never
@@ -304,6 +340,8 @@ export class MusicBus {
       this.ctx = new AudioContext()
       this.master = this.ctx.createGain()
       this.master.connect(this.ctx.destination)
+      this.bindLifecycle()
+      this.onVisibility()
       // Appendix F2.1 — the music half of the §20 mixer. It lands on the master
       // node rather than on the stems because the simulation owns every stem
       // gain frame by frame (§20.3's DSP matrix), so a player preference
@@ -413,6 +451,7 @@ export class MusicBus {
   }
 
   async unload(): Promise<void> {
+    this.unbindLifecycle()
     // Before the nodes go: a live subscription holding a disconnected master
     // node would keep this bus alive for the lifetime of the settings module.
     this.offSettings?.()

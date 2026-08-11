@@ -132,6 +132,13 @@ describe('the cross-fade — GDD §10.5, nothing cuts', () => {
     // out into an empty frame on the way.
     expect(viewWeights(0).room).toBeCloseTo(1, 10)
   })
+
+  it('fails visibly to the room instead of culling every view on invalid input', () => {
+    const weights = earnedViewWeights(Number.NaN, 0)
+    expect(weights.room).toBeGreaterThan(0)
+    expect(Object.values(weights).every(Number.isFinite)).toBe(true)
+    expect(Object.values(weights).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10)
+  })
 })
 
 describe('the ceiling — §7.4a, a rung you have not earned is not reachable', () => {

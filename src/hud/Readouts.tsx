@@ -3,20 +3,21 @@ import {
   baseVelocity,
   currentEffectiveVelocity,
   currentPayroll,
+  netCashFlow,
   nextPayout,
   pokeVelocity,
   secondsToPayout,
   type GameState,
 } from '../game/store.ts'
 import { formatCount, scaleBar } from '../sim/headcount.ts'
-import { isCashCritical, secondsUntilBankrupt } from '../sim/economy.ts'
+import { secondsUntilBankrupt } from '../sim/economy.ts'
 import { useSpring } from '../ui/useSpring.ts'
 import { SPRING_HEAVY } from '../ui/spring.ts'
 import { Counter } from './Counter.tsx'
 import { Kw } from './Kw.tsx'
 import { ConceptText } from '../ui/ConceptText.tsx'
 import {
-  burnReadout,
+  cashFlowReadout,
   entropyPercent,
   formatMoney,
   formatVelocity,
@@ -56,29 +57,24 @@ import {
  */
 export function Cash({ state }: { state: GameState }) {
   const payroll = currentPayroll(state)
-  const burn = burnReadout(payroll)
+  const flow = netCashFlow(state)
   const toPayout = secondsToPayout(state)
   const payout = payoutReadout(nextPayout(state), toPayout)
   const runway = runwayReadout(secondsUntilBankrupt(state.cash, state.devs))
-  // §4.10d — alarm on whether the payout is reachable, not on the sign of the
-  // balance. Revenue arrives on ship and payroll runs continuously, so a
-  // perfectly healthy studio is overdrawn for most of every project; colouring
-  // on `cash < 0` told that player they were failing while they were winning.
-  const bad = isCashCritical(state.cash, state.devs, toPayout)
-
   return (
     <div className="hud__block hud__block--cash">
       <span className="hud__label"><Kw kind="cash">CASH</Kw></span>
-      <b className={`hud__num hud__num--major${bad ? ' is-bad' : ''}`}>{formatMoney(state.cash)}</b>
-      {/* Both rows are conditional on the economy, not on the script: the burn
-          exists exactly while somebody is being paid, and the clock exists
-          exactly while the runway is short enough to be a threat. */}
-      {burn && <span className="hud__sub is-bad">{burn}</span>}
+      <b className="hud__num hud__num--major">{formatMoney(state.cash)}</b>
+      {/* One live figure combines catalogue income and payroll so the HUD never
+          labels a gross outflow as the studio's actual cash direction. */}
+      <span className={`hud__sub hud__cash-flow${flow > 0 ? ' is-good' : flow < 0 ? ' is-bad' : ''}`}>
+        {cashFlowReadout(flow)}
+      </span>
       {/* The money on its way, in the colour money arrives in. Shown whenever
           there is a burn to explain rather than only when the balance is
           negative: the point is context, not consolation. */}
-      {burn && payout && <span className="hud__sub is-good">{payout}</span>}
-      {burn && runway && <span className="hud__sub is-bad hud__sub--blink">{runway}</span>}
+      {payroll > 0 && payout && <span className="hud__sub is-good">{payout}</span>}
+      {payroll > 0 && runway && <span className="hud__sub is-bad hud__sub--blink">{runway}</span>}
     </div>
   )
 }

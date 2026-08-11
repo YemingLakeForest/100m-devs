@@ -3,20 +3,26 @@ import { pokeTextOffsets } from './pokeText.ts'
 
 describe('poke numeral and snippet layout', () => {
   it('always leaves a visible gap between the numeral and code', () => {
-    const smallest = pokeTextOffsets(20, () => 0)
-    const largest = pokeTextOffsets(20, () => 1)
+    const first = pokeTextOffsets(20, 0)
+    const last = pokeTextOffsets(20, 4)
 
-    expect(smallest.snippetY - (smallest.numeralY + 20)).toBeGreaterThanOrEqual(18)
-    expect(largest.snippetY - (largest.numeralY + 20)).toBeGreaterThanOrEqual(18)
+    expect(first.snippetY - (first.numeralY + 20)).toBe(8)
+    expect(last.snippetY - (last.numeralY + 20)).toBe(8)
   })
 
-  it('varies both pieces horizontally and vertically between draws', () => {
-    const low = pokeTextOffsets(20, () => 0)
-    const high = pokeTextOffsets(20, () => 1)
+  it('keeps the snippet registered to the numeral in every lane', () => {
+    for (let sequence = 0; sequence < 20; sequence++) {
+      const offsets = pokeTextOffsets(20, sequence)
+      expect(offsets.snippetX).toBe(offsets.numeralX)
+      expect(offsets.snippetY).toBe(offsets.numeralY + 28)
+    }
+  })
 
-    expect(low.numeralX).not.toBe(high.numeralX)
-    expect(low.numeralY).not.toBe(high.numeralY)
-    expect(low.snippetX).not.toBe(high.snippetX)
-    expect(low.snippetY).not.toBe(high.snippetY)
+  it('never puts two subsequent callouts in the same location', () => {
+    for (let sequence = 0; sequence < 20; sequence++) {
+      const current = pokeTextOffsets(20, sequence)
+      const next = pokeTextOffsets(20, sequence + 1)
+      expect([next.numeralX, next.numeralY]).not.toEqual([current.numeralX, current.numeralY])
+    }
   })
 })

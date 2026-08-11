@@ -16,7 +16,7 @@ import { efficiency, passiveVelocity } from '../sim/entropy.ts'
 
 const base: OnboardingSnapshot = {
   pokeCount: 0,
-  devs: 1,
+  devs: 0,
   projectsShipped: 0,
   cash: 0,
   entropy: 0,
@@ -96,8 +96,8 @@ describe('Act I — the clicker layer sells itself first', () => {
 
 describe('Act II — James', () => {
   it('waits for the player to hire, not for a timer', () => {
-    expect(advanceOnboarding('act2_offer_hire', at({ devs: 1 }))).toBe('act2_offer_hire')
-    expect(advanceOnboarding('act2_offer_hire', at({ devs: 2 }))).toBe('act2_ship')
+    expect(advanceOnboarding('act2_offer_hire', at({ devs: 0 }))).toBe('act2_offer_hire')
+    expect(advanceOnboarding('act2_offer_hire', at({ devs: 1 }))).toBe('act2_ship')
   })
 
   it('waits for the project to actually ship', () => {

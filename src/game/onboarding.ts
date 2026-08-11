@@ -101,10 +101,10 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
       'STUDIO_OS v0.0.1 initialized.',
       'Project: "Flappy Square 1.0"',
       'Sprint Commitment: 1,000 story points',
-      'Developer Count: 1',
+      'Employees: 0 // just you',
     ],
     bubble: 'Okay... just need to write 1,000 lines of code. Simple enough.',
-    advisor: 'Poke the developer.',
+    advisor: 'Choose CODE, then tap yourself or your desk.',
   },
 
   act2_offer_hire: {
@@ -263,7 +263,7 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
 
     case 'act2_offer_hire':
       // Waits on the player hiring James.
-      return s.devs >= 2 ? 'act2_ship' : phase
+      return s.devs >= 1 ? 'act2_ship' : phase
 
     case 'act2_ship':
       // **Two** projects, not one — §4.10c.

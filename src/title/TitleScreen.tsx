@@ -46,7 +46,7 @@ import {
  * The title screen — GDD §10.9.
  *
  * The room behind this is the *game's* room, drifting on the *game's* camera,
- * and pressing START does not load anything: it lights the room, pushes the
+ * and pressing CONTINUE does not load anything: it lights the room, pushes the
  * camera in, and takes the interface away. §10.9.1's claim that "the first cut
  * of the game is not a cut at all" is only true if there is nothing here to
  * cut *to*, so there is no second scene, no loader and no fade — this is an
@@ -81,14 +81,14 @@ export interface TitleScreenProps {
 }
 
 /**
- * The two menu items that are not START.
+ * The two menu items that are not CONTINUE.
  *
  * Both were §10.9.2 stubs reading *"NOT WIRED UP YET"* — real slabs opening
  * onto a promise. They are now the screens Appendix F2.1 and F3.1 ask for, and
  * F3.1's half of that is an obligation rather than a feature: the Departure
  * Mono licence has to be reachable from inside the product.
  */
-type Stub = Exclude<MenuItem, 'START' | 'NEW GAME'>
+type Stub = Exclude<MenuItem, 'CONTINUE' | 'NEW GAME'>
 
 const STUB_SCREEN: Record<Stub, () => ReactElement> = {
   OPTIONS: Options,
@@ -230,7 +230,7 @@ export function TitleScreen({ stage, onStart, onNewGame, onExited, firstLaunch }
         in front of the tube, and "the room at night" is a property of the
         light in front of the world, not of the desks in it. It also makes
         "the room lights come up" one opacity ramp instead of a scene rebuild
-        on the frame the player presses START.
+        on the frame the player presses CONTINUE.
 
         It has no entrance. Night is the scene's initial condition, not
         something that arrives — fading it *in* would flash the lit room and
@@ -370,7 +370,7 @@ export function TitleScreen({ stage, onStart, onNewGame, onExited, firstLaunch }
           >
             <Button
               onClick={() => {
-                if (item === 'START') leave(false)
+                if (item === 'CONTINUE') leave(false)
                 else if (item === 'NEW GAME') setConfirmNewGame(true)
                 else openStub(item)
               }}
@@ -396,7 +396,7 @@ export function TitleScreen({ stage, onStart, onNewGame, onExited, firstLaunch }
 
       <Panel open={confirmNewGame} from="centre" modal className="title__new-game">
         <h2>START A NEW GAME?</h2>
-        <p>Your studio progress will be erased. Your founder profile stays.</p>
+        <p>Your studio progress will be erased. You will choose your founder again.</p>
         <div className="title__new-game-actions">
           <Button onClick={() => setConfirmNewGame(false)}>CANCEL</Button>
           <Button

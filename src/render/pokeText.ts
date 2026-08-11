@@ -48,7 +48,13 @@ export interface PokeTypeset {
    * Returns a fresh Container each call — the caller pools by floater id and
    * destroys on expiry, which it already does for the numerals it replaced.
    */
-  build(sp: number, crit: boolean, snippet: string | null, unblocked?: boolean): Container
+  build(
+    sp: number,
+    crit: boolean,
+    snippet: string | null,
+    unblocked?: boolean,
+    sequence?: number,
+  ): Container
   destroy(): void
 }
 
@@ -60,22 +66,28 @@ export interface PokeTextOffsets {
 }
 
 /**
- * Give repeated pokes a loose, readable spray while keeping the code line well
- * clear of the numeral. Injecting the draw makes the envelope deterministic in
- * tests without making live feedback repeat a pattern.
+ * Five callout lanes around the point that was coded. Adjacent lanes are never
+ * the same, so rapid taps cannot place two successive messages on top of one
+ * another. The line of code and its numeral share one anchor inside the lane:
+ * they are one event and rise together as one unit.
  */
 export function pokeTextOffsets(
   numeralSize: number,
-  random: () => number = Math.random,
+  sequence = 0,
 ): PokeTextOffsets {
-  const draw = () => Math.min(1, Math.max(0, random()))
+  const lanes = [
+    { x: 0, y: -100 },
+    { x: -18, y: -50 },
+    { x: 18, y: 0 },
+    { x: -10, y: 50 },
+    { x: 10, y: 100 },
+  ] as const
+  const lane = lanes[((Math.floor(sequence) % lanes.length) + lanes.length) % lanes.length]
   return {
-    numeralX: -8 + draw() * 16,
-    numeralY: -4 + draw() * 8,
-    snippetX: -24 + draw() * 48,
-    // The old 0.95 × size baseline touched the outlined glyph texture. This
-    // leaves at least 18px of air, then varies the gap by another 16px.
-    snippetY: numeralSize + 18 + draw() * 16,
+    numeralX: lane.x,
+    numeralY: lane.y,
+    snippetX: lane.x,
+    snippetY: lane.y + numeralSize + 8,
   }
 }
 
@@ -87,7 +99,7 @@ function numeralColour(sp: number, crit: boolean): number {
   return crit ? c(RAMPS.CALM[3]) : c(RAMPS.CALM[2])
 }
 
-export function createPokeTypeset(renderer: Renderer, random: () => number = Math.random): PokeTypeset {
+export function createPokeTypeset(renderer: Renderer): PokeTypeset {
   /** `${size}:${colour}:${glyph}` -> texture. */
   const glyphs = new Map<string, Texture>()
   const snippets = new Map<string, Texture>()
@@ -156,11 +168,11 @@ export function createPokeTypeset(renderer: Renderer, random: () => number = Mat
   }
 
   return {
-    build(sp, crit, snippet, unblocked = false) {
+    build(sp, crit, snippet, unblocked = false, sequence = 0) {
       const root = new Container()
       const size = crit ? CRIT_SIZE : NUMERAL_SIZE
       const colour = unblocked ? c(RAMPS.WARN[2]) : numeralColour(sp, crit)
-      const offsets = pokeTextOffsets(size, random)
+      const offsets = pokeTextOffsets(size, sequence)
 
       // §25.1, R11 — an Overwhelmed developer pays nothing and that is the
       // design (§4.7). So the floater reports what the poke **achieved**
@@ -171,17 +183,23 @@ export function createPokeTypeset(renderer: Renderer, random: () => number = Mat
       // it is a different kind of event and the player should be able to tell
       // at a glance without reading it.
       let width = 0
+      const numeral: Sprite[] = []
       for (const glyph of unblocked ? 'UNBLOCKED' : format(sp)) {
         const texture = glyphs.get(`${size}:${colour}:${glyph}`)
         // A glyph outside GLYPHS would be a formatting bug rather than a
         // reason to drop the whole numeral, so it is skipped silently.
         if (!texture) continue
         const sprite = new Sprite(texture)
-        sprite.x = offsets.numeralX + width
+        sprite.x = width
         sprite.y = offsets.numeralY
         root.addChild(sprite)
+        numeral.push(sprite)
         width += texture.width - size * 0.28 // tighten the outline padding
       }
+      // Both rows use the lane centre. A longer number stays attached to the
+      // same hit point instead of walking sideways as it gains digits.
+      const numeralLeft = offsets.numeralX - width / 2
+      for (const sprite of numeral) sprite.x += numeralLeft
 
       // §8.2a. Null for an Overwhelmed developer, who has nothing to say — and
       // that silence is the joke, so it must not be filled with a default.
@@ -189,9 +207,9 @@ export function createPokeTypeset(renderer: Renderer, random: () => number = Mat
         const texture = snippets.get(snippet)
         if (texture) {
           const line = new Sprite(texture)
-          // Centred under the numeral and slightly transparent: the number is
-          // the feedback, the code is the texture around it.
-          line.x = offsets.numeralX + width / 2 - texture.width / 2 + offsets.snippetX
+          // One compact two-line callout. No independent jitter: the snippet
+          // stays registered to the numeral for the whole rise and fade.
+          line.x = offsets.snippetX - texture.width / 2
           line.y = offsets.snippetY
           line.alpha = 0.85
           root.addChild(line)

@@ -35,12 +35,10 @@ describe('the latches', () => {
     expect(toggleTouch('poke', 'grab')).toBe('grab')
   })
 
-  it('puts the lit one out, which is the only way to reach the neutral mode', () => {
-    // The whole reason these are latches rather than segments of a picker.
-    // Without this there is no way to get to `inspect` without a third button,
-    // and a third button makes the default a choice.
-    expect(toggleTouch('poke', 'poke')).toBe('inspect')
-    expect(toggleTouch('grab', 'grab')).toBe('inspect')
+  it('keeps the selected tool selected when pressed again', () => {
+    expect(toggleTouch('poke', 'poke')).toBe('poke')
+    expect(toggleTouch('grab', 'grab')).toBe('grab')
+    expect(toggleTouch('inspect', 'inspect')).toBe('inspect')
   })
 
   it('never lands anywhere that is not a mode', () => {
@@ -51,14 +49,10 @@ describe('the latches', () => {
     }
   })
 
-  it('is its own inverse — press twice and you are back', () => {
-    // A player who taps a latch to see what it does must be able to undo it
-    // with the same finger in the same place.
+  it('is an explicit, idempotent tool selector', () => {
     for (const from of MODES) {
       for (const latch of TOUCH_LATCHES) {
-        expect(toggleTouch(toggleTouch(from, latch), latch)).toBe(
-          from === latch ? latch : 'inspect',
-        )
+        expect(toggleTouch(toggleTouch(from, latch), latch)).toBe(latch)
       }
     }
   })
@@ -102,27 +96,26 @@ describe('the mode the game opens in', () => {
 })
 
 describe('the store', () => {
-  it('toggles through the latch', () => {
+  it('selects a tool directly', () => {
     setTouchMode('grab')
     expect(getState().touchMode).toBe('grab')
     setTouchMode('grab')
-    expect(getState().touchMode).toBe('inspect')
+    expect(getState().touchMode).toBe('grab')
   })
 
   it('closes the card when the mode stops being the one that opened it', () => {
     // The panel is a consequence of the neutral mode, so it must not outlive
     // it — otherwise a card sits over the floor with no gesture left that could
     // have dismissed it.
-    setTouchMode('poke')
-    setTouchMode('poke')
+    setTouchMode('inspect')
     selectDeveloper(4)
     expect(getState().selected).toBe(4)
     setTouchMode('grab')
     expect(getState().selected).toBeNull()
   })
 
-  it('leaves the selection alone while the neutral mode is being entered', () => {
-    setTouchMode('poke')
+  it('leaves the selection alone while the info tool is being entered', () => {
+    setTouchMode('inspect')
     expect(getState().touchMode).toBe('inspect')
     selectDeveloper(2)
     expect(getState().selected).toBe(2)
@@ -140,7 +133,7 @@ describe('the copy', () => {
     for (const latch of TOUCH_LATCHES) {
       expect(TOUCH_LABEL[latch].length).toBeLessThanOrEqual(6)
     }
-    for (const mode of MODES) expect(TOUCH_HINT[mode].length).toBeLessThanOrEqual(16)
+    for (const mode of MODES) expect(TOUCH_HINT[mode].length).toBeLessThanOrEqual(24)
   })
 
   it('never writes "SP" — R12', () => {

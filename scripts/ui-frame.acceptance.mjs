@@ -10,6 +10,7 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { chromium } from 'playwright-core'
+import sharp from 'sharp'
 
 const port = Number(process.env.UI_TEST_PORT ?? 5197)
 const origin = `http://127.0.0.1:${port}`
@@ -46,6 +47,9 @@ const COMPONENTS = [
   '.hud__perf',
   '.touch',
   '.founder__corner',
+  '.founder-setup input',
+  '.founder-setup__option',
+  '.founder-avatar',
   '.hud__actions[data-phase="in"]',
   '.title__logo',
   '.title__menu',
@@ -122,6 +126,17 @@ async function overflowIssues(page) {
           issues.push(`developer stat bar crossed its card: ${bar.textContent}`)
         }
       }
+    }
+
+    const nameDice = root.querySelector('.founder-setup__dice-btn')
+    const die = nameDice?.querySelector('.founder-setup__die')
+    if (nameDice && die && visible(nameDice) && visible(die)) {
+      const buttonRect = nameDice.getBoundingClientRect()
+      const dieRect = die.getBoundingClientRect()
+      const buttonCentre = buttonRect.left + buttonRect.width / 2
+      const dieCentre = dieRect.left + dieRect.width / 2
+      const error = Math.abs(buttonCentre - dieCentre)
+      if (error > 2) issues.push(`random-name die is ${error.toFixed(1)}px off-centre`)
     }
 
     const parseColor = (value) => {
@@ -211,7 +226,22 @@ async function overflowIssues(page) {
   }, COMPONENTS)
 }
 
-async function check(page, { name, width, height, path: urlPath, action }) {
+async function sceneIssues(page, width, height) {
+  const clip = {
+    x: Math.round(width * 0.2),
+    y: Math.round(height * 0.08),
+    width: Math.round(width * 0.55),
+    height: Math.round(height * 0.62),
+  }
+  const image = await page.screenshot({ clip })
+  const stats = await sharp(image).stats()
+  const colourSpread = Math.max(...stats.channels.slice(0, 3).map((channel) => channel.stdev))
+  return colourSpread < 4
+    ? [`game visual layer is blank (central colour spread ${colourSpread.toFixed(2)})`]
+    : []
+}
+
+async function check(page, { name, width, height, path: urlPath, action, requireScene = false }) {
   await page.setViewportSize({ width, height })
   await page.goto(`${origin}${urlPath}`, { waitUntil: 'load' })
   await page.locator('.app').waitFor()
@@ -220,7 +250,10 @@ async function check(page, { name, width, height, path: urlPath, action }) {
     await action(page)
     await page.waitForTimeout(450)
   }
-  const issues = await overflowIssues(page)
+  const issues = [
+    ...await overflowIssues(page),
+    ...(requireScene ? await sceneIssues(page, width, height) : []),
+  ]
   if (issues.length > 0) throw new Error(`${name} at ${width}x${height}:\n${issues.join('\n')}`)
 }
 
@@ -264,7 +297,39 @@ try {
       path: '/?notitle&nopost',
       action: (target) => target.getByRole('button', { name: 'MENU' }).click(),
     })
+    await check(page, {
+      name: 'founder name with mobile keyboard layout',
+      width,
+      height,
+      path: '/',
+      action: async (target) => {
+        await target.getByRole('button', { name: 'NEW GAME' }).click()
+        await target.getByRole('button', { name: 'ERASE & START' }).click()
+        await target.getByRole('dialog', { name: 'WHO ARE YOU?' }).waitFor()
+        await target.getByLabel('YOUR NAME').focus()
+      },
+    })
   }
+
+  await check(page, {
+    name: 'degenerate pinch keeps the room visible',
+    width: 997,
+    height: 448,
+    path: '/?notitle&nopost',
+    requireScene: true,
+    action: async (target) => {
+      const canvas = target.locator('.app__canvas canvas')
+      const point = { clientX: 300, clientY: 180 }
+      await canvas.dispatchEvent('pointerdown', { ...point, pointerId: 41, pointerType: 'touch' })
+      await canvas.dispatchEvent('pointerdown', { ...point, pointerId: 42, pointerType: 'touch' })
+      // The first move latches the old 0 px baseline; the second used to divide
+      // 0 by 0, poison Z with NaN and cull every Pixi view while the HUD lived.
+      await canvas.dispatchEvent('pointermove', { ...point, pointerId: 42, pointerType: 'touch' })
+      await canvas.dispatchEvent('pointermove', { ...point, pointerId: 42, pointerType: 'touch' })
+      await canvas.dispatchEvent('pointerup', { ...point, pointerId: 42, pointerType: 'touch' })
+      await canvas.dispatchEvent('pointerup', { ...point, pointerId: 41, pointerType: 'touch' })
+    },
+  })
 
   await check(page, {
     name: 'hire developer contrast',
@@ -280,7 +345,7 @@ try {
     action: (target) => target.getByRole('button', { name: /HIRE DEVELOPER/ }).dispatchEvent('pointerdown'),
   })
 
-  console.log(`UI frame and contrast acceptance passed (${sizes.length * 5 + 2} screens).`)
+  console.log(`UI frame, scene and contrast acceptance passed (${sizes.length * 6 + 3} screens).`)
 } finally {
   await browser?.close()
   server.kill()

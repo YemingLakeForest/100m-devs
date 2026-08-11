@@ -36,6 +36,7 @@ import {
   founderLook,
   type FounderProfile,
 } from '../game/founderProfile.ts'
+import { AVATAR_HAIR, frontAvatarParts, type AvatarRect } from './avatarParts.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -45,6 +46,14 @@ function c(hex: string): number {
 /** 2:1 isometric — ART_DIRECTION §1. Shared with scene.ts. */
 const TILE_W = 64
 const TILE_H = 32
+
+/**
+ * The shell is not the visual bound: monitors, the founder, heads and wall
+ * props stand beyond its floor/wall box. The camera used to fit only the shell,
+ * which cropped YOU even though the floor itself technically fitted.
+ */
+const ROOM_CONTENT_PAD_X = 84
+const ROOM_CONTENT_PAD_Y = 48
 
 /**
  * Most developers this tier ever draws individually.
@@ -514,9 +523,9 @@ function wallQuad(
  * first frame is still a bedroom that hugs the one person in it.
  */
 export function gridFor(devs: number): { cols: number; rows: number } {
-  const n = Math.max(1, Math.min(SQUAD_SIZE, Math.floor(devs)))
+  const n = Math.max(0, Math.min(SQUAD_SIZE, Math.floor(devs)))
   const cols = Math.min(SQUAD_COLS, n)
-  return { cols, rows: Math.ceil(n / SQUAD_COLS) }
+  return { cols, rows: n === 0 ? 0 : Math.ceil(n / SQUAD_COLS) }
 }
 
 /** Where seat `index` sits — §7.8.1a's two scales, and §7.8.1b's reading order. */
@@ -575,16 +584,31 @@ export function seatPosition(index: number): { x: number; y: number } {
 }
 
 /**
- * §7.8.10 — your desk lives past the north-east end of row zero.
+ * §7.8.10 — your desk lives on the room's true north vertex.
  *
- * Developer rows extend south-west as `col` rises. A negative column is
- * therefore the one corner that can never be built over, and looking toward
- * positive `col` points the founder back down the rows at the people in them.
+ * Both floor axes have the same projected distance, so x resolves to exactly
+ * zero and y is the furthest point away from the player. This is deliberately
+ * not a vague upper-right offset: the founder owns the north corner itself and
+ * no developer row can ever build through it.
  */
-export const FOUNDER_CORNER_COL = -2.35
+export const FOUNDER_CORNER_ROW = -2.25
+export const FOUNDER_CORNER_COL = FOUNDER_CORNER_ROW * PITCH_ROW
 
 export function founderDeskPosition(): { x: number; y: number } {
-  return isoAt(FOUNDER_CORNER_COL, 0)
+  return isoAt(FOUNDER_CORNER_COL, FOUNDER_CORNER_ROW)
+}
+
+/** Space for the monitor and the founder's head below the north wall seam. */
+export const FOUNDER_NORTH_CLEARANCE = 72
+
+export function foldedRoomCentre(floorHalfHeight: number): { x: number; y: number } {
+  const founder = founderDeskPosition()
+  return {
+    x: founder.x,
+    // The north floor vertex is centreY - floorHalfHeight. Anchor that vertex
+    // to the founder instead of centring a huge symmetric diamond around zero.
+    y: founder.y - FOUNDER_NORTH_CLEARANCE + floorHalfHeight,
+  }
 }
 
 /**
@@ -721,30 +745,26 @@ export interface RoomProps {
   serverRack: boolean
   cables: boolean
   walkway: boolean
-  /** A rug under the first desks. A bedroom has one; an office never does. */
+  /** Kept in the shape for compatibility; the studio itself has no rug. */
   rug: boolean
 }
 
 export function propsAt(devs: number): RoomProps {
   const crowded = devs >= CROWDING_STARTS * 2
-  // Floor space runs out before wall space does, which is why the two lists
-  // below empty at different rates. Anything that needs somebody to walk
-  // around it goes first.
-  const roomy = !crowded
 
   return {
     whiteboard: devs >= 3,
     whiteboardRight: devs >= 11,
-    // Plants multiply while anyone still has time to water them, then vanish
-    // together. Nobody waters anything once there are eighty people.
-    plants: crowded ? 0 : devs >= 24 ? 4 : devs >= 11 ? 3 : devs >= 6 ? 2 : devs >= 3 ? 1 : 0,
+    // Once a prop has entered the office it remains part of its history. Room
+    // growth may make it look increasingly ill-advised, but never deletes it.
+    plants: devs >= 24 ? 4 : devs >= 11 ? 3 : devs >= 6 ? 2 : devs >= 3 ? 1 : 0,
     coffee: devs >= 6,
     waterCooler: devs >= 8,
     filingCabinet: devs >= 14,
     printer: devs >= 18,
     // Breakout seating is the most floor per person in the room, so it is the
     // first real furniture to be sacrificed.
-    sofa: devs >= 20 && roomy,
+    sofa: devs >= 20,
     // Cardboard arrives when hiring outruns tidying, and it never leaves —
     // §7.8.1's crowding takes away the things people chose and keeps the
     // things nobody did.
@@ -753,12 +773,13 @@ export function propsAt(devs: number): RoomProps {
     posters: devs >= 24 ? 3 : devs >= 11 ? 2 : devs >= 5 ? 1 : 0,
     // Dividers need floor space between desks, and that is exactly what runs
     // out first.
-    dividers: devs >= 11 && roomy,
+    dividers: devs >= 11,
     serverRack: devs >= 11,
     cables: devs >= 31,
     walkway: devs < CROWDING_STARTS,
-    // A rug is a bedroom thing. It goes the moment this is an office.
-    rug: devs <= 5,
+    // A small fixed mat belongs to the founder workstation only. It never
+    // scales into the detached second-floor shape the old room rug became.
+    rug: true,
   }
 }
 
@@ -838,12 +859,6 @@ export function wallSpot(
  * nose is four identical people. Silhouette and block colour are the only two
  * channels that survive, so those are the two that vary.
  */
-const HAIR: ReadonlyArray<{ w: number; h: number; y: number }> = [
-  { w: 14, h: 12, y: -18 }, // full
-  { w: 15, h: 9, y: -18 }, // cropped
-  { w: 13, h: 15, y: -18 }, // tall
-  { w: 16, h: 11, y: -17 }, // wide, low
-]
 const HAIR_RAMP: ReadonlyArray<readonly [readonly string[], number]> = [
   [RAMPS.WOOD, 1],
   [RAMPS.WOOD, 0],
@@ -858,6 +873,38 @@ const SHIRT: ReadonlyArray<readonly [readonly string[], number]> = [
   [RAMPS.FOLIAGE, 1],
   [RAMPS.NEUTRAL, 3],
 ]
+
+/** The four creator silhouettes, shared by generated developers and YOU. */
+function torsoShape(look: Look): { w: number; h: number } {
+  switch (look.body % 4) {
+    case 1: return { w: 15, h: 18 } // tee
+    case 2: return { w: 19, h: 19 } // jacket
+    case 3: return { w: 17, h: 21 } // knit
+    default: return { w: 17, h: 19 } // hoodie
+  }
+}
+
+/** Details large enough to survive the room scale; no preview-only costume. */
+function drawTorsoDetails(g: Graphics, look: Look, front: boolean) {
+  const body = look.body % 4
+  if (body === 0) {
+    // Hood opening and zip.
+    g.rect(-5, -13, 10, 3).fill(c(RAMPS.NEUTRAL[2]))
+    if (front) g.rect(-0.75, -9, 1.5, 13).fill(c(RAMPS.NEUTRAL[2]))
+  } else if (body === 2) {
+    // Jacket centre seam and two lapels on the visible front.
+    g.rect(-0.75, -12, 1.5, 16).fill(c(RAMPS.NEUTRAL[2]))
+    if (front) {
+      g.moveTo(-6, -12).lineTo(-1, -5).lineTo(-1, -11).closePath().fill(c(RAMPS.NEUTRAL[4]))
+      g.moveTo(6, -12).lineTo(1, -5).lineTo(1, -11).closePath().fill(c(RAMPS.NEUTRAL[3]))
+    }
+  } else if (body === 3) {
+    // Knit ribs: close, low-contrast bands instead of a different colour.
+    for (let y = -8; y <= 2; y += 5) {
+      g.rect(-6, y, 12, 1).fill({ color: c(RAMPS.NEUTRAL[5]), alpha: 0.42 })
+    }
+  }
+}
 
 /**
  * The front pose — §7.8.8.
@@ -874,10 +921,12 @@ const SHIRT: ReadonlyArray<readonly [readonly string[], number]> = [
 function drawFront(g: Graphics, look: Look) {
   const [shirtRamp, shirtBase] = SHIRT[look.shirt % SHIRT.length]
   const [hairRamp, hairBase] = HAIR_RAMP[look.hairColour % HAIR_RAMP.length]
-  const hair = HAIR[look.hair % HAIR.length]
+  const hair = AVATAR_HAIR[look.hair % AVATAR_HAIR.length]
   const skin = SKIN_BASE[look.skin % SKIN_BASE.length]
+  const torso = torsoShape(look)
 
-  isoBox(g, 0, 5, 17, 19, shirtRamp, shirtBase, false)
+  isoBox(g, 0, 5, torso.w, torso.h, shirtRamp, shirtBase, false)
+  drawTorsoDetails(g, look, true)
   // The face. A flat panel rather than a box: it is turned to the camera, so
   // its two vertical faces are edge-on and drawing them would be a lie.
   g.rect(-6, -26, 12, 14).fill(c(RAMPS.SKIN[skin]))
@@ -885,18 +934,16 @@ function drawFront(g: Graphics, look: Look) {
   g.rect(-hair.w / 2, -26 - hair.h + 8, hair.w, hair.h - 6).fill(c(hairRamp[hairBase]))
   g.rect(-hair.w / 2, -24, 2, 8).fill(c(hairRamp[hairBase]))
   g.rect(hair.w / 2 - 2, -24, 2, 8).fill(c(hairRamp[hairBase]))
-  // Eyes. Two pixels each, and they are the whole payoff of the section.
-  g.rect(-4, -20, 2.5, 2).fill(c(RAMPS.NEUTRAL[0]))
-  g.rect(1.5, -20, 2.5, 2).fill(c(RAMPS.NEUTRAL[0]))
-  if (look.glasses) {
-    g.rect(-6, -21.5, 5, 4.5).fill({ color: c(RAMPS.NEUTRAL[2]), alpha: 0.55 })
-    g.rect(1, -21.5, 5, 4.5).fill({ color: c(RAMPS.NEUTRAL[2]), alpha: 0.55 })
-    g.rect(-1, -20, 2, 1).fill(c(RAMPS.NEUTRAL[2]))
+  const partColour: Record<AvatarRect['colour'], number> = {
+    ink: c(RAMPS.NEUTRAL[0]),
+    mouth: c(RAMPS.NEUTRAL[1]),
+    hair: c(hairRamp[hairBase]),
+    glasses: c(RAMPS.NEUTRAL[2]),
+    'phone-band': c(RAMPS.NEUTRAL[1]),
+    'phone-cup': c(RAMPS.NEUTRAL[2]),
   }
-  if (look.headphones) {
-    g.rect(-hair.w / 2 - 1, -26 - hair.h + 7, hair.w + 2, 2.5).fill(c(RAMPS.NEUTRAL[1]))
-    g.rect(-hair.w / 2 - 3, -24, 3.5, 6).fill(c(RAMPS.NEUTRAL[2]))
-    g.rect(hair.w / 2 - 0.5, -24, 3.5, 6).fill(c(RAMPS.NEUTRAL[2]))
+  for (const part of frontAvatarParts(look)) {
+    g.rect(part.x, part.y, part.w, part.h).fill(partColour[part.colour])
   }
 }
 
@@ -906,12 +953,14 @@ export function buildDeveloper(look: Look): Container {
 
   const [shirtRamp, shirtBase] = SHIRT[look.shirt % SHIRT.length]
   const [hairRamp, hairBase] = HAIR_RAMP[look.hairColour % HAIR_RAMP.length]
-  const hair = HAIR[look.hair % HAIR.length]
+  const hair = AVATAR_HAIR[look.hair % AVATAR_HAIR.length]
   const skin = SKIN_BASE[look.skin % SKIN_BASE.length]
+  const torso = torsoShape(look)
 
   // Torso and head, as solids. Lighter on the south-west face, darker on the
   // back — the same top-left key the props and the walls obey.
-  isoBox(g, 0, 5, 17, 19, shirtRamp, shirtBase, false)
+  isoBox(g, 0, 5, torso.w, torso.h, shirtRamp, shirtBase, false)
+  drawTorsoDetails(g, look, false)
   // The neck, showing under the hair. One band, and it is the only skin
   // visible on a figure seen from behind.
   isoBox(g, 0, -14, 10, 4, RAMPS.SKIN, skin, false)
@@ -1024,9 +1073,6 @@ export const DESK_SETBACK = 0.32
 const DESK_H = 5
 /** Valance depth — the drop from the surface to the underside. */
 const DESK_LIP = 11
-/** Leg width, in screen pixels. Two per end of a run. */
-const DESK_LEG = 3
-
 /** The screen offset from a seat to the centre of the desk it sits at. */
 function deskOffset() {
   return gridToScreen(-DESK_SETBACK, 0)
@@ -1107,19 +1153,6 @@ export function drawDeskBank(g: Graphics, colFrom: number, colTo: number, row: n
     .lineTo(foot.near.x + 3, foot.near.y + 2)
     .closePath()
     .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.38 })
-
-  // Legs, at the two ends of the run. A bank standing on nothing is a plank,
-  // and the legs are also what the shadow above is a shadow *of*.
-  for (const [corner, side] of [
-    [foot.far, foot.front],
-    [foot.near, foot.front],
-  ] as const) {
-    // Pulled a little way in from the corner, the way a real frame is — a leg
-    // flush with the end of the top reads as a solid block.
-    const lx = corner.x + (side.x - corner.x) * 0.12
-    const ly = corner.y + (side.y - corner.y) * 0.12
-    g.rect(lx - DESK_LEG / 2, ly - DESK_H, DESK_LEG, DESK_H + DESK_LIP).fill(c(RAMPS.WOOD[0]))
-  }
 
   // The valance, on the two edges that face the camera. ART_DIRECTION §7's
   // single top-left source: the long south-east side of the run turns away from
@@ -1602,6 +1635,10 @@ function drawWhiteboard(g: Graphics, x: number, y: number, seed: number, slope: 
  */
 function drawFounderWorkstation(g: Graphics, x: number, y: number) {
   g.position.set(x, y)
+  // The manager sits in the north-east corner looking back down the rows. A
+  // normal desk points out of the room there; mirror the shared workstation
+  // around its seat so the monitor and keyboard face the crowd instead.
+  g.scale.set(-1, 1)
   drawDeskBank(g, 0, 0, 0)
   drawWorkstation(g, 0, 0, 997)
 }
@@ -1639,6 +1676,12 @@ export function buildRoom(): RoomHandle {
   const deskLayer = new Container()
   const devLayer = new Container()
   const founderLayer = new Container()
+  // Previous room geometry lives just long enough to cross-fade into an
+  // expanded room. Developers stay in their real containers, so an old hire
+  // never blinks out while the walls move.
+  const previousShell = new Container()
+  const previousFurniture = new Container()
+  const previousDesks = new Container()
   // Labelled because the layer list is now long enough that finding it by
   // child index is a test that breaks every time a layer is added.
   devLayer.label = 'developers'
@@ -1652,7 +1695,20 @@ export function buildRoom(): RoomHandle {
   // shell's diamond and its walls are what the unfold fades away, and the two
   // never overlap on screen because the walls rise from behind the deepest
   // plate.
-  root.addChild(shell, plates, light, furniture, deskLayer, managerDesk, devLayer, founderLayer, ambient.layer)
+  root.addChild(
+    previousShell,
+    shell,
+    plates,
+    light,
+    previousFurniture,
+    furniture,
+    previousDesks,
+    deskLayer,
+    managerDesk,
+    devLayer,
+    founderLayer,
+    ambient.layer,
+  )
 
   /** One §7.8.1c panel: the plate itself, and the light it catches turning. */
   interface Panel {
@@ -1683,6 +1739,41 @@ export function buildRoom(): RoomHandle {
   /** Per-developer jolt decay, 1 -> 0. The §8.2 poke reaction. */
   const jolts: number[] = []
   const desks: Array<{ x: number; y: number }> = []
+  let roomTransition = 1
+
+  function clearPreviousGeometry() {
+    for (const layer of [previousShell, previousFurniture, previousDesks]) {
+      for (const child of layer.removeChildren()) child.destroy({ children: true })
+    }
+  }
+
+  function copyGraphic(source: Graphics, destination: Container) {
+    if (source.context.instructions.length === 0) return
+    const copy = new Graphics({ context: source.context.clone() })
+    copy.position.copyFrom(source.position)
+    copy.pivot.copyFrom(source.pivot)
+    copy.scale.copyFrom(source.scale)
+    copy.rotation = source.rotation
+    destination.addChild(copy)
+  }
+
+  /** Preserve the old shell and props while the next geometry comes in. */
+  function beginRoomTransition() {
+    // A batch reveals seats in quick succession. Keep the original snapshot
+    // and update only the destination instead of allocating a new ghost for
+    // every body in the cascade.
+    if (roomTransition < 1) return
+    clearPreviousGeometry()
+    copyGraphic(shell, previousShell)
+    copyGraphic(light, previousShell)
+    copyGraphic(furniture, previousFurniture)
+    copyGraphic(managerDesk, previousFurniture)
+    for (const squad of squadDesks) copyGraphic(squad, previousDesks)
+    previousShell.alpha = 1
+    previousFurniture.alpha = 1
+    previousDesks.alpha = 1
+    roomTransition = 0
+  }
   /**
    * Where §7.8.6's water trips go — the cooler and the coffee machine, as
    * placed on this rebuild's perimeter ring.
@@ -1711,6 +1802,32 @@ export function buildRoom(): RoomHandle {
    */
   const foldedFit = { w: TILE_W * 3, h: 156, px: 0, py: 0 }
   const openFit = { w: TILE_W * 3, h: 156, px: 0, py: 0 }
+  const resizeFrom = { ...foldedFit }
+  const resizeTo = { ...foldedFit }
+  let resizeFit = 1
+  let fitReady = false
+
+  function writeFit(fit: { w: number; h: number; px: number; py: number }) {
+    extent.w = fit.w
+    extent.h = fit.h
+    root.pivot.set(fit.px, fit.py)
+  }
+
+  function fitAt(t: number) {
+    const k = t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) ** 3
+    return {
+      w: foldedFit.w + (openFit.w - foldedFit.w) * k,
+      h: foldedFit.h + (openFit.h - foldedFit.h) * k,
+      px: foldedFit.px + (openFit.px - foldedFit.px) * k,
+      py: foldedFit.py + (openFit.py - foldedFit.py) * k,
+    }
+  }
+
+  function beginFitTransition(target: { w: number; h: number; px: number; py: number }) {
+    Object.assign(resizeFrom, { w: extent.w, h: extent.h, px: root.pivot.x, py: root.pivot.y })
+    Object.assign(resizeTo, target)
+    resizeFit = 0
+  }
 
   /**
    * Push the fit for a given unfold progress onto the extent and the pivot.
@@ -1719,17 +1836,12 @@ export function buildRoom(): RoomHandle {
    * a linear camera against an eased floor reads as two events.
    */
   function applyFit(t: number) {
-    const k = t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) ** 3
-    extent.w = foldedFit.w + (openFit.w - foldedFit.w) * k
-    extent.h = foldedFit.h + (openFit.h - foldedFit.h) * k
-    root.pivot.set(
-      foldedFit.px + (openFit.px - foldedFit.px) * k,
-      foldedFit.py + (openFit.py - foldedFit.py) * k,
-    )
+    writeFit(fitAt(t))
   }
 
   function rebuild(headcount: number) {
-    const n = Math.max(1, Math.min(ROOM_DEV_CAP, Math.floor(headcount)))
+    if (lastDevs >= 0) beginRoomTransition()
+    const n = Math.max(0, Math.min(ROOM_DEV_CAP, Math.floor(headcount)))
     // §7.8.1c — the hundredth hire fills the squad, so the floor has to open.
     // Once started, never unstarted for this run: the unfold is a one-shot and
     // the floor does not fold back up if the studio shrinks.
@@ -1780,14 +1892,24 @@ export function buildRoom(): RoomHandle {
     // rather than from the squad, and it stays.
     const box = unfolded
       ? floorBox(Math.ceil(n / SQUAD_SIZE))
-      : blockBox(FOUNDER_CORNER_COL - 0.95, -0.2, cols - 1, rows - 1)
+      : blockBox(
+          FOUNDER_CORNER_COL - 0.95,
+          FOUNDER_CORNER_ROW - 0.95,
+          cols - 1,
+          rows - 1,
+        )
     const bw = (box.maxX - box.minX) / 2
     const bh = (box.maxY - box.minY) / 2
     const floorW = unfolded ? Math.max(bw, bh * 2) * margin : plateHalfWidth(bw, bh, margin)
     const floorH = floorW / 2
     const halfW = floorW / TILE_W
-    const cx = (box.minX + box.maxX) / 2
-    const cy = (box.minY + box.maxY) / 2
+    const naturalCentre = {
+      x: (box.minX + box.maxX) / 2,
+      y: (box.minY + box.maxY) / 2,
+    }
+    const centre = unfolded ? naturalCentre : foldedRoomCentre(floorH)
+    const cx = centre.x
+    const cy = centre.y
 
     // The wall planes' screen slope, from the room's own geometry rather than
     // a literal 0.5, so wall-mounted things stay in plane if the projection
@@ -1883,11 +2005,14 @@ export function buildRoom(): RoomHandle {
       light.ellipse(cx, cy - TILE_H * 0.2, r, r * 0.5).fill({ color: c(RAMPS.GLOW[1]), alpha })
     }
 
-    // A rug under the first desks. A bedroom has one; an office never does,
-    // which is why it leaves rather than accumulating like everything else.
+    // The founder's mat. Small, fixed to the manager desk and always inside
+    // the room shell; it never becomes a detached second floor as the room grows.
     if (props.rug) {
-      isoQuad(shell, cx, cy + TILE_H * 0.2, floorW * 1.05, floorH * 1.05, c(RAMPS.WOOD[1]))
-      isoQuad(shell, cx, cy + TILE_H * 0.2, floorW * 0.9, floorH * 0.9, c(RAMPS.WOOD[2]))
+      const rugW = Math.min(floorW * 0.38, TILE_W * 1.45)
+      const rugH = rugW / 2
+      const manager = founderDeskPosition()
+      isoQuad(shell, manager.x, manager.y + TILE_H * 0.18, rugW, rugH, c(RAMPS.NEUTRAL[1]))
+      isoQuad(shell, manager.x, manager.y + TILE_H * 0.18, rugW * 0.84, rugH * 0.84, c(RAMPS.CALM[0]))
     }
 
     // --- props -------------------------------------------------------------
@@ -2136,8 +2261,8 @@ export function buildRoom(): RoomHandle {
     // floor plus the walls standing behind it, and a pivot at the true centre
     // of that box rather than at the floor's centre. Pivoting on the floor
     // pushes the whole room down the frame by half a wall.
-    foldedFit.w = floorW * 2
-    foldedFit.h = floorH * 2 + WALL_H
+    foldedFit.w = floorW * 2 + ROOM_CONTENT_PAD_X
+    foldedFit.h = floorH * 2 + WALL_H + ROOM_CONTENT_PAD_Y
     // Biased toward the desks rather than the true centre of the bounding box.
     // Centring the box geometrically is correct and composes badly: it puts
     // half a wall above the people and drops them low in frame.
@@ -2145,12 +2270,29 @@ export function buildRoom(): RoomHandle {
     foldedFit.py = cy - WALL_H * 0.3
     if (unfolded) {
       const f = floorBox(squadsUsed)
-      openFit.w = f.maxX - f.minX
-      openFit.h = f.maxY - f.minY
+      openFit.w = f.maxX - f.minX + ROOM_CONTENT_PAD_X
+      openFit.h = f.maxY - f.minY + ROOM_CONTENT_PAD_Y
       openFit.px = (f.minX + f.maxX) / 2
       openFit.py = (f.minY + f.maxY) / 2
     }
-    applyFit(Math.max(0, unfoldT))
+    const nextFit = fitAt(Math.max(0, unfoldT))
+    if (!fitReady) {
+      writeFit(nextFit)
+      fitReady = true
+    } else if (unfoldT >= 0 && unfoldT < 1) {
+      // The panel unfold owns the camera fit while it is running.
+      writeFit(nextFit)
+      resizeFit = 1
+    } else {
+      beginFitTransition(nextFit)
+    }
+
+    const incomingAlpha = roomTransition >= 1 ? 1 : 1 - (1 - roomTransition) ** 3
+    shell.alpha = incomingAlpha
+    light.alpha = incomingAlpha
+    furniture.alpha = incomingAlpha
+    managerDesk.alpha = incomingAlpha
+    for (const squad of squadDesks) squad.alpha = incomingAlpha
   }
 
   /**
@@ -2295,17 +2437,31 @@ export function buildRoom(): RoomHandle {
     // the walls pushed out to where the desks reached.
   }
 
-  rebuild(1)
+  rebuild(0)
+  lastDevs = 0
 
   return {
     container: root,
     setHeadcount(devsCount: number) {
-      const clamped = Math.max(1, Math.floor(devsCount))
+      const clamped = Math.max(0, Math.floor(devsCount))
       if (clamped === lastDevs) return
       lastDevs = clamped
       rebuild(clamped)
     },
     animate(elapsed: number, state: string, dt = 1 / 60, entropy = 0) {
+      if (roomTransition < 1) {
+        roomTransition = Math.min(1, roomTransition + dt / 0.42)
+        const k = 1 - (1 - roomTransition) ** 3
+        previousShell.alpha = 1 - k
+        previousFurniture.alpha = 1 - k
+        previousDesks.alpha = 1 - k
+        shell.alpha = k
+        light.alpha = k
+        furniture.alpha = k
+        managerDesk.alpha = k
+        for (const squad of squadDesks) squad.alpha = k
+        if (roomTransition >= 1) clearPreviousGeometry()
+      }
       // §7.8.1c — the unfold, on `dt` rather than on `elapsed`, because it is
       // an event with a start and must not jump forward while the tab is
       // hidden (trap 3). Once it lands it costs one comparison a frame.
@@ -2313,6 +2469,15 @@ export function buildRoom(): RoomHandle {
         unfoldT = Math.min(1, unfoldT + (dt * 1000) / UNFOLD_MS)
         applyUnfold(unfoldT)
         applyFit(unfoldT)
+      } else if (resizeFit < 1) {
+        resizeFit = Math.min(1, resizeFit + dt / 0.55)
+        const k = 1 - (1 - resizeFit) ** 3
+        writeFit({
+          w: resizeFrom.w + (resizeTo.w - resizeFrom.w) * k,
+          h: resizeFrom.h + (resizeTo.h - resizeFrom.h) * k,
+          px: resizeFrom.px + (resizeTo.px - resizeFrom.px) * k,
+          py: resizeFrom.py + (resizeTo.py - resizeFrom.py) * k,
+        })
       }
       // §7.8.6 — ambient life. Fed the desks and the walkable destinations; it
       // decides who is doing what and hands back an offset per seat.
@@ -2421,7 +2586,12 @@ export function buildRoom(): RoomHandle {
       if (
         next.name === founderProfile.name &&
         next.head === founderProfile.head &&
-        next.body === founderProfile.body
+        next.hairColour === founderProfile.hairColour &&
+        next.skin === founderProfile.skin &&
+        next.accessory === founderProfile.accessory &&
+        next.facialHair === founderProfile.facialHair &&
+        next.body === founderProfile.body &&
+        next.bodyColour === founderProfile.bodyColour
       ) return
       founderProfile = next
       const replacement = buildFounderAvatar(founderProfile)

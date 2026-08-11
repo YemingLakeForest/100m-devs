@@ -503,7 +503,7 @@ function phase(value: unknown): Phase {
 function normaliseRun(value: unknown): RunSave {
   const r = (value ?? {}) as Partial<RunSave>
   return {
-    devs: Math.max(1, Math.floor(nonNegative(r.devs, 1))),
+    devs: Math.max(0, Math.floor(nonNegative(r.devs, 0))),
     devCap: Math.max(1, nonNegative(r.devCap, D_BASE)),
     cash: num(r.cash, 0),
     projectIndex: Math.max(0, Math.floor(nonNegative(r.projectIndex, 0))),

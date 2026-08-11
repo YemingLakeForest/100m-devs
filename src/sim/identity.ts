@@ -84,6 +84,10 @@ export interface Look {
   hairColour: number
   skin: number
   shirt: number
+  /** Torso silhouette/detail: hoodie, tee, jacket, or knit. */
+  body: number
+  /** Face detail: none, moustache, goatee, or full beard. */
+  facialHair: number
   glasses: boolean
   headphones: boolean
   /** Slight lean, -1..1. Nothing else varies posture, and it is enough. */
@@ -117,7 +121,8 @@ export interface Identity {
 const CH = {
   first: 1, last: 2, hair: 3, hairColour: 4, skin: 5, shirt: 6,
   glasses: 7, headphones: 8, slouch: 9, focus: 10, chatter: 11,
-  seniority: 12, hasTrait: 13, trait: 14,
+  seniority: 12, hasTrait: 13, trait: 14, body: 15,
+  facialHair: 16,
 } as const
 
 /** How many hair shapes and shirt colours the renderer offers. */
@@ -125,6 +130,8 @@ export const HAIR_SHAPES = 4
 export const HAIR_COLOURS = 4
 export const SKIN_TONES = 4
 export const SHIRT_COLOURS = 5
+export const BODY_SHAPES = 4
+export const FACIAL_HAIR_STYLES = 4
 
 export function identityFor(seed: number, index: number): Identity {
   const d = (channel: number) => draw(seed, index, channel)
@@ -137,6 +144,8 @@ export function identityFor(seed: number, index: number): Identity {
       hairColour: Math.floor(d(CH.hairColour) * HAIR_COLOURS),
       skin: Math.floor(d(CH.skin) * SKIN_TONES),
       shirt: Math.floor(d(CH.shirt) * SHIRT_COLOURS),
+      body: Math.floor(d(CH.body) * BODY_SHAPES),
+      facialHair: Math.floor(d(CH.facialHair) * FACIAL_HAIR_STYLES),
       // Roughly a third wear glasses and a quarter headphones. Both read at the
       // room's scale where nothing subtler does.
       glasses: d(CH.glasses) < 0.34,
@@ -161,7 +170,17 @@ export function identityFor(seed: number, index: number): Identity {
  */
 export const JAMES: Identity = {
   name: 'James',
-  look: { hair: 1, hairColour: 2, skin: 1, shirt: 0, glasses: true, headphones: false, slouch: 0.2 },
+  look: {
+    hair: 1,
+    hairColour: 2,
+    skin: 1,
+    shirt: 0,
+    body: 0,
+    facialHair: 2,
+    glasses: true,
+    headphones: false,
+    slouch: 0.2,
+  },
   stats: { focus: 41, chatter: 88, seniority: 30 },
   trait: 'Meeting Magnet',
 }

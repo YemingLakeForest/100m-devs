@@ -14,6 +14,7 @@ import type { StageHandle } from '../render/stage.ts'
 import { useGameState } from './useGameState.ts'
 import { ConceptText } from '../ui/ConceptText.tsx'
 import { Kw } from './Kw.tsx'
+import { playKeyboardClick } from '../audio/sfx.ts'
 
 import '../styles/founder.css'
 
@@ -51,9 +52,13 @@ export function FounderDesk({ stage }: { stage: StageHandle | null }) {
       </div>
       <Button
         className="founder__tap"
+        sound={false}
         onClick={() => {
           if (stage) stage.codeFounder()
-          else pokeFounder()
+          else {
+            playKeyboardClick()
+            pokeFounder()
+          }
         }}
       >
         CODE — YOU
@@ -150,7 +155,7 @@ export function FounderProfilePanel({ open, onClose }: { open: boolean; onClose:
 
       <div className="founder-profile__body">
         <aside className="founder-profile__identity">
-          <FounderAvatar head={founder.head} body={founder.body} label="YOU" />
+          <FounderAvatar {...founder} label="YOU" />
           <dl>
             <div><dt>OUTPUT</dt><dd>{founderOf().rate.toFixed(1)} <Kw>STORY POINTS</Kw>/S</dd></div>
             <div><dt>PER TAP</dt><dd>+{founderOf().tapValue.toFixed(0)} <Kw>STORY POINTS</Kw></dd></div>

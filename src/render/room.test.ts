@@ -10,6 +10,8 @@ import {
   FLOOR_ROWS,
   FLOOR_SIZE,
   FOUNDER_CORNER_COL,
+  FOUNDER_CORNER_ROW,
+  FOUNDER_NORTH_CLEARANCE,
   HOP_AIRBORNE,
   HOP_HEIGHT,
   HOP_SQUASH,
@@ -30,6 +32,7 @@ import {
   ROOM_DEV_CAP,
   gridFor,
   founderDeskPosition,
+  foldedRoomCentre,
   hopHeight,
   hopSquash,
   hopSway,
@@ -245,26 +248,37 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
 })
 
 describe('your corner desk — GDD §7.8.10', () => {
-  it('sits beyond the north-east end of the rows, never inside their reading order', () => {
+  it('is included in the first-room camera extent', () => {
+    const room = buildRoom()
+    const bounds = room.container.getLocalBounds()
+    expect(room.extent.w).toBeGreaterThanOrEqual(bounds.maxX - bounds.minX)
+    expect(room.extent.h).toBeGreaterThanOrEqual(bounds.maxY - bounds.minY)
+    room.container.destroy({ children: true })
+  })
+
+  it('sits at the far north vertex, never inside the developer reading order', () => {
     const you = founderDeskPosition()
     const first = seatPosition(0)
     expect(FOUNDER_CORNER_COL).toBeLessThan(0)
-    expect(you.x).toBeGreaterThan(first.x)
-    expect(you.y).toBeLessThan(first.y)
+    expect(FOUNDER_CORNER_ROW).toBeLessThan(0)
+    expect(you.x).toBeCloseTo(0, 10)
+    expect(you.y).toBeLessThan(first.y - 100)
+  })
+
+  it('anchors the room shell to the founder instead of merely placing them high', () => {
+    const halfHeight = 220
+    const centre = foldedRoomCentre(halfHeight)
+    const northVertex = centre.y - halfHeight
+    expect(centre.x).toBe(founderDeskPosition().x)
+    expect(founderDeskPosition().y - northVertex).toBe(FOUNDER_NORTH_CLEARANCE)
   })
 
   it('looks back down the row grain at the developers', () => {
     const you = founderDeskPosition()
     const first = seatPosition(0)
-    const second = seatPosition(1)
-    // You -> first and first -> second are the same projected direction:
-    // south-west down the row, rather than north-west into a monitor.
-    expect(first.x - you.x).toBeLessThan(0)
+    // The first developer is directly down-room from the founder's north
+    // vertex: the manager looks into the room rather than out through a wall.
     expect(first.y - you.y).toBeGreaterThan(0)
-    expect((you.x - first.x) / (first.y - you.y)).toBeCloseTo(
-      (first.x - second.x) / (second.y - first.y),
-      9,
-    )
   })
 
   it('does not move when the team grows around it', () => {
@@ -439,11 +453,10 @@ describe('props arrive on the §7.8.1 thresholds', () => {
     expect(p.waterCooler).toBe(false)
   })
 
-  it('keeps the rug only while this is still a bedroom', () => {
-    // A rug is a bedroom thing. It is the one prop that leaves early rather
-    // than at the crowding threshold, because an office simply never has one.
+  it('keeps the founder mat through every room expansion', () => {
+    expect(propsAt(0).rug).toBe(true)
     expect(propsAt(1).rug).toBe(true)
-    expect(propsAt(20).rug).toBe(false)
+    expect(propsAt(20).rug).toBe(true)
   })
 
   it('fills the room out as the studio grows', () => {
@@ -468,29 +481,22 @@ describe('props arrive on the §7.8.1 thresholds', () => {
     expect(propsAt(24).posters).toBeGreaterThan(propsAt(5).posters)
   })
 
-  it('TAKES THINGS AWAY once it crowds — the §6 thesis in set dressing', () => {
-    // This is the half of §7.8.1 that matters. The room gets *worse* as it
-    // gets fuller: the plant goes unwatered, the dividers have no floor left
-    // to stand on, the walkway becomes desks. If this ever reads as monotonic
-    // growth, the set dressing has stopped telling the story.
+  it('keeps existing objects while crowding removes only walkable space', () => {
     const roomy = propsAt(20)
     const crowded = propsAt(120)
     expect(roomy.plants).toBeGreaterThan(0)
-    expect(crowded.plants).toBe(0)
+    expect(crowded.plants).toBeGreaterThanOrEqual(roomy.plants)
     expect(roomy.dividers).toBe(true)
-    expect(crowded.dividers).toBe(false)
+    expect(crowded.dividers).toBe(true)
     expect(roomy.sofa).toBe(true)
-    expect(crowded.sofa).toBe(false)
+    expect(crowded.sofa).toBe(true)
     expect(propsAt(20).walkway).toBe(true)
     expect(propsAt(120).walkway).toBe(false)
   })
 
-  it('keeps the mess nobody chose while removing the things they did', () => {
-    // The cruellest half of §7.8.1. Crowding takes the plants and the sofa —
-    // things somebody decided to put there — and leaves more cardboard, which
-    // nobody decided anything about.
+  it('adds the mess without deleting the things already bought', () => {
     expect(propsAt(120).boxes).toBeGreaterThan(propsAt(31).boxes)
-    expect(propsAt(120).plants).toBe(0)
+    expect(propsAt(120).plants).toBeGreaterThan(0)
   })
 
   it('keeps the things that do not need floor space', () => {

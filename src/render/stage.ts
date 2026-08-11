@@ -13,6 +13,7 @@ import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   currentEntropy,
   developerVelocity,
+  FLOATER_LIFE_MS,
   getState,
   poke,
   pokeFounder,
@@ -21,7 +22,7 @@ import {
   tick,
   type PokeTarget,
 } from '../game/store.ts'
-import { pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
+import { playKeyboardClick, pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
 import { MusicBus } from '../audio/music.ts'
 import { holdHaptic, pokeHaptic } from '../audio/haptics.ts'
@@ -90,7 +91,6 @@ const LATENCY_WINDOW = 120
  * code snippet beside it is the payload, and a line of code that starts fading
  * on the frame it appears is a joke told at a volume nobody can hear.
  */
-const FLOATER_MS = 1500
 const FLOATER_FADE = 0.3
 
 /** Shared empty list, so a rung with no heads does not allocate one per frame. */
@@ -104,6 +104,28 @@ const NO_TALLIES: readonly TallySource[] = []
  * R15 hit test asks the geometry that is actually on screen.
  */
 const CITY_RUNG_OF = { block: 4, park: 5, sprawl: 6 } as const
+
+/**
+ * The room is the only view with individual people that must stay clear of the
+ * two HUD rails. Fitting it to the entire canvas put the founder—the room's
+ * north-east extreme—directly under CASH and the interaction stack.
+ */
+export function viewportForView(
+  view: ViewKind,
+  viewport: { w: number; h: number },
+): { w: number; h: number } {
+  if (view !== 'room') return viewport
+  const rail = Math.min(176, viewport.w * 0.13)
+  return { w: Math.max(280, viewport.w - rail * 2), h: viewport.h }
+}
+
+export function roomHudBiasY(_viewportHeight: number): number {
+  // The folded room now anchors its floor to the founder at the true north
+  // vertex.  The old upward shove compensated for the founder being buried
+  // inside a shell centred on the other desks; keeping it would clip the
+  // founder, desk and mat above the canvas.
+  return 0
+}
 
 export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const app = new Application()
@@ -302,7 +324,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     // The normal developer desk sits north-west of its seat. Keep this a large
     // thumb target without swallowing the avatar above it.
-    const deskX = at.x - 13
+    // The founder workstation is mirrored to face the studio.
+    const deskX = at.x + 13
     const deskY = at.y - 8
     return Math.hypot(local.x - deskX, local.y - deskY) <= 24 + reach ? 'desk' : null
   }
@@ -335,13 +358,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   const doPoke = (x: number, y: number, t0: number) => {
     const founderTarget = founderHit(x, y)
-    if (founderTarget === 'avatar') {
-      selectDeveloper(null)
-      playUi('click')
-      founderInspect?.()
-      return
-    }
-    if (founderTarget === 'desk') {
+    // The selected tool means the same thing on every person. CODE on the
+    // founder codes; INFO (handled by doSelect) opens the profile. The old
+    // avatar-only exception made players learn two meanings for one tap.
+    if (founderTarget === 'avatar' || founderTarget === 'desk') {
       codeAtFounderDesk(t0, true)
       return
     }
@@ -357,7 +377,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const result = poke(x, y, target)
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
-    playSfx(result.crit ? 'poke-crit' : result.sp === 0 ? 'poke-void' : pokeSfxForZoom(camera.level))
+    if (result.crit) playSfx('poke-crit')
+    else if (result.sp === 0) playSfx('poke-void')
+    else if (camera.level === 1) playKeyboardClick()
+    else playSfx(pokeSfxForZoom(camera.level))
     // Only the JS half of the audio path. See the CAVEAT in perf/metrics.ts —
     // the mixer, buffer, DAC and speaker are invisible from here, so this is a
     // lower bound and criterion 2 cannot be passed on it alone.
@@ -462,7 +485,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     focusFounderCamera()
     room.joltFounder()
-    if (sound) playUi('click')
+    if (sound) playKeyboardClick()
     if (t0 !== undefined) {
       requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
     }
@@ -679,6 +702,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     focal = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
 
     if (!pinchStart) {
+      // Two contacts can begin on the same physical pixel (or be coalesced
+      // there by the browser). Latching a zero baseline makes the next ratio
+      // 0/0 or x/0 and used to blank every scene layer via a NaN camera.
+      if (!(distance > 0) || !Number.isFinite(distance)) return
       pinchStart = { distance, z: camera.z }
       return
     }
@@ -688,6 +715,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // produces a constant *rate* of scale change, which is what reads as
     // smooth across nine orders of magnitude.
     const ratio = distance / pinchStart.distance
+    if (!(ratio > 0) || !Number.isFinite(ratio)) return
     camera.set(pinchStart.z - Math.log10(Math.max(0.01, ratio)) * 0.6)
   }
 
@@ -746,6 +774,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let dollyFired = false
   /** Last consumed §7.7.2 spawn, so one hire produces one arrival. */
   let lastSpawnId = 0
+  let hireShake = 0
   /** §20.7.4 fires once per run; a Paradigm Shift clears `massHired` and this. */
   let musicCollapsed = false
   const music = new MusicBus()
@@ -842,6 +871,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
     devsBefore = state.devs
     arrivals.update(now)
+    hireShake = Math.max(hireShake, arrivals.consumeImpact())
     // §20.7.3 — the score is a mix, not a playlist. Driven every frame from
     // the same camera Z the picture uses and the same Entropy the readout
     // does, so picture, ambience and music change register on the same frame.
@@ -922,8 +952,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       container.renderable = weights[spec.view] > 0.002
       // Only the visible ones need their transform recomputed.
       if (container.renderable) {
-        container.scale.set(
-          fitScale(scene.extentOf(spec.view), viewport, camera.z, viewStopZ(spec.view)),
+        const fitViewport = viewportForView(spec.view, viewport)
+        const scale = fitScale(scene.extentOf(spec.view), fitViewport, camera.z, viewStopZ(spec.view))
+        container.scale.set(scale)
+        // The room's folded fit is already composed around the founder at its
+        // north vertex. Other views remain truly centred as well.
+        container.position.set(
+          0,
+          spec.view === 'room' ? -roomHudBiasY(viewport.h) : 0,
         )
       }
     }
@@ -932,7 +968,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // frame, so a view that already fits does not slide around: panning
     // something that fits is how a player ends up lost in an empty frame.
     const domExtent = scene.extentOf(view)
-    const domScale = fitScale(domExtent, viewport, camera.z, viewStopZ(view))
+    const domScale = fitScale(domExtent, viewportForView(view, viewport), camera.z, viewStopZ(view))
     currentView = view
     currentScale = domScale
 
@@ -968,8 +1004,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if (founderFocus && view === 'room') {
       const at = room.founderDeskAt()
       const roomView = views.room
-      const targetX = Math.min(limitX, Math.max(-limitX, -(at.x - roomView.pivot.x) * domScale))
-      const targetY = Math.min(limitY, Math.max(-limitY, -(at.y - roomView.pivot.y) * domScale))
+      const targetX = Math.min(
+        limitX,
+        Math.max(-limitX, -((at.x - roomView.pivot.x) * domScale + roomView.position.x)),
+      )
+      const targetY = Math.min(
+        limitY,
+        Math.max(-limitY, -((at.y - roomView.pivot.y) * domScale + roomView.position.y)),
+      )
       const move = Math.min(1, dt * 6.5)
       pan.x += (targetX - pan.x) * move
       pan.y += (targetY - pan.y) * move
@@ -997,7 +1039,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // Applied to the glass, so the world, the numerals and the Act IV overlay
     // all shake together. Shaking only the world would slide the picture out
     // from under its own scanlines.
-    glass.position.set(shake.x, shake.y)
+    // Every hire has a small physical landing. Batch size increases the
+    // impulse logarithmically, so a thousand hires feel larger without moving
+    // the camera a thousand times farther than one hire.
+    const hireAmp = hireShake * (reduceMotion ? 1.2 : 4.5)
+    const hireX = Math.sin(now * 0.31) * hireAmp
+    const hireY = Math.cos(now * 0.43) * hireAmp * 0.65
+    glass.position.set(shake.x + hireX, shake.y + hireY)
+    hireShake *= Math.exp(-dt * 12)
 
     // §8.2b — the passive `+1`s over each head.
     //
@@ -1042,7 +1091,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       tallies.update(now, dt, NO_TALLIES)
     }
 
-    // Numerals arc up and fade over ~900 ms (GDD §8.2).
+    // Each paired numeral/snippet callout arcs up and fades over one second.
     const live = new Set<number>()
     for (const f of state.floaters) {
       live.add(f.id)
@@ -1051,7 +1100,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // The real numeral and the §8.2a code line. This was a plain rectangle
         // during the spike, on the reasoning that text belongs in React — that
         // holds for the HUD and not for this, which is scenery under the glass.
-        g = typeset.build(f.sp, f.crit, f.snippet, f.unblocked)
+        g = typeset.build(f.sp, f.crit, f.snippet, f.unblocked, f.id - 1)
         numerals.addChild(g)
         numeralGfx.set(f.id, g)
       }
@@ -1060,7 +1109,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // it registered: the numeral is a number and reads instantly, but
       // `while (true) { }` is four words and needs about a second of full
       // opacity before it starts leaving.
-      const age = (now - f.bornAt) / FLOATER_MS
+      const age = (now - f.bornAt) / FLOATER_LIFE_MS
       g.position.set(f.x, f.y - age * 58)
       g.alpha = Math.max(0, Math.min(1, (1 - age) / FLOATER_FADE))
     }
@@ -1128,7 +1177,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       focusFounderCamera()
     },
     codeFounder() {
-      return codeAtFounderDesk()
+      return codeAtFounderDesk(undefined, true)
     },
     setFounderInspect(handler: (() => void) | null) {
       founderInspect = handler

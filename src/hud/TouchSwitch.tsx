@@ -1,6 +1,7 @@
 import { setTouchMode, type GameState } from '../game/store.ts'
 import {
   TOUCH_HINT,
+  TOUCH_ICON,
   TOUCH_LABEL,
   TOUCH_LATCHES,
   type TouchLatch,
@@ -30,10 +31,10 @@ import { playUi } from '../ui/uiSfx.ts'
  */
 export function TouchSwitch({ state }: { state: GameState }) {
   const press = (latch: TouchLatch) => {
-    setTouchMode(latch)
     // F3 — one sound per state change. `click` rather than `whoosh`: this is a
     // switch being thrown, not a panel arriving.
     playUi('click')
+    setTouchMode(latch)
   }
 
   return (
@@ -52,7 +53,8 @@ export function TouchSwitch({ state }: { state: GameState }) {
               aria-pressed={lit}
               onPointerDown={() => press(latch)}
             >
-              {TOUCH_LABEL[latch]}
+              <span className="touch__icon" aria-hidden="true">{TOUCH_ICON[latch]}</span>
+              <span>{TOUCH_LABEL[latch]}</span>
             </button>
           )
         })}

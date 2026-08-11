@@ -111,6 +111,13 @@ export function burnReadout(payrollPerSecond: number): string | null {
   return `−${formatMoney(payrollPerSecond)}/SEC`
 }
 
+/** Live income minus payroll, stated as one honest cash-flow figure. */
+export function cashFlowReadout(netPerSecond: number): string {
+  const value = Math.abs(netPerSecond) < 0.005 ? 0 : netPerSecond
+  const sign = value > 0 ? '+' : ''
+  return `NET ${sign}${formatMoney(value)}/SEC`
+}
+
 /**
  * Seconds of runway, shown only once it is short enough to be a threat.
  *

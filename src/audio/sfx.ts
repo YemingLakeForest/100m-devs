@@ -45,6 +45,12 @@ export const SFX = [
 
 export type SfxId = (typeof SFX)[number]
 
+const WAV_SFX = new Set<SfxId>(['ui-click'])
+
+function assetPath(id: SfxId): string {
+  return `/sfx/${id}.${WAV_SFX.has(id) ? 'wav' : 'mp3'}`
+}
+
 /**
  * Voices per clip. Sustained tapping at 5 taps/sec against a 0.5 s clip needs
  * ~3 overlapping voices; 6 leaves headroom for the burst a player actually
@@ -106,7 +112,7 @@ export async function initSfx(): Promise<void> {
       SFX.map((id) =>
         NativeAudio.preload({
           assetId: id,
-          assetPath: `public/sfx/${id}.mp3`,
+          assetPath: `public${assetPath(id)}`,
           audioChannelNum: VOICES,
           isUrl: false,
         }).catch((err: unknown) => {
@@ -118,7 +124,7 @@ export async function initSfx(): Promise<void> {
   } else {
     for (const id of SFX) {
       const voices = Array.from({ length: VOICES }, () => {
-        const el = new Audio(`/sfx/${id}.mp3`)
+        const el = new Audio(assetPath(id))
         el.preload = 'auto'
         return el
       })
@@ -178,6 +184,15 @@ export function pokeSfxForZoom(zoom: 1 | 2 | 3 | 4): SfxId {
     case 4:
       return 'poke-cosmic'
   }
+}
+
+/**
+ * Coding uses the original dry desk switch. A bank of generated variations
+ * made a short run of clicks read as a melody; one neutral transient is the
+ * sound the interaction had before that experiment and never forms a tune.
+ */
+export function playKeyboardClick(): void {
+  playSfx('poke-desk')
 }
 
 export async function unloadSfx(): Promise<void> {

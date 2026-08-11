@@ -90,6 +90,13 @@ describe('LOD cross-fade (GDD §10.5 — nothing cuts)', () => {
     expect(lodWeights(1)[1]).toBe(0)
   })
 
+  it('falls back to a visible room when gesture input is not finite', () => {
+    const weights = lodWeights(Number.NaN)
+    expect(Object.values(weights).every(Number.isFinite)).toBe(true)
+    expect(Object.values(weights).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10)
+    expect(weights[1]).toBeGreaterThan(0)
+  })
+
   it('is continuous — no weight jumps between adjacent samples', () => {
     let prev = lodWeights(0)
     for (let z = 0.005; z <= 1; z += 0.005) {
@@ -116,6 +123,14 @@ describe('LensCamera', () => {
     cam.nudge(0.15)
     expect(cam.z).toBeCloseTo(0.55, 10)
     expect(cam.level).toBe(3)
+  })
+
+  it('rejects invalid pinch results instead of blanking every scene layer', () => {
+    const cam = new LensCamera(0.4)
+    cam.set(Number.NaN)
+    cam.nudge(Number.POSITIVE_INFINITY)
+    expect(cam.z).toBe(0.4)
+    expect(Number.isFinite(cam.scale)).toBe(true)
   })
 
   it('measures velocity so a pinch and a programmatic dolly smear alike', () => {

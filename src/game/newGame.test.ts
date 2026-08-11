@@ -26,11 +26,11 @@ describe('New Game', () => {
 
     startNewGame()
 
-    expect(getState().devs).toBe(1)
+    expect(getState().devs).toBe(0)
     expect(getState().cash).toBe(0)
     expect(getState().projectsShipped).toBe(0)
     expect(getPermanent()).toEqual(emptyPermanent())
-    expect(readSave()?.run.devs).toBe(1)
+    expect(readSave()?.run.devs).toBe(0)
     expect(localStorage.getItem(FOUNDER_PROFILE_KEY)).toContain('Ada')
   })
 })

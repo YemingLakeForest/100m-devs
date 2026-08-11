@@ -62,9 +62,10 @@ export type UiSound =
  * sound to silence with nothing to say so.
  */
 const SHIPPED = new Set(
-  Object.keys(import.meta.glob('../../public/sfx/*.mp3')).map((f) =>
-    f.slice(f.lastIndexOf('/') + 1, -4),
-  ),
+  Object.keys(import.meta.glob('../../public/sfx/*.{mp3,wav}')).map((f) => {
+    const name = f.slice(f.lastIndexOf('/') + 1)
+    return name.slice(0, name.lastIndexOf('.'))
+  }),
 )
 
 function hasClip(id: SfxId): boolean {

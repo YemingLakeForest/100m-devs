@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   HAIR_COLOURS,
   HAIR_SHAPES,
+  BODY_SHAPES,
+  FACIAL_HAIR_STYLES,
   JAMES,
   SHIRT_COLOURS,
   SKIN_TONES,
@@ -62,7 +64,7 @@ describe('generated, never stored — GDD §7.8.7', () => {
     // player's phone and their tablet is a bug no single-machine test catches,
     // so the guard is that every draw stays a finite 0..1.
     for (let i = 0; i < 200; i++) {
-      for (let ch = 0; ch < 16; ch++) {
+      for (let ch = 0; ch < 17; ch++) {
         const r = draw(SEED, i, ch)
         expect(Number.isFinite(r)).toBe(true)
         expect(r).toBeGreaterThanOrEqual(0)
@@ -83,6 +85,10 @@ describe('what varies', () => {
       expect(look.hairColour).toBeLessThan(HAIR_COLOURS)
       expect(look.skin).toBeLessThan(SKIN_TONES)
       expect(look.shirt).toBeLessThan(SHIRT_COLOURS)
+      expect(look.body).toBeGreaterThanOrEqual(0)
+      expect(look.body).toBeLessThan(BODY_SHAPES)
+      expect(look.facialHair).toBeGreaterThanOrEqual(0)
+      expect(look.facialHair).toBeLessThan(FACIAL_HAIR_STYLES)
       expect(Math.abs(look.slouch)).toBeLessThanOrEqual(1)
     }
   })
@@ -90,16 +96,26 @@ describe('what varies', () => {
   it('uses the whole of every part table', () => {
     // A `Math.floor(r * n)` that never reaches the last bucket is the classic
     // off-by-one here, and it silently costs a quarter of the variety.
-    const seen = { hair: new Set(), shirt: new Set(), skin: new Set() }
+    const seen = {
+      hair: new Set(),
+      shirt: new Set(),
+      skin: new Set(),
+      body: new Set(),
+      facialHair: new Set(),
+    }
     for (let i = 0; i < 2000; i++) {
       const { look } = identityFor(SEED, i)
       seen.hair.add(look.hair)
       seen.shirt.add(look.shirt)
       seen.skin.add(look.skin)
+      seen.body.add(look.body)
+      seen.facialHair.add(look.facialHair)
     }
     expect(seen.hair.size).toBe(HAIR_SHAPES)
     expect(seen.shirt.size).toBe(SHIRT_COLOURS)
     expect(seen.skin.size).toBe(SKIN_TONES)
+    expect(seen.body.size).toBe(BODY_SHAPES)
+    expect(seen.facialHair.size).toBe(FACIAL_HAIR_STYLES)
   })
 
   it('keeps stats in range', () => {

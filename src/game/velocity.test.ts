@@ -24,6 +24,9 @@ import {
 
 beforeEach(() => {
   __resetStore()
+  // Developer-poke tests need one hired target. A real fresh run now contains
+  // only the separately-modelled founder and routes taps through pokeFounder.
+  __setState({ devs: 1, peakDevs: 1 })
 })
 
 /** Poke `rate` times a second for `seconds`, ticking in between. */

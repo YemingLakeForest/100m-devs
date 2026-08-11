@@ -30,9 +30,9 @@ export type TouchMode = 'poke' | 'grab' | 'inspect'
  * default a *choice*, and the default is supposed to be the resting state of a
  * control the player has not touched.
  */
-export type TouchLatch = 'poke' | 'grab'
+export type TouchLatch = TouchMode
 
-export const TOUCH_LATCHES: readonly TouchLatch[] = ['poke', 'grab']
+export const TOUCH_LATCHES: readonly TouchLatch[] = ['poke', 'grab', 'inspect']
 
 /**
  * The mode the studio opens in.
@@ -53,8 +53,8 @@ export const INITIAL_TOUCH_MODE: TouchMode = 'poke'
  * reachable without a third button, and it is why these are latches rather than
  * segments of a picker. Pressing the other one just moves the light.
  */
-export function toggleTouch(current: TouchMode, latch: TouchLatch): TouchMode {
-  return current === latch ? 'inspect' : latch
+export function toggleTouch(_current: TouchMode, latch: TouchLatch): TouchMode {
+  return latch
 }
 
 /**
@@ -73,8 +73,16 @@ export function tapVerb(mode: TouchMode, inRoom: boolean): TouchMode {
 
 /** The HUD face of a latch. Short, because the rail is 146 px wide. */
 export const TOUCH_LABEL: Record<TouchLatch, string> = {
-  poke: 'POKE',
-  grab: 'GRAB',
+  poke: 'CODE',
+  grab: 'MOVE',
+  inspect: 'INFO',
+}
+
+/** Tiny ASCII marks stay in the pixel font and never become platform emoji. */
+export const TOUCH_ICON: Record<TouchLatch, string> = {
+  poke: '</>',
+  grab: '+',
+  inspect: 'i',
 }
 
 /**
@@ -85,7 +93,7 @@ export const TOUCH_LABEL: Record<TouchLatch, string> = {
  * one that is in its third state.
  */
 export const TOUCH_HINT: Record<TouchMode, string> = {
-  poke: 'TAP TO CODE',
-  grab: 'DRAG PEOPLE',
-  inspect: 'TAP TO CHECK',
+  poke: 'TAP ANY PERSON TO CODE',
+  grab: 'DRAG A DEVELOPER',
+  inspect: 'TAP ANY PERSON FOR INFO',
 }

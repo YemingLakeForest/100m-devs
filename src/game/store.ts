@@ -198,6 +198,9 @@ export interface FloatingNumeral {
   unblocked: boolean
 }
 
+/** Shared by simulation expiry and render motion so a floater fades before removal. */
+export const FLOATER_LIFE_MS = 1000
+
 /**
  * GDD §7.7.2–7.7.3 — one hire, as the renderer needs to see it.
  *
@@ -423,7 +426,9 @@ function newSeed(): number {
 function freshRun(): GameState {
   return {
     runSeed: newSeed(),
-    devs: 1,
+    // The founder is modelled separately and starts alone. The first employee
+    // only exists after the player presses HIRE.
+    devs: 0,
     devCap: D_BASE,
     cash: 0,
     projectIndex: 0,
@@ -447,7 +452,7 @@ function freshRun(): GameState {
     hireMultiplier: 1,
     pokeRate: 0,
     buffs: [],
-    peakDevs: 1,
+    peakDevs: 0,
     ship: null,
     releases: [],
     seedTaken: false,
@@ -1043,7 +1048,7 @@ export function tick(dtSeconds: number): void {
   }
 
   const now = performance.now()
-  const floaters = state.floaters.filter((f) => now - f.bornAt < 900)
+  const floaters = state.floaters.filter((f) => now - f.bornAt < FLOATER_LIFE_MS)
   if (floaters.length !== state.floaters.length) patch.floaters = floaters
 
   if (state.bubble && now - state.bubble.bornAt > state.bubble.ttl) patch.bubble = null
@@ -1253,7 +1258,7 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
     desperateTaps,
     dev: machine,
     // The 10x Engineer quits permanently on the poke that cashes them out.
-    devs: devLeaves ? Math.max(1, state.devs - 1) : state.devs,
+    devs: devLeaves ? Math.max(0, state.devs - 1) : state.devs,
   }
 
   // §6.3 — the thesis, delivered by the person being interrupted.

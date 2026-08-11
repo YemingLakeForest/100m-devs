@@ -120,7 +120,7 @@ describe('migration — SAVE.md §2', () => {
 describe('defensive defaults — SAVE.md §2 rule 3', () => {
   it('fills a save that is missing whole blocks', () => {
     const save = migrate({ version: SAVE_VERSION } as SaveData)!
-    expect(save.run.devs).toBe(1)
+    expect(save.run.devs).toBe(0)
     expect(save.run.phase).toBe('act1_poke')
     expect(save.permanent.meta.heroCards).toEqual([])
     expect(save.permanent.layer1.paradigmNodes).toEqual([])
@@ -138,7 +138,7 @@ describe('defensive defaults — SAVE.md §2 rule 3', () => {
       ...saveAtVersion(1),
       run: { devs: Number.NaN, cash: Number.POSITIVE_INFINITY, devCap: -5 },
     } as never)!
-    expect(save.run.devs).toBe(1)
+    expect(save.run.devs).toBe(0)
     expect(save.run.cash).toBe(0)
     expect(save.run.devCap).toBeGreaterThan(0)
   })

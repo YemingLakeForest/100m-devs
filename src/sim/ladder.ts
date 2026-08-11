@@ -102,6 +102,9 @@ export function viewSpec(view: ViewKind): LadderView {
 }
 
 function clamp01(v: number): number {
+  // Invalid camera input must fall back to the nearest visible room, never
+  // turn every cross-fade weight into NaN and cull the whole visual layer.
+  if (!Number.isFinite(v)) return 0
   return Math.min(1, Math.max(0, v))
 }
 

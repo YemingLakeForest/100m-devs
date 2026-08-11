@@ -6,6 +6,7 @@ import {
   RUNWAY_WARN_SECONDS,
   actionFor,
   burnReadout,
+  cashFlowReadout,
   entropyPercent,
   formatMoney,
   formatVelocity,
@@ -75,6 +76,14 @@ describe('the burn line — §21 Act V', () => {
 
   it('reads as an outflow once it starts', () => {
     expect(burnReadout(50_000)).toBe('−$50.0K/SEC')
+  })
+})
+
+describe('the live net cash-flow line', () => {
+  it('shows income minus payroll with an explicit sign', () => {
+    expect(cashFlowReadout(1200)).toBe('NET +$1.2K/SEC')
+    expect(cashFlowReadout(-50)).toBe('NET −$50/SEC')
+    expect(cashFlowReadout(0)).toBe('NET $0/SEC')
   })
 })
 

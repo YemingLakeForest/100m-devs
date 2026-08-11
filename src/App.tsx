@@ -10,6 +10,7 @@ import { TitleScreen } from './title/TitleScreen.tsx'
 import { FounderSetup } from './title/FounderSetup.tsx'
 import { hasBooted, markBooted } from './title/bootFlag.ts'
 import {
+  clearFounderProfile,
   DEFAULT_FOUNDER,
   readFounderProfile,
   type FounderProfile,
@@ -62,6 +63,7 @@ export default function App() {
     readFounderProfile(),
   )
   const [titleVisit, setTitleVisit] = useState(0)
+  const newGameNeedsFounder = useRef(false)
 
   useEffect(() => {
     if (!SKIP_TITLE) markBooted()
@@ -108,7 +110,7 @@ export default function App() {
     // save file somebody has to unpick afterwards.
     const devs = new URLSearchParams(location.search).get('devs')
     if (devs !== null && Number.isFinite(Number(devs))) {
-      const n = Math.max(1, Math.floor(Number(devs)))
+      const n = Math.max(0, Math.floor(Number(devs)))
       // Cash comes with it, because §4.10d's payroll is continuous and a studio
       // of forty thousand people handed no money bankrupts inside one tick —
       // which is correct behaviour and is not what anybody typing this flag is
@@ -182,7 +184,7 @@ export default function App() {
           stage={stage}
           firstLaunch={firstLaunch && titleVisit === 0}
           onStart={() => {
-            // The title still owns the first frame. START hands a new install
+            // The title still owns the first frame. CONTINUE hands a new install
             // to identity setup, then identity setup hands it to the game.
             // A returning player goes straight through the same camera push.
             setTitleExiting(true)
@@ -190,12 +192,18 @@ export default function App() {
           }}
           onNewGame={() => {
             startNewGame()
+            clearFounderProfile()
+            setFounderProfile(null)
+            setStarted(false)
+            newGameNeedsFounder.current = true
             setTitleExiting(true)
-            if (founderProfile) setStarted(true)
           }}
           onExited={() => {
             setTitleUp(false)
-            if (!founderProfile) setFounderSetupUp(true)
+            if (newGameNeedsFounder.current || !founderProfile) {
+              newGameNeedsFounder.current = false
+              setFounderSetupUp(true)
+            }
           }}
         />
       )}
