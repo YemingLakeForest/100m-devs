@@ -153,6 +153,23 @@ export function setUiSfxEnabled(value: boolean): void {
   enabled = value
 }
 
+/**
+ * §11.4.5 — the two-part purchase cue.
+ *
+ * A short mechanical latch on the press, and a resolving tone on the unlock,
+ * {@link PURCHASE_RESOLVE_MS} apart. The gap is what makes it read as *cause
+ * and effect* rather than as one doubled noise. Both halves borrow the
+ * interface bank — dedicated `ui-latch` / `ui-resolve` clips are an ElevenLabs
+ * item and fall back like everything else, so the rhythm ships even while the
+ * bespoke clips do not.
+ */
+export const PURCHASE_RESOLVE_MS = 120
+
+export function playPurchase(now: number = performance.now()): void {
+  playUi('click', now)
+  setTimeout(() => playUi('whoosh', performance.now()), PURCHASE_RESOLVE_MS)
+}
+
 export function __resetUiSfx(): void {
   lastTickAt = null
   enabled = true

@@ -95,6 +95,7 @@ const COMPONENTS = [
   '.hud__controls',
   '.hire-dial',
   '.backlog',
+  '.upgrade-board__node',
   '.title__logo',
   '.title__menu',
 ].join(',')
@@ -126,6 +127,7 @@ const PAINTED = [
   '.founder-avatar',
   '.burndown__chart',
   '.revenue__chart',
+  '.upgrade-board__node',
 ].join(',')
 
 async function overflowIssues(page) {
@@ -394,6 +396,55 @@ async function overflowIssues(page) {
         const ratio = contrast(over(foreground, background), background)
         if (ratio < 4.5) {
           issues.push(`button "${button.textContent?.trim()}" segment "${copy}" has ${ratio.toFixed(2)}:1 contrast`)
+        }
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       Cropped button edges.
+
+       A `.ui-btn` paints a hard offset slab (box-shadow) and a 4-degree
+       skew past its border box. An `overflow: hidden` ancestor that clips
+       it shaves the button's edge silently — the exact defect reported as
+       MENU / CODE / HIRE DEVELOPER. For every button, its painted extent
+       (border box plus the shadow offset) must sit inside every clipping
+       ancestor's box. Buttons inside a scroller that is currently showing
+       them whole are fine; only a slab cut by a clip is a failure.
+    ------------------------------------------------------------------ */
+    for (const button of root.querySelectorAll('.ui-btn')) {
+      if (!visible(button) || button.closest('[data-phase="exit"]')) continue
+      // The HUD rail is the concern; the first-run creator is a modal over the
+      // title with its own (known-to-be-tight-at-640px) layout budget.
+      if (!button.closest('.hud')) continue
+      const shadow = getComputedStyle(button).boxShadow
+      const match = shadow.match(/(-?[\d.]+)px\s+(-?[\d.]+)px/)
+      if (!match) continue
+      const ox = Number(match[1])
+      const oy = Number(match[2])
+      if (ox <= 0 && oy <= 0) continue
+
+      const rect = button.getBoundingClientRect()
+      const painted = {
+        left: rect.left + Math.min(0, ox),
+        top: rect.top + Math.min(0, oy),
+        right: rect.right + Math.max(0, ox),
+        bottom: rect.bottom + Math.max(0, oy),
+      }
+      for (let ancestor = button.parentElement; ancestor && ancestor !== root; ancestor = ancestor.parentElement) {
+        const style = getComputedStyle(ancestor)
+        const clipsX = style.overflowX !== 'visible'
+        const clipsY = style.overflowY !== 'visible'
+        if (!clipsX && !clipsY) continue
+        const box = ancestor.getBoundingClientRect()
+        // No slack here: the whole point is that a slab cut by even one pixel
+        // is the defect (the skew alone shaves ~1px off a flush-left button).
+        if (clipsX && (painted.left < box.left || painted.right > box.right)) {
+          issues.push(`button "${button.textContent?.trim()}" slab clipped horizontally by ${ancestor.className || ancestor.tagName}`)
+          break
+        }
+        if (clipsY && (painted.top < box.top || painted.bottom > box.bottom)) {
+          issues.push(`button "${button.textContent?.trim()}" slab clipped vertically by ${ancestor.className || ancestor.tagName}`)
+          break
         }
       }
     }

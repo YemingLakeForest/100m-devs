@@ -4,6 +4,12 @@ import {
   SCENES,
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
+  SCENE_JAMES_PROMOTED,
+  SCENE_MO_ARRIVES,
+  SCENE_SERENA_ARRIVES,
+  SCENE_MATT_ARRIVES,
+  SCENE_MELANY_ARRIVES,
+  SCENE_BILLY_ARRIVES,
 } from './scenes.ts'
 
 const script = SCENE_JAMES_INSTANT_MESSENGER.script
@@ -93,7 +99,16 @@ describe('§21.7.1 — James arrives, and nothing announces it', () => {
   /** §21.7.0 rule 5. The gym, ten to eleven, every day. Every single day. */
   it('establishes the gym as a fact about the universe', () => {
     expect(all).toContain('I’m here eleven to seven. I go to the gym at ten.')
-    expect(all[all.length - 1]).toBe('Every single day.')
+    expect(all).toContain('Every single day.')
+  })
+
+  it('goes straight back to work, very focused — §21.7.0 rule 1', () => {
+    expect(all).toContain('I’m going straight back to work. I don’t stop once I start.')
+  })
+
+  it('ends on the burn-down transition — the mechanism, not the man', () => {
+    expect(all[all.length - 1]).toContain('STORY POINTS')
+    expect(all[all.length - 1]).toContain('BURN DOWN')
   })
 
   /**
@@ -110,7 +125,7 @@ describe('§21.7.1 — James arrives, and nothing announces it', () => {
 
   it('is short — a hero introduction is a handshake, not an act', () => {
     // §21.7.3 rule 1 sets this scene as the length nothing later exceeds.
-    expect(arrival.length).toBeLessThanOrEqual(13)
+    expect(arrival.length).toBeLessThanOrEqual(15)
   })
 })
 
@@ -181,5 +196,58 @@ describe('the scene registry', () => {
     for (const scene of Object.values(SCENES)) {
       expect(scene.script.filter((l) => emoji.test(l.text) || emoji.test(l.speaker))).toEqual([])
     }
+  })
+})
+
+describe('§21.7.3 — the five story hires', () => {
+  const arrivals = [
+    SCENE_MO_ARRIVES,
+    SCENE_SERENA_ARRIVES,
+    SCENE_MATT_ARRIVES,
+    SCENE_MELANY_ARRIVES,
+    SCENE_BILLY_ARRIVES,
+  ]
+
+  it('is a handshake, not an act — under twelve lines', () => {
+    for (const scene of arrivals) {
+      expect(scene.script.length).toBeLessThan(12)
+    }
+  })
+
+  it('has James in every one, saying exactly one line', () => {
+    for (const scene of arrivals) {
+      const james = scene.script.filter((l) => l.speaker === 'JAMES')
+      expect(james).toHaveLength(1)
+    }
+  })
+
+  it('has James talk about the tool or the process, never the person', () => {
+    // §21.7.3 shape rule 3 — he does not notice people arriving. Word-boundary
+    // matched, because "More capacity" is not a mention of Mo.
+    for (const scene of arrivals) {
+      const line = scene.script.find((l) => l.speaker === 'JAMES')!
+      for (const hero of ['Mo', 'Serena', 'Matt', 'Melany', 'Billy']) {
+        expect(line.text).not.toMatch(new RegExp(`\\b${hero}\\b`))
+      }
+    }
+  })
+
+  it('opens on the same door as Act I — APPLICANT AT DOOR', () => {
+    for (const scene of arrivals) {
+      expect(scene.script[0].speaker).toBe('STUDIO_OS')
+      expect(scene.script[0].text).toContain('APPLICANT AT DOOR')
+    }
+  })
+})
+
+describe('§21.7.4 — Global Head of His Desk', () => {
+  it('gives James the last word, and it is a James line', () => {
+    expect(SCENE_JAMES_PROMOTED.script.at(-1)!.speaker).toBe('JAMES')
+    expect(SCENE_JAMES_PROMOTED.script.at(-1)!.text).toBe('Fewer surprises.')
+  })
+
+  it('is the corporate ladder rendered as a string', () => {
+    const os = SCENE_JAMES_PROMOTED.script.find((l) => l.speaker === 'STUDIO_OS')!
+    expect(os.text).toContain('GLOBAL HEAD OF HIS DESK')
   })
 })

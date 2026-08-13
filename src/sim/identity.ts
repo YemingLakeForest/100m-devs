@@ -171,18 +171,22 @@ export function identityFor(seed: number, index: number): Identity {
 export const JAMES: Identity = {
   name: 'James',
   look: {
-    hair: 1,
-    hairColour: 2,
+    // Full head of orange hair, a full orange beard, thick glasses, and a white
+    // tee. The orange hair and the white shirt are the two entries appended to
+    // the room's part tables past {@link HAIR_COLOURS} and {@link SHIRT_COLOURS},
+    // so they are his alone — no generated developer ever rolls them.
+    hair: 0,
+    hairColour: HAIR_COLOURS,
     skin: 1,
-    shirt: 0,
-    body: 0,
-    facialHair: 2,
+    shirt: SHIRT_COLOURS,
+    body: 1,
+    facialHair: 3,
     glasses: true,
     headphones: false,
     slouch: 0.2,
   },
-  stats: { focus: 41, chatter: 88, seniority: 30 },
-  trait: 'Meeting Magnet',
+  stats: { focus: 99, chatter: 1, seniority: 38 },
+  trait: 'Owns The Build',
 }
 
 /**

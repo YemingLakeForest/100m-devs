@@ -61,7 +61,7 @@ export function FounderDesk({ stage }: { stage: StageHandle | null }) {
           }
         }}
       >
-        CODE — YOU
+        CODE
       </Button>
     </div>
   )

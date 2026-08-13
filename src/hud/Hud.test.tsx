@@ -251,43 +251,39 @@ describe('the upgrades entry point', () => {
     // §10.5 rule 1 — enters from the edge it belongs to, exits back toward it.
     expect(drawer?.className).toContain('ui-panel--right')
     expect(drawer?.getAttribute('data-phase')).toBe('in')
-    // §11.2 and §11.3, the two branches that shipped. This used to assert the
-    // placeholder's heading; the placeholder is gone and the tree is here.
-    expect(drawer?.textContent).toContain('COMMUNICATION PROTOCOLS')
-    expect(drawer?.textContent).toContain('CULTURE & JUICE')
-    // §11.5 — B1 is Instant Messenger now. Voice Shouting is what the studio
-    // does before it owns anything, not something anybody buys.
+    // §11.4 — the tree is a centre-out board now, and the centre is Instant
+    // Messenger, given rather than sold.
     expect(drawer?.textContent).toContain('Instant Messenger')
+    expect(drawer?.querySelector('.upgrade-board__node[data-owned="true"]')).not.toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: /BACK/ }))
     expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('exit')
   })
 
-  it('shows a locked node by name rather than hiding it', async () => {
-    // §11's warning — buy the workforce without the communication infra and the
-    // trap fires — can only be heeded by a player who can see what is further
-    // up the branch than they have reached.
+  it('reveals the next purchase and keeps far nodes as a stub — §11.4.2', async () => {
     const { container } = render(<Hud stage={null} />)
     fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
     await frame()
 
     const drawer = container.querySelector('.hud__upgrades')
-    expect(drawer?.textContent).toContain('Daily Standups')
-    expect(drawer?.querySelector('.tech__node[data-locked="true"]')).not.toBeNull()
-    expect(drawer?.textContent).toContain('NEEDS B1')
+    // A node one step from the centre is visible as a silhouette.
+    expect(drawer?.querySelector('.upgrade-board__node[data-state="silhouette"]')).not.toBeNull()
+    // Further out, the board's shape is still there — a stub, never nothing.
+    expect(drawer?.querySelector('.upgrade-board__node[data-state="dark"]')).not.toBeNull()
+    expect(drawer?.querySelector('.upgrade-board__stub')).not.toBeNull()
   })
 
-  it('prices a node the player cannot yet afford, and refuses it', async () => {
+  it('prices a node the player cannot yet afford rather than offering a dead button', async () => {
     __setState({ cash: 0 })
     const { container } = render(<Hud stage={null} />)
     fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
     await frame()
 
-    // §11.3 C1 is $100. A button that looks live and does nothing is worse than
-    // one that says so — the same rule §21.0 applies to the hire control.
-    const buy = screen.getByRole('button', { name: /^\$100$/ })
-    expect(buy).toBeDisabled()
-    expect(container.querySelector('.tech__node[data-owned="true"]')).toBeNull()
+    // §11.4.2 — the next purchase carries its price as a silhouette, no text,
+    // and no buy control that would just refuse the player.
+    const silhouette = container.querySelector('.upgrade-board__node[data-state="silhouette"]')
+    expect(silhouette).not.toBeNull()
+    expect(silhouette?.textContent).toMatch(/\$/)
   })
 
   /**
@@ -301,9 +297,8 @@ describe('the upgrades entry point', () => {
     fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
     await frame()
 
-    const drawer = container.querySelector('.hud__upgrades')
-    expect(drawer?.textContent).toContain('Instant Messenger')
-    expect(drawer?.querySelector('.tech__node-granted')).not.toBeNull()
+    const centre = container.querySelector('.upgrade-board__node[data-owned="true"]')
+    expect(centre?.textContent).toContain('Instant Messenger')
     expect(screen.queryByRole('button', { name: /^\$0$/ })).toBeNull()
   })
 

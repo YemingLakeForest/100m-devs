@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   NO_TECH,
+  PRESTIGE_PHI,
   STANDUP_LENGTH_S,
   STANDUP_PERIOD_S,
   TECH_BY_ID,
   TECH_TREE,
+  boardCost,
   canBuyTech,
   inStandup,
   standupFactor,
@@ -75,16 +77,61 @@ describe('buying', () => {
 
   it('refuses a node whose prerequisite is unowned, at any price', () => {
     expect(techUnlocked(b2, {})).toBe(false)
-    expect(canBuyTech(b2, {}, Number.MAX_SAFE_INTEGER)).toBe(false)
+    // Ring open (one shift), so the prerequisite is the thing being refused.
+    expect(canBuyTech(b2, {}, Number.MAX_SAFE_INTEGER, 1)).toBe(false)
   })
 
-  it('allows it once the prerequisite is owned and the cash is there', () => {
-    expect(canBuyTech(b2, { B1: 1 }, 2_500)).toBe(true)
-    expect(canBuyTech(b2, { B1: 1 }, 2_499)).toBe(false)
+  it('allows it once the prerequisite is owned, the ring is open, and the cash is there', () => {
+    const cost = boardCost(b2, 0, 1)
+    expect(canBuyTech(b2, { B1: 1 }, cost, 1)).toBe(true)
+    expect(canBuyTech(b2, { B1: 1 }, cost - 1, 1)).toBe(false)
+  })
+
+  it('refuses a node whose ring has not opened, whatever the cash', () => {
+    // B2 is ring 1: before the first shift the board is shut to it.
+    expect(canBuyTech(b2, { B1: 1 }, Number.MAX_SAFE_INTEGER, 0)).toBe(false)
   })
 
   it('refuses a maxed node', () => {
-    expect(canBuyTech(b2, { B1: 1, B2: 1 }, Number.MAX_SAFE_INTEGER)).toBe(false)
+    expect(canBuyTech(b2, { B1: 1, B2: 1 }, Number.MAX_SAFE_INTEGER, 1)).toBe(false)
+  })
+})
+
+describe('the board shape — §11.4.1, §11.4.6', () => {
+  it('puts Instant Messenger at the centre of the grid', () => {
+    const im = TECH_BY_ID.get('B1')!
+    expect(im.x).toBe(0)
+    expect(im.y).toBe(0)
+    expect(im.ring).toBe(0)
+    expect(im.granted).toBe(true)
+  })
+
+  it('lays every branch out as a compass heading, never a column', () => {
+    // Protocol runs west (negative x), culture runs north (negative y), and the
+    // estimation fork runs east from the culture root — three headings.
+    const xs = new Set(TECH_TREE.filter((n) => !n.granted).map((n) => n.x))
+    expect(xs.size).toBeGreaterThan(2)
+    const ys = new Set(TECH_TREE.filter((n) => !n.granted).map((n) => n.y))
+    expect(ys.size).toBeGreaterThan(1)
+  })
+
+  it('marks the ring on every node as a first pass, monotonically by chain depth', () => {
+    for (const node of TECH_TREE) {
+      expect(node.ring).toBeGreaterThanOrEqual(0)
+    }
+    // A child is never in an earlier ring than its prerequisite.
+    for (const node of TECH_TREE) {
+      if (node.requires === undefined) continue
+      expect(node.ring).toBeGreaterThan(TECH_BY_ID.get(node.requires)!.ring)
+    }
+  })
+
+  it('charges the prestige term on the price — §11.4.6', () => {
+    const c1 = TECH_BY_ID.get('C1')!
+    const flat = techCost(c1, 0)
+    expect(boardCost(c1, 0, 0)).toBe(flat)
+    expect(boardCost(c1, 0, 1)).toBe(Math.round(flat * PRESTIGE_PHI))
+    expect(boardCost(c1, 0, 2)).toBe(Math.round(flat * PRESTIGE_PHI ** 2))
   })
 })
 

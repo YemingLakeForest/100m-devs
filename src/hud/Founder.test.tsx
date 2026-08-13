@@ -25,7 +25,7 @@ describe('manager corner', () => {
 
     render(<FounderDesk stage={stage} />)
     expect(screen.getByText('ADA')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'CODE — YOU' }))
+    fireEvent.click(screen.getByRole('button', { name: 'CODE' }))
 
     expect(codeFounder).toHaveBeenCalledOnce()
   })

@@ -70,6 +70,19 @@ export interface StageHandle {
   readonly camera: LensCamera
   /** §7.8.10 Hero Anchor: return smoothly to the manager corner. */
   focusFounder(): void
+  /**
+   * §10.7a.1 — point the lens at the dialogue's current speaker. `'founder'`
+   * is the corner desk, a number is a seat index, `null` is `STUDIO_OS` (the
+   * lens holds where it is). Called by the dialogue box on every page turn;
+   * the camera push to Desk zoom and the return are handled here, from the
+   * store's scene state, so the box does not need to know the camera exists.
+   */
+  focusDialogue(focus: 'founder' | number | null): void
+  /**
+   * §21.7.1 — watch James fall in. The lens goes to his seat for the drop and
+   * returns to the founder (with a jolt) when he lands.
+   */
+  focusJamesDrop(): void
   /** Code at your own desk with the standard numeral/snippet feedback. */
   codeFounder(): number
   /** React hook for opening the founder profile when the world avatar is tapped. */
@@ -469,11 +482,47 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** The rail's CODE — YOU action owns the lens until the corner desk lands. */
   let founderFocus = false
 
+  /**
+   * §10.7a.1 — the dialogue's current speaker, and the camera the scene found
+   * itself in. The push to Desk zoom and the per-line re-centre are driven from
+   * here; {@link focusDialogue} just says who is talking.
+   */
+  let dialogueFocus: 'founder' | number | null = null
+  let savedSceneCamera: { z: number; panX: number; panY: number } | null = null
+  /** §21.7.1 — true from the moment James starts falling until he lands. */
+  let watchingJamesDrop = false
+
   const focusFounderCamera = () => {
     founderFocus = true
     focal = null
     pan.vx = 0
     pan.vy = 0
+    dollyTarget = zAtRung(0)
+  }
+
+  /**
+   * §10.7a.1 — who is talking, in the world. The camera push itself is handled
+   * in the frame loop off the store's scene state; this records the speaker and
+   * turns them to face the lens for the duration of their line.
+   */
+  const focusDialogue = (focus: 'founder' | number | null) => {
+    dialogueFocus = focus
+    room.setSpeaker(typeof focus === 'number' ? focus : -1)
+    // A scene always plays at Desk zoom, so every line that names somebody
+    // re-asserts it — and a line with nobody (STUDIO_OS) holds it rather than
+    // cutting away.
+    if (focus !== null) dollyTarget = zAtRung(0)
+  }
+
+  /**
+   * §21.7.1 — the drop. The lens goes to James's seat and holds there while he
+   * falls; the frame loop returns it to the founder once the arrival has
+   * landed, with a jolt that reads as the founder's startled reaction.
+   */
+  const startJamesDrop = () => {
+    watchingJamesDrop = true
+    dialogueFocus = 0
+    room.setSpeaker(-1)
     dollyTarget = zAtRung(0)
   }
 
@@ -795,6 +844,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     const state = getState()
 
+    // §10.7a.1 — a scene pushes to Desk zoom on the way in and returns to where
+    // the player was on the way out. Driven off the store's scene id, so the
+    // dialogue box needs no knowledge of the camera and a scene can never leave
+    // the player somewhere they did not choose to be.
+    if (state.scene && savedSceneCamera === null) {
+      savedSceneCamera = { z: camera.z, panX: pan.x, panY: pan.y }
+      dollyTarget = zAtRung(0)
+    } else if (!state.scene && savedSceneCamera !== null) {
+      camera.set(savedSceneCamera.z)
+      pan.x = savedSceneCamera.panX
+      pan.y = savedSceneCamera.panY
+      savedSceneCamera = null
+      dialogueFocus = null
+      room.setSpeaker(-1)
+    }
+
     // §21 Act IV: "a heavy bass-drop THUD shakes the screen as the camera
     // violently zooms out to Level 2." Driven here rather than by the store,
     // because the camera is the renderer's business — the store just says the
@@ -870,8 +935,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       }
     }
     devsBefore = state.devs
-    arrivals.update(now)
+    const arriving = arrivals.update(now)
     hireShake = Math.max(hireShake, arrivals.consumeImpact())
+    // §21.7.1 — James has landed. The lens leaves his seat and returns to the
+    // founder, who jolts: the "terrified" beat the scene opens on.
+    if (watchingJamesDrop && !arriving) {
+      watchingJamesDrop = false
+      dialogueFocus = 'founder'
+      room.joltFounder()
+    }
     // §20.7.3 — the score is a mix, not a playlist. Driven every frame from
     // the same camera Z the picture uses and the same Entropy the readout
     // does, so picture, ambience and music change register on the same frame.
@@ -1019,6 +1091,34 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       pan.vy = 0
       if (camera.z < 0.002 && Math.hypot(targetX - pan.x, targetY - pan.y) < 0.8) {
         founderFocus = false
+      }
+    }
+
+    // §10.7a.1 — the same lerp, aimed at whoever is speaking. It runs for the
+    // whole scene, re-aiming on every line: the ~15% of screen width that says
+    // *this one is talking*, never a whip, and the speaker is already in frame.
+    //
+    // `deskFor` rather than `deskAt`: a seat's *place* exists before the seat
+    // is drawn. During James's §21.7.1 drop the room withholds his desk until
+    // the arrival lands, so `deskAt(0)` is null for the whole fall — and the
+    // camera has to be able to point at the empty space he is about to land in.
+    if (dialogueFocus !== null && view === 'room') {
+      const at = dialogueFocus === 'founder' ? room.founderDeskAt() : room.deskFor(dialogueFocus)
+      if (at) {
+        const roomView = views.room
+        const targetX = Math.min(
+          limitX,
+          Math.max(-limitX, -((at.x - roomView.pivot.x) * domScale + roomView.position.x)),
+        )
+        const targetY = Math.min(
+          limitY,
+          Math.max(-limitY, -((at.y - roomView.pivot.y) * domScale + roomView.position.y)),
+        )
+        const move = Math.min(1, dt * 6.5)
+        pan.x += (targetX - pan.x) * move
+        pan.y += (targetY - pan.y) * move
+        pan.vx = 0
+        pan.vy = 0
       }
     }
     if (!drag) pan = stepPan(pan, dt, limitX, limitY)
@@ -1175,6 +1275,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     camera,
     focusFounder() {
       focusFounderCamera()
+    },
+    focusDialogue(focus) {
+      focusDialogue(focus)
+    },
+    focusJamesDrop() {
+      startJamesDrop()
     },
     codeFounder() {
       return codeAtFounderDesk(undefined, true)

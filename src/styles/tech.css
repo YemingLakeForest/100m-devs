@@ -147,3 +147,199 @@
   letter-spacing: 0.08em;
   padding: 4px 0;
 }
+
+/* ---------------------------------------------------------------------------
+ * §11.4 — the upgrade board.
+ *
+ * Replaces the two-column list above. The tree is a centre-out board: Instant
+ * Messenger at the origin, branches on compass headings, right-angle connectors.
+ * It is larger than its viewport and panned, which is how it is bigger without
+ * a line of copy saying so.
+ */
+
+.upgrade-board {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  justify-items: start;
+  padding: 10px 12px 12px;
+  min-height: 0;
+  /*
+   * `max-height`, not `height`: the drawer is `position: absolute` with a
+   * definite max-height, so a plain `height: 100%` resolves against an
+   * auto-height parent and the scroll row never gets a bound to shrink to —
+   * the board grows to its world's height and the footer (and BACK's slab) is
+   * clipped by the drawer's `overflow: hidden`.
+   */
+  max-height: 100%;
+}
+
+.upgrade-board__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.upgrade-board__scroll {
+  width: 100%;
+  min-height: 0;
+  /*
+   * An explicit cap, not `1fr`. The drawer is `position: absolute` and its
+   * height is content-driven, so the grid's `minmax(0, 1fr)` row never gets a
+   * bound to shrink to — the board would grow to its world's height and push
+   * the footer out of the drawer. 46vh is what the old list used; it leaves
+   * the head and the BACK button inside the panel's own border.
+   */
+  max-height: 46vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: var(--rule) solid var(--p0);
+  background: color-mix(in srgb, var(--n1) 55%, transparent);
+}
+
+.upgrade-board__world {
+  position: relative;
+}
+
+.upgrade-board__links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.upgrade-board__links line {
+  stroke: var(--p0);
+  stroke-width: 2;
+}
+
+.upgrade-board__node {
+  position: absolute;
+  width: 66px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  border: var(--rule) solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 86%, transparent);
+  color: var(--p3);
+  cursor: pointer;
+  padding: 0;
+}
+
+.upgrade-board__node:active {
+  transform: scale(0.94);
+}
+
+.upgrade-board__icon {
+  width: 38px;
+  height: 38px;
+  fill: currentColor;
+}
+
+.upgrade-board__node-name {
+  font-size: var(--type-1x);
+  letter-spacing: 0.5px;
+  color: var(--p3);
+  line-height: 1.1;
+  max-width: 60px;
+  overflow: hidden;
+}
+
+.upgrade-board__node-price {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+/* Silhouette — one node from something owned. Icon and price, no text. */
+.upgrade-board__node[data-state='silhouette'] {
+  border-color: var(--p0);
+  color: var(--p1);
+}
+
+.upgrade-board__node[data-state='silhouette'] .upgrade-board__icon {
+  opacity: 0.55;
+}
+
+/* Dark — the connector and a stub. The shape is visible, the contents are not. */
+.upgrade-board__node[data-state='dark'] {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.upgrade-board__node[data-state='dark'] .upgrade-board__icon {
+  display: none;
+}
+
+.upgrade-board__stub {
+  width: 7px;
+  height: 7px;
+  background: var(--p0);
+}
+
+.upgrade-board__footer {
+  width: 100%;
+}
+
+/* §11.4.3 — the guide layer. The node enlarged, everything else dimmed. */
+.upgrade-board__guide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--n0) 60%, transparent);
+  z-index: 2;
+}
+
+.upgrade-board__guide-card {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  width: 280px;
+  padding: 14px;
+  border: var(--rule) solid var(--p2);
+  background: var(--n0);
+}
+
+.upgrade-board__guide-icon {
+  width: 72px;
+  height: 72px;
+  fill: var(--p2);
+  justify-self: center;
+}
+
+.upgrade-board__guide-name {
+  margin: 0;
+  font-size: var(--type-2x);
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: var(--p3);
+}
+
+.upgrade-board__guide-flavour {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p1);
+  font-style: italic;
+}
+
+.upgrade-board__guide-effect {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p2);
+}
+
+.upgrade-board__guide-locked {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p1);
+}

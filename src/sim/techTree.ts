@@ -61,6 +61,19 @@ export interface TechNode {
   /** The node that must be owned first. Branch chains, not a shop. */
   requires?: string
   /**
+   * §11.4.1 — where the node sits on the centre-out board, in cell units.
+   * Instant Messenger is (0,0); a branch is a compass heading, never a column.
+   * Authored rather than derived so a re-layout is a data edit, not a formula.
+   */
+  x: number
+  y: number
+  /**
+   * §11.4.6 — the ring this node opens on. 0 is the centre (granted, never
+   * sold); ring `n` opens at `n` Paradigm Shifts. A first pass, marked as one —
+   * §25.6.3 hands the ring-to-shift mapping to a playtest.
+   */
+  ring: number
+  /**
    * §11.5 — the player is *given* this one, by the story, and can never buy it.
    *
    * A flag rather than a `baseCost` of zero, because those are different
@@ -103,6 +116,9 @@ export const TECH_TREE: readonly TechNode[] = [
     baseCost: 0,
     mult: 1,
     maxLevel: 1,
+    x: 0,
+    y: 0,
+    ring: 0,
     granted: true,
   },
   {
@@ -115,6 +131,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.12,
     maxLevel: 1,
     requires: 'B1',
+    x: -1,
+    y: 0,
+    ring: 1,
   },
   {
     id: 'B3',
@@ -126,6 +145,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.14,
     maxLevel: 1,
     requires: 'B2',
+    x: -2,
+    y: 0,
+    ring: 2,
   },
   {
     id: 'B4',
@@ -137,6 +159,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.15,
     maxLevel: 1,
     requires: 'B3',
+    x: -3,
+    y: 0,
+    ring: 3,
   },
 
   // --- Branch C — Culture & Juice (§11.3) ----------------------------------
@@ -149,6 +174,9 @@ export const TECH_TREE: readonly TechNode[] = [
     baseCost: 100,
     mult: 1.09,
     maxLevel: 1,
+    x: 0,
+    y: -1,
+    ring: 1,
   },
   {
     id: 'C2',
@@ -160,6 +188,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.11,
     maxLevel: 1,
     requires: 'C1',
+    x: 0,
+    y: -2,
+    ring: 2,
   },
   {
     id: 'C6',
@@ -171,6 +202,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.1,
     maxLevel: 1,
     requires: 'C1',
+    x: 1,
+    y: -1,
+    ring: 2,
   },
   {
     id: 'C7',
@@ -182,6 +216,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.13,
     maxLevel: 1,
     requires: 'C6',
+    x: 2,
+    y: -1,
+    ring: 3,
   },
   {
     id: 'C8',
@@ -194,6 +231,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.17,
     maxLevel: 1,
     requires: 'C7',
+    x: 3,
+    y: -1,
+    ring: 4,
   },
   {
     id: 'C9',
@@ -205,6 +245,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.21,
     maxLevel: 1,
     requires: 'C8',
+    x: 4,
+    y: -1,
+    ring: 5,
   },
   {
     id: 'C10',
@@ -216,6 +259,9 @@ export const TECH_TREE: readonly TechNode[] = [
     mult: 1.24,
     maxLevel: 1,
     requires: 'C9',
+    x: 5,
+    y: -1,
+    ring: 6,
   },
 ]
 
@@ -248,6 +294,38 @@ export function techCost(node: TechNode, currentLevel: number): number {
 }
 
 /**
+ * §11.4.6 — the prestige term on the price.
+ *
+ * $$\text{Cost} = \text{BaseCost} \cdot \text{Mult}^{N} \cdot \Phi^{\,s}$$
+ *
+ * `s` is shifts taken and `Φ` is a little above 1. §11.0's curve is untouched
+ * *inside* a run; this is what stops Run 6 buying the whole board in its first
+ * minute with Run 5's economy. A first pass, marked as one — §25.6.3 refuses to
+ * decide the number.
+ */
+export const PRESTIGE_PHI = 1.12
+
+/** §11.4.6 — is ring `ring` open after `shifts` Paradigm Shifts? */
+export function ringOpen(ring: number, shifts: number): boolean {
+  return Math.max(0, Math.floor(ring)) <= Math.max(0, Math.floor(shifts))
+}
+
+/**
+ * §11.4.6 — the full price, prestige term included, for the *next* level.
+ *
+ * Kept as a separate function rather than folded into {@link techCost}, which
+ * §11.0's tests pin as the in-run curve alone. A caller that wants the price a
+ * player will actually be charged asks here.
+ */
+export function boardCost(node: TechNode, currentLevel: number, shifts = 0): number {
+  return Math.round(
+    node.baseCost *
+      node.mult ** Math.max(0, currentLevel) *
+      PRESTIGE_PHI ** Math.max(0, Math.floor(shifts)),
+  )
+}
+
+/**
  * Levels by node id.
  *
  * Optional, and every reader here tolerates its absence. Not defensive
@@ -274,13 +352,15 @@ export function techUnlocked(node: TechNode, levels: TechLevels): boolean {
   return node.requires === undefined || techLevel(levels, node.requires) > 0
 }
 
-export function canBuyTech(node: TechNode, levels: TechLevels, cash: number): boolean {
+export function canBuyTech(node: TechNode, levels: TechLevels, cash: number, shifts = 0): boolean {
   // §11.5 — a granted node is never for sale, at any price, in any state.
   if (node.granted) return false
+  // §11.4.6 — the board only opens one ring per shift.
+  if (!ringOpen(node.ring, shifts)) return false
   const level = techLevel(levels, node.id)
   if (level >= node.maxLevel) return false
   if (!techUnlocked(node, levels)) return false
-  return cash >= techCost(node, level)
+  return cash >= boardCost(node, level, shifts)
 }
 
 // --- what the tree does ----------------------------------------------------

@@ -200,7 +200,7 @@ export function Velocity({ state }: { state: GameState }) {
     <div className="hud__block">
       <span className="hud__label"><Kw kind="velocity">VELOCITY</Kw></span>
       <b className="hud__num hud__num--major">{formatVelocity(currentEffectiveVelocity(state))}</b>
-      <span className="hud__sub">
+      <span className="hud__sub hud__sub--unit">
         <Kw>story points</Kw>/SEC
       </span>
       {/* Only while the player is actually poking, so the row is an event

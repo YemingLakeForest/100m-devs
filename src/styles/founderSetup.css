@@ -131,7 +131,9 @@
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 7px;
-  padding: 0 2px;
+  /* 6px of side room so a button's offset slab (box-shadow + skew) at the row's
+     edge is not clipped by the screen's own `overflow: hidden`. */
+  padding: 0 6px;
   min-height: 0;
 }
 

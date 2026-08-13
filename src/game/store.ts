@@ -41,7 +41,7 @@ import {
   suppressedReleases,
   type Incident,
 } from '../sim/incidents.ts'
-import { advanceTickets, catalogueMultiplier } from '../sim/support.ts'
+import { advanceTickets, catalogueMultiplier, serviceRatio } from '../sim/support.ts'
 import {
   BASELINE_RATING,
   DEFECT_DENSITY_ANCHOR,
@@ -88,10 +88,11 @@ import {
 import {
   FIRST_PROTOCOL_NODE,
   TECH_BY_ID,
+  boardCost,
   canBuyTech,
   inStandup,
+  ringOpen,
   standupFactor,
-  techCost,
   techEffects,
   techLevel,
   type TechEffects,
@@ -111,6 +112,15 @@ import {
   type TouchMode,
 } from './touchMode.ts'
 import { SCENE_JAMES_ARRIVES, SCENE_JAMES_INSTANT_MESSENGER } from './scenes.ts'
+import {
+  SCENE_BILLY_ARRIVES,
+  SCENE_MATT_ARRIVES,
+  SCENE_MELANY_ARRIVES,
+  SCENE_MO_ARRIVES,
+  SCENE_SERENA_ARRIVES,
+} from './scenes.ts'
+import { arrivalPredicate, type StorySnapshot } from './storyTriggers.ts'
+import { ARRIVAL_HEROES, type HeroId } from '../sim/storyHeroes.ts'
 import { unlocksFor, type Unlocks } from './unlocks.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
@@ -125,6 +135,7 @@ import {
   shouldRebuke,
   type Phase,
 } from './onboarding.ts'
+import { jamesPresent } from '../sim/james.ts'
 import {
   NODE_CI_CD_AUTOPILOT,
   offlineCapSeconds,
@@ -462,6 +473,12 @@ export interface GameState {
   /** §4.13 — tickets waiting. Never reaches zero for long, and never can. */
   tickets: number
   /**
+   * §21.7.3, Matt — seconds the ticket queue has gone unanswered. Ephemeral
+   * (§24.2): it is a *sustained* condition the trigger needs, and restoring a
+   * clock the player cannot see the cause of would be a mystery.
+   */
+  ticketsUnservedFor: number
+  /**
    * §4.14 — a slow-moving average of recent ratings.
    *
    * Run state, and that is a decision rather than an oversight: reputation is
@@ -563,6 +580,7 @@ function freshRun(): GameState {
     incidents: [],
     incidentPending: 0,
     tickets: 0,
+    ticketsUnservedFor: 0,
     reputation: BASELINE_RATING,
   }
 }
@@ -1248,6 +1266,13 @@ export function tick(dtSeconds: number): void {
   // §21's economy was tuned against an untaxed catalogue and must stay tuned.
   const ticketTax = open ? catalogueMultiplier(tickets.queue, support) : 1
 
+  // §21.7.3, Matt — the queue is "unserved" while the studio is falling behind:
+  // arrival outruns capacity (§4.15's bar reads below 1). Tracked as a running
+  // clock so the trigger can demand a *sustained* period rather than a spike.
+  const fallingBehind =
+    open && serviceRatio(state.projectsShipped, defects, support) < 1
+  const ticketsUnservedFor = fallingBehind ? state.ticketsUnservedFor + dtSeconds : 0
+
   let patch: Partial<GameState> = {
     localEntropy,
     buffs,
@@ -1255,6 +1280,7 @@ export function tick(dtSeconds: number): void {
     incidents: incidents.incidents,
     incidentPending: incidents.pending,
     tickets: tickets.queue,
+    ticketsUnservedFor,
     // §11.2 B2's meeting clock. Simulated seconds, not wall-clock — see the
     // field's note. Advanced before anything reads it so the standup boundary
     // lands on the same frame the velocity does.
@@ -1315,6 +1341,8 @@ export function tick(dtSeconds: number): void {
   // patch would mean composing a hire into a partial state that has not been
   // published yet, and `hire` reads `state` for the roster.
   advanceAct1(after.phase, patch.phase)
+  // §21.7.3 — after `set`, so the snapshot reads the frame's final state.
+  checkStoryTriggers(getState())
 }
 
 /**
@@ -1342,10 +1370,73 @@ function advanceAct1(from: Phase, to: Phase | undefined): void {
   if (to === undefined || to === from) return
 
   if (to === 'act1_james' && state.devs === 0) {
-    // He is not hired. He turns up, he is free, and §4.10a's payroll already
-    // starts at the third head — so this costs the economy exactly nothing and
-    // needs no exception anywhere in `economy.ts`.
-    set({ ...hire(0, 1, 'dev'), scene: SCENE_JAMES_ARRIVES.id })
+    // §21.7.1 — the scene opens on `APPLICANT AT DOOR.` with the desk still
+    // empty. The hire itself is {@link grantJames}, called from the dialogue
+    // when it reaches {@link JAMES_DROPS_AT_LINE}, so the beat is "the door,
+    // then the drop, then the conversation" rather than a scene played over a
+    // developer who is already there.
+    set({ scene: SCENE_JAMES_ARRIVES.id })
+  }
+}
+
+/**
+ * §21.7.1 — James falls in, exactly like any other hire.
+ *
+ * Fired by the dialogue box when it reaches {@link JAMES_DROPS_AT_LINE}, so the
+ * `APPLICANT AT DOOR.` beat holds before the drop. Idempotent: he is free and
+ * he is granted once, and §4.10a's payroll starts at the third head, so this
+ * costs the economy nothing.
+ */
+export function grantJames(): boolean {
+  if (state.devs !== 0) return false
+  set(hire(0, 1, 'dev'))
+  return true
+}
+
+/** §21.7.3 — the hero each arrival scene is about, and the scene it plays. */
+const HERO_SCENE: Record<HeroId, string> = {
+  james: SCENE_JAMES_ARRIVES.id,
+  mo: SCENE_MO_ARRIVES.id,
+  serena: SCENE_SERENA_ARRIVES.id,
+  matt: SCENE_MATT_ARRIVES.id,
+  melany: SCENE_MELANY_ARRIVES.id,
+  billy: SCENE_BILLY_ARRIVES.id,
+}
+
+/**
+ * §21.7.3 — the one rule, asked every tick.
+ *
+ * A hero arrives the first time the player feels the problem they solve. The
+ * predicate is pure; this builds its snapshot, and the `milestones` union
+ * (§24.3) makes it fire once — {@link showScene} is idempotent and
+ * {@link dismissScene} records the scene as seen.
+ *
+ * §21.0c puts a floor under it: the whole ladder is Run 2+, because the
+ * systems each trigger reads are all gated behind the first shift already.
+ */
+function checkStoryTriggers(s: GameState): void {
+  if (getPermanent().meta.paradigmShifts <= 0) return
+  if (s.scene !== null) return
+
+  const snapshot: StorySnapshot = {
+    paradigmShifts: getPermanent().meta.paradigmShifts,
+    releases: s.releases.map((r) => ({ defectDensity: r.defectDensity })),
+    hasIncident: s.incidents.length > 0,
+    tickets: s.tickets,
+    ticketsUnservedFor: s.ticketsUnservedFor,
+    devs: s.devs,
+    devCap: effectiveDevCap(s),
+    cash: s.cash,
+    entropy: currentEntropy(s),
+  }
+
+  for (const hero of ARRIVAL_HEROES) {
+    const predicate = arrivalPredicate(hero.id)
+    const sceneId = HERO_SCENE[hero.id]
+    if (predicate && predicate(snapshot) && !hasSeenScene(sceneId)) {
+      showScene(sceneId)
+      return
+    }
   }
 }
 
@@ -1412,6 +1503,14 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
 
   const rung = Math.max(0, Math.floor(target?.rung ?? 0))
   const index = Math.max(0, Math.floor(target?.index ?? 0))
+
+  // §21.7.0 rule 5 — James is at the gym, ten to eleven, every single day.
+  // Poke his desk in that hour and he is not there; the desk says so. Seat 0 is
+  // James (§7.8.7) and the room is the only rung with seats, so `rung === 0`.
+  if (rung === 0 && index === 0 && state.devs > 0 && !jamesPresent(state.runSeconds)) {
+    set(showBubble('He’s at the gym. Ten to eleven, every single day.', 5000))
+    return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
+  }
 
   // §4.5b — the reach is the unit that was actually hit, not a zoom band. A tap
   // in the room lands on one person, which is what §7.7.6's "the actual
@@ -1641,10 +1740,11 @@ export function buyTech(id: string): boolean {
   const node = TECH_BY_ID.get(id)
   if (!node) return false
   const level = techLevel(state.tech, id)
-  if (!canBuyTech(node, state.tech, state.cash)) return false
+  const shifts = getPermanent().meta.paradigmShifts
+  if (!canBuyTech(node, state.tech, state.cash, shifts)) return false
 
   set({
-    cash: state.cash - techCost(node, level),
+    cash: state.cash - boardCost(node, level, shifts),
     tech: { ...state.tech, [id]: level + 1 },
   })
   saveGame()
@@ -1656,13 +1756,15 @@ export function techQuote(id: string, s: GameState = state) {
   const node = TECH_BY_ID.get(id)
   if (!node) return null
   const level = techLevel(s.tech, id)
+  const shifts = getPermanent().meta.paradigmShifts
   return {
     node,
     level,
-    cost: techCost(node, level),
+    cost: boardCost(node, level, shifts),
     maxed: level >= node.maxLevel,
     unlocked: node.requires === undefined || techLevel(s.tech, node.requires) > 0,
-    affordable: canBuyTech(node, s.tech, s.cash),
+    ringOpen: ringOpen(node.ring, shifts),
+    affordable: canBuyTech(node, s.tech, s.cash, shifts),
   }
 }
 
@@ -2036,6 +2138,12 @@ export function dismissScene(): void {
     // waiting for a backgrounding that may never come (§24.9).
     saveGame()
   }
+  // §21.7.1 — if the arrival scene ever ends without James having dropped in
+  // (a test harness that dismisses the box rather than tapping through it), he
+  // is granted on the way out, so the run can never be parked at the empty
+  // desk. In play the dialogue reaches {@link JAMES_DROPS_AT_LINE} first and
+  // this is a no-op.
+  if (id === SCENE_JAMES_ARRIVES.id && state.devs === 0) grantJames()
   set({ scene: null })
 }
 

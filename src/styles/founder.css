@@ -44,6 +44,14 @@
   pointer-events: auto;
 }
 
+/*
+ * CODE is the thumb's primary verb in the right rail, so it earns a wider slab
+ * than the smaller nav buttons beside it.
+ */
+.founder__tap {
+  padding: 8px 24px;
+}
+
 .founder__corner-label {
   display: flex;
   align-items: baseline;

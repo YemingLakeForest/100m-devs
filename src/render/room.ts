@@ -296,6 +296,12 @@ export interface RoomHandle {
   setSeed(seed: number): void
   /** §7.8.8 — who is turned round to face the camera. -1 for nobody. */
   setSelected(index: number): void
+  /**
+   * §10.7a.1 — who is speaking a line of dialogue, turned to camera for it.
+   * -1 for nobody (or for `STUDIO_OS`, which has no body). A seat, not an
+   * identity, on the same argument §7.8.8 makes for selection.
+   */
+  setSpeaker(index: number): void
   /** §7.8.9 — the floor as a toy. Room-local coordinates throughout. */
   readonly hands: {
     isLoitering(i: number): boolean
@@ -864,6 +870,9 @@ const HAIR_RAMP: ReadonlyArray<readonly [readonly string[], number]> = [
   [RAMPS.WOOD, 0],
   [RAMPS.NEUTRAL, 1],
   [RAMPS.WOOD, 2],
+  // §7.8.7 — James's orange-brown. One past {@link HAIR_COLOURS}, so no
+  // generated developer ever rolls it: it is his, the same way his name is.
+  [RAMPS.WARN, 1],
 ]
 const SKIN_BASE = [0, 1, 3, 5] as const
 const SHIRT: ReadonlyArray<readonly [readonly string[], number]> = [
@@ -872,15 +881,21 @@ const SHIRT: ReadonlyArray<readonly [readonly string[], number]> = [
   [RAMPS.WARN, 1],
   [RAMPS.FOLIAGE, 1],
   [RAMPS.NEUTRAL, 3],
+  // §7.8.7 — James's white shirt. One past {@link SHIRT_COLOURS}, same rule.
+  [RAMPS.NEUTRAL, 8],
 ]
 
 /** The four creator silhouettes, shared by generated developers and YOU. */
 function torsoShape(look: Look): { w: number; h: number } {
   switch (look.body % 4) {
-    case 1: return { w: 15, h: 18 } // tee
-    case 2: return { w: 19, h: 19 } // jacket
-    case 3: return { w: 17, h: 21 } // knit
-    default: return { w: 17, h: 19 } // hoodie
+    // Tee — the narrowest, clearly the smallest silhouette.
+    case 1: return { w: 12, h: 18 }
+    // Jacket — the broadest shoulders in the room.
+    case 2: return { w: 22, h: 18 }
+    // Knit — the tallest, a turtleneck body.
+    case 3: return { w: 16, h: 22 }
+    // Hoodie — boxy, in between.
+    default: return { w: 18, h: 19 }
   }
 }
 
@@ -888,18 +903,23 @@ function torsoShape(look: Look): { w: number; h: number } {
 function drawTorsoDetails(g: Graphics, look: Look, front: boolean) {
   const body = look.body % 4
   if (body === 0) {
-    // Hood opening and zip.
+    // Hoodie: a hood read from behind as a cowl around the neck, the zip on the front.
+    if (!front) g.ellipse(0, -11, 8, 5).fill(c(RAMPS.NEUTRAL[2]))
     g.rect(-5, -13, 10, 3).fill(c(RAMPS.NEUTRAL[2]))
     if (front) g.rect(-0.75, -9, 1.5, 13).fill(c(RAMPS.NEUTRAL[2]))
+  } else if (body === 1) {
+    // Tee: plain — its narrow width is the whole statement.
   } else if (body === 2) {
-    // Jacket centre seam and two lapels on the visible front.
+    // Jacket: a shoulder seam across the top, and two lapels on the visible front.
+    if (!front) g.rect(-11, -12, 22, 2).fill(c(RAMPS.NEUTRAL[4]))
     g.rect(-0.75, -12, 1.5, 16).fill(c(RAMPS.NEUTRAL[2]))
     if (front) {
       g.moveTo(-6, -12).lineTo(-1, -5).lineTo(-1, -11).closePath().fill(c(RAMPS.NEUTRAL[4]))
       g.moveTo(6, -12).lineTo(1, -5).lineTo(1, -11).closePath().fill(c(RAMPS.NEUTRAL[3]))
     }
   } else if (body === 3) {
-    // Knit ribs: close, low-contrast bands instead of a different colour.
+    // Knit: a roll collar (turtleneck) around the neck, and rib bands below.
+    if (!front) g.rect(-6, -16, 12, 5).fill(c(RAMPS.NEUTRAL[4]))
     for (let y = -8; y <= 2; y += 5) {
       g.rect(-6, y, 12, 1).fill({ color: c(RAMPS.NEUTRAL[5]), alpha: 0.42 })
     }
@@ -1735,6 +1755,15 @@ export function buildRoom(): RoomHandle {
   /** §7.8.8 — the selected seat, and the spin's clock. */
   let selected = -1
   let turningOut = -1
+  /**
+   * §10.7a.1 — the seat speaking a line of dialogue, turned to camera for the
+   * duration of the line and back at its end. Separate from {@link selected}
+   * because a dialogue speaker and a selected developer are different intents:
+   * selection is the player's, the speaker is the script's, and the two can be
+   * different people on the same frame.
+   */
+  let speaker = -1
+  let speakerOut = -1
   let turnAt = 0
   /** Per-developer jolt decay, 1 -> 0. The §8.2 poke reaction. */
   const jolts: number[] = []
@@ -2515,14 +2544,17 @@ export function buildRoom(): RoomHandle {
       // §7.8.8 — the spin. At most two people are ever mid-turn (the one
       // arriving and the one leaving), so this is two lerps, not a pass.
       const turnT = Math.min(1, (performance.now() - turnAt) / TURN_MS)
-      if (turnT >= 1 && turningOut >= 0) turningOut = -1
+      if (turnT >= 1) {
+        if (turningOut >= 0) turningOut = -1
+        if (speakerOut >= 0) speakerOut = -1
+      }
 
       for (let i = 0; i < desks.length; i++) {
         const d = devs[i]
         if (!d.visible) continue
 
-        const turning = i === selected || i === turningOut
-        const facing = i === selected
+        const turning = i === selected || i === turningOut || i === speaker || i === speakerOut
+        const facing = i === selected || i === speaker
         const t = turning ? turnT : 1
         // Halfway through the squash there is nothing on screen, so the pose
         // swap is invisible — which is the entire point of the squash.
@@ -2606,6 +2638,12 @@ export function buildRoom(): RoomHandle {
       // are tracked separately and the animation runs on whichever is mid-spin.
       turningOut = selected
       selected = index
+      turnAt = performance.now()
+    },
+    setSpeaker(index: number) {
+      if (index === speaker) return
+      speakerOut = speaker
+      speaker = index
       turnAt = performance.now()
     },
     setSeed(next: number) {

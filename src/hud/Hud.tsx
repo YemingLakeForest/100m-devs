@@ -9,6 +9,7 @@ import {
   hasPrestiged,
   currentEntropy,
   dismissScene,
+  grantJames,
   hasSeenScene,
   hireDeveloper,
   hireQuote,
@@ -38,9 +39,9 @@ import { countsOf, type Role } from '../sim/roles.ts'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
 import { Dialogue } from '../ui/Dialogue.tsx'
-import { SCENES } from '../game/scenes.ts'
+import { SCENES, SCENE_JAMES_ARRIVES, JAMES_DROPS_AT_LINE } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
-import { Upgrades } from './Upgrades.tsx'
+import { UpgradeBoard } from './UpgradeBoard.tsx'
 import { ParadigmTree } from './ParadigmTree.tsx'
 import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
@@ -252,6 +253,23 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             right rail cares that it is not there.
           */}
           <PerfOverlay stage={stage} />
+          {/*
+            §10.1's MENU — moved to the foot of the left rail. The right rail's
+            nav is the thumb's rail, all verbs; the menu is a place the player
+            goes to leave, so it belongs on the reading side, out of the action
+            stack.
+          */}
+          <Button
+            className="hud__menu"
+            onClick={() => {
+              setTreeOpen(false)
+              setFounderOpen(false)
+              setUpgradesOpen(false)
+              setGameMenuOpen(true)
+            }}
+          >
+            MENU
+          </Button>
         </div>
       </div>
 
@@ -311,8 +329,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               tree is not empty but *forbidden* — Run 1's whole argument is that
               there is one lever, and an upgrade screen is the game promising a
               way to make the trap survivable. */}
-          <div className="hud__nav">
-            {unlocks.upgrades && (
+          {unlocks.upgrades && (
+            <div className="hud__nav">
               <Button
                 onClick={() => {
                   setTreeOpen(false)
@@ -324,18 +342,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               >
                 UPGRADES
               </Button>
-            )}
-            <Button
-              onClick={() => {
-                setTreeOpen(false)
-                setFounderOpen(false)
-                setUpgradesOpen(false)
-                setGameMenuOpen(true)
-              }}
-            >
-              MENU
-            </Button>
-          </div>
+            </div>
+          )}
           </div>
         </div>
       </div>
@@ -365,7 +373,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         )}
       </div>
 
-      <Upgrades open={upgradesOpen} onClose={() => setUpgradesOpen(false)} />
+      <UpgradeBoard open={upgradesOpen} onClose={() => setUpgradesOpen(false)} />
       <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
       <FounderProfilePanel open={founderOpen} onClose={() => setFounderOpen(false)} />
       <GameMenu
@@ -405,6 +413,14 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           script={SCENES[state.scene].script}
           seen={hasSeenScene(state.scene)}
           onFinished={dismissScene}
+          onFocus={(focus) => stage?.focusDialogue(focus)}
+          onLine={(line) => {
+            // §21.7.1 — "APPLICANT AT DOOR." holds, then James drops in while
+            // the lens watches, and the conversation continues over the landing.
+            if (state.scene === SCENE_JAMES_ARRIVES.id && line >= JAMES_DROPS_AT_LINE) {
+              if (grantJames()) stage?.focusJamesDrop()
+            }
+          }}
         />
       )}
 
@@ -433,8 +449,10 @@ function GameMenu({
       <div className="game-menu__options">
         <Options />
       </div>
-      <Button onClick={onResume}>RESUME</Button>
-      <Button onClick={onMainMenu}>MAIN SCREEN</Button>
+      <div className="game-menu__actions">
+        <Button onClick={onResume}>RESUME</Button>
+        <Button onClick={onMainMenu}>MAIN SCREEN</Button>
+      </div>
     </Panel>
   )
 }

@@ -25,7 +25,8 @@ function elapse(ms: number) {
 }
 
 function box() {
-  return document.querySelector('.ui-dialogue__hit') as HTMLElement
+  // §10.7 — the advance tap lands on the full-screen scrim, not just the box.
+  return document.querySelector('.ui-dialogue__scrim') as HTMLElement
 }
 
 function caret() {
@@ -102,5 +103,47 @@ describe('the §10.7 box, wired up', () => {
     elapse(400)
     expect(document.querySelector('.ui-panel')).toBeNull()
     expect(onFinished).toHaveBeenCalledOnce()
+  })
+})
+
+describe('§10.7a.1 — the box reports who is speaking, in the world', () => {
+  const FOCUSED: readonly DialogueLine[] = [
+    { speaker: 'YOU', text: 'Short.', focus: 'founder' },
+    { speaker: 'JAMES', text: 'Shorter.', focus: 0 },
+    { speaker: 'STUDIO_OS', text: 'No body at all.' },
+  ]
+
+  function advancePage() {
+    elapse(4000)
+    fireEvent.pointerDown(box())
+    elapse(ADVANCE_ARM_MS + 50)
+    fireEvent.pointerDown(box())
+  }
+
+  it('emits the page focus on mount and on every page turn', () => {
+    const onFocus = vi.fn()
+    render(<Dialogue script={FOCUSED} onFocus={onFocus} />)
+
+    expect(onFocus).toHaveBeenLastCalledWith('founder')
+
+    advancePage()
+    expect(onFocus).toHaveBeenLastCalledWith(0)
+
+    advancePage()
+    // STUDIO_OS has no body: the lens holds, and the box says so.
+    expect(onFocus).toHaveBeenLastCalledWith(null)
+  })
+
+  it('reports the source line index, for stage directions keyed to a line', () => {
+    const onLine = vi.fn()
+    render(<Dialogue script={FOCUSED} onLine={onLine} />)
+
+    expect(onLine).toHaveBeenLastCalledWith(0)
+
+    advancePage()
+    expect(onLine).toHaveBeenLastCalledWith(1)
+
+    advancePage()
+    expect(onLine).toHaveBeenLastCalledWith(2)
   })
 })

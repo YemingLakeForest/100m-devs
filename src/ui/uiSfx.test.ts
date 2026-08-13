@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { playSfx } from '../audio/sfx.ts'
 import {
+  PURCHASE_RESOLVE_MS,
   TICK_THROTTLE_MS,
   __resetUiSfx,
+  playPurchase,
   playUi,
   resolveUiSound,
   setUiSfxEnabled,
@@ -89,6 +91,31 @@ describe('the bank can be silenced without taking a control with it', () => {
     setUiSfxEnabled(false)
     expect(() => playUi('click')).not.toThrow()
     expect(playSfx).not.toHaveBeenCalled()
+  })
+})
+
+describe('the two-part purchase cue — §11.4.5', () => {
+  it('fires a latch, then a resolve a beat later', () => {
+    vi.useFakeTimers()
+    try {
+      playPurchase(0)
+      expect(playSfx).toHaveBeenCalledTimes(1)
+      vi.advanceTimersByTime(PURCHASE_RESOLVE_MS)
+      expect(playSfx).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not resolve early — the gap is the cause-and-effect', () => {
+    vi.useFakeTimers()
+    try {
+      playPurchase(0)
+      vi.advanceTimersByTime(PURCHASE_RESOLVE_MS - 1)
+      expect(playSfx).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

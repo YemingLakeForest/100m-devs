@@ -368,6 +368,14 @@ body {
   display: grid;
   gap: 6px;
   justify-items: end;
+  /*
+   * Room for the button's offset slab. A `.ui-btn` paints its hard 3px shadow
+   * and its 4-degree skew past its border box, and the rail clips at
+   * `overflow: hidden` — so a control flush against the rail's right or bottom
+   * edge loses those few pixels. The padding here is the slab's elbow room, not
+   * layout: the gate asserts it is never clipped away again.
+   */
+  padding: 0 6px 6px 0;
 }
 
 .hud__project {
@@ -384,7 +392,10 @@ body {
   flex: 0 0 auto;
   margin-top: auto;
   display: grid;
-  gap: 6px;
+  gap: 2px;
+  /* Same elbow room as `.hud__bottom`: the MENU button at the foot of this
+     column paints its offset slab past the rail's clip, so it needs the space. */
+  padding-bottom: 3px;
   /*
    * **`minmax(0, 1fr)`, because a grid item's automatic minimum is its
    * content.** Without it the velocity block sized itself to
@@ -807,7 +818,20 @@ body {
    */
   width: max-content;
   min-width: var(--hud-rail);
-  max-width: calc(var(--hud-rail) + var(--hud-overhang));
+  /* The rail reserves 6px for the buttons' offset slab on the right
+     (`.hud__bottom` padding), so the panel's own cap gives that back. */
+  max-width: calc(var(--hud-rail) + var(--hud-overhang) - 6px);
+}
+
+/*
+ * A wide action ("HIRE 1,000 DEVS NOW" with its cost note) must wrap to the
+ * rail rather than overflow it. `min-width: auto` is the default on a grid
+ * item and it refuses to shrink below the longest word — the overhang then
+ * spills past the rail's left edge and is clipped. Zeroing it lets the label
+ * wrap inside the `minmax(0, 1fr)` track.
+ */
+.hud__actions .ui-btn {
+  min-width: 0;
 }
 
 /*
@@ -820,8 +844,17 @@ body {
 .hud__offer {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  justify-items: end;
+  /* Stretch, not end: the mousetrap's cost note ("Cost: YOUR ENTIRE TREASURY")
+     is the widest thing in the rail and must wrap to it. `end` sizes the button
+     to fit-content (its max-content), which spills past the track and is clipped. */
+  justify-items: stretch;
   margin-bottom: 2px;
+}
+
+/* The skew's ~2–3px left overhang on a stretched button, kept clear of the
+   rail's clip — the same room the MENU button gets for the same reason. */
+.hud__offer .ui-btn {
+  margin-left: 4px;
 }
 
 /* --- the Paradigm Tree — GDD §13.2, §15.1 ------------------------------ */
@@ -1169,6 +1202,24 @@ body {
   justify-content: flex-end;
 }
 
+/*
+ * MENU lives at the foot of the left rail now, among readouts that are all
+ * pointer-transparent. It is the one interactive thing there, so it opts back
+ * in to pointer events on its own — and it stays a small button rather than
+ * stretching to the rail's full width like the readouts around it.
+ */
+.ui-btn.hud__menu {
+  pointer-events: auto;
+  justify-self: start;
+  font-size: var(--type-1x);
+  padding: 7px 12px;
+  /* The 4° skew pushes the button's bottom-left corner past its layout box, and
+     the rail clips at `overflow: hidden` — so a flush-left button loses a pixel
+     of its own edge. This margin is the skew's room, the same way `.hud__bottom`
+     reserves space for the offset slab on the right. */
+  margin-left: 4px;
+}
+
 .game-menu {
   display: grid;
   justify-items: start;
@@ -1187,6 +1238,15 @@ body {
   padding: 8px 0;
   border-top: var(--rule) solid var(--p0);
   border-bottom: var(--rule) solid var(--p0);
+}
+
+/* RESUME and MAIN SCREEN sit beside each other, not stacked — one is "go back
+   to playing", the other is "leave", and a column made leaving look like the
+   default answer. */
+.game-menu__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .game-menu__options .opt {
@@ -1929,12 +1989,25 @@ body {
   grid-auto-flow: column;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   transform: skewX(calc(-1 * var(--btn-skew)));
 }
 
 .ui-btn__label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
+  /*
+   * §10.6, and handoff trap 20: a grid item's automatic minimum is its
+   * content, so a long action label refuses to wrap and spills past the rail
+   * to be clipped. A `minmax(0, 1fr)` column plus `min-width: 0` down the
+   * chain lets the words wrap inside the button instead of overflowing it.
+   */
+  min-width: 0;
+}
+
+.ui-btn__text {
+  min-width: 0;
 }
 
 .ui-btn__bracket {
@@ -1945,6 +2018,9 @@ body {
 .ui-btn small {
   font-size: var(--type-1x);
   letter-spacing: 0;
+  /* A note like "Cost: YOUR ENTIRE TREASURY" must wrap to the rail, not force
+     the button wider than it. Same trap 20 minimum as the label above. */
+  min-width: 0;
 }
 
 /*
@@ -2081,6 +2157,19 @@ body {
   max-width: 100%;
 }
 
+/*
+ * The whole frame is the advance tap — §10.7's "every tap belongs to the
+ * dialogue" taken literally. A transparent full-screen scrim above the box, so
+ * a thumb can land anywhere and still turn the page. It is above the plate and
+ * the box (which would otherwise catch the tap over their own pixels), but it
+ * paints nothing, so the text reads through it.
+ */
+.ui-dialogue__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+}
+
 /* The name plate sits above the box and overlaps its top rule, where a Game
    Boy puts it. Filled slab with knocked-out text — §10.8a, filled selection. */
 .ui-dialogue__plate {
@@ -2092,7 +2181,12 @@ body {
   color: var(--n0);
   background: var(--p2);
   border: var(--rule) solid var(--p3);
-  font-size: var(--type-1x);
+  /*
+   * The name plate outranks the lines: it is the speaker, set a step above the
+   * body copy rather than smaller than it. §3 rule 2 keeps it on the integer
+   * type grid.
+   */
+  font-size: var(--type-2x);
   letter-spacing: 2px;
 }
 
@@ -2111,11 +2205,12 @@ body {
      reflowing reveal a rendering fault. */
   white-space: pre;
   overflow: hidden;
-  /* §10.7a.2 — roughly 1.5x the terminal scale: large enough to read at arm's
-     length without leaning in. The column count drops to match (see
-     `DEFAULT_COLUMNS`), so the physical measure is unchanged and only the
-     apparent size moves. */
-  font-size: calc(var(--type-2x) * 1.5);
+  /*
+   * The lines step down under the name plate. The earlier 1.5x left the body
+   * copy larger than the speaker, which read out of proportion; the plate above
+   * is now the largest thing in the frame and the lines are the plain 2x step.
+   */
+  font-size: var(--type-2x);
   line-height: 1.35;
   color: var(--p3);
 }
@@ -2132,23 +2227,6 @@ body {
 /* Semantic spans set their own ink, so inheritance alone cannot hide them. */
 .ui-type__ghost .kw {
   color: transparent;
-}
-
-/*
- * A 1.78:1 handset is ~640 CSS px wide in landscape. §10.7a.2's 28 columns at
- * 1.5x the 2x step is ~33 px a glyph, or ~550 px of text plus padding, which
- * fits — but only just, and not once §23.4.2's edge inset is taken off both
- * sides. Dropping to the plain 2x step keeps §3 rule 2's integer multiples; a
- * fractional clamp() would put the pixel face off the grid.
- *
- * It no longer falls all the way to 1x. That was sized for forty columns; at
- * twenty-eight the same physical measure is reached one step higher, so the
- * narrow frame keeps most of what §10.7a.2 was asking for.
- */
-@media (max-width: 660px) {
-  .ui-dialogue__text {
-    font-size: var(--type-2x);
-  }
 }
 
 /*
@@ -2737,6 +2815,15 @@ body {
   }
 
   /*
+   * The velocity readout's unit line is redundant at this height — the label
+   * and the number already say "velocity". It gives way to the MENU button at
+   * the foot of the rail, which must not be clipped by the rail's own clip.
+   */
+  .hud__sub--unit {
+    display: none;
+  }
+
+  /*
    * §10.1's gauges keep their numerals and give up their arithmetic.
    *
    * `12.00 swarm + 0.50 you` is a *check* on the number above it — the thing
@@ -2744,6 +2831,31 @@ body {
    * the number itself is what the rail is for.
    */
   .hud__gauges .hud__block .hud__sub:last-child {
+    display: none;
+  }
+
+  /* One whole step off the two gauge numerals, so the readouts give way to the
+     MENU button at the foot of the rail rather than pushing it into the clip. */
+  .hud__gauges .hud__num--major {
+    font-size: var(--type-1x);
+  }
+
+  /* The MENU shares the UPGRADES button's short-frame trim, so the two nav
+     controls stay one size and the rail keeps room for the MENU's slab. */
+  .hud__menu {
+    padding: 5px 10px;
+    line-height: 1;
+  }
+
+  /* The readout column tightens so the MENU at its foot clears the rail's clip. */
+  .hud__gauges {
+    gap: 0;
+    padding-bottom: 3px;
+  }
+
+  /* The speedometer's bar repeats the numeral it sits under; the readout keeps
+     the word and the number and drops the bar, freeing its row for the MENU. */
+  .hud__gauge-track {
     display: none;
   }
 }

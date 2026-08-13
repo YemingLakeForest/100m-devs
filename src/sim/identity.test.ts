@@ -169,8 +169,10 @@ describe('James — §21.6', () => {
     expect(developerAt(SEED, 2)).not.toEqual(JAMES)
   })
 
-  it('is a Meeting Magnet who talks more than he focuses', () => {
-    // Character as data. He is sincere, wrong, and the reason Act IV happens.
-    expect(JAMES.stats.chatter).toBeGreaterThan(JAMES.stats.focus)
+  it('is §21.7.0’s focus — near-silent and utterly absorbed', () => {
+    // §21.7.0 rules 1 and 2: extreme focus, and as few human interactions as
+    // possible. Character as data — he types, he does not talk.
+    expect(JAMES.stats.focus).toBeGreaterThan(JAMES.stats.chatter)
+    expect(JAMES.stats.chatter).toBe(1)
   })
 })

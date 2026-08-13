@@ -254,6 +254,22 @@ export interface MetaSave {
    * screen — and what persists is the *level*, never the money.
    */
   founderLevels?: Record<string, number>
+  /**
+   * §13.10 — hero XP, per hero id, merged by **max**.
+   *
+   * Permanent, beside `founderLevels`, so it survives a Paradigm Shift *and* a
+   * Codebase Fork: a hero you have carried through nine runs is better than one
+   * you just met. XP is the in-run currency of §13.9's tree, but the *total* is
+   * a fact about the person, not about the run.
+   */
+  heroXp?: Record<string, number>
+  /**
+   * §13.9 — which tree nodes each hero owns, per hero id, merged by **union**.
+   *
+   * The pre-bought starting positions and every purchase since. A node is never
+   * taken away; the hero only ever grows.
+   */
+  heroNodes?: Record<string, string[]>
 }
 
 export interface PermanentSave {
@@ -301,6 +317,8 @@ export function emptyMeta(): MetaSave {
     pcEarnedLifetime: 0,
     paradigmShifts: 0,
     founderLevels: {},
+    heroXp: {},
+    heroNodes: {},
   }
 }
 
@@ -551,6 +569,16 @@ function stringMap(value: unknown): Record<string, string> {
   return out
 }
 
+/** §13.9 — a map of hero id to owned node ids, each list defended like `stringList`. */
+function stringListMap(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const out: Record<string, string[]> = {}
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    out[k] = stringList(v)
+  }
+  return out
+}
+
 /**
  * §21's phase is a closed union driving a switch with no default. A phase name
  * from a build that had different acts would fall through every case and leave
@@ -769,6 +797,9 @@ function normalisePermanent(value: unknown): PermanentSave {
       // §13.7.1. Absent on every save written before the Management tree, which
       // correctly describes a founder who has learned nothing yet.
       founderLevels: numberMap(m.founderLevels),
+      // §13.10, §13.9. Absent means no XP earned and no hero nodes bought.
+      heroXp: numberMap(m.heroXp),
+      heroNodes: stringListMap(m.heroNodes),
     },
   }
 }
@@ -791,6 +822,17 @@ function maxMap(
 ): Record<string, number> {
   const out: Record<string, number> = { ...a }
   for (const [k, v] of Object.entries(b)) out[k] = Math.max(out[k] ?? 0, v)
+  return out
+}
+
+/** Union merge of a `Record<string, string[]>` — per hero, the node sets join. */
+function unionMap(
+  a: Readonly<Record<string, string[]>>,
+  b: Readonly<Record<string, string[]>>,
+): Record<string, string[]> {
+  const out: Record<string, string[]> = {}
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+  for (const k of keys) out[k] = union(a[k] ?? [], b[k] ?? [])
   return out
 }
 
@@ -859,6 +901,10 @@ export function mergePermanent(
       // §13.7.1 — max per node, like every other levels map. A skill learned on
       // one device is learned.
       founderLevels: maxMap(a.founderLevels ?? {}, b.founderLevels ?? {}),
+      // §13.10 — max per hero. §13.9 — union per hero, because a node bought on
+      // one device is bought.
+      heroXp: maxMap(a.heroXp ?? {}, b.heroXp ?? {}),
+      heroNodes: unionMap(a.heroNodes ?? {}, b.heroNodes ?? {}),
     },
   }
 }

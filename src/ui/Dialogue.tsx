@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useReducedMotion } from './motion.ts'
 import { Panel } from './Panel.tsx'
 import { Typewriter } from './Typewriter.tsx'
@@ -71,6 +71,26 @@ export interface DialogueProps {
   /** Called once the box has finished its exit transition, not when the last page is tapped. */
   onFinished?: () => void
   /**
+   * §10.7a.1 — who is speaking, in the world, for the page now on screen.
+   *
+   * Fired on every page turn with the page's `focus` (or null for `STUDIO_OS`,
+   * which has no body). The box owns *when* a page changes; the camera owns
+   * *where the lens goes* for it, so the handoff is a callback rather than a
+   * stage import — this component is pure presentation and must not know the
+   * renderer exists.
+   */
+  onFocus?: (focus: SpeakerFocus | null) => void
+  /**
+   * §21.7.1 — the source line index for the page now on screen.
+   *
+   * Fired on every page turn with the *line* the page came from, so stage
+   * directions keyed to a line — James dropping in, the `hey` notification —
+   * can fire from the box without the box knowing what they do. A line, not a
+   * page: a long line paginates into several boxes and all of them share one
+   * index.
+   */
+  onLine?: (lineIndex: number) => void
+  /**
    * §10.7's one exception: dialogue already seen in a previous run fills
    * instantly. It is not a skip — rule 2's deliberate advance tap still applies
    * to every page. First viewing of any line is always fully typed, so this is
@@ -88,6 +108,15 @@ export interface DialogueProps {
 interface Page {
   speaker: string
   text: string
+  /**
+   * §10.7a.1 — carried through pagination so the camera knows who is speaking
+   * even when one `DialogueLine` becomes several boxes. A long `STUDIO_OS`
+   * announcement is four pages and one focus; every one of those pages is the
+   * machine, so the lens holds rather than cutting anywhere.
+   */
+  focus?: SpeakerFocus
+  /** The source `DialogueLine` index, for stage directions keyed to a line. */
+  line: number
 }
 
 /**
@@ -113,6 +142,8 @@ const LINES_PER_PAGE = 2
 export function Dialogue({
   script,
   onFinished,
+  onFocus,
+  onLine,
   seen = false,
   columns = DEFAULT_COLUMNS,
 }: DialogueProps) {
@@ -120,10 +151,12 @@ export function Dialogue({
 
   const pages = useMemo<Page[]>(
     () =>
-      script.flatMap((line) =>
+      script.flatMap((line, lineIndex) =>
         paginate(line.text, columns, LINES_PER_PAGE).map((lines) => ({
           speaker: line.speaker,
           text: lines.join('\n'),
+          focus: line.focus,
+          line: lineIndex,
         })),
       ),
     [script, columns],
@@ -172,6 +205,33 @@ export function Dialogue({
   const onPointerDown = useCallback(() => send({ type: 'tap' }), [send])
 
   const page = pages[Math.min(state.page, pages.length - 1)]
+  const focus = page?.focus ?? null
+
+  // §10.7a.1 — the lens follows the speaker. Reported from a page change (the
+  // same instant the name plate swaps) so the camera move and the subtitle
+  // reveal are one event, never a camera that jumps then waits for the text.
+  //
+  // Held in a ref rather than read directly: the host re-renders every frame
+  // (it subscribes to the store) and an inline `onFocus` would therefore be a
+  // new function each render, re-firing the effect even though the page — the
+  // thing the camera actually cares about — has not changed.
+  const onFocusRef = useRef(onFocus)
+  useEffect(() => {
+    onFocusRef.current = onFocus
+  }, [onFocus])
+  useEffect(() => {
+    onFocusRef.current?.(focus)
+  }, [focus])
+
+  const line = page?.line ?? 0
+  const onLineRef = useRef(onLine)
+  useEffect(() => {
+    onLineRef.current = onLine
+  }, [onLine])
+  useEffect(() => {
+    onLineRef.current?.(line)
+  }, [line])
+
   if (!page) return null
 
   // Panel's `open` is the machine's own terminal state: the box leaves when the
@@ -179,7 +239,14 @@ export function Dialogue({
   // a transition rather than vanishing (F1).
   return (
     <Panel open={!state.finished} from="bottom" className="ui-dialogue" onExited={onFinished}>
-      <div className="ui-dialogue__hit" onPointerDown={onPointerDown}>
+      {/*
+        The whole frame is the advance tap, not just the box. §10.7's "every tap
+        belongs to the dialogue" is meant literally: a transparent full-screen
+        scrim eats the pointer-down, so a thumb can land anywhere — on the box,
+        beside it, over the swarm — and still turn the page.
+      */}
+      <div className="ui-dialogue__scrim" onPointerDown={onPointerDown} />
+      <div className="ui-dialogue__hit">
         <div className="ui-dialogue__plate">{page.speaker}</div>
         <div className="ui-dialogue__box">
           <Typewriter
