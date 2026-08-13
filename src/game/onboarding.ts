@@ -125,10 +125,10 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
   },
 
   act1_james: {
-    // §21.0b — no advisor line and no action. The beat is §21.7.1's scene and
-    // then a second desk: the burn-down moving twice as fast is the whole
-    // notification, and a banner announcing it would be the game explaining a
-    // thing the player can see.
+    // §21.0b — the beat is §21.7.1's scene. This one line is a mechanic hint,
+    // not a narration: the player now has a second body on the floor and can
+    // buff it exactly the way they buff themselves.
+    advisor: 'Tap yourself to code, or poke James to make him work faster.',
   },
 
   act2_offer_hire: {
@@ -259,17 +259,16 @@ export const MASS_HIRE_COUNT = 1000
 /**
  * Phases whose words are a §21.7 **scene** rather than a banner.
  *
- * Every other phase in {@link PHASE_COPY} carries terminal text, a bubble or an
+ * Every phase in {@link PHASE_COPY} carries terminal text, a bubble or an
  * advisor line, and a test asserts it — a beat the game passes through in
  * silence is a beat the player experiences as the game having stopped.
  *
- * These are the exception and they are louder rather than quieter: the dialogue
- * box takes the whole screen and the simulation waits behind it. Filling in an
- * advisor line as well would be the game narrating a scene that is currently
- * playing. Listed here so the exemption is a stated design fact rather than a
- * hole in the test.
+ * The James arrival used to be the one exception — its words were the scene
+ * alone. It now also carries a one-line *mechanic* hint (poke James), which is
+ * not scene narration, so the set is empty. It is kept rather than deleted so a
+ * future scene-only beat has the stated place to declare itself.
  */
-export const SCENE_PHASES: ReadonlySet<Phase> = new Set(['act1_james'])
+export const SCENE_PHASES: ReadonlySet<Phase> = new Set()
 
 /**
  * Phases the player advances by acting, not by the simulation reaching a state.

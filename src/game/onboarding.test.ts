@@ -240,7 +240,8 @@ describe('every phase has something to say', () => {
   it('keeps the scene exemption to beats that actually have one', () => {
     // The exemption is a stated design fact, so it is pinned: adding a phase to
     // SCENE_PHASES without writing it a scene is how a silent beat gets in.
-    expect([...SCENE_PHASES]).toEqual(['act1_james'])
+    // act1_james now carries its own mechanic hint, so nothing is scene-only.
+    expect([...SCENE_PHASES]).toEqual([])
   })
 
   it('gives the player-gated phases a button label', () => {

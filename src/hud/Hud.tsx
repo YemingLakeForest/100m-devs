@@ -415,10 +415,12 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           onFinished={dismissScene}
           onFocus={(focus) => stage?.focusDialogue(focus)}
           onLine={(line) => {
-            // §21.7.1 — "APPLICANT AT DOOR." holds, then James drops in while
-            // the lens watches, and the conversation continues over the landing.
+            // §21.7.1 — "APPLICANT AT DOOR." holds, then James drops in and the
+            // lens follows his `Ouch.`. The next line is the founder's, and its
+            // focus brings the lens back — so the drop itself needs nothing here
+            // beyond granting him.
             if (state.scene === SCENE_JAMES_ARRIVES.id && line >= JAMES_DROPS_AT_LINE) {
-              if (grantJames()) stage?.focusJamesDrop()
+              grantJames()
             }
           }}
         />

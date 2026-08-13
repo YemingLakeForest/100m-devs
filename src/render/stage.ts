@@ -78,11 +78,6 @@ export interface StageHandle {
    * store's scene state, so the box does not need to know the camera exists.
    */
   focusDialogue(focus: 'founder' | number | null): void
-  /**
-   * §21.7.1 — watch James fall in. The lens goes to his seat for the drop and
-   * returns to the founder (with a jolt) when he lands.
-   */
-  focusJamesDrop(): void
   /** Code at your own desk with the standard numeral/snippet feedback. */
   codeFounder(): number
   /** React hook for opening the founder profile when the world avatar is tapped. */
@@ -489,8 +484,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   let dialogueFocus: 'founder' | number | null = null
   let savedSceneCamera: { z: number; panX: number; panY: number } | null = null
-  /** §21.7.1 — true from the moment James starts falling until he lands. */
-  let watchingJamesDrop = false
 
   const focusFounderCamera = () => {
     founderFocus = true
@@ -512,18 +505,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // re-asserts it — and a line with nobody (STUDIO_OS) holds it rather than
     // cutting away.
     if (focus !== null) dollyTarget = zAtRung(0)
-  }
-
-  /**
-   * §21.7.1 — the drop. The lens goes to James's seat and holds there while he
-   * falls; the frame loop returns it to the founder once the arrival has
-   * landed, with a jolt that reads as the founder's startled reaction.
-   */
-  const startJamesDrop = () => {
-    watchingJamesDrop = true
-    dialogueFocus = 0
-    room.setSpeaker(-1)
-    dollyTarget = zAtRung(0)
   }
 
   const codeAtFounderDesk = (t0?: number, sound = false): number => {
@@ -935,15 +916,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       }
     }
     devsBefore = state.devs
-    const arriving = arrivals.update(now)
+    arrivals.update(now)
     hireShake = Math.max(hireShake, arrivals.consumeImpact())
-    // §21.7.1 — James has landed. The lens leaves his seat and returns to the
-    // founder, who jolts: the "terrified" beat the scene opens on.
-    if (watchingJamesDrop && !arriving) {
-      watchingJamesDrop = false
-      dialogueFocus = 'founder'
-      room.joltFounder()
-    }
     // §20.7.3 — the score is a mix, not a playlist. Driven every frame from
     // the same camera Z the picture uses and the same Entropy the readout
     // does, so picture, ambience and music change register on the same frame.
@@ -1278,9 +1252,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     focusDialogue(focus) {
       focusDialogue(focus)
-    },
-    focusJamesDrop() {
-      startJamesDrop()
     },
     codeFounder() {
       return codeAtFounderDesk(undefined, true)

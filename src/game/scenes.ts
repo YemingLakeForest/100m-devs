@@ -64,11 +64,12 @@ export const SCENE_JAMES_ARRIVES: Scene = {
   id: 'scene.act1.james-arrives',
   script: [
     { speaker: OS, text: 'APPLICANT AT DOOR.' },
-    // §21.7.1 — he drops in on this beat and says so. One word, correct
-    // grammar, delivered mid-fall. The founder is watching.
-    { speaker: JAMES, text: 'Ouch.', focus: AT_JAMES },
-    // The founder's wordless reaction to a man falling out of the ceiling.
+    // The founder's wordless reaction to the door announcement — before he has
+    // seen anything fall out of the ceiling.
     { speaker: PLAYER, text: 'What—', focus: AT_YOU },
+    // §21.7.1 — James drops in on this beat and says so. One word, correct
+    // grammar, delivered mid-fall, and the lens stays on him for it.
+    { speaker: JAMES, text: 'Ouch.', focus: AT_JAMES },
     { speaker: PLAYER, text: 'Can I help you?', focus: AT_YOU },
     { speaker: JAMES, text: 'You posted a job.', focus: AT_JAMES },
     { speaker: PLAYER, text: 'I posted that eleven minutes ago.', focus: AT_YOU },
@@ -93,8 +94,9 @@ export const SCENE_JAMES_ARRIVES: Scene = {
     { speaker: JAMES, text: 'I’m going straight back to work. I don’t stop once I start.', focus: AT_JAMES },
     // The transition §21.7.1 never narrated: he starts working, and the
     // burn-down moves on its own now. Delivered as a machine notice, and the
-    // machine names the culprit with no irony at all.
-    { speaker: OS, text: 'NOTICE: STORY POINTS NOW BURN DOWN WITH OR WITHOUT YOUR WORK. CAPITALISM.' },
+    // machine names the culprit with no irony at all — on its own beat.
+    { speaker: OS, text: 'NOTICE: STORY POINTS NOW BURN DOWN WITH OR WITHOUT YOUR WORK.' },
+    { speaker: OS, text: 'CAPITALISM.' },
   ],
 }
 
@@ -289,10 +291,9 @@ export const HEY_AFTER_LINE = 7
 /**
  * §21.7.1 — the line at which James should already have dropped in.
  *
- * The scene opens on `APPLICANT AT DOOR.` (line 0) with the desk still empty;
- * once the player taps past that beat and the lens reaches line 1, James falls
- * in like any other hire and the conversation continues over the landing. A
- * line index, not a page, for the same reason as {@link HEY_AFTER_LINE}: it is
- * a fact about the script and lives beside it.
+ * The scene opens on `APPLICANT AT DOOR.` (line 0), then the founder reacts
+ * with `What—` (line 1), and **then** James falls in with `Ouch.` (line 2) — the
+ * reaction comes before the drop. A line index, not a page, for the same reason
+ * as {@link HEY_AFTER_LINE}: it is a fact about the script and lives beside it.
  */
-export const JAMES_DROPS_AT_LINE = 1
+export const JAMES_DROPS_AT_LINE = 2

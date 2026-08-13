@@ -145,7 +145,6 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
             value={name}
             maxLength={FOUNDER_NAME_MAX}
             autoComplete="name"
-            autoFocus
             placeholder="ENTER NAME_"
             onChange={(event) => setName(event.target.value)}
           />
