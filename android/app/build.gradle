@@ -16,10 +16,28 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Sign every build (debug and release) with a keystore checked into the
+    // repo, so a snapshot APK built on any machine installs over one built on
+    // any other. The default `~/.android/debug.keystore` is per-machine, which
+    // makes `adb install -r` fail with INSTALL_FAILED_UPDATE_INCOMPATIBLE the
+    // moment the handset was last deployed from a different computer. This is a
+    // snapshot key only — release builds to Play use their own signing.
+    signingConfigs {
+        snapshot {
+            storeFile file('debug.keystore')
+            storePassword 'm100devs'
+            keyAlias 'm100devs'
+            keyPassword 'm100devs'
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.snapshot
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.snapshot
         }
     }
 }

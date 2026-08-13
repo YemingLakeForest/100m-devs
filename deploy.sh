@@ -352,6 +352,20 @@ if [[ $INSTALL_OK -eq 0 ]]; then
     INSTALL_OUT=$(install_apk) && INSTALL_OK=1 || INSTALL_OK=0
 fi
 
+# A signature mismatch means the phone holds a build from a machine using a
+# different keystore. The APK is now signed with the committed snapshot key
+# (see android/app/build.gradle), so this can only be a leftover build from
+# before that key existed. Wipe it and reinstall — snapshot data is disposable.
+if [[ $INSTALL_OK -eq 0 ]]; then
+    case "$INSTALL_OUT" in
+        *UPDATE_INCOMPATIBLE*|*INCONSISTENT_CERTIFICATES*|*signatures\ do\ not\ match*)
+            echo -e "${YELLOW}Installed app is signed with a different key — uninstalling and reinstalling.${NC}"
+            "$ADB_PATH" -s "$ADB_TARGET" uninstall "$APP_ID" >/dev/null 2>&1 || true
+            INSTALL_OUT=$(install_apk) && INSTALL_OK=1 || INSTALL_OK=0
+            ;;
+    esac
+fi
+
 if [[ $INSTALL_OK -eq 1 ]]; then
     echo -e "${GREEN}✓ APK installed${NC}"
 else
@@ -360,9 +374,7 @@ else
     echo ""
     case "$INSTALL_OUT" in
         *UPDATE_INCOMPATIBLE*|*INCONSISTENT_CERTIFICATES*|*signatures\ do\ not\ match*)
-            echo -e "${YELLOW}The installed app is signed with a different key — usually because it${NC}"
-            echo -e "${YELLOW}was built on another machine, whose debug keystore is not this one.${NC}"
-            echo -e "${YELLOW}The app's data will be lost, which for a snapshot build is fine:${NC}"
+            echo -e "${YELLOW}Signature mismatch that uninstall-and-reinstall could not fix.${NC}"
             echo -e "${BOLD}    $ADB_PATH -s $ADB_TARGET uninstall ${APP_ID}${NC}"
             echo -e "${YELLOW}then re-run this script.${NC}"
             ;;
