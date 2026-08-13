@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import {
   FOUNDER_ACCESSORIES,
   FOUNDER_BODIES,
@@ -29,6 +29,29 @@ import '../styles/founderSetup.css'
 
 export interface FounderSetupProps {
   onComplete: (profile: FounderProfile) => void
+}
+
+/**
+ * How narrow a column of this fieldset may get — the CSS floor `__options`
+ * reflows against.
+ *
+ * The longest **word**, not the longest label: a label wraps at its spaces, so
+ * `FULL BEARD` needs room for `BEARD` and not for both. In `ch`, which for a
+ * monospace face is the exact advance width of one character, plus the button's
+ * own horizontal padding and rule.
+ *
+ * Derived from the list rather than written down beside it, so adding
+ * `MOUSTACHE` to a row of four-letter words widens that row automatically
+ * instead of printing it over the word next to it — which is exactly what
+ * happened when a fixed four-column grid met a nine-character label.
+ */
+function optionFloor(options: readonly { label: string }[]): CSSProperties {
+  const longest = options.reduce(
+    (widest, option) =>
+      option.label.split(' ').reduce((n, word) => Math.max(n, word.length), widest),
+    0,
+  )
+  return { '--opt-min': `calc(${longest}ch + 15px)` } as CSSProperties
 }
 
 function Dice() {
@@ -139,7 +162,7 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
         <div className="founder-setup__traits">
           <fieldset>
             <legend>HAIR SHAPE</legend>
-            <div className="founder-setup__options">
+            <div className="founder-setup__options" style={optionFloor(FOUNDER_HEADS)}>
               {FOUNDER_HEADS.map((option, index) => (
                 <button
                   type="button"
@@ -195,7 +218,7 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
 
           <fieldset>
             <legend>ACCESSORY</legend>
-            <div className="founder-setup__options founder-setup__options--three">
+            <div className="founder-setup__options" style={optionFloor(FOUNDER_ACCESSORIES)}>
               {FOUNDER_ACCESSORIES.map((option) => (
                 <button
                   type="button"
@@ -210,7 +233,7 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
 
           <fieldset>
             <legend>FACIAL HAIR</legend>
-            <div className="founder-setup__options">
+            <div className="founder-setup__options" style={optionFloor(FOUNDER_FACIAL_HAIR)}>
               {FOUNDER_FACIAL_HAIR.map((option) => (
                 <button
                   type="button"
@@ -225,7 +248,7 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
 
           <fieldset>
             <legend>BODY SHAPE</legend>
-            <div className="founder-setup__options">
+            <div className="founder-setup__options" style={optionFloor(FOUNDER_BODIES)}>
               {FOUNDER_BODIES.map((option, index) => (
                 <button
                   type="button"

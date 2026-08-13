@@ -12,7 +12,23 @@
     'preview form';
   padding: var(--edge-top) var(--edge-x) var(--edge-y);
   gap: 16px 28px;
-  overflow: auto;
+  /*
+   * **Hidden, not `auto`, and the action bar is no longer sticky.**
+   *
+   * This screen used to be one scroller with `position: sticky; bottom: 0` on
+   * the buttons, which is the ordinary way to keep an action bar reachable on a
+   * long web form — and it is exactly wrong here, because sticky means *drawn
+   * over the content it is scrolling past*. On a landscape phone the form is
+   * always taller than the frame, so the bar was always floating, and BODY
+   * COLOUR spent its entire life underneath RANDOMISE LOOK. With the keyboard up
+   * it covered the name field the player was typing into.
+   *
+   * The fix is structural rather than a z-index or an offset: the scroll moves
+   * *inside* the form, onto the trait grid alone (see `__traits`), and the
+   * buttons become an ordinary final row. A row cannot overlap the row above it,
+   * whatever the frame does.
+   */
+  overflow: hidden;
   overscroll-behavior: contain;
   color: var(--p2);
   background: color-mix(in srgb, var(--n0) 91%, transparent);
@@ -101,20 +117,37 @@
   font-weight: 400;
 }
 
+/*
+ * Four rows, and the third one is the only one that ever moves.
+ *
+ * Label, name, traits, buttons. The traits row is `minmax(0, 1fr)` so it takes
+ * whatever is left and scrolls the remainder; the other three are `auto` and are
+ * therefore always fully on screen at any frame height in §23.4.2's box. This is
+ * what replaced a flex column with a sticky footer — see the note on
+ * `.founder-setup` for what that was doing.
+ */
 .founder-setup__form {
   grid-area: form;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 7px;
   padding: 0 2px;
+  min-height: 0;
 }
 
 .founder-setup__traits {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
   gap: 5px 10px;
   min-height: 0;
+  /* The one scroller on this screen, and it is a middle row rather than the
+     whole page — so nothing it scrolls past can reach the controls. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for the scrollbar's gutter so a fieldset's right edge does not sit
+     under it on the platforms that reserve one. */
+  padding-right: 2px;
 }
 
 .founder-setup__name-row {
@@ -161,14 +194,40 @@
   padding: 0 10px 0 0;
 }
 
+/*
+ * **The column count is a ceiling, not a promise** — and it used to be a
+ * promise, which is what made the buttons overlap.
+ *
+ * `repeat(4, minmax(0, 1fr))` divides the fieldset into four equal cells however
+ * narrow the fieldset is. At 640x360 that is about forty pixels a cell, and
+ * `MOUSTACHE` is nine characters of an 11 px monospace face — sixty, before
+ * padding. The label simply drew past its own button and over the next one:
+ * `MOUSTACHGOATEE` in the report, with the same collision on GLASSES/PHONES,
+ * HOODIE/TEE and JACKET/KNIT.
+ *
+ * `auto-fit` with a real minimum inverts that. The track floor is the widest
+ * label *this* list holds, so four cells appear when four fit and the row falls
+ * to three or two when they do not — the fieldset reflows instead of the text
+ * escaping.
+ *
+ * `--opt-min` comes from the component, in `ch` — the width of one character of
+ * the face, which for a monospace family is exact rather than an estimate. Per
+ * fieldset rather than one global figure, because a single floor wide enough for
+ * `MOUSTACHE` would drop `CROP / WIDE / TALL / FULL` to three across and orphan
+ * the fourth for no reason. Derived from the labels themselves, so a longer one
+ * added later widens its own row instead of overflowing it.
+ *
+ * The swatch rows keep their explicit counts: a swatch has no label, so nothing
+ * about them can overflow and a five-across strip of colours is the design.
+ */
 .founder-setup__options {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--opt-min, 5.9em)), 1fr));
   gap: 6px;
 }
 
-.founder-setup__options--three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.founder-setup__options--swatches {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .founder-setup__options--five {
@@ -177,14 +236,25 @@
 
 .founder-setup__option {
   min-width: 0;
-  height: 38px;
-  padding: 0 7px;
+  /*
+   * `min-height`, not `height`. `FULL BEARD` wraps to two lines and a fixed
+   * 38 px box cut the second one off — the label then overflowed downward into
+   * BODY SHAPE's row. Grid gives every cell in a row the same height, so the
+   * tallest label in a fieldset sets it and the row stays even.
+   */
+  min-height: 38px;
+  padding: 3px 6px;
   border: var(--rule) solid var(--p0);
   border-radius: 0;
   background: transparent;
   color: var(--p1);
   font: inherit;
+  line-height: 1.15;
   text-align: left;
+  /* The backstop. Nothing above guarantees a label fits at *every* frame in the
+     box, and a label that does not fit must be clipped by its own button rather
+     than painted over its neighbour. */
+  overflow: hidden;
   cursor: pointer;
 }
 
@@ -233,16 +303,17 @@
 .founder-setup__swatch[data-kind='body'][data-swatch='3'] { --swatch: var(--foliage-1); }
 .founder-setup__swatch[data-kind='body'][data-swatch='4'] { --swatch: var(--n3); }
 
+/*
+ * An ordinary last row. Not sticky, not auto-margined, not positioned — see the
+ * note on `.founder-setup`. The backing stays because the screen is glass over a
+ * lit room, not because anything is scrolling underneath it any more.
+ */
 .founder-setup__actions {
   display: flex;
   align-items: stretch;
   justify-content: space-between;
   gap: 8px;
   padding-top: 2px;
-  margin-top: auto;
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
   background: color-mix(in srgb, var(--n0) 92%, transparent);
 }
 
@@ -337,29 +408,55 @@
   .founder-setup__preview > p { display: none; }
   .founder-avatar { transform: scale(0.82); margin: -10px auto -18px; }
   .founder-setup__form { gap: 5px; }
-  .founder-setup__traits { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 6px; }
-  .founder-setup__option { height: 31px; }
+  /* Two columns of fieldsets, not three: the fieldsets themselves already
+     reflow their options now (see `__options`), and squeezing three fieldsets
+     across is what left each one too narrow for its own labels. */
+  .founder-setup__traits { gap: 3px 6px; }
+  .founder-setup__option { min-height: 31px; }
   .founder-setup input { height: 38px; font-size: var(--type-1x); }
   .founder-setup__actions .ui-btn { min-height: 36px; }
 }
 
-/* Mobile keyboards take most of a landscape frame. While the name field is
-   active, give the editor the whole viewport and keep the actions reachable;
-   the portrait returns as soon as typing finishes. */
-@container frame (max-height: 390px) {
-  .founder-setup:has(#founder-name:focus) {
+/*
+ * **The mobile keyboard, which is most of the frame.**
+ *
+ * On a landscape handset the keyboard leaves about a third of the window and the
+ * layout viewport shrinks to match — the reported frame was 2244x1008 physical
+ * with roughly 120 CSS pixels of game above the keys. This block used to hide the
+ * preview column and stop there, which left a four-row form and a two-fieldset
+ * grid competing for eighty pixels: every trait label collided with the one
+ * beside it and the action bar, still sticky at the time, sat on top of the name
+ * field. That is the "UI crams in" report.
+ *
+ * At this height there is exactly one thing the player is doing, and it is typing
+ * their name. So the screen becomes that: the field, and the two buttons. **The
+ * traits are not lost, they are behind the keyboard** — dismissing it brings the
+ * whole editor back with every choice intact, because nothing here unmounts.
+ *
+ * Keyed on height alone below 300 px, and not on `:has(:focus)`. The input
+ * carries `autoFocus`, so a focus-keyed rule fires on the first frame at every
+ * height under 390 — which is how a 336 px phone with no keyboard at all lost the
+ * avatar it had just been asked to build.
+ */
+@container frame (max-height: 300px) {
+  .founder-setup {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'header'
-      'form';
+    grid-template-areas: 'form';
+    grid-template-rows: minmax(0, 1fr);
     padding-top: max(4px, env(safe-area-inset-top));
   }
 
-  .founder-setup:has(#founder-name:focus) .founder-setup__preview {
+  .founder-setup__header,
+  .founder-setup__preview,
+  .founder-setup__traits {
     display: none;
   }
 
-  .founder-setup:has(#founder-name:focus) .founder-setup__form {
-    justify-content: start;
+  /* Three rows now, and the middle one is the field. Restated rather than
+     inherited: the `1fr` in the four-row template belongs to the traits, and a
+     row template naming a row that is `display: none` leaves a gap. */
+  .founder-setup__form {
+    grid-template-rows: auto auto minmax(0, 1fr);
+    align-content: start;
   }
 }
