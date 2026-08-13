@@ -7,8 +7,8 @@
  *
  * §7.8.1's table is the brief and it is followed literally:
  *
- *   1        one desk in a dark bedroom, lit only by the monitor
- *   2        a second desk pushed alongside. James
+ *   1        one desk in a dark home garage, lit only by the monitor
+ *   2        a second desk pushed alongside. James. Shelving, a beer fridge
  *   3–5      a huddle facing inward. Whiteboard, the first plant
  *   6–10     a small office, two rows, a walkway. Coffee machine
  *   11–30    walls push out. Dividers. A server rack
@@ -20,6 +20,14 @@
  * plant goes, the walkway becomes desks. **The room gets worse as it gets
  * fuller**, which is the §6 thesis told in set dressing before any number says
  * it.
+ *
+ * The first frames are a **home garage**, not an office — §21's scene setting
+ * is "a single developer sits in a messy bedroom/garage", and the garage is the
+ * funnier and more legible half. The shell carries the permanent garage bones
+ * (the door, the concrete slab, the block walls) and the props carry the
+ * junk (workbench, shelves, beer fridge); none of it ever leaves, so the
+ * studio's later growth reads as an office filling a converted garage, which
+ * is exactly the founding myth the game is telling.
  *
  * Everything here is drawn in code from the master palette — ART_DIRECTION §4
  * classes room furniture as T3 commodity, buyable or generatable, and none of
@@ -190,7 +198,7 @@ const CROWDING_STARTS = 40
  * The floor margin around the desk block, in tiles — how open the room is.
  *
  * §7.8.1's table, read as three numbers: up to ten developers the room hugs
- * like the bedroom it starts as; across the 11–30 band the walls push outward
+ * like the garage it starts as; across the 11–30 band the walls push outward
  * until the room reaches its full open-plan size; past forty the floor is
  * crowded and the margin closes again, which is the "the room gets worse as
  * it fills" half of the thesis.
@@ -198,9 +206,9 @@ const CROWDING_STARTS = 40
  * The first gate is the one §7.8.1 names and it is worth restating as a
  * requirement rather than a tuned curve: **a room sized for a hundred
  * developers is not available to a studio of two.** Two developers get a
- * bedroom; ten developers get a small office; the hundred-developer open plan
- * is something the headcount has to earn, one hire at a time, across the band
- * the table calls "walls push outward".
+ * home garage; ten developers get a small office; the hundred-developer open
+ * plan is something the headcount has to earn, one hire at a time, across
+ * the band the table calls "walls push outward".
  */
 export const ROOM_TIGHT_MARGIN = 1.05
 export const ROOM_OPEN_MARGIN = 1.5
@@ -557,7 +565,7 @@ function wallQuad(
  * on `devs` above ten, so **a seat, once taken, never moves**.
  *
  * The floor plate is sized from this rather than from the squad, so §7.8.1's
- * first frame is still a bedroom that hugs the one person in it.
+ * first frame is still a garage that hugs the one person in it.
  */
 export function gridFor(devs: number): { cols: number; rows: number } {
   const n = Math.max(0, Math.min(SQUAD_SIZE, Math.floor(devs)))
@@ -631,8 +639,8 @@ export function seatPosition(index: number): { x: number; y: number } {
  * Kept close to row zero rather than pushed further out. The room's plate is a
  * diamond that must contain both the founder's corner and the first developer
  * row, so this offset *is* the room's size at a two-person studio — pull it
- * out and the bedroom becomes a hall before a single hire sits down. §7.8.1's
- * first frame is "one desk in a dark bedroom", and a bedroom is only small
+ * out and the garage becomes a hall before a single hire sits down. §7.8.1's
+ * first frame is "one desk in a dark home garage", and a garage is only small
  * enough to read as one if the corner desk and row zero are within reach of
  * each other.
  */
@@ -792,12 +800,25 @@ export interface RoomProps {
   walkway: boolean
   /** Kept in the shape for compatibility; the studio itself has no rug. */
   rug: boolean
+  /** The garage workbench with its pegboard — the room's origin story. */
+  workbench: boolean
+  /** Garage shelving with paint cans and boxes. */
+  shelf: boolean
+  /** The garage beer fridge. A walk target for §7.8.6's water trips. */
+  fridge: boolean
 }
 
 export function propsAt(devs: number): RoomProps {
   const crowded = devs >= CROWDING_STARTS * 2
 
   return {
+    // The garage junk is the room's oldest furniture and the founding myth in
+    // set dressing: it is there from the first frames, and like every other
+    // prop it never leaves — the office that grows over it is an office in a
+    // converted garage.
+    workbench: devs >= 1,
+    shelf: devs >= 2,
+    fridge: devs >= 2,
     whiteboard: devs >= 3,
     whiteboardRight: devs >= 11,
     // Once a prop has entered the office it remains part of its history. Room
@@ -1629,6 +1650,120 @@ function drawBoxes(g: Graphics, x: number, y: number, i: number) {
   if (i % 2 === 0) isoBox(g, x + 2, y - h, 13, 9, RAMPS.WOOD, 2, false)
 }
 
+/**
+ * The garage workbench, with its pegboard mounted on the wall above it.
+ *
+ * The room's oldest piece of furniture and the one that carries the garage
+ * fiction hardest: a scarred wood top over a solid body, and a pegboard of
+ * tools hung *in the wall plane* — which is why this prop, alone of the ring,
+ * takes the wall's slope. The tools are dark slivers rather than shapes:
+ * at room scale a screwdriver is a streak, and a streak is all it needs.
+ */
+function drawWorkbench(g: Graphics, x: number, y: number, slope: number) {
+  // The body, squat and solid. Dark enough to read as a tool-strewn slab
+  // rather than as a desk someone misplaced.
+  isoBox(g, x, y, 26, 12, RAMPS.NEUTRAL, 3)
+  // The wood top, overhanging the body on all sides — the one detail that
+  // separates a workbench from a filing cabinet at this size.
+  isoQuad(g, x, y - 12, 30, 7, c(RAMPS.WOOD[2]))
+  isoQuad(g, x + 1, y - 14, 30, 7, c(RAMPS.WOOD[3]))
+  // The pegboard, in the wall plane behind and above the bench.
+  const top = y - 36
+  wallQuad(g, x, top, 24, 16, slope, c(RAMPS.WOOD[2]))
+  // Peg holes, sheared with the board so they lie in it.
+  for (let r = 0; r < 3; r++) {
+    for (let col = 0; col < 4; col++) {
+      const ox = -9 + col * 6
+      wallQuad(g, x + ox, top + slope * ox + 2 + r * 5, 1.5, 1.5, slope, c(RAMPS.NEUTRAL[0]))
+    }
+  }
+  // Two tools: a screwdriver and a hammer head. Dark slivers, hung where the
+  // holes are not.
+  wallQuad(g, x + 9, top + slope * 9 + 2, 2, 6, slope, c(RAMPS.NEUTRAL[1]))
+  wallQuad(g, x + 2, top + slope * 2 + 6, 5, 2.5, slope, c(RAMPS.NEUTRAL[1]))
+  wallQuad(g, x + 3.5, top + slope * 3.5 + 8, 1.5, 4, slope, c(RAMPS.NEUTRAL[1]))
+}
+
+/**
+ * Garage shelving — an open metal rack of three boards, loaded with the junk
+ * nobody has sorted since the place was a garage. The paint can is ALARM red
+ * for the same reason the sticky notes are: one warm spot in a room lit blue.
+ */
+function drawShelf(g: Graphics, x: number, y: number) {
+  const W = 24
+  const H = 30
+  const board = H / 3.4
+  // Two side posts, open-fronted — a box would read as another cabinet, and
+  // the point is that you can see the junk on every shelf.
+  isoBox(g, x - 8.5, y, 3.5, H, RAMPS.NEUTRAL, 5)
+  isoBox(g, x + 8.5, y, 3.5, H, RAMPS.NEUTRAL, 5)
+  for (let s = 0; s < 3; s++) {
+    isoQuad(g, x, y - (s + 1) * board, W, 4, c(RAMPS.NEUTRAL[3]))
+  }
+  // Bottom: a paint can. Middle: a cardboard box. Top: a green can.
+  isoBox(g, x - 5, y - board, 8, 7, RAMPS.ALARM, 1, false)
+  isoBox(g, x + 5, y - 2 * board, 9, 7, RAMPS.WOOD, 2, false)
+  isoBox(g, x - 4, y - 3 * board, 7, 7, RAMPS.FOLIAGE, 0, false)
+}
+
+/**
+ * The garage beer fridge — the first thing two developers buy as a team.
+ *
+ * Silver-grey rather than white: a white box in this room would read as a
+ * ghost. The door seam and handle sit on the near-left face, and the magnets
+ * are the two warm dots that say somebody lives here.
+ */
+function drawFridge(g: Graphics, x: number, y: number) {
+  isoBox(g, x, y, 18, 32, RAMPS.NEUTRAL, 6)
+  // The door, inset from the left face by a sliver of body.
+  g.moveTo(x - 4, y - 30.5)
+    .lineTo(x - 1, y - 29)
+    .lineTo(x - 1, y - 3)
+    .lineTo(x - 4, y - 4.5)
+    .closePath()
+    .fill(c(RAMPS.NEUTRAL[5]))
+  // The handle, halfway down the door.
+  g.rect(x - 1.2, y - 22, 2.2, 9).fill(c(RAMPS.NEUTRAL[1]))
+  // Magnets. The fridge is the one surface in a garage people actually touch.
+  g.rect(x - 3, y - 14, 2, 2).fill(c(RAMPS.WARN[2]))
+  g.rect(x - 3.4, y - 18, 1.6, 1.6).fill(c(RAMPS.CALM[2]))
+}
+
+/**
+ * The garage door — a segmented panel on the back-right wall.
+ *
+ * Part of the shell, not a prop: the studio grows *inside* the garage, so the
+ * door stays through every expansion. Drawn as five horizontal bands in the
+ * wall plane with a handle at the pull end, and it is the single strongest
+ * "this is a garage" signal in the room — an office has neither a segmented
+ * door nor a concrete slab to roll one over.
+ *
+ * `(x0, y0)` and `(x1, y1)` are the two ends of the door's floor line; `h` is
+ * its height up the wall. The top edge is parallel to the bottom for the same
+ * reason the skirting is: anything else would be a shape that does not lie in
+ * the wall.
+ */
+function drawGarageDoor(g: Graphics, x0: number, y0: number, x1: number, y1: number, h: number) {
+  g.moveTo(x0, y0)
+    .lineTo(x1, y1)
+    .lineTo(x1, y1 - h)
+    .lineTo(x0, y0 - h)
+    .closePath()
+    .fill(c(RAMPS.NEUTRAL[4]))
+  // The track shadow where the door meets the slab.
+  g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: 1.5, color: c(RAMPS.NEUTRAL[0]) })
+  // Five panels, four seams.
+  for (let i = 1; i < 5; i++) {
+    const k = i / 5
+    g.moveTo(x0, y0 - h * k)
+      .lineTo(x1, y1 - h * k)
+      .stroke({ width: 1.5, color: c(RAMPS.NEUTRAL[2]) })
+  }
+  // The lit top edge, and the handle at the pull end.
+  g.moveTo(x0, y0 - h).lineTo(x1, y1 - h).stroke({ width: 1, color: c(RAMPS.NEUTRAL[6]) })
+  g.rect(x1 - 10, y1 - h * 0.62, 3, h * 0.22).fill(c(RAMPS.NEUTRAL[1]))
+}
+
 function drawBin(g: Graphics, x: number, y: number) {
   // Tapered, so it needs its own polygon rather than isoBox — but the taper is
   // in the vertical only; the footprint is still a rhombus at both ends.
@@ -1843,8 +1978,8 @@ export function buildRoom(): RoomHandle {
     roomTransition = 0
   }
   /**
-   * Where §7.8.6's water trips go — the cooler and the coffee machine, as
-   * placed on this rebuild's perimeter ring.
+   * Where §7.8.6's water trips go — the beer fridge first, then the cooler
+   * and the coffee machine, as placed on this rebuild's perimeter ring.
    *
    * Recorded rather than recomputed, because the ring's slot allocation depends
    * on which props are present at this headcount and duplicating that logic in
@@ -1932,7 +2067,7 @@ export function buildRoom(): RoomHandle {
     // than a plinth. It shrinks as the place fills up: §7.8.1's walls push
     // outward, but never as fast as the headcount grows.
     // Tight around a single desk and opening up as the studio grows. §7.8.1's
-    // first frame is a *bedroom*, and a bedroom with three tiles of empty
+    // first frame is a *garage*, and a garage with three tiles of empty
     // floor around the desk is a hall — the room has to hug the person in it
     // before it can feel like it is filling up.
     //
@@ -1985,9 +2120,35 @@ export function buildRoom(): RoomHandle {
     // ratio is ever retuned.
     const WALL_SLOPE = floorH / floorW
 
-    // Floor, with a darker inset so the edge reads as a skirting line.
-    isoQuad(shell, cx, cy, floorW * 2, floorH * 2, c(RAMPS.NEUTRAL[2]))
-    isoQuad(shell, cx, cy, floorW * 2 - 10, floorH * 2 - 5, c(RAMPS.WOOD[0]))
+    // Floor — a concrete slab, not wood. This room is a garage, and the slab
+    // is the half of that the eye checks first: a dark grey pour with a paler
+    // edge, an oil stain in front of the door, and one crack. Office wood
+    // belongs to the open-plan plates that arrive with §7.8.1c; the founder's
+    // room never stops being the garage it started as.
+    isoQuad(shell, cx, cy, floorW * 2, floorH * 2, c(RAMPS.NEUTRAL[1]))
+    isoQuad(shell, cx, cy, floorW * 2 - 10, floorH * 2 - 5, c(RAMPS.NEUTRAL[2]))
+    // Worn scuffs, so the slab reads as poured concrete rather than as a
+    // void. A few faint patches, lighter where traffic has polished it.
+    shell
+      .ellipse(cx - floorW * 0.38, cy + floorH * 0.42, floorW * 0.16, floorH * 0.08)
+      .fill({ color: c(RAMPS.NEUTRAL[3]), alpha: 0.3 })
+    shell
+      .ellipse(cx + floorW * 0.2, cy - floorH * 0.15, floorW * 0.2, floorH * 0.1)
+      .fill({ color: c(RAMPS.NEUTRAL[3]), alpha: 0.22 })
+    // The oil stain, in front of the door — the one mark that names the room
+    // a garage even before the door is read.
+    shell
+      .ellipse(cx + floorW * 0.5, cy + floorH * 0.55, floorW * 0.13, floorH * 0.065)
+      .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.4 })
+    shell
+      .ellipse(cx + floorW * 0.56, cy + floorH * 0.5, floorW * 0.07, floorH * 0.035)
+      .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.35 })
+    // The crack, running off the stain toward the middle of the room.
+    shell
+      .moveTo(cx + floorW * 0.44, cy + floorH * 0.52)
+      .lineTo(cx + floorW * 0.28, cy + floorH * 0.46)
+      .lineTo(cx + floorW * 0.22, cy + floorH * 0.3)
+      .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
 
     // The two back walls, rising from the far edges. The back-RIGHT wall takes
     // the lighter neutral, which is the counter-intuitive half of
@@ -1996,11 +2157,11 @@ export function buildRoom(): RoomHandle {
     // face the camera, and the one on the right faces down-*left*, toward the
     // light. Held by hand, because no script can check it.
     // Wall height scales with the room. A fixed height made the walls 46% of
-    // the frame in a two-desk bedroom, which pushed the people — the actual
+    // the frame in a two-desk garage, which pushed the people — the actual
     // subject — onto the bottom edge. Walls are backdrop; they get whatever
     // room is left after the floor has what it needs.
     //
-    // The fraction is deliberately small at the bedroom end of the curve: a
+    // The fraction is deliberately small at the garage end of the curve: a
     // two-person studio in a room that is mostly wall reads as a room too big
     // for the people in it, which is the complaint the tighter margins above
     // exist to fix. 0.48 of the floor's half-height keeps the walls shorter
@@ -2071,6 +2232,33 @@ export function buildRoom(): RoomHandle {
     skirt(leftX, cy, 3)
     skirt(rightX, cy, 4)
 
+    // --- the garage bones ----------------------------------------------------
+    //
+    // Concrete block courses on the left wall, and the door on the right.
+    // The courses are the cheapest possible way to say "not plasterboard":
+    // a garage wall is block or brick, and three faint horizontal seams say
+    // block. Kept to the left wall only — the right wall's door is its
+    // statement, and a wall that says both says neither.
+    const course = Math.max(10, (WALL_H - SKIRT_H) / 6)
+    for (let i = 1; i * course < WALL_H - SKIRT_H + 1; i++) {
+      const k = SKIRT_H + i * course
+      shell
+        .moveTo(leftX, cy - k)
+        .lineTo(topX, topY - k)
+        .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.5 })
+    }
+    // The garage door, on the back-right wall away from the founder's corner —
+    // and away from where the second whiteboard lands at eleven developers.
+    // Drawn after the skirting so it stands on the slab rather than behind it.
+    drawGarageDoor(
+      shell,
+      topX + floorW * 0.55,
+      topY + floorH * 0.55,
+      topX + floorW * 0.95,
+      topY + floorH * 0.95,
+      WALL_H * 0.85,
+    )
+
     // --- light -------------------------------------------------------------
     //
     // §7.8.1: "lit only by the glow of a chunky CRT monitor". The pool is drawn
@@ -2082,13 +2270,15 @@ export function buildRoom(): RoomHandle {
     }
 
     // The founder's mat. Small, fixed to the manager desk and always inside
-    // the room shell; it never becomes a detached second floor as the room grows.
+    // the room shell; it never becomes a detached second floor as the room
+    // grows. Brown rather than the teal it once was: a worn doormat, the
+    // one warm patch of floor in a concrete garage.
     if (props.rug) {
       const rugW = Math.min(floorW * 0.38, TILE_W * 1.45)
       const rugH = rugW / 2
       const manager = founderDeskPosition()
       isoQuad(shell, manager.x, manager.y + TILE_H * 0.18, rugW, rugH, c(RAMPS.NEUTRAL[1]))
-      isoQuad(shell, manager.x, manager.y + TILE_H * 0.18, rugW * 0.84, rugH * 0.84, c(RAMPS.CALM[0]))
+      isoQuad(shell, manager.x, manager.y + TILE_H * 0.18, rugW * 0.84, rugH * 0.84, c(RAMPS.WOOD[1]))
     }
 
     // --- props -------------------------------------------------------------
@@ -2132,9 +2322,30 @@ export function buildRoom(): RoomHandle {
     interface WallProp {
       /** Footprint width in screen pixels — what `isoBox` is given. */
       w: number
-      draw: (x: number, y: number) => void
+      /**
+       * `slope` is the wall this prop stands against, in screen rise per run
+       * — negative for the back-left wall, positive for the back-right. Only
+       * the workbench uses it (its pegboard is mounted *in* the wall plane);
+       * the rest stand on the floor and ignore it.
+       */
+      draw: (x: number, y: number, slope: number) => void
     }
     const ring: WallProp[] = []
+    // The garage furniture comes first, so it takes the outer slots nearest
+    // the corners — the junk was there before the company was.
+    if (props.workbench)
+      ring.push({ w: 26, draw: (x, y, slope) => drawWorkbench(furniture, x, y, slope) })
+    if (props.fridge)
+      ring.push({
+        w: 18,
+        draw: (x, y) => {
+          // A walk target, like the cooler: the garage runs on fridge trips
+          // long before a coffee machine arrives.
+          walkTargets.push({ x, y })
+          drawFridge(furniture, x, y)
+        },
+      })
+    if (props.shelf) ring.push({ w: 24, draw: (x, y) => drawShelf(furniture, x, y) })
     // The two props people actually walk to. §7.8.1 puts them against the wall
     // for dressing; §7.8.6 gives them a second job as destinations, which is
     // most of why the room has them.
@@ -2187,7 +2398,7 @@ export function buildRoom(): RoomHandle {
       const u = 0.1 + ((placed[side] + 0.5) / slots) * 0.82
       placed[side]++
       const at = wallSpot(wall, u, cx, cy, halfW, ring[i].w / TILE_W)
-      ring[i].draw(at.x, at.y)
+      ring[i].draw(at.x, at.y, wall === 'left' ? -WALL_SLOPE : WALL_SLOPE)
     }
 
     if (props.serverRack) {

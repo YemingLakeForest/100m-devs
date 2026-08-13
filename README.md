@@ -4,7 +4,7 @@ An isometric pixel-art idle/incremental game for mobile, about taking *The Mythi
 Man-Month* and turning it on its head: adding developers to a project **always** speeds it
 up linearly — provided you can survive the catastrophic Communication Entropy.
 
-You start alone in a bedroom writing a Flappy Bird clone. You end shipping simulated
+You start alone in a home garage writing a Flappy Bird clone. You end shipping simulated
 multiverses at one project per Planck time.
 
 **Status:** **Run 1 — The Trap is playable end to end.** Poke, hire James, ship *Flappy

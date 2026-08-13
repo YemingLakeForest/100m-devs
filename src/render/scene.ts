@@ -52,7 +52,7 @@ export const TIER_EXTENTS: Record<1 | 2 | 3 | 4, { w: number; h: number }> = {
   // Level 1 is a PLACEHOLDER here and is overridden every frame from
   // `room.extent`: the room grows with the headcount (§7.8.1), so its size is
   // not a constant. Leaving a stale constant in the fit would make the camera
-  // frame a one-desk bedroom while showing a hundred-desk floor.
+   // frame a one-desk garage while showing a hundred-desk floor.
   1: { w: TILE_W * 3, h: 156 },
   // Floor: a 32x32 iso grid at TILE_W/4 x TILE_H/4 spacing. Exactly 2:1.
   2: {

@@ -90,7 +90,7 @@ extracts Story Points and adds Entropy.**
 
 ## 2. Premise & Narrative
 
-You start as a solo indie developer in a messy bedroom trying to make a simple Flappy Bird
+You start as a solo indie developer in a messy home garage trying to make a simple Flappy Bird
 clone. It takes 3 months. To speed things up, you hire a buddy. Then ten. Then you realize
 logic doesn't apply to your studio: **adding more people always reduces development time
 linearly, with zero diminishing returns.**
@@ -448,7 +448,7 @@ this is what that distinctness is *for*.
 **The player is a developer too, and they have a desk.**
 
 There is one seat on the floor that is yours. It is the first desk in the room (7.8.1's "one
-desk in a dark bedroom"), it is where 7.7.4's Hero Anchor lands, and it never goes away - at
+desk in a dark home garage"), it is where 7.7.4's Hero Anchor lands, and it never goes away - at
 ten thousand developers your desk is still there, still yours, and still clickable.
 
 > **§7.8.10 and §13.7.1 finish this section — R20, added 2026-08-10.** *Where* the desk is was
@@ -1759,8 +1759,8 @@ the headcount; the camera pulls back continuously (§7.2), never in steps.
 
 | Devs | What is on screen | What arrives with it |
 |---|---|---|
-| **1** | One desk in a dark bedroom, lit only by the monitor. A mug. A chair. | — |
-| **2** | A second desk pushed alongside, close enough to touch. The room light comes up one notch. | **James.** The first other person |
+| **1** | One desk in a dark home garage, lit only by the monitor. A mug. A chair. A workbench against the wall. | — |
+| **2** | A second desk pushed alongside, close enough to touch. The room light comes up one notch. | **James.** The first other person. Garage shelving, a beer fridge |
 | **3–5** | Desks in a huddle facing inward. A whiteboard on the wall. The first plant. | Whiteboard, plant |
 | **6–10** | A small office: two short rows, a walkway between. A coffee machine in the corner. | Coffee machine, walkway |
 | **11–30** | Walls push outward. Cubicle dividers appear between desks. A server rack hums against one wall. | Dividers, server rack, second whiteboard, filing cabinet, printer |
@@ -1860,7 +1860,7 @@ has to grow first (7.8.1c), and growing the room is an *event*, not a silent res
 *Read as a ceiling rather than a starting size* **[2026-08-09]**: the plate is drawn around the
 seats that are **occupied**, and one squad is the most it will ever have to hold before the
 unfold. Sizing it for a hundred desks from the first frame would put one developer in a room
-built for a hundred, and 7.8.1's first frame is a bedroom that has to hug the person in it.
+built for a hundred, and 7.8.1's first frame is a garage that has to hug the person in it.
 The guarantee the requirement actually wants — *nothing is ever placed outside the plate* — is
 kept by measuring the plate from the seats rather than by making it large.
 

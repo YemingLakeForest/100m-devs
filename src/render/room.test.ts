@@ -270,9 +270,9 @@ describe('your corner desk — GDD §7.8.10', () => {
     expect(you.x).toBeCloseTo(0, 10)
     expect(you.y).toBeLessThan(first.y - 100)
     // And it stays *near* row zero for the same reason §7.8.1's first frame is
-    // a bedroom: the plate has to span from the founder's corner to the first
+    // a garage: the plate has to span from the founder's corner to the first
     // developer row, so the founder's distance from row zero IS the size of a
-    // two-person room. Push the corner further out and the bedroom becomes a
+    // two-person room. Push the corner further out and the garage becomes a
     // hall before the second desk arrives.
     expect(you.y).toBeGreaterThan(first.y - 150)
   })
@@ -460,7 +460,7 @@ describe('the open room is earned, not given — §7.8.1', () => {
   it('keeps the hundred-developer room from a studio of two', () => {
     // The plate's margin is how open the room is, and below ten developers it
     // sits at the tightest value whatever the interpolation would say: a
-    // two-person studio gets a bedroom, not an open plan with the same empty
+    // two-person studio gets a garage, not an open plan with the same empty
     // floor as a studio of a hundred.
     expect(roomMargin(1)).toBe(ROOM_TIGHT_MARGIN)
     expect(roomMargin(2)).toBe(ROOM_TIGHT_MARGIN)
@@ -490,12 +490,22 @@ describe('the open room is earned, not given — §7.8.1', () => {
 })
 
 describe('props arrive on the §7.8.1 thresholds', () => {
-  it('starts with nothing but a desk in a dark room', () => {
+  it('starts as a garage: a desk, a workbench, none of the office yet', () => {
     const p = propsAt(1)
+    expect(p.workbench).toBe(true)
+    expect(p.shelf).toBe(false)
+    expect(p.fridge).toBe(false)
     expect(p.whiteboard).toBe(false)
     expect(p.plants).toBe(0)
     expect(p.coffee).toBe(false)
     expect(p.waterCooler).toBe(false)
+  })
+
+  it('gains the rest of the garage junk with the second hire', () => {
+    // James brings shelving and a beer fridge — the garage is shared furniture
+    // from the moment there are two people to share it.
+    expect(propsAt(2).shelf).toBe(true)
+    expect(propsAt(2).fridge).toBe(true)
   })
 
   it('keeps the founder mat through every room expansion', () => {
@@ -537,6 +547,16 @@ describe('props arrive on the §7.8.1 thresholds', () => {
     expect(crowded.sofa).toBe(true)
     expect(propsAt(20).walkway).toBe(true)
     expect(propsAt(120).walkway).toBe(false)
+  })
+
+  it('keeps the garage furniture the office grew around', () => {
+    // The workbench, shelving and fridge predate the company; crowding takes
+    // the walkway but never the founding myth.
+    for (const devs of [2, 20, 120, 1000]) {
+      expect(propsAt(devs).workbench).toBe(true)
+      expect(propsAt(devs).shelf).toBe(true)
+      expect(propsAt(devs).fridge).toBe(true)
+    }
   })
 
   it('adds the mess without deleting the things already bought', () => {
