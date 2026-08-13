@@ -110,11 +110,8 @@ import {
   type TouchLatch,
   type TouchMode,
 } from './touchMode.ts'
-import {
-  SCENE_INSTANT_MESSENGER,
-  SCENE_JAMES_ARRIVES,
-  SCENE_JAMES_INSTANT_MESSENGER,
-} from './scenes.ts'
+import { SCENE_JAMES_ARRIVES, SCENE_JAMES_INSTANT_MESSENGER } from './scenes.ts'
+import { unlocksFor, type Unlocks } from './unlocks.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
 import { BUFF_TAU, addBuff, buffLift, decayBuffs, strengthOnSeat, type Buff } from '../sim/buffs.ts'
@@ -1060,19 +1057,35 @@ function shipProject(s: GameState): Partial<GameState> {
    * The bench goes to zero and the density leaves with the release, where
    * §4.12a charges it for as long as anybody is still playing.
    */
-  const { density } = shipDefects(s.defects, s.commitment.toNumber())
-  const rating = rateRelease({
-    defects: s.defects,
-    storyPoints: s.commitment.toNumber(),
-    // §13.6 coverage over the team that built it. No hero cards are reachable
-    // yet (§13.6.7a), so this is honestly zero rather than optimistically
-    // absent — and §4.14.1's baseline is derived *from* a studio with no
-    // heroes, so a garage still scores exactly ×1. See `rating.ts`.
-    heroCoverage: 0,
-    // §4.9a pins the roster mean at 1.0, and `craftScore` turns that into ½.
-    // The term goes quiet as the studio grows, which §4.14 says is the design.
-    craft: 1,
-  })
+  /**
+   * §21.0c — **Run 1 ships at the baseline by construction.**
+   *
+   * Not "Run 1 happens to score the baseline because its defect bench is empty".
+   * Those are different claims and only the first one is safe: a bench of zero
+   * is *better* than §4.14.1's anchor, so running the live rating during Run 1
+   * would hand every first-run release a quality bonus and quietly re-tune the
+   * economy §21 is paced against — Flappy Square's $45 is a measured number, and
+   * §25.6.2a measured it. Stamping the anchor and the baseline makes every
+   * multiplier exactly ×1, which is the economy the script was written for.
+   */
+  const graded = currentUnlocks().backlogs
+  const density = graded
+    ? shipDefects(s.defects, s.commitment.toNumber()).density
+    : DEFECT_DENSITY_ANCHOR
+  const rating = graded
+    ? rateRelease({
+        defects: s.defects,
+        storyPoints: s.commitment.toNumber(),
+        // §13.6 coverage over the team that built it. No hero cards are
+        // reachable yet (§13.6.7a), so this is honestly zero rather than
+        // optimistically absent — and §4.14.1's baseline is derived *from* a
+        // studio with no heroes, so a garage still scores ×1. See `rating.ts`.
+        heroCoverage: 0,
+        // §4.9a pins the roster mean at 1.0, and `craftScore` turns that into
+        // ½. The term goes quiet as the studio grows, which §4.14 calls design.
+        craft: 1,
+      })
+    : BASELINE_RATING
 
   // §11.2 B3 doubles the payout and §11.3 C9 takes the consultants' 10%. Both
   // land on the ladder's figure rather than on the tail, so §4.10e's integral
@@ -1183,6 +1196,11 @@ export function tick(dtSeconds: number): void {
   const qaShare = roleShare(counts, 'qa')
   const sreShare = roleShare(counts, 'sre')
 
+  // §21.0c — Run 1 has one lever and it is hiring. The three backlogs are a
+  // system, and a system arriving during the four minutes §21 spends teaching
+  // one sentence is a second sentence.
+  const open = currentUnlocks().backlogs
+
   // §4.12a — a downed release does not age, does not earn, and does not page.
   // Computed before the tail so all three agree about the same frame.
   const held = suppressedReleases(state.incidents)
@@ -1193,21 +1211,23 @@ export function tick(dtSeconds: number): void {
   // §4.12 — defects accrue from the work itself, in proportion to it. Charged
   // against `gained`, which is realised output *after* §4.1: a studio in §6.3's
   // lock produces nothing and therefore breaks nothing.
-  const defects = advanceDefects(state.defects, gained / dtSeconds, qaShare, dtSeconds)
+  const defects = open ? advanceDefects(state.defects, gained / dtSeconds, qaShare, dtSeconds) : 0
 
   // §4.12a — the released catalogue pages you, weighted by who is still playing.
-  const incidents = advanceIncidents(
-    state.incidents,
-    incidentRate(tail.releases, densitiesOf(tail.releases), sreShare, held),
-    // §13.7.1 — you carry the pager when nobody else does. Without the founder
-    // term `clearanceCapacity(0)` is zero, an incident never closes, and a
-    // frozen release never comes back: a fail state, which §4.12 forbids.
-    clearanceCapacity(counts.sre + FOUNDER_ROLE_HEADS),
-    dtSeconds,
-    state.incidentPending,
-    nextIncidentId,
-    tail.releases,
-  )
+  const incidents = open
+    ? advanceIncidents(
+        state.incidents,
+        incidentRate(tail.releases, densitiesOf(tail.releases), sreShare, held),
+        // §13.7.1 — you carry the pager when nobody else does. Without the founder
+        // term `clearanceCapacity(0)` is zero, an incident never closes, and a
+        // frozen release never comes back: a fail state, which §4.12 forbids.
+        clearanceCapacity(counts.sre + FOUNDER_ROLE_HEADS),
+        dtSeconds,
+        state.incidentPending,
+        nextIncidentId,
+        tail.releases,
+      )
+    : { incidents: [] as Incident[], pending: 0, cleared: 0, restored: [] }
   // Ids only ever increase, so the high-water mark is the whole bookkeeping.
   // Deriving it from the returned list rather than counting arrivals means a
   // change to how `advanceIncidents` raises them cannot silently start reusing
@@ -1216,18 +1236,17 @@ export function tick(dtSeconds: number): void {
 
   // §4.13 — and the people who bought them write in, forever.
   const support = counts.support + FOUNDER_ROLE_HEADS
-  const tickets = advanceTickets(
-    state.tickets,
-    state.projectsShipped,
-    defects,
-    support,
-    dtSeconds,
-  )
+  const tickets = open
+    ? advanceTickets(state.tickets, state.projectsShipped, defects, support, dtSeconds)
+    : { queue: 0, served: 0 }
 
   // §4.13 — unanswered tickets tax the **catalogue**, never the current
   // project. You are losing money on the games you already made, which is the
   // whole sentence, and a player in trouble can always still ship their way out.
-  const ticketTax = catalogueMultiplier(tickets.queue, support)
+  //
+  // Exactly 1 during Run 1, which is the same number a studio keeping up gets:
+  // §21's economy was tuned against an untaxed catalogue and must stay tuned.
+  const ticketTax = open ? catalogueMultiplier(tickets.queue, support) : 1
 
   let patch: Partial<GameState> = {
     localEntropy,
@@ -1299,15 +1318,23 @@ export function tick(dtSeconds: number): void {
 }
 
 /**
- * §21.0b / §21.7 — Act I's story beats, which are hires rather than banners.
+ * §21.0b / §21.7 — Act I's one story beat, which is a hire rather than a banner.
  *
- * Two things happen here that happen nowhere else in the game: **somebody is
- * given to the player for free**, and **an upgrade is given to the player for
- * free**. Both are §21.7's rule — *a hero arrives the first time you feel the
- * problem they solve* — applied to the two problems Act I actually has, which
- * are being alone and having to talk to the person next to you.
+ * Something happens here that happens nowhere else in the game: **somebody is
+ * given to the player for free.** That is §21.7's rule — *a hero arrives the
+ * first time you feel the problem they solve* — applied to the only problem Act
+ * I has, which is being alone.
  *
- * Driven off the phase *transition* rather than off the phase, so each fires
+ * **Instant Messenger used to be given here too, and it is not any more.**
+ * §21.0c moves it back to Run 2, where §21.6 always had it. The reasoning that
+ * moved it forward was sound about the joke — the player *is* sitting side by
+ * side with James, at two desks, on screen — and wrong about everything else: it
+ * put an upgrade tree, a free node and a second cutscene inside the four minutes
+ * §21 spends teaching one sentence, and it handed away the root of a board the
+ * player could not open. The joke survives the move intact, because in Run 2
+ * they are still sitting side by side.
+ *
+ * Driven off the phase *transition* rather than off the phase, so it fires
  * exactly once even though the machine can sit in a phase for thousands of
  * frames.
  */
@@ -1319,15 +1346,6 @@ function advanceAct1(from: Phase, to: Phase | undefined): void {
     // starts at the third head — so this costs the economy exactly nothing and
     // needs no exception anywhere in `economy.ts`.
     set({ ...hire(0, 1, 'dev'), scene: SCENE_JAMES_ARRIVES.id })
-  }
-
-  if (to === 'act2_offer_hire') {
-    // §11.5 — Instant Messenger, given rather than sold, at the centre of
-    // §11.4's board. It is the only free node in the game.
-    set({
-      scene: SCENE_INSTANT_MESSENGER.id,
-      tech: { ...state.tech, [FIRST_PROTOCOL_NODE]: 1 },
-    })
   }
 }
 
@@ -1539,7 +1557,12 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
     // rest arrives as a §4.5a buff, and the buff's points are ordinary work
     // that `tick` already charges at β. Charging the whole poke here would bill
     // three quarters of it twice.
-    defects: state.defects + defectsFromPoke(paidNow, roleShare(countsOf(state.roster), 'qa')),
+    //
+    // §21.0c — and not at all during Run 1, where the counter would be the
+    // first system on screen and there is nobody to hire against it.
+    defects: currentUnlocks().backlogs
+      ? state.defects + defectsFromPoke(paidNow, roleShare(countsOf(state.roster), 'qa'))
+      : 0,
     // The 10x Engineer quits permanently on the poke that cashes them out.
     devs: devLeaves ? Math.max(0, state.devs - 1) : state.devs,
     // §4.11 — **and the roster shrinks with them.** `headcountOf(roster)` and
@@ -1676,6 +1699,22 @@ export function paradigmShiftOffer(s: GameState = state): { bp: number; availabl
 /** §13.2 — has the player ever prestiged? The Paradigm Tree's door. */
 export function hasPrestiged(): boolean {
   return getPermanent().meta.paradigmShifts > 0
+}
+
+/**
+ * §21.0c — which systems this player has, and the only place that is asked.
+ *
+ * Not held in {@link GameState}: it is a fact about the *player*, not about the
+ * run, and a copy of it in the run state would be a second thing that can
+ * disagree with `paradigmShifts` after a save migration. Cheap enough to call
+ * from `tick` — `getPermanent` is a module variable read, not a storage hit.
+ *
+ * Callers get one of two constants, so a React render may depend on the result
+ * by identity. Every one of them changes on the same frame `triggerParadigmShift`
+ * publishes its `set`, which is what makes the whole unlock a single event.
+ */
+export function currentUnlocks(): Unlocks {
+  return unlocksFor(getPermanent().meta.paradigmShifts)
 }
 
 /** §13.2 — spend BP on a Paradigm Tree node. */
@@ -1946,6 +1985,15 @@ export function triggerParadigmShift(): void {
     // the beat now; the bubble stays for the runs after this one, when the
     // scene has already played and the line is all that is left of it.
     scene: SCENE_JAMES_INSTANT_MESSENGER.id,
+    // §11.5 / §21.0c — and he arrives holding the thing. Instant Messenger is
+    // the only free node in the game and this is where it is given: the scene
+    // above hands it over in dialogue, and the board it sits at the centre of
+    // opens for the first time on the same frame.
+    //
+    // `run` is `freshRun()`, whose `tech` is `{}`, so this is the whole of Run
+    // 2's tech state and every later shift re-grants it. A node granted once and
+    // carried in `PermanentSave` would be a second place the same fact lives.
+    tech: { [FIRST_PROTOCOL_NODE]: 1 },
     ...showBubble('So. Same time tomorrow?', 6000),
   })
   // §24.9 — a prestige is the highest-value write in the game. Do not wait for

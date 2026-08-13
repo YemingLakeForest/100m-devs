@@ -1,7 +1,22 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { __resetStore, __setState, baseVelocity, getState, jumpToPhase, poke, pokeVelocity, tick } from '../game/store.ts'
+import { emptyPermanent, setPermanent } from '../game/save.ts'
 import { Hud } from './Hud.tsx'
+
+/**
+ * §21.0c — a player who has already been through the trap.
+ *
+ * Roles, the three backlogs and the upgrade board are all gated on the first
+ * Paradigm Shift, so a test about any of them has to say which side of it the
+ * player is on. Saying so out loud is the point: a test rendering the HUD at
+ * `paradigmShifts: 0` is testing **Run 1's** frame, and Run 1's frame is
+ * deliberately almost empty.
+ */
+function prestiged() {
+  const p = emptyPermanent()
+  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+}
 
 // The kit's sound bank goes through the native path, which has no business
 // being loaded by a layout test. `sfx.ts` joined the list when the ship
@@ -13,6 +28,10 @@ vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
 afterEach(() => {
   cleanup()
   __resetStore()
+  // The unlock lives in permanent state, so it leaks between tests unless it is
+  // put back — and the failure would be a Run 1 test quietly passing because an
+  // earlier test had prestiged.
+  setPermanent(emptyPermanent())
 })
 
 /**
@@ -125,6 +144,7 @@ describe('§10.8 F2 — every control answers the finger first', () => {
   })
 
   it('depresses the upgrades tab', () => {
+    prestiged()
     render(<Hud stage={null} />)
     const btn = screen.getByRole('button', { name: /UPGRADES/ })
     fireEvent.pointerDown(btn)
@@ -132,9 +152,90 @@ describe('§10.8 F2 — every control answers the finger first', () => {
   })
 })
 
+/**
+ * §21.0c — **what Act I's frame contains, said as an inventory.**
+ *
+ * The gate lives in `unlocks.ts` and its simulation half is pinned in
+ * `backlogs.test.ts`. This is the third place it has to hold: what a first-time
+ * player actually sees. Written as "these things are absent" rather than as
+ * "these things are present", because the failure mode is additive — every one
+ * of the readouts below was added to Act I by somebody building a feature that
+ * was correct in isolation.
+ */
+describe('§21.0c — Act I shows one lever', () => {
+  it('offers no job but developer, whatever the studio has been through', () => {
+    // `jumpToPhase` replaces the whole run — it is a seam for reaching a beat,
+    // not a patch — so the state it is being asked about has to go on after it.
+    jumpToPhase('act2a_loop')
+    // The conditions in `rolesAvailable` are all satisfied: a defect bench, a
+    // shipped catalogue, a live incident. In Run 1 none of them opens a row.
+    __setState({
+      defects: 40,
+      projectsShipped: 3,
+      incidents: [{ id: 1, releaseId: 1, releaseName: 'Flappy Square', age: 1, work: 10 }],
+    })
+    render(<Hud stage={null} />)
+
+    expect(screen.queryByRole('button', { name: 'QA' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'SRE' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'SUPPORT' })).toBeNull()
+  })
+
+  it('shows no backlog, even holding one', () => {
+    __setState({
+      defects: 40,
+      projectsShipped: 3,
+      tickets: 900,
+      incidents: [{ id: 1, releaseId: 1, releaseName: 'Flappy Square', age: 1, work: 10 }],
+    })
+    const { container } = render(<Hud stage={null} />)
+    expect(container.querySelector('.backlog')).toBeNull()
+  })
+
+  it('shows all of it the moment the player prestiges', () => {
+    // The same state, one Paradigm Shift apart — so this is a gate rather than a
+    // feature that was never wired.
+    prestiged()
+    jumpToPhase('act2a_loop')
+    __setState({
+      defects: 40,
+      projectsShipped: 3,
+      tickets: 900,
+      incidents: [{ id: 1, releaseId: 1, releaseName: 'Flappy Square', age: 1, work: 10 }],
+    })
+    const { container } = render(<Hud stage={null} />)
+
+    expect(container.querySelectorAll('.backlog').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'QA' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /UPGRADES/ })).toBeInTheDocument()
+  })
+})
+
 /** GDD §11 — the door, and the tree that now stands behind it. */
 describe('the upgrades entry point', () => {
-  it('is present from the first frame, before anything is buyable', () => {
+  beforeEach(prestiged)
+
+  /**
+   * §21.0c — **there is no upgrade screen during Run 1.**
+   *
+   * This test used to read "is present from the first frame, before anything is
+   * buyable", and the argument for that was §10.6: a door that appears partway
+   * through is a door the player has to notice. It is the right argument about
+   * the wrong door. Run 1's entire claim is that there is one lever and it is
+   * hiring, and an UPGRADES button is the interface promising a second one —
+   * §13.2's PARADIGM button has been hidden on exactly this reasoning since it
+   * was written, and this now joins it.
+   */
+  it('does not exist during Run 1', () => {
+    setPermanent(emptyPermanent())
+    render(<Hud stage={null} />)
+    expect(screen.queryByRole('button', { name: /UPGRADES/ })).toBeNull()
+    // MENU is right beside it and is not gated, so this is the door being shut
+    // rather than the whole nav failing to render.
+    expect(screen.getByRole('button', { name: 'MENU' })).toBeInTheDocument()
+  })
+
+  it('is present from the first frame of Run 2, before anything is buyable', () => {
     render(<Hud stage={null} />)
     expect(screen.getByRole('button', { name: /UPGRADES/ })).toBeInTheDocument()
   })

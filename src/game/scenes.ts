@@ -75,19 +75,38 @@ export const SCENE_JAMES_ARRIVES: Scene = {
 }
 
 /**
- * §21.7.2 — Instant Messenger. Act I, a short while after he sits down.
+ * §21.6 — Run 2, Act 0. The first thing after the first Paradigm Shift.
  *
- * §11.5's node arriving, and the first thing in the game the player is *given*
- * rather than sold. The `hey` notification that appears over the player's desk
- * is drawn from the same icon and the same pulse as §11.4.4's node, so when the
- * board opens the thing at its centre is the picture they were just laughing
- * at. **Recognition is the tutorial.**
+ * Three jobs in under a minute: establish that James is the constant across
+ * every run, land the running joke, and hand over the first tool **as a
+ * punchline rather than an unlock notification**.
+ *
+ * **Amended 2026-08-12 — Instant Messenger comes back here.** For one day it
+ * lived in Act I, on the argument that the joke is better when the two of them
+ * are visibly sitting side by side at two desks. The joke *is* better there, and
+ * it was the wrong trade: §21.0c wants Run 1 to carry one idea, and this scene
+ * arrived with an upgrade tree, a granted node and a second cutscene inside the
+ * four minutes that idea has. The joke survives the move without a word changed,
+ * because in Run 2 they are still sitting side by side — that was never a fact
+ * about which act it was in.
+ *
+ * *"How did you find me in every single reality?"* is the best opening line in
+ * the script and it has not moved.
+ *
+ * The id has never changed through either rewrite. It is the key into §24.3's
+ * `milestones` union, and renumbering it would replay a scene for every player
+ * who has already sat through one at that moment — which is exactly the thing
+ * §10.7's replay exception exists to prevent.
  */
-export const SCENE_INSTANT_MESSENGER: Scene = {
-  id: 'scene.act1.instant-messenger',
+export const SCENE_JAMES_INSTANT_MESSENGER: Scene = {
+  id: 'scene.run2.instant-messenger',
   script: [
-    // Not a question. He does not ask.
-    { speaker: JAMES, text: 'Can I show you something.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'James. You again.', focus: AT_YOU },
+    { speaker: PLAYER, text: 'How did you find me in every single reality?', focus: AT_YOU },
+    { speaker: JAMES, text: 'I saw the job posting.', focus: AT_JAMES },
+    // The beat. §21.6 marks a pause here, and in a typed box a pause is a
+    // page: the player has to tap through the silence, which is the joke.
+    { speaker: JAMES, text: 'Anyway — I brought something. Look at this.', focus: AT_JAMES },
     {
       speaker: OS,
       text: 'NEW PROTOCOL AVAILABLE — INSTANT MESSENGER. Asynchronous text. Tier 1 Communication Infrastructure.',
@@ -107,81 +126,25 @@ export const SCENE_INSTANT_MESSENGER: Scene = {
   ],
 }
 
-/**
- * The page after which the `hey` notification appears in §21.7.2 — the beat the
- * scene is built to.
- *
- * Beside the lines rather than in the renderer because it is a fact about the
- * script: insert a line and this moves, and having it here is the only way that
- * stays true. Same reasoning as {@link HEY_AFTER_PAGE}, which is §21.6's copy of
- * the same beat one protocol later.
- */
-export const IM_HEY_AFTER_PAGE = 4
-
-/**
- * §21.6 — Run 2, Act 0. The first thing after the first Paradigm Shift.
- *
- * Three jobs in under a minute: establish that James is the constant across
- * every run, land the running joke, and hand over the next tool **as a punchline
- * rather than an unlock notification**.
- *
- * **Amended 2026-08-11 — §21.7.2 takes Instant Messenger.** This scene used to
- * introduce it, and §11.5 moves that node to the centre of the board and gives
- * it to the player in Act I, where the joke is better: they *are* sitting side
- * by side, at two desks, on screen. So Run 2 hands over the ring-1 protocol
- * instead, and the joke becomes structural rather than specific — **James turns
- * up in every reality holding the next thing that lets people avoid each
- * other**, which works for any tool in the branch. Run 3 gets one too.
- *
- * *"How did you find me in every single reality?"* is the best opening line in
- * the script and it has not moved.
- *
- * The id is deliberately unchanged despite the rewrite. It is the key into
- * §24.3's `milestones` union, and renumbering it would replay a scene for every
- * player who has already sat through one at that moment — which is exactly the
- * thing §10.7's replay exception exists to prevent.
- */
-export const SCENE_JAMES_INSTANT_MESSENGER: Scene = {
-  id: 'scene.run2.instant-messenger',
-  script: [
-    { speaker: PLAYER, text: 'James. You again.', focus: AT_YOU },
-    { speaker: PLAYER, text: 'How did you find me in every single reality?', focus: AT_YOU },
-    { speaker: JAMES, text: 'I saw the job posting.', focus: AT_JAMES },
-    // The beat. §21.6 marks a pause here, and in a typed box a pause is a
-    // page: the player has to tap through the silence, which is the joke.
-    { speaker: JAMES, text: 'Anyway — I brought something. Look at this.', focus: AT_JAMES },
-    {
-      speaker: OS,
-      text: 'NEW PROTOCOL AVAILABLE — THREADED CHANNELS. One conversation per topic. Tier 2 Communication Infrastructure.',
-    },
-    {
-      speaker: JAMES,
-      text: 'Threads. So a conversation can happen without anybody being present for it.',
-      focus: AT_JAMES,
-    },
-    { speaker: PLAYER, text: 'James, that’s just talking, slowly.', focus: AT_YOU },
-    { speaker: JAMES, text: 'Yes. Asynchronously. It’s much better.', focus: AT_JAMES },
-    { speaker: JAMES, text: 'Nobody has to be interrupted ever again.', focus: AT_JAMES },
-    // He turns back to his monitor. A notification appears over the player's
-    // desk — the same one, one protocol later.
-    { speaker: PLAYER, text: '…', focus: AT_YOU },
-    { speaker: JAMES, text: 'I’ve started a thread about it.', focus: AT_JAMES },
-  ],
-}
-
 /** Every scene, by id. */
 export const SCENES: Record<string, Scene> = {
   [SCENE_JAMES_ARRIVES.id]: SCENE_JAMES_ARRIVES,
-  [SCENE_INSTANT_MESSENGER.id]: SCENE_INSTANT_MESSENGER,
   [SCENE_JAMES_INSTANT_MESSENGER.id]: SCENE_JAMES_INSTANT_MESSENGER,
 }
 
 /**
- * The page index after which the `hey` notification appears over the player's
+ * The **line** after which the `hey` notification appears over the player's
  * desk — §21.6's stage direction, and the beat the whole scene is built to.
  *
  * Held here rather than in the renderer because it is a fact about the script:
  * insert a line and this moves, and having it beside the lines is the only way
  * that stays true.
+ *
+ * A line and not a page, despite what this was called until 2026-08-12. §10.7a.2
+ * paginates a long line into several boxes, so the two indices are different
+ * numbers for any script containing a long line — and this one contains the
+ * `STUDIO_OS` protocol announcement, which is four pages on its own. Nothing
+ * read it but a test while the names disagreed, which is the only reason it
+ * never fired; the §10.7a.1 camera work is about to.
  */
-export const HEY_AFTER_PAGE = 8
+export const HEY_AFTER_LINE = 7

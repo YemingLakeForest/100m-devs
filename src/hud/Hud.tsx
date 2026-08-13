@@ -5,6 +5,7 @@ import {
   canMassHire,
   collectOffline,
   currentMassHireCost,
+  currentUnlocks,
   hasPrestiged,
   currentEntropy,
   dismissScene,
@@ -89,9 +90,17 @@ const PREVIEW_DIALOGUE =
  * and the player never chooses between four jobs they have no information
  * about. Once earned a role stays — a studio that has cleared its incidents has
  * not forgotten how to hire SRE.
+ *
+ * §21.0c puts a floor under all three: **none of them exists during Run 1.** The
+ * conditions above are about *when within a run*, and they were doing their job
+ * — a defect really was on screen, something really had shipped. What they could
+ * not know is that the run in question was the one whose entire argument is that
+ * there is a single lever. `HireDial` renders no row at all for one role, so
+ * Act I's control is exactly the button it has always been.
  */
 function rolesAvailable(state: GameState): Role[] {
   const roles: Role[] = ['dev']
+  if (!currentUnlocks().roles) return roles
   if (state.defects >= 1) roles.push('qa')
   if (state.projectsShipped > 0) roles.push('support')
   if (state.incidents.length > 0 || countsOf(state.roster).sre > 0) roles.push('sre')
@@ -132,6 +141,9 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
+  // §21.0c — read once and passed down, so every gate in this frame agrees
+  // about the same run rather than each asking separately.
+  const unlocks = currentUnlocks()
 
   // The interface hue is a direct function of Entropy — ART_DIRECTION §1.1.
   // Written to the document root so the CSS token cascade carries it to every
@@ -189,14 +201,57 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             tax on that number: the two are the same project measured by what is
             finished and by what is broken. It is hidden at zero, so it appearing
             is itself the notification.
+
+            §21.0c gates the whole family here rather than inside each component.
+            The simulation already holds all three at zero during Run 1, so this
+            is belt and braces — and it is the braces that matter: a component
+            that renders nothing because its number happens to be zero is one
+            balance change away from rendering something.
           */}
-          <Defects state={state} />
+          {/*
+            §4.15 — **all three backlogs, together, in one column.**
+
+            They shipped split across the two rails: defects here with the
+            burn-down, incidents and tickets over on the right under SHIPPED, on
+            the reasoning that the last two are facts about the *catalogue*. That
+            reasoning is sound and it lost to two better ones.
+
+            The first is §4.15's own thesis. The section exists because three
+            numbers that all go up and all mean "something is wrong" are three
+            copies of one anxiety unless the player can tell them apart — and the
+            way it proposes to do that is three colours and three shapes read as
+            a set. Split across sixty degrees of arc, they are not a set.
+
+            The second is that the right rail did not have the room and nothing
+            said so. Measured at 997x448 in Act III with a full catalogue, its
+            stack came to 649 px against 426 of frame: the hire button was cut
+            off mid-word and the touch switch, the §23.3 overlay, your own desk
+            and §10.1's whole nav were drawn below the bottom of the screen. This
+            is the hundred pixels that buys most of it back, and it is the one
+            move that improves the composition rather than merely relieving it.
+          */}
+          {unlocks.backlogs && (
+            <>
+              <Defects state={state} />
+              <Incidents state={state} />
+              <Tickets state={state} />
+            </>
+          )}
         </div>
 
         {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}
         <div className="hud__gauges">
           <Speedometer entropy={entropy} />
           <Velocity state={state} />
+          {/*
+            §23.3's overlay, at the foot of the reading rail.
+            **Instrumentation is not a control.** It sat among the play tools in
+            the right rail, where it competed with the thumb for the fourteen
+            pixels that were costing §10.1's nav its place on the frame. Nothing
+            about the gate cares which corner it is in, and everything about the
+            right rail cares that it is not there.
+          */}
+          <PerfOverlay stage={stage} />
         </div>
       </div>
 
@@ -214,13 +269,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           <Cash state={state} />
           <Devs state={state} />
           <Shipped state={state} />
-          {/*
-            §4.15 — the two backlogs that belong to the *catalogue* sit with the
-            catalogue's readouts, under SHIPPED. Both are silent until there is
-            something shipped to be wrong with, so Act I's frame is unchanged.
-          */}
-          <Incidents state={state} />
-          <Tickets state={state} />
         </div>
         <div className="hud__bottom">
           <ActionBar
@@ -239,12 +287,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           */}
           <TouchSwitch state={state} />
           {/*
-            §4.5d — your own desk, reachable at every zoom. It sits above the
-            nav rather than in it because it is an *action* the thumb takes
-            during play, like TouchSwitch, and not a door onto a screen.
-          */}
-          <PerfOverlay stage={stage} />
-          {/*
             §4.5d — your own desk, reachable at every zoom. A direct child of the
             column, like PARADIGM, because the 336 px media query below places
             both by hand: the rail's rows were measured at every frame in
@@ -260,19 +302,29 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
           )}
           {/* §10.1's UPGRADES nav. The founder's personal Management tree now
-              opens from their world avatar; this remains the studio tree. */}
+              opens from their world avatar; this remains the studio tree.
+
+              §21.0c — and the door is shut for the whole of Run 1, on the same
+              argument §13.2's PARADIGM button above it has always used: a
+              permanently visible button onto a tree the player cannot buy from
+              is the §10.6 web-page tell. It is worse than that here, because the
+              tree is not empty but *forbidden* — Run 1's whole argument is that
+              there is one lever, and an upgrade screen is the game promising a
+              way to make the trap survivable. */}
           <div className="hud__nav">
-            <Button
-              onClick={() => {
-                setTreeOpen(false)
-                setFounderOpen(false)
-                setGameMenuOpen(false)
-                setUpgradesOpen((was) => !was)
-              }}
-              concept="upgrades"
-            >
-              UPGRADES
-            </Button>
+            {unlocks.upgrades && (
+              <Button
+                onClick={() => {
+                  setTreeOpen(false)
+                  setFounderOpen(false)
+                  setGameMenuOpen(false)
+                  setUpgradesOpen((was) => !was)
+                }}
+                concept="upgrades"
+              >
+                UPGRADES
+              </Button>
+            )}
             <Button
               onClick={() => {
                 setTreeOpen(false)

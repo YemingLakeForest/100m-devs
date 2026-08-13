@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  HEY_AFTER_PAGE,
-  IM_HEY_AFTER_PAGE,
+  HEY_AFTER_LINE,
   SCENES,
-  SCENE_INSTANT_MESSENGER,
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
 } from './scenes.ts'
@@ -26,19 +24,23 @@ describe('§21.6 — the lines are the product', () => {
   })
 
   /**
-   * §21.7.2 took Instant Messenger to Act I, where the joke is better — they
-   * *are* sitting side by side, at two desks, on screen. So Run 2 hands over the
-   * ring-1 protocol and the joke becomes structural: **James turns up in every
-   * reality holding the next thing that lets people avoid each other.**
-   *
-   * What is pinned is therefore the *shape* rather than the tool: the scene must
-   * still hand over a protocol, and it must not hand over the one Act I already
-   * gave the player.
+   * §21.0c — **this is where Instant Messenger is handed over, and the only
+   * place.** It spent one day in Act I; §11.5's node is the root of a board Run
+   * 1 cannot open, so giving it away there gave away the centre of a tree behind
+   * a locked door.
    */
-  it('hands over the next protocol, not the one Act I already gave away', () => {
+  it('is the scene that hands over Instant Messenger', () => {
     const os = script.find((l) => l.speaker === 'STUDIO_OS')
     expect(os?.text).toContain('NEW PROTOCOL AVAILABLE')
-    expect(os?.text).not.toContain('INSTANT MESSENGER')
+    expect(os?.text).toContain('INSTANT MESSENGER')
+  })
+
+  it('lands the joke: they are sitting side by side', () => {
+    const all = script.map((l) => l.text)
+    expect(all).toContain('James, we’re sitting side by side.')
+    // §21.7.0 rule 2 — he is *sincere* about it. This is good news, to him.
+    expect(all).toContain('Yes. That’s the inefficiency.')
+    expect(all[all.length - 1]).toBe('Check your messages.')
   })
 
   it('hands it over as a punchline, not an unlock notification', () => {
@@ -57,12 +59,20 @@ describe('§21.6 — the lines are the product', () => {
     expect(script[i + 1].text).toContain('Anyway')
   })
 
-  it('places the notification on a page that exists', () => {
+  it('places the notification on a line that exists, spoken by the person who sent it', () => {
     // The index is a fact about the script, so it lives beside it — insert a
     // line and this moves, and a stage direction pointing past the end would
     // silently never fire.
-    expect(HEY_AFTER_PAGE).toBeLessThan(script.length)
-    expect(script[HEY_AFTER_PAGE].speaker).toBe('JAMES')
+    //
+    // A *line* index, not a page one: §10.7a.2 paginates the STUDIO_OS
+    // announcement into four boxes on its own, so the two numbers differ. The
+    // constant was called `HEY_AFTER_PAGE` while this test read it as a line,
+    // which is exactly the sort of agreement that holds until somebody uses it.
+    expect(HEY_AFTER_LINE).toBeLessThan(script.length)
+    expect(script[HEY_AFTER_LINE].speaker).toBe('JAMES')
+    // The `hey` lands in the silence he leaves, so the next line is the player
+    // having nothing to say.
+    expect(script[HEY_AFTER_LINE + 1].text).toBe('…')
   })
 })
 
@@ -104,25 +114,29 @@ describe('§21.7.1 — James arrives, and nothing announces it', () => {
   })
 })
 
-describe('§21.7.2 — Instant Messenger', () => {
-  const im = SCENE_INSTANT_MESSENGER.script
-  const all = im.map((l) => l.text)
-
-  it('is the node James hands over', () => {
-    const os = im.find((l) => l.speaker === 'STUDIO_OS')
-    expect(os?.text).toContain('INSTANT MESSENGER')
+describe('§21.0c — Run 1 has exactly one scene', () => {
+  /**
+   * The whole of the §21.0c correction, asserted as a count.
+   *
+   * Act I gets James sitting down and nothing else. Every other scene in the
+   * game belongs to a run that has already been through the trap — and the way
+   * that is enforced is that there is only one scene whose id says `act1`.
+   */
+  it('has one Act I scene, and it is the arrival', () => {
+    const actOne = Object.keys(SCENES).filter((id) => id.startsWith('scene.act1.'))
+    expect(actOne).toEqual([SCENE_JAMES_ARRIVES.id])
   })
 
-  it('lands the joke: they are sitting side by side', () => {
-    expect(all).toContain('James, we’re sitting side by side.')
-    // §21.7.0 rule 2 — he is *sincere* about it. This is good news, to him.
-    expect(all).toContain('Yes. That’s the inefficiency.')
-    expect(all[all.length - 1]).toBe('Check your messages.')
-  })
-
-  it('places the `hey` notification on a page that exists', () => {
-    expect(IM_HEY_AFTER_PAGE).toBeLessThan(im.length)
-    expect(im[IM_HEY_AFTER_PAGE].speaker).toBe('JAMES')
+  /**
+   * Nothing in Act I mentions a tool, a protocol or an upgrade. §21.0c's rule
+   * is not "fewer scenes" but "one idea", and a line of Act I dialogue naming a
+   * piece of Communication Infrastructure would reintroduce the second idea
+   * without needing a second scene to do it in.
+   */
+  it('never names a tool in Act I', () => {
+    for (const line of SCENE_JAMES_ARRIVES.script) {
+      expect(line.text).not.toMatch(/PROTOCOL|MESSENGER|UPGRADE|CHANNEL/i)
+    }
   })
 })
 

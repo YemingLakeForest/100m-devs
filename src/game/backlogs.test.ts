@@ -7,7 +7,7 @@
  * three can become the second seizure §4.12 forbids.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   __resetStore,
   __setState,
@@ -19,6 +19,7 @@ import {
   setHireRole,
   tick,
 } from './store.ts'
+import { emptyPermanent, setPermanent } from './save.ts'
 import { BETA } from '../sim/defects.ts'
 import { BASELINE_RATING } from '../sim/rating.ts'
 import { countsOf, headcountOf } from '../sim/roles.ts'
@@ -75,7 +76,40 @@ function playUntilShipped(pokesPerSecond = 0, limit = 4000) {
   throw new Error('nothing shipped')
 }
 
-beforeEach(() => __resetStore())
+/**
+ * §21.0c — **every test in this file is about a studio that has prestiged.**
+ *
+ * The three backlogs do not exist during Run 1: no defect accrues, no incident
+ * is raised, no ticket arrives, and shipping stamps §4.14.1's anchor rather than
+ * grading anything. That is the design and it is asserted at the bottom of this
+ * file — so the rest of it, which is about how the three behave once they *do*
+ * exist, has to say which run it is playing.
+ *
+ * Set in a `beforeEach` rather than per test because the alternative is one line
+ * of setup repeated nineteen times and forgotten on the twentieth, and the
+ * symptom of forgetting is a test that passes by measuring zero against zero.
+ */
+function prestiged() {
+  const p = emptyPermanent()
+  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+}
+
+/**
+ * Start over, still on Run 2.
+ *
+ * `__resetStore` clears **permanent** state as well as the run — it is the
+ * harness's "forget this player ever existed" — so a test that resets in the
+ * middle of itself silently drops back to Run 1 and then measures zero against
+ * zero. Every mid-test reset in this file goes through here.
+ */
+function reset() {
+  __resetStore()
+  prestiged()
+}
+
+beforeEach(reset)
+
+afterEach(() => setPermanent(emptyPermanent()))
 
 describe('§4.11 — the roster and the headcount are the same number', () => {
   it('starts empty, because there is no QA in a garage', () => {
@@ -135,7 +169,7 @@ describe('§4.12 — defects accrue from the work itself', () => {
   it('breaks more when the player pokes', () => {
     play(20)
     const passive = getState().defects
-    __resetStore()
+    reset()
     play(20, 5)
     expect(getState().defects).toBeGreaterThan(passive)
   })
@@ -151,7 +185,7 @@ describe('§4.12 — defects accrue from the work itself', () => {
    */
   it('is suppressed by hiring QA', () => {
     function accrualOver(role: 'qa' | 'dev'): number {
-      __resetStore()
+      reset()
       play(240, 4)
       for (let i = 0; i < 6; i++) {
         setHireRole(role)
@@ -192,7 +226,7 @@ describe('§4.12 / §4.12a — shipping transfers the backlog, it does not forgi
    */
   it('rates a hammered project below a patient one', () => {
     const hammered = playUntilShipped(8)
-    __resetStore()
+    reset()
     const patient = playUntilShipped(0)
 
     expect(hammered.defectDensity).toBeGreaterThan(patient.defectDensity)
@@ -344,5 +378,64 @@ describe('§22.3 — James does not quit', () => {
     poke(0, 0, { rung: 0, index: 1 })
     expect(getState().devs).toBe(before - 1)
     expect(headcountOf(getState().roster)).toBe(before - 1)
+  })
+})
+
+/**
+ * §21.0c — **none of the above happens during Run 1.**
+ *
+ * Everything else in this file runs with `paradigmShifts: 1`, because everything
+ * else in this file is about a system Run 1 does not have. This block is the
+ * other half of that sentence, and it is the half worth pinning: the three
+ * backlogs were built, wired and shipped straight into Act I, where a defect
+ * counter appeared beside a hire dial offering a job the player could not take.
+ *
+ * Asserted against the **simulation**, not the HUD. Hiding a readout whose
+ * number is climbing behind it would leave the player's Run 1 quietly taxed by a
+ * ticket queue they were never shown, which is worse than showing it.
+ */
+describe('§21.0c — the first run has one lever', () => {
+  beforeEach(() => {
+    __resetStore()
+    setPermanent(emptyPermanent())
+  })
+
+  it('breaks nothing, however hard the player hammers it', () => {
+    play(240, 8)
+    expect(getState().defects).toBe(0)
+    expect(getState().incidents).toEqual([])
+    expect(getState().tickets).toBe(0)
+  })
+
+  it('ships at exactly the baseline, so §21 is paced against the economy it was tuned for', () => {
+    // Not "the bench is empty so the rating is high" — that is the bug this
+    // guards. A bench of zero scores *better* than §4.14.1's anchor, so a Run 1
+    // that ran the live rating would hand every release a quality bonus and
+    // quietly re-tune Act II's money.
+    const first = playUntilShipped(8)
+    expect(first.defectDensity).toBeCloseTo(BETA, 6)
+    expect(first.rating).toBeCloseTo(BASELINE_RATING, 6)
+    expect(getState().reputation).toBe(BASELINE_RATING)
+  })
+
+  it('never taxes the catalogue, because nobody has written in', () => {
+    play(240, 4)
+    const s = getState()
+    expect(s.releases.length).toBeGreaterThan(0)
+    // §4.13's tax is `catalogueMultiplier`, which is 1 at parity. The point here
+    // is that the queue it reads is not merely small but absent.
+    expect(s.tickets).toBe(0)
+    expect(catalogueRate()).toBeGreaterThan(0)
+  })
+
+  it('opens the backlogs the moment the player prestiges', () => {
+    // The gate is a real gate rather than a permanent deletion: the same store,
+    // the same play, one prestige apart.
+    play(60, 8)
+    expect(getState().defects).toBe(0)
+
+    prestiged()
+    play(10, 8)
+    expect(getState().defects).toBeGreaterThan(0)
   })
 })
