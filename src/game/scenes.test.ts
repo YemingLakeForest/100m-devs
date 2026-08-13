@@ -125,7 +125,7 @@ describe('§21.7.1 — James arrives, and nothing announces it', () => {
 
   it('is short — a hero introduction is a handshake, not an act', () => {
     // §21.7.3 rule 1 sets this scene as the length nothing later exceeds.
-    expect(arrival.length).toBeLessThanOrEqual(15)
+    expect(arrival.length).toBeLessThanOrEqual(16)
   })
 })
 

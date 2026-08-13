@@ -64,8 +64,10 @@ export const SCENE_JAMES_ARRIVES: Scene = {
   id: 'scene.act1.james-arrives',
   script: [
     { speaker: OS, text: 'APPLICANT AT DOOR.' },
-    // §21.7.1 — he drops in on this beat, and the founder is watching. This is
-    // the wordless reaction to a man falling out of the ceiling.
+    // §21.7.1 — he drops in on this beat and says so. One word, correct
+    // grammar, delivered mid-fall. The founder is watching.
+    { speaker: JAMES, text: 'Ouch.', focus: AT_JAMES },
+    // The founder's wordless reaction to a man falling out of the ceiling.
     { speaker: PLAYER, text: 'What—', focus: AT_YOU },
     { speaker: PLAYER, text: 'Can I help you?', focus: AT_YOU },
     { speaker: JAMES, text: 'You posted a job.', focus: AT_JAMES },
@@ -77,7 +79,10 @@ export const SCENE_JAMES_ARRIVES: Scene = {
     { speaker: JAMES, text: 'Fewer. It’s countable.', focus: AT_JAMES },
     // He sits down at the empty desk. He opens a Diet Coke (§21.7.0 rule 4).
     { speaker: PLAYER, text: 'I can’t pay you.', focus: AT_YOU },
-    { speaker: JAMES, text: 'I know. I read the posting.', focus: AT_JAMES },
+    // §21.7.0 rule 4 — he lives on Diet Coke. Sincere, and it answers the wrong
+    // question: the player is worried about money, James is worried about his
+    // lunch. He has brought his own.
+    { speaker: JAMES, text: 'I live off Diet Coke. I have brought my own.', focus: AT_JAMES },
     { speaker: JAMES, text: 'I’m here eleven to seven. I go to the gym at ten.', focus: AT_JAMES },
     { speaker: PLAYER, text: 'Every day?', focus: AT_YOU },
     // §21.7.0 rule 5, and it is a mechanic: an hour a day where the game's most
@@ -87,9 +92,9 @@ export const SCENE_JAMES_ARRIVES: Scene = {
     // not going to be distracted again.
     { speaker: JAMES, text: 'I’m going straight back to work. I don’t stop once I start.', focus: AT_JAMES },
     // The transition §21.7.1 never narrated: he starts working, and the
-    // burn-down moves on its own now. Delivered as a machine notice rather than
-    // a line of dialogue, because the fact is a mechanism, not a character beat.
-    { speaker: OS, text: 'NOTICE: STORY POINTS WILL NOW BURN DOWN WHETHER YOU HELP OR NOT.' },
+    // burn-down moves on its own now. Delivered as a machine notice, and the
+    // machine names the culprit with no irony at all.
+    { speaker: OS, text: 'NOTICE: STORY POINTS NOW BURN DOWN WITH OR WITHOUT YOUR WORK. CAPITALISM.' },
   ],
 }
 
