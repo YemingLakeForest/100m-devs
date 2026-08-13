@@ -15,6 +15,9 @@ export type Phase =
   | 'act1_poke'
   /** §21.0b — James turns up, free, part-way through Act I. */
   | 'act1_james'
+  /** Act I's second half — James is here, nobody is paid, and the first income
+    * is still a shipped game away. */
+  | 'act1_ship'
   /** Act II — the OS suggests scaling up; HIRE unlocks. */
   | 'act2_offer_hire'
   /** Act II — James is here; ship the thing. */
@@ -37,6 +40,7 @@ export type Phase =
 export const PHASE_ORDER: readonly Phase[] = [
   'act1_poke',
   'act1_james',
+  'act1_ship',
   'act2_offer_hire',
   'act2_ship',
   'act2a_loop',
@@ -131,10 +135,18 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
     advisor: 'Tap yourself to code, or poke James to make him work faster.',
   },
 
+  act1_ship: {
+    // §21 — the scaling pitch cannot land yet: hiring spends money, and there
+    // is none until a game has sold. The founders still have to code, and the
+    // one person available to speed up is the one already at a desk.
+    advisor: 'Founders still have to code, or poke James to make him work faster.',
+  },
+
   act2_offer_hire: {
-    // Unchanged, and it lands harder one beat later than it used to: the player
-    // now has evidence that a second person doubled their speed, so the pitch is
-    // arriving at somebody who already agrees with it.
+    // The pitch now lands after the first income instead of before it. "Let's
+    // scale up" is advice about spending money, and the player holds none
+    // until the first game has sold — landing it then means it arrives at
+    // somebody who has felt the grind *and* has the first money it will spend.
     advisor:
       'Progress is dangerously slow! At this rate, your indie game will launch after the sun dies. Let’s scale up!',
     action: 'HIRE DEVELOPER',
@@ -306,7 +318,14 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
       // §21.0b — he is not hired, he turns up. The store grants him free on
       // entry to this phase and the beat waits on him being at a desk rather
       // than on the player pressing anything: there is nothing to press.
-      return s.devs >= 1 ? 'act2_offer_hire' : phase
+      return s.devs >= 1 ? 'act1_ship' : phase
+
+    case 'act1_ship':
+      // §21 — the OS pitch waits on income. With James at a desk and nobody on
+      // payroll the only job is the first ship, and "let's scale up" cannot
+      // land on a treasury holding nothing: the beat holds until a game has
+      // actually sold and the money is real.
+      return s.projectsShipped >= 1 ? 'act2_offer_hire' : phase
 
     case 'act2_offer_hire':
       // §21.0b — the offer is now about the *second* employee, and it is the

@@ -112,8 +112,19 @@ describe('Act I — the clicker layer sells itself first', () => {
    */
   it('waits for James to sit down, and there is no button to press', () => {
     expect(advanceOnboarding('act1_james', at({ devs: 0, cash: 0 }))).toBe('act1_james')
-    expect(advanceOnboarding('act1_james', at({ devs: 1, cash: 0 }))).toBe('act2_offer_hire')
+    expect(advanceOnboarding('act1_james', at({ devs: 1, cash: 0 }))).toBe('act1_ship')
     expect(PHASE_COPY.act1_james.action).toBeUndefined()
+  })
+
+  it('holds the scaling pitch until the first income exists', () => {
+    // §21 — with James at a desk the founders still have to code: a hire
+    // button against a treasury of nothing is the R41 complaint again, one
+    // beat later. The pitch waits on the first ship, which is the first money.
+    expect(advanceOnboarding('act1_ship', at({ devs: 1, projectsShipped: 0 }))).toBe('act1_ship')
+    expect(PHASE_COPY.act1_ship.action).toBeUndefined()
+    expect(advanceOnboarding('act1_ship', at({ devs: 1, projectsShipped: 1 }))).toBe(
+      'act2_offer_hire',
+    )
   })
 })
 

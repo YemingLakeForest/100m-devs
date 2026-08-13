@@ -186,6 +186,37 @@ const PLATE_PAD_ROWS = 0.6
 /** §7.8.1 — the headcount at which the room stops gaining and starts losing. */
 const CROWDING_STARTS = 40
 
+/**
+ * The floor margin around the desk block, in tiles — how open the room is.
+ *
+ * §7.8.1's table, read as three numbers: up to ten developers the room hugs
+ * like the bedroom it starts as; across the 11–30 band the walls push outward
+ * until the room reaches its full open-plan size; past forty the floor is
+ * crowded and the margin closes again, which is the "the room gets worse as
+ * it fills" half of the thesis.
+ *
+ * The first gate is the one §7.8.1 names and it is worth restating as a
+ * requirement rather than a tuned curve: **a room sized for a hundred
+ * developers is not available to a studio of two.** Two developers get a
+ * bedroom; ten developers get a small office; the hundred-developer open plan
+ * is something the headcount has to earn, one hire at a time, across the band
+ * the table calls "walls push outward".
+ */
+export const ROOM_TIGHT_MARGIN = 1.05
+export const ROOM_OPEN_MARGIN = 1.5
+export const ROOM_CROWD_MARGIN = 0.6
+/** §7.8.1's "11–30: walls push outward" — below this the room stays tight. */
+export const ROOM_OPENS_AT = 10
+/** The headcount at which the open plan is fully open — §7.8.1's 31–100 band. */
+export const ROOM_FULL_AT = 30
+
+export function roomMargin(devs: number): number {
+  const n = Math.max(0, Math.floor(devs))
+  if (n >= CROWDING_STARTS) return ROOM_CROWD_MARGIN
+  const t = Math.min(1, Math.max(0, (n - ROOM_OPENS_AT) / (ROOM_FULL_AT - ROOM_OPENS_AT)))
+  return ROOM_TIGHT_MARGIN + t * (ROOM_OPEN_MARGIN - ROOM_TIGHT_MARGIN)
+}
+
 /** §7.8.8 — how long a developer takes to turn round. */
 export const TURN_MS = 400
 
@@ -596,8 +627,16 @@ export function seatPosition(index: number): { x: number; y: number } {
  * zero and y is the furthest point away from the player. This is deliberately
  * not a vague upper-right offset: the founder owns the north corner itself and
  * no developer row can ever build through it.
+ *
+ * Kept close to row zero rather than pushed further out. The room's plate is a
+ * diamond that must contain both the founder's corner and the first developer
+ * row, so this offset *is* the room's size at a two-person studio — pull it
+ * out and the bedroom becomes a hall before a single hire sits down. §7.8.1's
+ * first frame is "one desk in a dark bedroom", and a bedroom is only small
+ * enough to read as one if the corner desk and row zero are within reach of
+ * each other.
  */
-export const FOUNDER_CORNER_ROW = -2.25
+export const FOUNDER_CORNER_ROW = -1.6
 export const FOUNDER_CORNER_COL = FOUNDER_CORNER_ROW * PITCH_ROW
 
 export function founderDeskPosition(): { x: number; y: number } {
@@ -1896,16 +1935,17 @@ export function buildRoom(): RoomHandle {
     // first frame is a *bedroom*, and a bedroom with three tiles of empty
     // floor around the desk is a hall — the room has to hug the person in it
     // before it can feel like it is filling up.
-    const roomy = props.walkway ? 1.5 : 0.6
-    const TIGHTEST = 1.05
-    // Clamped at both ends. The old form interpolated on an *unbounded*
-    // `n / 14`, which is only an interpolation while the room is opening up —
-    // once crowding flips `roomy` below `TIGHTEST` the same expression runs
-    // away downward, and by forty developers the margin was **negative**: a
-    // floor plate smaller than the block of desks standing on it. That is the
-    // second half of R6, and it is the half no amount of geometry would have
-    // fixed.
-    const margin = TIGHTEST + Math.min(1, n / 14) * (roomy - TIGHTEST)
+    //
+    // **The open plan is gated at ten developers.** Below that the margin sits
+    // at {@link ROOM_TIGHT_MARGIN} no matter what — a two-person studio does
+    // not get a hundred-developer room — and the room only reaches its full
+    // openness across the 11–30 band §7.8.1 calls "walls push outward". The
+    // old form ramped on `n / 14`, which handed a fourteen-developer huddle
+    // the same open floor as the open plan, and its unbounded tail was the
+    // negative-margin defect R6 records: once crowding flips the target below
+    // {@link ROOM_TIGHT_MARGIN} the clamped form can no longer run away
+    // downward and put a floor plate *smaller* than the block standing on it.
+    const margin = roomMargin(n)
     // Sized from the seats' real screen bounding box, and then from the rule
     // that actually contains it — see `blockBox` and `plateHalfWidth`. The
     // previous `max(width, height)` was correct only for a nearly flat block
@@ -1922,8 +1962,8 @@ export function buildRoom(): RoomHandle {
     const box = unfolded
       ? floorBox(Math.ceil(n / SQUAD_SIZE))
       : blockBox(
-          FOUNDER_CORNER_COL - 0.95,
-          FOUNDER_CORNER_ROW - 0.95,
+          FOUNDER_CORNER_COL - 0.7,
+          FOUNDER_CORNER_ROW - 0.7,
           cols - 1,
           rows - 1,
         )
@@ -1959,7 +1999,14 @@ export function buildRoom(): RoomHandle {
     // the frame in a two-desk bedroom, which pushed the people — the actual
     // subject — onto the bottom edge. Walls are backdrop; they get whatever
     // room is left after the floor has what it needs.
-    const WALL_H = Math.max(38, Math.min(120, floorH * 0.62))
+    //
+    // The fraction is deliberately small at the bedroom end of the curve: a
+    // two-person studio in a room that is mostly wall reads as a room too big
+    // for the people in it, which is the complaint the tighter margins above
+    // exist to fix. 0.48 of the floor's half-height keeps the walls shorter
+    // than the founder's clearance deserves at low headcounts while still
+    // rising to the full cap once the open plan is out.
+    const WALL_H = Math.max(34, Math.min(112, floorH * 0.48))
     const topX = cx
     const topY = cy - floorH
     const leftX = cx - floorW

@@ -2489,6 +2489,11 @@ export function jumpToPhase(phase: Phase): void {
   const run = freshRun()
 
   switch (phase) {
+    case 'act1_ship':
+      // The grind between James sitting down and the first sale — no cash, no
+      // hire button, just the founders and the burn-down.
+      set({ ...run, phase, devs: 1, pokeCount: 12 })
+      break
     case 'act2_offer_hire':
       set({ ...run, phase, pokeCount: 12 })
       break

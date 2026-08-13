@@ -1,0 +1,60 @@
+/*
+ * The STUDIO_OS boot — the black cut scene between the founder creator and the
+ * game. One screen and nothing to operate: the pages type themselves out and
+ * each one waits for a click. Tapping mid-reveal completes the current page
+ * (§10.7 rule 1), tapping a finished page moves on, and the tap on the last
+ * page lifts the whole screen into the game.
+ *
+ * The black is `--n0`, the palette's own dark — an off-palette #000 would be
+ * the one colour in the product the §5 quantiser never issued, and the
+ * scanlines below make the difference between "black" and "a screen that is
+ * off" without leaving the palette either.
+ */
+
+.studio-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 20; /* same plane as the founder creator, which this replaces */
+  display: grid;
+  place-items: center;
+  background: var(--n0);
+  cursor: pointer;
+}
+
+/* The rolled-glass texture the founder creator wears, so the black reads as
+   a monitor waiting rather than as a hole in the app. */
+.studio-boot__scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, var(--n0) 3px 4px);
+}
+
+/* One page, one line, type-2x: a cut scene gets the second rung of the type
+   scale rather than the terminal's body size, and §3 rule 2 forbids anything
+   fractional between them. */
+.studio-boot__page {
+  margin: 0;
+  font: inherit;
+  font-size: var(--type-2x);
+  line-height: 1.6;
+  color: var(--p2);
+  white-space: pre;
+  text-align: center;
+}
+
+/* "The room lights come up" — the overlay fades and the lit room behind it is
+   the game's first frame. Duration is pushed down from the component so the
+   §10.5 rule-3 reduction applies to it. */
+.studio-boot[data-phase='exit'] {
+  animation: studio-boot-out var(--boot-exit, 340ms) cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+@keyframes studio-boot-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

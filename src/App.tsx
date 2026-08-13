@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { initSfx } from './audio/sfx.ts'
-import { __setState, jumpToPhase, saveGame, selectDeveloper, startNewGame } from './game/store.ts'
+import {
+  __setState,
+  jumpToPhase,
+  PROJECTS,
+  saveGame,
+  selectDeveloper,
+  startNewGame,
+} from './game/store.ts'
 import { PHASE_ORDER, type Phase } from './game/onboarding.ts'
 import { Hud } from './hud/Hud.tsx'
 import { createStage, type StageHandle } from './render/stage.ts'
@@ -8,6 +15,7 @@ import { runBench } from './perf/bench.ts'
 import { markInteractive } from './perf/metrics.ts'
 import { TitleScreen } from './title/TitleScreen.tsx'
 import { FounderSetup } from './title/FounderSetup.tsx'
+import { StudioBoot } from './title/StudioBoot.tsx'
 import { hasBooted, markBooted } from './title/bootFlag.ts'
 import {
   clearFounderProfile,
@@ -60,6 +68,7 @@ export default function App() {
   const [titleExiting, setTitleExiting] = useState(false)
   const [started, setStarted] = useState(SKIP_TITLE)
   const [founderSetupUp, setFounderSetupUp] = useState(false)
+  const [studioBootUp, setStudioBootUp] = useState(false)
   const [founderProfile, setFounderProfile] = useState<FounderProfile | null>(() =>
     readFounderProfile(),
   )
@@ -245,6 +254,19 @@ export default function App() {
           onComplete={(profile) => {
             setFounderProfile(profile)
             setFounderSetupUp(false)
+            // Not straight into the game: the OS boots over a black screen
+            // first, names the founder and the project, and only then hands
+            // the desk over. The stage is already running behind it.
+            setStudioBootUp(true)
+          }}
+        />
+      )}
+      {studioBootUp && founderProfile && (
+        <StudioBoot
+          founderName={founderProfile.name}
+          projectName={PROJECTS[0].name}
+          onDone={() => {
+            setStudioBootUp(false)
             setStarted(true)
           }}
         />

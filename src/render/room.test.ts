@@ -44,6 +44,12 @@ import {
   propsAt,
   seatFor,
   seatGrid,
+  roomMargin,
+  ROOM_CROWD_MARGIN,
+  ROOM_FULL_AT,
+  ROOM_OPENS_AT,
+  ROOM_OPEN_MARGIN,
+  ROOM_TIGHT_MARGIN,
 } from './room.ts'
 import {
   ARRIVAL_MS,
@@ -263,6 +269,12 @@ describe('your corner desk — GDD §7.8.10', () => {
     expect(FOUNDER_CORNER_ROW).toBeLessThan(0)
     expect(you.x).toBeCloseTo(0, 10)
     expect(you.y).toBeLessThan(first.y - 100)
+    // And it stays *near* row zero for the same reason §7.8.1's first frame is
+    // a bedroom: the plate has to span from the founder's corner to the first
+    // developer row, so the founder's distance from row zero IS the size of a
+    // two-person room. Push the corner further out and the bedroom becomes a
+    // hall before the second desk arrives.
+    expect(you.y).toBeGreaterThan(first.y - 150)
   })
 
   it('anchors the room shell to the founder instead of merely placing them high', () => {
@@ -441,6 +453,39 @@ describe('the floor unfolds at a hundred — GDD §7.8.1c, R7', () => {
 
   it('is over quickly enough to be an event rather than a wait', () => {
     expect(UNFOLD_MS).toBeLessThanOrEqual(3000)
+  })
+})
+
+describe('the open room is earned, not given — §7.8.1', () => {
+  it('keeps the hundred-developer room from a studio of two', () => {
+    // The plate's margin is how open the room is, and below ten developers it
+    // sits at the tightest value whatever the interpolation would say: a
+    // two-person studio gets a bedroom, not an open plan with the same empty
+    // floor as a studio of a hundred.
+    expect(roomMargin(1)).toBe(ROOM_TIGHT_MARGIN)
+    expect(roomMargin(2)).toBe(ROOM_TIGHT_MARGIN)
+    expect(roomMargin(ROOM_OPENS_AT)).toBe(ROOM_TIGHT_MARGIN)
+  })
+
+  it('pushes the walls out only across the 11–30 band', () => {
+    // §7.8.1's own thresholds: the first developer past ten starts the
+    // expansion, and it finishes in time for the 31–100 open-plan band.
+    expect(roomMargin(ROOM_OPENS_AT + 1)).toBeGreaterThan(ROOM_TIGHT_MARGIN)
+    expect(roomMargin(ROOM_OPENS_AT + 1)).toBeLessThan(ROOM_OPEN_MARGIN)
+    expect(roomMargin((ROOM_OPENS_AT + ROOM_FULL_AT) / 2)).toBeCloseTo(
+      (ROOM_TIGHT_MARGIN + ROOM_OPEN_MARGIN) / 2,
+      9,
+    )
+    expect(roomMargin(ROOM_FULL_AT)).toBe(ROOM_OPEN_MARGIN)
+    expect(roomMargin(ROOM_FULL_AT + 5)).toBe(ROOM_OPEN_MARGIN)
+  })
+
+  it('closes again once the floor is crowded', () => {
+    // The room gets worse as it gets fuller: past forty the margin drops to
+    // the crowding value, and nothing above that ever re-opens it.
+    expect(roomMargin(39)).toBe(ROOM_OPEN_MARGIN)
+    expect(roomMargin(40)).toBe(ROOM_CROWD_MARGIN)
+    expect(roomMargin(1000)).toBe(ROOM_CROWD_MARGIN)
   })
 })
 
