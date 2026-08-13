@@ -49,16 +49,30 @@ export function Defects({ state }: { state: GameState }) {
 
   return (
     <div className="backlog backlog--defects">
-      <span className="backlog__count">
-        <b>{count}</b> <Kw kind="defects">{count === 1 ? 'DEFECT' : 'DEFECTS'}</Kw>
+      {/*
+        Two rows, never three. The count and the density are one sentence — "37
+        defects, one per 107 story points" — and stacking them cost a line in a
+        rail that turned out not to have one. See §4.15's note on the rail budget
+        in `Hud.tsx`.
+      */}
+      <span className="backlog__head">
+        <span className="backlog__count">
+          <b>{count}</b> <Kw kind="defects">{count === 1 ? 'DEFECT' : 'DEFECTS'}</Kw>
+        </span>
+        {/*
+          Rule 1. It names the cure rather than the problem, and only while the
+          cure is missing — a studio that has already hired QA is being told
+          something it acted on, which is the definition of nagging.
+
+          **On the same line as the noun**, which is both cheaper and better:
+          `37 DEFECTS — HIRE QA` is one sentence, and it puts the word QA
+          directly beside the word it is the answer to. As a row of its own it
+          was a caption under a number, which is the shape of an explanation
+          rather than of an instruction.
+        */}
+        {qa === 0 && <span className="backlog__cure backlog__cure--qa">HIRE QA</span>}
       </span>
       {density && <span className="backlog__note">{density}</span>}
-      {/*
-        Rule 1. It names the cure rather than the problem, and only while the
-        cure is missing — a studio that has already hired QA is being told
-        something it acted on, which is the definition of nagging.
-      */}
-      {qa === 0 && <span className="backlog__cure backlog__cure--qa">QA REDUCE THIS</span>}
     </div>
   )
 }
@@ -83,6 +97,14 @@ export function Incidents({ state }: { state: GameState }) {
     <div className="backlog backlog--incidents">
       <span className="backlog__head">
         <Kw kind="incidents">{state.incidents.length === 1 ? 'INCIDENT' : 'INCIDENTS'}</Kw>
+        {/*
+          The cure rides the heading rather than taking a row of its own. Three
+          rows for one incident was more of the rail than the situation is worth
+          — and there is a second, better reason: this way the word SRE sits
+          directly beside the word INCIDENTS, which is the association §4.15
+          rule 1 exists to build.
+        */}
+        {sre === 0 && <span className="backlog__cure backlog__cure--sre">HIRE SRE</span>}
       </span>
       <ul className="backlog__chips">
         {state.incidents.map((incident) => (
@@ -97,7 +119,6 @@ export function Incidents({ state }: { state: GameState }) {
           </li>
         ))}
       </ul>
-      {sre === 0 && <span className="backlog__cure backlog__cure--sre">SRE CLEAR THESE</span>}
     </div>
   )
 }
@@ -124,23 +145,42 @@ export function Tickets({ state }: { state: GameState }) {
   // catalogue and this row has nothing to say until something ships.
   if (!Number.isFinite(ratio)) return null
 
-  const keepingUp = ratio >= 1
-  // A full bar at parity, emptying as the studio falls behind. Clamped so a
-  // studio at ten times capacity does not draw a bar ten screens wide.
+  /**
+   * **Silent while the studio is keeping up** — the same rule {@link Defects}
+   * applies at zero, and it should have been applied here from the start.
+   *
+   * A `TICKETS — KEEPING UP` bar is a permanent piece of furniture reporting
+   * that nothing is happening, and §4.13 calls this component "the studio's
+   * ambient noise" and asks it to be the quietest thing in the HUD. A row that
+   * is always there is not quiet; it is the loudest kind of furniture, because
+   * it teaches the player to stop reading that part of the rail — and the part
+   * of the rail it teaches them to ignore is the one that will eventually say
+   * FALLING BEHIND.
+   *
+   * It also costs forty pixels of the left rail in every frame of every run,
+   * which turned out to be forty pixels the rail did not have.
+   */
+  if (ratio >= 1) return null
+
+  // A full bar at parity, emptying as the studio falls behind. Clamped so the
+  // bar is never invisible however far under water the queue is.
   const fill = Math.max(0.04, Math.min(1, ratio))
 
   return (
-    <div className="backlog backlog--tickets" data-behind={keepingUp ? 'false' : 'true'}>
+    <div className="backlog backlog--tickets" data-behind="true">
       <span className="backlog__head">
         <Kw kind="tickets">TICKETS</Kw>
-        <span className="backlog__note">{keepingUp ? 'KEEPING UP' : 'FALLING BEHIND'}</span>
+        <span className="backlog__note">
+          {support === 0 ? (
+            <span className="backlog__cure backlog__cure--support">HIRE SUPPORT</span>
+          ) : (
+            'FALLING BEHIND'
+          )}
+        </span>
       </span>
       <div className="backlog__bar" role="presentation">
         <div className="backlog__bar-fill" style={{ inlineSize: `${fill * 100}%` }} />
       </div>
-      {!keepingUp && support === 0 && (
-        <span className="backlog__cure backlog__cure--support">SUPPORT ANSWER THESE</span>
-      )}
     </div>
   )
 }

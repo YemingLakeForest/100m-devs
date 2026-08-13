@@ -68,12 +68,12 @@ describe('§4.12 — the defect counter', () => {
    */
   it('names QA while there are none, and stops once there are', () => {
     render(<Defects state={stateWith({ defects: 10 })} />)
-    expect(screen.getByText('QA REDUCE THIS')).toBeInTheDocument()
+    expect(screen.getByText('HIRE QA')).toBeInTheDocument()
     cleanup()
 
     const hired = stateWith({ defects: 10, roster: addHires(newRoster(0), 'qa', 3) })
     render(<Defects state={hired} />)
-    expect(screen.queryByText('QA REDUCE THIS')).not.toBeInTheDocument()
+    expect(screen.queryByText('HIRE QA')).not.toBeInTheDocument()
   })
 })
 
@@ -105,7 +105,7 @@ describe('§4.12a — the incident chips', () => {
 
   it('names SRE while there are none', () => {
     render(<Incidents state={down} />)
-    expect(screen.getByText('SRE CLEAR THESE')).toBeInTheDocument()
+    expect(screen.getByText('HIRE SRE')).toBeInTheDocument()
   })
 })
 
@@ -119,16 +119,39 @@ describe('§4.13 — the ticket bar', () => {
    * §13.7.1 — the founder answers the email, so a garage with one shipped game
    * is keeping up. The bar has to be drawn against the same capacity the
    * simulation charges, or the readout would contradict the till.
+   *
+   * **And a studio that is keeping up says nothing**, which is the same rule
+   * `Defects` applies at zero. A permanent `TICKETS — KEEPING UP` row is
+   * furniture reporting that nothing is happening, and the part of the rail it
+   * teaches the player to stop reading is the part that will one day say
+   * FALLING BEHIND.
    */
-  it('reads KEEPING UP for a garage, because the founder answers the email', () => {
-    render(<Tickets state={stateWith({ projectsShipped: 1 })} />)
-    expect(screen.getByText('KEEPING UP')).toBeInTheDocument()
+  it('says nothing for a garage, because the founder answers the email', () => {
+    const { container } = render(<Tickets state={stateWith({ projectsShipped: 1 })} />)
+    expect(container).toBeEmptyDOMElement()
   })
 
-  it('reads FALLING BEHIND once the catalogue outgrows the founder', () => {
+  it('speaks up once the catalogue outgrows the founder', () => {
     render(<Tickets state={stateWith({ projectsShipped: 40 })} />)
+    // §4.15 rule 1 — it names the cure rather than the problem. The problem is
+    // the bar; the words are for the person who fixes it.
+    expect(screen.getByText('HIRE SUPPORT')).toBeInTheDocument()
+    expect(screen.getByText('TICKETS')).toBeInTheDocument()
+  })
+
+  /**
+   * Once Support has been hired the row still exists — the queue is still deep,
+   * and hiding it would be the HUD deciding a solved problem is a finished one —
+   * but it stops naming a cure the player has already bought.
+   */
+  it('stops nagging once Support exists, without going silent', () => {
+    render(
+      <Tickets
+        state={stateWith({ projectsShipped: 40, roster: addHires(newRoster(0), 'support', 1) })}
+      />,
+    )
     expect(screen.getByText('FALLING BEHIND')).toBeInTheDocument()
-    expect(screen.getByText('SUPPORT ANSWER THESE')).toBeInTheDocument()
+    expect(screen.queryByText('HIRE SUPPORT')).not.toBeInTheDocument()
   })
 })
 

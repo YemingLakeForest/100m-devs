@@ -228,7 +228,26 @@ body {
    * the copy is never drawn under a button and no control ever overflows the
    * frame. See `--hud-overhang`.
    */
-  grid-template-columns: var(--hud-rail) minmax(0, 1fr) minmax(var(--hud-rail), auto);
+  /*
+   * **The overhang is a limit, and for a while it was only a comment.**
+   *
+   * The third track said `minmax(var(--hud-rail), auto)`, and `auto` on a grid
+   * track means max-content: whatever the widest thing in the rail happens to
+   * be. The `--hud-overhang` token above describes exactly how far the rail may
+   * grow — and nothing enforced it, so the rail simply took what it wanted and
+   * the middle column, `minmax(0, 1fr)`, gave up whatever was left.
+   *
+   * Measured at 640x360 in Act III: the right track resolved to **401 px** and
+   * the middle column to **13**. §21's advisor copy — "the most important text
+   * in the game", by its own note below — was rendered thirteen pixels wide and
+   * 287 tall, which is one character per line running two hundred pixels off the
+   * bottom of the frame. The §23.3 overlay and §7.7.6b's switch were drawn on
+   * top of it. That is the reported "items being blocked", and it is one word.
+   */
+  grid-template-columns:
+    var(--hud-rail)
+    minmax(0, 1fr)
+    minmax(var(--hud-rail), calc(var(--hud-rail) + var(--hud-overhang)));
   /*
    * **Two rails, full height, and the copy between them.** This is the fix for
    * the overlap reported off a handset, and it took two goes to get right.
@@ -277,6 +296,24 @@ body {
   flex-direction: column;
   gap: 8px;
   min-height: 0;
+  /*
+   * **A rail may not draw outside itself.** The hard guarantee, and the reason
+   * it is here rather than in a media query: everything else in this file is an
+   * argument about how to make the content *fit*, and every one of those
+   * arguments was true when it was written and then something was added.
+   *
+   * What that produced, measured at 997x448 in Act III: a right rail 649 px tall
+   * in a 426 px column, overflowing downward past the bottom of the frame and
+   * leftward across §21's script. The offer, the dials, the hire button, the
+   * touch switch, your own desk and §10.1's entire nav were all outside the
+   * picture, and nothing anywhere reported it — `overflow: visible` is not a
+   * failure, it is a rendering instruction.
+   *
+   * Clipping is not the fix; the arrangement below is. This is the backstop that
+   * turns the next such regression into something visibly missing from a rail
+   * instead of something painted over the most important text on screen.
+   */
+  overflow: hidden;
 }
 
 .hud__left {
@@ -297,11 +334,32 @@ body {
  * full height there is no bottom-right cell to have, and the reading order down
  * the rail is the same one it always was.
  */
+/*
+ * **The play tools pack; they do not stack.**
+ *
+ * This was a single-column grid with a hand-placed two-column arrangement under
+ * a `max-height: 400px` media query, and the note on that query is worth reading
+ * as an artefact: it measured every control, spent its nine pixels of slack, and
+ * concluded that a row had to go. It was right, and it was measuring a rail that
+ * then acquired a role dial, two backlog readouts and a PARADIGM button — at
+ * which point the hand-placed columns were 351 px wide in a 236 px rail and the
+ * arrangement was drawing across §21's copy.
+ *
+ * A wrapping row needs no measurements and cannot go stale. The controls flow
+ * from the right edge and take as many rows as the rail's width requires, which
+ * is the correct answer at 146 px, at 266 px, and at whatever the next control
+ * makes it. `align-items: end` keeps the baselines of a mixed row — a 34 px
+ * switch beside a 26 px button — sitting on one line rather than floating.
+ */
 .hud__controls {
   align-self: flex-end;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: end;
   gap: 5px;
-  justify-items: end;
+  /* Wrapping only helps if the row is allowed to be as wide as the rail. */
+  width: 100%;
 }
 
 .hud__bottom {
@@ -327,6 +385,15 @@ body {
   margin-top: auto;
   display: grid;
   gap: 6px;
+  /*
+   * **`minmax(0, 1fr)`, because a grid item's automatic minimum is its
+   * content.** Without it the velocity block sized itself to
+   * `12.00 swarm + 0.50 you` on one line — 226 px, in a 146 px rail — and hung
+   * eighty pixels out over the simulation. It had done so since the breakdown
+   * line was added; nothing reported it because the rail did not clip, so the
+   * overhang read as a slightly wide readout rather than as an overflow.
+   */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .hud__resources {
@@ -1520,6 +1587,7 @@ body {
   .hud__controls {
     gap: 4px;
   }
+
 }
 
 /*
@@ -1540,6 +1608,20 @@ body {
     height: 20px;
   }
 
+  /*
+   * The project name gets one line instead of two reserved.
+   *
+   * §10.4's note above explains why the second line is *reserved* rather than
+   * grown into: the chart must not move as the project changes. That argument
+   * costs fourteen pixels of permanently blank rail, and on the two shortest
+   * frames in the box those fourteen pixels were coming out of §10.1's velocity
+   * readout. The names still wrap — nothing is truncated and no joke is lost —
+   * the chart just settles a line lower when they do, four times a run.
+   */
+  .burndown__name {
+    min-height: 1.25em;
+  }
+
   /* Ten pixels of bands. Below this it stops being a stack and becomes a rule
      that changes colour, and at that point the honest thing would be to drop
      it — but 336 is the bottom of §23.4's design box and it still reads. */
@@ -1553,50 +1635,50 @@ body {
   }
 
   /*
-   * §7.7.6b's switch moves onto the nav's line, and gives up its caption to
-   * get there.
+   * §23.3's overlay goes at the bottom of the design box.
    *
-   * **Measured, not guessed.** At 748x336 in Act III — the shortest frame in
-   * §23.4's design box, in the act that also carries the §21.0a offer and the
-   * §10.10 dial — the right rail runs to 345 px against a usable 324. It had
-   * about nine pixels of slack before this control existed and the control is
-   * thirty, so a row has to go rather than be trimmed for; shaving two pixels
-   * off five things recovers sixteen and leaves everything cramped and still
-   * broken. What was falling off the bottom was §10.1's UPGRADES nav, and a new
-   * control does not get to evict canon.
-   *
-   * So the latches sit beside the nav: 95 px and 114 px against the 266 the
-   * rail and its overhang allow. The caption is what does not fit in that sum,
-   * and it is the right thing to lose — the latches still *name* both modes, so
-   * all that goes is the word for the neutral one, on the smallest phone the
-   * game supports. Every taller frame keeps it.
+   * It is the only thing in either rail that is not part of the game: three
+   * measurements and a build stamp, for whoever is holding the phone against
+   * the gate. §23.3 is measured on a 997x448 device and every frame at or above
+   * that keeps it — this hides it on the two shortest frames in §23.4.2's box,
+   * where the twenty pixels are the difference between §10.1's velocity readout
+   * being on screen and not.
    */
-  .hud__controls {
-    grid-template-columns: auto auto;
-    justify-content: end;
-    align-items: center;
+  .hud__perf {
+    display: none;
   }
 
+  /*
+   * §4.5d's corner shortcut gives way too, and it is the right one to lose.
+   *
+   * "Your own desk, reachable at every zoom" is the requirement, and the corner
+   * is not how it is reached — §7.7.6b's CODE latch plus a tap on yourself is,
+   * and that is what Act I's advisor line literally instructs. The corner is a
+   * convenience duplicate of a gesture the game teaches in its first thirty
+   * seconds, and it was the last thirty pixels standing between §10.1's UPGRADES
+   * nav and the bottom of a 336 px frame. Tapping your avatar still opens the
+   * Management tree; nothing here is unreachable.
+   */
+  .founder__corner {
+    display: none;
+  }
+
+  /*
+   * §7.7.6b's switch gives up its caption on the shortest frames.
+   *
+   * The hand-placed two-column arrangement that used to live here is gone — see
+   * the note on `.hud__controls`, which now wraps and therefore needs no
+   * placement at any size. What survives is the *content* decision that block
+   * made, and it was the right one: on the smallest phone the game supports the
+   * latches still name both modes, so all that goes is the sentence explaining
+   * the neutral one.
+   */
   .touch {
-    grid-row: 1;
-    grid-column: 1;
     gap: 6px;
     padding: 2px 6px 3px 7px;
   }
 
-  .hud__nav {
-    grid-row: 1;
-    grid-column: 2;
-  }
-
-  .hud__perf {
-    grid-row: 2;
-    grid-column: 1 / -1;
-  }
-
   .founder__corner {
-    grid-row: 3;
-    grid-column: 1 / -1;
     padding-top: 0;
     border-top: 0;
   }
@@ -1605,14 +1687,23 @@ body {
     display: none;
   }
 
-  /* §13.2's PARADIGM, when it exists. Under the pair rather than over it: it is
-     the rarest control in the rail and the only one that is not always there. */
-  .hud__controls > .ui-btn {
-    grid-row: 4;
-    grid-column: 1 / -1;
+  .touch__hint {
+    display: none;
   }
 
-  .touch__hint {
+  /*
+   * §10.8a's brackets come off the rail's own controls.
+   *
+   * `[ UPGRADES ]` costs about twenty-six pixels of width for a decoration, and
+   * on the two shortest frames in §23.4.2's box that decoration was the
+   * difference between the nav wrapping onto a third row and fitting on a
+   * second. The idiom survives: the slab is still a 4° parallelogram with an
+   * offset block under it, which is the part §10.6's "rectangular flat-colour
+   * button" row is actually about. Only the rail is trimmed — every button on a
+   * panel, a modal or the title keeps its brackets, so the vocabulary is intact
+   * everywhere it is not being paid for in canon.
+   */
+  .hud__controls .ui-btn__bracket {
     display: none;
   }
 
@@ -1651,9 +1742,20 @@ body {
  * content and allowed to overhang the rail leftward, over the simulation, like
  * the action bar above it.
  */
+/*
+ * Three tokens on one line where there is room for one line, and two where
+ * there is not.
+ *
+ * It used to be `width: max-content` with an overhang, from when it sat in the
+ * right rail and could grow leftward over the simulation like the action bar
+ * above it. In the left rail there is nothing to grow into — the middle column
+ * is where §21's copy is — so it wraps instead, and the rail's own
+ * `overflow: hidden` stopped being something it had to be exempted from.
+ */
 .hud__perf {
-  width: max-content;
-  max-width: calc(var(--hud-rail) + var(--hud-overhang));
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 100%;
 }
 
 .hud__perf > span {
@@ -2486,6 +2588,12 @@ body {
 
 .backlog__chips {
   display: grid;
+  /* `minmax(0, 1fr)`, for the same reason `.backlog__chip-name` needs
+     `min-width: 0`: a grid item's automatic minimum is its content, so without
+     this the chip sized itself to the release's full name and hung out of the
+     rail. Two levels of the same trap, and fixing only the inner one left the
+     name drawn to the rail's edge and clipped mid-glyph rather than ellipsised. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   margin: 0;
   padding: 0;
@@ -2515,6 +2623,16 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /*
+   * **`min-width: 0`, or none of the three lines above do anything.**
+   *
+   * A flex item's automatic minimum size is its content, so this box refused to
+   * be narrower than `OPEN-WORLD SURVIVAL CRAFT` — the ellipsis had nothing to
+   * trigger on, and instead of truncating, the name pushed `OFF SALE` out of the
+   * chip and drew straight over it. Reproduced at every frame size in the design
+   * box; the longest release name in `PROJECTS` is the one that does it.
+   */
+  min-width: 0;
 }
 
 .backlog__chip-state {
@@ -2564,4 +2682,172 @@ body {
 .hire-dial--role {
   font-size: 9px;
   letter-spacing: 0;
+}
+
+/* ======================================================================== */
+/* Short frames, part three — §4.15's backlogs and §10.1's gauges.          */
+/*                                                                          */
+/* At the end of the file for the same reason "part two" is: `.backlog` and  */
+/* `.hud__block` are defined above at the same specificity a media query can */
+/* muster, so a trim written earlier in the file loses the cascade however   */
+/* narrow its condition. This was written in the wrong place first and had   */
+/* no effect at all, which is precisely the failure the note on part two     */
+/* describes.                                                                */
+/* ======================================================================== */
+
+/*
+ * **The order in which a backlog gives things up.**
+ *
+ * Measured at 748x336 — the bottom of §23.4.2's box — with all three showing:
+ * the left rail wanted 478 px against 314 of frame. That is not a spacing
+ * problem and no amount of shaving padding reaches it, so it is a content
+ * decision, and the decision has a stated order:
+ *
+ *   1. **That there is a problem** — the noun, in its colour. Never dropped.
+ *   2. **Who fixes it** — §4.15 rule 1's cure. Never dropped, because it is the
+ *      only thing on the row that tells the player what to *do*.
+ *   3. **Which one, and how bad** — the release name, the defect density, the
+ *      OFF SALE tag. This is the courtesy, and this is where it goes.
+ *
+ * So on a phone each backlog is a line rather than a block, and the detail
+ * returns on any frame with room for it. The alternative — hiding a whole
+ * backlog at short heights — was rejected outright: it would mean the game
+ * declining to mention that a shipped title is off sale.
+ */
+@media (max-height: 470px) {
+  .backlog {
+    padding: 2px 0 2px 6px;
+    gap: 0;
+  }
+
+  /* The numeral drops a whole step (§3 rule 2) so the count and its cure fit
+     one line of the rail together. */
+  .backlog__count b {
+    font-size: var(--type-1x);
+  }
+
+  .backlog--defects .backlog__note {
+    display: none;
+  }
+
+  /* The chip's own name already says which game; OFF SALE says what an incident
+     is, and by this point in a run the player knows. */
+  .backlog__chip-state {
+    display: none;
+  }
+
+  /*
+   * §10.1's gauges keep their numerals and give up their arithmetic.
+   *
+   * `12.00 swarm + 0.50 you` is a *check* on the number above it — the thing
+   * you read once, when you are wondering where the velocity came from — and
+   * the number itself is what the rail is for.
+   */
+  .hud__gauges .hud__block .hud__sub:last-child {
+    display: none;
+  }
+}
+
+@media (max-height: 400px) {
+  /*
+   * A heading over a list of one is a label for a label. The cure rides the
+   * chips instead — see `Backlogs.tsx` — so nothing §4.15 rule 1 asks for is
+   * lost with it.
+   */
+  .backlog--incidents .backlog__head {
+    display: none;
+  }
+
+  /* One more whole step off the two gauge numerals. They are still the largest
+     type in the left rail, which is what makes them gauges. */
+  .hud__gauges .hud__num--major {
+    font-size: var(--type-1x);
+  }
+}
+
+/*
+ * The last of it, at the bottom of §23.4.2's box.
+ *
+ * 748x336 in Act III, prestiged, with a defect bench, a downed release and a
+ * ticket queue is the deepest frame the game can produce, and these are the
+ * forty pixels between it and the edge. Every one of them comes off a *second*
+ * reading of something already on screen, never off a first.
+ */
+@media (max-height: 400px) {
+  /* A cure is two or three words and must never be the thing that wraps its
+     row into two — the row is the whole readout at this height. */
+  .backlog__cure {
+    white-space: nowrap;
+  }
+
+  /* §4.10e's outstanding-revenue line. CASH and NET already say where the
+     studio is; this says where it will be in five minutes, and it is the one
+     figure in the block that can wait for a taller phone. */
+  .hud__block--cash .hud__sub:last-child {
+    display: none;
+  }
+
+  .hire-dial__seg {
+    min-height: 22px;
+    padding: 1px 6px;
+  }
+
+  .hud__block {
+    padding: 1px 6px 2px;
+  }
+
+  .hud__actions {
+    gap: 3px;
+  }
+}
+
+/*
+ * Two more, one step earlier — 997x448 is the reference phone and it was
+ * twenty-two pixels over with everything on.
+ *
+ * Both are second readings of something already on screen: the corner's
+ * nameplate repeats a name the player typed and can see on their own avatar,
+ * and the dial's segments are legible four pixels shorter.
+ */
+@media (max-height: 470px) {
+  .founder__corner-label {
+    display: none;
+  }
+
+  .hire-dial__seg {
+    min-height: 22px;
+    padding: 1px 6px;
+  }
+}
+
+/*
+ * The last six pixels at the reference frame, and the last twenty at the
+ * bottom of the box. Spacing only — nothing below removes a reading.
+ */
+@media (max-height: 470px) {
+  .hud__left,
+  .hud__right {
+    gap: 6px;
+  }
+
+  .hud__actions {
+    gap: 3px;
+  }
+
+  .hud__bottom {
+    gap: 4px;
+  }
+}
+
+@media (max-height: 400px) {
+  /*
+   * §13.2's PARADIGM and §10.1's nav on **one** row.
+   *
+   * With the brackets already off they came to 240 px against a 236 px rail —
+   * four pixels, and the cost of those four pixels was a whole extra row, which
+   * is twenty-six. Four pixels of horizontal padding buys it back.
+   */
+  .hud__controls .ui-btn {
+    padding: 4px 8px;
+  }
 }

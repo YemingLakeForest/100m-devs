@@ -77,8 +77,33 @@ export function Button({ variant = 'default', concept, sound = true, className, 
   ]
     .filter(Boolean)
     .join(' ')
+  /**
+   * **Each string child is one line, and it used to be one line per word.**
+   *
+   * `.ui-btn__label` is a grid, so it puts every child on its own row — which is
+   * what stacks a `<small>` price under a label. `ConceptText` returns the
+   * *inline pieces* of a sentence, one per tracked noun, and a fragment does not
+   * form a grid item: the pieces became the label's children directly, and the
+   * grid gave each of them a row.
+   *
+   * So `HIRE DEVELOPER` rendered as `HIRE` above `[ DEVELOPER ]`, and Act III's
+   * `HIRE 1,000 DEVS NOW` rendered as three stacked lines — a 92 px slab where
+   * 60 was needed, in the rail that had the least room to spare in the game. It
+   * looked deliberate, which is why it survived: every screenshot of the trap
+   * has it in, and a two-line button is a plausible thing for somebody to have
+   * wanted.
+   *
+   * The wrapper is the whole fix. One element, one grid row, and the coloured
+   * nouns go back to being inline text inside a sentence.
+   */
   const label = Children.map(children, (child) =>
-    typeof child === 'string' ? <ConceptText text={child} /> : child,
+    typeof child === 'string' ? (
+      <span className="ui-btn__text">
+        <ConceptText text={child} />
+      </span>
+    ) : (
+      child
+    ),
   )
 
   return (
