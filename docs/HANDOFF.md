@@ -1,5 +1,9 @@
 # Handoff — 2026-08-10
 
+> **Current handoff: [`HANDOFF-2026-08-13.md`](HANDOFF-2026-08-13.md)** — what is left, what the
+> next session inherits, and **traps 19–23**. Read that one first; this file is still the project
+> status, the flag table and traps 1–18, and nothing in it has been withdrawn.
+
 Short by design. **The detail lives in [`GDD.md`](../GDD.md), which is the single source of
 truth.** This file is a status line, a list of traps, and what to do next.
 
