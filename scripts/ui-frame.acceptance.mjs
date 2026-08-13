@@ -1,11 +1,51 @@
 /**
- * Real-browser acceptance gate for UI containment and control contrast.
+ * Real-browser acceptance gate for UI containment, **overlap** and contrast.
  *
- * This checks the smallest supported landscape frames, not jsdom's synthetic
- * boxes. It fails when any visible UI component or any actually painted text
- * crosses the game frame, carries a focused assertion for the developer stat
- * bar that prompted the gate, and rejects button labels that disappear into
- * their rendered background.
+ * This checks the supported landscape frames, not jsdom's synthetic boxes. It
+ * fails when any visible UI component or any actually painted text crosses the
+ * game frame, when two things that share a layer are drawn on top of each other,
+ * and when a button label disappears into its rendered background.
+ *
+ * ## Why this file grew, on 2026-08-12
+ *
+ * A batch of HUD work shipped with the character creator's buttons overlapping
+ * each other, its action bar floating over the fields, an incident chip printing
+ * a release name straight through the words beside it, and both HUD rails
+ * running off the bottom of every phone in §23.4.2's design box. This gate
+ * existed the whole time, ran in a real Chrome at real phone sizes, and passed.
+ * Four separate reasons, each worth writing down because each is a different
+ * class of hole:
+ *
+ * 1. **It only asked about containment.** `outside()` tests whether a box has
+ *    left the frame. Two boxes drawn on top of each other are both entirely
+ *    inside it, so every reported defect was invisible to the only question
+ *    being asked. Overlap detection is the bulk of what is new below.
+ *
+ * 2. **It was not in `npm run check`.** That is `lint && tsc -b && vitest run &&
+ *    art:check`; this file was a script nobody ran. So even the containment half
+ *    was not gating anything. It is in `check` now.
+ *
+ * 3. **`COMPONENTS` was a hand-maintained allowlist**, and the components the
+ *    batch added — the three backlogs, the role dial, the action bar of the
+ *    character creator — were never added to it. A list you have to remember to
+ *    update is a list that is out of date. It is still a list, because a gate
+ *    that measures *everything* reports a hundred true-but-uninteresting nested
+ *    boxes; but the overlap pass below works off painted text as well, which no
+ *    list can go stale against.
+ *
+ * 4. **It never visited the states where the HUD is full.** Every HUD case was
+ *    Act I or Act II on a fresh save: no offer, no dial, no backlogs, no
+ *    prestige, no upgrade door. The rail budget only fails when the rail is
+ *    full, and the gate had no way to fill it. `?full` (App.tsx) exists for
+ *    this, and the `keyboard` cases below shrink the viewport the way a real
+ *    Android keyboard does rather than merely focusing the field — which is
+ *    what the case named "founder name with mobile keyboard layout" had been
+ *    doing since it was written.
+ *
+ * The unit suite is not at fault and could not have been: jsdom has no layout
+ * engine, so `getBoundingClientRect` returns zeroes and no vitest test in this
+ * repo can see a layout defect at all. That is the division of labour — vitest
+ * owns behaviour, this file owns geometry — and it only works if this file runs.
  */
 import { spawn } from 'node:child_process'
 import path from 'node:path'
@@ -49,14 +89,47 @@ const COMPONENTS = [
   '.founder__corner',
   '.founder-setup input',
   '.founder-setup__option',
+  '.founder-setup__actions',
   '.founder-avatar',
   '.hud__actions[data-phase="in"]',
+  '.hud__controls',
+  '.hire-dial',
+  '.backlog',
   '.title__logo',
   '.title__menu',
 ].join(',')
 
+/**
+ * Boxes that paint something — a border, a fill, a chart — and must therefore
+ * not be drawn through one another.
+ *
+ * Narrower than {@link COMPONENTS} on purpose. Containment is a question you can
+ * ask of any element; overlap is only interesting between things that both leave
+ * a mark, and asking it of every `div` produces a page of true reports about
+ * wrappers sitting inside wrappers.
+ */
+const PAINTED = [
+  '.ui-btn__face',
+  '.hud__block',
+  '.backlog',
+  '.touch',
+  '.hire-dial',
+  '.hud__terminal',
+  '.hud__advisor',
+  '.hud__perf',
+  '.founder__corner',
+  '.founder-setup__option',
+  '.founder-setup input',
+  '.founder-setup fieldset',
+  '.founder-setup__name-row',
+  '.founder-setup__actions',
+  '.founder-avatar',
+  '.burndown__chart',
+  '.revenue__chart',
+].join(',')
+
 async function overflowIssues(page) {
-  return page.evaluate((componentSelector) => {
+  return page.evaluate(({ componentSelector, paintedSelector }) => {
     const root = document.querySelector('#root')
     if (!root) return ['missing #root']
     const frame = root.getBoundingClientRect()
@@ -114,6 +187,109 @@ async function overflowIssues(page) {
         const clipped = clipToAncestors(parent, raw)
         if (clipped.right <= clipped.left || clipped.bottom <= clipped.top) continue
         if (outside(clipped)) issues.push(`text ${JSON.stringify(node.textContent.trim())}`)
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       Overlap. Two things drawn on top of each other are both inside the
+       frame, so nothing above can see this — and it is what every layout
+       defect reported off a handset has actually been.
+
+       Three rules keep it free of false positives without weakening it:
+
+       1. **Same layer.** An element's layer is its nearest positioned
+          ancestor. A drawer, a modal or the §10.7 dialogue box is *supposed*
+          to be over the HUD, and each of those is `position: absolute`, so
+          they land on layers of their own and are never compared with what
+          they cover. Everything in normal flow shares the HUD's layer, which
+          is exactly the set that must not collide.
+       2. **Neither contains the other.** A button always overlaps its own
+          label.
+       3. **Text is measured on its em box, not its line box.** A line box
+          includes half-leading, so two consecutive lines of `line-height:
+          1.2` technically intersect by a pixel or two. Trimming to the em box
+          removes that entire class of report and keeps every real one — a
+          real collision is glyphs on glyphs.
+    ------------------------------------------------------------------ */
+    const layerOf = (element) => {
+      for (let n = element; n && n !== document.documentElement; n = n.parentElement) {
+        const position = getComputedStyle(n).position
+        if (position === 'absolute' || position === 'fixed') return n
+      }
+      return root
+    }
+
+    const intersect = (a, b, slack) => {
+      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left) - slack
+      const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) - slack
+      return w > 0 && h > 0 ? { w, h } : null
+    }
+
+    const unrelated = (a, b) => a !== b && !a.contains(b) && !b.contains(a)
+
+    const runs = []
+    const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    for (let node = textWalker.nextNode(); node; node = textWalker.nextNode()) {
+      const copy = node.textContent?.trim()
+      if (!copy) continue
+      const parent = node.parentElement
+      if (!parent || !visible(parent) || parent.closest('[data-phase="exit"]')) continue
+      const em = Number.parseFloat(getComputedStyle(parent).fontSize) || 0
+      const range = document.createRange()
+      range.selectNodeContents(node)
+      for (const raw of range.getClientRects()) {
+        if (raw.width < 1 || raw.height < 1) continue
+        const lead = Math.max(0, (raw.height - em) / 2)
+        // Clipped, like the containment pass above: a run that a scroller or a
+        // rail has cut off is not painted there, so it cannot be over anything.
+        const box = clipToAncestors(parent, {
+          left: raw.left,
+          right: raw.right,
+          top: raw.top + lead,
+          bottom: raw.bottom - lead,
+        })
+        if (box.right <= box.left || box.bottom <= box.top) continue
+        runs.push({ element: parent, copy, layer: layerOf(parent), box })
+      }
+    }
+
+    for (let i = 0; i < runs.length; i += 1) {
+      for (let j = i + 1; j < runs.length; j += 1) {
+        const a = runs[i]
+        const b = runs[j]
+        if (a.layer !== b.layer || !unrelated(a.element, b.element)) continue
+        const hit = intersect(a.box, b.box, 0)
+        if (!hit) continue
+        issues.push(
+          `text "${a.copy.slice(0, 40)}" is drawn over "${b.copy.slice(0, 40)}" (${hit.w.toFixed(0)}x${hit.h.toFixed(0)}px)`,
+        )
+      }
+    }
+
+    const painted = [...root.querySelectorAll(paintedSelector)]
+      .filter((element) => visible(element) && !element.closest('[data-phase="exit"]'))
+      .map((element) => ({
+        element,
+        layer: layerOf(element),
+        /* Clipped, because a scroller's overflowing child is not on screen —
+           the character creator's trait grid scrolls, and its last fieldset
+           legitimately extends past the bottom of it. */
+        box: clipToAncestors(element, element.getBoundingClientRect()),
+      }))
+      .filter(({ box }) => box.right > box.left && box.bottom > box.top)
+
+    for (let i = 0; i < painted.length; i += 1) {
+      for (let j = i + 1; j < painted.length; j += 1) {
+        const a = painted[i]
+        const b = painted[j]
+        if (a.layer !== b.layer || !unrelated(a.element, b.element)) continue
+        /* Two pixels of slack: adjacent boxes share a 1px rule, and a skewed
+           §10.8a slab's bounding box reaches a little past its own edge. */
+        const hit = intersect(a.box, b.box, 2)
+        if (!hit) continue
+        issues.push(
+          `${a.element.className || a.element.tagName} is drawn over ${b.element.className || b.element.tagName} (${hit.w.toFixed(0)}x${hit.h.toFixed(0)}px)`,
+        )
       }
     }
 
@@ -222,8 +398,8 @@ async function overflowIssues(page) {
       }
     }
 
-    return issues
-  }, COMPONENTS)
+    return [...new Set(issues)]
+  }, { componentSelector: COMPONENTS, paintedSelector: PAINTED })
 }
 
 async function sceneIssues(page, width, height) {
@@ -241,7 +417,10 @@ async function sceneIssues(page, width, height) {
     : []
 }
 
-async function check(page, { name, width, height, path: urlPath, action, requireScene = false }) {
+async function check(
+  page,
+  { name, width, height, path: urlPath, action, requireScene = false, keyboard = 0 },
+) {
   await page.setViewportSize({ width, height })
   await page.goto(`${origin}${urlPath}`, { waitUntil: 'load' })
   await page.locator('.app').waitFor()
@@ -250,11 +429,27 @@ async function check(page, { name, width, height, path: urlPath, action, require
     await action(page)
     await page.waitForTimeout(450)
   }
+  /*
+   * The mobile keyboard, done properly.
+   *
+   * A soft keyboard on landscape Android does not "focus a field": it takes
+   * about three fifths of the window and the layout viewport shrinks to what is
+   * left. `focus()` alone — which is all this gate used to do — reproduces none
+   * of that, so the case named for the keyboard was checking the ordinary
+   * layout at full height and had never once exercised the thing it was for.
+   */
+  if (keyboard > 0) {
+    await page.setViewportSize({ width, height: Math.round(height * keyboard) })
+    await page.waitForTimeout(450)
+  }
+  const measuredHeight = keyboard > 0 ? Math.round(height * keyboard) : height
   const issues = [
     ...await overflowIssues(page),
-    ...(requireScene ? await sceneIssues(page, width, height) : []),
+    ...(requireScene ? await sceneIssues(page, width, measuredHeight) : []),
   ]
-  if (issues.length > 0) throw new Error(`${name} at ${width}x${height}:\n${issues.join('\n')}`)
+  if (issues.length > 0) {
+    throw new Error(`${name} at ${width}x${measuredHeight}:\n${issues.join('\n')}`)
+  }
 }
 
 let browser
@@ -266,13 +461,40 @@ try {
   await page.addInitScript(() => {
     localStorage.setItem('m100devs.booted', '1')
     localStorage.setItem('m100devs_founder_profile', JSON.stringify({ name: 'Ada', head: 'wave', body: 'jacket' }))
+    /*
+     * Every case starts from nothing. `?full` prestiges the player and the store
+     * writes a save on the next scene dismissal, so without this the cases would
+     * be ordered — an Act I frame checked after a `?full` one would be checking
+     * a studio that had already been through the trap, which is a different
+     * frame with different content in it. Nothing loads the save at boot today,
+     * so this is insurance rather than a fix; the day it is wired, the failure
+     * would be a gate that silently stops testing Run 1.
+     */
+    localStorage.removeItem('m100devs_save')
   })
 
+  /*
+   * §23.4.2's design box runs 1.78:1 to 2.4:1. The two ends were already here;
+   * 816x366 and 898x403 are the middle, and 898x403 earns its place by sitting
+   * just *above* the `max-height: 400px` breakpoint — the arrangement a frame
+   * gets on the tall side of a breakpoint is a different arrangement, and the
+   * device this batch's defects were reported from landed there.
+   */
   const sizes = [
     [640, 360],
     [748, 336],
+    [816, 366],
+    [898, 403],
     [997, 448],
   ]
+
+  const openFounderSetup = async (target) => {
+    await target.getByRole('button', { name: 'NEW GAME' }).click()
+    const erase = target.getByRole('button', { name: 'ERASE & START' })
+    if (await erase.count()) await erase.click()
+    await target.getByRole('dialog', { name: 'WHO ARE YOU?' }).waitFor()
+  }
+
   for (const [width, height] of sizes) {
     await check(page, { name: 'landing screen', width, height, path: '/' })
     await check(page, {
@@ -284,30 +506,67 @@ try {
     })
     await check(page, { name: 'developer details', width, height, path: '/?notitle&select=0&nopost' })
     await check(page, {
-      name: 'upgrades drawer',
-      width,
-      height,
-      path: '/?notitle&nopost',
-      action: (target) => target.getByRole('button', { name: 'UPGRADES' }).click(),
-    })
-    await check(page, {
       name: 'game menu',
       width,
       height,
       path: '/?notitle&nopost',
       action: (target) => target.getByRole('button', { name: 'MENU' }).click(),
     })
+
+    /*
+     * §21.0c — Run 1 has no upgrade door, so the drawer has to be opened from a
+     * studio that has prestiged. This case used to load a fresh save and click
+     * UPGRADES, which is a button that no longer exists there.
+     */
     await check(page, {
-      name: 'founder name with mobile keyboard layout',
+      name: 'upgrades drawer',
+      width,
+      height,
+      path: '/?notitle&full&nopost',
+      action: (target) => target.getByRole('button', { name: 'UPGRADES' }).click(),
+    })
+
+    /*
+     * **The frames where the HUD is full**, which is where every rail defect
+     * lives and where this gate had never looked. `?full` is App.tsx's
+     * worst-case fixture: prestiged, so §21.0c's roles, backlogs and upgrade
+     * door all exist, with a defect bench, a downed release and a losing ticket
+     * queue — combined with Act III, which adds §21.0a's offer and §10.10's
+     * dial to the same rail.
+     */
+    await check(page, { name: 'Act I', width, height, path: '/?notitle&nopost' })
+    await check(page, {
+      name: 'the fullest the HUD gets',
+      width,
+      height,
+      path: '/?act=act3_bait&full&nopost',
+    })
+    await check(page, {
+      name: 'the fullest the HUD gets, mid-collapse',
+      width,
+      height,
+      path: '/?act=act4_collapse&full&nopost',
+    })
+
+    await check(page, {
+      name: 'founder setup',
+      width,
+      height,
+      path: '/',
+      action: openFounderSetup,
+    })
+    await check(page, {
+      name: 'founder name with the keyboard up',
       width,
       height,
       path: '/',
       action: async (target) => {
-        await target.getByRole('button', { name: 'NEW GAME' }).click()
-        await target.getByRole('button', { name: 'ERASE & START' }).click()
-        await target.getByRole('dialog', { name: 'WHO ARE YOU?' }).waitFor()
+        await openFounderSetup(target)
         await target.getByLabel('YOUR NAME').focus()
       },
+      // What is left of a landscape frame under a soft keyboard. Measured off
+      // the report this was written for: 2244x1008 physical, ~330 px of game.
+      keyboard: 0.42,
     })
   }
 
@@ -345,7 +604,7 @@ try {
     action: (target) => target.getByRole('button', { name: /HIRE DEVELOPER/ }).dispatchEvent('pointerdown'),
   })
 
-  console.log(`UI frame, scene and contrast acceptance passed (${sizes.length * 6 + 3} screens).`)
+  console.log(`UI frame, overlap, scene and contrast acceptance passed (${sizes.length * 9 + 3} screens).`)
 } finally {
   await browser?.close()
   server.kill()

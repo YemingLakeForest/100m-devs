@@ -10,7 +10,7 @@
     "art:icon-prep": "tsx scripts/prep-icon-source.ts",
     "art:quantise": "tsx scripts/art-quantise.ts",
     "build": "tsc -b && vite build",
-    "check": "npm run lint && tsc -b && vitest run && npm run art:check",
+    "check": "npm run lint && tsc -b && vitest run && npm run art:check && npm run test:ui-frame",
     "dev": "vite",
     "lint": "eslint .",
     "music:generate": "tsx scripts/generate-music.ts",

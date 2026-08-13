@@ -15,6 +15,7 @@ import {
   readFounderProfile,
   type FounderProfile,
 } from './game/founderProfile.ts'
+import { getPermanent, setPermanent } from './game/save.ts'
 
 import './styles/title.css'
 
@@ -99,6 +100,38 @@ export default function App() {
     // seat in a room that has been panned somewhere else.
     const select = new URLSearchParams(location.search).get('select')
     if (select !== null) selectDeveloper(Number(select))
+
+    // ?full is the **worst frame the HUD ever has to draw**, and it exists for
+    // the §23.4.2 acceptance gate rather than for looking at.
+    //
+    // Every layout defect reported off a handset since §4.15 shipped has been in
+    // the right rail, and every one of them needed a state the gate could not
+    // reach by loading a URL: a studio that has prestiged (so §21.0c's roles,
+    // backlogs and upgrade door all exist), with a defect bench, a downed
+    // release and a ticket queue it is losing, in the act that also carries
+    // §21.0a's offer and §10.10's dial. Reaching that by playing takes minutes
+    // and lands somewhere slightly different every time.
+    //
+    // Same family as ?act, ?devs and ?select, and here for the same reason: the
+    // frame is real, the way of getting to it is not.
+    if (new URLSearchParams(location.search).has('full')) {
+      const p = getPermanent()
+      setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+      __setState({
+        devs: 12,
+        roster: [{ role: 'dev', count: 12 }],
+        cash: 40_000,
+        dialUnlocked: true,
+        projectsShipped: 5,
+        defects: 37,
+        // The longest name in `PROJECTS`, because a chip has to hold one.
+        incidents: [
+          { id: 1, releaseId: 1, releaseName: 'OPEN-WORLD SURVIVAL CRAFT', age: 3, work: 40 },
+        ],
+        // Deep enough that §4.13's bar reads FALLING BEHIND and names its cure.
+        tickets: 400,
+      })
+    }
 
     // ?devs=250000 forces a headcount, for looking at the §7.8.2 rungs.
     //
