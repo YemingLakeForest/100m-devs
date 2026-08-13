@@ -3835,6 +3835,12 @@ Messenger replaces.
 the studio is doing before it owns anything: it is stated on the empty board, in the centre
 slot, greyed, as the thing about to be replaced. Nobody buys it; everybody starts with it.
 
+> **Amended 2026-08-13 — §21.0c.** The node is granted at the **first Paradigm Shift**, not in
+> Act I. The board it sits at the centre of does not open during Run 1, so giving it away there
+> was handing over the middle of a tree behind a locked door. Everything else in this section
+> holds: it is free, it is given rather than sold, it is the only node in the game with no
+> price, and Voice Shouting is still what the studio does before it owns anything.
+
 | | |
 |---|---|
 | **The node** | **Instant Messenger** — Tier 1 Communication Infrastructure, §11.2's B1 slot, at the centre of §11.4's board |
@@ -5948,11 +5954,54 @@ first moment it would be a relief and before it would be a rescue.
 > unpaid labour before the loop starts, which was teaching nothing the loop does not teach
 > better.
 
+#### 21.0c Run 1 carries one idea **[CANON - added 2026-08-13]**
+
+**Every system in this document that is not hiring arrives after the first Paradigm Shift.**
+
+§21.0 asks Run 1 to do one thing: let the player build the model *more developers, more speed*
+out of evidence alone, so that when §6 breaks it they were the one holding it. That takes about
+four minutes and it needs the whole four minutes. A second mechanic on screen during it is not
+a bonus, it is a second thing to think about, and the player only has one model's worth of
+attention to give.
+
+What Run 1 has: a burn-down, a poke, a hire button, a price that climbs, a term sheet, a
+mousetrap, and James. What Run 1 does not have:
+
+| System | Section | Why it waits |
+|---|---|---|
+| QA, Support and SRE on the hire dial | §4.11 | The joke — that a studio stops being one kind of person — only lands on somebody who has been one kind of person for a while |
+| Defects, incidents, tickets | §4.12, §4.12a, §4.13 | §4.15's three colours are one system told three ways, and a run that had defects but not incidents would teach two thirds of a distinction |
+| Release rating and reputation | §4.14 | See below — Run 1 ships at the anchor by construction |
+| The studio tech tree, and §11.5's node with it | §11, §11.5 | §15's ladder is a *prestige* ladder. An upgrade screen during Run 1 offers the player a way to make the trap survivable, which is the one thing Run 1 must not sell them |
+
+**The gate is `paradigmShifts > 0`** — the counter §24.5 already reads for offline accrual and
+§13.2 already reads for the Paradigm Tree. Not a flag of its own: a second flag is a second
+thing that can be wrong after a save migration, and the answer to "has this player finished
+Run 1" is already written down.
+
+**Run 1 ships at §4.14.1's anchor by construction, not by accident.** This is the one place the
+gate is doing arithmetic rather than hiding a widget. A studio with an empty defect bench scores
+*better* than the anchor, so a Run 1 that ran the live rating would hand every release a quality
+bonus and quietly re-tune the economy §21 is paced against. §25.6.2a measured *Flappy Square* at
+$45 and that number has to stay measured, so Run 1 stamps the anchor and the baseline and every
+multiplier is exactly x1.
+
+**James is not gated, and the distinction matters.** He is the only thing in Act I that is not a
+system: he is a person who sits down at the second desk. This section separates mechanics from
+story, and he is the story. What *is* gated is the thing he used to arrive holding — §21.6 takes
+Instant Messenger back, where it always was, and Act I's one beat is §21.7.1's arrival and
+nothing else.
+
 ### ACT I: The Innocent Beginning
 
 > **Revised 2026-08-11 — see §21.0b.** James arrives free at 50 pokes, part-way through this
 > act rather than after it. The terminal banner, the bubble and the first-poke teaching moment
 > below are unchanged; what follows the fiftieth poke is §21.7.1's scene.
+>
+> **Revised 2026-08-13 — see §21.0c.** And that scene is the whole of it. For one day Act I
+> also carried §11.5's Instant Messenger, an upgrade door, a defect counter, a ticket bar and a
+> four-way hire dial; all of them now wait for the first Paradigm Shift. Act I is one lever, one
+> burn-down and one person turning up.
 
 **[ON-SCREEN TERMINAL PROMPT (Retro Green Text)]**
 
@@ -6237,10 +6286,18 @@ He starts working. Velocity doubles. **No card award popup, no fanfare, no `NEW 
 ACQUIRED`** — the second desk and the burn-down moving twice as fast is the entire
 notification. §22.3's card is awarded silently and found later.
 
-#### 21.7.2 Act I — Instant Messenger **[CANON]** - R32
+#### 21.7.2 Run 2, Act 0 — Instant Messenger **[CANON - moved 2026-08-13]** - R32, R44
 
-Fires a short while after §21.7.1, still inside Act I. This is §11.5's node arriving, and it is
-the first thing in the game the player is *given* rather than sold.
+> **This scene is §21.6's, and it has gone back there.** It spent one day in Act I, on the
+> argument that the joke is better when the two of them are visibly side by side at two desks.
+> The joke *is* better there and it was still the wrong trade — §21.0c wants Run 1 to carry one
+> idea, and this arrived with an upgrade board, a granted node and a second cutscene inside the
+> four minutes that idea has. **The lines below are unchanged**, because in Run 2 they are still
+> sitting side by side: that was never a fact about which act it was in.
+
+Fires on the first frame after the first Paradigm Shift, in place of the ring-1 handover this
+scene briefly carried. It is §11.5's node arriving, and it is the first thing in the game the
+player is *given* rather than sold.
 
 ```
 JAMES       Can I show you something.
@@ -6263,7 +6320,9 @@ JAMES       Check your messages.
 
 The `hey` notification is drawn from **§11.4.4's Instant Messenger icon and §11.4.5's purchase
 pulse** — the same picture, so that when the board opens on the next tap the player recognises
-the node at its centre without being told. §11.5 is the specification; this is the beat.
+the node at its centre without being told. §11.5 is the specification; this is the beat. It is
+also the first tap on `UPGRADES` this player has ever been able to make, which is why the
+recognition is worth the trouble: the door and the thing behind it arrive together.
 
 > **§21.6 moves up a protocol.** *"How did you find me in every single reality?"* is the best
 > opening line in the script and it stays exactly where it is, at the top of Run 2 — but the
@@ -7518,7 +7577,7 @@ below; the owning sections carry the design.
 | **R29** | Defects generated alongside development, cleared by QA. **Incidents generated after a game has launched**, dealt with by SRE | **§4.12a** *(new)* | **Specified.** §4.12 made an incident "a defect past a threshold", which confines incidents to unreleased software. Now incidents arrive from the **released catalogue**, at a rate set by the defect density each release shipped with. Unbuilt: there is no `defects.ts`, no `incidents.ts`, no `support.ts` |
 | **R30** | Different text colours and UI components to track them | **§4.15** *(new)* | **Specified.** Three concept tokens (`defects` amber, `incidents` red, `tickets` grey-blue), three distinct components, and a rule against ever merging them into one "problems" total |
 | **R31** | More immersive story. **Focus down to the speaker, facing camera.** Speech subtitle bigger and more central | **§10.7a** *(new)* | **Specified.** §10.7 specified a box and never specified where anybody was standing. The camera now pushes to Desk zoom and re-centres per line; the speaker turns front-facing for their line. The box grows ~1.5×, moves to the lower third, and drops to two lines |
-| **R32** | Instant Messenger is the **first upgrade**, with the same visual effect in the tree | **§11.5**, §21.7.2 | **Specified.** §11.2's B1 was Voice Shouting — *the thing IM replaces*. Voice Shouting becomes the starting condition; IM takes the B1 slot, is given free by James in Act I, and the scene's `hey` notification is drawn from the node's own icon and pulse |
+| **R32** | Instant Messenger is the **first upgrade**, with the same visual effect in the tree | **§11.5**, §21.7.2 | **Specified.** §11.2's B1 was Voice Shouting — *the thing IM replaces*. Voice Shouting becomes the starting condition; IM takes the B1 slot, is given free by James, and the scene's `hey` notification is drawn from the node's own icon and pulse. **Amended 2026-08-13 (R44): the handover is Run 2's Act 0, not Act I** — see §21.0c |
 | **R33** | Clicking upgrade shows **the tree**. Incremental reveal — unlocking one shows others — with a guide layer on tap | **§11.4.1–3** *(new)* | **Specified.** Three visibility states (live / silhouette / dark-with-connector). **This overturns a recorded decision** — see 25.6.1 |
 | **R34** | Upgrades **scale with prestige** and are **not available at the start** | **§11.4.6** | **Specified.** Node rings gated on shifts taken; ring 0 is Instant Messenger alone, given by the story. Costs gain a `Φ^s` prestige term |
 | **R35** | Centre-out tree, **right angles**, **a node per upgrade level**. Icons. Purchase juice. A bigger screen, without saying so | **§11.4.1**, §11.4.4, §11.4.5 | **Specified.** `maxLevel` counters become chains of nodes; one procedural pixel icon per node with three states; a two-part audio cue and a pulse that travels the connectors it just unlocked; the board is pannable and larger than the viewport, which is how it is bigger without a line of copy saying so |
@@ -7602,6 +7661,160 @@ what it must be true *of* is recorded in the owning section, and the numbers wan
 already anchored so that `β` cannot secretly rebalance it; `ι` must be anchored the same way,
 against **§4.10e's tail**, before any hero that bends it exists — or the first Reliability node
 written will fix the meaning of an incident by accident.
+
+### 25.7 Intake — 2026-08-13 **[CANON]**
+
+Reported from a handset, mid-session, in four sentences. Three of them are layout defects and
+one is a design correction that turns out to explain two of the other three.
+
+| # | Reported | Owner | Resolution |
+|---|---|---|---|
+| **R43** | QA, SRE "and other story and their mechanics" come **after the first prestige** | **§21.0c** | **Specified.** Roles, the three backlogs and the upgrade board are all gated on `paradigmShifts > 0` |
+| **R44** | Run 1's James beat should be **him joining, not him giving Instant Messenger** | **§21.0c**, §21.6 | **Specified.** The Act I Instant Messenger scene is deleted; §21.6 takes the node back |
+| **R45** | **Why is the first person not James?** | §7.8.7 | **A bug.** `developerAt` said James was seat 1 while every other file said seat 0 |
+| **R46** | Upgrades are given **only after the first prestige** | **§21.0c** | Same gate as R43 |
+| **R47** | Character-creation buttons **overlap each other** | §10.12 | **A bug**, and a class of bug — see §25.7.2 |
+| **R48** | Typing the name **crams the UI** | §10.12 | **A bug.** The keyboard leaves ~120 CSS px and nothing responded to that |
+| **R49** | Main-game items are **blocked** | §10.1, §23.4.2 | **A bug**, seven of them — see §25.7.2 |
+| **R50** | *"Why accept tests didn't catch these?"* | **§25.7.3** | Answered, and the gate is fixed rather than the answer being an excuse |
+
+#### 25.7.1 §21.0c — Run 1 carries one idea
+
+**The whole of R43, R44 and R46 in one sentence: everything §4.11 onward added to the game is
+a system, and Run 1 is not about systems. It is about one lever.**
+
+§21.0's thesis is that the player builds a mental model out of nothing but evidence — *more
+developers, more speed* — and then watches it kill the company. §6's lesson only lands if that
+model was theirs. By the end of the 2026-08-11 batch, Act I was also carrying a defect counter
+that appeared on the fourth poke and named a job the player could not hire for, a hire dial
+offering two professions before the player had hired one person, a tickets bar with nothing in
+it, and an `UPGRADES` button onto a tree whose root node had already been given away in a
+cutscene. None of those is wrong. All of them are wrong **there**.
+
+So the first Paradigm Shift is the door, and it is the right door for a reason that is not
+merely tidiness. §13.1's shift is already the moment the game stops being a straight line and
+becomes a set of systems; §24.5 already gates offline accrual on it; §13.2 already gates the
+Paradigm Tree on it. These join a list rather than starting one.
+
+| System | Run 1 | Run 2+ |
+|---|---|---|
+| §4.11 QA / Support / SRE on the dial | Absent | As §4.11's table, when the problem appears |
+| §4.12–§4.13 defects, incidents, tickets | **Not simulated at all** | Full |
+| §4.14 release rating and reputation | Stamped at §4.14.1's anchor — every multiplier exactly x1 | Live |
+| §11 the studio tech tree | No door, no nodes | Opens, with §11.5's node granted |
+| §21.7.1 James arrives | **Yes** — he is a person, not a system | Already here |
+| §21.6 Instant Messenger | No | The first thing after the shift |
+
+Two consequences worth stating because they are not obvious:
+
+**Run 1 ships at the baseline by construction, not by accident.** A studio with an empty defect
+bench scores *better* than §4.14.1's anchor, so letting the live rating run during Run 1 would
+hand every first-run release a quality bonus and quietly re-tune the economy §21 is paced
+against — §25.6.2a measured *Flappy Square* at $45 and that number has to stay measured. The
+run stamps the anchor and the baseline instead.
+
+**James is not gated.** He is the one thing in this list that is not a system: he is a person
+who sits down at the second desk. The distinction the whole section draws is between mechanics
+and story, and he is the story.
+
+#### 25.7.1a §21.6 takes Instant Messenger back
+
+§25.6's batch moved §11.5's node into Act I on the argument that the joke is better when the
+two of them are visibly side by side at two desks. **The joke is better there.** It was still
+the wrong trade, and the reasoning is worth keeping because it is a general one: a joke that
+costs an act its shape is not cheap because the joke is good. In Run 2 they are still sitting
+side by side — that was never a fact about which act it was in — so the scene survives the move
+without a word changed, and Act I gets §21.7.1 and nothing else.
+
+The scene id `scene.run2.instant-messenger` has never changed through either rewrite. It keys
+§24.3's `milestones`, and renumbering it would replay a scene for every player who has already
+sat through one.
+
+#### 25.7.2 R45, R47 and R49 — the defects, and what they have in common
+
+Seven, and six of them are the same mistake in six places: **a container was allowed to be
+smaller than its contents, and nothing was watching.**
+
+| Where | What | Why |
+|---|---|---|
+| `identity.ts` | Act I sat a randomly generated stranger at James's desk | `developerAt` returned `JAMES` at index **1**. §21.0b made him the free *first* hire, and `scenes.ts`, the §22.3 LOYAL guard and §7.8.1b's seat rule had all been written against seat 0 while this one line still said 1 |
+| `founderSetup.css` | `MOUSTACHGOATEE` | Four equal columns in a fieldset about 160 px wide, and a nine-character label. The count is now a **ceiling**, and the floor comes from the labels themselves |
+| `founderSetup.css` | The action bar over BODY COLOUR, and over the name field | `position: sticky` in a screen that always scrolls means *always floating*. The scroll moved into the trait grid; the buttons became an ordinary final row |
+| `app.css` | §21's advisor copy rendered **13 px wide** | The right grid track was `minmax(rail, auto)`. `--hud-overhang` describes the limit and nothing enforced it |
+| `app.css` | The incident chip printed a release name over `OFF SALE` | Two levels of flex/grid automatic minimum size. `min-width: 0` on the name, `minmax(0, 1fr)` on the list |
+| `Button.tsx` | `HIRE` above `DEVELOPER`; `HIRE 1,000 / DEVS / NOW` | `.ui-btn__label` is a grid and `ConceptText` returns *inline pieces*, one per tracked noun — so the grid gave each noun a row. It looked deliberate, which is why it survived every screenshot of the trap |
+| `app.css` | Both rails ran off the bottom of every frame in §23.4.2's box | §4.15's three backlogs, a role dial and a `PARADIGM` button joined a rail budget measured to nine pixels of slack. 649 px of content in a 426 px column |
+
+The last one is the only one that needed a decision rather than a fix, and §10.1a records it.
+
+#### 25.7.2a §10.1a — what a rail gives up, and in what order **[CANON]**
+
+Measured at 997x448 with everything live: the right rail wanted 649 px against 426. At
+748x336 — the bottom of §23.4.2's box — the left rail wanted 478 against 314. That is not a
+spacing problem and no amount of shaving padding reaches it, so the rails now have a stated
+order in which content gives way, and three structural rules that stop the question recurring.
+
+**The rules.**
+
+1. **A rail may not draw outside itself.** Both rails are `overflow: hidden`. Clipping is not
+   the fix and nothing in the design box is clipped; this is the backstop that turns the next
+   regression into something visibly missing from a rail rather than something painted across
+   §21's script.
+2. **The overhang is a limit.** The right grid track is capped at `rail + overhang` rather
+   than `auto`, so the rail can never take width from the copy again.
+3. **The play tools pack, they do not stack.** §10.1's controls are a wrapping row: they take
+   as many rows as the rail's width requires, at any size, with no hand-placed arrangement to
+   go stale. The arrangement they replaced had been measured correctly and then had three
+   controls added to it.
+
+**The order.** Within a backlog: *that there is a problem* and *who fixes it* are never
+dropped; the release name, the defect density and the `OFF SALE` tag are the courtesy and go
+first. Across the rail, at 470 px and again at 400: second readings before first ones — a
+nameplate repeating a name the player typed, an arithmetic breakdown of a number printed
+directly above it, §23.3's instrumentation, and §4.5d's corner shortcut for a gesture the game
+teaches in its first thirty seconds. §10.1's nav, §10.10's dial, the action button and every
+readout survive to the bottom of the box.
+
+**And §4.15's three backlogs moved into one column.** They shipped split across the two rails —
+defects with the burn-down, incidents and tickets under SHIPPED — on the reasoning that the
+latter two are facts about the *catalogue*. That reasoning is sound and it loses to §4.15's own
+thesis: three numbers that all go up and all mean "something is wrong" are three copies of one
+anxiety unless they can be read as a set, and split across sixty degrees of arc they are not a
+set. It also happens to be the hundred pixels the right rail needed, which is the rare case
+where the composition and the budget want the same thing.
+
+**§4.13's ticket bar is now silent while the studio is keeping up**, on exactly the rule §4.12's
+defect counter already followed at zero. A row that is always there is not "ambient"; it is the
+loudest kind of furniture, because it teaches the player to stop reading the part of the rail
+that will one day say FALLING BEHIND.
+
+#### 25.7.3 R50 — why the gate passed
+
+**The gate existed, ran in a real Chrome at real phone sizes, and passed.** Four reasons, each
+a different class of hole, all now closed:
+
+1. **It only asked about containment.** Its one question was whether a box had left the frame.
+   Two boxes drawn on top of each other are both inside it. Every defect above was invisible to
+   the only question being asked.
+2. **It was not in `npm run check`.** `check` was `lint && tsc -b && vitest run && art:check`;
+   the browser gate was a script nobody ran. So even the containment half was gating nothing.
+3. **Its component list was a hand-maintained allowlist**, and nothing the batch added was on
+   it. A list you have to remember to update is a list that is out of date.
+4. **It never visited a frame where the HUD was full.** Every case was Act I or Act II on a
+   fresh save — no offer, no dial, no backlogs, no prestige. A rail budget only fails when the
+   rail is full. Its one keyboard case called `focus()` at full viewport height, which
+   reproduces nothing about a keyboard.
+
+**The unit suite is not at fault and could not have been.** jsdom has no layout engine:
+`getBoundingClientRect` returns zeroes, so no vitest test in this repository can see a layout
+defect at all. That division of labour is correct — vitest owns behaviour, the browser gate
+owns geometry — and it only works if the browser gate runs. It runs now.
+
+What the gate does now: overlap between anything sharing a layer (text measured on its em box,
+so leading is not a false positive), containment as before, five frame sizes instead of three
+including one just *above* the 400 px breakpoint, a `?full` fixture that puts the HUD into its
+worst state, and a keyboard case that actually shrinks the viewport. It was verified by
+reintroducing two of the defects above and watching it fail on each.
 
 ### 25.2 What is deliberately NOT decided here
 
