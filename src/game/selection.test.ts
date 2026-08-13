@@ -84,9 +84,14 @@ describe('the store', () => {
     }
   })
 
-  it('selects James at seat one, in every run', () => {
-    selectDeveloper(1)
+  it('selects James at seat zero, in every run', () => {
+    // §21.0b — he is the free hire at the fiftieth poke, which lands before the
+    // player has bought anybody, so he is the *first* developer. Tapping the
+    // second desk in Act I has to be him; for one day it was a stranger.
+    selectDeveloper(0)
     expect(selectedIdentity()?.name).toBe('James')
+    selectDeveloper(1)
+    expect(selectedIdentity()?.name).not.toBe('James')
   })
 })
 

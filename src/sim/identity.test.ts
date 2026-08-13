@@ -146,11 +146,26 @@ describe('what varies', () => {
 describe('James — §21.6', () => {
   it('is the same person in every run', () => {
     // He is the one fixed point in the game: the studio changes, he does not.
-    expect(developerAt(1, 1)).toEqual(JAMES)
-    expect(developerAt(999999, 1)).toEqual(JAMES)
+    expect(developerAt(1, 0)).toEqual(JAMES)
+    expect(developerAt(999999, 0)).toEqual(JAMES)
   })
 
-  it('is not generated over the top of somebody else', () => {
+  /**
+   * **Seat 0, not seat 1** — §21.0b, and the reason this test names the number.
+   *
+   * He is the free hire at the fiftieth poke, which lands before the player has
+   * bought anybody, so he *is* the first developer. This read `index === 1` for
+   * one day after §21.0b shipped, and the result was that Act I sat a randomly
+   * generated stranger at the desk beside you and played James's arrival scene
+   * over the top of them.
+   *
+   * `scenes.ts` puts the camera on seat 0 for every one of his lines and
+   * `store.ts` refuses to let seat 0 quit (§22.3 LOYAL). Three files have to
+   * agree about one integer, so it is asserted here rather than left implied.
+   */
+  it('is the first developer, and the first developer only', () => {
+    expect(developerAt(SEED, 0)).toEqual(JAMES)
+    expect(developerAt(SEED, 1)).not.toEqual(JAMES)
     expect(developerAt(SEED, 2)).not.toEqual(JAMES)
   })
 

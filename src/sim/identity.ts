@@ -162,7 +162,7 @@ export function identityFor(seed: number, index: number): Identity {
 }
 
 /**
- * §21 — James is developer 1 and he is not generated.
+ * §21 — James is the first developer and he is not generated.
  *
  * He is the one fixed point across every run (§21.6, §13.6.3), so his identity
  * is written down rather than rolled. Everything else on the floor is a
@@ -185,6 +185,22 @@ export const JAMES: Identity = {
   trait: 'Meeting Magnet',
 }
 
+/**
+ * **James is seat 0**, and this line moved.
+ *
+ * It used to read `index === 1`, from the era when the player's first employee
+ * was a stranger they paid for and James was the second person through the
+ * door. §21.0b replaced that: he now turns up free at the fiftieth poke, before
+ * anybody has been hired, so he *is* the first developer — and `scenes.ts`,
+ * `store.ts`'s §22.3 LOYAL guard and §7.8.1b's seat rule had all already been
+ * written against seat 0 while this one function still said 1.
+ *
+ * The consequence was not subtle and it was reported from a handset: Act I put
+ * a randomly generated stranger at the desk beside you, played §21.7.1's
+ * arrival scene over the top of them, and held James back until the player had
+ * *paid* for a second developer. The one fixed point in the game was missing
+ * from the scene that introduces him.
+ */
 export function developerAt(seed: number, index: number): Identity {
-  return index === 1 ? JAMES : identityFor(seed, index)
+  return index === 0 ? JAMES : identityFor(seed, index)
 }
