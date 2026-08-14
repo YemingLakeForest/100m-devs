@@ -192,8 +192,12 @@ export function createPostProcess({
       rgbSplit.blue = { x: split, y: 0 }
 
       // 5. The roll is a slow vertical drift, not an animation loop — under
-      // load the picture should look like it is failing to hold sync.
-      crt.time = reduceMotion ? 0 : elapsed * (0.25 + glass.scanlineRoll * 2.5)
+      // load the picture should look like it is failing to hold sync. The
+      // floor was 0.25 rad/s, which turns one scanline period in ~25 s and so
+      // reads as static rather than as glass; 7.2 rad/s (~6 px/s) is a visible
+      // but gentle fall, and the load term still takes it from drift to sync-
+      // loss as entropy climbs.
+      crt.time = reduceMotion ? 0 : elapsed * (7.2 + glass.scanlineRoll * 2.0)
       crt.noise = glass.scanlineNoise * 0.09
       crt.lineContrast = 0.14 + glass.scanlineNoise * 0.1
 

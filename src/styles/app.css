@@ -2293,6 +2293,10 @@ body {
  * reserves beneath it (see `.ui-panel.ui-dialogue`'s bottom margin), so it
  * never overlaps the box or the speaker.
  *
+ * It is narrative ink over a lit room, so it takes the same treatment §10.7
+ * gives the dialogue box itself — `--p3` on an 80% `--n0` wash. A bare
+ * mid-phosphor line in open air was reported unreadable over the floor.
+ *
  * Dim while the page is still typing — a tap then fills the text in, it does
  * not turn the page — and full phosphor once the advance is armed, which is
  * the same instant the caret starts blinking.
@@ -2300,13 +2304,16 @@ body {
 .ui-dialogue__hint {
   position: absolute;
   top: calc(100% + 10px);
-  left: 0;
-  right: 0;
-  text-align: center;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
   font-size: var(--type-1x);
   letter-spacing: 2px;
-  color: var(--p2);
-  opacity: 0.45;
+  color: var(--p3);
+  border-left: var(--rule) solid var(--p3);
+  background: color-mix(in srgb, var(--n0) 80%, transparent);
+  padding: 3px 10px 4px;
+  opacity: 0.55;
   transition: opacity 200ms;
   /* It is ink, not a control: the scrim above it owns every tap, and a hint
      that intercepted one would break the one rule it is there to explain. */
