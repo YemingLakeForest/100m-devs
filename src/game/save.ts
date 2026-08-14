@@ -600,7 +600,7 @@ function normaliseRun(value: unknown): RunSave {
     devCap: Math.max(1, nonNegative(r.devCap, D_BASE)),
     cash: num(r.cash, 0),
     projectIndex: Math.max(0, Math.floor(nonNegative(r.projectIndex, 0))),
-    commitment: typeof r.commitment === 'string' ? r.commitment : '1000',
+    commitment: typeof r.commitment === 'string' ? r.commitment : '300',
     burned: typeof r.burned === 'string' ? r.burned : '0',
     projectsShipped: Math.max(0, Math.floor(nonNegative(r.projectsShipped, 0))),
     hasCultureUpgrade: bool(r.hasCultureUpgrade, false),

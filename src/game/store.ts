@@ -158,10 +158,17 @@ import {
 /**
  * The Run 1 project ladder — GDD §5, Era 1.
  *
- * *Flappy Square 1.0* is 1,000 SP because §21 Act I says so, and because at
+ * *Flappy Square 1.0* used to be 1,000 SP because §21 Act I said so, and at
  * the 1 SP/sec baseline that is exactly the 0.1%/sec fill rate the script
- * states. **It is the only large one**, and deliberately so: it is the
- * teaching project, shipped almost entirely by thumb.
+ * states. Resized to 300 on 2026-08-14: at that baseline 1,000 SP is a quarter
+ * of an hour of uninterrupted thumb, and Act I hands the player a half-rate
+ * founder and one unpaid friend to do it with. The teaching project exists to
+ * sell the clicker layer, not to survive it — the old 1,000 put the hardest
+ * climb of the whole run first, when the studio is smallest, and made the
+ * ladder open **1,000 → 400**, which is backwards before it is anything else.
+ * At 300 the ladder is monotonic — **300 → 400 → 1,000 → 4,000** — and the
+ * first ship lands after about a minute of poking, James arriving a quarter of
+ * the way in.
  *
  * Everything after it was resized on 2026-08-07 for §21.0's Act IIa loop. The
  * old ladder climbed 1,000 → 2,500 → 8,000, which was written for Act I's pace
@@ -198,8 +205,8 @@ import {
  * anybody.** It only turns a profit because you and James are not paid.
  */
 export const PROJECTS = [
-  // r = $0.05/SP. The joke, and a loss-maker the moment payroll starts.
-  { name: 'Flappy Square 1.0', commitment: 1000, payout: 50 },
+  // r = $0.17/SP. The joke, and a loss-maker the moment payroll starts.
+  { name: 'Flappy Square 1.0', commitment: 300, payout: 50 },
   // r = $62.50/SP. The first project that clears the wage, and the one that
   // funds Act IIa — shipped at two unpaid founders, so all of it is profit.
   { name: 'Flappy Square 2.0 (Now With Ads)', commitment: 400, payout: 25_000 },
@@ -2466,8 +2473,8 @@ if (import.meta.env?.MODE !== 'test') initPersistence()
  * `shipProject` sets all four of these in one object and they are only correct
  * as a set. {@link jumpToPhase} used to write `projectIndex` alone on top of a
  * fresh run, which left the studio on project 1's **payout** with project 0's
- * **name** and project 0's **1,000-point commitment** — a HUD reading
- * "FLAPPY SQUARE 1.0 · 915 / 1000 SP LEFT · +$25.0K IN 91s", which is three
+ * **name** and project 0's **300-point commitment** — a HUD reading
+ * "FLAPPY SQUARE 1.0 · 215 / 300 SP LEFT · +$25.0K IN 91s", which is three
  * numbers from two different projects and cannot happen in play.
  *
  * That is worse than a cosmetic bug, because handoff trap 4 makes these seams

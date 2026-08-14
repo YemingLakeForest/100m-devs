@@ -173,7 +173,7 @@ describe('offline on return — GDD §24.5', () => {
     // The original assertion here demanded < 1 SP total and was simply wrong
     // about the magnitude; over the 2 h cap the seized studio earns ~36 SP.
     // What matters is not that the number is tiny in absolute terms but that
-    // it cannot rescue the run: 36 SP against a 1,000 SP commitment, with no
+    // it cannot rescue the run: 36 SP against a 300 SP commitment, with no
     // payroll relief, is a player returning to the same seized studio.
     seed({ devs: 1002, devCap: 100 }, prestiged(), 8 * HOUR)
     const stalled = loadGame()!
@@ -227,7 +227,9 @@ describe('collect — GDD §24.8', () => {
     collectOffline(2)
     // Clamped at the commitment either way here; what matters is that the
     // doubled path went through the model rather than around it.
-    expect(getState().burned.toNumber()).toBeGreaterThanOrEqual(Math.min(single, 1000))
+    expect(getState().burned.toNumber()).toBeGreaterThanOrEqual(
+      Math.min(single, PROJECTS[0].commitment),
+    )
   })
 
   it('credits offline time towards Bruno, capped rather than elapsed', () => {

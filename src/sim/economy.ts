@@ -41,7 +41,7 @@ export const WAGE_PER_DEV_PER_SEC = 50
 /**
  * Dollars earned per Story Point shipped.
  *
- * Calibrated so *Flappy Square 1.0* (1,000 SP) pays the +$50 that §21 Act II
+ * Calibrated so *Flappy Square 1.0* (300 SP) pays the +$50 that §21 Act II
  * states. Every later project's payout follows from its Sprint Commitment,
  * which keeps revenue tied to work actually done rather than to a table.
  */

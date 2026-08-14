@@ -66,9 +66,9 @@ export const PHASE_ORDER: readonly Phase[] = [
  *
  * Fifty is chosen the way §21.0's forty was. At §21's stated 3–5 taps a second
  * it is about fifteen seconds — long enough that the player has felt the size
- * of 1,000, and **short enough that they have not yet decided the game is a
- * grind.** The help arrives at the first moment it would be a relief and before
- * it would be a rescue.
+ * of the sprint, and **short enough that they have not yet decided the game is
+ * a grind.** The help arrives at the first moment it would be a relief and
+ * before it would be a rescue.
  *
  * The trap is untouched. Act IIa still buys every subsequent hire with earned
  * cash, the price still climbs, and the collapse still costs a treasury the
@@ -121,10 +121,10 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
     terminal: [
       'STUDIO_OS v0.0.1 initialized.',
       'Project: "Flappy Square 1.0"',
-      'Sprint Commitment: 1,000 story points',
+      'Sprint Commitment: 300 story points',
       'Employees: 0 // just you',
     ],
-    bubble: 'Okay... just need to write 1,000 lines of code. Simple enough.',
+    bubble: 'Okay... just need to write 300 lines of code. Simple enough.',
     advisor: 'Choose CODE, then tap yourself or your desk.',
   },
 

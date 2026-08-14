@@ -91,7 +91,7 @@ describe('Act I — the clicker layer sells itself first', () => {
 
   /**
    * §21.0b, R41. Fifty taps is ~15 seconds at the 3–5 a second §21 predicts:
-   * **long enough that the player has felt the size of 1,000 Story Points, and
+   * **long enough that the player has felt the size of the sprint, and
    * short enough that they have not yet decided the game is a grind.**
    *
    * The old bound was twenty, and it was measuring the wrong thing — at twelve

@@ -267,12 +267,13 @@ export const NO_FOUNDER: FounderEffects = {
 /**
  * §13.7.1's Support spine, diluted — dollars per story point you produce.
  *
- * Anchored to §4.10's own ladder rather than picked: the first project pays
- * $50 for 100 story points, so half a dollar a point is exactly what the
- * studio's work is worth at the start of the game, and {@link
- * MANAGEMENT_DILUTION} takes the manager's share of it. A founder doing sales
- * on the side earns a fraction of what shipping earns, which is the correct
- * answer and is not a number anybody had to invent.
+ * Anchored to §4.10's original opening rate rather than the resized ladder:
+ * the studio's first game was once worth half a dollar a point, and {@link
+ * MANAGEMENT_DILUTION} takes the manager's share of that. The ladder has since
+ * been resized twice for Run 1's pacing, and this node keeps its historical
+ * rate — it is priced as a mid-game purchase, and a founder doing sales on the
+ * side earning a fraction of what shipping earns is the correct answer either
+ * way.
  */
 export const FOUNDER_CASH_PER_POINT = 0.5 * MANAGEMENT_DILUTION
 
