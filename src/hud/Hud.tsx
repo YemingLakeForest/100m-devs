@@ -9,6 +9,7 @@ import {
   hasPrestiged,
   currentEntropy,
   dismissScene,
+  getPermanent,
   grantJames,
   hasSeenScene,
   hireDeveloper,
@@ -42,6 +43,7 @@ import { Dialogue } from '../ui/Dialogue.tsx'
 import { SCENES, SCENE_JAMES_ARRIVES, JAMES_DROPS_AT_LINE } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
 import { UpgradeBoard } from './UpgradeBoard.tsx'
+import { Gallery } from './Gallery.tsx'
 import { ParadigmTree } from './ParadigmTree.tsx'
 import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
 import { useGameState } from './useGameState.ts'
@@ -147,12 +149,19 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [upgradesOpen, setUpgradesOpen] = useState(false)
   const [founderOpen, setFounderOpen] = useState(false)
   const [gameMenuOpen, setGameMenuOpen] = useState(false)
+  const [galleryOpen, setGalleryOpen] = useState(false)
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
   // §21.0c — read once and passed down, so every gate in this frame agrees
   // about the same run rather than each asking separately.
   const unlocks = currentUnlocks()
+
+  // §10.11 — the gallery is where a career acquires a history, so its door opens
+  // with the first ship and stays open: it is a view onto memory, not a lever,
+  // and §10.11.5 is explicit that it must never become one.
+  const history = getPermanent().meta.history
+  const hasGallery = history.recent.length > 0 || history.aggregates.length > 0
 
   // The interface hue is a direct function of Entropy — ART_DIRECTION §1.1.
   // Written to the document root so the CSS token cascade carries it to every
@@ -352,6 +361,24 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               </Button>
             </div>
           )}
+          {/* §10.11 — the gallery door, beside UPGRADES. Not gated on the tech
+              tree: it is a record of what shipped, and it opens the moment there
+              is a record to show, Run 1 included. */}
+          {hasGallery && (
+            <div className="hud__nav">
+              <Button
+                onClick={() => {
+                  setTreeOpen(false)
+                  setFounderOpen(false)
+                  setGameMenuOpen(false)
+                  setUpgradesOpen(false)
+                  setGalleryOpen((was) => !was)
+                }}
+              >
+                GALLERY
+              </Button>
+            </div>
+          )}
           </div>
         </div>
       </div>
@@ -397,6 +424,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       </div>
 
       <UpgradeBoard open={upgradesOpen} onClose={() => setUpgradesOpen(false)} />
+      <Gallery open={galleryOpen} onClose={() => setGalleryOpen(false)} />
       <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
       <FounderProfilePanel open={founderOpen} onClose={() => setFounderOpen(false)} />
       <GameMenu

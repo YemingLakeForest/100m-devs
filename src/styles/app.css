@@ -1135,6 +1135,87 @@ body {
   text-shadow: 0 0 14px color-mix(in srgb, var(--foliage-1) 45%, transparent);
 }
 
+/*
+ * §10.11.3's cover, brought into the celebration. Larger than the gallery's
+ * 48px because this is the one moment per project the picture is allowed to
+ * take the middle of the frame; `image-rendering: pixelated` keeps the tile
+ * hard-edged at the upscale.
+ */
+.ship-toast .cover {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 6px;
+}
+
+/*
+ * The launch flash — §10.8a's "placement produces particles" neighbour, a
+ * full-frame white burst that dies in two or three frames. Played once on
+ * mount (the toast keys it to the ship id) and left at opacity 0, so it
+ * re-fires by remounting rather than by a timer that could be reset wrong.
+ */
+.ship-flash {
+  position: absolute;
+  inset: 0;
+  background: var(--n8);
+  pointer-events: none;
+  animation: ship-flash 160ms ease-out forwards;
+}
+
+@keyframes ship-flash {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+ * §10.8a's gain stack, under the cash figure. Newest first, each entry fading
+ * on its own; the column is the readout that turns "the total moved" into
+ * "this much arrived, then this much".
+ */
+.hud__gains {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  pointer-events: none;
+}
+
+/* The stack anchors to the cash block, so the block is the containing box. */
+.hud__block--cash {
+  position: relative;
+}
+
+.hud__gain {
+  font-size: var(--type-1x);
+  color: var(--foliage-1);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--foliage-1) 40%, transparent);
+  animation: hud-gain 4s ease-out forwards;
+}
+
+@keyframes hud-gain {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  12% {
+    opacity: 1;
+    transform: none;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+
 /* --- the hire dial — GDD §10.10 ----------------------------------------- */
 
 /*
@@ -1198,19 +1279,29 @@ body {
   background: var(--p1);
 }
 
-/* Speech bubble over the developer — GDD §7.5 L1, §6.3. Also a Panel. */
+/*
+ * Speech bubble over the developer — GDD §7.5 L1, §6.3. Also a Panel.
+ *
+ * This is a character speaking, so it gets the same legibility treatment as
+ * §21's advisor: full-step `--type-2x` type, `--p3` ink on a near-opaque wash,
+ * and a phosphor halo that keeps the glyphs intact under the CRT pass's
+ * scanlines. At `--type-1x` the dark scanline every 1.4px was removing a third
+ * of each glyph and the bubble read as a smear rather than as speech.
+ */
 .hud__bubble {
   grid-area: bubble;
   justify-self: center;
   align-self: start;
   max-width: 28em;
   margin-top: 4px;
+  font-size: var(--type-2x);
   color: var(--p3);
-  background: color-mix(in srgb, var(--n0) 82%, transparent);
-  border: var(--rule) solid var(--p2);
-  padding: 5px 8px;
+  text-shadow: 0 0 9px color-mix(in srgb, var(--p2) 45%, transparent);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  border: var(--rule) solid var(--p3);
+  padding: 6px 10px;
   text-align: center;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 /* --- upgrades, GDD §10.1 nav / §11 ------------------------------------- */

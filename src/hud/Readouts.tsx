@@ -14,15 +14,16 @@ import { secondsUntilBankrupt } from '../sim/economy.ts'
 import { useSpring } from '../ui/useSpring.ts'
 import { SPRING_HEAVY } from '../ui/spring.ts'
 import { Counter } from './Counter.tsx'
+import { GainStack } from './GainStack.tsx'
 import { Kw } from './Kw.tsx'
 import { ConceptText } from '../ui/ConceptText.tsx'
 import {
   cashFlowReadout,
-  entropyPercent,
   formatMoney,
   formatVelocity,
   payoutReadout,
   runwayReadout,
+  syncPercent,
   velocitySplit,
 } from './hudModel.ts'
 
@@ -75,6 +76,8 @@ export function Cash({ state }: { state: GameState }) {
           negative: the point is context, not consolation. */}
       {payroll > 0 && payout && <span className="hud__sub is-good">{payout}</span>}
       {payroll > 0 && runway && <span className="hud__sub is-bad hud__sub--blink">{runway}</span>}
+      {/* §10.8a's gain stack — the money that just landed, in green. */}
+      <GainStack state={state} />
     </div>
   )
 }
@@ -141,6 +144,10 @@ export function Shipped({ state }: { state: GameState }) {
  * beside it because the escalating word is drama and the percentage is the
  * honest reading. Hiding the number would make the HUD a mood ring.
  *
+ * The number reads **sync**, not entropy: `IN SYNC` at 100% is the intuitive
+ * reading, and `IN SYNC` at 0% reads as a fault. So the percentage starts at
+ * 100% when the studio is fine and drains to 0% as it seizes.
+ *
  * The displayed value is sprung, and that is a deliberate reading of §4.3a's
  * closing note. The Mass Hire adds a thousand developers in a single frame, so
  * the readout would otherwise jump `CHATTY` -> `STUDIO SEIZED` with the four
@@ -152,23 +159,28 @@ export function Shipped({ state }: { state: GameState }) {
  * inside the beat.
  *
  * Clamped to [0, 1] because a spring overshoots by design, and a speedometer
- * that reads 101% is a bug rather than a flourish.
+ * that reads negative sync is a bug rather than a flourish.
  */
 export function Speedometer({ entropy }: { entropy: number }) {
   const swept = Math.min(1, Math.max(0, useSpring(entropy, SPRING_HEAVY)))
   const seized = entropy >= 0.99
+  // The gauge reports *sync*, not entropy: 100% when the studio is in sync,
+  // draining toward 0% as it seizes. The label above still escalates its name
+  // with entropy (§4.3a); the bar and number travel with the sync reading so
+  // they never contradict each other.
+  const sync = 1 - swept
 
   return (
     <div className={`hud__block hud__gauge${seized ? ' is-seized' : ''}`}>
       <span className="hud__label">{entropyLabel(swept)}</span>
-      <b className="hud__num hud__num--major">{entropyPercent(swept)}</b>
+      <b className="hud__num hud__num--major">{syncPercent(swept)}</b>
       <div className="hud__gauge-track">
         {/*
-          Width is the sprung value too, so the bar and the word travel
+          Width is the sprung sync value too, so the bar and the number travel
           together. §10.8a asks a filling bar to overshoot and settle rather
           than to arrive; the spring is where that comes from.
         */}
-        <div className="hud__gauge-fill" style={{ width: `${swept * 100}%` }} />
+        <div className="hud__gauge-fill" style={{ width: `${sync * 100}%` }} />
       </div>
     </div>
   )
@@ -201,7 +213,7 @@ export function Velocity({ state }: { state: GameState }) {
       <span className="hud__label"><Kw kind="velocity">VELOCITY</Kw></span>
       <b className="hud__num hud__num--major">{formatVelocity(currentEffectiveVelocity(state))}</b>
       <span className="hud__sub hud__sub--unit">
-        <Kw>story points</Kw>/SEC
+        <Kw>STORY POINTS</Kw>/SEC
       </span>
       {/* Only while the player is actually poking, so the row is an event
           rather than furniture. */}

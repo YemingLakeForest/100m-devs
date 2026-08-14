@@ -805,6 +805,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** Last consumed §7.7.2 spawn, so one hire produces one arrival. */
   let lastSpawnId = 0
   let hireShake = 0
+  /** Last consumed §10.8a ship, so one ship produces one camera punch. */
+  let lastShipId = 0
+  let shipShake = 0
   /** §20.7.4 fires once per run; a Paradigm Shift clears `massHired` and this. */
   let musicCollapsed = false
   const music = new MusicBus()
@@ -918,6 +921,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     devsBefore = state.devs
     arrivals.update(now)
     hireShake = Math.max(hireShake, arrivals.consumeImpact())
+
+    // §10.8a — the launch. A ship lands one camera punch, consumed once like
+    // the spawn above; the DOM flash and the toast own the rest of the beat.
+    // The kick decays in the shake sum below.
+    if (state.ship && state.ship.id !== lastShipId) {
+      lastShipId = state.ship.id
+      shipShake = 1
+    }
+
     // §20.7.3 — the score is a mix, not a playlist. Driven every frame from
     // the same camera Z the picture uses and the same Entropy the readout
     // does, so picture, ambience and music change register on the same frame.
@@ -1122,8 +1134,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const hireAmp = hireShake * (reduceMotion ? 1.2 : 4.5)
     const hireX = Math.sin(now * 0.31) * hireAmp
     const hireY = Math.cos(now * 0.43) * hireAmp * 0.65
-    glass.position.set(shake.x + hireX, shake.y + hireY)
+    // §10.8a — the ship's camera punch rides the same glass, a single damped
+    // kick rather than the hire's continuous wobble. Faster and shorter, so a
+    // launch reads as a thump, not as more arrivals.
+    const shipAmp = shipShake * (reduceMotion ? 1.5 : 7)
+    const shipX = Math.sin(now * 0.9) * shipAmp
+    const shipY = Math.cos(now * 1.1) * shipAmp * 0.7
+    glass.position.set(shake.x + hireX + shipX, shake.y + hireY + shipY)
     hireShake *= Math.exp(-dt * 12)
+    shipShake *= Math.exp(-dt * 10)
 
     // §8.2b — the passive `+1`s over each head.
     //

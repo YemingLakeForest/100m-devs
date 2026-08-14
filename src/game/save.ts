@@ -26,6 +26,13 @@ import { TECH_BY_ID } from '../sim/techTree.ts'
 import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
 import { ROLES, type Role } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
+import {
+  emptyHistory,
+  mergeHistory,
+  type History,
+  type ReleaseRecord,
+  type TitleAggregate,
+} from '../sim/history.ts'
 
 /**
  * **1.** This game has never shipped a save, so there is no history to migrate
@@ -270,6 +277,19 @@ export interface MetaSave {
    * taken away; the hero only ever grows.
    */
   heroNodes?: Record<string, string[]>
+  /**
+   * §10.11 — the release history: what the player has actually made, career-wide.
+   *
+   * In `meta` rather than `layer1` so it survives a Codebase Fork and a
+   * Multiverse Compiler as well as a Paradigm Shift. A release record is a
+   * memory, not a currency or an unlock, and §10.11's whole premise is that the
+   * gallery is where a *career* acquires a history.
+   *
+   * Bounded by construction: the recent window caps at {@link RECENT_KEEP} and
+   * the aggregates are one per distinct title, so a million shipped games cost
+   * a few dozen objects. See `sim/history.ts`.
+   */
+  history: History
 }
 
 export interface PermanentSave {
@@ -319,6 +339,7 @@ export function emptyMeta(): MetaSave {
     founderLevels: {},
     heroXp: {},
     heroNodes: {},
+    history: emptyHistory(),
   }
 }
 
@@ -765,6 +786,56 @@ function normaliseReleases(value: unknown): ReleaseSave[] {
   return out
 }
 
+/**
+ * §10.11 — the release history, defended field by field.
+ *
+ * A name is load-bearing: the aggregates are keyed on it and the gallery's
+ * whole wall-of-covers reads *off* it, so a record without one is dropped
+ * rather than defaulted to a placeholder that would invent a title the player
+ * never shipped. Numbers floor at zero; a rating clamps to 100 and a count to
+ * at least 1, so a folded title cannot report "0 times" and divide its own
+ * average by nothing.
+ */
+function normaliseHistory(value: unknown): History {
+  const h = (value ?? {}) as Partial<History>
+  const recent: ReleaseRecord[] = []
+  if (Array.isArray(h.recent)) {
+    for (const raw of h.recent) {
+      const r = (raw ?? {}) as Partial<ReleaseRecord>
+      if (typeof r.name !== 'string' || r.name.length === 0) continue
+      recent.push({
+        ordinal: Math.floor(nonNegative(r.ordinal, 0)),
+        run: Math.floor(nonNegative(r.run, 0)),
+        name: r.name,
+        rating: Math.min(100, nonNegative(r.rating, 0)),
+        payout: nonNegative(r.payout, 0),
+        buildSeconds: nonNegative(r.buildSeconds, 0),
+        labourSeconds: nonNegative(r.labourSeconds, 0),
+        seed: typeof r.seed === 'number' && r.seed > 0 ? r.seed : 1,
+      })
+    }
+  }
+  const aggregates: TitleAggregate[] = []
+  if (Array.isArray(h.aggregates)) {
+    for (const raw of h.aggregates) {
+      const a = (raw ?? {}) as Partial<TitleAggregate>
+      if (typeof a.name !== 'string' || a.name.length === 0) continue
+      aggregates.push({
+        name: a.name,
+        count: Math.max(1, Math.floor(nonNegative(a.count, 1))),
+        ratingSum: nonNegative(a.ratingSum, 0),
+        payoutSum: nonNegative(a.payoutSum, 0),
+        buildSecondsSum: nonNegative(a.buildSecondsSum, 0),
+        labourSecondsSum: nonNegative(a.labourSecondsSum, 0),
+        seed: typeof a.seed === 'number' && a.seed > 0 ? a.seed : 1,
+        lastOrdinal: Math.floor(nonNegative(a.lastOrdinal, 0)),
+        lastRun: Math.floor(nonNegative(a.lastRun, 0)),
+      })
+    }
+  }
+  return { recent, aggregates }
+}
+
 function normalisePermanent(value: unknown): PermanentSave {
   const p = (value ?? {}) as Partial<PermanentSave>
   const l1 = (p.layer1 ?? {}) as Partial<Layer1Save>
@@ -800,6 +871,7 @@ function normalisePermanent(value: unknown): PermanentSave {
       // §13.10, §13.9. Absent means no XP earned and no hero nodes bought.
       heroXp: numberMap(m.heroXp),
       heroNodes: stringListMap(m.heroNodes),
+      history: normaliseHistory(m.history),
     },
   }
 }
@@ -905,6 +977,11 @@ export function mergePermanent(
       // one device is bought.
       heroXp: maxMap(a.heroXp ?? {}, b.heroXp ?? {}),
       heroNodes: unionMap(a.heroNodes ?? {}, b.heroNodes ?? {}),
+      // §10.11 — see `sim/history.ts`. Recent unions by ordinal (commutative and
+      // idempotent); aggregates sum per title (commutative, generously
+      // double-counting only a release folded on two devices at once, which does
+      // not parallelise). The trade is the game's standing one: keep everything.
+      history: mergeHistory(a.history, b.history),
     },
   }
 }

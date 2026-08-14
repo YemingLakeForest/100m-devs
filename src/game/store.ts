@@ -24,6 +24,7 @@ import {
   rollShape,
   type Release,
 } from '../sim/revenue.ts'
+import { nextOrdinal, recordRelease, type ReleaseRecord } from '../sim/history.ts'
 import {
   addHires,
   countsOf,
@@ -514,6 +515,27 @@ export interface GameState {
    * is working.
    */
   runSeconds: number
+  /**
+   * §10.11 — simulated seconds spent on the current project.
+   *
+   * Advanced with the simulation clock (§10.7a.3 pauses it with everything
+   * else), so "dev time elapsed" is the same seconds the studio was actually
+   * paid for. Resets on ship; the shipped figure is copied into the history
+   * record. Ephemeral (§24.2) — a reload mid-project restarts the clock on the
+   * one project that is still in flight, which under-reports a few minutes at
+   * most and never rewrites a shipped game's record.
+   */
+  projectSeconds: number
+  /**
+   * §10.11.2 — ∫ headcount dt over the current project, in seconds.
+   *
+   * The *labour* figure, integrated from the raw headcount rather than the
+   * working headcount and deliberately **not** divided by efficiency: §10.11.2
+   * is explicit that labour is "headcount integrated over build time, and it is
+   * NOT divided by efficiency" — the receipt the player paid for, not the work
+   * that was useful. Resets on ship, like {@link projectSeconds}.
+   */
+  projectLabourSeconds: number
 }
 
 /**
@@ -579,6 +601,8 @@ function freshRun(): GameState {
     scene: null,
     tech: {},
     runSeconds: 0,
+    projectSeconds: 0,
+    projectLabourSeconds: 0,
     // §4.11 — an empty studio. There is no QA in a garage, and the joke §4.11
     // is making only lands once the player has been given something to protect.
     roster: newRoster(0),
@@ -1069,6 +1093,22 @@ function showBubble(text: string, ttl = 4000): Partial<GameState> {
   return { bubble: { text, bornAt: performance.now(), ttl } }
 }
 
+/**
+ * §10.11 — fold a shipped release into the career history.
+ *
+ * The history lives in `PermanentSave.meta` rather than in `GameState` because
+ * it is career-wide: §13.2 liquidates the run and the catalogue but never what
+ * the player has made. Written through {@link setPermanent} so the next
+ * `saveGame` serialises it alongside the run.
+ */
+function recordHistoryRelease(record: ReleaseRecord): void {
+  const p = getPermanent()
+  setPermanent({
+    ...p,
+    meta: { ...p.meta, history: recordRelease(p.meta.history, record) },
+  })
+}
+
 /** Ship the current project and roll to the next — §21 Act II. */
 function shipProject(s: GameState): Partial<GameState> {
   const tech = techEffects(s.tech)
@@ -1128,6 +1168,21 @@ function shipProject(s: GameState): Partial<GameState> {
   const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
   const next = PROJECTS[nextIndex]
 
+  // §10.11 — the permanent record, before the run moves on and forgets the
+  // build time and the labour. Written to permanent state in memory; it is
+  // serialised by the next `saveGame`, on the same cadence the live catalogue
+  // (`releases`) already follows rather than on every ship.
+  recordHistoryRelease({
+    ordinal: nextOrdinal(getPermanent().meta.history),
+    run: getPermanent().meta.paradigmShifts,
+    name: s.sprintName,
+    rating,
+    payout: revenue,
+    buildSeconds: s.projectSeconds,
+    labourSeconds: s.projectLabourSeconds,
+    seed: s.runSeed,
+  })
+
   return {
     // The bench is clear. Whatever was on it is now the release's problem.
     defects: 0,
@@ -1167,6 +1222,11 @@ function shipProject(s: GameState): Partial<GameState> {
     // watching a gauge that ships at 95% full.
     commitment: new Decimal(next.commitment).times(tech.commitmentFraction),
     burned: new Decimal(0),
+    // §10.11 — the build that just finished is recorded, so the clock starts
+    // again from zero for the next project. The figures themselves left with
+    // the history record a few lines above.
+    projectSeconds: 0,
+    projectLabourSeconds: 0,
   }
 }
 
@@ -1317,6 +1377,10 @@ export function tick(dtSeconds: number): void {
     // field's note. Advanced before anything reads it so the standup boundary
     // lands on the same frame the velocity does.
     runSeconds: state.runSeconds + dtSeconds,
+    // §10.11 — the project's build time and its labour (§10.11.2). Labour is
+    // the raw headcount, not the working headcount and not efficiency-adjusted.
+    projectSeconds: state.projectSeconds + dtSeconds,
+    projectLabourSeconds: state.projectLabourSeconds + state.devs * dtSeconds,
     // Exponential decay towards zero. Paired with the impulse `poke` adds, this
     // settles on the player's true taps-per-second rather than spiking on each
     // one — a readout that jumped to a huge number and back on every tap would
