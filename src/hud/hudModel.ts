@@ -170,6 +170,21 @@ export function entropyPercent(e: number): string {
   return `${e >= 0.95 ? pct.toFixed(1) : Math.round(pct)}%`
 }
 
+/**
+ * The speedometer's numeral, read as *how in sync* the studio is rather than
+ * *how much entropy* it has. `IN SYNC` at 0% reads as a fault — "in sync" is a
+ * good thing, and zero is not — so the number states the same quantity the
+ * other way round: 100% when the studio is fine, draining to 0% as it seizes.
+ * The label keeps its §4.3a escalation; only the percentage is inverted.
+ */
+export function syncPercent(e: number): string {
+  const s = Math.min(1, Math.max(0, 1 - e))
+  const pct = s * 100
+  // One decimal only in the last stretch, where 1.0% and 1.9% sync are
+  // different situations and a whole number would show both as "1%".
+  return `${s <= 0.05 ? pct.toFixed(1) : Math.round(pct)}%`
+}
+
 /** Re-exported so a HUD component never reaches past this module for wording. */
 export { entropyLabel }
 

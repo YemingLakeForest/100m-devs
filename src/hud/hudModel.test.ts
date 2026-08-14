@@ -12,6 +12,7 @@ import {
   formatVelocity,
   offerFor,
   runwayReadout,
+  syncPercent,
 } from './hudModel.ts'
 
 describe('formatMoney', () => {
@@ -129,6 +130,15 @@ describe('the speedometer numeral — GDD §4.3a', () => {
     expect(entropyPercent(0.999)).toBe('99.9%')
     // Never 100%: a studio at 100% has no honest reading left to give.
     expect(entropyPercent(1)).toBe('99.9%')
+  })
+
+  it('reads as sync: 100% when in sync, draining to 0% as it seizes', () => {
+    // `IN SYNC` at 0% reads as a fault, so the speedometer states the same
+    // number the other way round — 100% is fine, 0% is seized.
+    expect(syncPercent(0)).toBe('100%')
+    expect(syncPercent(0.4)).toBe('60%')
+    expect(syncPercent(0.99)).toBe('1.0%')
+    expect(syncPercent(1)).toBe('0.0%')
   })
 
   it('never says the word the player is not allowed to read', () => {
