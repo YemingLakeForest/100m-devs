@@ -210,9 +210,9 @@ const CROWDING_STARTS = 40
  * plan is something the headcount has to earn, one hire at a time, across
  * the band the table calls "walls push outward".
  */
-export const ROOM_TIGHT_MARGIN = 1.05
-export const ROOM_OPEN_MARGIN = 1.5
-export const ROOM_CROWD_MARGIN = 0.6
+export const ROOM_TIGHT_MARGIN = 0.6
+export const ROOM_OPEN_MARGIN = 1.1
+export const ROOM_CROWD_MARGIN = 0.4
 /** §7.8.1's "11–30: walls push outward" — below this the room stays tight. */
 export const ROOM_OPENS_AT = 10
 /** The headcount at which the open plan is fully open — §7.8.1's 31–100 band. */
@@ -1768,6 +1768,29 @@ function drawGarageDoor(g: Graphics, x0: number, y0: number, x1: number, y1: num
   g.rect(x1 - 10, y1 - h * 0.62, 3, h * 0.22).fill(c(RAMPS.NEUTRAL[1]))
 }
 
+/**
+ * A UPVC window in a back wall — two flat casements in a white frame, the
+ * plainest possible way to say "there is an outside". No moon, no horizon, no
+ * view: a two-pane UPVC window in a converted garage is its own joke, and
+ * anything busier reads as a poster stuck on the wall rather than a hole
+ * through it. `(x, y)` is the centre of the frame's top edge, `slope` is the
+ * wall's.
+ */
+function drawWindow(g: Graphics, x: number, y: number, w: number, h: number, slope: number) {
+  // The white UPVC frame.
+  wallQuad(g, x, y, w, h, slope, c(RAMPS.NEUTRAL[8]))
+  // The glass — a steel blue clearly lighter than the wall, so the pane reads
+  // as glass set into the wall rather than as the wall showing through a white
+  // outline.
+  wallQuad(g, x, y + 3, w - 5, h - 6, slope, c(RAMPS.GLOW[1]))
+  // The central mullion, splitting the glass into two casements.
+  wallQuad(g, x, y + 3, 3, h - 6, slope, c(RAMPS.NEUTRAL[8]))
+  // The sill — a wider ledge along the bottom, plus the shadow it casts down
+  // the wall, so the window ends on a ledge instead of floating.
+  wallQuad(g, x, y + h - 3, w + 8, 4, slope, c(RAMPS.NEUTRAL[7]))
+  wallQuad(g, x, y + h + 1, w + 8, 3, slope, c(RAMPS.NEUTRAL[1]))
+}
+
 function drawBin(g: Graphics, x: number, y: number) {
   // Tapered, so it needs its own polygon rather than isoBox — but the taper is
   // in the vertical only; the footprint is still a rhombus at both ends.
@@ -2154,12 +2177,12 @@ export function buildRoom(): RoomHandle {
       .lineTo(cx + floorW * 0.22, cy + floorH * 0.3)
       .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
 
-    // The two back walls, rising from the far edges. The back-RIGHT wall takes
-    // the lighter neutral, which is the counter-intuitive half of
-    // ART_DIRECTION §7's single top-left source and was backwards here until
-    // the props were boxed and the mismatch became visible: both back walls
-    // face the camera, and the one on the right faces down-*left*, toward the
-    // light. Held by hand, because no script can check it.
+    // The two back walls, rising from the far edges. Red brick, not concrete —
+    // a converted garage is brick, and brick is what says "garage" the same way
+    // the slab below says it. The back-RIGHT wall takes the lighter brick, the
+    // counter-intuitive half of ART_DIRECTION §7's single top-left source: both
+    // back walls face the camera, and the one on the right faces down-*left*,
+    // toward the light. Held by hand, because no script can check it.
     // Wall height scales with the room. A fixed height made the walls 46% of
     // the frame in a two-desk garage, which pushed the people — the actual
     // subject — onto the bottom edge. Walls are backdrop; they get whatever
@@ -2182,14 +2205,14 @@ export function buildRoom(): RoomHandle {
       .lineTo(topX, topY - WALL_H)
       .lineTo(leftX, cy - WALL_H)
       .closePath()
-      .fill(c(RAMPS.NEUTRAL[2]))
+      .fill(c(RAMPS.WOOD[0]))
     shell
       .moveTo(rightX, cy)
       .lineTo(topX, topY)
       .lineTo(topX, topY - WALL_H)
       .lineTo(rightX, cy - WALL_H)
       .closePath()
-      .fill(c(RAMPS.NEUTRAL[3]))
+      .fill(c(RAMPS.WOOD[1]))
     // The corner seam, so the two planes read as meeting rather than as one
     // folded shape.
     shell.moveTo(topX, topY).lineTo(topX, topY - WALL_H).stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]) })
@@ -2236,32 +2259,97 @@ export function buildRoom(): RoomHandle {
     skirt(leftX, cy, 3)
     skirt(rightX, cy, 4)
 
+    // --- the cornice --------------------------------------------------------
+    //
+    // The skirting's twin at the top: a moulding where the wall meets the
+    // ceiling. Same construction and lighting (right wall lighter, left wall
+    // darker), running down from the top edge instead of up from the base. It
+    // frames the brick at both ends so the wall reads as built rather than as
+    // a flat red field.
+    const CORNICE_H = Math.max(5, Math.min(9, WALL_H * 0.09))
+    const cornice = (fromX: number, fromY: number, base: number) => {
+      shell
+        .moveTo(fromX, fromY)
+        .lineTo(topX, topY - WALL_H)
+        .lineTo(topX, topY - WALL_H + CORNICE_H)
+        .lineTo(fromX, fromY + CORNICE_H)
+        .closePath()
+        .fill(c(RAMPS.NEUTRAL[base]))
+      // The lit rule along the very top, and the shadow the moulding casts onto
+      // the brick below it.
+      shell
+        .moveTo(fromX, fromY)
+        .lineTo(topX, topY - WALL_H)
+        .stroke({ width: 1, color: c(RAMPS.NEUTRAL[base + 2]) })
+      shell
+        .moveTo(fromX, fromY + CORNICE_H)
+        .lineTo(topX, topY - WALL_H + CORNICE_H)
+        .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]) })
+    }
+    cornice(leftX, cy - WALL_H, 3)
+    cornice(rightX, cy - WALL_H, 4)
+
     // --- the garage bones ----------------------------------------------------
     //
-    // Concrete block courses on the left wall, and the door on the right.
-    // The courses are the cheapest possible way to say "not plasterboard":
-    // a garage wall is block or brick, and three faint horizontal seams say
-    // block. Kept to the left wall only — the right wall's door is its
-    // statement, and a wall that says both says neither.
-    const course = Math.max(10, (WALL_H - SKIRT_H) / 6)
-    for (let i = 1; i * course < WALL_H - SKIRT_H + 1; i++) {
-      const k = SKIRT_H + i * course
-      shell
-        .moveTo(leftX, cy - k)
-        .lineTo(topX, topY - k)
-        .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.5 })
+    // Brick courses on the left wall, and the door on the right. The courses
+    // are what make the red fill read as brick rather than as painted plaster:
+    // a fixed number of courses that tile the wall exactly from the skirting to
+    // the cornice, so the pattern stretches with the wall and never leaves a
+    // ragged gap at the top. A horizontal mortar bed between courses plus
+    // staggered vertical joints — the stagger is the whole brick tell, a grid
+    // of vertical joints reads as block. Kept to the left wall only — the
+    // right wall's door is its statement, and a wall that says both says
+    // neither.
+    const BRICK_COURSES = 7
+    const brickBot = SKIRT_H
+    const brickTop = WALL_H - CORNICE_H
+    const course = (brickTop - brickBot) / BRICK_COURSES
+    const brickW = TILE_W * 0.9
+    for (let i = 0; i < BRICK_COURSES; i++) {
+      const bed = brickBot + i * course
+      const bedTop = bed + course
+      // The mortar bed above this course. Skipped above the top course — the
+      // cornice's shadow line already marks that edge.
+      if (i < BRICK_COURSES - 1) {
+        shell
+          .moveTo(leftX, cy - bedTop)
+          .lineTo(topX, topY - bedTop)
+          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.4 })
+      }
+      // Vertical joints, offset half a brick on every second course. Each joint
+      // runs the full height of its own course, bed to bed, so nothing
+      // overshoots or falls short of the wall.
+      const offset = (i % 2) * brickW * 0.5
+      for (let x = leftX + offset; x < topX; x += brickW) {
+        const bx = cy - (x - leftX) * WALL_SLOPE
+        shell
+          .moveTo(x, bx - bedTop)
+          .lineTo(x, bx - bed)
+          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.25 })
+      }
     }
-    // The garage door, on the back-right wall away from the founder's corner —
-    // and away from where the second whiteboard lands at eleven developers.
+    // The garage door, centred on the back-right wall — the right wall's one
+    // statement, and the windows live on the left wall where the brick is.
     // Drawn after the skirting so it stands on the slab rather than behind it.
     drawGarageDoor(
       shell,
-      topX + floorW * 0.55,
-      topY + floorH * 0.55,
-      topX + floorW * 0.95,
-      topY + floorH * 0.95,
+      topX + floorW * 0.3,
+      topY + floorH * 0.3,
+      topX + floorW * 0.7,
+      topY + floorH * 0.7,
       WALL_H * 0.85,
     )
+
+    // --- windows ------------------------------------------------------------
+    //
+    // Two UPVC windows high on the brick wall, one either side of the mid-wall,
+    // so the garage is a place with an outside rather than a backroom. They live
+    // in the shell beside the door — like the door they are bones of the garage
+    // and never leave, whatever the studio grows into.
+    const WIN_W = 52
+    const WIN_H = Math.max(16, WALL_H * 0.5)
+    drawWindow(shell, topX - floorW * 0.25, topY + floorH * 0.25 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+    drawWindow(shell, topX - floorW * 0.65, topY + floorH * 0.65 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
 
     // --- light -------------------------------------------------------------
     //
@@ -2296,7 +2384,8 @@ export function buildRoom(): RoomHandle {
       drawWhiteboard(shell, topX - floorW * 0.42, topY + floorH * 0.42 - WALL_H * 0.66, 3, -WALL_SLOPE)
     }
     if (props.whiteboardRight) {
-      drawWhiteboard(shell, topX + floorW * 0.40, topY + floorH * 0.40 - WALL_H * 0.62, 17, WALL_SLOPE)
+      // Tucked into the corner beside the centred garage door, not over it.
+      drawWhiteboard(shell, topX + floorW * 0.16, topY + floorH * 0.16 - WALL_H * 0.62, 17, WALL_SLOPE)
     }
     for (let i = 0; i < props.posters; i++) {
       // Alternating walls, marching outward from the corner so a second poster
@@ -2554,11 +2643,13 @@ export function buildRoom(): RoomHandle {
     // pushes the whole room down the frame by half a wall.
     foldedFit.w = floorW * 2 + ROOM_CONTENT_PAD_X
     foldedFit.h = floorH * 2 + WALL_H + ROOM_CONTENT_PAD_Y
-    // Biased toward the desks rather than the true centre of the bounding box.
-    // Centring the box geometrically is correct and composes badly: it puts
-    // half a wall above the people and drops them low in frame.
+    // Biased toward the north corner — the founder and the walls that rise
+    // behind it — rather than the true centre of the bounding box. Centring
+    // geometrically drops the people low in frame under a slab of empty floor,
+    // and biasing the other way (toward the desks) buried the cornice and the
+    // windows under the top edge of the frame. Half a wall is the balance.
     foldedFit.px = cx
-    foldedFit.py = cy - WALL_H * 0.3
+    foldedFit.py = cy - WALL_H * 0.5
     if (unfolded) {
       const f = floorBox(squadsUsed)
       openFit.w = f.maxX - f.minX + ROOM_CONTENT_PAD_X

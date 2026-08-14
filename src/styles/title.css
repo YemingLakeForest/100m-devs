@@ -829,6 +829,11 @@
   justify-items: start;
   /* The design box is 448px tall (§23.4) and the panel has its own padding. */
   max-height: 62vh;
+  /* `overflow-y: auto` also computes `overflow-x` to `auto`, and a one-pixel
+     sub-pixel overflow then paints a horizontal scrollbar across the last row
+     — the grey line that cut through the RESET button. There is nothing to
+     scroll sideways here, so it is clipped rather than scrolled. */
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

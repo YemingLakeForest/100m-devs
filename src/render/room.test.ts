@@ -383,7 +383,7 @@ describe('the desks never leave the plate — GDD §7.8.1a, R6', () => {
    * `margin` is the tightest the room ever chooses — the crowded floor's — so
    * this is the worst case rather than a comfortable one.
    */
-  const contains = (n: number, margin = 0.6) => {
+  const contains = (n: number, margin = ROOM_CROWD_MARGIN) => {
     const { cols, rows } = gridFor(n)
     const box = blockBox(0, 0, cols - 1, rows - 1)
     const bw = (box.maxX - box.minX) / 2
