@@ -36,6 +36,10 @@ import {
  *    5 Hz would be poking developers through the text they are supposed to be
  *    reading.
  * 3. There is no close button and no skip. §10.7 rule 3.
+ * 4. §10.7a.3 — the pause is written on the glass, not merely implied: the
+ *    hint below the box says where a tap can land, and the store has already
+ *    stopped the clock behind it (see `tick`), so nothing is happening the
+ *    player could be missing while they read.
  */
 
 /**
@@ -263,6 +267,15 @@ export function Dialogue({
             already told them why.
           */}
           {armed && <span className="ui-dialogue__caret" aria-hidden="true" />}
+        </div>
+        {/*
+          §10.7a.3 — the affordance written out. The scrim already means every
+          tap belongs to the dialogue and the caret means the advance is armed;
+          this says *where* the tap can land. Dim while the page is still typing
+          (a tap would fill it in), full strength once a tap would turn the page.
+        */}
+        <div className="ui-dialogue__hint" data-armed={armed ? '' : undefined} aria-hidden="true">
+          TAP ANYWHERE TO CONTINUE
         </div>
       </div>
     </Panel>

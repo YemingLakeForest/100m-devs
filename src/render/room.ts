@@ -359,8 +359,12 @@ export interface RoomHandle {
    * `dt` is separate from `elapsed` because the two want different clocks: the
    * bob is a function of absolute time, so it is continuous across a rebuild,
    * while ambient behaviours age and must not jump when a hidden tab wakes up.
+   *
+   * `frozen` is §10.7a.3: while a scene is up the floor holds the instant the
+   * scene opened — mid-motion, not settled — while the room's own geometry
+   * transitions keep running.
    */
-  animate(elapsed: number, state: string, dt?: number, entropy?: number): void
+  animate(elapsed: number, state: string, dt?: number, entropy?: number, frozen?: boolean): void
   /** Jolt developer `i` — the §8.2 poke reaction. */
   jolt(i: number): void
   /** Your CODE action has its own physical reaction at the corner desk. */
@@ -2726,6 +2730,9 @@ export function buildRoom(): RoomHandle {
 
   rebuild(0)
   lastDevs = 0
+  // §10.7a.3 — the last live elapsed instant, so a frozen floor holds its
+  // motion rather than restarting it. See `animate`'s `frozen` parameter.
+  let frozenElapsed = 0
 
   return {
     container: root,
@@ -2735,7 +2742,23 @@ export function buildRoom(): RoomHandle {
       lastDevs = clamped
       rebuild(clamped)
     },
-    animate(elapsed: number, state: string, dt = 1 / 60, entropy = 0) {
+    animate(elapsed: number, state: string, dt = 1 / 60, entropy = 0, frozen = false) {
+      // §10.7a.3 — while a scene is up the clock is stopped, and the floor
+      // shows it. The ambient life and the typing hop freeze on the frame the
+      // scene opened, **mid-motion**, like a photograph of a paused simulation
+      // — "frozen in time" is the message, and a snapped-to-rest pose would
+      // read as "stopped working" instead. The elapsed clock is latched rather
+      // than merely skipped: the hop is driven off `elapsed`, so freezing it
+      // means holding the last live instant, not the last frame's.
+      //
+      // The room's own transitions (the rebuild fade, the unfold, the resize
+      // fit) still run — they are geometry events a scene can itself trigger
+      // (James's hire rebuilds the room mid-dialogue), not the clock.
+      // Named `liveElapsed` rather than `shown` because the hop loop already
+      // owns `shown` for the face-visibility squash — the same name here would
+      // be shadowed and the hop would read its phase from a boolean.
+      const liveElapsed = frozen ? frozenElapsed : elapsed
+      if (!frozen) frozenElapsed = elapsed
       if (roomTransition < 1) {
         roomTransition = Math.min(1, roomTransition + dt / 0.42)
         const k = 1 - (1 - roomTransition) ** 3
@@ -2773,17 +2796,21 @@ export function buildRoom(): RoomHandle {
       // which stops the water trips with it. That is the correct behaviour and
       // a better joke than the walk was: **a crowded floor stops being able to
       // reach the cooler.**
-      ambient.update(dt, {
-        seats: desks,
-        props: currentProps.walkway ? walkTargets : [],
-        devs: desks.length,
-        entropy,
-        drawnIndividually: true,
-        // Read off the live world transform rather than plumbed down from the
-        // stage: the camera's scale is already baked into it, and a second copy
-        // passed by hand is a second thing that can be one frame stale.
-        worldScale: root.worldTransform.a,
-      })
+      //
+      // Skipped while frozen — §10.7a.3. Walkers stop mid-stride where they
+      // are, like everything else on the floor.
+      if (!frozen)
+        ambient.update(dt, {
+          seats: desks,
+          props: currentProps.walkway ? walkTargets : [],
+          devs: desks.length,
+          entropy,
+          drawnIndividually: true,
+          // Read off the live world transform rather than plumbed down from the
+          // stage: the camera's scale is already baked into it, and a second copy
+          // passed by hand is a second thing that can be one frame stale.
+          worldScale: root.worldTransform.a,
+        })
 
       // §7.8.3 — a transform on a static part, never a spritesheet. The whole
       // motion budget for a hundred people is one hop per person per frame.
@@ -2829,7 +2856,7 @@ export function buildRoom(): RoomHandle {
         // frame is a Mexican wave.
         const offset = ((i * 2654435761) % 1024) / 1024
 
-        if (jolts[i] > 0) jolts[i] = Math.max(0, jolts[i] - 0.06)
+        if (!frozen && jolts[i] > 0) jolts[i] = Math.max(0, jolts[i] - 0.06)
         const walk = ambient.offsetFor(i)
         // §7.8.9 — a developer in the player's hand dangles. Legs cycling, a
         // slight swing, and lifted clear of the floor, because the whole read
@@ -2838,14 +2865,14 @@ export function buildRoom(): RoomHandle {
         // doing in mid-air, pushing off it is not it.
         const held = i === ambient.carrying
         const hopping = !still && !held
-        const phase = elapsed * hz + offset
+        const phase = liveElapsed * hz + offset
         const lift = hopping ? hopHeight(phase) * HOP_HEIGHT * reach : 0
         const sway = hopping ? hopSway(phase) * HOP_SWAY * reach : 0
         const squash = hopping ? hopSquash(phase) : 1
 
         d.scale.x = turning ? turnScale(t) : 1
         d.scale.y = squash
-        d.rotation = held ? Math.sin(elapsed * 9) * 0.12 : 0
+        d.rotation = held ? Math.sin(liveElapsed * 9) * 0.12 : 0
         // The jolt sits on top of the hop: §8.2's "sprite jolts upright".
         //
         // `BODY_BASE` compensates the squash. The container's origin is at the
@@ -2859,7 +2886,7 @@ export function buildRoom(): RoomHandle {
       }
 
       const founderAt = founderDeskPosition()
-      const founderHopAge = elapsed - founderHopStartedAt
+      const founderHopAge = liveElapsed - founderHopStartedAt
       const founderHopping = founderHopAge >= 0 && founderHopAge < 0.55
       const founderPhase = founderHopping ? founderHopAge / 0.55 : 1
       const founderLift = founderHopping ? hopHeight(founderPhase) * HOP_HEIGHT * 1.35 : 0

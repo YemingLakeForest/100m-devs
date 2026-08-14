@@ -427,6 +427,26 @@ body {
   min-width: 0;
 }
 
+/*
+ * §10.7a.3 — the script block leaves the rail while a conversation is up and
+ * comes back the way it went, on the panel keyframes rather than a second pair
+ * invented for it: the motion budget (§10.5), the easing and the `data-phase`
+ * contract are the shared ones, so it reads as the same gesture every other
+ * surface makes. `--ui-offset` is the panel's own default, restated here
+ * because the block is not a `.ui-panel` and the keyframes read the var.
+ */
+.hud__script {
+  --ui-offset: translateY(18%);
+}
+
+.hud__script[data-phase='in'] {
+  animation: ui-panel-in var(--ui-in) cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.hud__script[data-phase='exit'] {
+  animation: ui-panel-out var(--ui-out) cubic-bezier(0.32, 0, 0.67, 0) both;
+}
+
 /* --- the readout block, the one repeated shape ------------------------- */
 
 /*
@@ -2163,10 +2183,20 @@ body {
  * a thumb can land anywhere and still turn the page. It is above the plate and
  * the box (which would otherwise catch the tap over their own pixels), but it
  * paints nothing, so the text reads through it.
+ *
+ * `position: fixed` would be the honest spelling of "full-screen", and it
+ * cannot be used: the panel's entrance animation leaves a transform on it, and
+ * a transformed ancestor becomes the containing block for fixed descendants —
+ * so a fixed scrim covers only the panel's own box, and the whole HUD stayed
+ * clickable through a scene (§10.7a.3, reported live). Absolute with an inset
+ * that overflows any viewport, from wherever the panel sits, is the same
+ * coverage without depending on what the panel's animation does to its
+ * transform. Anything the ancestors clip to the viewport is exactly the
+ * coverage wanted.
  */
 .ui-dialogue__scrim {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  inset: -100vmax;
   z-index: 2;
 }
 
@@ -2254,6 +2284,42 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .ui-dialogue__caret {
     animation: none;
+  }
+}
+
+/*
+ * §10.7a.3 — the affordance written out: every tap on the glass belongs to the
+ * dialogue, and this is where the glass says so. It hangs in the air the panel
+ * reserves beneath it (see `.ui-panel.ui-dialogue`'s bottom margin), so it
+ * never overlaps the box or the speaker.
+ *
+ * Dim while the page is still typing — a tap then fills the text in, it does
+ * not turn the page — and full phosphor once the advance is armed, which is
+ * the same instant the caret starts blinking.
+ */
+.ui-dialogue__hint {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p2);
+  opacity: 0.45;
+  transition: opacity 200ms;
+  /* It is ink, not a control: the scrim above it owns every tap, and a hint
+     that intercepted one would break the one rule it is there to explain. */
+  pointer-events: none;
+}
+
+.ui-dialogue__hint[data-armed] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-dialogue__hint {
+    transition: none;
   }
 }
 

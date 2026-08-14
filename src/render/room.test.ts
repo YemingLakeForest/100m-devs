@@ -692,6 +692,33 @@ describe('the room actually drives the hop', () => {
     expect(Math.max(...xs.map((x) => Math.abs(x - restX)))).toBeLessThanOrEqual(HOP_HEIGHT)
     expect(xs.filter((x) => Math.abs(x - restX) < 1e-9).length).toBeGreaterThan(30)
   })
+
+  it('freezes the floor mid-hop while a scene is up — §10.7a.3', () => {
+    // The elapsed clock keeps being handed in — the stage never stops running
+    // — but a frozen room holds the instant the scene opened. Freezing
+    // mid-motion rather than settling is the message: "frozen in time", not
+    // "stopped working".
+    const room = buildRoom()
+    room.setHeadcount(1)
+    const dev = (room.container.getChildByLabel('developers') as Container).children[0]
+
+    room.animate(0.12, 'working', 0)
+    const midHop = dev.position.y
+    // At elapsed 0.12 the phase is ~0.118 of a cycle, which is mid-air — a
+    // planted dev would make this test pass for the wrong reason.
+    expect(midHop).toBeLessThan(room.deskAt(0)!.y + 6)
+
+    for (let f = 1; f <= 30; f++) room.animate(0.12 + f / 60, 'working', 0, 0, true)
+    expect(dev.position.y).toBe(midHop)
+
+    // Unfrozen, the same elapsed resumes moving.
+    let moved = false
+    for (let f = 1; f <= 10 && !moved; f++) {
+      room.animate(0.62 + f / 60, 'working', 0)
+      moved = dev.position.y !== midHop
+    }
+    expect(moved).toBe(true)
+  })
 })
 
 describe('arrivals — GDD §7.7.2, hiring is seen', () => {

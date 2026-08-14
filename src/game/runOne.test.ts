@@ -26,9 +26,14 @@ import {
   dismissScene,
   getState,
   hireDeveloper,
+  massHire,
   poke,
+  pokeFounder,
+  showScene,
+  takeSeedRound,
   tick,
 } from './store.ts'
+import { SCENE_JAMES_ARRIVES } from './scenes.ts'
 
 /**
  * §7.8.7's run seed is `Date.now()`-based, so every run of this file gets a
@@ -170,5 +175,45 @@ describe('the trap still springs — §6.1', () => {
     const payroll = payrollPerSecond(1_040)
     expect(payroll).toBeGreaterThan(50_000)
     expect(1_000_000 / payroll).toBeLessThan(60)
+  })
+})
+
+describe('the world holds its breath while a scene is up — §10.7a.3', () => {
+  it('stops the burn-down, the payroll and the clock', () => {
+    __setState({ devs: 3, cash: 500 })
+    showScene(SCENE_JAMES_ARRIVES.id)
+    const before = getState()
+    tick(5)
+    const during = getState()
+    // Five seconds of conversation must not burn a single Story Point, pay a
+    // dollar of wages or age the run: the dialogue advances on the player's
+    // taps, never on the simulation.
+    expect(during.burned.toNumber()).toBe(before.burned.toNumber())
+    expect(during.cash).toBe(before.cash)
+    expect(during.runSeconds).toBe(before.runSeconds)
+    expect(during.localEntropy).toBe(before.localEntropy)
+  })
+
+  it('resumes the moment the scene is dismissed', () => {
+    __setState({ devs: 3, cash: 500 })
+    showScene(SCENE_JAMES_ARRIVES.id)
+    tick(5)
+    const held = getState().burned.toNumber()
+    dismissScene()
+    tick(1)
+    expect(getState().burned.toNumber()).toBeGreaterThan(held)
+  })
+
+  it('keeps every player verb inert while it plays', () => {
+    // The scrim eats the taps at the UI layer; these guards are the same rule
+    // at the model layer, so a path that skips the glass cannot hire, spring
+    // the trap, sign the term sheet or poke mid-conversation.
+    __setState({ devs: 1, cash: 100 })
+    showScene(SCENE_JAMES_ARRIVES.id)
+    expect(hireDeveloper()).toBe(false)
+    expect(massHire()).toBe(false)
+    expect(takeSeedRound()).toBe(false)
+    expect(poke(0, 0).sp).toBe(0)
+    expect(pokeFounder()).toBe(0)
   })
 })

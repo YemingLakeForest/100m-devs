@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
 import {
 
@@ -47,6 +47,11 @@ import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts
 import { useGameState } from './useGameState.ts'
 import { ConceptText } from '../ui/ConceptText.tsx'
 import { Options } from '../title/Options.tsx'
+import {
+  DURATION,
+  motionMs,
+  useReducedMotion,
+} from '../ui/motion.ts'
 
 /**
  * Dev-only §10.7 preview — `?dialogue`. Read once, at module load, for the
@@ -134,6 +139,9 @@ function rolesAvailable(state: GameState): Role[] {
  */
 export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMenu?: () => void }) {
   const state = useGameState()
+  // §10.7a.3 — the script block rides the same motion budget as the panels it
+  // hides for, resolved once per render like Panel resolves it.
+  const reduced = useReducedMotion()
   // §13.2's tree and §11's tree are two doors, and they now hang off one bar.
   const [treeOpen, setTreeOpen] = useState(false)
   const [upgradesOpen, setUpgradesOpen] = useState(false)
@@ -351,12 +359,27 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       <ShipToast state={state} />
       <DevCard state={state} />
 
-      <div className="hud__script">
+      <div
+        className="hud__script"
+        data-phase={state.scene ? 'exit' : 'in'}
+        style={
+          {
+            '--ui-in': `${motionMs(DURATION.panelIn, reduced)}ms`,
+            '--ui-out': `${motionMs(DURATION.panelOut, reduced)}ms`,
+          } as CSSProperties
+        }
+      >
         {/*
           The banner types itself in rather than appearing. A phase change that
           swaps one block of terminal text for another with no motion between
           them is F1 by the letter — and a terminal that types is the register
           the whole product is written in anyway (§10.7).
+
+          §10.7a.3 — and while a conversation is up the script leaves the rail
+          the way a panel does (same keyframes, same `data-phase` contract) and
+          comes back the same way. It is **not** unmounted — the copy is text
+          on the rail, not a panel, and unmounting it would restart the
+          typewriter and make the advisor re-read its line after every scene.
         */}
         {copy.terminal && (
           <pre className="hud__terminal">

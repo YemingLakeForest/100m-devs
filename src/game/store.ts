@@ -1192,9 +1192,34 @@ function settleDroppedBuffs(dropped: readonly Buff[], s: GameState): number {
   return owed
 }
 
-/** Advance the simulation. Driven by the Pixi ticker so both layers share a clock. */
+/**
+ * Advance the simulation. Driven by the Pixi ticker so both layers share a clock.
+ *
+ * §10.7a.3 — **while a scene is up, the clock is stopped.** Nobody codes, the
+ * burn-down does not move, payroll does not run, entropy does not decay. The
+ * dialogue advances on the player's taps, never on the simulation, so the
+ * numbers the scene talks about are the numbers the player last saw rather
+ * than the ones the conversation drifted past. The room shows the same fact —
+ * the floor's ambient life freezes on the frame the scene opened (see
+ * `room.animate`'s `frozen`), because a studio that keeps visibly working
+ * through a conversation is one the pause has not happened to.
+ *
+ * The one thing that still runs is cosmetic expiry: floaters and bubbles
+ * measure their life in wall-clock, and a numeral frozen mid-air for the
+ * length of a scene would be a visual bug that outlives the dialogue.
+ */
 export function tick(dtSeconds: number): void {
   if (dtSeconds <= 0 || state.phase === 'bankrupt') return
+
+  if (state.scene !== null) {
+    const now = performance.now()
+    const patch: Partial<GameState> = {}
+    const floaters = state.floaters.filter((f) => now - f.bornAt < FLOATER_LIFE_MS)
+    if (floaters.length !== state.floaters.length) patch.floaters = floaters
+    if (state.bubble && now - state.bubble.bornAt > state.bubble.ttl) patch.bubble = null
+    if (patch.floaters !== undefined || patch.bubble !== undefined) set(patch)
+    return
+  }
 
   const e = currentEntropy()
   const localEntropy = decayLocalEntropy(state.localEntropy, dtSeconds)
@@ -1883,6 +1908,10 @@ export function canHire(s: GameState = state): boolean {
  */
 export function takeSeedRound(): boolean {
   if (state.seedTaken) return false
+  // §10.7a.3 — the scrim already eats the tap; this is the same rule at the
+  // model level, so a call path that skips the UI cannot sign a term sheet
+  // mid-conversation either.
+  if (state.scene !== null) return false
   set({
     seedTaken: true,
     dialUnlocked: true,
@@ -1981,6 +2010,11 @@ export function hireQuote(s: GameState = state): Quote {
  * say why. A hire the player cannot afford must not leave them poorer.
  */
 export function hireDeveloper(): boolean {
+  // §10.7a.3 — nothing is clickable while a scene is up. The scrim blocks the
+  // HUD; this is the same rule at the model level, because `grantJames` —
+  // which *must* hire mid-scene — is the one path that deliberately bypasses
+  // it and it calls `hire` directly, not this.
+  if (state.scene !== null) return false
   // §10.10 — the dial decides the batch. It reads 1 until the dial unlocks at
   // 25 developers, so Act I and Act II behave exactly as they did.
   const { count, cost, affordable } = hireQuote()
@@ -2018,6 +2052,9 @@ export function canMassHire(s: GameState = state): boolean {
  */
 export function massHire(): boolean {
   if (state.massHired) return false
+  // §10.7a.3 — the trap is a decision, and a decision cannot be made through a
+  // dialogue box.
+  if (state.scene !== null) return false
   const cost = currentMassHireCost()
   // The offer is priced at the whole treasury with a floor under it, so a
   // player whose treasury is *below* that floor cannot pay — and this was not
@@ -2358,6 +2395,9 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
 export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): void {
   const snap = pendingSnapshot
   if (!snap || !state.pendingOffline) return
+  // §10.7a.3 — a collection is a decision about money, and the report panel
+  // sits under the dialogue scrim. Belt and braces: the same rule as hiring.
+  if (state.scene !== null) return
 
   const report = offlineYield(
     {

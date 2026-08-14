@@ -468,6 +468,31 @@ async function sceneIssues(page, width, height) {
     : []
 }
 
+/**
+ * §10.7a.3 — while a scene is up the HUD is genuinely inert, so a gate that
+ * clicks a HUD button must first play the conversation out the way a player
+ * does: tap the glass until the box is gone. One tap completes a typing page
+ * (rule 1), the next turns it (rule 2, after the 260 ms arming window), so a
+ * ~450 ms beat per tap walks the whole script without ever holding a page
+ * open. The glass, not a selector: the scrim owns every tap by design, and it
+ * stays mounted through the panel's exit — so a scene is only clear once the
+ * glass has stayed clear past the exit, because a dismiss can trigger the next
+ * arrival scene on the following tick and the `?full` fixture satisfies
+ * several arrival predicates at once.
+ */
+async function clearScene(page) {
+  for (let i = 0; i < 200; i++) {
+    const scrim = page.locator('.ui-dialogue__scrim')
+    if (!(await scrim.count())) {
+      await page.waitForTimeout(600)
+      if (!(await scrim.count())) return
+    }
+    await page.mouse.click(320, 200)
+    await page.waitForTimeout(450)
+  }
+  throw new Error('a scene would not clear')
+}
+
 async function check(
   page,
   { name, width, height, path: urlPath, action, requireScene = false, keyboard = 0 },
@@ -561,7 +586,10 @@ try {
       width,
       height,
       path: '/?notitle&nopost',
-      action: (target) => target.getByRole('button', { name: 'MENU' }).click(),
+      action: async (target) => {
+        await clearScene(target)
+        await target.getByRole('button', { name: 'MENU' }).click()
+      },
     })
 
     /*
@@ -574,7 +602,13 @@ try {
       width,
       height,
       path: '/?notitle&full&nopost',
-      action: (target) => target.getByRole('button', { name: 'UPGRADES' }).click(),
+      action: async (target) => {
+        // `?full` opens on a hero arrival scene; the door cannot open while it
+        // plays, which is the behaviour being gated rather than a bug in the
+        // gate.
+        await clearScene(target)
+        await target.getByRole('button', { name: 'UPGRADES' }).click()
+      },
     })
 
     /*
