@@ -336,12 +336,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /*
+   * The label is the `auto` column of the face's `1fr auto 1fr` grid. Its only
+   * content is the die, whose dots are absolutely positioned, so the label's
+   * intrinsic size is zero and the column collapses. A floor of the die's own
+   * width keeps the column wide enough to hold it.
+   */
+  min-width: 17px;
 }
 
 .founder-setup__dice-btn .ui-btn__face {
   position: relative;
   left: -6px;
-  width: 100%;
   grid-template-columns: 1fr auto 1fr;
   gap: 4px;
 }
@@ -350,8 +356,17 @@
 .founder-setup__dice-btn .ui-btn__bracket:last-child { justify-self: start; }
 
 .founder-setup__dice-btn {
-  display: grid;
-  place-items: center;
+  /*
+   * `display: flex`, not `display: grid`. As a grid with `place-items: center`
+   * the button's one implicit column auto-sized itself off the face, while the
+   * face's `width: 100%` sized itself off that same column — a circular size
+   * that resolves to min-content, so the die collapsed to a 4px sliver on a
+   * wide frame. A flex row has no such loop: the face fills, the die keeps its
+   * width.
+   */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
   overflow: hidden;
   padding-inline: 6px;
@@ -370,6 +385,17 @@
   display: inline-block;
   width: 17px;
   height: 17px;
+  /*
+   * The die is a flex item inside `.ui-btn__label`, and its five dots are
+   * `position: absolute`, so it has **no in-flow content** — its intrinsic size
+   * is zero, and both the label and the face's `auto` track collapse to nothing
+   * on a wide frame, taking the die down to a 4px sliver. `min-width`/
+   * `min-height` give it the intrinsic size the grid needs to lay it out, and
+   * `flex-shrink: 0` stops the flex line from shrinking it back down again.
+   */
+  min-width: 17px;
+  min-height: 17px;
+  flex-shrink: 0;
   border: 1px solid currentColor;
   vertical-align: -4px;
 }
