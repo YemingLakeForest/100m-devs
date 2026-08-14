@@ -93,9 +93,11 @@ export const SCENE_JAMES_ARRIVES: Scene = {
     // not going to be distracted again.
     { speaker: JAMES, text: 'I’m going straight back to work. I don’t stop once I start.', focus: AT_JAMES },
     // The transition §21.7.1 never narrated: he starts working, and the
-    // burn-down moves on its own now. Delivered as a machine notice, and the
-    // machine names the culprit with no irony at all — on its own beat.
-    { speaker: OS, text: 'NOTICE: STORY POINTS NOW BURN DOWN WITH OR WITHOUT YOUR WORK.' },
+    // burn-down moves on its own now. The machine states both new facts plainly
+    // — there is an employee now, and the points burn with no input — and then
+    // names the culprit with no irony at all, on its own beat.
+    { speaker: OS, text: 'EMPLOYEE ONBOARDED: J.' },
+    { speaker: OS, text: 'STORY POINTS NOW BURN DOWN AUTOMATICALLY. NO TAPPING REQUIRED.' },
     { speaker: OS, text: 'CAPITALISM.' },
   ],
 }

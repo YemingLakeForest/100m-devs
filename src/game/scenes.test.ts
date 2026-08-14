@@ -107,8 +107,12 @@ describe('§21.7.1 — James arrives, and nothing announces it', () => {
   })
 
   it('ends on the burn-down transition — the mechanism, not the man', () => {
+    // The machine announces the new employee first, then the automatic
+    // burn-down that follows him, then the punchline in its own box.
+    expect(all[all.length - 3]).toContain('EMPLOYEE ONBOARDED')
     expect(all[all.length - 2]).toContain('STORY POINTS')
     expect(all[all.length - 2]).toContain('BURN DOWN')
+    expect(all[all.length - 2]).toContain('AUTOMATICALLY')
     // "CAPITALISM." gets its own box — the machine's punchline, delivered with
     // no irony at all.
     expect(all[all.length - 1]).toBe('CAPITALISM.')
@@ -128,7 +132,7 @@ describe('§21.7.1 — James arrives, and nothing announces it', () => {
 
   it('is short — a hero introduction is a handshake, not an act', () => {
     // §21.7.3 rule 1 sets this scene as the length nothing later exceeds.
-    expect(arrival.length).toBeLessThanOrEqual(17)
+    expect(arrival.length).toBeLessThanOrEqual(18)
   })
 })
 
