@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { __resetStore, __setState, baseVelocity, getState, jumpToPhase, poke, pokeVelocity, tick } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
+import { SCENE_MATT_ARRIVES, SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES } from '../game/scenes.ts'
 import { Hud } from './Hud.tsx'
 
 /**
@@ -16,6 +17,21 @@ import { Hud } from './Hud.tsx'
 function prestiged() {
   const p = emptyPermanent()
   setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+}
+
+/**
+ * §21.7.6 — prestiged, *and* the named heroes have walked through their doors.
+ *
+ * An arrival is its scene id in `milestones` (§24.3), which is the same list
+ * `hasSeenScene` reads: one source of truth, and no second flag to disagree
+ * with it after a merge.
+ */
+function withHeroes(...scenes: { id: string }[]) {
+  const p = emptyPermanent()
+  setPermanent({
+    ...p,
+    meta: { ...p.meta, paradigmShifts: 1, milestones: scenes.map((s) => s.id) },
+  })
 }
 
 // The kit's sound bank goes through the native path, which has no business
@@ -192,9 +208,26 @@ describe('§21.0c — Act I shows one lever', () => {
     expect(container.querySelector('.backlog')).toBeNull()
   })
 
-  it('shows all of it the moment the player prestiges', () => {
+  it('opens the tree the moment the player prestiges', () => {
     // The same state, one Paradigm Shift apart — so this is a gate rather than a
     // feature that was never wired.
+    prestiged()
+    jumpToPhase('act2a_loop')
+    __setState({ defects: 40, projectsShipped: 3, tickets: 900 })
+    render(<Hud stage={null} />)
+    expect(screen.getByRole('button', { name: /UPGRADES/ })).toBeInTheDocument()
+  })
+
+  /**
+   * §21.7.6 — **the shift is the floor, not the ceiling.**
+   *
+   * This test used to assert that everything appeared on the frame of the
+   * prestige, which was right when the shift was the only gate. It is now the
+   * evidence for the second one: the mechanism runs (the state below holds forty
+   * defects, nine hundred tickets and an open incident), and not one of the
+   * three instruments is drawn, because nobody has arrived holding it.
+   */
+  it('still shows no backlog after the shift, until somebody brings one', () => {
     prestiged()
     jumpToPhase('act2a_loop')
     __setState({
@@ -205,9 +238,46 @@ describe('§21.0c — Act I shows one lever', () => {
     })
     const { container } = render(<Hud stage={null} />)
 
-    expect(container.querySelectorAll('.backlog').length).toBeGreaterThan(0)
+    expect(container.querySelector('.backlog')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'QA' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'SRE' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'SUPPORT' })).toBeNull()
+  })
+
+  it('draws each colour when its own hero sits down, and no others', () => {
+    withHeroes(SCENE_MO_ARRIVES)
+    jumpToPhase('act2a_loop')
+    __setState({
+      defects: 40,
+      projectsShipped: 3,
+      tickets: 900,
+      incidents: [{ id: 1, releaseId: 1, releaseName: 'Flappy Square', age: 1, work: 10 }],
+    })
+    const { container } = render(<Hud stage={null} />)
+
+    // Mo brings defects, and the role that answers them.
+    expect(container.querySelectorAll('.backlog').length).toBe(1)
     expect(screen.getByRole('button', { name: 'QA' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /UPGRADES/ })).toBeInTheDocument()
+    // Serena and Matt have not arrived, so neither has their bar.
+    expect(screen.queryByRole('button', { name: 'SRE' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'SUPPORT' })).toBeNull()
+  })
+
+  it('completes the set once all three have arrived — §21.7.6b', () => {
+    withHeroes(SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES, SCENE_MATT_ARRIVES)
+    jumpToPhase('act2a_loop')
+    __setState({
+      defects: 40,
+      projectsShipped: 3,
+      tickets: 900,
+      incidents: [{ id: 1, releaseId: 1, releaseName: 'Flappy Square', age: 1, work: 10 }],
+    })
+    const { container } = render(<Hud stage={null} />)
+
+    expect(container.querySelectorAll('.backlog').length).toBe(3)
+    expect(screen.getByRole('button', { name: 'QA' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'SRE' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'SUPPORT' })).toBeInTheDocument()
   })
 })
 

@@ -108,10 +108,18 @@ const PREVIEW_DIALOGUE =
  */
 function rolesAvailable(state: GameState): Role[] {
   const roles: Role[] = ['dev']
-  if (!currentUnlocks().roles) return roles
-  if (state.defects >= 1) roles.push('qa')
-  if (state.projectsShipped > 0) roles.push('support')
-  if (state.incidents.length > 0 || countsOf(state.roster).sre > 0) roles.push('sre')
+  // §21.7.6 — **a role arrives with the instrument that makes it legible.**
+  // The in-run conditions below were doing real work and they still are: they
+  // ask *when within a run* the problem has appeared. What they could not know
+  // is who the player would hire against. Offering QA before there is a defect
+  // readout asks somebody to buy a fix for a problem the game has not shown
+  // them — so each row now needs both its condition and its hero.
+  const unlocks = currentUnlocks()
+  if (unlocks.roles.qa && state.defects >= 1) roles.push('qa')
+  if (unlocks.roles.support && state.projectsShipped > 0) roles.push('support')
+  if (unlocks.roles.sre && (state.incidents.length > 0 || countsOf(state.roster).sre > 0)) {
+    roles.push('sre')
+  }
   return roles
 }
 
@@ -248,13 +256,22 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             is the hundred pixels that buys most of it back, and it is the one
             move that improves the composition rather than merely relieving it.
           */}
-          {unlocks.backlogs && (
-            <>
-              <Defects state={state} />
-              <Incidents state={state} />
-              <Tickets state={state} />
-            </>
-          )}
+          {/*
+            §21.7.6b — **the set assembles itself, one colour at a time.** §4.15's
+            argument that the three are one system told three ways is unchanged
+            and §25.7.2a's single column is what makes them readable as a set;
+            what has gone is their arriving *together*. Each bar appears when its
+            hero does — defects with Mo, incidents with Serena, tickets with Matt
+            — over the run §13.12.2 gives them.
+
+            A bar with no hero is not drawn at all, empty or otherwise, on this
+            section's own rule that a silent row is the loudest kind of
+            furniture. Reserving the space would be the set asserted before it
+            exists.
+          */}
+          {unlocks.defects && <Defects state={state} />}
+          {unlocks.incidents && <Incidents state={state} />}
+          {unlocks.tickets && <Tickets state={state} />}
         </div>
 
         {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}

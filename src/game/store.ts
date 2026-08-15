@@ -1133,7 +1133,7 @@ function shipProject(s: GameState): Partial<GameState> {
    * §25.6.2a measured it. Stamping the anchor and the baseline makes every
    * multiplier exactly ×1, which is the economy the script was written for.
    */
-  const graded = currentUnlocks().backlogs
+  const graded = currentUnlocks().simulated
   const density = graded
     ? shipDefects(s.defects, s.commitment.toNumber()).density
     : DEFECT_DENSITY_ANCHOR
@@ -1309,7 +1309,7 @@ export function tick(dtSeconds: number): void {
   // §21.0c — Run 1 has one lever and it is hiring. The three backlogs are a
   // system, and a system arriving during the four minutes §21 spends teaching
   // one sentence is a second sentence.
-  const open = currentUnlocks().backlogs
+  const open = currentUnlocks().simulated
 
   // §4.12a — a downed release does not age, does not earn, and does not page.
   // Computed before the tail so all three agree about the same frame.
@@ -1755,7 +1755,7 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
     //
     // §21.0c — and not at all during Run 1, where the counter would be the
     // first system on screen and there is nobody to hire against it.
-    defects: currentUnlocks().backlogs
+    defects: currentUnlocks().simulated
       ? state.defects + defectsFromPoke(paidNow, roleShare(countsOf(state.roster), 'qa'))
       : 0,
     // The 10x Engineer quits permanently on the poke that cashes them out.
@@ -1907,12 +1907,41 @@ export function hasPrestiged(): boolean {
  * disagree with `paradigmShifts` after a save migration. Cheap enough to call
  * from `tick` — `getPermanent` is a module variable read, not a storage hit.
  *
- * Callers get one of two constants, so a React render may depend on the result
- * by identity. Every one of them changes on the same frame `triggerParadigmShift`
- * publishes its `set`, which is what makes the whole unlock a single event.
+ * §21.7.6 gave it a second input and therefore a cache. The result used to be
+ * one of two frozen constants, which a React render could depend on by
+ * identity; it now varies with the roster, so it is **memoised on the two
+ * things it reads** rather than rebuilt per call. `tick` asks several times a
+ * frame and the HUD asks once per component, so a fresh object each time would
+ * churn every consumer on every frame for a value that changes six times a run.
  */
+let unlocksCache: { key: string; value: Unlocks } | null = null
+
 export function currentUnlocks(): Unlocks {
-  return unlocksFor(getPermanent().meta.paradigmShifts)
+  const shifts = getPermanent().meta.paradigmShifts
+  const arrived = arrivedHeroes()
+  const key = `${shifts}|${[...arrived].sort().join(',')}`
+  if (unlocksCache?.key === key) return unlocksCache.value
+  const value = unlocksFor(shifts, arrived)
+  unlocksCache = { key, value }
+  return value
+}
+
+/**
+ * §21.7.3, §21.7.6 — who has walked through a door.
+ *
+ * Derived from `milestones` rather than stored: an arrival *is* its scene
+ * having been played, §24.3 already unions milestones across saves, and a
+ * second list of who is on staff is a second thing that can disagree with the
+ * first after a merge. §21.0c refused a new flag for exactly this reason and
+ * the reason did not stop applying when the gate got finer.
+ */
+export function arrivedHeroes(): ReadonlySet<HeroId> {
+  const seen = getPermanent().meta.milestones
+  const out = new Set<HeroId>()
+  for (const [id, sceneId] of Object.entries(HERO_SCENE) as [HeroId, string][]) {
+    if (seen.includes(sceneId)) out.add(id)
+  }
+  return out
 }
 
 /** §13.2 — spend BP on a Paradigm Tree node. */
