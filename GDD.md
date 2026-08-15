@@ -289,15 +289,35 @@ a fifth whose only source is a credit card is both confusing and tonally wrong.
 
 Not the ad SDK — that is a Phase 2 integration and MONETISATION §10 owns the plan. **What
 Phase 1 owes is that the loop has the shapes an offer attaches to**, which is cheap now and
-expensive later:
+expensive later.
 
-1. §24.8's report **defers the collect** until the player acts, rather than banking on open.
-2. §11's board can name **the cheapest unaffordable node**.
-3. §18's entropy events are **clearable, and know it**.
-4. The prestige confirm modal has **a second button's worth of room**.
-5. Every one of those is gated behind `paradigmShifts > 0` — the gate §21.0c already built.
+The list was written speculatively and then checked against the build, which is the only
+reason it is worth keeping. **Three of the five were already true**, and the check is what
+found the fourth to be the wrong requirement:
 
-None of that mentions advertising, none of it is wasted if the mix changes, and all of it is
+| | Shape | State, measured 2026-08-15 |
+|---|---|---|
+| 1 | §24.8's report **defers the collect** until the player acts | **Already true**, and further along than this asked: `collectOffline` takes a `rewardMultiplier`, so R1's 2× has a parameter waiting for it |
+| 2 | §11's board can name **the cheapest unaffordable node** | **Built.** `techBoard.cheapestUnaffordable` |
+| 3 | §18's entropy events are **clearable, and know it** | **Cannot be prepared.** §18's events are not a system yet — the only thing in the build that mentions them is a Paradigm node that switches one off |
+| 4 | The prestige confirm modal has **a second button's worth of room** | **Wrong screen.** See below |
+| 5 | All of it behind `paradigmShifts > 0` | Already true — §21.0c's gate |
+
+**Item 4 was the useful mistake.** It reads as a layout requirement and it is not one: Act V's
+modal has room for six buttons. What it collides with is MONETISATION §5's own rule —
+*"never on the bankruptcy screen. That is an emotional story beat and the tutorial's
+punchline"* — and R4's BANDWIDTH GRANT attaches to the **voluntary** prestige confirm, which
+is a different screen reached from §13.2's tree and only exists after the first shift. So the
+requirement is not "make room"; it is **"the voluntary confirm and the Act V modal must stay
+two screens"**, which they are, and which nothing may quietly merge.
+
+> On item 2, and why it is not an advertising feature: `cheapestUnaffordable` answers *what is
+> this player stuck on*, and it is careful about the word **wants** — a node behind a closed
+> ring or an unbought prerequisite is not something the player is short of *cash* for. That is
+> also the question a hint, a tutorial nudge or a §21 advisor line asks, and nothing in
+> `techBoard.ts` knows what an advert is.
+
+None of this mentions advertising, none of it is wasted if the mix changes, and all of it is
 a retrofit if it is skipped.
 
 ---
@@ -8705,9 +8725,8 @@ Every line is a thing a player does, in order, without leaving the game:
    the same branch overlapping and see the waste hatched.
 8. Promote James and get §21.7.4.
 9. Prestige again, and again, with §13.12's run lengths measured rather than asserted.
-10. §3.1.6's five shapes exist: the overnight report defers its collect, the board can name
-    the cheapest node you cannot afford, an entropy event knows it is clearable, the prestige
-    modal has room for a second button, and all of it sits behind `paradigmShifts > 0`.
+10. §3.1.6's shapes are in place — three of the five were already true, item 2 is built, and
+    item 3 waits on §18's events being a system at all.
 
 **`npm run check` green throughout, including the browser gate at all five frame sizes.**
 

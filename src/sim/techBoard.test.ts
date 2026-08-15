@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { TECH_BY_ID, TECH_TREE } from './techTree.ts'
+import { TECH_BY_ID, TECH_TREE, boardCost, ringOpen, techUnlocked } from './techTree.ts'
 import {
   boardBounds,
   boardParent,
+  cheapestUnaffordable,
   connectors,
   distanceFromOwned,
   ownedIds,
@@ -113,5 +114,48 @@ describe('ownedIds', () => {
     expect(owned.has('B1')).toBe(true)
     expect(owned.has('B2')).toBe(false)
     expect(owned.has('C1')).toBe(true)
+  })
+})
+
+describe('§3.1.1 — what this player is stuck on', () => {
+  const shifts = 9
+
+  it('is null when the player can afford the board', () => {
+    expect(cheapestUnaffordable({}, 1e12, shifts)).toBeNull()
+  })
+
+  it('names the cheapest thing money alone is blocking', () => {
+    const stuck = cheapestUnaffordable({}, 0, shifts)
+    expect(stuck).not.toBeNull()
+    // Nothing on the board that is reachable is cheaper than what it names.
+    for (const node of TECH_TREE) {
+      if (node.granted || !techUnlocked(node, {}) || !ringOpen(node.ring, shifts)) continue
+      expect(boardCost(node, 0, shifts)).toBeGreaterThanOrEqual(stuck!.cost)
+    }
+  })
+
+  /**
+   * **"Wants" is doing the work.** A node behind a closed ring or an unbought
+   * prerequisite is not something the player is short of *cash* for — it is
+   * something they are short of progress for, and an offer of money against it
+   * would be selling a fix for the wrong problem.
+   */
+  it('ignores anything a ring or a prerequisite is blocking', () => {
+    // Ring 0 only: nothing in ring 1 or beyond may be named, at any price.
+    const stuck = cheapestUnaffordable({}, 0, 0)
+    if (stuck) expect(ringOpen(stuck.node.ring, 0)).toBe(true)
+
+    const deep = TECH_TREE.find((n) => n.requires && !n.granted)
+    if (deep) {
+      const named = cheapestUnaffordable({}, 0, shifts)
+      // It is only ever named once its prerequisite is owned.
+      if (named?.node.id === deep.id) expect(techUnlocked(deep, {})).toBe(true)
+    }
+  })
+
+  it('moves on as the player buys their way past it', () => {
+    const first = cheapestUnaffordable({}, 0, shifts)!
+    const after = cheapestUnaffordable({ [first.node.id]: first.node.maxLevel }, 0, shifts)
+    expect(after?.node.id).not.toBe(first.node.id)
   })
 })

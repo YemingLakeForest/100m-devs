@@ -21,9 +21,13 @@ import {
   FIRST_PROTOCOL_NODE,
   TECH_BY_ID,
   TECH_TREE,
+  boardCost,
   canBuyTech,
+  ringOpen,
   techLevel,
+  techUnlocked,
   type TechLevels,
+  type TechNode,
 } from './techTree.ts'
 
 /** §11.4.2 — the three reveal states. */
@@ -153,4 +157,52 @@ export function boardBounds(): { minX: number; maxX: number; minY: number; maxY:
     maxY = Math.max(maxY, node.y)
   }
   return { minX, maxX, minY, maxY }
+}
+
+/**
+ * The cheapest node the player **wants and cannot afford**, or null.
+ *
+ * GDD §3.1.1 — the shape §3.1.6 asks Phase 1 to leave in the loop, and the one
+ * item on that list with any real work in it. MONETISATION's PITCH TO INVESTORS
+ * is a contextual offer: *"cash-starved state (cannot afford the next Branch A/B
+ * node for >60s)"*, and *"never offer when the player is flush"*. Answering that
+ * needs a question the board could not previously be asked.
+ *
+ * **Wants** is doing the work in that sentence. It is not the cheapest node on
+ * the board and it is not the cheapest locked one: it is the cheapest node whose
+ * *only* obstacle is the money. A node behind a ring the player has not opened
+ * (§11.4.6) or behind a prerequisite they have not bought is not something they
+ * are short of cash for — it is something they are short of *progress* for, and
+ * an offer of cash against it would be the game selling a fix for the wrong
+ * problem.
+ *
+ * Returns the node and its price so a caller can size an offer against it, and
+ * `null` when the player is flush — which is the state MONETISATION's placement
+ * rule cares about most.
+ *
+ * Nothing here knows about advertising, and nothing in this module ever will.
+ * It answers "what is this player stuck on", which is also the question a hint,
+ * a tutorial nudge or a §21 advisor line would ask.
+ */
+export function cheapestUnaffordable(
+  levels: TechLevels,
+  cash: number,
+  shifts: number,
+): { node: TechNode; cost: number } | null {
+  let best: { node: TechNode; cost: number } | null = null
+
+  for (const node of TECH_TREE) {
+    if (node.granted) continue
+    if (!ringOpen(node.ring, shifts)) continue
+    const level = techLevel(levels, node.id)
+    if (level >= node.maxLevel) continue
+    if (!techUnlocked(node, levels)) continue
+
+    const cost = boardCost(node, level, shifts)
+    // Affordable is not stuck. §3.1.1: "never offer when the player is flush."
+    if (cash >= cost) continue
+    if (!best || cost < best.cost) best = { node, cost }
+  }
+
+  return best
 }
