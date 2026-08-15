@@ -15,6 +15,27 @@ import type { HeroBranch } from './heroTree.ts'
 
 export type HeroId = 'james' | 'mo' | 'serena' | 'matt' | 'melany' | 'billy'
 
+/**
+ * §21.7.6 — the instrument this hero puts on the HUD when they sit down.
+ *
+ * The *mechanism* has been running since the first frame of the run; what waits
+ * is the readout, the colour and the role on §10.10's dial. `null` is not an
+ * omission — Melany and Billy bend systems the player has been fighting since
+ * Run 1 (§4.2's cap, §4.3's speedometer), so there is nothing for them to
+ * introduce. **A person only brings what was not already there.**
+ */
+export type Instrument = 'defects' | 'incidents' | 'tickets'
+
+/**
+ * §7.8.13 — the one thing this hero is always doing.
+ *
+ * Everybody else on the floor has ambient states; a hero has one behaviour and
+ * it never changes. It is the whole of R51's "extremely distinct", it costs one
+ * animation each, and it is how a player learns who Billy is — because Billy is
+ * the one at the whiteboard.
+ */
+export type HeroIdle = 'typing' | 'reading' | 'watching' | 'headset' | 'pacing' | 'whiteboard'
+
 export interface StoryHero {
   id: HeroId
   name: string
@@ -23,6 +44,21 @@ export interface StoryHero {
   flavour: string
   /** §21.7.3 — the *feeling* that brings them in, not a number. */
   arrives: string
+  /**
+   * §22.9.2 — the signature trait, arrived with and never bought.
+   *
+   * §13.6.4's TRAIT kind is GP-priced (§13.6.5a) and GP is Layer 2, so a
+   * purchasable trait would be a permanently unbuyable node on the board. Each
+   * of the six carries theirs instead: it is who they are (§13.9.1), it is the
+   * only thing on §22.9's card written in a sentence, and it cannot be ground.
+   */
+  trait: { name: string; text: string }
+  /** §7.8.13 — what they are always doing, on the floor, forever. */
+  idle: HeroIdle
+  /** §21.7.6 — the HUD instrument they hand over, or null if nothing is new. */
+  brings: Instrument | null
+  /** §22.9.2 — the role line in the card's footer. Promotions extend it, never replace it. */
+  role: string
 }
 
 export const STORY_HEROES: readonly StoryHero[] = [
@@ -32,6 +68,13 @@ export const STORY_HEROES: readonly StoryHero[] = [
     branch: 'engineering',
     flavour: 'Small at every rung, and never scales.',
     arrives: 'Act I, fifty pokes, free — the constant across every run',
+    trait: {
+      name: 'FEWER COMMITMENTS',
+      text: 'Nothing interrupts him. Ambient drive-bys and every distraction on the floor pass him by.',
+    },
+    idle: 'typing',
+    brings: null,
+    role: 'ENGINEERING',
   },
   {
     id: 'mo',
@@ -39,6 +82,13 @@ export const STORY_HEROES: readonly StoryHero[] = [
     branch: 'quality',
     flavour: 'I’m not blocking it. I’m just asking what happens if someone taps it twice.',
     arrives: 'The first release rated below the §4.14 baseline on defects alone',
+    trait: {
+      name: 'READS IT TWICE',
+      text: 'A defect caught before a release ships costs half of one caught after.',
+    },
+    idle: 'reading',
+    brings: 'defects',
+    role: 'QUALITY ASSURANCE',
   },
   {
     id: 'serena',
@@ -46,6 +96,13 @@ export const STORY_HEROES: readonly StoryHero[] = [
     branch: 'reliability',
     flavour: 'It’s up. It was never really down. It was degraded. There’s a difference and it matters.',
     arrives: 'The first incident to suppress a release’s tail',
+    trait: {
+      name: 'WROTE THE RUNBOOK',
+      text: 'The first incident on any release opens already half worked.',
+    },
+    idle: 'watching',
+    brings: 'incidents',
+    role: 'SITE RELIABILITY',
   },
   {
     id: 'matt',
@@ -53,6 +110,13 @@ export const STORY_HEROES: readonly StoryHero[] = [
     branch: 'support',
     flavour: 'Four hundred people wrote in about the same button. I don’t know what it does either.',
     arrives: 'The first sustained unserved ticket queue',
+    trait: {
+      name: 'KNOWS THEIR NAMES',
+      text: 'Tickets about a release he has already answered for arrive at a lower rate.',
+    },
+    idle: 'headset',
+    brings: 'tickets',
+    role: 'CUSTOMER SUPPORT',
   },
   {
     id: 'melany',
@@ -60,6 +124,13 @@ export const STORY_HEROES: readonly StoryHero[] = [
     branch: 'cloud',
     flavour: 'We can absolutely scale to that. I’d want to talk about the bill afterwards. Afterwards is fine.',
     arrives: 'The first time the developer cap is hit with cash still in the bank',
+    trait: {
+      name: 'RESERVED INSTANCES',
+      text: 'Capacity within reach arrives with no ramp. The bill arrives every second, forever.',
+    },
+    idle: 'pacing',
+    brings: null,
+    role: 'CLOUD PLATFORM',
   },
   {
     id: 'billy',
@@ -67,6 +138,13 @@ export const STORY_HEROES: readonly StoryHero[] = [
     branch: 'cohesion',
     flavour: 'I’ve booked fifteen minutes. If we don’t need fifteen minutes, we’ll give them back.',
     arrives: 'The first time the speedometer reads past CHATTY outside Run 1',
+    trait: {
+      name: 'FIFTEEN MINUTES',
+      text: 'A stand-up pulses output across everyone in reach. It genuinely works.',
+    },
+    idle: 'whiteboard',
+    brings: null,
+    role: 'DELIVERY',
   },
 ]
 

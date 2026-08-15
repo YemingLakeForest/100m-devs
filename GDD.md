@@ -60,6 +60,13 @@ gets built half-way, and the missing half is the half the player can see.
 - **§26.2 — scale.** The same game at a hundred million developers, at sixty frames a second.
 - **§26.3 — life.** The floor as a place people work in, not a grid people are drawn on.
 
+**[§3.1](#31-the-loop-is-the-inventory-canon--added-2026-08-15---r80) is the other half of the
+same correction.** `MONETISATION.md` was complete and correct *beside* this document, which
+hid three collisions with the loop and one finding neither document could reach alone. Every
+place the loop is asked to make room for an offer now lives in §3.1, next to the loop. Prices,
+revenue mix and store phasing stay in `MONETISATION.md`, which is still the source of truth
+for all of it.
+
 ### 0.3 Status legend
 
 - **[CANON]** — current design intent.
@@ -140,6 +147,158 @@ headcount.
 **The active/idle contract:** the swarm produces SP whether you are watching or not. Poking
 produces SP *faster* but adds Entropy, which slows the swarm. Active play is therefore a
 short-term overdraft against your passive rate — never a replacement for it.
+
+### 3.1 The loop is the inventory **[CANON — added 2026-08-15]** - R80
+
+**[`MONETISATION.md`](./MONETISATION.md) is a complete revenue design and it has been a
+*companion* document, which means the loop above was designed without it.** That is the
+normal way to get this wrong, and it stays invisible until the two documents are asked to
+agree about a specific screen at a specific moment.
+
+They do not, in three places, and each one is a decision this section takes rather than
+defers:
+
+| Collision | Found by |
+|---|---|
+| MONETISATION R2 wants a **persistent HUD button**. §10.1a's rails are spent to the pixel and trap 26 records what happened the last time a control was added to one | §10.1a |
+| MONETISATION §4's *"3–8 rewarded views per DAU"* is a **function of run length**, and until §13.12 nothing in this document said what a run's length was | §13.12 |
+| MONETISATION R4 attaches the highest-intent offer in the game **to the prestige**, and §13.12.1 makes a late-game run last one to three *days* | §3.1.3 |
+
+**So the placements live here, against the loop moments they attach to.** MONETISATION.md
+remains the source of truth for prices, revenue mix, eCPM assumptions, store phasing and
+metrics — none of that is design and none of it belongs in a GDD. **What belongs here is
+every place the loop is asked to make room for an offer**, because a placement is a HUD
+component, a pacing decision and a story beat before it is a line of revenue.
+
+#### 3.1.0 The guardrail, restated because it is a design rule
+
+MONETISATION §2 lists six things that must never be sold, and the list is not a policy — it
+is a description of this game's spine. Compressed to the sentence the loop has to obey:
+
+> **Sell time, convenience, cosmetics and content. Never sell capability the design requires
+> you to earn.**
+
+The three that bind hardest on §26.1's work: **no way past §6's trap**, **no Hero Card,
+duplicate or promotion in any purchasable or randomised form** (§22.6), and **no premium
+currency** — the game has four already. §13.13's levels join that list the moment they
+exist: a level is earned from covered work or it is not a level.
+
+#### 3.1.1 Where an offer attaches, by loop moment
+
+Every placement is named in-fiction, because this game's premise makes a diegetic ad offer a
+free joke rather than an interruption. MONETISATION §4 is the full table; this is the map
+onto the loop, and the right-hand column is the part that is new.
+
+| Loop moment | Offer | What the loop owes it |
+|---|---|---|
+| **Returning after time away** — §24.8's Overnight Build Report | **OVERNIGHT BUILD** (2× offline) | The report must render the offer **above** the collect button, and must not resolve the accrual until it has. §24.8 currently collects on open |
+| **Cash-starved, mid-run** — cannot afford the next §11 node for 60 s | **PITCH TO INVESTORS** (30 min of production, as cash) | §11's board must expose *"the cheapest node I cannot afford"*, which `techBoard.ts` can already answer |
+| **Any time, capped** — the workhorse | **CONTRACTOR SURGE** (+100% output, 30 min) | **A place to put a button.** See §3.1.4 — this is the one that is genuinely blocked |
+| **The prestige confirm** — §15.1's modal | **BANDWIDTH GRANT** (+20% BP) | Nothing. The modal exists and has room. This is the highest-intent moment in the game and it is free |
+| **After the first shift** — §11's board is open | **AUTO-POKE DRONE** (10 min of auto-poke) | Must stay materially weaker than the owned L1-3B node, and must still pay §4.9's context-switch penalty. It buys a rate, not an exemption |
+| **Inside an entropy event** | **PAGERDUTY ESCALATION** (clears it) | §18's events must be *clearable*, and be able to say so. Sells convenience the player could have tapped out |
+| **A locked Layer 3 dimension** | **DIMENSION TRIAL** (one free run) | Layer 3. Phase 2 at the earliest |
+| **An unintended bankruptcy, after run 5** | **SEVERANCE PACKAGE** (keep 25% of BP) | **Hard-gated past §21's scripted collapse.** The gate is not a courtesy; an offer on Act V's bankruptcy sells the player out of the lesson |
+
+**And one rule that outranks the table: no offer of any kind before the first Paradigm
+Shift.** §21's five acts run clean. That is already exactly where §21.0c puts every system
+and where §21.7.6 puts every instrument — **the monetisation gate and the design gate are
+the same gate**, which is the strongest evidence available that this section belongs in this
+document rather than beside it.
+
+#### 3.1.2 §13.12's pacing table *is* the inventory model
+
+MONETISATION §3 plans against "3–8 rewarded views per DAU per day" and treats it as a
+benchmark. It is not a benchmark here; it is an **output** of §13.12, and the two can be
+checked against each other:
+
+| Phase | Run length (§13.12.1) | Run-attached offers/day | Session-attached offers/day |
+|---|---|---|---|
+| First steered run | 1–3 h | ~1 (one prestige) | 1–2 return, 1–3 surge |
+| Early loop | 15–45 min | 2–5 | 1–2 return, 2–4 surge |
+| Mid-game | 2–8 h | 1–3 | 1–2 return, 2–4 surge |
+| Late game | **24–72 h** | **~0.3** | 1–2 return, 2–4 surge |
+
+Three of the four rows land inside the 3–8 band without tuning anything, which is a
+coincidence worth not relying on and worth noticing: **a pacing curve designed for a good
+prestige loop produces a good ad-inventory curve, because both are asking the same question
+— how often does something worth marking happen.**
+
+#### 3.1.3 The late-game inventory cliff, and what the loop does about it
+
+The fourth row does not land, and it is not a tuning problem.
+
+**A 24–72 hour run fires every run-attached placement roughly once a day at best.** The
+prestige-attached BANDWIDTH GRANT — the highest-intent offer in the game, the one the player
+*wants* — becomes nearly unavailable exactly when the player is most invested. Meanwhile
+§13.12.1 puts late-game active time at 5–15 minutes **per day**, so the player is opening the
+app daily and finding nothing to accept.
+
+**The answer is that late-game inventory has to be session-shaped, not run-shaped**, and the
+loop has to provide the sessions:
+
+- §24.8's **Overnight Build Report is the late game's primary placement**, and this is the
+  design consequence: the report must stay worth opening at every scale. A report that reads
+  `+4.2e19 SP` and nothing else is a number, not a moment.
+- **A daily milestone that is not a prestige.** §13.12's late game "pushes for massive
+  milestone targets" — those targets are the late game's run-attached inventory, and they
+  need to be crossed on a *daily* rhythm rather than a per-run one.
+- The **CONTRACTOR SURGE** carries the rest, which raises the stakes on §3.1.4 considerably:
+  the placement that has nowhere to live is the one the late game depends on.
+
+> This is the finding that justifies the whole section. **It is invisible from either
+> document alone** — MONETISATION.md cannot see it because it does not know how long a run
+> is, and §13 could not see it because it was not counting placements.
+
+#### 3.1.4 The one thing that is blocked, and the decision it needs
+
+**CONTRACTOR SURGE needs a persistent, always-visible control, and §10.1a says there is no
+room in either rail.** Trap 26 is explicit that this class of problem is not solved by
+shaving padding: *"a control does not belong in a column of readings; it belongs in the
+action rail or as a floating element."*
+
+Three options, and this is a human decision rather than a test one:
+
+| | Cost |
+|---|---|
+| **A floating control**, bottom-left, outside both rails | Breaks §10.1's two-rail composition, which has survived every frame size in §23.4.2 |
+| **In the action rail**, packing with §10.1's play tools (§10.1a rule 3) | The action rail is already the one that gave up content at 470 px and 400 px |
+| **Attached to the ship**, not persistent — offered on §10.8a's release moment | Loses "1 active at a time, 6/day"; gains a moment that is already a celebration. **Recommended**: it is the only option that costs no pixels and it turns the workhorse placement into a beat rather than furniture |
+
+Until that is settled, **the surge is specified and not placed**, and §26.1.7 records it as
+the one monetisation item Phase 1 cannot close on its own.
+
+#### 3.1.5 The freemium shape, in one table
+
+Full catalogue and prices are MONETISATION §6–§7. What the loop needs to know is which of
+its own systems each SKU touches, because that is where a purchase can quietly break
+something:
+
+| Sold | Touches | The guardrail it must not cross |
+|---|---|---|
+| **Dimension packs** (anchor SKU) | §17's Layer 3 re-skins | Content, not capability. A dimension changes the rules; it does not raise a cap |
+| **Remove Forced Ads** | Interstitials only — **never rewarded offers** | MONETISATION §6.2's trap: a naive remove-ads converts your best players into $4.99 |
+| **Founder's Equity / The IPO** | Cash and BP *yield* multipliers | Yield, never the §4.2 cap and never §4.1's entropy. They speed the curve; they do not remove it |
+| **Wardrobe** | §22.9's card frames and portrait variants | **Cosmetic only.** No card, no duplicate, no promotion, ever — §22.6 |
+| **SERIES A** (v1.1) | §24.5's offline cap 4 h → 16 h, and rate | The one subscription benefit that retains in this genre, and it is time — which is the sellable thing |
+
+**No gems.** Four currencies is already three more than most games in this genre carry, and
+a fifth whose only source is a credit card is both confusing and tonally wrong.
+
+#### 3.1.6 What Phase 1 owes this section
+
+Not the ad SDK — that is a Phase 2 integration and MONETISATION §10 owns the plan. **What
+Phase 1 owes is that the loop has the shapes an offer attaches to**, which is cheap now and
+expensive later:
+
+1. §24.8's report **defers the collect** until the player acts, rather than banking on open.
+2. §11's board can name **the cheapest unaffordable node**.
+3. §18's entropy events are **clearable, and know it**.
+4. The prestige confirm modal has **a second button's worth of room**.
+5. Every one of those is gated behind `paradigmShifts > 0` — the gate §21.0c already built.
+
+None of that mentions advertising, none of it is wasted if the mix changes, and all of it is
+a retrofit if it is skipped.
 
 ---
 
@@ -4824,7 +4983,7 @@ a pile; landing across ninety minutes, each one triggered by a problem the playe
 is the arc §21.7 describes. **The gate and the pacing were always the same decision.**
 
 > **Run 2's actual length has never been measured**, and asserting it here would be exactly the
-> mistake §26.0 describes. Measuring it is Phase 1 work (§26.1.7 item 9), and if it comes in at
+> mistake §26.0 describes. Measuring it is Phase 1 work (§26.1.8 item 9), and if it comes in at
 > twenty minutes the answer is to move a target, not to move this table.
 
 ### 13.13 Heroes level **[CANON - added 2026-08-15]** - R53
@@ -8297,6 +8456,7 @@ table. §26 is the roadmap. This is the ledger.
 | **R77** | **Slack-off minigame**: leaving costs output, draggable while moving, walkways not desks, real destinations, **windows**, walk back rather than teleport, struggle when held | **§26.3.1** | Phase 3 |
 | **R78** | Displaced developers **flash for a split second** on hire | **§26.3.2** | Phase 3. The move-out is virtual; §26.3.1's walking makes the fix free |
 | **R79** | More **event minigames** — a buy/sell trading game framed as a crypto punt | **§26.3.3** | Phase 3, with §26.3.4's constraint |
+| **R80** | **Monetisation decided early and built into the loop** — ad points, freemium offerings, considered while designing the loop rather than after | **§3.1** | **Specified**, and it found three collisions and one cliff. See §25.8.5 |
 
 #### 25.8.1 R55 is not a UI note
 
@@ -8336,7 +8496,7 @@ each triggered by a problem the player just felt, is precisely the arc §21.7 de
 either half knowing about the other.**
 
 > **Run 2's actual length has never been measured.** It is asserted nowhere and it is Phase 1's
-> last acceptance item (§26.1.7). If it measures at twenty minutes, the economy moves — not the
+> last acceptance item (§26.1.8). If it measures at twenty minutes, the economy moves — not the
 > table.
 
 #### 25.8.3 Fourteen of the twenty-nine were already canon, and that is the finding
@@ -8354,6 +8514,34 @@ exist. The specification was right, the sim was built, and the player cannot see
 
 That is what §26's phases and gates exist to stop, and it is why every gate in §26 is written as
 something a player does rather than something that has been committed.
+
+#### 25.8.5 R80 — what a companion document cannot see
+
+`MONETISATION.md` has been complete and correct since before the vertical slice, and being
+correct beside the GDD rather than inside it hid four things:
+
+**Three collisions.** A persistent HUD button for the workhorse placement, against rails
+§10.1a spent to the pixel. A views-per-day benchmark that is really a function of run length,
+which nothing stated until §13.12. And the highest-intent offer in the game attached to a
+prestige that §13.12.1 makes last one to three days.
+
+**And one finding that neither document could reach alone.** §3.1.3's late-game inventory
+cliff: at 24–72 hours per run, every run-attached placement fires about once a day, so the
+late game's inventory has to be **session-shaped rather than run-shaped** — which makes
+§24.8's Overnight Build Report the late game's primary placement and puts a real design
+requirement on it (*it has to stay worth opening at every scale*). MONETISATION.md cannot see
+that, because it does not know how long a run is. §13 could not see it, because it was not
+counting placements.
+
+**What did *not* move.** Prices, revenue mix, eCPM assumptions, store phasing, the metrics
+list and the launch plan are not design and stay where they are. §3.1 takes only the part
+that is a claim on a screen, a moment or a pacing decision.
+
+The pleasing part, and the reason this was cheap: **the monetisation gate and the design gate
+turned out to be the same gate.** MONETISATION §4 says no offer before the first Paradigm
+Shift; §21.0c says no system before the first Paradigm Shift; §21.7.6 says no instrument
+before its hero. Nothing had to be reconciled — it had already been decided twice, by two
+people looking at different things.
 
 #### 25.8.4 What §13.6.5a unblocks
 
@@ -8401,7 +8589,7 @@ without one is a heading.
 
 | Phase | The one sentence | Closes when |
 |---|---|---|
-| **1 — The core loop** | **The game can be played from the first tap to the third prestige without hitting a system that is not there.** | §26.1.7 |
+| **1 — The core loop** | **The game can be played from the first tap to the third prestige without hitting a system that is not there.** | §26.1.8 |
 | **2 — Scale** | **The same game, at a hundred million developers, at sixty frames a second.** | §26.2.5 |
 | **3 — Life** | **The floor is a place people work in rather than a grid people are drawn on.** | §26.3.5 |
 
@@ -8482,7 +8670,24 @@ the story — §21.7.3 says so in a table — so they were never GP purchases, a
 earned in scenes; GP buys §22.5's collection long tail.** Layer 2 is now a Phase 2 concern and
 nothing in Phase 1 waits on it.
 
-#### 26.1.7 Phase 1's closing gate
+#### 26.1.7 Monetisation is a Phase 1 shape, not a Phase 2 integration
+
+§3.1 folds `MONETISATION.md`'s placements onto the loop moments they attach to, and §3.1.6 is
+the list of what Phase 1 owes it. **None of it is advertising.** It is five shapes — a report
+that defers its collect, a board that can name the cheapest node you cannot afford, an event
+that knows it is clearable, a modal with room for a second button, and the `paradigmShifts`
+gate they all sit behind.
+
+Every one is cheap now and a retrofit later, and none is wasted if the revenue mix changes.
+**The SDK, the store and the metrics are Phase 2** (MONETISATION §10 owns that plan) and
+nothing in Phase 1 waits on them.
+
+**§3.1.4 is the one item Phase 1 cannot close**: the CONTRACTOR SURGE needs a persistent
+control and §10.1a says both rails are full. The recommendation is to attach it to the ship
+moment instead of making it furniture — it is the only option that costs no pixels — but it
+is a composition decision and it is listed under "blocked on a human" rather than assumed.
+
+#### 26.1.8 Phase 1's closing gate
 
 Every line is a thing a player does, in order, without leaving the game:
 
@@ -8500,6 +8705,9 @@ Every line is a thing a player does, in order, without leaving the game:
    the same branch overlapping and see the waste hatched.
 8. Promote James and get §21.7.4.
 9. Prestige again, and again, with §13.12's run lengths measured rather than asserted.
+10. §3.1.6's five shapes exist: the overnight report defers its collect, the board can name
+    the cheapest node you cannot afford, an entropy event knows it is clearable, the prestige
+    modal has room for a second button, and all of it sits behind `paradigmShifts > 0`.
 
 **`npm run check` green throughout, including the browser gate at all five frame sizes.**
 

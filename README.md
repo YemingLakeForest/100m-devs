@@ -51,8 +51,8 @@ in a browser window that is any shape at all, are in
 
 | Document | Contents |
 |---|---|
-| [`GDD.md`](./GDD.md) | Full game design document — core loop, Communication Entropy engine, the Omni-Lens zoom architecture, upgrade and three-layer prestige trees with full mathematics, endgame, events, dialogue, audio spec, and onboarding script. |
-| [`MONETISATION.md`](./MONETISATION.md) | Revenue model, rewarded-ad placements, IAP catalogue, subscription design, launch phasing, and the guardrails protecting the Early Game Trap. |
+| [`GDD.md`](./GDD.md) | Full game design document — core loop, Communication Entropy engine, the Omni-Lens zoom architecture, upgrade and three-layer prestige trees with full mathematics, endgame, events, dialogue, audio spec, and onboarding script. **§26 is the build order** — three phases with a closing gate on each. Read it before starting work. |
+| [`MONETISATION.md`](./MONETISATION.md) | Revenue model, eCPM assumptions, IAP catalogue and prices, subscription design, launch phasing, metrics. **Where each offer *attaches to the loop* is GDD §3.1**, next to the loop it constrains. |
 | [`docs/DEPLOY.md`](./docs/DEPLOY.md) | Getting it onto a phone and onto the web — `deploy.sh`, the Cloudflare Pages pipeline, and how the landscape lock survives a browser window. |
 | [`docs/HANDOFF.md`](./docs/HANDOFF.md) | **Start here.** Current state, the one decision waiting on a human, and what to build next. |
 | [`docs/PROJECT_SETUP.md`](./docs/PROJECT_SETUP.md) | Runbook from empty repo to first build — identity, toolchain, dependencies, accounts, costs, and the setup order. |
