@@ -22,6 +22,17 @@
 
   /* The interface is drawn in 1px rules and brackets. Never a bevel. */
   --rule: 1px;
+  /*
+   * §10.8a — how far a `.ui-btn` paints outside its own border box.
+   *
+   * The `box-shadow: 3px 3px 0 0` offset slab, named once so the rails that
+   * have to make room for it (§10.1a rule 1: "a rail may not draw outside
+   * itself") cannot drift from the thing they are making room for. Trap 24 is
+   * the register entry: this cannot be fixed one button at a time, because
+   * every per-button clearance patch moves the overhang onto a neighbour or a
+   * neighbouring frame. Reserved once, at the rail.
+   */
+  --ui-slab: 3px;
 
   /*
    * The §23.4.2 design box. Phone landscape runs 1.78:1 to 2.4:1 and nothing

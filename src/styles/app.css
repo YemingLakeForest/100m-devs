@@ -316,6 +316,35 @@ body {
   overflow: hidden;
 }
 
+/*
+ * Trap 24, closed at the rail rather than at the button.
+ *
+ * A `.ui-btn` paints `--ui-slab` past its own border box, on the bottom and the
+ * right. Both rails clip (rule 1 above), so any button flush against a rail
+ * edge loses those pixels — the "edges lightly cropped" report, verbatim. The
+ * lesson that cost a session: **this cannot be fixed one button at a time.**
+ * Each clearance patch shifts the overhang onto a neighbour or a neighbouring
+ * frame, which is how clearing MENU at 748x336 broke UPGRADES at 898x403.
+ *
+ * `overflow: hidden` clips to the *padding* box, so padding here is room inside
+ * the clip rather than a margin outside it. Three pixels of rail height, taken
+ * deliberately and once, and the gate holds it.
+ *
+ * **Vertical only, and the horizontal half is a trap.** The obvious symmetry —
+ * `padding-inline` for the skew's sideways bleed — makes things worse, and
+ * measurably: the rail's children are already sized to its *content* box, so
+ * horizontal padding narrows that box and pushes them out rather than giving
+ * them room. Measured at 640x360 with 14px of it, the offer panel was 230 px
+ * wide in a 208 px content box and hung fourteen pixels off the rail's left
+ * edge — a defect the gate did not have before the padding was added. The
+ * sideways overhang stays where it already was: on the one control tall enough
+ * to have any (`.hud__offer .ui-btn`, below).
+ */
+.hud__left,
+.hud__right {
+  padding-bottom: var(--ui-slab);
+}
+
 .hud__left {
   grid-area: left;
 }
@@ -1774,7 +1803,19 @@ body {
  * 854x384, 997x448, 1024x420 and 1280x600, in every §21 act, and nothing
  * overlaps anything or leaves the frame.
  */
-@media (max-height: 400px) {
+/*
+ * **Moved from 400 to 470 on 2026-08-15, on §10.1a's own order.**
+ *
+ * Measured at 898x403 with the `?full` fixture: the right rail wanted 436 px in
+ * a 381 px client box. That frame is *short* (403 < 470) and *wide* (898), and
+ * every give-way rule below used to wait for 400 — so at 403 nothing gave way
+ * and fifty-five pixels of §10.1's nav were clipped, with UPGRADES the button
+ * on the cut. Nothing here is a new decision about *what* gives up: it is
+ * §10.1a's stated order — second readings before first ones, §23.3's
+ * instrumentation, then §4.5d's corner shortcut — firing one step earlier,
+ * where it turns out to have been needed all along.
+ */
+@media (max-height: 470px) {
   .burndown__chart {
     height: 20px;
   }
@@ -3049,7 +3090,7 @@ body {
  * forty pixels between it and the edge. Every one of them comes off a *second*
  * reading of something already on screen, never off a first.
  */
-@media (max-height: 400px) {
+@media (max-height: 470px) {
   /* A cure is two or three words and must never be the thing that wraps its
      row into two — the row is the whole readout at this height. */
   .backlog__cure {
@@ -3115,7 +3156,7 @@ body {
   }
 }
 
-@media (max-height: 400px) {
+@media (max-height: 470px) {
   /*
    * §13.2's PARADIGM and §10.1's nav on **one** row.
    *

@@ -26,6 +26,7 @@ import { TECH_BY_ID } from '../sim/techTree.ts'
 import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
 import { ROLES, type Role } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
+import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import {
   emptyHistory,
   mergeHistory,
@@ -134,6 +135,31 @@ export interface RunSave {
   tickets?: number
   reputation?: number
   incidents?: IncidentSave[]
+  /**
+   * §13.8 — where each hero is standing, this run.
+   *
+   * **Run state, not permanent**, and the split is the design rather than an
+   * implementation detail: a Paradigm Shift liquidates the studio, so every rung
+   * a hero was placed on stops existing. What survives is the *person* —
+   * `meta.heroXp` and `meta.heroNodes`, §13.10's "a hero you have carried
+   * through nine runs is better than one you just met". Where you put them is a
+   * fact about a floor that no longer exists.
+   *
+   * Additive and optional on the same rule `releases` and `tech` follow: an
+   * absent list is a studio with nobody placed, which is exactly what every save
+   * written before §13.8 describes, and is also the correct opening state of
+   * every run. No `SAVE_VERSION` bump.
+   */
+  heroPlacements?: HeroPlacementSave[]
+}
+
+/** §13.8 — one hero, and the rung they are standing on. */
+export interface HeroPlacementSave {
+  id: string
+  rung: number
+  index: number
+  /** Simulated seconds, for §13.8's settling period. */
+  placedAt: number
 }
 
 /** §4.12a — one open page, as §24 stores it. */
@@ -429,6 +455,15 @@ export function makeSaveData(state: GameState): SaveData {
       tickets: state.tickets,
       reputation: state.reputation,
       incidents: state.incidents.map((i) => ({ ...i })),
+      // §13.8 — flattened out of the map, for the same reason `releases` is
+      // flattened: a nested shape can come back half-formed and a half-formed
+      // placement is a hero covering NaN developers.
+      heroPlacements: Object.entries(state.heroPlacements).map(([id, p]) => ({
+        id,
+        rung: p.rung,
+        index: p.index,
+        placedAt: p.placedAt,
+      })),
     },
     permanent: {
       layer1: { ...permanent.layer1 },
@@ -650,8 +685,38 @@ function normaliseRun(value: unknown): RunSave {
     tickets: nonNegative(r.tickets, 0),
     reputation: Math.min(100, nonNegative(r.reputation, BASELINE_RATING)),
     incidents: normaliseIncidents(r.incidents),
+    heroPlacements: normaliseHeroPlacements(r.heroPlacements),
   }
 }
+
+/**
+ * §13.8 — the placements, filtered to people who exist.
+ *
+ * An id that is not one of §22.8's six is dropped rather than defaulted: a
+ * placement is a claim about a specific person, and there is no sensible person
+ * to substitute. A duplicate id is dropped for the same reason a duplicate
+ * incident is — a hero cannot be in two places, and silently keeping the last
+ * one would make the answer depend on serialisation order.
+ */
+function normaliseHeroPlacements(value: unknown): HeroPlacementSave[] {
+  if (!Array.isArray(value)) return []
+  const out: HeroPlacementSave[] = []
+  const seen = new Set<string>()
+  for (const raw of value) {
+    const p = (raw ?? {}) as Partial<HeroPlacementSave>
+    if (typeof p.id !== 'string' || !HERO_ID_SET.has(p.id) || seen.has(p.id)) continue
+    seen.add(p.id)
+    out.push({
+      id: p.id,
+      rung: Math.max(0, Math.floor(nonNegative(p.rung, 0))),
+      index: Math.max(0, Math.floor(nonNegative(p.index, 0))),
+      placedAt: nonNegative(p.placedAt, 0),
+    })
+  }
+  return out
+}
+
+const HERO_ID_SET = new Set<string>(STORY_HEROES.map((h) => h.id))
 
 const ROLE_SET = new Set<Role>(ROLES)
 

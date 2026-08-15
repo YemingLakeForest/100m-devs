@@ -104,7 +104,7 @@ import {
   pokeDevState,
   type DevStateMachine,
 } from '../sim/devStates.ts'
-import { rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
+import { LITERAL_RUNG_LIMIT, rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
 import { SnippetBag } from './snippets.ts'
 import {
   INITIAL_TOUCH_MODE,
@@ -121,7 +121,20 @@ import {
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
 import { arrivalPredicate, type StorySnapshot } from './storyTriggers.ts'
-import { ARRIVAL_HEROES, type HeroId } from '../sim/storyHeroes.ts'
+import { ARRIVAL_HEROES, STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
+import {
+  NO_HERO_FOLD,
+  buyHeroNode,
+  heroCoverage,
+  heroFold,
+  heroRuntime,
+  type HeroContribution,
+  type HeroCoverage,
+  type HeroFold,
+  type HeroPlacement,
+  type HeroRuntime,
+} from '../sim/heroRoster.ts'
+import { unplacedEarnsNothing, xpAccrued } from '../sim/heroXp.ts'
 import { unlocksFor, type Unlocks } from './unlocks.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
@@ -478,6 +491,31 @@ export interface GameState {
    * cannot see the cause of.
    */
   incidentPending: number
+  /**
+   * §13.8 — where each hero is standing, keyed by id. Absent means benched.
+   *
+   * Run state, and §7.8.12 makes "benched" a place you can look at rather than
+   * a word on a strip: an unplaced hero is at their desk in the executive
+   * suite, visibly doing nothing while the floor works.
+   *
+   * A `Partial<Record>` rather than an array because every question asked of it
+   * is *"where is this person"* — the store asks it per hero, per frame, and a
+   * linear scan of six is six times slower than a lookup for no benefit in
+   * readability.
+   */
+  heroPlacements: Partial<Record<HeroId, HeroPlacement>>
+  /**
+   * §22.8's branch effects, folded — the multipliers the simulation reads.
+   *
+   * **Ephemeral and derived** (§24.2): never serialised, recomputed by
+   * {@link refreshHeroFold} whenever a placement, a purchase or the headcount
+   * moves. It is on the state rather than behind a function because
+   * `effectiveDevCap` and `currentEfficiency` are on the hot path — resolving
+   * six heroes, their levels and their coverage inside a getter that `tick`
+   * calls a dozen times a frame would allocate a few thousand objects a second
+   * to answer a question whose answer changes about six times a run.
+   */
+  heroFold: HeroFold
   /** §4.13 — tickets waiting. Never reaches zero for long, and never can. */
   tickets: number
   /**
@@ -613,6 +651,11 @@ function freshRun(): GameState {
     tickets: 0,
     ticketsUnservedFor: 0,
     reputation: BASELINE_RATING,
+    // §13.8 — everybody starts on the bench, every run. A Paradigm Shift
+    // liquidates the floor, so the rungs a hero was standing on stop existing;
+    // what survives is the person (§13.10), in `meta`, not the posting.
+    heroPlacements: {},
+    heroFold: NO_HERO_FOLD,
   }
 }
 
@@ -696,7 +739,11 @@ export function techOf(s: GameState = state): TechEffects {
  * §4.1 only ever sees the ratio — see the note on `TechEffects.devCapMultiplier`.
  */
 export function effectiveDevCap(s: GameState = state): number {
-  return s.devCap * techOf(s).devCapMultiplier
+  // §13.9.2 — and Melany's Cloud branch on top, which raises the cap by paying
+  // for capacity you did not have to organise. §11's tree raises it by making
+  // communication cheaper; these are genuinely different moves and they
+  // multiply rather than compete.
+  return s.devCap * techOf(s).devCapMultiplier * s.heroFold.cap
 }
 
 /**
@@ -743,7 +790,14 @@ export function currentEfficiency(s: GameState = state): number {
   // can never fire again. That is the node working, not a hole. The player paid
   // for a company that cannot seize, and §25.3.2's "none of this may become a
   // fail state" is untouched — this removes one, it does not add one.
-  return Math.max(1 - techOf(s).entropyCap, raw)
+  // §13.9 — Billy's Cohesion branch bends §4.1's entropy directly, which is the
+  // one branch that touches the game's central number. Applied to the *entropy*
+  // rather than to the efficiency so a fold of 0.9 means "ten per cent less
+  // entropy" — the sentence §22.8 writes — rather than "ten per cent more
+  // efficiency", which at 99% entropy would be a rounding error and at 1% would
+  // be the whole studio.
+  const withHeroes = 1 - (1 - raw) * s.heroFold.entropy
+  return Math.max(1 - techOf(s).entropyCap, withHeroes)
 }
 
 export function currentEntropy(s: GameState = state): number {
@@ -765,7 +819,16 @@ export function baseVelocity(s: GameState = state): number {
   // *produces* from the headcount that *costs*, so the two arguments come from
   // different places. With an empty tree they are the same two numbers and this
   // is the same product it always was.
-  return workingDevs(s) * currentEfficiency(s) * SP_PER_DEV_PER_SEC * devEfficiency(1, s.localEntropy)
+  // §22.8 — and James's Engineering trunk, which bends velocity weakly and
+  // everywhere. It multiplies the swarm and not §4.5d's founder term: the
+  // founder's own curve is the one thing in the game nothing else may touch.
+  return (
+    workingDevs(s) *
+    currentEfficiency(s) *
+    SP_PER_DEV_PER_SEC *
+    devEfficiency(1, s.localEntropy) *
+    s.heroFold.yield
+  )
 }
 
 /**
@@ -1301,6 +1364,17 @@ export function tick(dtSeconds: number): void {
   // worth does not quietly depend on how big the studio was when it landed.
   const settled = settleDroppedBuffs(decayed.dropped, { ...state, localEntropy })
 
+  // §13.10 — the heroes learn from the work that just happened, before anything
+  // reads their effect, so a hero placed this frame is not paid for a frame they
+  // covered nothing of.
+  accrueHeroXp(gained / dtSeconds, dtSeconds)
+  // §22.8's branch effects, resolved once and shared by everything below. The
+  // XP above may have levelled somebody, but a level only becomes an effect
+  // when the player spends it, so the ordering here costs nothing and reads in
+  // the direction the fiction runs.
+  refreshHeroFold()
+  const heroes = state.heroFold
+
   // §4.11 — who is on the floor, read once and shared by all three backlogs.
   const counts = countsOf(state.roster)
   const qaShare = roleShare(counts, 'qa')
@@ -1321,13 +1395,22 @@ export function tick(dtSeconds: number): void {
   // §4.12 — defects accrue from the work itself, in proportion to it. Charged
   // against `gained`, which is realised output *after* §4.1: a studio in §6.3's
   // lock produces nothing and therefore breaks nothing.
-  const defects = open ? advanceDefects(state.defects, gained / dtSeconds, qaShare, dtSeconds) : 0
+  //
+  // §22.8 — and Mo's Quality branch slows the arrival, applied to the velocity
+  // the rate is charged against rather than to the backlog. That is the honest
+  // place for it: quality work means fewer defects *written*, not defects
+  // deleted after the fact, and charging it here keeps `defectsFromPoke` and
+  // this on one curve.
+  const defects = open
+    ? advanceDefects(state.defects, (gained / dtSeconds) * heroes.defects, qaShare, dtSeconds)
+    : 0
 
   // §4.12a — the released catalogue pages you, weighted by who is still playing.
   const incidents = open
     ? advanceIncidents(
         state.incidents,
-        incidentRate(tail.releases, densitiesOf(tail.releases), sreShare, held),
+        // §22.8 — Serena's Reliability branch bends the arrival rate.
+        incidentRate(tail.releases, densitiesOf(tail.releases), sreShare, held) * heroes.incidents,
         // §13.7.1 — you carry the pager when nobody else does. Without the founder
         // term `clearanceCapacity(0)` is zero, an incident never closes, and a
         // frozen release never comes back: a fail state, which §4.12 forbids.
@@ -1345,7 +1428,13 @@ export function tick(dtSeconds: number): void {
   for (const i of incidents.incidents) nextIncidentId = Math.max(nextIncidentId, i.id + 1)
 
   // §4.13 — and the people who bought them write in, forever.
-  const support = counts.support + FOUNDER_ROLE_HEADS
+  //
+  // §22.8 — Matt's Support branch adds heads here, and §13.7 is why they are
+  // *not* scaled by his coverage of the floor the way every other branch is:
+  // Support "acts on the catalogue rather than on the current project". He is
+  // answering for games that shipped three runs ago, and where he is standing
+  // has nothing to do with it.
+  const support = counts.support + FOUNDER_ROLE_HEADS + heroes.supportHeads
   const tickets = open
     ? advanceTickets(state.tickets, state.projectsShipped, defects, support, dtSeconds)
     : { queue: 0, served: 0 }
@@ -1944,6 +2033,220 @@ export function arrivedHeroes(): ReadonlySet<HeroId> {
   return out
 }
 
+// ---------------------------------------------------------------------------
+// Heroes — GDD §13.6.2, §13.8, §13.10, §13.13, §22.8
+// ---------------------------------------------------------------------------
+
+/**
+ * §22.8's roster, resolved — everybody who has walked through a door.
+ *
+ * Rebuilt per call from `meta` and the run's placements rather than cached.
+ * Six people is six object literals; a cache here would be a second copy of the
+ * save that has to be invalidated on every purchase, every level and every
+ * placement, which is three more chances to show the player a stale card than
+ * the arithmetic is worth.
+ */
+export function heroRoster(s: GameState = state): HeroRuntime[] {
+  const meta = getPermanent().meta
+  const arrived = arrivedHeroes()
+  const out: HeroRuntime[] = []
+  for (const hero of STORY_HEROES) {
+    if (!arrived.has(hero.id)) continue
+    const runtime = heroRuntime(
+      hero.id,
+      meta.heroXp?.[hero.id],
+      meta.heroNodes?.[hero.id],
+      s.heroPlacements[hero.id] ?? null,
+    )
+    if (runtime) out.push(runtime)
+  }
+  return out
+}
+
+/** One hero, or null if they have not arrived. */
+export function heroById(id: HeroId, s: GameState = state): HeroRuntime | null {
+  return heroRoster(s).find((h) => h.id === id) ?? null
+}
+
+/**
+ * How many developers a placement can reach *at most* — the anchor's catchment.
+ *
+ * Not simply `unitSizeAt`, and the reason is the whole of Run 2. §7.7.1's unit
+ * at rungs 0–2 is **one person** — the three room rungs are "the same picture at
+ * three densities" — so reading the unit size there would mean a hero placed on
+ * the floor covers exactly one developer, at every reach, for the entire run the
+ * story happens in. Buying REACH would change nothing and §13.8's placement
+ * puzzle would have no pieces.
+ *
+ * So a placement is an **anchor**, and §13.6.2's reach decides the footprint
+ * outward from it:
+ *
+ * - **In the room (rungs 0–2)** the anchor is a seat and the catchment is every
+ *   seat from it to the end of the studio. A hero at seat 0 of forty covers
+ *   forty; the same hero at seat 30 covers ten, which is §13.8's rule 2 —
+ *   "a footprint that visibly does or does not contain the rows you care about"
+ *   — as arithmetic rather than as a picture.
+ * - **Above it** the anchor is a unit and the catchment is that unit. The last
+ *   unit at any rung is partial and it matters: a hero on the final floor of a
+ *   tower holding 1,400 people is standing over 400, not 1,000, and §13.6.2's
+ *   coverage line has to say so.
+ */
+export function devsUnderPlacement(p: HeroPlacement, s: GameState = state): number {
+  if (p.rung <= LITERAL_RUNG_LIMIT) return Math.max(0, Math.floor(s.devs) - p.index)
+  return unitSizeAt(p.rung, p.index, s.devs)
+}
+
+/** §13.6.2 — what this hero actually reaches, right now. */
+export function heroCoverageOf(runtime: HeroRuntime, s: GameState = state): HeroCoverage {
+  if (!runtime.placement) return heroCoverage(runtime, 0, s.runSeconds)
+  return heroCoverage(runtime, devsUnderPlacement(runtime.placement, s), s.runSeconds)
+}
+
+/**
+ * §22.8's "bends" column, folded into the multipliers the simulation reads.
+ *
+ * Every field is 1 (or 0) with nobody placed — §13.6.7's "amplitude, not gate"
+ * is enforced at the bottom of the stack, so no caller further up has to
+ * remember it.
+ */
+export function currentHeroFold(s: GameState = state): HeroFold {
+  const contributions: HeroContribution[] = []
+  for (const runtime of heroRoster(s)) {
+    const covered = heroCoverageOf(runtime, s).covered
+    if (covered > 0) contributions.push({ runtime, covered })
+  }
+  if (contributions.length === 0) return NO_HERO_FOLD
+  return heroFold(contributions, s.devs)
+}
+
+/**
+ * Recompute {@link GameState.heroFold} and publish it if it moved.
+ *
+ * Called from `tick`, from every placement and purchase, and after a load.
+ * Compares before writing so an untended roster — which is most frames of most
+ * runs — costs one comparison and produces no `set`, and therefore no React
+ * render.
+ */
+function refreshHeroFold(): void {
+  const next = currentHeroFold()
+  const prev = state.heroFold
+  if (
+    next.yield === prev.yield &&
+    next.entropy === prev.entropy &&
+    next.cap === prev.cap &&
+    next.defects === prev.defects &&
+    next.incidents === prev.incidents &&
+    next.supportHeads === prev.supportHeads
+  ) {
+    return
+  }
+  set({ heroFold: next })
+}
+
+/**
+ * §13.8 — put somebody in charge of a rung.
+ *
+ * Placement is a drag out of §7.8.12's suite onto the unit, and this is what
+ * the drop calls. Re-placing somebody already placed restarts the settling
+ * period, which is rule 4 working rather than a special case: moving a hero
+ * costs time whether they were on the bench or on the third floor.
+ */
+export function placeHero(id: HeroId, rung: number, index: number): boolean {
+  if (!arrivedHeroes().has(id)) return false
+  if (!Number.isFinite(rung) || !Number.isFinite(index)) return false
+  set({
+    heroPlacements: {
+      ...state.heroPlacements,
+      [id]: {
+        rung: Math.max(0, Math.floor(rung)),
+        index: Math.max(0, Math.floor(index)),
+        placedAt: state.runSeconds,
+      },
+    },
+  })
+  // Immediately, not on the next tick: a placement made while a scene holds the
+  // clock (§10.7) would otherwise show the player a card whose numbers have not
+  // moved, and the game freezes for every arrival scene there is.
+  refreshHeroFold()
+  return true
+}
+
+/** §13.8 — take somebody off the floor. They walk back to the suite. */
+export function recallHero(id: HeroId): boolean {
+  if (!state.heroPlacements[id]) return false
+  const next = { ...state.heroPlacements }
+  delete next[id]
+  set({ heroPlacements: next })
+  refreshHeroFold()
+  return true
+}
+
+/**
+ * §13.13 — spend one of this hero's points on a node.
+ *
+ * The purchase is permanent (`meta.heroNodes`, §13.10's "a hero you have
+ * carried through nine runs is better than one you just met") and the *points*
+ * are not stored at all: they are level minus what has been bought, recomputed
+ * every time anybody asks. There is therefore no wallet that can drift from the
+ * board, which is §13.13's whole argument for levels made structural.
+ */
+export function buyHeroTreeNode(id: HeroId, nodeId: string): boolean {
+  const runtime = heroById(id)
+  if (!runtime) return false
+  const next = buyHeroNode(runtime, nodeId)
+  if (!next) return false
+
+  const p = getPermanent()
+  setPermanent({
+    ...p,
+    meta: { ...p.meta, heroNodes: { ...(p.meta.heroNodes ?? {}), [id]: next } },
+  })
+  // A purchase changes the cap, the entropy and three arrival rates, so the
+  // fold has to move before anything reads it — and `refreshHeroFold` publishes
+  // the `set` that tells the HUD a number it is showing has changed.
+  refreshHeroFold()
+  set({})
+  return true
+}
+
+/**
+ * §13.10 — a placed hero earns XP from the work done under their coverage.
+ *
+ * Called from `tick` with the frame's realised velocity. `V_covered` is that
+ * velocity restricted to the developers this hero reaches, which is the studio
+ * rate scaled by their share of it — the same share {@link heroFold} applies to
+ * their effect, so **what a hero is worth and what they learn from are the same
+ * number**. §13.10 wanted exactly that: REACH pays twice.
+ *
+ * Writes straight to `meta.heroXp` rather than accumulating in run state,
+ * because XP is permanent and a run that ended without a save would otherwise
+ * lose an hour of somebody's career.
+ */
+function accrueHeroXp(velocity: number, dtSeconds: number): void {
+  if (!(velocity > 0) || !(dtSeconds > 0)) return
+  const roster = heroRoster()
+  if (roster.length === 0) return
+
+  const devs = Math.max(1, state.devs)
+  let touched = false
+  const xp = { ...(getPermanent().meta.heroXp ?? {}) }
+
+  for (const runtime of roster) {
+    const covered = heroCoverageOf(runtime).covered
+    // §13.10 — "an unplaced hero earns nothing. A card in the tray is a person
+    // on the bench." A settling hero covers nothing and so earns nothing, which
+    // is the same rule reaching the same answer for a different reason.
+    if (unplacedEarnsNothing(runtime.placement !== null, covered)) continue
+    const share = Math.min(1, covered / devs)
+    xp[runtime.id] = (xp[runtime.id] ?? 0) + xpAccrued(velocity * share, dtSeconds)
+    touched = true
+  }
+
+  if (!touched) return
+  const p = getPermanent()
+  setPermanent({ ...p, meta: { ...p.meta, heroXp: xp } })
+}
+
 /** §13.2 — spend BP on a Paradigm Tree node. */
 export function buyParadigmNode(id: string): boolean {
   const node = NODE_BY_ID.get(id)
@@ -2431,6 +2734,15 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     tickets: r.tickets ?? 0,
     reputation: r.reputation ?? BASELINE_RATING,
     incidents: (r.incidents ?? []).map((i) => ({ ...i })),
+    // §13.8 — the postings, back where they were. `normaliseHeroPlacements`
+    // has already dropped anybody who is not one of §22.8's six, so this only
+    // has to change the shape.
+    heroPlacements: Object.fromEntries(
+      (r.heroPlacements ?? []).map((p) => [
+        p.id as HeroId,
+        { rung: p.rung, index: p.index, placedAt: p.placedAt },
+      ]),
+    ) as Partial<Record<HeroId, HeroPlacement>>,
     // §24.2 ephemeral — at most one incident's worth of fraction, and a state
     // the player cannot see the cause of.
     incidentPending: 0,
