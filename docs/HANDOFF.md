@@ -1,7 +1,7 @@
 # Handoff — 2026-08-10
 
 > **Current handoff: [`HANDOFF-2026-08-15.md`](HANDOFF-2026-08-15.md)** — the §26 roadmap, the
-> first slice of Phase 1, and **traps 28–31**. Read that one first, then
+> first slice of Phase 1, and **traps 28–32**. Read that one first, then
 > [`GDD.md` §26](../GDD.md), which is now the build order.
 >
 > **Previous: [`HANDOFF-2026-08-13.md`](HANDOFF-2026-08-13.md)** — what is left, what the

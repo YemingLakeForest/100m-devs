@@ -48,8 +48,8 @@ import '../styles/heroes.css'
  * six against §11's four short branches. At 78 the first thing a player saw of
  * it was the trunk and two nodes, which is a keyhole rather than a map.
  */
-const CELL = 62
-const NODE = 50
+const CELL = 70
+const NODE = 58
 
 function PixelIcon({ grid, className }: { grid: readonly string[]; className?: string }) {
   const rects: Array<{ x: number; y: number }> = []

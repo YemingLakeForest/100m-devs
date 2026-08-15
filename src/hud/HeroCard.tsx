@@ -123,6 +123,16 @@ export function HeroCard({
           {/* The only round thing on the card, and what makes it a pass. */}
           <span className="herocard__punch" aria-hidden="true" />
 
+          {/*
+            Everything above the actions scrolls; the actions do not.
+
+            §21.7.4's title is *meant* to make this card taller over a career, and
+            a card that grows is a card whose buttons walk off the bottom of a
+            336 px frame. Pinning them outside the scroll rather than making the
+            whole pass scroll keeps the primary action reachable at every height
+            without the floating action bar §25.7.2 caught in the creator.
+          */}
+          <div className="herocard__scroll">
           <header className="herocard__band">
             <span className="herocard__sigil" aria-hidden="true" />
             <h2 className="herocard__name">{face.name}</h2>
@@ -177,6 +187,7 @@ export function HeroCard({
             <span className="herocard__employee">EMPLOYEE {employeeNumber(hero.id)}</span>
             <span className="herocard__gem" aria-hidden="true" />
           </footer>
+          </div>
 
           <div className="herocard__actions">
             <Button onClick={onOpenTree}>

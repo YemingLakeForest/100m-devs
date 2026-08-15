@@ -7312,7 +7312,9 @@ than about trading cards, and it inherits §10.8a's skew and border grammar for 
   it is never truncated, because a title that outgrows its own card is the entire joke.
 - **It renders at phone width.** §23.4.2's smallest frame is 748×336 and the card is portrait,
   so at that size it is a §10.5 sheet that scrolls internally. **It never scales down to fit** —
-  a card too small to read is a card nobody opens twice.
+  a card too small to read is a card nobody opens twice. **The buttons do not scroll with it**:
+  the title is meant to make this card taller over a career, and a card that grows is a card
+  whose primary action walks off the bottom of a 336 px frame.
 - **No animation on open beyond §10.5's transition.** A card that flips, shines or deals itself
   is a mobile-game tell, and §10.6 already forbids it in another form.
 

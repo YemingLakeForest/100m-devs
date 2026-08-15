@@ -28,9 +28,23 @@
   top: var(--edge-y);
   right: var(--edge-x);
   bottom: var(--edge-y);
-  display: grid;
-  align-content: start;
-  justify-items: end;
+  /*
+   * **Flex, not grid, and the reason is a real defect rather than a taste.**
+   *
+   * A percentage height on a *grid item* resolves against its grid **area**, and
+   * an auto-sized row track that contains a percentage-height item is a cyclic
+   * dependency — so the browser drops back to `auto` and the cap does nothing.
+   * The board next door was measured at 482 px inside a 436 px box for exactly
+   * this, with its BACK button off the bottom of the frame.
+   *
+   * A flex item's percentage height resolves against the flex container's
+   * content box, which is definite here because the host is inset to the frame.
+   * `align-items: flex-start` so the card hangs from the top rather than
+   * stretching to fill.
+   */
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
   pointer-events: auto;
   /* Over §21's script block, which is drawn later in the DOM and would
      otherwise print a sprint commitment across the flavour line. */
@@ -49,15 +63,17 @@
 .herocard__pass {
   position: relative;
   display: grid;
-  gap: 6px;
-  width: min(23em, 84vw);
+  /* The pass itself does not scroll — its body does, and the actions are pinned
+     under it. See the note in `HeroCard.tsx`. */
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 9px;
+  width: min(31em, 84vw);
   max-width: calc(100vw - 2 * var(--edge-x));
   /* The frame, not the viewport: on the web the game is letterboxed into a
      legal aspect, so `vh` is a good deal more than the picture is tall. */
   max-height: 100%;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 14px 12px 10px;
+  overflow: hidden;
+  padding: 18px 16px 14px;
   margin-top: 8px;
   border: 2px solid var(--branch, var(--p2));
   /*
@@ -72,6 +88,15 @@
    * place the layer stops.
    */
   background: var(--n0);
+}
+
+.herocard__scroll {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* The only round thing on the card. */
@@ -90,8 +115,8 @@
 .herocard__band {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding: 4px 6px;
+  gap: 10px;
+  padding: 6px 8px 8px;
   border-bottom: 2px solid var(--branch, var(--p2));
 }
 
@@ -125,21 +150,21 @@
 
 .herocard__body {
   display: grid;
-  grid-template-columns: 74px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
 }
 
 .herocard__portrait {
-  width: 74px;
-  height: 84px;
+  width: 100px;
+  height: 112px;
   border: var(--rule) solid var(--p2);
   background: var(--n1);
 }
 
 .herocard__facts {
   display: grid;
-  gap: 3px;
+  gap: 6px;
   margin: 0;
   font-size: var(--type-1x);
 }
@@ -169,8 +194,8 @@
 
 /* The one number this hero's branch is about, live. Not a stat block. */
 .herocard__headline {
-  margin-top: 3px;
-  padding-top: 4px;
+  margin-top: 5px;
+  padding-top: 7px;
   border-top: var(--rule) solid var(--p0);
 }
 
@@ -194,7 +219,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 3px 6px;
+  padding: 6px 8px;
   border-top: var(--rule) solid var(--p0);
   border-bottom: var(--rule) solid var(--p0);
   font-size: var(--type-1x);
@@ -221,8 +246,8 @@
 /* §22.9.2 — the abilities box, and the only thing on this card in sentences. */
 .herocard__traits {
   display: grid;
-  gap: 2px;
-  padding: 4px 6px;
+  gap: 4px;
+  padding: 6px 8px;
 }
 
 .herocard__trait-name {
@@ -241,7 +266,7 @@
 
 .herocard__flavour {
   margin: 0;
-  padding: 4px 6px;
+  padding: 8px 8px 6px;
   border-top: var(--rule) solid var(--p0);
   font-size: var(--type-1x);
   font-style: italic;
@@ -253,7 +278,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 6px;
+  padding: 7px 8px;
   border-top: 2px solid var(--branch, var(--p2));
   font-size: var(--type-1x);
   letter-spacing: 1px;
@@ -288,9 +313,9 @@
 
 .herocard__actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   justify-content: flex-end;
-  padding-top: 2px;
+  padding-top: 4px;
 }
 
 /* §23.4.2's smallest frame is 748x336 and the card is portrait, so at that size
@@ -298,12 +323,12 @@
    read is a card nobody opens twice. */
 @media (max-height: 400px) {
   .herocard__pass {
-    gap: 4px;
-    padding: 10px 10px 8px;
+    gap: 6px;
+    padding: 12px 12px 10px;
   }
 
   .herocard__portrait {
-    height: 66px;
+    height: 88px;
   }
 }
 
@@ -320,8 +345,11 @@
 .herotree {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
+  /* Flex for the same reason `.herocard` is — see its note. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--edge-y) var(--edge-x);
   pointer-events: auto;
   z-index: 3;
 }
@@ -329,11 +357,11 @@
 .herotree__frame {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  width: min(58em, calc(100% - 2 * var(--edge-x)));
-  height: calc(100% - 2 * var(--edge-y));
-  max-height: 34em;
-  padding: 12px;
+  gap: 12px;
+  width: min(72em, 100%);
+  height: 100%;
+  max-height: 46em;
+  padding: 16px;
   border: var(--rule) solid var(--p2);
   /*
    * Opaque, for §22.9's reason: this sheet lands on top of the card that opened
@@ -402,8 +430,8 @@
   position: absolute;
   display: grid;
   place-items: center;
-  width: 50px;
-  height: 50px;
+  width: 58px;
+  height: 58px;
   padding: 0;
   border: var(--rule) solid var(--p1);
   background: var(--n0);
@@ -413,8 +441,8 @@
 }
 
 .herotree__icon {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   fill: currentColor;
 }
 
@@ -497,17 +525,17 @@
 .herotree__guide-card {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  width: min(24em, 88vw);
-  padding: 16px;
+  gap: 11px;
+  width: min(31em, 88vw);
+  padding: 22px 20px;
   border: 2px solid var(--branch, var(--p2));
   background: var(--n0);
   text-align: center;
 }
 
 .herotree__guide-icon {
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 80px;
   fill: var(--branch, var(--p3));
 }
 
