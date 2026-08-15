@@ -190,6 +190,79 @@ export const JAMES: Identity = {
 }
 
 /**
+ * §22.8's five, written down for the same reason James is — **they are not
+ * strangers.**
+ *
+ * §7.8.7 generates a floor full of people who are nobody in particular, which
+ * is the whole trick and it works because it is true of *ordinary* developers.
+ * The story roster is the opposite: each of the five is one sentence of who they
+ * are (§22.8.2) before they have said a word, and a rolled face would make Mo a
+ * different person on every save file.
+ *
+ * The stats are §7.8.7's three numbers and they read as characterisation because
+ * that is all they are — §7.8.7 is explicit that they do not enter §4.1's
+ * production maths. Mo's focus is high and her chatter is not low; she asks the
+ * question you were avoiding. Billy's chatter is the highest number on this
+ * table and it is not a criticism of Billy.
+ *
+ * No new art: these are the same part tables every generated developer draws
+ * from (§22.7's cap is untouched), chosen rather than rolled.
+ */
+export const HERO_IDENTITIES: Readonly<Record<string, Identity>> = {
+  james: JAMES,
+  mo: {
+    name: 'Mo',
+    look: {
+      hair: 2, hairColour: 2, skin: 3, shirt: 1, body: 3,
+      facialHair: 0, glasses: true, headphones: false, slouch: -0.1,
+    },
+    stats: { focus: 88, chatter: 46, seniority: 71 },
+    trait: null,
+  },
+  serena: {
+    name: 'Serena',
+    look: {
+      hair: 1, hairColour: 3, skin: 2, shirt: 0, body: 2,
+      facialHair: 0, glasses: false, headphones: true, slouch: 0,
+    },
+    stats: { focus: 81, chatter: 22, seniority: 84 },
+    trait: null,
+  },
+  matt: {
+    name: 'Matt',
+    look: {
+      hair: 3, hairColour: 1, skin: 1, shirt: 3, body: 0,
+      facialHair: 1, glasses: false, headphones: true, slouch: 0.3,
+    },
+    stats: { focus: 44, chatter: 92, seniority: 55 },
+    trait: null,
+  },
+  melany: {
+    name: 'Melany',
+    look: {
+      hair: 0, hairColour: 0, skin: 0, shirt: 4, body: 1,
+      facialHair: 0, glasses: true, headphones: true, slouch: 0.15,
+    },
+    stats: { focus: 63, chatter: 78, seniority: 66 },
+    trait: null,
+  },
+  billy: {
+    name: 'Billy',
+    look: {
+      hair: 2, hairColour: 1, skin: 2, shirt: 2, body: 3,
+      facialHair: 2, glasses: false, headphones: false, slouch: -0.2,
+    },
+    stats: { focus: 52, chatter: 96, seniority: 49 },
+    trait: null,
+  },
+}
+
+/** The written identity for a story hero, or null for anybody else. */
+export function heroIdentity(id: string): Identity | null {
+  return HERO_IDENTITIES[id] ?? null
+}
+
+/**
  * **James is seat 0**, and this line moved.
  *
  * It used to read `index === 1`, from the era when the player's first employee

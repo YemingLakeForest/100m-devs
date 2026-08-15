@@ -24,6 +24,12 @@ import {
   type FounderProfile,
 } from './game/founderProfile.ts'
 import { getPermanent, setPermanent } from './game/save.ts'
+import {
+  SCENE_JAMES_ARRIVES,
+  SCENE_MATT_ARRIVES,
+  SCENE_MO_ARRIVES,
+  SCENE_SERENA_ARRIVES,
+} from './game/scenes.ts'
 
 import './styles/title.css'
 
@@ -125,7 +131,34 @@ export default function App() {
     // frame is real, the way of getting to it is not.
     if (new URLSearchParams(location.search).has('full')) {
       const p = getPermanent()
-      setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+      setPermanent({
+        ...p,
+        meta: {
+          ...p.meta,
+          paradigmShifts: 1,
+          /*
+           * §21.7.6 — **and the three heroes who bring the three backlogs.**
+           *
+           * Without them this fixture stopped being the worst frame the moment
+           * the instrument rule landed: the shift alone opens the tree and the
+           * simulation, but each bar and each role on the dial now waits for the
+           * person who fixes it, so `?full` would have quietly become a frame
+           * with three fewer readouts than the one it exists to reproduce.
+           *
+           * That is §25.7.3's fourth hole in a new coat — a gate that never
+           * visits a frame where the HUD is full — and it would have shown up as
+           * the rail budget passing.
+           */
+          milestones: [
+            ...p.meta.milestones,
+            // He arrived in Act I, so any prestiged save has him.
+            SCENE_JAMES_ARRIVES.id,
+            SCENE_MO_ARRIVES.id,
+            SCENE_SERENA_ARRIVES.id,
+            SCENE_MATT_ARRIVES.id,
+          ],
+        },
+      })
       __setState({
         devs: 12,
         roster: [{ role: 'dev', count: 12 }],

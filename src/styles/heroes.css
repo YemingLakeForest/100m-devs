@@ -1,0 +1,547 @@
+/*
+ * §22.9's card and §13.9's board.
+ *
+ * In its own file for the reason `tech.css` gives: this is one feature's worth
+ * of rules and `app.css` is already two thousand lines of everything.
+ *
+ * **`--branch` is the one colour that carries meaning here**, set inline by the
+ * component from `heroTree.ts`. §13.11.1 draws coverage in it, §7.8.13 puts it
+ * on the desk plate, and §22.9.2 puts it on the card's band: three uses, one
+ * colour, learned once. Everything else is the §2 palette through the phosphor
+ * tokens, exactly as every other surface.
+ */
+
+/* --- §22.9 the card ------------------------------------------------------ */
+
+/*
+ * Anchored like §7.8.8's card and §11's drawer, because it is the same kind of
+ * object: a surface pinned to the right edge, over a simulation that keeps
+ * running behind it (§7.1).
+ *
+ * Bounded rather than free: `Panel` gives the slide, and without a height cap
+ * the pass grows past the bottom of the frame and takes its footer — the role
+ * string, the employee number and the gem — off the screen. §21.7.4's title is
+ * *meant* to make the card taller, so the card has to be a thing that scrolls.
+ */
+.herocard {
+  position: absolute;
+  top: var(--edge-y);
+  right: var(--edge-x);
+  bottom: var(--edge-y);
+  display: grid;
+  align-content: start;
+  justify-items: end;
+  pointer-events: auto;
+  /* Over §21's script block, which is drawn later in the DOM and would
+     otherwise print a sprint commitment across the flavour line. */
+  z-index: 2;
+}
+
+/*
+ * §22.9.1 — a laminated staff pass, designed by somebody who badly wanted it to
+ * be a trading card.
+ *
+ * Not skewed. Every *control* in this game is a §10.8a slab and this is not a
+ * control — it is an object being held up to the camera, and a skewed pass reads
+ * as a mistake rather than as a style. The lanyard punch does the work the skew
+ * does elsewhere: it says at a glance that this is a thing rather than a panel.
+ */
+.herocard__pass {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  width: min(23em, 84vw);
+  max-width: calc(100vw - 2 * var(--edge-x));
+  /* The frame, not the viewport: on the web the game is letterboxed into a
+     legal aspect, so `vh` is a good deal more than the picture is tall. */
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 12px 10px;
+  margin-top: 8px;
+  border: 2px solid var(--branch, var(--p2));
+  /*
+   * **Opaque, and it is the only surface in this layer that is.**
+   *
+   * §7.1 makes the UI a semi-transparent layer over a simulation that keeps
+   * running, and every other panel obeys it — they are drawn over the *floor*,
+   * where the see-through is the whole effect. This one is pinned to the right
+   * edge and therefore lands on top of §10.1's CASH block, and at 94% the
+   * treasury's orange numerals read straight through James's name. A card is a
+   * physical object being held up rather than a pane of glass, so it is the one
+   * place the layer stops.
+   */
+  background: var(--n0);
+}
+
+/* The only round thing on the card. */
+.herocard__punch {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border: var(--rule) solid var(--branch, var(--p2));
+  border-radius: 50%;
+  background: var(--n0);
+  transform: translateX(-50%);
+}
+
+.herocard__band {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 2px solid var(--branch, var(--p2));
+}
+
+.herocard__sigil {
+  width: 10px;
+  height: 10px;
+  background: var(--branch, var(--p2));
+}
+
+.herocard__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--type-2x);
+  letter-spacing: 2px;
+  color: var(--n8);
+}
+
+.herocard__level {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--branch, var(--p3));
+  white-space: nowrap;
+}
+
+/* §13.13 — a card with something to spend on it is visibly waiting. */
+.herocard__points {
+  margin-left: 4px;
+  color: var(--p3);
+}
+
+.herocard__body {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.herocard__portrait {
+  width: 74px;
+  height: 84px;
+  border: var(--rule) solid var(--p2);
+  background: var(--n1);
+}
+
+.herocard__facts {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  font-size: var(--type-1x);
+}
+
+.herocard__facts > div {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.herocard__facts dt {
+  color: var(--p1);
+  letter-spacing: 1px;
+}
+
+.herocard__facts dd {
+  margin: 0;
+  color: var(--n8);
+  text-align: right;
+}
+
+/* §13.11.2 — the only word on this card allowed to be red, because §13.10 makes
+   it the one that is actively costing the player something. */
+.herocard__facts dd[data-benched='true'] {
+  color: var(--alarm-2);
+}
+
+/* The one number this hero's branch is about, live. Not a stat block. */
+.herocard__headline {
+  margin-top: 3px;
+  padding-top: 4px;
+  border-top: var(--rule) solid var(--p0);
+}
+
+.herocard__headline dd {
+  color: var(--branch, var(--p3));
+}
+
+.herocard__xp {
+  height: 3px;
+  background: var(--p0);
+}
+
+.herocard__xp-fill {
+  display: block;
+  height: 100%;
+  background: var(--branch, var(--p2));
+}
+
+.herocard__type {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 6px;
+  border-top: var(--rule) solid var(--p0);
+  border-bottom: var(--rule) solid var(--p0);
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--branch, var(--p3));
+}
+
+.herocard__pips {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.herocard__pip {
+  width: 6px;
+  height: 6px;
+  border: var(--rule) solid var(--p2);
+}
+
+.herocard__pip[data-on='true'] {
+  background: var(--branch, var(--p3));
+  border-color: var(--branch, var(--p3));
+}
+
+/* §22.9.2 — the abilities box, and the only thing on this card in sentences. */
+.herocard__traits {
+  display: grid;
+  gap: 2px;
+  padding: 4px 6px;
+}
+
+.herocard__trait-name {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--n8);
+}
+
+.herocard__trait-text {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p1);
+}
+
+.herocard__flavour {
+  margin: 0;
+  padding: 4px 6px;
+  border-top: var(--rule) solid var(--p0);
+  font-size: var(--type-1x);
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--p1);
+}
+
+.herocard__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-top: 2px solid var(--branch, var(--p2));
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+/*
+ * §21.7.4 — the title only ever grows, and when it no longer fits it **wraps
+ * and the card gets taller.** It is never truncated: a title that outgrows its
+ * own card is the entire joke, and `text-overflow: ellipsis` would be the one
+ * line of CSS that deletes it.
+ */
+.herocard__role {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--n8);
+}
+
+.herocard__employee {
+  white-space: nowrap;
+}
+
+/* §22.4's rarity gem, in the footer where the security chip goes — and where it
+   is not the most interesting thing on the card. */
+.herocard__gem {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  background: var(--branch, var(--p2));
+  transform: rotate(45deg);
+}
+
+.herocard__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+/* §23.4.2's smallest frame is 748x336 and the card is portrait, so at that size
+   it scrolls inside itself. It never scales down to fit — a card too small to
+   read is a card nobody opens twice. */
+@media (max-height: 400px) {
+  .herocard__pass {
+    gap: 4px;
+    padding: 10px 10px 8px;
+  }
+
+  .herocard__portrait {
+    height: 66px;
+  }
+}
+
+/* --- §13.9 the board ----------------------------------------------------- */
+
+/*
+ * §10.5's bottom sheet, centred, and **in front of the card that opened it.**
+ *
+ * The card stays on screen behind it on purpose: the board is a thing you do
+ * *to* somebody, and losing their face the moment you start spending their
+ * levels would make the six people interchangeable — which is the failure
+ * §22.9 exists to prevent.
+ */
+.herotree {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+.herotree__frame {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  width: min(58em, calc(100% - 2 * var(--edge-x)));
+  height: calc(100% - 2 * var(--edge-y));
+  max-height: 34em;
+  padding: 12px;
+  border: var(--rule) solid var(--p2);
+  /*
+   * Opaque, for §22.9's reason: this sheet lands on top of the card that opened
+   * it and on §21's script block, and at 94% the sprint commitment reads
+   * straight through the board. A tree you can see a burn-down through is a
+   * tree nobody can read.
+   */
+  background: var(--n0);
+}
+
+.herotree__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.herotree__title {
+  margin: 0;
+  font-size: var(--type-2x);
+  letter-spacing: 2px;
+  color: var(--n8);
+}
+
+.herotree__points {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.herotree__points[data-spare='true'] {
+  color: var(--p3);
+}
+
+/*
+ * §11.4.1 — **the board is larger than the viewport in every direction and is
+ * panned**, which is how it is bigger without a line of copy claiming it is.
+ * §10.6: an interface that announces its own size is a web page.
+ */
+.herotree__scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: var(--rule) solid var(--p0);
+}
+
+.herotree__world {
+  position: relative;
+}
+
+.herotree__links {
+  position: absolute;
+  inset: 0;
+}
+
+.herotree__links polyline {
+  fill: none;
+  stroke: var(--p0);
+  stroke-width: 2;
+}
+
+.herotree__links polyline[data-owned='true'] {
+  stroke: var(--p2);
+}
+
+.herotree__node {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: var(--rule) solid var(--p1);
+  background: var(--n0);
+  color: var(--p1);
+  font: inherit;
+  cursor: pointer;
+}
+
+.herotree__icon {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+
+/* §11.4.2's three states, plus owned. Icons carry state, which is most of their
+   job: outline when out of reach, filled and branch-coloured when owned. */
+.herotree__node[data-state='owned'] {
+  border-color: var(--branch, var(--p3));
+  color: var(--branch, var(--p3));
+  background: color-mix(in srgb, var(--branch, var(--p2)) 18%, var(--n0));
+}
+
+.herotree__node[data-state='live'] {
+  border-color: var(--p3);
+  color: var(--p3);
+}
+
+.herotree__node[data-state='silhouette'] {
+  color: var(--p1);
+  opacity: 0.72;
+}
+
+.herotree__node[data-state='dark'] {
+  border-color: var(--p0);
+  color: var(--p0);
+  cursor: default;
+}
+
+.herotree__node[data-state='dark'] .herotree__icon {
+  display: none;
+}
+
+/* §11.4.2 — a dark node is a connector and a stub. You can see the branch
+   continues and nothing about what is on it. */
+.herotree__stub {
+  width: 10px;
+  height: 10px;
+  background: var(--p0);
+}
+
+.herotree__cost {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: var(--type-1x);
+}
+
+/* A REACH node is the spine, and it is the only shape on the board that is not
+   about a job — so it is the only one drawn on a double rule. */
+.herotree__node[data-kind='reach'] {
+  border-width: 2px;
+}
+
+/* §11.4.5 — the node snaps to its owned state on a short overshoot. */
+.herotree__node[data-flash='true'] {
+  animation: herotree-latch 420ms cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+@keyframes herotree-latch {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .herotree__node[data-flash='true'] {
+    animation: none;
+  }
+}
+
+/* §11.4.3's guide layer — the node enlarged in place, everything else dimmed. */
+.herotree__guide {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--n0) 72%, transparent);
+  z-index: 3;
+}
+
+.herotree__guide-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: min(24em, 88vw);
+  padding: 16px;
+  border: 2px solid var(--branch, var(--p2));
+  background: var(--n0);
+  text-align: center;
+}
+
+.herotree__guide-icon {
+  width: 64px;
+  height: 64px;
+  fill: var(--branch, var(--p3));
+}
+
+.herotree__guide-name {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--n8);
+}
+
+.herotree__guide-effect {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p1);
+}
+
+/* §13.9.1 said at the moment the decision is made, rather than in a rule nobody
+   reads. It never refuses the purchase. */
+.herotree__guide-off {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--warn-2);
+}
+
+.herotree__guide-owned {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p2);
+}
+
+.herotree__footer {
+  display: flex;
+  justify-content: flex-end;
+}

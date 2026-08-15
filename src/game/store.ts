@@ -516,6 +516,18 @@ export interface GameState {
    * to answer a question whose answer changes about six times a run.
    */
   heroFold: HeroFold
+  /**
+   * §22.9 — whose card is open, or null.
+   *
+   * A separate channel from {@link GameState.selected} and not a second way of
+   * saying the same thing: `selected` is a *seat*, and §7.8.8 generates the
+   * person at it. A hero is a person first and is at a seat only sometimes —
+   * benched, they are at a desk in §7.8.12's suite and on no rung at all.
+   *
+   * Ephemeral, like `selected`: a card restored from a previous session is a
+   * panel the player did not open.
+   */
+  selectedHero: HeroId | null
   /** §4.13 — tickets waiting. Never reaches zero for long, and never can. */
   tickets: number
   /**
@@ -656,6 +668,7 @@ function freshRun(): GameState {
     // what survives is the person (§13.10), in `meta`, not the posting.
     heroPlacements: {},
     heroFold: NO_HERO_FOLD,
+    selectedHero: null,
   }
 }
 
@@ -2247,6 +2260,19 @@ function accrueHeroXp(velocity: number, dtSeconds: number): void {
   setPermanent({ ...p, meta: { ...p.meta, heroXp: xp } })
 }
 
+/**
+ * §22.9 — open somebody's card, or close whatever is open.
+ *
+ * Refuses a hero who has not arrived, so a stale id in a URL or a test cannot
+ * open a card for somebody the player has never met.
+ */
+export function selectHero(id: HeroId | null): boolean {
+  if (id !== null && !arrivedHeroes().has(id)) return false
+  if (state.selectedHero === id) return true
+  set({ selectedHero: id })
+  return true
+}
+
 /** §13.2 — spend BP on a Paradigm Tree node. */
 export function buyParadigmNode(id: string): boolean {
   const node = NODE_BY_ID.get(id)
@@ -2332,8 +2358,28 @@ export function takeSeedRound(): boolean {
  */
 export function selectDeveloper(index: number | null): void {
   const next = index !== null && index >= 0 ? index : null
+
+  /*
+   * §7.8.13 rule 3 — **the turn is theirs, and it lands somewhere else.**
+   *
+   * A selected developer rotates to face the camera and opens §7.8.8's
+   * personnel record. A selected *hero* makes the same gesture and opens
+   * §22.9's card instead, and that substitution is the moment the player learns
+   * these are two different kinds of object rather than one object with better
+   * numbers — which is the whole of R51 answered by a routing decision.
+   *
+   * Seat 0 is James (§25.7.2's `developerAt`), and he is the only hero on the
+   * floor by seat: the other five sit in §7.8.12's suite and are selected by
+   * their desks rather than by a rung.
+   */
+  if (next === 0 && arrivedHeroes().has('james')) {
+    set({ selected: null })
+    selectHero('james')
+    return
+  }
+
   if (next === state.selected) return
-  set({ selected: next })
+  set({ selected: next, selectedHero: null })
 }
 
 /** §7.8.8 — who is selected, generated on demand. Null if nobody. */

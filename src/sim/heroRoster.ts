@@ -277,6 +277,24 @@ function depthNodes(runtime: HeroRuntime): HeroTreeNode[] {
  */
 export function effectiveDepth(runtime: HeroRuntime, branch: HeroBranch): number {
   let total = 0
+  /*
+   * **The trunk counts as one level of Engineering**, for everybody.
+   *
+   * §13.9 calls the centre "what everybody did, before they specialised" and
+   * §22.8 has James bending "§4.1 velocity, weakly, everywhere" — and without
+   * this line he bends nothing at all, because Engineering has no chain and his
+   * card reads `VELOCITY +0%`. A hero whose own row in the roster table
+   * describes an effect he does not have is a bug in the fiction as much as in
+   * the arithmetic.
+   *
+   * Weighted like any other node, so it is worth {@link JACK_WEIGHT} to James
+   * and the same off-branch rate to everybody else: small at every rung, never
+   * scaling, and the same for all six. §13.6.3's joke needs it to be *small*,
+   * not absent.
+   */
+  if (branch === 'engineering' && runtime.nodes.includes(TRUNK_NODE)) {
+    total += nodeWeight(runtime.branch, 'engineering')
+  }
   for (const node of depthNodes(runtime)) {
     if (node.branch !== branch) continue
     total += nodeWeight(runtime.branch, node.branch)

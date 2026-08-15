@@ -37,6 +37,7 @@
 
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
+import { HAIR_RAMP, SHIRT_RAMP, SKIN_BASE } from '../art/personPalette.ts'
 import { createAmbient, type Seat } from './ambient.ts'
 import { developerAt, type Look } from '../sim/identity.ts'
 import {
@@ -929,25 +930,9 @@ export function wallSpot(
  * nose is four identical people. Silhouette and block colour are the only two
  * channels that survive, so those are the two that vary.
  */
-const HAIR_RAMP: ReadonlyArray<readonly [readonly string[], number]> = [
-  [RAMPS.WOOD, 1],
-  [RAMPS.WOOD, 0],
-  [RAMPS.NEUTRAL, 1],
-  [RAMPS.WOOD, 2],
-  // §7.8.7 — James's orange-brown. One past {@link HAIR_COLOURS}, so no
-  // generated developer ever rolls it: it is his, the same way his name is.
-  [RAMPS.WARN, 1],
-]
-const SKIN_BASE = [0, 1, 3, 5] as const
-const SHIRT: ReadonlyArray<readonly [readonly string[], number]> = [
-  [RAMPS.NEUTRAL, 6],
-  [RAMPS.CALM, 1],
-  [RAMPS.WARN, 1],
-  [RAMPS.FOLIAGE, 1],
-  [RAMPS.NEUTRAL, 3],
-  // §7.8.7 — James's white shirt. One past {@link SHIRT_COLOURS}, same rule.
-  [RAMPS.NEUTRAL, 8],
-]
+// §7.8.7's three colour tables now live in `art/personPalette.ts` — §22.9's
+// card draws a person in the DOM, and a second copy of "which ramp entry is
+// James's orange" is the quiet divergence ART_DIRECTION §0 forbids.
 
 /** The four creator silhouettes, shared by generated developers and YOU. */
 function torsoShape(look: Look): { w: number; h: number } {
@@ -1003,7 +988,7 @@ function drawTorsoDetails(g: Graphics, look: Look, front: boolean) {
  * the spin.
  */
 function drawFront(g: Graphics, look: Look) {
-  const [shirtRamp, shirtBase] = SHIRT[look.shirt % SHIRT.length]
+  const [shirtRamp, shirtBase] = SHIRT_RAMP[look.shirt % SHIRT_RAMP.length]
   const [hairRamp, hairBase] = HAIR_RAMP[look.hairColour % HAIR_RAMP.length]
   const hair = AVATAR_HAIR[look.hair % AVATAR_HAIR.length]
   const skin = SKIN_BASE[look.skin % SKIN_BASE.length]
@@ -1035,7 +1020,7 @@ export function buildDeveloper(look: Look): Container {
   const dev = new Container()
   const g = new Graphics()
 
-  const [shirtRamp, shirtBase] = SHIRT[look.shirt % SHIRT.length]
+  const [shirtRamp, shirtBase] = SHIRT_RAMP[look.shirt % SHIRT_RAMP.length]
   const [hairRamp, hairBase] = HAIR_RAMP[look.hairColour % HAIR_RAMP.length]
   const hair = AVATAR_HAIR[look.hair % AVATAR_HAIR.length]
   const skin = SKIN_BASE[look.skin % SKIN_BASE.length]

@@ -12,9 +12,12 @@ import {
   getPermanent,
   grantJames,
   hasSeenScene,
+  heroById,
+  heroCoverageOf,
   hireDeveloper,
   hireQuote,
   massHire,
+  selectHero,
   setHireMultiplier,
   setHireRole,
   takeSeedRound,
@@ -32,6 +35,10 @@ import { ShipToast } from './ShipToast.tsx'
 import { TouchSwitch } from './TouchSwitch.tsx'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
+import { HeroCard } from './HeroCard.tsx'
+import { HeroTree } from './HeroTree.tsx'
+import type { HeroRuntime } from '../sim/heroRoster.ts'
+import { unitLabel } from '../sim/units.ts'
 import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
@@ -147,6 +154,22 @@ function rolesAvailable(state: GameState): Role[] {
  * post-process, and it is held together by the palette and the type system
  * instead.
  */
+/**
+ * §13.11.2 — where a hero is, in words.
+ *
+ * `BENCHED` is the only word on the card allowed to be red, because §13.10
+ * makes it the one that is actively costing the player something: an unplaced
+ * hero earns no XP, so a board left alone falls behind a board that is tended.
+ * §7.8.12 gives the word a place to be — they are at their desk in the suite,
+ * visibly doing nothing while the floor works.
+ */
+function heroPlacedLabel(hero: HeroRuntime | null, state: GameState): string {
+  if (!hero?.placement) return 'BENCHED'
+  const cov = heroCoverageOf(hero, state)
+  if (cov.settling) return 'WALKING'
+  return `${unitLabel(hero.placement.rung).toUpperCase()} ${hero.placement.index + 1}`
+}
+
 export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMenu?: () => void }) {
   const state = useGameState()
   // §10.7a.3 — the script block rides the same motion budget as the panels it
@@ -158,6 +181,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [founderOpen, setFounderOpen] = useState(false)
   const [gameMenuOpen, setGameMenuOpen] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
+  const [heroTreeOpen, setHeroTreeOpen] = useState(false)
+  // Resolved once per render: `heroById` rebuilds from `meta` and the run, so
+  // asking twice in one frame would build the same six objects twice.
+  const openHero = state.selectedHero === null ? null : heroById(state.selectedHero, state)
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -402,6 +429,24 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
 
       <ShipToast state={state} />
       <DevCard state={state} />
+
+      {/*
+        §22.9 and §13.9 — the card, and the board it opens.
+
+        **No new HUD button, and that is canon rather than thrift.** §13.6.6
+        forbids a management screen and §13.6.7 says that if the player is
+        managing heroes on a grid instead of in the world, the entire reason for
+        the design has been thrown away. The door is a person: tap James at his
+        desk (§7.8.13 rule 3), or a hero in §7.8.12's suite. It also happens to
+        cost zero rail pixels, which §10.1a has none of.
+      */}
+      <HeroCard
+        hero={openHero}
+        placedLabel={heroPlacedLabel(openHero, state)}
+        onClose={() => selectHero(null)}
+        onOpenTree={() => setHeroTreeOpen(true)}
+      />
+      <HeroTree hero={openHero} open={heroTreeOpen && openHero !== null} onClose={() => setHeroTreeOpen(false)} />
 
       <div
         className="hud__script"
