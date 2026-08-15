@@ -45,6 +45,21 @@ once for context; **do not consult them to build.** Where §23 and an ADR appear
 **No further ADRs will be written.** Decisions of that weight land in §23, with the reasoning
 attached, so that this document does not become an index into a pile of others.
 
+### 0.2b The build order is §26 — **added 2026-08-15**
+
+**This document specifies a finished game. [§26](#26-the-delivery-roadmap-canon--added-2026-08-15---r51r79)
+specifies the order it gets built in**, in three phases with a closing gate on each, and no
+dates anywhere.
+
+Read it before starting work. The failure it exists to prevent is not a specification gap — by
+§25.8.3's count, fourteen of the last intake's twenty-nine requirements were already canon and
+eight were already built. It is an *ordering* gap: a system arrives before the thing it needs,
+gets built half-way, and the missing half is the half the player can see.
+
+- **§26.1 — the core loop.** Every system reachable, and each one introduced by somebody.
+- **§26.2 — scale.** The same game at a hundred million developers, at sixty frames a second.
+- **§26.3 — life.** The floor as a place people work in, not a grid people are drawn on.
+
 ### 0.3 Status legend
 
 - **[CANON]** — current design intent.
@@ -1200,6 +1215,13 @@ them**, which is the question the player is actually being asked.
 > falling silent rather than by being switched off.
 
 ### 4.15 Three backlogs, three colours, three components **[CANON - added 2026-08-11]** - R30
+
+> **Amended 2026-08-15 — §21.7.6b: the set assembles one colour at a time.** Every word below
+> holds, including §25.7.2a's decision to keep all three in one column so they read as a set.
+> What changes is that they no longer *arrive* as a set: each bar appears when its hero does —
+> defects with Mo, incidents with Serena, tickets with Matt — across the run §13.12.2 gives them.
+> **A bar with no hero is not drawn**, empty or otherwise, on this section's own rule that a
+> silent row is the loudest kind of furniture.
 
 Defects, incidents and tickets are three different numbers that all go up, all mean "something
 is wrong", and all get worse when you go faster. **A player who cannot tell them apart at a
@@ -2502,6 +2524,111 @@ into a scoreboard:
   §7's single source, and it occludes and is occluded like anything else on the building.
   A screen-space badge would float free of the city and read as a map pin — which is
   §7.7.7's "never a menu with a picture behind it".
+
+#### 7.8.12 The executive suite — where the heroes sit **[CANON - added 2026-08-15]** - R74
+
+§7.8.10 gives the founder a corner desk and §7.8.11 gives a placed hero a mark on the unit they
+cover. **Neither says where a hero is when they are not covering anything**, and §13.11.2
+answers it with a word — `BENCHED` — printed on a strip. A word on a strip is the weakest thing
+this design does: the game has a building, and it is putting the roster in a caption.
+
+**So the heroes have a room, and the room is the one the studio started in.**
+
+##### The joke that decides the geometry
+
+The obvious build is a glass box at the far end of the floor that the player unlocks and the
+heroes move into. That is a real executive suite and it is the wrong one, because it means the
+founder *moves*, and the founder moving is the one thing §7.8.10 spent three paragraphs saying
+they must not do.
+
+**So nobody moves. The walls arrive.**
+
+> The executive suite is built around the founder's corner desk and James's desk beside it —
+> the two desks that have been there since the garage — the first time a second hero arrives.
+> You did not move into the executive suite. The executive suite was **built around where you
+> were already sitting.**
+
+That gives the room a position for free (it is anchored to §7.8.10's corner, which never gets
+built over), it costs no relocation animation, and it lands §21.7.4's joke a scene early:
+James is promoted to Global Head of His Desk and it is *the same desk*, because the walls came
+to him.
+
+##### What is in it
+
+| | |
+|---|---|
+| **The founder's desk** | §7.8.10's corner desk, unchanged, still facing back down the rows. It is now inside the glass, which changes nothing about it and everything about what it looks like |
+| **James's desk** | Beside it, at seat 0, with the Diet Coke and the elbow hole. He is inside the suite and has never once acknowledged that anything happened |
+| **One desk per hero** | Added when that hero arrives (§21.7.3), with a nameplate. **The desk stays when the hero is placed** — empty, plated, and visibly waiting |
+| **Glass, not brick** | The rank and file can see in and the player can see the floor through it. A suite the camera cannot see past is a wall across the middle of §7's best shot |
+| **Windows** | §26.3.1 gives floors windows; the suite gets the corner ones, because of course it does |
+
+##### The mechanic it carries
+
+**An unplaced hero is at their desk in the suite. That is what benched looks like**, and it is
+the whole reason to build the room:
+
+- §13.10's "a card in the tray is a person on the bench" becomes a thing you *see* — somebody
+  sitting in a glass room doing nothing while the floor works.
+- **Placement is a drag out of the suite**, using §7.8.9's existing carry gesture, onto the unit
+  they will cover. Recall is a drag back. §13.6.6's "the card board is the world" is satisfied
+  without a tray, and §13.6.7's forbidden management screen is not merely avoided — there is
+  nowhere to put one.
+- §13.8's settling period (rule 4) is a **walk**. A relocated hero covers nothing while they
+  cross the floor, so the cost of moving somebody is a thing the player watches rather than a
+  timer they are told about. This is §26.3.1's walking system arriving early because heroes
+  needed it first; the ambient version inherits it.
+
+> **The suite is never a screen and never a menu.** It is a room at Desk and Floor zoom, it is
+> occluded by the building like anything else, and above rung 3 it stops being drawn at all —
+> §7.8.11's portrait plates take over, because a room is not visible from orbit and pretending
+> otherwise is §7.7.7's "menu with a picture behind it".
+
+#### 7.8.13 A hero is the one person on the floor who never changes **[CANON - added 2026-08-15]** - R51
+
+**"Heroes should be extremely distinct from other developers on the main game"**, and §7.8.11
+answers it at rungs 3 and up with portrait plates. At the rung where it matters most — the
+room, where the player spends Run 1 and Run 2 — a hero is currently a §7.8.7 silhouette among
+silhouettes, and the only thing separating them is a name nobody is reading.
+
+The available moves are mostly bad. Make them bigger and the 2:1 projection breaks. Give them
+an outline and it is a game UI drawn on a person. Give them unique sprites and §22.7's art cap
+is gone.
+
+**The one that is free is behaviour**, and it happens to also be true:
+
+> **Everybody else on the floor has ambient states. A hero has one behaviour, it is theirs, and
+> it never changes.** §7.8.6's drive-by interruptions do not land on them, §26.3.1's slacking
+> does not apply to them, and they are doing the same thing every single time you look.
+
+| Hero | Doing, forever | Which is also the branch |
+|---|---|---|
+| **James** | Not moving. Typing. A can of Diet Coke. §21.7.0's rule 1 as an animation | Engineering — the trunk |
+| **Mo** | Reading. Something on paper, held up, being read twice | Quality |
+| **Serena** | Watching a graph. It is fine. It has always been fine | Reliability |
+| **Matt** | On a headset, talking, gesturing at nobody | Support |
+| **Melany** | On a call, standing, walking a two-metre circuit and never further | Cloud |
+| **Billy** | At the whiteboard. Always at the whiteboard | Cohesion |
+
+**This is the strongest signal available and it costs one animation each**, because §7.8.6
+already has an ambient-state machine and this is a hero being pinned to one state in it. It
+needs no sprite, no outline, no size change and no label — the player learns who Billy is
+because Billy is the one at the whiteboard, which is how you learn who people are.
+
+Three supports, each cheap:
+
+1. **A desk plate in the branch colour**, readable at Desk zoom, carrying the title string
+   §21.7.4 only ever extends.
+2. **A floor decal** under the chair in the branch colour — the same colour §13.11.1 draws
+   coverage in, so the mark on the person and the mark on the work they cover are visibly one
+   system.
+3. **The turn is theirs.** §7.8.8 rotates a selected developer to face the camera; a hero
+   selected gets the same turn onto §22.9's card rather than the personnel record, which is the
+   moment the player learns these two things are different kinds of object.
+
+> **Only the six get this.** §22.5's collection long tail are cards, not residents — they have
+> no signature behaviour and no suite desk, and the difference is the point: the story roster
+> are people who work here.
 
 ## 8. Game Juice: Camera, Poking & Feedback
 
@@ -4230,6 +4357,33 @@ $$\text{Cost}_{\text{reach}}(r \rightarrow r{+}1) = C_0 \cdot \gamma^{\,r} \cdot
 
 Depth nodes are flat-scaled per card; trait nodes are fixed and expensive.
 
+#### 13.6.5a The story roster is not bought **[CANON - added 2026-08-15]** - R54
+
+**§13.6.5's "cards are acquired with GP" was written before §22.8 existed**, when the roster was
+nine job titles and the only way to get one was to pay. §22.8 replaced that roster with six
+people and §21.7.3 gave each of them a door to walk through — so the six are *already* not
+bought, in two sections that never went back and said so here.
+
+Saying so here is not tidying. It is the removal of a wall that ran directly across the middle
+of §26.1:
+
+> GP is §13.3, Layer 2. Layer 2 costs 100,000 BP and does not exist. So while §13.6.5 was read
+> as covering every card, **no reachable state in the game could own a hero** — which is
+> §13.6.7a's build note, and which is why the 2026-08-13 session correctly declined to build
+> `HeroBoard` and `RosterStrip` onto a board with nothing placeable on it.
+
+| What | Currency | When |
+|---|---|---|
+| **The six story heroes** | **None.** They arrive | §21.7.3, across Run 2 |
+| Their DEPTH and REACH nodes | **Levels** (§13.13), earned in-run from covered work | Continuously |
+| Their TRAIT nodes | **GP** — unchanged. §13.10 already said personality is not something you grind | Layer 2 |
+| §22.5's collection long tail | **GP** — unchanged, and this is what §13.6.5's sentence is now about | Layer 2 |
+
+**Nothing about §13.6.5's mathematics changes**; what changes is which cards it is quoting a
+price for. And the split is the better design on its own merits: the people the story gave you
+are free and permanent, the people you collect are bought, and **the difference between a
+colleague and a collectable is that you did not choose the colleague.**
+
 #### 13.6.6 The interface
 
 **The card board is the world.** There is no separate management screen — §10.6 forbids one,
@@ -4318,6 +4472,13 @@ cut the item.
 - **Auto-placed.** An "optimise" button deletes the only decision the system contains.
 
 #### 13.6.7a Build state **[added 2026-08-08]**
+
+> **Amended 2026-08-15 — §13.6.5a: the six story heroes are not bought.** The paragraph below
+> correctly reports that no reachable state could own a card, and correctly declines to build a
+> tray onto an empty board. **That is no longer true of the story roster**, which arrives free in
+> §21.7.3's scenes and whose nodes are paid for with §13.13's levels rather than GP. The three
+> decisions recorded below — γ, depth priced as a share of reach, and per-level dilution — are
+> unaffected and still stand. GP, and this note, now govern §22.5's collection long tail only.
 
 **`sim/heroes.ts` is the rules and the data; nothing is wired to the store, and that is
 deliberate rather than unfinished.** Cards are bought with GP (§13.3), GP needs Layer 2, and
@@ -4523,6 +4684,12 @@ discount, and pay through the nose the moment you exceed it.
 
 ### 13.10 Heroes earn XP where you put them **[CANON - added 2026-08-11]** - R39
 
+> **Amended 2026-08-15 — §13.13 puts a level between the XP and the node.** Everything in this
+> section about *how XP is earned* is unchanged and load-bearing: coverage, the ξ rate, an
+> unplaced hero earning nothing, and REACH paying twice. What changes is the last step —
+> **XP no longer buys nodes directly**; it reaches levels, and a level grants one point. The
+> `Curve` row below is superseded by §13.13's, and `heroXp` in the save keeps its meaning.
+
 §4.5d gave the founder a curve that grows because *you* got better. **Heroes need the same
 thing and had nothing** — §13.6.5 buys their nodes with GP, which is prestige currency, which
 means a hero could only ever improve between runs and never during one.
@@ -4600,6 +4767,99 @@ to whom; dragging a card on the world changes who covers what. Two boards, two v
 §13.6.7's "if the player is managing heroes on a grid instead of in the world, the entire
 reason for this design has been thrown away" survives because the grid cannot do the thing the
 world does.
+
+### 13.12 How long a run takes **[CANON - added 2026-08-15]** - R75
+
+**§13 specifies three prestige layers and never once says how long one turn of any of them
+should take.** Every number in §14 is a ratio, and a ratio can produce a run of four minutes or
+four days without breaking a single equation — so the curves have been balanced against nothing,
+and §21's four-minute prologue quietly became the only measured run length in the document.
+
+The genre's rule is well known and this game does not get to be an exception to it:
+
+> **The first run is slow and manual; every subsequent run is fast and automated, until the
+> player reaches a content boundary that makes it slow again.**
+
+#### 13.12.1 The target **[CANON]**
+
+| Phase | Wall-clock per run | Active time per run | What the player is doing |
+|---|---|---|---|
+| **The first steered run** | **1–3 hours** | 45–90 min | Discovering the systems; hitting the first real wall; learning why a prestige is worth taking |
+| **The early loop** — the next four | **15–45 min** | 5–15 min | Feeling the acceleration. Automation and quality-of-life unlock here |
+| **Mid-game** — the following fifteen | **2–8 hours** | 10–20 min | Attention moves off the thumb and onto the build: which branch, which heroes, which tree |
+| **Late game**, before the next layer | **24–72 hours** | 5–15 min **per day** | Deep passive production against milestone targets |
+
+Two things are worth reading off that table, because they are what it is *for*:
+
+**Run duration goes up and active time goes down.** Those are not in tension; they are the
+whole design. A run gets longer in wall-clock because the targets get bigger, and shorter in
+attention because §11 and §13 have automated what used to be manual. A player who is spending
+*more* minutes per run at run fifteen than at run three has been given content rather than
+progress, and the curves are wrong.
+
+**The early loop is the shortest thing in the game and it is the most important.** Runs two
+through five are where a player decides whether the prestige loop is a loop or a punishment,
+and the only evidence they will accept is watching an hour of work redo itself in ten minutes.
+
+#### 13.12.2 The prologue is not a run **[CANON]**
+
+§21's Acts I–V take about four minutes and end in a **bankruptcy the player cannot avoid**,
+which by definition makes them not a run in the sense the table means: nothing was steered, and
+the ending was written before the player arrived.
+
+**So the table starts one turn later than its own row headings suggest**, and the mapping is
+stated here rather than left to be inferred:
+
+| §13.12.1's row | This game |
+|---|---|
+| *(no row)* | **Run 1** — §21's prologue. ~4 minutes, scripted, ends in the trap |
+| **The first steered run** | **Run 2.** Every system and all five remaining heroes arrive here, paced across the hour §21.7.3's five triggers need to breathe |
+| **The early loop** | Runs 3–6 |
+| **Mid-game** | Runs 7–21 |
+| **Late game** | Layer 2 (§13.3) onward |
+
+This is also the answer to a question §21.0c raised and did not settle: **what all those gated
+systems open into.** Five arrival scenes and a tech tree landing in a four-minute run would be
+a pile; landing across ninety minutes, each one triggered by a problem the player just felt,
+is the arc §21.7 describes. **The gate and the pacing were always the same decision.**
+
+> **Run 2's actual length has never been measured**, and asserting it here would be exactly the
+> mistake §26.0 describes. Measuring it is Phase 1 work (§26.1.7 item 9), and if it comes in at
+> twenty minutes the answer is to move a target, not to move this table.
+
+### 13.13 Heroes level **[CANON - added 2026-08-15]** - R53
+
+§13.10 gives a hero XP and spends it directly on nodes. **That works and it is missing the
+thing that makes a person feel like they are getting better**, which is a number that goes up
+and is theirs. XP is a currency; a currency is something you spend and then do not have. §4.5d
+gave the founder levels for exactly this reason, and heroes were left with a wallet.
+
+**So XP becomes levels, and a level is a point.**
+
+$$\text{XP to reach level } n = X_0 \cdot \kappa^{\,n}$$
+
+| | |
+|---|---|
+| **XP** | Accrues as §13.10 specifies — $\xi \cdot V_{\text{covered}}$, from the work done under this hero's coverage, and only while they are placed |
+| **A level** | Is reached, announced, and never spent. It is the number on §22.9's card and it is permanent |
+| **A point** | Every level grants exactly one, spendable on any node of §13.9's board |
+| **Lifetime** | Permanent per hero, in the save's `meta` beside `founderLevels`. It survives a Paradigm Shift *and* a Codebase Fork |
+
+**One level, one point, and no other source.** The alternative — levels as a display over an XP
+wallet — was considered and lost on one argument: a player must be able to look at two heroes
+and know which is further along, and two numbers that can disagree is not that. The level *is*
+the progress; the point is what it lets you do about it.
+
+**A level-up is a moment, not a notification.** §11.4.5's purchase cue is the reference: the
+card flashes to its new state, the badge on the floor pulses in the branch colour, and the
+board gains one spendable point that visibly waits to be spent. It does not open a screen, and
+it does not stop the game — §13.10's warning that an unplaced hero must not become worthless
+applies with more force now that the gap is legible.
+
+> **What this must never become: a level gate.** No node, no placement and no rung may require
+> a level. §13.6.7's "amplitude, not gate" is the standing rule and levels are the most tempting
+> place in the design to break it, because every other game in the genre does. A level makes a
+> hero better at what they already do. It never makes them *allowed*.
 
 ## 14. Prestige & Scaling Mathematics
 
@@ -5956,6 +6216,13 @@ first moment it would be a relief and before it would be a rescue.
 
 #### 21.0c Run 1 carries one idea **[CANON - added 2026-08-13]**
 
+> **Amended 2026-08-15 — §21.7.6 splits this gate in two.** Everything below holds for Run 1 and
+> is unchanged: Run 1 carries one idea, and `paradigmShifts > 0` is still what opens §11's tree
+> and §4.11's dial *at all*. What this section did not anticipate is **Run 2**, where all four
+> gated systems would otherwise arrive at once. §21.7.6 holds each instrument back a second time,
+> until the hero who solves it walks in — so the shift opens the door and a person carries each
+> thing through it. The gate below is the floor; §21.7.6 is the ceiling.
+
 **Every system in this document that is not hiring arrives after the first Paradigm Shift.**
 
 §21.0 asks Run 1 to do one thing: let the player build the model *more developers, more speed*
@@ -6401,6 +6668,91 @@ same arc read from two ends, so the set of scenes has to land both:
   character. §22.5's Yuki quitting is a *mechanic* and it is pointedly the only one — which is
   why it lands.
 
+### 21.7.6 Every system enters through a person **[CANON - added 2026-08-15]** - R55
+
+**"The defect and support-ticket mechanics should not appear before their heroes are
+introduced."** Stated as a UI note, and it is not one — it is the general form of a rule this
+document has already discovered twice and written down as two special cases.
+
+§11.5 found it first: Instant Messenger is given by James, in a scene, and *"the door and the
+thing behind it arrive together."* §21.0c found it again and generalised one step, to
+*"everything that is not hiring arrives after the first Paradigm Shift."* **The shift is not
+really what those systems were waiting for.** It was standing in for a person, because at the
+time there were no people to wait for.
+
+> **A system enters the game in the hands of the person who solves it, and never before.**
+
+#### 21.7.6a The apparent contradiction, and why there isn't one
+
+§21.7.3 gates Mo on *"a release rated below the §4.14 baseline on defects alone"* — so the
+player must feel defects before Mo, and this section says defects must not appear before Mo.
+Read as UI, that is a circle. It is not a circle, because **a system has two halves and only
+one of them is being gated:**
+
+| | | Before the hero | With the hero |
+|---|---|---|---|
+| **The mechanism** | Defects accrue, degrade the rating, and cost money | **Running, in full** | Running |
+| **The instrument** | The backlog counter, the density line, the colour, the role on §10.10's dial | **Absent** | **Arrives, with them** |
+
+**The player feels the problem as a consequence and never as a readout.** They ship a game they
+were proud of, it scores 31, and the breakdown says one word they cannot act on. That is the
+worst possible experience of a system and it is exactly the right one: it is a problem with no
+handle, which is what makes the person who arrives holding the handle *relief* rather than a
+tutorial.
+
+This is the same trade §11.5 already made and it generalises cleanly:
+
+- **§11.5** — the tech tree runs; James brings the board.
+- **§21.7.3, Mo** — defects run; Mo brings the defect backlog, §4.12's density line and QA on
+  the dial.
+- **§21.7.3, Serena** — incidents run; Serena brings the incident list and SRE on the dial.
+- **§21.7.3, Matt** — tickets accrue against the catalogue; Matt brings §4.13's bar and Support
+  on the dial.
+
+**Melany and Billy are deliberately different, and the difference confirms the rule.** The
+developer cap (§4.2) and the speedometer (§4.3) have been on screen since the first minute of
+Run 1 — they are not systems the player is being introduced to, they are systems the player has
+been fighting. So those two arrive holding a *branch* rather than an instrument, and nothing
+appears on the HUD when they sit down. **A person only brings what was not already there.**
+
+#### 21.7.6b What this does to §4.15's three colours
+
+§4.15 argues that the three backlogs are one system told in three colours and must be read as a
+set, and §25.7.2a moved them into one column on that argument. **Both survive, and the set now
+assembles itself in front of the player** — one colour at a time, each arriving with a face, over
+the ninety minutes §13.12.2 gives Run 2.
+
+That is strictly better than the alternative it replaces, which was three unfamiliar bars
+appearing together at the first Paradigm Shift. A player who has met defects, then incidents,
+then tickets — each one introduced by somebody, each one explaining the last release they were
+disappointed by — arrives at the full set already knowing what all three are.
+
+**The empty column is not drawn.** A rail that reserves space for two bars that do not exist yet
+is the *set* being asserted before it exists, and §25.7.2a's rule that a silent row is the
+loudest kind of furniture applies exactly.
+
+#### 21.7.6c What replaces §21.0c's gate
+
+§21.0c gates on `paradigmShifts > 0` and gives the reason plainly: *"a second flag is a second
+thing that can be wrong after a save migration."* That reasoning is right and it does not
+survive contact with this section, because the answer to *"does this player have defects"* is
+now **"has Mo arrived"**, which is a different question from *"has this player prestiged"* and
+cannot be derived from it.
+
+**The gate becomes the roster, and the roster is not a new flag** — it is `milestones`, which
+§24.3 already unions across saves and which §21.7.3's arrival scenes already write to. The
+migration risk §21.0c was avoiding is avoided the same way: one source of truth, already
+present, already merged.
+
+| Gated on | Reads |
+|---|---|
+| **Run 1 has ended** | `paradigmShifts > 0` — unchanged, and still what opens §11's tree and §4.11's dial *at all* |
+| **A specific instrument** | Its hero's arrival scene is in `milestones` |
+
+Both, and in that order: **Run 1 has no instruments because it has no shift; Run 2 gets each one
+when its hero walks in.** §21.0c's four-minute argument is untouched — it was always about Run 1
+carrying one idea, and it still does.
+
 ## 22. Hero Cards & Collectables
 
 ### 22.1 The System
@@ -6693,6 +7045,97 @@ Facilitates. Has a deck. Genuinely does reduce Entropy, which is the uncomfortab
 > needs all four functions and the game is funnier when each of them is *right*. The comedy
 > comes from an organisation that cannot hold five correct people at once, which is §6 again,
 > with faces on it.
+
+### 22.9 The card face — what a hero card actually looks like **[CANON - added 2026-08-15]** - R56
+
+§22.1 says heroes are cards, §22.3 writes James's out as a stat block, and §22.4 tiers them by
+rarity. **Nothing says what one looks like**, and the requirement that it be a *trading card*
+is not decoration — it is the mechanism by which the player understands that a hero is a
+different kind of object from a developer.
+
+Because the competing object already exists. §7.8.8's dev card is a **personnel record**: a
+clipboard, a name, four bars and a mood. If the hero card is that with better numbers, then a
+hero is a good developer, and §13's entire command layer is a stat.
+
+> **The dev card is a record of somebody who works here. The hero card is a card *of* somebody.
+> They must not share a single visual element.**
+
+#### 22.9.1 The register
+
+The obvious build is a fantasy trading card — foil, gem, gradient frame — and it dies on
+contact with ART_DIRECTION: 37 flat colours, no gradients, Departure Mono, and a §10.8a skew.
+There is no gloss available and faking one costs the whole look.
+
+**So the card is the object this company would actually print**, and the joke does the work the
+foil was going to do:
+
+> **It is a laminated staff pass, designed by somebody who badly wanted it to be a trading
+> card.** Lanyard hole punched at the top. A rarity gem where the security chip goes. An
+> abilities box where the emergency contact details go. The employee number is real and it is
+> the order they were hired in.
+
+That is buildable in the existing palette, it is funny in a way that is *about* this game rather
+than about trading cards, and it inherits §10.8a's skew and border grammar for free.
+
+#### 22.9.2 The face
+
+```
+   o
+ +======================================================+
+ | [SIGIL]  MO                              LV 14  ***  |   branch colour band
+ +======================================================+
+ |  +----------------------+                            |
+ |  |                      |   REACH    FLOOR           |
+ |  |      PORTRAIT        |   COVERS   10,000          |
+ |  |   §7.8.7's face,     |   PLACED   FLOOR 3         |
+ |  |   front, at 3x       |   ----------------------   |
+ |  |                      |   DEFECT RATE      -34%    |
+ |  +----------------------+                            |
+ +------------------------------------------------------+
+ | QUALITY                                  * * * . .   |   branch + depth
+ +------------------------------------------------------+
+ | SECOND PAIR OF EYES                                  |
+ | A defect found before ship costs half.               |   TRAIT nodes owned
+ |                                                      |
+ | READS IT TWICE                                       |
+ | The first release of a project cannot ship below     |
+ | the §4.14 baseline on defects.                       |
+ +------------------------------------------------------+
+ | "I'm not blocking it. I'm just asking what happens   |
+ |  if someone taps it twice."                          |   §22.8.2 flavour
+ +------------------------------------------------------+
+ | QUALITY ASSURANCE          EMPLOYEE #002       [gem] |
+ +======================================================+
+```
+
+| Element | Rule |
+|---|---|
+| **Lanyard punch** | Top centre, and it is the only round thing on the card. It is what makes the object read as a pass rather than as a panel |
+| **Branch band** | The colour §13.11.1 draws coverage in and §7.8.13 puts on the desk plate. **Three uses, one colour, learned once** |
+| **Level** | §13.13's number, large, beside the name. Unspent points render as filled pips after it — so a card with something to spend on it is visibly waiting |
+| **Portrait** | §7.8.7's generated face, front-facing, at 3× desk scale, in the same frame §7.8.11 puts on a building. **No new art**, which is what keeps §22.7's twelve-portrait cap intact |
+| **The right column** | Reach, coverage, where they are, and **the one number this hero bends**, live. Not a stat block — one number, the one their branch is about |
+| **Depth pips** | §13.6.4's DEPTH levels, filled and unfilled, at the reach they were bought at. §13.6.7a's dilution is why they are pips and not a total: a diluted level renders half-filled, so *"a hero broadened is a hero diluted"* is on the card |
+| **The abilities box** | **TRAIT nodes only** (§13.6.4), in acquisition order, name then one line. Depth and reach are numbers; traits are the personality, and they are the only thing on this card written in sentences |
+| **Flavour** | §22.8.2's line, italic, never changes, never explained |
+| **The footer** | Role, employee number, and §22.4's rarity gem. The number is the hire order, so James is `#001` and it is the smallest joke on the card |
+
+#### 22.9.3 Rules
+
+- **The card is the hero screen.** There is no other one. Tapping a hero in the world (§7.8.8's
+  turn), tapping their badge on a unit, or tapping their desk in the suite all open this, and
+  §13.9's tree opens *from* it. §13.6.7's forbidden management screen stays forbidden.
+- **The gem is a tier, never a roll.** §22.4's rarity is earned — promotions, levels, milestones
+  — and MONETISATION's no-loot-box position means the gem must never be the most interesting
+  thing on the card. It is in the footer for that reason.
+- **The title string only grows.** §21.7.4's `GLOBAL HEAD OF HIS DESK` renders in the role slot
+  and every promotion extends it. When it no longer fits, **it wraps and the card gets taller** —
+  it is never truncated, because a title that outgrows its own card is the entire joke.
+- **It renders at phone width.** §23.4.2's smallest frame is 748×336 and the card is portrait,
+  so at that size it is a §10.5 sheet that scrolls internally. **It never scales down to fit** —
+  a card too small to read is a card nobody opens twice.
+- **No animation on open beyond §10.5's transition.** A card that flips, shines or deals itself
+  is a mobile-game tell, and §10.6 already forbids it in another form.
 
 ## 23. Technical Constraints & Build Readiness **[CANON]**
 
@@ -7816,6 +8259,117 @@ including one just *above* the 400 px breakpoint, a `?full` fixture that puts th
 worst state, and a keyboard case that actually shrinks the viewport. It was verified by
 reintroducing two of the defects above and watching it fail on each.
 
+### 25.8 Intake — 2026-08-15 **[CANON]**
+
+**The largest intake this document has taken, and the first one that is mostly not a
+requirement.** It opens by asking for a roadmap — *"instead of piecemeal progression, we need a
+clear roadmap"* — and then supplies three phases, twenty-nine specific things, and a pacing
+table. §26 is the roadmap. This is the ledger.
+
+| # | Reported | Owner | Resolution |
+|---|---|---|---|
+| **R51** | Heroes must be **extremely distinct** from other developers in the main game | **§7.8.13** | **Specified.** A hero is the one person on the floor whose behaviour never changes |
+| **R52** | Heroes come with **own skill trees** — a real tree, from an origin, branching out | §13.9 | **Already canon, and it is one tree.** See §25.8.3 |
+| **R53** | Heroes **level up** | **§13.13** | **Specified.** XP becomes levels; a level is a point |
+| **R54** | Hero acquisition paced **with the story**; QA, SRE and Cloud introduced by storylines involving James; **after the first prestige** | §21.7.3, **§13.6.5a**, §13.12.2 | Already canon. §13.6.5a removes the wall that stopped it being built |
+| **R55** | Defect and ticket mechanics **must not appear before their heroes** | **§21.7.6** | **Specified, and it generalises two existing rules.** See §25.8.1 |
+| **R56** | Hero information as a **trading-card-game card**, in the art style, interesting to look at | **§22.9** | **Specified.** A laminated staff pass designed by somebody who wanted it to be a trading card |
+| **R57** | Different **text colours and UI components** for defects, incidents and tickets | §4.15 | Already canon. §21.7.6b changes only *when* each colour arrives |
+| **R58** | Dialogue focuses on the speaker, **facing the camera** | §10.7a.1 | Already canon, **and built** |
+| **R59** | Speech subtitle **bigger, more in the middle** | §10.7a.2 | Already canon, **not built.** §26.1.3 |
+| **R60** | Instant Messenger is the **first upgrade**, with the **same visual** in the tree | §11.5 | Already canon |
+| **R61** | Author **a new set of stories** going forward from the first James scene | §21.7 | Already canon — five arrivals and a promotion. §21.7.6 adds the handover beat to each |
+| **R62** | 1,000 SP alone is **too brutal**; James free at ~50 clicks | §21.0b | Already canon, **and built** |
+| **R63** | The six heroes, their classes and their effects; **Melany's effect unspecified** | §22.8, §13.9.2 | Already canon. Melany bends §4.2's cap and invoices for it |
+| **R64** | **One shared tree**, branched into five areas; story hires arrive pre-clicked; the player upgrades as they see fit | §13.9, §13.9.1 | Already canon — six branches, not five: Cloud was added as the sixth |
+| **R65** | Heroes generate **XP, like the founder** | §13.10, §13.13 | Already canon; §13.13 completes it |
+| **R66** | Heroes **slotted onto units** — block of 100, floor, building — modifying that unit's output; **design a way to display assignment** | §13.6.2, §13.8, §13.11, **§7.8.12** | Already canon. The display is the executive suite plus §13.11's three views |
+| **R67** | **Promotion** built into the story — *Global Head of His Desk* | §21.7.4 | Already canon |
+| **R68** | `UPGRADE` opens **the tree**; unlocking one reveals others; a guide layer on tap | §11.4.2, §11.4.3 | Already canon, **and built** |
+| **R69** | Upgrades **scale with prestige**, not available at the start | §11.4.6 | Already canon, **and built** |
+| **R70** | Tree **starts in the middle**, grows in all directions, **right angles**, one node per level | §11.4.1 | Already canon, **and built** |
+| **R71** | **Icons** for the upgrades | §11.4.4 | Already canon, **and built** — procedural, 16×16 |
+| **R72** | Purchase has **visual and sound juice** | §11.4.5 | Already canon, **and built** |
+| **R73** | The upgrades screen is **bigger, without saying it** | §11.4.1 | Already canon, **and built** — the board is panned, not captioned |
+| **R74** | An **executive suite** where the heroes sit, separate from the rank and file | **§7.8.12** | **Specified.** The walls arrive around the desk the founder never left |
+| **R75** | **Prestige pacing targets** — a table of run durations per phase | **§13.12** | **Specified**, with one conflict resolved. See §25.8.2 |
+| **R76** | **Scale-up**: approximate above the block of 100, generate individuals on click, aggregate the `+1`s, unit-level speech | **§26.2** | Phase 2 |
+| **R77** | **Slack-off minigame**: leaving costs output, draggable while moving, walkways not desks, real destinations, **windows**, walk back rather than teleport, struggle when held | **§26.3.1** | Phase 3 |
+| **R78** | Displaced developers **flash for a split second** on hire | **§26.3.2** | Phase 3. The move-out is virtual; §26.3.1's walking makes the fix free |
+| **R79** | More **event minigames** — a buy/sell trading game framed as a crypto punt | **§26.3.3** | Phase 3, with §26.3.4's constraint |
+
+#### 25.8.1 R55 is not a UI note
+
+**It arrived as one — *"the defect mechanics should not appear before their heroes"* — and it is
+the general form of a rule this document had already found twice and written down as two special
+cases.** §11.5 found it for the tech tree: James brings the board, and *"the door and the thing
+behind it arrive together."* §21.0c found it for everything at once and gated the lot on
+`paradigmShifts > 0`.
+
+**The shift was standing in for a person**, because when §21.0c was written there were no people
+to wait for. §21.7.6 names what it was standing in for, and the reason this is worth the section
+rather than a line is that it converts a *gate* into a *story beat*: the same three bars, hidden
+for the same reason, now arrive in somebody's hands instead of appearing when a counter ticks.
+
+The apparent circle — Mo is triggered by defects, and defects are gated on Mo — is resolved in
+§21.7.6a by splitting the mechanism from the instrument. **The mechanism runs from the first
+frame of Run 2. Only the instrument waits.** The player meets defects as a release they were
+proud of scoring 31, which is a problem with no handle, which is what makes the person holding
+the handle relief rather than a tutorial.
+
+#### 25.8.2 R75's table conflicts with §21, and §21 wins
+
+The pacing table asks for a first run of **1–3 hours**. §21's Run 1 is **about four minutes**,
+and the README has said so since the vertical slice.
+
+**That is a real conflict and it is resolved by noticing that §21's four minutes are not a run.**
+They end in a bankruptcy the player cannot avoid: nothing was steered and the ending was written
+before the player arrived, so by the table's own terms it is a prologue. §13.12.2 states the
+mapping — the table's "first steered run" is **Run 2** — and every subsequent row shifts by one.
+
+**This is the answer to a question §21.0c left open**, which is what makes it a resolution rather
+than a dodge. §21.0c gates five systems and a hero ladder behind the first Paradigm Shift and
+never says what they open *into*. Landing all of that in a four-minute run would be a pile.
+Landing it across the ninety minutes §13.12.1 gives the first steered run, one arrival at a time,
+each triggered by a problem the player just felt, is precisely the arc §21.7 describes.
+**The gate and the pacing were always one decision, made twice, at different times, without
+either half knowing about the other.**
+
+> **Run 2's actual length has never been measured.** It is asserted nowhere and it is Phase 1's
+> last acceptance item (§26.1.7). If it measures at twenty minutes, the economy moves — not the
+> table.
+
+#### 25.8.3 Fourteen of the twenty-nine were already canon, and that is the finding
+
+R52, R57–R58, R60–R73 are already in this document, and eight of them are already **built**. That
+is not a complaint about the intake — a player reporting what they want from a build is doing
+exactly the right thing, and they should never have to check whether it is written down.
+
+**It is a finding about the project**, and it is the same one §26.0 opens with. The gap between
+this document and the build is no longer a specification gap. R52's *"heroes should come with
+their own skill trees, like a real tree, start from origin and branch out"* describes §13.9 to
+the word, and §13.9's board is implemented and tested in `sim/heroTree.ts` — with **no UI**,
+because the currency that was supposed to buy its nodes belongs to a prestige layer that does not
+exist. The specification was right, the sim was built, and the player cannot see any of it.
+
+That is what §26's phases and gates exist to stop, and it is why every gate in §26 is written as
+something a player does rather than something that has been committed.
+
+#### 25.8.4 What §13.6.5a unblocks
+
+One sentence in §13.6.5 — *"cards are acquired with GP"* — written before §22.8 existed, was
+holding up **six** items on this intake (R53, R54, R56, R65, R66, R74), because a hero nobody can
+own needs no card, no levels, no placement and nowhere to sit.
+
+§22.8 and §21.7.3 had already stopped it being true; neither went back and said so. §13.6.5a says
+so. **The story roster is free and the collection long tail is bought**, Layer 2 moves to Phase 2
+where it belongs, and the whole of §26.1 becomes buildable.
+
+> The general lesson, recorded because this is the second time it has cost a session: **when a
+> section supersedes another section's rule, the superseded rule must be amended in place.** A
+> correction that lives only in the new section is invisible to everybody reading the old one,
+> including the person implementing it.
+
 ### 25.2 What is deliberately NOT decided here
 
 R2's distribution shape, R5's corridor width and R7's unfold timing are all numbers that want
@@ -7823,6 +8377,247 @@ play-testing rather than a spec. This section records **what must be true**; the
 points at record what it must be true *of*. Where a number is genuinely arbitrary, it is
 marked as a first guess in the owning section rather than being written here as if it were
 canon.
+
+---
+
+## 26. The Delivery Roadmap **[CANON — added 2026-08-15]** - R51–R79
+
+### 26.0 Why this document needed one
+
+**This document specifies a finished game and, until now, said nothing about the order it gets
+built in.** That was survivable while the work was a spike and it stopped being survivable
+somewhere around §13.9. The batches of 2026-08-10 and 2026-08-11 each landed four or five
+systems; every one of them was correct; and the result on a handset was §25.7 — seven layout
+defects, a Run 1 that had lost its shape, and a hero layer whose two UI components could not be
+built because the currency that buys them does not exist yet.
+
+None of that was a failure of specification. **It was a failure of ordering**, and the shape of
+it is always the same: a system arrives before the thing it needs, so it is built half-way, and
+the half that is missing is the half the player can see.
+
+So there are three phases, they are ordered, and each one has a **closing gate** — a short list
+of things that must be true before the next phase may start. The gates are the point. A phase
+without one is a heading.
+
+| Phase | The one sentence | Closes when |
+|---|---|---|
+| **1 — The core loop** | **The game can be played from the first tap to the third prestige without hitting a system that is not there.** | §26.1.7 |
+| **2 — Scale** | **The same game, at a hundred million developers, at sixty frames a second.** | §26.2.5 |
+| **3 — Life** | **The floor is a place people work in rather than a grid people are drawn on.** | §26.3.5 |
+
+**The ordering is not a preference.** Phase 2 is a set of approximations, and an approximation
+can only be validated against the exact thing it approximates — so the exact thing has to work
+first, or Phase 2 is approximating a guess. Phase 3 is ambient behaviour layered onto units,
+and §26.2's level-of-detail rules decide what a unit *is* — so building the behaviour first
+means building it twice.
+
+> **What this section must never become: a schedule.** There are no dates here and there will
+> not be any. A phase closes when its gate passes, and the gate is written in terms of what a
+> player can do, not in terms of what has been committed.
+
+---
+
+### 26.1 Phase 1 — Complete the core game loop
+
+**The thesis: every system this document describes as part of the loop exists, is reachable,
+and is introduced by somebody.** Not "is specified" — §26.0 is the evidence that specification
+is not the constraint. Reachable, on a phone, by a player who has never read this file.
+
+Phase 1 is mostly *connective*. Almost every mechanism below is already written down and much
+of it is already built; what is missing is that the pieces do not yet form a line the player
+can walk from end to end.
+
+#### 26.1.1 The pacing this phase is built against
+
+§13.12 is the target and it is the first thing in Phase 1, because **every other item on this
+list is sized by it.** A hero ladder that has to breathe across an hour is a different piece of
+work from one that has to fit in four minutes, and until §13.12 was written down the game was
+being built against the four.
+
+#### 26.1.2 Heroes
+
+| | What | Where |
+|---|---|---|
+| **Distinct in the world** | A hero is the one person on the floor whose behaviour never changes, and they are legible as such at every rung without a label | §7.8.13, §7.8.11 |
+| **The executive suite** | Heroes have a place. It is built around the desk the founder has been sitting at since the garage, and it is where an unplaced hero visibly is | §7.8.12 |
+| **One tree, six branches** | The shared centre-out board, right angles, one node per level, a hero's starting position is what makes them who they are | §13.9, §11.4 (same grammar) |
+| **Levels** | XP earned from covered work becomes levels; a level is a point; a point buys a node | §13.13 |
+| **The card** | A trading-card face that shares nothing with §7.8.8's personnel record, because the whole requirement is that heroes are *not* developers | §22.9 |
+| **Placement** | Slotted onto a rung of §7.7's ladder — a block of 100, a floor, a building — modifying that unit's output, with coverage drawn rather than stated | §13.6.2, §13.8, §13.11 |
+| **Free, not bought** | §26.1.6 — the six story heroes arrive; they are not GP purchases, which is what unblocks all of the above | §13.6.5a |
+
+#### 26.1.3 The story
+
+The arc §21.7 specifies, built: James at the fiftieth poke, Instant Messenger at the first
+shift, five arrivals each gated on a feeling, and the promotion. Plus the two things §21.7 asks
+for that the presentation layer does not yet do — the camera closing on the speaker with their
+face turned to it (§10.7a.1, built), and **the subtitle at the size §10.7a.2 already specifies**
+(R59, not built).
+
+#### 26.1.4 The systems, and who brings them
+
+§21.7.6 is the load-bearing new rule of this phase and it is stated once here because it
+changes what "done" means for four different systems:
+
+> **A system enters the game in the hands of the person who solves it.** Defects arrive with
+> Mo, incidents with Serena, tickets with Matt. Before their hero, the system is simulated and
+> silent — it is felt as a consequence, never displayed as an instrument.
+
+#### 26.1.5 The upgrade tree
+
+Built (§11.4, `UpgradeBoard.tsx`). What Phase 1 owes it is the **verification** that it behaves
+as §11.4 says at the sizes §23.4.2 requires: centre-out, right angles, silhouette ring, guide
+layer on tap, ring-gated by prestige, procedural icons, two-part purchase cue, and larger than
+the viewport without a word of copy saying so.
+
+#### 26.1.6 The decision this phase forces
+
+**§13.6.5 buys hero cards with GP, GP is Layer 2, and Layer 2 does not exist.** That is why
+`HeroBoard.tsx` and `RosterStrip.tsx` were correctly *not* built in the 2026-08-13 session, and
+it is a wall directly across the middle of Phase 1.
+
+**It is resolved by §22.8 rather than by building Layer 2.** The six story heroes are given by
+the story — §21.7.3 says so in a table — so they were never GP purchases, and the sentence in
+§13.6.5 was written before §22.8 existed. §13.6.5a records the split: **the story roster is
+earned in scenes; GP buys §22.5's collection long tail.** Layer 2 is now a Phase 2 concern and
+nothing in Phase 1 waits on it.
+
+#### 26.1.7 Phase 1's closing gate
+
+Every line is a thing a player does, in order, without leaving the game:
+
+1. Create a founder, play §21's prologue to the forced bankruptcy, and take the first Paradigm
+   Shift.
+2. Open `UPGRADES`, find Instant Messenger at the centre, buy a ring-1 node, and see the board
+   grow.
+3. Ship a release bad enough to bring Mo, and watch the defect backlog appear **with her** and
+   not before.
+4. Do the same for Serena and Matt.
+5. Hit the developer cap with cash spare, meet Melany; read past `CHATTY`, meet Billy.
+6. Open any hero's card, spend a level on a node in a branch that is not theirs, and see the
+   number that node governs change.
+7. Place a hero on a block of 100 and see the coverage drawn on the floor; place a second of
+   the same branch overlapping and see the waste hatched.
+8. Promote James and get §21.7.4.
+9. Prestige again, and again, with §13.12's run lengths measured rather than asserted.
+
+**`npm run check` green throughout, including the browser gate at all five frame sizes.**
+
+---
+
+### 26.2 Phase 2 — UI and compute scale-up
+
+**The thesis: the simulation stops tracking developers and starts tracking units, and the
+player cannot tell.**
+
+#### 26.2.1 The problem, stated honestly
+
+§7.7 already builds a ladder to a galaxy and §4.2 already caps a run at a hundred million
+developers. **Nothing in the current build survives either.** Individuals are simulated
+individually, drawn individually, and interrupted individually; the room holds a few hundred
+before the frame budget in §23.3 is gone, and the design asks for eight orders of magnitude
+more than that.
+
+#### 26.2.2 The rule
+
+**Above the block of 100, a unit is the simulated body and the people inside it do not exist
+until somebody looks.**
+
+| Rung | Simulated as | Individuals exist? |
+|---|---|---|
+| Desk, row | Themselves | **Yes.** Every one, as now |
+| **Block of 100** | One aggregate: headcount, role mix, output, entropy contribution | **On demand** |
+| **Floor of 10,000** | One aggregate over blocks | On demand, through the block |
+| Building and above | One aggregate over floors | On demand, through the floor |
+
+**On demand means procedurally generated at the moment of the click, from the unit's seed, and
+discarded when the camera leaves.** §7.8.7 already generates identity without a database — the
+same generator, given `(unitSeed, index)`, produces the same person every time it is asked,
+which is what makes a person the player poked yesterday still be that person today without a
+byte of storage.
+
+#### 26.2.3 What the player sees instead
+
+The feedback layer changes register with the rung, and this is the half that makes the
+approximation invisible rather than merely fast:
+
+- **`+1` becomes `+56`.** A block does not emit a hundred numerals; it emits one, for what the
+  block did. §4.5's poke follows the same rule and §4.8 already scales its payout this way.
+- **A speech bubble belongs to the unit**, not to a person inside it, at any rung above the
+  row. §19's library gets a register per rung — a floor does not say *"I can't push my code"*;
+  a floor says something a floor would say.
+- **Zoom in and it resolves.** The aggregate's numbers have to *equal* the sum of the
+  individuals it generates, or the player catches the game lying the first time they check.
+  That equality is the acceptance test for the whole phase.
+
+#### 26.2.4 What else lands here
+
+Layer 2 (§13.3, GP) and §22.5's collection long tail, because §26.1.6 moved them here; §13.5's
+hundred-million gate, which is unreachable before this phase by construction; and the §7.7
+rungs above 3, which have never had a populated scene because nothing could populate them.
+
+#### 26.2.5 Phase 2's closing gate
+
+1. A save at 100,000,000 developers loads, runs at §23.3's frame budget, and the speedometer
+   reads what §4.1 says it should.
+2. From that save, the camera zooms from galaxy to a single desk without a stall, and the
+   person at that desk has a name, a face and a history.
+3. Zoom back out and in again: **the same person**.
+4. A block's stated output equals the sum of the hundred people it generates, to the last
+   story point.
+5. Poking at every rung pays what §4.8 says.
+
+---
+
+### 26.3 Phase 3 — Jazz it up
+
+**The thesis: the studio is a place.** Everything in this phase is optional to the loop and
+none of it is optional to the game being liked.
+
+#### 26.3.1 The slack-off minigame
+
+The floor's ambient life (§7.8.6) is currently a set of poses. Phase 3 makes it a system with a
+cost and a counterplay:
+
+| | |
+|---|---|
+| **Leaving costs output** | A developer away from their desk produces nothing. This is the mechanic; everything else is presentation |
+| **They go somewhere real** | The water machine, the whiteboard (in twos and threes), the window. **Floors get windows**, which they do not have |
+| **They walk, they do not pass through** | Movement is on walkways — along and across the desk grain, never through it — and it is quicker than the current drift |
+| **You can drag them** | Off their desk, for mischief, and back to it, for profit. §7.8.9's carry gesture already exists |
+| **They walk back** | A dragged developer returns to their desk on foot. They do not teleport, which is what the current build does and what makes the floor feel like a spreadsheet |
+| **They struggle** | Held in the air, a developer wriggles. This is the entire joke and it is worth the animation |
+
+#### 26.3.2 The hire flash
+
+**When a hire displaces somebody, the displaced sprite flashes for a frame.** Reported, and the
+diagnosis is that the move-out is virtual — the seat's occupant is recomputed and redrawn
+rather than moved. §26.3.1's walking makes the fix free: a displaced developer *walks* to their
+new seat, so there is nothing to flash.
+
+#### 26.3.3 Event minigames
+
+§18's random events currently resolve as a banner and a number. A few of them earn an
+interaction — the first is the **buy/sell trading game, framed as a crypto punt**, which is a
+line chart, two buttons and a countdown, and which is funny for exactly the reason it is
+inadvisable. Rules: never mandatory, never punishing to skip, never longer than ninety seconds,
+and never the best way to make money (§26.3.4).
+
+#### 26.3.4 The standing constraint
+
+> **No minigame may be the optimal way to play.** The moment the trading game out-earns the
+> studio, the game is about the trading game. Everything in Phase 3 is amplitude on a loop that
+> already works without it — which is the same rule §13.6.7 applies to heroes, and it applies
+> here for the same reason.
+
+#### 26.3.5 Phase 3's closing gate
+
+1. A developer leaves their desk, does something with a purpose, and comes back — and the
+   output readout shows the dip.
+2. Drag one off; they struggle; put them down anywhere; they walk back.
+3. Hire into a full row and watch nobody flash.
+4. Every floor has windows, and the light through them agrees with §7's single source.
+5. One event minigame, playable, skippable, and worse than working.
 
 ---
 
