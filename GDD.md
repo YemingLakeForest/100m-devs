@@ -56,7 +56,10 @@ Read it before starting work. The failure it exists to prevent is not a specific
 eight were already built. It is an *ordering* gap: a system arrives before the thing it needs,
 gets built half-way, and the missing half is the half the player can see.
 
-- **§26.1 — the core loop.** Every system reachable, and each one introduced by somebody.
+- **§26.1 — the core loop.** Every system reachable, each one introduced by somebody, and
+  **§26.1.1 first**: the upgrade, prestige and founder trees are what carry hour-scale, and a
+  game that is not fun as boxes and lines will not be fun with rings and bells. §14.8 is what
+  happened when that loop was first measured.
 - **§26.2 — scale.** The same game at a hundred million developers, at sixty frames a second.
 - **§26.3 — life.** The floor as a place people work in, not a grid people are drawn on.
 
@@ -5159,6 +5162,111 @@ $$M_{cash} = 1 + \omega \cdot \left( \frac{\text{BP}_{sacrificed}}{10^{6}} \righ
 
 ---
 
+### 14.8 The loop, measured **[CANON — added 2026-08-15]** - R81
+
+**§13.12 stated a target and nothing had ever measured against it.** `pacing.test.ts` is the
+instrument: a simulated player who never leaves, poking at §21's own 3/sec, hiring while the
+payroll stands up, buying the cheapest node available, and taking the shift when the studio
+stops growing. Every figure below is therefore a **lower bound** on the wall-clock a real
+player would spend.
+
+The first reading did not report a pacing mismatch. It reported that **there was no loop.**
+
+| run | length | devs / cap | revenue | BP | what stopped it |
+|---|---|---|---|---|---|
+| 1 | 3m | 76 / 100 | $949K | 11 | entropy |
+| 2 | 3m | **2** / 116 | $1.8K | 0 | hire-cost |
+| 3 | 45m | 182 / 292 | $35.8M | **29** | hire-cost |
+| 5 | 49m | 184 / 375 | $40.5M | **29** | hire-cost |
+| 6 | 51m | 181 / **376,315** | $37.6M | **29** | hire-cost |
+| 8 | 25m | 166 / **1,118,474** | $13.9M | 23 | hire-cost |
+
+Headcount is flat at ~180 across every run while §4.2's cap climbs four orders of magnitude.
+BP is pinned at 29. **Runs 3 through 8 are the same run**, and the Paradigm tree is a two-node
+tree, because nothing past Telepathic Compression's first level is ever affordable.
+
+#### 14.8.1 Why — one sentence, and it inverts the thesis
+
+**Income is linear in headcount and the price of a head was exponential in it.**
+
+A developer earns about `137.5·η − 50` a second, so a studio of `D` earns roughly `$87.5·D`.
+A hire cost of `1.08^D` overtakes that at a fixed `D` and never comes back: `1.08^250` is
+$213M against an income of $22K a second — two and a half hours for one developer — and
+`1.08^300` is four days for one. The crossing point has **nothing to do with the cap**, so
+raising the cap raised nothing.
+
+That is §6.1.3 exactly backwards. The game's whole claim is that *"comm tech dictates
+workforce capacity, not cash"*, and cash was dictating it.
+
+#### 14.8.2 The fix is a lever, not a curve
+
+The tempting repair is to make the hire curve scale with the cap automatically. **That is
+worse**, and it is worth saying why: it removes a decision rather than adding one, and it
+hands the player the answer to a wall they never had to notice.
+
+So §13.7.1's **Recruiting** node — *"You Know A Guy"* — is the lever, and it is the founder's
+because the founder's tree is the one thing in `meta` that survives a Paradigm Shift. Each
+level **halves the growth step**, so the headcount a studio can afford roughly doubles, and
+twelve levels cover every cap Layer 1 can open. It borrows §13.9.2's Cloud spine and the joke
+is exact: Melany buys capacity she did not have to organise and invoices for it; the manager's
+diluted copy cannot conjure anybody, it just means you know someone.
+
+**This is the shape the loop was missing, and it is two levers rather than one:**
+
+| | Raises | Currency | Survives a shift |
+|---|---|---|---|
+| §13.2 Telepathic Compression | what you are **allowed** to have | BP | — |
+| §13.7.1 Recruiting | what you can **afford** to have | cash | **yes** |
+
+Neither alone moves the studio. A cap you cannot fill is decorative and a hiring budget with
+no cap to spend it into is Run 1's mousetrap. **That interlock is the loop**, and it is why
+§26.1.1 puts this ahead of everything else in Phase 1.
+
+#### 14.8.3 After
+
+| run | length | devs / cap | revenue | BP | what stopped it |
+|---|---|---|---|---|---|
+| 1 | 3m | 76 / 100 | $986K | 11 | entropy |
+| 2 | 4m | 89 / 116 | $941K | 12 | entropy |
+| 3–5 | 4m | 89 → 100 | ~$950K | 12 | **cash** — see §14.8.5 |
+| 6 | 8m | 285 / 375 | $5.9M | 22 | entropy |
+| 7 | 2h+ | 2,452 / 376,315 | $683M | 78 | horizon |
+| 8 | 2h+ | 2,842 / 1,118,474 | **$1.2B** | **89** | horizon |
+
+Headcount 181 → **2,842**. BP 29 → **89, still climbing**. Revenue $37M → **$1.2B**. Runs 7 and
+8 outgrow the two-hour measurement horizon entirely, which is §13.12.1's mid-game band
+(2–8 hours) arriving on its own.
+
+**Run 1 is untouched to the cent.** The growth base defaults to §4.10a's 1.08, so §21's ladder,
+Act IIa's figures and `runOne.test.ts` all read exactly as before.
+
+#### 14.8.4 The bug the measurement found, which no unit test could
+
+For one commit the node was wired to `nextHireCost` and not to `quote`. **`nextHireCost` is
+what the HUD shows; `quote` is what the game charges.** Every unit test passed, the readout
+moved, the tooltip was correct — and the harness bought four levels of Recruiting, printed a
+growth base of 1.005, and measured a studio still stalled at 185 developers.
+
+> **If a cost curve has two entry points, both take the modifier or neither does.** A lever
+> wired to a readout is worse than no lever, because it is a lie the interface tells
+> confidently.
+
+#### 14.8.5 What is still wrong, and it is the next thing
+
+**Runs 3 to 5 are four-minute plateaus at ~100 developers**, and the wall is not the hire curve
+— at a growth base of 1.02 the hundredth developer costs seven dollars. It is **cash flow**:
+§4.10e pays a shipped project out over a long tail, and payroll is charged every second at
+once. A studio growing through 100 heads is paying $4,900 a second for revenue that has not
+arrived yet, so it stalls until a Recruiting level breaks it open at run 6.
+
+That is a real tension and §4.10d is entitled to it. What it is not entitled to be is *four
+minutes against §13.12.1's fifteen-to-forty-five*. The candidates, in the order they should be
+tried: the revenue tail's spike share (§4.10e), the wage against the terminal project's
+$137.50/SP, and §21.0a's seed round being the only cash injection in the game.
+
+> **Measure before changing any of them.** The instrument exists now, and every number in this
+> section came out of it rather than out of an argument.
+
 ## 15. Prestige UI Wireframes
 
 Both prestige screens maintain the core philosophy: **semi-transparent, HUD-style overlays
@@ -8478,6 +8586,7 @@ table. §26 is the roadmap. This is the ledger.
 | **R77** | **Slack-off minigame**: leaving costs output, draggable while moving, walkways not desks, real destinations, **windows**, walk back rather than teleport, struggle when held | **§26.3.1** | Phase 3 |
 | **R78** | Displaced developers **flash for a split second** on hire | **§26.3.2** | Phase 3. The move-out is virtual; §26.3.1's walking makes the fix free |
 | **R79** | More **event minigames** — a buy/sell trading game framed as a crypto punt | **§26.3.3** | Phase 3, with §26.3.4's constraint |
+| **R81** | **The core loop rebalance is Phase 1's most important item** — upgrades, prestige and the founder tree are what carry hour-scale, and the mechanics must be sensible before any jazz or UI work | **§26.1.1**, **§14.8** | **Measured and part-fixed.** There was no loop: runs 3–8 were identical. §13.7.1's Recruiting node is the missing lever; §14.8.5 is what is still wrong |
 | **R80** | **Monetisation decided early and built into the loop** — ad points, freemium offerings, considered while designing the loop rather than after | **§3.1** | **Specified**, and it found three collisions and one cliff. See §25.8.5 |
 
 #### 25.8.1 R55 is not a UI note
@@ -8637,12 +8746,43 @@ Phase 1 is mostly *connective*. Almost every mechanism below is already written 
 of it is already built; what is missing is that the pieces do not yet form a line the player
 can walk from end to end.
 
-#### 26.1.1 The pacing this phase is built against
+#### 26.1.1 The loop comes first, and everything else is decoration until it works
 
-§13.12 is the target and it is the first thing in Phase 1, because **every other item on this
-list is sized by it.** A hero ladder that has to breathe across an hour is a different piece of
-work from one that has to fit in four minutes, and until §13.12 was written down the game was
-being built against the four.
+**This is the whole of Phase 1 and the rest of §26.1 is downstream of it.**
+
+§13.12 is the target; §14.8 is what the loop actually did when somebody finally measured it
+against that target, and the answer was not a pacing mismatch. **There was no loop**: headcount
+sat at ~180 from the third run onward while §4.2's cap climbed past a million, BP was pinned at
+29, and runs 3 through 8 were the same run.
+
+Three systems carry the whole of the game's hour-scale and they are the three this phase has to
+get right before it touches anything else:
+
+| | Raises | Currency | Survives a shift |
+|---|---|---|---|
+| **§11 the studio tech tree** | throughput and the cap, within a run | cash | no |
+| **§13.2 the Paradigm tree** | what you are **allowed** to have | BP | — |
+| **§13.7.1 the founder's tree** | what you can **afford** to have, and your own floor | cash | **yes** |
+
+§14.8.2 is the finding that makes this a ranking rather than a list: **the levers interlock, and
+any one of them alone is inert.** A cap you cannot fill is decorative; a hiring budget with no
+cap to spend it into is Run 1's mousetrap; a founder curve that does not scale is a Run 1
+nicety. The loop is the three of them multiplying, and until they do, every hour spent on the
+suite, the cards, the minigames and the rails is spent decorating a game that does not go
+anywhere.
+
+> **Stated once, because it is the reason this section is first: a game that is not fun as
+> boxes and lines will not be fun with rings and bells.** §26.2's scale work and §26.3's life
+> both make an existing loop better. Neither makes one.
+
+**What "right" means, and it is measured rather than argued** (§14.8, `pacing.test.ts`):
+
+1. A run ends because §4.1 stopped it, never because the next head was unaffordable.
+2. Each prestige is worth visibly more than the last — headcount, revenue and BP all move.
+3. Run lengths land in §13.12.1's bands, which they **do not yet** — §14.8.5 has runs 3–5 at
+   four minutes against a fifteen-to-forty-five-minute target, cash-starved by §4.10e's tail.
+
+Items 1 and 2 are done. Item 3 is the open work and it is the next thing in this phase.
 
 #### 26.1.2 Heroes
 
@@ -8713,21 +8853,25 @@ is a composition decision and it is listed under "blocked on a human" rather tha
 
 Every line is a thing a player does, in order, without leaving the game:
 
-1. Create a founder, play §21's prologue to the forced bankruptcy, and take the first Paradigm
+1. **`pacing.test.ts` reports run lengths inside §13.12.1's bands, with every run ending on
+   §4.1 rather than on the price of a head.** This is item 1 because §26.1.1 is: the rest of
+   this list decorates a loop, and there has to be a loop.
+2. **Three prestiges, each visibly worth more than the last** — headcount, revenue and BP all
+   moving, with §13.2's tree and §13.7.1's tree both being spent into.
+3. Create a founder, play §21's prologue to the forced bankruptcy, and take the first Paradigm
    Shift.
-2. Open `UPGRADES`, find Instant Messenger at the centre, buy a ring-1 node, and see the board
+4. Open `UPGRADES`, find Instant Messenger at the centre, buy a ring-1 node, and see the board
    grow.
-3. Ship a release bad enough to bring Mo, and watch the defect backlog appear **with her** and
+5. Ship a release bad enough to bring Mo, and watch the defect backlog appear **with her** and
    not before.
-4. Do the same for Serena and Matt.
-5. Hit the developer cap with cash spare, meet Melany; read past `CHATTY`, meet Billy.
-6. Open any hero's card, spend a level on a node in a branch that is not theirs, and see the
+6. Do the same for Serena and Matt.
+7. Hit the developer cap with cash spare, meet Melany; read past `CHATTY`, meet Billy.
+8. Open any hero's card, spend a level on a node in a branch that is not theirs, and see the
    number that node governs change.
-7. Place a hero on a block of 100 and see the coverage drawn on the floor; place a second of
+9. Place a hero on a block of 100 and see the coverage drawn on the floor; place a second of
    the same branch overlapping and see the waste hatched.
-8. Promote James and get §21.7.4.
-9. Prestige again, and again, with §13.12's run lengths measured rather than asserted.
-10. §3.1.6's shapes are in place — three of the five were already true, item 2 is built, and
+10. Promote James and get §21.7.4.
+11. §3.1.6's shapes are in place — three of the five were already true, item 2 is built, and
     item 3 waits on §18's events being a system at all.
 
 **`npm run check` green throughout, including the browser gate at all five frame sizes.**

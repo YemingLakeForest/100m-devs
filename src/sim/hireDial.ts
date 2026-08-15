@@ -85,12 +85,13 @@ export function segmentsFor(devs: number): readonly Segment[] {
  * form that has silently drifted from the thing it replaced is worse than the
  * loop it replaced.
  */
-export function batchCost(devs: number, count: number): number {
+export function batchCost(devs: number, count: number, growth = HIRE_COST_GROWTH): number {
   const n = Math.floor(count)
   if (n <= 0) return 0
+  const g = Number.isFinite(growth) && growth > 1 ? growth : HIRE_COST_GROWTH
   const from = Math.max(1, Math.floor(devs))
-  const first = HIRE_BASE_COST * HIRE_COST_GROWTH ** (from - 1)
-  return (first * (HIRE_COST_GROWTH ** n - 1)) / (HIRE_COST_GROWTH - 1)
+  const first = HIRE_BASE_COST * g ** (from - 1)
+  return (first * (g ** n - 1)) / (g - 1)
 }
 
 /**
@@ -127,21 +128,27 @@ export const MAX_RESERVE_FRACTION = 0.1
  * *down* from that ceiling, which terminates immediately in practice because
  * the reserve moves the answer by one or two.
  */
-export function maxAffordable(devs: number, cash: number, reserve = MAX_RESERVE_FRACTION): number {
+export function maxAffordable(
+  devs: number,
+  cash: number,
+  reserve = MAX_RESERVE_FRACTION,
+  growth = HIRE_COST_GROWTH,
+): number {
   if (cash <= 0) return 0
+  const g = Number.isFinite(growth) && growth > 1 ? growth : HIRE_COST_GROWTH
   const budget = cash * (1 - reserve)
   const from = Math.max(1, Math.floor(devs))
-  const first = HIRE_BASE_COST * HIRE_COST_GROWTH ** (from - 1)
+  const first = HIRE_BASE_COST * g ** (from - 1)
   if (!Number.isFinite(first) || first <= 0) return 0
 
-  const ratio = 1 + (budget * (HIRE_COST_GROWTH - 1)) / first
+  const ratio = 1 + (budget * (g - 1)) / first
   if (ratio <= 1) return 0
-  let n = Math.floor(Math.log(ratio) / Math.log(HIRE_COST_GROWTH))
+  let n = Math.floor(Math.log(ratio) / Math.log(g))
   if (!Number.isFinite(n) || n <= 0) return 0
 
   // The logarithm can land one over on the boundary through float rounding, so
   // it is trimmed rather than trusted. One step, in practice.
-  while (n > 0 && batchCost(devs, n) > budget) n--
+  while (n > 0 && batchCost(devs, n, g) > budget) n--
   return n
 }
 
@@ -160,11 +167,27 @@ export interface Quote {
   affordable: boolean
 }
 
-export function quote(devs: number, cash: number, value: Multiplier): Quote {
+/**
+ * `growth` is §13.7.1's Recruiting, and threading it here is not optional.
+ *
+ * It was added to {@link hireCost} first and to this file second, and in the
+ * gap the node did nothing at all: `nextHireCost` is what the HUD *shows*, and
+ * this is what the game actually *charges*. The pacing harness bought four
+ * levels of Recruiting, printed a growth base of 1.005, and measured a studio
+ * still stalling at 185 developers — a lever wired to a readout and not to the
+ * transaction. **If a cost curve has two entry points, both take the modifier
+ * or neither does.**
+ */
+export function quote(
+  devs: number,
+  cash: number,
+  value: Multiplier,
+  growth = HIRE_COST_GROWTH,
+): Quote {
   if (value === 'max') {
-    const count = maxAffordable(devs, cash)
-    return { count, cost: batchCost(devs, count), affordable: count > 0 }
+    const count = maxAffordable(devs, cash, MAX_RESERVE_FRACTION, growth)
+    return { count, cost: batchCost(devs, count, growth), affordable: count > 0 }
   }
-  const cost = batchCost(devs, value)
+  const cost = batchCost(devs, value, growth)
   return { count: value, cost, affordable: cash >= cost }
 }

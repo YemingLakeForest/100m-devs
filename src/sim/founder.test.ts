@@ -22,18 +22,27 @@ import {
 } from './founder.ts'
 import { D_BASE, bestOutput, optimalHeadcount, passiveVelocity } from './entropy.ts'
 import { devCapFor } from './prestige.ts'
+import { BRANCHES } from './heroTree.ts'
 
 describe('the tree itself — §13.7.1', () => {
   it('has no duplicate ids', () => {
     expect(FOUNDER_BY_ID.size).toBe(FOUNDER_TREE.length)
   })
 
-  it('borrows from all four of §13.7’s classes and invents nothing of its own', () => {
+  it('borrows from every branch there is and invents nothing of its own', () => {
     // "The Management tree contains a diluted copy of every other tree's spine,
-    // and nothing of its own." A node from a fifth class would be the joke
-    // stopping being the joke.
+    // and nothing of its own." A node from a class that does not exist would be
+    // the joke stopping being the joke — so this asserts the *set*, not a count.
+    //
+    // It read `all four` until §13.9.2 added Cloud as a sixth branch and gave
+    // it Melany. §13.7's four were the four that existed when it was written;
+    // the rule was never about the number.
+    const branches = new Set(BRANCHES.filter((b) => b !== 'cohesion'))
     const borrowed = new Set(FOUNDER_TREE.map((n) => n.borrowedFrom))
-    expect([...borrowed].sort()).toEqual(['engineering', 'quality', 'reliability', 'support'])
+    for (const b of borrowed) {
+      expect(branches.has(b as never), `${b} is not a branch`).toBe(true)
+    }
+    expect([...borrowed].sort()).toEqual(['cloud', 'engineering', 'quality', 'reliability', 'support'])
   })
 
   it('uses §13.6.4’s three node kinds and no others', () => {

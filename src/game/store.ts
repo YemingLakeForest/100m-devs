@@ -2310,9 +2310,16 @@ export function buyParadigmNode(id: string): boolean {
  */
 export { getPermanent }
 
-/** What the next developer costs right now — §21.0. */
+/**
+ * What the next developer costs right now — §21.0, and §13.7.1's Recruiting.
+ *
+ * The growth base comes from the founder's own tree, which is `meta` and
+ * therefore **permanent across a Paradigm Shift**. That is the point of putting
+ * the lever there: a run starts over with no people and no cash, and the one
+ * thing it keeps is what you personally learned about hiring.
+ */
 export function nextHireCost(s: GameState = state): number {
-  return hireCost(s.devs)
+  return hireCost(s.devs, founderOf().hireGrowth)
 }
 
 export function canHire(s: GameState = state): boolean {
@@ -2436,7 +2443,7 @@ export function hireQuote(s: GameState = state): Quote {
   // A locked dial is pinned to one at a time, whatever the stored selection
   // says — a save carried across a Paradigm Shift must not hand a fresh Act I
   // player a x100 button.
-  return quote(s.devs, s.cash, s.dialUnlocked ? s.hireMultiplier : 1)
+  return quote(s.devs, s.cash, s.dialUnlocked ? s.hireMultiplier : 1, founderOf().hireGrowth)
 }
 
 /**

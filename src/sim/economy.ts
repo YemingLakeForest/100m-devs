@@ -108,20 +108,39 @@ export const PROJECT_PAYOUTS: readonly number[] = [50, 25_000, 120_000, 550_000]
 export const HIRE_BASE_COST = 1
 export const HIRE_COST_GROWTH = 1.08
 
-export function hireCost(devs: number): number {
+/**
+ * What the next developer costs — and **the growth base is now a lever.**
+ *
+ * `growth` defaults to {@link HIRE_COST_GROWTH}, so every existing caller and
+ * §21's whole ladder are unchanged to the cent. §13.7.1's Recruiting node lowers
+ * it, and that is the only thing in the game that does.
+ *
+ * Why the base and not a discount: a cost that grows exponentially in headcount
+ * against an income that grows *linearly* in it crosses at a fixed headcount and
+ * stops. A 20% discount moves that crossing by three developers; halving the
+ * step doubles it. Measured before the node existed, the studio stalled at ~180
+ * developers in every run from the third onward while §4.2's cap passed a
+ * million — the price of a head, not §4.1, was the wall.
+ *
+ * A parameter rather than an import, deliberately: `founder.ts` reads this
+ * module's constant to build the lever, so this module reading `founder.ts`
+ * back would be a cycle.
+ */
+export function hireCost(devs: number, growth = HIRE_COST_GROWTH): number {
   const n = Math.max(1, Math.floor(devs))
+  const g = Number.isFinite(growth) && growth > 1 ? growth : HIRE_COST_GROWTH
   // Deliberately NOT rounded to whole dollars. At a $1 base, rounding flattens
   // the first ten hires to "$1, $1, $1, $2" — the curve exists to make late
   // hires feel like decisions, and rounding deletes exactly the part of it
   // where the player is learning that hiring has a price. Cash is already
   // fractional (§4.10's revenue is $0.05/SP); the HUD rounds for display.
-  return HIRE_BASE_COST * HIRE_COST_GROWTH ** (n - 1)
+  return HIRE_BASE_COST * g ** (n - 1)
 }
 
 /** Total to grow from `from` developers to `to`. Act IIa's whole cost. */
-export function hireCostTotal(from: number, to: number): number {
+export function hireCostTotal(from: number, to: number, growth = HIRE_COST_GROWTH): number {
   let total = 0
-  for (let n = Math.floor(from); n < Math.floor(to); n++) total += hireCost(n)
+  for (let n = Math.floor(from); n < Math.floor(to); n++) total += hireCost(n, growth)
   return total
 }
 

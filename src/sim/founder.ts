@@ -50,6 +50,8 @@
  * being re-guessed later.
  */
 
+import { HIRE_COST_GROWTH } from './economy.ts'
+
 /**
  * What a Management node keeps of the specialist node it copies — §13.7.1.
  *
@@ -61,7 +63,7 @@
 export const MANAGEMENT_DILUTION = 0.4
 
 /** The four functions §4.11 gives the floor, plus the one that is only yours. */
-export type BorrowedFrom = 'engineering' | 'quality' | 'support' | 'reliability'
+export type BorrowedFrom = 'engineering' | 'quality' | 'support' | 'reliability' | 'cloud'
 
 /**
  * What the founder is worth in **every** role they have not hired for — §13.7.1.
@@ -128,6 +130,31 @@ export const FOUNDER_BASE_RATE = 0.5
 export const TYPING_STEP = 0.5
 
 /**
+ * §13.9.2's Cloud spine, diluted — **what one level of Recruiting halves.**
+ *
+ * §4.10a's hire curve charges `(1 + HIRE_GROWTH_STEP)^n`, and a cost that is
+ * exponential in headcount against an income that is *linear* in it crosses at
+ * a fixed headcount and stops there. Measured over eight runs before this node
+ * existed (`pacing.test.ts`): the studio stalled at ~180 developers in every run
+ * from the third onward while §4.2's cap climbed past a million. **The price of
+ * a head, not §4.1, was the wall** — which is §6.1.3's thesis exactly inverted,
+ * because the whole claim of the game is that *comm tech dictates workforce
+ * capacity, not cash*.
+ *
+ * Each level halves the *step*, so the headcount a studio can afford roughly
+ * doubles per level. That makes this the founder's answer to a wall the
+ * Paradigm tree cannot reach — §13.2 raises what you are **allowed** to have,
+ * this raises what you can **afford**, and neither alone moves the studio. The
+ * two levers are two currencies and both are needed, which is the loop.
+ *
+ * Cloud is the right spine to borrow and the joke is exact: Melany's branch buys
+ * "capacity you did not have to organise" and invoices for it. The manager's
+ * diluted copy cannot conjure anybody — it just means you know someone who knows
+ * someone, and it never stops costing wages.
+ */
+export const RECRUITING_HALVING = 2
+
+/**
  * Seconds of your own work a tap on your own desk is worth — §4.5d.
  *
  * This is what makes the founder's desk a *clicker* affordance rather than an
@@ -159,6 +186,30 @@ export const FOUNDER_TREE: readonly FounderNode[] = [
     baseCost: 400,
     mult: 1.9,
     maxLevel: 10,
+  },
+  {
+    id: 'M-CLOUD',
+    name: 'You Know A Guy',
+    kind: 'DEPTH',
+    borrowedFrom: 'cloud',
+    flavour: 'You have not advertised a role in years. You just text people.',
+    effect: 'Each hire costs less to add than the last — the price curve halves per level',
+    /*
+     * Priced to be the *second* thing a run buys, and to keep being bought.
+     *
+     * At `mult` 6 the levels run 6K, 36K, 216K, 1.3M, 7.8M, 47M, 280M, 1.7B —
+     * so a run earning tens of millions takes four or five of them and the next
+     * one is always visible and always out of reach. That is the shape §13.12.1
+     * asks of the early loop: a purchase that visibly accelerates the thing you
+     * were just doing, available again almost immediately.
+     *
+     * Twelve levels is 4,096x the affordable headcount, which is enough to reach
+     * §4.2's cap at every rung Layer 1 can open. §13.5's hundred-million gate is
+     * Layer 2's problem and is meant to be.
+     */
+    baseCost: 6_000,
+    mult: 6,
+    maxLevel: 12,
   },
   {
     id: 'M-QA',
@@ -253,6 +304,13 @@ export interface FounderEffects {
   worksOffline: boolean
   /** Nearby rows a tap at your desk also nudges. */
   reachRows: number
+  /**
+   * §4.10a's hire-cost growth base, after Recruiting.
+   *
+   * The *base* rather than a discount, because a multiplier on the price moves
+   * the wall by three developers and a change to the base moves it by a factor.
+   */
+  hireGrowth: number
 }
 
 export const NO_FOUNDER: FounderEffects = {
@@ -262,6 +320,7 @@ export const NO_FOUNDER: FounderEffects = {
   cashPerPoint: 0,
   worksOffline: false,
   reachRows: 0,
+  hireGrowth: HIRE_COST_GROWTH,
 }
 
 /**
@@ -291,7 +350,19 @@ export function founderEffects(levels: FounderLevels): FounderEffects {
     cashPerPoint: founderLevel(levels, 'M-SUP') > 0 ? FOUNDER_CASH_PER_POINT : 0,
     worksOffline: founderLevel(levels, 'M-REL') > 0,
     reachRows: Math.min(3, founderLevel(levels, 'M-REACH')),
+    hireGrowth: hireGrowthFor(founderLevel(levels, 'M-CLOUD')),
   }
+}
+
+/**
+ * §4.10a's growth base at this many levels of Recruiting.
+ *
+ * `1 + step / 2^L`. The base never reaches 1, so a hire never stops getting
+ * dearer — §6's lesson is not for sale, it is only ever made survivable.
+ */
+export function hireGrowthFor(levels: number): number {
+  const l = Math.max(0, Math.min(12, Math.floor(levels)))
+  return 1 + (HIRE_COST_GROWTH - 1) / RECRUITING_HALVING ** l
 }
 
 /** Levels bought, for the tree screen's header. */
