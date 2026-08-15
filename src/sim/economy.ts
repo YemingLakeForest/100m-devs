@@ -73,9 +73,61 @@ export function payrollPerSecond(devs: number): number {
  * *disproportionately* more, which is both true of real games and the only
  * shape that makes the loop solvable — see §4.10c and `PROJECTS`.
  */
-export function projectRevenue(index: number): number {
+export function projectRevenue(index: number, scale = 1): number {
   const ladder = PROJECT_PAYOUTS
-  return ladder[Math.max(0, Math.min(ladder.length - 1, Math.floor(index)))]
+  const i = Math.max(0, Math.floor(index))
+  const terminal = ladder.length - 1
+  const authored = ladder[Math.min(terminal, i)]
+  // **At the terminal rung**, not past it: `PROJECTS` clamps the index there and
+  // that rung is explicitly "the rate the studio runs at for the rest of the
+  // run", so it is the one that grows.
+  //
+  // `scale` is the ratio the *commitment* grew by, so dollars-per-story-point is
+  // identical at every size and this is a cadence change rather than an economy
+  // one. It is passed in rather than recomputed because the thing that shipped
+  // is the authority on how big it was — deriving it here from a cap that has
+  // moved since would pay a different price than the one on the burn-down.
+  return i < terminal ? authored : authored * projectScale(scale)
+}
+
+/**
+ * §4.4, §10.4 — **how long the studio should spend on one game.**
+ *
+ * The ladder's terminal rung is 4,000 story points and it used to repeat for
+ * ever. Measured at run 8 (§14.8): 2,800 developers producing ~700 SP a second
+ * ship that project **every six seconds**. §10.4's burn-down becomes a strobe,
+ * §10.11's gallery fills with hundreds of identically-named games, and shipping
+ * stops being an event.
+ *
+ * Two wrong answers were tried before this one, and both are worth keeping.
+ *
+ * **Ship count** compounds per *ship* rather than per *studio*, so a fast run
+ * outruns its own ladder within minutes — and it makes the size of your next
+ * game a fact about your history rather than about your company.
+ *
+ * **§4.2's cap** is the one that looked right and measured worst. The cap is
+ * what the studio *could* hold, not what it *has*: every run restarts at zero
+ * developers, so scaling by the cap opened each run with a project fifteen times
+ * larger than the last and nobody to build it. Measured, run 7 went to
+ * 451 s/ship at 160 developers and −$1M in the bank.
+ *
+ * So a project is sized by **the velocity that just shipped one**, at the moment
+ * it ships, floored at the authored rung. It is a fact about the studio as it
+ * actually is, it cannot outrun itself, and it holds a game at roughly
+ * {@link TARGET_BUILD_SECONDS} at every scale.
+ */
+/**
+ * Measured rather than chosen: 90 starved the early runs (cash went negative in
+ * runs 3-6, because a longer project means revenue arrives less often against a
+ * constant payroll) and 75 left run 8 collapsing on the hire curve. 60 keeps the
+ * treasury positive at every run and sits closest to the ~69 s the authored
+ * ladder already produced in Run 1, so the terminal rung inherits the cadence
+ * the story rungs set rather than imposing a new one.
+ */
+export const TARGET_BUILD_SECONDS = 60
+
+export function projectScale(scale: number): number {
+  return Number.isFinite(scale) && scale > 1 ? scale : 1
 }
 
 /**

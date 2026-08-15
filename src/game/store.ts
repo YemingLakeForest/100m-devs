@@ -68,6 +68,7 @@ import {
   isBankrupt,
   payrollPerSecond,
   projectRevenue,
+  TARGET_BUILD_SECONDS,
 } from '../sim/economy.ts'
 import {
   D_BASE,
@@ -595,9 +596,26 @@ export interface GameState {
  * same walk the live game does or an absence and a session disagree about what
  * project the player is on.
  */
-export function commitmentFor(index: number): Decimal {
-  const clamped = Math.min(Math.max(0, Math.floor(index)), PROJECTS.length - 1)
-  return new Decimal(PROJECTS[clamped].commitment)
+export function commitmentFor(index: number, s: GameState = state): Decimal {
+  const i = Math.max(0, Math.floor(index))
+  const terminal = PROJECTS.length - 1
+  const base = new Decimal(PROJECTS[Math.min(i, terminal)].commitment)
+  // §4.4 — the authored rungs are the authored rungs, and **the terminal one
+  // grows**, because `shipProject` clamps the index there and PROJECTS calls it
+  // "the rate the studio runs at for the rest of the run".
+  //
+  // Sized by the velocity the studio *has*, floored at the authored figure, so a
+  // game takes about `TARGET_BUILD_SECONDS` to build at every scale instead of
+  // shipping every six seconds. `projectScale` records the two sizings that were
+  // tried first and why the cap was the worse of them.
+  if (i < terminal) return base
+  const wanted = currentVelocity(s) * TARGET_BUILD_SECONDS
+  return wanted > base.toNumber() ? new Decimal(wanted) : base
+}
+
+/** How much bigger the shipped project was than §4.4's authored terminal rung. */
+function shippedScale(s: GameState): number {
+  return s.commitment.toNumber() / PROJECTS[PROJECTS.length - 1].commitment
 }
 
 /**
@@ -1103,7 +1121,7 @@ export function secondsToPayout(s: GameState = state): number {
 
 /** §4.10d — what the next ship is worth, for the runway readout. */
 export function nextPayout(s: GameState = state): number {
-  return projectRevenue(s.projectIndex)
+  return projectRevenue(s.projectIndex, shippedScale(s))
 }
 
 export function currentPayroll(s: GameState = state): number {
@@ -1237,7 +1255,7 @@ function shipProject(s: GameState): Partial<GameState> {
   // to the payout rather than to the tail, for the same reason the tech
   // multipliers are — the release must be worth exactly what it says it is.
   const revenue =
-    projectRevenue(s.projectIndex) *
+    projectRevenue(s.projectIndex, shippedScale(s)) *
     tech.revenueMultiplier *
     revenueMultiplier(rating) *
     reputationMultiplier(s.reputation)
@@ -1296,7 +1314,7 @@ function shipProject(s: GameState): Partial<GameState> {
     // ever. Applied to the commitment itself rather than to the ship test, so
     // §10.4's burn-down bar still reaches its own end and the player is not
     // watching a gauge that ships at 95% full.
-    commitment: new Decimal(next.commitment).times(tech.commitmentFraction),
+    commitment: commitmentFor(nextIndex, s).times(tech.commitmentFraction),
     burned: new Decimal(0),
     // §10.11 — the build that just finished is recorded, so the clock starts
     // again from zero for the next project. The figures themselves left with

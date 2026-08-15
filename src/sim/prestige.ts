@@ -152,29 +152,55 @@ export function canAfford(node: ParadigmNode, currentLevel: number, bp: number):
 
 /** §4.2's tuning. */
 export const D_BASE = 100
-export const CAP_MULTIPLIER = 1000
-export const CAP_EXPONENT = 1.35
+
+/**
+ * §4.2 — **what one level of Telepathic Compression multiplies the cap by.**
+ *
+ * It was `D_BASE * (1 + 1000 * L^1.35)`, and that curve is a cliff followed by a
+ * plateau: level 1 is ×1,001, level 2 adds ×2.5, and by level 5 a level is worth
+ * ×1.2. Only the first one ever mattered.
+ *
+ * Measured (§14.8, `pacing.test.ts`), that reads as a pacing hole you can see
+ * from orbit. Runs 2 to 6 crawled at ×1.1 a run — cap 100, 116, 116, 131, 150,
+ * 150 — because a shift yielded 12 BP and this node costs 25, so the player
+ * bought Async-First levels instead. Then run 7 bought it, the cap went to
+ * 150,526 in a single purchase, and the run outgrew a two-hour horizon.
+ * **Six four-minute runs and then a two-hour one, with nothing in between**,
+ * against §13.12.1's fifteen-to-forty-five-minute early loop.
+ *
+ * Geometric instead: every level is one clean order of magnitude, and every
+ * level is *fillable*, which the old level 1 emphatically was not. It also keeps
+ * the tree solvent — §14.1's BP grows as `R^0.2 · log10(peak)`, so a ×10 cap is
+ * worth about ×2.1 BP against §14.2's ×1.5 per level. The tree stays slightly
+ * ahead of its own prices for ever, which is the property a prestige ladder
+ * needs and the old curve lost after its first rung.
+ */
+export const CAP_STEP = 10
 
 /**
  * The developer cap after prestige — §4.2, **the only defence against §4.1**.
  *
  * $$D_{cap} = D_{base}\\,(1 + \\mu \\cdot \\text{BP}_{alloc}^{\\phi})$$
  *
- * `BP_alloc` is levels of Telepathic Compression, not BP spent, which is what
- * §13.2's "+1,000× per level" means once μ is 1000. One level takes the cap
- * from 100 to 100,100 — an enormous jump, and correctly so: a first shift
- * yields about twenty BP and the node costs twenty-five, so nobody reaches it
- * until their *second*. **The second prestige is the one that changes the
- * game**, which is a better arc than ten that each change it slightly.
+ * `L` is levels of Telepathic Compression, not BP spent. **One level is one
+ * order of magnitude**, replacing "+1,000× for the first level and a rounding
+ * error thereafter" — {@link CAP_STEP} carries the measurement that condemned
+ * that curve.
+ *
+ * The claim it gives up is worth naming, because it was a good one: the old
+ * shape made *the second prestige the one that changes the game*, which beats
+ * ten that each change it slightly. That is still true and it is now true ten
+ * times rather than once — the run after every level is visibly a different
+ * game, instead of one enormous step and a long silence.
  *
  * Async-First divides the communication load, and dividing the load is exactly
  * multiplying the cap — §4.1 only ever sees the ratio — so it lands here rather
  * than in a second, parallel adjustment nobody would remember to apply.
  */
 export function devCapFor(levels: Readonly<Record<string, number>>): number {
-  const compression = Math.max(0, levels['L1-1B'] ?? 0)
+  const compression = Math.max(0, Math.floor(levels['L1-1B'] ?? 0))
   const async = Math.min(5, Math.max(0, levels['L1-1A'] ?? 0))
-  const base = D_BASE * (1 + CAP_MULTIPLIER * compression ** CAP_EXPONENT)
+  const base = D_BASE * CAP_STEP ** compression
   // −10% load per level, capped at −50% by §13.2's max level of 5.
   return base / (1 - 0.1 * async)
 }

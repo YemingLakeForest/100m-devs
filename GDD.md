@@ -5009,6 +5009,46 @@ is the arc §21.7 describes. **The gate and the pacing were always the same deci
 > mistake §26.0 describes. Measuring it is Phase 1 work (§26.1.8 item 9), and if it comes in at
 > twenty minutes the answer is to move a target, not to move this table.
 
+#### 13.12.3 The measured curve is geometric, and the table's first row may be wrong **[OPEN]**
+
+**§13.12.1's numbers came from general idle-genre guidance rather than from this game**, which
+is how they should have started and not how they should end. §14.8 now has eight runs measured
+against them, and the shape that came out is not the table's:
+
+| | §13.12.1 asks | Measured (§14.8.8) |
+|---|---|---|
+| First steered run (Run 2) | **1–3 hours** | **4 minutes** |
+| Early loop (Runs 3–6) | 15–45 min | 4–7 min |
+| Mid-game (Runs 7+) | 2–8 hours | 23 min → 1h 14m → longer |
+
+The mid-game arrives on its own and the early loop is roughly an order of magnitude short. The
+question is which of the two is wrong, and there is a real argument that it is the table:
+
+> **A 1–3 hour first steered run assumes the first run is where the player learns everything.
+> In this game it is not.** §21's prologue already spends four minutes teaching the one lever
+> and ends in a bankruptcy nobody can steer. Run 2 is therefore the player's first *free* play
+> immediately after a scripted failure, and the genre's own reason for a long opening run —
+> discovery — has already been spent.
+>
+> What the measurement produced instead is a **geometric run-length curve**: minutes, then tens
+> of minutes, then hours. That is a good idle shape. It gives the early loop what §13.12.1 says
+> it is *for* — *"watching an hour of work redo itself in ten minutes"* — five times over in
+> the first half hour, rather than once after three hours.
+
+**This is a design decision and it is not taken here.** The two ways to close the gap:
+
+1. **Amend the table**, mapping "first steered run" to the first run *after the early loop* —
+   which is where the measurement puts it anyway — and accept minutes-long runs 2–6 as the
+   tutorial for the prestige loop rather than as a miss.
+2. **Lengthen runs 2–6**, most directly by making the first Telepathic Compression level
+   reachable in one run instead of five (it costs 25 BP against a 12 BP shift), so the cap and
+   the run grow together from the start.
+
+Option 2 is a two-character change and can be measured in a minute; option 1 costs nothing and
+changes what "on target" means. **Neither should be chosen from the armchair** — §13.12.2
+already made the mistake of settling a pacing question by argument, and §14.8 is the record of
+what three plausible arguments were worth against one measurement.
+
 ### 13.13 Heroes level **[CANON - added 2026-08-15]** - R53
 
 §13.10 gives a hero XP and spends it directly on nodes. **That works and it is missing the
@@ -5251,21 +5291,88 @@ growth base of 1.005, and measured a studio still stalled at 185 developers.
 > wired to a readout is worse than no lever, because it is a lie the interface tells
 > confidently.
 
-#### 14.8.5 What is still wrong, and it is the next thing
+#### 14.8.5 The plateau was not cash flow, and finding that out took three wrong answers
 
-**Runs 3 to 5 are four-minute plateaus at ~100 developers**, and the wall is not the hire curve
-— at a growth base of 1.02 the hundredth developer costs seven dollars. It is **cash flow**:
-§4.10e pays a shipped project out over a long tail, and payroll is charged every second at
-once. A studio growing through 100 heads is paying $4,900 a second for revenue that has not
-arrived yet, so it stalls until a Recruiting level breaks it open at run 6.
+**Runs 3 to 5 were four-minute plateaus at ~100 developers**, and the first two explanations
+were both wrong in a way worth recording, because both were plausible enough to have been
+implemented without checking.
 
-That is a real tension and §4.10d is entitled to it. What it is not entitled to be is *four
-minutes against §13.12.1's fifteen-to-forty-five*. The candidates, in the order they should be
-tried: the revenue tail's spike share (§4.10e), the wage against the terminal project's
-$137.50/SP, and §21.0a's seed round being the only cash injection in the game.
+**"It is the revenue tail."** §4.10e pays a project out over time while payroll is charged every
+second, so a growing studio pays for money that has not arrived. Reasonable, and false: the tail
+delivers 50–68% of a payout with a 4–8 second time constant and is ~95% done inside two minutes.
 
-> **Measure before changing any of them.** The instrument exists now, and every number in this
-> section came out of it rather than out of an argument.
+**"It is the cautious player."** The harness kept thirty seconds of payroll standing before
+hiring. Probed at 1, 5 and 30 seconds: headcount came out at ~185 in all three. Not the harness.
+
+**What it actually was**, once the harness printed velocity instead of only headcount:
+**§11.2's two cheapest nodes reduce output.** Daily Standups buys an entropy ceiling and charges
+a recurring pause for it; Pair Programming halves the keyboards and doubles what a release
+earns. A player buying cheapest-first takes both, and the measurement shows exactly what that
+does — **velocity halved from 62 to 32 SP/s at the same headcount**, and the treasury went
+negative.
+
+That is the game working. §11 warns that buying in the wrong order triggers the trap, and it
+does. What it condemns is the *player model*, which now reads the card: under the cap, a node
+that takes people off keyboards or stops the studio to talk about itself is skipped. The
+plateau vanished and every run since ends on §4.1.
+
+> **The general lesson, and it is the reason this file prints a table rather than only
+> asserting: a pacing measurement that reports one number reports the wrong one.** Headcount
+> alone said "hire-cost wall" for three separate causes. Velocity, cash and the tech list
+> together said which.
+
+#### 14.8.6 The cap was a cliff, and now it is a ladder
+
+With the plateau gone the measurement showed the next thing plainly. Runs 2 to 6 crawled —
+cap 100, 116, 116, 131, 150, 150 — because a shift yielded 12 BP and Telepathic Compression
+cost 25, so the player bought Async-First levels worth ×1.11 instead. Then run 7 bought it, the
+cap went to **150,526 in a single purchase**, and the run outgrew a two-hour horizon.
+**Six four-minute runs and then a two-hour one, with nothing in between.**
+
+`devCapFor` is geometric now — `D_BASE · 10^L`, one order of magnitude a level — and §4.2's
+{@link CAP_STEP} carries the reasoning. Every level is worth buying and every level is
+*fillable*, which the old ×1,001 first level emphatically was not.
+
+#### 14.8.7 A project now takes about a minute, at every scale
+
+The ladder's terminal rung is 4,000 story points and it repeated for ever, so at run 8's 700
+SP/s the studio shipped **every six seconds**: §10.4's burn-down a strobe, §10.11's gallery
+hundreds of identically-named games, and shipping no longer an event.
+
+Two sizings were tried before the one that works, and the second is the instructive one:
+
+| Sized by | What happened |
+|---|---|
+| **Ships completed** | Compounds per *ship* rather than per *studio* — a fast run outruns its own ladder in minutes, and the size of your next game becomes a fact about your history rather than your company |
+| **§4.2's cap** | Looked right, measured worst. **The cap is what the studio *could* hold, not what it *has***, and every run restarts at zero developers — so each run opened with a project fifteen times larger and nobody to build it. Run 7: 451 s/ship at 160 developers and −$1M in the bank |
+| **Velocity at ship time** ✔ | A fact about the studio as it actually is. Floored at the authored rung, so §21's 300/400/1,000/4,000 ladder is untouched |
+
+`TARGET_BUILD_SECONDS` is 60, and that is measured too: 90 starved the early runs into negative
+cash and 75 left run 8 collapsing on the hire curve. 60 sits closest to the ~69 s the authored
+ladder already produced in Run 1, so the terminal rung inherits the story's cadence rather than
+imposing one.
+
+#### 14.8.8 Where it stands
+
+| run | length | devs / cap | revenue | BP | cadence | wall |
+|---|---|---|---|---|---|---|
+| 1 | 3m | 76 / 100 | $988K | 11 | 69s | entropy |
+| 2 | 4m | 89 / 116 | $923K | 12 | 64s | entropy |
+| 4 | 4m | 100 / 131 | $1.0M | 12 | 66s | entropy |
+| 6 | 7m | 114 / 150 | $2.5M | 15 | 60s | entropy |
+| 7 | **23m** | 1,140 / 1,503 | $67.2M | 44 | 60s | entropy |
+| 8 | **1h 14m** | 1,330 / 1,754 | $314.4M | 62 | 60s | entropy |
+
+**Every run ends on §4.1**, which is §6.1.3's claim finally being true. Headcount tracks the cap.
+BP climbs 11 → 62 and keeps climbing. Ship cadence is flat at 60–75 s from 58 SP/s to 732.
+
+**What is still open** is the shape of the early loop: runs 2–6 are four to seven minutes
+against §13.12.1's fifteen-to-forty-five. The measured curve is *geometric* — short runs early,
+hours later — which is a good idle shape and not the one the table asks for. §13.12.3 is that
+argument.
+
+> **Measure before changing anything else.** Every number in this section came out of the
+> instrument rather than out of an argument, and three plausible arguments were wrong first.
 
 ## 15. Prestige UI Wireframes
 
@@ -8779,10 +8886,12 @@ anywhere.
 
 1. A run ends because §4.1 stopped it, never because the next head was unaffordable.
 2. Each prestige is worth visibly more than the last — headcount, revenue and BP all move.
-3. Run lengths land in §13.12.1's bands, which they **do not yet** — §14.8.5 has runs 3–5 at
-   four minutes against a fifteen-to-forty-five-minute target, cash-starved by §4.10e's tail.
+3. Run lengths land in §13.12.1's bands. Runs 7 and 8 do (23 min, 1h 14m); **runs 2–6 do not**,
+   at four to seven minutes against fifteen-to-forty-five — and §13.12.3 argues the table's
+   first row may be the thing that is wrong rather than the economy.
 
-Items 1 and 2 are done. Item 3 is the open work and it is the next thing in this phase.
+Items 1 and 2 are done. Item 3 is open and needs **a decision, not more tuning** — §13.12.3
+puts the two options side by side and declines to pick one from the armchair.
 
 #### 26.1.2 Heroes
 

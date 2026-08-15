@@ -40,6 +40,8 @@ import {
   buyTech,
   currentEntropy,
   dismissScene,
+  commitmentFor,
+  currentVelocity,
   effectiveDevCap,
   founderOf,
   getState,
@@ -52,7 +54,7 @@ import {
 } from './store.ts'
 import { emptyPermanent, getPermanent, setPermanent } from './save.ts'
 import { PARADIGM_TREE, bpFor, nodeCost } from '../sim/prestige.ts'
-import { TECH_TREE, boardCost, canBuyTech, techLevel } from '../sim/techTree.ts'
+import { TECH_TREE, boardCost, canBuyTech, techEffects, techLevel } from '../sim/techTree.ts'
 import { payrollPerSecond } from '../sim/economy.ts'
 import { FOUNDER_TREE, founderCost, hireGrowthFor } from '../sim/founder.ts'
 import { quote } from '../sim/hireDial.ts'
@@ -109,6 +111,12 @@ interface RunReport {
   /** §13.7.1 levels held at the end of the run, for reading the lever. */
   founder: string
   hireGrowth: number
+  /** Diagnostics for a plateau: what the studio was doing when it stopped. */
+  cash: number
+  velocity: number
+  tech: string
+  /** Seconds between ships at the end of the run — §10.4's chart is only readable if this is not a strobe. */
+  shipEvery: number
 }
 
 /**
@@ -131,13 +139,44 @@ function buyCheapestFounderNode(buffer: number): void {
   if (best) buyFounderNode(best.id)
 }
 
-/** The cheapest tech node this studio could buy right now, or null. */
+/**
+ * The cheapest tech node **a player who reads the card** would buy, or null.
+ *
+ * Not simply the cheapest: §11.2's B2 and B3 are the two cheapest nodes on the
+ * board and both *reduce output* — Daily Standups buys an entropy ceiling and
+ * charges a recurring pause for it, Pair Programming halves the keyboards and
+ * doubles what a release earns. Bought at the right moment they are correct;
+ * bought at 89 developers on a cap of 292 the ceiling is worth nothing and the
+ * pause is pure cost.
+ *
+ * A greedy-cheapest player bought both and the measurement showed exactly what
+ * that does: velocity **halved from 62 to 32 SP/s at the same headcount**, cash
+ * went negative, and runs 3 to 5 became four-minute plateaus. That is the game
+ * behaving correctly and the *player model* being naive, so the model reads the
+ * card: a node that lowers the share of the studio at a keyboard, or that
+ * introduces a standing pause, is skipped while the studio is under its cap.
+ *
+ * It is worth being explicit that this is a **harness** change and not a balance
+ * one. The trap is real, it is §11's own warning working, and a human can walk
+ * into it just as easily.
+ */
 function cheapestTech(): string | null {
   const s = getState()
   const shifts = getPermanent().meta.paradigmShifts
+  const now = techEffects(s.tech)
   let best: { id: string; cost: number } | null = null
+
   for (const node of TECH_TREE) {
     if (!canBuyTech(node, s.tech, s.cash, shifts)) continue
+
+    const after = techEffects({ ...s.tech, [node.id]: techLevel(s.tech, node.id) + 1 })
+    // Under the cap, anything that takes people off keyboards or stops the
+    // studio to talk about itself is a purchase that makes today worse for a
+    // ceiling today does not need.
+    const underCap = s.devs < effectiveDevCap(s) * 0.9
+    if (underCap && after.activeDevFraction < now.activeDevFraction) continue
+    if (underCap && after.standups && !now.standups) continue
+
     const cost = boardCost(node, techLevel(s.tech, node.id), shifts)
     if (!best || cost < best.cost) best = { id: node.id, cost }
   }
@@ -257,6 +296,13 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
       .map(([k, v]) => `${k.replace('M-', '')}${v}`)
       .join(' '),
     hireGrowth: founderOf().hireGrowth,
+    cash: end.cash,
+    velocity: currentVelocity(end),
+    tech: Object.entries(end.tech)
+      .filter(([, v]) => v > 0)
+      .map(([k, v]) => `${k}${v}`)
+      .join(' '),
+    shipEvery: commitmentFor(end.projectIndex, end).toNumber() / Math.max(1, currentVelocity(end)),
   }
 
   triggerParadigmShift()
@@ -278,13 +324,15 @@ function money(n: number): string {
 }
 
 function table(rows: RunReport[]): string {
-  const head = 'run |    length | devs / cap        | shipped |    revenue |   BP | wall      | founder'
+  const head =
+    'run |    length | devs / cap        | shipped |    revenue |   BP | wall      |     cash |    velocity |    cadence'
   const line = rows.map(
     (r) =>
       `${String(r.run).padStart(3)} | ${hms(r.seconds).padStart(9)} | ` +
       `${String(Math.floor(r.devs)).padStart(6)} / ${String(Math.floor(r.cap)).padEnd(10)}| ` +
       `${String(r.shipped).padStart(7)} | ${money(r.revenue).padStart(10)} | ` +
-      `${String(r.bp).padStart(4)} | ${r.wall.padEnd(10)}| g=${r.hireGrowth.toFixed(4)} ${r.founder}`,
+      `${String(r.bp).padStart(4)} | ${r.wall.padEnd(10)}| ${money(r.cash).padStart(8)} | ` +
+      `${r.velocity.toFixed(0).padStart(7)} SP/s | ${r.shipEvery.toFixed(0).padStart(5)}s/ship`,
   )
   return [head, ...line].join('\n')
 }
@@ -307,7 +355,6 @@ describe('§13.12 — how long a run actually takes', () => {
     const rows: RunReport[] = []
     for (let run = 1; run <= 8; run++) rows.push(playRun(run))
 
-    // eslint-disable-next-line no-console
     console.log(`\n§13.12 — measured run pacing, attended play at 3 pokes/sec\n${table(rows)}\n`)
 
     const last = rows[rows.length - 1]
@@ -341,7 +388,6 @@ describe('§13.12 — how long a run actually takes', () => {
     const rows: RunReport[] = []
     for (let run = 1; run <= 4; run++) rows.push(playRun(run))
 
-    // eslint-disable-next-line no-console
     console.log(`\nwhat stopped each run\n${table(rows)}\n`)
 
     // §13.7.1's lever has to reach the *transaction*, not just the readout.

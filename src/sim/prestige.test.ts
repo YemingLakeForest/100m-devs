@@ -8,8 +8,7 @@
 
 import { describe, expect, it } from 'vitest'
 import {
-  CAP_EXPONENT,
-  CAP_MULTIPLIER,
+  CAP_STEP,
   D_BASE,
   EFFECTIVE,
   NODE_BY_ID,
@@ -114,19 +113,22 @@ describe('the developer cap — §4.2', () => {
     expect(devCapFor({})).toBe(D_BASE)
   })
 
-  it('multiplies capacity a thousandfold on the first Compression level', () => {
-    // §13.2's "+1,000x per level" *is* §4.2's mu of 1000. The two read like
-    // different claims and are the same one.
-    expect(devCapFor({ 'L1-1B': 1 })).toBeCloseTo(D_BASE * (1 + CAP_MULTIPLIER), 6)
+  it('multiplies capacity by one order of magnitude per Compression level', () => {
+    // §13.2 read "+1,000x per level" and §4.2 implemented it as a x1,001 first
+    // level and a x2.5 second — a cliff and then a plateau, so only the first
+    // one ever mattered. §14.8's measurement is what condemned it: six
+    // four-minute runs crawling at x1.1 and then a two-hour one.
+    expect(devCapFor({ 'L1-1B': 1 })).toBeCloseTo(D_BASE * CAP_STEP, 6)
+    expect(devCapFor({ 'L1-1B': 3 })).toBeCloseTo(D_BASE * CAP_STEP ** 3, 6)
   })
 
-  it('accelerates with levels rather than adding evenly', () => {
-    // The 1.35 exponent is what lets late prestige reach millions of developers
-    // without breaking §4.1.
-    const one = devCapFor({ 'L1-1B': 1 })
-    const two = devCapFor({ 'L1-1B': 2 })
-    expect(two).toBeGreaterThan(one * 2)
-    expect(two).toBeCloseTo(D_BASE * (1 + CAP_MULTIPLIER * 2 ** CAP_EXPONENT), 6)
+  it('is worth the same multiple at every level, not just the first', () => {
+    // The property the old curve lost after its first rung. Each level has to
+    // be worth buying, or the tree is one node and eight decorations.
+    const caps = [0, 1, 2, 3, 4].map((l) => devCapFor({ 'L1-1B': l }))
+    for (let i = 1; i < caps.length; i++) {
+      expect(caps[i] / caps[i - 1]).toBeCloseTo(CAP_STEP, 6)
+    }
   })
 
   it('treats Async-First as capacity, because dividing load is multiplying cap', () => {
