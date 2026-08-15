@@ -545,3 +545,106 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* --- §13.11.2 the roster strip ------------------------------------------- */
+
+/*
+ * §10.5's bottom sheet, along the bottom edge of the world. Summoned and
+ * dismissed — never permanent furniture, which is the whole difference between
+ * this and a management screen.
+ */
+.roster {
+  position: absolute;
+  left: var(--edge-x);
+  right: var(--edge-x);
+  bottom: var(--edge-y);
+  display: grid;
+  justify-items: center;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.roster__strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: var(--rule) solid var(--p2);
+  /* Opaque, for §22.9's reason: it lands on §21's script block. */
+  background: var(--n0);
+}
+
+.roster__cards {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+}
+
+.roster__card {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  position: relative;
+  flex: 0 0 auto;
+  width: 80px;
+  padding: 4px;
+  border: var(--rule) solid var(--branch, var(--p2));
+  background: var(--n0);
+  color: var(--p1);
+  font: inherit;
+  font-size: var(--type-1x);
+  cursor: pointer;
+}
+
+.roster__face {
+  width: 40px;
+  height: 44px;
+  background: var(--n1);
+}
+
+.roster__name {
+  color: var(--n8);
+  letter-spacing: 1px;
+}
+
+.roster__reach {
+  color: var(--p1);
+  font-size: var(--type-1x);
+  transform: scale(0.82);
+  /* One line. `ROW · LV 1` wrapping into two makes a 72px card 14px taller
+     than its neighbours the moment somebody reaches FLOOR, and a strip whose
+     cards are different heights reads as a layout defect rather than as a
+     reach upgrade. */
+  white-space: nowrap;
+}
+
+.roster__where {
+  color: var(--branch, var(--p2));
+  transform: scale(0.82);
+  white-space: nowrap;
+}
+
+/* §13.10 — the one red word on this strip, because it is the one that is
+   actively costing the player something. */
+.roster__where[data-benched='true'] {
+  color: var(--alarm-2);
+}
+
+/* §13.13 — a hero with a point to spend is visibly waiting. */
+.roster__points {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  padding: 0 3px;
+  color: var(--n0);
+  background: var(--p3);
+}
+
+@media (max-height: 400px) {
+  .roster__face {
+    height: 34px;
+  }
+}

@@ -1,0 +1,85 @@
+/**
+ * §13.11.2 — the roster strip: *"who is idle?"*
+ *
+ * A single row of small cards along the bottom edge of the world, **summoned and
+ * dismissed, never permanent furniture** (§10.5's bottom sheet). Each card shows
+ * the portrait, the branch colour, the current reach, and one line: where they
+ * are, or `BENCHED`.
+ *
+ * > `BENCHED` is the only word on this strip that is allowed to be red, because
+ * > §13.10 makes it the one that is actively costing the player something.
+ *
+ * ## What this is not
+ *
+ * **It is not where placement happens.** §13.6.7 is unambiguous — *"if the
+ * player is managing heroes on a grid instead of in the world, the entire reason
+ * for this design has been thrown away."* Nothing here moves anybody. Tapping a
+ * card opens §22.9's card, which is a window onto a person; putting them
+ * somewhere is a drag on the floor (§13.8, §7.8.12), and it stays there.
+ *
+ * **It is also not the intended front door**, and this is worth writing down so
+ * it is not mistaken for the finished design. §7.8.12 gives the heroes a room —
+ * the executive suite, built around the desk the founder never left — and once
+ * that exists the way you reach Mo is by looking at Mo. The strip answers a
+ * question the world cannot ("who is idle?") and survives; it is doing double
+ * duty as the only door until the suite is built.
+ */
+
+import { Button } from '../ui/Button.tsx'
+import { Panel } from '../ui/Panel.tsx'
+import { REACH_LADDER } from '../sim/heroes.ts'
+import { heroIdentity } from '../sim/identity.ts'
+import type { HeroRuntime } from '../sim/heroRoster.ts'
+import { HeroFace } from './HeroFace.tsx'
+
+import '../styles/heroes.css'
+
+export function Roster({
+  open,
+  roster,
+  labelFor,
+  onOpen,
+  onClose,
+}: {
+  open: boolean
+  roster: readonly HeroRuntime[]
+  /** Where each hero is, in words — the same string §22.9's card shows. */
+  labelFor: (hero: HeroRuntime) => string
+  onOpen: (hero: HeroRuntime) => void
+  onClose: () => void
+}) {
+  return (
+    <Panel open={open} from="bottom" className="roster">
+      <div className="roster__strip">
+        <div className="roster__cards">
+          {roster.map((hero) => {
+            const face = heroIdentity(hero.id)
+            const where = labelFor(hero)
+            return (
+              <button
+                key={hero.id}
+                type="button"
+                className="roster__card"
+                style={{ ['--branch' as string]: hero.colour }}
+                onClick={() => onOpen(hero)}
+              >
+                {face && <HeroFace look={face.look} className="roster__face" />}
+                <span className="roster__name">{hero.hero.name}</span>
+                <span className="roster__reach">
+                  {REACH_LADDER[hero.reach].name.toUpperCase()} · LV {hero.progress.level}
+                </span>
+                <span className="roster__where" data-benched={where === 'BENCHED' ? 'true' : 'false'}>
+                  {where}
+                </span>
+                {/* §13.13 — a hero with something to spend is visibly waiting,
+                    on the strip as well as on the card. */}
+                {hero.points > 0 && <span className="roster__points">{hero.points}</span>}
+              </button>
+            )
+          })}
+        </div>
+        <Button onClick={onClose}>CLOSE</Button>
+      </div>
+    </Panel>
+  )
+}

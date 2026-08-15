@@ -14,6 +14,7 @@ import {
   hasSeenScene,
   heroById,
   heroCoverageOf,
+  heroRoster,
   hireDeveloper,
   hireQuote,
   massHire,
@@ -37,6 +38,7 @@ import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HeroCard } from './HeroCard.tsx'
 import { HeroTree } from './HeroTree.tsx'
+import { Roster } from './Roster.tsx'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 import { unitLabel } from '../sim/units.ts'
 import { HireDial } from './HireDial.tsx'
@@ -182,6 +184,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [gameMenuOpen, setGameMenuOpen] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [heroTreeOpen, setHeroTreeOpen] = useState(false)
+  const [rosterOpen, setRosterOpen] = useState(false)
+  const roster = heroRoster(state)
   // Resolved once per render: `heroById` rebuilds from `meta` and the run, so
   // asking twice in one frame would build the same six objects twice.
   const openHero = state.selectedHero === null ? null : heroById(state.selectedHero, state)
@@ -373,6 +377,23 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           */}
           <FounderDesk stage={stage} />
           {/*
+            §13.11.2 — the roster strip's summon control.
+
+            **Gated on there being more than one of them**, which is not a
+            cosmetic condition: James arrives alone in Act I and a `TEAM` button
+            over a team of one is the §10.6 web-page tell, on exactly the
+            argument PARADIGM and UPGRADES below already use. It appears the
+            first time somebody joins him.
+
+            This is the interim door and it is marked as one — §7.8.12's suite is
+            where a player is meant to reach these people, by looking at them.
+            The strip answers "who is idle?", which the world cannot, and
+            survives; the button is doing double duty until the room exists.
+          */}
+          {roster.length > 1 && (
+            <Button onClick={() => setRosterOpen((was) => !was)}>TEAM</Button>
+          )}
+          {/*
             §13.2 — the tree appears only once a Paradigm Shift has happened.
             Before the first one BP does not exist, and a permanently visible
             button onto an empty currency would be the §10.6 web-page tell.
@@ -447,6 +468,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         onOpenTree={() => setHeroTreeOpen(true)}
       />
       <HeroTree hero={openHero} open={heroTreeOpen && openHero !== null} onClose={() => setHeroTreeOpen(false)} />
+      <Roster
+        open={rosterOpen && openHero === null}
+        roster={roster}
+        labelFor={(hero) => heroPlacedLabel(hero, state)}
+        onOpen={(hero) => selectHero(hero.id)}
+        onClose={() => setRosterOpen(false)}
+      />
 
       <div
         className="hud__script"
