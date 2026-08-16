@@ -15,12 +15,21 @@ import {
   FIRST_PAID_RUNG,
   HIRE_COST_GROWTH,
   REFERENCE_CAP,
+  SP_PER_DEV_PER_SEC,
+  STARTING_DEVS,
+  TARGET_BUILD_SECONDS,
   capAdjustedGrowth,
   openingRung,
   WAGE_PER_DEV_PER_SEC,
 } from './economy.ts'
-import { PROJECTS } from '../game/store.ts'
-import { D_BASE, efficiency, passiveVelocity } from './entropy.ts'
+import { PROJECTS, __resetStore, getState, triggerParadigmShift } from '../game/store.ts'
+import { emptyPermanent, setPermanent } from '../game/save.ts'
+import {
+  D_BASE,
+  SP_PER_DEV_PER_SEC as ENTROPY_SP_PER_DEV_PER_SEC,
+  efficiency,
+  passiveVelocity,
+} from './entropy.ts'
 
 describe('the two figures the GDD actually states (§21)', () => {
   it('Act II: the first project pays exactly +$50', () => {
@@ -110,6 +119,26 @@ describe('§14.8.9 — the hire curve prices how full the studio is, not how big
   })
 })
 
+describe('the mirrors this module keeps of numbers it does not own', () => {
+  it('matches entropy.ts on passive output', () => {
+    expect(SP_PER_DEV_PER_SEC).toBe(ENTROPY_SP_PER_DEV_PER_SEC)
+  })
+
+  it('matches what a Paradigm Shift actually leaves standing — §21.6', () => {
+    // `openingRung` bounds the opening game by this number. It drifting from
+    // `triggerParadigmShift`'s `devs:` is how a studio ends up holding a game it
+    // has not the people to build, which is the failure the function's own note
+    // records. The store now reads the constant, so this asserts the mirror is
+    // still pointed at the right thing rather than at a copy of it.
+    __resetStore()
+    setPermanent(emptyPermanent())
+    triggerParadigmShift()
+    expect(getState().devs).toBe(STARTING_DEVS)
+    __resetStore()
+    setPermanent(emptyPermanent())
+  })
+})
+
 describe('revenue scales with the studio, not with the Story Point — §4.10c', () => {
   it('pays more per project as the ladder climbs', () => {
     for (let i = 1; i < PROJECT_PAYOUTS.length; i++) {
@@ -184,26 +213,42 @@ describe('revenue scales with the studio, not with the Story Point — §4.10c',
     // *Flappy Square 1.0* for fifty dollars. Measured, that stalled runs 2–8 at
     // **two developers**, because three garage games on §4.10e's tail never
     // clear the payroll buffer a third hire needs behind it.
-    expect(openingRung(0, REFERENCE_CAP)).toBe(0)
+    expect(openingRung(0, STARTING_DEVS)).toBe(0)
     for (let shifts = 1; shifts <= 12; shifts++) {
-      expect(openingRung(shifts, REFERENCE_CAP)).toBeGreaterThanOrEqual(FIRST_PAID_RUNG)
+      expect(openingRung(shifts, STARTING_DEVS)).toBeGreaterThanOrEqual(FIRST_PAID_RUNG)
     }
   })
 
-  it('opens on the largest game the inherited cap could have built', () => {
-    // One story point per developer of capacity. The bound matters more than the
-    // ratio: the cap only grows through §13.2's tree, so the opening game can
-    // never outrun the studio's ability to finish it — which is the failure
-    // §14.8.9 measured when a run was handed capital instead of a catalogue.
-    const rung = (cap: number) => openingRung(9, cap)
-    expect(rung(100)).toBe(FIRST_PAID_RUNG)
-    // Monotonic, and never past the terminal rung §4.4 grows on its own.
-    let last = rung(100)
-    for (const cap of [500, 1_000, 2_000, 5_000, 20_000, 1e9]) {
-      const r = rung(cap)
-      expect(r).toBeGreaterThanOrEqual(last)
+  it('opens on a game the two developers a run actually has can finish', () => {
+    // **The regression that named the bound.** This was written against the
+    // *cap* first — one story point per developer of capacity — and measured, at
+    // run 8, a cap of 210,526 handed the run the terminal 3,500-point game. Two
+    // developers need about seven hundred seconds for that, there is no money
+    // until it ships, and so there is no third hire: the run sat at two people
+    // and $0 revenue until the harness called it stalled.
+    //
+    // A run opens with the people §21.6 leaves it, not with the people its cap
+    // allows, and the opening game is bounded by §4.4's window at that headcount.
+    const buildable = STARTING_DEVS * SP_PER_DEV_PER_SEC * TARGET_BUILD_SECONDS
+    for (let shifts = 1; shifts <= 40; shifts++) {
+      const r = openingRung(shifts, STARTING_DEVS)
       expect(r).toBeLessThanOrEqual(PROJECT_COMMITMENTS.length - 1)
-      expect(PROJECT_COMMITMENTS[r]).toBeLessThanOrEqual(Math.max(cap, PROJECT_COMMITMENTS[FIRST_PAID_RUNG]))
+      // Either it is the floor, or it is genuinely buildable from a standing start.
+      expect(r === FIRST_PAID_RUNG || PROJECT_COMMITMENTS[r] <= buildable).toBe(true)
+    }
+  })
+
+  it('follows the starting headcount rather than hard-coding its own answer', () => {
+    // The bound is written as a computation because the 3 it currently produces
+    // is an *output*. If §21.6 ever leaves a run more people, the opening game
+    // should follow — this is the test that says so, and that would have caught
+    // the cap-bound version by showing it did not depend on headcount at all.
+    expect(openingRung(9, STARTING_DEVS)).toBe(FIRST_PAID_RUNG)
+    expect(openingRung(9, 1_000)).toBeGreaterThan(FIRST_PAID_RUNG)
+    let last = 0
+    for (const devs of [STARTING_DEVS, 20, 40, 100, 1_000]) {
+      const r = openingRung(9, devs)
+      expect(r).toBeGreaterThanOrEqual(last)
       last = r
     }
   })

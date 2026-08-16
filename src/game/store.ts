@@ -65,6 +65,7 @@ import {
   BANKRUPTCY_THRESHOLD,
   hireCost,
   massHireCost,
+  STARTING_DEVS,
   capAdjustedGrowth,
   isBankrupt,
   openingRung,
@@ -710,11 +711,11 @@ export function commitmentFor(index: number, s: GameState = state): Decimal {
  * said three ways, and a `projectIndex` that disagrees with the `commitment`
  * beside it is a burn-down chart counting toward the wrong number.
  */
-function openingProject(devCap: number): Pick<
+function openingProject(startingDevs: number): Pick<
   GameState,
   'projectIndex' | 'sprintName' | 'commitment'
 > {
-  const i = openingRung(getPermanent().meta.paradigmShifts, devCap)
+  const i = openingRung(getPermanent().meta.paradigmShifts, startingDevs)
   return {
     projectIndex: i,
     sprintName: PROJECTS[i].name,
@@ -2981,12 +2982,12 @@ export function triggerParadigmShift(): void {
     // from `freshRun()` would hand every prestige back the base hundred.
     devCap: devCapFor(getPermanent().layer1.paradigmLevels),
     // "So. Same time tomorrow?"
-    devs: 2,
+    devs: STARTING_DEVS,
     // §4.11 — and the roster has to say the same thing. `freshRun()` returns an
     // empty studio, so leaving this out would hand Run 2 two people that
     // `roleAtSeat` reads as developers by fallback rather than by record — the
     // two numbers would agree by luck, and stop agreeing at the first hire.
-    roster: newRoster(2),
+    roster: newRoster(STARTING_DEVS),
     /**
      * **Run 2 opens on the loop, not on the trap.**
      *
@@ -3015,7 +3016,7 @@ export function triggerParadigmShift(): void {
      * first-run device and re-teaching it is an insult — applied to the one part
      * of Run 1 that was still being re-taught every single run.
      */
-    ...openingProject(devCapFor(getPermanent().layer1.paradigmLevels)),
+    ...openingProject(STARTING_DEVS),
     // §10.10.2 — "outside Run 1 the dial is simply present from the first
     // frame. The funnel is a first-run device and re-teaching it is an insult."
     // The seed round is the same: it is a story beat, and it has happened.

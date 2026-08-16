@@ -202,26 +202,52 @@ export const PROJECT_COMMITMENTS: readonly number[] = [
  * that it cannot be spent on a hiring spree the run cannot pay for, which is the
  * exact failure that made §13.12.3's option 2 unshippable.
  *
- * **The bound is the cap, one story point per developer of capacity.** A studio
- * opens on the largest game it could have built with the people it is allowed to
- * hold. That is self-limiting in the direction that matters: the cap only grows
- * by §13.2's tree, so the opening game can never outrun the studio's ability to
- * finish it, and a run can never be handed a project it will still be building
- * when payroll empties the treasury.
+ * ## The bound is the **standing start**, and the first version got this wrong
+ *
+ * The first version bounded the rung by the *cap* — one story point per
+ * developer of capacity — reasoning that a studio opens on the largest game it
+ * could have built with the people it is allowed to hold. That reads well and it
+ * is the wrong noun. **A run does not open with the people it is allowed to
+ * hold; it opens with two.** §21.6 liquidates the swarm and leaves James.
+ *
+ * Measured, at run 8 of §14.8: cap 210,526, so the cap-bound rule handed the run
+ * the terminal 3,500-point game, which two developers need about seven hundred
+ * seconds to finish — and until it ships there is no money, so there is no
+ * hiring, so there is no velocity. The run sat at **two developers, $0 revenue
+ * and one game in progress** until the harness declared it stalled. A studio with
+ * a cap of two hundred thousand, unable to hire its third employee.
+ *
+ * So the bound is what the studio a fresh run *actually has* can build in §4.4's
+ * target window. That is `STARTING_DEVS · SP_PER_DEV_PER_SEC · TARGET_BUILD_SECONDS`
+ * — a hundred and twenty story points — which in practice always floors to
+ * {@link FIRST_PAID_RUNG}, and it is written as the computation rather than as
+ * the number 3 because the number 3 is an output. Raise the headcount a run
+ * opens with and the opening game should follow it; hard-coding the answer would
+ * silently decouple the two.
+ *
+ * **What this gives up, stated rather than buried.** "Each prestige opens on a
+ * bigger game" was a nice per-run reward and it is not on offer. It does not need
+ * to be: measured, the cap, the velocity, the revenue and the BP now all climb
+ * every single run, so the sense of progress is carried by the systems that can
+ * actually carry it. This function's job is the narrower one it was built for —
+ * **stop the studio re-climbing the garage** — and that it does.
  *
  * Floored at {@link FIRST_PAID_RUNG} because the garage is a Run 1 joke and
  * telling it twice is not funnier, and because every rung below that floor is
  * deliberately underwater on `r > W` — opening a run there would hand the player
  * a studio that loses money on every hire it is being told to make.
  */
-export function openingRung(paradigmShifts: number, devCap: number): number {
+export function openingRung(paradigmShifts: number, startingDevs: number): number {
   // Run 1 is the garage. It is the only run that earns the joke.
   if (!(paradigmShifts > 0)) return 0
+  const devs = Number.isFinite(startingDevs) && startingDevs > 0 ? startingDevs : 0
+  // Passive output only. §8.2's poking would raise this and a bound that assumed
+  // the player was poking would be a bound on the attentive player alone.
+  const buildable = devs * SP_PER_DEV_PER_SEC * TARGET_BUILD_SECONDS
   const terminal = PROJECT_COMMITMENTS.length - 1
-  const cap = Number.isFinite(devCap) ? devCap : 0
   let rung = FIRST_PAID_RUNG
   for (let i = FIRST_PAID_RUNG + 1; i <= terminal; i++) {
-    if (PROJECT_COMMITMENTS[i] > cap) break
+    if (PROJECT_COMMITMENTS[i] > buildable) break
     rung = i
   }
   return rung
@@ -322,6 +348,24 @@ export function capAdjustedGrowth(growth: number, devCap: number): number {
  * other economic module reads, and a test keeps the two in step.
  */
 export const REFERENCE_CAP = 100
+
+/**
+ * Passive output per developer per second, mirrored from `entropy.ts`.
+ *
+ * Same mirroring contract as {@link REFERENCE_CAP}, kept in step by test.
+ */
+export const SP_PER_DEV_PER_SEC = 1
+
+/**
+ * Developers a run opens with — §21.6, "James survives; everybody else is
+ * liquidated", plus you.
+ *
+ * Mirrored from `triggerParadigmShift`'s `devs: 2` and asserted against it,
+ * because {@link openingRung} bounds the opening game by exactly this number and
+ * the two silently disagreeing is how run 8 ended up unable to hire its third
+ * employee against a cap of two hundred thousand.
+ */
+export const STARTING_DEVS = 2
 
 export function hireCost(devs: number, growth = HIRE_COST_GROWTH): number {
   const n = Math.max(1, Math.floor(devs))

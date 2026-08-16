@@ -164,6 +164,69 @@ export const TECH_TREE: readonly TechNode[] = [
     ring: 3,
   },
 
+  /**
+   * §11.2a — **the second door into the protocol branch**, and the first half of
+   * the fix §14.8.10 asked for.
+   *
+   * Two findings, one node. §14.8.10 measured runs 3, 4 and 5 buying *nothing in
+   * any tree* and named both causes as prices rather than designs:
+   *
+   * > §11's price ladder has a hole. C7 *Planning Poker* is $250 K and C8
+   * > *Velocity Inflation* is $80 M — a factor of **320** — and runs 3 to 6 earn
+   * > $1 M to $2.5 M each. The early loop lives entirely inside that gap.
+   *
+   * > §11.2's protocol branch is closed behind a node no player under their cap
+   * > should buy. B2 *Daily Standups* costs output for a ceiling a healthy studio
+   * > does not need, B3 requires B2, and B4 requires B3 — so the only branch that
+   * > raises the developer cap *within* a run is unreachable in practice for
+   * > exactly the player who is playing well.
+   *
+   * That second one is the more interesting, because §11's opening line is
+   * *"upgrading Workforce without Communication Infra rapidly triggers the
+   * trap"* — and the player who wants Communication Infra had to buy a node that
+   * makes today worse to reach it.
+   *
+   * **The tension is kept and the wall is removed.** B2 still guards the
+   * *ceiling* chain — B2 → B3 → B4 is untouched, and buying a standing pause to
+   * cap entropy at 80% is still the trade §11.2 designed. What hangs off B1
+   * instead is a chain that buys **capacity** rather than a ceiling, which is the
+   * thing a healthy studio under its cap actually wants and could not previously
+   * reach at any price.
+   *
+   * Authored here rather than transcribed from §11, unlike every node above it.
+   * Recorded as such: §11.2's table has four B nodes and this file now has six.
+   */
+  {
+    id: 'B5',
+    branch: 'protocol',
+    name: 'Written Culture',
+    flavour:
+      'Every decision now requires a document. Nobody reads the documents. Nobody argues either.',
+    effect: 'Communication load −25%',
+    baseCost: 600_000,
+    mult: 1.13,
+    maxLevel: 1,
+    requires: 'B1',
+    x: 0,
+    y: 1,
+    ring: 2,
+  },
+  {
+    id: 'B6',
+    branch: 'protocol',
+    name: 'Microservices',
+    flavour:
+      'Every team owns its own service, its own database and its own pager. They no longer need to speak to each other — they need to speak to each other’s APIs, which is worse, but is asynchronous.',
+    effect: 'Communication load −35%',
+    baseCost: 4_000_000,
+    mult: 1.15,
+    maxLevel: 1,
+    requires: 'B5',
+    x: 0,
+    y: 2,
+    ring: 3,
+  },
+
   // --- Branch C — Culture & Juice (§11.3) ----------------------------------
   {
     id: 'C1',
@@ -191,6 +254,34 @@ export const TECH_TREE: readonly TechNode[] = [
     x: 0,
     y: -2,
     ring: 2,
+  },
+  /**
+   * §11.3a — the third rung in §14.8.10's price hole, and a different *kind* of
+   * reward from the two protocol nodes beside it.
+   *
+   * B5 and B6 both buy capacity, and a hole filled with three nodes that all say
+   * the same thing is a hole filled with a ramp nobody has to think about. §11.3
+   * is the branch where the studio spends money on its own people, C2 *Ergonomic
+   * Chairs* was the end of it, and recovery-plus-revenue is a shape the board
+   * does not otherwise offer at this price.
+   *
+   * The joke is that it is the only genuinely good idea anybody in this company
+   * has, and it is filed under perks.
+   */
+  {
+    id: 'C3',
+    branch: 'culture',
+    name: 'Four-Day Week',
+    flavour:
+      'Announced as a wellbeing initiative. Retained because output went up, which nobody mentions in the blog post.',
+    effect: 'Overwhelmed developers recover twice as fast again, and every game earns 15% more',
+    baseCost: 1_500_000,
+    mult: 1.12,
+    maxLevel: 1,
+    requires: 'C2',
+    x: 0,
+    y: -3,
+    ring: 3,
   },
   {
     id: 'C6',
@@ -427,8 +518,11 @@ export function techEffects(levels: TechLevels): TechEffects {
   const b2 = techLevel(levels, 'B2') > 0
   const b3 = techLevel(levels, 'B3') > 0
   const b4 = techLevel(levels, 'B4') > 0
+  const b5 = techLevel(levels, 'B5') > 0
+  const b6 = techLevel(levels, 'B6') > 0
   const c1 = techLevel(levels, 'C1') > 0
   const c2 = techLevel(levels, 'C2') > 0
+  const c3 = techLevel(levels, 'C3') > 0
   const c8 = techLevel(levels, 'C8') > 0
   const c9 = techLevel(levels, 'C9') > 0
   const c10 = techLevel(levels, 'C10') > 0
@@ -439,6 +533,12 @@ export function techEffects(levels: TechLevels): TechEffects {
   const b1Cap = 1 / 0.95 ** Math.min(b1, 5)
   // §11.2 B3 — "cuts Entropy growth by 60%", so 40% of the load remains.
   const b3Cap = b3 ? 1 / 0.4 : 1
+  // §11.2a — the capacity chain, stated the same way and for the same reason:
+  // reducing load and raising the cap are one operation, because §4.1 only ever
+  // sees the ratio. Multiplied rather than summed, so the two nodes compound and
+  // neither can ever drive the load to zero.
+  const b5Cap = b5 ? 1 / 0.75 : 1
+  const b6Cap = b6 ? 1 / 0.65 : 1
 
   // The tightest cap wins. They are not multiplied: two caps are two ceilings,
   // and the lower ceiling is simply the ceiling.
@@ -453,13 +553,15 @@ export function techEffects(levels: TechLevels): TechEffects {
   const estimationTier = c9 ? 5 : c8 ? 4 : techLevel(levels, 'C7') > 0 ? 3 : techLevel(levels, 'C6') > 0 ? 2 : 1
 
   return {
-    devCapMultiplier: b1Cap * b3Cap,
+    devCapMultiplier: b1Cap * b3Cap * b5Cap * b6Cap,
     entropyCap,
     activeDevFraction: b3 ? 0.5 : 1,
-    revenueMultiplier: (b3 ? 2 : 1) * (c9 ? 0.9 : 1),
+    revenueMultiplier: (b3 ? 2 : 1) * (c9 ? 0.9 : 1) * (c3 ? 1.15 : 1),
     estimationTier,
     flowSurvivesPoke: c1,
-    overwhelmedScale: c2 ? 0.7 : 1,
+    // §11.3a C3 stacks on §11.3 C2 rather than replacing it — "twice as fast
+    // *again*" is what the card says, and the two nodes are a chain.
+    overwhelmedScale: (c2 ? 0.7 : 1) * (c3 ? 0.5 : 1),
     velocityDisplayScale: c8 ? 1.1 : 1,
     commitmentFraction: c10 ? 0.95 : 1,
     standups: b2,
