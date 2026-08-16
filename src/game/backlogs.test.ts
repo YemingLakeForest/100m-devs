@@ -310,9 +310,17 @@ describe('§4.12a — the catalogue pages you, and a page is a freeze', () => {
 
 describe('§4.13 — the tickets do not stop, and never stop the game', () => {
   it('leaves a garage alone, because the founder answers the email', () => {
-    play(240, 4)
+    // **Played to the catalogue, not to a stopwatch.** This said `play(240, 4)`
+    // and asserted on "one shipped game", and the two agreed only by accident:
+    // §4.10f split the garage into three short rungs, four minutes started
+    // shipping four or five games instead of one, and the test failed for the
+    // entirely correct reason that a five-game catalogue *has* outgrown one
+    // founder. The subject is a garage, so the setup has to be a garage.
+    playUntilShipped(4)
+    expect(getState().releases.length).toBe(1)
     // One shipped game is 0.1 tickets a second against the founder's 0.4 heads.
     // A catalogue of one has not outgrown anybody.
+    play(60)
     expect(getState().tickets).toBeCloseTo(0, 6)
   })
 

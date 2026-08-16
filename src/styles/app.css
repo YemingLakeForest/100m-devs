@@ -451,6 +451,9 @@ body {
   align-self: end;
   display: grid;
   gap: 5px;
+  /* The containing block for §18.0's event banner, which floats above this
+     block rather than sitting in it — see `.event-banner`. */
+  position: relative;
   /* The banner is drawn `pre` and a long line must not be able to push the
      grid column wider than the rail arithmetic allows. */
   min-width: 0;
@@ -3166,5 +3169,161 @@ body {
    */
   .hud__controls .ui-btn {
     padding: 4px 8px;
+  }
+}
+
+/* --- §18.0 events ------------------------------------------------------- */
+
+/*
+ * The card, and the banner it stands down to.
+ *
+ * Both are drawn in the same grammar as everything else on the glass: a 1px
+ * rule, a wash of the darkest neutral, no fill and no bevel. The card borrows
+ * `.game-menu`'s geometry rather than inventing a second centred-modal shape —
+ * they are the same object at two urgencies, and the only difference that
+ * matters is the border colour.
+ */
+.event-card {
+  display: grid;
+  width: min(40em, calc(100% - 2 * var(--edge-x)));
+  max-height: calc(100% - 2 * var(--edge-y));
+  overflow: auto;
+  padding: 14px 18px;
+  /*
+   * `--alarm-*` is injected by `art/cssTokens.ts` from the one palette, and
+   * `--p3` is the live entropy-themed brightest step. The card takes the theme
+   * rather than a fixed alarm colour on purpose: the frame is *already* red
+   * when this appears, because a live event drives §4.1 straight into the top
+   * of the speedometer, so a hard-coded alarm hue would clash with the hue the
+   * event itself caused.
+   */
+  border: var(--rule) solid var(--p3);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  pointer-events: auto;
+}
+
+.event-card__body {
+  display: grid;
+  gap: 8px;
+}
+
+.event-card__kicker {
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
+}
+
+.event-card__name {
+  margin: 0;
+  font-size: var(--type-3x);
+  letter-spacing: 2px;
+  color: var(--p3);
+}
+
+/* Machine output, so it is drawn `pre` in the terminal register — the same
+   treatment `.hud__terminal` gives a banner. */
+.event-card__headline {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  color: var(--p2);
+}
+
+.event-card__text {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  color: var(--p2);
+}
+
+/*
+ * Two buttons, side by side and never stacked. A column would make the top one
+ * read as the default answer, and §18.0's whole argument is that the player is
+ * choosing between two real exits — one that ends this thread and one that ends
+ * threads.
+ */
+.event-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/*
+ * The banner. Directly above §21's advisor copy, and **out of flow.**
+ *
+ * `position: absolute` is the load-bearing declaration and it is not a
+ * layering preference. `.hud`'s grid is
+ *
+ *     'left bubble right'
+ *     'left script right'
+ *
+ * with the rails spanning both rows, so the script row's *content* height is
+ * part of what decides whether the whole grid fits the frame. In flow, the
+ * banner added about fifty pixels to that row and the gate caught it
+ * immediately: at 640x360 the play tools, the MENU button and §10.1's whole nav
+ * were drawn three pixels below the bottom of the screen. That is trap 29's
+ * shape — a change in the middle column charged to the rails — and the fix is
+ * for a temporary overlay to cost the layout nothing at all.
+ *
+ * Out of flow it is also the honest description of the thing: §7.1's Layer,
+ * overlayed and contextual, over a simulation that keeps running behind it. It
+ * is not a rail readout and it must never become one.
+ */
+.event-banner {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  /* Never wider than the middle column: the rails own the sides to the pixel
+     and §10.1a's first rule is that nothing may draw outside its own column. */
+  max-width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 4px 9px 6px;
+  border-left: var(--rule) solid var(--p3);
+  background: color-mix(in srgb, var(--n0) 70%, transparent);
+  pointer-events: auto;
+}
+
+.event-banner__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+}
+
+.event-banner__name {
+  color: var(--p3);
+}
+
+.event-banner__cost {
+  color: var(--p1);
+}
+
+.event-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.event-banner__actions .ui-btn {
+  font-size: var(--type-1x);
+  padding: 5px 9px;
+}
+
+@media (max-height: 470px) {
+  .event-card {
+    gap: 5px;
+    padding: 8px 12px;
+  }
+
+  .event-card__name {
+    font-size: var(--type-2x);
+  }
+
+  .event-banner {
+    padding: 3px 7px 4px;
   }
 }

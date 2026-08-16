@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { HeroId } from '../sim/storyHeroes.ts'
-import { NO_HEROES, unlocksFor } from './unlocks.ts'
+import { NO_BOARDS, NO_HEROES, unlocksFor } from './unlocks.ts'
 
 const roster = (...ids: HeroId[]): ReadonlySet<HeroId> => new Set(ids)
 const ALL = roster('james', 'mo', 'serena', 'matt', 'melany', 'billy')
@@ -25,6 +25,12 @@ describe('§21.0c — the first Paradigm Shift is the door', () => {
       expect(u.tickets).toBe(false)
       expect(u.anyBacklog).toBe(false)
       expect(u.roles).toEqual({ qa: false, sre: false, support: false })
+      // §21.7.7 — and not the two personal boards either, whatever the story
+      // thinks it has already shown this player. Run 1's whole argument is one
+      // lever, and a skill tree bought with the money the trap is about to take
+      // is a second one.
+      expect(u.founderBoard).toBe(false)
+      expect(u.heroBoard).toBe(false)
     }
   })
 
@@ -46,6 +52,48 @@ describe('§21.0c — the first Paradigm Shift is the door', () => {
     for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -1, undefined as unknown as number]) {
       expect(unlocksFor(bad, ALL).upgrades).toBe(false)
     }
+  })
+})
+
+/**
+ * §21.7.7 — an upgrade board is an instrument too, and that is the class of
+ * victim §21.7.6 did not count.
+ *
+ * §11's studio tree was already gated and already had a scene. §13.7.1's
+ * Management tree and §13.9's hero board had neither: both were reachable the
+ * moment the object they hang off existed, and for the founder's tree that
+ * meant the first frame of Run 1.
+ */
+describe('§21.7.7 — the two personal boards arrive with somebody', () => {
+  it('opens neither on a shift alone', () => {
+    // The shift opens §11's tree, because James hands that one over in §21.6's
+    // scene at the same moment. The other two have their own scenes and their
+    // own feelings, and neither of those is "you prestiged".
+    const u = unlocksFor(1, ALL)
+    expect(u.upgrades).toBe(true)
+    expect(u.founderBoard).toBe(false)
+    expect(u.heroBoard).toBe(false)
+  })
+
+  it('opens each one on its own introduction, and only that one', () => {
+    expect(unlocksFor(1, ALL, { founder: true, hero: false }).founderBoard).toBe(true)
+    expect(unlocksFor(1, ALL, { founder: true, hero: false }).heroBoard).toBe(false)
+    expect(unlocksFor(1, ALL, { founder: false, hero: true }).heroBoard).toBe(true)
+    expect(unlocksFor(1, ALL, { founder: false, hero: true }).founderBoard).toBe(false)
+  })
+
+  it('defaults to neither, so a caller that has not derived them cannot leak one', () => {
+    expect(unlocksFor(1, ALL, NO_BOARDS).founderBoard).toBe(false)
+    expect(unlocksFor(1, ALL).heroBoard).toBe(false)
+  })
+
+  it('shuts both again for Run 1 even when the scenes are on record', () => {
+    // The two gates are applied in order and §21.0c's is the floor. A player
+    // who somehow carries both introductions into a fresh Run 1 — which a
+    // `?act` jump or a hand-edited save can produce — still gets Run 1.
+    const u = unlocksFor(0, ALL, { founder: true, hero: true })
+    expect(u.founderBoard).toBe(false)
+    expect(u.heroBoard).toBe(false)
   })
 })
 

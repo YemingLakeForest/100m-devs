@@ -25,11 +25,15 @@ import {
 } from './game/founderProfile.ts'
 import { getPermanent, setPermanent } from './game/save.ts'
 import {
+  SCENE_FOUNDER_BOARD,
+  SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
   SCENE_MATT_ARRIVES,
   SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
+  SCENE_THE_THREAD,
 } from './game/scenes.ts'
+import { THREAD } from './sim/events.ts'
 
 import './styles/title.css'
 
@@ -156,6 +160,25 @@ export default function App() {
             SCENE_MO_ARRIVES.id,
             SCENE_SERENA_ARRIVES.id,
             SCENE_MATT_ARRIVES.id,
+            /*
+             * §18.0a and §21.7.7 — **trap 28, applied in the same commit.**
+             *
+             * Three new scenes can claim this frame. The thread fires on the
+             * first tick of any Run 2 studio past twelve developers with an
+             * empty board, which is exactly what this fixture is, and a scene
+             * halts the tick and covers the HUD with a dialogue box — so the
+             * gate would have been measuring the §10.7 box rather than the
+             * worst frame the HUD ever has to draw.
+             *
+             * Recorded rather than suppressed, on the same argument the four
+             * arrivals above are recorded: a player at this point in a career
+             * has been through all of them. The event itself is set live and
+             * *routed* below, because §18.0's banner is part of the worst frame
+             * and its modal is a different, simpler one.
+             */
+            SCENE_THE_THREAD.id,
+            SCENE_FOUNDER_BOARD.id,
+            SCENE_HERO_BOARD.id,
           ],
         },
       })
@@ -172,6 +195,18 @@ export default function App() {
         ],
         // Deep enough that §4.13's bar reads FALLING BEHIND and names its cure.
         tickets: 400,
+        // §18.0 — a live event, already routed, so the frame carries the
+        // banner and its two controls. Mid-count, because `REPLY TO ALL · 14`
+        // is a wider label than the first or last reading of it.
+        //
+        // `?full&event` leaves it *unrouted* instead, which is §18.0a's modal —
+        // a different and simpler frame, gated separately.
+        event: {
+          id: THREAD.id,
+          remaining: 14,
+          age: 42,
+          routed: !new URLSearchParams(location.search).has('event'),
+        },
       })
     }
 

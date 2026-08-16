@@ -137,7 +137,95 @@ export function projectScale(scale: number): number {
  * that must agree and are edited in different files is exactly the pairing that
  * silently drifts.
  */
-export const PROJECT_PAYOUTS: readonly number[] = [50, 25_000, 120_000, 550_000]
+export const PROJECT_PAYOUTS: readonly number[] = [
+  50,
+  1_500,
+  12_000,
+  38_000,
+  110_000,
+  320_000,
+  900_000,
+  2_600_000,
+]
+
+/**
+ * The first rung the player ships while paying somebody — §4.10f.
+ *
+ * §21's phase machine holds `act2_ship` until this many games are out, and only
+ * then opens Act IIa's hiring loop. Everything below this index is garage work
+ * at two unpaid founders; everything from it upward must satisfy `r > W`, and
+ * `economy.test.ts` asserts exactly that split rather than asserting it from
+ * rung 1 — which is what forced the old ×500 cliff between the first two games.
+ *
+ * It lives here, beside the payouts and the wage, rather than in the store: the
+ * phase machine needs it and `onboarding.ts` cannot import the store. The three
+ * places this rule lives — the ladder, the gate and the test — drifting apart is
+ * precisely how a player ends up hiring into a loss.
+ */
+export const FIRST_PAID_RUNG = 3
+
+/**
+ * Sprint Commitments, mirrored beside the payouts for {@link openingRung}.
+ *
+ * Same contract as {@link PROJECT_PAYOUTS}: the store owns `PROJECTS` and a test
+ * asserts these two lists never drift from it.
+ */
+export const PROJECT_COMMITMENTS: readonly number[] = [
+  300,
+  200,
+  300,
+  600,
+  900,
+  1_400,
+  2_200,
+  3_500,
+]
+
+/**
+ * Which game a run opens on — §4.10f, §13.12.4.
+ *
+ * **A studio that shipped a live-service hero shooter last run does not go back
+ * to making a $50 mobile game**, and until this existed it did exactly that:
+ * `triggerParadigmShift` reset `projectIndex` to zero, so every run in the
+ * career re-climbed the garage ladder from *Flappy Square 1.0*.
+ *
+ * That was invisible while the ladder's second rung paid $25,000 — the replay
+ * lasted about twenty seconds and then the studio was rich. §4.10f spread that
+ * one payout across three garage rungs, and the replay stopped being invisible
+ * immediately: measured, runs 2–8 stalled at **two developers** on §4.10a's hire
+ * cost, because three games earning $13,550 on §4.10e's tail never clear the
+ * thirty seconds of payroll a third hire needs standing behind it.
+ *
+ * So the run inherits a **position in the catalogue** rather than a pile of
+ * cash. §14.8.9 named the cash version — *"the bank lends against the company
+ * you have proven you can build"* — and this is the same idea with the advantage
+ * that it cannot be spent on a hiring spree the run cannot pay for, which is the
+ * exact failure that made §13.12.3's option 2 unshippable.
+ *
+ * **The bound is the cap, one story point per developer of capacity.** A studio
+ * opens on the largest game it could have built with the people it is allowed to
+ * hold. That is self-limiting in the direction that matters: the cap only grows
+ * by §13.2's tree, so the opening game can never outrun the studio's ability to
+ * finish it, and a run can never be handed a project it will still be building
+ * when payroll empties the treasury.
+ *
+ * Floored at {@link FIRST_PAID_RUNG} because the garage is a Run 1 joke and
+ * telling it twice is not funnier, and because every rung below that floor is
+ * deliberately underwater on `r > W` — opening a run there would hand the player
+ * a studio that loses money on every hire it is being told to make.
+ */
+export function openingRung(paradigmShifts: number, devCap: number): number {
+  // Run 1 is the garage. It is the only run that earns the joke.
+  if (!(paradigmShifts > 0)) return 0
+  const terminal = PROJECT_COMMITMENTS.length - 1
+  const cap = Number.isFinite(devCap) ? devCap : 0
+  let rung = FIRST_PAID_RUNG
+  for (let i = FIRST_PAID_RUNG + 1; i <= terminal; i++) {
+    if (PROJECT_COMMITMENTS[i] > cap) break
+    rung = i
+  }
+  return rung
+}
 
 /**
  * §21.0 — what the next developer costs.
@@ -178,6 +266,63 @@ export const HIRE_COST_GROWTH = 1.08
  * module's constant to build the lever, so this module reading `founder.ts`
  * back would be a cycle.
  */
+/**
+ * §4.10a's growth base, **normalised by the capacity it is filling** — §14.8.9.
+ *
+ * §14.8.9 named this as one of two candidate fixes for the wall that is not
+ * §4.1: *"make the hire cost scale with the cap rather than with headcount
+ * alone, so a bigger cap makes each head cheaper as well as allowed."* It was
+ * not taken then because it was untested. It is tested now, and the measurement
+ * that forced it is run 8 of §14.8: cap 1,754, treasury −$1,011,069, stalled at
+ * 1,180 developers on the **price of a head** with §4.1 nowhere in sight.
+ *
+ * The argument is not only mechanical. A company allowed 1,754 people, hiring
+ * its thousandth, is not doing something `1.08^1000` times harder than two
+ * friends in a garage hiring their second — **it is 57% full**. The old curve
+ * priced absolute headcount, which is a fact about the world; this prices how
+ * much of your own capacity you have used, which is a fact about your company,
+ * and capacity is the thing §13.2's tree actually sells.
+ *
+ * ## Why an effective base rather than a new formula
+ *
+ * Raising the exponent's divisor turns `g^(n·D/cap)` back into a geometric
+ * series with ratio `g^(D/cap)`, so **every closed form in `hireDial.ts` keeps
+ * working untouched** — `batchCost`'s series sum and `maxAffordable`'s logarithm
+ * both stay exact. A bespoke cost curve would have needed both re-derived, and
+ * §10.10.3's dial would have quietly drifted from what the game charges.
+ *
+ * ## What it does not change
+ *
+ * At `cap === D_BASE` this is the identity, so **Run 1 is unchanged to the
+ * cent** — the whole §21 ladder, Act IIa's $238-to-forty-developers, and Act
+ * III's treasury are all priced off a cap of exactly 100.
+ *
+ * §6's lesson is not for sale here either. The base still never reaches 1, the
+ * last quarter of any cap is still expensive, and §4.1 is untouched — what goes
+ * away is a *second* wall that was standing in front of the first one.
+ *
+ * §13.7.1's Recruiting node survives rather than being made redundant, which
+ * §14.8.9 flagged as the risk: it lowers `growth` before this scales it, so it
+ * still buys a cheaper climb through whatever cap you hold.
+ */
+export function capAdjustedGrowth(growth: number, devCap: number): number {
+  const g = Number.isFinite(growth) && growth > 1 ? growth : HIRE_COST_GROWTH
+  const cap = Number.isFinite(devCap) && devCap > 0 ? devCap : REFERENCE_CAP
+  // A cap below the reference would make hiring *dearer* than Run 1. Nothing in
+  // the game produces one, and clamping is cheaper than reasoning about it.
+  if (cap <= REFERENCE_CAP) return g
+  return g ** (REFERENCE_CAP / cap)
+}
+
+/**
+ * The cap §4.10a's raw curve was authored against — §21's Run 1.
+ *
+ * Mirrored from `entropy.ts`'s `D_BASE` rather than imported, for the same
+ * reason {@link PROJECT_PAYOUTS} is mirrored: this module is the leaf every
+ * other economic module reads, and a test keeps the two in step.
+ */
+export const REFERENCE_CAP = 100
+
 export function hireCost(devs: number, growth = HIRE_COST_GROWTH): number {
   const n = Math.max(1, Math.floor(devs))
   const g = Number.isFinite(growth) && growth > 1 ? growth : HIRE_COST_GROWTH

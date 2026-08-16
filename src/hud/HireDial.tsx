@@ -13,6 +13,7 @@
 import { playUi } from '../ui/uiSfx.ts'
 import { formatMoney } from './hudModel.ts'
 import { quote, segmentsFor, type Multiplier } from '../sim/hireDial.ts'
+import { HIRE_COST_GROWTH } from '../sim/economy.ts'
 import { ROLES, ROLE_BLURB, ROLE_LABEL, type Role } from '../sim/roles.ts'
 
 export interface HireDialProps {
@@ -25,6 +26,20 @@ export interface HireDialProps {
   onRoleChange: (role: Role) => void
   /** §4.11 — the roles the studio has a reason to hire yet. */
   availableRoles?: readonly Role[]
+  /**
+   * §4.10a's growth base as the game will charge it — `store.hireGrowthNow`.
+   *
+   * **Required, and it was missing.** These segments are priced by `quote`, the
+   * same function the transaction uses, and the call here passed no growth at
+   * all — so the dial quoted §13.7.1's Recruiting away and, once §14.8.9's cap
+   * normalisation landed, would have quoted that away too. `hireDial.ts` has the
+   * rule in a comment already: if a cost curve has two entry points, both take
+   * the modifier or neither does. This is the third.
+   *
+   * Optional in the type only so the default matches `quote`'s own; every caller
+   * in the app passes it.
+   */
+  growth?: number
 }
 
 /**
@@ -83,6 +98,7 @@ export function HireDial({
   role,
   onRoleChange,
   availableRoles = ROLES,
+  growth = HIRE_COST_GROWTH,
 }: HireDialProps) {
   const segments = segmentsFor(devs)
   // The role row outlives the multiplier row: §10.10.2 hides the multiplier
@@ -96,7 +112,7 @@ export function HireDial({
       {roleDial}
       <div className="hire-dial" role="group" aria-label="Hire multiplier">
         {segments.map((seg) => {
-          const q = quote(devs, cash, seg.value)
+          const q = quote(devs, cash, seg.value, growth)
           const selected = seg.value === value
           return (
             <button

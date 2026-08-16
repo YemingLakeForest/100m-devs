@@ -14,6 +14,7 @@ import {
   type Phase,
 } from './onboarding.ts'
 import { efficiency, passiveVelocity } from '../sim/entropy.ts'
+import { FIRST_PAID_RUNG } from '../sim/economy.ts'
 
 const base: OnboardingSnapshot = {
   pokeCount: 0,
@@ -137,13 +138,21 @@ describe('Act II — the first hire the player pays for', () => {
     expect(advanceOnboarding('act2_offer_hire', at({ devs: 2 }))).toBe('act2_ship')
   })
 
-  it('waits for the project to actually ship', () => {
-    expect(advanceOnboarding('act2_ship', at({ devs: 2 }))).toBe('act2_ship')
-    expect(advanceOnboarding('act2_ship', at({ devs: 2, projectsShipped: 1 }))).toBe('act2_ship')
-    // §4.10c — two projects. The first pays $50 and payroll starts with the
-    // third developer, so opening the hire prompt after one shipped project
-    // handed the player a HIRE button and one second of runway.
-    expect(advanceOnboarding('act2_ship', at({ devs: 2, projectsShipped: 2 }))).toBe('act2a_loop')
+  it('waits for the whole garage catalogue to ship', () => {
+    // §4.10c, §4.10f — the first paid rung, not the second project. The first
+    // game pays $50 and payroll starts with the third developer, so opening the
+    // hire prompt early handed the player a HIRE button and one second of
+    // runway. Every rung below `FIRST_PAID_RUNG` is deliberately underwater on
+    // §4.10c's `r > W`, and this gate is what keeps the player off payroll until
+    // they are all out of the door.
+    for (let shipped = 0; shipped < FIRST_PAID_RUNG; shipped++) {
+      expect(advanceOnboarding('act2_ship', at({ devs: 2, projectsShipped: shipped }))).toBe(
+        'act2_ship',
+      )
+    }
+    expect(
+      advanceOnboarding('act2_ship', at({ devs: 2, projectsShipped: FIRST_PAID_RUNG })),
+    ).toBe('act2a_loop')
   })
 
   it('does not hand over the bait until the loop has been played', () => {

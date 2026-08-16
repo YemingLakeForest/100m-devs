@@ -58,6 +58,7 @@ import { TECH_TREE, boardCost, canBuyTech, techEffects, techLevel } from '../sim
 import { payrollPerSecond } from '../sim/economy.ts'
 import { FOUNDER_TREE, founderCost, hireGrowthFor } from '../sim/founder.ts'
 import { quote } from '../sim/hireDial.ts'
+import { MASS_HIRE_COUNT } from './onboarding.ts'
 
 /** §7.8.7's shares are seeded; a pacing measurement must not roll dice. */
 const FIXED_SEED = 0x5eed
@@ -246,14 +247,29 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
     // headcount charges a two-person studio for wages it does not pay and
     // freezes the opening of every run after a prestige. Measured off the real
     // payroll instead.
-    const buffer = BUFFER_SECONDS * payrollPerSecond(getState().devs + 1)
-    while (
-      getState().cash - nextHireCost() > buffer &&
-      getState().devs < effectiveDevCap() * 0.758 &&
-      hireDeveloper()
-    ) {
-      /* keep hiring */
+    // **The buffer is recomputed every hire, and that is not a detail.**
+    //
+    // It used to be read once and then spent inside the loop, which modelled a
+    // player who checks their runway, hires until the money runs out, and never
+    // looks again. That was invisible while §4.10a's raw curve made the
+    // thousandth head cost a fortune — the price stopped the loop long before
+    // the buffer had to. §14.8.9's cap normalisation removed that accidental
+    // brake, and the stale buffer immediately showed what it had been hiding:
+    // run 8 hired 1,330 people in a single frame on a few thousand dollars, took
+    // on $66,400/sec of payroll before it had shipped anything, and was past
+    // §4.10's bankruptcy threshold within seconds.
+    //
+    // That is a **measurement** error and not a balance one. `BUFFER_SECONDS` is
+    // documented as "seconds of payroll a cautious player keeps standing", and a
+    // cautious player keeps it standing at the headcount they are hiring *to*.
+    for (;;) {
+      const s = getState()
+      const buffer = BUFFER_SECONDS * payrollPerSecond(s.devs + 1)
+      if (s.cash - nextHireCost() <= buffer) break
+      if (s.devs >= effectiveDevCap() * 0.758) break
+      if (!hireDeveloper()) break
     }
+    const buffer = BUFFER_SECONDS * payrollPerSecond(getState().devs + 1)
 
     const node = cheapestTech()
     if (node) buyTech(node)
@@ -323,16 +339,28 @@ function money(n: number): string {
   return `$${n.toFixed(0)}`
 }
 
+/**
+ * The table, and **what the player owned when the run ended.**
+ *
+ * The two right-hand columns were added after §13.12.3's option 2 was measured
+ * and refused. Every earlier reading of this table asked *how long* and *what
+ * stopped it*, and the answer to the second question turned out to be a third
+ * one — *what was there left to buy* — which no column showed. Runs 3 to 6 end
+ * on §4.1 with the studio sitting exactly at its optimum, and the reason they
+ * are four minutes rather than fifteen is that by then the tree has nothing in
+ * it the run can afford. That is not visible in a length.
+ */
 function table(rows: RunReport[]): string {
   const head =
-    'run |    length | devs / cap        | shipped |    revenue |   BP | wall      |     cash |    velocity |    cadence'
+    'run |    length | devs / cap        | shipped |    revenue |   BP | wall      |     cash |    velocity |    cadence | tech             | founder'
   const line = rows.map(
     (r) =>
       `${String(r.run).padStart(3)} | ${hms(r.seconds).padStart(9)} | ` +
       `${String(Math.floor(r.devs)).padStart(6)} / ${String(Math.floor(r.cap)).padEnd(10)}| ` +
       `${String(r.shipped).padStart(7)} | ${money(r.revenue).padStart(10)} | ` +
       `${String(r.bp).padStart(4)} | ${r.wall.padEnd(10)}| ${money(r.cash).padStart(8)} | ` +
-      `${r.velocity.toFixed(0).padStart(7)} SP/s | ${r.shipEvery.toFixed(0).padStart(5)}s/ship`,
+      `${r.velocity.toFixed(0).padStart(7)} SP/s | ${r.shipEvery.toFixed(0).padStart(5)}s/ship | ` +
+      `${(r.tech || '—').padEnd(16)} | ${r.founder || '—'}`,
   )
   return [head, ...line].join('\n')
 }
@@ -362,6 +390,22 @@ describe('§13.12 — how long a run actually takes', () => {
     // **Run 1 ends on §4.1.** It is the trap, and the trap is entropy.
     expect(rows[0].wall).toBe('entropy')
 
+    /**
+     * §21.0d — **and Run 1 now actually springs it.**
+     *
+     * Until the trap became a conversation, this harness never took it: the
+     * Mass Hire was a button, the policy below never pressed one, and so every
+     * measurement of "Run 1" was of a competent player who quietly declined
+     * §21's entire third act. It measured 76 developers and a healthy till.
+     *
+     * It measures the real Run 1 now — a thousand and forty developers, an
+     * empty treasury, and §4.10d's payroll finishing the job — which is what
+     * §13.12.2 means by *"a bankruptcy the player cannot avoid"* and is the
+     * reason every comparison below moved to Run 2.
+     */
+    expect(rows[0].peakDevs).toBeGreaterThan(MASS_HIRE_COUNT)
+    expect(rows[0].cash).toBeLessThan(0)
+
     // **The loop keeps moving.** Before §13.7.1's Recruiting node was wired
     // through `quote`, every run from the third onward returned 29 BP and ~180
     // developers for ever — the plateau this file was built to find. The
@@ -370,12 +414,20 @@ describe('§13.12 — how long a run actually takes', () => {
     // yield for a permanent node and come out behind on the run and ahead on
     // the game, which is a decision the player is allowed to make.
     expect(last.bp).toBeGreaterThan(rows[2].bp * 2)
-    expect(last.devs).toBeGreaterThan(rows[0].devs * 5)
 
+    /**
+     * **Against Run 2, not Run 1.** §13.12.2 and §13.12.4 both say the prologue
+     * is not a run, and now that it ends in a scripted thousand-developer
+     * collapse its headcount is a *casualty count* rather than a measure of
+     * anything. Comparing growth to it would compare every later run to the
+     * size of the corpse.
+     */
+    const firstSteered = rows[1]
+    expect(last.devs).toBeGreaterThan(firstSteered.devs * 5)
     // **The cap stops being decorative.** It used to climb past a million while
     // headcount sat at 180; the studio now uses a real share of what it is
     // allowed.
-    expect(last.devs / rows[0].devs).toBeGreaterThan(10)
+    expect(last.devs / firstSteered.devs).toBeGreaterThan(10)
   })
 
   /**

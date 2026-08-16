@@ -2,8 +2,12 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
 import {
 
+  acceptMassHire,
+  acknowledgeEvent,
   canMassHire,
+  clearEventByHand,
   collectOffline,
+  currentEvent,
   currentMassHireCost,
   currentUnlocks,
   hasPrestiged,
@@ -16,6 +20,7 @@ import {
   heroCoverageOf,
   heroRoster,
   hireDeveloper,
+  hireGrowthNow,
   hireQuote,
   massHire,
   selectHero,
@@ -49,9 +54,16 @@ import { countsOf, type Role } from '../sim/roles.ts'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
 import { Dialogue } from '../ui/Dialogue.tsx'
-import { SCENES, SCENE_JAMES_ARRIVES, JAMES_DROPS_AT_LINE } from '../game/scenes.ts'
+import {
+  SCENES,
+  SCENE_JAMES_ARRIVES,
+  SCENE_MASS_HIRE,
+  JAMES_DROPS_AT_LINE,
+  MASS_HIRE_AT_LINE,
+} from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
 import { UpgradeBoard } from './UpgradeBoard.tsx'
+import { EventBanner, EventCard } from './EventCard.tsx'
 import { Gallery } from './Gallery.tsx'
 import { ParadigmTree } from './ParadigmTree.tsx'
 import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
@@ -192,6 +204,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
+  // §18.0 — whatever is happening, resolved once per render like `unlocks`.
+  const event = currentEvent(state)
   // §21.0c — read once and passed down, so every gate in this frame agrees
   // about the same run rather than each asking separately.
   const unlocks = currentUnlocks()
@@ -212,6 +226,36 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   useEffect(() => {
     applyEntropyTheme(theme, document.documentElement)
   }, [theme])
+
+  /**
+   * §18.0a — the intended exit, which is a *route* and not a resolution.
+   *
+   * The event stays live: what ends it is the purchase, and `buyTech` is where
+   * that is wired (trap 33 — a rule wired to the interface is a lie the
+   * interface tells confidently). All this does is put the board in front of
+   * the player and stand the modal down to a banner.
+   */
+  const openBoardForEvent = () => {
+    acknowledgeEvent()
+    setTreeOpen(false)
+    setFounderOpen(false)
+    setGameMenuOpen(false)
+    setGalleryOpen(false)
+    setUpgradesOpen(true)
+  }
+
+  /**
+   * §18.0 — one reply, by hand, from either surface.
+   *
+   * The first tap also stands the modal down, so a player who chooses this exit
+   * spends their remaining nineteen taps on a banner with the studio visible
+   * behind it rather than on a scrim. Nineteen taps against a dimmed floor
+   * would be a minigame, and §26.3.3 owns those.
+   */
+  const replyToEvent = () => {
+    acknowledgeEvent()
+    clearEventByHand()
+  }
 
   useEffect(() => {
     if (!stage) return
@@ -472,6 +516,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         open={rosterOpen && openHero === null}
         roster={roster}
         labelFor={(hero) => heroPlacedLabel(hero, state)}
+        showPoints={unlocks.heroBoard}
         onOpen={(hero) => selectHero(hero.id)}
         onClose={() => setRosterOpen(false)}
       />
@@ -511,7 +556,24 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             <Typewriter text={copy.advisor} sound />
           </p>
         )}
+        {/*
+          §18.0 — a live event, once the player has decided how to deal with it.
+
+          In this band and not in a rail: §10.1a says both are full, trap 26
+          says a control does not belong in a column of readings, and an event
+          is temporary — furniture is exactly what it must not become. It leaves
+          with the script while a scene is up and comes back the same way, on
+          the `data-phase` contract the block already owns.
+        */}
+        <EventBanner event={event} onRoute={openBoardForEvent} onReply={replyToEvent} />
       </div>
+
+      {/*
+        §18.0a — the modal, before the player has chosen an exit. Rendered
+        beside the panels rather than inside the rail: it is a scrim over the
+        whole frame, because the studio has genuinely stopped.
+      */}
+      <EventCard event={event} onRoute={openBoardForEvent} onReply={replyToEvent} />
 
       <UpgradeBoard open={upgradesOpen} onClose={() => setUpgradesOpen(false)} />
       <Gallery open={galleryOpen} onClose={() => setGalleryOpen(false)} />
@@ -562,6 +624,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             // beyond granting him.
             if (state.scene === SCENE_JAMES_ARRIVES.id && line >= JAMES_DROPS_AT_LINE) {
               grantJames()
+            }
+            // §21.0d — and the trap. The tap that turns this page is the tap
+            // that hires a thousand people; there is no button on the beat and
+            // §10.7 rule 3 means there is no skip, which is what makes it
+            // unavoidable rather than merely tempting.
+            if (state.scene === SCENE_MASS_HIRE.id && line >= MASS_HIRE_AT_LINE) {
+              acceptMassHire()
             }
           }}
         />
@@ -726,6 +795,11 @@ function ActionBar({
           role={state.hireRole}
           onRoleChange={setHireRole}
           availableRoles={rolesAvailable(state)}
+          // §4.10a — the same base the transaction uses. Without it the dial
+          // priced its segments off the raw curve, so §13.7.1's Recruiting and
+          // §14.8.9's cap normalisation were both invisible on the one control
+          // whose entire job is showing the player what a batch costs.
+          growth={hireGrowthNow(state)}
         />
       )}
       {shown && <ActionButton spec={shown} state={state} />}

@@ -27,6 +27,7 @@ import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
 import { ROLES, type Role } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
+import { EVENTS } from '../sim/events.ts'
 import {
   emptyHistory,
   mergeHistory,
@@ -151,6 +152,28 @@ export interface RunSave {
    * every run. No `SAVE_VERSION` bump.
    */
   heroPlacements?: HeroPlacementSave[]
+  /**
+   * §18.0 — the event on the floor, if one is.
+   *
+   * Persisted for the reason `incidents` is and `buffs` are not: an event is a
+   * **state of the world**. It holds the studio's output at a ceiling until
+   * somebody acts, so a reload that dropped it would be a reload that repaired
+   * the company — and it carries the player's choice of exit, so a reload that
+   * dropped that would put a modal back over somebody who had already decided.
+   *
+   * Additive and optional on the same rule as `releases`, `tech` and
+   * `heroPlacements`: absent means a quiet floor, which is exactly what every
+   * save written before §18.0 describes. No `SAVE_VERSION` bump.
+   */
+  event?: LiveEventSave
+}
+
+/** §18.0 — the live event, flattened. */
+export interface LiveEventSave {
+  id: string
+  remaining: number
+  age: number
+  routed: boolean
 }
 
 /** §13.8 — one hero, and the rung they are standing on. */
@@ -464,6 +487,11 @@ export function makeSaveData(state: GameState): SaveData {
         index: p.index,
         placedAt: p.placedAt,
       })),
+      // §18.0 — omitted entirely when the floor is quiet, so a save is not
+      // carrying `event: null` for the 99% of the game where nothing is
+      // happening. An absent key and a null are the same statement here and
+      // the absent one is smaller.
+      ...(state.event ? { event: { ...state.event } } : {}),
     },
     permanent: {
       layer1: { ...permanent.layer1 },
@@ -686,8 +714,31 @@ function normaliseRun(value: unknown): RunSave {
     reputation: Math.min(100, nonNegative(r.reputation, BASELINE_RATING)),
     incidents: normaliseIncidents(r.incidents),
     heroPlacements: normaliseHeroPlacements(r.heroPlacements),
+    ...(normaliseEvent(r.event) ? { event: normaliseEvent(r.event)! } : {}),
   }
 }
+
+/**
+ * §18.0 — the live event, validated against the events this build has.
+ *
+ * **An id this build does not know is dropped**, not defaulted. `eventCeiling`
+ * already refuses to hold a studio down for an unknown id, and this is the
+ * second half of the same guarantee: a save naming an event that has since been
+ * retired from the registry comes back as a quiet floor rather than as a banner
+ * with no card behind it.
+ */
+function normaliseEvent(value: unknown): LiveEventSave | null {
+  if (typeof value !== 'object' || value === null) return null
+  const e = value as Partial<LiveEventSave>
+  if (typeof e.id !== 'string' || !EVENT_ID_SET.has(e.id)) return null
+  // A remaining of zero is a studio held at a ceiling with nothing left to tap
+  // — `clearOne` returns null rather than producing one, so a stored zero is a
+  // corrupt document and the honest repair is one more reply.
+  const remaining = Math.max(1, Math.floor(nonNegative(e.remaining, 1)))
+  return { id: e.id, remaining, age: nonNegative(e.age, 0), routed: bool(e.routed, false) }
+}
+
+const EVENT_ID_SET = new Set<string>(EVENTS.map((e) => e.id))
 
 /**
  * §13.8 — the placements, filtered to people who exist.

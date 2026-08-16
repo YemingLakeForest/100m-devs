@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { __resetStore } from '../game/store.ts'
+import { emptyPermanent, getPermanent, setPermanent } from '../game/save.ts'
+import { SCENE_FOUNDER_BOARD } from '../game/scenes.ts'
 import { writeFounderProfile } from '../game/founderProfile.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
@@ -11,8 +13,12 @@ vi.mock('../audio/sfx.ts', () => ({ playKeyboardClick: vi.fn() }))
 beforeEach(() => {
   localStorage.clear()
   __resetStore()
+  setPermanent(emptyPermanent())
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  setPermanent(emptyPermanent())
+})
 
 describe('manager corner', () => {
   it('routes the CODE button through the stage coding action', () => {
@@ -30,7 +36,12 @@ describe('manager corner', () => {
     expect(codeFounder).toHaveBeenCalledOnce()
   })
 
-  it('opens a personal screen with the saved avatar and Management tree', () => {
+  /**
+   * §4.5d — the desk is yours from the garage. The screen behind it opens in
+   * Act I and always has, and §21.7.7 does not change that: what it gates is
+   * the *board* inside, which is the next test.
+   */
+  it('opens a personal screen with the saved avatar, board or no board', () => {
     writeFounderProfile({
       name: 'Ada', head: 'buzz', hairColour: 2, skin: 3,
       accessory: 'headphones', facialHair: 'goatee', body: 'knit', bodyColour: 3,
@@ -41,6 +52,29 @@ describe('manager corner', () => {
     expect(screen.getByLabelText('Your block avatar')).toHaveAttribute('data-head', 'buzz')
     expect(screen.getByLabelText('Your block avatar')).toHaveAttribute('data-accessory', 'headphones')
     expect(screen.getByLabelText('Your block avatar')).toHaveAttribute('data-facial-hair', 'goatee')
+  })
+
+  /**
+   * §21.7.7 — **the desk is not gated and the board is.**
+   *
+   * And the board is not *drawn* before its scene rather than drawn and
+   * disabled: §21.7.6b's rule is that a silent row is the loudest kind of
+   * furniture, and a greyed skill tree is a shop the game is telling the player
+   * to come back to.
+   */
+  it('draws no Management tree until §21.7.7 has handed it over', () => {
+    render(<FounderProfilePanel open onClose={() => {}} />)
+    expect(screen.queryByRole('heading', { name: 'MANAGEMENT — YOU' })).toBeNull()
+    expect(screen.queryByText('Touch Typing')).toBeNull()
+  })
+
+  it('draws it once it has', () => {
+    const p = getPermanent()
+    setPermanent({
+      ...p,
+      meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_FOUNDER_BOARD.id] },
+    })
+    render(<FounderProfilePanel open onClose={() => {}} />)
     expect(screen.getByRole('heading', { name: 'MANAGEMENT — YOU' })).toBeInTheDocument()
     expect(screen.getByText('Touch Typing')).toBeInTheDocument()
   })

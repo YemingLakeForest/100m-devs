@@ -14,6 +14,7 @@ import {
   buyHeroTreeNode,
   currentEntropy,
   currentHeroFold,
+  dismissScene,
   effectiveDevCap,
   getState,
   heroById,
@@ -31,17 +32,48 @@ import {
   serialize,
   setPermanent,
 } from './save.ts'
-import { SCENE_BILLY_ARRIVES, SCENE_MELANY_ARRIVES, SCENE_MO_ARRIVES } from './scenes.ts'
+import {
+  SCENE_BILLY_ARRIVES,
+  SCENE_FOUNDER_BOARD,
+  SCENE_HERO_BOARD,
+  SCENE_JAMES_ARRIVES,
+  SCENE_JAMES_PROMOTED,
+  SCENE_MELANY_ARRIVES,
+  SCENE_MO_ARRIVES,
+} from './scenes.ts'
 import { SETTLE_SECONDS } from '../sim/heroRoster.ts'
 import { startingNodes } from '../sim/heroTree.ts'
 import { xpToReach } from '../sim/heroXp.ts'
+import { THREAD, retiredMilestone } from '../sim/events.ts'
 
-/** Prestiged, with the named arrival scenes recorded — §21.7.6c's one flag. */
+/**
+ * Prestiged, with the named arrival scenes recorded — §21.7.6c's one flag.
+ *
+ * **And everything §18.0a and §21.7.7 would otherwise interrupt with.** These
+ * studios are Run 2, past twelve developers, sometimes four hundred, holding an
+ * empty §11 board — which is precisely when THE THREAD fires and when §4.5d's
+ * joke lands hard enough to open the founder's board. Without this, every
+ * `settle()` below would raise a scene on its first tick, `tick` would return
+ * early for the rest of the loop, and a suite about where heroes stand would be
+ * measuring a stopped simulation.
+ *
+ * A player who has staff and four hundred developers has been through all
+ * three, so recording them is the honest fixture rather than a workaround.
+ */
 function staffed(...scenes: { id: string }[]) {
   const p = emptyPermanent()
   setPermanent({
     ...p,
-    meta: { ...p.meta, paradigmShifts: 1, milestones: scenes.map((s) => s.id) },
+    meta: {
+      ...p.meta,
+      paradigmShifts: 1,
+      milestones: [
+        ...scenes.map((s) => s.id),
+        retiredMilestone(THREAD.id),
+        SCENE_FOUNDER_BOARD.id,
+        SCENE_HERO_BOARD.id,
+      ],
+    },
   })
 }
 
@@ -232,6 +264,41 @@ describe('§13.13 — one level, one point, and a node to spend it on', () => {
     expect(mo.nodes).toEqual([...startingNodes('quality'), 'cloud:1'])
     expect(mo.spent).toBe(1)
     expect(mo.points).toBe(4)
+  })
+})
+
+/**
+ * §21.7.4 — **Global Head of His Desk**, wired to the only org chart the game
+ * has: §7.7's ladder. A hero on a higher rung is standing over the people on
+ * the rungs inside it, which is what a line on a chart means.
+ */
+describe('§21.7.4 — the promotion fires off a placement', () => {
+  beforeEach(() => {
+    staffed(SCENE_JAMES_ARRIVES, SCENE_MO_ARRIVES)
+    __setState({ devs: 40, runSeconds: 100 })
+  })
+
+  it('says nothing while the two of them are side by side', () => {
+    placeHero('james', 0, 0)
+    placeHero('mo', 0, 1)
+    tick(1)
+    expect(getState().scene).toBeNull()
+  })
+
+  it('fires the first time somebody is standing below him', () => {
+    placeHero('mo', 0, 0)
+    placeHero('james', 3, 0)
+    tick(1)
+    expect(getState().scene).toBe(SCENE_JAMES_PROMOTED.id)
+  })
+
+  it('never fires twice', () => {
+    placeHero('mo', 0, 0)
+    placeHero('james', 3, 0)
+    tick(1)
+    dismissScene()
+    tick(1)
+    expect(getState().scene).toBeNull()
   })
 })
 

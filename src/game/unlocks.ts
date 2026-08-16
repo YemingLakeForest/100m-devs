@@ -35,6 +35,23 @@
  * with no handle, which is what makes the person who turns up holding the handle
  * *relief* rather than a tutorial.
  *
+ * ## The three boards — §21.7.7
+ *
+ * The rule turned out to have one more class of victim than §21.7.6 counted,
+ * and it is the class where it is hardest to notice: **an upgrade board is an
+ * instrument too.** §11's studio tree was already gated and already had a scene
+ * (§11.5, James, at the first shift). §13.7.1's Management tree and §13.9's
+ * hero board had neither — both were reachable the moment the object they hang
+ * off existed, which for the founder's tree meant *the first frame of Run 1*.
+ *
+ * So each board now arrives with somebody and on a feeling:
+ *
+ * | Board | Arrives | On the feeling |
+ * |---|---|---|
+ * | §11 studio tree | James, at the first shift | already canon (§11.5) |
+ * | §13.7.1 founder tree | the founder's own output overtakes a developer's | *"I am the only thing here that still works"* |
+ * | §13.9 hero board | the first level, and therefore the first point | *"this person is getting better and I have something to spend"* |
+ *
  * **Melany and Billy gate nothing, and the difference confirms the rule.** The
  * developer cap and the speedometer have been on screen since Run 1's first
  * minute — they are not systems the player is being introduced to, they are
@@ -79,6 +96,28 @@ export interface Unlocks {
    */
   upgrades: boolean
 
+  /**
+   * §21.7.7 — §13.7.1's Management tree, the founder's own board.
+   *
+   * **Your desk is not gated and never will be.** §4.5d is explicit that the
+   * corner seat is yours from the garage, clickable at every zoom, and it is
+   * the whole clicker layer of Run 1. What is gated is the *board*, which is
+   * §21.7.6's two halves applied to the one system where the person who solves
+   * it is the player: the mechanism (you code, and your curve never dilutes)
+   * has been running since the first tap; the instrument arrives the first time
+   * §4.5d's joke is visible in a readout rather than only in the equations.
+   */
+  founderBoard: boolean
+  /**
+   * §21.7.7 — §13.9's shared skill board, reached from a hero's card.
+   *
+   * Gated on there being a **point to spend**, which is §26.1.6's wall in
+   * miniature: a board full of purchases and no currency is exactly the screen
+   * that could not be built in the 2026-08-13 session. §22.9's card is not
+   * gated — a card is who somebody is, and that has been true since Act I.
+   */
+  heroBoard: boolean
+
   /** §21.7.6 — §4.12's backlog, its colour and its density line. Mo brings it. */
   defects: boolean
   /** §21.7.6 — §4.12a's incident list. Serena brings it. */
@@ -115,6 +154,8 @@ const BRINGS: ReadonlyArray<readonly [HeroId, 'defects' | 'incidents' | 'tickets
 const SHUT: Unlocks = {
   simulated: false,
   upgrades: false,
+  founderBoard: false,
+  heroBoard: false,
   defects: false,
   incidents: false,
   tickets: false,
@@ -133,7 +174,23 @@ const SHUT: Unlocks = {
  * `milestones`. Passing the derived set rather than the milestone list keeps
  * this file from having to know what an arrival scene is called.
  */
-export function unlocksFor(paradigmShifts: number, arrived: ReadonlySet<HeroId>): Unlocks {
+export function unlocksFor(
+  paradigmShifts: number,
+  arrived: ReadonlySet<HeroId>,
+  /**
+   * §21.7.7 — which boards have been introduced.
+   *
+   * Derived by the store from `milestones`, exactly as `arrived` is, and for
+   * exactly the same reason: **this file does not know what a scene is called.**
+   * §21.7.6c's argument holds either way — the truth lives in `milestones`,
+   * which §24.3 already unions across saves — and passing the two answers
+   * rather than the ids keeps that fact in one module instead of two.
+   *
+   * Defaulted, so every existing caller keeps compiling and reads the honest
+   * answer for a player who has been introduced to nothing.
+   */
+  boards: BoardIntros = NO_BOARDS,
+): Unlocks {
   const shifted = Number.isFinite(paradigmShifts) && paradigmShifts > 0
   if (!shifted) return SHUT
 
@@ -144,6 +201,8 @@ export function unlocksFor(paradigmShifts: number, arrived: ReadonlySet<HeroId>)
   return {
     simulated: true,
     upgrades: true,
+    founderBoard: boards.founder,
+    heroBoard: boards.hero,
     defects: instrument.defects,
     incidents: instrument.incidents,
     tickets: instrument.tickets,
@@ -156,3 +215,12 @@ export function unlocksFor(paradigmShifts: number, arrived: ReadonlySet<HeroId>)
 
 /** The empty roster, for callers that have not got one yet. */
 export const NO_HEROES: ReadonlySet<HeroId> = new Set<HeroId>()
+
+/** §21.7.7 — which of the two gated boards has been handed over. */
+export interface BoardIntros {
+  founder: boolean
+  hero: boolean
+}
+
+/** Nothing introduced, for callers that have not derived it yet. */
+export const NO_BOARDS: BoardIntros = { founder: false, hero: false }

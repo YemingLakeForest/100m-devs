@@ -12,7 +12,7 @@ import { HeroCard } from './HeroCard.tsx'
 import { HeroTree } from './HeroTree.tsx'
 import { __resetStore, heroById, selectHero } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
-import { SCENE_MO_ARRIVES } from '../game/scenes.ts'
+import { SCENE_HERO_BOARD, SCENE_MO_ARRIVES } from '../game/scenes.ts'
 import { xpToReach } from '../sim/heroXp.ts'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 
@@ -26,7 +26,11 @@ function staffed(level = 1, nodes?: string[]) {
     meta: {
       ...p.meta,
       paradigmShifts: 1,
-      milestones: [SCENE_MO_ARRIVES.id],
+      // §21.7.7 — the board has been introduced. This file is about what the
+      // card and the board *look like* and how a purchase lands, not about the
+      // gate, which `unlocks.test.ts` owns; a fixture that had never met the
+      // board would be testing the gate in nine places by accident.
+      milestones: [SCENE_MO_ARRIVES.id, SCENE_HERO_BOARD.id],
       heroXp: { mo: xpToReach(level) },
       heroNodes: nodes ? { mo: nodes } : {},
     },
@@ -176,6 +180,61 @@ describe('§13.9 — every hero opens the same board, from where they already ar
     board(staffed(9))
     fireEvent.click(screen.getByLabelText('Quality reach 4'))
     expect(screen.getByRole('button', { name: /3 POINTS/ })).toBeInTheDocument()
+  })
+})
+
+/**
+ * §21.7.7 — **the card is not gated and the board is.**
+ *
+ * A card is who somebody is; the board is an instrument, and until §13.13's
+ * first earned level it is a screen of purchases attached to a person the
+ * player has never placed. The point pips go with it, because a point is an
+ * affordance for a board rather than a fact about a person.
+ */
+describe('§21.7.7 — the board arrives with a scene, and the card does not wait for it', () => {
+  /** The same fixture, minus the board introduction. */
+  function unintroduced(level = 4) {
+    const p = emptyPermanent()
+    setPermanent({
+      ...p,
+      meta: {
+        ...p.meta,
+        paradigmShifts: 1,
+        milestones: [SCENE_MO_ARRIVES.id],
+        heroXp: { mo: xpToReach(level) },
+      },
+    })
+    return heroById('mo')!
+  }
+
+  it('still draws the whole card', () => {
+    const mo = unintroduced()
+    const { container } = render(
+      <HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+    )
+    expect(screen.getByText('Mo')).toBeInTheDocument()
+    expect(screen.getByText(/LV 4/)).toBeInTheDocument()
+    expect(container.querySelector('.herocard__punch')).not.toBeNull()
+  })
+
+  it('draws no door to the board, and no points to spend on it', () => {
+    const mo = unintroduced()
+    const { container } = render(
+      <HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+    )
+    expect(screen.queryByRole('button', { name: /SPEND|SKILLS/ })).toBeNull()
+    expect(container.querySelector('.herocard__points')).toBeNull()
+    // CLOSE is still there — the card is reachable and leavable as always.
+    expect(screen.getByRole('button', { name: 'CLOSE' })).toBeInTheDocument()
+  })
+
+  it('draws both once the scene has played', () => {
+    const mo = staffed(4)
+    const { container } = render(
+      <HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+    )
+    expect(screen.getByRole('button', { name: /SPEND 4/ })).toBeInTheDocument()
+    expect(container.querySelector('.herocard__points')).not.toBeNull()
   })
 })
 

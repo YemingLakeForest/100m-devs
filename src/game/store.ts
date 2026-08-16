@@ -65,7 +65,9 @@ import {
   BANKRUPTCY_THRESHOLD,
   hireCost,
   massHireCost,
+  capAdjustedGrowth,
   isBankrupt,
+  openingRung,
   payrollPerSecond,
   projectRevenue,
   TARGET_BUILD_SECONDS,
@@ -90,6 +92,7 @@ import {
 import {
   FIRST_PROTOCOL_NODE,
   TECH_BY_ID,
+  TECH_TREE,
   boardCost,
   canBuyTech,
   inStandup,
@@ -113,15 +116,41 @@ import {
   type TouchLatch,
   type TouchMode,
 } from './touchMode.ts'
-import { SCENE_JAMES_ARRIVES, SCENE_JAMES_INSTANT_MESSENGER } from './scenes.ts'
+import {
+  SCENE_JAMES_ARRIVES,
+  SCENE_JAMES_INSTANT_MESSENGER,
+  SCENE_MASS_HIRE,
+} from './scenes.ts'
 import {
   SCENE_BILLY_ARRIVES,
+  SCENE_FOUNDER_BOARD,
+  SCENE_HERO_BOARD,
+  SCENE_JAMES_PROMOTED,
   SCENE_MATT_ARRIVES,
   SCENE_MELANY_ARRIVES,
   SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
-import { arrivalPredicate, type StorySnapshot } from './storyTriggers.ts'
+import {
+  arrivalPredicate,
+  founderBoardArrives,
+  heroBoardArrives,
+  jamesPromoted,
+  type BoardSnapshot,
+  type PlacedAt,
+  type StorySnapshot,
+} from './storyTriggers.ts'
+import {
+  ageEvent,
+  beginEvent,
+  clearOne,
+  definitionOf,
+  eventCeiling,
+  eventDue,
+  retiredMilestone,
+  routeEvent,
+  type LiveEvent,
+} from '../sim/events.ts'
 import { ARRIVAL_HEROES, STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
 import {
   NO_HERO_FOLD,
@@ -136,7 +165,7 @@ import {
   type HeroRuntime,
 } from '../sim/heroRoster.ts'
 import { unplacedEarnsNothing, xpAccrued } from '../sim/heroXp.ts'
-import { unlocksFor, type Unlocks } from './unlocks.ts'
+import { unlocksFor, type BoardIntros, type Unlocks } from './unlocks.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
 import { BUFF_TAU, addBuff, buffLift, decayBuffs, strengthOnSeat, type Buff } from '../sim/buffs.ts'
@@ -218,19 +247,68 @@ import {
  * catastrophically below the line — which is not a flaw but the best detail in
  * the table: **your first game would have lost money the instant you hired
  * anybody.** It only turns a profit because you and James are not paid.
+ *
+ * ## Why the ladder has eight rungs and not four — §4.10f
+ *
+ * It had four, and the first step was **×500**: fifty dollars, then twenty-five
+ * thousand. That was reported as nonsense and the report was half right.
+ *
+ * It is not arbitrary — it is *forced*. Two numbers are canon (§21 Act II's $50
+ * game, §21 Act V's $50/dev/sec wage) and the rule above says every rung the
+ * player hires against must clear the wage. A 300-point game worth $50 and a
+ * 400-point game that must beat $50/SP are $20,000 apart by arithmetic, and no
+ * amount of taste closes that.
+ *
+ * **What was actually wrong is that the rule was applied one rung too early.**
+ * `d(profit)/dn = r − W` only binds where there is an `n` to differentiate: the
+ * player pays nobody until the third developer, and §21's phase machine does not
+ * open the paid hiring loop until {@link FIRST_PAID_RUNG}. The rungs before it
+ * are shipped by two unpaid founders, so they are free to sit **below** the wage
+ * line — and putting them there is what turns the cliff into an escalation.
+ *
+ * The escalation is also the better joke. You do not ship one game and then a
+ * game worth five hundred times more; you ship *the same game three times*,
+ * bolting a monetisation feature on each time, and the studio learns to charge
+ * for things before it learns to hire. The wage line is crossed at rung 3, and
+ * that crossing is the moment hiring starts paying — which is a fact the player
+ * can feel rather than a threshold in a comment.
  */
 export const PROJECTS = [
+  // --- the garage. Two unpaid founders, so `r` may sit below the wage. ---
   // r = $0.17/SP. The joke, and a loss-maker the moment payroll starts.
   { name: 'Flappy Square 1.0', commitment: 300, payout: 50 },
-  // r = $62.50/SP. The first project that clears the wage, and the one that
-  // funds Act IIa — shipped at two unpaid founders, so all of it is profit.
-  { name: 'Flappy Square 2.0 (Now With Ads)', commitment: 400, payout: 25_000 },
-  // r = $120/SP.
-  { name: 'Untitled Roguelike Deckbuilder', commitment: 1000, payout: 120_000 },
-  // r = $137.50/SP. The ladder's terminal rung — `maxProjectIndex` repeats it,
-  // so this is the rate the studio runs at for the rest of the run.
-  { name: 'Open-World Survival Craft (Early Access)', commitment: 4000, payout: 550_000 },
+  // r = $7.50/SP. Still underwater, and now it is underwater on purpose.
+  { name: 'Flappy Square 1.1 (Now With Ads)', commitment: 200, payout: 1_500 },
+  // r = $40/SP. Close enough to the line that hiring here is *nearly* right,
+  // which is the last cheap lesson before §6 charges for one.
+  { name: 'Flappy Square 2.0 (Now With A Battle Pass)', commitment: 300, payout: 12_000 },
+
+  // --- the studio. Every rung from here clears $50/SP. ---
+  //
+  // **Commitments climb by about half again, not by triples.** The first draft of
+  // this half of the ladder went 600 → 1,200 → 4,000 → 12,000 → 40,000, sized by
+  // how big the *games* ought to feel, and measured it put the early loop at
+  // **300 seconds a ship against §4.4's sixty-second target**: a studio running
+  // at 40 SP/s spends five minutes on a twelve-thousand-point game while §4.10d's
+  // payroll runs the whole time, so every run in the table ended between −$320K
+  // and −$450K, which in turn made §13.7.1's tree unaffordable and turned §4.1's
+  // wall into §4.10a's. A rung is sized by whether the studio that reaches it can
+  // *finish* it; the payout ladder carries the sense of scale instead.
+  //
+  // r = $63.30/SP. **The first rung that pays a salary** — see FIRST_PAID_RUNG.
+  { name: 'Untitled Roguelike Deckbuilder', commitment: 600, payout: 38_000 },
+  // r = $122/SP.
+  { name: 'Cozy Farming Sim With A Dark Secret', commitment: 900, payout: 110_000 },
+  // r = $229/SP.
+  { name: 'Open-World Survival Craft (Early Access)', commitment: 1_400, payout: 320_000 },
+  // r = $409/SP.
+  { name: 'Live-Service Hero Shooter', commitment: 2_200, payout: 900_000 },
+  // r = $743/SP. The ladder's terminal rung — `maxProjectIndex` repeats it, so
+  // this is the rate the studio runs at for the rest of the run, and §4.4 grows
+  // its commitment with the velocity that shipped the last one.
+  { name: 'Untitled Roguelike Deckbuilder II', commitment: 3_500, payout: 2_600_000 },
 ] as const
+
 
 export interface FloatingNumeral {
   id: number
@@ -442,6 +520,18 @@ export interface GameState {
   scene: string | null
 
   /**
+   * §18.0 — the event on the floor, or null.
+   *
+   * **Persisted, like an incident and unlike a buff.** §24.2's test is whether
+   * the thing is a state of the world or a fading effect: an event holds the
+   * studio's output down until somebody does something about it, and a reload
+   * that quietly cleared it would be a reload that repaired the company. It
+   * also carries the player's choice of exit (`routed`), so a reload cannot put
+   * a modal back over somebody who had already decided.
+   */
+  event: LiveEvent | null
+
+  /**
    * §4.11 — who you hired, in the order you hired them.
    *
    * The run-length-encoded hire history from `roles.ts`, not four counters:
@@ -613,6 +703,25 @@ export function commitmentFor(index: number, s: GameState = state): Decimal {
   return wanted > base.toNumber() ? new Decimal(wanted) : base
 }
 
+/**
+ * The three fields that name the game a run opens on — §4.10f.
+ *
+ * Returned together rather than set field by field because they are one fact
+ * said three ways, and a `projectIndex` that disagrees with the `commitment`
+ * beside it is a burn-down chart counting toward the wrong number.
+ */
+function openingProject(devCap: number): Pick<
+  GameState,
+  'projectIndex' | 'sprintName' | 'commitment'
+> {
+  const i = openingRung(getPermanent().meta.paradigmShifts, devCap)
+  return {
+    projectIndex: i,
+    sprintName: PROJECTS[i].name,
+    commitment: new Decimal(PROJECTS[i].commitment),
+  }
+}
+
 /** How much bigger the shipped project was than §4.4's authored terminal rung. */
 function shippedScale(s: GameState): number {
   return s.commitment.toNumber() / PROJECTS[PROJECTS.length - 1].commitment
@@ -667,6 +776,9 @@ function freshRun(): GameState {
     dialUnlocked: false,
     pendingOffline: null,
     scene: null,
+    // §18.0 — a run opens with a quiet floor. An event that survived a Paradigm
+    // Shift would be an event about a studio that no longer exists.
+    event: null,
     tech: {},
     runSeconds: 0,
     projectSeconds: 0,
@@ -828,7 +940,13 @@ export function currentEfficiency(s: GameState = state): number {
   // efficiency", which at 99% entropy would be a rounding error and at 1% would
   // be the whole studio.
   const withHeroes = 1 - (1 - raw) * s.heroFold.entropy
-  return Math.max(1 - techOf(s).entropyCap, withHeroes)
+  // §18.0 — a live event holds the studio at a ceiling. Applied **before** the
+  // purchased floor below, which is the standing rule for the whole event
+  // system: an event may never undo something the player bought. A studio that
+  // paid for §11.2's B4 cannot be seized by a thread, and that is the node
+  // working rather than the event failing.
+  const withEvent = Math.min(eventCeiling(s.event), withHeroes)
+  return Math.max(1 - techOf(s).entropyCap, withEvent)
 }
 
 export function currentEntropy(s: GameState = state): number {
@@ -1028,6 +1146,11 @@ function offlineFounderVelocity(): number {
 
 /** §13.7.1 — buy a Management node with cash. The levels are permanent. */
 export function buyFounderNode(id: string): boolean {
+  // §21.7.7 — the board is an instrument and it arrives with a scene. Refused
+  // at the *transaction* and not only in the interface, on trap 33's rule: a
+  // gate wired to a readout is a lie the interface tells confidently, and this
+  // one has two entry points because `pacing.test.ts` calls the verb directly.
+  if (!currentUnlocks().founderBoard) return false
   const node = FOUNDER_BY_ID.get(id)
   if (!node) return false
   const p = getPermanent()
@@ -1551,6 +1674,11 @@ export function tick(dtSeconds: number): void {
     bankrupt,
   })
 
+  // §18.0 — the clock on whatever is happening. Aged inside the patch rather
+  // than after it, so the card's timer and the frame's output describe the same
+  // instant.
+  if (state.event) patch.event = ageEvent(state.event, dtSeconds)
+
   set(patch)
   // §21.0b — after `set`, because the beat reads the phase the machine just
   // moved to and grants a hire, which is a second write. Running it inside the
@@ -1559,6 +1687,9 @@ export function tick(dtSeconds: number): void {
   advanceAct1(after.phase, patch.phase)
   // §21.7.3 — after `set`, so the snapshot reads the frame's final state.
   checkStoryTriggers(getState())
+  // §18.0 — and last, so an event can never land on top of an arrival scene
+  // that was raised on this same frame.
+  checkEventTriggers(getState())
 }
 
 /**
@@ -1592,6 +1723,26 @@ function advanceAct1(from: Phase, to: Phase | undefined): void {
     // then the drop, then the conversation" rather than a scene played over a
     // developer who is already there.
     set({ scene: SCENE_JAMES_ARRIVES.id })
+  }
+
+  // §21.0d — **the mousetrap is a conversation now, and it cannot be declined.**
+  //
+  // Act III used to open on a banner, a sarcastic advisor line and a button the
+  // player pressed. The scene replaces the pressing: James argues for it,
+  // correctly, and signs it at {@link MASS_HIRE_AT_LINE}. Fired off the phase
+  // *transition* for the same reason the arrival is — the machine can sit in a
+  // phase for thousands of frames and this must happen once.
+  //
+  // **Run 1 only, and the guard is load-bearing rather than tidy.** `freshRun`
+  // resets `phase` to `act1_poke`, so §21's act machine runs again on every
+  // subsequent run and every studio passes back through `act3_bait` at about
+  // forty developers. A *declinable* offer reappearing there is a pre-existing
+  // oddity; an **unavoidable** one would liquidate every run in the game at
+  // forty developers, for ever. Found by `pacing.test.ts` on the first
+  // measurement after this landed, which is the third time that harness has
+  // caught something nothing smaller could see.
+  if (to === 'act3_bait' && !state.massHired && getPermanent().meta.paradigmShifts === 0) {
+    set({ scene: SCENE_MASS_HIRE.id })
   }
 }
 
@@ -1654,6 +1805,185 @@ function checkStoryTriggers(s: GameState): void {
       return
     }
   }
+
+  // §21.7.7 — the two boards, after the people. A person walking through a door
+  // outranks a screen becoming available, so the arrivals are asked first and
+  // this only runs on a frame where nobody did.
+  checkBoardTriggers(s)
+}
+
+/**
+ * §21.7.7 — the founder's board and the hero board, each on a feeling.
+ *
+ * Same contract as {@link checkStoryTriggers}: the predicates are pure, this
+ * builds the snapshot, and `milestones` makes each fire once.
+ */
+function checkBoardTriggers(s: GameState): void {
+  if (s.scene !== null) return
+
+  const snapshot: BoardSnapshot = {
+    paradigmShifts: getPermanent().meta.paradigmShifts,
+    founderRate: founderVelocity(),
+    swarmRate: baseVelocity(s),
+    devs: s.devs,
+    // §4.11 — everybody on the floor whose job is not "developer". The first
+    // one of those is the founder's board's front door (§21.7.7).
+    specialists: Math.max(0, s.devs - countsOf(s.roster).dev),
+    ...heroHighWater(s),
+  }
+
+  if (!hasSeenScene(SCENE_FOUNDER_BOARD.id) && founderBoardArrives(snapshot)) {
+    showScene(SCENE_FOUNDER_BOARD.id)
+    return
+  }
+  if (!hasSeenScene(SCENE_HERO_BOARD.id) && heroBoardArrives(snapshot)) {
+    showScene(SCENE_HERO_BOARD.id)
+    return
+  }
+
+  // §21.7.4 — the promotion. Last, because it is the one beat in the arc that
+  // is about a decision the player made rather than about a system arriving.
+  if (!hasSeenScene(SCENE_JAMES_PROMOTED.id) && jamesPromoted(placedHeroes(s))) {
+    showScene(SCENE_JAMES_PROMOTED.id)
+  }
+}
+
+/** Everybody standing somewhere, and which rung — §21.7.4's org chart. */
+function placedHeroes(s: GameState): PlacedAt[] {
+  const out: PlacedAt[] = []
+  for (const [id, placement] of Object.entries(s.heroPlacements)) {
+    if (placement) out.push({ id, rung: placement.rung })
+  }
+  return out
+}
+
+/**
+ * §13.13 — the furthest anybody has got, in one pass over the roster.
+ *
+ * One pass rather than two `reduce`s over two `heroRoster` calls: the roster is
+ * rebuilt from `meta` on every call (see its note), so asking twice would build
+ * six objects twice on a path that runs every frame.
+ */
+function heroHighWater(s: GameState): { heroPoints: number; heroLevel: number } {
+  let heroPoints = 0
+  let heroLevel = 0
+  for (const hero of heroRoster(s)) {
+    if (hero.points > heroPoints) heroPoints = hero.points
+    if (hero.progress.level > heroLevel) heroLevel = hero.progress.level
+  }
+  return { heroPoints, heroLevel }
+}
+
+// ---------------------------------------------------------------------------
+// Events — GDD §18, §18.0
+// ---------------------------------------------------------------------------
+
+/**
+ * §18.0 — has this event already been resolved for good?
+ *
+ * A milestone, never a flag. §21.7.6c's reasoning, applied to the third thing
+ * in the game that needs to remember something once and for ever.
+ */
+export function eventRetired(id: string): boolean {
+  return getPermanent().meta.milestones.includes(retiredMilestone(id))
+}
+
+/**
+ * §18.0 — should something be happening?
+ *
+ * Asked once a frame off the same tick that asks §21.7's arrivals, and after
+ * them: an event is the loop pushing back, and a person walking through a door
+ * is the loop being kind. On a frame that could do both, the person wins.
+ */
+function checkEventTriggers(s: GameState): void {
+  if (s.scene !== null) return
+  const due = eventDue({
+    paradigmShifts: getPermanent().meta.paradigmShifts,
+    devs: s.devs,
+    // §11.5 — the granted centre is not a purchase, so it does not count as
+    // evidence that this player has ever opened the board.
+    techNodesBought: boughtTechNodes(s),
+    live: s.event !== null,
+    retired: eventRetired,
+  })
+  if (!due) return
+
+  set({ event: beginEvent(due) })
+  // The scene plays once, ever. A second firing — which only a player who
+  // hand-cleared the first one can reach — opens straight onto the card, which
+  // is the right register for a thing that is happening again.
+  if (due.scene && !hasSeenScene(due.scene)) showScene(due.scene)
+}
+
+/** §11 — nodes the player has *bought*. The granted centre is not one. */
+export function boughtTechNodes(s: GameState = state): number {
+  let n = 0
+  for (const node of TECH_TREE) {
+    if (node.granted) continue
+    n += techLevel(s.tech, node.id)
+  }
+  return n
+}
+
+/**
+ * §18.0 — the player has chosen an exit; the card gives way to a banner.
+ *
+ * The event does **not** end here. Routing is the difference between "I have
+ * not looked at this yet" and "I know, I am dealing with it", and the studio
+ * stays at its ceiling either way.
+ */
+export function acknowledgeEvent(): boolean {
+  if (!state.event || state.event.routed) return false
+  set({ event: routeEvent(state.event) })
+  return true
+}
+
+/**
+ * §18.0 — one reply, by hand.
+ *
+ * The exit that is always available and never priced in money. It ends *this*
+ * instance and leaves the cause in place, so a player who taps their way out of
+ * THE THREAD with an empty board will meet it again — which is what makes the
+ * purchase the better answer without ever making the tap a wrong one.
+ */
+export function clearEventByHand(): boolean {
+  if (!state.event) return false
+  const next = clearOne(state.event)
+  set({ event: next })
+  if (next === null) saveGame()
+  return true
+}
+
+/**
+ * §18.0 — the intended exit fired. Retire the event for the whole career.
+ *
+ * Called from the transaction that resolves it rather than from the interface
+ * that offered it (trap 33), and idempotent: a player who buys two nodes on the
+ * same frame retires the event once.
+ */
+function resolveEventBy(resolution: 'tech-purchase'): void {
+  const def = definitionOf(state.event)
+  if (!def || def.resolvedBy !== resolution) return
+
+  const permanent = getPermanent()
+  const mark = retiredMilestone(def.id)
+  if (!permanent.meta.milestones.includes(mark)) {
+    setPermanent({
+      ...permanent,
+      meta: { ...permanent.meta, milestones: [...permanent.meta.milestones, mark] },
+    })
+  }
+  set({ event: null })
+  // The payoff belongs to this exit alone (§18.0a) — twenty taps ends a thread,
+  // a protocol ends threads — so the scene is only played from here.
+  if (def.resolvedScene && !hasSeenScene(def.resolvedScene)) showScene(def.resolvedScene)
+}
+
+/** The event on the floor, and what it is — for the HUD, resolved in one place. */
+export function currentEvent(s: GameState = state) {
+  const def = definitionOf(s.event)
+  if (!def || !s.event) return null
+  return { live: s.event, def }
 }
 
 /**
@@ -1963,6 +2293,11 @@ export function buyTech(id: string): boolean {
     cash: state.cash - boardCost(node, level, shifts),
     tech: { ...state.tech, [id]: level + 1 },
   })
+  // §18.0a — a purchase is THE THREAD's intended exit, and it is *any*
+  // purchase, exactly as James says in the scene. Resolved here rather than in
+  // the board's click handler because this is the transaction: trap 33 is the
+  // record of what happens when a rule is wired to the interface instead.
+  resolveEventBy('tech-purchase')
   saveGame()
   return true
 }
@@ -2039,11 +2374,30 @@ let unlocksCache: { key: string; value: Unlocks } | null = null
 export function currentUnlocks(): Unlocks {
   const shifts = getPermanent().meta.paradigmShifts
   const arrived = arrivedHeroes()
-  const key = `${shifts}|${[...arrived].sort().join(',')}`
+  // §21.7.7 — the two board introductions, derived here for the same reason
+  // `arrived` is: `unlocks.ts` does not know what a scene is called, and this
+  // module is where `milestones` is already being read.
+  const boards = introducedBoards()
+  const key = `${shifts}|${[...arrived].sort().join(',')}|${boards.founder ? 'f' : ''}${boards.hero ? 'h' : ''}`
   if (unlocksCache?.key === key) return unlocksCache.value
-  const value = unlocksFor(shifts, arrived)
+  const value = unlocksFor(shifts, arrived, boards)
   unlocksCache = { key, value }
   return value
+}
+
+/**
+ * §21.7.7 — which of the two gated boards this player has been shown.
+ *
+ * A scene id apiece, out of the same `milestones` union {@link arrivedHeroes}
+ * reads. Not a flag: §21.7.6c's argument is that a second flag is a second
+ * thing that can be wrong after a save migration, and it applies here exactly.
+ */
+export function introducedBoards(): BoardIntros {
+  const seen = getPermanent().meta.milestones
+  return {
+    founder: seen.includes(SCENE_FOUNDER_BOARD.id),
+    hero: seen.includes(SCENE_HERO_BOARD.id),
+  }
 }
 
 /**
@@ -2222,6 +2576,9 @@ export function recallHero(id: HeroId): boolean {
  * board, which is §13.13's whole argument for levels made structural.
  */
 export function buyHeroTreeNode(id: HeroId, nodeId: string): boolean {
+  // §21.7.7 — same rule, same reason. The card is who somebody is and has never
+  // been gated; the board is an instrument and it arrives with a scene.
+  if (!currentUnlocks().heroBoard) return false
   const runtime = heroById(id)
   if (!runtime) return false
   const next = buyHeroNode(runtime, nodeId)
@@ -2329,6 +2686,22 @@ export function buyParadigmNode(id: string): boolean {
 export { getPermanent }
 
 /**
+ * §4.10a's growth base as the game will actually charge it, right now.
+ *
+ * **One function, because there are three callers and they must agree.**
+ * `hireDial.ts` states the rule this exists to enforce — *"if a cost curve has
+ * two entry points, both take the modifier or neither does"* — and it was
+ * written after §13.7.1's Recruiting node spent a commit wired to `nextHireCost`
+ * (what the HUD shows) and not to `quote` (what the game charges). There are two
+ * modifiers on this curve now, the founder's tree and §14.8.9's cap
+ * normalisation, and threading two modifiers through three call sites by hand is
+ * the same bug waiting to be made twice.
+ */
+export function hireGrowthNow(s: GameState = state): number {
+  return capAdjustedGrowth(founderOf().hireGrowth, effectiveDevCap(s))
+}
+
+/**
  * What the next developer costs right now — §21.0, and §13.7.1's Recruiting.
  *
  * The growth base comes from the founder's own tree, which is `meta` and
@@ -2337,7 +2710,7 @@ export { getPermanent }
  * thing it keeps is what you personally learned about hiring.
  */
 export function nextHireCost(s: GameState = state): number {
-  return hireCost(s.devs, founderOf().hireGrowth)
+  return hireCost(s.devs, hireGrowthNow(s))
 }
 
 export function canHire(s: GameState = state): boolean {
@@ -2461,7 +2834,7 @@ export function hireQuote(s: GameState = state): Quote {
   // A locked dial is pinned to one at a time, whatever the stored selection
   // says — a save carried across a Paradigm Shift must not hand a fresh Act I
   // player a x100 button.
-  return quote(s.devs, s.cash, s.dialUnlocked ? s.hireMultiplier : 1, founderOf().hireGrowth)
+  return quote(s.devs, s.cash, s.dialUnlocked ? s.hireMultiplier : 1, hireGrowthNow(s))
 }
 
 /**
@@ -2519,8 +2892,14 @@ export function canMassHire(s: GameState = state): boolean {
  */
 export function massHire(): boolean {
   if (state.massHired) return false
-  // §10.7a.3 — the trap is a decision, and a decision cannot be made through a
-  // dialogue box.
+  // §10.7a.3 — a *player's* decision cannot be made through a dialogue box.
+  //
+  // §21.0d moved the Act III commitment into the script, and this guard is
+  // still right for this function: `massHire` is what the button calls, the
+  // button is behind the scrim, and a tap that both turned a page and spent a
+  // treasury would be the player charged twice for one gesture. The script's
+  // own entry point is {@link acceptMassHire}, which is *not* guarded, because
+  // it is the scene rather than something happening during one.
   if (state.scene !== null) return false
   const cost = currentMassHireCost()
   // The offer is priced at the whole treasury with a floor under it, so a
@@ -2529,6 +2908,40 @@ export function massHire(): boolean {
   // labelled "Cost: YOUR ENTIRE TREASURY" completing successfully against an
   // empty one. Every other spend in the game refuses; this one has to as well.
   if (state.cash < cost) return false
+  set({
+    ...hire(state.devs, state.devs + MASS_HIRE_COUNT),
+    cash: state.cash - cost,
+    massHired: true,
+    ...showBubble('Wait — who’s writing this function?', 6000),
+  })
+  return true
+}
+
+/**
+ * §21.0d — **James signs it, and it cannot fail.** R85.
+ *
+ * The script's own entry point, called from the dialogue when it reaches
+ * {@link MASS_HIRE_AT_LINE}. Two things separate it from {@link massHire}, and
+ * both are the difference between a player pressing a button and a character
+ * taking a decision out of your hands:
+ *
+ * 1. **It runs during a scene**, because it *is* the scene.
+ * 2. **It cannot be refused for want of money.** `massHire` correctly declines
+ *    when the treasury is below the floor — a control labelled `COST: YOUR
+ *    ENTIRE TREASURY` completing against an empty one was a real defect and it
+ *    stays fixed. But an unavoidable trap that silently does not fire is worse
+ *    than either: the run would stall in Act III for ever, with no button, no
+ *    scene left to play, and nothing on screen explaining why. **So James pays
+ *    what there is.** The treasury is emptied and never overdrawn, which keeps
+ *    §21.0's "leaves exactly zero buffer" promise intact and lets §4.10d's
+ *    payroll do the rest, on schedule.
+ *
+ * Idempotent, like `grantJames`: `dismissScene` calls it as a belt-and-braces
+ * fallback for a scene that ends without having reached its own line.
+ */
+export function acceptMassHire(): boolean {
+  if (state.massHired) return false
+  const cost = Math.min(currentMassHireCost(), Math.max(0, state.cash))
   set({
     ...hire(state.devs, state.devs + MASS_HIRE_COUNT),
     cash: state.cash - cost,
@@ -2589,6 +3002,20 @@ export function triggerParadigmShift(): void {
      */
     phase: 'act2b_loop',
     projectsShipped: 1,
+    /**
+     * §4.10f — **the studio opens on the game it earned, not on the garage.**
+     *
+     * `freshRun()` starts at rung 0, which is right exactly once. Left alone it
+     * meant every prestige in the career reset the catalogue to *Flappy Square
+     * 1.0*: a studio with a cap of fifteen thousand, two developers and no money,
+     * making a $50 mobile game. {@link openingRung} carries the measurement that
+     * caught it.
+     *
+     * The same argument as `seedTaken` and `dialUnlocked` above — the funnel is a
+     * first-run device and re-teaching it is an insult — applied to the one part
+     * of Run 1 that was still being re-taught every single run.
+     */
+    ...openingProject(devCapFor(getPermanent().layer1.paradigmLevels)),
     // §10.10.2 — "outside Run 1 the dial is simply present from the first
     // frame. The funnel is a first-run device and re-teaching it is an insult."
     // The seed round is the same: it is a story beat, and it has happened.
@@ -2655,6 +3082,11 @@ export function dismissScene(): void {
   // desk. In play the dialogue reaches {@link JAMES_DROPS_AT_LINE} first and
   // this is a no-op.
   if (id === SCENE_JAMES_ARRIVES.id && state.devs === 0) grantJames()
+  // §21.0d — the same belt and braces for Act III. If the scene ends without
+  // having reached {@link MASS_HIRE_AT_LINE} — a harness that dismisses the box
+  // rather than tapping through it — the trap still springs, because a Run 1
+  // parked in Act III with no button and no scene has no way forward at all.
+  if (id === SCENE_MASS_HIRE.id) acceptMassHire()
   set({ scene: null })
 }
 
@@ -2814,6 +3246,10 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
         { rung: p.rung, index: p.index, placedAt: p.placedAt },
       ]),
     ) as Partial<Record<HeroId, HeroPlacement>>,
+    // §18.0 — whatever was happening is still happening. `normaliseEvent` has
+    // already dropped an id this build does not have, so an unknown event comes
+    // back as a quiet floor rather than as a banner with no card behind it.
+    event: r.event ? { ...r.event } : null,
     // §24.2 ephemeral — at most one incident's worth of fraction, and a state
     // the player cannot see the cause of.
     incidentPending: 0,

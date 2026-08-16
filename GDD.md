@@ -70,6 +70,13 @@ place the loop is asked to make room for an offer now lives in §3.1, next to th
 revenue mix and store phasing stay in `MONETISATION.md`, which is still the source of truth
 for all of it.
 
+**And one rule outranks both, because it is what "reachable" means — added 2026-08-16.**
+§21.7.6 says *a system enters the game in the hands of the person who solves it*, and §21.7.7
+extends it from readouts to **boards**: three upgrade trees, three scenes, three feelings. If
+you are adding a system, the question is not whether it works — it is **who hands it to the
+player, and what they had just felt.** §25.9.2 records what it cost to have that rule stated
+with a table of examples that were all the same kind of thing.
+
 ### 0.3 Status legend
 
 - **[CANON]** — current design intent.
@@ -302,7 +309,7 @@ found the fourth to be the wrong requirement:
 |---|---|---|
 | 1 | §24.8's report **defers the collect** until the player acts | **Already true**, and further along than this asked: `collectOffline` takes a `rewardMultiplier`, so R1's 2× has a parameter waiting for it |
 | 2 | §11's board can name **the cheapest unaffordable node** | **Built.** `techBoard.cheapestUnaffordable` |
-| 3 | §18's entropy events are **clearable, and know it** | **Cannot be prepared.** §18's events are not a system yet — the only thing in the build that mentions them is a Paradigm node that switches one off |
+| 3 | §18's entropy events are **clearable, and know it** | **Built, 2026-08-16.** §18.0 makes events a system and §18.0.2 makes the hand-clear a standing rule: every event carries a number of taps that ends it, and the count is on the button. PAGERDUTY ESCALATION now has the thing it is more convenient *than* |
 | 4 | The prestige confirm modal has **a second button's worth of room** | **Wrong screen.** See below |
 | 5 | All of it behind `paradigmShifts > 0` | Already true — §21.0c's gate |
 
@@ -5009,7 +5016,7 @@ is the arc §21.7 describes. **The gate and the pacing were always the same deci
 > mistake §26.0 describes. Measuring it is Phase 1 work (§26.1.8 item 9), and if it comes in at
 > twenty minutes the answer is to move a target, not to move this table.
 
-#### 13.12.3 The measured curve is geometric, and the table's first row may be wrong **[OPEN]**
+#### 13.12.3 The measured curve is geometric, and the table's first row may be wrong **[RESOLVED 2026-08-16 — see §13.12.4]**
 
 **§13.12.1's numbers came from general idle-genre guidance rather than from this game**, which
 is how they should have started and not how they should end. §14.8 now has eight runs measured
@@ -5048,6 +5055,51 @@ Option 2 is a two-character change and can be measured in a minute; option 1 cos
 changes what "on target" means. **Neither should be chosen from the armchair** — §13.12.2
 already made the mistake of settling a pacing question by argument, and §14.8 is the record of
 what three plausible arguments were worth against one measurement.
+
+#### 13.12.4 Option 2 was measured and it fails; option 1 is taken **[CANON — added 2026-08-16]** - R84
+
+**§13.12.3 asked for a measurement rather than an argument and got one.** Four prices for the
+first Telepathic Compression level were run through `pacing.test.ts`, two of them paired with a
+smaller {@link CAP_STEP} to keep the tree solvent (§14.2's ×1.5 per level against §14.1's BP
+growth). §14.8.9 has the tables. **Every configuration that brings the cap forward produces at
+least one run that ends in bankruptcy at six or seven minutes**, and the failure is not the
+node's price:
+
+> **The cap is permanent and cash is not.** A run opens at zero developers and zero dollars with
+> a cap it inherited, so once the cap is far above what a fresh run's revenue can support it
+> stops being a bound on hiring at all — and the only bound left is the treasury, which is
+> §21's mousetrap wearing a bigger number.
+
+That is §14.8.2's finding inverted. §14.8.2 fixed *a hiring budget with no cap to spend it
+into*; this is *a cap with no hiring budget behind it*, and it breaks §26.1.8's **first** gate
+line — every run ends on §4.1 and never on the price of a head — which §26.1.1 ranks above the
+band the change was trying to hit.
+
+**So option 1 is taken, and the table is amended to the shape the measurement actually
+produced** rather than to a shifted copy of the old one:
+
+| §13.12.1's row | Was | **Is, from 2026-08-16** | Measured |
+|---|---|---|---|
+| *(no row)* | Run 1, the prologue | unchanged | **3 min** |
+| **The early loop** | Runs 3–6, 15–45 min | **Runs 2–6, 5–15 min** | 4–10 min |
+| **The first steered run** | Run 2, 1–3 h | **Runs 7–8, 20 min – 2 h** | 22 min, 1 h 14 m |
+| **Mid-game** | Runs 7–21, 2–8 h | **Runs 9+, 2–8 h** | beyond the harness's horizon |
+| **Late game** | Layer 2 onward | unchanged | — |
+
+**What the amendment concedes, stated rather than buried.** §13.12.1's early loop was *"the
+shortest thing in the game and the most important"* — the place a player decides whether the
+prestige loop is a loop or a punishment, on the evidence of *"watching an hour of work redo
+itself in ten minutes"*. Runs 2–6 at five to ten minutes do not offer that comparison, because
+there is no hour to redo. What they offer instead is **five prestiges in the first half hour**,
+which is a different and defensible bargain: the loop proves itself by *repetition* rather than
+by compression. §13.12.3's own argument for option 1 is that §21's prologue already spent the
+discovery a long opening run exists to provide.
+
+**What it does not concede: runs 2–6 are still short of their own amended band at the bottom,
+and §14.8.10 says why.** It is not the cap. It is that by run 3 the player has bought everything
+they can afford and there is nothing left in any tree until a price four hundred times further
+on. That is a specific, cheap thing to fix and it is the first thing the next pacing session
+should look at.
 
 ### 13.13 Heroes level **[CANON - added 2026-08-15]** - R53
 
@@ -5369,10 +5421,86 @@ BP climbs 11 → 62 and keeps climbing. Ship cadence is flat at 60–75 s from 5
 **What is still open** is the shape of the early loop: runs 2–6 are four to seven minutes
 against §13.12.1's fifteen-to-forty-five. The measured curve is *geometric* — short runs early,
 hours later — which is a good idle shape and not the one the table asks for. §13.12.3 is that
-argument.
+argument, and §13.12.4 settles it.
 
 > **Measure before changing anything else.** Every number in this section came out of the
 > instrument rather than out of an argument, and three plausible arguments were wrong first.
+
+#### 14.8.9 §13.12.3's option 2, measured **[CANON — added 2026-08-16]** - R84
+
+**The proposal:** make the first Telepathic Compression level reachable in one run instead of
+five — it costs 25 BP against a 12 BP shift — *"so the cap and the run grow together from the
+start."* Four configurations, each one a full eight-run measurement:
+
+| baseCost | CAP_STEP | Runs 3–6 | What went wrong |
+|---|---|---|---|
+| 25 | 10 | 4–7 min | *(shipped)* nothing — every run ends on §4.1 |
+| **12** | 10 | 23 min, then **2 h** | runs 5 and 6 end **bankrupt** at 7 min, cash −$1.0 M, cap 175,438 |
+| **18** | 10 | 23 min, then **2 h** | runs 6, 7 and 8 end **bankrupt** at 6–7 min |
+| **20** | 10 | 22 min, then **2 h** | run 5 ends **bankrupt** at 7 min |
+| **18** | 5 | 9 min, 9 min | run 7 ends **bankrupt** at 6 min |
+| **25** | 5 | 9 min, 6 min | runs 6 and 7 end **bankrupt** at 7 min |
+
+Every one of them lengthens the early runs, exactly as §13.12.3 predicted. Every one of them
+also produces a run that ends on money, which §26.1.8's first gate line forbids, and which
+§26.1.1 ranks above the band the change was aiming at.
+
+**The cause, and it is not the node's price.** A run opens at zero developers and zero dollars
+with a cap it inherited from the last one. Once that cap is a hundred times what a fresh run's
+revenue can support, **it stops being a bound on hiring at all** — a competent player, and the
+harness, hire until the treasury says stop, and at that scale §4.10d's payroll outruns the early
+catalogue before the studio is big enough to pay for itself.
+
+It is a knife-edge rather than a wall, which is what makes it worse: with `baseCost 18`, run 5
+reaches the two-hour horizon with $2.4 M in the bank and run 7 dies at six minutes with −$1.0 M,
+from the same permanent state. **A run whose outcome depends on the first ninety seconds is not
+a loop, it is a coin flip**, and the same shape would be invisible to a player as "sometimes
+this run just does not work."
+
+**Two candidate fixes are named and neither is taken here**, because both are economy changes
+and §14.8 is the record of what an untested economy change is worth:
+
+1. **Give a run a floor of starting capital proportional to the cap it inherited.** The
+   fiction is already written — §21.0a's term sheet — and the shape is *"the bank lends against
+   the company you have proven you can build."*
+2. **Make §4.10a's hire cost scale with the cap** rather than with headcount alone, so a bigger
+   cap makes each head cheaper as well as allowed. This is close to §13.7.1's Recruiting node
+   and may make that node redundant, which is a reason to be careful rather than a reason not to.
+
+#### 14.8.10 Why runs 3–6 are short, and it is not the cap **[CANON — added 2026-08-16]** - R84
+
+The instrument gained two columns — **what the player owned when the run ended** — and the
+answer was in neither of the two places anyone had looked:
+
+| run | length | devs / cap | tech owned | founder owned |
+|---|---|---|---|---|
+| 2 | 9m | 89 / 116 | `B1 C1` | `ENG10 CLOUD2 QA1 SUP1 REL1` |
+| 3 | 4m | 100 / 131 | `B1 C1 C6 C2` | *(unchanged)* |
+| 4 | 4m | 100 / 131 | *(unchanged)* | *(unchanged)* |
+| 5 | 4m | 114 / 150 | *(unchanged)* | *(unchanged)* |
+| 6 | 7m | 114 / 150 | `… C7` | `… CLOUD3` |
+
+**Runs 3, 4 and 5 buy nothing.** Not "buy little" — nothing, in any tree, for three consecutive
+runs. The studio sits at §4.1's optimum with a healthy treasury and there is no purchase in the
+game it can reach.
+
+Two reasons, and both are prices rather than designs:
+
+- **§11's price ladder has a hole.** C7 *Planning Poker* is $250 K and C8 *Velocity Inflation*
+  is $80 M — a factor of **320** — and runs 3 to 6 earn $1 M to $2.5 M each. The early loop
+  lives entirely inside that gap.
+- **§11.2's protocol branch is closed behind a node no player under their cap should buy.**
+  B2 *Daily Standups* costs output for a ceiling a healthy studio does not need, B3 requires B2,
+  and B4 requires B3 — so the only branch that raises the developer cap *within* a run is
+  unreachable in practice for exactly the player who is playing well.
+
+The second is the more interesting finding, because §11's opening line is *"upgrading Workforce
+without Communication Infra rapidly triggers the trap"* — and a player who wants Communication
+Infra has to buy a node that makes today worse to reach it. That is a real design tension and it
+may be correct; what is certainly not correct is that it is invisible, unpriced and undiscussed.
+
+**This is what a next pacing session should look at first**, and it is cheaper than either fix
+in §14.8.9: a price is a number in a table, and both of these are prices.
 
 ## 15. Prestige UI Wireframes
 
@@ -5715,6 +5843,130 @@ while testing different aspects of the player's entropy management.
 ---
 
 ## 18. Random Events Library
+
+### 18.0 Events are a system **[CANON — added 2026-08-16]** - R82
+
+**Everything below this section has been a library of jokes and not a system.** §26.1.8's last
+gate line and §3.1.6's item 3 both waited on it, and the state of the build when this was
+written is the evidence: *the only thing in it that mentioned §18 was a Paradigm node that
+switches one of its events off* — a node that cancelled nothing, priced at 2,500 BP.
+
+> **An event is a state of the world with a face, a cost, and at least two exits.** One exit is
+> always the player's own hands.
+
+#### 18.0.1 What an event is not
+
+It is **not a minigame.** §26.3.3 owns minigames, puts them in Phase 3, and binds them with
+§26.3.4's standing constraint — *never mandatory, never punishing to skip, never longer than
+ninety seconds.* That constraint is about **minigames**, and this section has to say so out
+loud, because §18.0a's first event is mandatory on purpose.
+
+The two are different objects and the rule for one is not the rule for the other:
+
+| | Is | May be mandatory |
+|---|---|---|
+| **An event** | The loop pushing back. A state the studio is in, at a cost the speedometer is already showing | **Yes** |
+| **A minigame** | Amplitude on a loop that already works. A thing to *do* about an event | **Never** |
+
+An event may later *acquire* a minigame — §26.3.3's crypto punt is one — and it stays clearable
+without it. **A minigame is never the only exit from anything.**
+
+#### 18.0.2 Two exits, always
+
+Every event carries a **hand-clear**: a number of taps that ends it, available always, priced
+in attention and never in money. Three reasons, and only one of them is design:
+
+1. **Nothing in this game may become a wall** (§25.3.2). An event whose only exit is a purchase
+   is a paywall wearing a joke.
+2. **It is what makes the intended exit legible as a choice.** Twenty taps against one purchase
+   is the player learning what a board is *for*, by comparing — which is the only way §21.7.6's
+   rule teaches anything.
+3. §3.1.1's **PAGERDUTY ESCALATION** attaches to exactly this: an offer that *"sells convenience
+   the player could have tapped out"*. The offer needs the thing it is more convenient **than**
+   to exist first, and now it does. **§3.1.6 item 3 is closed by this section.**
+
+**The two exits must not be equally good, and neither may be a punishment.** The hand-clear ends
+*this* instance and leaves the cause in place; the intended exit retires the event for the whole
+career. Twenty taps ends a thread. A protocol ends threads.
+
+#### 18.0.3 The four standing rules
+
+1. **Run 2 and later, never Run 1.** §3.1.1 and §21.0c reach the same gate from two directions —
+   no offer and no system before the first Paradigm Shift — and an event is both.
+2. **One at a time.** Two events at once is a pile, never a system.
+3. **An event may never undo something the player bought.** §11.2's B2 and B4 buy an entropy
+   ceiling; an event's own ceiling is applied *before* that floor, so a studio that paid for a
+   company which cannot seize does not get seized by an event. That is the node working.
+4. **An event never stops the studio outright.** Its cost is a ceiling on output and the ceiling
+   is never zero, because the intended exit costs money and a studio earning nothing can never
+   reach it.
+
+#### 18.0.4 Where the state lives
+
+An event is **persisted**, like §4.12a's incidents and unlike §4.5a's buffs. §24.2's test is
+whether the thing is a state of the world or a fading effect: an event holds output down until
+somebody acts, so a reload that quietly cleared it would be a reload that repaired the company.
+The player's *choice of exit* is persisted with it, so a reload cannot put a modal back over
+somebody who had already decided what to do.
+
+**Retirement is a milestone, never a new flag** — §21.7.6c's argument, for the third time:
+`milestones` is already unioned across saves by §24.3, and is already where "this has happened
+to this player, once, for ever" is recorded.
+
+### 18.0a The first event is a trap, and it is mandatory **[CANON — added 2026-08-16]** - R82
+
+> **THE THREAD.** *"Somebody asked a question in the main channel and everybody answered it."*
+
+**§11's board is the most consequential screen in the game and nothing in the build had ever
+asked a player to open it.** The door exists from the first Paradigm Shift, James hands over the
+node at its centre in §21.6's scene, and then the game never mentions it again — so a player who
+does not go looking has a tech tree, a cash pile, and nothing connecting them. This event closes
+that gap the way §6 closes its own: by letting the player feel the problem the board answers,
+first, with no handle on it.
+
+| | | Why |
+|---|---|---|
+| **Fires** | Run 2+, at **12 developers**, with **nothing bought** on §11's board | The first studio at which *"everybody replied"* is a number rather than a turn of phrase. The trigger is the empty board and not the headcount: a player already buying protocol nodes has learned this and will never see it |
+| **Costs** | Output held at **25%** of what §4.1 would otherwise allow | Deep in §4.3's red, and emphatically not zero (§18.0.3 rule 4) |
+| **Intended exit** | **Any purchase on §11's board.** Retires the event for the career | *Any*, exactly as James says in the scene. He does not mind which, because to him every node in the branch does the same good thing |
+| **Hand-clear** | **20 replies**, one a tap | §18.2's own figure for a notification storm. Long enough to be a decision, short enough that taking it is not a punishment |
+
+**The scene is the funniest use §21.7.0 rule 3 will ever get.** The founder says *"then we need
+**less** people talking at once"* at the exact moment they are asking how to have fewer of them
+talking; James corrects it, once, without emphasis; and the correction turns out to be the
+answer. He is entirely unaffected by the thread — rule 1, the floor's interruptions do not land
+on him — so he is the only person in the building still working and he is perfectly calm about
+it. He then hands over the board without a preference: *"Buy anything. I genuinely don't mind
+which. They all do the same thing. They make people talk to each other less."*
+
+**Only the purchase gets a payoff scene.** A player who taps their way out gets none, and that
+is design rather than omission: the two exits have to feel different, or the hand-clear is
+strictly better.
+
+#### 18.0a.1 Why this one is allowed to be mandatory
+
+§26.3.4's constraint is about minigames and §13.6.7's is about heroes; neither is what this is.
+The test that binds is §25.3.2's — **none of this may become a fail state** — and it passes on
+four counts:
+
+- The studio keeps earning, so the intended exit stays affordable.
+- The hand-clear is always available and costs nothing but attention.
+- Neither exit sits behind a currency, a cap, a ring or a hero.
+- It fires **once per career** on the intended exit, and only ever at a player who has never
+  bought anything on a board they have had open since the first shift.
+
+> **What this must never become: a tax.** One mandatory event, once, at the one moment the game
+> has something to teach that it cannot teach any other way. The moment a second event is made
+> mandatory, §18 is a tollbooth and the loop is being interrupted rather than pushed back on.
+
+#### 18.0a.2 What Phase 1 owes the rest of §18
+
+**Nothing, and that is deliberate.** The registry is one true event and eight libraries of
+jokes, and the honest state of §18 is that Phase 1 built the *system* and the one event that
+carries a lesson. §26.3.3 puts the rest in Phase 3, where the interesting ones become minigames
+and where §26.2's level-of-detail rules have already settled what a unit *is* — which is what a
+mid-game event has to address itself to. A registry with nine stubbed events in it would be
+exactly the failure §26.0 exists to prevent.
 
 ### 18.1 Early Game (1 – 100 Devs)
 
@@ -7048,6 +7300,18 @@ retracted. Every subsequent promotion extends it rather than replacing it — *G
 His Desk and Surrounding Area*, and so on — which is the corporate ladder rendered as a string
 that only gets longer.
 
+> **What "above another card" means, now that there is no chart — added 2026-08-16.** This
+> section fires the scene on §22.2's org chart, *"the first time a card is placed above another
+> card"*, and §13.8 has since replaced the grid with the floor on §13.6.7's argument that a
+> player managing heroes on a grid has thrown away the reason for the design. **So the ladder is
+> the org chart, and it always was.** §7.7's rungs are nested by construction — a floor contains
+> blocks, a building contains floors — so a hero standing on a higher rung than another hero is
+> standing *over* them in exactly the sense a line on a chart means. Nothing has to be built for
+> the fiction to be true: it is a comparison between two integers.
+>
+> **Strictly higher**, so two heroes side by side on one rung are colleagues rather than a
+> hierarchy — which is the whole joke of the title he is about to be given.
+
 #### 21.7.5 What the arc is actually about **[CANON]**
 
 §2 says the game is about the people you carry with you and §21.6 says *"the tools get better
@@ -7146,6 +7410,135 @@ present, already merged.
 Both, and in that order: **Run 1 has no instruments because it has no shift; Run 2 gets each one
 when its hero walks in.** §21.0c's four-minute argument is untouched — it was always about Run 1
 carrying one idea, and it still does.
+
+### 21.7.7 An upgrade board is an instrument too **[CANON - added 2026-08-16]** - R83
+
+**"Some of the hero upgrades are added prematurely, before the mechanism is introduced. There
+should be story arcs to introduce the upgrades — for heroes, for the founder, and for the
+studio."** Reported as three UI gaps. It is one, and it is §21.7.6 finding the class of victim
+it did not count.
+
+§21.7.6 lists what a hero brings: a backlog counter, a density line, a colour, a role on the
+dial. Every example is a *readout*. But the rule it states is broader than its own examples —
+*a system enters the game in the hands of the person who solves it* — and **an upgrade board is
+a system.** It was simply never checked against the rule, because the one board that had already
+been gated was gated for a different reason.
+
+Three boards exist. Before this section, one of them had a scene:
+
+| Board | Currency | Had a door | Had a scene |
+|---|---|---|---|
+| **§11 the studio tech tree** | cash, in-run | §21.0c, the first shift | **Yes** — §11.5, James, Instant Messenger |
+| **§13.7.1 the founder's Management tree** | cash, permanent | **none** — reachable on the first frame of Run 1 | No |
+| **§13.9 the shared hero board** | levels | **none** — reachable the moment a hero existed | No |
+
+The second row is the bad one and it is worth stating plainly: **a personal skill shop, open
+during Act I, selling permanent upgrades for the money §21's trap is about to take.** §21.0c
+spends four minutes arguing that Run 1 carries one lever, lists four systems that were breaking
+that, and did not see this one, because §4.5d's desk was correctly *never* gated and the board
+came along for the ride.
+
+#### 21.7.7a The rule, restated so it cannot be read as being about readouts
+
+> **A board is a system, and it arrives with somebody, on a feeling — like everything else.**
+
+| Board | Arrives | On the feeling |
+|---|---|---|
+| **§11 studio tree** | **James**, at the first shift, holding §11.5's node | *"I have hired everybody and it made things worse"* — unchanged, and this section only reclassifies it |
+| **§13.7.1 founder tree** | **Nobody walks in.** The founder | *"There is work here I am not doing"* |
+| **§13.9 hero board** | **The first level anybody earns** | *"This person is getting better and I have something to spend"* |
+
+§21.7.6's two halves apply to each of them exactly as they do to a backlog:
+
+| | Before | With the scene |
+|---|---|---|
+| **The mechanism** | Your desk codes and your curve never dilutes (§4.5d). Heroes earn XP and reach levels (§13.13) | Unchanged |
+| **The instrument** | The board, its prices, and every affordance that points at it — including the unspent-point pips on §22.9's card | **Arrives** |
+
+**The card is not gated and the desk is not gated.** A card is who somebody is; a desk is yours
+from the garage. What is gated is the board behind each of them, and it is **not drawn at all**
+before its scene — no greyed rows, no placeholder — on §21.7.6b's rule that a silent row is the
+loudest kind of furniture.
+
+#### 21.7.7b The founder's board — *"Then what am I for?"*
+
+**Two doors, deliberately, because no beat in this game may be the only door into a system.**
+
+| Door | The feeling |
+|---|---|
+| **The first specialist hire** | You have just paid somebody to do a job you have never done. §4.11's dial only offers a specialist after §21.7.6 has brought the hero who makes that problem legible, so this door opens *behind* Mo, Serena or Matt and never before one of them |
+| **Your share of the studio's output falls past a twentieth** | You were one hundred per cent of this company. You are now a rounding error in it |
+
+The first is the beat and the second is the guarantee: a player who only ever hires developers —
+entirely possible and entirely reasonable — must still be able to reach their own skill board.
+
+> **The obvious trigger is wrong and the mistake is worth recording.** §4.5d's best sentence is
+> *"you are the only developer in the company whose output did not collapse when you hired
+> everybody"*, and the first cut fired the scene when the founder's own rate overtook the
+> average developer's. That only ever happens in a studio hired **past** §4.1's optimum — so a
+> player who reads the speedometer and stops at the right headcount would never see the scene at
+> all. **A trigger that withholds a system as a punishment for correct play has misread which
+> half of its own section is the feeling.**
+
+The scene is ten lines, nobody arrives, and §13.7.1's entire thesis is the last word:
+
+```
+STUDIO_OS   > HEADCOUNT REVIEW. YOUR SHARE OF THIS SPRINT'S OUTPUT: 2%.
+YOU         Two per cent.
+STUDIO_OS   > CORRECTED: 1.8%. THE SPRINT IS STILL RUNNING.
+YOU         I wrote this entire product.
+JAMES       You wrote the first version. This is the fourth.
+YOU         Then what am I for?
+JAMES       The parts nobody's been hired for yet.
+JAMES       There's a track for that. It's a bit of everyone's job.
+YOU         Am I going to be good at any of it?
+JAMES       No.
+```
+
+§21.7.3's rule 3 holds in **substance** rather than in count: James talks about the tool or the
+process and never about the person. The *"exactly one line"* half of that rule is a staging rule
+for **arrival** scenes, where a second James line would compete with the person walking in.
+Nobody walks in here.
+
+#### 21.7.7c The hero board — the first level somebody earned
+
+Both halves of §13.13 are required, and the second is the interesting one:
+
+- **A point to spend.** A board of purchases with no currency is §26.1.6's wall in miniature —
+  the exact reason `HeroBoard.tsx` was correctly not built in the 2026-08-13 session.
+- **A level somebody earned** — level 2 or better, not the one they walked in with.
+
+The second condition does three jobs. It puts the scene on a **moment** rather than on a state
+that was already true (§13.13: *"a level-up is a moment, not a notification"*). It keeps the
+introduction away from the top of Run 2, where §21.6's scene already is — every hero arrives
+holding a point, so a points-only trigger would fire on the frame after James finished speaking,
+and §13.12.2's whole argument is that these do not land in a pile.
+
+And the third is the one that matters: **XP only accrues under coverage, so an earned level
+means the player has placed somebody.** A board whose nodes are REACH and DEPTH — how much of
+the floor a person covers, and how hard — introduced to a player who has never put anybody on
+the floor would be a screen about a thing they have not done.
+
+§13.13's *"arrives with one decision attached"* survives intact: the point is granted at level 1
+and is still there, waiting, when the board opens.
+
+#### 21.7.7d What this does to Run 2's ladder
+
+Run 2 now has a stated order, and every step of it is a feeling rather than a number:
+
+| | Beat | Trigger |
+|---|---|---|
+| 1 | §21.6 — James, and Instant Messenger | the first frame after the first shift |
+| 2 | **§18.0a — THE THREAD** | 12 developers, nothing bought |
+| 3 | §21.7.3 — Mo, Serena, Matt, in whatever order the studio breaks | a bad release, an incident, an unanswered queue |
+| 4 | **§21.7.7b — the founder's board** | the first specialist hire, or a twentieth share |
+| 5 | §21.7.3 — Melany, Billy | the cap, and §4.1 as an ongoing condition |
+| 6 | **§21.7.7c — the hero board** | the first earned level |
+| 7 | §21.7.4 — the promotion | James placed above somebody |
+
+**Steps 2, 4 and 6 are new and they are what makes the other four legible.** Before them, a
+player reaching step 3 had three boards open, no reason to have opened any of them, and a
+prestige tree whose currency they had never spent.
 
 ## 22. Hero Cards & Collectables
 
@@ -8796,6 +9189,66 @@ where it belongs, and the whole of §26.1 becomes buildable.
 > correction that lives only in the new section is invisible to everybody reading the old one,
 > including the person implementing it.
 
+### 25.9 Intake — 2026-08-16 **[CANON]**
+
+Three requests, and the third is the one that changed a rule rather than adding a feature.
+
+| | Requirement | Where it landed |
+|---|---|---|
+| **R82** | **The first trap event, mandatory, with a funny James conversation — a critical path that makes people do upgrades** | §18.0 makes events a system; §18.0a is THE THREAD; §21.7.7d puts it second in Run 2's ladder |
+| **R83** | **"Some hero upgrades are added prematurely, before the mechanism is introduced. There should be story arcs to introduce the upgrades — heroes, founder and studio"** | §21.7.7, and §26.1.4 records what it does to §21.7.6 |
+| **R84** | Finish the rest of Phase 1 | §13.12.4, §14.8.9, §14.8.10, and §26.1.8's amended gate |
+
+#### 25.9.1 R82 — why a mandatory event is not a contradiction
+
+§26.3.4 says *"no minigame may be the optimal way to play"* and lists *never mandatory* among
+its rules, so "mandatory event" reads as a direct collision with canon. It is not, and the
+reason is worth the paragraph: **§26.3.4 is about minigames.** A minigame is amplitude on a
+loop that already works; an event is the loop pushing back. §18.0.1 states the distinction and
+§18.0a.1 shows the mandatory one passing §25.3.2's actual test — none of this may become a fail
+state — on four counts.
+
+**What made the request right.** §11's board is the most consequential screen in the game, it
+has been reachable since the first Paradigm Shift, and **nothing in the design ever asked a
+player to open it.** §11.5 hands over the node at its centre in a scene and then the game goes
+quiet. A player who does not go looking has a tech tree, a treasury, and nothing joining them —
+which is §26.0's failure shape exactly: a system that exists, is specified, is built, and is not
+*reachable* by somebody who has not read this file.
+
+#### 25.9.2 R83 — the rule §21.7.6 stated and its examples hid
+
+Reported as three UI gaps. It is one rule, and §21.7.6 already contained it:
+
+> A system enters the game in the hands of the person who solves it.
+
+Every example in that section is a **readout** — a backlog counter, a density line, a colour, a
+role on the dial — so the rule was implemented as being about readouts. **An upgrade board is a
+system.** The founder's Management tree was open on the first frame of Run 1: a personal skill
+shop, selling permanent upgrades, for the money §21's trap is about to take, inside the four
+minutes §21.0c spends arguing that Run 1 has one lever. §21.0c listed four systems that were
+breaking that rule and missed this one, because §4.5d's desk was correctly never gated and the
+board came along with it.
+
+> **The general lesson, and it is the third time a variant of it has cost a session:** a rule
+> stated with a list of examples will be implemented as being about the examples. §21.7.6's
+> examples were all instruments *of the same kind*, so nobody checked the kinds that were not on
+> the list. **When a section states a rule and then gives a table, the table must say what it is
+> a table of** — §21.7.7a is that sentence, written for the rule that already existed.
+
+#### 25.9.3 R84 — what "finish" turned out to mean
+
+§13.12.3 had been left open with two costed options and an instruction not to pick from the
+armchair. It was measured (§14.8.9): **option 2 works and is refused**, because every way of
+bringing the cap forward produces a run that ends on money, which breaks the gate line §26.1.1
+ranks first in order to satisfy the one it ranks third.
+
+Measuring it also found the thing nobody had a column for. Runs 3, 4 and 5 **buy nothing** —
+not little, nothing, in any tree, for three consecutive runs — because §11's price ladder has a
+320× hole in it and its only cap-raising branch is gated behind a node no player under their cap
+should buy (§14.8.10). Three sessions have now looked at the early loop's length and none of
+them asked *what is there left to buy*, because the instrument printed lengths and walls and not
+inventories. **It prints inventories now.**
+
 ### 25.2 What is deliberately NOT decided here
 
 R2's distribution shape, R5's corridor width and R7's unfold timing are all numbers that want
@@ -8886,12 +9339,17 @@ anywhere.
 
 1. A run ends because §4.1 stopped it, never because the next head was unaffordable.
 2. Each prestige is worth visibly more than the last — headcount, revenue and BP all move.
-3. Run lengths land in §13.12.1's bands. Runs 7 and 8 do (23 min, 1h 14m); **runs 2–6 do not**,
-   at four to seven minutes against fifteen-to-forty-five — and §13.12.3 argues the table's
-   first row may be the thing that is wrong rather than the economy.
+3. Run lengths land in the bands. §13.12.3 argued the table's first row might be the thing that
+   was wrong rather than the economy; §13.12.4 measured the alternative and **took that
+   argument**, so the bands are now §13.12.4's.
 
-Items 1 and 2 are done. Item 3 is open and needs **a decision, not more tuning** — §13.12.3
-puts the two options side by side and declines to pick one from the armchair.
+Items 1 and 2 are done. **Item 3 is decided and not yet met**, which is a different state from
+the one it was in: §14.8.9 measured six ways of making the cap arrive sooner and every one of
+them produced a run that ends on money, breaking item 1 to satisfy item 3. §14.8.10 then found
+what actually holds runs 3–6 down, and it is neither the cap nor the table — **runs 3, 4 and 5
+buy nothing at all**, because §11's price ladder has a 320× hole in it and its only cap-raising
+branch is gated behind a node no player under their cap should buy. That is a price, and prices
+are cheap to change and expensive to change blind.
 
 #### 26.1.2 Heroes
 
@@ -8913,6 +9371,11 @@ for that the presentation layer does not yet do — the camera closing on the sp
 face turned to it (§10.7a.1, built), and **the subtitle at the size §10.7a.2 already specifies**
 (R59, not built).
 
+**And four more scenes — added 2026-08-16.** §18.0a's THE THREAD and its payoff, and §21.7.7's
+two board introductions. They are not decoration on the arc: without them a player reaches Mo
+with three upgrade boards open, no reason to have opened any of them, and a prestige currency
+they have never spent. §21.7.7d is the order the seven beats of Run 2 now run in.
+
 #### 26.1.4 The systems, and who brings them
 
 §21.7.6 is the load-bearing new rule of this phase and it is stated once here because it
@@ -8921,6 +9384,13 @@ changes what "done" means for four different systems:
 > **A system enters the game in the hands of the person who solves it.** Defects arrive with
 > Mo, incidents with Serena, tickets with Matt. Before their hero, the system is simulated and
 > silent — it is felt as a consequence, never displayed as an instrument.
+
+**§21.7.7 extends it to a class §21.7.6's own examples hid — added 2026-08-16.** Every example
+in that section is a *readout*, so the rule was read as being about readouts, and **an upgrade
+board is a system too.** §13.7.1's Management tree was reachable on the first frame of Run 1 —
+a personal skill shop selling permanent upgrades for the money §21's trap is about to take — and
+§13.9's hero board opened the moment a hero existed, on a currency the player had never been
+told about. Both now arrive with a scene and on a feeling, exactly as the three backlogs do.
 
 #### 26.1.5 The upgrade tree
 
@@ -8964,24 +9434,31 @@ Every line is a thing a player does, in order, without leaving the game:
 
 1. **`pacing.test.ts` reports run lengths inside §13.12.1's bands, with every run ending on
    §4.1 rather than on the price of a head.** This is item 1 because §26.1.1 is: the rest of
-   this list decorates a loop, and there has to be a loop.
+   this list decorates a loop, and there has to be a loop. **The bands are §13.12.4's**, which
+   is the amendment the measurement forced; the "ends on §4.1" half is unchanged and outranks
+   the band half, which is why §13.12.3's option 2 was refused (§14.8.9).
 2. **Three prestiges, each visibly worth more than the last** — headcount, revenue and BP all
    moving, with §13.2's tree and §13.7.1's tree both being spent into.
 3. Create a founder, play §21's prologue to the forced bankruptcy, and take the first Paradigm
    Shift.
 4. Open `UPGRADES`, find Instant Messenger at the centre, buy a ring-1 node, and see the board
    grow.
-5. Ship a release bad enough to bring Mo, and watch the defect backlog appear **with her** and
+5. **Reach twelve developers on Run 2 without having bought anything, and meet §18.0a's
+   THE THREAD** — then get out of it both ways: buy a node on one career, tap twenty replies on
+   another, and see that only the first one retires it.
+6. Ship a release bad enough to bring Mo, and watch the defect backlog appear **with her** and
    not before.
-6. Do the same for Serena and Matt.
-7. Hit the developer cap with cash spare, meet Melany; read past `CHATTY`, meet Billy.
-8. Open any hero's card, spend a level on a node in a branch that is not theirs, and see the
-   number that node governs change.
-9. Place a hero on a block of 100 and see the coverage drawn on the floor; place a second of
-   the same branch overlapping and see the waste hatched.
-10. Promote James and get §21.7.4.
-11. §3.1.6's shapes are in place — three of the five were already true, item 2 is built, and
-    item 3 waits on §18's events being a system at all.
+7. Do the same for Serena and Matt.
+8. Hit the developer cap with cash spare, meet Melany; read past `CHATTY`, meet Billy.
+9. **Hire your first specialist and meet §21.7.7b's board** — then open the founder's screen on
+   a fresh Run 1 and find no board there at all.
+10. **Earn a hero's second level and meet §21.7.7c's board**, then open any hero's card, spend a
+    level on a node in a branch that is not theirs, and see the number that node governs change.
+11. Place a hero on a block of 100 and see the coverage drawn on the floor; place a second of
+    the same branch overlapping and see the waste hatched.
+12. Promote James — place him on a rung above somebody — and get §21.7.4.
+13. §3.1.6's shapes are all in place. Items 1, 2 and 5 were already true, item 4 was the wrong
+    requirement, and **item 3 is closed by §18.0**.
 
 **`npm run check` green throughout, including the browser gate at all five frame sizes.**
 

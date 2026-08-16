@@ -27,6 +27,7 @@ import {
 } from './store.ts'
 import { FOUNDER_BASE_RATE, TYPING_STEP, founderCost, FOUNDER_BY_ID } from '../sim/founder.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
+import { SCENE_FOUNDER_BOARD } from './scenes.ts'
 
 beforeEach(() => {
   __resetStore()
@@ -137,6 +138,40 @@ describe('tapping your own desk — §4.5d', () => {
 })
 
 describe('buying a skill — §13.7.1', () => {
+  /**
+   * §21.7.7 — the board has been handed over.
+   *
+   * The tree is an instrument and it arrives with a scene, so a fresh save
+   * cannot buy from it at all. That is asserted on its own below; every test in
+   * this block is about the *purchase*, so each one starts from a player who
+   * has met their own board.
+   */
+  beforeEach(() => {
+    const p = getPermanent()
+    setPermanent({
+      ...p,
+      meta: {
+        ...p.meta,
+        paradigmShifts: 1,
+        milestones: [...p.meta.milestones, SCENE_FOUNDER_BOARD.id],
+      },
+    })
+  })
+
+  /**
+   * §21.7.7 — and here is the gate itself, from the other side.
+   *
+   * A Run 1 founder has a desk, a CODE button and no board. §21.0c is explicit
+   * that Run 1 carries one idea, and a personal skill tree bought with the
+   * money the trap is about to take is a second one.
+   */
+  it('refuses everything before the board has been introduced', () => {
+    setPermanent(emptyPermanent())
+    __setState({ cash: 1e12 })
+    expect(buyFounderNode('M-ENG')).toBe(false)
+    expect(founderVelocity()).toBe(FOUNDER_BASE_RATE)
+  })
+
   it('refuses what the treasury cannot pay for', () => {
     const typing = FOUNDER_BY_ID.get('M-ENG')!
     __setState({ cash: founderCost(typing, 0) - 1 })

@@ -3,6 +3,7 @@ import {
   HEY_AFTER_LINE,
   SCENES,
   SCENE_JAMES_ARRIVES,
+  SCENE_MASS_HIRE,
   SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_JAMES_PROMOTED,
   SCENE_MO_ARRIVES,
@@ -10,6 +11,10 @@ import {
   SCENE_MATT_ARRIVES,
   SCENE_MELANY_ARRIVES,
   SCENE_BILLY_ARRIVES,
+  SCENE_THE_THREAD,
+  SCENE_THREAD_CLEARED,
+  SCENE_FOUNDER_BOARD,
+  SCENE_HERO_BOARD,
 } from './scenes.ts'
 
 const script = SCENE_JAMES_INSTANT_MESSENGER.script
@@ -136,17 +141,37 @@ describe('§21.7.1 — James arrives, and nothing announces it', () => {
   })
 })
 
-describe('§21.0c — Run 1 has exactly one scene', () => {
+describe('§21.0c — Run 1 carries one idea', () => {
   /**
    * The whole of the §21.0c correction, asserted as a count.
    *
-   * Act I gets James sitting down and nothing else. Every other scene in the
-   * game belongs to a run that has already been through the trap — and the way
-   * that is enforced is that there is only one scene whose id says `act1`.
+   * Act I gets James sitting down and nothing else.
+   *
+   * **Amended 2026-08-16 — Run 1 now has two scenes, and §21.0c survives it.**
+   * The rule was never "one scene"; it is *one idea*, and the idea is hiring.
+   * §21.0d's Act III scene is the trap springing — the same idea reaching its
+   * conclusion — so it does not introduce a second one, and the count that
+   * matters is still the Act I count. Every scene about a *system* still
+   * belongs to a run that has been through the trap.
    */
   it('has one Act I scene, and it is the arrival', () => {
     const actOne = Object.keys(SCENES).filter((id) => id.startsWith('scene.act1.'))
     expect(actOne).toEqual([SCENE_JAMES_ARRIVES.id])
+  })
+
+  it('has one Act III scene, and it is the trap', () => {
+    const actThree = Object.keys(SCENES).filter((id) => id.startsWith('scene.act3.'))
+    expect(actThree).toEqual([SCENE_MASS_HIRE.id])
+  })
+
+  it('keeps every other scene in a run that has already collapsed', () => {
+    // Nothing outside Run 1's two acts, and nothing at all about a *system*
+    // before the shift that opens systems.
+    const runOne = Object.keys(SCENES).filter(
+      (id) => id.startsWith('scene.act1.') || id.startsWith('scene.act3.'),
+    )
+    const rest = Object.keys(SCENES).filter((id) => !runOne.includes(id))
+    for (const id of rest) expect(id.startsWith('scene.run2.')).toBe(true)
   })
 
   /**
@@ -243,6 +268,110 @@ describe('§21.7.3 — the five story hires', () => {
     for (const scene of arrivals) {
       expect(scene.script[0].speaker).toBe('STUDIO_OS')
       expect(scene.script[0].text).toContain('APPLICANT AT DOOR')
+    }
+  })
+})
+
+describe('§18.0a — THE THREAD', () => {
+  const script = SCENE_THE_THREAD.script
+  const all = script.map((l) => l.text)
+
+  it('opens on the machine and closes on the machine', () => {
+    // The event is a state of the world, so the frame around it is `STUDIO_OS`
+    // — the studio noticing, and then the studio stating the cost. James is
+    // the conversation inside that frame, never the announcement.
+    expect(script[0].speaker).toBe('STUDIO_OS')
+    expect(script.at(-1)!.speaker).toBe('STUDIO_OS')
+    expect(script.at(-1)!.text).toContain('25%')
+  })
+
+  /**
+   * §21.7.0 rule 3, load-bearing for once. The founder says *less people* at
+   * the exact moment they are asking how to have fewer of them talking, and the
+   * correction turns out to be the answer.
+   */
+  it('turns the grammar correction into the mechanic', () => {
+    const less = all.indexOf('Then we need less people talking at once.')
+    expect(less).toBeGreaterThan(-1)
+    expect(all[less + 1]).toBe('Fewer.')
+    // He does not explain it unless asked (rule 3), so the player asks by
+    // saying his name and he finishes the thought in one line.
+    expect(all[less + 2]).toBe('James.')
+    expect(all[less + 3]).toContain('It’s countable.')
+  })
+
+  it('sends the player at the board and does not care which node', () => {
+    // §11.5's recognition tutorial, from the other end: the door is named, the
+    // choice behind it is explicitly the player's, and James has no preference
+    // because to him every node in the branch does the same good thing.
+    expect(all.some((t) => t.includes('Open UPGRADES'))).toBe(true)
+    expect(all.some((t) => t.includes('don’t mind which'))).toBe(true)
+  })
+
+  it('never lets James be in on the joke', () => {
+    // §21.7.0 — "if a line of his reads as a wink, it is the wrong line."
+    // He is unaffected by the thread because interruptions do not land on him,
+    // and he says so as advice rather than as commentary.
+    const james = script.filter((l) => l.speaker === 'JAMES')
+    expect(james.length).toBeGreaterThan(0)
+    for (const line of james) expect(line.text).not.toMatch(/obviously|of course|typical|again/i)
+  })
+
+  it('pays off only on the purchase exit', () => {
+    // The two exits have to feel different or twenty taps is the better one.
+    expect(SCENE_THREAD_CLEARED.script.at(-1)!.speaker).toBe('JAMES')
+    expect(SCENE_THREAD_CLEARED.script.at(-1)!.text).toContain('meeting')
+  })
+})
+
+describe('§21.7.7 — the three boards each arrive with somebody', () => {
+  it('opens the founder’s board on being a rounding error in your own company', () => {
+    const all = SCENE_FOUNDER_BOARD.script.map((l) => l.text)
+    expect(all).toContain('Two per cent.')
+    expect(all).toContain('I wrote this entire product.')
+    // §13.7.1's whole thesis, and the scene never explains it: the Management
+    // tree is a bit of everybody's job and you will be worse at all of it.
+    expect(all.some((t) => t.includes('a bit of everyone’s job'))).toBe(true)
+    expect(all.at(-1)).toBe('No.')
+  })
+
+  it('keeps James on the tool and the process in both board scenes', () => {
+    // §21.7.3 rule 3, in substance. The "exactly one line" half of that rule is
+    // a shape rule for *arrival* scenes, where a second James line would
+    // compete with the person walking in. Nobody walks in here — so what is
+    // asserted is the part that is about him rather than about staging: he
+    // never talks about a person.
+    const james = [...SCENE_FOUNDER_BOARD.script, ...SCENE_HERO_BOARD.script].filter(
+      (l) => l.speaker === 'JAMES',
+    )
+    expect(james.length).toBeGreaterThan(0)
+    for (const line of james) {
+      for (const hero of ['Mo', 'Serena', 'Matt', 'Melany', 'Billy']) {
+        expect(line.text).not.toMatch(new RegExp(`\\b${hero}\\b`))
+      }
+    }
+  })
+
+  it('introduces the hero board as a board, never as a hero', () => {
+    // The player chooses who to place, so the scene must read the same whoever
+    // levelled first. Naming one would be wrong for five of the six.
+    const all = SCENE_HERO_BOARD.script.map((l) => l.text)
+    for (const hero of ['Mo', 'Serena', 'Matt', 'Melany', 'Billy']) {
+      for (const line of all) expect(line).not.toMatch(new RegExp(`\\b${hero}\\b`))
+    }
+    expect(all.some((t) => t.includes('point'))).toBe(true)
+  })
+
+  it('states §13.9.1 as a fact about a person rather than a starting bonus', () => {
+    const all = SCENE_HERO_BOARD.script.map((l) => l.text)
+    expect(all).toContain('Everyone starts somewhere different on it. That’s what makes them who they are.')
+    // James is the trunk: half as good at everything, everywhere (§13.9.1).
+    expect(all.some((t) => t.includes('Half as good at everything'))).toBe(true)
+  })
+
+  it('is a handshake, not an act', () => {
+    for (const scene of [SCENE_FOUNDER_BOARD, SCENE_HERO_BOARD, SCENE_THREAD_CLEARED]) {
+      expect(scene.script.length).toBeLessThan(12)
     }
   })
 })

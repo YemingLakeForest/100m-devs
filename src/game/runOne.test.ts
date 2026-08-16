@@ -13,6 +13,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  FIRST_PAID_RUNG,
   PROJECT_PAYOUTS,
   WAGE_PER_DEV_PER_SEC,
   isBankrupt,
@@ -94,14 +95,32 @@ describe('the loop closes — §4.10c', () => {
     expect(at(100)).toBeGreaterThan(at(40) * 2)
   })
 
-  it('makes every hire after the first project increase profit per second', () => {
+  it('makes every hire increase profit per second, once hiring is what the game asks for', () => {
     // d(profit)/dn = r - W. If this is ever negative, Act IIa's "each hire
     // works" is a lie and the player is punished for doing what they were told.
-    for (let i = 1; i < PROJECTS.length; i++) {
+    //
+    // **From `FIRST_PAID_RUNG`** — §4.10f. Act IIa is the phase that asks for
+    // hires, and §21's machine does not open it until the garage catalogue is
+    // shipped. The rungs before it are two unpaid founders selling advertising
+    // to themselves; there is no `n` there for the derivative to be about.
+    for (let i = FIRST_PAID_RUNG; i < PROJECTS.length; i++) {
       const r = PROJECT_PAYOUTS[i] / PROJECTS[i].commitment
       const profitAt = (n: number) => passiveVelocity(n, 100) * r - payrollPerSecond(n)
       expect(profitAt(20)).toBeGreaterThan(profitAt(10))
       expect(profitAt(40)).toBeGreaterThan(profitAt(20))
+    }
+  })
+
+  it('makes hiring against a garage rung a *loss*, which is the lesson §6 charges for later', () => {
+    // The other half of §4.10f, and the reason the rungs below the line are safe
+    // to ship: they are not neutral, they are actively wrong to hire against,
+    // and the phase machine is what keeps the player off them. Stated as a test
+    // so that "safe because nobody hires here" stays a fact about the gate
+    // rather than an assumption about the player.
+    for (let i = 0; i < FIRST_PAID_RUNG; i++) {
+      const r = PROJECT_PAYOUTS[i] / PROJECTS[i].commitment
+      const profitAt = (n: number) => passiveVelocity(n, 100) * r - payrollPerSecond(n)
+      expect(profitAt(20)).toBeLessThan(profitAt(10))
     }
   })
 })

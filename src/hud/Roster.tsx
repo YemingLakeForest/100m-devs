@@ -38,6 +38,7 @@ export function Roster({
   open,
   roster,
   labelFor,
+  showPoints,
   onOpen,
   onClose,
 }: {
@@ -45,6 +46,14 @@ export function Roster({
   roster: readonly HeroRuntime[]
   /** Where each hero is, in words — the same string §22.9's card shows. */
   labelFor: (hero: HeroRuntime) => string
+  /**
+   * §21.7.7 — has §13.9's board been handed over?
+   *
+   * A point is an affordance for a board, so it is only drawn once there is
+   * somewhere to spend it. A prop rather than a store read, because nothing
+   * else in this file knows what a save is.
+   */
+  showPoints: boolean
   onOpen: (hero: HeroRuntime) => void
   onClose: () => void
 }) {
@@ -72,8 +81,11 @@ export function Roster({
                   {where}
                 </span>
                 {/* §13.13 — a hero with something to spend is visibly waiting,
-                    on the strip as well as on the card. */}
-                {hero.points > 0 && <span className="roster__points">{hero.points}</span>}
+                    on the strip as well as on the card, once §21.7.7's board
+                    exists to spend it on. */}
+                {showPoints && hero.points > 0 && (
+                  <span className="roster__points">{hero.points}</span>
+                )}
               </button>
             )
           })}

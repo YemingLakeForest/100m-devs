@@ -7,7 +7,13 @@ import {
   founderLevel,
   type FounderNode,
 } from '../sim/founder.ts'
-import { buyFounderNode, founderOf, getPermanent, pokeFounder } from '../game/store.ts'
+import {
+  buyFounderNode,
+  currentUnlocks,
+  founderOf,
+  getPermanent,
+  pokeFounder,
+} from '../game/store.ts'
 import { formatMoney } from './hudModel.ts'
 import { DEFAULT_FOUNDER, readFounderProfile } from '../game/founderProfile.ts'
 import type { StageHandle } from '../render/stage.ts'
@@ -141,6 +147,21 @@ export function FounderBranch({ cash }: { cash: number }) {
 export function FounderProfilePanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const state = useGameState()
   const founder = readFounderProfile() ?? DEFAULT_FOUNDER
+  /*
+   * §21.7.7 — **the desk is not gated and the board is.**
+   *
+   * §4.5d is explicit that the corner seat is yours from the garage and
+   * clickable at every zoom, so this panel opens from Act I and always has.
+   * What §21.7.6's rule caught is that the tree inside it is an *instrument*:
+   * it was reachable on the first frame of Run 1, which is a personal skill
+   * shop bought with the money the trap is about to take.
+   *
+   * The tree is **not drawn at all** before its scene — no placeholder, no
+   * greyed rows. §21.7.6b's rule: a silent row is the loudest kind of
+   * furniture, and reserving space for a board that does not exist yet is the
+   * board being asserted before it exists.
+   */
+  const hasBoard = currentUnlocks().founderBoard
 
   return (
     <Panel open={open} modal from="centre" className="founder-profile">
@@ -163,9 +184,11 @@ export function FounderProfilePanel({ open, onClose }: { open: boolean; onClose:
           </dl>
         </aside>
 
-        <div className="founder-profile__tree">
-          <FounderBranch cash={state.cash} />
-        </div>
+        {hasBoard && (
+          <div className="founder-profile__tree">
+            <FounderBranch cash={state.cash} />
+          </div>
+        )}
       </div>
     </Panel>
   )

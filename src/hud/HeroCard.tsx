@@ -31,6 +31,7 @@ import { REACH_LADDER } from '../sim/heroes.ts'
 import { heroIdentity } from '../sim/identity.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import { effectiveDepth, type HeroRuntime } from '../sim/heroRoster.ts'
+import { currentUnlocks } from '../game/store.ts'
 import { HeroFace } from './HeroFace.tsx'
 
 import '../styles/heroes.css'
@@ -115,6 +116,7 @@ export function HeroCard({
   const ownDepth = hero
     ? hero.nodes.map((id) => HERO_NODE_BY_ID.get(id)).filter((n) => n?.kind === 'depth').length
     : 0
+  const hasBoard = currentUnlocks().heroBoard
 
   return (
     <Panel open={hero !== null} from="right" className="herocard">
@@ -138,7 +140,11 @@ export function HeroCard({
             <h2 className="herocard__name">{face.name}</h2>
             <span className="herocard__level">
               LV {hero.progress.level}
-              {hero.points > 0 && (
+              {/* §21.7.7 — a point is only shown once there is somewhere to
+                  spend it. The level is a fact about the person and is always
+                  drawn; the pips are an affordance for a board that may not
+                  have been handed over yet. */}
+              {hasBoard && hero.points > 0 && (
                 <span className="herocard__points" aria-label={`${hero.points} points to spend`}>
                   {'*'.repeat(Math.min(5, hero.points))}
                 </span>
@@ -190,9 +196,21 @@ export function HeroCard({
           </div>
 
           <div className="herocard__actions">
-            <Button onClick={onOpenTree}>
-              {hero.points > 0 ? `SPEND ${hero.points}` : 'SKILLS'}
-            </Button>
+            {/*
+              §21.7.7 — **the card is not gated and the board is.**
+
+              A card is who somebody is, and that has been true since Act I.
+              §13.9's board is an instrument and it arrives with the first level
+              anybody earns — before that it is a screen of purchases attached
+              to a person the player has never placed, which is §26.1.6's wall
+              in miniature. The door is simply absent until then, on §21.7.6b's
+              rule that a silent row is the loudest kind of furniture.
+            */}
+            {hasBoard && (
+              <Button onClick={onOpenTree}>
+                {hero.points > 0 ? `SPEND ${hero.points}` : 'SKILLS'}
+              </Button>
+            )}
             <Button onClick={onClose}>CLOSE</Button>
           </div>
         </div>

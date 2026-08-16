@@ -95,6 +95,9 @@ const COMPONENTS = [
   '.hud__controls',
   '.hire-dial',
   '.backlog',
+  // §18.0 — a live event's banner is a control in the middle column, which is
+  // the one place in the frame nothing else is anchored to an edge.
+  '.event-banner',
   '.upgrade-board__node',
   '.title__logo',
   '.title__menu',
@@ -113,6 +116,7 @@ const PAINTED = [
   '.ui-btn__face',
   '.hud__block',
   '.backlog',
+  '.event-banner',
   '.touch',
   '.hire-dial',
   '.hud__terminal',
@@ -607,7 +611,12 @@ try {
         // plays, which is the behaviour being gated rather than a bug in the
         // gate.
         await clearScene(target)
-        await target.getByRole('button', { name: 'UPGRADES' }).click()
+        // `exact`, because §18.0's event banner is part of this fixture and its
+        // route button is `OPEN UPGRADES`. Two buttons that lead to the same
+        // screen is correct — one is the standing door and one is an
+        // interruption saying to use it — and a substring match cannot tell
+        // them apart.
+        await target.getByRole('button', { name: 'UPGRADES', exact: true }).click()
       },
     })
 
@@ -625,6 +634,29 @@ try {
       width,
       height,
       path: '/?act=act3_bait&full&nopost',
+      action: async (target) => {
+        /*
+         * §18.0 — and the banner really is on this frame.
+         *
+         * Out of flow, so it costs the grid nothing, which is also how it could
+         * silently stop existing without the containment pass noticing. Waiting
+         * for it is the only thing standing between "the worst frame carries a
+         * live event" and trap 28 all over again.
+         */
+        await target.locator('.event-banner').waitFor({ state: 'visible' })
+      },
+    })
+    /*
+     * §18.0a's modal, which is the frame a player actually meets first. A
+     * centred scrim over the fullest HUD there is — the composition most likely
+     * to overflow a 640x360 phone, because nothing else in the game draws a
+     * panel *and* both full rails at once.
+     */
+    await check(page, {
+      name: 'a mandatory event, before the player has chosen an exit',
+      width,
+      height,
+      path: '/?act=act3_bait&full&event&nopost',
     })
     await check(page, {
       name: 'the fullest the HUD gets, mid-collapse',
@@ -689,7 +721,8 @@ try {
     action: (target) => target.getByRole('button', { name: /HIRE DEVELOPER/ }).dispatchEvent('pointerdown'),
   })
 
-  console.log(`UI frame, overlap, scene and contrast acceptance passed (${sizes.length * 9 + 3} screens).`)
+  // Ten cases per frame size, plus the three fixed-size ones at the bottom.
+  console.log(`UI frame, overlap, scene and contrast acceptance passed (${sizes.length * 10 + 3} screens).`)
 } finally {
   await browser?.close()
   server.kill()
