@@ -437,7 +437,25 @@ async function overflowIssues(page) {
       for (let ancestor = button.parentElement; ancestor && ancestor !== root; ancestor = ancestor.parentElement) {
         const style = getComputedStyle(ancestor)
         const clipsX = style.overflowX !== 'visible'
-        const clipsY = style.overflowY !== 'visible'
+        /*
+         * **A button below the fold is not a clipped button.**
+         *
+         * `.paradigm` is `max-height: 86vh; overflow-y: auto`, and on a 640x360
+         * phone its ten nodes, two readouts and shift offer do not fit — so the
+         * player scrolls, which is the design. Measured at the top of that
+         * scroll, PARADIGM SHIFT and CLOSE sit past the container's bottom edge
+         * and tripped this check, which is a true statement about the boxes and
+         * says nothing at all about whether the screen looks broken.
+         *
+         * So vertical clipping is a defect only where the container **cannot**
+         * scroll. Horizontal stays unconditional: nothing in this game is
+         * allowed to scroll sideways, so a slab past the side edge is always a
+         * defect whatever the overflow value says.
+         */
+        const scrollsY =
+          (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+          ancestor.scrollHeight > ancestor.clientHeight + 1
+        const clipsY = style.overflowY !== 'visible' && !scrollsY
         if (!clipsX && !clipsY) continue
         const box = ancestor.getBoundingClientRect()
         // No slack here: the whole point is that a slab cut by even one pixel
@@ -497,10 +515,78 @@ async function clearScene(page) {
   throw new Error('a scene would not clear')
 }
 
+/**
+ * **Every button you can see, you can press.**
+ *
+ * This pass exists because §13.2's PARADIGM button and §13.11.2's TEAM button
+ * shipped drawn, correctly positioned, contrast-checked — and completely dead.
+ * `.hud` is `pointer-events: none` by design and each control opts back in; the
+ * opt-in had been written on the *containers*, and those two buttons are direct
+ * children of a row that never needed pointers, so the canvas sat on top of
+ * them. The Paradigm Tree is the only place Bandwidth Points can be spent and
+ * its only other door is Act V's bankruptcy modal, so the whole prestige loop
+ * was reachable once per playthrough, by going broke.
+ *
+ * **Not one of the existing passes could have caught it.** Overflow measures
+ * boxes and both buttons were inside the frame. Contrast measures pixels and
+ * both were perfectly legible. A dead control is not a geometry defect or a
+ * colour defect — it is the one class of interface bug that is *invisible in a
+ * screenshot*, which is exactly why it needs a pass of its own in the file that
+ * takes the screenshots.
+ *
+ * Hit-tests the centre of every labelled, on-screen button and reports the one
+ * case that is unambiguously wrong: **the canvas receives the tap.**
+ *
+ * Narrowed to the canvas deliberately, and the first draft is worth recording
+ * because it was too clever. Asking "does the topmost element belong to this
+ * button" reports fourteen things on the upgrades drawer alone, and none of them
+ * is a bug: a drawer is *meant* to cover the HUD behind it, and a button scrolled
+ * out of a panel legitimately has no element above it because it is off-screen.
+ * A gate that reports true-but-uninteresting overlap is the exact failure this
+ * file's own header describes, and the fix is the same one — measure the thing
+ * that is actually wrong.
+ *
+ * The canvas is never a legitimate cover. It is the bottom layer; §7.1 puts the
+ * HUD above it and turns pointers off so taps fall *through* to the simulation.
+ * Anything the canvas is on top of has lost that argument.
+ */
+async function deadControlIssues(page) {
+  return page.evaluate(() => {
+    const out = []
+    for (const btn of document.querySelectorAll('button')) {
+      const r = btn.getBoundingClientRect()
+      if (r.width < 1 || r.height < 1) continue
+      const style = getComputedStyle(btn)
+      if (style.visibility === 'hidden' || style.display === 'none') continue
+      if (btn.disabled) continue
+      // A label, because an unlabelled button is a swatch or a sprite target and
+      // this pass cannot tell a dead one from a decorative one.
+      const label = (btn.textContent || '').trim()
+      if (!label) continue
+      const cx = Math.round(r.left + r.width / 2)
+      const cy = Math.round(r.top + r.height / 2)
+      // Off-screen, or scrolled out of its own container: not this pass's
+      // business, and `elementFromPoint` cannot answer for it anyway.
+      if (cx < 0 || cy < 0 || cx >= innerWidth || cy >= innerHeight) continue
+      const hit = document.elementFromPoint(cx, cy)
+      if (!hit || hit.tagName !== 'CANVAS') continue
+      out.push(
+        `dead control: "${label.slice(0, 32)}" is visible at ${Math.round(r.x)},${Math.round(r.y)} ` +
+          `but the canvas receives the tap (pointer-events: ${style.pointerEvents})`,
+      )
+    }
+    return out
+  })
+}
+
+/** How many screens this run actually looked at. Reported at the end. */
+let screensChecked = 0
+
 async function check(
   page,
   { name, width, height, path: urlPath, action, requireScene = false, keyboard = 0 },
 ) {
+  screensChecked += 1
   await page.setViewportSize({ width, height })
   await page.goto(`${origin}${urlPath}`, { waitUntil: 'load' })
   await page.locator('.app').waitFor()
@@ -525,6 +611,7 @@ async function check(
   const measuredHeight = keyboard > 0 ? Math.round(height * keyboard) : height
   const issues = [
     ...await overflowIssues(page),
+    ...await deadControlIssues(page),
     ...(requireScene ? await sceneIssues(page, width, measuredHeight) : []),
   ]
   if (issues.length > 0) {
@@ -665,6 +752,34 @@ try {
       path: '/?act=act4_collapse&full&nopost',
     })
 
+    /*
+     * §13.2's tree, which this gate had never opened — and §13.12.4 has just put
+     * two more lines of prose on it.
+     *
+     * It is the tallest panel in the game: a header, a capacity readout, the new
+     * near-miss line, two branch columns of five nodes, the shift offer and its
+     * two-press confirmation. Every one of those is text that grows when a name
+     * or a number gets longer, and on a 640x360 phone there is nothing else it
+     * can do but overflow. The near-miss line in particular is the one piece of
+     * copy here whose length depends on a *node name*, so it is the one most
+     * likely to push the panel past the frame the first time somebody adds a
+     * node with a long one.
+     */
+    await check(page, {
+      name: 'the paradigm tree, with somewhere still to climb',
+      width,
+      height,
+      path: '/?notitle&full&nopost',
+      action: async (target) => {
+        await clearScene(target)
+        await target.getByRole('button', { name: 'PARADIGM', exact: true }).click()
+        // The readout, not just the panel: it is conditional on §13.12.4's
+        // `nextRung`, so a fixture that stopped satisfying it would leave this
+        // case quietly gating a screen with the new lines missing.
+        await target.locator('.paradigm__next').waitFor({ state: 'visible' })
+      },
+    })
+
     await check(page, {
       name: 'founder setup',
       width,
@@ -721,8 +836,14 @@ try {
     action: (target) => target.getByRole('button', { name: /HIRE DEVELOPER/ }).dispatchEvent('pointerdown'),
   })
 
-  // Ten cases per frame size, plus the three fixed-size ones at the bottom.
-  console.log(`UI frame, overlap, scene and contrast acceptance passed (${sizes.length * 10 + 3} screens).`)
+  /*
+   * **Counted, not asserted.** This line used to read `sizes.length * 10 + 3`,
+   * a formula somebody kept in step with the cases below by hand — so adding a
+   * case and watching the total stay at 53 was the only clue that it was not
+   * measuring anything. A gate whose own summary is a guess is a gate that can
+   * report a pass over cases it never ran.
+   */
+  console.log(`UI frame, overlap, scene and contrast acceptance passed (${screensChecked} screens).`)
 } finally {
   await browser?.close()
   server.kill()

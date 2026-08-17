@@ -1129,6 +1129,86 @@ random number generator nobody can see:
   looks distinct is also the person who performs distinctly, and the player will start
   recognising individuals - which is section 2's premise arriving through mechanics.
 
+#### 4.10f The ladder has eight rungs, and the wage line moves **[CANON — added 2026-08-16]** - R85
+
+**The question was "the first game earns $50 and the second earns $25,000 — how is that
+sensible?", and the honest first answer is that it was forced rather than chosen.**
+
+§4.10c's rule is `d(profit)/dn = r − W`: hiring pays if and only if revenue per Story Point
+beats the wage. §21 fixes the two ends — Act II's first game pays exactly $50, Act V's payroll
+is $50 per developer per second — and `economy.test.ts` required every rung *from the second
+onward* to clear the wage. A 300-point game worth $50 and a 400-point game obliged to beat
+$50/SP are twenty thousand dollars apart by arithmetic, and no amount of taste closes that gap.
+
+**What was actually wrong is that the rule was applied one rung too early.** `d(profit)/dn`
+only binds where there is an `n` to differentiate against, and §21's garage has no payroll:
+you and James are unpaid, and the phase machine does not open Act IIa's hiring loop until the
+garage catalogue is out of the door. The rungs before that point are free to sit *below* the
+wage line, and putting them there is what turns the cliff into an escalation.
+
+| # | Game | SP | Payout | `r` | |
+|---|---|---|---|---|---|
+| 0 | Flappy Square 1.0 | 300 | $50 | $0.17 | the garage — two unpaid founders |
+| 1 | Flappy Square 1.1 (Now With Ads) | 200 | $1,500 | $7.50 | still underwater, now on purpose |
+| 2 | Flappy Square 2.0 (Now With A Battle Pass) | 300 | $12,000 | $40 | nearly right, and still wrong |
+| 3 | Untitled Roguelike Deckbuilder | 600 | $38,000 | $63 | **FIRST_PAID_RUNG** — clears the wage |
+| 4 | Cozy Farming Sim With A Dark Secret | 900 | $110,000 | $122 | |
+| 5 | Open-World Survival Craft (Early Access) | 1,400 | $320,000 | $229 | |
+| 6 | Live-Service Hero Shooter | 2,200 | $900,000 | $409 | |
+| 7 | Untitled Roguelike Deckbuilder II | 3,500 | $2,600,000 | $743 | terminal; §4.4 grows its commitment |
+
+No step multiplies the payout by more than ×30, against the old ×500, and that largest step is
+*Now With Ads* — which is the largest multiplier a garage ever genuinely finds. **The
+escalation is the better joke.** You do not ship one game and then a game worth five hundred
+times more; you ship the same game three times, bolting a monetisation feature on each time,
+and the studio learns to charge for things before it learns to hire.
+
+Two things constrain any future edit to this table, and both were learned by measurement:
+
+- **A rung is sized by whether the studio that reaches it can finish it.** The first draft of
+  the upper half went 600 → 1,200 → 4,000 → 12,000 → 40,000, sized by how big the games ought
+  to *feel*. Measured, that put the early loop at **300 seconds a ship** against §4.4's sixty:
+  payroll ran for five minutes between payouts, every run ended $400K down, and §13.7.1's tree
+  went unaffordable. Commitments climb by about half again; the payouts carry the scale.
+- **The garage rungs are safe below the wage line only because the gate holds.** They are not
+  neutral there, they are actively wrong to hire against, and `runOne.test.ts` asserts that in
+  both directions. If `act2_ship` ever stops waiting for `FIRST_PAID_RUNG`, this table becomes
+  a trap rather than a joke.
+
+#### 4.10g A run opens on the game it earned **[CANON — added 2026-08-16]** - R85
+
+`triggerParadigmShift` reset `projectIndex` to zero, so **every run in the career re-climbed the
+garage ladder** — a studio with a cap of fifteen thousand went back to making *Flappy Square
+1.0* for fifty dollars. That was invisible while the old rung 1 paid $25,000 on sight: the
+replay lasted twenty seconds and then the studio was rich. §4.10f spread that payout across
+three rungs and the replay stopped being invisible at once — measured, runs 2 to 8 **stalled at
+two developers**, because three garage games earning $13,550 on §4.10e's tail never clear the
+thirty seconds of payroll a third hire needs standing behind it.
+
+So a run inherits a **position in the catalogue**. §14.8.9 named the cash version of this idea —
+*"the bank lends against the company you have proven you can build"* — and a catalogue has the
+advantage that it cannot be spent on a hiring spree the run cannot pay for, which is the exact
+failure that made §13.12.3's option 2 unshippable.
+
+> **The bound is the standing start, and the first version got this wrong.** It bounded the rung
+> by the *cap* — one story point per developer of capacity — which reads well and is the wrong
+> noun. **A run does not open with the people it is allowed to hold; it opens with two.** §21.6
+> liquidates the swarm and leaves James. Measured at run 8, a cap of 210,526 handed the run the
+> terminal 3,500-point game, which two developers need about seven hundred seconds to finish,
+> and until it ships there is no money, so no third hire, so no velocity: **two developers and
+> $0 revenue against a cap of two hundred thousand.**
+
+The rung is therefore bounded by what a fresh studio can build in §4.4's window —
+`STARTING_DEVS · SP_PER_DEV_PER_SEC · TARGET_BUILD_SECONDS` — and floored at `FIRST_PAID_RUNG`.
+In practice it is always the floor, and it is written as the computation rather than as the
+number because the number is an output.
+
+**What this gives up, stated rather than buried.** "Each prestige opens on a bigger game" was a
+good per-run reward and it is not on offer. It does not need to be: measured (§14.8.11), the
+cap, the velocity, the revenue and the BP now all climb every single run, so the sense of
+progress is carried by the systems that can carry it. This rule's job is the narrower one —
+**stop the studio re-climbing the garage** — and that it does.
+
 ### 4.11 Roles — the studio stops being one kind of person **[CANON - added 2026-08-10]** - R19
 
 **Every developer in the game does the same job, and that is a hole in the middle of the
@@ -3962,6 +4042,60 @@ $$\text{Cost}(N) = \text{Base Cost} \times (\text{Multiplier})^{N}$$
 - **T5: Anti-AI Slop Filters** (removes Code Bloat Entropy generated by late-game LLM code generators)
 - **T6: Quantum Entanglement Sync** (zero-latency communication across planetary systems; sets base Entropy decay to 0)
 
+#### 11.2a A second door into the branch, and three rungs in the price hole **[CANON — added 2026-08-16]** - R85
+
+§14.8.10 left the next pacing session two prices and an instruction. Both are taken here, and
+the second finding gets a **second door rather than a demolition**.
+
+> §11.2's protocol branch is closed behind a node no player under their cap should buy. B2
+> *Daily Standups* costs output for a ceiling a healthy studio does not need, B3 requires B2,
+> and B4 requires B3 — so the only branch that raises the developer cap *within* a run is
+> unreachable in practice for exactly the player who is playing well.
+
+That tension is real and §11's own opening line is what makes it interesting — *"upgrading
+Workforce without Communication Infra rapidly triggers the trap"* — so **B2 → B3 → B4 is left
+exactly as it is.** Buying a standing pause to cap Entropy at 80% is still the trade §11.2
+designed. What is added is a parallel chain off B1 that buys **capacity** instead of a ceiling,
+which is the thing a healthy studio under its cap actually wants and could not previously reach
+at any price.
+
+| Node | Name | Flavour | Cost | Effect |
+|---|---|---|---|---|
+| **B1a** | Written Culture | *"Every decision now requires a document. Nobody reads the documents. Nobody argues either."* | $600,000 | Communication load **−25%** |
+| **B1b** | Microservices | *"Every team owns its own service, its own database and its own pager. They no longer need to speak to each other — they need to speak to each other's APIs, which is worse, but is asynchronous."* | $4,000,000 | Communication load **−35%** |
+
+> **Why `B1a` and not `B5`.** §11.2's table above already spends B5 and B6 on Anti-AI Slop
+> Filter and Quantum Entanglement Sync. Those are *unbuilt, not unreserved*, and a node id is
+> the **save format's** vocabulary — taking `B5` would mean a save written today and a save
+> written after §11.2's real B5 ships disagree about what the player owns. The id says where
+> the node sits instead of claiming a place in the sequence it has not got.
+
+#### 11.3a Four-Day Week **[CANON — added 2026-08-16]** - R85
+
+The third rung in §14.8.10's price hole, and deliberately a **different shape of reward** from
+the two beside it. B1a and B1b both buy capacity, and a hole plugged with three nodes that all
+say the same thing is a ramp nobody has to think about.
+
+| Node | Name | Flavour | Cost | Effect |
+|---|---|---|---|---|
+| **C2a** | Four-Day Week | *"Announced as a wellbeing initiative. Retained because output went up, which nobody mentions in the blog post."* | $1,500,000 | Overwhelmed developers recover **twice as fast again**; every game earns **15% more** |
+
+Hangs off C2 *Ergonomic Chairs*, which was the end of the branch where the studio spends money
+on its own people. §11.3's `C3` is spoken for by Clicker Mechanical Keyboards, hence the id.
+
+The joke is that it is the only genuinely good idea anybody in this company has, and it is
+filed under perks.
+
+**The resulting ladder**, which is what the two sections above are actually for:
+
+| $100 | $2K | $2.5K | $10K | $75K | $250K | **$600K** | **$1.5M** | **$4M** | $10M | $80M | $400M |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| C1 | C6 | B2 | C2 | B3 | C7 | **B1a** | **C2a** | **B1b** | B4 | C8 | C9 |
+
+The ×320 step is gone and nothing steps by more than ×8. Measured (§14.8.11), runs 3, 4 and 5 —
+the three that bought **nothing in any tree for three consecutive runs** — now buy B1a, then
+C7/C2a/B1b.
+
 ### 11.3 Branch C — Culture & Juice (Active Mechanics & Story Point Yield)
 
 *Enhances the tactile "poke" mechanics, click feedback, and Story Point extraction. This is
@@ -5101,6 +5235,66 @@ they can afford and there is nothing left in any tree until a price four hundred
 on. That is a specific, cheap thing to fix and it is the first thing the next pacing session
 should look at.
 
+#### 13.12.5 The early loop stops being flat **[CANON — added 2026-08-16]** - R85
+
+§13.12.4 conceded that runs 2–6 sat below their own amended band and named the reason:
+
+> It is not the cap. It is that by run 3 the player has bought everything they can afford and
+> there is nothing left in any tree until a price four hundred times further on. That is a
+> specific, cheap thing to fix and it is the first thing the next pacing session should look at.
+
+It was, and it was. §11.2a and §11.3a fill the hole; §4.10f and §4.10g stop every run
+re-climbing the garage; §14.8.12 takes §14.8.9's second fix so that §4.1 is the only wall again.
+§14.8.11 has the table. Against §13.12.4's bands:
+
+| §13.12.4's row | Band | Measured, 2026-08-16 |
+|---|---|---|
+| Run 1, the prologue | — | **5 min** (was 3) |
+| The early loop, runs 2–6 | 5–15 min | **7–10 min** — in band, and no longer at the floor |
+| The first steered run, runs 7–8 | 20 min – 2 h | **8–9 min** — now *below* band |
+| Mid-game, runs 9+ | 2–8 h | beyond the harness's horizon |
+
+**The early loop is fixed and the row after it has moved.** Runs 7 and 8 used to be the twenty-
+minute and hour-long runs the table is named for; they are now eight and nine minutes, because
+everything that made runs 3–6 longer made runs 7–8 *shorter* — a studio that can buy things buys
+them, and a studio that has bought them reaches its wall sooner.
+
+**This is not treated as a regression and it is not fixed here.** Three reasons, in order:
+
+1. **The shape is right even where the numbers are not.** Run length is flat-ish at 7–10 minutes
+   across eight runs while *everything else* grows by four orders of magnitude. That is a
+   different miss from §13.12.3's, which was a plateau in the rewards themselves.
+2. **§26.1.8's first gate line outranks the band**, and it is satisfied for the first time —
+   §13.12.4 established that precedence when it refused option 2 for exactly this reason.
+3. **The harness's horizon has never been the binding constraint before.** Runs 7 and 8 end on
+   §4.1 with a healthy treasury and a full tech tree, so what makes them short is that there is
+   nothing left to *want*, which is §14.8.10's finding one layer further out. The tree needs
+   more rungs above $400M before a longer run has anything to be long about.
+
+> Recorded as the open question a later pacing session inherits, in the form §13.12.3 used and
+> §14.8 keeps vindicating: **do not settle this by argument.** The candidate answers are more
+> tech rungs above C9, §13.3's Layer 2, and amending the table again — and the only one of those
+> that costs nothing to test is the third.
+
+#### 13.12.6 The prestige screen says what you are saving for **[CANON — added 2026-08-16]** - R85
+
+**The screen showed a number and a price list and left the player to subtract.** §15.1's tree
+already carries a live *"THIS RUN IS WORTH n BP"* quote, and the argument for showing it before
+the decision rather than after is good: watching it climb is the case for playing another twenty
+minutes. What it never said is the other half of the sentence — *worth n BP **towards what***.
+
+Ending a run a little short of something you want is the thing that starts the next one. It
+cannot do that while it is arithmetic homework. Two lines, both derived and neither stored:
+
+- **`NEXT — <node> · <n> BP SHORT`**, under the capacity readout. The **cheapest unaffordable**
+  node, not the deepest or the best: the cheapest thing out of reach is what a near miss is
+  actually about, and naming a "best" node would be the game having an opinion about how to
+  play, which §13.2's two branches exist to leave open. Renders nothing at all when something is
+  already affordable — a line reading "0 SHORT" is a screen shouting at somebody who has won.
+- **`STILL n SHORT OF <node>`** or **`THAT BUYS <node>`**, under the shift quote, computed
+  against the wallet **as it would be after the shift**. The quote is about the number; this is
+  about the decision.
+
 ### 13.13 Heroes level **[CANON - added 2026-08-15]** - R53
 
 §13.10 gives a hero XP and spends it directly on nodes. **That works and it is missing the
@@ -5501,6 +5695,79 @@ may be correct; what is certainly not correct is that it is invisible, unpriced 
 
 **This is what a next pacing session should look at first**, and it is cheaper than either fix
 in §14.8.9: a price is a number in a table, and both of these are prices.
+
+#### 14.8.11 The loop, after §4.10f, §4.10g, §11.2a and §14.8.9's fix 2 **[CANON — added 2026-08-16]** - R85
+
+**The complaint that started this was about the project ladder and the ladder was the least of
+it.** Measured first, as §14.8 exists to insist: runs 3, 4, 5 and 7 bought nothing in any tree
+and earned the same million dollars. Four prestiges in which nothing changed.
+
+| run | length | devs / cap | shipped | revenue | BP | wall | cash |
+|---|---|---|---|---|---|---|---|
+| 1 | 5m | 1,040 / 100 | 6 | $388.4K | 15 | entropy | −$1.0M *(scripted)* |
+| 2 | 8m | 89 / 116 | 7 | $4.9M | 16 | entropy | +$179K |
+| 3 | 7m | 133 / 175 | 9 | $10.5M | 21 | entropy | +$5.1M |
+| 4 | 10m | 234 / 308 | 12 | $26.5M | 28 | entropy | +$5.9M |
+| 5 | 8m | 2,339 / 3,084 | 11 | $143.2M | 57 | entropy | +$60.8M |
+| 6 | 8m | 2,728 / 3,598 | 11 | $166.5M | 60 | entropy | +$125.2M |
+| 7 | 8m | 32,735 / 43,184 | 13 | $1.7B | 125 | entropy | +$92.1M |
+| 8 | 9m | 327,342 / 431,848 | 15 | $13.0B | 231 | entropy | +$6.9B |
+
+**Every run ends on §4.1 and none on the price of a head** — §26.1.8's first gate line, which
+§14.8.9 could not satisfy while trying to hit §13.12.1's bands. Every run after the scripted one
+ends solvent. Every run is bigger than the one before it, in cap, headcount, revenue and BP.
+§4.4's cadence holds at sixty seconds a ship from run 2 to run 8, and every length lands inside
+§13.12.4's amended 5–15 minute band.
+
+**Three regressions were found on the way, and each one was found by the instrument rather than
+by argument.** They are recorded in §4.10f, §4.10g and below, because each is a mistake that
+reads perfectly reasonable in prose:
+
+1. Spreading the ×500 across three garage rungs stalled every later run at **two developers** —
+   the old rung 1 had been hiding the fact that a prestige resets the catalogue (§4.10g).
+2. Sizing the upper rungs by how big the games ought to *feel* put the early loop at **300
+   seconds a ship** and every run $400K down (§4.10f).
+3. Bounding the opening game by the **cap** rather than by the two developers a run actually
+   starts with left run 8 unable to hire its third employee against a cap of 210,526 (§4.10g).
+
+#### 14.8.12 §14.8.9's fix 2, taken **[CANON — added 2026-08-16]** - R85
+
+§14.8.9 named two candidate fixes for the wall that is not §4.1 and took neither, on the correct
+grounds that both were untested economy changes. The measurement that forced the second one is
+run 8 above, in its pre-fix form: **cap 1,754, treasury −$1,011,069, stalled at 1,180 developers
+on the price of a head with §4.1 nowhere in sight.**
+
+> Make §4.10a's hire cost scale with the cap rather than with headcount alone, so a bigger cap
+> makes each head cheaper as well as allowed.
+
+Implemented as an **effective growth base**, `g^(D_base / cap)`, which is the same substitution
+written as a number rather than as a new curve. Three properties made it the shippable version:
+
+- **`hireDial.ts`'s closed forms stay exact.** Raising the exponent's divisor leaves a geometric
+  series, so §10.10.3's dial keeps quoting what the game charges without either formula being
+  re-derived.
+- **At `cap = D_base` it is the identity**, so §21's whole ladder — Act IIa's $238 to forty
+  developers, Act III's "cost: your entire treasury" — is **unchanged to the cent**. Asserted.
+- **§6's lesson stays off the market.** The base never reaches 1, the last quarter of any cap is
+  still expensive, and §4.1 is untouched. What goes away is a *second* wall standing in front of
+  the first one.
+
+§14.8.9 flagged the risk that this makes §13.7.1's Recruiting node redundant. It does not — the
+node lowers `growth` before the cap scales it, so it still buys a cheaper climb through whatever
+capacity you hold, and there is a test that says so.
+
+**And it exposed a measurement error the old curve had been hiding.** `pacing.test.ts` read its
+payroll buffer once and then spent it inside the hire loop, modelling a player who checks their
+runway, hires until the money runs out, and never looks again. The expensive curve stopped that
+loop long before the buffer had to; with the brake gone, run 8 hired 1,330 people in a single
+frame on a few thousand dollars and was past bankruptcy within seconds. The buffer is recomputed
+per hire now, which is what its own comment always claimed it did.
+
+> **The general lesson, because this is the second time §14.8 has hit it.** An accidental
+> constraint is indistinguishable from a deliberate one until you remove it. §14.8.2 found a
+> hiring budget with no cap to spend it into; §14.8.9 found a cap with no hiring budget behind
+> it; this found a *harness* whose caution was being enforced by a price rather than by its own
+> rule. Each was invisible while the thing masking it was in place.
 
 ## 15. Prestige UI Wireframes
 
@@ -9198,6 +9465,74 @@ Three requests, and the third is the one that changed a rule rather than adding 
 | **R82** | **The first trap event, mandatory, with a funny James conversation — a critical path that makes people do upgrades** | §18.0 makes events a system; §18.0a is THE THREAD; §21.7.7d puts it second in Run 2's ladder |
 | **R83** | **"Some hero upgrades are added prematurely, before the mechanism is introduced. There should be story arcs to introduce the upgrades — heroes, founder and studio"** | §21.7.7, and §26.1.4 records what it does to §21.7.6 |
 | **R84** | Finish the rest of Phase 1 | §13.12.4, §14.8.9, §14.8.10, and §26.1.8's amended gate |
+| **R85** | **"The first game earns £40, the second £25k — how is that sensible? I want an addictive progressive hook that is challenging yet rewarding and gives the 'one more turn' vibe"** | §4.10f, §4.10g, §11.2a, §11.3a, §13.12.5, §14.8.11, §14.8.12, and §13.12.4's near-miss readout |
+
+#### 25.9.2 R85 — the complaint was right and it was about the wrong thing
+
+**The ×500 was forced, not chosen**, and saying so is the whole of the answer to the question as
+asked: §21 fixes a $50 first game and a $50/dev/sec wage, §4.10c requires every rung the player
+hires against to clear the wage, and those three facts put twenty thousand dollars between the
+first two rungs whatever anybody's taste says. §4.10f finds the room — the rule was binding one
+rung too early, because the garage has no payroll — and turns the cliff into an escalation.
+
+**But the measurement taken before touching anything found something much worse than a bad
+ladder.** Runs 3, 4, 5 and 7 bought nothing in any tree and earned the same million dollars:
+four consecutive prestiges in which nothing changed. A player asking for "one more turn" was
+asking about the wrong number, and would have been right to stop playing.
+
+Three separate ladders were all cliff-then-plateau, and the request only pointed at the first:
+
+1. the project payouts — ×500, then ×4.8, then flat for ever (§4.10f);
+2. §11's tech board — a ×320 hole exactly where the early loop lives (§11.2a);
+3. §14.1's BP yield — `R^0.2`, so **ten times the revenue pays 1.58 times the reward**.
+
+The third is not fixed and is deliberately left standing. It looked like the deepest problem and
+the measurement says it is not: with (1) and (2) fixed, BP grows 16 → 21 → 28 → 57 → 60 → 125 →
+231 across the first eight runs, because the *revenue* now grows fast enough that a flat exponent
+on it is still a steep curve. Changing §14.1 as well would have been the fourth plausible
+argument in this document to be wrong, and §14.8 is the record of the first three.
+
+> **What actually produces "one more turn", stated so the next session does not have to
+> re-derive it.** Not a bigger reward — a **visible, priced, nearly-affordable next thing** at
+> every moment. §13.12.6's near-miss readout is that principle applied to the prestige screen,
+> and §11.2a is the same principle applied to the tech board. A player who can always name what
+> they are saving for and say how many minutes away it is will play those minutes.
+
+#### 25.9.3 The dead control, and the gate that could not see it
+
+Found while adding §13.12.6's readout, by writing a browser-gate case that opens the Paradigm
+Tree — something the gate had never done. **§13.2's `PARADIGM` button and §13.11.2's `TEAM`
+button were drawn, correctly positioned, contrast-checked, and completely dead.** Measured at
+640×360, `elementFromPoint` at the centre of `PARADIGM` returns the canvas.
+
+The cause is one missing line and a reasonable-sounding convention. §7.1 makes the HUD
+`pointer-events: none` — the comment calls it load-bearing, because the renderer listens on the
+canvas underneath and anything that takes pointers without needing them puts a dead patch on the
+simulation. Every control opts back in, and the opt-ins had all been written on the
+**containers**: `.hud__nav` has one, `.touch` has one, `.game-menu` has one. Those two buttons
+are direct children of a row that has no reason to want pointers, so nothing ever opted them in.
+
+**No existing pass could have caught it, and that is the part worth keeping.** Overflow measures
+boxes and both buttons were inside the frame. Contrast measures pixels and both were perfectly
+legible. Scene checks measure scenes. A dead control is neither a geometry defect nor a colour
+defect — **it is the one class of interface bug that is invisible in a screenshot**, which is
+exactly why it now has a pass of its own in the file that takes the screenshots.
+
+Two smaller findings came out of the same hour and are recorded because both are the same
+species — a check that reports something true and uninteresting, or nothing at all:
+
+- The first draft of that pass asked *"does the topmost element belong to this button"* and
+  reported fourteen issues on the upgrades drawer alone, none of them bugs: a drawer is meant to
+  cover the HUD, and a button scrolled out of a panel legitimately has nothing above it.
+  Narrowed to **the canvas receives the tap**, which is never legitimate — the canvas is the
+  bottom layer.
+- The slab-clipping check treated a button below the fold of a scrolling panel as clipped. True
+  about the boxes, silent about whether anything looks broken. Vertical clipping is now a defect
+  only where the container **cannot** scroll; horizontal stays unconditional.
+- The gate's own summary line read `sizes.length * 10 + 3`, a formula kept in step with the
+  cases by hand — so adding a case and watching the total stay at 53 was the only clue it was
+  not counting anything. **A gate whose summary is a guess can report a pass over cases it never
+  ran.** It counts now.
 
 #### 25.9.1 R82 — why a mandatory event is not a contradiction
 
@@ -9437,8 +9772,25 @@ Every line is a thing a player does, in order, without leaving the game:
    this list decorates a loop, and there has to be a loop. **The bands are §13.12.4's**, which
    is the amendment the measurement forced; the "ends on §4.1" half is unchanged and outranks
    the band half, which is why §13.12.3's option 2 was refused (§14.8.9).
+   > **Item 1 passes as of 2026-08-16** (§14.8.11): eight runs, every one ending on §4.1, every
+   > one after the scripted prologue solvent, lengths 7–10 minutes. §13.12.5 records the row
+   > that moved as a result — runs 7–8 are now *below* their band — and why that is left open
+   > rather than chased.
 2. **Three prestiges, each visibly worth more than the last** — headcount, revenue and BP all
    moving, with §13.2's tree and §13.7.1's tree both being spent into.
+
+   > **Item 2 passes as of 2026-08-16** (§14.8.11), and it is worth saying what it took, because
+   > this line sat quietly false for three sessions while every other item was being worked on.
+   > Runs 3, 4, 5 and 7 bought **nothing in any tree** and earned the same million dollars. The
+   > fixes are §4.10f, §4.10g, §11.2a, §11.3a and §14.8.12; the reason nobody noticed is
+   > §14.8.10's — the instrument printed lengths and walls, and not inventories.
+
+2a. **Open the Paradigm Tree from the HUD.** Added as a gate line because it was not possible:
+   §13.2's `PARADIGM` button and §13.11.2's `TEAM` button shipped drawn, positioned,
+   contrast-checked and **dead**, with the canvas taking their taps (§25.9.3). The tree is the
+   only place Bandwidth Points can be spent and its only other door is Act V's bankruptcy modal,
+   so the whole prestige loop was reachable once per playthrough, by going broke. Every item
+   above and below this one assumed it worked.
 3. Create a founder, play §21's prologue to the forced bankruptcy, and take the first Paradigm
    Shift.
 4. Open `UPGRADES`, find Instant Messenger at the centre, buy a ring-1 node, and see the board

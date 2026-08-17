@@ -150,6 +150,83 @@ export function canAfford(node: ParadigmNode, currentLevel: number, bp: number):
   return currentLevel < node.maxLevel && bp >= nodeCost(node, currentLevel)
 }
 
+/** The cheapest thing the player cannot buy yet, and how far off it is. */
+export interface NextRung {
+  node: ParadigmNode
+  cost: number
+  /** Bandwidth Points still needed. Always at least 1 — an affordable node is not a rung. */
+  short: number
+}
+
+/**
+ * **What you are saving for, and how close you are** — §13.12.4, §3.1.1.
+ *
+ * The prestige screen already shows a live *"THIS RUN IS WORTH n BP"* quote, and
+ * its own note says why: watching that number climb is the argument for playing
+ * another twenty minutes. What it never showed is the other half of the
+ * sentence — *worth n BP **towards what***. The player was left holding a number
+ * and a tree of prices and doing the subtraction themselves, on a screen whose
+ * entire job is to make them want one more run.
+ *
+ * Ending a run a little short of something you want is the thing that starts the
+ * next one. It cannot do that while it is arithmetic homework.
+ *
+ * Returns the **cheapest unaffordable** node rather than the deepest or the best.
+ * That is deliberate and it is not a recommendation engine: the cheapest thing
+ * out of reach is the one a near-miss is actually about, and picking a "best"
+ * node would mean this file having an opinion about how to play, which §13.2's
+ * two branches exist to leave open.
+ *
+ * Null when the tree is maxed, or when the player can already afford something —
+ * a screen that says "you are 0 short" is a screen shouting at somebody who has
+ * already won. `ParadigmTree` renders nothing in that case and lets the lit,
+ * buyable nodes speak for themselves.
+ */
+/**
+ * The cheapest node this many Bandwidth Points **would** buy, or null.
+ *
+ * The other side of {@link nextRung}, and the two are exhaustive: at any wallet
+ * and any tree exactly one of them is non-null, unless the tree is maxed. The
+ * prestige screen uses this to finish the sentence when a shift crosses the
+ * line — *"THIS RUN IS WORTH 16 BP · THAT BUYS TELEPATHIC COMPRESSION"* — which
+ * is the version of the offer that is about the decision rather than about
+ * arithmetic.
+ *
+ * Cheapest rather than best, for the same reason {@link nextRung} is: naming a
+ * "best" node would be this file having an opinion about how to play, and
+ * §13.2's two branches exist precisely to leave that to the player.
+ */
+export function cheapestAffordable(
+  levels: Readonly<Record<string, number>>,
+  bp: number,
+): ParadigmNode | null {
+  const held = Number.isFinite(bp) ? Math.max(0, bp) : 0
+  let best: { node: ParadigmNode; cost: number } | null = null
+  for (const node of PARADIGM_TREE) {
+    const level = Math.max(0, levels[node.id] ?? 0)
+    if (level >= node.maxLevel) continue
+    const cost = nodeCost(node, level)
+    if (cost > held) continue
+    if (!best || cost < best.cost) best = { node, cost }
+  }
+  return best?.node ?? null
+}
+
+export function nextRung(levels: Readonly<Record<string, number>>, bp: number): NextRung | null {
+  const held = Number.isFinite(bp) ? Math.max(0, bp) : 0
+  let best: NextRung | null = null
+  for (const node of PARADIGM_TREE) {
+    const level = Math.max(0, levels[node.id] ?? 0)
+    if (level >= node.maxLevel) continue
+    const cost = nodeCost(node, level)
+    // Something affordable is not a near miss; it is a purchase the player has
+    // not made yet, and the board already draws it lit.
+    if (cost <= held) return null
+    if (!best || cost < best.cost) best = { node, cost, short: cost - held }
+  }
+  return best
+}
+
 /** §4.2's tuning. */
 export const D_BASE = 100
 

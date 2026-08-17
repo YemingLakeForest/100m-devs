@@ -17,6 +17,7 @@ import {
   canAfford,
   devCapFor,
   nodeCost,
+  nextRung,
   chainedPokeRows,
   meetingBanActive,
   totalLevels,
@@ -215,5 +216,57 @@ describe('what the tree does to the rest of the game — §13.2', () => {
     // treating a half-bought node as bought is the forgiving answer — the
     // alternative takes 2,500 Bandwidth Points and gives nothing back.
     expect(zeroTrustActive(junk)).toBe(true)
+  })
+})
+
+describe('§13.12.4 — what you are saving for, and how close you are', () => {
+  it('names the cheapest thing out of reach, with the shortfall', () => {
+    // A fresh tree: Async-First is 10 BP and Telepathic Compression is 25, so
+    // the near miss at 4 BP is Async-First by 6.
+    const rung = nextRung({}, 4)!
+    expect(rung.node.id).toBe('L1-1A')
+    expect(rung.cost).toBe(10)
+    expect(rung.short).toBe(6)
+  })
+
+  it('says nothing at all when something is already affordable', () => {
+    // "You are 0 short" is a screen shouting at somebody who has already won,
+    // and the board draws affordable nodes lit without any help from here.
+    expect(nextRung({}, 10)).toBeNull()
+    expect(nextRung({}, 1_000_000)).toBeNull()
+  })
+
+  it('moves on as the player buys their way up a node’s levels', () => {
+    // §14.2's cost climbs by 1.5 a level, so the same node keeps being the near
+    // miss until it is maxed and then hands over to the next one.
+    const short = (levels: Record<string, number>) => nextRung(levels, 0)!
+    expect(short({}).cost).toBe(10)
+    expect(short({ 'L1-1A': 1 }).cost).toBe(15)
+    // 10 × 1.5² is 22.5, and §14.2 rounds rather than truncating.
+    expect(short({ 'L1-1A': 2 }).cost).toBe(23)
+    // Maxed out, Async-First stops being offered: §13.2 caps it at 5 levels.
+    expect(short({ 'L1-1A': 5 }).node.id).not.toBe('L1-1A')
+  })
+
+  it('is null on a maxed tree rather than inventing a rung', () => {
+    const maxed: Record<string, number> = {}
+    for (const node of PARADIGM_TREE) maxed[node.id] = node.maxLevel
+    expect(nextRung(maxed, 0)).toBeNull()
+  })
+
+  it('never reports a shortfall of zero or less', () => {
+    // The invariant the readout depends on: a rung is something you cannot yet
+    // afford, so "N SHORT" is never "0 SHORT" and never negative.
+    for (const bp of [0, 1, 9, 14, 21, 24, 37]) {
+      const rung = nextRung({ 'L1-1A': 5 }, bp)
+      if (rung) expect(rung.short).toBeGreaterThan(0)
+    }
+  })
+
+  it('survives junk in the levels map', () => {
+    // Same contract as the rest of this file: a corrupt level reads as unbought.
+    const rung = nextRung({ 'L1-1A': Number.NaN, 'L1-1B': -3 }, 0)
+    expect(rung).not.toBeNull()
+    expect(rung!.short).toBe(rung!.cost)
   })
 })

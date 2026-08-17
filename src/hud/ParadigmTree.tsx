@@ -18,6 +18,8 @@ import {
   EFFECTIVE,
   PARADIGM_TREE,
   canAfford,
+  cheapestAffordable,
+  nextRung,
   nodeCost,
   type ParadigmNode,
 } from '../sim/prestige.ts'
@@ -104,6 +106,8 @@ export function ParadigmTree({
         <ConceptText text="DEVELOPER CAPACITY" /> <b>{formatCount(Math.round(state.devCap))}</b>
       </p>
 
+      <NearMiss levels={levels} bp={bp} />
+
       <div className="paradigm__branches">
         {(['async', 'protocol'] as const).map((branch) => (
           <div key={branch} className="paradigm__branch">
@@ -131,6 +135,33 @@ export function ParadigmTree({
 }
 
 /**
+ * §13.12.4 — **the half of the sentence the screen never said.**
+ *
+ * A number and a tree of prices is arithmetic homework. This says what the
+ * player is saving for and how far off it is, which is the thing that makes
+ * ending a run just short of something feel like a reason to start another one
+ * rather than like nothing having happened.
+ *
+ * Renders nothing when {@link nextRung} returns null — the tree is maxed, or
+ * something is already affordable and the board is drawing it lit.
+ */
+function NearMiss({ levels, bp }: { levels: Readonly<Record<string, number>>; bp: number }) {
+  const rung = nextRung(levels, bp)
+  if (!rung) return null
+  return (
+    <p className="paradigm__next">
+      {/*
+        One template string per phrase, not two expressions with JSX whitespace
+        between them: the whitespace is not part of the accessible name, so a
+        test querying for "9 BP SHORT" would miss a node rendered as {n}{' '}BP.
+      */}
+      <span className="paradigm__next-label">NEXT</span> {rung.node.name}{' '}
+      <b>{`${rung.short} BP SHORT`}</b>
+    </p>
+  )
+}
+
+/**
  * §13.1 — taking a Paradigm Shift on purpose.
  *
  * §13.1's trigger row lists three ways in, and only bankruptcy was ever built:
@@ -151,11 +182,41 @@ function ShiftOffer({ state }: { state: GameState }) {
 
   if (!offer.available) return null
 
+  /**
+   * §13.12.4 — **what taking it actually buys.**
+   *
+   * The quote above is a live number and the note on this function already says
+   * why it is shown before the decision: watching it climb is the argument for
+   * playing another twenty minutes. But a player deciding *now* is asking a
+   * different question — does cashing out get me the thing — and until this
+   * line existed they had to answer it by holding two numbers in their head and
+   * subtracting.
+   *
+   * Computed against `bp + offer.bp`, the wallet as it would be **after** the
+   * shift, so the sentence is about the decision rather than about the present.
+   */
+  const levels = getPermanent().layer1.paradigmLevels
+  const after = getPermanent().layer1.bp + offer.bp
+  const stillShort = nextRung(levels, after)
+  const buys = stillShort ? null : cheapestAffordable(levels, after)
+
   return (
     <div className="paradigm__shift">
       <p className="paradigm__shift-quote">
         THIS RUN IS WORTH <b>{offer.bp}</b> BP
       </p>
+      {/*
+        One template string per phrase — trap 31. The whole line is the readout,
+        and a test asking for "THAT BUYS TELEPATHIC COMPRESSION" has to find it
+        as one accessible string rather than as three adjacent expressions.
+      */}
+      {(stillShort || buys) && (
+        <p className="paradigm__shift-reach">
+          {stillShort
+            ? `STILL ${stillShort.short} SHORT OF ${stillShort.node.name.toUpperCase()}`
+            : `THAT BUYS ${buys!.name.toUpperCase()}`}
+        </p>
+      )}
       {armed ? (
         <>
           <p className="paradigm__shift-warning">

@@ -391,6 +391,30 @@ body {
   width: 100%;
 }
 
+/*
+ * **§13.2's PARADIGM and §13.11.2's TEAM were drawn, positioned, and dead.**
+ *
+ * `.hud` is `pointer-events: none` and every control opts back in — the comment
+ * on that rule calls it load-bearing, because the renderer listens on the canvas
+ * underneath and anything here that takes pointers without needing them puts a
+ * dead patch on the simulation. The opt-in was written on the *containers*:
+ * `.hud__nav` has it, `.touch` has it, `.game-menu` has it. These two buttons are
+ * direct children of `.hud__controls`, which has no reason to want pointers and
+ * therefore never opted in — so the canvas sat on top of both of them.
+ *
+ * Measured, at 640x360: `elementFromPoint` at the centre of PARADIGM returned
+ * the canvas. The Paradigm Tree is the only place §13.2's Bandwidth Points can
+ * be spent, and its only other door is Act V's bankruptcy modal — so the whole
+ * second half of the game was reachable once per playthrough, by going broke.
+ *
+ * Opted in on the **buttons** rather than on the row, so the gaps between them
+ * stay transparent and the swarm underneath stays pokeable, which is what §7.1's
+ * rule is protecting.
+ */
+.hud__controls > .ui-btn {
+  pointer-events: auto;
+}
+
 .hud__bottom {
   align-self: flex-end;
   margin-top: auto;
@@ -955,6 +979,24 @@ body {
 
 .paradigm__cap b {
   color: var(--p3);
+}
+
+/* §13.12.4 — what you are saving for. Dimmer than the cap above it: the cap is
+   a fact about the studio and this is a debt, so it should read as the quieter
+   of the two and the shortfall should be the only bright thing in it. */
+.paradigm__next {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.paradigm__next-label {
+  color: var(--p2);
+}
+
+.paradigm__next b {
+  color: var(--foliage-1);
 }
 
 .paradigm__branches {
@@ -2805,6 +2847,15 @@ body {
 
 .paradigm__shift-quote b {
   color: var(--p3);
+}
+
+/* §13.12.4 — the half of the offer that is about the decision rather than about
+   the number. Sits directly under the quote and reads as its second line. */
+.paradigm__shift-reach {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
 }
 
 .paradigm__shift-warning {

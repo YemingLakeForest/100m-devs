@@ -193,11 +193,25 @@ export const TECH_TREE: readonly TechNode[] = [
    * thing a healthy studio under its cap actually wants and could not previously
    * reach at any price.
    *
+   * ## Why `B1a` and not `B5`
+   *
+   * **§11.2's table already spends B5 and B6** — Anti-AI Slop Filter and Quantum
+   * Entanglement Sync, both late-game nodes this build does not implement
+   * because the systems they act on do not exist (see the module note). They are
+   * unbuilt, not unreserved, and a node id is the **save format's** vocabulary:
+   * taking `B5` here would mean a save written today and a save written after
+   * §11.2's real B5 ships disagree about what the player owns.
+   *
+   * So the id says where the node sits rather than claiming a place in §11.2's
+   * sequence it has not got. These two hang off B1; `C2a` hangs off C2, whose
+   * §11.3 successor `C3` is spoken for by Clicker Mechanical Keyboards.
+   *
    * Authored here rather than transcribed from §11, unlike every node above it.
-   * Recorded as such: §11.2's table has four B nodes and this file now has six.
+   * Recorded as such: §11.2's table has four implemented B nodes and this file
+   * now has six, two of which the design document does not know about yet.
    */
   {
-    id: 'B5',
+    id: 'B1a',
     branch: 'protocol',
     name: 'Written Culture',
     flavour:
@@ -212,7 +226,7 @@ export const TECH_TREE: readonly TechNode[] = [
     ring: 2,
   },
   {
-    id: 'B6',
+    id: 'B1b',
     branch: 'protocol',
     name: 'Microservices',
     flavour:
@@ -221,7 +235,7 @@ export const TECH_TREE: readonly TechNode[] = [
     baseCost: 4_000_000,
     mult: 1.15,
     maxLevel: 1,
-    requires: 'B5',
+    requires: 'B1a',
     x: 0,
     y: 2,
     ring: 3,
@@ -269,7 +283,7 @@ export const TECH_TREE: readonly TechNode[] = [
    * has, and it is filed under perks.
    */
   {
-    id: 'C3',
+    id: 'C2a',
     branch: 'culture',
     name: 'Four-Day Week',
     flavour:
@@ -518,11 +532,11 @@ export function techEffects(levels: TechLevels): TechEffects {
   const b2 = techLevel(levels, 'B2') > 0
   const b3 = techLevel(levels, 'B3') > 0
   const b4 = techLevel(levels, 'B4') > 0
-  const b5 = techLevel(levels, 'B5') > 0
-  const b6 = techLevel(levels, 'B6') > 0
+  const b1a = techLevel(levels, 'B1a') > 0
+  const b1b = techLevel(levels, 'B1b') > 0
   const c1 = techLevel(levels, 'C1') > 0
   const c2 = techLevel(levels, 'C2') > 0
-  const c3 = techLevel(levels, 'C3') > 0
+  const c2a = techLevel(levels, 'C2a') > 0
   const c8 = techLevel(levels, 'C8') > 0
   const c9 = techLevel(levels, 'C9') > 0
   const c10 = techLevel(levels, 'C10') > 0
@@ -537,8 +551,8 @@ export function techEffects(levels: TechLevels): TechEffects {
   // reducing load and raising the cap are one operation, because §4.1 only ever
   // sees the ratio. Multiplied rather than summed, so the two nodes compound and
   // neither can ever drive the load to zero.
-  const b5Cap = b5 ? 1 / 0.75 : 1
-  const b6Cap = b6 ? 1 / 0.65 : 1
+  const b1aCap = b1a ? 1 / 0.75 : 1
+  const b1bCap = b1b ? 1 / 0.65 : 1
 
   // The tightest cap wins. They are not multiplied: two caps are two ceilings,
   // and the lower ceiling is simply the ceiling.
@@ -553,15 +567,15 @@ export function techEffects(levels: TechLevels): TechEffects {
   const estimationTier = c9 ? 5 : c8 ? 4 : techLevel(levels, 'C7') > 0 ? 3 : techLevel(levels, 'C6') > 0 ? 2 : 1
 
   return {
-    devCapMultiplier: b1Cap * b3Cap * b5Cap * b6Cap,
+    devCapMultiplier: b1Cap * b3Cap * b1aCap * b1bCap,
     entropyCap,
     activeDevFraction: b3 ? 0.5 : 1,
-    revenueMultiplier: (b3 ? 2 : 1) * (c9 ? 0.9 : 1) * (c3 ? 1.15 : 1),
+    revenueMultiplier: (b3 ? 2 : 1) * (c9 ? 0.9 : 1) * (c2a ? 1.15 : 1),
     estimationTier,
     flowSurvivesPoke: c1,
     // §11.3a C3 stacks on §11.3 C2 rather than replacing it — "twice as fast
     // *again*" is what the card says, and the two nodes are a chain.
-    overwhelmedScale: (c2 ? 0.7 : 1) * (c3 ? 0.5 : 1),
+    overwhelmedScale: (c2 ? 0.7 : 1) * (c2a ? 0.5 : 1),
     velocityDisplayScale: c8 ? 1.1 : 1,
     commitmentFraction: c10 ? 0.95 : 1,
     standups: b2,

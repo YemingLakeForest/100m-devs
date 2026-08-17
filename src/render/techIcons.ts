@@ -114,9 +114,9 @@ const ICONS: Record<string, readonly string[]> = {
     ...frame(3, 11, 13, 13),
     ...rect(3, 2, 3, 13),
   ]),
-  // §11.2a B5 — a document with a folded corner and four lines of text nobody
+  // §11.2a B1a — a document with a folded corner and four lines of text nobody
   // will read. The fold is what stops it reading as a plain window.
-  B5: build([
+  B1a: build([
     ...line(3, 1, 9, 1),
     ...line(3, 1, 3, 14),
     ...line(3, 14, 12, 14),
@@ -129,9 +129,9 @@ const ICONS: Record<string, readonly string[]> = {
     ...line(5, 10, 10, 10),
     ...line(5, 12, 8, 12),
   ]),
-  // §11.2a B6 — three boxes that do not touch, wired together at the corners.
+  // §11.2a B1b — three boxes that do not touch, wired together at the corners.
   // The point of the picture is the gaps.
-  B6: build([
+  B1b: build([
     ...frame(1, 1, 5, 5),
     ...frame(10, 1, 14, 5),
     ...frame(5, 10, 10, 14),
@@ -159,14 +159,14 @@ const ICONS: Record<string, readonly string[]> = {
     ...line(3, 6, 3, 8),
     ...line(12, 6, 12, 8),
   ]),
-  // §11.3a C3 — a calendar, hangers and header bar, with four days marked.
+  // §11.3a C2a — a calendar, hangers and header bar, with four days marked.
   //
   // The first draft struck out a fifth day with an X, which is the better joke
   // and was unreadable: at 16×16 the diagonal collided with the day block beside
   // it and the whole lower half came out as noise. Four blocks and nothing else
   // says the same thing and survives being small, which is the trade §11.4.4's
   // grid keeps asking for.
-  C3: build([
+  C2a: build([
     ...pts(5, 0, 5, 1, 10, 0, 10, 1),
     ...frame(2, 2, 13, 14),
     ...rect(2, 2, 13, 4),
