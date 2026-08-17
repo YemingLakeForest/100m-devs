@@ -4,6 +4,7 @@ import {
 
   acceptMassHire,
   acknowledgeEvent,
+  beginPosting,
   canMassHire,
   clearEventByHand,
   collectOffline,
@@ -23,6 +24,7 @@ import {
   hireGrowthNow,
   hireQuote,
   massHire,
+  recallHero,
   selectHero,
   setHireMultiplier,
   setHireRole,
@@ -43,6 +45,7 @@ import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HeroCard } from './HeroCard.tsx'
 import { HeroTree } from './HeroTree.tsx'
+import { PostingBanner } from './PostingBanner.tsx'
 import { Roster } from './Roster.tsx'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 import { unitLabel } from '../sim/units.ts'
@@ -510,7 +513,17 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         placedLabel={heroPlacedLabel(openHero, state)}
         onClose={() => selectHero(null)}
         onOpenTree={() => setHeroTreeOpen(true)}
+        onPost={() => {
+          if (openHero) {
+            setRosterOpen(false)
+            beginPosting(openHero.id)
+          }
+        }}
+        onRecall={() => {
+          if (openHero) recallHero(openHero.id)
+        }}
       />
+      <PostingBanner state={state} />
       <HeroTree hero={openHero} open={heroTreeOpen && openHero !== null} onClose={() => setHeroTreeOpen(false)} />
       <Roster
         open={rosterOpen && openHero === null}

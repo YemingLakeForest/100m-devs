@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { HeroCard } from './HeroCard.tsx'
 import { HeroTree } from './HeroTree.tsx'
-import { __resetStore, heroById, selectHero } from '../game/store.ts'
+import { __resetStore, heroById, placeHero, selectHero } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import { SCENE_HERO_BOARD, SCENE_MO_ARRIVES } from '../game/scenes.ts'
 import { xpToReach } from '../sim/heroXp.ts'
@@ -18,6 +18,20 @@ import type { HeroRuntime } from '../sim/heroRoster.ts'
 
 vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn(), playPurchase: vi.fn() }))
 vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
+
+/**
+ * The three callbacks a test is not about, in one spread.
+ *
+ * `onClose` stays written out at every call site because a few of these tests
+ * *are* about it; these three are §13.8's placement verbs and §13.9's board
+ * door, and a file about what the card looks like has nothing to say about
+ * where any of them go.
+ */
+const noop = {
+  onOpenTree: () => {},
+  onPost: () => {},
+  onRecall: () => {},
+}
 
 function staffed(level = 1, nodes?: string[]) {
   const p = emptyPermanent()
@@ -53,7 +67,7 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
   it('carries the pass furniture the dev card has none of', () => {
     const mo = staffed()
     const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
     // The lanyard punch is the only round thing on the card and is what makes
     // the object read as a pass rather than as a panel.
@@ -67,7 +81,7 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
 
   it('names the person, the level and the branch', () => {
     const mo = staffed(14)
-    render(<HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />)
+    render(<HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />)
     expect(screen.getByText('Mo')).toBeInTheDocument()
     expect(screen.getByText(/LV 14/)).toBeInTheDocument()
     expect(screen.getByText('QUALITY')).toBeInTheDocument()
@@ -75,7 +89,7 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
 
   it('prints the trait as a sentence — the only thing on the card that is one', () => {
     const mo = staffed()
-    render(<HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />)
+    render(<HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />)
     expect(screen.getByText('READS IT TWICE')).toBeInTheDocument()
     expect(screen.getByText(/costs half of one caught after/)).toBeInTheDocument()
   })
@@ -83,27 +97,27 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
   it('marks BENCHED so §13.10’s cost is visible — §13.11.2', () => {
     const mo = staffed()
     const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
     expect(container.querySelector('dd[data-benched="true"]')).not.toBeNull()
 
     cleanup()
     const placed = render(
-      <HeroCard hero={mo} placedLabel="FLOOR 3" onClose={() => {}} onOpenTree={() => {}} />,
+      <HeroCard hero={mo} placedLabel="FLOOR 3" {...noop} onClose={() => {}} />,
     )
     expect(placed.container.querySelector('dd[data-benched="true"]')).toBeNull()
   })
 
   it('says how many points are waiting, on the button that spends them', () => {
     render(
-      <HeroCard hero={staffed(4)} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+      <HeroCard hero={staffed(4)} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
     expect(screen.getByRole('button', { name: /SPEND 4/ })).toBeInTheDocument()
   })
 
   it('is closed when nobody is selected', () => {
     const { container } = render(
-      <HeroCard hero={null} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+      <HeroCard hero={null} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
     expect(container.querySelector('.herocard__pass')).toBeNull()
   })
@@ -210,7 +224,7 @@ describe('§21.7.7 — the board arrives with a scene, and the card does not wai
   it('still draws the whole card', () => {
     const mo = unintroduced()
     const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
     expect(screen.getByText('Mo')).toBeInTheDocument()
     expect(screen.getByText(/LV 4/)).toBeInTheDocument()
@@ -220,7 +234,7 @@ describe('§21.7.7 — the board arrives with a scene, and the card does not wai
   it('draws no door to the board, and no points to spend on it', () => {
     const mo = unintroduced()
     const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
     expect(screen.queryByRole('button', { name: /SPEND|SKILLS/ })).toBeNull()
     expect(container.querySelector('.herocard__points')).toBeNull()
@@ -231,10 +245,65 @@ describe('§21.7.7 — the board arrives with a scene, and the card does not wai
   it('draws both once the scene has played', () => {
     const mo = staffed(4)
     const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" onClose={() => {}} onOpenTree={() => {}} />,
+      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
     expect(screen.getByRole('button', { name: /SPEND 4/ })).toBeInTheDocument()
     expect(container.querySelector('.herocard__points')).not.toBeNull()
+  })
+})
+
+describe('§13.8 — the card is where a hero is put somewhere', () => {
+  it('offers POST to somebody on the bench, and RECALL to somebody placed', () => {
+    const mo = staffed()
+    const posted = vi.fn()
+    render(
+      <HeroCard
+        hero={mo}
+        placedLabel="BENCHED"
+        onOpenTree={() => {}}
+        onPost={posted}
+        onRecall={() => {}}
+        onClose={() => {}}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'POST' }))
+    expect(posted).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'RECALL' })).toBeNull()
+
+    cleanup()
+    placeHero('mo', 0, 0)
+    const recalled = vi.fn()
+    render(
+      <HeroCard
+        hero={heroById('mo')!}
+        placedLabel="DEVELOPER 1"
+        onOpenTree={() => {}}
+        onPost={() => {}}
+        onRecall={recalled}
+        onClose={() => {}}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'RECALL' }))
+    expect(recalled).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'POST' })).toBeNull()
+  })
+
+  /*
+   * §21.7.7 gates the *board*, not the card. A hero who has arrived can be put
+   * on the floor from the moment they arrive — the floor is the board — so this
+   * is the one action on the card that never waits for a scene.
+   */
+  it('offers it before the skills board has been handed over', () => {
+    const p = emptyPermanent()
+    setPermanent({
+      ...p,
+      meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_MO_ARRIVES.id] },
+    })
+    render(
+      <HeroCard hero={heroById('mo')!} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
+    )
+    expect(screen.getByRole('button', { name: 'POST' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /SPEND|SKILLS/ })).toBeNull()
   })
 })
 

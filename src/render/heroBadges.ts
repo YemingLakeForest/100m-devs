@@ -7,11 +7,15 @@
  * heroes of one branch waste coverage on each other (§13.8 rule 3 — two of a
  * class over the same rows do not stack).
  *
- * The Pixi drawing (badges, tinted footprints, cross-hatching, the fading
- * settle) is not here, and that is deliberate: hero placement is gated behind
- * §13.6.7a's Layer 2, which does not exist yet, so a renderer built today would
- * be drawing a floor that can never hold a hero. What *is* testable now is the
- * overlap and fraction maths, which is the part that has been wrong before.
+ * The Pixi drawing is not here — `room.ts` owns the floor's geometry and draws
+ * the decals — but the *decision* about which seat gets which mark is, because
+ * it is arithmetic and it has been wrong before.
+ *
+ * The note that stood here said a renderer built today would be drawing a floor
+ * that can never hold a hero, because placement was gated behind §13.6.7a's
+ * Layer 2. That was true of the *drag* §13.8 specifies and not of placement
+ * itself: `placeHero` has been complete for months and had no caller, which is
+ * a different problem with a much cheaper answer (`GameState.posting`).
  */
 
 import type { HeroBranch } from '../sim/heroTree.ts'
@@ -58,4 +62,93 @@ export function unitFootprint(
   for (const [branch, count] of seen) if (count > 1) overlapped.add(branch)
 
   return { claims, overlapped }
+}
+
+// ---------------------------------------------------------------------------
+// §13.11.1 on the room floor — which seat gets which mark
+// ---------------------------------------------------------------------------
+
+/** One placed hero, as the room needs them. Seats, not people. */
+export interface RoomPosting {
+  branch: HeroBranch
+  /** The branch's colour, already resolved — this module knows no palette. */
+  colour: string
+  /** The seat they were posted on. Rungs 0–2 cover from here upward (§13.6.2). */
+  index: number
+  /** How many seats they would cover once settled. */
+  reachDevs: number
+  /** §13.8 rule 4 — still walking, so covering nothing yet. */
+  settling: boolean
+}
+
+/** What the floor draws under one seat. */
+export interface SeatMark {
+  colour: string
+  /** §13.8 rule 3 — a hero of this branch already covers this seat. */
+  wasted: boolean
+  /** §13.8 rule 4 — drawn as an outline, because it is not coverage yet. */
+  settling: boolean
+}
+
+/**
+ * §13.11.1 — fold every posting in the room into one mark per seat.
+ *
+ * Three rules, and each one is a sentence from §13.8 or §13.11.1:
+ *
+ * 1. **A posting covers upward from its own seat** — §13.6.2's reach against
+ *    `devs - index`, which is what `heroCoverageOf` charges the simulation for
+ *    at rungs 0–2. The footprint the player sees is the footprint they are paid
+ *    for, or the picture is a decoration.
+ * 2. **Two of one branch do not stack, and the waste is drawn** — §13.8 rule 3.
+ *    Earlier postings win the seat; a later one of the *same* branch marks it
+ *    wasted rather than recolouring it, so the hatch lands on the overlap and
+ *    not on the whole of the second footprint.
+ * 3. **Two of different branches both count**, and the seat keeps the first
+ *    colour. There is one floor tile and two true answers; the alternative is
+ *    splitting the diamond, which at desk zoom is four pixels of stripe nobody
+ *    can read.
+ *
+ * A settling posting is drawn — as an outline, by the caller — rather than
+ * withheld. §13.8 rule 4 makes relocation cost time and §13.11.1 wants that
+ * time on screen; a footprint that simply appears twenty seconds after the tap
+ * teaches the player that the tap did nothing.
+ */
+export function roomSeatMarks(
+  postings: readonly RoomPosting[],
+  devs: number,
+): Map<number, SeatMark> {
+  const seats = Math.max(0, Math.floor(Number.isFinite(devs) ? devs : 0))
+  const marks = new Map<number, SeatMark>()
+  /** Which branches have already claimed each seat — rule 2's bookkeeping. */
+  const claimedBy = new Map<number, Set<HeroBranch>>()
+
+  for (const p of postings) {
+    const from = Math.max(0, Math.floor(p.index))
+    if (from >= seats) continue
+    // `devs - index` is the slot, and reach is capped by it: a hero on the last
+    // desk of a room of ten covers one person however far they can reach.
+    const to = Math.min(seats, from + Math.max(0, Math.floor(p.reachDevs)))
+
+    for (let seat = from; seat < to; seat++) {
+      let branches = claimedBy.get(seat)
+      if (!branches) {
+        branches = new Set()
+        claimedBy.set(seat, branches)
+      }
+      const duplicate = branches.has(p.branch)
+      branches.add(p.branch)
+
+      const existing = marks.get(seat)
+      if (!existing) {
+        marks.set(seat, { colour: p.colour, wasted: false, settling: p.settling })
+        continue
+      }
+      // Rule 3 keeps the first colour; rule 2 turns the seat hatched. A seat is
+      // only un-settled once somebody who has arrived covers it.
+      if (duplicate) existing.wasted = true
+      if (!p.settling) existing.settling = false
+    }
+  }
+
+  return marks
 }

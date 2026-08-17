@@ -620,6 +620,27 @@ export interface GameState {
    * panel the player did not open.
    */
   selectedHero: HeroId | null
+  /**
+   * §13.8 — who the next tap on the world will post, or null.
+   *
+   * The interim placement gesture, and it is marked interim on purpose.
+   * §13.8 says placement is a **drag out of §7.8.12's suite onto the unit**,
+   * and §7.8.12 does not exist: until it does, `placeHero` has no caller and
+   * §26.1.8 items 11 and 12 are unreachable by a player, which makes every
+   * hero in the game a card with no verb attached.
+   *
+   * So the drag is stood in for by an arm-then-tap, which keeps the one
+   * property §13.6.7 will not trade away — *"if the player is managing heroes
+   * on a grid instead of in the world, the entire reason for this design has
+   * been thrown away."* The target is resolved by the same `pickUnit` a poke
+   * uses, so what is being tapped is genuinely the floor, the tower, the
+   * campus. What is missing is the suite to drag *from*, not the world to drop
+   * *onto*, and swapping the gesture later changes this file and nothing else.
+   *
+   * Ephemeral, like `selectedHero`: an armed placement restored from a
+   * previous session would be a tap the player does not remember arming.
+   */
+  posting: HeroId | null
   /** §4.13 — tickets waiting. Never reaches zero for long, and never can. */
   tickets: number
   /**
@@ -800,6 +821,7 @@ function freshRun(): GameState {
     heroPlacements: {},
     heroFold: NO_HERO_FOLD,
     selectedHero: null,
+    posting: null,
   }
 }
 
@@ -2565,6 +2587,44 @@ export function recallHero(id: HeroId): boolean {
   set({ heroPlacements: next })
   refreshHeroFold()
   return true
+}
+
+/**
+ * Arm the interim placement gesture — see {@link GameState.posting}.
+ *
+ * Closes the card in the same `set`, and that is the whole reason this is a
+ * store verb rather than a `useState` in the HUD: the card is a right-hand
+ * panel over the world and the next thing the player has to do is tap the
+ * world. Arming a gesture whose target is hidden behind the panel that armed
+ * it is §10.5's bottom-sheet rule failing in the other direction.
+ */
+export function beginPosting(id: HeroId): boolean {
+  if (!arrivedHeroes().has(id)) return false
+  set({ posting: id, selectedHero: null })
+  return true
+}
+
+/** Disarm it. Tapping open ground counts, which is the cheap way out. */
+export function cancelPosting(): void {
+  if (state.posting === null) return
+  set({ posting: null })
+}
+
+/**
+ * The armed tap landed on a unit — post them there.
+ *
+ * Returns false without disarming when there is nobody armed, so the stage can
+ * ask this question of every tap and let the answer decide whether the tap was
+ * a placement or a poke.
+ */
+export function postHeroAt(target: PokeTarget): boolean {
+  const id = state.posting
+  if (id === null) return false
+  // Cleared first and unconditionally: a placement refused by `placeHero` —
+  // a hero who left the roster between arming and tapping — must not leave the
+  // gesture armed, or the next poke silently places somebody instead.
+  set({ posting: null })
+  return placeHero(id, target.rung, target.index)
 }
 
 /**

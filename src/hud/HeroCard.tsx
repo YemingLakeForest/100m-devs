@@ -93,12 +93,22 @@ export function HeroCard({
   placedLabel,
   onClose,
   onOpenTree,
+  onPost,
+  onRecall,
 }: {
   hero: HeroRuntime | null
   /** Where they are, in words. §13.11.2 — `BENCHED` is the only red word here. */
   placedLabel: string
   onClose: () => void
   onOpenTree: () => void
+  /**
+   * §13.8 — arm the interim placement gesture. The card closes and the next tap
+   * on the world posts them; see `GameState.posting` for why the drag §13.8
+   * actually specifies is not what this is.
+   */
+  onPost: () => void
+  /** §13.8 — take them off the floor. Immediate, because it needs no target. */
+  onRecall: () => void
 }) {
   const face = hero ? heroIdentity(hero.id) : null
   const branch = hero ? BRANCH_BY_ID.get(hero.branch) : null
@@ -206,6 +216,20 @@ export function HeroCard({
               in miniature. The door is simply absent until then, on §21.7.6b's
               rule that a silent row is the loudest kind of furniture.
             */}
+            {/*
+              §13.8 — the verb the card was missing.
+
+              **It is never gated**, unlike SKILLS above it: a hero who has
+              arrived can be posted, and there is no board to hand over first
+              because the floor is the board. It leads the row because it is
+              what the card is *for* — §13.10 makes a benched hero the one thing
+              on this screen actively costing the player something, and a card
+              that says BENCHED in red and offers no way off the bench is a
+              scolding rather than a control.
+            */}
+            <Button onClick={hero.placement ? onRecall : onPost}>
+              {hero.placement ? 'RECALL' : 'POST'}
+            </Button>
             {hasBoard && (
               <Button onClick={onOpenTree}>
                 {hero.points > 0 ? `SPEND ${hero.points}` : 'SKILLS'}

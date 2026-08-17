@@ -676,3 +676,56 @@
     height: 34px;
   }
 }
+
+/*
+ * §13.8's placement banner — the armed gesture, said out loud.
+ *
+ * Bottom-centre, in the same place and with the same skin as §13.11.2's roster
+ * strip, and that is deliberate rather than lazy: both are transient sheets over
+ * the world that belong to the hero system, and a player who has learned where
+ * the strip appears has learned where this appears. It sits one strip-height
+ * higher so a summoned roster and an armed placement can be on screen together
+ * without either hiding the other.
+ *
+ * Opaque for §22.9's reason — it lands on §21's script block — and `z-index: 3`
+ * so it is above the strip it is stacked on rather than interleaved with it.
+ */
+.posting {
+  position: absolute;
+  left: var(--edge-x);
+  right: var(--edge-x);
+  bottom: calc(var(--edge-y) + 78px);
+  display: grid;
+  justify-items: center;
+  /* §7.1 — the HUD is inert and controls opt back in. The row itself stays
+     inert so the world underneath is still tappable either side of it, which
+     is the whole point of a banner that asks you to tap the world. */
+  pointer-events: none;
+  z-index: 3;
+}
+
+.posting__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: var(--rule) solid var(--p2);
+  background: var(--n0);
+  pointer-events: auto;
+}
+
+.posting__line {
+  color: var(--p1);
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-height: 400px) {
+  .posting {
+    bottom: calc(var(--edge-y) + 66px);
+  }
+}

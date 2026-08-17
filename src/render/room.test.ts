@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 // initialise under jsdom. These tests cover the fall and puff curves, which
 // never play anything.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: () => {} }))
-import type { Container } from 'pixi.js'
+import type { Container, Graphics } from 'pixi.js'
 import {
   FLOOR_COLS,
   FLOOR_ROWS,
@@ -27,6 +27,7 @@ import {
   wallSpot,
   blockBox,
   buildRoom,
+  COVER_SPAN,
   seatPosition,
   PITCH_ROW,
   ROOM_DEV_CAP,
@@ -853,5 +854,81 @@ describe('the floor tier shows the studio you have — GDD §7.7.1', () => {
     // the player has hired one person, or the benchmark silently measures a
     // scene a thousandth of the intended weight.
     expect(FLOOR_SPRITE_COUNT).toBe(1000)
+  })
+})
+
+describe('§13.11.1 — coverage is drawn on the floor', () => {
+  /** The decal layer's bounds, or null while it is empty. */
+  function decals(room: ReturnType<typeof buildRoom>) {
+    const layer = room.container.getChildByLabel('coverage') as Graphics
+    const b = layer.getLocalBounds()
+    return b.width > 0 && b.height > 0 ? b : null
+  }
+
+  it('draws nothing with nobody placed', () => {
+    const room = buildRoom()
+    room.setHeadcount(10)
+    room.setCoverage(new Map())
+    expect(decals(room)).toBeNull()
+    room.container.destroy({ children: true })
+  })
+
+  it('marks the covered seats and nowhere else', () => {
+    const room = buildRoom()
+    room.setHeadcount(20)
+    room.setCoverage(
+      new Map([
+        [0, { colour: '#8fd6a0', wasted: false, settling: false }],
+        [1, { colour: '#8fd6a0', wasted: false, settling: false }],
+      ]),
+    )
+    const drawn = decals(room)!
+    // The paint sits over the two seats it belongs to, give or take the decal's
+    // own span — not over the whole floor, and not over seat 9.
+    const a = seatPosition(0)
+    const b = seatPosition(1)
+    const span = COVER_SPAN * 64
+    expect(drawn.minX).toBeGreaterThan(Math.min(a.x, b.x) - span)
+    expect(drawn.maxX).toBeLessThan(Math.max(a.x, b.x) + span)
+    expect(drawn.maxY).toBeLessThan(seatPosition(9).y)
+    room.container.destroy({ children: true })
+  })
+
+  it('redraws when a mark changes and leaves the layer alone when it does not', () => {
+    const room = buildRoom()
+    room.setHeadcount(20)
+    const layer = room.container.getChildByLabel('coverage') as Graphics
+
+    room.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: false }]]))
+    const plain = layer.context.instructions.length
+    expect(plain).toBeGreaterThan(0)
+
+    // Same marks, new Map: the key is the marks, not the object.
+    room.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: false }]]))
+    expect(layer.context.instructions.length).toBe(plain)
+
+    // §13.8 rule 3 — the hatch is strictly more drawing than the fill alone.
+    room.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: true, settling: false }]]))
+    expect(layer.context.instructions.length).toBeGreaterThan(plain)
+    room.container.destroy({ children: true })
+  })
+
+  it('draws a walking hero as an outline, not as coverage — §13.8 rule 4', () => {
+    const settled = buildRoom()
+    settled.setHeadcount(20)
+    settled.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: false }]]))
+    const walking = buildRoom()
+    walking.setHeadcount(20)
+    walking.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: true }]]))
+
+    const layerOf = (r: ReturnType<typeof buildRoom>) =>
+      (r.container.getChildByLabel('coverage') as Graphics).context.instructions
+    // The settled mark is a fill *and* a stroke; the walking one is a stroke.
+    expect(layerOf(walking).length).toBeLessThan(layerOf(settled).length)
+    expect(layerOf(walking).some((i) => i.action === 'fill')).toBe(false)
+    expect(layerOf(settled).some((i) => i.action === 'fill')).toBe(true)
+
+    settled.container.destroy({ children: true })
+    walking.container.destroy({ children: true })
   })
 })

@@ -11,15 +11,20 @@
 import { Application, Container } from 'pixi.js'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
+  cancelPosting,
   currentEntropy,
   developerVelocity,
   FLOATER_LIFE_MS,
   getState,
+  heroCoverageOf,
+  heroRoster,
   poke,
   pokeFounder,
+  postHeroAt,
   selectDeveloper,
   setZoom,
   tick,
+  type GameState,
   type PokeTarget,
 } from '../game/store.ts'
 import { playKeyboardClick, pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
@@ -29,7 +34,9 @@ import { holdHaptic, pokeHaptic } from '../audio/haptics.ts'
 import { LensCamera, fitScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
-import { maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
+import { LITERAL_RUNG_LIMIT, maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
+import { branchColour } from '../sim/heroTree.ts'
+import { roomSeatMarks, type RoomPosting, type SeatMark } from './heroBadges.ts'
 import {
   TOP_RUNG,
   VIEWS,
@@ -197,6 +204,51 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const camera = new LensCamera(0)
 
   /**
+   * §13.11.1 — who covers which seat, at four hertz.
+   *
+   * Throttled rather than driven by a change signal, and that is the honest
+   * trade rather than the lazy one. Two of the three inputs announce themselves
+   * (`heroPlacements` is a fresh object on every placement, `devs` is a number),
+   * but the third is **time**: §13.8 rule 4's settling period ends on a clock
+   * nobody publishes an event for, and a footprint that waited for the next
+   * placement to appear would arrive minutes after the hero it belongs to
+   * finished walking.
+   *
+   * Four hertz against a twenty-second settle is invisible, and `setCoverage`
+   * throws away the result unless the marks actually moved, so the cost of the
+   * poll is six objects and a short string a quarter of a second — not a
+   * redraw. §23.3's frame budget never sees it.
+   */
+  const COVERAGE_HZ = 4
+  let marksAt = Number.NEGATIVE_INFINITY
+  let marks: ReadonlyMap<number, SeatMark> = new Map()
+  const seatMarks = (state: GameState): ReadonlyMap<number, SeatMark> => {
+    const now = performance.now()
+    if (now - marksAt < 1000 / COVERAGE_HZ) return marks
+    marksAt = now
+
+    const postings: RoomPosting[] = []
+    for (const hero of heroRoster(state)) {
+      const at = hero.placement
+      // Rungs 0–2 only: above the room a unit is a floor or a town and the
+      // decal belongs on *its* face, which is §13.11.1's badge and is not built.
+      // The store charges for the coverage either way — this is the picture
+      // being behind the simulation, which is the right way round.
+      if (!at || at.rung > LITERAL_RUNG_LIMIT) continue
+      postings.push({
+        branch: hero.branch,
+        colour: branchColour(hero.branch),
+        index: at.index,
+        reachDevs: hero.reachDevs,
+        settling: heroCoverageOf(hero, state).settling,
+      })
+    }
+
+    marks = roomSeatMarks(postings, state.devs)
+    return marks
+  }
+
+  /**
    * The view the camera is looking at, and the scale it is drawn at.
    *
    * Published out of the ticker because the hit test, the pan limits and the
@@ -362,6 +414,34 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     selectDeveloper(target < 0 ? null : target)
     playUi(target < 0 ? 'close' : 'whoosh')
     return true
+  }
+
+  /**
+   * §13.8's interim placement gesture — the armed tap.
+   *
+   * Checked before every other verb and before the double-tap descend, because
+   * while somebody is armed **the finger means one thing only**. That is the
+   * §7.7.6b rule the touch latches are built on, applied to a mode the player
+   * entered from a hero's card one tap ago: a placement that also poked, or
+   * that also flew the camera down a rung, would be the mode reaching past what
+   * the banner says it does.
+   *
+   * A tap on open ground disarms rather than doing nothing, so there is a way
+   * out that does not need the CANCEL button to be under a thumb.
+   */
+  const doPost = (x: number, y: number): void => {
+    const target = pickUnit(x, y)
+    if (!target) {
+      cancelPosting()
+      playUi('close')
+      return
+    }
+    if (postHeroAt(target)) {
+      if (currentView === 'room') room.jolt(target.index)
+      playSfx('poke-floor')
+    } else {
+      playUi('close')
+    }
   }
 
   const doPoke = (x: number, y: number, t0: number) => {
@@ -589,7 +669,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // The grab is checked first and, when it lands, no drag is started at
       // all: the camera must let go of the world the instant the hand takes
       // hold of somebody, or the grab drags the floor along with the developer.
-      if (tapVerb(getState().touchMode, currentView === 'room') === 'grab') {
+      // The armed placement outranks GRAB on the press for the same reason it
+      // outranks every verb on the release: a hand that picked somebody up
+      // would eat the tap the banner has just asked the player for.
+      if (
+        getState().posting === null &&
+        tapVerb(getState().touchMode, currentView === 'room') === 'grab'
+      ) {
         if (tryGrab(ev.clientX, ev.clientY, ev.pointerId)) return
       }
       drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY, t0: t, panX: pan.x, panY: pan.y }
@@ -651,6 +737,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     pan.vx = 0
     pan.vy = 0
+
+    if (getState().posting !== null) {
+      doPost(ev.clientX, ev.clientY)
+      return
+    }
 
     if (doubleTapDescends()) {
       const near = Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) <= DOUBLE_TAP_SLOP
@@ -977,6 +1068,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // falling silhouette lands on somebody already sitting in the chair, which
     // is most of why a hire read as a glitch.
     room.setHeadcount(Math.min(state.devs, arrivals.revealed))
+    room.setCoverage(seatMarks(state))
     // §21 Act IV only. The particle swarm is no longer a ladder stop — the room
     // draws the people at every rung where a person is a person — so it shows
     // nobody unless the trap has sprung and there is a thousand-body drop to

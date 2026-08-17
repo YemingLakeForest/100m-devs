@@ -4922,6 +4922,72 @@ The rules, and each one exists to stop a specific way this collapses into a menu
 > progress.** §13.6.7's "never a second job" applies with full force. A good placement should
 > be worth having and a stale one should cost a percentage — never a wall.
 
+#### 13.8a The interim gesture — arm, then tap **[CANON — added 2026-08-17]** - R84
+
+Rule 1 above says the placement is **a drag out of §7.8.12's suite onto the floor**, and
+§7.8.12 has not been built. The consequence went unnoticed for as long as §13 has existed,
+because everything either side of it was finished:
+
+> `placeHero` and `recallHero` were complete, tested, wired to the fold, wired to §21.7.4's
+> promotion scene and persisted through §24's save — **and no line of the game ever called
+> either of them.** Every hero in the build was a card with no verb attached, and §26.1.8's
+> items 11 and 12 were unreachable by a player at all.
+
+The fix is not to build the suite early, and it is not a grid. It is to split the drag into its
+two halves and let the player say them one at a time:
+
+1. **Arm** — `POST` on §22.9's card. The card closes, because the thing the player must now
+   touch is behind it.
+2. **Tap** — the next tap on the world resolves through the *same* `pickUnit` a §4.5b poke
+   uses, so what is being aimed at is genuinely the seat, the floor, the campus. A tap on open
+   ground disarms; so does `CANCEL` on the banner.
+
+**The property this is protecting is §13.6.7's**: *"if the player is managing heroes on a grid
+instead of in the world, the entire reason for this design has been thrown away."* A drag and
+an arm-then-tap both end with a finger on the unit, and that is the half that carries the
+design. What the interim gesture loses is the *continuous* feedback of a card following the
+thumb over the floor — real, and worth the suite, and not worth blocking two gate lines on.
+
+While somebody is armed the finger means one thing only, ahead of POKE, GRAB, INFO and the
+double-tap descend. That is §7.7.6b's rule and it arrives with §7.7.6b's other half: **the mode
+is said out loud, on the HUD, before the finger lands.** The banner is not a fourth latch on
+§7.7.6b's switch, because a latch that empties itself after one use is a broken switch — a
+stance is something you stay in, and a posting is a sentence with one word left in it.
+
+> **What this owes.** §7.8.12's suite, and with it the drag. When that lands, `GameState.posting`
+> and its banner are deleted and `placeHero` keeps its signature — the seam is one field, on
+> purpose.
+
+#### 13.8b Coverage on the room floor **[CANON — added 2026-08-17]** - R84
+
+§13.11.1's footprint, at the only rungs where it can be drawn today. The maths had been in
+`render/heroBadges.ts` since §13.11 was written, with a note saying a renderer built against it
+would be drawing a floor that could never hold a hero. That note was **true of the drag and not
+of placement**, and §13.8a is why.
+
+What is drawn, at rungs 0–2, is one decal per covered seat, painted on the floor and occluded by
+the furniture standing on it:
+
+| State | Mark | The rule it is |
+|---|---|---|
+| **Covered** | Filled diamond in the branch colour | §13.11.1 — the footprint is drawn, not stated |
+| **Wasted** | The same, hatched | §13.8 rule 3, and §13.11.1's *"never told they have made a mistake"* — so the hatch is the branch colour, never a warning red |
+| **Settling** | The outline alone | §13.8 rule 4 — coverage costs time, so the time is on screen rather than a footprint that appears from nowhere twenty seconds after the tap |
+
+Two rules the pure fold settles, because both have more than one defensible answer:
+
+- **Earlier postings win a shared seat.** A second hero of the same branch marks the seats they
+  *share* as wasted rather than recolouring their whole footprint, so the hatch lands on the
+  overlap and reads as the size of the mistake.
+- **Two different branches on one seat both count, and the seat keeps the first colour.** There
+  is one floor tile and two true answers; splitting the diamond is four pixels of stripe at desk
+  zoom, which is a picture of nothing.
+
+> **Still owed by §13.11.1**: the badge on a unit's face above the room, the countdown ring on a
+> settling hero, and *"selecting a hero tints exactly the developers they reach, and everything
+> they do not reach goes flat grey"* — which is a change to how every developer is drawn rather
+> than a decal, and is Phase 2's business at the rungs where it matters most.
+
 
 ### 13.9 One tree, five branches, and every hero shares it **[CANON - added 2026-08-11]** - R36, R37
 
@@ -9332,7 +9398,7 @@ table. §26 is the roadmap. This is the ledger.
 | **R56** | Hero information as a **trading-card-game card**, in the art style, interesting to look at | **§22.9** | **Specified.** A laminated staff pass designed by somebody who wanted it to be a trading card |
 | **R57** | Different **text colours and UI components** for defects, incidents and tickets | §4.15 | Already canon. §21.7.6b changes only *when* each colour arrives |
 | **R58** | Dialogue focuses on the speaker, **facing the camera** | §10.7a.1 | Already canon, **and built** |
-| **R59** | Speech subtitle **bigger, more in the middle** | §10.7a.2 | Already canon, **not built.** §26.1.3 |
+| **R59** | Speech subtitle **bigger, more in the middle** | §10.7a.2 | Already canon, **and built on 2026-08-12** — every row of §10.7a.2's table is in `Dialogue.tsx` and `app.css`. This cell said "not built" for five days after it stopped being true; see §26.1.3 |
 | **R60** | Instant Messenger is the **first upgrade**, with the **same visual** in the tree | §11.5 | Already canon |
 | **R61** | Author **a new set of stories** going forward from the first James scene | §21.7 | Already canon — five arrivals and a promotion. §21.7.6 adds the handover beat to each |
 | **R62** | 1,000 SP alone is **too brutal**; James free at ~50 clicks | §21.0b | Already canon, **and built** |
@@ -9466,6 +9532,26 @@ Three requests, and the third is the one that changed a rule rather than adding 
 | **R83** | **"Some hero upgrades are added prematurely, before the mechanism is introduced. There should be story arcs to introduce the upgrades — heroes, founder and studio"** | §21.7.7, and §26.1.4 records what it does to §21.7.6 |
 | **R84** | Finish the rest of Phase 1 | §13.12.4, §14.8.9, §14.8.10, and §26.1.8's amended gate |
 | **R85** | **"The first game earns £40, the second £25k — how is that sensible? I want an addictive progressive hook that is challenging yet rewarding and gives the 'one more turn' vibe"** | §4.10f, §4.10g, §11.2a, §11.3a, §13.12.5, §14.8.11, §14.8.12, and §13.12.4's near-miss readout |
+
+#### 25.9.4 Two systems finished, tested and never called
+
+R85's session and R84's tail each found the same shape of defect, twice in two days, and it is
+worth naming because neither was findable by reading the module it was in:
+
+| What | Complete | Missing |
+|---|---|---|
+| §13.2's Paradigm Tree | The tree, the costs, the purchases, the near miss, three test files | **A door.** §7.1 makes the HUD inert and `.hud__controls > .ui-btn` never opted back in, so `PARADIGM` and `TEAM` were drawn, positioned, contrast-checked and dead (§25.9.3) |
+| §13.8's placement | `placeHero`, `recallHero`, the fold, the settling clock, §21.7.4's promotion trigger, §24's persistence | **A caller.** Nothing in the game invoked either verb (§13.8a) |
+
+**The common factor is that both were tested to their own edges.** Every unit test called the
+function directly, so every one passed; the browser gate rendered every screen, so every screen
+was correct. What neither could see is the *join* — and a join is invisible to a test that
+supplies its own left-hand side.
+
+> The rule this leaves behind: **a system is not done when its module is done, it is done when
+> a player can reach it.** §26.1.8's gate lines are all written as "a thing a player does, in
+> order, without leaving the game" for exactly this reason, and both of these were sitting
+> under lines that had never been walked.
 
 #### 25.9.2 R85 — the complaint was right and it was about the wrong thing
 
@@ -9702,9 +9788,14 @@ are cheap to change and expensive to change blind.
 
 The arc §21.7 specifies, built: James at the fiftieth poke, Instant Messenger at the first
 shift, five arrivals each gated on a feeling, and the promotion. Plus the two things §21.7 asks
-for that the presentation layer does not yet do — the camera closing on the speaker with their
-face turned to it (§10.7a.1, built), and **the subtitle at the size §10.7a.2 already specifies**
-(R59, not built).
+for that the presentation layer did not yet do — the camera closing on the speaker with their
+face turned to it (§10.7a.1), and **the subtitle at the size §10.7a.2 specifies** (R59).
+
+> **Both are built, and R59 has been since 2026-08-12** — checked row by row on 2026-08-17:
+> lower third with air beneath it (`bottom: calc(var(--edge-y) + 8%)`, a proportion of the
+> frame rather than a pixel gap), the `--type-2x` step, 28 columns, two lines a page. The
+> register said "not built" for five days afterwards, which is the same failure as §26.1.8
+> item 12's stale note and is why both are now recorded with a date rather than a state.
 
 **And four more scenes — added 2026-08-16.** §18.0a's THE THREAD and its payoff, and §21.7.7's
 two board introductions. They are not decoration on the arc: without them a player reaches Mo
@@ -9733,6 +9824,17 @@ Built (§11.4, `UpgradeBoard.tsx`). What Phase 1 owes it is the **verification**
 as §11.4 says at the sizes §23.4.2 requires: centre-out, right angles, silhouette ring, guide
 layer on tap, ring-gated by prestige, procedural icons, two-part purchase cue, and larger than
 the viewport without a word of copy saying so.
+
+> **Verified on 2026-08-17, and the interesting part is where the hole was.** Every rule in
+> that list already had a test — `techBoard.test.ts` for the graph, `techIcons.test.ts` for the
+> masks, `uiSfx.test.ts` for §11.4.5's 120 ms gap, the browser gate for the geometry at all
+> five frames — and **not one of them touched the component**. That is §25.9.4's shape again:
+> a system tested to its own edges, with the join to the player untested. `UpgradeBoard.test.tsx`
+> now asserts joins only, which is the cheap half and the half that was missing: that the board
+> draws `connectors()` rather than its own lines, that a tap opens the guide and takes no money,
+> that the guide has exactly one button, that a silhouette has none, that a dark node does not
+> open, and that the board declares itself larger than the smallest frame while saying nothing
+> about it.
 
 #### 26.1.6 The decision this phase forces
 
@@ -9808,11 +9910,31 @@ Every line is a thing a player does, in order, without leaving the game:
     level on a node in a branch that is not theirs, and see the number that node governs change.
 11. Place a hero on a block of 100 and see the coverage drawn on the floor; place a second of
     the same branch overlapping and see the waste hatched.
+    > **Item 11 passes as of 2026-08-17**, at the rungs that exist — the room's seats, not
+    > §26.2's block of 100, which is not built and cannot be until Phase 2 aggregates the
+    > people inside one. §13.8b is what is drawn and what §13.11.1 is still owed. The reason
+    > this line sat false is worth keeping: `placeHero` was finished, tested and **had no
+    > caller**, so items 11 and 12 were not partly built, they were unreachable. §13.8a is the
+    > gesture that reaches them.
 12. Promote James — place him on a rung above somebody — and get §21.7.4.
+    > **Item 12 passes as of 2026-08-17.** The trigger was never missing — a previous handoff
+    > recorded "nothing fires it", and it has been at `store.ts`'s `jamesPromoted(placedHeroes)`
+    > check with a test either side of it the whole time. What was missing was §13.8a, exactly
+    > as for item 11: the scene fires off a placement, and nothing in the game could place
+    > anybody. A handoff note that names the wrong half of a chain is worse than no note,
+    > because the next session goes looking in the place it was told to.
 13. §3.1.6's shapes are all in place. Items 1, 2 and 5 were already true, item 4 was the wrong
     requirement, and **item 3 is closed by §18.0**.
 
 **`npm run check` green throughout, including the browser gate at all five frame sizes.**
+
+> **Items 3–10 have not been walked, and that is now the only thing between here and the end of
+> Phase 1 — noted 2026-08-17.** They are covered by tests and believed to work, which is exactly
+> the state items 2a and 11 were in on the mornings they turned out to be false. **This list is
+> written as things a player does because a test cannot tell you whether the thing in front of
+> the player works** (§25.9.4). Walk them in order, in a browser, and give any line that fails
+> the same treatment items 11 and 12 got: a dated note saying what was actually missing, not a
+> state.
 
 ---
 

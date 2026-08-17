@@ -11,7 +11,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   __resetStore,
   __setState,
+  beginPosting,
   buyHeroTreeNode,
+  cancelPosting,
   currentEntropy,
   currentHeroFold,
   dismissScene,
@@ -21,7 +23,9 @@ import {
   heroRoster,
   loadGame,
   placeHero,
+  postHeroAt,
   recallHero,
+  selectHero,
   tick,
 } from './store.ts'
 import {
@@ -358,5 +362,64 @@ describe('§24 — where somebody is standing survives a reload, not a prestige'
     // exists cannot have anybody standing on it.
     expect(heroRoster()).toHaveLength(1)
     expect(heroById('mo')!.placement).toBeNull()
+  })
+})
+
+describe('§13.8 — the interim placement gesture', () => {
+  beforeEach(() => {
+    staffed(SCENE_MO_ARRIVES, SCENE_MELANY_ARRIVES)
+    __setState({ devs: 40, runSeconds: 100 })
+  })
+
+  it('arms nobody the player has not met', () => {
+    expect(beginPosting('serena')).toBe(false)
+    expect(getState().posting).toBeNull()
+  })
+
+  it('closes the card it was armed from, because the target is behind it', () => {
+    selectHero('mo')
+    expect(beginPosting('mo')).toBe(true)
+    expect(getState().posting).toBe('mo')
+    expect(getState().selectedHero).toBeNull()
+  })
+
+  it('places on the unit the tap landed on, and disarms', () => {
+    beginPosting('mo')
+    expect(postHeroAt({ rung: 0, index: 7 })).toBe(true)
+    expect(getState().heroPlacements.mo).toMatchObject({ rung: 0, index: 7 })
+    expect(getState().posting).toBeNull()
+  })
+
+  it('answers no to a tap with nobody armed, so a poke stays a poke', () => {
+    expect(postHeroAt({ rung: 0, index: 7 })).toBe(false)
+    expect(getState().heroPlacements.mo).toBeUndefined()
+  })
+
+  it('disarms even when the placement is refused', () => {
+    beginPosting('mo')
+    // Somebody who left the roster between arming and tapping. The gesture must
+    // not stay armed, or the *next* poke silently places them instead.
+    setPermanent(emptyPermanent())
+    expect(postHeroAt({ rung: 0, index: 7 })).toBe(false)
+    expect(getState().posting).toBeNull()
+  })
+
+  it('cancels, and cancelling twice is not a state change', () => {
+    beginPosting('mo')
+    cancelPosting()
+    expect(getState().posting).toBeNull()
+    cancelPosting()
+    expect(getState().posting).toBeNull()
+  })
+
+  // §24.2 — an armed tap restored from a previous session is a gesture the
+  // player does not remember making, and the next thing they touch would be it.
+  it('does not survive a reload', () => {
+    beginPosting('mo')
+    const save = makeSaveData(getState())
+    localStorage.setItem(SAVE_KEY, serialize({ ...save, savedAt: Date.now() }))
+    __resetStore()
+    loadGame(Date.now())
+    expect(getState().posting).toBeNull()
   })
 })

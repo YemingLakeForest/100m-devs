@@ -46,6 +46,7 @@ import {
   type FounderProfile,
 } from '../game/founderProfile.ts'
 import { AVATAR_HAIR, frontAvatarParts, type AvatarRect } from './avatarParts.ts'
+import type { SeatMark } from './heroBadges.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -336,6 +337,15 @@ export interface RoomHandle {
   setSeed(seed: number): void
   /** §7.8.8 — who is turned round to face the camera. -1 for nobody. */
   setSelected(index: number): void
+  /**
+   * §13.11.1 — the coverage footprint, one mark per covered seat.
+   *
+   * Safe to call every frame: the marks are folded to a key and the Graphics is
+   * only rebuilt when that key moves, which is a few times a run. The caller
+   * therefore does not have to know when a placement changed, and cannot get
+   * that wrong (`refreshHeroFold` had to, and this is the same trade).
+   */
+  setCoverage(marks: ReadonlyMap<number, SeatMark>): void
   /**
    * §10.7a.1 — who is speaking a line of dialogue, turned to camera for it.
    * -1 for nobody (or for `STUDIO_OS`, which has no body). A seat, not an
@@ -1271,6 +1281,99 @@ export function drawDeskBank(g: Graphics, colFrom: number, colTo: number, row: n
 }
 
 /**
+ * §13.11.1's coverage decal, in floor tiles.
+ *
+ * Deliberately smaller than a seat's pitch: the marks must read as **one per
+ * person** at desk zoom, and a decal that fills its pitch tiles into a
+ * continuous carpet the moment two adjacent seats are covered. The gap is what
+ * makes a footprint countable, which is the whole of "the fraction is learned
+ * by looking, not by reading `covering 8 of 4,000`".
+ */
+export const COVER_SPAN = 0.44
+
+/**
+ * The marks, as one comparable string.
+ *
+ * A string rather than a deep compare because the answer is almost always "the
+ * same as last frame" and a string of a few dozen characters is cheaper to
+ * build and compare than a walk over two maps. It is never parsed and never
+ * stored, so its shape is nobody's business but this file's.
+ */
+function coverageKey(marks: ReadonlyMap<number, { colour: string; wasted: boolean; settling: boolean }>): string {
+  let key = ''
+  for (const [seat, m] of marks) {
+    key += `${seat}${m.colour}${m.wasted ? 'w' : ''}${m.settling ? 's' : ''};`
+  }
+  return key
+}
+
+/** How many hatch lines cross a wasted seat — §13.8 rule 3. */
+const COVER_HATCH = 3
+
+/**
+ * One seat's coverage mark, drawn on the floor — GDD §13.11.1, §7.8.13 rule 2.
+ *
+ * A square on the ground, which the 2:1 projection turns into a diamond, and
+ * the hatch lines run **along a floor axis** for the same reason: a screen-space
+ * diagonal across an isometric tile is a shape that does not lie on the floor,
+ * and at this size the eye reads that as a rendering fault rather than as a
+ * mark. `drawDeskBank` above makes the same argument at greater length.
+ *
+ * Three states, and each is a rule rather than a style:
+ *
+ * - **Covered** — filled in the branch colour. §13.11.1: the footprint is drawn.
+ * - **Wasted** — filled and then hatched. §13.8 rule 3, and §13.11.1 is explicit
+ *   that "the player is never told they have made a mistake; they can just see
+ *   the hatched area and move somebody."
+ * - **Settling** — the outline alone, because it is not coverage yet. §13.8
+ *   rule 4 makes relocation cost time and §13.11.1 wants that time on screen.
+ */
+export function drawSeatCoverage(
+  g: Graphics,
+  index: number,
+  mark: { colour: string; wasted: boolean; settling: boolean },
+) {
+  const { col, row } = seatGrid(index)
+  const gx = row * PITCH_ROW
+  const gy = col * PITCH_COL
+  const d = COVER_SPAN / 2
+  const colour = c(mark.colour)
+
+  const back = gridToScreen(gx - d, gy - d)
+  const far = gridToScreen(gx - d, gy + d)
+  const front = gridToScreen(gx + d, gy + d)
+  const near = gridToScreen(gx + d, gy - d)
+
+  const outline = () =>
+    g
+      .moveTo(back.x, back.y)
+      .lineTo(far.x, far.y)
+      .lineTo(front.x, front.y)
+      .lineTo(near.x, near.y)
+      .closePath()
+
+  if (mark.settling) {
+    outline().stroke({ width: 1, color: colour, alpha: 0.55 })
+    return
+  }
+
+  outline().fill({ color: colour, alpha: 0.3 })
+  outline().stroke({ width: 1, color: colour, alpha: 0.85 })
+
+  if (!mark.wasted) return
+  // The hatch is drawn in the same colour rather than in a warning red. Nothing
+  // has gone wrong — two heroes of one branch is a legal board that is paying
+  // for one of them twice — and a red mark on the floor would be the scolding
+  // §13.11.1 refuses.
+  for (let i = 1; i <= COVER_HATCH; i++) {
+    const t = -d + (2 * d * i) / (COVER_HATCH + 1)
+    const a = gridToScreen(gx + t, gy - d)
+    const b = gridToScreen(gx + t, gy + d)
+    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: colour, alpha: 0.9 })
+  }
+}
+
+/**
  * A rectangle lying **flat on the desk surface**, in the floor's own axes.
  *
  * `across` runs toward the camera and `along` runs down the row, both in floor
@@ -1882,6 +1985,8 @@ export function buildRoom(): RoomHandle {
   const deskLayer = new Container()
   const devLayer = new Container()
   const founderLayer = new Container()
+  /** §13.11.1 — the coverage footprint, painted on the floor under everybody. */
+  const coverage = new Graphics()
   // Previous room geometry lives just long enough to cross-fade into an
   // expanded room. Developers stay in their real containers, so an old hire
   // never blinks out while the walls move.
@@ -1894,6 +1999,7 @@ export function buildRoom(): RoomHandle {
   founderLayer.label = 'founder'
   plates.label = 'plates'
   deskLayer.label = 'desks'
+  coverage.label = 'coverage'
   const ambient = createAmbient()
   // Bubbles go above everyone, including the people in the front row — a
   // speech bubble occluded by the desk in front of it is not a speech bubble.
@@ -1906,6 +2012,13 @@ export function buildRoom(): RoomHandle {
     shell,
     plates,
     light,
+    // Above the floor it is painted on and below everything standing on it, so
+    // a mark behind a desk is occluded by that desk. That is the correct depth
+    // for a decal and it is why this is not simply drawn last: a footprint that
+    // floated over the furniture would read as a UI overlay projected onto the
+    // room rather than as paint on the floor of it (§7.1's pane-of-glass rule,
+    // applied to the one layer that is *not* on the glass).
+    coverage,
     previousFurniture,
     furniture,
     previousDesks,
@@ -1938,6 +2051,8 @@ export function buildRoom(): RoomHandle {
    * value and hands it over once.
    */
   let seed = 1
+  /** §13.11.1 — what the decal layer currently shows, as a comparable key. */
+  let coverageDrawnFor = coverageKey(new Map())
   /** §7.8.8 — the selected seat, and the spin's clock. */
   let selected = -1
   let turningOut = -1
@@ -2992,6 +3107,13 @@ export function buildRoom(): RoomHandle {
       founder.destroy({ children: true })
       founder = replacement
       founderLayer.addChild(founder)
+    },
+    setCoverage(marks: ReadonlyMap<number, SeatMark>) {
+      const key = coverageKey(marks)
+      if (key === coverageDrawnFor) return
+      coverageDrawnFor = key
+      coverage.clear()
+      for (const [seat, mark] of marks) drawSeatCoverage(coverage, seat, mark)
     },
     setSelected(index: number) {
       if (index === selected) return

@@ -780,6 +780,33 @@ try {
       },
     })
 
+    /*
+     * §13.8's placement gesture, all the way from the strip to the armed tap.
+     *
+     * Three surfaces in one screen, and the reason they are checked together is
+     * that each one is a control the last session found dead on a different
+     * layer: §13.11.2's strip (a `Panel`), §22.9's card (pinned to the right
+     * edge, over the CASH block), and the banner (its own row, pinned above the
+     * bottom rail). The banner is also the only surface in the game whose width
+     * is set by **a hero's name inside a sentence**, so it is the one that
+     * overflows first when somebody joins the roster with a longer one.
+     */
+    await check(page, {
+      name: 'a hero armed for placement',
+      width,
+      height,
+      path: '/?notitle&full&nopost',
+      action: async (target) => {
+        await clearScene(target)
+        await target.getByRole('button', { name: 'TEAM', exact: true }).click()
+        await target.locator('.roster__card').first().click()
+        await target.getByRole('button', { name: 'POST', exact: true }).click()
+        // The banner, not just the absence of the card: POST closes the card
+        // either way, so waiting on the card would pass with the gesture dead.
+        await target.locator('.posting').waitFor({ state: 'visible' })
+      },
+    })
+
     await check(page, {
       name: 'founder setup',
       width,

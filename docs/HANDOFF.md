@@ -1,11 +1,14 @@
 # Handoff — 2026-08-10
 
-> **Current handoff: [`HANDOFF-2026-08-15.md`](HANDOFF-2026-08-15.md)** — the §26 roadmap, the
-> first slice of Phase 1, and **traps 28–33**. Read that one first, then
-> [`GDD.md` §26](../GDD.md), which is now the build order.
+> **Current handoff: [`HANDOFF-2026-08-17.md`](HANDOFF-2026-08-17.md)** — the economy rebalance,
+> the rest of Phase 1, and **traps 34–37**. Read that one first, then
+> [`GDD.md` §26](../GDD.md), which is the build order.
 >
-> **Previous: [`HANDOFF-2026-08-13.md`](HANDOFF-2026-08-13.md)** — what is left, what the
-> next session inherits, and **traps 19–23**. Read that one first; this file is still the project
+> **Previous: [`HANDOFF-2026-08-15.md`](HANDOFF-2026-08-15.md)** — the §26 roadmap, the
+> first slice of Phase 1, and **traps 28–33**.
+>
+> **Before that: [`HANDOFF-2026-08-13.md`](HANDOFF-2026-08-13.md)** — what is left, what the
+> next session inherits, and **traps 19–23**. This file is still the project
 > status, the flag table and traps 1–18, and nothing in it has been withdrawn.
 
 Short by design. **The detail lives in [`GDD.md`](../GDD.md), which is the single source of
@@ -25,7 +28,9 @@ One command gates everything:
 npm run check     # lint + typecheck + tests + the art gate
 ```
 
-**1127 tests.** Lint, types and the art gate clean.
+**1127 tests** when this file was written. The current count lives in the current handoff and
+nowhere else — a number repeated in five files is five places to be out of date, and four of
+them were.
 
 ---
 
