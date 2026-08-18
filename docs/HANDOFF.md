@@ -4,6 +4,10 @@
 > walked in a real browser, the third acceptance gate, **traps 38–44**, and **Phase 1 closed**.
 > Read that one first, then [`GDD.md` §26](../GDD.md), which is the build order.
 >
+> **Next: [`PLAN-2026-08-18-phase2.md`](PLAN-2026-08-18-phase2.md)** — Phase 2, planned against
+> a measurement of the current build at 10⁸ developers rather than against §26.2.1, which has
+> gone stale in four clauses. Nothing in it is built yet.
+>
 > **Previous: [`HANDOFF-2026-08-17.md`](HANDOFF-2026-08-17.md)** — the economy rebalance,
 > the rest of Phase 1, and **traps 34–37**.
 >
