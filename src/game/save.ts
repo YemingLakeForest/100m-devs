@@ -422,6 +422,15 @@ export function getPermanent(): PermanentSave {
 
 export function setPermanent(next: PermanentSave): void {
   permanent = next
+  // Dev-only inspection seam, the twin of `store.ts`'s `__store` and here for
+  // the same reason. The run is visible in the HUD and the *career* is not:
+  // "has this event been retired for good, or merely cleared by hand?" and
+  // "which scenes has this player seen?" are both answered only in here, and
+  // §26.1.8's walk has to be able to say which of the two it just watched
+  // happen. Diagnosis only — the walk asserts against what is on screen.
+  if (import.meta.env?.DEV) {
+    ;(globalThis as unknown as Record<string, unknown>).__permanent = permanent
+  }
 }
 
 // --- serialize -------------------------------------------------------------

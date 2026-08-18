@@ -4177,6 +4177,36 @@ it. A tree with a *centre* has five ways to be wrong, all visible at once, and t
 decision in §11 is which direction to spend in. It is also the same shape as §13.9's hero
 tree, deliberately: **one board grammar, learned once, used in two places.**
 
+#### 11.4.1a The nodes and the connectors are one board — 2026-08-18
+
+**They were not, and had not been since the board shipped.** Found by walking §26.1.8 item 4
+in a browser, which is the first time anybody had opened this screen and asked what it was
+actually a picture of.
+
+`UpgradeBoard.tsx` placed each node at `(node.x + 1.5) · CELL` — the literal padding — while
+the connector layer placed each line endpoint at `(node.x + pad − bounds.minX) · CELL`. Those
+two agree for a board whose furthest-out cell is `(0, 0)` and for no other. §11's board runs
+three cells west of Instant Messenger (`B4`) and three cells north (`C2a`), so the origin is
+at `(4.5, 4.5)` and **every node was drawn three cells up and to the left of the line drawn to
+reach it**. The consequences, in order of how bad they are:
+
+| | |
+|---|---|
+| The spine | No connector met any node. The board read as three floating tiles in the corner of an empty rectangle, and §11.4.2's *"a dark node still shows its connector"* — the rule that stops the tree reading as finished — showed the player nothing at all |
+| **Four nodes were unreachable** | `B3`, `B4`, `C2`, `C2a` landed at **negative** coordinates: outside the world box, behind the scroller's clip, at no scroll position. Two of §11.2's protocol chain and two of §11.3's culture chain could be seen on a connector and never bought |
+| The opening view | The board is centre-out and bigger than its viewport, and it opened at scroll `(0, 0)` — the top-left corner of empty grid. `HeroTree.tsx` has carried the two-line fix for this since the day it was written, and comments it |
+
+Nothing could see it. jsdom does no layout, so vitest cannot measure a box; the browser gate
+measures *containment*, and a node clipped to nothing by a scroller is contained. The one test
+that came near — *"grows outward from Instant Messenger in all four directions"* — compares
+the nodes with **each other**, so translating the whole node layer away from the link layer
+leaves it green. **A test that compares a set of things to itself cannot see the set being in
+the wrong place.**
+
+> The rule this leaves, and it is trap 34's in a different coat: **when one drawing is built
+> from two coordinate systems, the test is that they agree** — a node's centre is a connector
+> endpoint — and not that either one is internally consistent.
+
 #### 11.4.2 Progressive reveal, and the argument it overturns
 
 The shipped implementation names every locked node — `NEEDS B1` — on an explicit argument
@@ -4888,6 +4918,61 @@ Two rules keep it from eating the game:
 - **It must never beat hiring.** §4.5d already states the failure condition — "if the optimal
   play is to fire everyone and code alone, the satire has eaten the game" — and the breadth
   penalty is the mechanism that enforces it.
+
+#### 13.7.1a The door to this tree is a person the resting camera loses — 2026-08-18
+
+**Found by walking §26.1.8 item 9, and it is the one thing that walk left open.**
+
+§13.6.6 forbids a management screen and §13.6.7 makes the door a person, so this tree has
+exactly one entrance: put the finger in §7.7.6b's neutral mode and tap your own avatar. Both
+halves are correct design. What the walk measured is that the avatar is not always on screen
+to be tapped — at 997x448, the **largest** frame in §23.4.2's box, with the camera where a
+fresh load leaves it:
+
+| Developers | Founder's avatar in the resting frame? |
+|---|---|
+| 2 | Yes |
+| 8 | Yes, at the very top edge |
+| **16 and above** | **No.** Swept the whole canvas at 10 px, at 16, 24, 40, 64 and 107 — no tap opens the screen |
+
+§7.8.10 pins the founder's workstation to a **fixed** point and the room grows south-east away
+from it, so the resting frame slides off the corner. Every smaller frame is worse.
+
+**Two things stop this being a dead control (trap 34), and both are worth stating precisely,
+because the first draft of this note overstated it.**
+
+1. **A drag brings them back.** §7.7.6's pan is a real gesture the game teaches, and the
+   corner is inside the pannable range at every headcount measured. The walk drags for it when
+   it has to.
+2. **Poking yourself parks the lens on your own desk, and it stays parked.**
+   `codeAtFounderDesk` calls `focusFounderCamera`, which walks the camera to the corner and
+   leaves it there until the player moves it. A player who taps themselves during Act I — which
+   is the whole of Act I — carries that framing forward, and in the career the walk actually
+   played the founder was still tappable at 107 developers with no drag at all.
+
+So the honest statement is narrow: **the founder is off the default frame from about a dozen
+developers, and the control that used to guarantee otherwise is gone from every device.**
+§4.5d's corner shortcut is the one thing in the build that can walk the lens back on demand,
+and it is `display: none` under `max-height: 470px` — every frame the game supports is 470 px
+or shorter. The note that hid it argued the corner was *"a convenience duplicate of a gesture
+the game teaches in its first thirty seconds… nothing here is unreachable"*, which is true of
+the gesture and no longer true of the *default view* it happens in. That is trap 37 again: a
+comment correct about one state, read as correct about all of them.
+
+Two fixes, and choosing between them is a composition decision rather than an engineering one,
+so this is on the **blocked on a human** list:
+
+1. **Give the corner slab back.** Tried, 2026-08-18, and *refused by the rail*: at 640x360
+   with §26.1.8's `?full` fixture `.hud__controls` wraps the button into an existing row and
+   then clips §10.1's UPGRADES by about four pixels. §10.1a says both rails are full and
+   "a new control does not get to evict canon"; buying the four pixels back out of the gaps is
+   the artefact the note on `.hud__controls` warns about.
+2. **Bias the room's resting pivot toward the north corner as the room grows.** Costs no
+   pixels and is what the existing bias comment already says it is for — it is
+   `WALL_H * 0.5`, which stops scaling once `WALL_H` clamps at 112. Measured, keeping the
+   founder in frame at 107 developers needs the pivot about 157 world px higher, which moves
+   the whole picture down by roughly a quarter of the frame. **That is a different
+   composition, and it is not mine to choose.**
 
 ### 13.8 Placing heroes — management *is* the minigame **[CANON - added 2026-08-10]** - R25
 
@@ -9532,6 +9617,7 @@ Three requests, and the third is the one that changed a rule rather than adding 
 | **R83** | **"Some hero upgrades are added prematurely, before the mechanism is introduced. There should be story arcs to introduce the upgrades — heroes, founder and studio"** | §21.7.7, and §26.1.4 records what it does to §21.7.6 |
 | **R84** | Finish the rest of Phase 1 | §13.12.4, §14.8.9, §14.8.10, and §26.1.8's amended gate |
 | **R85** | **"The first game earns £40, the second £25k — how is that sensible? I want an addictive progressive hook that is challenging yet rewarding and gives the 'one more turn' vibe"** | §4.10f, §4.10g, §11.2a, §11.3a, §13.12.5, §14.8.11, §14.8.12, and §13.12.4's near-miss readout |
+| **R86** | Walk §26.1.8 items 3–10 — the last thing between the build and the end of Phase 1 | §26.1.8's dated notes on items 3–10, §26.1.8a's gate, §11.4.1a's fix, and §13.7.1a, which is the one thing the walk left open |
 
 #### 25.9.4 Two systems finished, tested and never called
 
@@ -9701,7 +9787,7 @@ without one is a heading.
 
 | Phase | The one sentence | Closes when |
 |---|---|---|
-| **1 — The core loop** | **The game can be played from the first tap to the third prestige without hitting a system that is not there.** | §26.1.8 |
+| **1 — The core loop** | **The game can be played from the first tap to the third prestige without hitting a system that is not there.** | §26.1.8 — **closed 2026-08-18**, see §26.1.8b |
 | **2 — Scale** | **The same game, at a hundred million developers, at sixty frames a second.** | §26.2.5 |
 | **3 — Life** | **The floor is a place people work in rather than a grid people are drawn on.** | §26.3.5 |
 
@@ -9895,19 +9981,81 @@ Every line is a thing a player does, in order, without leaving the game:
    above and below this one assumed it worked.
 3. Create a founder, play §21's prologue to the forced bankruptcy, and take the first Paradigm
    Shift.
+   > **Item 3 passes as of 2026-08-18.** Walked end to end from the title screen: NEW GAME, a
+   > founder built in §10.9.2's creator, §10.9.3's boot tapped through, fifty pokes on the
+   > corner desk, James, the whole garage catalogue, ten hires and §21.0a's term sheet, forty
+   > hires, §21.0d's scene signing the mass hire with no button anywhere to decline it, the
+   > seize, the bankruptcy screen and `TRIGGER PARADIGM SHIFT` — twelve to fifteen BP depending
+   > on how the run went, and §21.6 on the other side.
 4. Open `UPGRADES`, find Instant Messenger at the centre, buy a ring-1 node, and see the board
    grow.
+   > **Item 4 was false and is fixed as of 2026-08-18 — §11.4.1a.** Instant Messenger was not
+   > at the centre of anything: the node layer and the connector layer were built from
+   > different origins and drawn three cells apart, and four nodes sat outside the world box
+   > where no scroll reached them. The board also opened on empty grid. Both halves are fixed
+   > and `UpgradeBoard.test.tsx` now asserts the **join** — a node's centre is a connector
+   > endpoint — which is the only kind of test that could have caught it.
 5. **Reach twelve developers on Run 2 without having bought anything, and meet §18.0a's
    THE THREAD** — then get out of it both ways: buy a node on one career, tap twenty replies on
    another, and see that only the first one retires it.
+   > **Item 5 passes as of 2026-08-18, on two careers, because it cannot be said on one.** The
+   > two exits are mutually exclusive by design — the purchase retires the event for the whole
+   > career and the taps do not — so *"only the first one retires it"* is a comparison between
+   > two playthroughs and the walk plays both.
+   >
+   > On the first: twelve developers on an empty board, the modal, `OPEN UPGRADES`, a node
+   > bought, `THREAD ARCHIVED` and §18.0a's payoff scene, and then nothing for as long as the
+   > walk watched. On the second: the same modal, twenty presses of `REPLY TO ALL`, no payoff scene —
+   > which is §18.0a's rule that the scene belongs to one exit only — and **the card comes
+   > straight back**, because the studio is still over twelve with an empty board. That
+   > returning card is what "only the first one retires it" looks like from the player's side,
+   > and it is the assertion rather than a milestone read out of the save.
 6. Ship a release bad enough to bring Mo, and watch the defect backlog appear **with her** and
    not before.
 7. Do the same for Serena and Matt.
 8. Hit the developer cap with cash spare, meet Melany; read past `CHATTY`, meet Billy.
+   > **Items 6, 7 and 8 pass as of 2026-08-18**, and *"with her and not before"* is checked the
+   > only way it can be: the walk snapshots the rail on the frame each arrival scene **opens**,
+   > before the dismissal that grants the unlock. Every one of the three came up empty, and the
+   > bar appeared as its hero sat down.
+   >
+   > **One thing the walk found that these lines do not ask about: the arrivals do not come in
+   > this order, and they do not come in the same order twice.** §21.7.3 fires each on a
+   > *feeling*, so the sequence belongs to the simulation — one career produced Mo, Matt, the
+   > founder's board, Billy, Melany and *then* Serena, because a studio racing to its cap meets
+   > a ticket queue long before a release goes down; another put Serena before Matt. That is
+   > the rule working, and it is recorded here because a future walk that asserted the list's
+   > order would be pinning an accident.
 9. **Hire your first specialist and meet §21.7.7b's board** — then open the founder's screen on
    a fresh Run 1 and find no board there at all.
+   > **Item 9 passes as of 2026-08-18, and it found the one thing this walk is leaving open.**
+   > Both halves are true — the specialist hires, the board is on the founder's screen, and a
+   > fresh Run 1's founder screen carries no board at all, not a greyed one. Two notes:
+   >
+   > - **The board arrives through its *second* door first.** §21.7.7's two doors are the
+   >   specialist hire and the share rule, and by the time §4.11's dial will sell a specialist
+   >   the studio is well past twenty-five people with the founder under a twentieth of the
+   >   output — so the share rule fires first, every time, in a normally-played career. The
+   >   beat is the guarantee and the guarantee is the beat. Not a defect; the second door
+   >   exists precisely so a player who never hires outside `dev` still gets there.
+   > - **§13.7.1a** — the founder's avatar leaves the resting frame at about a dozen
+   >   developers, so the one door to §13.7.1's tree can need a drag to find. On the blocked
+   >   list; the note states both fixes and why neither is mine to pick.
 10. **Earn a hero's second level and meet §21.7.7c's board**, then open any hero's card, spend a
     level on a node in a branch that is not theirs, and see the number that node governs change.
+    > **Item 10 passes as of 2026-08-18, and its last clause wants restating.** Walked: James
+    > posted onto the floor with §13.8a, XP accrued under coverage, level 2, §21.7.7c's board,
+    > `SPEND 2`, and a **Quality** depth node bought on the trunk hero — the guide printed
+    > *"Not James's branch — worth 50% here"* and sold it anyway, which is §13.9.1 exactly.
+    >
+    > What is *visible* is the point spent and §22.9.2's depth row growing, which counts every
+    > DEPTH node owned anywhere on the board and exists for this case. What is **not** visible
+    > is the studio number the branch bends, and the arithmetic says it should not be: §13.6.2
+    > scales a hero's effect by the share of the floor they cover, and a level-2 hero reaches
+    > one row of eight in a studio of a hundred — so a 15% branch effect at half weight over an
+    > eight per cent share moves the speedometer by a tenth of the per cent it prints. **The
+    > line is satisfied by the card and not by the HUD**, and that is REACH being expensive
+    > rather than a readout being wrong.
 11. Place a hero on a block of 100 and see the coverage drawn on the floor; place a second of
     the same branch overlapping and see the waste hatched.
     > **Item 11 passes as of 2026-08-17**, at the rungs that exist — the room's seats, not
@@ -9928,13 +10076,60 @@ Every line is a thing a player does, in order, without leaving the game:
 
 **`npm run check` green throughout, including the browser gate at all five frame sizes.**
 
-> **Items 3–10 have not been walked, and that is now the only thing between here and the end of
-> Phase 1 — noted 2026-08-17.** They are covered by tests and believed to work, which is exactly
-> the state items 2a and 11 were in on the mornings they turned out to be false. **This list is
-> written as things a player does because a test cannot tell you whether the thing in front of
-> the player works** (§25.9.4). Walk them in order, in a browser, and give any line that fails
-> the same treatment items 11 and 12 got: a dated note saying what was actually missing, not a
-> state.
+#### 26.1.8a The walk is a gate now — 2026-08-18
+
+**Items 3 to 10 were walked on 2026-08-18. One was false and one carried a defect nobody had
+named** — item 4 and §13.7.1a respectively. Every dated note above is from that walk, and the walk itself is
+[`scripts/playthrough.acceptance.mjs`](../scripts/playthrough.acceptance.mjs), in
+`npm run check`.
+
+It exists because this list is written as *things a player does* and the previous session had
+no way to run it except by hand — which is how items 2a and 11 sat false for weeks while every
+test around them passed. So the walk plays the game with a mouse: real presses on real
+controls, real taps on the canvas, real triggers firing off state it produced itself, and every
+assertion about something on the screen. **Nothing in it calls a store verb**, because *a join
+is invisible to a test that supplies its own left-hand side* (§25.9.4).
+
+| Gate | Owns | Blind to |
+|---|---|---|
+| `vitest` | Does it compute the right number | Layout and joins — jsdom has no layout engine |
+| `ui-frame.acceptance.mjs` | Is it drawn correctly, at five frames | Whether anything leads to the screen it measures |
+| `playthrough.acceptance.mjs` | **Can a player get to it** | Numbers; it asks only whether the door opens |
+
+**Its one accommodation is `?speed=N`** (`render/stage.ts`), which runs N whole simulation
+ticks per frame — the same family as `?act`, `?devs` and `?full`, and it supplies no left-hand
+side to anything. N calls at the frame's own `dt` is arithmetically N frames, so a run walked at
+speed 16 passes through every state a run walked at speed 1 does, in the same order. Repeated
+whole ticks and never a bigger `dt`: payroll, entropy, the tail and §4.12's arrival rates are
+integrated per frame and a sixteenfold step would be a different simulation.
+
+**Three careers, because item 5 needs two and item 9 needs a third.** A reload does *not* start
+a new one — `store.ts` calls `initPersistence()` at module scope, so the save is read before the
+first render — and a page cannot end its own career either, because §24.9 saves on `pagehide`
+and the reload's own unload writes back what was just deleted. Each career is a fresh browser
+context.
+
+#### 26.1.8b Phase 1's gate passes — 2026-08-18
+
+**Every line of §26.1.8 now carries a dated pass-note.** Items 1, 2, 11 and 12 were closed on
+2026-08-16 and 2026-08-17; item 2a with them; items 3 to 10 on 2026-08-18, by the walk above;
+item 13 was already true. `npm run check` is green including both browser gates.
+
+By §26's own rule — *"a phase closes when its gate passes, and the gate is written in terms of
+what a player can do"* — **Phase 1 is closed and Phase 2 may start.**
+
+Two things are carried forward, and neither is a gate line:
+
+| | |
+|---|---|
+| **§13.12.5** | Runs 7 and 8 come in below §13.12.4's band. Left open rather than chased, on §14.8.11's argument: every cheap fix for it makes the late game *slower* rather than bigger, and item 1's other half — every run ending on §4.1 rather than on the price of a head — outranks the band and passes |
+| **§13.7.1a** | The founder's avatar leaves the resting frame at about a dozen developers, so §13.7.1's board can need a drag to find. A composition decision, on the blocked-on-a-human list |
+
+**What Phase 2 inherits that Phase 1 did not have** is the third gate. §26.2's thesis is that
+*the player cannot tell* the simulation has stopped tracking individuals — which is a claim
+about what a player can reach and see, and therefore a claim only
+`playthrough.acceptance.mjs` can be asked to check. §26.2.5 should be written as things a
+player does, and walked the same way.
 
 ---
 

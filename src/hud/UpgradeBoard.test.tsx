@@ -102,6 +102,64 @@ describe('§11.4.1 — the board is a board', () => {
     ).toHaveLength(0)
   })
 
+  /**
+   * **The node layer and the link layer are one board — §11.4.1a.**
+   *
+   * Found by walking §26.1.8 item 4 rather than by any test, and the test above
+   * is the reason: *"grows outward in all four directions"* compares nodes with
+   * each other, so it is completely blind to the whole node layer being
+   * translated away from the lines that are supposed to reach it. Which is what
+   * had happened — `NodeView` used the literal padding, `1.5`, where the
+   * connectors use `pad - bounds.minX`, and §11's board runs three cells west
+   * of Instant Messenger and three cells north. Every node was drawn three
+   * cells up and to the left of its own connector, and the four nodes furthest
+   * out landed at negative coordinates: outside the world box, clipped by the
+   * scroller, and unreachable at any scroll position.
+   *
+   * So this asserts the **join**, which is the only thing that could have
+   * caught it: a node's centre is a connector endpoint.
+   */
+  it('puts every node’s centre on the connector that reaches it', () => {
+    shifted(1)
+    const { container } = board()
+    const px = (v: string) => Number.parseFloat(v)
+
+    const ends = new Set<string>()
+    for (const line of container.querySelectorAll('.upgrade-board__links line')) {
+      for (const [x, y] of [['x1', 'y1'], ['x2', 'y2']] as const) {
+        ends.add(`${Math.round(Number(line.getAttribute(x)))},${Math.round(Number(line.getAttribute(y)))}`)
+      }
+    }
+
+    for (const node of container.querySelectorAll<HTMLElement>('.upgrade-board__node')) {
+      // The style is `left/top` of the box; the point the line is drawn to is
+      // its centre. jsdom does no layout, so the box size comes from the same
+      // constants the component uses rather than from a measurement.
+      const cx = Math.round(px(node.style.left) + 66 / 2)
+      const cy = Math.round(px(node.style.top) + 66 / 2)
+      expect(ends.has(`${cx},${cy}`)).toBe(true)
+    }
+  })
+
+  it('keeps every node inside the world it declares', () => {
+    shifted(1)
+    const { container } = board()
+    const world = container.querySelector<HTMLElement>('.upgrade-board__world')!
+    const px = (v: string) => Number.parseFloat(v)
+    const w = px(world.style.width)
+    const h = px(world.style.height)
+
+    for (const node of container.querySelectorAll<HTMLElement>('.upgrade-board__node')) {
+      // A node outside the world box is behind the scroller's clip for ever:
+      // there is no scroll position that brings it back, so it is a purchase
+      // the player can see on a connector and never reach.
+      expect(px(node.style.left)).toBeGreaterThanOrEqual(0)
+      expect(px(node.style.top)).toBeGreaterThanOrEqual(0)
+      expect(px(node.style.left) + 66).toBeLessThanOrEqual(w)
+      expect(px(node.style.top) + 66).toBeLessThanOrEqual(h)
+    }
+  })
+
   it('is larger than the frame it is shown in, and never says so', () => {
     shifted(1)
     const { container } = board()

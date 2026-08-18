@@ -633,9 +633,17 @@ try {
      * writes a save on the next scene dismissal, so without this the cases would
      * be ordered — an Act I frame checked after a `?full` one would be checking
      * a studio that had already been through the trap, which is a different
-     * frame with different content in it. Nothing loads the save at boot today,
-     * so this is insurance rather than a fix; the day it is wired, the failure
-     * would be a gate that silently stops testing Run 1.
+     * frame with different content in it.
+     *
+     * **This line is load-bearing, and the note that used to be here said it was
+     * not** — corrected 2026-08-18. It read *"nothing loads the save at boot
+     * today, so this is insurance rather than a fix"*, and `store.ts` has called
+     * `initPersistence()` at module scope for as long as that function has
+     * existed: the save is loaded before the first render, by design, because it
+     * has to be. So the failure it described as hypothetical — a gate that
+     * silently stops testing Run 1 — is the one this line has been preventing
+     * all along. Found while writing `playthrough.acceptance.mjs`, which
+     * believed the comment and built two of its three careers on it.
      */
     localStorage.removeItem('m100devs_save')
   })

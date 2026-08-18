@@ -908,6 +908,35 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   void music.init()
   let devsBefore = getState().devs
 
+  /**
+   * `?speed=40` runs the simulation's clock forty times faster — **and nothing
+   * else.** Same family as `?act`, `?devs` and `?select`, and here for the
+   * reason §26.1.8 gives: its gate lines are things a player does, in order,
+   * without leaving the game, and §21 paces Run 1 at four minutes with Run 2's
+   * climb to the cap longer again — three careers of that is most of a morning.
+   * A walk nobody can afford to run is a walk that goes stale, which is exactly
+   * how items 2a and 11 sat false for weeks.
+   *
+   * **Repeated whole ticks, never a bigger `dt`.** Multiplying `dt` would be a
+   * different simulation — payroll, entropy, the tail and §4.12's arrival rates
+   * are all integrated per frame, and a fortyfold step changes what they
+   * compute. N calls at the frame's own `dt` is arithmetically the same thing as
+   * N frames, so a run walked at speed 40 passes through every state a run
+   * walked at speed 1 does, in the same order. It supplies no left-hand side to
+   * anything: every trigger still fires off real state, and every tap in the
+   * walk is a real tap on a real control.
+   *
+   * Clamped at sixty, because the honest version of this flag has a limit: at
+   * some multiple the frame's own work stops fitting in a frame and the walk is
+   * measuring the harness rather than the game. Sixty is one simulated minute
+   * per wall second at a full frame rate, which is where the walk's Run 2 stops
+   * being the thing that takes the time.
+   */
+  const SIM_STEPS = (() => {
+    const raw = Number(new URLSearchParams(location.search).get('speed') ?? '1')
+    return Number.isFinite(raw) ? Math.max(1, Math.min(60, Math.floor(raw))) : 1
+  })()
+
   app.ticker.add(() => {
     const now = performance.now()
     const rawFrameMs = now - lastFrame
@@ -915,7 +944,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     lastFrame = now
     frames.sample(rawFrameMs)
 
-    tick(dt)
+    for (let step = 0; step < SIM_STEPS; step += 1) tick(dt)
 
     const state = getState()
 

@@ -23,8 +23,13 @@ slice.
 npm install
 npm run dev            # http://localhost:5176
 npm test               # simulation + art system
-npm run check          # everything: lint + types + tests + the art gate
+npm run check          # everything: lint + types + tests + the art gate + two browser gates
+npm run test:ui-frame  # geometry, at five landscape frames
+npm run test:walk      # §26.1.8's list, played with a mouse (~quarter of an hour)
 ```
+
+Three gates, and they divide the work: `vitest` owns *does it compute the right number*,
+`test:ui-frame` owns *is it drawn correctly*, and `test:walk` owns *can a player get to it*.
 
 Useful while working on the render stack:
 
@@ -34,6 +39,7 @@ Useful while working on the render stack:
 | `?post=bloom,crt` | Attach only the named passes (`tilt`, `zoom`, `bloom`, `rgb`, `crt`) |
 | `?bench` | Run the ADR §7.5 acceptance sequence and print a pass/fail table. `?bench=10` shortens the 60s sustained-tap leg. |
 | `?act=act5_bleeding` | Jump the §21 script. Run 1 is paced to take ~4 minutes by design, which is right for a player and unworkable for iterating on Act V's copy. |
+| `?speed=40` | Run N simulation ticks per frame — the clock and nothing else. Whole ticks, so it is the same simulation N times over rather than a bigger step. What makes `test:walk` finish. |
 
 On a phone, and on the web:
 

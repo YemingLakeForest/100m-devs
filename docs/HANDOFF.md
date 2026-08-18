@@ -1,10 +1,13 @@
 # Handoff — 2026-08-10
 
-> **Current handoff: [`HANDOFF-2026-08-17.md`](HANDOFF-2026-08-17.md)** — the economy rebalance,
-> the rest of Phase 1, and **traps 34–37**. Read that one first, then
-> [`GDD.md` §26](../GDD.md), which is the build order.
+> **Current handoff: [`HANDOFF-2026-08-18.md`](HANDOFF-2026-08-18.md)** — §26.1.8 items 3–10
+> walked in a real browser, the third acceptance gate, **traps 38–44**, and **Phase 1 closed**.
+> Read that one first, then [`GDD.md` §26](../GDD.md), which is the build order.
 >
-> **Previous: [`HANDOFF-2026-08-15.md`](HANDOFF-2026-08-15.md)** — the §26 roadmap, the
+> **Previous: [`HANDOFF-2026-08-17.md`](HANDOFF-2026-08-17.md)** — the economy rebalance,
+> the rest of Phase 1, and **traps 34–37**.
+>
+> **Before that: [`HANDOFF-2026-08-15.md`](HANDOFF-2026-08-15.md)** — the §26 roadmap, the
 > first slice of Phase 1, and **traps 28–33**.
 >
 > **Before that: [`HANDOFF-2026-08-13.md`](HANDOFF-2026-08-13.md)** — what is left, what the
@@ -25,8 +28,14 @@ history**; where they and §23 disagree, §23 is right, and no further ADRs will
 One command gates everything:
 
 ```bash
-npm run check     # lint + typecheck + tests + the art gate
+npm run check     # lint + typecheck + tests + the art gate + two browser gates
 ```
+
+**There are three acceptance gates now** and they divide the work: `vitest` owns *does it
+compute the right number*, `scripts/ui-frame.acceptance.mjs` owns *is it drawn correctly*, and
+`scripts/playthrough.acceptance.mjs` owns *can a player get to it* — see §26.1.8a. The last one
+plays the game with a mouse and takes about a quarter of an hour, which is most of what `check`
+now costs.
 
 **1127 tests** when this file was written. The current count lives in the current handoff and
 nowhere else — a number repeated in five files is five places to be out of date, and four of
