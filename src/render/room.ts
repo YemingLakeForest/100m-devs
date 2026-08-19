@@ -216,6 +216,15 @@ const CROWDING_STARTS = 40
 export const ROOM_TIGHT_MARGIN = 0.6
 export const ROOM_OPEN_MARGIN = 1.1
 export const ROOM_CROWD_MARGIN = 0.4
+
+/**
+ * How much wider than its desks the open-plan floor is — §7.8.1c.
+ *
+ * A surround rather than a fraction: past the unfold the slab has to *contain*
+ * the block, so anything below 1 draws a floor smaller than the people on it.
+ * Six per cent is a walkway round the outside, which is what an office has.
+ */
+export const OPEN_FLOOR_SURROUND = 1.06
 /** §7.8.1's "11–30: walls push outward" — below this the room stays tight. */
 export const ROOM_OPENS_AT = 10
 /** The headcount at which the open plan is fully open — §7.8.1's 31–100 band. */
@@ -2281,7 +2290,21 @@ export function buildRoom(): RoomHandle {
         )
     const bw = (box.maxX - box.minX) / 2
     const bh = (box.maxY - box.minY) / 2
-    const floorW = unfolded ? Math.max(bw, bh * 2) * margin : plateHalfWidth(bw, bh, margin)
+    // **The open floor's border is a surround, not a crowding factor.**
+    // `roomMargin` returns 0.4 once the studio passes forty — it is §7.8.1's
+    // "walls close in as it fills up", and in the folded branch it goes through
+    // `plateHalfWidth`, which treats it as breathing room around a block. Here
+    // it was multiplied straight into the radius that has to *contain* the
+    // block, so the slab was drawn at forty per cent of the desks standing on
+    // it: the floor ended somewhere in the middle of the third row and the
+    // manager's corner hung off the top edge entirely. That is the floor that
+    // looked like it was floating over the old room, and it got worse the
+    // fuller the room got, which is the opposite of what the margin means.
+    //
+    // An open-plan floor is the block plus a walkway. Never less than the block.
+    const floorW = unfolded
+      ? Math.max(bw, bh * 2) * OPEN_FLOOR_SURROUND
+      : plateHalfWidth(bw, bh, margin)
     const floorH = floorW / 2
     const halfW = floorW / TILE_W
     const naturalCentre = {
@@ -2313,7 +2336,9 @@ export function buildRoom(): RoomHandle {
       .ellipse(cx + floorW * 0.2, cy - floorH * 0.15, floorW * 0.2, floorH * 0.1)
       .fill({ color: c(RAMPS.NEUTRAL[3]), alpha: 0.22 })
     // The oil stain, in front of the door — the one mark that names the room
-    // a garage even before the door is read.
+    // a garage even before the door is read. It goes when the door does; an
+    // open-plan floor with an oil stain on it is a floor nobody has swept.
+    if (!unfolded) {
     shell
       .ellipse(cx + floorW * 0.5, cy + floorH * 0.55, floorW * 0.13, floorH * 0.065)
       .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.4 })
@@ -2326,6 +2351,7 @@ export function buildRoom(): RoomHandle {
       .lineTo(cx + floorW * 0.28, cy + floorH * 0.46)
       .lineTo(cx + floorW * 0.22, cy + floorH * 0.3)
       .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
+    }
 
     // The two back walls, rising from the far edges. Red brick, not concrete —
     // a converted garage is brick, and brick is what says "garage" the same way
@@ -2439,67 +2465,83 @@ export function buildRoom(): RoomHandle {
     cornice(leftX, cy - WALL_H, 3)
     cornice(rightX, cy - WALL_H, 4)
 
-    // --- the garage bones ----------------------------------------------------
+    // **The garage bones only belong to a garage.** §7.8.1c opens the floor
+    // out into an open-plan office, and everything between here and the light
+    // is what makes the room read as a converted garage: red brick courses, an
+    // up-and-over door, two UPVC windows high on the wall. Drawn past the
+    // unfold they were an office floor with a garage door in the middle of it,
+    // and the desks of a hundred people standing next to a whiteboard hung on
+    // a wall that had moved out from under it.
     //
-    // Brick courses on the left wall, and the door on the right. The courses
-    // are what make the red fill read as brick rather than as painted plaster:
-    // a fixed number of courses that tile the wall exactly from the skirting to
-    // the cornice, so the pattern stretches with the wall and never leaves a
-    // ragged gap at the top. A horizontal mortar bed between courses plus
-    // staggered vertical joints — the stagger is the whole brick tell, a grid
-    // of vertical joints reads as block. Kept to the left wall only — the
-    // right wall's door is its statement, and a wall that says both says
-    // neither.
-    const BRICK_COURSES = 7
-    const brickBot = SKIRT_H
-    const brickTop = WALL_H - CORNICE_H
-    const course = (brickTop - brickBot) / BRICK_COURSES
-    const brickW = TILE_W * 0.9
-    for (let i = 0; i < BRICK_COURSES; i++) {
-      const bed = brickBot + i * course
-      const bedTop = bed + course
-      // The mortar bed above this course. Skipped above the top course — the
-      // cornice's shadow line already marks that edge.
-      if (i < BRICK_COURSES - 1) {
-        shell
-          .moveTo(leftX, cy - bedTop)
-          .lineTo(topX, topY - bedTop)
-          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.4 })
+    // The comment above the windows used to say they "never leave, whatever
+    // the studio grows into". That was true while the studio never grew out
+    // of the garage. It does now — that is what §7.8.1c *is* — and what stays
+    // is the floor, the walls, the skirting and the cornice, which are a room
+    // rather than a garage and read as an office without changing a line.
+    if (!unfolded) {
+      // --- the garage bones ----------------------------------------------------
+      //
+      // Brick courses on the left wall, and the door on the right. The courses
+      // are what make the red fill read as brick rather than as painted plaster:
+      // a fixed number of courses that tile the wall exactly from the skirting to
+      // the cornice, so the pattern stretches with the wall and never leaves a
+      // ragged gap at the top. A horizontal mortar bed between courses plus
+      // staggered vertical joints — the stagger is the whole brick tell, a grid
+      // of vertical joints reads as block. Kept to the left wall only — the
+      // right wall's door is its statement, and a wall that says both says
+      // neither.
+      const BRICK_COURSES = 7
+      const brickBot = SKIRT_H
+      const brickTop = WALL_H - CORNICE_H
+      const course = (brickTop - brickBot) / BRICK_COURSES
+      const brickW = TILE_W * 0.9
+      for (let i = 0; i < BRICK_COURSES; i++) {
+        const bed = brickBot + i * course
+        const bedTop = bed + course
+        // The mortar bed above this course. Skipped above the top course — the
+        // cornice's shadow line already marks that edge.
+        if (i < BRICK_COURSES - 1) {
+          shell
+            .moveTo(leftX, cy - bedTop)
+            .lineTo(topX, topY - bedTop)
+            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.4 })
+        }
+        // Vertical joints, offset half a brick on every second course. Each joint
+        // runs the full height of its own course, bed to bed, so nothing
+        // overshoots or falls short of the wall.
+        const offset = (i % 2) * brickW * 0.5
+        for (let x = leftX + offset; x < topX; x += brickW) {
+          const bx = cy - (x - leftX) * WALL_SLOPE
+          shell
+            .moveTo(x, bx - bedTop)
+            .lineTo(x, bx - bed)
+            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.25 })
+        }
       }
-      // Vertical joints, offset half a brick on every second course. Each joint
-      // runs the full height of its own course, bed to bed, so nothing
-      // overshoots or falls short of the wall.
-      const offset = (i % 2) * brickW * 0.5
-      for (let x = leftX + offset; x < topX; x += brickW) {
-        const bx = cy - (x - leftX) * WALL_SLOPE
-        shell
-          .moveTo(x, bx - bedTop)
-          .lineTo(x, bx - bed)
-          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.25 })
-      }
-    }
-    // The garage door, centred on the back-right wall — the right wall's one
-    // statement, and the windows live on the left wall where the brick is.
-    // Drawn after the skirting so it stands on the slab rather than behind it.
-    drawGarageDoor(
-      shell,
-      topX + floorW * 0.3,
-      topY + floorH * 0.3,
-      topX + floorW * 0.7,
-      topY + floorH * 0.7,
-      WALL_H * 0.85,
-    )
+      // The garage door, centred on the back-right wall — the right wall's one
+      // statement, and the windows live on the left wall where the brick is.
+      // Drawn after the skirting so it stands on the slab rather than behind it.
+      drawGarageDoor(
+        shell,
+        topX + floorW * 0.3,
+        topY + floorH * 0.3,
+        topX + floorW * 0.7,
+        topY + floorH * 0.7,
+        WALL_H * 0.85,
+      )
 
-    // --- windows ------------------------------------------------------------
-    //
-    // Two UPVC windows high on the brick wall, one either side of the mid-wall,
-    // so the garage is a place with an outside rather than a backroom. They live
-    // in the shell beside the door — like the door they are bones of the garage
-    // and never leave, whatever the studio grows into.
-    const WIN_W = 52
-    const WIN_H = Math.max(16, WALL_H * 0.5)
-    drawWindow(shell, topX - floorW * 0.25, topY + floorH * 0.25 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
-    drawWindow(shell, topX - floorW * 0.65, topY + floorH * 0.65 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+      // --- windows ------------------------------------------------------------
+      //
+      // Two UPVC windows high on the brick wall, one either side of the mid-wall,
+      // so the garage is a place with an outside rather than a backroom. They live
+      // in the shell beside the door — like the door they are bones of the garage
+      // and never leave, whatever the studio grows into.
+      const WIN_W = 52
+      const WIN_H = Math.max(16, WALL_H * 0.5)
+      drawWindow(shell, topX - floorW * 0.25, topY + floorH * 0.25 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+      drawWindow(shell, topX - floorW * 0.65, topY + floorH * 0.65 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+
+    }
 
     // --- light -------------------------------------------------------------
     //
@@ -2515,7 +2557,11 @@ export function buildRoom(): RoomHandle {
     // the room shell; it never becomes a detached second floor as the room
     // grows. Brown rather than the teal it once was: a worn doormat, the
     // one warm patch of floor in a concrete garage.
-    if (props.rug) {
+    // The doormat is garage dressing too — "the one warm patch of floor in a
+    // concrete garage". On an open-plan floor it is a small detached island of
+    // carpet with the manager standing on it, which is exactly what it looked
+    // like.
+    if (props.rug && !unfolded) {
       const rugW = Math.min(floorW * 0.38, TILE_W * 1.45)
       const rugH = rugW / 2
       const manager = founderDeskPosition()
@@ -2873,7 +2919,17 @@ export function buildRoom(): RoomHandle {
     // hundred to go.
     const pad = SQUAD_COLS * 0.45
     const padRows = SQUAD_ROWS * 0.45
-    return blockBox(-pad, -padRows, maxCol + pad, maxRow + padRows)
+    // **The founder's corner is inside the room.** It sits at a negative
+    // coordinate, outside the squad grid entirely, and the unfolded box was
+    // measured from the squads alone — so the manager's desk stood on a
+    // detached island of floor above the slab with nothing under it, which is
+    // the thing that reads as "the floor is just floating on the old room".
+    return blockBox(
+      Math.min(-pad, FOUNDER_CORNER_COL - 4),
+      Math.min(-padRows, FOUNDER_CORNER_ROW - 4),
+      maxCol + pad,
+      maxRow + padRows,
+    )
   }
 
   /**

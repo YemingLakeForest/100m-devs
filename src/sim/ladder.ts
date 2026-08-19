@@ -63,10 +63,23 @@ export interface LadderView {
   tier: ZoomLevel
   /**
    * How many rungs away the view stays on screen, as the half-width of its
-   * cross-fade. Wider than one rung on purpose: §10.5 says nothing ever cuts,
-   * so every stop overlaps its neighbours.
+   * cross-fade. Wider than the gap between stops on purpose — §10.5 says
+   * nothing cuts, so every stop overlaps its neighbours.
    */
   halfWidth: number
+  /**
+   * The same, on the way **out**, when it differs.
+   *
+   * It differs for exactly one view and the asymmetry is the whole point.
+   * `room` spans rungs 0–2 and fits at 2, so it needs to stay lit for two rungs
+   * *below* its stop — that is three quarters of the game. One symmetric width
+   * then kept it lit for two rungs above as well, so at rung 3 the floor's
+   * desks were still being drawn at half alpha straight through the building
+   * they are inside, and at rung 4 through the block. That is the
+   * see-through-floor defect: not a fade that was tuned wrong, a fade that was
+   * being asked one question and answering a different one.
+   */
+  halfWidthOut?: number
 }
 
 /** Every stop, in ladder order. */
@@ -82,7 +95,7 @@ export const VIEWS: readonly LadderView[] = [
   // The stop is rung 2 because that is where the *full* floor exactly fits.
   // Pinching in from there over-scales the same geometry toward the desk, which
   // is §7.7.4's Hero Anchor and is exactly how rung 0 already worked.
-  { view: 'room', from: 0, stop: 2, tier: 1, halfWidth: 2.1 },
+  { view: 'room', from: 0, stop: 2, tier: 1, halfWidth: 2.1, halfWidthOut: 1 },
   { view: 'tower', from: 3, stop: 3, tier: 2, halfWidth: 1.25 },
   { view: 'block', from: 4, stop: 4, tier: 3, halfWidth: 1.15 },
   { view: 'park', from: 5, stop: 5, tier: 3, halfWidth: 1.15 },
@@ -151,7 +164,8 @@ export function viewWeights(z: number): Record<ViewKind, number> {
   let total = 0
 
   for (const spec of VIEWS) {
-    const d = Math.abs(at - spec.stop) / spec.halfWidth
+    const width = at > spec.stop ? (spec.halfWidthOut ?? spec.halfWidth) : spec.halfWidth
+    const d = Math.abs(at - spec.stop) / width
     const w = d >= 1 ? 0 : 1 - d * d * (3 - 2 * d)
     raw[spec.view] = w
     total += w
