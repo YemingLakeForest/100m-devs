@@ -34,6 +34,9 @@ import {
   SCENE_THE_THREAD,
 } from './game/scenes.ts'
 import { THREAD } from './sim/events.ts'
+import ScenarioBar from './dev/ScenarioBar.tsx'
+import { SCENARIOS_UP, applyScenario, scenarioById, scenarioRung } from './game/scenarios.ts'
+import { zAtRung } from './sim/ladder.ts'
 
 import './styles/title.css'
 
@@ -49,7 +52,7 @@ import './styles/title.css'
 const SKIP_TITLE = (() => {
   if (typeof location === 'undefined') return false
   const q = new URLSearchParams(location.search)
-  return q.has('notitle') || q.has('act') || q.has('bench')
+  return q.has('notitle') || q.has('act') || q.has('bench') || q.has('scenarios') || q.has('scenario')
 })()
 
 /**
@@ -228,6 +231,15 @@ export default function App() {
       __setState({ devs: n, cash: n * 1e6, devCap: n * 2 })
     }
 
+    // ?scenario=town is `?devs` with the script retired and the money already
+    // in the bank — see `game/scenarios.ts` for why those two are the
+    // difference between a headcount you can look at and one you cannot.
+    // `?scenarios` (plural) is the picker that switches between them live.
+    const scenario = scenarioById(
+      new URLSearchParams(location.search).get('scenario') ?? '',
+    )
+    if (scenario) applyScenario(scenario)
+
     void createStage(host).then((h) => {
       if (cancelled) {
         h.destroy()
@@ -241,6 +253,11 @@ export default function App() {
       // studio you can see is still the studio you have.
       const z = new URLSearchParams(location.search).get('z')
       if (z !== null && Number.isFinite(Number(z))) h.camera.set(Number(z))
+      // A scenario parks the lens at the rung its headcount has earned, unless
+      // `?z` has asked for somewhere specific. Landing at a hundred million
+      // developers with the camera still on somebody's desk is technically the
+      // studio you asked for and is not the picture you wanted.
+      else if (scenario) h.camera.set(zAtRung(scenarioRung(scenario)))
       // Criterion 6's stopwatch stops here: the renderer is up and the first
       // frame is pokeable. Anything after this is the player's own reaction
       // time, not the app's cold start.
@@ -372,6 +389,13 @@ export default function App() {
         </button>
       )}
       {benchText !== null && <pre className="bench-report">{benchText}</pre>}
+      {/*
+        `?scenarios` — the §7.7.1 ladder on nine buttons. Dev builds only, and
+        only when named: `npm run dev` is also what the §23.4.2 frame gate
+        starts, and a bar that showed up unasked would be in all 68 of its
+        screens.
+      */}
+      {SCENARIOS_UP && <ScenarioBar stage={stage} />}
     </div>
   )
 }

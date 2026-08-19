@@ -1,0 +1,101 @@
+/*
+ * The `?scenarios` picker — GDD §26.2's instrument, and deliberately not
+ * dressed as the game.
+ *
+ * Nothing here uses tokens.css. That is the point: this bar must never be
+ * mistaken for §10's HUD in a screenshot, so it is monospace, hard-edged, and
+ * a colour the palette does not contain. Every other overlay in this app is
+ * trying to belong on screen; this one is trying to be obviously bolted on.
+ */
+.scenarios {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: rgba(8, 10, 16, 0.86);
+  border-top: 1px solid #00ff9c;
+  font: 11px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color: #9fb4c7;
+  /* The canvas is the thing being looked at; only the controls take taps. */
+  pointer-events: none;
+}
+
+.scenarios__row,
+.scenarios__read {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/*
+ * Folded, the bar keeps only its own handle on screen. `translateY` rather than
+ * `display: none` so the handle stays exactly where the hand left it — a
+ * control that moves when you use it has to be found again every time.
+ */
+.scenarios.is-folded {
+  transform: translateY(calc(100% - 26px));
+}
+
+.scenarios__title {
+  pointer-events: auto;
+  padding: 2px 4px;
+  background: none;
+  border: 0;
+  color: #00ff9c;
+  font: inherit;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+
+.scenarios__pick {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 8px;
+  min-width: 52px;
+  justify-content: center;
+  background: #131824;
+  border: 1px solid #2c384b;
+  border-radius: 3px;
+  color: #cfe3f2;
+  font: inherit;
+  cursor: pointer;
+}
+
+.scenarios__pick:hover {
+  border-color: #00ff9c;
+}
+
+.scenarios__pick.is-on {
+  background: #00ff9c;
+  border-color: #00ff9c;
+  color: #071018;
+}
+
+/* The keyboard shortcut, present but never competing with the number. */
+.scenarios__key {
+  font-size: 9px;
+  opacity: 0.5;
+}
+
+.scenarios__read b {
+  color: #cfe3f2;
+  font-weight: 600;
+}
+
+.scenarios__note {
+  color: #6e8296;
+  /* Takes the rest of the line and truncates rather than reflowing the bar. */
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
