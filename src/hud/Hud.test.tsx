@@ -538,13 +538,27 @@ describe('§10.1’s velocity split after R14 — the "you" half is the whole of
     __setState({ devs: 40, devCap: 80, peakDevs: 40, dev: { state: 'working', elapsed: 0 } })
     act(() => {
       poke(0, 0, { rung: 2, index: 7 })
+    })
+    // Measured, not assumed. A poke is worth what the person poked is worth,
+    // and §4.9a says that is a log-normal roll off `runSeed` — which is the
+    // clock. An absolute floor here was therefore a bet on the time of day: the
+    // same assertion, unchanged, failed 42% of runs and passed the rest, which
+    // is a coin toss wearing a gate's clothes. Decay is a *ratio*, so measure
+    // the ratio and the dice stop mattering.
+    const atRelease = getState().pokeRate
+
+    act(() => {
       // Long enough that `pokeRate` has all but emptied (tau = 2 s) while the
-      // buff (tau = 5 s) is still plainly up.
+      // buff (tau = 5 s) is still plainly up. Three time constants leaves
+      // e^-3 — about a twentieth.
       for (let i = 0; i < 60 * 6; i++) tick(1 / 60)
     })
 
     const { container } = render(<Hud stage={null} />)
-    expect(getState().pokeRate).toBeLessThan(0.02)
-    expect(splitFrom(container)!.you).toBeGreaterThan(0)
+    expect(getState().pokeRate).toBeLessThan(atRelease * 0.06)
+    // And the point of the line: what is left on the "you" side is *more* than
+    // the thumb's residue, so something outlasting the tap is holding it up.
+    // Stronger than "> 0", which the residue alone would have satisfied.
+    expect(splitFrom(container)!.you).toBeGreaterThan(getState().pokeRate)
   })
 })

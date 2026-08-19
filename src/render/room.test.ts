@@ -64,6 +64,7 @@ import {
   fallHeight,
   puffAlpha,
 } from './arrivals.ts'
+import { developerAt } from '../sim/identity.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
 import { zAtRung } from '../sim/ladder.ts'
 import { FLOOR_SPRITE_COUNT } from './scene.ts'
@@ -930,5 +931,66 @@ describe('§13.11.1 — coverage is drawn on the floor', () => {
 
     settled.container.destroy({ children: true })
     walking.container.destroy({ children: true })
+  })
+})
+
+describe('the seat window — GDD §26.2.2, and §26.2.5 lines 2 and 3', () => {
+  it('draws the studio’s first thousand when nobody has looked anywhere else', () => {
+    const room = buildRoom()
+    room.setHeadcount(4_000)
+    expect(room.seatWindow).toBe(0)
+    expect(room.drawn).toBe(ROOM_DEV_CAP)
+    room.container.destroy({ children: true })
+  })
+
+  it('draws the window’s seats, not the studio’s first ones', () => {
+    // The whole of finding 2.2 in the Phase 2 plan. Before this the room drew
+    // seats 0-999 whatever the studio was, so at a hundred million developers
+    // the picture was the same first floor as at a thousand.
+    const room = buildRoom()
+    room.setSeatWindow(50_000_000)
+    room.setHeadcount(100_000_000)
+    expect(room.drawn).toBe(ROOM_DEV_CAP)
+    room.container.destroy({ children: true })
+  })
+
+  it('shows different people in a different window', () => {
+    // "Zoom in and it resolves" has to resolve to somebody in particular. The
+    // look is baked into a Graphics at construction, so two windows drawing the
+    // same shapes would mean the room had drawn the same hundred people twice.
+    const shapesAt = (from: number) => {
+      const room = buildRoom()
+      room.setSeed(1234)
+      room.setSeatWindow(from)
+      room.setHeadcount(100_000_000)
+      const key = JSON.stringify(
+        Array.from({ length: 12 }, (_, i) => developerAt(1234, from + i).look),
+      )
+      room.container.destroy({ children: true })
+      return key
+    }
+    expect(shapesAt(0)).not.toBe(shapesAt(50_000_000))
+  })
+
+  it('goes back to your own desk when the run does', () => {
+    // A Paradigm Shift is a new studio. Without the reset the first frame of
+    // Run 3 is whichever block of the *previous* studio was last looked into.
+    const room = buildRoom()
+    room.setSeatWindow(2_000_000)
+    room.setHeadcount(100_000_000)
+    expect(room.seatWindow).toBe(2_000_000)
+    room.setSeed(99)
+    expect(room.seatWindow).toBe(0)
+    room.container.destroy({ children: true })
+  })
+
+  it('draws only the seats the window actually reaches', () => {
+    // The last window in the studio is a partial one, and it must not draw a
+    // thousand chairs for the two hundred people in it.
+    const room = buildRoom()
+    room.setSeatWindow(10_000)
+    room.setHeadcount(10_200)
+    expect(room.drawn).toBe(200)
+    room.container.destroy({ children: true })
   })
 })

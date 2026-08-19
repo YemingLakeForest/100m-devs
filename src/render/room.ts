@@ -335,6 +335,21 @@ export interface RoomHandle {
   setFounderProfile(profile: FounderProfile): void
   /** §7.8.7 — set the run seed. Rebuilds every developer's appearance. */
   setSeed(seed: number): void
+  /**
+   * §26.2.2 — which thousand seats of the studio this room is a picture of.
+   *
+   * Zero is the studio's own first floor and is what the whole of a normal run
+   * uses. Above the room, descending into a unit sets this to that unit's first
+   * seat, which is what makes "zoom in and it resolves" resolve to the people
+   * who are actually in the thing that was pointed at.
+   *
+   * **Seats are global throughout this handle.** `setSelected`, `setSpeaker`,
+   * `setCoverage` and `deskAt` all speak the room's own local indices, and the
+   * caller converts — see `seatWindow`.
+   */
+  setSeatWindow(from: number): void
+  /** The global seat index this room's local seat 0 is. */
+  readonly seatWindow: number
   /** §7.8.8 — who is turned round to face the camera. -1 for nobody. */
   setSelected(index: number): void
   /**
@@ -2051,6 +2066,28 @@ export function buildRoom(): RoomHandle {
    * value and hands it over once.
    */
   let seed = 1
+  /**
+   * §26.2.2 — **which thousand seats this room is a picture of.**
+   *
+   * Zero for the whole of a normal run, and that is not a special case being
+   * tolerated: below a thousand developers there is only one window and it
+   * starts at seat zero, so Run 1 and every measurement taken of it are
+   * untouched by this existing.
+   *
+   * Above the room it stops being zero. §26.2.2's rule is that a unit is the
+   * simulated body and the people inside it *do not exist until somebody
+   * looks*; this is the record of where somebody looked. Descending into block
+   * `k` of a nation sets the window to that block's first seat, so the room
+   * draws **those** hundred people — their faces, their rolls, their numerals —
+   * rather than redrawing the studio's first thousand for the fiftieth time.
+   *
+   * Until 2026-08-18 this did not exist and the room always drew seats 0–999,
+   * whatever the studio was. At a hundred million developers the picture was
+   * the same first floor as at a thousand, which is why §26.2.5's lines 2 and
+   * 3 had nowhere to land: "the same person" is not a question you can ask of
+   * a room that only ever shows one set of people.
+   */
+  let windowFrom = 0
   /** §13.11.1 — what the decal layer currently shows, as a comparable key. */
   let coverageDrawnFor = coverageKey(new Map())
   /** §7.8.8 — the selected seat, and the spin's clock. */
@@ -2171,7 +2208,10 @@ export function buildRoom(): RoomHandle {
 
   function rebuild(headcount: number) {
     if (lastDevs >= 0) beginRoomTransition()
-    const n = Math.max(0, Math.min(ROOM_DEV_CAP, Math.floor(headcount)))
+    // §26.2.2 — seats of *this window* that have somebody in them. The studio's
+    // headcount still decides the furniture (`propsAt` below): a block drawn out
+    // of a nation is a block in a company that size, not a garage.
+    const n = Math.max(0, Math.min(ROOM_DEV_CAP, Math.floor(headcount) - windowFrom))
     // §7.8.1c — the hundredth hire fills the squad, so the floor has to open.
     // Once started, never unstarted for this run: the unfold is a one-shot and
     // the floor does not fold back up if the studio shrinks.
@@ -2714,7 +2754,7 @@ export function buildRoom(): RoomHandle {
       // §7.8.7 — index 1 is James and is never generated. Containers are reused
       // across rebuilds, so a developer's look is fixed at the moment their
       // seat first exists and never churns underneath them.
-      const d = buildDeveloper(developerAt(seed, devs.length).look)
+      const d = buildDeveloper(developerAt(seed, windowFrom + devs.length).look)
       devs.push(d)
       jolts.push(0)
       devLayer.addChild(d)
@@ -2917,6 +2957,34 @@ export function buildRoom(): RoomHandle {
     // round it at every headcount past a hundred. The shell is sized from the
     // whole occupied floor now (see `rebuild`), so it is the *same* room, with
     // the walls pushed out to where the desks reached.
+  }
+
+  /**
+   * Throw away every generated person, so the next rebuild makes new ones.
+   *
+   * Shared by {@link RoomHandle.setSeed} and {@link RoomHandle.setSeatWindow},
+   * which are the only two things that can change *who* is in the room as
+   * opposed to how many.
+   */
+  function discardPeople() {
+    for (const d of devs) d.destroy()
+    devs.length = 0
+    jolts.length = 0
+    devLayer.removeChildren()
+    lastDevs = -1
+    // §7.8.1c happens once *per run*. A Paradigm Shift is a new run and a new
+    // studio of one, so the floor folds back up with everything else —
+    // otherwise the biggest one-shot in the tier is spent for the lifetime of
+    // the page, which is the same bug the Act IV dolly had.
+    unfoldT = -1
+    for (const p of panels) p.root.destroy({ children: true })
+    panels.length = 0
+    plates.removeChildren()
+    for (const g of squadDesks) g.destroy()
+    squadDesks.length = 0
+    deskLayer.removeChildren()
+    shell.alpha = 1
+    light.alpha = 1
   }
 
   rebuild(0)
@@ -3132,27 +3200,25 @@ export function buildRoom(): RoomHandle {
     setSeed(next: number) {
       if (next === seed) return
       seed = next
+      // §26.2.2 — a Paradigm Shift is a new studio and you are back at your own
+      // desk in it. Without this the first frame of Run 3 would be whichever
+      // block of the *previous* studio the player happened to be looking into.
+      windowFrom = 0
       // Every look is baked into a Graphics at construction, so a new seed
       // means new containers rather than a repaint. Only ever happens on a
       // Paradigm Shift, which is already a scene change.
-      for (const d of devs) d.destroy()
-      devs.length = 0
-      jolts.length = 0
-      devLayer.removeChildren()
-      lastDevs = -1
-      // §7.8.1c happens once *per run*. A Paradigm Shift is a new run and a new
-      // studio of one, so the floor folds back up with everything else —
-      // otherwise the biggest one-shot in the tier is spent for the lifetime of
-      // the page, which is the same bug the Act IV dolly had.
-      unfoldT = -1
-      for (const p of panels) p.root.destroy({ children: true })
-      panels.length = 0
-      plates.removeChildren()
-      for (const g of squadDesks) g.destroy()
-      squadDesks.length = 0
-      deskLayer.removeChildren()
-      shell.alpha = 1
-      light.alpha = 1
+      discardPeople()
+    },
+    setSeatWindow(from: number) {
+      const next = Math.max(0, Math.floor(from))
+      if (next === windowFrom) return
+      windowFrom = next
+      // Same teardown as a new seed, and for the same reason: a look is baked
+      // in at construction, so a different thousand people is a different
+      // thousand containers. This is the cost §26.2.2 accepts in exchange for
+      // never storing any of them — "generated at the moment of the click, and
+      // discarded when the camera leaves".
+      discardPeople()
     },
     jolt(i: number) {
       if (i >= 0 && i < jolts.length) jolts[i] = 1
@@ -3176,6 +3242,9 @@ export function buildRoom(): RoomHandle {
     },
     get drawn() {
       return desks.length
+    },
+    get seatWindow() {
+      return windowFrom
     },
     extent,
   }

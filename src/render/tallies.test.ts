@@ -8,7 +8,7 @@ import {
   tallyRise,
   tallySources,
 } from './tallies.ts'
-import { outputShare } from '../sim/output.ts'
+import { outputShare } from '../sim/aggregate.ts'
 
 const seatsAt = (n: number) =>
   Array.from({ length: n }, (_, i) => ({ x: i % 10, y: Math.floor(i / 10) }))

@@ -27,6 +27,7 @@
  * cannot drift from it.
  */
 
+import { LEVEL_SIZES } from './aggregate.ts'
 import { TOP_RUNG } from './ladder.ts'
 
 export type UnitKind =
@@ -141,4 +142,46 @@ export function unitSizeAt(rung: number, index: number, devs: number): number {
  */
 export function unitCount(rung: number, devs: number): number {
   return Math.max(1, Math.ceil(headcount(devs) / nominalUnitSize(rung)))
+}
+
+/**
+ * §7.8.1a's **squad**, and §26.2.2's "block of 100" — the grain a room window
+ * is allowed to start on.
+ *
+ * Read off `aggregate.ts`'s ladder rather than written down again, because the
+ * two have to agree about what a block is: §26.2.5's line 4 asks whether a
+ * block's stated output equals the sum of the hundred people it generates, and
+ * that question is meaningless if the room's hundred and the arithmetic's
+ * hundred are different hundreds.
+ */
+export const SEAT_WINDOW_GRAIN = LEVEL_SIZES[1]
+
+/**
+ * Where the room's window starts if the player descends into this unit —
+ * GDD §26.2.2.
+ *
+ * §26.2.2 says the people inside a unit "do not exist until somebody looks",
+ * and this is the arithmetic of looking: given the unit under the finger, which
+ * seat does the room draw first.
+ *
+ * Two rules, and both are corrections to the obvious version.
+ *
+ * **Snapped down to a whole squad.** §7.8.1b's rule is that a seat does not
+ * move under the person sitting in it, and it applies to the window as much as
+ * to the grid — a window starting mid-squad would seat the same hundred people
+ * in different chairs depending on which unit had been pointed at, which is
+ * exactly the "scattered fill is indistinguishable from a redraw" failure that
+ * section exists to forbid.
+ *
+ * **Clamped back to the last occupied squad.** A unit at the end of the studio
+ * is half empty, and its first seat can be past the last person if the studio
+ * has grown into a rung it has barely started filling. Arriving in an empty
+ * room reads as a bug; arriving in the last half-full one is the truth.
+ */
+export function seatWindowFor(rung: number, index: number, devs: number): number {
+  const n = headcount(devs)
+  if (n <= 0) return 0
+  const { from } = unitSeats(rung, index, n)
+  const lastSquad = Math.max(0, Math.ceil(n / SEAT_WINDOW_GRAIN) - 1) * SEAT_WINDOW_GRAIN
+  return Math.min(lastSquad, Math.floor(from / SEAT_WINDOW_GRAIN) * SEAT_WINDOW_GRAIN)
 }

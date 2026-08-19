@@ -54,6 +54,7 @@ import { createPokeTypeset } from './pokeText.ts'
 import { createTallies, tallySources, type TallySource } from './tallies.ts'
 import { createArrivals } from './arrivals.ts'
 import { ROOM_DEV_CAP } from './room.ts'
+import { seatWindowFor } from '../sim/units.ts'
 import {
   clampPan,
   exceedsSlop,
@@ -244,7 +245,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       })
     }
 
-    marks = roomSeatMarks(postings, state.devs)
+    // §26.2.2 — the marks come back in the studio's numbering and the room
+    // draws its own chairs, so a window that is not at seat zero has to shift
+    // them and drop the ones that fall outside it. A hero covering a block on
+    // the other side of the company is covering it; they are simply not in
+    // this picture, which is what "on demand" means.
+    const studio = roomSeatMarks(postings, state.devs)
+    if (room.seatWindow === 0) {
+      marks = studio
+      return marks
+    }
+    const windowed = new Map<number, SeatMark>()
+    for (const [seat, mark] of studio) {
+      const local = localSeat(seat)
+      if (local >= 0) windowed.set(local, mark)
+    }
+    marks = windowed
     return marks
   }
 
@@ -320,8 +336,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     switch (currentView) {
       case 'room': {
         // Rungs 0–2 — one sprite is one person, and empty floor is a miss.
+        // Answered in the studio's numbering, because a `PokeTarget` goes to
+        // the store and the store has never heard of a window.
         const seat = pickDeveloper(x, y)
-        return seat < 0 ? null : { rung, index: seat }
+        return seat < 0 ? null : { rung, index: globalSeat(seat) }
       }
       case 'tower': {
         const local = views.tower.toLocal({ x, y })
@@ -360,6 +378,28 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   let seatCache: Array<{ x: number; y: number }> = []
   let seatCacheFor = -1
+  /**
+   * Room-local seat -> the studio's own seat number, and back — §26.2.2.
+   *
+   * The room draws a *window* of the studio now, so its local index 0 is the
+   * studio's seat `room.seatWindow`. Everything outside this file speaks the
+   * studio's numbering — the store's `selected`, a hero's coverage, a spawn,
+   * §4.9a's shares — and everything inside the room speaks its own.
+   *
+   * **The conversion is here rather than in the room** because the room is the
+   * thing that does not know what a studio is; it draws a thousand chairs and
+   * whoever is in them. Putting the offset on its side would have meant every
+   * one of its methods taking a number in a different space from the geometry
+   * underneath it, which is trap 38's shape — one picture, two coordinate
+   * systems, agreeing only where the offset happens to be zero.
+   */
+  const globalSeat = (local: number) => (local < 0 ? -1 : room.seatWindow + local)
+  const localSeat = (seat: number) => {
+    if (!(seat >= 0)) return -1
+    const i = Math.floor(seat) - room.seatWindow
+    return i >= 0 && i < room.drawn ? i : -1
+  }
+
   const roomSeats = () => {
     if (seatCacheFor !== room.drawn) {
       seatCache = Array.from({ length: room.drawn }, (_, i) => room.deskAt(i)!)
@@ -411,7 +451,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return true
     }
     const target = pickDeveloper(x, y)
-    selectDeveloper(target < 0 ? null : target)
+    selectDeveloper(target < 0 ? null : globalSeat(target))
     playUi(target < 0 ? 'close' : 'whoosh')
     return true
   }
@@ -437,7 +477,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return
     }
     if (postHeroAt(target)) {
-      if (currentView === 'room') room.jolt(target.index)
+      if (currentView === 'room') room.jolt(localSeat(target.index))
       playSfx('poke-floor')
     } else {
       playUi('close')
@@ -460,7 +500,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // where nothing is standing.
     const target = pickUnit(x, y)
     if (!target) return
-    if (currentView === 'room') room.jolt(target.index)
+    if (currentView === 'room') room.jolt(localSeat(target.index))
 
     const result = poke(x, y, target)
 
@@ -580,7 +620,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   const focusDialogue = (focus: 'founder' | number | null) => {
     dialogueFocus = focus
-    room.setSpeaker(typeof focus === 'number' ? focus : -1)
+    room.setSpeaker(typeof focus === 'number' ? localSeat(focus) : -1)
     // A scene always plays at Desk zoom, so every line that names somebody
     // re-asserts it — and a line with nobody (STUDIO_OS) holds it rather than
     // cutting away.
@@ -612,10 +652,33 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const descendOneRung = (x: number, y: number): boolean => {
     const rung = Math.round(rungAt(camera.z))
     if (rung <= 0) return false
+    // §26.2.2 — **descending names a unit, and the room becomes a picture of
+    // the people inside it.** Without this the lens travelled down the ladder
+    // and arrived at the studio's first floor no matter what had been pointed
+    // at, which is the whole of finding 2.2 in the Phase 2 plan: "zoom in and
+    // it resolves" cannot resolve to anybody in particular if the room only
+    // ever knows one set of people.
+    //
+    // The pick is the same one a poke uses, so the unit you descend into is the
+    // unit you would have buffed — one answer to "what is under my finger",
+    // not two that can disagree.
+    openUnit(pickUnit(x, y))
     focal = { x, y }
     dollyTarget = zAtRung(rung - 1)
     playUi('whoosh')
     return true
+  }
+
+  /**
+   * Point the room at a unit's seats — §26.2.2, §26.2.5 lines 2 and 3.
+   *
+   * The arithmetic is `seatWindowFor`'s, in `sim/units.ts`, so it is testable
+   * without a renderer and so the room's hundred and the simulation's hundred
+   * cannot drift apart. This is the wire, and nothing else.
+   */
+  const openUnit = (target: PokeTarget | null) => {
+    if (target === null) return
+    room.setSeatWindow(seatWindowFor(target.rung, target.index, getState().devs))
   }
 
   /**
@@ -1018,8 +1081,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // header of arrivals.ts. Clamped to the room's cap, because above it the
       // unit on screen stops being a person and the spectacle belongs to the
       // floor tier.
-      const from = Math.min(state.spawn.from, ROOM_DEV_CAP)
-      const to = Math.min(state.spawn.to, ROOM_DEV_CAP)
+      // §26.2.2 — into this window's numbering, and clipped to it. A hire that
+      // lands in a block the player is not looking at has nothing to animate
+      // here; the seat it took is real and is somewhere else.
+      const from = Math.min(Math.max(0, state.spawn.from - room.seatWindow), ROOM_DEV_CAP)
+      const to = Math.min(Math.max(0, state.spawn.to - room.seatWindow), ROOM_DEV_CAP)
       // **Not** gated on `first`, unlike the camera reveal below. A spawn event
       // is only ever published by a real hire — `jumpToPhase`, `loadGame` and
       // `?devs=` all leave it null — so the "first observed event" is the
@@ -1091,7 +1157,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // §7.8.7 — identities before headcount, so a rebuild triggered by the seed
     // does not immediately get overwritten by one triggered by the count.
     room.setSeed(state.runSeed)
-    room.setSelected(state.selected ?? -1)
+    room.setSelected(localSeat(state.selected ?? -1))
     // §7.7.2 — a seat is withheld until its arrival has landed. Without this
     // the room draws the hire on the frame the store publishes them and the
     // falling silhouette lands on somebody already sitting in the chair, which
@@ -1288,7 +1354,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // legible on the target, not buried in a panel." `developerVelocity`
       // carries only that seat's own buff, so the numeral over the person you
       // poked is the one that speeds up. Pinned in `pokeBuff.test.ts`.
-      const sources = tallySources(seats, drawn, (i) => developerVelocity(i, state))
+      const sources = tallySources(seats, drawn, (i) => developerVelocity(globalSeat(i), state))
       const container = views[currentView]
       for (const source of sources) {
         // View-local -> screen. The offset is applied *before* the transform so

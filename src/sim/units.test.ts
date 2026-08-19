@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { TOP_RUNG } from './ladder.ts'
 import {
+  SEAT_WINDOW_GRAIN,
   UNIT_KINDS,
   nominalUnitSize,
+  seatWindowFor,
   unitCount,
   unitKindAt,
   unitLabel,
@@ -134,5 +136,55 @@ describe('which seats a unit covers', () => {
 
   it('is empty for a unit past the end of the studio', () => {
     expect(unitSeats(3, 9, 1_400)).toEqual({ from: 1_400, to: 1_400 })
+  })
+})
+
+describe('seatWindowFor — where the room looks when you descend (GDD §26.2.2)', () => {
+  it('is the studio’s own first floor for the whole of a normal run', () => {
+    // The property that keeps §26.2 off Run 1's back: below a thousand
+    // developers there is one window and it starts at seat zero, so nothing
+    // measured before 2026-08-18 moves because this exists.
+    for (const devs of [1, 2, 40, 137, 999]) {
+      for (let rung = 0; rung <= 9; rung++) expect(seatWindowFor(rung, 0, devs)).toBe(0)
+    }
+  })
+
+  it('points at the unit that was actually pointed at', () => {
+    // Rung 4's unit is ten thousand people, so block 3 begins at seat 30,000 —
+    // and that is the thousand the room must draw, not the studio's first.
+    expect(seatWindowFor(4, 3, 1_000_000)).toBe(30_000)
+    expect(seatWindowFor(6, 7, 100_000_000)).toBe(7_000_000)
+  })
+
+  it('starts on a whole squad, so nobody moves chair', () => {
+    // §7.8.1b — a scattered fill is indistinguishable from a redraw. Every
+    // window begins on §7.8.1a's grain whatever the unit's own size is.
+    for (const rung of [3, 4, 5, 6, 7]) {
+      for (const index of [0, 1, 7, 999]) {
+        expect(seatWindowFor(rung, index, 100_000_000) % SEAT_WINDOW_GRAIN).toBe(0)
+      }
+    }
+  })
+
+  it('agrees with the arithmetic about what a block of a hundred is', () => {
+    expect(SEAT_WINDOW_GRAIN).toBe(100)
+  })
+
+  it('never opens a room with nobody in it', () => {
+    // A studio that has just entered a rung has barely started filling it, so
+    // the last unit's first seat can be past the last person hired. Arriving in
+    // an empty room reads as a bug; the last half-full squad is the truth.
+    const devs = 10_250
+    for (let index = 0; index < 12; index++) {
+      const from = seatWindowFor(4, index, devs)
+      expect(from).toBeLessThan(devs)
+    }
+    expect(seatWindowFor(4, 11, devs)).toBe(10_200)
+  })
+
+  it('survives nonsense', () => {
+    expect(seatWindowFor(3, 0, 0)).toBe(0)
+    expect(seatWindowFor(3, -1, -1)).toBe(0)
+    expect(seatWindowFor(99, 1e9, Number.NaN)).toBe(0)
   })
 })

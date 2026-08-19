@@ -16,7 +16,8 @@
 import Decimal from 'break_infinity.js'
 import { quote, type Multiplier, type Quote } from '../sim/hireDial.ts'
 import { developerAt, type Identity } from '../sim/identity.ts'
-import { outputClass, outputShare, shareSum, type OutputClass } from '../sim/output.ts'
+import { outputShare, shareSum } from '../sim/aggregate.ts'
+import { outputClass, type OutputClass } from '../sim/output.ts'
 import {
   advanceTail,
   catalogueIncome,
