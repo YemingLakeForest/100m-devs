@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CITY_FIRST_RUNG,
+  capacityAt,
   unitAtLocal,
   CITY_LAST_RUNG,
   MAX_UNITS,
@@ -92,12 +93,19 @@ describe('the picture keeps answering above ten thousand', () => {
 describe('unitsAtRung — §7.4a, the camera chooses the rung, not the headcount', () => {
   it('answers for any rung, so one studio can be looked at three ways', () => {
     // Three million developers. As a sprawl that is three towns; as a business
-    // park it is thirty campuses saturating at ten; as a block it is three
-    // hundred buildings, also saturating. All three are true and, before
-    // §7.4a, only the first could ever be seen.
+    // park it is thirty campuses; as a block it is three hundred buildings,
+    // saturating at what a campus can actually hold. All three are true and,
+    // before §7.4a, only the first could ever be seen.
+    //
+    // The saturation point is §7.7.1's own branching now rather than one shared
+    // cap: a campus holds ten buildings because 10^5 / 10^4 is ten, and a
+    // nation holds a hundred towns because the bands step 10^6 to 10^8 with
+    // nothing between them.
     expect(unitsAtRung(3e6, 6)).toBe(3)
-    expect(unitsAtRung(3e6, 5)).toBe(MAX_UNITS)
-    expect(unitsAtRung(3e6, 4)).toBe(MAX_UNITS)
+    expect(unitsAtRung(3e6, 5)).toBe(capacityAt(5))
+    expect(unitsAtRung(3e6, 4)).toBe(capacityAt(4))
+    expect(capacityAt(4)).toBe(10)
+    expect(capacityAt(6)).toBe(100)
   })
 
   it('draws nothing at a rung the studio has not reached', () => {
@@ -156,15 +164,25 @@ describe('the formation — §7.7.2, a thing lands rather than a scene rearrangi
     }
   })
 
-  it('puts the first unit in the middle and the rest around it', () => {
+  it('fills a square from the back corner rather than a row along the horizon', () => {
+    // The formation is `grid.ts`'s square shells now. Unit 0 is the far corner
+    // and the studio grows *towards* the camera, which is what makes a
+    // §7.7.2 arrival land in front of what is already standing rather than
+    // behind it. It also means any number of units reads as a block: ten drawn
+    // row-major into a lattice built for a hundred is a line, and a line is
+    // what the room's squads looked like.
     expect(slotAt(0)).toEqual({ x: 0, y: 0 })
     const spread = Array.from({ length: MAX_UNITS }, (_, i) => slotAt(i))
     expect(Math.min(...spread.map((s) => s.x))).toBeLessThan(0)
     expect(Math.max(...spread.map((s) => s.x))).toBeGreaterThan(0)
-    // Rows step *back*, which is up the screen and therefore negative y. The
-    // first row is the front one, at zero.
-    expect(Math.min(...spread.map((s) => s.y))).toBeLessThan(0)
-    expect(Math.max(...spread.map((s) => s.y))).toBe(0)
+    // Rows step *towards* the camera, which is down the screen.
+    expect(Math.min(...spread.map((s) => s.y))).toBe(0)
+    expect(Math.max(...spread.map((s) => s.y))).toBeGreaterThan(0)
+    // Ten units are a 4x4 block's worth of ground, not a row of ten.
+    const ten = spread.slice(0, 10)
+    const across = Math.max(...ten.map((s) => s.x)) - Math.min(...ten.map((s) => s.x))
+    const deep = Math.max(...ten.map((s) => s.y)) - Math.min(...ten.map((s) => s.y))
+    expect(deep).toBeGreaterThan(across * 0.3)
   })
 
   it('gives every unit its own plot', () => {

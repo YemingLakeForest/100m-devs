@@ -105,8 +105,19 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     // and it starts at *its* first seat, not somewhere in the middle.
     expect(seatFor(99)).toMatchObject({ squad: 0, col: 9, row: 9 })
     expect(seatFor(100)).toMatchObject({ squad: 1, col: 0, row: 0, squadCol: 1, squadRow: 0 })
-    // And squads themselves wrap to the next row of squads at ten.
-    expect(seatFor(10 * SQUAD_SIZE)).toMatchObject({ squadCol: 0, squadRow: 1 })
+    // Squads themselves fill in **square shells** rather than wrapping at ten.
+    // Ten squads wrapping at ten is a line of ten squads across the horizon,
+    // and that is what a room of a thousand looked like — every room above the
+    // first storey, which is most of the game. `grid.ts`'s shells keep any
+    // number of squads inside a square, and squad 10 opens the fourth one.
+    expect(seatFor(10 * SQUAD_SIZE)).toMatchObject({ squadCol: 3, squadRow: 1 })
+    // The property that matters more than the coordinates: a squad's place is a
+    // function of its index alone, so the next hundred people arriving never
+    // move the hundred already sitting down. §7.8.1b, asked of the squad.
+    for (const squad of [0, 1, 5, 42, 99]) {
+      expect(seatFor(squad * SQUAD_SIZE)).toMatchObject(seatFor(squad * SQUAD_SIZE))
+      expect(seatGrid(squad * SQUAD_SIZE)).toEqual(seatGrid(squad * SQUAD_SIZE))
+    }
   })
 
   it('puts a corridor between squads, not between desks — §7.8.1a', () => {
@@ -123,7 +134,18 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     expect(FLOOR_SIZE).toBe(10_000)
     // The last seat on the floor is in the last squad's last row, and it is
     // still on the grid rather than off the end of it.
-    expect(seatFor(FLOOR_SIZE - 1)).toMatchObject({ squadCol: 9, squadRow: 9, col: 9, row: 9 })
+    // The hundredth squad closes the tenth shell, so it is the *far* corner of
+    // the ten-by-ten square rather than the near one.
+    expect(seatFor(FLOOR_SIZE - 1)).toMatchObject({ squadCol: 0, squadRow: 9, col: 9, row: 9 })
+    // Every squad on the floor has its own square, and none is off the grid.
+    const squares = new Set<string>()
+    for (let sq = 0; sq < 100; sq++) {
+      const p = seatFor(sq * SQUAD_SIZE)
+      expect(p.squadCol).toBeLessThan(10)
+      expect(p.squadRow).toBeLessThan(10)
+      squares.add(`${p.squadCol},${p.squadRow}`)
+    }
+    expect(squares.size).toBe(100)
   })
 
   it('lays the floor out in rows — wider than it is deep, always', () => {

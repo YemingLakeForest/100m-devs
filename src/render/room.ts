@@ -36,6 +36,7 @@
  */
 
 import { Container, Graphics } from 'pixi.js'
+import { cellSquare, gridSide } from './grid.ts'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { HAIR_RAMP, SHIRT_RAMP, SKIN_BASE } from '../art/personPalette.ts'
 import { createAmbient, type Seat } from './ambient.ts'
@@ -627,12 +628,21 @@ export function seatFor(index: number): SeatPlace {
   const i = Math.max(0, Math.floor(index))
   const squad = Math.floor(i / SQUAD_SIZE)
   const within = i % SQUAD_SIZE
+  // **Squads fill in square shells, not along a row.** `squad % FLOOR_COLS` put
+  // the first ten squads side by side in a single line ten squads long, so a
+  // room of a thousand — every room above the first storey, which is to say
+  // every room in the second half of the game — was a conveyor belt across the
+  // horizon rather than a floor. `grid.ts`'s shells keep any number of squads
+  // inside a square while still giving each one a fixed place, so §7.8.1b's
+  // rule holds at the squad as well as at the chair: nothing moves under
+  // anybody when the next hundred arrive.
+  const at = cellSquare(squad)
   return {
     squad,
     col: within % SQUAD_COLS,
     row: Math.floor(within / SQUAD_COLS),
-    squadCol: squad % FLOOR_COLS,
-    squadRow: Math.floor(squad / FLOOR_COLS),
+    squadCol: at.col,
+    squadRow: at.row,
   }
 }
 
@@ -2772,7 +2782,15 @@ export function buildRoom(): RoomHandle {
     plates.visible = unfolded
     shell.alpha = 1
     light.alpha = 1
-    if (unfolded && panels.length === 0) buildPanels()
+    // Rebuilt whenever the studio has grown into more squads, so the floor is
+    // exactly as big as the people on it.
+    const squadsNeeded = unfolded ? Math.min(FLOOR_SQUADS, Math.ceil(n / SQUAD_SIZE)) : 0
+    if (squadsNeeded > panels.length) {
+      for (const p of panels) p.root.destroy({ children: true })
+      panels.length = 0
+      plates.removeChildren()
+      buildPanels(squadsNeeded)
+    }
     if (unfolded) applyUnfold(unfoldT)
 
     // The camera fit reads this every frame (§23.4.1), so the room growing is
@@ -2838,8 +2856,12 @@ export function buildRoom(): RoomHandle {
    */
   function floorBox(squadsUsed: number) {
     const used = Math.max(1, squadsUsed)
-    const wide = Math.min(FLOOR_COLS, used)
-    const deep = Math.ceil(used / FLOOR_COLS)
+    // The same square the squads actually fill — see `seatFor`. Reading it off
+    // `FLOOR_COLS` gave a box ten squads wide and one deep for the first
+    // thousand people, which is why the shell was a letterbox around a line.
+    const side = gridSide(used)
+    const wide = side
+    const deep = side
     const maxCol = (wide - 1) * SQUAD_STRIDE_COLS + SQUAD_COLS - 1
     const maxRow = (deep - 1) * SQUAD_STRIDE_ROWS + SQUAD_ROWS - 1
     // **Headroom on all four sides, not only two.** The previous version framed
@@ -2879,10 +2901,23 @@ export function buildRoom(): RoomHandle {
     g.closePath().fill(fill)
   }
 
-  function buildPanels() {
-    for (let s = 0; s < FLOOR_SQUADS; s++) {
-      const squadCol = s % FLOOR_COLS
-      const squadRow = Math.floor(s / FLOOR_COLS)
+  /**
+   * Build one floor plate per **occupied** squad — §7.8.1c.
+   *
+   * It built all hundred, every time, whatever the headcount. At a hundred
+   * developers that is one squad of people standing in the middle of ninety-nine
+   * empty plates, and because `scene.extentOf('room')` measures what is drawn,
+   * §23.4.1 then framed *those* — so the studio was a clump in the corner of an
+   * empty brown plane, and every complaint about the room at that headcount
+   * starts there.
+   *
+   * Rebuilt on demand rather than grown, because the plates are cheap and the
+   * alternative is keeping a count in a second place.
+   */
+  function buildPanels(squadsUsed: number) {
+    const used = Math.max(0, Math.min(FLOOR_SQUADS, Math.floor(squadsUsed)))
+    for (let s = 0; s < used; s++) {
+      const { col: squadCol, row: squadRow } = cellSquare(s)
       // Two footprints per panel. The apron takes half the corridor on every
       // side, so panels **tile with no gaps**: the corridor is a darker band of
       // floor between two plates rather than a hole through to the background.

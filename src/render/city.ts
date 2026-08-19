@@ -34,6 +34,14 @@
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { RUNGS, rungFor } from '../sim/headcount.ts'
+import {
+  cellAt,
+  cellAtLocal,
+  drawOrder,
+  gridCentre,
+  gridExtent,
+  type GridPitch,
+} from './grid.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -48,12 +56,36 @@ export const CITY_LAST_RUNG = 6
 /**
  * Most units drawn at once.
  *
- * The same ten `tower.ts` caps its storeys at, and for the same reason: past
- * roughly a dozen objects the eye stops counting, so an eleventh adds cost and
- * no information. Within a rung the count saturates and the *next rung* is what
- * moves the picture on — which is what makes a promotion worth scoring.
+ * **A hundred, not ten**, and the change is §7.7.1's arithmetic rather than a
+ * taste call. The ladder's branching is ten — a campus is ten buildings, a town
+ * ten campuses — so ten was right for every rung it was written for. It was
+ * never right for the top one: §7.7.1's bands step from a town at 10⁶ straight
+ * to a nation at 10⁸, so **a nation is a hundred towns**, and a cap of ten meant
+ * ninety of them were not drawn, could not be tapped, and had no address.
+ *
+ * The old cap also carried a claim that no longer holds — that "past roughly a
+ * dozen objects the eye stops counting, so an eleventh adds cost and no
+ * information". That is true of a *scatter*, which is what this used to be. A
+ * hundred cells in an ordered grid are not counted, they are read as a shape,
+ * and the eleventh one is now a position rather than another blob.
  */
-export const MAX_UNITS = 10
+export const MAX_UNITS = 100
+
+/**
+ * How many children each rung's parent actually has — §7.7.1's branching, read
+ * off its own headcount bands.
+ *
+ * A campus is 10⁵ and a building is 10⁴, so a campus holds **ten** buildings and
+ * the eleventh is not a thing that exists. The bands then step from a town at
+ * 10⁶ straight to a nation at 10⁸ with nothing between, so a nation holds **a
+ * hundred** towns — which is the whole reason {@link MAX_UNITS} had to grow, and
+ * why one shared cap was never the right shape.
+ */
+const CAPACITY: Record<number, number> = { 4: 10, 5: 10, 6: MAX_UNITS }
+
+export function capacityAt(rung: number): number {
+  return CAPACITY[rung] ?? CAPACITY[CITY_FIRST_RUNG]
+}
 
 /** How long one unit takes to fall out of the sky and land. */
 export const UNIT_DROP_MS = 760
@@ -61,20 +93,35 @@ const DROP_FROM = 620
 
 /** Footprint of one unit, whatever the unit happens to be. */
 const UNIT_W = 132
-const UNIT_D = UNIT_W / 2
+/**
+ * How far the tallest thing on a plot rises above it.
+ *
+ * Rung 4's towers are the tallest — 84 plus three sixteens — and the extent has
+ * to include them or §23.4.1 frames a skyline with its roofs off screen.
+ */
+const UNIT_OVERHANG = 150
 
 /**
- * How far apart the units stand, per rung — across the screen, and back into it.
+ * The lattice pitch, per rung — across the screen, and back into it.
  *
  * Per rung because the three units are not the same size on the ground even
  * though they occupy the same footprint: a building is a narrow tower on a wide
  * plot, a town fills its plot to the edge. One shared pitch either packs the
  * towns into each other or scatters the buildings across a car park.
+ *
+ * `d` is deliberately more than half of `w` at rung 4. A true 2:1 lattice packs
+ * the rows tightly enough that a hundred and forty pixels of tower hides the
+ * row behind it; opening the depth is the difference between a skyline and a
+ * wall. Towns are flat, so they can pack.
  */
-const SPREAD: Record<number, { x: number; y: number }> = {
-  4: { x: 0.66, y: 64 },
-  5: { x: 1.06, y: 78 },
-  6: { x: 1.12, y: 86 },
+const PITCH: Record<number, GridPitch> = {
+  4: { w: 132 * 1.02, d: 132 * 0.62 },
+  5: { w: 132 * 1.06, d: 132 * 0.56 },
+  6: { w: 132 * 1.06, d: 132 * 0.53 },
+}
+
+function pitchAt(rung: number): GridPitch {
+  return PITCH[rung] ?? PITCH[CITY_FIRST_RUNG]
 }
 
 export interface CityCount {
@@ -100,7 +147,7 @@ export function unitsFor(devs: number): CityCount {
   // saturated sprawl rather than nothing at all. The picture stops growing;
   // it never stops existing.
   const size = at === rung.rung ? rung.unitSize : 1e6
-  return { rung: at, count: Math.max(1, Math.min(MAX_UNITS, Math.floor(devs / size))) }
+  return { rung: at, count: Math.max(1, Math.min(capacityAt(at), Math.floor(devs / size))) }
 }
 
 /**
@@ -121,7 +168,7 @@ export function unitsAtRung(devs: number, rung: number): number {
   if (!Number.isFinite(devs) || devs <= 0) return 0
   const spec = RUNGS.find((r) => r.rung === rung)
   if (!spec) return 0
-  return Math.min(MAX_UNITS, Math.floor(devs / spec.unitSize))
+  return Math.min(capacityAt(rung), Math.floor(devs / spec.unitSize))
 }
 
 /**
@@ -174,38 +221,26 @@ export function neighbourSway(t: number): number {
  * was legal on the floor: there is no drawn tile grid for a level row to
  * disagree with.
  */
-const SLOTS: ReadonlyArray<readonly [number, number]> = [
-  [0, 0],
-  [1, 0],
-  [-1, 0],
-  [0.5, 1],
-  [-0.5, 1],
-  [2, 0],
-  [-2, 0],
-  [1.5, 1],
-  [-1.5, 1],
-  [0, 2],
-  [1, 2],
-  [-1, 2],
-]
 
+/**
+ * Where unit `i` of `n` stands — GDD §7.7.1, and now `grid.ts`'s lattice.
+ *
+ * `n` is new, and it is the whole point. This used to take only the index and
+ * read a hand-written list of twelve offsets modulo its own length, so a unit's
+ * place said nothing about which unit it was and the thirteenth was drawn on
+ * top of the first. A place on an ordered grid is an *address*: cell 37 of a
+ * hundred is four rows back and seven across, in every session.
+ */
 export function slotAt(i: number, rung = CITY_FIRST_RUNG): { x: number; y: number } {
-  const [across, back] = SLOTS[Math.max(0, Math.floor(i)) % SLOTS.length]
-  const spread = SPREAD[rung] ?? SPREAD[CITY_FIRST_RUNG]
-  // Back is *up* the screen and therefore further from the camera, which is
-  // also the draw order: sort ascending y and the painter order is free.
-  // `0 - …` rather than a leading minus: the front row is back 0, and unary
-  // negation of zero is -0, which compares unequal to the 0 every other row is
-  // measured against.
-  return { x: across * UNIT_W * spread.x, y: 0 - back * spread.y }
+  return cellAt(i, pitchAt(rung))
 }
 
 /**
- * Which unit a city-local point is standing on, or −1 — GDD §4.5b, R15.
+ * Which unit a tap landed on — GDD §4.5b, R15.
  *
- * Nearest slot within a unit's own footprint, which is the honest radius: the
- * units are laid out on {@link slotAt}'s grain and the gaps between them are
- * where §7.8.2's walkways and car parks are. A tap there is a miss.
+ * The inverse of {@link slotAt}. It was a nearest-centre search over every unit
+ * on the ground, which was affordable at ten and is not the shape to keep at a
+ * hundred; the lattice inverts in constant time and gives the same answer.
  *
  * `units` is how many have actually been built. Offering slot 7 on a block with
  * three towers on it would buff ten thousand developers who are not there —
@@ -218,25 +253,8 @@ export function unitAtLocal(
   units: number,
   rung = CITY_FIRST_RUNG,
 ): number {
-  const n = Math.min(MAX_UNITS, Math.max(0, Math.floor(units)))
-  if (n === 0) return -1
-
-  let best = -1
-  let bestD = Infinity
-  for (let i = 0; i < n; i++) {
-    const at = slotAt(i, rung)
-    // Measured in the 2:1 projection the units stand in, so the catchment is
-    // the plot's shape on the ground rather than a circle drawn on the screen.
-    const dx = (localX - at.x) / (UNIT_W * 0.5)
-    const dy = (localY - at.y) / UNIT_D
-    const d = dx * dx + dy * dy
-    if (d < bestD) {
-      bestD = d
-      best = i
-    }
-  }
-
-  return bestD <= 1 ? best : -1
+  const n = Math.min(capacityAt(rung), Math.max(0, Math.floor(units)))
+  return cellAtLocal(localX, localY, n, pitchAt(rung))
 }
 
 // ---------------------------------------------------------------------------
@@ -448,33 +466,31 @@ export function buildCity(fixedRung?: number): CityHandle {
     settled.clear()
     const draw = DRAW[rung] ?? drawBuilding
     // Back to front: a unit lower on screen is nearer the camera, so it must be
-    // drawn last. The formation is centre-out rather than in depth order, so
-    // unlike the room's desk loop this one cannot rely on index order.
-    const order = Array.from({ length: n }, (_, i) => i).sort(
-      (a, b) => slotAt(a, rung).y - slotAt(b, rung).y,
-    )
-    for (const i of order) {
+    // drawn last, and row-major order on an iso lattice is not that order —
+    // cell 0 is the far corner of the diamond, not its back edge.
+    for (const i of drawOrder(n, pitchAt(rung))) {
       const at = slotAt(i, rung)
       draw(settled, at.x, at.y, i)
     }
 
-    // Measured from the formation actually on the ground rather than from a
+    // Measured from the lattice actually on the ground rather than from a
     // constant, so the camera pulls back as the block fills out — §23.4.1 reads
     // this every frame and a stale extent frames the wrong thing.
-    let minX = 0
-    let maxX = 0
-    let minY = 0
-    let maxY = 0
-    for (let i = 0; i < Math.max(1, n); i++) {
-      const at = slotAt(i, rung)
-      minX = Math.min(minX, at.x - UNIT_W / 2)
-      maxX = Math.max(maxX, at.x + UNIT_W / 2)
-      minY = Math.min(minY, at.y - 150)
-      maxY = Math.max(maxY, at.y + UNIT_D / 2)
-    }
-    extent.w = maxX - minX
-    extent.h = maxY - minY
-    root.pivot.set((minX + maxX) / 2, (minY + maxY) / 2)
+    //
+    // The lattice covers cell *centres*; what stands on them overhangs it, and
+    // only this file knows by how much. `UNIT_OVERHANG` is the tallest thing
+    // any of the three draws plus its plot, and it is added to the top alone —
+    // a building rises from its plot and does not sink below it.
+    const lattice = gridExtent(Math.max(1, n), pitchAt(rung))
+    const middle = gridCentre(Math.max(1, n), pitchAt(rung))
+    extent.w = lattice.w
+    extent.h = lattice.h + UNIT_OVERHANG
+    // The pivot is the *square's* centre rather than the average of the units
+    // actually placed, so a unit landing in a new shell slides the whole group
+    // together — a camera pulling back — instead of jittering the city
+    // sideways. Lifted by half the overhang so the frame holds the skyline
+    // rather than the sky above it.
+    root.pivot.set(middle.x, middle.y - UNIT_OVERHANG / 2)
   }
 
   redraw(0)
