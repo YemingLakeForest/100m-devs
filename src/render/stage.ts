@@ -22,6 +22,7 @@ import {
   pokeFounder,
   postHeroAt,
   selectDeveloper,
+  setCameraRung,
   setZoom,
   tick,
   type GameState,
@@ -1218,6 +1219,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     const level = camera.level
     if (level !== state.zoom) setZoom(level)
+    // §7.7.1 — and the rung, which the tier cannot stand in for: tier 2 holds
+    // both rung 2 and rung 3, and those two are the difference between standing
+    // on a floor and looking at the building it is in.
+    setCameraRung(rungAt(camera.z))
 
     // Cross-fade the tiers, and frame each one — GDD §10.5, §23.4.1.
     //

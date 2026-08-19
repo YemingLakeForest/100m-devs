@@ -1,9 +1,9 @@
 import { setTouchMode, type GameState } from '../game/store.ts'
 import {
-  TOUCH_HINT,
   TOUCH_ICON,
   TOUCH_LABEL,
   TOUCH_LATCHES,
+  touchHint,
   type TouchLatch,
 } from '../game/touchMode.ts'
 import { playUi } from '../ui/uiSfx.ts'
@@ -59,7 +59,7 @@ export function TouchSwitch({ state }: { state: GameState }) {
           )
         })}
       </div>
-      <span className="touch__hint">{TOUCH_HINT[state.touchMode]}</span>
+      <span className="touch__hint">{touchHint(state.touchMode, state.cameraRung)}</span>
     </div>
   )
 }

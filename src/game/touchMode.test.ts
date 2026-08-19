@@ -5,9 +5,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   INITIAL_TOUCH_MODE,
+  ROOM_TOP_RUNG,
   TOUCH_HINT,
   TOUCH_LABEL,
   TOUCH_LATCHES,
+  touchHint,
   tapVerb,
   toggleTouch,
   type TouchMode,
@@ -139,5 +141,40 @@ describe('the copy', () => {
   it('never writes "SP" — R12', () => {
     const all = [...Object.values(TOUCH_LABEL), ...Object.values(TOUCH_HINT)].join(' ')
     expect(/\bSP\b/.test(all)).toBe(false)
+  })
+})
+
+describe('the caption above the room — GDD §7.7.1, §4.5b', () => {
+  it('stops talking about people where there are none', () => {
+    // Rungs 0–2 are the room. From 3 up a unit is a floor, a building, a town,
+    // and all three latch captions are false: there is nobody to tap, nobody to
+    // drag, and nobody whose card to open.
+    for (const mode of MODES) {
+      expect(touchHint(mode, 0)).toBe(TOUCH_HINT[mode])
+      expect(touchHint(mode, ROOM_TOP_RUNG)).toBe(TOUCH_HINT[mode])
+      expect(touchHint(mode, 3)).not.toBe(TOUCH_HINT[mode])
+    }
+  })
+
+  it('names the gesture that gets you back down', () => {
+    // The question this exists to answer: *"at the 10k view, how do I select
+    // which floor to go?"* The double tap worked; nothing on screen had ever
+    // said so, which makes it not a feature. Both verbs are named, because both
+    // exist at every rung above the room.
+    const hint = touchHint('poke', 4)
+    expect(hint).toMatch(/2/)
+    expect(hint.length).toBeLessThanOrEqual(24)
+  })
+
+  it('says the same thing whatever the latch, because the latch is inert', () => {
+    // `tapVerb` forces `poke` above the room, so a caption that changed with
+    // the switch would be describing a control that is not doing anything.
+    const hints = new Set(MODES.map((mode) => touchHint(mode, 5)))
+    expect(hints.size).toBe(1)
+  })
+
+  it('survives nonsense', () => {
+    expect(touchHint('poke', Number.NaN)).toBe(TOUCH_HINT.poke)
+    expect(touchHint('poke', -3)).toBe(TOUCH_HINT.poke)
   })
 })

@@ -398,6 +398,13 @@ export interface GameState {
 
   tier: number
   zoom: ZoomLevel
+  /**
+   * §7.7.1 — the rung the camera is parked on. See {@link setCameraRung}.
+   *
+   * Run state and not persisted: it is where the lens happens to be pointing,
+   * which a reload has no business restoring.
+   */
+  cameraRung: number
 
   floaters: FloatingNumeral[]
   bubble: Bubble | null
@@ -780,6 +787,7 @@ function freshRun(): GameState {
     hasCultureUpgrade: false,
     tier: 1,
     zoom: 1,
+    cameraRung: 0,
     floaters: [],
     bubble: null,
     spawn: null,
@@ -3159,6 +3167,25 @@ export function hasSeenScene(id: string): boolean {
 
 export function setZoom(zoom: ZoomLevel): void {
   if (zoom !== state.zoom) set({ zoom })
+}
+
+/**
+ * §7.7.1 — which rung the *camera* is on, as opposed to which one the studio
+ * has earned.
+ *
+ * `zoom` is §7.4's tier and cannot answer this: tier 2 covers rungs 2 and 3,
+ * and those two are the difference between standing on a floor and looking at
+ * the building it is in. The HUD needs to tell them apart because the caption
+ * under the touch switch is a lie above the room — it says "TAP ANY PERSON"
+ * where there are no people, and says nothing at all about the gesture that
+ * gets you back down to them.
+ *
+ * Set by the renderer on the frame the rounded rung changes, so it is a store
+ * write on a camera *stop* rather than sixty a second.
+ */
+export function setCameraRung(rung: number): void {
+  const next = Number.isFinite(rung) ? Math.max(0, Math.round(rung)) : 0
+  if (next !== state.cameraRung) set({ cameraRung: next })
 }
 
 /** Test/debug seam — drives the dev-only dev-state selector. */

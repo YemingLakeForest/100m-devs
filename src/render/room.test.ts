@@ -30,7 +30,10 @@ import {
   COVER_SPAN,
   seatPosition,
   PITCH_ROW,
+  FLOOR_SQUADS,
   ROOM_DEV_CAP,
+  ROOM_SQUAD_COLS,
+  ROOM_SQUAD_ROWS,
   gridFor,
   founderDeskPosition,
   foldedRoomCentre,
@@ -105,12 +108,15 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     // and it starts at *its* first seat, not somewhere in the middle.
     expect(seatFor(99)).toMatchObject({ squad: 0, col: 9, row: 9 })
     expect(seatFor(100)).toMatchObject({ squad: 1, col: 0, row: 0, squadCol: 1, squadRow: 0 })
-    // Squads themselves fill in **square shells** rather than wrapping at ten.
-    // Ten squads wrapping at ten is a line of ten squads across the horizon,
-    // and that is what a room of a thousand looked like — every room above the
-    // first storey, which is most of the game. `grid.ts`'s shells keep any
-    // number of squads inside a square, and squad 10 opens the fourth one.
-    expect(seatFor(10 * SQUAD_SIZE)).toMatchObject({ squadCol: 3, squadRow: 1 })
+    // Squads themselves wrap at **five**, not ten. A full floor is a thousand
+    // people and therefore exactly ten squads; wrapping at ten put all ten in a
+    // single row across the horizon, which is what every room above the first
+    // storey looked like. Five by two is the only arrangement of ten that is
+    // neither a line nor a square with holes in it.
+    expect(ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS * SQUAD_SIZE).toBe(ROOM_DEV_CAP)
+    expect(seatFor(4 * SQUAD_SIZE)).toMatchObject({ squadCol: 4, squadRow: 0 })
+    expect(seatFor(5 * SQUAD_SIZE)).toMatchObject({ squadCol: 0, squadRow: 1 })
+    expect(seatFor(9 * SQUAD_SIZE)).toMatchObject({ squadCol: 4, squadRow: 1 })
     // The property that matters more than the coordinates: a squad's place is a
     // function of its index alone, so the next hundred people arriving never
     // move the hundred already sitting down. §7.8.1b, asked of the squad.
@@ -134,18 +140,19 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     expect(FLOOR_SIZE).toBe(10_000)
     // The last seat on the floor is in the last squad's last row, and it is
     // still on the grid rather than off the end of it.
-    // The hundredth squad closes the tenth shell, so it is the *far* corner of
-    // the ten-by-ten square rather than the near one.
-    expect(seatFor(FLOOR_SIZE - 1)).toMatchObject({ squadCol: 0, squadRow: 9, col: 9, row: 9 })
-    // Every squad on the floor has its own square, and none is off the grid.
-    const squares = new Set<string>()
-    for (let sq = 0; sq < 100; sq++) {
+    expect(seatFor(FLOOR_SIZE - 1)).toMatchObject({ squadCol: 4, col: 9, row: 9 })
+    // Every squad has its own plot, and no two share one. Checked across the
+    // whole of §7.8.1a's floor even though the *room* only ever draws
+    // `ROOM_DEV_CAP` of them — the numbering has to stay a bijection past the
+    // point the renderer stops looking, or a seat window opened out there would
+    // sit two squads on one plate.
+    const plots = new Set<string>()
+    for (let sq = 0; sq < FLOOR_SQUADS; sq++) {
       const p = seatFor(sq * SQUAD_SIZE)
-      expect(p.squadCol).toBeLessThan(10)
-      expect(p.squadRow).toBeLessThan(10)
-      squares.add(`${p.squadCol},${p.squadRow}`)
+      expect(p.squadCol).toBeLessThan(ROOM_SQUAD_COLS)
+      plots.add(`${p.squadCol},${p.squadRow}`)
     }
-    expect(squares.size).toBe(100)
+    expect(plots.size).toBe(FLOOR_SQUADS)
   })
 
   it('lays the floor out in rows — wider than it is deep, always', () => {

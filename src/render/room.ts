@@ -36,7 +36,6 @@
  */
 
 import { Container, Graphics } from 'pixi.js'
-import { cellSquare, gridSide } from './grid.ts'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { HAIR_RAMP, SHIRT_RAMP, SKIN_BASE } from '../art/personPalette.ts'
 import { createAmbient, type Seat } from './ambient.ts'
@@ -170,6 +169,29 @@ export const FLOOR_COLS = 10
 export const FLOOR_ROWS = 10
 export const FLOOR_SQUADS = FLOOR_COLS * FLOOR_ROWS
 export const FLOOR_SIZE = SQUAD_SIZE * FLOOR_SQUADS
+
+/**
+ * How the room lays its squads out — **five across, two back**.
+ *
+ * §7.7.1's floor is a thousand people and {@link ROOM_DEV_CAP} is the same
+ * thousand, so a full room is exactly ten squads. Five by two is the only
+ * arrangement of ten that is neither a line nor a square with holes in it, and
+ * it gives the floor an office's shape: longer than it is deep, with a length
+ * of desks to look down.
+ *
+ * The two arrangements that were here before both showed. `squad % FLOOR_COLS`
+ * with ten columns put all ten in a **single row** — a conveyor belt across the
+ * horizon. Square shells put them in a four-by-four with six plots empty, which
+ * is `grid.ts`'s answer and is the right one *there*, where a parent can hold a
+ * hundred children and the count is not known in advance. A floor's count is
+ * known: it is ten, always, and a fixed five-wide lattice fills it exactly.
+ *
+ * Fixed width is also what keeps §7.8.1b's promise at the squad: because the
+ * lattice never resizes, squad `i` is at `(i % 5, ⌊i / 5⌋)` for ever, and the
+ * hundred people who arrive next never move the hundred already sitting down.
+ */
+export const ROOM_SQUAD_COLS = 5
+export const ROOM_SQUAD_ROWS = ROOM_DEV_CAP / SQUAD_SIZE / ROOM_SQUAD_COLS
 
 /**
  * §7.8.1a — **the corridor**, in the same units as the two desk pitches.
@@ -637,21 +659,15 @@ export function seatFor(index: number): SeatPlace {
   const i = Math.max(0, Math.floor(index))
   const squad = Math.floor(i / SQUAD_SIZE)
   const within = i % SQUAD_SIZE
-  // **Squads fill in square shells, not along a row.** `squad % FLOOR_COLS` put
-  // the first ten squads side by side in a single line ten squads long, so a
-  // room of a thousand — every room above the first storey, which is to say
-  // every room in the second half of the game — was a conveyor belt across the
-  // horizon rather than a floor. `grid.ts`'s shells keep any number of squads
-  // inside a square while still giving each one a fixed place, so §7.8.1b's
-  // rule holds at the squad as well as at the chair: nothing moves under
-  // anybody when the next hundred arrive.
-  const at = cellSquare(squad)
+  // Five across, two back — see {@link ROOM_SQUAD_COLS}. Ten columns put a
+  // full floor in one row across the horizon; square shells left six plots
+  // empty in a four-by-four.
   return {
     squad,
     col: within % SQUAD_COLS,
     row: Math.floor(within / SQUAD_COLS),
-    squadCol: at.col,
-    squadRow: at.row,
+    squadCol: squad % ROOM_SQUAD_COLS,
+    squadRow: Math.floor(squad / ROOM_SQUAD_COLS),
   }
 }
 
@@ -2902,12 +2918,13 @@ export function buildRoom(): RoomHandle {
    */
   function floorBox(squadsUsed: number) {
     const used = Math.max(1, squadsUsed)
-    // The same square the squads actually fill — see `seatFor`. Reading it off
-    // `FLOOR_COLS` gave a box ten squads wide and one deep for the first
-    // thousand people, which is why the shell was a letterbox around a line.
-    const side = gridSide(used)
-    const wide = side
-    const deep = side
+    // The same rectangle the squads actually fill — see `seatFor` and
+    // {@link ROOM_SQUAD_COLS}. **Shaped to the squads that exist**, not to the
+    // floor's capacity: a room of a hundred is one plate's worth of floor and a
+    // room of a thousand is five by two, so the slab is never mostly empty and
+    // the walls are never further away than the people.
+    const wide = Math.min(ROOM_SQUAD_COLS, used)
+    const deep = Math.ceil(used / ROOM_SQUAD_COLS)
     const maxCol = (wide - 1) * SQUAD_STRIDE_COLS + SQUAD_COLS - 1
     const maxRow = (deep - 1) * SQUAD_STRIDE_ROWS + SQUAD_ROWS - 1
     // **Headroom on all four sides, not only two.** The previous version framed
@@ -2973,7 +2990,8 @@ export function buildRoom(): RoomHandle {
   function buildPanels(squadsUsed: number) {
     const used = Math.max(0, Math.min(FLOOR_SQUADS, Math.floor(squadsUsed)))
     for (let s = 0; s < used; s++) {
-      const { col: squadCol, row: squadRow } = cellSquare(s)
+      const squadCol = s % ROOM_SQUAD_COLS
+      const squadRow = Math.floor(s / ROOM_SQUAD_COLS)
       // Two footprints per panel. The apron takes half the corridor on every
       // side, so panels **tile with no gaps**: the corridor is a darker band of
       // floor between two plates rather than a hole through to the background.

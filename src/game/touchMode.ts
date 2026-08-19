@@ -97,3 +97,31 @@ export const TOUCH_HINT: Record<TouchMode, string> = {
   grab: 'DRAG A DEVELOPER',
   inspect: 'TAP ANY PERSON FOR INFO',
 }
+
+/**
+ * §7.7.1 — the rung above which the caption stops being about people.
+ *
+ * Rungs 0–2 are the room. From 3 up there is nobody on screen to tap, so all
+ * three captions above are false there — and worse, none of them mentions the
+ * one gesture the player actually needs, which is how to get *back down*.
+ */
+export const ROOM_TOP_RUNG = 2
+
+/**
+ * The caption under the switch — GDD §7.7.6, §4.5b.
+ *
+ * Above the room the switch itself is inert ({@link tapVerb} forces `poke`
+ * because there is nobody to grab or inspect), so the line stops describing the
+ * latch and describes the *world* instead. Both verbs, because both exist and
+ * neither was written down anywhere a player could find it: a single tap buffs
+ * the whole unit, and two opens it.
+ *
+ * That second half is the answer to a question this build could not answer —
+ * *"at the 10k view, how do I select which floor to go?"* The gesture was there
+ * and worked; nothing on screen had ever said so, which makes it not a feature.
+ */
+export function touchHint(mode: TouchMode, cameraRung: number): string {
+  const rung = Number.isFinite(cameraRung) ? cameraRung : 0
+  if (rung <= ROOM_TOP_RUNG) return TOUCH_HINT[mode]
+  return 'TAP TO BOOST · 2 TO OPEN'
+}
