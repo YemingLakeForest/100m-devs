@@ -4,12 +4,13 @@ import {
   SEAT_WINDOW_GRAIN,
   UNIT_KINDS,
   nominalUnitSize,
-  seatWindowFor,
+  seatForUnit,
   unitCount,
   unitKindAt,
   unitLabel,
   unitSeats,
   unitSizeAt,
+  unitWindow,
 } from './units.ts'
 
 describe('what the unit is at each rung (GDD §7.7.1)', () => {
@@ -139,30 +140,132 @@ describe('which seats a unit covers', () => {
   })
 })
 
-describe('seatWindowFor — where the room looks when you descend (GDD §26.2.2)', () => {
-  it('is the studio’s own first floor for the whole of a normal run', () => {
+/** How many the tower and the city can draw. `room.ts` draws a thousand. */
+const MAX = 10
+const ROOM = 1000
+
+describe('unitWindow — the ladder is a tree, and this is the address (GDD §26.2.2)', () => {
+  it('shows the studio’s own first units for the whole of a normal run', () => {
     // The property that keeps §26.2 off Run 1's back: below a thousand
-    // developers there is one window and it starts at seat zero, so nothing
-    // measured before 2026-08-18 moves because this exists.
+    // developers every window starts at unit zero, so nothing measured before
+    // 2026-08-18 moves because this exists.
     for (const devs of [1, 2, 40, 137, 999]) {
-      for (let rung = 0; rung <= 9; rung++) expect(seatWindowFor(rung, 0, devs)).toBe(0)
+      for (let rung = 0; rung <= TOP_RUNG; rung++) {
+        expect(unitWindow(rung, 0, devs, MAX).from).toBe(0)
+      }
     }
   })
 
-  it('points at the unit that was actually pointed at', () => {
-    // Rung 4's unit is ten thousand people, so block 3 begins at seat 30,000 —
-    // and that is the thousand the room must draw, not the studio's first.
-    expect(seatWindowFor(4, 3, 1_000_000)).toBe(30_000)
-    expect(seatWindowFor(6, 7, 100_000_000)).toBe(7_000_000)
+  it('shows the CHILDREN of the unit the address is in, not the studio’s first ten', () => {
+    // The bug this function exists to end, stated as a test. Seat 4,000,000 of
+    // a ten-million studio is in town 4, campus 40, building 400, storey 4000 —
+    // and each of those is the *fifth* thing on its own screen, because the
+    // window it is drawn in starts at its parent's first child.
+    const devs = 10_000_000
+    const seat = 4_000_000
+    expect(unitWindow(6, seat, devs, MAX)).toMatchObject({ from: 0, count: 10, focus: 4 })
+    expect(unitWindow(5, seat, devs, MAX)).toMatchObject({ from: 40, count: 10, focus: 0 })
+    expect(unitWindow(4, seat, devs, MAX)).toMatchObject({ from: 400, count: 10, focus: 0 })
+    expect(unitWindow(3, seat, devs, MAX)).toMatchObject({ from: 4000, count: 10, focus: 0 })
   })
 
-  it('starts on a whole squad, so nobody moves chair', () => {
-    // §7.8.1b — a scattered fill is indistinguishable from a redraw. Every
-    // window begins on §7.8.1a's grain whatever the unit's own size is.
-    for (const rung of [3, 4, 5, 6, 7]) {
-      for (const index of [0, 1, 7, 999]) {
-        expect(seatWindowFor(rung, index, 100_000_000) % SEAT_WINDOW_GRAIN).toBe(0)
-      }
+  it('makes a unit past the tenth reachable, which it was not', () => {
+    // Every view drew units 0–9 of the studio, so building 400 could not be
+    // looked at by any sequence of gestures. It is now the first thing on
+    // screen when the address is inside it.
+    const devs = 10_000_000
+    const w = unitWindow(4, 4_003_500, devs, MAX)
+    expect(w.from).toBe(400)
+    expect(w.focus).toBe(0)
+    expect(unitWindow(3, 4_003_500, devs, MAX)).toMatchObject({ from: 4000, focus: 3 })
+  })
+
+  it('descends and lands where it was pointed — the whole path composes', () => {
+    // Walk the ladder the way a player does: pick a unit on screen, take its
+    // first seat, drop a rung, pick again. Every unit picked must still contain
+    // the address at the end, or the descent has silently changed subject.
+    const devs = 10_000_000
+    let seat = 0
+    const picked: Array<{ rung: number; index: number }> = []
+    for (const [rung, slot] of [[6, 3], [5, 7], [4, 2], [3, 9]] as const) {
+      const w = unitWindow(rung, seat, devs, MAX)
+      expect(slot).toBeLessThan(w.count)
+      const index = w.from + slot
+      picked.push({ rung, index })
+      seat = seatForUnit(rung, index, devs)
+    }
+    for (const { rung, index } of picked) {
+      const { from, to } = unitSeats(rung, index, devs)
+      expect(seat).toBeGreaterThanOrEqual(from)
+      expect(seat).toBeLessThan(to)
+    }
+    // Town 3, its campus 7, its building 2, its storey 9.
+    expect(seat).toBe(3_000_000 + 7 * 100_000 + 2 * 10_000 + 9 * 1_000)
+  })
+
+  it('makes the room exactly one storey, because a storey is a roomful', () => {
+    // `DEVS_PER_STOREY` and `ROOM_DEV_CAP` are the same thousand, so descending
+    // from a tower storey shows that storey's people and nobody else's.
+    const devs = 10_000_000
+    expect(unitWindow(2, 3_456_789, devs, ROOM)).toMatchObject({
+      from: 3_456_000,
+      count: 1000,
+      focus: 789,
+    })
+    expect(unitSeats(3, 3456, devs).from).toBe(3_456_000)
+  })
+
+  it('pages the one parent too big for the screen — a nation is a hundred towns', () => {
+    // Rungs 3–5 branch by ten and fit exactly. A nation branches by a hundred
+    // and the city draws ten, so the window is the page holding the address.
+    const devs = 100_000_000
+    expect(unitWindow(6, 0, devs, MAX)).toMatchObject({ from: 0, count: 10, total: 100 })
+    expect(unitWindow(6, 57_000_000, devs, MAX)).toMatchObject({
+      from: 50,
+      count: 10,
+      total: 100,
+      focus: 7,
+    })
+  })
+
+  it('counts the ragged last unit and never draws empty ones', () => {
+    // A studio that has just entered a rung has barely started filling it.
+    const devs = 10_250
+    expect(unitWindow(3, 0, devs, MAX)).toMatchObject({ from: 0, count: 10, total: 10 })
+    // The second building holds 250 people — one storey, not ten.
+    expect(unitWindow(3, 10_100, devs, MAX)).toMatchObject({ from: 10, count: 1, total: 1 })
+  })
+
+  it('clamps an address the studio has shrunk out from under', () => {
+    // §14's Paradigm Shift liquidates the swarm. An address left pointing at
+    // town 40 must land on the last person, not on an empty plot.
+    const w = unitWindow(3, 9_999_999, 500, MAX)
+    expect(w.from).toBe(0)
+    expect(w.count).toBe(1)
+    expect(w.focus).toBe(0)
+  })
+
+  it('survives nonsense', () => {
+    expect(unitWindow(3, 0, 0, MAX)).toEqual({ from: 0, count: 0, total: 0, focus: -1 })
+    expect(unitWindow(-1, -5, -5, MAX)).toEqual({ from: 0, count: 0, total: 0, focus: -1 })
+    expect(unitWindow(99, 1e9, Number.NaN, MAX).count).toBe(0)
+    expect(Number.isFinite(unitWindow(9, 1e12, 1e13, MAX).from)).toBe(true)
+    expect(unitWindow(3, Number.NaN, 5000, Number.NaN).count).toBeGreaterThan(0)
+  })
+})
+
+describe('seatForUnit — where the address goes when you descend', () => {
+  it('is the unit’s first seat', () => {
+    expect(seatForUnit(4, 3, 1_000_000)).toBe(30_000)
+    expect(seatForUnit(6, 7, 100_000_000)).toBe(7_000_000)
+  })
+
+  it('never opens a room with nobody in it', () => {
+    // The last unit at any rung is ragged, and its first seat can be past the
+    // last person hired. Arriving in an empty room reads as a bug.
+    const devs = 10_250
+    for (let index = 0; index < 12; index++) {
+      expect(seatForUnit(4, index, devs)).toBeLessThan(devs)
     }
   })
 
@@ -170,21 +273,9 @@ describe('seatWindowFor — where the room looks when you descend (GDD §26.2.2)
     expect(SEAT_WINDOW_GRAIN).toBe(100)
   })
 
-  it('never opens a room with nobody in it', () => {
-    // A studio that has just entered a rung has barely started filling it, so
-    // the last unit's first seat can be past the last person hired. Arriving in
-    // an empty room reads as a bug; the last half-full squad is the truth.
-    const devs = 10_250
-    for (let index = 0; index < 12; index++) {
-      const from = seatWindowFor(4, index, devs)
-      expect(from).toBeLessThan(devs)
-    }
-    expect(seatWindowFor(4, 11, devs)).toBe(10_200)
-  })
-
   it('survives nonsense', () => {
-    expect(seatWindowFor(3, 0, 0)).toBe(0)
-    expect(seatWindowFor(3, -1, -1)).toBe(0)
-    expect(seatWindowFor(99, 1e9, Number.NaN)).toBe(0)
+    expect(seatForUnit(3, 0, 0)).toBe(0)
+    expect(seatForUnit(3, -1, -1)).toBe(0)
+    expect(seatForUnit(99, 1e9, Number.NaN)).toBe(0)
   })
 })

@@ -2971,6 +2971,12 @@ export function buildRoom(): RoomHandle {
     devs.length = 0
     jolts.length = 0
     devLayer.removeChildren()
+    // **`desks` is the length `animate` trusts.** It walks `desks` and indexes
+    // `devs`, so leaving one full while the other is emptied is a crash waiting
+    // for a frame to land between the discard and the rebuild — which is
+    // exactly what happened the first time the seat window moved from the
+    // ticker rather than from a gesture. `rebuild` refills it.
+    desks.length = 0
     lastDevs = -1
     // §7.8.1c happens once *per run*. A Paradigm Shift is a new run and a new
     // studio of one, so the floor folds back up with everything else —

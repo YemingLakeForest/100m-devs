@@ -31,7 +31,7 @@ import { playKeyboardClick, pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
 import { MusicBus } from '../audio/music.ts'
 import { holdHaptic, pokeHaptic } from '../audio/haptics.ts'
-import { LensCamera, fitScale } from './omniLens.ts'
+import { LensCamera, closeUp, fitScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
 import { LITERAL_RUNG_LIMIT, maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
@@ -47,14 +47,14 @@ import {
   zAtRung,
   type ViewKind,
 } from '../sim/ladder.ts'
-import { storeyAtLocal, storeysFor } from './tower.ts'
-import { unitAtLocal } from './city.ts'
+import { DEVS_PER_STOREY, MAX_STOREYS, storeyAtLocal } from './tower.ts'
+import { MAX_UNITS, unitAtLocal } from './city.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { createTallies, tallySources, type TallySource } from './tallies.ts'
 import { createArrivals } from './arrivals.ts'
-import { ROOM_DEV_CAP } from './room.ts'
-import { seatWindowFor } from '../sim/units.ts'
+import { ROOM_DEV_CAP, SQUAD_SIZE } from './room.ts'
+import { nominalUnitSize, seatForUnit, unitWindow } from '../sim/units.ts'
 import {
   clampPan,
   exceedsSlop,
@@ -342,9 +342,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         return seat < 0 ? null : { rung, index: globalSeat(seat) }
       }
       case 'tower': {
+        // The tower draws the storeys of **one building** — the one holding the
+        // address — so a slot is a local index and the answer has to be a
+        // global one. `PokeTarget` goes to the store, and the store has never
+        // heard of a window.
+        const w = windowAt(3, MAX_STOREYS)
         const local = views.tower.toLocal({ x, y })
-        const storey = storeyAtLocal(local.x, local.y, storeysFor(getState().devs))
-        return storey < 0 ? null : { rung, index: storey }
+        const storey = storeyAtLocal(local.x, local.y, w.count)
+        return storey < 0 ? null : { rung, index: w.from + storey }
       }
       case 'block':
       case 'park':
@@ -354,9 +359,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // reaches a rung either side. Asking the handle keeps the hit test on
         // the geometry that is actually drawn.
         const handle = scene.city[CITY_RUNG_OF[currentView]]
+        const w = windowAt(handle.rung, MAX_UNITS)
         const local = views[currentView].toLocal({ x, y })
         const unit = unitAtLocal(local.x, local.y, handle.units, handle.rung)
-        return unit < 0 ? null : { rung, index: unit }
+        return unit < 0 ? null : { rung, index: w.from + unit }
       }
       default:
         // §7.8.2 — rungs 7–9 have no geometry of their own yet, so there is one
@@ -399,6 +405,21 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const i = Math.floor(seat) - room.seatWindow
     return i >= 0 && i < room.drawn ? i : -1
   }
+
+  /**
+   * §7.7.1 — **rung 0 is a desk, and it has to stay one as the room fills.**
+   *
+   * The room's band has a natural range of 3x, which is a desk when the room is
+   * Act I's forty and a quarter of the floor when it is a thousand. So the
+   * bottom of the band is asked to frame one §7.8.1a squad instead: a room of
+   * a thousand pulls in ten times, a room of a hundred pulls in not at all.
+   *
+   * The floor of 3 is what keeps Run 1 untouched — every room below three
+   * hundred people asks for less than the band already gives and gets exactly
+   * what it got before this existed. See `closeUp` in `omniLens.ts`.
+   */
+  const roomCloseUp = (z: number) =>
+    closeUp(z, viewStopZ('room'), Math.max(1, room.drawn) / SQUAD_SIZE)
 
   const roomSeats = () => {
     if (seatCacheFor !== room.drawn) {
@@ -452,6 +473,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
     const target = pickDeveloper(x, y)
     selectDeveloper(target < 0 ? null : globalSeat(target))
+    // §26.2.2 — **inspecting somebody makes them the address.** The room is the
+    // bottom of the ladder and a person is the smallest unit on it, so this is
+    // how the last three rungs are steered: pick the person, then zoom, and the
+    // lens holds them instead of holding the middle of the floor. Without it
+    // the descent could name a storey and never anybody in it.
+    if (target >= 0) setFocus(globalSeat(target))
     playUi(target < 0 ? 'close' : 'whoosh')
     return true
   }
@@ -592,6 +619,52 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   const doubleTapDescends = () => currentView !== 'room'
 
+  /**
+   * **The address** — which part of the studio the lens is over. GDD §26.2.2.
+   *
+   * One global seat number, and everything on screen is derived from it: the
+   * unit in view at any rung is the one holding this seat, the units *beside*
+   * it are that unit's siblings, and the room is a picture of the thousand
+   * people in the storey containing it. See `sim/units.ts`'s {@link unitWindow}
+   * for why it is a seat and not a path.
+   *
+   * Before this existed every view was fed the studio's own headcount and drew
+   * units 0–9 of it, so the ladder was five unrelated pictures of the studio's
+   * first corner: descending into the third town and then the fifth campus gave
+   * campus five *of the studio*. Nothing past the tenth unit at any rung had an
+   * address at all.
+   */
+  let focusSeat = 0
+  /** Set for the frame the address moves, so a *different* unit is not an arrival. */
+  let focusMoved = false
+
+  /**
+   * What the view at `rung` is drawing, and where the address sits in it.
+   *
+   * The room asks at rung 2 with `ROOM_DEV_CAP`, because the people are a
+   * storey's children and `DEVS_PER_STOREY` is the same thousand.
+   */
+  const windowAt = (rung: number, max: number) =>
+    unitWindow(rung, focusSeat, getState().devs, max)
+
+  /**
+   * True while the camera is still flying to a newly-named address.
+   *
+   * Cleared by any deliberate move of the lens — a drag, a pinch, a wheel —
+   * because a camera that keeps pulling back to where it was *sent* is a camera
+   * the player has to fight. It aims once, and then the lens is theirs again.
+   */
+  let holdAddress = false
+
+  /** Move the address, and aim the lens at it. */
+  const setFocus = (seat: number) => {
+    const next = Math.max(0, Math.floor(seat))
+    if (next === focusSeat) return
+    focusSeat = next
+    focusMoved = true
+    holdAddress = true
+  }
+
   /** §21 Act IV's scripted dolly, and §7.7.6's double-tap. Null when the camera is the player's again. */
   let dollyTarget: number | null = null
   /** The rail's CODE — YOU action owns the lens until the corner desk lands. */
@@ -652,16 +725,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const descendOneRung = (x: number, y: number): boolean => {
     const rung = Math.round(rungAt(camera.z))
     if (rung <= 0) return false
-    // §26.2.2 — **descending names a unit, and the room becomes a picture of
-    // the people inside it.** Without this the lens travelled down the ladder
-    // and arrived at the studio's first floor no matter what had been pointed
-    // at, which is the whole of finding 2.2 in the Phase 2 plan: "zoom in and
-    // it resolves" cannot resolve to anybody in particular if the room only
-    // ever knows one set of people.
-    //
-    // The pick is the same one a poke uses, so the unit you descend into is the
-    // unit you would have buffed — one answer to "what is under my finger",
-    // not two that can disagree.
+    // §26.2.2 — **descending names a unit, and everything below becomes a
+    // picture of what is inside it.** The pick is the same one a poke uses, so
+    // the unit you descend into is the unit you would have buffed: one answer
+    // to "what is under my finger", not two that can disagree.
     openUnit(pickUnit(x, y))
     focal = { x, y }
     dollyTarget = zAtRung(rung - 1)
@@ -670,15 +737,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   /**
-   * Point the room at a unit's seats — §26.2.2, §26.2.5 lines 2 and 3.
+   * Move the address into a unit — §26.2.2, §26.2.5 lines 2 and 3.
    *
-   * The arithmetic is `seatWindowFor`'s, in `sim/units.ts`, so it is testable
-   * without a renderer and so the room's hundred and the simulation's hundred
+   * The arithmetic is `seatForUnit`'s, in `sim/units.ts`, so it is testable
+   * without a renderer and so the room's thousand and the tower's thousand
    * cannot drift apart. This is the wire, and nothing else.
    */
   const openUnit = (target: PokeTarget | null) => {
     if (target === null) return
-    room.setSeatWindow(seatWindowFor(target.rung, target.index, getState().devs))
+    setFocus(seatForUnit(target.rung, target.index, getState().devs))
   }
 
   /**
@@ -742,6 +809,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         if (tryGrab(ev.clientX, ev.clientY, ev.pointerId)) return
       }
       drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY, t0: t, panX: pan.x, panY: pan.y }
+      // §26.2.2 — a hand on the lens ends the aim. See `holdAddress`.
+      holdAddress = false
       pan.vx = 0
       pan.vy = 0
     }
@@ -900,6 +969,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // smooth across nine orders of magnitude.
     const ratio = distance / pinchStart.distance
     if (!(ratio > 0) || !Number.isFinite(ratio)) return
+    holdAddress = false
     camera.set(pinchStart.z - Math.log10(Math.max(0.01, ratio)) * 0.6)
   }
 
@@ -926,7 +996,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const onWheel = (ev: WheelEvent) => {
     ev.preventDefault()
     founderFocus = false
-    focal = { x: ev.clientX, y: ev.clientY }
+    // §26.2.2 — **a wheel is a zoom, not a move.** While the lens is aimed at a
+    // named address the aim *is* the anchor, so the pointer must not become a
+    // second one: two anchors pulling in different directions is how "select
+    // them, then zoom in" ends up somewhere neither of them asked for. Only a
+    // drag or a pinch — gestures that mean *go somewhere else* — end the aim.
+    if (!holdAddress) focal = { x: ev.clientX, y: ev.clientY }
     camera.nudge(ev.deltaY * 0.0008)
   }
   app.canvas.addEventListener('wheel', onWheel, { passive: false })
@@ -1162,6 +1237,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // the room draws the hire on the frame the store publishes them and the
     // falling silhouette lands on somebody already sitting in the chair, which
     // is most of why a hire read as a glitch.
+    // §26.2.2 — **which** thousand, before how many of them. The window throws
+    // away every generated person, so a `setHeadcount` on the other side of it
+    // is what refills the room; between the two there is a room with desks and
+    // nobody in them, and a frame that landed there used to throw.
+    // `DEVS_PER_STOREY` is `ROOM_DEV_CAP`, so this is exactly one storey.
+    room.setSeatWindow(windowAt(2, ROOM_DEV_CAP).from)
     room.setHeadcount(Math.min(state.devs, arrivals.revealed))
     room.setCoverage(seatMarks(state))
     // §21 Act IV only. The particle swarm is no longer a ladder stop — the room
@@ -1175,12 +1256,28 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // not be looked at. Each is now fed the same headcount and answers for its
     // own rung — three million is three towns, or thirty campuses, or three
     // hundred buildings saturating at ten. The camera picks which is true today.
-    tower.setHeadcount(state.devs)
+    //
+    // **Each view draws the children of the unit the address is in**, not the
+    // studio's first ten. That is the whole of §26.2.2's hierarchy: the tower
+    // is the ten storeys of *this building*, the block is the ten buildings of
+    // *this campus*, and a slot on screen is a child rather than an absolute
+    // index into a studio of a million.
+    //
+    // The count is handed over as a headcount because that is the question
+    // these handles already answer — `unitsAtRung` is `floor(devs / unitSize)`
+    // capped at ten, so `count * unitSize` round-trips exactly. `quiet` is the
+    // other half: a *different* building with more storeys in it is not a
+    // storey arriving, and §7.7.2's drop is a beat the player earns by hiring.
+    const towerWindow = windowAt(3, MAX_STOREYS)
+    tower.setHeadcount(towerWindow.count * DEVS_PER_STOREY, focusMoved)
     for (const r of [4, 5, 6] as const) {
-      city[r].setHeadcount(state.devs)
+      const w = windowAt(r, MAX_UNITS)
+      city[r].setHeadcount(w.count * nominalUnitSize(r), focusMoved)
       city[r].update(now)
     }
     tower.update(now)
+
+    focusMoved = false
 
     // §7.4a — the cross-fade is per *rung* now, not per tier. Weights come from
     // where the camera is on the ladder, and the studio's own rung gates what
@@ -1201,7 +1298,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // Only the visible ones need their transform recomputed.
       if (container.renderable) {
         const fitViewport = viewportForView(spec.view, viewport)
-        const scale = fitScale(scene.extentOf(spec.view), fitViewport, camera.z, viewStopZ(spec.view))
+        const scale =
+          fitScale(scene.extentOf(spec.view), fitViewport, camera.z, viewStopZ(spec.view)) *
+          (spec.view === 'room' ? roomCloseUp(camera.z) : 1)
         container.scale.set(scale)
         // The room's folded fit is already composed around the founder at its
         // north vertex. Other views remain truly centred as well.
@@ -1216,7 +1315,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // frame, so a view that already fits does not slide around: panning
     // something that fits is how a player ends up lost in an empty frame.
     const domExtent = scene.extentOf(view)
-    const domScale = fitScale(domExtent, viewportForView(view, viewport), camera.z, viewStopZ(view))
+    const domScale =
+      fitScale(domExtent, viewportForView(view, viewport), camera.z, viewStopZ(view)) *
+      (view === 'room' ? roomCloseUp(camera.z) : 1)
     currentView = view
     currentScale = domScale
 
@@ -1280,6 +1381,34 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // camera has to be able to point at the empty space he is about to land in.
     if (dialogueFocus !== null && view === 'room') {
       const at = dialogueFocus === 'founder' ? room.founderDeskAt() : room.deskFor(dialogueFocus)
+      if (at) {
+        const roomView = views.room
+        const targetX = Math.min(
+          limitX,
+          Math.max(-limitX, -((at.x - roomView.pivot.x) * domScale + roomView.position.x)),
+        )
+        const targetY = Math.min(
+          limitY,
+          Math.max(-limitY, -((at.y - roomView.pivot.y) * domScale + roomView.position.y)),
+        )
+        const move = Math.min(1, dt * 6.5)
+        pan.x += (targetX - pan.x) * move
+        pan.y += (targetY - pan.y) * move
+        pan.vx = 0
+        pan.vy = 0
+      }
+    }
+    // §26.2.2 — **hold the address.** Descending names a unit; without this the
+    // lens arrived at the right rung over the wrong part of it, so "zoom in on
+    // that one" resolved to "zoom in", and the third building looked exactly
+    // like the first because it was drawn in the same place on screen.
+    //
+    // Only in the room, and that is not a shortcut: every view above it is
+    // fitted to the frame, so `panLimit` is zero and there is nowhere for the
+    // pan to go. The room is the one place where the thing you named can be
+    // off screen.
+    if (holdAddress && view === 'room' && dialogueFocus === null && !founderFocus) {
+      const at = room.deskFor(localSeat(focusSeat))
       if (at) {
         const roomView = views.room
         const targetX = Math.min(
@@ -1407,6 +1536,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // The Act IV beat is three systems deep — store flag, camera dolly, LOD
     // weight — and "nothing is on screen" is the same symptom for all three.
     if (import.meta.env.DEV) {
+      // §26.2.2 — **ask what is under a point without pressing it.** The
+      // hierarchy is only navigable if a tap lands on the thing that was
+      // pointed at, and "did the tap land on the right unit" is not a question
+      // a screenshot can answer: every unit at every rung is drawn in the same
+      // ten places. Same family as `__store` and `__stage`, and the §26.2.5
+      // walk will need it for the same reason the ladder probe needed `wheelTo`
+      // to fail loudly — a gesture that missed looks exactly like one that
+      // landed somewhere boring.
+      ;(globalThis as unknown as Record<string, unknown>).__pick = (x: number, y: number) =>
+        pickUnit(x, y)
       const snapshot = {
         z: +camera.z.toFixed(4),
         level: camera.level,
@@ -1418,6 +1557,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         rung: +rungAt(camera.z).toFixed(2),
         view,
         ceilingRung: rungFor(state.devs).rung,
+        // §26.2.2 — the address. Which part of the studio the lens is over,
+        // and which thousand people the room is currently a picture of. Two
+        // numbers, because "the camera is at rung 2" and "the camera is at rung
+        // 2 *of the third building*" look identical in a screenshot.
+        focusSeat,
+        seatWindow: room.seatWindow,
+        drawn: room.drawn,
         scale: +domScale.toFixed(5),
         // What the dominant view actually measures on screen, in CSS px. This
         // is the number GDD §23.4.1 exists to make non-zero, so it is the one

@@ -145,8 +145,8 @@ export function unitCount(rung: number, devs: number): number {
 }
 
 /**
- * §7.8.1a's **squad**, and §26.2.2's "block of 100" — the grain a room window
- * is allowed to start on.
+ * §7.8.1a's **squad**, and §26.2.2's "block of 100" — the grain the aggregate
+ * is generated at.
  *
  * Read off `aggregate.ts`'s ladder rather than written down again, because the
  * two have to agree about what a block is: §26.2.5's line 4 asks whether a
@@ -157,31 +157,101 @@ export function unitCount(rung: number, devs: number): number {
 export const SEAT_WINDOW_GRAIN = LEVEL_SIZES[1]
 
 /**
- * Where the room's window starts if the player descends into this unit —
- * GDD §26.2.2.
+ * What is on screen at one rung, and where in it the lens is pointed.
  *
- * §26.2.2 says the people inside a unit "do not exist until somebody looks",
- * and this is the arithmetic of looking: given the unit under the finger, which
- * seat does the room draw first.
+ * ## The bug this exists to end
  *
- * Two rules, and both are corrections to the obvious version.
+ * Every view above the room was fed the *studio's* headcount and drew units
+ * `0..9` of it, at every rung, saturating at ten. So the ladder was not a
+ * hierarchy at all — it was five unrelated pictures of the first corner of the
+ * studio. Descending into the third town and then into the fifth campus gave
+ * campus five **of the studio**, not campus five of town three, and every unit
+ * past the tenth at every rung was not merely hard to reach: it had no address
+ * and could not be looked at by any sequence of gestures.
  *
- * **Snapped down to a whole squad.** §7.8.1b's rule is that a seat does not
- * move under the person sitting in it, and it applies to the window as much as
- * to the grid — a window starting mid-squad would seat the same hundred people
- * in different chairs depending on which unit had been pointed at, which is
- * exactly the "scattered fill is indistinguishable from a redraw" failure that
- * section exists to forbid.
+ * §7.7.1's ladder is a tree and the branching is already right — a storey is a
+ * thousand people, a building is ten storeys, a campus ten buildings, a town
+ * ten campuses. What was missing was the **address**: one number saying which
+ * part of the studio the lens is over, from which everything else follows.
  *
- * **Clamped back to the last occupied squad.** A unit at the end of the studio
- * is half empty, and its first seat can be past the last person if the studio
- * has grown into a rung it has barely started filling. Arriving in an empty
- * room reads as a bug; arriving in the last half-full one is the truth.
+ * ## The address is a seat
+ *
+ * Not a path, not a stack, not a per-rung index — a single global seat number.
+ * The unit in view at rung `r` is the one holding that seat, its siblings are
+ * the other children of its parent, and *nothing has to be kept in sync*.
+ * Descending sets the seat; ascending does not touch it; a hire cannot
+ * invalidate it. A path would have to be trimmed on every rung change and
+ * repaired whenever the studio grew or shrank, and a path that is one entry
+ * stale points somewhere real and wrong, which is the worst way to be wrong.
+ *
+ * The room is the same function with a different `max`: the people are the
+ * children of a storey, `nominalUnitSize(3) / nominalUnitSize(2)` of them,
+ * which is a thousand — and a thousand is exactly `ROOM_DEV_CAP`. The two
+ * numbers agreeing is not a coincidence to be grateful for, it is
+ * `DEVS_PER_STOREY`, and it means descending from a tower storey shows that
+ * storey's people and no one else's.
+ *
+ * @param rung  Which §7.7.1 rung the units on screen belong to.
+ * @param seat  The address — any seat inside the unit being looked at.
+ * @param devs  The studio, for the ragged last unit.
+ * @param max   How many the view can draw. Ten for the city and the tower;
+ *              `ROOM_DEV_CAP` for the room.
  */
-export function seatWindowFor(rung: number, index: number, devs: number): number {
+export interface UnitWindow {
+  /** Global index of the first unit drawn. */
+  from: number
+  /** How many are drawn. Never more than `max`; fewer at the end of a studio. */
+  count: number
+  /** How many children the parent has, drawn or not. `count` when they all fit. */
+  total: number
+  /** Which drawn unit holds `seat`, as an offset into the window. −1 if none. */
+  focus: number
+}
+
+export function unitWindow(rung: number, seat: number, devs: number, max: number): UnitWindow {
+  const n = headcount(devs)
+  const r = clampRung(rung)
+  const size = nominalUnitSize(r)
+  const cap = Math.max(1, Math.floor(Number.isFinite(max) ? max : 1))
+  if (n <= 0) return { from: 0, count: 0, total: 0, focus: -1 }
+
+  // Clamped into the studio, so an address left behind by a studio that has
+  // since shrunk lands on the last person rather than on an empty plot.
+  const s = Math.min(n - 1, Math.max(0, Number.isFinite(seat) ? Math.floor(seat) : 0))
+
+  // The parent's seats. At the top rung the parent is the studio itself —
+  // there is nothing above a galaxy to be a child of.
+  const parentSize = r >= TOP_RUNG ? Number.POSITIVE_INFINITY : nominalUnitSize(r + 1)
+  const parentFrom = Number.isFinite(parentSize) ? Math.floor(s / parentSize) * parentSize : 0
+  const parentTo = Number.isFinite(parentSize) ? Math.min(n, parentFrom + parentSize) : n
+
+  // `parentFrom` is a whole number of parents and a parent is a whole number of
+  // children, so this division is exact.
+  const first = parentFrom / size
+  const total = Math.max(0, Math.ceil((parentTo - parentFrom) / size))
+
+  // Paged, for the one place in the reachable range where a parent has more
+  // children than a view can hold: a nation is a hundred towns and the city
+  // draws ten. The page holding the focus is the page you are on.
+  const offset = Math.max(0, Math.floor(s / size) - first)
+  const page = Math.floor(offset / cap) * cap
+  const count = Math.max(0, Math.min(cap, total - page))
+  return { from: first + page, count, total, focus: count > 0 ? offset - page : -1 }
+}
+
+/**
+ * The address to move to when the player descends into a unit — GDD §26.2.2.
+ *
+ * The unit's **first seat**, so descending into the third building lands on the
+ * first person in it rather than wherever the previous address happened to be.
+ * Clamped back into the studio, because the last unit at any rung is ragged and
+ * a rung the studio has only just reached may have units with nobody in them:
+ * arriving in an empty room reads as a bug, arriving in the last half-full one
+ * is the truth.
+ */
+export function seatForUnit(rung: number, index: number, devs: number): number {
   const n = headcount(devs)
   if (n <= 0) return 0
   const { from } = unitSeats(rung, index, n)
-  const lastSquad = Math.max(0, Math.ceil(n / SEAT_WINDOW_GRAIN) - 1) * SEAT_WINDOW_GRAIN
-  return Math.min(lastSquad, Math.floor(from / SEAT_WINDOW_GRAIN) * SEAT_WINDOW_GRAIN)
+  return Math.min(n - 1, Math.max(0, from))
 }

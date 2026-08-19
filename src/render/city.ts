@@ -402,7 +402,13 @@ const DRAW: Record<number, (g: Graphics, x: number, y: number, i: number) => voi
 export interface CityHandle {
   container: Container
   /** Rebuild for a headcount. Cheap on change, far too dear per frame. */
-  setHeadcount(devs: number): void
+  /**
+   * `quiet` suppresses §7.7.2's arrival drop — set when the city has been
+   * re-pointed at a different parent (§26.2.2's address moved) rather than
+   * grown. A campus with more buildings on it than the last one is not a
+   * building arriving.
+   */
+  setHeadcount(devs: number, quiet?: boolean): void
   /** Advance the arrival. `now` in ms. */
   update(now: number): void
   /** True while a unit is still in the air. */
@@ -476,7 +482,7 @@ export function buildCity(fixedRung?: number): CityHandle {
   return {
     container: root,
 
-    setHeadcount(devs: number) {
+    setHeadcount(devs: number, quiet = false) {
       const next =
         fixedRung === undefined
           ? unitsFor(devs)
@@ -485,7 +491,7 @@ export function buildCity(fixedRung?: number): CityHandle {
       // A rung change replaces every unit at once — a block does not become a
       // business park by growing, it becomes one because the thing being counted
       // changed. Only a gain *within* a rung is an arrival to animate.
-      const gained = next.rung === rung && next.count > units
+      const gained = next.rung === rung && next.count > units && !quiet
       rung = next.rung
       units = next.count
       redraw(gained ? units - 1 : units)

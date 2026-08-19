@@ -117,8 +117,16 @@ export function storeyAtLocal(localX: number, localY: number, storeys: number): 
 
 export interface TowerHandle {
   container: Container
-  /** Rebuild for a headcount. Cheap enough on change, far too dear per frame. */
-  setHeadcount(devs: number): void
+  /**
+   * Rebuild for a headcount. Cheap enough on change, far too dear per frame.
+   *
+   * `quiet` suppresses §7.7.2's arrival drop. It is set when the tower has been
+   * *re-pointed* at a different building (§26.2.2's address moved), because a
+   * building that happens to have more storeys in it than the last one is not a
+   * storey arriving — and the drop is a beat the player earns by hiring, not
+   * one the camera hands out for navigating.
+   */
+  setHeadcount(devs: number, quiet?: boolean): void
   /** Advance the arrival animation. `now` in ms. */
   update(now: number): void
   /** True while a storey is still in the air. */
@@ -210,12 +218,12 @@ export function buildTower(): TowerHandle {
   return {
     container: root,
 
-    setHeadcount(devs: number) {
+    setHeadcount(devs: number, quiet = false) {
       const next = storeysFor(devs)
       if (next === storeys) return
       // Only a *gain* is an arrival. Act V liquidates the studio, and a tower
       // shedding storeys is not a beat anyone should be shown falling.
-      const gained = next > storeys
+      const gained = next > storeys && !quiet
       storeys = next
       redraw(gained ? next - 1 : next)
       if (gained) {

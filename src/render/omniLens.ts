@@ -207,6 +207,44 @@ export function fitScale(
 }
 
 /**
+ * How much closer than "the whole view fits" a view may be pushed at the
+ * bottom of its own band — GDD §7.7.1, and the second half of §26.2.2.
+ *
+ * {@link fitScale} frames a view's *whole extent* at its stop and then follows
+ * one fixed curve inwards, which makes the range across a band a constant: for
+ * the room, exactly 3x. That was right while the room was Act I's forty desks,
+ * where three times "the room fits" genuinely is a desk.
+ *
+ * It stops being right the moment the room holds a thousand people. §7.7.1 says
+ * rungs 0–2 are "the same picture at three densities" and names rung 0 **the
+ * desk** — but three times a full room is still a quarter of a full room, so
+ * the bottom of the ladder arrived somewhere between "a floor" and "most of a
+ * floor" and never reached anybody. The complaint that produced this function
+ * was exactly that: *"it's not zooming down to desk level just yet."*
+ *
+ * So the range is a *quantity of people* rather than a constant. The caller
+ * asks for the room to frame one §7.8.1a squad at rung 0 whatever is in it, and
+ * a room holding fewer than a squad or three asks for nothing at all — which is
+ * what keeps every Run 1 frame pixel-identical to the one before this existed.
+ *
+ * Eased on the same curve as the fit it multiplies, so the dolly is still one
+ * continuous motion rather than a fit with a second acceleration bolted on.
+ *
+ * @param range How many times "the whole view fits" the bottom of the band
+ *              should be. Values at or below the band's natural range do
+ *              nothing.
+ */
+export function closeUp(z: number, stopZ: number, range: number): number {
+  const natural = relativeCurve(0) / relativeCurve(stopZ)
+  if (!(range > natural) || !Number.isFinite(range)) return 1
+  const at = relativeCurve(z) / relativeCurve(stopZ)
+  // 0 at the stop, 1 at the bottom of the band. Clamped because the camera is
+  // allowed above its own stop, where this must be exactly 1 and not less.
+  const u = Math.min(1, Math.max(0, (at - 1) / (natural - 1)))
+  return 1 + u * (range / natural - 1)
+}
+
+/**
  * The pre-§23.4.1 zoom curve, kept only as the *shape* of within-band zoom.
  * Its absolute value no longer means anything — {@link fitScale} divides it by
  * its own value at the band centre, so only its slope survives.
