@@ -32,7 +32,7 @@ import { playKeyboardClick, pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
 import { MusicBus } from '../audio/music.ts'
 import { holdHaptic, pokeHaptic } from '../audio/haptics.ts'
-import { LensCamera, closeUp, fitScale } from './omniLens.ts'
+import { LensCamera, fitScale } from './omniLens.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
 import { LITERAL_RUNG_LIMIT, maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
@@ -54,7 +54,7 @@ import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { createTallies, tallySources, type TallySource } from './tallies.ts'
 import { createArrivals } from './arrivals.ts'
-import { ROOM_DEV_CAP, SQUAD_SIZE } from './room.ts'
+import { ROOM_DEV_CAP } from './room.ts'
 import { nominalUnitSize, seatForUnit, unitWindow } from '../sim/units.ts'
 import {
   clampPan,
@@ -109,6 +109,16 @@ const LATENCY_WINDOW = 120
  * on the frame it appears is a joke told at a volume nobody can hear.
  */
 const FLOATER_FADE = 0.3
+
+/**
+ * How much of a view has to be on screen before it may set the pan limits.
+ *
+ * Well above the `renderable` cutoff: the cross-fade deliberately reaches a
+ * whole rung past the camera, and at that distance a view is a four-per-cent
+ * ghost occupying ten times the frame. Panning to the edge of something you
+ * cannot see is indistinguishable from panning into nothing.
+ */
+const PAN_VISIBLE = 0.15
 
 /** Shared empty list, so a rung with no heads does not allocate one per frame. */
 const NO_TALLIES: readonly TallySource[] = []
@@ -406,21 +416,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const i = Math.floor(seat) - room.seatWindow
     return i >= 0 && i < room.drawn ? i : -1
   }
-
-  /**
-   * §7.7.1 — **rung 0 is a desk, and it has to stay one as the room fills.**
-   *
-   * The room's band has a natural range of 3x, which is a desk when the room is
-   * Act I's forty and a quarter of the floor when it is a thousand. So the
-   * bottom of the band is asked to frame one §7.8.1a squad instead: a room of
-   * a thousand pulls in ten times, a room of a hundred pulls in not at all.
-   *
-   * The floor of 3 is what keeps Run 1 untouched — every room below three
-   * hundred people asks for less than the band already gives and gets exactly
-   * what it got before this existed. See `closeUp` in `omniLens.ts`.
-   */
-  const roomCloseUp = (z: number) =>
-    closeUp(z, viewStopZ('room'), Math.max(1, room.drawn) / SQUAD_SIZE)
 
   const roomSeats = () => {
     if (seatCacheFor !== room.drawn) {
@@ -1275,6 +1270,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // storey arriving, and §7.7.2's drop is a beat the player earns by hiring.
     const towerWindow = windowAt(3, MAX_STOREYS)
     tower.setHeadcount(towerWindow.count * DEVS_PER_STOREY, focusMoved)
+    // §26.2.2 — which of the ten the address is in, so the building can say so.
+    // Ten identical slabs cannot answer "which floor am I about to open".
+    tower.setFocusStorey(towerWindow.focus)
     for (const r of [4, 5, 6] as const) {
       const w = windowAt(r, MAX_UNITS)
       city[r].setHeadcount(w.count * nominalUnitSize(r), focusMoved)
@@ -1293,6 +1291,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const studioRung = rungFor(state.devs).rung
     const weights = earnedViewWeights(camera.z, studioRung)
     const view = dominantView(camera.z)
+    let shownW = 0
+    let shownH = 0
     for (const spec of VIEWS) {
       const container = views[spec.view]
       container.alpha = weights[spec.view]
@@ -1303,9 +1303,24 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // Only the visible ones need their transform recomputed.
       if (container.renderable) {
         const fitViewport = viewportForView(spec.view, viewport)
-        const scale =
-          fitScale(scene.extentOf(spec.view), fitViewport, camera.z, viewStopZ(spec.view)) *
-          (spec.view === 'room' ? roomCloseUp(camera.z) : 1)
+        const viewExtent = scene.extentOf(spec.view)
+        const scale = fitScale(viewExtent, fitViewport, camera.z, viewStopZ(spec.view))
+        // §7.7.6 — how far a drag may go is set by the **biggest thing the
+        // player can actually see**, not by whichever view happens to be
+        // nearest its stop. Half way between two rungs the arriving view is
+        // three times the frame while the departing one has shrunk inside it,
+        // and reading the limit off the dominant view alone pinned the pan to
+        // zero at exactly the moment there was most to look around.
+        //
+        // The threshold is the other half. A view one whole rung away is still
+        // drawn — at about four per cent, which is the faint ghost §10.5's
+        // overlap wants — and it is ten times the frame, so counting it handed
+        // the room a pan limit of two and a half thousand pixels into empty
+        // space. A picture nobody can see is not a place anybody can go.
+        if (weights[spec.view] > PAN_VISIBLE) {
+          shownW = Math.max(shownW, viewExtent.w * scale)
+          shownH = Math.max(shownH, viewExtent.h * scale)
+        }
         container.scale.set(scale)
         // The room's folded fit is already composed around the founder at its
         // north vertex. Other views remain truly centred as well.
@@ -1320,9 +1335,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // frame, so a view that already fits does not slide around: panning
     // something that fits is how a player ends up lost in an empty frame.
     const domExtent = scene.extentOf(view)
-    const domScale =
-      fitScale(domExtent, viewportForView(view, viewport), camera.z, viewStopZ(view)) *
-      (view === 'room' ? roomCloseUp(camera.z) : 1)
+    const domScale = fitScale(domExtent, viewportForView(view, viewport), camera.z, viewStopZ(view))
     currentView = view
     currentScale = domScale
 
@@ -1353,8 +1366,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       carryId = -1
     }
 
-    limitX = panLimit(domExtent.w * domScale, viewport.w)
-    limitY = panLimit(domExtent.h * domScale, viewport.h)
+    limitX = panLimit(Math.max(shownW, domExtent.w * domScale), viewport.w)
+    limitY = panLimit(Math.max(shownH, domExtent.h * domScale), viewport.h)
     if (founderFocus && view === 'room') {
       const at = room.founderDeskAt()
       const roomView = views.room
@@ -1569,6 +1582,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         focusSeat,
         seatWindow: room.seatWindow,
         drawn: room.drawn,
+        // §7.7.6 — how far a drag may go. Zero means the picture fits the
+        // frame and panning is a no-op, which is what it silently was at every
+        // rung above the room before the ladder set the dolly rate.
+        pan: `${Math.round(pan.x)},${Math.round(pan.y)}`,
+        panLimit: `${Math.round(limitX)},${Math.round(limitY)}`,
         scale: +domScale.toFixed(5),
         // What the dominant view actually measures on screen, in CSS px. This
         // is the number GDD §23.4.1 exists to make non-zero, so it is the one

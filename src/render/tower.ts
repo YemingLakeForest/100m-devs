@@ -35,7 +35,15 @@ export const DEVS_PER_STOREY = 1000
 /** Rung 3 tops out at 10 storeys; rung 4 makes the whole tower one unit. */
 export const MAX_STOREYS = 10
 
-const STOREY_H = 34
+/**
+ * Storey to storey.
+ *
+ * Raised from 34. At 34 the stack was shorter than one roof diamond is deep, so
+ * even with only the top storey capped the faces were a third of their own
+ * height and the windows had nowhere to sit. Forty-four gives each floor two
+ * rows of windows and a seam, which is what makes ten of them countable.
+ */
+const STOREY_H = 44
 const TOWER_W = 210
 const TOWER_D = 105
 
@@ -127,6 +135,15 @@ export interface TowerHandle {
    * one the camera hands out for navigating.
    */
   setHeadcount(devs: number, quiet?: boolean): void
+  /**
+   * Which storey the §26.2.2 address is in, so it can be lit — or −1 for none.
+   *
+   * The building is ten identical slabs; without this there is nothing on
+   * screen that says which of them you are about to open, or which one you were
+   * standing in a moment ago. "How do I select which floor to go?" was asked of
+   * a picture that could not answer it.
+   */
+  setFocusStorey(index: number): void
   /** Advance the arrival animation. `now` in ms. */
   update(now: number): void
   /** True while a storey is still in the air. */
@@ -135,49 +152,114 @@ export interface TowerHandle {
   readonly extent: { w: number; h: number }
 }
 
-/** One storey: a lit band seen edge-on, with windows. */
-function drawStorey(g: Graphics, y: number, index: number) {
+/**
+ * A storey's two visible faces, and the seam under it.
+ *
+ * **No roof.** Every storey used to draw its own slab top, and the slab top is
+ * a diamond `TOWER_D` deep — a hundred and five pixels — while the storeys are
+ * only {@link STOREY_H} apart. So each floor's roof covered the two or three
+ * above it, and a ten-storey building rendered as one smooth column of
+ * overlapping diamonds with the side faces almost entirely hidden. That is the
+ * washed-out pale tower: not a lighting or a palette problem, a stack of
+ * lids. Only the top storey has a roof now, because in a building only the top
+ * storey does.
+ */
+function drawFaces(g: Graphics, y: number, index: number, lit: boolean) {
   const halfW = TOWER_W / 2
   const halfD = TOWER_D / 2
+  const top = y + halfD
+  const bot = top + STOREY_H
 
-  // The slab top, in the shared 2:1 iso projection.
+  // Left face catches the light, right face does not — ART_DIRECTION §7's
+  // single top-left source, held by hand because no script can check it. The
+  // two are two full steps of the ramp apart rather than one: at this size the
+  // corner between them is the only thing giving the building volume, and one
+  // step of NEUTRAL is not visible through §6's grade.
+  g.moveTo(-halfW, y)
+    .lineTo(0, top)
+    .lineTo(0, bot)
+    .lineTo(-halfW, y + STOREY_H)
+    .closePath()
+    .fill(c(RAMPS.NEUTRAL[lit ? 4 : 3]))
+  g.moveTo(halfW, y)
+    .lineTo(0, top)
+    .lineTo(0, bot)
+    .lineTo(halfW, y + STOREY_H)
+    .closePath()
+    .fill(c(RAMPS.NEUTRAL[lit ? 2 : 1]))
+
+  // Windows, in a band across each face. Lit from a deterministic hash of
+  // storey and column so the facade is identical on every rebuild — a randomly
+  // lit building re-rolls its whole face whenever anything else changes, which
+  // reads as a fault rather than as an office at night.
+  //
+  // The row follows the face's own slope instead of sitting level, which is
+  // what makes the windows read as being *on* the wall rather than painted over
+  // it. Left face slopes down toward the corner, right face up.
+  const rows = STOREY_H >= 34 ? 2 : 1
+  for (let r = 0; r < rows; r++) {
+    const drop = STOREY_H * (0.28 + r * 0.34)
+    for (let i = 0; i < 6; i++) {
+      const on = ((index * 31 + i * 17 + r * 5) % 5) !== 0
+      const wx = -halfW + 14 + i * 16
+      g.rect(wx, y + drop + ((wx + halfW) / TOWER_W) * halfD, 9, 6).fill(
+        c(on ? RAMPS.GLOW[lit ? 2 : 1] : RAMPS.NEUTRAL[0]),
+      )
+    }
+    for (let i = 0; i < 6; i++) {
+      const on = ((index * 13 + i * 23 + r * 7) % 4) !== 0
+      const wx = 8 + i * 16
+      g.rect(wx, y + drop + ((halfW - wx) / TOWER_W) * halfD, 9, 6).fill(
+        c(on ? RAMPS.GLOW[lit ? 1 : 0] : RAMPS.NEUTRAL[0]),
+      )
+    }
+  }
+
+  // **The seam.** A dark line along the bottom of every storey, following the
+  // building's own corner. It is the whole reason a stack reads as ten floors
+  // rather than as one striped box, and it costs two strokes.
+  g.moveTo(-halfW, y + STOREY_H)
+    .lineTo(0, bot)
+    .lineTo(halfW, y + STOREY_H)
+    .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]) })
+
+  // The vertical corner, so the two planes read as meeting rather than as one
+  // folded shape — the same trick the room's walls use.
+  g.moveTo(0, top).lineTo(0, bot).stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.7 })
+
+  if (lit) {
+    // §26.2.2 — the storey the address is in. A rule along its top edge, in the
+    // interface's own phosphor rather than the building's palette: this is the
+    // game pointing at something, not a feature of the architecture.
+    g.moveTo(-halfW, y)
+      .lineTo(0, top)
+      .lineTo(halfW, y)
+      .stroke({ width: 2, color: c(RAMPS.CALM[2]) })
+  }
+}
+
+/** The roof, drawn once, on the top storey. */
+function drawRoof(g: Graphics, y: number) {
+  const halfW = TOWER_W / 2
+  const halfD = TOWER_D / 2
   g.moveTo(0, y - halfD)
     .lineTo(halfW, y)
     .lineTo(0, y + halfD)
     .lineTo(-halfW, y)
     .closePath()
     .fill(c(RAMPS.NEUTRAL[3]))
-
-  // Left face catches the light, right face does not — ART_DIRECTION §7's
-  // single top-left source, held by hand because no script can check it.
-  g.moveTo(-halfW, y)
-    .lineTo(0, y + halfD)
-    .lineTo(0, y + halfD + STOREY_H)
-    .lineTo(-halfW, y + STOREY_H)
+  // Plant and a lift overrun, so the top of the building is a place rather
+  // than a lid. Two shapes, and they are what stops a ten-storey stack ending
+  // in a blank diamond.
+  g.moveTo(-halfW * 0.34, y - halfD * 0.2)
+    .lineTo(0, y + halfD * 0.14)
+    .lineTo(halfW * 0.1, y - halfD * 0.06)
+    .lineTo(-halfW * 0.24, y - halfD * 0.4)
     .closePath()
     .fill(c(RAMPS.NEUTRAL[2]))
-  g.moveTo(halfW, y)
-    .lineTo(0, y + halfD)
-    .lineTo(0, y + halfD + STOREY_H)
-    .lineTo(halfW, y + STOREY_H)
-    .closePath()
-    .fill(c(RAMPS.NEUTRAL[1]))
-
-  // Windows. Lit from a deterministic hash of storey and column so the tower
-  // looks the same on every run — a randomly lit building flickers its whole
-  // facade on any rebuild, which reads as a fault rather than as an office.
-  for (let i = 0; i < 6; i++) {
-    const lit = ((index * 31 + i * 17) % 5) !== 0
-    const wx = -halfW + 14 + i * 16
-    const wy = y + STOREY_H * 0.35 + (i % 2) * 3
-    g.rect(wx, wy, 9, 7).fill(c(lit ? RAMPS.GLOW[1] : RAMPS.NEUTRAL[0]))
-  }
-  for (let i = 0; i < 6; i++) {
-    const lit = ((index * 13 + i * 23) % 4) !== 0
-    const wx = 8 + i * 16
-    const wy = y + STOREY_H * 0.35 + ((i + 1) % 2) * 3
-    g.rect(wx, wy, 9, 7).fill(c(lit ? RAMPS.GLOW[0] : RAMPS.NEUTRAL[0]))
-  }
+  g.rect(halfW * 0.18, y - halfD * 0.42, 22, 12).fill(c(RAMPS.NEUTRAL[4]))
+  g.moveTo(0, y - halfD).lineTo(halfW, y).lineTo(0, y + halfD).lineTo(-halfW, y).closePath()
+    .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.5 })
 }
 
 export function buildTower(): TowerHandle {
@@ -191,16 +273,20 @@ export function buildTower(): TowerHandle {
   stack.addChild(built)
 
   let storeys = 0
+  let focusStorey = -1
   let arrivalStart = 0
   let arriving = false
   const extent = { w: TOWER_W, h: STOREY_H * 2 }
 
   function redraw(n: number) {
     built.clear()
-    // Drawn top-down so lower storeys overlap the ones above them, which is
-    // what makes a stack read as solid rather than as floating slabs.
+    // The roof first — it is the furthest thing from the camera and nothing
+    // below it may be painted over. Then the faces top-down, so a lower storey
+    // overlaps the one above and the stack reads as solid rather than as
+    // floating slabs.
+    if (n > 0) drawRoof(built, -(n - 1) * STOREY_H)
     for (let i = n - 1; i >= 0; i--) {
-      drawStorey(built, -i * STOREY_H, i)
+      drawFaces(built, -i * STOREY_H, i, i === focusStorey)
     }
 
     shadow.clear()
@@ -232,6 +318,14 @@ export function buildTower(): TowerHandle {
       }
     },
 
+    setFocusStorey(index: number) {
+      const next = Number.isFinite(index) ? Math.floor(index) : -1
+      const clamped = next >= 0 && next < storeys ? next : -1
+      if (clamped === focusStorey) return
+      focusStorey = clamped
+      if (!arriving) redraw(storeys)
+    },
+
     update(now: number) {
       if (!arriving) return
       const t = (now - arrivalStart) / STOREY_DROP_MS
@@ -247,7 +341,9 @@ export function buildTower(): TowerHandle {
       // The storey in the air, drawn separately so the settled stack below it
       // can squash without dragging it along.
       const h = storeyDropHeight(t)
-      drawStorey(falling, -(storeys - 1) * STOREY_H - h, storeys - 1)
+      const fallY = -(storeys - 1) * STOREY_H - h
+      drawRoof(falling, fallY)
+      drawFaces(falling, fallY, storeys - 1, false)
       stack.scale.set(1, towerSquash(t))
     },
 

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { TIER_EXTENTS } from './scene.ts'
-import { zAtRung } from '../sim/ladder.ts'
+import {
+  TOP_RUNG,
+  VIEWS,
+  ladderShrink,
+  viewStopZ,
+  viewWeights,
+  zAtRung,
+} from '../sim/ladder.ts'
 import {
   BAND_EDGES,
   CENTRES,
@@ -199,19 +206,70 @@ describe('tierScale — GDD §23.4.1, the camera answers to the viewport', () =>
     }
   })
 
-  it('never renders a visible tier grossly oversized — the shared-scale bug', () => {
+  it('never renders a visible view grossly oversized — the shared-scale bug', () => {
     // Scale used to be ONE value for all four tiers, blended by LOD weight.
     // The tiers differ in intrinsic size by more than 5x, so the blend fitted
     // neither: at desk zoom the cross-fading floor tier rendered 3,780 px wide
-    // inside a 1,023 px viewport. Any tier the player can actually see must
+    // inside a 1,023 px viewport. Anything the player can actually see must
     // stay within a sane multiple of the frame.
-    for (let z = 0; z <= 1; z += 0.01) {
-      const w = lodWeights(z)
-      for (const level of LEVELS) {
-        if (w[level] <= 0.002) continue
-        const s = tierScale(level, z, LANDSCAPE, TIER_EXTENTS)
-        expect((TIER_EXTENTS[level].w * s) / LANDSCAPE.w).toBeLessThan(2)
+    //
+    // **Asked of the path the renderer uses.** This used to measure
+    // `tierScale`, which nothing has rendered through since §7.4a separated the
+    // tiers from the navigation stops — the live path is `fitScale` against a
+    // *view's* stop, and a test of the dead one is a test that cannot fail for
+    // the reason it was written. Extents cancel, because every view is fitted
+    // to the frame at its own stop; what is left is `ladderShrink`, which is
+    // the entire claim.
+    //
+    // The bound is derived, not chosen. One rung of dolly is `√10 ≈ 3.16` of
+    // linear size, because a rung is ten times the people and people stand on
+    // the ground — so a view a whole rung inside its own stop is 3.16x its fit
+    // *by construction*, and that is the pull-back working rather than the bug
+    // this test was written for. The old bound of 2 was calibrated against a
+    // dolly rate of 1.2x per rung, which was the thing that was wrong.
+    //
+    // Eight rather than 3.16 because two of §7.7.1's rungs are not one decade.
+    // The bands step from a town at 10⁶ straight to a nation at 10⁸, so that
+    // rung is a hundred times the people and ten times the size; a fade that
+    // reaches ~0.9 rungs at fifteen per cent therefore tops out near `10^0.9`.
+    // Both facts are the ladder's, and neither is a tolerance.
+    for (let z = 0; z <= 1; z += 0.005) {
+      const w = viewWeights(z)
+      for (const spec of VIEWS) {
+        // 0.15 rather than the 0.002 `renderable` cutoff: a view a whole rung
+        // away is a faint ghost, and "can actually see" has to mean see.
+        if (w[spec.view] <= 0.15) continue
+        expect(ladderShrink(z, viewStopZ(spec.view))).toBeLessThan(8)
       }
+    }
+  })
+
+  it('always has SOMETHING filling the frame — §23.4.1', () => {
+    // The companion to the bound above, and the half §23.4.1 is actually about:
+    // whatever the camera has settled on is *the picture*, and a picture that
+    // has shrunk to a third of the frame is the "studio somewhere off in the
+    // corner" failure that section exists to forbid.
+    //
+    // Only a floor, deliberately. A view being **larger** than its fit is not a
+    // defect, it is zooming in: `room` alone spans three rungs and fits at the
+    // top of them, so at rung 0 — §7.7.4's Hero Anchor, one desk filling the
+    // screen — it is `√10` over its fit *by design*. A ceiling here would be
+    // asserting that the desk zoom is a bug.
+    //
+    // Asked of the **largest visible** view rather than of `dominantView`, and
+    // the difference is real. `dominantView` is nearest-stop with a list-order
+    // tie-break, so half way between the town and the nation it names the one
+    // that has shrunk to a third of the frame while the one actually filling it
+    // is three times over. Which of the two is *called* dominant is a labelling
+    // question; whether the player is looking at an empty screen is not.
+    for (let z = 0; z <= 1; z += 0.005) {
+      const w = viewWeights(z)
+      const biggest = Math.max(
+        ...VIEWS.filter((spec) => w[spec.view] > 0.15).map((spec) =>
+          ladderShrink(z, viewStopZ(spec.view)),
+        ),
+      )
+      expect(biggest).toBeGreaterThan(0.55)
     }
   })
 
@@ -226,11 +284,21 @@ describe('tierScale — GDD §23.4.1, the camera answers to the viewport', () =>
   it('is continuous in Z for every tier — no step at a band edge', () => {
     // §10.5: nothing cuts. A scale that jumped would be the most visible cut
     // the renderer could produce.
+    //
+    // The bound follows from the ladder rather than from taste. `ladderShrink`
+    // is `1/√(people in frame)` and §7.7.1's steepest band is two decades in
+    // one rung — a town at 10^6 to a nation at 10^8, with nothing between them
+    // — so across a step of `dz` the scale may change by at most
+    // `10^(TOP_RUNG · dz)`. At dz = 0.005 that is about 11%. Continuity itself
+    // is exact: `seatsFramedAt` interpolates in the exponent, so the scale is
+    // continuous everywhere and only its *slope* changes at a rung boundary.
+    const dz = 0.005
+    const bound = 10 ** (TOP_RUNG * dz) - 1
     for (const level of LEVELS) {
       let previous = tierScale(level, 0, LANDSCAPE, TIER_EXTENTS)
-      for (let z = 0.005; z <= 1; z += 0.005) {
+      for (let z = dz; z <= 1; z += dz) {
         const s = tierScale(level, z, LANDSCAPE, TIER_EXTENTS)
-        expect(Math.abs(s - previous) / previous).toBeLessThan(0.05)
+        expect(Math.abs(s - previous) / previous).toBeLessThan(bound)
         previous = s
       }
     }

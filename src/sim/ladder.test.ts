@@ -117,11 +117,25 @@ describe('the cross-fade — GDD §10.5, nothing cuts', () => {
   })
 
   it('is continuous — no weight jumps between adjacent samples', () => {
+    // The bound is derived from the narrowest fade rather than picked. A
+    // smoothstep's steepest slope is 1.5 per half-width, so a view whose fade
+    // is `h` rungs wide changes at up to `1.5 / h` per rung — and `sprawl`'s is
+    // deliberately the narrowest, because §7.7.1's town-to-nation rung is two
+    // decades and deserves half the overlap the one-decade rungs get.
+    // Then the renormalise roughly doubles it: the weights are divided by their
+    // own sum, and where one view is falling fastest the sum is falling too, so
+    // both the numerator and the denominator move the same way. Measured at
+    // about 1.85x the raw slope; 2.5 is the headroom over that.
+    const dz = 0.004
+    const narrowest = Math.min(
+      ...VIEWS.map((v) => Math.min(v.halfWidth, v.halfWidthOut ?? v.halfWidth)),
+    )
+    const bound = (1.5 / narrowest) * TOP_RUNG * dz * 2.5
     let prev = viewWeights(0)
-    for (let z = 0.004; z <= 1; z += 0.004) {
+    for (let z = dz; z <= 1; z += dz) {
       const next = viewWeights(z)
       for (const view of VIEW_KINDS) {
-        expect(Math.abs(next[view] - prev[view])).toBeLessThan(0.05)
+        expect(Math.abs(next[view] - prev[view])).toBeLessThan(bound)
       }
       prev = next
     }

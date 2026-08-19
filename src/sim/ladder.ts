@@ -98,10 +98,31 @@ export const VIEWS: readonly LadderView[] = [
   { view: 'room', from: 0, stop: 2, tier: 1, halfWidth: 2.1, halfWidthOut: 1 },
   { view: 'tower', from: 3, stop: 3, tier: 2, halfWidth: 1.25 },
   { view: 'block', from: 4, stop: 4, tier: 3, halfWidth: 1.15 },
+  // **The overlap across the two-decade band stays wide, and that is measured
+  // rather than assumed.** §7.7.1 steps from a town at 10⁶ straight to a nation
+  // at 10⁸, so rung 5 to rung 6 is a hundred times the people where every other
+  // rung is ten — ten times the linear size in one rung rather than three. The
+  // arriving view therefore reaches fifteen per cent alpha while seven times
+  // the frame, which looks like it wants a shorter fade.
+  //
+  // It does not. Halving these two put a **hole** in the dolly: across rungs
+  // 5.2 to 5.5 the town had shrunk to two fifths of the frame and the nation
+  // had not yet faded up enough to fill it, so the emptiest picture in the whole
+  // ladder was in the middle of a move rather than at either end of it. An
+  // oversized arrival is a zoom; an empty frame is nothing at all.
   { view: 'park', from: 5, stop: 5, tier: 3, halfWidth: 1.15 },
   { view: 'sprawl', from: 6, stop: 6, tier: 3, halfWidth: 1.15 },
   { view: 'grid', from: 7, stop: 7, tier: 3, halfWidth: 1.25 },
-  { view: 'cosmic', from: 8, stop: 8.5, tier: 4, halfWidth: 1.9 },
+  // **Stop 8, not 8.5.** The cosmos used to sit a rung and a half above the
+  // nation, and `dominantView` picks the *nearest* stop — so between them the
+  // settled picture was three and a half times off its own fit, which is
+  // §23.4.1's promise broken by a gap in a table. One rung, like every other
+  // pair, and a narrower window because there is nothing above it to hand over
+  // to. Rungs 8 and 9 are unreachable in any case: the zoom ceiling is the
+  // studio's own rung and §13.5's gate is 10^8. Cutting them outright is the
+  // right end state and is its own change — it takes §7.4's fourth tier, the
+  // §20.7.3 music bed and the §8.2 poke sounds with it.
+  { view: 'cosmic', from: 8, stop: 8, tier: 4, halfWidth: 1.4 },
 ] as const
 
 export const VIEW_KINDS: readonly ViewKind[] = VIEWS.map((v) => v.view)
@@ -129,6 +150,87 @@ export function rungAt(z: number): number {
 /** Z at a rung — the inverse. Fractional rungs are legal; this is a ladder, not a lift. */
 export function zAtRung(rung: number): number {
   return clamp01(rung / TOP_RUNG)
+}
+
+/**
+ * **How many developers the frame holds at each rung's stop** — GDD §7.7.1.
+ *
+ * This is the table that makes zooming out a *pull-back* instead of a
+ * dissolve, and it is worth saying why one was needed at all.
+ *
+ * {@link fitScale} frames each view's whole extent at its own stop and then
+ * follows one fixed curve inwards — `1 / (1 + 9z)` — for every view, at every
+ * rung. That curve knows nothing about what is in frame, and the number it
+ * produces was wrong by a factor of nearly three: one rung of dolly shrank the
+ * near view by **1.2x** when §7.7.1's own arithmetic says a rung is ten times
+ * the people, and ten times the people standing on the ground is **√10 ≈ 3.16**
+ * times the linear size. So the view you were leaving stayed far too big while
+ * the one you were arriving at faded in underneath it, and the hand-off read as
+ * two pictures dissolving rather than one camera moving. No amount of tuning the
+ * cross-fade fixes that, because the cross-fade was never the problem.
+ *
+ * The rule is one line: **a person takes up a fixed amount of ground, so the
+ * scale goes as `1 / √(people in frame)`.** Everything else follows from the
+ * table — the room's own three rungs included, which is why the `closeUp`
+ * special case this replaced is gone.
+ *
+ * | Rung | The frame holds | Which is |
+ * |---|---|---|
+ * | 0 | 100 | a §7.8.1a squad — the desk |
+ * | 1 | ~316 | the same room, half way out |
+ * | 2 | 1,000 | the floor, whole |
+ * | 3 | 10,000 | the building — ten floors |
+ * | 4 | 10⁵ | the campus — ten buildings |
+ * | 5 | 10⁶ | the town — ten campuses |
+ * | 6 | 10⁸ | the nation — a hundred towns |
+ * | 7 | 10⁹ | the nation, with somewhere around it |
+ *
+ * The step from 6 to 7 is two decades because §7.7.1's bands are: they go from
+ * a town at 10⁶ straight to a nation at 10⁸ with nothing in between. The rule
+ * absorbs it without a special case, which is the point of having a rule.
+ *
+ * **Rungs 8 and 9 hold the same value, and that is an interim.** They are
+ * unreachable — the zoom ceiling is the studio's own rung and no run reaches
+ * 10¹⁰ developers — and `scene.ts` already says the cosmic tier "is authored at
+ * screen scale and rides the cross-fade rather than the camera", so there is no
+ * headcount for them to describe. Giving them a slope put the emptiest frame in
+ * the whole ladder at rung 9: the cosmos a full rung past its own stop, drawn
+ * at a quarter of the frame, with nothing else visible to fill it.
+ *
+ * Flat is the honest holding position rather than the right answer. The right
+ * answer is to cut both rungs, which is a decided change and a larger one — it
+ * takes §7.4's fourth tier, §20.7.3's cosmic music bed and §8.2's fourth poke
+ * sound with it, and none of that belongs in a commit about the dolly rate.
+ */
+const SEATS_FRAMED_LOG10: readonly number[] = [2, 2.5, 3, 4, 5, 6, 8, 9, 10.2, 10.2]
+
+export function seatsFramedAt(rung: number): number {
+  const at = Math.max(0, Math.min(TOP_RUNG, Number.isFinite(rung) ? rung : 0))
+  const lo = Math.floor(at)
+  const hi = Math.min(TOP_RUNG, lo + 1)
+  // Interpolated in the exponent, so the scale is continuous through a dolly
+  // rather than stepping at every rung boundary.
+  const t = at - lo
+  return 10 ** (SEATS_FRAMED_LOG10[lo] * (1 - t) + SEATS_FRAMED_LOG10[hi] * t)
+}
+
+/**
+ * How much smaller a view drawn at `stopZ` should be when the camera is at `z`.
+ *
+ * 1 at its own stop, `1/√10` one rung out, `√10` one rung in — the linear
+ * consequence of {@link seatsFramedAt}. This is the whole of the pull-back.
+ *
+ * It is also what makes the world **pannable above the room**, which it was
+ * not: every view was fitted to the frame and shrank so slowly on the way in
+ * that it never grew past the frame's edges, so `panLimit` was zero at every
+ * rung above rung 2 and there was nothing a drag could do. Zooming in below a
+ * stop now genuinely enlarges the picture, so there is somewhere to drag to.
+ */
+export function ladderShrink(z: number, stopZ: number): number {
+  const here = seatsFramedAt(rungAt(z))
+  const there = seatsFramedAt(rungAt(stopZ))
+  if (!(here > 0) || !(there > 0)) return 1
+  return Math.sqrt(there / here)
 }
 
 /** Z at which `view` exactly fits the frame. */
