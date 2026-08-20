@@ -3486,7 +3486,7 @@ body {
   color: color-mix(in srgb, var(--n5) 78%, transparent);
   cursor: pointer;
   display: grid;
-  grid-template-columns: 2ch minmax(0, 1fr) 4ch;
+  grid-template-columns: 2ch minmax(0, 1fr) 6ch;
   align-items: center;
   gap: 5px;
   text-align: left;

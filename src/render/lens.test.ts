@@ -10,6 +10,7 @@ import {
   settleTowards,
 } from './lens.ts'
 import {
+  BLOCK,
   BUILDING,
   DESK,
   FLOOR,
@@ -17,9 +18,10 @@ import {
   SQUAD,
   fitScaleFor,
   floorFrame,
-  floorToBuilding,
+  floorToBlock,
   floorScaleAt,
   intoPlate,
+  intoPlot,
   roomResolved,
 } from './frames.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
@@ -272,7 +274,7 @@ describe('a gesture arrives where it was going', () => {
 
   it('stays on the ladder at both ends', () => {
     expect(settleTowards(-2, 0)).toBe(DESK)
-    expect(settleTowards(9, 3)).toBe(BUILDING)
+    expect(settleTowards(9, 4)).toBe(BLOCK)
   })
 
   it('falls back to nearest when nothing started the gesture', () => {
@@ -388,7 +390,7 @@ describe("§7.7.1's ceiling", () => {
     expect(scales[FLOOR]).toBeGreaterThanOrEqual(scales[BUILDING])
     // And the outermost rung the player may reach frames the room they are
     // sitting in — which is what the garage rectangle was for.
-    expect(scales[SQUAD]).toBeCloseTo(fitScaleFor(intoPlate(GARAGE, 0), REFERENCE), 5)
+    expect(scales[SQUAD]).toBeCloseTo(fitScaleFor(intoPlot(intoPlate(GARAGE, 0), 0), REFERENCE), 5)
   })
 
   it('stops the zoom at the ceiling instead of past it', () => {
@@ -451,7 +453,7 @@ describe("§7.7.1's ceiling", () => {
     // 10x10 block, the camera would sit at the garage's scale looking at the
     // middle of a block the garage is one corner of.
     const lens = newGame()
-    const room = intoPlate(GARAGE, 0)
+    const room = intoPlot(intoPlate(GARAGE, 0), 0)
     expect(lens.frameOf(SQUAD)).toEqual(room)
     expect(lens.frameOf(FLOOR)).toEqual(room)
     // The desk is genuinely inside the garage and keeps its own frame.
@@ -473,7 +475,7 @@ describe("§7.7.1's ceiling", () => {
     lens.flyTo(DESK, founder)
     settle(lens)
     const aimed = lens.centre
-    expect(aimed.cx).toBeCloseTo(floorToBuilding(founder, 0).x, 3)
+    expect(aimed.cx).toBeCloseTo(floorToBlock(founder, 0, 0).x, 3)
 
     // The frames move: the garage grows, and the canvas is laid out again.
     lens.setFloorRect({ ...GARAGE, w: GARAGE.w * 1.2, h: GARAGE.h * 1.2 })
@@ -498,6 +500,6 @@ describe('settleLevel', () => {
     expect(settleLevel(2.4)).toBe(FLOOR)
     expect(settleLevel(2.6)).toBe(BUILDING)
     expect(settleLevel(-4)).toBe(DESK)
-    expect(settleLevel(99)).toBe(BUILDING)
+    expect(settleLevel(99)).toBe(BLOCK)
   })
 })

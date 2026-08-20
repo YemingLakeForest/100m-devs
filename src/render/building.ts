@@ -2,6 +2,13 @@
  * Level 3 — the building: a tower to choose a floor from, and that floor's plan
  * pulled out beside it.
  *
+ * **`devs` here is the headcount of *this building*, not of the studio.** It
+ * was the studio's when there was only ever one of them, and the difference is
+ * the whole of what the block level changed in this file: `setHeadcount` takes
+ * `devsIn(state.devs, building)` and every storey, squad and window count below
+ * reads from that. A tower that drew the studio's headcount would put ten full
+ * floors in every building on the block.
+ *
  * `docs/PLAN-2026-08-19-lens.md` §4. What this replaces was a solid slab tower
  * measuring 190 px wide in a 997 px frame with nothing else on screen. Two
  * things were wrong with it and only one of them was the size.
@@ -36,6 +43,7 @@ import { RAMPS, hexToRgb } from '../art/palette.ts'
 import {
   BAND_H,
   DEVS_PER_FLOOR,
+  FLOORS_PER_BUILDING,
   PLATE_SCALE,
   PLOT_DROP,
   TOWER_CROWN,
@@ -46,7 +54,7 @@ import {
   floorOutline,
   plateAt,
   squadOutline,
-  storeysFor,
+  storeysIn,
 } from './frames.ts'
 import { ROOM_SQUAD_COLS, ROOM_SQUAD_ROWS, SQUAD_SIZE } from './room.ts'
 
@@ -516,6 +524,30 @@ function drawPlan(g: Graphics, onFloor: number) {
   g.stroke({ width: 30, color: c(RAMPS.CALM[1]), alpha: 0.9 })
 }
 
+/**
+ * The tower alone — no plan, no lift line. What one plot of the block holds.
+ *
+ * Exported because `block.ts` draws nine of these and this file draws the
+ * tenth, and they have to be the same picture: the block's tower for a plot and
+ * the real building parented into that same plot are drawn at the same size in
+ * the same place, so the hand-off as the camera descends is a swap nobody can
+ * see. That is the {@link ROOM_RESOLVE_SCALE} trick again, one level up — match
+ * the two representations at the size they trade at, rather than blending two
+ * that never match.
+ *
+ * `focus` is which storey is lit, or −1 for none. A block does not light a
+ * storey: at that scale a band is 19 px and the thing being chosen is the
+ * building.
+ */
+export function drawTower(g: Graphics, storeys: number, devs: number, focus = -1): void {
+  const n = Math.max(0, Math.min(FLOORS_PER_BUILDING, Math.floor(storeys)))
+  if (n <= 0) return
+  drawPodiumDeck(g)
+  drawRoof(g, n)
+  for (let f = n - 1; f >= 0; f--) drawStorey(g, f, squadsOnStorey(devs, f), f === focus)
+  drawPodium(g)
+}
+
 export interface BuildingHandle {
   container: Container
   /**
@@ -541,6 +573,16 @@ export interface BuildingHandle {
   setPlanHidden(storey: number, hidden: boolean): void
   /** Fade the tower out as the camera goes indoors. */
   setChromeAlpha(alpha: number): void
+  /**
+   * Fade the pulled-out plan in as the *block* goes away.
+   *
+   * The plan is 286 units wide against a 130-unit plot stride, so at block
+   * scale it would be drawn straight across the neighbouring building. It
+   * arrives as the last neighbour leaves — two different objects trading
+   * places, which is a fade §10.5 allows, rather than two pictures of one
+   * object, which is the one it forbids.
+   */
+  setPlanAlpha(alpha: number): void
   /** Advance §7.7.2's arrival. `now` in ms. */
   update(now: number): void
   readonly settling: boolean
@@ -570,25 +612,13 @@ export function buildBuilding(): BuildingHandle {
   let arriving = false
   let arrivalStart = 0
 
+  /*
+   * Back to front, which for a tower means top down — see {@link drawTower},
+   * which owns the order now because the block draws the same thing.
+   */
   function redrawTower(n: number) {
     tower.clear()
-    if (n <= 0) return
-    /*
-     * Back to front, which for a tower means top down.
-     *
-     * The plinth's *deck* goes first and its *faces* go last, and they are the
-     * two ends of the same object on purpose: the deck lies behind the shaft
-     * and everything but its near sliver is meant to be painted over, while the
-     * faces hang below the shaft's own foot and can never collide with it. In
-     * between, the roof, then the storeys downward so a lower one overlaps the
-     * one above and the stack reads as solid.
-     */
-    drawPodiumDeck(tower)
-    drawRoof(tower, n)
-    for (let f = n - 1; f >= 0; f--) {
-      drawStorey(tower, f, squadsOnStorey(devs, f), f === focus)
-    }
-    drawPodium(tower)
+    drawTower(tower, n, devs, focus)
   }
 
   function redrawGround() {
@@ -645,7 +675,7 @@ export function buildBuilding(): BuildingHandle {
       if (n === devs) return
       const before = storeys
       devs = n
-      storeys = storeysFor(n)
+      storeys = storeysIn(n)
       if (storeys > before) {
         // Only a *gain* is an arrival. Act V liquidates the studio, and a
         // building shedding floors is not a beat anyone should be shown.
@@ -669,6 +699,13 @@ export function buildBuilding(): BuildingHandle {
       if (hide === planHidden) return
       planHidden = hide
       redrawPlan()
+    },
+
+    setPlanAlpha(alpha: number) {
+      const a = Math.max(0, Math.min(1, Number.isFinite(alpha) ? alpha : 1))
+      plan.alpha = a
+      plan.renderable = a > 0.004
+      link.visible = plan.renderable
     },
 
     setChromeAlpha(alpha: number) {

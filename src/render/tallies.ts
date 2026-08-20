@@ -121,8 +121,13 @@ export function groupSizeFor(drawn: number, cap: number = MAX_SOURCES): number {
  *   squad rather than across two of them.
  * - **Building** — you can see floors. The pulled-out plan is one floor, so it
  *   gets one numeral: what this storey earns, over this storey.
+ * - **Block** — you can see buildings, and the room draws one of them. The same
+ *   argument lands on the same number: one numeral, over the floor you are
+ *   standing in, because that is the only part of the block whose people this
+ *   layer has. A numeral per *building* would be a lie — the layer speaks for
+ *   the seats the room drew, and the room drew one storey of one tower.
  */
-export const SOURCE_CAP: readonly number[] = [MAX_SOURCES, MAX_SOURCES, 10, 1]
+export const SOURCE_CAP: readonly number[] = [MAX_SOURCES, MAX_SOURCES, 10, 1, 1]
 
 /** The cap for a continuous position on the ladder — see {@link SOURCE_CAP}. */
 export function capForLevel(level: number): number {
@@ -152,7 +157,13 @@ export function capForLevel(level: number): number {
  * appearing and vanishing at a boundary that moves with the camera reads as a
  * rendering fault, and the same boundary held still reads as a team.
  */
-export const SOURCE_SPAN: readonly number[] = [MAX_SOURCES, MAX_SOURCES, Infinity, Infinity]
+export const SOURCE_SPAN: readonly number[] = [
+  MAX_SOURCES,
+  MAX_SOURCES,
+  Infinity,
+  Infinity,
+  Infinity,
+]
 
 /** The span for a continuous position on the ladder — see {@link SOURCE_SPAN}. */
 export function spanForLevel(level: number): number {

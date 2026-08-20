@@ -1,8 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import {
   BAND_H,
+  BLOCK,
+  BLOCK_COLS,
+  BLOCK_SCALE,
+  BUILDINGS_PER_BLOCK,
   BUILDING,
+  BUILDING_CAP,
   BUILDING_FADE_END,
+  blockChromeAlpha,
+  blockFrame,
+  buildingAtBlock,
+  buildingOf,
+  buildingsFor,
+  devsIn,
+  intoPlot,
+  plotAt,
+  plotDepth,
+  storeysIn,
+  towerRect,
   DESK,
   DEVS_PER_FLOOR,
   FLOOR,
@@ -14,7 +30,6 @@ import {
   bandRect,
   buildingChromeAlpha,
   buildingFrame,
-  descendOnDoubleTap,
   deskFrame,
   fitScaleFor,
   floorFrame,
@@ -28,6 +43,7 @@ import {
   plateRect,
   roomResolved,
   scaleAtLevel,
+  seatOfBuilding,
   seatOfStorey,
   squadAtFloor,
   squadFrame,
@@ -184,12 +200,13 @@ describe('the address', () => {
 })
 
 describe('fitting, at the reference frame', () => {
-  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)
+  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
 
   it('each level is a real zoom step inward', () => {
     expect(scales[DESK]).toBeGreaterThan(scales[SQUAD])
     expect(scales[SQUAD]).toBeGreaterThan(scales[FLOOR])
     expect(scales[FLOOR]).toBeGreaterThan(scales[BUILDING])
+    expect(scales[BUILDING]).toBeGreaterThan(scales[BLOCK])
     // No step smaller than a doubling: a level the player cannot feel arriving
     // is a level that should not be a stop.
     expect(scales[SQUAD] / scales[FLOOR]).toBeGreaterThan(2)
@@ -217,36 +234,181 @@ describe('fitting, at the reference frame', () => {
     expect(px / REFERENCE.h).toBeCloseTo(0.94, 2)
   })
 
+  it('and so does the block', () => {
+    const frame = frameFor(BLOCK, 0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK)
+    const px = frame.h * scales[BLOCK]
+    expect(px / REFERENCE.h).toBeCloseTo(0.94, 2)
+  })
+
   it('a level position and a scale are inverses', () => {
-    for (const l of [0, 0.5, 1, 1.7, 2, 2.4, 3] as const) {
+    for (const l of [0, 0.5, 1, 1.7, 2, 2.4, 3, 3.6, 4] as const) {
       expect(levelAtScale(scaleAtLevel(l, scales), scales)).toBeCloseTo(l, 6)
     }
   })
 
   it('clamps rather than extrapolating past either end', () => {
     expect(levelAtScale(scales[DESK] * 10, scales)).toBe(DESK)
-    expect(levelAtScale(scales[BUILDING] / 10, scales)).toBe(BUILDING)
+    expect(levelAtScale(scales[BLOCK] / 10, scales)).toBe(BLOCK)
   })
 })
 
-describe('the double tap descends', () => {
-  it('only from a level with something under it', () => {
-    // The building has its own two-tap picker and the desk is the bottom.
-    expect(descendOnDoubleTap(BUILDING, 10_000)).toBe(false)
-    expect(descendOnDoubleTap(DESK, 10_000)).toBe(false)
-    expect(descendOnDoubleTap(FLOOR, 10_000)).toBe(true)
-    expect(descendOnDoubleTap(SQUAD, 10_000)).toBe(true)
+describe('the block', () => {
+  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
+
+  it('numbers the address one way, and unpacks it every way', () => {
+    // One global seat still. Everything else is derived, so nothing can
+    // disagree with anything.
+    expect(buildingOf(0)).toBe(0)
+    expect(storeyOf(0)).toBe(0)
+    expect(buildingOf(BUILDING_CAP)).toBe(1)
+    // The one that would be wrong under the old reading: seat 14,000 is floor
+    // *four of the second building*, not floor fourteen of anything.
+    expect(buildingOf(14_000)).toBe(1)
+    expect(storeyOf(14_000)).toBe(4)
+    expect(seatOfBuilding(3)).toBe(3 * BUILDING_CAP)
+    expect(seatOfStorey(2, 3)).toBe(3 * BUILDING_CAP + 2 * DEVS_PER_FLOOR)
+    expect(buildingOf(seatOfStorey(2, 3))).toBe(3)
+    expect(storeyOf(seatOfStorey(2, 3))).toBe(2)
   })
 
-  it('and only once there is more than one squad to choose between', () => {
-    // §21 Act I boots with POKE latched over a script that reads TAP TO CODE,
-    // and a descend consumes the tap — so a studio of two people clicking at
-    // the speed a clicker is played at loses every second click to navigation,
-    // and the navigation flies the camera onto the person being coded at.
-    expect(descendOnDoubleTap(SQUAD, 2)).toBe(false)
-    expect(descendOnDoubleTap(SQUAD, SQUAD_SIZE)).toBe(false)
-    expect(descendOnDoubleTap(SQUAD, SQUAD_SIZE + 1)).toBe(true)
-    expect(descendOnDoubleTap(FLOOR, 2)).toBe(false)
+  it('clamps the address to the studio this scope draws', () => {
+    expect(buildingOf(-5)).toBe(0)
+    expect(buildingOf(1e9)).toBe(BUILDINGS_PER_BLOCK - 1)
+    expect(storeyOf(1e9)).toBe(FLOORS_PER_BUILDING - 1)
+  })
+
+  it('fills its buildings in order, and only the last one grows', () => {
+    expect(buildingsFor(1)).toBe(1)
+    expect(buildingsFor(BUILDING_CAP)).toBe(1)
+    expect(buildingsFor(BUILDING_CAP + 1)).toBe(2)
+    expect(buildingsFor(1e9)).toBe(BUILDINGS_PER_BLOCK)
+
+    // 25,000 developers: two full buildings and a third with five floors.
+    expect(storeysIn(25_000, 0)).toBe(FLOORS_PER_BUILDING)
+    expect(storeysIn(25_000, 1)).toBe(FLOORS_PER_BUILDING)
+    expect(storeysIn(25_000, 2)).toBe(5)
+    expect(storeysIn(25_000, 3)).toBe(0)
+    expect(devsIn(25_000, 0)).toBe(BUILDING_CAP)
+    expect(devsIn(25_000, 2)).toBe(5_000)
+    expect(devsIn(25_000, 9)).toBe(0)
+  })
+
+  it('stands every tower of a row clear of the one beside it', () => {
+    // Along a row, which is the case a 130-unit stride against a 115-unit
+    // footprint was chosen for: fifteen units of street, and no tower is ever
+    // partly behind the one next to it.
+    for (const row of [0, 5]) {
+      for (let c = 0; c + 1 < BLOCK_COLS; c++) {
+        const a = intoPlot(towerRect(FLOORS_PER_BUILDING), row + c)
+        const b = intoPlot(towerRect(FLOORS_PER_BUILDING), row + c + 1)
+        expect(Math.abs(a.cx - b.cx), `plots ${row + c} and ${row + c + 1}`).toBeGreaterThanOrEqual(
+          (a.w + b.w) / 2,
+        )
+      }
+    }
+  })
+
+  it('leaves every tower a piece of itself to be tapped', () => {
+    /*
+     * **The near row does stand in front of the far row**, and this is the
+     * assertion that replaced the one claiming it does not — written first,
+     * failed immediately, and it was right: on a 2:1 lattice the plot one
+     * column along *and* one row nearer sits at exactly the same x, 130 units
+     * lower, against a 290-unit tower. Four of the ten are half hidden.
+     *
+     * That is what a block looks like and it is not the defect the plate stack
+     * had, because the thing that matters is not that a tower is whole — it is
+     * that **every tower keeps a band of itself that the finger can reach**.
+     * The picker resolves nearest-first, so the exposed band belongs to the
+     * building it looks like it belongs to.
+     *
+     * A 9 mm fingertip is about 34 px at the reference frame.
+     */
+    const all = () => FLOORS_PER_BUILDING
+    for (let i = 0; i < BUILDINGS_PER_BLOCK; i++) {
+      const box = intoPlot(towerRect(FLOORS_PER_BUILDING), i)
+      let exposed = 0
+      for (let y = box.cy - box.h / 2; y <= box.cy + box.h / 2; y += 1) {
+        if (buildingAtBlock(box.cx, y, BUILDINGS_PER_BLOCK, all) === i) exposed += 1
+      }
+      expect(exposed * scales[BLOCK], `building ${i}`).toBeGreaterThan(34)
+    }
+  })
+
+  it('lays the plots out five across and two back', () => {
+    // Column along is right and down; a row back is left and up. The same 2:1
+    // as the floor's squads, which is the same arrangement one scale up.
+    expect(plotAt(0)).toEqual({ x: 0, y: 0 })
+    expect(plotAt(1).x).toBeGreaterThan(plotAt(0).x)
+    expect(plotAt(1).y).toBeGreaterThan(plotAt(0).y)
+    expect(plotAt(5).x).toBeLessThan(plotAt(0).x)
+    expect(plotAt(5).y).toBeGreaterThan(plotAt(0).y)
+    // And drawing order is depth order: nearer is further down the screen.
+    for (let i = 0; i < BUILDINGS_PER_BLOCK; i++) {
+      for (let j = 0; j < BUILDINGS_PER_BLOCK; j++) {
+        if (plotDepth(i) < plotDepth(j)) expect(plotAt(i).y).toBeLessThan(plotAt(j).y)
+      }
+    }
+  })
+
+  it('names the tower under the finger, at every plot', () => {
+    const all = () => FLOORS_PER_BUILDING
+    for (let i = 0; i < BUILDINGS_PER_BLOCK; i++) {
+      const at = plotAt(i)
+      // Near the crown, which is the part of a far-row tower that is not behind
+      // the near-row one — see the exposure test above.
+      expect(buildingAtBlock(at.x, at.y - 250, BUILDINGS_PER_BLOCK, all)).toBe(i)
+    }
+    // And off the block is nobody, not building zero.
+    expect(buildingAtBlock(-9_000, 0, BUILDINGS_PER_BLOCK, all)).toBe(-1)
+  })
+
+  it('does not name a plot the studio has not built', () => {
+    const two = plotAt(7)
+    expect(buildingAtBlock(two.x, two.y - 60, 3, () => FLOORS_PER_BUILDING)).toBe(-1)
+  })
+
+  it('frames what has been built, and stops re-framing once it has two', () => {
+    // Buildings fill in order, so the second one makes the first full and the
+    // tallest tower never changes again. A frame measured off each building's
+    // own height would re-frame the block every time a storey landed anywhere.
+    const a = blockFrame(4, FLOORS_PER_BUILDING)
+    const b = blockFrame(4, FLOORS_PER_BUILDING)
+    expect(a).toEqual(b)
+    expect(blockFrame(9, FLOORS_PER_BUILDING).w).toBeGreaterThan(a.w)
+  })
+
+  it('is a real zoom step out from one building', () => {
+    expect(scales[BUILDING]).toBeGreaterThan(scales[BLOCK])
+    expect(scales[BUILDING] / scales[BLOCK]).toBeGreaterThan(2)
+  })
+
+  it('draws a tower you can hit at the reference frame', () => {
+    // A 9 mm fingertip is about 34 px. Below that, choosing a building off the
+    // block stops being possible and the picker is the only way in.
+    const tower = intoPlot(towerRect(FLOORS_PER_BUILDING), 0)
+    expect(tower.w * scales[BLOCK]).toBeGreaterThan(60)
+    expect(tower.h * scales[BLOCK]).toBeGreaterThan(150)
+  })
+
+  it('hands the room over to the block without changing what a desk measures', () => {
+    /*
+     * The nesting is scale-neutral by construction and this is the assertion
+     * that keeps it so. Adding a division to the chain moves every camera scale
+     * by exactly that factor, so **every LOD threshold below stays the number
+     * it was** — `floorScaleAt` is the only line that knows the block exists.
+     */
+    expect(floorScaleAt(scales[FLOOR])).toBeCloseTo(0.2195, 3)
+    expect(roomResolved(floorScaleAt(scales[FLOOR]))).toBe(true)
+    expect(roomResolved(floorScaleAt(scales[BUILDING]))).toBe(false)
+    expect(roomResolved(floorScaleAt(scales[BLOCK]))).toBe(false)
+  })
+
+  it('crosses the block out completely before the plan comes out', () => {
+    // The plan is 286 units wide against a 130-unit plot stride, so a plan
+    // drawn while a neighbour is still on screen is drawn through it.
+    expect(blockChromeAlpha(floorScaleAt(scales[BLOCK]))).toBe(1)
+    expect(blockChromeAlpha(floorScaleAt(scales[BUILDING]))).toBe(0)
   })
 })
 
@@ -262,7 +424,7 @@ describe('the ladder nests', () => {
    * the bands in order, so the band between the squad and the floor inverted
    * and every scale in it fell through to a level a level and a half away.
    */
-  const CROSSED = { 0: 51.75, 1: 8.42, 2: 9.86, 3: 1.11 } as Record<Level, number>
+  const CROSSED = { 0: 51.75, 1: 8.42, 2: 9.86, 3: 1.11, 4: 0.55 } as Record<Level, number>
 
   it('pushes a rung out until it holds the one inside it', () => {
     const nested = nestScales(CROSSED)
@@ -274,7 +436,7 @@ describe('the ladder nests', () => {
   })
 
   it('leaves a ladder that already nests exactly as it was', () => {
-    const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)
+    const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
     expect(nestScales(scales)).toEqual(scales)
   })
 
@@ -290,11 +452,11 @@ describe('the ladder nests', () => {
 
   it('stays continuous and on the ladder across a collapsed rung', () => {
     const nested = nestScales(CROSSED)
-    for (let s = nested[BUILDING] / 2; s < nested[DESK] * 2; s *= 1.05) {
+    for (let s = nested[BLOCK] / 2; s < nested[DESK] * 2; s *= 1.05) {
       const level = levelAtScale(s, nested)
       expect(Number.isFinite(level)).toBe(true)
       expect(level).toBeGreaterThanOrEqual(DESK)
-      expect(level).toBeLessThanOrEqual(BUILDING)
+      expect(level).toBeLessThanOrEqual(BLOCK)
     }
   })
 
@@ -304,14 +466,14 @@ describe('the ladder nests', () => {
     // sitting still would flicker between two names, and anything holding it
     // to a level would keep re-asserting a scale it was already at.
     const nested = nestScales(CROSSED)
-    for (const l of [DESK, SQUAD, FLOOR, BUILDING] as Level[]) {
+    for (const l of [DESK, SQUAD, FLOOR, BUILDING, BLOCK] as Level[]) {
       expect(scaleAtLevel(l, nested)).toBe(nested[l])
     }
   })
 })
 
 describe('level of detail', () => {
-  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)
+  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
   const floorScaleOf = (l: Level) => floorScaleAt(scales[l])
 
   it('the room is not resolved while the building is the subject', () => {
@@ -431,8 +593,18 @@ describe('picking', () => {
 })
 
 describe('the plates are worth looking at', () => {
+  /**
+   * Building-space units per screen pixel at the building level.
+   *
+   * The camera's scale is in **block** space now — a building is one plot of
+   * ten — so anything measured in the tower's own coordinates has to come back
+   * through `BLOCK_SCALE` to be a number of pixels. Getting that wrong makes
+   * every one of these read exactly twice as generous as it is.
+   */
+  const towerPx = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING] * BLOCK_SCALE
+
   it('a band is a thumb-sized target at the reference frame', () => {
-    const scale = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING]
+    const scale = towerPx
     // A 9 mm fingertip is about 34 px. Below that, choosing a floor from the
     // tower stops being possible and the lift panel is the only way in.
     expect(bandRect(0).h * scale).toBeGreaterThan(30)
@@ -444,8 +616,7 @@ describe('the plates are worth looking at', () => {
     // arrangement stops being readable and the level stops meaning anything —
     // and hiding them to make them bigger is the trade the first pass made, and
     // it produced one continuous ramp.
-    const scale = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING]
-    const px = plateRect().w * scale
+    const px = plateRect().w * towerPx
     // Twice what any arrangement of ten plans managed, which is the whole
     // argument for pulling one out instead of stacking all of them.
     expect(px).toBeGreaterThan(250)
@@ -455,10 +626,9 @@ describe('the plates are worth looking at', () => {
     // The composition is deliberately height-bound: the world takes about half
     // the frame and §10's floor list takes the rest. A world that filled the
     // width would have nowhere to put the numbers.
-    const scale = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING]
     const frame = buildingFrame(FLOORS_PER_BUILDING, 0)
-    expect((frame.h * scale) / REFERENCE.h).toBeCloseTo(0.94, 2)
-    const w = (frame.w * scale) / REFERENCE.w
+    expect((frame.h * towerPx) / REFERENCE.h).toBeCloseTo(0.94, 2)
+    const w = (frame.w * towerPx) / REFERENCE.w
     expect(w).toBeGreaterThan(0.35)
     expect(w).toBeLessThan(0.7)
   })

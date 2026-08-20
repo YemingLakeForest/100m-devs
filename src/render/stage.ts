@@ -34,26 +34,32 @@ import { MusicBus } from '../audio/music.ts'
 import { holdHaptic, pokeHaptic } from '../audio/haptics.ts'
 import { Lens, settleLevel } from './lens.ts'
 import {
+  BLOCK,
   BUILDING,
   DESK,
   DEVS_PER_FLOOR,
   FLOOR,
   LEVEL_NAMES,
   SQUAD,
+  blockChromeAlpha,
+  blockToBuilding,
+  buildingAtBlock,
   buildingChromeAlpha,
-  descendOnDoubleTap,
+  buildingOf,
+  buildingsFor,
+  devsIn,
   floorScaleAt,
   floorSeatRect,
   roomResolved,
-  seatOfSquad,
+  seatOfBuilding,
   seatOfStorey,
-  squadAtFloor,
   squadOf,
   storeyAtBuilding,
   storeyOf,
-  storeysFor,
+  storeysIn,
   type Level,
 } from './frames.ts'
+import { buildBlock } from './block.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
 import { LITERAL_RUNG_LIMIT, maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
@@ -79,21 +85,28 @@ import type { FounderProfile } from '../game/founderProfile.ts'
 
 /** What the HUD needs to draw the breadcrumb and the lift panel. */
 export interface NavState {
-  /** Continuous position on the ladder, 0 desk to 3 building. */
+  /** Continuous position on the ladder, 0 desk to 4 block. */
   level: number
   /** The level it would settle on, and the word for it. */
   at: Level
   name: string
   /** The address, unpacked. */
+  building: number
   storey: number
   squad: number
   seat: number
-  /** How many storeys the headcount has built, and how full each one is. */
+  /** How many storeys stand in the building the address is in. */
   storeys: number
+  /** How many buildings stand on the block. */
+  buildings: number
   /** The storey named but not yet entered, or −1. */
   selected: number
-  /** Developers on each built storey, ground floor first. */
+  /** The building named but not yet entered, or −1. */
+  selectedBuilding: number
+  /** Developers on each built storey of this building, ground floor first. */
   occupancy: number[]
+  /** Developers in each built building, first plot first. */
+  blockOccupancy: number[]
 }
 
 export interface StageHandle {
@@ -113,6 +126,8 @@ export interface StageHandle {
   nav(): NavState
   /** Go into a storey — the lift panel, and the second tap on a floor. */
   enterFloor(storey: number): void
+  /** Go into a building of the block — the picker's building rows. */
+  enterBuilding(building: number): void
   /** Go to a level of the ladder — the breadcrumb. */
   goToLevel(level: Level): void
   /** §7.8.10 Hero Anchor: return smoothly to the manager corner. */
@@ -225,11 +240,23 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   const scene = buildScene(app.renderer)
   const { floor, room, building } = scene
-  // **One object in the world, and the room is inside it.** There is no
-  // far-to-near list of views any more because there are no longer several
-  // pictures of the same studio to order: the building holds ten plates, one
-  // plate holds the room, and depth is the scene graph's own business.
-  world.addChild(building.container)
+  /*
+   * **One object in the world, and everything else is inside it.** There is no
+   * far-to-near list of views, because there are no longer several pictures of
+   * the same studio to order: the block holds ten plots, a plot holds a
+   * building, a building holds ten plates, a plate holds the room, and depth is
+   * the scene graph's own business.
+   *
+   * The building the address is in is parented *into its own plot*, so it is
+   * drawn at the plot's scale in the plot's place and the block skips its
+   * tower. Descending from the block to that building is one affine transform
+   * and the hand-off is invisible, because both sides of it are `drawTower` at
+   * the same size.
+   */
+  const block = buildBlock()
+  world.addChild(block.container)
+  block.plotHost(0).addChild(building.container)
+  let hostedBuilding = 0
 
   // §21 Act IV. Its overlay goes inside the glass, above the world and below
   // the numerals — the badges and chatter are scenery and must never bury the
@@ -367,14 +394,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * inverse is one call because the whole world is one transform now.
    */
   const pickStorey = (x: number, y: number): number => {
-    const w = camera.toWorld(x, y)
-    return storeyAtBuilding(w.x, w.y, storeysFor(getState().devs), storeyOf(focusSeat))
+    // Block space out of the camera, building space into the picker: the tower
+    // is authored in its own coordinates and stands in a plot, so the finger
+    // has to come the same way the drawing went.
+    const w = blockToBuilding(camera.toWorld(x, y), buildingOf(focusSeat))
+    return storeyAtBuilding(w.x, w.y, storeysIn(getState().devs, buildingOf(focusSeat)), storeyOf(focusSeat))
   }
 
-  /** Screen point -> the squad under it, or −1. Floor space, through the plate. */
-  const pickSquad = (x: number, y: number): number => {
-    const local = room.container.toLocal({ x, y })
-    return squadAtFloor(local.x, local.y)
+  /** Screen point -> the building of the block under it, or −1. */
+  const pickBuilding = (x: number, y: number): number => {
+    const w = camera.toWorld(x, y)
+    const devs = getState().devs
+    return buildingAtBlock(w.x, w.y, buildingsFor(devs), (i) => storeysIn(devs, i))
   }
 
   /**
@@ -388,6 +419,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   const pickUnit = (x: number, y: number): PokeTarget | null => {
     const rung = rungOfLevel(currentLevel)
+    if (rung >= BLOCK) {
+      // The block. A slot is a building, and §7.7.1's rung 4 *is* a building —
+      // `unitSeats(4, i)` is exactly the ten thousand seats it holds.
+      const b = pickBuilding(x, y)
+      return b < 0 ? null : { rung: 4, index: b }
+    }
     if (rung >= FLOOR + 1) {
       // The building. A slot is a storey, and a storey is `unitSeats(3, f)` —
       // exactly the thousand seats that floor holds.
@@ -619,31 +656,35 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let focal: { x: number; y: number } | null = null
 
   /**
-   * §7.7.6 — descending, and why the building does it differently.
+   * §7.7.6 — **the world names things; it does not move the camera.**
    *
-   * Below the building a tap is already §8.2's primary verb, so "go in" is the
-   * second tap of a **double-tap**: making every poke wait 300 ms to find out
-   * whether a second one is coming would put the clicker layer behind a timer,
-   * and §23.3 criterion 1 gives that path eighty milliseconds.
+   * A tap picks: at the building it names a storey, below it it names a person,
+   * and that is the whole of what a finger on the glass does to the lens.
+   * Changing *level* is the pinch, the wheel, and the rail — three controls
+   * that exist for it and cannot be produced by accident.
    *
-   * At the building there is no such contention — the units are ten floors, not
-   * a thousand people — so it uses the plainer and far more discoverable form:
-   * **tap once to select, tap the selected floor again to enter it.** No timing
-   * window, nothing to learn, and a label on screen the whole time saying which
-   * floor is named. That is the player's "I need the option to click and choose
-   * which floor to go into", answered without a gesture anybody has to be told
-   * about.
+   * This replaces a double-tap descend and a tap-the-selected-floor-again, and
+   * both went for the same reason: **a tap is already §8.2's primary verb.**
+   * POKE is latched from boot over a script that reads TAP TO CODE, a clicker
+   * is played by clicking, and any rule of the form "two taps mean something
+   * else" fires constantly on a player who is simply playing. It ate every
+   * second click and flew the lens onto whoever was under the thumb — three
+   * separate reports, the last of them "double taps should not zoom, only zoom
+   * with pinch".
+   *
+   * What the player asked for originally — *"I need the option to click and
+   * choose which floor to go into"* — is not lost and is arguably clearer: tap
+   * the tower to name a floor, and the lift panel's row for it lights up and is
+   * the door. A picker with a label beats a gesture nobody was told about.
    */
-  const DOUBLE_TAP_MS = 300
-  const DOUBLE_TAP_SLOP = 24
-  let lastTap = { t: 0, x: 0, y: 0 }
 
   /** The storey named but not yet entered, or −1. */
   let selectedStorey = -1
+  /** The building named but not yet entered, or −1. */
+  let selectedBuilding = -1
 
   const tapSelectsAFloor = () => settleLevel(currentLevel) === BUILDING
-  /** §7.7.6, and it is a rule rather than a level — see `descendOnDoubleTap`. */
-  const doubleTapDescends = () => descendOnDoubleTap(settleLevel(currentLevel), getState().devs)
+  const tapSelectsABuilding = () => settleLevel(currentLevel) === BLOCK
 
   /**
    * **The address** — which part of the studio the lens is over. GDD §26.2.2.
@@ -678,7 +719,20 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const next = Math.max(0, Math.floor(seat))
     if (next === focusSeat) return
     focusSeat = next
-    camera.setAddress(focusSeat, storeysFor(getState().devs))
+    tellAddress()
+  }
+
+  /**
+   * Hand the address to the lens: the seat, the storeys of *its* building, and
+   * how many buildings there are.
+   *
+   * Three numbers rather than one because two of them move on their own — a
+   * hire adds a storey and a storey adds a building — and the lens frames every
+   * level from all three.
+   */
+  const tellAddress = () => {
+    const devs = getState().devs
+    camera.setAddress(focusSeat, storeysIn(devs, buildingOf(focusSeat)), buildingsFor(devs))
   }
 
   /** The rail's CODE — YOU action owns the lens until the corner desk lands. */
@@ -764,9 +818,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * it was already over.
    */
   const enterStorey = (storey: number): boolean => {
-    const n = storeysFor(getState().devs)
+    const b = buildingOf(focusSeat)
+    const n = storeysIn(getState().devs, b)
     if (!(storey >= 0) || storey >= n) return false
-    setFocus(seatOfStorey(storey))
+    setFocus(seatOfStorey(storey, b))
     selectedStorey = storey
     focal = null
     camera.flyTo(FLOOR)
@@ -775,36 +830,23 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   /**
-   * §7.7.6 — descend one level, centred on what was tapped.
+   * Go into a building — the lift panel's building rows, one level up.
    *
-   * One level, never "all the way in". The complaint the whole ladder exists to
-   * answer is precisely that the lens *skipped*, and a control that jumps three
-   * levels inward to fix one that jumped three outward is the same bug facing
-   * the other way.
+   * The same shape as {@link enterStorey} and for the same reason: the address
+   * moves *first*, so the frame the lens flies to is the frame of the building
+   * that was chosen rather than of the one it was already over. Landing on that
+   * building's ground floor rather than on whichever storey the last building
+   * happened to be open at — a floor number is only a floor number of
+   * something, and carrying it across would name a storey nobody chose.
    */
-  const descendOne = (x: number, y: number): boolean => {
-    const level = settleLevel(currentLevel)
-    if (level <= DESK) return false
-    focal = { x, y }
-
-    if (level === BUILDING) return enterStorey(pickStorey(x, y))
-
-    if (level === FLOOR) {
-      const squad = pickSquad(x, y)
-      if (squad < 0) return false
-      setFocus(seatOfSquad(focusStorey(), squad))
-      camera.flyTo(SQUAD)
-      playUi('whoosh')
-      return true
-    }
-
-    // Squad -> desk. The person under the finger becomes the address, which is
-    // how the last level is steered: pick somebody, then go in, and the lens
-    // holds them rather than the middle of the pod.
-    const seat = pickDeveloper(x, y)
-    if (seat < 0) return false
-    setFocus(globalSeat(seat))
-    camera.flyTo(DESK)
+  const enterBuilding = (b: number): boolean => {
+    const devs = getState().devs
+    if (!(b >= 0) || b >= buildingsFor(devs)) return false
+    setFocus(seatOfBuilding(b))
+    selectedBuilding = b
+    selectedStorey = -1
+    focal = null
+    camera.flyTo(BUILDING)
     playUi('whoosh')
     return true
   }
@@ -919,10 +961,28 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return
     }
 
-    // **The building's two taps.** Select a floor, then enter it — no timing
-    // window, and a label on screen naming the selection the whole time. The
-    // first tap still pokes the storey, which is §4.5b's unit poke and is the
-    // same thing the tap would have done anyway.
+    // **The block names a building**, on the same rule the building names a
+    // floor by: the tap selects and pokes, and the rail is the door.
+    if (tapSelectsABuilding()) {
+      const b = pickBuilding(ev.clientX, ev.clientY)
+      if (b < 0) {
+        selectedBuilding = -1
+        playUi('close')
+        return
+      }
+      if (b !== selectedBuilding) {
+        selectedBuilding = b
+        setFocus(seatOfBuilding(b))
+        playUi('click')
+      }
+      doPoke(ev.clientX, ev.clientY, t)
+      return
+    }
+
+    // **The building names a floor.** The tap selects and pokes — §4.5b's unit
+    // poke, which is what it would have done anyway — and the lift panel's row
+    // for that floor is the door. Tapping the same storey twice selects it
+    // twice; nothing on the glass changes the level.
     if (tapSelectsAFloor()) {
       const storey = pickStorey(ev.clientX, ev.clientY)
       if (storey < 0) {
@@ -930,25 +990,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         playUi('close')
         return
       }
-      if (storey === selectedStorey) {
-        enterStorey(storey)
-        return
+      if (storey !== selectedStorey) {
+        selectedStorey = storey
+        setFocus(seatOfStorey(storey))
+        playUi('click')
       }
-      selectedStorey = storey
-      setFocus(seatOfStorey(storey))
-      playUi('click')
       doPoke(ev.clientX, ev.clientY, t)
       return
-    }
-
-    if (doubleTapDescends()) {
-      const near = Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) <= DOUBLE_TAP_SLOP
-      if (near && t - lastTap.t < DOUBLE_TAP_MS) {
-        lastTap = { t: 0, x: 0, y: 0 }
-        descendOne(ev.clientX, ev.clientY)
-        return
-      }
-      lastTap = { t, x: ev.clientX, y: ev.clientY }
     }
 
     switch (tapVerb(getState().touchMode, roomIsUp)) {
@@ -1247,7 +1295,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       if (!first && zoomCeilingLifted(devsBefore, state.devs)) {
         // A hire that buys a whole new register of the lens is a reveal, not a
         // hire. Pull back to the level the headcount has just earned.
-        camera.flyTo(settleLevel(Math.min(BUILDING, maxZoomFor(state.devs) * 9)))
+        // Capped at the top of the ladder, not at the building: the ten
+        // thousandth hire is the one that buys the block, and a reveal that
+        // stopped at the tower would pull back to the thing the player has
+        // just outgrown.
+        camera.flyTo(settleLevel(Math.min(BLOCK, maxZoomFor(state.devs) * 9)))
         playSfx('zoom-out')
       }
     }
@@ -1289,9 +1341,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // building, the room is inside a plate of it, and the camera is a scale and
     // a centre.
     const viewport = { w: app.screen.width, h: app.screen.height }
-    const storeys = storeysFor(state.devs)
+    const focusBuilding = buildingOf(focusSeat)
+    const storeys = storeysIn(state.devs, focusBuilding)
     camera.setViewport(viewport)
-    camera.setAddress(focusSeat, storeys)
+    tellAddress()
     // The room is the authority on its own size, because it is the thing that
     // draws the walls. Below the unfold that is a garage growing; above it, a
     // constant.
@@ -1324,19 +1377,39 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // one developer and holding a hundred.
     setCameraRung(rungOfLevel(currentLevel))
 
+    // --- the block ---------------------------------------------------------
+    //
+    // Ten plots, nine towers and one door. The building the address is in is
+    // *parented into its plot*, so when the address moves to another building
+    // the container moves with it and the block stops drawing a tower there.
+    // Re-parenting rather than re-drawing is what keeps the two from ever being
+    // on screen at once.
+    const blockAlpha = blockChromeAlpha(currentFloorScale)
+    block.setHeadcount(state.devs)
+    block.setFocus(focusBuilding)
+    block.setSelected(selectedBuilding)
+    block.setChromeAlpha(blockAlpha)
+    if (focusBuilding !== hostedBuilding) {
+      hostedBuilding = focusBuilding
+      block.plotHost(focusBuilding).addChild(building.container)
+    }
+
     // --- the building ------------------------------------------------------
     //
     // The address decides which plate is open and which plate the room lives
     // in, and those two are the same number: a floor you are looking into is a
     // floor you can be inside.
     const storey = focusStorey()
-    building.setHeadcount(state.devs)
+    building.setHeadcount(devsIn(state.devs, focusBuilding))
     building.setFocus(storey)
     scene.hostRoomOn(storey)
     // The plan and the room are the same picture at the size the swap happens,
     // so this is a swap the player cannot see rather than a fade between two
     // that never match.
     building.setPlanHidden(storey, roomIsUp)
+    // And it does not exist at all while the block does: 286 units of plan
+    // against a 130-unit plot stride is a plan drawn through the neighbours.
+    building.setPlanAlpha(1 - blockAlpha)
     building.setChromeAlpha(buildingChromeAlpha(currentFloorScale))
     building.update(now)
 
@@ -1545,8 +1618,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // §26.2.2 — the address. Which part of the studio the lens is over, and
         // which thousand people the room is a picture of.
         focusSeat,
+        building: buildingOf(focusSeat),
+        buildings: buildingsFor(state.devs),
         storey,
         selectedStorey,
+        selectedBuilding,
         storeys,
         seatWindow: room.seatWindow,
         drawn: room.drawn,
@@ -1588,31 +1664,44 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     camera,
     nav() {
       const devs = getState().devs
-      const n = storeysFor(devs)
+      const b = buildingOf(focusSeat)
+      const mine = devsIn(devs, b)
+      const n = storeysIn(devs, b)
       const occupancy: number[] = []
       for (let f = 0; f < n; f++) {
-        occupancy.push(Math.max(0, Math.min(DEVS_PER_FLOOR, devs - f * DEVS_PER_FLOOR)))
+        occupancy.push(Math.max(0, Math.min(DEVS_PER_FLOOR, mine - f * DEVS_PER_FLOOR)))
       }
+      const m = buildingsFor(devs)
+      const blockOccupancy: number[] = []
+      for (let i = 0; i < m; i++) blockOccupancy.push(devsIn(devs, i))
       const at = settleLevel(currentLevel)
       return {
         level: currentLevel,
         at,
         name: LEVEL_NAMES[at],
+        building: b,
         storey: focusStorey(),
         squad: squadOf(focusSeat),
         seat: focusSeat,
         storeys: n,
+        buildings: m,
         selected: selectedStorey,
+        selectedBuilding,
         occupancy,
+        blockOccupancy,
       }
     },
     enterFloor(storey: number) {
       enterStorey(storey)
     },
+    enterBuilding(b: number) {
+      enterBuilding(b)
+    },
     goToLevel(level: Level) {
       // Going *up* is a plain reframe; going down needs an address, and the
       // address is already the one the breadcrumb is naming.
       selectedStorey = level >= BUILDING ? selectedStorey : focusStorey()
+      selectedBuilding = level >= BLOCK ? selectedBuilding : buildingOf(focusSeat)
       camera.flyTo(level)
       playUi('whoosh')
     },

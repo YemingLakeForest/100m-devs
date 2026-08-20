@@ -1,19 +1,21 @@
 # Handoff — 2026-08-10
 
 > **Current handoff: [`HANDOFF-2026-08-20.md`](HANDOFF-2026-08-20.md)** — the lens rebuild:
-> **one camera, four levels** (desk, squad, floor, building), a fixed 5x2 floor of 1,000 seats,
-> a building you pick floors out of, and a HUD that names the address and opens the doors.
-> Built to 10,000 developers in one building. Eleven findings and **traps 45–48**, the last four
-> from a studio of one: a garage that crossed the level ladder, a zoom ceiling enforced from
-> outside the lens that could not satisfy itself, a code tap that flew the camera onto the person
-> being coded at, and four cameras that never landed where they were sent. Read that one first,
-> then [`PLAN-2026-08-19-lens.md`](PLAN-2026-08-19-lens.md) for the measurements behind it and
+> **one camera, five levels** (desk, squad, floor, building, block), a fixed 5x2 floor of 1,000
+> seats, a building you pick floors out of, a block you pick buildings out of, and a HUD that
+> names the address and opens both sets of doors. Built to **100,000 developers in ten
+> buildings**. Twelve findings and **traps 45–49**: a garage that crossed the level ladder, a
+> zoom ceiling enforced from outside the lens that could not satisfy itself, a code tap that flew
+> the camera onto the person being coded at, four cameras that never landed where they were sent,
+> and **no tap anywhere changes the zoom any more** — that is the pinch, the wheel and the rail.
+> Read that one first, then
+> [`PLAN-2026-08-19-lens.md`](PLAN-2026-08-19-lens.md) for the measurements behind it and
 > [`GDD.md` §26](../GDD.md) for the build order.
 >
 > **Previous: [`HANDOFF-2026-08-18.md`](HANDOFF-2026-08-18.md)** — §26.1.8 items 3–10
 > walked in a real browser, the third acceptance gate, **traps 38–44**, and **Phase 1 closed**.
 >
-> **Next: [`HANDOFF-2026-08-20.md`](HANDOFF-2026-08-20.md) §16** — the walk's navigation leg, the
+> **Next: [`HANDOFF-2026-08-20.md`](HANDOFF-2026-08-20.md) §18** — the walk's navigation leg, the
 > centre-screen overlays, a dated rewrite of GDD §7 (which still describes the tiers and the
 > cross-fade the lens rebuild deleted), and the levels above one building.
 > [`PLAN-2026-08-18-phase2.md`](PLAN-2026-08-18-phase2.md) is the older Phase 2 plan, measured

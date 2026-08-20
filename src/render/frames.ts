@@ -64,9 +64,10 @@ export const DESK = 0
 export const SQUAD = 1
 export const FLOOR = 2
 export const BUILDING = 3
-export type Level = 0 | 1 | 2 | 3
+export const BLOCK = 4
+export type Level = 0 | 1 | 2 | 3 | 4
 
-export const LEVELS: readonly Level[] = [DESK, SQUAD, FLOOR, BUILDING]
+export const LEVELS: readonly Level[] = [DESK, SQUAD, FLOOR, BUILDING, BLOCK]
 
 /**
  * What each level is called, for the breadcrumb and the debug snapshot.
@@ -81,15 +82,22 @@ export const LEVEL_NAMES: Record<Level, string> = {
   1: 'SQUAD',
   2: 'FLOOR',
   3: 'BUILDING',
+  4: 'BLOCK',
 }
-export const TOP_LEVEL = BUILDING
+export const TOP_LEVEL = BLOCK
 
 /** How many developers one unit at each level holds. */
-export const LEVEL_DEVS: readonly number[] = [1, SQUAD_SIZE, ROOM_DEV_CAP, ROOM_DEV_CAP * 10]
+export const LEVEL_DEVS: readonly number[] = [
+  1,
+  SQUAD_SIZE,
+  ROOM_DEV_CAP,
+  ROOM_DEV_CAP * 10,
+  ROOM_DEV_CAP * 100,
+]
 
 /** §7.7.1's floor, and the room's own cap — the same thousand, by construction. */
 export const DEVS_PER_FLOOR = ROOM_DEV_CAP
-/** Ten storeys, which is where this scope stops: one building, 10,000 people. */
+/** Ten storeys to a building — 10,000 people. */
 export const FLOORS_PER_BUILDING = 10
 export const BUILDING_CAP = DEVS_PER_FLOOR * FLOORS_PER_BUILDING
 
@@ -347,6 +355,214 @@ export function buildingFrame(storeys: number, _focus?: number): Rect {
 }
 
 // ---------------------------------------------------------------------------
+// Block space — a street of towers
+// ---------------------------------------------------------------------------
+
+/**
+ * The block, and why ten towers fit where ten floor plans did not.
+ *
+ * §2 of the handoff records the arithmetic that killed the exploded plate
+ * stack: ten 2:1 rectangles in a 2.23:1 frame come out at 145 px however they
+ * are arranged, because the diamond containment rule `dx + 2·dy >= W` is
+ * unforgiving. One scale up the same question is asked of ten *buildings*, and
+ * this time it has an answer — because a tower is tall and narrow rather than
+ * flat and wide, so the thing that has to clear its neighbour is a 230-unit
+ * footprint and not a 604-unit plan.
+ *
+ * Measured at 997x448, ten full towers on a 5x2 plot lattice:
+ *
+ * | Arrangement | Tower on screen | Composition |
+ * |---|---|---|
+ * | 10 in a row | 61 x 147 px | 2300 x 1592 units, height-bound |
+ * | two rows of five across a wide street | 66 x 176 px | 1025 x 734 |
+ * | **5 across, 2 back** | **80 x 194 px** | **765 x 604** |
+ *
+ * The 5x2 wins and it is also the shape the floor already uses for its squads,
+ * which is not a coincidence worth hiding: a floor is five-by-two groups of a
+ * hundred, a block is five-by-two groups of ten thousand, and the player learns
+ * one arrangement instead of two.
+ *
+ * **Along a row, no tower touches another.** Plots one column apart are
+ * {@link PLOT_STRIDE_X} apart horizontally against a 115-unit footprint, so
+ * there are fifteen units of street between them.
+ *
+ * **Across the rows they overlap, and that is the honest half.** On a 2:1
+ * lattice the plot one column along *and* one row nearer sits at exactly the
+ * same x, 130 units lower, against a 290-unit tower — so four of the ten stand
+ * half in front of four others. The first draft of this note claimed otherwise
+ * and a test written from the claim failed on the first run, which is the right
+ * order for that to happen in.
+ *
+ * It is not the defect the plate stack had, and the difference is worth being
+ * precise about. A stack of plates that hide each other is unusable because a
+ * hidden plate has **nothing** left to point at. A tower behind a tower keeps
+ * its crown and its upper floors, `buildingAtBlock` resolves nearest-first so
+ * the exposed band belongs to the building it looks like it belongs to, and the
+ * test that matters — *every tower keeps a band of itself the finger can
+ * reach* — measures 89 px on the worst of them against a 34 px fingertip. It is
+ * also, simply, what a city block looks like from across the street.
+ *
+ * What the arrangement costs is width: the composition is 534 px of a 997 px
+ * frame, because a 2:1 lattice buys one unit of x for every half unit of y and
+ * ten full towers are 194 px tall. The ground plane runs out to the rails to
+ * fill it (§3.3), which is what a block looks like anyway.
+ */
+export const BLOCK_COLS = 5
+export const BLOCK_ROWS = 2
+export const BUILDINGS_PER_BLOCK = BLOCK_COLS * BLOCK_ROWS
+export const BLOCK_CAP = BUILDING_CAP * BUILDINGS_PER_BLOCK
+
+/**
+ * How much smaller a building is when it is one plot of the block.
+ *
+ * The second nesting constant, and it does exactly what {@link PLATE_SCALE}
+ * does one level down: a plot *is* the building's own frame divided by this, so
+ * descending into it is a pure scale and there is nothing to cross-fade.
+ */
+export const BLOCK_DIVISOR = 2
+export const BLOCK_SCALE = 1 / BLOCK_DIVISOR
+
+/**
+ * Plot centre to plot centre, one column along — block space, 2:1 isometric.
+ *
+ * 130 against a 115-unit tower footprint. Anything less and the towers overlap;
+ * much more and the lattice's own vertical spread — half a unit of y for every
+ * unit of x — eats the height the towers need.
+ */
+export const PLOT_STRIDE_X = 130
+export const PLOT_STRIDE_Y = PLOT_STRIDE_X / 2
+
+/**
+ * Where a plot's building stands, in block space.
+ *
+ * The same 2:1 as everything else: one column along is right and down, one row
+ * back is left and up. Plots fill the back row first, left to right, so the
+ * studio grows away from the camera and the buildings you have longest are the
+ * ones furthest back — which is also the order the seats number in.
+ */
+export function plotAt(building: number): { x: number; y: number } {
+  const i = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+  const col = i % BLOCK_COLS
+  const row = Math.floor(i / BLOCK_COLS)
+  return { x: (col - row) * PLOT_STRIDE_X, y: (col + row) * PLOT_STRIDE_Y }
+}
+
+/** How near the camera a plot is. Larger is nearer, and is drawn later. */
+export function plotDepth(building: number): number {
+  const i = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+  return (i % BLOCK_COLS) + Math.floor(i / BLOCK_COLS)
+}
+
+/** Map a building-space rectangle into block space, through plot `building`. */
+export function intoPlot(rect: Rect, building: number): Rect {
+  const at = plotAt(building)
+  return {
+    cx: at.x + rect.cx * BLOCK_SCALE,
+    cy: at.y + rect.cy * BLOCK_SCALE,
+    w: rect.w * BLOCK_SCALE,
+    h: rect.h * BLOCK_SCALE,
+  }
+}
+
+/** A building-space point, in block space, through plot `building`. */
+export function buildingToBlock(p: { x: number; y: number }, building: number): { x: number; y: number } {
+  const at = plotAt(building)
+  return { x: at.x + p.x * BLOCK_SCALE, y: at.y + p.y * BLOCK_SCALE }
+}
+
+/** The inverse — a block-space point, in one plot's building space. */
+export function blockToBuilding(p: { x: number; y: number }, building: number): { x: number; y: number } {
+  const at = plotAt(building)
+  return { x: (p.x - at.x) / BLOCK_SCALE, y: (p.y - at.y) / BLOCK_SCALE }
+}
+
+/** A floor-space point, in block space — through the plate and then the plot. */
+export function floorToBlock(
+  p: { x: number; y: number },
+  storey: number,
+  building: number,
+): { x: number; y: number } {
+  return buildingToBlock(floorToBuilding(p, storey), building)
+}
+
+/**
+ * The tower alone, framed — building space, no pulled-out plan.
+ *
+ * {@link buildingFrame} is this plus the plan, because at the building level
+ * the plan is the point. At the block level it is not: ten plans at plot scale
+ * would each be 143 units wide against a 130-unit plot stride, so every one of
+ * them would be drawn across its neighbour's tower. A plot holds a *tower*.
+ */
+export function towerRect(storeys: number): Rect {
+  const n = Math.max(1, Math.min(FLOORS_PER_BUILDING, Math.floor(storeys)))
+  const top = bandRect(n - 1)
+  const halfW = TOWER_W / 2 + PLOT_SPREAD
+  const minY = top.cy - top.h / 2 - TOWER_CROWN
+  return { cx: 0, cy: (minY + PLOT_DROP) / 2, w: halfW * 2, h: PLOT_DROP - minY }
+}
+
+/**
+ * The whole block, framed — block space.
+ *
+ * Every occupied plot is framed as if it held the tallest tower in the studio,
+ * and that is deliberate: buildings fill in order, so the moment there are two
+ * of them the first is full and the tallest never changes again. A frame
+ * measured off each building's *actual* height would re-frame the block every
+ * time a storey landed anywhere in it, which is the re-framing this whole
+ * rebuild exists to stop.
+ */
+export function blockFrame(buildings: number, tallest: number): Rect {
+  const n = Math.max(1, Math.min(BUILDINGS_PER_BLOCK, Math.floor(buildings)))
+  const tower = towerRect(tallest)
+  let minX = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+  for (let i = 0; i < n; i++) {
+    const r = intoPlot(tower, i)
+    minX = Math.min(minX, r.cx - r.w / 2)
+    maxX = Math.max(maxX, r.cx + r.w / 2)
+    minY = Math.min(minY, r.cy - r.h / 2)
+    maxY = Math.max(maxY, r.cy + r.h / 2)
+  }
+  return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY }
+}
+
+/**
+ * Which building a block-space point is over, or −1.
+ *
+ * **Nearest plot first**, which is the whole of what makes it correct: the near
+ * row stands in front of the far row's lower half, so a point inside two boxes
+ * belongs to the one that is drawn over the other. `plotDepth` is the same
+ * `col + row` the y coordinate is built from, so the picker and the scene graph
+ * cannot disagree about which tower is in front.
+ *
+ * A box per plot rather than the tower's true silhouette. What that costs is
+ * the corners — a tap just off the roof still names the building — and naming
+ * the thing the finger is nearest is the right failure for a tap that missed.
+ */
+export function buildingAtBlock(
+  x: number,
+  y: number,
+  buildings: number,
+  storeysOf: (building: number) => number,
+): number {
+  const n = Math.max(0, Math.min(BUILDINGS_PER_BLOCK, Math.floor(buildings)))
+  let best = -1
+  let bestDepth = -1
+  for (let i = 0; i < n; i++) {
+    const r = intoPlot(towerRect(Math.max(1, storeysOf(i))), i)
+    if (Math.abs(x - r.cx) > r.w / 2 || Math.abs(y - r.cy) > r.h / 2) continue
+    const depth = plotDepth(i)
+    if (depth > bestDepth) {
+      bestDepth = depth
+      best = i
+    }
+  }
+  return best
+}
+
+// ---------------------------------------------------------------------------
 // Outlines and picking
 // ---------------------------------------------------------------------------
 
@@ -472,15 +688,46 @@ export function storeyAtBuilding(x: number, y: number, storeys: number, focus: n
 // The address, and the frame it names
 // ---------------------------------------------------------------------------
 
-/** Which storey of the building holds a global seat. */
-export function storeyOf(seat: number): number {
+/**
+ * The address, clamped to the studio this scope draws.
+ *
+ * One number still — a global seat — and every part of the address is derived
+ * from it. §26.2.2's argument for that has not changed and gets stronger with
+ * another level on the ladder: a path (`building 3, floor 7, squad 2`) is four
+ * things that can disagree, and a seat is one thing that cannot.
+ */
+function seatIn(seat: number): number {
   const s = Math.max(0, Math.floor(Number.isFinite(seat) ? seat : 0))
-  return Math.min(FLOORS_PER_BUILDING - 1, Math.floor(s / DEVS_PER_FLOOR))
+  return Math.min(BLOCK_CAP - 1, s)
 }
 
-/** The first seat of a storey — where descending into it lands. */
-export function seatOfStorey(storey: number): number {
-  return Math.max(0, Math.min(FLOORS_PER_BUILDING - 1, Math.floor(storey))) * DEVS_PER_FLOOR
+/** Which building of the block holds a global seat. */
+export function buildingOf(seat: number): number {
+  return Math.floor(seatIn(seat) / BUILDING_CAP)
+}
+
+/**
+ * Which storey a global seat is on — **within its own building**.
+ *
+ * Local, not global, and that is the one place the second level changed the
+ * meaning of an existing function rather than adding beside it. A storey is
+ * only a storey of something: "floor 14" is not a floor of a ten-storey
+ * building, it is floor 4 of the second one, and every caller that draws a
+ * tower or lifts a plate wants the second reading.
+ */
+export function storeyOf(seat: number): number {
+  return Math.floor(seatIn(seat) / DEVS_PER_FLOOR) % FLOORS_PER_BUILDING
+}
+
+/** The first seat of a building — where descending into it lands. */
+export function seatOfBuilding(building: number): number {
+  return Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building))) * BUILDING_CAP
+}
+
+/** The first seat of a storey of a building — where descending into it lands. */
+export function seatOfStorey(storey: number, building = 0): number {
+  const f = Math.max(0, Math.min(FLOORS_PER_BUILDING - 1, Math.floor(storey)))
+  return seatOfBuilding(building) + f * DEVS_PER_FLOOR
 }
 
 /** Which of the floor's ten squads a global seat is in. */
@@ -490,62 +737,68 @@ export function squadOf(seat: number): number {
 }
 
 /** The first seat of a squad, within its own floor. */
-export function seatOfSquad(storey: number, squad: number): number {
-  return seatOfStorey(storey) + Math.max(0, Math.floor(squad)) * SQUAD_SIZE
+export function seatOfSquad(storey: number, squad: number, building = 0): number {
+  return seatOfStorey(storey, building) + Math.max(0, Math.floor(squad)) * SQUAD_SIZE
 }
 
-/** How many storeys a headcount has built. At least one — you are always somewhere. */
-export function storeysFor(devs: number): number {
+/** How many buildings a headcount has put up. At least one — you are always somewhere. */
+export function buildingsFor(devs: number): number {
   if (!Number.isFinite(devs) || devs <= 0) return 1
-  return Math.max(1, Math.min(FLOORS_PER_BUILDING, Math.ceil(devs / DEVS_PER_FLOOR)))
+  return Math.max(1, Math.min(BUILDINGS_PER_BLOCK, Math.ceil(devs / BUILDING_CAP)))
 }
 
 /**
- * Does a double tap descend a level from here — §7.7.6's navigation gesture.
+ * How many storeys stand in one building of the studio.
  *
- * Two conditions, and the second one is the interesting one.
- *
- * It descends from the floor and from the squad, because those are the levels
- * with something under them. And it descends **only once there is more than one
- * squad to choose between**, which is the lift panel's own argument — *a lift
- * with one button is furniture* — applied to a gesture instead of a control. A
- * studio of two people is one squad: descending into it names the group the
- * player is already looking at, and the level below is the same two people
- * drawn larger.
- *
- * What it costs to offer it anyway is not nothing. The descend consumes the
- * tap, so **the second tap does not code**, and §21 Act I boots with POKE
- * latched over a script that reads TAP TO CODE. Clicking *is* the game there,
- * and a player clicking at any speed a clicker is played at produces a double
- * tap on every second click: half their taps went to navigation, and the
- * navigation flew the camera onto the person they were coding at. Reported as
- * "when there's only James and us, clicking one of us to code, it should not
- * zoom to the person".
- *
- * Nothing is lost above a squad's worth of people, and nothing is lost below it
- * either: the address ladder, the wheel and the pinch all still navigate, and
- * §7.7.6b's INSPECT tap still names whoever is under it.
+ * Buildings fill in order, so this is the headcount left over once the
+ * buildings before it are full — which means the first building is at ten the
+ * moment there is a second one, and the last is the only one that grows.
  */
-export function descendOnDoubleTap(level: Level, devs: number): boolean {
-  if (level !== FLOOR && level !== SQUAD) return false
-  return (Number.isFinite(devs) ? devs : 0) > SQUAD_SIZE
+export function storeysIn(devs: number, building = 0): number {
+  const b = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+  const left = (Number.isFinite(devs) ? devs : 0) - b * BUILDING_CAP
+  if (left <= 0) return b === 0 ? 1 : 0
+  return Math.max(1, Math.min(FLOORS_PER_BUILDING, Math.ceil(left / DEVS_PER_FLOOR)))
+}
+
+/** How many developers stand in one building of the studio. */
+export function devsIn(devs: number, building = 0): number {
+  const b = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+  const left = (Number.isFinite(devs) ? devs : 0) - b * BUILDING_CAP
+  return Math.max(0, Math.min(BUILDING_CAP, left))
+}
+
+/** The tallest building in the studio, in storeys — what {@link blockFrame} spans. */
+export function tallestIn(devs: number): number {
+  return storeysIn(devs, 0)
 }
 
 /**
- * The frame a level names, **always in building space**.
+ * The frame a level names, **always in block space**.
  *
  * One space for every level is what lets the camera be a single scale and
- * centre — the floor's three frames are simply the same rectangles seen from
- * inside the plate that holds them.
+ * centre, and adding a level does not add a space — it adds one more division.
+ * A desk is a rectangle of the floor; the floor is a plate of the building at
+ * {@link PLATE_SCALE}; the building is a plot of the block at
+ * {@link BLOCK_SCALE}. Five frames, one coordinate system, and descending the
+ * whole ladder is still a single affine transform.
  */
-export function frameFor(level: Level, seat: number, storeys: number): Rect {
+export function frameFor(level: Level, seat: number, storeys: number, buildings = 1): Rect {
+  const building = buildingOf(seat)
+  // The tallest tower, which the frame spans: buildings fill in order, so the
+  // moment there are two of them the first is full and `storeys` is whichever
+  // building the address is in rather than the highest one.
+  if (level === BLOCK) {
+    return blockFrame(buildings, buildings > 1 ? FLOORS_PER_BUILDING : storeys)
+  }
+
   const focus = storeyOf(seat)
-  if (level === BUILDING) return buildingFrame(storeys, focus)
+  if (level === BUILDING) return intoPlot(buildingFrame(storeys, focus), building)
 
   const local = Math.max(0, Math.floor(seat)) % DEVS_PER_FLOOR
   const inner =
     level === FLOOR ? floorFrame() : level === SQUAD ? squadFrame(seatFor(local).squad) : deskFrame(local)
-  return intoPlate(inner, focus)
+  return intoPlot(intoPlate(inner, focus), building)
 }
 
 /** A floor-space point, in building space, through plate `focus`. */
@@ -610,12 +863,14 @@ export function levelScales(
   seat: number,
   storeys: number,
   viewport: { w: number; h: number },
+  buildings = 1,
 ): Record<Level, number> {
   return nestScales({
-    0: fitScaleFor(frameFor(DESK, seat, storeys), viewport),
-    1: fitScaleFor(frameFor(SQUAD, seat, storeys), viewport),
-    2: fitScaleFor(frameFor(FLOOR, seat, storeys), viewport),
-    3: fitScaleFor(frameFor(BUILDING, seat, storeys), viewport),
+    0: fitScaleFor(frameFor(DESK, seat, storeys, buildings), viewport),
+    1: fitScaleFor(frameFor(SQUAD, seat, storeys, buildings), viewport),
+    2: fitScaleFor(frameFor(FLOOR, seat, storeys, buildings), viewport),
+    3: fitScaleFor(frameFor(BUILDING, seat, storeys, buildings), viewport),
+    4: fitScaleFor(frameFor(BLOCK, seat, storeys, buildings), viewport),
   })
 }
 
@@ -623,8 +878,8 @@ export function levelScales(
  * Force the ladder to nest — **no level may frame less than the level inside
  * it**.
  *
- * The four frames are nested by construction: a desk is in a squad, a squad is
- * on a floor, a floor is in a building. The *room* is not, because §7.8.1's
+ * The five frames are nested by construction: a desk is in a squad, a squad is
+ * on a floor, a floor is in a building, a building is on the block. The *room* is not, because §7.8.1's
  * garage is a real rectangle that grows, and for the first thirty developers it
  * is smaller than the 10x10 block a squad names. Measured at one developer, on
  * the reference frame: desk 51.8, squad 8.4, floor **9.8** — the floor sat
@@ -664,7 +919,11 @@ export function nestScales(scales: Record<Level, number>): Record<Level, number>
 export function levelAtScale(scale: number, scales: Record<Level, number>): number {
   if (!(scale > 0)) return TOP_LEVEL
   const s = Math.log(scale)
-  if (s <= Math.log(scales[TOP_LEVEL])) return TOP_LEVEL
+  // Strictly below, so a tie between the top two rungs falls through to the
+  // band scan and resolves *inward* like every other tie. One building on a
+  // block is exactly that tie: the block and the building are the same picture,
+  // and the camera sitting on it is in the building.
+  if (s < Math.log(scales[TOP_LEVEL])) return TOP_LEVEL
   if (s >= Math.log(scales[DESK])) return DESK
   // Innermost first, so a scale two rungs share is read as the *inner* one.
   // {@link nestScales} collapses a rung onto its neighbour when the room is
@@ -704,13 +963,16 @@ export function scaleAtLevel(level: number, scales: Record<Level, number>): numb
 /**
  * Effective scale of *floor space* at a given camera scale.
  *
- * Floor space lives inside a plate, so everything the room draws is a factor of
- * {@link PLATE_DIVISOR} smaller than the camera says. Every LOD threshold below
+ * Floor space lives inside a plate, which lives inside a plot, so everything
+ * the room draws is a factor of {@link PLATE_DIVISOR} times
+ * {@link BLOCK_DIVISOR} smaller than the camera says. Every LOD threshold below
  * is expressed in this rather than in camera scale, so it is a statement about
- * how big a desk is on screen and stays true if the stack is retuned.
+ * how big a desk is on screen and stays true when the stack is retuned — which
+ * is exactly what happened when the block arrived. Every threshold below is
+ * unchanged; only this line knows there is another division in the chain.
  */
 export function floorScaleAt(cameraScale: number): number {
-  return cameraScale * PLATE_SCALE
+  return cameraScale * PLATE_SCALE * BLOCK_SCALE
 }
 
 /**
@@ -746,6 +1008,34 @@ export function buildingChromeAlpha(floorScale: number): number {
   const u = Math.max(0, Math.min(1, t))
   // Smoothstep, so the chrome does not appear or vanish with a visible kink at
   // either end of the band — §10.5's rule, applied to the one fade left.
+  return u * u * (3 - 2 * u)
+}
+
+/**
+ * The band over which the *block* leaves — its ground, its streets and the nine
+ * towers you are not in — in floor-space scale.
+ *
+ * Measured at 997x448, ten full buildings: the block sits at a floor scale of
+ * **0.033** and one building at **0.072**, so the band is the middle of the
+ * only gap there is. It has to be crossed completely, and this is not
+ * housekeeping: the building's pulled-out plan is 286 units wide against a
+ * 130-unit plot stride, so a plan drawn while a neighbour is still on screen is
+ * drawn straight through it.
+ *
+ * The plan fades in on `1 - blockChromeAlpha`, so the two trade places rather
+ * than overlapping. That is a fade between *different objects*, which §10.5
+ * allows; the thing it forbids is fading between two pictures of one object,
+ * which is what the old ladder did and what the plot-to-tower hand-off
+ * deliberately does not do — those two are the same drawing at the same size.
+ */
+export const BLOCK_FADE_START = 0.042
+export const BLOCK_FADE_END = 0.06
+
+/** 1 while the block is the subject, 0 once a single building is. */
+export function blockChromeAlpha(floorScale: number): number {
+  if (!(floorScale > 0)) return 1
+  const t = (BLOCK_FADE_END - floorScale) / (BLOCK_FADE_END - BLOCK_FADE_START)
+  const u = Math.max(0, Math.min(1, t))
   return u * u * (3 - 2 * u)
 }
 
