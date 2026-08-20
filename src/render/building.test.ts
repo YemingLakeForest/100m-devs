@@ -14,7 +14,8 @@ import {
   BAND_H,
   DEVS_PER_FLOOR,
   FLOORS_PER_BUILDING,
-  PLOT_DROP,
+  PODIUM_W,
+  TOWER_FOOT,
   TOWER_CROWN,
   TOWER_W,
   bandRect,
@@ -167,8 +168,25 @@ describe('the crown and the plinth fit the frame that reserves them', () => {
     expect(mastTop).toBeGreaterThan(frame.cy - frame.h / 2)
   })
 
-  it('leaves the plinth enough room to stand on', () => {
-    expect(surfaceY(0, 0) + PODIUM_H).toBeLessThanOrEqual(PLOT_DROP)
+  it('leaves the plinth and the ground under it enough room to stand on', () => {
+    /*
+     * **This asserted the plinth's *faces*, and the faces are not the lowest
+     * thing a tower draws.** The deck is a 2:1 diamond centred on the shaft's
+     * foot, so its near corner reaches `PODIUM_W / 2` below that — twenty units
+     * past the hand-written 58 the frame used to stop at. The frame cut the tip
+     * off its own subject and nothing noticed, because at the building level a
+     * trimmed apron looks like an apron. On the block it looks like a tower
+     * ending in a spike above a pad drawn behind it, which is how it was
+     * reported: "the buildings are floating?".
+     */
+    const frame = buildingFrame(FLOORS_PER_BUILDING, 0)
+    const deckCorner = surfaceY(0, 0) + PODIUM_W / 2
+    expect(surfaceY(0, 0) + PODIUM_H).toBeLessThan(deckCorner)
+    expect(deckCorner).toBeLessThanOrEqual(frame.cy + frame.h / 2)
+    // And the contact shadow's rim, which is what grounds it — the frame stops
+    // exactly there, so this is an equality with a float's worth of slack.
+    expect(TOWER_FOOT).toBeCloseTo(frame.cy + frame.h / 2, 9)
+    expect(TOWER_FOOT).toBeGreaterThan(deckCorner)
   })
 
   it('frames a taller studio taller', () => {

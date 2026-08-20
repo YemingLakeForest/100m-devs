@@ -45,7 +45,10 @@ import {
   DEVS_PER_FLOOR,
   FLOORS_PER_BUILDING,
   PLATE_SCALE,
-  PLOT_DROP,
+  PODIUM_H,
+  PODIUM_W,
+  SHADOW_SPREAD,
+  TOWER_GROUND,
   TOWER_CROWN,
   TOWER_D,
   TOWER_W,
@@ -384,9 +387,10 @@ function drawRoof(g: Graphics, n: number) {
   g.circle(0, y - mast, 2.5).fill(c(RAMPS.ALARM[2]))
 }
 
-/** How tall the plinth is, and how far it oversails the shaft. */
-export const PODIUM_H = 20
-const PODIUM_W = HALF_W * 1.09
+// The plinth's dimensions live in `frames.ts` — `buildingFrame`, `towerRect`
+// and `block.ts`'s pads all measure against them, and a second copy here is how
+// the frame came to be cutting twenty units off the bottom of its own subject.
+export { PODIUM_H }
 
 /**
  * The plinth's top surface — an apron of pavement around the shaft's foot.
@@ -629,10 +633,18 @@ export function buildBuilding(): BuildingHandle {
     // Under the plinth's foot rather than under the shaft's: the building now
     // meets the ground twenty units lower than it used to, and a shadow left
     // where the shaft ends is a shadow halfway up the lobby.
+    /*
+     * **Under the plinth, and wider than it.** It used to be an ellipse at
+     * `PLOT_DROP * 0.92` with the shaft's proportions, which put it entirely
+     * *inside* the plinth deck — a shadow drawn under a thing that then paints
+     * over all of it is not a shadow, and the building had nothing grounding it
+     * at all. Centred on the deck and oversailing it by {@link SHADOW_SPREAD},
+     * what shows is a rim, which is the whole of what says a heavy object is
+     * resting on something.
+     */
     ground
-      .ellipse(0, PLOT_DROP * 0.92, TOWER_W * 0.86, TOWER_D * 0.24)
-      .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.7 })
-    ground.ellipse(0, PLOT_DROP * 0.86, TOWER_W * 0.7, TOWER_D * 0.17).fill(c(RAMPS.NEUTRAL[1]))
+      .ellipse(0, TOWER_GROUND, PODIUM_W * SHADOW_SPREAD, (PODIUM_W / 2) * SHADOW_SPREAD)
+      .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.75 })
   }
 
   function redrawLink() {

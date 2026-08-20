@@ -45,11 +45,11 @@ import { RAMPS, hexToRgb } from '../art/palette.ts'
 import {
   BLOCK_SCALE,
   BUILDINGS_PER_BLOCK,
-  PLOT_DROP,
+  PODIUM_W,
+  SHADOW_SPREAD,
+  TOWER_GROUND,
   PLOT_STRIDE_X,
   PLOT_STRIDE_Y,
-  TOWER_D,
-  TOWER_W,
   buildingsFor,
   devsIn,
   plotAt,
@@ -88,12 +88,15 @@ function diamond(g: Graphics, x: number, y: number, w: number, d: number) {
 }
 
 /**
- * Where a plot's pad sits — under the tower's foot, not under its shaft.
+ * Where a plot's pad sits — on the tower's own ground plane.
  *
- * `PLOT_DROP` is where the building meets its own ground twenty units below the
- * shaft, and a pad drawn at the shaft's foot is a pad halfway up the lobby.
+ * {@link TOWER_GROUND} is the shaft's near corner, which is where the plinth
+ * deck is centred and therefore where the building meets the ground. This was
+ * `PLOT_DROP`, a hand-written number ten block units lower, so every pad was
+ * drawn *in front of* the building standing on it and the block read as ten
+ * towers hovering over their own plots.
  */
-const PAD_Y = PLOT_DROP * BLOCK_SCALE
+const PAD_Y = TOWER_GROUND * BLOCK_SCALE
 
 export interface BlockHandle {
   container: Container
@@ -191,11 +194,21 @@ export function buildBlock(): BlockHandle {
       const at = plotAt(i)
       diamond(marks, at.x, at.y + PAD_Y, PAD_W, PAD_D)
       marks.fill(c(RAMPS.NEUTRAL[2]))
-      // The building's own shadow, so the tower is standing on the pad rather
-      // than pasted over it.
+      /*
+       * The contact shadow, centred on the plinth and oversailing it — so what
+       * shows is a **rim** around the deck rather than a smear under it. That
+       * rim is the whole of what says a heavy object is resting on something,
+       * and drawing it anywhere but under the plinth is what made the towers
+       * look as though they were hanging above their plots.
+       */
       marks
-        .ellipse(at.x, at.y + PAD_Y + 4, TOWER_W * 0.86 * BLOCK_SCALE, TOWER_D * 0.24 * BLOCK_SCALE)
-        .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
+        .ellipse(
+          at.x,
+          at.y + PAD_Y,
+          PODIUM_W * SHADOW_SPREAD * BLOCK_SCALE,
+          (PODIUM_W / 2) * SHADOW_SPREAD * BLOCK_SCALE,
+        )
+        .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.65 })
     }
     if (selected >= 0 && selected < buildings) {
       /*

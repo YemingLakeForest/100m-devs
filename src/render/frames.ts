@@ -258,8 +258,27 @@ export const BAND_H = 46
 export const PLAN_X = 346
 export const PLAN_Y = -309
 
-/** Ground clearance below the tower, for the plot and its shadow. */
-export const PLOT_DROP = 58
+/**
+ * The plinth, and where a tower actually stops.
+ *
+ * These live here rather than in `building.ts` for the reason §6 records about
+ * `towerSurfaceY`: **geometry the frame and the drawing both depend on cannot
+ * be written down twice.** It was, and the frame's copy was wrong. The bottom
+ * of a tower was a hand-written 58, and the plinth's *deck* — a 2:1 diamond
+ * centred on the shaft's foot — reaches its near corner at 78, so both
+ * `buildingFrame` and `towerRect` were cutting the last twenty units off the
+ * thing they were measuring. At the building level that is a trimmed apron; on
+ * the block it is a tower that ends in a spike above a pad drawn behind it,
+ * which reads exactly as it was reported: *"the buildings are floating?"*
+ */
+export const PODIUM_W = (TOWER_W / 2) * 1.09
+export const PODIUM_H = 20
+/** How far the contact shadow oversails the plinth it grounds. */
+export const SHADOW_SPREAD = 1.18
+/** The plinth deck's centre — the tower's own ground plane, at its near corner. */
+export const TOWER_GROUND = TOWER_W / 4
+/** The lowest point a tower is drawn at: the deck's near corner and its shadow's rim. */
+export const TOWER_FOOT = TOWER_GROUND + (PODIUM_W / 2) * SHADOW_SPREAD
 /** How far the plot oversails the tower on each side. */
 export const PLOT_SPREAD = 40
 
@@ -274,7 +293,13 @@ export function plateAt(_floorIndex?: number, _focus?: number): { x: number; y: 
   return { x: PLAN_X, y: PLAN_Y }
 }
 
-/** How deep the tower is — the roof diamond, and the rake of both facades. */
+/**
+ * How deep the tower is — the roof diamond, and the rake of both facades.
+ *
+ * Half its width, so {@link TOWER_GROUND} — the shaft's near corner, which is
+ * `TOWER_D / 2` — is written as `TOWER_W / 4` above where it is needed before
+ * this line exists.
+ */
 export const TOWER_D = TOWER_W / 2
 
 /**
@@ -350,7 +375,7 @@ export function buildingFrame(storeys: number, _focus?: number): Rect {
   const minX = Math.min(-TOWER_W / 2 - PLOT_SPREAD, plan.cx - plan.w / 2)
   const maxX = Math.max(TOWER_W / 2 + PLOT_SPREAD, plan.cx + plan.w / 2)
   const minY = Math.min(top.cy - top.h / 2 - TOWER_CROWN, plan.cy - plan.h / 2)
-  const maxY = Math.max(PLOT_DROP, plan.cy + plan.h / 2)
+  const maxY = Math.max(TOWER_FOOT, plan.cy + plan.h / 2)
   return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY }
 }
 
@@ -498,7 +523,7 @@ export function towerRect(storeys: number): Rect {
   const top = bandRect(n - 1)
   const halfW = TOWER_W / 2 + PLOT_SPREAD
   const minY = top.cy - top.h / 2 - TOWER_CROWN
-  return { cx: 0, cy: (minY + PLOT_DROP) / 2, w: halfW * 2, h: PLOT_DROP - minY }
+  return { cx: 0, cy: (minY + TOWER_FOOT) / 2, w: halfW * 2, h: TOWER_FOOT - minY }
 }
 
 /**
