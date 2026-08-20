@@ -41,6 +41,7 @@ import {
   LEVEL_NAMES,
   SQUAD,
   buildingChromeAlpha,
+  descendOnDoubleTap,
   floorScaleAt,
   floorSeatRect,
   roomResolved,
@@ -547,7 +548,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // founder codes; INFO (handled by doSelect) opens the profile. The old
     // avatar-only exception made players learn two meanings for one tap.
     if (founderTarget === 'avatar' || founderTarget === 'desk') {
-      codeAtFounderDesk(t0, true)
+      // The finger is on them; there is nowhere to fly to. See the note there.
+      codeAtFounderDesk({ t0, sound: true, take: false })
       return
     }
 
@@ -640,10 +642,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let selectedStorey = -1
 
   const tapSelectsAFloor = () => settleLevel(currentLevel) === BUILDING
-  const doubleTapDescends = () => {
-    const l = settleLevel(currentLevel)
-    return l === FLOOR || l === SQUAD
-  }
+  /** §7.7.6, and it is a rule rather than a level — see `descendOnDoubleTap`. */
+  const doubleTapDescends = () => descendOnDoubleTap(settleLevel(currentLevel), getState().devs)
 
   /**
    * **The address** — which part of the studio the lens is over. GDD §26.2.2.
@@ -689,7 +689,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * itself in. The push to Desk zoom and the per-line re-centre are driven from
    * here; {@link focusDialogue} just says who is talking.
    */
-  let savedSceneCamera: { z: number } | null = null
+  let savedSceneCamera: { level: Level } | null = null
 
   const focusFounderCamera = () => {
     founderFocus = true
@@ -713,13 +713,40 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
   }
 
-  const codeAtFounderDesk = (t0?: number, sound = false): number => {
+  /**
+   * §4.5d — the founder codes at their own desk.
+   *
+   * `take` is whether this also **takes the camera home**, and the two callers
+   * want opposite answers.
+   *
+   * The rail's CODE button does: §7.7.4 promises the way back to your own desk
+   * is always one control away, and it has to work from a floor you are not on.
+   * That is the whole reason the button exists.
+   *
+   * A tap **on the founder, in the world**, does not — the finger is already on
+   * them. Flying to somebody who is under the thumb can only take the picture
+   * away from where the player was looking, and it takes the *person* with it:
+   * the lens walks the corner desk toward the middle of the frame, so the next
+   * tap of a studio whose entire script is TAP TO CODE lands on empty floor.
+   *
+   * `test:walk` found that and worked around it rather than reporting it — see
+   * `pokeAt`, which learned to re-find the founder after every tap because
+   * fifty pokes at a fixed point were arriving as seven. **A gate that
+   * accommodates a defect hides it**, and this one hid it for as long as it
+   * took a player to say "clicking one of us to code, it should not zoom to the
+   * person".
+   */
+  const codeAtFounderDesk = ({
+    t0,
+    sound = false,
+    take = true,
+  }: { t0?: number; sound?: boolean; take?: boolean } = {}): number => {
     const local = room.founderDeskAt()
     const at = room.container.toGlobal({ x: local.x, y: local.y - 30 })
     const paid = pokeFounder(at.x, at.y)
     if (paid <= 0) return 0
 
-    focusFounderCamera()
+    if (take) focusFounderCamera()
     room.joltFounder()
     if (sound) playKeyboardClick()
     if (t0 !== undefined) {
@@ -1128,10 +1155,30 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // dialogue box needs no knowledge of the camera and a scene can never leave
     // the player somewhere they did not choose to be.
     if (state.scene && savedSceneCamera === null) {
-      savedSceneCamera = { z: camera.z }
+      /*
+       * **A level, not a Z, and the difference is a camera that never comes to
+       * rest.**
+       *
+       * This used to save `camera.z` and restore it with `camera.set`, and
+       * `set` is the continuous door into the lens — it is what `?z` and the
+       * §23.3 bench drive a dolly with, so it parks wherever it is told and
+       * turns the magnetic stop off while it is there. Restoring a Z sampled
+       * while the camera happened to be *moving* therefore parked the studio
+       * permanently between two levels: measured after the prologue, level
+       * 0.35, not settling, and §7.8.10's corner desk 148 px above the top of
+       * the frame. Act I's whole script is TAP TO CODE and there was nobody on
+       * the screen to tap.
+       *
+       * It was invisible until now because the §7.7.1 ceiling used to be
+       * enforced from out here by re-cutting the camera every frame, which
+       * quietly put it back on a stop — a defect held down by another defect.
+       * A level restores through `flyTo`, which is a stop, an ease rather than
+       * a cut (§10.5), and subject to the ceiling like every other flight.
+       */
+      savedSceneCamera = { level: settleLevel(camera.level) }
       camera.flyTo(DESK)
     } else if (!state.scene && savedSceneCamera !== null) {
-      camera.set(savedSceneCamera.z)
+      camera.flyTo(savedSceneCamera.level)
       savedSceneCamera = null
       room.setSpeaker(-1)
     }
@@ -1231,13 +1278,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // and the ledger agree about time being stopped.
     room.animate(now / 1000, state.dev.state, dt, currentEntropy(state), state.scene !== null)
 
-    // GDD §7.7.1 — the studio you can see is the studio you have. Applied
-    // every frame rather than only on input, because the scripted flight, the
-    // wheel and the pinch are three separate paths into the camera and a
-    // ceiling enforced on one of them is not a ceiling.
-    const ceiling = maxZoomFor(state.devs)
-    if (camera.z > ceiling) camera.set(ceiling)
-
     critPunch = Math.max(0, critPunch - dt * 4)
 
     // --- the camera --------------------------------------------------------
@@ -1256,6 +1296,17 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // draws the walls. Below the unfold that is a garage growing; above it, a
     // constant.
     camera.setFloorRect(room.shellRect)
+    /*
+     * GDD §7.7.1 — the studio you can see is the studio you have. Told to the
+     * camera rather than done to it, and that is the fix: this used to be
+     * `if (camera.z > ceiling) camera.set(ceiling)` every frame, which is an
+     * opinion about the camera's Z held by something that cannot see the ladder
+     * the Z comes from. On a new game the rungs crossed, the assertion stopped
+     * satisfying itself, and it re-cut the camera every frame for as long as
+     * the game was open — no wheel, pinch or drag survived to the next frame.
+     * The lens holds it as a bound now; see `Lens.setCeiling`.
+     */
+    camera.setCeiling(maxZoomFor(state.devs) * 9)
     camera.update(dt, now)
 
     currentLevel = camera.level
@@ -1572,7 +1623,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       focusDialogue(focus)
     },
     codeFounder() {
-      return codeAtFounderDesk(undefined, true)
+      // The rail's CODE — YOU, which is §7.7.4's way home as much as it is a
+      // poke, so this one does take the camera.
+      return codeAtFounderDesk({ sound: true })
     },
     setFounderInspect(handler: (() => void) | null) {
       founderInspect = handler

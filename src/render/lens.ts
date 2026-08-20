@@ -38,6 +38,7 @@ import {
   intoPlate,
   levelAtScale,
   levelScales,
+  nestScales,
   scaleAtLevel,
   storeyOf,
   type Level,
@@ -214,6 +215,21 @@ export class Lens {
    * the thing it was parked at rather than at the number that used to mean it.
    */
   private parked: number | null = null
+  /**
+   * Where the camera was parked *at*, in the focused floor's own space, when it
+   * was sent to a person rather than to a rectangle.
+   *
+   * Held next to {@link parked} and for the same reason. A level names a frame
+   * and a frame has a centre, so re-deriving a parked camera from the level
+   * alone quietly throws away any aim: `flyTo(DESK, founderDeskAt())` lands on
+   * §7.8.10's corner desk, the frames then move — the room grows, the canvas is
+   * laid out a second time — and the next re-derive re-centres on the *Desk
+   * level's* own frame, which is seat 0, the first developer's chair. The
+   * founder sits outside the seat lattice twelve units away, so a two-person
+   * studio came to rest with the player's own avatar 395 px above the top of
+   * the screen and nothing to tap.
+   */
+  private parkedAt: { x: number; y: number } | null = null
   /** Set when the frames have moved and a parked camera needs re-deriving. */
   private dirty = false
   /** True once the player has dragged, so a re-derive does not undo their pan. */
@@ -226,6 +242,13 @@ export class Lens {
    * that overshoots and comes back is pointing the wrong way.
    */
   private gestureFrom: number | null = null
+  /**
+   * §7.7.1 — the outermost level the camera may reach. See {@link setCeiling}.
+   *
+   * The whole ladder until a headcount says otherwise, so a lens standing on
+   * its own — a test, a bench — is not silently pinned to a desk.
+   */
+  private ceiling: Level = TOP_LEVEL
 
   constructor(viewport?: Viewport) {
     if (viewport) this.viewport = viewport
@@ -292,6 +315,21 @@ export class Lens {
   setViewport(v: Viewport): void {
     if (v.w === this.viewport.w && v.h === this.viewport.h) return
     this.viewport = { w: Math.max(1, v.w), h: Math.max(1, v.h) }
+    /*
+     * **The viewport is one of the frames.** Every level's scale is a fit
+     * against it, so a resize moves all four rungs and a camera parked on one
+     * of them is left holding a number that used to mean it.
+     *
+     * `parked`'s own note named this case — "the viewport rotates" — and the
+     * flag was never set here. Nothing was known to be reading the wrong number
+     * because of it; it was found while tracing a cold boot, where the canvas
+     * is laid out once before the HUD and once after, and it is fixed on the
+     * strength of the invariant rather than of a symptom. What kept it harmless
+     * is not reassuring: §7.7.1's ceiling used to re-cut the camera from
+     * outside the lens every frame, so a parked camera was being re-derived
+     * constantly as a side effect of a different defect.
+     */
+    this.dirty = true
   }
 
   /**
@@ -331,7 +369,12 @@ export class Lens {
   scales(): Record<Level, number> {
     const base = levelScales(this.seat, this.storeys, this.viewport)
     if (this.floorRect) base[FLOOR] = fitScaleFor(this.frameOf(FLOOR), this.viewport)
-    return base
+    // The garage is a rectangle that grows and it does not respect the nesting
+    // — for the first thirty developers the room is smaller than the squad
+    // that is supposed to contain it. `nestScales` is what keeps the ladder a
+    // ladder; without it the rungs cross and the band between them stops
+    // existing. See its own note.
+    return nestScales(base)
   }
 
   /**
@@ -357,10 +400,64 @@ export class Lens {
     this.dirty = true
   }
 
-  /** The frame a level names, for the current address. */
+  /**
+   * §7.7.1 — how far out the camera may pull back, as a level.
+   *
+   * **The studio you can see is the studio you have.** With two developers
+   * there is no floor to look at and no tower, and a lens that can reach them
+   * says the world is a backdrop the player is pointing at rather than a place
+   * they are filling.
+   *
+   * It lives *here* now, and that is the fix rather than a tidy-up. It used to
+   * be held from outside, as `if (camera.z > ceiling) camera.set(ceiling)` once
+   * a frame — a statement about the camera's Z made by something that could not
+   * see the ladder the Z is derived from. When the rungs crossed (see
+   * {@link nestScales}) that line stopped converging: the scale it asserted
+   * reported a level *above* the ceiling, so it fired again on the very next
+   * frame, and every frame after, and each firing threw away the gesture, the
+   * settle and the pan. Thirty wheel notches moved the camera nothing at all,
+   * because every one of them was undone 16 ms later by a rule that could not
+   * satisfy itself.
+   *
+   * Owned by the lens, it is one bound on one clamp: the zoom stops there, the
+   * settle will not target past it, and a commanded flight is held to it. There
+   * is nothing to fight because there is no second opinion.
+   *
+   * Rounded, because a ceiling is a *rung* and rungs are whole. It arrives as
+   * a Z on §7.2's ten-rung ladder and is read back as a level by one
+   * multiplication, and a rung has to survive the round trip in one piece —
+   * truncated, a ceiling a hair under the squad is a studio pinned to its own
+   * desk with no way to see the room it is sitting in.
+   */
+  setCeiling(level: number): void {
+    const next = clamp(Math.round(Number.isFinite(level) ? level : TOP_LEVEL), DESK, TOP_LEVEL) as Level
+    if (next === this.ceiling) return
+    this.ceiling = next
+    this.dirty = true
+  }
+
+  /** The furthest-out scale §7.7.1 allows, for the frames as they are now. */
+  private ceilingScale(scales = this.scales()): number {
+    return scaleAtLevel(this.ceiling, scales)
+  }
+
+  /**
+   * The frame a level names, for the current address.
+   *
+   * Nested the same way {@link nestScales} nests the ladder, and it has to be:
+   * a level whose scale was pushed out to the room's must be *centred* on the
+   * room too, or the camera sits at the garage's scale looking at the middle of
+   * a squad block the garage is only one corner of. Two derivations of "where
+   * is this level" is how a picture ends up framing nothing.
+   */
   frameOf(level: Level): Rect {
-    if (level === FLOOR && this.floorRect) return intoPlate(this.floorRect, storeyOf(this.seat))
-    return frameFor(level, this.seat, this.storeys)
+    const room = this.floorRect ? intoPlate(this.floorRect, storeyOf(this.seat)) : null
+    if (level === FLOOR && room) return room
+    const own = frameFor(level, this.seat, this.storeys)
+    if (!room || level > FLOOR) return own
+    // A frame that holds *more* than the room fits at a smaller scale than the
+    // room does. That is the crossing `nestScales` collapses.
+    return fitScaleFor(own, this.viewport) < fitScaleFor(room, this.viewport) ? room : own
   }
 
   /**
@@ -370,6 +467,7 @@ export class Lens {
    * of a frame nobody has seen yet.
    */
   reframe(level: Level, immediate = false): void {
+    level = Math.min(level, this.ceiling) as Level
     const frame = this.frameOf(level)
     const scale = fitScaleFor(frame, this.viewport)
     if (immediate) {
@@ -379,6 +477,7 @@ export class Lens {
       this.target = null
       this.commanded = false
       this.parked = level
+      this.parkedAt = null
       this.gestureFrom = null
       this.panned = false
       return
@@ -386,6 +485,7 @@ export class Lens {
     this.target = { scale, cx: frame.cx, cy: frame.cy }
     this.commanded = true
     this.parked = level
+    this.parkedAt = null
     this.gestureFrom = null
     this.panned = false
     this.idleSince = Number.POSITIVE_INFINITY
@@ -406,6 +506,7 @@ export class Lens {
 
   /** Fly to a level, centred on a point in the focused floor's own space. */
   flyTo(level: Level, floorPoint?: { x: number; y: number }): void {
+    level = Math.min(level, this.ceiling) as Level
     const frame = this.frameOf(level)
     const at = floorPoint ? floorToBuilding(floorPoint, storeyOf(this.seat)) : null
     this.target = {
@@ -415,6 +516,7 @@ export class Lens {
     }
     this.commanded = true
     this.parked = level
+    this.parkedAt = floorPoint ? { x: floorPoint.x, y: floorPoint.y } : null
     this.gestureFrom = null
     this.panned = false
     this.idleSince = Number.POSITIVE_INFINITY
@@ -429,7 +531,7 @@ export class Lens {
    */
   set(z: number): void {
     if (!Number.isFinite(z)) return
-    const level = clamp(z * 9, DESK, TOP_LEVEL)
+    const level = clamp(z * 9, DESK, this.ceiling)
     const frame = this.frameOf(settleLevel(level))
     this._scale = scaleAtLevel(level, this.scales())
     this._cx = frame.cx
@@ -437,6 +539,7 @@ export class Lens {
     this.target = null
     this.commanded = false
     this.parked = level
+    this.parkedAt = null
     this.gestureFrom = null
     this.panned = false
     this.idleSince = Number.POSITIVE_INFINITY
@@ -466,7 +569,10 @@ export class Lens {
       this.gestureFrom = this.target !== null ? this.level : (this.parked ?? this.level)
     }
     const scales = this.scales()
-    const next = clamp(this._scale * factor, scales[TOP_LEVEL] * 0.85, scales[DESK] * 1.6)
+    // Out stops at §7.7.1's ceiling and in stops a little past the desk. A
+    // hard stop rather than a rubber band, because a zoom that travels and then
+    // springs back is the thing the settle was just taught not to do.
+    const next = clamp(this._scale * factor, this.ceilingScale(scales), scales[DESK] * 1.6)
     if (focal) {
       const moved = anchorCentre(
         { cx: this._cx, cy: this._cy },
@@ -482,6 +588,7 @@ export class Lens {
     this.target = null
     this.commanded = false
     this.parked = null
+    this.parkedAt = null
     this.idleSince = now
   }
 
@@ -524,9 +631,18 @@ export class Lens {
       if (this.target === null && this.parked !== null) {
         this._scale = scaleAtLevel(this.parked, this.scales())
         if (!this.panned) {
-          const frame = this.frameOf(settleLevel(this.parked))
-          this._cx = frame.cx
-          this._cy = frame.cy
+          // The aim first, if there was one — see `parkedAt`. A camera sent to
+          // a person is parked on the person, not on the rectangle the level
+          // happens to name.
+          if (this.parkedAt) {
+            const at = floorToBuilding(this.parkedAt, storeyOf(this.seat))
+            this._cx = at.x
+            this._cy = at.y
+          } else {
+            const frame = this.frameOf(settleLevel(this.parked))
+            this._cx = frame.cx
+            this._cy = frame.cy
+          }
         }
       }
     }
@@ -534,7 +650,10 @@ export class Lens {
     if (this.target === null && now - this.idleSince > SETTLE_DELAY_MS) {
       // **The magnetic stop.** Nothing between two levels is a picture of
       // anything, so the camera is never left there.
-      const to = settleTowards(this.level, this.gestureFrom)
+      // Held to the ceiling: `settleTowards` promises a gesture at least one
+      // level in the direction it was going, and outward that promise runs off
+      // the end of the studio the player has built.
+      const to = Math.min(settleTowards(this.level, this.gestureFrom), this.ceiling) as Level
       const scale = scaleAtLevel(to, this.scales())
       this.parked = to
       this.gestureFrom = null
@@ -564,6 +683,23 @@ export class Lens {
         this.commanded = false
         this.idleSince = Number.POSITIVE_INFINITY
       }
+    }
+
+    /*
+     * **The ceiling, held.** The zoom already stops there, so the only way to
+     * be outside it is for the world to have moved rather than the camera: the
+     * ceiling itself coming down on a new career, or the frames shifting under
+     * a lens that is sitting still — the garage growing, a storey arriving, the
+     * viewport turning.
+     *
+     * After the ease rather than before it, so a flight cannot be clamped on
+     * its first frame and then eased straight back out through the bound.
+     */
+    const limit = this.ceilingScale()
+    if (this._scale < limit) {
+      this._scale = limit
+      if (this.parked !== null) this.parked = Math.min(this.parked, this.ceiling)
+      if (this.target && this.target.scale < limit) this.target = { ...this.target, scale: limit }
     }
 
     const bounds = this.bounds()

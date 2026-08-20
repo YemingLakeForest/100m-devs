@@ -501,6 +501,37 @@ export function storeysFor(devs: number): number {
 }
 
 /**
+ * Does a double tap descend a level from here — §7.7.6's navigation gesture.
+ *
+ * Two conditions, and the second one is the interesting one.
+ *
+ * It descends from the floor and from the squad, because those are the levels
+ * with something under them. And it descends **only once there is more than one
+ * squad to choose between**, which is the lift panel's own argument — *a lift
+ * with one button is furniture* — applied to a gesture instead of a control. A
+ * studio of two people is one squad: descending into it names the group the
+ * player is already looking at, and the level below is the same two people
+ * drawn larger.
+ *
+ * What it costs to offer it anyway is not nothing. The descend consumes the
+ * tap, so **the second tap does not code**, and §21 Act I boots with POKE
+ * latched over a script that reads TAP TO CODE. Clicking *is* the game there,
+ * and a player clicking at any speed a clicker is played at produces a double
+ * tap on every second click: half their taps went to navigation, and the
+ * navigation flew the camera onto the person they were coding at. Reported as
+ * "when there's only James and us, clicking one of us to code, it should not
+ * zoom to the person".
+ *
+ * Nothing is lost above a squad's worth of people, and nothing is lost below it
+ * either: the address ladder, the wheel and the pinch all still navigate, and
+ * §7.7.6b's INSPECT tap still names whoever is under it.
+ */
+export function descendOnDoubleTap(level: Level, devs: number): boolean {
+  if (level !== FLOOR && level !== SQUAD) return false
+  return (Number.isFinite(devs) ? devs : 0) > SQUAD_SIZE
+}
+
+/**
  * The frame a level names, **always in building space**.
  *
  * One space for every level is what lets the camera be a single scale and
@@ -580,12 +611,46 @@ export function levelScales(
   storeys: number,
   viewport: { w: number; h: number },
 ): Record<Level, number> {
-  return {
+  return nestScales({
     0: fitScaleFor(frameFor(DESK, seat, storeys), viewport),
     1: fitScaleFor(frameFor(SQUAD, seat, storeys), viewport),
     2: fitScaleFor(frameFor(FLOOR, seat, storeys), viewport),
     3: fitScaleFor(frameFor(BUILDING, seat, storeys), viewport),
+  })
+}
+
+/**
+ * Force the ladder to nest — **no level may frame less than the level inside
+ * it**.
+ *
+ * The four frames are nested by construction: a desk is in a squad, a squad is
+ * on a floor, a floor is in a building. The *room* is not, because §7.8.1's
+ * garage is a real rectangle that grows, and for the first thirty developers it
+ * is smaller than the 10x10 block a squad names. Measured at one developer, on
+ * the reference frame: desk 51.8, squad 8.4, floor **9.8** — the floor sat
+ * *inside* the squad, and every piece of arithmetic downstream reads the ladder
+ * as ordered.
+ *
+ * What that cost was not subtle. {@link levelAtScale} walks the rungs in order,
+ * so an out-of-order rung is not merely mis-sized, it is **unreachable**: the
+ * band between squad and floor inverted, the level curve grew a cliff, and a
+ * camera parked anywhere on the wrong side of it reported a level the ceiling
+ * would not allow and could not be zoomed out of. That is the whole of "when
+ * there's only me on a new game, when I zoomed out, I can't zoom back in".
+ *
+ * The rule is the honest one: a level that would frame less than the room shows
+ * the room. Two levels that then frame the same rectangle **are the same
+ * place** — which is true of a garage, where "your squad", "your floor" and
+ * "everybody" name one group of people — and the collapsed rungs always land
+ * outside §7.7.1's ceiling anyway, because the ceiling is what put the room
+ * there.
+ */
+export function nestScales(scales: Record<Level, number>): Record<Level, number> {
+  const out = { ...scales }
+  for (let l = TOP_LEVEL - 1; l >= DESK; l--) {
+    out[l as Level] = Math.max(out[l as Level], out[(l + 1) as Level])
   }
+  return out
 }
 
 /**
@@ -601,9 +666,17 @@ export function levelAtScale(scale: number, scales: Record<Level, number>): numb
   const s = Math.log(scale)
   if (s <= Math.log(scales[TOP_LEVEL])) return TOP_LEVEL
   if (s >= Math.log(scales[DESK])) return DESK
-  for (let l = TOP_LEVEL; l > DESK; l--) {
+  // Innermost first, so a scale two rungs share is read as the *inner* one.
+  // {@link nestScales} collapses a rung onto its neighbour when the room is
+  // smaller than the frame the rung names, and the camera sitting exactly on
+  // that shared scale is sitting at the closer of the two: it got there by
+  // pulling back until it stopped, and the thing that stopped it was the inner
+  // rung's own ceiling.
+  for (let l = DESK + 1; l <= TOP_LEVEL; l++) {
     const lo = Math.log(scales[l as Level])
     const hi = Math.log(scales[(l - 1) as Level])
+    // A collapsed rung is not a band and cannot be interpolated across.
+    if (!(hi - lo > 1e-12)) continue
     if (s >= lo && s <= hi) return l - (s - lo) / (hi - lo)
   }
   return TOP_LEVEL
@@ -614,8 +687,13 @@ export function scaleAtLevel(level: number, scales: Record<Level, number>): numb
   const l = Math.max(DESK, Math.min(TOP_LEVEL, Number.isFinite(level) ? level : TOP_LEVEL))
   const lo = Math.floor(l)
   const hi = Math.min(TOP_LEVEL, lo + 1)
-  if (lo === hi) return scales[lo as Level]
   const t = l - lo
+  // Exact on a stop, rather than `exp(log(s))` of it. A level is a *place* and
+  // the round trip through the logarithm lands a unit in the last place either
+  // side of one, which is enough for `levelAtScale` to report the neighbouring
+  // rung and for anything watching the level to flicker between two names while
+  // the camera has not moved at all.
+  if (lo === hi || t <= 0) return scales[lo as Level]
   return Math.exp(Math.log(scales[lo as Level]) * (1 - t) + Math.log(scales[hi as Level]) * t)
 }
 

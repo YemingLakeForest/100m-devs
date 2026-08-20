@@ -336,16 +336,23 @@ async function findPokePoint(page, size, from = null) {
  *
  * A thumb follows the person it is tapping and this had to learn to. The first
  * version tapped a fixed point fifty times and got seven: `codeAtFounderDesk`
- * calls `focusFounderCamera`, so **the first tap moves the target** — the lens
- * walks the corner desk toward the middle of the frame and the fixed point is
+ * called `focusFounderCamera`, so **the first tap moved the target** — the lens
+ * walked the corner desk toward the middle of the frame and the fixed point was
  * then over empty floor. §21.0b's fifty pokes never arrived, Act I never ended,
  * and the run sat in `act1_poke` with four games shipped and fifty thousand
  * dollars in the bank, which is a perfectly reasonable studio and not the one
  * the script is about.
  *
- * That is worth keeping in the file rather than in a commit message: **a gate
- * that aims at a fixed screen point is aiming at a camera that has moved**, and
- * every canvas sweep below re-finds rather than remembers for the same reason.
+ * **That was a defect and this file treated it as weather.** A tap on somebody
+ * already under the finger has nowhere to fly to, and a code tap does not move
+ * the camera any more; the check in item 3 holds it. The story stays because
+ * the shape of the mistake outlives it — a gate that works around what it trips
+ * over stops being able to report it, and this one hid a broken primary verb
+ * for as long as it took a player to notice.
+ *
+ * The re-find stays and earns its keep for the honest reason: §7.8.6's
+ * developers get up and walk to the cooler, so the body under a remembered
+ * point really can leave. Every canvas sweep below re-finds for that reason.
  */
 async function pokeAt(page, size, point, times) {
   let at = point
@@ -491,6 +498,42 @@ async function walkCareerOne(page) {
 
   // §21.0b — fifty pokes, and then somebody turns up.
   await until(page, 'Act I to open on the poke', async (p) => (await phase(p)) === 'act1_poke', 20_000)
+
+  /*
+   * **The primary verb does not move the camera**, and this is here because it
+   * used to and this file hid it.
+   *
+   * §7.7.6b boots Act I with POKE latched over a script that reads TAP TO CODE,
+   * so ten taps on one spot is not a stress test, it is the game. Two things
+   * broke it: a tap on the founder called `focusFounderCamera`, which walked
+   * their desk toward the middle of the frame and out from under the thumb; and
+   * any two taps inside 300 ms descended a level, which both flew the lens onto
+   * the person being coded at and *ate the second tap*.
+   *
+   * `pokeAt` below already knew — it re-finds its target after every miss, and
+   * its note says exactly why. That is the trap: **a gate that accommodates a
+   * defect stops reporting it.** It stayed accommodated until a player said
+   * "when there's only James and us, clicking one of us to code, it should not
+   * zoom to the person".
+   */
+  const beforeCode = await lens(page)
+  const codedBefore = await pokeCount(page)
+  for (let i = 0; i < 10; i++) {
+    await tapWorld(page, point.x, point.y)
+    await page.waitForTimeout(28)
+  }
+  const landed = (await pokeCount(page)) - codedBefore
+  const afterCode = await lens(page)
+  if (landed < 10) {
+    fail(`ten taps on one spot coded ${landed} times — ${await where(page)}`)
+  }
+  if (afterCode.at !== beforeCode.at || Math.abs(afterCode.level - beforeCode.level) > 0.02) {
+    fail(
+      `coding moved the lens from ${beforeCode.at} (${beforeCode.level}) to ${afterCode.at} (${afterCode.level}) — ${await where(page)}`,
+    )
+  }
+  saw(`ten fast taps on one spot all coded, and the lens stayed at ${afterCode.at}`)
+
   await pokeAt(page, SIZE, point, 52)
   await until(page, 'James at the door', async (p) => (await phase(p)) !== 'act1_poke')
   await playScenes(page)
@@ -971,21 +1014,50 @@ async function placeAHero(page, size) {
   }
   await arm()
 
-  for (let y = 40; y <= size.height - 80; y += 16) {
-    for (let x = 200; x <= size.width - 220; x += 16) {
-      await refuseBankruptcy(page)
-      await tapWorld(page, x, y)
-      await page.waitForTimeout(60)
-      const s = await runState(page)
-      if (s.placements.length > 0) {
-        saw(`posted ${s.placements.join(', ')} onto the floor with §13.8a’s gesture`)
-        return
+  /*
+   * **Aim, do not hunt** — the same correction `openFounderScreen` got, for the
+   * same reason and then one more.
+   *
+   * This used to sweep a grid of about nine hundred taps, each one a real tap
+   * plus a full round trip to read the run state, and each miss on open ground
+   * disarming and costing three more control presses to re-arm. That is minutes
+   * of wall time, and item 10 runs it over a Run 2 that is already in §21's
+   * collapse — so the leg was racing payroll and lost about half the time,
+   * reported as "the studio went bankrupt mid-run" with nothing wrong except
+   * the clock. Trap 41, arriving from a third direction.
+   *
+   * `__pick` is the same sanctioned hook the founder leg aims with, and asking
+   * it inside the page finds the point in one round trip instead of nine
+   * hundred. Nothing is weakened: the tap is still a real tap on a real person,
+   * §13.8a still has to accept it, and the failure now says which of the two
+   * things went wrong.
+   */
+  const spot = await page.evaluate(
+    ({ w, h }) => {
+      for (let y = 40; y <= h - 80; y += 8) {
+        for (let x = 200; x <= w - 220; x += 8) {
+          if (globalThis.__pick?.(x, y)) return { x, y }
+        }
       }
-      // Open ground disarms, which is the cheap way out — re-arm and carry on.
-      if (!s.posting) await arm()
+      return null
+    },
+    { w: size.width, h: size.height },
+  )
+  if (!spot) fail(`nobody on the floor is under any point the finger can reach — ${await where(page)}`)
+
+  for (let i = 0; i < 8; i++) {
+    await refuseBankruptcy(page)
+    // Open ground disarms, which is the cheap way out — re-arm and carry on.
+    if (!(await runState(page)).posting) await arm()
+    await tapWorld(page, spot.x, spot.y)
+    await page.waitForTimeout(120)
+    const s = await runState(page)
+    if (s.placements.length > 0) {
+      saw(`posted ${s.placements.join(', ')} onto the floor with §13.8a’s gesture`)
+      return
     }
   }
-  fail(`nowhere on the floor took a placement — ${await where(page)}`)
+  fail(`somebody is standing at ${spot.x},${spot.y} and §13.8a’s tap would not place on them — ${await where(page)}`)
 }
 
 /** Every number on screen that a §22.8 branch bends, as the player reads it. */

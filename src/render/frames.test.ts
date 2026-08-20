@@ -14,6 +14,7 @@ import {
   bandRect,
   buildingChromeAlpha,
   buildingFrame,
+  descendOnDoubleTap,
   deskFrame,
   fitScaleFor,
   floorFrame,
@@ -23,6 +24,7 @@ import {
   intoPlate,
   levelAtScale,
   levelScales,
+  nestScales,
   plateRect,
   roomResolved,
   scaleAtLevel,
@@ -224,6 +226,87 @@ describe('fitting, at the reference frame', () => {
   it('clamps rather than extrapolating past either end', () => {
     expect(levelAtScale(scales[DESK] * 10, scales)).toBe(DESK)
     expect(levelAtScale(scales[BUILDING] / 10, scales)).toBe(BUILDING)
+  })
+})
+
+describe('the double tap descends', () => {
+  it('only from a level with something under it', () => {
+    // The building has its own two-tap picker and the desk is the bottom.
+    expect(descendOnDoubleTap(BUILDING, 10_000)).toBe(false)
+    expect(descendOnDoubleTap(DESK, 10_000)).toBe(false)
+    expect(descendOnDoubleTap(FLOOR, 10_000)).toBe(true)
+    expect(descendOnDoubleTap(SQUAD, 10_000)).toBe(true)
+  })
+
+  it('and only once there is more than one squad to choose between', () => {
+    // §21 Act I boots with POKE latched over a script that reads TAP TO CODE,
+    // and a descend consumes the tap — so a studio of two people clicking at
+    // the speed a clicker is played at loses every second click to navigation,
+    // and the navigation flies the camera onto the person being coded at.
+    expect(descendOnDoubleTap(SQUAD, 2)).toBe(false)
+    expect(descendOnDoubleTap(SQUAD, SQUAD_SIZE)).toBe(false)
+    expect(descendOnDoubleTap(SQUAD, SQUAD_SIZE + 1)).toBe(true)
+    expect(descendOnDoubleTap(FLOOR, 2)).toBe(false)
+  })
+})
+
+describe('the ladder nests', () => {
+  /*
+   * §7.8.1's garage at one developer, measured on the reference frame: the
+   * room is 730 x 448 of floor space, which through the plate fits at 9.86 —
+   * *inside* the squad's 8.42, and the squad is supposed to contain it.
+   *
+   * This is the arithmetic behind "when there's only me on a new game, when I
+   * zoomed out, I can't zoom back in". An out-of-order rung is not a rung that
+   * is the wrong size, it is a rung that does not exist: `levelAtScale` walks
+   * the bands in order, so the band between the squad and the floor inverted
+   * and every scale in it fell through to a level a level and a half away.
+   */
+  const CROSSED = { 0: 51.75, 1: 8.42, 2: 9.86, 3: 1.11 } as Record<Level, number>
+
+  it('pushes a rung out until it holds the one inside it', () => {
+    const nested = nestScales(CROSSED)
+    expect(nested[SQUAD]).toBe(CROSSED[FLOOR])
+    // And nothing else moves: the desk was already inside the squad, and the
+    // building was already outside the floor.
+    expect(nested[DESK]).toBe(CROSSED[DESK])
+    expect(nested[BUILDING]).toBe(CROSSED[BUILDING])
+  })
+
+  it('leaves a ladder that already nests exactly as it was', () => {
+    const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)
+    expect(nestScales(scales)).toEqual(scales)
+  })
+
+  it('reads a scale two rungs share as the inner one', () => {
+    // The squad and the floor are the same picture in a garage, and the camera
+    // sitting on their shared scale got there by pulling back until it
+    // stopped. What stopped it was the squad's own ceiling, so that is where
+    // it is.
+    const nested = nestScales(CROSSED)
+    expect(levelAtScale(nested[SQUAD], nested)).toBe(SQUAD)
+    expect(Number.isNaN(levelAtScale(nested[FLOOR], nested))).toBe(false)
+  })
+
+  it('stays continuous and on the ladder across a collapsed rung', () => {
+    const nested = nestScales(CROSSED)
+    for (let s = nested[BUILDING] / 2; s < nested[DESK] * 2; s *= 1.05) {
+      const level = levelAtScale(s, nested)
+      expect(Number.isFinite(level)).toBe(true)
+      expect(level).toBeGreaterThanOrEqual(DESK)
+      expect(level).toBeLessThanOrEqual(BUILDING)
+    }
+  })
+
+  it('lands exactly on a stop, collapsed or not', () => {
+    // `exp(log(s))` is a unit in the last place either side of `s`, which is
+    // enough for the level to read as the neighbouring rung — so the camera
+    // sitting still would flicker between two names, and anything holding it
+    // to a level would keep re-asserting a scale it was already at.
+    const nested = nestScales(CROSSED)
+    for (const l of [DESK, SQUAD, FLOOR, BUILDING] as Level[]) {
+      expect(scaleAtLevel(l, nested)).toBe(nested[l])
+    }
   })
 })
 

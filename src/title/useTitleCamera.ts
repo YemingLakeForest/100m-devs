@@ -20,6 +20,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { StageHandle } from '../render/stage.ts'
+import { FLOOR } from '../render/frames.ts'
 import { maxZoomFor } from '../sim/headcount.ts'
 
 /** The furthest out the lens may go over a one-developer studio — §7.7.1. */
@@ -85,6 +86,31 @@ export function useTitleCamera(stage: StageHandle | null, pushIn: boolean): void
     }
 
     frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      /*
+       * **Hand the camera back on a stop.**
+       *
+       * `camera.set` is the lens's continuous door — it parks at exactly the Z
+       * it is given and switches the magnetic stop off while it is there,
+       * which is right for a driver that runs every frame and wrong for one
+       * that stops. This one stops: the title goes away mid-push-in and the
+       * game inherited a camera resting between two levels with nothing left
+       * to move it. Measured on a cold boot: level 0.35, not settling, and
+       * §7.8.10's corner desk 148 px above the top of the frame — Act I's
+       * whole script is TAP TO CODE and there was nobody on the screen to tap.
+       *
+       * It hands back to **the frame the lens opens itself on** — the floor,
+       * clamped by §7.7.1's ceiling — rather than to the Desk level the push-in
+       * ended at, and the difference matters most for exactly the studio the
+       * push-in is about. The Desk level frames seat 0, the *first developer's*
+       * chair; §7.8.10's founder sits outside the seat lattice twelve units
+       * away. Handing back to Desk opened a two-person studio on somebody
+       * else's desk with the player's own avatar 395 px above the top of the
+       * screen, and §4.5d's front door is that avatar. Clamped, the one call
+       * lands a garage on the whole garage and a tower on a floor of it.
+       */
+      camera.reframe(FLOOR)
+    }
   }, [stage])
 }

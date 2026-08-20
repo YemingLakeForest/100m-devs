@@ -17,10 +17,12 @@ import {
   SQUAD,
   fitScaleFor,
   floorFrame,
+  floorToBuilding,
   floorScaleAt,
   intoPlate,
   roomResolved,
 } from './frames.ts'
+import { maxZoomFor } from '../sim/headcount.ts'
 
 const REFERENCE = { w: 997, h: 448 }
 
@@ -314,6 +316,180 @@ describe('a gesture arrives where it was going', () => {
     lens.update(1 / 60, 11_000 + SETTLE_DELAY_MS + 20)
     settle(lens)
     expect(lens.level).toBeCloseTo(FLOOR, 3)
+  })
+})
+
+describe("§7.7.1's ceiling", () => {
+  /**
+   * §7.8.1's garage at one developer, measured on the reference frame.
+   *
+   * 730 x 448 of floor space, which through the plate fits at 9.86 — smaller
+   * than the squad that is meant to contain it, and the reason the ladder has
+   * to be told to nest. By ten developers the walls have pushed out past a
+   * squad and the crossing is gone, so the whole of this is about the opening
+   * minutes of a new game.
+   */
+  const GARAGE = { cx: 0, cy: -56.83, w: 729.76, h: 448.37 }
+
+  /** A studio of one: the garage, one storey, and the ceiling it has earned. */
+  function newGame(): Lens {
+    const lens = new Lens(REFERENCE)
+    lens.setAddress(0, 1)
+    lens.setFloorRect(GARAGE)
+    lens.setCeiling(maxZoomFor(1) * 9)
+    lens.update(1 / 60, 0)
+    return lens
+  }
+
+  /**
+   * A hand on the wheel: `n` notches, a frame apart, then let go.
+   *
+   * Positive is *out*, the way a mouse wheel is: the browser sends `deltaY`
+   * away from the user and `stage.ts` turns it into a factor below one. 1.212
+   * is one notch of a real wheel — `exp(120 * 0.0016)`.
+   */
+  function spin(lens: Lens, notches: number, per = 1.212, from = 1_000): number {
+    let now = from
+    for (let i = 0; i < Math.abs(notches); i++) {
+      lens.zoomBy(notches > 0 ? 1 / per : per, null, now)
+      lens.update(1 / 60, now)
+      now += 1000 / 60
+    }
+    lens.update(1 / 60, now + SETTLE_DELAY_MS + 20)
+    return settle(lens)
+  }
+
+  it('lets a new game zoom out and come back', () => {
+    /*
+     * **The bug, end to end.** Reported as "when there's only me on a new
+     * game, when I zoomed out, I can't zoom back in", and it was two things
+     * meeting: the garage crossed the ladder's rungs (see `nestScales`), and
+     * the ceiling was held from outside the lens as `if (camera.z > ceiling)
+     * camera.set(ceiling)` once a frame. With the rungs crossed that assertion
+     * reported a level above the ceiling for the very scale it had just
+     * asserted, so it fired again on the next frame and every frame after —
+     * and each firing threw away the gesture. Measured in a browser: thirty
+     * wheel notches, in and out, moved the camera from 8.42048 to 8.42048.
+     */
+    const lens = newGame()
+    spin(lens, 10)
+    const out = lens.scale
+    expect(lens.level).toBeCloseTo(SQUAD, 3)
+
+    spin(lens, -10, 1.212, 20_000)
+    expect(lens.scale).toBeGreaterThan(out * 2)
+    expect(lens.level).toBeCloseTo(DESK, 3)
+  })
+
+  it('nests the ladder rather than letting the garage cross it', () => {
+    const scales = newGame().scales()
+    expect(scales[DESK]).toBeGreaterThanOrEqual(scales[SQUAD])
+    expect(scales[SQUAD]).toBeGreaterThanOrEqual(scales[FLOOR])
+    expect(scales[FLOOR]).toBeGreaterThanOrEqual(scales[BUILDING])
+    // And the outermost rung the player may reach frames the room they are
+    // sitting in — which is what the garage rectangle was for.
+    expect(scales[SQUAD]).toBeCloseTo(fitScaleFor(intoPlate(GARAGE, 0), REFERENCE), 5)
+  })
+
+  it('stops the zoom at the ceiling instead of past it', () => {
+    const lens = newGame()
+    const stop = lens.scales()[SQUAD]
+    // A shove far bigger than the ladder has room for.
+    spin(lens, 30)
+    expect(lens.scale).toBeCloseTo(stop, 5)
+    expect(lens.level).toBeCloseTo(SQUAD, 3)
+  })
+
+  it('will not settle past it either', () => {
+    // `settleTowards` promises a gesture at least one level in the direction
+    // it was going. Outward, at a ceiling, that promise runs off the end of
+    // the studio the player has built.
+    const lens = newGame()
+    lens.reframe(DESK, true)
+    spin(lens, 12)
+    expect(lens.level).toBeCloseTo(SQUAD, 3)
+  })
+
+  it('is a stop, never a place between two', () => {
+    // It arrives as a Z on §7.2's ten-rung ladder and is read back as a level
+    // by one multiplication, and a rung has to survive that round trip: a
+    // ceiling of 0.9 is not "nine tenths of the way to the squad", it is a
+    // studio that may see its squad.
+    expect(maxZoomFor(1) * 9).toBe(SQUAD)
+    for (const asked of [SQUAD, 0.9, 1.4]) {
+      const lens = newGame()
+      lens.setCeiling(asked)
+      spin(lens, 10)
+      expect(lens.level).toBeCloseTo(SQUAD, 3)
+    }
+  })
+
+  it('holds a commanded flight to it', () => {
+    // The lift panel, the breadcrumb and §7.7.2's reveal all fly the camera by
+    // name, and a name is not a permission.
+    const lens = newGame()
+    lens.flyTo(BUILDING)
+    settle(lens)
+    expect(lens.level).toBeCloseTo(SQUAD, 3)
+  })
+
+  it('pulls a resting camera in when the ceiling comes down', () => {
+    // A new career after a §13 shift: the studio is one person again, and the
+    // camera is still standing outside a building that no longer exists.
+    const lens = make()
+    expect(lens.level).toBeCloseTo(BUILDING, 3)
+    lens.setAddress(0, 1)
+    lens.setFloorRect(GARAGE)
+    lens.setCeiling(maxZoomFor(1) * 9)
+    settle(lens)
+    expect(lens.level).toBeCloseTo(SQUAD, 3)
+  })
+
+  it('frames the room when a level would frame more than the room', () => {
+    // The scale and the centre have to come from the same rectangle. `nestScales`
+    // pushes the squad's *scale* out to the garage's; if the *frame* stayed the
+    // 10x10 block, the camera would sit at the garage's scale looking at the
+    // middle of a block the garage is one corner of.
+    const lens = newGame()
+    const room = intoPlate(GARAGE, 0)
+    expect(lens.frameOf(SQUAD)).toEqual(room)
+    expect(lens.frameOf(FLOOR)).toEqual(room)
+    // The desk is genuinely inside the garage and keeps its own frame.
+    expect(lens.frameOf(DESK)).not.toEqual(room)
+  })
+
+  it('keeps its aim when the frames move underneath it', () => {
+    /*
+     * **A camera sent to a person is parked on the person.**
+     *
+     * A level names a frame and a frame has a centre, so re-deriving a parked
+     * camera from the level alone throws the aim away. §7.8.10's founder sits
+     * *outside* the seat lattice, so the Desk level's own frame is seat 0 — the
+     * first developer's chair — and a two-person studio that re-derived came to
+     * rest with the player's own avatar 395 px above the top of the screen.
+     */
+    const lens = newGame()
+    const founder = { x: -260, y: -120 }
+    lens.flyTo(DESK, founder)
+    settle(lens)
+    const aimed = lens.centre
+    expect(aimed.cx).toBeCloseTo(floorToBuilding(founder, 0).x, 3)
+
+    // The frames move: the garage grows, and the canvas is laid out again.
+    lens.setFloorRect({ ...GARAGE, w: GARAGE.w * 1.2, h: GARAGE.h * 1.2 })
+    lens.setViewport({ w: REFERENCE.w, h: REFERENCE.h - 40 })
+    settle(lens)
+    expect(lens.centre.cx).toBeCloseTo(aimed.cx, 3)
+    expect(lens.centre.cy).toBeCloseTo(aimed.cy, 3)
+  })
+
+  it('leaves a studio that has earned the whole ladder alone', () => {
+    const lens = make()
+    lens.setCeiling(maxZoomFor(10_000) * 9)
+    lens.reframe(BUILDING, true)
+    expect(lens.level).toBeCloseTo(BUILDING, 3)
+    spin(lens, -20)
+    expect(lens.level).toBeCloseTo(DESK, 3)
   })
 })
 
