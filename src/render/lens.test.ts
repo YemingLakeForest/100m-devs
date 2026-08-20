@@ -14,6 +14,7 @@ import {
   BUILDING,
   DESK,
   FLOOR,
+  BUILDINGS_PER_BLOCK,
   FLOORS_PER_BUILDING,
   SQUAD,
   fitScaleFor,
@@ -424,6 +425,42 @@ describe("§7.7.1's ceiling", () => {
       spin(lens, 10)
       expect(lens.level).toBeCloseTo(SQUAD, 3)
     }
+  })
+
+  it('does not clamp a Z against a ceiling the studio has already outgrown', () => {
+    /*
+     * **The ceiling arrives a frame after the headcount that earned it.**
+     *
+     * Everything that changes how big the studio is — the scenario bar, `?z`,
+     * the §23.3 bench — sets the store and the camera in the same breath, and
+     * the ceiling is derived from the store *by the ticker*, on the next frame.
+     * So a `set` that clamps here clamps against the studio the player had a
+     * moment ago: the bar's 100 K button put a hundred thousand developers on
+     * the block and then asked for rung 5, and the lens — still holding an
+     * empty studio's ceiling — parked it on a squad. Two levels below the ten
+     * towers it had just built, and reported as "100k view does not have any
+     * more than 1 building".
+     *
+     * §7.7.1 is not weakened by being applied a frame late. `update` holds the
+     * ceiling every frame, so a Z past it is pulled in on the next one with the
+     * right headcount in hand — which the second half of this test is.
+     */
+    const lens = new Lens(REFERENCE)
+    lens.setAddress(0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK)
+    lens.setCeiling(maxZoomFor(1) * 9)
+    lens.set(BLOCK / 9)
+    lens.setCeiling(maxZoomFor(100_000) * 9)
+    settle(lens)
+    expect(lens.level).toBeCloseTo(BLOCK, 3)
+
+    // And the other way round: a Z past a ceiling the studio has *not* earned
+    // is still pulled in, one frame later.
+    const small = new Lens(REFERENCE)
+    small.setAddress(0, 1, 1)
+    small.set(BLOCK / 9)
+    small.setCeiling(maxZoomFor(1) * 9)
+    settle(small)
+    expect(small.level).toBeCloseTo(SQUAD, 3)
   })
 
   it('holds a commanded flight to it', () => {

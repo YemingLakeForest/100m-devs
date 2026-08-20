@@ -556,7 +556,24 @@ export class Lens {
    */
   set(z: number): void {
     if (!Number.isFinite(z)) return
-    const level = clamp(z * 9, DESK, this.ceiling)
+    /*
+     * **Clamped to the ladder, not to the ceiling — the ceiling arrives a frame
+     * later and pulls it in.**
+     *
+     * Every caller of this sets a headcount and a camera in the same breath,
+     * and the ceiling is derived from the headcount *by the ticker*, one frame
+     * afterwards. Clamping here therefore clamps against the studio the player
+     * had a moment ago: the scenario bar's 100 K button set a hundred thousand
+     * developers and then asked for rung 5, and the lens — still holding the
+     * ceiling of an empty studio — parked it at the squad. Reported as "100k
+     * view does not have any more than 1 building", and the block was there the
+     * whole time, two zoom levels out.
+     *
+     * `update` holds the ceiling every frame, so a Z past it is corrected on
+     * the next one with the right headcount in hand. §7.7.1 is not weakened by
+     * being applied a frame late; it was weakened by being applied early.
+     */
+    const level = clamp(z * 9, DESK, TOP_LEVEL)
     const frame = this.frameOf(settleLevel(level))
     this._scale = scaleAtLevel(level, this.scales())
     this._cx = frame.cx
