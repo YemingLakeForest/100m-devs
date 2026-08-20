@@ -2597,6 +2597,173 @@ export function buildRoom(): RoomHandle {
     cornice(leftX, leftY - WALL_H, 3)
     cornice(rightX, rightY - WALL_H, 4)
 
+    /** Filled by the curtain wall below; empty in a garage, which has none. */
+    let officePiers: { x: number; y: number; slope: number }[] = []
+
+    // --- the curtain wall ---------------------------------------------------
+    //
+    // **The floor is inside the building you were just looking at.**
+    //
+    // The tower at §7.4's Building level is a glass slab, and its windows are
+    // the one thing on it carrying information — five bays a face, one per
+    // squad, lit by the monitors of the people underneath. Descend into a
+    // storey and the same wall had no windows at all: two flat grey planes with
+    // a skirting and a cornice. The floor did not read as being *in* anything,
+    // and the two levels of one continuous zoom disagreed about what the
+    // building was made of.
+    //
+    // So the same construction, seen from the other side. Precast spandrel up
+    // to the sill, a glazing ribbon to the head, a transom rail across it, and
+    // mullions drawn the way the tower draws them: the frame is laid down whole
+    // and the panes go on top, so the gaps between them *are* the grid.
+    //
+    // **The glass is not shaded by wall.** Every other surface in here takes
+    // the room's key — right wall lighter, left wall darker — and the glass
+    // deliberately does not, because what you can see through it is outside
+    // and outside does not care which wall it is in. The mullions carry the
+    // lighting; the panes are the same night on both.
+    //
+    // What is out there is other towers. The dots are the exact thing the
+    // player was looking at one level up — a lit window with a squad behind it
+    // — at the size that level renders them, which is the whole joke of §7.2's
+    // continuous zoom told without a word: the studio is one of these.
+    //
+    // Garages keep their brick and their two UPVC windows; see below.
+    if (unfolded) {
+      /** Sill, head and transom, as heights above the wall's own base. */
+      const SILL = SKIRT_H + WALL_H * 0.15
+      const HEAD = WALL_H - CORNICE_H - WALL_H * 0.03
+      const TRANSOM = SILL + (HEAD - SILL) * 0.74
+      /**
+       * One window module, in room units — about two desks.
+       *
+       * Derived per wall from the wall's own run rather than fixed per side.
+       * The floor is five squads across and two deep and the two axes are not
+       * pitched alike, so a bay count that is right for the long wall leaves
+       * the short one with panes half as wide again. A facade has one module.
+       */
+      const PANE_UNITS = TILE_W * 1.7
+
+      /** Deterministic, so the city does not rearrange itself on every hire. */
+      const spark = (a: number, b: number, k: number) => {
+        const h = Math.sin(a * 12.9898 + b * 78.233 + k * 37.719) * 43758.5453
+        return h - Math.floor(h)
+      }
+
+      /**
+       * Every rail is a fraction of the wall, never a pixel count.
+       *
+       * The first pass inset the panes by "2" and made the transom "2" tall,
+       * which is two *room* units — and at Floor zoom the room draws at about
+       * 0.19, so both were four tenths of a screen pixel and neither existed.
+       * A wall forty pixels tall needs its rails measured against the wall.
+       */
+      const RAIL = Math.max(1, WALL_H * 0.028)
+
+      /**
+       * Where a solid module interrupts the glazing — and the only place in
+       * this room anything may be hung.
+       *
+       * **Nothing gets stuck on a window.** The wall dressing sat at fractions
+       * of the wall's run, which was right while the wall was brick; over a
+       * curtain wall it put a whiteboard and three posters flat across the
+       * glass, taped to the view. A tower this size has columns in its facade,
+       * so every fifth module is a pier instead of a pane — architecture that
+       * was going to be there anyway, doing the job of giving the office
+       * somewhere to hang things.
+       */
+      const piers: { x: number; y: number; slope: number }[] = []
+
+      const glaze = (
+        fromX: number,
+        fromY: number,
+        toX: number,
+        toY: number,
+        wall: number,
+        side: number,
+        slope: number,
+      ) => {
+        const run = toX - fromX
+        const rise = toY - fromY
+        const at = (t: number) => ({ x: fromX + run * t, y: fromY + rise * t })
+        const band = (t0: number, t1: number, h0: number, h1: number, fill: string, alpha = 1) => {
+          const a = at(t0)
+          const b = at(t1)
+          shell
+            .moveTo(a.x, a.y - h0)
+            .lineTo(b.x, b.y - h0)
+            .lineTo(b.x, b.y - h1)
+            .lineTo(a.x, a.y - h1)
+            .closePath()
+            .fill({ color: c(fill), alpha })
+        }
+
+        // Spandrel, then the mullion grid laid down whole.
+        band(0, 1, SKIRT_H, SILL, RAMPS.NEUTRAL[wall + 1])
+        band(0, 1, SILL, HEAD, RAMPS.NEUTRAL[wall + 2])
+
+        const panes = Math.max(3, Math.round(Math.abs(run) / PANE_UNITS))
+        const gap = 0.17 / panes
+        for (let i = 0; i < panes; i++) {
+          const t0 = i / panes + gap
+          const t1 = (i + 1) / panes - gap
+
+          // A pier: the wall's own material, floor to ceiling, and a place to
+          // hang a whiteboard that is not the view.
+          if (i % 5 === 2) {
+            band(t0 - gap, t1 + gap, SKIRT_H, HEAD, RAMPS.NEUTRAL[wall])
+            band(t0 - gap, t1 + gap, HEAD - RAIL * 0.7, HEAD, RAMPS.NEUTRAL[0], 0.5)
+            piers.push({ ...at((t0 + t1) / 2), slope })
+            continue
+          }
+
+          /*
+           * **The glass is `GLOW[0]`, not `NEUTRAL[1]`.**
+           *
+           * Painted in the darkest neutral it was not dark glass, it was an
+           * absence: the wall read as a colonnade of piers with the night
+           * showing between them, which is a car park. Glass at night is not
+           * black, it is a very dark blue — and the palette has exactly one,
+           * the bottom of the ramp the monitors and the tower's lit windows are
+           * already drawn from. So the thing you are looking through belongs to
+           * the same family as the thing you were looking at.
+           */
+          band(t0, t1, SILL + RAIL, HEAD - RAIL, RAMPS.GLOW[0])
+
+          // The room, reflected in the top of its own window. This is the tell
+          // that turns a dark rectangle into glass, and it costs one band: at
+          // night you see the ceiling before you see the city.
+          band(t0, t1, HEAD - (HEAD - SILL) * 0.34, HEAD - RAIL, RAMPS.NEUTRAL[wall + 2], 0.28)
+
+          // The city. Two or three windows of somebody else's building, and
+          // never more — a pane packed with lights reads as a screen, and this
+          // one is a hole in the wall.
+          const lights = Math.floor(spark(side, i, 0) * 3)
+          for (let n = 0; n < lights; n++) {
+            const p = at(t0 + (t1 - t0) * (0.15 + 0.7 * spark(side, i, n + 1)))
+            const h = SILL + (HEAD - SILL) * (0.12 + 0.62 * spark(side, i, n + 5))
+            shell
+              .rect(p.x - RAIL * 0.6, p.y - h, RAIL * 1.6, RAIL)
+              .fill(c(spark(side, i, n + 9) < 0.18 ? RAMPS.WARN[2] : RAMPS.GLOW[2]))
+          }
+        }
+
+        // The transom, over the glass rather than between the panes: from in
+        // here the rail is the nearest thing in the wall and everything it
+        // crosses is behind it.
+        band(0, 1, TRANSOM - RAIL / 2, TRANSOM + RAIL / 2, RAMPS.NEUTRAL[wall + 2])
+
+        // The rules that actually read at a distance — a lit edge on the sill
+        // and the head's own shadow under the cornice.
+        band(0, 1, SILL, SILL + RAIL * 0.7, RAMPS.NEUTRAL[wall + 3])
+        band(0, 1, HEAD - RAIL * 0.7, HEAD, RAMPS.NEUTRAL[0], 0.55)
+      }
+
+      glaze(leftX, leftY, topX, topY, 2, 0, -WALL_SLOPE)
+      glaze(topX, topY, rightX, rightY, 3, 1, WALL_SLOPE)
+      officePiers = piers
+    }
+
     // **The garage bones only belong to a garage.** §7.8.1c opens the floor
     // out into an open-plan office, and everything between here and the light
     // is what makes the room read as a converted garage: red brick courses, an
@@ -2708,23 +2875,59 @@ export function buildRoom(): RoomHandle {
     // Wall space survives crowding; floor space does not. That asymmetry is
     // §7.8.1's whole point, so the two are drawn from separate budgets.
 
-    if (props.whiteboard) {
-      drawWhiteboard(shell, topX - westW * 0.42, topY + westH * 0.42 - WALL_H * 0.66, 3, -WALL_SLOPE)
-    }
-    if (props.whiteboardRight) {
-      // Tucked into the corner beside the centred garage door, not over it.
-      drawWhiteboard(shell, topX + eastW * 0.16, topY + eastH * 0.16 - WALL_H * 0.62, 17, WALL_SLOPE)
-    }
-    for (let i = 0; i < props.posters; i++) {
-      // Alternating walls, marching outward from the corner so a second poster
-      // never lands on the first.
-      const left = i % 2 === 0
-      const along = 0.18 + Math.floor(i / 2) * 0.3
-      const px = left ? topX - westW * along : topX + eastW * along
-      // Follows the wall down from the corner — `along` is a fraction of the
-      // wall's run, so the drop is the same fraction of its rise.
-      const py = topY + (left ? westH : eastH) * along - WALL_H * (0.5 - (i % 3) * 0.08)
-      drawPoster(shell, px, py, i, left ? -WALL_SLOPE : WALL_SLOPE)
+    if (officePiers.length > 0) {
+      /*
+       * **On the piers, or not at all.** The open floor's back walls are glass
+       * and glass carries nothing; the solid modules the curtain wall leaves
+       * are the whole of the hanging space, so the dressing takes them in turn
+       * and anything past the last one simply does not go up. That is the right
+       * failure: a studio with more posters than wall has more posters than
+       * wall.
+       *
+       * The order is the order they were earned, so the whiteboard the player
+       * has had since three developers keeps the first pier it is given.
+       */
+      let slot = 0
+      const hang = (draw: (p: { x: number; y: number; slope: number }) => void) => {
+        const pier = officePiers[slot]
+        if (!pier) return
+        slot += 1
+        draw(pier)
+      }
+      if (props.whiteboard) {
+        hang((p) => drawWhiteboard(shell, p.x, p.y - WALL_H * 0.62, 3, p.slope))
+      }
+      if (props.whiteboardRight) {
+        hang((p) => drawWhiteboard(shell, p.x, p.y - WALL_H * 0.62, 17, p.slope))
+      }
+      for (let i = 0; i < props.posters; i++) {
+        hang((p) => drawPoster(shell, p.x, p.y - WALL_H * 0.5, i, p.slope))
+      }
+    } else {
+      if (props.whiteboard) {
+        drawWhiteboard(
+          shell,
+          topX - westW * 0.42,
+          topY + westH * 0.42 - WALL_H * 0.66,
+          3,
+          -WALL_SLOPE,
+        )
+      }
+      if (props.whiteboardRight) {
+        // Tucked into the corner beside the centred garage door, not over it.
+        drawWhiteboard(shell, topX + eastW * 0.16, topY + eastH * 0.16 - WALL_H * 0.62, 17, WALL_SLOPE)
+      }
+      for (let i = 0; i < props.posters; i++) {
+        // Alternating walls, marching outward from the corner so a second poster
+        // never lands on the first.
+        const left = i % 2 === 0
+        const along = 0.18 + Math.floor(i / 2) * 0.3
+        const px = left ? topX - westW * along : topX + eastW * along
+        // Follows the wall down from the corner — `along` is a fraction of the
+        // wall's run, so the drop is the same fraction of its rise.
+        const py = topY + (left ? westH : eastH) * along - WALL_H * (0.5 - (i % 3) * 0.08)
+        drawPoster(shell, px, py, i, left ? -WALL_SLOPE : WALL_SLOPE)
+      }
     }
 
     // --- floor furniture ---------------------------------------------------

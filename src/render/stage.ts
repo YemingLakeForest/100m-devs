@@ -1452,6 +1452,32 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // landed somewhere boring.
       ;(globalThis as unknown as Record<string, unknown>).__pick = (x: number, y: number) =>
         pickUnit(x, y)
+      /*
+       * §4.5d — **where is the founder's own avatar, in screen pixels.**
+       *
+       * Same family as `__pick`, and here for the same reason: §26.1.8 item 9
+       * has to open the founder's screen, §13.6.7 says the door has to be a
+       * person, and the walk's only way to find that person was to tap a grid
+       * over the whole frame until something opened. That was tolerable while a
+       * tap did nothing but select. It is not now — a tap navigates, so five
+       * hundred of them walk the camera down the ladder and away from the thing
+       * being hunted, and "no tap reached the founder" ends up meaning "the
+       * sweep drove the lens to Desk on somebody else's squad".
+       *
+       * Aiming instead of hunting also splits a failure the sweep conflated:
+       * *the avatar is not in the frame* (§13.7.1a's known trade) is a
+       * different finding from *the avatar is in the frame and tapping it does
+       * nothing*, and only the second is a bug.
+       *
+       * Null when the room is not drawn, which is itself the answer to "why did
+       * the tap miss".
+       */
+      ;(globalThis as unknown as Record<string, unknown>).__founderAt = () => {
+        if (!roomIsUp) return null
+        const at = room.founderDeskAt()
+        const p = room.container.toGlobal({ x: at.x, y: at.y - 18 })
+        return { x: Math.round(p.x), y: Math.round(p.y) }
+      }
       // The one measurement the whole rebuild is answerable to: how much of
       // the frame the *developers* actually cover. It was 48% at a full floor
       // and 28% at a hundred, and both were invisible from a screenshot without

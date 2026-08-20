@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   Lens,
   SETTLE_DELAY_MS,
+  SETTLE_INTENT,
   anchorCentre,
   panBounds,
   panRange,
   settleLevel,
+  settleTowards,
 } from './lens.ts'
 import {
   BUILDING,
@@ -229,6 +231,89 @@ describe('the address', () => {
     expect(lens.centre.cx).toBeCloseTo(before.cx, 6)
     expect(lens.centre.cy).toBeCloseTo(before.cy, 6)
     expect(lens.scale).toBeCloseTo(before.scale, 6)
+  })
+})
+
+describe('a gesture arrives where it was going', () => {
+  /*
+   * **The clunkiness, and it was one call to `Math.round`.**
+   *
+   * Nearest-level settling means a pinch has to travel more than *half a level
+   * in log space* — a factor of about 1.8 — before it lands anywhere new.
+   * Anything less and the magnetic stop hauls the camera back to where it
+   * started, so a deliberate, visible zoom is silently undone. Reported as "the
+   * zoom in got reversed forcibly back", which is exactly what it was.
+   */
+  it('moves at least one level once the gesture means something', () => {
+    // Zooming in is a *decrease*: Desk is 0 and Building is 3.
+    expect(settleTowards(2.8, 3)).toBe(FLOOR)
+    expect(settleTowards(2.6, 3)).toBe(FLOOR)
+    // And out, the same distance the other way.
+    expect(settleTowards(1.25, 1)).toBe(FLOOR)
+    expect(settleTowards(2.25, 2)).toBe(BUILDING)
+  })
+
+  it('leaves a nudge alone', () => {
+    // A stray wheel notch or a two-finger wobble is not a decision.
+    expect(settleTowards(3 - SETTLE_INTENT / 2, 3)).toBe(BUILDING)
+    expect(settleTowards(1 + SETTLE_INTENT / 2, 1)).toBe(SQUAD)
+    expect(settleTowards(1 - SETTLE_INTENT / 2, 1)).toBe(SQUAD)
+  })
+
+  it('lets a long gesture keep everything it earned', () => {
+    // One level is the floor, not the ceiling. A shove that crosses two levels
+    // arrives two levels away rather than being held to the first.
+    expect(settleTowards(0.3, 3)).toBe(DESK)
+    expect(settleTowards(1.1, 3)).toBe(SQUAD)
+    expect(settleTowards(3, 0.2)).toBe(BUILDING)
+  })
+
+  it('stays on the ladder at both ends', () => {
+    expect(settleTowards(-2, 0)).toBe(DESK)
+    expect(settleTowards(9, 3)).toBe(BUILDING)
+  })
+
+  it('falls back to nearest when nothing started the gesture', () => {
+    expect(settleTowards(2.4, null)).toBe(settleLevel(2.4))
+    expect(settleTowards(2.6, null)).toBe(settleLevel(2.6))
+  })
+
+  it('carries that through the camera: a small pinch in still arrives', () => {
+    // The end-to-end version of the complaint. 1.6x is well short of the 1.8x
+    // that nearest-level settling demanded, and it used to spring back.
+    const lens = make()
+    lens.reframe(BUILDING, true)
+    lens.zoomBy(1.6, null, 1000)
+    lens.update(1 / 60, 1000 + SETTLE_DELAY_MS + 20)
+    settle(lens)
+    expect(lens.level).toBeCloseTo(FLOOR, 3)
+  })
+
+  it('and a small pinch out arrives too', () => {
+    const lens = make(FLOORS_PER_BUILDING, 4_200)
+    lens.reframe(SQUAD, true)
+    lens.zoomBy(1 / 1.6, null, 1000)
+    lens.update(1 / 60, 1000 + SETTLE_DELAY_MS + 20)
+    settle(lens)
+    expect(lens.level).toBeCloseTo(FLOOR, 3)
+  })
+
+  it('measures a pinch that interrupts a flight from where the camera is', () => {
+    // `parked` during a commanded flight is the *destination*, so measuring
+    // from it would score a pinch against a level the camera has not reached —
+    // fingers moving inward, arithmetic reading outward, and the camera
+    // arriving one level further out than the gesture asked for. The player
+    // sees where the camera is, not where it was going.
+    const lens = make()
+    lens.reframe(FLOOR)
+    // Part way through the flight, and still moving.
+    for (let i = 0; i < 6; i++) lens.update(1 / 60, 10_000 + i * 16)
+    expect(lens.settling).toBe(true)
+    expect(lens.level).toBeGreaterThan(FLOOR)
+    lens.zoomBy(1.6, null, 11_000)
+    lens.update(1 / 60, 11_000 + SETTLE_DELAY_MS + 20)
+    settle(lens)
+    expect(lens.level).toBeCloseTo(FLOOR, 3)
   })
 })
 

@@ -281,17 +281,47 @@ function drawStorey(g: Graphics, f: number, lit: number, focused: boolean) {
     .stroke({ width: 1, color: c(RAMPS.NEUTRAL[6]), alpha: 0.3 })
 
   if (focused) {
-    // The storey the address is in, outlined whole in the interface's own
-    // phosphor. Not the building's palette and not one edge of it: this is the
-    // game pointing at a door, and a door wants a frame around it.
-    g.moveTo(-HALF_W, surfaceY(-HALF_W, f + 1))
-      .lineTo(0, surfaceY(0, f + 1))
-      .lineTo(HALF_W, surfaceY(HALF_W, f + 1))
-      .lineTo(HALF_W, surfaceY(HALF_W, f))
-      .lineTo(0, surfaceY(0, f))
-      .lineTo(-HALF_W, surfaceY(-HALF_W, f))
-      .closePath()
-      .stroke({ width: 2, color: c(RAMPS.CALM[2]), alpha: 0.9 })
+    /*
+     * The storey the address is in, said three ways.
+     *
+     * A two-pixel outline was the whole of it, and against a facade already
+     * made of bright horizontal rules it is one more bright horizontal rule —
+     * "the one I clicked is not the one I selected" was reported about a
+     * selection that was in fact correct, because nothing on the tower said so
+     * loudly enough to argue with. So: the glass takes the interface's own
+     * phosphor as a wash, the outline is heavier, and a solid tab hangs off the
+     * side of the band, outside the building's silhouette where nothing else in
+     * the picture lives.
+     *
+     * Phosphor rather than the building's palette throughout, because none of
+     * this is architecture: it is the game pointing at a door.
+     */
+    const outline = () => {
+      g.moveTo(-HALF_W, surfaceY(-HALF_W, f + 1))
+        .lineTo(0, surfaceY(0, f + 1))
+        .lineTo(HALF_W, surfaceY(HALF_W, f + 1))
+        .lineTo(HALF_W, surfaceY(HALF_W, f))
+        .lineTo(0, surfaceY(0, f))
+        .lineTo(-HALF_W, surfaceY(-HALF_W, f))
+        .closePath()
+    }
+    outline()
+    g.fill({ color: c(RAMPS.CALM[1]), alpha: 0.2 })
+    outline()
+    g.stroke({ width: 3, color: c(RAMPS.CALM[2]), alpha: 0.95 })
+
+    // The tab: a solid wedge on the lit side, pointing in at the open floor.
+    // Read at a glance from across the frame, which is the one thing an outline
+    // running along the same lines as ten floor plates cannot do.
+    const top = surfaceY(-HALF_W, f + 1)
+    const mid = top + BAND_H / 2
+    poly(g, [
+      { x: -HALF_W - 3, y: top + BAND_H * 0.18 },
+      { x: -HALF_W - 3, y: top + BAND_H * 0.82 },
+      { x: -HALF_W - 16, y: mid + BAND_H * 0.34 },
+      { x: -HALF_W - 16, y: mid - BAND_H * 0.34 },
+    ])
+    g.fill(c(RAMPS.CALM[2]))
   }
 }
 

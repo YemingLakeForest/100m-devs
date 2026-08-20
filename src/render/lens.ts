@@ -126,6 +126,43 @@ export function settleLevel(level: number): Level {
   return clamp(Math.round(level), DESK, TOP_LEVEL) as Level
 }
 
+/**
+ * How far a gesture has to travel before it counts as meaning something.
+ *
+ * A fifth of a level. Below it the camera stays where it was parked, which is
+ * what a stray wheel notch or a two-finger wobble deserves.
+ */
+export const SETTLE_INTENT = 0.18
+
+/**
+ * Where a gesture that started at `from` should settle.
+ *
+ * **Nearest is the wrong rule, and it is why the zoom felt like it was
+ * fighting you.** `Math.round` means a pinch has to travel more than *half a
+ * level in log space* — a factor of about 1.8 — before it lands anywhere new.
+ * Anything less and the magnetic stop hauls the camera back to where it
+ * started, so a deliberate, visible zoom gets silently undone. Reported as
+ * "the zoom in got reversed forcibly back", which is exactly what it was.
+ *
+ * So the rule is intent, not proximity: past {@link SETTLE_INTENT} a gesture
+ * always arrives **at least one level in the direction it was going**, and
+ * nearest only breaks the tie when it has gone further than that. A nudge
+ * leaves you where you were; a push moves you one; a shove moves you as many as
+ * it earned.
+ *
+ * Levels count outward — Desk is 0, Building is 3 — so zooming *in* is a
+ * decrease and the sign falls out of the arithmetic rather than being named.
+ */
+export function settleTowards(level: number, from: number | null): Level {
+  if (from === null || !Number.isFinite(from)) return settleLevel(level)
+  const moved = level - from
+  if (Math.abs(moved) < SETTLE_INTENT) return settleLevel(from)
+  const nearest = Math.round(level)
+  const atLeastOne = Math.round(from) + Math.sign(moved)
+  const to = moved > 0 ? Math.max(nearest, atLeastOne) : Math.min(nearest, atLeastOne)
+  return clamp(to, DESK, TOP_LEVEL) as Level
+}
+
 export interface LensTarget {
   scale: number
   cx: number
@@ -181,6 +218,14 @@ export class Lens {
   private dirty = false
   /** True once the player has dragged, so a re-derive does not undo their pan. */
   private panned = false
+  /**
+   * The level the current gesture started from, or null between gestures.
+   *
+   * Held for the whole pinch rather than sampled at the end, because "which way
+   * were you going" is a property of the gesture and the last frame of a pinch
+   * that overshoots and comes back is pointing the wrong way.
+   */
+  private gestureFrom: number | null = null
 
   constructor(viewport?: Viewport) {
     if (viewport) this.viewport = viewport
@@ -334,12 +379,14 @@ export class Lens {
       this.target = null
       this.commanded = false
       this.parked = level
+      this.gestureFrom = null
       this.panned = false
       return
     }
     this.target = { scale, cx: frame.cx, cy: frame.cy }
     this.commanded = true
     this.parked = level
+    this.gestureFrom = null
     this.panned = false
     this.idleSince = Number.POSITIVE_INFINITY
   }
@@ -368,6 +415,7 @@ export class Lens {
     }
     this.commanded = true
     this.parked = level
+    this.gestureFrom = null
     this.panned = false
     this.idleSince = Number.POSITIVE_INFINITY
   }
@@ -389,6 +437,7 @@ export class Lens {
     this.target = null
     this.commanded = false
     this.parked = level
+    this.gestureFrom = null
     this.panned = false
     this.idleSince = Number.POSITIVE_INFINITY
   }
@@ -401,6 +450,21 @@ export class Lens {
    */
   zoomBy(factor: number, focal: { x: number; y: number } | null, now: number): void {
     if (!Number.isFinite(factor) || factor <= 0) return
+    /*
+     * The first frame of a gesture remembers where it began — see
+     * `settleTowards`.
+     *
+     * `parked` when the camera is at rest, because that is the stop it is
+     * sitting on. But **the live level while a flight is in progress**, and
+     * that distinction is load-bearing: `parked` during a commanded flight is
+     * the *destination*, so a pinch that interrupts a pull-in would be measured
+     * against a level the camera has not reached and would read as travelling
+     * outward while the fingers moved inward. The player sees where the camera
+     * is, not where it was going.
+     */
+    if (this.gestureFrom === null) {
+      this.gestureFrom = this.target !== null ? this.level : (this.parked ?? this.level)
+    }
     const scales = this.scales()
     const next = clamp(this._scale * factor, scales[TOP_LEVEL] * 0.85, scales[DESK] * 1.6)
     if (focal) {
@@ -470,9 +534,10 @@ export class Lens {
     if (this.target === null && now - this.idleSince > SETTLE_DELAY_MS) {
       // **The magnetic stop.** Nothing between two levels is a picture of
       // anything, so the camera is never left there.
-      const to = settleLevel(this.level)
+      const to = settleTowards(this.level, this.gestureFrom)
       const scale = scaleAtLevel(to, this.scales())
       this.parked = to
+      this.gestureFrom = null
       if (Math.abs(Math.log(scale) - before) > 1e-4) {
         this.target = { scale, cx: this._cx, cy: this._cy }
       } else {

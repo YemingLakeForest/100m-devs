@@ -156,8 +156,25 @@ const careerState = (page) =>
 async function where(page) {
   const run = await runState(page)
   const career = await careerState(page)
-  return `run=${JSON.stringify(run)} career=${JSON.stringify(career)}`
+  return `run=${JSON.stringify(run)} career=${JSON.stringify(career)} lens=${JSON.stringify(await lens(page))}`
 }
+
+/**
+ * Where the *camera* is — §7.4's level, the address, and whether the room is
+ * being drawn at all.
+ *
+ * Added because a leg that fails on a tap has two suspects and `where` only
+ * ever named one of them. Item 9 hunts for a person on a floor; "no tap reached
+ * the founder" with the lens standing outside the building and the room not
+ * drawn is a different finding from the same words with the lens on the floor,
+ * and the walk could not tell them apart.
+ */
+const lens = (page) =>
+  page.evaluate(() => {
+    const s = window.__stage
+    if (!s) return null
+    return { at: s.at, level: s.level, roomIsUp: s.roomIsUp, storey: s.storey, seat: s.focusSeat }
+  })
 
 /**
  * §4.15 — which of the three backlogs are on the rail right now.
@@ -756,35 +773,122 @@ async function walkItems6to8(page) {
  */
 async function openFounderScreen(page, size) {
   await refuseBankruptcy(page)
+
+  /*
+   * **You cannot tap a person from outside the building.**
+   *
+   * This leg used to open with the INFO latch and start sweeping, on the
+   * premise recorded above — that an earlier poke had left the lens parked on
+   * the founder's own desk. The one-camera rebuild ended that: past a thousand
+   * developers the studio has a second storey, and a lens standing at Building
+   * is looking at a tower with the room not drawn at all, so every tap in the
+   * sweep is a floor *selection* and no number of them will ever reach a
+   * person. Five hundred taps found nothing, and on the way they entered a
+   * floor by accident and descended, which is correct behaviour making a stale
+   * test look like a broken game.
+   *
+   * So the walk does what §7.7.4 promises a player can always do: go into a
+   * floor with people on it, using a control the HUD already offers — which
+   * makes this leg a test of the door as well as of the screen behind it.
+   */
+
+  /*
+   * **Stand on the floor before looking for a person on it.**
+   *
+   * With one camera the address can be anywhere, and two separate runs proved
+   * how little that leaves for a blind sweep: one failed with the lens at
+   * Building, where the room is not drawn at all and every tap is a floor
+   * *selection*; another with the lens at Squad on seat 400, four squads from
+   * the corner workstation, where three vertical drags were never going to
+   * bring it back. §4.5d's own answer — the rail's CODE button, which codes at
+   * your desk and flies the lens there — is `display: none` below 470 px of
+   * frame by a decision §13.7.1a records and leaves to a human, and the walk
+   * runs at 448.
+   *
+   * So it uses §10's address ladder, which is on screen whenever the studio has
+   * a second storey: the floor list when the lens is outside the building, and
+   * the FLOOR rung when it is somewhere inside. Both are controls a player has;
+   * neither is a debug hook; and either one lands the lens on the floor with
+   * the corner desk in frame. On a run where the lens is already there both are
+   * skipped and the sweep runs exactly as it always did.
+   */
+  const homed = async (locator, label, note) => {
+    if (!(await locator.count())) return false
+    if (!(await locator.first().isVisible().catch(() => false))) return false
+    await tapControl(page, locator, label)
+    // The flight, plus the settle.
+    await page.waitForTimeout(1_200)
+    saw(note)
+    return true
+  }
+  const lensAt = await lens(page)
+  if (lensAt && lensAt.at === 'BUILDING') {
+    // Outside the building the ladder is the floor list — the rungs below
+    // BUILDING name where you were last, not where you are, so they are not
+    // shown and the doors are.
+    await homed(
+      page.locator('.hud__floor').last(),
+      'FLOOR 01 in the lift panel',
+      'the lens was outside the building, so the walk took the lift down to a floor',
+    )
+  } else if (lensAt && lensAt.at !== 'FLOOR') {
+    await homed(
+      page.locator('.hud__crumb', { hasText: 'FLOOR' }),
+      'the FLOOR rung of the address ladder',
+      `the lens was at ${lensAt.at}, so the walk stepped out to the floor before looking for the founder`,
+    )
+  }
+
   await tapControl(page, page.locator('.touch__latch', { hasText: 'INFO' }), 'the INFO latch')
   await page.waitForTimeout(250)
   const panel = page.locator('.founder-profile[data-phase="in"]')
 
   /*
-   * The step is the founder's own hit box, not a fine grid. `founderHit` gives
-   * the avatar about 24 screen px either side and 50 tall at the scale a
-   * hundred-developer room is drawn at, so 20 x 28 cannot miss it and a
-   * finer sweep is ten thousand taps nobody has time for.
+   * **Aimed, not hunted.**
+   *
+   * This swept a 20x28 grid over the whole frame until something opened, which
+   * was fine while a tap did nothing but select. It is not now: a tap
+   * navigates, so five hundred of them walk the camera down the ladder and away
+   * from the thing being hunted — a run ended this leg at Desk on somebody
+   * else's squad, having driven itself there. It also cost twenty seconds of
+   * wall clock against §4.1's payroll, which is how the same leg kept ending in
+   * the bankruptcy modal instead.
+   *
+   * `__founderAt` is the §7.8.10 corner in screen pixels, the same sanctioned
+   * kind of hook as `__pick` and there for the same reason. Aiming keeps every
+   * bit of what this leg proves — the door is a person and tapping that person
+   * opens the screen — and splits a failure the sweep conflated: *the avatar is
+   * not in the frame* is §13.7.1a's known trade, *the avatar is in the frame
+   * and tapping it does nothing* is a bug, and only the second should stop the
+   * walk.
    */
   for (let pull = 0; pull <= 3; pull++) {
-    for (let y = 24; y <= size.height - 60; y += 28) {
-      for (let x = 180; x <= size.width - 200; x += 20) {
-        await refuseBankruptcy(page)
-        await tapWorld(page, x, y)
-        if (await panel.count()) {
-          await page.waitForTimeout(350)
-          if (pull > 0) {
-            saw(`the founder was not in the resting frame — it took ${pull} drag(s) on the floor to bring the corner desk back (§13.7.1a)`)
-          }
-          return
+    await refuseBankruptcy(page)
+    const at = await page.evaluate(() => window.__founderAt?.() ?? null)
+    const onFrame =
+      at && at.x > 4 && at.y > 4 && at.x < size.width - 4 && at.y < size.height - 4
+    if (onFrame) {
+      await tapWorld(page, at.x, at.y)
+      await page.waitForTimeout(350)
+      if (await panel.count()) {
+        if (pull > 0) {
+          saw(
+            `the founder was not in the resting frame — it took ${pull} drag(s) on the floor to bring the corner desk back (§13.7.1a)`,
+          )
         }
+        return
       }
+      fail(
+        `the founder's own workstation is at ${at.x},${at.y} and tapping it did not open the screen — ${await where(page)}`,
+      )
     }
     // §7.7.6 — drag the world. Downward, because the corner the room grew away
     // from is its north one, and north is up the frame.
     await dragWorld(page, { x: Math.round(size.width / 2), y: 110 }, { x: Math.round(size.width / 2), y: 400 })
   }
-  fail(`no drag and no tap reached the founder — ${await where(page)}`)
+  fail(
+    `the founder's workstation never came into the frame — ${await where(page)}`,
+  )
 }
 
 /** A pan: press, travel, release. §7.7.6 tells a drag from a tap by the travel. */

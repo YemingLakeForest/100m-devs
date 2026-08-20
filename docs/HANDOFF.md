@@ -10,7 +10,7 @@
 > **Previous: [`HANDOFF-2026-08-18.md`](HANDOFF-2026-08-18.md)** — §26.1.8 items 3–10
 > walked in a real browser, the third acceptance gate, **traps 38–44**, and **Phase 1 closed**.
 >
-> **Next: [`HANDOFF-2026-08-20.md`](HANDOFF-2026-08-20.md) §10** — the walk's navigation leg, the
+> **Next: [`HANDOFF-2026-08-20.md`](HANDOFF-2026-08-20.md) §12** — the walk's navigation leg, the
 > centre-screen overlays, a dated rewrite of GDD §7 (which still describes the tiers and the
 > cross-fade the lens rebuild deleted), and the levels above one building.
 > [`PLAN-2026-08-18-phase2.md`](PLAN-2026-08-18-phase2.md) is the older Phase 2 plan, measured

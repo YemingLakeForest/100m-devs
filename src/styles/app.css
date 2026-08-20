@@ -3509,9 +3509,28 @@ body {
   background: color-mix(in srgb, var(--p2) 55%, transparent);
 }
 
-/* The storey the address is on. */
+/*
+ * The storey the address is on.
+ *
+ * **A ground of its own, and a tick.** A colour change on one row of ten
+ * identical rows is not an answer to "which floor am I on" — it was reported
+ * as the selection being wrong when the selection was right, because nothing
+ * said so loudly enough to argue with.
+ *
+ * A *solid* phosphor slab was the first try and it was worse: §3 draws this
+ * interface in 1px rules and brackets and never in filled blocks, so the row
+ * stopped reading as part of the panel at all. A low-alpha ground plus the
+ * lift's own indicator tick is the same amount of "here" in the language the
+ * rest of the HUD is written in.
+ */
 .hud__floor.is-here {
   color: var(--p3);
+  background: color-mix(in srgb, var(--p2) 26%, transparent);
+  border-left-color: var(--p3);
+}
+
+.hud__floor.is-here .hud__floor-fill {
+  background: var(--p3);
 }
 
 /* The storey named by the first tap, waiting for the second — §7.7.6. */
