@@ -3392,3 +3392,158 @@ body {
     padding: 3px 7px 4px;
   }
 }
+
+/* --- the lift panel and the address, GDD §10 / §26.2.2 ----------------- */
+
+/*
+ * A block of the right rail, between the resources and the action stack.
+ *
+ * It was an absolutely-positioned strip inside the middle column first, and
+ * that put it squarely over the tower — a menu of floors drawn on top of the
+ * floors. The right rail already owns the verbs and already has this gap: at
+ * the reference 997x448 there are ~250 px of nothing between SHIPPED and the
+ * hire button, which is more than the panel needs and is exactly the space a
+ * rail exists to spend.
+ */
+.hud__lift {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  /*
+   * Pinned to the rail like the resources above it, and for the same reason:
+   * the rail is `align-items: flex-end`, so a block that does not claim the
+   * width shrink-wraps to its content — which for a row of `2ch | 1fr | 4ch`
+   * means the bar in the middle resolves to nothing and the occupancy is drawn
+   * as an eight-pixel square.
+   */
+  width: var(--hud-rail);
+  /* It gives way before the resources or the action stack do. */
+  flex: 0 1 auto;
+  min-height: 0;
+  /*
+   * §10.1a rule 1, enforced rather than intended: whatever the frame does to
+   * the rail, nothing in here is drawn over the readouts above or the action
+   * stack below.
+   */
+  overflow: hidden;
+  font-family: var(--font-terminal);
+  font-size: var(--type-1x);
+}
+
+.hud__crumbs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.hud__crumb {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--n5) 78%, transparent);
+  cursor: pointer;
+}
+
+.hud__crumb.is-here {
+  color: var(--p3);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--p2) 50%, transparent);
+}
+
+.hud__floors {
+  list-style: none;
+  margin: 0;
+  padding: 3px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: color-mix(in srgb, var(--n0) 74%, transparent);
+  border: var(--rule) solid color-mix(in srgb, var(--p2) 34%, transparent);
+  /* Ten floors always fit at the reference height; a short frame scrolls. */
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.hud__floor {
+  appearance: none;
+  background: none;
+  border: 0;
+  /* The rule on the left is the tick a lift's own indicator would be. */
+  border-left: 2px solid transparent;
+  /* Ten rows have to fit a rail that has about 130 px to give. */
+  line-height: 1.15;
+  padding: 0 3px;
+  width: 100%;
+  font: inherit;
+  color: color-mix(in srgb, var(--n5) 78%, transparent);
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 2ch minmax(0, 1fr) 4ch;
+  align-items: center;
+  gap: 5px;
+  text-align: left;
+}
+
+.hud__floor-devs {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__floor-bar {
+  display: block;
+  height: 4px;
+  background: color-mix(in srgb, var(--n5) 20%, transparent);
+}
+
+.hud__floor-fill {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--p2) 55%, transparent);
+}
+
+/* The storey the address is on. */
+.hud__floor.is-here {
+  color: var(--p3);
+}
+
+/* The storey named by the first tap, waiting for the second — §7.7.6. */
+.hud__floor.is-named {
+  border-left-color: var(--p3);
+  color: var(--p3);
+}
+
+.hud__floor.is-named .hud__floor-fill {
+  background: var(--p3);
+}
+
+/*
+ * Short frames. 640x360 is where the rails have nothing to spare, and the
+ * address ladder is the part of this that can be inferred from the rest: the
+ * floor you are on is already marked in the list, and the level you are at is
+ * the picture on the screen. So the ladder goes first and the doors stay.
+ *
+ * **400 and not 470**, which is the breakpoint the rest of this file uses for
+ * short frames: 448 is the reference height every screenshot is taken at, and
+ * a rule that hides the address there is a rule that hides it in the only frame
+ * anybody looks at. The ladder is also the only door to the picker — the floor
+ * list appears when the building is the subject, and BUILDING 1 is how you make
+ * it the subject — so folding it away is a real cost and is worth paying only
+ * on the frames that genuinely cannot afford it.
+ */
+@media (max-height: 400px) {
+  .hud__crumbs {
+    display: none;
+  }
+
+  .hud__floor-bar {
+    height: 3px;
+  }
+}

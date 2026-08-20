@@ -1,13 +1,23 @@
 /**
- * The four LOD tiers — GDD §7.5.
+ * The scene — one building, with the room inside the plate it belongs to.
  *
- * Everything here is drawn in code from the master palette rather than loaded
- * from assets/. That is deliberate and is not a placeholder shortcut: §7.5 states that at Global and Cosmic zoom "developers fuse into a
- * geometric grid with no individual sprites remaining", and ART_DIRECTION §4
- * classes those tiers as T0 — Procedural. They are shaders and geometry, not
- * art. The desk tier's props are T3 commodity and stand in until authored
- * pixels land; the palette is enforced by construction because every colour
- * below comes from src/art/palette.ts.
+ * `docs/PLAN-2026-08-19-lens.md` §2. This used to build seven containers, one
+ * per navigation stop, and hand them to a camera that fitted each one to the
+ * viewport separately. That is what put two copies of one building on screen at
+ * different sizes, and no amount of tuning the cross-fade between them could
+ * have helped: they were never the same picture.
+ *
+ * There are now **two objects and one nesting**. `building.ts` draws ten floor
+ * plans stacked into a stair; `room.ts` draws one of them for real; and the
+ * room is parented *into* the plate whose floor it is, so descending is a
+ * single affine transform and the swap between the plan and the room happens at
+ * a size where the two are indistinguishable.
+ *
+ * Everything is drawn in code from the master palette rather than loaded from
+ * assets/. That is deliberate and is not a placeholder shortcut: ART_DIRECTION
+ * §4 classes everything at this scale as T0 — procedural — and §7.8.2 is
+ * explicit that no rung above the room needs a bespoke sprite, which is the
+ * whole reason the §22.7 art budget can be nineteen.
  */
 
 import {
@@ -20,9 +30,7 @@ import {
 } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import { buildRoom, seatPosition, type RoomHandle } from './room.ts'
-import { buildTower, type TowerHandle } from './tower.ts'
-import { buildCity, type CityHandle } from './city.ts'
-import type { ViewKind } from '../sim/ladder.ts'
+import { buildBuilding, type BuildingHandle } from './building.ts'
 
 /** Palette colour as the 0xrrggbb number Pixi wants. */
 function c(hex: string): number {
@@ -31,40 +39,10 @@ function c(hex: string): number {
 }
 
 /** 2:1 isometric — ART_DIRECTION §1, "Projection: 2:1 isometric". */
-const TILE_W = 64
 const TILE_H = 32
 
 /** GDD §23.3 criterion 4: floor zoom must hold 55 fps with 1,000 sprites. */
 export const FLOOR_SPRITE_COUNT = 1000
-
-/**
- * How large each tier is, in world units — GDD §23.4.1.
- *
- * The camera fits the dominant tier to the viewport (see `fitScale` in
- * omniLens.ts), so it has to know how big each tier actually is. These are
- * measured from the geometry built below, not guessed, and the comment on each
- * says where the number comes from so a change to the scene is caught here.
- *
- * The floor's 2:1 ratio is the whole reason the game is landscape (§23.4):
- * a 2:1 object in a portrait window can never fill more than 22% of it.
- */
-export const TIER_EXTENTS: Record<1 | 2 | 3 | 4, { w: number; h: number }> = {
-  // Level 1 is a PLACEHOLDER here and is overridden every frame from
-  // `room.extent`: the room grows with the headcount (§7.8.1), so its size is
-  // not a constant. Leaving a stale constant in the fit would make the camera
-   // frame a one-desk garage while showing a hundred-desk floor.
-  1: { w: TILE_W * 3, h: 156 },
-  // Floor: a 32x32 iso grid at TILE_W/4 x TILE_H/4 spacing. Exactly 2:1.
-  2: {
-    w: (Math.ceil(Math.sqrt(FLOOR_SPRITE_COUNT)) - 1) * (TILE_W / 4) * 2,
-    h: (Math.ceil(Math.sqrt(FLOOR_SPRITE_COUNT)) - 1) * (TILE_H / 4) * 2,
-  },
-  // Global: the grid disc, radius 260, squashed 2:1 into the iso projection.
-  3: { w: 520, h: 260 },
-  // Cosmic: the bounding box of the five planets plus their radii.
-  4: { w: 480, h: 300 },
-}
-
 
 /**
  * How far above its desk particle `i` is at drop progress `t`, in world units.
@@ -286,183 +264,52 @@ function buildFloor(renderer: Renderer): FloorSwarm {
     },
   }
 }
-
-/**
- * Level 3 — the Global Grid (GDD §7.4, §7.5).
- *
- * "Developers fuse into a colourful, geometric Dev Grid. No individual sprites
- * remain." So this is geometry, not a sprite field: neon data pipes between
- * glowing hubs, with high-entropy sectors reading hot.
- */
-function buildGlobal(): Container {
-  const root = new Container()
-  const g = new Graphics()
-  const R = 260
-
-  // The grid disc.
-  g.circle(0, 0, R).fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.9 })
-  g.circle(0, 0, R).stroke({ width: 2, color: c(RAMPS.GLOW[0]) })
-
-  // Latitude rings, squashed to 2:1 so the globe sits in the same projection.
-  for (let i = 1; i <= 4; i++) {
-    g.ellipse(0, 0, R * (i / 5), R * (i / 5) * 0.5).stroke({
-      width: 1,
-      color: c(RAMPS.GLOW[0]),
-      alpha: 0.5,
-    })
-  }
-
-  // Sector hubs and the pipes between them.
-  const hubs: Array<[number, number]> = []
-  for (let i = 0; i < 14; i++) {
-    const a = (i / 14) * Math.PI * 2
-    const r = R * (0.3 + ((i * 37) % 60) / 100)
-    hubs.push([Math.cos(a) * r, Math.sin(a) * r * 0.5])
-  }
-
-  for (let i = 0; i < hubs.length; i++) {
-    const [x1, y1] = hubs[i]
-    const [x2, y2] = hubs[(i + 5) % hubs.length]
-    g.moveTo(x1, y1).lineTo(x2, y2).stroke({ width: 1, color: c(RAMPS.GLOW[1]), alpha: 0.6 })
-  }
-  for (const [x, y] of hubs) {
-    g.circle(x, y, 5).fill(c(RAMPS.GLOW[2]))
-    g.circle(x, y, 9).stroke({ width: 1, color: c(RAMPS.GLOW[1]), alpha: 0.7 })
-  }
-
-  root.addChild(g)
-  return root
-}
-
-/**
- * Level 4 — the Galactic Network (GDD §7.4).
- *
- * Planets connected by laser relay paths. The scale here is nominal: at
- * 1:10^9 the world container is scaled down past the point where its own
- * units mean anything, so this tier is authored at screen scale and rides the
- * cross-fade rather than the camera.
- */
-function buildCosmic(): Container {
-  const root = new Container()
-  const g = new Graphics()
-
-  const planets: Array<[number, number, number]> = [
-    [-180, -60, 34],
-    [120, -110, 22],
-    [40, 90, 44],
-    [-90, 130, 18],
-    [230, 60, 26],
-  ]
-
-  // Relay lines first, so they pass behind the planets.
-  for (let i = 0; i < planets.length; i++) {
-    const [x1, y1] = planets[i]
-    const [x2, y2] = planets[(i + 1) % planets.length]
-    g.moveTo(x1, y1).lineTo(x2, y2).stroke({ width: 1, color: c(RAMPS.CALM[1]), alpha: 0.7 })
-  }
-
-  for (const [x, y, r] of planets) {
-    g.circle(x, y, r).fill(c(RAMPS.NEUTRAL[1]))
-    // The lit limb — same top-left source as everything else.
-    g.circle(x - r * 0.25, y - r * 0.25, r * 0.7).fill({ color: c(RAMPS.GLOW[0]), alpha: 0.55 })
-    g.circle(x, y, r).stroke({ width: 1, color: c(RAMPS.GLOW[1]) })
-    // Surface swarm glow — the hive visible from orbit.
-    for (let i = 0; i < 5; i++) {
-      const a = i * 1.9
-      g.circle(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.5, 1.5).fill(c(RAMPS.GLOW[2]))
-    }
-  }
-
-  root.addChild(g)
-  return root
-}
-
 export interface Scene {
+  /** Rung 3 — the exploded stack of ten floor plans. The camera's root object. */
+  building: BuildingHandle
   /**
-   * One container per §7.4a navigation stop, in far-to-near parent order.
+   * Rungs 0–2 — the room, which is one storey of that building drawn for real.
    *
-   * **This replaced a map of four tiers.** The tiers were the *rendering*
-   * concept and the camera was using them as the navigation one, which is the
-   * whole of §7.4a: with four containers there were four places to stop, so
-   * pulling back from a floor arrived at a galaxy. There are now eight, one per
-   * rung of §7.7.1 (two rungs share the room and two share the cosmic tier),
-   * and the geometry behind them is unchanged — only what the camera can stop
-   * at is different.
+   * **Parented into a plate rather than into the world**, which is the whole of
+   * the change: the room is *inside* the floor it is a picture of, at the
+   * plate's own scale, so descending into a floor and arriving in its room is
+   * one continuous transform with nothing to cross-fade.
    */
-  views: Record<ViewKind, Container>
-  /** How big each view is right now, for the §23.4.1 fit. Some of them grow. */
-  extentOf(view: ViewKind): { w: number; h: number }
-  /** The Level 2 swarm, exposed so §21 Act IV can drop it out of the sky. */
-  floor: FloorSwarm
-  /** Rungs 0-1 — the room, which grows with the headcount (§7.8.1). */
   room: RoomHandle
-  /** Rung 3 — the tower (§7.7.1). A stack of floors, one storey per thousand. */
-  tower: TowerHandle
-  /**
-   * Rungs 4-6 — the city (§7.8.2), one instance per rung: a block of buildings,
-   * a business park of campuses, a sprawl of towns. Three rather than one
-   * because §7.4a makes each a place the camera can stop, and a single instance
-   * that reshaped itself as the camera moved would be a cut mid-pinch.
-   */
-  city: Record<4 | 5 | 6, CityHandle>
+  /** §21 Act IV's thousand-body drop, parented on the room's own seats. */
+  floor: FloorSwarm
+  /** Move the room into a different storey's plate — §26.2.2's address. */
+  hostRoomOn(storey: number): void
 }
 
-/** Build every view. The caller parents them and drives their alpha. */
+/** Build the scene. The caller drives the camera and the level of detail. */
 export function buildScene(renderer: Renderer): Scene {
   const floor = buildFloor(renderer)
   const room = buildRoom()
-  const tower = buildTower()
-  const city: Record<4 | 5 | 6, CityHandle> = {
-    4: buildCity(4),
-    5: buildCity(5),
-    6: buildCity(6),
-  }
-  const grid = buildGlobal()
-  const cosmic = buildCosmic()
+  const building = buildBuilding()
 
-  // §7.8.1a — the particle swarm is **not a ladder stop any more.** It exists
-  // solely as §21 Act IV's subject: a thousand bodies that can be dropped out
-  // of the sky at once, which is a spectacle the room's own developers cannot
-  // afford to be (three display objects each, built in a single frame). It is
-  // parented into the room so it lands on the room's floor, in the room's
-  // transform, and it draws nobody until the trap springs.
+  // §7.8.1a — the particle swarm is **not a ladder stop.** It exists solely as
+  // §21 Act IV's subject: a thousand bodies that can be dropped out of the sky
+  // at once, which is a spectacle the room's own developers cannot afford to be
+  // (three display objects each, built in a single frame). It is parented into
+  // the room so it lands on the room's floor, in the room's transform, and it
+  // draws nobody until the trap springs.
   room.container.addChild(floor.container)
 
-  const views: Record<ViewKind, Container> = {
-    room: room.container,
-    tower: tower.container,
-    block: city[4].container,
-    park: city[5].container,
-    sprawl: city[6].container,
-    grid,
-    cosmic,
+  let hosted = -1
+  const hostRoomOn = (storey: number) => {
+    const f = Math.max(0, Math.floor(Number.isFinite(storey) ? storey : 0))
+    if (f === hosted) return
+    hosted = f
+    // One `addChild` — Pixi re-parents rather than duplicating — and the room's
+    // local coordinates are unchanged, because every plate is the same floor
+    // space at the same scale. Moving the address therefore cannot move
+    // anything inside the room relative to anything else in it.
+    building.plateHost(f).addChild(room.container)
   }
+  hostRoomOn(0)
 
-  return {
-    views,
-    extentOf(view) {
-      switch (view) {
-        case 'room':
-          return room.extent
-        case 'tower':
-          return tower.extent
-        case 'block':
-          return city[4].extent
-        case 'park':
-          return city[5].extent
-        case 'sprawl':
-          return city[6].extent
-        case 'grid':
-          return TIER_EXTENTS[3]
-        case 'cosmic':
-          return TIER_EXTENTS[4]
-      }
-    },
-    floor,
-    room,
-    tower,
-    city,
-  }
+  return { building, room, floor, hostRoomOn }
 }
 
 export { Texture }

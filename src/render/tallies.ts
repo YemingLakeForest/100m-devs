@@ -90,11 +90,100 @@ const MAX_GLYPHS = 7
  * hundred, a floor is ten thousand. Aggregating on anything else would put the
  * numeral over a group the player cannot see the edges of.
  */
-export function groupSizeFor(drawn: number): number {
+export function groupSizeFor(drawn: number, cap: number = MAX_SOURCES): number {
   if (!Number.isFinite(drawn) || drawn <= 0) return 1
+  const ceiling = Math.max(1, Math.floor(cap))
   let group = 1
-  while (Math.ceil(drawn / group) > MAX_SOURCES) group *= 10
+  while (Math.ceil(drawn / group) > ceiling) group *= 10
   return group
+}
+
+/**
+ * Most sources the §7.4 ladder allows at each rung — desk, squad, floor,
+ * building.
+ *
+ * §8.2b thins by *how many people are drawn*, and that was the whole rule while
+ * a floor was the only thing ever drawn. It stopped being enough the moment the
+ * lens could stand outside the floor: a thousand seats are a thousand seats
+ * whether they measure 2,700 pixels across or 334, so the same hundred numerals
+ * that spread comfortably over a squad were stacked eight deep over a floor
+ * plan the size of a postcard. Every screenshot above Squad was unreadable and
+ * none of it was the room's fault.
+ *
+ * So the cap is the group you can see the edges of, which is exactly what §8.2b
+ * asked for and is a property of the *lens*, not of the headcount:
+ *
+ * - **Desk** and **Squad** — you can see people, so a numeral is a person.
+ *   {@link MAX_SOURCES} of them, unchanged, which keeps §21's whole script and
+ *   §4.9a's per-developer spread exactly as they were.
+ * - **Floor** — you can see squads and not faces. Ten numerals, one per squad,
+ *   and because seats are laid out squad-major the aggregation lands on the
+ *   squad rather than across two of them.
+ * - **Building** — you can see floors. The pulled-out plan is one floor, so it
+ *   gets one numeral: what this storey earns, over this storey.
+ */
+export const SOURCE_CAP: readonly number[] = [MAX_SOURCES, MAX_SOURCES, 10, 1]
+
+/** The cap for a continuous position on the ladder — see {@link SOURCE_CAP}. */
+export function capForLevel(level: number): number {
+  if (!Number.isFinite(level)) return MAX_SOURCES
+  return SOURCE_CAP[rungOf(level)]
+}
+
+/**
+ * How many seats the numeral layer speaks for at each rung, starting from the
+ * squad the address is in.
+ *
+ * The cap alone gets the count right and the *placement* wrong. Inside a squad
+ * the lens is over about a dozen people, but the grouping runs across a
+ * thousand-seat floor, so a hundred sources means one numeral per row of ten —
+ * and a row of ten is twenty-seven hundred pixels wide at Desk zoom. The
+ * numeral lands on the mean of a row whose ends are both off screen, which is a
+ * `+40` hovering over an empty patch of carpet.
+ *
+ * So the layer covers **the smallest group containing the address that it can
+ * draw a member of**: the address's own squad at Desk and Squad, one numeral
+ * each, exactly the hundred-people picture §8.2b asks for; the whole floor at
+ * Floor and Building, where the members are squads and storeys and every one of
+ * them is on screen anyway.
+ *
+ * Squad-aligned rather than centred on the seat, because §7.8.1a's squad is a
+ * group with visible edges and a sliding window of a hundred is not: numerals
+ * appearing and vanishing at a boundary that moves with the camera reads as a
+ * rendering fault, and the same boundary held still reads as a team.
+ */
+export const SOURCE_SPAN: readonly number[] = [MAX_SOURCES, MAX_SOURCES, Infinity, Infinity]
+
+/** The span for a continuous position on the ladder — see {@link SOURCE_SPAN}. */
+export function spanForLevel(level: number): number {
+  if (!Number.isFinite(level)) return Infinity
+  return SOURCE_SPAN[rungOf(level)]
+}
+
+function rungOf(level: number): number {
+  return Math.max(0, Math.min(SOURCE_CAP.length - 1, Math.round(level)))
+}
+
+/**
+ * The slice of seats the layer speaks for — the {@link SOURCE_SPAN} block the
+ * address falls in, clamped to what is drawn.
+ */
+export function sourceWindow(drawn: number, at: number, span: number): { from: number; to: number } {
+  const n = Math.max(0, Math.floor(drawn))
+  if (!Number.isFinite(span) || span <= 0) return { from: 0, to: n }
+  const seat = Math.max(0, Math.min(n - 1, Math.floor(at)))
+  const from = Math.floor(seat / span) * span
+  return { from, to: Math.min(n, from + span) }
+}
+
+/** Which seats emit, and how coarsely — see {@link SOURCE_CAP}, {@link SOURCE_SPAN}. */
+export interface TallyPlan {
+  /** Most numerals the layer may put in flight. Default {@link MAX_SOURCES}. */
+  cap?: number
+  /** First seat the layer speaks for. Default 0. */
+  from?: number
+  /** One past the last seat the layer speaks for. Default everything drawn. */
+  to?: number
 }
 
 export interface TallySource {
@@ -118,15 +207,20 @@ export function tallySources(
   seats: ReadonlyArray<{ x: number; y: number }>,
   drawn: number,
   rateFor: (index: number) => number,
+  plan: TallyPlan = {},
 ): TallySource[] {
   const n = Math.min(seats.length, Math.max(0, Math.floor(drawn)))
   if (n === 0) return []
 
-  const group = groupSizeFor(n)
+  const first = Math.max(0, Math.min(n, Math.floor(plan.from ?? 0)))
+  const last = Math.max(first, Math.min(n, Math.floor(plan.to ?? n)))
+  if (last === first) return []
+
+  const group = groupSizeFor(last - first, plan.cap ?? MAX_SOURCES)
   const out: TallySource[] = []
 
-  for (let from = 0; from < n; from += group) {
-    const to = Math.min(n, from + group)
+  for (let from = first; from < last; from += group) {
+    const to = Math.min(last, from + group)
     let x = 0
     let y = 0
     let rate = 0

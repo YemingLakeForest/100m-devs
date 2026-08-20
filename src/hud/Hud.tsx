@@ -47,6 +47,7 @@ import { HeroCard } from './HeroCard.tsx'
 import { HeroTree } from './HeroTree.tsx'
 import { PostingBanner } from './PostingBanner.tsx'
 import { Roster } from './Roster.tsx'
+import { Lift } from './Lift.tsx'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 import { unitLabel } from '../sim/units.ts'
 import { HireDial } from './HireDial.tsx'
@@ -400,6 +401,12 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           <Devs state={state} />
           <Shipped state={state} />
         </div>
+        {/*
+          §26.2.2's address, said out loud, and the doors it names. Under the
+          resources because it answers the same question they do — what have I
+          got, and where am I standing in it.
+        */}
+        <Lift stage={stage} />
         <div className="hud__bottom">
           <ActionBar
             spec={actionFor(state.phase)}

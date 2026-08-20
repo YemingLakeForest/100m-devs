@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  SOURCE_CAP,
+  SOURCE_SPAN,
+  capForLevel,
+  sourceWindow,
+  spanForLevel,
   MAX_SOURCES,
   TALLY_PERIOD,
   formatTally,
@@ -144,5 +149,89 @@ describe('the motion — quiet, and readable before it goes', () => {
     expect(tallyAlpha(-1)).toBe(1)
     expect(tallyAlpha(4)).toBe(0)
     expect(tallyRise(-1)).toBe(0)
+  })
+})
+
+describe('it thins by where the lens is, not only by headcount', () => {
+  // A thousand seats are a thousand seats whether they measure 2,700 pixels
+  // across or 334. The cap that made a squad readable stacked eight numerals
+  // deep over a floor plan, so the group a numeral speaks for is a property of
+  // the lens: a person at Desk and Squad, a squad at Floor, a storey at
+  // Building.
+  it('leaves the people levels exactly as they were', () => {
+    expect(capForLevel(0)).toBe(MAX_SOURCES)
+    expect(capForLevel(1)).toBe(MAX_SOURCES)
+    expect(tallySources(seatsAt(40), 40, () => 1, { cap: capForLevel(1) })).toHaveLength(40)
+  })
+
+  it('gives a floor one numeral per squad', () => {
+    const sources = tallySources(seatsAt(1000), 1000, () => 1, { cap: capForLevel(2) })
+    expect(sources).toHaveLength(10)
+  })
+
+  it('gives a building one numeral for the storey it has open', () => {
+    expect(tallySources(seatsAt(1000), 1000, () => 1, { cap: capForLevel(3) })).toHaveLength(1)
+  })
+
+  it('still never stops, at any level or headcount', () => {
+    for (let level = 0; level <= 3; level++) {
+      for (const n of [1, 37, 100, 999, 1000]) {
+        const sources = tallySources(seatsAt(n), n, () => 1, { cap: capForLevel(level) })
+        expect(sources.length).toBeGreaterThan(0)
+        expect(sources.length).toBeLessThanOrEqual(SOURCE_CAP[level])
+      }
+    }
+  })
+
+  it('keeps the total honest wherever it aggregates', () => {
+    // Everything the layer covers is accounted for exactly once — the property
+    // §4.9a hangs on, and the one aggregation is easiest to break.
+    for (let level = 0; level <= 3; level++) {
+      const window = sourceWindow(1000, 0, spanForLevel(level))
+      const total = tallySources(seatsAt(1000), 1000, () => 0.5, {
+        cap: capForLevel(level),
+        ...window,
+      }).reduce((sum, s) => sum + s.rate, 0)
+      expect(total).toBeCloseTo((window.to - window.from) * 0.5, 6)
+    }
+  })
+
+  it('speaks for the address own squad while the people are individuals', () => {
+    // A hundred people, one numeral each, and the boundary is the squad rather
+    // than a hundred seats either side of the camera — a window that slides
+    // with the lens pops numerals in and out at an edge nobody can see.
+    expect(spanForLevel(0)).toBe(SOURCE_SPAN[0])
+    expect(sourceWindow(1000, 0, spanForLevel(0))).toEqual({ from: 0, to: 100 })
+    expect(sourceWindow(1000, 99, spanForLevel(0))).toEqual({ from: 0, to: 100 })
+    expect(sourceWindow(1000, 100, spanForLevel(1))).toEqual({ from: 100, to: 200 })
+    expect(sourceWindow(1000, 640, spanForLevel(1))).toEqual({ from: 600, to: 700 })
+
+    const sources = tallySources(seatsAt(1000), 1000, () => 1, {
+      cap: capForLevel(0),
+      ...sourceWindow(1000, 640, spanForLevel(0)),
+    })
+    expect(sources).toHaveLength(100)
+  })
+
+  it('covers the whole floor once the members are squads', () => {
+    expect(sourceWindow(1000, 640, spanForLevel(2))).toEqual({ from: 0, to: 1000 })
+    expect(sourceWindow(1000, 640, spanForLevel(3))).toEqual({ from: 0, to: 1000 })
+  })
+
+  it('does not fall off the end of a part-filled floor', () => {
+    // 6,400 developers put 400 on the top storey, and the address can be any of
+    // them. The window clamps to what is drawn rather than emitting over seats
+    // nobody is sitting in.
+    expect(sourceWindow(400, 380, MAX_SOURCES)).toEqual({ from: 300, to: 400 })
+    expect(sourceWindow(400, 999, MAX_SOURCES)).toEqual({ from: 300, to: 400 })
+    expect(sourceWindow(0, 0, MAX_SOURCES)).toEqual({ from: 0, to: 0 })
+    expect(tallySources(seatsAt(400), 400, () => 1, { from: 300, to: 400 })).toHaveLength(100)
+  })
+
+  it('rounds a lens between two levels to the nearer one', () => {
+    expect(capForLevel(1.4)).toBe(MAX_SOURCES)
+    expect(capForLevel(1.6)).toBe(10)
+    expect(capForLevel(-3)).toBe(MAX_SOURCES)
+    expect(capForLevel(99)).toBe(1)
   })
 })

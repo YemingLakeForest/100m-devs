@@ -202,11 +202,45 @@ export const ROOM_SQUAD_ROWS = ROOM_DEV_CAP / SQUAD_SIZE / ROOM_SQUAD_COLS
  * corridor has to beat a desk's own footprint before it reads as a corridor,
  * and a desk is nearly a tile wide.
  */
+/**
+ * The perimeter aisle around the whole floor, in seat units.
+ *
+ * **A constant, and it is the fix to "the room is too big".** What was here was
+ * `pad = SQUAD_COLS * 0.45` — half a squad on every side, computed from the
+ * squads that happened to be occupied. At ten squads that is a ten per cent
+ * surround and reads as a room; at *one* squad it is wider than the squad, so
+ * the shell came out 2,046 px around an 893 px block. A constant expressed as a
+ * fraction of the child is a constant that has stopped being one.
+ *
+ * The two numbers differ because the axes are not the same screen distance: one
+ * column step moves 32 px across, one row step 67 px. Four and two come out
+ * symmetric on screen, and four columns is also wide enough to hold §7.8.10's
+ * corner desk, which sits outside the squad grid entirely.
+ */
+export const FLOOR_AISLE_COLS = 4
+export const FLOOR_AISLE_ROWS = 2
+
 export const CORRIDOR_COLS = 2.6
 export const CORRIDOR_ROWS = 2.0
 /** Squad origin to squad origin, in seat units. */
 export const SQUAD_STRIDE_COLS = SQUAD_COLS + CORRIDOR_COLS
 export const SQUAD_STRIDE_ROWS = SQUAD_ROWS + CORRIDOR_ROWS
+
+/**
+ * **The floor's own rectangle, in seat units — fixed at every headcount.**
+ *
+ * The shell used to be re-solved on every hire, so the room's extent moved, so
+ * the camera's fit moved, so **hiring re-framed the picture**. A floor is five
+ * squads across and two back from the moment the garage is outgrown; empty
+ * squads are drawn bare. Growth goes *up*, into storeys, which is what makes
+ * the building level mean anything.
+ */
+export const FLOOR_MIN_COL = -FLOOR_AISLE_COLS
+export const FLOOR_MIN_ROW = -FLOOR_AISLE_ROWS
+export const FLOOR_MAX_COL =
+  (ROOM_SQUAD_COLS - 1) * SQUAD_STRIDE_COLS + SQUAD_COLS - 1 + FLOOR_AISLE_COLS
+export const FLOOR_MAX_ROW =
+  (ROOM_SQUAD_ROWS - 1) * SQUAD_STRIDE_ROWS + SQUAD_ROWS - 1 + FLOOR_AISLE_ROWS
 /**
  * How much of the corridor the squad's own floor plate takes, each side.
  *
@@ -449,6 +483,15 @@ export interface RoomHandle {
   readonly drawn: number
   /** Live bounding size, for the §23.4.1 camera fit. Grows with the room. */
   readonly extent: { w: number; h: number }
+  /**
+   * The rectangle the room occupies, in its own coordinates.
+   *
+   * Distinct from {@link extent}, which is a size with no position — and the
+   * position is the half the lens needs, because the room is not centred on its
+   * own origin and never was: §7.8.10's corner desk sits at a negative
+   * coordinate and the seat lattice runs away from it in both directions.
+   */
+  readonly shellRect: { cx: number; cy: number; w: number; h: number }
 }
 
 /**
@@ -505,7 +548,7 @@ function gridToScreen(gx: number, gy: number) {
  * order and depth disagree are more than a desk apart on screen and cannot
  * overlap at all.
  */
-function isoAt(col: number, row: number) {
+export function isoAt(col: number, row: number) {
   // `col` — the seat's place *along* its row — drives `gy`; `row` drives `gx`.
   return gridToScreen(row * PITCH_ROW, col * PITCH_COL)
 }
@@ -949,13 +992,22 @@ export function wallSpot(
   u: number,
   cx: number,
   cy: number,
-  halfTiles: number,
+  halfBack: number,
   depth: number,
+  halfAcross = halfBack,
 ): { x: number; y: number } {
-  const s = halfTiles
-  const along = -s + Math.min(1, Math.max(0, u)) * 2 * s
-  const back = -s + depth / 2 + WALL_GAP
-  const p = wall === 'left' ? gridToScreen(back, along) : gridToScreen(along, back)
+  // **Two half-extents, not one.** The garage is a square room and the two were
+  // the same number; an open-plan floor is five squads across and two back, so
+  // a single `halfTiles` put the props for the long wall at the short wall's
+  // spacing — bunched into the middle of one and hanging off the end of the
+  // other. `halfBack` is the room's depth (the `gx` axis) and `halfAcross` its
+  // width (`gy`), and each wall runs along the one it is not the back of.
+  const across = -halfAcross + Math.min(1, Math.max(0, u)) * 2 * halfAcross
+  const along = -halfBack + Math.min(1, Math.max(0, u)) * 2 * halfBack
+  const p =
+    wall === 'left'
+      ? gridToScreen(-halfBack + depth / 2 + WALL_GAP, across)
+      : gridToScreen(along, -halfAcross + depth / 2 + WALL_GAP)
   return { x: cx + p.x, y: cy + p.y }
 }
 
@@ -2188,6 +2240,15 @@ export function buildRoom(): RoomHandle {
   let currentProps = propsAt(1)
   let lastDevs = -1
   const extent = { w: TILE_W * 3, h: 156 }
+  /**
+   * What the room actually occupies, in its own coordinates — the rectangle the
+   * lens frames at floor level.
+   *
+   * Live, because the *garage* really does grow: §7.8.1's first frames are one
+   * desk and the walls push outward across the 11–30 band. Above the unfold it
+   * is a constant, which is the half that matters — see FLOOR_MIN_COL.
+   */
+  const shellRect = { cx: 0, cy: 0, w: TILE_W * 3, h: 156 }
 
   /**
    * §7.8.1c's clock. -1 until the hundredth hire, then 0..1 once, then 1.
@@ -2212,7 +2273,18 @@ export function buildRoom(): RoomHandle {
   function writeFit(fit: { w: number; h: number; px: number; py: number }) {
     extent.w = fit.w
     extent.h = fit.h
-    root.pivot.set(fit.px, fit.py)
+    shellRect.w = fit.w
+    shellRect.h = fit.h
+    shellRect.cx = fit.px
+    shellRect.cy = fit.py
+    // **The pivot is zero, and that is the change.** The room used to centre
+    // itself on its own fit, because the camera framed *containers* and every
+    // one of them had to arrive pre-centred. The lens now frames a rectangle in
+    // the world, so a container that shifts its own contents underneath that
+    // rectangle is a second, invisible camera fighting the first — which is
+    // exactly what pushed the floor to the top of the frame with the near half
+    // of it off screen.
+    root.pivot.set(0, 0)
   }
 
   function fitAt(t: number) {
@@ -2319,30 +2391,78 @@ export function buildRoom(): RoomHandle {
     //
     // An open-plan floor is the block plus a walkway. Never less than the block.
     const floorW = unfolded
-      ? Math.max(bw, bh * 2) * OPEN_FLOOR_SURROUND
+      ? (box.maxX - box.minX) / 2
       : plateHalfWidth(bw, bh, margin)
-    const floorH = floorW / 2
-    const halfW = floorW / TILE_W
-    const naturalCentre = {
-      x: (box.minX + box.maxX) / 2,
-      y: (box.minY + box.maxY) / 2,
-    }
-    const centre = unfolded ? naturalCentre : foldedRoomCentre(floorH)
+    const floorH = unfolded ? (box.maxY - box.minY) / 2 : floorW / 2
+
+    // **The shell's half-extents in the grid's own axes, and they are not
+    // equal.** A garage is a square room, so its floor is a diamond and one
+    // number described it. An open-plan floor is *five squads across and two
+    // back* — a rectangle — and a rectangle in this projection is a
+    // parallelogram, not a diamond.
+    //
+    // That distinction is the whole of "the room is too big". A diamond that
+    // **contains** a 2:1 block of desks has to be twice the block's width (see
+    // `plateHalfWidth`), so framing the shell framed a room with the people in
+    // a clump in the middle of it: measured, 483 px of developers inside a
+    // 997 px frame at a full floor and 283 px at one squad. Nothing about the
+    // margins caused that; the shape did.
+    const halfBack = unfolded
+      ? (FLOOR_MAX_ROW - FLOOR_MIN_ROW) * PITCH_ROW * 0.5
+      : floorW / TILE_W
+    const halfAcross = unfolded ? (FLOOR_MAX_COL - FLOOR_MIN_COL) * 0.5 : floorW / TILE_W
+    const halfW = halfBack
+
+    const centre = unfolded
+      ? { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 }
+      : foldedRoomCentre(floorH)
     const cx = centre.x
     const cy = centre.y
+
+    // The shell's four corners. For the garage these come out exactly where
+    // the old diamond's vertices were, so nothing below had to learn a new
+    // shape — only that the two walls may now be different lengths.
+    const nw = gridToScreen(-halfBack, -halfAcross)
+    const ww = gridToScreen(-halfBack, halfAcross)
+    const ee = gridToScreen(halfBack, -halfAcross)
+    const ss = gridToScreen(halfBack, halfAcross)
+    const topX = cx + nw.x
+    const topY = cy + nw.y
+    const leftX = cx + ww.x
+    const leftY = cy + ww.y
+    const rightX = cx + ee.x
+    const rightY = cy + ee.y
+    const botX = cx + ss.x
+    const botY = cy + ss.y
+    /** How far the back-left wall runs from the corner, on each axis. */
+    const westW = topX - leftX
+    const westH = leftY - topY
+    /** And the back-right. Equal to the west pair in a garage; longer here. */
+    const eastW = rightX - topX
+    const eastH = rightY - topY
 
     // The wall planes' screen slope, from the room's own geometry rather than
     // a literal 0.5, so wall-mounted things stay in plane if the projection
     // ratio is ever retuned.
-    const WALL_SLOPE = floorH / floorW
+    const WALL_SLOPE = westH / westW
 
     // Floor — a concrete slab, not wood. This room is a garage, and the slab
     // is the half of that the eye checks first: a dark grey pour with a paler
     // edge, an oil stain in front of the door, and one crack. Office wood
     // belongs to the open-plan plates that arrive with §7.8.1c; the founder's
     // room never stops being the garage it started as.
-    isoQuad(shell, cx, cy, floorW * 2, floorH * 2, c(RAMPS.NEUTRAL[1]))
-    isoQuad(shell, cx, cy, floorW * 2 - 10, floorH * 2 - 5, c(RAMPS.NEUTRAL[2]))
+    const slab = (inset: number, fill: number) => {
+      const k = inset
+      shell
+        .moveTo(topX + (botX - topX) * k, topY + (botY - topY) * k)
+        .lineTo(rightX + (leftX - rightX) * k, rightY + (leftY - rightY) * k)
+        .lineTo(botX + (topX - botX) * k, botY + (topY - botY) * k)
+        .lineTo(leftX + (rightX - leftX) * k, leftY + (rightY - leftY) * k)
+        .closePath()
+        .fill(fill)
+    }
+    slab(0, c(RAMPS.NEUTRAL[1]))
+    slab(0.004, c(RAMPS.NEUTRAL[2]))
     // Worn scuffs, so the slab reads as poured concrete rather than as a
     // void. A few faint patches, lighter where traffic has polished it.
     shell
@@ -2386,25 +2506,21 @@ export function buildRoom(): RoomHandle {
     // exist to fix. 0.48 of the floor's half-height keeps the walls shorter
     // than the founder's clearance deserves at low headcounts while still
     // rising to the full cap once the open plan is out.
-    const WALL_H = Math.max(34, Math.min(112, floorH * 0.48))
-    const topX = cx
-    const topY = cy - floorH
-    const leftX = cx - floorW
-    const rightX = cx + floorW
+    const WALL_H = Math.max(34, Math.min(unfolded ? 210 : 112, floorH * 0.48))
     shell
-      .moveTo(leftX, cy)
+      .moveTo(leftX, leftY)
       .lineTo(topX, topY)
       .lineTo(topX, topY - WALL_H)
-      .lineTo(leftX, cy - WALL_H)
+      .lineTo(leftX, leftY - WALL_H)
       .closePath()
-      .fill(c(RAMPS.WOOD[0]))
+      .fill(c(unfolded ? RAMPS.NEUTRAL[2] : RAMPS.WOOD[0]))
     shell
-      .moveTo(rightX, cy)
+      .moveTo(rightX, rightY)
       .lineTo(topX, topY)
       .lineTo(topX, topY - WALL_H)
-      .lineTo(rightX, cy - WALL_H)
+      .lineTo(rightX, rightY - WALL_H)
       .closePath()
-      .fill(c(RAMPS.WOOD[1]))
+      .fill(c(unfolded ? RAMPS.NEUTRAL[3] : RAMPS.WOOD[1]))
     // The corner seam, so the two planes read as meeting rather than as one
     // folded shape.
     shell.moveTo(topX, topY).lineTo(topX, topY - WALL_H).stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]) })
@@ -2448,8 +2564,8 @@ export function buildRoom(): RoomHandle {
         .lineTo(topX, topY)
         .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]) })
     }
-    skirt(leftX, cy, 3)
-    skirt(rightX, cy, 4)
+    skirt(leftX, leftY, 3)
+    skirt(rightX, rightY, 4)
 
     // --- the cornice --------------------------------------------------------
     //
@@ -2478,8 +2594,8 @@ export function buildRoom(): RoomHandle {
         .lineTo(topX, topY - WALL_H + CORNICE_H)
         .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]) })
     }
-    cornice(leftX, cy - WALL_H, 3)
-    cornice(rightX, cy - WALL_H, 4)
+    cornice(leftX, leftY - WALL_H, 3)
+    cornice(rightX, rightY - WALL_H, 4)
 
     // **The garage bones only belong to a garage.** §7.8.1c opens the floor
     // out into an open-plan office, and everything between here and the light
@@ -2518,7 +2634,7 @@ export function buildRoom(): RoomHandle {
         // cornice's shadow line already marks that edge.
         if (i < BRICK_COURSES - 1) {
           shell
-            .moveTo(leftX, cy - bedTop)
+            .moveTo(leftX, leftY - bedTop)
             .lineTo(topX, topY - bedTop)
             .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.4 })
         }
@@ -2527,7 +2643,7 @@ export function buildRoom(): RoomHandle {
         // overshoots or falls short of the wall.
         const offset = (i % 2) * brickW * 0.5
         for (let x = leftX + offset; x < topX; x += brickW) {
-          const bx = cy - (x - leftX) * WALL_SLOPE
+          const bx = leftY - (x - leftX) * WALL_SLOPE
           shell
             .moveTo(x, bx - bedTop)
             .lineTo(x, bx - bed)
@@ -2539,10 +2655,10 @@ export function buildRoom(): RoomHandle {
       // Drawn after the skirting so it stands on the slab rather than behind it.
       drawGarageDoor(
         shell,
-        topX + floorW * 0.3,
-        topY + floorH * 0.3,
-        topX + floorW * 0.7,
-        topY + floorH * 0.7,
+        topX + eastW * 0.3,
+        topY + eastH * 0.3,
+        topX + eastW * 0.7,
+        topY + eastH * 0.7,
         WALL_H * 0.85,
       )
 
@@ -2554,8 +2670,8 @@ export function buildRoom(): RoomHandle {
       // and never leave, whatever the studio grows into.
       const WIN_W = 52
       const WIN_H = Math.max(16, WALL_H * 0.5)
-      drawWindow(shell, topX - floorW * 0.25, topY + floorH * 0.25 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
-      drawWindow(shell, topX - floorW * 0.65, topY + floorH * 0.65 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+      drawWindow(shell, topX - westW * 0.25, topY + westH * 0.25 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+      drawWindow(shell, topX - westW * 0.65, topY + westH * 0.65 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
 
     }
 
@@ -2593,21 +2709,21 @@ export function buildRoom(): RoomHandle {
     // §7.8.1's whole point, so the two are drawn from separate budgets.
 
     if (props.whiteboard) {
-      drawWhiteboard(shell, topX - floorW * 0.42, topY + floorH * 0.42 - WALL_H * 0.66, 3, -WALL_SLOPE)
+      drawWhiteboard(shell, topX - westW * 0.42, topY + westH * 0.42 - WALL_H * 0.66, 3, -WALL_SLOPE)
     }
     if (props.whiteboardRight) {
       // Tucked into the corner beside the centred garage door, not over it.
-      drawWhiteboard(shell, topX + floorW * 0.16, topY + floorH * 0.16 - WALL_H * 0.62, 17, WALL_SLOPE)
+      drawWhiteboard(shell, topX + eastW * 0.16, topY + eastH * 0.16 - WALL_H * 0.62, 17, WALL_SLOPE)
     }
     for (let i = 0; i < props.posters; i++) {
       // Alternating walls, marching outward from the corner so a second poster
       // never lands on the first.
       const left = i % 2 === 0
       const along = 0.18 + Math.floor(i / 2) * 0.3
-      const px = left ? topX - floorW * along : topX + floorW * along
+      const px = left ? topX - westW * along : topX + eastW * along
       // Follows the wall down from the corner — `along` is a fraction of the
       // wall's run, so the drop is the same fraction of its rise.
-      const py = topY + floorH * along - WALL_H * (0.5 - (i % 3) * 0.08)
+      const py = topY + (left ? westH : eastH) * along - WALL_H * (0.5 - (i % 3) * 0.08)
       drawPoster(shell, px, py, i, left ? -WALL_SLOPE : WALL_SLOPE)
     }
 
@@ -2702,7 +2818,7 @@ export function buildRoom(): RoomHandle {
       // end of a wall is the same defect this whole change is fixing.
       const u = 0.1 + ((placed[side] + 0.5) / slots) * 0.82
       placed[side]++
-      const at = wallSpot(wall, u, cx, cy, halfW, ring[i].w / TILE_W)
+      const at = wallSpot(wall, u, cx, cy, halfBack, ring[i].w / TILE_W, halfAcross)
       ring[i].draw(at.x, at.y, wall === 'left' ? -WALL_SLOPE : WALL_SLOPE)
     }
 
@@ -2711,7 +2827,7 @@ export function buildRoom(): RoomHandle {
       // one thing in the room that wants a wall behind it, it is never in
       // anybody's way there, and it does not move as the dressing around it
       // comes and goes.
-      const at = wallSpot('right', 0.08, cx, cy, halfW, 24 / TILE_W)
+      const at = wallSpot('right', 0.08, cx, cy, halfBack, 24 / TILE_W, halfAcross)
       const sx = at.x
       const sy = at.y
       isoBox(furniture, sx, sy, 24, 54, RAMPS.NEUTRAL, 1)
@@ -2846,7 +2962,12 @@ export function buildRoom(): RoomHandle {
     light.alpha = 1
     // Rebuilt whenever the studio has grown into more squads, so the floor is
     // exactly as big as the people on it.
-    const squadsNeeded = unfolded ? Math.min(FLOOR_SQUADS, Math.ceil(n / SQUAD_SIZE)) : 0
+    // **All ten, or none.** A floor is five squads by two whatever the
+    // headcount, and the empty ones are drawn bare — that is what makes hiring
+    // read as the floor *filling up* rather than as the room being rebuilt one
+    // squad wider. Rebuilding the plates on every hundredth hire was also a
+    // second reason the camera's fit moved under the player.
+    const squadsNeeded = unfolded ? ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS : 0
     if (squadsNeeded > panels.length) {
       for (const p of panels) p.root.destroy({ children: true })
       panels.length = 0
@@ -2873,9 +2994,14 @@ export function buildRoom(): RoomHandle {
     if (unfolded) {
       const f = floorBox(squadsUsed)
       openFit.w = f.maxX - f.minX + ROOM_CONTENT_PAD_X
-      openFit.h = f.maxY - f.minY + ROOM_CONTENT_PAD_Y
+      // The walls stand *above* the floor's north corner, so they are height
+      // the frame has to find rather than scenery it can crop: a room whose
+      // cornice is cut off by the top edge reads as a mistake, not as a camera
+      // move. They cost about seven per cent of the fill and buy the fact that
+      // this is a room.
+      openFit.h = f.maxY - f.minY + WALL_H + ROOM_CONTENT_PAD_Y
       openFit.px = (f.minX + f.maxX) / 2
-      openFit.py = (f.minY + f.maxY) / 2
+      openFit.py = (f.minY + f.maxY) / 2 - WALL_H * 0.5
     }
     const nextFit = fitAt(Math.max(0, unfoldT))
     if (!fitReady) {
@@ -2916,37 +3042,11 @@ export function buildRoom(): RoomHandle {
    * unfold; they simply run off the edge of the frame, which is the honest
    * picture of a floor that holds ten thousand.
    */
-  function floorBox(squadsUsed: number) {
-    const used = Math.max(1, squadsUsed)
-    // The same rectangle the squads actually fill — see `seatFor` and
-    // {@link ROOM_SQUAD_COLS}. **Shaped to the squads that exist**, not to the
-    // floor's capacity: a room of a hundred is one plate's worth of floor and a
-    // room of a thousand is five by two, so the slab is never mostly empty and
-    // the walls are never further away than the people.
-    const wide = Math.min(ROOM_SQUAD_COLS, used)
-    const deep = Math.ceil(used / ROOM_SQUAD_COLS)
-    const maxCol = (wide - 1) * SQUAD_STRIDE_COLS + SQUAD_COLS - 1
-    const maxRow = (deep - 1) * SQUAD_STRIDE_ROWS + SQUAD_ROWS - 1
-    // **Headroom on all four sides, not only two.** The previous version framed
-    // the occupied squads *plus a whole further squad* in +col and +row and
-    // nothing on the other two, so at exactly a hundred developers — the moment
-    // the floor unfolds and the player is watching hardest — the studio sat in
-    // one corner of a frame three-quarters empty. Half a squad, symmetric,
-    // puts the people in the middle and still shows somewhere for the next
-    // hundred to go.
-    const pad = SQUAD_COLS * 0.45
-    const padRows = SQUAD_ROWS * 0.45
-    // **The founder's corner is inside the room.** It sits at a negative
-    // coordinate, outside the squad grid entirely, and the unfolded box was
-    // measured from the squads alone — so the manager's desk stood on a
-    // detached island of floor above the slab with nothing under it, which is
-    // the thing that reads as "the floor is just floating on the old room".
-    return blockBox(
-      Math.min(-pad, FOUNDER_CORNER_COL - 4),
-      Math.min(-padRows, FOUNDER_CORNER_ROW - 4),
-      maxCol + pad,
-      maxRow + padRows,
-    )
+  function floorBox(_squadsUsed: number) {
+    // **Fixed.** See FLOOR_MIN_COL. The room is the same rectangle whatever the
+    // headcount, so the camera's fit is a constant and hiring can never
+    // re-frame the picture — which it did, on every single hire.
+    return blockBox(FLOOR_MIN_COL, FLOOR_MIN_ROW, FLOOR_MAX_COL, FLOOR_MAX_ROW)
   }
 
   /**
@@ -3362,5 +3462,6 @@ export function buildRoom(): RoomHandle {
       return windowFrom
     },
     extent,
+    shellRect,
   }
 }

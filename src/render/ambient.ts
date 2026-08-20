@@ -46,6 +46,19 @@ function c(hex: string): number {
 
 const ZERO = { x: 0, y: 0 }
 
+/**
+ * The smallest a bubble may be drawn, as a multiple of its authored size.
+ *
+ * Below this the words stop being words. The face is 11 px at 1.0, so 0.62 is
+ * about seven pixels of cap height — the last size at which a short line still
+ * reads as language rather than as texture. Clamping the counter-scale (see
+ * `inv`, below) means the bubble stops growing at a 2.4x magnification, so this
+ * threshold is crossed at a room scale of about 0.26: legible from Squad
+ * inward, and absent at Floor and Building where the unit on screen is a squad
+ * or a storey and nobody is being quoted anyway.
+ */
+export const BUBBLE_MIN_SCALE = 0.62
+
 /** How far a walking developer stands from the thing they walked to. */
 const STANDOFF = 18
 /** Fraction of a walk spent travelling each way; the rest is standing there. */
@@ -374,6 +387,21 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
       }
 
       // --- bubbles ---------------------------------------------------------
+      //
+      // **A bubble nobody can read is not drawn.** §6.3 is that dialogue is the
+      // product; a line of it rendered five pixels tall is not quiet dialogue,
+      // it is a white smudge on somebody's desk, and at Floor there were a
+      // dozen of them speckled over the plan looking like damage.
+      //
+      // The test is the size the words actually land at, which is the room's
+      // own scale times the counter-scale below — so it needs no level, no
+      // camera and no threshold anybody has to keep in step with the ladder.
+      // It works out at: legible from Squad inward, gone from Floor outward.
+      // The behaviours keep running underneath, so the walkers still walk and
+      // the exchange the player zooms back into is the one that was already
+      // happening.
+      const inv = Math.min(2.4, 1 / Math.max(0.35, worldScale))
+      if (worldScale * inv >= BUBBLE_MIN_SCALE)
       for (const a of live) {
         const t = a.age / a.life
         for (const [n, i] of a.who.entries()) {
@@ -388,10 +416,6 @@ export function createAmbient(rng: () => number = Math.random): Ambient {
           // A bubble follows its speaker. The instigator of a walk is the one
           // who moves; everybody else bubbles over their own desk.
           const off = i === a.who[0] ? walkOffset(a, t) : ZERO
-          // Clamped rather than a straight inverse: at the swarm zoom the
-          // inverse explodes, and a bubble that never shrinks would cover the
-          // floor it is meant to be sitting on.
-          const inv = Math.min(2.4, 1 / Math.max(0.35, worldScale))
           bubble(
             label,
             g,

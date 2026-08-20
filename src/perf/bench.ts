@@ -11,7 +11,6 @@
  * synthesising taps is not something a player should ever have happen to them.
  */
 
-import type { LensCamera } from '../render/omniLens.ts'
 import { FLOOR_SPRITE_COUNT } from '../render/scene.ts'
 import {
   FrameSampler,
@@ -22,7 +21,15 @@ import {
 } from './metrics.ts'
 
 export interface BenchHooks {
-  camera: LensCamera
+  /**
+   * The lens, as the bench drives it: a Z it can read and a Z it can set.
+   *
+   * Structural rather than the camera's own class, because §23.3's acceptance
+   * run is a measurement harness and must not be a reason the camera cannot be
+   * replaced. It was `LensCamera`, and swapping the camera for `lens.ts` then
+   * broke a file that only ever wanted two members.
+   */
+  camera: { readonly z: number; set(z: number): void }
   /** Synthesise one poke at the centre of the screen. */
   tap: () => void
   /** Latency samples the stage is already collecting for criterion 1. */
