@@ -4,7 +4,7 @@
 > **one camera, five levels** (desk, squad, floor, building, block), a fixed 5x2 floor of 1,000
 > seats, a building you pick floors out of, a block you pick buildings out of, and a HUD that
 > names the address and opens both sets of doors. Built to **100,000 developers in ten
-> buildings**. Twelve findings and **traps 45–49**: a garage that crossed the level ladder, a
+> buildings**. Twelve findings and **traps 45–52**: a garage that crossed the level ladder, a
 > zoom ceiling enforced from outside the lens that could not satisfy itself, a code tap that flew
 > the camera onto the person being coded at, four cameras that never landed where they were sent,
 > and **no tap anywhere changes the zoom any more** — that is the pinch, the wheel and the rail.

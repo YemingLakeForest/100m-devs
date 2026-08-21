@@ -1013,39 +1013,69 @@ export function floorScaleAt(cameraScale: number): number {
 export const ROOM_RESOLVE_SCALE = 0.1
 
 /**
- * The band over which the building's chrome — plot, unfocused plates, lift
- * core — leaves, in floor-space scale.
+ * How far into a level's own band its chrome has left — **measured in levels**.
  *
- * It **starts** leaving after the room has already resolved, so the two
- * hand-offs never land on the same frame: for the band between
- * {@link ROOM_RESOLVE_SCALE} and {@link BUILDING_FADE_END} the player can see
- * the room they are entering still sitting inside the building it belongs to.
- * That overlap is the one thing the old cross-fade was reaching for and could
- * not have, because its two pictures were never the same size.
+ * ## Why this is not a size, when almost everything else here is
+ *
+ * The rule this file is built on is *LOD by on-screen size, never by camera Z*,
+ * and it is right for what it is for: {@link ROOM_RESOLVE_SCALE} asks "is a
+ * desk big enough to draw a person on", which is a question about pixels and
+ * has the same answer on every screen.
+ *
+ * **"Which level's picture is on screen" is not that question.** A bigger
+ * window draws everything bigger at the *same* level, so floor-space scale at a
+ * given level scales with the viewport — and a threshold placed between two
+ * levels at one viewport falls on the wrong side of them at another. Measured,
+ * with the block's chrome band written as 0.042–0.060 of floor scale:
+ *
+ * | Viewport | Floor scale at Block | Block chrome |
+ * |---|---|---|
+ * | 640x360 | 0.026 | 1.00 |
+ * | 997x448 | 0.032 | 1.00 |
+ * | 1280x720 | 0.051 | 0.48 |
+ * | **1999x1115** | **0.079** | **0.00** |
+ *
+ * At a desktop window the block was **completely invisible while the block was
+ * the subject**: nine towers at alpha zero, the tenth drawn because it is the
+ * real building, and its plan laid across the plots either side of it. Reported
+ * as "at 100k still just one tower", and every gate in the repo agreed with the
+ * old numbers because the largest viewport any of them uses is 997x448.
+ *
+ * A composition hand-off is a question about the *ladder*, and the ladder is
+ * viewport-independent by construction — `levelAtScale` measures against the
+ * fitted scales, which move with the window exactly as the camera does.
+ *
+ * The bands below are the ones the old floor-scale numbers worked out to at the
+ * reference frame, converted once: the chrome is whole 0.8 of a level inside
+ * its own band and gone 0.25 of a level past the level below it. The overlap
+ * {@link ROOM_RESOLVE_SCALE} was tuned for survives — the room still resolves
+ * while the building is still drawn — and now it survives at every size,
+ * instead of only at the one it was measured on.
  */
-export const BUILDING_FADE_START = 0.09
-export const BUILDING_FADE_END = 0.17
+const CHROME_FULL = 0.8
+const CHROME_GONE = 0.25
 
-/** 1 while the building is the subject, 0 once the room is. */
-export function buildingChromeAlpha(floorScale: number): number {
-  if (!(floorScale > 0)) return 1
-  const t = (BUILDING_FADE_END - floorScale) / (BUILDING_FADE_END - BUILDING_FADE_START)
+function chromeAlpha(level: number, below: number): number {
+  if (!Number.isFinite(level)) return 1
+  const t = (level - (below + CHROME_GONE)) / (CHROME_FULL - CHROME_GONE)
   const u = Math.max(0, Math.min(1, t))
   // Smoothstep, so the chrome does not appear or vanish with a visible kink at
-  // either end of the band — §10.5's rule, applied to the one fade left.
+  // either end of the band — §10.5's rule, applied to the fades that are left.
   return u * u * (3 - 2 * u)
 }
 
+/** 1 while the building is the subject, 0 once the room is. */
+export function buildingChromeAlpha(level: number): number {
+  return chromeAlpha(level, FLOOR)
+}
+
 /**
- * The band over which the *block* leaves — its ground, its streets and the nine
- * towers you are not in — in floor-space scale.
+ * 1 while the block is the subject, 0 once a single building is.
  *
- * Measured at 997x448, ten full buildings: the block sits at a floor scale of
- * **0.033** and one building at **0.072**, so the band is the middle of the
- * only gap there is. It has to be crossed completely, and this is not
- * housekeeping: the building's pulled-out plan is 286 units wide against a
- * 130-unit plot stride, so a plan drawn while a neighbour is still on screen is
- * drawn straight through it.
+ * The band has to be crossed completely, and that is not housekeeping: the
+ * building's pulled-out plan is 286 units wide against a 130-unit plot stride,
+ * so a plan drawn while a neighbour is still on screen is drawn straight
+ * through it.
  *
  * The plan fades in on `1 - blockChromeAlpha`, so the two trade places rather
  * than overlapping. That is a fade between *different objects*, which §10.5
@@ -1053,15 +1083,8 @@ export function buildingChromeAlpha(floorScale: number): number {
  * which is what the old ladder did and what the plot-to-tower hand-off
  * deliberately does not do — those two are the same drawing at the same size.
  */
-export const BLOCK_FADE_START = 0.042
-export const BLOCK_FADE_END = 0.06
-
-/** 1 while the block is the subject, 0 once a single building is. */
-export function blockChromeAlpha(floorScale: number): number {
-  if (!(floorScale > 0)) return 1
-  const t = (BLOCK_FADE_END - floorScale) / (BLOCK_FADE_END - BLOCK_FADE_START)
-  const u = Math.max(0, Math.min(1, t))
-  return u * u * (3 - 2 * u)
+export function blockChromeAlpha(level: number): number {
+  return chromeAlpha(level, BUILDING)
 }
 
 /** Whether the room's individual people are worth building at this scale. */

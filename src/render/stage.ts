@@ -1384,7 +1384,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // the container moves with it and the block stops drawing a tower there.
     // Re-parenting rather than re-drawing is what keeps the two from ever being
     // on screen at once.
-    const blockAlpha = blockChromeAlpha(currentFloorScale)
+    const blockAlpha = blockChromeAlpha(currentLevel)
     block.setHeadcount(state.devs)
     block.setFocus(focusBuilding)
     block.setSelected(selectedBuilding)
@@ -1410,7 +1410,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // And it does not exist at all while the block does: 286 units of plan
     // against a 130-unit plot stride is a plan drawn through the neighbours.
     building.setPlanAlpha(1 - blockAlpha)
-    building.setChromeAlpha(buildingChromeAlpha(currentFloorScale))
+    building.setChromeAlpha(buildingChromeAlpha(currentLevel))
     building.update(now)
 
     // --- the room ----------------------------------------------------------
@@ -1629,6 +1629,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         roomIsUp,
         scale: +camera.scale.toFixed(5),
         floorScale: +currentFloorScale.toFixed(5),
+        // **How much of each level's chrome is on screen.** Here because a
+        // composition hand-off is invisible to every other probe: `__pick`
+        // answers off the model and will happily name ten towers that are being
+        // drawn at alpha zero, which is exactly the state "at 100k still just
+        // one tower" was reported from.
+        blockAlpha: +blockChromeAlpha(currentLevel).toFixed(3),
+        buildingAlpha: +buildingChromeAlpha(currentLevel).toFixed(3),
         centre: `${Math.round(camera.centre.cx)},${Math.round(camera.centre.cy)}`,
         // **The number this rebuild exists to make large.** How wide the seat
         // block measures on screen, and what fraction of the frame that is.

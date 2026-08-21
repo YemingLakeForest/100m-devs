@@ -872,6 +872,70 @@ try {
   })
 
   /*
+   * **The studio is still on screen on a screen.**
+   *
+   * Every size above is a phone in landscape, because §23.4 measures the game
+   * on one and the reference frame is 997x448. Nothing here had ever opened a
+   * *desktop window*, and that is how the block came to be invisible at one:
+   * its chrome fade was written as a floor-space scale, floor-space scale at a
+   * given level scales with the viewport, and at 1999x1115 the nine towers the
+   * player was not in were at alpha zero **while the block was the subject**.
+   * Reported as "at 100k still just one tower", with every gate green.
+   *
+   * So this asks the only question that matters and asks it through the
+   * picker: at a hundred thousand developers, how many buildings can the finger
+   * actually reach? `__pick` is the same sanctioned hook the walk aims with.
+   */
+  for (const [width, height] of [
+    [1999, 1115],
+    [2560, 1440],
+    [1280, 720],
+    [997, 448],
+  ]) {
+    screensChecked += 1
+    await page.setViewportSize({ width, height })
+    await page.goto(`${origin}/?notitle&nopost&scenario=campus`, { waitUntil: 'load' })
+    await page.locator('.hud').waitFor()
+    await page.waitForTimeout(1_800)
+    const seen = await page.evaluate(() => {
+      const found = new Set()
+      for (let y = 6; y < window.innerHeight - 6; y += 6) {
+        for (let x = 6; x < window.innerWidth - 6; x += 6) {
+          const hit = globalThis.__pick?.(x, y)
+          if (hit && hit.rung === 4) found.add(hit.index)
+        }
+      }
+      const s = window.__stage
+      return {
+        buildings: [...found].sort((a, b) => a - b),
+        at: s?.at ?? null,
+        blockAlpha: s?.blockAlpha ?? null,
+      }
+    })
+    if (seen.at !== 'BLOCK' || seen.buildings.length !== 10) {
+      throw new Error(
+        `the block at ${width}x${height}: a hundred thousand developers put the lens at ` +
+          `${seen.at} with ${seen.buildings.length} of 10 buildings reachable — ` +
+          JSON.stringify(seen.buildings),
+      )
+    }
+    /*
+     * **Reachable is not the same as drawn**, and asking only the first
+     * question is how the first draft of this check passed against the very
+     * defect it was written for. `__pick` answers off the model; the model was
+     * never wrong. What was wrong is that the block's chrome was being faded
+     * out *at the block*, so all ten towers were there, all ten were pickable,
+     * and none of them was on the screen.
+     */
+    if (seen.blockAlpha !== 1) {
+      throw new Error(
+        `the block at ${width}x${height}: the lens is at BLOCK and the block's own chrome is ` +
+          `at alpha ${seen.blockAlpha} — its towers are being drawn invisible`,
+      )
+    }
+  }
+
+  /*
    * **Counted, not asserted.** This line used to read `sizes.length * 10 + 3`,
    * a formula somebody kept in step with the cases below by hand — so adding a
    * case and watching the total stay at 53 was the only clue that it was not

@@ -7,7 +7,6 @@ import {
   BUILDINGS_PER_BLOCK,
   BUILDING,
   BUILDING_CAP,
-  BUILDING_FADE_END,
   blockChromeAlpha,
   blockFrame,
   buildingAtBlock,
@@ -24,7 +23,6 @@ import {
   FLOOR,
   FLOORS_PER_BUILDING,
   PLATE_SCALE,
-  ROOM_RESOLVE_SCALE,
   SQUAD,
   TOWER_W,
   bandRect,
@@ -407,8 +405,8 @@ describe('the block', () => {
   it('crosses the block out completely before the plan comes out', () => {
     // The plan is 286 units wide against a 130-unit plot stride, so a plan
     // drawn while a neighbour is still on screen is drawn through it.
-    expect(blockChromeAlpha(floorScaleAt(scales[BLOCK]))).toBe(1)
-    expect(blockChromeAlpha(floorScaleAt(scales[BUILDING]))).toBe(0)
+    expect(blockChromeAlpha(BLOCK)).toBe(1)
+    expect(blockChromeAlpha(BUILDING)).toBe(0)
   })
 })
 
@@ -488,13 +486,48 @@ describe('level of detail', () => {
 
   it('the room arrives before the building leaves', () => {
     // The overlap the old cross-fade could not have. If these ever cross, the
-    // descent passes through a frame with neither picture in it.
-    expect(ROOM_RESOLVE_SCALE).toBeLessThan(BUILDING_FADE_END)
+    // descent passes through a frame with neither picture in it. Stated as the
+    // thing itself now that the two are measured in different units: there is a
+    // level at which the room is resolved *and* the building is still drawn.
+    const between = FLOOR + 0.5
+    expect(roomResolved(floorScaleAt(scaleAtLevel(between, scales)))).toBe(true)
+    expect(buildingChromeAlpha(between)).toBeGreaterThan(0)
   })
 
   it('the building chrome is whole at its own level and gone at the floor', () => {
-    expect(buildingChromeAlpha(floorScaleOf(BUILDING))).toBe(1)
-    expect(buildingChromeAlpha(floorScaleOf(FLOOR))).toBe(0)
+    expect(buildingChromeAlpha(BUILDING)).toBe(1)
+    expect(buildingChromeAlpha(FLOOR)).toBe(0)
+  })
+
+  it('hands every level over at the same place on every screen', () => {
+    /*
+     * **A composition hand-off is a question about the ladder, not about
+     * pixels**, and writing one as a floor-space scale is how the block came to
+     * be invisible on a desktop window. A bigger viewport draws everything
+     * bigger at the *same* level, so a threshold placed between two levels at
+     * 997x448 lands on the wrong side of them at 1999x1115 — measured there,
+     * the block's chrome was at alpha 0.00 while the block was the subject:
+     * nine towers gone, the tenth drawn because it is the real building, and
+     * its plan laid across the plots either side of it.
+     *
+     * Every gate in the repo agreed with the old numbers, because the largest
+     * viewport any of them uses is the reference one.
+     */
+    for (const vp of [
+      { w: 640, h: 360 },
+      { w: 997, h: 448 },
+      { w: 1280, h: 720 },
+      { w: 1999, h: 1115 },
+      { w: 2560, h: 1440 },
+      { w: 1080, h: 1920 },
+    ]) {
+      const at = levelScales(0, FLOORS_PER_BUILDING, vp, BUILDINGS_PER_BLOCK)
+      const levelOf = (l: Level) => levelAtScale(at[l], at)
+      expect(blockChromeAlpha(levelOf(BLOCK)), `${vp.w}x${vp.h} block`).toBe(1)
+      expect(blockChromeAlpha(levelOf(BUILDING)), `${vp.w}x${vp.h} building`).toBe(0)
+      expect(buildingChromeAlpha(levelOf(BUILDING)), `${vp.w}x${vp.h} tower`).toBe(1)
+      expect(buildingChromeAlpha(levelOf(FLOOR)), `${vp.w}x${vp.h} floor`).toBe(0)
+    }
   })
 
   it('the descent is one continuous magnification, with no jump at the swap', () => {
