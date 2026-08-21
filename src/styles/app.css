@@ -3458,6 +3458,31 @@ body {
   text-shadow: 0 0 8px color-mix(in srgb, var(--p2) 50%, transparent);
 }
 
+/*
+ * The door for whatever the world has just named — see `Lift.tsx`.
+ *
+ * Lit rather than outlined, because it is the one control in this panel that
+ * *does* something rather than reporting something, and it appears only when
+ * there is something for it to do.
+ */
+.hud__enter {
+  appearance: none;
+  width: 100%;
+  padding: 3px 4px;
+  font: inherit;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--n0);
+  background: var(--p3);
+  border: var(--rule) solid var(--p3);
+  cursor: pointer;
+}
+
+.hud__enter:active {
+  background: var(--p2);
+  border-color: var(--p2);
+}
+
 .hud__floors {
   list-style: none;
   margin: 0;

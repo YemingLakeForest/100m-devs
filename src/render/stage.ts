@@ -992,7 +992,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       }
       if (storey !== selectedStorey) {
         selectedStorey = storey
-        setFocus(seatOfStorey(storey))
+        // **In this building.** `seatOfStorey` defaults to the first one, and a
+        // floor number is only a floor number of something: naming a storey
+        // without saying whose tower it is on moved the address to building 1
+        // and took the room with it.
+        setFocus(seatOfStorey(storey, buildingOf(focusSeat)))
         playUi('click')
       }
       doPoke(ev.clientX, ev.clientY, t)

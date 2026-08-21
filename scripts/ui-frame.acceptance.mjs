@@ -582,6 +582,15 @@ async function deadControlIssues(page) {
 /** How many screens this run actually looked at. Reported at the end. */
 let screensChecked = 0
 
+/** A real tap on the canvas: down and up, no travel, so §7.7.6 reads it as a tap. */
+async function tapAt(page, x, y) {
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.waitForTimeout(20)
+  await page.mouse.up()
+  await page.waitForTimeout(450)
+}
+
 async function check(
   page,
   { name, width, height, path: urlPath, action, requireScene = false, keyboard = 0 },
@@ -931,6 +940,56 @@ try {
       throw new Error(
         `the block at ${width}x${height}: the lens is at BLOCK and the block's own chrome is ` +
           `at alpha ${seen.blockAlpha} — its towers are being drawn invisible`,
+      )
+    }
+    // The panel and its door have to fit the rail at every one of these too.
+    const spill = await overflowIssues(page)
+    if (spill.length > 0) {
+      throw new Error(`the block at ${width}x${height}: ` + spill.join(' | '))
+    }
+
+    /*
+     * **And the address survives the way in.** Two taps and two doors: name a
+     * tower, enter it, name a storey, enter that. A floor number is only a
+     * floor number *of something*, and the call that named a storey used
+     * `seatOfStorey(f)` — whose building argument defaults to the first one —
+     * so choosing a floor of building 8 quietly moved the studio to building 1
+     * and took the room with it.
+     */
+    const tower = await page.evaluate(() => {
+      for (let y = 6; y < window.innerHeight - 6; y += 5) {
+        for (let x = 6; x < window.innerWidth - 6; x += 5) {
+          const hit = globalThis.__pick?.(x, y)
+          if (hit && hit.rung === 4 && hit.index === 7) return { x, y }
+        }
+      }
+      return null
+    })
+    if (!tower) throw new Error(`the block at ${width}x${height}: building 8 is not reachable`)
+    await tapAt(page, tower.x, tower.y + 40)
+    await page.locator('.hud__enter').click()
+    await page.waitForTimeout(1_200)
+    const storey = await page.evaluate(() => {
+      for (let y = 6; y < window.innerHeight - 6; y += 5) {
+        for (let x = 6; x < window.innerWidth - 6; x += 5) {
+          const hit = globalThis.__pick?.(x, y)
+          if (hit && hit.rung === 3 && hit.index === 5) return { x, y }
+        }
+      }
+      return null
+    })
+    if (!storey) throw new Error(`the block at ${width}x${height}: floor 6 of building 8 is not reachable`)
+    await tapAt(page, storey.x, storey.y)
+    await page.locator('.hud__enter').click()
+    await page.waitForTimeout(1_200)
+    const where = await page.evaluate(() => {
+      const s = window.__stage
+      return { at: s?.at, building: s?.building, storey: s?.storey }
+    })
+    if (where.at !== 'FLOOR' || where.building !== 7 || where.storey !== 5) {
+      throw new Error(
+        `the block at ${width}x${height}: two doors from building 8, floor 6 landed on ` +
+          JSON.stringify(where),
       )
     }
   }

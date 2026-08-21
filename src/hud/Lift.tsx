@@ -127,6 +127,28 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
       ? ladder.slice(0, 2)
       : ladder.slice(nav.buildings > 1 ? 0 : 1)
 
+  /*
+   * **The door, said out loud.**
+   *
+   * Naming a thing in the world and entering it are two steps now — nothing on
+   * the glass changes the level (§12) — and the second step was a *row in a
+   * list*. On a phone the rail is beside your thumb and that is fine; in a
+   * desktop window the tower you just tapped is eighteen hundred pixels from
+   * the row that opens it and nothing says the row is a door. Reported as "I
+   * see the 10 towers now, but can't choose which tower to zoom into".
+   *
+   * So the selection gets a control with its name on it. It is not a second
+   * mechanism — it calls exactly what the row calls — it is the same door with
+   * a sign on it, and §10.2a is explicit that a control a player has to be told
+   * about is not ready to be on screen.
+   */
+  const door =
+    onTheBlock && nav.selectedBuilding >= 0 && nav.selectedBuilding < nav.buildings
+      ? { text: `ENTER BUILDING ${buildingName(nav.selectedBuilding)}`, go: () => stage.enterBuilding(nav.selectedBuilding) }
+      : outside && nav.selected >= 0 && nav.selected < nav.storeys
+        ? { text: `ENTER FLOOR ${floorName(nav.selected)}`, go: () => stage.enterFloor(nav.selected) }
+        : null
+
   return (
     <div className="hud__lift">
       {/*
@@ -148,6 +170,12 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
           </li>
         ))}
       </ol>
+
+      {door && (
+        <button type="button" className="hud__enter" onClick={door.go}>
+          {door.text}
+        </button>
+      )}
 
       {onTheBlock && nav.buildings > 1 && (
         <ol className="hud__floors">
