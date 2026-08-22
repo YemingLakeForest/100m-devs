@@ -2301,7 +2301,7 @@ camera holds:
 | **0–2** — the room | Built. `render/room.ts`, one sprite one person, the whole of Run 1 |
 | **3** — tower | Built. `render/building.ts`. Storeys drop onto the stack, the building squashes and settles |
 | **4** — a block of ten towers | Built. `render/block.ts` |
-| **5** — a business park of ten blocks | Built. `render/park.ts`. Decks, boulevards, car parks and walkways; the level caps the drawn studio at **10⁶ developers** |
+| **5** — a business park of ten blocks | Built. `render/park.ts`. Four compounds on one board, joined by a bus; decks, pin rows, a substation and a cooling plant. The level caps the drawn studio at **10⁶ developers** |
 | **6** — town | **Not built.** Rung 6 spans two decades (10⁶–10⁸) where every rung below spans one, so it is not another ×10 of the same construction and does not come for free the way rung 5 did |
 | **7–9** — nation, planet, galaxy | **Not built.** A different register — a lit coastline, a world, a cluster — rather than more architecture. Building them badly to fill the table would be worse than the honest gap |
 
@@ -2315,6 +2315,40 @@ Two rules the built half is worth stating, because both were got wrong first:
    height of rung 4's reads as *more towers, closer together*, which is the one thing a rung
    change must never look like. Campuses are low-rise on a visible plinth; a town's blocks are
    squat, because a horizon is made of things wider than they are tall.
+
+##### 7.8.2a The ground has to be cut to what stands on it — **added 2026-08-22**
+
+Rung 5 shipped with its ten parcels in a 5x2 grid on a 1600-unit ground diamond, and the first
+thing anybody said about it was *"they spilled out to what seems to be a mat that does not meet
+that size."* That is a precise report and the diagnosis is in it: the mat was not cut to the
+parcels, **could not be** — it was a fixed-size scenery plane — and it never stopped, so ten
+blocks read as ten blocks tipped onto a sheet rather than as a place.
+
+**The rule: above the room, every ground plane is a finite object with an edge and a near face,
+sized from what stands on it.** A plane that runs to the frame edge is a backdrop, and a level
+whose whole job is to be an object that a bigger one will later sit inside cannot be a backdrop.
+
+Three things follow, and each cost a draft:
+
+1. **Author in the lattice, project once.** The replacement's first draft built its compound
+   slabs from a bounding box in *park* space. A park-space box projects to a screen-aligned
+   rectangle, and a screen-aligned rectangle in a 2:1 world reads as a sticker stuck on the
+   picture. Every quad above the room is a lattice rectangle — `floorOutline`'s rule, third
+   restatement.
+2. **Anything standing on the ground is measured by the ground.** The second draft cut the
+   board to the parcels and left the cooling plant hanging off its near edge — the original
+   complaint reproduced inside its own fix. Plant footprints live in `frames.ts` beside the
+   deck's, because geometry the frame and the drawing both need cannot be written down twice.
+3. **The ground is laid once, and the camera frames the built part of it.** A board that shrank
+   as it filled would put the unbuilt pads outside their own substrate, which is the same spill
+   from the other side. The rest runs off frame, exactly as the block's street plane does.
+
+**And a layout has one price.** On a 2:1 lattice the projected aspect is 2:1 whatever the
+arrangement, so the framed size of everything is governed by the sum of the ground's two lattice
+spans. Grouping ten parcels into four compounds costs gaps *between* compounds and has to buy
+them back by tightening the decks *inside* one. Measured: the 5x2 grid was 40.6 and a tower was
+16.9 px; the first compound layout was 53.4 and 13.1, which is a 22% shrink and would have failed
+rule 1 above; packed to budget it is 43.9 and 16.0, a cost of 5%.
 
 And a third that cost a screenshot: **the formation has a grain**, exactly as §7.8.1's desks
 do. Placing units on a square plan and projecting it puts two of them on the *same screen x*

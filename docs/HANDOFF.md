@@ -25,6 +25,12 @@
 > **Before that: [`HANDOFF-2026-08-18.md`](HANDOFF-2026-08-18.md)** — §26.1.8 items 3–10
 > walked in a real browser, the third acceptance gate, **traps 38–44**, and **Phase 1 closed**.
 >
+> **Then rewritten the same day** — §15–17 of that handoff. The park's ground was a fixed-size
+> mat that could not be cut to its parcels; it is a **board** now, with four compounds on packages,
+> a bus in the channels, a substation and a cooling plant, and a silkscreened pad wherever a block
+> is not built. **Traps 57–60**, and a palette finding: `FOLIAGE[0]` passed `art:check` and still
+> did not belong, because the gate polices membership and not fitness (ART_DIRECTION §2.1a).
+>
 > **Alongside it: [`PLAN-2026-08-22-polish.md`](PLAN-2026-08-22-polish.md)** — the whole six-rung
 > ladder photographed and measured end to end for the first time, three defects found by looking
 > (a storey lit at the block, cash floaters landing on the DEVS readout, nine of ten squad bays

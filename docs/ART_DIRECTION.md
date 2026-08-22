@@ -109,10 +109,30 @@ interface obey one variable instead of hand-authoring each state.
 | Wood / warm surface | 4 | Desks, doors, cardboard, crates |
 | Skin | 6 | Three tones × 2 values. Deliberately limited — these are 64px busts, not portraits. |
 | Screen glow | 3 | Monitor content, data pipes, server LEDs |
-| Foliage / accent | 2 | Plants, the one green thing in the office |
+| Foliage / accent | 2 | Plants, the one green thing in the office. **Never ground** — §2.1a |
 | Phosphor: calm | 4 | Interface, low entropy |
 | Phosphor: warn | 4 | Interface, mid entropy |
 | Phosphor: alarm | 4 | Interface, entropy lock |
+
+### 2.1a A ramp has a job, and the gate cannot see it — **added 2026-08-22**
+
+The park's substrate was drawn in `FOLIAGE[0]` for an afternoon. It read unmistakably as a
+circuit board, which was the brief, and **`npm run art:check` had nothing whatever to say about
+it** — the colour is in `master.png`, so every automated question the pipeline knows how to ask
+came back green.
+
+It was still wrong, and §2.1 says why in its own table: FOLIAGE is *"plants, the one green thing
+in the office"*. A board-sized field of it makes the one green thing the largest object in the
+game, and the ramp stops meaning anything the next time a plant is drawn.
+
+**The rule this leaves: the quantiser polices membership, not fitness.** §5 exists to make the
+*source* of an asset irrelevant to whether it belongs, and it does that job exactly — it cannot
+also decide whether a colour is being used for the thing the column next to it says it is for.
+A ramp with a stated job is a decision already made; spending it somewhere else is an amendment
+to this document, made deliberately and dated, not a build-time question.
+
+The park uses `NEUTRAL[1]` or `WOOD[0]` instead, and WOOD's entry now reads "desks, doors,
+cardboard, crates — and ground above the room."
 
 ### 2.2 Starting values — **v0, validate on a real device before committing**
 

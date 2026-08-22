@@ -660,9 +660,55 @@ export function buildingAtBlock(
  * **116 x 95 px** — nearly three times §23.4.2's 44 px box — and one tower
  * inside it is 17 x 46, which is a mark on a facade and no longer an object.
  */
-export const PARK_COLS = 5
-export const PARK_ROWS = 2
-export const BLOCKS_PER_PARK = PARK_COLS * PARK_ROWS
+/**
+ * The compounds - how the ten blocks are grouped, and where each group sits.
+ *
+ * **[rewritten 2026-08-22]** The first version was a 5x2 grid of parcels on one
+ * 1600-unit ground diamond, and the ground neither matched nor contained them:
+ * ten blocks spilled onto a sheet. Reported as *"they spilled out to what seems
+ * to be a mat that does not meet that size."*
+ *
+ * The replacement groups the same ten into four compounds of different sizes and
+ * shapes and stands them on a **board** - a finite slab, cut to its contents,
+ * with a near face and an edge. Blocks still fill in order, so the compounds
+ * fill in order too: four, then two, then three, then one.
+ *
+ * ## The one number a layout is expensive by
+ *
+ * On this lattice the projected aspect is **2:1 whatever the arrangement**, so
+ * the framed size of everything is governed by a single quantity: the sum of the
+ * board's two lattice spans, `U + V`. Every unit added shrinks every tower.
+ *
+ *   5x2 grid, as built               U + V = 40.6   tower 16.9 px   block 219 px
+ *   four compounds, first attempt            53.4          13.1            170
+ *   four compounds, packed to budget         43.9          16.0            207
+ *
+ * The first attempt cost 22% and would have failed 7.8.2 rule 1 - a block at the
+ * park must occupy about what a building did at the block. What the grouping
+ * spends on gaps *between* compounds it has to save *inside* them, which is why
+ * {@link PARK_IN_U} and {@link PARK_IN_V} are tighter than the old parcel
+ * stride. The cost as built is 5%.
+ */
+export interface Compound {
+  /** Silkscreen mark. */
+  readonly tag: string
+  /** How many blocks this compound holds. */
+  readonly blocks: number
+  readonly cols: number
+  readonly rows: number
+  /** The package's far corner, in plot-lattice units. */
+  readonly u: number
+  readonly v: number
+}
+
+export const COMPOUNDS: readonly Compound[] = [
+  { tag: 'U1', blocks: 4, cols: 2, rows: 2, u: 0, v: 0 },
+  { tag: 'U2', blocks: 2, cols: 1, rows: 2, u: 13.6, v: 0 },
+  { tag: 'U3', blocks: 3, cols: 3, rows: 1, u: 0, v: 9.0 },
+  { tag: 'U4', blocks: 1, cols: 1, rows: 1, u: 19.4, v: 9.0 },
+]
+
+export const BLOCKS_PER_PARK = COMPOUNDS.reduce((n, c) => n + c.blocks, 0)
 export const BUILDINGS_PER_PARK = BUILDINGS_PER_BLOCK * BLOCKS_PER_PARK
 export const PARK_CAP = BLOCK_CAP * BLOCKS_PER_PARK
 
@@ -678,18 +724,6 @@ export const PARK_CAP = BLOCK_CAP * BLOCKS_PER_PARK
  */
 export const PARK_DIVISOR = 2
 export const PARK_SCALE = 1 / PARK_DIVISOR
-
-/**
- * Parcel centre to parcel centre, one column along — park space, 2:1 isometric.
- *
- * 430 against a 382.5-unit cell, which is the same 1.12 ratio
- * {@link PLOT_STRIDE_X} holds against a tower's footprint. The street between
- * two blocks is therefore the same *fraction* of the thing it separates at both
- * levels, which is what stops the park from reading as a looser or tighter
- * version of the block rather than as a bigger one.
- */
-export const PARCEL_STRIDE_X = 430
-export const PARCEL_STRIDE_Y = PARCEL_STRIDE_X / 2
 
 /**
  * How far past its plot lattice a parcel's deck reaches, in plot strides.
@@ -780,6 +814,238 @@ export function deckRect(): Rect {
 }
 
 /**
+ * How far a deck reaches along each lattice axis, in plot strides.
+ *
+ * A block is **wider than it is tall** - 5.24 across against 2.24 back - and
+ * that asymmetry is the whole reason parcels can be separated at all where
+ * towers cannot: the same 2:1 lattice that stands four of a block's towers half
+ * in front of four others pulls two blocks completely apart.
+ */
+export const DECK_U = BLOCK_COLS - 1 + 2 * DECK_MARGIN
+export const DECK_V = BLOCK_ROWS - 1 + 2 * DECK_MARGIN
+
+/**
+ * Deck to deck *inside* one compound, in plot strides.
+ *
+ * Tighter than the 6.615 the old grid used, and asymmetric for a reason that is
+ * about towers rather than about ground. A tower is 130 park units tall; one
+ * lattice step back drops the next deck 32.5 units. At 3.94 the near row's
+ * towers land 128 units lower and only graze the far row's - enough separation
+ * that ten blocks stay ten blocks, close enough that a compound reads as one
+ * site rather than as rows on a shelf. Across, where nothing occludes anything,
+ * 0.45 of a stride is all the street a boundary needs.
+ */
+export const PARK_IN_U = DECK_U + 0.45
+export const PARK_IN_V = DECK_V + 1.7
+
+/** How far a compound's package oversails the decks standing on it. */
+export const PACKAGE_MARGIN = 0.75
+
+/** How far the board runs past everything standing on it. */
+export const BOARD_MARGIN_U = 1.8
+export const BOARD_MARGIN_V = 1.7
+
+/** Where the bus runs - the two clear channels between the packages. */
+export const BUS_U = 13.0
+export const BUS_V = 8.34
+
+/**
+ * A rectangle of the plot lattice, which is what every piece of ground above the
+ * block is: `u0..u1` by `v0..v1`, in plot strides.
+ */
+export interface LatticeBox {
+  u0: number
+  u1: number
+  v0: number
+  v1: number
+}
+
+/**
+ * Plant - the passives, and the reason there are transmission lines at all.
+ *
+ * **Each one arrives with the compound it serves.** Left standing from the first
+ * block, the substation sits at the far end of the board and drags the framed
+ * hull across the whole of it, so a studio of two hundred thousand is shown its
+ * empty future at the price of every tower being half size.
+ *
+ * The footprint lives here rather than in `park.ts` for the reason `deckRect`
+ * does: the frame has to span it and the park has to draw it, and geometry both
+ * of them need cannot be written down twice. Trap 53 was exactly this and it
+ * cost a parcel off the side of the window; the second draft of *this* layout
+ * reproduced it by cutting the board to the parcels and leaving the cooling
+ * plant hanging off the near edge.
+ */
+export interface Plant {
+  readonly kind: 'substation' | 'cooling'
+  readonly u: number
+  readonly v: number
+  /** The block count at which it is built. */
+  readonly since: number
+  readonly box: LatticeBox
+}
+
+export const PLANT: readonly Plant[] = [
+  { kind: 'substation', u: 21.8, v: 0.4, since: 5, box: { u0: -0.7, u1: 3.5, v0: -0.7, v1: 2.4 } },
+  { kind: 'cooling', u: 21.0, v: 4.2, since: 7, box: { u0: -0.6, u1: 4.4, v0: -0.6, v1: 2.6 } },
+]
+
+/** The plant standing at this block count. */
+export function plantFor(blocks: number): readonly Plant[] {
+  const n = Math.max(0, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  return PLANT.filter((it) => n >= it.since)
+}
+
+/** One plant item's footprint, in absolute lattice coordinates. */
+export function plantBox(it: Plant): LatticeBox {
+  return { u0: it.u + it.box.u0, u1: it.u + it.box.u1, v0: it.v + it.box.v0, v1: it.v + it.box.v1 }
+}
+
+/**
+ * Where a parcel's plot lattice starts - the lattice coordinate of its plot
+ * (0, 0), derived from the compound that holds it.
+ *
+ * Blocks are numbered across the whole park and compounds hold runs of them, so
+ * this is the one place that knows a block belongs to a compound at all.
+ */
+const PARCEL_LATTICE: ReadonlyArray<{ u: number; v: number }> = COMPOUNDS.flatMap((c) => {
+  const out: Array<{ u: number; v: number }> = []
+  const inset = DECK_MARGIN + PACKAGE_MARGIN
+  for (let r = 0; r < c.rows && out.length < c.blocks; r++) {
+    for (let col = 0; col < c.cols && out.length < c.blocks; col++) {
+      out.push({ u: c.u + inset + col * PARK_IN_U, v: c.v + inset + r * PARK_IN_V })
+    }
+  }
+  return out
+})
+
+/** Which compound a block belongs to. */
+const COMPOUND_OF: readonly number[] = COMPOUNDS.flatMap((c, i) =>
+  Array.from({ length: c.blocks }, () => i),
+)
+
+export function compoundOf(block: number): number {
+  return COMPOUND_OF[Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))]
+}
+
+/** A plot-lattice point, in park space - the projection, applied once. */
+export function parkLatticeAt(u: number, v: number): { x: number; y: number } {
+  return {
+    x: (u - v) * PLOT_STRIDE_X * PARK_SCALE,
+    y: (u + v) * PLOT_STRIDE_Y * PARK_SCALE + TOWER_GROUND * BLOCK_SCALE * PARK_SCALE,
+  }
+}
+
+/**
+ * The four park-space corners of a lattice box - far, right, near, left.
+ *
+ * **A sheared rectangle and not an axis-aligned one**, which is `deckOutline`'s
+ * rule and `floorOutline`'s before it. The first draft of the board built its
+ * packages from a bounding box in *park* space; a park-space box projects to a
+ * screen-aligned rectangle, and a screen-aligned rectangle in a 2:1 world reads
+ * as a sticker stuck on the picture rather than as ground under it.
+ */
+export function latticeCorners(box: LatticeBox): Array<{ x: number; y: number }> {
+  return [
+    parkLatticeAt(box.u0, box.v0),
+    parkLatticeAt(box.u1, box.v0),
+    parkLatticeAt(box.u1, box.v1),
+    parkLatticeAt(box.u0, box.v1),
+  ]
+}
+
+/** A lattice box as a park-space rectangle. */
+export function latticeRect(box: LatticeBox): Rect {
+  const pts = latticeCorners(box)
+  const xs = pts.map((q) => q.x)
+  const ys = pts.map((q) => q.y)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY }
+}
+
+/** One parcel's deck, as a lattice box. */
+export function deckBox(block: number): LatticeBox {
+  const at = PARCEL_LATTICE[Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))]
+  return {
+    u0: at.u - DECK_MARGIN,
+    u1: at.u - DECK_MARGIN + DECK_U,
+    v0: at.v - DECK_MARGIN,
+    v1: at.v - DECK_MARGIN + DECK_V,
+  }
+}
+
+function unionBox(a: LatticeBox | null, b: LatticeBox): LatticeBox {
+  if (!a) return { ...b }
+  return {
+    u0: Math.min(a.u0, b.u0),
+    u1: Math.max(a.u1, b.u1),
+    v0: Math.min(a.v0, b.v0),
+    v1: Math.max(a.v1, b.v1),
+  }
+}
+
+/**
+ * One compound's package - the slab its blocks stand on, or null if none of them
+ * is built yet.
+ */
+export function packageBox(compound: number, blocks: number): LatticeBox | null {
+  const n = Math.max(0, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  const i = Math.max(0, Math.min(COMPOUNDS.length - 1, Math.floor(compound)))
+  let box: LatticeBox | null = null
+  for (let b = 0; b < n; b++) {
+    if (COMPOUND_OF[b] !== i) continue
+    box = unionBox(box, deckBox(b))
+  }
+  if (!box) return null
+  return {
+    u0: box.u0 - PACKAGE_MARGIN,
+    u1: box.u1 + PACKAGE_MARGIN,
+    v0: box.v0 - PACKAGE_MARGIN,
+    v1: box.v1 + PACKAGE_MARGIN,
+  }
+}
+
+/** Everything standing at this block count, as one lattice box. */
+export function standingBox(blocks: number): LatticeBox {
+  const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  let box: LatticeBox | null = null
+  for (let b = 0; b < n; b++) box = unionBox(box, deckBox(b))
+  for (const it of plantFor(n)) box = unionBox(box, plantBox(it))
+  return box as LatticeBox
+}
+
+/**
+ * The board - laid once at ten blocks, and the camera frames the built part.
+ *
+ * A board that shrank as it filled would put the unbuilt pads *outside* their
+ * own substrate, which is the spill this layout exists to remove arriving from
+ * the other side. The rest of it runs off the frame exactly as the block's
+ * street plane already does one rung down.
+ */
+export function boardBox(): LatticeBox {
+  const all = standingBox(BLOCKS_PER_PARK)
+  return {
+    u0: all.u0 - BOARD_MARGIN_U,
+    u1: all.u1 + BOARD_MARGIN_U,
+    v0: all.v0 - BOARD_MARGIN_V,
+    v1: all.v1 + BOARD_MARGIN_V,
+  }
+}
+
+/** The part of the board the camera frames - what is built, plus its margin. */
+export function parkBox(blocks: number): LatticeBox {
+  const live = standingBox(blocks)
+  return {
+    u0: live.u0 - BOARD_MARGIN_U,
+    u1: live.u1 + BOARD_MARGIN_U,
+    v0: live.v0 - BOARD_MARGIN_V,
+    v1: live.v1 + BOARD_MARGIN_V,
+  }
+}
+
+/**
  * A full block's own cell — what a parcel is sized against, and what the park's
  * frame spans.
  *
@@ -808,16 +1074,18 @@ export function blockCell(): Rect {
  * and the blocks you have longest are the ones furthest back.
  */
 export function parcelAt(block: number): { x: number; y: number } {
-  const i = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))
-  const col = i % PARK_COLS
-  const row = Math.floor(i / PARK_COLS)
-  return { x: (col - row) * PARCEL_STRIDE_X, y: (col + row) * PARCEL_STRIDE_Y }
+  const at = PARCEL_LATTICE[Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))]
+  // Without the ground term: block space carries its own, through `plotLatticeAt`.
+  return {
+    x: (at.u - at.v) * PLOT_STRIDE_X * PARK_SCALE,
+    y: (at.u + at.v) * PLOT_STRIDE_Y * PARK_SCALE,
+  }
 }
 
 /** How near the camera a parcel is. Larger is nearer, and is drawn later. */
 export function parcelDepth(block: number): number {
-  const i = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))
-  return (i % PARK_COLS) + Math.floor(i / PARK_COLS)
+  const at = PARCEL_LATTICE[Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))]
+  return at.u + at.v
 }
 
 /** Map a block-space rectangle into park space, through parcel `block`. */
@@ -876,18 +1144,29 @@ function ownBlockFrame(storeys: number, buildings: number): Rect {
  */
 export function parkFrame(blocks: number, storeys: number, buildings: number): Rect {
   const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
-  const cell = n > 1 ? blockCell() : ownBlockFrame(storeys, buildings)
+  // A park of one block *is* that block: the same collapse a single building on
+  // a block already has, and the reason the two rungs land on one scale.
+  if (n <= 1) return intoParcel(ownBlockFrame(storeys, buildings), 0)
+
+  const cell = blockCell()
   let minX = Number.POSITIVE_INFINITY
   let maxX = Number.NEGATIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
   let maxY = Number.NEGATIVE_INFINITY
-  for (let i = 0; i < n; i++) {
-    const r = intoParcel(cell, i)
+  const take = (r: Rect) => {
     minX = Math.min(minX, r.cx - r.w / 2)
     maxX = Math.max(maxX, r.cx + r.w / 2)
     minY = Math.min(minY, r.cy - r.h / 2)
     maxY = Math.max(maxY, r.cy + r.h / 2)
   }
+  // The towers, which rise out of the ground the box below only describes...
+  for (let i = 0; i < n; i++) take(intoParcel(cell, i))
+  // ...the board under them, out to its margin, so the composition has an edge
+  // in the frame rather than running off one...
+  take(latticeRect(parkBox(n)))
+  // ...and the plant, which is the half of this the second draft forgot and
+  // which is how a cooling plant ended up hanging off the near edge.
+  for (const it of plantFor(n)) take(latticeRect(plantBox(it)))
   return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY }
 }
 

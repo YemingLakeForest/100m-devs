@@ -1,6 +1,6 @@
 /**
- * Level 5 — the business park: ten blocks on their own parcels, and the one you
- * are in.
+ * Level 5 — the business park: ten blocks grouped into four compounds on one
+ * board, and the one you are in.
  *
  * `docs/HANDOFF-2026-08-20.md` §13 built the block and recorded what a level
  * costs once the nesting is right: one more division and a new `TOP_LEVEL`.
@@ -21,59 +21,83 @@
  *   is wider than it is tall where a tower is the reverse, so the same 2:1
  *   lattice that makes four towers stand half in front of four others separates
  *   blocks completely. Ten islands, and nothing hides behind anything.
- * - **Every parcel stands on a visible plinth.** GDD's own phrase, and it is
- *   what turns a cluster of towers into a *site*: a raised deck with a lit
- *   edge, drawn as the sheared rectangle the lattice actually projects to
- *   rather than as the diamond that contains it — `floorOutline`'s lesson, two
- *   levels up.
- * - **The ground between them is furniture, not emptiness.** Boulevards along
- *   both lattice axes, a car-park apron on the near edge of each deck, and a
- *   walkway between every pair of neighbours that both exist. A block level
- *   drawn without its streets read as ten towers on a raft; a park drawn
- *   without these reads as ten blocks on one.
+ * - **Every parcel stands on a visible plinth**, and every *compound* stands on
+ *   a package above that. Three steps of one ramp, so depth is doing the work
+ *   that a second hue would otherwise have to.
+ * - **The ground between them is furniture, not emptiness.** A board with an
+ *   edge, a bus in the channels between the packages, pin rows, a substation
+ *   and a cooling plant, and a silkscreened pad wherever a block is not built
+ *   yet.
+ *
+ * ## The rewrite, and the three rules it left — **2026-08-22**
+ *
+ * The first version laid the ten parcels in a 5x2 grid on a 1600-unit ground
+ * diamond with boulevards ruled across it. The complaint that retired it was
+ * exact: *"they spilled out to what seems to be a mat that does not meet that
+ * size."* The mat was not cut to the parcels, could not be, and never stopped.
+ *
+ * 1. **Everything is authored in the plot lattice and projected once.** The
+ *    first draft of the board built its packages from a bounding box in *park*
+ *    space, and a park-space box projects to a screen-aligned rectangle — which
+ *    in a 2:1 world reads as a sticker stuck on the picture rather than as
+ *    ground under it. {@link latticeCorners} is the only way a quad is made in
+ *    this file.
+ * 2. **Anything standing on the board is inside the board.** The second draft
+ *    cut the board to the parcels and left the cooling plant hanging off its
+ *    near edge — the original complaint reproduced inside its own fix. So
+ *    `frames.ts` owns the plant's footprint for the same reason it owns the
+ *    deck's: geometry the frame and the drawing both need cannot be written
+ *    down twice, which is trap 53 and has now cost three separate afternoons.
+ * 3. **A run that lies on the ground goes down before the towers.** The bus is
+ *    occluded by whatever stands on it. Drawn last it reads as a light show
+ *    hung in front of the park; drawn first it reads as wiring in a street.
  *
  * ## What this file draws, and what it does not
  *
- * The ground, the boulevards, the decks, the aprons, the walkways — and it owns
- * **ten `block.ts` handles**, one per parcel, exactly as `block.ts` owns ten
- * plots. The address's own block is one of those ten and is the container the
- * focused building is parented into, so descending the whole five-level ladder
- * is still a single affine transform and there is nothing at any hand-off to
- * cross-fade.
+ * The board, the packages, the bus, the plant, the decks, the aprons — and it
+ * owns **ten `block.ts` handles**, one per parcel, exactly as `block.ts` owns
+ * ten plots. The address's own block is one of those ten and is the container
+ * the focused building is parented into, so descending the whole five-level
+ * ladder is still a single affine transform with nothing to cross-fade.
  *
  * The one thing that trades places is the block's *street plane*: it runs far
  * past its own plots so that ten towers do not sit on a raft, and at parcel
- * scale it is wider than the boulevard between two parcels. It fades out as the
- * decks fade in — two different objects trading places, which §10.5 allows.
+ * scale it is wider than the channel between two packages. It fades out as the
+ * board fades in — two different objects trading places, which §10.5 allows.
  *
  * Procedural, from the master palette. ART_DIRECTION §7.8.2 — nothing above the
- * room gets a bespoke sprite.
+ * room gets a bespoke sprite. And §2.1a: the board is `NEUTRAL[1]`, not the
+ * green that passed `art:check` and still did not belong.
  */
 
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import {
   BLOCKS_PER_PARK,
-  BLOCK_COLS,
-  BLOCK_ROWS,
-  BLOCK_SCALE,
+  BUS_U,
+  BUS_V,
+  COMPOUNDS,
+  DECK_LIP,
   DECK_FAR,
   DECK_LEFT,
-  DECK_LIP,
-  DECK_MARGIN,
   DECK_NEAR,
   DECK_RIGHT,
-  PARK_COLS,
-  PARK_ROWS,
+  PACKAGE_MARGIN,
   PARK_SCALE,
-  PARCEL_STRIDE_X,
-  PARCEL_STRIDE_Y,
-  TOWER_GROUND,
+  PLOT_STRIDE_X,
+  type LatticeBox,
+  type Plant,
   blocksFor,
-  deckOutline,
+  boardBox,
+  deckBox,
+  latticeCorners,
+  packageBox,
   parcelAt,
   parcelDepth,
-  plotLatticeAt,
+  parkBox,
+  parkLatticeAt,
+  plantBox,
+  plantFor,
 } from './frames.ts'
 import { buildBlock, type BlockHandle } from './block.ts'
 
@@ -82,55 +106,49 @@ function c(hex: string): number {
   return (r << 16) | (g << 8) | b
 }
 
-/**
- * How far the park's ground runs past the outermost parcel.
- *
- * Ten parcels use 768 px of a 997 px frame — the same 2:1 lattice buys one unit
- * across for every half unit back, so ten blocks are height-bound long before
- * they are width-bound, exactly as ten towers were. §3.3 lets *scenery* run
- * under the rails where content may not, and a park with nothing around it is
- * the raft problem one level up.
- */
-const GROUND_SPREAD = 1600
+/** One plot stride, in park units — the scale everything on the board is in. */
+const S = PLOT_STRIDE_X * PARK_SCALE
 
-/** Where a block's plots sit on their own ground plane — `block.ts`'s `PAD_Y`. */
-const PAD_Y = TOWER_GROUND * BLOCK_SCALE
+/** How tall the board's own near face is — park units. */
+const BOARD_DROP = 40
+/** How tall a package's edge is. */
+const PACKAGE_LIP = 16
 
-/**
- * One parcel's deck, as four points in **park** space.
- *
- * The shape itself is `frames.ts`'s, because the park's own *frame* has to span
- * it: a deck is half again as wide as the ten towers standing on it, so a park
- * framed on the towers alone runs its leftmost parcel off the side of the
- * window. All this does is carry it into the parcel.
- */
-function deckPoints(block: number): Array<{ x: number; y: number }> {
-  const at = parcelAt(block)
-  return deckOutline().map((p) => intoParcelSpace(p, at))
-}
+type Pt = { x: number; y: number }
 
-function intoParcelSpace(
-  p: { x: number; y: number },
-  at: { x: number; y: number },
-): { x: number; y: number } {
-  return { x: at.x + p.x * PARK_SCALE, y: at.y + p.y * PARK_SCALE }
-}
-
-/**
- * A point on one parcel's own plot lattice, in park space.
- *
- * What the walkways are anchored to: a path leaves a deck at the middle of the
- * edge it shares with its neighbour, and "the middle of that edge" is a lattice
- * coordinate rather than a fraction of a bounding box.
- */
-function parcelLatticeAt(block: number, col: number, row: number): { x: number; y: number } {
-  return intoParcelSpace(plotLatticeAt(col, row), parcelAt(block))
-}
-
-function polygon(g: Graphics, pts: Array<{ x: number; y: number }>) {
+function polygon(g: Graphics, pts: Pt[]) {
   g.moveTo(pts[0].x, pts[0].y)
   for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y)
   g.closePath()
+}
+
+/**
+ * Extrude one edge downward into a visible face.
+ *
+ * **The two edges that run down to the near corner, and only those**: in a 2:1
+ * projection those are the faces a slab shows, and extruding any other one puts
+ * a lit face on the back of the thing.
+ */
+function faceDown(g: Graphics, a: Pt, b: Pt, h: number, colour: string, alpha = 1) {
+  g.moveTo(a.x, a.y)
+    .lineTo(b.x, b.y)
+    .lineTo(b.x, b.y + h)
+    .lineTo(a.x, a.y + h)
+    .closePath()
+    .fill({ color: c(colour), alpha })
+}
+
+/** A lattice box drawn as a slab: near faces, top, and a lit rim along both. */
+function slab(g: Graphics, box: LatticeBox, drop: number, top: string, rim: string, alpha = 1): void {
+  const q = latticeCorners(box)
+  faceDown(g, q[DECK_LEFT], q[DECK_NEAR], drop, RAMPS.NEUTRAL[0], 0.95)
+  faceDown(g, q[DECK_NEAR], q[DECK_RIGHT], drop, RAMPS.NEUTRAL[0], 0.95)
+  polygon(g, q)
+  g.fill({ color: c(top), alpha })
+  g.moveTo(q[DECK_LEFT].x, q[DECK_LEFT].y)
+    .lineTo(q[DECK_NEAR].x, q[DECK_NEAR].y)
+    .lineTo(q[DECK_RIGHT].x, q[DECK_RIGHT].y)
+    .stroke({ width: 2.4, color: c(rim), alpha: 0.8 })
 }
 
 export interface ParkHandle {
@@ -158,9 +176,13 @@ export interface ParkHandle {
 
 export function buildPark(): ParkHandle {
   const root = new Container()
-  const ground = new Graphics()
+  /** The board and its silkscreen — under everything. */
+  const board = new Graphics()
+  /** The bus, which lies on the board and is occluded by what stands on it. */
+  const wiring = new Graphics()
+  /** Packages, decks, plant, pads — the things that stand. */
   const marks = new Graphics()
-  root.addChild(ground, marks)
+  root.addChild(board, wiring, marks)
 
   /** One container per parcel, in drawing order: furthest first. */
   const parcels: Container[] = []
@@ -184,10 +206,9 @@ export function buildPark(): ParkHandle {
     blocks.push(b)
   }
   /*
-   * **Nearer parcels last**, the same sort `block.ts` does one level down. It
-   * cannot matter while the lattice separates every pair — `frames.ts` measures
-   * the clearances — and it is written anyway, so that tightening the lattice
-   * later changes how much street there is and not which block is in front.
+   * **Nearer parcels last.** Depth on this lattice is `u + v`, and unlike the
+   * old grid the compounds interleave — a block of U3 can stand in front of a
+   * block of U1 — so this sort is load-bearing now rather than defensive.
    */
   const order = [...parcels.keys()].sort((a, b) => parcelDepth(a) - parcelDepth(b))
   for (const i of order) root.addChild(parcels[i])
@@ -198,93 +219,267 @@ export function buildPark(): ParkHandle {
   let selected = -1
   let chrome = 1
 
-  function redrawGround() {
-    ground.clear()
-    const first = parcelAt(0)
-    const last = parcelAt(BLOCKS_PER_PARK - 1)
-    const midX = (first.x + last.x) / 2
-    const midY = (first.y + last.y) / 2 + PAD_Y * PARK_SCALE
+  /* ---- the board ---------------------------------------------------------- */
+
+  function redrawBoard() {
+    board.clear()
+    const box = boardBox()
+    const q = latticeCorners(box)
     // NEUTRAL[1] and never NEUTRAL[0] — the app's background *is* NEUTRAL[0], so
     // a ground plane painted in it is a hole with the park hanging over it.
-    ground
-      .moveTo(midX - GROUND_SPREAD, midY)
-      .lineTo(midX, midY - GROUND_SPREAD / 2)
-      .lineTo(midX + GROUND_SPREAD, midY)
-      .lineTo(midX, midY + GROUND_SPREAD / 2)
-      .closePath()
-      .fill(c(RAMPS.NEUTRAL[1]))
+    faceDown(board, q[DECK_LEFT], q[DECK_NEAR], BOARD_DROP, RAMPS.NEUTRAL[0])
+    faceDown(board, q[DECK_NEAR], q[DECK_RIGHT], BOARD_DROP, RAMPS.NEUTRAL[0])
+    polygon(board, q)
+    board.fill(c(RAMPS.NEUTRAL[1]))
+    // A shade over the whole board, so the three ground values are still three
+    // after §6's bloom has lifted every one of them toward white. Without it the
+    // board, the packages and the decks arrive on screen as one flat sheet —
+    // which is what the mat looked like, in different geometry.
+    polygon(board, q)
+    board.fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.45 })
+    board
+      .moveTo(q[DECK_LEFT].x, q[DECK_LEFT].y)
+      .lineTo(q[DECK_NEAR].x, q[DECK_NEAR].y)
+      .lineTo(q[DECK_RIGHT].x, q[DECK_RIGHT].y)
+      .stroke({ width: 2.6, color: c(RAMPS.NEUTRAL[3]), alpha: 0.85 })
+    polygon(board, q)
+    board.stroke({ width: 1.6, color: c(RAMPS.NEUTRAL[2]), alpha: 0.7 })
 
     /*
-     * The boulevards. One down each row and each column of the parcel lattice,
-     * run well past the parcels so the park sits in a landscape rather than on
-     * a raft — `block.ts`'s streets at the scale where a street is a dual
-     * carriageway. Two rules, wider than the block's: they carry a centre line,
-     * because a road with no markings at this size is a scratch, and they are
-     * drawn under the decks so a deck always wins the edge it shares with one.
+     * Silkscreen: the lattice, made faintly visible. It is the one thing on the
+     * board that says the whole composition is on a grid — without it the
+     * packages read as objects floating on a plane rather than as parts placed
+     * on one.
      */
-    for (let row = 0; row < PARK_ROWS; row++) {
-      const a = parcelAt(row * PARK_COLS)
-      const b = parcelAt(row * PARK_COLS + PARK_COLS - 1)
-      const x0 = a.x - PARCEL_STRIDE_X * 1.6
-      const y0 = a.y - PARCEL_STRIDE_Y * 1.6 + PAD_Y * PARK_SCALE
-      const x1 = b.x + PARCEL_STRIDE_X * 1.6
-      const y1 = b.y + PARCEL_STRIDE_Y * 1.6 + PAD_Y * PARK_SCALE
-      ground.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: 15, color: c(RAMPS.NEUTRAL[2]), alpha: 0.6 })
-      ground.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: 1.5, color: c(RAMPS.NEUTRAL[4]), alpha: 0.4 })
+    for (let u = Math.ceil(box.u0); u <= box.u1; u += 2) {
+      const a = parkLatticeAt(u, box.v0)
+      const b = parkLatticeAt(u, box.v1)
+      board.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: c(RAMPS.NEUTRAL[2]), alpha: 0.5 })
     }
-    for (let col = 0; col < PARK_COLS; col++) {
-      const a = parcelAt(col)
-      const b = parcelAt(col + PARK_COLS)
-      const x0 = a.x + PARCEL_STRIDE_X * 1.2
-      const y0 = a.y - PARCEL_STRIDE_Y * 1.2 + PAD_Y * PARK_SCALE
-      const x1 = b.x - PARCEL_STRIDE_X * 1.2
-      const y1 = b.y + PARCEL_STRIDE_Y * 1.2 + PAD_Y * PARK_SCALE
-      ground.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: 15, color: c(RAMPS.NEUTRAL[2]), alpha: 0.6 })
-      ground.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: 1.5, color: c(RAMPS.NEUTRAL[4]), alpha: 0.4 })
+    for (let v = Math.ceil(box.v0); v <= box.v1; v += 2) {
+      const a = parkLatticeAt(box.u0, v)
+      const b = parkLatticeAt(box.u1, v)
+      board.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: c(RAMPS.NEUTRAL[2]), alpha: 0.5 })
+    }
+
+    // Mounting holes, one per corner — the detail that makes it a board rather
+    // than a rectangle of ground.
+    for (const [u, v] of [
+      [box.u0 + 1.6, box.v0 + 1.6],
+      [box.u1 - 1.6, box.v0 + 1.6],
+      [box.u1 - 1.6, box.v1 - 1.6],
+      [box.u0 + 1.6, box.v1 - 1.6],
+    ]) {
+      const at = parkLatticeAt(u, v)
+      board.ellipse(at.x, at.y, 0.95 * S, 0.48 * S).fill(c(RAMPS.NEUTRAL[2]))
+      board.ellipse(at.x, at.y, 0.52 * S, 0.26 * S).fill(c(RAMPS.NEUTRAL[0]))
     }
   }
 
+  /* ---- the bus ------------------------------------------------------------ */
+
   /**
-   * The walkway between two parcels that both exist — GDD §7.8.2's "connecting
-   * walkways", which is the word that separates a campus from a city.
+   * One straight run, with a lump wherever something happens to it.
    *
-   * **Edge to edge, across the boulevard, and nothing else.** The first version
-   * ran from one deck's centre to the next one's, which is a longer and simpler
-   * line and was completely invisible: it is drawn before the decks, so all of
-   * it except the 1.4 strides of gap was painted over. Drawing it *after* them
-   * instead would have put a stripe across two decks. What is wanted is the
-   * short piece nobody else is drawing.
+   * Not a catenary. A cable sagging between two pylons is a *picture* of a power
+   * line, and at this size it crosses the composition as a slack diagonal
+   * belonging to no grid in the drawing. What a board wants is the symbolic
+   * thing: one width, straight segments, square corners on the lattice, and a
+   * node, a hop or an inline bulge at intervals.
    */
-  function walkway(g: Graphics, a: number, b: number, along: 'col' | 'row') {
-    const m = DECK_MARGIN
-    const mid = { col: (BLOCK_COLS - 1) / 2, row: (BLOCK_ROWS - 1) / 2 }
-    const [p, q] =
-      along === 'col'
-        ? [
-            parcelLatticeAt(a, BLOCK_COLS - 1 + m, mid.row),
-            parcelLatticeAt(b, -m, mid.row),
-          ]
-        : [
-            parcelLatticeAt(a, mid.col, BLOCK_ROWS - 1 + m),
-            parcelLatticeAt(b, mid.col, -m),
-          ]
-    g.moveTo(p.x, p.y).lineTo(q.x, q.y).stroke({ width: 6, color: c(RAMPS.NEUTRAL[3]), alpha: 0.9 })
+  function run(g: Graphics, pts: Pt[], seed: number) {
+    const w = 0.115 * S
+    const trace = (colour: string, width: number, alpha: number) => {
+      g.moveTo(pts[0].x, pts[0].y)
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y)
+      g.stroke({ width, color: c(colour), alpha, cap: 'butt', join: 'miter' })
+    }
+    trace(RAMPS.NEUTRAL[0], w + 5, 0.8)
+    trace(RAMPS.NEUTRAL[3], w + 2, 0.95)
+    trace(RAMPS.GLOW[1], w, 0.9)
+
+    let s = seed
+    const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff)
+    const node = (p: Pt, r: number, colour: string) => {
+      g.circle(p.x, p.y, r).fill(c(RAMPS.NEUTRAL[0]))
+      g.circle(p.x, p.y, r * 0.72).fill(c(colour))
+    }
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i]
+      const b = pts[i + 1]
+      const len = Math.hypot(b.x - a.x, b.y - a.y)
+      const n = Math.floor(len / (1.2 * S))
+      for (let k = 1; k <= n; k++) {
+        const t = k / (n + 1)
+        const at = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+        const r = rnd()
+        if (r > 0.62) {
+          // A hop: the symbol for one run passing over another.
+          const ang = Math.atan2(b.y - a.y, b.x - a.x)
+          g.arc(at.x, at.y, w * 2.1, ang + Math.PI, ang)
+          g.stroke({ width: w, color: c(RAMPS.GLOW[1]), alpha: 0.95, cap: 'butt' })
+        } else if (r > 0.34) {
+          // A bulge: a part sitting inline on the run.
+          g.ellipse(at.x, at.y, w * 1.9, w * 1.1).fill(c(RAMPS.NEUTRAL[0]))
+          g.ellipse(at.x, at.y, w * 1.9, w * 1.1).stroke({ width: w * 0.6, color: c(RAMPS.NEUTRAL[4]) })
+        } else {
+          node(at, w * 1.15, RAMPS.NEUTRAL[4])
+        }
+      }
+      if (i > 0) node(a, w * 1.5, RAMPS.GLOW[2])
+    }
+    node(pts[0], w * 1.9, RAMPS.GLOW[2])
+    node(pts[pts.length - 1], w * 1.9, RAMPS.GLOW[2])
   }
+
+  function redrawWiring() {
+    wiring.clear()
+    const frame = parkBox(built)
+    const at = (u: number, v: number) => parkLatticeAt(u, v)
+
+    /*
+     * **The bus lives in the channels.** Point-to-point runs from the substation
+     * to each package cut straight under whatever stood between them, so the
+     * line survived only where nothing was on top of it and read as fragments.
+     * The gaps between the packages already line up into two clear lanes; a bus
+     * down those lanes with a short stub to each package is fully visible, is
+     * one line rather than four, and is what a board does with power.
+     *
+     * Clipped to the framed part of the board, because board-wide at two blocks
+     * is a line running off into empty ground.
+     */
+    const u0 = Math.min(frame.u0 + 1.4, BUS_U - 1.2)
+    const u1 = Math.max(frame.u1 - 1.4, BUS_U + 1.2)
+    const v0 = Math.min(frame.v0 + 1.2, BUS_V - 1.2)
+    const v1 = Math.max(frame.v1 - 1.2, BUS_V + 1.2)
+    run(wiring, [at(u0, BUS_V), at(u1, BUS_V)], 101)
+    run(wiring, [at(BUS_U, v0), at(BUS_U, v1)], 307)
+
+    /** Out of a box by its nearest face, then square onto the bus. */
+    const stub = (box: LatticeBox) => {
+      const cu = (box.u0 + box.u1) / 2
+      const cv = (box.v0 + box.v1) / 2
+      if (Math.abs(cv - BUS_V) <= Math.abs(cu - BUS_U)) {
+        const v = cv < BUS_V ? box.v1 + PACKAGE_MARGIN * 0.7 : box.v0 - PACKAGE_MARGIN * 0.7
+        return [at(cu, v), at(cu, BUS_V)]
+      }
+      const u = cu < BUS_U ? box.u1 + PACKAGE_MARGIN * 0.7 : box.u0 - PACKAGE_MARGIN * 0.7
+      return [at(u, cv), at(BUS_U, cv)]
+    }
+
+    for (let i = 0; i < COMPOUNDS.length; i++) {
+      const box = packageBox(i, built)
+      if (box) run(wiring, stub(box), i * 7717 + 3)
+    }
+    for (const it of plantFor(built)) run(wiring, stub(plantBox(it)), 991)
+  }
+
+  /* ---- plant -------------------------------------------------------------- */
+
+  /** An iso cylinder standing on the lattice — a transformer, or a capacitor. */
+  function canister(g: Graphics, at: Pt, r: number, h: number, band: string | null) {
+    g.moveTo(at.x - r, at.y)
+      .lineTo(at.x - r, at.y - h)
+      .lineTo(at.x + r, at.y - h)
+      .lineTo(at.x + r, at.y)
+      .closePath()
+      .fill(c(RAMPS.NEUTRAL[2]))
+    g.ellipse(at.x, at.y, r, r / 2).fill(c(RAMPS.NEUTRAL[1]))
+    g.ellipse(at.x, at.y - h, r, r / 2).fill(c(RAMPS.NEUTRAL[4]))
+    if (band) {
+      g.moveTo(at.x - r, at.y - h * 0.62)
+        .lineTo(at.x + r, at.y - h * 0.62)
+        .lineTo(at.x + r, at.y - h * 0.5)
+        .lineTo(at.x - r, at.y - h * 0.5)
+        .closePath()
+        .fill({ color: c(band), alpha: 0.9 })
+    }
+  }
+
+  function drawPlant(g: Graphics, it: Plant) {
+    const box = plantBox(it)
+    slab(g, box, 9, RAMPS.NEUTRAL[2], RAMPS.NEUTRAL[4], 0.9)
+    if (it.kind === 'substation') {
+      // Three transformers in a row, one striped. A capacitor bank either way,
+      // which is the joke the layout is built on and also just what a park has.
+      for (let k = 0; k < 3; k++) {
+        canister(
+          g,
+          parkLatticeAt(it.u + 0.3 + k * 1.25, it.v + 0.9),
+          0.44 * S,
+          1.5 * S,
+          k === 1 ? RAMPS.WARN[2] : null,
+        )
+      }
+      return
+    }
+    // Cooling: a fin row. Thin slabs standing along v, stepped along u — the
+    // classic heatsink read, and a plant room at the same time.
+    for (let k = 0; k <= 10; k++) {
+      const u = it.u + 0.1 + k * 0.38
+      const a = parkLatticeAt(u, it.v + 0.1)
+      const b = parkLatticeAt(u, it.v + 1.9)
+      const h = 0.95 * S
+      g.moveTo(a.x, a.y)
+        .lineTo(b.x, b.y)
+        .lineTo(b.x, b.y - h)
+        .lineTo(a.x, a.y - h)
+        .closePath()
+        .fill(c(k % 2 ? RAMPS.NEUTRAL[3] : RAMPS.NEUTRAL[2]))
+      g.moveTo(a.x, a.y - h)
+        .lineTo(b.x, b.y - h)
+        .stroke({ width: 0.05 * S, color: c(RAMPS.NEUTRAL[5]), alpha: 0.85 })
+    }
+  }
+
+  /* ---- packages, pads and decks ------------------------------------------- */
 
   function redrawMarks() {
     marks.clear()
 
-    // The walkways go down first: they run out of one deck and into the next,
-    // and the deck edge they leave from should cover the joint.
-    for (let i = 0; i < built; i++) {
-      const col = i % PARK_COLS
-      const row = Math.floor(i / PARK_COLS)
-      if (col + 1 < PARK_COLS && i + 1 < built) walkway(marks, i, i + 1, 'col')
-      if (row + 1 < PARK_ROWS && i + PARK_COLS < built) walkway(marks, i, i + PARK_COLS, 'row')
+    // Unbuilt parcels: a silkscreened pad. The same trick the block plays with
+    // an empty plot — it says *this is where the next hundred thousand go*,
+    // which turns dead board into a promise.
+    for (let i = built; i < BLOCKS_PER_PARK; i++) {
+      const q = latticeCorners(deckBox(i))
+      polygon(marks, q)
+      marks.stroke({ width: 1.4, color: c(RAMPS.NEUTRAL[2]), alpha: 0.9 })
     }
 
+    // Packages, under the decks they hold.
+    for (let i = 0; i < COMPOUNDS.length; i++) {
+      const box = packageBox(i, built)
+      if (!box) continue
+      slab(marks, box, PACKAGE_LIP, RAMPS.NEUTRAL[2], RAMPS.NEUTRAL[4])
+
+      /*
+       * **Pin rows.** The one detail that says *component* rather than *plot of
+       * land*, and in 2:1 iso it is a segment and a pad per pin. They run out of
+       * the two faces pointing at the camera, along the lattice, so they lean
+       * the way everything else does.
+       */
+      const step = (span: number) => span / Math.max(3, Math.round(span / 1.15))
+      const pin = (u: number, v: number, du: number, dv: number) => {
+        const a = parkLatticeAt(u, v)
+        const b = parkLatticeAt(u + du, v + dv)
+        const lift = PACKAGE_LIP * 0.6
+        marks
+          .moveTo(a.x, a.y + lift)
+          .lineTo(b.x, b.y + lift)
+          .stroke({ width: 0.11 * S, color: c(RAMPS.NEUTRAL[5]), alpha: 0.95 })
+        marks.ellipse(b.x, b.y + lift, 0.2 * S, 0.1 * S).fill(c(RAMPS.NEUTRAL[4]))
+      }
+      const su = step(box.u1 - box.u0)
+      const sv = step(box.v1 - box.v0)
+      for (let v = box.v0 + sv / 2; v < box.v1; v += sv) pin(box.u0, v, -0.5, 0)
+      for (let u = box.u0 + su / 2; u < box.u1; u += su) pin(u, box.v1, 0, 0.5)
+    }
+
+    for (const it of plantFor(built)) drawPlant(marks, it)
+
+    // The decks, on top of their packages.
     for (let i = 0; i < built; i++) {
-      const deck = deckPoints(i)
+      const q = latticeCorners(deckBox(i))
       /*
        * **The plinth, and it is the silhouette change.** The lip is a face, not
        * a shadow: the deck's two near edges are extruded downward and filled
@@ -293,47 +488,35 @@ export function buildPark(): ParkHandle {
        * on a visible plinth" and this is the visible part.
        */
       const lip = DECK_LIP * PARK_SCALE
-      // **The two edges that run down to the near corner**, and only those: in
-      // a 2:1 projection they are the faces a slab shows, and extruding any
-      // other one puts a face on the back of the plinth.
       for (const side of [DECK_LEFT, DECK_RIGHT]) {
-        marks
-          .moveTo(deck[side].x, deck[side].y)
-          .lineTo(deck[DECK_NEAR].x, deck[DECK_NEAR].y)
-          .lineTo(deck[DECK_NEAR].x, deck[DECK_NEAR].y + lip)
-          .lineTo(deck[side].x, deck[side].y + lip)
-          .closePath()
-          .fill(c(RAMPS.NEUTRAL[1]))
+        faceDown(marks, q[side], q[DECK_NEAR], lip, RAMPS.NEUTRAL[2])
       }
-
-      polygon(marks, deck)
-      marks.fill(c(RAMPS.NEUTRAL[2]))
-      // The lit rim. A deck with no rim is a colour change; a bright rule along
-      // the top of both visible faces is what says there is a step there.
+      polygon(marks, q)
+      marks.fill(c(RAMPS.NEUTRAL[3]))
       marks
-        .moveTo(deck[DECK_LEFT].x, deck[DECK_LEFT].y)
-        .lineTo(deck[DECK_NEAR].x, deck[DECK_NEAR].y)
-        .lineTo(deck[DECK_RIGHT].x, deck[DECK_RIGHT].y)
-        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[4]), alpha: 0.55 })
+        .moveTo(q[DECK_LEFT].x, q[DECK_LEFT].y)
+        .lineTo(q[DECK_NEAR].x, q[DECK_NEAR].y)
+        .lineTo(q[DECK_RIGHT].x, q[DECK_RIGHT].y)
+        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[6]), alpha: 0.6 })
 
       /*
        * The car park, on the near edge of the deck. "Car parks that are always
-       * full" (§7.8.2), which at 116 px a parcel is four bay lines and their
-       * shadow — the information is *that the ground is used*, and any more
-       * detail than that is invisible at this size and dear at every other.
+       * full" (§7.8.2), which at this size is four bay lines and their shadow —
+       * the information is *that the ground is used*, and any more detail than
+       * that is invisible at this size and dear at every other.
        */
       const bays = 5
       for (let k = 1; k <= bays; k++) {
         const t = k / (bays + 1)
         const a = {
-          x: deck[DECK_LEFT].x + (deck[DECK_NEAR].x - deck[DECK_LEFT].x) * t,
-          y: deck[DECK_LEFT].y + (deck[DECK_NEAR].y - deck[DECK_LEFT].y) * t,
+          x: q[DECK_LEFT].x + (q[DECK_NEAR].x - q[DECK_LEFT].x) * t,
+          y: q[DECK_LEFT].y + (q[DECK_NEAR].y - q[DECK_LEFT].y) * t,
         }
         const b = {
-          x: a.x + (deck[DECK_FAR].x - deck[DECK_LEFT].x) * 0.13,
-          y: a.y + (deck[DECK_FAR].y - deck[DECK_LEFT].y) * 0.13,
+          x: a.x + (q[DECK_FAR].x - q[DECK_LEFT].x) * 0.13,
+          y: a.y + (q[DECK_FAR].y - q[DECK_LEFT].y) * 0.13,
         }
-        marks.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2, color: c(RAMPS.NEUTRAL[3]), alpha: 0.95 })
+        marks.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2, color: c(RAMPS.NEUTRAL[5]), alpha: 0.85 })
       }
     }
 
@@ -345,12 +528,12 @@ export function buildPark(): ParkHandle {
        * over the deck, a heavier rule round it, and a tick standing off the
        * near corner where nothing else in the picture lives.
        */
-      const deck = deckPoints(selected)
-      polygon(marks, deck)
+      const q = latticeCorners(deckBox(selected))
+      polygon(marks, q)
       marks.fill({ color: c(RAMPS.CALM[1]), alpha: 0.22 })
-      polygon(marks, deck)
+      polygon(marks, q)
       marks.stroke({ width: 3, color: c(RAMPS.CALM[2]), alpha: 0.9 })
-      const near = deck[DECK_NEAR]
+      const near = q[DECK_NEAR]
       marks
         .moveTo(near.x, near.y)
         .lineTo(near.x, near.y + 30)
@@ -363,7 +546,8 @@ export function buildPark(): ParkHandle {
   }
 
   function applyChrome() {
-    ground.alpha = chrome
+    board.alpha = chrome
+    wiring.alpha = chrome
     marks.alpha = chrome
     for (let i = 0; i < BLOCKS_PER_PARK; i++) {
       // The focused block is the one the camera is descending into. It owns its
@@ -377,7 +561,8 @@ export function buildPark(): ParkHandle {
   }
 
   function redrawAll() {
-    redrawGround()
+    redrawBoard()
+    redrawWiring()
     redrawMarks()
     applyVisibility()
   }

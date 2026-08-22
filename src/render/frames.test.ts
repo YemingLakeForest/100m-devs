@@ -12,11 +12,15 @@ import {
   BUILDING_CAP,
   PARK,
   PARK_SCALE,
+  COMPOUNDS,
+  DECK_V,
   PLOT_STRIDE_X,
   PLOT_STRIDE_Y,
+  TOWER_CROWN,
   TOWER_GROUND,
   blockAtPark,
   blockCell,
+  boardBox,
   blockOf,
   blocksFor,
   buildingAt,
@@ -26,7 +30,13 @@ import {
   intoParcel,
   parcelAt,
   parkChromeAlpha,
+  deckBox,
+  latticeRect,
+  packageBox,
+  parkBox,
   parkFrame,
+  plantBox,
+  plantFor,
   plotOf,
   seatOfBlock,
   seatOfPlot,
@@ -537,24 +547,106 @@ describe('the park', () => {
     }
   })
 
-  it('leaves a boulevard between neighbours rather than a hairline', () => {
+  it('leaves a street inside a compound and a channel between them', () => {
     /*
-     * Neighbours are 6.615 plot strides apart along either lattice axis and a
-     * deck spans `4 + 2m` of them across and `1 + 2m` back, so what is left is
-     * the street: **1.4 strides between columns and 4.4 between rows.**
+     * **[rewritten 2026-08-22]** This used to assert a 1.4-stride boulevard
+     * between every pair of neighbours, because every pair *were* neighbours on
+     * one 5x2 grid. They are not any more: two blocks of the same compound sit
+     * a street apart and two compounds sit a channel apart, and the difference
+     * between those two numbers is most of what makes the level read as parts
+     * on a board rather than as a field of identical islands.
      *
-     * The asymmetry is the lattice being uniform while the cell is not — a
-     * block is five plots across and two deep — and it is kept rather than
-     * tuned out. Squeezing the rows together buys a tidier bounding box and
-     * costs the property the row above asserts: at 3.6 strides the near row's
-     * towers begin to stand in front of the far row's, which is what the *block*
-     * looks like and is exactly what this level exists not to look like. Open
-     * ground between the rows is what a business park has.
+     * The back gap stays larger than the across gap, and for a reason that is
+     * about towers rather than ground: a tower is 130 park units tall and one
+     * lattice step back drops the next deck only 32.5, so rows have to be
+     * spaced further than columns to keep the near one from standing in front
+     * of the far one — which is what the *block* looks like and is exactly what
+     * this level exists not to look like.
      */
-    const across = deckIn(1).u0 - deckIn(0).u1
-    const back = deckIn(BLOCK_COLS).v0 - deckIn(0).v1
-    expect(across).toBeGreaterThan(1)
+    const across = deckBox(1).u0 - deckBox(0).u1
+    const back = deckBox(2).v0 - deckBox(0).v1
+    expect(across).toBeCloseTo(0.45, 6)
+    expect(back).toBeCloseTo(1.7, 6)
     expect(back).toBeGreaterThan(across)
+
+    // A near deck drops further than a tower is tall, so nothing occludes a
+    // neighbour's crown — the property the old row spacing bought at four times
+    // the cost.
+    const drop = back + DECK_V
+    expect(drop * PLOT_STRIDE_Y * PARK_SCALE).toBeGreaterThan(
+      (FLOORS_PER_BUILDING * BAND_H + TOWER_CROWN) * BLOCK_SCALE * PARK_SCALE * 0.9,
+    )
+
+    // And the channel between two compounds is wider than the street inside one.
+    const channel = packageBox(1, BLOCKS_PER_PARK)!.u0 - packageBox(0, BLOCKS_PER_PARK)!.u1
+    expect(channel).toBeGreaterThan(across * 2)
+  })
+
+  it('never overlaps one compound with another', () => {
+    /*
+     * The packages are placed by hand in `COMPOUNDS`, which is the one part of
+     * this level a person tunes — so the thing a person can break by nudging a
+     * number is the thing that gets asserted. Two packages of one lattice are
+     * disjoint exactly when their ranges are disjoint on either axis.
+     */
+    for (let i = 0; i < COMPOUNDS.length; i++) {
+      for (let j = i + 1; j < COMPOUNDS.length; j++) {
+        const a = packageBox(i, BLOCKS_PER_PARK)!
+        const b = packageBox(j, BLOCKS_PER_PARK)!
+        const apart = a.u1 < b.u0 || b.u1 < a.u0 || a.v1 < b.v0 || b.v1 < a.v0
+        expect(apart, `compounds ${i} and ${j} overlap`).toBe(true)
+      }
+    }
+  })
+
+  it('keeps everything that stands on the board inside the board', () => {
+    /*
+     * The complaint this whole layout answers — *"they spilled out to what
+     * seems to be a mat that does not meet that size"* — and the second draft
+     * reproduced it by cutting the board to the parcels and leaving the cooling
+     * plant hanging off the near edge. So the board is asserted against every
+     * kind of thing that stands on it, at every block count, including the ones
+     * where a plant has arrived and the compound that summoned it has not
+     * finished filling.
+     */
+    const board = boardBox()
+    for (let n = 1; n <= BLOCKS_PER_PARK; n++) {
+      const inside = (box: { u0: number; u1: number; v0: number; v1: number }, what: string) => {
+        expect(box.u0, `${what} at ${n} blocks runs off the board`).toBeGreaterThanOrEqual(board.u0)
+        expect(box.u1, `${what} at ${n} blocks runs off the board`).toBeLessThanOrEqual(board.u1)
+        expect(box.v0, `${what} at ${n} blocks runs off the board`).toBeGreaterThanOrEqual(board.v0)
+        expect(box.v1, `${what} at ${n} blocks runs off the board`).toBeLessThanOrEqual(board.v1)
+      }
+      for (let b = 0; b < n; b++) inside(deckBox(b), `deck ${b}`)
+      for (let i = 0; i < COMPOUNDS.length; i++) {
+        const box = packageBox(i, n)
+        if (box) inside(box, `package ${i}`)
+      }
+      for (const it of plantFor(n)) inside(plantBox(it), it.kind)
+    }
+  })
+
+  it('lays the board once, and frames only what is built', () => {
+    /*
+     * A board that shrank as it filled would put the unbuilt pads outside their
+     * own substrate, which is the same spill arriving from the other side. So
+     * the board is the finished studio's and the *frame* is today's — and the
+     * frame has to grow with the headcount or the first two blocks are drawn at
+     * the scale a million people need.
+     */
+    const board = boardBox()
+    const two = parkBox(2)
+    const ten = parkBox(BLOCKS_PER_PARK)
+    expect(two.u1 - two.u0).toBeLessThan(ten.u1 - ten.u0)
+    expect(ten.u1 - ten.u0).toBeCloseTo(board.u1 - board.u0, 6)
+    expect(ten.v1 - ten.v0).toBeCloseTo(board.v1 - board.v0, 6)
+
+    // And the frame spans the board's margin rather than stopping at the decks,
+    // so the composition has an edge in shot instead of running off one.
+    const frame = parkFrame(BLOCKS_PER_PARK, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK)
+    const ground = latticeRect(ten)
+    expect(frame.cx - frame.w / 2).toBeLessThanOrEqual(ground.cx - ground.w / 2 + 1e-6)
+    expect(frame.cx + frame.w / 2).toBeGreaterThanOrEqual(ground.cx + ground.w / 2 - 1e-6)
   })
 
   it('frames the ground and not only the buildings', () => {
