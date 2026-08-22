@@ -1034,6 +1034,95 @@ export function boardBox(): LatticeBox {
   }
 }
 
+/**
+ * One straight run of the bus, in lattice coordinates.
+ *
+ * **The routing lives here rather than in `park.ts`, and the reason is that it
+ * was wrong twice.** The first version ran a full cross whose vertical arm went
+ * straight through a package; the second anchored every tap half a stride away
+ * from the thing it was tapping, so four taps rendered as eight bright dots
+ * floating beside a line they never touched. Neither is visible to a test that
+ * can only see a `Graphics`, and both are obvious to one that can see the
+ * segments — *does this run cross a package, does that tap touch its own edge.*
+ *
+ * Same rule as the deck's outline and the plant's footprint, for the third
+ * time: geometry somebody has to check does not live only in the drawing.
+ */
+export interface BusRun {
+  readonly kind: 'main' | 'spur' | 'tap' | 'plant'
+  readonly a: { u: number; v: number }
+  readonly b: { u: number; v: number }
+}
+
+/**
+ * Where the bus goes at this block count.
+ *
+ * A main along the channel between the two rows of packages, a spur down the
+ * channel between the far row's two — **and the spur stops at the main**,
+ * because past it the channel closes: the near row's packages are wider and
+ * there is no gap there to run in.
+ */
+export function busRuns(blocks: number): BusRun[] {
+  const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  const frame = parkBox(n)
+  const out: BusRun[] = []
+
+  const mainU0 = Math.min(frame.u0 + 1.4, BUS_U - 1.2)
+  const mainU1 = Math.max(frame.u1 - 1.4, BUS_U + 1.2)
+  out.push({ kind: 'main', a: { u: mainU0, v: BUS_V }, b: { u: mainU1, v: BUS_V } })
+  out.push({
+    kind: 'spur',
+    a: { u: BUS_U, v: Math.min(frame.v0 + 1.2, BUS_V - 1.2) },
+    b: { u: BUS_U, v: BUS_V },
+  })
+
+  /*
+   * A tap starts **on** its package and ends **on** the bus. Far-row packages
+   * reach the spur sideways because that is the channel they have; everything
+   * else reaches the main head-on.
+   */
+  for (let i = 0; i < COMPOUNDS.length; i++) {
+    const box = packageBox(i, n)
+    if (!box) continue
+    const cu = (box.u0 + box.u1) / 2
+    const cv = (box.v0 + box.v1) / 2
+    if (box.v1 <= BUS_V) {
+      const u = cu < BUS_U ? box.u1 : box.u0
+      out.push({ kind: 'tap', a: { u, v: cv }, b: { u: BUS_U, v: cv } })
+    } else {
+      const v = cv < BUS_V ? box.v1 : box.v0
+      out.push({ kind: 'tap', a: { u: cu, v }, b: { u: cu, v: BUS_V } })
+    }
+  }
+
+  /*
+   * **The plant chains rather than taps.** Both stand in the same bay at the
+   * same u, so two independent runs would have put one straight through the
+   * other. Power leaves the substation, passes through the cooling plant, and
+   * joins the main — the shortest wiring and the true story at once.
+   *
+   * Three quarters along the overlap of the two footprints, which keeps the
+   * lane clear of the nearest compound's tap; `frames.test.ts` asserts the gap
+   * rather than trusting the fraction.
+   */
+  const live = plantFor(n)
+  const sub = live.find((it) => it.kind === 'substation')
+  const cool = live.find((it) => it.kind === 'cooling')
+  if (sub && cool) {
+    const a = plantBox(sub)
+    const b = plantBox(cool)
+    const u = Math.max(a.u0, b.u0) + (Math.min(a.u1, b.u1) - Math.max(a.u0, b.u0)) * 0.75
+    out.push({ kind: 'plant', a: { u, v: a.v1 }, b: { u, v: b.v0 } })
+    out.push({ kind: 'plant', a: { u, v: b.v1 }, b: { u, v: BUS_V } })
+  } else if (sub) {
+    const a = plantBox(sub)
+    const u = (a.u0 + a.u1) / 2
+    out.push({ kind: 'plant', a: { u, v: a.v1 }, b: { u, v: BUS_V } })
+  }
+
+  return out
+}
+
 /** The part of the board the camera frames - what is built, plus its margin. */
 export function parkBox(blocks: number): LatticeBox {
   const live = standingBox(blocks)

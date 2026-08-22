@@ -21,6 +21,7 @@ import {
   blockAtPark,
   blockCell,
   boardBox,
+  busRuns,
   blockOf,
   blocksFor,
   buildingAt,
@@ -623,6 +624,76 @@ describe('the park', () => {
         if (box) inside(box, `package ${i}`)
       }
       for (const it of plantFor(n)) inside(plantBox(it), it.kind)
+    }
+  })
+
+  it('wires every compound to the bus, without crossing one', () => {
+    /*
+     * **Two wiring faults shipped in one afternoon, and neither was visible to
+     * any test that could only see a `Graphics`.**
+     *
+     * The first ran a full cross whose vertical arm sat at u = 13.0 while U3's
+     * package spans 0.00 to 18.12 — a bus straight through a compound, in a
+     * channel that only exists in the far row. The second anchored each tap
+     * `PACKAGE_MARGIN * 0.7` *away* from the package it was tapping: the sign
+     * was backwards, so every tap began half a stride out in open ground, and
+     * since the packages already sit against the bus what was left of the
+     * segment was 0.07 to 0.14 strides. `run` draws an end node at each end of
+     * whatever it is handed, so four taps rendered as eight bright dots beside
+     * a line they never touched — reported as *"they don't connect and a bit
+     * all over the place"*, which is precisely what it was.
+     *
+     * So the routing moved into this file and these are the four questions a
+     * person can now break by nudging a number in `COMPOUNDS`.
+     */
+    const n = BLOCKS_PER_PARK
+    const runs = busRuns(n)
+    const boxes = [
+      ...COMPOUNDS.map((_, i) => packageBox(i, n)!),
+      ...plantFor(n).map(plantBox),
+    ]
+
+    // 1. Straight, and on a lattice axis — never a slack diagonal.
+    for (const r of runs) {
+      const straight = Math.abs(r.a.u - r.b.u) < 1e-9 || Math.abs(r.a.v - r.b.v) < 1e-9
+      expect(straight, `a ${r.kind} run is not on a lattice axis`).toBe(true)
+    }
+
+    // 2. Long enough to be a line rather than two overlapping end nodes. A tap
+    //    under about a third of a stride is 20 park units, which is 9 px at the
+    //    reference frame — two dots and no wire.
+    for (const r of runs) {
+      const len = Math.hypot(r.a.u - r.b.u, r.a.v - r.b.v)
+      expect(len, `a ${r.kind} run is ${len.toFixed(2)} strides long`).toBeGreaterThan(0.3)
+    }
+
+    // 3. Nothing runs through a package or a plant. Interiors only: a run is
+    //    *supposed* to touch the edge it leaves from.
+    const crosses = (r: (typeof runs)[number], b: (typeof boxes)[number]) => {
+      const u0 = Math.min(r.a.u, r.b.u)
+      const u1 = Math.max(r.a.u, r.b.u)
+      const v0 = Math.min(r.a.v, r.b.v)
+      const v1 = Math.max(r.a.v, r.b.v)
+      const e = 1e-9
+      return u1 - b.u0 > e && b.u1 - u0 > e && v1 - b.v0 > e && b.v1 - v0 > e
+    }
+    for (const r of runs) {
+      for (const [i, b] of boxes.entries()) {
+        expect(crosses(r, b), `a ${r.kind} run passes through box ${i}`).toBe(false)
+      }
+    }
+
+    // 4. Every compound and every plant is actually reached — a bus nothing
+    //    joins is decoration.
+    for (const b of boxes) {
+      const touches = runs.some(
+        (r) =>
+          (Math.abs(r.a.u - b.u0) < 1e-9 || Math.abs(r.a.u - b.u1) < 1e-9 ||
+            Math.abs(r.a.v - b.v0) < 1e-9 || Math.abs(r.a.v - b.v1) < 1e-9) &&
+          r.a.u >= b.u0 - 1e-9 && r.a.u <= b.u1 + 1e-9 &&
+          r.a.v >= b.v0 - 1e-9 && r.a.v <= b.v1 + 1e-9,
+      )
+      expect(touches, 'a compound or plant is not on the bus').toBe(true)
     }
   })
 

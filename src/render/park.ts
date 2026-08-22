@@ -74,30 +74,27 @@ import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import {
   BLOCKS_PER_PARK,
-  BUS_U,
-  BUS_V,
   COMPOUNDS,
   DECK_LIP,
   DECK_FAR,
   DECK_LEFT,
   DECK_NEAR,
   DECK_RIGHT,
-  PACKAGE_MARGIN,
   PARK_SCALE,
   PLOT_STRIDE_X,
   type LatticeBox,
   type Plant,
   blocksFor,
+  busRuns,
+  plantBox,
+  plantFor,
   boardBox,
   deckBox,
   latticeCorners,
   packageBox,
   parcelAt,
   parcelDepth,
-  parkBox,
   parkLatticeAt,
-  plantBox,
-  plantFor,
 } from './frames.ts'
 import { buildBlock, type BlockHandle } from './block.ts'
 
@@ -334,44 +331,11 @@ export function buildPark(): ParkHandle {
 
   function redrawWiring() {
     wiring.clear()
-    const frame = parkBox(built)
-    const at = (u: number, v: number) => parkLatticeAt(u, v)
-
-    /*
-     * **The bus lives in the channels.** Point-to-point runs from the substation
-     * to each package cut straight under whatever stood between them, so the
-     * line survived only where nothing was on top of it and read as fragments.
-     * The gaps between the packages already line up into two clear lanes; a bus
-     * down those lanes with a short stub to each package is fully visible, is
-     * one line rather than four, and is what a board does with power.
-     *
-     * Clipped to the framed part of the board, because board-wide at two blocks
-     * is a line running off into empty ground.
-     */
-    const u0 = Math.min(frame.u0 + 1.4, BUS_U - 1.2)
-    const u1 = Math.max(frame.u1 - 1.4, BUS_U + 1.2)
-    const v0 = Math.min(frame.v0 + 1.2, BUS_V - 1.2)
-    const v1 = Math.max(frame.v1 - 1.2, BUS_V + 1.2)
-    run(wiring, [at(u0, BUS_V), at(u1, BUS_V)], 101)
-    run(wiring, [at(BUS_U, v0), at(BUS_U, v1)], 307)
-
-    /** Out of a box by its nearest face, then square onto the bus. */
-    const stub = (box: LatticeBox) => {
-      const cu = (box.u0 + box.u1) / 2
-      const cv = (box.v0 + box.v1) / 2
-      if (Math.abs(cv - BUS_V) <= Math.abs(cu - BUS_U)) {
-        const v = cv < BUS_V ? box.v1 + PACKAGE_MARGIN * 0.7 : box.v0 - PACKAGE_MARGIN * 0.7
-        return [at(cu, v), at(cu, BUS_V)]
-      }
-      const u = cu < BUS_U ? box.u1 + PACKAGE_MARGIN * 0.7 : box.u0 - PACKAGE_MARGIN * 0.7
-      return [at(u, cv), at(BUS_U, cv)]
+    // The routing is `frames.ts`'s, because it has been wrong twice and neither
+    // fault was visible to anything that could only see a `Graphics`.
+    for (const [i, r] of busRuns(built).entries()) {
+      run(wiring, [parkLatticeAt(r.a.u, r.a.v), parkLatticeAt(r.b.u, r.b.v)], i * 7717 + 101)
     }
-
-    for (let i = 0; i < COMPOUNDS.length; i++) {
-      const box = packageBox(i, built)
-      if (box) run(wiring, stub(box), i * 7717 + 3)
-    }
-    for (const it of plantFor(built)) run(wiring, stub(plantBox(it)), 991)
   }
 
   /* ---- plant -------------------------------------------------------------- */
