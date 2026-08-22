@@ -127,7 +127,7 @@ export function groupSizeFor(drawn: number, cap: number = MAX_SOURCES): number {
  *   layer has. A numeral per *building* would be a lie — the layer speaks for
  *   the seats the room drew, and the room drew one storey of one tower.
  */
-export const SOURCE_CAP: readonly number[] = [MAX_SOURCES, MAX_SOURCES, 10, 1, 1]
+export const SOURCE_CAP: readonly number[] = [MAX_SOURCES, MAX_SOURCES, 10, 1, 1, 1]
 
 /** The cap for a continuous position on the ladder — see {@link SOURCE_CAP}. */
 export function capForLevel(level: number): number {
@@ -160,6 +160,7 @@ export function capForLevel(level: number): number {
 export const SOURCE_SPAN: readonly number[] = [
   MAX_SOURCES,
   MAX_SOURCES,
+  Infinity,
   Infinity,
   Infinity,
   Infinity,

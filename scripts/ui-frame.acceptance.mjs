@@ -995,6 +995,131 @@ try {
   }
 
   /*
+   * **And the same questions one rung further out, at a million developers.**
+   *
+   * §7.7.1 rung 5: past a hundred thousand a block is full and the thing that
+   * arrives is another block, on its own parcel. The park is the level that
+   * holds ten of them, and every defect the block had is available to it — the
+   * chrome fade that was written in pixels, the frame that measured the towers
+   * and not the ground they stand on, the default argument that quietly means
+   * "the first one". So it is asked the same three things: is the lens where
+   * the headcount says, is every parcel reachable, and is the park's own chrome
+   * *drawn* rather than merely present.
+   *
+   * The last of those is trap 51 and it is why the alpha is asserted at all:
+   * `__pick` answers off the model, and the model is never the thing that is
+   * wrong.
+   */
+  for (const [width, height] of [
+    [1999, 1115],
+    [1280, 720],
+    [997, 448],
+  ]) {
+    screensChecked += 1
+    await page.setViewportSize({ width, height })
+    await page.goto(`${origin}/?notitle&nopost&scenario=town`, { waitUntil: 'load' })
+    await page.locator('.hud').waitFor()
+    await page.waitForTimeout(2_200)
+
+    const seen = await page.evaluate(() => {
+      const found = new Set()
+      for (let y = 6; y < window.innerHeight - 6; y += 6) {
+        for (let x = 6; x < window.innerWidth - 6; x += 6) {
+          const hit = globalThis.__pick?.(x, y)
+          if (hit && hit.rung === 5) found.add(hit.index)
+        }
+      }
+      const s = window.__stage
+      return {
+        blocks: [...found].sort((a, b) => a - b),
+        at: s?.at ?? null,
+        parkAlpha: s?.parkAlpha ?? null,
+      }
+    })
+    if (seen.at !== 'PARK' || seen.blocks.length !== 10) {
+      throw new Error(
+        `the park at ${width}x${height}: a million developers put the lens at ${seen.at} ` +
+          `with ${seen.blocks.length} of 10 blocks reachable — ${JSON.stringify(seen.blocks)}`,
+      )
+    }
+    if (seen.parkAlpha !== 1) {
+      throw new Error(
+        `the park at ${width}x${height}: the lens is at PARK and the park's own chrome is ` +
+          `at alpha ${seen.parkAlpha} — its parcels are being drawn invisible`,
+      )
+    }
+    const spill = await overflowIssues(page)
+    if (spill.length > 0) throw new Error(`the park at ${width}x${height}: ` + spill.join(' | '))
+
+    /*
+     * **Three doors, and the address survives all three.** Block 8, then its
+     * fifth tower, then that tower's sixth floor — 745,000, which is a seat no
+     * arithmetic in the game had to reach before there was a park.
+     *
+     * Aimed at the *middle* of what a unit covers rather than at the first
+     * point that names it. The first point is the top of a crown, and a camera
+     * still easing into its stop moves it out from under the cursor between the
+     * scan and the tap — trap 40, which is about a moving camera and not about
+     * a wrong pick.
+     */
+    const aim = (rung, index) =>
+      page.evaluate(
+        ({ r, i }) => {
+          let sx = 0
+          let sy = 0
+          let n = 0
+          for (let y = 6; y < window.innerHeight - 6; y += 5) {
+            for (let x = 6; x < window.innerWidth - 6; x += 5) {
+              const hit = globalThis.__pick?.(x, y)
+              if (!hit || hit.rung !== r || hit.index !== i) continue
+              sx += x
+              sy += y
+              n += 1
+            }
+          }
+          return n === 0 ? null : { x: Math.round(sx / n), y: Math.round(sy / n) }
+        },
+        { r: rung, i: index },
+      )
+
+    const doors = [
+      { rung: 5, index: 7, what: 'block 8' },
+      { rung: 4, index: 74, what: 'the fifth tower of block 8' },
+      { rung: 3, index: 5, what: 'floor 6 of it' },
+    ]
+    for (const door of doors) {
+      const at = await aim(door.rung, door.index)
+      if (!at) throw new Error(`the park at ${width}x${height}: ${door.what} is not reachable`)
+      await tapAt(page, at.x, at.y)
+      const enter = page.locator('.hud__enter')
+      if (!(await enter.count())) {
+        throw new Error(
+          `the park at ${width}x${height}: tapping ${door.what} named nothing, so there is no door`,
+        )
+      }
+      await enter.click()
+      await page.waitForTimeout(1_400)
+    }
+
+    const where = await page.evaluate(() => {
+      const s = window.__stage
+      return { at: s?.at, block: s?.block, building: s?.building, storey: s?.storey, seat: s?.focusSeat }
+    })
+    if (
+      where.at !== 'FLOOR' ||
+      where.block !== 7 ||
+      where.building !== 4 ||
+      where.storey !== 5 ||
+      where.seat !== 745_000
+    ) {
+      throw new Error(
+        `the park at ${width}x${height}: three doors from block 8, building 5, floor 6 landed on ` +
+          JSON.stringify(where),
+      )
+    }
+  }
+
+  /*
    * **Counted, not asserted.** This line used to read `sizes.length * 10 + 3`,
    * a formula somebody kept in step with the cases below by hand — so adding a
    * case and watching the total stay at 53 was the only clue that it was not

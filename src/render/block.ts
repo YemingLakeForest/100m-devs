@@ -36,6 +36,15 @@
  * invisible: both sides of it are {@link drawTower}, at the same size, in the
  * same place.
  *
+ * ## And this block is one of ten
+ *
+ * `park.ts` builds ten of these and parcels them out across a business park, so
+ * nothing here may assume it is *the* block any more. It is told which one it
+ * is ({@link BlockHandle.setBlock}) and asks the model about that one; the only
+ * thing it draws for the whole studio is its own street plane, and that one
+ * fades out when the park's podiums take over ({@link
+ * BlockHandle.setGroundAlpha}).
+ *
  * Procedural, from the master palette. ART_DIRECTION §7.8.2 — nothing above the
  * room gets a bespoke sprite.
  */
@@ -43,6 +52,7 @@
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import {
+  BLOCKS_PER_PARK,
   BLOCK_SCALE,
   BUILDINGS_PER_BLOCK,
   PODIUM_W,
@@ -50,8 +60,10 @@ import {
   TOWER_GROUND,
   PLOT_STRIDE_X,
   PLOT_STRIDE_Y,
-  buildingsFor,
+  buildingAt,
+  buildingsIn,
   devsIn,
+  devsOnBlock,
   plotAt,
   plotDepth,
   storeysIn,
@@ -108,18 +120,50 @@ export interface BlockHandle {
    * authored inside its parent's cell needs no second opinion about where it
    * is.
    */
-  plotHost(building: number): Container
+  plotHost(plot: number): Container
+  /**
+   * Which of the park's ten blocks this is.
+   *
+   * Every question this file asks the model — how many buildings stand here,
+   * how tall the tower on plot 3 is, how many people are in it — is a question
+   * about one block, and the answers differ by a hundred thousand people
+   * between the first and the last.
+   */
+  setBlock(block: number): void
   /** Rebuild for a headcount. Cheap on change, far too dear per frame. */
   setHeadcount(devs: number): void
-  /** Which building the address is in — the one this file does *not* draw. */
-  setFocus(building: number): void
-  /** Which building has been named but not entered, or −1. */
-  setSelected(building: number): void
+  /**
+   * Which plot the address is on — the one this file does *not* draw — or −1
+   * when the address is in another block entirely and every tower here is this
+   * file's to draw.
+   */
+  setFocus(plot: number): void
+  /** Which plot has been named but not entered, or −1. */
+  setSelected(plot: number): void
   /** Fade the block out as the camera goes into one of its buildings. */
   setChromeAlpha(alpha: number): void
+  /**
+   * Fade the block's own *ground* — its street plane, not its plots.
+   *
+   * Separate from {@link setChromeAlpha} because the two answer different
+   * questions and they point in opposite directions. The chrome asks "is the
+   * block still the subject", and fades as the camera goes indoors. The ground
+   * asks "is this block the whole picture": {@link GROUND_SPREAD} runs it far
+   * past the outermost plot so that ten towers do not sit on a raft, and at
+   * parcel scale that plane is wider than the boulevard between two parcels —
+   * so one block's ground would be painted across its neighbours. The park
+   * draws matching podiums instead, and this hands over to them.
+   */
+  setGroundAlpha(alpha: number): void
   readonly buildings: number
 }
 
+/**
+ * One block. **Ten of these is the park**, which is the whole of what the fifth
+ * level cost in this file: a block that used to be the studio is now one of ten
+ * and has to be told which one it is, because "how many buildings do I have"
+ * and "how tall is my third tower" are questions with ten different answers.
+ */
 export function buildBlock(): BlockHandle {
   const root = new Container()
   const ground = new Graphics()
@@ -149,10 +193,24 @@ export function buildBlock(): BlockHandle {
   const order = [...plots.keys()].sort((a, b) => plotDepth(a) - plotDepth(b))
   for (const i of order) root.addChild(plots[i])
 
+  /** The two fades the ground is subject to, multiplied rather than fought over. */
+  let chrome = 1
+  let groundFade = 1
+
   let devs = 0
+  let block = 0
   let buildings = 1
   let focus = 0
   let selected = -1
+
+  /**
+   * This block's plot `i`, as a building of the park.
+   *
+   * The one conversion this file needs, and it is here rather than at four call
+   * sites: `storeysIn` and `devsIn` count people into a park-wide building
+   * number, and every index in this file is a plot of one block.
+   */
+  const buildingOfPlot = (plot: number) => buildingAt(plot, block)
 
   function redrawGround() {
     ground.clear()
@@ -237,7 +295,8 @@ export function buildBlock(): BlockHandle {
       // would be two pictures of one object, at the same size, in the same
       // place — which is not a cross-fade only because it never moves.
       if (i >= buildings || i === focus) continue
-      drawTower(g, storeysIn(devs, i), devsIn(devs, i))
+      const b = buildingOfPlot(i)
+      drawTower(g, storeysIn(devs, b), devsIn(devs, b))
     }
   }
 
@@ -252,27 +311,46 @@ export function buildBlock(): BlockHandle {
   return {
     container: root,
 
-    plotHost(building: number) {
-      return plots[Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))]
+    plotHost(plot: number) {
+      return plots[Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(plot)))]
+    },
+
+    setBlock(next: number) {
+      const b = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(next)))
+      if (b === block) return
+      block = b
+      buildings = buildingsIn(devs, block)
+      redrawAll()
     },
 
     setHeadcount(next: number) {
       const n = Math.max(0, Math.floor(Number.isFinite(next) ? next : 0))
       if (n === devs) return
+      /*
+       * **Only the block that changed redraws**, and at a hundred towers that
+       * is the difference between a hire costing ten of them and ninety. It
+       * falls out of §7.7.1's fill order for free: blocks fill in order, so
+       * every block below the last one is full and its answer to
+       * `buildingsIn`/`devsIn` never moves again. The comparison is on this
+       * block's own occupancy rather than on the studio's.
+       */
+      const before = devsOnBlock(devs, block)
       devs = n
-      buildings = buildingsFor(n)
+      if (devsOnBlock(devs, block) === before) return
+      buildings = buildingsIn(devs, block)
       redrawAll()
     },
 
-    setFocus(building: number) {
-      const b = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+    setFocus(plot: number) {
+      const p = Math.floor(plot)
+      const b = p < 0 ? -1 : Math.min(BUILDINGS_PER_BLOCK - 1, p)
       if (b === focus) return
       focus = b
       redrawTowers()
     },
 
-    setSelected(building: number) {
-      const b = Math.floor(building)
+    setSelected(plot: number) {
+      const b = Math.floor(plot)
       if (b === selected) return
       selected = b
       redrawMarks()
@@ -280,12 +358,19 @@ export function buildBlock(): BlockHandle {
 
     setChromeAlpha(alpha: number) {
       const a = Math.max(0, Math.min(1, Number.isFinite(alpha) ? alpha : 1))
-      ground.alpha = a
+      chrome = a
+      ground.alpha = a * groundFade
       marks.alpha = a
       // Only the towers this file draws. The focused plot's container holds the
       // real building, and that one has its own chrome fade — dimming it from
       // here would dim it twice on the way in.
       for (const g of towers) g.alpha = a
+    },
+
+    setGroundAlpha(alpha: number) {
+      const a = Math.max(0, Math.min(1, Number.isFinite(alpha) ? alpha : 1))
+      groundFade = a
+      ground.alpha = chrome * a
     },
 
     get buildings() {

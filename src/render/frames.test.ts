@@ -2,16 +2,40 @@ import { describe, expect, it } from 'vitest'
 import {
   BAND_H,
   BLOCK,
+  BLOCKS_PER_PARK,
+  BLOCK_CAP,
   BLOCK_COLS,
   BLOCK_SCALE,
   BUILDINGS_PER_BLOCK,
+  BUILDINGS_PER_PARK,
   BUILDING,
   BUILDING_CAP,
+  PARK,
+  PARK_SCALE,
+  PLOT_STRIDE_X,
+  PLOT_STRIDE_Y,
+  TOWER_GROUND,
+  blockAtPark,
+  blockCell,
+  blockOf,
+  blocksFor,
+  buildingAt,
+  deckOutline,
+  deckRect,
+  devsOnBlock,
+  intoParcel,
+  parcelAt,
+  parkChromeAlpha,
+  parkFrame,
+  plotOf,
+  seatOfBlock,
+  seatOfPlot,
+  type Rect,
   blockChromeAlpha,
   blockFrame,
   buildingAtBlock,
   buildingOf,
-  buildingsFor,
+  buildingsIn,
   devsIn,
   intoPlot,
   plotAt,
@@ -198,13 +222,14 @@ describe('the address', () => {
 })
 
 describe('fitting, at the reference frame', () => {
-  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
+  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
 
   it('each level is a real zoom step inward', () => {
     expect(scales[DESK]).toBeGreaterThan(scales[SQUAD])
     expect(scales[SQUAD]).toBeGreaterThan(scales[FLOOR])
     expect(scales[FLOOR]).toBeGreaterThan(scales[BUILDING])
     expect(scales[BUILDING]).toBeGreaterThan(scales[BLOCK])
+    expect(scales[BLOCK]).toBeGreaterThan(scales[PARK])
     // No step smaller than a doubling: a level the player cannot feel arriving
     // is a level that should not be a stop.
     expect(scales[SQUAD] / scales[FLOOR]).toBeGreaterThan(2)
@@ -233,25 +258,35 @@ describe('fitting, at the reference frame', () => {
   })
 
   it('and so does the block', () => {
+    // One block, so that the block *is* the studio and its own frame is what
+    // the camera fits. With ten of them the block is a parcel and the frame
+    // that fills the height is the park's.
     const frame = frameFor(BLOCK, 0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK)
-    const px = frame.h * scales[BLOCK]
+    const one = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
+    const px = frame.h * one[BLOCK]
+    expect(px / REFERENCE.h).toBeCloseTo(0.94, 2)
+  })
+
+  it('and so does the park', () => {
+    const frame = frameFor(PARK, 0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    const px = frame.h * scales[PARK]
     expect(px / REFERENCE.h).toBeCloseTo(0.94, 2)
   })
 
   it('a level position and a scale are inverses', () => {
-    for (const l of [0, 0.5, 1, 1.7, 2, 2.4, 3, 3.6, 4] as const) {
+    for (const l of [0, 0.5, 1, 1.7, 2, 2.4, 3, 3.6, 4, 4.5, 5] as const) {
       expect(levelAtScale(scaleAtLevel(l, scales), scales)).toBeCloseTo(l, 6)
     }
   })
 
   it('clamps rather than extrapolating past either end', () => {
     expect(levelAtScale(scales[DESK] * 10, scales)).toBe(DESK)
-    expect(levelAtScale(scales[BLOCK] / 10, scales)).toBe(BLOCK)
+    expect(levelAtScale(scales[PARK] / 10, scales)).toBe(PARK)
   })
 })
 
 describe('the block', () => {
-  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
+  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
 
   it('numbers the address one way, and unpacks it every way', () => {
     // One global seat still. Everything else is derived, so nothing can
@@ -271,15 +306,15 @@ describe('the block', () => {
 
   it('clamps the address to the studio this scope draws', () => {
     expect(buildingOf(-5)).toBe(0)
-    expect(buildingOf(1e9)).toBe(BUILDINGS_PER_BLOCK - 1)
+    expect(buildingOf(1e9)).toBe(BUILDINGS_PER_PARK - 1)
     expect(storeyOf(1e9)).toBe(FLOORS_PER_BUILDING - 1)
   })
 
   it('fills its buildings in order, and only the last one grows', () => {
-    expect(buildingsFor(1)).toBe(1)
-    expect(buildingsFor(BUILDING_CAP)).toBe(1)
-    expect(buildingsFor(BUILDING_CAP + 1)).toBe(2)
-    expect(buildingsFor(1e9)).toBe(BUILDINGS_PER_BLOCK)
+    expect(buildingsIn(1, 0)).toBe(1)
+    expect(buildingsIn(BUILDING_CAP, 0)).toBe(1)
+    expect(buildingsIn(BUILDING_CAP + 1, 0)).toBe(2)
+    expect(buildingsIn(1e9, 0)).toBe(BUILDINGS_PER_BLOCK)
 
     // 25,000 developers: two full buildings and a third with five floors.
     expect(storeysIn(25_000, 0)).toBe(FLOORS_PER_BUILDING)
@@ -410,6 +445,217 @@ describe('the block', () => {
   })
 })
 
+describe('the park', () => {
+  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+
+  /**
+   * A park-space point back in plot-lattice coordinates.
+   *
+   * The whole composition is one lattice — plots inside blocks inside parcels —
+   * so the honest way to ask "do these two decks touch" is to ask it in the
+   * coordinates the decks are corners of. Two parallelograms of the same
+   * lattice are disjoint exactly when their ranges are disjoint on either axis,
+   * which is a test with no tolerance in it.
+   */
+  const lattice = (p: { x: number; y: number }) => {
+    const x = p.x / (PLOT_STRIDE_X * PARK_SCALE)
+    const y = (p.y - TOWER_GROUND * BLOCK_SCALE * PARK_SCALE) / (PLOT_STRIDE_Y * PARK_SCALE)
+    return { u: (x + y) / 2, v: (y - x) / 2 }
+  }
+
+  const deckIn = (block: number) => {
+    const at = parcelAt(block)
+    const pts = deckOutline().map((q) =>
+      lattice({ x: at.x + q.x * PARK_SCALE, y: at.y + q.y * PARK_SCALE }),
+    )
+    const us = pts.map((q) => q.u)
+    const vs = pts.map((q) => q.v)
+    return { u0: Math.min(...us), u1: Math.max(...us), v0: Math.min(...vs), v1: Math.max(...vs) }
+  }
+
+  it('numbers a seat all the way up, and unpacks every rung of it', () => {
+    // Still one global seat. `storeyOf` is local to its building and `plotOf`
+    // is local to its block, because a floor number and a plot number are only
+    // ever *of* something; `buildingOf` is park-wide, because it is the number
+    // people are counted into.
+    expect(blockOf(0)).toBe(0)
+    expect(blockOf(BLOCK_CAP)).toBe(1)
+    expect(blockOf(745_000)).toBe(7)
+    expect(buildingOf(745_000)).toBe(74)
+    expect(plotOf(buildingOf(745_000))).toBe(4)
+    expect(storeyOf(745_000)).toBe(5)
+
+    expect(seatOfBlock(7)).toBe(7 * BLOCK_CAP)
+    expect(buildingAt(4, 7)).toBe(74)
+    expect(seatOfPlot(4, 7)).toBe(74 * BUILDING_CAP)
+    expect(seatOfStorey(5, buildingAt(4, 7))).toBe(745_000)
+  })
+
+  it('clamps the address to the studio this scope draws', () => {
+    expect(blockOf(-5)).toBe(0)
+    expect(blockOf(1e12)).toBe(BLOCKS_PER_PARK - 1)
+    expect(buildingOf(1e12)).toBe(BUILDINGS_PER_PARK - 1)
+  })
+
+  it('fills its blocks in order, and only the last one grows', () => {
+    expect(blocksFor(1)).toBe(1)
+    expect(blocksFor(BLOCK_CAP)).toBe(1)
+    expect(blocksFor(BLOCK_CAP + 1)).toBe(2)
+    expect(blocksFor(1e12)).toBe(BLOCKS_PER_PARK)
+
+    // 250,000 developers: two full blocks and a third with five buildings.
+    expect(buildingsIn(250_000, 0)).toBe(BUILDINGS_PER_BLOCK)
+    expect(buildingsIn(250_000, 1)).toBe(BUILDINGS_PER_BLOCK)
+    expect(buildingsIn(250_000, 2)).toBe(5)
+    expect(buildingsIn(250_000, 3)).toBe(0)
+    expect(devsOnBlock(250_000, 0)).toBe(BLOCK_CAP)
+    expect(devsOnBlock(250_000, 2)).toBe(50_000)
+    expect(devsOnBlock(250_000, 9)).toBe(0)
+    // And a building of the third block is counted park-wide, not block-wide.
+    expect(devsIn(250_000, buildingAt(0, 2))).toBe(BUILDING_CAP)
+    expect(devsIn(250_000, buildingAt(5, 2))).toBe(0)
+  })
+
+  it('stands every parcel clear of every other one', () => {
+    /*
+     * The claim the whole composition rests on, and the one the block could not
+     * make: on a 2:1 lattice a plot one column along *and* one row nearer sits
+     * at the same x, which is why four of a block's ten towers stand half in
+     * front of four others. A block is wider than it is tall where a tower is
+     * the reverse, so the same lattice separates parcels completely.
+     *
+     * Trap 49: this is the note in `frames.ts` written as a test, because a
+     * comment claiming a geometric property is a test nobody has written yet.
+     */
+    for (let i = 0; i < BLOCKS_PER_PARK; i++) {
+      for (let j = i + 1; j < BLOCKS_PER_PARK; j++) {
+        const a = deckIn(i)
+        const b = deckIn(j)
+        const apart = a.u1 < b.u0 || b.u1 < a.u0 || a.v1 < b.v0 || b.v1 < a.v0
+        expect(apart, `parcels ${i} and ${j} overlap`).toBe(true)
+      }
+    }
+  })
+
+  it('leaves a boulevard between neighbours rather than a hairline', () => {
+    /*
+     * Neighbours are 6.615 plot strides apart along either lattice axis and a
+     * deck spans `4 + 2m` of them across and `1 + 2m` back, so what is left is
+     * the street: **1.4 strides between columns and 4.4 between rows.**
+     *
+     * The asymmetry is the lattice being uniform while the cell is not — a
+     * block is five plots across and two deep — and it is kept rather than
+     * tuned out. Squeezing the rows together buys a tidier bounding box and
+     * costs the property the row above asserts: at 3.6 strides the near row's
+     * towers begin to stand in front of the far row's, which is what the *block*
+     * looks like and is exactly what this level exists not to look like. Open
+     * ground between the rows is what a business park has.
+     */
+    const across = deckIn(1).u0 - deckIn(0).u1
+    const back = deckIn(BLOCK_COLS).v0 - deckIn(0).v1
+    expect(across).toBeGreaterThan(1)
+    expect(back).toBeGreaterThan(across)
+  })
+
+  it('frames the ground and not only the buildings', () => {
+    /*
+     * The defect this replaced: `blockCell` was `blockFrame` alone, which is
+     * the ten towers, and a deck is half again as wide as they are. The park
+     * framed the towers, drew a site around them, and ran its leftmost parcel
+     * off the side of the window — visible at 1400x900 and not at 997x448,
+     * which is trap 52 all over again.
+     */
+    // A hair of tolerance, because these are the same numbers arrived at by two
+    // different sums and `Math.min` of a float is not always the float.
+    const holds = (outer: Rect, inner: Rect, what: string) => {
+      expect(outer.cx - outer.w / 2, what).toBeLessThanOrEqual(inner.cx - inner.w / 2 + 1e-9)
+      expect(outer.cx + outer.w / 2, what).toBeGreaterThanOrEqual(inner.cx + inner.w / 2 - 1e-9)
+      expect(outer.cy - outer.h / 2, what).toBeLessThanOrEqual(inner.cy - inner.h / 2 + 1e-9)
+      expect(outer.cy + outer.h / 2, what).toBeGreaterThanOrEqual(inner.cy + inner.h / 2 - 1e-9)
+    }
+
+    const cell = blockCell()
+    const deck = deckRect()
+    const towers = blockFrame(BUILDINGS_PER_BLOCK, FLOORS_PER_BUILDING)
+    expect(deck.w).toBeGreaterThan(towers.w)
+    holds(cell, deck, 'the cell holds the deck')
+    holds(cell, towers, 'the cell holds the towers')
+
+    const park = parkFrame(BLOCKS_PER_PARK, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK)
+    for (let i = 0; i < BLOCKS_PER_PARK; i++) {
+      holds(park, intoParcel(cell, i), `the park holds parcel ${i}`)
+    }
+  })
+
+  it('puts every block under a finger, at ten distinct places', () => {
+    const seen = new Set<number>()
+    for (let i = 0; i < BLOCKS_PER_PARK; i++) {
+      const parcel = intoParcel(blockCell(), i)
+      const hit = blockAtPark(parcel.cx, parcel.cy, BLOCKS_PER_PARK)
+      expect(hit, `parcel ${i} does not answer at its own centre`).toBe(i)
+      seen.add(hit)
+    }
+    expect(seen.size).toBe(BLOCKS_PER_PARK)
+    expect(blockAtPark(-90_000, 0, BLOCKS_PER_PARK)).toBe(-1)
+    // Nothing the studio has not built is reachable.
+    expect(blockAtPark(intoParcel(blockCell(), 4).cx, intoParcel(blockCell(), 4).cy, 2)).toBe(-1)
+  })
+
+  it('is the same object as the block when there is only one of them', () => {
+    /*
+     * A park of one block *is* that block, and framing a full one would put a
+     * hundred thousand people's worth of empty ground round a single tower. The
+     * two rungs land on one scale, and `levelAtScale` reads a shared scale as
+     * the inner of the two — the camera got there by pulling back until
+     * something stopped it, and the thing that stopped it was the block.
+     */
+    const one = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK, 1)
+    expect(one[PARK]).toBe(one[BLOCK])
+    expect(levelAtScale(one[PARK], one)).toBe(BLOCK)
+  })
+
+  it('holds a unit at the same footprint as the level below it — §7.8.2 rule 1', () => {
+    /*
+     * "The promise of §7.7.1 is that the *unit* changes, not that the same unit
+     * gets smaller — a town occupies exactly as much screen as a building did."
+     * One building at the block against one block at the park, in square
+     * pixels, at the reference frame.
+     */
+    const atBlock = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)[BLOCK]
+    const tower = towerRect(FLOORS_PER_BUILDING)
+    const buildingPx = tower.w * BLOCK_SCALE * PARK_SCALE * atBlock * (tower.h * BLOCK_SCALE * PARK_SCALE * atBlock)
+    const cell = blockCell()
+    const blockPx = cell.w * PARK_SCALE * scales[PARK] * (cell.h * PARK_SCALE * scales[PARK])
+    expect(blockPx / buildingPx).toBeGreaterThan(0.6)
+    expect(blockPx / buildingPx).toBeLessThan(1.7)
+  })
+
+  it('crosses the park out completely before a single block is the subject', () => {
+    // The same band the block has one level down, and it carries the block's
+    // own street plane with it: that plane is wider than the boulevard between
+    // two parcels, so the two cannot both be drawn.
+    expect(parkChromeAlpha(PARK)).toBe(1)
+    expect(parkChromeAlpha(BLOCK)).toBe(0)
+    expect(parkChromeAlpha(BUILDING)).toBe(0)
+    // And the block's own chrome is whole while the park is the subject, which
+    // is what makes the parcel the address is in the same drawing at both ends.
+    expect(blockChromeAlpha(PARK)).toBe(1)
+  })
+
+  it('moves no LOD threshold by existing', () => {
+    /*
+     * §13's claim, spent a second time: every threshold in this file is a
+     * *floor-space* scale, so a new division in the chain moves every camera
+     * scale by exactly that factor and leaves the thresholds where they were.
+     * A desk is the same number of pixels at the floor level as it was before
+     * the park existed.
+     */
+    expect(floorScaleAt(scales[FLOOR])).toBeCloseTo(0.2195, 3)
+    expect(roomResolved(floorScaleAt(scales[FLOOR]))).toBe(true)
+    expect(roomResolved(floorScaleAt(scales[PARK]))).toBe(false)
+  })
+})
+
 describe('the ladder nests', () => {
   /*
    * §7.8.1's garage at one developer, measured on the reference frame: the
@@ -422,7 +668,7 @@ describe('the ladder nests', () => {
    * the bands in order, so the band between the squad and the floor inverted
    * and every scale in it fell through to a level a level and a half away.
    */
-  const CROSSED = { 0: 51.75, 1: 8.42, 2: 9.86, 3: 1.11, 4: 0.55 } as Record<Level, number>
+  const CROSSED = { 0: 51.75, 1: 8.42, 2: 9.86, 3: 1.11, 4: 0.55, 5: 0.24 } as Record<Level, number>
 
   it('pushes a rung out until it holds the one inside it', () => {
     const nested = nestScales(CROSSED)
@@ -434,7 +680,7 @@ describe('the ladder nests', () => {
   })
 
   it('leaves a ladder that already nests exactly as it was', () => {
-    const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
+    const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
     expect(nestScales(scales)).toEqual(scales)
   })
 
@@ -450,11 +696,11 @@ describe('the ladder nests', () => {
 
   it('stays continuous and on the ladder across a collapsed rung', () => {
     const nested = nestScales(CROSSED)
-    for (let s = nested[BLOCK] / 2; s < nested[DESK] * 2; s *= 1.05) {
+    for (let s = nested[PARK] / 2; s < nested[DESK] * 2; s *= 1.05) {
       const level = levelAtScale(s, nested)
       expect(Number.isFinite(level)).toBe(true)
       expect(level).toBeGreaterThanOrEqual(DESK)
-      expect(level).toBeLessThanOrEqual(BLOCK)
+      expect(level).toBeLessThanOrEqual(PARK)
     }
   })
 
@@ -464,14 +710,14 @@ describe('the ladder nests', () => {
     // sitting still would flicker between two names, and anything holding it
     // to a level would keep re-asserting a scale it was already at.
     const nested = nestScales(CROSSED)
-    for (const l of [DESK, SQUAD, FLOOR, BUILDING, BLOCK] as Level[]) {
+    for (const l of [DESK, SQUAD, FLOOR, BUILDING, BLOCK, PARK] as Level[]) {
       expect(scaleAtLevel(l, nested)).toBe(nested[l])
     }
   })
 })
 
 describe('level of detail', () => {
-  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
+  const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
   const floorScaleOf = (l: Level) => floorScaleAt(scales[l])
 
   it('the room is not resolved while the building is the subject', () => {
@@ -634,7 +880,10 @@ describe('the plates are worth looking at', () => {
    * through `BLOCK_SCALE` to be a number of pixels. Getting that wrong makes
    * every one of these read exactly twice as generous as it is.
    */
-  const towerPx = levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING] * BLOCK_SCALE
+  // Building space to screen pixels: the camera's scale at the building level,
+  // carried down through the parcel and the plot the tower is drawn in.
+  const towerPx =
+    levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING] * PARK_SCALE * BLOCK_SCALE
 
   it('a band is a thumb-sized target at the reference frame', () => {
     const scale = towerPx

@@ -2287,13 +2287,23 @@ camera holds:
 | **10 B – 10 T** | **Planet** | A system. The planet's dark side glows with the swarm |
 | **10 T +** | **Galaxy** | A cluster. Points of light, each one a civilisation of developers |
 
-##### Built, and not built **[added 2026-08-08]**
+##### Built, and not built **[added 2026-08-08, rewritten 2026-08-22]**
+
+> The 2026-08-08 row read *"**4–6** — building, campus, town | Built. `render/city.ts`"*, and
+> both halves of that are now wrong. `city.ts` was deleted by the lens rebuild
+> (`docs/HANDOFF-2026-08-20.md`), which replaced seven cross-faded *views* with one camera and a
+> ladder of nested **levels**; and what those three rungs were drawn as — three instanced
+> pictures of the studio's first corner — is not what the level model draws. The table below is
+> the state after `docs/HANDOFF-2026-08-22.md` added rung 5.
 
 | Rungs | State |
 |---|---|
-| **3** — tower | Built. Storeys drop onto the stack, the building squashes and settles |
-| **4–6** — building, campus, town | Built. `render/city.ts` |
-| **7–9** — nation, planet, galaxy | **Not built.** A different register — a lit coastline, a world, a cluster — rather than more architecture, and §7.4's Level 3 and Level 4 tiers already hold that scale from the camera's side. Building them badly to fill the table would be worse than the honest gap |
+| **0–2** — the room | Built. `render/room.ts`, one sprite one person, the whole of Run 1 |
+| **3** — tower | Built. `render/building.ts`. Storeys drop onto the stack, the building squashes and settles |
+| **4** — a block of ten towers | Built. `render/block.ts` |
+| **5** — a business park of ten blocks | Built. `render/park.ts`. Decks, boulevards, car parks and walkways; the level caps the drawn studio at **10⁶ developers** |
+| **6** — town | **Not built.** Rung 6 spans two decades (10⁶–10⁸) where every rung below spans one, so it is not another ×10 of the same construction and does not come for free the way rung 5 did |
+| **7–9** — nation, planet, galaxy | **Not built.** A different register — a lit coastline, a world, a cluster — rather than more architecture. Building them badly to fill the table would be worse than the honest gap |
 
 Two rules the built half is worth stating, because both were got wrong first:
 

@@ -1,5 +1,5 @@
 /**
- * The four frames, and the nesting between them — `docs/PLAN-2026-08-19-lens.md`.
+ * The six frames, and the nesting between them — `docs/PLAN-2026-08-19-lens.md`.
  *
  * ## What this replaces
  *
@@ -19,7 +19,7 @@
  * rectangle to the frame, there is nothing to cross-fade, and smoothness is a
  * property of the geometry rather than of an easing curve.
  *
- * ## The four frames
+ * ## The six frames
  *
  * | Level | Unit | Holds | Space |
  * |---|---|---|---|
@@ -27,12 +27,23 @@
  * | {@link SQUAD} | 100 | 10x10 desks | floor |
  * | {@link FLOOR} | 1,000 | 5x2 squads | floor |
  * | {@link BUILDING} | 10,000 | 10 floors | building |
+ * | {@link BLOCK} | 100,000 | 5x2 buildings | block |
+ * | {@link PARK} | 1,000,000 | 5x2 blocks | park |
  *
- * **Three of the four share one space**, and that is not a simplification — it
+ * **Three of the six share one space**, and that is not a simplification — it
  * is the reason rungs 0–2 were already "all the room". A desk, a squad and a
  * floor are three framings of the same isometric grid, so moving between them
- * involves no LOD swap at all, only scale. The one real nesting in this scope
- * is floor-inside-building, and {@link PLATE_SCALE} is the whole of it.
+ * involves no LOD swap at all, only scale. Above them each level is one more
+ * division: {@link PLATE_SCALE} puts a floor in a building, {@link BLOCK_SCALE}
+ * puts a building on a block, {@link PARK_SCALE} puts a block on a parcel, and
+ * descending the whole ladder is still a single affine transform.
+ *
+ * The last two arrived one at a time, on 2026-08-20 and 2026-08-22, and each
+ * cost the same thing: one division, one `TOP_LEVEL`, and **no LOD threshold
+ * moved**. Every threshold here is written in *floor-space* scale
+ * ({@link floorScaleAt}), so a new division in the chain moves every camera
+ * scale by exactly that factor and leaves the questions about how big a desk is
+ * on screen answered the way they were.
  *
  * Everything here is pure and rendererless. The framing is the thing that was
  * asserted rather than measured last time, so it has to be answerable without
@@ -65,9 +76,10 @@ export const SQUAD = 1
 export const FLOOR = 2
 export const BUILDING = 3
 export const BLOCK = 4
-export type Level = 0 | 1 | 2 | 3 | 4
+export const PARK = 5
+export type Level = 0 | 1 | 2 | 3 | 4 | 5
 
-export const LEVELS: readonly Level[] = [DESK, SQUAD, FLOOR, BUILDING, BLOCK]
+export const LEVELS: readonly Level[] = [DESK, SQUAD, FLOOR, BUILDING, BLOCK, PARK]
 
 /**
  * What each level is called, for the breadcrumb and the debug snapshot.
@@ -83,8 +95,9 @@ export const LEVEL_NAMES: Record<Level, string> = {
   2: 'FLOOR',
   3: 'BUILDING',
   4: 'BLOCK',
+  5: 'PARK',
 }
-export const TOP_LEVEL = BLOCK
+export const TOP_LEVEL = PARK
 
 /** How many developers one unit at each level holds. */
 export const LEVEL_DEVS: readonly number[] = [
@@ -93,6 +106,7 @@ export const LEVEL_DEVS: readonly number[] = [
   ROOM_DEV_CAP,
   ROOM_DEV_CAP * 10,
   ROOM_DEV_CAP * 100,
+  ROOM_DEV_CAP * 1000,
 ]
 
 /** §7.7.1's floor, and the room's own cap — the same thousand, by construction. */
@@ -465,22 +479,36 @@ export const PLOT_STRIDE_Y = PLOT_STRIDE_X / 2
  * studio grows away from the camera and the buildings you have longest are the
  * ones furthest back — which is also the order the seats number in.
  */
-export function plotAt(building: number): { x: number; y: number } {
-  const i = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+export function plotAt(plot: number): { x: number; y: number } {
+  const i = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(plot)))
   const col = i % BLOCK_COLS
   const row = Math.floor(i / BLOCK_COLS)
   return { x: (col - row) * PLOT_STRIDE_X, y: (col + row) * PLOT_STRIDE_Y }
 }
 
 /** How near the camera a plot is. Larger is nearer, and is drawn later. */
-export function plotDepth(building: number): number {
-  const i = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+export function plotDepth(plot: number): number {
+  const i = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(plot)))
   return (i % BLOCK_COLS) + Math.floor(i / BLOCK_COLS)
 }
 
-/** Map a building-space rectangle into block space, through plot `building`. */
-export function intoPlot(rect: Rect, building: number): Rect {
-  const at = plotAt(building)
+/**
+ * Which plot of its own block a building stands on.
+ *
+ * **{@link buildingOf} is a park-wide number and a plot is a block-local one**,
+ * and the two were the same thing for exactly as long as there was one block.
+ * Every geometry function below takes the *plot*, so the conversion is written
+ * here once rather than assumed at ten call sites — trap 52a, forestalled: a
+ * building index handed to `plotAt` would have clamped silently to plot 9 and
+ * drawn the whole of block 3 on top of itself.
+ */
+export function plotOf(building: number): number {
+  return Math.max(0, Math.floor(Number.isFinite(building) ? building : 0)) % BUILDINGS_PER_BLOCK
+}
+
+/** Map a building-space rectangle into block space, through plot `plot`. */
+export function intoPlot(rect: Rect, plot: number): Rect {
+  const at = plotAt(plot)
   return {
     cx: at.x + rect.cx * BLOCK_SCALE,
     cy: at.y + rect.cy * BLOCK_SCALE,
@@ -489,15 +517,15 @@ export function intoPlot(rect: Rect, building: number): Rect {
   }
 }
 
-/** A building-space point, in block space, through plot `building`. */
-export function buildingToBlock(p: { x: number; y: number }, building: number): { x: number; y: number } {
-  const at = plotAt(building)
+/** A building-space point, in block space, through plot `plot`. */
+export function buildingToBlock(p: { x: number; y: number }, plot: number): { x: number; y: number } {
+  const at = plotAt(plot)
   return { x: at.x + p.x * BLOCK_SCALE, y: at.y + p.y * BLOCK_SCALE }
 }
 
 /** The inverse — a block-space point, in one plot's building space. */
-export function blockToBuilding(p: { x: number; y: number }, building: number): { x: number; y: number } {
-  const at = plotAt(building)
+export function blockToBuilding(p: { x: number; y: number }, plot: number): { x: number; y: number } {
+  const at = plotAt(plot)
   return { x: (p.x - at.x) / BLOCK_SCALE, y: (p.y - at.y) / BLOCK_SCALE }
 }
 
@@ -505,9 +533,9 @@ export function blockToBuilding(p: { x: number; y: number }, building: number): 
 export function floorToBlock(
   p: { x: number; y: number },
   storey: number,
-  building: number,
+  plot: number,
 ): { x: number; y: number } {
-  return buildingToBlock(floorToBuilding(p, storey), building)
+  return buildingToBlock(floorToBuilding(p, storey), plot)
 }
 
 /**
@@ -579,6 +607,314 @@ export function buildingAtBlock(
     const r = intoPlot(towerRect(Math.max(1, storeysOf(i))), i)
     if (Math.abs(x - r.cx) > r.w / 2 || Math.abs(y - r.cy) > r.h / 2) continue
     const depth = plotDepth(i)
+    if (depth > bestDepth) {
+      bestDepth = depth
+      best = i
+    }
+  }
+  return best
+}
+
+// ---------------------------------------------------------------------------
+// Park space — a business park of blocks
+// ---------------------------------------------------------------------------
+
+/**
+ * The park, and why the fifth level was cheaper than the fourth.
+ *
+ * §7.7.1 rung 5: past a hundred thousand developers a block is full, and the
+ * thing that arrives is no longer a building — it is another **block**, on its
+ * own parcel, across a boulevard. Ten of those is a business park and a million
+ * people, which is where this scope stops.
+ *
+ * ## The lattice, measured
+ *
+ * A block's own cell is `blockFrame(10, 10)` — **765 x 629** block units, which
+ * is a very different shape from the thing the block level had to arrange. Ten
+ * towers is ten tall narrow objects and the packing problem is horizontal; ten
+ * *blocks* is ten squarish objects, so the question is whether a 2:1 lattice of
+ * them clears itself at all. It does, and unlike the block it clears completely:
+ *
+ * | Neighbour | Offset | Cell | Clear by |
+ * |---|---|---|---|
+ * | one column along | 430 x, 215 y | 382.5 wide | **47.5 units of boulevard** |
+ * | one row back | -430 x, 215 y | 382.5 wide | 47.5 |
+ * | one along *and* one nearer | 0 x, **430** y | 314.5 tall | **115.5** |
+ *
+ * That third row is the one the block could not satisfy — on a 2:1 lattice the
+ * plot one column along and one row nearer sits at the *same x*, and at the
+ * block level a 130-unit stride against a 290-unit tower put four towers half
+ * in front of four others. A block is wider than it is tall where a tower is
+ * the reverse, so the same lattice that overlaps towers separates blocks. **The
+ * park is ten islands and nothing hides behind anything.**
+ *
+ * Which is also what makes it read as a park rather than as more city. §7.8.2
+ * rule 2 says a rung change has to change the silhouette, and that "a business
+ * park drawn with towers the height of rung 4's reads as more towers, closer
+ * together" — the one thing a rung change must never look like. These are
+ * further apart, on visible ground, with a boulevard between every pair, so the
+ * towers become the texture of a parcel instead of being the subject.
+ *
+ * Measured at 997x448, ten full blocks: the composition is 2532 x 1390 park
+ * units, height-bound, so it fills 421 px of 448 and 768 px of 997. A parcel is
+ * **116 x 95 px** — nearly three times §23.4.2's 44 px box — and one tower
+ * inside it is 17 x 46, which is a mark on a facade and no longer an object.
+ */
+export const PARK_COLS = 5
+export const PARK_ROWS = 2
+export const BLOCKS_PER_PARK = PARK_COLS * PARK_ROWS
+export const BUILDINGS_PER_PARK = BUILDINGS_PER_BLOCK * BLOCKS_PER_PARK
+export const PARK_CAP = BLOCK_CAP * BLOCKS_PER_PARK
+
+/**
+ * How much smaller a block is when it is one parcel of the park.
+ *
+ * The third nesting constant, and it does what {@link PLATE_SCALE} and
+ * {@link BLOCK_SCALE} do: a parcel *is* the block's own frame divided by this,
+ * so descending into it is a pure scale with nothing to cross-fade. Two is the
+ * same divisor the block uses, for the same reason — it keeps the numbers in
+ * every space within an order of magnitude of each other, which is what makes a
+ * stray coordinate obviously stray.
+ */
+export const PARK_DIVISOR = 2
+export const PARK_SCALE = 1 / PARK_DIVISOR
+
+/**
+ * Parcel centre to parcel centre, one column along — park space, 2:1 isometric.
+ *
+ * 430 against a 382.5-unit cell, which is the same 1.12 ratio
+ * {@link PLOT_STRIDE_X} holds against a tower's footprint. The street between
+ * two blocks is therefore the same *fraction* of the thing it separates at both
+ * levels, which is what stops the park from reading as a looser or tighter
+ * version of the block rather than as a bigger one.
+ */
+export const PARCEL_STRIDE_X = 430
+export const PARCEL_STRIDE_Y = PARCEL_STRIDE_X / 2
+
+/**
+ * How far past its plot lattice a parcel's deck reaches, in plot strides.
+ *
+ * **The plinth's geometry lives here and not in `park.ts`**, and that is §13's
+ * finding arriving a third time: `towerSurfaceY` had to move because the frame
+ * and the drawing were each deriving the tower's rake, and `PODIUM_W` had to
+ * move because they were each deriving where a tower stops. A deck is the same
+ * shape of thing — the frame has to span it and the park has to draw it — and
+ * it was written down twice for exactly one screenshot, in which the leftmost
+ * parcel was cut off by the edge of the window.
+ *
+ * The margin is bounded on both sides. A plot's pad is 1.62 strides across,
+ * which is ±0.405 of a stride in lattice coordinates, so anything under that
+ * leaves pads hanging off the deck. Above 1.4 the decks of two parcels meet:
+ * neighbours are 6.615 strides apart along one lattice axis and a deck spans
+ * `4 + 2m` of them. 0.62 sits between, with 1.4 strides of boulevard.
+ */
+export const DECK_MARGIN = 0.62
+
+/** How tall the plinth's visible edge is — block units. */
+export const DECK_LIP = 26
+
+/**
+ * One parcel's deck, in block space — four points, the plot lattice continued
+ * past the plots.
+ *
+ * **A sheared rectangle and not a diamond**, which is {@link floorOutline}'s
+ * rule two levels up and for the same reason: the plots are a rectangle of a
+ * lattice whose axes are affine under the projection, so what they project to
+ * is a parallelogram. The containing diamond would be 1,940 block units across
+ * against an 860-unit parcel stride — it would pave the boulevard, the
+ * neighbour, and the neighbour's boulevard.
+ */
+export function deckOutline(): Array<{ x: number; y: number }> {
+  const m = DECK_MARGIN
+  return [
+    plotLatticeAt(-m, -m),
+    plotLatticeAt(BLOCK_COLS - 1 + m, -m),
+    plotLatticeAt(BLOCK_COLS - 1 + m, BLOCK_ROWS - 1 + m),
+    plotLatticeAt(-m, BLOCK_ROWS - 1 + m),
+  ]
+}
+
+/**
+ * The four corners of a deck, named — because two of them are the ones you can
+ * see the side of.
+ *
+ * In a 2:1 projection the lowest vertex is the near corner and the two edges
+ * running down to it are the faces a slab shows. The first pass extruded
+ * `far -> left` instead of `right -> near` and put a lit face on the *back* of
+ * the plinth, which reads as the deck being lifted at the wrong end.
+ */
+export const DECK_FAR = 0
+export const DECK_RIGHT = 1
+export const DECK_NEAR = 2
+export const DECK_LEFT = 3
+
+/**
+ * A point of a block's plot lattice, in block space — fractional on purpose.
+ *
+ * The deck's corners are `-DECK_MARGIN` and `4 + DECK_MARGIN`, which is the
+ * lattice continued past the plots rather than a rectangle guessed around them,
+ * and the walkways between parcels are anchored the same way. That is what
+ * keeps every piece of a parcel's ground parallel to the things standing on it
+ * at whatever margin somebody retunes this to.
+ */
+export function plotLatticeAt(col: number, row: number): { x: number; y: number } {
+  return {
+    x: (col - row) * PLOT_STRIDE_X,
+    // The plots sit on the tower's own ground plane, which is where a building
+    // meets the ground — `TOWER_GROUND`, and never `PLOT_DROP`, which is the
+    // mistake that made the towers float.
+    y: (col + row) * PLOT_STRIDE_Y + TOWER_GROUND * BLOCK_SCALE,
+  }
+}
+
+/** The deck's bounding box, plinth included — block space. */
+export function deckRect(): Rect {
+  const pts = deckOutline()
+  const xs = pts.map((p) => p.x)
+  const ys = pts.map((p) => p.y)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys) + DECK_LIP
+  return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY }
+}
+
+/**
+ * A full block's own cell — what a parcel is sized against, and what the park's
+ * frame spans.
+ *
+ * **The towers *and* the ground they stand on.** The first version was
+ * `blockFrame` alone, which is the ten towers, and the deck is half again as
+ * wide as they are — so the park framed the buildings, drew a site around them,
+ * and ran the leftmost parcel off the side of the window. Trap 49 in its usual
+ * clothes: the note above claimed a clearance and the clearance was real, but
+ * the *frame* was measuring a different object from the one being cleared.
+ */
+export function blockCell(): Rect {
+  const towers = blockFrame(BUILDINGS_PER_BLOCK, FLOORS_PER_BUILDING)
+  const deck = deckRect()
+  const minX = Math.min(towers.cx - towers.w / 2, deck.cx - deck.w / 2)
+  const maxX = Math.max(towers.cx + towers.w / 2, deck.cx + deck.w / 2)
+  const minY = Math.min(towers.cy - towers.h / 2, deck.cy - deck.h / 2)
+  const maxY = Math.max(towers.cy + towers.h / 2, deck.cy + deck.h / 2)
+  return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY }
+}
+
+/**
+ * Where a parcel's block stands, in park space.
+ *
+ * The same 2:1 and the same fill order as every lattice below it: parcels fill
+ * the back row first, left to right, so the studio grows away from the camera
+ * and the blocks you have longest are the ones furthest back.
+ */
+export function parcelAt(block: number): { x: number; y: number } {
+  const i = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))
+  const col = i % PARK_COLS
+  const row = Math.floor(i / PARK_COLS)
+  return { x: (col - row) * PARCEL_STRIDE_X, y: (col + row) * PARCEL_STRIDE_Y }
+}
+
+/** How near the camera a parcel is. Larger is nearer, and is drawn later. */
+export function parcelDepth(block: number): number {
+  const i = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))
+  return (i % PARK_COLS) + Math.floor(i / PARK_COLS)
+}
+
+/** Map a block-space rectangle into park space, through parcel `block`. */
+export function intoParcel(rect: Rect, block: number): Rect {
+  const at = parcelAt(block)
+  return {
+    cx: at.x + rect.cx * PARK_SCALE,
+    cy: at.y + rect.cy * PARK_SCALE,
+    w: rect.w * PARK_SCALE,
+    h: rect.h * PARK_SCALE,
+  }
+}
+
+/** A block-space point, in park space, through parcel `block`. */
+export function blockToPark(p: { x: number; y: number }, block: number): { x: number; y: number } {
+  const at = parcelAt(block)
+  return { x: at.x + p.x * PARK_SCALE, y: at.y + p.y * PARK_SCALE }
+}
+
+/** The inverse — a park-space point, in one parcel's block space. */
+export function parkToBlock(p: { x: number; y: number }, block: number): { x: number; y: number } {
+  const at = parcelAt(block)
+  return { x: (p.x - at.x) / PARK_SCALE, y: (p.y - at.y) / PARK_SCALE }
+}
+
+/** A floor-space point, in park space — through the plate, the plot and the parcel. */
+export function floorToPark(
+  p: { x: number; y: number },
+  storey: number,
+  plot: number,
+  block: number,
+): { x: number; y: number } {
+  return blockToPark(floorToBlock(p, storey, plot), block)
+}
+
+/** The address's own block, framed the way the block level frames it. */
+function ownBlockFrame(storeys: number, buildings: number): Rect {
+  return blockFrame(buildings, buildings > 1 ? FLOORS_PER_BUILDING : storeys)
+}
+
+/**
+ * The whole park, framed — park space.
+ *
+ * Every occupied parcel is framed as if it held a **full** block, for the reason
+ * {@link blockFrame} frames every plot as the tallest tower: parcels fill in
+ * order, so the moment there are two of them the first is full and the cell
+ * never changes again. A park measured off each block's actual size would
+ * re-frame itself on every hire anywhere in it.
+ *
+ * The exception is the studio that has only one block, where the park *is* the
+ * block and framing a full one would put a hundred thousand people's worth of
+ * empty ground around a single tower. One parcel is framed at its true size, so
+ * the two levels land on the same scale and {@link levelAtScale} reads a shared
+ * scale as the inner one — the same collapse a single building on a block
+ * already has, one level up.
+ */
+export function parkFrame(blocks: number, storeys: number, buildings: number): Rect {
+  const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  const cell = n > 1 ? blockCell() : ownBlockFrame(storeys, buildings)
+  let minX = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+  for (let i = 0; i < n; i++) {
+    const r = intoParcel(cell, i)
+    minX = Math.min(minX, r.cx - r.w / 2)
+    maxX = Math.max(maxX, r.cx + r.w / 2)
+    minY = Math.min(minY, r.cy - r.h / 2)
+    maxY = Math.max(maxY, r.cy + r.h / 2)
+  }
+  return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY }
+}
+
+/**
+ * Which block a park-space point is over, or −1.
+ *
+ * Nearest parcel first, exactly as {@link buildingAtBlock} resolves nearest plot
+ * first — but where that rule is *load-bearing* on the block, because towers
+ * stand in front of one another, here it is a tie-break that can never fire:
+ * the parcels do not overlap. It is written the same way anyway, so the two
+ * levels cannot come to disagree about what "the one in front" means if the
+ * lattice is ever tightened.
+ *
+ * The box is the whole parcel — its ground, not its towers — because at this
+ * size the ground *is* the object: a tap between two towers of a block is a tap
+ * on that block, and naming the parcel the finger landed in is the right answer
+ * for a tap that came down on a car park.
+ */
+export function blockAtPark(x: number, y: number, blocks: number): number {
+  const n = Math.max(0, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  const cell = blockCell()
+  let best = -1
+  let bestDepth = -1
+  for (let i = 0; i < n; i++) {
+    const r = intoParcel(cell, i)
+    if (Math.abs(x - r.cx) > r.w / 2 || Math.abs(y - r.cy) > r.h / 2) continue
+    const depth = parcelDepth(i)
     if (depth > bestDepth) {
       bestDepth = depth
       best = i
@@ -723,12 +1059,29 @@ export function storeyAtBuilding(x: number, y: number, storeys: number, focus: n
  */
 function seatIn(seat: number): number {
   const s = Math.max(0, Math.floor(Number.isFinite(seat) ? seat : 0))
-  return Math.min(BLOCK_CAP - 1, s)
+  return Math.min(PARK_CAP - 1, s)
 }
 
-/** Which building of the block holds a global seat. */
+/**
+ * Which building of the **park** holds a global seat — 0 to 99.
+ *
+ * Park-wide rather than block-local, and that is the opposite of the choice
+ * {@link storeyOf} made when the block arrived. The difference is what each
+ * number is *for*. A storey is only ever a storey of one tower, so every caller
+ * wanted the local reading; a building is the unit `storeysIn` and `devsIn`
+ * count people into, and those two want one number that walks the whole studio
+ * rather than a pair that has to be carried around together.
+ *
+ * The block-local reading is {@link plotOf}, and it is needed in exactly the
+ * places that draw: which of ten plots this building stands on.
+ */
 export function buildingOf(seat: number): number {
   return Math.floor(seatIn(seat) / BUILDING_CAP)
+}
+
+/** Which block of the park holds a global seat. */
+export function blockOf(seat: number): number {
+  return Math.floor(seatIn(seat) / BLOCK_CAP)
 }
 
 /**
@@ -744,9 +1097,35 @@ export function storeyOf(seat: number): number {
   return Math.floor(seatIn(seat) / DEVS_PER_FLOOR) % FLOORS_PER_BUILDING
 }
 
-/** The first seat of a building — where descending into it lands. */
+/** The first seat of a block — where descending into it lands. */
+export function seatOfBlock(block: number): number {
+  return Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block))) * BLOCK_CAP
+}
+
+/** The first seat of a building of the park — where descending into it lands. */
 export function seatOfBuilding(building: number): number {
-  return Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building))) * BUILDING_CAP
+  return Math.max(0, Math.min(BUILDINGS_PER_PARK - 1, Math.floor(building))) * BUILDING_CAP
+}
+
+/**
+ * The park-wide number of the building standing on one plot of one block.
+ *
+ * The one conversion the drawing side needs and the one the model side keeps
+ * asking for. Everything that *draws* counts in plots, because a block has ten
+ * of them; everything that counts *people* — `storeysIn`, `devsIn`, the store's
+ * own unit ranges — counts in buildings, because the park has a hundred. Two
+ * numberings meeting at a function is fine; two numberings meeting at a call
+ * site is trap 38.
+ */
+export function buildingAt(plot: number, block: number): number {
+  const k = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))
+  const i = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(plot)))
+  return k * BUILDINGS_PER_BLOCK + i
+}
+
+/** The first seat of one plot of one block — the same building, said the other way. */
+export function seatOfPlot(plot: number, block: number): number {
+  return seatOfBuilding(buildingAt(plot, block))
 }
 
 /** The first seat of a storey of a building — where descending into it lands. */
@@ -766,10 +1145,29 @@ export function seatOfSquad(storey: number, squad: number, building = 0): number
   return seatOfStorey(storey, building) + Math.max(0, Math.floor(squad)) * SQUAD_SIZE
 }
 
-/** How many buildings a headcount has put up. At least one — you are always somewhere. */
-export function buildingsFor(devs: number): number {
+/**
+ * How many blocks a headcount has put up. At least one — you are always
+ * somewhere.
+ */
+export function blocksFor(devs: number): number {
   if (!Number.isFinite(devs) || devs <= 0) return 1
-  return Math.max(1, Math.min(BUILDINGS_PER_BLOCK, Math.ceil(devs / BUILDING_CAP)))
+  return Math.max(1, Math.min(BLOCKS_PER_PARK, Math.ceil(devs / BLOCK_CAP)))
+}
+
+/**
+ * How many buildings stand on one block of the park.
+ *
+ * **The block is not optional**, and that is trap 52a paid off in advance. This
+ * was `buildingsFor(devs)` while there was one block to count on, and a default
+ * of "the first one" would have made every existing call site quietly mean
+ * *block 0* the moment there were ten — the same silent opt-in that moved a
+ * floor of building 8 to building 1.
+ */
+export function buildingsIn(devs: number, block: number): number {
+  const b = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))
+  const left = (Number.isFinite(devs) ? devs : 0) - b * BLOCK_CAP
+  if (left <= 0) return b === 0 ? 1 : 0
+  return Math.max(1, Math.min(BUILDINGS_PER_BLOCK, Math.ceil(left / BUILDING_CAP)))
 }
 
 /**
@@ -778,9 +1176,11 @@ export function buildingsFor(devs: number): number {
  * Buildings fill in order, so this is the headcount left over once the
  * buildings before it are full — which means the first building is at ten the
  * moment there is a second one, and the last is the only one that grows.
+ *
+ * `building` is park-wide (0 to 99), the number {@link buildingOf} returns.
  */
 export function storeysIn(devs: number, building = 0): number {
-  const b = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+  const b = Math.max(0, Math.min(BUILDINGS_PER_PARK - 1, Math.floor(building)))
   const left = (Number.isFinite(devs) ? devs : 0) - b * BUILDING_CAP
   if (left <= 0) return b === 0 ? 1 : 0
   return Math.max(1, Math.min(FLOORS_PER_BUILDING, Math.ceil(left / DEVS_PER_FLOOR)))
@@ -788,9 +1188,16 @@ export function storeysIn(devs: number, building = 0): number {
 
 /** How many developers stand in one building of the studio. */
 export function devsIn(devs: number, building = 0): number {
-  const b = Math.max(0, Math.min(BUILDINGS_PER_BLOCK - 1, Math.floor(building)))
+  const b = Math.max(0, Math.min(BUILDINGS_PER_PARK - 1, Math.floor(building)))
   const left = (Number.isFinite(devs) ? devs : 0) - b * BUILDING_CAP
   return Math.max(0, Math.min(BUILDING_CAP, left))
+}
+
+/** How many developers stand on one block of the park. */
+export function devsOnBlock(devs: number, block: number): number {
+  const b = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))
+  const left = (Number.isFinite(devs) ? devs : 0) - b * BLOCK_CAP
+  return Math.max(0, Math.min(BLOCK_CAP, left))
 }
 
 /** The tallest building in the studio, in storeys — what {@link blockFrame} spans. */
@@ -808,22 +1215,33 @@ export function tallestIn(devs: number): number {
  * {@link BLOCK_SCALE}. Five frames, one coordinate system, and descending the
  * whole ladder is still a single affine transform.
  */
-export function frameFor(level: Level, seat: number, storeys: number, buildings = 1): Rect {
-  const building = buildingOf(seat)
+export function frameFor(
+  level: Level,
+  seat: number,
+  storeys: number,
+  buildings = 1,
+  blocks = 1,
+): Rect {
+  const block = blockOf(seat)
+  const plot = plotOf(buildingOf(seat))
+  // The park is the only frame that is not inside a parcel, because it *is* the
+  // parcels.
+  if (level === PARK) return parkFrame(blocks, storeys, buildings)
+
   // The tallest tower, which the frame spans: buildings fill in order, so the
   // moment there are two of them the first is full and `storeys` is whichever
   // building the address is in rather than the highest one.
-  if (level === BLOCK) {
-    return blockFrame(buildings, buildings > 1 ? FLOORS_PER_BUILDING : storeys)
-  }
+  if (level === BLOCK) return intoParcel(ownBlockFrame(storeys, buildings), block)
 
   const focus = storeyOf(seat)
-  if (level === BUILDING) return intoPlot(buildingFrame(storeys, focus), building)
+  if (level === BUILDING) {
+    return intoParcel(intoPlot(buildingFrame(storeys, focus), plot), block)
+  }
 
   const local = Math.max(0, Math.floor(seat)) % DEVS_PER_FLOOR
   const inner =
     level === FLOOR ? floorFrame() : level === SQUAD ? squadFrame(seatFor(local).squad) : deskFrame(local)
-  return intoPlot(intoPlate(inner, focus), building)
+  return intoParcel(intoPlot(intoPlate(inner, focus), plot), block)
 }
 
 /** A floor-space point, in building space, through plate `focus`. */
@@ -889,13 +1307,15 @@ export function levelScales(
   storeys: number,
   viewport: { w: number; h: number },
   buildings = 1,
+  blocks = 1,
 ): Record<Level, number> {
   return nestScales({
-    0: fitScaleFor(frameFor(DESK, seat, storeys, buildings), viewport),
-    1: fitScaleFor(frameFor(SQUAD, seat, storeys, buildings), viewport),
-    2: fitScaleFor(frameFor(FLOOR, seat, storeys, buildings), viewport),
-    3: fitScaleFor(frameFor(BUILDING, seat, storeys, buildings), viewport),
-    4: fitScaleFor(frameFor(BLOCK, seat, storeys, buildings), viewport),
+    0: fitScaleFor(frameFor(DESK, seat, storeys, buildings, blocks), viewport),
+    1: fitScaleFor(frameFor(SQUAD, seat, storeys, buildings, blocks), viewport),
+    2: fitScaleFor(frameFor(FLOOR, seat, storeys, buildings, blocks), viewport),
+    3: fitScaleFor(frameFor(BUILDING, seat, storeys, buildings, blocks), viewport),
+    4: fitScaleFor(frameFor(BLOCK, seat, storeys, buildings, blocks), viewport),
+    5: fitScaleFor(frameFor(PARK, seat, storeys, buildings, blocks), viewport),
   })
 }
 
@@ -997,7 +1417,7 @@ export function scaleAtLevel(level: number, scales: Record<Level, number>): numb
  * unchanged; only this line knows there is another division in the chain.
  */
 export function floorScaleAt(cameraScale: number): number {
-  return cameraScale * PLATE_SCALE * BLOCK_SCALE
+  return cameraScale * PLATE_SCALE * BLOCK_SCALE * PARK_SCALE
 }
 
 /**
@@ -1085,6 +1505,25 @@ export function buildingChromeAlpha(level: number): number {
  */
 export function blockChromeAlpha(level: number): number {
   return chromeAlpha(level, BUILDING)
+}
+
+/**
+ * 1 while the park is the subject, 0 once a single block is.
+ *
+ * The same band one level up, and it carries one more thing than its neighbour
+ * does: the block's own ground plane runs {@link GROUND_SPREAD} past its
+ * outermost plot so that ten towers do not sit on a raft, and at parcel scale
+ * that plane is wider than the boulevard between two parcels. So the park does
+ * not merely fade *out* as the camera descends — the block's ground fades *in*
+ * behind it on `1 - parkChromeAlpha`, and what the player sees at the park is
+ * ten matching podiums rather than nine podiums and one city.
+ *
+ * Two different objects trading places, which §10.5 allows. The thing it
+ * forbids — two pictures of one object — is not happening here: the towers
+ * underneath are drawn once, by the block, at every level.
+ */
+export function parkChromeAlpha(level: number): number {
+  return chromeAlpha(level, BLOCK)
 }
 
 /** Whether the room's individual people are worth building at this scale. */

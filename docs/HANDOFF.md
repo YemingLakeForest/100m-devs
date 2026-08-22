@@ -1,6 +1,16 @@
 # Handoff — 2026-08-10
 
-> **Current handoff: [`HANDOFF-2026-08-20.md`](HANDOFF-2026-08-20.md)** — the lens rebuild:
+> **Current handoff: [`HANDOFF-2026-08-22.md`](HANDOFF-2026-08-22.md)** — **rung 5, the business
+> park.** One camera, **six levels** (desk, squad, floor, building, block, park), built to
+> **1,000,000 developers in ten blocks of ten buildings**. Ten parcels on decks with boulevards,
+> car parks and walkways; a third picker on the rail; the address grown a rung and still one seat
+> number. Seven findings and **traps 53–56**: a frame that spanned the buildings and not the
+> ground they stand on (invisible at the reference frame, a parcel off the side of a desktop
+> window), a walkway painted over by the thing it connects, and `buildingsFor` deleted rather than
+> given a default. **No LOD threshold moved** — the second level in a row that cost one division
+> and a new `TOP_LEVEL`.
+>
+> **Previous: [`HANDOFF-2026-08-20.md`](HANDOFF-2026-08-20.md)** — the lens rebuild:
 > **one camera, five levels** (desk, squad, floor, building, block), a fixed 5x2 floor of 1,000
 > seats, a building you pick floors out of, a block you pick buildings out of, and a HUD that
 > names the address and opens both sets of doors. Built to **100,000 developers in ten
@@ -8,16 +18,24 @@
 > zoom ceiling enforced from outside the lens that could not satisfy itself, a code tap that flew
 > the camera onto the person being coded at, four cameras that never landed where they were sent,
 > and **no tap anywhere changes the zoom any more** — that is the pinch, the wheel and the rail.
-> Read that one first, then
-> [`PLAN-2026-08-19-lens.md`](PLAN-2026-08-19-lens.md) for the measurements behind it and
+> Read it before the current one, then
+> [`PLAN-2026-08-19-lens.md`](PLAN-2026-08-19-lens.md) for the measurements behind both and
 > [`GDD.md` §26](../GDD.md) for the build order.
 >
-> **Previous: [`HANDOFF-2026-08-18.md`](HANDOFF-2026-08-18.md)** — §26.1.8 items 3–10
+> **Before that: [`HANDOFF-2026-08-18.md`](HANDOFF-2026-08-18.md)** — §26.1.8 items 3–10
 > walked in a real browser, the third acceptance gate, **traps 38–44**, and **Phase 1 closed**.
 >
-> **Next: [`HANDOFF-2026-08-20.md`](HANDOFF-2026-08-20.md) §18** — the walk's navigation leg, the
-> centre-screen overlays, a dated rewrite of GDD §7 (which still describes the tiers and the
-> cross-fade the lens rebuild deleted), and the levels above one building.
+> **Alongside it: [`PLAN-2026-08-22-polish.md`](PLAN-2026-08-22-polish.md)** — the whole six-rung
+> ladder photographed and measured end to end for the first time, three defects found by looking
+> (a storey lit at the block, cash floaters landing on the DEVS readout, nine of ten squad bays
+> bare for the whole of rung 2), and twelve proposals for what to do about it. Proposals, not
+> canon — nothing in it is built.
+>
+> **Next: [`HANDOFF-2026-08-22.md`](HANDOFF-2026-08-22.md) §14** — rung 6, the *town*, which is
+> the first rung that does not come for free (§7.7.1 spans two decades there); the walk's
+> navigation leg; the centre-screen overlays; and a dated rewrite of GDD §7, which still describes
+> the tiers and the cross-fade the lens rebuild deleted — §7.8.2's built/not-built table is the
+> one part of it rewritten so far.
 > [`PLAN-2026-08-18-phase2.md`](PLAN-2026-08-18-phase2.md) is the older Phase 2 plan, measured
 > at 10⁸ developers; the lens rebuild supersedes its camera sections and not its economy ones.
 >

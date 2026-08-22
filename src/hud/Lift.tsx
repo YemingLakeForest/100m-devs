@@ -3,11 +3,13 @@ import type { StageHandle, NavState } from '../render/stage.ts'
 import { formatCount } from '../sim/headcount.ts'
 import {
   BLOCK,
+  BLOCK_CAP,
   BUILDING,
   BUILDING_CAP,
   DESK,
   DEVS_PER_FLOOR,
   FLOOR,
+  PARK,
   SQUAD,
   type Level,
 } from '../render/frames.ts'
@@ -35,8 +37,9 @@ function floorName(storey: number): string {
   return String(storey + 1).padStart(2, '0')
 }
 
-/** Buildings are numbered like floors, and for the same reason. */
+/** Buildings and blocks are numbered like floors, and for the same reason. */
 const buildingName = floorName
+const blockName = floorName
 
 export function Lift({ stage }: { stage: StageHandle | null }) {
   const [nav, setNav] = useState<NavState | null>(null)
@@ -44,6 +47,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
   const storey = nav?.storey ?? 0
   const at = nav?.at ?? null
   const building = nav?.building ?? 0
+  const block = nav?.block ?? 0
 
   useEffect(() => {
     if (!stage) return
@@ -70,7 +74,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    */
   useEffect(() => {
     here.current?.scrollIntoView({ block: 'nearest' })
-  }, [storey, building, at])
+  }, [storey, building, block, at])
 
   if (!stage || !nav) return null
   /*
@@ -83,7 +87,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * is also what keeps the §23.4 rail containment gate honest at 640x360, where
    * the fullest HUD in the game has no spare pixels to lend.
    */
-  if (nav.storeys <= 1 && nav.buildings <= 1) return null
+  if (nav.storeys <= 1 && nav.buildings <= 1 && nav.blocks <= 1) return null
 
   /*
    * **The doors and the way back out are never both needed, so only one is
@@ -101,31 +105,42 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * menu for. So Building gets the doors and one line saying where they are,
    * and everything below gets the ladder.
    */
+  const onThePark = nav.at === PARK
   const onTheBlock = nav.at === BLOCK
   const outside = nav.at === BUILDING
   /*
    * **The doors you are outside, and the ladder you are inside.**
    *
-   * Two pickers now and still only ever one on screen, on the rule that already
+   * Three pickers now and still only ever one on screen, on the rule that
    * decided the first: the list is the level you are *choosing from*, and the
-   * ladder is where you are. Standing on the block you are choosing a building
-   * and the storeys under you are history; standing in a building you are
-   * choosing a floor; standing on a floor you want the way back out.
+   * ladder is where you are. Standing in the park you are choosing a block;
+   * standing on a block you are choosing a building; standing in a building you
+   * are choosing a floor; standing on a floor you want the way back out.
+   *
+   * **A rung that names one thing is not a rung**, which is the lift's own
+   * argument applied to the address rather than to the picker. `PARK 1 /
+   * BLOCK 1 / BUILDING 07` over a studio with one block spends two lines of a
+   * 136 px rail saying "the studio" twice.
    */
-  const ladder: { level: Level; text: string }[] = [
-    { level: BLOCK, text: 'BLOCK 1' },
+  const ladder: { level: Level; text: string }[] = []
+  if (nav.blocks > 1) ladder.push({ level: PARK, text: 'PARK 1' })
+  if (nav.blocks > 1 || nav.buildings > 1) {
+    ladder.push({ level: BLOCK, text: `BLOCK ${blockName(nav.block)}` })
+  }
+  ladder.push(
     { level: BUILDING, text: `BUILDING ${buildingName(nav.building)}` },
     { level: FLOOR, text: `FLOOR ${floorName(nav.storey)}` },
     { level: SQUAD, text: `SQUAD ${nav.squad + 1}` },
     { level: DESK, text: `DESK ${(nav.seat % DEVS_PER_FLOOR) + 1}` },
-  ]
-  // One rung above whichever picker is showing, and no further: the rungs below
-  // a picker name where you were last, which is history rather than address.
-  const crumbs = onTheBlock
-    ? ladder.slice(0, 1)
-    : outside
-      ? ladder.slice(0, 2)
-      : ladder.slice(nav.buildings > 1 ? 0 : 1)
+  )
+  /*
+   * Cut at the rung the camera is on, once it is outside the building: the
+   * rungs below a picker name where you were last, which is history rather than
+   * address. Inside the building the whole ladder shows, because getting out is
+   * the thing you need and there is no picker competing for the rail.
+   */
+  const cut = ladder.findIndex((r) => r.level === nav.at)
+  const crumbs = nav.at >= BUILDING && cut >= 0 ? ladder.slice(0, cut + 1) : ladder
 
   /*
    * **The door, said out loud.**
@@ -143,11 +158,13 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * about is not ready to be on screen.
    */
   const door =
-    onTheBlock && nav.selectedBuilding >= 0 && nav.selectedBuilding < nav.buildings
-      ? { text: `ENTER BUILDING ${buildingName(nav.selectedBuilding)}`, go: () => stage.enterBuilding(nav.selectedBuilding) }
-      : outside && nav.selected >= 0 && nav.selected < nav.storeys
-        ? { text: `ENTER FLOOR ${floorName(nav.selected)}`, go: () => stage.enterFloor(nav.selected) }
-        : null
+    onThePark && nav.selectedBlock >= 0 && nav.selectedBlock < nav.blocks
+      ? { text: `ENTER BLOCK ${blockName(nav.selectedBlock)}`, go: () => stage.enterBlock(nav.selectedBlock) }
+      : onTheBlock && nav.selectedBuilding >= 0 && nav.selectedBuilding < nav.buildings
+        ? { text: `ENTER BUILDING ${buildingName(nav.selectedBuilding)}`, go: () => stage.enterBuilding(nav.selectedBuilding) }
+        : outside && nav.selected >= 0 && nav.selected < nav.storeys
+          ? { text: `ENTER FLOOR ${floorName(nav.selected)}`, go: () => stage.enterFloor(nav.selected) }
+          : null
 
   return (
     <div className="hud__lift">
@@ -175,6 +192,38 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
         <button type="button" className="hud__enter" onClick={door.go}>
           {door.text}
         </button>
+      )}
+
+      {onThePark && nav.blocks > 1 && (
+        <ol className="hud__floors">
+          {/* Nearest parcel first, which is the block nearest the camera — the
+              list reads in the order the park does. */}
+          {nav.parkOccupancy
+            .map((devs, i) => ({ devs, i }))
+            .reverse()
+            .map(({ devs, i }) => {
+              const onThis = i === nav.block
+              const named = i === nav.selectedBlock
+              return (
+                <li key={i} ref={onThis ? here : null}>
+                  <button
+                    type="button"
+                    className={`hud__floor${onThis ? ' is-here' : ''}${named ? ' is-named' : ''}`}
+                    onClick={() => stage.enterBlock(i)}
+                  >
+                    <span className="hud__floor-no">{blockName(i)}</span>
+                    <span className="hud__floor-bar">
+                      <span
+                        className="hud__floor-fill"
+                        style={{ width: `${(devs / BLOCK_CAP) * 100}%` }}
+                      />
+                    </span>
+                    <span className="hud__floor-devs">{formatCount(devs)}</span>
+                  </button>
+                </li>
+              )
+            })}
+        </ol>
       )}
 
       {onTheBlock && nav.buildings > 1 && (

@@ -11,17 +11,21 @@ import {
 } from './lens.ts'
 import {
   BLOCK,
+  BLOCKS_PER_PARK,
   BUILDING,
   DESK,
   FLOOR,
   BUILDINGS_PER_BLOCK,
   FLOORS_PER_BUILDING,
   SQUAD,
+  seatOfBlock,
   fitScaleFor,
   floorFrame,
-  floorToBlock,
+  floorToPark,
   floorScaleAt,
   intoPlate,
+  PARK,
+  intoParcel,
   intoPlot,
   roomResolved,
 } from './frames.ts'
@@ -38,6 +42,24 @@ function settle(lens: Lens, seconds = 4): number {
     lens.update(dt, now)
   }
   return now
+}
+
+/**
+ * A hand on the wheel: `n` notches, a frame apart, then let go.
+ *
+ * Positive is *out*, the way a mouse wheel is: the browser sends `deltaY`
+ * away from the user and `stage.ts` turns it into a factor below one. 1.212
+ * is one notch of a real wheel — `exp(120 * 0.0016)`.
+ */
+function spin(lens: Lens, notches: number, per = 1.212, from = 1_000): number {
+  let now = from
+  for (let i = 0; i < Math.abs(notches); i++) {
+    lens.zoomBy(notches > 0 ? 1 / per : per, null, now)
+    lens.update(1 / 60, now)
+    now += 1000 / 60
+  }
+  lens.update(1 / 60, now + SETTLE_DELAY_MS + 20)
+  return settle(lens)
 }
 
 function make(storeys = FLOORS_PER_BUILDING, seat = 0): Lens {
@@ -211,6 +233,78 @@ describe('panning', () => {
   })
 })
 
+describe('the park, one rung further out', () => {
+  /** A studio of a million: ten full blocks, a hundred full buildings. */
+  const millions = (seat = 0) => {
+    const lens = new Lens(REFERENCE)
+    lens.setAddress(seat, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    lens.setCeiling(PARK)
+    lens.reframe(PARK, true)
+    settle(lens)
+    return lens
+  }
+
+  it('is reachable once the studio has earned it, and not before', () => {
+    const lens = millions()
+    expect(settleLevel(lens.level)).toBe(PARK)
+
+    // §7.7.1 — a studio with one block has no park to look at, and the ceiling
+    // is what says so. `maxZoomFor` returns rung 4 below a hundred thousand.
+    const smaller = new Lens(REFERENCE)
+    smaller.setAddress(0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    smaller.setCeiling(maxZoomFor(50_000) * 9)
+    smaller.reframe(PARK, true)
+    settle(smaller)
+    expect(settleLevel(smaller.level)).toBe(BLOCK)
+  })
+
+  it('walks the whole six-rung ladder on the wheel alone', () => {
+    // The row that matters most now that no tap changes the level: every rung
+    // has to be reachable by pinching, and the park added one to reach.
+    const lens = millions()
+    const seen = [settleLevel(lens.level)]
+    for (let i = 0; i < 5; i++) {
+      spin(lens, -4)
+      settle(lens)
+      seen.push(settleLevel(lens.level))
+    }
+    expect(seen).toEqual([PARK, BLOCK, BUILDING, FLOOR, SQUAD, DESK])
+  })
+
+  it('roams the block below it and the park above it', () => {
+    const args = [0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK] as const
+    expect(panBounds(BLOCK, ...args).w).toBeLessThan(panBounds(PARK, ...args).w)
+  })
+
+  it('does not slide around, because the park fits the frame', () => {
+    // `panRange`'s rule from the start, at the top of the ladder: every level is
+    // fitted to its subject by definition, so there is nowhere for a drag to go.
+    const lens = millions()
+    const before = { ...lens.centre }
+    lens.panBy(-400, -400, 20_000)
+    settle(lens)
+    expect(lens.centre.cx).toBeCloseTo(before.cx, 6)
+    expect(lens.centre.cy).toBeCloseTo(before.cy, 6)
+  })
+
+  it('follows the address into another block without changing how close in it is', () => {
+    // The same promise `setAddress` already made about storeys and buildings,
+    // one rung out: a new block moves the frames further than either, because
+    // every level below the park is authored inside a parcel.
+    const lens = millions()
+    lens.reframe(BLOCK)
+    settle(lens)
+    const scale = lens.scale
+    const before = { ...lens.centre }
+    lens.setAddress(seatOfBlock(7), FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    settle(lens)
+    expect(lens.scale).toBeCloseTo(scale, 4)
+    // And it *did* move — a parcel eight blocks along is a long way from parcel
+    // one, and a camera that stayed put would be framing somebody else's block.
+    expect(Math.hypot(lens.centre.cx - before.cx, lens.centre.cy - before.cy)).toBeGreaterThan(100)
+  })
+})
+
 describe('the address', () => {
   it('following a new storey keeps the camera at the same distance', () => {
     const lens = make()
@@ -275,7 +369,7 @@ describe('a gesture arrives where it was going', () => {
 
   it('stays on the ladder at both ends', () => {
     expect(settleTowards(-2, 0)).toBe(DESK)
-    expect(settleTowards(9, 4)).toBe(BLOCK)
+    expect(settleTowards(9, 4)).toBe(PARK)
   })
 
   it('falls back to nearest when nothing started the gesture', () => {
@@ -333,6 +427,8 @@ describe("§7.7.1's ceiling", () => {
    * minutes of a new game.
    */
   const GARAGE = { cx: 0, cy: -56.83, w: 729.76, h: 448.37 }
+  /** The garage where the camera actually sees it: plate, plot, parcel. */
+  const garageFrame = () => intoParcel(intoPlot(intoPlate(GARAGE, 0), 0), 0)
 
   /** A studio of one: the garage, one storey, and the ceiling it has earned. */
   function newGame(): Lens {
@@ -342,24 +438,6 @@ describe("§7.7.1's ceiling", () => {
     lens.setCeiling(maxZoomFor(1) * 9)
     lens.update(1 / 60, 0)
     return lens
-  }
-
-  /**
-   * A hand on the wheel: `n` notches, a frame apart, then let go.
-   *
-   * Positive is *out*, the way a mouse wheel is: the browser sends `deltaY`
-   * away from the user and `stage.ts` turns it into a factor below one. 1.212
-   * is one notch of a real wheel — `exp(120 * 0.0016)`.
-   */
-  function spin(lens: Lens, notches: number, per = 1.212, from = 1_000): number {
-    let now = from
-    for (let i = 0; i < Math.abs(notches); i++) {
-      lens.zoomBy(notches > 0 ? 1 / per : per, null, now)
-      lens.update(1 / 60, now)
-      now += 1000 / 60
-    }
-    lens.update(1 / 60, now + SETTLE_DELAY_MS + 20)
-    return settle(lens)
   }
 
   it('lets a new game zoom out and come back', () => {
@@ -391,7 +469,7 @@ describe("§7.7.1's ceiling", () => {
     expect(scales[FLOOR]).toBeGreaterThanOrEqual(scales[BUILDING])
     // And the outermost rung the player may reach frames the room they are
     // sitting in — which is what the garage rectangle was for.
-    expect(scales[SQUAD]).toBeCloseTo(fitScaleFor(intoPlot(intoPlate(GARAGE, 0), 0), REFERENCE), 5)
+    expect(scales[SQUAD]).toBeCloseTo(fitScaleFor(garageFrame(), REFERENCE), 5)
   })
 
   it('stops the zoom at the ceiling instead of past it', () => {
@@ -490,7 +568,7 @@ describe("§7.7.1's ceiling", () => {
     // 10x10 block, the camera would sit at the garage's scale looking at the
     // middle of a block the garage is one corner of.
     const lens = newGame()
-    const room = intoPlot(intoPlate(GARAGE, 0), 0)
+    const room = garageFrame()
     expect(lens.frameOf(SQUAD)).toEqual(room)
     expect(lens.frameOf(FLOOR)).toEqual(room)
     // The desk is genuinely inside the garage and keeps its own frame.
@@ -512,7 +590,7 @@ describe("§7.7.1's ceiling", () => {
     lens.flyTo(DESK, founder)
     settle(lens)
     const aimed = lens.centre
-    expect(aimed.cx).toBeCloseTo(floorToBlock(founder, 0, 0).x, 3)
+    expect(aimed.cx).toBeCloseTo(floorToPark(founder, 0, 0, 0).x, 3)
 
     // The frames move: the garage grows, and the canvas is laid out again.
     lens.setFloorRect({ ...GARAGE, w: GARAGE.w * 1.2, h: GARAGE.h * 1.2 })
@@ -537,6 +615,6 @@ describe('settleLevel', () => {
     expect(settleLevel(2.4)).toBe(FLOOR)
     expect(settleLevel(2.6)).toBe(BUILDING)
     expect(settleLevel(-4)).toBe(DESK)
-    expect(settleLevel(99)).toBe(BLOCK)
+    expect(settleLevel(99)).toBe(PARK)
   })
 })
