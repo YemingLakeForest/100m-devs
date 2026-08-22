@@ -1025,13 +1025,7 @@ export function standingBox(blocks: number): LatticeBox {
  * street plane already does one rung down.
  */
 export function boardBox(): LatticeBox {
-  const all = standingBox(BLOCKS_PER_PARK)
-  return {
-    u0: all.u0 - BOARD_MARGIN_U,
-    u1: all.u1 + BOARD_MARGIN_U,
-    v0: all.v0 - BOARD_MARGIN_V,
-    v1: all.v1 + BOARD_MARGIN_V,
-  }
+  return islandBox(BLOCKS_PER_PARK)
 }
 
 /**
@@ -1208,6 +1202,322 @@ export function pinRows(compound: number, blocks: number): Pin[] {
   ]
 }
 
+/**
+ * The island - the ground, and the shape of it.
+ *
+ * **[rewritten 2026-08-22]** It was a rectangle, because a rectangle is what a
+ * board is. Asked for *"spread out irregular like a city... the feel of an
+ * electronic circuit, but it's still a city"*, and a rectangle is the one shape
+ * that cannot be either: a city is not rectangular and a board that big is a
+ * substrate rather than a part.
+ *
+ * So the ground is no longer authored at all. It is the **union of what stands
+ * on it** - a green margin around each district, a corridor along each street,
+ * an apron around each plant - rasterised onto a half-stride grid and outlined
+ * as a staircase. Three consequences, and the first two are the rules this
+ * level keeps getting taught:
+ *
+ * - It is cut to its contents *by construction*. The rule of §7.8.2a stops
+ *   being something a test has to check and becomes something the code cannot
+ *   express the violation of.
+ * - It grows as the studio does, lobe by lobe, so at three hundred thousand it
+ *   is a small town and at a million it is a city with districts and isthmuses.
+ * - Its edge is irregular but never off-lattice. Every step is a half stride,
+ *   so the coastline reads as hand-placed and stays exactly as crisp as the
+ *   towers standing on it.
+ */
+const ISLAND_CELL = 0.5
+/**
+ * How much green each district keeps around it - **one per compound, and they
+ * differ on purpose.**
+ *
+ * A single apron makes the island four lobes of the same shape joined by
+ * isthmuses, which is a diagram of a city rather than one. Different aprons
+ * give the coastline a reason to be different in each quarter, and it costs
+ * nothing but four numbers because the ground is derived from them.
+ */
+const DISTRICT_APRON = [2.7, 1.5, 2.2, 3.1]
+/** How wide the corridor along a street is. */
+const STREET_APRON = 1.7
+/** How much apron a plant keeps. */
+const PLANT_APRON = 1.4
+
+/** Every rectangle the island is the union of, at this block count. */
+function islandParts(blocks: number): LatticeBox[] {
+  const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  const out: LatticeBox[] = []
+  const grow = (b: LatticeBox, m: number) => ({ u0: b.u0 - m, u1: b.u1 + m, v0: b.v0 - m, v1: b.v1 + m })
+  for (let i = 0; i < COMPOUNDS.length; i++) {
+    const box = packageBox(i, n)
+    if (box) out.push(grow(box, DISTRICT_APRON[i % DISTRICT_APRON.length]))
+  }
+  for (const it of plantFor(n)) out.push(grow(plantBox(it), PLANT_APRON))
+  for (const r of busRuns(n)) {
+    out.push({
+      u0: Math.min(r.a.u, r.b.u) - STREET_APRON,
+      u1: Math.max(r.a.u, r.b.u) + STREET_APRON,
+      v0: Math.min(r.a.v, r.b.v) - STREET_APRON,
+      v1: Math.max(r.a.v, r.b.v) + STREET_APRON,
+    })
+  }
+  // The ground runs under the water, so the canal has banks rather than a
+  // coastline on both sides of it.
+  for (const w of CANAL) out.push(grow(w, 1.5))
+  return out
+}
+
+interface IslandGrid {
+  u0: number
+  v0: number
+  cols: number
+  rows: number
+  inside: boolean[]
+}
+
+function islandGrid(blocks: number): IslandGrid {
+  const parts = islandParts(blocks)
+  const u0 = Math.floor(Math.min(...parts.map((b) => b.u0)) / ISLAND_CELL) * ISLAND_CELL
+  const u1 = Math.ceil(Math.max(...parts.map((b) => b.u1)) / ISLAND_CELL) * ISLAND_CELL
+  const v0 = Math.floor(Math.min(...parts.map((b) => b.v0)) / ISLAND_CELL) * ISLAND_CELL
+  const v1 = Math.ceil(Math.max(...parts.map((b) => b.v1)) / ISLAND_CELL) * ISLAND_CELL
+  const cols = Math.round((u1 - u0) / ISLAND_CELL)
+  const rows = Math.round((v1 - v0) / ISLAND_CELL)
+  const inside = new Array<boolean>(cols * rows).fill(false)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const u = u0 + (c + 0.5) * ISLAND_CELL
+      const v = v0 + (r + 0.5) * ISLAND_CELL
+      inside[r * cols + c] = parts.some((b) => u >= b.u0 && u <= b.u1 && v >= b.v0 && v <= b.v1)
+    }
+  }
+  return { u0, v0, cols, rows, inside }
+}
+
+/** Is this lattice point on the island? */
+export function onIsland(u: number, v: number, blocks: number): boolean {
+  return islandParts(blocks).some((b) => u >= b.u0 && u <= b.u1 && v >= b.v0 && v <= b.v1)
+}
+
+/** One edge of the island's coastline, and which way is off it. */
+export interface Coast {
+  readonly a: { u: number; v: number }
+  readonly b: { u: number; v: number }
+  /** The outward normal, one of the four lattice directions. */
+  readonly nu: number
+  readonly nv: number
+}
+
+/**
+ * The coastline, as half-stride steps.
+ *
+ * Every cell edge with land on one side and water on the other, carrying the
+ * direction that is *off* the island - which is all the drawing needs, because
+ * in a 2:1 projection an edge facing `+u` or `+v` is one the camera sees the
+ * side of and every other edge is a back edge.
+ */
+export function coastline(blocks: number): Coast[] {
+  const g = islandGrid(blocks)
+  const at = (c: number, r: number) =>
+    c >= 0 && c < g.cols && r >= 0 && r < g.rows && g.inside[r * g.cols + c]
+  const k = ISLAND_CELL
+  const out: Coast[] = []
+
+  /*
+   * **Collinear runs, merged.** One `Coast` per half-stride cell edge is two
+   * hundred strokes and two hundred quads for a city this size, and it took the
+   * frame from 61 to 30 — a `Graphics` costs what is *in* it every frame, not
+   * only when it is built. Merging runs takes the same coastline down to about
+   * thirty pieces and changes nothing about its shape.
+   */
+  const runRow = (fixed: number, nu: number, nv: number, hits: number[]) => {
+    hits.sort((x, y) => x - y)
+    let i = 0
+    while (i < hits.length) {
+      let j = i
+      while (j + 1 < hits.length && Math.abs(hits[j + 1] - hits[j] - k) < 1e-9) j++
+      const lo = hits[i]
+      const hi = hits[j] + k
+      out.push(
+        nv === 0
+          ? { a: { u: fixed, v: lo }, b: { u: fixed, v: hi }, nu, nv }
+          : { a: { u: lo, v: fixed }, b: { u: hi, v: fixed }, nu, nv },
+      )
+      i = j + 1
+    }
+  }
+
+  for (let c = 0; c < g.cols; c++) {
+    const left: number[] = []
+    const right: number[] = []
+    for (let r = 0; r < g.rows; r++) {
+      if (!at(c, r)) continue
+      if (!at(c - 1, r)) left.push(g.v0 + r * k)
+      if (!at(c + 1, r)) right.push(g.v0 + r * k)
+    }
+    runRow(g.u0 + c * k, -1, 0, left)
+    runRow(g.u0 + (c + 1) * k, 1, 0, right)
+  }
+  for (let r = 0; r < g.rows; r++) {
+    const far: number[] = []
+    const near: number[] = []
+    for (let c = 0; c < g.cols; c++) {
+      if (!at(c, r)) continue
+      if (!at(c, r - 1)) far.push(g.u0 + c * k)
+      if (!at(c, r + 1)) near.push(g.u0 + c * k)
+    }
+    runRow(g.v0 + r * k, 0, -1, far)
+    runRow(g.v0 + (r + 1) * k, 0, 1, near)
+  }
+  return out
+}
+
+/** Every land cell, as a lattice box — what the ground is filled from. */
+export function islandCells(blocks: number): LatticeBox[] {
+  const g = islandGrid(blocks)
+  const out: LatticeBox[] = []
+  const k = ISLAND_CELL
+  for (let r = 0; r < g.rows; r++) {
+    // Runs of land along u, so a row of forty cells is one quad and not forty.
+    let c = 0
+    while (c < g.cols) {
+      if (!g.inside[r * g.cols + c]) {
+        c++
+        continue
+      }
+      let e = c
+      while (e < g.cols && g.inside[r * g.cols + e]) e++
+      out.push({
+        u0: g.u0 + c * k,
+        u1: g.u0 + e * k,
+        v0: g.v0 + r * k,
+        v1: g.v0 + (r + 1) * k,
+      })
+      c = e
+    }
+  }
+  return out
+}
+
+/**
+ * The canal - lattice rectangles, chained into a waterway.
+ *
+ * Authored rather than derived, because a river is the one thing in the
+ * composition that is *not* a consequence of the studio's shape: it was there
+ * before the city and the city was built round it. It runs down the long
+ * diagonal of the island, turns once, and leaves - which is what stops the
+ * four districts reading as four of the same thing.
+ */
+const CANAL: ReadonlyArray<LatticeBox> = [
+  // Along the near shore, the width of the city.
+  { u0: -3.4, u1: 19.15, v0: 13.9, v1: 15.1 },
+  // And a branch up the one gap the districts leave: U3 ends at u 18.12 and U4
+  // starts at 19.40, so 1.28 strides of water fit between them and nowhere else.
+  { u0: 18.4, u1: 19.15, v0: 8.6, v1: 15.1 },
+]
+
+/** The canal, clipped to what has been built. */
+export function canalRuns(blocks: number): LatticeBox[] {
+  const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  const box = standingBox(n)
+  const out: LatticeBox[] = []
+  for (const seg of CANAL) {
+    // Clipped to what the studio has actually built, so the river arrives with
+    // the districts it runs past rather than lying across empty ground.
+    const clipped = {
+      u0: Math.max(seg.u0, box.u0 - 3.6),
+      u1: Math.min(seg.u1, box.u1 + 3.6),
+      v0: Math.max(seg.v0, box.v0 - 3.6),
+      v1: Math.min(seg.v1, box.v1 + 3.6),
+    }
+    if (clipped.u1 - clipped.u0 > 0.4 && clipped.v1 - clipped.v0 > 0.4) out.push(clipped)
+  }
+  return out
+}
+
+/** One planted spot: where, and how big. */
+export interface Tree {
+  readonly u: number
+  readonly v: number
+  readonly r: number
+  /** Standing on a district's podium rather than on the ground. */
+  readonly raised: boolean
+}
+
+/**
+ * Where the trees go.
+ *
+ * On the island, off the streets, off the water, off the decks - and placed
+ * from a hash of the lattice cell rather than from a random, so the wood you
+ * left is the wood you come back to. §26.2.2's rule about the address, applied
+ * to scenery: **variation is a function of position, never of a call order.**
+ */
+export function treeSpots(blocks: number): Tree[] {
+  const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  const box = islandBox(n)
+  const runs = busRuns(n)
+  const canal = canalRuns(n)
+  const out: Tree[] = []
+  const step = 0.78
+  const hash = (a: number, b: number) => {
+    let h = Math.imul(a * 73856093 ^ b * 19349663, 0x45d9f3b) >>> 0
+    h ^= h >>> 15
+    return (h >>> 0) / 0xffffffff
+  }
+  for (let u = Math.ceil(box.u0 / step) * step; u < box.u1; u += step) {
+    for (let v = Math.ceil(box.v0 / step) * step; v < box.v1; v += step) {
+      const gu = Math.round(u / step)
+      const gv = Math.round(v / step)
+      const r = hash(gu, gv)
+      if (r > 0.30) continue
+      if (!onIsland(u, v, n)) continue
+      /*
+       * **A tree may stand on a podium; it may not stand in a lobby.** Blocking
+       * whole districts kept every tree outside the city and made the green
+       * read as a ring around it rather than as part of it. Decks and plant are
+       * still off limits — that is somebody's building — but the margin of a
+       * package is planting, and a tree there is drawn a lip higher.
+       */
+      let blocked = false
+      let raised = false
+      for (let i = 0; i < COMPOUNDS.length && !blocked; i++) {
+        const b = packageBox(i, n)
+        if (b && u > b.u0 && u < b.u1 && v > b.v0 && v < b.v1) raised = true
+      }
+      for (let b = 0; b < n && !blocked; b++) {
+        const d = deckBox(b)
+        if (u > d.u0 - 0.3 && u < d.u1 + 0.3 && v > d.v0 - 0.3 && v < d.v1 + 0.3) blocked = true
+      }
+      for (const it of plantFor(n)) {
+        const b = plantBox(it)
+        if (u > b.u0 - 0.4 && u < b.u1 + 0.4 && v > b.v0 - 0.4 && v < b.v1 + 0.4) blocked = true
+      }
+      for (const w of canal) {
+        if (u > w.u0 - 0.5 && u < w.u1 + 0.5 && v > w.v0 - 0.5 && v < w.v1 + 0.5) blocked = true
+      }
+      for (const run of runs) {
+        const du = Math.max(Math.min(run.a.u, run.b.u) - u, 0, u - Math.max(run.a.u, run.b.u))
+        const dv = Math.max(Math.min(run.a.v, run.b.v) - v, 0, v - Math.max(run.a.v, run.b.v))
+        // Close enough to line a street, far enough not to stand in it.
+        if (Math.hypot(du, dv) < 0.55) blocked = true
+      }
+      if (blocked) continue
+      out.push({ u, v, r: 0.26 + hash(gv, gu) * 0.2, raised })
+    }
+  }
+  return out
+}
+
+/** The island's bounding box. */
+function islandBox(blocks: number): LatticeBox {
+  const parts = islandParts(blocks)
+  return {
+    u0: Math.min(...parts.map((b) => b.u0)),
+    u1: Math.max(...parts.map((b) => b.u1)),
+    v0: Math.min(...parts.map((b) => b.v0)),
+    v1: Math.max(...parts.map((b) => b.v1)),
+  }
+}
+
 /** The part of the board the camera frames - what is built, plus its margin. */
 export function parkBox(blocks: number): LatticeBox {
   const live = standingBox(blocks)
@@ -1217,6 +1527,11 @@ export function parkBox(blocks: number): LatticeBox {
     v0: live.v0 - BOARD_MARGIN_V,
     v1: live.v1 + BOARD_MARGIN_V,
   }
+}
+
+/** The island's own extent at this block count — what the frame has to span. */
+export function shoreBox(blocks: number): LatticeBox {
+  return islandBox(blocks)
 }
 
 /**
@@ -1337,7 +1652,7 @@ export function parkFrame(blocks: number, storeys: number, buildings: number): R
   for (let i = 0; i < n; i++) take(intoParcel(cell, i))
   // ...the board under them, out to its margin, so the composition has an edge
   // in the frame rather than running off one...
-  take(latticeRect(parkBox(n)))
+  take(latticeRect(shoreBox(n)))
   // ...and the plant, which is the half of this the second draft forgot and
   // which is how a cooling plant ended up hanging off the near edge.
   for (const it of plantFor(n)) take(latticeRect(plantBox(it)))

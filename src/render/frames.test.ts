@@ -21,6 +21,7 @@ import {
   blockAtPark,
   blockCell,
   boardBox,
+  shoreBox,
   busRuns,
   PIN_CLEARANCE,
   pinRows,
@@ -36,7 +37,6 @@ import {
   deckBox,
   latticeRect,
   packageBox,
-  parkBox,
   parkFrame,
   plantBox,
   plantFor,
@@ -751,15 +751,23 @@ describe('the park', () => {
      * frame has to grow with the headcount or the first two blocks are drawn at
      * the scale a million people need.
      */
+    /*
+     * **[rewritten 2026-08-22]** The ground is no longer a rectangle laid once
+     * — it is the island, derived from what stands on it, so it *does* grow.
+     * What is asserted is that it grows monotonically and arrives at the whole
+     * board when the studio does.
+     */
     const board = boardBox()
-    const two = parkBox(2)
-    const ten = parkBox(BLOCKS_PER_PARK)
-    expect(two.u1 - two.u0).toBeLessThan(ten.u1 - ten.u0)
+    const two = shoreBox(2)
+    const six = shoreBox(6)
+    const ten = shoreBox(BLOCKS_PER_PARK)
+    expect(two.u1 - two.u0).toBeLessThan(six.u1 - six.u0)
+    expect(six.u1 - six.u0).toBeLessThanOrEqual(ten.u1 - ten.u0)
     expect(ten.u1 - ten.u0).toBeCloseTo(board.u1 - board.u0, 6)
     expect(ten.v1 - ten.v0).toBeCloseTo(board.v1 - board.v0, 6)
 
-    // And the frame spans the board's margin rather than stopping at the decks,
-    // so the composition has an edge in shot instead of running off one.
+    // And the frame spans the shore rather than stopping at the decks, so the
+    // composition has a coastline in shot instead of running off one.
     const frame = parkFrame(BLOCKS_PER_PARK, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK)
     const ground = latticeRect(ten)
     expect(frame.cx - frame.w / 2).toBeLessThanOrEqual(ground.cx - ground.w / 2 + 1e-6)

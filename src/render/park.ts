@@ -87,10 +87,13 @@ import {
   type Plant,
   blocksFor,
   busRuns,
+  canalRuns,
+  coastline,
+  islandCells,
+  treeSpots,
   pinRows,
   plantBox,
   plantFor,
-  boardBox,
   deckBox,
   latticeCorners,
   packageBox,
@@ -177,11 +180,13 @@ export function buildPark(): ParkHandle {
   const root = new Container()
   /** The board and its silkscreen — under everything. */
   const board = new Graphics()
+  /** The canal and the planting — cut into the ground, under everything. */
+  const water = new Graphics()
   /** The bus, which lies on the board and is occluded by what stands on it. */
   const wiring = new Graphics()
   /** Packages, decks, plant, pads — the things that stand. */
   const marks = new Graphics()
-  root.addChild(board, wiring, marks)
+  root.addChild(board, water, wiring, marks)
 
   /** One container per parcel, in drawing order: furthest first. */
   const parcels: Container[] = []
@@ -222,56 +227,90 @@ export function buildPark(): ParkHandle {
 
   function redrawBoard() {
     board.clear()
-    const box = boardBox()
-    const q = latticeCorners(box)
-    // NEUTRAL[1] and never NEUTRAL[0] — the app's background *is* NEUTRAL[0], so
-    // a ground plane painted in it is a hole with the park hanging over it.
-    faceDown(board, q[DECK_LEFT], q[DECK_NEAR], BOARD_DROP, RAMPS.NEUTRAL[0])
-    faceDown(board, q[DECK_NEAR], q[DECK_RIGHT], BOARD_DROP, RAMPS.NEUTRAL[0])
-    polygon(board, q)
-    board.fill(c(RAMPS.NEUTRAL[1]))
-    // A shade over the whole board, so the three ground values are still three
-    // after §6's bloom has lifted every one of them toward white. Without it the
-    // board, the packages and the decks arrive on screen as one flat sheet —
-    // which is what the mat looked like, in different geometry.
-    polygon(board, q)
-    board.fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.45 })
-    board
-      .moveTo(q[DECK_LEFT].x, q[DECK_LEFT].y)
-      .lineTo(q[DECK_NEAR].x, q[DECK_NEAR].y)
-      .lineTo(q[DECK_RIGHT].x, q[DECK_RIGHT].y)
-      .stroke({ width: 2.6, color: c(RAMPS.NEUTRAL[3]), alpha: 0.85 })
-    polygon(board, q)
-    board.stroke({ width: 1.6, color: c(RAMPS.NEUTRAL[2]), alpha: 0.7 })
 
     /*
-     * Silkscreen: the lattice, made faintly visible. It is the one thing on the
-     * board that says the whole composition is on a grid — without it the
-     * packages read as objects floating on a plane rather than as parts placed
-     * on one.
+     * **The island, not a rectangle.** The ground is the union of what stands
+     * on it — a green margin round each district, a corridor along each street,
+     * an apron round each plant — and `frames.ts` hands it over as half-stride
+     * land cells plus the coastline between land and nothing.
+     *
+     * Filled as runs of cells rather than as one polygon, which costs a few
+     * more quads and buys the thing a polygon could not: the shape is *derived*
+     * every time the studio grows, so a city of three districts is a town and a
+     * city of four is a city, without a coastline anybody has to redraw.
      */
-    for (let u = Math.ceil(box.u0); u <= box.u1; u += 2) {
-      const a = parkLatticeAt(u, box.v0)
-      const b = parkLatticeAt(u, box.v1)
-      board.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: c(RAMPS.NEUTRAL[2]), alpha: 0.5 })
-    }
-    for (let v = Math.ceil(box.v0); v <= box.v1; v += 2) {
-      const a = parkLatticeAt(box.u0, v)
-      const b = parkLatticeAt(box.u1, v)
-      board.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: c(RAMPS.NEUTRAL[2]), alpha: 0.5 })
+    // One pass, at the alpha the two-pass version worked out to: the shade was
+    // a second quad per cell and the frame was already paying for the first.
+    for (const cell of islandCells(built)) {
+      polygon(board, latticeCorners(cell))
+      board.fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.72 })
     }
 
-    // Mounting holes, one per corner — the detail that makes it a board rather
-    // than a rectangle of ground.
-    for (const [u, v] of [
-      [box.u0 + 1.6, box.v0 + 1.6],
-      [box.u1 - 1.6, box.v0 + 1.6],
-      [box.u1 - 1.6, box.v1 - 1.6],
-      [box.u0 + 1.6, box.v1 - 1.6],
-    ]) {
-      const at = parkLatticeAt(u, v)
-      board.ellipse(at.x, at.y, 0.95 * S, 0.48 * S).fill(c(RAMPS.NEUTRAL[2]))
-      board.ellipse(at.x, at.y, 0.52 * S, 0.26 * S).fill(c(RAMPS.NEUTRAL[0]))
+    /*
+     * The shore. In a 2:1 projection an edge whose outward normal is `+u` or
+     * `+v` is one the camera sees the side of; every other edge is a back edge
+     * and gets a rule rather than a face. That single test is the whole of what
+     * turns a staircase of cells into a slab with a coast.
+     */
+    for (const e of coastline(built)) {
+      const a = parkLatticeAt(e.a.u, e.a.v)
+      const b = parkLatticeAt(e.b.u, e.b.v)
+      if (e.nu > 0 || e.nv > 0) {
+        faceDown(board, a, b, BOARD_DROP, RAMPS.NEUTRAL[0])
+        board
+          .moveTo(a.x, a.y)
+          .lineTo(b.x, b.y)
+          .stroke({ width: 2.6, color: c(RAMPS.NEUTRAL[3]), alpha: 0.9 })
+      } else {
+        board
+          .moveTo(a.x, a.y)
+          .lineTo(b.x, b.y)
+          .stroke({ width: 1.6, color: c(RAMPS.NEUTRAL[2]), alpha: 0.75 })
+      }
+    }
+  }
+
+  /* ---- water, and the green ------------------------------------------------ */
+
+  /**
+   * The canal, and the trees.
+   *
+   * A city drawn only in neutrals is a diagram of a city. These are the two
+   * things that make it a place, and both are palette-legal for the reason
+   * ART_DIRECTION §2.1a turned the green board down: `FOLIAGE` is *"plants, the
+   * one green thing in the office"*, and a tree is a plant. The ramp is doing
+   * its stated job here, which is exactly what it was not doing as a substrate.
+   *
+   * Water is `GLOW`, the screen-glow ramp — a cool blue that already exists in
+   * the world layer and reads as water at any size.
+   */
+  function redrawWater() {
+    water.clear()
+    for (const seg of canalRuns(built)) {
+      const q = latticeCorners(seg)
+      // The channel, cut into the ground: a dark face on the near edges and a
+      // lit surface, which is the same slab grammar as everything else, upside
+      // down.
+      polygon(water, q)
+      water.fill(c(RAMPS.GLOW[0]))
+      water
+        .moveTo(q[DECK_FAR].x, q[DECK_FAR].y)
+        .lineTo(q[DECK_RIGHT].x, q[DECK_RIGHT].y)
+        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[0]), alpha: 0.85 })
+      water
+        .moveTo(q[DECK_LEFT].x, q[DECK_LEFT].y)
+        .lineTo(q[DECK_NEAR].x, q[DECK_NEAR].y)
+        .lineTo(q[DECK_RIGHT].x, q[DECK_RIGHT].y)
+        .stroke({ width: 1.6, color: c(RAMPS.GLOW[1]), alpha: 0.7 })
+    }
+
+    for (const t of treeSpots(built)) {
+      const at = parkLatticeAt(t.u, t.v)
+      // A tree on a district's podium stands a lip higher than one on the ground.
+      if (t.raised) at.y -= PACKAGE_LIP
+      const r = t.r * S
+      water.ellipse(at.x, at.y, r, r * 0.62).fill(c(RAMPS.FOLIAGE[0]))
+      water.ellipse(at.x - r * 0.2, at.y - r * 0.22, r * 0.62, r * 0.4).fill(c(RAMPS.FOLIAGE[1]))
     }
   }
 
@@ -525,6 +564,7 @@ export function buildPark(): ParkHandle {
 
   function applyChrome() {
     board.alpha = chrome
+    water.alpha = chrome
     wiring.alpha = chrome
     marks.alpha = chrome
     for (let i = 0; i < BLOCKS_PER_PARK; i++) {
@@ -540,6 +580,7 @@ export function buildPark(): ParkHandle {
 
   function redrawAll() {
     redrawBoard()
+    redrawWater()
     redrawWiring()
     redrawMarks()
     applyVisibility()
