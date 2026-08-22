@@ -83,9 +83,11 @@ import {
   PARK_SCALE,
   PLOT_STRIDE_X,
   type LatticeBox,
+  type Pin,
   type Plant,
   blocksFor,
   busRuns,
+  pinRows,
   plantBox,
   plantFor,
   boardBox,
@@ -311,9 +313,21 @@ export function buildPark(): ParkHandle {
         const at = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
         const r = rnd()
         if (r > 0.62) {
-          // A hop: the symbol for one run passing over another.
+          /*
+           * A hop: the symbol for one run passing over another.
+           *
+           * **The `moveTo` is the whole of this fix.** `arc` is a *path*
+           * method, and on a non-empty path it draws a line from wherever the
+           * pen was left to the arc's start — which here is the far end of the
+           * polyline that was just stroked. Every hop therefore fired a spike
+           * back across the drawing, and a run with three hops on it grew a
+           * starburst. Reported as *"the lines are still cross and diagonal"*,
+           * and the lines were straight: the spikes were not lines at all.
+           */
           const ang = Math.atan2(b.y - a.y, b.x - a.x)
-          g.arc(at.x, at.y, w * 2.1, ang + Math.PI, ang)
+          const rad = w * 2.1
+          g.moveTo(at.x + Math.cos(ang + Math.PI) * rad, at.y + Math.sin(ang + Math.PI) * rad)
+          g.arc(at.x, at.y, rad, ang + Math.PI, ang)
           g.stroke({ width: w, color: c(RAMPS.GLOW[1]), alpha: 0.95, cap: 'butt' })
         } else if (r > 0.34) {
           // A bulge: a part sitting inline on the run.
@@ -396,6 +410,17 @@ export function buildPark(): ParkHandle {
     }
   }
 
+  /** One pin — a segment out of the package and the pad it lands on. */
+  function drawPin(g: Graphics, pin: Pin, front: boolean) {
+    const lift = front ? PACKAGE_LIP * 0.6 : 0
+    const a = parkLatticeAt(pin.a.u, pin.a.v)
+    const b = parkLatticeAt(pin.b.u, pin.b.v)
+    g.moveTo(a.x, a.y + lift)
+      .lineTo(b.x, b.y + lift)
+      .stroke({ width: 0.11 * S, color: c(RAMPS.NEUTRAL[5]), alpha: 0.95 })
+    g.ellipse(b.x, b.y + lift, 0.2 * S, 0.1 * S).fill(c(RAMPS.NEUTRAL[4]))
+  }
+
   /* ---- packages, pads and decks ------------------------------------------- */
 
   function redrawMarks() {
@@ -414,29 +439,18 @@ export function buildPark(): ParkHandle {
     for (let i = 0; i < COMPOUNDS.length; i++) {
       const box = packageBox(i, built)
       if (!box) continue
+      // Behind the package, so the slab covers where they emerge from under it.
+      for (const pin of pinRows(i, built).filter((q) => !q.front)) drawPin(marks, pin, false)
       slab(marks, box, PACKAGE_LIP, RAMPS.NEUTRAL[2], RAMPS.NEUTRAL[4])
 
       /*
        * **Pin rows.** The one detail that says *component* rather than *plot of
-       * land*, and in 2:1 iso it is a segment and a pad per pin. They run out of
-       * the two faces pointing at the camera, along the lattice, so they lean
-       * the way everything else does.
+       * land*, and in 2:1 iso it is a segment and a pad per pin. `frames.ts`
+       * places them and moves a crowded row to the opposite edge; a back-edge
+       * row lies on the board and was drawn before the slab above, so only the
+       * front rows are left to draw here, lifted against the package's face.
        */
-      const step = (span: number) => span / Math.max(3, Math.round(span / 1.15))
-      const pin = (u: number, v: number, du: number, dv: number) => {
-        const a = parkLatticeAt(u, v)
-        const b = parkLatticeAt(u + du, v + dv)
-        const lift = PACKAGE_LIP * 0.6
-        marks
-          .moveTo(a.x, a.y + lift)
-          .lineTo(b.x, b.y + lift)
-          .stroke({ width: 0.11 * S, color: c(RAMPS.NEUTRAL[5]), alpha: 0.95 })
-        marks.ellipse(b.x, b.y + lift, 0.2 * S, 0.1 * S).fill(c(RAMPS.NEUTRAL[4]))
-      }
-      const su = step(box.u1 - box.u0)
-      const sv = step(box.v1 - box.v0)
-      for (let v = box.v0 + sv / 2; v < box.v1; v += sv) pin(box.u0, v, -0.5, 0)
-      for (let u = box.u0 + su / 2; u < box.u1; u += su) pin(u, box.v1, 0, 0.5)
+      for (const pin of pinRows(i, built).filter((q) => q.front)) drawPin(marks, pin, true)
     }
 
     for (const it of plantFor(built)) drawPlant(marks, it)

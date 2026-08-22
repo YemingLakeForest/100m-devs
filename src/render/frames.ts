@@ -1123,6 +1123,91 @@ export function busRuns(blocks: number): BusRun[] {
   return out
 }
 
+/**
+ * How far a pin reaches out of the package it belongs to, in plot strides, and
+ * how much room it must leave the bus.
+ *
+ * At half a stride a pin came within 0.16 of the run in the channel it points
+ * into - four pixels at 1280 - so a row of them read as a ladder laid across
+ * the line. Reported, with the arc artefact above it, as *"the lines are still
+ * cross and diagonal"*: the bus was straight and something else was crossing it.
+ */
+export const PIN_REACH = 0.3
+export const PIN_CLEARANCE = 0.45
+
+/**
+ * One pin, in lattice coordinates: out of `a`, ending at `b`.
+ *
+ * `front` is whether it leaves by an edge the camera can see the side of, which
+ * is the only thing the drawing needs to know: a front pin is lifted against
+ * the package's own face and drawn after it, a back pin lies on the board and
+ * is drawn before it.
+ */
+export interface Pin {
+  readonly a: { u: number; v: number }
+  readonly b: { u: number; v: number }
+  readonly front: boolean
+}
+
+/** Distance from a lattice point to an axis-aligned lattice segment. */
+function distToRun(u: number, v: number, r: BusRun): number {
+  const du = Math.max(Math.min(r.a.u, r.b.u) - u, 0, u - Math.max(r.a.u, r.b.u))
+  const dv = Math.max(Math.min(r.a.v, r.b.v) - v, 0, v - Math.max(r.a.v, r.b.v))
+  return Math.hypot(du, dv)
+}
+
+/**
+ * A compound's pin row - the detail that says *component* rather than *plot of
+ * land*, along two of its four edges.
+ *
+ * **A crowded edge moves to the opposite side rather than losing its pins.**
+ * Dropping the individual pins that would reach into the bus was the first
+ * answer and it was measured before it shipped: U1 lost its whole near row and
+ * **U2 lost every pin it had**, because both of its camera-facing edges face a
+ * bus line. A package with no pins is not a component any more.
+ *
+ * So an edge is used whole or not at all: if any pin on it would come within
+ * {@link PIN_CLEARANCE} of a run, the row goes to the edge opposite. The back
+ * edges are always clear here, and a pin emerging from behind a slab reads
+ * perfectly well - it is the same object seen from its other side.
+ */
+export function pinRows(compound: number, blocks: number): Pin[] {
+  const box = packageBox(compound, blocks)
+  if (!box) return []
+  const runs = busRuns(blocks)
+  const step = (span: number) => span / Math.max(3, Math.round(span / 1.15))
+  const su = step(box.u1 - box.u0)
+  const sv = step(box.v1 - box.v0)
+
+  const row = (
+    along: 'u' | 'v',
+    edge: number,
+    dir: number,
+    front: boolean,
+  ): Pin[] | null => {
+    const out: Pin[] = []
+    if (along === 'v') {
+      for (let v = box.v0 + sv / 2; v < box.v1; v += sv) {
+        const tip = { u: edge + dir * PIN_REACH, v }
+        if (runs.some((r) => distToRun(tip.u, tip.v, r) < PIN_CLEARANCE)) return null
+        out.push({ a: { u: edge, v }, b: tip, front })
+      }
+    } else {
+      for (let u = box.u0 + su / 2; u < box.u1; u += su) {
+        const tip = { u, v: edge + dir * PIN_REACH }
+        if (runs.some((r) => distToRun(tip.u, tip.v, r) < PIN_CLEARANCE)) return null
+        out.push({ a: { u, v: edge }, b: tip, front })
+      }
+    }
+    return out
+  }
+
+  return [
+    ...(row('v', box.u0, -1, true) ?? row('v', box.u1, +1, false) ?? []),
+    ...(row('u', box.v1, +1, true) ?? row('u', box.v0, -1, false) ?? []),
+  ]
+}
+
 /** The part of the board the camera frames - what is built, plus its margin. */
 export function parkBox(blocks: number): LatticeBox {
   const live = standingBox(blocks)

@@ -22,6 +22,8 @@ import {
   blockCell,
   boardBox,
   busRuns,
+  PIN_CLEARANCE,
+  pinRows,
   blockOf,
   blocksFor,
   buildingAt,
@@ -695,6 +697,50 @@ describe('the park', () => {
       )
       expect(touches, 'a compound or plant is not on the bus').toBe(true)
     }
+  })
+
+  it('keeps the pin rows clear of the bus', () => {
+    /*
+     * The other half of *"the lines are still cross and diagonal"*. The bus was
+     * straight; the pins were crossing it. At `PIN_REACH` 0.5 a tab reached
+     * within 0.16 strides of the run in the channel it points into — four
+     * pixels at 1280 — and a row of them read as a ladder laid across the line.
+     *
+     * Asserted rather than tuned, because the clearance depends on where
+     * somebody last dragged a compound.
+     */
+    const n = BLOCKS_PER_PARK
+    const runs = busRuns(n)
+    let pins = 0
+    for (let i = 0; i < COMPOUNDS.length; i++) {
+      for (const pin of pinRows(i, n)) {
+        pins += 1
+        for (const r of runs) {
+          const du = Math.max(Math.min(r.a.u, r.b.u) - pin.b.u, 0, pin.b.u - Math.max(r.a.u, r.b.u))
+          const dv = Math.max(Math.min(r.a.v, r.b.v) - pin.b.v, 0, pin.b.v - Math.max(r.a.v, r.b.v))
+          expect(Math.hypot(du, dv), `a pin of ${COMPOUNDS[i].tag} crowds a ${r.kind} run`)
+            .toBeGreaterThanOrEqual(PIN_CLEARANCE)
+        }
+      }
+    }
+    /*
+     * **And this is the assertion that can actually fail.** The clearance above
+     * is guaranteed by construction — `pinRows` moves a crowded row rather than
+     * emitting one — so on its own it only guards against somebody deleting the
+     * rule. What it does *not* guard is that every package still *has* two rows,
+     * which is what the first version of the rule quietly cost: dropping the
+     * individual crowded pins left U1 without its near row and **U2 without a
+     * single pin**, and a package with no pins is not a component any more.
+     */
+    for (let i = 0; i < COMPOUNDS.length; i++) {
+      const box = packageBox(i, n)!
+      const step = (span: number) => span / Math.max(3, Math.round(span / 1.15))
+      let want = 0
+      for (let v = box.v0 + step(box.v1 - box.v0) / 2; v < box.v1; v += step(box.v1 - box.v0)) want++
+      for (let u = box.u0 + step(box.u1 - box.u0) / 2; u < box.u1; u += step(box.u1 - box.u0)) want++
+      expect(pinRows(i, n).length, `${COMPOUNDS[i].tag} has lost a pin row`).toBe(want)
+    }
+    expect(pins).toBeGreaterThan(12)
   })
 
   it('lays the board once, and frames only what is built', () => {
