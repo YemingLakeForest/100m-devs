@@ -79,6 +79,27 @@ lighting needed the same guard and did not get one.
 ten towers pickable, ten distinct indices — and `__pick` answers off the model. Trap 51 again,
 one layer in: the model is right, one tower is drawn wrong, and nothing asks the picture.
 
+### 1.1a The symptom was over-claimed — **[correction, 2026-08-22]**
+
+The paragraph above said the mark reads "as a cyan smear across two faces of one tower", and
+pointed at a crop to prove it. **That part is not established.** Sampling the crop, the mark
+region and an ordinary lit window on the same tower are both blown to near-white by the bloom
+(`#69ffff` against `#c9ffff`) — the mark is the more saturated of the two, which is *consistent*
+with a distinctly coloured overlay and is not evidence of one. A before/after screenshot pair
+came back with signal exactly equal to run-to-run noise, because the reverted build never
+reached the browser inside the wait.
+
+**What is established, and is the whole reason to fix it:** `stage.ts` set the focused storey
+unconditionally while `buildingChromeAlpha` is 1 at both BLOCK and PARK, so the hosted building
+was lighting a storey at scales where `building.ts:542` says in as many words that it must not.
+A rule stated in the file and disobeyed three functions away is a defect whether or not the
+pixels happen to show it, and the gate now asserts the rule rather than the smear:
+`__stage.litStorey` must be −1 at the park.
+
+The lesson is the one this file keeps finding from the other side. Trap 51 was *reachable is not
+drawn*. This is its mirror: **drawn wrong is not always visible**, and a screenshot is as capable
+of over-reporting as `__pick` is of under-reporting.
+
 ### 1.2 The cash floaters land on the DEVS readout
 
 At 1280×720 with a million developers, three `+$…` floaters drift out of CASH and pass straight

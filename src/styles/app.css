@@ -1251,13 +1251,35 @@ body {
  */
 .hud__gains {
   position: absolute;
-  top: calc(100% + 2px);
-  right: 0;
+  /*
+   * **Beside the cash block, not under it** — 2026-08-22.
+   *
+   * `top: calc(100% + 2px)` hung the column into whatever the rail had put
+   * below CASH, which is DEVS. At a million developers three payouts a second
+   * arrive and each one sat on top of `DEVS / 1.0 M / 1 TOWN = 1.0 M DEVS` for
+   * four seconds: green numerals over grey numerals, same size, same lane, both
+   * illegible. It gets *worse* the further a studio gets, because the floater
+   * rate follows the income and the income follows the headcount — which is why
+   * no screenshot of a studio small enough to have a quiet rail ever showed it.
+   *
+   * Reserving the space instead would have cost three lines of a rail the Lift
+   * already has to fold itself away to fit. The gutter left of the rail is a
+   * lane no readout uses, and §3.3 already lets the interface sit over the
+   * world there.
+   */
+  top: 0;
+  right: calc(100% + 8px);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
   pointer-events: none;
+  /* Over the world now, and the world is not always dark — a floor plate at
+     rung 2 is the brightest thing in the game. ART_DIRECTION §1.0a permits a
+     scrim on the interface plane; this is the cheapest form of one. */
+  text-shadow:
+    0 0 6px var(--n0),
+    0 0 6px var(--n0);
 }
 
 /* The stack anchors to the cash block, so the block is the containing box. */

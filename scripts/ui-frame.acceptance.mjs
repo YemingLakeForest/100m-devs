@@ -1034,12 +1034,19 @@ try {
         blocks: [...found].sort((a, b) => a - b),
         at: s?.at ?? null,
         parkAlpha: s?.parkAlpha ?? null,
+        litStorey: s?.litStorey ?? null,
       }
     })
     if (seen.at !== 'PARK' || seen.blocks.length !== 10) {
       throw new Error(
         `the park at ${width}x${height}: a million developers put the lens at ${seen.at} ` +
           `with ${seen.blocks.length} of 10 blocks reachable — ${JSON.stringify(seen.blocks)}`,
+      )
+    }
+    if (seen.litStorey !== -1) {
+      throw new Error(
+        `the park at ${width}x${height}: the lens is at PARK and the hosted building is ` +
+          `lighting storey ${seen.litStorey} — a 9 px band drawn as a smear on one tower in a hundred`,
       )
     }
     if (seen.parkAlpha !== 1) {

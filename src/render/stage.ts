@@ -1522,7 +1522,20 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // floor you can be inside.
     const storey = focusStorey()
     building.setHeadcount(devsIn(state.devs, focusBuilding))
-    building.setFocus(storey)
+    /*
+     * **No storey is lit while the block is the subject** — `drawTower`'s own
+     * rule, which the ninety-nine cheap towers obey because they are passed
+     * `focus = -1` and which the hosted one did not, because this line was
+     * written when a building was the only thing on screen.
+     *
+     * `building.ts`: *"A block does not light a storey: at that scale a band is
+     * 19 px and the thing being chosen is the building."* At the park it is 9
+     * px, and one tower in a hundred wore a cyan smear across two faces. The
+     * neighbouring `setPlanAlpha` line already guards the *plan* on exactly
+     * this test and nobody carried it across to the lighting.
+     */
+    const litStorey = blockAlpha > 0 ? -1 : storey
+    building.setFocus(litStorey)
     scene.hostRoomOn(storey)
     // The plan and the room are the same picture at the size the swap happens,
     // so this is a swap the player cannot see rather than a fade between two
@@ -1746,6 +1759,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         building: plotOf(buildingOf(focusSeat)),
         buildings: buildingsIn(state.devs, blockOf(focusSeat)),
         storey,
+        /*
+         * **Which storey is actually lit on the tower**, which is not the same
+         * number as `storey` and is the only way to see this from outside: a
+         * band 9 px tall drawn in the wrong place is invisible to `__pick`,
+         * which answers off the model, and to a screenshot assertion, which has
+         * no idea which tower is the hosted one.
+         */
+        litStorey,
         selectedStorey,
         selectedBuilding,
         selectedBlock,
