@@ -86,6 +86,7 @@ import {
   type Pin,
   type Plant,
   blocksFor,
+  bridges,
   busRuns,
   canalRuns,
   coastline,
@@ -302,6 +303,37 @@ export function buildPark(): ParkHandle {
         .lineTo(q[DECK_NEAR].x, q[DECK_NEAR].y)
         .lineTo(q[DECK_RIGHT].x, q[DECK_RIGHT].y)
         .stroke({ width: 1.6, color: c(RAMPS.GLOW[1]), alpha: 0.7 })
+    }
+
+    /*
+     * The bridges, drawn after the water and before the trees: the deck sits on
+     * the canal and the planting on the banks sits in front of it.
+     */
+    for (const br of bridges(built)) {
+      const alongU = Math.abs(br.a.v - br.b.v) < 1e-9
+      const box = alongU
+        ? { u0: br.a.u, u1: br.b.u, v0: br.a.v - br.half, v1: br.a.v + br.half }
+        : { u0: br.a.u - br.half, u1: br.a.u + br.half, v0: br.a.v, v1: br.b.v }
+      const q = latticeCorners(box)
+      const lift = 7
+      // The shadow it throws on the water, which is most of what says the deck
+      // is above the surface rather than painted on it.
+      polygon(water, q)
+      water.fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
+      const up = q.map((pt) => ({ x: pt.x, y: pt.y - lift }))
+      faceDown(water, up[DECK_LEFT], up[DECK_NEAR], lift, RAMPS.NEUTRAL[1])
+      faceDown(water, up[DECK_NEAR], up[DECK_RIGHT], lift, RAMPS.NEUTRAL[1])
+      polygon(water, up)
+      water.fill(c(RAMPS.NEUTRAL[3]))
+      // A parapet down both sides, which is what a bridge has and a slab has not.
+      water
+        .moveTo(up[DECK_FAR].x, up[DECK_FAR].y)
+        .lineTo(up[alongU ? DECK_RIGHT : DECK_LEFT].x, up[alongU ? DECK_RIGHT : DECK_LEFT].y)
+        .stroke({ width: 1.8, color: c(RAMPS.NEUTRAL[5]), alpha: 0.9 })
+      water
+        .moveTo(up[alongU ? DECK_LEFT : DECK_RIGHT].x, up[alongU ? DECK_LEFT : DECK_RIGHT].y)
+        .lineTo(up[DECK_NEAR].x, up[DECK_NEAR].y)
+        .stroke({ width: 1.8, color: c(RAMPS.NEUTRAL[5]), alpha: 0.9 })
     }
 
     for (const t of treeSpots(built)) {

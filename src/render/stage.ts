@@ -1521,6 +1521,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // in, and those two are the same number: a floor you are looking into is a
     // floor you can be inside.
     const storey = focusStorey()
+    building.setSeat(focusBuilding)
     building.setHeadcount(devsIn(state.devs, focusBuilding))
     /*
      * **No storey is lit while the block is the subject** — `drawTower`'s own

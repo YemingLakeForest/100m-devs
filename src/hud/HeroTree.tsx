@@ -232,7 +232,25 @@ export function HeroTree({
               <p className="herotree__guide-owned">OWNED</p>
             ) : (
               <Button
-                disabled={selectedState !== 'live'}
+                /*
+                 * **Affordability, not just reachability.**
+                 *
+                 * This read `disabled={selectedState !== 'live'}` alone, and a
+                 * REACH node costs three points against a DEPTH node's one — so
+                 * a hero holding two points was shown a live, enabled button for
+                 * a node they could not buy, and pressing it did nothing at all.
+                 * `buyHeroTreeNode` returned false and the guide sat there.
+                 *
+                 * §26.1.8's walk found it as an intermittent failure at item 10
+                 * — *"the point was not spent — the board still reads 2 POINTS"*
+                 * — because which live off-branch node it reaches first depends
+                 * on the board, so it only sometimes landed on a REACH. It was
+                 * read as a flake twice. It is a dead control: §10.2a's rule is
+                 * that a control a player has to be told about is not ready to
+                 * be on screen, and one that looks ready and does nothing is
+                 * worse than one that says why not.
+                 */
+                disabled={selectedState !== 'live' || hero.points < nodePoints(selectedNode.kind)}
                 onClick={() => {
                   if (buyHeroTreeNode(hero.id, selectedNode.id)) {
                     playPurchase()
@@ -245,7 +263,9 @@ export function HeroTree({
                 {/* One string, not two spans and a space: `Button` wraps each
                     child in its own element, and the accessible name of
                     `{n}{' '}{word}` comes out as "1POINT". */}
-                {`${nodePoints(selectedNode.kind)} ${nodePoints(selectedNode.kind) === 1 ? 'POINT' : 'POINTS'}`}
+                {hero.points < nodePoints(selectedNode.kind)
+                  ? `NEEDS ${nodePoints(selectedNode.kind)}`
+                  : `${nodePoints(selectedNode.kind)} ${nodePoints(selectedNode.kind) === 1 ? 'POINT' : 'POINTS'}`}
               </Button>
             )}
           </div>

@@ -296,7 +296,7 @@ export function buildBlock(): BlockHandle {
       // place — which is not a cross-fade only because it never moves.
       if (i >= buildings || i === focus) continue
       const b = buildingOfPlot(i)
-      drawTower(g, storeysIn(devs, b), devsIn(devs, b))
+      drawTower(g, storeysIn(devs, b), devsIn(devs, b), -1, b)
     }
   }
 

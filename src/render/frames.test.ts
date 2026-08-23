@@ -22,7 +22,9 @@ import {
   blockCell,
   boardBox,
   shoreBox,
+  bridges,
   busRuns,
+  canalRuns,
   PIN_CLEARANCE,
   pinRows,
   blockOf,
@@ -732,6 +734,35 @@ describe('the park', () => {
           r.a.v >= b.v0 - 1e-9 && r.a.v <= b.v1 + 1e-9,
       )
       expect(touches, 'a compound or plant is not on the bus').toBe(true)
+    }
+  })
+
+  it('bridges the canal wherever a street meets it', () => {
+    /*
+     * A river that stops short of every road is a moat. The branch runs to
+     * v 8.0 so the main street crosses it at 8.34, and the crossing is
+     * *computed* — move either and the bridge moves with it, so there can never
+     * be a road running into water or a bridge standing on dry land.
+     */
+    const n = BLOCKS_PER_PARK
+    const spans = bridges(n)
+    expect(spans.length).toBeGreaterThan(0)
+    for (const b of spans) {
+      const alongU = Math.abs(b.a.v - b.b.v) < 1e-9
+      // It reaches past both banks.
+      const crossed = canalRuns(n).some((w) =>
+        alongU
+          ? b.a.u < w.u0 && b.b.u > w.u1 && b.a.v >= w.v0 && b.a.v <= w.v1
+          : b.a.v < w.v0 && b.b.v > w.v1 && b.a.u >= w.u0 && b.a.u <= w.u1,
+      )
+      expect(crossed, 'a bridge does not reach both banks').toBe(true)
+      // And it stands on a street rather than on its own.
+      const carried = busRuns(n).some((r) =>
+        alongU
+          ? Math.abs(r.a.v - b.a.v) < 1e-9 && Math.min(r.a.u, r.b.u) <= b.a.u + 0.5
+          : Math.abs(r.a.u - b.a.u) < 1e-9 && Math.min(r.a.v, r.b.v) <= b.a.v + 0.5,
+      )
+      expect(carried, 'a bridge carries no street').toBe(true)
     }
   })
 

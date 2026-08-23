@@ -1427,9 +1427,17 @@ export function islandCells(blocks: number): LatticeBox[] {
 const CANAL: ReadonlyArray<LatticeBox> = [
   // Along the near shore, the width of the city.
   { u0: -3.4, u1: 19.15, v0: 13.9, v1: 15.1 },
-  // And a branch up the one gap the districts leave: U3 ends at u 18.12 and U4
-  // starts at 19.40, so 1.28 strides of water fit between them and nowhere else.
-  { u0: 18.4, u1: 19.15, v0: 8.6, v1: 15.1 },
+  /*
+   * And a branch up the one gap the districts leave: U3 ends at u 18.12 and U4
+   * starts at 19.40, so 1.28 strides of water fit between them and nowhere else.
+   *
+   * **It runs to v 8.0 so the main street crosses it at 8.34** — which is the
+   * whole reason there is a bridge in this city. A river that stops short of
+   * every road is a moat, and the two of them never meeting was the last
+   * obviously unfinished join in the picture. U2's package ends at 7.68, so the
+   * water stops a third of a stride short of it: a quay, not a clip.
+   */
+  { u0: 18.4, u1: 19.15, v0: 8.0, v1: 15.1 },
 ]
 
 /** The canal, clipped to what has been built. */
@@ -1447,6 +1455,51 @@ export function canalRuns(blocks: number): LatticeBox[] {
       v1: Math.min(seg.v1, box.v1 + 3.6),
     }
     if (clipped.u1 - clipped.u0 > 0.4 && clipped.v1 - clipped.v0 > 0.4) out.push(clipped)
+  }
+  return out
+}
+
+/**
+ * A bridge — where a street crosses the water.
+ *
+ * Computed rather than placed, so it is impossible to have a road running into
+ * a canal or a bridge standing over dry land: move either and the crossings
+ * move with them. The same argument as the island, one object down.
+ */
+export interface Bridge {
+  /** The crossing, in the direction the street runs. */
+  readonly a: { u: number; v: number }
+  readonly b: { u: number; v: number }
+  /** Half the street's width, across the run — how wide the deck is. */
+  readonly half: number
+}
+
+/** Every place a bus run crosses the canal. */
+export function bridges(blocks: number): Bridge[] {
+  const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
+  const out: Bridge[] = []
+  const half = 0.62
+  for (const r of busRuns(n)) {
+    const alongU = Math.abs(r.a.v - r.b.v) < 1e-9
+    for (const w of canalRuns(n)) {
+      if (alongU) {
+        const v = r.a.v
+        if (v < w.v0 || v > w.v1) continue
+        const u0 = Math.max(Math.min(r.a.u, r.b.u), w.u0)
+        const u1 = Math.min(Math.max(r.a.u, r.b.u), w.u1)
+        if (u1 - u0 <= 0) continue
+        // A deck reaching a little past each bank, because a bridge that stops
+        // exactly at the water is a plank.
+        out.push({ a: { u: u0 - 0.45, v }, b: { u: u1 + 0.45, v }, half })
+      } else {
+        const u = r.a.u
+        if (u < w.u0 || u > w.u1) continue
+        const v0 = Math.max(Math.min(r.a.v, r.b.v), w.v0)
+        const v1 = Math.min(Math.max(r.a.v, r.b.v), w.v1)
+        if (v1 - v0 <= 0) continue
+        out.push({ a: { u, v: v0 - 0.45 }, b: { u, v: v1 + 0.45 }, half })
+      }
+    }
   }
   return out
 }

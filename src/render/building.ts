@@ -346,8 +346,25 @@ function drawStorey(g: Graphics, f: number, lit: number, focused: boolean) {
  * open. A skyline ends in a parapet, a plant room and a mast, and none of those
  * are decoration — they are what stops a stack of floors ending in a lid.
  */
-function drawRoof(g: Graphics, n: number) {
+function drawRoof(g: Graphics, n: number, seat = 0) {
   const y = surfaceY(HALF_W, n)
+  /*
+   * **The roof is where a tower gets to be itself.**
+   *
+   * A hundred identical crowns is what made the block read as a component grid
+   * rather than a skyline, and the obvious fix - varying the *height* - is not
+   * available: §7.8.1 makes storeys mean occupancy, so a shorter tower would be
+   * a lie about how many people work in it. The roof carries no information, so
+   * it is the one place variation is free.
+   *
+   * Seeded from the building's own park-wide number, never from a call order or
+   * a random: §26.2.2's rule is that everything is derived from the address, and
+   * the practical half of it is that the tower you left is the tower you come
+   * back to.
+   */
+  const h = Math.imul(Math.floor(seat) + 0x9e37, 0x45d9f3b) >>> 0
+  const kind = h % 3
+  const jog = ((h >>> 5) % 3) - 1
   const deck = [
     { x: 0, y: y - HALF_D },
     { x: HALF_W, y },
@@ -366,25 +383,36 @@ function drawRoof(g: Graphics, n: number) {
   // own shading pair they came out at NEUTRAL[1] on the shaded side, and against
   // a NEUTRAL[3] deck that is not a box in shadow, it is a rectangular hole —
   // which is what the first pass looked like: two pits punched in the roof.
-  box(g, -20, y + 5, 40, 13, {
-    top: RAMPS.NEUTRAL[6],
-    left: RAMPS.NEUTRAL[5],
-    right: RAMPS.NEUTRAL[3],
-  })
-  box(g, 22, y - 2, 26, 20, {
-    top: RAMPS.NEUTRAL[6],
-    left: RAMPS.NEUTRAL[4],
-    right: RAMPS.NEUTRAL[2],
-  })
+  const pale = { top: RAMPS.NEUTRAL[6], left: RAMPS.NEUTRAL[5], right: RAMPS.NEUTRAL[3] }
+  const dark = { top: RAMPS.NEUTRAL[6], left: RAMPS.NEUTRAL[4], right: RAMPS.NEUTRAL[2] }
+  if (kind === 0) {
+    // Plant room and lift overrun — the original, and still the commonest.
+    box(g, -20 + jog * 4, y + 5, 40, 13, pale)
+    box(g, 22, y - 2, 26, 20, dark)
+  } else if (kind === 1) {
+    // A water tank on a short frame, which is the other thing every real roof
+    // this size has on it.
+    box(g, -26, y + 6, 22, 9, dark)
+    box(g, 6 + jog * 3, y - 10, 30, 26, pale)
+    g.rect(9 + jog * 3, y - 2, 24, 3).fill(c(RAMPS.NEUTRAL[3]))
+  } else {
+    // A long low plant deck, split — reads as a services floor from any
+    // distance and as nothing in particular from close up, which is right.
+    box(g, -30, y + 2, 26, 11, pale)
+    box(g, 4, y + 2 + jog * 2, 28, 11, pale)
+  }
 
   // The mast, and the aviation light every skyline has and no brief ever asks
   // for. One red pixel at the top of a grey building is most of what says the
   // thing is enormous — and `TOWER_CROWN` is the frame agreeing to leave room
   // for it, which the first pass did not, so this was drawn and then cropped
   // off by its own viewport.
-  const mast = TOWER_CROWN - 18
-  g.rect(-1, y - mast, 2, mast - 4).fill(c(RAMPS.NEUTRAL[4]))
-  g.circle(0, y - mast, 2.5).fill(c(RAMPS.ALARM[2]))
+  // The mast varies with the crown it stands on, so a roof reads as one object
+  // rather than as a fixed aerial on three different sheds.
+  const mast = TOWER_CROWN - 18 - kind * 7
+  const mx = kind === 1 ? -18 : 0
+  g.rect(mx - 1, y - mast, 2, mast - 4).fill(c(RAMPS.NEUTRAL[4]))
+  g.circle(mx, y - mast, 2.5).fill(c(RAMPS.ALARM[2]))
 }
 
 // The plinth's dimensions live in `frames.ts` — `buildingFrame`, `towerRect`
@@ -543,11 +571,17 @@ function drawPlan(g: Graphics, onFloor: number) {
  * storey: at that scale a band is 19 px and the thing being chosen is the
  * building.
  */
-export function drawTower(g: Graphics, storeys: number, devs: number, focus = -1): void {
+export function drawTower(
+  g: Graphics,
+  storeys: number,
+  devs: number,
+  focus = -1,
+  seat = 0,
+): void {
   const n = Math.max(0, Math.min(FLOORS_PER_BUILDING, Math.floor(storeys)))
   if (n <= 0) return
   drawPodiumDeck(g)
-  drawRoof(g, n)
+  drawRoof(g, n, seat)
   for (let f = n - 1; f >= 0; f--) drawStorey(g, f, squadsOnStorey(devs, f), f === focus)
   drawPodium(g)
 }
@@ -565,6 +599,8 @@ export interface BuildingHandle {
   plateHost(storey: number): Container
   /** Rebuild for a headcount. Cheap on change, far too dear per frame. */
   setHeadcount(devs: number): void
+  /** Which building of the park this is — what its roof is seeded from. */
+  setSeat(seat: number): void
   /** Which storey is open — lit on the tower, and drawn out as the plan. */
   setFocus(storey: number): void
   /**
@@ -611,6 +647,8 @@ export function buildBuilding(): BuildingHandle {
 
   let devs = 0
   let storeys = 1
+  /** Which building of the park this is — the seed its roof is drawn from. */
+  let seat = 0
   let focus = 0
   let planHidden = false
   let arriving = false
@@ -622,7 +660,7 @@ export function buildBuilding(): BuildingHandle {
    */
   function redrawTower(n: number) {
     tower.clear()
-    drawTower(tower, n, devs, focus)
+    drawTower(tower, n, devs, focus, seat)
   }
 
   function redrawGround() {
@@ -696,6 +734,21 @@ export function buildBuilding(): BuildingHandle {
       }
       redrawTower(arriving ? storeys - 1 : storeys)
       redrawPlan()
+    },
+
+    /**
+     * Which building of the park this is.
+     *
+     * The hosted building and the cheap tower `block.ts` draws in its place are
+     * the same object seen at two scales, so they have to agree about the roof —
+     * otherwise entering a building changes its silhouette, which is the one
+     * thing §10.5 says a hand-off may never do.
+     */
+    setSeat(next: number) {
+      const n = Math.max(0, Math.floor(Number.isFinite(next) ? next : 0))
+      if (n === seat) return
+      seat = n
+      redrawTower(storeys)
     },
 
     setFocus(storey: number) {
