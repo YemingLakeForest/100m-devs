@@ -602,6 +602,42 @@ describe('the park', () => {
     }
   })
 
+  it('leaves a gap between the plant and the districts', () => {
+    /*
+     * The wind farm's apron landed **0.06 strides** from U2's package with their
+     * v ranges fully overlapping — four park units, which on screen reads as the
+     * plant clipping into the district next door. Reported as *"the wind turbine
+     * plain sort of clips with one of the building"*, and it was: two slabs at
+     * the same height, touching.
+     *
+     * Nothing else in this file could see it. `packageBox` against `packageBox`
+     * is asserted; plant was only ever asserted to be *inside the board*, which
+     * it was.
+     */
+    const n = BLOCKS_PER_PARK
+    const GAP = 0.6
+    for (const it of plantFor(n)) {
+      const a = plantBox(it)
+      for (let i = 0; i < COMPOUNDS.length; i++) {
+        const b = packageBox(i, n)!
+        const du = Math.max(b.u0 - a.u1, a.u0 - b.u1)
+        const dv = Math.max(b.v0 - a.v1, a.v0 - b.v1)
+        expect(
+          Math.max(du, dv),
+          `the ${it.kind} plant is ${Math.max(du, dv).toFixed(2)} strides from ${COMPOUNDS[i].tag}`,
+        ).toBeGreaterThanOrEqual(GAP)
+      }
+      // And the two of them keep off each other for the same reason.
+      for (const other of plantFor(n)) {
+        if (other === it) continue
+        const b = plantBox(other)
+        const du = Math.max(b.u0 - a.u1, a.u0 - b.u1)
+        const dv = Math.max(b.v0 - a.v1, a.v0 - b.v1)
+        expect(Math.max(du, dv)).toBeGreaterThanOrEqual(GAP)
+      }
+    }
+  })
+
   it('keeps everything that stands on the board inside the board', () => {
     /*
      * The complaint this whole layout answers — *"they spilled out to what

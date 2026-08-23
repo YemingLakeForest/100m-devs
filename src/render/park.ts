@@ -443,8 +443,17 @@ export function buildPark(): ParkHandle {
      * composition taller than a tower is thinner than a tower, which is what
      * makes a skyline read as a skyline rather than as a row.
      */
+    /*
+     * **Spread evenly in screen x, which on this lattice is `u - v`.** Spacing
+     * them along `u` alone put the first two 0.4 strides apart on the diagonal
+     * - twenty-six pixels - so the nearer one was drawn straight over the
+     * further one's blades and the leftmost turbine appeared to have none.
+     */
+    const spread = box.u1 - box.u0 - 2.0
     for (let k = 0; k < 3; k++) {
-      const at = parkLatticeAt(box.u0 + 1.1 + k * 1.5, box.v0 + 0.8 + (k % 2) * 1.1)
+      const v = box.v0 + 0.8 + (k % 2) * 1.15
+      const u = v + (box.u0 - box.v0) + 0.7 + (k / 2) * spread
+      const at = parkLatticeAt(u, v)
       const h = (2.0 + (k % 2) * 0.35) * S
       g.ellipse(at.x, at.y, 0.26 * S, 0.13 * S).fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.5 })
       g.moveTo(at.x, at.y)

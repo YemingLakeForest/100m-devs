@@ -898,7 +898,12 @@ export interface Plant {
 
 export const PLANT: readonly Plant[] = [
   { kind: 'solar', u: 21.8, v: 0.4, since: 5, box: { u0: -0.7, u1: 3.5, v0: -0.7, v1: 2.4 } },
-  { kind: 'wind', u: 21.0, v: 4.2, since: 7, box: { u0: -0.6, u1: 4.4, v0: -0.6, v1: 2.6 } },
+  // **u 22.2 and not 21.0.** At 21.0 the apron's far edge landed 0.06 strides
+  // from U2's package with their v ranges fully overlapping - four park units,
+  // which reads as the wind farm clipping into the district next door. There is
+  // no room to clear it in v (U2 runs to 7.68, the main bus is at 8.34 and U4
+  // starts at 9.00), so it clears in u, and `frames.test.ts` asserts the gap.
+  { kind: 'wind', u: 22.2, v: 4.2, since: 7, box: { u0: -0.6, u1: 4.4, v0: -0.6, v1: 2.6 } },
 ]
 
 /** The plant standing at this block count. */
