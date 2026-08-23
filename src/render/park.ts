@@ -393,59 +393,74 @@ export function buildPark(): ParkHandle {
 
   /* ---- plant -------------------------------------------------------------- */
 
-  /** An iso cylinder standing on the lattice — a transformer, or a capacitor. */
-  function canister(g: Graphics, at: Pt, r: number, h: number, band: string | null) {
-    g.moveTo(at.x - r, at.y)
-      .lineTo(at.x - r, at.y - h)
-      .lineTo(at.x + r, at.y - h)
-      .lineTo(at.x + r, at.y)
-      .closePath()
-      .fill(c(RAMPS.NEUTRAL[2]))
-    g.ellipse(at.x, at.y, r, r / 2).fill(c(RAMPS.NEUTRAL[1]))
-    g.ellipse(at.x, at.y - h, r, r / 2).fill(c(RAMPS.NEUTRAL[4]))
-    if (band) {
-      g.moveTo(at.x - r, at.y - h * 0.62)
-        .lineTo(at.x + r, at.y - h * 0.62)
-        .lineTo(at.x + r, at.y - h * 0.5)
-        .lineTo(at.x - r, at.y - h * 0.5)
-        .closePath()
-        .fill({ color: c(band), alpha: 0.9 })
-    }
-  }
-
+  /**
+   * The plant - a solar farm and a wind farm.
+   *
+   * **What replaced the capacitor bank and the heatsink.** Those were the
+   * circuit metaphor said twice: once by the plan, which is where it belongs,
+   * and once by the objects standing on it, where it turns the city into a
+   * diagram. A solar array and three turbines are what a city of a million
+   * people who care about it builds, and from far enough back they still read
+   * as a die and a row of parts - which is the whole trick.
+   */
   function drawPlant(g: Graphics, it: Plant) {
     const box = plantBox(it)
     slab(g, box, 9, RAMPS.NEUTRAL[2], RAMPS.NEUTRAL[4], 0.9)
-    if (it.kind === 'substation') {
-      // Three transformers in a row, one striped. A capacitor bank either way,
-      // which is the joke the layout is built on and also just what a park has.
-      for (let k = 0; k < 3; k++) {
-        canister(
-          g,
-          parkLatticeAt(it.u + 0.3 + k * 1.25, it.v + 0.9),
-          0.44 * S,
-          1.5 * S,
-          k === 1 ? RAMPS.WARN[2] : null,
-        )
+
+    if (it.kind === 'solar') {
+      /*
+       * Rows of panels on a low frame. Each panel is a lattice quad lifted off
+       * the ground with its own short shadow, and the rows run along `u` so the
+       * whole array leans the way everything else does.
+       */
+      const rows = 4
+      const cols = 7
+      const w = (box.u1 - box.u0 - 0.7) / cols
+      const h = (box.v1 - box.v0 - 0.7) / rows
+      for (let r = 0; r < rows; r++) {
+        for (let k = 0; k < cols; k++) {
+          const u0 = box.u0 + 0.35 + k * w
+          const v0 = box.v0 + 0.35 + r * h
+          const q = latticeCorners({ u0, u1: u0 + w * 0.82, v0, v1: v0 + h * 0.62 })
+          const lift = 0.34 * S
+          // The shadow it casts on the frame, so the array has depth at 10 px.
+          polygon(g, q)
+          g.fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
+          const up = q.map((pt) => ({ x: pt.x, y: pt.y - lift }))
+          polygon(g, up)
+          g.fill(c(RAMPS.GLOW[0]))
+          g.moveTo(up[DECK_LEFT].x, up[DECK_LEFT].y)
+            .lineTo(up[DECK_FAR].x, up[DECK_FAR].y)
+            .lineTo(up[DECK_RIGHT].x, up[DECK_RIGHT].y)
+            .stroke({ width: 1.4, color: c(RAMPS.GLOW[1]), alpha: 0.9 })
+        }
       }
       return
     }
-    // Cooling: a fin row. Thin slabs standing along v, stepped along u — the
-    // classic heatsink read, and a plant room at the same time.
-    for (let k = 0; k <= 10; k++) {
-      const u = it.u + 0.1 + k * 0.38
-      const a = parkLatticeAt(u, it.v + 0.1)
-      const b = parkLatticeAt(u, it.v + 1.9)
-      const h = 0.95 * S
-      g.moveTo(a.x, a.y)
-        .lineTo(b.x, b.y)
-        .lineTo(b.x, b.y - h)
-        .lineTo(a.x, a.y - h)
-        .closePath()
-        .fill(c(k % 2 ? RAMPS.NEUTRAL[3] : RAMPS.NEUTRAL[2]))
-      g.moveTo(a.x, a.y - h)
-        .lineTo(b.x, b.y - h)
-        .stroke({ width: 0.05 * S, color: c(RAMPS.NEUTRAL[5]), alpha: 0.85 })
+
+    /*
+     * Turbines. A mast, a nacelle and three blades - the one thing in the
+     * composition taller than a tower is thinner than a tower, which is what
+     * makes a skyline read as a skyline rather than as a row.
+     */
+    for (let k = 0; k < 3; k++) {
+      const at = parkLatticeAt(box.u0 + 1.1 + k * 1.5, box.v0 + 0.8 + (k % 2) * 1.1)
+      const h = (2.0 + (k % 2) * 0.35) * S
+      g.ellipse(at.x, at.y, 0.26 * S, 0.13 * S).fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.5 })
+      g.moveTo(at.x, at.y)
+        .lineTo(at.x, at.y - h)
+        .stroke({ width: 0.07 * S, color: c(RAMPS.NEUTRAL[5]), alpha: 0.95 })
+      const hub = { x: at.x, y: at.y - h }
+      for (let b = 0; b < 3; b++) {
+        // Seeded from the turbine, so the three of them are not in step - a row
+        // of identical crosses is a fence, not a wind farm.
+        const ang = (b * 2 * Math.PI) / 3 + k * 0.7
+        g.moveTo(hub.x, hub.y)
+          .lineTo(hub.x + Math.cos(ang) * 0.62 * S, hub.y + Math.sin(ang) * 0.42 * S)
+          .stroke({ width: 0.05 * S, color: c(RAMPS.NEUTRAL[6]), alpha: 0.9 })
+      }
+      g.circle(hub.x, hub.y, 0.08 * S).fill(c(RAMPS.NEUTRAL[6]))
+      g.circle(hub.x, hub.y - h * 0.04, 1.4).fill(c(RAMPS.ALARM[2]))
     }
   }
 

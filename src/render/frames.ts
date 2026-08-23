@@ -876,7 +876,19 @@ export interface LatticeBox {
  * plant hanging off the near edge.
  */
 export interface Plant {
-  readonly kind: 'substation' | 'cooling'
+  /**
+   * **[renamed 2026-08-23]** They were a substation and a cooling plant, and
+   * they were drawn as a capacitor bank and a heatsink - which is the joke made
+   * twice, once in the layout and once in the objects. *"Those capacitors and
+   * those heat dispensing slices are still there? make it more city'y."*
+   *
+   * The layout is where the circuit lives. The things standing on it are a
+   * city's: a solar farm and a wind farm, which is where a city of a million
+   * people who care gets its power, and which read as a die and a row of
+   * components anyway from far enough back. The metaphor is better for being
+   * carried by the plan rather than by the props.
+   */
+  readonly kind: 'solar' | 'wind'
   readonly u: number
   readonly v: number
   /** The block count at which it is built. */
@@ -885,8 +897,8 @@ export interface Plant {
 }
 
 export const PLANT: readonly Plant[] = [
-  { kind: 'substation', u: 21.8, v: 0.4, since: 5, box: { u0: -0.7, u1: 3.5, v0: -0.7, v1: 2.4 } },
-  { kind: 'cooling', u: 21.0, v: 4.2, since: 7, box: { u0: -0.6, u1: 4.4, v0: -0.6, v1: 2.6 } },
+  { kind: 'solar', u: 21.8, v: 0.4, since: 5, box: { u0: -0.7, u1: 3.5, v0: -0.7, v1: 2.4 } },
+  { kind: 'wind', u: 21.0, v: 4.2, since: 7, box: { u0: -0.6, u1: 4.4, v0: -0.6, v1: 2.6 } },
 ]
 
 /** The plant standing at this block count. */
@@ -1100,8 +1112,8 @@ export function busRuns(blocks: number): BusRun[] {
    * rather than trusting the fraction.
    */
   const live = plantFor(n)
-  const sub = live.find((it) => it.kind === 'substation')
-  const cool = live.find((it) => it.kind === 'cooling')
+  const sub = live.find((it) => it.kind === 'solar')
+  const cool = live.find((it) => it.kind === 'wind')
   if (sub && cool) {
     const a = plantBox(sub)
     const b = plantBox(cool)
