@@ -1105,7 +1105,12 @@ async function spendOffBranch(page) {
     await tapControl(page, live.nth(i), `hero node ${i}`)
     await page.locator('.herotree__guide-card').waitFor()
     const off = page.locator('.herotree__guide-off')
-    if (await off.count()) {
+    // Off this hero's branch **and** affordable. A REACH node costs three points
+    // against a DEPTH node's one, and this walk arrives with two — so half the
+    // boards offered a live node it could not buy, the button did nothing, and
+    // this read as a flake twice before anybody looked at the button.
+    const buyable = (await page.locator('.herotree__guide-card button:not([disabled])').count()) > 0
+    if ((await off.count()) && buyable) {
       chosen = {
         name: (await page.locator('.herotree__guide-name').textContent())?.trim(),
         note: (await off.textContent())?.trim(),
