@@ -25,19 +25,21 @@
 > **Before that: [`HANDOFF-2026-08-18.md`](HANDOFF-2026-08-18.md)** — §26.1.8 items 3–10
 > walked in a real browser, the third acceptance gate, **traps 38–44**, and **Phase 1 closed**.
 >
-> **Then rewritten the same day** — §15–17 of that handoff. The park's ground was a fixed-size
-> mat that could not be cut to its parcels; it is a **board** now, with four compounds on packages,
-> a bus in the channels, a substation and a cooling plant, and a silkscreened pad wherever a block
-> is not built. **Traps 57–60**, and a palette finding: `FOLIAGE[0]` passed `art:check` and still
-> did not belong, because the gate polices membership and not fitness (ART_DIRECTION §2.1a).
+> **Then rewritten twice more** — §15–22 of that handoff. The park's ground was a
+> fixed-size mat that could not be cut to its parcels; it became a **board**, and then an
+> **island derived from what stands on it** — so "the ground is cut to its contents" stopped
+> being a rule a test checks and became one the code cannot express the violation of. With a
+> canal, computed bridges, planted streets, a solar farm and a wind farm.
 >
-> **Alongside it: [`PLAN-2026-08-22-polish.md`](PLAN-2026-08-22-polish.md)** — the whole six-rung
-> ladder photographed and measured end to end for the first time, three defects found by looking
-> (a storey lit at the block, cash floaters landing on the DEVS readout, nine of ten squad bays
-> bare for the whole of rung 2), and twelve proposals for what to do about it. Proposals, not
-> canon — nothing in it is built.
+> **Traps 57–63.** Two are the same lesson in different clothes — a `Graphics` cannot be
+> asked whether it crosses anything, and it costs what is in it every frame — and one is not
+> about the lens at all: **an "intermittent" test failure is a description, not a
+> diagnosis.** Item 10 of the walk was a dead control (a buy button that checked reachable
+> and not affordable), dismissed as a flake twice before anybody opened it.
 >
-> **Next: [`HANDOFF-2026-08-22.md`](HANDOFF-2026-08-22.md) §14** — rung 6, the *town*, which is
+> §15–17 describe the board the island replaced; superseded, kept for the reasoning.
+>
+> **Next: [`HANDOFF-2026-08-22.md`](HANDOFF-2026-08-22.md) §22** — rung 6, the *town*, which is
 > the first rung that does not come for free (§7.7.1 spans two decades there); the walk's
 > navigation leg; the centre-screen overlays; and a dated rewrite of GDD §7, which still describes
 > the tiers and the cross-fade the lens rebuild deleted — §7.8.2's built/not-built table is the
