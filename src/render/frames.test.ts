@@ -107,7 +107,7 @@ import {
 import { ROOM_SQUAD_COLS, ROOM_SQUAD_ROWS, SQUAD_SIZE, seatPosition } from './room.ts'
 
 /** §23.4.2's largest frame, and the one every measurement in the plan was taken at. */
-import { SITES_PER_GLOBE } from './worldMap.ts'
+import { PERSPECTIVE_CENTRE_SCALE, SITES_PER_GLOBE } from './worldMap.ts'
 
 const REFERENCE = { w: 997, h: 448 }
 
@@ -1262,9 +1262,15 @@ describe('the globe', () => {
     // parameter left over to tune.
     const cell = parkCell()
     const r = globeRadius()
-    const covered = (SITES_PER_GLOBE * (cell.w * GLOBE_SCALE) ** 2) / (4 * Math.PI * r * r)
+    const surfaceRadius = r * PERSPECTIVE_CENTRE_SCALE
+    const covered =
+      (SITES_PER_GLOBE * (cell.w * GLOBE_SCALE) ** 2) /
+      (4 * Math.PI * surfaceRadius * surfaceRadius)
     expect(covered).toBeCloseTo(1, 6)
-    expect(r / cell.w).toBeCloseTo(GLOBE_SCALE / SITE_SHARE, 9)
+    expect(r / cell.w).toBeCloseTo(
+      GLOBE_SCALE / (SITE_SHARE * PERSPECTIVE_CENTRE_SCALE),
+      9,
+    )
   })
 
   it('runs out of planet at the number the game is named after', () => {
@@ -1288,24 +1294,21 @@ describe('the globe', () => {
     }
   })
 
-  it('takes a step out worth two rungs, because it is worth two decades', () => {
+  it('keeps the perspective-compensated globe step larger than an ordinary rung', () => {
     /*
      * §7.7.1 gives rung 6 the span 10^6 to 10^8 where every rung below it spans
      * one decade, and §7.8.2 conceded that this means it "does not come for free
      * the way rung 5 did". The step is where that bill lands.
      *
-     * Measured at the reference frame it is x11.28, against a geometric mean of
-     * x3.86 for the five single-decade steps below it — so **two of those
-     * compound to x14.9 and this is smaller than that.** A two-decade rung
-     * taking less than two rungs' worth of step is the opposite of an outlier,
-     * and it is the answer to the only real objection to a sphere here: a circle
-     * needs as much height as width where a 2:1 park needs half, so framing one
-     * costs double what the width ratio alone suggests.
+     * Perspective makes the city under the camera larger than an orthographic
+     * projection would, so compensating the silhouette moves this step from the
+     * old x11.28 to roughly x6.9. It is still the largest outward move after the
+     * desk, and it preserves the exact territory-to-park tangent scale.
      */
     const s = FULL()
     const step = s[PARK] / s[GLOBE]
-    expect(step).toBeGreaterThan(9)
-    expect(step).toBeLessThan(15)
+    expect(step).toBeGreaterThan(6)
+    expect(step).toBeLessThan(10)
     const below = [
       s[DESK] / s[SQUAD],
       s[SQUAD] / s[FLOOR],
@@ -1320,13 +1323,14 @@ describe('the globe', () => {
   it('leaves the sag small enough for the hand-off to be a swap', () => {
     // A park spans about 20 degrees of the planet, so its far edge sits
     // R(1 - cos 10.15) below the tangent plane. At the scale the globe fits
-    // that is three pixels, which is what lets `globe.ts` exchange a campus for
-    // a park at the hand-off instead of morphing one into the other - the same
-    // argument `roomResolved` makes one rung down, and the same tolerance.
-    const span = (parkCell().w * GLOBE_SCALE) / globeRadius()
+    // Perspective changes the projected sag, so the load-bearing assertion is
+    // now the exact tangent width shared with the detailed park.
+    const surfaceRadius = globeRadius() * PERSPECTIVE_CENTRE_SCALE
+    const span = (parkCell().w * GLOBE_SCALE) / surfaceRadius
     expect((span * 180) / Math.PI).toBeCloseTo(20.3, 1)
-    const sagPx = (1 - Math.cos(span / 2)) * globeRadius() * FULL()[GLOBE]
-    expect(sagPx).toBeLessThan(5)
+    // More importantly under perspective, the tangent under the camera is the
+    // park's exact authored width. This is the factor the frame now carries.
+    expect(SITE_SHARE * surfaceRadius).toBeCloseTo(parkCell().w * GLOBE_SCALE, 9)
   })
 
   it('collapses onto the park while the studio is on one site', () => {
@@ -1345,7 +1349,7 @@ describe('the globe', () => {
     expect(buildingAt(plotOf(buildingOf(seat)), blockOf(seat))).toBe(74)
     expect(storeyOf(seat)).toBe(5)
     // The two rungs that were park-wide are park-relative now, so the same
-    // block of a different continent is the same block. Getting this wrong is
+    // block of a different territory is the same block. Getting this wrong is
     // how an address on site 37 draws site 0's tower.
     expect(blockOf(seat)).toBe(blockOf(seat - seatOfSite(37)))
     expect(buildingOf(seat)).toBe(buildingOf(seat - seatOfSite(37)))

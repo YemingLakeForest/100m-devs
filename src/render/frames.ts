@@ -69,7 +69,7 @@ import {
   seatFor,
   seatGrid,
 } from './room.ts'
-import { SITES_PER_GLOBE } from './worldMap.ts'
+import { PERSPECTIVE_CENTRE_SCALE, SITES_PER_GLOBE } from './worldMap.ts'
 
 /** The levels, innermost first. Continuous positions between them are legal. */
 export const DESK = 0
@@ -1807,24 +1807,25 @@ export function parkCell(): Rect {
 export const SITE_SHARE = Math.sqrt((4 * Math.PI) / SITES_PER_GLOBE)
 
 /**
- * The planet's radius, in globe space - **derived, not chosen.**
+ * The planet's projected silhouette radius, in globe space — **derived, not
+ * chosen.**
  *
  * One requirement fixes it: **a hundred parks exactly tile the sphere.** A
- * site's share of a sphere of radius `R` is `4piR^2 / 100`, so its width is
- * {@link SITE_SHARE} times `R`; setting that equal to the park's own width in
- * globe space is one line of algebra and there is no free parameter left in it.
+ * site's share of a sphere with local surface scale `S` is `4piS^2 / 100`, so
+ * its width is {@link SITE_SHARE} times `S`. Perspective magnifies the tangent
+ * under the camera by {@link PERSPECTIVE_CENTRE_SCALE}, making the silhouette
+ * radius `S / PERSPECTIVE_CENTRE_SCALE`. Both values therefore follow from the
+ * park width; there is no camera-sized tuning constant in this frame.
  *
  * Three things fall out, and not one of them is a tuning knob:
  *
- *  - The frame is `2R`, about **2.82 park widths**, so the step out of the park
- *    is **x5.64** - in family with desk-to-squad's x6.15 and larger than
- *    block-to-park's x4.55, which is right for the one rung that changes
- *    register rather than adding more of the same architecture.
- *  - One park spans **20.3 degrees** of the planet, so its sag against the
- *    tangent plane is `R(1 - cos 10.15)` - **2.2% of its own width**, three
- *    pixels at the size the hand-off happens. That number is the entire reason
- *    `globe.ts` can *swap* a campus for a park instead of morphing one into the
- *    other.
+ *  - The frame is the perspective silhouette, about **1.74 park-space cell
+ *    widths**. At the reference viewport that makes the visible step out from
+ *    the park roughly **x6.9**.
+ *  - One park spans **20.3 degrees** of the planet. Perspective changes the
+ *    silhouette radius, but {@link PERSPECTIVE_CENTRE_SCALE} keeps the tangent
+ *    under the camera exactly one park wide, so the territory-to-park hand-off
+ *    remains a swap rather than a morph.
  *  - **The planet is full at exactly 100,000,000 developers.** Not roughly, and
  *    not because somebody stopped adding sites. The geometry says it.
  *
@@ -1836,7 +1837,14 @@ export const SITE_SHARE = Math.sqrt((4 * Math.PI) / SITES_PER_GLOBE)
  * so the silhouette could hardly change more.
  */
 export function globeRadius(): number {
-  return (parkCell().w * GLOBE_SCALE) / SITE_SHARE
+  /*
+   * `SITE_SHARE` still fixes the sphere's local tangent scale. A perspective
+   * camera enlarges that tangent at the sub-camera point, so the projected
+   * silhouette is smaller by the exact reciprocal. The camera then fits that
+   * silhouette, while the focused territory remains the same size as the park
+   * nested into it — the hand-off survives the move away from orthographic.
+   */
+  return (parkCell().w * GLOBE_SCALE) / (SITE_SHARE * PERSPECTIVE_CENTRE_SCALE)
 }
 
 /**
@@ -1860,9 +1868,9 @@ export function globeOrigin(): { x: number; y: number } {
  * always the one facing it**. The other ninety-nine are somewhere `globe.ts`
  * works out and the frame chain never asks about.
  *
- * That is the load-bearing half of the no-spin decision: a park's position
- * inside the globe is a *constant*, so rung 6 is a place the camera can be sent
- * to rather than a thing that happens to be under it at the moment.
+ * The top rung may spin under a drag. Entering a city freezes it back to the
+ * address orientation described here before the park appears, so every frame
+ * below the globe still receives the same constant position.
  */
 export function intoGlobe(rect: Rect): Rect {
   return {

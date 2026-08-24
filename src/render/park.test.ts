@@ -166,16 +166,17 @@ describe('the park stands on the planet', () => {
     }
   })
 
-  it('goes dark with the sun rather than staying lit on the night side', () => {
+  it('accepts every fixed ground step the territory hand-off can provide', () => {
     const park = buildPark()
     park.setHeadcount(1e6)
-    park.setTerrain(TEMPERATE, 3)
-    const day = made[BOARD].ops.map((o) => o.fill).join()
+    park.setTerrain(TEMPERATE, 4)
+    const bright = made[BOARD].ops.map((o) => o.fill).join()
+    expect(new Set(made[BOARD].ops.map((o) => o.fill))).toContain(
+      num(terrainShade(TEMPERATE, 4, -1)),
+    )
     park.setTerrain(TEMPERATE, 0)
-    const night = made[BOARD].ops.map((o) => o.fill).join()
-    expect(night).not.toBe(day)
-    // The board's own darkest, so a campus at midnight is a silhouette its own
-    // lit windows are seen against.
+    const dark = made[BOARD].ops.map((o) => o.fill).join()
+    expect(dark).not.toBe(bright)
     expect(new Set(made[BOARD].ops.map((o) => o.fill))).toContain(num(TERRAIN[TEMPERATE][0]))
   })
 

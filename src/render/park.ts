@@ -179,11 +179,10 @@ export interface ParkHandle {
    * What the ground under this park is, and how lit it is.
    *
    * **The park stands on the planet, not on a grey mat**, and this is the whole
-   * of what that costs. A campus in the Sahara stands on ochre, one on the ice
-   * on white, one at sea on a dark blue platform — the same `TERRAIN` ramp and
-   * the same `terrainStep` `globe.ts` shades that site's own ground with, so at
-   * the hand-off the board and the mark it is becoming are the same colour and
-   * the swap has nothing to give away.
+   * of what that costs. A city in an arid belt stands on ochre and one near a
+   * pole on white — the same `TERRAIN` entry `globe.ts` gives that territory,
+   * so at the hand-off the board and the ground it is becoming are the same
+   * colour and the swap has nothing to give away.
    *
    * Only the *ground* takes it. The decks, the packages, the bus, the plant and
    * the towers stay `NEUTRAL`, because concrete is grey wherever it is poured
@@ -262,11 +261,10 @@ export function buildPark(): ParkHandle {
     /*
      * **This is the planet's ground, and it used to be a grey mat.**
      *
-     * `terrainShade(biome, lit, -1)` is the *same expression* `globe.ts` fills a
-     * site's zoned ground with, so a park and the mark it becomes at rung 6 are
-     * the same colour under the same sun. Reported as a campus reading like "a
-     * patched-on grey sticker" laid on a green world, which is exactly what
-     * `NEUTRAL[1]` at 0.72 was.
+     * `terrainShade(biome, lit, -1)` resolves to the same fixed entry
+     * `globe.ts` fills this territory with. The old campus mark was reported as
+     * a "patched-on grey sticker" laid on a green world; there is no separate
+     * footprint at the globe rung now, and this equality closes the hand-off.
      *
      * The alpha went with it. Compositing a grey at 0.72 over whatever happened
      * to be behind was how the old value was arrived at, and it makes the board
@@ -689,13 +687,16 @@ export function buildPark(): ParkHandle {
     },
 
     setTerrain(nextBiome: Biome, nextStep: number) {
-      const step = Math.max(0, Math.min(3, Math.round(nextStep)))
+      // A territory passes one step above its own surface colour because the
+      // park board deliberately shades by `-1`. Four is therefore a legal
+      // hand-off value even though the old moving sun only emitted 0–3.
+      const step = Math.max(0, Math.min(4, Math.round(nextStep)))
       if (nextBiome === biome && step === lit) return
       biome = nextBiome
       lit = step
       // The board only. Nothing else in this file reads the terrain, which is
       // the point of §4.1's split: the studio's own hardware does not change
-      // colour because the studio moved continent.
+      // colour because the studio moved territory.
       redrawBoard()
     },
 

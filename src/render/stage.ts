@@ -830,8 +830,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    *
    * Before this existed every view was fed the studio's own headcount and drew
    * units 0–9 of it, so the ladder was five unrelated pictures of the studio's
-   * first corner: descending into the third town and then the fifth campus gave
-   * campus five *of the studio*. Nothing past the tenth unit at any rung had an
+   * first corner: descending into the third town and then the fifth site gave
+   * site five *of the studio*. Nothing past the tenth unit at any rung had an
    * address at all.
    */
   let focusSeat = 0
@@ -1028,7 +1028,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * The same shape as {@link enterBlock} one rung further out, and the same
    * rule about what is *not* carried across: the address lands on the site's
    * first block rather than keeping whichever parcel was open on the last
-   * continent. A block number is only a block number of somewhere.
+   * territory. A block number is only a block number of somewhere.
    */
   const enterSite = (i: number): boolean => {
     if (!(i >= 0) || i >= sitesFor(getState().devs)) return false
@@ -1115,10 +1115,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
     if (!drag || ev.pointerId !== drag.id || pointers.size >= 2) return
     const t = ev.timeStamp || performance.now()
+    const dx = ev.clientX - drag.px
+    const dy = ev.clientY - drag.py
     // Incremental, because the lens clamps to its own bounds every frame and a
     // drag rebuilt from its origin would keep pushing against a wall it has
     // already hit and then jump when the finger came back.
-    camera.panBy(ev.clientX - drag.px, ev.clientY - drag.py, t)
+    //
+    // At the top rung the subject is a sphere: panning it *is* spinning it.
+    // Keep that exception here, at the gesture boundary, so every lower rung
+    // retains the fixed affine camera and entering a site can still freeze the
+    // globe back to that site's address orientation.
+    if (tapSelectsASite()) globe.rotateBy(dx, dy)
+    else camera.panBy(dx, dy, t)
     drag.px = ev.clientX
     drag.py = ev.clientY
   }
@@ -1225,7 +1233,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // planet, so both have to be said. A floor number is only a floor number
         // of something: naming a storey without saying whose tower it is on
         // moved the address to building 1 and took the room with it, and one
-        // rung further out the same omission moves it to another continent.
+        // rung further out the same omission moves it to another territory.
         setFocus(seatOfStorey(storey, buildingOf(focusSeat), siteOf(focusSeat)))
         playUi('click')
       }
@@ -1625,9 +1633,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
      *
      * **The hand-off, and it is a cross-fade of one picture rather than two.**
      *
-     * `globe.ts` draws every settled site as a campus glyph on the same lattice,
-     * in the same terrain colour and under the same sun as `park.ts` draws the
-     * one the address is in — so what fades here is *detail*, not subject. The
+     * `globe.ts` draws every settled site as one building on territory ground,
+     * and `park.ts` draws the address's detailed city on that exact same ground
+     * colour — so what fades here is *detail*, not subject. The
      * artefact §10.5 forbids is two pictures of the same thing at different
      * sizes blended together; these are the same size by construction, because
      * `intoGlobe` is the scale the park host is already carrying.
@@ -1636,7 +1644,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     globe.setHeadcount(state.devs)
     globe.setFocus(siteOf(focusSeat))
     globe.setSelected(selectedSite)
-    globe.setClock(now)
     globe.setChromeAlpha(globeAlpha)
     // And the studio goes as the planet arrives. One container: the park, its
     // ten blocks, the building and the room all ride the same fade, because
