@@ -35,6 +35,7 @@
 import { useEffect, useState } from 'react'
 import {
   SCENARIOS,
+  addHeadcount,
   applyHeadcount,
   applyScenario,
   parseHeadcount,
@@ -49,12 +50,19 @@ import { dominantView, rungAt, zAtRung } from '../sim/ladder.ts'
 import type { StageHandle } from '../render/stage.ts'
 import '../styles/scenarios.css'
 
+function developerCountLabel(count: number): string {
+  return `${count.toLocaleString()} ${count === 1 ? 'developer' : 'developers'}`
+}
+
 export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
   const [loaded, setLoaded] = useState<Scenario | null>(null)
   const [folded, setFolded] = useState(false)
   const [devs, setDevs] = useState(() => getState().devs)
   /** What is in the box. Parsed on every keystroke so the border can say so. */
   const [typed, setTyped] = useState('')
+  /** The batch dial is logarithmic: one stop per decade, up to the game's gate. */
+  const [batchIndex, setBatchIndex] = useState(0)
+  const [note, setNote] = useState('type a headcount, pick a decade, or add a batch')
   // The camera is not in the store and does not notify, so the two lens
   // readouts are sampled on a frame rather than subscribed to. A tenth of a
   // second is faster than anybody reads a number and is not a per-frame cost.
@@ -83,12 +91,28 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
     if (n === null) return
     applyHeadcount(n)
     setLoaded(null)
+    setNote(`set the studio to ${n.toLocaleString()} developers`)
     stage?.camera.set(zAtRung(rungForCount(n)))
+  }
+
+  const batch = SCENARIOS[batchIndex]
+
+  /**
+   * Add rather than replace. This is the path for watching the arrival and
+   * promotion machinery at a chosen scale; the number box above remains the
+   * path for inspecting a static studio at an exact size.
+   */
+  const addBatch = () => {
+    const next = addHeadcount(batch.devs)
+    setLoaded(null)
+    setNote(`added ${developerCountLabel(batch.devs)}`)
+    stage?.camera.set(zAtRung(rungForCount(next)))
   }
 
   const load = (s: Scenario) => {
     applyScenario(s)
     setLoaded(s)
+    setNote(s.note)
     // The lens, second and separately — `applyScenario` is store-side and does
     // not know the renderer exists. Parked at the rung the headcount has just
     // earned, because the alternative is landing at a hundred million
@@ -163,6 +187,34 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
             {s.label}
           </button>
         ))}
+        <div className="scenarios__dial">
+          <label htmlFor="scenario-batch">BATCH</label>
+          <input
+            id="scenario-batch"
+            type="range"
+            min="0"
+            max={SCENARIOS.length - 1}
+            step="1"
+            value={batchIndex}
+            // A range emits `input` continuously while dragged and from its
+            // arrow keys. Using that native event also keeps automation and
+            // assistive input in the same path as a pointer drag.
+            onInput={(e) => setBatchIndex(Number(e.currentTarget.value))}
+            aria-label="Developer batch size"
+            aria-valuetext={developerCountLabel(batch.devs)}
+            title="choose how many developers the ADD button hires for free"
+          />
+          <output htmlFor="scenario-batch">+{batch.label.replace(' ', '')}</output>
+          <button
+            type="button"
+            className="scenarios__pick scenarios__add"
+            onClick={addBatch}
+            aria-label={`Add ${developerCountLabel(batch.devs)}`}
+            title="add this batch through the real hire and arrival path"
+          >
+            ADD
+          </button>
+        </div>
       </div>
       <div className="scenarios__read">
         <span>
@@ -183,7 +235,7 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
           </b>
         </span>
         <span className="scenarios__note">
-          {loaded?.note ?? 'type a headcount and press Enter, or pick a decade'}
+          {note}
         </span>
       </div>
     </div>

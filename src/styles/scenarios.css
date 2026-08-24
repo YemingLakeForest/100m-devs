@@ -134,3 +134,79 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/*
+ * The free-hire batch dial. Orders of magnitude are the useful stops here, so
+ * the range is an index into SCENARIOS rather than a linear 1..100M slider.
+ * This is dev instrumentation, not §10.10's player-facing segmented dial.
+ */
+.scenarios__dial {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1px solid #2c384b;
+}
+
+.scenarios__dial label {
+  color: #6e8296;
+  letter-spacing: 0.08em;
+}
+
+.scenarios__dial input[type="range"] {
+  width: 104px;
+  height: 16px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.scenarios__dial input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: #2c384b;
+  border-radius: 2px;
+}
+
+.scenarios__dial input[type="range"]::-webkit-slider-thumb {
+  width: 11px;
+  height: 15px;
+  margin-top: -6px;
+  appearance: none;
+  background: #00ff9c;
+  border: 1px solid #071018;
+  border-radius: 2px;
+}
+
+.scenarios__dial input[type="range"]::-moz-range-track {
+  height: 3px;
+  background: #2c384b;
+  border-radius: 2px;
+}
+
+.scenarios__dial input[type="range"]::-moz-range-thumb {
+  width: 11px;
+  height: 15px;
+  background: #00ff9c;
+  border: 1px solid #071018;
+  border-radius: 2px;
+}
+
+.scenarios__dial input[type="range"]:focus-visible {
+  outline: 1px solid #00ff9c;
+  outline-offset: 2px;
+}
+
+.scenarios__dial output {
+  width: 38px;
+  color: #cfe3f2;
+  text-align: right;
+}
+
+.scenarios__add {
+  min-width: 42px;
+  border-color: #00ff9c;
+  color: #00ff9c;
+}

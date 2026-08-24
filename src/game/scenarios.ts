@@ -44,7 +44,7 @@
 
 import { getPermanent, setPermanent } from './save.ts'
 import { SCENES } from './scenes.ts'
-import { __setState } from './store.ts'
+import { __addScenarioDevelopers, __setState, getState } from './store.ts'
 import { rungFor } from '../sim/headcount.ts'
 import { newRoster } from '../sim/roles.ts'
 
@@ -157,6 +157,29 @@ function fundingFor(devs: number): number {
  */
 export function applyScenario(s: Scenario): void {
   applyHeadcount(s.devs)
+}
+
+/**
+ * Add a batch without replacing the studio — the `?scenarios` batch dial.
+ *
+ * Unlike {@link applyHeadcount}, this preserves the run and uses the store's
+ * real hire path. That distinction is the tool's reason to exist: an absolute
+ * jump answers "what does 10,000 look like?", while a batch answers "what does
+ * adding 10,000 look like from here?".
+ *
+ * Returns the resulting headcount so the UI can park the lens without reading
+ * the store a second time.
+ */
+export function addHeadcount(count: number): number {
+  const added = __addScenarioDevelopers(count)
+  const devs = getState().devs
+  if (added <= 0) return devs
+
+  const p = getPermanent()
+  if (devs > p.meta.peakDevs) {
+    setPermanent({ ...p, meta: { ...p.meta, peakDevs: devs } })
+  }
+  return devs
 }
 
 /**

@@ -11,6 +11,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   SCENARIOS,
+  addHeadcount,
+  applyHeadcount,
   applyScenario,
   parseHeadcount,
   rungForCount,
@@ -148,5 +150,49 @@ describe('a headcount somebody typed', () => {
   it('lands the lens on the rung the number has earned', () => {
     expect(rungForCount(1)).toBeLessThan(rungForCount(1e6))
     expect(rungForCount(1e6)).toBeLessThan(rungForCount(1e8))
+  })
+})
+
+describe('a batch somebody adds with the testing dial', () => {
+  it('uses the real hire path, so the addition is visible and the roster stays true', () => {
+    applyHeadcount(10)
+    const before = getState()
+
+    expect(addHeadcount(100)).toBe(110)
+
+    const after = getState()
+    expect(after.devs).toBe(110)
+    expect(after.roster.reduce((n, r) => n + r.count, 0)).toBe(110)
+    expect(after.spawn?.from).toBe(10)
+    expect(after.spawn?.to).toBe(110)
+    expect(after.spawn?.id).not.toBe(before.spawn?.id)
+    expect(after.peakDevs).toBe(110)
+  })
+
+  it('keeps cap and payroll out of the way without erasing the current run', () => {
+    applyHeadcount(10)
+    __setState({
+      cash: 1,
+      devCap: 3,
+      pokeCount: 42,
+      scene: 'test-scene',
+    })
+
+    addHeadcount(1_000)
+
+    const after = getState()
+    expect(after.cash).toBeGreaterThanOrEqual(1_010 * 1e6)
+    expect(after.devCap).toBeGreaterThan(after.devs)
+    expect(after.pokeCount).toBe(42)
+    expect(after.scene).toBeNull()
+  })
+
+  it('ignores invalid or empty batches rather than publishing a fake arrival', () => {
+    applyHeadcount(10)
+    const spawn = getState().spawn
+
+    expect(addHeadcount(0)).toBe(10)
+    expect(addHeadcount(Number.NaN)).toBe(10)
+    expect(getState().spawn).toBe(spawn)
   })
 })

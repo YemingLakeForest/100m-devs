@@ -2297,6 +2297,39 @@ function hire(before: number, after: number, role: Role = 'dev'): Partial<GameSt
 }
 
 /**
+ * Add a free batch for the `?scenarios` instrument.
+ *
+ * This is deliberately beside {@link hire}: the testing control needs the
+ * same SpawnEvent as a paid hire or it can only test a counter changing, not
+ * the arrival, rung promotion and camera reveal that make adding developers
+ * visible. It also keeps the studio above its cap and payroll while somebody
+ * is inspecting the result; those are useful game constraints and noise in a
+ * renderer instrument.
+ *
+ * The double underscore marks the same boundary as {@link __setState}. The
+ * player-facing HUD never calls this and the only UI that does is gated by
+ * `SCENARIOS_UP`.
+ */
+export function __addScenarioDevelopers(count: number): number {
+  const requested = Math.max(0, Math.floor(Number.isFinite(count) ? count : 0))
+  const before = state.devs
+  const added = Math.min(requested, Number.MAX_SAFE_INTEGER - before)
+  if (added <= 0) return 0
+
+  const after = before + added
+  set({
+    ...hire(before, after),
+    devCap: Math.max(state.devCap, after * 2),
+    cash: Math.max(state.cash, after * 1e6),
+    // A dev instrument must not put its own result behind a script or event
+    // scrim. `applyHeadcount` makes the same guarantee for absolute jumps.
+    scene: null,
+    event: null,
+  })
+  return added
+}
+
+/**
  * §14.1 — BP awarded by the most recent Paradigm Shift, for the screen that
  * announces it. Module state rather than game state: it belongs to the moment
  * rather than to the run, and a run that has just been replaced cannot hold it.

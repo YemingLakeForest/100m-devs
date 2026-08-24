@@ -41,7 +41,7 @@ Useful while working on the render stack:
 | `?post=bloom,crt` | Attach only the named passes (`tilt`, `zoom`, `bloom`, `rgb`, `crt`) |
 | `?bench` | Run the ADR §7.5 acceptance sequence and print a pass/fail table. `?bench=10` shortens the 60s sustained-tap leg. |
 | `?act=act5_bleeding` | Jump the §21 script. Run 1 is paced to take ~4 minutes by design, which is right for a player and unworkable for iterating on Act V's copy. |
-| `?scenarios` | The dev bar: a decade per button, and **a box that takes any headcount** — `250000`, `40m`, `1e8`, `0.5b` — and puts the studio at exactly that with the lens parked at the rung it has earned. `DEVS / RUNG / VIEW / SITES` readouts. `npm run scenarios` opens it. |
+| `?scenarios` | The dev bar: a decade per button, **a box that takes any exact headcount**, and a logarithmic `BATCH` dial that adds 1–100M developers through the real hire/arrival path. The lens follows the resulting rung; `DEVS / RUNG / VIEW / SITES` confirm it. `npm run scenarios` opens it. |
 | `?devs=250000` | The same headcount, from the URL, without the script retired or the money in the bank |
 | `?speed=40` | Run N simulation ticks per frame — the clock and nothing else. Whole ticks, so it is the same simulation N times over rather than a bigger step. What makes `test:walk` finish. |
 
