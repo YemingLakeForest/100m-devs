@@ -72,6 +72,7 @@
 
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
+import { TEMPERATE, terrainShade, type Biome } from './worldMap.ts'
 import {
   BLOCKS_PER_PARK,
   COMPOUNDS,
@@ -174,6 +175,21 @@ export interface ParkHandle {
    * picture the block level has always drawn.
    */
   setChromeAlpha(alpha: number): void
+  /**
+   * What the ground under this park is, and how lit it is.
+   *
+   * **The park stands on the planet, not on a grey mat**, and this is the whole
+   * of what that costs. A campus in the Sahara stands on ochre, one on the ice
+   * on white, one at sea on a dark blue platform — the same `TERRAIN` ramp and
+   * the same `terrainStep` `globe.ts` shades that site's own ground with, so at
+   * the hand-off the board and the mark it is becoming are the same colour and
+   * the swap has nothing to give away.
+   *
+   * Only the *ground* takes it. The decks, the packages, the bus, the plant and
+   * the towers stay `NEUTRAL`, because concrete is grey wherever it is poured
+   * and a deck that took the biome's colour would be a campus in camouflage.
+   */
+  setTerrain(biome: Biome, step: number): void
   readonly blocks: number
 }
 
@@ -220,6 +236,9 @@ export function buildPark(): ParkHandle {
 
   let devs = 0
   let built = 1
+  /** The ground this park stands on. Temperate until the planet says otherwise. */
+  let biome: Biome = TEMPERATE
+  let lit = 3
   let focus = 0
   let selected = -1
   let chrome = 1
@@ -240,11 +259,24 @@ export function buildPark(): ParkHandle {
      * every time the studio grows, so a city of three districts is a town and a
      * city of four is a city, without a coastline anybody has to redraw.
      */
-    // One pass, at the alpha the two-pass version worked out to: the shade was
-    // a second quad per cell and the frame was already paying for the first.
+    /*
+     * **This is the planet's ground, and it used to be a grey mat.**
+     *
+     * `terrainShade(biome, lit, -1)` is the *same expression* `globe.ts` fills a
+     * site's zoned ground with, so a park and the mark it becomes at rung 6 are
+     * the same colour under the same sun. Reported as a campus reading like "a
+     * patched-on grey sticker" laid on a green world, which is exactly what
+     * `NEUTRAL[1]` at 0.72 was.
+     *
+     * The alpha went with it. Compositing a grey at 0.72 over whatever happened
+     * to be behind was how the old value was arrived at, and it makes the board
+     * a *different colour depending on what is under it* — which is the one
+     * thing the hand-off cannot survive.
+     */
+    const ground = terrainShade(biome, lit, -1)
     for (const cell of islandCells(built)) {
       polygon(board, latticeCorners(cell))
-      board.fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.72 })
+      board.fill(c(ground))
     }
 
     /*
@@ -257,16 +289,20 @@ export function buildPark(): ParkHandle {
       const a = parkLatticeAt(e.a.u, e.a.v)
       const b = parkLatticeAt(e.b.u, e.b.v)
       if (e.nu > 0 || e.nv > 0) {
-        faceDown(board, a, b, BOARD_DROP, RAMPS.NEUTRAL[0])
+        // The coast is the same ground seen edge-on and the same ground catching
+        // the light: two steps down for the face, one up for the rim. Stepping
+        // within the biome's own ramp is what keeps a shoreline reading as a
+        // shoreline of *that* place rather than as a grey kerb round it.
+        faceDown(board, a, b, BOARD_DROP, terrainShade(biome, lit, -3))
         board
           .moveTo(a.x, a.y)
           .lineTo(b.x, b.y)
-          .stroke({ width: 2.6, color: c(RAMPS.NEUTRAL[3]), alpha: 0.9 })
+          .stroke({ width: 2.6, color: c(terrainShade(biome, lit, 1)), alpha: 0.9 })
       } else {
         board
           .moveTo(a.x, a.y)
           .lineTo(b.x, b.y)
-          .stroke({ width: 1.6, color: c(RAMPS.NEUTRAL[2]), alpha: 0.75 })
+          .stroke({ width: 1.6, color: c(terrainShade(biome, lit, -2)), alpha: 0.75 })
       }
     }
   }
@@ -650,6 +686,17 @@ export function buildPark(): ParkHandle {
 
     blockAt(block: number) {
       return blocks[Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))]
+    },
+
+    setTerrain(nextBiome: Biome, nextStep: number) {
+      const step = Math.max(0, Math.min(3, Math.round(nextStep)))
+      if (nextBiome === biome && step === lit) return
+      biome = nextBiome
+      lit = step
+      // The board only. Nothing else in this file reads the terrain, which is
+      // the point of §4.1's split: the studio's own hardware does not change
+      // colour because the studio moved continent.
+      redrawBoard()
     },
 
     setHeadcount(next: number) {

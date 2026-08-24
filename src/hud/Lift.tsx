@@ -9,7 +9,9 @@ import {
   DESK,
   DEVS_PER_FLOOR,
   FLOOR,
+  GLOBE,
   PARK,
+  PARK_CAP,
   SQUAD,
   type Level,
 } from '../render/frames.ts'
@@ -37,9 +39,10 @@ function floorName(storey: number): string {
   return String(storey + 1).padStart(2, '0')
 }
 
-/** Buildings and blocks are numbered like floors, and for the same reason. */
+/** Buildings, blocks and sites are numbered like floors, and for the same reason. */
 const buildingName = floorName
 const blockName = floorName
+const siteName = floorName
 
 export function Lift({ stage }: { stage: StageHandle | null }) {
   const [nav, setNav] = useState<NavState | null>(null)
@@ -48,6 +51,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
   const at = nav?.at ?? null
   const building = nav?.building ?? 0
   const block = nav?.block ?? 0
+  const site = nav?.site ?? 0
 
   useEffect(() => {
     if (!stage) return
@@ -74,7 +78,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    */
   useEffect(() => {
     here.current?.scrollIntoView({ block: 'nearest' })
-  }, [storey, building, block, at])
+  }, [storey, building, block, site, at])
 
   if (!stage || !nav) return null
   /*
@@ -87,7 +91,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * is also what keeps the §23.4 rail containment gate honest at 640x360, where
    * the fullest HUD in the game has no spare pixels to lend.
    */
-  if (nav.storeys <= 1 && nav.buildings <= 1 && nav.blocks <= 1) return null
+  if (nav.storeys <= 1 && nav.buildings <= 1 && nav.blocks <= 1 && nav.sites <= 1) return null
 
   /*
    * **The doors and the way back out are never both needed, so only one is
@@ -105,6 +109,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * menu for. So Building gets the doors and one line saying where they are,
    * and everything below gets the ladder.
    */
+  const onTheGlobe = nav.at === GLOBE
   const onThePark = nav.at === PARK
   const onTheBlock = nav.at === BLOCK
   const outside = nav.at === BUILDING
@@ -123,7 +128,16 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * 136 px rail saying "the studio" twice.
    */
   const ladder: { level: Level; text: string }[] = []
-  if (nav.blocks > 1) ladder.push({ level: PARK, text: 'PARK 1' })
+  if (nav.sites > 1) ladder.push({ level: GLOBE, text: 'EARTH' })
+  /*
+   * **A site *is* a park**, so the two never both appear. Once the studio is on
+   * more than one continent the PARK rung is named for the site it is, and until
+   * then it is the park it always was — which is the same rule as the line below
+   * it and the reason `PARK 1 / SITE 07` is not a thing the rail ever says.
+   */
+  if (nav.sites > 1 || nav.blocks > 1) {
+    ladder.push({ level: PARK, text: nav.sites > 1 ? `SITE ${siteName(site)}` : 'PARK 1' })
+  }
   if (nav.blocks > 1 || nav.buildings > 1) {
     ladder.push({ level: BLOCK, text: `BLOCK ${blockName(nav.block)}` })
   }
@@ -158,7 +172,9 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * about is not ready to be on screen.
    */
   const door =
-    onThePark && nav.selectedBlock >= 0 && nav.selectedBlock < nav.blocks
+    onTheGlobe && nav.selectedSite >= 0 && nav.selectedSite < nav.sites
+      ? { text: `ENTER SITE ${siteName(nav.selectedSite)}`, go: () => stage.enterSite(nav.selectedSite) }
+      : onThePark && nav.selectedBlock >= 0 && nav.selectedBlock < nav.blocks
       ? { text: `ENTER BLOCK ${blockName(nav.selectedBlock)}`, go: () => stage.enterBlock(nav.selectedBlock) }
       : onTheBlock && nav.selectedBuilding >= 0 && nav.selectedBuilding < nav.buildings
         ? { text: `ENTER BUILDING ${buildingName(nav.selectedBuilding)}`, go: () => stage.enterBuilding(nav.selectedBuilding) }
@@ -192,6 +208,38 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
         <button type="button" className="hud__enter" onClick={door.go}>
           {door.text}
         </button>
+      )}
+
+      {onTheGlobe && nav.sites > 1 && (
+        <ol className="hud__floors">
+          {/* Settled first, because sites fill in order and the one you are in
+              is nearly always near the end of that. */}
+          {nav.globeOccupancy
+            .map((devs, i) => ({ devs, i }))
+            .reverse()
+            .map(({ devs, i }) => {
+              const onThis = i === nav.site
+              const named = i === nav.selectedSite
+              return (
+                <li key={i} ref={onThis ? here : null}>
+                  <button
+                    type="button"
+                    className={`hud__floor${onThis ? ' is-here' : ''}${named ? ' is-named' : ''}`}
+                    onClick={() => stage.enterSite(i)}
+                  >
+                    <span className="hud__floor-no">{siteName(i)}</span>
+                    <span className="hud__floor-bar">
+                      <span
+                        className="hud__floor-fill"
+                        style={{ width: `${(devs / PARK_CAP) * 100}%` }}
+                      />
+                    </span>
+                    <span className="hud__floor-devs">{formatCount(devs)}</span>
+                  </button>
+                </li>
+              )
+            })}
+        </ol>
       )}
 
       {onThePark && nav.blocks > 1 && (

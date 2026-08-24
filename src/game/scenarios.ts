@@ -74,9 +74,9 @@ export const SCENARIOS: readonly Scenario[] = [
   { id: 'floor', label: '1 K', devs: 1e3, note: '§7.7.1’s floor arrives, and the room is exactly full at ROOM_DEV_CAP.' },
   { id: 'building', label: '10 K', devs: 1e4, note: 'A building. The last rung where a seat window can hold everybody.' },
   { id: 'campus', label: '100 K', devs: 1e5, note: 'A campus. Past here the people are generated on demand, never stored.' },
-  { id: 'town', label: '1 M', devs: 1e6, note: 'A town, and flat: §4.9a’s spread is σ/√size and a million averages out.' },
-  { id: 'metro', label: '10 M', devs: 1e7, note: 'Ten towns. The rung holds; the numerals are what change.' },
-  { id: 'nation', label: '100 M', devs: 1e8, note: '§13.5’s gate, and the number the game is named after.' },
+  { id: 'town', label: '1 M', devs: 1e6, note: 'One site, on a planet that has not noticed. A park is exactly full here.' },
+  { id: 'metro', label: '10 M', devs: 1e7, note: 'Ten sites. The dark side starts being readable as a map.' },
+  { id: 'nation', label: '100 M', devs: 1e8, note: '§13.5’s gate. The planet is full and there is nowhere left to put a desk.' },
 ]
 
 /**
@@ -100,9 +100,38 @@ export function scenarioById(id: string): Scenario | null {
   return SCENARIOS.find((s) => s.id === id) ?? null
 }
 
+/**
+ * A headcount somebody typed, as a number — or `null` if it was not one.
+ *
+ * Accepts what a person actually types when they mean a hundred million:
+ * `100000000`, `100,000,000`, `100 000 000`, `100m`, `1e8`, `0.1b`. The suffixes
+ * are the load-bearing part and the reason this is a function rather than a
+ * `Number()` call at the call site — the whole point of the tool is the sizes
+ * above a million, and nobody wants to count zeroes to get to one.
+ *
+ * Rejects rather than clamps, because a typo that silently becomes a studio of
+ * zero is worse than a box that stays red until it says something.
+ */
+export function parseHeadcount(text: string): number | null {
+  const t = text.trim().toLowerCase().replace(/[, _]/g, '')
+  if (!t) return null
+  const m = /^([0-9]*\.?[0-9]+(?:e[+-]?[0-9]+)?)([kmbt])?$/.exec(t)
+  if (!m) return null
+  const n = Number(m[1])
+  if (!Number.isFinite(n) || n < 0) return null
+  const scale = { k: 1e3, m: 1e6, b: 1e9, t: 1e12 }[m[2] ?? ''] ?? 1
+  const devs = Math.floor(n * scale)
+  return Number.isSafeInteger(devs) ? devs : null
+}
+
 /** The §7.7.1 rung this headcount has earned — how far out the lens may go. */
 export function scenarioRung(s: Scenario): number {
-  return rungFor(s.devs).rung
+  return rungForCount(s.devs)
+}
+
+/** The same, for a headcount somebody typed rather than one on a button. */
+export function rungForCount(devs: number): number {
+  return rungFor(Math.max(0, Math.floor(Number.isFinite(devs) ? devs : 0))).rung
 }
 
 /**
@@ -127,7 +156,22 @@ function fundingFor(devs: number): number {
  * `game/` from importing `render/`.
  */
 export function applyScenario(s: Scenario): void {
-  const devs = Math.max(0, Math.floor(s.devs))
+  applyHeadcount(s.devs)
+}
+
+/**
+ * Put the studio at **any** headcount — the decades on the buttons, and every
+ * number between them.
+ *
+ * The buttons are a list of interesting sizes and the interesting sizes are not
+ * always the decades: rung 6 spans two of them, so "what does 40 million look
+ * like" is a real question with no button on it, and "what does the frame after
+ * the sixty-first site look like" is a question you can only ask by typing
+ * 61,000,001. Everything {@link applyScenario} was doing was already a function
+ * of one number; this is that function, with the button taken off the front.
+ */
+export function applyHeadcount(count: number): void {
+  const devs = Math.max(0, Math.floor(Number.isFinite(count) ? count : 0))
 
   // Every scene, recorded as already seen. Recorded rather than suppressed, on
   // the same argument `?full` records the four arrivals: a career that has a

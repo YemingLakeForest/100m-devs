@@ -99,3 +99,38 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/*
+ * The headcount box — §26.2's real question, which is not always a decade.
+ *
+ * Sized for `100,000,000` and no wider: the bar is a row and a control that
+ * grows pushes the decade buttons off the end of it.
+ */
+.scenarios__box {
+  pointer-events: auto;
+  width: 84px;
+  padding: 3px 6px;
+  background: #0b0f18;
+  border: 1px solid #2c384b;
+  border-radius: 3px;
+  color: #cfe3f2;
+  font: inherit;
+  text-align: right;
+}
+
+.scenarios__box:focus {
+  outline: none;
+  border-color: #00ff9c;
+}
+
+/* Red while it says something that is not a number, rather than silently
+   becoming a studio of nobody on the next press of Enter. */
+.scenarios__box.is-bad {
+  border-color: #e03c3c;
+  color: #ffb8b8;
+}
+
+.scenarios__pick:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

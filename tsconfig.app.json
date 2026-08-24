@@ -24,5 +24,15 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /*
+   * The one exclusion, and it is a dev tool rather than app code.
+   *
+   * `__preview.test.ts` renders the planet to a file so it can be looked at, so
+   * it needs `node:fs` and `process` — and pulling `@types/node` into the app's
+   * type surface to get them would let *shipped* code reach for a Node API and
+   * still typecheck. A tool that runs under `npx vitest` on demand is worth
+   * less than that guarantee. It is still linted, and it still runs.
+   */
+  "exclude": ["src/render/__preview.test.ts"]
 }

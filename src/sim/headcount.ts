@@ -107,7 +107,7 @@ export const RUNGS = [
   { rung: 3, upTo: 1e4, unit: 'floor', unitSize: 1e3, place: 'a tower growing storey by storey' },
   { rung: 4, upTo: 1e5, unit: 'building', unitSize: 1e4, place: 'a block' },
   { rung: 5, upTo: 1e6, unit: 'campus', unitSize: 1e5, place: 'a business park' },
-  { rung: 6, upTo: 1e8, unit: 'town', unitSize: 1e6, place: 'a sprawl to the horizon' },
+  { rung: 6, upTo: 1e8, unit: 'site', unitSize: 1e6, place: 'a planet filling with campuses' },
   { rung: 7, upTo: 1e10, unit: 'nation', unitSize: 1e8, place: 'a continent, lit at night' },
   { rung: 8, upTo: 1e13, unit: 'planet', unitSize: 1e10, place: 'a system' },
   { rung: 9, upTo: Number.POSITIVE_INFINITY, unit: 'galaxy', unitSize: 1e13, place: 'a cluster' },

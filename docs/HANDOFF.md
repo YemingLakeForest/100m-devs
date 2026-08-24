@@ -1,6 +1,20 @@
 # Handoff — 2026-08-10
 
-> **Current handoff: [`HANDOFF-2026-08-22.md`](HANDOFF-2026-08-22.md)** — **rung 5, the business
+> **Current handoff: [`HANDOFF-2026-08-23.md`](HANDOFF-2026-08-23.md)** — **rung 6, the globe.**
+> One camera, **seven levels** (desk, squad, floor, building, block, park, globe), built to
+> **100,000,000 developers on a hundred sites of a million**. The planet is full at the number the
+> game is named after, and that is derived rather than tuned: the radius is whatever makes a
+> hundred parks *exactly tile the sphere*. A park stands on the planet's own ground — ochre in the
+> Sahara, white on the ice, a platform at sea — so the hand-off from rung 5 is a swap and not a
+> sticker. Six findings and **traps 64–68**, four of which were invisible to the arithmetic and
+> obvious in a picture: a first campus in Antarctica (an enum sorted ordinally), half a planet the
+> colour of space, lights sized in pixels in a file that draws in world units, a fade that hid the
+> whole studio because the studio is parented inside the thing being faded, and two pickers left
+> behind when the outermost space moved. **No LOD threshold moved** — the third level in a row that
+> cost one division and a new `TOP_LEVEL`. Plan:
+> [`PLAN-2026-08-23-globe.md`](PLAN-2026-08-23-globe.md).
+>
+> **Previous: [`HANDOFF-2026-08-22.md`](HANDOFF-2026-08-22.md)** — **rung 5, the business
 > park.** One camera, **six levels** (desk, squad, floor, building, block, park), built to
 > **1,000,000 developers in ten blocks of ten buildings**. Ten parcels on decks with boulevards,
 > car parks and walkways; a third picker on the rail; the address grown a rung and still one seat

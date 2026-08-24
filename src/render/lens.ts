@@ -31,6 +31,7 @@ import {
   BUILDING,
   DESK,
   FLOOR,
+  GLOBE,
   PARK,
   TOP_LEVEL,
   blockOf,
@@ -38,10 +39,13 @@ import {
   fitScaleFor,
   floorFrame,
   floorToPark,
+  globeFrame,
+  intoGlobe,
   frameFor,
   intoParcel,
   intoPlate,
   intoPlot,
+  parkToGlobe,
   levelAtScale,
   levelScales,
   nestScales,
@@ -99,18 +103,21 @@ export function panBounds(
   storeys: number,
   buildings = 1,
   blocks = 1,
+  sites = 1,
 ): Rect {
   const block = blockOf(seat)
   const plot = plotOf(buildingOf(seat))
   if (level < FLOOR + 0.5) {
-    return intoParcel(intoPlot(intoPlate(floorFrame(), storeyOf(seat)), plot), block)
+    return intoGlobe(intoParcel(intoPlot(intoPlate(floorFrame(), storeyOf(seat)), plot), block))
   }
   // Between the floor and the block it is the building you are in: you may look
   // anywhere on your own tower and no further, for the same reason the floor
-  // holds you to your own storey. Then the block, then the park.
-  if (level < BLOCK - 0.5) return frameFor(BUILDING, seat, storeys, buildings, blocks)
-  if (level < PARK - 0.5) return frameFor(BLOCK, seat, storeys, buildings, blocks)
-  return frameFor(PARK, seat, storeys, buildings, blocks)
+  // holds you to your own storey. Then the block, then the park, then the
+  // planet - which is the last of them, because there is nowhere left to roam.
+  if (level < BLOCK - 0.5) return frameFor(BUILDING, seat, storeys, buildings, blocks, sites)
+  if (level < PARK - 0.5) return frameFor(BLOCK, seat, storeys, buildings, blocks, sites)
+  if (level < GLOBE - 0.5) return frameFor(PARK, seat, storeys, buildings, blocks, sites)
+  return globeFrame(sites, storeys, buildings, blocks)
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -199,6 +206,8 @@ export class Lens {
   private buildings = 1
   /** How many blocks stand in the park. The frames above the block need it. */
   private blocks = 1
+  /** How many sites the studio has settled. Only the globe's own frame needs it. */
+  private sites = 1
 
   private _scale = 1
   private _cx = 0
@@ -366,33 +375,41 @@ export class Lens {
    * camera; instead the scale is preserved and only the centre follows, which
    * reads as the building opening at a different floor rather than as a cut.
    */
-  setAddress(seat: number, storeys: number, buildings = 1, blocks = 1): void {
+  setAddress(seat: number, storeys: number, buildings = 1, blocks = 1, sites = 1): void {
     const nextSeat = Math.max(0, Math.floor(Number.isFinite(seat) ? seat : 0))
     const nextStoreys = Math.max(1, Math.floor(Number.isFinite(storeys) ? storeys : 1))
     const nextBuildings = Math.max(1, Math.floor(Number.isFinite(buildings) ? buildings : 1))
     const nextBlocks = Math.max(1, Math.floor(Number.isFinite(blocks) ? blocks : 1))
+    const nextSites = Math.max(1, Math.floor(Number.isFinite(sites) ? sites : 1))
     if (
       nextSeat === this.seat &&
       nextStoreys === this.storeys &&
       nextBuildings === this.buildings &&
-      nextBlocks === this.blocks
+      nextBlocks === this.blocks &&
+      nextSites === this.sites
     ) {
       return
     }
     // A new *building* moves the frames as surely as a new storey does, and it
     // moves them further: every level below the block is authored inside a plot
     // and the plot is somewhere else. A new block moves them further still.
+    //
+    // A new **site** does not, and that is the no-spin decision paying for
+    // itself: the planet turns so that whichever site the address is in faces
+    // the camera, so a park's position inside the globe is the same constant
+    // whichever park it is. Changing continent moves nothing in this space.
     const moved =
       storeyOf(nextSeat) !== storeyOf(this.seat) || buildingOf(nextSeat) !== buildingOf(this.seat)
     this.seat = nextSeat
     this.storeys = nextStoreys
     this.buildings = nextBuildings
     this.blocks = nextBlocks
+    this.sites = nextSites
     this.dirty = true
     if (moved && !this.commanded) {
       // Follow the focus without changing how close in we are.
       const here = settleLevel(this.level)
-      const frame = frameFor(here, this.seat, this.storeys, this.buildings, this.blocks)
+      const frame = frameFor(here, this.seat, this.storeys, this.buildings, this.blocks, this.sites)
       this._cx = frame.cx
       this._cy = frame.cy
     }
@@ -407,7 +424,14 @@ export class Lens {
    * scale that frames something else.
    */
   scales(): Record<Level, number> {
-    const base = levelScales(this.seat, this.storeys, this.viewport, this.buildings, this.blocks)
+    const base = levelScales(
+      this.seat,
+      this.storeys,
+      this.viewport,
+      this.buildings,
+      this.blocks,
+      this.sites,
+    )
     if (this.floorRect) base[FLOOR] = fitScaleFor(this.frameOf(FLOOR), this.viewport)
     // The garage is a rectangle that grows and it does not respect the nesting
     // — for the first thirty developers the room is smaller than the squad
@@ -493,7 +517,7 @@ export class Lens {
   frameOf(level: Level): Rect {
     const room = this.floorRect ? this.roomFrame(this.floorRect) : null
     if (level === FLOOR && room) return room
-    const own = frameFor(level, this.seat, this.storeys, this.buildings, this.blocks)
+    const own = frameFor(level, this.seat, this.storeys, this.buildings, this.blocks, this.sites)
     if (!room || level > FLOOR) return own
     // A frame that holds *more* than the room fits at a smaller scale than the
     // room does. That is the crossing `nestScales` collapses.
@@ -508,15 +532,19 @@ export class Lens {
    * is assembled by hand at every call site is trap 38 waiting to happen.
    */
   private roomFrame(rect: Rect): Rect {
-    return intoParcel(
-      intoPlot(intoPlate(rect, storeyOf(this.seat)), plotOf(buildingOf(this.seat))),
-      blockOf(this.seat),
+    return intoGlobe(
+      intoParcel(
+        intoPlot(intoPlate(rect, storeyOf(this.seat)), plotOf(buildingOf(this.seat))),
+        blockOf(this.seat),
+      ),
     )
   }
 
   /** A point on the focused floor, in the camera's own space. */
   private floorPointToWorld(p: { x: number; y: number }): { x: number; y: number } {
-    return floorToPark(p, storeyOf(this.seat), plotOf(buildingOf(this.seat)), blockOf(this.seat))
+    return parkToGlobe(
+      floorToPark(p, storeyOf(this.seat), plotOf(buildingOf(this.seat)), blockOf(this.seat)),
+    )
   }
 
   /**
@@ -672,7 +700,7 @@ export class Lens {
   /** What the camera may roam over — the floor it is in, or the building. */
   private bounds(): Rect {
     if (this.level < FLOOR + 0.5 && this.floorRect) return this.roomFrame(this.floorRect)
-    return panBounds(this.level, this.seat, this.storeys, this.buildings, this.blocks)
+    return panBounds(this.level, this.seat, this.storeys, this.buildings, this.blocks, this.sites)
   }
 
   panBy(dx: number, dy: number, now: number): void {

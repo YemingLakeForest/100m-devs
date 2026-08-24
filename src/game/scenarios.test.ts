@@ -9,7 +9,14 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { SCENARIOS, applyScenario, scenarioById, scenarioRung } from './scenarios.ts'
+import {
+  SCENARIOS,
+  applyScenario,
+  parseHeadcount,
+  rungForCount,
+  scenarioById,
+  scenarioRung,
+} from './scenarios.ts'
 import { __resetStore, __setState, getState, tick } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { rungFor } from '../sim/headcount.ts'
@@ -104,5 +111,42 @@ describe('a scenario is a studio you can look at', () => {
     expect(getState().floaters).toEqual([])
     expect(getState().selected).toBeNull()
     expect(getState().pokeRate).toBe(0)
+  })
+})
+
+describe('a headcount somebody typed', () => {
+  it('takes what a person actually types when they mean a hundred million', () => {
+    // The suffixes are the point. The whole tool exists for the sizes above a
+    // million, and nobody wants to count zeroes to get to one.
+    expect(parseHeadcount('100000000')).toBe(1e8)
+    expect(parseHeadcount('100,000,000')).toBe(1e8)
+    expect(parseHeadcount('100 000 000')).toBe(1e8)
+    expect(parseHeadcount('100m')).toBe(1e8)
+    expect(parseHeadcount('100M')).toBe(1e8)
+    expect(parseHeadcount('0.1b')).toBe(1e8)
+    expect(parseHeadcount('1e8')).toBe(1e8)
+    expect(parseHeadcount(' 40m ')).toBe(4e7)
+    expect(parseHeadcount('250k')).toBe(250_000)
+    expect(parseHeadcount('1')).toBe(1)
+  })
+
+  it('rejects rather than clamps, so a typo never quietly becomes a studio of nobody', () => {
+    expect(parseHeadcount('')).toBeNull()
+    expect(parseHeadcount('   ')).toBeNull()
+    expect(parseHeadcount('lots')).toBeNull()
+    expect(parseHeadcount('-5')).toBeNull()
+    expect(parseHeadcount('12x')).toBeNull()
+    expect(parseHeadcount('1..2')).toBeNull()
+    // Past 2^53 a headcount stops being an integer and starts being a rumour.
+    // The boundary is `Number.isSafeInteger` and not a taste: §7.7.1's ladder
+    // runs to 10^13 and a tool that refused a trillion would be refusing the
+    // top of the game.
+    expect(parseHeadcount('999t')).toBe(999e12)
+    expect(parseHeadcount('99999t')).toBeNull()
+  })
+
+  it('lands the lens on the rung the number has earned', () => {
+    expect(rungForCount(1)).toBeLessThan(rungForCount(1e6))
+    expect(rungForCount(1e6)).toBeLessThan(rungForCount(1e8))
   })
 })

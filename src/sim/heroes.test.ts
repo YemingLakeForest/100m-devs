@@ -57,7 +57,7 @@ describe('the reach ladder — §13.6.1', () => {
       'floor',
       'building',
       'campus',
-      'town',
+      'site',
       'nation',
       'planet',
       'galaxy',

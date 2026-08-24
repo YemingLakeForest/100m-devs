@@ -33,7 +33,17 @@
  */
 
 import { useEffect, useState } from 'react'
-import { SCENARIOS, applyScenario, scenarioRung, type Scenario } from '../game/scenarios.ts'
+import {
+  SCENARIOS,
+  applyHeadcount,
+  applyScenario,
+  parseHeadcount,
+  rungForCount,
+  scenarioRung,
+  type Scenario,
+} from '../game/scenarios.ts'
+import { PARK_CAP } from '../render/frames.ts'
+import { SITES_PER_GLOBE } from '../render/worldMap.ts'
 import { getState, subscribe } from '../game/store.ts'
 import { dominantView, rungAt, zAtRung } from '../sim/ladder.ts'
 import type { StageHandle } from '../render/stage.ts'
@@ -43,6 +53,8 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
   const [loaded, setLoaded] = useState<Scenario | null>(null)
   const [folded, setFolded] = useState(false)
   const [devs, setDevs] = useState(() => getState().devs)
+  /** What is in the box. Parsed on every keystroke so the border can say so. */
+  const [typed, setTyped] = useState('')
   // The camera is not in the store and does not notify, so the two lens
   // readouts are sampled on a frame rather than subscribed to. A tenth of a
   // second is faster than anybody reads a number and is not a per-frame cost.
@@ -55,6 +67,24 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
     const id = setInterval(() => setZ(stage.camera.z), 100)
     return () => clearInterval(id)
   }, [stage])
+
+  /**
+   * Put the studio at a headcount somebody typed.
+   *
+   * The decades on the buttons are a list of *interesting* sizes, and the
+   * interesting sizes are not always decades — rung 6 spans two of them, so
+   * "what does forty million look like" has no button, and "what does the frame
+   * after the sixty-first site look like" can only be asked by typing
+   * 61,000,001. Same two steps as {@link load}: the store, and then the lens
+   * separately, because `game/` may not import `render/`.
+   */
+  const go = () => {
+    const n = parseHeadcount(typed)
+    if (n === null) return
+    applyHeadcount(n)
+    setLoaded(null)
+    stage?.camera.set(zAtRung(rungForCount(n)))
+  }
 
   const load = (s: Scenario) => {
     applyScenario(s)
@@ -72,6 +102,11 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return
+      // **Not while somebody is typing a number.** The shortcut is 1-9 and so is
+      // most of a headcount: without this, typing `40000000` loads scenario 4
+      // and then eight studios of one developer, which is a tool fighting the
+      // thing it is for.
+      if (e.target instanceof HTMLElement && e.target.tagName === 'INPUT') return
       if (e.key === '0') {
         setFolded((f) => !f)
         return
@@ -96,6 +131,26 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
         >
           DEVS
         </button>
+        <input
+          className={`scenarios__box${typed && parseHeadcount(typed) === null ? ' is-bad' : ''}`}
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') go()
+          }}
+          placeholder="40m"
+          title="any headcount — 250000, 40m, 1e8, 0.5b — then Enter"
+          aria-label="headcount"
+        />
+        <button
+          type="button"
+          className="scenarios__pick"
+          onClick={go}
+          disabled={parseHeadcount(typed) === null}
+          title="put the studio at exactly this many developers"
+        >
+          GO
+        </button>
         {SCENARIOS.map((s, i) => (
           <button
             key={s.id}
@@ -119,7 +174,17 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
         <span>
           VIEW <b>{dominantView(z)}</b>
         </span>
-        <span className="scenarios__note">{loaded?.note ?? 'pick a decade, or press 1-9'}</span>
+        {/* How much of the planet this headcount has taken — the number nothing
+            else on screen can say, and the one rung 6 is entirely about. */}
+        <span>
+          SITES{' '}
+          <b>
+            {Math.max(1, Math.min(SITES_PER_GLOBE, Math.ceil(devs / PARK_CAP)))}/{SITES_PER_GLOBE}
+          </b>
+        </span>
+        <span className="scenarios__note">
+          {loaded?.note ?? 'type a headcount and press Enter, or pick a decade'}
+        </span>
       </div>
     </div>
   )

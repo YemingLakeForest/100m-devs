@@ -6,6 +6,20 @@ import {
   BLOCK_CAP,
   BLOCK_COLS,
   BLOCK_SCALE,
+  GLOBE,
+  GLOBE_CAP,
+  PARK_CAP,
+  GLOBE_SCALE,
+  SITE_SHARE,
+  devsOnSite,
+  globeChromeAlpha,
+  globeFrame,
+  globeRadius,
+  intoGlobe,
+  parkCell,
+  seatOfSite,
+  siteOf,
+  sitesFor,
   BUILDINGS_PER_BLOCK,
   BUILDINGS_PER_PARK,
   BUILDING,
@@ -93,6 +107,8 @@ import {
 import { ROOM_SQUAD_COLS, ROOM_SQUAD_ROWS, SQUAD_SIZE, seatPosition } from './room.ts'
 
 /** §23.4.2's largest frame, and the one every measurement in the plan was taken at. */
+import { SITES_PER_GLOBE } from './worldMap.ts'
+
 const REFERENCE = { w: 997, h: 448 }
 
 const contains = (
@@ -216,7 +232,7 @@ describe('the address', () => {
     expect(storeyOf(999)).toBe(0)
     expect(storeyOf(1000)).toBe(1)
     expect(storeyOf(7_400)).toBe(7)
-    expect(seatOfStorey(7)).toBe(7000)
+    expect(seatOfStorey(7, 0, 0)).toBe(7000)
     expect(squadOf(0)).toBe(0)
     expect(squadOf(99)).toBe(0)
     expect(squadOf(100)).toBe(1)
@@ -296,7 +312,10 @@ describe('fitting, at the reference frame', () => {
 
   it('clamps rather than extrapolating past either end', () => {
     expect(levelAtScale(scales[DESK] * 10, scales)).toBe(DESK)
-    expect(levelAtScale(scales[PARK] / 10, scales)).toBe(PARK)
+    // GLOBE and not PARK: a studio on one site collapses the two onto one
+    // scale, the way a park of one block collapses onto that block, so the
+    // outermost rung there *is* the globe and the clamp lands on it.
+    expect(levelAtScale(scales[GLOBE] / 10, scales)).toBe(GLOBE)
   })
 })
 
@@ -313,10 +332,10 @@ describe('the block', () => {
     // *four of the second building*, not floor fourteen of anything.
     expect(buildingOf(14_000)).toBe(1)
     expect(storeyOf(14_000)).toBe(4)
-    expect(seatOfBuilding(3)).toBe(3 * BUILDING_CAP)
-    expect(seatOfStorey(2, 3)).toBe(3 * BUILDING_CAP + 2 * DEVS_PER_FLOOR)
-    expect(buildingOf(seatOfStorey(2, 3))).toBe(3)
-    expect(storeyOf(seatOfStorey(2, 3))).toBe(2)
+    expect(seatOfBuilding(3, 0)).toBe(3 * BUILDING_CAP)
+    expect(seatOfStorey(2, 3, 0)).toBe(3 * BUILDING_CAP + 2 * DEVS_PER_FLOOR)
+    expect(buildingOf(seatOfStorey(2, 3, 0))).toBe(3)
+    expect(storeyOf(seatOfStorey(2, 3, 0))).toBe(2)
   })
 
   it('clamps the address to the studio this scope draws', () => {
@@ -500,10 +519,10 @@ describe('the park', () => {
     expect(plotOf(buildingOf(745_000))).toBe(4)
     expect(storeyOf(745_000)).toBe(5)
 
-    expect(seatOfBlock(7)).toBe(7 * BLOCK_CAP)
+    expect(seatOfBlock(7, 0)).toBe(7 * BLOCK_CAP)
     expect(buildingAt(4, 7)).toBe(74)
-    expect(seatOfPlot(4, 7)).toBe(74 * BUILDING_CAP)
-    expect(seatOfStorey(5, buildingAt(4, 7))).toBe(745_000)
+    expect(seatOfPlot(4, 7, 0)).toBe(74 * BUILDING_CAP)
+    expect(seatOfStorey(5, buildingAt(4, 7), 0)).toBe(745_000)
   })
 
   it('clamps the address to the studio this scope draws', () => {
@@ -952,7 +971,15 @@ describe('the ladder nests', () => {
    * the bands in order, so the band between the squad and the floor inverted
    * and every scale in it fell through to a level a level and a half away.
    */
-  const CROSSED = { 0: 51.75, 1: 8.42, 2: 9.86, 3: 1.11, 4: 0.55, 5: 0.24 } as Record<Level, number>
+  const CROSSED = {
+    0: 51.75,
+    1: 8.42,
+    2: 9.86,
+    3: 1.11,
+    4: 0.55,
+    5: 0.24,
+    6: 0.12,
+  } as Record<Level, number>
 
   it('pushes a rung out until it holds the one inside it', () => {
     const nested = nestScales(CROSSED)
@@ -980,11 +1007,11 @@ describe('the ladder nests', () => {
 
   it('stays continuous and on the ladder across a collapsed rung', () => {
     const nested = nestScales(CROSSED)
-    for (let s = nested[PARK] / 2; s < nested[DESK] * 2; s *= 1.05) {
+    for (let s = nested[GLOBE] / 2; s < nested[DESK] * 2; s *= 1.05) {
       const level = levelAtScale(s, nested)
       expect(Number.isFinite(level)).toBe(true)
       expect(level).toBeGreaterThanOrEqual(DESK)
-      expect(level).toBeLessThanOrEqual(PARK)
+      expect(level).toBeLessThanOrEqual(GLOBE)
     }
   })
 
@@ -1167,7 +1194,10 @@ describe('the plates are worth looking at', () => {
   // Building space to screen pixels: the camera's scale at the building level,
   // carried down through the parcel and the plot the tower is drawn in.
   const towerPx =
-    levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING] * PARK_SCALE * BLOCK_SCALE
+    levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING] *
+    GLOBE_SCALE *
+    PARK_SCALE *
+    BLOCK_SCALE
 
   it('a band is a thumb-sized target at the reference frame', () => {
     const scale = towerPx
@@ -1209,5 +1239,132 @@ describe('the fit is viewport-aware', () => {
 
   it('survives a zero-sized viewport during startup', () => {
     expect(fitScaleFor(floorFrame(), { w: 0, h: 0 })).toBe(1)
+  })
+})
+
+
+describe('the globe', () => {
+  const FULL = () =>
+    levelScales(
+      0,
+      FLOORS_PER_BUILDING,
+      REFERENCE,
+      BUILDINGS_PER_BLOCK,
+      BLOCKS_PER_PARK,
+      SITES_PER_GLOBE,
+    )
+
+  it('is sized so that a hundred parks exactly tile it', () => {
+    // The rung's whole arithmetic, and the reason `globeRadius` is derived
+    // rather than chosen. A site's share of a sphere of radius R is 4piR^2/100,
+    // so its width is sqrt(4pi/100) times R; the radius is whatever makes that
+    // equal to the park's own width in globe space, and there is no free
+    // parameter left over to tune.
+    const cell = parkCell()
+    const r = globeRadius()
+    const covered = (SITES_PER_GLOBE * (cell.w * GLOBE_SCALE) ** 2) / (4 * Math.PI * r * r)
+    expect(covered).toBeCloseTo(1, 6)
+    expect(r / cell.w).toBeCloseTo(GLOBE_SCALE / SITE_SHARE, 9)
+  })
+
+  it('runs out of planet at the number the game is named after', () => {
+    // Not approximately, and not because somebody stopped adding sites.
+    expect(GLOBE_CAP).toBe(100_000_000)
+    expect(sitesFor(GLOBE_CAP)).toBe(SITES_PER_GLOBE)
+    expect(sitesFor(GLOBE_CAP - 1)).toBe(SITES_PER_GLOBE)
+    expect(sitesFor(PARK_CAP)).toBe(1)
+    expect(sitesFor(PARK_CAP + 1)).toBe(2)
+  })
+
+  it('costs one more division and nothing else', () => {
+    // Twice in a row a level cost one division and a new TOP_LEVEL, and
+    // `HANDOFF-2026-08-22.md` said a third would make it a property of the model
+    // rather than a coincidence. This is the third: every frame below the globe
+    // is its old self halved, exactly, whichever level it is.
+    for (const level of [DESK, SQUAD, FLOOR, BUILDING, BLOCK] as const) {
+      const here = frameFor(level, 0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+      const inner = intoGlobe(here)
+      expect(inner.w / here.w).toBeCloseTo(GLOBE_SCALE, 12)
+    }
+  })
+
+  it('takes a step out worth two rungs, because it is worth two decades', () => {
+    /*
+     * §7.7.1 gives rung 6 the span 10^6 to 10^8 where every rung below it spans
+     * one decade, and §7.8.2 conceded that this means it "does not come for free
+     * the way rung 5 did". The step is where that bill lands.
+     *
+     * Measured at the reference frame it is x11.28, against a geometric mean of
+     * x3.86 for the five single-decade steps below it — so **two of those
+     * compound to x14.9 and this is smaller than that.** A two-decade rung
+     * taking less than two rungs' worth of step is the opposite of an outlier,
+     * and it is the answer to the only real objection to a sphere here: a circle
+     * needs as much height as width where a 2:1 park needs half, so framing one
+     * costs double what the width ratio alone suggests.
+     */
+    const s = FULL()
+    const step = s[PARK] / s[GLOBE]
+    expect(step).toBeGreaterThan(9)
+    expect(step).toBeLessThan(15)
+    const below = [
+      s[DESK] / s[SQUAD],
+      s[SQUAD] / s[FLOOR],
+      s[FLOOR] / s[BUILDING],
+      s[BUILDING] / s[BLOCK],
+      s[BLOCK] / s[PARK],
+    ]
+    const mean = Math.exp(below.reduce((a, b) => a + Math.log(b), 0) / below.length)
+    expect(step).toBeLessThan(mean * mean)
+  })
+
+  it('leaves the sag small enough for the hand-off to be a swap', () => {
+    // A park spans about 20 degrees of the planet, so its far edge sits
+    // R(1 - cos 10.15) below the tangent plane. At the scale the globe fits
+    // that is three pixels, which is what lets `globe.ts` exchange a campus for
+    // a park at the hand-off instead of morphing one into the other - the same
+    // argument `roomResolved` makes one rung down, and the same tolerance.
+    const span = (parkCell().w * GLOBE_SCALE) / globeRadius()
+    expect((span * 180) / Math.PI).toBeCloseTo(20.3, 1)
+    const sagPx = (1 - Math.cos(span / 2)) * globeRadius() * FULL()[GLOBE]
+    expect(sagPx).toBeLessThan(5)
+  })
+
+  it('collapses onto the park while the studio is on one site', () => {
+    // A planet of one site *is* that site, the way a park of one block is that
+    // block. It is what keeps a studio that has never left its first park on
+    // six rungs rather than showing it an empty world.
+    const one = globeFrame(1, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    const park = frameFor(PARK, 0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK, 1)
+    expect(one).toEqual(park)
+  })
+
+  it('numbers the address one rung further out, and still from one seat', () => {
+    const seat = seatOfSite(37) + 7 * BLOCK_CAP + 4 * BUILDING_CAP + 5 * DEVS_PER_FLOOR
+    expect(siteOf(seat)).toBe(37)
+    expect(blockOf(seat)).toBe(7)
+    expect(buildingAt(plotOf(buildingOf(seat)), blockOf(seat))).toBe(74)
+    expect(storeyOf(seat)).toBe(5)
+    // The two rungs that were park-wide are park-relative now, so the same
+    // block of a different continent is the same block. Getting this wrong is
+    // how an address on site 37 draws site 0's tower.
+    expect(blockOf(seat)).toBe(blockOf(seat - seatOfSite(37)))
+    expect(buildingOf(seat)).toBe(buildingOf(seat - seatOfSite(37)))
+  })
+
+  it('hands a park only the people who are on it', () => {
+    // The five functions that describe a park keep their signatures and their
+    // meaning; what changes is that they are handed this rather than the whole
+    // studio. One argument per call site, and none of them learns a planet
+    // exists.
+    expect(devsOnSite(PARK_CAP * 2.5, 0)).toBe(PARK_CAP)
+    expect(devsOnSite(PARK_CAP * 2.5, 2)).toBe(PARK_CAP * 0.5)
+    expect(devsOnSite(PARK_CAP * 2.5, 3)).toBe(0)
+    expect(blocksFor(devsOnSite(PARK_CAP * 2.5, 2))).toBe(5)
+  })
+
+  it('fades the planet out below its own rung', () => {
+    expect(globeChromeAlpha(GLOBE)).toBeCloseTo(1, 6)
+    expect(globeChromeAlpha(PARK)).toBe(0)
+    expect(globeChromeAlpha(BLOCK)).toBe(0)
   })
 })

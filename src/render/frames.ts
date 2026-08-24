@@ -69,6 +69,7 @@ import {
   seatFor,
   seatGrid,
 } from './room.ts'
+import { SITES_PER_GLOBE } from './worldMap.ts'
 
 /** The levels, innermost first. Continuous positions between them are legal. */
 export const DESK = 0
@@ -77,9 +78,10 @@ export const FLOOR = 2
 export const BUILDING = 3
 export const BLOCK = 4
 export const PARK = 5
-export type Level = 0 | 1 | 2 | 3 | 4 | 5
+export const GLOBE = 6
+export type Level = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
-export const LEVELS: readonly Level[] = [DESK, SQUAD, FLOOR, BUILDING, BLOCK, PARK]
+export const LEVELS: readonly Level[] = [DESK, SQUAD, FLOOR, BUILDING, BLOCK, PARK, GLOBE]
 
 /**
  * What each level is called, for the breadcrumb and the debug snapshot.
@@ -96,8 +98,9 @@ export const LEVEL_NAMES: Record<Level, string> = {
   3: 'BUILDING',
   4: 'BLOCK',
   5: 'PARK',
+  6: 'GLOBE',
 }
-export const TOP_LEVEL = PARK
+export const TOP_LEVEL = GLOBE
 
 /** How many developers one unit at each level holds. */
 export const LEVEL_DEVS: readonly number[] = [
@@ -107,6 +110,7 @@ export const LEVEL_DEVS: readonly number[] = [
   ROOM_DEV_CAP * 10,
   ROOM_DEV_CAP * 100,
   ROOM_DEV_CAP * 1000,
+  ROOM_DEV_CAP * 1000 * SITES_PER_GLOBE,
 ]
 
 /** §7.7.1's floor, and the room's own cap — the same thousand, by construction. */
@@ -1762,6 +1766,157 @@ export function blockAtPark(x: number, y: number, blocks: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// The globe - rung 6, and the last one on Earth
+// ---------------------------------------------------------------------------
+
+/**
+ * How much smaller a park is when it is one site of the planet.
+ *
+ * The fourth nesting constant, and it is **two** like the three before it, for
+ * the reason {@link PARK_DIVISOR} gives: keeping every space within an order of
+ * magnitude of its neighbours is what makes a stray coordinate obviously stray.
+ * That the sixth level cost one more division and a new {@link TOP_LEVEL} - the
+ * third time running - is the claim `HANDOFF-2026-08-20.md` §13 made and the
+ * third instalment of it being paid.
+ */
+export const GLOBE_DIVISOR = 2
+export const GLOBE_SCALE = 1 / GLOBE_DIVISOR
+
+/** A hundred parks of a million. The number the game is named after. */
+export const GLOBE_CAP = PARK_CAP * SITES_PER_GLOBE
+
+/**
+ * A full park's own cell - what a site is sized against.
+ *
+ * {@link blockCell} one rung up, and it exists for the same reason: the frame
+ * has to span a site whether or not that site is built yet, so it cannot be
+ * `parkFrame` of the *current* headcount. A planet whose radius shrank every
+ * time a block was demolished would move every other campus on it.
+ */
+export function parkCell(): Rect {
+  return parkFrame(BLOCKS_PER_PARK, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK)
+}
+
+/**
+ * How wide one site's share of the planet is, as a fraction of the radius.
+ *
+ * `sqrt(4pi / n)` - the square root of a site's share of the surface area of a
+ * unit sphere. This is the whole of the rung's arithmetic and the reason
+ * {@link globeRadius} is *derived* rather than chosen.
+ */
+export const SITE_SHARE = Math.sqrt((4 * Math.PI) / SITES_PER_GLOBE)
+
+/**
+ * The planet's radius, in globe space - **derived, not chosen.**
+ *
+ * One requirement fixes it: **a hundred parks exactly tile the sphere.** A
+ * site's share of a sphere of radius `R` is `4piR^2 / 100`, so its width is
+ * {@link SITE_SHARE} times `R`; setting that equal to the park's own width in
+ * globe space is one line of algebra and there is no free parameter left in it.
+ *
+ * Three things fall out, and not one of them is a tuning knob:
+ *
+ *  - The frame is `2R`, about **2.82 park widths**, so the step out of the park
+ *    is **x5.64** - in family with desk-to-squad's x6.15 and larger than
+ *    block-to-park's x4.55, which is right for the one rung that changes
+ *    register rather than adding more of the same architecture.
+ *  - One park spans **20.3 degrees** of the planet, so its sag against the
+ *    tangent plane is `R(1 - cos 10.15)` - **2.2% of its own width**, three
+ *    pixels at the size the hand-off happens. That number is the entire reason
+ *    `globe.ts` can *swap* a campus for a park instead of morphing one into the
+ *    other.
+ *  - **The planet is full at exactly 100,000,000 developers.** Not roughly, and
+ *    not because somebody stopped adding sites. The geometry says it.
+ *
+ * §7.8.2 rule 1 - every unit occupies the same footprint - is **spent** here
+ * rather than kept, and the reason is worth writing down because it is the only
+ * rung that spends it: the unit did not change from *park* to *bigger park*, it
+ * changed to *the planet*, and a planet drawn one park wide is not a planet.
+ * Rule 2 is kept and is doing all the work instead - a sphere is not a lattice,
+ * so the silhouette could hardly change more.
+ */
+export function globeRadius(): number {
+  return (parkCell().w * GLOBE_SCALE) / SITE_SHARE
+}
+
+/**
+ * Where the planet's centre is, in globe space.
+ *
+ * The focused park's own cell centre, scaled - so the site the camera is in
+ * sits at the sub-camera point, which is what {@link intoGlobe} being a pure
+ * scale means. `parkCell` and not `parkFrame` for {@link parkCell}'s reason.
+ */
+export function globeOrigin(): { x: number; y: number } {
+  const cell = parkCell()
+  return { x: cell.cx * GLOBE_SCALE, y: cell.cy * GLOBE_SCALE }
+}
+
+/**
+ * Map a park-space rectangle into globe space.
+ *
+ * A pure scale about the origin, exactly like {@link intoPlate},
+ * {@link intoPlot} and {@link intoParcel} - and unlike them it needs no index,
+ * because `worldMap.ts` turns the planet so that **the site the camera is in is
+ * always the one facing it**. The other ninety-nine are somewhere `globe.ts`
+ * works out and the frame chain never asks about.
+ *
+ * That is the load-bearing half of the no-spin decision: a park's position
+ * inside the globe is a *constant*, so rung 6 is a place the camera can be sent
+ * to rather than a thing that happens to be under it at the moment.
+ */
+export function intoGlobe(rect: Rect): Rect {
+  return {
+    cx: rect.cx * GLOBE_SCALE,
+    cy: rect.cy * GLOBE_SCALE,
+    w: rect.w * GLOBE_SCALE,
+    h: rect.h * GLOBE_SCALE,
+  }
+}
+
+/** A park-space point, in globe space. */
+export function parkToGlobe(p: { x: number; y: number }): { x: number; y: number } {
+  return { x: p.x * GLOBE_SCALE, y: p.y * GLOBE_SCALE }
+}
+
+/** The inverse - a globe-space point, in the focused site's park space. */
+export function globeToPark(p: { x: number; y: number }): { x: number; y: number } {
+  return { x: p.x / GLOBE_SCALE, y: p.y / GLOBE_SCALE }
+}
+
+/**
+ * The frame rung 6 names - the whole planet, in globe space.
+ *
+ * A square and not the composition's bounding box, because a sphere's
+ * silhouette is a circle however it is turned. That is the one frame on the
+ * ladder that cannot be got wrong by measuring the wrong thing, which is a
+ * pleasant change after traps 49, 52 and 53.
+ */
+export function globeFrame(sites: number, storeys: number, buildings: number, blocks: number): Rect {
+  const n = Math.max(1, Math.min(SITES_PER_GLOBE, Math.floor(sites)))
+  // A planet of one site *is* that site: the same collapse `parkFrame` makes
+  // for one block and `ownBlockFrame` for one building, and the reason a studio
+  // that has never left its first park has six rungs rather than seven.
+  if (n <= 1) return intoGlobe(parkFrame(blocks, storeys, buildings))
+  const at = globeOrigin()
+  const r = globeRadius()
+  return { cx: at.x, cy: at.y, w: 2 * r, h: 2 * r }
+}
+
+/**
+ * How much of a site's own detail is worth drawing, by level.
+ *
+ * {@link parkChromeAlpha} one rung up. The park's board fades out across the
+ * band below the globe as the planet's ground takes over under it - the same
+ * move `block.ts` already makes when the park's decks take over its street
+ * plane, and the mechanism `PLAN-2026-08-23-globe.md` §4.4 needs so that the
+ * two grounds are never both on screen at full strength arguing about what
+ * colour the site is.
+ */
+export function globeChromeAlpha(level: number): number {
+  return chromeAlpha(level, PARK)
+}
+
+// ---------------------------------------------------------------------------
 // Outlines and picking
 // ---------------------------------------------------------------------------
 
@@ -1897,7 +2052,17 @@ export function storeyAtBuilding(x: number, y: number, storeys: number, focus: n
  */
 function seatIn(seat: number): number {
   const s = Math.max(0, Math.floor(Number.isFinite(seat) ? seat : 0))
-  return Math.min(PARK_CAP - 1, s)
+  return Math.min(GLOBE_CAP - 1, s)
+}
+
+/** Which site of the planet holds a global seat - 0 to 99. */
+export function siteOf(seat: number): number {
+  return Math.floor(seatIn(seat) / PARK_CAP)
+}
+
+/** The first seat of a site - where descending into one lands. */
+export function seatOfSite(site: number): number {
+  return Math.max(0, Math.min(SITES_PER_GLOBE - 1, Math.floor(site))) * PARK_CAP
 }
 
 /**
@@ -1914,12 +2079,12 @@ function seatIn(seat: number): number {
  * places that draw: which of ten plots this building stands on.
  */
 export function buildingOf(seat: number): number {
-  return Math.floor(seatIn(seat) / BUILDING_CAP)
+  return Math.floor(seatIn(seat) / BUILDING_CAP) % BUILDINGS_PER_PARK
 }
 
 /** Which block of the park holds a global seat. */
 export function blockOf(seat: number): number {
-  return Math.floor(seatIn(seat) / BLOCK_CAP)
+  return Math.floor(seatIn(seat) / BLOCK_CAP) % BLOCKS_PER_PARK
 }
 
 /**
@@ -1935,14 +2100,29 @@ export function storeyOf(seat: number): number {
   return Math.floor(seatIn(seat) / DEVS_PER_FLOOR) % FLOORS_PER_BUILDING
 }
 
-/** The first seat of a block — where descending into it lands. */
-export function seatOfBlock(block: number): number {
-  return Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block))) * BLOCK_CAP
+/**
+ * The first seat of a block of a site — where descending into it lands.
+ *
+ * **`site` is not optional**, and that is trap 52a paid off a second time. When
+ * the park arrived, `buildingsFor(devs)` was given a `block` with no default for
+ * exactly this reason: a default of "the first one" would have made every
+ * existing call site quietly mean *park 0* the moment there were a hundred of
+ * them, which is the same silent opt-in that once moved a floor of building 8
+ * into building 1. Four call sites and a compiler error each is the cheap way to
+ * find out; a studio that teleports to the wrong continent is the other one.
+ */
+export function seatOfBlock(block: number, site: number): number {
+  return (
+    seatOfSite(site) + Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block))) * BLOCK_CAP
+  )
 }
 
-/** The first seat of a building of the park — where descending into it lands. */
-export function seatOfBuilding(building: number): number {
-  return Math.max(0, Math.min(BUILDINGS_PER_PARK - 1, Math.floor(building))) * BUILDING_CAP
+/** The first seat of a building of a site — {@link seatOfBlock}'s rule about `site`. */
+export function seatOfBuilding(building: number, site: number): number {
+  return (
+    seatOfSite(site) +
+    Math.max(0, Math.min(BUILDINGS_PER_PARK - 1, Math.floor(building))) * BUILDING_CAP
+  )
 }
 
 /**
@@ -1962,14 +2142,23 @@ export function buildingAt(plot: number, block: number): number {
 }
 
 /** The first seat of one plot of one block — the same building, said the other way. */
-export function seatOfPlot(plot: number, block: number): number {
-  return seatOfBuilding(buildingAt(plot, block))
+export function seatOfPlot(plot: number, block: number, site: number): number {
+  return seatOfBuilding(buildingAt(plot, block), site)
 }
 
-/** The first seat of a storey of a building — where descending into it lands. */
-export function seatOfStorey(storey: number, building = 0): number {
+/**
+ * The first seat of a storey of a building — where descending into it lands.
+ *
+ * `building` lost its default here along with gaining `site`, and the two are
+ * the same lesson: `stage.ts` carried a comment reading *"`seatOfStorey`
+ * defaults to the first one"* next to a call that then had to pass the building
+ * anyway. A default that every caller overrides is not a convenience, it is a
+ * loaded gun pointed at the one caller who forgets. {@link seatOfBlock} has the
+ * argument in full.
+ */
+export function seatOfStorey(storey: number, building: number, site: number): number {
   const f = Math.max(0, Math.min(FLOORS_PER_BUILDING - 1, Math.floor(storey)))
-  return seatOfBuilding(building) + f * DEVS_PER_FLOOR
+  return seatOfBuilding(building, site) + f * DEVS_PER_FLOOR
 }
 
 /** Which of the floor's ten squads a global seat is in. */
@@ -1979,8 +2168,13 @@ export function squadOf(seat: number): number {
 }
 
 /** The first seat of a squad, within its own floor. */
-export function seatOfSquad(storey: number, squad: number, building = 0): number {
-  return seatOfStorey(storey, building) + Math.max(0, Math.floor(squad)) * SQUAD_SIZE
+export function seatOfSquad(
+  storey: number,
+  squad: number,
+  building: number,
+  site: number,
+): number {
+  return seatOfStorey(storey, building, site) + Math.max(0, Math.floor(squad)) * SQUAD_SIZE
 }
 
 /**
@@ -2031,6 +2225,29 @@ export function devsIn(devs: number, building = 0): number {
   return Math.max(0, Math.min(BUILDING_CAP, left))
 }
 
+/**
+ * How many sites of the planet the studio has settled.
+ *
+ * {@link blocksFor} one rung up, and the counterpart every caller below the
+ * globe needs: the functions that describe *a park* - `blocksFor`,
+ * `buildingsIn`, `storeysIn`, `devsIn`, `devsOnBlock` - keep their signatures
+ * and their meaning, and what changes is that they are handed
+ * {@link devsOnSite} rather than the studio's whole headcount. One argument at
+ * each call site, and not one of those five functions has to learn that a
+ * planet exists.
+ */
+export function sitesFor(devs: number): number {
+  if (!Number.isFinite(devs) || devs <= 0) return 1
+  return Math.max(1, Math.min(SITES_PER_GLOBE, Math.ceil(devs / PARK_CAP)))
+}
+
+/** How many developers stand on one site of the planet. */
+export function devsOnSite(devs: number, site: number): number {
+  const s = Math.max(0, Math.min(SITES_PER_GLOBE - 1, Math.floor(site)))
+  const left = (Number.isFinite(devs) ? devs : 0) - s * PARK_CAP
+  return Math.max(0, Math.min(PARK_CAP, left))
+}
+
 /** How many developers stand on one block of the park. */
 export function devsOnBlock(devs: number, block: number): number {
   const b = Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block)))
@@ -2059,27 +2276,33 @@ export function frameFor(
   storeys: number,
   buildings = 1,
   blocks = 1,
+  sites = 1,
 ): Rect {
+  // The globe is the only frame that is not inside a site, because it *is* the
+  // sites - the same sentence the park earned one rung down, and the reason
+  // both of them are the first line rather than the last.
+  if (level === GLOBE) return globeFrame(sites, storeys, buildings, blocks)
+
   const block = blockOf(seat)
   const plot = plotOf(buildingOf(seat))
-  // The park is the only frame that is not inside a parcel, because it *is* the
-  // parcels.
-  if (level === PARK) return parkFrame(blocks, storeys, buildings)
+  // Everything below the globe gains exactly one more division, which is the
+  // whole cost of the sixth level and the third time that claim has been paid.
+  if (level === PARK) return intoGlobe(parkFrame(blocks, storeys, buildings))
 
   // The tallest tower, which the frame spans: buildings fill in order, so the
   // moment there are two of them the first is full and `storeys` is whichever
   // building the address is in rather than the highest one.
-  if (level === BLOCK) return intoParcel(ownBlockFrame(storeys, buildings), block)
+  if (level === BLOCK) return intoGlobe(intoParcel(ownBlockFrame(storeys, buildings), block))
 
   const focus = storeyOf(seat)
   if (level === BUILDING) {
-    return intoParcel(intoPlot(buildingFrame(storeys, focus), plot), block)
+    return intoGlobe(intoParcel(intoPlot(buildingFrame(storeys, focus), plot), block))
   }
 
   const local = Math.max(0, Math.floor(seat)) % DEVS_PER_FLOOR
   const inner =
     level === FLOOR ? floorFrame() : level === SQUAD ? squadFrame(seatFor(local).squad) : deskFrame(local)
-  return intoParcel(intoPlot(intoPlate(inner, focus), plot), block)
+  return intoGlobe(intoParcel(intoPlot(intoPlate(inner, focus), plot), block))
 }
 
 /** A floor-space point, in building space, through plate `focus`. */
@@ -2146,14 +2369,16 @@ export function levelScales(
   viewport: { w: number; h: number },
   buildings = 1,
   blocks = 1,
+  sites = 1,
 ): Record<Level, number> {
   return nestScales({
-    0: fitScaleFor(frameFor(DESK, seat, storeys, buildings, blocks), viewport),
-    1: fitScaleFor(frameFor(SQUAD, seat, storeys, buildings, blocks), viewport),
-    2: fitScaleFor(frameFor(FLOOR, seat, storeys, buildings, blocks), viewport),
-    3: fitScaleFor(frameFor(BUILDING, seat, storeys, buildings, blocks), viewport),
-    4: fitScaleFor(frameFor(BLOCK, seat, storeys, buildings, blocks), viewport),
-    5: fitScaleFor(frameFor(PARK, seat, storeys, buildings, blocks), viewport),
+    0: fitScaleFor(frameFor(DESK, seat, storeys, buildings, blocks, sites), viewport),
+    1: fitScaleFor(frameFor(SQUAD, seat, storeys, buildings, blocks, sites), viewport),
+    2: fitScaleFor(frameFor(FLOOR, seat, storeys, buildings, blocks, sites), viewport),
+    3: fitScaleFor(frameFor(BUILDING, seat, storeys, buildings, blocks, sites), viewport),
+    4: fitScaleFor(frameFor(BLOCK, seat, storeys, buildings, blocks, sites), viewport),
+    5: fitScaleFor(frameFor(PARK, seat, storeys, buildings, blocks, sites), viewport),
+    6: fitScaleFor(frameFor(GLOBE, seat, storeys, buildings, blocks, sites), viewport),
   })
 }
 
@@ -2255,7 +2480,7 @@ export function scaleAtLevel(level: number, scales: Record<Level, number>): numb
  * unchanged; only this line knows there is another division in the chain.
  */
 export function floorScaleAt(cameraScale: number): number {
-  return cameraScale * PLATE_SCALE * BLOCK_SCALE * PARK_SCALE
+  return cameraScale * PLATE_SCALE * BLOCK_SCALE * PARK_SCALE * GLOBE_SCALE
 }
 
 /**

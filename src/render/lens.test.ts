@@ -22,6 +22,9 @@ import {
   fitScaleFor,
   floorFrame,
   floorToPark,
+  GLOBE,
+  intoGlobe,
+  parkToGlobe,
   floorScaleAt,
   intoPlate,
   PARK,
@@ -296,7 +299,7 @@ describe('the park, one rung further out', () => {
     settle(lens)
     const scale = lens.scale
     const before = { ...lens.centre }
-    lens.setAddress(seatOfBlock(7), FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    lens.setAddress(seatOfBlock(7, 0), FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
     settle(lens)
     expect(lens.scale).toBeCloseTo(scale, 4)
     // And it *did* move — a parcel eight blocks along is a long way from parcel
@@ -369,7 +372,7 @@ describe('a gesture arrives where it was going', () => {
 
   it('stays on the ladder at both ends', () => {
     expect(settleTowards(-2, 0)).toBe(DESK)
-    expect(settleTowards(9, 4)).toBe(PARK)
+    expect(settleTowards(9, 4)).toBe(GLOBE)
   })
 
   it('falls back to nearest when nothing started the gesture', () => {
@@ -428,7 +431,11 @@ describe("§7.7.1's ceiling", () => {
    */
   const GARAGE = { cx: 0, cy: -56.83, w: 729.76, h: 448.37 }
   /** The garage where the camera actually sees it: plate, plot, parcel. */
-  const garageFrame = () => intoParcel(intoPlot(intoPlate(GARAGE, 0), 0), 0)
+  // `Lens.roomFrame`'s chain, and it has to stay its mirror image: the room's
+  // rectangle carried out through the plate, the plot, the parcel and now the
+  // site. When the globe arrived this was the one line in the file that had to
+  // move, which is the same claim `roomFrame`'s own note makes about itself.
+  const garageFrame = () => intoGlobe(intoParcel(intoPlot(intoPlate(GARAGE, 0), 0), 0))
 
   /** A studio of one: the garage, one storey, and the ceiling it has earned. */
   function newGame(): Lens {
@@ -590,7 +597,7 @@ describe("§7.7.1's ceiling", () => {
     lens.flyTo(DESK, founder)
     settle(lens)
     const aimed = lens.centre
-    expect(aimed.cx).toBeCloseTo(floorToPark(founder, 0, 0, 0).x, 3)
+    expect(aimed.cx).toBeCloseTo(parkToGlobe(floorToPark(founder, 0, 0, 0)).x, 3)
 
     // The frames move: the garage grows, and the canvas is laid out again.
     lens.setFloorRect({ ...GARAGE, w: GARAGE.w * 1.2, h: GARAGE.h * 1.2 })
@@ -615,6 +622,6 @@ describe('settleLevel', () => {
     expect(settleLevel(2.4)).toBe(FLOOR)
     expect(settleLevel(2.6)).toBe(BUILDING)
     expect(settleLevel(-4)).toBe(DESK)
-    expect(settleLevel(99)).toBe(PARK)
+    expect(settleLevel(99)).toBe(GLOBE)
   })
 })

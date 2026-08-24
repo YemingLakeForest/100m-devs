@@ -35,7 +35,7 @@ export type UnitKind =
   | 'floor'
   | 'building'
   | 'campus'
-  | 'town'
+  | 'site'
   | 'nation'
   | 'planet'
   | 'galaxy'
@@ -60,7 +60,12 @@ export const UNIT_KINDS: readonly UnitKind[] = [
   'floor',
   'building',
   'campus',
-  'town',
+  // **A site, and not §7.7.1's town.** `HANDOFF-2026-08-23.md` §0 spends rung 6's
+  // two decades on the planet, so the thing that arrives at 10^6 is a *site* of
+  // it — a whole business park, which is exactly what `BAND_FLOOR[6]` already
+  // said it was. Only the word changed, and it is a word the HUD says out loud:
+  // a hero placed at this rung read `TOWN 3` over a picture of a world.
+  'site',
   'nation',
   'planet',
   'galaxy',
