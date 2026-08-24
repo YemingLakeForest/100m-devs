@@ -64,10 +64,11 @@ in a browser window that is any shape at all, are in
 | [`GDD.md`](./GDD.md) | Full game design document — core loop, Communication Entropy engine, the Omni-Lens zoom architecture, upgrade and three-layer prestige trees with full mathematics, endgame, events, dialogue, audio spec, and onboarding script. **§26 is the build order** — three phases with a closing gate on each. Read it before starting work. |
 | [`MONETISATION.md`](./MONETISATION.md) | Revenue model, eCPM assumptions, IAP catalogue and prices, subscription design, launch phasing, metrics. **Where each offer *attaches to the loop* is GDD §3.1**, next to the loop it constrains. |
 | [`docs/DEPLOY.md`](./docs/DEPLOY.md) | Getting it onto a phone and onto the web — `deploy.sh`, the Cloudflare Pages pipeline, and how the landscape lock survives a browser window. |
-| [`docs/HANDOFF.md`](./docs/HANDOFF.md) | **Start here.** Current state, the decisions waiting on a human, and what to build next. The current one is [`HANDOFF-2026-08-23.md`](./docs/HANDOFF-2026-08-23.md). |
+| [`docs/HANDOFF.md`](./docs/HANDOFF.md) | **Start here.** Current state, the decisions waiting on a human, and what to build next. The current one is [`HANDOFF-2026-08-24.md`](./docs/HANDOFF-2026-08-24.md). |
 | [`docs/PROJECT_SETUP.md`](./docs/PROJECT_SETUP.md) | Runbook from empty repo to first build — identity, toolchain, dependencies, accounts, costs, and the setup order. |
 | [`docs/ART_DIRECTION.md`](./docs/ART_DIRECTION.md) | Palette, type, the two-register look, how each asset tier is produced, the build-step quantiser, and the acceptance checklist every asset must pass. |
 | [`docs/adr/`](./docs/adr) | Architecture decisions. [ADR 0001](./docs/adr/0001-engine-and-rendering-stack.md) picks the engine and defines the feel spike that must pass before it is final. |
+| [`docs/demos/`](./docs/demos) | Runnable design demos — open the `.html` in a browser. [`jigsaw-planet.html`](./docs/demos/jigsaw-planet.html) is the proposed rung 6: a spinnable globe cut into 100 equal-area tetromino territories, computed live rather than drawn. |
 | [`assets/concept/`](./assets/concept) | Concept art and UI sketches. |
 
 ## The pitch, in one loop

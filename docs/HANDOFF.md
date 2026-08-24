@@ -1,6 +1,17 @@
 # Handoff — 2026-08-10
 
-> **Current handoff: [`HANDOFF-2026-08-23.md`](HANDOFF-2026-08-23.md)** — **rung 6, the globe.**
+> **Current handoff: [`HANDOFF-2026-08-24.md`](HANDOFF-2026-08-24.md)** — **rung 6, redesigned:
+> the jigsaw planet.** A *design* session — **nothing in `src/` changed**. The globe stops being a
+> map with campuses on it and becomes **a hundred interlocking tetromino territories that are the
+> planet**, each one exactly a hundredth of the sphere by construction, which is the number
+> `frames.ts` has claimed since rung 6 shipped and the first geometry that actually delivers it.
+> Drag to spin; no sun and no terminator; no continents; and a city is **one building standing on
+> the local vertical**, growing out of the ground as it ages. Four richer city glyphs were built,
+> looked at and binned first — §3 is why, and it is a size argument rather than a taste one.
+> **Traps 69–72**, two of which rendered a plausible picture while being wrong. Live demo:
+> [`demos/jigsaw-planet.html`](demos/jigsaw-planet.html). One decision waits on a human (§8).
+>
+> **Previous: [`HANDOFF-2026-08-23.md`](HANDOFF-2026-08-23.md)** — **rung 6, the globe.**
 > One camera, **seven levels** (desk, squad, floor, building, block, park, globe), built to
 > **100,000,000 developers on a hundred sites of a million**. The planet is full at the number the
 > game is named after, and that is derived rather than tuned: the radius is whatever makes a

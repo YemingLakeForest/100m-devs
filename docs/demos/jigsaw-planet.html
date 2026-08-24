@@ -1,0 +1,1546 @@
+<title>The Jigsaw Planet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+
+<style>
+  /* ------------------------------------------------------------------ *
+   * One committed visual world: the game's own master palette on the
+   * game's own ground. Every colour below is a literal from
+   * src/art/palette.ts, so the page is a fair sample of the product.
+   * ------------------------------------------------------------------ */
+  :root {
+    --sky:      #14121a;   /* NEUTRAL 0 - space, and the page ground   */
+    --panel:    #1c1826;   /* sky lifted toward NEUTRAL 1              */
+    --panel-2:  #241f2e;   /* NEUTRAL 1                                */
+    --rule:     #3a3244;   /* NEUTRAL 2                                */
+    --rule-2:   #55495e;   /* NEUTRAL 3                                */
+    --muted:    #968a96;   /* NEUTRAL 5                                */
+    --ink:      #d8d2cf;   /* NEUTRAL 7                                */
+    --ink-hi:   #f2eee8;   /* NEUTRAL 8                                */
+    --accent:   #35c9d9;   /* CALM 2 - the game's interface phosphor   */
+    --accent-lo:#1a6b78;   /* CALM 1                                   */
+    --frontier: #e0a52e;   /* WARN 2 - the next piece you can buy      */
+    --land:     #4c7a45;   /* FOLIAGE 1                                */
+    --measure:  66ch;
+    --gap:      clamp(1.5rem, 4vw, 2.75rem);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--sky);
+    color: var(--ink);
+    font-family: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: clamp(2rem, 6vw, 4.5rem) clamp(1rem, 4vw, 2.5rem) 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+  }
+
+  /* --- type -------------------------------------------------------- */
+  .mono { font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .eyebrow .dim { color: var(--rule-2); }
+
+  h1 {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-weight: 600;
+    font-size: clamp(2.1rem, 6.5vw, 3.4rem);
+    line-height: 1.04;
+    letter-spacing: -0.03em;
+    margin: 0.5rem 0 0;
+    color: var(--ink-hi);
+    text-wrap: balance;
+  }
+  h2 {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-weight: 600;
+    font-size: clamp(1.25rem, 3vw, 1.6rem);
+    letter-spacing: -0.015em;
+    margin: 0.4rem 0 0;
+    color: var(--ink-hi);
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    margin: 0;
+    color: var(--ink);
+  }
+  p { margin: 0; max-width: var(--measure); }
+  .lede { font-size: 1.12rem; color: var(--ink); }
+  em { color: var(--ink-hi); font-style: italic; }
+  strong { color: var(--ink-hi); font-weight: 600; }
+  code {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 0.86em;
+    color: var(--accent);
+    background: var(--panel-2);
+    padding: 0.08em 0.36em;
+    border: 1px solid var(--rule);
+  }
+  a { color: var(--accent); }
+
+  section { display: flex; flex-direction: column; gap: 1.1rem; }
+  .stack  { display: flex; flex-direction: column; gap: 0.85rem; }
+
+  /* --- panels: square corners, hairlines, instrument labels -------- */
+  .panel {
+    position: relative;          /* the drag hint anchors to this, not the page */
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    padding: 0;
+  }
+  .panel__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem 1.5rem;
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel-2);
+  }
+  .panel__body { padding: 0.9rem; }
+
+  /* --- the globe --------------------------------------------------- */
+  .stagewrap { position: relative; }
+  .stage {
+    display: block;
+    width: 100%;
+    height: clamp(340px, 56vh, 600px);
+    background: var(--sky);
+    cursor: grab;
+    touch-action: none;
+  }
+  .stage:active { cursor: grabbing; }
+  .stage:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .hint {
+    position: absolute;
+    left: 0.9rem; bottom: 0.8rem;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--rule-2);
+    pointer-events: none;
+  }
+
+  /* --- instrument strip -------------------------------------------- */
+  .rack {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border-top: 1px solid var(--rule);
+  }
+  .cell {
+    background: var(--panel-2);
+    padding: 0.7rem 0.9rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .cell__label {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .readout {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.45rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--ink-hi);
+    letter-spacing: -0.02em;
+  }
+  .readout .unit { font-size: 0.62em; font-weight: 400; color: var(--muted); letter-spacing: 0.08em; }
+  .readout.accent { color: var(--accent); }
+
+  .seg { display: flex; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .seg button {
+    flex: 1 1 0;
+    min-width: 0;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.5rem 0.3rem;
+    background: var(--panel-2);
+    color: var(--muted);
+    border: 0;
+    cursor: pointer;
+  }
+  .seg button:hover { color: var(--ink); background: var(--rule); }
+  .seg button[aria-pressed="true"] { background: var(--accent-lo); color: var(--ink-hi); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 22px; margin: 0;
+    background: transparent; cursor: pointer;
+  }
+  input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px; background: var(--rule); border: 0;
+  }
+  input[type="range"]::-moz-range-track { height: 4px; background: var(--rule); border: 0; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 20px; margin-top: -8px;
+    background: var(--accent); border: 0; border-radius: 0;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 12px; height: 20px; background: var(--accent);
+    border: 0; border-radius: 0;
+  }
+
+  /* --- tables ------------------------------------------------------ */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; }
+  th, td {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 12.5px;
+    text-align: left;
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  th {
+    font-weight: 500; font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+    background: var(--panel-2);
+  }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+  tfoot td { color: var(--accent); font-weight: 600; background: var(--panel-2); }
+
+  /* --- misc -------------------------------------------------------- */
+  .two {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    align-items: start;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0; margin: 0; list-style: none; }
+  .chips li {
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 11px; letter-spacing: 0.06em;
+    padding: 0.28rem 0.55rem;
+    border: 1px solid var(--rule);
+    color: var(--muted);
+    background: var(--panel-2);
+  }
+  .chips li.on { border-color: var(--accent-lo); color: var(--accent); }
+
+  .swatches { display: flex; flex-wrap: wrap; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .sw { flex: 1 1 64px; min-width: 64px; }
+  .sw i { display: block; height: 40px; }
+  .sw span {
+    display: block;
+    font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    font-size: 9.5px; letter-spacing: 0.05em;
+    padding: 0.3rem 0.35rem;
+    background: var(--panel-2); color: var(--muted);
+  }
+
+  ol.qs { margin: 0; padding-left: 1.4rem; max-width: var(--measure); }
+  ol.qs li { margin-bottom: 0.7rem; }
+  ol.qs li::marker { font-family: "IBM Plex Mono", monospace; color: var(--accent); font-size: 0.85em; }
+
+  hr {
+    border: 0; border-top: 1px solid var(--rule);
+    margin: 0.4rem 0 0;
+  }
+
+  .note {
+    border-left: 2px solid var(--frontier);
+    padding-left: 0.9rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: var(--measure);
+  }
+  .note strong { color: var(--frontier); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <!-- ================================================================ -->
+  <header class="stack">
+    <div class="eyebrow">Rung 6 &middot; redesign <span class="dim">/</span> 400 cells <span class="dim">/</span> 100 pieces <span class="dim">/</span> one area</div>
+    <h1>The Jigsaw Planet</h1>
+    <p class="lede">
+      The planet stops being a map with campuses stuck to it and becomes
+      <strong>a hundred interlocking pieces that are the planet</strong>. Each one is a
+      city of a million developers. There is no separate layer to look like a
+      sticker, because there is no separate layer.
+    </p>
+    <ul class="chips">
+      <li class="on">Spins under your thumb</li>
+      <li class="on">No sun, no terminator</li>
+      <li class="on">100 tetromino territories</li>
+      <li class="on">No continents</li>
+      <li class="on">Ground stays the planet&rsquo;s</li>
+      <li class="on">Grows piece by piece</li>
+      <li class="on">Buildings rise as cities age</li>
+    </ul>
+  </header>
+
+  <!-- ================================================================ -->
+  <section>
+    <div class="eyebrow">The planet <span class="dim">&mdash;</span> drag it</div>
+    <div class="panel">
+      <div class="panel__bar">
+        <h3>Live</h3>
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:var(--muted)">
+          <span id="fps">&mdash;</span>
+        </div>
+      </div>
+      <div class="stagewrap">
+        <canvas id="globe" class="stage" tabindex="0"
+                aria-label="A spinnable globe divided into one hundred tetromino territories. Drag to rotate, or use the arrow keys."></canvas>
+        <div class="hint">Drag to spin &middot; arrow keys also work</div>
+      </div>
+
+      <div class="rack">
+        <div class="cell">
+          <span class="cell__label">Headcount</span>
+          <div class="readout" id="devs">1,000,000<span class="unit"> devs</span></div>
+          <input id="pieces" type="range" min="1" max="100" value="34" aria-label="Cities built">
+        </div>
+        <div class="cell">
+          <span class="cell__label">Cities</span>
+          <div class="readout accent" id="count">18<span class="unit"> / 100</span></div>
+          <div class="mono" style="font-size:11px;color:var(--muted)" id="nextup">Next: piece 19</div>
+        </div>
+        <div class="cell">
+          <span class="cell__label">How it&rsquo;s cut</span>
+          <div class="seg" role="group" aria-label="Tiling scheme">
+            <button type="button" data-scheme="tetro" aria-pressed="true">Tetromino</button>
+            <button type="button" data-scheme="voronoi" aria-pressed="false">Territory</button>
+          </div>
+          <div class="mono" style="font-size:11px;color:var(--muted)" id="schemenote">4 cells &times; 100</div>
+        </div>
+        <div class="cell">
+          <span class="cell__label">Show</span>
+          <div class="seg" role="group" aria-label="Display options">
+            <button type="button" data-flag="seams" aria-pressed="true">Seams</button>
+            <button type="button" data-flag="form" aria-pressed="true">Form</button>
+            <button type="button" data-flag="drift" aria-pressed="true">Drift</button>
+          </div>
+          <div class="mono" style="font-size:11px;color:var(--muted)">Form = fixed light, not a sun</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two">
+      <p>
+        The gesture is the one already on every other rung: <strong>drag pans the level</strong>.
+        On a sphere, panning <em>is</em> spinning, so nothing new has to be taught. Picking a
+        city still turns the planet to face it &mdash; the drag just means you can go looking first.
+      </p>
+      <p>
+        The shading is <strong>fixed to the screen</strong>, not to the planet &mdash; three hard
+        bands offset toward the upper left. It makes the sphere read as a ball, and because
+        none of it moves when the planet does, <em>nothing changes colour as you spin</em>.
+        Turn <em>Form</em> off to see what it is holding up.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <section>
+    <div class="eyebrow">The cut <span class="dim">&mdash;</span> why every piece is exactly one hundredth</div>
+    <h2>A hundred pieces of one area</h2>
+    <p>
+      Cut a sphere on a plain latitude/longitude grid and the polar cells become
+      sixteen-to-one splinters. Cut it in <strong>equal-area bands whose column count
+      steps down toward the poles</strong> and they don&rsquo;t. Three band widths, forty
+      columns at the equator, twenty in the middles, ten at the caps &mdash; and
+      the cell area comes out identical everywhere, to the last decimal.
+    </p>
+
+    <div class="panel">
+      <div class="panel__bar">
+        <h3>The same planet, unrolled</h3>
+        <div class="mono" style="font-size:11px;letter-spacing:.1em;color:var(--muted)">Equal-area projection &middot; every cell is the same size</div>
+      </div>
+      <div class="panel__body">
+        <canvas id="chart" style="width:100%;height:auto;display:block;background:var(--sky)"
+                aria-label="The planet's grid unrolled flat, showing the hundred pieces and the three band widths."></canvas>
+      </div>
+    </div>
+
+    <p class="mono" style="font-size:11px;letter-spacing:.08em;color:var(--muted);max-width:none">
+      The tetromino cut. Territory mode uses the same bands at double resolution &mdash;
+      1,600 cells, sixteen to a piece, still a hundred pieces.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Band</th><th class="num">Rows</th><th class="num">Cols</th>
+            <th class="num">Cells</th><th class="num">Pieces</th><th class="num">Cell area</th><th>Shape</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Polar cap &times;2</td><td class="num">2</td><td class="num">10</td><td class="num">40</td><td class="num">10</td><td class="num">&pi;/100</td><td>0.6 &ndash; 2.4 : 1</td></tr>
+          <tr><td>Middles &times;2</td><td class="num">3</td><td class="num">20</td><td class="num">120</td><td class="num">30</td><td class="num">&pi;/100</td><td>0.6 &ndash; 2.0 : 1</td></tr>
+          <tr><td>Equatorial belt</td><td class="num">6</td><td class="num">40</td><td class="num">240</td><td class="num">60</td><td class="num">&pi;/100</td><td>0.5 &ndash; 0.8 : 1</td></tr>
+        </tbody>
+        <tfoot>
+          <tr><td>Planet</td><td class="num">16</td><td class="num">&mdash;</td><td class="num">400</td><td class="num">100</td><td class="num">4&pi;</td><td>no splinters</td></tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <p>
+      Four cells to a piece, so a city is <strong>exactly one hundredth of the planet</strong> &mdash;
+      not approximately, not on average. That is the number <code>frames.ts</code> already
+      claims when it sizes the sphere so a hundred parks tile it, and this is the first
+      version of the geometry that actually delivers it.
+    </p>
+    <p>
+      The pieces come out of a tetromino solver run once per band. All seven shapes turn
+      up &mdash; I, O, T, S, Z, J, L &mdash; and each band wraps around the planet, so there is
+      no seam at the back. <em>Territory</em> mode is the same grid at double resolution,
+      grouped by nearest lattice point instead: sixteen-cell pieces, rounder, still
+      interlocking, still one hundredth each.
+    </p>
+  </section>
+
+  <!-- ================================================================ -->
+  <section>
+    <div class="eyebrow">The blend <span class="dim">&mdash;</span> the rule that kills the sticker</div>
+    <h2>The ground is never the studio&rsquo;s to paint</h2>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel__bar"><h3>Before you buy it</h3></div>
+        <canvas id="zoomA" style="width:100%;height:auto;display:block;background:var(--sky)"
+                aria-label="A single unbuilt territory seen close up: bare ground, hairline seams."></canvas>
+      </div>
+      <div class="panel">
+        <div class="panel__bar"><h3>After</h3></div>
+        <canvas id="zoomB" style="width:100%;height:auto;display:block;background:var(--sky)"
+                aria-label="The same territory built out: a city dense at its middle and ragged at its edge."></canvas>
+      </div>
+    </div>
+
+    <p>
+      Same piece, same seam, same ground, same colour. Buying a territory does not repaint
+      anything &mdash; it <strong>puts one building on it</strong>, standing up out of the
+      ground it stands on. Nothing is laid over the top, and there is no footprint whose
+      shape could be wrong, which is the honest end of the argument that started with a grey
+      rectangle stuck on a green world.
+    </p>
+    <p>
+      And it <strong>grows</strong>. A territory settled ten cities ago is finished; the one
+      you just bought is still footings. Drag the headcount and the buildings come up out of
+      the ground behind it, so the planet carries its own history &mdash; your first city is
+      visibly your oldest.
+    </p>
+
+    <div class="swatches" aria-hidden="true">
+      <div class="sw"><i style="background:#241f2e"></i><span>#241f2e</span></div>
+      <div class="sw"><i style="background:#2e4a2c"></i><span>#2e4a2c</span></div>
+      <div class="sw"><i style="background:#4c7a45"></i><span>#4c7a45</span></div>
+      <div class="sw"><i style="background:#968a96"></i><span>#968a96</span></div>
+      <div class="sw"><i style="background:#6b452c"></i><span>#6b452c</span></div>
+      <div class="sw"><i style="background:#d8d2cf"></i><span>#d8d2cf</span></div>
+      <div class="sw"><i style="background:#35c9d9"></i><span>#35c9d9</span></div>
+    </div>
+    <p class="mono" style="font-size:11px;letter-spacing:.08em;color:var(--muted);max-width:none">
+      Six for the ground, in bands. One for the studio. That is the entire colour budget of
+      rung 6, and none of it is new &mdash; every entry is already in the 37.
+    </p>
+
+    <p>
+      Four richer glyphs went in the bin on the way here &mdash; speckles, which read as a
+      rash; district blocks and a building cluster, both of which read as a handful of
+      scattered specks; and a solid footprint, which read as a patch stuck on. At the size a
+      territory is drawn there is no room for several small things to sit together, so
+      <strong>one building big enough to see</strong> is the whole settlement. It stays
+      countable at a glance, which is what the mark is for.
+    </p>
+  </section>
+
+  <!-- ================================================================ -->
+  <section>
+    <div class="eyebrow">What it costs</div>
+    <h2>Mostly deletions</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Goes</th><th>Arrives</th><th>Untouched</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>25 land ellipses, <code>surfaceAt</code>, the ice band</td>
+            <td>The graded band grid &mdash; 5 zones, ~40 lines</td>
+            <td><code>frames.ts</code>, every divisor, <code>TOP_LEVEL</code></td>
+          </tr>
+          <tr>
+            <td><code>sunAt</code>, <code>lightOn</code>, <code>DAY_MS</code>, the 96-step clock</td>
+            <td>A tetromino solver, run once at boot</td>
+            <td>The address maths &mdash; <code>siteOf</code>, <code>seatOfSite</code></td>
+          </tr>
+          <tr>
+            <td>The day/night terminator and its two gates</td>
+            <td>Drag-to-spin, and a settle order that grows outward</td>
+            <td>The park below it, and the 37-colour palette</td>
+          </tr>
+          <tr>
+            <td>The 10-rectangle campus glyph</td>
+            <td>One building per territory, rising as it grows</td>
+            <td>All three acceptance gates</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">
+      <strong>One decision reverses.</strong> <code>worldMap.ts</code> currently opens with a
+      long argument that the planet must not spin &mdash; that a rung whose geometry moves is
+      a rung the camera cannot be sent to. That still holds for <em>anything below</em> rung 6,
+      so the spin has to be a property of the top rung only: entering a city freezes the
+      orientation to that city, exactly as it does today. Worth saying out loud before it
+      gets written, because that comment is load-bearing and I would be overturning it.
+    </p>
+  </section>
+
+  <!-- ================================================================ -->
+  <section>
+    <div class="eyebrow">Your call</div>
+    <h2>Three things I&rsquo;d want settled</h2>
+    <ol class="qs">
+      <li><strong>Tetromino or Territory?</strong> Tetromino is the literal read &mdash; sharp,
+        gridded, unmistakably a puzzle, and a bit mechanical. Territory is softer and
+        more world-like. Both are exactly one hundredth a piece. I lean Tetromino: you
+        asked for Tetris, and it makes the equal-area claim visible.</li>
+      <li><strong>Does the planet keep colour bands?</strong> Right now latitude still drives
+        the palette, so there are green belts, dusty belts and ice caps &mdash; a world without
+        continents. The alternative is one flat colour and pure puzzle. Bands, I&rsquo;d say.</li>
+      <li><strong>Does growth have to stay contiguous?</strong> Cities currently unlock outward
+        from the first one, so your empire is always one connected blob. That reads as
+        colonising. Letting a player jump anywhere reads as a map screen.</li>
+    </ol>
+    <hr>
+    <p class="mono" style="font-size:11px;letter-spacing:.08em;color:var(--rule-2);max-width:none">
+      Demo only &mdash; nothing in <code>src/</code> has been changed. Geometry, tiling and the
+      city silhouette are computed live in this page, not drawn by hand.
+    </p>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var D2R = Math.PI / 180;
+
+  /* ================================================================== *
+   * PALETTE - literals from src/art/palette.ts.
+   * ================================================================== */
+  var NEUTRAL = ["#14121a","#241f2e","#3a3244","#55495e","#736579","#968a96","#b8aeb3","#d8d2cf","#f2eee8"];
+  var CALM    = ["#0a2a30","#1a6b78","#35c9d9","#b8f4ff"];
+  var SITES   = 100;          /* territories on one planet */
+  var CITY_H  = 0.062;        /* a full-grown storey stack, as a fraction of the radius */
+  var SKY     = "#14121a";
+  var FRONTIER= "#e0a52e";
+
+  /* Terrain ramps, dark -> light. Same five as src/render/worldMap.ts,
+     minus OFFSHORE which has nothing to be offshore of any more. */
+  var TEMPERATE = 0, ARID = 1, TUNDRA = 2, POLAR = 3;
+  var TERRAIN = [
+    ["#241f2e","#2e4a2c","#2e4a2c","#4c7a45","#968a96"],
+    ["#4a2f22","#6b452c","#6b452c","#96683f","#c19366"],
+    ["#241f2e","#3a3244","#55495e","#736579","#968a96"],
+    ["#3a3244","#55495e","#968a96","#d8d2cf","#f2eee8"]
+  ];
+  function shade(biome, step, delta) {
+    var r = TERRAIN[biome], i = Math.round(step + delta);
+    return r[i < 0 ? 0 : i > r.length - 1 ? r.length - 1 : i];
+  }
+  /* Where each band sits on its ramp, and which way its odd pieces move. */
+  var BASE_STEP  = [3, 2, 3, 2];
+  var STEP_VARY  = [-1, 1, -1, 1];
+
+  /* Latitude alone decides the biome now: no land to look up. */
+  function biomeAt(lat) {
+    var a = Math.abs(lat);
+    if (a > 66) return POLAR;
+    if (a > 52) return TUNDRA;
+    if (a >= 15 && a <= 33) return ARID;
+    return TEMPERATE;
+  }
+
+  /* ================================================================== *
+   * GEOMETRY
+   * ================================================================== */
+  function onPlanet(lon, lat) {
+    var a = lon * D2R, b = lat * D2R;
+    return { x: Math.cos(b) * Math.sin(a), y: Math.sin(b), z: Math.cos(b) * Math.cos(a) };
+  }
+  /* Up, east and north at a point - the frame a city is laid out in.
+     Same three vectors as worldMap.tangentFrame. */
+  function tangent(lon, lat) {
+    var a = lon * D2R, b = lat * D2R;
+    return {
+      up:    onPlanet(lon, lat),
+      east:  { x: Math.cos(a), y: 0, z: -Math.sin(a) },
+      north: { x: -Math.sin(b) * Math.sin(a), y: Math.cos(b), z: -Math.sin(b) * Math.cos(a) }
+    };
+  }
+  /* A tangent-plane offset, put back on the sphere. The normalise is what
+     keeps a building's footprint *on* the planet rather than on a plane
+     touching it. */
+  function offsetPt(fr, e, n) {
+    var x = fr.up.x + fr.east.x * e + fr.north.x * n;
+    var y = fr.up.y + fr.east.y * e + fr.north.y * n;
+    var z = fr.up.z + fr.east.z * e + fr.north.z * n;
+    var m = Math.sqrt(x * x + y * y + z * z) || 1;
+    x /= m; y /= m; z /= m;
+    return { lon: Math.atan2(x, z) / D2R, lat: Math.asin(Math.max(-1, Math.min(1, y))) / D2R };
+  }
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hash01(a, b) {
+    var h = (a * 374761393 + b * 668265263) | 0;
+    h = (h ^ (h >>> 13)) * 1274126177 | 0;
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * The graded equal-area grid.
+   *
+   * Bands in z = sin(latitude), because area is exactly linear in z.
+   * Column count steps 40 / 20 / 10 toward the poles, and band height
+   * steps with it, so cell area stays identical: 2*pi*dz/cols = pi/100
+   * in all five zones. Verified: 400 cells, one distinct area.
+   * ------------------------------------------------------------------ */
+  var ZONES = [
+    { z0: -1.0, z1: -0.9, rows: 2, cols: 10 },
+    { z0: -0.9, z1: -0.6, rows: 3, cols: 20 },
+    { z0: -0.6, z1:  0.6, rows: 6, cols: 40 },
+    { z0:  0.6, z1:  0.9, rows: 3, cols: 20 },
+    { z0:  0.9, z1:  1.0, rows: 2, cols: 10 }
+  ];
+
+  function buildRows(m) {
+    var rows = [], zones = [];
+    for (var i = 0; i < ZONES.length; i++) {
+      var Z = ZONES[i], nr = Z.rows * m, nc = Z.cols * m, start = rows.length;
+      for (var r = 0; r < nr; r++) {
+        var z0 = Z.z0 + (Z.z1 - Z.z0) * r / nr;
+        var z1 = Z.z0 + (Z.z1 - Z.z0) * (r + 1) / nr;
+        rows.push({
+          z0: z0, z1: z1,
+          lat0: Math.asin(Math.max(-1, Math.min(1, z0))) / D2R,
+          lat1: Math.asin(Math.max(-1, Math.min(1, z1))) / D2R,
+          cols: nc,
+          own: new Int16Array(nc).fill(-1)
+        });
+      }
+      zones.push({ start: start, rows: nr, cols: nc });
+    }
+    return { rows: rows, zones: zones };
+  }
+  function lonEdge(cols, c) { return -180 + 360 * c / cols; }
+
+  /* ------------------------------------------------------------------ *
+   * Tetromino tiling, one zone at a time.
+   *
+   * Two things make this cheap. The scan is COLUMN-major, so on a 6x40
+   * belt the frontier is 6 cells tall instead of 40 wide; and after
+   * every placement any connected region of free cells whose size is
+   * not a multiple of 4 fails the branch immediately. Together they
+   * take a 240-cell belt from 400,000 dead ends to about 61 nodes.
+   * ------------------------------------------------------------------ */
+  var ORIENTS = (function () {
+    var BASE = [
+      [[0,0],[0,1],[0,2],[0,3]], [[0,0],[0,1],[1,0],[1,1]],
+      [[0,0],[0,1],[0,2],[1,1]], [[0,1],[0,2],[1,0],[1,1]],
+      [[0,0],[0,1],[1,1],[1,2]], [[0,0],[1,0],[1,1],[1,2]],
+      [[0,2],[1,0],[1,1],[1,2]]
+    ];
+    function norm(c) {
+      var mr = Infinity, mc = Infinity, i;
+      for (i = 0; i < c.length; i++) { if (c[i][0] < mr) mr = c[i][0]; if (c[i][1] < mc) mc = c[i][1]; }
+      var o = c.map(function (p) { return [p[0] - mr, p[1] - mc]; });
+      o.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+      return o;
+    }
+    function rot(c) {
+      var mr = 0, i;
+      for (i = 0; i < c.length; i++) if (c[i][0] > mr) mr = c[i][0];
+      return norm(c.map(function (p) { return [p[1], mr - p[0]]; }));
+    }
+    var out = [], seen = {};
+    for (var b = 0; b < BASE.length; b++) {
+      var c = norm(BASE[b]);
+      for (var k = 0; k < 4; k++) {
+        var key = JSON.stringify(c);
+        if (!seen[key]) { seen[key] = 1; out.push(c); }
+        c = rot(c);
+      }
+    }
+    return out;
+  })();
+
+  function tileZone(nr, nc, seed) {
+    var N = nr * nc, rnd = mulberry32(seed), buckets = [], i;
+    for (i = 0; i < N; i++) buckets.push([]);
+    for (var o = 0; o < ORIENTS.length; o++) {
+      for (var r = 0; r < nr; r++) for (var c = 0; c < nc; c++) {
+        var cells = [], ok = true, sh = ORIENTS[o];
+        for (var k = 0; k < 4; k++) {
+          var rr = r + sh[k][0];
+          if (rr >= nr) { ok = false; break; }
+          cells.push(((c + sh[k][1]) % nc) * nr + rr);   /* column-major index */
+        }
+        if (!ok) continue;
+        cells.sort(function (a, b) { return a - b; });
+        if (cells[0] === cells[1] || cells[1] === cells[2] || cells[2] === cells[3]) continue;
+        buckets[cells[0]].push(cells);
+      }
+    }
+    for (i = 0; i < N; i++) {
+      var b = buckets[i];
+      for (var j = b.length - 1; j > 0; j--) {
+        var q = (rnd() * (j + 1)) | 0, t = b[j]; b[j] = b[q]; b[q] = t;
+      }
+    }
+    var own = new Int32Array(N).fill(-1);
+    var stack = new Int32Array(N), mark = new Int32Array(N), epoch = 0;
+    var budget = 200000, next = 0;
+
+    function feasible() {
+      epoch++;
+      for (var s = 0; s < N; s++) {
+        if (own[s] >= 0 || mark[s] === epoch) continue;
+        var sp = 0, size = 0; stack[sp++] = s; mark[s] = epoch;
+        while (sp) {
+          var x = stack[--sp]; size++;
+          var cc = (x / nr) | 0, rr = x % nr;
+          var nb0 = rr > 0 ? x - 1 : -1,
+              nb1 = rr < nr - 1 ? x + 1 : -1,
+              nb2 = ((cc + 1) % nc) * nr + rr,
+              nb3 = ((cc + nc - 1) % nc) * nr + rr;
+          var nb = [nb0, nb1, nb2, nb3];
+          for (var q2 = 0; q2 < 4; q2++) {
+            var y = nb[q2];
+            if (y < 0) continue;
+            if (own[y] < 0 && mark[y] !== epoch) { mark[y] = epoch; stack[sp++] = y; }
+          }
+        }
+        if (size % 4) return false;
+      }
+      return true;
+    }
+    function solve(first) {
+      while (first < N && own[first] >= 0) first++;
+      if (first >= N) return true;
+      if (--budget < 0) return false;
+      var list = buckets[first];
+      for (var p = 0; p < list.length; p++) {
+        var cs = list[p], free = true;
+        for (var q = 0; q < 4; q++) if (own[cs[q]] >= 0) { free = false; break; }
+        if (!free) continue;
+        var id = next++;
+        for (q = 0; q < 4; q++) own[cs[q]] = id;
+        if (feasible() && solve(first + 1)) return true;
+        for (q = 0; q < 4; q++) own[cs[q]] = -1;
+        next--;
+      }
+      return false;
+    }
+    if (!solve(0)) {                              /* never hit; here so it cannot crash */
+      next = 0;
+      for (var cb = 0; cb + 1 < nc; cb += 2) for (var rb = 0; rb + 1 < nr; rb += 2) {
+        var id2 = next++;
+        own[cb * nr + rb] = id2; own[cb * nr + rb + 1] = id2;
+        own[(cb + 1) * nr + rb] = id2; own[(cb + 1) * nr + rb + 1] = id2;
+      }
+    }
+    return { own: own, pieces: next };
+  }
+
+  /* Fibonacci lattice, for Territory mode. Unsorted: with the continents
+     gone there is no good ground to sort toward. */
+  function lattice(n) {
+    var out = [], golden = Math.PI * (3 - Math.sqrt(5));
+    for (var i = 0; i < n; i++) {
+      var y = 1 - (2 * i + 1) / n;
+      var lat = Math.asin(Math.max(-1, Math.min(1, y))) / D2R;
+      var lon = (i * golden / D2R) % 360;
+      if (lon > 180) lon -= 360;
+      out.push(onPlanet(lon, lat));
+    }
+    return out;
+  }
+
+  /* ================================================================== *
+   * MODEL - grid, ownership, pieces, runs, seams, city blocks, order.
+   * Everything here is in planet coordinates and computed once; a frame
+   * only ever projects.
+   * ================================================================== */
+  function buildModel(scheme) {
+    var m = scheme === "tetro" ? 1 : 2;
+    var g = buildRows(m), rows = g.rows, zones = g.zones, i, r, c, z;
+    var pieceCount = 0;
+
+    if (scheme === "tetro") {
+      for (z = 0; z < zones.length; z++) {
+        var Z = zones[z], t = tileZone(Z.rows, Z.cols, 9001 + z * 131);
+        for (r = 0; r < Z.rows; r++) for (c = 0; c < Z.cols; c++) {
+          rows[Z.start + r].own[c] = pieceCount + t.own[c * Z.rows + r];
+        }
+        pieceCount += t.pieces;
+      }
+    } else {
+      var sites = lattice(SITES);
+      for (i = 0; i < rows.length; i++) {
+        var row = rows[i], zc = (row.z0 + row.z1) / 2;
+        var latc = Math.asin(Math.max(-1, Math.min(1, zc))) / D2R;
+        for (c = 0; c < row.cols; c++) {
+          var v = onPlanet((lonEdge(row.cols, c) + lonEdge(row.cols, c + 1)) / 2, latc);
+          var best = 0, bd = -2;
+          for (var s = 0; s < sites.length; s++) {
+            var d = v.x * sites[s].x + v.y * sites[s].y + v.z * sites[s].z;
+            if (d > bd) { bd = d; best = s; }
+          }
+          row.own[c] = best;
+        }
+      }
+      pieceCount = SITES;
+    }
+
+    /* ---- pieces: centroid, biome, its own shade step ---------------- */
+    var pieces = [];
+    for (i = 0; i < pieceCount; i++) pieces.push({ id: i, cells: [], vx: 0, vy: 0, vz: 0 });
+    for (i = 0; i < rows.length; i++) {
+      var rw = rows[i], zc2 = (rw.z0 + rw.z1) / 2;
+      var lat2 = Math.asin(Math.max(-1, Math.min(1, zc2))) / D2R;
+      for (c = 0; c < rw.cols; c++) {
+        var p = pieces[rw.own[c]];
+        if (!p) continue;
+        p.cells.push({ ri: i, c: c });
+        var vv = onPlanet((lonEdge(rw.cols, c) + lonEdge(rw.cols, c + 1)) / 2, lat2);
+        p.vx += vv.x; p.vy += vv.y; p.vz += vv.z;
+      }
+    }
+    for (i = 0; i < pieces.length; i++) {
+      var pc = pieces[i], mag = Math.sqrt(pc.vx * pc.vx + pc.vy * pc.vy + pc.vz * pc.vz) || 1;
+      pc.vx /= mag; pc.vy /= mag; pc.vz /= mag;
+      pc.lat = Math.asin(Math.max(-1, Math.min(1, pc.vy))) / D2R;
+      pc.lon = Math.atan2(pc.vx, pc.vz) / D2R;
+      pc.biome = biomeAt(pc.lat);
+      /* Each territory takes its band's colour and shifts by at most one
+         step, on about a third of pieces. Enough that you can count the
+         pieces without the seams; not so much that the planet is a quilt.
+         Arid shifts *up* because its ramp repeats at 1 and 2, and its
+         bright entry is loud enough to be the exception rather than the
+         base. */
+      pc.step = BASE_STEP[pc.biome] + (hash01(i, 7) < 0.22 ? STEP_VARY[pc.biome] : 0);
+    }
+
+    /* ---- runs: consecutive same-owner cells in a row ---------------- */
+    var runs = [];
+    for (i = 0; i < rows.length; i++) {
+      var rr2 = rows[i], c0 = 0;
+      while (c0 < rr2.cols) {
+        var c1 = c0 + 1;
+        while (c1 < rr2.cols && rr2.own[c1] === rr2.own[c0]) c1++;
+        /* a run that wraps past the last column is left split; one extra
+           seam-free join is not worth the bookkeeping at this size */
+        runs.push({ ri: i, lonA: lonEdge(rr2.cols, c0), lonB: lonEdge(rr2.cols, c1),
+                    lat0: rr2.lat0, lat1: rr2.lat1, own: rr2.own[c0] });
+        c0 = c1;
+      }
+    }
+
+    /* ---- seams + adjacency ------------------------------------------ */
+    var segs = [], adj = [];
+    for (i = 0; i < pieceCount; i++) adj.push({});
+    function link(a, b) { if (a === b || a < 0 || b < 0) return; adj[a][b] = 1; adj[b][a] = 1; }
+
+    for (i = 0; i < rows.length; i++) {                    /* meridian seams */
+      var rv = rows[i];
+      for (c = 0; c < rv.cols; c++) {
+        var a1 = rv.own[c], b1 = rv.own[(c + 1) % rv.cols];
+        if (a1 !== b1) {
+          segs.push({ kind: 0, lon: lonEdge(rv.cols, c + 1), lat0: rv.lat0, lat1: rv.lat1, a: a1, b: b1 });
+          link(a1, b1);
+        }
+      }
+    }
+    for (i = 0; i + 1 < rows.length; i++) {                /* parallel seams */
+      var lo = rows[i], hi = rows[i + 1], bp = [], k2;
+      for (k2 = 0; k2 <= lo.cols; k2++) bp.push(lonEdge(lo.cols, k2));
+      for (k2 = 0; k2 <= hi.cols; k2++) bp.push(lonEdge(hi.cols, k2));
+      bp.sort(function (x, y) { return x - y; });
+      for (k2 = 0; k2 + 1 < bp.length; k2++) {
+        var la = bp[k2], lb = bp[k2 + 1];
+        if (lb - la < 1e-9) continue;
+        var mid = (la + lb) / 2;
+        var ia = Math.min(lo.cols - 1, Math.floor((mid + 180) / 360 * lo.cols));
+        var ib = Math.min(hi.cols - 1, Math.floor((mid + 180) / 360 * hi.cols));
+        var oa = lo.own[ia], ob = hi.own[ib];
+        if (oa !== ob) {
+          segs.push({ kind: 1, lat: lo.lat1, lonA: la, lonB: lb, a: oa, b: ob });
+          link(oa, ob);
+        }
+      }
+    }
+
+    /* ---- the mark on each piece -------------------------------------- *
+     * A city is ONE MARK in the middle of its territory.
+     *
+     * Three richer glyphs died getting here. Speckles on a sub-grid read
+     * as a rash; a handful of district blocks read as a cluster of dots;
+     * a solid rasterised footprint read as a patch stuck on. What is
+     * left is what a settlement is on every map ever printed - a point,
+     * where the place is - and it has the property none of the others
+     * had: at the size a territory is drawn, there is nothing about it
+     * that can be wrong.
+     *
+     * The territory is the picture. The mark only says whose it is.
+     *
+     * One size for all hundred, and NOT a size derived from the piece's
+     * own spread. Every territory is exactly 1/100 of the sphere, so its
+     * equal-area radius is the same constant whatever shape it came out
+     * as; a mark that quietly grew on the wider polar pieces would be
+     * saying something about them that is not true.
+     * ------------------------------------------------------------------ */
+    var DOT_ANG = Math.sqrt(4 / SITES) * 0.25;
+    /* ONE building per territory.
+     *
+     * A cluster was tried and it scattered: at the size a territory is
+     * drawn there is no room for several small things to sit together
+     * without reading as a handful of specks. One building big enough to
+     * see is the whole settlement - and it is still countable at a
+     * glance, which is what the mark is for.
+     *
+     * Turned by its own angle so a hundred of them do not line up, and
+     * it is a square in plan, so the turn only needs a quarter circle. */
+    for (i = 0; i < pieces.length; i++) {
+      var pce = pieces[i], fr = tangent(pce.lon, pce.lat);
+      var rot = hash01(i, 19) * 0.6;
+      var cs = Math.cos(rot), sn = Math.sin(rot);
+      var bw = DOT_ANG * (0.40 + 0.12 * hash01(i, 23));
+      var bd = DOT_ANG * (0.40 + 0.12 * hash01(i, 29));
+      var CORN = [[-1, -1], [1, -1], [1, 1], [-1, 1]], quad = [];
+      for (var k4 = 0; k4 < 4; k4++) {
+        var sx4 = CORN[k4][0] * bw, sy4 = CORN[k4][1] * bd;
+        quad.push(offsetPt(fr, sx4 * cs - sy4 * sn, sx4 * sn + sy4 * cs));
+      }
+      pce.city = { quad: quad, h: 0.72 + 0.56 * hash01(i, 31) };
+    }
+
+    /* ---- settle order: outward from one city, always contiguous ----- */
+    var seedV = onPlanet(20, 34), seed = 0, sbest = -2;
+    for (i = 0; i < pieces.length; i++) {
+      var dd = pieces[i].vx * seedV.x + pieces[i].vy * seedV.y + pieces[i].vz * seedV.z;
+      if (dd > sbest) { sbest = dd; seed = i; }
+    }
+    var order = [seed], inSet = {}; inSet[seed] = 1;
+    var sv = pieces[seed];
+    while (order.length < pieces.length) {
+      var cand = -1, ck = Infinity, key;
+      for (var oi = 0; oi < order.length; oi++) {
+        var nbrs = adj[order[oi]];
+        for (key in nbrs) {
+          var idn = +key;
+          if (inSet[idn]) continue;
+          var pn = pieces[idn];
+          var dotn = pn.vx * sv.vx + pn.vy * sv.vy + pn.vz * sv.vz;
+          var kk = Math.acos(Math.max(-1, Math.min(1, dotn))) + 0.30 * hash01(idn, 17);
+          if (kk < ck) { ck = kk; cand = idn; }
+        }
+      }
+      if (cand < 0) {                       /* disconnected: take the nearest left */
+        for (i = 0; i < pieces.length; i++) if (!inSet[i]) { cand = i; break; }
+        if (cand < 0) break;
+      }
+      inSet[cand] = 1; order.push(cand);
+    }
+    var rank = new Int32Array(pieces.length).fill(9999);
+    for (i = 0; i < order.length; i++) rank[order[i]] = i;
+
+    return { rows: rows, pieces: pieces, runs: runs, segs: segs, rank: rank, order: order, scheme: scheme };
+  }
+
+  var MODELS = { tetro: buildModel("tetro"), voronoi: buildModel("voronoi") };
+
+  /* ================================================================== *
+   * RENDER
+   * ================================================================== */
+  var LIGHT = (function () {
+    var v = { x: -0.34, y: 0.42, z: 0.84 };
+    var m = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return { x: v.x / m, y: v.y / m, z: v.z / m };
+  })();
+
+  function drawPlanet(ctx, o) {
+    var model = o.model, R = o.R, CX = o.cx, CY = o.cy;
+    var cy = Math.cos(o.yaw * D2R), sy = Math.sin(o.yaw * D2R);
+    var cp = Math.cos(o.pitch * D2R), sp = Math.sin(o.pitch * D2R);
+
+    /* ---- the camera ---------------------------------------------------
+     * A REAL one, at a finite distance, because buildings need it.
+     *
+     * Under an orthographic camera a tower at the middle of the disc
+     * points straight down the view axis, so it projects to its own roof
+     * and nothing else - only cities near the edge would look like
+     * buildings at all. With the eye at a finite distance every tower
+     * leans away from the middle of the disc and shows a wall.
+     *
+     * KPER is the planet's radius over the eye's distance from its
+     * centre. The silhouette is then the circle where v.z == KPER (not
+     * the equator of the view - you see less than a hemisphere, which is
+     * the honest thing and the reason it reads as a ball), and PS is
+     * chosen so that silhouette lands exactly on radius R.
+     * ------------------------------------------------------------------ */
+    var KPER = 0.45;
+    var CAMZ = 1 / KPER;                        /* eye position, in planet radii */
+    var PS   = R * Math.sqrt(1 - KPER * KPER);
+
+    var px = 0, py = 0, pz = 0;                 /* last projected point   */
+    var vx3 = 0, vy3 = 0, vz3 = 0;              /* ...and its unit vector, camera frame */
+
+    /** `rho` is distance from the planet's centre in radii: 1 on the ground,
+        1 + h on top of a building h tall. */
+    function project(lon, lat, rho) {
+      var a = lon * D2R, b = lat * D2R;
+      var cb = Math.cos(b);
+      var vx = cb * Math.sin(a), vy = Math.sin(b), vz = cb * Math.cos(a);
+      var x1 = vx * cy + vz * sy, z1 = -vx * sy + vz * cy;
+      var ny = vy * cp - z1 * sp, nz = vy * sp + z1 * cp;
+      vx3 = x1; vy3 = ny; vz3 = nz;
+      pz = nz - KPER;                           /* > 0 : this side of the silhouette */
+      var r = rho === undefined ? 1 : rho;
+      var d = 1 - KPER * r * nz;
+      if (nz <= KPER && r <= 1.0001) {          /* round the back: pin to the silhouette */
+        var mm = Math.sqrt(x1 * x1 + ny * ny) || 1;
+        px = CX + x1 / mm * R; py = CY - ny / mm * R;
+      } else {
+        px = CX + PS * r * x1 / d;
+        py = CY - PS * r * ny / d;
+      }
+      return pz;
+    }
+
+    /* Add one seam to the current path, or nothing if it is round the back.
+     *
+     * The obvious version of this called ctx.beginPath() to "drop" an
+     * invisible segment - which throws away every segment collected before
+     * it too, so the whole jigsaw outline silently vanished. Decide first,
+     * then emit. */
+    var segPts = [];              /* NOT `sp` - that is the sine of the pitch */
+    function addSeg(sg) {
+      var vis = false, j, n2;
+      segPts.length = 0;
+      if (sg.kind === 0) {
+        for (j = 0; j <= 3; j++) {
+          if (project(sg.lon, sg.lat0 + (sg.lat1 - sg.lat0) * j / 3) > 0.015) vis = true;
+          segPts.push(px, py);
+        }
+      } else {
+        n2 = Math.max(1, Math.ceil((sg.lonB - sg.lonA) / 5));
+        for (j = 0; j <= n2; j++) {
+          if (project(sg.lonA + (sg.lonB - sg.lonA) * j / n2, sg.lat) > 0.015) vis = true;
+          segPts.push(px, py);
+        }
+      }
+      if (!vis) return;
+      ctx.moveTo(segPts[0], segPts[1]);
+      for (j = 2; j < segPts.length; j += 2) ctx.lineTo(segPts[j], segPts[j + 1]);
+    }
+
+    /* One building: a footprint on the planet, pushed straight up the
+     * SCREEN rather than along the local vertical.
+     *
+     * The physically honest version extrudes along the surface normal,
+     * and under an orthographic camera that means a city at the middle
+     * of the disc points its roofs straight at you and shows no height
+     * at all - only the ones near the edge look like buildings. Pushing
+     * up the screen instead costs nothing in the projection (the roof is
+     * the footprint, moved) and every city on the planet stands up.
+     *
+     * Which walls you can see falls out of the footprint's screen
+     * winding: the ones whose outward normal points down the page.
+     */
+    /* One building, as an actual solid.
+     *
+     * Extruded along the RADIUS - the local vertical, which is the line
+     * to the planet's centre - so it leans with the curve like a real
+     * thing standing on a ball, rather than being pasted upright on the
+     * screen. Eight corners, five faces, and the four walls are culled
+     * and shaded by their true normals in the camera's frame.
+     *
+     * The solid is convex, so its visible faces never overlap each other
+     * on screen and no per-face sorting is needed.
+     */
+    function drawBuilding(b) {
+      var q = b.quad, hh = b.hh, k;
+      var base = [], roof = [], V = [], cxu = 0, cyu = 0, czu = 0;
+      for (k = 0; k < 4; k++) {
+        project(q[k].lon, q[k].lat, 1);
+        base.push({ x: px, y: py });
+        V.push({ x: vx3, y: vy3, z: vz3 });
+        cxu += vx3; cyu += vy3; czu += vz3;
+        project(q[k].lon, q[k].lat, 1 + hh);
+        roof.push({ x: px, y: py });
+      }
+      var m = Math.sqrt(cxu * cxu + cyu * cyu + czu * czu) || 1;
+      var up = { x: cxu / m, y: cyu / m, z: czu / m };      /* the local vertical */
+
+      function shade(nx, ny, nz) {
+        var d = nx * LIGHT.x + ny * LIGHT.y + nz * LIGHT.z;
+        return d > 0.55 ? NEUTRAL[6] : d > 0.14 ? NEUTRAL[5]
+             : d > -0.24 ? NEUTRAL[4] : NEUTRAL[3];
+      }
+      function faceVisible(nx, ny, nz, P) {
+        return nx * -P.x + ny * -P.y + nz * (CAMZ - P.z) > 0;
+      }
+
+      ctx.lineWidth = Math.max(0.7, R * 0.0022);
+      ctx.strokeStyle = NEUTRAL[0];
+      ctx.lineJoin = "miter";
+
+      var faceNy = -1, fa = null, fb = null;
+      for (k = 0; k < 4; k++) {
+        var A3 = V[k], B3 = V[(k + 1) % 4];
+        /* normal = edge x up, then turned outward from the building's middle */
+        var ex3 = B3.x - A3.x, ey3 = B3.y - A3.y, ez3 = B3.z - A3.z;
+        var nx = ey3 * up.z - ez3 * up.y;
+        var ny = ez3 * up.x - ex3 * up.z;
+        var nz = ex3 * up.y - ey3 * up.x;
+        var nm = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+        nx /= nm; ny /= nm; nz /= nm;
+        var mid = { x: (A3.x + B3.x) / 2, y: (A3.y + B3.y) / 2, z: (A3.z + B3.z) / 2 };
+        if (nx * (mid.x - up.x) + ny * (mid.y - up.y) + nz * (mid.z - up.z) < 0) {
+          nx = -nx; ny = -ny; nz = -nz;
+        }
+        if (!faceVisible(nx, ny, nz, mid)) continue;
+        ctx.beginPath();
+        ctx.moveTo(base[k].x, base[k].y);
+        ctx.lineTo(base[(k + 1) % 4].x, base[(k + 1) % 4].y);
+        ctx.lineTo(roof[(k + 1) % 4].x, roof[(k + 1) % 4].y);
+        ctx.lineTo(roof[k].x, roof[k].y);
+        ctx.closePath();
+        ctx.fillStyle = shade(nx, ny, nz);
+        ctx.fill();
+        ctx.stroke();
+        /* remember the most face-on wall, for the window */
+        var facing = nx * -mid.x + ny * -mid.y + nz * (CAMZ - mid.z);
+        if (facing > faceNy) { faceNy = facing; fa = k; fb = (k + 1) % 4; }
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(roof[0].x, roof[0].y);
+      for (k = 1; k < 4; k++) ctx.lineTo(roof[k].x, roof[k].y);
+      ctx.closePath();
+      ctx.fillStyle = shade(up.x, up.y, up.z);
+      ctx.fill();
+      ctx.stroke();
+
+      /* A window on whichever wall is most face-on. The studio is in. */
+      if (fa !== null) {
+        var wx = (base[fa].x + base[fb].x + roof[fa].x + roof[fb].x) / 4;
+        var wy = (base[fa].y + base[fb].y + roof[fa].y + roof[fb].y) / 4;
+        var span = Math.abs(roof[fa].y - base[fa].y) + Math.abs(roof[fa].x - base[fa].x);
+        if (span > 4) {
+          var ls = Math.max(1.5, span * 0.15);
+          ctx.fillStyle = CALM[2];
+          ctx.fillRect(wx - ls / 2, wy - ls / 2, ls, ls);
+        }
+      }
+    }
+
+    /* the ball, so no hairline of space shows between runs */
+    ctx.fillStyle = "#241f2e";
+    ctx.beginPath(); ctx.arc(CX, CY, R + 0.5, 0, 6.2832); ctx.fill();
+
+    /* ---- surface ---------------------------------------------------- */
+    var runs = model.runs, pieces = model.pieces, i;
+    for (i = 0; i < runs.length; i++) {
+      var rn = runs[i], pc = pieces[rn.own];
+      if (!pc) continue;
+      var span = rn.lonB - rn.lonA;
+      var steps = Math.max(2, Math.ceil(span / 5));
+      var any = false, k;
+      ctx.beginPath();
+      for (k = 0; k <= steps; k++) {
+        var lz = rn.lonA + span * k / steps;
+        if (project(lz, rn.lat1) > 0) any = true;
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      for (k = steps; k >= 0; k--) {
+        var lz2 = rn.lonA + span * k / steps;
+        if (project(lz2, rn.lat0) > 0) any = true;
+        ctx.lineTo(px, py);
+      }
+      if (!any) continue;
+      ctx.closePath();
+      /* Flat. A territory's colour is a fact about the territory and does
+         not depend on where the planet happens to be pointing. The ball
+         is shaded afterwards, in screen space - see `formShade`. */
+      ctx.fillStyle = shade(pc.biome, pc.step, 0);
+      ctx.fill();
+    }
+
+    /* ---- seams ------------------------------------------------------ */
+    if (o.seams) {
+      ctx.lineWidth = Math.max(0.7, R * 0.0042);
+      ctx.strokeStyle = "rgba(20,18,26,0.72)";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      for (i = 0; i < model.segs.length; i++) addSeg(model.segs[i]);
+      ctx.stroke();
+    }
+
+    /* ---- cities ----------------------------------------------------- */
+    var town = [];
+    for (i = 0; i < pieces.length; i++) {
+      /* `only` builds exactly one piece, for the before/after panels;
+         otherwise it is the settle order up to the headcount. */
+      if (o.only != null) { if (i !== o.only) continue; }
+      else if (model.rank[i] >= o.built) continue;
+      var pcy = pieces[i];
+
+      var zc = project(pcy.lon, pcy.lat);
+      if (zc <= 0.015) continue;
+
+      /* How grown this city is. A place settled nine cities ago is
+         finished; the one you just bought is still footings. Drag the
+         headcount and the buildings come up out of the ground behind it. */
+      var grow = o.only != null ? 1
+               : Math.max(0.16, Math.min(1, (o.built - model.rank[i]) / 9));
+      town.push({ z: zc, quad: pcy.city.quad, hh: pcy.city.h * CITY_H * grow });
+    }
+    /* Far ones first, so a near tower can stand in front of a far one. */
+    town.sort(function (m, n) { return m.z - n.z; });
+    for (i = 0; i < town.length; i++) drawBuilding(town[i]);
+
+    /* ---- the ball ---------------------------------------------------- *
+     * Why this is an overlay and not a colour.
+     *
+     * It used to be: shade each territory by how square-on it faced a
+     * fixed light, quantised to a palette step. That is correct and it
+     * LOOKS BROKEN, because the quantiser is per territory - so as the
+     * planet turns, whole pieces cross a threshold and jump a full step
+     * at once. Regions visibly change colour as it spins, which is the
+     * "lighting keeps changing" you can see and no amount of picking
+     * better thresholds fixes: the pop is the quantiser, not the light.
+     *
+     * So the shading is fixed to the SCREEN instead. Concentric bands,
+     * offset toward the upper left, clipped to the disc. Nothing about
+     * them moves when the planet does, so nothing can pop - and the
+     * bands stay hard-edged, which keeps it in the pixel-art register
+     * rather than turning into a gradient.
+     * ------------------------------------------------------------------ */
+    if (o.form) {
+      var lx = CX - R * 0.30, ly = CY - R * 0.30;
+      var BANDS = [[0.62, 0.90, 0.13], [0.90, 1.14, 0.27], [1.14, 2.60, 0.44]];
+      ctx.save();
+      ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.clip();
+      for (i = 0; i < BANDS.length; i++) {
+        ctx.beginPath();
+        ctx.arc(lx, ly, R * BANDS[i][1], 0, 6.2832, false);
+        ctx.arc(lx, ly, R * BANDS[i][0], 0, 6.2832, true);   /* reversed: an annulus */
+        ctx.fillStyle = "rgba(20,18,26," + BANDS[i][2] + ")";
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    var fid = o.markId != null ? o.markId
+            : (o.frontier && o.built < model.order.length) ? model.order[o.built] : -1;
+    if (fid >= 0) {
+      ctx.lineWidth = Math.max(1.3, R * 0.0055);
+      ctx.strokeStyle = o.markColor || FRONTIER;
+      ctx.beginPath();
+      for (i = 0; i < model.segs.length; i++) {
+        if (model.segs[i].a === fid || model.segs[i].b === fid) addSeg(model.segs[i]);
+      }
+      ctx.stroke();
+    }
+
+    /* ---- limb -------------------------------------------------------- */
+    ctx.lineWidth = Math.max(1, R * 0.004);
+    ctx.strokeStyle = "rgba(150,138,150,0.30)";
+    ctx.beginPath(); ctx.arc(CX, CY, R, 0, 6.2832); ctx.stroke();
+  }
+
+  /* ================================================================== *
+   * CANVAS PLUMBING
+   * ================================================================== */
+  function fit(canvas, cssH) {
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var w = canvas.clientWidth || 600;
+    var h = cssH || canvas.clientHeight || 400;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = SKY; ctx.fillRect(0, 0, w, h);
+    return { ctx: ctx, w: w, h: h };
+  }
+
+  /* ---- the hero ----------------------------------------------------- */
+  var globe = document.getElementById("globe");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var view = {
+    yaw: 24, pitch: 16, vyaw: 0, vpitch: 0,
+    scheme: "tetro", built: 34, seams: true, form: true,
+    drift: !reduce, dragging: false
+  };
+
+  var fpsEl = document.getElementById("fps");
+  var devsEl = document.getElementById("devs");
+  var countEl = document.getElementById("count");
+  var nextEl = document.getElementById("nextup");
+  var noteEl = document.getElementById("schemenote");
+  var slider = document.getElementById("pieces");
+
+  function commas(n) { return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
+
+  function syncReadouts() {
+    devsEl.innerHTML = commas(view.built * 1000000) + '<span class="unit"> devs</span>';
+    countEl.innerHTML = view.built + '<span class="unit"> / 100</span>';
+    nextEl.textContent = view.built >= 100 ? "Planet full — next rung is off-world"
+                                           : "Next: piece " + (view.built + 1) + ", on your border";
+    noteEl.textContent = view.scheme === "tetro" ? "4 cells × 100 — one tetromino each"
+                                                 : "16 cells × 100 — nearest lattice point";
+  }
+
+  var last = performance.now(), ema = 0;
+  function frame(now) {
+    var dt = Math.min(64, now - last); last = now;
+
+    if (!view.dragging) {
+      view.yaw += view.vyaw; view.pitch += view.vpitch;
+      view.vyaw *= 0.93; view.vpitch *= 0.93;
+      if (Math.abs(view.vyaw) < 0.004) view.vyaw = 0;
+      if (Math.abs(view.vpitch) < 0.004) view.vpitch = 0;
+      if (view.drift && view.vyaw === 0) view.yaw += dt * 0.0035;
+    }
+    if (view.pitch > 78) view.pitch = 78;
+    if (view.pitch < -78) view.pitch = -78;
+
+    var f = fit(globe);
+    var t0 = performance.now();
+    drawPlanet(f.ctx, {
+      model: MODELS[view.scheme],
+      R: Math.min(f.w, f.h) * 0.42,
+      cx: f.w / 2, cy: f.h / 2,
+      yaw: view.yaw, pitch: view.pitch,
+      built: view.built, seams: view.seams, form: view.form, frontier: true
+    });
+    var cost = performance.now() - t0;
+    ema = ema ? ema * 0.9 + cost * 0.1 : cost;
+    fpsEl.textContent = ema.toFixed(1) + " ms/frame";
+
+    requestAnimationFrame(frame);
+  }
+
+  /* ---- drag --------------------------------------------------------- */
+  var lastX = 0, lastY = 0;
+  globe.addEventListener("pointerdown", function (e) {
+    view.dragging = true; view.drift = false;
+    setFlag("drift", false);
+    lastX = e.clientX; lastY = e.clientY;
+    globe.setPointerCapture(e.pointerId);
+  });
+  globe.addEventListener("pointermove", function (e) {
+    if (!view.dragging) return;
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    view.yaw += dx * 0.32; view.pitch += dy * 0.28;
+    view.vyaw = dx * 0.32; view.vpitch = dy * 0.28;
+  });
+  function endDrag(e) {
+    if (!view.dragging) return;
+    view.dragging = false;
+    try { globe.releasePointerCapture(e.pointerId); } catch (err) { /* already gone */ }
+  }
+  globe.addEventListener("pointerup", endDrag);
+  globe.addEventListener("pointercancel", endDrag);
+  globe.addEventListener("keydown", function (e) {
+    var k = e.key, step = 6;
+    if (k === "ArrowLeft") view.yaw -= step;
+    else if (k === "ArrowRight") view.yaw += step;
+    else if (k === "ArrowUp") view.pitch -= step;
+    else if (k === "ArrowDown") view.pitch += step;
+    else return;
+    view.drift = false; setFlag("drift", false);
+    e.preventDefault();
+  });
+
+  /* ---- controls ------------------------------------------------------ */
+  function setFlag(name, on) {
+    var b = document.querySelector('[data-flag="' + name + '"]');
+    if (b) b.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-scheme]"), function (btn) {
+    btn.addEventListener("click", function () {
+      view.scheme = btn.getAttribute("data-scheme");
+      Array.prototype.forEach.call(document.querySelectorAll("[data-scheme]"), function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      syncReadouts(); drawChart(); drawZooms();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-flag]"), function (btn) {
+    btn.addEventListener("click", function () {
+      var n = btn.getAttribute("data-flag");
+      view[n] = !view[n];
+      btn.setAttribute("aria-pressed", view[n] ? "true" : "false");
+      if (n !== "drift") drawZooms();
+    });
+  });
+  slider.addEventListener("input", function () {
+    view.built = +slider.value;
+    syncReadouts();
+  });
+
+  /* ================================================================== *
+   * THE UNROLLED CHART - the equal-area proof, flat.
+   * ================================================================== */
+  var chart = document.getElementById("chart");
+  function drawChart() {
+    var w = chart.clientWidth || 800, h = Math.round(w * 0.46);
+    chart.style.height = h + "px";
+    var f = fit(chart, h);
+    var ctx = f.ctx, model = MODELS[view.scheme];
+    var pad = 1;
+    function X(lon) { return pad + (lon + 180) / 360 * (f.w - pad * 2); }
+    function Y(z) { return pad + (1 - z) / 2 * (f.h - pad * 2); }
+
+    for (var i = 0; i < model.runs.length; i++) {
+      var rn = model.runs[i], row = model.rows[rn.ri], pc = model.pieces[rn.own];
+      if (!pc) continue;
+      var built = model.rank[rn.own] < view.built;
+      ctx.fillStyle = shade(pc.biome, pc.step, built ? -1 : 0);
+      var x0 = X(rn.lonA), x1 = X(rn.lonB), y0 = Y(row.z1), y1 = Y(row.z0);
+      ctx.fillRect(x0, y0, x1 - x0 + 0.6, y1 - y0 + 0.6);
+    }
+    /* piece outlines */
+    ctx.strokeStyle = "rgba(20,18,26,0.75)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (i = 0; i < model.segs.length; i++) {
+      var s = model.segs[i];
+      if (s.kind === 0) {
+        var rw = model.rows.find(function (r) { return Math.abs(r.lat0 - s.lat0) < 1e-9 && Math.abs(r.lat1 - s.lat1) < 1e-9; });
+        if (!rw) continue;
+        ctx.moveTo(X(s.lon), Y(rw.z1)); ctx.lineTo(X(s.lon), Y(rw.z0));
+      } else {
+        var zz = Math.sin(s.lat * D2R);
+        ctx.moveTo(X(s.lonA), Y(zz)); ctx.lineTo(X(s.lonB), Y(zz));
+      }
+    }
+    ctx.stroke();
+    /* band boundaries, labelled */
+    ctx.strokeStyle = "rgba(53,201,217,0.55)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    [-0.9, -0.6, 0.6, 0.9].forEach(function (z) { ctx.moveTo(pad, Y(z)); ctx.lineTo(f.w - pad, Y(z)); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#35c9d9";
+    ctx.font = '500 10px "IBM Plex Mono", monospace';
+    ctx.fillText("10 cols", 6, Y(0.95) + 4);
+    ctx.fillText("20 cols", 6, Y(0.75) + 4);
+    ctx.fillText("40 cols", 6, Y(0.0) + 4);
+    ctx.fillText("20 cols", 6, Y(-0.75) + 4);
+    ctx.fillText("10 cols", 6, Y(-0.95) + 4);
+    ctx.strokeStyle = "#3a3244";
+    ctx.strokeRect(pad, pad, f.w - pad * 2, f.h - pad * 2);
+  }
+
+  /* ================================================================== *
+   * THE BLEND - one piece, before and after, same camera.
+   * ================================================================== */
+  var zoomA = document.getElementById("zoomA"), zoomB = document.getElementById("zoomB");
+  function drawZooms() {
+    var model = MODELS[view.scheme];
+    /* The first temperate piece the studio would settle - so the two
+       panels show green ground rather than an ice cap, and the same
+       piece in both. */
+    var target = model.order[0];
+    for (var q = 0; q < model.order.length; q++) {
+      var cand = model.pieces[model.order[q]];
+      if (cand.biome === TEMPERATE && Math.abs(cand.lat) < 45) { target = model.order[q]; break; }
+    }
+    var p = model.pieces[target];
+    [[zoomA, false], [zoomB, true]].forEach(function (pair) {
+      var cv = pair[0], on = pair[1];
+      var w = cv.clientWidth || 400, h = Math.round(w * 0.72);
+      cv.style.height = h + "px";
+      var f = fit(cv, h);
+      drawPlanet(f.ctx, {
+        model: model,
+        R: Math.min(f.w, f.h) * 1.35,
+        cx: f.w / 2, cy: f.h / 2,
+        yaw: -p.lon, pitch: p.lat,
+        built: 0, only: on ? target : null,
+        markId: target, markColor: "rgba(216,210,207,0.7)",
+        seams: view.seams, form: view.form, frontier: false
+      });
+    });
+  }
+
+  /* ================================================================== */
+  function relayout() { drawChart(); drawZooms(); }
+  var rt = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(rt); rt = setTimeout(relayout, 140);
+  });
+
+  syncReadouts();
+  relayout();
+  requestAnimationFrame(frame);
+})();
+</script>
