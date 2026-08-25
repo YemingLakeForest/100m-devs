@@ -89,6 +89,30 @@ with a table of examples that were all the same kind of thing.
 It is the register of what is *specified nowhere* — audited rather than remembered, because
 the §10.9 title screen was found missing only when somebody happened to ask about it.
 
+### 0.4 Authority and current-build status — **added 2026-08-25**
+
+**`GDD.html` is the canonical development guide.** This Markdown file is its authoring source
+and must be kept in sync through `npm run docs:gdd`; it has no separate design authority. If a
+generated HTML copy and this source ever differ, development follows `GDD.html` until the drift
+is reconciled and the canonical file is regenerated.
+
+The body of the GDD specifies the **target game**. It also contains dated implementation notes
+that preserve how decisions were reached. Those notes are useful history, but they age. From
+this revision onward, **Appendix G is the only current-build status register**:
+
+- **Appendix G** says what is live, partial, defective, divergent, unreachable or not built as
+  of its audit date, then records the improvement experiments that follow from that evidence. A
+  newer Appendix G entry supersedes any older phrase such as “currently”, “built” or “not done”
+  elsewhere in this document.
+- **Appendix F** remains the specification/shipping-gap register. It answers “has the product
+  decision been written down?”, not “has somebody implemented it?”.
+- `docs/game-mechanics-current.html` is a preserved mechanics audit and UI-demo backup. It is
+  **not canon** and must not overrule this guide.
+
+This separation is deliberate: a feature can be completely specified and still absent, or be
+present in code and still conflict with the intended design. Development needs both facts and
+must never infer one from the other.
+
 ---
 
 ## 1. Executive Summary
@@ -2287,14 +2311,13 @@ camera holds:
 | **10 B – 10 T** | **Planet** | A system. The planet's dark side glows with the swarm |
 | **10 T +** | **Galaxy** | A cluster. Points of light, each one a civilisation of developers |
 
-##### Built, and not built **[added 2026-08-08, rewritten 2026-08-22]**
+##### Current implementation map **[audited 2026-08-25]**
 
-> The 2026-08-08 row read *"**4–6** — building, campus, town | Built. `render/city.ts`"*, and
-> both halves of that are now wrong. `city.ts` was deleted by the lens rebuild
-> (`docs/HANDOFF-2026-08-20.md`), which replaced seven cross-faded *views* with one camera and a
-> ladder of nested **levels**; and what those three rungs were drawn as — three instanced
-> pictures of the studio's first corner — is not what the level model draws. The table below is
-> the state after `docs/HANDOFF-2026-08-22.md` added rung 5.
+The lens is one continuous camera over seven nested presentation levels. It reaches the number
+on the box, but it does not yet implement every distinct rung in §7.7.1. The current globe
+collapses the old town/nation/planet transition into one 100-site world. That is a visible,
+playable implementation and a **design deviation**, not permission to erase the fuller ladder.
+Appendix G owns the live status and the decision still required.
 
 | Rungs | State |
 |---|---|
@@ -2302,8 +2325,8 @@ camera holds:
 | **3** — tower | Built. `render/building.ts`. Storeys drop onto the stack, the building squashes and settles |
 | **4** — a block of ten towers | Built. `render/block.ts` |
 | **5** — a business park of ten blocks | Built. `render/park.ts`. Four compounds on one board, joined by a bus; decks, pin rows, a substation and a cooling plant. The level caps the drawn studio at **10⁶ developers** |
-| **6** — town | **Not built.** Rung 6 spans two decades (10⁶–10⁸) where every rung below spans one, so it is not another ×10 of the same construction and does not come for free the way rung 5 did |
-| **7–9** — nation, planet, galaxy | **Not built.** A different register — a lit coastline, a world, a cluster — rather than more architecture. Building them badly to fill the table would be worse than the honest gap |
+| **Current level 6** — globe | Built. `render/globe.ts` and `render/worldMap.ts`; 100 equal territories/sites carry **100,000,000 developers** on one jigsaw planet |
+| **Distinct town, nation, system and galaxy stops** | **Not built as separate lens levels.** The simulation carries future unit vocabulary, but the reachable camera ends at the current globe |
 
 Two rules the built half is worth stating, because both were got wrong first:
 
@@ -3149,7 +3172,7 @@ another in a speech bubble teaches the player that the colour means nothing.
 
 ### 10.3 First-pass mobile wireframe (annotated) — **VOID, portrait**
 
-> **Superseded by [ADR 0002](adr/0002-screen-orientation.md): the game is landscape.** This
+> **Superseded by [ADR 0002](docs/adr/0002-screen-orientation.md): the game is landscape.** This
 > wireframe is portrait and its layout is therefore void — kept only for the component
 > inventory it names, which is still correct. **Do not lay anything out from it.** A 2:1
 > isometric floor in a portrait window uses 22% of the display; the measurement is in
@@ -8560,20 +8583,17 @@ different product before anyone plays it — that is a store-conversion risk and
 thing that would reopen this. One-handed play is gone, though §7.7.6's drag-pan and
 pinch-zoom had already spent most of it.
 
-#### 23.4.1 The camera must be viewport-aware — **REQUIRED, NOT DONE**
+#### 23.4.1 The camera is viewport-aware — **IMPLEMENTED, audited 2026-08-25**
 
-The renderer currently scales the world by `s = 1 / (1 + z · 9)` — **a function of camera Z
-with no screen dimension in it.** Only the world's *position* is viewport-aware. So the
-swarm renders at a fixed 239 × 120 px on every display and fills **6.4% of either
-orientation, identically**.
+Every lens level now owns a world-space frame and is fitted against the live viewport by
+`fitScaleFor(rect, viewport)` in `src/render/frames.ts`. `src/render/lens.ts` recomputes those
+fits when the renderer changes size, and camera Z modulates around the fitted level rather
+than replacing viewport fitting. The active tier therefore fills the available short axis
+instead of rendering at one fixed pixel size on every display.
 
-**Until this is fixed, landscape delivers nothing visible.** The active tier must fit the
-**shorter axis** of the viewport, with Z modulating around that fit rather than replacing
-it. This is the change that converts the 90% ceiling into pixels, and it must land before
-any layout work is done against a frame that is 92% empty.
-
-It moves criterion 4 (how much of the 1,000-sprite floor is on screen at floor zoom), so
-re-run `?bench` after it lands.
+The requirement remains unchanged: compose for §23.4.2's 2.0:1 box, keep the whole supported
+1.78:1–2.4:1 range legible, and re-run the UI-frame and device performance gates whenever the
+level frames or camera transform change.
 
 #### 23.4.2 The design box
 
@@ -8617,64 +8637,22 @@ spectacle are all real, tested work, and the DOM/canvas boundary in §23.2.3 hel
 
 ### 23.6 Build readiness — what is proven and what is not
 
-**Built, tested and seen running:**
+This section used to contain a vertical-slice snapshot that named the viewport camera,
+dialogue, upgrade boards, prestige, heroes and music as absent. All of those systems have since
+landed, so preserving that list as present tense would make this guide actively misleading.
 
-| | |
-|---|---|
-| Simulation (§4, §6, §21) | Against the GDD's own stated figures |
-| Economy (§4.10) | The model was derived here; the GDD had none |
-| Run 1 end to end (§21) | Playable in browser and on device |
-| Art pipeline — palette, quantiser, `art:check` | Including the ART_DIRECTION §3.1 emoji gate |
-| Post-process / CRT grade (ART_DIRECTION §6) | Carries most of the visible vibe |
-| Act IV spectacle (§21) | Swarm drop, Slack web, `@everyone` flood, chatter, shake, four SFX |
-| Poke feedback (§8.2, §8.2a) | Numeral plus the code-snippet joke line |
-| Construction Ladder **model** (§7.7) | Rungs, ratio-scaled arrival weight, cohort, scale bar |
-| Player-facing vocabulary (§4.3a) | Re-banded against the real curve |
-| Save and offline accrual (§24) | Local only. The document, migration, the monotonic merge and the closed-form offline model, with tests. **`game-cloud` is not wired** |
-| §24.8 Overnight Build Report | Built. Staggered rows, headline last, the honest cap line, and the 2× offer above collect. **The 2× button is absent** because no ad network is wired — which is §24.8's correct behaviour for an unfilled slot, not a stub. `?overnight` and `?ad` make it inspectable |
+**Appendix G is the current readiness register.** Its audit is based on player reachability,
+not merely on the existence of a module or passing unit test. The standing proof stack is:
 
-**Specified here, with no implementation:**
+1. `vitest` for simulation and component behaviour;
+2. `scripts/ui-frame.acceptance.mjs` for the supported landscape frames;
+3. `scripts/playthrough.acceptance.mjs` for a player reaching the joined-up loop;
+4. `scripts/scale.probe.mjs` for the 100,000,000-developer architecture;
+5. handset inspection for touch feel, audio, readability and sustained performance.
 
-| Item | Blocked on |
-|---|---|
-| **§23.4.1 viewport-aware camera** | Nothing — do this first |
-| §10.7 dialogue system + the §10.8 juice kit | Nothing — do this second |
-| §21.0 reshaped Run 1, priced Mass Hire | §10.7 |
-| §21.6 James / Instant Messenger | §10.7 |
-| §7.7.6 drag-pan, per-developer poke, unit selection | Needs a spatial index beside the ParticleContainer |
-| §7.7.2 the arrival gag | `SpawnEvent` is already published and unconsumed |
-| §7.7.4 Hero Anchor | The desk tier is currently generic |
-| §11 tech tree, §13 prestige, §22 cards, save, ads | The above |
-| **§20.7 music** | Nothing. Zero of the 9 stems exist, `src/audio/ambience.ts` is referenced in a comment and has never been written, and there is no `generate-music.ts`. §21 Act IV's "the music cuts out" currently subtracts nothing |
-| **§7.8 developer animation** | Nothing moves. The desk developer is a static placeholder; the 1,000 floor particles do not bob |
-| **Authored art** | **Zero of the 19 §22.7 sprites exist** |
-
-**Nothing currently passes §10.8.** The HUD has no press-down state, no overscroll, no panel
-transitions, and most state changes are silent. That is why the juice kit is step two and
-the HUD is retrofitted inside it.
-
-#### The order, and why
-
-1. **§23.4.1 viewport-aware camera.** Small, self-contained, and until it lands every layout
-   decision is made against a frame that is 92% empty.
-2. **§10.7 dialogue + the §10.8 juice kit**, with the existing HUD retrofitted. The kit —
-   `Panel`, `Button`, spring/momentum hooks, `Typewriter`, `uiSfx` — is built once here
-   because dialogue is the first feature that needs all of it at once. If it cannot absorb
-   the buttons that already exist, it is the wrong abstraction, and that is far cheaper to
-   discover now.
-3. **§21.0 loop reshape** → **§21.6 James scene** → **§7.7.6 navigation** → **§7.7.2 arrival
-   gag**.
-
-Each ships only when it passes §10.8 F1–F6 **on the device**.
-
-#### Still owed to a human, not to code
-
-- **Criterion 2** needs an external audio capture (§23.3).
-- **Criterion 7** needs re-running in landscape (§23.3).
-- **The whole gate** needs a cheap Android handset (§23.3).
-- **Visual verification.** Anything that has to be *looked at* needs a session that can
-  screenshot.
-- **ElevenLabs SFX generation** needs `.env`, which is gitignored.
+The remaining human evidence debt is still real: the full performance gate needs a cheap
+Android handset, external audio capture remains the honest way to verify latency, and every
+scene-changing visual adjustment needs screenshot inspection at representative frames.
 
 ---
 
@@ -10124,7 +10102,7 @@ Every line is a thing a player does, in order, without leaving the game:
 
 **Items 3 to 10 were walked on 2026-08-18. One was false and one carried a defect nobody had
 named** — item 4 and §13.7.1a respectively. Every dated note above is from that walk, and the walk itself is
-[`scripts/playthrough.acceptance.mjs`](../scripts/playthrough.acceptance.mjs), in
+[`scripts/playthrough.acceptance.mjs`](scripts/playthrough.acceptance.mjs), in
 `npm run check`.
 
 It exists because this list is written as *things a player does* and the previous session had
@@ -10185,10 +10163,13 @@ player cannot tell.**
 #### 26.2.1 The problem, stated honestly
 
 §7.7 already builds a ladder to a galaxy and §4.2 already caps a run at a hundred million
-developers. **Nothing in the current build survives either.** Individuals are simulated
-individually, drawn individually, and interrupted individually; the room holds a few hundred
-before the frame budget in §23.3 is gone, and the design asks for eight orders of magnitude
-more than that.
+developers. The original build tracked and drew individuals and could not survive either.
+That architecture has now been replaced: `src/sim/aggregate.ts` provides deterministic
+top-down aggregates whose weights equal their generated people, and the seven-level Omni-Lens
+reaches a 100-site globe at 100,000,000 developers. **The remaining Phase 2 problem is proof
+and completeness, not basic feasibility:** distinct late ladder stops are collapsed into the
+globe, the galaxy-to-desk identity/history walk is not present, and the full gate has not been
+passed on a cheap Android device.
 
 #### 26.2.2 The rule
 
@@ -10228,7 +10209,17 @@ Layer 2 (§13.3, GP) and §22.5's collection long tail, because §26.1.6 moved t
 hundred-million gate, which is unreachable before this phase by construction; and the §7.7
 rungs above 3, which have never had a populated scene because nothing could populate them.
 
+**Current status, 2026-08-25:** the aggregate model, viewport-aware nested lens, deterministic
+identity seam, seven presentation levels and hundred-million globe are live. Layer 2/GP, the
+generic-card collection long tail and the distinct town/nation/system/galaxy journey are not
+reachable. Appendix G carries the itemised audit.
+
 #### 26.2.5 Phase 2's closing gate
+
+**OPEN.** Parts of lines 1, 3, 4 and 5 now have automated coverage, but the gate is not closed
+until the whole walk below passes together on the target device. In particular, the current
+top view is a globe rather than a galaxy, generated people do not yet expose the required
+career history, and low-end sustained performance has not been proven.
 
 1. A save at 100,000,000 developers loads, runs at §23.3's frame budget, and the speedometer
    reads what §4.1 says it should.
@@ -10687,3 +10678,165 @@ from the other direction.
 offline model both constrain the store, and both were cheaper to decide before the tech tree
 and prestige layers added state that has to persist. **Both are now closed by §24**, which is
 why the remaining F1 rows are all store-and-policy work rather than design work.
+
+---
+
+## Appendix G — Current Implementation & Development Register **[CANON]**
+
+### G.0 Audit basis — 2026-08-25
+
+This appendix is the **only current-status authority** in the GDD. It was audited against the
+reachable application in `src/`, the automated suites and acceptance scripts, the packaged
+audio/art assets, `package.json`, the Capacitor Android shell and the local-save boundary.
+
+The status words mean exactly this:
+
+| Status | Meaning |
+|---|---|
+| **LIVE** | A player can reach and use the feature through the game, and the important path has test or inspection evidence |
+| **PARTIAL** | A meaningful slice is reachable, but the canonical behaviour, content, proof or connection is incomplete |
+| **DEFECT** | The feature is reachable but presently violates its own rule, loses value or reports the wrong thing |
+| **NOT REACHABLE** | Rules or pure modules may exist, but the player cannot enter the system through the shipped loop |
+| **NOT BUILT** | No working product implementation exists in this repository |
+| **DECISION** | Canon is internally ambiguous or a product choice must be made before implementation can be judged |
+
+The audit does **not** promote the current build over the design. When code and canon differ,
+the code is recorded as a deviation and the GDD remains the intended behaviour until deliberately
+amended.
+
+### G.1 What is live now
+
+| Area | Status | Reachable implementation and evidence |
+|---|---|---|
+| Core Run 1 | **LIVE** | Poke, ship, hire James, hit the hypergrowth trap, collapse, bankrupt and enter Paradigm Shift end to end; `runOne`, onboarding and playthrough acceptance suites cover the path |
+| Entropy and output | **LIVE** | Linear raw labour, communication-load efficiency, context-switch costs, critical pokes, temporary buffs and displayed velocity are connected to the store and HUD |
+| Project economy | **LIVE** | Sprint commitments, eight authored project rungs, catalogue tails, payroll, hire pricing, revenue graph, release history and gallery are reachable |
+| Roles and backlogs | **LIVE** | Developer, QA, SRE and Support hiring; defects, incidents, tickets, reputation and their HUD surfaces are active after their story introductions |
+| In-run upgrades | **LIVE** | The eleven-node tech board is purchasable and changes capacity, communication, quality, automation, revenue and hiring |
+| Founder progression | **LIVE** | Five Management-tree nodes, founder profile and permanent effects are reachable after Serena introduces the board |
+| Paradigm Shift | **LIVE** | Layer 1 reset, BP quote/currency and the five-node Paradigm Tree are reachable; all five displayed nodes have runtime effects |
+| Story heroes | **LIVE** | Six named heroes arrive through scenes; permanent XP, levels, points, the shared branch tree and branch effects exist |
+| Hero posting | **LIVE** | Roster → placement mode → world target → eight-second settle → active effect/XP works. Compact in-world head avatar, name and `ASSIGNED` marker identify posted heroes at desk, floor and building scales |
+| Omni-Lens and scale | **LIVE** | Continuous viewport-aware desk, squad, floor, building, block, park and globe levels reach 100,000,000 developers across 100 sites |
+| Aggregate simulation | **LIVE** | Deterministic on-demand people and unit weights are bounded by group size and aggregate to the same output as their parts; scale probe and aggregate tests cover the invariant |
+| Save and return loop | **LIVE** | Versioned local save, offline accrual, Overnight Build Report, settings, reset, release history and permanent/run separation are connected; transport is local only |
+| Presentation and audio | **LIVE** | Dialogue/typewriter, panels/buttons, motion preferences, haptics, UI/game SFX, five music beds, three layers and two stings are packaged and used |
+| Front door and Android shell | **LIVE** | Title, founder setup, options, credits and Capacitor Android project exist; web and Android build paths are documented |
+
+### G.2 Gaps & divergences
+
+A **divergence** is reachable behaviour that disagrees with the intended rule or with what the
+interface tells the player. A **gap** is a missing connection, piece of feedback, proof or
+content inside a system that is otherwise reachable. Divergences come first: adding content on
+top of a rule the player cannot trust multiplies the rework.
+
+#### G.2.1 Divergences from the canonical design
+
+| Priority | Item | Status | Current build | Canonical intent | Resolution |
+|---|---|---|---|---|---|
+| **P0** | Prestige high-water commit | **DEFECT** | The shift quote sees live revenue/headcount, but `paradigmShiftPermanent` does not commit those live marks before the fresh run is saved | A Paradigm Shift pays for the run the player just completed and preserves its career maxima | Commit live maxima atomically with the reset and add a save/reload regression test |
+| **P0** | Prestige award semantics | **DECISION** | The full high-water formula is added again on every shift; `lifetimeRevenue` is reconciled as a maximum despite its additive name | A run's BP reward must be explainable, non-repeatable and visibly attributable to that run's progress | Choose incremental high-water reward or explicit run-local reward, rename the input, then rebalance BP |
+| **P0** | First hero-tree purchase | **DEFECT** | The board opens at level 2 with two total points while the specialist's next home Reach node costs three | A hero introduces their board by handing the player one legal, meaningful first purchase | Change the opening grant/cost or provide a two-point starter node, then walk the introduction |
+| **P0** | Hero coverage in release rating | **DEFECT** | `shipProject` always passes zero into the rating's hero-coverage input | Posting the right hero over the team that built a release raises the release rating | Pass the contributing covered share into rating and show the resulting rating delta |
+| **P0** | Telepathic Compression | **DEFECT** | The card says +1,000× capacity per level; `devCapFor` applies ×10 | The paid result and the written promise are one number | Choose the intended curve, make copy/math/tests agree, then re-run prestige pacing |
+| **P1** | Run 1 Mass Hire agency | **DECISION** | James's scene forces the 1,000-person hire and empties the treasury, including on dismissal | The trap should teach either “I chose reckless growth” or “James overruled me”, not claim both | Give the player the committed press, or rewrite the framing so James clearly owns the action |
+| **P1** | Specialist staffing | **PARTIAL** | QA/SRE/Support remove backlogs while still counting inside the same productive body as developers | Choosing organisational safety should carry a readable production or payroll trade-off | Add opportunity cost or explicitly canonise additive specialists, then retune role ratios |
+| **P1** | Support coverage | **PARTIAL** | Support grants its full effective head value after any positive coverage; the other hero branches scale with covered share | Reach and physical posting follow one coverage grammar unless the exception is itself the trait | Share-scale Support or surface a distinct Support-specific Reach benefit |
+| **P1** | Signature traits | **PARTIAL** | Six bespoke trait sentences display on cards; shared branch folds provide the runtime effects | A named mechanical promise on a hero card changes the simulation | Wire each signature or relabel the sentences as character flavour |
+| **P1** | Reputation prestige multiplier | **PARTIAL** | The rating module exposes a prestige multiplier but the Layer 1 award path does not use it | A well-run studio can make a prestige better, not only a longer one | Wire and itemise the contribution, or remove the promise from the design |
+| **P1** | Lens ladder fidelity | **PARTIAL** | Seven presentation levels reach the 100m globe, but park → globe collapses town/nation/system transitions | Every distinct Construction Ladder rung is a place the lens can visit | Make seven-level compression canon or add the missing stops; leave no disagreement between navigation and ladder tables |
+
+#### G.2.2 Gaps inside reachable systems
+
+| Priority | Gap | Status | Player-facing consequence | Closure condition |
+|---|---|---|---|---|
+| **P1** | Hero target comparison | **PARTIAL** | Best-case and committed results are legible, but two candidate anchors cannot be compared before paying the move delay | The target under the pointer/tap previews exact coverage, branch effect and XP share before confirmation |
+| **P1** | Hero growth catch-up | **PARTIAL** | Early favourites compound coverage XP while later arrivals begin small, so the roster discourages experimentation | A late hero becomes a rational placement choice within one run without deleting the value of an old favourite |
+| **P1** | Post-Run-1 teaching | **PARTIAL** | Hero-led introductions exist, but later trees and organisation layers do not have a complete first-use teaching path | Every board enters through a character, offers one valid action and returns the player to the loop |
+| **P2** | Low-end performance proof | **PARTIAL** | The 100m architecture is tested, but sustained target-handset performance is still an assertion | The full §23.3 gate passes on a cheap Android handset with percentile, thermal and memory evidence |
+| **P2** | Debug isolation | **PARTIAL** | Query seams remain useful but can leak into a public web build | Scenario/act/render diagnostics are available in development and absent from production packaging |
+| **P2** | Authored character art | **PARTIAL** | Procedural people are functional, but the final high-value identity pieces and sprite-budget closure are unknown | The §22.7 inventory is reconciled against shipped assets and the selected identity sprites pass the art gate |
+
+### G.3 Implementation gaps — specified but not built or reachable
+
+| Area | Status | What exists | What is missing |
+|---|---|---|---|
+| Codebase Fork / Layer 2 | **NOT REACHABLE** | GDD rules, reset seams and GP math vocabulary | Player gate, GP award/spend loop, Fork board and complete reset presentation |
+| Multiverse Compiler / Layer 3 | **NOT REACHABLE** | GDD rules and save reset seam | Reachable currency, grid, dimension choice, run modifiers and endgame loop |
+| Generic hero collection | **NOT REACHABLE** | Nine generic GP card definitions and pure rules | Acquisition, ownership UI, collection tray, posting loop and balance in the live store |
+| Dimension content | **NOT BUILT** | Six written themes, twists and signature modifiers | Scene/visual variants, audio mixes, runtime modifiers and return loop |
+| Full random-event library | **PARTIAL** | THE THREAD is a reachable two-exit event | Remaining event rotation, scheduling, authored consequences and event variety |
+| Optional minigames | **NOT BUILT** | Rules and examples in §26.3 | Slack-off interaction, crypto punt and any other short optional event interaction |
+| Full late Construction Ladder | **PARTIAL** | Seven-level lens through the 100m globe | Separate town, nation, planetary-system and galaxy stops if §7.7 remains canon |
+| Generated-person history | **PARTIAL** | Deterministic identity and repeatable face/name generation | Player-visible persistent history required by §26.2.5's galaxy-to-desk gate |
+| Cloud save | **NOT BUILT** | Versioned save document, merge functions and a documented adapter seam | `game-cloud` dependency, credentials, pull/reconcile/push transport, conflict UX and cloud deletion |
+| Ads and rewarded paths | **NOT BUILT** | GDD/monetisation placements and honest absent-button fallbacks | AdMob/consent integration, remote flags, failure states and rewarded completion paths |
+| Purchases and restore | **NOT BUILT** | IAP catalogue in `MONETISATION.md` | RevenueCat, store products, purchase/pending/error states and Restore Purchases entry point |
+| Analytics | **NOT BUILT** | Funnel/metric requirements | Canonical event names/properties, instrumentation, consent-aware transport and validation |
+| Remote configuration | **NOT BUILT** | Requirement that placements be flag-controlled | Schema, defaults, fetch/cache/failure behaviour and runtime client |
+| Localisation | **DECISION** | English copy and fixed-width layout constraints | Explicit English-only decision or localisation pipeline, string extraction and CJK/typewriter behaviour |
+| Push notifications | **DECISION** | Platform capability only | Use/no-use decision, permission timing, copy, scheduling and interaction with offline return |
+| Error and empty states | **NOT BUILT** | A few local defensive fallbacks | Canonical UI for offline network, ad failure, pending IAP, corrupt save and cloud conflict |
+| App lifecycle | **PARTIAL** | Local persistence/offline timestamp and native audio shell | Explicit background/call/audio-focus behaviour and save/offline boundary verification |
+| Store and policy package | **NOT BUILT** | Temporary icons and studio playbooks | Final icon/feature graphic/screenshots, age-rating answers, game data inventory, privacy/deletion cloud half |
+
+### G.4 Further improvement experiments
+
+This is the improvement backlog produced by the audit. These are **testable adjustments, not
+automatic feature promises**. The smallest version ships to a playtest first; it becomes canon
+only when the result improves comprehension, choice or the “one more run” pull without weakening
+the game's satire.
+
+| Lane | Improvement hypothesis | Smallest useful experiment | Keep it when… |
+|---|---|---|---|
+| Early trap | A deliberate Mass Hire press will make the collapse feel earned rather than scripted | Pause James's scene on a clearly priced `HIRE 1,000` commitment with a back-out route; compare it with the forced version | Players say “I caused that” before the explanation, and the decision does not create a funnel stall |
+| Visible goals | A player continues when the next affordable change is named everywhere a currency is earned | Add one persistent “NEXT” line to the run upgrade, founder, hero and prestige summaries: item, cost and shortfall | Players can name their next purchase and estimate whether it is this run or next without reopening every board |
+| Staffing | Roles become strategy when hiring one specialist visibly gives up something else | Show before-hire deltas for velocity, payroll and the relevant backlog; test a productive-head opportunity cost | Mixed rosters appear for different reasons and no single fixed ratio dominates every project rung |
+| Hero posting | Exact candidate previews make placement a choice rather than a confirmation ritual | While posting, tap once to preview target coverage/effect/XP and tap again to commit; keep the world marker to head, name and `ASSIGNED` only | Players compare at least two anchors and can explain why the chosen one is better |
+| Hero identity | Signatures should change play, not decorate cards | Wire one signature at a time as a small rule bend with a visible before/after line on that hero's receipt | The hero is chosen for their identity in at least one situation where raw branch depth would pick somebody else |
+| Hero roster | Catch-up should invite swapping without erasing loyalty | Test arrival XP equal to a fraction of roster median, or a short mentoring bonus while under-levelled | A newly arrived hero is usefully placeable within one run and old favourites still retain a clear advantage |
+| Prestige receipt | A reset feels fair when the player can see exactly what produced its reward and what the next run gains | Add a shift receipt: run revenue, peak devs, quality contribution, BP awarded and the nearest next node | Players predict the direction of their BP reward and choose another run for a visible shortfall |
+| Upgrade onboarding | Every board should open on an immediate legal decision | Give each board introduction a highlighted affordable starter and show its live delta before purchase | No introduction ends on a disabled tree, and the player uses the purchased effect in the next loop beat |
+| Lens usefulness | Every zoom stop earns its existence through one scale-appropriate decision | Prototype one interaction at park/globe scale—site balancing or hotspot routing—without adding a new currency | Players stop and act at the scale instead of treating it only as a corridor between zoom levels |
+| Scale compression | The seven-level lens may be clearer than the written ten-rung ladder | Playtest the current park→globe jump beside one intermediate town/nation mock; measure comprehension and perceived growth | The chosen ladder makes scale feel larger, keeps navigation memorable and does not add an empty stop |
+| Events | A small rotating set of two-exit events can create variation without turning into interruption spam | Add three events sharing THE THREAD's hand-clear/permanent-solution grammar and enforce one-at-a-time scheduling | Players choose different exits, can explain the cost, and do not feel punished for ignoring the optional route |
+| Offline return | The Overnight Report should create the next decision, not end at collection | Add one contextual recommendation after collection: nearly shippable project, backlog risk, upgrade shortfall or idle hero | Returning players take a meaningful action from the report rather than dismissing it and waiting |
+| Session tuning | Fun adjustments need a small measurement set tied to decisions | Record run duration, next-goal shortfall, upgrade purchases, role mix, hero moves/coverage and event exits in local test telemetry | A balance change can be accepted or reverted from observed behaviour rather than impression alone |
+
+#### G.4.1 Guardrails for improvement work
+
+1. **Do not enlarge the in-world hero marker.** The scene owns identity—head, name,
+   `ASSIGNED`; the roster, preview and receipt own calculations.
+2. **Do not add a currency to solve a clarity problem.** First expose the consequence of the
+   choice already present.
+3. **Do not tune prestige around the current defect.** Persistence and award semantics close
+   before any BP cost or run-band conclusion is trusted.
+4. **Do not build Layer 2 to create variety while Layer 1 choices remain opaque.** A larger tree
+   does not repair an unreadable one.
+5. **Keep experiments reversible.** One feature flag, one playtest question and one success
+   signal per change.
+
+### G.5 Development order from this audit
+
+The next work should deepen trust and choice before widening scope:
+
+1. **Repair progression integrity.** Fix prestige high-water persistence, decide award semantics,
+   unblock the first hero-tree purchase, connect hero coverage to rating and reconcile Telepathic
+   Compression copy/math. These make earned currency and displayed benefits trustworthy.
+2. **Make existing decisions fun.** Resolve who chooses Mass Hire; add target-specific hero
+   placement preview; give specialist staffing a readable cost; normalise hero coverage rules;
+   add catch-up so the roster invites switching rather than permanent favourites.
+3. **Close Phase 2 honestly.** Decide seven-level compression versus the full ladder, expose
+   generated-person history, run the complete 100m gate on low-end Android, then make Layer 2 and
+   the collection long tail reachable.
+4. **Add life in small measurable slices.** Ship more two-exit events and one optional minigame,
+   then ambient movement/drag-return behaviour. Each slice must improve a loop that already works
+   and must be removable if it does not improve session playtests.
+5. **Build the platform layer only after its product decisions close.** Finish Appendix F's
+   audience, localisation, lifecycle, error, analytics and remote-config decisions; then wire
+   cloud, monetisation, consent, purchases and store assets against those written rules.
+
+For tuning, the success condition is not “more content”. A change survives when playtests show
+that players can name the next thing they want, predict what their purchase or posting will do,
+and choose to run once more for a visible near-miss. §13.12.4–§14.8 remain the numerical pacing
+authority; this appendix determines which broken or missing connection gets measured next.

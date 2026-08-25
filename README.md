@@ -24,6 +24,7 @@ slice.
 ```bash
 npm install
 npm run dev            # http://localhost:5176
+npm run docs:gdd       # regenerate the canonical GDD.html from its Markdown source
 npm test               # simulation + art system
 npm run check          # everything: lint + types + tests + the art gate + two browser gates
 npm run test:ui-frame  # geometry, at five landscape frames
@@ -61,10 +62,12 @@ in a browser window that is any shape at all, are in
 
 | Document | Contents |
 |---|---|
-| [`GDD.md`](./GDD.md) | Full game design document — core loop, Communication Entropy engine, the Omni-Lens zoom architecture, upgrade and three-layer prestige trees with full mathematics, endgame, events, dialogue, audio spec, and onboarding script. **§26 is the build order** — three phases with a closing gate on each. Read it before starting work. |
+| [`GDD.html`](./GDD.html) | **Canonical development guide.** Full game design, current implementation register, known deviations and defects, the ordered adjustment plan, and §26's gated delivery roadmap. This is the authority to use when designing or building. |
+| [`GDD.md`](./GDD.md) | Authoring source for `GDD.html`. Edit this, run `npm run docs:gdd`, and review the generated canonical file; it has no independent authority when the two drift. |
 | [`MONETISATION.md`](./MONETISATION.md) | Revenue model, eCPM assumptions, IAP catalogue and prices, subscription design, launch phasing, metrics. **Where each offer *attaches to the loop* is GDD §3.1**, next to the loop it constrains. |
 | [`docs/DEPLOY.md`](./docs/DEPLOY.md) | Getting it onto a phone and onto the web — `deploy.sh`, the Cloudflare Pages pipeline, and how the landscape lock survives a browser window. |
-| [`docs/HANDOFF.md`](./docs/HANDOFF.md) | **Start here.** Current state, the decisions waiting on a human, and what to build next. The current one is [`HANDOFF-2026-08-24.md`](./docs/HANDOFF-2026-08-24.md). |
+| [`docs/HANDOFF.md`](./docs/HANDOFF.md) | Historical implementation handoffs and trap logs. Useful context, but not current design or status authority; Appendix G of `GDD.html` supersedes their status notes. |
+| [`docs/game-mechanics-current.html`](./docs/game-mechanics-current.html) | Preserved 25 August mechanics audit and hero-placement screenshot/demo backup. Explicitly non-canonical. |
 | [`docs/PROJECT_SETUP.md`](./docs/PROJECT_SETUP.md) | Runbook from empty repo to first build — identity, toolchain, dependencies, accounts, costs, and the setup order. |
 | [`docs/ART_DIRECTION.md`](./docs/ART_DIRECTION.md) | Palette, type, the two-register look, how each asset tier is produced, the build-step quantiser, and the acceptance checklist every asset must pass. |
 | [`docs/adr/`](./docs/adr) | Architecture decisions. [ADR 0001](./docs/adr/0001-engine-and-rendering-stack.md) picks the engine and defines the feel spike that must pass before it is final. |

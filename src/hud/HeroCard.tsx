@@ -30,9 +30,15 @@ import { BRANCH_BY_ID, CHAIN_LENGTH, HERO_NODE_BY_ID, branchColour } from '../si
 import { REACH_LADDER } from '../sim/heroes.ts'
 import { heroIdentity } from '../sim/identity.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
-import { effectiveDepth, type HeroRuntime } from '../sim/heroRoster.ts'
+import { SETTLE_SECONDS, type HeroCoverage, type HeroRuntime } from '../sim/heroRoster.ts'
 import { currentUnlocks } from '../game/store.ts'
 import { HeroFace } from './HeroFace.tsx'
+import {
+  coverageLabel,
+  coveragePercent,
+  placementBenefit,
+  studioCoverageShare,
+} from './heroPlacementModel.ts'
 
 import '../styles/heroes.css'
 
@@ -60,37 +66,13 @@ function Pips({ owned, total }: { owned: number; total: number }) {
   )
 }
 
-/**
- * The one number this hero's branch is about, live. Not a stat block.
- *
- * Read through {@link effectiveDepth} rather than by counting nodes, so **the
- * card and the simulation cannot disagree**. Counting nodes was the first cut
- * and it made James's card read `VELOCITY +0%` while the fold was giving him
- * half a level of the trunk: a card that misreports the person it is a card of
- * is worse than no card.
- */
-function headlineFor(hero: HeroRuntime): { label: string; value: string } {
-  const depth = effectiveDepth(hero, hero.branch)
-
-  switch (hero.branch) {
-    case 'quality':
-      return { label: 'DEFECT RATE', value: `-${Math.round((1 - 0.85 ** depth) * 100)}%` }
-    case 'reliability':
-      return { label: 'INCIDENT RATE', value: `-${Math.round((1 - 0.85 ** depth) * 100)}%` }
-    case 'cohesion':
-      return { label: 'ENTROPY', value: `-${Math.round((1 - 0.9 ** depth) * 100)}%` }
-    case 'cloud':
-      return { label: 'DEVELOPER CAP', value: `+${Math.round(0.15 * depth * 100)}%` }
-    case 'support':
-      return { label: 'TICKET HEADS', value: `+${depth.toFixed(depth % 1 === 0 ? 0 : 1)}` }
-    default:
-      return { label: 'VELOCITY', value: `+${Math.round(0.03 * depth * 100)}%` }
-  }
-}
-
 export function HeroCard({
   hero,
   placedLabel,
+  coverage = null,
+  targetCovered = 0,
+  totalDevs = 0,
+  now = 0,
   onClose,
   onOpenTree,
   onPost,
@@ -99,6 +81,13 @@ export function HeroCard({
   hero: HeroRuntime | null
   /** Where they are, in words. §13.11.2 — `BENCHED` is the only red word here. */
   placedLabel: string
+  /** Live coverage after §13.8's walking delay. */
+  coverage?: HeroCoverage | null
+  /** Coverage this placement will have after the walk; zero while benched. */
+  targetCovered?: number
+  totalDevs?: number
+  /** Current simulated run time, used only for the visible walking countdown. */
+  now?: number
   onClose: () => void
   onOpenTree: () => void
   /**
@@ -112,7 +101,17 @@ export function HeroCard({
 }) {
   const face = hero ? heroIdentity(hero.id) : null
   const branch = hero ? BRANCH_BY_ID.get(hero.branch) : null
-  const headline = hero ? headlineFor(hero) : null
+  const activeCovered = coverage?.covered ?? 0
+  const activeShare = studioCoverageShare(activeCovered, totalDevs)
+  const queuedShare = studioCoverageShare(targetCovered, totalDevs)
+  const liveBenefit = hero ? placementBenefit(hero, activeShare) : null
+  const queuedBenefit = hero ? placementBenefit(hero, queuedShare) : null
+  const percentCovered = coveragePercent(activeCovered, totalDevs)
+  const queuedPercent = coveragePercent(targetCovered, totalDevs)
+  const settling = coverage?.settling ?? false
+  const remaining = hero?.placement && settling
+    ? Math.max(1, Math.ceil(SETTLE_SECONDS - (now - hero.placement.placedAt)))
+    : 0
   /*
    * §22.9.2's pips count **every DEPTH node owned, anywhere on the board**, not
    * just the ones at home.
@@ -130,7 +129,7 @@ export function HeroCard({
 
   return (
     <Panel open={hero !== null} from="right" className="herocard">
-      {hero && face && branch && headline && (
+      {hero && face && branch && liveBenefit && queuedBenefit && (
         <div className="herocard__pass" style={{ ['--branch' as string]: branchColour(hero.branch) }}>
           {/* The only round thing on the card, and what makes it a pass. */}
           <span className="herocard__punch" aria-hidden="true" />
@@ -166,9 +165,8 @@ export function HeroCard({
             <HeroFace look={face.look} className="herocard__portrait" />
             <dl className="herocard__facts">
               <div><dt>REACH</dt><dd>{REACH_LADDER[hero.reach].name.toUpperCase()}</dd></div>
-              <div><dt>COVERS</dt><dd>{hero.reachDevs.toLocaleString()}</dd></div>
+              <div><dt>MAX COVERAGE</dt><dd>{hero.reachDevs.toLocaleString()} DEVS</dd></div>
               <div><dt>PLACED</dt><dd data-benched={placedLabel === 'BENCHED' ? 'true' : 'false'}>{placedLabel}</dd></div>
-              <div className="herocard__headline"><dt>{headline.label}</dt><dd>{headline.value}</dd></div>
             </dl>
           </div>
 
@@ -176,6 +174,38 @@ export function HeroCard({
               XP appears at all: it is never spent, so it is never a figure. */}
           <div className="herocard__xp" aria-hidden="true">
             <span className="herocard__xp-fill" style={{ width: `${Math.round(hero.progress.fraction * 100)}%` }} />
+          </div>
+
+          <div
+            className="herocard__placement"
+            data-state={!hero.placement ? 'benched' : settling ? 'walking' : 'active'}
+          >
+            <div className="herocard__placement-head">
+              <span>PLACEMENT BENEFIT</span>
+              <strong>{!hero.placement ? 'OFF' : settling ? `ACTIVE IN ${remaining}S` : `${percentCovered}% COVERAGE`}</strong>
+            </div>
+            <span className="herocard__coverage" aria-hidden="true">
+              <span style={{ width: `${settling ? queuedPercent : percentCovered}%` }} />
+            </span>
+            {!hero.placement && (
+              <p>
+                PLACE THIS HERO TO ACTIVATE UP TO <strong>{liveBenefit.potential} {liveBenefit.label}</strong>
+                {' '}AND START EARNING XP.
+              </p>
+            )}
+            {hero.placement && settling && (
+              <p>
+                TARGET <strong>{coverageLabel(targetCovered, totalDevs)}</strong>
+                {' '}— WILL PROVIDE <strong>{queuedBenefit.value} {queuedBenefit.label}</strong>.
+              </p>
+            )}
+            {hero.placement && !settling && (
+              <p>
+                <strong>{coverageLabel(activeCovered, totalDevs)}</strong>
+                {' '}— LIVE <strong>{liveBenefit.value} {liveBenefit.label}</strong>
+                {' '}— HERO XP SHARE {percentCovered}%.
+              </p>
+            )}
           </div>
 
           <div className="herocard__type">
@@ -227,9 +257,8 @@ export function HeroCard({
               that says BENCHED in red and offers no way off the bench is a
               scolding rather than a control.
             */}
-            <Button onClick={hero.placement ? onRecall : onPost}>
-              {hero.placement ? 'RECALL' : 'POST'}
-            </Button>
+            <Button onClick={onPost}>{hero.placement ? 'MOVE HERO' : 'PLACE HERO'}</Button>
+            {hero.placement && <Button onClick={onRecall}>RECALL</Button>}
             {hasBoard && (
               <Button onClick={onOpenTree}>
                 {hero.points > 0 ? `SPEND ${hero.points}` : 'SKILLS'}

@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { PostingBanner } from './PostingBanner.tsx'
-import { __resetStore, beginPosting, getState } from '../game/store.ts'
+import { __resetStore, __setState, beginPosting, getState, postHeroAt } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import { SCENE_MO_ARRIVES } from '../game/scenes.ts'
 
@@ -44,10 +44,12 @@ describe('§7.7.6b — the armed gesture is said out loud', () => {
 
   it('names who the next tap will put down', () => {
     arrived()
+    __setState({ devs: 40 })
     beginPosting('mo')
     render(<PostingBanner state={getState()} />)
-    // Trap 31 — one string, so the sentence is findable as a sentence.
-    expect(screen.getByText('TAP A UNIT TO POST MO')).toBeInTheDocument()
+    expect(screen.getByText('PLACE MO — STEP 2 OF 2')).toBeInTheDocument()
+    expect(screen.getByText('TAP A DEVELOPER, FLOOR, OR VISIBLE UNIT')).toBeInTheDocument()
+    expect(screen.getByText(/BEST COVERAGE HERE: 8 \/ 40 DEVS · -8% DEFECT RATE/)).toBeInTheDocument()
   })
 
   it('offers a way out that is not the world', () => {
@@ -56,5 +58,22 @@ describe('§7.7.6b — the armed gesture is said out loud', () => {
     render(<PostingBanner state={getState()} />)
     fireEvent.click(screen.getByRole('button', { name: 'CANCEL' }))
     expect(getState().posting).toBeNull()
+  })
+
+  it('confirms the target, countdown and resulting live benefit', () => {
+    arrived()
+    __setState({ devs: 40, runSeconds: 100 })
+    beginPosting('mo')
+    postHeroAt({ rung: 0, index: 0 })
+
+    const view = render(<PostingBanner state={getState()} />)
+    expect(screen.getByText('PLACEMENT CONFIRMED')).toBeInTheDocument()
+    expect(screen.getByText('MO IS MOVING — ACTIVE IN 8S')).toBeInTheDocument()
+    expect(screen.getByText(/WILL COVER 8 \/ 40 DEVS · -8% DEFECT RATE/)).toBeInTheDocument()
+
+    __setState({ runSeconds: 109 })
+    view.rerender(<PostingBanner state={getState()} />)
+    expect(screen.getByText('MO IS ACTIVE')).toBeInTheDocument()
+    expect(screen.getByText(/LIVE EFFECT · HERO XP SHARE 20%/)).toBeInTheDocument()
   })
 })

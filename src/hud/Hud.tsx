@@ -14,6 +14,7 @@ import {
   hasPrestiged,
   currentEntropy,
   dismissScene,
+  devsUnderPlacement,
   getPermanent,
   grantJames,
   hasSeenScene,
@@ -47,6 +48,7 @@ import { HeroCard } from './HeroCard.tsx'
 import { HeroTree } from './HeroTree.tsx'
 import { PostingBanner } from './PostingBanner.tsx'
 import { Roster } from './Roster.tsx'
+import { WorldHeroAssignments } from './WorldHeroAssignments.tsx'
 import { Lift } from './Lift.tsx'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 import { unitLabel } from '../sim/units.ts'
@@ -205,6 +207,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   // Resolved once per render: `heroById` rebuilds from `meta` and the run, so
   // asking twice in one frame would build the same six objects twice.
   const openHero = state.selectedHero === null ? null : heroById(state.selectedHero, state)
+  const openHeroCoverage = openHero ? heroCoverageOf(openHero, state) : null
+  const openHeroTargetCovered = openHero?.placement
+    ? Math.min(openHero.reachDevs, devsUnderPlacement(openHero.placement, state))
+    : 0
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -386,6 +392,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         </div>
       </div>
 
+      <WorldHeroAssignments stage={stage} state={state} roster={roster} />
       <Bubble text={state.bubble?.text ?? null} />
 
       {/*
@@ -434,7 +441,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             §13.11.2 — the roster strip's summon control.
 
             **Gated on there being more than one of them**, which is not a
-            cosmetic condition: James arrives alone in Act I and a `TEAM` button
+            cosmetic condition: James arrives alone in Act I and a `HERO` button
             over a team of one is the §10.6 web-page tell, on exactly the
             argument PARADIGM and UPGRADES below already use. It appears the
             first time somebody joins him.
@@ -445,7 +452,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             survives; the button is doing double duty until the room exists.
           */}
           {roster.length > 1 && (
-            <Button onClick={() => setRosterOpen((was) => !was)}>TEAM</Button>
+            <Button onClick={() => setRosterOpen((was) => !was)}>HERO</Button>
           )}
           {/*
             §13.2 — the tree appears only once a Paradigm Shift has happened.
@@ -518,6 +525,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       <HeroCard
         hero={openHero}
         placedLabel={heroPlacedLabel(openHero, state)}
+        coverage={openHeroCoverage}
+        targetCovered={openHeroTargetCovered}
+        totalDevs={state.devs}
+        now={state.runSeconds}
         onClose={() => selectHero(null)}
         onOpenTree={() => setHeroTreeOpen(true)}
         onPost={() => {
@@ -536,6 +547,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         open={rosterOpen && openHero === null}
         roster={roster}
         labelFor={(hero) => heroPlacedLabel(hero, state)}
+        coverageFor={(hero) => heroCoverageOf(hero, state)}
+        totalDevs={state.devs}
         showPoints={unlocks.heroBoard}
         onOpen={(hero) => selectHero(hero.id)}
         onClose={() => setRosterOpen(false)}

@@ -1,5 +1,10 @@
 # Handoff — 2026-08-10
 
+> **Historical implementation log — not the development authority.** Use
+> [`GDD.html`](../GDD.html), especially Appendix G for current status and §26 for build order.
+> The entries below preserve decisions and traps from the sessions in which they were written;
+> their present-tense implementation claims are snapshots and may be obsolete.
+
 > **Current handoff: [`HANDOFF-2026-08-24.md`](HANDOFF-2026-08-24.md)** — **rung 6, redesigned:
 > the jigsaw planet.** A *design* session — **nothing in `src/` changed**. The globe stops being a
 > map with campuses on it and becomes **a hundred interlocking tetromino territories that are the
@@ -82,14 +87,15 @@
 > next session inherits, and **traps 19–23**. This file is still the project
 > status, the flag table and traps 1–18, and nothing in it has been withdrawn.
 
-Short by design. **The detail lives in [`GDD.md`](../GDD.md), which is the single source of
-truth.** This file is a status line, a list of traps, and what to do next.
+Short by design. **The current authority lives in [`GDD.html`](../GDD.html).** This file is a
+historical session index and trap log; it must not be used as the current status line or build
+queue.
 
 ---
 
 ## Read this first
 
-**[`GDD.md` §23](../GDD.md)** — Technical Constraints & Build Readiness — carries the stack,
+**[`GDD.html` §23](../GDD.html#technical-constraints-build-readiness-canon)** — Technical Constraints & Build Readiness — carries the stack,
 the five non-negotiables, the performance budget, and the build order. **The ADRs are frozen
 history**; where they and §23 disagree, §23 is right, and no further ADRs will be written.
 

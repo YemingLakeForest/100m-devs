@@ -29,8 +29,9 @@ import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
 import { REACH_LADDER } from '../sim/heroes.ts'
 import { heroIdentity } from '../sim/identity.ts'
-import type { HeroRuntime } from '../sim/heroRoster.ts'
+import type { HeroCoverage, HeroRuntime } from '../sim/heroRoster.ts'
 import { HeroFace } from './HeroFace.tsx'
+import { placementBenefit, studioCoverageShare } from './heroPlacementModel.ts'
 
 import '../styles/heroes.css'
 
@@ -38,6 +39,8 @@ export function Roster({
   open,
   roster,
   labelFor,
+  coverageFor,
+  totalDevs,
   showPoints,
   onOpen,
   onClose,
@@ -46,6 +49,8 @@ export function Roster({
   roster: readonly HeroRuntime[]
   /** Where each hero is, in words — the same string §22.9's card shows. */
   labelFor: (hero: HeroRuntime) => string
+  coverageFor: (hero: HeroRuntime) => HeroCoverage
+  totalDevs: number
   /**
    * §21.7.7 — has §13.9's board been handed over?
    *
@@ -60,10 +65,21 @@ export function Roster({
   return (
     <Panel open={open} from="bottom" className="roster">
       <div className="roster__strip">
+        <div className="roster__intro">
+          <strong>HERO PLACEMENT</strong>
+          <span>SELECT A HERO TO PLACE, MOVE, OR REVIEW</span>
+        </div>
         <div className="roster__cards">
           {roster.map((hero) => {
             const face = heroIdentity(hero.id)
             const where = labelFor(hero)
+            const coverage = coverageFor(hero)
+            const benefit = placementBenefit(hero, studioCoverageShare(coverage.covered, totalDevs))
+            const impact = where === 'BENCHED'
+              ? 'NO EFFECT'
+              : coverage.settling
+                ? 'ACTIVATING'
+                : `${coverage.covered.toLocaleString()}/${Math.max(0, Math.floor(totalDevs)).toLocaleString()} · ${benefit.value} ${benefit.shortLabel}`
             return (
               <button
                 key={hero.id}
@@ -79,6 +95,12 @@ export function Roster({
                 </span>
                 <span className="roster__where" data-benched={where === 'BENCHED' ? 'true' : 'false'}>
                   {where}
+                </span>
+                <span
+                  className="roster__impact"
+                  data-state={where === 'BENCHED' ? 'benched' : coverage.settling ? 'walking' : 'active'}
+                >
+                  {impact}
                 </span>
                 {/* §13.13 — a hero with something to spend is visibly waiting,
                     on the strip as well as on the card, once §21.7.7's board

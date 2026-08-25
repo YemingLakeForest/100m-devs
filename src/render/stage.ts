@@ -36,12 +36,14 @@ import { Lens, settleLevel } from './lens.ts'
 import {
   BLOCK,
   BUILDING,
+  bandRect,
   DESK,
   DEVS_PER_FLOOR,
   FLOOR,
   LEVEL_NAMES,
   PARK,
   SQUAD,
+  TOWER_CROWN,
   TOP_LEVEL,
   blockAtPark,
   blockChromeAlpha,
@@ -101,6 +103,8 @@ import { tapVerb } from '../game/touchMode.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 import type { FounderProfile } from '../game/founderProfile.ts'
+import type { HeroPlacement } from '../sim/heroRoster.ts'
+import { nominalUnitSize, unitSeats } from '../sim/units.ts'
 
 /** What the HUD needs to draw the breadcrumb and the lift panel. */
 export interface NavState {
@@ -155,6 +159,14 @@ export interface StageHandle {
   /** p95 tap -> numeral latency in ms. Criterion 1's threshold is 80 ms. */
   readonly latencyP95: number
   readonly camera: Lens
+  /**
+   * Project a hero's assignment into the scene the player is currently seeing.
+   *
+   * `null` means the assignment is outside the visible hierarchy. `context`
+   * means the camera is inside the assigned unit, so the marker describes the
+   * whole current scene rather than one pinpoint target within it.
+   */
+  heroAnchor(placement: HeroPlacement): { x: number; y: number; context: boolean } | null
   /**
    * Where the lens is, for §10's breadcrumb and lift panel.
    *
@@ -883,6 +895,84 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       blocksFor(hereDevs(devs)),
       sitesFor(devs),
     )
+  }
+
+  /**
+   * §13.11.1 — put a hero's name on the unit their placement names.
+   *
+   * Coverage tint answers “how far does the effect travel?” but not “who is
+   * responsible for this place?”. The latter needs an identity marker tied to
+   * the same hierarchy the placement tap used. This projects that hierarchy
+   * into screen space without teaching React any of the scene graph.
+   */
+  const heroAnchor = (
+    placement: HeroPlacement,
+  ): { x: number; y: number; context: boolean } | null => {
+    const rung = Math.max(0, Math.floor(placement.rung))
+    const index = Math.max(0, Math.floor(placement.index))
+    const devs = getState().devs
+    const range = unitSeats(rung, index, devs)
+    const view = settleLevel(currentLevel)
+    const holdsFocus = focusSeat >= range.from && focusSeat < range.to
+
+    // Looking *inside* a floor/building/site that owns the placement: there is
+    // no smaller point to pin because the whole current scene is the target.
+    if (view < rung) {
+      return holdsFocus
+        ? { x: app.screen.width / 2, y: Math.min(92, app.screen.height * 0.26), context: true }
+        : null
+    }
+
+    const firstSeat = index * nominalUnitSize(rung)
+    const targetSite = siteOf(firstSeat)
+    if (targetSite !== siteOf(focusSeat)) return null
+
+    const targetBuilding = buildingOf(firstSeat)
+    const targetBlock = blockOf(firstSeat)
+    const targetStorey = storeyOf(firstSeat)
+
+    // A building view contains one building; a block view contains one block.
+    // Markers elsewhere in the site become the component's explicit AWAY chip
+    // rather than pretending an invisible unit is somewhere in this picture.
+    if (view <= BUILDING && targetBuilding !== buildingOf(focusSeat)) return null
+    if (view === BLOCK && targetBlock !== blockOf(focusSeat)) return null
+
+    const point = (x: number, y: number, context = false) =>
+      Number.isFinite(x) && Number.isFinite(y) ? { x, y, context } : null
+
+    if (rung <= 2 && roomIsUp) {
+      const local = localSeat(index)
+      const desk = local >= 0 ? room.deskAt(local) : null
+      if (desk) {
+        const at = room.container.toGlobal({ x: desk.x, y: desk.y - 30 })
+        return point(at.x, at.y)
+      }
+    }
+
+    if (rung <= 3) {
+      const host = park.blockAt(targetBlock).plotHost(plotOf(targetBuilding))
+      const band = bandRect(targetStorey)
+      const at = host.toGlobal({ x: band.cx, y: band.cy })
+      return point(at.x, at.y)
+    }
+
+    if (rung === 4) {
+      const host = park.blockAt(targetBlock).plotHost(plotOf(targetBuilding))
+      const storeys = storeysIn(hereDevs(devs), targetBuilding)
+      const top = bandRect(Math.max(0, storeys - 1))
+      const at = host.toGlobal({ x: top.cx, y: top.cy - top.h / 2 - TOWER_CROWN * 0.35 })
+      return point(at.x, at.y)
+    }
+
+    if (rung === 5) {
+      const at = park.blockAt(targetBlock).container.toGlobal({ x: 0, y: -80 })
+      return point(at.x, at.y)
+    }
+
+    // A site or anything above it owns the whole current park. At globe scale
+    // the park host is the visible territory; inside it this becomes context.
+    const at = park.container.toGlobal({ x: 0, y: -100 })
+    return point(at.x, at.y, rung > GLOBE)
   }
 
   /** The rail's CODE — YOU action owns the lens until the corner desk lands. */
@@ -1975,6 +2065,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return tapLatency.p95
     },
     camera,
+    heroAnchor(placement) {
+      return heroAnchor(placement)
+    },
     nav() {
       const all = getState().devs
       const devs = hereDevs(all)

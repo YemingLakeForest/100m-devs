@@ -1,0 +1,2049 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#090d12">
+  <title>100,000,000 Developers — Current Mechanics Audit &amp; Tuning Map</title>
+  <style>
+    :root {
+      --bg: #090d12;
+      --panel: #101720;
+      --panel-2: #151f2a;
+      --ink: #e7ecdf;
+      --muted: #8c9aa3;
+      --line: #273640;
+      --green: #87e64b;
+      --cyan: #4cc9d9;
+      --amber: #f2b84b;
+      --red: #f05a5a;
+      --violet: #b78cff;
+      --paper: #d9e2d0;
+      --shadow: 0 18px 60px rgba(0, 0, 0, .35);
+      --radius: 3px;
+      --sidebar: 17rem;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(135, 230, 75, .018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(135, 230, 75, .018) 1px, transparent 1px),
+        radial-gradient(circle at 70% -10%, rgba(76, 201, 217, .11), transparent 34rem),
+        var(--bg);
+      background-size: 24px 24px, 24px 24px, auto, auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      line-height: 1.62;
+    }
+
+    ::selection { color: #071006; background: var(--green); }
+    a { color: var(--cyan); text-decoration-thickness: 1px; text-underline-offset: .18em; }
+    a:hover { color: var(--green); }
+    code, .formula { font-family: inherit; }
+
+    .progress {
+      position: fixed;
+      z-index: 20;
+      inset: 0 0 auto;
+      height: 3px;
+      transform-origin: left;
+      transform: scaleX(0);
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+    }
+
+    .masthead {
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--line);
+      background: rgba(9, 13, 18, .9);
+    }
+
+    .masthead::after {
+      content: "STATUS_QUO";
+      position: absolute;
+      right: -1.2rem;
+      bottom: -3.5rem;
+      color: rgba(135, 230, 75, .035);
+      font-size: clamp(6rem, 18vw, 18rem);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -.08em;
+      pointer-events: none;
+    }
+
+    .masthead__inner {
+      position: relative;
+      z-index: 1;
+      width: min(1180px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: clamp(3.5rem, 8vw, 7rem) 0 3.5rem;
+    }
+
+    .eyebrow {
+      margin: 0 0 1.1rem;
+      color: var(--green);
+      font-size: .74rem;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, h4 { line-height: 1.14; text-wrap: balance; }
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(2.35rem, 7.4vw, 6rem);
+      letter-spacing: -.065em;
+      text-transform: uppercase;
+    }
+
+    h1 span { color: var(--green); }
+    .dek {
+      max-width: 800px;
+      margin: 1.5rem 0 0;
+      color: var(--paper);
+      font-size: clamp(1rem, 2vw, 1.24rem);
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      margin-top: 2rem;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      min-height: 2rem;
+      padding: .35rem .65rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--muted);
+      background: rgba(16, 23, 32, .76);
+      font-size: .72rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .chip::before {
+      content: "";
+      width: .48rem;
+      height: .48rem;
+      background: var(--green);
+      box-shadow: 0 0 12px rgba(135, 230, 75, .6);
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: var(--sidebar) minmax(0, 1fr);
+      gap: clamp(2rem, 5vw, 5.5rem);
+      width: min(1280px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 2rem 0 8rem;
+    }
+
+    .toc {
+      position: sticky;
+      top: 1.25rem;
+      align-self: start;
+      max-height: calc(100vh - 2.5rem);
+      overflow: auto;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(16, 23, 32, .91);
+      box-shadow: var(--shadow);
+    }
+
+    .toc__title {
+      margin: 0 0 .8rem;
+      color: var(--green);
+      font-size: .68rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .toc a {
+      display: block;
+      padding: .36rem .45rem;
+      border-left: 2px solid transparent;
+      color: var(--muted);
+      font-size: .74rem;
+      line-height: 1.25;
+      text-decoration: none;
+    }
+
+    .toc a:hover, .toc a[data-active="true"] {
+      border-left-color: var(--green);
+      color: var(--ink);
+      background: rgba(135, 230, 75, .05);
+    }
+
+    .toc__actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+    }
+
+    button {
+      min-height: 2.15rem;
+      border: 1px solid #39505d;
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: #18232e;
+      font: inherit;
+      font-size: .69rem;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: var(--green); color: var(--green); }
+    main { min-width: 0; }
+
+    section {
+      scroll-margin-top: 2rem;
+      margin: 0 0 5.6rem;
+    }
+
+    .section-kicker {
+      display: block;
+      margin-bottom: .55rem;
+      color: var(--cyan);
+      font-size: .7rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0 0 1.35rem;
+      padding-bottom: .85rem;
+      border-bottom: 1px solid var(--line);
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      letter-spacing: -.04em;
+    }
+
+    h3 {
+      margin: 2.2rem 0 .8rem;
+      color: var(--paper);
+      font-size: clamp(1.15rem, 2vw, 1.45rem);
+    }
+
+    h4 {
+      margin: 1.4rem 0 .45rem;
+      color: var(--cyan);
+      font-size: .88rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    p { max-width: 78ch; }
+    .lede { color: var(--paper); font-size: 1.08rem; }
+    .muted { color: var(--muted); }
+    strong { color: #fff; }
+
+    .grid-2, .grid-3, .stat-grid, .hero-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .stat-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .hero-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .card, .stat, .hero-card, .callout, .formula {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(21, 31, 42, .95), rgba(13, 19, 27, .96));
+      box-shadow: 0 10px 35px rgba(0, 0, 0, .16);
+    }
+
+    .card, .hero-card { padding: 1.15rem; }
+    .card > :first-child, .hero-card > :first-child { margin-top: 0; }
+    .card > :last-child, .hero-card > :last-child { margin-bottom: 0; }
+
+    .stat { padding: .95rem; }
+    .stat__value { display: block; color: var(--green); font-size: 1.55rem; line-height: 1; }
+    .stat__label { display: block; margin-top: .45rem; color: var(--muted); font-size: .68rem; text-transform: uppercase; }
+
+    .formula {
+      max-width: 100%;
+      overflow-x: auto;
+      padding: 1rem 1.15rem;
+      color: var(--green);
+      font-size: clamp(.82rem, 2vw, 1rem);
+      white-space: nowrap;
+    }
+
+    .formula small { color: var(--muted); }
+    .callout { max-width: 82ch; margin: 1.5rem 0; padding: 1rem 1.1rem; border-left: 4px solid var(--cyan); }
+    .callout.warning { border-left-color: var(--amber); }
+    .callout.danger { border-left-color: var(--red); }
+    .callout.good { border-left-color: var(--green); }
+    .callout > :first-child { margin-top: 0; }
+    .callout > :last-child { margin-bottom: 0; }
+
+    .tag {
+      display: inline-block;
+      margin-right: .5rem;
+      padding: .1rem .42rem;
+      border: 1px solid currentColor;
+      border-radius: 2px;
+      color: var(--green);
+      font-size: .64rem;
+      letter-spacing: .08em;
+      line-height: 1.45;
+      text-transform: uppercase;
+      vertical-align: .08em;
+    }
+
+    .tag.copy { color: var(--amber); }
+    .tag.dormant { color: var(--muted); }
+    .tag.reset { color: var(--red); }
+    .tag.permanent { color: var(--violet); }
+
+    .table-wrap {
+      width: 100%;
+      margin: 1.15rem 0 1.7rem;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(16, 23, 32, .78);
+    }
+
+    table {
+      width: 100%;
+      min-width: 660px;
+      border-collapse: collapse;
+      font-size: .78rem;
+      line-height: 1.45;
+    }
+
+    th, td { padding: .72rem .78rem; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th { position: sticky; top: 0; color: var(--green); background: #131c25; font-size: .67rem; letter-spacing: .08em; text-transform: uppercase; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: rgba(76, 201, 217, .025); }
+    td.num { white-space: nowrap; color: var(--paper); font-variant-numeric: tabular-nums; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: .5rem;
+      margin: 1.6rem 0;
+      counter-reset: flow;
+    }
+
+    .flow__step {
+      position: relative;
+      min-height: 8.3rem;
+      padding: 2.45rem .85rem .85rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      counter-increment: flow;
+    }
+
+    .flow__step::before {
+      content: "0" counter(flow);
+      position: absolute;
+      top: .75rem;
+      left: .85rem;
+      color: var(--green);
+      font-size: .68rem;
+    }
+
+    .flow__step::after {
+      content: ">";
+      position: absolute;
+      top: 50%;
+      right: -.48rem;
+      z-index: 2;
+      color: var(--cyan);
+      background: var(--bg);
+      transform: translateY(-50%);
+    }
+
+    .flow__step:last-child::after { content: none; }
+    .flow__step b { display: block; margin-bottom: .4rem; color: var(--paper); font-size: .82rem; }
+    .flow__step span { color: var(--muted); font-size: .7rem; line-height: 1.35; }
+
+    ol, ul { max-width: 78ch; padding-left: 1.25rem; }
+    li { margin: .38rem 0; }
+    li::marker { color: var(--green); }
+
+    .hero-card { position: relative; overflow: hidden; border-top: 3px solid var(--branch, var(--green)); }
+    .hero-card::after { content: attr(data-code); position: absolute; right: .65rem; top: .45rem; color: rgba(255, 255, 255, .06); font-size: 3.2rem; font-weight: 900; }
+    .hero-card h3 { margin: 0; color: #fff; }
+    .hero-card__role { margin: .3rem 0 .9rem; color: var(--branch, var(--cyan)); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
+    .hero-card dl { display: grid; grid-template-columns: 6.5rem 1fr; gap: .35rem .8rem; margin: 0; font-size: .75rem; }
+    .hero-card dt { color: var(--muted); }
+    .hero-card dd { margin: 0; }
+
+    .game-demo-pages {
+      display: grid;
+      gap: 1rem;
+      max-width: 48rem;
+      margin: 1.25rem 0 2rem;
+    }
+
+    .game-demo-page {
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid #39505d;
+      border-radius: var(--radius);
+      background: #0c1219;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .24);
+    }
+
+    .game-demo-page__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .6rem .75rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--green);
+      background: #121b24;
+      font-size: .68rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .game-demo-page__head span:last-child { color: var(--muted); }
+    .game-demo-page a { display: block; background: #080c11; }
+    .game-demo-page img {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    .game-demo-page img.game-demo-page__scene { aspect-ratio: 1015 / 720; }
+
+    .game-demo-page figcaption {
+      padding: .75rem .85rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .69rem;
+      line-height: 1.5;
+    }
+
+    .game-demo-page figcaption strong { color: var(--paper); }
+
+    .placement-demo {
+      margin: 1.25rem 0 2rem;
+      overflow: hidden;
+      border: 1px solid #39505d;
+      border-radius: var(--radius);
+      background: #0c1219;
+      box-shadow: var(--shadow);
+    }
+
+    .placement-demo__topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .7rem .9rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      background: #121b24;
+      font-size: .67rem;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    .placement-demo__lamp {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      color: var(--green);
+    }
+
+    .placement-demo__lamp::before {
+      content: "";
+      width: .5rem;
+      height: .5rem;
+      background: currentColor;
+      box-shadow: 0 0 12px currentColor;
+    }
+
+    .placement-demo__layout {
+      display: grid;
+      grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
+    }
+
+    .placement-demo__controls {
+      padding: 1rem;
+      border-right: 1px solid var(--line);
+      background: #101720;
+    }
+
+    .placement-demo__label {
+      display: block;
+      margin: 0 0 .5rem;
+      color: var(--muted);
+      font-size: .64rem;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+
+    .placement-demo__heroes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .4rem;
+      margin-bottom: 1rem;
+    }
+
+    .placement-demo__hero {
+      min-height: 3.2rem;
+      padding: .45rem .55rem;
+      text-align: left;
+    }
+
+    .placement-demo__hero b,
+    .placement-demo__hero span { display: block; }
+    .placement-demo__hero b { font-size: .75rem; }
+    .placement-demo__hero span { margin-top: .1rem; color: var(--muted); font-size: .58rem; }
+    .placement-demo__hero[aria-pressed="true"] {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(135, 230, 75, .08);
+      box-shadow: inset 3px 0 var(--green);
+    }
+
+    .placement-demo__control { margin: 0 0 .9rem; }
+    .placement-demo__control label {
+      display: flex;
+      justify-content: space-between;
+      gap: .75rem;
+      margin-bottom: .35rem;
+      color: var(--paper);
+      font-size: .68rem;
+      text-transform: uppercase;
+    }
+
+    .placement-demo__control output { color: var(--green); font-variant-numeric: tabular-nums; }
+    .placement-demo select {
+      width: 100%;
+      min-height: 2.2rem;
+      padding: 0 .55rem;
+      border: 1px solid #39505d;
+      border-radius: var(--radius);
+      color: var(--ink);
+      background: #18232e;
+      font: inherit;
+      font-size: .68rem;
+      text-transform: uppercase;
+    }
+
+    .placement-demo input[type="range"] {
+      width: 100%;
+      accent-color: var(--green);
+    }
+
+    .placement-demo__potential {
+      min-height: 3.7rem;
+      margin: 1rem 0;
+      padding: .7rem;
+      border-left: 3px solid var(--cyan);
+      color: var(--muted);
+      background: rgba(76, 201, 217, .05);
+      font-size: .64rem;
+      line-height: 1.45;
+      text-transform: uppercase;
+    }
+
+    .placement-demo__potential b { display: block; margin-top: .1rem; color: var(--cyan); font-size: .82rem; }
+    .placement-demo__actions { display: grid; grid-template-columns: 1fr auto; gap: .45rem; }
+    .placement-demo__primary { border-color: var(--green); color: #071006; background: var(--green); font-weight: 800; }
+    .placement-demo__primary:hover { color: #071006; background: #a1f56a; }
+    .placement-demo__primary:disabled { border-color: #33414a; color: #66747d; background: #1a232a; cursor: not-allowed; }
+    .placement-demo__recall:disabled { opacity: .45; cursor: not-allowed; }
+
+    .placement-demo__stage { min-width: 0; padding: 1rem; }
+    .placement-demo__banner {
+      min-height: 6rem;
+      padding: .85rem 1rem;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--cyan);
+      background: #131c25;
+    }
+
+    .placement-demo__banner[data-mode="choosing"] { border-left-color: var(--amber); }
+    .placement-demo__banner[data-mode="walking"] { border-left-color: var(--violet); }
+    .placement-demo__banner[data-mode="active"] { border-left-color: var(--green); }
+    .placement-demo__banner small,
+    .placement-demo__banner b,
+    .placement-demo__banner span { display: block; }
+    .placement-demo__banner small { color: var(--muted); font-size: .61rem; letter-spacing: .11em; text-transform: uppercase; }
+    .placement-demo__banner b { margin: .18rem 0; color: var(--paper); font-size: .98rem; text-transform: uppercase; }
+    .placement-demo__banner span { color: var(--muted); font-size: .68rem; line-height: 1.4; }
+
+    .placement-demo__walk-actions { display: flex; gap: .45rem; margin-top: .55rem; }
+    .placement-demo__walk-actions[hidden] { display: none; }
+    .placement-demo__walk-actions button { min-height: 1.8rem; padding: 0 .6rem; font-size: .6rem; }
+
+    .placement-demo__room-labels {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      margin: 1.25rem 0 .45rem;
+      color: var(--muted);
+      font-size: .59rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .placement-demo__room {
+      position: relative;
+      padding: 1rem .45rem 1.45rem;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(90deg, transparent 49.5%, rgba(76, 201, 217, .035) 50%, transparent 50.5%),
+        #0a1016;
+    }
+
+    .placement-demo__desks {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(12, minmax(1.7rem, 1fr));
+      gap: .35rem;
+    }
+
+    .placement-demo__desk {
+      position: relative;
+      min-height: 3.6rem;
+      padding: 1.4rem .15rem .2rem;
+      border-color: #2d3c46;
+      color: var(--muted);
+      background: #121a22;
+      font-size: .57rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .placement-demo__desk::before {
+      content: "";
+      position: absolute;
+      top: .55rem;
+      left: 50%;
+      width: .72rem;
+      height: .52rem;
+      border: 1px solid currentColor;
+      transform: translateX(-50%);
+    }
+
+    .placement-demo__desk:disabled { opacity: .52; cursor: default; }
+    .placement-demo__desk[data-valid="true"] {
+      border-color: var(--amber);
+      color: var(--amber);
+      cursor: crosshair;
+      animation: placement-pulse 1.25s ease-in-out infinite alternate;
+    }
+    .placement-demo__desk[data-selected="true"] {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(135, 230, 75, .09);
+      box-shadow: 0 0 16px rgba(135, 230, 75, .16);
+      opacity: 1;
+    }
+
+    .placement-demo__coverage-band {
+      position: absolute;
+      z-index: 1;
+      bottom: .45rem;
+      left: .45rem;
+      width: 0;
+      height: .28rem;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+      box-shadow: 0 0 12px rgba(135, 230, 75, .45);
+      transition: left .2s ease, width .2s ease;
+    }
+
+    .placement-demo__metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .45rem;
+      margin-top: .65rem;
+    }
+
+    .placement-demo__metric {
+      min-width: 0;
+      padding: .65rem;
+      border: 1px solid var(--line);
+      background: #101720;
+    }
+
+    .placement-demo__metric small,
+    .placement-demo__metric b { display: block; }
+    .placement-demo__metric small { color: var(--muted); font-size: .55rem; letter-spacing: .07em; text-transform: uppercase; }
+    .placement-demo__metric b { margin-top: .18rem; overflow-wrap: anywhere; color: var(--green); font-size: clamp(.72rem, 1.5vw, .92rem); font-variant-numeric: tabular-nums; }
+    .placement-demo__note { margin: .75rem 0 0; color: var(--muted); font-size: .61rem; }
+
+    @keyframes placement-pulse {
+      from { box-shadow: 0 0 0 rgba(242, 184, 75, 0); }
+      to { box-shadow: 0 0 12px rgba(242, 184, 75, .2); }
+    }
+
+    .reset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1.25rem;
+    }
+
+    .reset-grid .card:first-child { border-top: 3px solid var(--red); }
+    .reset-grid .card:last-child { border-top: 3px solid var(--violet); }
+
+    .curve {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      align-items: end;
+      gap: .45rem;
+      min-height: 15rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .curve__col { display: grid; grid-template-rows: 9.5rem auto; gap: .5rem; align-items: end; text-align: center; }
+    .curve__bar { width: 100%; min-height: 3px; height: calc(var(--v) * 1%); background: linear-gradient(var(--cyan), var(--green)); box-shadow: 0 0 16px rgba(76, 201, 217, .2); }
+    .curve__label { color: var(--muted); font-size: .62rem; line-height: 1.25; }
+    .curve__label b { display: block; color: var(--paper); }
+
+    .footer {
+      padding: 2rem 1rem 4rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+      font-size: .72rem;
+    }
+
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 1fr; }
+      .toc { position: relative; top: 0; max-height: none; }
+      .toc nav { columns: 2; }
+      .toc__actions { grid-template-columns: repeat(2, minmax(0, 9rem)); }
+      .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .flow { grid-template-columns: repeat(2, 1fr); }
+      .flow__step::after { content: none; }
+      .placement-demo__layout { grid-template-columns: 1fr; }
+      .placement-demo__controls { border-right: 0; border-bottom: 1px solid var(--line); }
+      .placement-demo__heroes { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 680px) {
+      .masthead__inner, .shell { width: min(100% - 1.2rem, 1280px); }
+      .masthead__inner { padding-top: 3rem; }
+      .grid-2, .grid-3, .hero-grid, .reset-grid { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; }
+      .toc nav { columns: 1; }
+      .hero-card dl { grid-template-columns: 1fr; gap: .05rem; }
+      .hero-card dd { margin-bottom: .5rem; }
+      .placement-demo__heroes { grid-template-columns: 1fr 1fr; }
+      .placement-demo__desks { grid-template-columns: repeat(6, 1fr); }
+      .placement-demo__metrics { grid-template-columns: 1fr 1fr; }
+      .placement-demo__room-labels { display: block; }
+      .placement-demo__room-labels span { display: block; }
+      section { margin-bottom: 4rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .placement-demo__desk[data-valid="true"] { animation: none; }
+      .placement-demo__coverage-band { transition: none; }
+    }
+
+    @media print {
+      :root { --bg: #fff; --panel: #fff; --panel-2: #fff; --ink: #111; --paper: #111; --muted: #555; --line: #ccc; }
+      body { color: #111; background: #fff; font-size: 9pt; }
+      .progress, .toc, .masthead::after, .no-print { display: none !important; }
+      .masthead { border: 0; background: #fff; }
+      .masthead__inner { width: 100%; padding: 0 0 1.5rem; }
+      .shell { display: block; width: 100%; padding: 0; }
+      h1 { color: #111; font-size: 31pt; }
+      h1 span, .eyebrow, .section-kicker, h2, a, .stat__value, th { color: #111; }
+      section { break-before: page; margin: 0; }
+      section:first-child { break-before: auto; }
+      h2, h3, h4 { break-after: avoid; }
+      .card, .hero-card, .callout, .formula, .stat, .table-wrap, .curve, .placement-demo, .game-demo-page { box-shadow: none; background: #fff; break-inside: avoid; }
+      .placement-demo__controls, .placement-demo__stage, .placement-demo__banner, .placement-demo__room, .placement-demo__metric { color: #111; background: #fff; }
+      .hero-grid, .grid-2, .grid-3 { display: block; }
+      .hero-card, .card { margin: 0 0 1rem; }
+      table { min-width: 0; font-size: 7.5pt; }
+      th { position: static; background: #eee; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+
+  <header class="masthead" id="top">
+    <div class="masthead__inner">
+      <p class="eyebrow">100,000,000 Developers // archived implementation audit</p>
+      <h1>Current mechanics<br><span>audit + tuning map</span></h1>
+      <p class="dek">A preserved internal snapshot of what the 25 August 2026 build did: the growth loop, upgrades, prestige, heroes and placement—plus the implementation gaps, pressure points, and smallest useful experiments for making it more fun.</p>
+      <div class="meta-row" aria-label="Document status">
+        <span class="chip">Backup / non-canonical</span>
+        <span class="chip">Dated runtime snapshot</span>
+        <span class="chip">Build 0.1.0</span>
+        <span class="chip">25 August 2026</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside class="toc" aria-label="Contents">
+      <p class="toc__title">Contents</p>
+      <nav>
+        <a href="#at-a-glance">01 / At a glance</a>
+        <a href="#growth-path">02 / How to grow</a>
+        <a href="#core-math">03 / Core production</a>
+        <a href="#poking">04 / Poking & dev states</a>
+        <a href="#economy">05 / Projects & economy</a>
+        <a href="#roles">06 / Roles & backlogs</a>
+        <a href="#run-upgrades">07 / In-run upgrades</a>
+        <a href="#founder">08 / Founder upgrades</a>
+        <a href="#prestige">09 / Prestige</a>
+        <a href="#hero-classes">10 / Hero classes</a>
+        <a href="#hero-upgrades">11 / Hero upgrades</a>
+        <a href="#hero-placement">12 / Hero placement</a>
+        <a href="#offline-events">13 / Offline & events</a>
+        <a href="#fun-audit">14 / Fun audit</a>
+        <a href="#tuning-map">15 / Adjustment plan</a>
+        <a href="#boundaries">16 / Status &amp; gaps</a>
+        <a href="#reference">17 / Quick reference</a>
+      </nav>
+      <div class="toc__actions no-print">
+        <button type="button" onclick="window.print()">Print</button>
+        <button type="button" onclick="location.hash='top'">Top</button>
+      </div>
+    </aside>
+
+    <main>
+      <section id="at-a-glance">
+        <span class="section-kicker">01 // present-state summary</span>
+        <h2>At a glance</h2>
+        <div class="callout warning">
+          <p><span class="tag copy">Archived backup</span> This page is retained as a mechanics audit and UI-demo record. It is <strong>not the development authority</strong>. Use <a href="../GDD.html">GDD.html</a> for canonical design, current implementation status, priorities, and future adjustments.</p>
+        </div>
+        <p class="lede"><strong>The coherent core is scaling output without scaling communication faster than the organisation can bear.</strong> Hiring raises raw production and payroll; communication load reduces every developer’s efficiency. Infrastructure, permanent founder skills, Paradigm nodes, specialist roles, and heroes push the breaking point outward. The main design work now is not adding another layer—it is making the existing choices legible, internally consistent, and meaningfully different.</p>
+
+        <div class="flow" aria-label="Core game loop">
+          <div class="flow__step"><b>Build</b><span>Code personally and poke valuable units to burn Story Points.</span></div>
+          <div class="flow__step"><b>Ship</b><span>Finish the Sprint Commitment; the game joins the earning catalogue.</span></div>
+          <div class="flow__step"><b>Hire</b><span>Spend revenue on a larger workforce or on specialist roles.</span></div>
+          <div class="flow__step"><b>Stabilise</b><span>Buy communication tech, manage quality, and place heroes.</span></div>
+          <div class="flow__step"><b>Shift</b><span>Convert the recorded scale high-water marks into Bandwidth Points and rebuild stronger.</span></div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><span class="stat__value">1 SP/s</span><span class="stat__label">raw output per developer</span></div>
+          <div class="stat"><span class="stat__value">$50/s</span><span class="stat__label">wage per paid head</span></div>
+          <div class="stat"><span class="stat__value">~76%</span><span class="stat__label">optimal headcount / capacity</span></div>
+          <div class="stat"><span class="stat__value">8 sec</span><span class="stat__label">hero relocation delay</span></div>
+        </div>
+
+        <div class="callout good">
+          <p><span class="tag">Core rule</span> Headcount is not the same thing as useful output. The best base output occurs around <strong>75.8% of effective capacity</strong>. At the exact capacity line, efficiency is already only 50%. Capacity is a warning boundary, not a hiring target.</p>
+        </div>
+
+        <h3>Current design verdict</h3>
+        <div class="grid-3">
+          <article class="card">
+            <h4><span class="tag">Keep</span> The entropy thesis</h4>
+            <p>The fifth-power coordination curve creates the game’s most distinctive decision: another hire can reduce total output. Founder immunity and the catastrophic first-run demonstration reinforce that thesis.</p>
+          </article>
+          <article class="card">
+            <h4><span class="tag copy">Repair</span> The system promises</h4>
+            <p>Several labels and cards describe effects the runtime does not deliver, while a few mechanics use inconsistent scaling rules. Those truth problems should be fixed before interpreting balance feedback.</p>
+          </article>
+          <article class="card">
+            <h4><span class="tag permanent">Test</span> The decision cadence</h4>
+            <p>The next tuning pass should measure whether each run regularly offers one immediate purchase, one strategic fork, and one aspirational target—without hiding the consequences of hiring or placement.</p>
+          </article>
+        </div>
+
+        <h3>Three kinds of progression</h3>
+        <div class="grid-3">
+          <article class="card">
+            <h4>Run progression</h4>
+            <p>Cash, current staff, roles, live catalogue, backlogs, incidents, events, hero placements, and the cash-bought studio tech board.</p>
+          </article>
+          <article class="card">
+            <h4>Paradigm progression</h4>
+            <p>Bandwidth Points and Paradigm nodes. These survive ordinary shifts and mainly increase capacity or alter system rules.</p>
+          </article>
+          <article class="card">
+            <h4>Career progression</h4>
+            <p>Founder skills, hero XP, hero nodes, story arrivals, milestones, release history, and lifetime high-water marks.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="growth-path">
+        <span class="section-kicker">02 // from garage to planet</span>
+        <h2>How to grow</h2>
+        <p class="lede">Growth is a repeated balancing act between <strong>capacity, cash flow, and coverage</strong>. If one of those lags, more staff stop being an upgrade.</p>
+
+        <h3>Run 1: The Trap</h3>
+        <ol>
+          <li><strong>Start at your own desk.</strong> The founder produces a passive 0.5 SP/s and a baseline founder tap is worth 1 SP. Founder output ignores communication efficiency completely.</li>
+          <li><strong>After 50 pokes, James arrives free.</strong> Poking him accelerates his work; the first game is still built by the garage.</li>
+          <li><strong>Ship the three garage releases.</strong> The first three projects pay $50, $1,500, and $12,000. The paid hiring loop waits until the fourth project because the first three cannot sustain a $50-per-second salary.</li>
+          <li><strong>Ship, earn, hire, repeat.</strong> A $50,000 seed round appears at 10 developers. The batch-hire dial appears at 25. At roughly 40 developers the communication readout first moves from <em>IN SYNC</em> to <em>CHATTY</em>.</li>
+          <li><strong>James’s dialogue forces the Mass Hire.</strong> At dialogue line 13—or when the scene is dismissed after that point—the build adds 1,000 developers and empties the treasury. Against the base capacity of 100, communication efficiency collapses, output stalls, payroll keeps running, and bankruptcy occurs at −$1,000,000.</li>
+          <li><strong>The first Paradigm Shift is compulsory.</strong> It turns the loss into Bandwidth Points and opens the real long-term game.</li>
+        </ol>
+
+        <h3>Run 2 onward</h3>
+        <p>Later runs skip the garage funnel. They open with two salary-free heads, the batch-hire dial and seed state already unlocked, a paid project instead of the $50 game, and James granting <strong>Instant Messenger</strong> at the centre of the studio upgrade board. The first shift also activates offline production and the post-garage quality/reliability/support simulation.</p>
+
+        <div class="grid-2">
+          <article class="card">
+            <h4>Capacity tells you “can”</h4>
+            <p>Permanent Paradigm nodes establish the base capacity. Protocol tech and Cloud hero depth multiply it inside the current run. This determines communication load.</p>
+          </article>
+          <article class="card">
+            <h4>Economy tells you “should”</h4>
+            <p>A hire also has an escalating purchase price and a permanent wage. Catalogue income must cover payroll long enough for the next project to finish.</p>
+          </article>
+          <article class="card">
+            <h4>Roles tell you “what kind”</h4>
+            <p>Once their heroes arrive, hires can be assigned to development, QA, support, or SRE. A role is chosen on hire and cannot be reassigned.</p>
+          </article>
+          <article class="card">
+            <h4>Heroes tell you “where”</h4>
+            <p>Heroes only contribute after being posted into the world. Their reach limits how much of the studio they affect and how quickly they learn.</p>
+          </article>
+        </div>
+
+        <div class="callout warning">
+          <p><span class="tag copy">Practical warning</span> Do not wait for the displayed capacity to become full. At 100% load, the company has lost half its per-person efficiency; the production optimum has already passed.</p>
+        </div>
+      </section>
+
+      <section id="core-math">
+        <span class="section-kicker">03 // the equation underneath everything</span>
+        <h2>Core production and Communication Entropy</h2>
+
+        <p>The raw swarm wants to make one Story Point per developer per second. Communication load taxes that rate according to headcount divided by effective capacity.</p>
+
+        <div class="formula">Load L = Developers ÷ Effective Capacity</div>
+        <div class="formula">Efficiency η = 1 ÷ (1 + L<sup>5</sup>)</div>
+        <div class="formula">Communication Entropy E = 1 − η</div>
+        <div class="formula">Passive swarm velocity = Working Developers × η × Hero Yield × Local-Poke Efficiency</div>
+
+        <p><strong>Effective capacity</strong> is the permanent Paradigm capacity multiplied by in-run protocol upgrades and the active Cloud-hero fold. Pair Programming and Daily Standups can reduce the number of people actually coding without reducing the number creating communication load.</p>
+
+        <h3>What the curve feels like</h3>
+        <div class="curve" aria-label="Output versus percentage of capacity">
+          <div class="curve__col"><div class="curve__bar" style="--v:16"></div><div class="curve__label"><b>25%</b>24.98 output / 100 cap</div></div>
+          <div class="curve__col"><div class="curve__bar" style="--v:40"></div><div class="curve__label"><b>50%</b>48.48 output / 100 cap</div></div>
+          <div class="curve__col"><div class="curve__bar" style="--v:50"></div><div class="curve__label"><b>60%</b>55.67 output / 100 cap</div></div>
+          <div class="curve__col"><div class="curve__bar" style="--v:62"></div><div class="curve__label"><b>75.8%</b>60.63 output / 100 cap</div></div>
+          <div class="curve__col"><div class="curve__bar" style="--v:51"></div><div class="curve__label"><b>100%</b>50.00 output / 100 cap</div></div>
+          <div class="curve__col"><div class="curve__bar" style="--v:18"></div><div class="curve__label"><b>150%</b>17.46 output / 100 cap</div></div>
+          <div class="curve__col"><div class="curve__bar" style="--v:6"></div><div class="curve__label"><b>200%</b>6.06 output / 100 cap</div></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Entropy</th><th>Player-facing label</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td class="num">0–1%</td><td>IN SYNC</td><td>The studio is near full individual efficiency.</td></tr>
+              <tr><td class="num">1–10%</td><td>CHATTY</td><td>The first visible warning; Run 1 reaches it around 40 people.</td></tr>
+              <tr><td class="num">10–40%</td><td>BOGGED DOWN</td><td>More hiring needs to be justified by capacity upgrades.</td></tr>
+              <tr><td class="num">40–70%</td><td>PRODUCTIVITY BREAKDOWN</td><td>Raw headcount is masking severe per-person loss.</td></tr>
+              <tr><td class="num">70–90%</td><td>TOTAL GRIDLOCK</td><td>The studio is deep on the falling side of the curve.</td></tr>
+              <tr><td class="num">90–99%</td><td>MELTDOWN</td><td>Output is collapsing toward zero while payroll stays linear.</td></tr>
+              <tr><td class="num">99%+</td><td>STUDIO SEIZED</td><td>The game treats the organisation as locked for story and feedback.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>The founder is deliberately different</h3>
+        <p>The founder has a separate curve. The base passive rate is <strong>0.5 SP/s</strong>; a founder tap banks two seconds of that rate. Neither headcount nor Communication Entropy can tax it. Founder upgrades can raise it to 5.5 SP/s, make the taps cleaner, attach cash, allow offline work, and spread taps into nearby rows—but even a maxed founder must remain weaker than a healthy studio.</p>
+      </section>
+
+      <section id="poking">
+        <span class="section-kicker">04 // attention as a resource</span>
+        <h2>Poking, buffs, and developer states</h2>
+
+        <p class="lede">Poking is not a second currency faucet. It is a short-term maintenance layer: read the target, create an immediate pulse, and leave most of the value as a fading production buff.</p>
+
+        <div class="formula">Poke value = Fibonacci Tier × State × Unit Yield × Efficiency × Reach × Unit Output Share</div>
+
+        <h3>Where the value goes</h3>
+        <ul>
+          <li><strong>25%</strong> of a positive poke is paid immediately.</li>
+          <li><strong>75%</strong> becomes a buff on the poked unit. Buff strength decays exponentially with a five-second time constant and is practically gone after about fifteen seconds.</li>
+          <li>A unit’s buff is capped at <strong>+300%</strong>. Any value that cannot fit is paid immediately, so no Story Points disappear.</li>
+          <li>Up to 64 units can carry buffs. Buffs at different rungs stack on the same people.</li>
+          <li>Poking adds local context-switch load equal to <strong>0.02 × |poke value|</strong>. Local load decays back toward baseline over roughly eight seconds.</li>
+          <li>Pokes remain taxed by global efficiency. A seized studio cannot be rescued by mashing.</li>
+        </ul>
+
+        <h3>Fibonacci estimation ladder</h3>
+        <p>The baseline tier is 1 SP. Cash upgrades raise it through <strong>1, 2, 3, 5, 8, 13, 21</strong>, then the sequence continues procedurally. The current studio tree implements tiers through 8 SP per poke.</p>
+
+        <h3>Target state matters</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>State</th><th>Multiplier</th><th>What the poke does</th></tr></thead>
+            <tbody>
+              <tr><td>Working</td><td class="num">×1</td><td>Normal payout; the work state continues.</td></tr>
+              <tr><td>Slacking</td><td class="num">×0.5</td><td>Lower payout and returns the developer to work.</td></tr>
+              <tr><td>Flow</td><td class="num">×3</td><td>A critical payout, but the poke ends Flow unless Nitro Cold Brew is owned. With the upgrade, it extends Flow by five seconds.</td></tr>
+              <tr><td>Overwhelmed</td><td class="num">×0</td><td>No points; the value is clearing the developer’s lockup.</td></tr>
+              <tr><td>Rogue</td><td class="num">×−2</td><td>Removes Story Points but cancels the rogue refactor. Zero-Trust Architecture prevents this state entirely.</td></tr>
+              <tr><td>10x Engineer</td><td class="num">×10</td><td>Large critical cash-out; the developer quits when poked. James cannot be lost this way.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Scale changes the tap</h3>
+        <p>A tap affects the unit under the pointer, not an abstract camera band. Larger units reach more people but pay less per person. The live curve is anchored at one person (×1.0), 14 people (×0.4), 5,000 people (×0.08), and one million people (×0.01), interpolated between anchors. This creates the intended rhythm: <strong>zoom in to extract value from a person; zoom out to maintain a whole unit.</strong></p>
+      </section>
+
+      <section id="economy">
+        <span class="section-kicker">05 // money arrives after the celebration</span>
+        <h2>Projects, revenue, hiring, and payroll</h2>
+
+        <h3>Project ladder</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Project</th><th>Commitment</th><th>Total payout</th><th>Role in progression</th></tr></thead>
+            <tbody>
+              <tr><td class="num">1</td><td>Flappy Square 1.0</td><td class="num">300 SP</td><td class="num">$50</td><td>Garage joke; cannot support a salary.</td></tr>
+              <tr><td class="num">2</td><td>Flappy Square 1.1 (Now With Ads)</td><td class="num">200 SP</td><td class="num">$1,500</td><td>Still below the paid-studio wage line.</td></tr>
+              <tr><td class="num">3</td><td>Flappy Square 2.0 (Now With A Battle Pass)</td><td class="num">300 SP</td><td class="num">$12,000</td><td>Final salary-free catalogue rung.</td></tr>
+              <tr><td class="num">4</td><td>Untitled Roguelike Deckbuilder</td><td class="num">600 SP</td><td class="num">$38,000</td><td>First project that can sustain paid staff.</td></tr>
+              <tr><td class="num">5</td><td>Cozy Farming Sim With A Dark Secret</td><td class="num">900 SP</td><td class="num">$110,000</td><td>Early studio scale.</td></tr>
+              <tr><td class="num">6</td><td>Open-World Survival Craft (Early Access)</td><td class="num">1,400 SP</td><td class="num">$320,000</td><td>Mid-run cash engine.</td></tr>
+              <tr><td class="num">7</td><td>Live-Service Hero Shooter</td><td class="num">2,200 SP</td><td class="num">$900,000</td><td>Late authored rung.</td></tr>
+              <tr><td class="num">8</td><td>Untitled Roguelike Deckbuilder II</td><td class="num">3,500 SP+</td><td class="num">$2,600,000+</td><td>Terminal rung. Commitment and payout scale to target roughly 60 seconds per build.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Shipping does not pay a lump sum</h3>
+        <p>The displayed payout is the release’s total lifetime value. It enters the treasury through a randomised launch spike and a slower tail: 50–68% is assigned to the spike, with a 4–8 second time constant; the rest uses a 30–70 second tail. A release retires after 240 seconds and pays any tiny remainder exactly. The catalogue therefore funds payroll while the next game is being built.</p>
+
+        <h3>Hiring cost</h3>
+        <div class="formula">Next hire price = $1 × Effective Growth<sup>(current headcount − 1)</sup></div>
+        <p>The Run 1 growth base is 1.08. At larger permanent capacities the effective growth base is normalised by capacity, preventing absolute headcount from creating a second wall before Communication Entropy. The permanent founder node <em>You Know A Guy</em> halves the growth step per level before that normalisation.</p>
+
+        <p>The batch dial appears at 25 staff and always shows three scale-appropriate batch sizes plus <strong>MAX</strong>. MAX preserves 10% of the treasury. The Run 1 Mass Hire is a separate scripted action: James’s scene forces it and it takes everything.</p>
+
+        <h3>Payroll and failure</h3>
+        <ul>
+          <li>The payroll formula exempts the first two rostered heads.</li>
+          <li>Every paid head costs <strong>$50 per second</strong>, continuously.</li>
+          <li>Cash may safely go negative between revenue arrivals. The important question is whether the company can survive until the next payout.</li>
+          <li>At <strong>−$1,000,000</strong>, the run is bankrupt and must end.</li>
+        </ul>
+
+        <div class="callout danger">
+          <p><span class="tag reset">Run-killer</span> Communication collapse and payroll reinforce each other: less efficiency delays the next ship while wages continue at full speed. The dangerous hire is not merely expensive to buy—it extends the time before the company can earn again.</p>
+        </div>
+      </section>
+
+      <section id="roles">
+        <span class="section-kicker">06 // a studio is more than developers</span>
+        <h2>Roles, quality, incidents, and support</h2>
+
+        <p>After the first shift, post-garage systems are simulated. Their instruments and hireable roles appear with the hero who explains them. Every specialist still adds to headcount, communication load, hiring cost, and payroll. Roles are permanent for that run once hired. <strong>In the current velocity calculation, however, total headcount is still used as the productive body</strong>; choosing QA, SRE, or Support therefore adds the specialist benefit without subtracting that person from base coding output.</p>
+
+        <div class="callout warning">
+          <p><span class="tag copy">Design decision needed</span> Either specialists are intentionally hybrid contributors—in which case the UI should say so—or role assignment needs a visible production opportunity cost. The current version presents a staffing allocation choice but calculates it mostly as an additive bonus.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Role</th><th>Unlocked by</th><th>Current effect</th><th>Key number</th></tr></thead>
+            <tbody>
+              <tr><td>Developer</td><td>Always</td><td>Contributes to the studio’s production body.</td><td class="num">1 raw SP/s</td></tr>
+              <tr><td>QA</td><td>Mo</td><td>Reduces defect arrival. Defect rate is halved when QA are 25% of staff.</td><td class="num">factor = 1 / (1 + QA share / 0.25)</td></tr>
+              <tr><td>SRE</td><td>Serena</td><td>Reduces incident arrival and clears open incidents linearly.</td><td class="num">10% SRE halves arrivals; 45 SRE-sec to clear</td></tr>
+              <tr><td>Support</td><td>Matt</td><td>Answers tickets linearly and protects catalogue income.</td><td class="num">1 ticket/sec per head</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Defects and rating</h3>
+        <p>Ordinary work creates defects at <strong>0.02 per Story Point</strong> before QA suppression. Immediate poke output is charged at twice the ordinary defect density because interruption adds the same 0.02 context-switch coefficient. On ship, the defect backlog becomes a permanent density attached to that release and the bench resets.</p>
+
+        <p>Release rating is weighted 50% defects, 30% hero coverage, and 20% craft. The present shipping path currently supplies zero to the hero-coverage rating input, so hero placement affects production systems but does not yet raise release scores. A release’s rating can scale its payout from ×0.55 to ×1.6; reputation remembers roughly eight releases and adds a standing ×0.8 to ×1.25 multiplier.</p>
+
+        <h3>Incidents</h3>
+        <p>Shipped defect density creates incident risk in proportion to the release’s current audience. A release at garage density creates about 0.1 incident over its tracked lifetime without SRE. An open incident freezes that release’s revenue tail until cleared; it delays money rather than destroying it.</p>
+
+        <h3>Tickets</h3>
+        <p>Tickets arrive from the lifetime catalogue and outstanding defects. Ten shipped games or 100 defects each create enough work for one support head. If clearance time exceeds five minutes, catalogue income falls, down to a hard floor of 80%. The current project payout itself is not reduced by the ticket queue.</p>
+      </section>
+
+      <section id="run-upgrades">
+        <span class="section-kicker">07 // bought with cash, lost on shift</span>
+        <h2>In-run studio upgrades</h2>
+
+        <p class="lede">The studio board has two live branches: <strong>Communication Protocols</strong> and <strong>Culture &amp; Juice</strong>. Purchases use current-run cash and reset on every Paradigm Shift. A new ring opens with each shift.</p>
+
+        <div class="formula">Displayed price = Base Cost × Node Multiplier<sup>current level</sup> × 1.12<sup>Paradigm Shifts</sup></div>
+        <p>Every current node has one purchasable level, so the prestige term is the main live price escalator. Costs below are base costs before that term.</p>
+
+        <h3>Communication Protocols</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Upgrade</th><th>Ring</th><th>Requires</th><th>Base cost</th><th>Live effect</th></tr></thead>
+            <tbody>
+              <tr><td>B1</td><td>Instant Messenger</td><td class="num">0</td><td>Granted by James</td><td class="num">Free</td><td>−5% communication load, implemented as ×1/0.95 capacity.</td></tr>
+              <tr><td>B2</td><td>Daily Standups</td><td class="num">1</td><td>B1</td><td class="num">$2,500</td><td>Entropy cannot exceed 80%. Every 60 seconds, 20% of the studio stops coding for five seconds.</td></tr>
+              <tr><td>B3</td><td>Pair Programming</td><td class="num">2</td><td>B2</td><td class="num">$75,000</td><td>Only half the studio codes; communication load falls 60% (×2.5 capacity); every release earns ×2.</td></tr>
+              <tr><td>B4</td><td>JIRA Ticket Flooding</td><td class="num">3</td><td>B3</td><td class="num">$10,000,000</td><td>Entropy cannot exceed 60%.</td></tr>
+              <tr><td>B1a</td><td>Written Culture</td><td class="num">2</td><td>B1</td><td class="num">$600,000</td><td>−25% communication load, implemented as ×1/0.75 capacity.</td></tr>
+              <tr><td>B1b</td><td>Microservices</td><td class="num">3</td><td>B1a</td><td class="num">$4,000,000</td><td>−35% communication load, implemented as ×1/0.65 capacity.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Culture &amp; Juice</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Upgrade</th><th>Ring</th><th>Requires</th><th>Base cost</th><th>Live effect</th></tr></thead>
+            <tbody>
+              <tr><td>C1</td><td>Nitro Cold Brew Drips</td><td class="num">1</td><td>—</td><td class="num">$100</td><td>Poking a developer in Flow no longer ends it; instead it adds five seconds.</td></tr>
+              <tr><td>C2</td><td>Ergonomic Chairs</td><td class="num">2</td><td>C1</td><td class="num">$10,000</td><td>Overwhelmed lockups last 30% less time.</td></tr>
+              <tr><td>C2a</td><td>Four-Day Week</td><td class="num">3</td><td>C2</td><td class="num">$1,500,000</td><td>Halves the remaining Overwhelmed duration again and multiplies release revenue by 1.15.</td></tr>
+              <tr><td>C6</td><td>Sandbagging</td><td class="num">2</td><td>C1</td><td class="num">$2,000</td><td>Raises the poke estimation tier from 1 to 2 SP.</td></tr>
+              <tr><td>C7</td><td>Planning Poker</td><td class="num">3</td><td>C6</td><td class="num">$250,000</td><td>Raises the poke estimation tier to 3 SP.</td></tr>
+              <tr><td>C8</td><td>Velocity Inflation</td><td class="num">4</td><td>C7</td><td class="num">$80,000,000</td><td>Raises the poke tier to 5 SP and makes the displayed velocity read 10% higher.</td></tr>
+              <tr><td>C9</td><td>Consultant Estimates</td><td class="num">5</td><td>C8</td><td class="num">$400,000,000</td><td>Raises the poke tier to 8 SP and takes 10% of all release revenue.</td></tr>
+              <tr><td>C10</td><td>Definition of Done (Ambiguous)</td><td class="num">6</td><td>C9</td><td class="num">$100T</td><td>Every project commitment is reduced to 95%, and the burn-down is drawn against that smaller total.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout warning">
+          <p><strong>Daily Standups is a trade, not a universal first purchase.</strong> A healthy studio below its optimum does not need an entropy ceiling yet and will still pay the recurring meeting pause. The permanent Meeting Ban node removes that downside while keeping the ceiling.</p>
+        </div>
+      </section>
+
+      <section id="founder">
+        <span class="section-kicker">08 // bought with cash, kept for the career</span>
+        <h2>Founder / Management upgrades</h2>
+
+        <p>The founder board opens after the first shift when the player first feels work they personally cannot cover: either the first specialist is hired, or the studio reaches at least 25 staff and the founder contributes under 5% of total output. These nodes cost run cash but their levels are permanent.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Node</th><th>Base cost</th><th>Cost growth</th><th>Max</th><th>Live effect</th></tr></thead>
+            <tbody>
+              <tr><td>M-ENG</td><td>Touch Typing</td><td class="num">$400</td><td class="num">×1.9 / level</td><td class="num">10</td><td>+0.5 founder SP/s per level. Also raises founder tap value because a tap banks two seconds of the current rate.</td></tr>
+              <tr><td>M-CLOUD</td><td>You Know A Guy</td><td class="num">$6,000</td><td class="num">×6 / level</td><td class="num">12</td><td>Halves the hire-price growth step per level: growth becomes 1 + 0.08 / 2<sup>level</sup>.</td></tr>
+              <tr><td>M-QA</td><td>Reading It Back</td><td class="num">$25,000</td><td class="num">One-time</td><td class="num">1</td><td>Founder pokes create 40% less local context-switch load.</td></tr>
+              <tr><td>M-SUP</td><td>Founder-Led Sales</td><td class="num">$60,000</td><td class="num">One-time</td><td class="num">1</td><td>Founder-produced Story Points also pay $0.20 each immediately.</td></tr>
+              <tr><td>M-REL</td><td>Always On Call</td><td class="num">$150,000</td><td class="num">One-time</td><td class="num">1</td><td>The founder’s passive desk rate is included in offline production.</td></tr>
+              <tr><td>M-REACH</td><td>Management By Walking Around</td><td class="num">$500,000</td><td class="num">×2.4 / level</td><td class="num">3</td><td>A founder tap also buffs one nearby row per level at 40% of the tap’s strength.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout good">
+          <p><span class="tag permanent">Permanent</span> <em>You Know A Guy</em> is the economic partner to Telepathic Compression. Compression raises how many people the organisation can coordinate; recruiting lowers the price curve enough to fill that capacity. One without the other eventually leaves unused headroom.</p>
+        </div>
+      </section>
+
+      <section id="prestige">
+        <span class="section-kicker">09 // paradigm shift</span>
+        <h2>Prestige: Bandwidth Points and resets</h2>
+
+        <p class="lede">The first Paradigm Shift follows bankruptcy. From the second run onward, the Paradigm screen offers a voluntary shift at any non-bankrupt point and shows a live, non-decreasing BP quote.</p>
+
+        <h3>Bandwidth Point yield</h3>
+        <div class="formula">BP = floor[100 × (Revenue High-Water Input ÷ 1,000,000,000,000)<sup>0.2</sup> × log<sub>10</sub>(Peak Developers)]</div>
+        <p>The active quote takes the maximum of the saved <code>lifetimeRevenue</code> value and current-run revenue, plus the maximum saved/live peak headcount. Despite the field name, save reconciliation treats revenue as a <strong>maximum high-water mark, not an additive career total</strong>; offline revenue is a separate path that directly increments it. The award is the full formula each shift rather than only the improvement over the prior quote. The current award path also ignores the dormant reputation prestige multiplier.</p>
+
+        <div class="callout danger">
+          <p><span class="tag reset">Persistence defect</span> The shift function calculates BP from the live run, then creates a fresh run without first folding that run’s revenue and peak into the in-memory permanent record. The save immediately written after the reset can therefore discard those marks. Fix this before balancing prestige cadence; otherwise observed BP progression can depend on whether a save was reloaded.</p>
+        </div>
+
+        <h3>What a shift loses and keeps</h3>
+        <div class="reset-grid">
+          <article class="card">
+            <h4><span class="tag reset">Reset</span> The company</h4>
+            <ul>
+              <li>Cash and current payroll</li>
+              <li>Workforce and specialist mix</li>
+              <li>Cash-bought studio tech</li>
+              <li>Live catalogue and current project progress</li>
+              <li>Defects, tickets, incidents, reputation, and live event</li>
+              <li>Hero placements</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h4><span class="tag permanent">Keep</span> The career</h4>
+            <ul>
+              <li>Unspent BP and Paradigm node levels</li>
+              <li>Founder / Management levels</li>
+              <li>Hero arrivals, XP, levels, and purchased hero nodes</li>
+              <li>Recorded revenue and peak-headcount high-water marks <span class="muted">(intended; see persistence defect above)</span></li>
+              <li>Release history and story milestones</li>
+              <li>Offline unlock from having shifted</li>
+            </ul>
+          </article>
+        </div>
+
+        <h3>Paradigm tree</h3>
+        <div class="formula">Next node level cost = Base Cost × 1.5<sup>current level</sup> × 2.2<sup>depth</sup></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Node</th><th>First cost</th><th>Max</th><th>Current runtime effect</th></tr></thead>
+            <tbody>
+              <tr><td>Async-First Culture</td><td class="num">10 BP</td><td class="num">5</td><td>Each level removes 10 percentage points from the load term. Runtime capacity is <code>base ÷ (1 − 0.1 × level)</code>; level 5 doubles capacity.</td></tr>
+              <tr><td>Meeting Ban</td><td class="num">330 BP</td><td class="num">1</td><td>Cancels Daily Standups’ five-second pauses while preserving the purchased entropy ceiling.</td></tr>
+              <tr><td>Zero-Trust Architecture</td><td class="num">12,100 BP</td><td class="num">1</td><td>Eliminates the Rogue Refactorer developer state.</td></tr>
+              <tr><td>Telepathic Compression</td><td class="num">25 BP</td><td class="num">10</td><td>Multiplies base developer capacity by 10 per level in the current runtime.</td></tr>
+              <tr><td>Chained Poke Reaction</td><td class="num">1,100 BP</td><td class="num">3</td><td>Each level buffs one additional neighbouring unit for 50% of the target’s converted 75% buff portion. With valid targets and no clipping, total poke value is roughly ×1.375, ×1.75, or ×2.125.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout warning">
+          <p><span class="tag copy">Copy mismatch</span> The Telepathic Compression card currently says “+1,000× developer capacity per level,” but the live capacity function uses <strong>×10 per level</strong>. This audit reports the runtime result.</p>
+        </div>
+
+        <h3>Prestige timing in the current build</h3>
+        <p>The displayed quote improves when the current run beats the inputs remembered in permanent state. In principle, that makes extending a run useful only when it creates a meaningful new revenue or headcount mark. In practice, the persistence defect above and full-formula repeat award make the incentive unreliable and potentially exploitable. After that is corrected, the “BP short” readout can support a clean push-or-reset decision. The shift itself gives no cash, so a fresh run still needs an earning catalogue before aggressive hiring.</p>
+      </section>
+
+      <section id="hero-classes">
+        <span class="section-kicker">10 // six people, six branches</span>
+        <h2>Hero classes and arrival rules</h2>
+
+        <p class="lede">The live hero system is a roster of six named people. A “class” is a hero’s <strong>home branch and starting position</strong>, not a restriction. Every hero can buy into every branch; specialists receive full value at home and half value elsewhere.</p>
+
+        <div class="hero-grid">
+          <article class="hero-card" style="--branch:#d8d8c0" data-code="J">
+            <h3>James</h3><p class="hero-card__role">Engineering // Jack of all trades</p>
+            <dl>
+              <dt>Arrives</dt><dd>Run 1 after 50 pokes; free and permanent.</dd>
+              <dt>Starts with</dt><dd>The Engineering trunk only.</dd>
+              <dt>Bends</dt><dd>Velocity weakly. A fully covering trunk contributes +1.5% swarm yield.</dd>
+              <dt>Weight</dt><dd>50% in every branch: never penalised, never best.</dd>
+              <dt>Signature</dt><dd>FEWER COMMITMENTS — ambient floor distractions ignore him.</dd>
+            </dl>
+          </article>
+
+          <article class="hero-card" style="--branch:#e0a03c" data-code="Q">
+            <h3>Mo</h3><p class="hero-card__role">Quality</p>
+            <dl>
+              <dt>Arrives</dt><dd>After the first release ships above 0.02 defects per SP.</dd>
+              <dt>Brings</dt><dd>The defect instrument and QA on the hire dial.</dd>
+              <dt>Starts with</dt><dd>Three free Quality depth nodes.</dd>
+              <dt>Bends</dt><dd>Defect arrival ×0.85 per effective depth at full coverage.</dd>
+              <dt>Signature</dt><dd>READS IT TWICE — pre-release defects are described as cheaper.</dd>
+            </dl>
+          </article>
+
+          <article class="hero-card" style="--branch:#d05050" data-code="R">
+            <h3>Serena</h3><p class="hero-card__role">Reliability</p>
+            <dl>
+              <dt>Arrives</dt><dd>When the first incident suppresses a release’s revenue tail.</dd>
+              <dt>Brings</dt><dd>The incident instrument and SRE on the hire dial.</dd>
+              <dt>Starts with</dt><dd>Three free Reliability depth nodes.</dd>
+              <dt>Bends</dt><dd>Incident arrival ×0.85 per effective depth at full coverage.</dd>
+              <dt>Signature</dt><dd>WROTE THE RUNBOOK — the first incident is described as half worked.</dd>
+            </dl>
+          </article>
+
+          <article class="hero-card" style="--branch:#78c078" data-code="S">
+            <h3>Matt</h3><p class="hero-card__role">Support</p>
+            <dl>
+              <dt>Arrives</dt><dd>When a non-empty ticket queue remains unserved for 30 seconds.</dd>
+              <dt>Brings</dt><dd>The ticket instrument and Support on the hire dial.</dd>
+              <dt>Starts with</dt><dd>Three free Support depth nodes.</dd>
+              <dt>Bends</dt><dd>+1 effective support head per effective depth after placement.</dd>
+              <dt>Signature</dt><dd>KNOWS THEIR NAMES — repeat-release tickets are described as slower.</dd>
+            </dl>
+          </article>
+
+          <article class="hero-card" style="--branch:#58b0d0" data-code="C">
+            <h3>Melany</h3><p class="hero-card__role">Cloud</p>
+            <dl>
+              <dt>Arrives</dt><dd>When headcount reaches current capacity while cash remains positive.</dd>
+              <dt>Brings</dt><dd>No new panel; the capacity readout already exists.</dd>
+              <dt>Starts with</dt><dd>Three free Cloud depth nodes.</dd>
+              <dt>Bends</dt><dd>+15% developer capacity per effective depth at full coverage.</dd>
+              <dt>Signature</dt><dd>RESERVED INSTANCES — capacity is described as immediate and continuously billed.</dd>
+            </dl>
+          </article>
+
+          <article class="hero-card" style="--branch:#b088d0" data-code="D">
+            <h3>Billy</h3><p class="hero-card__role">Cohesion / Delivery</p>
+            <dl>
+              <dt>Arrives</dt><dd>After the first shift, when Entropy reaches 10% or more.</dd>
+              <dt>Brings</dt><dd>No new panel; the communication readout already exists.</dd>
+              <dt>Starts with</dt><dd>Three free Cohesion depth nodes.</dd>
+              <dt>Bends</dt><dd>Entropy ×0.9 per effective depth at full coverage.</dd>
+              <dt>Signature</dt><dd>FIFTEEN MINUTES — a stand-up is described as pulsing output in reach.</dd>
+            </dl>
+          </article>
+        </div>
+
+        <div class="callout warning">
+          <p><span class="tag dormant">Identity only today</span> The six named signature traits are shown on hero cards, but their bespoke sentences are not yet read by the simulation. The live mechanical effects come from the shared branch tree and placement coverage described below.</p>
+        </div>
+      </section>
+
+      <section id="hero-upgrades">
+        <span class="section-kicker">11 // work becomes experience</span>
+        <h2>Hero XP, levels, points, and upgrades</h2>
+
+        <h3>How heroes learn</h3>
+        <div class="formula">Hero XP per second = 0.025 × Studio Velocity × (Developers Covered ÷ Total Developers)</div>
+        <p>Only placed, settled heroes earn XP. XP is permanent and never spent. A hero’s level is derived from lifetime XP; every level grants one point, including level 1. A benched hero does not lose anything, but gains no new XP.</p>
+
+        <div class="formula">XP for next level = 10 × 1.6<sup>(current level − 1)</sup></div>
+        <p>The first level-up costs 10 XP; cumulative level thresholds are a geometric sum. The technical ceiling is level 999.</p>
+
+        <h3>When the shared board opens</h3>
+        <p>After at least one Paradigm Shift, the hero board is introduced when any hero reaches level 2 and still has an unspent point. This guarantees the player has already placed somebody before being asked to buy reach and depth. It also creates a presentational dead-end for specialists: they arrive with their first three home Depth nodes free, so their next home node is Reach at three points; at level 2 they have only two total points and cannot buy it.</p>
+
+        <div class="callout warning">
+          <p><span class="tag copy">First-use friction</span> At the moment the board is taught, a specialist must either buy off-branch Depth, close the new screen without buying, or wait for level 3. The clean fixes are to make the first Reach cost two points, introduce the board at level 3, or change the free starting chain so one one-point home purchase remains.</p>
+        </div>
+
+        <h3>One board, five speciality chains</h3>
+        <p>Engineering is the free centre trunk. Quality, Reliability, Cohesion, Support, and Cloud each have six sequential nodes:</p>
+        <div class="formula">DEPTH (1 pt) → DEPTH (1) → DEPTH (1) → REACH (3) → DEPTH (1) → REACH (3)</div>
+
+        <ul>
+          <li><strong>Depth</strong> increases the branch’s mechanical strength.</li>
+          <li><strong>Reach</strong> moves the hero one step up the common coverage ladder.</li>
+          <li>Only the next node after an owned parent can be purchased.</li>
+          <li>Story specialists arrive with the first three Depth nodes in their own branch for free. Those free nodes do not consume points.</li>
+          <li>James starts at the trunk only.</li>
+        </ul>
+
+        <h3>Home and off-branch value</h3>
+        <p>A specialist’s node in their own branch is worth 100%. A Depth node in another branch is worth 50%. James receives 50% everywhere. Reach is a shared count of owned Reach nodes and is not weakened by branch mismatch.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Branch</th><th>Per effective Depth at full-studio coverage</th><th>How partial coverage scales it</th></tr></thead>
+            <tbody>
+              <tr><td>Engineering trunk</td><td>+3% yield per full effective depth; all current heroes receive half-trunk weight, or +1.5% when fully covering.</td><td>Additive inside a multiplicative yield fold.</td></tr>
+              <tr><td>Quality</td><td>Defect arrival ×0.85.</td><td>Blends the full multiplier toward ×1 by covered share.</td></tr>
+              <tr><td>Reliability</td><td>Incident arrival ×0.85.</td><td>Blends the full multiplier toward ×1 by covered share.</td></tr>
+              <tr><td>Cloud</td><td>+15% capacity.</td><td>+15% × depth × covered share.</td></tr>
+              <tr><td>Cohesion</td><td>Entropy ×0.9.</td><td>Blends the full multiplier toward ×1 by covered share.</td></tr>
+              <tr><td>Support</td><td>+1 effective support head.</td><td>Current runtime does not scale this by covered share once the hero covers at least one developer.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout good">
+          <p><span class="tag">Double return</span> Reach increases both a hero’s present effect and the fraction of studio velocity that becomes their XP. A well-placed Reach purchase therefore accelerates its own future upgrade curve.</p>
+        </div>
+      </section>
+
+      <section id="hero-placement">
+        <span class="section-kicker">12 // the world is the org chart</span>
+        <h2>Hero placement and coverage</h2>
+
+        <p class="lede">Placement begins in the hero roster but finishes in the world. A hero is assigned to the same physical unit the player can poke: a seat, floor, building, campus, site, nation, planet, or galaxy. The current interface exposes maximum reach, actual studio coverage, the coverage-scaled branch benefit, and hero XP share. A compact, branch-coloured identity pass now keeps the hero’s head and name attached to the assigned desk, floor, or building.</p>
+
+        <h3>Current placement flow</h3>
+        <ol>
+          <li>Open <strong>HERO</strong>, select a roster card, and review its <strong>PLACEMENT BENEFIT</strong>. A benched card states the maximum possible branch effect and that no benefit or XP is active.</li>
+          <li>Choose <strong>PLACE HERO</strong>. For somebody already working, choose <strong>MOVE HERO</strong>; there is no longer a recall–reopen–place sequence.</li>
+          <li>The placement banner labels this as step 2 of 2, names the valid targets, and shows the best coverage and branch effect the hero could achieve at the present studio size.</li>
+          <li>Tap a valid unit in the world. The target’s rung and index become the placement anchor. Empty space or <strong>CANCEL</strong> exits without moving them.</li>
+          <li>A confirmation banner shows the exact target coverage, resulting benefit, and an eight-second activation countdown. During this walk they cover nothing, contribute nothing, and earn no XP.</li>
+          <li>Once active, a small scene marker stays tethered to the target and shows the hero’s head, name, and <strong>ASSIGNED</strong>. Coverage, live effect, and XP share remain in the placement confirmation, hero card, and roster instead of covering the world. <strong>RECALL</strong> returns them to the bench; moving restarts the full delay.</li>
+        </ol>
+
+        <h3>In-game placement walkthrough</h3>
+        <p class="muted">These are captures of the current game UI, not concept art. Pages 01–05 follow Mo through one placement. Pages 06–08 then show three simultaneous assignments at each world scale: separate desks, separate floors, and separate buildings. Select any image to open its native frame.</p>
+
+        <div class="game-demo-pages">
+          <figure class="game-demo-page">
+            <div class="game-demo-page__head"><span>01 // Hero roster</span><span>Choose a person</span></div>
+            <a href="assets/game-mechanics/hero-placement-01-roster.png"><img src="assets/game-mechanics/hero-placement-01-roster.png" width="640" height="360" loading="lazy" alt="In-game hero roster showing five heroes as benched with no effect"></a>
+            <figcaption><strong>Start at HERO.</strong> Each roster tile exposes the person, Reach, level, placement state, and live contribution. A benched hero says <em>NO EFFECT</em>, making the inactive state explicit.</figcaption>
+          </figure>
+
+          <figure class="game-demo-page">
+            <div class="game-demo-page__head"><span>02 // Benefit preview</span><span>Understand the payoff</span></div>
+            <a href="assets/game-mechanics/hero-placement-02-benefit-preview.png"><img src="assets/game-mechanics/hero-placement-02-benefit-preview.png" width="640" height="360" loading="lazy" alt="Mo's in-game hero card showing Row reach, eight developers maximum coverage, and a potential 39 percent defect-rate reduction"></a>
+            <figcaption><strong>The card answers “why place her?” before the action.</strong> Mo is benched, her live benefit is OFF, and the copy states her full-studio potential: up to −39% defect rate plus hero XP.</figcaption>
+          </figure>
+
+          <figure class="game-demo-page">
+            <div class="game-demo-page__head"><span>03 // Target selection</span><span>Aim in the world</span></div>
+            <a href="assets/game-mechanics/hero-placement-03-target-selection.png"><img src="assets/game-mechanics/hero-placement-03-target-selection.png" width="640" height="360" loading="lazy" alt="In-game placement banner asking the player to tap a developer, floor, or visible unit and previewing eight of twelve developers covered"></a>
+            <figcaption><strong>PLACE HERO closes the card and arms the next world tap.</strong> The banner names valid targets and previews the best present result: 8 / 12 developers and −26% defect rate.</figcaption>
+          </figure>
+
+          <figure class="game-demo-page">
+            <div class="game-demo-page__head"><span>04 // Activation delay</span><span>Confirm the consequence</span></div>
+            <a href="assets/game-mechanics/hero-placement-04-activation-countdown.png"><img src="assets/game-mechanics/hero-placement-04-activation-countdown.png" width="640" height="360" loading="lazy" alt="In-game placement confirmation showing Mo moving, an activation countdown, and her future coverage and defect-rate effect"></a>
+            <figcaption><strong>The target tap becomes a confirmation, not a silent state change.</strong> It repeats the resulting coverage and benefit while counting down the remaining walk. Benefit and XP are still inactive here.</figcaption>
+          </figure>
+
+          <figure class="game-demo-page">
+            <div class="game-demo-page__head"><span>05 // Live placement</span><span>See the return</span></div>
+            <a href="assets/game-mechanics/hero-placement-05-active-benefit.png"><img src="assets/game-mechanics/hero-placement-05-active-benefit.png" width="640" height="360" loading="lazy" alt="Mo's active in-game hero card showing 67 percent coverage, eight of twelve developers, a live 26 percent defect-rate reduction, and 67 percent hero XP share"></a>
+            <figcaption><strong>After arrival, the same card becomes the receipt.</strong> It shows 67% coverage, 8 / 12 developers, a live −26% defect-rate effect, 67% hero XP share, and direct MOVE HERO and RECALL actions.</figcaption>
+          </figure>
+
+          <figure class="game-demo-page">
+            <div class="game-demo-page__head"><span>06 // Desk assignments in scene</span><span>Three people, three desks</span></div>
+            <a href="assets/game-mechanics/hero-placement-06-desk-scene.jpg"><img class="game-demo-page__scene" src="assets/game-mechanics/hero-placement-06-desk-scene.jpg" width="1015" height="720" loading="lazy" alt="In-game room scene with compact markers showing Mo, Serena, and Matt assigned to three different desks"></a>
+            <figcaption><strong>The room can show several postings without becoming another stats panel.</strong> Mo is attached to Desk 01, Serena to Desk 06, and Matt to Desk 12. Each pass uses the hero’s recognisable head, name, branch colour, and <em>ASSIGNED</em>; the placement receipt below retains the detailed result for the most recent action.</figcaption>
+          </figure>
+
+          <figure class="game-demo-page">
+            <div class="game-demo-page__head"><span>07 // Floor assignments in scene</span><span>One owner per floor</span></div>
+            <a href="assets/game-mechanics/hero-placement-07-floor-scene.jpg"><img class="game-demo-page__scene" src="assets/game-mechanics/hero-placement-07-floor-scene.jpg" width="1015" height="720" loading="lazy" alt="In-game tower scene with compact markers showing Matt, Serena, and Mo assigned to Floors 1, 2, and 3"></a>
+            <figcaption><strong>At tower scale, each tiny identity pass lands on its assigned floor band.</strong> Matt owns Floor 01, Serena owns Floor 02, and Mo owns Floor 03. The three tethers make the vertical allocation readable at a glance while the placement receipt keeps the latest coverage and effect calculation outside the scene marker.</figcaption>
+          </figure>
+
+          <figure class="game-demo-page">
+            <div class="game-demo-page__head"><span>08 // Building assignments in scene</span><span>Three owners across the block</span></div>
+            <a href="assets/game-mechanics/hero-placement-08-building-scene.jpg"><img class="game-demo-page__scene" src="assets/game-mechanics/hero-placement-08-building-scene.jpg" width="1015" height="720" loading="lazy" alt="In-game block scene with compact markers showing Mo, Serena, and Matt assigned to Buildings 1, 2, and 3"></a>
+            <figcaption><strong>At block scale, each compact pass pins to a different building crown.</strong> Mo owns Building 01, Serena owns Building 02, and Matt owns Building 03. The faces identify the people and the diamonds identify the towers, even when several assignments are visible together.</figcaption>
+          </figure>
+        </div>
+
+        <h3>How to recognise an assignment in the scene</h3>
+        <ul>
+          <li><strong>Who:</strong> the marker uses the hero’s actual head, name, and branch colour.</li>
+          <li><strong>Where:</strong> a short connector ends in a diamond on the actual desk, floor band, or building crown.</li>
+          <li><strong>What it means:</strong> <strong>ASSIGNED</strong> is the only scene status. The marker stays deliberately small and does not repeat coverage or benefit calculations over the artwork.</li>
+          <li><strong>Where the numbers went:</strong> activation time and exact coverage/effect remain in the placement confirmation; the hero card and roster remain the persistent detailed views.</li>
+        </ul>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Scene scale</th><th>Visible simultaneous assignments</th><th>What the player can read immediately</th></tr></thead>
+            <tbody>
+              <tr><td>Room / desks</td><td>Mo → Desk 01; Serena → Desk 06; Matt → Desk 12</td><td>Which individual workstations have named owners.</td></tr>
+              <tr><td>Tower / floors</td><td>Matt → Floor 01; Serena → Floor 02; Mo → Floor 03</td><td>The vertical distribution of responsibility through the tower.</td></tr>
+              <tr><td>Block / buildings</td><td>Mo → Building 01; Serena → Building 02; Matt → Building 03</td><td>Which tower belongs to which hero without reopening HERO.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Interactive mechanic model</h3>
+        <p class="muted">Use this compact model to test how the same interaction responds to a different hero, studio scale, Reach tier, or anchor. Press <strong>Place hero</strong>, then pick a desk; the four readouts separate coverage, branch benefit, and XP share.</p>
+
+        <div class="placement-demo" id="placement-demo">
+          <div class="placement-demo__topline">
+            <span>Interactive mechanic model // illustrative room</span>
+            <span class="placement-demo__lamp" id="placement-demo-status">Benched</span>
+          </div>
+
+          <div class="placement-demo__layout">
+            <aside class="placement-demo__controls" aria-label="Placement demo controls">
+              <span class="placement-demo__label">1 // Select hero</span>
+              <div class="placement-demo__heroes" id="placement-demo-heroes">
+                <button class="placement-demo__hero" type="button" data-hero="james" aria-pressed="false"><b>James</b><span>Engineering</span></button>
+                <button class="placement-demo__hero" type="button" data-hero="mo" aria-pressed="true"><b>Mo</b><span>Quality</span></button>
+                <button class="placement-demo__hero" type="button" data-hero="serena" aria-pressed="false"><b>Serena</b><span>Reliability</span></button>
+                <button class="placement-demo__hero" type="button" data-hero="matt" aria-pressed="false"><b>Matt</b><span>Support</span></button>
+                <button class="placement-demo__hero" type="button" data-hero="melany" aria-pressed="false"><b>Melany</b><span>Cloud</span></button>
+                <button class="placement-demo__hero" type="button" data-hero="billy" aria-pressed="false"><b>Billy</b><span>Cohesion</span></button>
+              </div>
+
+              <div class="placement-demo__control">
+                <label for="placement-demo-reach"><span>Reach tier</span><output id="placement-demo-capacity">8 max</output></label>
+                <select id="placement-demo-reach">
+                  <option value="8">Row — 8</option>
+                  <option value="1000">Floor — 1,000</option>
+                  <option value="10000">Building — 10,000</option>
+                  <option value="100000">Campus — 100,000</option>
+                  <option value="1000000">Site — 1,000,000</option>
+                  <option value="100000000">Nation — 100,000,000</option>
+                  <option value="10000000000">Planet — 10 billion</option>
+                  <option value="10000000000000">Galaxy — 10 trillion</option>
+                </select>
+              </div>
+
+              <div class="placement-demo__control">
+                <label for="placement-demo-studio"><span>Studio developers</span><output id="placement-demo-studio-value">40</output></label>
+                <input id="placement-demo-studio" type="range" min="0" max="8" step="1" value="1">
+              </div>
+
+              <div class="placement-demo__potential" id="placement-demo-potential">Full-studio potential<b>Defect rate −39%</b></div>
+
+              <div class="placement-demo__actions">
+                <button class="placement-demo__primary" id="placement-demo-place" type="button">Place hero</button>
+                <button class="placement-demo__recall" id="placement-demo-recall" type="button" disabled>Recall</button>
+              </div>
+            </aside>
+
+            <div class="placement-demo__stage">
+              <div class="placement-demo__banner" id="placement-demo-banner" data-mode="bench" aria-live="polite">
+                <small id="placement-demo-step">Step 1 of 2 // hero selected</small>
+                <b id="placement-demo-title">Mo is benched</b>
+                <span id="placement-demo-detail">Choose Place hero. No coverage, branch benefit, or hero XP is active.</span>
+                <div class="placement-demo__walk-actions" id="placement-demo-walk-actions" hidden>
+                  <button id="placement-demo-skip" type="button">Skip walk</button>
+                </div>
+              </div>
+
+              <div class="placement-demo__room-labels">
+                <span>2 // Pick an anchor desk</span>
+                <span>Earlier desk = larger catchment →</span>
+              </div>
+
+              <div class="placement-demo__room">
+                <div class="placement-demo__desks" id="placement-demo-desks">
+                  <button class="placement-demo__desk" type="button" data-anchor="0" disabled>01</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="1" disabled>02</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="2" disabled>03</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="3" disabled>04</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="4" disabled>05</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="5" disabled>06</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="6" disabled>07</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="7" disabled>08</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="8" disabled>09</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="9" disabled>10</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="10" disabled>11</button>
+                  <button class="placement-demo__desk" type="button" data-anchor="11" disabled>12</button>
+                </div>
+                <div class="placement-demo__coverage-band" id="placement-demo-coverage-band" aria-hidden="true"></div>
+              </div>
+
+              <div class="placement-demo__metrics" aria-label="Live placement results">
+                <div class="placement-demo__metric"><small>Coverage</small><b id="placement-demo-coverage">OFF</b></div>
+                <div class="placement-demo__metric"><small>Studio share</small><b id="placement-demo-share">0%</b></div>
+                <div class="placement-demo__metric"><small>Live branch effect</small><b id="placement-demo-effect">OFF</b></div>
+                <div class="placement-demo__metric"><small>Hero XP share</small><b id="placement-demo-xp">0%</b></div>
+              </div>
+
+              <p class="placement-demo__note">The 12 desks stand in for evenly spaced anchors across the current studio. During a move the prior assignment remains live until a new target is clicked; the confirmed walk then creates the real eight-second dead period.</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>Reach ladder</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Reach index</th><th>Coverage name</th><th>Maximum developers covered</th></tr></thead>
+            <tbody>
+              <tr><td class="num">0</td><td>Row</td><td class="num">8</td></tr>
+              <tr><td class="num">1</td><td>Floor</td><td class="num">1,000</td></tr>
+              <tr><td class="num">2</td><td>Building</td><td class="num">10,000</td></tr>
+              <tr><td class="num">3</td><td>Campus</td><td class="num">100,000</td></tr>
+              <tr><td class="num">4</td><td>Site</td><td class="num">1,000,000</td></tr>
+              <tr><td class="num">5</td><td>Nation</td><td class="num">100,000,000</td></tr>
+              <tr><td class="num">6</td><td>Planet</td><td class="num">10,000,000,000</td></tr>
+              <tr><td class="num">7</td><td>Galaxy</td><td class="num">10,000,000,000,000</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="formula">Covered developers = min(Hero Reach Capacity, Developers Under Placement Anchor)</div>
+
+        <h3>What “under the anchor” means</h3>
+        <ul>
+          <li><strong>Room-scale rungs (0–2):</strong> the anchor is a seat. Its catchment is every seat from that index to the end of the studio. Posting at seat 0 maximises the available catchment; posting late in the room deliberately narrows it.</li>
+          <li><strong>Floor and above:</strong> the anchor is a whole unit. The catchment is that unit’s actual population. The last unit can be partial—a hero on the last floor of a 1,400-person tower stands over 400 people, not 1,000.</li>
+          <li><strong>Studio contribution:</strong> most branch effects are scaled by covered developers divided by total studio headcount, not merely by the fraction of the target unit.</li>
+        </ul>
+
+        <h3>Placement strategy</h3>
+        <div class="grid-2">
+          <article class="card">
+            <h4>Post early, then leave them working</h4>
+            <p>An unplaced hero earns no XP. Repeated repositioning also creates eight-second dead periods, so movement should solve a real coverage problem.</p>
+          </article>
+          <article class="card">
+            <h4>Use early room seats for broad coverage</h4>
+            <p>At room scale, a lower seat index offers a larger catchment. A row-reach hero still caps at eight, but the anchor will not artificially reduce that eight.</p>
+          </article>
+          <article class="card">
+            <h4>Match reach to company scale</h4>
+            <p>A hero covering eight of 10,000 contributes only 0.08% of a full-studio effect and earns XP at the same tiny share. Reach is the answer.</p>
+          </article>
+          <article class="card">
+            <h4>Exploit the Support exception</h4>
+            <p>Matt’s support-head contribution is not diluted by studio share once he has any active coverage. He still needs a valid, settled placement, but he is less reach-sensitive than the other specialists in the current runtime.</p>
+          </article>
+        </div>
+
+        <h3>Hierarchy through scale</h3>
+        <p>The ladder doubles as the org chart. When James is placed on a higher rung than another placed hero, the game reads him as being “above” that hero and can trigger his <em>Global Head of His Desk</em> promotion scene. Two heroes on the same rung are peers.</p>
+      </section>
+
+      <section id="offline-events">
+        <span class="section-kicker">13 // the studio while you are away</span>
+        <h2>Offline progress and live events</h2>
+
+        <h3>Offline progress</h3>
+        <ul>
+          <li>Offline accrual unlocks after the first Paradigm Shift.</li>
+          <li>The base cap is <strong>two hours</strong> at <strong>50% of saved passive velocity</strong>.</li>
+          <li>An absence must last at least 30 minutes to produce an overnight report.</li>
+          <li>Headcount, capacity, events, and random systems do not advance while away; the game integrates a frozen rate rather than replaying ticks.</li>
+          <li>Without the future CI/CD Autopilot node, offline work can fill the current project but does not chain-ship an unlimited catalogue.</li>
+          <li>Always On Call adds the founder’s passive rate to the offline calculation.</li>
+        </ul>
+
+        <h3>The current live event: THE THREAD</h3>
+        <p>In Run 2+, if the studio reaches 12 developers with an otherwise empty upgrade board, <strong>THE THREAD</strong> can hold efficiency to 25%. It never expires on its own. The player can clear it with 20 taps, or buy any studio tech upgrade. A tech purchase retires the event permanently for the career; tapping clears only the current occurrence.</p>
+
+        <div class="callout">
+          <p>Purchased entropy floors beat event ceilings. If the player owns an in-run upgrade that prevents the studio from becoming that inefficient, the event cannot undo it.</p>
+        </div>
+      </section>
+
+      <section id="fun-audit">
+        <span class="section-kicker">14 // where the current loop earns or loses trust</span>
+        <h2>Fun audit</h2>
+
+        <p class="lede">The build already has a recognisable point of view. Its best moments come from <strong>seeing an organisation become harder to coordinate</strong>, then assembling a more capable permanent engine. Its weakest moments are not simply “slow” or “too hard”; they are moments where the player cannot predict a consequence, where a displayed choice is not a real trade, or where a promised effect is absent.</p>
+
+        <h3>What is worth protecting</h3>
+        <div class="grid-3">
+          <article class="card">
+            <h4>Negative marginal hiring</h4>
+            <p>The fifth-power entropy curve gives hiring an unusual shape and supports the title’s central joke. Do not flatten it before improving the readout around it.</p>
+          </article>
+          <article class="card">
+            <h4>Three progression timescales</h4>
+            <p>Cash tech resets, Paradigm nodes persist, and founder/hero growth spans the career. That separation gives both short-run texture and a reason to rebuild.</p>
+          </article>
+          <article class="card">
+            <h4>Active play as redistribution</h4>
+            <p>The poke’s 25% immediate / 75% temporary-buff split makes clicking a maintenance decision rather than a separate currency faucet.</p>
+          </article>
+          <article class="card">
+            <h4>Founder as a stable floor</h4>
+            <p>Entropy-proof founder output ensures total collapse still leaves a human-scale action. Permanent founder upgrades also create a useful pre-shift cash sink.</p>
+          </article>
+          <article class="card">
+            <h4>Heroes as people in a place</h4>
+            <p>Permanent learning plus temporary physical posting is a strong identity for the hero system. The scene now keeps the person visibly attached to the target without covering the workplace in calculations; coverage and branch benefit remain in the confirmation and hero views. The remaining design gap is a target-specific result preview before commitment.</p>
+          </article>
+          <article class="card">
+            <h4>Failure that teaches the premise</h4>
+            <p>The first bankruptcy communicates the difference between headcount and throughput. The lesson is clear; the unresolved question is whether forcing it sacrifices too much player ownership.</p>
+          </article>
+        </div>
+
+        <h3>Current friction and likely player interpretation</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Priority</th><th>Current behaviour</th><th>Likely interpretation</th><th>Design consequence</th></tr></thead>
+            <tbody>
+              <tr><td><span class="tag reset">P0</span></td><td>Mass Hire is forced by James’s scene.</td><td>“The game bankrupted me,” not “I trusted growth and caused this.”</td><td>The tutorial proves the formula but weakens agency and responsibility.</td></tr>
+              <tr><td><span class="tag reset">P0</span></td><td>Specialist hires still count in the base productive body.</td><td>Role allocation looks like a trade but behaves like an additive upgrade.</td><td>QA/SRE/Support ratios are optimisation taxes, not genuine staffing decisions.</td></tr>
+              <tr><td><span class="tag reset">P0</span></td><td>Prestige marks can be discarded at shift; the full BP formula is re-awarded.</td><td>Reset value is inconsistent or exploitable.</td><td>No BP pacing conclusion is trustworthy until persistence and award semantics are fixed.</td></tr>
+              <tr><td><span class="tag copy">P1</span></td><td>The UI exposes capacity but not the next hire’s velocity or runway effect.</td><td>Collapse feels arbitrary even though the formula is deterministic.</td><td>Players learn by failure without enough information to form a better plan.</td></tr>
+              <tr><td><span class="tag copy">P1</span></td><td>The hero board opens at level 2, when a specialist cannot afford their next home node.</td><td>The newly introduced system appears inert or pushes an unexplained off-class choice.</td><td>The first hero-upgrade interaction lacks a satisfying purchase.</td></tr>
+              <tr><td><span class="tag copy">P1</span></td><td>Posting or moving a hero causes eight seconds of zero effect and zero XP.</td><td>Experimenting with the org chart is punished.</td><td>Players are encouraged to place once and stop engaging with placement.</td></tr>
+              <tr><td><span class="tag copy">P1</span></td><td>Most hero effects are global share-scaled; Support ignores share after one covered developer.</td><td>Physical location is mostly a multiplier anchor, and one branch breaks the common rule.</td><td>Reach and placement do not consistently express the fiction of organisational coverage.</td></tr>
+              <tr><td><span class="tag dormant">P2</span></td><td>New upgrade rings unlock by shift count while all displayed prices also grow 12% per shift.</td><td>New options can arrive farther away than expected.</td><td>The game may show progression while reducing the number of affordable decisions per run.</td></tr>
+              <tr><td><span class="tag dormant">P2</span></td><td>Any tech purchase permanently retires THE THREAD.</td><td>The answer is “buy something,” not “solve the communication failure.”</td><td>The event teaches board usage but not a meaningful systems counter.</td></tr>
+              <tr><td><span class="tag dormant">P2</span></td><td>Late heroes begin at room reach while early placed heroes compound XP through coverage.</td><td>Old favourites accelerate; late arrivals feel tiny and learn slowly.</td><td>The permanent roster risks becoming a rich-get-richer progression track.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout good">
+          <p><span class="tag">Diagnosis</span> The immediate need is <strong>clarity and coherence, not broad power inflation</strong>. If consequences are previewed and every displayed rule is real, the existing harsh curve can feel learnable and intentional rather than arbitrary.</p>
+        </div>
+      </section>
+
+      <section id="tuning-map">
+        <span class="section-kicker">15 // ordered work, not a feature wish-list</span>
+        <h2>Adjustment plan</h2>
+
+        <h3>P0 — establish a trustworthy source of truth</h3>
+        <ol>
+          <li><strong>Fix prestige persistence and choose one award model.</strong> Commit run high-water marks before resetting. Then either award only BP above the previous career quote, or calculate BP from explicit run-local revenue and peak. Avoid repeatedly paying the same high-water mark.</li>
+          <li><strong>Resolve Mass Hire agency.</strong> If the thesis is “the player chose hypergrowth,” let them press the catastrophic button after clear warning and preserve the consequence. If the forced beat is essential, frame it as James’s decision and do not claim player culpability.</li>
+          <li><strong>Choose what specialist roles mean.</strong> For a real allocation game, base coding output should use developer-role headcount. For hybrid roles, retain total headcount but state that QA/SRE/Support still code and rebalance their benefits around that premise.</li>
+          <li><strong>Normalize claims and calculations.</strong> Change Telepathic Compression copy to ×10 or change runtime to the intended value; wire or remove signature-trait promises; supply real hero coverage to rating; make Support obey coverage or give Reach a different explicit Support benefit.</li>
+        </ol>
+
+        <h3>P1 — instrument the loop before changing its shape</h3>
+        <p>Add a compact development telemetry record and deterministic scenario sweep. No remote analytics are required for the first pass; a run summary and test output are enough.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Question</th><th>Record</th><th>What it reveals</th></tr></thead>
+            <tbody>
+              <tr><td>Is hiring understandable?</td><td>Time in each entropy band; velocity before/after every hire; projected seconds to ship; payroll runway.</td><td>Whether collapse is chosen, noticed, and recoverable.</td></tr>
+              <tr><td>Are runs producing decisions?</td><td>Run duration; projects/min; upgrade purchases and unspent cash; time between affordable nodes.</td><td>Whether the player regularly has an immediate, strategic, and aspirational option.</td></tr>
+              <tr><td>Is prestige moving?</td><td>BP quote, BP gained over previous best, BP/min, node bought after shift, time to regain prior scale.</td><td>Whether a reset creates a visible faster loop rather than only a bigger ceiling.</td></tr>
+              <tr><td>Are heroes participating?</td><td>Arrival-to-post time; covered share; XP time to levels 2/3; relocations; bench time; branch purchases.</td><td>Whether placement invites experimentation and late heroes can catch up.</td></tr>
+              <tr><td>Are roles real trade-offs?</td><td>Role shares, queue levels, revenue lost to incidents/support, velocity given up or retained.</td><td>Whether staffing solves readable problems instead of filling invisible quotas.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>P2 — run focused experiments</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Experiment</th><th>Smallest change</th><th>What success looks like</th></tr></thead>
+            <tbody>
+              <tr><td>Readable hiring</td><td>On every hire control, show “velocity after hire,” entropy band, payroll change, and runway to −$1M. Show the same projection for a batch.</td><td>Players stop near the curve’s useful region for an articulated reason; the first trap remains memorable rather than mysterious.</td></tr>
+              <tr><td>Satisfying hero introduction</td><td>Try first Reach at two points <em>or</em> delay the board to level 3. Make a hero’s first post settle immediately or in three seconds; retain eight seconds for later moves.</td><td>The first board visit ends in a meaningful home-branch choice, and players reposition after learning the system.</td></tr>
+              <tr><td>Placement with intent</td><td>The UI now shows best-case coverage before selection and exact coverage/effect after it. Next, preview the specific unit under the pointer before committing and apply the same covered-share grammar to Support.</td><td>Players can compare two candidate locations before paying the relocation delay and explain why the final anchor is better.</td></tr>
+              <tr><td>Upgrade cadence</td><td>Target one cheap tactical node, one strategic trade, and one aspirational node per healthy run. Test removing the 1.12 per-shift inflation before changing base prices.</td><td>New rings expand decisions instead of only exposing unreachable prices.</td></tr>
+              <tr><td>Event as systems lesson</td><td>Make THE THREAD retire through a communication-protocol purchase, while 20 taps remain the temporary manual escape.</td><td>The player connects the event’s fiction, its penalty, and the permanent answer.</td></tr>
+              <tr><td>Late-hero catch-up</td><td>Give newly arrived or benched heroes a capped rested-XP multiplier, without granting points for free.</td><td>Late specialists become usable within the current run while long-term placement still matters.</td></tr>
+              <tr><td>Role identity</td><td>A/B the present hybrid model against developer-only base output, with a before-hire production and backlog preview.</td><td>One model produces deliberate mixed teams without turning specialists into mandatory tax buttons.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Do not change yet</h3>
+        <ul>
+          <li>The fifth-power entropy exponent and the ~75.8% output optimum.</li>
+          <li>The founder’s entropy immunity and the pre-shift permanent-cash sink.</li>
+          <li>The 25% immediate / 75% buff structure of a positive poke.</li>
+          <li>The permanent hero XP plus resettable physical-placement concept.</li>
+          <li>The roughly 60-second terminal-project targeting logic.</li>
+        </ul>
+        <p>Those elements form a coherent game thesis. Change them only after the truth fixes, previews, and event instrumentation show that the underlying curve—not its communication—is the actual source of frustration.</p>
+      </section>
+
+      <section id="boundaries">
+        <span class="section-kicker">16 // live, partial, dormant, or contradictory</span>
+        <h2>Implementation status and known gaps</h2>
+
+        <p>This audit treats the running TypeScript simulation as the source of truth and then checks the UI copy, save model, and unreachable design data against it. “Live” means reachable and folded into current play; it does not mean the balance is final.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>System or claim</th><th>Status now</th><th>What that means</th></tr></thead>
+            <tbody>
+              <tr><td>Six named story heroes, XP, points, shared tree, posting</td><td><span class="tag">Live</span></td><td>This is the reachable hero progression described in this audit.</td></tr>
+              <tr><td>Run 1 Mass Hire choice</td><td><span class="tag copy">Forced, not chosen</span></td><td>James’s scene calls the mass hire at line 13, including the dismissal fallback. The player witnesses the trap but does not presently opt into it.</td></tr>
+              <tr><td>Specialist production opportunity cost</td><td><span class="tag copy">Not represented</span></td><td>QA, SRE, and Support add their specialist effects, but total headcount still supplies base developer velocity.</td></tr>
+              <tr><td>Prestige high-water persistence</td><td><span class="tag reset">Defect</span></td><td>The shift award sees live values, but the reset does not commit them into permanent state before the post-shift save.</td></tr>
+              <tr><td>Prestige award semantics</td><td><span class="tag copy">Needs decision</span></td><td>The full high-water formula is awarded each shift rather than an incremental gain; the revenue field is reconciled by max despite its “lifetime” name.</td></tr>
+              <tr><td>Nine generic GP cards (Scrum Master, Architect, CTO, etc.)</td><td><span class="tag dormant">Dormant</span></td><td>Rules and tests exist as pure design data, but GP acquisition and its placement tray are not reachable in the live store.</td></tr>
+              <tr><td>Codebase Fork / Layer 2 and Multiverse / Layer 3</td><td><span class="tag dormant">Not reachable</span></td><td>Save-format seams and design material exist, but the current playable prestige loop is Layer 1 Paradigm Shift.</td></tr>
+              <tr><td>Hero signature trait sentences</td><td><span class="tag dormant">Display only</span></td><td>The cards show them; branch folds—not bespoke signatures—currently alter the simulation.</td></tr>
+              <tr><td>Hero coverage in release rating</td><td><span class="tag copy">Not connected</span></td><td>The rating formula accepts hero coverage, but the current ship path passes zero.</td></tr>
+              <tr><td>Hero-board first purchase</td><td><span class="tag copy">Onboarding dead-end</span></td><td>The board opens at level 2; a specialist’s next home Reach costs three points, but level 2 provides only two total points.</td></tr>
+              <tr><td>Support hero coverage scaling</td><td><span class="tag copy">Rule exception</span></td><td>Matt grants his full effective support-head value after covering any positive number of developers; other branches scale by covered share.</td></tr>
+              <tr><td>Reputation multiplier on BP</td><td><span class="tag dormant">Not connected</span></td><td>A helper exists, but the active shift award calls the revenue/headcount formula directly.</td></tr>
+              <tr><td>Telepathic Compression “+1,000×” card copy</td><td><span class="tag copy">Mismatch</span></td><td>The live runtime uses ×10 capacity per level.</td></tr>
+              <tr><td>Headcount / founder fiction</td><td><span class="tag dormant">Needs audit</span></td><td>The run state and roster contain two salary-free heads after shift while founder output is also modelled separately. Confirm the intended meaning before exposing workforce breakdowns.</td></tr>
+              <tr><td>Offline 4h/rate nodes and CI/CD Autopilot</td><td><span class="tag dormant">Future IDs</span></td><td>The offline model understands them, but they are absent from the currently purchasable Paradigm tree.</td></tr>
+              <tr><td>Late event library</td><td><span class="tag dormant">Future</span></td><td>THE THREAD is the one live event; other planned events/minigames are not active.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="reference">
+        <span class="section-kicker">17 // numbers worth keeping beside the build</span>
+        <h2>Quick reference</h2>
+
+        <div class="grid-2">
+          <article class="card">
+            <h4>Growth</h4>
+            <ul>
+              <li>Base capacity: 100</li>
+              <li>Optimal headcount: capacity × 4<sup>−1/5</sup> ≈ 75.8%</li>
+              <li>Raw dev output: 1 SP/s</li>
+              <li>Paid wage: $50/head/s</li>
+              <li>Bankruptcy: −$1,000,000</li>
+              <li>Terminal project target: ~60 sec</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h4>Active play</h4>
+            <ul>
+              <li>Positive poke paid now: 25%</li>
+              <li>Converted to buff: 75%</li>
+              <li>Buff time constant: 5 sec</li>
+              <li>Local load coefficient: 0.02/SP</li>
+              <li>Local recovery: ~8 sec</li>
+              <li>Chained neighbour share: 50%</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h4>Heroes</h4>
+            <ul>
+              <li>XP rate: 0.025 × covered velocity</li>
+              <li>First level-up: 10 XP</li>
+              <li>XP step growth: ×1.6</li>
+              <li>One point per level</li>
+              <li>Depth: 1 point; Reach: 3 points</li>
+              <li>Relocation delay: 8 sec</li>
+              <li>Off-branch weight: 50%</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h4>Prestige</h4>
+            <ul>
+              <li>BP scalar: 100</li>
+              <li>Revenue normaliser: $1T</li>
+              <li>Revenue exponent: 0.2</li>
+              <li>Node level price: ×1.5</li>
+              <li>Node depth price: ×2.2</li>
+              <li>Compression runtime step: ×10 capacity</li>
+            </ul>
+          </article>
+        </div>
+
+        <h3>Current player-facing growth model</h3>
+        <div class="callout good">
+          <p><strong>Grow revenue until payroll is safe; grow capacity before another hire reduces velocity; grow founder recruiting so new capacity is affordable; post heroes early and buy Reach so effects and XP keep up; then shift when the corrected BP model buys a meaningful permanent step.</strong></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>Internal mechanics audit derived from the current implementation in <code>src/game</code>, <code>src/sim</code>, and the upgrade/hero modules. Runtime behaviour is reported separately from copy, dormant data, and proposed changes.</p>
+  </footer>
+
+  <script>
+    (() => {
+      const progress = document.getElementById('progress');
+      const links = [...document.querySelectorAll('.toc a[href^="#"]')];
+      const sections = links
+        .map((link) => document.querySelector(link.getAttribute('href')))
+        .filter(Boolean);
+
+      const update = () => {
+        const max = document.documentElement.scrollHeight - innerHeight;
+        progress.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`;
+
+        let active = sections[0];
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top <= innerHeight * .25) active = section;
+        }
+        for (const link of links) {
+          link.dataset.active = link.getAttribute('href') === `#${active?.id}` ? 'true' : 'false';
+        }
+      };
+
+      addEventListener('scroll', update, { passive: true });
+      addEventListener('resize', update);
+      update();
+    })();
+
+    (() => {
+      const root = document.getElementById('placement-demo');
+      if (!root) return;
+
+      const heroes = {
+        james: { name: 'James', branch: 'Engineering', label: 'VELOCITY', full: .015, sign: '+' },
+        mo: { name: 'Mo', branch: 'Quality', label: 'DEFECT RATE', full: 1 - .85 ** 3, sign: '−' },
+        serena: { name: 'Serena', branch: 'Reliability', label: 'INCIDENT RATE', full: 1 - .85 ** 3, sign: '−' },
+        matt: { name: 'Matt', branch: 'Support', label: 'TICKET HEADS', full: 3, sign: '+' },
+        melany: { name: 'Melany', branch: 'Cloud', label: 'DEVELOPER CAP', full: .45, sign: '+' },
+        billy: { name: 'Billy', branch: 'Cohesion', label: 'ENTROPY', full: 1 - .9 ** 3, sign: '−' },
+      };
+      const studioScales = [8, 40, 200, 1_000, 1_400, 10_000, 100_000, 1_000_000, 100_000_000];
+      const state = {
+        heroId: 'mo',
+        status: 'bench',
+        choosing: false,
+        anchor: null,
+        countdown: 8,
+        timer: null,
+      };
+
+      const heroButtons = [...root.querySelectorAll('[data-hero]')];
+      const deskButtons = [...root.querySelectorAll('[data-anchor]')];
+      const reach = document.getElementById('placement-demo-reach');
+      const studio = document.getElementById('placement-demo-studio');
+      const studioValue = document.getElementById('placement-demo-studio-value');
+      const capacity = document.getElementById('placement-demo-capacity');
+      const potential = document.getElementById('placement-demo-potential');
+      const place = document.getElementById('placement-demo-place');
+      const recall = document.getElementById('placement-demo-recall');
+      const status = document.getElementById('placement-demo-status');
+      const banner = document.getElementById('placement-demo-banner');
+      const step = document.getElementById('placement-demo-step');
+      const title = document.getElementById('placement-demo-title');
+      const detail = document.getElementById('placement-demo-detail');
+      const walkActions = document.getElementById('placement-demo-walk-actions');
+      const skip = document.getElementById('placement-demo-skip');
+      const coverageBand = document.getElementById('placement-demo-coverage-band');
+      const coverageReadout = document.getElementById('placement-demo-coverage');
+      const shareReadout = document.getElementById('placement-demo-share');
+      const effectReadout = document.getElementById('placement-demo-effect');
+      const xpReadout = document.getElementById('placement-demo-xp');
+
+      const count = () => studioScales[Number(studio.value)];
+      const reachCapacity = () => Number(reach.value);
+      const formatNumber = (value) => value.toLocaleString('en-GB');
+      const formatPercent = (share) => `${Math.round(share * 100)}%`;
+
+      const heroEffect = (share) => {
+        if (!(share > 0)) return 'OFF';
+        const hero = heroes[state.heroId];
+        if (state.heroId === 'matt') return '+3';
+        return `${hero.sign}${Math.round(hero.full * share * 100)}%`;
+      };
+
+      const seatFor = (anchor) => Math.round((anchor / Math.max(1, deskButtons.length - 1)) * (count() - 1));
+      const resultFor = (anchor) => {
+        const seat = seatFor(anchor);
+        const catchment = count() - seat;
+        const covered = Math.min(reachCapacity(), catchment);
+        return { seat, catchment, covered, share: covered / count() };
+      };
+
+      const clearWalk = () => {
+        if (state.timer !== null) window.clearInterval(state.timer);
+        state.timer = null;
+      };
+
+      const finishWalk = () => {
+        clearWalk();
+        state.status = 'active';
+        state.countdown = 0;
+        render();
+      };
+
+      const render = () => {
+        const hero = heroes[state.heroId];
+        const bestCovered = Math.min(reachCapacity(), count());
+        const bestShare = bestCovered / count();
+        const bestEffect = heroEffect(bestShare);
+        const isWalking = state.status === 'walking';
+        const isActive = state.status === 'active';
+        const live = isActive && state.anchor !== null ? resultFor(state.anchor) : null;
+        const target = state.anchor !== null ? resultFor(state.anchor) : null;
+
+        heroButtons.forEach((button) => {
+          button.setAttribute('aria-pressed', button.dataset.hero === state.heroId ? 'true' : 'false');
+        });
+        studioValue.value = formatNumber(count());
+        capacity.value = `${formatNumber(reachCapacity())} max`;
+        potential.innerHTML = `Full-studio potential<b>${hero.label} ${heroEffect(1)}</b>`;
+
+        status.textContent = state.choosing ? 'Choosing target' : isWalking ? `Walking ${state.countdown}s` : isActive ? 'Active' : 'Benched';
+        place.textContent = state.choosing ? 'Cancel placement' : isActive ? 'Move hero' : 'Place hero';
+        place.disabled = isWalking;
+        recall.disabled = !isActive;
+        walkActions.hidden = !isWalking;
+
+        deskButtons.forEach((button, index) => {
+          const result = resultFor(index);
+          const selectable = state.choosing;
+          button.disabled = !selectable;
+          button.dataset.valid = selectable ? 'true' : 'false';
+          button.dataset.selected = state.anchor === index && (isActive || isWalking) ? 'true' : 'false';
+          button.title = `Desk ${formatNumber(result.seat + 1)} · ${formatNumber(result.catchment)} developers below · covers ${formatNumber(result.covered)}`;
+          button.setAttribute('aria-label', button.title);
+        });
+
+        if (state.choosing) {
+          banner.dataset.mode = 'choosing';
+          step.textContent = 'Step 2 of 2 // choose a world target';
+          title.textContent = `Pick a desk for ${hero.name}`;
+          detail.textContent = `Best from an early anchor: ${formatNumber(bestCovered)} / ${formatNumber(count())} devs · ${hero.label} ${bestEffect} · XP SHARE ${formatPercent(bestShare)}.${isActive ? ' The current assignment stays live until a new desk is confirmed.' : ''}`;
+        } else if (isWalking && target) {
+          banner.dataset.mode = 'walking';
+          step.textContent = 'Placement confirmed // walking to target';
+          title.textContent = `${hero.name} → desk ${formatNumber(target.seat + 1)} · ${state.countdown}s`;
+          detail.textContent = `${formatNumber(target.covered)} / ${formatNumber(count())} devs · ${hero.label} ${heroEffect(target.share)} after arrival. Benefit and XP remain OFF during the walk.`;
+        } else if (isActive && live) {
+          banner.dataset.mode = 'active';
+          step.textContent = 'Placement active // live contribution';
+          title.textContent = `${hero.name} is active at desk ${formatNumber(live.seat + 1)}`;
+          detail.textContent = `${formatNumber(live.covered)} / ${formatNumber(count())} devs · ${hero.label} ${heroEffect(live.share)} · earns ${formatPercent(live.share)} of studio velocity as hero XP.`;
+        } else {
+          banner.dataset.mode = 'bench';
+          step.textContent = 'Step 1 of 2 // hero selected';
+          title.textContent = `${hero.name} is benched`;
+          detail.textContent = 'Choose Place hero. No coverage, branch benefit, or hero XP is active.';
+        }
+
+        if (live) {
+          coverageReadout.textContent = `${formatNumber(live.covered)} / ${formatNumber(count())}`;
+          shareReadout.textContent = formatPercent(live.share);
+          effectReadout.textContent = heroEffect(live.share);
+          xpReadout.textContent = formatPercent(live.share);
+          const left = (live.seat / count()) * 100;
+          const width = Math.min((live.covered / count()) * 100, 100 - left);
+          coverageBand.style.left = `${left}%`;
+          coverageBand.style.width = `${width}%`;
+        } else {
+          coverageReadout.textContent = 'OFF';
+          shareReadout.textContent = '0%';
+          effectReadout.textContent = 'OFF';
+          xpReadout.textContent = '0%';
+          coverageBand.style.left = '.45rem';
+          coverageBand.style.width = '0';
+        }
+      };
+
+      heroButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          clearWalk();
+          state.heroId = button.dataset.hero;
+          state.status = 'bench';
+          state.choosing = false;
+          state.anchor = null;
+          state.countdown = 8;
+          render();
+        });
+      });
+
+      place.addEventListener('click', () => {
+        if (state.status === 'walking') return;
+        state.choosing = !state.choosing;
+        render();
+      });
+
+      recall.addEventListener('click', () => {
+        clearWalk();
+        state.status = 'bench';
+        state.choosing = false;
+        state.anchor = null;
+        state.countdown = 8;
+        render();
+      });
+
+      deskButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          if (!state.choosing) return;
+          clearWalk();
+          state.anchor = Number(button.dataset.anchor);
+          state.status = 'walking';
+          state.choosing = false;
+          state.countdown = 8;
+          render();
+          state.timer = window.setInterval(() => {
+            state.countdown -= 1;
+            if (state.countdown <= 0) finishWalk();
+            else render();
+          }, 1000);
+        });
+      });
+
+      skip.addEventListener('click', finishWalk);
+      reach.addEventListener('change', render);
+      studio.addEventListener('input', render);
+      render();
+    })();
+  </script>
+</body>
+</html>

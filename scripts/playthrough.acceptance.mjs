@@ -1007,9 +1007,9 @@ async function walkItems9and10(page, size) {
  */
 async function placeAHero(page, size) {
   const arm = async () => {
-    await press(page, 'TEAM')
+    await press(page, 'HERO')
     await tapControl(page, page.locator('.roster__card'), 'the first card on the roster strip')
-    await press(page, 'POST')
+    await press(page, 'PLACE HERO')
     await page.locator('.posting').waitFor()
   }
   await arm()
@@ -1086,7 +1086,7 @@ const governed = (page) =>
  * rather than refusing the sale, takes the point, and the node lights up.
  */
 async function spendOffBranch(page) {
-  await press(page, 'TEAM')
+  await press(page, 'HERO')
   await tapControl(page, page.locator('.roster__card'), 'the first card on the roster strip')
   const spend = page.getByRole('button', { name: /^SPEND \d+$/ })
   if (!(await spend.count())) {

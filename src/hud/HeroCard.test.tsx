@@ -253,7 +253,7 @@ describe('§21.7.7 — the board arrives with a scene, and the card does not wai
 })
 
 describe('§13.8 — the card is where a hero is put somewhere', () => {
-  it('offers POST to somebody on the bench, and RECALL to somebody placed', () => {
+  it('offers an explicit placement action, then direct MOVE and RECALL actions', () => {
     const mo = staffed()
     const posted = vi.fn()
     render(
@@ -266,26 +266,49 @@ describe('§13.8 — the card is where a hero is put somewhere', () => {
         onClose={() => {}}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'POST' }))
+    fireEvent.click(screen.getByRole('button', { name: 'PLACE HERO' }))
     expect(posted).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'RECALL' })).toBeNull()
 
     cleanup()
     placeHero('mo', 0, 0)
     const recalled = vi.fn()
+    const moved = vi.fn()
     render(
       <HeroCard
         hero={heroById('mo')!}
         placedLabel="DEVELOPER 1"
         onOpenTree={() => {}}
-        onPost={() => {}}
+        onPost={moved}
         onRecall={recalled}
         onClose={() => {}}
       />,
     )
+    fireEvent.click(screen.getByRole('button', { name: 'MOVE HERO' }))
+    expect(moved).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByRole('button', { name: 'RECALL' }))
     expect(recalled).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('button', { name: 'POST' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'PLACE HERO' })).toBeNull()
+  })
+
+  it('states the live coverage, effect and XP share instead of only maximum reach', () => {
+    staffed()
+    placeHero('mo', 0, 0)
+    render(
+      <HeroCard
+        hero={heroById('mo')!}
+        placedLabel="DEVELOPER 1"
+        coverage={{ covered: 8, fraction: 1, complete: true, settling: false }}
+        targetCovered={8}
+        totalDevs={40}
+        now={100}
+        {...noop}
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.getByText(/8 \/ 40 DEVS/)).toBeInTheDocument()
+    expect(screen.getByText('-8% DEFECT RATE')).toBeInTheDocument()
+    expect(screen.getByText(/HERO XP SHARE 20%/)).toBeInTheDocument()
   })
 
   /*
@@ -302,7 +325,7 @@ describe('§13.8 — the card is where a hero is put somewhere', () => {
     render(
       <HeroCard hero={heroById('mo')!} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
-    expect(screen.getByRole('button', { name: 'POST' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'PLACE HERO' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /SPEND|SKILLS/ })).toBeNull()
   })
 })

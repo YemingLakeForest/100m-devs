@@ -214,6 +214,78 @@
   background: var(--branch, var(--p2));
 }
 
+/*
+ * The card used to print a hero's full-strength branch number beside the word
+ * COVERS, which was their *maximum* reach. Both figures looked live even when
+ * the hero was benched. This block is the placement contract in one place:
+ * state, actual numerator/denominator, current contribution and XP share.
+ */
+.herocard__placement {
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  border: var(--rule) solid var(--p0);
+  background: var(--n1);
+  font-size: var(--type-1x);
+  line-height: 1.45;
+}
+
+.herocard__placement[data-state='active'] {
+  border-color: var(--branch, var(--p2));
+}
+
+.herocard__placement[data-state='benched'] {
+  border-color: var(--alarm-2);
+}
+
+.herocard__placement[data-state='walking'] {
+  border-color: var(--warn-2);
+}
+
+.herocard__placement-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--p1);
+  letter-spacing: 1px;
+}
+
+.herocard__placement-head strong {
+  color: var(--branch, var(--p3));
+  white-space: nowrap;
+}
+
+.herocard__placement[data-state='benched'] .herocard__placement-head strong {
+  color: var(--alarm-2);
+}
+
+.herocard__placement[data-state='walking'] .herocard__placement-head strong {
+  color: var(--warn-2);
+}
+
+.herocard__coverage {
+  display: block;
+  height: 4px;
+  background: var(--p0);
+}
+
+.herocard__coverage > span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  background: var(--branch, var(--p3));
+}
+
+.herocard__placement p {
+  margin: 0;
+  color: var(--p1);
+}
+
+.herocard__placement p strong {
+  color: var(--n8);
+}
+
 .herocard__type {
   display: flex;
   align-items: center;
@@ -313,6 +385,7 @@
 
 .herocard__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
   padding-top: 4px;
@@ -603,6 +676,26 @@
   background: var(--n0);
 }
 
+.roster__intro {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 2px;
+  max-width: 150px;
+  padding-right: 10px;
+  border-right: var(--rule) solid var(--p0);
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+}
+
+.roster__intro strong {
+  color: var(--n8);
+}
+
+.roster__intro span {
+  color: var(--p1);
+  line-height: 1.35;
+}
+
 .roster__cards {
   display: flex;
   gap: 6px;
@@ -617,7 +710,7 @@
   gap: 1px;
   position: relative;
   flex: 0 0 auto;
-  width: 80px;
+  width: 108px;
   padding: 4px;
   border: var(--rule) solid var(--branch, var(--p2));
   background: var(--n0);
@@ -661,6 +754,27 @@
   color: var(--alarm-2);
 }
 
+.roster__impact {
+  width: 100%;
+  min-height: 17px;
+  padding-top: 2px;
+  border-top: var(--rule) solid var(--p0);
+  color: var(--branch, var(--p3));
+  font-size: var(--type-1x);
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  transform: scale(0.76);
+}
+
+.roster__impact[data-state='benched'] {
+  color: var(--alarm-2);
+}
+
+.roster__impact[data-state='walking'] {
+  color: var(--warn-2);
+}
+
 /* §13.13 — a hero with a point to spend is visibly waiting. */
 .roster__points {
   position: absolute;
@@ -674,6 +788,10 @@
 @media (max-height: 400px) {
   .roster__face {
     height: 34px;
+  }
+
+  .roster__intro span {
+    display: none;
   }
 }
 
@@ -694,7 +812,7 @@
   position: absolute;
   left: var(--edge-x);
   right: var(--edge-x);
-  bottom: calc(var(--edge-y) + 78px);
+  bottom: calc(var(--edge-y) + 126px);
   display: grid;
   justify-items: center;
   /* §7.1 — the HUD is inert and controls opt back in. The row itself stays
@@ -705,17 +823,58 @@
 }
 
 .posting__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  max-width: 100%;
-  padding: 6px 10px;
-  border: var(--rule) solid var(--p2);
+  width: min(700px, 100%);
+  padding: 8px 10px;
+  border: var(--rule) solid var(--branch, var(--p2));
+  border-left-width: 4px;
   background: var(--n0);
+  /* The world remains the target even when this explanation has to sit over a
+     developer on the 640x360 frame. Only CANCEL opts back into hit-testing. */
+  pointer-events: none;
+}
+
+.posting__row .ui-btn {
   pointer-events: auto;
 }
 
+.posting__row[data-phase='walking'] {
+  border-color: var(--warn-2);
+}
+
+.posting__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.posting__step {
+  color: var(--branch, var(--p3));
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+}
+
 .posting__line {
+  color: var(--n8);
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  white-space: normal;
+}
+
+.posting__benefit {
+  color: var(--branch, var(--p3));
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.posting__hint {
   color: var(--p1);
   font-size: var(--type-1x);
   letter-spacing: 1px;
@@ -726,6 +885,141 @@
 
 @media (max-height: 400px) {
   .posting {
-    bottom: calc(var(--edge-y) + 66px);
+    bottom: calc(var(--edge-y) + 104px);
+  }
+
+  .posting__row {
+    padding-block: 5px;
+  }
+
+  .posting__hint {
+    display: none;
+  }
+
+  .posting__step {
+    display: none;
+  }
+}
+
+/* --- §13.11.1 scene ownership ------------------------------------------- */
+
+/*
+ * Coverage paint answers how far an effect reaches; this compact pass only
+ * identifies the person who owns the anchor. It follows `StageHandle.heroAnchor`
+ * without turning the scene into another stats panel.
+ */
+.world-heroes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.world-hero-pin {
+  position: absolute;
+  left: var(--pin-x);
+  top: var(--pin-y);
+  width: 0;
+  height: 0;
+  color: var(--branch, var(--p3));
+  pointer-events: none;
+}
+
+.world-hero-pin__target {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid currentColor;
+  background: var(--n0);
+  box-shadow: 0 0 0 1px var(--n0);
+  transform: rotate(45deg);
+}
+
+.world-hero-pin__target::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: currentColor;
+}
+
+.world-hero-pin__card {
+  position: absolute;
+  left: 0;
+  bottom: 10px;
+  display: grid;
+  grid-template-columns: 28px auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 78px;
+  padding: 3px 6px 3px 3px;
+  border: var(--rule) solid currentColor;
+  color: var(--p1);
+  background: color-mix(in srgb, var(--n0) 90%, transparent);
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--n0) 64%, transparent);
+  transform: translateX(-50%);
+}
+
+.world-hero-pin__card::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 1px);
+  top: 100%;
+  width: 1px;
+  height: 10px;
+  background: currentColor;
+}
+
+.world-hero-pin__face {
+  width: 28px;
+  height: 28px;
+  border-right: var(--rule) solid currentColor;
+  background: var(--n1);
+}
+
+.world-hero-pin__copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1;
+}
+
+.world-hero-pin__copy strong {
+  color: var(--n8);
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.world-hero-pin__copy small {
+  color: currentColor;
+  font-size: 7px;
+  letter-spacing: .7px;
+  white-space: nowrap;
+}
+
+.world-hero-pin[data-state='walking'] {
+  color: var(--warn-2);
+}
+
+.world-hero-pin[data-state='walking'] .world-hero-pin__target {
+  background: var(--n0);
+  animation: world-hero-walk 700ms steps(2, end) infinite;
+}
+
+.world-hero-pin[data-edge='true'] .world-hero-pin__card {
+  border-style: dashed;
+}
+
+@keyframes world-hero-walk {
+  0% { opacity: .45; }
+  100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-hero-pin[data-state='walking'] .world-hero-pin__target {
+    animation: none;
   }
 }

@@ -518,7 +518,7 @@ async function clearScene(page) {
 /**
  * **Every button you can see, you can press.**
  *
- * This pass exists because §13.2's PARADIGM button and §13.11.2's TEAM button
+ * This pass exists because §13.2's PARADIGM button and §13.11.2's HERO button
  * shipped drawn, correctly positioned, contrast-checked — and completely dead.
  * `.hud` is `pointer-events: none` by design and each control opts back in; the
  * opt-in had been written on the *containers*, and those two buttons are direct
@@ -815,10 +815,10 @@ try {
       path: '/?notitle&full&nopost',
       action: async (target) => {
         await clearScene(target)
-        await target.getByRole('button', { name: 'TEAM', exact: true }).click()
+        await target.getByRole('button', { name: 'HERO', exact: true }).click()
         await target.locator('.roster__card').first().click()
-        await target.getByRole('button', { name: 'POST', exact: true }).click()
-        // The banner, not just the absence of the card: POST closes the card
+        await target.getByRole('button', { name: 'PLACE HERO', exact: true }).click()
+        // The banner, not just the absence of the card: PLACE HERO closes the card
         // either way, so waiting on the card would pass with the gesture dead.
         await target.locator('.posting').waitFor({ state: 'visible' })
       },
