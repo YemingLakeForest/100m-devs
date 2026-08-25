@@ -143,6 +143,11 @@ describe('advanceIncidents', () => {
     expect(suppressedReleases(step.incidents)).toEqual(new Set([1, 2]))
   })
 
+  it('lets Serena’s runbook open a new incident half worked', () => {
+    const step = advanceIncidents([], 1, 0, 1, 0, 1, candidates, 0.5)
+    expect(step.incidents[0].work).toBeCloseTo(INCIDENT_WORK_SECONDS / 2, 9)
+  })
+
   it('drops the carry when there is nothing to page about', () => {
     const step = advanceIncidents([], 100, 0, 1, 0, 1, [])
     expect(step.incidents).toHaveLength(0)

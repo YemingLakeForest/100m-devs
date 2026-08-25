@@ -109,7 +109,7 @@ export const PARADIGM_TREE: readonly ParadigmNode[] = [
     depth: 0,
     baseCost: 25,
     maxLevel: 10,
-    effect: '+1,000× developer capacity per level',
+    effect: '+10× developer capacity per level',
   },
   {
     id: 'L1-2B',
@@ -188,7 +188,7 @@ export interface NextRung {
  * The other side of {@link nextRung}, and the two are exhaustive: at any wallet
  * and any tree exactly one of them is non-null, unless the tree is maxed. The
  * prestige screen uses this to finish the sentence when a shift crosses the
- * line — *"THIS RUN IS WORTH 16 BP · THAT BUYS TELEPATHIC COMPRESSION"* — which
+ * line — *"NEW BP THIS SHIFT 16 · THAT BUYS TELEPATHIC COMPRESSION"* — which
  * is the version of the offer that is about the decision rather than about
  * arithmetic.
  *

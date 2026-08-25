@@ -102,10 +102,11 @@ describe('§11.4.2’s reveal, on the hero board', () => {
     expect(buyHeroNode(mo, 'quality:4')).toBeNull()
   })
 
-  it('opens every branch off the trunk, because everybody owns the trunk', () => {
+  it('opens on a legal one-point decision the instant a hero arrives', () => {
     // §13.9.1: "nothing stops Mo going down Cloud." The board must say so from
-    // the first frame, or the sentence is not true of the interface.
-    const mo = at('mo', 3)
+    // the first frame, and level 1 grants exactly the point Cloud:1 costs.
+    const mo = fresh('mo')
+    expect(mo.points).toBe(1)
     expect(heroNodeState(mo, 'cloud:1')).toBe('live')
     expect(buyHeroNode(mo, 'cloud:1')).toContain('cloud:1')
   })
@@ -184,13 +185,28 @@ describe('§13.6.7 — amplitude, not gate', () => {
     expect(narrow.defects).toBeLessThan(1)
   })
 
-  it('does not scale Support by the floor — §13.7’s catalogue exception', () => {
-    // "Matt is answering for games that shipped three runs ago, and where he is
-    // standing has nothing to do with it."
+  it('scales Support by the covered share, like every other branch', () => {
     const narrow = heroFold([{ runtime: fresh('matt'), covered: 8 }], 1000)
     const wide = heroFold([{ runtime: fresh('matt'), covered: 1000 }], 1000)
-    expect(narrow.supportHeads).toBe(wide.supportHeads)
+    expect(narrow.supportHeads).toBeLessThan(wide.supportHeads)
     expect(narrow.supportHeads).toBeGreaterThan(0)
+  })
+
+  it('wires all six signature promises while their owner is placed', () => {
+    const james = heroFold([{ runtime: fresh('james'), covered: 1 }], 100)
+    const mo = heroFold([{ runtime: fresh('mo'), covered: 100 }], 100)
+    const serena = heroFold([{ runtime: fresh('serena'), covered: 100 }], 100)
+    const matt = heroFold([{ runtime: fresh('matt'), covered: 100 }], 100)
+    const melany = heroFold([{ runtime: fresh('melany'), covered: 100 }], 100)
+    const billy = heroFold([{ runtime: fresh('billy'), covered: 40 }], 100)
+
+    expect(james.standupHeads).toBe(1)
+    expect(mo.defects).toBeLessThan(heroFold([{ runtime: fresh('mo'), covered: 0 }], 100).defects)
+    expect(serena.incidentStartWork).toBeCloseTo(0.5, 9)
+    expect(matt.ticketRate).toBeCloseTo(0.8, 9)
+    expect(melany.cap).toBeGreaterThan(1)
+    expect(melany.operatingCost).toBe(100)
+    expect(billy.standupHeads).toBe(40)
   })
 
   it('stacks two heroes of different branches without either eating the other', () => {

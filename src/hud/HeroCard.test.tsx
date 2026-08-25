@@ -91,7 +91,7 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
     const mo = staffed()
     render(<HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />)
     expect(screen.getByText('READS IT TWICE')).toBeInTheDocument()
-    expect(screen.getByText(/costs half of one caught after/)).toBeInTheDocument()
+    expect(screen.getByText(/generates half as many defects before release/)).toBeInTheDocument()
   })
 
   it('marks BENCHED so §13.10’s cost is visible — §13.11.2', () => {

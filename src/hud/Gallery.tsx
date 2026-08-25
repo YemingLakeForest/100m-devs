@@ -37,6 +37,7 @@ import {
 } from '../sim/history.ts'
 import { formatBuildTime, formatLabour } from '../sim/labour.ts'
 import { formatMoney } from './hudModel.ts'
+import { RATING_WEIGHTS } from '../sim/rating.ts'
 
 import '../styles/gallery.css'
 
@@ -66,6 +67,12 @@ function ReleaseRow({ record }: { record: ReleaseRecord }) {
         <p className="gallery__name">{record.name}</p>
         <p className="gallery__ordinal">#{record.ordinal + 1}</p>
         <Rating rating={record.rating} />
+        {(record.heroCoverage ?? 0) > 0 && (
+          <p className="gallery__line">
+            HERO COVERAGE <b>{Math.round((record.heroCoverage ?? 0) * 100)}%</b>
+            {' · '}+{Math.round((record.heroCoverage ?? 0) * RATING_WEIGHTS.heroes * 100)} RATING
+          </p>
+        )}
         <p className="gallery__line">
           REVENUE <b>{formatMoney(record.payout)}</b>
         </p>

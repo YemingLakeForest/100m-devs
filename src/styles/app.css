@@ -1195,6 +1195,13 @@ body {
   color: var(--p3);
 }
 
+.ship-toast__heroes {
+  margin: 2px 0 0;
+  color: var(--p2);
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+}
+
 /*
  * The number, and the reason the toast exists. Green, because this is the only
  * place in the game where money moves in the player's favour -- the cash

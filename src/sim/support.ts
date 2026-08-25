@@ -145,12 +145,14 @@ export function advanceTickets(
   defectBacklog: number,
   supportHeads: number,
   dt: number,
+  arrivalMultiplier = 1,
 ): TicketStep {
   const step = Math.max(0, finite(dt))
   const start = Math.max(0, finite(queue))
   if (step === 0) return { queue: start, served: 0 }
 
-  const arrived = ticketRate(catalogue, defectBacklog) * step
+  const rateScale = Number.isFinite(arrivalMultiplier) ? Math.max(0, arrivalMultiplier) : 1
+  const arrived = ticketRate(catalogue, defectBacklog) * rateScale * step
   const waiting = start + arrived
   const served = Math.min(waiting, supportCapacity(supportHeads) * step)
   return { queue: waiting - served, served }

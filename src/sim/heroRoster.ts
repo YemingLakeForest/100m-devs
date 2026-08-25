@@ -241,6 +241,14 @@ export interface HeroFold {
   incidents: number
   /** §4.13 — extra ticket-answering heads, additive. */
   supportHeads: number
+  /** Serena — work required by a newly opened incident, as a fraction of normal. */
+  incidentStartWork: number
+  /** Matt — multiplier on ticket arrivals from the catalogue. */
+  ticketRate: number
+  /** James and Billy — coding heads protected from the Daily Standups pause. */
+  standupHeads: number
+  /** Melany — reserved-capacity operating cost, dollars per second. */
+  operatingCost: number
 }
 
 /** The studio with nobody placed. §13.6.7 — "heroes are amplitude, not gate". */
@@ -251,6 +259,10 @@ export const NO_HERO_FOLD: HeroFold = {
   defects: 1,
   incidents: 1,
   supportHeads: 0,
+  incidentStartWork: 1,
+  ticketRate: 1,
+  standupHeads: 0,
+  operatingCost: 0,
 }
 
 /** One placed hero's contribution, as the fold needs it. */
@@ -310,10 +322,15 @@ export function effectiveDepth(runtime: HeroRuntime, branch: HeroBranch): number
  * worth, which is §13.6.2's reach rule expressed as arithmetic rather than as a
  * nag, and is what makes REACH worth its three points.
  *
- * Support is the exception and §13.7 is why: it is "the only tree that acts on
- * the *catalogue* rather than on the current project", so its heads are not
- * scaled by a share of the floor. Matt answers tickets about games that shipped
- * three runs ago; where he is standing has nothing to do with it.
+ * Every branch, including Support, follows the same coverage grammar. Matt may
+ * answer for an old catalogue, but the points invested in his Support branch
+ * only become effective over the share of the organisation he is actually
+ * leading. The catalogue-specific exception is now Matt's named signature
+ * (`ticketRate`) rather than an invisible exception to REACH.
+ *
+ * The six signature traits are folded here as small rule bends. A signature is
+ * active only while its owner is placed and settled — the card's sentence is a
+ * simulation promise, not character flavour wearing a number-shaped costume.
  */
 export function heroFold(contributions: readonly HeroContribution[], totalDevs: number): HeroFold {
   const devs = Math.max(1, Math.floor(totalDevs))
@@ -322,6 +339,36 @@ export function heroFold(contributions: readonly HeroContribution[], totalDevs: 
   for (const { runtime, covered } of contributions) {
     if (!(covered > 0)) continue
     const share = Math.min(1, covered / devs)
+
+    switch (runtime.id) {
+      case 'james':
+        // FEWER COMMITMENTS — one person keeps typing through stand-up.
+        out.standupHeads += 1
+        break
+      case 'mo':
+        // READS IT TWICE — work under her review writes half as many defects.
+        out.defects *= 1 + (0.5 - 1) * share
+        break
+      case 'serena':
+        // WROTE THE RUNBOOK — the first response starts half complete.
+        out.incidentStartWork *= 1 + (0.5 - 1) * share
+        break
+      case 'matt':
+        // KNOWS THEIR NAMES — repeat catalogue questions arrive 20% slower.
+        out.ticketRate *= 1 + (0.8 - 1) * share
+        break
+      case 'melany':
+        // RESERVED INSTANCES — extra cap is immediate and carries a visible bill.
+        out.cap *= 1 + 0.25 * share
+        out.operatingCost += covered
+        break
+      case 'billy':
+        // FIFTEEN MINUTES — everybody in reach keeps producing in stand-up.
+        out.standupHeads += covered
+        break
+      default:
+        break
+    }
 
     for (const [branch, fold] of [...BRANCH_BY_ID.keys()].map((b) => [b, branchFold(b)] as const)) {
       const depth = effectiveDepth(runtime, branch)
@@ -346,7 +393,7 @@ export function heroFold(contributions: readonly HeroContribution[], totalDevs: 
           out.yield *= 1 + fold.perNode * depth * share
           break
         case 'support':
-          out.supportHeads += fold.perNode * depth
+          out.supportHeads += fold.perNode * depth * share
           break
         default:
           break

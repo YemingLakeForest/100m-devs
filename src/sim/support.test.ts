@@ -65,6 +65,12 @@ describe('§4.13 — the one place where throwing people at a problem simply wor
     expect(queue).toBeCloseTo(0, 9)
   })
 
+  it('lets Matt’s signature reduce arrivals without changing service capacity', () => {
+    const normal = advanceTickets(0, 10, 0, 0, 1)
+    const withMatt = advanceTickets(0, 10, 0, 0, 1, 0.8)
+    expect(withMatt.queue).toBeCloseTo(normal.queue * 0.8, 9)
+  })
+
   it('falls behind when it cannot keep up, and says so', () => {
     expect(serviceRatio(100, 0, 1)).toBeLessThan(1)
     expect(serviceRatio(5, 0, 1)).toBeGreaterThan(1)

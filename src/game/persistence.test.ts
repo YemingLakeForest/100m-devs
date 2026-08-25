@@ -17,11 +17,13 @@ import {
 } from './save.ts'
 import {
   __resetStore,
+  __setState,
   collectOffline,
   commitmentFor,
   getState,
   installAutoSave,
   loadGame,
+  paradigmShiftOffer,
   saveGame,
   dismissScene,
   hasSeenScene,
@@ -339,6 +341,41 @@ describe('the §24.9 lifecycle', () => {
     expect(getPermanent().meta.paradigmShifts).toBe(0)
     triggerParadigmShift()
     expect(getPermanent().meta.paradigmShifts).toBe(1)
+  })
+
+  it('commits the completed run’s high-water marks in the same saved shift', () => {
+    __setState({ lifetimeRevenue: 1_000_000, peakDevs: 1_040, devs: 2 })
+    const quoted = paradigmShiftOffer().bp
+    expect(quoted).toBeGreaterThan(0)
+
+    triggerParadigmShift()
+
+    expect(getPermanent().meta.lifetimeRevenue).toBe(1_000_000)
+    expect(getPermanent().meta.peakDevs).toBe(1_040)
+    expect(readSave()!.permanent.meta.lifetimeRevenue).toBe(1_000_000)
+    expect(readSave()!.permanent.meta.peakDevs).toBe(1_040)
+    expect(getPermanent().meta.bpEarnedLifetime).toBe(quoted)
+  })
+
+  it('makes the prestige award run-local, so an empty reset cannot claim it twice', () => {
+    __setState({ lifetimeRevenue: 1_000_000, peakDevs: 1_040 })
+    const first = paradigmShiftOffer().bp
+    triggerParadigmShift()
+
+    expect(paradigmShiftOffer().grossBp).toBe(0)
+    expect(paradigmShiftOffer().bp).toBe(0)
+    triggerParadigmShift()
+    expect(getPermanent().meta.bpEarnedLifetime).toBe(first)
+  })
+
+  it('itemises reputation in the prestige quote', () => {
+    __setState({ lifetimeRevenue: 1_000_000, peakDevs: 1_040, reputation: 0 })
+    const low = paradigmShiftOffer()
+    __setState({ reputation: 100 })
+    const high = paradigmShiftOffer()
+    expect(high.baseBp).toBe(low.baseBp)
+    expect(high.reputationMultiplier).toBeGreaterThan(low.reputationMultiplier)
+    expect(high.grossBp).toBeGreaterThan(low.grossBp)
   })
 
   it('reports a failed write rather than throwing out of the handler', () => {

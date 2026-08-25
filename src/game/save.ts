@@ -509,7 +509,7 @@ export function makeSaveData(state: GameState): SaveData {
         // Fold the run's lifetime figures into their high-water marks at write
         // time, so a device that never reconciles still records them.
         lifetimeRevenue: Math.max(permanent.meta.lifetimeRevenue, state.lifetimeRevenue),
-        peakDevs: Math.max(permanent.meta.peakDevs, state.devs),
+        peakDevs: Math.max(permanent.meta.peakDevs, state.peakDevs, state.devs),
       },
     },
   }
@@ -933,6 +933,7 @@ function normaliseHistory(value: unknown): History {
         run: Math.floor(nonNegative(r.run, 0)),
         name: r.name,
         rating: Math.min(100, nonNegative(r.rating, 0)),
+        heroCoverage: Math.min(1, nonNegative(r.heroCoverage, 0)),
         payout: nonNegative(r.payout, 0),
         buildSeconds: nonNegative(r.buildSeconds, 0),
         labourSeconds: nonNegative(r.labourSeconds, 0),
@@ -1157,8 +1158,20 @@ export function nodeSpend(
  * field only has to answer "run or permanent", and its prestige behaviour
  * follows without anyone editing this function.
  */
-export function paradigmShiftPermanent(p: PermanentSave, bpEarned = 0): PermanentSave {
+export function paradigmShiftPermanent(
+  p: PermanentSave,
+  bpEarned = 0,
+  marks?: { lifetimeRevenue: number; peakDevs: number },
+): PermanentSave {
   const earned = Math.max(0, Math.floor(bpEarned))
+  const lifetimeRevenue = Math.max(
+    p.meta.lifetimeRevenue,
+    Number.isFinite(marks?.lifetimeRevenue) ? Math.max(0, marks!.lifetimeRevenue) : 0,
+  )
+  const peakDevs = Math.max(
+    p.meta.peakDevs,
+    Number.isFinite(marks?.peakDevs) ? Math.max(0, marks!.peakDevs) : 0,
+  )
   return {
     // §14.1 — the shift *pays*. Until this argument existed the function bumped
     // a counter and handed the player nothing, so Run 2 was Run 1 again.
@@ -1169,6 +1182,11 @@ export function paradigmShiftPermanent(p: PermanentSave, bpEarned = 0): Permanen
       // The balance is spendable and clearable; the lifetime total is neither,
       // because §14.3 computes GP from it.
       bpEarnedLifetime: p.meta.bpEarnedLifetime + earned,
+      // Committed in the same permanent write as the award. Saving the fresh
+      // run afterwards can no longer erase the run whose high-water produced
+      // these points.
+      lifetimeRevenue,
+      peakDevs,
     },
   }
 }

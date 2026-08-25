@@ -279,6 +279,7 @@ export function advanceIncidents(
   pending: number,
   nextId: number,
   candidates: readonly { id: number; name: string }[],
+  newIncidentWorkFraction = 1,
 ): IncidentStep {
   const step = Math.max(0, finite(dt))
   if (step === 0) {
@@ -286,6 +287,7 @@ export function advanceIncidents(
   }
 
   let carry = Math.max(0, finite(pending)) + Math.max(0, finite(arrivals)) * step
+  const startingWork = INCIDENT_WORK_SECONDS * Math.min(1, Math.max(0, finite(newIncidentWorkFraction, 1)))
   const open = [...incidents]
   const alreadyDown = suppressedReleases(incidents)
   let id = nextId
@@ -303,7 +305,7 @@ export function advanceIncidents(
       releaseId: target.id,
       releaseName: target.name,
       age: 0,
-      work: INCIDENT_WORK_SECONDS,
+      work: startingWork,
     })
   }
   // Nothing to page about: the carry is dropped rather than banked, or a studio

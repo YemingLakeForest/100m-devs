@@ -16,6 +16,7 @@ import {
   cancelPosting,
   currentEntropy,
   currentHeroFold,
+  currentPayroll,
   dismissScene,
   effectiveDevCap,
   getState,
@@ -25,8 +26,10 @@ import {
   placeHero,
   postHeroAt,
   recallHero,
+  releaseHeroCoverage,
   selectHero,
   tick,
+  workingDevs,
 } from './store.ts'
 import {
   SAVE_KEY,
@@ -156,13 +159,37 @@ describe('§13.8 — placement moves the numbers the simulation reads', () => {
 
   it('raises the cap when Melany is on the floor, and drops it when she leaves', () => {
     const before = effectiveDevCap()
+    const payrollBefore = currentPayroll()
     placeHero('melany', 0, 0)
     settle()
     const during = effectiveDevCap()
     expect(during).toBeGreaterThan(before)
+    expect(currentPayroll()).toBeGreaterThan(payrollBefore)
 
     recallHero('melany')
     expect(effectiveDevCap()).toBe(before)
+  })
+
+  it('unions hero coverage for release rating instead of double-counting overlap', () => {
+    placeHero('mo', 0, 0)
+    placeHero('melany', 0, 0)
+    settle()
+    expect(releaseHeroCoverage()).toBeCloseTo(8 / 40, 9)
+
+    placeHero('melany', 0, 8)
+    settle()
+    expect(releaseHeroCoverage()).toBeCloseTo(16 / 40, 9)
+  })
+
+  it('makes specialist safety give up productive coding heads', () => {
+    __setState({
+      devs: 40,
+      roster: [
+        { role: 'dev', count: 30 },
+        { role: 'qa', count: 10 },
+      ],
+    })
+    expect(workingDevs()).toBeCloseTo(30, 9)
   })
 
   it('bends entropy when Billy is on the floor — §22.8', () => {

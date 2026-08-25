@@ -319,6 +319,17 @@ describe('prestige resets — GDD §24.4', () => {
     expect(paradigmShiftPermanent(emptyPermanent()).meta.paradigmShifts).toBe(1)
   })
 
+  it('commits live career maxima atomically with the BP award', () => {
+    const after = paradigmShiftPermanent(emptyPermanent(), 17, {
+      lifetimeRevenue: 1_000_000,
+      peakDevs: 1_040,
+    })
+    expect(after.layer1.bp).toBe(17)
+    expect(after.meta.bpEarnedLifetime).toBe(17)
+    expect(after.meta.lifetimeRevenue).toBe(1_000_000)
+    expect(after.meta.peakDevs).toBe(1_040)
+  })
+
   it('a Codebase Fork clears Layer 1 in full and keeps everything meta', () => {
     const after = forkPermanent(rich())
     expect(after.layer1.paradigmNodes).toEqual([])

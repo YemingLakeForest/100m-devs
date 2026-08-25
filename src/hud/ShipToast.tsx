@@ -31,6 +31,7 @@ import { playSfx } from '../audio/sfx.ts'
 import { getPermanent, type GameState } from '../game/store.ts'
 import { coverFor } from '../sim/cover.ts'
 import { Cover } from './Cover.tsx'
+import { RATING_WEIGHTS } from '../sim/rating.ts'
 
 /** How long the toast stays up. Long enough to read the number and the name. */
 export const SHIP_TOAST_MS = 2600
@@ -85,6 +86,12 @@ export function ShipToast({ state }: { state: GameState }) {
         {cover && <Cover spec={cover} />}
         <p className="ship-toast__label">SHIPPED</p>
         <p className="ship-toast__name">{held.name}</p>
+        {(record?.heroCoverage ?? 0) > 0 && (
+          <p className="ship-toast__heroes">
+            HERO COVERAGE {Math.round((record?.heroCoverage ?? 0) * 100)}% · +
+            {Math.round((record?.heroCoverage ?? 0) * RATING_WEIGHTS.heroes * 100)} RATING
+          </p>
+        )}
         {/*
           Counted rather than printed. §10.8a — "counters roll and bounce on
           arrival"; a revenue figure that simply appears reads as a label, and

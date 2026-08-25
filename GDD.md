@@ -1251,6 +1251,12 @@ fail that writing more code cannot fix:
 | **Support** | ticket capacity (§4.13) | — | Absorbs the consequences of decisions they were not in the room for |
 | **SRE** | incident capacity (§4.12) | — | Paid to be bored, blamed when they are not |
 
+**Only Developers produce Story Points.** QA, Support and SRE still count toward headcount,
+payroll and Communication Entropy, but each specialist hired removes one productive coding
+head from §4.1's velocity term. Organisational safety therefore has a direct, readable
+opportunity cost: fewer defects, tickets or incidents now, less project velocity now. The
+ratio remains a playtest value; the trade itself is canonical.
+
 **A role is chosen at hire, not reassigned.** §10.10's dial gains a role selector and that is
 the whole interface: you are buying a *kind* of person. Reassignment is deliberately absent —
 it would turn every failure into a slider adjustment, and the game's thesis (§6) is that you
@@ -1444,6 +1450,11 @@ player actually controls:
 
 **Defects dominate deliberately.** The other two are things the player arranges in advance;
 defects are the thing they are choosing to ignore *right now* in exchange for going faster.
+
+Hero ability uses the **union of settled posting footprints over the build team**. Overlap
+counts once, so two heroes on the same eight people do not print free quality. On ship, the
+toast and recent-release gallery show `HERO COVERAGE n% · +m RATING`; the delta is exactly the
+hero weight times coverage, not a second hidden bonus.
 
 Ratings feed everything downstream, and this is where they stop being decoration:
 
@@ -1719,27 +1730,26 @@ the map reveals a tiny individual developer frantically typing or getting distra
 - **Visuals:** swarms and data grids become visible on the surface of planets. Giant holographic projection beams or orbiting satellite arrays connect entire planets. Deep-space connection lines represent inter-galactic protocols.
 - **Interaction:** managing planet-to-planet latency. Upgrading interstellar Neuro-Relays.
 
-### 7.4a The lens must visit every rung it built **[CANON - added 2026-08-08]** - R8
+### 7.4a The lens has seven presentation stops through the 100M gate **[CANON - amended 2026-08-25]** - R8
 
-**The four zoom levels above are not the Construction Ladder**, and letting them stand in for
-it is a bug the player meets immediately: pull back from a floor and the camera arrives at a
-*galaxy*, having skipped the building, the campus, the town and the nation that 7.7.1 spends
-ten rungs establishing. The studio the player built is not on screen at any point during that
-move.
+**The four rendering tiers above are not navigation stops, and the ten simulation rungs in
+§7.7.1 are not all navigation stops either.** The shipped main arc has seven memorable
+presentation levels: desk, squad, floor, building, block, park and globe. They form one
+continuous lens from one person to the 100,000,000-developer title gate.
 
-**Zooming out must climb the ladder, one rung at a time.** A floor becomes a building becomes
-a campus becomes a city becomes a nation becomes a planet becomes a galaxy - each one a place
-the camera can stop, look at, and be poked in. 7.4's four levels are a *rendering* concept
-(which tier's geometry is resident) and must stop being the *navigation* concept.
+The Construction Ladder remains the simulation's address and aggregation vocabulary. Several
+late simulation rungs may be represented inside one presentation level when a separate stop
+would add no new decision. In the main arc, park pulls continuously into the 100-site globe;
+town, nation and system are scale readings inside that transition, not empty screens.
 
-Two consequences, both non-negotiable:
+Three consequences are non-negotiable:
 
-- **A rung the player has not earned is not reachable** - 7.7.1's existing zoom ceiling
-  already says this and it stays. The complaint is not that the lens stops early; it is that
-  it *skips*.
-- **A rung that exists in the simulation must exist in the lens.** Rungs 4-6 are built
-  (`render/city.ts`) and the camera never shows them, which is the same failure as not having
-  built them, and more expensive.
+- **A presentation level the player has not earned is not reachable.** The headcount ceiling
+  stays tied to actual progress.
+- **Every stop must change the silhouette and support an addressable unit.** Compression may
+  remove an empty stop; it may never turn the lens into a cut or a menu.
+- **New post-100M stops are earned by mechanics.** Layer 2 may add system and galaxy views only
+  when each carries a scale-appropriate decision, not merely because the simulation has a noun.
 
 ### 7.6 Concept art
 
@@ -1811,6 +1821,12 @@ it is just a bigger thing.
 | 8 | 10¹⁰ – 10¹³ | **a planet** | a system |
 | 9 | 10¹³ + | **a galaxy** | a cluster |
 
+This table is the **simulation hierarchy**, not a promise of ten separate camera stops.
+Through the main 100M arc, rungs 0–5 map directly onto the seven presentation levels in
+§7.4a (the three room densities occupy desk, squad and floor), while the 10⁶–10⁸ transition
+is composed inside park → globe. Rungs above the title gate remain scale vocabulary for later
+layers until a mechanic earns a dedicated stop.
+
 **Rungs 0–2 are the same picture at three densities, and that is the point.** This is where
 one sprite means one person, where the fiction is established, and where the entire Run 1
 script (§21) takes place. Nothing above rung 2 is allowed to make this stop being true.
@@ -1829,8 +1845,9 @@ The register is deadpan slapstick — the studio expands the way a cartoon build
 - **Rung 4, a building arrives.** A whole tower slams down beside the last one, hard enough
   to make the neighbours sway. A tiny crane wanders off screen having done nothing.
 - **Rung 5, a campus.** Several buildings land at once, in formation, like a dropped tray.
-- **Rung 6+, towns, nations, planets.** The same beat at absurd scale: an entire town slides
-  into frame and parks. A continent is placed. A planet is set down, and it bounces once.
+- **Globe, through the 100M gate.** Sites light and settle across the 100-territory world as
+  the park pulls back. Future Layer 2 system/galaxy beats use the same deadpan construction
+  rule only if those stops acquire mechanics of their own.
 
 **The comedy is in the deadpan and the speed, not in a wacky animation.** These objects
 behave like furniture being put down by something enormous and bored. That reads as funny,
@@ -2311,13 +2328,13 @@ camera holds:
 | **10 B – 10 T** | **Planet** | A system. The planet's dark side glows with the swarm |
 | **10 T +** | **Galaxy** | A cluster. Points of light, each one a civilisation of developers |
 
-##### Current implementation map **[audited 2026-08-25]**
+##### Canonical implementation map **[amended 2026-08-25]**
 
 The lens is one continuous camera over seven nested presentation levels. It reaches the number
-on the box, but it does not yet implement every distinct rung in §7.7.1. The current globe
-collapses the old town/nation/planet transition into one 100-site world. That is a visible,
-playable implementation and a **design deviation**, not permission to erase the fuller ladder.
-Appendix G owns the live status and the decision still required.
+on the box and this compression is canonical for the main arc: the 100-site globe carries the
+late-scale transition without inserting town, nation and system screens that currently offer
+no distinct decision. §7.7.1 retains those nouns as simulation hierarchy and future-layer
+vocabulary, not as missing main-arc pages.
 
 | Rungs | State |
 |---|---|
@@ -2326,7 +2343,8 @@ Appendix G owns the live status and the decision still required.
 | **4** — a block of ten towers | Built. `render/block.ts` |
 | **5** — a business park of ten blocks | Built. `render/park.ts`. Four compounds on one board, joined by a bus; decks, pin rows, a substation and a cooling plant. The level caps the drawn studio at **10⁶ developers** |
 | **Current level 6** — globe | Built. `render/globe.ts` and `render/worldMap.ts`; 100 equal territories/sites carry **100,000,000 developers** on one jigsaw planet |
-| **Distinct town, nation, system and galaxy stops** | **Not built as separate lens levels.** The simulation carries future unit vocabulary, but the reachable camera ends at the current globe |
+| **Town / nation / system vocabulary** | Composed inside park → globe through the 100M gate; intentionally not separate stops |
+| **Galaxy and post-100M stops** | Future Layer 2+ content. Add only alongside a distinct scale mechanic |
 
 Two rules the built half is worth stating, because both were got wrong first:
 
@@ -4496,7 +4514,7 @@ LAYER 3: Multiverse Compiler (Resets Universe       → Rewards Planck Cores)
 | **Theme / Narrative** | *Rewrite the Core* (Architecture Shift) | *Fork the Lineage* (Class Trait Evolution) | *Subatomic Compression* (Dimensional Expansion) |
 | **Trigger Condition** | Max Entropy stall / Bankruptcy / Forced liquidation | **Reaching 100,000,000 active developers in a run** (the title gate) | Reaching 1 Release / $t_P$ ($5.39 \times 10^{-44}$ s) |
 | **Prestige Currency** | **Bandwidth Points (BP)** | **Git Branch Points (GP)** | **Planck Cores (PC)** |
-| **Yield Formula** | $\propto (\$_{total})^{0.20} \cdot \log_{10}(D_{peak})$ | $\propto \sqrt{\text{BP}_{total}}$ | $\propto \log_{2}(\text{Universes Rendered / sec})$ |
+| **Yield Formula** | $\propto (R_{run})^{0.20} \cdot \log_{10}(D_{peak,run}) \cdot M_{prestige}$ | $\propto \sqrt{\text{BP}_{total}}$ | $\propto \log_{2}(\text{Universes Rendered / sec})$ |
 | **What is Reset?** | In-run cash, active dev swarm, office tech | BP, Paradigm Tree, cash, active dev swarm | Everything from Layer 1 & Layer 2, physical universe |
 | **What is Retained?** | Unlocked Paradigm Nodes, lifetime stats | Hero Lineage traits, CI/CD automation, cash boost | Unlocked Multiverse dimensions, infinite skill grid |
 | **Primary System Unlocked** | **Paradigm Talent Tree** (node-based perks) | **Hero Class Lineages & CI/CD Autopilot** | **Infinite Multiverse Grid & Parallel Studios** |
@@ -4520,7 +4538,7 @@ LAYER 3: Multiverse Compiler (Resets Universe       → Rewards Planck Cores)
         ▼                                    ▼
 [ASYNC MASTERY TREE]                 [PROTOCOL ENGINE TREE]
   ├── Async-First Culture              ├── Telepathic Compression
-  │   (-50% Slack Noise)               │   (+10,000x Entropy Cap)
+  │   (-50% Slack Noise)               │   (+10x Capacity / level)
   ├── Meeting Ban                      └── Chained Poke Reaction
   │   (Removes Standup Pauses)             (1 Poke wakes full row)
   └── Zero-Trust Architecture
@@ -4539,7 +4557,7 @@ LAYER 3: Multiverse Compiler (Resets Universe       → Rewards Planck Cores)
 
 | Node | Name | Cost | Max Level | Effect |
 |---|---|---|---|---|
-| **L1-1B** | Telepathic Compression | 25 BP | 10 | Increases effective developer capacity ($D_{cap}$) before exponential Entropy kicks in by **+1,000× per level**. |
+| **L1-1B** | Telepathic Compression | 25 BP | 10 | Multiplies effective developer capacity ($D_{cap}$) before exponential Entropy kicks in by **×10 per level**. |
 | **L1-2B** | Chained Poke Reaction | 500 BP | 3 | Poking a single developer causes a shockwave that wakes up **1 additional row** of developers per level. |
 | **L1-3B** | Subatomic Auto-Poker | 10,000 BP | 5 | Automatically pokes **100 random developers per second** across all zoom layers. The idle version of the clicker layer — auto-pokes obey the same Context Switch Penalty (§4.9), so this node is a rate, not a free lunch. |
 | **L1-4B** | Story Point Inflation | 1,200 BP | 3 | Permanently raises the Fibonacci estimation ladder (§4.6) by **+1 tier per level**, carrying the clicker layer from F5 up to **F7 (21 SP per poke)**. |
@@ -4650,10 +4668,10 @@ must have maxed the Communication Infra branch *and* banked enough Telepathic Co
 levels to push $D_{cap}$ past $10^8$. The gate is therefore a test of the actual core
 system, not of idle time.
 
-**Anti-climb protections.** $D_{cap}(\text{BP}_{alloc})$ from §4.2 with $D_{base} = 100$,
-$\mu = 1000$, $\phi = 1.35$ means reaching an effective cap of $10^8$ requires a
-substantial Telepathic Compression investment, which requires many Layer 1 cycles, which
-is exactly the intended pacing. **Do not add a cash shortcut to this gate** — see the
+**Anti-climb protections.** $D_{cap}$ from §4.2 starts at 100 and each Telepathic Compression
+level multiplies it by 10; Async-First then divides the remaining communication load. Reaching
+an effective cap of $10^8$ therefore requires six Compression levels plus the economic ability
+to fill them across many Layer 1 cycles. **Do not add a cash shortcut to this gate** — see the
 monetisation guardrails.
 
 **Presentation.** The counter in the Top Bar should render the full number, unabbreviated,
@@ -4943,6 +4961,11 @@ number**, and a system that models them as one has thrown away the only thing ro
 | **Reliability** | §4.12's incident clearance | Time-to-recover, and the standing cost of being ready. Nodes are cheap to buy and expensive to hold |
 | **Management** — **you** | see §13.7.1 | Breadth. Every node is a weaker version of somebody else's |
 
+**Every branch is scaled by the share of the studio its posted hero covers, including
+Support.** Support still acts on the catalogue, but that does not make REACH free: Matt's
+effective Support heads are multiplied by covered share. His `KNOWS THEIR NAMES` signature is
+the distinct catalogue rule, reducing ticket arrivals separately from branch capacity.
+
 **A class only multiplies its own role.** An Engineering hero placed over a row of QA does
 nothing, and that is the constraint that makes §13.8's placement a decision rather than a
 tidying exercise. It is the same rule §13.6.2 already applies to reach, moved onto a second
@@ -5215,13 +5238,13 @@ one:
 
 | | |
 |---|---|
-| **Effect** | Raises §4.2's cap within reach, and hires take effect **immediately** — no ramp, no onboarding |
-| **The cost** | A **standing bill that scales superlinearly with headcount**, drawn from cash every second, forever. It is not an event. Nobody reads it |
+| **Effect** | Cloud DEPTH raises §4.2's cap over the covered share. Melany's `RESERVED INSTANCES` signature adds up to **25% more immediately** |
+| **The cost** | Reserved coverage costs **$1 per covered developer per second**, drawn with payroll while Melany is posted. It is linear, visible and never hidden in an event |
 | **The joke** | Infinite elasticity, invoiced monthly. The only branch in the game whose upgrades make a line item worse |
 | **The trade** | Cloud is the fastest way to survive §6's trap and the fastest way to go bankrupt in §4.10d's payroll model. Both, at once, from the same purchase |
 
-Melany's TRAIT nodes are the reserved-instance joke: commit to a headcount in advance for a
-discount, and pay through the nose the moment you exceed it.
+The signature arrives with Melany and is never bought. Future TRAIT nodes may bend the price,
+but the shipped promise above is the baseline and the payroll readout must include it.
 
 ### 13.10 Heroes earn XP where you put them **[CANON - added 2026-08-11]** - R39
 
@@ -5497,9 +5520,9 @@ them, and a studio that has bought them reaches its wall sooner.
 #### 13.12.6 The prestige screen says what you are saving for **[CANON — added 2026-08-16]** - R85
 
 **The screen showed a number and a price list and left the player to subtract.** §15.1's tree
-already carries a live *"THIS RUN IS WORTH n BP"* quote, and the argument for showing it before
-the decision rather than after is good: watching it climb is the case for playing another twenty
-minutes. What it never said is the other half of the sentence — *worth n BP **towards what***.
+now carries a live `NEW BP THIS SHIFT n` quote plus `RUN PROGRESS b × REPUTATION m`; showing it
+before the decision lets the player watch both progress and quality change the award. What it
+also needs is the other half of the sentence — *worth n BP **towards what***.
 
 Ending a run a little short of something you want is the thing that starts the next one. It
 cannot do that while it is arithmetic homework. Two lines, both derived and neither stored:
@@ -5554,21 +5577,26 @@ multipliers scale using exponential and hyper-exponential curves.
 
 ### 14.1 Layer 1 — Primary prestige currency (BP)
 
-When executing a Paradigm Shift, total BP awarded is a function of **Lifetime Revenue
-Earned ($\$_{total}$)** weighted by the **Peak Active Developer Count ($D_{peak}$)**
-achieved during that run:
+When executing a Paradigm Shift, the award is explicitly **run-local**. It is a function of
+revenue earned in the current run ($R_{run}$), weighted by that run's Peak Active Developer
+Count ($D_{peak,run}$), then multiplied by the studio's current reputation:
 
-$$\text{BP} = \left\lfloor \alpha \cdot \left( \frac{\$_{total}}{\$_{0}} \right)^{\gamma} \cdot \log_{10}(D_{peak}) \right\rfloor$$
+$$\text{BP}_{base} = \left\lfloor \alpha \cdot \left( \frac{R_{run}}{R_{0}} \right)^{\gamma} \cdot \log_{10}(D_{peak,run}) \right\rfloor$$
 
-Equivalently, as first stated:
+$$\text{BP}_{award} = \left\lfloor \text{BP}_{base} \cdot M_{prestige}(\text{reputation}) \right\rfloor$$
 
-$$\text{BP Earned} = \left\lfloor \left( \frac{\text{Total Lifetime Revenue}}{10^{12}} \right)^{0.2} \times \log_{10}(\text{Peak Dev Swarm Count}) \right\rfloor$$
+The shift clears $R_{run}$ and $D_{peak,run}$, so pressing Shift again on the fresh studio
+awards zero: the same run cannot be claimed twice. A later successful run can earn the same
+base again, which preserves the early prestige loop. Career revenue and career peak are
+committed atomically in `meta` for history and save merging, but they are **not award inputs**.
+The shift screen itemises `RUN PROGRESS × REPUTATION` before confirmation.
 
 | Parameter | Value | Purpose |
 |---|---|---|
-| **Base Revenue Normalizer ($\$_0$)** | $10^{12}$ (1 Trillion) | Ensures no significant BP is earned before breaking into the mid-game corporate era |
+| **Base Revenue Normalizer ($R_0$)** | $10^{12}$ (1 Trillion) | Keeps the revenue term sub-linear while the scalar makes Run 1 pay a useful award |
 | **Base Yield Scalar ($\alpha$)** | 100 | Establishes a clean baseline yield |
 | **Growth Exponent ($\gamma$)** | 0.20 | Damps exponential revenue so players cannot double their prestige payout purely through short revenue spikes |
+| **Reputation multiplier ($M_{prestige}$)** | 0.5×–2× around the garage baseline | Makes a well-run studio improve prestige, visibly, without making quality a gate |
 
 ### 14.2 Paradigm Tree node cost
 
@@ -5660,7 +5688,7 @@ $$M_{cash} = 1 + \omega \cdot \left( \frac{\text{BP}_{sacrificed}}{10^{6}} \righ
 
 | Layer | Currency | Reset Threshold | Yield Formula Scaling |
 |---|---|---|---|
-| **L1: Paradigm Shift** | Bandwidth Points (BP) | Max Entropy Stall / Run Fail | $\propto (\$_{total})^{0.20} \cdot \log_{10}(D_{peak})$ |
+| **L1: Paradigm Shift** | Bandwidth Points (BP) | Max Entropy Stall / Run Fail | $\propto (R_{run})^{0.20} \cdot \log_{10}(D_{peak,run}) \cdot M_{prestige}$ |
 | **L2: Codebase Fork** | Git Points (GP) | **100,000,000 Devs** | $\propto \sqrt{\text{Total BP Sacrificed}}$ |
 | **L3: Multiverse Compiler** | Planck Cores (PC) | 1 Release per $t_P$ ($5.39\times10^{-44}$ s) | $\propto \log_{2}(\text{Universes Rendered / sec})$ |
 
@@ -6025,7 +6053,7 @@ rendered directly over a blurred, pulsing view of your high-entropy dev swarm.**
 |                                                                     |
 +---------------------------------------------------------------------+
 | SELECTED NODE: Telepathic Compression (Lvl 3/10)                    |
-| EFFECT: +3,000x Effective Dev Capacity before Entropy.              |
+| EFFECT: x1,000 Effective Dev Capacity before Entropy.               |
 | NEXT LEVEL COST: 250 BP                        [ UPGRADE NODE ]     |
 +---------------------------------------------------------------------+
 ```
@@ -8366,12 +8394,9 @@ than about trading cards, and it inherits §10.8a's skew and border grammar for 
  +------------------------------------------------------+
  | QUALITY                                  * * * . .   |   branch + depth
  +------------------------------------------------------+
- | SECOND PAIR OF EYES                                  |
- | A defect found before ship costs half.               |   TRAIT nodes owned
- |                                                      |
  | READS IT TWICE                                       |
- | The first release of a project cannot ship below     |
- | the §4.14 baseline on defects.                       |
+ | Work inside Mo's coverage generates half as many     |   signature trait
+ | defects before release.                              |
  +------------------------------------------------------+
  | "I'm not blocking it. I'm just asking what happens   |
  |  if someone taps it twice."                          |   §22.8.2 flavour
@@ -8388,9 +8413,28 @@ than about trading cards, and it inherits §10.8a's skew and border grammar for 
 | **Portrait** | §7.8.7's generated face, front-facing, at 3× desk scale, in the same frame §7.8.11 puts on a building. **No new art**, which is what keeps §22.7's twelve-portrait cap intact |
 | **The right column** | Reach, coverage, where they are, and **the one number this hero bends**, live. Not a stat block — one number, the one their branch is about |
 | **Depth pips** | §13.6.4's DEPTH levels, filled and unfilled, at the reach they were bought at. §13.6.7a's dilution is why they are pips and not a total: a diluted level renders half-filled, so *"a hero broadened is a hero diluted"* is on the card |
-| **The abilities box** | **TRAIT nodes only** (§13.6.4), in acquisition order, name then one line. Depth and reach are numbers; traits are the personality, and they are the only thing on this card written in sentences |
+| **The abilities box** | The story hero's **signature first**, then any future TRAIT nodes (§13.6.4), name then one exact mechanical line. Depth and reach are numbers; traits are the personality, and they are the only mechanics on this card written in sentences |
 | **Flavour** | §22.8.2's line, italic, never changes, never explained |
 | **The footer** | Role, employee number, and §22.4's rarity gem. The number is the hire order, so James is `#001` and it is the smallest joke on the card |
+
+##### The six shipped signature rules **[CANON — resolved 2026-08-25]**
+
+Every story hero arrives with one signature. It is active only while that hero is posted and
+settled; it is not a purchasable sentence and it changes the simulation independently of
+their branch DEPTH. Coverage scales the group effects unless the rule names the hero alone.
+
+| Hero | Signature | Runtime rule |
+|---|---|---|
+| **James** | FEWER COMMITMENTS | Daily Standups never pause James's own one-head developer output |
+| **Mo** | READS IT TWICE | Covered work generates up to **50% fewer defects** |
+| **Serena** | WROTE THE RUNBOOK | A new incident opens up to **half worked** |
+| **Matt** | KNOWS THEIR NAMES | Catalogue tickets arrive up to **20% slower** |
+| **Melany** | RESERVED INSTANCES | Up to **25% immediate cap**; **$1 / covered developer / second** operating cost |
+| **Billy** | FIFTEEN MINUTES | Daily Standups do not pause developers inside his coverage |
+
+The card prints these exact rules. Branch benefit, signature benefit, coverage and the
+Melany operating cost must remain visible in the card/receipt; a flavour sentence may not
+promise a mechanic that the fold does not execute.
 
 #### 22.9.3 Rules
 
@@ -10460,13 +10504,13 @@ complete the main story arc by launching **"Simulated Universe 1.0."**
 | $\epsilon$ | Context Switch Coefficient — entropy added per SP poked (0.02 base) |
 | $M$ | Manpower |
 | $D$ | Active developer count |
-| $D_{peak}$ | Peak active developer count in a run |
+| $D_{peak,run}$ | Peak active developer count in the current run; cleared by a Paradigm Shift |
 | $D_{cap}$ | Effective developer capacity before exponential entropy |
 | $D_{base}$ | Base dev capacity (100) |
 | $\sigma$ | Entropy knee softness |
-| $\mu$, $\phi$ | Prestige scaling multiplier (1000) & compression exponent (1.35) |
-| $\$_{total}$ | Lifetime revenue earned in a run |
-| $\$_0$ | Base revenue normalizer ($10^{12}$) |
+| `CAP_STEP` | Telepathic Compression capacity multiplier (**10 per level**) |
+| $R_{run}$ | Revenue earned in the current run; cleared by a Paradigm Shift |
+| $R_0$ | Base revenue normalizer ($10^{12}$) |
 | $\alpha$, $\gamma$ | BP base yield scalar (100) & growth exponent (0.20) |
 | $\beta$, $\delta$ | Paradigm node level multiplier (1.50) & depth multiplier (2.20) |
 | **BP** | Bandwidth Points — Layer 1 prestige currency |
@@ -10495,13 +10539,13 @@ number before implementation.
 | # | Item | Value A | Value B | Value C | Resolution |
 |---|---|---|---|---|---|
 | 1 | **Async-First Culture** — Slack noise reduction | −50% (v2/v3 text; node L1-1A = 10%/level × 5) | −30% (v2 tree diagram) | — |
-| 2 | **Telepathic Compression** — entropy cap increase | +1,000× (v1/v2 text; node = +1,000×/level) | +10,000× (v3 tree diagram) | +3,000× at Lvl 3/10 (prestige UI) — implies +1,000×/level, so **A is likely canon** |
+| 2 | ~~**Telepathic Compression** — entropy cap increase~~ | ~~+1,000× legacy copy~~ | ~~+10,000× legacy diagram~~ | ✅ **RESOLVED 2026-08-25 — ×10 per level.** The geometric cap is measured in §14.8.6; node copy, runtime and tests agree |
 | 3 | **Daily Standups** — entropy effect | Reduces entropy by 30% (legacy T2 table) | Reduces base entropy growth by 15% + cyclic pause (Agile ritual) | Caps max entropy at 80% + cyclic pause (node B2) |
 | 4 | **Daily Standups** — huddle cadence | Every 30 seconds (legacy T2) | Every 60 seconds, 20% of devs freeze 5s (node B2) | — |
 | 5 | **JIRA Ticket Flooding** — entropy cap | 75% (§12.2, v3 GDD) | 60% (node B4, tree index) | — |
 | 6 | **10x Engineer** — spawn chance per level | +1% per level (node L2-1A) | 2% at Lvl 2/5 (prestige UI inspector) | $P_{max}$ = 5% (spawn curve) |
 | 7 | **Merge Conflict trigger** — headcount | >500 devs without Git/Branching tech | >500 devs without Version Control | Same rule, differing phrasing |
-| 8 | **Layer 1 BP formula** | $\lfloor(\$_{total}/10^{12})^{0.2} \cdot \log_{10}(D_{peak})\rfloor$ | $\lfloor\alpha(\$_{total}/\$_0)^{\gamma}\log_{10}(D_{peak})\rfloor$ with $\alpha=100$ | The two differ by a factor of 100 — pick one |
+| 8 | ~~**Layer 1 BP formula**~~ | ~~Unscaled legacy form~~ | ~~$\alpha=100$ form~~ | ✅ **RESOLVED 2026-08-25 — §14.1's run-local $\alpha=100$ formula, then reputation.** A shift clears its inputs; career maxima are records only |
 | 9 | **Quantum Buffer** node | Present in v2 Protocol Engine tree (Auto-Clear Pings) | Absent from v3 / node index | — |
 | 10 | **Poke → Slacking dev** speed boost | +50% for 10s (poke table) | +100% for 10s (node C1 *Nitro Cold Brew*) | C1 is an upgrade *on top of* base — confirm stacking |
 | 11 | **Zone boundaries** for audio vs. poke SFX | Zones 0/1/2/3 at 0.2 / 0.5 / 0.8 | Volume curve breakpoints at 0.25 / 0.55 / 0.75 | Align the two tables |
@@ -10711,11 +10755,11 @@ amended.
 | Core Run 1 | **LIVE** | Poke, ship, hire James, hit the hypergrowth trap, collapse, bankrupt and enter Paradigm Shift end to end; `runOne`, onboarding and playthrough acceptance suites cover the path |
 | Entropy and output | **LIVE** | Linear raw labour, communication-load efficiency, context-switch costs, critical pokes, temporary buffs and displayed velocity are connected to the store and HUD |
 | Project economy | **LIVE** | Sprint commitments, eight authored project rungs, catalogue tails, payroll, hire pricing, revenue graph, release history and gallery are reachable |
-| Roles and backlogs | **LIVE** | Developer, QA, SRE and Support hiring; defects, incidents, tickets, reputation and their HUD surfaces are active after their story introductions |
+| Roles and backlogs | **LIVE** | Developer, QA, SRE and Support hiring; only Developers produce SP, so safety has an opportunity cost. Defects, incidents, tickets, reputation and their HUD surfaces are active after their story introductions |
 | In-run upgrades | **LIVE** | The eleven-node tech board is purchasable and changes capacity, communication, quality, automation, revenue and hiring |
 | Founder progression | **LIVE** | Five Management-tree nodes, founder profile and permanent effects are reachable after Serena introduces the board |
-| Paradigm Shift | **LIVE** | Layer 1 reset, BP quote/currency and the five-node Paradigm Tree are reachable; all five displayed nodes have runtime effects |
-| Story heroes | **LIVE** | Six named heroes arrive through scenes; permanent XP, levels, points, the shared branch tree and branch effects exist |
+| Paradigm Shift | **LIVE** | Run-local BP quote, reputation receipt, atomic career marks, Layer 1 reset/currency and the five-node Paradigm Tree are reachable; all displayed nodes have runtime effects |
+| Story heroes | **LIVE** | Six named heroes arrive through scenes; permanent XP, levels, points, shared branch effects and six posting-dependent signatures exist |
 | Hero posting | **LIVE** | Roster → placement mode → world target → eight-second settle → active effect/XP works. Compact in-world head avatar, name and `ASSIGNED` marker identify posted heroes at desk, floor and building scales |
 | Omni-Lens and scale | **LIVE** | Continuous viewport-aware desk, squad, floor, building, block, park and globe levels reach 100,000,000 developers across 100 sites |
 | Aggregate simulation | **LIVE** | Deterministic on-demand people and unit weights are bounded by group size and aggregate to the same output as their parts; scale probe and aggregate tests cover the invariant |
@@ -10727,24 +10771,26 @@ amended.
 
 A **divergence** is reachable behaviour that disagrees with the intended rule or with what the
 interface tells the player. A **gap** is a missing connection, piece of feedback, proof or
-content inside a system that is otherwise reachable. Divergences come first: adding content on
-top of a rule the player cannot trust multiplies the rework.
+content inside a system that is otherwise reachable. Resolved divergences stay recorded first
+so a later refactor does not quietly reopen a rule the player has already been taught.
 
-#### G.2.1 Divergences from the canonical design
+#### G.2.1 Resolved divergences from the canonical design **[closed 2026-08-25]**
 
-| Priority | Item | Status | Current build | Canonical intent | Resolution |
-|---|---|---|---|---|---|
-| **P0** | Prestige high-water commit | **DEFECT** | The shift quote sees live revenue/headcount, but `paradigmShiftPermanent` does not commit those live marks before the fresh run is saved | A Paradigm Shift pays for the run the player just completed and preserves its career maxima | Commit live maxima atomically with the reset and add a save/reload regression test |
-| **P0** | Prestige award semantics | **DECISION** | The full high-water formula is added again on every shift; `lifetimeRevenue` is reconciled as a maximum despite its additive name | A run's BP reward must be explainable, non-repeatable and visibly attributable to that run's progress | Choose incremental high-water reward or explicit run-local reward, rename the input, then rebalance BP |
-| **P0** | First hero-tree purchase | **DEFECT** | The board opens at level 2 with two total points while the specialist's next home Reach node costs three | A hero introduces their board by handing the player one legal, meaningful first purchase | Change the opening grant/cost or provide a two-point starter node, then walk the introduction |
-| **P0** | Hero coverage in release rating | **DEFECT** | `shipProject` always passes zero into the rating's hero-coverage input | Posting the right hero over the team that built a release raises the release rating | Pass the contributing covered share into rating and show the resulting rating delta |
-| **P0** | Telepathic Compression | **DEFECT** | The card says +1,000× capacity per level; `devCapFor` applies ×10 | The paid result and the written promise are one number | Choose the intended curve, make copy/math/tests agree, then re-run prestige pacing |
-| **P1** | Run 1 Mass Hire agency | **DECISION** | James's scene forces the 1,000-person hire and empties the treasury, including on dismissal | The trap should teach either “I chose reckless growth” or “James overruled me”, not claim both | Give the player the committed press, or rewrite the framing so James clearly owns the action |
-| **P1** | Specialist staffing | **PARTIAL** | QA/SRE/Support remove backlogs while still counting inside the same productive body as developers | Choosing organisational safety should carry a readable production or payroll trade-off | Add opportunity cost or explicitly canonise additive specialists, then retune role ratios |
-| **P1** | Support coverage | **PARTIAL** | Support grants its full effective head value after any positive coverage; the other hero branches scale with covered share | Reach and physical posting follow one coverage grammar unless the exception is itself the trait | Share-scale Support or surface a distinct Support-specific Reach benefit |
-| **P1** | Signature traits | **PARTIAL** | Six bespoke trait sentences display on cards; shared branch folds provide the runtime effects | A named mechanical promise on a hero card changes the simulation | Wire each signature or relabel the sentences as character flavour |
-| **P1** | Reputation prestige multiplier | **PARTIAL** | The rating module exposes a prestige multiplier but the Layer 1 award path does not use it | A well-run studio can make a prestige better, not only a longer one | Wire and itemise the contribution, or remove the promise from the design |
-| **P1** | Lens ladder fidelity | **PARTIAL** | Seven presentation levels reach the 100m globe, but park → globe collapses town/nation/system transitions | Every distinct Construction Ladder rung is a place the lens can visit | Make seven-level compression canon or add the missing stops; leave no disagreement between navigation and ladder tables |
+The audit findings below are retained as an implementation record, not an open backlog.
+
+| Item | Status | Canonical resolution | Verification / visible result |
+|---|---|---|---|
+| Prestige high-water commit | **CLOSED** | Career revenue and peak headcount commit atomically with the BP award before the fresh run is saved | Save/reload regression asserts both marks and lifetime BP in the shift write |
+| Prestige award semantics | **CLOSED** | BP uses explicit **run-local** revenue and peak. Shift clears both inputs, so an empty reset awards zero; career maxima are records only | Pacing test rejected incremental high-water because it stalled the cap at 175; run-local awards preserve the loop |
+| First hero-tree purchase | **CLOSED** | Every hero arrives at level 1 with one point; all five off-branch first DEPTH nodes cost one and are legal from the owned trunk | Unit test buys `cloud:1` with Mo's arrival point; acceptance walk buys James's first node |
+| Hero coverage in release rating | **CLOSED** | Settled hero footprints are unioned over build-team seats and passed into §4.14 | Ship toast/gallery show `HERO COVERAGE n% · +m RATING`; overlapping posts count once |
+| Telepathic Compression | **CLOSED** | One level is **×10 developer capacity** | Node copy, `CAP_STEP`, cap tests and §14.8.6 agree |
+| Run 1 Mass Hire agency | **CLOSED** | The forced trap is James's decision, not the player's | Scene says `AUTHORISED BY: J.` and James: `You were going to. This is fewer steps.` |
+| Specialist staffing | **CLOSED** | Only Developer-role heads produce Story Points; QA/SRE/Support retain payroll and entropy costs | A 30 Dev / 10 QA studio has 30 productive heads, not 40 |
+| Support coverage | **CLOSED** | Support DEPTH follows the same covered-share rule as every branch | Narrow Matt postings grant proportionally fewer effective Support heads; his catalogue exception lives in his signature |
+| Signature traits | **CLOSED** | All six story signatures are executable, posting-dependent rules | Stand-up protection, defect reduction, half-worked incidents, slower tickets, reserved-cap cost and Billy's pulse have focused tests |
+| Reputation prestige multiplier | **CLOSED** | §4.14's reputation multiplier applies after the run-progress BP formula | Shift receipt itemises `RUN PROGRESS × REPUTATION`; low/high reputation quote tests diverge |
+| Lens ladder fidelity | **CLOSED** | Seven presentation levels through the 100M globe are canon; the ten-rung table is simulation vocabulary | §7.4a, §7.7.1 and §7.8.2 now describe the same park → globe composition |
 
 #### G.2.2 Gaps inside reachable systems
 
@@ -10767,7 +10813,7 @@ top of a rule the player cannot trust multiplies the rework.
 | Dimension content | **NOT BUILT** | Six written themes, twists and signature modifiers | Scene/visual variants, audio mixes, runtime modifiers and return loop |
 | Full random-event library | **PARTIAL** | THE THREAD is a reachable two-exit event | Remaining event rotation, scheduling, authored consequences and event variety |
 | Optional minigames | **NOT BUILT** | Rules and examples in §26.3 | Slack-off interaction, crypto punt and any other short optional event interaction |
-| Full late Construction Ladder | **PARTIAL** | Seven-level lens through the 100m globe | Separate town, nation, planetary-system and galaxy stops if §7.7 remains canon |
+| Post-100M scale mechanics | **NOT BUILT** | Seven-level main-arc lens through the 100M globe | Layer 2+ system/galaxy stops only when each gains a distinct scale-appropriate decision |
 | Generated-person history | **PARTIAL** | Deterministic identity and repeatable face/name generation | Player-visible persistent history required by §26.2.5's galaxy-to-desk gate |
 | Cloud save | **NOT BUILT** | Versioned save document, merge functions and a documented adapter seam | `game-cloud` dependency, credentials, pull/reconcile/push transport, conflict UX and cloud deletion |
 | Ads and rewarded paths | **NOT BUILT** | GDD/monetisation placements and honest absent-button fallbacks | AdMob/consent integration, remote flags, failure states and rewarded completion paths |
@@ -10789,16 +10835,15 @@ the game's satire.
 
 | Lane | Improvement hypothesis | Smallest useful experiment | Keep it when… |
 |---|---|---|---|
-| Early trap | A deliberate Mass Hire press will make the collapse feel earned rather than scripted | Pause James's scene on a clearly priced `HIRE 1,000` commitment with a back-out route; compare it with the forced version | Players say “I caused that” before the explanation, and the decision does not create a funnel stall |
 | Visible goals | A player continues when the next affordable change is named everywhere a currency is earned | Add one persistent “NEXT” line to the run upgrade, founder, hero and prestige summaries: item, cost and shortfall | Players can name their next purchase and estimate whether it is this run or next without reopening every board |
-| Staffing | Roles become strategy when hiring one specialist visibly gives up something else | Show before-hire deltas for velocity, payroll and the relevant backlog; test a productive-head opportunity cost | Mixed rosters appear for different reasons and no single fixed ratio dominates every project rung |
+| Staffing | The new specialist opportunity cost becomes strategy when it is forecast before purchase | Show before-hire deltas for velocity, payroll and the relevant backlog; tune role ratios without removing the productive-head trade | Mixed rosters appear for different reasons and no single fixed ratio dominates every project rung |
 | Hero posting | Exact candidate previews make placement a choice rather than a confirmation ritual | While posting, tap once to preview target coverage/effect/XP and tap again to commit; keep the world marker to head, name and `ASSIGNED` only | Players compare at least two anchors and can explain why the chosen one is better |
-| Hero identity | Signatures should change play, not decorate cards | Wire one signature at a time as a small rule bend with a visible before/after line on that hero's receipt | The hero is chosen for their identity in at least one situation where raw branch depth would pick somebody else |
+| Hero identity | Wired signatures become choices when their before/after values are easy to compare | Add each signature's exact delta to the posting preview/receipt and tune one at a time | A hero is chosen for identity in at least one situation where raw branch depth would pick somebody else |
 | Hero roster | Catch-up should invite swapping without erasing loyalty | Test arrival XP equal to a fraction of roster median, or a short mentoring bonus while under-levelled | A newly arrived hero is usefully placeable within one run and old favourites still retain a clear advantage |
-| Prestige receipt | A reset feels fair when the player can see exactly what produced its reward and what the next run gains | Add a shift receipt: run revenue, peak devs, quality contribution, BP awarded and the nearest next node | Players predict the direction of their BP reward and choose another run for a visible shortfall |
-| Upgrade onboarding | Every board should open on an immediate legal decision | Give each board introduction a highlighted affordable starter and show its live delta before purchase | No introduction ends on a disabled tree, and the player uses the purchased effect in the next loop beat |
+| Prestige receipt | The new run-progress/reputation split becomes fully trustworthy when its raw inputs are visible | Extend the receipt with run revenue and peak devs; keep BP, reputation and nearest next node already shown | Players predict the direction of their BP reward and choose another run for a visible shortfall |
+| Upgrade onboarding | Every board should match the hero board's immediate legal decision | Highlight an affordable starter and show its live delta on the remaining board introductions | No introduction ends on a disabled tree, and the player uses the purchased effect in the next loop beat |
 | Lens usefulness | Every zoom stop earns its existence through one scale-appropriate decision | Prototype one interaction at park/globe scale—site balancing or hotspot routing—without adding a new currency | Players stop and act at the scale instead of treating it only as a corridor between zoom levels |
-| Scale compression | The seven-level lens may be clearer than the written ten-rung ladder | Playtest the current park→globe jump beside one intermediate town/nation mock; measure comprehension and perceived growth | The chosen ladder makes scale feel larger, keeps navigation memorable and does not add an empty stop |
+| Scale compression | The canonical seven-level lens succeeds only if park → globe still communicates the 100M jump | Playtest the current transition for scale comprehension before adding any post-100M stop | Players perceive multiplicative growth, remember the seven stops and do not ask where the studio went |
 | Events | A small rotating set of two-exit events can create variation without turning into interruption spam | Add three events sharing THE THREAD's hand-clear/permanent-solution grammar and enforce one-at-a-time scheduling | Players choose different exits, can explain the cost, and do not feel punished for ignoring the optional route |
 | Offline return | The Overnight Report should create the next decision, not end at collection | Add one contextual recommendation after collection: nearly shippable project, backlog risk, upgrade shortfall or idle hero | Returning players take a meaningful action from the report rather than dismissing it and waiting |
 | Session tuning | Fun adjustments need a small measurement set tied to decisions | Record run duration, next-goal shortfall, upgrade purchases, role mix, hero moves/coverage and event exits in local test telemetry | A balance change can be accepted or reverted from observed behaviour rather than impression alone |
@@ -10809,8 +10854,9 @@ the game's satire.
    `ASSIGNED`; the roster, preview and receipt own calculations.
 2. **Do not add a currency to solve a clarity problem.** First expose the consequence of the
    choice already present.
-3. **Do not tune prestige around the current defect.** Persistence and award semantics close
-   before any BP cost or run-band conclusion is trusted.
+3. **Tune prestige against the resolved run-local receipt.** Do not reintroduce career
+   high-water inputs to make a pacing row look better; the focused pacing test already showed
+   that version stalls the early loop.
 4. **Do not build Layer 2 to create variety while Layer 1 choices remain opaque.** A larger tree
    does not repair an unreadable one.
 5. **Keep experiments reversible.** One feature flag, one playtest question and one success
@@ -10820,15 +10866,12 @@ the game's satire.
 
 The next work should deepen trust and choice before widening scope:
 
-1. **Repair progression integrity.** Fix prestige high-water persistence, decide award semantics,
-   unblock the first hero-tree purchase, connect hero coverage to rating and reconcile Telepathic
-   Compression copy/math. These make earned currency and displayed benefits trustworthy.
-2. **Make existing decisions fun.** Resolve who chooses Mass Hire; add target-specific hero
-   placement preview; give specialist staffing a readable cost; normalise hero coverage rules;
-   add catch-up so the roster invites switching rather than permanent favourites.
-3. **Close Phase 2 honestly.** Decide seven-level compression versus the full ladder, expose
-   generated-person history, run the complete 100m gate on low-end Android, then make Layer 2 and
-   the collection long tail reachable.
+1. **Make resolved mechanics legible before adding scope.** Add target-specific hero previews,
+   specialist before-hire deltas and the raw run revenue/peak fields to the prestige receipt.
+2. **Keep the roster open to change.** Add hero catch-up so later arrivals invite switching,
+   then tune signature values and role ratios from playtests rather than removing their costs.
+3. **Close Phase 2 honestly.** Validate the canonical seven-level lens on low-end Android,
+   expose generated-person history, then make Layer 2 and the collection long tail reachable.
 4. **Add life in small measurable slices.** Ship more two-exit events and one optional minigame,
    then ambient movement/drag-return behaviour. Each slice must improve a loop that already works
    and must be removable if it does not improve session playtests.

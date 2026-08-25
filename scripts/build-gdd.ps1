@@ -507,13 +507,13 @@ $head = @'
         </article>
         <article class="status-card status-card--warn">
           <small>Integrity first</small>
-          <b>Five P0 corrections</b>
-          <p>Prestige persistence/semantics, first hero purchase, rating coverage and Telepathic Compression need reconciliation.</p>
+          <b>G.2.1 reconciled</b>
+          <p>Eleven audited divergences are closed in code and canon; focused regressions protect prestige, staffing, rating and hero rules.</p>
         </article>
         <article class="status-card status-card--phase">
           <small>Scale status</small>
-          <b>100m globe live; Phase 2 open</b>
-          <p>Aggregate simulation and seven lens levels work. Full ladder fidelity, history and low-end device proof remain.</p>
+          <b>Seven-level 100m lens is canon</b>
+          <p>Aggregate simulation and the main-arc lens agree. Post-100m mechanics, history and low-end device proof remain.</p>
         </article>
         <article class="status-card">
           <small>Next principle</small>

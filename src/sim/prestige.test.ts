@@ -38,7 +38,7 @@ describe('BP yield — §14.1', () => {
   it('makes the first Telepathic Compression unaffordable, and that is the arc', () => {
     // §13.2 prices it at 25 BP. A first shift pays about nineteen, so nobody
     // reaches it until their *second* — and one level takes the cap from 100 to
-    // 100,100. **The second prestige is the one that changes the game**, which
+    // 1,000. **The second prestige is the one that changes the game**, which
     // is a better shape than ten that each change it slightly.
     expect(bpFor(1_000_000, 1_040)).toBeLessThan(NODE_BY_ID.get('L1-1B')!.baseCost)
     expect(bpFor(1_000_000, 1_040)).toBeGreaterThanOrEqual(

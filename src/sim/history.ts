@@ -71,6 +71,8 @@ export interface ReleaseRecord {
   name: string
   /** §4.14's score out of 100, fixed at ship. */
   rating: number
+  /** §13.6 — union of the build team covered by settled hero postings, 0..1. */
+  heroCoverage?: number
   /** §4.10c's ladder payout — the tail's total, exactly. */
   payout: number
   /** Simulated seconds the build took — §10.11.1's "shipped 4 minutes ago". */
@@ -189,6 +191,7 @@ function maxRecord(a: ReleaseRecord, b: ReleaseRecord): ReleaseRecord {
     // exactly one release.
     name: a.name <= b.name ? a.name : b.name,
     rating: Math.max(a.rating, b.rating),
+    heroCoverage: Math.max(a.heroCoverage ?? 0, b.heroCoverage ?? 0),
     payout: Math.max(a.payout, b.payout),
     buildSeconds: Math.max(a.buildSeconds, b.buildSeconds),
     labourSeconds: Math.max(a.labourSeconds, b.labourSeconds),

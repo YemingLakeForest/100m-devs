@@ -48,6 +48,7 @@ import {
   BASELINE_RATING,
   DEFECT_DENSITY_ANCHOR,
   advanceReputation,
+  prestigeMultiplier,
   rateRelease,
   reputationMultiplier,
   revenueMultiplier,
@@ -934,7 +935,22 @@ export function effectiveDevCap(s: GameState = state): number {
  */
 export function workingDevs(s: GameState = state): number {
   const t = techOf(s)
-  return s.devs * t.activeDevFraction * standupFactor(s.runSeconds, standupsRunning(s))
+  const roles = countsOf(s.roster)
+  // Direct test/scenario seams sometimes raise `devs` without extending the
+  // roster. Treat unrecorded heads as developers, but every recorded QA, SRE or
+  // Support hire gives up one productive coding head. Specialists now protect
+  // the organisation *instead of* also writing the same Story Points as a dev.
+  const specialists = roles.qa + roles.sre + roles.support
+  const coding = Math.max(0, Math.floor(s.devs) - specialists)
+  const active = t.activeDevFraction
+  const meeting = standupFactor(s.runSeconds, standupsRunning(s))
+  const protectedHeads = Math.min(
+    coding,
+    Number.isFinite(s.heroFold.standupHeads) ? Math.max(0, s.heroFold.standupHeads) : 0,
+  )
+  // James and Billy protect only the stand-up loss. Pair Programming's
+  // `activeDevFraction` is a staffing choice, not an interruption immunity.
+  return coding * active * meeting + protectedHeads * active * (1 - meeting)
 }
 
 /**
@@ -1280,7 +1296,10 @@ export function nextPayout(s: GameState = state): number {
 }
 
 export function currentPayroll(s: GameState = state): number {
-  return payrollPerSecond(s.devs)
+  const operating = Number.isFinite(s.heroFold.operatingCost)
+    ? Math.max(0, s.heroFold.operatingCost)
+    : 0
+  return payrollPerSecond(s.devs) + operating
 }
 
 /**
@@ -1386,15 +1405,14 @@ function shipProject(s: GameState): Partial<GameState> {
   const density = graded
     ? shipDefects(s.defects, s.commitment.toNumber()).density
     : DEFECT_DENSITY_ANCHOR
+  const coveredByHeroes = graded ? releaseHeroCoverage(s) : 0
   const rating = graded
     ? rateRelease({
         defects: s.defects,
         storyPoints: s.commitment.toNumber(),
-        // §13.6 coverage over the team that built it. No hero cards are
-        // reachable yet (§13.6.7a), so this is honestly zero rather than
-        // optimistically absent — and §4.14.1's baseline is derived *from* a
-        // studio with no heroes, so a garage still scores ×1. See `rating.ts`.
-        heroCoverage: 0,
+        // §13.6 coverage over the team that built it. Intervals are unioned so
+        // overlapping postings never count the same developer twice.
+        heroCoverage: coveredByHeroes,
         // §4.9a pins the roster mean at 1.0, and `craftScore` turns that into
         // ½. The term goes quiet as the studio grows, which §4.14 calls design.
         craft: 1,
@@ -1426,6 +1444,7 @@ function shipProject(s: GameState): Partial<GameState> {
     run: getPermanent().meta.paradigmShifts,
     name: s.sprintName,
     rating,
+    heroCoverage: coveredByHeroes,
     payout: revenue,
     buildSeconds: s.projectSeconds,
     labourSeconds: s.projectLabourSeconds,
@@ -1605,6 +1624,7 @@ export function tick(dtSeconds: number): void {
         state.incidentPending,
         nextIncidentId,
         tail.releases,
+        heroes.incidentStartWork,
       )
     : { incidents: [] as Incident[], pending: 0, cleared: 0, restored: [] }
   // Ids only ever increase, so the high-water mark is the whole bookkeeping.
@@ -1615,14 +1635,19 @@ export function tick(dtSeconds: number): void {
 
   // §4.13 — and the people who bought them write in, forever.
   //
-  // §22.8 — Matt's Support branch adds heads here, and §13.7 is why they are
-  // *not* scaled by his coverage of the floor the way every other branch is:
-  // Support "acts on the catalogue rather than on the current project". He is
-  // answering for games that shipped three runs ago, and where he is standing
-  // has nothing to do with it.
+  // §22.8 — Matt's Support branch adds effective heads here, share-scaled by
+  // his posting like every other branch. His *distinct* catalogue exception is
+  // KNOWS THEIR NAMES: `heroes.ticketRate` slows arrivals separately below.
   const support = counts.support + FOUNDER_ROLE_HEADS + heroes.supportHeads
   const tickets = open
-    ? advanceTickets(state.tickets, state.projectsShipped, defects, support, dtSeconds)
+    ? advanceTickets(
+        state.tickets,
+        state.projectsShipped,
+        defects,
+        support,
+        dtSeconds,
+        heroes.ticketRate,
+      )
     : { queue: 0, served: 0 }
 
   // §4.13 — unanswered tickets tax the **catalogue**, never the current
@@ -2401,17 +2426,38 @@ export function techQuote(id: string, s: GameState = state) {
  * `paradigmShifts` is the flag, and it is the same counter §24.5 already uses
  * to unlock offline accrual.
  *
- * The quote is live rather than computed on press. §14.1 pays on *lifetime*
- * revenue and *peak* headcount, so it only ever goes up, and watching it climb
- * is the argument for playing another twenty minutes before cashing out.
+ * The quote is live rather than computed on press. §14.1 pays on this run's
+ * revenue and peak headcount, then reputation, so the receipt explains both
+ * progress and quality before the player throws the run away.
  */
-export function paradigmShiftOffer(s: GameState = state): { bp: number; available: boolean } {
+export interface ParadigmShiftOffer {
+  /** New, spendable BP awarded by shifting now. */
+  bp: number
+  /** Formula result before reputation. */
+  baseBp: number
+  /** §4.14 quality contribution, itemised for the receipt. */
+  reputationMultiplier: number
+  /** This run's value after reputation. */
+  grossBp: number
+  available: boolean
+}
+
+export function paradigmShiftOffer(s: GameState = state): ParadigmShiftOffer {
   const p = getPermanent()
-  const bp = bpFor(
-    Math.max(p.meta.lifetimeRevenue, s.lifetimeRevenue),
-    Math.max(p.meta.peakDevs, s.peakDevs),
-  )
-  return { bp, available: p.meta.paradigmShifts > 0 && s.phase !== 'bankrupt' }
+  // Explicit run-local inputs. The permanent high-water marks are a career
+  // record, not an award balance: using them here re-paid the same success on
+  // every empty reset. A shift clears both inputs, so this quote cannot be
+  // claimed twice without playing another run.
+  const baseBp = bpFor(s.lifetimeRevenue, Math.max(s.peakDevs, s.devs))
+  const quality = prestigeMultiplier(s.reputation)
+  const grossBp = Math.max(0, Math.floor(baseBp * quality))
+  return {
+    bp: grossBp,
+    baseBp,
+    reputationMultiplier: quality,
+    grossBp,
+    available: p.meta.paradigmShifts > 0 && s.phase !== 'bankrupt',
+  }
 }
 
 /** §13.2 — has the player ever prestiged? The Paradigm Tree's door. */
@@ -2570,6 +2616,49 @@ export function currentHeroFold(s: GameState = state): HeroFold {
 }
 
 /**
+ * §4.14 — share of the build team covered by at least one settled hero.
+ *
+ * Coverage is a union of seat intervals, not a sum of card percentages. Two
+ * heroes posted over the same floor still cover that floor once; moving the
+ * second to an uncovered unit raises the release score. This is the rating-side
+ * payoff for physical posting and keeps overlap from printing free quality.
+ */
+export function releaseHeroCoverage(s: GameState = state): number {
+  const devs = Math.max(0, Math.floor(s.devs))
+  if (devs === 0) return 0
+
+  const spans: Array<{ from: number; to: number }> = []
+  for (const runtime of heroRoster(s)) {
+    const placement = runtime.placement
+    if (!placement) continue
+    const coverage = heroCoverageOf(runtime, s)
+    if (!(coverage.covered > 0)) continue
+
+    const from = placement.rung <= LITERAL_RUNG_LIMIT
+      ? Math.min(devs, Math.max(0, Math.floor(placement.index)))
+      : unitSeats(placement.rung, placement.index, devs).from
+    spans.push({ from, to: Math.min(devs, from + coverage.covered) })
+  }
+
+  spans.sort((a, b) => a.from - b.from || a.to - b.to)
+  let covered = 0
+  let from = -1
+  let to = -1
+  for (const span of spans) {
+    if (span.to <= span.from) continue
+    if (span.from > to) {
+      if (to > from) covered += to - from
+      from = span.from
+      to = span.to
+    } else {
+      to = Math.max(to, span.to)
+    }
+  }
+  if (to > from) covered += to - from
+  return Math.min(1, covered / devs)
+}
+
+/**
  * Recompute {@link GameState.heroFold} and publish it if it moved.
  *
  * Called from `tick`, from every placement and purchase, and after a load.
@@ -2586,7 +2675,11 @@ function refreshHeroFold(): void {
     next.cap === prev.cap &&
     next.defects === prev.defects &&
     next.incidents === prev.incidents &&
-    next.supportHeads === prev.supportHeads
+    next.supportHeads === prev.supportHeads &&
+    next.incidentStartWork === prev.incidentStartWork &&
+    next.ticketRate === prev.ticketRate &&
+    next.standupHeads === prev.standupHeads &&
+    next.operatingCost === prev.operatingCost
   ) {
     return
   }
@@ -3063,21 +3156,23 @@ export function acceptMassHire(): boolean {
  */
 export function triggerParadigmShift(): void {
   const run = freshRun()
-  // §14.1 — what the run was worth. Computed before the reset, and from the
-  // *permanent* high-water marks rather than the live ones: Act V ends with a
-  // bankruptcy that has already liquidated the swarm, so a player who peaked at
-  // a thousand developers and prestiges at two must be paid for the thousand.
+  // §14.1 — what this run was worth, computed before its revenue and peak are
+  // cleared. `state.peakDevs` survives the Act V liquidation, so a player who
+  // peaked at a thousand and shifts at two is still paid for the thousand.
+  // Career maxima are committed beside the award for history/save merging; the
+  // quote itself remains run-local and cannot be claimed from an empty reset.
   const before = getPermanent()
-  const earned = bpFor(
-    Math.max(before.meta.lifetimeRevenue, state.lifetimeRevenue),
-    Math.max(before.meta.peakDevs, state.peakDevs),
-  )
+  const marks = {
+    lifetimeRevenue: Math.max(before.meta.lifetimeRevenue, state.lifetimeRevenue),
+    peakDevs: Math.max(before.meta.peakDevs, state.peakDevs, state.devs),
+  }
+  const earned = paradigmShiftOffer(state).bp
   lastShiftBp = earned
 
   // §24.4 — a Paradigm Shift clears the run and touches nothing permanent
   // except Layer 1. §24.5 gates offline accrual on the first one, so the
   // counter is the unlock.
-  setPermanent(paradigmShiftPermanent(before, earned))
+  setPermanent(paradigmShiftPermanent(before, earned, marks))
   set({
     ...run,
     // §4.2 — the cap the tree has bought, applied to the new run. Reading it

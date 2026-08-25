@@ -70,7 +70,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'Act I, fifty pokes, free — the constant across every run',
     trait: {
       name: 'FEWER COMMITMENTS',
-      text: 'Nothing interrupts him. Ambient drive-bys and every distraction on the floor pass him by.',
+      text: 'Daily Standups never pause James’s own developer output.',
     },
     idle: 'typing',
     brings: null,
@@ -84,7 +84,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first release rated below the §4.14 baseline on defects alone',
     trait: {
       name: 'READS IT TWICE',
-      text: 'A defect caught before a release ships costs half of one caught after.',
+      text: 'Work inside Mo’s coverage generates half as many defects before release.',
     },
     idle: 'reading',
     brings: 'defects',
@@ -98,7 +98,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first incident to suppress a release’s tail',
     trait: {
       name: 'WROTE THE RUNBOOK',
-      text: 'The first incident on any release opens already half worked.',
+      text: 'A new incident opens up to half worked, scaled by Serena’s coverage.',
     },
     idle: 'watching',
     brings: 'incidents',
@@ -112,7 +112,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first sustained unserved ticket queue',
     trait: {
       name: 'KNOWS THEIR NAMES',
-      text: 'Tickets about a release he has already answered for arrive at a lower rate.',
+      text: 'Catalogue tickets arrive up to 20% slower, scaled by Matt’s coverage.',
     },
     idle: 'headset',
     brings: 'tickets',
@@ -126,7 +126,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first time the developer cap is hit with cash still in the bank',
     trait: {
       name: 'RESERVED INSTANCES',
-      text: 'Capacity within reach arrives with no ramp. The bill arrives every second, forever.',
+      text: 'Adds up to 25% capacity immediately. Reserved coverage costs $1 per developer each second.',
     },
     idle: 'pacing',
     brings: null,
@@ -140,7 +140,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first time the speedometer reads past CHATTY outside Run 1',
     trait: {
       name: 'FIFTEEN MINUTES',
-      text: 'A stand-up pulses output across everyone in reach. It genuinely works.',
+      text: 'Daily Standups do not pause developers inside Billy’s coverage.',
     },
     idle: 'whiteboard',
     brings: null,

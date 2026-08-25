@@ -169,10 +169,10 @@ function NearMiss({ levels, bp }: { levels: Readonly<Record<string, number>>; bp
  * per playthrough** in a game whose whole second half is the loop. A player
  * stalled at forty developers with money in the bank had to wait to go broke.
  *
- * The quote is live and it only ever goes up — §14.1 pays on lifetime revenue
- * and peak headcount, neither of which can fall — so watching this number climb
- * is the argument for playing another twenty minutes before cashing out. That
- * is the whole reason it is shown *before* the decision rather than after it.
+ * The quote is live — §14.1 pays on this run's revenue and peak headcount, then
+ * itemises reputation — so the player sees what another twenty minutes and a
+ * better release would change before cashing out. That is the whole reason it
+ * is shown *before* the decision rather than after it.
  *
  * Two presses, and the second one says what it costs. This throws the run away.
  */
@@ -203,7 +203,10 @@ function ShiftOffer({ state }: { state: GameState }) {
   return (
     <div className="paradigm__shift">
       <p className="paradigm__shift-quote">
-        THIS RUN IS WORTH <b>{offer.bp}</b> BP
+        NEW BP THIS SHIFT <b>{offer.bp}</b>
+      </p>
+      <p className="paradigm__shift-reach">
+        RUN PROGRESS {offer.baseBp} × REPUTATION {offer.reputationMultiplier.toFixed(2)}
       </p>
       {/*
         One template string per phrase — trap 31. The whole line is the readout,
