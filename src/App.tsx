@@ -35,6 +35,7 @@ import {
 } from './game/scenes.ts'
 import { THREAD } from './sim/events.ts'
 import ScenarioBar from './dev/ScenarioBar.tsx'
+import { DEBUG_TOOLS_ENABLED, debugSearchParams } from './dev/debugAccess.ts'
 import { SCENARIOS_UP, applyScenario, scenarioById, scenarioRung } from './game/scenarios.ts'
 import { zAtRung } from './sim/ladder.ts'
 
@@ -49,9 +50,10 @@ import './styles/title.css'
  * module load for the same reason Hud.tsx reads `?dialogue` there — a query
  * string cannot change mid-session.
  */
+const DEBUG_QUERY = debugSearchParams()
+
 const SKIP_TITLE = (() => {
-  if (typeof location === 'undefined') return false
-  const q = new URLSearchParams(location.search)
+  const q = DEBUG_QUERY
   return q.has('notitle') || q.has('act') || q.has('bench') || q.has('scenarios') || q.has('scenario')
 })()
 
@@ -110,7 +112,7 @@ export default function App() {
 
     // ?act=act5_bleeding jumps the §21 script, for iterating on copy without
     // replaying the four minutes Run 1 is deliberately paced to take.
-    const act = new URLSearchParams(location.search).get('act')
+    const act = DEBUG_QUERY.get('act')
     if (act && (PHASE_ORDER as readonly string[]).includes(act)) {
       jumpToPhase(act as Phase)
     }
@@ -120,7 +122,7 @@ export default function App() {
     // those were: the card's copy, its live §19 quote and the turn animation
     // all want iterating on, and reaching them by hand means finding a specific
     // seat in a room that has been panned somewhere else.
-    const select = new URLSearchParams(location.search).get('select')
+    const select = DEBUG_QUERY.get('select')
     if (select !== null) selectDeveloper(Number(select))
 
     // ?full is the **worst frame the HUD ever has to draw**, and it exists for
@@ -136,7 +138,7 @@ export default function App() {
     //
     // Same family as ?act, ?devs and ?select, and here for the same reason: the
     // frame is real, the way of getting to it is not.
-    if (new URLSearchParams(location.search).has('full')) {
+    if (DEBUG_QUERY.has('full')) {
       const p = getPermanent()
       setPermanent({
         ...p,
@@ -208,7 +210,7 @@ export default function App() {
           id: THREAD.id,
           remaining: 14,
           age: 42,
-          routed: !new URLSearchParams(location.search).has('event'),
+          routed: !DEBUG_QUERY.has('event'),
         },
       })
     }
@@ -221,7 +223,7 @@ export default function App() {
     // *not* routed through the economy — it sets the count and nothing else, so
     // what you are looking at is the renderer's answer to a headcount and not a
     // save file somebody has to unpick afterwards.
-    const devs = new URLSearchParams(location.search).get('devs')
+    const devs = DEBUG_QUERY.get('devs')
     if (devs !== null && Number.isFinite(Number(devs))) {
       const n = Math.max(0, Math.floor(Number(devs)))
       // Cash comes with it, because §4.10d's payroll is continuous and a studio
@@ -236,7 +238,7 @@ export default function App() {
     // difference between a headcount you can look at and one you cannot.
     // `?scenarios` (plural) is the picker that switches between them live.
     const scenario = scenarioById(
-      new URLSearchParams(location.search).get('scenario') ?? '',
+      DEBUG_QUERY.get('scenario') ?? '',
     )
     if (scenario) applyScenario(scenario)
 
@@ -251,7 +253,7 @@ export default function App() {
       // rather than of whatever the camera happened to be doing. Clamped by
       // §7.7.1's zoom ceiling like every other way of moving the lens — the
       // studio you can see is still the studio you have.
-      const z = new URLSearchParams(location.search).get('z')
+      const z = DEBUG_QUERY.get('z')
       if (z !== null && Number.isFinite(Number(z))) h.camera.set(Number(z))
       // A scenario parks the lens at the rung its headcount has earned, unless
       // `?z` has asked for somewhere specific. Landing at a hundred million
@@ -267,7 +269,7 @@ export default function App() {
       // ?bench runs the GDD §23.3 acceptance sequence. ?bench=10 shortens the
       // 60-second sustained-tap leg, for checking the harness itself without
       // sitting through the real thing.
-      const bench = new URLSearchParams(location.search).get('bench')
+      const bench = DEBUG_QUERY.get('bench')
       if (bench !== null) startBench(h, Number(bench) > 0 ? Number(bench) : 60)
     })
 
@@ -378,22 +380,21 @@ export default function App() {
           </div>
         ))}
       {/*
-        A Capacitor-bundled app has no query string, so ?bench cannot reach it
-        on a device. This is the on-device trigger, and it is compiled out of
-        any build that does not explicitly ask for it — build with
-        VITE_BENCH=1 to get it, and a shipping build never will.
+        An explicitly requested local-browser trigger. The runtime gate is
+        load-bearing: Capacitor itself uses a localhost-looking origin, so the
+        native-platform half of DEBUG_TOOLS_ENABLED keeps this off Android.
+        Deployed HTML is also refused even if VITE_BENCH was set by mistake.
       */}
-      {import.meta.env.VITE_BENCH === '1' && stage && benchText === null && (
+      {DEBUG_TOOLS_ENABLED && import.meta.env.VITE_BENCH === '1' && stage && benchText === null && (
         <button type="button" className="bench-trigger" onClick={() => startBench(stage, 60)}>
           RUN §7.5
         </button>
       )}
       {benchText !== null && <pre className="bench-report">{benchText}</pre>}
       {/*
-        `?scenarios` — the §7.7.1 ladder on nine buttons. Dev builds only, and
-        only when named: `npm run dev` is also what the §23.4.2 frame gate
-        starts, and a bar that showed up unasked would be in all 68 of its
-        screens.
+        `?scenarios` — the §7.7.1 ladder on nine buttons. Local browser only,
+        and only when named: the frame gate also runs locally, and a bar that
+        showed up unasked would be in every one of its screens.
       */}
       {SCENARIOS_UP && <ScenarioBar stage={stage} />}
     </div>

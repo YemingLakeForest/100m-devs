@@ -84,6 +84,7 @@ resizes the window, so this only bites in DevTools.
 The banner prints a Network URL. Open that on a phone on the same Wi-Fi — no build, no
 install, and the orientation lock is the real one rather than a simulated viewport.
 
-For the §23.3 acceptance run you need the bundled APK rather than the dev server, because a
-Capacitor shell has no query string: build with `VITE_BENCH=1` and the bench becomes a
-button. A shipping build never contains it.
+The §23.3 harness is available only from a loopback browser session (`localhost`,
+`127.0.0.1` or `::1`). It is deliberately unavailable in every Capacitor Android build,
+including snapshot/debug APKs; Capacitor's localhost-looking internal origin does not bypass
+the native-platform check.

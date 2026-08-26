@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { __resetStore } from '../game/store.ts'
+import { __resetStore, __setState } from '../game/store.ts'
 import { emptyPermanent, getPermanent, setPermanent } from '../game/save.ts'
 import { SCENE_FOUNDER_BOARD } from '../game/scenes.ts'
 import { writeFounderProfile } from '../game/founderProfile.ts'
@@ -77,5 +77,27 @@ describe('manager corner', () => {
     render(<FounderProfilePanel open onClose={() => {}} />)
     expect(screen.getByRole('heading', { name: 'MANAGEMENT — YOU' })).toBeInTheDocument()
     expect(screen.getByText('Touch Typing')).toBeInTheDocument()
+  })
+
+  it('offers one first-use purchase and hands control back afterwards', () => {
+    const p = getPermanent()
+    setPermanent({
+      ...p,
+      meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_FOUNDER_BOARD.id] },
+    })
+    __setState({ cash: 1_000 })
+    const complete = vi.fn()
+    render(
+      <FounderProfilePanel
+        open
+        guided
+        onGuidedComplete={complete}
+        onClose={() => {}}
+      />,
+    )
+
+    expect(screen.getByText(/Buy one skill you can afford/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^\$400/ }))
+    expect(complete).toHaveBeenCalledOnce()
   })
 })

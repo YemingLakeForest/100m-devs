@@ -128,6 +128,7 @@ const runState = (page) =>
       tickets: Math.round(s.tickets),
       event: s.event ? `${s.event.id}/${s.event.remaining}${s.event.routed ? '/routed' : ''}` : null,
       posting: s.posting,
+      postingTarget: s.postingTarget,
       placements: Object.keys(s.heroPlacements ?? {}),
       // §4.11 — everybody on the floor whose job is not "developer". The first
       // one of those is item 9's front door.
@@ -200,6 +201,45 @@ const railBacklogs = (page) =>
  * "arrived with her" from "was there all along".
  */
 const beats = []
+/** First-use boards completed through §21.7.7e's guided purchase. */
+const guidedBoards = new Set()
+
+/**
+ * §21.7.7e — a character has finished speaking and put one valid action in
+ * front of the player. Complete that action like a player, and prove the board
+ * closes back to the floor. The tech-board hand-off is exercised separately by
+ * the event careers below, so only the two auto-opened personal boards live in
+ * this general interruption pump.
+ */
+async function pumpGuidedBoard(page) {
+  const teaching = page.locator('.board-teaching')
+  if (!(await teaching.count())) return false
+
+  const founder = page.locator('.founder-profile[data-phase="in"]')
+  if (await founder.count()) {
+    const buy = founder.locator('.founder__node[data-guide="true"] button:not([disabled])')
+    if (!(await buy.count())) fail(`the founder hand-off offered no valid purchase — ${await where(page)}`)
+    await buy.first().click({ timeout: 3_000 })
+    await founder.waitFor({ state: 'hidden', timeout: 5_000 })
+    guidedBoards.add('founder')
+    return true
+  }
+
+  const hero = page.locator('.herotree[data-phase="in"]')
+  if (await hero.count()) {
+    const node = hero.locator('.herotree__node[data-guide="true"]')
+    if (!(await node.count())) fail(`the hero hand-off offered no marked valid node — ${await where(page)}`)
+    await node.first().click({ timeout: 3_000 })
+    const buy = page.locator('.herotree__guide-card button:not([disabled])')
+    await buy.waitFor({ timeout: 3_000 })
+    await buy.click({ timeout: 3_000 })
+    await hero.waitFor({ state: 'hidden', timeout: 5_000 })
+    guidedBoards.add('hero')
+    return true
+  }
+
+  return false
+}
 
 /**
  * §10.7a.3 — a conversation interrupts, you tap through it, you carry on.
@@ -211,7 +251,7 @@ const beats = []
  */
 async function pumpScene(page) {
   const id = await page.evaluate(() => globalThis.__store?.scene ?? null)
-  if (!id) return false
+  if (!id) return pumpGuidedBoard(page)
   if (!beats.some((b) => b.id === id)) {
     beats.push({ id, rail: await railBacklogs(page) })
   }
@@ -973,11 +1013,16 @@ async function walkItems9and10(page, size) {
     { hire: false },
   )
   await play(page, 'the founder’s board', () => played('scene.run2.founder-board'), { hire: false })
+  await playScenes(page)
   saw(
     boardAlready
       ? `hired a ${specialist}; §21.7.7's board had already come through its **other** door — the founder's share of the output fell past a twentieth first, which is the guarantee rather than the beat`
       : `hired the first ${specialist}, and §21.7.7's founder board arrived on it`,
   )
+
+  if (!guidedBoards.has('founder')) {
+    fail('the founder scene did not hand directly into one valid Management purchase')
+  }
 
   // And the board is really there, on the screen the scene was about.
   await openFounderScreen(page, size)
@@ -996,6 +1041,9 @@ async function walkItems9and10(page, size) {
   saw('a placed hero earned a second level, and §13.9’s board arrived with the first point there was to spend')
 
   await spendOffBranch(page)
+  if (!guidedBoards.has('hero')) {
+    fail('the hero-board scene did not hand directly into one valid point purchase')
+  }
 }
 
 /**
@@ -1052,8 +1100,18 @@ async function placeAHero(page, size) {
     await tapWorld(page, spot.x, spot.y)
     await page.waitForTimeout(120)
     const s = await runState(page)
-    if (s.placements.length > 0) {
-      saw(`posted ${s.placements.join(', ')} onto the floor with §13.8a’s gesture`)
+    if (s.postingTarget) {
+      const receipt = (await page.locator('.posting').textContent()) ?? ''
+      const branchEffect = /VELOCITY|DEFECT RATE|INCIDENT RATE|ENTROPY|DEVELOPER CAP|TICKET HEADS/.test(receipt)
+      if (!receipt.includes('XP SHARE') || !branchEffect) {
+        fail(`the candidate target had no exact placement receipt — ${receipt}`)
+      }
+      await press(page, /CONFIRM (PLACE|MOVE)/)
+      await page.waitForTimeout(120)
+    }
+    const confirmed = await runState(page)
+    if (confirmed.placements.length > 0) {
+      saw(`previewed exact coverage/effect/XP, then posted ${confirmed.placements.join(', ')} onto the floor with §13.8c’s confirmation`)
       return
     }
   }
@@ -1385,7 +1443,9 @@ async function walkTheThread(browser, exit) {
     await tapControl(page, page.getByRole('button', { name: target.name, exact: true }), target.name)
     await tapControl(page, page.locator('.upgrade-board__guide-card button'), `the price on ${target.name}`)
     await page.waitForTimeout(600)
-    await press(page, 'BACK')
+    // §21.7.7e closes a guided first-use board on the purchase. A later visit
+    // remains open and still uses BACK; both are valid returns to the floor.
+    if (await page.locator('.hud__upgrades[data-phase="in"]').count()) await press(page, 'BACK')
     await playScenes(page)
 
     if (!played('scene.run2.thread-cleared')) {

@@ -36,7 +36,18 @@ export function WorldHeroAssignments({
 
   if (!stage) return null
   const placed = roster.filter((hero) => hero.placement !== null)
-  if (placed.length === 0) return null
+  const armed = state.posting === null ? null : roster.find((hero) => hero.id === state.posting) ?? null
+  const preview = armed && state.postingTarget
+    ? {
+        ...armed,
+        placement: { ...state.postingTarget, placedAt: state.runSeconds },
+      }
+    : null
+  const assignments = [
+    ...placed.map((hero) => ({ hero, preview: false })),
+    ...(preview ? [{ hero: preview, preview: true }] : []),
+  ]
+  if (assignments.length === 0) return null
 
   const width = window.innerWidth
   const height = window.innerHeight
@@ -48,9 +59,9 @@ export function WorldHeroAssignments({
 
   return (
     <div className="world-heroes" aria-label="Hero assignments in this scene">
-      {placed.map((hero, order) => {
+      {assignments.map(({ hero, preview: isPreview }, order) => {
         const placement = hero.placement!
-        const coverage = heroCoverageOf(hero, state)
+        const coverage = isPreview ? null : heroCoverageOf(hero, state)
         const projected = stage.heroAnchor(placement)
         const fallbackX = width / 2 + (order % 2 === 0 ? -48 : 48)
         const fallbackY = minY + Math.floor(order / 2) * 42
@@ -65,9 +76,9 @@ export function WorldHeroAssignments({
           <div
             className="world-hero-pin"
             data-edge={edge ? 'true' : 'false'}
-            data-state={coverage.settling ? 'walking' : 'active'}
-            key={hero.id}
-            aria-label={`${hero.hero.name} assigned to ${assignmentLabel(hero)}`}
+            data-state={isPreview ? 'preview' : coverage?.settling ? 'walking' : 'active'}
+            key={`${hero.id}:${isPreview ? 'preview' : 'committed'}`}
+            aria-label={`${hero.hero.name} ${isPreview ? 'preview at' : 'assigned to'} ${assignmentLabel(hero)}`}
             style={
               {
                 '--branch': hero.colour,
@@ -81,7 +92,7 @@ export function WorldHeroAssignments({
               {face && <HeroFace look={face.look} className="world-hero-pin__face" />}
               <span className="world-hero-pin__copy">
                 <strong>{hero.hero.name.toUpperCase()}</strong>
-                <small>ASSIGNED</small>
+                <small>{isPreview ? 'PREVIEW' : 'ASSIGNED'}</small>
               </span>
             </div>
           </div>

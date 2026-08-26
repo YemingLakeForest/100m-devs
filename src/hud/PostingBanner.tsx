@@ -20,9 +20,16 @@
  */
 
 import { Button } from '../ui/Button.tsx'
-import { cancelPosting, devsUnderPlacement, heroRoster } from '../game/store.ts'
+import {
+  cancelPosting,
+  confirmHeroPosting,
+  devsUnderPlacement,
+  heroCatchUpMultiplier,
+  heroRoster,
+} from '../game/store.ts'
 import type { GameState } from '../game/store.ts'
 import { SETTLE_SECONDS } from '../sim/heroRoster.ts'
+import { unitLabel } from '../sim/units.ts'
 import {
   coverageLabel,
   coveragePercent,
@@ -31,6 +38,11 @@ import {
 } from './heroPlacementModel.ts'
 
 import '../styles/heroes.css'
+
+function targetLabel(rung: number, index: number): string {
+  if (rung <= 2) return `DESK ${index + 1}`
+  return `${unitLabel(rung).toUpperCase()} ${String(index + 1).padStart(2, '0')}`
+}
 
 export function PostingBanner({ state }: { state: GameState }) {
   const roster = heroRoster(state)
@@ -46,16 +58,55 @@ export function PostingBanner({ state }: { state: GameState }) {
   if (armed) {
     const bestCovered = Math.min(armed.reachDevs, Math.max(0, Math.floor(state.devs)))
     const bestShare = studioCoverageShare(bestCovered, state.devs)
-    const benefit = placementBenefit(armed, bestShare)
+    const bestBenefit = placementBenefit(armed, bestShare)
+    const target = state.postingTarget
+
+    if (target) {
+      const candidatePlacement = { ...target, placedAt: state.runSeconds }
+      const covered = Math.min(armed.reachDevs, devsUnderPlacement(candidatePlacement, state))
+      const share = studioCoverageShare(covered, state.devs)
+      const benefit = placementBenefit(armed, share)
+      const xpShare = coveragePercent(covered, state.devs)
+      const catchUp = heroCatchUpMultiplier(armed, covered, state)
+
+      const currentCovered = armed.placement
+        ? Math.min(armed.reachDevs, devsUnderPlacement(armed.placement, state))
+        : 0
+      const currentShare = studioCoverageShare(currentCovered, state.devs)
+      const currentBenefit = placementBenefit(armed, currentShare)
+      const current = armed.placement
+        ? `${coverageLabel(currentCovered, state.devs)} · ${currentBenefit.value} ${currentBenefit.label} · XP SHARE ${coveragePercent(currentCovered, state.devs)}%`
+        : 'BENCHED · NO EFFECT · NO XP'
+
+      return (
+        <div className="posting" role="status" aria-live="polite">
+          <div className="posting__row" data-phase="preview" style={{ ['--branch' as string]: armed.colour }}>
+            <div className="posting__copy">
+              <span className="posting__step">PLACE {armed.hero.name.toUpperCase()} — STEP 3 OF 3</span>
+              <strong className="posting__line">TARGET {targetLabel(target.rung, target.index)}</strong>
+              <span className="posting__benefit">
+                {coverageLabel(covered, state.devs)} · {benefit.value} {benefit.label} · XP SHARE {xpShare}%
+                {catchUp > 1.005 ? ` · CATCH-UP ×${catchUp.toFixed(2)}` : ''}
+              </span>
+              <span className="posting__hint">CURRENT: {current}</span>
+            </div>
+            <div className="posting__actions">
+              <Button onClick={confirmHeroPosting}>{armed.placement ? 'CONFIRM MOVE' : 'CONFIRM PLACE'}</Button>
+              <Button onClick={cancelPosting}>CANCEL</Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div className="posting" role="status" aria-live="polite">
         <div className="posting__row" data-phase="choose" style={{ ['--branch' as string]: armed.colour }}>
           <div className="posting__copy">
-            <span className="posting__step">PLACE {armed.hero.name.toUpperCase()} — STEP 2 OF 2</span>
-            <strong className="posting__line">TAP A DEVELOPER, FLOOR, OR VISIBLE UNIT</strong>
+            <span className="posting__step">PLACE {armed.hero.name.toUpperCase()} — STEP 2 OF 3</span>
+            <strong className="posting__line">HOVER OR TAP A DEVELOPER, FLOOR, OR VISIBLE UNIT</strong>
             <span className="posting__benefit">
-              BEST COVERAGE HERE: {coverageLabel(bestCovered, state.devs)} · {benefit.value} {benefit.label}
+              BEST POSSIBLE: {coverageLabel(bestCovered, state.devs)} · {bestBenefit.value} {bestBenefit.label}
             </span>
             <span className="posting__hint">ROOM: EARLIER DESKS COVER MORE · EMPTY SPACE CANCELS</span>
           </div>

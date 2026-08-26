@@ -73,14 +73,28 @@ export function FounderDesk({ stage }: { stage: StageHandle | null }) {
   )
 }
 
-function Node({ node, cash }: { node: FounderNode; cash: number }) {
+function Node({
+  node,
+  cash,
+  guided,
+  onBought,
+}: {
+  node: FounderNode
+  cash: number
+  guided?: boolean
+  onBought?: () => void
+}) {
   const levels = getPermanent().meta.founderLevels ?? {}
   const level = founderLevel(levels, node.id)
   const maxed = level >= node.maxLevel
   const cost = founderCost(node, level)
 
   return (
-    <div className="founder__node" data-owned={level > 0 ? 'true' : 'false'}>
+    <div
+      className="founder__node"
+      data-owned={level > 0 ? 'true' : 'false'}
+      data-guide={guided ? 'true' : 'false'}
+    >
       <div className="founder__node-head">
         <span className="founder__node-name">{node.name}</span>
         {/*
@@ -93,7 +107,12 @@ function Node({ node, cash }: { node: FounderNode; cash: number }) {
       </div>
       <p className="founder__node-flavour"><ConceptText text={node.flavour} /></p>
       <p className="founder__node-effect"><ConceptText text={node.effect} /></p>
-      <Button onClick={() => buyFounderNode(node.id)} disabled={maxed || cash < cost}>
+      <Button
+        onClick={() => {
+          if (buyFounderNode(node.id)) onBought?.()
+        }}
+        disabled={maxed || cash < cost}
+      >
         {maxed ? 'LEARNED' : formatMoney(cost)}
         {node.maxLevel > 1 && !maxed && ` · ${level}/${node.maxLevel}`}
       </Button>
@@ -117,7 +136,15 @@ function Node({ node, cash }: { node: FounderNode; cash: number }) {
  * is explicit that the player should "discover this by buying the nodes and
  * watching them underperform".
  */
-export function FounderBranch({ cash }: { cash: number }) {
+export function FounderBranch({
+  cash,
+  guided = false,
+  onGuidedComplete,
+}: {
+  cash: number
+  guided?: boolean
+  onGuidedComplete?: () => void
+}) {
   const f = founderOf()
 
   return (
@@ -131,8 +158,19 @@ export function FounderBranch({ cash }: { cash: number }) {
         YOUR OUTPUT <b>{f.rate.toFixed(1)}</b> <Kw>story points</Kw> a second — and nothing the studio
         does can raise it or take it away.
       </p>
+      {guided && (
+        <p className="board-teaching" role="status">
+          <b>JAMES //</b> Buy one skill you can afford. Watch your own desk change, then get back to the studio.
+        </p>
+      )}
       {FOUNDER_TREE.map((node) => (
-        <Node key={node.id} node={node} cash={cash} />
+        <Node
+          key={node.id}
+          node={node}
+          cash={cash}
+          guided={guided && node.id === 'M-ENG'}
+          onBought={guided ? onGuidedComplete : undefined}
+        />
       ))}
     </section>
   )
@@ -144,7 +182,17 @@ export function FounderBranch({ cash }: { cash: number }) {
  * button, so inspecting yourself never spends a tap and tapping CODE never
  * unexpectedly opens navigation.
  */
-export function FounderProfilePanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function FounderProfilePanel({
+  open,
+  guided = false,
+  onGuidedComplete,
+  onClose,
+}: {
+  open: boolean
+  guided?: boolean
+  onGuidedComplete?: () => void
+  onClose: () => void
+}) {
   const state = useGameState()
   const founder = readFounderProfile() ?? DEFAULT_FOUNDER
   /*
@@ -186,7 +234,11 @@ export function FounderProfilePanel({ open, onClose }: { open: boolean; onClose:
 
         {hasBoard && (
           <div className="founder-profile__tree">
-            <FounderBranch cash={state.cash} />
+            <FounderBranch
+              cash={state.cash}
+              guided={guided}
+              onGuidedComplete={onGuidedComplete}
+            />
           </div>
         )}
       </div>

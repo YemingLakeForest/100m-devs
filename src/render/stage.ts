@@ -20,7 +20,7 @@ import {
   heroRoster,
   poke,
   pokeFounder,
-  postHeroAt,
+  previewHeroAt,
   selectDeveloper,
   setCameraRung,
   setZoom,
@@ -88,6 +88,7 @@ import { branchColour } from '../sim/heroTree.ts'
 import { roomSeatMarks, type RoomPosting, type SeatMark } from './heroBadges.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
+import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
 import {
   capForLevel,
   createTallies,
@@ -282,7 +283,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // ?nopost drops the glass entirely; ?post=bloom,crt attaches just those
   // passes. The stack is six passes deep, so being able to bisect it without a
   // rebuild is what separates "the scene is too heavy" from "one filter is".
-  const params = new URLSearchParams(location.search)
+  const params = debugSearchParams()
   const requested = params.get('post')
   const passes = params.has('nopost')
     ? new Set<PassName>()
@@ -367,6 +368,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     const postings: RoomPosting[] = []
     for (const hero of heroRoster(state)) {
+      // §13.8c — once a candidate is under inspection the floor answers the
+      // proposed move, while the world pin continues to show the committed
+      // anchor. Drawing both footprints would turn a comparison into an
+      // overlap that the simulation will never actually have.
+      if (state.posting === hero.id && state.postingTarget) continue
       const at = hero.placement
       // Rungs 0–2 only: above the room a unit is a floor or a town and the
       // decal belongs on *its* face, which is §13.11.1's badge and is not built.
@@ -379,6 +385,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         index: at.index,
         reachDevs: hero.reachDevs,
         settling: heroCoverageOf(hero, state).settling,
+      })
+    }
+
+    const previewHero = state.posting === null
+      ? null
+      : heroRoster(state).find((hero) => hero.id === state.posting) ?? null
+    const preview = state.postingTarget
+    if (previewHero && preview && preview.rung <= LITERAL_RUNG_LIMIT) {
+      postings.push({
+        branch: previewHero.branch,
+        colour: branchColour(previewHero.branch),
+        index: preview.index,
+        reachDevs: previewHero.reachDevs,
+        // The outline is already the visual grammar for coverage that is not
+        // active yet. A preview is deliberately never painted as live work.
+        settling: true,
       })
     }
 
@@ -710,12 +732,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       playUi('close')
       return
     }
-    if (postHeroAt(target)) {
-      if (roomIsUp) room.jolt(localSeat(target.index))
-      playSfx('poke-floor')
-    } else {
-      playUi('close')
-    }
+    // §13.8c — the world tap names the candidate; it does not start the walk.
+    // The banner owns the explicit confirmation so touch gets the same preview
+    // desktop receives from hover.
+    previewHeroAt(target)
+    playUi('click')
   }
 
   const doPoke = (x: number, y: number, t0: number) => {
@@ -1387,6 +1408,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const onPointerMove = (ev: PointerEvent) => {
     const now = ev.timeStamp || performance.now()
     expireStalePointers(now)
+    // A mouse can compare anchors continuously before committing. Touch gets
+    // the same answer from `doPost` on its first tap, then confirms on the HUD.
+    if (getState().posting !== null && ev.pointerType === 'mouse' && pointers.size === 0) {
+      previewHeroAt(pickUnit(ev.clientX, ev.clientY))
+    }
     if (!pointers.has(ev.pointerId)) return
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, seen: now })
 
@@ -1515,7 +1541,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * being the thing that takes the time.
    */
   const SIM_STEPS = (() => {
-    const raw = Number(new URLSearchParams(location.search).get('speed') ?? '1')
+    const raw = Number(params.get('speed') ?? '1')
     return Number.isFinite(raw) ? Math.max(1, Math.min(60, Math.floor(raw))) : 1
   })()
 
@@ -1943,10 +1969,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       }
     }
 
-    // Dev-only inspection seam, in the same family as ?bench / ?act / ?nopost.
+    // Local-browser-only inspection seam, in the same family as ?bench / ?act / ?nopost.
     // The Act IV beat is three systems deep — store flag, camera dolly, LOD
     // weight — and "nothing is on screen" is the same symptom for all three.
-    if (import.meta.env.DEV) {
+    if (DEBUG_TOOLS_ENABLED) {
       // §26.2.2 — **ask what is under a point without pressing it.** The
       // hierarchy is only navigable if a tap lands on the thing that was
       // pointed at, and "did the tap land on the right unit" is not a question

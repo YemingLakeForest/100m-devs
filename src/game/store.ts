@@ -167,7 +167,12 @@ import {
   type HeroPlacement,
   type HeroRuntime,
 } from '../sim/heroRoster.ts'
-import { unplacedEarnsNothing, xpAccrued } from '../sim/heroXp.ts'
+import {
+  catchUpMultiplier,
+  catchUpXpAccrued,
+  unplacedEarnsNothing,
+  xpAccrued,
+} from '../sim/heroXp.ts'
 import { unlocksFor, type BoardIntros, type Unlocks } from './unlocks.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
@@ -201,6 +206,7 @@ import {
   toDecimal,
   writeSave,
 } from './save.ts'
+import { DEBUG_TOOLS_ENABLED } from '../dev/debugAccess.ts'
 
 /**
  * The Run 1 project ladder — GDD §5, Era 1.
@@ -650,6 +656,12 @@ export interface GameState {
    * previous session would be a tap the player does not remember arming.
    */
   posting: HeroId | null
+  /**
+   * §13.8c — the world anchor currently being inspected before placement is
+   * confirmed. Ephemeral for the same reason as {@link GameState.posting}: a
+   * reload must never restore half of a gesture.
+   */
+  postingTarget: PokeTarget | null
   /** §4.13 — tickets waiting. Never reaches zero for long, and never can. */
   tickets: number
   /**
@@ -832,6 +844,7 @@ function freshRun(): GameState {
     heroFold: NO_HERO_FOLD,
     selectedHero: null,
     posting: null,
+    postingTarget: null,
   }
 }
 
@@ -891,11 +904,11 @@ export function subscribe(fn: () => void): () => void {
 
 function set(patch: Partial<GameState>): void {
   state = { ...state, ...patch }
-  // Dev-only inspection seam, in the same family as `window.__stage`. Reading
+  // Local-browser-only inspection seam, in the same family as `window.__stage`. Reading
   // the store from a console or a browser-automation session was otherwise
   // impossible, and "the HUD shows 2 but the scale bar says 1,000" is not a
   // question a screenshot can answer.
-  if (import.meta.env?.DEV) {
+  if (DEBUG_TOOLS_ENABLED) {
     ;(globalThis as unknown as Record<string, unknown>).__store = state
   }
   for (const fn of listeners) fn()
@@ -2599,6 +2612,21 @@ export function heroCoverageOf(runtime: HeroRuntime, s: GameState = state): Hero
 }
 
 /**
+ * §13.10a — the XP multiplier a settled placement is earning right now.
+ * Coverage remains the source of XP; this only closes part of the permanent
+ * gap to the most experienced colleague while the trailing hero is at work.
+ */
+export function heroCatchUpMultiplier(
+  runtime: HeroRuntime,
+  covered: number,
+  s: GameState = state,
+): number {
+  if (!(covered > 0) || !(s.devs > 0)) return 1
+  const leaderXp = heroRoster(s).reduce((best, hero) => Math.max(best, hero.xp), 0)
+  return catchUpMultiplier(runtime.xp, leaderXp)
+}
+
+/**
  * §22.8's "bends" column, folded into the multipliers the simulation reads.
  *
  * Every field is 1 (or 0) with nobody placed — §13.6.7's "amplitude, not gate"
@@ -2735,14 +2763,41 @@ export function recallHero(id: HeroId): boolean {
  */
 export function beginPosting(id: HeroId): boolean {
   if (!arrivedHeroes().has(id)) return false
-  set({ posting: id, selectedHero: null })
+  set({ posting: id, postingTarget: null, selectedHero: null })
   return true
 }
 
 /** Disarm it. Tapping open ground counts, which is the cheap way out. */
 export function cancelPosting(): void {
   if (state.posting === null) return
-  set({ posting: null })
+  set({ posting: null, postingTarget: null })
+}
+
+/**
+ * §13.8c — inspect a world anchor without paying the move delay.
+ *
+ * Pointer hover and the first touch both call this. Repeating the same target
+ * is deliberately a no-op so moving a mouse inside one unit does not publish a
+ * fresh game state dozens of times a second.
+ */
+export function previewHeroAt(target: PokeTarget | null): boolean {
+  if (state.posting === null) return false
+  const next = target && Number.isFinite(target.rung) && Number.isFinite(target.index)
+    ? { rung: Math.max(0, Math.floor(target.rung)), index: Math.max(0, Math.floor(target.index)) }
+    : null
+  if (
+    state.postingTarget?.rung === next?.rung &&
+    state.postingTarget?.index === next?.index
+  ) return true
+  set({ postingTarget: next })
+  return true
+}
+
+/** Confirm the inspected anchor. No preview means no transaction. */
+export function confirmHeroPosting(): boolean {
+  const target = state.postingTarget
+  if (!target) return false
+  return postHeroAt(target)
 }
 
 /**
@@ -2758,7 +2813,7 @@ export function postHeroAt(target: PokeTarget): boolean {
   // Cleared first and unconditionally: a placement refused by `placeHero` —
   // a hero who left the roster between arming and tapping — must not leave the
   // gesture armed, or the next poke silently places somebody instead.
-  set({ posting: null })
+  set({ posting: null, postingTarget: null })
   return placeHero(id, target.rung, target.index)
 }
 
@@ -2812,6 +2867,7 @@ function accrueHeroXp(velocity: number, dtSeconds: number): void {
   if (roster.length === 0) return
 
   const devs = Math.max(1, state.devs)
+  const leaderXp = roster.reduce((best, runtime) => Math.max(best, runtime.xp), 0)
   let touched = false
   const xp = { ...(getPermanent().meta.heroXp ?? {}) }
 
@@ -2822,7 +2878,9 @@ function accrueHeroXp(velocity: number, dtSeconds: number): void {
     // is the same rule reaching the same answer for a different reason.
     if (unplacedEarnsNothing(runtime.placement !== null, covered)) continue
     const share = Math.min(1, covered / devs)
-    xp[runtime.id] = (xp[runtime.id] ?? 0) + xpAccrued(velocity * share, dtSeconds)
+    const ordinary = xpAccrued(velocity * share, dtSeconds)
+    const catchUp = catchUpXpAccrued(runtime.xp, leaderXp, velocity * share, dtSeconds)
+    xp[runtime.id] = (xp[runtime.id] ?? 0) + ordinary + catchUp
     touched = true
   }
 

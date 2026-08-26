@@ -172,6 +172,25 @@ describe('§13.9 — every hero opens the same board, from where they already ar
     expect(heroById('mo')!.points).toBe(3)
   })
 
+  it('marks one valid first-use node and returns to the floor after purchase', () => {
+    const complete = vi.fn()
+    const { container } = render(
+      <HeroTree
+        hero={staffed(4)}
+        open
+        guided
+        onGuidedComplete={complete}
+        onClose={() => {}}
+      />,
+    )
+    expect(screen.getByText(/Open the pulsing node and spend one point/)).toBeInTheDocument()
+    const guided = container.querySelector<HTMLButtonElement>('.herotree__node[data-guide="true"]')!
+    expect(guided).not.toBeNull()
+    fireEvent.click(guided)
+    fireEvent.click(screen.getByRole('button', { name: /1 POINT/ }))
+    expect(complete).toHaveBeenCalledOnce()
+  })
+
   /**
    * §13.9.1 — "nothing stops Mo going down Cloud. She will be worse at it than
    * Melany." Said at the moment the decision is made rather than in a rule

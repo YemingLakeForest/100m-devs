@@ -39,10 +39,58 @@
  */
 export const XP_RATE = 0.025
 
+/**
+ * §13.10a — a posted trailing hero's maximum learning rate and the veteran
+ * lead that catch-up deliberately protects.
+ *
+ * Four times the normal rate is enough for a new arrival to traverse work the
+ * veteran took most of a run to earn during the same run, while still making
+ * REACH and productive coverage pay exactly as §13.10 requires. The bonus
+ * switches off one level behind the leader, who also keeps every node their
+ * earlier levels already bought.
+ */
+export const HERO_CATCH_UP_MAX_MULTIPLIER = 4
+export const HERO_CATCH_UP_LEVEL_BUFFER = 1
+
 /** §13.10 — XP accrued from `velocityCovered` for `dt` seconds. */
 export function xpAccrued(velocityCovered: number, dt: number): number {
   if (!(velocityCovered > 0) || !(dt > 0)) return 0
   return XP_RATE * velocityCovered * dt
+}
+
+/**
+ * Extra XP earned by a *posted* trailing hero.
+ *
+ * This is separated from {@link xpAccrued} so the store must explicitly prove
+ * that the hero has settled over productive work before asking for it. It is a
+ * multiplier on covered velocity, not a grant: quiet corners still learn
+ * slowly, broad coverage still pays twice, and a bench still pays nothing.
+ */
+export function catchUpXpAccrued(
+  currentXp: number,
+  leaderXp: number,
+  velocityCovered: number,
+  dt: number,
+): number {
+  const ordinary = xpAccrued(velocityCovered, dt)
+  if (!(ordinary > 0)) return 0
+  return ordinary * (catchUpMultiplier(currentXp, leaderXp) - 1)
+}
+
+/**
+ * Placement-facing catch-up rate, expressed as a multiplier over ordinary XP.
+ * `1` means the hero is at or above the protected one-level gap. Fractional
+ * level progress makes the taper smooth instead of dropping a whole multiplier
+ * on the frame a level changes.
+ */
+export function catchUpMultiplier(currentXp: number, leaderXp: number): number {
+  const current = levelAt(currentXp)
+  const leader = levelAt(leaderXp)
+  const currentPosition = current.level + current.fraction
+  const leaderPosition = leader.level + leader.fraction
+  const trailingLevels = leaderPosition - currentPosition - HERO_CATCH_UP_LEVEL_BUFFER
+  if (!(trailingLevels > 0)) return 1
+  return Math.min(HERO_CATCH_UP_MAX_MULTIPLIER, 1 + trailingLevels)
 }
 
 /** §13.13's curve, `X₀ κⁿ`, on §14.5's shape. A first pass. */

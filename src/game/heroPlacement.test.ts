@@ -14,6 +14,7 @@ import {
   beginPosting,
   buyHeroTreeNode,
   cancelPosting,
+  confirmHeroPosting,
   currentEntropy,
   currentHeroFold,
   currentPayroll,
@@ -25,6 +26,7 @@ import {
   loadGame,
   placeHero,
   postHeroAt,
+  previewHeroAt,
   recallHero,
   releaseHeroCoverage,
   selectHero,
@@ -243,6 +245,20 @@ describe('§13.10 — a placed hero earns XP from the work under them', () => {
     for (let i = 0; i < 120; i++) tick(1)
     expect(heroById('mo')!.xp).toBe(banked)
   })
+
+  it('lets a placed late arrival close the gap while the veteran keeps their bank', () => {
+    staffed(SCENE_MO_ARRIVES, SCENE_MELANY_ARRIVES)
+    bankXp('mo', 6)
+    const veteranBank = heroById('mo')!.xp
+    placeHero('melany', 0, 0)
+    settle()
+    for (let i = 0; i < 90; i++) tick(1)
+
+    expect(heroById('melany')!.xp).toBeGreaterThan(0)
+    expect(heroById('melany')!.progress.level).toBeGreaterThan(1)
+    expect(heroById('mo')!.xp).toBe(veteranBank)
+    expect(heroById('mo')!.progress.level).toBeGreaterThan(heroById('melany')!.progress.level)
+  })
 })
 
 describe('§13.13 — one level, one point, and a node to spend it on', () => {
@@ -417,6 +433,29 @@ describe('§13.8 — the interim placement gesture', () => {
     expect(getState().posting).toBeNull()
   })
 
+  it('previews any number of anchors without starting the move delay', () => {
+    beginPosting('mo')
+    expect(previewHeroAt({ rung: 0, index: 2 })).toBe(true)
+    expect(getState().postingTarget).toEqual({ rung: 0, index: 2 })
+    expect(heroById('mo')!.placement).toBeNull()
+
+    expect(previewHeroAt({ rung: 3, index: 4 })).toBe(true)
+    expect(getState().postingTarget).toEqual({ rung: 3, index: 4 })
+    expect(heroById('mo')!.placement).toBeNull()
+  })
+
+  it('starts the settling delay only after the preview is confirmed', () => {
+    beginPosting('mo')
+    expect(confirmHeroPosting()).toBe(false)
+    expect(getState().posting).toBe('mo')
+
+    previewHeroAt({ rung: 0, index: 7 })
+    expect(confirmHeroPosting()).toBe(true)
+    expect(getState().heroPlacements.mo).toMatchObject({ rung: 0, index: 7, placedAt: 100 })
+    expect(getState().posting).toBeNull()
+    expect(getState().postingTarget).toBeNull()
+  })
+
   it('answers no to a tap with nobody armed, so a poke stays a poke', () => {
     expect(postHeroAt({ rung: 0, index: 7 })).toBe(false)
     expect(getState().heroPlacements.mo).toBeUndefined()
@@ -433,8 +472,10 @@ describe('§13.8 — the interim placement gesture', () => {
 
   it('cancels, and cancelling twice is not a state change', () => {
     beginPosting('mo')
+    previewHeroAt({ rung: 0, index: 2 })
     cancelPosting()
     expect(getState().posting).toBeNull()
+    expect(getState().postingTarget).toBeNull()
     cancelPosting()
     expect(getState().posting).toBeNull()
   })

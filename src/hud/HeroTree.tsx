@@ -70,10 +70,14 @@ function PixelIcon({ grid, className }: { grid: readonly string[]; className?: s
 export function HeroTree({
   hero,
   open,
+  guided = false,
+  onGuidedComplete,
   onClose,
 }: {
   hero: HeroRuntime | null
   open: boolean
+  guided?: boolean
+  onGuidedComplete?: () => void
   onClose: () => void
 }) {
   const [selected, setSelected] = useState<string | null>(null)
@@ -115,6 +119,14 @@ export function HeroTree({
 
   const selectedNode = selected ? HERO_NODE_BY_ID.get(selected) ?? null : null
   const selectedState = selected ? heroNodeState(hero, selected) : null
+  const guidedNode = guided
+    ? HERO_TREE
+        .filter((node) => {
+          const state = heroNodeState(hero, node.id)
+          return state === 'live' && !hero.nodes.includes(node.id) && hero.points >= nodePoints(node.kind)
+        })
+        .sort((a, b) => nodePoints(a.kind) - nodePoints(b.kind) || a.id.localeCompare(b.id))[0] ?? null
+    : null
 
   const nodeStyle = (node: HeroTreeNode) => ({
     left: (node.x + ox) * CELL - NODE / 2,
@@ -131,6 +143,12 @@ export function HeroTree({
             {`${hero.points} ${hero.points === 1 ? 'POINT' : 'POINTS'}`}
           </span>
         </header>
+
+        {guided && (
+          <p className="board-teaching" role="status">
+            <b>JAMES //</b> Open the pulsing node and spend one point. It changes this person immediately; then you are back on the floor.
+          </p>
+        )}
 
         <div className="herotree__scroll" ref={scroller}>
           <div className="herotree__world" style={{ width: worldW, height: worldH }}>
@@ -164,6 +182,7 @@ export function HeroTree({
                   data-state={vis}
                   data-kind={node.kind}
                   data-flash={flash === node.id ? 'true' : 'false'}
+                  data-guide={guidedNode?.id === node.id ? 'true' : 'false'}
                   style={nodeStyle(node)}
                   onClick={() => vis !== 'dark' && setSelected(node.id)}
                   /*
@@ -256,6 +275,7 @@ export function HeroTree({
                     playPurchase()
                     setFlash(selectedNode.id)
                     setSelected(null)
+                    if (guided) onGuidedComplete?.()
                     window.setTimeout(() => setFlash(null), 420)
                   }
                 }}

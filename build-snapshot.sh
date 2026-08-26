@@ -18,13 +18,6 @@ echo ""
 SNAPSHOT_VERSION=$(date +"%Y%m%d-%H%M%S")
 APK_NAME="m100devs-snapshot-${SNAPSHOT_VERSION}.apk"
 
-# VITE_BENCH=1 ./build-snapshot.sh puts the GDD §23.3 acceptance button in the
-# build. A shipping build never carries it — see App.tsx.
-if [[ "$VITE_BENCH" == "1" ]]; then
-    echo "  (VITE_BENCH=1 — the §7.5 bench trigger will be in this build)"
-    echo ""
-fi
-
 echo "[1/4] Building web app..."
 npm run build
 echo ""

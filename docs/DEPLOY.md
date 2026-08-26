@@ -28,9 +28,9 @@ The first run wants a USB cable: plug the phone in with USB debugging on,
 accept the *Allow USB debugging* dialog, and the script switches it to Wi-Fi
 ADB and tells you to unplug. Subsequent runs are cable-free.
 
-`VITE_BENCH=1 ./deploy.sh` includes the GDD §23.3 acceptance-run button, which
-is the only way to reach it on a device — a Capacitor shell has no query string,
-so `?bench` cannot get there. A shipping build never carries it.
+Developer controls are deliberately disabled in every APK, including snapshot/debug APKs.
+Capacitor presents bundled files through a localhost-looking origin, so the app checks the
+native platform as well as the hostname before enabling any debug surface.
 
 Logs: `adb logcat -s Capacitor:V Capacitor/Console:V`.
 

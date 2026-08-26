@@ -62,6 +62,8 @@ import { OvernightPreview } from './OvernightPreview.tsx'
 import { Dialogue } from '../ui/Dialogue.tsx'
 import {
   SCENES,
+  SCENE_FOUNDER_BOARD,
+  SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
   SCENE_MASS_HIRE,
   JAMES_DROPS_AT_LINE,
@@ -81,9 +83,10 @@ import {
   motionMs,
   useReducedMotion,
 } from '../ui/motion.ts'
+import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
 
 /**
- * Dev-only §10.7 preview — `?dialogue`. Read once, at module load, for the
+ * Local-browser-only §10.7 preview — `?dialogue`. Read once, at module load, for the
  * same reason App.tsx reads `?act` there: a query string cannot change
  * mid-session, and re-parsing it every render would be work done 60 times a
  * second to reach the same answer.
@@ -95,17 +98,14 @@ import {
  * Without it the button is correctly *absent* — no ad network means no fill —
  * which is the right shipping behaviour and completely untestable by eye.
  */
-const FAKE_AD_READY =
-  typeof location !== 'undefined' && new URLSearchParams(location.search).has('ad')
+const DEBUG_QUERY = debugSearchParams()
 
-const PREVIEW_OVERNIGHT =
-  typeof location !== 'undefined' && new URLSearchParams(location.search).has('overnight')
-const PREVIEW_OVERNIGHT_CAPPED =
-  typeof location !== 'undefined' &&
-  new URLSearchParams(location.search).get('overnight') === 'capped'
+const FAKE_AD_READY = DEBUG_QUERY.has('ad')
 
-const PREVIEW_DIALOGUE =
-  typeof location !== 'undefined' && new URLSearchParams(location.search).has('dialogue')
+const PREVIEW_OVERNIGHT = DEBUG_QUERY.has('overnight')
+const PREVIEW_OVERNIGHT_CAPPED = DEBUG_QUERY.get('overnight') === 'capped'
+
+const PREVIEW_DIALOGUE = DEBUG_QUERY.has('dialogue')
 
 /**
  * §4.11 — which jobs the studio has a reason to hire for yet.
@@ -203,6 +203,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [heroTreeOpen, setHeroTreeOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
+  const [guidedBoard, setGuidedBoard] = useState<'tech' | 'founder' | 'hero' | null>(null)
   const roster = heroRoster(state)
   // Resolved once per render: `heroById` rebuilds from `meta` and the run, so
   // asking twice in one frame would build the same six objects twice.
@@ -252,6 +253,38 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setGameMenuOpen(false)
     setGalleryOpen(false)
     setUpgradesOpen(true)
+    setGuidedBoard('tech')
+  }
+
+  /**
+   * §21.7.7e — finish the character beat by putting the instrument they just
+   * named in the player's hand. The first successful purchase closes it again,
+   * so every introduction is a short path back to the running studio rather
+   * than a tutorial page the player has to escape.
+   */
+  const finishDialogue = () => {
+    const finished = state.scene
+    dismissScene()
+
+    if (finished === SCENE_FOUNDER_BOARD.id) {
+      setTreeOpen(false)
+      setUpgradesOpen(false)
+      setHeroTreeOpen(false)
+      setFounderOpen(true)
+      setGuidedBoard('founder')
+      return
+    }
+
+    if (finished === SCENE_HERO_BOARD.id) {
+      const learner = [...roster].sort((a, b) => b.points - a.points || a.id.localeCompare(b.id))[0]
+      if (!learner) return
+      setTreeOpen(false)
+      setUpgradesOpen(false)
+      setFounderOpen(false)
+      selectHero(learner.id)
+      setHeroTreeOpen(true)
+      setGuidedBoard('hero')
+    }
   }
 
   /**
@@ -371,7 +404,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             about the gate cares which corner it is in, and everything about the
             right rail cares that it is not there.
           */}
-          <PerfOverlay stage={stage} />
+          {DEBUG_TOOLS_ENABLED && <PerfOverlay stage={stage} />}
           {/*
             §10.1's MENU — moved to the foot of the left rail. The right rail's
             nav is the thumb's rail, all verbs; the menu is a place the player
@@ -542,7 +575,20 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         }}
       />
       <PostingBanner state={state} />
-      <HeroTree hero={openHero} open={heroTreeOpen && openHero !== null} onClose={() => setHeroTreeOpen(false)} />
+      <HeroTree
+        hero={openHero}
+        open={heroTreeOpen && openHero !== null}
+        guided={guidedBoard === 'hero'}
+        onGuidedComplete={() => {
+          setGuidedBoard(null)
+          setHeroTreeOpen(false)
+          selectHero(null)
+        }}
+        onClose={() => {
+          setGuidedBoard(null)
+          setHeroTreeOpen(false)
+        }}
+      />
       <Roster
         open={rosterOpen && openHero === null}
         roster={roster}
@@ -608,10 +654,32 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       */}
       <EventCard event={event} onRoute={openBoardForEvent} onReply={replyToEvent} />
 
-      <UpgradeBoard open={upgradesOpen} onClose={() => setUpgradesOpen(false)} />
+      <UpgradeBoard
+        open={upgradesOpen}
+        guided={guidedBoard === 'tech'}
+        onGuidedComplete={() => {
+          setGuidedBoard(null)
+          setUpgradesOpen(false)
+        }}
+        onClose={() => {
+          setGuidedBoard(null)
+          setUpgradesOpen(false)
+        }}
+      />
       <Gallery open={galleryOpen} onClose={() => setGalleryOpen(false)} />
       <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
-      <FounderProfilePanel open={founderOpen} onClose={() => setFounderOpen(false)} />
+      <FounderProfilePanel
+        open={founderOpen}
+        guided={guidedBoard === 'founder'}
+        onGuidedComplete={() => {
+          setGuidedBoard(null)
+          setFounderOpen(false)
+        }}
+        onClose={() => {
+          setGuidedBoard(null)
+          setFounderOpen(false)
+        }}
+      />
       <GameMenu
         open={gameMenuOpen}
         onResume={() => setGameMenuOpen(false)}
@@ -648,7 +716,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           key={state.scene}
           script={SCENES[state.scene].script}
           seen={hasSeenScene(state.scene)}
-          onFinished={dismissScene}
+          onFinished={finishDialogue}
           onFocus={(focus) => stage?.focusDialogue(focus)}
           onLine={(line) => {
             // §21.7.1 — "APPLICANT AT DOOR." holds, then James drops in and the

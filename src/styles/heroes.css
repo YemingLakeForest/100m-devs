@@ -841,6 +841,17 @@
   pointer-events: auto;
 }
 
+.posting__actions {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.posting__row[data-phase='preview'] {
+  border-color: var(--branch, var(--p3));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--branch, var(--p3)) 35%, transparent);
+}
+
 .posting__row[data-phase='walking'] {
   border-color: var(--warn-2);
 }
@@ -898,6 +909,11 @@
 
   .posting__step {
     display: none;
+  }
+
+  .posting__actions {
+    flex-direction: column;
+    gap: 3px;
   }
 }
 
@@ -1002,6 +1018,16 @@
 
 .world-hero-pin[data-state='walking'] {
   color: var(--warn-2);
+}
+
+.world-hero-pin[data-state='preview'] {
+  color: var(--branch, var(--p3));
+  opacity: .82;
+}
+
+.world-hero-pin[data-state='preview'] .world-hero-pin__target {
+  background: transparent;
+  border-style: dashed;
 }
 
 .world-hero-pin[data-state='walking'] .world-hero-pin__target {

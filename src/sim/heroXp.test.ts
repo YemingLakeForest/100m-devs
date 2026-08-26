@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_LEVEL,
+  HERO_CATCH_UP_MAX_MULTIPLIER,
   XP_BASE,
   XP_KAPPA,
   XP_RATE,
+  catchUpXpAccrued,
+  catchUpMultiplier,
   levelAt,
   pointsAvailable,
   pointsGranted,
@@ -112,5 +115,32 @@ describe('§13.10 — an unplaced hero earns nothing', () => {
     expect(unplacedEarnsNothing(false, 100)).toBe(true)
     expect(unplacedEarnsNothing(true, 0)).toBe(true)
     expect(unplacedEarnsNothing(true, 100)).toBe(false)
+  })
+})
+
+describe('§13.10a — a placed late hero catches up without erasing the veteran', () => {
+  it('learns at the capped rate when several levels behind', () => {
+    const leader = xpToReach(8)
+    expect(catchUpMultiplier(0, leader)).toBe(HERO_CATCH_UP_MAX_MULTIPLIER)
+    expect(catchUpXpAccrued(0, leader, 100, 10)).toBeCloseTo(
+      xpAccrued(100, 10) * (HERO_CATCH_UP_MAX_MULTIPLIER - 1),
+      9,
+    )
+  })
+
+  it('still scales with productive coverage, so REACH pays twice', () => {
+    const leader = xpToReach(8)
+    expect(catchUpXpAccrued(0, leader, 200, 1)).toBeCloseTo(
+      2 * catchUpXpAccrued(0, leader, 100, 1),
+      9,
+    )
+  })
+
+  it('stops one full level behind and never drains a leader', () => {
+    const leader = xpToReach(8)
+    const protectedLead = xpToReach(7)
+    expect(catchUpMultiplier(protectedLead, leader)).toBe(1)
+    expect(catchUpXpAccrued(protectedLead, leader, 100, 90)).toBe(0)
+    expect(catchUpXpAccrued(leader, leader, 100, 90)).toBe(0)
   })
 })

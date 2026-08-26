@@ -28,6 +28,7 @@ import { ROLES, type Role } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import { EVENTS } from '../sim/events.ts'
+import { DEBUG_TOOLS_ENABLED } from '../dev/debugAccess.ts'
 import {
   emptyHistory,
   mergeHistory,
@@ -422,13 +423,13 @@ export function getPermanent(): PermanentSave {
 
 export function setPermanent(next: PermanentSave): void {
   permanent = next
-  // Dev-only inspection seam, the twin of `store.ts`'s `__store` and here for
+  // Local-browser-only inspection seam, the twin of `store.ts`'s `__store` and here for
   // the same reason. The run is visible in the HUD and the *career* is not:
   // "has this event been retired for good, or merely cleared by hand?" and
   // "which scenes has this player seen?" are both answered only in here, and
   // §26.1.8's walk has to be able to say which of the two it just watched
   // happen. Diagnosis only — the walk asserts against what is on screen.
-  if (import.meta.env?.DEV) {
+  if (DEBUG_TOOLS_ENABLED) {
     ;(globalThis as unknown as Record<string, unknown>).__permanent = permanent
   }
 }

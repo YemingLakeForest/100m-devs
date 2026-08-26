@@ -53,9 +53,6 @@ while [[ $# -gt 0 ]]; do
             echo "  -s, --skip      Install latest APK without rebuilding"
             echo "  -l, --launch    Build, install, and launch the app"
             echo "  -i, --ip ADDR   Connect to a specific phone IP (port defaults to 5555)"
-            echo ""
-            echo "Env:"
-            echo "  VITE_BENCH=1    Include the GDD §23.3 on-device bench button"
             exit 0
             ;;
         *)

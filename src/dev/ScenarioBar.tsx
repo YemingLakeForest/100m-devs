@@ -10,12 +10,10 @@
  *
  * ## Opt-in, and that is load-bearing
  *
- * `import.meta.env.DEV` is true under `npm run dev` — and `npm run dev` is what
- * `scripts/ui-frame.acceptance.mjs` starts. A bar that appeared on every dev
- * build would therefore appear in all 68 of that gate's screens, overlap the
- * things it measures the overlap of, and fail it. So this is gated on the query
- * flag as well, in the same family as `?ad`, `?overnight` and `?dialogue`: dev
- * builds only, and only when asked for by name.
+ * Debug access is restricted to a loopback browser session, and the query flag
+ * remains required. A bar that appeared on every local frame would appear in
+ * all of the frame gate's screens, overlap the things it measures the overlap
+ * of, and fail it. Deployed HTML and Capacitor-native Android cannot enable it.
  *
  * It folds, because it is fixed to the bottom of the viewport and the bottom of
  * the viewport is where §10's GALLERY button and the studio log live. An

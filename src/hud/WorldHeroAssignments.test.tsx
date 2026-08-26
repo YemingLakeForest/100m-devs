@@ -3,10 +3,12 @@ import { cleanup, render, screen } from '@testing-library/react'
 import {
   __resetStore,
   __setState,
+  beginPosting,
   getState,
   heroById,
   heroRoster,
   placeHero,
+  previewHeroAt,
 } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import { SCENE_MO_ARRIVES } from '../game/scenes.ts'
@@ -80,5 +82,24 @@ describe('scene hero assignments', () => {
     expect(screen.getByText('ASSIGNED')).toBeInTheDocument()
     expect(screen.getByLabelText('Mo assigned to DESK 1')).toBeInTheDocument()
     expect(screen.queryByText(/DEVS/)).not.toBeInTheDocument()
+  })
+
+  it('keeps the committed pin while drawing a model-reflective candidate pin', () => {
+    arrived()
+    __setState({ devs: 40, runSeconds: 100 })
+    placeHero('mo', 0, 0)
+    beginPosting('mo')
+    previewHeroAt({ rung: 0, index: 20 })
+    const state = getState()
+
+    const { container } = render(
+      <WorldHeroAssignments stage={stageAt(0)} state={state} roster={heroRoster(state)} />,
+    )
+
+    expect(screen.getByLabelText('Mo assigned to DESK 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('Mo preview at DESK 21')).toBeInTheDocument()
+    expect(screen.getByText('ASSIGNED')).toBeInTheDocument()
+    expect(screen.getByText('PREVIEW')).toBeInTheDocument()
+    expect(container.querySelectorAll('.world-hero-pin__face')).toHaveLength(2)
   })
 })

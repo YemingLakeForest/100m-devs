@@ -719,6 +719,10 @@ Pixel 8 Pro the §23.3 numbers refer to.
 
 ### Flags
 
+All flags and inspection globals below are available only in a non-native loopback browser
+session (`localhost`, `127.0.0.1` or `::1`). Deployed HTML, LAN hosts and Android APKs ignore
+the flags and do not publish the globals.
+
 | Flag | Effect |
 |---|---|
 | `?act=act2b_loop` | Jump the §21 script. Every phase name works |
@@ -729,17 +733,17 @@ Pixel 8 Pro the §23.3 numbers refer to.
 | `?bench` | §23.3 acceptance run. `?bench=10` shortens the 60 s leg |
 | `?nopost` / `?post=bloom,crt` | Drop or select post-process passes |
 | `?overnight` · `?ad` · `?dialogue` | Preview those surfaces |
-| `window.__store` · `window.__stage` | Dev builds only — live game and camera state |
+| `window.__store` · `window.__stage` | Local browser only — live game and camera state |
 
-**The `?act=` seam pins the phase on every reload**, which is how a debug URL left in the
-address bar can look like a stuck game. `?act=` and `?bench` are unguarded and would ship in
-a web build — see §23.5 item 2. On device there is no query string.
+**The `?act=` seam pins the phase on every local reload**, which is how a debug URL left in
+the address bar can look like a stuck game. Outside a loopback web session the shared gate
+replaces the debug query with an empty one.
 
 ---
 
 ## Local-only
 
 - **ElevenLabs generation** needs `.env` (gitignored). SFX and music are committed.
-- **Android build, install and the `?bench` device run** need the SDK and a phone.
+- **Android build and install** need the SDK and a phone. Debug tools remain disabled there.
 - **Anything that has to be looked at.** A cloud session should take the logic-heavy work —
   Hero Cards, §18 events, the remaining Paradigm nodes — all data plus tested logic.

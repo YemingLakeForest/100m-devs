@@ -10,7 +10,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { PostingBanner } from './PostingBanner.tsx'
-import { __resetStore, __setState, beginPosting, getState, postHeroAt } from '../game/store.ts'
+import {
+  __resetStore,
+  __setState,
+  beginPosting,
+  getState,
+  postHeroAt,
+  previewHeroAt,
+} from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import { SCENE_MO_ARRIVES } from '../game/scenes.ts'
 
@@ -47,9 +54,23 @@ describe('§7.7.6b — the armed gesture is said out loud', () => {
     __setState({ devs: 40 })
     beginPosting('mo')
     render(<PostingBanner state={getState()} />)
-    expect(screen.getByText('PLACE MO — STEP 2 OF 2')).toBeInTheDocument()
-    expect(screen.getByText('TAP A DEVELOPER, FLOOR, OR VISIBLE UNIT')).toBeInTheDocument()
-    expect(screen.getByText(/BEST COVERAGE HERE: 8 \/ 40 DEVS · -8% DEFECT RATE/)).toBeInTheDocument()
+    expect(screen.getByText('PLACE MO — STEP 2 OF 3')).toBeInTheDocument()
+    expect(screen.getByText('HOVER OR TAP A DEVELOPER, FLOOR, OR VISIBLE UNIT')).toBeInTheDocument()
+    expect(screen.getByText(/BEST POSSIBLE: 8 \/ 40 DEVS · -8% DEFECT RATE/)).toBeInTheDocument()
+  })
+
+  it('compares the exact candidate with the committed anchor before confirmation', () => {
+    arrived()
+    __setState({ devs: 40, runSeconds: 100 })
+    beginPosting('mo')
+    previewHeroAt({ rung: 0, index: 36 })
+    render(<PostingBanner state={getState()} />)
+
+    expect(screen.getByText('TARGET DESK 37')).toBeInTheDocument()
+    expect(screen.getByText(/4 \/ 40 DEVS · -4% DEFECT RATE · XP SHARE 10%/)).toBeInTheDocument()
+    expect(screen.getByText('CURRENT: BENCHED · NO EFFECT · NO XP')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'CONFIRM PLACE' })).toBeInTheDocument()
+    expect(getState().heroPlacements.mo).toBeUndefined()
   })
 
   it('offers a way out that is not the world', () => {

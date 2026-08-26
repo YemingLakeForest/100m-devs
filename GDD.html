@@ -7919,6 +7919,21 @@ settling hero, and <em>&quot;selecting a hero tints exactly the developers they 
 they do not reach goes flat grey&quot;</em> — which is a change to how every developer is drawn rather
 than a decal, and is Phase 2's business at the rungs where it matters most.</p>
 </blockquote>
+<h4 id="c-inspect-compare-then-commit-canon-added-2026-08-26">13.8c Inspect, compare, then commit <strong>[CANON — added 2026-08-26]</strong></h4>
+<p>§13.8a's arm-then-tap gesture made placement reachable and charged the eight-second move on
+the first target the player touched. That made the committed result legible and the decision
+opaque: comparing two anchors meant paying two delays.</p>
+<p><strong>A world target is now inspected before it is committed.</strong> A pointer hovering a unit and a
+finger's first tap do the same thing: draw the proposed footprint and put its exact receipt on
+the placement banner. The receipt names the target, covered developers, branch effect, studio
+XP share and any §13.10a catch-up multiplier beside the currently committed result. Nothing in
+the simulation changes yet. <code>CONFIRM PLACE</code> or <code>CONFIRM MOVE</code> is the only action that starts
+§13.8 rule 4's settling period.</p>
+<p>This is still a world placement, never a grid: the candidate comes from the same <code>pickUnit</code>
+that resolves POKE, its compact face is projected onto that world anchor, and rungs 0–2 draw
+the candidate footprint as an outline. A second pointer move or tap replaces the candidate,
+so two anchors can be compared without recalling the hero, restarting the walk or losing the
+old assignment.</p>
 <h3 id="one-tree-five-branches-and-every-hero-shares-it-canon-added-2026-08-11-r36-r37">13.9 One tree, five branches, and every hero shares it <strong>[CANON - added 2026-08-11]</strong> - R36, R37</h3>
 <p>§13.7 gives each class its own tree — <em>&quot;one grammar, five vocabularies&quot;</em> — and building the
 rest of this batch made the cost of that obvious. <strong>Five trees is five things to balance, five
@@ -8106,6 +8121,25 @@ exactly why by looking at the floor.</li>
 the gap between a tended hero and a benched one is a percentage that grows, never a
 threshold that locks. A player who ignores this system entirely still finishes runs.</p>
 </blockquote>
+<h4 id="a-catch-up-is-work-not-a-grant-canon-added-2026-08-26">13.10a Catch-up is work, not a grant <strong>[CANON — added 2026-08-26]</strong></h4>
+<p>The roster arrives one person at a time, but XP is permanent. Without a counterweight, the
+first favourite compounds while a later specialist begins at level 1, so experimenting with
+the person the story just introduced is mechanically irrational.</p>
+<p><strong>A settled hero more than one level behind the most experienced arrived hero learns up to
+four times faster.</strong> The multiplier tapers with the fractional level gap and becomes exactly
+one when the trailing hero is one level behind. It multiplies §13.10's covered-velocity XP;
+it never creates XP on its own.</p>
+<p>That preserves every load-bearing part of §13.10:</p>
+<ul>
+<li>a benched or settling hero still earns nothing;</li>
+<li>a quiet corner still learns slowly and REACH still pays twice;</li>
+<li>the veteran keeps at least the protected one-level lead during catch-up and keeps every
+node their earlier levels bought;</li>
+<li>once the gap closes, both heroes use the ordinary <code>ξ</code> rate again.</li>
+</ul>
+<p>The placement preview prints the live multiplier, so choosing the late arrival is a visible
+trade: immediate branch utility plus faster learning against the veteran's higher level and
+established build.</p>
 <h3 id="showing-where-everybody-is-canon-added-2026-08-11-r40">13.11 Showing where everybody is <strong>[CANON - added 2026-08-11]</strong> - R40</h3>
 <p>§13.8 makes placement the management game and §13.6.6 forbids a management screen. <strong>Both are
 right and together they specify nothing</strong>, so this is the missing half: what the player
@@ -11861,6 +11895,43 @@ and is still there, waiting, when the board opens.</p>
 <p><strong>Steps 2, 4 and 6 are new and they are what makes the other four legible.</strong> Before them, a
 player reaching step 3 had three boards open, no reason to have opened any of them, and a
 prestige tree whose currency they had never spent.</p>
+<h4 id="e-the-hand-off-finishes-on-one-action-canon-added-2026-08-26">21.7.7e The hand-off finishes on one action <strong>[CANON — added 2026-08-26]</strong></h4>
+<p>A scene that names a board and leaves the player to find its door is an announcement, not a
+first-use path. Each post-Run-1 board therefore finishes the character beat inside the
+instrument it introduced:</p>
+<table>
+<thead>
+<tr>
+<th>Board</th>
+<th>Character hand-off</th>
+<th>First valid action</th>
+<th>Return</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Studio upgrades</td>
+<td>James routes <code>THE THREAD</code> to the board</td>
+<td>Open any lit node and buy it</td>
+<td>The purchase clears the event and closes the board</td>
+</tr>
+<tr>
+<td>Founder Management</td>
+<td>James's final line opens the founder profile</td>
+<td>Buy one affordable Management skill; Touch Typing is marked as the first example</td>
+<td>The profile closes on purchase</td>
+</tr>
+<tr>
+<td>Shared hero board</td>
+<td>James's final line opens the highest-point hero on the shared board</td>
+<td>Open the marked one-point node and spend the point</td>
+<td>The card and board close on purchase</td>
+</tr>
+</tbody>
+</table>
+<p>The coaching line is character speech inside the board, never a free-standing tutorial
+overlay. <code>BACK</code> remains valid and returns to the floor without spending; the guided state is
+ephemeral and never becomes permanent HUD furniture.</p>
 <h2 id="hero-cards-collectables">22. Hero Cards &amp; Collectables</h2>
 <h3 id="the-system">22.1 The System</h3>
 <p><strong>Hero Cards are unique, named developers you collect and place on your org chart.</strong> Unlike
@@ -11872,8 +11943,8 @@ line — and they are the game's collection meta-layer, sitting alongside the th
 layers on a timescale of days to months.</p>
 <p><strong>Why this format fits this project specifically:</strong></p>
 <ul>
-<li>A card is a <strong>static pixel portrait plus a frame</strong>. No animation, no sprite sheets, no
-bespoke scenes. This is the cheapest collectable format that exists.</li>
+<li>A card is a <strong>model-derived pixel avatar crop plus a frame</strong>. No portrait sprite sheet and
+no second identity to drift away from the person on the floor.</li>
 <li>The placement board is an <strong>org chart</strong> — boxes and reporting lines. Free art.</li>
 <li>Rarity tiers are the <strong>corporate promotion ladder</strong>, so the frame colour <em>is</em> the joke.</li>
 <li>Effects hook into systems that already exist (SP yield, Entropy, the Fibonacci ladder,
@@ -11942,7 +12013,7 @@ That is the entire emotional design of the collection layer in one object.</p>
 |  ♦ JAMES                              [ JUNIOR ] |
 +--------------------------------------------------+
 |                                                  |
-|         [ 64x64 half-body portrait ]             |
+|         [ model-derived half-body crop ]          |
 |         glasses · thick beard · white shirt      |
 |            · hole in the left elbow ·            |
 |              (arms in frame, always)             |
@@ -12237,8 +12308,9 @@ paid duplicates, and any purchase that accelerates promotion. This is a hard lin
 consistent with the monetisation guardrails — a collection system is precisely where a game
 like this would be tempted into loot boxes, and precisely where a developer audience would
 punish it hardest.</p>
-<p><strong>What may be sold:</strong> cosmetic card <em>frames</em> and alternate portrait art (e.g. a
-&quot;Hawaiian Shirt James&quot; variant that, obviously, still has the elbow hole).</p>
+<p><strong>What may be sold:</strong> cosmetic card <em>frames</em> and model-attached outfit variants (e.g. a
+&quot;Hawaiian Shirt James&quot; look that appears on the floor and on the card, and still has the
+elbow hole). A card-only replacement portrait is not for sale because it breaks identity.</p>
 <h3 id="art-budget-hard-cap-canon">22.7 Art Budget — Hard Cap <strong>[CANON]</strong></h3>
 <p><strong>This is a constraint, not a guideline.</strong> The collection system is the most likely route
 by which this project's art budget escapes, so the ceiling is fixed here and any change to
@@ -12254,18 +12326,18 @@ it is a deliberate scope decision made explicitly, not a drift.</p>
 <tbody>
 <tr>
 <td>Character portraits</td>
-<td><strong>12</strong></td>
-<td><strong>64×64, framed at half-body</strong> — head, torso and both arms in shot. One per hero. Static — no idle animation.</td>
+<td><strong>0 bespoke sprites</strong></td>
+<td>The framed avatar is generated from the same <code>Look</code>, geometry and palette as the hero's in-world model. It is a different crop of the same person, never separate portrait art.</td>
 </tr>
 <tr>
 <td>Card frame</td>
-<td><strong>1</strong></td>
-<td>A single frame asset, palette-swapped 7 ways for the rarity tiers</td>
+<td><strong>0 sprites</strong></td>
+<td>Drawn in UI code and palette-swapped 7 ways for the rarity tiers</td>
 </tr>
 <tr>
 <td>James promotion variants</td>
-<td><strong>7</strong></td>
-<td>The <em>only</em> card with per-tier art. Every other card keeps one portrait across all tiers; only its frame changes.</td>
+<td><strong>0 replacement portraits</strong></td>
+<td>Promotion may add model-attached props or palette states, but the face and body remain James's in-world model at every tier</td>
 </tr>
 <tr>
 <td>Org chart board</td>
@@ -12275,17 +12347,19 @@ it is a deliberate scope decision made explicitly, not a drift.</p>
 </tbody>
 </table>
 <blockquote>
-<p><strong>Why 64×64 half-body, not a 48×48 bust.</strong> A head-and-shoulders bust crops the elbow out
-of frame, which would delete James's defining visual detail (§22.3) before it ever
-rendered. Arms must be in shot at every tier. This changes the canvas size, not the
-sprite count. See <a href="./docs/ART_DIRECTION.md#42-jamess-card-canvas--spec-correction">Art Direction §4.2</a>.</p>
+<p><strong>The hero avatar must reflect the in-game model.</strong> <code>HeroFace</code> consumes the same avatar-part
+geometry and person palette as <code>buildDeveloper</code>; the card, roster, placement preview and
+zoomed-out badge are framed projections of that model. A separately illustrated face is
+rejected even if it is prettier, because the player would be holding a card for somebody
+who does not exist on their floor. James's elbow detail must therefore be present in his
+model and any wider card crop, not repaired with a replacement portrait.</p>
 </blockquote>
-<p><strong>Total bespoke art for the entire collectable system: 19 small sprites.</strong></p>
+<p><strong>Total required bespoke bitmap art for the entire collectable system: 0 sprites.</strong></p>
 <p><strong>Rules:</strong></p>
 <ol>
 <li><strong>The roster is capped at 12.</strong> Fifty cards would be a different, more expensive game.</li>
-<li><strong>Only James gets promotion art.</strong> Everyone else is one bust plus a frame swap. This is
-what makes 12 heroes cost 12 sprites instead of 84.</li>
+<li><strong>Promotion never replaces identity.</strong> James may acquire model-attached props; everyone
+else keeps the same model-derived avatar plus a frame swap.</li>
 <li><strong>No animated cards.</strong> No foil shaders, no idle loops, no reveal animations beyond the
 deal-in transition, which is a transform on a static sprite.</li>
 <li><strong>Growth goes to seasons or frames, never the roster.</strong> If more collectable content is
@@ -12369,7 +12443,7 @@ of §13.9's board.</strong></p>
 </tr>
 <tr>
 <td><strong>§22.7's art cap</strong></td>
-<td><strong>Unchanged at 12 portraits.</strong> Six story heroes plus six collectables is twelve, which is the number that was already budgeted. Nothing about this section costs a sprite</td>
+<td><strong>Unchanged at zero bespoke identity sprites.</strong> Six story heroes plus six collectables all use the in-game avatar model. Nothing about this section creates a second portrait asset</td>
 </tr>
 </tbody>
 </table>
@@ -12781,8 +12855,9 @@ two features most likely to cause it.</p>
 </table>
 <p><strong>Criterion 7 outranks the rest.</strong> The measurements exist to explain a failure, not to
 overrule a verdict the thumb has already delivered.</p>
-<p><code>?bench</code> runs 1–6 and prints a pass/fail table; <code>?bench=10</code> shortens the sustained leg.
-Output also goes to the console so it can be pulled off a device with <code>adb logcat</code>.</p>
+<p>In a loopback browser session, <code>?bench</code> runs 1–6 and prints a pass/fail table;
+<code>?bench=10</code> shortens the sustained leg. Output also goes to the browser console. The harness
+is deliberately unavailable in installed Android builds.</p>
 <p><strong>Two rules the harness enforces, both learned the hard way:</strong></p>
 <ul>
 <li><strong>A criterion with no samples is UNKNOWN, never FAIL.</strong> Chrome suspends <code>requestAnimationFrame</code>
@@ -12886,13 +12961,15 @@ spectacle are all real, tested work, and the DOM/canvas boundary in §23.2.3 hel
 ART_DIRECTION §4.1 parts-library method — none of that exists yet: no head, no wardrobe,
 no recipe format, no compositor, no authored pixels. <strong>Delete it the moment a real bust
 exists.</strong> The §22.7 budget is 19 sprites and the current count is zero.</li>
-<li><strong>Debug seams must not ship.</strong> <code>?act=</code> (jumps the entire §21 script), <code>?bench</code>, <code>?post=</code>
-and <code>?nopost</code> are currently <strong>unguarded</strong> — they are unreachable inside a Capacitor shell
-only because there is no query string, which is packaging luck rather than a decision.
-The first web build exposes all four. Guard them behind a dev flag.</li>
-<li><strong><code>window.__stage</code></strong> (camera Z, LOD weights, collapse state) is dev-only and guarded. Keep
-it — &quot;nothing is on screen&quot; is the same symptom for a store flag, a stalled dolly and a
-culled tier, and it has already paid for itself once.</li>
+<li><strong>Debug seams are loopback-web only — IMPLEMENTED 2026-08-26.</strong> One runtime authority
+admits exact <code>localhost</code>, <code>127.0.0.1</code> and <code>::1</code> browser hosts and rejects every deployed
+HTML/LAN host. It also rejects native platforms because Capacitor serves an installed
+Android bundle from a localhost-looking origin. <code>?act=</code>, <code>?bench</code>, <code>?post=</code>, <code>?nopost</code>,
+state fixtures, preview surfaces, the scenario bar, simulation speed and the performance
+overlay all use this gate; <code>VITE_BENCH</code> cannot override it.</li>
+<li><strong>Inspection globals follow the same authority.</strong> <code>window.__stage</code>, <code>__store</code>,
+<code>__permanent</code>, <code>__pick</code> and <code>__founderAt</code> remain available for local automation and
+diagnosis, and are never published by deployed HTML or Android.</li>
 </ol>
 <h3 id="build-readiness-what-is-proven-and-what-is-not">23.6 Build readiness — what is proven and what is not</h3>
 <p>This section used to contain a vertical-slice snapshot that named the viewport camera,
@@ -15900,8 +15977,9 @@ tapping is not satisfying, none of the rest matters.</li>
 from a web page, and they must be budgeted at the start rather than retrofitted.
 Retrofitting motion onto a screen system built around instant swaps is a rewrite.</li>
 <li><strong>Hero Cards are capped at 12, and §22.7 is now a hard constraint rather than advice.</strong>
-19 small sprites total, with per-tier art for James alone. Treat any proposal to expand
-the roster as a scope change requiring an explicit decision, not a content task.</li>
+Identity is generated from the in-game model, with no bespoke portrait sprites and no
+card-only James replacements. Treat any proposal to expand the roster as a scope change
+requiring an explicit decision, not a content task.</li>
 <li><strong>The 100M gate is a long climb by design (§13.5).</strong> Verify with telemetry that the
 stretch from ~10M to 100M does not become a dead zone; that band is where an
 incremental game of this shape most often loses players.</li>
@@ -16045,7 +16123,7 @@ not the mechanism. Re-specifying a mechanism the playbook already covers is itse
 <td><strong>F2.5</strong></td>
 <td><strong>Store listing assets</strong></td>
 <td>Listing-as-code and ASO guidance (<code>PLAY_STORE.md</code>, <code>MARKETING.md</code>)</td>
-<td>⚠️ <strong>The art.</strong> Icon, feature graphic, screenshots — a real art requirement outside §22.7's 19-sprite cap, and the icon is the most-viewed asset the project will produce</td>
+<td>⚠️ <strong>The art.</strong> Icon, feature graphic, screenshots — a real art requirement outside §22.7's zero-bespoke-identity rule, and the icon is the most-viewed asset the project will produce</td>
 </tr>
 <tr>
 <td><strong>F2.6</strong></td>
@@ -16337,23 +16415,23 @@ so a later refactor does not quietly reopen a rule the player has already been t
 <tr>
 <td><strong>P1</strong></td>
 <td>Hero target comparison</td>
-<td><strong>PARTIAL</strong></td>
-<td>Best-case and committed results are legible, but two candidate anchors cannot be compared before paying the move delay</td>
-<td>The target under the pointer/tap previews exact coverage, branch effect and XP share before confirmation</td>
+<td><strong>CLOSED</strong></td>
+<td>Hover or the first tap draws a candidate footprint and compares exact coverage, branch effect and XP share with the committed anchor; only explicit confirmation starts the move</td>
+<td>§13.8c; placement model, banner, world preview and preview/confirm tests agree</td>
 </tr>
 <tr>
 <td><strong>P1</strong></td>
 <td>Hero growth catch-up</td>
-<td><strong>PARTIAL</strong></td>
-<td>Early favourites compound coverage XP while later arrivals begin small, so the roster discourages experimentation</td>
-<td>A late hero becomes a rational placement choice within one run without deleting the value of an old favourite</td>
+<td><strong>CLOSED</strong></td>
+<td>A settled trailing hero earns up to ×4 covered-work XP until one level behind; the veteran retains their lead, bank and purchased nodes</td>
+<td>§13.10a; pure curve and wired placement tests cover the cap, taper, coverage scaling and protected lead</td>
 </tr>
 <tr>
 <td><strong>P1</strong></td>
 <td>Post-Run-1 teaching</td>
-<td><strong>PARTIAL</strong></td>
-<td>Hero-led introductions exist, but later trees and organisation layers do not have a complete first-use teaching path</td>
-<td>Every board enters through a character, offers one valid action and returns the player to the loop</td>
+<td><strong>CLOSED</strong></td>
+<td>Studio, founder and shared-hero boards complete their character scene with a guided valid purchase and close back to the running floor</td>
+<td>§21.7.7e; all three board components test the first-use hand-off and completion callback</td>
 </tr>
 <tr>
 <td><strong>P2</strong></td>
@@ -16372,9 +16450,9 @@ so a later refactor does not quietly reopen a rule the player has already been t
 <tr>
 <td><strong>P2</strong></td>
 <td>Authored character art</td>
-<td><strong>PARTIAL</strong></td>
-<td>Procedural people are functional, but the final high-value identity pieces and sprite-budget closure are unknown</td>
-<td>The §22.7 inventory is reconciled against shipped assets and the selected identity sprites pass the art gate</td>
+<td><strong>CLOSED</strong></td>
+<td>A separate portrait would drift from the person on the floor, so hero identity remains a framed projection of the in-game model</td>
+<td>§22.7 now budgets zero bespoke identity sprites; <code>HeroFace</code>, roster, card and world pins share the model's avatar parts and palette</td>
 </tr>
 </tbody>
 </table>
@@ -16605,10 +16683,11 @@ signal per change.</li>
 <h3 id="g.5-development-order-from-this-audit">G.5 Development order from this audit</h3>
 <p>The next work should deepen trust and choice before widening scope:</p>
 <ol>
-<li><strong>Make resolved mechanics legible before adding scope.</strong> Add target-specific hero previews,
-specialist before-hire deltas and the raw run revenue/peak fields to the prestige receipt.</li>
-<li><strong>Keep the roster open to change.</strong> Add hero catch-up so later arrivals invite switching,
-then tune signature values and role ratios from playtests rather than removing their costs.</li>
+<li><strong>Make resolved mechanics legible before adding scope.</strong> With target-specific hero previews
+closed, add specialist before-hire deltas and keep the raw run revenue/peak fields explicit
+on the prestige receipt.</li>
+<li><strong>Keep the roster open to change.</strong> With placement-earned catch-up closed, tune signature
+values and role ratios from playtests rather than removing their costs.</li>
 <li><strong>Close Phase 2 honestly.</strong> Validate the canonical seven-level lens on low-end Android,
 expose generated-person history, then make Layer 2 and the collection long tail reachable.</li>
 <li><strong>Add life in small measurable slices.</strong> Ship more two-exit events and one optional minigame,

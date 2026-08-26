@@ -36,6 +36,9 @@ Three gates, and they divide the work: `vitest` owns *does it compute the right 
 
 Useful while working on the render stack:
 
+These controls are enabled only in a non-native browser opened on `localhost`, `127.0.0.1`
+or `::1`. They are inert on deployed HTML, LAN-hosted pages and every Android APK.
+
 | URL | Effect |
 |---|---|
 | `?nopost` | Drop the post-process entirely — isolates scene cost from filter cost |

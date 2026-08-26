@@ -47,6 +47,7 @@ import { SCENES } from './scenes.ts'
 import { __addScenarioDevelopers, __setState, getState } from './store.ts'
 import { rungFor } from '../sim/headcount.ts'
 import { newRoster } from '../sim/roles.ts'
+import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
 
 export interface Scenario {
   /** Stable, and what `?scenario=` takes. */
@@ -82,19 +83,15 @@ export const SCENARIOS: readonly Scenario[] = [
 /**
  * Is the picker asked for? Read once — a query string cannot change mid-session.
  *
- * `import.meta.env.DEV` is true under `npm run dev`, and `npm run dev` is what
- * `scripts/ui-frame.acceptance.mjs` starts — so the flag is the load-bearing
- * half of this condition, not the environment. A bar that appeared on every dev
- * build would appear in all 68 of that gate's screens and overlap the things it
- * measures the overlap of.
+ * The localhost gate keeps this out of deployed HTML and Android. The query
+ * flag remains load-bearing too: a bar that appeared on every local frame
+ * would overlap the things the frame gate measures the overlap of.
  *
  * It lives here rather than beside the component because the component file may
  * only export a component; see the `react-refresh` rule.
  */
 export const SCENARIOS_UP =
-  import.meta.env.DEV &&
-  typeof location !== 'undefined' &&
-  new URLSearchParams(location.search).has('scenarios')
+  DEBUG_TOOLS_ENABLED && debugSearchParams().has('scenarios')
 
 export function scenarioById(id: string): Scenario | null {
   return SCENARIOS.find((s) => s.id === id) ?? null

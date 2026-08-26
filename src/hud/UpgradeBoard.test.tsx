@@ -272,6 +272,21 @@ describe('§11.4.3 — tapping a node opens it; it does not buy it', () => {
     expect(container.querySelector('.upgrade-board__guide')).toBeNull()
   })
 
+  it('hands a first-use purchase back to the running loop', () => {
+    shifted(1)
+    __setState({ cash: 1_000_000 })
+    const complete = vi.fn()
+    const { container } = render(
+      <UpgradeBoard open guided onGuidedComplete={complete} onClose={() => {}} />,
+    )
+    expect(screen.getByText(/JAMES \/\//)).toBeInTheDocument()
+
+    fireEvent.click(firstBuyable(container))
+    const buy = container.querySelector('.upgrade-board__guide-card button')!
+    fireEvent.click(buy)
+    expect(complete).toHaveBeenCalledOnce()
+  })
+
   it('offers a silhouette no button at all, only why not', () => {
     shifted(1)
     __setState({ cash: 0 })

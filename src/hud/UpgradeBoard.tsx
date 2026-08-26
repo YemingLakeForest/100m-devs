@@ -105,7 +105,17 @@ function NodeView({
   )
 }
 
-export function UpgradeBoard({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function UpgradeBoard({
+  open,
+  guided = false,
+  onGuidedComplete,
+  onClose,
+}: {
+  open: boolean
+  guided?: boolean
+  onGuidedComplete?: () => void
+  onClose: () => void
+}) {
   const state = useGameState()
   const shifts = getPermanent().meta.paradigmShifts
   const [selected, setSelected] = useState<string | null>(null)
@@ -152,6 +162,12 @@ export function UpgradeBoard({ open, onClose }: { open: boolean; onClose: () => 
           <h2 className="hud__upgrades-title"><Kw kind="upgrades">UPGRADES</Kw></h2>
           <span className="tech__cash">{formatMoney(state.cash)}</span>
         </div>
+
+        {guided && (
+          <p className="board-teaching" role="status">
+            <b>JAMES //</b> Pick any lit node. One purchase clears the thread; then you are back on the floor.
+          </p>
+        )}
 
         <div className="upgrade-board__scroll" ref={scroller}>
           <div className="upgrade-board__world" style={{ width: worldW, height: worldH }}>
@@ -210,6 +226,7 @@ export function UpgradeBoard({ open, onClose }: { open: boolean; onClose: () => 
                   if (buyTech(selectedNode.id)) {
                     playPurchase()
                     setSelected(null)
+                    if (guided) onGuidedComplete?.()
                   }
                 }}
                 disabled={!selectedQuote.affordable}

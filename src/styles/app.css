@@ -15,6 +15,41 @@
   box-sizing: border-box;
 }
 
+/* §21.7.7e — the character's one-line hand-off inside a first-use board. */
+.board-teaching {
+  margin: 0;
+  padding: 6px 8px;
+  border: var(--rule) solid var(--warn-2);
+  color: var(--warn-3);
+  background: var(--n1);
+  font-size: var(--type-1x);
+  letter-spacing: .6px;
+  line-height: 1.35;
+}
+
+.board-teaching b {
+  color: var(--warn-2);
+}
+
+@keyframes board-guide-pulse {
+  0%, 100% { outline-color: var(--warn-1); }
+  50% { outline-color: var(--warn-3); }
+}
+
+.herotree__node[data-guide='true'],
+.founder__node[data-guide='true'] {
+  outline: 2px solid var(--warn-2);
+  outline-offset: 2px;
+  animation: board-guide-pulse 900ms steps(2, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .herotree__node[data-guide='true'],
+  .founder__node[data-guide='true'] {
+    animation: none;
+  }
+}
+
 html,
 body {
   height: 100%;
@@ -2570,7 +2605,7 @@ body {
   z-index: 10;
 }
 
-/* Dev-only §7.5 trigger. Present only in a VITE_BENCH=1 build. */
+/* Local-browser-only §7.5 trigger. VITE_BENCH cannot expose it remotely or natively. */
 .bench-trigger {
   position: absolute;
   top: 50%;
