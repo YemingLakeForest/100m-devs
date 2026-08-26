@@ -1,6 +1,6 @@
 # Looking at the game in the right shape
 
-The game is **landscape-locked** ([GDD §23.4](GDD.md)) — `sensorLandscape` on Android,
+The game is **landscape-locked** ([GDD §23.4](GDD.html)) — `sensorLandscape` on Android,
 portrait never. A desktop browser window is the wrong aspect ratio for every judgement you
 might make about framing, so set the viewport before deciding anything looks wrong.
 

@@ -24,7 +24,6 @@ slice.
 ```bash
 npm install
 npm run dev            # http://localhost:5176
-npm run docs:gdd       # regenerate the canonical GDD.html from its Markdown source
 npm test               # simulation + art system
 npm run check          # everything: lint + types + tests + the art gate + two browser gates
 npm run test:ui-frame  # geometry, at five landscape frames
@@ -66,7 +65,7 @@ in a browser window that is any shape at all, are in
 | Document | Contents |
 |---|---|
 | [`GDD.html`](./GDD.html) | **Canonical development guide.** Full game design, current implementation register, known deviations and defects, the ordered adjustment plan, and §26's gated delivery roadmap. This is the authority to use when designing or building. |
-| [`GDD.md`](./GDD.md) | Authoring source for `GDD.html`. Edit this, run `npm run docs:gdd`, and review the generated canonical file; it has no independent authority when the two drift. |
+| [`GDD.html`](./GDD.html) | Canonical game design document and sole authoring source. Edit the HTML directly. |
 | [`MONETISATION.md`](./MONETISATION.md) | Revenue model, eCPM assumptions, IAP catalogue and prices, subscription design, launch phasing, metrics. **Where each offer *attaches to the loop* is GDD §3.1**, next to the loop it constrains. |
 | [`docs/DEPLOY.md`](./docs/DEPLOY.md) | Getting it onto a phone and onto the web — `deploy.sh`, the Cloudflare Pages pipeline, and how the landscape lock survives a browser window. |
 | [`docs/HANDOFF.md`](./docs/HANDOFF.md) | Historical implementation handoffs and trap logs. Useful context, but not current design or status authority; Appendix G of `GDD.html` supersedes their status notes. |

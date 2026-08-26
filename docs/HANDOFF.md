@@ -50,7 +50,7 @@
 > and **no tap anywhere changes the zoom any more** — that is the pinch, the wheel and the rail.
 > Read it before the current one, then
 > [`PLAN-2026-08-19-lens.md`](PLAN-2026-08-19-lens.md) for the measurements behind both and
-> [`GDD.md` §26](../GDD.md) for the build order.
+> [`GDD.html` §26](../GDD.html) for the build order.
 >
 > **Before that: [`HANDOFF-2026-08-18.md`](HANDOFF-2026-08-18.md)** — §26.1.8 items 3–10
 > walked in a real browser, the third acceptance gate, **traps 38–44**, and **Phase 1 closed**.
@@ -258,7 +258,7 @@ Four things a reader should know before touching any of them:
 
 ## Do this next
 
-**[`GDD.md` §25](../GDD.md) is the ledger — 18 requirements, tracked with status.** A row leaves
+**[`GDD.html` §25](../GDD.html) is the ledger — 18 requirements, tracked with status.** A row leaves
 that table when the thing is built and *seen working*, not when it is specced.
 
 Thirteen are done or partial (R2–R13, R17). **Four are left and they are one piece of work

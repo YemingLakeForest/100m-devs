@@ -568,10 +568,8 @@ recorded and the discrepancy is listed in <strong>Appendix C</strong> for a bala
 It is the register of what is <em>specified nowhere</em> — audited rather than remembered, because
 the §10.9 title screen was found missing only when somebody happened to ask about it.</p>
 <h3 id="authority-and-current-build-status-added-2026-08-25">0.4 Authority and current-build status — <strong>added 2026-08-25</strong></h3>
-<p><strong><code>GDD.html</code> is the canonical development guide.</strong> This Markdown file is its authoring source
-and must be kept in sync through <code>npm run docs:gdd</code>; it has no separate design authority. If a
-generated HTML copy and this source ever differ, development follows <code>GDD.html</code> until the drift
-is reconciled and the canonical file is regenerated.</p>
+<p><strong><code>GDD.html</code> is the canonical development guide and sole authoring source.</strong>
+Edit this HTML file directly; there is no secondary source to reconcile.</p>
 <p>The body of the GDD specifies the <strong>target game</strong>. It also contains dated implementation notes
 that preserve how decisions were reached. Those notes are useful history, but they age. From
 this revision onward, <strong>Appendix G is the only current-build status register</strong>:</p>
@@ -16695,7 +16693,7 @@ authority; this appendix determines which broken or missing connection gets meas
       </article>
 
       <footer class="footer">
-        Canonical GDD · generated from GDD.md with scripts/build-gdd.ps1 · revision 2026-08-25
+        Canonical GDD · standalone HTML source · revision 2026-08-26
       </footer>
     </main>
   </div>

@@ -12,7 +12,6 @@
     "build": "tsc -b && vite build",
     "check": "npm run lint && tsc -b && vitest run && npm run art:check && npm run test:ui-frame && npm run test:walk",
     "dev": "vite",
-    "docs:gdd": "pwsh -NoProfile -File scripts/build-gdd.ps1",
     "lint": "eslint .",
     "music:generate": "tsx scripts/generate-music.ts",
     "preview": "vite preview",

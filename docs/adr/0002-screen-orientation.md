@@ -3,8 +3,8 @@
 - **Status:** **Accepted** — decided 2026-08-07.
 - **Date:** 2026-08-07
 - **Decision owner:** Yeming Huang
-- **Supersedes:** the portrait wireframe in [`GDD.md`](../../GDD.md) §10.3
-- **Related:** [`GDD.md`](../../GDD.md) §7 (Omni-Lens), §7.7 (Construction Ladder), §10 (UI),
+- **Supersedes:** the portrait wireframe in [`GDD.html`](../../GDD.html) §10.3
+- **Related:** [`GDD.html`](../../GDD.html) §7 (Omni-Lens), §7.7 (Construction Ladder), §10 (UI),
   §10.8 (Presentation Gate); [`ART_DIRECTION.md`](../ART_DIRECTION.md) §1 (2:1 isometric);
   [`MONETISATION.md`](../../MONETISATION.md) §4–7
 

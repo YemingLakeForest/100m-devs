@@ -4,7 +4,7 @@
 - **Date:** 2026-08-06 (proposed) · 2026-08-07 (accepted)
 - **Decision owner:** Yeming Huang
 - **Supersedes:** —
-- **Related:** [`GDD.md`](../../GDD.md) §7 (Omni-Lens), §8 (game juice), §10.5–10.6 (transitions), §20 (audio); [`MONETISATION.md`](../../MONETISATION.md) §10
+- **Related:** [`GDD.html`](../../GDD.html) §7 (Omni-Lens), §8 (game juice), §10.5–10.6 (transitions), §20 (audio); [`MONETISATION.md`](../../MONETISATION.md) §10
 
 
 > ## FROZEN — historical record, 2026-08-07

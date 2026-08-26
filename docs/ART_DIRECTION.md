@@ -1,7 +1,7 @@
 # Art Direction — *100000000 Developers*
 
 **Status:** v0, to be validated on device
-**Related:** [`GDD.md`](../GDD.md) §7 (Omni-Lens), §8.1 (camera & post-process), §10.5–10.6 (transitions & anti-patterns), §22.7 (art budget cap)
+**Related:** [`GDD.html`](../GDD.html) §7 (Omni-Lens), §8.1 (camera & post-process), §10.5–10.6 (transitions & anti-patterns), §22.7 (art budget cap)
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Status:** proposals, none built. Three defects at the top are findings and carry files.
 **Related:** [`HANDOFF-2026-08-22.md`](HANDOFF-2026-08-22.md) (rung 5, the park),
-[`ART_DIRECTION.md`](ART_DIRECTION.md), [`GDD.md`](../GDD.md) §7.7.1, §7.8.1, §7.8.2, §23.3
+[`ART_DIRECTION.md`](ART_DIRECTION.md), [`GDD.html`](../GDD.html) §7.7.1, §7.8.1, §7.8.2, §23.3
 
 ---
 

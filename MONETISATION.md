@@ -1,6 +1,6 @@
 # Monetisation Strategy — *100000000 Developers*
 
-Companion to [`GDD.md`](./GDD.md). Everything here is new work — it is not part of the
+Companion to [`GDD.html`](./GDD.html). Everything here is new work — it is not part of the
 original design drafts.
 
 **Studio context this is written against:** solo/small-budget developer; Capacitor mobile
