@@ -15,6 +15,7 @@
 import Decimal from 'break_infinity.js'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { BUFF_TAU } from '../sim/buffs.ts'
+import { emptySlack } from '../sim/slackOff.ts'
 import {
   POKE_PAYOUT_SHARE,
   __resetStore,
@@ -100,6 +101,15 @@ describe('the poke is worth what §4.5 says, only later (GDD §4.5a)', () => {
     // penalty is a *separate* pre-existing mechanic — a poke has always cost the
     // studio efficiency, whatever its Story Points then did — and leaving it in
     // would make this a test of that instead. It is pinned on its own below.
+    //
+    // **§7.8.9's away roster is held empty for the same reason, and a sharper
+    // one.** Since 2026-08-26 a developer away from their desk produces nothing,
+    // which makes the passive rate *stochastic*: this test differences a poked
+    // run against a quiet one, and two runs that happened to send different
+    // numbers of people to the cooler differ by far more than the integration
+    // residue being measured. A poke also sends its target back to their desk
+    // (§7.8.6 rule 5), so the poked run would be systematically richer — which
+    // is the mechanic working, and is emphatically not §4.5a's formula.
     const window = BUFF_TAU * 20
 
     const run = (withPoke: boolean, step: number) => {
@@ -111,10 +121,10 @@ describe('the poke is worth what §4.5 says, only later (GDD §4.5a)', () => {
       // silently, because both leave a plausible-looking number behind.
       __setState({ commitment: new Decimal(1e12), cash: 1e12 })
       const sp = withPoke ? poke(0, 0, { rung: 2, index: 7 }).sp : 0
-      __setState({ localEntropy: 0 })
+      __setState({ localEntropy: 0, slack: emptySlack() })
       for (let t = 0; t < window; t += step) {
         tick(step)
-        __setState({ localEntropy: 0 })
+        __setState({ localEntropy: 0, slack: emptySlack() })
       }
       return { sp, burned: getState().burned.toNumber() }
     }

@@ -37,8 +37,11 @@
 
 import { Container, Graphics } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
+import { laneFor, type GridPoint, type Lanes } from './walkPath.ts'
 import { HAIR_RAMP, SHIRT_RAMP, SKIN_BASE } from '../art/personPalette.ts'
-import { createAmbient, type Seat } from './ambient.ts'
+import { createAmbient } from './ambient.ts'
+import { NO_SPOTS, createErrands } from './errands.ts'
+import type { Away } from '../sim/slackOff.ts'
 import { developerAt, type Look } from '../sim/identity.ts'
 import {
   DEFAULT_FOUNDER,
@@ -433,12 +436,30 @@ export interface RoomHandle {
    * identity, on the same argument §7.8.8 makes for selection.
    */
   setSpeaker(index: number): void
-  /** §7.8.9 — the floor as a toy. Room-local coordinates throughout. */
+  /**
+   * §7.8.9 — the away population, from the simulation.
+   *
+   * Pushed in rather than pulled, because `game/` may not import `render/` and
+   * `render/room.ts` has no business importing the store either — only
+   * `stage.ts` does. It is a plain array reference and the store replaces it on
+   * every tick rather than mutating it, so holding it costs nothing and cannot
+   * go half-stale.
+   */
+  setAway(roster: readonly Away[]): void
+  /**
+   * §7.8.9 — the floor as a toy, in pixels only.
+   *
+   * **What this no longer decides is whether the grab is allowed.** That moved
+   * to `sim/slackOff.ts` with the rest of the roster on 2026-08-26, because a
+   * drag that changes the economy cannot have its rules living in the renderer
+   * — the answer would disappear at the Floor tier along with the bodies. This
+   * now records where the hand is so the body can follow it. Room-local
+   * coordinates throughout.
+   */
   readonly hands: {
-    isLoitering(i: number): boolean
-    pickUp(i: number): boolean
+    hold(i: number): void
     carryTo(x: number, y: number): void
-    drop(seat: number | null): 'seated' | 'walking' | 'none'
+    release(): void
     readonly carrying: number
   }
   /**
@@ -734,6 +755,89 @@ export function seatGrid(index: number): { col: number; row: number } {
 export function seatPosition(index: number): { x: number; y: number } {
   const { col, row } = seatGrid(index)
   return isoAt(col, row)
+}
+
+/**
+ * §7.8.6 — **the walkable lattice**, for `walkPath.ts`.
+ *
+ * The floor's grain is already a lattice; this is the same arithmetic
+ * {@link isoAt} does, read as "where can somebody put their feet" instead of
+ * "where does a desk go". Built here rather than in the router because which
+ * lines exist is a fact about *this* headcount's room — how many rows are
+ * occupied, how many squad corridors got drawn — and the router must never
+ * recompute it from constants and end up walking down a corridor that is now
+ * desks (§7.8.1's crowding).
+ *
+ * Three kinds of line, and the third is the one that was missing on the first
+ * pass:
+ *
+ *  - **Row aisles.** One behind each occupied row, at `laneFor(row)`.
+ *  - **Squad corridors.** The `CORRIDOR_COLS` gap between squad columns.
+ *  - **The perimeter.** A lane outside row zero and outside the last row, and
+ *    corridors outside the first and last columns. Without the back-wall lane
+ *    a route to a prop standing against the wall picks the nearest *row* aisle
+ *    and then walks the final leg straight back through row zero — the exact
+ *    defect this module exists to fix, reintroduced at the destination.
+ */
+export function roomLanes(devs: number): Lanes {
+  const n = Math.max(0, Math.min(ROOM_DEV_CAP, Math.floor(devs)))
+  const aisles: number[] = []
+  const corridors: number[] = []
+
+  // **The deepest row is not the last seat's row**, and assuming it was is how
+  // the first version of this shipped a lattice that stopped at row three on a
+  // floor whose back squad ran to row nine. §7.8.1b fills squads row by row and
+  // lays the squads out five across, so seat 99 sits nine rows back while seat
+  // 239 sits three — and a seat with no aisle behind it walks out through its
+  // own monitor. Scanned rather than solved: {@link ROOM_DEV_CAP} is a
+  // thousand and this runs once per room rebuild, so the arithmetic that could
+  // be got wrong is not worth the microseconds it would save.
+  let deepest = 0
+  let widest = 0
+  for (let i = 0; i < n; i++) {
+    const g = seatGrid(i)
+    if (g.row > deepest) deepest = g.row
+    if (g.col > widest) widest = g.col
+  }
+
+  // The lane in front of row zero — between the back wall and the first row of
+  // monitors. Props live out there, and so does anybody walking to one.
+  aisles.push(laneFor(-1, PITCH_ROW))
+  for (let row = 0; row <= deepest; row++) aisles.push(laneFor(row, PITCH_ROW))
+
+  // Corridors run along `gy`, so they are indexed in seat columns. One outside
+  // column zero, one past the widest occupied column, and one in each squad gap
+  // that the studio has actually grown into.
+  corridors.push(-FLOOR_AISLE_COLS * 0.5 * PITCH_COL)
+  corridors.push((widest + FLOOR_AISLE_COLS * 0.5) * PITCH_COL)
+  for (let k = 0; k * SQUAD_STRIDE_COLS < widest; k++) {
+    corridors.push((k * SQUAD_STRIDE_COLS + SQUAD_COLS + CORRIDOR_COLS / 2) * PITCH_COL)
+  }
+
+  return {
+    aisles,
+    corridors,
+    // A workstation is about a tile deep and a tile wide; half of each is the
+    // box a walker must stay out of.
+    deskHalfDepth: 0.5,
+    deskHalfWidth: PITCH_COL / 2,
+  }
+}
+
+/** Seat `index` in the grid axes `walkPath.ts` routes in. */
+export function seatGridPoint(index: number): GridPoint {
+  const { col, row } = seatGrid(index)
+  return { gx: row * PITCH_ROW, gy: col * PITCH_COL }
+}
+
+/** Room-local screen coordinates back into the floor's grid axes. */
+export function screenToGrid(x: number, y: number): GridPoint {
+  return { gx: x / TILE_W + y / TILE_H, gy: y / TILE_H - x / TILE_W }
+}
+
+/** And back again — {@link gridToScreen}, exported for the walkers. */
+export function gridPointToScreen(p: GridPoint): { x: number; y: number } {
+  return gridToScreen(p.gx, p.gy)
 }
 
 /**
@@ -2103,6 +2207,13 @@ export function buildRoom(): RoomHandle {
   deskLayer.label = 'desks'
   coverage.label = 'coverage'
   const ambient = createAmbient()
+  /**
+   * §7.8.9 — the away population's bodies.
+   *
+   * Handed the simulation's roster every frame via {@link RoomHandle.setAway};
+   * it owns nothing about *who* is away, only where they are standing.
+   */
+  const errands = createErrands()
   // Bubbles go above everyone, including the people in the front row — a
   // speech bubble occluded by the desk in front of it is not a speech bubble.
   // Panels sit *above* the shell's own floor and below everything else: the
@@ -2129,6 +2240,7 @@ export function buildRoom(): RoomHandle {
     devLayer,
     founderLayer,
     ambient.layer,
+    errands.layer,
   )
 
   /** One §7.8.1c panel: the plate itself, and the light it catches turning. */
@@ -2236,7 +2348,46 @@ export function buildRoom(): RoomHandle {
    * on which props are present at this headcount and duplicating that logic in
    * the walker is how the two quietly disagree.
    */
-  const walkTargets: Seat[] = []
+  /**
+   * §7.8.9 — **where the errands go**, one list per destination kind.
+   *
+   * This used to be a single `walkTargets` array holding the cooler, the coffee
+   * machine and the fridge, because §7.8.6 had one walk and it was for a drink.
+   * The away population has four destinations and they are not interchangeable:
+   * a developer sent to "a prop" and drawn staring at a filing cabinet is not
+   * the joke, and a whiteboard huddle has to happen at a whiteboard.
+   *
+   * Recorded as the props are laid out rather than recomputed, because the
+   * perimeter ring's slot allocation depends on which props exist at this
+   * headcount and duplicating that logic in the walker is how the two quietly
+   * disagree about where the cooler is.
+   *
+   * In **grid** coordinates, not screen: `walkPath.ts` routes in the floor's own
+   * axes, and converting once here beats converting on every waypoint of every
+   * route on every frame.
+   */
+  const spots: {
+    water: GridPoint[]
+    whiteboard: GridPoint[]
+    window: GridPoint[]
+    sofa: GridPoint[]
+  } = { water: [], whiteboard: [], window: [], sofa: [] }
+  /** Where somebody stands to use a prop: on the floor, out from the wall. */
+  const standingSpot = (x: number, y: number): GridPoint => {
+    const g = screenToGrid(x, y)
+    // Out of the wall and onto the floor. The props are drawn with their backs
+    // against it, so their own centre is inside the furniture.
+    return { gx: g.gx + 0.75, gy: g.gy + 0.75 }
+  }
+  /** The roster as of the last {@link RoomHandle.setAway}. */
+  let away: readonly Away[] = []
+  /** Reused rather than rebuilt per frame — it is written on every one. */
+  const awaySeats = new Set<number>()
+  /** Who is in the player's hand, and where the hand is. Room-local. */
+  let carried = -1
+  let carryAt: { x: number; y: number } | null = null
+  /** The walkable lattice for this headcount, rebuilt with the room. */
+  let currentLanes = roomLanes(1)
   let currentProps = propsAt(1)
   let lastDevs = -1
   const extent = { w: TILE_W * 3, h: 156 }
@@ -2327,13 +2478,20 @@ export function buildRoom(): RoomHandle {
     const { cols, rows } = gridFor(n)
     const props = propsAt(headcount)
     currentProps = props
+    // §7.8.6 — the walkway lattice is a fact about *this* room, so it is rebuilt
+    // with it. A router holding last headcount's aisles walks people down a
+    // corridor that is now four desks.
+    currentLanes = roomLanes(n)
 
     shell.clear()
     light.clear()
     furniture.clear()
     managerDesk.clear()
     desks.length = 0
-    walkTargets.length = 0
+    spots.water.length = 0
+    spots.whiteboard.length = 0
+    spots.window.length = 0
+    spots.sofa.length = 0
 
     // --- the shell ---------------------------------------------------------
     //
@@ -2673,6 +2831,8 @@ export function buildRoom(): RoomHandle {
        * somewhere to hang things.
        */
       const piers: { x: number; y: number; slope: number }[] = []
+      /** The floor in front of a glazing bay — §7.8.9's window errand. */
+      const glazedSpots: { x: number; y: number }[] = []
 
       const glaze = (
         fromX: number,
@@ -2716,6 +2876,16 @@ export function buildRoom(): RoomHandle {
             piers.push({ ...at((t0 + t1) / 2), slope })
             continue
           }
+
+          // §7.8.9 — somewhere to stand and look out. **The open floor has
+          // always had windows**; what it did not have was anywhere to stand at
+          // one. One bay in five is enough: a spot at every pane would put forty
+          // standing places round a room that is meant to have people in the
+          // middle of it, and the errand only ever needs a handful.
+          //
+          // No `continue` — a bay somebody stands at is still a window, and must
+          // still be glazed by the code below.
+          if (i % 5 === 0) glazedSpots.push(at((t0 + t1) / 2))
 
           /*
            * **The glass is `GLOW[0]`, not `NEUTRAL[1]`.**
@@ -2762,6 +2932,7 @@ export function buildRoom(): RoomHandle {
       glaze(leftX, leftY, topX, topY, 2, 0, -WALL_SLOPE)
       glaze(topX, topY, rightX, rightY, 3, 1, WALL_SLOPE)
       officePiers = piers
+      for (const g of glazedSpots) spots.window.push(standingSpot(g.x, g.y))
     }
 
     // **The garage bones only belong to a garage.** §7.8.1c opens the floor
@@ -2837,8 +3008,16 @@ export function buildRoom(): RoomHandle {
       // and never leave, whatever the studio grows into.
       const WIN_W = 52
       const WIN_H = Math.max(16, WALL_H * 0.5)
-      drawWindow(shell, topX - westW * 0.25, topY + westH * 0.25 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
-      drawWindow(shell, topX - westW * 0.65, topY + westH * 0.65 - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+      for (const along of [0.25, 0.65]) {
+        const wx = topX - westW * along
+        const wy = topY + westH * along
+        drawWindow(shell, wx, wy - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+        // §7.8.9 — somewhere to stand and look out of it. The garage's two
+        // casements are high on the wall and that is fine: the errand is
+        // "staring out of the window", and staring upward at a garage window is
+        // if anything the bleaker read.
+        spots.window.push(standingSpot(wx, wy))
+      }
 
     }
 
@@ -2895,10 +3074,19 @@ export function buildRoom(): RoomHandle {
         draw(pier)
       }
       if (props.whiteboard) {
-        hang((p) => drawWhiteboard(shell, p.x, p.y - WALL_H * 0.62, 3, p.slope))
+        hang((p) => {
+          // §7.8.9 — a board is a destination as well as dressing, and this is
+          // the one prop the huddle needs. The spot is the floor in front of
+          // the pier, not the pier: people stand at a whiteboard, not in it.
+          spots.whiteboard.push(standingSpot(p.x, p.y))
+          drawWhiteboard(shell, p.x, p.y - WALL_H * 0.62, 3, p.slope)
+        })
       }
       if (props.whiteboardRight) {
-        hang((p) => drawWhiteboard(shell, p.x, p.y - WALL_H * 0.62, 17, p.slope))
+        hang((p) => {
+          spots.whiteboard.push(standingSpot(p.x, p.y))
+          drawWhiteboard(shell, p.x, p.y - WALL_H * 0.62, 17, p.slope)
+        })
       }
       for (let i = 0; i < props.posters; i++) {
         hang((p) => drawPoster(shell, p.x, p.y - WALL_H * 0.5, i, p.slope))
@@ -2912,10 +3100,12 @@ export function buildRoom(): RoomHandle {
           3,
           -WALL_SLOPE,
         )
+        spots.whiteboard.push(standingSpot(topX - westW * 0.42, topY + westH * 0.42))
       }
       if (props.whiteboardRight) {
         // Tucked into the corner beside the centred garage door, not over it.
         drawWhiteboard(shell, topX + eastW * 0.16, topY + eastH * 0.16 - WALL_H * 0.62, 17, WALL_SLOPE)
+        spots.whiteboard.push(standingSpot(topX + eastW * 0.16, topY + eastH * 0.16))
       }
       for (let i = 0; i < props.posters; i++) {
         // Alternating walls, marching outward from the corner so a second poster
@@ -2965,7 +3155,7 @@ export function buildRoom(): RoomHandle {
         draw: (x, y) => {
           // A walk target, like the cooler: the garage runs on fridge trips
           // long before a coffee machine arrives.
-          walkTargets.push({ x, y })
+          spots.water.push(standingSpot(x, y))
           drawFridge(furniture, x, y)
         },
       })
@@ -2977,7 +3167,7 @@ export function buildRoom(): RoomHandle {
       ring.push({
         w: 18,
         draw: (x, y) => {
-          walkTargets.push({ x, y })
+          spots.water.push(standingSpot(x, y))
           drawCoffee(furniture, x, y)
         },
       })
@@ -2985,13 +3175,24 @@ export function buildRoom(): RoomHandle {
       ring.push({
         w: 15,
         draw: (x, y) => {
-          walkTargets.push({ x, y })
+          spots.water.push(standingSpot(x, y))
           drawWaterCooler(furniture, x, y)
         },
       })
     if (props.filingCabinet) ring.push({ w: 18, draw: (x, y) => drawFilingCabinet(furniture, x, y) })
     if (props.printer) ring.push({ w: 22, draw: (x, y) => drawPrinter(furniture, x, y) })
-    if (props.sofa) ring.push({ w: 46, draw: (x, y) => drawSofa(furniture, x, y) })
+    if (props.sofa)
+      ring.push({
+        w: 46,
+        draw: (x, y) => {
+          // §7.8.9's longest errand. The sofa is breakout seating and the first
+          // real furniture §7.8.1's crowding sacrifices, so it is a destination
+          // that a growing studio *loses* — which is the correct joke and needs
+          // no extra code, because `errands.ts` falls back to the desk aisle.
+          spots.sofa.push(standingSpot(x, y))
+          drawSofa(furniture, x, y)
+        },
+      })
     if (props.bin) ring.push({ w: 13, draw: (x, y) => drawBin(furniture, x, y) })
     for (let i = 0; i < props.plants; i++)
       ring.push({ w: 14, draw: (x, y) => drawPlant(furniture, x, y, i) })
@@ -3142,7 +3343,10 @@ export function buildRoom(): RoomHandle {
     // Reuse developer containers across rebuilds — a hire should not rebuild
     // ninety-nine sprites that did not change.
     while (devs.length < n) {
-      // §7.8.7 — index 1 is James and is never generated. Containers are reused
+      // §7.8.7 — `developerAt` pins seat 0 to James rather than generating one.
+      // (This comment said "index 1" until 2026-08-26; `identity.ts` moved him
+      // to seat 0 when §21.0b made him the first developer and this line was
+      // not moved with it.) Containers are reused
       // across rebuilds, so a developer's look is fixed at the moment their
       // seat first exists and never churns underneath them.
       const d = buildDeveloper(developerAt(seed, windowFrom + devs.length).look)
@@ -3466,28 +3670,44 @@ export function buildRoom(): RoomHandle {
           py: resizeFrom.py + (resizeTo.py - resizeFrom.py) * k,
         })
       }
-      // §7.8.6 — ambient life. Fed the desks and the walkable destinations; it
-      // decides who is doing what and hands back an offset per seat.
+      // §7.8.6, §7.8.9 — the two layers of life on the floor, in the order they
+      // have to run: the errands first, because they own bodies, and the free
+      // ambience second, so it can be told which seats are already spoken for.
       //
-      // `walkTargets` is empty once §7.8.1's crowding has taken the walkway,
-      // which stops the water trips with it. That is the correct behaviour and
-      // a better joke than the walk was: **a crowded floor stops being able to
-      // reach the cooler.**
+      // **The props go dark once §7.8.1's crowding has taken the walkway.** An
+      // errand with no destination falls back to standing outside its own desk,
+      // which is the correct behaviour and a better joke than the walk was:
+      // *a crowded floor stops being able to reach the cooler*, and the people
+      // who wanted a drink just stand about instead.
       //
       // Skipped while frozen — §10.7a.3. Walkers stop mid-stride where they
       // are, like everything else on the floor.
-      if (!frozen)
+      if (!frozen) {
+        // Read off the live world transform rather than plumbed down from the
+        // stage: the camera's scale is already baked into it, and a second copy
+        // passed by hand is a second thing that can be one frame stale.
+        const worldScale = root.worldTransform.a
+        errands.update(dt, {
+          roster: away,
+          seatGrid: seatGridPoint,
+          toScreen: gridPointToScreen,
+          spots: currentProps.walkway ? spots : NO_SPOTS,
+          lanes: currentLanes,
+          drawnIndividually: true,
+          worldScale,
+          carryAt,
+        })
+        awaySeats.clear()
+        for (const a of away) awaySeats.add(a.seat)
         ambient.update(dt, {
           seats: desks,
-          props: currentProps.walkway ? walkTargets : [],
           devs: desks.length,
           entropy,
           drawnIndividually: true,
-          // Read off the live world transform rather than plumbed down from the
-          // stage: the camera's scale is already baked into it, and a second copy
-          // passed by hand is a second thing that can be one frame stale.
-          worldScale: root.worldTransform.a,
+          worldScale,
+          busySeats: awaySeats,
         })
+      }
 
       // §7.8.3 — a transform on a static part, never a spritesheet. The whole
       // motion budget for a hundred people is one hop per person per frame.
@@ -3534,13 +3754,19 @@ export function buildRoom(): RoomHandle {
         const offset = ((i * 2654435761) % 1024) / 1024
 
         if (!frozen && jolts[i] > 0) jolts[i] = Math.max(0, jolts[i] - 0.06)
-        const walk = ambient.offsetFor(i)
+        // Two layers can move a body and exactly one ever does: `errands.ts`
+        // owns anybody on the away roster, `ambient.ts` owns the drive-by
+        // walkers, and the roster wins because it is the one the simulation
+        // agrees with. `busySeats` above is what keeps the ambient layer from
+        // claiming somebody it would then draw in the wrong chair.
+        const errand = errands.offsetFor(i)
+        const walk = errands.isAway(i) ? errand : ambient.offsetFor(i)
         // §7.8.9 — a developer in the player's hand dangles. Legs cycling, a
         // slight swing, and lifted clear of the floor, because the whole read
         // is "held by the scruff" and a held figure that stays upright looks
         // like it is flying. They do not hop while held: whatever they are
         // doing in mid-air, pushing off it is not it.
-        const held = i === ambient.carrying
+        const held = i === carried
         const hopping = !still && !held
         const phase = liveElapsed * hz + offset
         const lift = hopping ? hopHeight(phase) * HOP_HEIGHT * reach : 0
@@ -3549,16 +3775,50 @@ export function buildRoom(): RoomHandle {
 
         d.scale.x = turning ? turnScale(t) : 1
         d.scale.y = squash
-        d.rotation = held ? Math.sin(liveElapsed * 9) * 0.12 : 0
+        /**
+         * §7.8.9 — **the struggle.**
+         *
+         * A held developer used to rock gently, at one frequency, forever,
+         * which read as a pendulum: something hanging from the hand rather than
+         * somebody objecting to being in it. A person trying to get down does
+         * not oscillate — they *kick*, in bursts, and the bursts do not line up
+         * with each other.
+         *
+         * So: two sine terms at frequencies with no common period, so the swing
+         * never repeats a shape, times a third slow term that makes the whole
+         * thing surge and subside. That is the difference between a struggle
+         * and a metronome, and it is still three multiplies — §7.8.9 rule 4's
+         * "no ragdoll, no collision" is not endangered by trigonometry.
+         *
+         * Seeded off the seat so two people held in succession do not perform
+         * the identical animation.
+         */
+        const kick = held
+          ? (Math.sin(liveElapsed * 13 + offset * 6) * 0.7 +
+              Math.sin(liveElapsed * 21.4 + offset * 11) * 0.3) *
+            (0.55 + 0.45 * Math.sin(liveElapsed * 3.1 + offset * 4))
+          : 0
+        d.rotation = kick * 0.34
         // The jolt sits on top of the hop: §8.2's "sprite jolts upright".
         //
         // `BODY_BASE` compensates the squash. The container's origin is at the
         // waist and the drawn figure hangs below it, so scaling Y about the
         // origin lifts the bottom of the body off the seat — the one place a
         // squash must never move.
+        // The legs kick sideways as well as the body twisting — a figure that
+        // only rotates is a signpost swinging in wind. Small: the hand is the
+        // fixed point and the body hangs off it, so the feet travel and the
+        // scruff does not.
         d.position.set(
-          desks[i].x + walk.x + sway,
-          desks[i].y + 6 - lift + walk.y - jolts[i] * 5 - (held ? 16 : 0) + BODY_BASE * (1 - squash),
+          desks[i].x + walk.x + sway + kick * 4,
+          desks[i].y +
+            6 -
+            lift +
+            walk.y -
+            jolts[i] * 5 -
+            (held ? 16 : 0) +
+            (held ? Math.abs(kick) * 2 : 0) +
+            BODY_BASE * (1 - squash),
         )
       }
 
@@ -3575,7 +3835,24 @@ export function buildRoom(): RoomHandle {
         founderAt.y + 6 - founderLift + BODY_BASE * (1 - founderSquash),
       )
     },
-    hands: ambient,
+    setAway(roster) {
+      away = roster
+    },
+    hands: {
+      hold(i) {
+        carried = i
+      },
+      carryTo(x, y) {
+        carryAt = { x, y }
+      },
+      release() {
+        carried = -1
+        carryAt = null
+      },
+      get carrying() {
+        return carried
+      },
+    },
     setFounderProfile(next: FounderProfile) {
       if (
         next.name === founderProfile.name &&
@@ -3643,6 +3920,9 @@ export function buildRoom(): RoomHandle {
       // §7.8.6 rule 5 — a poke beats ambience. A player who taps somebody and
       // gets no reaction because that person happened to be chatting has been
       // told the game is a cutscene.
+      // §7.8.6 rule 5 — the free behaviours end here. The away roster's own
+      // version of the same rule lives in `store.ts`'s `poke`, because that one
+      // hands back Story Points and this one never has.
       ambient.interrupt(i)
     },
     joltFounder() {

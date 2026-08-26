@@ -209,6 +209,49 @@ const ICONS: Record<string, readonly string[]> = {
     ...line(4, 8, 7, 11),
     ...line(7, 11, 11, 5),
   ]),
+
+  // --- §11.6 Branch D — Focus ---------------------------------------------
+  //
+  // Each of these is a picture of the *thing the company took away*, which is
+  // what the branch actually buys. Read in order they are a small horror story
+  // told in four pictograms.
+
+  // D1 Focus Time Blocks — a calendar week with one block shaded solid, and the
+  // meeting booked straight over the top of it.
+  D1: build([
+    ...frame(2, 3, 13, 13),
+    ...line(2, 5, 13, 5),
+    ...rect(4, 7, 7, 10),
+    ...line(3, 11, 12, 8),
+    ...line(3, 8, 12, 11),
+  ]),
+  // D2 Desk Water Bottles — a bottle with a cap and a fill line. Issued so
+  // nobody has a reason to walk anywhere.
+  D2: build([
+    ...rect(6, 1, 9, 2),
+    ...rect(7, 3, 8, 4),
+    ...frame(4, 5, 11, 14),
+    ...line(5, 9, 10, 9),
+    ...rect(5, 10, 10, 13),
+  ]),
+  // D3 Whiteboards Removed — the board's frame, empty, with the four screw
+  // holes the fixings left in the wall.
+  D3: build([
+    ...frame(1, 3, 14, 12),
+    [3, 5],
+    [12, 5],
+    [3, 10],
+    [12, 10],
+    ...line(4, 14, 11, 14),
+  ]),
+  // D4 Blackout Blinds — a window, three quarters covered, and the last strip
+  // of daylight about to go.
+  D4: build([
+    ...frame(2, 2, 13, 13),
+    ...rect(3, 3, 12, 9),
+    ...line(3, 10, 12, 10),
+    ...line(7, 3, 7, 9),
+  ]),
 }
 
 /** Every node id must have an icon. This is what `art:check`-style tests read. */

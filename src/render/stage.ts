@@ -14,6 +14,8 @@ import {
   cancelPosting,
   currentEntropy,
   developerVelocity,
+  grabDeveloper,
+  releaseDeveloper,
   FLOATER_LIFE_MS,
   getState,
   heroCoverageOf,
@@ -1186,7 +1188,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const tryGrab = (x: number, y: number, pointerId: number): boolean => {
     if (!roomIsUp) return false
     const who = pickDeveloper(x, y)
-    if (who < 0 || !room.hands.pickUp(who)) return false
+    if (who < 0) return false
+
+    // **The simulation decides, and it says yes to everybody.** §7.8.9's old
+    // refusal — nobody mid-behaviour — was overruled on 2026-08-26: a minigame
+    // about dragging wanderers back cannot decline to catch the one who is
+    // walking away. The store call is what makes the lift cost output; the room
+    // call is what makes the body follow the finger.
+    grabDeveloper(who)
+    room.hands.hold(who)
 
     const at = toRoom(x, y)
     room.hands.carryTo(at.x, at.y)
@@ -1248,12 +1258,17 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       carryId = -1
       // Dropped onto a seat, or onto the floor. `pickDeveloper` answers "whose
       // desk is under the finger", which is exactly the question.
-      const onto = pickDeveloper(ev.clientX, ev.clientY)
-      const what = room.hands.drop(onto)
+      const who = room.hands.carrying
+      const onDesk = pickDeveloper(ev.clientX, ev.clientY) >= 0
+      room.hands.release()
+      if (who >= 0) releaseDeveloper(who, onDesk)
       // §7.8.5's bum-hits-seat for a landing, the close whisper for a shrug.
-      // §7.8.6 rule 2 still holds: neither changes a single Story Point.
-      if (what === 'seated') playSfx('poke-floor')
-      else if (what === 'walking') playUi('close')
+      //
+      // **These now differ by more than a sound.** §7.8.6 rule 2 was reversed:
+      // a landing puts somebody back to work and a shrug leaves them walking
+      // home, not producing, for as long as the walk takes.
+      if (onDesk) playSfx('poke-floor')
+      else playUi('close')
       return
     }
     if (!drag || ev.pointerId !== drag.id) return
@@ -1669,6 +1684,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // §10.7a.3 — and while a scene is up the floor holds its breath: `tick`
     // stops the numbers and the frozen room stops the bodies, so the picture
     // and the ledger agree about time being stopped.
+    // §7.8.9 — hand the room this tick's away roster, **before** it animates.
+    //
+    // Pushed rather than pulled: `render/room.ts` does not import the store and
+    // should not start. This is the one seam where the simulation's opinion
+    // about who is out of their chair reaches the bodies that draw it — and it
+    // has to be on this side of `animate`, or a developer the player has just
+    // grabbed spends one frame sitting at their desk before the hand takes
+    // hold, which is exactly long enough to see.
+    room.setAway(state.slack.away)
     room.animate(now / 1000, state.dev.state, dt, currentEntropy(state), state.scene !== null)
 
     critPunch = Math.max(0, critPunch - dt * 4)
@@ -1830,9 +1854,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // of the room does the same thing, and for the same reason — there is no
     // hand at the building.
     if (carryId >= 0 && tapVerb(state.touchMode, roomIsUp) !== 'grab') {
-      room.hands.drop(null)
+      const who = room.hands.carrying
+      room.hands.release()
+      if (who >= 0) releaseDeveloper(who, false)
       carryId = -1
     }
+
 
     // §7.8.10 and §10.7a.1 — the Hero Anchor and the dialogue speaker.
     //

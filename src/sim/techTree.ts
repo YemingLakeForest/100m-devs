@@ -42,8 +42,17 @@
  * doing the least. Recorded here rather than silently picked.
  */
 
-/** §11's two shipped branches. Branch A is discussed in the module note. */
-export type TechBranch = 'protocol' | 'culture'
+import type { Errand } from './slackOff.ts'
+
+/**
+ * §11's shipped branches. Branch A is discussed in the module note.
+ *
+ * **Branch D — Focus — added 2026-08-26**, when §7.8.6 rule 2 was reversed and
+ * a developer away from their desk stopped producing. A cost the player cannot
+ * do anything about is a tax, not a mechanic; dragging people back is the
+ * answer for the first hour and this is the answer after that.
+ */
+export type TechBranch = 'protocol' | 'culture' | 'focus'
 
 export interface TechNode {
   /** §11's own node label — `B1`, `C6`. Stable; it is what the save stores. */
@@ -368,6 +377,84 @@ export const TECH_TREE: readonly TechNode[] = [
     y: -1,
     ring: 6,
   },
+
+  // --- Branch D — Focus (§11.6) --------------------------------------------
+  //
+  // Due east along `y = 0`, which is the last free heading on the board:
+  // §11.2's protocol chain runs west, §11.2a's second door runs south from the
+  // centre, and §11.3's culture chain runs north with the estimation sub-branch
+  // turning east one row above this one. §11.4.1's right angles are preserved —
+  // a branch is a compass heading, never a column.
+  //
+  // **Every node deletes a destination and cuts the share, and that pairing is
+  // the design.** A node that removed the whiteboards without also cutting the
+  // share would not buy anything: the people who were going to the whiteboard
+  // would go to the window instead, because `slackOff.ts` redistributes a
+  // zeroed weight rather than re-rolling it. So each node has to pay twice, and
+  // stating both halves on the card is what stops the branch reading as four
+  // identical percentages.
+  //
+  // **And it can never reach zero.** Standing about needs no furniture, so
+  // `loiter` has nothing for a purchase to take away. §7.8.9 rule 2 says an
+  // automation upgrade for the floor "would be the game solving its own joke";
+  // this is that rule kept as a mechanism instead of a promise. The company
+  // removes every reason to stand up, one at a time, ending by bricking up the
+  // windows — and people still stand up.
+  {
+    id: 'D1',
+    branch: 'focus',
+    name: 'Focus Time Blocks',
+    flavour: 'Two hours a day marked in the calendar as protected, and booked over by Thursday.',
+    effect: 'Developers spend 25% less time away from their desks',
+    baseCost: 150,
+    mult: 1.09,
+    maxLevel: 1,
+    x: 1,
+    y: 0,
+    ring: 1,
+  },
+  {
+    id: 'D2',
+    branch: 'focus',
+    name: 'Desk Water Bottles',
+    flavour: 'Branded. Two litres. Issued so that nobody has any reason to walk anywhere.',
+    effect: 'No more trips to the cooler, and 25% less time away again',
+    baseCost: 12_000,
+    mult: 1.11,
+    maxLevel: 1,
+    requires: 'D1',
+    x: 2,
+    y: 0,
+    ring: 2,
+  },
+  {
+    id: 'D3',
+    branch: 'focus',
+    name: 'Whiteboards Removed',
+    flavour: 'The meeting room became a phone booth. The phone booth became two desks.',
+    effect: 'Nobody huddles at a whiteboard, and 30% less time away again',
+    baseCost: 2_000_000,
+    mult: 1.14,
+    maxLevel: 1,
+    requires: 'D2',
+    x: 3,
+    y: 0,
+    ring: 3,
+  },
+  {
+    id: 'D4',
+    branch: 'focus',
+    name: 'Blackout Blinds',
+    flavour: 'There is no outside. There is no weather. There is the sprint.',
+    effect: 'Nobody stares out of a window, and 30% less time away again',
+    baseCost: 150_000_000,
+    mult: 1.18,
+    maxLevel: 1,
+    requires: 'D3',
+    x: 4,
+    y: 0,
+    ring: 4,
+  },
 ]
 
 export const TECH_BY_ID = new Map(TECH_TREE.map((n) => [n.id, n]))
@@ -510,6 +597,24 @@ export interface TechEffects {
   commitmentFraction: number
   /** §11.2 B2 — the studio stops for a meeting on a cycle. */
   standups: boolean
+  /**
+   * §11.6 Branch D — multiplies §7.8.9's away-from-desk duty cycle.
+   *
+   * One term rather than four, for the same reason `devCapMultiplier` is one
+   * term: every Focus node says "less time away", the away population only ever
+   * sees the product, and a second parallel adjustment somewhere else in the
+   * equation is how two nodes end up disagreeing about what they bought.
+   */
+  slackShare: number
+  /**
+   * §11.6 Branch D — errands whose destination the studio has deleted.
+   *
+   * Deliberately not a set of booleans on this interface. The list is passed
+   * straight through to `slackOff.ts`, which zeroes the weights, and a shape
+   * that mirrors the errand union means a new errand cannot be added without
+   * this compiling against it.
+   */
+  slackBlocked: readonly Errand[]
 }
 
 /** Nothing bought. Every field is its own identity, so an empty tree changes nothing. */
@@ -524,6 +629,8 @@ export const NO_TECH: TechEffects = {
   velocityDisplayScale: 1,
   commitmentFraction: 1,
   standups: false,
+  slackShare: 1,
+  slackBlocked: [],
 }
 
 export function techEffects(levels: TechLevels): TechEffects {
@@ -540,6 +647,10 @@ export function techEffects(levels: TechLevels): TechEffects {
   const c8 = techLevel(levels, 'C8') > 0
   const c9 = techLevel(levels, 'C9') > 0
   const c10 = techLevel(levels, 'C10') > 0
+  const d1 = techLevel(levels, 'D1') > 0
+  const d2 = techLevel(levels, 'D2') > 0
+  const d3 = techLevel(levels, 'D3') > 0
+  const d4 = techLevel(levels, 'D4') > 0
 
   // −5% load per level compounds: five levels is 0.95^5 of the load, which is
   // a 1.29x capacity and not a 1.25x one. Compounding rather than summing also
@@ -566,6 +677,17 @@ export function techEffects(levels: TechLevels): TechEffects {
    */
   const estimationTier = c9 ? 5 : c8 ? 4 : techLevel(levels, 'C7') > 0 ? 3 : techLevel(levels, 'C6') > 0 ? 2 : 1
 
+  // §11.6 — the Focus chain, multiplied rather than summed. Four nodes at a
+  // quarter each summed would be a floor of zero, and a studio where literally
+  // nobody ever stands up is the joke §7.8.9 rule 2 forbids; multiplied, the
+  // chain bottoms out around a quarter of the original and `loiter` keeps the
+  // rest alive because it needs no prop to delete.
+  const slackShare = (d1 ? 0.75 : 1) * (d2 ? 0.75 : 1) * (d3 ? 0.7 : 1) * (d4 ? 0.7 : 1)
+  const slackBlocked: Errand[] = []
+  if (d2) slackBlocked.push('water')
+  if (d3) slackBlocked.push('whiteboard')
+  if (d4) slackBlocked.push('window')
+
   return {
     devCapMultiplier: b1Cap * b3Cap * b1aCap * b1bCap,
     entropyCap,
@@ -579,6 +701,8 @@ export function techEffects(levels: TechLevels): TechEffects {
     velocityDisplayScale: c8 ? 1.1 : 1,
     commitmentFraction: c10 ? 0.95 : 1,
     standups: b2,
+    slackShare,
+    slackBlocked,
   }
 }
 

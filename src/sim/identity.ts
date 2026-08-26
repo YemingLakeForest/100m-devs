@@ -278,6 +278,8 @@ export function heroIdentity(id: string): Identity | null {
  * *paid* for a second developer. The one fixed point in the game was missing
  * from the scene that introduces him.
  */
+export const JAMES_SEAT = 0
+
 export function developerAt(seed: number, index: number): Identity {
-  return index === 0 ? JAMES : identityFor(seed, index)
+  return index === JAMES_SEAT ? JAMES : identityFor(seed, index)
 }

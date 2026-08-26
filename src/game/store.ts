@@ -116,6 +116,18 @@ import {
   pokeDevState,
   type DevStateMachine,
 } from '../sim/devStates.ts'
+import {
+  advanceSlack,
+  awayHeads,
+  awayShare,
+  dropSlacker,
+  emptySlack,
+  isAway,
+  liftSlacker,
+  pokeHome,
+  type SlackState,
+} from '../sim/slackOff.ts'
+import { JAMES_SEAT } from '../sim/identity.ts'
 import { LITERAL_RUNG_LIMIT, rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
 import { SnippetBag } from './snippets.ts'
 import {
@@ -408,6 +420,16 @@ export interface GameState {
 
   localEntropy: number
   dev: DevStateMachine
+  /**
+   * §7.8.9 — who is away from their desk right now, and what it is costing.
+   *
+   * Run state, and **deliberately not persisted**: `dev` is not either, for the
+   * same reason. Where forty people happen to be standing at the moment the tab
+   * closed is not something a reload has any business restoring, and a save
+   * that carried it would restore an output penalty the player cannot see the
+   * cause of until the room has drawn a frame.
+   */
+  slack: SlackState
   hasCultureUpgrade: boolean
 
   tier: number
@@ -825,6 +847,7 @@ function freshRun(): GameState {
     lifetimeRevenue: 0,
     localEntropy: 0,
     dev: initialDevState(),
+    slack: emptySlack(),
     hasCultureUpgrade: false,
     tier: 1,
     zoom: 1,
@@ -975,6 +998,38 @@ export function effectiveDevCap(s: GameState = state): number {
  * entropy cut separately — if halving the workforce also halved the load, the
  * node would pay twice and be the only purchase in the branch worth making.
  */
+/**
+ * §21.7.0 rule 5 — the seats that never leave.
+ *
+ * A frozen array rather than a literal at each call site: it is passed on every
+ * tick, and allocating a one-element array sixty times a second to say
+ * something that never changes is the kind of thing that shows up in a profile
+ * for no reason at all.
+ */
+const JAMES_PINNED: readonly number[] = Object.freeze([JAMES_SEAT])
+
+/**
+ * §7.8.9 — the away population's cost, **modelled rather than counted**, for
+ * §24's offline resolver.
+ *
+ * The roster is run state and is not persisted, so a restored save has nobody
+ * away and eight hours of offline progress would be earned at a rate the studio
+ * never achieves while anybody is watching. That is not a rounding error, it is
+ * an instruction: *close the tab to stop your developers slacking.*
+ *
+ * The fix is available precisely because §7.8.9's rate is stated as a **duty
+ * cycle** rather than as a spawn rate — {@link awayShare} is a pure function of
+ * entropy, so the long-run share is knowable without simulating a single walk.
+ * Online the studio pays whatever the roster happens to hold this second;
+ * offline it pays the average of that, which is the same number with the noise
+ * taken out.
+ */
+export function offlineSlackFactor(s: GameState = state): number {
+  const t = techOf(s)
+  const share = Math.min(1, Math.max(0, awayShare(currentEntropy(s)) * t.slackShare))
+  return 1 - share
+}
+
 export function workingDevs(s: GameState = state): number {
   const t = techOf(s)
   const roles = countsOf(s.roster)
@@ -983,7 +1038,23 @@ export function workingDevs(s: GameState = state): number {
   // Support hire gives up one productive coding head. Specialists now protect
   // the organisation *instead of* also writing the same Story Points as a dev.
   const specialists = roles.qa + roles.sre + roles.support
-  const coding = Math.max(0, Math.floor(s.devs) - specialists)
+  /**
+   * §7.8.6 rule 2, **reversed** on 2026-08-26 — a developer away from their
+   * desk produces nothing.
+   *
+   * Taken off `coding` and not off the load, which is the same distinction the
+   * comment above this function already draws for §11.2 B2's meeting and is if
+   * anything more obviously right here: somebody standing at a whiteboard is
+   * not writing code and is *emphatically* still communicating. §4.1 keeps
+   * counting them. That is the joke — the studio pays the coordination cost of
+   * everybody who wandered off and gets the output of nobody.
+   *
+   * Clamped against `coding` rather than trusted, because the roster and the
+   * role counts are advanced by different code on the same tick and a
+   * negative headcount would propagate into the economy silently.
+   */
+  const away = Math.min(awayHeads(s.slack), Math.max(0, Math.floor(s.devs) - specialists))
+  const coding = Math.max(0, Math.floor(s.devs) - specialists - away)
   const active = t.activeDevFraction
   const meeting = standupFactor(s.runSeconds, standupsRunning(s))
   const protectedHeads = Math.min(
@@ -1849,6 +1920,18 @@ export function tick(dtSeconds: number): void {
       // §13.2 L1-3A — nobody goes rogue in a zero-trust codebase.
       zeroTrust: zeroTrustActive(getPermanent().layer1.paradigmLevels),
     }),
+    // §7.8.9 — the floor's away population, advanced on the same clock as
+    // everything else it now costs. Fed the *studio's* entropy rather than the
+    // poked developer's local number: who wanders off is a fact about the
+    // company, and §4.3 is the company's number.
+    slack: advanceSlack(state.slack, dtSeconds, {
+      devs: Math.floor(state.devs),
+      entropy: e,
+      slackShare: techOf().slackShare,
+      blocked: techOf().slackBlocked,
+      // §21.7.0 — James does not wander off. Ever.
+      pinned: JAMES_PINNED,
+    }),
     // §13.7.1's Support spine — "the work you do personally also earns cash",
     // which has to include the work you do while not tapping, or the node would
     // quietly be a tap bonus wearing a sales node's name.
@@ -2269,6 +2352,15 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
   if (rung === 0 && index === 0 && state.devs > 0 && !jamesPresent(state.runSeconds)) {
     set(showBubble('He’s at the gym. Ten to eleven, every single day.', 5000))
     return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
+  }
+
+  // §7.8.6 rule 5 — **a poke beats ambience**, and it is the one rule of the old
+  // ambient layer that survives 2026-08-26 untouched. It is now worth Story
+  // Points rather than nothing, which makes it a better rule than it was: a tap
+  // on somebody standing at the window sends them back to work, and the player
+  // can see the velocity readout agree.
+  if (rung === 0 && isAway(state.slack, index)) {
+    set({ slack: pokeHome(state.slack, index) })
   }
 
   // §4.5b — the reach is the unit that was actually hit, not a zoom band. A tap
@@ -3151,6 +3243,50 @@ export function takeSeedRound(): boolean {
  * as uncontrollable from a phone. Selection is now the neutral latch rather
  * than a slow tap — which is the same conclusion, reached by the player.
  */
+/**
+ * §7.8.9 — pick a developer up, in the simulation.
+ *
+ * The renderer owns the body in the player's hand; this owns what it costs.
+ * Splitting them that way is what makes the drag survive a zoom: the penalty
+ * is a fact about the roster, and the roster is here.
+ *
+ * **Nobody is refused.** §7.8.9's blockquote used to protect people
+ * mid-behaviour on the argument that yanking somebody out of a conversation
+ * reads as an interruption rather than a tidy-up. That was overruled on
+ * 2026-08-26 — a minigame about dragging wanderers back cannot refuse to catch
+ * the person who is walking away — and see `slackOff.ts` for the whole note.
+ *
+ * Lifting somebody who was *working* puts them on the roster, so it starts
+ * costing on the frame the finger goes down. That is the point rather than a
+ * side effect: the player can distract their own studio, and it is priced.
+ */
+export function grabDeveloper(seat: number): void {
+  if (seat < 0 || seat >= Math.floor(state.devs)) return
+  set({ slack: liftSlacker(state.slack, seat, Math.random()) })
+}
+
+/**
+ * §7.8.9 — put them down.
+ *
+ * `onDesk` is whether the finger was over a workstation. On one they sit down
+ * and are producing again on the next tick; anywhere else they walk home and go
+ * on costing until they arrive, which is the whole difference between this and
+ * the teleport it replaced.
+ */
+export function releaseDeveloper(seat: number, onDesk: boolean): void {
+  set({ slack: dropSlacker(state.slack, seat, onDesk, JAMES_PINNED) })
+}
+
+/** §7.8.9 — is this seat away from its desk? The renderer asks; the HUD may later. */
+export function developerIsAway(seat: number, s: GameState = state): boolean {
+  return isAway(s.slack, seat)
+}
+
+/** §7.8.9 — how many heads the floor is currently losing to slacking. */
+export function awayCount(s: GameState = state): number {
+  return awayHeads(s.slack)
+}
+
 export function selectDeveloper(index: number | null): void {
   const next = index !== null && index >= 0 ? index : null
 
@@ -3701,7 +3837,10 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       // buffs live fifteen seconds and this number is about to be multiplied by
       // hours; a restored run has none anyway (§24.2), and naming the base rate
       // here is what keeps that true if one ever survives a reload.
-      velocity: baseVelocity(restored) + offlineFounderVelocity(),
+      // §7.8.9 — taxed by the *modelled* away share. See `offlineSlackFactor`:
+      // the roster does not survive a reload, so counting it here would earn
+      // the player a rate that only exists while nobody is looking.
+      velocity: baseVelocity(restored) * offlineSlackFactor(restored) + offlineFounderVelocity(),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: restored.commitment,
       burned: restored.burned,
@@ -3740,7 +3879,7 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
       // Unbuffed, for the same reason as the restore path above: a player who
       // was mid-poke when they closed the tab must not earn eight hours of a
       // buff that would have faded in fifteen seconds.
-      velocity: baseVelocity(state) + offlineFounderVelocity(),
+      velocity: baseVelocity(state) * offlineSlackFactor(state) + offlineFounderVelocity(),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: state.commitment,
       burned: state.burned,

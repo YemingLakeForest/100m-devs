@@ -81,6 +81,54 @@ export const LOITER: readonly string[] = [
 ]
 
 /**
+ * §7.8.9 — said while dangling from the player's hand.
+ *
+ * The struggle is the joke and the words are the cheapest half of it. The
+ * register is deliberately *not* screaming: a developer being carried across
+ * the office by a god-hand negotiates, reasons, and cites process, because a
+ * person who has accepted the physics of their situation and is arguing about
+ * the ticket anyway is funnier than one who is frightened.
+ */
+export const STRUGGLE: readonly string[] = [
+  'put me down',
+  'I was working',
+  'this is not in my contract',
+  'my hands are cold',
+  'I have a one to one',
+  'we talked about this',
+  'HR is aware of this',
+  'I was ON MY WAY BACK',
+  'let go let go let go',
+  'I need my laptop',
+  'this is a hostile workplace',
+  'can I finish my sentence',
+]
+
+/**
+ * §7.8.6, §7.8.9 — said at the far end of an errand.
+ *
+ * One band per destination, because a line about water read at a whiteboard is
+ * the joke misfiring, and the destination is the only context the bubble has.
+ */
+export const AT_BOARD: readonly string[] = [
+  'so the arrows go this way',
+  'what if it were a graph',
+  'nobody rub this out',
+  'this is basically the answer',
+  'I will photograph it',
+  'do we own a working pen',
+]
+
+export const AT_WINDOW: readonly string[] = [
+  'there is a bus',
+  'weather',
+  'that is a nice building',
+  'I can see my flat',
+  'people out there are free',
+  'it is dark already',
+]
+
+/**
  * Pick a line for a behaviour, deterministically.
  *
  * `r` is a uniform 0..1 from the caller's source, so the floor is reproducible
@@ -95,6 +143,18 @@ export function loiterLine(r: number): string {
   return LOITER[Math.min(LOITER.length - 1, Math.floor(r * LOITER.length))]
 }
 
+export function struggleLine(r: number): string {
+  return STRUGGLE[Math.min(STRUGGLE.length - 1, Math.floor(r * STRUGGLE.length))]
+}
+
+export function boardLine(r: number): string {
+  return AT_BOARD[Math.min(AT_BOARD.length - 1, Math.floor(r * AT_BOARD.length))]
+}
+
+export function windowLine(r: number): string {
+  return AT_WINDOW[Math.min(AT_WINDOW.length - 1, Math.floor(r * AT_WINDOW.length))]
+}
+
 export function exchange(r: number): readonly [string, string] {
   return EXCHANGES[Math.min(EXCHANGES.length - 1, Math.floor(r * EXCHANGES.length))]
 }
@@ -103,5 +163,8 @@ export function exchange(r: number): readonly [string, string] {
 export const LONGEST = Math.max(
   ...CHATTER.map((l) => l.length),
   ...LOITER.map((l) => l.length),
+  ...STRUGGLE.map((l) => l.length),
+  ...AT_BOARD.map((l) => l.length),
+  ...AT_WINDOW.map((l) => l.length),
   ...EXCHANGES.flatMap(([a, b]) => [a.length, b.length]),
 )

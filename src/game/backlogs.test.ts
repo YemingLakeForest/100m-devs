@@ -376,8 +376,28 @@ describe('§4.14 — reputation is a fact about this studio', () => {
   it('moves toward what the studio actually ships', () => {
     play(240, 8)
     const s = getState()
+    expect(s.releases.length).toBeGreaterThan(0)
+    // It has left the baseline, in the direction of the work.
     expect(s.reputation).toBeLessThan(BASELINE_RATING)
-    expect(s.reputation).toBeGreaterThan(s.releases[0].rating)
+
+    // **And it has moved toward the mean of what shipped**, which is the whole
+    // of §4.14's claim about an EMA.
+    //
+    // This used to assert `reputation > releases[0].rating`, which held only
+    // because the run was deterministic: it assumed the *first* release was the
+    // worst, so the average could never fall past it. §7.8.9's away population
+    // made the economy stochastic on 2026-08-26 — how many people are at the
+    // cooler decides how much ships and when — so a run where a later release
+    // rates lower than the first is now perfectly ordinary, and the old
+    // assertion failed on it about once in a hundred runs. Pinning the ordering
+    // of two particular releases was never the claim; pinning that the readout
+    // tracks the work is.
+    const ratings = s.releases.map((r) => r.rating)
+    const mean = ratings.reduce((a, b) => a + b, 0) / ratings.length
+    expect(Math.abs(s.reputation - mean)).toBeLessThan(Math.abs(BASELINE_RATING - mean))
+    // And it never leaves the interval the baseline and the work bracket.
+    expect(s.reputation).toBeGreaterThanOrEqual(Math.min(...ratings))
+    expect(s.reputation).toBeLessThanOrEqual(Math.max(BASELINE_RATING, ...ratings))
   })
 })
 

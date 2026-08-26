@@ -4153,11 +4153,24 @@ chatter per person — §4.1 says it means more <em>interruption</em>, which is 
 thing. At <code>IN SYNC</code> the floor is nearly silent and a bubble is an event; at
 <code>PRODUCTIVITY BREAKDOWN</code> every third developer is talking and the drive-bys start.
 That is the equation, dramatised.</li>
-<li><strong>Nothing ambient ever changes the simulation.</strong> Not one Story Point, in either
-direction. The moment a water trip costs output, the player starts trying to prevent
-water trips, and the game becomes about micro-managing forty walk cycles. This layer is
-<em>evidence</em> of the model, never an input to it. <strong>A player who ignores it entirely loses
-nothing.</strong></li>
+<li><strong>Nothing ambient ever changes the simulation — for the three behaviours left here.</strong>
+<strong>[amended 2026-08-26]</strong> Chatter and small talk never leave the chair, and a drive-by
+does but stays free anyway, because <em>a drive-by is work, badly done</em> — walking over to
+ask a colleague a question is exactly what §4.1 already charges the studio for as
+Entropy. For these three, the original rule stands unchanged: not one Story Point, in
+either direction, and a player who ignores them entirely loses nothing.
+<p>What this rule used to say, and no longer does, was that <strong>no</strong> ambient behaviour
+may touch the simulation, on the argument that <em>&quot;the moment a water trip costs output,
+the player starts trying to prevent water trips, and the game becomes about
+micro-managing forty walk cycles&quot;</em>. That prediction is correct and it is now the
+feature: §7.8.9's away population costs output, and the reason that is survivable is the
+half the old rule could not have known — the away population is a <strong>fraction of
+headcount</strong>, so the window in which herding people back is a real lever is the early
+and middle game, and §11.6's Focus branch is the exit from it. The water trip and the
+loitering left this section for §7.8.9 on the same day.</p>
+<p><strong>Both halves of the old rule's fear were real and only one of them was avoidable.</strong>
+Micro-management at scale is prevented by arithmetic. A player choosing to spend their
+attention on it in the first hour is not prevented at all, and is now the point.</p></li>
 <li><strong>It is budgeted, and the budget is a headcount fraction.</strong> At most <code>clamp(1, 12, round(devs × 0.08))</code> behaviours run at once, whatever the headcount — so the cost is
 flat above ~150 developers and the floor at 100 is not twelve times busier than the
 floor at 10, it is <em>proportionally</em> busier. §7.8.3's rule still holds: no spritesheets,
@@ -4194,10 +4207,23 @@ lines</strong>, because the joke in an interruption is the reply. <code>&quot;Qu
 <ul>
 <li><strong>A floor where everybody is always talking.</strong> Reads as a party, not an office. The rate
 floor at low entropy exists precisely so the busy state has something to contrast against.</li>
-<li><strong>Walk cycles that clip through desks.</strong> The water trip is the only pathing in the game
-and it may take the §7.8.1 walkway or nothing — if the walkway is gone to crowding, the
-trips stop with it. <strong>A crowded floor stops being able to reach the cooler</strong>, which is
-both the correct behaviour and a better joke than the walk was.</li>
+<li><strong>Walk cycles that clip through desks. [closed 2026-08-26]</strong> This was listed as a
+failure mode and shipped as one: the walk was a straight line from a desk to a prop,
+which on a floor of five squads runs diagonally through forty workstations. Routes are
+now <strong>Manhattan in the floor's own axes</strong> — out of the chair backwards into the row's
+own aisle, along it to a corridor, across, and along the far aisle to the destination.
+The floor was already a lattice (§7.8.1's <code>PITCH_ROW</code> takes the space out <em>behind</em>
+each row, which is what an aisle is); the router just had to use it. On screen those legs
+are the two isometric axes, so people move along the desks or square to them and never
+through them. <code>walkPath.ts</code> is pure, and the claim is a test rather than an eyeball.
+<p>Movement is also a constant <strong>speed</strong> now, not a fixed fraction of a behaviour's
+life. The old model gave a trip across five squads and a trip to the next desk the same
+duration, so the long one crossed the floor at a sprint. Speed is chosen; duration is a
+consequence.</p>
+<p>The walkway rule survives intact: if the walkway is gone to crowding there are no
+destinations, and an errand with nowhere to go stands about outside its own desk instead.
+<strong>A crowded floor stops being able to reach the cooler</strong>, which is both the correct
+behaviour and a better joke than the walk was.</p></li>
 <li><strong>Ambient motion competing with the hire assembly.</strong> §7.8.5's cascade is the game's most
 important feedback. Ambience suspends for its duration; nothing wanders during a hire.</li>
 </ul>
@@ -4341,10 +4367,19 @@ unhurried, which is funnier than obeying.</p>
 <p><strong>This used to say &quot;a developer who is away from their desk&quot;, and §7.7.6b widened it.</strong> The
 restriction to people already standing about existed because the grab fired off a hold timer
 that the player might not have meant; with GRAB latched and lit there is no accident left to
-guard against, and a toy that refuses two thirds of the room mostly says no. Somebody
-<strong>mid-behaviour</strong> — a conversation, a drive-by, a trip to the cooler — is still refused, for
-the reason that was always the good half of the rule: yanking them out of one reads as an
-interruption rather than as a tidy-up, which is the opposite joke.</p>
+guard against, and a toy that refuses two thirds of the room mostly says no.</p>
+<p><strong>[amended 2026-08-26] The last refusal is gone too.</strong> This paragraph used to end
+&quot;somebody <em>mid-behaviour</em> — a conversation, a drive-by, a trip to the cooler — is still
+refused, for the reason that was always the good half of the rule: yanking them out of one
+reads as an interruption rather than as a tidy-up, which is the opposite joke.&quot; That
+reasoning holds for a toy and fails for a <em>minigame</em>: once being away from your desk costs
+Story Points, the person walking away is the one the player most needs to catch, and a drag
+that declines to catch them has no verb left. <strong>Anybody can be picked up, walking or
+sitting.</strong></p>
+<p>The interruption reading did not go away; it was <strong>priced</strong> instead. Lifting somebody who
+was working puts them on the away roster on the frame the finger goes down, so an idle
+grab costs output and they have to walk home before it stops. That is a better answer than
+a refusal, because it lets the player do the thing and then shows them the bill.</p>
 </blockquote>
 <p>That single interaction does three jobs:</p>
 <ol>
@@ -4353,10 +4388,20 @@ game and until now nothing on it could be touched except to poke it.</li>
 <li><strong>It states the game's actual power fantasy.</strong> You are not a developer. You are the thing
 above the developers, and picking one up by the scruff is the most direct possible statement
 of that.</li>
-<li><strong>It sets up the joke.</strong> Dropping people back at their desks <em>looks</em> like productivity and
-§7.8.6 rule 2 guarantees it changes nothing at all. The player who spends thirty seconds
-herding eight wanderers has produced exactly zero extra Story Points. <strong>That is §6, played
-as a minigame</strong> — the manager who feels most effective is the one achieving least.</li>
+<li><strong>It sets up the joke — and the joke inverted on 2026-08-26. [amended]</strong> This used to
+read: <em>&quot;dropping people back at their desks</em> looks <em>like productivity and §7.8.6 rule 2
+guarantees it changes nothing at all. The player who spends thirty seconds herding eight
+wanderers has produced exactly zero extra Story Points.&quot;</em>
+<p>Herding now works. A developer away from their desk produces nothing, and putting them
+back in a chair puts them back to work — the velocity readout agrees, which is the whole
+reason to do it. <strong>The sign flipped and the joke did not.</strong> It used to be that the manager
+who feels most effective achieves least; it is now that the manager who feels most
+effective <em>is fiddling</em>, because every person they pick up stops producing the moment
+they are lifted, and the studio-wide cost is a fraction of headcount that no amount of
+dragging can outrun past about eighty people. <strong>That is still §6, played as a minigame</strong> —
+you can win a skirmish over eight wanderers and lose the same ten per cent anyway, and the
+purchase that actually fixes it (§11.6) is four nodes of the company deleting every reason
+to stand up and still not managing it.</p></li>
 </ol>
 <h5 id="the-wandering-population">The wandering population</h5>
 <p>§7.8.6's behaviours are joined by longer, more visible states, so there is always something to
@@ -4424,7 +4469,68 @@ that has lost its walkway has people on their feet and <strong>nobody at the coo
 </ol>
 <p>And one rule the spec should have stated outright: <strong>only loiterers can be picked up.</strong>
 Somebody mid-conversation is <em>busy</em>, and pulling them out of one makes the drag read as an
-interruption rather than as a tidy-up, which is the opposite of the joke.</p>
+interruption rather than as a tidy-up, which is the opposite of the joke. <strong>[Repealed
+2026-08-26 — see the blockquote above. Anybody can be picked up; the interruption is
+priced rather than refused.]</strong></p>
+<h5 id="the-minigame-canon-added-2026-08-26">Being away from your desk costs output <strong>[CANON — added 2026-08-26]</strong></h5>
+<p>§7.8.6 rule 2 is amended in its own section; this is what replaced it here.</p>
+<ol>
+<li><strong>A developer away from their desk produces nothing</strong> — the whole head, not a
+fraction of one, whether they are walking out, standing at a window, walking home, or
+dangling from the player's hand.</li>
+<li><strong>They keep generating communication load the entire time.</strong> This is the same
+distinction §11.2 B2's meeting already draws and it is more obviously right here:
+somebody standing at a whiteboard is not writing code and is <em>emphatically</em> still
+communicating. §4.1 keeps counting them. The studio pays the coordination cost of
+everybody who wandered off and gets the output of nobody.</li>
+<li><strong>How many are away is a fraction of headcount, rising with entropy</strong> — about 2% on a
+calm floor and 10% at <code>TOTAL GRIDLOCK</code>. §7.8.9's own table already asked for
+roughly five per cent across four idle states, rising with entropy; this brackets it.
+The old <code>loiterCap</code>'s ceiling of eight is <strong>gone</strong>, because a ceiling of eight was a
+rendering budget and this is an economic one.</li>
+<li><strong>The simulation owns the roster, not the renderer.</strong> Non-negotiable, and the reason
+is rule 4 of §7.8.6: individual bodies switch off above rung 2. An economy that lived
+in the renderer would be one the player deletes by zooming out and one that offline
+progress never sees. <code>sim/slackOff.ts</code> owns who is away; <code>render/errands.ts</code> owns where
+their body is. <strong>Time is the simulation's and space is the renderer's</strong> — an errand's
+travel window is a constant, and a route that is short arrives early and stands there.</li>
+<li><strong>Dropped on a desk they sit down; dropped anywhere else they walk home and go on
+costing until they arrive.</strong> Never a teleport. §7.8.9's &quot;unhurried, which is funnier
+than obeying&quot; now also means &quot;and you are paying for it&quot;.</li>
+<li><strong>Offline progress is taxed by the <em>modelled</em> share, not by the roster.</strong> The roster
+is run state and does not survive a reload, so §24's resolver would otherwise earn eight
+hours at a rate the studio never achieves while anybody is watching — which is an
+instruction reading <em>close the tab to stop your developers slacking</em>. This is available
+only because rule 3 states a <strong>duty cycle</strong> rather than a spawn rate: the long-run share
+is knowable without simulating a single walk. Online you pay what the floor happens to
+hold this second; offline you pay the average of it.</li>
+<li><strong>They struggle while carried.</strong> §7.8.9 rule 4 is untouched: two sine terms with no
+common period and a slow surge, so the swing never repeats a shape. A person trying to
+get down kicks; a pendulum oscillates. No ragdoll, no collision, no solver.</li>
+<li><strong>James never leaves his desk</strong>, and lifting him is the one correct teleport in the
+game — put him down anywhere and he is already back. §21.7.0's gym is untouched and is
+not an errand: ten to eleven he is not on the floor at all.</li>
+</ol>
+<h5 id="where-people-go">Where people go</h5>
+<p>Not &quot;to a prop&quot;. A developer drawn staring at a filing cabinet is not the joke, so the
+destinations are named and each has its own dwell:</p>
+<table>
+<thead>
+<tr><th>Errand</th><th>Heads</th><th>Stands for</th><th>Why it is on the list</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Water</strong></td><td>1</td><td>7s</td><td>§7.8.6's original trip, kept</td></tr>
+<tr><td><strong>The whiteboard</strong></td><td><strong>2–3</strong></td><td>20s</td><td>One person at a whiteboard is thinking. Three is a meeting nobody called</td></tr>
+<tr><td><strong>The window</strong></td><td>1</td><td>14s</td><td>Somebody looking at the weather. The floor has an outside and now somewhere to stand at it</td></tr>
+<tr><td><strong>The sofa</strong></td><td>1</td><td>26s</td><td>The longest and the most obvious. §7.8.1's crowding takes it away, which is the correct joke</td></tr>
+<tr><td><strong>Standing about</strong></td><td>1</td><td>18s</td><td>The fallback, and <strong>the one that needs no furniture</strong></td></tr>
+</tbody>
+</table>
+<p>That last row is load-bearing rather than a default. §11.6's Focus branch deletes
+destinations one at a time, and standing about has nothing for a purchase to take away —
+so the branch bends the curve and can never flatten it. <strong>Rule 2 above — &quot;nothing is ever
+forced back, an automation upgrade for this would be the game solving its own joke&quot; —
+survives as a mechanism rather than as a promise.</strong></p>
 <h5 id="why-this-is-in-the-design-document-rather-than-in-a-backlog">Why this is in the design document rather than in a backlog</h5>
 <p>Because it is the answer to &quot;what is there to <em>do</em> while the numbers go up&quot;, and idle games
 that never answer that are the ones players describe as &quot;just watching a bar fill&quot;. §8.2's
@@ -6954,6 +7060,43 @@ drawn from <strong>the same icon and the same pulse</strong> as §11.4.4's Insta
 centre of it is the picture they were just laughing at. <strong>Recognition is the tutorial</strong>: no
 line of copy has to explain that a scene and an upgrade are connected, because they are
 visibly the same object.</p>
+<h3 id="branch-d-focus-canon-added-2026-08-26">11.6 Branch D — Focus <strong>[CANON — added 2026-08-26]</strong></h3>
+<p>§7.8.9's away population costs Story Points as of 2026-08-26, and <strong>a cost the player
+cannot do anything about is a tax rather than a mechanic.</strong> Dragging people back is the
+answer for the first hour. This is the answer after that, and it runs due east along
+<code>y = 0</code> — the last free heading on §11.4's board, with §11.2's protocol chain west,
+§11.2a's second door south of the centre, and §11.3's culture chain north.</p>
+<table>
+<thead>
+<tr><th>Node</th><th>Ring</th><th>Cost</th><th>What it does</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>D1 Focus Time Blocks</strong><br /><em>Two hours a day marked in the calendar as protected, and booked over by Thursday.</em></td><td>1</td><td>150</td><td>Developers spend 25% less time away from their desks</td></tr>
+<tr><td><strong>D2 Desk Water Bottles</strong><br /><em>Branded. Two litres. Issued so that nobody has any reason to walk anywhere.</em></td><td>2</td><td>12k</td><td>No more trips to the cooler, and 25% less time away again</td></tr>
+<tr><td><strong>D3 Whiteboards Removed</strong><br /><em>The meeting room became a phone booth. The phone booth became two desks.</em></td><td>3</td><td>2M</td><td>Nobody huddles at a whiteboard, and 30% less time away again</td></tr>
+<tr><td><strong>D4 Blackout Blinds</strong><br /><em>There is no outside. There is no weather. There is the sprint.</em></td><td>4</td><td>150M</td><td>Nobody stares out of a window, and 30% less time away again</td></tr>
+</tbody>
+</table>
+<h5 id="two-effects-per-node-and-why">Every node pays twice, and it has to</h5>
+<p>Each node <strong>deletes a destination and cuts the share</strong>. Deleting alone would buy
+nothing: §7.8.9's errand weights redistribute a zeroed destination across the survivors
+rather than re-rolling it — the same move §13.2 L1-3A makes for the Rogue Refactorer, and
+for the same reason — so a studio that removed its whiteboards without also cutting the
+share would simply have everybody at the window instead. Stating both halves on the card is
+also what stops four nodes reading as four identical percentages.</p>
+<h5 id="it-cannot-reach-zero">It cannot reach zero, and that is the design</h5>
+<p>Multiplied rather than summed, the chain bottoms out around <strong>×0.28</strong>. Four nodes at a
+quarter each <em>summed</em> would reach zero, and a studio where literally nobody ever stands up
+is the thing §7.8.9 rule 2 forbids — <em>&quot;an automation upgrade for this would be the game
+solving its own joke&quot;</em>. Standing about needs no furniture, so it is the one errand with
+nothing for a purchase to take away.</p>
+<p><strong>Read in order the branch is a small horror story.</strong> The company's answer to people
+leaving their desks is to remove, one at a time, every reason to stand up: protect the
+calendar, issue the bottles, take down the boards, black out the windows. It buys a real
+and substantial improvement at every step. People still stand up. <strong>That is the section's
+argument, not a balance artefact</strong> — §6 says the problem is coordination, and none of these
+four nodes is about coordination at all.</p>
+<hr />
 <hr />
 <h2 id="satirical-upgrade-themes-era-flavour-layer">12. Satirical Upgrade Themes (Era Flavour Layer)</h2>
 <p>Mapping the history of software engineering — from the ritualistic ceremonies of Agile to
@@ -11527,6 +11670,18 @@ tier, beside the elbow hole that never gets fixed.</li>
 <li><strong>The gym, ten to eleven, every day.</strong> Every single day. Through the collapse, through the
 bankruptcy, through the heat death of four universes. If the player pokes his desk between
 10:00 and 11:00 studio time, <strong>he is not there</strong>, and the desk says so.</li>
+<li><strong>The rest of the day, he does not leave his desk. [CANON — added 2026-08-26]</strong>
+§7.8.9's away population never contains James. Not the cooler, not the whiteboard, not
+the window. Pick him up and drop him anywhere on the floor and <strong>he is back before the
+animation finishes</strong> — the only correct teleport in the game, and correct precisely
+because it is a character beat rather than a shortcut: everybody else walks home
+unhurried, which is funny, and he does not, which is funnier and is the same joke as
+rule 6.
+<p>It is also the cleanest statement of rule 1 the game has. Every other developer is a
+distribution; James is a fixed point. The player learns this by trying to move him,
+which is the version of the lesson that costs no dialogue at all — and it composes with
+rule 5 rather than fighting it: the one hour he is missing is <em>scheduled</em>, and the
+twenty-three he is present he is immovable.</p></li>
 </ol>
 <p><strong>Rule 5 is a mechanic and it should be built as one.</strong> An hour a day where the game's most
 reliable card is simply absent is funnier than any line about it, it is the only scheduled

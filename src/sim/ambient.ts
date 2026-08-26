@@ -18,35 +18,52 @@
  * this owns what is happening and for how long, which is the half that has
  * rules worth pinning.
  *
- * **Nothing in this file may ever be read by the simulation.** §7.8.6 rule 2:
- * not one Story Point, in either direction. The moment a water trip costs
- * output, the player starts trying to prevent water trips, and the game becomes
- * about micro-managing forty walk cycles.
+ * ## What this is, since 2026-08-26
+ *
+ * §7.8.6 rule 2 was reversed that day and the away population moved out to
+ * `sim/slackOff.ts`, where it costs Story Points. **What is left here is the
+ * half that is still free**, and the line between them is not arbitrary:
+ *
+ *  - `chatter` and `smalltalk` never leave the chair.
+ *  - `driveby` does leave it, and stays free anyway, because **a drive-by is
+ *    work, badly done** — it is walking over to ask a colleague a question, and
+ *    §4.1's Entropy already charges the studio for exactly that. The errand
+ *    roster is people who are *not working*.
+ *
+ * `water` and `loiter` used to live here and are now errands — see
+ * {@link Behaviour} for why they were deleted from the union rather than left
+ * in it weighted zero.
+ *
+ * **`loiterCap` went with them.** It computed roughly four to fourteen per cent
+ * of headcount, rising with entropy, floored at one and capped at eight, and all
+ * of that reasoning survives in `slackOff.ts`'s `awayShare` — with the ceiling
+ * deliberately dropped, because a cap of eight was a *rendering* budget and the
+ * away population now costs Story Points at every headcount, including the ones
+ * where no body is drawn at all.
  */
 
-/** What somebody is doing instead of working. */
-export type Behaviour = 'chatter' | 'smalltalk' | 'water' | 'driveby' | 'loiter'
+/**
+ * What somebody is doing instead of working — the *free* half.
+ *
+ * `water` and `loiter` moved to `sim/slackOff.ts` on 2026-08-26 and are gone
+ * from this union rather than left in it weighted zero. A dead member of a
+ * union is a thing every switch in the codebase keeps handling for ever, and
+ * the exhaustiveness test that was protecting them was the only caller left.
+ */
+export type Behaviour = 'chatter' | 'smalltalk' | 'driveby'
 
 /** How many people one behaviour occupies. */
 export const PARTICIPANTS: Record<Behaviour, number> = {
   chatter: 1,
   smalltalk: 2,
-  water: 1,
   driveby: 2,
-  loiter: 1,
 }
 
 /** Roughly how long each runs, in seconds. */
 export const DURATION: Record<Behaviour, number> = {
   chatter: 2.6,
   smalltalk: 5.5,
-  water: 7,
   driveby: 6,
-  // §7.8.9 — long, and that is the point. The other behaviours are punctuation;
-  // this one is a *state*, and it exists so there is always somebody standing
-  // about to be picked up. A floor with nobody idle on it has nothing to play
-  // with.
-  loiter: 22,
 }
 
 /**
@@ -94,9 +111,10 @@ export function eventsPerSecond(entropy: number): number {
  *    else's desk to ask them something is the most expensive interruption in
  *    real life and should be the most expensive one here.
  *
- * Water is the one behaviour with a floor under it at every entropy: people
- * fetch drinks in a calm office too, and it is the only behaviour that is not
- * *about* communication. It is what stops a quiet floor being a still one.
+ * Chatter is the one behaviour with a floor under it at every entropy: somebody
+ * says something in a calm office too, and it is the punctuation that stops a
+ * quiet floor being a silent one. (Water used to carry that job and now belongs
+ * to `slackOff.ts`, which has its own floor under it for the same reason.)
  */
 export const SMALLTALK_FROM = 0.15
 export const DRIVEBY_FROM = 0.5
@@ -106,13 +124,7 @@ export function weightsFor(entropy: number): Record<Behaviour, number> {
   return {
     chatter: 1,
     smalltalk: e < SMALLTALK_FROM ? 0 : 0.5 * (e - SMALLTALK_FROM),
-    water: 0.35,
     driveby: e < DRIVEBY_FROM ? 0 : 1.4 * (e - DRIVEBY_FROM),
-    // Never chosen here — see `loiterCap`. Loitering is a *population*, not an
-    // event, and drawing it from the interruption budget starves the
-    // interruptions: one 22-second state occupies a slot for as long as eight
-    // conversations would.
-    loiter: 0,
   }
 }
 
@@ -125,9 +137,7 @@ export function pickBehaviour(entropy: number, r: number): Behaviour {
   // Every behaviour, and the list is exhaustive by type: a `Behaviour` added to
   // the union and forgotten here would be given a weight, tested for that
   // weight, and never once chosen.
-  const order: Behaviour[] = ['chatter', 'smalltalk', 'water', 'driveby', 'loiter']
-  // `loiter` is in the list so the exhaustiveness test can see it, and weighted
-  // zero so it is never drawn.
+  const order: Behaviour[] = ['chatter', 'smalltalk', 'driveby']
   const total = order.reduce((sum, k) => sum + w[k], 0)
   let acc = 0
   const target = Math.max(0, Math.min(1, r)) * total
@@ -160,32 +170,6 @@ export function ambientRuns(devs: number, drawnIndividually: boolean): boolean {
  * moment the player looks back at it.
  */
 export const MAX_STEP_SECONDS = 0.25
-
-/**
- * §7.8.9 — how many developers are away from their desks *doing nothing*.
- *
- * A separate population from §7.8.6's interruptions, and separate for a
- * concrete reason rather than a tidy one: loitering lasts twenty-two seconds
- * and a conversation lasts three, so drawing both from one budget means the
- * long state squats on the slots and the floor goes quiet. Two budgets, two
- * lifetimes, no interference.
- *
- * §7.8.9's table asks for roughly 1–2% of headcount in each of four idle
- * states, which is about 5% in total, **rising with entropy** — at `TOTAL
- * GRIDLOCK` a visible fraction of the studio is simply milling about, and that
- * is §6 stated in bodies rather than in a percentage.
- *
- * The floor of one above two developers is what guarantees §7.8.9's toy always
- * has something to pick up. A floor with nobody idle on it is not playable.
- */
-export const LOITER_MAX = 8
-
-export function loiterCap(devs: number, entropy: number): number {
-  if (devs < 3) return 0
-  const e = Math.max(0, Math.min(1, entropy))
-  const share = 0.04 + 0.1 * e
-  return Math.max(1, Math.min(LOITER_MAX, Math.round(devs * share)))
-}
 
 export function shouldStart(entropy: number, dt: number, r: number): boolean {
   const step = Math.max(0, Math.min(MAX_STEP_SECONDS, dt))

@@ -3,6 +3,11 @@
  * covers the thing those rules are for — that people actually move and that
  * bubbles actually appear.
  *
+ * **Scope narrowed on 2026-08-26.** The water trips and the loitering moved to
+ * `sim/slackOff.ts` and `render/errands.ts` when §7.8.6 rule 2 was reversed and
+ * being away from your desk started costing Story Points. What is tested here
+ * is what is still free: chatter, small talk, and the drive-by.
+ *
  * It exists because the browser could not answer the question. `document.hidden`
  * suspends `requestAnimationFrame`, so a backgrounded tab renders the last frame
  * it painted and a behaviour that needs a third of a second to reach full size
@@ -15,7 +20,6 @@ import { describe, expect, it } from 'vitest'
 import { createAmbient, walkBob, walkOffset, walkPhase } from './ambient.ts'
 
 const SEATS = Array.from({ length: 40 }, (_, i) => ({ x: i * 30, y: (i % 5) * 20 }))
-const PROPS = [{ x: -200, y: 120 }]
 
 /**
  * A seeded source, so every assertion below is about the *rules* rather than
@@ -36,7 +40,7 @@ function seeded(seed = 1): () => number {
 function pump(a: ReturnType<typeof createAmbient>, seconds: number, entropy: number) {
   const dt = 1 / 60
   for (let i = 0; i < Math.round(seconds / dt); i++) {
-    a.update(dt, { seats: SEATS, props: PROPS, devs: SEATS.length, entropy, drawnIndividually: true, worldScale: 1 })
+    a.update(dt, { seats: SEATS, devs: SEATS.length, entropy, drawnIndividually: true, worldScale: 1 })
   }
 }
 
@@ -111,7 +115,6 @@ describe('the floor over time — GDD §7.8.6', () => {
     for (let i = 0; i < 600; i++) {
       a.update(1 / 60, {
         seats: SEATS,
-        props: PROPS,
         devs: SEATS.length,
         entropy: 0.9,
         drawnIndividually: true,
@@ -137,7 +140,6 @@ describe('the floor over time — GDD §7.8.6', () => {
       for (let i = 0; i < 1800; i++) {
         a.update(1 / 60, {
           seats: SEATS,
-          props: PROPS,
           devs: SEATS.length,
           entropy,
           drawnIndividually: true,
@@ -164,7 +166,6 @@ describe('the floor over time — GDD §7.8.6', () => {
     for (let i = 0; i < 600; i++) {
       a.update(1 / 60, {
         seats: SEATS,
-        props: PROPS,
         devs: 5000,
         entropy: 0.9,
         drawnIndividually: false,
@@ -182,7 +183,6 @@ describe('the floor over time — GDD §7.8.6', () => {
     pump(a, 10, 0.9)
     a.update(1 / 60, {
       seats: SEATS,
-      props: PROPS,
       devs: 5000,
       entropy: 0.9,
       drawnIndividually: false,
@@ -192,51 +192,45 @@ describe('the floor over time — GDD §7.8.6', () => {
     a.destroy()
   })
 
-  it('stops the water trips when crowding takes the walkway', () => {
-    // §7.8.6's nicest consequence: a crowded floor stops being able to reach
-    // the cooler, which is a better joke than the walk was.
-    //
-    // Measured as *distance*, not as stillness. §7.8.9's loitering keeps people
-    // on their feet whether or not there is anywhere to go — they stand just
-    // outside their own desks — so "nobody moves" was the wrong assertion and
-    // only held while loitering did not exist. What the section actually
-    // promises is that nobody crosses the floor to a prop, and the cooler in
-    // this fixture is several hundred pixels away from every seat.
-    const near = createAmbient(seeded())
-    let farthest = 0
-    for (let i = 0; i < 900; i++) {
-      near.update(1 / 60, {
-        seats: SEATS,
-        props: [],
-        devs: SEATS.length,
-        entropy: 0.3,
-        drawnIndividually: true,
-        worldScale: 1,
-      })
-      farthest = Math.max(farthest, maxOffset(near))
-    }
-    near.destroy()
-    expect(farthest).toBeLessThan(120)
-  })
-
-  it('does send people to the cooler when there is one', () => {
-    // The other half, and without it the test above passes on a floor where
-    // nothing ever happens.
+  it('still gets people out of their chairs for a drive-by', () => {
+    // The one free behaviour that walks. §7.8.6 keeps it free because a
+    // drive-by is *work, badly done* — walking over to ask a colleague a
+    // question — and §4.1 already charges the studio for that as Entropy. The
+    // errands that are not work moved to `slackOff.ts` and cost output there.
     const a = createAmbient(seeded())
     let farthest = 0
     for (let i = 0; i < 1800; i++) {
       a.update(1 / 60, {
         seats: SEATS,
-        props: PROPS,
         devs: SEATS.length,
-        entropy: 0.3,
+        entropy: 0.95,
         drawnIndividually: true,
         worldScale: 1,
       })
       farthest = Math.max(farthest, maxOffset(a))
     }
     a.destroy()
-    expect(farthest).toBeGreaterThan(200)
+    expect(farthest).toBeGreaterThan(0)
+  })
+
+  it("leaves the away roster's bodies alone — one authority per person", () => {
+    // §7.8.9 — `errands.ts` is moving these people across the floor. An ambient
+    // behaviour that also claimed them would draw them in two places and bubble
+    // over an empty chair, so the roster wins and this layer lets go.
+    const a = createAmbient(seeded())
+    const busySeats = new Set(Array.from({ length: SEATS.length }, (_, i) => i))
+    for (let i = 0; i < 1800; i++) {
+      a.update(1 / 60, {
+        seats: SEATS,
+        devs: SEATS.length,
+        entropy: 0.95,
+        drawnIndividually: true,
+        worldScale: 1,
+        busySeats,
+      })
+    }
+    expect(maxOffset(a)).toBe(0)
+    a.destroy()
   })
 
   it('never puts two behaviours on one developer', () => {
@@ -246,7 +240,6 @@ describe('the floor over time — GDD §7.8.6', () => {
     for (let i = 0; i < 1200; i++) {
       a.update(1 / 60, {
         seats: SEATS,
-        props: PROPS,
         devs: SEATS.length,
         entropy: 0.95,
         drawnIndividually: true,
@@ -275,7 +268,7 @@ describe('the floor over time — GDD §7.8.6', () => {
     pump(a, 8, 0.9)
     const few = SEATS.slice(0, 12)
     for (let i = 0; i < 120; i++) {
-      a.update(1 / 60, { seats: few, props: PROPS, devs: few.length, entropy: 0.9, drawnIndividually: true, worldScale: 1 })
+      a.update(1 / 60, { seats: few, devs: few.length, entropy: 0.9, drawnIndividually: true, worldScale: 1 })
     }
     expect(Number.isFinite(maxOffset(a))).toBe(true)
     a.destroy()

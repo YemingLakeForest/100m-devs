@@ -19,13 +19,7 @@ import {
 
 /** Sample the distribution at a given entropy, deterministically. */
 function census(entropy: number, samples = 4000): Record<Behaviour, number> {
-  const out: Record<Behaviour, number> = {
-    chatter: 0,
-    smalltalk: 0,
-    water: 0,
-    driveby: 0,
-    loiter: 0,
-  }
+  const out: Record<Behaviour, number> = { chatter: 0, smalltalk: 0, driveby: 0 }
   for (let i = 0; i < samples; i++) out[pickBehaviour(entropy, (i + 0.5) / samples)]++
   return out
 }
@@ -74,14 +68,15 @@ describe('rate — GDD §7.8.6 rule 1', () => {
 })
 
 describe('what people do — GDD §7.8.6', () => {
-  it('keeps a calm floor quiet but never still', () => {
-    // Water is the one behaviour with a floor under it at every entropy: it is
-    // the only one that is not about communication, and it is what stops a
-    // low-entropy office reading as an empty one.
+  it('keeps a calm floor quiet but never silent', () => {
+    // Chatter is the one behaviour with a floor under it at every entropy, and
+    // it is what stops a low-entropy office reading as an empty one. (Water
+    // used to carry that job; it is an errand now and `slackOff.ts` has its own
+    // floor under it for the same reason.)
     const c = census(0.02)
     expect(c.smalltalk).toBe(0)
     expect(c.driveby).toBe(0)
-    expect(c.water).toBeGreaterThan(0)
+    expect(c.chatter).toBeGreaterThan(0)
   })
 
   it('starts drive-bys only when the floor is genuinely bogged down', () => {
@@ -97,7 +92,7 @@ describe('what people do — GDD §7.8.6', () => {
     // floor where a growing share of what happens involves a second person.
     const share = (e: number) => {
       const c = census(e)
-      const total = c.chatter + c.smalltalk + c.water + c.driveby
+      const total = c.chatter + c.smalltalk + c.driveby
       return (c.smalltalk + c.driveby) / total
     }
     expect(share(0.1)).toBe(0)
