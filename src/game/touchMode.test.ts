@@ -7,6 +7,7 @@ import {
   INITIAL_TOUCH_MODE,
   ROOM_TOP_RUNG,
   TOUCH_HINT,
+  TOUCH_ICON,
   TOUCH_LABEL,
   TOUCH_LATCHES,
   touchHint,
@@ -176,5 +177,72 @@ describe('the caption above the room — GDD §7.7.1, §4.5b', () => {
   it('survives nonsense', () => {
     expect(touchHint('poke', Number.NaN)).toBe(TOUCH_HINT.poke)
     expect(touchHint('poke', -3)).toBe(TOUCH_HINT.poke)
+  })
+})
+
+describe('the DRAG latch — [2026-08-26]', () => {
+  it('is called DRAG, not MOVE', () => {
+    // MOVE is the roster's verb: §13.8's banner says MOVE HERO and `Roster.tsx`
+    // says PLACE, MOVE, OR REVIEW. Two different gestures wearing one word.
+    expect(TOUCH_LABEL.grab).toBe('DRAG')
+  })
+
+  it('agrees with the caption underneath it', () => {
+    // The caption has said DRAG A DEVELOPER since the day it shipped and the
+    // button above it said something else.
+    expect(TOUCH_HINT.grab).toContain(TOUCH_LABEL.grab)
+  })
+
+  it('draws the four-direction move cursor everyone already knows', () => {
+    expect(TOUCH_ICON.grab).toBe('\u2190\u2195\u2192')
+    // Three answers it beat: a plus sign that said "add" and "medical" and
+    // mostly nothing, a cheering man that reads as celebration or as nothing,
+    // and a drag handle that was fine but not this obvious.
+    expect(TOUCH_ICON.grab).not.toBe('+')
+    expect(TOUCH_ICON.grab).not.toBe('\\o/')
+    expect(TOUCH_ICON.grab).not.toBe(':::')
+  })
+
+  it('keeps the two latches the same width, so the rail does not reflow', () => {
+    expect(TOUCH_ICON.grab.length).toBe(TOUCH_ICON.poke.length)
+  })
+
+  it('never asks the pixel font for a glyph it does not have', () => {
+    /**
+     * **The real constraint, and the one the old assertion missed.** This used
+     * to demand printable ASCII, which is a proxy for "in the font" that is
+     * wrong in both directions: it forbids the arrows Departure Mono certainly
+     * has, and it would happily pass a Latin-1 character it does not.
+     *
+     * A missing glyph never fails loudly. The browser substitutes a system face
+     * and one icon in the rail is silently drawn in a different typeface at a
+     * different weight — and on Capacitor-Android, with nothing to fall back
+     * to, it is a tofu box. So the list below is the font's actual coverage for
+     * the ranges these icons draw from, read out of
+     * `src/assets/fonts/DepartureMono-Regular.woff2`'s own `cmap`.
+     *
+     * Notably absent, and the reason the move cursor is spelled from three
+     * glyphs rather than one: U+2725, U+271C, U+2B0C and U+2B0D.
+     */
+    const IN_FONT = (cp: number) =>
+      // ASCII, which the font covers in full.
+      (cp >= 0x20 && cp <= 0x7e) ||
+      // The arrows it has: U+2190..U+2193 and U+2195..U+2199.
+      (cp >= 0x2190 && cp <= 0x2193) ||
+      (cp >= 0x2195 && cp <= 0x2199)
+
+    for (const [latch, icon] of Object.entries(TOUCH_ICON)) {
+      for (const ch of icon) {
+        expect(IN_FONT(ch.codePointAt(0) ?? 0), `${latch}: ${ch}`).toBe(true)
+      }
+    }
+  })
+
+  it('rejects the one-codepoint move arrow, which this font does not carry', () => {
+    // Kept as a named fact rather than a comment, because the next person to
+    // reach for it will reach for exactly these.
+    for (const missing of ['\u2725', '\u271c', '\u2b0c', '\u2b0d']) {
+      expect(Object.values(TOUCH_ICON).join('')).not.toContain(missing)
+    }
   })
 })

@@ -1190,12 +1190,23 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const who = pickDeveloper(x, y)
     if (who < 0) return false
 
-    // **The simulation decides, and it says yes to everybody.** §7.8.9's old
-    // refusal — nobody mid-behaviour — was overruled on 2026-08-26: a minigame
-    // about dragging wanderers back cannot decline to catch the one who is
-    // walking away. The store call is what makes the lift cost output; the room
-    // call is what makes the body follow the finger.
-    grabDeveloper(who)
+    // **The simulation decides, and it says yes to everybody but one.** §7.8.9's
+    // old refusal — nobody mid-behaviour — was overruled on 2026-08-26: a
+    // minigame about dragging wanderers back cannot decline to catch the one who
+    // is walking away. The store call is what makes the lift cost output; the
+    // room call is what makes the body follow the finger.
+    //
+    // §21.7.0 rule 6 is the exception, and the press is still **consumed** when
+    // he refuses. Falling through to a camera drag would answer "I tried to pick
+    // James up" by panning the room, which reads as the game ignoring the input
+    // — and the refusal has already put his line on screen, so something did
+    // happen and the player should be looking at it.
+    const grab = grabDeveloper(who)
+    if (!grab.held) {
+      if (grab.says) room.sayOver(who, grab.says)
+      playUi('close')
+      return true
+    }
     room.hands.hold(who)
 
     const at = toRoom(x, y)

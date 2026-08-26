@@ -97,6 +97,15 @@ export interface ErrandsLayer {
       roster: readonly Away[]
       seatGrid: (seat: number) => GridPoint
       toScreen: (p: GridPoint) => { x: number; y: number }
+      /**
+       * The inverse of `toScreen`, for the one thing that arrives in screen
+       * coordinates: the player's finger.
+       *
+       * Without it a carried developer's position is never written back in the
+       * axes the router works in, so the walk home is built from wherever they
+       * were standing *before* they were lifted — see the `carried` branch.
+       */
+      toGrid: (x: number, y: number) => GridPoint
       spots: Spots
       lanes: Lanes
       drawnIndividually: boolean
@@ -203,6 +212,23 @@ export function createErrands(): ErrandsLayer {
     // were on, not the desk. Reading `desk` there would teleport somebody home
     // the instant the camera returned, which is the one thing this whole change
     // set out to stop.
+    // A carried developer has no route — they are wherever the hand is — so one
+    // is not computed for them. It would be discarded on the same frame.
+    if (a.phase === 'carried') {
+      const at = existing?.at ?? desk
+      return {
+        seat: a.seat,
+        errand: a.errand,
+        builtFor: a.phase,
+        path: [at],
+        length: 0,
+        at,
+        dx: existing?.dx ?? 0,
+        dy: existing?.dy ?? 0,
+        says: existing?.says ?? lineFor(a.errand, a.pick),
+        age: existing?.age ?? 0,
+      }
+    }
     const from = existing?.at ?? outbound().at(-1) ?? desk
     const path = a.phase === 'back' ? route(from, desk, opts.lanes) : outbound()
     return {
@@ -255,6 +281,15 @@ export function createErrands(): ErrandsLayer {
           // No easing: a held object that lags the pointer does not feel held.
           const desk = toScreen(seatGrid(a.seat))
           offsets.set(a.seat, { x: carryAt.x - desk.x, y: carryAt.y - desk.y })
+          // **Write the hand's position back into `at`, every frame.**
+          //
+          // This is what makes "they end where you drop them" true. `build`
+          // starts the walk home from `at`, and while this was not being
+          // updated `at` still held wherever they were standing when they were
+          // picked up — so letting go teleported them back across the floor to
+          // that spot and walked them home from there, which is the exact
+          // teleport the drop was supposed to remove.
+          l.at = opts.toGrid(carryAt.x, carryAt.y)
           // The struggle, in words. Bursts rather than a continuous label —
           // the joke is that they keep starting again.
           const cycle = STRUGGLE_ON_MS + STRUGGLE_OFF_MS
@@ -263,14 +298,14 @@ export function createErrands(): ErrandsLayer {
             const which = Math.floor((l.age * 1000) / cycle)
             bubbles.draw({
               x: carryAt.x,
-              y: carryAt.y - 34,
+              y: carryAt.y - 40,
               ageMs: ms,
               remainMs: STRUGGLE_ON_MS - ms,
               says: struggleLine(((a.seat * 31 + which * 17) % 97) / 97),
               inv: counterScale(worldScale),
-              // §7.8.6 gives the warn ramp to interruptions nobody asked for.
-              // Being picked up off the floor by a giant hand qualifies.
-              tone: 'warn',
+              // Its own tone, not the drive-by's. Being hoisted off the floor
+              // by a giant hand is not an interruption, it is an emergency.
+              tone: 'protest',
             })
           }
           continue

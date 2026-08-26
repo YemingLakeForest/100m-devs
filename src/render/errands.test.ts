@@ -18,7 +18,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { createErrands, type Spots } from './errands.ts'
-import { PITCH_COL, roomLanes, seatGridPoint, gridPointToScreen } from './room.ts'
+import { PITCH_COL, roomLanes, screenToGrid, seatGridPoint, gridPointToScreen } from './room.ts'
 import { TRAVEL_SECONDS, type Away } from '../sim/slackOff.ts'
 
 const DEVS = 60
@@ -43,6 +43,7 @@ function make() {
       roster,
       seatGrid: seatGridPoint,
       toScreen: gridPointToScreen,
+      toGrid: screenToGrid,
       spots: SPOTS,
       lanes: LANES,
       drawnIndividually: true,
@@ -151,6 +152,7 @@ describe('walking an errand', () => {
       roster,
       seatGrid: seatGridPoint,
       toScreen: gridPointToScreen,
+      toGrid: screenToGrid,
       spots: { water: [], whiteboard: [], window: [], sofa: [] },
       lanes: LANES,
       drawnIndividually: true,
@@ -175,6 +177,7 @@ describe('walking an errand', () => {
       roster: [entry({ phase: 'back', elapsed: 0 })],
       seatGrid: seatGridPoint,
       toScreen: gridPointToScreen,
+      toGrid: screenToGrid,
       spots: SPOTS,
       lanes: LANES,
       drawnIndividually: true,
@@ -199,6 +202,33 @@ describe('the drag — §7.8.9', () => {
     e.destroy()
   })
 
+  it('leaves them where they were dropped, and walks home from there', () => {
+    // The reported defect: *"when I move a person out from their desk, they
+    // should end at where I drop them and walk back to their desk."* They did
+    // not. `at` was only written by the walking branch, so a carried developer's
+    // recorded position was still wherever they had been standing when they
+    // were picked up — and letting go snapped them back across the floor to
+    // that spot before the walk home began. The teleport the drop was supposed
+    // to remove, moved one step later in the sequence.
+    const { e, step } = make()
+    const desk = gridPointToScreen(seatGridPoint(23))
+    const drop = { x: desk.x + 260, y: desk.y + 150 }
+
+    step([entry({ phase: 'carried' })], 1 / 60, drop)
+    const held = e.offsetFor(23)
+
+    // Let go. The very next frame is the first of the walk home, and it has to
+    // start where the hand was — not at the desk, and not back at the cooler.
+    step([entry({ phase: 'back', elapsed: 0 })])
+    const released = e.offsetFor(23)
+    expect(Math.hypot(released.x - held.x, released.y - held.y)).toBeLessThan(30)
+
+    // And from there they walk, rather than staying put.
+    for (let t = 0; t < TRAVEL_SECONDS * 2; t += 1 / 60) step([entry({ phase: 'back', elapsed: t })])
+    expect(distance(e)).toBeLessThan(20)
+    e.destroy()
+  })
+
   it('follows the finger on the very next frame', () => {
     const { e, step } = make()
     const desk = gridPointToScreen(seatGridPoint(23))
@@ -216,6 +246,7 @@ describe('§7.8.6 rule 4 — above rung 2 the bodies switch off', () => {
       roster: [entry({ phase: 'there', elapsed: 2 })],
       seatGrid: seatGridPoint,
       toScreen: gridPointToScreen,
+      toGrid: screenToGrid,
       spots: SPOTS,
       lanes: LANES,
       drawnIndividually: false,

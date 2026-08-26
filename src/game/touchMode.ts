@@ -71,17 +71,56 @@ export function tapVerb(mode: TouchMode, inRoom: boolean): TouchMode {
   return inRoom ? mode : 'poke'
 }
 
-/** The HUD face of a latch. Short, because the rail is 146 px wide. */
+/**
+ * The HUD face of a latch. Short, because the rail is 146 px wide.
+ *
+ * **DRAG, not MOVE [2026-08-26].** MOVE is what you do to a hero — §13.8's
+ * placement banner says MOVE HERO, and `Roster.tsx` says PLACE, MOVE, OR
+ * REVIEW — so the room's latch and the roster's verb were two different
+ * gestures wearing one word. DRAG is also simply the more honest description of
+ * what the finger does: §7.8.9's caption has said DRAG A DEVELOPER underneath
+ * this latch since the day it shipped, and the button above it disagreed.
+ */
 export const TOUCH_LABEL: Record<TouchLatch, string> = {
   poke: 'CODE',
-  grab: 'MOVE',
+  grab: 'DRAG',
   inspect: 'INFO',
 }
 
-/** Tiny ASCII marks stay in the pixel font and never become platform emoji. */
+/**
+ * Tiny marks that stay **in the pixel font** and never become platform emoji.
+ *
+ * `:::` was the drag handle and read fine; `←↕→` is better, because it is the
+ * four-direction move cursor every desktop has used for thirty years, and the
+ * player already knows what it means before they have read the label.
+ *
+ * **It is spelled out of three glyphs because the single one does not exist
+ * here.** The obvious answer is the one-codepoint move arrow, and Departure Mono
+ * does not contain it: U+2725, U+271C, U+2B0C and U+2B0D are all absent from
+ * this font's `cmap` (checked against `DepartureMono-Regular.woff2` itself, not
+ * assumed). A glyph the font lacks does not fail loudly — the browser quietly
+ * substitutes a system face, so one icon in the rail would be drawn in a
+ * different typeface at a different weight, and on Capacitor-Android with no
+ * fallback installed it would be a tofu box. ART_DIRECTION §3's "one face" is
+ * exactly this rule.
+ *
+ * What the font *does* have is the four arrows individually — U+2190 through
+ * U+2193, plus U+2195 for the vertical pair. Left, up-down, right in three
+ * monospace cells is the same picture, drawn with glyphs that are certainly
+ * there.
+ *
+ * Three cells wide, like `</>`, so the rail's latches stay the same size.
+ *
+ * The two rejected answers are worth keeping: `+` said "add", said "medical",
+ * and mostly said nothing; `\o/` was a *cheering man*, an internet in-joke
+ * rather than a symbol, which reads as celebration to those who know it and as
+ * nothing at all to those who do not. An icon rail is not the place to be funny
+ * at the cost of being understood — the comedy in this feature is in what people
+ * say while you drag them.
+ */
 export const TOUCH_ICON: Record<TouchLatch, string> = {
   poke: '</>',
-  grab: '+',
+  grab: '←↕→',
   inspect: 'i',
 }
 

@@ -41,6 +41,7 @@ import { laneFor, type GridPoint, type Lanes } from './walkPath.ts'
 import { HAIR_RAMP, SHIRT_RAMP, SKIN_BASE } from '../art/personPalette.ts'
 import { createAmbient } from './ambient.ts'
 import { NO_SPOTS, createErrands } from './errands.ts'
+import { bubblesLegible, counterScale, createBubbles } from './bubble.ts'
 import type { Away } from '../sim/slackOff.ts'
 import { developerAt, type Look } from '../sim/identity.ts'
 import {
@@ -446,6 +447,17 @@ export interface RoomHandle {
    * go half-stale.
    */
   setAway(roster: readonly Away[]): void
+  /**
+   * §21.7.0 — put a line over one seat's head for a moment.
+   *
+   * A **floor** bubble, not §7.5's HUD one. The HUD bubble is where the studio
+   * talks to the player; this is one person answering something the player did
+   * to *them*, and it has to come from the body it is about — a refusal that
+   * appears in the corner of the screen makes the player look away from the
+   * developer who just refused, which is the wrong direction for a joke whose
+   * whole subject is that he has not moved.
+   */
+  sayOver(seat: number, text: string, ms?: number): void
   /**
    * §7.8.9 — the floor as a toy, in pixels only.
    *
@@ -2214,6 +2226,12 @@ export function buildRoom(): RoomHandle {
    * it owns nothing about *who* is away, only where they are standing.
    */
   const errands = createErrands()
+  /**
+   * §21.7.0 — one transient line over one seat. At most one at a time, because
+   * it answers a gesture and the player only has one finger on the floor.
+   */
+  const speech = createBubbles()
+  let saying: { seat: number; text: string; born: number; ms: number } | null = null
   // Bubbles go above everyone, including the people in the front row — a
   // speech bubble occluded by the desk in front of it is not a speech bubble.
   // Panels sit *above* the shell's own floor and below everything else: the
@@ -2241,6 +2259,7 @@ export function buildRoom(): RoomHandle {
     founderLayer,
     ambient.layer,
     errands.layer,
+    speech.layer,
   )
 
   /** One §7.8.1c panel: the plate itself, and the light it catches turning. */
@@ -3691,6 +3710,7 @@ export function buildRoom(): RoomHandle {
           roster: away,
           seatGrid: seatGridPoint,
           toScreen: gridPointToScreen,
+          toGrid: screenToGrid,
           spots: currentProps.walkway ? spots : NO_SPOTS,
           lanes: currentLanes,
           drawnIndividually: true,
@@ -3708,6 +3728,32 @@ export function buildRoom(): RoomHandle {
           busySeats: awaySeats,
         })
       }
+
+      // §21.7.0 — the refusal, over the head of whoever refused.
+      //
+      // Drawn outside the `frozen` guard above on purpose: this answers a
+      // gesture the player just made, and a line that never appears because a
+      // scene happened to open is a press that silently did nothing, which is
+      // the exact failure the line exists to prevent.
+      speech.begin()
+      if (saying) {
+        const age = performance.now() - saying.born
+        const seat = desks[saying.seat]
+        if (age >= saying.ms || !seat) {
+          saying = null
+        } else if (bubblesLegible(root.worldTransform.a)) {
+          const off = errands.offsetFor(saying.seat)
+          speech.draw({
+            x: seat.x + off.x,
+            y: seat.y + off.y - 46,
+            ageMs: age,
+            remainMs: saying.ms - age,
+            says: saying.text,
+            inv: counterScale(root.worldTransform.a),
+          })
+        }
+      }
+      speech.end()
 
       // §7.8.3 — a transform on a static part, never a spritesheet. The whole
       // motion budget for a hundred people is one hop per person per frame.
@@ -3837,6 +3883,9 @@ export function buildRoom(): RoomHandle {
     },
     setAway(roster) {
       away = roster
+    },
+    sayOver(seat, text, ms = 2600) {
+      saying = { seat, text, born: performance.now(), ms }
     },
     hands: {
       hold(i) {

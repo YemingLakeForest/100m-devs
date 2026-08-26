@@ -645,6 +645,46 @@ async function tapAt(page, x, y) {
   await page.waitForTimeout(450)
 }
 
+/**
+ * Where to tap to name unit `index` at `rung` — **the middle of what it covers**,
+ * not the first pixel that happens to name it.
+ *
+ * This is trap 40 and it is worth stating once, here, rather than in each of the
+ * places that has now been bitten by it. `__pick` and the tap handler are the
+ * same hit test on the same coordinates, so they cannot disagree about a pixel —
+ * but they run at different *times*, and `pickStorey` goes through
+ * `camera.toWorld`. A camera still easing into its stop moves the unit out from
+ * under a cursor aimed at its edge, and the first matching pixel of a tower is
+ * the top of its crown: the single most fragile point on it.
+ *
+ * The park's three-door check already did this and carried the explanation. The
+ * block's two-door check above did not, and failed intermittently for exactly
+ * the reason the park's comment predicts — reported as "two doors from building
+ * 8, floor 6 landed on storey 6", which is a wrong *storey*, not a wrong pick.
+ * Averaging every naming pixel lands on the body of the unit, where a few
+ * pixels of drift cost nothing.
+ */
+async function aimAt(page, rung, index) {
+  return page.evaluate(
+    ({ r, i }) => {
+      let sx = 0
+      let sy = 0
+      let n = 0
+      for (let y = 6; y < window.innerHeight - 6; y += 5) {
+        for (let x = 6; x < window.innerWidth - 6; x += 5) {
+          const hit = globalThis.__pick?.(x, y)
+          if (!hit || hit.rung !== r || hit.index !== i) continue
+          sx += x
+          sy += y
+          n += 1
+        }
+      }
+      return n === 0 ? null : { x: Math.round(sx / n), y: Math.round(sy / n) }
+    },
+    { r: rung, i: index },
+  )
+}
+
 async function check(
   page,
   { name, width, height, path: urlPath, action, inspect, requireScene = false, keyboard = 0 },
@@ -1053,28 +1093,12 @@ try {
      * so choosing a floor of building 8 quietly moved the studio to building 1
      * and took the room with it.
      */
-    const tower = await page.evaluate(() => {
-      for (let y = 6; y < window.innerHeight - 6; y += 5) {
-        for (let x = 6; x < window.innerWidth - 6; x += 5) {
-          const hit = globalThis.__pick?.(x, y)
-          if (hit && hit.rung === 4 && hit.index === 7) return { x, y }
-        }
-      }
-      return null
-    })
+    const tower = await aimAt(page, 4, 7)
     if (!tower) throw new Error(`the block at ${width}x${height}: building 8 is not reachable`)
-    await tapAt(page, tower.x, tower.y + 40)
+    await tapAt(page, tower.x, tower.y)
     await page.locator('.hud__enter').click()
     await page.waitForTimeout(1_200)
-    const storey = await page.evaluate(() => {
-      for (let y = 6; y < window.innerHeight - 6; y += 5) {
-        for (let x = 6; x < window.innerWidth - 6; x += 5) {
-          const hit = globalThis.__pick?.(x, y)
-          if (hit && hit.rung === 3 && hit.index === 5) return { x, y }
-        }
-      }
-      return null
-    })
+    const storey = await aimAt(page, 3, 5)
     if (!storey) throw new Error(`the block at ${width}x${height}: floor 6 of building 8 is not reachable`)
     await tapAt(page, storey.x, storey.y)
     await page.locator('.hud__enter').click()
@@ -1166,33 +1190,13 @@ try {
      * scan and the tap — trap 40, which is about a moving camera and not about
      * a wrong pick.
      */
-    const aim = (rung, index) =>
-      page.evaluate(
-        ({ r, i }) => {
-          let sx = 0
-          let sy = 0
-          let n = 0
-          for (let y = 6; y < window.innerHeight - 6; y += 5) {
-            for (let x = 6; x < window.innerWidth - 6; x += 5) {
-              const hit = globalThis.__pick?.(x, y)
-              if (!hit || hit.rung !== r || hit.index !== i) continue
-              sx += x
-              sy += y
-              n += 1
-            }
-          }
-          return n === 0 ? null : { x: Math.round(sx / n), y: Math.round(sy / n) }
-        },
-        { r: rung, i: index },
-      )
-
     const doors = [
       { rung: 5, index: 7, what: 'block 8' },
       { rung: 4, index: 74, what: 'the fifth tower of block 8' },
       { rung: 3, index: 5, what: 'floor 6 of it' },
     ]
     for (const door of doors) {
-      const at = await aim(door.rung, door.index)
+      const at = await aimAt(page, door.rung, door.index)
       if (!at) throw new Error(`the park at ${width}x${height}: ${door.what} is not reachable`)
       await tapAt(page, at.x, at.y)
       const enter = page.locator('.hud__enter')

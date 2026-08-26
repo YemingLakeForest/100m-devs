@@ -31,11 +31,39 @@ function c(hex: string): number {
 }
 
 /**
+ * The authored type size, in room units.
+ *
+ * **Was 9, and 9 was too small to read.** That number came from sizing the
+ * bubble against the *face* — a developer is 11 px tall, so nine-pixel type
+ * looked proportionate sitting over one. Proportionate to a sprite and legible
+ * to a person are different requirements, and the sprite is not the one being
+ * asked to read it. Reported plainly: "all speech bubbles are too small to be
+ * legible."
+ *
+ * At 13 a short line reads at the Squad zoom without leaning in, which is the
+ * only test that matters. The bubble is now noticeably larger than the person
+ * saying it, and that is correct: this is a caption, not a costume.
+ */
+export const BUBBLE_FONT = 13
+
+/**
+ * Box geometry, **derived from the type size rather than tuned beside it.**
+ *
+ * These were three independent constants (a 5.4 px advance, a 15 px box, a 9 px
+ * font) that all had to be changed together and silently disagreed the moment
+ * one of them was not. Deriving them means the balloon cannot end up sized for
+ * a font it is no longer drawing.
+ */
+const CHAR_ADVANCE = BUBBLE_FONT * 0.6
+const BOX_HEIGHT = BUBBLE_FONT + 8
+
+/**
  * The smallest a bubble may be drawn, as a multiple of its authored size.
  *
- * Below this the words stop being words. The face is 11 px at 1.0, so 0.62 is
- * about seven pixels of cap height — the last size at which a short line still
- * reads as language rather than as texture. Clamping the counter-scale (see
+ * Below this the words stop being words. Held at 0.62 through the type-size
+ * rise, which makes it a *stricter* floor in real pixels than it was — about
+ * eight of cap height rather than five and a half — and leaves the zoom at
+ * which bubbles disappear where it already was. Clamping the counter-scale (see
  * {@link counterScale}) means the bubble stops growing at a 2.4x magnification,
  * so this threshold is crossed at a room scale of about 0.26: legible from
  * Squad inward, and absent at Floor and Building where the unit on screen is a
@@ -60,8 +88,20 @@ export function bubblesLegible(worldScale: number): boolean {
   return worldScale * counterScale(worldScale) >= BUBBLE_MIN_SCALE
 }
 
-/** Which ramp a balloon takes. `warn` is for interruptions nobody asked for. */
-export type BubbleTone = 'speech' | 'warn'
+/**
+ * Which ramp a balloon takes.
+ *
+ * **Every tone pairs a light fill with dark ink, and that is not a style rule.**
+ * `warn` used to be `WARN[0]` — `#2e1f08`, the darkest brown in the ramp — with
+ * `NEUTRAL[0]` ink on it, which is near-black on near-black. A drive-by's words
+ * were unreadable from the day they were added, and when the struggle borrowed
+ * the tone the defect was reported the way it looks: brown, and illegible.
+ *
+ * Interface phosphor ramps run dark to light, so the *top* of each is the
+ * speakable end. `WARN[3]` and `ALARM[2]` are what these ramps look like when
+ * they are meant to be read rather than glowed through.
+ */
+export type BubbleTone = 'speech' | 'warn' | 'protest'
 
 export interface Bubbles {
   readonly layer: Container
@@ -111,7 +151,7 @@ export function createBubbles(): Bubbles {
             // the woff2 may not have loaded, and a missing font must degrade to
             // the wrong monospace rather than to no words at all.
             fontFamily: 'Departure Mono, monospace',
-            fontSize: 9,
+            fontSize: BUBBLE_FONT,
             fill: 0xffffff,
           },
         })
@@ -145,7 +185,17 @@ export function createBubbles(): Bubbles {
       const pop = bubblePop(ageMs, remainMs)
       if (pop.sy <= 0.01) return
 
-      const fill = tone === 'warn' ? RAMPS.WARN[0] : RAMPS.NEUTRAL[7]
+      // §7.8.9 — the struggle is an objection, so it takes the alarm ramp:
+      // unmistakably somebody shouting, and nothing like the paper white of
+      // ordinary chatter. Only ever one on screen at a time, because only one
+      // person is ever in the player's hand.
+      //
+      // **The pale end of the ramp, not the saturated middle.** `ALARM[2]` with
+      // white type was the first attempt and reads at 3.7:1 — under the bar,
+      // and a second illegible balloon would have been a poor way to fix the
+      // first. Pale red under dark ink is 11:1 and still shouts.
+      const fill =
+        tone === 'protest' ? RAMPS.ALARM[3] : tone === 'warn' ? RAMPS.WARN[3] : RAMPS.NEUTRAL[7]
       const ink = RAMPS.NEUTRAL[0]
 
       const node = pop.ink ? label(says) : null
@@ -154,8 +204,8 @@ export function createBubbles(): Bubbles {
         node.tint = c(ink)
       }
 
-      const w = (says.length * 5.4 + 10) * pop.sx * inv
-      const h = 15 * pop.sy * inv
+      const w = (says.length * CHAR_ADVANCE + 12) * pop.sx * inv
+      const h = BOX_HEIGHT * pop.sy * inv
       const k = pop.sy * inv
 
       g.roundRect(x - w / 2, y - h, w, h, 3 * k).fill({ color: c(fill), alpha: 0.95 })
@@ -166,7 +216,7 @@ export function createBubbles(): Bubbles {
         .closePath()
         .fill({ color: c(fill), alpha: 0.95 })
 
-      node?.position.set(x, y - h + 3 * inv)
+      node?.position.set(x, y - h + 4 * inv)
     },
 
     end() {

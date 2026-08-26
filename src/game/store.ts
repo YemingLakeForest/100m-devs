@@ -128,6 +128,7 @@ import {
   type SlackState,
 } from '../sim/slackOff.ts'
 import { JAMES_SEAT } from '../sim/identity.ts'
+import { jamesRefusal } from './chatter.ts'
 import { LITERAL_RUNG_LIMIT, rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
 import { SnippetBag } from './snippets.ts'
 import {
@@ -3259,10 +3260,37 @@ export function takeSeedRound(): boolean {
  * Lifting somebody who was *working* puts them on the roster, so it starts
  * costing on the frame the finger goes down. That is the point rather than a
  * side effect: the player can distract their own studio, and it is priced.
+ *
+ * **Except James — §21.7.0 rule 6.** He is not lifted, not for an instant, and
+ * he says so. Returns whether the grab took, so the caller knows not to enter a
+ * carry it is not going to get.
+ *
+ * The refusal *speaks* rather than doing nothing, and that is the whole design
+ * of it: a press that silently fails is indistinguishable from a press that
+ * missed, and the player's next move is to try harder.
+ *
+ * **The line is returned rather than shown**, because where it belongs is a
+ * rendering decision and this file has no renderer. It goes over his head on
+ * the floor (§7.8.6's bubble), not into §7.5's HUD: the HUD bubble is where the
+ * studio talks to the player, and this is one man answering something done to
+ * him. Putting it in the corner would make the player look away from the
+ * developer who just refused to move, which is the wrong direction for a joke
+ * whose entire subject is that he has not moved.
  */
-export function grabDeveloper(seat: number): void {
-  if (seat < 0 || seat >= Math.floor(state.devs)) return
-  set({ slack: liftSlacker(state.slack, seat, Math.random()) })
+export interface GrabResult {
+  /** Did they leave their chair? */
+  held: boolean
+  /** What they said about it, if anything. Room bubble, not HUD. */
+  says: string | null
+}
+
+export function grabDeveloper(seat: number): GrabResult {
+  if (seat < 0 || seat >= Math.floor(state.devs)) return { held: false, says: null }
+  if (JAMES_PINNED.includes(seat)) {
+    return { held: false, says: jamesRefusal(Math.random()) }
+  }
+  set({ slack: liftSlacker(state.slack, seat, Math.random(), JAMES_PINNED) })
+  return { held: true, says: null }
 }
 
 /**

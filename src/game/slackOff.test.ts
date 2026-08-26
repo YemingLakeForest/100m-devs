@@ -21,6 +21,7 @@ import {
   workingDevs,
 } from './store.ts'
 import { JAMES_SEAT } from '../sim/identity.ts'
+import { JAMES_REFUSALS } from './chatter.ts'
 import { TRAVEL_SECONDS, emptySlack, liftSlacker } from '../sim/slackOff.ts'
 
 beforeEach(() => {
@@ -116,12 +117,54 @@ describe('James — §21.7.0', () => {
     expect(developerIsAway(JAMES_SEAT)).toBe(false)
   })
 
-  it('goes straight back to his desk wherever he is dropped', () => {
-    grabDeveloper(JAMES_SEAT)
-    releaseDeveloper(JAMES_SEAT, false)
-    // Everybody else would be walking. He is already sitting down.
+  it('cannot be picked up at all — rule 6', () => {
+    // He used to be liftable and snap back on release, which is a fine beat and
+    // the wrong one: a rule stated by *undoing* the gesture teaches the player
+    // that it worked and then failed. He is never lifted now.
+    expect(grabDeveloper(JAMES_SEAT).held).toBe(false)
     expect(developerIsAway(JAMES_SEAT)).toBe(false)
     expect(awayCount()).toBe(0)
+  })
+
+  it('costs the studio nothing when the player tries', () => {
+    const before = workingDevs()
+    grabDeveloper(JAMES_SEAT)
+    expect(workingDevs()).toBeCloseTo(before, 6)
+  })
+
+  it('says something about it, rather than failing silently', () => {
+    // A press that silently does nothing is indistinguishable from a press that
+    // missed, and the player's next move is to try harder.
+    for (let i = 0; i < 40; i++) {
+      const said = grabDeveloper(JAMES_SEAT).says
+      expect(said).not.toBeNull()
+      expect(JAMES_REFUSALS).toContain(said)
+    }
+  })
+
+  it('hands the line back rather than putting it in the HUD', () => {
+    // §7.5's bubble is where the studio talks to the player. This is one man
+    // answering something done to him, and it belongs over his own head — so
+    // the store returns it and the renderer decides where it goes.
+    __setState({ bubble: null })
+    grabDeveloper(JAMES_SEAT)
+    expect(getState().bubble).toBeNull()
+  })
+
+  it('says it in his own voice — sincere, never winking', () => {
+    // §21.7.0's blockquote: "if a line of his reads as a wink, it is the wrong
+    // line." Nothing here is an aside to the player about the game.
+    for (const line of JAMES_REFUSALS) {
+      expect(line).not.toMatch(/\b(lol|haha|wink|obviously|of course)\b/i)
+      expect(line.length).toBeLessThanOrEqual(40)
+    }
+  })
+
+  it('still lets everybody else be picked up', () => {
+    const grab = grabDeveloper(JAMES_SEAT + 1)
+    expect(grab.held).toBe(true)
+    expect(grab.says).toBeNull()
+    expect(developerIsAway(JAMES_SEAT + 1)).toBe(true)
   })
 })
 

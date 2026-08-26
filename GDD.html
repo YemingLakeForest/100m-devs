@@ -3402,7 +3402,7 @@ did not choose is a better error message, not a control.</p>
 <td>§4.5's poke. The primary verb, and the mode the game opens in</td>
 </tr>
 <tr>
-<td><strong>GRAB</strong></td>
+<td><strong>GRAB</strong> — labelled <code>DRAG</code> <strong>[2026-08-26]</strong></td>
 <td>yes</td>
 <td>§7.8.9's pick-up, on the <strong>press</strong>, no timer</td>
 </tr>
@@ -3442,6 +3442,33 @@ building, a city; there is nobody to pick up and nobody whose card to open, so �
 the tap back and it is a poke whatever the latch says. A mode that silently switched the
 game's primary verb off at the top of the ladder is the exact failure §4.5b was written to
 have fixed.</li>
+<li><strong>The latch says <code>DRAG</code>, and its icon is <code>←↕→</code>. [amended 2026-08-26]</strong> It said
+<code>MOVE</code>, which is the <em>roster's</em> verb — §13.8's banner says <code>MOVE HERO</code> and the
+roster rail says <code>PLACE, MOVE, OR REVIEW</code> — so two different gestures were wearing one
+word. <code>DRAG</code> is also what the caption underneath the latch has said since the day it
+shipped (<code>DRAG A DEVELOPER</code>); the button above it simply disagreed with it.
+<p><strong>The icon is the four-direction move cursor</strong> — the one every desktop has used
+for thirty years, which the player understands before they have read the label. Three
+answers were tried and discarded first: <code>+</code> said &quot;add&quot;, said &quot;medical&quot;, and mostly said
+nothing; <code>\o/</code> is a cheering man, an internet in-joke rather than a symbol, which reads
+as celebration to those who know it and as nothing at all to those who do not; <code>:::</code>,
+the drag handle, was defensible but less immediate than an arrow that simply points every
+way at once. <strong>An icon rail is not the place to be funny at the cost of being
+understood</strong> — the comedy in this feature is in what people say while you drag them,
+which is where it can afford to be.</p>
+<p><strong>It is spelled from three glyphs, and that is a font constraint rather than a
+preference.</strong> The obvious answer is the single-codepoint move arrow, and <strong>Departure Mono
+does not contain one</strong>: U+2725, U+271C, U+2B0C and U+2B0D are all absent from the shipped
+<code>woff2</code>'s <code>cmap</code> — checked against the file, not assumed. A glyph the font lacks does
+not fail loudly: the browser quietly substitutes a system face, so one icon in the rail
+would be drawn in a different typeface at a different weight, and on Capacitor-Android
+with nothing installed to fall back to it would be a tofu box. That is ART_DIRECTION §3's
+&quot;one face&quot; rule, stated as a failure mode.
+What the font <em>does</em> carry is the four arrows individually (U+2190 to U+2193, plus U+2195
+for the vertical pair), so left, up-down and right across three monospace cells draws the
+same picture out of glyphs that are certainly there. <strong>The test asserts font coverage
+rather than &quot;printable ASCII&quot;</strong>, which was the old proxy and was wrong in both directions
+— it forbade the arrows the font has and would have passed characters it does not.</p></li>
 <li><strong>The mode owns the hand.</strong> Leaving GRAB — by latch, or by zooming out of the room — puts
 down whoever is being carried, via §7.8.9's walk-back rather than a teleport. A developer
 stranded in mid-air by a button press on the other side of the screen is 7.7.6a's failure
@@ -4184,6 +4211,31 @@ still pokeable, and the poke interrupts the behaviour immediately (§8.2's jolt 
 A player who taps someone and gets no reaction because that person was busy chatting
 has been told the game is a cutscene.</li>
 </ol>
+<h5 id="bubbles-must-be-legible-amended-2026-08-26">Bubbles have to be readable, and two of them were not <strong>[amended 2026-08-26]</strong></h5>
+<p>Two defects shipped together and were reported together. Both are recorded here rather
+than quietly fixed, because both came from the same mistake — <strong>sizing and colouring a
+caption as though it were part of the scenery.</strong></p>
+<ol>
+<li><strong>The type was nine pixels, and nine was chosen against the sprite.</strong> A developer is
+11 px tall, so nine-point type looked proportionate sitting over one. Proportionate to a
+sprite and legible to a person are different requirements, and <em>the sprite is not the one
+being asked to read it.</em> The authored size is 13 now, and the balloon's advance and box
+height are derived from it rather than tuned beside it — they were three independent
+constants that all had to move together and silently disagreed when one did not.</li>
+<li><strong>The drive-by balloon was <code>WARN[0]</code> under <code>NEUTRAL[0]</code> ink</strong> — <code>#2e1f08</code>, the
+darkest brown in the ramp, carrying near-black type. That is a contrast ratio of 1.2:1.
+The drive-by's words were unreadable from the day they were added and nobody noticed until
+§7.8.9's struggle borrowed the tone, at which point it was reported the way it looks:
+brown, and illegible.</li>
+</ol>
+<p><strong>The rule that replaces both: every tone pairs a light fill with dark ink, and clears
+4.5:1.</strong> §2's interface phosphor ramps run dark to light, so the <em>top</em> of each is the
+speakable end — the bottom is for glowing through, not for reading off. Ordinary speech is
+paper white, a drive-by is pale amber (<code>WARN[3]</code>), and §7.8.9's struggle takes pale red
+(<code>ALARM[3]</code>) because being hoisted off the floor by a giant hand is not an interruption,
+it is an emergency, and it must not read as somebody saying hello. There is a test on the
+ratio, because &quot;can a person read this&quot; is the one question a screenshot comparison never
+asks.</p>
 <h5 id="what-the-bubbles-are-in-the-room-added-2026-08-08">What the bubbles are, in the room <strong>[added 2026-08-08]</strong></h5>
 <p><strong>They are abstract, not typed</strong> — a balloon with two dashes in it, in the same visual
 language as the code on the monitors.</p>
@@ -4494,9 +4546,17 @@ in the renderer would be one the player deletes by zooming out and one that offl
 progress never sees. <code>sim/slackOff.ts</code> owns who is away; <code>render/errands.ts</code> owns where
 their body is. <strong>Time is the simulation's and space is the renderer's</strong> — an errand's
 travel window is a constant, and a route that is short arrives early and stands there.</li>
-<li><strong>Dropped on a desk they sit down; dropped anywhere else they walk home and go on
-costing until they arrive.</strong> Never a teleport. §7.8.9's &quot;unhurried, which is funnier
-than obeying&quot; now also means &quot;and you are paying for it&quot;.</li>
+<li><strong>Dropped on a desk they sit down; dropped anywhere else they <em>stay where they were
+put</em> and walk home from there, going on costing until they arrive.</strong> Never a teleport.
+§7.8.9's &quot;unhurried, which is funnier than obeying&quot; now also means &quot;and you are paying for
+it&quot;.
+<p><strong>[amended 2026-08-26]</strong> The first build got this half right and shipped the other
+half as a teleport one step further along. A carried developer's recorded position was only
+ever written by the walking code, so it still held wherever they had been standing when they
+were picked up — and letting go snapped them back across the floor to <em>that</em> spot before
+the walk home began. Reported as &quot;when I move a person out from their desk, they should end
+at where I drop them&quot;, which is exactly right. The hand's position is now written back every
+frame it is held, so the drop point is where the walk starts.</p></li>
 <li><strong>Offline progress is taxed by the <em>modelled</em> share, not by the roster.</strong> The roster
 is run state and does not survive a reload, so §24's resolver would otherwise earn eight
 hours at a rate the studio never achieves while anybody is watching — which is an
@@ -4507,9 +4567,22 @@ hold this second; offline you pay the average of it.</li>
 <li><strong>They struggle while carried.</strong> §7.8.9 rule 4 is untouched: two sine terms with no
 common period and a slow surge, so the swing never repeats a shape. A person trying to
 get down kicks; a pendulum oscillates. No ragdoll, no collision, no solver.</li>
-<li><strong>James never leaves his desk</strong>, and lifting him is the one correct teleport in the
-game — put him down anywhere and he is already back. §21.7.0's gym is untouched and is
-not an errand: ten to eleven he is not on the floor at all.</li>
+<li><strong>James never leaves his desk, and he cannot be picked up at all.</strong> The grab is
+refused outright and <strong>he says so, in a bubble over his own head</strong>. §21.7.0's gym is
+untouched and is not an errand: ten to eleven he is not on the floor at all.
+<p><strong>[amended 2026-08-26]</strong> This first shipped as "lift him and he snaps back
+instantly — the one correct teleport in the game". That is a decent beat and the wrong
+mechanism: a rule stated by <em>undoing</em> the player's gesture teaches them the gesture
+worked and then failed, which reads as a glitch rather than as a character. Refusing the
+press outright and answering it in his own voice says the same thing and is funnier,
+because the joke is not that he returns — it is that he was never going anywhere.</p>
+<p><strong>The refusal has to speak.</strong> A press that silently does nothing is
+indistinguishable from a press that missed, and the player's next move is to try harder.
+It goes over his head on the floor rather than into §7.5's HUD bubble, and that placement
+is load-bearing: the HUD bubble is where the studio talks to the player, this is one man
+answering something done to him, and a line in the corner of the screen would make the
+player look away from the developer who just refused to move — the wrong direction for a
+joke whose entire subject is that he has not moved.</p></li>
 </ol>
 <h5 id="where-people-go">Where people go</h5>
 <p>Not &quot;to a prop&quot;. A developer drawn staring at a filing cabinet is not the joke, so the
@@ -11670,18 +11743,21 @@ tier, beside the elbow hole that never gets fixed.</li>
 <li><strong>The gym, ten to eleven, every day.</strong> Every single day. Through the collapse, through the
 bankruptcy, through the heat death of four universes. If the player pokes his desk between
 10:00 and 11:00 studio time, <strong>he is not there</strong>, and the desk says so.</li>
-<li><strong>The rest of the day, he does not leave his desk. [CANON — added 2026-08-26]</strong>
-§7.8.9's away population never contains James. Not the cooler, not the whiteboard, not
-the window. Pick him up and drop him anywhere on the floor and <strong>he is back before the
-animation finishes</strong> — the only correct teleport in the game, and correct precisely
-because it is a character beat rather than a shortcut: everybody else walks home
-unhurried, which is funny, and he does not, which is funnier and is the same joke as
-rule 6.
+<li><strong>The rest of the day, he does not leave his desk, and nobody moves him.
+[CANON — added 2026-08-26]</strong> §7.8.9's away population never contains James. Not the
+cooler, not the whiteboard, not the window. And <strong>the player cannot pick him up</strong>: the
+grab is refused, and he explains why, sincerely, in a bubble over his own head — <em>&quot;I am
+glued to this chair&quot;</em>, <em>&quot;my legs work. I do not use them&quot;</em>, <em>&quot;there is a Diet Coke
+here&quot;</em>. Everybody else on the floor can be hoisted into the air and carried across the
+room; he is furniture.
 <p>It is also the cleanest statement of rule 1 the game has. Every other developer is a
-distribution; James is a fixed point. The player learns this by trying to move him,
-which is the version of the lesson that costs no dialogue at all — and it composes with
-rule 5 rather than fighting it: the one hour he is missing is <em>scheduled</em>, and the
-twenty-three he is present he is immovable.</p></li>
+distribution; James is a fixed point. The player learns this by trying to move him, which
+is the cheapest tutorial in the product — and it composes with rule 5 rather than fighting
+it: the one hour he is missing is <em>scheduled</em>, and the twenty-three he is present he is
+immovable.</p>
+<p>The lines obey the blockquote below. He is not being wry about being welded to a
+chair; to him it is simply the correct arrangement, and <strong>if a refusal reads as a wink it
+is the wrong line.</strong></p></li>
 </ol>
 <p><strong>Rule 5 is a mechanic and it should be built as one.</strong> An hour a day where the game's most
 reliable card is simply absent is funnier than any line about it, it is the only scheduled

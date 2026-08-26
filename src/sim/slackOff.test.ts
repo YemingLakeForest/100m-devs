@@ -254,7 +254,14 @@ describe('the drag — §7.8.9', () => {
     expect(s.away[0].phase).toBe('back')
   })
 
-  it('puts James straight back wherever he is dropped — §21.7.0', () => {
+  it('will not lift a pinned seat in the first place — §21.7.0 rule 6', () => {
+    const s = liftSlacker(emptySlack(), 1, 0.5, [1])
+    expect(awayHeads(s)).toBe(0)
+  })
+
+  it('still seats a pinned seat that somehow got carried, rather than walking him', () => {
+    // Unreachable through the game since 2026-08-26, and kept because a save or
+    // a scenario written before that rule could still present one mid-carry.
     let s = liftSlacker(emptySlack(), 1)
     s = dropSlacker(s, 1, false, [1])
     expect(awayHeads(s)).toBe(0)

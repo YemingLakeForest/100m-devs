@@ -105,6 +105,32 @@ export const STRUGGLE: readonly string[] = [
 ]
 
 /**
+ * §21.7.0 — what James says when the player tries to pick him up.
+ *
+ * He cannot be. Rule 6 makes him the one fixed point on the floor, and a rule
+ * enforced by silence is a rule the player reads as a bug — so the refusal
+ * speaks. **Sincerely**, per §21.7.0's blockquote: he is not being witty about
+ * it and he is not in on the joke. He means every word, and the comedy is that
+ * being welded to a chair is, to him, simply the correct arrangement.
+ *
+ * Kept out of {@link STRUGGLE} deliberately. Those are the lines of somebody
+ * who wants to be put down; these are the lines of somebody who was never
+ * picked up.
+ */
+export const JAMES_REFUSALS: readonly string[] = [
+  'I do not take breaks',
+  'I am glued to this chair',
+  'everything I need is here',
+  'my legs work. I do not use them',
+  'I went to the gym at ten',
+  'there is a Diet Coke here',
+  'I would only have to sit down',
+  'fewer hands, please',
+  'three hours into something',
+  'this is where I am',
+]
+
+/**
  * §7.8.6, §7.8.9 — said at the far end of an errand.
  *
  * One band per destination, because a line about water read at a whiteboard is
@@ -147,6 +173,10 @@ export function struggleLine(r: number): string {
   return STRUGGLE[Math.min(STRUGGLE.length - 1, Math.floor(r * STRUGGLE.length))]
 }
 
+export function jamesRefusal(r: number): string {
+  return JAMES_REFUSALS[Math.min(JAMES_REFUSALS.length - 1, Math.floor(r * JAMES_REFUSALS.length))]
+}
+
 export function boardLine(r: number): string {
   return AT_BOARD[Math.min(AT_BOARD.length - 1, Math.floor(r * AT_BOARD.length))]
 }
@@ -164,6 +194,7 @@ export const LONGEST = Math.max(
   ...CHATTER.map((l) => l.length),
   ...LOITER.map((l) => l.length),
   ...STRUGGLE.map((l) => l.length),
+  ...JAMES_REFUSALS.map((l) => l.length),
   ...AT_BOARD.map((l) => l.length),
   ...AT_WINDOW.map((l) => l.length),
   ...EXCHANGES.flatMap(([a, b]) => [a.length, b.length]),

@@ -358,20 +358,36 @@ function freeSeat(devs: number, taken: ReadonlySet<number>, rng: () => number): 
 // --- the drag ---------------------------------------------------------------
 
 /**
- * §7.8.9 — pick somebody up.
+ * §7.8.9 — pick somebody up. Returns the state unchanged if they cannot be.
  *
- * **This refuses nobody**, which reverses §7.8.9's blockquote ("somebody
- * mid-behaviour is still refused"). That refusal existed to stop a drag reading
- * as an interruption rather than a tidy-up, and it was the whole obstacle to
- * the minigame the drag was supposed to be: a toy that will not let you catch
- * the person who is walking away is a toy with no verb.
+ * **This refuses nobody except a pinned seat**, which reverses §7.8.9's
+ * blockquote ("somebody mid-behaviour is still refused"). That refusal existed
+ * to stop a drag reading as an interruption rather than a tidy-up, and it was
+ * the whole obstacle to the minigame the drag was supposed to be: a toy that
+ * will not let you catch the person who is walking away is a toy with no verb.
  *
  * A developer lifted out of their chair joins the roster, so lifting somebody
  * who was working **starts costing output immediately**. That is the "distract
  * them" half of the request, priced honestly.
+ *
+ * **The one exception is James — §21.7.0 rule 6 — and it hardened on
+ * 2026-08-26.** He could briefly be lifted and would snap back on release,
+ * which is a fine beat and the wrong one: a rule stated by *undoing* the
+ * player's gesture teaches them the gesture worked and then failed. He is now
+ * never lifted at all, and `store.ts` answers the attempt in his own voice,
+ * which says the same thing while being funny about it.
+ *
+ * Enforced here as well as at the call site because this is where the roster
+ * lives. A refusal that only exists in the renderer is one a scenario, a save,
+ * or the next call site can walk straight past.
  */
-export function liftSlacker(s: SlackState, seat: number, roll = 0.5): SlackState {
-  if (seat < 0) return s
+export function liftSlacker(
+  s: SlackState,
+  seat: number,
+  roll = 0.5,
+  pinned: readonly number[] = [],
+): SlackState {
+  if (seat < 0 || pinned.includes(seat)) return s
   const existing = s.away.find((a) => a.seat === seat)
   if (existing) {
     if (existing.phase === 'carried') return s
@@ -397,8 +413,12 @@ export function liftSlacker(s: SlackState, seat: number, roll = 0.5): SlackState
  * back to wherever they were going, unhurried, which is funnier than obeying" —
  * now with the small difference that it is also more expensive.
  *
- * `pinned` seats are the exception and the only teleport in the file: James
- * goes straight back. See §21.7.0 rule 5 and the note in `store.ts`.
+ * `pinned` seats are seated rather than sent walking — belt and braces. Since
+ * 2026-08-26 they cannot be lifted at all ({@link liftSlacker}), so this branch
+ * should be unreachable; it stays because a save or a scenario built before
+ * that rule could still present a pinned seat mid-carry, and the correct
+ * recovery is to put him back in his chair rather than walk him across the
+ * floor. See §21.7.0 rule 6.
  */
 export function dropSlacker(
   s: SlackState,

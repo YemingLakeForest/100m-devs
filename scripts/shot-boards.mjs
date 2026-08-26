@@ -144,11 +144,11 @@ await page.waitForTimeout(600)
 /*
  * §13.7.1a's known trade: §7.8.10's corner desk starts just above the frame at
  * the opening lens, so the founder cannot be tapped until the room is panned.
- * §7.7.6b's MOVE latch is what a player uses to do it, so it is what this uses
+ * §7.7.6b's DRAG latch is what a player uses to do it, so it is what this uses
  * — the point of the shot is the screen, but the way in has to be the real one
  * or the shot is not evidence of anything.
  */
-await tap(page.locator('.touch__latch', { hasText: 'MOVE' }), 'the MOVE latch')
+await tap(page.locator('.touch__latch', { hasText: 'DRAG' }), 'the DRAG latch')
 await page.mouse.move(700, 300)
 await page.mouse.down()
 for (let i = 1; i <= 12; i += 1) {
