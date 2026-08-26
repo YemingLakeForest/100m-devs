@@ -408,7 +408,7 @@
       <div class="meta-row" aria-label="Document status">
         <span class="chip chip--canon">Canonical</span>
         <span class="chip">Consolidated v3.0+</span>
-        <span class="chip">Implementation audit 25 Aug 2026</span>
+        <span class="chip">Implementation audit 26 Aug 2026</span>
         <span class="chip">Appendix G owns live status</span>
       </div>
     </div>
@@ -2875,6 +2875,12 @@ overlay, ensuring the living swarm simulation remains <strong>100% visible</stro
 <li><strong>Semi-Transparent</strong> — background blur and transparency ensure you never lose sight of the swarm.</li>
 <li><strong>Contextual</strong> — action panels slide in only when needed (e.g. when clicking a developer) and slide away quickly.</li>
 </ul>
+<p><strong>World annotations never cross the panel plane</strong> <em>[CANON - added
+2026-08-26]</em>. A posted hero's head, name and <code>ASSIGNED</code> marker belong to the living
+simulation, not to the HUD. Every open panel and its scrim therefore stack above world
+annotations, whether the panel is Gallery, Upgrades, Founder, Heroes or a later screen. The
+simulation remains visible through the panel's treatment; its labels do not print through the
+panel's controls or content.</p>
 <h3 id="fractal-zoom-ladder">7.2 Fractal zoom ladder</h3>
 <pre><code>[Level 0: Solo Dev Desk] → [Level 1: Open Office Floor] → [Level 2: Mega Campus] → [Level 3: Global Grid]
 </code></pre>
@@ -6230,6 +6236,13 @@ of your own games, each a different shape, the good ones framed in gold and cyan
 shovelware in grey. The arrow keys and the covers themselves move it; a ship lands a new cover
 at the front and <strong>does not steal the focus</strong> from somebody reading their back
 catalogue — at §26.1.8's speeds that would make the screen unusable.</p>
+<p><strong>Short landscape is a two-column composition</strong> <em>[amended 2026-08-26]</em>. At the
+Pixel 7's 915×412 CSS viewport, stacking the wall above the receipt collapsed the cover stage
+to a slit even though every box remained technically inside the frame. At heights of 480 px or
+less, the header and footer still span the panel, while the cover wall and focused-release
+receipt sit beside one another. The wall must retain at least 180 px of height, at least 150 px
+of the focused cover must remain visible, and the receipt must not overlap it. The cover may
+move upward to spend reflection space; the cover itself may not be the thing clipped.</p>
 <p>The rules that actually mattered are kept exactly: it is still a panel and not a modal, the
 studio is still running behind it, and nothing on it changes a release.</p>
 <h4 id="what-it-must-never-become">10.11.5 What it must never become</h4>
@@ -13092,7 +13105,8 @@ landed, so preserving that list as present tense would make this guide actively 
 not merely on the existence of a module or passing unit test. The standing proof stack is:</p>
 <ol>
 <li><code>vitest</code> for simulation and component behaviour;</li>
-<li><code>scripts/ui-frame.acceptance.mjs</code> for the supported landscape frames;</li>
+<li><code>scripts/ui-frame.acceptance.mjs</code> for the six supported landscape frames, including
+the Pixel 7's 915×412 CSS viewport;</li>
 <li><code>scripts/playthrough.acceptance.mjs</code> for a player reaching the joined-up loop;</li>
 <li><code>scripts/scale.probe.mjs</code> for the 100,000,000-developer architecture;</li>
 <li>handset inspection for touch feel, audio, readability and sustained performance.</li>
@@ -14484,10 +14498,15 @@ reproduces nothing about a keyboard.</li>
 defect at all. That division of labour is correct — vitest owns behaviour, the browser gate
 owns geometry — and it only works if the browser gate runs. It runs now.</p>
 <p>What the gate does now: overlap between anything sharing a layer (text measured on its em box,
-so leading is not a false positive), containment as before, five frame sizes instead of three
-including one just <em>above</em> the 400 px breakpoint, a <code>?full</code> fixture that puts the HUD into its
-worst state, and a keyboard case that actually shrinks the viewport. It was verified by
-reintroducing two of the defects above and watching it fail on each.</p>
+so leading is not a false positive), containment as before, <strong>six frame sizes</strong> instead of
+three — including one just <em>above</em> the 400 px breakpoint and the Pixel 7's exact 915×412 CSS
+viewport — a <code>?full</code> fixture that puts the HUD into its worst state, and a keyboard case that
+actually shrinks the viewport. <em>[amended 2026-08-26]</em> The 915×412 case reaches Gallery after a
+real ship, assigns James through the player-facing placement gesture, and asserts two joins
+that ordinary containment cannot see: the wall remains tall enough to read and every panel
+outranks the world-assignment layer. Gallery additionally pins the visible focused-cover height
+and the wall/receipt separation. The layer assertion applies to Upgrades and every other panel,
+not only to the overlap that first exposed it.</p>
 <h3 id="intake-2026-08-15-canon">25.8 Intake — 2026-08-15 <strong>[CANON]</strong></h3>
 <p><strong>The largest intake this document has taken, and the first one that is mostly not a
 requirement.</strong> It opens by asking for a roadmap — <em>&quot;instead of piecemeal progression, we need a
@@ -15319,7 +15338,7 @@ the same branch overlapping and see the waste hatched.
 requirement, and <strong>item 3 is closed by §18.0</strong>.</li>
 </ul>
 </blockquote>
-<p><strong><code>npm run check</code> green throughout, including the browser gate at all five frame sizes.</strong></p>
+<p><strong><code>npm run check</code> green throughout, including the browser gate at all six frame sizes.</strong></p>
 <h4 id="a-the-walk-is-a-gate-now-2026-08-18">26.1.8a The walk is a gate now — 2026-08-18</h4>
 <p><strong>Items 3 to 10 were walked on 2026-08-18. One was false and one carried a defect nobody had
 named</strong> — item 4 and §13.7.1a respectively. Every dated note above is from that walk, and the walk itself is
@@ -15347,7 +15366,7 @@ is invisible to a test that supplies its own left-hand side</em> (§25.9.4).</p>
 </tr>
 <tr>
 <td><code>ui-frame.acceptance.mjs</code></td>
-<td>Is it drawn correctly, at five frames</td>
+<td>Is it drawn correctly, at six frames, including the 915×412 short-landscape regression</td>
 <td>Whether anything leads to the screen it measures</td>
 </tr>
 <tr>
@@ -16302,7 +16321,7 @@ and prestige layers added state that has to persist. <strong>Both are now closed
 why the remaining F1 rows are all store-and-policy work rather than design work.</p>
 <hr />
 <h2 id="appendix-g-current-implementation-development-register-canon">Appendix G — Current Implementation &amp; Development Register <strong>[CANON]</strong></h2>
-<h3 id="g.0-audit-basis-2026-08-25">G.0 Audit basis — 2026-08-25</h3>
+<h3 id="g.0-audit-basis-2026-08-26">G.0 Audit basis — 2026-08-26</h3>
 <p>This appendix is the <strong>only current-status authority</strong> in the GDD. It was audited against the
 reachable application in <code>src/</code>, the automated suites and acceptance scripts, the packaged
 audio/art assets, <code>package.json</code>, the Capacitor Android shell and the local-save boundary.</p>
@@ -16367,7 +16386,7 @@ amended.</p>
 <tr>
 <td>Project economy</td>
 <td><strong>LIVE</strong></td>
-<td>Sprint commitments, eight authored project rungs, catalogue tails, payroll, hire pricing, revenue graph, release history and gallery are reachable</td>
+<td>Sprint commitments, eight authored project rungs, catalogue tails, payroll, hire pricing, revenue graph, release history and the full-frame cover-wall Gallery are reachable; its short-landscape composition is pinned at 915×412</td>
 </tr>
 <tr>
 <td>Roles and backlogs</td>
@@ -16397,7 +16416,7 @@ amended.</p>
 <tr>
 <td>Hero posting</td>
 <td><strong>LIVE</strong></td>
-<td>Roster → placement mode → world target → eight-second settle → active effect/XP works. Compact in-world head avatar, name and <code>ASSIGNED</code> marker identify posted heroes at desk, floor and building scales</td>
+<td>Roster → placement mode → world target → eight-second settle → active effect/XP works. Compact in-world head avatar, name and <code>ASSIGNED</code> marker identify posted heroes at desk, floor and building scales, and remain below every open panel</td>
 </tr>
 <tr>
 <td>Omni-Lens and scale</td>
