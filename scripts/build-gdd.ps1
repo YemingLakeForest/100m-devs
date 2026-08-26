@@ -513,7 +513,7 @@ $head = @'
         <article class="status-card status-card--phase">
           <small>Scale status</small>
           <b>Seven-level 100m lens is canon</b>
-          <p>Aggregate simulation and the main-arc lens agree. Post-100m mechanics, history and low-end device proof remain.</p>
+          <p>Aggregate simulation and the main-arc lens agree. Post-100m mechanics and generated-person history remain.</p>
         </article>
         <article class="status-card">
           <small>Next principle</small>

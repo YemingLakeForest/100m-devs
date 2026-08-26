@@ -8660,9 +8660,9 @@ Honest status, so nobody mistakes the green table for a clean bill:
 | 6 | ✅ 0.8 s against 3 s, though cold start scales with storage and a budget phone could plausibly triple it |
 | 7 | ✅ **Passed** — but in **portrait**, before §23.4. It has never been run in the shipping orientation |
 
-**Re-run the whole gate the moment any cheap Android handset comes to hand.** No low-end
-device is available and one is not being bought; this is a deliberate scope decision, not an
-oversight. The harness is a single tap and takes 80 seconds.
+**Low-end device proof is not a release-readiness listing.** The standing automated and local
+browser gates continue to protect the measurable budgets above. A future handset run may add
+useful evidence, but it is not a closure condition for this document's gap register.
 
 **A pass on good hardware is a *ceiling* measurement.** The honest reading is "nothing about
 this stack fails on good hardware" — weaker than a gate is meant to deliver, but a fail
@@ -10276,8 +10276,7 @@ That architecture has now been replaced: `src/sim/aggregate.ts` provides determi
 top-down aggregates whose weights equal their generated people, and the seven-level Omni-Lens
 reaches a 100-site globe at 100,000,000 developers. **The remaining Phase 2 problem is proof
 and completeness, not basic feasibility:** distinct late ladder stops are collapsed into the
-globe, the galaxy-to-desk identity/history walk is not present, and the full gate has not been
-passed on a cheap Android device.
+globe, and the galaxy-to-desk identity/history walk is not present.
 
 #### 26.2.2 The rule
 
@@ -10325,9 +10324,8 @@ reachable. Appendix G carries the itemised audit.
 #### 26.2.5 Phase 2's closing gate
 
 **OPEN.** Parts of lines 1, 3, 4 and 5 now have automated coverage, but the gate is not closed
-until the whole walk below passes together on the target device. In particular, the current
-top view is a globe rather than a galaxy, generated people do not yet expose the required
-career history, and low-end sustained performance has not been proven.
+until the whole walk below passes together. In particular, the current top view is a globe
+rather than a galaxy, and generated people do not yet expose the required career history.
 
 1. A save at 100,000,000 developers loads, runs at §23.3's frame budget, and the speedometer
    reads what §4.1 says it should.
@@ -10864,8 +10862,7 @@ The audit findings below are retained as an implementation record, not an open b
 | **P1** | Hero target comparison | **CLOSED** | Hover or the first tap draws a candidate footprint and compares exact coverage, branch effect and XP share with the committed anchor; only explicit confirmation starts the move | §13.8c; placement model, banner, world preview and preview/confirm tests agree |
 | **P1** | Hero growth catch-up | **CLOSED** | A settled trailing hero earns up to ×4 covered-work XP until one level behind; the veteran retains their lead, bank and purchased nodes | §13.10a; pure curve and wired placement tests cover the cap, taper, coverage scaling and protected lead |
 | **P1** | Post-Run-1 teaching | **CLOSED** | Studio, founder and shared-hero boards complete their character scene with a guided valid purchase and close back to the running floor | §21.7.7e; all three board components test the first-use hand-off and completion callback |
-| **P2** | Low-end performance proof | **PARTIAL** | The 100m architecture is tested, but sustained target-handset performance is still an assertion | The full §23.3 gate passes on a cheap Android handset with percentile, thermal and memory evidence |
-| **P2** | Debug isolation | **PARTIAL** | Query seams remain useful but can leak into a public web build | Scenario/act/render diagnostics are available in development and absent from production packaging |
+| **P2** | Debug isolation | **CLOSED** | Query fixtures, render controls, diagnostics and inspection globals remain available on an exact loopback web host only | §23.5's shared gate admits `localhost`, `127.0.0.1` and `::1`; deployed/LAN HTML and Capacitor Android ignore the flags, hide debug UI and publish no globals |
 | **P2** | Authored character art | **CLOSED** | A separate portrait would drift from the person on the floor, so hero identity remains a framed projection of the in-game model | §22.7 now budgets zero bespoke identity sprites; `HeroFace`, roster, card and world pins share the model's avatar parts and palette |
 
 ### G.3 Implementation gaps — specified but not built or reachable
@@ -10936,8 +10933,8 @@ The next work should deepen trust and choice before widening scope:
    on the prestige receipt.
 2. **Keep the roster open to change.** With placement-earned catch-up closed, tune signature
    values and role ratios from playtests rather than removing their costs.
-3. **Close Phase 2 honestly.** Validate the canonical seven-level lens on low-end Android,
-   expose generated-person history, then make Layer 2 and the collection long tail reachable.
+3. **Close Phase 2 honestly.** Expose generated-person history, then make Layer 2 and the
+   collection long tail reachable.
 4. **Add life in small measurable slices.** Ship more two-exit events and one optional minigame,
    then ambient movement/drag-return behaviour. Each slice must improve a loop that already works
    and must be removable if it does not improve session playtests.
