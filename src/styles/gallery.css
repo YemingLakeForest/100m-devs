@@ -1,140 +1,467 @@
 /*
- * The §10.11 release gallery — a right-edge drawer, same geometry as the
- * upgrades drawer it sits beside. Own file rather than app.css for the same
- * reason tech.css is: one feature's worth of rules, and app.css is already
- * everything.
+ * The §10.11 release gallery — a wall of covers you slide through.
  *
- * §10.11.5's "what it must never become" is enforced structurally: there are no
- * buttons in here that change a release, and the drawer is a `Panel` (not a
- * modal) so the swarm keeps simulating behind it.
+ * §10.11.3's whole argument is that a generated cover per release makes a
+ * career legible *before a number is read*: the frame is tinted by §4.14's
+ * band, so a run of gold and cyan frames is a good studio and a run of grey
+ * ones is not. At 48 px in a list that system is invisible. Here the covers are
+ * the screen — one in focus, its neighbours turned away in perspective — and
+ * the numbers live underneath the one being looked at.
+ *
+ * §10.11.5's "what it must never become" is still enforced structurally: no
+ * control in here changes a release, and the sheet is a `Panel` and not a
+ * modal, so the swarm keeps simulating behind it.
  */
 
 .hud__gallery {
   position: absolute;
-  right: var(--edge-x);
-  bottom: calc(var(--edge-y) + 46px);
-  max-height: calc(100% - var(--edge-y) - 46px - 12px);
+  inset: var(--edge-y) var(--edge-x);
   overflow: hidden;
-  width: 360px;
-  max-width: calc(100% - 2 * var(--edge-x));
   pointer-events: auto;
   border: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 88%, transparent);
+  /* Opaque: a wall of covers with a burn-down showing through it is a wall of
+     covers nobody can read. */
+  background: var(--n0);
 }
 
 .gallery {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  justify-items: start;
-  padding: 10px 12px 12px;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 10px;
+  padding: 12px 14px;
+  height: 100%;
   min-height: 0;
-  max-height: 100%;
+}
+
+/* --- the ledger ----------------------------------------------------------- */
+
+.gallery__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: var(--rule) solid var(--p0);
+}
+
+.gallery__kicker {
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
 }
 
 .gallery__title {
-  margin: 0;
+  margin: 1px 0 0;
   font-size: var(--type-2x);
   font-weight: 400;
   letter-spacing: 3px;
   color: var(--p3);
 }
 
-.gallery__summary {
-  margin: 4px 0 0;
+.gallery__ledger {
+  display: flex;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.gallery__ledger > div {
+  display: grid;
+  gap: 1px;
+  padding: 2px 12px;
+  border-left: var(--rule) solid var(--p0);
+}
+
+.gallery__ledger dt {
   font-size: var(--type-1x);
   letter-spacing: 1px;
   color: var(--p1);
 }
 
-.gallery__summary b {
+.gallery__ledger dd {
+  margin: 0;
+  font-size: var(--type-1x);
   color: var(--p3);
-  font-weight: 400;
 }
 
-.gallery__scroll {
-  width: 100%;
+/* The number the screen is about, given the weight to match. */
+.gallery__ledger-wide dd {
+  font-size: var(--type-2x);
+  letter-spacing: 1px;
+}
+
+/* --- the wall ------------------------------------------------------------- */
+
+/*
+ * One row, absolutely positioned about the centre line.
+ *
+ * Absolute rather than a flex row that scrolls, because the covers **overlap**
+ * — that is the whole look — and an overlapping flow is a stacking problem
+ * rather than a layout one. Every slide sits at the centre and is pushed out by
+ * its own transform, so the arithmetic lives in one expression in the component
+ * and nothing here has to know how many releases there are.
+ */
+.gallery__flow {
+  position: relative;
   min-height: 0;
-  max-height: 46vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   display: grid;
-  gap: 6px;
-  align-content: start;
+  place-items: center;
+  /* The depth the turned covers are seen through. Shallow enough that a cover
+     forty places back is still a readable shape rather than a sliver. */
+  perspective: 1400px;
+  perspective-origin: 50% 45%;
+  overflow: hidden;
 }
 
-.gallery__section {
-  margin: 8px 0 0;
+.gallery__slide {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /*
+   * Half the slide's own height — cover plus the visible part of its
+   * reflection — so the shelf sits on the middle of the frame rather than
+   * hanging from it. An absolutely positioned child takes no part in the
+   * grid's `place-items`, so this is the centring.
+   */
+  margin-top: -150px;
+  display: grid;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  /* The slide, and it is the only animated property here — a wall that faded
+     between states would read as a crossfade rather than as a shelf turning. */
+  transition: transform 260ms cubic-bezier(0.22, 0.8, 0.3, 1), opacity 260ms linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery__slide {
+    transition: none;
+  }
+}
+
+.gallery__art .cover,
+.gallery__reflect .cover {
+  width: 152px;
+  height: 152px;
+}
+
+/* The focused cover is the only one drawn at full weight, and it is the only
+   one with the rating frame reading at its intended size. */
+.gallery__slide[data-focused='true'] .gallery__art .cover {
+  width: 176px;
+  height: 176px;
+}
+
+/*
+ * The reflection — what makes a row of tiles read as a shelf rather than as a
+ * carousel of thumbnails.
+ *
+ * Masked rather than faded with an overlay: an overlay would be a second
+ * element painting over the cover behind it, and at these opacities the seam
+ * shows. A mask removes the pixels instead.
+ */
+.gallery__reflect {
+  display: block;
+  margin-top: 2px;
+  transform: scaleY(-1);
+  opacity: 0.3;
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, rgba(0, 0, 0, 0.9) 70%);
+  mask-image: linear-gradient(to top, transparent 0%, rgba(0, 0, 0, 0.9) 70%);
+}
+
+.gallery__slide[data-focused='true'] .gallery__reflect .cover {
+  width: 176px;
+  height: 176px;
+}
+
+/*
+ * §10.11.5 forbids a leaderboard, and this is not one: there is no ranking and
+ * nothing to compete with. It is the studio noticing its own best work, which
+ * is the difference between a record and a scoreboard — and the reason to slide
+ * back through a career at all.
+ */
+.gallery__laurel {
+  padding: 2px 8px;
+  border: var(--rule) solid var(--p3);
   font-size: var(--type-1x);
   letter-spacing: 2px;
-  color: var(--p1);
-}
-
-.gallery__row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px;
-  align-items: start;
-  padding: 6px;
-  border: var(--rule) solid var(--p0);
-  background: color-mix(in srgb, var(--n1) 40%, transparent);
-}
-
-.gallery__info {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.gallery__name {
-  margin: 0;
-  font-size: var(--type-1x);
   color: var(--p3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.gallery__ordinal {
+/* --- the focused release -------------------------------------------------- */
+
+.gallery__now {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: var(--rule) solid var(--p0);
+  background: color-mix(in srgb, var(--n1) 34%, transparent);
+}
+
+.gallery__now-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gallery__now-name {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  font-size: var(--type-2x);
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: var(--p3);
+}
+
+.gallery__now-meta {
   margin: 0;
   font-size: var(--type-1x);
+  letter-spacing: 1px;
   color: var(--p1);
 }
 
-/* §10.11.1's ten-cell block bar — lit cells in the phosphor, gaps in the dark. */
-.gallery__rating {
+/*
+ * §4.14 and §4.10e on one line, because they are one fact: the score, and what
+ * the score did to the money. Printed together or not at all.
+ */
+.gallery__verdict {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gallery__score {
+  font-size: var(--type-3x);
+  line-height: 1;
+  color: var(--p3);
+}
+
+.gallery__score em {
+  font-size: var(--type-1x);
+  font-style: normal;
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+/* Above the §4.14.1 baseline the score paid; below it, the score charged. */
+.gallery__score[data-band='down'] {
+  color: var(--warn-2);
 }
 
 .gallery__rating-bar {
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   color: var(--p2);
 }
 
-.gallery__rating-num {
+.gallery__mult {
+  padding: 2px 8px;
+  border: var(--rule) solid var(--p2);
   font-size: var(--type-1x);
-  color: var(--p1);
-}
-
-.gallery__line {
-  margin: 0;
-  font-size: var(--type-1x);
-  color: var(--p1);
-}
-
-.gallery__line b {
+  letter-spacing: 1px;
   color: var(--p3);
+}
+
+.gallery__mult[data-band='down'] {
+  border-color: var(--warn-2);
+  color: var(--warn-2);
+}
+
+/*
+ * §4.14's six inputs, itemised rather than stacked into one bar.
+ *
+ * A stacked rule showed the *shape* of a score and never said what any band
+ * was. Six labelled chips say where the points came from, which is the question
+ * a player has when a release scores badly — and the colours still carry across
+ * the set, so the shape is readable at a glance as well.
+ */
+.gallery__breakdown {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery__part {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: var(--rule) solid var(--p0);
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.gallery__part-value {
+  color: var(--p3);
+}
+
+.gallery__slice {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+/*
+ * Six colours, and every one is already in the palette — ART_DIRECTION §2.1's
+ * rule that nothing on screen may be a colour the game does not otherwise
+ * contain. The live phosphor carries the four terms about *work*, so the set
+ * shifts with the studio's entropy; the two the player does not control borrow
+ * standing ramps — reception is the amber the HUD already uses for "watch
+ * this", and the organisation is the one green thing in the office.
+ */
+.gallery__slice[data-part='defects'] { background: var(--p3); }
+.gallery__slice[data-part='heroes'] { background: var(--p2); }
+.gallery__slice[data-part='sync'] { background: var(--foliage-1); }
+.gallery__slice[data-part='luck'] { background: var(--warn-2); }
+.gallery__slice[data-part='craft'] { background: var(--p1); }
+.gallery__slice[data-part='traits'] { background: var(--glow-1); }
+
+/* §10.11.1, word for word — what arrived, and how fast it is still arriving. */
+.gallery__money {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 2px 0 0;
+  font-size: var(--type-1x);
+  color: var(--p1);
+}
+
+.gallery__money-label {
+  letter-spacing: 2px;
+}
+
+.gallery__money b {
+  font-size: var(--type-2x);
   font-weight: 400;
+  letter-spacing: 1px;
+  color: var(--p3);
+}
+
+.gallery__earning {
+  color: var(--p2);
+}
+
+.gallery__retired {
+  letter-spacing: 2px;
+  color: var(--p1);
+  opacity: 0.7;
 }
 
 .gallery__empty {
   margin: 0;
+  place-self: center;
   font-size: var(--type-1x);
   color: var(--p1);
 }
 
+/* --- the transport -------------------------------------------------------- */
+
 .gallery__footer {
-  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: var(--rule) solid var(--p0);
+}
+
+.gallery__nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gallery__arrow {
+  min-width: 34px;
+  padding: 3px 8px;
+  border: var(--rule) solid var(--p0);
+  background: transparent;
+  color: var(--p2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.gallery__arrow:hover:not(:disabled) {
+  border-color: var(--p2);
+  color: var(--p3);
+}
+
+.gallery__arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.gallery__count {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+/*
+ * A short landscape handset cannot afford to stack the wall and the release
+ * receipt vertically. At 915x412 that left the covers a 62 px letterbox: the
+ * generated art was present, but almost all of it was clipped away.
+ *
+ * On that shape the wall and receipt become two columns under the ledger. The
+ * cover keeps a full square of art plus the start of its reflection, while the
+ * receipt uses the width the wall no longer needs. Header and transport still
+ * span the frame, so the reading order and carousel controls do not change.
+ */
+@media (min-width: 800px) and (max-height: 480px) {
+  .gallery {
+    grid-template-columns: minmax(230px, 0.78fr) minmax(0, 1.55fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .gallery__head {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    flex-wrap: nowrap;
+  }
+
+  .gallery__ledger {
+    flex-wrap: nowrap;
+  }
+
+  .gallery__ledger > div {
+    padding-inline: 8px;
+  }
+
+  .gallery__flow {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .gallery__slide {
+    /* The square is entirely in-frame; only the reflection is allowed to fade
+       through the bottom crop. */
+    margin-top: -108px;
+  }
+
+  .gallery__now {
+    grid-column: 2;
+    grid-row: 2;
+    align-content: center;
+    padding: 8px 10px;
+    overflow: hidden;
+  }
+
+  .gallery__footer {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
 }

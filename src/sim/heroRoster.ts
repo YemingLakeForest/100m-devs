@@ -249,6 +249,22 @@ export interface HeroFold {
   standupHeads: number
   /** Melany — reserved-capacity operating cost, dollars per second. */
   operatingCost: number
+  /**
+   * §4.14 — how much the placed bench adds to the *trait* input of the rating,
+   * 0..1, from CRAFT nodes only.
+   *
+   * **Separate from `rosterMastery`, and both are real.** Mastery asks how
+   * developed a hero is and counts every point they have spent; this asks
+   * whether they bought the one node on their branch that is explicitly about
+   * the quality of the thing shipped. A player who wants the rating has a
+   * named purchase to make rather than a statistic to accumulate — which is
+   * the whole difference between a lever and a side effect.
+   *
+   * Coverage-scaled like every other fold term: a hero reaching a tenth of the
+   * studio contributes a tenth of it, because §13.6.2's reach rule is what
+   * makes REACH worth three points and nothing may quietly opt out of it.
+   */
+  craft: number
 }
 
 /** The studio with nobody placed. §13.6.7 — "heroes are amplitude, not gate". */
@@ -263,6 +279,7 @@ export const NO_HERO_FOLD: HeroFold = {
   ticketRate: 1,
   standupHeads: 0,
   operatingCost: 0,
+  craft: 0,
 }
 
 /** One placed hero's contribution, as the fold needs it. */
@@ -276,6 +293,22 @@ function depthNodes(runtime: HeroRuntime): HeroTreeNode[] {
   return runtime.nodes
     .map((id) => HERO_NODE_BY_ID.get(id))
     .filter((n): n is HeroTreeNode => !!n && n.kind === 'depth')
+}
+
+/**
+ * What one CRAFT node adds to §4.14's trait input, at full coverage.
+ *
+ * Five branches, so a single hero who owned every CRAFT node on the board and
+ * covered the entire studio would contribute 0.6 of the term on their own —
+ * which is a great deal of board and a great deal of reach for two thirds of
+ * the smallest weight in the rating. First pass, on §25.3.2's standing rule.
+ */
+export const CRAFT_PER_NODE = 0.12
+
+function craftNodes(runtime: HeroRuntime): HeroTreeNode[] {
+  return runtime.nodes
+    .map((id) => HERO_NODE_BY_ID.get(id))
+    .filter((n): n is HeroTreeNode => !!n && n.kind === 'craft')
 }
 
 /**
@@ -370,6 +403,12 @@ export function heroFold(contributions: readonly HeroContribution[], totalDevs: 
         break
     }
 
+    // §4.14's CRAFT rungs. Weighted by §13.9.1's own-branch rule like
+    // everything else — Mo may buy Cloud's craft node and it is worth half.
+    for (const node of craftNodes(runtime)) {
+      out.craft += CRAFT_PER_NODE * nodeWeight(runtime.branch, node.branch) * share
+    }
+
     for (const [branch, fold] of [...BRANCH_BY_ID.keys()].map((b) => [b, branchFold(b)] as const)) {
       const depth = effectiveDepth(runtime, branch)
       if (depth <= 0) continue
@@ -402,6 +441,70 @@ export function heroFold(contributions: readonly HeroContribution[], totalDevs: 
   }
 
   return out
+}
+
+/**
+ * Points that finish a hero's own chain, past §13.9.1's free starting position.
+ *
+ * **Derived from the board rather than written down**, because the board is
+ * where it can change: `CHAIN_KINDS` decides which rungs are worth three points
+ * and `STORY_STARTING_DEPTH` decides how many are free, and a hard-coded seven
+ * here would silently stop meaning "their own branch, finished" the moment
+ * either moved.
+ *
+ * This is the reference §4.14's trait term measures a hero against — not the
+ * whole fifty-point board. A hero who has finished their own speciality is a
+ * *fully developed hero*; one who has also gone shopping in four other branches
+ * is a curiosity, and §13.9.1 is explicit that nothing stops them. Scoring
+ * against the whole board would mean the only way to a full trait score was to
+ * make all six heroes into the same generalist, which inverts the section.
+ */
+export const OWN_CHAIN_POINTS = (() => {
+  // Quality stands in for every specialist chain: `branchChain` builds all five
+  // from one `CHAIN_KINDS`, so they cost the same and any of them answers.
+  const free = new Set(startingNodes('quality'))
+  let points = 0
+  for (const node of HERO_TREE) {
+    if (node.branch !== 'quality' || free.has(node.id)) continue
+    points += nodePoints(node.kind)
+  }
+  return Math.max(1, points)
+})()
+
+/**
+ * How developed one hero is, 0..1 — §4.14's trait term, per person.
+ *
+ * Points *spent*, not points banked: §13.10's XP is a fact about how long they
+ * have been at work, and a hero sitting on twelve unspent points has learned
+ * nothing the release can benefit from. Capped at 1, so a generalist who has
+ * bought half the board does not print quality the specialist cannot reach.
+ */
+export function heroMastery(runtime: HeroRuntime): number {
+  return Math.min(1, Math.max(0, runtime.spent) / OWN_CHAIN_POINTS)
+}
+
+/**
+ * §4.14's trait term over the whole leadership bench, 0..1.
+ *
+ * **Divided by the size of the cast, not by how many have arrived.** Two fully
+ * developed heroes out of six is a third of a bench, and averaging over the
+ * arrivals would score it the same as six — which would make the term peak in
+ * Act I and fall every time somebody new walked in, punishing the player for
+ * the game's own story beats.
+ *
+ * Only *placed* heroes count. §13.6.7's rule that heroes are managed in the
+ * world rather than on a grid has an arithmetic half: a hero at their desk in
+ * §7.8.12's suite is visibly doing nothing, and a rating that paid for them
+ * anyway would say the opposite of what the screen says.
+ */
+export function rosterMastery(runtimes: readonly HeroRuntime[], castSize: number): number {
+  const cast = Math.max(1, Math.floor(castSize))
+  let sum = 0
+  for (const runtime of runtimes) {
+    if (!runtime.placement) continue
+    sum += heroMastery(runtime)
+  }
+  return Math.min(1, sum / cast)
 }
 
 /**

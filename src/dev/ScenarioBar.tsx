@@ -20,6 +20,15 @@
  * instrument that covers part of the thing it is an instrument for is worth one
  * toggle: click DEVS, or press 0.
  *
+ * ## The speed dial
+ *
+ * `?speed=40` shipped as a launch flag, and a pace you have to relaunch to
+ * change is a pace nobody changes. The dial is the same mechanism on a control:
+ * `dev/simSpeed.ts` holds the number, the frame loop reads it every frame, and
+ * the question it finally makes askable is the one anybody watching a studio
+ * has — *what does this look like in a minute?* — without throwing away the run
+ * that prompted it. `-` and `=` step it; the box takes anything up to ×60.
+ *
  * ## The three readouts
  *
  * Loading a headcount and looking at the screen leaves one question open —
@@ -44,6 +53,17 @@ import {
 import { PARK_CAP } from '../render/frames.ts'
 import { SITES_PER_GLOBE } from '../render/worldMap.ts'
 import { getState, subscribe } from '../game/store.ts'
+import {
+  SIM_SPEED_MAX,
+  SIM_SPEED_MIN,
+  SIM_SPEED_STOPS,
+  clampSimSpeed,
+  getSimSpeed,
+  nudgeSimSpeed,
+  setSimSpeed,
+  stopIndexFor,
+  subscribeSimSpeed,
+} from './simSpeed.ts'
 import { dominantView, rungAt, zAtRung } from '../sim/ladder.ts'
 import type { StageHandle } from '../render/stage.ts'
 import '../styles/scenarios.css'
@@ -65,8 +85,21 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
   // readouts are sampled on a frame rather than subscribed to. A tenth of a
   // second is faster than anybody reads a number and is not a per-frame cost.
   const [z, setZ] = useState(0)
+  /**
+   * The simulation clock, mirrored out of `dev/simSpeed.ts`.
+   *
+   * Mirrored rather than owned, because the frame loop reads the module
+   * directly and `?speed` seeds it before this component has ever rendered. A
+   * `useState` initialised from the module and kept in step by its subscription
+   * is the same shape the DEVS readout uses on the store, for the same reason.
+   */
+  const [speed, setSpeed] = useState(getSimSpeed)
+  /** What is in the speed box, if anything. Empty means "the dial is in charge". */
+  const [typedSpeed, setTypedSpeed] = useState('')
 
   useEffect(() => subscribe(() => setDevs(getState().devs)), [])
+
+  useEffect(() => subscribeSimSpeed(() => setSpeed(getSimSpeed())), [])
 
   useEffect(() => {
     if (!stage) return
@@ -118,6 +151,36 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
     stage?.camera.set(zAtRung(scenarioRung(s)))
   }
 
+  /**
+   * Move the clock, and say so in the note line.
+   *
+   * Every path in and out of the dial funnels through here so the note, the
+   * slider and the box can never disagree about what the studio is running at —
+   * the failure this bar's whole readout row exists to prevent.
+   */
+  const applySpeed = (next: number) => {
+    const landed = setSimSpeed(next)
+    setNote(
+      landed === SIM_SPEED_MIN
+        ? 'simulation running at real time'
+        : `simulation running ×${landed} — ${landed} ticks a frame, not a ×${landed} step`,
+    )
+    return landed
+  }
+
+  /**
+   * Rejects rather than clamps a non-number, on the same rule the headcount box
+   * follows: `clampSimSpeed('banana')` is ×1, and a blur that silently put a
+   * ×40 studio back into real time because there was a typo in the box is a
+   * tool undoing the thing it was asked to do.
+   */
+  const goSpeed = () => {
+    const raw = typedSpeed.trim()
+    if (raw === '' || !Number.isFinite(Number(raw))) return
+    applySpeed(clampSimSpeed(raw))
+    setTypedSpeed('')
+  }
+
   // 1-9 pick a scenario. Not a shortcut for its own sake: stepping the ladder
   // with a fingertip on the number row is how the comparison above actually
   // gets made, and reaching for a button breaks it.
@@ -131,6 +194,22 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
       if (e.target instanceof HTMLElement && e.target.tagName === 'INPUT') return
       if (e.key === '0') {
         setFolded((f) => !f)
+        return
+      }
+      // The clock, on the two keys next to the scenario row. Backtick is the way
+      // back to real time in one press, which matters more than it sounds:
+      // a studio left at ×60 while you go and read something is a studio that
+      // has shipped forty games by the time you look up.
+      if (e.key === '-' || e.key === '_') {
+        applySpeed(nudgeSimSpeed(-1))
+        return
+      }
+      if (e.key === '=' || e.key === '+') {
+        applySpeed(nudgeSimSpeed(1))
+        return
+      }
+      if (e.key === '`') {
+        applySpeed(SIM_SPEED_MIN)
         return
       }
       const i = Number(e.key) - 1
@@ -213,6 +292,56 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
             ADD
           </button>
         </div>
+        {/*
+          The clock. A second dial rather than a second row, because the
+          question it answers ("what does this look like in a minute?") is asked
+          *while* looking at a studio the row above just loaded — and a control
+          on a row that is not on screen is a control nobody reaches for.
+        */}
+        <div className="scenarios__dial">
+          <label htmlFor="scenario-speed">SPEED</label>
+          <input
+            id="scenario-speed"
+            type="range"
+            min="0"
+            max={SIM_SPEED_STOPS.length - 1}
+            step="1"
+            // The slider is an *index into the stops*, not the multiplier — see
+            // SIM_SPEED_STOPS for why a linear 1..60 slider is the wrong shape.
+            // A typed value between two stops parks the thumb on the stop below
+            // it, which is what `stopIndexFor` is for.
+            value={stopIndexFor(speed)}
+            onInput={(e) => applySpeed(SIM_SPEED_STOPS[Number(e.currentTarget.value)])}
+            aria-label="Simulation speed"
+            aria-valuetext={`${speed} times real time`}
+            title="how many ticks of simulation each frame runs — ` for real time, - and = to step"
+          />
+          <output htmlFor="scenario-speed">×{speed}</output>
+          <input
+            className={`scenarios__box scenarios__box--speed${
+              typedSpeed && clampSimSpeed(typedSpeed) !== Number(typedSpeed) ? ' is-bad' : ''
+            }`}
+            value={typedSpeed}
+            onChange={(e) => setTypedSpeed(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') goSpeed()
+            }}
+            onBlur={goSpeed}
+            placeholder="×"
+            title={`any multiplier from ${SIM_SPEED_MIN} to ${SIM_SPEED_MAX}, then Enter`}
+            aria-label="Simulation speed multiplier"
+          />
+          <button
+            type="button"
+            className={`scenarios__pick scenarios__add${speed === SIM_SPEED_MIN ? '' : ' is-on'}`}
+            onClick={() => applySpeed(SIM_SPEED_MIN)}
+            disabled={speed === SIM_SPEED_MIN}
+            aria-label="Run at real time"
+            title="back to real time — `"
+          >
+            1×
+          </button>
+        </div>
       </div>
       <div className="scenarios__read">
         <span>
@@ -223,6 +352,12 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
         </span>
         <span>
           VIEW <b>{dominantView(z)}</b>
+        </span>
+        {/* The clock, beside the three lens readouts and for the same reason
+            they are there: the failure this tool can hand somebody is a studio
+            that quietly did not change pace. */}
+        <span>
+          SPEED <b>×{speed}</b>
         </span>
         {/* How much of the planet this headcount has taken — the number nothing
             else on screen can say, and the one rung 6 is entirely about. */}

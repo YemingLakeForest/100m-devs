@@ -73,6 +73,22 @@ export interface ReleaseRecord {
   rating: number
   /** §13.6 — union of the build team covered by settled hero postings, 0..1. */
   heroCoverage?: number
+  /**
+   * §4.14's three added inputs, as they stood at ship — 0..1 each.
+   *
+   * Kept so §10.11.1 can show *why* a game scored what it scored. A rating with
+   * no breakdown behind it is a verdict the player cannot argue with, and the
+   * gallery is the screen where a run is argued with.
+   *
+   * Optional, on exactly the rule `heroCoverage` follows: a record written
+   * before these terms existed is a record of a release nobody measured them
+   * for, and the reader defaults each one to the garage rather than to zero —
+   * `rateRelease` documents why that is the honest default and not the
+   * convenient one.
+   */
+  sync?: number
+  traits?: number
+  luck?: number
   /** §4.10c's ladder payout — the tail's total, exactly. */
   payout: number
   /** Simulated seconds the build took — §10.11.1's "shipped 4 minutes ago". */
@@ -192,6 +208,13 @@ function maxRecord(a: ReleaseRecord, b: ReleaseRecord): ReleaseRecord {
     name: a.name <= b.name ? a.name : b.name,
     rating: Math.max(a.rating, b.rating),
     heroCoverage: Math.max(a.heroCoverage ?? 0, b.heroCoverage ?? 0),
+    // Field-wise max like everything else here — see the function's note. The
+    // breakdown is decoration on a rating that is itself maxed, so a merge
+    // cannot produce a breakdown that argues with the score beside it by more
+    // than the two documents already disagreed.
+    sync: Math.max(a.sync ?? 0, b.sync ?? 0),
+    traits: Math.max(a.traits ?? 0, b.traits ?? 0),
+    luck: Math.max(a.luck ?? 0, b.luck ?? 0),
     payout: Math.max(a.payout, b.payout),
     buildSeconds: Math.max(a.buildSeconds, b.buildSeconds),
     labourSeconds: Math.max(a.labourSeconds, b.labourSeconds),

@@ -17,7 +17,7 @@ import { BETA } from './defects.ts'
 import { advanceTail, rollShape, type Release } from './revenue.ts'
 
 function release(id: number, payout = 1_000, age = 0): Release {
-  return { id, name: `Game ${id}`, payout, age, paid: 0, shape: rollShape(1234, id), defectDensity: 0, rating: 50 }
+  return { id, ordinal: id, name: `Game ${id}`, payout, age, paid: 0, shape: rollShape(1234, id), defectDensity: 0, rating: 50 }
 }
 
 describe('§4.12a — ι is anchored to the tail, not chosen', () => {

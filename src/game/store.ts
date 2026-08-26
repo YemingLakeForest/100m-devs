@@ -19,6 +19,7 @@ import { developerAt, type Identity } from '../sim/identity.ts'
 import { outputShare, shareSum } from '../sim/aggregate.ts'
 import { outputClass, type OutputClass } from '../sim/output.ts'
 import {
+  UNKNOWN_ORDINAL,
   advanceTail,
   catalogueIncome,
   catalogueOutstanding,
@@ -46,6 +47,9 @@ import {
 import { advanceTickets, catalogueMultiplier, serviceRatio } from '../sim/support.ts'
 import {
   BASELINE_RATING,
+  LUCK_NEUTRAL,
+  luckRoll,
+  traitScore,
   DEFECT_DENSITY_ANCHOR,
   advanceReputation,
   prestigeMultiplier,
@@ -90,6 +94,7 @@ import {
   founderCost,
   founderEffects,
   founderLevel,
+  founderMastery,
   type FounderEffects,
 } from '../sim/founder.ts'
 import {
@@ -155,12 +160,14 @@ import {
   type LiveEvent,
 } from '../sim/events.ts'
 import { ARRIVAL_HEROES, STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
+import { GARAGE_SYNC, teamSync, type ServiceLoad } from '../sim/teamSync.ts'
 import {
   NO_HERO_FOLD,
   buyHeroNode,
   heroCoverage,
   heroFold,
   heroRuntime,
+  rosterMastery,
   type HeroContribution,
   type HeroCoverage,
   type HeroFold,
@@ -720,6 +727,27 @@ export interface GameState {
    * that was useful. Resets on ship, like {@link projectSeconds}.
    */
   projectLabourSeconds: number
+  /**
+   * §4.14 — ∫ η_dev dt over the current project, in seconds.
+   *
+   * The **other** integral, and deliberately the mirror image of
+   * {@link projectLabourSeconds}: labour is headcount *not* divided by
+   * efficiency, and this is efficiency with the headcount divided out. Together
+   * they say what the project cost and how well the company was working while it
+   * cost it, which are the two halves `teamSync.ts` needs and neither of which
+   * can be recovered from the other.
+   *
+   * Integrated rather than sampled at ship, and `teamSync.ts` explains why at
+   * length: an instant reading would let a studio spend four minutes at 40%
+   * efficiency, hire a Cloud hero on the final frame, and be scored as though it
+   * had been organised the whole time.
+   *
+   * Ephemeral (§24.2) and resets on ship, on exactly the rule
+   * {@link projectSeconds} follows — it is the numerator of a ratio whose
+   * denominator is also ephemeral, so the two can only ever disagree by being
+   * restored separately.
+   */
+  projectFlowSeconds: number
 }
 
 /**
@@ -827,6 +855,7 @@ function freshRun(): GameState {
     runSeconds: 0,
     projectSeconds: 0,
     projectLabourSeconds: 0,
+    projectFlowSeconds: 0,
     // §4.11 — an empty studio. There is no QA in a garage, and the joke §4.11
     // is making only lands once the player has been given something to protect.
     roster: newRoster(0),
@@ -1390,6 +1419,31 @@ function recordHistoryRelease(record: ReleaseRecord): void {
   })
 }
 
+/**
+ * What §4.13's queue and §4.12a's pager are asking of the studio right now.
+ *
+ * Assembled here rather than inside `teamSync.ts` for the standing reason the
+ * `sim/` modules are pure: the shape of a roster, the founder's diluted heads
+ * and the open incident list are all store facts, and a scoring module that
+ * reached for them would be a scoring module that could not be tested without a
+ * game running.
+ *
+ * The founder is on both counts at {@link FOUNDER_ROLE_HEADS}, exactly as they
+ * are in `tick`. Leaving them out here would score a garage as unstaffed for a
+ * catalogue the founder is in fact personally answering the email for, which is
+ * §13.7.1's whole point about the manager who can do everything badly.
+ */
+function serviceLoad(s: GameState): ServiceLoad {
+  const counts = countsOf(s.roster)
+  return {
+    supportHeads: counts.support + FOUNDER_ROLE_HEADS + s.heroFold.supportHeads,
+    sreHeads: counts.sre + FOUNDER_ROLE_HEADS,
+    catalogue: s.projectsShipped,
+    defectBacklog: s.defects,
+    openIncidents: s.incidents.length,
+  }
+}
+
 /** Ship the current project and roll to the next — §21 Act II. */
 function shipProject(s: GameState): Partial<GameState> {
   const tech = techEffects(s.tech)
@@ -1419,6 +1473,64 @@ function shipProject(s: GameState): Partial<GameState> {
     ? shipDefects(s.defects, s.commitment.toNumber()).density
     : DEFECT_DENSITY_ANCHOR
   const coveredByHeroes = graded ? releaseHeroCoverage(s) : 0
+
+  // §10.11's career ordinal, resolved **before** the rating rather than beside
+  // the history record, because §4.14's luck is drawn from it: reception has to
+  // be a fact about *which* release this is, so that a reload cannot reroll a
+  // review the player has already read.
+  const ordinal = nextOrdinal(getPermanent().meta.history)
+
+  /**
+   * §4.14 — reception. One of six inputs, bounded, and deterministic in the run
+   * seed. See `luckRoll` for the line of §4.10e this is read against.
+   *
+   * §13.7.1's Friends At The Press lifts the floor of the roll and never its
+   * ceiling: the same draw, compressed into the top of the range, so a studio
+   * that has bought it can no longer flop outright and can still be beaten by
+   * one that ships a better game.
+   */
+  const floor = founderOf().luckFloor
+  const luck = graded ? floor + (1 - floor) * luckRoll(s.runSeed, ordinal) : LUCK_NEUTRAL
+
+  /**
+   * §4.14 — how in sync the team was, over the whole build.
+   *
+   * This is §6's thesis finally priced. §4.1's entropy already decided how
+   * *much* got built; `teamSync.ts` reads the same curve a second time to
+   * decide how *well*, so a studio that outgrew its own communication
+   * bandwidth now ships worse games and not merely later ones.
+   */
+  const sync = graded
+    ? teamSync({
+        flowSeconds: s.projectFlowSeconds,
+        projectSeconds: s.projectSeconds,
+        load: serviceLoad(s),
+      })
+    : GARAGE_SYNC
+
+  /**
+   * §4.14 — whether the people are any good, as against §13.6's question of
+   * whether they were *there*.
+   *
+   * Heroes are counted over the whole cast and only while placed; see
+   * `rosterMastery`. The founder's half is the Management tree, per node rather
+   * than per level, so You Know A Guy cannot buy a good review.
+   */
+  const traits = graded
+    ? Math.min(
+        1,
+        traitScore(
+          founderMastery(getPermanent().meta.founderLevels),
+          rosterMastery(heroRoster(s), STORY_HEROES.length),
+        ) +
+          // §13.9's CRAFT rungs, the one purchase on either board that is
+          // explicitly about the score. Added rather than folded into mastery
+          // so the player has a *named* thing to buy for the rating instead of
+          // a statistic that goes up when they buy anything at all.
+          s.heroFold.craft,
+      )
+    : 0
+
   const rating = graded
     ? rateRelease({
         defects: s.defects,
@@ -1429,6 +1541,9 @@ function shipProject(s: GameState): Partial<GameState> {
         // §4.9a pins the roster mean at 1.0, and `craftScore` turns that into
         // ½. The term goes quiet as the studio grows, which §4.14 calls design.
         craft: 1,
+        sync,
+        traits,
+        luck,
       })
     : BASELINE_RATING
 
@@ -1453,11 +1568,17 @@ function shipProject(s: GameState): Partial<GameState> {
   // serialised by the next `saveGame`, on the same cadence the live catalogue
   // (`releases`) already follows rather than on every ship.
   recordHistoryRelease({
-    ordinal: nextOrdinal(getPermanent().meta.history),
+    ordinal,
     run: getPermanent().meta.paradigmShifts,
     name: s.sprintName,
     rating,
     heroCoverage: coveredByHeroes,
+    // §4.14's three additions, carried so §10.11 can show *why* a game scored
+    // what it scored. A rating with no breakdown is a verdict the player cannot
+    // argue with, and §10.11.1 is a screen for arguing with verdicts.
+    sync,
+    traits,
+    luck,
     payout: revenue,
     buildSeconds: s.projectSeconds,
     labourSeconds: s.projectLabourSeconds,
@@ -1485,6 +1606,11 @@ function shipProject(s: GameState): Partial<GameState> {
       ...s.releases,
       {
         id: nextReleaseId++,
+        // §10.11 — the same career ordinal the history record carries, so the
+        // gallery can ask the live catalogue what a *remembered* release has
+        // actually paid so far. `id` cannot answer that: it is a run-local
+        // counter and the history outlives the run.
+        ordinal,
         name: s.sprintName,
         payout: revenue,
         age: 0,
@@ -1508,6 +1634,7 @@ function shipProject(s: GameState): Partial<GameState> {
     // the history record a few lines above.
     projectSeconds: 0,
     projectLabourSeconds: 0,
+    projectFlowSeconds: 0,
   }
 }
 
@@ -1620,7 +1747,15 @@ export function tick(dtSeconds: number): void {
   // deleted after the fact, and charging it here keeps `defectsFromPoke` and
   // this on one curve.
   const defects = open
-    ? advanceDefects(state.defects, (gained / dtSeconds) * heroes.defects, qaShare, dtSeconds)
+    ? advanceDefects(
+        state.defects,
+        // §13.7.1 — and you, at MANAGEMENT_DILUTION of what Mo does. Applied to
+        // the same velocity the hero fold is, so Taste and the Quality branch
+        // compose rather than being two rules about one number.
+        (gained / dtSeconds) * heroes.defects * founderOf().defectScale,
+        qaShare,
+        dtSeconds,
+      )
     : 0
 
   // §4.12a — the released catalogue pages you, weighted by who is still playing.
@@ -1694,6 +1829,14 @@ export function tick(dtSeconds: number): void {
     // the raw headcount, not the working headcount and not efficiency-adjusted.
     projectSeconds: state.projectSeconds + dtSeconds,
     projectLabourSeconds: state.projectLabourSeconds + state.devs * dtSeconds,
+    // §4.14 — the other integral. `e` is this frame's §4.1 entropy and
+    // `localEntropy` is §4.9's context switch, so what accumulates here is the
+    // efficiency of a developer who is both diluted *and* being poked at. The
+    // player's thumb is a source of the disorder this term measures, which is
+    // §4.5a's trade finally stated in both currencies rather than only the
+    // flattering one.
+    projectFlowSeconds:
+      state.projectFlowSeconds + devEfficiency(1 - e, localEntropy) * dtSeconds,
     // Exponential decay towards zero. Paired with the impulse `poke` adds, this
     // settles on the player's true taps-per-second rather than spiking on each
     // one — a readout that jumped to a huge number and back on every tap would
@@ -3499,6 +3642,11 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       // reload would silently upgrade the whole back catalogue and mute §4.12a.
       defectDensity: rel.defectDensity ?? DEFECT_DENSITY_ANCHOR,
       rating: rel.rating ?? BASELINE_RATING,
+      // §10.11 — `UNKNOWN_ORDINAL` for a document written before the catalogue
+      // knew its own career position. The gallery reads that as "this release
+      // is not one of the ones I am tracking" and falls back to the recorded
+      // payout, which is the honest answer rather than a wrong join.
+      ordinal: rel.ordinal ?? UNKNOWN_ORDINAL,
     })),
     // §4.11 — `normaliseRoster` has already reconciled this against `devs`, so
     // it is taken as given rather than re-derived here. One repair, in the

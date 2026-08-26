@@ -84,6 +84,17 @@ export interface ReleaseShape {
 }
 
 /**
+ * A release the catalogue is tracking but the career history cannot name.
+ *
+ * Only ever produced by loading a save written before releases carried their
+ * career position. The gallery treats it as "not one of the ones I know about"
+ * and shows the recorded payout rather than joining to the wrong game — see
+ * `Gallery.tsx`. Negative rather than `undefined` so the field is never
+ * optional and no caller has to remember that it might not be there.
+ */
+export const UNKNOWN_ORDINAL = -1
+
+/**
  * A game on sale — GDD §4.10e.
  *
  * `paid` rather than "remaining" so the arithmetic is a difference against a
@@ -94,6 +105,19 @@ export interface ReleaseShape {
  */
 export interface Release {
   id: number
+  /**
+   * §10.11's career ship ordinal — the join to the permanent history record.
+   *
+   * **Not `id`.** `id` is a run-local counter that a Paradigm Shift resets and
+   * that two devices can assign to different games; the history outlives both
+   * and is keyed on the ordinal. Carrying it here is what lets §10.11's gallery
+   * ask a *remembered* release how much of its money has actually arrived,
+   * which is the only question §4.10e's tail can answer and the record cannot.
+   *
+   * {@link UNKNOWN_ORDINAL} on a release restored from a save written before
+   * this field existed.
+   */
+  ordinal: number
   name: string
   /** The §4.10c ladder payout. The tail's total, exactly. */
   payout: number
@@ -247,4 +271,35 @@ export function catalogueOutstanding(releases: readonly Release[]): number {
   let total = 0
   for (const release of releases) total += release.payout - release.paid
   return total
+}
+
+/**
+ * What each still-earning release has left to pay, keyed by career ordinal —
+ * §10.11's running lifetime revenue.
+ *
+ * The gallery remembers a release's **payout**, which is what it will earn over
+ * its whole life; §4.10e means the money is still arriving for four minutes
+ * after that number is written down. Printing the payout as a total is
+ * therefore a small lie the gallery told on every fresh release — a launch
+ * announced as a completed sale — and this is the correction: the recorded
+ * payout minus whatever this map says is still outstanding is the money that
+ * has *actually arrived*, which is a number that ticks up while you watch it.
+ *
+ * Keyed by {@link Release.ordinal} rather than by `id` because the history is
+ * career-wide and `id` is not. A release carrying {@link UNKNOWN_ORDINAL} — one
+ * restored from a save written before the field existed — is skipped rather
+ * than collapsed into a bucket, since every one of them shares that value and a
+ * shared key would subtract one game's tail from a different game's total.
+ *
+ * Retired releases are simply absent, which reads correctly without a special
+ * case: nothing is outstanding on a game that has finished paying.
+ */
+export function outstandingByOrdinal(releases: readonly Release[]): Map<number, number> {
+  const out = new Map<number, number>()
+  for (const release of releases) {
+    if (release.ordinal < 0) continue
+    const left = release.payout - release.paid
+    if (left > 0) out.set(release.ordinal, left)
+  }
+  return out
 }

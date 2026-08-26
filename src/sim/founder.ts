@@ -113,6 +113,39 @@ export interface FounderNode {
   baseCost: number
   mult: number
   maxLevel: number
+  /**
+   * Where this node sits on §13.7.1's board, in cells from the manager.
+   *
+   * **Layout lives on the node, exactly as it does on §11's tech tree and
+   * §13.9's hero tree.** §11.4.1's "one board grammar, learned once, used in
+   * two places" is now used in three, and a third board that kept its
+   * coordinates somewhere else would be a third board with its own answer to
+   * the same question.
+   *
+   * **A fan of four columns, not a spine.** Two rows of four around the
+   * manager, and each column is one borrowed spine:
+   *
+   * ```
+   *   [ Touch Typing ] [ Reading It Back ] [ Founder-Led ] [ Always On Call ]
+   *          |                 |                 |                |
+   *          +--------+--------+---- ( YOU ) ----+-------+--------+
+   *          |                 |                 |                |
+   *   [ You Know A Guy ] [    Taste     ] [ Friends At   ] [ Walking Around ]
+   *                                        [  The Press  ]
+   * ```
+   *
+   * Wide rather than tall on purpose: this board is drawn **whole** rather than
+   * panned (see `FounderBranch`), and the room a §10 panel has is much wider
+   * than it is high. A five-row spine had to be shrunk to 45% to fit, which is
+   * a diagram nobody can read; four columns of two fit at full size.
+   *
+   * Pairing each column with a spine also does the section's work for it: the
+   * player reads *two* borrowed engineering skills, *two* borrowed QA skills,
+   * and so on, which is §13.7.1's "a diluted copy of every other tree" as a
+   * shape before it is a sentence.
+   */
+  x: number
+  y: number
 }
 
 /**
@@ -166,6 +199,31 @@ export const RECRUITING_HALVING = 2
 export const FOUNDER_TAP_SECONDS = 2
 
 /**
+ * §4.14, §4.12 — what one level of Taste takes off the defect arrival rate.
+ *
+ * The Management dilution of §22.8's Quality branch, which multiplies defects
+ * by 0.85 per node: the manager's copy of reading it back is worth
+ * {@link MANAGEMENT_DILUTION} of that, so a level removes six per cent rather
+ * than fifteen. Three levels is a sixth fewer defects — real, and nowhere near
+ * what Mo does, which is §13.7.1's whole shape.
+ */
+export const TASTE_DEFECT_STEP = 1 - (1 - 0.85) * MANAGEMENT_DILUTION
+
+/**
+ * §4.14 — the floor Friends At The Press puts under a release's reception.
+ *
+ * It does **not** raise the ceiling, and that is the design. A node that made
+ * good games score better would be a node that multiplies success; this one
+ * stops the bad roll, which is what knowing a journalist actually buys. The
+ * mean of the roll moves from ½ to about 0.63, worth roughly a point and a half
+ * of rating, and the worst review the studio can now receive is a mild one.
+ *
+ * It is also the only place in the game where the player buys their way out of
+ * variance, so it is a TRAIT — one level, expensive, never again.
+ */
+export const PRESS_LUCK_FLOOR = 0.25
+
+/**
  * The Management tree — §13.7.1, four borrowed spines and a reach.
  *
  * Every node acts on something that exists today. §13.7's Quality, Support and
@@ -186,6 +244,8 @@ export const FOUNDER_TREE: readonly FounderNode[] = [
     baseCost: 400,
     mult: 1.9,
     maxLevel: 10,
+    x: -3,
+    y: -1,
   },
   {
     id: 'M-CLOUD',
@@ -210,6 +270,8 @@ export const FOUNDER_TREE: readonly FounderNode[] = [
     baseCost: 6_000,
     mult: 6,
     maxLevel: 12,
+    x: -3,
+    y: 1,
   },
   {
     id: 'M-QA',
@@ -221,6 +283,8 @@ export const FOUNDER_TREE: readonly FounderNode[] = [
     baseCost: 25_000,
     mult: 1,
     maxLevel: 1,
+    x: -1,
+    y: -1,
   },
   {
     id: 'M-SUP',
@@ -232,6 +296,8 @@ export const FOUNDER_TREE: readonly FounderNode[] = [
     baseCost: 60_000,
     mult: 1,
     maxLevel: 1,
+    x: 1,
+    y: -1,
   },
   {
     id: 'M-REL',
@@ -243,6 +309,56 @@ export const FOUNDER_TREE: readonly FounderNode[] = [
     baseCost: 150_000,
     mult: 1,
     maxLevel: 1,
+    x: 3,
+    y: -1,
+  },
+  {
+    /**
+     * §4.14's node on this board — the founder's half of the rating, bought
+     * rather than accumulated.
+     *
+     * §13.7.1's Quality spine, diluted. It bends §4.12's arrival rate, so it
+     * reaches the rating through the term §4.14 calls dominant rather than by
+     * adding points to a score — which is the difference between a skill and a
+     * cheat, and the reason this is a DEPTH node with three levels rather than
+     * a flat bonus.
+     */
+    id: 'M-TASTE',
+    name: 'Taste',
+    kind: 'DEPTH',
+    borrowedFrom: 'quality',
+    flavour: 'You cannot say what is wrong with it. You are, annoyingly, right.',
+    effect: 'You look at the build before it ships — fewer defects go out with it',
+    baseCost: 90_000,
+    mult: 4.5,
+    maxLevel: 3,
+    x: -1,
+    y: 1,
+  },
+  {
+    /**
+     * §4.14's luck, floored. See {@link PRESS_LUCK_FLOOR} for why it lifts the
+     * bottom of the roll and never the top.
+     */
+    id: 'M-PRESS',
+    name: 'Friends At The Press',
+    kind: 'TRAIT',
+    borrowedFrom: 'support',
+    flavour: 'You have not bribed anybody. You have simply been available for eleven years.',
+    effect: 'Reviews are kinder than the game deserves — a release can no longer flop outright',
+    /*
+     * $320K rather than a round $400K, and the reason is a test rather than a
+     * balance argument: `formatMoney(400_000)` is "$400K", which is the same
+     * opening four characters as Touch Typing's "$400". Two controls on one
+     * board whose accessible names cannot be told apart is a real defect for
+     * anybody driving this screen with a screen reader, and the guided-purchase
+     * test caught it by being unable to choose between them.
+     */
+    baseCost: 320_000,
+    mult: 1,
+    maxLevel: 1,
+    x: 1,
+    y: 1,
   },
   {
     id: 'M-REACH',
@@ -254,10 +370,71 @@ export const FOUNDER_TREE: readonly FounderNode[] = [
     baseCost: 500_000,
     mult: 2.4,
     maxLevel: 3,
+    x: 3,
+    y: 1,
   },
 ]
 
 export const FOUNDER_BY_ID = new Map(FOUNDER_TREE.map((n) => [n.id, n]))
+
+/**
+ * Where the manager stands. Every node hangs off it — §13.7.1 has no chains.
+ *
+ * That is the section drawn rather than described: the specialist trees are
+ * *spines*, six deep, and this one is a hub with five spokes and no depth
+ * anywhere. A player who has seen §13.9's board reads the difference before
+ * reading a word of it.
+ */
+export const FOUNDER_ORIGIN = { x: 0, y: 0 } as const
+
+/** A polyline in board cells — one point per corner, two segments at most. */
+export type FounderPath = ReadonlyArray<{ x: number; y: number }>
+
+/**
+ * §11.4.1's right angles, for the Management board.
+ *
+ * **Across first, then up or down** — the opposite of `heroTree.connectorPath`,
+ * and the difference is the difference between the two boards. §13.9's is a
+ * trunk with branches, so its corners belong on the trunk's column. This one is
+ * a hub with *columns*, so the corner belongs on the column: every connector
+ * runs out along the manager's own row, turns once, and arrives from directly
+ * above or below.
+ *
+ * That is what makes the picture legible. The two nodes of a column share their
+ * corner exactly, so each column gets one Gliffy fork dot on the manager's row,
+ * and a player reads four spines rather than eight unrelated spokes. Turning
+ * the other way would have run the horizontal leg straight through whichever
+ * node sat between the manager and the target — the collision that made the
+ * five-row spine the only workable shape before this.
+ */
+export function founderConnectorPath(id: string): FounderPath {
+  const node = FOUNDER_BY_ID.get(id)
+  if (!node) return []
+  if (node.x === FOUNDER_ORIGIN.x || node.y === FOUNDER_ORIGIN.y) {
+    return [FOUNDER_ORIGIN, { x: node.x, y: node.y }]
+  }
+  return [FOUNDER_ORIGIN, { x: node.x, y: FOUNDER_ORIGIN.y }, { x: node.x, y: node.y }]
+}
+
+/** The board's grid extent, in cells, for sizing the diagram. */
+export function founderBoardBounds(): {
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+} {
+  let minX: number = FOUNDER_ORIGIN.x
+  let maxX: number = FOUNDER_ORIGIN.x
+  let minY: number = FOUNDER_ORIGIN.y
+  let maxY: number = FOUNDER_ORIGIN.y
+  for (const node of FOUNDER_TREE) {
+    minX = Math.min(minX, node.x)
+    maxX = Math.max(maxX, node.x)
+    minY = Math.min(minY, node.y)
+    maxY = Math.max(maxY, node.y)
+  }
+  return { minX, maxX, minY, maxY }
+}
 
 export type FounderLevels = Readonly<Record<string, number>> | undefined
 
@@ -282,6 +459,27 @@ function wholeLevel(value: unknown): number {
 /** §11.0's curve, reused. One cost rule in the product is enough. */
 export function founderCost(node: FounderNode, currentLevel: number): number {
   return Math.round(node.baseCost * node.mult ** Math.max(0, currentLevel))
+}
+
+/**
+ * How far the Management tree has been taken, 0..1 — §4.14's trait term.
+ *
+ * **The mean of each node's own share, not the share of all levels.** M-CLOUD
+ * has twelve levels and everything else has one or three, so summing levels and
+ * dividing by the total would make this node *four fifths of the founder* — and
+ * You Know A Guy is a recruiting discount, which has nothing to do with whether
+ * the game you shipped was any good. Per-node normalisation asks the question
+ * §13.7.1 actually poses: how much of the manager's breadth have you bought?
+ *
+ * Zero for a founder who has learned nothing, which is what a garage is and
+ * what §4.14.1's baseline is calibrated against.
+ */
+export function founderMastery(levels: FounderLevels): number {
+  let sum = 0
+  for (const node of FOUNDER_TREE) {
+    sum += Math.min(1, founderLevel(levels, node.id) / Math.max(1, node.maxLevel))
+  }
+  return FOUNDER_TREE.length > 0 ? sum / FOUNDER_TREE.length : 0
 }
 
 export function canBuyFounder(node: FounderNode, levels: FounderLevels, cash: number): boolean {
@@ -311,6 +509,22 @@ export interface FounderEffects {
    * the wall by three developers and a change to the base moves it by a factor.
    */
   hireGrowth: number
+  /**
+   * §4.12 — multiplies the defect arrival rate. Below 1 is an improvement.
+   *
+   * Taste, and it lands on the *arrival* rather than on the backlog for the
+   * same reason Mo's branch does: quality work means fewer defects written, not
+   * defects deleted after the fact.
+   */
+  defectScale: number
+  /**
+   * §4.14 — the floor under {@link luckRoll}, 0..1.
+   *
+   * Friends At The Press. Applied as `floor + (1 − floor) · roll`, which lifts
+   * the bad half of the distribution and leaves the good half exactly where it
+   * was.
+   */
+  luckFloor: number
 }
 
 export const NO_FOUNDER: FounderEffects = {
@@ -321,6 +535,8 @@ export const NO_FOUNDER: FounderEffects = {
   worksOffline: false,
   reachRows: 0,
   hireGrowth: HIRE_COST_GROWTH,
+  defectScale: 1,
+  luckFloor: 0,
 }
 
 /**
@@ -351,6 +567,13 @@ export function founderEffects(levels: FounderLevels): FounderEffects {
     worksOffline: founderLevel(levels, 'M-REL') > 0,
     reachRows: Math.min(3, founderLevel(levels, 'M-REACH')),
     hireGrowth: hireGrowthFor(founderLevel(levels, 'M-CLOUD')),
+    // §4.14, §4.12 — Taste. Compounding per level, on the same shape §22.8's
+    // Quality branch uses, so the two stack without either one being a second
+    // rule about the same number.
+    defectScale: TASTE_DEFECT_STEP ** Math.min(3, founderLevel(levels, 'M-TASTE')),
+    // §4.14 — Friends At The Press. Lifts the bad half of the roll and leaves
+    // the good half exactly where it was; see PRESS_LUCK_FLOOR.
+    luckFloor: founderLevel(levels, 'M-PRESS') > 0 ? PRESS_LUCK_FLOOR : 0,
   }
 }
 

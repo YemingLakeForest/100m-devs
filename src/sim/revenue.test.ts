@@ -15,6 +15,7 @@ const SEEDS = [1, 9, 77, 4242, 0x9e3779b9]
 function release(seed: number, ordinal: number, payout: number): Release {
   return {
     id: ordinal,
+    ordinal,
     name: `Game ${ordinal}`,
     payout,
     age: 0,

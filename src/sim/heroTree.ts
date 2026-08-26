@@ -89,14 +89,26 @@ export function branchColour(branch: HeroBranch): string {
  * `trunk` is the centre — owned by everybody, free, and the anchor the reveal
  * grows out of. It is not a purchase and it is not a kind of upgrade.
  */
-export type HeroNodeKind = 'trunk' | 'depth' | 'reach'
+export type HeroNodeKind = 'trunk' | 'depth' | 'reach' | 'craft'
 
 /** §13.13 — what one node costs in points. REACH is always the dearest available. */
 export const DEPTH_POINTS = 1
 export const REACH_POINTS = 3
 
+/**
+ * §4.14's node — the last rung of every chain, and the only one that buys a
+ * *rating* rather than a rate.
+ *
+ * Two points: dearer than DEPTH because it is the end of a branch and cheaper
+ * than REACH because REACH is still the decision the board is about. §13.13's
+ * rule is that REACH is always the dearest thing available, and this keeps it.
+ */
+export const CRAFT_POINTS = 2
+
 export function nodePoints(kind: HeroNodeKind): number {
-  return kind === 'reach' ? REACH_POINTS : kind === 'depth' ? DEPTH_POINTS : 0
+  if (kind === 'reach') return REACH_POINTS
+  if (kind === 'craft') return CRAFT_POINTS
+  return kind === 'depth' ? DEPTH_POINTS : 0
 }
 
 /** One node on the shared board. */
@@ -123,7 +135,7 @@ export interface HeroTreeNode {
  * be "the beginning of an argument, not the end of one", and a completed branch
  * is the end of one.
  */
-export const CHAIN_LENGTH = 6
+export const CHAIN_LENGTH = 7
 
 /**
  * The kind of each rung of a chain, in order.
@@ -134,20 +146,37 @@ export const CHAIN_LENGTH = 6
  * Run 2 studio, and §13.8's placement puzzle would be solved before the player
  * had seen it. The first REACH node is the visible goal instead.
  */
-const CHAIN_KINDS: readonly HeroNodeKind[] = ['depth', 'depth', 'depth', 'reach', 'depth', 'reach']
+/**
+ * The kind of each rung of a chain, in order.
+ *
+ * The seventh is §4.14's CRAFT node, and it is deliberately **last**. Every
+ * other rung buys a rate — fewer defects, more cap, further reach — and this
+ * one buys the score the release is judged on, which is the thing a branch is
+ * *for* once it can already do its job. Put earlier it would be a quality
+ * bonus bought before there was any quality to have.
+ */
+const CHAIN_KINDS: readonly HeroNodeKind[] = [
+  'depth',
+  'depth',
+  'depth',
+  'reach',
+  'depth',
+  'reach',
+  'craft',
+]
 
 /** Where each branch's chain runs, in board cells, from the cell nearest the centre. */
 const CHAIN_PATHS: Record<Exclude<HeroBranch, 'engineering'>, ReadonlyArray<readonly [number, number]>> = {
   // North.
-  quality: [[0, -1], [0, -2], [0, -3], [0, -4], [0, -5], [0, -6]],
+  quality: [[0, -1], [0, -2], [0, -3], [0, -4], [0, -5], [0, -6], [0, -7]],
   // East.
-  reliability: [[1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0]],
+  reliability: [[1, 0], [2, 0], [3, 0], [4, 0], [5, 0], [6, 0], [7, 0]],
   // West.
-  cohesion: [[-1, 0], [-2, 0], [-3, 0], [-4, 0], [-5, 0], [-6, 0]],
+  cohesion: [[-1, 0], [-2, 0], [-3, 0], [-4, 0], [-5, 0], [-6, 0], [-7, 0]],
   // South-west, off the southern stem — see {@link connectorPath}.
-  support: [[-2, 2], [-2, 3], [-2, 4], [-2, 5], [-2, 6], [-2, 7]],
+  support: [[-2, 2], [-2, 3], [-2, 4], [-2, 5], [-2, 6], [-2, 7], [-2, 8]],
   // South-east, the same.
-  cloud: [[2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]],
+  cloud: [[2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7], [2, 8]],
 }
 
 const CHAIN_EFFECT: Record<Exclude<HeroBranch, 'engineering'>, string> = {
@@ -158,6 +187,23 @@ const CHAIN_EFFECT: Record<Exclude<HeroBranch, 'engineering'>, string> = {
   cloud: 'Raises the developer cap',
 }
 
+/**
+ * §4.14's CRAFT rung, per branch — what *good at this job* looks like on a
+ * shipped game rather than on a rate.
+ *
+ * One sentence each, and each one is the branch's own claim about quality:
+ * quality signs it off, reliability makes it hold, cohesion makes it one thing,
+ * support knows what players complained about last time, cloud stops the
+ * infrastructure being the excuse.
+ */
+const CHAIN_CRAFT: Record<Exclude<HeroBranch, 'engineering'>, string> = {
+  quality: 'Nothing ships until they have played it — releases score higher',
+  reliability: 'Built to stay up — releases score higher',
+  cohesion: 'One team, one build — releases score higher',
+  support: 'They already know what players hated — releases score higher',
+  cloud: 'The platform stops being the excuse — releases score higher',
+}
+
 function branchChain(branch: Exclude<HeroBranch, 'engineering'>): HeroTreeNode[] {
   return CHAIN_PATHS[branch].map(([x, y], i) => ({
     id: `${branch}:${i + 1}`,
@@ -166,7 +212,12 @@ function branchChain(branch: Exclude<HeroBranch, 'engineering'>): HeroTreeNode[]
     kind: CHAIN_KINDS[i] ?? 'depth',
     x,
     y,
-    effect: CHAIN_KINDS[i] === 'reach' ? 'Reaches one rung further up §7.7’s ladder' : CHAIN_EFFECT[branch],
+    effect:
+      CHAIN_KINDS[i] === 'reach'
+        ? 'Reaches one rung further up §7.7’s ladder'
+        : CHAIN_KINDS[i] === 'craft'
+          ? CHAIN_CRAFT[branch]
+          : CHAIN_EFFECT[branch],
   }))
 }
 

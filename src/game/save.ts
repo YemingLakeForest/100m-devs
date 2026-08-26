@@ -23,7 +23,9 @@ import type { Phase } from './onboarding.ts'
 import { PHASE_ORDER } from './onboarding.ts'
 import { D_BASE } from '../sim/entropy.ts'
 import { TECH_BY_ID } from '../sim/techTree.ts'
-import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
+import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR, LUCK_NEUTRAL } from '../sim/rating.ts'
+import { UNKNOWN_ORDINAL } from '../sim/revenue.ts'
+import { GARAGE_SYNC } from '../sim/teamSync.ts'
 import { ROLES, type Role } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
@@ -218,6 +220,16 @@ export interface ReleaseSave {
    */
   defectDensity?: number
   rating?: number
+  /**
+   * §10.11 — the career ship ordinal, so the gallery can join a remembered
+   * release to the money still arriving for it.
+   *
+   * Optional on the same additive rule as the two above. Absent means
+   * `UNKNOWN_ORDINAL`: the release is still paid out exactly as before, and the
+   * gallery simply falls back to the recorded payout for it rather than
+   * inventing a join.
+   */
+  ordinal?: number
 }
 
 /**
@@ -477,6 +489,7 @@ export function makeSaveData(state: GameState): SaveData {
         tailTau: r.shape.tailTau,
         defectDensity: r.defectDensity,
         rating: r.rating,
+        ordinal: r.ordinal,
       })),
       // §4.11 — the shape of the studio, not just its size.
       roster: state.roster.map((run) => ({ role: run.role, count: run.count })),
@@ -907,6 +920,14 @@ function normaliseReleases(value: unknown): ReleaseSave[] {
       // is what a studio with nobody checking ships at.
       defectDensity: nonNegative(r.defectDensity, DEFECT_DENSITY_ANCHOR),
       rating: Math.min(100, nonNegative(r.rating, BASELINE_RATING)),
+      // Floored at `UNKNOWN_ORDINAL` rather than at zero: zero is a real
+      // ordinal — the first game anybody ever ships — and defaulting to it
+      // would make every pre-ordinal release claim to be that game and
+      // subtract its tail from the wrong row of the gallery.
+      ordinal:
+        typeof r.ordinal === 'number' && Number.isFinite(r.ordinal) && r.ordinal >= 0
+          ? Math.floor(r.ordinal)
+          : UNKNOWN_ORDINAL,
     })
   }
   return out
@@ -935,6 +956,14 @@ function normaliseHistory(value: unknown): History {
         name: r.name,
         rating: Math.min(100, nonNegative(r.rating, 0)),
         heroCoverage: Math.min(1, nonNegative(r.heroCoverage, 0)),
+        // §4.14's breakdown, defaulted to the garage rather than to zero. A
+        // record from before these terms existed describes a release nobody
+        // measured them for, and reading that as "perfectly out of sync,
+        // catastrophically unlucky" would rewrite the player's history into
+        // one where every old game was a disaster.
+        sync: Math.min(1, nonNegative(r.sync, GARAGE_SYNC)),
+        traits: Math.min(1, nonNegative(r.traits, 0)),
+        luck: Math.min(1, nonNegative(r.luck, LUCK_NEUTRAL)),
         payout: nonNegative(r.payout, 0),
         buildSeconds: nonNegative(r.buildSeconds, 0),
         labourSeconds: nonNegative(r.labourSeconds, 0),

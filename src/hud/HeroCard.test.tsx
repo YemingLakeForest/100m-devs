@@ -131,7 +131,7 @@ describe('§13.9 — every hero opens the same board, from where they already ar
   it('draws the whole board, including the branches this hero has never touched', () => {
     const { container } = board(staffed())
     // 1 trunk + 5 branches x 6 nodes.
-    expect(container.querySelectorAll('.herotree__node')).toHaveLength(31)
+    expect(container.querySelectorAll('.herotree__node')).toHaveLength(36)
   })
 
   it('shows §11.4.2’s three states rather than two', () => {
@@ -146,7 +146,7 @@ describe('§13.9 — every hero opens the same board, from where they already ar
 
   it('draws a connector for every node, dark ones included', () => {
     const { container } = board(staffed())
-    expect(container.querySelectorAll('.herotree__links polyline')).toHaveLength(30)
+    expect(container.querySelectorAll('.herotree__links polyline')).toHaveLength(35)
   })
 
   /**

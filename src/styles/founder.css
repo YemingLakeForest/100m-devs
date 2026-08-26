@@ -72,75 +72,239 @@
   white-space: nowrap;
 }
 
-.founder__nodes {
+/*
+ * §13.7.1's board — a hub with five spokes, drawn in the same UML notation as
+ * §13.9's hero tree. `styles/diagram.css` argues the case; this file owns what
+ * is different about the manager's copy of it.
+ *
+ * The difference worth seeing is the **shape**. A specialist tree is a spine
+ * six nodes deep. This one has no depth anywhere: everything hangs directly off
+ * you, one hop, which is exactly §13.7.1's sentence — breadth, and nothing of
+ * its own — said in a picture before it is said in a line of copy.
+ */
+.founder__board {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+}
+
+.founder__board-head {
+  display: grid;
+  gap: 4px;
+}
+
+.founder__board-head .board-teaching {
+  margin: 4px 0 0;
+}
+
+/*
+ * The first-use hand-off is an instruction, not another paragraph appended to
+ * the board's standing explanation. Keeping all four standing readouts above
+ * it left 93 px for a diagram whose deliberate readability floor is 40%; the
+ * guided node was centred above its clipped viewport, directly underneath the
+ * teaching banner, and the banner intercepted the purchase.
+ *
+ * During this one guided purchase the board says only what the player needs:
+ * whose board it is, what James asked them to do, and the board itself. The
+ * full thesis, output and maturity readouts return as soon as the purchase
+ * closes the guided pass.
+ */
+.founder__board[data-guided='true'] .founder__board-blurb,
+.founder__board[data-guided='true'] .founder__rate-line,
+.founder__board[data-guided='true'] .founder__maturity {
+  display: none;
+}
+
+.founder__board-name {
+  margin: 0;
+  font-size: var(--type-1x);
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: var(--p2);
+}
+
+.founder__board-blurb {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.45;
+  color: var(--p1);
+}
+
+/* §4.14's trait term, on the board where its levels are bought. */
+.founder__maturity {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  width: 100%;
+  flex-wrap: wrap;
+  margin: 2px 0 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.founder__meter {
+  flex: 0 1 130px;
+  height: 7px;
+  border: var(--rule) solid var(--p0);
+}
+
+.founder__meter i {
+  display: block;
+  height: 100%;
+  background: var(--p2);
+}
+
+.founder__maturity b {
+  color: var(--p3);
+  font-weight: 400;
+}
+
+.founder__maturity em {
+  flex: 1 1 100%;
+  font-style: normal;
+  letter-spacing: 0;
+  color: var(--p1);
+  opacity: 0.85;
+}
+
+.founder__board-scroll {
+  min-height: 0;
+  display: grid;
+  place-content: center;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  border: var(--rule) solid var(--p0);
+  /* The graph paper the hero board is drawn on, at the same weight. */
+  background-color: var(--n0);
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--p0) 26%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--p0) 26%, transparent) 1px, transparent 1px);
+  background-size: 58px 42px;
+}
+
+.founder__board-world {
+  position: relative;
+}
+
+/* Scaled rather than re-laid-out, so the text scales with the boxes instead of
+   reflowing inside them — the same arrangement §13.9's board uses for zoom. */
+.founder__board-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: scale(var(--fit, 1));
+  transform-origin: 0 0;
+}
+
+.founder__links {
+  position: absolute;
+  inset: 0;
+}
+
+/* The manager. Filled rather than outlined — it is the one box on the board
+   that is not a purchase, and nothing about it is ever for sale. */
+.founder__hub {
+  border-color: var(--p2);
+  cursor: default;
+}
+
+.founder__hub .uml__head {
+  background: color-mix(in srgb, var(--p2) 22%, var(--n0));
+  border-bottom-color: var(--p2);
+}
+
+.founder__hub .uml__name {
+  color: var(--p3);
 }
 
 .founder__node {
-  display: grid;
-  gap: 4px;
-  justify-items: start;
-  padding: 8px 10px;
-  border: var(--rule) solid var(--p0);
+  cursor: default;
 }
 
 .founder__node[data-owned='true'] {
   border-color: var(--p2);
 }
 
-.founder__node-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
+.founder__node[data-owned='true'] .uml__head {
+  background: color-mix(in srgb, var(--p2) 16%, var(--n0));
+  border-bottom-color: var(--p2);
 }
 
-.founder__node-name {
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-  color: var(--p3);
+.founder__node[data-maxed='true'] {
+  opacity: 0.82;
 }
 
-/* Whose skill this actually is. The label is the whole of §13.7.1. */
-.founder__node-borrowed {
-  font-size: var(--type-1x);
-  letter-spacing: 2px;
-  color: var(--p1);
+/*
+ * Four rows, and the order they give way in is the design: the flavour line is
+ * the first thing to lose room, the effect the second, and the price never
+ * gives way at all. A control that has been squeezed out of its own box is a
+ * purchase the player cannot make.
+ */
+.founder__node .uml__body {
+  grid-template-rows: minmax(0, auto) minmax(0, 1fr) auto auto;
+  gap: 4px;
+  align-content: stretch;
+}
+
+.founder__node .uml__text {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.founder__node-flavour .uml__text {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .founder__node-flavour {
-  margin: 0;
-  max-width: 42ch;
-  font-size: var(--type-1x);
-  line-height: 1.5;
   color: var(--p1);
-  font-style: italic;
+  opacity: 0.8;
 }
 
-.founder__node-effect {
-  margin: 0 0 2px;
-  max-width: 42ch;
+.founder__node-level {
+  margin-bottom: 2px;
+}
+
+.founder__node .ui-btn {
+  align-self: end;
+  justify-self: stretch;
+  margin-top: 2px;
   font-size: var(--type-1x);
-  line-height: 1.5;
-  color: var(--p2);
+}
+
+/* §11.4.5's cue, borrowed: the one node the first-use script wants. */
+.founder__node[data-guide='true'] {
+  border-color: var(--p3);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--p3) 40%, transparent);
 }
 
 /* --- the founder's own screen ------------------------------------------ */
 
+/*
+ * **The screen takes the frame.**
+ *
+ * It was 760 px wide with the tree in a scrolling column beside a portrait, and
+ * that column is now a diagram with six class boxes and two forks in it. §10.6
+ * forbids an interface that announces its own size; it does not ask one to
+ * pretend it is small. The board is the content, so the board gets the room.
+ */
 .founder-profile {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
-  width: min(760px, calc(100% - 2 * var(--edge-x)));
-  max-height: calc(100% - 2 * var(--edge-y));
+  width: calc(100% - 2 * var(--edge-x));
+  height: calc(100% - 2 * var(--edge-y));
   padding: 12px 14px 14px;
   overflow: hidden;
   pointer-events: auto;
   border: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  /*
+   * Opaque now rather than 92%: at 92% the burn-down and the sprint commitment
+   * read straight through a class diagram, and the one thing a diagram cannot
+   * survive is a second set of lines behind it.
+   */
+  background: var(--n0);
 }
 
 .founder-profile__head {
@@ -178,16 +342,38 @@
   font-size: var(--type-1x);
 }
 
+/*
+ * A px column rather than an em one. `--type-1x` is 11px and the root face is
+ * not, so `15em` here was a track sized off a font this panel does not use —
+ * which is how `PER TAP  +1 STORY POINTS` came to be drawn straight through the
+ * board beside it.
+ */
 .founder-profile__body {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr);
   gap: 16px;
   min-height: 0;
+}
+
+/* On a narrow frame the portrait goes above the board rather than beside it —
+   §23.4's rule that the diagram is the thing being looked at. */
+@media (max-width: 52em) {
+  .founder-profile__body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .founder-profile__identity {
+    border-right: 0;
+    border-bottom: var(--rule) solid var(--p0);
+    padding-bottom: 8px;
+  }
 }
 
 .founder-profile__identity {
   display: grid;
   align-content: start;
+  min-width: 0;
   border-right: var(--rule) solid var(--p0);
 }
 
@@ -198,12 +384,26 @@
   padding-right: 14px;
 }
 
+/*
+ * Wrapping, not overflowing. `PER TAP +1 STORY POINTS` is wider than a 15em
+ * column at the terminal face, and a flex row with nowrap children simply runs
+ * out through the border and draws itself over the board — which is what it was
+ * doing, and is the one thing §10.6 names as the web-page tell.
+ */
 .founder-profile__identity dl > div {
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
   padding-top: 4px;
   border-top: var(--rule) solid var(--p0);
+}
+
+.founder-profile__identity dd {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .founder-profile__identity dt {
@@ -215,13 +415,22 @@
   color: var(--p3);
 }
 
+/*
+ * The tree column no longer scrolls — it *is* the board, and the board sizes
+ * itself to whatever height this column has.
+ *
+ * `grid-template-rows: minmax(0, 1fr)` is load-bearing rather than tidiness. A
+ * single-item grid with no explicit rows makes one implicit `auto` row, which
+ * is content-sized — so the board measured its own content height, decided it
+ * had 295 px to fit 630 px of diagram into, and scaled itself to 47% inside a
+ * column that was in fact 550 px tall and half empty. Naming the row makes the
+ * child fill the column, and the fit scale then measures the room that is
+ * actually there.
+ */
 .founder-profile__tree {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
-  padding-right: 4px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--p1) var(--n0);
 }
 
 .founder-profile__tree::-webkit-scrollbar {

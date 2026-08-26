@@ -210,3 +210,12 @@
   border-color: #00ff9c;
   color: #00ff9c;
 }
+
+/*
+ * The speed box sits inside a dial rather than beside the decade buttons, so it
+ * is sized for `60` and not for `100,000,000`. Sharing `.scenarios__box` keeps
+ * one input treatment in the bar; only the width differs.
+ */
+.scenarios__box--speed {
+  width: 34px;
+}

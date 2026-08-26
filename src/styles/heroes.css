@@ -427,14 +427,23 @@
   z-index: 3;
 }
 
+/*
+ * **The frame takes the screen.**
+ *
+ * It used to be `min(72em, 100%)` by `max-height: 46em`, which on a desktop
+ * left a board of five six-node chains inside a window about the size of a
+ * dialogue box. The nodes now carry a name, an effect and a price each, and
+ * there is an inspector rail beside them: at anything less than the whole
+ * frame the diagram is a keyhole, and §11.4.1's "bigger than its viewport and
+ * panned" stops being a design and starts being an apology.
+ */
 .herotree__frame {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 12px;
-  width: min(72em, 100%);
+  gap: 10px;
+  width: 100%;
   height: 100%;
-  max-height: 46em;
-  padding: 16px;
+  padding: 12px 14px;
   border: var(--rule) solid var(--p2);
   /*
    * Opaque, for §22.9's reason: this sheet lands on top of the card that opened
@@ -447,9 +456,31 @@
 
 .herotree__head {
   display: flex;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: var(--rule) solid var(--p0);
+}
+
+/* §21.7.7's guided line lives in the header, so it cannot move the board's
+   own row. It takes the full width under the two columns above it. */
+.herotree__head .board-teaching {
+  flex: 1 1 100%;
+  margin: 4px 0 0;
+}
+
+.herotree__ident {
+  display: grid;
+  gap: 1px;
+}
+
+/* The file-header line every other screen in the game opens with. */
+.herotree__kicker {
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
 }
 
 .herotree__title {
@@ -459,14 +490,62 @@
   color: var(--n8);
 }
 
+.herotree__role {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.herotree__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.herotree__toolbar-label {
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
+}
+
+.herotree__zoom {
+  min-width: 34px;
+  padding: 3px 6px;
+  border: var(--rule) solid var(--p0);
+  background: transparent;
+  color: var(--p1);
+  font: inherit;
+  font-size: var(--type-1x);
+  cursor: pointer;
+}
+
+.herotree__zoom[data-on='true'] {
+  border-color: var(--p2);
+  color: var(--p3);
+}
+
 .herotree__points {
+  margin-left: 6px;
+  padding: 3px 8px;
+  border: var(--rule) solid var(--p0);
   font-size: var(--type-1x);
   letter-spacing: 1px;
   color: var(--p1);
 }
 
 .herotree__points[data-spare='true'] {
+  border-color: var(--p2);
   color: var(--p3);
+}
+
+/* Board on the left, inspector on the right. The rail folds away under the
+   board on a narrow frame rather than squeezing it — see the query below. */
+.herotree__stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17em;
+  gap: 10px;
+  min-height: 0;
 }
 
 /*
@@ -478,10 +557,36 @@
   overflow: auto;
   overscroll-behavior: contain;
   border: var(--rule) solid var(--p0);
+  /*
+   * The graph-paper a diagram is drawn on. Two grids at the cell size, faint
+   * enough to read as a surface rather than as content — and it is the one
+   * thing on screen that makes the panning legible, because a blank field
+   * scrolling under a fixed frame does not read as movement at all.
+   */
+  background-color: var(--n0);
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--p0) 26%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--p0) 26%, transparent) 1px, transparent 1px);
+  background-size: 44px 30px;
 }
 
 .herotree__world {
   position: relative;
+}
+
+/*
+ * Zoom is a transform on an inner element, not a change to the layout.
+ *
+ * The world keeps its scaled size so the scrollbars are honest; the canvas
+ * inside it stays at natural size and is scaled, so nothing has to re-measure
+ * and the text scales with the boxes rather than reflowing inside them.
+ */
+.herotree__canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: scale(var(--zoom, 1));
+  transform-origin: 0 0;
 }
 
 .herotree__links {
@@ -489,51 +594,43 @@
   inset: 0;
 }
 
-.herotree__links polyline {
-  fill: none;
-  stroke: var(--p0);
-  stroke-width: 2;
-}
-
-.herotree__links polyline[data-owned='true'] {
-  stroke: var(--p2);
-}
-
+/* Board nodes are UML boxes — `styles/diagram.css` owns the shape, this owns
+   §11.4.2's four states. */
 .herotree__node {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 58px;
-  padding: 0;
-  border: var(--rule) solid var(--p1);
-  background: var(--n0);
-  color: var(--p1);
-  font: inherit;
-  cursor: pointer;
+  border-color: var(--p1);
 }
 
 .herotree__icon {
-  width: 30px;
-  height: 30px;
+  width: 11px;
+  height: 11px;
+  margin-right: 4px;
   fill: currentColor;
+  vertical-align: -1px;
 }
 
-/* §11.4.2's three states, plus owned. Icons carry state, which is most of their
-   job: outline when out of reach, filled and branch-coloured when owned. */
 .herotree__node[data-state='owned'] {
   border-color: var(--branch, var(--p3));
   color: var(--branch, var(--p3));
-  background: color-mix(in srgb, var(--branch, var(--p2)) 18%, var(--n0));
+}
+
+.herotree__node[data-state='owned'] .uml__head {
+  background: color-mix(in srgb, var(--branch, var(--p2)) 20%, var(--n0));
+  border-bottom-color: var(--branch, var(--p3));
+}
+
+.herotree__node[data-state='owned'] .uml__name {
+  color: var(--branch, var(--p3));
 }
 
 .herotree__node[data-state='live'] {
   border-color: var(--p3);
-  color: var(--p3);
+}
+
+.herotree__node[data-state='live'] .uml__head {
+  border-bottom-color: var(--p3);
 }
 
 .herotree__node[data-state='silhouette'] {
-  color: var(--p1);
   opacity: 0.72;
 }
 
@@ -543,23 +640,45 @@
   cursor: default;
 }
 
+.herotree__node[data-state='dark'] .uml__head {
+  border-bottom-color: var(--p0);
+  background: transparent;
+}
+
+.herotree__node[data-state='dark'] .uml__name {
+  color: var(--p0);
+  letter-spacing: -1px;
+}
+
 .herotree__node[data-state='dark'] .herotree__icon {
   display: none;
 }
 
-/* §11.4.2 — a dark node is a connector and a stub. You can see the branch
+/* §11.4.2 — a dark node is a shape and a redaction. You can see the branch
    continues and nothing about what is on it. */
 .herotree__stub {
-  width: 10px;
-  height: 10px;
-  background: var(--p0);
+  color: var(--p0);
 }
 
+/*
+ * The price is the last row and must never be the row that gets pushed out.
+ * `align-self: end` inside a compartment that is `overflow: hidden` means the
+ * clamp above takes the sentence and this keeps the number.
+ */
 .herotree__cost {
-  position: absolute;
-  right: 3px;
-  bottom: 1px;
-  font-size: var(--type-1x);
+  margin-top: auto;
+  align-self: end;
+}
+
+.herotree__node .uml__body {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+/* §13.9.1's dilution, on the box rather than only in the guide: a player
+   scanning the board can see which half of it is not theirs. */
+.herotree__offbranch {
+  font-style: normal;
+  color: var(--warn-2);
 }
 
 /* A REACH node is the spine, and it is the only shape on the board that is not
@@ -585,6 +704,134 @@
   }
 }
 
+/* --- the inspector rail --------------------------------------------------- */
+
+.herotree__rail {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 10px;
+  align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.herotree__panel {
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px 11px;
+  border: var(--rule) solid var(--p0);
+  background: color-mix(in srgb, var(--n1) 32%, transparent);
+}
+
+.herotree__panel-title {
+  margin: 0;
+  font-size: var(--type-1x);
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: var(--p2);
+}
+
+/* A property sheet, which is the other half of what a diagram tool shows. */
+.herotree__stats {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.herotree__stats > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--type-1x);
+}
+
+.herotree__stats dt {
+  color: var(--p1);
+}
+
+.herotree__stats dd {
+  margin: 0;
+  color: var(--p3);
+}
+
+.herotree__mastery {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.herotree__meter {
+  flex: 1 1 0;
+  height: 7px;
+  border: var(--rule) solid var(--p0);
+}
+
+.herotree__meter i {
+  display: block;
+  height: 100%;
+  background: var(--p2);
+}
+
+.herotree__mastery b {
+  color: var(--p3);
+  font-weight: 400;
+}
+
+.herotree__mastery-note {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.45;
+  color: var(--p1);
+}
+
+.herotree__mastery-note b {
+  color: var(--p3);
+  font-weight: 400;
+}
+
+.herotree__legend {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.herotree__legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--type-1x);
+  color: var(--p1);
+}
+
+.herotree__swatch {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  background: var(--branch, var(--p2));
+}
+
+.herotree__legend-name {
+  flex: 1 1 0;
+}
+
+.herotree__legend-weight {
+  color: var(--p3);
+}
+
+.herotree__legend-note {
+  margin: 0;
+  font-size: var(--type-1x);
+  line-height: 1.45;
+  color: var(--p1);
+}
+
 /* §11.4.3's guide layer — the node enlarged in place, everything else dimmed. */
 .herotree__guide {
   position: fixed;
@@ -595,35 +842,45 @@
   z-index: 3;
 }
 
+/*
+ * The guide is the same class box, drawn large. Same notation at both sizes:
+ * a player who has learned to read the board has already learned to read this.
+ */
 .herotree__guide-card {
+  position: static;
   display: grid;
-  justify-items: center;
-  gap: 11px;
+  grid-template-rows: auto auto;
   width: min(31em, 88vw);
-  padding: 22px 20px;
   border: 2px solid var(--branch, var(--p2));
   background: var(--n0);
-  text-align: center;
+  cursor: default;
+}
+
+.herotree__guide-card .uml__head {
+  padding: 9px 12px 8px;
+  border-bottom-color: var(--branch, var(--p2));
+}
+
+.herotree__guide-card .uml__body {
+  gap: 8px;
+  padding: 12px;
+  justify-items: start;
 }
 
 .herotree__guide-icon {
-  width: 80px;
-  height: 80px;
+  width: 52px;
+  height: 52px;
   fill: var(--branch, var(--p3));
 }
 
 .herotree__guide-name {
-  margin: 0;
-  font-size: var(--type-1x);
-  letter-spacing: 2px;
+  font-size: var(--type-2x);
+  letter-spacing: 1px;
   color: var(--n8);
 }
 
 .herotree__guide-effect {
-  margin: 0;
-  font-size: var(--type-1x);
   line-height: 1.5;
-  color: var(--p1);
 }
 
 /* §13.9.1 said at the moment the decision is made, rather than in a rule nobody
@@ -645,6 +902,25 @@
 .herotree__footer {
   display: flex;
   justify-content: flex-end;
+}
+
+/*
+ * Under about a phone-and-a-half, the rail goes below the board rather than
+ * squeezing it. §23.4's rule: a new control does not get to evict canon, and
+ * the canon here is that the diagram is the thing being looked at.
+ */
+@media (max-width: 56em) {
+  .herotree__stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .herotree__rail {
+    grid-template-rows: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    max-height: 11em;
+  }
 }
 
 /* --- §13.11.2 the roster strip ------------------------------------------- */

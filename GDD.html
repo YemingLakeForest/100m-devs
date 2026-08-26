@@ -2581,10 +2581,36 @@ player actually controls:</p>
 <td>§4.9a's realised output share of the developers on it</td>
 <td>Was it built by the people or by the headcount</td>
 </tr>
+<tr>
+<td><strong>Team sync</strong></td>
+<td>moderate</td>
+<td>§4.1's efficiency integrated over the build, and §4.13/§4.12a's staffing</td>
+<td>Was the company able to hear itself</td>
+</tr>
+<tr>
+<td><strong>Reception</strong></td>
+<td>moderate</td>
+<td>A bounded roll, deterministic in the run seed and the release ordinal</td>
+<td>Luck, and the fact that a studio does not decide how a game lands</td>
+</tr>
+<tr>
+<td><strong>Traits</strong></td>
+<td>light</td>
+<td>§13.7.1's Management tree and §13.9's placed hero branches</td>
+<td>Are the people who led it any <em>good</em></td>
+</tr>
 </tbody>
 </table>
-<p><strong>Defects dominate deliberately.</strong> The other two are things the player arranges in advance;
-defects are the thing they are choosing to ignore <em>right now</em> in exchange for going faster.</p>
+<p><strong>Defects dominate deliberately.</strong> The other five are things the player arranges in advance
+or does not control at all; defects are the thing they are choosing to ignore <em>right now</em> in
+exchange for going faster. The weight is set by one arithmetic test rather than by taste:
+<strong>what can a thoroughly broken game score with every other input perfect?</strong> Every point given
+to another input is a point that ceiling rises by, and it has to stay a number no player would
+boast about.</p>
+<p><strong>The first three rows are the original requirement; the last three were in the brief and
+were lost in drafting.</strong> They are restored here rather than added, and each one exists because
+something the player genuinely does was invisible to the score. §4.14.2 takes them one at
+a time.</p>
 <p>Hero ability uses the <strong>union of settled posting footprints over the build team</strong>. Overlap
 counts once, so two heroes on the same eight people do not print free quality. On ship, the
 toast and recent-release gallery show <code>HERO COVERAGE n% · +m RATING</code>; the delta is exactly the
@@ -2644,6 +2670,56 @@ million people. §4.14 asks whether a game was &quot;built by the people or by t
 a million developers the honest answer is always the headcount, and the term says so by
 falling silent rather than by being switched off.</p>
 </blockquote>
+<h3 id="luck-organisation-and-people-canon-added-2026-08-26">4.14.2 Luck, organisation, and whether the people are any good <strong>[CANON - added 2026-08-26]</strong></h3>
+<p>Three inputs, and none of them is decoration. Each one closes a gap where a decision the
+player was already making had no consequence on the only number that judges them.</p>
+<p><strong>Team sync — §6, finally priced.</strong> The whole claim of this game is that a company gets
+worse at building software as it grows, and §4.1 models exactly that. Until now the <em>only</em>
+consequence was less output: a studio drowning in its own communication overhead shipped
+late and shipped precisely as well. Now the organisation is on the release. The term is
+§4.1's efficiency <strong>integrated over the build</strong> — not sampled at ship, because an instant
+reading lets a studio spend four minutes at 40% and then hire a Cloud hero on the last frame
+— carrying §4.9's local entropy with it, so poking your way through a project ships it sooner
+and scores it slightly worse. Beside it sits a service term: whether §4.13's queue and
+§4.12a's pager are staffed for the catalogue that already exists. <strong>A garage scores one.</strong> One
+desk has no communication overhead and no back catalogue to be understaffed for, so this is
+the one input that can only ever be spent — scale costs sync, and heroes, cohesion and hiring
+for the catalogue are how it is bought back.</p>
+<p><strong>Reception — luck, and why it is not gambling.</strong> §4.10e's rule is that the tail is
+”randomised in the <em>shape</em>, never in the <em>total</em>”, and that rule stands untouched: once a
+release knows what it is worth, every cent of it arrives. What varies here is what the
+release <em>is</em> worth, which is a different claim and a true one — a studio does not decide how
+a game is received. Three properties keep it honest, and all three are arithmetic rather
+than taste. It is <strong>one input of six</strong> and the smallest of the ones the player cannot control.
+It is <strong>bounded</strong>: the full roll spans about a tenth of the scale, against a defect backlog's
+four tenths. And it is <strong>deterministic in the run seed and the release ordinal</strong> — the same
+contract §7.8.7 uses for faces — so a reload cannot reroll a review the player has already
+read, and save-scumming a bad notice is not a strategy. The distribution is triangular about
+the middle rather than uniform: most games are received about as well as they deserve, and a
+breakout hit and a flop are both rare and neither is impossible.</p>
+<p><strong>Traits — are the people any good.</strong> §4.14's hero row asks whether the right people
+<em>touched</em> it, which is a question about the org chart. This asks whether those people are
+developed, and it was nowhere. It is the founder's §13.7.1 Management tree against the
+placed heroes' own §13.9 branches, weighted toward the specialists — a rating that paid the
+manager more than the people who do the job for a living would be telling §13.7.1's joke
+backwards. The founder's half counts <strong>per node rather than per level</strong>, so a twelve-level
+recruiting discount cannot buy a good review.</p>
+<blockquote>
+<p><strong>A rating input with no purchasable lever is a number the player reads as noise.</strong> So both
+boards grew one. §13.9's chains gain a seventh and final <strong>CRAFT</strong> rung — two points, dearer
+than DEPTH and cheaper than REACH, so §13.13's rule that REACH is always the dearest thing
+available survives — whose whole effect is that releases the hero's team touched score higher.
+§13.7.1's tree gains <strong>Taste</strong>, which bends §4.12's arrival rate at the Management dilution
+of what the Quality hero does, and <strong>Friends At The Press</strong>, which lifts the floor of the
+reception roll and never its ceiling. A node that made good games score better would multiply
+success; this one stops the flop, which is what knowing a journalist actually buys.</p>
+</blockquote>
+<p><strong>The neutral point does not move, and that is the whole reason this was safe to add.</strong>
+§4.14.1 derives the baseline from what a garage ships rather than picking it at fifty, and
+that derivation simply gained three more terms: sync at a garage's one, reception at the mean
+of the roll, traits at nothing. Every multiplier is still ×1 there. A studio that ignores all
+three earns exactly what it earned before they existed, and the arithmetic says so rather than
+a sentence here claiming it.</p>
 <h3 id="three-backlogs-three-colours-three-components-canon-added-2026-08-11-r30">4.15 Three backlogs, three colours, three components <strong>[CANON - added 2026-08-11]</strong> - R30</h3>
 <blockquote>
 <p><strong>Amended 2026-08-15 — §21.7.6b: the set assembles one colour at a time.</strong> Every word below
@@ -5965,10 +6041,33 @@ that sentence is invisible until the ratings sit next to each other.</p>
 spends. Not a star rating. Not a percentage with a coloured ring.</li>
 <li><strong>Revenue</strong> — total handed over <em>so far</em>, and the live rate beside it. A release whose tail
 has been paid out reads <code>RETIRED</code> where the rate was, which is §4.10e's long tail made
-visible per game instead of only in aggregate.</li>
+visible per game instead of only in aggregate. <strong>There is deliberately no figure for what a
+release is going to be worth</strong> <em>[clarified 2026-08-26]</em>: a payout the player has not
+been paid is a promise, and a screen that quotes one is a screen that can be wrong — the same
+class of lie §4.10e was written to stop the economy telling.</li>
+<li><strong>The score, and what the score did</strong> <em>[added 2026-08-26]</em> — §4.14 exists
+because <em>"§4.10e's payout scales with the rating"</em>, and until now the two facts sat on the
+same card without ever being connected. The card prints the rating <em>and the multiplier it put
+on the ladder payout</em> — <code>62/100 · ×1.24 ON REVENUE</code> — with §4.14's six inputs
+itemised underneath. A player looking at a poor game can see exactly what it cost them, which
+is the only way a rating stops being decoration.</li>
 <li><strong>Labour</strong> — the man-days. §10.11.2, which is the whole design problem.</li>
 <li><strong>Cover</strong> — generated, never authored. §10.11.3.</li>
 </ul>
+<p><strong>The cover is a composition, not a mark on a field</strong> <em>[amended
+2026-08-26]</em>. The first build drew one flat silhouette on a patterned square and it read as
+random pixel blocks rather than as a game, for three separate reasons and each one is a
+different fix. <strong>One tone</strong>: a shape filled in a single colour is a symbol, and the
+second tone is what the eye reads as form. <strong>8×8 at five pixels a cell</strong>: a
+resolution at which nothing has detail and everything has staircases — sixteen across at two
+pixels a cell fills the same area with four times the information. And <strong>no
+composition</strong>: a cover is a sky, a ground, a subject standing in it and a title plate under
+it, and the arrangement is what makes a 48-pixel square read as a boxed game.</p>
+<p>So the tile is now four layers, and `layout` and `pattern` roll the arrangement rather than
+the ornament. The lettering is still dashes — that part of §10.11.3 was right — but it sits on
+a <em>plate</em> now, which is what turns four marks into a logo. The art is still authored as a
+vocabulary and never as an asset: a PNG in the bundle would be a cover somebody drew by hand
+for a game the player has not shipped yet.</p>
 <h4 id="the-labour-figure-man-days-at-109-developers">10.11.2 The labour figure — man-days at 10⁹ developers</h4>
 <p><strong>The definition, and the one thing that must never be &quot;corrected&quot;: labour is headcount
 integrated over build time, and it is NOT divided by efficiency.</strong></p>
@@ -6114,9 +6213,25 @@ as a quality history <em>before a single number has been read</em>. This is the 
 gallery a picture rather than a table.</li>
 </ul>
 <h4 id="where-it-lives">10.11.4 Where it lives</h4>
-<p>Behind §10.1's nav, beside <code>UPGRADES</code>, as a <strong>right-edge drawer and not a modal</strong> — §7.1 and
-§10.5 rule 1, the same shape §11's door already is. The swarm keeps simulating behind it, and
-the player can keep poking everywhere the panel is not.</p>
+<p>Behind §10.1's nav, beside <code>UPGRADES</code>, entering from the right edge and <strong>not a modal</strong> —
+§7.1 and §10.5 rule 1, the same shape §11's door already is. The swarm keeps simulating behind
+it, and the player can keep poking everywhere the panel is not.</p>
+<p><strong>It takes the frame, and it is a wall rather than a list</strong> <em>[amended
+2026-08-26]</em>. The original drawer was 360 px wide, which is the right size for a screen with
+four facts a release on it and the wrong size for the thing §10.11.3 actually builds. That
+section generates a cover per release and tints its frame by §4.14's band precisely so that
+<em>a wall of covers reads as a quality history before a single number has been read</em> — and
+at 48 px in a column, none of that is visible. A table of your own games is also a spreadsheet
+about your own work, which is what every entry in §10.11.5 is a way of becoming.</p>
+<p>So the gallery is a <strong>carousel with one cover in focus</strong>, its neighbours turned away
+in perspective with their reflections under them, and everything the focused release is worth
+written beneath it. Sliding back through a career is the reward the section exists for: a wall
+of your own games, each a different shape, the good ones framed in gold and cyan and the
+shovelware in grey. The arrow keys and the covers themselves move it; a ship lands a new cover
+at the front and <strong>does not steal the focus</strong> from somebody reading their back
+catalogue — at §26.1.8's speeds that would make the screen unusable.</p>
+<p>The rules that actually mattered are kept exactly: it is still a panel and not a modal, the
+studio is still running behind it, and nothing on it changes a release.</p>
 <h4 id="what-it-must-never-become">10.11.5 What it must never become</h4>
 <ul>
 <li><strong>A leaderboard</strong>, or anything with a global ranking in it.</li>

@@ -579,6 +579,60 @@ async function deadControlIssues(page) {
   })
 }
 
+/**
+ * World annotations belong to the simulation; an open panel is a new surface.
+ *
+ * This is checked as a layer contract rather than as one lucky overlap point.
+ * James may be under Gallery's centre today and under the edge of Upgrades
+ * tomorrow as the camera moves, but in neither case may a world pin outrank the
+ * panel plane.
+ */
+async function panelLayerIssues(page) {
+  return page.evaluate(() => {
+    const world = document.querySelector('.world-heroes')
+    if (!world) return []
+    const worldZ = Number(getComputedStyle(world).zIndex)
+    const issues = []
+    for (const panel of document.querySelectorAll('.ui-panel[data-phase="in"]')) {
+      const panelZ = Number(getComputedStyle(panel).zIndex)
+      if (Number.isFinite(panelZ) && Number.isFinite(worldZ) && panelZ > worldZ) continue
+      issues.push(
+        `panel layer: ${panel.className} is z-index ${getComputedStyle(panel).zIndex} ` +
+          `but world assignments are z-index ${getComputedStyle(world).zIndex}`,
+      )
+    }
+    return issues
+  })
+}
+
+/** The Pixel 7 landscape regression: the wall must remain a wall, not a slit. */
+async function galleryLayoutIssues(page) {
+  return page.evaluate(() => {
+    const flow = document.querySelector('.gallery__flow')
+    const art = document.querySelector('.gallery__slide[data-focused="true"] .gallery__art .cover')
+    const receipt = document.querySelector('.gallery__now')
+    if (!flow || !art || !receipt) return ['gallery layout: focused wall or receipt is missing']
+
+    const wall = flow.getBoundingClientRect()
+    const cover = art.getBoundingClientRect()
+    const now = receipt.getBoundingClientRect()
+    const visibleCover = Math.max(0, Math.min(wall.bottom, cover.bottom) - Math.max(wall.top, cover.top))
+    const issues = []
+    if (wall.height < 180) {
+      issues.push(`gallery layout: cover wall collapsed to ${Math.round(wall.height)}px high`)
+    }
+    if (visibleCover < Math.min(150, cover.height)) {
+      issues.push(`gallery layout: only ${Math.round(visibleCover)}px of the focused cover is visible`)
+    }
+    const overlapW = Math.max(0, Math.min(wall.right, now.right) - Math.max(wall.left, now.left))
+    const overlapH = Math.max(0, Math.min(wall.bottom, now.bottom) - Math.max(wall.top, now.top))
+    if (overlapW > 1 && overlapH > 1) {
+      issues.push(`gallery layout: wall overlaps its receipt by ${Math.round(overlapW)}x${Math.round(overlapH)}px`)
+    }
+    return issues
+  })
+}
+
 /** How many screens this run actually looked at. Reported at the end. */
 let screensChecked = 0
 
@@ -593,7 +647,7 @@ async function tapAt(page, x, y) {
 
 async function check(
   page,
-  { name, width, height, path: urlPath, action, requireScene = false, keyboard = 0 },
+  { name, width, height, path: urlPath, action, inspect, requireScene = false, keyboard = 0 },
 ) {
   screensChecked += 1
   await page.setViewportSize({ width, height })
@@ -621,7 +675,9 @@ async function check(
   const issues = [
     ...await overflowIssues(page),
     ...await deadControlIssues(page),
+    ...await panelLayerIssues(page),
     ...(requireScene ? await sceneIssues(page, width, measuredHeight) : []),
+    ...(inspect ? await inspect(page) : []),
   ]
   if (issues.length > 0) {
     throw new Error(`${name} at ${width}x${measuredHeight}:\n${issues.join('\n')}`)
@@ -669,6 +725,8 @@ try {
     [748, 336],
     [816, 366],
     [898, 403],
+    // Pixel 7's 915x412 CSS viewport: the reported gallery and panel-layer frame.
+    [915, 412],
     [997, 448],
   ]
 
@@ -845,6 +903,45 @@ try {
       keyboard: 0.42,
     })
   }
+
+  /*
+   * The exact reported frame, with both ingredients that made the defect real:
+   * a catalogue large enough to draw the cover wall and James assigned in the
+   * world underneath it. The generic frame pass cannot diagnose a cramped
+   * interior — every clipped cover is technically inside the panel — so this
+   * screen also asserts the visible height of the focused art.
+   */
+  await check(page, {
+    name: 'gallery over an assigned hero',
+    width: 915,
+    height: 412,
+    path: '/?notitle&full&speed=60&devs=900&nopost',
+    action: async (target) => {
+      await clearScene(target)
+      // Run one real project at the inspection speed used by the screenshot
+      // harness. Seeding permanent history after mount would not wake React —
+      // permanent save data intentionally has no subscription of its own — so
+      // the Gallery door would remain absent even though the data behind it had
+      // changed. A real ship exercises the same publication path as play.
+      const galleryDoor = target.getByRole('button', { name: 'GALLERY', exact: true })
+      await galleryDoor.waitFor({ state: 'visible', timeout: 30_000 })
+
+      // And place James through the same three-step gesture as a player. A
+      // direct module call can land in Vite's inspection module graph rather
+      // than the mounted app's graph, returning success without publishing to
+      // this Hud instance — exactly the kind of false fixture this gate exists
+      // to avoid.
+      await target.getByRole('button', { name: 'HERO', exact: true }).click()
+      await target.locator('.roster__card').first().click()
+      await target.getByRole('button', { name: 'PLACE HERO', exact: true }).click()
+      await target.mouse.move(458, 206)
+      await target.getByRole('button', { name: 'CONFIRM PLACE', exact: true }).click()
+      await target.locator('.world-hero-pin').waitFor({ state: 'attached' })
+      await galleryDoor.click()
+      await target.locator('.gallery').waitFor({ state: 'visible' })
+    },
+    inspect: galleryLayoutIssues,
+  })
 
   await check(page, {
     name: 'degenerate pinch keeps the room visible',

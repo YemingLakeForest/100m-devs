@@ -21,7 +21,7 @@ import {
 } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { BETA } from '../sim/defects.ts'
-import { BASELINE_RATING } from '../sim/rating.ts'
+import { BASELINE_RATING, RATING_WEIGHTS, rateRelease } from '../sim/rating.ts'
 import { countsOf, headcountOf } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 
@@ -234,13 +234,43 @@ describe('§4.12 / §4.12a — shipping transfers the backlog, it does not forgi
   })
 
   it('pays a patient studio the baseline it would have earned before any of this existed', () => {
-    // §4.14.1's promise, end to end: a studio doing ordinary uninterrupted work
-    // ships at exactly β, scores exactly the baseline, and every multiplier is
-    // ×1. Approximate rather than exact because the burn-down overshoots the
-    // commitment by a fraction of a tick's work.
+    /*
+     * §4.14.1's promise, end to end — restated for the six-input rating.
+     *
+     * The original claim was that a studio doing ordinary uninterrupted work
+     * ships at exactly β and scores exactly the baseline. **The first half is
+     * still exact and is the half that is load-bearing**: β is what calibrates
+     * the whole defect economy, and the assertion below is unchanged.
+     *
+     * The score is no longer exact, and that is the point of §4.14's added
+     * inputs rather than a regression in them. This studio is not a garage. It
+     * has hired, so §4.1's efficiency is under 1 and `teamSync` says so; and its
+     * release drew a reception, which is a fact about the run seed. Demanding
+     * the baseline back would mean demanding that neither term did anything.
+     *
+     * So what is pinned is that the *departure is small and is attributable*:
+     * the release scores within the band the two uncontrolled terms can move it
+     * — sync and luck together — and re-scoring the same release with a
+     * garage's sync and an average reception lands back on the baseline
+     * exactly, which is the original promise with the two new terms held still.
+     */
     const first = playUntilShipped(0)
     expect(first.defectDensity).toBeCloseTo(BETA, 3)
-    expect(first.rating).toBeCloseTo(BASELINE_RATING, 0)
+
+    const swing = (RATING_WEIGHTS.sync + RATING_WEIGHTS.luck) * 100
+    expect(Math.abs(first.rating - BASELINE_RATING)).toBeLessThan(swing / 2)
+
+    // The same release, with the terms this studio does not control held at a
+    // garage's values. `craft: 1` and `heroCoverage: 0` are what `shipProject`
+    // passed; `sync` and `luck` are omitted, so they default to the garage.
+    expect(
+      rateRelease({
+        defects: first.defectDensity * 1000,
+        storyPoints: 1000,
+        heroCoverage: 0,
+        craft: 1,
+      }),
+    ).toBeCloseTo(BASELINE_RATING, 0)
   })
 })
 

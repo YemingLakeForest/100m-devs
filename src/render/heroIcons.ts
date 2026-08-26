@@ -166,6 +166,10 @@ export const HERO_ICON_KEYS = new Set(Object.keys(ICONS))
  */
 export function heroIcon(branch: string, kind: string): readonly string[] | null {
   if (kind === 'reach') return ICONS.reach
+  // §4.14's CRAFT rung keeps its branch's own mark. The kind is already said
+  // twice on the box — in the stereotype and in the double rule — and a third
+  // glyph for it would cost the one place on the node that says *whose* branch
+  // this is, which is the question the board is actually about.
   return ICONS[branch] ?? null
 }
 

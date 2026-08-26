@@ -1,0 +1,220 @@
+/*
+ * The board grammar — UML class boxes on Gliffy connectors.
+ *
+ * §11.4.1's rule is *"one board grammar, learned once, used in two places"*,
+ * and there are now three: §11's tech tree, §13.9's hero tree and §13.7.1's
+ * Management tree. This file is that grammar, factored out of all of them, so
+ * the sentence stays true by construction rather than by three files being
+ * edited together.
+ *
+ * ## Why a class diagram and not a skill tree
+ *
+ * Every other idle game draws its upgrades as a constellation. This one is
+ * about **building software**, and the picture a person who builds software
+ * actually stands in front of is a class diagram: named boxes, compartments
+ * under the name, right-angled connectors, a hollow triangle pointing at the
+ * thing being specialised. Drawing the studio's own capabilities in that
+ * notation is the same joke §13.7.1 makes in words — the org chart *is* the
+ * architecture — told in the one visual language the player is being satirised
+ * for knowing.
+ *
+ * It also earns its keep as an interface. A constellation node can carry an
+ * icon and a price. A class box carries a stereotype, a name, three attribute
+ * rows and a cost, at a glance, without a tooltip — which is what the boards
+ * needed once there was more than one number on a node.
+ *
+ * ## The rules, all four
+ *
+ * 1. **Right angles only.** Inherited from §11.4.1 and unchanged. Diagonals
+ *    are what §13.9's own diagram reached for and what the boards refuse.
+ * 2. **Arrowheads point at the child.** A hollow triangle, UML generalisation.
+ *    The direction is the direction the board grows in, so the picture says
+ *    which way progress runs before anything is read.
+ * 3. **Junctions are drawn.** Where two connectors share a stem — Support and
+ *    Cloud both leave the trunk southward — a filled dot marks the fork, the
+ *    way Gliffy marks one. A crossing without a dot means the lines pass over
+ *    each other, which on these boards is never true, so drawing it is
+ *    information rather than decoration.
+ * 4. **Nothing is antialiased.** ART_DIRECTION §3 rule 1 — `crispEdges` on
+ *    every connector layer, hard borders on every box.
+ */
+
+/* --- the class box -------------------------------------------------------- */
+
+.uml {
+  position: absolute;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 0;
+  overflow: hidden;
+  border: var(--rule) solid var(--p1);
+  background: var(--n0);
+  color: var(--p1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  /*
+   * The box sits over the connector layer. Deliberate: a connector that ran
+   * across a box would be a line the diagram does not contain, and trimming
+   * every path to the border is the alternative — thirty trims against one
+   * stacking rule.
+   */
+  z-index: 1;
+}
+
+/*
+ * The name compartment. `«stereotype»` above the name, exactly as UML puts it,
+ * because the stereotype is the part that says what *kind* of purchase this is
+ * and the kind is the thing a player is choosing between.
+ */
+.uml__head {
+  display: grid;
+  gap: 1px;
+  padding: 5px 7px 4px;
+  border-bottom: var(--rule) solid var(--p1);
+  background: color-mix(in srgb, var(--n1) 55%, transparent);
+}
+
+.uml__stereo {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+  opacity: 0.85;
+}
+
+.uml__name {
+  font-size: var(--type-1x);
+  letter-spacing: 0.5px;
+  color: var(--n8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The attribute compartment — one row per fact, UML visibility glyph first.
+ *
+ * `minmax(0, …)` on the rows and `min-height: 0` on the box are what keep a
+ * three-line effect from pushing the cost row out through the bottom border. A
+ * grid row's default `auto` is `min-content`, so without it the compartment
+ * silently grows past the box it is drawn inside and the last fact on the node
+ * — which is always the price — is the one that disappears.
+ */
+.uml__body {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  padding: 5px 7px 6px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/*
+ * `overflow: hidden` and `min-height: 0` are not tidiness — they are what stop
+ * a row painting over the row beneath it.
+ *
+ * `-webkit-line-clamp` limits how many lines are *drawn*; it does nothing about
+ * the element being taller than the grid row it was given. A three-line effect
+ * in a `minmax(0, 1fr)` row that resolved to two lines' worth of height spilled
+ * its third line straight through the price underneath — which is the one fact
+ * on the node a player is reading it for.
+ */
+.uml__attr {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  font-size: var(--type-1x);
+  line-height: 1.3;
+  color: var(--p1);
+}
+
+/*
+ * An effect line is prose and prose does not fit in a box of fixed height. It
+ * is clamped rather than scrolled or shrunk: the board is a map, the full
+ * sentence is one tap away in the inspector, and a node whose text is a
+ * different size from its neighbours' stops reading as the same kind of thing.
+ *
+ * **The clamp is on the text, not on the row.** `-webkit-box` replaces the
+ * row's flex formatting context, so clamping the row itself collapses the
+ * visibility glyph's own column and the `+` runs straight into the first word —
+ * which is the one part of the notation that has to stay in a column, because
+ * scanning down it is how a player reads what a branch gives against what it
+ * costs.
+ */
+.uml__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/*
+ * `+` public, `−` private, `#` protected. Used here for what they read as
+ * rather than for what they mean in Java: `+` is what the node gives you, `−`
+ * is what it costs you, `#` is a fact about it you cannot change.
+ */
+.uml__vis {
+  flex: none;
+  width: 0.9em;
+  color: var(--p2);
+}
+
+.uml__attr b {
+  color: var(--p3);
+  font-weight: 400;
+}
+
+/* --- the connector layer -------------------------------------------------- */
+
+.gliffy {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gliffy polyline {
+  fill: none;
+  stroke: var(--p0);
+  stroke-width: 2;
+  stroke-linejoin: miter;
+}
+
+.gliffy polyline[data-owned='true'] {
+  stroke: var(--p2);
+}
+
+/* Rule 3 — the fork is drawn. */
+.gliffy .gliffy__junction {
+  fill: var(--p0);
+}
+
+.gliffy .gliffy__junction[data-owned='true'] {
+  fill: var(--p2);
+}
+
+/*
+ * Rule 2's arrowhead, as a path rather than a `<marker>`.
+ *
+ * Markers inherit the *stroke* of the referencing element and not its fill, so
+ * a hollow triangle drawn as a marker comes out with a transparent interior
+ * that shows the connector line running through it — the one shape UML uses to
+ * mean "this is a generalisation and not an association" ends up looking like
+ * an association. Drawing the triangles in their own layer costs one more pass
+ * over the node list and gets the notation right.
+ */
+.gliffy .gliffy__arrow {
+  fill: var(--n0);
+  stroke: var(--p0);
+  stroke-width: 2;
+  stroke-linejoin: miter;
+}
+
+.gliffy .gliffy__arrow[data-owned='true'] {
+  stroke: var(--p2);
+}

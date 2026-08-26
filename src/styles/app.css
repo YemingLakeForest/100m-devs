@@ -2144,6 +2144,14 @@ body {
  */
 .ui-panel {
   --ui-offset: translateY(18%);
+  /*
+   * World ownership pins deliberately sit above the simulation (`z-index: 1`).
+   * A panel is a new surface, so it must sit above that world annotation as
+   * well as above the canvas. Without an explicit panel plane, the pins won the
+   * stacking comparison and James's ASSIGNED card was painted over Gallery,
+   * Upgrades, and every other ordinary panel.
+   */
+  z-index: 2;
 }
 
 .ui-panel--top {
@@ -2203,6 +2211,8 @@ body {
 .ui-scrim {
   position: absolute;
   inset: 0;
+  /* The scrim is itself the panel surface for modal compositions. */
+  z-index: 2;
   display: grid;
   place-items: center;
   pointer-events: auto;

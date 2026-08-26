@@ -18,6 +18,7 @@
     "probe:scale": "node scripts/scale.probe.mjs",
     "scenarios": "vite --open /?scenarios",
     "shot": "node scripts/screenshot.mjs",
+    "shot:boards": "node scripts/shot-boards.mjs",
     "sfx:generate": "tsx scripts/generate-sfx.ts",
     "sfx:ui": "tsx scripts/generate-ui-click.ts",
     "test": "vitest run",

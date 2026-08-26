@@ -9,19 +9,30 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  CRAFT_PER_NODE,
   NO_HERO_FOLD,
+  OWN_CHAIN_POINTS,
   SETTLE_SECONDS,
   buyHeroNode,
   canBuyHeroNode,
   effectiveDepth,
   heroCoverage,
   heroFold,
+  heroMastery,
   heroNodeState,
   heroRuntime,
   pointsSpent,
   type HeroRuntime,
 } from './heroRoster.ts'
-import { OFF_BRANCH, STORY_STARTING_DEPTH, TRUNK_NODE, startingNodes } from './heroTree.ts'
+import {
+  CHAIN_LENGTH,
+  HERO_NODE_BY_ID,
+  OFF_BRANCH,
+  STORY_STARTING_DEPTH,
+  TRUNK_NODE,
+  nodePoints,
+  startingNodes,
+} from './heroTree.ts'
 import { XP_BASE, xpToReach } from './heroXp.ts'
 import type { HeroId } from './storyHeroes.ts'
 
@@ -232,5 +243,82 @@ describe('§13.13 — the levels a run actually produces', () => {
   it('is about one level per project shipped, early', () => {
     // A four-hundred-point project, fully covered. §13.10's ξ was set for this.
     expect(xpToReach(2)).toBe(XP_BASE)
+  })
+})
+
+/**
+ * §4.14, §13.9 — the CRAFT rung.
+ *
+ * The last node of every chain, and the only purchase on either board that is
+ * explicitly about the *score* rather than about a rate. It exists because
+ * §4.14's trait term needed a lever: a rating input a player can only move by
+ * accumulating points generally is an input they will read as noise.
+ */
+describe('§4.14 — the CRAFT rung', () => {
+  const CRAFT = `quality:${CHAIN_LENGTH}`
+
+  it('is the last rung of every specialist chain', () => {
+    for (const branch of ['quality', 'reliability', 'cohesion', 'support', 'cloud']) {
+      expect(HERO_NODE_BY_ID.get(`${branch}:${CHAIN_LENGTH}`)?.kind).toBe('craft')
+    }
+  })
+
+  it('costs more than DEPTH and less than REACH — §13.13', () => {
+    // "REACH is always the dearest thing available" is the rule, and it holds.
+    expect(nodePoints('craft')).toBeGreaterThan(nodePoints('depth'))
+    expect(nodePoints('craft')).toBeLessThan(nodePoints('reach'))
+  })
+
+  it('is worth nothing to the studio until somebody is standing under it', () => {
+    // §13.6.7 — heroes are amplitude, and amplitude with no coverage is zero.
+    const owner = heroRuntime('mo', xpToReach(20), [...startingNodes('quality'), CRAFT], null)!
+    expect(heroFold([{ runtime: owner, covered: 0 }], 100).craft).toBe(0)
+  })
+
+  it('scales with the share of the studio its owner actually covers', () => {
+    const owner = heroRuntime('mo', xpToReach(20), [...startingNodes('quality'), CRAFT], {
+      rung: 0,
+      index: 0,
+      placedAt: 0,
+    })!
+    const half = heroFold([{ runtime: owner, covered: 50 }], 100).craft
+    const all = heroFold([{ runtime: owner, covered: 100 }], 100).craft
+    expect(half).toBeCloseTo(all / 2, 12)
+    expect(all).toBeCloseTo(CRAFT_PER_NODE, 12)
+  })
+
+  it('is worth §13.9.1’s off-branch rate to somebody else’s specialism', () => {
+    // "Nothing stops Mo going down Cloud. She will be worse at it than Melany."
+    const cloudCraft = `cloud:${CHAIN_LENGTH}`
+    const mo = heroRuntime('mo', xpToReach(30), [...startingNodes('quality'), cloudCraft], {
+      rung: 0,
+      index: 0,
+      placedAt: 0,
+    })!
+    const melany = heroRuntime('melany', xpToReach(30), [...startingNodes('cloud'), cloudCraft], {
+      rung: 0,
+      index: 0,
+      placedAt: 0,
+    })!
+    expect(heroFold([{ runtime: mo, covered: 100 }], 100).craft).toBeCloseTo(
+      heroFold([{ runtime: melany, covered: 100 }], 100).craft * OFF_BRANCH,
+      12,
+    )
+  })
+
+  it('is zero on an empty roster, like every other fold term', () => {
+    expect(NO_HERO_FOLD.craft).toBe(0)
+    expect(heroFold([], 100).craft).toBe(0)
+  })
+
+  it('counts toward how developed its owner is', () => {
+    // Two points spent is two points of §4.14's maturity, so the explicit lever
+    // and the accumulated one move together rather than competing.
+    const before = heroMastery(heroRuntime('mo', 0, startingNodes('quality'), null)!)
+    const after = heroMastery(
+      heroRuntime('mo', xpToReach(20), [...startingNodes('quality'), CRAFT], null)!,
+    )
+    expect(after).toBeGreaterThan(before)
+    expect(after - before).toBeCloseTo(nodePoints('craft') / OWN_CHAIN_POINTS, 12)
   })
 })

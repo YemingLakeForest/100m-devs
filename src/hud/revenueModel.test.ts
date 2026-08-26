@@ -6,6 +6,7 @@ import type { GameState } from '../game/store.ts'
 function withReleases(count: number): GameState {
   const releases: Release[] = Array.from({ length: count }, (_, i) => ({
     id: i,
+    ordinal: i,
     name: `Game ${i}`,
     payout: 1000 * (i + 1),
     age: 1,
