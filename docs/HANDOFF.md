@@ -725,7 +725,7 @@ the flags and do not publish the globals.
 
 | Flag | Effect |
 |---|---|
-| `?act=act2b_loop` | Jump the §21 script. Every phase name works |
+| `?act=act2_loop` | Jump the §21 script. Every phase name works |
 | `?devs=300000` | Force a headcount — the only way to see §7.8.2's rungs. Brings cash and dev cap with it, or the studio bankrupts inside a tick |
 | `?z=0.42` | Park the Omni-Lens on a rung, so a screenshot is of a *place* rather than of wherever the camera drifted. **Pair it with `?notitle`** — the §10.9.1 title screen drives the same camera and will overwrite it |
 | `?notitle` | Skip the title. Implied by `?act=` and `?bench`. The rung stops are `?z=` 0.111 room · 0.222 floor · 0.333 tower · 0.444 block · 0.556 park · 0.667 sprawl · 0.778 grid · 0.889 cosmic |

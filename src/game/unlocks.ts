@@ -16,6 +16,12 @@
  * given away in a cutscene — none of those is *wrong*, and all of them are wrong
  * **there**. So the first Paradigm Shift is the door.
  *
+ * §21.0e puts **hiring itself** behind that door, which is the largest thing
+ * this gate has ever held back and the one that made the rest of it coherent:
+ * Run 1 is now literally two people in a garage from the first frame to the
+ * Mass Hire, so there is no beat in it where any of the instruments above would
+ * have had anything to say.
+ *
  * ## The ceiling — §21.7.6
  *
  * §21.0c's gate opens onto Run 2, which §13.12.2 makes an hour and a half long,
@@ -97,6 +103,25 @@ export interface Unlocks {
   upgrades: boolean
 
   /**
+   * §21.0e — **can the player hire one developer at a time?**
+   *
+   * False for the whole of Run 1, and it is the newest and bluntest of this
+   * file's gates. §21.0's Act IIa spent six minutes teaching the player to hire,
+   * and then §21.0d's Act III opened with James saying *"two of us shipped four
+   * games"* to a founder holding forty people. The scene is the trap; a scene
+   * whose premise is visibly false on screen does not spring anything.
+   *
+   * So Run 1 hires exactly once, for a thousand people, and it is not a button —
+   * it is a conversation the player cannot decline (§21.0d). Everything before it
+   * is two people in a garage.
+   *
+   * The same one source of truth as every other gate here: the shift counter.
+   * There is no new flag, so there is nothing extra to be wrong after a save
+   * migration, and a player who has prestiged can never lose the control.
+   */
+  manualHire: boolean
+
+  /**
    * §21.7.7 — §13.7.1's Management tree, the founder's own board.
    *
    * **Your desk is not gated and never will be.** §4.5d is explicit that the
@@ -150,10 +175,11 @@ export interface Unlocks {
 const BRINGS: ReadonlyArray<readonly [HeroId, 'defects' | 'incidents' | 'tickets']> =
   STORY_HEROES.filter((h) => h.brings !== null).map((h) => [h.id, h.brings!] as const)
 
-/** Run 1. One lever, and it is hiring. */
+/** Run 1. One lever, and it is the thumb. */
 const SHUT: Unlocks = {
   simulated: false,
   upgrades: false,
+  manualHire: false,
   founderBoard: false,
   heroBoard: false,
   defects: false,
@@ -201,6 +227,7 @@ export function unlocksFor(
   return {
     simulated: true,
     upgrades: true,
+    manualHire: true,
     founderBoard: boards.founder,
     heroBoard: boards.hero,
     defects: instrument.defects,

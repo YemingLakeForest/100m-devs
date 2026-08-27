@@ -4,8 +4,7 @@ import { cleanup, render } from '@testing-library/react'
 // same mock in Hud.test.tsx.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
 import { ShipToast } from './ShipToast.tsx'
-import { __resetStore, __setState, getPermanent, getState } from '../game/store.ts'
-import { setPermanent } from '../game/save.ts'
+import { __resetStore, __setState, getState } from '../game/store.ts'
 import { recordRelease } from '../sim/history.ts'
 
 afterEach(cleanup)
@@ -18,23 +17,19 @@ function shipEvent(id: number, name: string, revenue: number) {
   __setState({ ship: { id, name, revenue, at: 0 } })
 }
 
+/** §10.11 — the catalogue is run state, so this seeds the run. */
 function seedHistory(name: string) {
-  const p = getPermanent()
-  setPermanent({
-    ...p,
-    meta: {
-      ...p.meta,
-      history: recordRelease(p.meta.history, {
-        ordinal: 0,
-        run: 0,
-        name,
-        rating: 50,
-        payout: 50,
-        buildSeconds: 60,
-        labourSeconds: 120,
-        seed: 1,
-      }),
-    },
+  __setState({
+    history: recordRelease(getState().history, {
+      ordinal: 0,
+      run: 0,
+      name,
+      rating: 50,
+      payout: 50,
+      buildSeconds: 60,
+      labourSeconds: 120,
+      seed: 1,
+    }),
   })
 }
 

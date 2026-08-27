@@ -17,6 +17,11 @@ afterEach(() => {
 })
 
 describe('the STUDIO_OS boot cut scene', () => {
+  // §15.1a — the screen itself is `CutScene` now, and §15.1a's reboot is its
+  // second caller. These stay pointed at `StudioBoot` deliberately: what they
+  // are about is the *boot* — which words, in which order, on the first launch
+  // of an install — and that is still this component's job.
+
   it('moves through the pages one click at a time', () => {
     const onDone = vi.fn()
     const { container } = render(

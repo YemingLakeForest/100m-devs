@@ -7,6 +7,14 @@
  * state would replay a two-second banner on every prestige, which is exactly
  * the "obstacle you have seen forty times" §10.9.3 exists to remove.
  *
+ * **§15.1a is not that, and the difference is worth naming** [2026-08-27]. A
+ * Paradigm Shift does now show the boot's four lines again, inside the reboot
+ * cut scene. What this flag forbids is a *banner with no new information in it*
+ * arriving between the title screen and the game forty times; what §15.1a shows
+ * is an account of the run that just ended, which is different on every single
+ * shift, and it is not on the launch path at all. This flag governs the launch
+ * path, and it still says no.
+ *
  * Every access is wrapped, because `localStorage` is not a plain object: it
  * throws on *read* in a sandboxed iframe and on *write* once the origin quota
  * is full or Safari's private mode is on. An exception here would take the

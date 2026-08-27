@@ -173,7 +173,7 @@ try {
   }
 
   if (only === 'both' || only === 'ladder') {
-    const { context, page, errors } = await openPage(browser, `act=act2b_loop&devs=${GATE}`)
+    const { context, page, errors } = await openPage(browser, `act=act2_loop&devs=${GATE}`)
     await settle(page)
     const rows = []
     const record = async (label) => {

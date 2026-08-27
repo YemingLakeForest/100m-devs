@@ -1003,19 +1003,68 @@ try {
     },
   })
 
+  /*
+   * §21.0e — **the hire button only exists after the first Paradigm Shift**, so
+   * a frame about it has to come from a career that has had one. It used to load
+   * `?act=act2_offer_hire`, which was Act IIa's opening beat and is not a phase
+   * any more; `?full` is the fixture that carries the shift, and `clearScene`
+   * because it opens on a scene the way the upgrades case above does.
+   */
   await check(page, {
     name: 'hire developer contrast',
     width: 748,
     height: 336,
-    path: '/?act=act2_offer_hire&nopost',
+    path: '/?act=act2_loop&full&nopost',
+    action: clearScene,
   })
   await check(page, {
     name: 'pressed hire developer contrast',
     width: 748,
     height: 336,
-    path: '/?act=act2_offer_hire&nopost',
-    action: (target) => target.getByRole('button', { name: /HIRE DEVELOPER/ }).dispatchEvent('pointerdown'),
+    path: '/?act=act2_loop&full&nopost',
+    action: async (target) => {
+      await clearScene(target)
+      await target.getByRole('button', { name: /HIRE DEVELOPER/ }).dispatchEvent('pointerdown')
+    },
   })
+
+  /*
+   * §21.0a — the term sheet, which is a modal now and therefore a frame this
+   * gate has to look at: a centred panel over Run 1's near-empty HUD, at the
+   * tightest size in the box.
+   */
+  await check(page, {
+    name: 'the term sheet',
+    width: 640,
+    height: 360,
+    path: '/?act=act2_termsheet&nopost',
+  })
+
+  /*
+   * §15.1a's reboot, on its tallest page.
+   *
+   * The receipt is six lines at the second rung of the type scale and there is
+   * no `?act=` that lands on it - the screen only exists in the moment after a
+   * shift — so the gate takes the shift. At 640x360, which is where a six-line
+   * block stops fitting and the type has to step down a whole rung.
+   */
+  for (const [width, height] of [[640, 360], [997, 448]]) {
+    await check(page, {
+      name: `the paradigm cut scene at ${width}x${height}`,
+      width,
+      height,
+      path: '/?act=bankrupt&nopost',
+      action: async (target) => {
+        await target.getByRole('button', { name: /TRIGGER PARADIGM SHIFT/ }).click()
+        const boot = target.locator('.studio-boot[data-phase="in"]')
+        await boot.waitFor({ state: 'visible' })
+        // Onto the receipt, which is the page that decides whether this screen
+        // fits: two clicks, because §10.7 rule 1 gives the first one to the reveal.
+        await boot.click({ position: { x: 12, y: 12 } })
+        await boot.click({ position: { x: 12, y: 12 } })
+      },
+    })
+  }
 
   /*
    * **The studio is still on screen on a screen.**

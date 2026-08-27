@@ -3388,6 +3388,135 @@ body {
   gap: 8px;
 }
 
+/* --- §21.0a's term sheet -------------------------------------------------
+ *
+ * Deliberately the *quietest* modal in the game, and it is the only one that
+ * gets to be. `.event-card` is drawn in `--p3` on a frame §4.1 has already
+ * turned red, because a live event is an alarm; this is a piece of paper that
+ * arrived in the inbox of a studio that is doing fine. It takes the calm end of
+ * the phosphor ramp, sits on the same 40em measure as the event card so the two
+ * read as one family of surfaces, and has no colour of its own at all.
+ *
+ * The terms are a `dl` rather than a table: they are label/value pairs and not a
+ * grid of data, and `dt`/`dd` is the markup that says so to a screen reader as
+ * well as to the eye. Laid out with a dotted leader between the two halves,
+ * which is what makes five rows of boilerplate read as a *document* — and the
+ * document is the joke.
+ */
+.term-sheet {
+  display: grid;
+  width: min(40em, calc(100% - 2 * var(--edge-x)));
+  max-height: calc(100% - 2 * var(--edge-y));
+  overflow: auto;
+  padding: 14px 18px;
+  border: var(--rule) solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  pointer-events: auto;
+}
+
+/* 8 rather than the event card's 10: seven rows of gap, and the last of them is
+   what decides whether SIGN IT is in frame at 640x360. */
+.term-sheet__body {
+  display: grid;
+  gap: 8px;
+}
+
+.term-sheet__kicker {
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  color: var(--p1);
+}
+
+.term-sheet__name {
+  margin: 0;
+  font-size: var(--type-3x);
+  letter-spacing: 4px;
+  color: var(--p3);
+}
+
+/* Machine output — it came through STUDIO_OS, so it is set the way STUDIO_OS is
+   set everywhere else (§10.7). The quotation marks are the investor's. */
+.term-sheet__pitch {
+  margin: 0;
+  padding: 8px 0;
+  border-top: var(--rule) solid var(--p1);
+  border-bottom: var(--rule) solid var(--p1);
+  font-size: var(--type-1x);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--p2);
+}
+
+.term-sheet__terms {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  font-size: var(--type-1x);
+}
+
+/*
+ * The leader. `flex` with a `1 1 auto` dotted rule between the two halves,
+ * rather than a two-column grid, because the dots have to stretch to whatever
+ * is left — that is the entire visual argument that this is a printed form and
+ * not a HUD readout.
+ */
+.term-sheet__row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--p1);
+}
+
+.term-sheet__row::after {
+  content: '';
+  order: 1;
+  flex: 1 1 auto;
+  border-bottom: var(--rule) dotted var(--p1);
+  /* Sits on the baseline rather than in the middle of the row: a leader is drawn
+     along the line the type is standing on. */
+  transform: translateY(-3px);
+}
+
+.term-sheet__row dt {
+  letter-spacing: 2px;
+}
+
+.term-sheet__row dd {
+  order: 2;
+  margin: 0;
+  color: var(--p2);
+}
+
+/*
+ * The money, one whole type step up. §3 rule 2 — integer multiples only, so it
+ * is 2x rather than something between.
+ */
+.term-sheet__row--headline {
+  color: var(--p2);
+}
+
+.term-sheet__row--headline dt,
+.term-sheet__row--headline dd {
+  font-size: var(--type-2x);
+  letter-spacing: 2px;
+  color: var(--p3);
+}
+
+/* Machine register, like the kicker: dim, tracked out, and quieter than the
+   terms above it. */
+.term-sheet__note {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 2px;
+  line-height: 1.5;
+  color: var(--p1);
+}
+
+.term-sheet__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /*
  * The banner. Directly above §21's advisor copy, and **out of flow.**
  *

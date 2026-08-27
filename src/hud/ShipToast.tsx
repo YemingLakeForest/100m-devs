@@ -28,7 +28,7 @@ import { Counter } from './Counter.tsx'
 import { formatMoney } from './hudModel.ts'
 import { motionMs, useReducedMotion } from '../ui/motion.ts'
 import { playSfx } from '../audio/sfx.ts'
-import { getPermanent, type GameState } from '../game/store.ts'
+import { getState, type GameState } from '../game/store.ts'
 import { coverFor } from '../sim/cover.ts'
 import { Cover } from './Cover.tsx'
 import { RATING_WEIGHTS } from '../sim/rating.ts'
@@ -69,7 +69,7 @@ export function ShipToast({ state }: { state: GameState }) {
   // ordinal and rating the gallery will render from. If a ship arrived without
   // a record — a test seam, or a save from before history existed — there is
   // simply no cover, and the rest of the beat plays on.
-  const history = getPermanent().meta.history
+  const history = getState().history
   const record = history.recent[history.recent.length - 1]
   const cover =
     record && record.name === held.name

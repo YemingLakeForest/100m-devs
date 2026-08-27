@@ -19,6 +19,15 @@
   place-items: center;
   background: var(--n0);
   cursor: pointer;
+  /*
+   * §7.1 — the HUD is a Layer and sets `pointer-events: none` on itself, so
+   * anything rendered inside it has to opt back in. §10.9.3's boot never needed
+   * this because it hangs off `App` beside the founder creator; §15.1a's reboot
+   * hangs off the HUD, and without this line the screen was drawn, the taps
+   * fell through it to §10.7's dialogue scrim underneath, and the cut scene
+   * could not be turned or dismissed.
+   */
+  pointer-events: auto;
 }
 
 /* The rolled-glass texture the founder creator wears, so the black reads as
@@ -30,17 +39,35 @@
   background: repeating-linear-gradient(0deg, transparent 0 3px, var(--n0) 3px 4px);
 }
 
-/* One page, one line, type-2x: a cut scene gets the second rung of the type
-   scale rather than the terminal's body size, and §3 rule 2 forbids anything
-   fractional between them. */
+/* A page, at type-2x: a cut scene gets the second rung of the type scale rather
+   than the terminal's body size, and §3 rule 2 forbids anything fractional
+   between them.
+
+   `inline-block` and `text-align: left`, together, are what let a page be a
+   *block* as well as a line. §15.1a's receipt is a table of label/value rows and
+   a centred table is not a table; the block itself is still centred by the
+   grid's `place-items`, so a one-line page looks exactly as it always did. */
 .studio-boot__page {
+  display: inline-block;
   margin: 0;
+  max-width: calc(100% - 2 * var(--edge-x));
   font: inherit;
   font-size: var(--type-2x);
   line-height: 1.6;
   color: var(--p2);
   white-space: pre;
-  text-align: center;
+  text-align: left;
+}
+
+/* §15.1a's blocks run to five or six lines at type-2x, which is taller than a
+   640x360 phone in landscape once the scanlines are on it. One step down for a
+   page that is a table rather than a sentence — §3 rule 2 again: a whole rung,
+   never a fraction of one. */
+@media (max-height: 420px) {
+  .studio-boot__page {
+    font-size: var(--type-1x);
+    line-height: 1.7;
+  }
 }
 
 /* "The room lights come up" — the overlay fades and the lit room behind it is

@@ -20,7 +20,7 @@
 import Decimal from 'break_infinity.js'
 import type { GameState } from './store.ts'
 import type { Phase } from './onboarding.ts'
-import { PHASE_ORDER } from './onboarding.ts'
+import { PHASE_ORDER, RETIRED_PHASES } from './onboarding.ts'
 import { D_BASE } from '../sim/entropy.ts'
 import { TECH_BY_ID } from '../sim/techTree.ts'
 import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR, LUCK_NEUTRAL } from '../sim/rating.ts'
@@ -32,8 +32,6 @@ import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import { EVENTS } from '../sim/events.ts'
 import { DEBUG_TOOLS_ENABLED } from '../dev/debugAccess.ts'
 import {
-  emptyHistory,
-  mergeHistory,
   type History,
   type ReleaseRecord,
   type TitleAggregate,
@@ -104,6 +102,22 @@ export interface RunSave {
    * a reinterpreted one, which is the test `SAVE_VERSION` asks (rule 1).
    */
   releases?: ReleaseSave[]
+  /**
+   * §10.11 — **the gallery, and it belongs to the run** [moved 2026-08-27].
+   *
+   * It lived in {@link MetaSave} and was explicitly career-wide: a Paradigm
+   * Shift liquidated the studio and left the wall of games standing. Reported as
+   * "galleries should not persist across paradigm shifts", and the report is
+   * right — §10.11's gallery is the catalogue this studio is *selling*, and a
+   * shift liquidates every tail, every rating and every ticket queue attached to
+   * it. What was left was a wall of games from a reality that no longer exists.
+   *
+   * Here it clears itself: `freshRun()` starts an empty one and the shift takes
+   * the whole run with it. Optional on the same additive rule `releases`
+   * follows — and a save written before the move has one in `meta`, which
+   * {@link migrate} carries across so nobody loses the run they are in.
+   */
+  history?: History
   /**
    * §11 — levels bought in the in-run tech tree, by node id.
    *
@@ -287,6 +301,15 @@ export interface MetaSave {
   dimensions: string[]
   /** §22.6 milestone flags — union. */
   milestones: string[]
+  /**
+   * §15.1a — the lessons this career has been taught, by id. Union.
+   *
+   * Permanent and monotonic for the same reason `milestones` is: a lesson
+   * learned in reality 3 is still learned in reality 40, and a ledger that
+   * forgot one on a device swap would be a ledger nobody trusts. Ids, not
+   * sentences, so `lessons.ts` can rewrite the wording without rewriting saves.
+   */
+  lessons: string[]
   /** Purchased entitlements (MONETISATION §6–7) — union. */
   entitlements: string[]
 
@@ -339,19 +362,6 @@ export interface MetaSave {
    * taken away; the hero only ever grows.
    */
   heroNodes?: Record<string, string[]>
-  /**
-   * §10.11 — the release history: what the player has actually made, career-wide.
-   *
-   * In `meta` rather than `layer1` so it survives a Codebase Fork and a
-   * Multiverse Compiler as well as a Paradigm Shift. A release record is a
-   * memory, not a currency or an unlock, and §10.11's whole premise is that the
-   * gallery is where a *career* acquires a history.
-   *
-   * Bounded by construction: the recent window caps at {@link RECENT_KEEP} and
-   * the aggregates are one per distinct title, so a million shipped games cost
-   * a few dozen objects. See `sim/history.ts`.
-   */
-  history: History
 }
 
 export interface PermanentSave {
@@ -389,6 +399,7 @@ export function emptyMeta(): MetaSave {
     forkNodes: [],
     dimensions: [],
     milestones: [],
+    lessons: [],
     entitlements: [],
     lifetimeRevenue: 0,
     peakDevs: 0,
@@ -401,7 +412,6 @@ export function emptyMeta(): MetaSave {
     founderLevels: {},
     heroXp: {},
     heroNodes: {},
-    history: emptyHistory(),
   }
 }
 
@@ -491,6 +501,13 @@ export function makeSaveData(state: GameState): SaveData {
         rating: r.rating,
         ordinal: r.ordinal,
       })),
+      // §10.11 — the catalogue this studio is selling. Copied a level down
+      // rather than by reference so a save cannot alias live state, and read
+      // back through `normaliseHistory`, which defends every field on it.
+      history: {
+        recent: state.history.recent.map((r) => ({ ...r })),
+        aggregates: state.history.aggregates.map((a) => ({ ...a })),
+      },
       // §4.11 — the shape of the studio, not just its size.
       roster: state.roster.map((run) => ({ role: run.role, count: run.count })),
       hireRole: state.hireRole,
@@ -573,12 +590,42 @@ export function migrate(data: SaveData): SaveData | null {
 
   // v1 -> v2 and onward go here, each as its own `if (data.version < N)` block.
 
+  // Read once: the run repair below needs to know whether this career has ever
+  // prestiged, and normalising it twice would be two answers to one question.
+  const permanent = normalisePermanent(data.permanent)
   return {
     version: SAVE_VERSION,
     savedAt: typeof data.savedAt === 'number' && Number.isFinite(data.savedAt) ? data.savedAt : 0,
-    run: repairStrandedBait(normaliseRun(data.run)),
-    permanent: normalisePermanent(data.permanent),
+    run: repairStrandedBait(carryLegacyHistory(normaliseRun(data.run), data), permanent),
+    permanent,
   }
+}
+
+/**
+ * §10.11 — a gallery written before the history moved into the run.
+ *
+ * The record lived in `permanent.meta.history` until 2026-08-27 and lives in the
+ * run now, so a save from before the move has a full catalogue in a field
+ * nothing reads any more and an empty one in the field everything reads. The
+ * player would open GALLERY on the run they are *in* and find it blank, which is
+ * not the change that was asked for — the change is that a **shift** clears it.
+ *
+ * So the old shelf is carried across, once, on the load that finds it. The
+ * legacy field is read off the raw save rather than off {@link PermanentSave},
+ * because the type no longer has it: a legacy read belongs on the migration path
+ * and nowhere else, and this is the migration path.
+ *
+ * Only when the run has none of its own. A save written since the move is
+ * authoritative about its own catalogue, including when that catalogue is
+ * correctly empty.
+ */
+function carryLegacyHistory(run: RunSave, data: SaveData): RunSave {
+  if (run.history && (run.history.recent.length > 0 || run.history.aggregates.length > 0)) {
+    return run
+  }
+  const legacy = (data.permanent as unknown as { meta?: { history?: unknown } })?.meta?.history
+  if (!legacy) return run
+  return { ...run, history: normaliseHistory(legacy) }
 }
 
 /**
@@ -596,16 +643,25 @@ export function migrate(data: SaveData): SaveData | null {
  * migration because the saves are not a different *version*, they are a
  * different *shape* that the current version can still produce a file in.
  *
- * The condition is deliberately narrow. A legitimate Act III has around forty
- * developers, because that is the only way the phase machine reaches it; two
- * developers who have never mass-hired can only have arrived by prestige.
+ * The condition is deliberately narrow, and **§21.0e narrowed it further**
+ * [amended 2026-08-27]. It used to read "a small headcount at Act III can only
+ * have arrived by prestige", which was true while Run 1 reached the mousetrap by
+ * hiring to forty. Run 1 now reaches it with **one developer** — that is the
+ * whole point of §21.0e — so the old test would have caught every legitimate Run
+ * 1 save sitting at the term sheet's other side and thrown it back into a hiring
+ * loop the run does not have.
+ *
+ * The honest question was always *"has this career prestiged?"*, and that is a
+ * fact about `permanent`, not about the run. A Run 1 studio at `act3_bait` is
+ * exactly where it should be; a Run 2 studio there with no swarm is the bug.
  */
-function repairStrandedBait(run: RunSave): RunSave {
+function repairStrandedBait(run: RunSave, permanent: PermanentSave): RunSave {
+  if (permanent.meta.paradigmShifts <= 0) return run
   const stranded = run.phase === 'act3_bait' && !run.massHired && run.devs < 10
   if (!stranded) return run
   return {
     ...run,
-    phase: 'act2b_loop',
+    phase: 'act2_loop',
     // §10.10.2 — a prestiged player does not get the funnel again.
     seedTaken: true,
     dialUnlocked: true,
@@ -693,7 +749,13 @@ function stringListMap(value: unknown): Record<string, string[]> {
  * trusting it.
  */
 function phase(value: unknown): Phase {
-  return PHASE_ORDER.includes(value as Phase) ? (value as Phase) : 'act1_poke'
+  if (PHASE_ORDER.includes(value as Phase)) return value as Phase
+  // §21.0e retired three of Act IIa's beats and renamed two more. A save holding
+  // one of those names is not corrupt, it is *older*, and dropping it to
+  // `act1_poke` would make a player who has shipped four games tap out fifty
+  // pokes again. {@link RETIRED_PHASES} says where each one lands.
+  if (typeof value === 'string' && value in RETIRED_PHASES) return RETIRED_PHASES[value]
+  return 'act1_poke'
 }
 
 function normaliseRun(value: unknown): RunSave {
@@ -727,6 +789,10 @@ function normaliseRun(value: unknown): RunSave {
     runSeed: typeof r.runSeed === 'number' && r.runSeed > 0 ? r.runSeed : (Date.now() >>> 0),
     seedTaken: bool(r.seedTaken, false),
     dialUnlocked: bool(r.dialUnlocked, false),
+    // §10.11 — the gallery, defended the same way it was when it lived in
+    // `meta`. Absent reads as an empty catalogue, which is the correct
+    // description of a studio that has shipped nothing *this run*.
+    history: normaliseHistory(r.history),
     releases: normaliseReleases(r.releases),
     tech: normaliseTech(r.tech),
     runSeconds: nonNegative(r.runSeconds, 0),
@@ -1012,6 +1078,9 @@ function normalisePermanent(value: unknown): PermanentSave {
       forkNodes: stringList(m.forkNodes),
       dimensions: stringList(m.dimensions),
       milestones: stringList(m.milestones),
+      // §15.1a. Absent on every save written before the cut scene existed, which
+      // correctly describes a career that has not been told anything yet.
+      lessons: stringList(m.lessons),
       entitlements: stringList(m.entitlements),
       lifetimeRevenue: nonNegative(m.lifetimeRevenue, base.lifetimeRevenue),
       peakDevs: nonNegative(m.peakDevs, base.peakDevs),
@@ -1027,7 +1096,6 @@ function normalisePermanent(value: unknown): PermanentSave {
       // §13.10, §13.9. Absent means no XP earned and no hero nodes bought.
       heroXp: numberMap(m.heroXp),
       heroNodes: stringListMap(m.heroNodes),
-      history: normaliseHistory(m.history),
     },
   }
 }
@@ -1117,6 +1185,8 @@ export function mergePermanent(
       forkNodes: union(a.forkNodes, b.forkNodes),
       dimensions: union(a.dimensions, b.dimensions),
       milestones: union(a.milestones, b.milestones),
+      // §15.1a — a lesson learned on one device is learned.
+      lessons: union(a.lessons, b.lessons),
       entitlements: union(a.entitlements, b.entitlements),
       lifetimeRevenue: Math.max(a.lifetimeRevenue, b.lifetimeRevenue),
       peakDevs: Math.max(a.peakDevs, b.peakDevs),
@@ -1133,11 +1203,10 @@ export function mergePermanent(
       // one device is bought.
       heroXp: maxMap(a.heroXp ?? {}, b.heroXp ?? {}),
       heroNodes: unionMap(a.heroNodes ?? {}, b.heroNodes ?? {}),
-      // §10.11 — see `sim/history.ts`. Recent unions by ordinal (commutative and
-      // idempotent); aggregates sum per title (commutative, generously
-      // double-counting only a release folded on two devices at once, which does
-      // not parallelise). The trade is the game's standing one: keep everything.
-      history: mergeHistory(a.history, b.history),
+      // §10.11's gallery used to be merged here. It is run state now (see
+      // `RunSave.history`), and run state is resolved by `savedAt` rather than
+      // unioned — a catalogue is what this studio is selling, not something the
+      // player has earned and may never lose.
     },
   }
 }

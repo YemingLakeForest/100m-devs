@@ -476,6 +476,10 @@ const devs = (page) => page.evaluate(() => globalThis.__store?.devs ?? 0)
  * Never `hireDeveloper()` — the whole argument of this file is that the join
  * between a control and a verb is the thing that goes wrong.
  */
+/**
+ * §21.0e — used from Run 2 on. Run 1 has no hire control at all, so the only
+ * callers left are the legs that run after the first Paradigm Shift.
+ */
 async function hireUpTo(page, target, budget = LEG_MS) {
   const deadline = Date.now() + budget
   while ((await devs(page)) < target) {
@@ -583,32 +587,41 @@ async function walkCareerOne(page) {
   await until(page, 'James at a desk', async (p) => (await devs(p)) >= 1)
   saw('fifty pokes brought James, and he sat down (§21.7.1)')
 
-  // §21 — the pitch waits on income, so the only job is to finish the sprint.
-  await until(page, 'the first game to ship', async (p) => (await phase(p)) === 'act2_offer_hire')
-  saw('shipped the garage’s first game and Act II opened its hire')
+  /*
+   * §21.0e — **Run 1 does not hire, so there is nothing to press here.**
+   *
+   * This leg used to buy the second employee and then hire to forty, which is
+   * the beat §21.0's Act IIa scripted. There is no hire control anywhere in Run
+   * 1 now: the two of them ship the whole garage catalogue, an investor turns
+   * up, and the only thing the money can buy is a thousand developers. The walk
+   * says so out loud below, because "no button appeared" is the kind of thing a
+   * gate has to assert rather than merely not notice.
+   */
+  await until(
+    page,
+    'the garage catalogue to ship',
+    async (p) => (await phase(p)) === 'act2_termsheet',
+    LEG_MS,
+  )
+  if (await btn(page, /HIRE DEVELOPER/).count()) {
+    fail(`Run 1 offered a hire button — ${await where(page)}`)
+  }
+  if ((await devs(page)) !== 1) {
+    fail(`Run 1 reached the term sheet with ${await devs(page)} developers, not just James`)
+  }
+  saw('shipped the whole garage catalogue with two people and no hire button (§21.0e)')
 
-  // The first paid head. Act II holds until the whole garage catalogue is out
-  // (§4.10f), so this is a hire and then three more ships.
-  await press(page, /HIRE DEVELOPER/)
-  await until(page, 'the second employee', async (p) => (await devs(p)) >= 2)
-  await until(page, 'the garage catalogue', async (p) => (await phase(p)) === 'act2a_loop')
-  saw('bought the first paid employee, then shipped out of the garage (§4.10f)')
-
-  // §21.0a — the loop, until somebody with money believes in you.
-  await hireUpTo(page, 10)
-  await until(page, 'the term sheet', async (p) => (await phase(p)) === 'act2a_seed')
-  await press(page, /ACCEPT TERM SHEET/)
-  await until(page, 'Act IIb', async (p) => (await phase(p)) === 'act2b_loop')
-  saw('hired to ten and took §21.0a’s term sheet')
-
-  // §21.0 — Act II ends at the first headcount whose readout is not IN SYNC.
-  await hireUpTo(page, 40)
+  // §21.0a — the term sheet, on its own modal now rather than in the action bar.
+  await page.locator('.term-sheet').waitFor({ timeout: 10_000 })
+  await press(page, /SIGN IT/)
   await until(page, 'the mousetrap', async (p) => (await phase(p)) === 'act3_bait')
+  saw('signed §21.0a’s term sheet on its own surface')
+
   await playScenes(page)
   if (!played('scene.act3.mass-hire')) {
     fail(`Act III did not open on §21.0d’s scene — played ${JSON.stringify(beats.map((b) => b.id))}`)
   }
-  saw('hired to forty and James signed the mass hire — it cannot be declined (§21.0d)')
+  saw('James signed the mass hire — it cannot be declined (§21.0d)')
 
   // §21 Acts IV and V. Nothing to press: the studio seizes and payroll finishes it.
   await until(page, 'the collapse', async (p) => (await devs(p)) > 500)
@@ -617,6 +630,20 @@ async function walkCareerOne(page) {
   saw('the swarm landed, the studio seized, and payroll ended the run')
 
   await press(page, 'TRIGGER PARADIGM SHIFT')
+  /*
+   * §15.1a — the reboot between two realities, and it is *between*: the receipt
+   * and the boot are on screen before §21.6's James scene can start, so a walk
+   * that went straight to `playScenes` would sit on a black screen for thirty
+   * seconds and report a missing scene.
+   *
+   * Same surface as §10.9.3's boot, so it is tapped through by the same helper.
+   * That is the whole design of the beat and the reason this line is one call.
+   */
+  await playBoot(page)
+  if (!(await page.locator('.hud').count())) {
+    fail(`the shift's cut scene did not lift into the studio — ${await where(page)}`)
+  }
+  saw('read the shift’s receipt and rebooted into the next reality (§15.1a)')
   await playScenes(page)
   if (!played('scene.run2.instant-messenger')) {
     fail(`the shift did not open Run 2 on §21.6 — played ${JSON.stringify(beats.map((b) => b.id))}`)
@@ -1145,7 +1172,36 @@ const governed = (page) =>
  */
 async function spendOffBranch(page) {
   await press(page, 'HERO')
-  await tapControl(page, page.locator('.roster__card'), 'the first card on the roster strip')
+  /*
+   * **A specialist, not James** — §13.9.1 amended 2026-08-27.
+   *
+   * This used to tap the first card on the strip, which is James, and that is
+   * now precisely the one hero for whom the thing being gated *correctly does
+   * not appear*: he has no home branch, so he pays no off-branch rate, so the
+   * board prints no dilution note anywhere on it. `jamesPaysNoHandicap` below
+   * gates that half; this half needs somebody who has actually specialised.
+   *
+   * Every story hire arrives holding a point (§13.13), so any of the five will
+   * do — the walk takes the first card that offers one and is not his.
+   */
+  const cards = page.locator('.roster__card')
+  const cardCount = await cards.count()
+  let opened = null
+  for (let i = 0; i < cardCount; i++) {
+    const name = (await cards.nth(i).locator('.roster__name').textContent())?.trim()
+    if (!name || name.toLowerCase() === 'james') continue
+    await tapControl(page, cards.nth(i), `${name}'s card on the roster strip`)
+    if (await page.getByRole('button', { name: /^SPEND \d+$/ }).count()) {
+      opened = name
+      break
+    }
+    await press(page, 'CLOSE')
+    await page.waitForTimeout(150)
+    await press(page, 'HERO')
+  }
+  if (!opened) {
+    fail('no specialist on the roster had a point to spend — §13.13 gives every arrival one')
+  }
   const spend = page.getByRole('button', { name: /^SPEND \d+$/ })
   if (!(await spend.count())) {
     fail('the card offers no way to spend the point §21.7.7 has just announced')
@@ -1370,6 +1426,8 @@ async function freshRunTwo(browser) {
   const page = await openCareer(browser, `${origin}/?act=bankrupt&speed=${SPEED}&nopost`)
   await page.locator('.bankruptcy[data-phase="in"]').waitFor()
   await press(page, 'TRIGGER PARADIGM SHIFT')
+  // §15.1a — the cut scene stands between the shift and Run 2, here too.
+  await playBoot(page)
   await playScenes(page)
   if (!played('scene.run2.instant-messenger')) {
     fail(`this career did not reach Run 2 — ${await where(page)}`)

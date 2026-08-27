@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   ACT1_POKES_REQUIRED,
-  ACT2A_ENDS_AT,
-  SEED_ROUND_AT,
+  MOUSETRAP_AT,
+  TERM_SHEET_AFTER_SHIPS,
   DESPERATE_TAPS_BEFORE_REBUKE,
   MASS_HIRE_COUNT,
   PHASE_COPY,
@@ -117,73 +117,59 @@ describe('Act I — the clicker layer sells itself first', () => {
     expect(PHASE_COPY.act1_james.action).toBeUndefined()
   })
 
-  it('holds the scaling pitch until the first income exists', () => {
-    // §21 — with James at a desk the founders still have to code: a hire
-    // button against a treasury of nothing is the R41 complaint again, one
-    // beat later. The pitch waits on the first ship, which is the first money.
-    expect(advanceOnboarding('act1_ship', at({ devs: 1, projectsShipped: 0 }))).toBe('act1_ship')
+  it('holds the garage open until the whole catalogue is out — §21.0e', () => {
+    // §4.10f, §21.0e. Two unpaid founders ship all three garage games with no
+    // hire button anywhere on screen, which is what makes Act III's arithmetic
+    // ("two of us shipped three games") a thing the player can count rather
+    // than a claim they can disprove by looking at their own floor.
+    for (let shipped = 0; shipped < TERM_SHEET_AFTER_SHIPS; shipped++) {
+      expect(advanceOnboarding('act1_ship', at({ devs: 1, projectsShipped: shipped }))).toBe(
+        'act1_ship',
+      )
+    }
     expect(PHASE_COPY.act1_ship.action).toBeUndefined()
-    expect(advanceOnboarding('act1_ship', at({ devs: 1, projectsShipped: 1 }))).toBe(
-      'act2_offer_hire',
-    )
+    expect(
+      advanceOnboarding('act1_ship', at({ devs: 1, projectsShipped: TERM_SHEET_AFTER_SHIPS })),
+    ).toBe('act2_termsheet')
+  })
+
+  it('hangs the term sheet on the catalogue, not on a headcount — §21.0a', () => {
+    // It used to fire at ten developers. §21.0e deletes the hiring that number
+    // was about, so the beat is re-hung on the verb the player has actually been
+    // doing, and `FIRST_PAID_RUNG` is the whole garage by definition.
+    expect(TERM_SHEET_AFTER_SHIPS).toBe(FIRST_PAID_RUNG)
   })
 })
 
-describe('Act II — the first hire the player pays for', () => {
-  it('waits for the player to hire, not for a timer', () => {
-    // §21.0b — the offer is now about the *second* employee, because James is
-    // already at a desk. It lands on somebody who has just watched their
-    // velocity double, which is the evidence §6 needs them to have.
-    expect(advanceOnboarding('act2_offer_hire', at({ devs: 1 }))).toBe('act2_offer_hire')
-    expect(advanceOnboarding('act2_offer_hire', at({ devs: 2 }))).toBe('act2_ship')
-  })
-
-  it('waits for the whole garage catalogue to ship', () => {
-    // §4.10c, §4.10f — the first paid rung, not the second project. The first
-    // game pays $50 and payroll starts with the third developer, so opening the
-    // hire prompt early handed the player a HIRE button and one second of
-    // runway. Every rung below `FIRST_PAID_RUNG` is deliberately underwater on
-    // §4.10c's `r > W`, and this gate is what keeps the player off payroll until
-    // they are all out of the door.
-    for (let shipped = 0; shipped < FIRST_PAID_RUNG; shipped++) {
-      expect(advanceOnboarding('act2_ship', at({ devs: 2, projectsShipped: shipped }))).toBe(
-        'act2_ship',
-      )
-    }
-    expect(
-      advanceOnboarding('act2_ship', at({ devs: 2, projectsShipped: FIRST_PAID_RUNG })),
-    ).toBe('act2a_loop')
-  })
-
-  it('does not hand over the bait until the loop has been played', () => {
-    // §21.0: "An earlier draft of this script went 1 dev -> 2 devs -> 1,000
-    // devs. That is too fast, and it breaks the trap it exists to set." The
-    // loop between shipping and the offer is the whole reason the collapse
-    // lands as a betrayal, so the jump straight from act2_ship to act3_bait is
-    // pinned shut here rather than left to a reading of the phase list.
-    expect(advanceOnboarding('act2a_loop', at({ devs: 2, projectsShipped: 1 }))).toBe('act2a_loop')
-    expect(advanceOnboarding('act2b_loop', at({ devs: 39, projectsShipped: 4 }))).toBe('act2b_loop')
-  })
-
-  it('puts the Seed Round where hiring has become a habit — §21.0a', () => {
-    // Ten: enough hires to have a habit, not enough to be bored of it. Act IIa
-    // was a four-minute stretch with no events in it before this landed.
-    expect(advanceOnboarding('act2a_loop', at({ devs: SEED_ROUND_AT - 1 }))).toBe('act2a_loop')
-    expect(advanceOnboarding('act2a_loop', at({ devs: SEED_ROUND_AT }))).toBe('act2a_seed')
-  })
-
+describe('Act II — the term sheet, and nothing else to spend it on', () => {
   it('waits for the player to actually sign', () => {
     // The one beat in Run 1 that is pure upside, and it still has to be taken:
     // §6's lesson needs every step into the trap to have been a decision,
     // including the ones that felt like good news.
-    expect(advanceOnboarding('act2a_seed', at({ devs: 200 }))).toBe('act2a_seed')
-    expect(advanceOnboarding('act2a_seed', at({ seedTaken: true }))).toBe('act2b_loop')
+    expect(advanceOnboarding('act2_termsheet', at({ devs: 200 }))).toBe('act2_termsheet')
+    expect(advanceOnboarding('act2_termsheet', at({ seedTaken: true }))).toBe('act3_bait')
   })
 
-  it('ends Act II on the first twitch of the readout, not on a round number', () => {
-    // 40 is where E first reads as something other than IN SYNC. The player
-    // must get exactly one hint and wave it away.
-    expect(advanceOnboarding('act2b_loop', at({ devs: ACT2A_ENDS_AT }))).toBe('act3_bait')
+  it('goes straight from the money to the mousetrap — §21.0e', () => {
+    // There is nothing between the cash injection and the only thing in the game
+    // that cash can buy, and that is the design rather than a missing beat: the
+    // player is handed fifty thousand dollars marked USE OF FUNDS — HEADCOUNT
+    // and one control that spends it on headcount.
+    expect(advanceOnboarding('act2_termsheet', at({ seedTaken: true }))).not.toBe('act2_loop')
+  })
+
+  it('never re-runs Act III’s copy over a studio that learned the lesson', () => {
+    // `act2_loop` is runs 2+ and it is where they end. It used to hand over to
+    // `act3_bait` at MOUSETRAP_AT, so measured (`pacing.test.ts`) run 6 spent
+    // from its third minute onward showing `LIMITED OFFER: MASS HIRING PACKAGE
+    // UNLOCKED` and "Onboarding 1,000 developers. This is fine." over a healthy
+    // studio of fifteen hundred people. Acts III to V are Run 1's script.
+    for (const devs of [MOUSETRAP_AT - 1, MOUSETRAP_AT, 5_000]) {
+      expect(advanceOnboarding('act2_loop', at({ devs }))).toBe('act2_loop')
+    }
+    // The run can still end, because the bankruptcy guard is not keyed to a
+    // phase — that is the property that makes the above safe.
+    expect(advanceOnboarding('act2_loop', at({ devs: 5_000, bankrupt: true }))).toBe('bankrupt')
   })
 
   it('really is twice as fast with James — the premise has to be true', () => {
@@ -264,9 +250,14 @@ describe('every phase has something to say', () => {
     expect([...SCENE_PHASES]).toEqual([])
   })
 
-  it('gives the player-gated phases a button label', () => {
-    expect(PHASE_COPY.act2_offer_hire.action).toBeTruthy()
+  it('gives the player-gated phases their own surface', () => {
+    // `act3_bait` and `bankrupt` are action-bar beats and carry a label.
     expect(PHASE_COPY.act3_bait.action).toBeTruthy()
     expect(PHASE_COPY.bankrupt.action).toBeTruthy()
+    // §21.0a — the term sheet is the exception, and deliberately: its control is
+    // a modal (`TermSheet.tsx`), so a label here would draw a *second* button
+    // for a decision that already has one.
+    expect(PHASE_COPY.act2_termsheet.action).toBeUndefined()
+    expect(PHASE_COPY.act2_termsheet.advisor).toBeTruthy()
   })
 })

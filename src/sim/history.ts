@@ -10,11 +10,24 @@
  * retired: `revenue.ts` drops a game the moment it stops earning (§4.10e's
  * retire), and only the run-level counters remembered it had been there.
  *
- * This is the permanent record. It is **career-wide** — it survives a Paradigm
- * Shift, a Codebase Fork and a Multiverse Compiler, because §13.2 liquidates
- * *money*, not *memory*, and "what have I made" is the one question the whole
- * prestige ladder is supposed to leave behind it. The `run` field on each
- * record keeps the per-run filter available.
+ * ## It is the **run's** record, not the career's [amended 2026-08-27]
+ *
+ * This was career-wide and said so at length: it survived a Paradigm Shift "because
+ * §13.2 liquidates *money*, not *memory*". That is a good sentence about a shelf
+ * of trophies and the wrong one about this shelf, because §10.11's gallery is not
+ * a trophy cabinet — it is **the catalogue this studio is currently selling**.
+ * §4.10e's tail, §4.12's defects and §4.14's reception all attach to a release,
+ * and a Paradigm Shift liquidates every one of those. A gallery that outlives the
+ * studio is a wall of games nobody in this reality has made, with no tail, no
+ * standing and no way to tell which of them are *yours*.
+ *
+ * So the history lives in the run save now, and a shift clears it the same way it
+ * clears the treasury: not by a special case, but because `freshRun()` starts an
+ * empty one. §15.1a's cut scene is where the run that made them is accounted for.
+ *
+ * The `run` field on each record is kept. It is one number, it is what a §17
+ * Multiverse view would need to put two realities side by side, and every record
+ * already carries it.
  *
  * ## Scaling to millions of releases
  *
@@ -131,9 +144,11 @@ export function emptyHistory(): History {
  *
  * Dense rather than tied to `lifetimeProjectsShipped`, because that counter is
  * a high-water mark incremented by offline ships too, and a history with gaps
- * in it is a history whose "recent" window is not recent. The merge dedupes on
- * this ordinal, so two devices that both assign the same number to different
- * releases collapse to one record rather than to a lie.
+ * in it is a history whose "recent" window is not recent.
+ *
+ * It restarts at 1 every run, which is the point of the amendment above: an
+ * ordinal names a release *in this catalogue*, and §4.14's reception roll is
+ * drawn from it against a run seed that is itself re-rolled at every shift.
  */
 export function nextOrdinal(history: History): number {
   let max = -1
@@ -196,82 +211,17 @@ export function recordRelease(history: History, record: ReleaseRecord): History 
   }
 }
 
-/** Field-wise max, so two records of one ordinal collapse to the generous one. */
-function maxRecord(a: ReleaseRecord, b: ReleaseRecord): ReleaseRecord {
-  return {
-    ordinal: a.ordinal,
-    run: Math.max(a.run, b.run),
-    // Two devices that diverged can give one ordinal different names. The tie
-    // is broken lexicographically so the answer does not depend on merge order;
-    // the case cannot arise in a single-device lineage, where an ordinal names
-    // exactly one release.
-    name: a.name <= b.name ? a.name : b.name,
-    rating: Math.max(a.rating, b.rating),
-    heroCoverage: Math.max(a.heroCoverage ?? 0, b.heroCoverage ?? 0),
-    // Field-wise max like everything else here — see the function's note. The
-    // breakdown is decoration on a rating that is itself maxed, so a merge
-    // cannot produce a breakdown that argues with the score beside it by more
-    // than the two documents already disagreed.
-    sync: Math.max(a.sync ?? 0, b.sync ?? 0),
-    traits: Math.max(a.traits ?? 0, b.traits ?? 0),
-    luck: Math.max(a.luck ?? 0, b.luck ?? 0),
-    payout: Math.max(a.payout, b.payout),
-    buildSeconds: Math.max(a.buildSeconds, b.buildSeconds),
-    labourSeconds: Math.max(a.labourSeconds, b.labourSeconds),
-    seed: Math.max(a.seed, b.seed),
-  }
-}
-
-function maxAggregate(a: TitleAggregate, b: TitleAggregate): TitleAggregate {
-  return {
-    name: a.name,
-    count: a.count + b.count,
-    ratingSum: a.ratingSum + b.ratingSum,
-    payoutSum: a.payoutSum + b.payoutSum,
-    buildSecondsSum: a.buildSecondsSum + b.buildSecondsSum,
-    labourSecondsSum: a.labourSecondsSum + b.labourSecondsSum,
-    seed: Math.max(a.seed, b.seed),
-    lastOrdinal: Math.max(a.lastOrdinal, b.lastOrdinal),
-    lastRun: Math.max(a.lastRun, b.lastRun),
-  }
-}
-
-/**
- * Merge two histories — SAVE.md §3's permanence rule applied to an ordered log.
+/*
+ * **`mergeHistory` lived here and is gone** [removed 2026-08-27].
  *
- * `recent` unions by ordinal and keeps the highest {@link RECENT_KEEP}, so the
- * window is a pure function of the record set and the merge is commutative and
- * idempotent.
- *
- * `aggregates` union by title and **sum** their counts and totals, which is
- * commutative but not idempotent: a release folded on *both* devices counts
- * twice. That can only happen when two devices independently ship-and-fold the
- * same ordinal — which, like §24.3's BP balance, does not meaningfully
- * parallelise across two devices sharing one save. The deliberate trade is the
- * game's standing one: prefer the player keeping everything to the merge
- * guessing which copy to discard.
+ * It was SAVE.md §3's monotonic-permanence rule applied to an ordered log: union
+ * `recent` by ordinal, sum the aggregates, and accept that a release folded on
+ * two devices counts twice. That contract belongs to things a player *earns* and
+ * may never lose. A catalogue is not one of those any more — it belongs to the
+ * run, and run state is resolved by `savedAt` last-write-wins, which is the whole
+ * of the answer. A merge function with no caller is the next contributor's
+ * afternoon, so it left with its reason.
  */
-export function mergeHistory(a: History, b: History): History {
-  const byOrdinal = new Map<number, ReleaseRecord>()
-  for (const r of a.recent) byOrdinal.set(r.ordinal, r)
-  for (const r of b.recent) {
-    const existing = byOrdinal.get(r.ordinal)
-    byOrdinal.set(r.ordinal, existing ? maxRecord(existing, r) : r)
-  }
-  const recent = [...byOrdinal.values()]
-    .sort((x, y) => x.ordinal - y.ordinal)
-    .slice(-RECENT_KEEP)
-
-  const byName = new Map<string, TitleAggregate>()
-  for (const agg of a.aggregates) byName.set(agg.name, agg)
-  for (const agg of b.aggregates) {
-    const existing = byName.get(agg.name)
-    byName.set(agg.name, existing ? maxAggregate(existing, agg) : agg)
-  }
-  const aggregates = [...byName.values()].sort((x, y) => x.lastOrdinal - y.lastOrdinal)
-
-  return { recent, aggregates }
-}
 
 /** §10.11.1 — the average score of a folded title, for the gallery's trend. */
 export function aggregateRating(aggregate: TitleAggregate): number {

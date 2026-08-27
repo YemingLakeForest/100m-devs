@@ -159,16 +159,29 @@ describe('§13.9.1 — a hero is a starting position, not a role', () => {
     expect(OFF_BRANCH).toBeLessThan(1)
   })
 
-  it('makes James the jack of all trades — equal everywhere, best nowhere', () => {
-    // §13.6.3: "small at every rung and never scales". He has no home branch,
-    // so charging him the off-branch rate everywhere would make the jack of all
-    // trades strictly the worst hero in the game. He is worth the same in every
-    // direction — which is exactly what everybody else gets away from home.
+  it('makes James the jack of all trades — full value in every direction', () => {
+    // §13.9.1 amended. He has no speciality, so he pays no handicap: the 0.5 is
+    // what a *speciality* costs, and James has not bought one. Charging him the
+    // off-branch rate everywhere made him strictly dominated by all five
+    // specialists at every node on the board, which is not a class.
     for (const branch of BRANCHES) {
       expect(nodeWeight('engineering', branch)).toBe(JACK_WEIGHT)
     }
-    expect(JACK_WEIGHT).toBe(OFF_BRANCH)
-    // Never better than a specialist at home.
-    expect(nodeWeight('engineering', 'quality')).toBeLessThan(nodeWeight('quality', 'quality'))
+    expect(JACK_WEIGHT).toBe(1)
+    // Equal to a specialist at home, and better than one away from it — which
+    // is the whole of the amendment, in two comparisons.
+    expect(nodeWeight('engineering', 'quality')).toBe(nodeWeight('quality', 'quality'))
+    expect(nodeWeight('engineering', 'cloud')).toBeGreaterThan(nodeWeight('quality', 'cloud'))
+  })
+
+  it('leaves the specialists paying for their focus', () => {
+    // The handicap did not go away; it moved to the people it is about. James
+    // being unpenalised must not read as "the board has no off-branch rate".
+    expect(OFF_BRANCH).toBeLessThan(1)
+    for (const hero of BRANCHES.filter((b) => b !== 'engineering')) {
+      for (const node of BRANCHES.filter((b) => b !== hero)) {
+        expect(nodeWeight(hero, node)).toBe(OFF_BRANCH)
+      }
+    }
   })
 })

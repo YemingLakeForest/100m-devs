@@ -332,10 +332,10 @@ export function effectiveDepth(runtime: HeroRuntime, branch: HeroBranch): number
    * describes an effect he does not have is a bug in the fiction as much as in
    * the arithmetic.
    *
-   * Weighted like any other node, so it is worth {@link JACK_WEIGHT} to James
-   * and the same off-branch rate to everybody else: small at every rung, never
-   * scaling, and the same for all six. §13.6.3's joke needs it to be *small*,
-   * not absent.
+   * Weighted like any other node, so it is worth {@link JACK_WEIGHT} to James —
+   * full value, since the trunk is the one place he is at home — and the
+   * off-branch rate to everybody else, who left it behind when they
+   * specialised. §13.6.3's joke needs it to be *small*, not absent.
    */
   if (branch === 'engineering' && runtime.nodes.includes(TRUNK_NODE)) {
     total += nodeWeight(runtime.branch, 'engineering')

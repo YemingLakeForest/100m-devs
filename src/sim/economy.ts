@@ -21,19 +21,32 @@
  *   Act II   0 paid heads          -> payroll $0/sec,      profit +$50   ✓
  *   Act V    1,000 paid heads      -> payroll $50,000/sec                ✓
  *
+ * §21.0e makes it exact rather than nearly exact: **Run 1 never hires**, so the
+ * garage is the whole of it and the thousand who land are the whole payroll.
+ *
  * It also does the design work. §6.1 wants payroll to be the mechanism that
  * converts frozen production into bankruptcy, and this makes hiring the exact
- * moment the meter starts running.
+ * moment the meter starts running. What it must *not* be is the mechanism that
+ * ends a healthy studio in a later run — see {@link WAGE_HEADROOM}, which is the
+ * rule that keeps §4.1 in front of the payroll for the rest of the career.
  */
 
 /**
- * Heads that draw no salary — you and James, in the garage.
+ * Heads that draw no salary — James, in the garage.
  *
  * This is a narrative constant, not a balance knob. It is why the opening of
  * the game is survivable at all, and it is what makes the Mass Hire feel like
  * a decision rather than a button.
+ *
+ * **One, not two** [amended 2026-08-27]. The comment always read "you and
+ * James" and the number always said two, and those are not the same claim:
+ * **you are not in `devs`.** Act I opens at zero developers and James takes it
+ * to one, so `devs - 2` was giving away a *third* free head that nobody in the
+ * fiction is — and it put §21 Act V's stated figure a hire out of true, at
+ * $49,950/sec for the thousand who land. At one it is exactly $50,000/sec,
+ * which is the number the section actually prints on the screen.
  */
-export const UNPAID_FOUNDERS = 2
+export const UNPAID_FOUNDERS = 1
 
 /** Dollars per paid developer per second. Derived from §21 Act V. */
 export const WAGE_PER_DEV_PER_SEC = 50
@@ -131,31 +144,82 @@ export function projectScale(scale: number): number {
 }
 
 /**
+ * **How far a paid rung must clear the wage** — §4.10h, [CANON — added 2026-08-27].
+ *
+ * §4.10c's rule was `r > W`: revenue per Story Point strictly greater than the
+ * wage per developer per second, so that `d(profit)/dn = r - W` is positive and
+ * each hire pays for itself. That derivative is taken **at full efficiency**,
+ * and §4.1 is the reason it is not the whole story. Real profit is
+ *
+ *     P(D) = r · D · η(D) − W · (D − U)
+ *
+ * and it peaks *below* §4.1's output optimum, by a margin set entirely by `W/r`.
+ * Measured against the old ladder at its first paid rung (r = $63.30, W = $50):
+ *
+ * | | Headcount | What the player sees |
+ * |---|---|---|
+ * | Peak **profit** | 52% of cap | nothing — the readout still says `IN SYNC` |
+ * | Peak **output** (§4.1's optimum) | 76% of cap | `CHATTY`, and profit is already down 78% |
+ * | **Break-even** | 77% of cap | the studio starts dying one hire past its best velocity |
+ *
+ * So a player who hires to the headcount the *game* tells them is optimal is
+ * losing money at it, and the thing that kills them is the payroll rather than
+ * §4.1. Reported as exactly that: *"it's not the inefficiency that's killing but
+ * the budget awareness killing us — not the intention of the game."* It is a
+ * fair report. §6.1 asks payroll to be **the timer on a studio that has already
+ * seized**, not the wall a healthy one hits.
+ *
+ * The fix is a ratio rather than a number. At `W/r = 1/κ` the studio stays
+ * solvent until `η < 1/κ`, i.e. until
+ *
+ *     L = (κ − 1)^(1/ρ)
+ *
+ * so κ is exactly "how far past its capacity a studio may go before the money,
+ * rather than the meeting, stops it". At κ = 4 that is L = 1.246 — a quarter
+ * *over* cap, with the speedometer deep in the red and velocity already halved
+ * from its peak. **Entropy is visibly the thing that kills you, and payroll is
+ * what finishes a studio entropy has already stopped.** Which is §6.
+ *
+ * Four rather than ten: the payroll still has to be *felt*, or §6.1's timer has
+ * no tension and cash stops being a resource at all. Peak profit at κ = 4 sits
+ * at 70% of cap against the 76% optimum, so there is still a real decision in
+ * the last few hires — it is just no longer a decision the player loses by
+ * following the game's own readout.
+ */
+export const WAGE_HEADROOM = 4
+
+/**
  * Payouts, mirrored here so `economy.ts` stays free of store imports.
  *
  * Kept in step with `PROJECTS` by test rather than by discipline — two lists
  * that must agree and are edited in different files is exactly the pairing that
  * silently drifts.
+ *
+ * The three garage rungs are unchanged — they are deliberately underwater and
+ * nobody is on payroll while they ship. Every rung from {@link FIRST_PAID_RUNG}
+ * was re-priced against {@link WAGE_HEADROOM} on 2026-08-27; see `PROJECTS` for
+ * the per-rung $/SP.
  */
 export const PROJECT_PAYOUTS: readonly number[] = [
   50,
   1_500,
   12_000,
-  38_000,
-  110_000,
-  320_000,
-  900_000,
+  130_000,
+  250_000,
+  500_000,
+  1_000_000,
   2_600_000,
 ]
 
 /**
  * The first rung the player ships while paying somebody — §4.10f.
  *
- * §21's phase machine holds `act2_ship` until this many games are out, and only
- * then opens Act IIa's hiring loop. Everything below this index is garage work
- * at two unpaid founders; everything from it upward must satisfy `r > W`, and
- * `economy.test.ts` asserts exactly that split rather than asserting it from
- * rung 1 — which is what forced the old ×500 cliff between the first two games.
+ * §21's phase machine holds `act1_ship` until this many games are out — the
+ * whole garage catalogue — and Run 1 never hires at all (§21.0e). Everything
+ * below this index is garage work at unpaid founders; everything from it upward
+ * must clear {@link WAGE_HEADROOM} × W per Story Point, and `economy.test.ts`
+ * asserts exactly that split rather than asserting it from rung 1 — which is
+ * what forced the old ×500 cliff between the first two games.
  *
  * It lives here, beside the payouts and the wage, rather than in the store: the
  * phase machine needs it and `onboarding.ts` cannot import the store. The three
@@ -208,7 +272,7 @@ export const PROJECT_COMMITMENTS: readonly number[] = [
  * developer of capacity — reasoning that a studio opens on the largest game it
  * could have built with the people it is allowed to hold. That reads well and it
  * is the wrong noun. **A run does not open with the people it is allowed to
- * hold; it opens with two.** §21.6 liquidates the swarm and leaves James.
+ * hold; it opens with James.** §21.6 liquidates the swarm and leaves him.
  *
  * Measured, at run 8 of §14.8: cap 210,526, so the cap-bound rule handed the run
  * the terminal 3,500-point game, which two developers need about seven hundred
@@ -261,17 +325,34 @@ export function openingRung(paradigmShifts: number, startingDevs: number): numbe
  * velocity is linear in headcount — a linear cost would make each hire *more*
  * affordable than the last and the loop would have no tension at all.
  *
- * The base is deliberately tiny, and that is the joke rather than a rounding
- * problem: **a developer costs a dollar to hire and $50 a second to keep.**
- * The hire is cheap; the payroll is what ends the company. §6's lesson stated
- * in two constants.
+ * **The base carries the cost of growth now, and the payroll does not**
+ * [amended 2026-08-27]. It was $1, against a $50/sec wage, and the comment here
+ * called that the joke: *"a developer costs a dollar to hire and $50 a second to
+ * keep."* It is a good joke and it was doing real damage, because a price of one
+ * dollar is a price the player cannot feel and a wage of fifty is a cost that
+ * arrives thirty seconds later, on a revenue curve that pays in lumps. Every
+ * hire was therefore free at the moment of the decision and lethal at the moment
+ * of the invoice — which is not a decision, it is an ambush, and it is the
+ * "budget awareness" complaint {@link WAGE_HEADROOM} records.
  *
- * Simulated against the §21 ladder, reaching 40 developers costs $238 of the
- * ~$320 the loop earns, leaving a treasury to gamble on the Mass Hire.
- * **First-pass numbers that want a playtest**, unlike the wage and the
- * bankruptcy threshold, which are derived.
+ * So the two constants swap jobs. {@link WAGE_HEADROOM} puts the wage safely
+ * under what a head earns, and the **hire price** becomes the thing the player
+ * weighs, paid up front, in full, at the moment they choose it.
+ *
+ * Thirty is sized against one statement: **filling the studio to §4.1's optimum
+ * costs about one game.** The series sums to `base · (g^n − 1)/(g − 1)`, so
+ * reaching 0.758 × the reference cap of 100 costs ≈ 4,250 × base ≈ $128,000,
+ * against the $130,000 the first paid rung pays. Ship a game, fill the floor,
+ * ship the next one in sixty seconds — that is the whole of the mid-run loop in
+ * one sentence, and it is a sentence about a *purchase* rather than about a
+ * standing liability.
+ *
+ * §14.8.9's cap normalisation keeps that true at every capacity and keeps it
+ * from becoming a wall: the same *fraction* of any cap costs about the same, so
+ * the price fades against income as the studio grows, which is exactly what it
+ * should do once §4.1 is the only thing left to fight.
  */
-export const HIRE_BASE_COST = 1
+export const HIRE_BASE_COST = 30
 export const HIRE_COST_GROWTH = 1.08
 
 /**
@@ -358,14 +439,22 @@ export const SP_PER_DEV_PER_SEC = 1
 
 /**
  * Developers a run opens with — §21.6, "James survives; everybody else is
- * liquidated", plus you.
+ * liquidated."
  *
- * Mirrored from `triggerParadigmShift`'s `devs: 2` and asserted against it,
+ * **One, and it is James** [amended 2026-08-27]. This was 2, and the second
+ * body had no name: §21.6's liquidation leaves exactly one developer standing,
+ * the founder is not counted in `devs` (Act I opens at zero and James takes it
+ * to one), so a run opening at two put a stranger at a desk beside him with
+ * nothing in the fiction to explain them. Reported as "there are 2 developers
+ * staying, should be just james", and the roster agreed with the count rather
+ * than with the story.
+ *
+ * Mirrored from `triggerParadigmShift`'s `devs:` and asserted against it,
  * because {@link openingRung} bounds the opening game by exactly this number and
  * the two silently disagreeing is how run 8 ended up unable to hire its third
  * employee against a cap of two hundred thousand.
  */
-export const STARTING_DEVS = 2
+export const STARTING_DEVS = 1
 
 export function hireCost(devs: number, growth = HIRE_COST_GROWTH): number {
   const n = Math.max(1, Math.floor(devs))

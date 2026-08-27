@@ -3,7 +3,6 @@ import {
   RECENT_KEEP,
   aggregateRating,
   emptyHistory,
-  mergeHistory,
   nextOrdinal,
   recordRelease,
   type History,
@@ -100,37 +99,13 @@ describe('§10.11 — the release history', () => {
   })
 })
 
-describe('§24.3 — merging two histories', () => {
-  it('unions the recent window by ordinal and keeps the highest', () => {
-    const a = history([record(0), record(1)])
-    const b = history([record(1, { payout: 999 }), record(2)])
-    const m = mergeHistory(a, b)
-    expect(m.recent.map((r) => r.ordinal)).toEqual([0, 1, 2])
-    expect(m.recent.find((r) => r.ordinal === 1)!.payout).toBe(999)
-  })
-
-  it('is commutative', () => {
-    const a = history([record(0), record(1)], [aggregate('A', { count: 2 })])
-    const b = history([record(1), record(2)], [aggregate('A', { count: 3 })])
-    const ab = mergeHistory(a, b)
-    const ba = mergeHistory(b, a)
-    expect(ab.recent.map((r) => r.ordinal)).toEqual(ba.recent.map((r) => r.ordinal))
-    expect(ab.aggregates).toEqual(ba.aggregates)
-  })
-
-  it('sums per-title aggregates across devices', () => {
-    const a = history([], [aggregate('A', { count: 2, payoutSum: 20, lastOrdinal: 1 })])
-    const b = history([], [aggregate('A', { count: 3, payoutSum: 30, seed: 2, lastOrdinal: 5, lastRun: 1 })])
-    const m = mergeHistory(a, b)
-    expect(m.aggregates[0]).toMatchObject({ count: 5, payoutSum: 50, seed: 2, lastOrdinal: 5 })
-  })
-
-  it('keeps the recent window bounded after a merge', () => {
-    let a = emptyHistory()
-    let b = emptyHistory()
-    for (let i = 0; i < RECENT_KEEP + 10; i++) a = recordRelease(a, record(i))
-    for (let i = RECENT_KEEP - 5; i < RECENT_KEEP + 20; i++) b = recordRelease(b, record(i))
-    const m = mergeHistory(a, b)
-    expect(m.recent.length).toBeLessThanOrEqual(RECENT_KEEP)
-  })
-})
+/*
+ * **§24.3's merge block lived here and is gone** [removed 2026-08-27].
+ *
+ * It tested `mergeHistory` — union by ordinal, sum the aggregates, commutative
+ * — which was the right contract while the gallery was permanent and merged
+ * across devices. §10.11's history is run state now, and run state is resolved
+ * by `savedAt` last-write-wins, so there is nothing to merge and nothing to
+ * assert about merging it. The tests left with the function rather than being
+ * kept green against a caller that no longer exists.
+ */

@@ -203,7 +203,7 @@ export interface ActionSpec {
   /** Second line, smaller. The Act III promo pitch. */
   note?: string
   variant: 'default' | 'bait'
-  action: 'hire' | 'massHire' | 'paradigmShift' | 'takeSeed'
+  action: 'hire' | 'massHire' | 'paradigmShift'
   /**
    * Render the live price beneath the label — §21.0, hiring costs money.
    *
@@ -240,13 +240,6 @@ const HIRE: ActionSpec = {
   priced: 'hire',
 }
 
-const TAKE_SEED: ActionSpec = {
-  label: 'ACCEPT TERM SHEET',
-  note: '+$50,000',
-  variant: 'default',
-  action: 'takeSeed',
-}
-
 const MASS_HIRE: ActionSpec = {
   label: 'HIRE 1,000 DEVS NOW',
   // §21.0 — no longer free. "Cost: FREE (Trial Promo)" made it a button rather
@@ -266,41 +259,47 @@ const MASS_HIRE: ActionSpec = {
  * beat's button belongs to the bankruptcy panel — an action bar sliding up
  * underneath a modal would be two surfaces competing for the same decision.
  */
-export function actionFor(phase: Phase): ActionSpec | null {
+export function actionFor(phase: Phase, manualHire = true): ActionSpec | null {
+  // §21.0e — **Run 1 has no hire button at any point in it.** The gate is a fact
+  // about the career (`unlocksFor().manualHire`), not about the beat, so it is
+  // checked once here rather than being spread across the cases below: a phase
+  // is *where in the script* the player is, and whether hiring exists at all is
+  // a different question that Run 1 answers no to for every one of them.
+  if (!manualHire) return null
   switch (phase) {
-    case 'act2_offer_hire':
-    // §21.0's Act IIa is the honest loop — "ship, earn, hire, ship faster" —
-    // so the hire control is the *whole* interface of that beat and must be
-    // continuously available through it. It was previously offered for the
-    // single hire that brings James and then taken away again, which left the
-    // act with a verb and no button.
-    // falls through
-    case 'act2a_loop':
-    case 'act2b_loop':
+    case 'act2_loop':
     // §21.0a — **the mousetrap no longer replaces the hire control.** Act III
     // keeps the ordinary verb; the offer arrives beside it as `offerFor`.
     // falls through
     case 'act3_bait':
       return HIRE
-    case 'act2a_seed':
-      return TAKE_SEED
     default:
+      // §21.0a's term sheet used to be a fourth spec here, `ACCEPT TERM SHEET`,
+      // sitting in the action bar with `+$50,000` under it. It is a modal now
+      // (`TermSheet.tsx`) — an investor's offer is not the same object as a
+      // purchase the player makes over and over, and putting it in the slot
+      // that usually says HIRE DEVELOPER made the one genuinely singular event
+      // in Run 1 read as another verb.
       return null
   }
 }
 
 /**
- * The temptation, if this beat has one — §21.0a.
+ * The temptation, if this beat has one — §21.0a, §21.0e.
  *
- * Separate from {@link actionFor} because it is a *second* control on screen at
- * the same time, which is the one place §21's funnel deliberately widens. The
- * earlier design had Act III swap the hire button for the offer, and that turns
- * a trap into a corridor: **a player who is left no alternative has not chosen
- * anything**, and §6's lesson is only a lesson if the decision was theirs.
+ * Separate from {@link actionFor} because it can be a *second* control on screen
+ * at the same time, which is the one place §21's funnel deliberately widens.
  *
- * So both are live. Hiring past the threshold by ordinary means still reaches
- * Act IV; it just takes longer and costs more, which is the point — and is, if
- * anything, the more honest version of the lesson.
+ * **In Run 1 it is the only control, and that is §21.0e rather than a
+ * regression.** The earlier design's worry was the right one — Act III used to
+ * *swap* the hire button for the offer, and a player left no alternative has not
+ * chosen anything — but it was a worry about taking a verb *away* at the last
+ * moment. Run 1 never had that verb: the studio is two people who have never
+ * hired anybody, so nothing is being confiscated, and the decision the player
+ * makes here is the first hiring decision they have ever been offered.
+ *
+ * From Run 2 the hire control is live beside it wherever both appear, and they
+ * are gated separately so the two can never drift into being one button.
  */
 export function offerFor(phase: Phase, massHired = false): ActionSpec | null {
   // **A one-shot offer disappears once it has been taken.** It stayed, greyed

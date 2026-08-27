@@ -135,11 +135,15 @@ describe('§13.9.1 — she will be worse at it than Melany', () => {
     expect(effectiveDepth(moInCloud, 'quality')).toBe(STORY_STARTING_DEPTH)
   })
 
-  it('makes James half of everybody, everywhere — §13.6.3', () => {
+  it('counts every node James buys at full value — §13.9.1 amended', () => {
+    // He has no speciality, so there is no branch he is "away from": one node
+    // bought is one node deep, in every direction. What still keeps him behind
+    // a specialist is where he *starts* — Mo walks in three deep in Quality and
+    // James walks in at the trunk — so a level is a level and the head start is
+    // the whole of the difference.
     const james = at('james', 9, [TRUNK_NODE, 'quality:1', 'cloud:1'])
-    expect(effectiveDepth(james, 'quality')).toBeCloseTo(0.5, 9)
-    expect(effectiveDepth(james, 'cloud')).toBeCloseTo(0.5, 9)
-    // Never better than a specialist at home.
+    expect(effectiveDepth(james, 'quality')).toBeCloseTo(1, 9)
+    expect(effectiveDepth(james, 'cloud')).toBeCloseTo(1, 9)
     expect(effectiveDepth(james, 'quality')).toBeLessThan(effectiveDepth(fresh('mo'), 'quality'))
   })
 })

@@ -31,6 +31,10 @@ describe('§21.0c — the first Paradigm Shift is the door', () => {
       // is a second one.
       expect(u.founderBoard).toBe(false)
       expect(u.heroBoard).toBe(false)
+      // §21.0e — and not hiring. The bluntest gate in the file and the newest:
+      // Run 1 is two people in a garage from the first frame to the Mass Hire,
+      // because §21.0d's scene says "two of us" and has to be right about it.
+      expect(u.manualHire).toBe(false)
     }
   })
 
@@ -39,6 +43,10 @@ describe('§21.0c — the first Paradigm Shift is the door', () => {
       const u = unlocksFor(shifts, NO_HEROES)
       expect(u.simulated).toBe(true)
       expect(u.upgrades).toBe(true)
+      // §21.0e — hiring comes back with everything else, and unlike the
+      // instruments it needs nobody to carry it through the door: it is a verb
+      // the player already knows, withheld for one run to keep a scene honest.
+      expect(u.manualHire).toBe(true)
     }
   })
 

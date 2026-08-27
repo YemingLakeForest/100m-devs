@@ -32,10 +32,9 @@
  * **James has no home branch, and that is his class.** Everyone else is worth
  * full value in their own branch and {@link OFF_BRANCH} elsewhere — §13.9.1's
  * "she will be worse at it than Melany" as arithmetic. James is worth
- * {@link JACK_WEIGHT} *everywhere*, which is the same as everybody else's
- * off-branch rate: never penalised for going anywhere, never the best at
- * anything, exactly §13.6.3's "small at every rung and never scales". The joke
- * is now a number.
+ * {@link JACK_WEIGHT} *everywhere*, and that is **full value in every
+ * direction**: no speciality, and therefore no direction he is wrong to go in.
+ * See {@link JACK_WEIGHT} for why it stopped being half.
  */
 
 /** §13.9's six branches. The centre is Engineering; the rest are compass headings. */
@@ -371,15 +370,38 @@ export function branchFold(branch: HeroBranch): BranchFold {
  * it anyway has made a real decision about a specific person, which is the
  * sentence this function exists to make true.
  *
- * **James is the exception and it is his entire class.** He has no home branch
- * — the trunk is not a speciality — so a rule that charged him the off-branch
- * rate everywhere would make the jack of all trades strictly the worst hero in
- * the game. He is worth {@link JACK_WEIGHT} in every direction instead: never
- * penalised for going anywhere, never better than a specialist at home, and
- * never scaling. §13.6.3's joke, as arithmetic.
+ * **James is the exception and it is his entire class** — see
+ * {@link JACK_WEIGHT}.
  */
 export const OFF_BRANCH = 0.5
-export const JACK_WEIGHT = 0.5
+
+/**
+ * §13.9.1 amended — **James is not penalised anywhere** [amended 2026-08-27].
+ *
+ * This was 0.5, the same as {@link OFF_BRANCH}: the jack of all trades priced
+ * as though every branch were somebody else's. Read as a card that is the
+ * defensible version of §13.6.3's joke; read as a *board*, it is a hero who is
+ * strictly worse than every other hero at every node on it, with no compensating
+ * column anywhere — the specialist is at 1.0 at home and 0.5 away, James was at
+ * 0.5 and 0.5. There is no build in which picking him is correct, which makes
+ * "never the best at anything" quietly mean "never worth spending a point on".
+ *
+ * So the handicap is what a *speciality* costs, not what a lack of one costs.
+ * Everybody else buys their focus by being half as good outside it; James has
+ * bought nothing, so he pays nothing, and he is worth full value in every
+ * direction — equal to a specialist at home, and better than one everywhere
+ * else. That is a real class rather than a punchline: he is the hero you place
+ * when you do not yet know which problem the run is going to have.
+ *
+ * What it gives up, stated rather than buried: he is no longer *dominated*, and
+ * §13.6.3's "small at every rung, and never scales" has to be carried by the
+ * things that still say it — he arrives at the trunk and nowhere else
+ * ({@link startingNodes}), so a specialist is three nodes deep in their branch
+ * on the day they walk in and James is at the centre with everything to buy.
+ * His depth is earned one point at a time; that is the shape of "never scales",
+ * and it survives intact.
+ */
+export const JACK_WEIGHT = 1
 
 export function nodeWeight(heroBranch: HeroBranch, nodeBranch: HeroBranch): number {
   if (heroBranch === 'engineering') return JACK_WEIGHT

@@ -1628,7 +1628,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // §20.7.4 is once per run, and a Paradigm Shift starts a new one. Without
       // this the score would stay collapsed for every subsequent run — four
       // minutes of Act I under a stem written for a seized studio.
+      //
+      // **Both halves, or neither.** Clearing the latch alone left the bus
+      // holding its Act IV start time, so `mix()` went on ducking all four zone
+      // beds to zero and holding the collapse layer at full for the rest of the
+      // session, and the *next* `triggerActIV` was a no-op besides. That is the
+      // "the music never went back" report: the renderer had reset and the
+      // score had not.
       musicCollapsed = false
+      music.clearActIV()
     }
     // §7.7.2 — consume the store's SpawnEvent. Until this existed the
     // headcount changed and the screen did not.

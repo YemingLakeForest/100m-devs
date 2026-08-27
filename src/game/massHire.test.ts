@@ -17,6 +17,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { MASS_HIRE_MIN_COST } from '../sim/economy.ts'
 import { MASS_HIRE_COUNT } from './onboarding.ts'
+import { emptyPermanent, setPermanent } from './save.ts'
 import {
   __resetStore,
   __setState as setState,
@@ -33,8 +34,22 @@ import {
  *  debug seam's numbers rather than about the refusal they were checking. */
 let startDevs = 0
 
+/**
+ * §21.0e — a player who has been through the trap once.
+ *
+ * `hireDeveloper` is closed for the whole of Run 1, so the three seat-range
+ * tests below — which are about *ordinary* hiring and only borrow this file's
+ * setup — have to say which side of the first shift they are on. The Mass Hire
+ * itself needs no such thing: it is Run 1's one and only hire.
+ */
+function prestiged() {
+  const p = emptyPermanent()
+  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+}
+
 beforeEach(() => {
   __resetStore()
+  setPermanent(emptyPermanent())
   jumpToPhase('act3_bait')
   startDevs = getState().devs
 })
@@ -108,6 +123,7 @@ describe('the spawn event names the seats, not a body count — §7.7.2', () => 
     // takes a studio from one developer to two, so on a floor with two desks it
     // dropped somebody on the founder's head — reported as "the fall goes down
     // to the person before". A seat range cannot be wrong that way.
+    prestiged()
     setState({ devs: 10, cash: 1e6 })
     hireDeveloper()
     const spawn = getState().spawn!
@@ -117,6 +133,7 @@ describe('the spawn event names the seats, not a body count — §7.7.2', () => 
   })
 
   it('never overlaps a seat that was already taken', () => {
+    prestiged()
     setState({ devs: 1, cash: 1e9 })
     let previousTo = 1
     for (let i = 0; i < 30; i++) {
@@ -136,6 +153,7 @@ describe('the spawn event names the seats, not a body count — §7.7.2', () => 
     // tiers where one sprite is not one person — and is wrong for anything
     // that lands on a seat. Both are published, and they disagree, which is
     // the whole reason the seat range had to exist.
+    prestiged()
     setState({ devs: 1, cash: 1e6 })
     hireDeveloper()
     const spawn = getState().spawn!

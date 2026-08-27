@@ -51,7 +51,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { getPermanent, getState, subscribe } from '../game/store.ts'
+import { getState, subscribe } from '../game/store.ts'
 import { Panel } from '../ui/Panel.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Cover } from './Cover.tsx'
@@ -111,7 +111,9 @@ interface Live {
 }
 
 function readLive(): Live {
-  const history = getPermanent().meta.history
+  // §10.11 — run state since 2026-08-27: the gallery is the catalogue this
+  // studio is selling, and a Paradigm Shift liquidates it with everything else.
+  const history = getState().history
   const releases = getState().releases
   const outstanding = outstandingByOrdinal(releases)
   const byOrdinal = new Map<number, Release>()

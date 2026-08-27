@@ -66,7 +66,11 @@ export const STORY_HEROES: readonly StoryHero[] = [
     id: 'james',
     name: 'James',
     branch: 'engineering',
-    flavour: 'Small at every rung, and never scales.',
+    // §13.9.1 amended 2026-08-27 — the card no longer says he is bad at things,
+    // because the arithmetic no longer says it either. It says the thing that is
+    // still true: he has no speciality, and he does whatever he is pointed at
+    // properly (§21.7.0 rule 1).
+    flavour: 'No speciality. Point him at anything; he does it properly.',
     arrives: 'Act I, fifty pokes, free — the constant across every run',
     trait: {
       name: 'FEWER COMMITMENTS',

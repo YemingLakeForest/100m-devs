@@ -46,7 +46,7 @@ function runTwo(devs = THREAD_MIN_DEVS + 8) {
       milestones: [SCENE_FOUNDER_BOARD.id, SCENE_HERO_BOARD.id],
     },
   })
-  __setState({ devs, cash: 1e9, phase: 'act2a_loop' })
+  __setState({ devs, cash: 1e9, phase: 'act2_loop' })
 }
 
 beforeEach(() => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { entropyLabel, entropyReadout } from '../game/vocabulary.ts'
 import { PHASE_ORDER, type Phase } from '../game/onboarding.ts'
-import { BANKRUPTCY_THRESHOLD, secondsUntilBankrupt } from '../sim/economy.ts'
+import { BANKRUPTCY_THRESHOLD, UNPAID_FOUNDERS, secondsUntilBankrupt } from '../sim/economy.ts'
 import {
   RUNWAY_WARN_SECONDS,
   actionFor,
@@ -107,7 +107,7 @@ describe('the runway clock', () => {
     // 1,002 devs, cash at zero: 1,000 paid heads at $50/sec against a
     // −$1,000,000 threshold. The clock has to be showing by then or the panic
     // §21 Act V is built around has no clock.
-    const seconds = secondsUntilBankrupt(0, 1002)
+    const seconds = secondsUntilBankrupt(0, 1000 + UNPAID_FOUNDERS)
     expect(seconds).toBe(-BANKRUPTCY_THRESHOLD / 50_000)
     expect(runwayReadout(seconds)).not.toBeNull()
   })
@@ -152,17 +152,20 @@ describe('the speedometer numeral — GDD §4.3a', () => {
 describe('the action bar — §21 is a funnel', () => {
   it('offers exactly the beats that wait on a player decision', () => {
     // §21 is a funnel; a second choice anywhere in it would let the player
-    // sidestep the trap. Act IIa joins the list because §21.0 makes hiring the
-    // whole interface of that beat -- but it is the *same* control as Act II's,
-    // not a second one, which is why the funnel is still a funnel.
+    // sidestep the trap. Two beats offer the hire control and it is the *same*
+    // control on both, which is why the funnel is still a funnel.
     const offered = PHASE_ORDER.filter((p) => actionFor(p) !== null)
-    expect(offered).toEqual<Phase[]>([
-      'act2_offer_hire',
-      'act2a_loop',
-      'act2a_seed',
-      'act2b_loop',
-      'act3_bait',
-    ])
+    expect(offered).toEqual<Phase[]>(['act2_loop', 'act3_bait'])
+  })
+
+  it('offers nothing at all during Run 1 — §21.0e', () => {
+    // The hire control is not a beat gate, it is a *career* gate: Run 1 never
+    // hires, so no phase in it may draw the button. Passing the unlock through
+    // rather than adding a `run1` case to the switch is what keeps that one
+    // rule in one place.
+    for (const phase of PHASE_ORDER) {
+      expect(actionFor(phase, false)).toBeNull()
+    }
   })
 
   it('offers the temptation on exactly one beat, and never as the only option', () => {
@@ -179,14 +182,14 @@ describe('the action bar — §21 is a funnel', () => {
     }
   })
 
-  it('gives Act IIa the ordinary hire control, not a second flavour of it', () => {
+  it('gives the loop the ordinary hire control, not a second flavour of it', () => {
     // If these ever diverge, the game has two hire buttons and the player has
     // to learn which one they are looking at.
-    expect(actionFor('act2a_loop')).toBe(actionFor('act2_offer_hire'))
+    expect(actionFor('act2_loop')).toBe(actionFor('act3_bait'))
   })
 
   it('makes the mousetrap the one control permitted to beg', () => {
-    expect(actionFor('act2_offer_hire')?.variant).toBe('default')
+    expect(actionFor('act2_loop')?.variant).toBe('default')
     expect(offerFor('act3_bait')?.variant).toBe('bait')
     expect(offerFor('act3_bait')?.note).toContain('TREASURY')
     // And the ordinary control beside it does not beg.
@@ -201,7 +204,7 @@ describe('the action bar — §21 is a funnel', () => {
     // priced, or the action bar has no way to know when it is dead.
     for (const phase of PHASE_ORDER) {
       const spec = actionFor(phase)
-      if (spec && spec.action !== 'paradigmShift' && spec.action !== 'takeSeed') {
+      if (spec && spec.action !== 'paradigmShift') {
         expect(spec.priced).toBeDefined()
       }
     }

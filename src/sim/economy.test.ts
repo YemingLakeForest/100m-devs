@@ -20,14 +20,17 @@ import {
   TARGET_BUILD_SECONDS,
   capAdjustedGrowth,
   openingRung,
+  WAGE_HEADROOM,
   WAGE_PER_DEV_PER_SEC,
 } from './economy.ts'
 import { PROJECTS, __resetStore, getState, triggerParadigmShift } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import {
   D_BASE,
+  RHO,
   SP_PER_DEV_PER_SEC as ENTROPY_SP_PER_DEV_PER_SEC,
   efficiency,
+  optimalHeadcount,
   passiveVelocity,
 } from './entropy.ts'
 
@@ -37,20 +40,29 @@ describe('the two figures the GDD actually states (§21)', () => {
     expect(projectRevenue(0)).toBe(50)
   })
 
-  it('Act II: two people in a garage draw no payroll', () => {
-    expect(payrollPerSecond(2)).toBe(0)
-    expect(paidHeadcount(2)).toBe(0)
+  it('Act II: the garage draws no payroll', () => {
+    // `devs` counts employees and the founder is not one of them, so the garage
+    // is `UNPAID_FOUNDERS` — James, and only James (§21.6, §4.10 amended
+    // 2026-08-27). It was two, which quietly gave away a free employee nobody
+    // in the fiction is.
+    expect(UNPAID_FOUNDERS).toBe(1)
+    expect(payrollPerSecond(UNPAID_FOUNDERS)).toBe(0)
+    expect(paidHeadcount(UNPAID_FOUNDERS)).toBe(0)
   })
 
   it('Act V: ~1,000 developers burn $50,000/sec', () => {
     expect(payrollPerSecond(1000 + UNPAID_FOUNDERS)).toBe(50_000)
+    // And that is the headcount the run actually reaches, exactly: James plus
+    // the thousand. The old off-by-one landed on $49,950 — close enough to pass
+    // unnoticed, and not the number §21 Act V prints on the screen.
+    expect(payrollPerSecond(STARTING_DEVS + 1000)).toBe(50_000)
   })
 })
 
 describe('payroll', () => {
   it('starts the moment a paid head is hired', () => {
-    expect(payrollPerSecond(2)).toBe(0)
-    expect(payrollPerSecond(3)).toBe(50)
+    expect(payrollPerSecond(UNPAID_FOUNDERS)).toBe(0)
+    expect(payrollPerSecond(UNPAID_FOUNDERS + 1)).toBe(50)
   })
 
   it('never goes negative on a shrinking studio', () => {
@@ -61,7 +73,8 @@ describe('payroll', () => {
   it('is linear in headcount — the collapse comes from entropy, not wages', () => {
     // §6.1 makes payroll the timer, not the trap. If wages were superlinear
     // they would be doing the lesson's work instead of Communication Entropy.
-    expect(payrollPerSecond(102) / payrollPerSecond(52)).toBeCloseTo(2, 10)
+    const paid = (n: number) => payrollPerSecond(n + UNPAID_FOUNDERS)
+    expect(paid(100) / paid(50)).toBeCloseTo(2, 10)
   })
 })
 
@@ -146,7 +159,7 @@ describe('revenue scales with the studio, not with the Story Point — §4.10c',
     }
   })
 
-  it('clears the wage from the first *paid* rung onward, which is the whole rule', () => {
+  it('clears the wage by WAGE_HEADROOM from the first paid rung on — §4.10h', () => {
     // profit/sec = n*r - n*W + 2*W, so d(profit)/dn = r - W: **hiring pays if
     // and only if revenue per Story Point exceeds the wage per developer per
     // second.** Every payout on the ladder is chosen against this one line, and
@@ -157,9 +170,30 @@ describe('revenue scales with the studio, not with the Story Point — §4.10c',
     // shipped by two unpaid founders. Asserting the rule from rung 1 is what
     // forced the ×500 cliff: a 300-point game worth $50 and a 400-point game
     // obliged to beat $50/SP are twenty thousand dollars apart by arithmetic.
+    //
+    // **And it clears it by `WAGE_HEADROOM`, not by a hair** — §4.10h. `r > W`
+    // is the derivative at full efficiency, and §4.1 means real profit peaks
+    // below §4.1's own output optimum by a margin set entirely by `W/r`. At the
+    // old ladder's $63.30 the two coincided: a studio hired to the headcount the
+    // speedometer calls best was losing money at it. This is the assertion that
+    // keeps the money's wall behind the meeting's.
     for (let i = FIRST_PAID_RUNG; i < PROJECT_PAYOUTS.length; i++) {
       const r = projectRevenue(i) / PROJECTS[i].commitment
-      expect(r).toBeGreaterThan(WAGE_PER_DEV_PER_SEC)
+      expect(r).toBeGreaterThanOrEqual(WAGE_PER_DEV_PER_SEC * WAGE_HEADROOM)
+    }
+  })
+
+  it('puts peak profit above §4.1’s optimum-adjacent danger zone — §4.10h', () => {
+    // The claim `WAGE_HEADROOM` is chosen to make true, measured rather than
+    // asserted: at every paid rung, the headcount that maximises *profit* must
+    // sit close enough to §4.1's output optimum that a player standing on the
+    // optimum is still making money. Break-even is `eta = W/r`, i.e.
+    // `L = (r/W - 1)^(1/RHO)`, and it has to be comfortably past the optimum's
+    // L = 0.758.
+    for (let i = FIRST_PAID_RUNG; i < PROJECT_PAYOUTS.length; i++) {
+      const r = projectRevenue(i) / PROJECTS[i].commitment
+      const breakEvenLoad = (r / WAGE_PER_DEV_PER_SEC - 1) ** (1 / RHO)
+      expect(breakEvenLoad).toBeGreaterThan(optimalHeadcount(1) * 1.5)
     }
   })
 
@@ -269,7 +303,7 @@ describe('the trap closes on the schedule §6.1 describes', () => {
   })
 
   it('leaves a garage studio solvent indefinitely', () => {
-    expect(secondsUntilBankrupt(50, 2)).toBe(Infinity)
+    expect(secondsUntilBankrupt(50, UNPAID_FOUNDERS)).toBe(Infinity)
   })
 
   it('is a genuine trap: 1,000 devs earn less than 2 did', () => {

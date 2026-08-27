@@ -17,20 +17,40 @@
  * loading it must produce.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
-import { SAVE_KEY, SAVE_VERSION, makeSaveData, serialize } from './save.ts'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { SAVE_KEY, SAVE_VERSION, emptyPermanent, makeSaveData, serialize, setPermanent } from './save.ts'
 import { actionFor, offerFor } from '../hud/hudModel.ts'
 import { __resetStore, getState, loadGame } from './store.ts'
 
-/** Write a save file directly, the way a previous build would have. */
-function seed(over: Partial<ReturnType<typeof getState>>) {
+/**
+ * Write a save file directly, the way a previous build would have.
+ *
+ * `shifts` is the career the save belongs to. §21.0e made it load-bearing: the
+ * repair below only fires for a career that has prestiged, because Run 1's own
+ * Act III now legitimately holds **one** developer.
+ */
+function seed(over: Partial<ReturnType<typeof getState>>, shifts = 1) {
+  const p = emptyPermanent()
   const save = makeSaveData({ ...getState(), ...over })
-  localStorage.setItem(SAVE_KEY, serialize({ ...save, version: SAVE_VERSION, savedAt: Date.now() }))
+  localStorage.setItem(
+    SAVE_KEY,
+    serialize({
+      ...save,
+      permanent: { ...p, meta: { ...p.meta, paradigmShifts: shifts } },
+      version: SAVE_VERSION,
+      savedAt: Date.now(),
+    }),
+  )
 }
 
 beforeEach(() => {
   localStorage.clear()
   __resetStore()
+  setPermanent(emptyPermanent())
+})
+
+afterEach(() => {
+  setPermanent(emptyPermanent())
 })
 
 describe('a save stranded at Act III by the old Paradigm Shift', () => {
@@ -58,10 +78,35 @@ describe('a save stranded at Act III by the old Paradigm Shift', () => {
   })
 
   it('leaves a legitimate Act III alone', () => {
-    // The repair has to be narrow. A real Act III has around forty developers,
-    // because hiring is the only way the phase machine reaches it — and a
-    // player who is *genuinely* mid-trap must not have it taken away.
+    // The repair has to be narrow. A player who is *genuinely* mid-trap must not
+    // have it taken away.
     seed({ devs: 40, cash: 8_000, projectsShipped: 3, phase: 'act3_bait', massHired: false })
+    loadGame()
+
+    const s = getState()
+    expect(s.phase).toBe('act3_bait')
+    expect(offerFor(s.phase, s.massHired)).not.toBeNull()
+  })
+
+  it('leaves Run 1’s own Act III alone, at one developer — §21.0e', () => {
+    // **The regression this repair would otherwise have become.** Its old test
+    // was "a small headcount at Act III can only have arrived by prestige",
+    // which was true while Run 1 hired to forty to reach the mousetrap. Run 1
+    // now arrives there with James and nobody else, so the headcount test would
+    // have caught every legitimate Run 1 save and thrown it into a hiring loop
+    // Run 1 does not have. The honest question is whether the career has ever
+    // prestiged.
+    seed(
+      {
+        devs: 1,
+        cash: 63_550,
+        projectsShipped: 3,
+        phase: 'act3_bait',
+        massHired: false,
+        seedTaken: true,
+      },
+      0,
+    )
     loadGame()
 
     const s = getState()
@@ -84,7 +129,7 @@ describe('the load path carries what the save carries', () => {
     // returning player silently lost the hire dial and was offered the term
     // sheet a second time. Found while fixing the above: the save had been
     // carrying both since they existed, and only the restore was missing.
-    seed({ devs: 30, phase: 'act2b_loop', seedTaken: true, dialUnlocked: true })
+    seed({ devs: 30, phase: 'act2_loop', seedTaken: true, dialUnlocked: true })
     loadGame()
 
     const s = getState()

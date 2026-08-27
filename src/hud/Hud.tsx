@@ -14,8 +14,8 @@ import {
   hasPrestiged,
   currentEntropy,
   dismissScene,
+  dismissShiftReport,
   devsUnderPlacement,
-  getPermanent,
   grantJames,
   hasSeenScene,
   heroById,
@@ -33,7 +33,7 @@ import {
   triggerParadigmShift,
   type GameState,
 } from '../game/store.ts'
-import { MASS_HIRE_COUNT, PHASE_COPY } from '../game/onboarding.ts'
+import { MASS_HIRE_COUNT, PHASE_COPY, SEED_ROUND_CASH } from '../game/onboarding.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
@@ -72,6 +72,8 @@ import {
 import { shouldShowReport } from './overnightModel.ts'
 import { UpgradeBoard } from './UpgradeBoard.tsx'
 import { EventBanner, EventCard } from './EventCard.tsx'
+import { TermSheet } from './TermSheet.tsx'
+import { ParadigmCutScene } from './ParadigmCutScene.tsx'
 import { Gallery } from './Gallery.tsx'
 import { ParadigmTree } from './ParadigmTree.tsx'
 import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
@@ -224,7 +226,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   // §10.11 — the gallery is where a career acquires a history, so its door opens
   // with the first ship and stays open: it is a view onto memory, not a lever,
   // and §10.11.5 is explicit that it must never become one.
-  const history = getPermanent().meta.history
+  const history = state.history
   const hasGallery = history.recent.length > 0 || history.aggregates.length > 0
 
   // The interface hue is a direct function of Entropy — ART_DIRECTION §1.1.
@@ -449,7 +451,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         <Lift stage={stage} />
         <div className="hud__bottom">
           <ActionBar
-            spec={actionFor(state.phase)}
+            spec={actionFor(state.phase, unlocks.manualHire)}
             offer={offerFor(state.phase, state.massHired)}
             state={state}
           />
@@ -654,6 +656,20 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       */}
       <EventCard event={event} onRoute={openBoardForEvent} onReply={replyToEvent} />
 
+      {/*
+        §21.0a — the term sheet, beside the event card and for the same reason:
+        it is a scrim over the whole frame, because the decision is about the
+        whole company. It is not an *event* — `sim/events.ts` owns things that
+        cost the studio output and carry a hand-clear, and this costs nothing and
+        has one exit — so it is its own surface rather than a `StudioEvent` with
+        the interesting fields set to no-ops.
+      */}
+      <TermSheet
+        open={state.phase === 'act2_termsheet' && !state.seedTaken}
+        amount={SEED_ROUND_CASH}
+        onSign={takeSeedRound}
+      />
+
       <UpgradeBoard
         open={upgradesOpen}
         guided={guidedBoard === 'tech'}
@@ -737,6 +753,14 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         />
       )}
 
+      {/*
+        §15.1a — the reboot between two realities. Last in the tree and above
+        everything on it: the shift has already happened, the new studio is
+        already behind this, and §21.6's James scene is waiting underneath for
+        the moment the screen lifts.
+      */}
+      <ParadigmCutScene report={state.pendingShift} onDone={dismissShiftReport} />
+
       {PREVIEW_OVERNIGHT && (
         <OvernightPreview capped={PREVIEW_OVERNIGHT_CAPPED} adReady={FAKE_AD_READY} />
       )}
@@ -775,7 +799,6 @@ const RUN_ACTIONS: Record<ActionSpec['action'], () => void> = {
   hire: hireDeveloper,
   massHire,
   paradigmShift: triggerParadigmShift,
-  takeSeed: takeSeedRound,
 }
 
 /** What an action costs right now, or null if it is free. */
@@ -865,8 +888,16 @@ function ActionBar({
   const [shownOffer, setShownOffer] = useState(offer)
   if (offer !== null && offer !== shownOffer) setShownOffer(offer)
 
+  // §21.0e — **the bar opens for either of them.** It was gated on `spec`
+  // alone, which was safe only while every beat carrying an offer also carried
+  // the ordinary hire control. Run 1's Act III now carries the offer and no
+  // verb, and the outer panel took the whole bar off screen with the mousetrap
+  // inside it — a `HIRE 1,000 DEVS NOW` button that exists, is priced, is
+  // affordable, and is not drawn.
+  const anything = spec !== null || offer !== null
+
   return (
-    <Panel open={spec !== null} from="bottom" className="hud__actions">
+    <Panel open={anything} from="bottom" className="hud__actions">
       {/*
         §21.0a — the temptation sits ABOVE the ordinary control, and both are
         live. Act III used to *replace* the hire button with this, which turns a

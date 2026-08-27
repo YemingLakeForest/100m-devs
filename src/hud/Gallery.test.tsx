@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn() }))
 import { Gallery } from './Gallery.tsx'
-import { __resetStore, __setState, getPermanent } from '../game/store.ts'
-import { setPermanent } from '../game/save.ts'
+import { __resetStore, __setState } from '../game/store.ts'
 import { UNKNOWN_ORDINAL, rollShape } from '../sim/revenue.ts'
 import { RECENT_KEEP, emptyHistory, recordRelease, type ReleaseRecord } from '../sim/history.ts'
 import { BASELINE_RATING, revenueMultiplier } from '../sim/rating.ts'
@@ -24,8 +23,9 @@ function record(ordinal: number, over: Partial<ReleaseRecord> = {}): ReleaseReco
   }
 }
 
+/** §10.11 — the gallery is run state since 2026-08-27, so this seeds the run. */
 function seed(history: ReturnType<typeof emptyHistory>) {
-  setPermanent({ ...getPermanent(), meta: { ...getPermanent().meta, history } })
+  __setState({ history })
 }
 
 /** A release still on sale, having paid part of what it is worth. */

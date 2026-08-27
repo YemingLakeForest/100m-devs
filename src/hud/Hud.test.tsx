@@ -73,7 +73,10 @@ async function frame() {
  */
 describe('§10.8 F1 — nothing enters or leaves without motion', () => {
   it('brings the action button in on a panel rather than mounting it bare', () => {
-    jumpToPhase('act2_offer_hire')
+    // §21.0e — the hire control does not exist in Run 1, so a test about it has
+    // to be about a player who has been through the trap.
+    prestiged()
+    jumpToPhase('act2_loop')
     const { container } = render(<Hud stage={null} />)
 
     const panel = container.querySelector('.hud__actions')
@@ -86,11 +89,12 @@ describe('§10.8 F1 — nothing enters or leaves without motion', () => {
     // This is the regression. The button used to be mounted by a switch on the
     // phase, so it vanished on the frame the phase flipped — F1 by the letter,
     // on the most important control in the game.
-    jumpToPhase('act2_offer_hire')
+    prestiged()
+    jumpToPhase('act2_loop')
     const { container } = render(<Hud stage={null} />)
     expect(screen.getByRole('button', { name: /HIRE DEVELOPER/ })).toBeInTheDocument()
 
-    act(() => jumpToPhase('act2_ship'))
+    act(() => jumpToPhase('act4_collapse'))
 
     const panel = container.querySelector('.hud__actions')
     expect(panel?.getAttribute('data-phase')).toBe('exit')
@@ -140,8 +144,9 @@ describe('§10.8 F1 — nothing enters or leaves without motion', () => {
  * nothing changed, fail."
  */
 describe('§10.8 F2 — every control answers the finger first', () => {
-  it('depresses the Act II hire button on pointer-down', () => {
-    jumpToPhase('act2_offer_hire')
+  it('depresses the hire button on pointer-down', () => {
+    prestiged()
+    jumpToPhase('act2_loop')
     render(<Hud stage={null} />)
 
     const btn = screen.getByRole('button', { name: /HIRE DEVELOPER/ })
@@ -182,7 +187,7 @@ describe('§21.0c — Act I shows one lever', () => {
   it('offers no job but developer, whatever the studio has been through', () => {
     // `jumpToPhase` replaces the whole run — it is a seam for reaching a beat,
     // not a patch — so the state it is being asked about has to go on after it.
-    jumpToPhase('act2a_loop')
+    jumpToPhase('act2_loop')
     // The conditions in `rolesAvailable` are all satisfied: a defect bench, a
     // shipped catalogue, a live incident. In Run 1 none of them opens a row.
     __setState({
@@ -212,7 +217,7 @@ describe('§21.0c — Act I shows one lever', () => {
     // The same state, one Paradigm Shift apart — so this is a gate rather than a
     // feature that was never wired.
     prestiged()
-    jumpToPhase('act2a_loop')
+    jumpToPhase('act2_loop')
     __setState({ defects: 40, projectsShipped: 3, tickets: 900 })
     render(<Hud stage={null} />)
     expect(screen.getByRole('button', { name: /UPGRADES/ })).toBeInTheDocument()
@@ -229,7 +234,7 @@ describe('§21.0c — Act I shows one lever', () => {
    */
   it('still shows no backlog after the shift, until somebody brings one', () => {
     prestiged()
-    jumpToPhase('act2a_loop')
+    jumpToPhase('act2_loop')
     __setState({
       defects: 40,
       projectsShipped: 3,
@@ -246,7 +251,7 @@ describe('§21.0c — Act I shows one lever', () => {
 
   it('draws each colour when its own hero sits down, and no others', () => {
     withHeroes(SCENE_MO_ARRIVES)
-    jumpToPhase('act2a_loop')
+    jumpToPhase('act2_loop')
     __setState({
       defects: 40,
       projectsShipped: 3,
@@ -265,7 +270,7 @@ describe('§21.0c — Act I shows one lever', () => {
 
   it('completes the set once all three have arrived — §21.7.6b', () => {
     withHeroes(SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES, SCENE_MATT_ARRIVES)
-    jumpToPhase('act2a_loop')
+    jumpToPhase('act2_loop')
     __setState({
       defects: 40,
       projectsShipped: 3,
@@ -457,7 +462,7 @@ describe('the readouts', () => {
   })
 
   it('keeps both of them off screen while the founders are still in the garage', () => {
-    jumpToPhase('act2_ship')
+    jumpToPhase('act1_ship')
     const { container } = render(<Hud stage={null} />)
     const text = container.textContent ?? ''
 

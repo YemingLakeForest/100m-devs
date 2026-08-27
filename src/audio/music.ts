@@ -432,6 +432,26 @@ export class MusicBus {
     this.act4StartMs = this.ctx.currentTime * 1000
   }
 
+  /**
+   * §20.7.4 is **once per run**, and a Paradigm Shift starts a new one.
+   *
+   * Without this the override was once per *page*: `triggerActIV` is idempotent
+   * on a non-null start time, so the second run's Mass Hire was a no-op — and,
+   * far worse, `mix()` kept applying the envelope with an elapsed time now
+   * measured in minutes, which pins `bedGain` at 0 and `collapseGain` at 1 for
+   * ever. Every run after the first one opened on the collapse stem with all
+   * four zone beds silent: reported as "the music did not go back to the
+   * starting music", and it was not the mix being wrong, it was the mix never
+   * being asked again.
+   *
+   * The renderer already clears its own `musicCollapsed` latch on the same
+   * frame (`stage.ts`, on `!state.massHired`); this is the half of that reset
+   * that lives on the bus, and the two are called together.
+   */
+  clearActIV(): void {
+    this.act4StartMs = null
+  }
+
   /** One-shot stingers — GDD §7.7.2 rung promotion, §13 Paradigm Shift. */
   async playStinger(id: Stinger): Promise<void> {
     if (!this.ctx || !this.master) return

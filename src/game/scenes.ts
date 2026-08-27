@@ -146,9 +146,16 @@ export const SCENE_MASS_HIRE: Scene = {
     { speaker: JAMES, text: 'It’s one thousand developers.', focus: AT_JAMES },
     { speaker: PLAYER, text: 'That’s not what I asked.', focus: AT_YOU },
     // The arithmetic is correct. That is the joke and it is the whole of §6.
+    //
+    // **Three, and it is checkable** [amended 2026-08-27]. It said "four games",
+    // and §21.0's Act IIa meant the player heard it holding forty developers, so
+    // both halves of the sentence were false on screen: not four games, and
+    // emphatically not two of us. §21.0e is the fix — Run 1 never hires, the
+    // garage catalogue is exactly {@link TERM_SHEET_AFTER_SHIPS} games, and
+    // every number James says here is now something the player can count.
     {
       speaker: JAMES,
-      text: 'Two of us shipped four games. A thousand of us is five hundred times that.',
+      text: 'Two of us shipped three games. A thousand of us is five hundred times that.',
       focus: AT_JAMES,
     },
     { speaker: PLAYER, text: 'Is it?', focus: AT_YOU },
@@ -162,6 +169,9 @@ export const SCENE_MASS_HIRE: Scene = {
     { speaker: JAMES, text: 'It’s fine. It’s a one-off.', focus: AT_JAMES },
     // {@link MASS_HIRE_AT_LINE} — the treasury goes here, and the studio with it.
     { speaker: OS, text: 'MASS HIRING PACKAGE ACCEPTED. AUTHORISED BY: J.' },
+    // §21.0a's term sheet said `USE OF FUNDS — HEADCOUNT` in a table nobody
+    // read, four beats ago. He is not quoting it; he has simply done what the
+    // document said, which is the most James thing in the script.
     { speaker: PLAYER, text: 'James—', focus: AT_YOU },
     // §21.7.0 rule 2, with rule 3's word used correctly, applied to a decision
     // he has just taken out of your hands. He is being helpful.

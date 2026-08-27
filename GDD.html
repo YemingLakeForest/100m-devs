@@ -2258,8 +2258,9 @@ payroll ran for five minutes between payouts, every run ended $400K down, and §
 went unaffordable. Commitments climb by about half again; the payouts carry the scale.</li>
 <li><strong>The garage rungs are safe below the wage line only because the gate holds.</strong> They are not
 neutral there, they are actively wrong to hire against, and <code>runOne.test.ts</code> asserts that in
-both directions. If <code>act2_ship</code> ever stops waiting for <code>FIRST_PAID_RUNG</code>, this table becomes
-a trap rather than a joke.</li>
+both directions. If <code>act1_ship</code> ever stops waiting for <code>FIRST_PAID_RUNG</code>, this table becomes
+a trap rather than a joke — and since §21.0e, <strong>nobody hires in Run 1 at all</strong>, so the gate is
+the whole run rather than one beat of it. <em>[phase renamed 2026-08-27; the rule is unchanged.]</em></li>
 </ul>
 <h4 id="g-a-run-opens-on-the-game-it-earned-canon-added-2026-08-16-r85">4.10g A run opens on the game it earned <strong>[CANON — added 2026-08-16]</strong> - R85</h4>
 <p><code>triggerParadigmShift</code> reset <code>projectIndex</code> to zero, so <strong>every run in the career re-climbed the
@@ -2291,6 +2292,121 @@ good per-run reward and it is not on offer. It does not need to be: measured (§
 cap, the velocity, the revenue and the BP now all climb every single run, so the sense of
 progress is carried by the systems that can carry it. This rule's job is the narrower one —
 <strong>stop the studio re-climbing the garage</strong> — and that it does.</p>
+<h4 id="h-a-paid-rung-clears-the-wage-by-a-margin-canon-added-2026-08-27">4.10h A paid rung clears the wage <em>by a margin</em> <strong>[CANON — added 2026-08-27]</strong></h4>
+<p>§4.10c's rule is <code>r &gt; W</code>: revenue per Story Point strictly greater than the wage per
+developer per second, so that <code>d(profit)/dn = r − W</code> is positive and every hire pays for
+itself. That derivative is taken <strong>at full efficiency</strong>, and §4.1 is the reason it is not the
+whole story. Real profit is</p>
+<p><span class="math">\(P(D) = r \cdot D \cdot \eta(D) - W (D - U)\)</span></p>
+<p>which peaks <em>below</em> §4.1's output optimum by a margin set entirely by <code>W/r</code>. Measured against
+the shipped ladder at its first paid rung (<span class="math">\(r = \$63.30\)</span>,
+<span class="math">\(W = \$50\)</span>):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Headcount</th>
+<th>What the player sees</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Peak <strong>profit</strong></td>
+<td>52% of cap</td>
+<td>nothing — the readout still says <code>IN SYNC</code></td>
+</tr>
+<tr>
+<td>Peak <strong>output</strong> (§4.1's optimum)</td>
+<td>76% of cap</td>
+<td><code>CHATTY</code>, and profit is already down 78%</td>
+</tr>
+<tr>
+<td><strong>Break-even</strong></td>
+<td>77% of cap</td>
+<td>the studio starts dying one hire past its best velocity</td>
+</tr>
+</tbody>
+</table>
+<p><strong>So a player who hires to the headcount the game itself calls optimal is losing money standing
+on it</strong>, and what kills them is the payroll rather than §4.1. Reported in exactly those words:
+<em>&quot;it's not the inefficiency that's killing but the budget awareness killing us — not the
+intention of the game.&quot;</em> It is a fair report. §6.1 asks payroll to be <strong>the timer on a studio
+that has already seized</strong>, not the wall a healthy one hits.</p>
+<h5 id="the-rule-is-a-ratio">The rule is a ratio, and the ratio is the design</h5>
+<p>At <span class="math">\(W/r = 1/\kappa\)</span> the studio stays solvent until
+<span class="math">\(\eta &lt; 1/\kappa\)</span>, that is until</p>
+<p><span class="math">\(L = (\kappa - 1)^{1/\rho}\)</span></p>
+<p>so <span class="math">\(\kappa\)</span> is exactly <strong>how far past its capacity a studio may go before
+the money, rather than the meeting, stops it</strong>. <strong>Every rung from <code>FIRST_PAID_RUNG</code> upward
+clears <span class="math">\(\kappa = 4\)</span> times the wage per Story Point</strong>
+(<code>WAGE_HEADROOM</code>). At <span class="math">\(\kappa = 4\)</span> break-even is
+<span class="math">\(L = 1.246\)</span> — a quarter <em>over</em> cap, with the speedometer deep in the red
+and velocity already halved from its peak. <strong>Entropy is visibly the thing that kills you, and
+payroll is what finishes a studio entropy has already stopped.</strong> Which is §6.</p>
+<p>Four rather than ten: payroll still has to be <em>felt</em>, or §6.1's timer has no tension and cash
+stops being a resource at all. Peak profit at <span class="math">\(\kappa = 4\)</span> sits at 70% of
+cap against the 76% optimum, so there is still a real decision in the last few hires — it is
+just no longer a decision the player loses by following the game's own readout.</p>
+<p>The re-priced half of the ladder (§4.10f's rungs 3–7, in dollars per Story Point):</p>
+<table>
+<thead>
+<tr>
+<th>Rung</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+<th>7</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Was</td>
+<td>$63.30</td>
+<td>$122</td>
+<td>$229</td>
+<td>$409</td>
+<td>$743</td>
+</tr>
+<tr>
+<td><strong>Is</strong></td>
+<td><strong>$216.67</strong></td>
+<td><strong>$277.78</strong></td>
+<td><strong>$357.14</strong></td>
+<td><strong>$454.55</strong></td>
+<td><strong>$742.86</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The three garage rungs are untouched. They are deliberately underwater, nobody is on payroll
+while they ship, and §21.0e now guarantees that nobody ever is: <strong>Run 1 does not hire.</strong></p>
+<h5 id="the-hire-price-and-the-wage-swap-jobs">The hire price and the wage swap jobs</h5>
+<p>§4.10a's base was <strong>$1</strong>, and its own note called that the joke: <em>&quot;a developer costs a dollar to
+hire and $50 a second to keep.&quot;</em> It is a good joke and it was doing real damage. A price of one
+dollar is a price the player cannot feel; a wage of fifty is a cost that arrives thirty seconds
+later, on a revenue curve that pays in lumps. <strong>Every hire was free at the moment of the decision
+and lethal at the moment of the invoice</strong> — which is not a decision, it is an ambush.</p>
+<p>So the two constants swap jobs. The headroom above puts the wage safely under what a head
+earns, and <strong>the hire price becomes the thing the player weighs</strong>, paid up front, in full, at
+the moment they choose it. <code>HIRE_BASE_COST</code> is <strong>$30</strong>, sized against one statement:
+<strong>filling the studio to §4.1's optimum costs about one game.</strong> The geometric series sums to
+<code>base · (g^n − 1)/(g − 1)</code>, so reaching 0.758 × the reference cap of 100 costs ≈ $128,000
+against the $130,000 the first paid rung pays. Ship a game, fill the floor, ship the next one
+in sixty seconds.</p>
+<p>§14.8.9's cap normalisation keeps that true at every capacity and keeps it from becoming a
+wall: the same <em>fraction</em> of any cap costs about the same, so the price fades against income as
+the studio grows — which is what it should do once §4.1 is the only thing left to fight.</p>
+<h5 id="the-garage-is-one-unpaid-head-not-two">The garage is one unpaid head, not two <strong>[amended 2026-08-27]</strong></h5>
+<p><code>UNPAID_FOUNDERS</code> was <strong>2</strong> and its note read <em>&quot;you and James&quot;</em>. Those are not the same claim:
+<strong>you are not in <code>devs</code></strong>. Act I opens at zero developers and James takes it to one, so
+<code>devs − 2</code> was giving away a third free head that nobody in the fiction is — and it put §21's
+own Act V figure a hire out of true, at $49,950/sec for the thousand who land. At one it is
+exactly <strong>$50,000/sec</strong>, which is the number the section prints on the screen.</p>
+<h5 id="measured-2026-08-27">Measured, 2026-08-27</h5>
+<p><code>pacing.test.ts</code>, eight runs, attended play at 3 pokes/sec. Every run from the second on ends
+<strong>solvent, at §4.1's optimum, with the wall reading <code>entropy</code></strong> — treasuries of $1.0M, $2.8M,
+$1.2M, $3.2M, $66.9M, $286.6M and $7.1B. Run 1 ends where it is supposed to: −$1M and a
+thousand and one developers.</p>
 <h3 id="roles-the-studio-stops-being-one-kind-of-person-canon-added-2026-08-10-r19">4.11 Roles — the studio stops being one kind of person <strong>[CANON - added 2026-08-10]</strong> - R19</h3>
 <p><strong>Every developer in the game does the same job, and that is a hole in the middle of the
 premise.</strong> §4.9a made them differ in <em>how much</em> they produce; §7.8.7 made them differ in <em>what
@@ -6200,6 +6316,25 @@ works because it is obviously a worse deal, not because it was the only option.<
 handing it over as a default deletes the verb.</li>
 </ul>
 <h3 id="the-release-gallery-what-you-have-actually-made-canon-added-2026-08-10-r28">10.11 The Release Gallery — what you have actually made <strong>[CANON - added 2026-08-10]</strong> - R28</h3>
+<blockquote>
+<p><strong>Amended 2026-08-27 — the gallery goes with the run.</strong> The release history was career-wide and
+said so at length: it survived a Paradigm Shift, a Codebase Fork and a Multiverse Compiler,
+&quot;because §13.2 liquidates <em>money</em>, not <em>memory</em>&quot;. That is a good rule for a trophy cabinet and
+the wrong one for this shelf. <strong>§10.11's gallery is the catalogue this studio is selling</strong> —
+§4.10e's tail, §4.12's defects, §4.13's tickets and §4.14's reception all attach to a release,
+and a shift liquidates every one of them. What was left standing was a wall of games from a
+reality that no longer exists, with no tail, no standing, and no way to tell which of them were
+yours. Reported as &quot;galleries should not persist across paradigm shifts&quot;.</p>
+<p>The record lives in the <strong>run</strong> save now, so a shift clears it the same way it clears the
+treasury: not by a special case, but because starting a run means starting an empty one. Release
+ordinals restart with it. §15.1a's cut scene is where the catalogue that just ended is accounted
+for — <em>shipped: 11 games</em> — which is the part of &quot;what have I made&quot; that survives, and the part
+that was worth keeping.</p>
+<p>Two consequences worth stating. The `run` field on each record is kept, because §17's Multiverse
+view is the place two realities would ever be shown side by side and it is one number. And the
+cross-device <em>merge</em> is gone with it: run state is resolved by <code>savedAt</code> last-write-wins, so
+there is nothing to union and <code>mergeHistory</code> left with its tests.</p>
+</blockquote>
 <p><strong>Shipping is the loop's payoff and it currently leaves nothing behind.</strong> §4.10e turned the
 back catalogue into a <em>rate</em> — a stack of bands 120 px wide — and that is the right readout
 for &quot;am I earning&quot;. It is the wrong readout, and the only one, for &quot;what have I made&quot;. The
@@ -8365,6 +8500,25 @@ Cloud. She will be worse at it than Melany — the branch is not hers and the ce
 distance is longer — and a player who does it anyway has made a real decision about a
 specific person. <strong>A hero is a starting position, not a role.</strong></li>
 </ol>
+<h5 id="james-pays-no-handicap-amended-2026-08-27">James pays no handicap <strong>[amended 2026-08-27]</strong></h5>
+<p>The off-branch rate is <strong>0.5</strong>, and James was charged it <em>everywhere</em>: he has no home branch —
+the trunk is not a speciality — so the jack of all trades was priced as though every branch were
+somebody else's. Read as a card, that is the defensible version of §13.6.3's <em>&quot;small at every
+rung, and never scales&quot;</em>. Read as a <strong>board</strong>, it is a hero who is strictly worse than all five
+specialists at every node on it, with no compensating column anywhere: the specialist is at 1.0
+at home and 0.5 away; James was at 0.5 and 0.5. <strong>There is no build in which picking him is
+correct</strong>, which makes &quot;never the best at anything&quot; quietly mean &quot;never worth spending a point
+on&quot;.</p>
+<p>So the handicap is what a <em>speciality</em> costs, not what a lack of one costs. Everybody else buys
+their focus by being half as good outside it. <strong>James has bought nothing, so he pays nothing</strong>
+— full value in every direction, equal to a specialist at home and better than one everywhere
+else. That is a real class rather than a punchline: <em>he is the hero you place when you do not
+yet know which problem the run is going to have.</em></p>
+<p>What it gives up: he is no longer dominated, and §13.6.3's line has to be carried by the things
+that still say it. They do. <strong>He arrives at the trunk and nowhere else</strong> — a story specialist
+walks in three nodes deep in their branch and James walks in at the centre with everything to
+buy — so his depth is earned one point at a time. That is the shape of &quot;never scales&quot;, and it
+survives intact.</p>
 <blockquote>
 <p><strong>What this must never become: a correct build per hero.</strong> If there is one right way to
 spend Mo's points, §13.9 has produced five trees again with extra steps. The branches trade
@@ -9836,6 +9990,125 @@ triggers a full-screen confirmation overlay over the active swarm:</p>
 <p>When <code>[ REWRITE CODEBASE ]</code> is confirmed, a <strong>CRT monitor reboot animation</strong> wipes the
 screen, the camera zooms into a single pixel desk, and the new run begins with permanent
 BP perks applied.</p>
+<h4 id="a-the-reboot-is-a-cut-scene-canon-added-2026-08-27">15.1a The reboot is a cut scene <strong>[CANON — added 2026-08-27]</strong></h4>
+<p>§15.1 above has specified the moment a shift lands since this document was written:</p>
+<blockquote>
+<p>a <strong>CRT monitor reboot animation</strong> wipes the screen, the camera zooms into a single pixel
+desk, and the new run begins with permanent BP perks applied.</p>
+</blockquote>
+<p><strong>Only the liquidation was ever built.</strong> The bankruptcy panel closed, the floor emptied, James
+said <em>&quot;How did you find me in every single reality?&quot;</em>, and the player was somewhere else — so the
+largest event in the game was the one beat in it with nothing attached, and §10.5's rule that
+nothing cuts was being broken by the transition that most needed the opposite.</p>
+<h5 id="it-is-the-boot-screen">It is the boot screen, and that is the whole idea</h5>
+<p>The reboot is <strong>§10.9.3's STUDIO_OS boot</strong>: same black, same scanlines, same typed pages, same
+tap-at-your-own-speed. That screen is what this game already uses to say <em>a studio is starting</em>,
+and a Paradigm Shift is a studio starting. A player has seen it exactly once — on the first
+launch of the install — so its return says <em>this is a beginning</em> with no narration anywhere near
+it. One component draws both (<code>title/CutScene.tsx</code>); two black screens with typed pages on them
+would have been two black screens to keep in step.</p>
+<p>What the reboot adds is the half §15.1 could not have known it needed: <strong>an account of the
+reality that just ended.</strong> Four pages, and the budget is four:</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PARADIGM SHIFT 002</code></td>
+<td>Which one this is. Zero-padded to three, so the width never moves between shift 2 and shift 40</td>
+</tr>
+<tr>
+<td><strong>The receipt</strong></td>
+<td><code>REALITY 002 — LIQUIDATED</code>, then revenue, peak headcount, games shipped, how long it lasted, and the BP it paid</td>
+</tr>
+<tr>
+<td><strong>The ledger</strong></td>
+<td><code>LESSONS LEARNT — 2 OF 7</code>, every lesson this career has been taught, with <code>&gt;</code> against the one this run taught</td>
+</tr>
+<tr>
+<td><strong>The boot</strong></td>
+<td>§10.9.3's four lines, in the same words, from the same function — <strong>all at once</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The boot arrives one line to a page on the install's first launch because it is being
+<em>introduced</em>; here it is being <em>recognised</em>, and a reboot is quicker than a boot. Each of the
+first three pages is a block rather than a line, which is the other difference: a receipt is a
+table, and a table read one cell at a time is not a table.</p>
+<blockquote>
+<p><strong>Four pages is a budget, not a description.</strong> <code>bootFlag.ts</code> makes the argument this screen
+lives under — <em>a cut scene the player sees once is a beat; one they see forty times is an
+obstacle</em> — and it applies with more force here, because this one is unavoidable. A test holds
+the count. Anything added to this screen has to take the place of something already on it.</p>
+</blockquote>
+<h5 id="the-receipt-is-not-the-quote">The receipt is not the quote</h5>
+<p>§15.1's execution modal above prices the shift <em>before</em> the player takes it, so they can decide;
+this lands <em>after</em>, when nothing can be decided, and its job is to close the run rather than to
+sell the next one. Two surfaces with opposite jobs, and the difference between them is that one
+of them has buttons.</p>
+<p>It is deliberately <strong>not</strong> restored by a reload. A player who closes the tab mid-cut-scene comes
+back to their new studio, not to an interstitial about a run that is already over.</p>
+<h5 id="what-a-run-taught-canon">Lessons learnt — what a run taught</h5>
+<p>§21's bankruptcy screen has printed one lesson since the game had an ending:
+<em>&quot;Manpower without Communication Infrastructure is Chaos.&quot;</em> That is §6, it is the right line for
+Run 1, and it was the <strong>only</strong> line — every run after the first ended in silence. §13.12's whole
+argument for a prestige ladder is that a run ends and you know something you did not know
+before, and the game was never saying the second half out loud.</p>
+<p>So a shift picks a lesson <strong>from the run that just ended</strong>, by measurement rather than from a
+script. A fixed list indexed by shift number would tell a player on their fourth run about a
+mistake they did not make; a reading of the studio's own final state can be checked against the
+numbers that were on screen ten seconds ago. The rules, in the order they are asked — <strong>the trap,
+then the way the studio died, then the thing it never bought, then the two ways it was
+mis-sized, then the way it was disliked, then the honest shrug</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>When</th>
+<th>The line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Run 1, always</td>
+<td>Manpower without Communication Infrastructure is Chaos.</td>
+</tr>
+<tr>
+<td>The run went broke</td>
+<td>Payroll is a clock. It does not stop when the studio does.</td>
+</tr>
+<tr>
+<td>§11's board was never opened</td>
+<td>Nothing raises the ceiling except the board.</td>
+</tr>
+<tr>
+<td>Hired past §4.1's optimum</td>
+<td>Past three quarters of capacity, every hire makes the studio slower.</td>
+</tr>
+<tr>
+<td>Pressed against the cap with money spare</td>
+<td>Capacity is bought, not hired.</td>
+</tr>
+<tr>
+<td>Shipped below §4.14's baseline</td>
+<td>A game nobody trusts earns like a game nobody played.</td>
+</tr>
+<tr>
+<td>Nothing was wrong</td>
+<td>A run is over when it stops teaching you anything.</td>
+</tr>
+</tbody>
+</table>
+<p>Run 1's is not a measurement and must not become one: the trap is scripted, James signs the Mass
+Hire, and reading the player's final state would produce a lesson about a decision somebody else
+made for them.</p>
+<p>The ledger is a <strong>set</strong>, held in <code>meta.lessons</code> and unioned across saves like §22.6's milestones.
+A player who hits the same wall twice has not learned a second thing, and a list that repeats
+itself is a list nobody finishes reading. It also means the ledger is bounded by the catalogue
+rather than by how long somebody plays — which is what lets all of it fit on one page.</p>
 <h3 id="layer-2-screen-codebase-fork-terminal">15.2 Layer 2 screen — Codebase Fork Terminal</h3>
 <p>Overlays a semi-transparent dark terminal HUD over a blurred, pulsing view of your
 100,000,000+ developer swarm map.</p>
@@ -11256,7 +11529,16 @@ three of those minutes. Act IIa is roughly half the run. If playtesting
 shows players hiring past ~10 without being offered the bait, offer it sooner; the trap must
 spring while the model still reads as reliable, never after the player has already noticed
 the readout climbing on their own.</p>
-<h4 id="a-the-seed-round-earning-the-right-to-expand-canon-added-2026-08-08">21.0a The Seed Round — earning the right to expand <strong>[CANON — added 2026-08-08]</strong></h4>
+<h4 id="a-the-seed-round-earning-the-right-to-expand-canon-added-2026-08-08">21.0a The Seed Round — earning the right to expand <strong>[CANON — added 2026-08-08, amended 2026-08-27]</strong></h4>
+<blockquote>
+<p><strong>Amended 2026-08-27 — §21.0e retires Act IIa, and the round moves with it.</strong> The money, the
+fiction and the argument below are unchanged. Two things are not: it fires when the <strong>garage
+catalogue</strong> is out rather than at ten developers — there is no hiring in Run 1 any more, so a
+headcount trigger has nothing to be about — and it is signed on <strong>its own modal</strong> rather than in
+the action bar. It is the only unrepeatable thing that happens to this studio from outside it,
+and it was arriving in the slot that says <code>HIRE DEVELOPER</code> for the rest of the game, which made
+it read as another verb. The beat table at the end of this section is the amended one.</p>
+</blockquote>
 <p>§21.0 fixed the pacing problem it named (1 → 2 → 1,000 was too fast) by inserting Act IIa's
 honest loop. Playing it revealed a second, quieter one: <strong>Act IIa is a four-minute stretch with
 no events in it.</strong> Ship, earn, hire, repeat, from two developers to forty, with nothing marking
@@ -11266,7 +11548,9 @@ the difference between the eighth hire and the twenty-eighth. It is correct and 
 option. <strong>A trap the player is manoeuvred into is not a trap, it is a corridor</strong>, and §6's
 lesson needs a decision that was genuinely theirs.</p>
 <h5 id="the-beat">The beat</h5>
-<p><strong>At 10 developers, the studio takes seed funding.</strong></p>
+<p><strong>When the garage catalogue is out, the studio takes seed funding</strong> — all three rungs below
+<code>FIRST_PAID_RUNG</code>, which is the first moment the words &quot;catalogue&quot; and &quot;release cadence&quot; are
+true about this company. <em>[amended 2026-08-27; it was 10 developers.]</em></p>
 <pre><code>  STUDIO_OS
   &gt; INCOMING: TERM SHEET
 
@@ -11275,10 +11559,39 @@ lesson needs a decision that was genuinely theirs.</p>
   SEED ROUND CLOSED  --  $50,000
   HIRING CAPACITY UNLOCKED
 </code></pre>
-<p>Ten is chosen for the same kind of reason forty was: it is the first headcount at which the
-player has hired <strong>enough times to have a habit</strong> and not yet enough to be bored of it. They
-have shipped two projects and hired eight people, all with money they made. The round is a
-reward for a loop they already understand.</p>
+<p>The trigger is hung on the verb the player has actually been doing. Ten developers was chosen
+because it was &quot;enough hires to have a habit&quot;, and §21.0e deletes the hiring that number was
+about; three shipped games is the same argument pointed at the right noun. <strong>An investor turns
+up because you have a catalogue and a cadence</strong>, and the third ship is the first moment either
+word applies.</p>
+<h5 id="the-term-sheet-is-a-document">It is a document, and the interface says so</h5>
+<p>The modal is the quietest surface in the game and it is the only one that gets to be. §18.0's
+event card is drawn in the brightest phosphor on a frame §4.1 has already turned red, because a
+live event is an alarm; this is a piece of paper that arrived in the inbox of a studio that is
+doing fine. Same 40em measure, so the two read as one family; no colour of its own at all.</p>
+<p>The terms are set as a <strong>form</strong> — five rows of label and value with a dotted leader between
+them — because the comedy is in the form:</p>
+<pre><code>  INVESTMENT ......... $50,000
+  INSTRUMENT ......... SAFE, uncapped
+  VALUATION .......... to be agreed later
+  USE OF FUNDS ....... HEADCOUNT
+  BOARD SEAT ......... one (ours)
+</code></pre>
+<p><strong>Four rows and the headline, and the count is a layout constraint rather than a taste.</strong> A
+fifth (<code>CONDITIONS — none, really</code>) was funnier and it pushed <code>SIGN IT</code> below the fold at
+640x360, the tightest frame in §23.4.2's box. The panel scrolls, so nothing overflowed and no
+gate complained: <strong>the only exit from a modal that cannot be dismissed was simply off screen.</strong>
+Anything added here is measured at 640x360 with the button still in frame.</p>
+<p><strong><code>USE OF FUNDS — HEADCOUNT</code> is the whole trap, written down in the investor's own words, three
+beats before James says it out loud.</strong> It is the only instruction the player is ever given about
+what the money is for, it is given by somebody who is not in the room, and it is obeyed to the
+letter about ninety seconds later. Nothing in the game ever calls back to it, which is the
+correct amount of calling back.</p>
+<p>One button, and it says <strong>SIGN IT</strong>. There is nothing to weigh, so a DECLINE would be a fake
+choice — but the tap is still theirs, and the verb is the one you do to a document rather than
+the one you do to an offer. No dismiss and no scrim-tap exit, for the same reason §18.0a's card
+has none: the phase machine is waiting on the signature, so a dismissable version would be a
+modal the player can put down and a run that never advances.</p>
 <p>Three things arrive with it, and each one is a <em>capability</em> rather than a number going up:</p>
 <table>
 <thead>
@@ -11355,33 +11668,23 @@ anything, the more honest version.</p>
 <td>Poking works</td>
 </tr>
 <tr>
-<td><strong>Act II</strong></td>
-<td>1 → 2</td>
-<td>Cash buys a developer. James arrives</td>
-</tr>
-<tr>
-<td><strong>Act IIa</strong></td>
-<td>2 → 10</td>
-<td>Ship, earn, hire. The loop, learned</td>
+<td><strong>Act I, second half</strong></td>
+<td>2</td>
+<td>James arrives free. The two of them ship the whole garage catalogue</td>
 </tr>
 <tr>
 <td><strong>§21.0a — the Seed Round</strong></td>
-<td>10</td>
-<td><strong>Somebody else believes in this. Here is capacity</strong></td>
-</tr>
-<tr>
-<td><strong>Act IIb</strong></td>
-<td>10 → ~40</td>
-<td>The loop again, faster, with the dial. The readout starts to twitch</td>
+<td>2</td>
+<td><strong>Somebody else believes in this. Use of funds: headcount</strong></td>
 </tr>
 <tr>
 <td><strong>Act III</strong></td>
-<td>~40</td>
-<td>The offer <em>appears</em>. It does not take anything away</td>
+<td>2</td>
+<td>The offer. It is the only thing the money can buy</td>
 </tr>
 <tr>
 <td><strong>Act IV–V</strong></td>
-<td>~1,040</td>
+<td>~1,001</td>
 <td>The collapse, on money that was not theirs</td>
 </tr>
 </tbody>
@@ -11456,8 +11759,10 @@ out of evidence alone, so that when §6 breaks it they were the one holding it. 
 four minutes and it needs the whole four minutes. A second mechanic on screen during it is not
 a bonus, it is a second thing to think about, and the player only has one model's worth of
 attention to give.</p>
-<p>What Run 1 has: a burn-down, a poke, a hire button, a price that climbs, a term sheet, a
-mousetrap, and James. What Run 1 does not have:</p>
+<p>What Run 1 has: a burn-down, a poke, a term sheet, a mousetrap, and James.
+<em>[amended 2026-08-27 — the hire button and the price that climbs were on this list and are not
+any more; §21.0e takes ordinary hiring out of Run 1 entirely, which makes this section's own
+argument one item shorter and one item stronger.]</em> What Run 1 does not have:</p>
 <table>
 <thead>
 <tr>
@@ -11504,6 +11809,95 @@ system: he is a person who sits down at the second desk. This section separates 
 story, and he is the story. What <em>is</em> gated is the thing he used to arrive holding — §21.6 takes
 Instant Messenger back, where it always was, and Act I's one beat is §21.7.1's arrival and
 nothing else.</p>
+<h4 id="e-run-1-does-not-hire-canon-added-2026-08-27">21.0e Run 1 does not hire <strong>[CANON — added 2026-08-27]</strong></h4>
+<p>§21.0 built <strong>Act IIa</strong>, &quot;the honest loop&quot;: ship, earn, hire, repeat, from two developers to
+about forty, and then the mousetrap. It is a good loop and it broke the scene it was built to
+set up. §21.0d's Act III is a <em>conversation</em>, and its load-bearing line is James's:</p>
+<blockquote>
+<p><em>&quot;Two of us shipped four games. A thousand of us is five hundred times that.&quot;</em></p>
+</blockquote>
+<p>By the time a player reaches it under Act IIa there are <strong>forty of them</strong>. The arithmetic is
+wrong, the &quot;two of us&quot; is wrong, and the one beat in Run 1 where James is <em>completely correct
+about a small thing</em> is the beat where he visibly is not. Reported as exactly that.
+<strong>A joke whose premise the player can see is false on screen is not a joke that lands.</strong></p>
+<p>So <strong>Run 1 is the garage, all the way through, and the hire control is never offered in it.</strong>
+The player pokes; James arrives free at fifty pokes (§21.0b); the two of them ship all three
+garage rungs; an investor turns up with fifty thousand dollars marked <code>USE OF FUNDS — HEADCOUNT</code>
+(§21.0a); and the only thing in the game that money can buy is a thousand developers. Every step
+is still a decision and none of them is a hiring decision — which is what makes the last one
+legible.</p>
+<table>
+<thead>
+<tr>
+<th>Beat</th>
+<th>Devs</th>
+<th>The player is learning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Act I — the poke</strong></td>
+<td>0 → 1</td>
+<td>Poking works. Fifty of them bring James</td>
+</tr>
+<tr>
+<td><strong>Act I — the catalogue</strong></td>
+<td>2</td>
+<td>Two people ship three games. Velocity doubled and the burn-down moves on its own</td>
+</tr>
+<tr>
+<td><strong>§21.0a — the term sheet</strong></td>
+<td>2</td>
+<td>Somebody with money believes in you</td>
+</tr>
+<tr>
+<td><strong>Act III — the mousetrap</strong></td>
+<td>2</td>
+<td>James does the arithmetic, correctly, and signs</td>
+</tr>
+<tr>
+<td><strong>Act IV–V</strong></td>
+<td>~1,001</td>
+<td>The collapse</td>
+</tr>
+</tbody>
+</table>
+<h5 id="what-this-buys-back">What this buys back</h5>
+<ol>
+<li><strong>The scene is true.</strong> Two of them, three games, a thousand developers, five hundred times.
+Every number James says is checkable against the floor the player is looking at.</li>
+<li><strong>Run 1 is four minutes again</strong>, which is what §21.0c asks for. Act IIa measured at
+<strong>11.4 minutes</strong> and §21.0's own note admitted it. Measured 2026-08-27: about three minutes of
+play before the mass hire, and the run over inside four.</li>
+<li><strong>The lesson is not diluted by a second one.</strong> Act IIa taught cash-flow management; §6 is
+about communication overhead. Teaching both in the first four minutes taught neither — and
+§4.10h records what the first one was <em>actually</em> teaching, which was that the game's own
+readout will walk you into bankruptcy.</li>
+</ol>
+<h5 id="what-it-gives-up">What it gives up, stated rather than buried</h5>
+<p>Act IIa's <em>&quot;they have hired several times, deliberately, with earned cash, and it always
+worked&quot;</em> is gone. The trap no longer springs on a mental model the player built themselves; it
+springs on the model <strong>James states aloud and the player has no way to refuse</strong> — which is
+§21.0d's own argument for making the beat a conversation in the first place, carried one act
+earlier. §21.0's four conditions for Act IIa are therefore retired with it, including <em>&quot;the
+readout has just started to twitch&quot;</em>: Run 1 now reaches Act III at <code>IN SYNC</code>, and the
+speedometer's first twitch is something the player meets in Run 2 with §11's board already in
+their hands.</p>
+<h5 id="acts-iii-to-v-are-run-1s-script">Acts III to V are Run 1's script, and only Run 1's</h5>
+<p>The act machine ran again on every run, so a healthy studio passed back through <code>act3_bait</code> at
+forty developers and <code>act4_collapse</code> at five hundred. Measured (<code>pacing.test.ts</code>, run 6): from
+its third minute onward, a company of fifteen hundred people making forty million dollars a game
+had <code>** LIMITED OFFER: MASS HIRING PACKAGE UNLOCKED **</code> on its terminal and <em>&quot;Onboarding 1,000
+developers. This is fine.&quot;</em> underneath it, for the rest of the run.</p>
+<p><strong>Every run after the first ends in the loop and stays there.</strong> The Mass Hire is a Run 1 story
+beat and does not return. The run can still end — the bankruptcy check is not keyed to a phase,
+deliberately — and §13.1's Paradigm Shift is offered from the tree.</p>
+<h5 id="one-person-survives-the-shift">One person survives the shift, and his name is James</h5>
+<p>§21.6 says the swarm is liquidated and James remains. <code>STARTING_DEVS</code> was <strong>2</strong>, and the second
+body had no name: the count said two, the roster drew two desks, and there is no line anywhere in
+the game that says who the other survivor is. Reported as <em>&quot;there are 2 developers staying,
+should be just james&quot;</em>. It is <strong>1</strong>. The founder is not in <code>devs</code> and never was — see §4.10h on
+the same off-by-one in <code>UNPAID_FOUNDERS</code>.</p>
 <h3 id="act-i-the-innocent-beginning">ACT I: The Innocent Beginning</h3>
 <blockquote>
 <p><strong>Revised 2026-08-11 — see §21.0b.</strong> James arrives free at 50 pokes, part-way through this

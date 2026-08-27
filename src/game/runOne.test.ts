@@ -11,7 +11,7 @@
  * hire, ship faster, and check the money is still there at the end.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   FIRST_PAID_RUNG,
   PROJECT_PAYOUTS,
@@ -19,11 +19,12 @@ import {
   isBankrupt,
   payrollPerSecond,
 } from '../sim/economy.ts'
-import { passiveVelocity } from '../sim/entropy.ts'
+import { optimalHeadcount, passiveVelocity } from '../sim/entropy.ts'
 import {
   PROJECTS,
   __resetStore,
   __setState,
+  commitmentFor,
   dismissScene,
   getState,
   hireDeveloper,
@@ -34,6 +35,7 @@ import {
   takeSeedRound,
   tick,
 } from './store.ts'
+import { emptyPermanent, setPermanent } from './save.ts'
 import { SCENE_JAMES_ARRIVES } from './scenes.ts'
 
 /**
@@ -47,8 +49,31 @@ const FIXED_SEED = 0x5eed
 
 beforeEach(() => {
   __resetStore()
+  setPermanent(emptyPermanent())
   __setState({ runSeed: FIXED_SEED })
 })
+
+afterEach(() => {
+  // The shift counter is permanent state, so it leaks between files unless it
+  // is put back — and the failure is a Run 1 test quietly passing because an
+  // earlier one prestiged.
+  setPermanent(emptyPermanent())
+})
+
+/** §21.0e — a player who has been through the trap, and may therefore hire. */
+function prestiged() {
+  const p = emptyPermanent()
+  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+}
+
+/** Put the run on a ladder rung, name, commitment and burn-down together. */
+function onRung(index: number) {
+  return {
+    projectIndex: index,
+    sprintName: PROJECTS[index].name,
+    commitment: commitmentFor(index),
+  }
+}
 
 /** Run the simulation for `seconds`, poking `pokesPerSecond` throughout. */
 function play(seconds: number, pokesPerSecond = 0) {
@@ -126,55 +151,52 @@ describe('the loop closes — §4.10c', () => {
 })
 
 describe('a player who does what the game says does not go broke', () => {
-  it('ships two projects in the garage and can then afford to hire', () => {
-    // §21 Act I and II. Both founders unpaid, so this is pure profit, and it is
-    // the money Act IIa is played with.
-    //
-    // **§21.0b changed the ordering and it is worth recording what it was.**
-    // James used to cost a dollar against a treasury of nothing, so the real
-    // gate on the first hire was shipping the whole of *Flappy Square* alone —
-    // Act II's beat was gated on Act I's payout without anything saying so, and
-    // that is precisely the brutality R41 was reported for. He is free now, and
-    // arrives fifty pokes in, so the first hire the player *pays* for is the
-    // third person.
-    play(240, 4)
-    expect(getState().projectsShipped).toBeGreaterThanOrEqual(1)
-    // James is already at a desk; this is employee number two.
-    expect(getState().devs).toBe(1)
-    expect(hireDeveloper()).toBe(true)
-
-    // Played to the beat rather than to a stopwatch. A fixed 200 seconds put
-    // the second ship on a knife edge, so the assertions below were testing
-    // *timing* — which legitimately varies, because §8.2's crits are a real
-    // dice roll and no seed pins them — instead of solvency.
-    for (let i = 0; i < 40 && getState().projectsShipped < 2; i++) play(30, 4)
+  it('ships the garage catalogue with two people and no hire button — §21.0e', () => {
+    // §21 Act I, all of it. Nobody is paid, nothing is hired, and the two of
+    // them work through every rung below `FIRST_PAID_RUNG`. That is what makes
+    // Act III's "two of us shipped three games" a sentence the player can
+    // check against their own floor.
+    for (let i = 0; i < 60 && getState().projectsShipped < FIRST_PAID_RUNG; i++) play(30, 4)
     // §4.10e pays on a tail, so a treasury read on the frame a game ships is a
     // treasury read before it has been paid. Let the catalogue settle.
     play(120, 4)
 
     const s = getState()
-    expect(s.projectsShipped).toBeGreaterThanOrEqual(2)
-    expect(s.phase).toBe('act2a_loop')
+    expect(s.projectsShipped).toBeGreaterThanOrEqual(FIRST_PAID_RUNG)
+    // James, and nobody else, from the first frame to the mousetrap.
+    expect(s.devs).toBe(1)
+    expect(s.phase).toBe('act2_termsheet')
 
     /**
-     * The canary: **the loop pays for itself.** Two unpaid founders and one
-     * wage against two shipped games, so the treasury has to hold most of what
-     * the catalogue has paid out. Stated as a share of §4.10e's realised
-     * revenue rather than as a round number, because §4.14 now scales the
-     * payout by the rating — a literal would have been re-tuned every time
-     * quality moved, which is how a canary stops being one.
+     * The canary: **the garage pays for itself.** Nobody is on payroll, so the
+     * treasury has to hold essentially everything the catalogue has paid out.
+     * Stated as a share of §4.10e's realised revenue rather than as a round
+     * number, because §4.14 scales the payout by the rating — a literal would
+     * have been re-tuned every time quality moved, which is how a canary stops
+     * being one.
      */
     expect(s.lifetimeRevenue).toBeGreaterThan(10_000)
     expect(s.cash).toBeGreaterThan(0.8 * s.lifetimeRevenue)
   })
 
-  it('survives hiring to forty, which is what Act IIa asks for', () => {
-    // The regression that mattered. Under a flat $/SP this ended at roughly
-    // minus a hundred thousand dollars and a dead run: every hire made the next
-    // project less affordable, which is the exact opposite of the beat.
-    play(240, 4)
-    hireDeveloper()
-    play(200, 4)
+  it('refuses to hire at all during Run 1 — §21.0e', () => {
+    // The gate lives in the store and not only in `actionFor`, because the HUD
+    // is one caller: the `?act=` seams, the dev bar and the acceptance walk all
+    // reach `hireDeveloper` directly.
+    __setState({ devs: 1, cash: 1_000_000 })
+    expect(hireDeveloper()).toBe(false)
+    expect(getState().devs).toBe(1)
+  })
+
+  it('survives hiring to forty once the door is open — §4.10h', () => {
+    // The regression that mattered, moved to the run that can actually hire.
+    // Under a flat $/SP this ended at roughly minus a hundred thousand dollars
+    // and a dead run: every hire made the next project less affordable, which
+    // is the exact opposite of the beat. §4.10h is the second half of the same
+    // fix — a studio at forty is now visibly *profitable* rather than merely
+    // not-yet-bankrupt.
+    prestiged()
+    __setState({ devs: 1, cash: 200_000, ...onRung(FIRST_PAID_RUNG) })
     for (let i = 0; i < 120 && getState().devs < 40; i++) {
       hireDeveloper()
       play(5, 3)
@@ -183,6 +205,24 @@ describe('a player who does what the game says does not go broke', () => {
     expect(s.devs).toBeGreaterThanOrEqual(20)
     expect(s.cash).toBeGreaterThan(0)
     expect(isBankrupt(s.cash)).toBe(false)
+  })
+
+  it('makes a studio at §4.1’s optimum *profitable*, not break-even — §4.10h', () => {
+    // The complaint this answers, as one assertion. At the old ladder's first
+    // paid rung the break-even headcount and §4.1's output optimum were the
+    // same number, so a player who hired to the headcount the speedometer calls
+    // best was losing money standing on it — "it's not the inefficiency that's
+    // killing but the budget awareness killing us".
+    const cap = 100
+    const optimum = optimalHeadcount(cap)
+    for (let i = FIRST_PAID_RUNG; i < PROJECTS.length; i++) {
+      const r = PROJECT_PAYOUTS[i] / PROJECTS[i].commitment
+      const profit = passiveVelocity(optimum, cap) * r - payrollPerSecond(optimum)
+      expect(profit).toBeGreaterThan(0)
+      // And by a real margin rather than a rounding error: half of payroll
+      // again, which is the difference between "solvent" and "growing".
+      expect(profit).toBeGreaterThan(payrollPerSecond(optimum) * 0.5)
+    }
   })
 })
 

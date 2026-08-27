@@ -26,7 +26,15 @@ import {
   rollShape,
   type Release,
 } from '../sim/revenue.ts'
-import { nextOrdinal, recordRelease, type ReleaseRecord } from '../sim/history.ts'
+import {
+  emptyHistory,
+  nextOrdinal,
+  recordRelease,
+  type History,
+  type ReleaseRecord,
+} from '../sim/history.ts'
+import { lessonFor, ledgerWith } from './lessons.ts'
+import type { ShiftReport } from './paradigmBoot.ts'
 import {
   addHires,
   countsOf,
@@ -69,6 +77,7 @@ import {
 } from '../sim/prestige.ts'
 import {
   BANKRUPTCY_THRESHOLD,
+  FIRST_PAID_RUNG,
   hireCost,
   massHireCost,
   STARTING_DEVS,
@@ -199,9 +208,10 @@ import { resolvePoke } from '../sim/poke.ts'
 import { BUFF_TAU, addBuff, buffLift, decayBuffs, strengthOnSeat, type Buff } from '../sim/buffs.ts'
 import { unitSeats, unitSizeAt } from '../sim/units.ts'
 import {
+  ACT1_POKES_REQUIRED,
   MASS_HIRE_COUNT,
-  SEED_ROUND_AT,
   SEED_ROUND_CASH,
+  TERM_SHEET_AFTER_SHIPS,
   REBUKE_LINE,
   advanceOnboarding,
   shouldRebuke,
@@ -290,10 +300,12 @@ import { DEBUG_TOOLS_ENABLED } from '../dev/debugAccess.ts'
  *
  * **What was actually wrong is that the rule was applied one rung too early.**
  * `d(profit)/dn = r − W` only binds where there is an `n` to differentiate: the
- * player pays nobody until the third developer, and §21's phase machine does not
- * open the paid hiring loop until {@link FIRST_PAID_RUNG}. The rungs before it
- * are shipped by two unpaid founders, so they are free to sit **below** the wage
- * line — and putting them there is what turns the cliff into an escalation.
+ * player pays nobody in Run 1 at all (§21.0e — the hire control is never offered
+ * in it), and every rung below {@link FIRST_PAID_RUNG} is garage work. Those are
+ * free to sit **below** the wage line — and putting them there is what turns the
+ * cliff into an escalation. §4.10h raises the rungs *above* it further still, so
+ * that clearing the wage means clearing it by `WAGE_HEADROOM` rather than by a
+ * hair — see `economy.ts` for the measurement that forced it.
  *
  * The escalation is also the better joke. You do not ship one game and then a
  * game worth five hundred times more; you ship *the same game three times*,
@@ -312,7 +324,7 @@ export const PROJECTS = [
   // which is the last cheap lesson before §6 charges for one.
   { name: 'Flappy Square 2.0 (Now With A Battle Pass)', commitment: 300, payout: 12_000 },
 
-  // --- the studio. Every rung from here clears $50/SP. ---
+  // --- the studio. Every rung from here clears WAGE_HEADROOM x $50/SP. ---
   //
   // **Commitments climb by about half again, not by triples.** The first draft of
   // this half of the ladder went 600 → 1,200 → 4,000 → 12,000 → 40,000, sized by
@@ -324,19 +336,44 @@ export const PROJECTS = [
   // wall into §4.10a's. A rung is sized by whether the studio that reaches it can
   // *finish* it; the payout ladder carries the sense of scale instead.
   //
-  // r = $63.30/SP. **The first rung that pays a salary** — see FIRST_PAID_RUNG.
-  { name: 'Untitled Roguelike Deckbuilder', commitment: 600, payout: 38_000 },
-  // r = $122/SP.
-  { name: 'Cozy Farming Sim With A Dark Secret', commitment: 900, payout: 110_000 },
-  // r = $229/SP.
-  { name: 'Open-World Survival Craft (Early Access)', commitment: 1_400, payout: 320_000 },
-  // r = $409/SP.
-  { name: 'Live-Service Hero Shooter', commitment: 2_200, payout: 900_000 },
+  // r = $216.67/SP. **The first rung that pays a salary** — see FIRST_PAID_RUNG.
+  //
+  // §4.10h re-priced this half of the ladder on 2026-08-27. It read $63.30/SP,
+  // which clears the $50 wage and clears it by nothing: a studio hired to §4.1's
+  // own optimum was *losing money there*, so the readout was telling the player
+  // to stand exactly where the treasury died. Every rung from here now clears
+  // WAGE_HEADROOM x W, which is what moves the wall back off §4.1's shoulder.
+  { name: 'Untitled Roguelike Deckbuilder', commitment: 600, payout: 130_000 },
+  // r = $277.78/SP.
+  { name: 'Cozy Farming Sim With A Dark Secret', commitment: 900, payout: 250_000 },
+  // r = $357.14/SP.
+  { name: 'Open-World Survival Craft (Early Access)', commitment: 1_400, payout: 500_000 },
+  // r = $454.55/SP.
+  { name: 'Live-Service Hero Shooter', commitment: 2_200, payout: 1_000_000 },
   // r = $743/SP. The ladder's terminal rung — `maxProjectIndex` repeats it, so
   // this is the rate the studio runs at for the rest of the run, and §4.4 grows
   // its commitment with the velocity that shipped the last one.
   { name: 'Untitled Roguelike Deckbuilder II', commitment: 3_500, payout: 2_600_000 },
 ] as const
+
+/**
+ * What the garage catalogue pays, all in — §21.0e.
+ *
+ * Every rung below {@link FIRST_PAID_RUNG}, summed — the *authored* total, not
+ * the realised one: §4.10e pays on a tail, so a run standing at the term sheet
+ * is still collecting the last of it. It is what Run 1 arrives at the term sheet
+ * holding, near enough, and therefore roughly a fifth of what the Mass Hire
+ * costs; `jumpToPhase` uses it so the `?act=` seams land on a treasury the run
+ * could actually have, rather than on a round number chosen for a screenshot.
+ *
+ * Derived rather than written down, because the ladder is re-priced from time to
+ * time (§4.10h did it on 2026-08-27) and a literal here would be a second place
+ * that has to be remembered.
+ */
+export const GARAGE_CATALOGUE_CASH = PROJECTS.slice(0, FIRST_PAID_RUNG).reduce(
+  (sum, p) => sum + p.payout,
+  0,
+)
 
 
 export interface FloatingNumeral {
@@ -711,6 +748,35 @@ export interface GameState {
   reputation: number
 
   /**
+   * §10.11 — the gallery: every game this studio has shipped, and what it did.
+   *
+   * **Run state** [moved here 2026-08-27]. It lived in `PermanentSave.meta` and
+   * survived a shift, on the argument that §13.2 liquidates money and not
+   * memory. Reported as "galleries should not persist across paradigm shifts",
+   * and the report is right for the same reason `reputation` above is run state:
+   * the gallery is not a trophy cabinet, it is **the catalogue this studio is
+   * selling**. Its tails, its ratings and its ticket queues are all liquidated
+   * by the shift, and a wall of games with none of those attached is a wall of
+   * games from a reality that no longer exists.
+   *
+   * `freshRun()` starts an empty one, so the clearing is not a special case in
+   * `triggerParadigmShift` — it is what starting a run means. §15.1a's cut scene
+   * is where the catalogue that just ended is accounted for.
+   */
+  history: History
+
+  /**
+   * §15.1a — the receipt for the reality that just ended, or null.
+   *
+   * Set by {@link triggerParadigmShift} and cleared when the player taps through
+   * the cut scene. Run state so that a shift's own `set` can carry it, and
+   * **deliberately absent from `RunSave`**: a reload mid-cut-scene should put the
+   * player in their new studio rather than replaying an interstitial about a run
+   * that is already over.
+   */
+  pendingShift: ShiftReport | null
+
+  /**
    * §11 — levels bought in the in-run tech tree, by node id.
    *
    * In the *run* block rather than the permanent one because §13.2 says a
@@ -875,6 +941,12 @@ function freshRun(): GameState {
     // §18.0 — a run opens with a quiet floor. An event that survived a Paradigm
     // Shift would be an event about a studio that no longer exists.
     event: null,
+    // §10.11 — a new reality has shipped nothing. This one line is the whole of
+    // "galleries do not persist across paradigm shifts": every path that starts
+    // a run goes through here.
+    history: emptyHistory(),
+    // §15.1a — nothing to account for until a shift happens.
+    pendingShift: null,
     tech: {},
     runSeconds: 0,
     projectSeconds: 0,
@@ -1476,19 +1548,15 @@ function showBubble(text: string, ttl = 4000): Partial<GameState> {
 }
 
 /**
- * §10.11 — fold a shipped release into the career history.
+ * §10.11 — fold a shipped release into this run's catalogue.
  *
- * The history lives in `PermanentSave.meta` rather than in `GameState` because
- * it is career-wide: §13.2 liquidates the run and the catalogue but never what
- * the player has made. Written through {@link setPermanent} so the next
- * `saveGame` serialises it alongside the run.
+ * It went through `setPermanent` until 2026-08-27, because the history was
+ * career-wide. It is run state now (see {@link GameState.history}), so this is
+ * an ordinary `set` and the record is liquidated by the next shift along with
+ * the tail, the rating and the tickets that belong to it.
  */
 function recordHistoryRelease(record: ReleaseRecord): void {
-  const p = getPermanent()
-  setPermanent({
-    ...p,
-    meta: { ...p.meta, history: recordRelease(p.meta.history, record) },
-  })
+  set({ history: recordRelease(state.history, record) })
 }
 
 /**
@@ -1550,7 +1618,7 @@ function shipProject(s: GameState): Partial<GameState> {
   // the history record, because §4.14's luck is drawn from it: reception has to
   // be a fact about *which* release this is, so that a reload cannot reroll a
   // review the player has already read.
-  const ordinal = nextOrdinal(getPermanent().meta.history)
+  const ordinal = nextOrdinal(s.history)
 
   /**
    * §4.14 — reception. One of six inputs, bounded, and deterministic in the run
@@ -2032,12 +2100,16 @@ function advanceAct1(from: Phase, to: Phase | undefined): void {
   //
   // **Run 1 only, and the guard is load-bearing rather than tidy.** `freshRun`
   // resets `phase` to `act1_poke`, so §21's act machine runs again on every
-  // subsequent run and every studio passes back through `act3_bait` at about
-  // forty developers. A *declinable* offer reappearing there is a pre-existing
-  // oddity; an **unavoidable** one would liquidate every run in the game at
-  // forty developers, for ever. Found by `pacing.test.ts` on the first
-  // measurement after this landed, which is the third time that harness has
-  // caught something nothing smaller could see.
+  // subsequent run — and it used to walk every one of them back through
+  // `act3_bait` at forty developers. An **unavoidable** offer reappearing there
+  // would liquidate every run in the game, for ever. Found by `pacing.test.ts`
+  // on the first measurement after this landed, which is the third time that
+  // harness has caught something nothing smaller could see.
+  //
+  // §21.0e closed the other half of it: `act2_loop` is terminal now, so no run
+  // after the first reaches this phase at all. The guard stays, because a jump
+  // seam and a loaded save can both put a prestiged career here and neither
+  // goes through the act machine to do it.
   if (to === 'act3_bait' && !state.massHired && getPermanent().meta.paradigmShifts === 0) {
     set({ scene: SCENE_MASS_HIRE.id })
   }
@@ -3218,6 +3290,11 @@ export function canHire(s: GameState = state): boolean {
  */
 export function takeSeedRound(): boolean {
   if (state.seedTaken) return false
+  // §21.0a — signed on its own surface now (`TermSheet.tsx`), and only while the
+  // offer is actually on the table. It used to be reachable from any beat that
+  // had not taken it, which was harmless while the only caller was a button that
+  // only that beat drew, and stops being harmless the moment a modal owns it.
+  if (state.phase !== 'act2_termsheet') return false
   // §10.7a.3 — the scrim already eats the tap; this is the same rule at the
   // model level, so a call path that skips the UI cannot sign a term sheet
   // mid-conversation either.
@@ -3226,7 +3303,12 @@ export function takeSeedRound(): boolean {
     seedTaken: true,
     dialUnlocked: true,
     cash: state.cash + SEED_ROUND_CASH,
-    ...showBubble('Wait, we can just… hire more people now?', 6000),
+    // §21.0e — it said *"Wait, we can just… hire more people now?"*, which was
+    // the right line when signing this unlocked §10.10's dial. Run 1 has no
+    // hiring, so the founder reads the one line on the paper that will matter,
+    // takes it at face value, and does not act on it. James does, ninety
+    // seconds later, and never mentions where he got the idea.
+    ...showBubble('It says the money is for headcount.', 6000),
   })
   return true
 }
@@ -3416,6 +3498,12 @@ export function hireDeveloper(): boolean {
   // which *must* hire mid-scene — is the one path that deliberately bypasses
   // it and it calls `hire` directly, not this.
   if (state.scene !== null) return false
+  // §21.0e — Run 1 does not hire. Enforced here and not only in `actionFor`,
+  // for the same reason the scene guard above is: the HUD is one caller of
+  // this, and a rule that only the HUD knows is a rule the `?act=` seams, the
+  // dev bar and the acceptance walk can all break without noticing. `massHire`
+  // is the one deliberate exception and it has its own entry point.
+  if (!currentUnlocks().manualHire) return false
   // §10.10 — the dial decides the batch. It reads 1 until the dial unlocks at
   // 25 developers, so Act I and Act II behave exactly as they did.
   const { count, cost, affordable } = hireQuote()
@@ -3534,19 +3622,52 @@ export function triggerParadigmShift(): void {
   const earned = paradigmShiftOffer(state).bp
   lastShiftBp = earned
 
+  /**
+   * §15.1a — **what this reality was, read before it is thrown away.**
+   *
+   * Assembled here rather than in the component for the same reason `marks` above
+   * is: every number on it belongs to the run that is about to stop existing, and
+   * a screen that went looking for them afterwards would find the new one. The
+   * lesson is a measurement of the same state (`lessons.ts`) and is taken on the
+   * same frame, for the same reason.
+   */
+  const shiftNumber = before.meta.paradigmShifts + 1
+  const learned = lessonFor({
+    shift: shiftNumber,
+    bankrupt: state.phase === 'bankrupt',
+    load: state.devs / Math.max(1, effectiveDevCap(state)),
+    cash: state.cash,
+    reputation: state.reputation,
+    techNodesBought: boughtTechNodes(state),
+  })
+  const ledger = ledgerWith(before.meta.lessons, learned)
+
   // §24.4 — a Paradigm Shift clears the run and touches nothing permanent
   // except Layer 1. §24.5 gates offline accrual on the first one, so the
   // counter is the unlock.
-  setPermanent(paradigmShiftPermanent(before, earned, marks))
+  setPermanent({
+    ...paradigmShiftPermanent(before, earned, marks),
+    // §15.1a — the ledger is permanent and monotonic, like `milestones`: a
+    // lesson learned in reality 3 is still learned in reality 40. `ledgerWith`
+    // has already folded this run's in and deduplicated, which is what makes the
+    // list bounded by the catalogue rather than by how long somebody plays.
+    meta: { ...paradigmShiftPermanent(before, earned, marks).meta, lessons: ledger },
+  })
   set({
     ...run,
     // §4.2 — the cap the tree has bought, applied to the new run. Reading it
     // from `freshRun()` would hand every prestige back the base hundred.
     devCap: devCapFor(getPermanent().layer1.paradigmLevels),
     // "So. Same time tomorrow?"
+    //
+    // §21.6 leaves **one** person standing and his name is James
+    // ({@link STARTING_DEVS}). It was two, and the second one was nobody: the
+    // count said two, the roster drew two desks, and there is no line anywhere
+    // in the game that says who the other survivor is. Reported as "there are 2
+    // developers staying, should be just james".
     devs: STARTING_DEVS,
     // §4.11 — and the roster has to say the same thing. `freshRun()` returns an
-    // empty studio, so leaving this out would hand Run 2 two people that
+    // empty studio, so leaving this out would hand Run 2 a headcount that
     // `roleAtSeat` reads as developers by fallback rather than by record — the
     // two numbers would agree by luck, and stop agreeing at the first hire.
     roster: newRoster(STARTING_DEVS),
@@ -3554,16 +3675,16 @@ export function triggerParadigmShift(): void {
      * **Run 2 opens on the loop, not on the trap.**
      *
      * This said `act3_bait`, which meant a Paradigm Shift dropped the player at
-     * Act III with two developers and no money: the mousetrap on screen, priced
-     * at a treasury they did not have, and the only exit from that phase being
-     * `devs > 502`. There is no way to hire five hundred people on nothing, so
-     * the offer sat there greyed out **for ever** and the run could not advance.
-     * That is what "the HIRE 1,000 DEVS button is always there" was.
+     * Act III with no money: the mousetrap on screen, priced at a treasury they
+     * did not have, and the only exit from that phase being `devs > 502`. There
+     * is no way to hire five hundred people on nothing, so the offer sat there
+     * greyed out **for ever** and the run could not advance. That is what "the
+     * HIRE 1,000 DEVS button is always there" was.
      *
      * §21.6 is Run 2 *Act 0* — James arriving with Instant Messenger — and Act 0
      * is the start of a run, not its penultimate beat.
      */
-    phase: 'act2b_loop',
+    phase: 'act2_loop',
     projectsShipped: 1,
     /**
      * §4.10f — **the studio opens on the game it earned, not on the garage.**
@@ -3584,6 +3705,20 @@ export function triggerParadigmShift(): void {
     // The seed round is the same: it is a story beat, and it has happened.
     seedTaken: true,
     dialUnlocked: true,
+    // §15.1a — the cut scene, over the top of everything, before James speaks.
+    // The report is run state so that this one `set` carries it; `freshRun()`
+    // has just nulled it, which is why it is written after the spread.
+    pendingShift: {
+      shift: shiftNumber,
+      bp: earned,
+      revenue: state.lifetimeRevenue,
+      peakDevs: Math.max(state.peakDevs, state.devs),
+      shipped: state.projectsShipped,
+      seconds: state.runSeconds,
+      learned,
+      ledger,
+      nextProject: PROJECTS[openingRung(shiftNumber, STARTING_DEVS)].name,
+    },
     // §21.6 — Run 2 opens on James. The scene rather than the bubble carries
     // the beat now; the bubble stays for the runs after this one, when the
     // scene has already played and the line is all that is left of it.
@@ -3602,6 +3737,19 @@ export function triggerParadigmShift(): void {
   // §24.9 — a prestige is the highest-value write in the game. Do not wait for
   // a backgrounding that may never come.
   saveGame()
+}
+
+/**
+ * §15.1a — the player has read the receipt; hand the studio over.
+ *
+ * Idempotent, and it does nothing else: the new run was already built by
+ * {@link triggerParadigmShift}, and this only takes the screen off it. A cut
+ * scene that also mutated the world would be a beat the player could lose by
+ * closing the tab in the middle of it.
+ */
+export function dismissShiftReport(): void {
+  if (!state.pendingShift) return
+  set({ pendingShift: null })
 }
 
 /**
@@ -4039,49 +4187,60 @@ export function jumpToPhase(phase: Phase): void {
 
   switch (phase) {
     case 'act1_ship':
-      // The grind between James sitting down and the first sale — no cash, no
-      // hire button, just the founders and the burn-down.
-      set({ ...run, phase, devs: 1, pokeCount: 12 })
-      break
-    case 'act2_offer_hire':
-      set({ ...run, phase, pokeCount: 12 })
-      break
-    case 'act2_ship':
-      set({ ...run, phase, devs: 2, pokeCount: 12 })
-      break
-    case 'act2a_loop':
-      // Mid-loop rather than at either end: §21.0's Act IIa runs 2 -> ~40, and
-      // the interesting states are all in the middle of it — the dial has just
-      // unlocked at 25 and the readout has not twitched yet.
-      set({ ...run, phase, devs: 26, projectsShipped: 1, cash: 2_000, ...onProject(1) })
-      break
-    case 'act2a_seed':
-      set({ ...run, phase, devs: SEED_ROUND_AT, projectsShipped: 2, cash: 400, ...onProject(2) })
-      break
-    case 'act2b_loop':
-      // Post-round: the money is in and the dial is live, which is the state
-      // §21.0a's Act IIb actually starts from.
+      // §21.0e — the whole middle of Run 1: James is at the second desk, there
+      // is no hire button and there never will be one, and the two of them are
+      // working through the garage catalogue. Mid-catalogue rather than at
+      // either end, because that is where the beat actually reads.
       set({
         ...run,
         phase,
-        devs: SEED_ROUND_AT,
+        devs: STARTING_DEVS,
+        projectsShipped: 1,
+        cash: 50,
+        ...onProject(1),
+        pokeCount: ACT1_POKES_REQUIRED,
+      })
+      break
+    case 'act2_termsheet':
+      // The catalogue is out and the investor is at the door. The treasury is
+      // exactly what three garage games pay, because the term sheet's whole
+      // rhetorical trick is the size of the number beside it.
+      set({
+        ...run,
+        phase,
+        devs: STARTING_DEVS,
+        projectsShipped: TERM_SHEET_AFTER_SHIPS,
+        cash: GARAGE_CATALOGUE_CASH,
+        ...onProject(FIRST_PAID_RUNG),
+        pokeCount: ACT1_POKES_REQUIRED,
+      })
+      break
+    case 'act2_loop':
+      // §21.0e — runs 2+ only, so the seam has to say so: this is a studio that
+      // has prestiged, holds the dial, and is hiring with money it made.
+      set({
+        ...run,
+        phase,
+        devs: 10,
         projectsShipped: 2,
         cash: SEED_ROUND_CASH,
-        ...onProject(2),
+        ...onProject(FIRST_PAID_RUNG),
         seedTaken: true,
         dialUnlocked: true,
       })
       break
     case 'act3_bait':
-      // The offer is a temptation beside the ordinary control now, so this
-      // seam has to set up a studio that could plausibly take it *or not*.
+      // Run 1's Act III: two people, and the term sheet's money still in the
+      // bank. The offer is priced at the treasury, so this is the state that
+      // makes the scene's arithmetic ("a thousand of us is five hundred times
+      // that") literally true on screen.
       set({
         ...run,
         phase,
-        devs: 40,
-        projectsShipped: 3,
-        cash: 8_000,
-        ...onProject(3),
+        devs: STARTING_DEVS,
+        projectsShipped: TERM_SHEET_AFTER_SHIPS,
+        cash: GARAGE_CATALOGUE_CASH + SEED_ROUND_CASH,
+        ...onProject(FIRST_PAID_RUNG),
         seedTaken: true,
         dialUnlocked: true,
       })
@@ -4091,15 +4250,23 @@ export function jumpToPhase(phase: Phase): void {
       set({
         ...run,
         phase,
-        devs: 2 + MASS_HIRE_COUNT,
-        projectsShipped: 1,
+        devs: STARTING_DEVS + MASS_HIRE_COUNT,
+        projectsShipped: TERM_SHEET_AFTER_SHIPS,
         cash: 50,
-        ...onProject(1),
+        ...onProject(FIRST_PAID_RUNG),
+        seedTaken: true,
         massHired: true,
       })
       break
     case 'bankrupt':
-      set({ ...run, phase, devs: 2 + MASS_HIRE_COUNT, cash: BANKRUPTCY_THRESHOLD, massHired: true })
+      set({
+        ...run,
+        phase,
+        devs: STARTING_DEVS + MASS_HIRE_COUNT,
+        cash: BANKRUPTCY_THRESHOLD,
+        seedTaken: true,
+        massHired: true,
+      })
       break
     default:
       set(run)

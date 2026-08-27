@@ -51,7 +51,10 @@ describe('§10.11.3 — the generated cover tile', () => {
     expect(container.querySelectorAll('.cover__scene').length).toBeGreaterThan(3)
   })
 
-  it('keeps every rectangle inside the tile', () => {
+  // A hundred and twenty real renders. The default five seconds is vitest's
+  // number rather than a considered budget for that, and it made this the one
+  // test in the suite that failed on a loaded machine and passed on its own.
+  it('keeps every rectangle inside the tile', { timeout: 30_000 }, () => {
     // The art is placed by its baseline and its bounding box, which is exactly
     // the arithmetic that can push a tall sprite out through the frame.
     for (let ordinal = 0; ordinal < 120; ordinal += 1) {

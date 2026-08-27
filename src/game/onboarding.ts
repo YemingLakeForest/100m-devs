@@ -8,6 +8,47 @@
  *
  * Modelled as a linear phase machine with pure advance conditions, so the
  * script's pacing is testable instead of a chain of timers.
+ *
+ * ## §21.0e — **Run 1 does not hire** [CANON — added 2026-08-27]
+ *
+ * §21.0 built Act IIa, "the honest loop": ship, earn, hire, repeat, from two
+ * developers to about forty, and then the mousetrap. It is a good loop and it
+ * broke the scene it was built to set up. §21.0d's Act III is a *conversation*,
+ * and its load-bearing line is James's:
+ *
+ * > "Two of us shipped four games. A thousand of us is five hundred times that."
+ *
+ * By the time a player reaches it under Act IIa there are **forty of them**, so
+ * the arithmetic is wrong, the "two of us" is wrong, and the one beat in Run 1
+ * where James is *completely correct about a small thing* is the beat where he
+ * is visibly not. Reported as exactly that. A joke whose premise the player can
+ * see is false on screen is not a joke that lands.
+ *
+ * So Run 1 is the garage, all the way through, and **the hire control is never
+ * offered in it** (`unlocksFor().manualHire`). The player pokes, James arrives
+ * free, the two of them ship the whole garage catalogue, an investor turns up
+ * with fifty thousand dollars, and the only thing in the game that money can buy
+ * is a thousand developers. Every step is still a decision and none of them is a
+ * hiring decision — which is what makes the last one legible.
+ *
+ * Three things this buys back, stated because Act IIa was defended at length and
+ * is being retired:
+ *
+ * 1. **The scene is true.** Two of them, three games, a thousand developers,
+ *    five hundred times. Every number James says is checkable on screen.
+ * 2. **Run 1 is four minutes again**, which is what §21.0c asks for — Act IIa
+ *    had measured at 11.4 minutes and admitted it in §21.0's own note.
+ * 3. **The lesson is not diluted by a second one.** Act IIa taught cash-flow
+ *    management; §6 is about communication overhead. Teaching both in the first
+ *    four minutes taught neither, and §4.10g records what the first one was
+ *    actually teaching.
+ *
+ * What it gives up is real and named: Act IIa's *"they have hired several times,
+ * deliberately, with earned cash, and it always worked"* is gone, so the trap no
+ * longer springs on a mental model the player built themselves. It springs on
+ * the model James states aloud and the player has no way to refuse — which is
+ * §21.0d's own argument for making the beat a conversation in the first place,
+ * carried one act earlier.
  */
 
 import { FIRST_PAID_RUNG } from '../sim/economy.ts'
@@ -17,19 +58,12 @@ export type Phase =
   | 'act1_poke'
   /** §21.0b — James turns up, free, part-way through Act I. */
   | 'act1_james'
-  /** Act I's second half — James is here, nobody is paid, and the first income
-    * is still a shipped game away. */
+  /** Act I's second half — the two of them ship the garage catalogue. */
   | 'act1_ship'
-  /** Act II — the OS suggests scaling up; HIRE unlocks. */
-  | 'act2_offer_hire'
-  /** Act II — James is here; ship the thing. */
-  | 'act2_ship'
-  /** Act IIa — the honest loop. Ship, earn, hire, repeat, to 10. */
-  | 'act2a_loop'
-  /** §21.0a — the term sheet is on the table. Waits on the player taking it. */
-  | 'act2a_seed'
-  /** Act IIb — the loop again, with capacity, to ~40. */
-  | 'act2b_loop'
+  /** §21.0a — the term sheet is on the table. Waits on the player signing it. */
+  | 'act2_termsheet'
+  /** Act II — the loop, with capacity. **Runs 2+ only**; Run 1 never hires. */
+  | 'act2_loop'
   /** Act III — the mousetrap is baited. */
   | 'act3_bait'
   /** Act IV — 1,000 devs land, entropy surges. */
@@ -43,16 +77,36 @@ export const PHASE_ORDER: readonly Phase[] = [
   'act1_poke',
   'act1_james',
   'act1_ship',
-  'act2_offer_hire',
-  'act2_ship',
-  'act2a_loop',
-  'act2a_seed',
-  'act2b_loop',
+  'act2_termsheet',
+  'act2_loop',
   'act3_bait',
   'act4_collapse',
   'act5_bleeding',
   'bankrupt',
 ]
+
+/**
+ * Phases that existed before §21.0e, and where a save holding one lands.
+ *
+ * `act2_offer_hire`, `act2_ship` and `act2a_loop` were Act IIa's three beats and
+ * they are gone; `act2a_seed` and `act2b_loop` were renamed once the `a`/`b`
+ * suffixes stopped naming anything. A phase name is written into every save
+ * (§24.3), so **deleting one silently restarts somebody's script** — `save.ts`
+ * falls back to `act1_poke` for a name it does not recognise, which for a player
+ * mid-Act-IIa would re-run the poke gate they have already passed.
+ *
+ * Mapped rather than dropped: every retired Run 1 beat lands on `act1_ship`,
+ * which is where the new script has them — mid-garage, with whatever they have
+ * already shipped counted — and the machine walks them forward from there on the
+ * next tick. `act2b_loop` was runs 2+ and is simply renamed.
+ */
+export const RETIRED_PHASES: Readonly<Record<string, Phase>> = {
+  act2_offer_hire: 'act1_ship',
+  act2_ship: 'act1_ship',
+  act2a_loop: 'act1_ship',
+  act2a_seed: 'act2_termsheet',
+  act2b_loop: 'act2_loop',
+}
 
 /**
  * Pokes before James turns up — §21.0b, R41.
@@ -72,10 +126,10 @@ export const PHASE_ORDER: readonly Phase[] = [
  * a grind.** The help arrives at the first moment it would be a relief and
  * before it would be a rescue.
  *
- * The trap is untouched. Act IIa still buys every subsequent hire with earned
- * cash, the price still climbs, and the collapse still costs a treasury the
- * player built. What has gone is the unpaid labour before the loop starts,
- * which was teaching nothing the loop does not teach better.
+ * The trap is untouched. The collapse still costs a treasury the player built
+ * (§21.0e: three shipped games and a term sheet, spent to the cent). What has
+ * gone is the unpaid labour before the run starts, which was teaching nothing
+ * the rest of Act I does not teach better.
  */
 export const ACT1_POKES_REQUIRED = 50
 
@@ -138,59 +192,29 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
   },
 
   act1_ship: {
-    // §21 — the scaling pitch cannot land yet: hiring spends money, and there
-    // is none until a game has sold. The founders still have to code, and the
-    // one person available to speed up is the one already at a desk.
+    // §21.0e — **there is no scaling pitch in Run 1.** Hiring is not on offer at
+    // any point in it, so the only two levers on this beat are the two the
+    // player already has: their own desk and James's. The line names both and
+    // stops, because everything else it could say would be about a button that
+    // is not there.
     advisor: 'Founders still have to code, or poke James to make him work faster.',
   },
 
-  act2_offer_hire: {
-    // The pitch now lands after the first income instead of before it. "Let's
-    // scale up" is advice about spending money, and the player holds none
-    // until the first game has sold — landing it then means it arrives at
-    // somebody who has felt the grind *and* has the first money it will spend.
-    advisor:
-      'Progress is dangerously slow! At this rate, your indie game will launch after the sun dies. Let’s scale up!',
-    action: 'HIRE DEVELOPER',
-  },
-
-  act2_ship: {
-    // James's line, and his card flavour text forever: the thesis of the game,
-    // said sincerely, by the person who will be proven wrong four minutes from
-    // now and will stay anyway.
-    bubble: 'Hey, this actually works! More people = faster games!',
-    advisor: 'Velocity doubled. Burn it down.',
-  },
-
-  act2a_loop: {
-    // §21.0's load-bearing beat, and the one that must NOT be narrated. The
-    // player is being left alone to build a mental model out of evidence —
-    // "more developers, more speed" — which they will hold right up until it
-    // fails. A line of advisor copy telling them hiring works would replace
-    // that evidence with an assertion, and an assertion is not something you
-    // feel betrayed by. The only thing here is the verb.
-    advisor: 'Ship it. Hire. Ship it again.',
-  },
-
-  act2a_seed: {
-    // §21.0a. Sincere, and the last time anybody in this game is.
-    terminal: [
-      '> INCOMING: TERM SHEET',
-      '',
-      '"We love what you’re building.',
-      ' We think you can build it FASTER."',
-      '',
-      'SEED ROUND OFFERED  --  $50,000',
-    ],
+  act2_termsheet: {
+    // §21.0a, now on its own surface. The terminal block that used to live here
+    // is the *modal's* body (`TermSheet.tsx`) — printing it on the rail as well
+    // would be the same offer made twice, once where it can be signed and once
+    // where it cannot. What is left on the rail is the advisor, which is
+    // commentary rather than the offer: sincere, and the last time anybody in
+    // this game is.
     advisor:
       'Somebody with money believes in you. That has never gone wrong for anyone.',
-    action: 'ACCEPT TERM SHEET',
   },
 
-  act2b_loop: {
-    // Still no narration. §21.0a's Act IIb is Act IIa with capacity, and the
-    // player has just been handed the two things that change it — cash and the
-    // dial. Telling them what to do with those would take the discovery away.
+  act2_loop: {
+    // §21.0e — runs 2+, and every one of them ends here. Still no narration:
+    // the player has capacity, cash and the dial, and telling them what to do
+    // with those would take the discovery away. The only thing here is the verb.
     advisor: 'Capacity unlocked. Spend it however you like.',
   },
 
@@ -239,32 +263,48 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
  * exactly the "production drops to 0.01x" figure §6.2 asserts.
  */
 /**
- * Where Act IIa ends — §21.0's measured table.
+ * Where the readout first twitches — §21.0's measured table.
  *
  * The first headcount whose readout is not `IN SYNC`. At 30 developers E is
  * 0.242% and rounds to nothing; at 40 it is 1.01% and the speedometer says
  * `CHATTY`. **The player must get exactly one hint and wave it away.**
+ *
+ * It is no longer a phase transition. §21.0's Act II ended here and handed over
+ * to the mousetrap, which was right for Run 1 and wrong for every run after it
+ * (see `advanceOnboarding`'s `act2_loop` case). Kept as the measurement it has
+ * always been — §4.3a's first visible reading, the number §21.0's table is
+ * built around, and the one `entropy()` is checked against.
  */
-export const ACT2A_ENDS_AT = 40
+export const MOUSETRAP_AT = 40
 
 /**
- * §21.0a — where the Seed Round lands.
+ * §21.0a — where the term sheet lands, and it is a **catalogue** now, not a
+ * headcount [amended 2026-08-27].
  *
- * Ten is chosen the same way forty was: it is the first headcount at which the
- * player has hired **enough times to have a habit** and not yet enough to be
- * bored of it. Two projects shipped, eight people hired, all with money they
- * made. The round is a reward for a loop they already understand rather than a
- * gift that arrives before they know what it is for.
+ * It was ten developers: "the first headcount at which the player has hired
+ * enough times to have a habit". §21.0e deletes the habit — nobody hires in Run
+ * 1 — so the beat is re-hung on the thing the player *has* been doing, which is
+ * shipping. {@link FIRST_PAID_RUNG} games out is the whole garage catalogue:
+ * *Flappy Square 1.0*, *1.1 (Now With Ads)* and *2.0 (Now With A Battle Pass)*.
+ *
+ * That is the same argument the old number made, pointed at the right verb. An
+ * investor turns up because you have a catalogue and a release cadence, and
+ * three shipped games is the first moment either of those words is true.
  */
-export const SEED_ROUND_AT = 10
+export const TERM_SHEET_AFTER_SHIPS = FIRST_PAID_RUNG
 
 /**
  * What the round is worth.
  *
- * Roughly ten hires at the price they will be paying just after it — enough to
- * "feel like a different game for a minute" (§21.0a) without skipping Act IIb.
- * A figure rather than a formula because it is a story beat: an investor wrote
- * a number on a term sheet, and round numbers are what investors write.
+ * Enough to "feel like a different game for a minute" (§21.0a). A figure rather
+ * than a formula because it is a story beat: an investor wrote a number on a
+ * term sheet, and round numbers are what investors write.
+ *
+ * §21.0e gives it a second job it did not have and it is the more important one:
+ * **it is the whole of the mousetrap's price.** The player reaches Act III with
+ * a garage catalogue's $13,550 and this, and the Mass Hire costs the lot — so
+ * the money that liquidates the company is money somebody handed them for
+ * growth, spent on growth, exactly as instructed.
  */
 export const SEED_ROUND_CASH = 50_000
 
@@ -290,7 +330,7 @@ export const SCENE_PHASES: ReadonlySet<Phase> = new Set()
  * advance past them on its own.
  */
 export const PLAYER_GATED: ReadonlySet<Phase> = new Set([
-  'act2_offer_hire',
+  'act2_termsheet',
   'act3_bait',
   'bankrupt',
 ])
@@ -305,7 +345,7 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
   // Running the studio into the ground ends the run, **whatever act it happens
   // in**. This used to be checked only in `act5_bleeding`, on the assumption
   // that bankruptcy could only follow the Mass Hire — and payroll does not know
-  // that. A player who overhired during Act IIa, or who sat in Act III unable
+  // that. A player who overhired in the loop, or who sat in Act III unable
   // to afford the offer, would drop past -$1,000,000 and simply stay there:
   // no ending, no prestige, no screen, and the only control on the beat dead
   // because they could not pay for it. A run has to be able to end.
@@ -323,56 +363,60 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
       return s.devs >= 1 ? 'act1_ship' : phase
 
     case 'act1_ship':
-      // §21 — the OS pitch waits on income. With James at a desk and nobody on
-      // payroll the only job is the first ship, and "let's scale up" cannot
-      // land on a treasury holding nothing: the beat holds until a game has
-      // actually sold and the money is real.
-      return s.projectsShipped >= 1 ? 'act2_offer_hire' : phase
-
-    case 'act2_offer_hire':
-      // §21.0b — the offer is now about the *second* employee, and it is the
-      // first one the player pays for. It waits on that purchase.
-      return s.devs >= 2 ? 'act2_ship' : phase
-
-    case 'act2_ship':
-      // **The whole garage catalogue, not one game** — §4.10c, §4.10f.
+      // **The whole garage catalogue, and then the investor** — §4.10f, §21.0e.
       //
-      // Payroll starts with the third developer, and *Flappy Square 1.0* pays
-      // fifty dollars. Opening Act IIa's hire prompt on one shipped project
-      // handed the player a HIRE button, a $50 treasury and a $50/sec burn:
-      // one second of runway, then a slow slide to bankruptcy they could not
-      // see coming and could not have avoided.
+      // Two unpaid founders ship all three garage games before anything else
+      // happens: *Flappy Square 1.0* for fifty dollars, then the same game with
+      // adverts, then the same game with a battle pass. That is the joke §4.10f
+      // built the ladder for, and §21.0e is what finally lets it run to the end
+      // — there is no hire prompt waiting to interrupt it after the first ship.
       //
-      // It was two, when the ladder's second rung was worth $25,000 on its own.
-      // §4.10f split that one step into three, all of them shipped at two unpaid
-      // founders, so the gate now waits for the whole garage catalogue —
-      // {@link FIRST_PAID_RUNG} — before opening the loop that costs wages. The
-      // joke survives the change and gets longer: your first game earns fifty
-      // dollars, and you fix that by shipping it twice more with adverts and a
-      // battle pass, and only *then* can you afford people.
-      return s.projectsShipped >= FIRST_PAID_RUNG ? 'act2a_loop' : phase
+      // {@link TERM_SHEET_AFTER_SHIPS} rather than a literal, because the two
+      // facts are the same fact: the garage is every rung below
+      // {@link FIRST_PAID_RUNG}, and the term sheet arrives when the garage is
+      // finished.
+      return s.projectsShipped >= TERM_SHEET_AFTER_SHIPS ? 'act2_termsheet' : phase
 
-    case 'act2a_loop':
-      // §21.0a — the term sheet arrives once the loop is a habit.
-      return s.devs >= SEED_ROUND_AT ? 'act2a_seed' : phase
+    case 'act2_termsheet':
+      // Waits on the player signing. It is the only beat in Run 1 that is pure
+      // upside, and it still has to be *taken* — §6's lesson needs every step
+      // into the trap to have been a decision.
+      //
+      // §21.0e — and it goes straight to the mousetrap. There is nothing between
+      // the money arriving and the only thing in the game that money can buy.
+      return s.seedTaken ? 'act3_bait' : phase
 
-    case 'act2a_seed':
-      // Waits on the player accepting. It is the only beat in Run 1 that is
-      // pure upside, and it still has to be *taken* — §6's lesson needs every
-      // step into the trap to have been a decision.
-      return s.seedTaken ? 'act2b_loop' : phase
-
-    case 'act2b_loop':
-      // §21.0: Act II ends at ~40 developers, and the number is not arbitrary
-      // — it is the first headcount at which the readout says something other
-      // than `IN SYNC` (E = 1.01%). Ending on that first twitch is what buys
-      // the "I saw that and ignored it" the collapse needs. Measured against
-      // the shipped `entropy()`, not chosen to be round.
-      return s.devs >= ACT2A_ENDS_AT ? 'act3_bait' : phase
+    case 'act2_loop':
+      // **The last phase of every run after the first, and it does not end.**
+      //
+      // This used to advance to `act3_bait` at {@link MOUSETRAP_AT}, because
+      // §21's act machine was written as though every run were Run 1. Measured
+      // (`pacing.test.ts`, 2026-08-27): run 6 passed forty developers at t=100
+      // and five hundred at t=190, so from three minutes in, a healthy studio of
+      // 1,500 people making forty million dollars a game had `** LIMITED OFFER:
+      // MASS HIRING PACKAGE UNLOCKED **` on its terminal and *"Onboarding 1,000
+      // developers. This is fine."* under it, **for the rest of the run**.
+      //
+      // Acts III to V are Run 1's script. They are the trap, they are a story
+      // that has already happened, and re-running their copy over a company that
+      // learned the lesson is the same defect §21.0e is fixing one act earlier:
+      // the game saying something the player can see is not true.
+      //
+      // The run still *ends* — the bankruptcy guard at the top of this function
+      // is not keyed to a phase, deliberately, and §13.1's Paradigm Shift is
+      // offered from the tree rather than from the act machine.
+      return phase
 
     case 'act3_bait':
-      // Waits on the player springing the trap themselves. It matters that
-      // they choose it — §6 is a lesson, and a lesson needs a decision.
+      // Waits on the player springing the trap themselves. It matters that they
+      // choose it — §6 is a lesson, and a lesson needs a decision, and §21.0d's
+      // scene is where the choosing happens.
+      //
+      // Half the swarm rather than all of it, so a frame that lands mid-arrival
+      // still advances. The `2 +` is historical slack around the headcount a run
+      // arrives with and is left alone deliberately: §21.0e brought that down
+      // from forty to one, and a threshold written against *five hundred* people
+      // has no business tracking it.
       return s.devs > 2 + MASS_HIRE_COUNT / 2 ? 'act4_collapse' : phase
 
     case 'act4_collapse':

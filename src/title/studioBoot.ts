@@ -25,12 +25,22 @@
 export const BOOT_OS_LINE = 'STUDIO_OS v0.0.1 initialized'
 
 /**
- * The boot's pages, in order. Personal: the project is the run's first game
- * and the founder is the person the player just built, so the terminal block
- * reads as *their* studio coming up rather than as a stock splash.
+ * The boot's four lines. Personal: the project is the run's first game and the
+ * founder is the person the player just built, so the terminal block reads as
+ * *their* studio coming up rather than as a stock splash.
+ *
+ * Split from {@link bootPages} because §15.1a shows the same four lines at a
+ * different pace — one page each on the first launch, all four at once on every
+ * Paradigm Shift after it — and the words have to be the same words. Two copies
+ * of a boot sequence is two boot sequences.
  */
-export function bootPages(founderName: string, projectName: string): string[] {
+export function bootLines(founderName: string, projectName: string): string[] {
   return [BOOT_OS_LINE, `project: ${projectName}`, `founder: ${founderName}`, 'ready.']
+}
+
+/** The boot, one line to a page. §10.9.3's pace, for the install's first launch. */
+export function bootPages(founderName: string, projectName: string): string[] {
+  return bootLines(founderName, projectName)
 }
 
 /**
