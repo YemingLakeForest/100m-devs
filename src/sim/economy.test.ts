@@ -11,15 +11,12 @@ import {
   projectRevenue,
   secondsUntilBankrupt,
   PROJECT_PAYOUTS,
-  PROJECT_COMMITMENTS,
   FIRST_PAID_RUNG,
   HIRE_COST_GROWTH,
   REFERENCE_CAP,
   SP_PER_DEV_PER_SEC,
   STARTING_DEVS,
-  TARGET_BUILD_SECONDS,
   capAdjustedGrowth,
-  openingRung,
   WAGE_HEADROOM,
   WAGE_PER_DEV_PER_SEC,
 } from './economy.ts'
@@ -138,11 +135,11 @@ describe('the mirrors this module keeps of numbers it does not own', () => {
   })
 
   it('matches what a Paradigm Shift actually leaves standing — §21.6', () => {
-    // `openingRung` bounds the opening game by this number. It drifting from
-    // `triggerParadigmShift`'s `devs:` is how a studio ends up holding a game it
-    // has not the people to build, which is the failure the function's own note
-    // records. The store now reads the constant, so this asserts the mirror is
-    // still pointed at the right thing rather than at a copy of it.
+    // `payrollPerSecond` and `UNPAID_FOUNDERS` are both sized against this
+    // number, so a mirror that drifts from `triggerParadigmShift`'s `devs:` is a
+    // fresh run quietly starting one head into a salary it was never meant to
+    // owe. The store reads the constant, so this asserts the mirror is still
+    // pointed at the right thing rather than at a copy of it.
     __resetStore()
     setPermanent(emptyPermanent())
     triggerParadigmShift()
@@ -231,59 +228,41 @@ describe('revenue scales with the studio, not with the Story Point — §4.10c',
     expect(PROJECT_PAYOUTS.length).toBeGreaterThan(FIRST_PAID_RUNG + 3)
   })
 
-  it('keeps the mirrored ladders in step', () => {
-    // `PROJECTS` lives in the store and the two mirrors in the sim, so that
+  it('keeps the mirrored ladder in step', () => {
+    // `PROJECTS` lives in the store and the payout mirror in the sim, so that
     // economy.ts stays free of store imports. Two lists that must agree and are
-    // edited in different files is exactly the pairing that silently drifts —
-    // and `openingRung` reads the commitments, so a drifted mirror would put a
-    // run on a rung whose size it had guessed.
-    expect(PROJECT_PAYOUTS).toEqual(PROJECTS.map((p) => p.payout))
-    expect(PROJECT_COMMITMENTS).toEqual(PROJECTS.map((p) => p.commitment))
-  })
-
-  it('never opens a later run in the garage — §4.10f', () => {
-    // The bug this exists to stop: `triggerParadigmShift` reset `projectIndex`
-    // to zero, so a studio with a cap of fifteen thousand went back to making
-    // *Flappy Square 1.0* for fifty dollars. Measured, that stalled runs 2–8 at
-    // **two developers**, because three garage games on §4.10e's tail never
-    // clear the payroll buffer a third hire needs behind it.
-    expect(openingRung(0, STARTING_DEVS)).toBe(0)
-    for (let shifts = 1; shifts <= 12; shifts++) {
-      expect(openingRung(shifts, STARTING_DEVS)).toBeGreaterThanOrEqual(FIRST_PAID_RUNG)
-    }
-  })
-
-  it('opens on a game the two developers a run actually has can finish', () => {
-    // **The regression that named the bound.** This was written against the
-    // *cap* first — one story point per developer of capacity — and measured, at
-    // run 8, a cap of 210,526 handed the run the terminal 3,500-point game. Two
-    // developers need about seven hundred seconds for that, there is no money
-    // until it ships, and so there is no third hire: the run sat at two people
-    // and $0 revenue until the harness called it stalled.
+    // edited in different files is exactly the pairing that silently drifts.
     //
-    // A run opens with the people §21.6 leaves it, not with the people its cap
-    // allows, and the opening game is bounded by §4.4's window at that headcount.
-    const buildable = STARTING_DEVS * SP_PER_DEV_PER_SEC * TARGET_BUILD_SECONDS
-    for (let shifts = 1; shifts <= 40; shifts++) {
-      const r = openingRung(shifts, STARTING_DEVS)
-      expect(r).toBeLessThanOrEqual(PROJECT_COMMITMENTS.length - 1)
-      // Either it is the floor, or it is genuinely buildable from a standing start.
-      expect(r === FIRST_PAID_RUNG || PROJECT_COMMITMENTS[r] <= buildable).toBe(true)
-    }
+    // There were two mirrors. `PROJECT_COMMITMENTS` was maintained for
+    // `openingRung` alone and went out with it (§4.10f) — a copy nothing reads
+    // is a copy that drifts unnoticed until the day something reads it again.
+    expect(PROJECT_PAYOUTS).toEqual(PROJECTS.map((p) => p.payout))
   })
 
-  it('follows the starting headcount rather than hard-coding its own answer', () => {
-    // The bound is written as a computation because the 3 it currently produces
-    // is an *output*. If §21.6 ever leaves a run more people, the opening game
-    // should follow — this is the test that says so, and that would have caught
-    // the cap-bound version by showing it did not depend on headcount at all.
-    expect(openingRung(9, STARTING_DEVS)).toBe(FIRST_PAID_RUNG)
-    expect(openingRung(9, 1_000)).toBeGreaterThan(FIRST_PAID_RUNG)
-    let last = 0
-    for (const devs of [STARTING_DEVS, 20, 40, 100, 1_000]) {
-      const r = openingRung(9, devs)
-      expect(r).toBeGreaterThanOrEqual(last)
-      last = r
+  it('opens every run on the first rung — §4.10f [amended 2026-08-27]', () => {
+    // **The reverse of what this file asserted until 2026-08-27.** Three tests
+    // stood here around `openingRung`, whose job was to stop a later run
+    // re-climbing the garage; the sentence they pinned was "a studio that shipped
+    // a live-service hero shooter does not go back to making a $50 mobile game".
+    //
+    // §4.10f now says it does, and says why: the shift liquidates the treasury,
+    // the roster and the gallery, and a marquee carried forward from the reality
+    // §15.1a has just posted a receipt for was the one thing still claiming
+    // otherwise. The measurement that made `openingRung` necessary — runs 2–8
+    // stalling at two developers on three garage games — is answered by §4.10h's
+    // wage headroom rather than by skipping the garage; `pacing.test.ts` is where
+    // that is checked, because it is the only harness that can see it.
+    //
+    // Pinned at the store, because the rung is no longer a function anybody can
+    // call: it is `triggerParadigmShift`'s decision and this is the assertion
+    // that keeps it one.
+    setPermanent(emptyPermanent())
+    __resetStore()
+    for (let shift = 1; shift <= 3; shift++) {
+      triggerParadigmShift()
+      expect(getState().projectIndex).toBe(0)
+      expect(getState().sprintName).toBe(PROJECTS[0].name)
+      expect(getState().commitment.toNumber()).toBe(PROJECTS[0].commitment)
     }
   })
 

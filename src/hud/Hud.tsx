@@ -1,8 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
 import {
-
-  acceptMassHire,
   acknowledgeEvent,
   beginPosting,
   canMassHire,
@@ -65,9 +63,7 @@ import {
   SCENE_FOUNDER_BOARD,
   SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
-  SCENE_MASS_HIRE,
   JAMES_DROPS_AT_LINE,
-  MASS_HIRE_AT_LINE,
 } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
 import { UpgradeBoard } from './UpgradeBoard.tsx'
@@ -741,13 +737,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             // beyond granting him.
             if (state.scene === SCENE_JAMES_ARRIVES.id && line >= JAMES_DROPS_AT_LINE) {
               grantJames()
-            }
-            // §21.0d — and the trap. The tap that turns this page is the tap
-            // that hires a thousand people; there is no button on the beat and
-            // §10.7 rule 3 means there is no skip, which is what makes it
-            // unavoidable rather than merely tempting.
-            if (state.scene === SCENE_MASS_HIRE.id && line >= MASS_HIRE_AT_LINE) {
-              acceptMassHire()
             }
           }}
         />

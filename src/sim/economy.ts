@@ -228,94 +228,23 @@ export const PROJECT_PAYOUTS: readonly number[] = [
  */
 export const FIRST_PAID_RUNG = 3
 
-/**
- * Sprint Commitments, mirrored beside the payouts for {@link openingRung}.
+/*
+ * `openingRung` lived here — §4.10f, retired 2026-08-27.
  *
- * Same contract as {@link PROJECT_PAYOUTS}: the store owns `PROJECTS` and a test
- * asserts these two lists never drift from it.
+ * It answered "which game does a run open on" with *the biggest one the studio a
+ * fresh run actually has can build inside §4.4's window*, so a career climbed the
+ * garage exactly once. §4.10f now says the garage is climbed every run, for the
+ * reason recorded there, and a rule left standing with no callers is a rule that
+ * quietly comes back. The `PROJECT_COMMITMENTS` mirror went with it: it copied
+ * the store's `PROJECTS` for this one function, and a mirror nothing reads is two
+ * lists to keep in step for nothing.
+ *
+ * What it knew that is still true: **every rung below {@link FIRST_PAID_RUNG} is
+ * deliberately underwater on `r > W`.** That is now a fact about a garage every
+ * run passes back through rather than a floor under where one starts, and
+ * §4.10h's headroom is what makes the passage survivable — `pacing.test.ts`
+ * carries the measurement.
  */
-export const PROJECT_COMMITMENTS: readonly number[] = [
-  300,
-  200,
-  300,
-  600,
-  900,
-  1_400,
-  2_200,
-  3_500,
-]
-
-/**
- * Which game a run opens on — §4.10f, §13.12.4.
- *
- * **A studio that shipped a live-service hero shooter last run does not go back
- * to making a $50 mobile game**, and until this existed it did exactly that:
- * `triggerParadigmShift` reset `projectIndex` to zero, so every run in the
- * career re-climbed the garage ladder from *Flappy Square 1.0*.
- *
- * That was invisible while the ladder's second rung paid $25,000 — the replay
- * lasted about twenty seconds and then the studio was rich. §4.10f spread that
- * one payout across three garage rungs, and the replay stopped being invisible
- * immediately: measured, runs 2–8 stalled at **two developers** on §4.10a's hire
- * cost, because three games earning $13,550 on §4.10e's tail never clear the
- * thirty seconds of payroll a third hire needs standing behind it.
- *
- * So the run inherits a **position in the catalogue** rather than a pile of
- * cash. §14.8.9 named the cash version — *"the bank lends against the company
- * you have proven you can build"* — and this is the same idea with the advantage
- * that it cannot be spent on a hiring spree the run cannot pay for, which is the
- * exact failure that made §13.12.3's option 2 unshippable.
- *
- * ## The bound is the **standing start**, and the first version got this wrong
- *
- * The first version bounded the rung by the *cap* — one story point per
- * developer of capacity — reasoning that a studio opens on the largest game it
- * could have built with the people it is allowed to hold. That reads well and it
- * is the wrong noun. **A run does not open with the people it is allowed to
- * hold; it opens with James.** §21.6 liquidates the swarm and leaves him.
- *
- * Measured, at run 8 of §14.8: cap 210,526, so the cap-bound rule handed the run
- * the terminal 3,500-point game, which two developers need about seven hundred
- * seconds to finish — and until it ships there is no money, so there is no
- * hiring, so there is no velocity. The run sat at **two developers, $0 revenue
- * and one game in progress** until the harness declared it stalled. A studio with
- * a cap of two hundred thousand, unable to hire its third employee.
- *
- * So the bound is what the studio a fresh run *actually has* can build in §4.4's
- * target window. That is `STARTING_DEVS · SP_PER_DEV_PER_SEC · TARGET_BUILD_SECONDS`
- * — a hundred and twenty story points — which in practice always floors to
- * {@link FIRST_PAID_RUNG}, and it is written as the computation rather than as
- * the number 3 because the number 3 is an output. Raise the headcount a run
- * opens with and the opening game should follow it; hard-coding the answer would
- * silently decouple the two.
- *
- * **What this gives up, stated rather than buried.** "Each prestige opens on a
- * bigger game" was a nice per-run reward and it is not on offer. It does not need
- * to be: measured, the cap, the velocity, the revenue and the BP now all climb
- * every single run, so the sense of progress is carried by the systems that can
- * actually carry it. This function's job is the narrower one it was built for —
- * **stop the studio re-climbing the garage** — and that it does.
- *
- * Floored at {@link FIRST_PAID_RUNG} because the garage is a Run 1 joke and
- * telling it twice is not funnier, and because every rung below that floor is
- * deliberately underwater on `r > W` — opening a run there would hand the player
- * a studio that loses money on every hire it is being told to make.
- */
-export function openingRung(paradigmShifts: number, startingDevs: number): number {
-  // Run 1 is the garage. It is the only run that earns the joke.
-  if (!(paradigmShifts > 0)) return 0
-  const devs = Number.isFinite(startingDevs) && startingDevs > 0 ? startingDevs : 0
-  // Passive output only. §8.2's poking would raise this and a bound that assumed
-  // the player was poking would be a bound on the attentive player alone.
-  const buildable = devs * SP_PER_DEV_PER_SEC * TARGET_BUILD_SECONDS
-  const terminal = PROJECT_COMMITMENTS.length - 1
-  let rung = FIRST_PAID_RUNG
-  for (let i = FIRST_PAID_RUNG + 1; i <= terminal; i++) {
-    if (PROJECT_COMMITMENTS[i] > buildable) break
-    rung = i
-  }
-  return rung
-}
 
 /**
  * §21.0 — what the next developer costs.
@@ -449,10 +378,13 @@ export const SP_PER_DEV_PER_SEC = 1
  * staying, should be just james", and the roster agreed with the count rather
  * than with the story.
  *
- * Mirrored from `triggerParadigmShift`'s `devs:` and asserted against it,
- * because {@link openingRung} bounds the opening game by exactly this number and
- * the two silently disagreeing is how run 8 ended up unable to hire its third
- * employee against a cap of two hundred thousand.
+ * Mirrored from `triggerParadigmShift`'s `devs:` and asserted against it. The
+ * mirror was load-bearing while `openingRung` sized the opening game from this
+ * number — the two silently disagreeing is how run 8 ended up unable to hire its
+ * third employee against a cap of two hundred thousand — and it stays asserted
+ * now that §4.10f opens every run at rung 0, because `payrollPerSecond` and
+ * `UNPAID_FOUNDERS` still read it and a fresh run that is one head out is a
+ * fresh run that starts paying a salary it was never meant to owe.
  */
 export const STARTING_DEVS = 1
 

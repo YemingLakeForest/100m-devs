@@ -103,9 +103,11 @@ export const OPTIMUM_LOAD = (RHO - 1) ** (-1 / RHO)
  */
 export function lessonFor(end: RunEnding): LessonId {
   // Run 1 is §6's trap and it teaches §6's lesson. It is not a measurement and
-  // it must not become one: the trap is scripted, the player had no control
-  // over the collapse, and reading their final state would produce a lesson
-  // about a decision James made for them.
+  // it must not become one: the collapse is scripted, and reading the final
+  // state would produce a lesson about the script. Since §21.0d's 2026-08-27
+  // amendment the *signature* is the player's — the button after James's pitch
+  // — but the run still ends where the script says it ends, whichever numbers
+  // the player brought to it.
   if (end.shift <= 1) return 'lesson.entropy'
 
   // A studio that went broke has one fact about it that outranks the rest.

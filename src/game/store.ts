@@ -83,7 +83,6 @@ import {
   STARTING_DEVS,
   capAdjustedGrowth,
   isBankrupt,
-  openingRung,
   payrollPerSecond,
   projectRevenue,
   TARGET_BUILD_SECONDS,
@@ -869,16 +868,17 @@ export function commitmentFor(index: number, s: GameState = state): Decimal {
  * Returned together rather than set field by field because they are one fact
  * said three ways, and a `projectIndex` that disagrees with the `commitment`
  * beside it is a burn-down chart counting toward the wrong number.
+ *
+ * **It is the garage, on every run** [amended 2026-08-27]. This used to read the
+ * career's shift count through `openingRung` and open each later run part-way up
+ * the ladder. The argument for it was a good one and it lost to a louder one —
+ * §4.10f carries both, and the retired function's own note is in `economy.ts`.
  */
-function openingProject(startingDevs: number): Pick<
-  GameState,
-  'projectIndex' | 'sprintName' | 'commitment'
-> {
-  const i = openingRung(getPermanent().meta.paradigmShifts, startingDevs)
+function openingProject(): Pick<GameState, 'projectIndex' | 'sprintName' | 'commitment'> {
   return {
-    projectIndex: i,
-    sprintName: PROJECTS[i].name,
-    commitment: new Decimal(PROJECTS[i].commitment),
+    projectIndex: 0,
+    sprintName: PROJECTS[0].name,
+    commitment: new Decimal(PROJECTS[0].commitment),
   }
 }
 
@@ -906,9 +906,7 @@ function freshRun(): GameState {
     devs: 0,
     devCap: D_BASE,
     cash: 0,
-    projectIndex: 0,
-    sprintName: PROJECTS[0].name,
-    commitment: new Decimal(PROJECTS[0].commitment),
+    ...openingProject(),
     burned: new Decimal(0),
     projectsShipped: 0,
     lifetimeRevenue: 0,
@@ -2090,21 +2088,26 @@ function advanceAct1(from: Phase, to: Phase | undefined): void {
     set({ scene: SCENE_JAMES_ARRIVES.id })
   }
 
-  // §21.0d — **the mousetrap is a conversation now, and it cannot be declined.**
+  // §21.0d [amended 2026-08-27] — **the mousetrap is a conversation first, and
+  // a decision second.**
   //
   // Act III used to open on a banner, a sarcastic advisor line and a button the
-  // player pressed. The scene replaces the pressing: James argues for it,
-  // correctly, and signs it at {@link MASS_HIRE_AT_LINE}. Fired off the phase
-  // *transition* for the same reason the arrival is — the machine can sit in a
-  // phase for thousands of frames and this must happen once.
+  // player pressed. §21.0d then moved the whole transaction *into* the scene —
+  // James argued for it, correctly, and signed it at the line that no longer
+  // exists — so the trap could not be declined. The amendment keeps the
+  // conversation and gives the decision back: the scene now ends on the pitch
+  // and the offer button on the rail (`offerFor`) is what hires the thousand
+  // people, on the player's tap, after the dialogue has closed. Fired off the
+  // phase *transition* for the same reason the arrival is — the machine can sit
+  // in a phase for thousands of frames and the scene must happen once.
   //
   // **Run 1 only, and the guard is load-bearing rather than tidy.** `freshRun`
   // resets `phase` to `act1_poke`, so §21's act machine runs again on every
   // subsequent run — and it used to walk every one of them back through
-  // `act3_bait` at forty developers. An **unavoidable** offer reappearing there
-  // would liquidate every run in the game, for ever. Found by `pacing.test.ts`
-  // on the first measurement after this landed, which is the third time that
-  // harness has caught something nothing smaller could see.
+  // `act3_bait` at forty developers. A pitch reappearing there would be noise
+  // over every run in the game, for ever. Found by `pacing.test.ts` on the
+  // first measurement after this landed, which is the third time that harness
+  // has caught something nothing smaller could see.
   //
   // §21.0e closed the other half of it: `act2_loop` is terminal now, so no run
   // after the first reaches this phase at all. The guard stays, because a jump
@@ -3538,17 +3541,23 @@ export function canMassHire(s: GameState = state): boolean {
  * the entire treasury: always affordable, always ruinous, and leaving exactly
  * zero buffer — which is what makes Act V's bankruptcy arrive in seconds
  * rather than needing a scripted nudge.
+ *
+ * **This is the decision, and it is the player's** [§21.0d amended 2026-08-27].
+ * §21.0d once moved the transaction into the scene, where James signed it at a
+ * fixed line and no button existed; the amendment ends the scene on the pitch
+ * and makes the offer button — this function — the signature. It is what the
+ * player taps *after* the dialogue has closed, which is the whole of "there
+ * should be a button to trigger the hire, after the james dialog".
  */
 export function massHire(): boolean {
   if (state.massHired) return false
   // §10.7a.3 — a *player's* decision cannot be made through a dialogue box.
   //
-  // §21.0d moved the Act III commitment into the script, and this guard is
-  // still right for this function: `massHire` is what the button calls, the
-  // button is behind the scrim, and a tap that both turned a page and spent a
-  // treasury would be the player charged twice for one gesture. The script's
-  // own entry point is {@link acceptMassHire}, which is *not* guarded, because
-  // it is the scene rather than something happening during one.
+  // The pitch scene is up while the run is entering Act III, and the tap that
+  // turns the page must not be the tap that spends a treasury: the button sits
+  // behind the scrim until the conversation is over. This guard is the same
+  // rule at the model level, so a path that skips the glass cannot spring the
+  // trap mid-sentence either.
   if (state.scene !== null) return false
   const cost = currentMassHireCost()
   // The offer is priced at the whole treasury with a floor under it, so a
@@ -3557,40 +3566,6 @@ export function massHire(): boolean {
   // labelled "Cost: YOUR ENTIRE TREASURY" completing successfully against an
   // empty one. Every other spend in the game refuses; this one has to as well.
   if (state.cash < cost) return false
-  set({
-    ...hire(state.devs, state.devs + MASS_HIRE_COUNT),
-    cash: state.cash - cost,
-    massHired: true,
-    ...showBubble('Wait — who’s writing this function?', 6000),
-  })
-  return true
-}
-
-/**
- * §21.0d — **James signs it, and it cannot fail.** R85.
- *
- * The script's own entry point, called from the dialogue when it reaches
- * {@link MASS_HIRE_AT_LINE}. Two things separate it from {@link massHire}, and
- * both are the difference between a player pressing a button and a character
- * taking a decision out of your hands:
- *
- * 1. **It runs during a scene**, because it *is* the scene.
- * 2. **It cannot be refused for want of money.** `massHire` correctly declines
- *    when the treasury is below the floor — a control labelled `COST: YOUR
- *    ENTIRE TREASURY` completing against an empty one was a real defect and it
- *    stays fixed. But an unavoidable trap that silently does not fire is worse
- *    than either: the run would stall in Act III for ever, with no button, no
- *    scene left to play, and nothing on screen explaining why. **So James pays
- *    what there is.** The treasury is emptied and never overdrawn, which keeps
- *    §21.0's "leaves exactly zero buffer" promise intact and lets §4.10d's
- *    payroll do the rest, on schedule.
- *
- * Idempotent, like `grantJames`: `dismissScene` calls it as a belt-and-braces
- * fallback for a scene that ends without having reached its own line.
- */
-export function acceptMassHire(): boolean {
-  if (state.massHired) return false
-  const cost = Math.min(currentMassHireCost(), Math.max(0, state.cash))
   set({
     ...hire(state.devs, state.devs + MASS_HIRE_COUNT),
     cash: state.cash - cost,
@@ -3687,19 +3662,23 @@ export function triggerParadigmShift(): void {
     phase: 'act2_loop',
     projectsShipped: 1,
     /**
-     * §4.10f — **the studio opens on the game it earned, not on the garage.**
+     * §4.10f [amended 2026-08-27] — **the catalogue restarts at the garage.**
      *
-     * `freshRun()` starts at rung 0, which is right exactly once. Left alone it
-     * meant every prestige in the career reset the catalogue to *Flappy Square
-     * 1.0*: a studio with a cap of fifteen thousand, two developers and no money,
-     * making a $50 mobile game. {@link openingRung} carries the measurement that
-     * caught it.
+     * This used to carry a rung forward, so a studio that shipped a live-service
+     * hero shooter opened the next run on *Untitled Roguelike Deckbuilder* and
+     * never re-climbed the garage. Reported as "once paradigm shifted, the games
+     * release titles should be reset back to beginning", and the report is right
+     * about the fiction: §15.1a's cut scene has just said `REALITY 002 —
+     * LIQUIDATED` over a receipt for everything this studio made, and the next
+     * reality then opened on a title from the one that was liquidated. The
+     * gallery is empty (§10.11), the treasury is empty (§13.2), the roster is
+     * James — the marquee was the last thing still pretending otherwise.
      *
-     * The same argument as `seedTaken` and `dialUnlocked` above — the funnel is a
-     * first-run device and re-teaching it is an insult — applied to the one part
-     * of Run 1 that was still being re-taught every single run.
+     * The spread stays rather than being left to `freshRun()`: *which game a
+     * shift opens on* is a decision this function makes, and a decision only
+     * visible as an absence is one the next reader has to reconstruct.
      */
-    ...openingProject(STARTING_DEVS),
+    ...openingProject(),
     // §10.10.2 — "outside Run 1 the dial is simply present from the first
     // frame. The funnel is a first-run device and re-teaching it is an insult."
     // The seed round is the same: it is a story beat, and it has happened.
@@ -3717,7 +3696,7 @@ export function triggerParadigmShift(): void {
       seconds: state.runSeconds,
       learned,
       ledger,
-      nextProject: PROJECTS[openingRung(shiftNumber, STARTING_DEVS)].name,
+      nextProject: openingProject().sprintName,
     },
     // §21.6 — Run 2 opens on James. The scene rather than the bubble carries
     // the beat now; the bubble stays for the runs after this one, when the
@@ -3793,11 +3772,6 @@ export function dismissScene(): void {
   // desk. In play the dialogue reaches {@link JAMES_DROPS_AT_LINE} first and
   // this is a no-op.
   if (id === SCENE_JAMES_ARRIVES.id && state.devs === 0) grantJames()
-  // §21.0d — the same belt and braces for Act III. If the scene ends without
-  // having reached {@link MASS_HIRE_AT_LINE} — a harness that dismisses the box
-  // rather than tapping through it — the trap still springs, because a Run 1
-  // parked in Act III with no button and no scene has no way forward at all.
-  if (id === SCENE_MASS_HIRE.id) acceptMassHire()
   set({ scene: null })
 }
 

@@ -36,7 +36,8 @@ import {
   tick,
 } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
-import { SCENE_JAMES_ARRIVES } from './scenes.ts'
+import { SCENE_JAMES_ARRIVES, SCENE_MASS_HIRE } from './scenes.ts'
+import { MASS_HIRE_COUNT } from './onboarding.ts'
 
 /**
  * §7.8.7's run seed is `Date.now()`-based, so every run of this file gets a
@@ -234,6 +235,26 @@ describe('the trap still springs — §6.1', () => {
     const payroll = payrollPerSecond(1_040)
     expect(payroll).toBeGreaterThan(50_000)
     expect(1_000_000 / payroll).toBeLessThan(60)
+  })
+
+  it('signs nothing in the scene — the button is the transaction — §21.0d amended', () => {
+    // Until 2026-08-27 the pitch scene *was* the trap: reaching its acceptance
+    // line hired the thousand people, and dismissing the box early did it too,
+    // so there was nothing to press. The amendment ends the scene on the pitch
+    // and makes the offer button the signature: the dialogue closes with the
+    // treasury and headcount untouched, and only the player's tap springs it.
+    __setState({ devs: 1, cash: 60_000, projectsShipped: 3, phase: 'act3_bait' })
+    showScene(SCENE_MASS_HIRE.id)
+    dismissScene()
+
+    expect(getState().massHired).toBe(false)
+    expect(getState().devs).toBe(1)
+    expect(getState().cash).toBe(60_000)
+
+    expect(massHire()).toBe(true)
+    expect(getState().massHired).toBe(true)
+    expect(getState().devs).toBe(1 + MASS_HIRE_COUNT)
+    expect(getState().cash).toBe(0)
   })
 })
 

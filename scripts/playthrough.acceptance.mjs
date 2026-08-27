@@ -621,10 +621,24 @@ async function walkCareerOne(page) {
   if (!played('scene.act3.mass-hire')) {
     fail(`Act III did not open on §21.0d’s scene — played ${JSON.stringify(beats.map((b) => b.id))}`)
   }
-  saw('James signed the mass hire — it cannot be declined (§21.0d)')
+  saw('James made his pitch — and the scene signed nothing (§21.0d amended)')
+
+  /*
+   * §21.0d [amended 2026-08-27] — **the button is the transaction.** The scene
+   * ends on "It's fine. It's a one-off." and the offer on the rail is what
+   * hires the thousand people, on the player's tap. The walk asserts the trap
+   * did *not* spring from the scene before it presses the button: the treasury
+   * and the headcount have to still be standing when the offer is read.
+   */
+  const beforeSpring = await devs(page)
+  if (beforeSpring !== 1) {
+    fail(`the pitch scene moved the headcount to ${beforeSpring} by itself — ${await where(page)}`)
+  }
+  await press(page, /HIRE 1,000 DEVS NOW/)
+  await until(page, 'the swarm', async (p) => (await devs(p)) > 500)
+  saw('the player pressed the offer, and only then did the swarm land')
 
   // §21 Acts IV and V. Nothing to press: the studio seizes and payroll finishes it.
-  await until(page, 'the collapse', async (p) => (await devs(p)) > 500)
   await until(page, 'bankruptcy', async (p) => (await phase(p)) === 'bankrupt')
   await page.locator('.bankruptcy').waitFor()
   saw('the swarm landed, the studio seized, and payroll ended the run')

@@ -46,6 +46,7 @@ import {
   founderOf,
   getState,
   hireDeveloper,
+  massHire,
   nextHireCost,
   poke,
   takeSeedRound,
@@ -225,6 +226,20 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
   let owedPokes = 0
   let lastGrowthAt = 0
   let peakSeen = getState().devs
+  // §4.10f [amended 2026-08-27] — a studio climbing the ladder has not stalled.
+  //
+  // Every run now opens in the garage, so a run's first three or four minutes
+  // are one developer shipping *Flappy Square* — no hire is affordable there and
+  // none should be, because every rung below `FIRST_PAID_RUNG` is deliberately
+  // underwater. A stall detector watching headcount alone called that a
+  // `hire-cost` wall at 180 seconds and stopped the run **before its first paid
+  // game shipped**: runs 2 to 8 measured as three-minute failures at $1.3K, and
+  // with a patient detector the same runs measured at $32.5M to $6,069B.
+  //
+  // So progress is *headcount or rung*. The ladder pins at its terminal rung, so
+  // this cannot keep a genuinely finished run alive — it only stops the harness
+  // declaring a wall the studio has not reached yet.
+  let rungSeen = getState().projectIndex
   let wall: RunReport['wall'] = 'horizon'
 
   while (t < MAX_RUN_SECONDS) {
@@ -233,6 +248,13 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
 
     // §21.0a — the term sheet is free money and a player takes it on sight.
     if (!s.seedTaken) takeSeedRound()
+
+    // §21.0d [amended 2026-08-27] — **the pitch signs nothing; the button is
+    // the transaction.** Run 1's player presses the offer on sight, which is
+    // the whole trap, and the scene has to be finished with first: the store
+    // refuses a tap through a dialogue box (§10.7a.3), the same as a player's
+    // thumb would be refused by the scrim.
+    if (s.phase === 'act3_bait' && s.scene === null) massHire()
 
     owedPokes += pokesPerSecond * STEP
     while (owedPokes >= 1) {
@@ -285,6 +307,10 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
     const now = getState()
     if (now.devs > peakSeen) {
       peakSeen = now.devs
+      lastGrowthAt = t
+    }
+    if (now.projectIndex > rungSeen) {
+      rungSeen = now.projectIndex
       lastGrowthAt = t
     }
     if (t - lastGrowthAt > STALL_SECONDS) {

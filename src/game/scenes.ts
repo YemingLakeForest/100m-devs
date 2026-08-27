@@ -103,37 +103,46 @@ export const SCENE_JAMES_ARRIVES: Scene = {
 }
 
 /**
- * §21 Act III — **the mousetrap, and James springs it.** R85.
+ * §21 Act III — **the mousetrap, and James pitches it.** R85.
  *
  * The bait used to be a banner and a button: `STUDIO_OS` announced a MASS
  * HIRING PACKAGE, the sarcastic advisor said *"Math doesn't lie! ... What could
  * possibly go wrong?"*, and the player pressed `HIRE 1,000 DEVS NOW`. §21.0
  * defended that as a decision — *"§6 is explicit that the lesson needs the
- * player to choose it"* — and §21.0d is the amendment that says why it was not
- * one.
+ * player to choose it"* — and §21.0d then moved the choosing *into* this scene,
+ * so the person who signed it was James: the trap was unavoidable, because a
+ * decision the player made against a sarcastic advisor was really just going
+ * along with a gag.
  *
- * **The advisor is visibly lying.** It has been sarcastic since Act I and it
- * ends its pitch with "what could possibly go wrong". Pressing that button is
- * not a decision; it is going along with a gag. A player who is betrayed by a
- * gag has learned that the game was joking.
+ * **Amended 2026-08-27 — the button comes back, and it comes *after* the
+ * conversation.** Reported as "there should be a button to trigger the hire,
+ * which is after the james dialog after the term sheet — player click manually
+ * for the effect to take place". The scene keeps its whole job: James states
+ * the arithmetic, correctly and sincerely, and the player asks the questions
+ * that walk him into §4.1's equation. What moves is where it ends. It ends on
+ * the pitch — *"It's fine. It's a one-off."* — and then the offer button,
+ * already on the rail under the sarcastic advisor, is the decision. The tap is
+ * the player's, the signature is the player's, and the beat is a decision again
+ * rather than a fait accompli.
  *
- * So the person who signs it is **James**, and every line here is §21.7.0
- * working exactly as specified: he is *completely correct about a small thing*
- * — the multiplication is right, he did check it twice — while the large thing
- * goes wrong behind him. He is not in on it, he is not being wry, and he means
- * every word.
+ * What this retires, stated rather than buried: the three-line coda that used
+ * to end the scene — `MASS HIRING PACKAGE ACCEPTED. AUTHORISED BY: J.`, the
+ * founder's `James—` and *"You were going to. This is fewer steps."* — was the
+ * whole of §21.0d's *"the trap cannot be declined"*. A scene that ends on the
+ * player being told somebody else signed the paper cannot be followed by a
+ * button that asks the player to sign the paper, so the coda goes with the
+ * rule it belonged to. §21.7.0 still holds through every line that remains: he
+ * is *completely correct about a small thing* — the multiplication is right,
+ * he did check it twice — while the large thing goes wrong behind him. He is
+ * not in on it, he is not being wry, and he means every word.
  *
  * **The two lines in the middle are §4.1's equation said out loud by the man it
  * is about to destroy.** He offers to introduce himself to each of them once;
  * the founder points out that this is a thousand conversations; he agrees, and
  * observes that they will each need to do the same. Then he says it is fine
  * because it is a one-off. That is the communication-overhead curve, stated
- * sincerely, by somebody who has not multiplied the second number by the first.
- *
- * The last line is the only one that could be mistaken for a wink and it is
- * not: *"This is fewer steps"* is §21.7.0 rule 2 — fewer human interactions,
- * always, presented as good news — with rule 3's word used correctly, applied
- * to a decision he has just taken out of the founder's hands.
+ * sincerely, by somebody who has not multiplied the second number by the first
+ * — and the line it lands on is the one that hands the player the button.
  */
 export const SCENE_MASS_HIRE: Scene = {
   id: 'scene.act3.mass-hire',
@@ -166,16 +175,10 @@ export const SCENE_MASS_HIRE: Scene = {
     { speaker: PLAYER, text: 'That’s a thousand conversations.', focus: AT_YOU },
     { speaker: JAMES, text: 'For me. They’ll each need to do the same.', focus: AT_JAMES },
     { speaker: PLAYER, text: '…', focus: AT_YOU },
+    // The last line, and it is the hand-off. The scene ends on the pitch and
+    // the signature is the player's: the offer button on the rail under the
+    // advisor is what hires a thousand people (§21.0d amended 2026-08-27).
     { speaker: JAMES, text: 'It’s fine. It’s a one-off.', focus: AT_JAMES },
-    // {@link MASS_HIRE_AT_LINE} — the treasury goes here, and the studio with it.
-    { speaker: OS, text: 'MASS HIRING PACKAGE ACCEPTED. AUTHORISED BY: J.' },
-    // §21.0a's term sheet said `USE OF FUNDS — HEADCOUNT` in a table nobody
-    // read, four beats ago. He is not quoting it; he has simply done what the
-    // document said, which is the most James thing in the script.
-    { speaker: PLAYER, text: 'James—', focus: AT_YOU },
-    // §21.7.0 rule 2, with rule 3's word used correctly, applied to a decision
-    // he has just taken out of your hands. He is being helpful.
-    { speaker: JAMES, text: 'You were going to. This is fewer steps.', focus: AT_JAMES },
   ],
 }
 
@@ -527,17 +530,14 @@ export const HEY_AFTER_LINE = 7
  */
 export const JAMES_DROPS_AT_LINE = 2
 
-/**
- * §21 Act III — the line at which the treasury is gone.
+/*
+ * `MASS_HIRE_AT_LINE` lived here — §21.0d, retired 2026-08-27.
  *
- * `MASS HIRING PACKAGE ACCEPTED. AUTHORISED BY: J.` is the fourteenth line, and
- * reaching it *is* the transaction: the player taps to turn the page and the
- * page they turn hires a thousand people. There is no button on this beat and
- * §10.7 rule 3 means there is no skip, so **the trap cannot be declined** —
- * which is §21.0d, and is the correction this constant exists to implement.
- *
- * A line index and not a page, for the same reason as {@link HEY_AFTER_LINE}:
- * §10.7a.2 paginates the `STUDIO_OS` announcement above into several boxes on
- * its own, so the two numbers are different for this script.
+ * It named the line at which the scene signed the Mass Hire itself:
+ * `MASS HIRING PACKAGE ACCEPTED. AUTHORISED BY: J.`, mid-scene, with no button
+ * on the beat and no skip — which is what made the trap impossible to decline.
+ * §21.0d amended 2026-08-27 puts the signature back in the player's hands: the
+ * scene now ends on the pitch and the offer button on the rail is the
+ * transaction, so there is no line index for the transaction to live at. A
+ * constant left standing with no caller is a rule that quietly comes back.
  */
-export const MASS_HIRE_AT_LINE = 13

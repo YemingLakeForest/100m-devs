@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { BASELINE_RATING } from '../sim/rating.ts'
 import { nextOrdinal } from '../sim/history.ts'
 import {
+  PROJECTS,
   __resetStore,
   __setState,
   getState,
@@ -53,6 +54,24 @@ describe('the release history — §10.11', () => {
     // The project clock started again for the next build.
     expect(getState().projectSeconds).toBe(0)
     expect(getState().projectLabourSeconds).toBe(0)
+  })
+
+  it('restarts the title ladder with it — §4.10f [amended 2026-08-27]', () => {
+    // The gallery emptied and the marquee did not: the next reality opened on
+    // *Untitled Roguelike Deckbuilder*, three rungs up, because the old rule
+    // carried a position in the catalogue across the shift so a career climbed
+    // the garage exactly once. Reported as "once paradigm shifted, the games
+    // release titles should be reset back to beginning" — the two halves of "what
+    // is this studio selling" have to answer together, and the empty gallery was
+    // the half telling the truth.
+    __setState({ projectIndex: 5, sprintName: PROJECTS[5].name })
+    triggerParadigmShift()
+
+    expect(getState().projectIndex).toBe(0)
+    expect(getState().sprintName).toBe(PROJECTS[0].name)
+    // And the receipt agrees with the studio it hands over — §15.1a names the
+    // game the next reality opens on and it is the first one again.
+    expect(getState().pendingShift!.nextProject).toBe(PROJECTS[0].name)
   })
 
   it('goes with the run — a Paradigm Shift liquidates the catalogue', () => {

@@ -187,6 +187,37 @@ describe('§21.0c — Run 1 carries one idea', () => {
   })
 })
 
+describe('§21.0d [amended 2026-08-27] — the scene pitches, the button signs', () => {
+  const script = SCENE_MASS_HIRE.script
+  const all = script.map((l) => l.text)
+
+  it('ends on the pitch, not on the signature', () => {
+    // The old coda — `MASS HIRING PACKAGE ACCEPTED. AUTHORISED BY: J.` and the
+    // two lines after it — made the transaction part of the scene, so the trap
+    // could not be declined. The amendment hands the signature to the offer
+    // button on the rail, so the script must stop where the pitch stops: on
+    // "It's fine. It's a one-off.", with no acceptance anywhere in it.
+    expect(all.at(-1)).toBe('It’s fine. It’s a one-off.')
+    expect(all).not.toContain('MASS HIRING PACKAGE ACCEPTED. AUTHORISED BY: J.')
+    expect(all).not.toContain('You were going to. This is fewer steps.')
+    expect(script.at(-1)!.speaker).toBe('JAMES')
+  })
+
+  it('keeps the arithmetic checkable — §21.0e', () => {
+    // The line the whole beat is built on: every number in it is countable on
+    // the floor the player is looking at, because Run 1 does not hire.
+    expect(all).toContain('Two of us shipped three games. A thousand of us is five hundred times that.')
+  })
+
+  it('walks James into §4.1 without letting him sign it', () => {
+    // The communication-overhead curve, stated sincerely, by somebody who has
+    // not multiplied the second number by the first — and now it is an
+    // argument that ends in the player's lap rather than in his signature.
+    expect(all).toContain('I’ll introduce myself to each of them. Once, and then never again.')
+    expect(all).toContain('For me. They’ll each need to do the same.')
+  })
+})
+
 describe('§10.7a.1 — every line knows who is speaking, in the world', () => {
   /**
    * The camera focuses down to the speaker, so a line without a `focus` is a
