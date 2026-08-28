@@ -970,36 +970,23 @@ body {
 
 /* --- the Paradigm Tree — GDD §13.2, §15.1 ------------------------------ */
 
+/* The sizing box. Frame, ground and scroll are the window's (§10.6a). */
 .paradigm {
-  display: grid;
-  gap: 10px;
   width: min(46em, 92vw);
   max-height: 86vh;
-  overflow-y: auto;
-  padding: 14px 18px;
-  border: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 92%, transparent);
 }
 
-.paradigm__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.paradigm__title {
-  margin: 0;
-  font-size: var(--type-2x);
-  letter-spacing: 3px;
-  color: var(--p3);
+/* The body's own rhythm, which the window does not have an opinion about. */
+.paradigm__body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
 }
 
 /* The balance, in the colour a currency arrives in — the same green the ship
-   celebration and the incoming-payout line use. */
+   celebration and the incoming-payout line use. It sits in the title bar now,
+   so it takes the bar's size and contributes only its hue. */
 .paradigm__bp {
-  margin: 0;
-  font-size: var(--type-2x);
   color: var(--foliage-1);
 }
 
@@ -1107,25 +1094,25 @@ body {
   position: absolute;
   top: var(--edge-y);
   right: var(--edge-x);
-  display: grid;
-  justify-items: start;
-  gap: 4px;
   /* The stat row is three real columns: a 5.5em label, ten fixed-width cells,
      and a numeric value. At 15em the grid's min-content width was wider than
      the card, so the ########## cells escaped through the right border. */
   width: 22em;
   max-width: calc(100% - 2 * var(--edge-x));
-  padding: 10px 12px;
-  border: var(--rule) solid var(--p1);
-  background: color-mix(in srgb, var(--n0) 88%, transparent);
-  pointer-events: auto;
-  overflow: hidden;
+  max-height: calc(100% - 2 * var(--edge-y));
 }
 
-.devcard__name {
-  margin: 0;
-  font-size: var(--type-2x);
-  color: var(--p3);
+/* A person is a quieter surface than a system window — one step down the ramp,
+   which is the value this card has always been drawn in. */
+.devcard .os-window {
+  border-color: var(--p1);
+}
+
+.devcard__body {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 4px;
 }
 
 .devcard__sub {
@@ -1469,17 +1456,17 @@ body {
   margin-left: 4px;
 }
 
+/* The sizing box. Frame, ground and scroll are the window's (§10.6a). */
 .game-menu {
-  display: grid;
-  justify-items: start;
-  gap: 10px;
   width: min(48em, calc(100% - 2 * var(--edge-x)));
   max-height: calc(100% - 2 * var(--edge-y));
-  overflow: auto;
-  padding: 14px 18px;
-  border: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 90%, transparent);
-  pointer-events: auto;
+}
+
+.game-menu__body {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 10px;
 }
 
 .game-menu__options {
@@ -1487,15 +1474,6 @@ body {
   padding: 8px 0;
   border-top: var(--rule) solid var(--p0);
   border-bottom: var(--rule) solid var(--p0);
-}
-
-/* RESUME and MAIN SCREEN sit beside each other, not stacked — one is "go back
-   to playing", the other is "leave", and a column made leaving look like the
-   default answer. */
-.game-menu__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .game-menu__options .opt {
@@ -1523,7 +1501,6 @@ body {
   }
 }
 
-.game-menu h2,
 .game-menu p {
   margin: 0;
 }
@@ -1551,13 +1528,13 @@ body {
    * the tree is longer than both.
    */
   max-height: calc(100% - var(--edge-y) - 46px - 12px);
-  /* Nothing may cross the border. The panel is a surface, not a viewport. */
-  overflow: hidden;
   width: 340px;
   max-width: calc(100% - 2 * var(--edge-x));
-  pointer-events: auto;
-  border: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 88%, transparent);
+  /*
+   * Border, ground and clipping now belong to `.os-window` (§10.6a) — this
+   * class is the positioning box and nothing else. Two frames drawn one inside
+   * the other is the doubled rule the shared chrome exists to stop.
+   */
 }
 
 .hud__upgrades-body {
@@ -1580,14 +1557,6 @@ body {
   padding: 10px 12px 12px;
   min-height: 0;
   max-height: 100%;
-}
-
-.hud__upgrades-title {
-  margin: 0;
-  font-size: var(--type-2x);
-  font-weight: 400;
-  letter-spacing: 3px;
-  color: var(--p3);
 }
 
 .hud__upgrades-copy {
@@ -1728,16 +1697,17 @@ body {
  * rendering underneath it. §10.6: the studio is still there, still simulating,
  * behind the scrim rather than covered by a sheet.
  */
+/* The sizing box. Frame, ground and scroll are the window's (§10.6a). */
 .bankruptcy {
   max-width: min(34em, calc(100% - 2 * var(--edge-x)));
   max-height: calc(100% - 2 * var(--edge-y));
-  overflow: auto;
-  text-align: center;
-  border: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 88%, transparent);
-  padding: 16px 18px;
+}
+
+.bankruptcy__body {
   display: grid;
+  align-content: start;
   gap: 10px;
+  text-align: center;
   color: var(--p2);
 }
 
@@ -2634,26 +2604,20 @@ body {
 
 /* --- the Overnight Build Report, GDD §24.8 ------------------------------ */
 
+/* The sizing box. Frame, ground and scroll are the window's (§10.6a). */
 .overnight {
-  pointer-events: auto;
   min-width: min(46ch, 70vw);
-  padding: 14px 18px 16px;
-  border: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  max-height: calc(100% - 2 * var(--edge-y));
 }
 
-.overnight__title {
-  margin: 0 0 10px;
-  font-size: var(--type-2x);
-  font-weight: 400;
-  color: var(--p3);
-  letter-spacing: 3px;
-  border-bottom: var(--rule) solid var(--p1);
-  padding-bottom: 6px;
+.overnight__body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
 }
 
 .overnight__rows {
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 /*
@@ -3322,34 +3286,30 @@ body {
  * they are the same object at two urgencies, and the only difference that
  * matters is the border colour.
  */
+/* The sizing box. Frame, ground and scroll are the window's (§10.6a). */
 .event-card {
-  display: grid;
   width: min(40em, calc(100% - 2 * var(--edge-x)));
   max-height: calc(100% - 2 * var(--edge-y));
-  overflow: auto;
-  padding: 14px 18px;
-  /*
-   * `--alarm-*` is injected by `art/cssTokens.ts` from the one palette, and
-   * `--p3` is the live entropy-themed brightest step. The card takes the theme
-   * rather than a fixed alarm colour on purpose: the frame is *already* red
-   * when this appears, because a live event drives §4.1 straight into the top
-   * of the speedometer, so a hard-coded alarm hue would clash with the hue the
-   * event itself caused.
-   */
-  border: var(--rule) solid var(--p3);
-  background: color-mix(in srgb, var(--n0) 92%, transparent);
-  pointer-events: auto;
+}
+
+/*
+ * The one window that brightens its own frame.
+ *
+ * `--alarm-*` is injected by `art/cssTokens.ts` from the one palette, and
+ * `--p3` is the live entropy-themed brightest step. The card takes the theme
+ * rather than a fixed alarm colour on purpose: the frame is *already* red when
+ * this appears, because a live event drives §4.1 straight into the top of the
+ * speedometer, so a hard-coded alarm hue would clash with the hue the event
+ * itself caused.
+ */
+.event-card .os-window {
+  border-color: var(--p3);
 }
 
 .event-card__body {
   display: grid;
+  align-content: start;
   gap: 8px;
-}
-
-.event-card__kicker {
-  font-size: var(--type-1x);
-  letter-spacing: 2px;
-  color: var(--p1);
 }
 
 .event-card__name {
@@ -3380,13 +3340,9 @@ body {
  * Two buttons, side by side and never stacked. A column would make the top one
  * read as the default answer, and §18.0's whole argument is that the player is
  * choosing between two real exits — one that ends this thread and one that ends
- * threads.
+ * threads. §10.6a's foot is a wrapping flex row, which is that, so the rule
+ * survives as a constraint on the foot's width rather than as a class here.
  */
-.event-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 
 /* --- §21.0a's term sheet -------------------------------------------------
  *
@@ -3403,35 +3359,19 @@ body {
  * which is what makes five rows of boilerplate read as a *document* — and the
  * document is the joke.
  */
+/* The sizing box. Frame, ground and scroll are the window's (§10.6a). */
 .term-sheet {
-  display: grid;
   width: min(40em, calc(100% - 2 * var(--edge-x)));
   max-height: calc(100% - 2 * var(--edge-y));
-  overflow: auto;
-  padding: 14px 18px;
-  border: var(--rule) solid var(--p2);
-  background: color-mix(in srgb, var(--n0) 92%, transparent);
-  pointer-events: auto;
 }
 
-/* 8 rather than the event card's 10: seven rows of gap, and the last of them is
-   what decides whether SIGN IT is in frame at 640x360. */
+/* 8 rather than the event card's 10: the rows are a printed form and a form's
+   leaders sit close. SIGN IT is no longer downstream of this number — it is
+   pinned in the window's foot — so the gap is a typographic choice again. */
 .term-sheet__body {
   display: grid;
+  align-content: start;
   gap: 8px;
-}
-
-.term-sheet__kicker {
-  font-size: var(--type-1x);
-  letter-spacing: 2px;
-  color: var(--p1);
-}
-
-.term-sheet__name {
-  margin: 0;
-  font-size: var(--type-3x);
-  letter-spacing: 4px;
-  color: var(--p3);
 }
 
 /* Machine output — it came through STUDIO_OS, so it is set the way STUDIO_OS is
@@ -3512,11 +3452,6 @@ body {
   color: var(--p1);
 }
 
-.term-sheet__actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
 /*
  * The banner. Directly above §21's advisor copy, and **out of flow.**
  *
@@ -3582,7 +3517,7 @@ body {
 }
 
 @media (max-height: 470px) {
-  .event-card {
+  .event-card__body {
     gap: 5px;
     padding: 8px 12px;
   }

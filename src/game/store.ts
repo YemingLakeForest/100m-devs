@@ -3740,7 +3740,22 @@ export function dismissShiftReport(): void {
  */
 export function showScene(id: string): void {
   if (state.scene === id) return
-  set({ scene: id })
+  /*
+   * §10.6b — **a conversation clears the desk.**
+   *
+   * Nothing the player had open survives the start of a scene. The two
+   * selections live here rather than in the HUD, so this is where they are put
+   * down: a personnel record or a hero's pass left standing behind §10.7's box
+   * is a window the player cannot reach, over a studio that has stopped, with a
+   * character talking across it. The HUD stands its own doors down on the same
+   * rule — see `Hud.tsx` — and the store owns the half the HUD cannot see.
+   *
+   * Cleared *here*, at the one entrance to a scene, rather than in each of the
+   * six places a scene is raised. §21.7.7e's guided boards open from
+   * `finishDialogue`, which runs after `dismissScene`, so this never fights the
+   * flow that hands a board over at the end of a beat.
+   */
+  set({ scene: id, selected: null, selectedHero: null })
 }
 
 /**

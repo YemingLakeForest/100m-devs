@@ -466,6 +466,39 @@ async function press(page, name, budget = LEG_MS) {
   await tapControl(page, btn(page, name), `the ${nameOf(name)} button`, budget)
 }
 
+/**
+ * Close one §10.6a window by its close box.
+ *
+ * Every window in the product now carries a box named `CLOSE` in the corner of
+ * its title bar, which is the whole point of the shared chrome — and which
+ * means `press(page, 'CLOSE')` is ambiguous the moment two of them are stacked.
+ * §13.9's board opens *over* §22.9's card on purpose, so the walk addresses the
+ * box by the window it belongs to rather than by its name.
+ */
+async function closeWindow(page, selector, label, budget = LEG_MS) {
+  // §10.6b — a scene closes every window on its way in, so by the time the walk
+  // reaches for the close box the window may already be gone. Closing what is
+  // not open is not a failure; failing to close what is, still is.
+  if (!(await page.locator(`${selector}[data-phase="in"]`).count())) return
+  await tapControl(page, page.locator(`${selector} .os-window__close`), `the close box on ${label}`, budget)
+}
+
+/**
+ * Put a window back if §10.6b took it away.
+ *
+ * Deliberately not `press`: this runs inside a poll, where a door that is not
+ * on the rail this instant is a thing to try again for rather than a failure.
+ */
+async function reopen(page, selector, door) {
+  if (await page.locator(`${selector}[data-phase="in"]`).count()) return true
+  const control = btn(page, door)
+  if (await control.count()) {
+    await control.first().click({ timeout: 2_000 }).catch(() => {})
+    await page.waitForTimeout(250)
+  }
+  return (await page.locator(`${selector}[data-phase="in"]`).count()) > 0
+}
+
 /** What the studio's phase is, for waiting on §21's script. */
 const phase = (page) => page.evaluate(() => globalThis.__store?.phase ?? null)
 const devs = (page) => page.evaluate(() => globalThis.__store?.devs ?? 0)
@@ -780,11 +813,17 @@ async function walkItem4(page) {
   saw('Instant Messenger is owned, centred, in view, and every node sits on its own connector')
 
   // §11.4.3 — tap a ring-1 node, read it, then buy it on the guide's one button.
+  //
+  // The wait runs long enough for Mo and Matt to walk in, and §10.6b closes
+  // every window when somebody starts talking — so the board has to be put back
+  // between polls. That is what a player does, and the thing being waited for
+  // is the board's *state*, not its having stayed on screen through a scene.
   const reachable = (n) => n.state !== 'dark' && !n.owned
   await until(
     page,
     'a ring-1 node the studio can afford',
     async (p) => {
+      if (!(await reopen(p, '.hud__upgrades', 'UPGRADES'))) return false
       const now = await readBoard(p)
       return (now?.nodes ?? []).some((n) => reachable(n) && n.state === 'live')
     },
@@ -810,7 +849,7 @@ async function walkItem4(page) {
   }
   saw(`bought ${target.name} for ${price}; the board grew from ${openBefore} open nodes to ${openAfter}`)
 
-  await press(page, 'BACK')
+  await closeWindow(page, '.hud__upgrades', 'the upgrade board')
   await playScenes(page)
 }
 
@@ -1070,7 +1109,7 @@ async function walkItems9and10(page, size) {
   if (!(await page.locator('.founder-profile__tree').count())) {
     fail('the founder’s screen has no board on it after §21.7.7’s scene')
   }
-  await press(page, 'BACK')
+  await closeWindow(page, '.founder-profile', 'the founder’s screen')
   // Back to the primary verb, so the rest of the walk taps the way Act I taught.
   await tapControl(page, page.locator('.touch__latch', { hasText: 'CODE' }), 'the CODE latch')
   saw('opened the founder’s screen from the floor and found §13.7.1’s Management tree on it')
@@ -1209,7 +1248,7 @@ async function spendOffBranch(page) {
       opened = name
       break
     }
-    await press(page, 'CLOSE')
+    await closeWindow(page, '.herocard', `${name}'s card`)
     await page.waitForTimeout(150)
     await press(page, 'HERO')
   }
@@ -1266,9 +1305,11 @@ async function spendOffBranch(page) {
   // scaled by this hero's share of the floor, and at a hundred developers a
   // hero reaching one row moves the speedometer by well under the whole per
   // cent it prints — see the note under item 10 in §26.1.8.
-  // BACK closes the board and leaves §22.9's card underneath it — the strip is
-  // already gone, because opening somebody hides it.
-  await press(page, 'BACK')
+  // The board's own close box, addressed by window: §22.9's card is underneath
+  // it and now carries a close box of its own, so "the CLOSE button" is two
+  // buttons on this frame. The strip is already gone — opening somebody hides
+  // it — and closing the board leaves the card.
+  await closeWindow(page, '.herotree', 'the hero board')
   await page.locator('.herocard[data-phase="in"]').waitFor()
   await page.waitForTimeout(400)
   const card = await governed(page)
@@ -1276,7 +1317,7 @@ async function spendOffBranch(page) {
     fail(`the card did not record the purchase: ${before.pips} pips before, ${card.pips} after`)
   }
   saw(`the card’s depth row went from ${before.pips} pips to ${card.pips} — an off-branch level still lands on the person`)
-  await press(page, 'CLOSE')
+  await closeWindow(page, '.herocard', 'the hero’s card')
 }
 
 /**
@@ -1472,7 +1513,7 @@ async function walkFreshRunOne(browser, size) {
     fail('the founder’s screen did not open at all on Run 1')
   }
   saw('the founder’s screen opens on Run 1 and carries no board — not a greyed one, none')
-  await press(page, 'BACK')
+  await closeWindow(page, '.founder-profile', 'the founder’s screen')
   await page.context().close()
 }
 
@@ -1491,13 +1532,25 @@ async function walkTheThread(browser, exit) {
   // on either of these careers before the modal, which is the precondition the
   // line states out loud.
   await play(page, 'twelve developers', async (p) => (await devs(p)) >= 12)
-  await page.locator('.event-card[data-phase="in"]').waitFor({ timeout: 30_000 })
+
+  /*
+   * The event and its scene arrive on the same tick, and §10.6b holds the card
+   * back until the box is gone: James explains the thread *before* the thread
+   * is a control rather than from behind it. So the walk waits on the event in
+   * the store, plays the scene out, and only then looks for the card.
+   *
+   * This used to wait on the card first, which worked when the card was drawn
+   * as a picture behind the scrim. It is not drawn at all now, which is the
+   * better realisation of the same sentence.
+   */
+  await until(page, 'THE THREAD to fire', async (p) =>
+    Boolean(await p.evaluate(() => globalThis.__store?.event ?? null)),
+  )
   if (!played('scene.run2.the-thread')) {
     fail(`THE THREAD fired without §18.0a’s scene — ${await where(page)}`)
   }
-  // §10.7a.3 — James has to finish explaining it before the card is a control
-  // rather than a picture behind a scrim.
   await playScenes(page)
+  await page.locator('.event-card[data-phase="in"]').waitFor({ timeout: 30_000 })
   const exits = (await page.locator('.event-card[data-phase="in"] button').allTextContents()).map(
     (t) => t.trim(),
   )
@@ -1516,8 +1569,10 @@ async function walkTheThread(browser, exit) {
     await tapControl(page, page.locator('.upgrade-board__guide-card button'), `the price on ${target.name}`)
     await page.waitForTimeout(600)
     // §21.7.7e closes a guided first-use board on the purchase. A later visit
-    // remains open and still uses BACK; both are valid returns to the floor.
-    if (await page.locator('.hud__upgrades[data-phase="in"]').count()) await press(page, 'BACK')
+    // remains open and is closed by hand; both are valid returns to the floor.
+    if (await page.locator('.hud__upgrades[data-phase="in"]').count()) {
+      await closeWindow(page, '.hud__upgrades', 'the upgrade board')
+    }
     await playScenes(page)
 
     if (!played('scene.run2.thread-cleared')) {

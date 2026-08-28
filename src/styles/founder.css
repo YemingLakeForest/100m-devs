@@ -289,57 +289,19 @@
  * forbids an interface that announces its own size; it does not ask one to
  * pretend it is small. The board is the content, so the board gets the room.
  */
+/* The sizing box. The masthead and the way out are the window's (§10.6a). */
 .founder-profile {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
   width: calc(100% - 2 * var(--edge-x));
   height: calc(100% - 2 * var(--edge-y));
-  padding: 12px 14px 14px;
-  overflow: hidden;
-  pointer-events: auto;
-  border: var(--rule) solid var(--p2);
-  /*
-   * Opaque now rather than 92%: at 92% the burn-down and the sprint commitment
-   * read straight through a class diagram, and the one thing a diagram cannot
-   * survive is a second set of lines behind it.
-   */
+}
+
+/*
+ * Opaque rather than the chrome's 92%: at 92% the burn-down and the sprint
+ * commitment read straight through a class diagram, and the one thing a
+ * diagram cannot survive is a second set of lines behind it.
+ */
+.founder-profile .os-window {
   background: var(--n0);
-}
-
-.founder-profile__head {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 8px;
-  border-bottom: var(--rule) solid var(--p1);
-}
-
-.founder-profile__kicker {
-  color: var(--p1);
-  font-size: var(--type-1x);
-  letter-spacing: 2px;
-}
-
-.founder-profile h2 {
-  margin: 2px 0 0;
-  color: var(--p3);
-  font-size: var(--type-3x);
-  font-weight: 400;
-  letter-spacing: 3px;
-}
-
-.founder-profile__head p {
-  margin: 2px 0 0;
-  color: var(--p1);
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-}
-
-.founder-profile__head .ui-btn {
-  flex: 0 0 auto;
-  font-size: var(--type-1x);
 }
 
 /*
@@ -353,6 +315,8 @@
   grid-template-columns: 232px minmax(0, 1fr);
   gap: 16px;
   min-height: 0;
+  height: 100%;
+  padding: 12px 14px 14px;
 }
 
 /* On a narrow frame the portrait goes above the board rather than beside it —
@@ -447,22 +411,16 @@
 }
 
 @container frame (max-height: 390px) {
-  .founder-profile {
-    gap: 6px;
-    padding: 8px 10px 10px;
-  }
-
-  .founder-profile h2 {
-    font-size: var(--type-2x);
-  }
-
-  .founder-profile__head p {
+  /* The subtitle is the first thing to go when the frame is short — the window
+     bar still names who this is, which is the half that has to survive. */
+  .founder-profile .os-window__meta {
     display: none;
   }
 
   .founder-profile__body {
     grid-template-columns: 180px minmax(0, 1fr);
     gap: 10px;
+    padding: 8px 10px 10px;
   }
 
   .founder-profile__identity .founder-avatar {

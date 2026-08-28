@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { FounderAvatar } from '../ui/FounderAvatar.tsx'
 import {
   FOUNDER_TREE,
@@ -413,16 +413,18 @@ export function FounderProfilePanel({
   const hasBoard = currentUnlocks().founderBoard
 
   return (
-    <Panel open={open} modal from="centre" className="founder-profile">
-      <div className="founder-profile__head">
-        <div>
-          <span className="founder-profile__kicker">PERSONNEL // 00</span>
-          <h2>{founder.name.toUpperCase()}</h2>
-          <p>FOUNDER · MANAGEMENT · STILL CODES</p>
-        </div>
-        <Button onClick={onClose}>BACK</Button>
-      </div>
-
+    <OsWindow
+      open={open}
+      modal
+      from="centre"
+      className="founder-profile"
+      /* The board inside is panned; the identity column beside it scrolls with
+         the frame it is in. */
+      bodyClassName="os-window__body--flush"
+      title={`PERSONNEL // ${founder.name.toUpperCase()}`}
+      meta="FOUNDER · MANAGEMENT · STILL CODES"
+      onClose={onClose}
+    >
       <div className="founder-profile__body">
         <aside className="founder-profile__identity">
           <FounderAvatar {...founder} label="YOU" />
@@ -443,6 +445,6 @@ export function FounderProfilePanel({
           </div>
         )}
       </div>
-    </Panel>
+    </OsWindow>
   )
 }

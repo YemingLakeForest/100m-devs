@@ -1,7 +1,7 @@
 # Art Direction — *100000000 Developers*
 
 **Status:** v0, to be validated on device
-**Related:** [`GDD.html`](../GDD.html) §7 (Omni-Lens), §8.1 (camera & post-process), §10.5–10.6 (transitions & anti-patterns), §22.7 (art budget cap)
+**Related:** [`GDD.html`](../GDD.html) §7 (Omni-Lens), §8.1 (camera & post-process), §10.5–10.6 (transitions & anti-patterns), §10.6a (the STUDIO_OS window — the one frame every overlay wears), §22.7 (art budget cap)
 
 ---
 

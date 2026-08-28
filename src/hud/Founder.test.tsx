@@ -48,7 +48,8 @@ describe('manager corner', () => {
     })
     render(<FounderProfilePanel open onClose={() => {}} />)
 
-    expect(screen.getByRole('heading', { name: 'ADA' })).toBeInTheDocument()
+    // §10.6a — who this is, in the window's title bar rather than in a masthead.
+    expect(screen.getByRole('heading', { name: 'PERSONNEL // ADA' })).toBeInTheDocument()
     expect(screen.getByLabelText('Your block avatar')).toHaveAttribute('data-head', 'buzz')
     expect(screen.getByLabelText('Your block avatar')).toHaveAttribute('data-accessory', 'headphones')
     expect(screen.getByLabelText('Your block avatar')).toHaveAttribute('data-facial-hair', 'goatee')

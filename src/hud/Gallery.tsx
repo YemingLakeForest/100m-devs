@@ -48,12 +48,15 @@
  * A full-screen sheet rather than a 360 px drawer (§10.11.4): the swarm keeps
  * simulating behind it and the panel is not modal. It is read-only — there is
  * deliberately no button in here that changes a release.
+ *
+ * §10.6a — the masthead and the way out are the STUDIO_OS window's now, and the
+ * transport sits in its foot. What is left in here is the ledger, the wall and
+ * the receipt, which were always the only three things on the screen.
  */
 
 import { useEffect, useState } from 'react'
 import { getState, subscribe } from '../game/store.ts'
-import { Panel } from '../ui/Panel.tsx'
-import { Button } from '../ui/Button.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { Cover } from './Cover.tsx'
 import { coverFor } from '../sim/cover.ts'
 import { aggregateRating, type History, type ReleaseRecord } from '../sim/history.ts'
@@ -274,7 +277,14 @@ function Focused({ slide, laurels }: { slide: Slide; laurels: readonly string[] 
   const state = slide.rate >= 0.05 ? 'earning' : slide.rate > 0 ? 'trickle' : 'retired'
 
   return (
-    <div className="gallery__now">
+    /*
+      §10.6a — the window's rail measures *this*, not the whole body: the wall
+      above must not scroll (it is a carousel, and a shelf that scrolls is two
+      gestures fighting), and the receipt is the one thing in the gallery that
+      genuinely runs past its box. On the wide layout it used to be clipped
+      outright.
+    */
+    <div className="gallery__now" data-os-scroll>
       <div className="gallery__now-head">
         <h3 className="gallery__now-name">
           {/* The title in its own element, so the laurels beside it are not
@@ -405,13 +415,44 @@ export function Gallery({ open, onClose }: { open: boolean; onClose: () => void 
   }, [open, slides.length])
 
   return (
-    <Panel open={open} from="right" className="hud__gallery">
+    <OsWindow
+      open={open}
+      from="right"
+      className="hud__gallery"
+      bodyClassName="os-window__body--flush"
+      title="GALLERY"
+      meta="RELEASE LEDGER // ALL RUNS"
+      onClose={onClose}
+      footer={
+        slides.length > 1 ? (
+          <div className="gallery__nav">
+            <button
+              type="button"
+              className="gallery__arrow"
+              onClick={() => setFocus((i) => Math.max(0, i - 1))}
+              disabled={at === 0}
+              aria-label="Newer release"
+            >
+              ◀
+            </button>
+            <span className="gallery__count">
+              {at + 1} / {slides.length}
+            </span>
+            <button
+              type="button"
+              className="gallery__arrow"
+              onClick={() => setFocus((i) => Math.min(slides.length - 1, i + 1))}
+              disabled={at === slides.length - 1}
+              aria-label="Older release"
+            >
+              ▶
+            </button>
+          </div>
+        ) : undefined
+      }
+    >
       <div className="gallery">
         <div className="gallery__head">
-          <div>
-            <span className="gallery__kicker">RELEASE LEDGER // ALL RUNS</span>
-            <h2 className="gallery__title">GALLERY</h2>
-          </div>
           {/*
             The career in four figures. `LIFETIME REVENUE` counts money that has
             arrived, so it moves while the screen is open — and there is no
@@ -484,37 +525,14 @@ export function Gallery({ open, onClose }: { open: boolean; onClose: () => void 
           </div>
         )}
 
+        {/*
+          The receipt scrolls and the wall above it does not — §10.11.2's
+          breakdown is six rows on a phone and the covers are the screen. The
+          rail down the window's edge is measuring this, which is the one place
+          in the gallery there is genuinely more below.
+        */}
         {current && <Focused slide={current} laurels={laurels} />}
-
-        <div className="gallery__footer">
-          {slides.length > 1 && (
-            <div className="gallery__nav">
-              <button
-                type="button"
-                className="gallery__arrow"
-                onClick={() => setFocus((i) => Math.max(0, i - 1))}
-                disabled={at === 0}
-                aria-label="Newer release"
-              >
-                ◀
-              </button>
-              <span className="gallery__count">
-                {at + 1} / {slides.length}
-              </span>
-              <button
-                type="button"
-                className="gallery__arrow"
-                onClick={() => setFocus((i) => Math.min(slides.length - 1, i + 1))}
-                disabled={at === slides.length - 1}
-                aria-label="Older release"
-              >
-                ▶
-              </button>
-            </div>
-          )}
-          <Button onClick={onClose}>BACK</Button>
-        </div>
       </div>
-    </Panel>
+    </OsWindow>
   )
 }

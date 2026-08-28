@@ -25,8 +25,7 @@
  * duty as the only door until the suite is built.
  */
 
-import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { REACH_LADDER } from '../sim/heroes.ts'
 import { heroIdentity } from '../sim/identity.ts'
 import type { HeroCoverage, HeroRuntime } from '../sim/heroRoster.ts'
@@ -63,12 +62,22 @@ export function Roster({
   onClose: () => void
 }) {
   return (
-    <Panel open={open} from="bottom" className="roster">
+    <OsWindow
+      open={open}
+      from="bottom"
+      className="roster"
+      bodyClassName="os-window__body--flush"
+      title="HERO PLACEMENT"
+      /*
+        The instruction, in the bar. §13.11.2 keeps this a *strip* — one row of
+        cards summoned and dismissed — and the line telling you what a tap does
+        was eating a 150px column of it. The bar already exists to say what a
+        window is; this is that sentence.
+      */
+      meta="SELECT A HERO TO PLACE, MOVE, OR REVIEW"
+      onClose={onClose}
+    >
       <div className="roster__strip">
-        <div className="roster__intro">
-          <strong>HERO PLACEMENT</strong>
-          <span>SELECT A HERO TO PLACE, MOVE, OR REVIEW</span>
-        </div>
         <div className="roster__cards">
           {roster.map((hero) => {
             const face = heroIdentity(hero.id)
@@ -112,8 +121,7 @@ export function Roster({
             )
           })}
         </div>
-        <Button onClick={onClose}>CLOSE</Button>
       </div>
-    </Panel>
+    </OsWindow>
   )
 }

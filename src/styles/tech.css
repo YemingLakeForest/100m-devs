@@ -42,8 +42,8 @@
    * directly and is what the §F2.1 screens already use.
    *
    * 46vh is 206 px at the 997x448 reference frame and 155 px at the 336 px
-   * floor of §23.4's design box — in both cases leaving room for the header and
-   * the BACK button inside the panel's own border.
+   * floor of §23.4's design box — in both cases leaving room for the window's
+   * title bar and foot inside its own border.
    */
   max-height: 46vh;
   overflow-y: auto;
@@ -157,29 +157,17 @@
  * a line of copy saying so.
  */
 
+/*
+ * §10.6a — the masthead and the BACK button are gone: the title, the cash and
+ * the way out are the window's title bar now. What is left is the viewport,
+ * and the padding that keeps the board off the frame.
+ */
 .upgrade-board {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  justify-items: start;
+  grid-template-rows: minmax(0, 1fr);
   padding: 10px 12px 12px;
   min-height: 0;
-  /*
-   * `max-height`, not `height`: the drawer is `position: absolute` with a
-   * definite max-height, so a plain `height: 100%` resolves against an
-   * auto-height parent and the scroll row never gets a bound to shrink to —
-   * the board grows to its world's height and the footer (and BACK's slab) is
-   * clipped by the drawer's `overflow: hidden`.
-   */
   max-height: 100%;
-}
-
-.upgrade-board__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
 }
 
 .upgrade-board__scroll {
@@ -189,8 +177,8 @@
    * An explicit cap, not `1fr`. The drawer is `position: absolute` and its
    * height is content-driven, so the grid's `minmax(0, 1fr)` row never gets a
    * bound to shrink to — the board would grow to its world's height and push
-   * the footer out of the drawer. 46vh is what the old list used; it leaves
-   * the head and the BACK button inside the panel's own border.
+   * the window's foot out of the drawer. 46vh is what the old list used; it
+   * leaves the title bar and the foot inside the frame's own border.
    */
   max-height: 46vh;
   overflow: auto;
@@ -283,12 +271,13 @@
   background: var(--p0);
 }
 
-.upgrade-board__footer {
-  width: 100%;
-}
-
 /* §11.4.3 — the guide layer. The node enlarged, everything else dimmed. */
 .upgrade-board__guide {
+  /*
+   * Inset to the window *body*, not to the whole frame: the title bar and its
+   * close box stay lit above the guide, so a player who opened a node they
+   * cannot afford still has the way out in the corner it is always in.
+   */
   position: absolute;
   inset: 0;
   display: grid;

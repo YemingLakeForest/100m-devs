@@ -23,7 +23,14 @@
  * string, the employee number and the gem — off the screen. §21.7.4's title is
  * *meant* to make the card taller, so the card has to be a thing that scrolls.
  */
-.herocard {
+/*
+ * `.ui-panel.herocard`, not `.herocard`: the shared chrome makes every window's
+ * panel a one-row grid (`.os-frame`), and this is one of two that keep a flex
+ * box for the reason argued below. Two single-class rules would leave which one
+ * wins to stylesheet import order, which is not a thing a layout should depend
+ * on.
+ */
+.ui-panel.herocard {
   position: absolute;
   top: var(--edge-y);
   right: var(--edge-x);
@@ -35,7 +42,7 @@
    * an auto-sized row track that contains a percentage-height item is a cyclic
    * dependency — so the browser drops back to `auto` and the cap does nothing.
    * The board next door was measured at 482 px inside a 436 px box for exactly
-   * this, with its BACK button off the bottom of the frame.
+   * this, with its footer off the bottom of the frame.
    *
    * A flex item's percentage height resolves against the flex container's
    * content box, which is definite here because the host is inset to the frame.
@@ -45,10 +52,28 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  pointer-events: auto;
   /* Over §21's script block, which is drawn later in the DOM and would
      otherwise print a sprint commitment across the flavour line. */
   z-index: 2;
+}
+
+/*
+ * The window around the pass (§10.6a). It takes the measurements the pass used
+ * to hold — the pass is a document now and documents do not size their own
+ * frame — and the opacity note below moves with them.
+ */
+.herocard .os-window {
+  width: min(31em, 84vw);
+  max-width: calc(100vw - 2 * var(--edge-x));
+  /* The frame, not the viewport: on the web the game is letterboxed into a
+     legal aspect, so `vh` is a good deal more than the picture is tall. */
+  max-height: 100%;
+  margin-top: 8px;
+}
+
+/* The pass hangs from the top of its own scroll, with room for the punch. */
+.herocard__body-scroll {
+  padding-top: 14px;
 }
 
 /*
@@ -63,18 +88,9 @@
 .herocard__pass {
   position: relative;
   display: grid;
-  /* The pass itself does not scroll — its body does, and the actions are pinned
-     under it. See the note in `HeroCard.tsx`. */
-  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: start;
   gap: 9px;
-  width: min(31em, 84vw);
-  max-width: calc(100vw - 2 * var(--edge-x));
-  /* The frame, not the viewport: on the web the game is letterboxed into a
-     legal aspect, so `vh` is a good deal more than the picture is tall. */
-  max-height: 100%;
-  overflow: hidden;
-  padding: 18px 16px 14px;
-  margin-top: 8px;
+  padding: 14px 14px 12px;
   border: 2px solid var(--branch, var(--p2));
   /*
    * **Opaque, and it is the only surface in this layer that is.**
@@ -85,24 +101,22 @@
    * edge and therefore lands on top of §10.1's CASH block, and at 94% the
    * treasury's orange numerals read straight through James's name. A card is a
    * physical object being held up rather than a pane of glass, so it is the one
-   * place the layer stops.
+   * place the layer stops — and the window around it (§10.6a) takes the same
+   * value for the same reason.
    */
   background: var(--n0);
 }
 
-.herocard__scroll {
-  display: grid;
-  align-content: start;
-  gap: 9px;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+.herocard .os-window {
+  background: var(--n0);
 }
 
 /* The only round thing on the card. */
 .herocard__punch {
   position: absolute;
-  top: -4px;
+  /* Half out of the laminate, and the window body reserves the room for it
+     (`.herocard__body-scroll`) so the scroll does not crop it. */
+  top: -5px;
   left: 50%;
   width: 12px;
   height: 12px;
@@ -383,14 +397,6 @@
   transform: rotate(45deg);
 }
 
-.herocard__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  padding-top: 4px;
-}
-
 /* §23.4.2's smallest frame is 748x336 and the card is portrait, so at that size
    it scrolls inside itself. It never scales down to fit — a card too small to
    read is a card nobody opens twice. */
@@ -415,7 +421,8 @@
  * levels would make the six people interchangeable — which is the failure
  * §22.9 exists to prevent.
  */
-.herotree {
+/* `.ui-panel.herotree` for the reason `.ui-panel.herocard` is — see its note. */
+.ui-panel.herotree {
   position: absolute;
   inset: 0;
   /* Flex for the same reason `.herocard` is — see its note. */
@@ -423,8 +430,22 @@
   align-items: center;
   justify-content: center;
   padding: var(--edge-y) var(--edge-x);
-  pointer-events: auto;
   z-index: 3;
+}
+
+/*
+ * The frame takes the screen — see the note on `.herotree__frame` below, which
+ * used to own this and now owns only what is inside it (§10.6a).
+ *
+ * Opaque, for §22.9's reason: this sheet lands on top of the card that opened
+ * it and on §21's script block, and at 94% the sprint commitment reads straight
+ * through the board. A tree you can see a burn-down through is a tree nobody
+ * can read.
+ */
+.herotree .os-window {
+  width: 100%;
+  height: 100%;
+  background: var(--n0);
 }
 
 /*
@@ -439,25 +460,19 @@
  */
 .herotree__frame {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  /* Toolbar, then the board. The identity is the window's title bar and the
+     way out is its close box (§10.6a). */
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   width: 100%;
   height: 100%;
   padding: 12px 14px;
-  border: var(--rule) solid var(--p2);
-  /*
-   * Opaque, for §22.9's reason: this sheet lands on top of the card that opened
-   * it and on §21's script block, and at 94% the sprint commitment reads
-   * straight through the board. A tree you can see a burn-down through is a
-   * tree nobody can read.
-   */
-  background: var(--n0);
 }
 
 .herotree__head {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
   padding-bottom: 8px;
@@ -469,32 +484,6 @@
 .herotree__head .board-teaching {
   flex: 1 1 100%;
   margin: 4px 0 0;
-}
-
-.herotree__ident {
-  display: grid;
-  gap: 1px;
-}
-
-/* The file-header line every other screen in the game opens with. */
-.herotree__kicker {
-  font-size: var(--type-1x);
-  letter-spacing: 2px;
-  color: var(--p1);
-}
-
-.herotree__title {
-  margin: 0;
-  font-size: var(--type-2x);
-  letter-spacing: 2px;
-  color: var(--n8);
-}
-
-.herotree__role {
-  margin: 0;
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-  color: var(--p1);
 }
 
 .herotree__toolbar {
@@ -899,11 +888,6 @@
   color: var(--p2);
 }
 
-.herotree__footer {
-  display: flex;
-  justify-content: flex-end;
-}
-
 /*
  * Under about a phone-and-a-half, the rail goes below the board rather than
  * squeezing it. §23.4's rule: a new control does not get to evict canon, and
@@ -935,41 +919,19 @@
   left: var(--edge-x);
   right: var(--edge-x);
   bottom: var(--edge-y);
-  display: grid;
-  justify-items: center;
-  pointer-events: auto;
   z-index: 2;
+}
+
+/* Opaque, for §22.9's reason: it lands on §21's script block. */
+.roster .os-window {
+  background: var(--n0);
 }
 
 .roster__strip {
   display: flex;
   align-items: center;
-  gap: 10px;
   max-width: 100%;
   padding: 8px 10px;
-  border: var(--rule) solid var(--p2);
-  /* Opaque, for §22.9's reason: it lands on §21's script block. */
-  background: var(--n0);
-}
-
-.roster__intro {
-  display: grid;
-  flex: 0 0 auto;
-  gap: 2px;
-  max-width: 150px;
-  padding-right: 10px;
-  border-right: var(--rule) solid var(--p0);
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-}
-
-.roster__intro strong {
-  color: var(--n8);
-}
-
-.roster__intro span {
-  color: var(--p1);
-  line-height: 1.35;
 }
 
 .roster__cards {
@@ -1066,7 +1028,9 @@
     height: 34px;
   }
 
-  .roster__intro span {
+  /* The instruction is the first thing to go when the frame is short — the
+     title bar still names the window, which is the half that has to survive. */
+  .roster .os-window__meta {
     display: none;
   }
 }

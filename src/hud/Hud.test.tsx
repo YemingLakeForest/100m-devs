@@ -1,8 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { __resetStore, __setState, baseVelocity, getState, jumpToPhase, poke, pokeVelocity, tick } from '../game/store.ts'
+import {
+  __resetStore,
+  __setState,
+  baseVelocity,
+  getState,
+  jumpToPhase,
+  poke,
+  pokeVelocity,
+  showScene,
+  tick,
+} from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
-import { SCENE_MATT_ARRIVES, SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES } from '../game/scenes.ts'
+import {
+  SCENE_MATT_ARRIVES,
+  SCENE_MO_ARRIVES,
+  SCENE_SERENA_ARRIVES,
+  SCENE_THREAD_CLEARED,
+} from '../game/scenes.ts'
 import { Hud } from './Hud.tsx'
 
 /**
@@ -331,7 +346,9 @@ describe('the upgrades entry point', () => {
     expect(drawer?.textContent).toContain('Instant Messenger')
     expect(drawer?.querySelector('.upgrade-board__node[data-owned="true"]')).not.toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: /BACK/ }))
+    // §10.6a — the way out is the close box in the window's title bar, named
+    // CLOSE, in the corner every window in the product now puts it.
+    fireEvent.click(screen.getByRole('button', { name: 'CLOSE' }))
     expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('exit')
   })
 
@@ -382,6 +399,81 @@ describe('the upgrades entry point', () => {
     fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
     await frame()
     expect(container.querySelector('.ui-scrim')).toBeNull()
+  })
+})
+
+/**
+ * §10.6b — **no window is open while somebody is talking.**
+ *
+ * The rule exists because of one real sequence: a player who opens §11's board
+ * themselves and buys the node that clears THE THREAD gets `thread-cleared`
+ * played *over the open board*, so James congratulates them through a tech
+ * tree. Every window in the product is covered by the same gate, so the tests
+ * here take one door the HUD owns and one window a *state* raises — the two
+ * halves behave differently on the way out and both halves matter.
+ */
+describe('§10.6b — a conversation clears the desk', () => {
+  beforeEach(prestiged)
+
+  it('shuts a door the player opened, and does not open it again afterwards', async () => {
+    const { container } = render(<Hud stage={null} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
+    await frame()
+    expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('in')
+
+    await act(async () => {
+      showScene(SCENE_THREAD_CLEARED.id)
+    })
+    expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('exit')
+
+    // And it stays shut. A window that springs back when the box goes away is
+    // the lingering pop-up wearing a delay — so what is checked is that it
+    // never returns to `in`, not merely that it left.
+    await act(async () => {
+      __setState({ scene: null })
+    })
+    await frame()
+    const after = container.querySelector('.hud__upgrades')
+    expect(after === null || after.getAttribute('data-phase') === 'exit').toBe(true)
+  })
+
+  it('stands the term sheet down for the scene and gives it back after', async () => {
+    // §21.0a's window is raised by a *phase*, which is still true while the box
+    // is up — so this one is suppressed rather than closed, and it has to
+    // return or the run is stranded with no way to take the money.
+    await act(async () => {
+      jumpToPhase('act2_termsheet')
+    })
+    const { container } = render(<Hud stage={null} />)
+    await frame()
+    expect(container.querySelector('.term-sheet')).not.toBeNull()
+
+    await act(async () => {
+      showScene(SCENE_THREAD_CLEARED.id)
+    })
+    expect(container.querySelector('.term-sheet')?.getAttribute('data-phase')).toBe('exit')
+
+    await act(async () => {
+      __setState({ scene: null })
+    })
+    await frame()
+    expect(container.querySelector('.term-sheet')?.getAttribute('data-phase')).toBe('in')
+  })
+
+  it('puts down a personnel record the store was holding open', async () => {
+    // The two selections are the store's, so `showScene` is where they are
+    // cleared — the HUD cannot see them to close them.
+    await act(async () => {
+      __setState({ selected: 3 })
+    })
+    expect(getState().selected).toBe(3)
+
+    await act(async () => {
+      showScene(SCENE_THREAD_CLEARED.id)
+    })
+    expect(getState().selected).toBeNull()
+    expect(getState().selectedHero).toBeNull()
   })
 })
 

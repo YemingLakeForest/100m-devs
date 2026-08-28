@@ -25,7 +25,7 @@
  */
 
 import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { BRANCH_BY_ID, CHAIN_LENGTH, HERO_NODE_BY_ID, branchColour } from '../sim/heroTree.ts'
 import { REACH_LADDER } from '../sim/heroes.ts'
 import { heroIdentity } from '../sim/identity.ts'
@@ -128,22 +128,69 @@ export function HeroCard({
   const hasBoard = currentUnlocks().heroBoard
 
   return (
-    <Panel open={hero !== null} from="right" className="herocard">
+    <OsWindow
+      open={hero !== null}
+      from="right"
+      className="herocard"
+      bodyClassName="herocard__body-scroll"
+      /*
+        §22.9.1's pass is an *object*, and §10.6a's window is the machine
+        holding it up: `STUDIO_OS // PERSONNEL`, with the laminated card inside
+        it. The two frames are not a doubling — one is the operating system and
+        the other is a thing the studio laminated, and the pass keeps its branch
+        colour and its lanyard punch to say so.
+      */
+      title="PERSONNEL"
+      /* No `meta`: the pass carries the name, the level and the employee
+         number itself, and the bar restating one of them would be the machine
+         reading the card out loud over the player's shoulder. */
+      onClose={onClose}
+      /*
+        §21.7.4's title is *meant* to make this card taller over a career, and a
+        card that grows is a card whose buttons walk off the bottom of a 336 px
+        frame. The window's foot is outside the scroll structurally, which is
+        what `.herocard__scroll` used to do by hand.
+      */
+      footer={
+        hero ? (
+          <>
+            {/*
+              §13.8 — the verb the card was missing.
+
+              **It is never gated**, unlike SKILLS beside it: a hero who has
+              arrived can be posted, and there is no board to hand over first
+              because the floor is the board. It leads the row because it is
+              what the card is *for* — §13.10 makes a benched hero the one thing
+              on this screen actively costing the player something, and a card
+              that says BENCHED in red and offers no way off the bench is a
+              scolding rather than a control.
+            */}
+            <Button onClick={onPost}>{hero.placement ? 'MOVE HERO' : 'PLACE HERO'}</Button>
+            {hero.placement && <Button onClick={onRecall}>RECALL</Button>}
+            {/*
+              §21.7.7 — **the card is not gated and the board is.**
+
+              A card is who somebody is, and that has been true since Act I.
+              §13.9's board is an instrument and it arrives with the first level
+              anybody earns — before that it is a screen of purchases attached
+              to a person the player has never placed, which is §26.1.6's wall
+              in miniature. The door is simply absent until then, on §21.7.6b's
+              rule that a silent row is the loudest kind of furniture.
+            */}
+            {hasBoard && (
+              <Button onClick={onOpenTree}>
+                {hero.points > 0 ? `SPEND ${hero.points}` : 'SKILLS'}
+              </Button>
+            )}
+          </>
+        ) : undefined
+      }
+    >
       {hero && face && branch && liveBenefit && queuedBenefit && (
         <div className="herocard__pass" style={{ ['--branch' as string]: branchColour(hero.branch) }}>
           {/* The only round thing on the card, and what makes it a pass. */}
           <span className="herocard__punch" aria-hidden="true" />
 
-          {/*
-            Everything above the actions scrolls; the actions do not.
-
-            §21.7.4's title is *meant* to make this card taller over a career, and
-            a card that grows is a card whose buttons walk off the bottom of a
-            336 px frame. Pinning them outside the scroll rather than making the
-            whole pass scroll keeps the primary action reachable at every height
-            without the floating action bar §25.7.2 caught in the creator.
-          */}
-          <div className="herocard__scroll">
           <header className="herocard__band">
             <span className="herocard__sigil" aria-hidden="true" />
             <h2 className="herocard__name">{face.name}</h2>
@@ -233,41 +280,8 @@ export function HeroCard({
             <span className="herocard__employee">EMPLOYEE {employeeNumber(hero.id)}</span>
             <span className="herocard__gem" aria-hidden="true" />
           </footer>
-          </div>
-
-          <div className="herocard__actions">
-            {/*
-              §21.7.7 — **the card is not gated and the board is.**
-
-              A card is who somebody is, and that has been true since Act I.
-              §13.9's board is an instrument and it arrives with the first level
-              anybody earns — before that it is a screen of purchases attached
-              to a person the player has never placed, which is §26.1.6's wall
-              in miniature. The door is simply absent until then, on §21.7.6b's
-              rule that a silent row is the loudest kind of furniture.
-            */}
-            {/*
-              §13.8 — the verb the card was missing.
-
-              **It is never gated**, unlike SKILLS above it: a hero who has
-              arrived can be posted, and there is no board to hand over first
-              because the floor is the board. It leads the row because it is
-              what the card is *for* — §13.10 makes a benched hero the one thing
-              on this screen actively costing the player something, and a card
-              that says BENCHED in red and offers no way off the bench is a
-              scolding rather than a control.
-            */}
-            <Button onClick={onPost}>{hero.placement ? 'MOVE HERO' : 'PLACE HERO'}</Button>
-            {hero.placement && <Button onClick={onRecall}>RECALL</Button>}
-            {hasBoard && (
-              <Button onClick={onOpenTree}>
-                {hero.points > 0 ? `SPEND ${hero.points}` : 'SKILLS'}
-              </Button>
-            )}
-            <Button onClick={onClose}>CLOSE</Button>
-          </div>
         </div>
       )}
-    </Panel>
+    </OsWindow>
   )
 }

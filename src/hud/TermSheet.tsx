@@ -29,7 +29,7 @@
  */
 
 import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 
 /**
  * The figure, written the way it is written on a term sheet.
@@ -88,57 +88,62 @@ export function TermSheet({
   onSign: () => void
 }) {
   return (
-    <Panel open={open} modal from="centre" className="term-sheet">
-      <div className="term-sheet__body">
-        <span className="term-sheet__kicker">STUDIO_OS // INBOX — 1 NEW</span>
-        <h2 className="term-sheet__name">TERM SHEET</h2>
+    <OsWindow
+      open={open}
+      modal
+      from="centre"
+      className="term-sheet"
+      bodyClassName="term-sheet__body"
+      title="TERM SHEET"
+      meta="INBOX — 1 NEW"
+      /*
+        No close box, and that is the design: §21.0a's decision is about the
+        whole company and signing is the only way past it. A close box drawn
+        and disabled would advertise an exit that is not there.
+
+        The footer is the other half of the same argument. This panel's own
+        note records what happened the last time the exit was inside the
+        scroll — it went below the fold at 640x360, nothing overflowed, no gate
+        complained, and the modal could not be left. §10.6a pins it structurally
+        now, so the four-row limit below is a *typographic* constraint rather
+        than the only thing standing between the player and a dead end.
+      */
+      footer={<Button onClick={onSign}>SIGN IT</Button>}
+    >
+      {/*
+        Their words, in their punctuation. The line break is theirs too — it is
+        a pitch deck sentence and it is broken where a pitch deck breaks it.
+      */}
+      <pre className="term-sheet__pitch">
+        {'“We love what you’re building.\n We think you can build it FASTER.”'}
+      </pre>
+
+      <dl className="term-sheet__terms">
         {/*
-          Their words, in their punctuation. The line break is theirs too — it
-          is a pitch deck sentence and it is broken where a pitch deck breaks it.
+          The money first and in the largest type on the panel, because it is
+          the only number on it the player is actually reading. Everything below
+          is the texture that makes the number feel signed for.
         */}
-        <pre className="term-sheet__pitch">
-          {'“We love what you’re building.\n We think you can build it FASTER.”'}
-        </pre>
-
-        <dl className="term-sheet__terms">
-          {/*
-            The money first and in the largest type on the panel, because it is
-            the only number on it the player is actually reading. Everything
-            below is the texture that makes the number feel signed for.
-          */}
-          <div className="term-sheet__row term-sheet__row--headline">
-            <dt>INVESTMENT</dt>
-            <dd>{asDocumentFigure(amount)}</dd>
-          </div>
-          {TERMS.map(([label, value]) => (
-            <div className="term-sheet__row" key={label}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
-
-        {/*
-          The machine's line, not a character's. §21's advisor already says
-          *"somebody with money believes in you"* on the rail behind this panel,
-          and saying it twice would make the sentiment the beat. What belongs on
-          the paper is the mechanics of signing it, in the driest possible
-          register — and the mechanic is the whole hook.
-
-          One line at 640 px, deliberately: the note sits directly above the only
-          exit this panel has, and a second line was what put that exit below the
-          fold.
-        */}
-        <p className="term-sheet__note">FUNDS RELEASE ON SIGNATURE.</p>
-
-        {/*
-          One control, and it is the last frictionless thing that happens to
-          this company.
-        */}
-        <div className="term-sheet__actions">
-          <Button onClick={onSign}>SIGN IT</Button>
+        <div className="term-sheet__row term-sheet__row--headline">
+          <dt>INVESTMENT</dt>
+          <dd>{asDocumentFigure(amount)}</dd>
         </div>
-      </div>
-    </Panel>
+        {TERMS.map(([label, value]) => (
+          <div className="term-sheet__row" key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {/*
+        The machine's line, not a character's. §21's advisor already says
+        *"somebody with money believes in you"* on the rail behind this panel,
+        and saying it twice would make the sentiment the beat. What belongs on
+        the paper is the mechanics of signing it, in the driest possible
+        register — and the mechanic is the whole hook.
+      */}
+      <p className="term-sheet__note">FUNDS RELEASE ON SIGNATURE.</p>
+    </OsWindow>
   )
 }

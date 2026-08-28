@@ -5502,6 +5502,94 @@ the design.</p>
 <p><strong>The test:</strong> screenshot any two consecutive frames during a screen change. If nothing is
 mid-motion, it is a cut, and it needs fixing.</p>
 <hr />
+<h3 id="a-the-studio-os-window-canon-added-2026-08-28">10.6a The STUDIO_OS window <strong>[CANON — added 2026-08-28]</strong></h3>
+<blockquote>
+<p>§10.6's last row says <em>&quot;style it as a <code>STUDIO_OS</code> config terminal&quot;</em> about the settings
+screen. This is that instruction taken seriously and applied to <strong>every</strong> overlay in the
+product, because the settings screen was never the only one with the problem.</p>
+</blockquote>
+<p><strong>What was wrong.</strong> Eleven overlays had eleven sets of chrome. The gallery drew a rule under a
+two-line masthead; the paradigm tree put its balance beside an <code>h1</code>; the term sheet led
+with a kicker; the hero board opened with an identity block and a zoom toolbar. The way out was
+<code>BACK</code> on four of them, <code>CLOSE</code> on four more, a button at the bottom of a scroll on
+two, and nothing at all on the rest. Every one of those decisions was defensible where it was
+made. Together they read as eleven screens from eleven products — which is
+<code>ART_DIRECTION</code> §0's named failure, <em>&quot;assets that don't agree with each other&quot;</em>,
+reached through interface rather than through art.</p>
+<p><strong>There is one window, and it belongs to the machine.</strong> Three parts, and they are not
+negotiable per screen:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1. The title bar</strong></td>
+<td><code>STUDIO_OS // GALLERY</code>, pinstriped, with a slot on the right for the one figure the window is about</td>
+<td>It says <em>what process this is</em>, in the voice the game already talks to the player in (§10.7). The pinstripe is what makes it read as chrome rather than as a heading the window happens to start with — and it is the same 1px-at-3px drawing the CRT scanline is</td>
+</tr>
+<tr>
+<td><strong>2. The close box</strong></td>
+<td>An <code>X</code> in a 1px square, <strong>top right</strong>, inverting under the finger</td>
+<td>The corner every operating system ever built has put it in, so the way out is <em>found</em> rather than hunted for. Its accessible name is <code>CLOSE</code>, not <code>X</code></td>
+</tr>
+<tr>
+<td><strong>3. The scroll rail</strong></td>
+<td>A dotted track, a thumb, and an arrow at the foot that lights while anything is below the fold</td>
+<td>The player must never have to guess whether there is more. A platform scrollbar is the OS-native control §10.6 forbids — it is a different shape on every device and on a touch WebView it is not drawn until the finger is already moving</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The foot is outside the scroll, always.</strong> §21.0a records what happened the last time a
+window's only exit was inside one: <code>SIGN IT</code> went below the fold at 640x360, nothing
+overflowed, no gate complained, and the modal could not be left. A window's actions do not
+scroll. The four-row limit on the term sheet is a typographic constraint again rather than the
+only thing standing between the player and a dead end.</p>
+<p><strong>A window with no close box is a statement, not an oversight.</strong> §18.0a's incident card,
+§21.0a's term sheet, §24.8's overnight report and the bankruptcy screen have none: the
+buttons on them <em>are</em> the exits, and every one of them is a decision. Drawing a close box
+and disabling it would be worse than either — it advertises an exit that is not there, which
+is the one thing a window frame must never do.</p>
+<p><strong>Chrome, not layout.</strong> What a window puts between its bar and its foot is still the window's
+own business: §11.4's board still pans, §10.11's wall still slides, §22.9.1's pass
+is still a laminated object being held up to the camera — inside a window, which is the
+machine holding it up. A window that already owns a viewport says so, and the rail measures that
+instead of the body.</p>
+<p><strong>What this repeals.</strong> The <code>BACK</code> and <code>CLOSE</code> buttons at the foot of the
+gallery, the upgrade board, the hero board, the founder's screen, the roster strip, the paradigm
+tree and the personnel card. There is one way out of a window and it is in the corner. §21.7.7's
+guided boards are amended to match: the coaching line stays, and the exit it refers to is the
+close box.</p>
+<h3 id="b-a-conversation-clears-the-desk-canon-added-2026-08-28">10.6b A conversation clears the desk <strong>[CANON — added 2026-08-28]</strong></h3>
+<blockquote>
+<p><strong>No window is open while somebody is talking.</strong></p>
+</blockquote>
+<p>A scene stops the studio. The poke path goes inert, §10.7a hands the camera to the speaker,
+and §21's script block leaves the rail. A term sheet, an incident card or an upgrade board
+left standing behind §10.7's box is a surface the player can see, cannot use, and did not ask
+to still be looking at.</p>
+<p><strong>The sequence that named the rule:</strong> a player who opens §11's board themselves and buys
+the node that clears THE THREAD gets <code>thread-cleared</code> played <em>over the open board</em>.
+James congratulates them through a tech tree.</p>
+<p>It takes two forms, and both are needed:</p>
+<ul>
+<li><p><strong>A door the player opened is closed</strong> — the gallery, the boards, the roster, the menu,
+and the two selections that raise a personnel record. It does not come back when the scene ends.
+A window that springs back afterwards is the lingering pop-up wearing a delay.</p></li>
+<li><p><strong>A window a <em>state</em> raises is suppressed</strong> — §21.0a's term sheet,
+§18.0a's card, §24.8's report, the bankruptcy screen. The state is still true, so the
+window returns the moment the box is gone. Suppressing is not dismissing: nothing here gives the
+player a way past a decision they still owe.</p></li>
+</ul>
+<p>Enforced in two places and no more: the store clears its own selections at the single entrance to
+a scene, and the HUD stands its doors down in one expression applied to every window. It is not
+each window's business to remember the rule — the second time it is derived it will be
+derived wrong.</p>
+<hr />
 <h3 id="the-dialogue-system-typed-out-and-unskippable-canon">10.7 The Dialogue System — typed out, and unskippable <strong>[CANON]</strong></h3>
 <p>All character dialogue is delivered <strong>one letter at a time</strong>, in the manner of a Game Boy
 Pokémon text box. This is the game's voice, and it is not decoration.</p>
@@ -12707,8 +12795,10 @@ instrument it introduced:</p>
 </tbody>
 </table>
 <p>The coaching line is character speech inside the board, never a free-standing tutorial
-overlay. <code>BACK</code> remains valid and returns to the floor without spending; the guided state is
-ephemeral and never becomes permanent HUD furniture.</p>
+overlay. The board's <strong>close box</strong> remains valid and returns to the floor without spending
+— <strong>[amended 2026-08-28]</strong>, this read <code>BACK</code> until §10.6a replaced every
+window's footer exit with the box in its title bar; the guided state is ephemeral and never
+becomes permanent HUD furniture.</p>
 <h2 id="hero-cards-collectables">22. Hero Cards &amp; Collectables</h2>
 <h3 id="the-system">22.1 The System</h3>
 <p><strong>Hero Cards are unique, named developers you collect and place on your org chart.</strong> Unlike

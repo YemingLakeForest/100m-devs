@@ -13,8 +13,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Panel } from '../ui/Panel.tsx'
-import { Button } from '../ui/Button.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { deskLine } from '../game/deskLines.ts'
 import { selectDeveloper, selectedIdentity, type GameState } from '../game/store.ts'
 import type { Identity } from '../sim/identity.ts'
@@ -79,10 +78,22 @@ export function DevCard({ state }: { state: GameState }) {
       : null
 
   return (
-    <Panel open={who !== null} from="right" className="devcard">
+    <OsWindow
+      open={who !== null}
+      from="right"
+      className="devcard"
+      bodyClassName="devcard__body"
+      /*
+        The name is the window, so it is the title — a bar reading
+        `STUDIO_OS // DEV` above a card whose only content is one person would
+        be the machine naming a category rather than naming what is on screen.
+        The latch below is what keeps it readable through the exit.
+      */
+      title={held?.name ?? 'DEVELOPER'}
+      onClose={() => selectDeveloper(null)}
+    >
       {held && (
         <>
-          <p className="devcard__name">{held.name}</p>
           <p className="devcard__sub">
             {held.stats.seniority >= 70 ? 'Senior' : held.stats.seniority >= 35 ? 'Mid' : 'Junior'}
             {held.trait ? ` · ${held.trait}` : ''}
@@ -95,10 +106,8 @@ export function DevCard({ state }: { state: GameState }) {
           </div>
 
           {line && <p className="devcard__quote">&ldquo;{line}&rdquo;</p>}
-
-          <Button onClick={() => selectDeveloper(null)}>CLOSE</Button>
         </>
       )}
-    </Panel>
+    </OsWindow>
   )
 }

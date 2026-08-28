@@ -12,7 +12,7 @@
  */
 
 import { useState } from 'react'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { Button } from '../ui/Button.tsx'
 import {
   EFFECTIVE,
@@ -89,14 +89,26 @@ export function ParadigmTree({
   const levels = permanent.layer1.paradigmLevels
 
   return (
-    <Panel open={open} modal from="centre" className="paradigm">
-      <div className="paradigm__head">
-        <h1 className="paradigm__title">PARADIGM TREE</h1>
-        <p className="paradigm__bp">
+    <OsWindow
+      open={open}
+      modal
+      from="centre"
+      className="paradigm"
+      bodyClassName="paradigm__body"
+      title="PARADIGM TREE"
+      /*
+        The balance, in the bar. §13.12's whole screen is "what can I afford",
+        so the wallet belongs where the window says what it is — and putting it
+        there is what let the body below scroll without the number leaving with
+        it.
+      */
+      meta={
+        <span className="paradigm__bp">
           <b>{bp}</b> BP
-        </p>
-      </div>
-
+        </span>
+      }
+      onClose={onClose}
+    >
       {/*
         The cap is the number the whole tree is really about — §4.2 calls it
         "the only defence against §4.1" — so it is stated at the top rather than
@@ -127,10 +139,15 @@ export function ParadigmTree({
         ))}
       </div>
 
+      {/*
+        Left in the scroll rather than pinned to the window's foot: it is four
+        readouts and an armed two-step, not a control strip, and §10.6a's foot
+        is for the one action a window is about. The way out is the close box
+        in the bar — which is the fix for the note in `ui-frame.acceptance.mjs`
+        about CLOSE sitting below the fold of this very panel at 640x360.
+      */}
       <ShiftOffer state={state} />
-
-      <Button onClick={onClose}>CLOSE</Button>
-    </Panel>
+    </OsWindow>
   )
 }
 

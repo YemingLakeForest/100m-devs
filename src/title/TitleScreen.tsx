@@ -11,7 +11,7 @@ import type { StageHandle } from '../render/stage.ts'
 import { Credits } from './Credits.tsx'
 import { Options } from './Options.tsx'
 import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { Typewriter } from '../ui/Typewriter.tsx'
 import { motionMs, useReducedMotion } from '../ui/motion.ts'
 import { revealTimeline, typingDuration } from '../ui/typewriter.ts'
@@ -385,31 +385,52 @@ export function TitleScreen({ stage, onStart, onNewGame, onExited, firstLaunch }
         The stubs. Semi-transparent and blurred over the title rather than an
         opaque page (§10.6) — the room keeps drifting behind them, which is
         also the honest thing to show given there is nothing else to show yet.
-      */}
-      <Panel open={stub !== null} from="left" modal className="title__stub">
-        {/* Latched, not derived: `Panel` keeps its children mounted through the
-            exit animation, so a screen read straight off `stub` would blank on
-            the frame it goes null and the panel would slide out empty. */}
-        {StubScreen && <StubScreen />}
-        <Button onClick={() => setStub(null)}>CLOSE</Button>
-      </Panel>
 
-      <Panel open={confirmNewGame} from="centre" modal className="title__new-game">
-        <h2>START A NEW GAME?</h2>
+        §10.6a's window, like everything else that opens over the game: the
+        title screen is the first STUDIO_OS surface a player ever sees, so it is
+        the last place the chrome is allowed to be a special case.
+      */}
+      <OsWindow
+        open={stub !== null}
+        from="left"
+        modal
+        className="title__stub"
+        bodyClassName="title__stub-body"
+        title={stubShown}
+        onClose={() => setStub(null)}
+      >
+        {/* Latched, not derived: the window keeps its children mounted through
+            the exit animation, so a screen read straight off `stub` would blank
+            on the frame it goes null and the panel would slide out empty. */}
+        {StubScreen && <StubScreen />}
+      </OsWindow>
+
+      <OsWindow
+        open={confirmNewGame}
+        from="centre"
+        modal
+        className="title__new-game"
+        bodyClassName="title__new-game-body"
+        title="START A NEW GAME?"
+        /* No close box: CANCEL is the way out and it is one of the two answers.
+           A third dismiss beside two answers is a third answer. */
+        footer={
+          <>
+            <Button onClick={() => setConfirmNewGame(false)}>CANCEL</Button>
+            <Button
+              variant="bait"
+              onClick={() => {
+                setConfirmNewGame(false)
+                leave(true)
+              }}
+            >
+              ERASE &amp; START
+            </Button>
+          </>
+        }
+      >
         <p>Your studio progress will be erased. You will choose your founder again.</p>
-        <div className="title__new-game-actions">
-          <Button onClick={() => setConfirmNewGame(false)}>CANCEL</Button>
-          <Button
-            variant="bait"
-            onClick={() => {
-              setConfirmNewGame(false)
-              leave(true)
-            }}
-          >
-            ERASE &amp; START
-          </Button>
-        </div>
-      </Panel>
+      </OsWindow>
     </div>
   )
 }

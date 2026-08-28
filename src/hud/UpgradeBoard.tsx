@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { TECH_TREE, type TechNode } from '../sim/techTree.ts'
 import { boardBounds, connectors, ownedIds, visibilityOf } from '../sim/techBoard.ts'
 import { techIcon } from '../render/techIcons.ts'
@@ -156,20 +156,26 @@ export function UpgradeBoard({
   const selectedVis = selected ? visibilityOf(selected, state.tech, state.cash, shifts) : null
 
   return (
-    <Panel open={open} from="right" className="hud__upgrades">
-      <div className="upgrade-board">
-        <div className="upgrade-board__head">
-          <h2 className="hud__upgrades-title"><Kw kind="upgrades">UPGRADES</Kw></h2>
-          <span className="tech__cash">{formatMoney(state.cash)}</span>
-        </div>
-
-        {guided && (
+    <OsWindow
+      open={open}
+      from="right"
+      className="hud__upgrades"
+      /* §11.4.1 — the board brings its own viewport, so the window gives up
+         its padding and its scroll and points the rail at the board instead. */
+      bodyClassName="os-window__body--flush"
+      title={<Kw kind="upgrades">UPGRADES</Kw>}
+      meta={<span className="tech__cash">{formatMoney(state.cash)}</span>}
+      onClose={onClose}
+      footer={
+        guided ? (
           <p className="board-teaching" role="status">
             <b>JAMES //</b> Pick any lit node. One purchase clears the thread; then you are back on the floor.
           </p>
-        )}
-
-        <div className="upgrade-board__scroll" ref={scroller}>
+        ) : undefined
+      }
+    >
+      <div className="upgrade-board">
+        <div className="upgrade-board__scroll" ref={scroller} data-os-scroll>
           <div className="upgrade-board__world" style={{ width: worldW, height: worldH }}>
             <svg className="upgrade-board__links" viewBox={`0 0 ${worldW} ${worldH}`} aria-hidden="true">
               {connectors().map((seg, i) => (
@@ -195,50 +201,46 @@ export function UpgradeBoard({
           </div>
         </div>
 
-        <div className="upgrade-board__footer">
-          <Button onClick={onClose}>BACK</Button>
-        </div>
-      </div>
-
-      {selectedNode && selectedQuote && selectedVis !== 'dark' && (
-        <div className="upgrade-board__guide" onClick={() => setSelected(null)}>
-          <div className="upgrade-board__guide-card" onClick={(e) => e.stopPropagation()}>
-            {techIcon(selectedNode.id) && (
-              <PixelIcon grid={techIcon(selectedNode.id)!} className="upgrade-board__guide-icon" />
-            )}
-            {selectedVis === 'live' && (
-              <>
-                <h3 className="upgrade-board__guide-name">{selectedNode.name}</h3>
-                <p className="upgrade-board__guide-flavour"><ConceptText text={selectedNode.flavour} /></p>
-                <p className="upgrade-board__guide-effect"><ConceptText text={selectedNode.effect} /></p>
-              </>
-            )}
-            {selectedVis === 'silhouette' && (
-              <p className="upgrade-board__guide-locked">
-                One step from what you own. Buy your way here and it opens.
-              </p>
-            )}
-            {selectedNode.granted ? (
-              <p className="tech__node-granted">A GIFT FROM JAMES</p>
-            ) : selectedVis === 'live' && !selectedQuote.maxed ? (
-              <Button
-                onClick={() => {
-                  if (buyTech(selectedNode.id)) {
-                    playPurchase()
-                    setSelected(null)
-                    if (guided) onGuidedComplete?.()
-                  }
-                }}
-                disabled={!selectedQuote.affordable}
-              >
-                {formatMoney(selectedQuote.cost)}
-              </Button>
-            ) : selectedQuote.maxed ? (
-              <p className="tech__node-granted">OWNED</p>
-            ) : null}
+        {selectedNode && selectedQuote && selectedVis !== 'dark' && (
+          <div className="upgrade-board__guide" onClick={() => setSelected(null)}>
+            <div className="upgrade-board__guide-card" onClick={(e) => e.stopPropagation()}>
+              {techIcon(selectedNode.id) && (
+                <PixelIcon grid={techIcon(selectedNode.id)!} className="upgrade-board__guide-icon" />
+              )}
+              {selectedVis === 'live' && (
+                <>
+                  <h3 className="upgrade-board__guide-name">{selectedNode.name}</h3>
+                  <p className="upgrade-board__guide-flavour"><ConceptText text={selectedNode.flavour} /></p>
+                  <p className="upgrade-board__guide-effect"><ConceptText text={selectedNode.effect} /></p>
+                </>
+              )}
+              {selectedVis === 'silhouette' && (
+                <p className="upgrade-board__guide-locked">
+                  One step from what you own. Buy your way here and it opens.
+                </p>
+              )}
+              {selectedNode.granted ? (
+                <p className="tech__node-granted">A GIFT FROM JAMES</p>
+              ) : selectedVis === 'live' && !selectedQuote.maxed ? (
+                <Button
+                  onClick={() => {
+                    if (buyTech(selectedNode.id)) {
+                      playPurchase()
+                      setSelected(null)
+                      if (guided) onGuidedComplete?.()
+                    }
+                  }}
+                  disabled={!selectedQuote.affordable}
+                >
+                  {formatMoney(selectedQuote.cost)}
+                </Button>
+              ) : selectedQuote.maxed ? (
+                <p className="tech__node-granted">OWNED</p>
+              ) : null}
+            </div>
           </div>
-        </div>
-      )}
-    </Panel>
+        )}
+      </div>
+    </OsWindow>
   )
 }

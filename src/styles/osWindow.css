@@ -1,0 +1,340 @@
+/*
+ * The STUDIO_OS window chrome — GDD §10.6a, ART_DIRECTION §1.
+ *
+ * One frame for every overlay in the product. The rules it is drawn under are
+ * the interface column of ART_DIRECTION §1: flat, screen-aligned, emissive,
+ * hard 1px rules, one hue at a time from the live phosphor (`--p0..--p3`).
+ * There is no radius, no bevel and no drop shadow anywhere in this file — the
+ * only thing that paints outside its own box is the `--ui-slab` offset the
+ * buttons in the footer already own, and the footer reserves room for it.
+ *
+ * **Chrome, not layout.** `.os-window` owns the bar, the rail and the foot;
+ * everything between them is the window's own composition, unchanged. That is
+ * why the per-window classes below keep their `position`, `inset`, `width` and
+ * `max-height` and give up only their border, background and padding.
+ */
+
+/*
+ * The `.ui-panel` an OS window is mounted in — the positioning box, and nothing
+ * else. A single-cell grid, so the window *stretches* into it rather than
+ * asking for `height: 100%`: a percentage height on a grid item resolves
+ * against an auto row track, which is the cyclic dependency `.herocard` already
+ * has a paragraph about, and the failure is silent.
+ */
+.os-frame {
+  display: grid;
+  /*
+   * **One row, bounded by the frame — and this line is the whole of it.**
+   *
+   * A panel that carries only `max-height` has an *indefinite* height, so an
+   * `auto` row track sizes to its content and the window inside grows straight
+   * past the panel's cap: `max-height: 100%` on the window then resolves
+   * against the overgrown track and does nothing. §13.12's tree is ten nodes
+   * and a shift offer, and at 640x360 that put PARADIGM SHIFT 90px below the
+   * bottom of the phone — the frame gate caught it, which is what the frame
+   * gate is for.
+   *
+   * `minmax(0, 1fr)` makes the track use the panel's max size as its available
+   * space, so the window is bounded, its `overflow: hidden` clips, and the
+   * scroll rail has something real to measure.
+   */
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  pointer-events: auto;
+}
+
+.os-window {
+  display: grid;
+  /* Bar, body, foot. `minmax(0, 1fr)` and not `1fr`: an `auto` minimum would
+     let a long body push the foot — and with it the window's primary action —
+     out through the bottom edge of the frame, which is §21.0a's defect. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  border: var(--rule) solid var(--p2);
+  /*
+   * §10.6 — "the swarm keeps moving underneath". Not opaque by default; the
+   * three windows that must be (a wall of covers, a class diagram, a strip that
+   * lands on the script band) override it with their reasons stated locally.
+   */
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  color: var(--p2);
+}
+
+/* --- the title bar -------------------------------------------------------- */
+
+/*
+ * Pinstriped, which is the oldest window-chrome idiom there is and costs one
+ * gradient. It is what makes the bar read as *chrome* rather than as a heading
+ * the window happens to start with — the distinction the old panels never drew,
+ * and the reason eleven of them each invented a masthead.
+ *
+ * The stripes are 1px rules at a 3px pitch, so they are the same drawing the
+ * CRT scanline overlay is, at the same scale. Nothing here is a gradient fill.
+ */
+.os-window__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  padding: 4px 6px 4px 8px;
+  border-bottom: var(--rule) solid var(--p2);
+  background: repeating-linear-gradient(
+    0deg,
+    color-mix(in srgb, var(--p0) 85%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/*
+ * The text blocks punch through the stripes on their own ground, System 7
+ * style. Without this the pinstripe runs behind the letterforms of an 11px
+ * face and the title is unreadable at exactly the size it is always drawn.
+ */
+.os-window__id,
+.os-window__sep,
+.os-window__title,
+.os-window__meta {
+  padding: 0 4px;
+  background: var(--n0);
+  font-size: var(--type-1x);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.os-window__id {
+  letter-spacing: 2px;
+  color: var(--p1);
+}
+
+.os-window__sep {
+  padding: 0;
+  color: var(--p1);
+}
+
+/* The process name. Upper case is set here rather than left to each caller, so
+   a window cannot arrive in the bar in a voice the machine does not have. */
+.os-window__title {
+  margin: 0 auto 0 0;
+  overflow: hidden;
+  font-size: var(--type-1x);
+  font-weight: 400;
+  letter-spacing: 3px;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  color: var(--p3);
+}
+
+/* The one figure the window is about — cash, BP, a count. */
+.os-window__meta {
+  letter-spacing: 1px;
+  color: var(--p2);
+}
+
+/* --- the close box -------------------------------------------------------- */
+
+/*
+ * Top right, where every operating system ever built has put it.
+ *
+ * A square drawn in the same 1px rule as the frame, inverting under the finger
+ * rather than tinting — §10.8 F2 wants a shape *and* a colour to change on
+ * pointer down, and an inversion is both at once in a one-bit interface.
+ */
+.os-window__close {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 18px;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: var(--rule) solid var(--p2);
+  background: var(--n0);
+  color: var(--p3);
+  font: inherit;
+  font-size: var(--type-1x);
+  line-height: 1;
+  cursor: pointer;
+  /* The frame is the drawing; the target is bigger than the drawing. */
+  touch-action: manipulation;
+}
+
+/*
+ * §23.4.2 is a phone in landscape and a 20x18 box is a target a thumb misses.
+ * The hit area is grown with a pseudo-element rather than with padding so the
+ * *box* stays the size it is drawn — a 44px close button in the corner of an
+ * 11px-type window would be the largest thing on the bar.
+ */
+.os-window__close::after {
+  content: '';
+  position: absolute;
+  inset: -11px;
+}
+
+.os-window__close:hover {
+  border-color: var(--p3);
+}
+
+.os-window__close:active {
+  background: var(--p2);
+  color: var(--n0);
+}
+
+.os-window__close:focus-visible {
+  outline: var(--rule) solid var(--p3);
+  outline-offset: 2px;
+}
+
+/* --- the body ------------------------------------------------------------- */
+
+.os-window__body {
+  grid-area: 2 / 1;
+  min-height: 0;
+  overflow: hidden auto;
+  /*
+   * The rail's gutter is reserved whether or not the rail is showing.
+   *
+   * Reserving it only on overflow is a feedback loop with teeth: narrowing the
+   * content by 13px can re-wrap a line, which makes the content taller, which
+   * can *create* the overflow that took the 13px — and the reverse, one frame
+   * later. The gutter is 13px on every window, always, and a window with
+   * nothing to scroll simply has an empty margin where its rail would be.
+   */
+  padding: 10px 13px 10px 12px;
+  /* The rail replaces it; a second scrollbar drawn by the host is the
+     OS-native control §10.6 forbids. */
+  scrollbar-width: none;
+}
+
+.os-window__body::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * For a window that lays out its own viewport — §11.4's panned board, §13.9's
+ * hero board, §10.11's cover wall. The window is a frame around a thing that
+ * already knows how to be scrolled, so it gives up its own padding and its own
+ * scroll and the rail stands down with it.
+ */
+.os-window__body--flush {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* --- the scroll rail ------------------------------------------------------ */
+
+/*
+ * Sharing the body's grid cell rather than sitting in a column of its own: a
+ * rail in its own column would change the body's width when it appeared, which
+ * is the reflow the reserved gutter above exists to prevent.
+ */
+.os-window__rail {
+  grid-area: 2 / 1;
+  justify-self: end;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 9px;
+  margin-right: 3px;
+  padding: 8px 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--ui-out) linear;
+}
+
+.os-window__rail[data-on='true'] {
+  opacity: 1;
+  transition-duration: var(--ui-in);
+}
+
+/* Dotted, so an empty track still reads as a track and not as a gap in the
+   border. Same 3px pitch as the title bar's stripes. */
+.os-window__rail-track {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: var(--rule) solid var(--p0);
+  background: repeating-linear-gradient(0deg, var(--p0) 0 1px, transparent 1px 3px);
+}
+
+.os-window__thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  min-height: 8px;
+  background: var(--p2);
+}
+
+/*
+ * The arrow, and the reason the rail is drawn at all: **there is more below.**
+ * Dim when the body is at its end, lit and breathing when it is not.
+ */
+.os-window__more {
+  flex: none;
+  font-size: var(--type-1x);
+  line-height: 1;
+  color: var(--p0);
+  transition: color var(--ui-out) linear;
+}
+
+.os-window__more[data-on='true'] {
+  color: var(--p3);
+  animation: os-more 1.4s steps(1, end) infinite;
+}
+
+@keyframes os-more {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  61%,
+  100% {
+    opacity: 0.35;
+  }
+}
+
+/* §10.5 rule 3 — motion scales down, and a blink is motion. */
+@media (prefers-reduced-motion: reduce) {
+  .os-window__more[data-on='true'] {
+    animation: none;
+  }
+}
+
+/* --- the foot ------------------------------------------------------------- */
+
+/*
+ * Outside the scroll, always. §21.0a is the whole argument: the term sheet's
+ * only exit went below the fold of a panel that scrolled, nothing overflowed,
+ * no gate complained, and the modal could not be left. A window's actions do
+ * not scroll.
+ *
+ * The right and bottom padding carry `--ui-slab` because a `.ui-btn` paints a
+ * 3px offset slab outside its own border box (§10.8a), and the frame clips.
+ */
+.os-window__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 10px;
+  padding: 8px calc(10px + var(--ui-slab)) calc(8px + var(--ui-slab)) 12px;
+  border-top: var(--rule) solid var(--p0);
+}
+
+/*
+ * A foot that carries readouts as well as controls puts them at the far end.
+ * `:not(:last-child)` so a foot holding one thing keeps it where the controls
+ * are — MONETISATION §4 R1's stacked pair arrives here as a single block, and
+ * pushing it left would put the game's only paid button in the corner nobody
+ * looks at.
+ */
+.os-window__foot > :first-child:not(:last-child) {
+  margin-right: auto;
+}

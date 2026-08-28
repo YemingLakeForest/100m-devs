@@ -105,7 +105,7 @@ for (let i = 0; i < 4; i += 1) {
 await page.waitForTimeout(500)
 await shot('gallery-slid')
 
-await tap(page.getByRole('button', { name: 'BACK', exact: true }), 'the gallery BACK')
+await tap(page.locator('.hud__gallery .os-window__close'), 'the gallery close box')
 
 // --- the hero capability model --------------------------------------------
 await tap(page.getByRole('button', { name: 'HERO', exact: true }), 'the HERO door')

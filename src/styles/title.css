@@ -614,36 +614,38 @@
 
 /* --- OPTIONS / CREDITS stubs -------------------------------------------- */
 
+/* Sizing boxes. Frame, ground and scroll are the window's (§10.6a). */
 .title__stub {
+  max-width: calc(100% - 2 * var(--edge-x));
+  max-height: calc(100% - 2 * var(--edge-y));
+}
+
+.title__stub-body {
   display: grid;
+  align-content: start;
   justify-items: start;
   gap: 12px;
-  padding: 14px 18px;
-  border: var(--rule) solid var(--p1);
-  background: color-mix(in srgb, var(--n0) 88%, transparent);
-  pointer-events: auto;
 }
 
 .title__new-game {
-  display: grid;
-  justify-items: start;
-  gap: 10px;
   width: min(34em, calc(100% - 2 * var(--edge-x)));
-  padding: 14px 18px;
-  border: var(--rule) solid var(--alarm-2);
-  background: color-mix(in srgb, var(--n0) 92%, transparent);
-  pointer-events: auto;
+  max-height: calc(100% - 2 * var(--edge-y));
 }
 
-.title__new-game h2,
-.title__new-game p {
+/* The one window in the product drawn off the phosphor ramp. An erase is not a
+   studio state, so it does not take the studio's hue — it takes the alarm. */
+.title__new-game .os-window {
+  border-color: var(--alarm-2);
+}
+
+.title__new-game-body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.title__new-game-body p {
   margin: 0;
-}
-
-.title__new-game-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .title__stub-copy {

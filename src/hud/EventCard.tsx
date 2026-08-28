@@ -15,6 +15,13 @@
  * build had ever asked a player to open it. What the player *can* do is decide
  * how to deal with it, which is a different thing from being able to ignore it.
  *
+ * §10.6b stands both of them down *while a scene is up*, and that is not an
+ * exception to the paragraph above. The event is still live, the ceiling is
+ * still on the studio, and the card is back the frame the box goes away — the
+ * banner has always behaved this way (see the note below) and the card now
+ * behaves like the banner. Suppressing is not dismissing: nothing here gives
+ * the player a way past a decision they still owe.
+ *
  * The banner lives in `.hud__script` — the band the game already talks to the
  * player in — for two reasons that are both about pixels. §10.1a says both
  * rails are full and trap 26 says a control does not belong in a column of
@@ -24,7 +31,7 @@
  */
 
 import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import type { LiveEvent, StudioEvent } from '../sim/events.ts'
 
 export interface EventView {
@@ -67,14 +74,22 @@ export function EventCard({
   const open = event !== null && !event.live.routed
 
   return (
-    <Panel open={open} modal from="centre" className="event-card">
-      {event && (
-        <div className="event-card__body">
-          <span className="event-card__kicker">STUDIO_OS // INCIDENT</span>
-          <h2 className="event-card__name">{event.def.name}</h2>
-          <pre className="event-card__headline">{event.def.headline}</pre>
-          <p className="event-card__text">{event.def.body}</p>
-          <div className="event-card__actions">
+    <OsWindow
+      open={open}
+      modal
+      from="centre"
+      className="event-card"
+      bodyClassName="event-card__body"
+      title="INCIDENT"
+      /*
+        No close box: the two buttons in the foot are the only ways off and
+        both of them are decisions. That is what §18.0a means by mandatory, and
+        §10.6a's chrome states it by leaving the corner empty rather than by
+        drawing a disabled box there.
+      */
+      footer={
+        event && (
+          <>
             <Button onClick={onRoute}>{event.def.routeLabel}</Button>
             {/*
               §18.0 — the exit that is always available and never priced in
@@ -84,10 +99,18 @@ export function EventCard({
               can teach anything.
             */}
             <Button onClick={onReply}>{replyLabel(event.live.remaining)}</Button>
-          </div>
-        </div>
+          </>
+        )
+      }
+    >
+      {event && (
+        <>
+          <h3 className="event-card__name">{event.def.name}</h3>
+          <pre className="event-card__headline">{event.def.headline}</pre>
+          <p className="event-card__text">{event.def.body}</p>
+        </>
       )}
-    </Panel>
+    </OsWindow>
   )
 }
 

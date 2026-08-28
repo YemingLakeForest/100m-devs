@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import { Button } from '../ui/Button.tsx'
 import { motionMs, useReducedMotion } from '../ui/motion.ts'
 import { Counter } from './Counter.tsx'
@@ -77,9 +77,40 @@ export function OvernightReport({ report, adReady, onCollect }: OvernightReportP
   const storyPoints = report.storyPoints.toNumber()
 
   return (
-    <Panel open modal from="centre" className="overnight">
-      <h1 className="overnight__title">OVERNIGHT BUILD</h1>
-
+    <OsWindow
+      open
+      modal
+      from="centre"
+      className="overnight"
+      bodyClassName="overnight__body"
+      title="OVERNIGHT BUILD"
+      /*
+        No close box: §24.8's payout is collected, not dismissed, and the two
+        buttons in the foot are the only ways off. `COLLECT` is one of them and
+        it is never gated, so there is no state in which this window traps
+        anybody.
+      */
+      footer={
+        <div className="overnight__actions">
+          {/*
+            MONETISATION §4 R1: the 2x button sits ABOVE collect. Not beside it,
+            not after it — which is why the foot's own row layout is overridden
+            here rather than the buttons being handed to it loose. And it is
+            absent rather than disabled when no ad is filled: a dead button here
+            is a broken promise at the one moment per session the player is
+            paying attention.
+          */}
+          {adReady && (
+            <Button variant="bait" onClick={() => onCollect(2)}>
+              {doubleLabel(report)}
+            </Button>
+          )}
+          {/* Always available, never gated, never on a timer. The ad is an
+              upgrade to a payout the player already owns. */}
+          <Button onClick={() => onCollect(1)}>COLLECT</Button>
+        </div>
+      }
+    >
       <dl className="overnight__rows">
         {rows.map((row, i) => (
           <div
@@ -125,22 +156,6 @@ export function OvernightReport({ report, adReady, onCollect }: OvernightReportP
         <p className="overnight__idle"><ConceptText text={idle} /></p>
       )}
 
-      <div className="overnight__actions">
-        {/*
-          MONETISATION §4 R1: the 2x button sits ABOVE collect. Not beside it,
-          not after it. And it is absent rather than disabled when no ad is
-          filled — a dead button here is a broken promise at the one moment per
-          session the player is paying attention.
-        */}
-        {adReady && (
-          <Button variant="bait" onClick={() => onCollect(2)}>
-            {doubleLabel(report)}
-          </Button>
-        )}
-        {/* Always available, never gated, never on a timer. The ad is an
-            upgrade to a payout the player already owns. */}
-        <Button onClick={() => onCollect(1)}>COLLECT</Button>
-      </div>
-    </Panel>
+    </OsWindow>
   )
 }

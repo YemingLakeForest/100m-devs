@@ -434,28 +434,37 @@ async function overflowIssues(page) {
         right: rect.right + Math.max(0, ox),
         bottom: rect.bottom + Math.max(0, oy),
       }
+      /*
+       * **A button below the fold is not a clipped button.**
+       *
+       * §13.12's tree is ten nodes, two readouts and a shift offer, and on a
+       * 640x360 phone they do not fit — so the player scrolls, which is the
+       * design. Measured at the top of that scroll, PARADIGM SHIFT sits past
+       * the bottom of the box holding it, which is a true statement about the
+       * rectangles and says nothing at all about whether the screen looks
+       * broken.
+       *
+       * The flag is what §10.6a made necessary. The scroller used to be the
+       * outermost box a window had, so ignoring the clip *on that one element*
+       * was enough. A STUDIO_OS window is a frame with `overflow: hidden`
+       * around a body that scrolls — so a button below the body's fold is
+       * genuinely outside the frame's box, and the frame is genuinely clipping
+       * it, and neither of those is a defect. Once the walk has passed a
+       * scroller, vertical clipping further out is that scroller's business.
+       *
+       * Horizontal stays unconditional either way: nothing in this game is
+       * allowed to scroll sideways, so a slab past a side edge is always a
+       * defect whatever the overflow value says.
+       */
+      let belowAFold = false
       for (let ancestor = button.parentElement; ancestor && ancestor !== root; ancestor = ancestor.parentElement) {
         const style = getComputedStyle(ancestor)
         const clipsX = style.overflowX !== 'visible'
-        /*
-         * **A button below the fold is not a clipped button.**
-         *
-         * `.paradigm` is `max-height: 86vh; overflow-y: auto`, and on a 640x360
-         * phone its ten nodes, two readouts and shift offer do not fit — so the
-         * player scrolls, which is the design. Measured at the top of that
-         * scroll, PARADIGM SHIFT and CLOSE sit past the container's bottom edge
-         * and tripped this check, which is a true statement about the boxes and
-         * says nothing at all about whether the screen looks broken.
-         *
-         * So vertical clipping is a defect only where the container **cannot**
-         * scroll. Horizontal stays unconditional: nothing in this game is
-         * allowed to scroll sideways, so a slab past the side edge is always a
-         * defect whatever the overflow value says.
-         */
         const scrollsY =
           (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
           ancestor.scrollHeight > ancestor.clientHeight + 1
-        const clipsY = style.overflowY !== 'visible' && !scrollsY
+        const clipsY = style.overflowY !== 'visible' && !scrollsY && !belowAFold
+        if (scrollsY) belowAFold = true
         if (!clipsX && !clipsY) continue
         const box = ancestor.getBoundingClientRect()
         // No slack here: the whole point is that a slab cut by even one pixel

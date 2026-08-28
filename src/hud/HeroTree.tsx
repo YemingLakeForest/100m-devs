@@ -36,7 +36,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../ui/Button.tsx'
-import { Panel } from '../ui/Panel.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import {
   BRANCH_BY_ID,
   BRANCH_DEFS,
@@ -167,7 +167,12 @@ export function HeroTree({
     el.scrollTop = Math.max(0, y - el.clientHeight / 2)
   }, [open, zoom, board.originX, board.originY])
 
-  if (!hero) return <Panel open={false} from="bottom" className="herotree"><span /></Panel>
+  if (!hero)
+    return (
+      <OsWindow open={false} from="bottom" className="herotree" title="CAPABILITY MODEL">
+        <span />
+      </OsWindow>
+    )
 
 
   const paths = HERO_TREE.filter((n) => n.depth > 0).map((n) => ({
@@ -202,14 +207,18 @@ export function HeroTree({
   const mastery = heroMastery(hero)
 
   return (
-    <Panel open={open} from="bottom" className="herotree">
+    <OsWindow
+      open={open}
+      from="bottom"
+      className="herotree"
+      /* §13.9's board is panned in two axes and owns its own viewport. */
+      bodyClassName="os-window__body--flush"
+      title={`CAPABILITY MODEL // ${hero.hero.name.toUpperCase()}`}
+      meta={hero.hero.role}
+      onClose={onClose}
+    >
       <div className="herotree__frame">
         <header className="herotree__head">
-          <div className="herotree__ident">
-            <span className="herotree__kicker">CAPABILITY MODEL // {hero.hero.id.toUpperCase()}</span>
-            <h2 className="herotree__title">{hero.hero.name.toUpperCase()}</h2>
-            <p className="herotree__role">{hero.hero.role}</p>
-          </div>
           <div className="herotree__toolbar">
             {/*
               The zoom control a diagram tool has. Not a preference: at 100% the
@@ -244,6 +253,15 @@ export function HeroTree({
         </header>
 
         <div className="herotree__stage">
+          {/*
+            No `data-os-scroll` here, unlike §11.4's board, and the difference
+            is what the viewport *is*. That board fills its window, so the rail
+            at the window's edge is its rail. This one shares its row with the
+            inspector below, which does not scroll with it — and the inspector
+            is the column the window's right edge actually runs down, so that is
+            where the rail is pointed. The board says how big it is by being
+            panned (§11.4.1) and needs nothing said from the wrong column.
+          */}
           <div className="herotree__scroll" ref={scroller}>
             <div
               className="herotree__world"
@@ -376,7 +394,11 @@ export function HeroTree({
             answered "what is this person worth *now*", which is exactly the
             question §4.14's trait term made worth asking.
           */}
-          <aside className="herotree__rail">
+          {/* §10.6a — the window's scroll rail measures this. PACKAGES runs to
+              six rows and INSTANCE to a paragraph, and on a 448px frame the
+              last of them were simply cut off with nothing on screen admitting
+              it. */}
+          <aside className="herotree__rail" data-os-scroll>
             <section className="herotree__panel">
               <h3 className="herotree__panel-title">INSTANCE</h3>
               <dl className="herotree__stats">
@@ -444,9 +466,6 @@ export function HeroTree({
           </aside>
         </div>
 
-        <footer className="herotree__footer">
-          <Button onClick={onClose}>BACK</Button>
-        </footer>
       </div>
 
       {/*
@@ -542,6 +561,6 @@ export function HeroTree({
           </div>
         </div>
       )}
-    </Panel>
+    </OsWindow>
   )
 }

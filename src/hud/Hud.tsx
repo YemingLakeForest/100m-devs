@@ -58,6 +58,7 @@ import { countsOf, type Role } from '../sim/roles.ts'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
 import { Dialogue } from '../ui/Dialogue.tsx'
+import { OsWindow } from '../ui/OsWindow.tsx'
 import {
   SCENES,
   SCENE_FOUNDER_BOARD,
@@ -202,6 +203,54 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [heroTreeOpen, setHeroTreeOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
   const [guidedBoard, setGuidedBoard] = useState<'tech' | 'founder' | 'hero' | null>(null)
+
+  /**
+   * §10.6b — **no window is open while somebody is talking.**
+   *
+   * A scene is the game's voice (§10.7) and it stops the studio: the poke path
+   * goes inert, the script block leaves the rail, and the camera belongs to the
+   * speaker. A term sheet, an incident card or an upgrade board left standing
+   * behind that box is a surface the player can see, cannot use, and did not
+   * ask to still be looking at — and the one that caused this rule is real:
+   * clearing THE THREAD from a board the player opened themselves plays
+   * `thread-cleared` *over the open board*, so James congratulates them through
+   * a tech tree.
+   *
+   * Read once here and applied to every window below, rather than each deciding
+   * for itself. The two forms it takes are different and both are needed:
+   *
+   *   - the doors this component owns are **closed** by the effect below, so
+   *     they do not spring back when the scene ends — a window that reappears
+   *     after a conversation is the lingering pop-up wearing a delay;
+   *   - the windows a *state* raises — §21.0a's term sheet, §18.0a's card,
+   *     §24.8's report — are **suppressed**, because the state is still true
+   *     and they must come back the moment the box is gone.
+   *
+   * `state.selected` and `state.selectedHero` are the store's, and `showScene`
+   * clears them there for the same reason.
+   */
+  const talking = state.scene !== null
+
+  // Adjusted during render rather than in an effect — React's documented "a
+  // prop changed" pattern, and the same one `Panel` uses for its exit. In an
+  // effect the doors would be shut a frame *after* the box was up, which is one
+  // frame of exactly the picture this rule exists to stop.
+  const [wasTalking, setWasTalking] = useState(talking)
+  if (wasTalking !== talking) {
+    setWasTalking(talking)
+    if (talking) {
+      setTreeOpen(false)
+      setUpgradesOpen(false)
+      setFounderOpen(false)
+      setGameMenuOpen(false)
+      setGalleryOpen(false)
+      setHeroTreeOpen(false)
+      setRosterOpen(false)
+      // A guided board whose window has been closed is a dangling promise: the
+      // flag would put the teaching line on whatever opened next.
+      setGuidedBoard(null)
+    }
+  }
   const roster = heroRoster(state)
   // Resolved once per render: `heroById` rebuilds from `meta` and the run, so
   // asking twice in one frame would build the same six objects twice.
@@ -575,7 +624,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       <PostingBanner state={state} />
       <HeroTree
         hero={openHero}
-        open={heroTreeOpen && openHero !== null}
+        open={heroTreeOpen && openHero !== null && !talking}
         guided={guidedBoard === 'hero'}
         onGuidedComplete={() => {
           setGuidedBoard(null)
@@ -588,7 +637,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         }}
       />
       <Roster
-        open={rosterOpen && openHero === null}
+        open={rosterOpen && openHero === null && !talking}
         roster={roster}
         labelFor={(hero) => heroPlacedLabel(hero, state)}
         coverageFor={(hero) => heroCoverageOf(hero, state)}
@@ -650,7 +699,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         beside the panels rather than inside the rail: it is a scrim over the
         whole frame, because the studio has genuinely stopped.
       */}
-      <EventCard event={event} onRoute={openBoardForEvent} onReply={replyToEvent} />
+      <EventCard event={talking ? null : event} onRoute={openBoardForEvent} onReply={replyToEvent} />
 
       {/*
         §21.0a — the term sheet, beside the event card and for the same reason:
@@ -661,13 +710,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         the interesting fields set to no-ops.
       */}
       <TermSheet
-        open={state.phase === 'act2_termsheet' && !state.seedTaken}
+        open={state.phase === 'act2_termsheet' && !state.seedTaken && !talking}
         amount={SEED_ROUND_CASH}
         onSign={takeSeedRound}
       />
 
       <UpgradeBoard
-        open={upgradesOpen}
+        open={upgradesOpen && !talking}
         guided={guidedBoard === 'tech'}
         onGuidedComplete={() => {
           setGuidedBoard(null)
@@ -678,10 +727,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           setUpgradesOpen(false)
         }}
       />
-      <Gallery open={galleryOpen} onClose={() => setGalleryOpen(false)} />
-      <ParadigmTree open={treeOpen} state={state} onClose={() => setTreeOpen(false)} />
+      <Gallery open={galleryOpen && !talking} onClose={() => setGalleryOpen(false)} />
+      <ParadigmTree open={treeOpen && !talking} state={state} onClose={() => setTreeOpen(false)} />
       <FounderProfilePanel
-        open={founderOpen}
+        open={founderOpen && !talking}
         guided={guidedBoard === 'founder'}
         onGuidedComplete={() => {
           setGuidedBoard(null)
@@ -693,7 +742,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         }}
       />
       <GameMenu
-        open={gameMenuOpen}
+        open={gameMenuOpen && !talking}
         onResume={() => setGameMenuOpen(false)}
         onMainMenu={() => {
           setGameMenuOpen(false)
@@ -701,13 +750,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         }}
       />
 
-      <Bankruptcy open={state.phase === 'bankrupt'} />
+      <Bankruptcy open={state.phase === 'bankrupt' && !talking} />
       {/*
         §24.8 — before the swarm, before the rest of the HUD. `collectOffline`
         clears `pendingOffline`, so this unmounts on collect and the Panel
         plays its exit rather than vanishing.
       */}
-      {shouldShowReport(state.pendingOffline) && (
+      {!talking && shouldShowReport(state.pendingOffline) && (
         <OvernightReport
           report={state.pendingOffline}
           // Hard false until game-monetise is wired. §24.8 says an unfilled
@@ -769,17 +818,33 @@ function GameMenu({
   onMainMenu: () => void
 }) {
   return (
-    <Panel open={open} modal from="centre" className="game-menu">
-      <h2>GAME MENU</h2>
+    <OsWindow
+      open={open}
+      modal
+      from="centre"
+      className="game-menu"
+      bodyClassName="game-menu__body"
+      title="GAME MENU"
+      /*
+        §10.6's last row — "a separate settings page that looks like a form" is
+        a web-app tell, and "style it as a STUDIO_OS config terminal" is the
+        answer it gives. This is that window, and the close box is a second way
+        out beside RESUME rather than a replacement for it: the two say
+        different things, and the one that says "carry on" belongs on a button.
+      */
+      onClose={onResume}
+      footer={
+        <>
+          <Button onClick={onResume}>RESUME</Button>
+          <Button onClick={onMainMenu}>MAIN SCREEN</Button>
+        </>
+      }
+    >
       <p>Your studio keeps working while this menu is open.</p>
       <div className="game-menu__options">
         <Options />
       </div>
-      <div className="game-menu__actions">
-        <Button onClick={onResume}>RESUME</Button>
-        <Button onClick={onMainMenu}>MAIN SCREEN</Button>
-      </div>
-    </Panel>
+    </OsWindow>
   )
 }
 
@@ -963,7 +1028,24 @@ function Bubble({ text }: { text: string | null }) {
  */
 function Bankruptcy({ open }: { open: boolean }) {
   return (
-    <Panel open={open} modal from="centre" className="bankruptcy">
+    <OsWindow
+      open={open}
+      modal
+      from="centre"
+      className="bankruptcy"
+      bodyClassName="bankruptcy__body"
+      title="LIQUIDATION"
+      /*
+        No close box. This screen holds the sole route into Run 2 — see
+        `Panel`'s note on the frame-callback mount that once lost it — and a
+        run that has ended is not a window you dismiss.
+      */
+      footer={
+        <Button variant="bait" onClick={triggerParadigmShift}>
+          TRIGGER PARADIGM SHIFT
+        </Button>
+      }
+    >
       <h1>BANKRUPTCY</h1>
       <p>
         <ConceptText text="Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds coding." />
@@ -974,12 +1056,9 @@ function Bankruptcy({ open }: { open: boolean }) {
         <br />
         Manpower without Communication Infrastructure is Chaos.
       </p>
-      <Button variant="bait" onClick={triggerParadigmShift}>
-        TRIGGER PARADIGM SHIFT
-      </Button>
       {/* James survives. Every other developer is liquidated. */}
       <p className="bankruptcy__james">James stayed.</p>
-    </Panel>
+    </OsWindow>
   )
 }
 
