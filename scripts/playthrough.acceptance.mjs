@@ -721,8 +721,9 @@ async function walkCareerOne(page) {
  * boxes and the connectors' endpoints are both in world coordinates, which is
  * the whole subject of item 4.
  */
-/** §11.4's node box, in CSS px. `UpgradeBoard`'s own `NODE`, restated here. */
-const NODE_PX = 66
+/** §11.4's UML class box, in CSS px. `UpgradeBoard`'s dimensions, restated here. */
+const NODE_W_PX = 168
+const NODE_H_PX = 104
 
 const readBoard = (page) =>
   page.evaluate(() => {
@@ -756,8 +757,12 @@ const readBoard = (page) =>
 async function walkItem4(page) {
   item('item 4 — UPGRADES, Instant Messenger at the centre, and a board that grows')
 
-  await press(page, 'UPGRADES')
-  await page.locator('.upgrade-board').waitFor()
+  const upgradeBoard = page.locator('.upgrade-board')
+  // §21.7.7e: James now puts the instrument in the player's hand himself.
+  // Keep the manual route here as a fallback for careers that already consumed
+  // the introduction before this acceptance chapter began.
+  if (!(await upgradeBoard.isVisible().catch(() => false))) await press(page, 'UPGRADES')
+  await upgradeBoard.waitFor()
   await page.waitForTimeout(400)
 
   const before = await readBoard(page)
@@ -782,9 +787,10 @@ async function walkItem4(page) {
   // ...and it is the point the connectors run out of, which is the join the
   // component had wrong: the node layer was translated three cells off the link
   // layer, so every line missed the node it was drawn to.
-  const half = NODE_PX / 2
+  const halfX = NODE_W_PX / 2
+  const halfY = NODE_H_PX / 2
   const detached = before.nodes.filter(
-    (n) => !before.ends.includes(`${Math.round(n.left + half)},${Math.round(n.top + half)}`),
+    (n) => !before.ends.includes(`${Math.round(n.left + halfX)},${Math.round(n.top + halfY)}`),
   )
   if (detached.length > 0) {
     fail(`${detached.length} node(s) are not on a connector endpoint: ${detached.map((n) => n.name ?? 'dark').join(', ')}`)
@@ -794,8 +800,8 @@ async function walkItem4(page) {
     (n) =>
       n.left < 0 ||
       n.top < 0 ||
-      n.left + NODE_PX > before.world.w ||
-      n.top + NODE_PX > before.world.h,
+      n.left + NODE_W_PX > before.world.w ||
+      n.top + NODE_H_PX > before.world.h,
   )
   if (offWorld.length > 0) {
     fail(`${offWorld.length} node(s) sit outside the world box and no scroll reaches them`)
@@ -1486,6 +1492,13 @@ async function freshRunTwo(browser) {
   await playScenes(page)
   if (!played('scene.run2.instant-messenger')) {
     fail(`this career did not reach Run 2 — ${await where(page)}`)
+  }
+  // §21.7.7e leaves James's new capability board in the player's hand. These
+  // helper careers are about later systems, so return them to the running floor
+  // after proving that the hand-off happened; item 4 owns the board walkthrough.
+  const upgradeBoard = page.locator('.upgrade-board')
+  if (await upgradeBoard.isVisible().catch(() => false)) {
+    await closeWindow(page, '.hud__upgrades', 'the upgrade board')
   }
   return page
 }

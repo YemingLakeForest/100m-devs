@@ -1517,10 +1517,10 @@ export const COVER_SPAN = 0.44
  * build and compare than a walk over two maps. It is never parsed and never
  * stored, so its shape is nobody's business but this file's.
  */
-function coverageKey(marks: ReadonlyMap<number, { colour: string; wasted: boolean; settling: boolean }>): string {
+function coverageKey(marks: ReadonlyMap<number, { colour: string; wasted: boolean; settling: boolean; activation?: number }>): string {
   let key = ''
   for (const [seat, m] of marks) {
-    key += `${seat}${m.colour}${m.wasted ? 'w' : ''}${m.settling ? 's' : ''};`
+    key += `${seat}${m.colour}${m.wasted ? 'w' : ''}${m.settling ? 's' : ''}${(m.activation ?? 1).toFixed(2)};`
   }
   return key
 }
@@ -1549,7 +1549,7 @@ const COVER_HATCH = 3
 export function drawSeatCoverage(
   g: Graphics,
   index: number,
-  mark: { colour: string; wasted: boolean; settling: boolean },
+  mark: { colour: string; wasted: boolean; settling: boolean; activation?: number },
 ) {
   const { col, row } = seatGrid(index)
   const gx = row * PITCH_ROW
@@ -1575,8 +1575,9 @@ export function drawSeatCoverage(
     return
   }
 
-  outline().fill({ color: colour, alpha: 0.3 })
-  outline().stroke({ width: 1, color: colour, alpha: 0.85 })
+  const activation = mark.activation ?? 1
+  outline().fill({ color: colour, alpha: 0.3 * activation })
+  outline().stroke({ width: 1, color: colour, alpha: 0.55 + 0.3 * activation })
 
   if (!mark.wasted) return
   // The hatch is drawn in the same colour rather than in a warning red. Nothing

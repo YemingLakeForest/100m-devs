@@ -110,6 +110,16 @@ describe('§13.11.1 — the footprint on the room floor', () => {
     expect(both.get(0)?.settling).toBe(false)
   })
 
+  it('fills the footprint in seat order during the activation sweep', () => {
+    const marks = roomSeatMarks([posting({ reachDevs: 4, activation: 0.5 })], 10)
+    expect(marks.get(0)!.activation!).toBeGreaterThan(marks.get(1)!.activation!)
+    expect(marks.get(1)!.activation!).toBeGreaterThan(marks.get(2)!.activation!)
+    expect(marks.get(2)!.activation!).toBeGreaterThan(marks.get(3)!.activation!)
+
+    const active = roomSeatMarks([posting({ reachDevs: 4, activation: 1 })], 10)
+    for (const mark of active.values()) expect(mark.activation).toBe(1)
+  })
+
   it('draws nothing on an empty studio', () => {
     expect(roomSeatMarks([posting()], 0).size).toBe(0)
   })

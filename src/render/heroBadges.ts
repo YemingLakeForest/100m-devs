@@ -79,6 +79,8 @@ export interface RoomPosting {
   reachDevs: number
   /** §13.8 rule 4 — still walking, so covering nothing yet. */
   settling: boolean
+  /** 0..1 activation sweep after settling. Omitted means an established posting. */
+  activation?: number
 }
 
 /** What the floor draws under one seat. */
@@ -88,6 +90,8 @@ export interface SeatMark {
   wasted: boolean
   /** §13.8 rule 4 — drawn as an outline, because it is not coverage yet. */
   settling: boolean
+  /** Seat-local fill progress; staggered in posting order for the activation wave. */
+  activation?: number
 }
 
 /**
@@ -128,8 +132,13 @@ export function roomSeatMarks(
     // `devs - index` is the slot, and reach is capped by it: a hero on the last
     // desk of a room of ten covers one person however far they can reach.
     const to = Math.min(seats, from + Math.max(0, Math.floor(p.reachDevs)))
+    const span = Math.max(1, to - from)
+    const sweep = p.settling ? 0 : Math.min(1, Math.max(0, p.activation ?? 1))
 
     for (let seat = from; seat < to; seat++) {
+      const order = span <= 1 ? 0 : (seat - from) / (span - 1)
+      // The first seat begins immediately; the last finishes with the sweep.
+      const activation = Math.min(1, Math.max(0, sweep * 1.35 - order * 0.35))
       let branches = claimedBy.get(seat)
       if (!branches) {
         branches = new Set()
@@ -140,13 +149,14 @@ export function roomSeatMarks(
 
       const existing = marks.get(seat)
       if (!existing) {
-        marks.set(seat, { colour: p.colour, wasted: false, settling: p.settling })
+        marks.set(seat, { colour: p.colour, wasted: false, settling: p.settling, activation })
         continue
       }
       // Rule 3 keeps the first colour; rule 2 turns the seat hatched. A seat is
       // only un-settled once somebody who has arrived covers it.
       if (duplicate) existing.wasted = true
       if (!p.settling) existing.settling = false
+      existing.activation = Math.max(existing.activation ?? 1, activation)
     }
   }
 

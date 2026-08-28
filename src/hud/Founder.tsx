@@ -27,6 +27,9 @@ import { useGameState } from './useGameState.ts'
 import { ConceptText } from '../ui/ConceptText.tsx'
 import { Kw } from './Kw.tsx'
 import { playKeyboardClick } from '../audio/sfx.ts'
+import { PurchaseEffect } from './PurchaseEffect.tsx'
+import { usePurchaseEffect } from './usePurchaseEffect.ts'
+import { founderEffectReceipt } from './upgradeEffectModel.ts'
 
 import '../styles/diagram.css'
 import '../styles/founder.css'
@@ -97,14 +100,16 @@ function Node({
   node,
   cash,
   guided,
+  flash,
   style,
-  onBought,
+  onBuy,
 }: {
   node: FounderNode
   cash: number
   guided?: boolean
+  flash?: boolean
   style?: CSSProperties
-  onBought?: () => void
+  onBuy: (node: FounderNode) => void
 }) {
   const levels = getPermanent().meta.founderLevels ?? {}
   const level = founderLevel(levels, node.id)
@@ -116,6 +121,7 @@ function Node({
       className="founder__node uml"
       data-owned={level > 0 ? 'true' : 'false'}
       data-guide={guided ? 'true' : 'false'}
+      data-flash={flash ? 'true' : 'false'}
       data-maxed={maxed ? 'true' : 'false'}
       style={style}
     >
@@ -149,9 +155,7 @@ function Node({
           level : <b>{level}/{node.maxLevel}</b>
         </p>
         <Button
-          onClick={() => {
-            if (buyFounderNode(node.id)) onBought?.()
-          }}
+          onClick={() => onBuy(node)}
           disabled={maxed || cash < cost}
         >
           {maxed ? 'LEARNED' : formatMoney(cost)}
@@ -188,6 +192,7 @@ export function FounderBranch({
   onGuidedComplete?: () => void
 }) {
   const f = founderOf()
+  const purchase = usePurchaseEffect()
   const levels = getPermanent().meta.founderLevels ?? {}
   const mastery = founderMastery(levels)
 
@@ -240,6 +245,16 @@ export function FounderBranch({
     board,
   )
   const owned = (node: FounderNode) => founderLevel(levels, node.id) > 0
+
+  const buy = (node: FounderNode) => {
+    const before = founderOf()
+    if (!buyFounderNode(node.id)) return
+    purchase.begin(
+      node.id,
+      founderEffectReceipt(node.name, before, founderOf()),
+      guided ? onGuidedComplete : undefined,
+    )
+  }
 
   const at = (x: number, y: number, w: number, h: number): CSSProperties => ({
     left: (x + board.originX) * CELL_X - w / 2,
@@ -366,13 +381,15 @@ export function FounderBranch({
               node={node}
               cash={cash}
               guided={guided && node.id === 'M-ENG'}
+              flash={purchase.effect?.nodeId === node.id}
               style={at(node.x, node.y, NODE_W, NODE_H)}
-              onBought={guided ? onGuidedComplete : undefined}
+              onBuy={buy}
             />
           ))}
           </div>
         </div>
       </div>
+      <div className="founder__effect"><PurchaseEffect effect={purchase.effect} /></div>
     </section>
   )
 }

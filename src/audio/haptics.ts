@@ -56,6 +56,12 @@ export function holdHaptic(): void {
   void Haptics.impact({ style: ImpactStyle.Medium })
 }
 
+/** A single confident confirmation when a permanent multiplier resolves. */
+export function purchaseHaptic(): void {
+  if (!enabled()) return
+  void Haptics.impact({ style: ImpactStyle.Medium })
+}
+
 export function pokeHaptic(state: DevState): void {
   if (!enabled()) return
 

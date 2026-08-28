@@ -7,7 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { HeroCard } from './HeroCard.tsx'
 import { HeroTree } from './HeroTree.tsx'
 import { __resetStore, heroById, placeHero, selectHero } from '../game/store.ts'
@@ -61,6 +61,7 @@ afterEach(() => {
   cleanup()
   __resetStore()
   setPermanent(emptyPermanent())
+  vi.useRealTimers()
 })
 
 describe('§22.9 — the card is a card, not a personnel record', () => {
@@ -173,6 +174,7 @@ describe('§13.9 — every hero opens the same board, from where they already ar
   })
 
   it('marks one valid first-use node and returns to the floor after purchase', () => {
+    vi.useFakeTimers()
     const complete = vi.fn()
     const { container } = render(
       <HeroTree
@@ -188,6 +190,7 @@ describe('§13.9 — every hero opens the same board, from where they already ar
     expect(guided).not.toBeNull()
     fireEvent.click(guided)
     fireEvent.click(screen.getByRole('button', { name: /1 POINT/ }))
+    act(() => vi.advanceTimersByTime(440))
     expect(complete).toHaveBeenCalledOnce()
   })
 

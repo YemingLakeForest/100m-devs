@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { heroCoverageOf, type GameState } from '../game/store.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { heroIdentity } from '../sim/identity.ts'
-import type { HeroRuntime } from '../sim/heroRoster.ts'
+import { SETTLE_SECONDS, type HeroRuntime } from '../sim/heroRoster.ts'
 import { HeroFace } from './HeroFace.tsx'
 import { assignmentLabel } from './worldHeroAssignmentModel.ts'
 
@@ -71,12 +71,17 @@ export function WorldHeroAssignments({
         const y = Math.max(minY, Math.min(maxY, rawY))
         const edge = projected === null || x !== rawX || y !== rawY
         const face = heroIdentity(hero.id)
+        const placementAge = isPreview ? 0 : Math.max(0, state.runSeconds - placement.placedAt)
+        const settleProgress = Math.min(1, placementAge / SETTLE_SECONDS)
+        const justActivated = !isPreview && placementAge >= SETTLE_SECONDS && placementAge < SETTLE_SECONDS + 1.1
+        const remaining = Math.max(1, Math.ceil(SETTLE_SECONDS - placementAge))
 
         return (
           <div
             className="world-hero-pin"
             data-edge={edge ? 'true' : 'false'}
             data-state={isPreview ? 'preview' : coverage?.settling ? 'walking' : 'active'}
+            data-activated={justActivated ? 'true' : 'false'}
             key={`${hero.id}:${isPreview ? 'preview' : 'committed'}`}
             aria-label={`${hero.hero.name} ${isPreview ? 'preview at' : 'assigned to'} ${assignmentLabel(hero)}`}
             style={
@@ -87,6 +92,20 @@ export function WorldHeroAssignments({
               } as CSSProperties
             }
           >
+            {coverage?.settling && (
+              <svg className="world-hero-pin__countdown" viewBox="0 0 40 40" aria-label={`Active in ${remaining} seconds`}>
+                <circle className="world-hero-pin__countdown-track" cx="20" cy="20" r="17" pathLength="100" />
+                <circle
+                  className="world-hero-pin__countdown-value"
+                  cx="20"
+                  cy="20"
+                  r="17"
+                  pathLength="100"
+                  style={{ strokeDashoffset: 100 - settleProgress * 100 }}
+                />
+                <text x="20" y="23">{remaining}</text>
+              </svg>
+            )}
             <span className="world-hero-pin__target" aria-hidden="true" />
             <div className="world-hero-pin__card">
               {face && <HeroFace look={face.look} className="world-hero-pin__face" />}

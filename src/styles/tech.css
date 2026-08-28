@@ -156,6 +156,8 @@
  * It is larger than its viewport and panned, which is how it is bigger without
  * a line of copy saying so.
  */
+/* §11's company capability board. The geometry and notation deliberately match
+   the hero and founder boards; only the economy and branch nouns change. */
 
 /*
  * §10.6a — the masthead and the BACK button are gone: the title, the cash and
@@ -296,39 +298,135 @@
   background: var(--n0);
 }
 
-.upgrade-board__guide-icon {
-  width: 72px;
-  height: 72px;
-  fill: var(--p2);
-  justify-self: center;
+.upgrade-board {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 12px 14px;
+  border: 0;
+  background: var(--n0);
 }
 
-.upgrade-board__guide-name {
-  margin: 0;
-  font-size: var(--type-2x);
-  font-weight: 400;
-  letter-spacing: 1px;
-  color: var(--p3);
+.upgrade-board__head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: var(--rule) solid var(--p0);
 }
 
-.upgrade-board__guide-flavour {
-  margin: 0;
+.upgrade-board__head > div:first-child { display: grid; gap: 2px; }
+.upgrade-board__head p { margin: 0; color: var(--p1); font-size: var(--type-1x); }
+.upgrade-board__kicker { color: var(--p1); font-size: var(--type-1x); letter-spacing: 2px; }
+.hud__upgrades-title { margin: 0; color: var(--n8); font-size: var(--type-2x); font-weight: 400; letter-spacing: 3px; }
+.upgrade-board__head .board-teaching { flex: 1 1 100%; margin-top: 3px; }
+
+.upgrade-board__balance {
+  display: grid;
+  gap: 2px;
+  padding: 5px 9px;
+  border: var(--rule) solid var(--p1);
+  text-align: right;
   font-size: var(--type-1x);
-  line-height: 1.5;
-  color: var(--p1);
-  font-style: italic;
+}
+.upgrade-board__balance span { color: var(--p1); letter-spacing: 2px; }
+.upgrade-board__balance b { color: var(--p3); font-size: var(--type-2x); font-weight: 400; }
+
+.upgrade-board__stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17em;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
 }
 
-.upgrade-board__guide-effect {
-  margin: 0;
-  font-size: var(--type-1x);
-  line-height: 1.5;
-  color: var(--p2);
+.upgrade-board__scroll {
+  width: 100%;
+  max-height: none;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: var(--rule) solid var(--p0);
+  background-color: var(--n0);
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--p0) 26%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--p0) 26%, transparent) 1px, transparent 1px);
+  background-size: 44px 30px;
 }
 
-.upgrade-board__guide-locked {
-  margin: 0;
-  font-size: var(--type-1x);
-  line-height: 1.5;
-  color: var(--p1);
+.upgrade-board__world { position: relative; }
+.upgrade-board__links { position: absolute; inset: 0; width: 100%; height: 100%; }
+.upgrade-board__links line { stroke: var(--p0); stroke-width: 2; }
+
+.upgrade-board__node { cursor: pointer; }
+.upgrade-board__node .uml__name { display: flex; align-items: center; gap: 6px; }
+.upgrade-board__node[data-owned='true'] { border-color: var(--p2); }
+.upgrade-board__node[data-owned='true'] .uml__head { border-bottom-color: var(--p2); background: color-mix(in srgb, var(--p2) 15%, var(--n0)); }
+.upgrade-board__node[data-flash='true'] { animation: upgrade-node-commit 440ms steps(4, end); z-index: 3; }
+.upgrade-board__node[data-flash='true']::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border: var(--rule) solid var(--p3);
+  animation: upgrade-node-wave 440ms steps(4, end) forwards;
+}
+
+.upgrade-board__icon { flex: none; width: 18px; height: 18px; fill: currentColor; }
+.upgrade-board__node-price { margin-top: auto; }
+.upgrade-board__stub { color: var(--p0); }
+.upgrade-board__node[data-state='silhouette'] { border-color: var(--p0); color: var(--p0); }
+.upgrade-board__node[data-state='silhouette'] .uml__head { border-bottom-color: var(--p0); }
+.upgrade-board__node[data-state='silhouette'] .upgrade-board__icon { opacity: 0.45; }
+.upgrade-board__node[data-state='dark'] { border-color: transparent; background: transparent; cursor: default; }
+.upgrade-board__node[data-state='dark'] .uml__head { border-color: var(--p0); opacity: 0.34; }
+.upgrade-board__node[data-state='dark'] .uml__body { opacity: 0.34; }
+.upgrade-board__node:active { transform: scale(0.97); }
+
+.upgrade-board__rail { display: grid; align-content: start; gap: 10px; min-width: 0; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+.upgrade-board__panel { padding: 9px 10px; border: var(--rule) solid var(--p0); }
+.upgrade-board__panel h3 { margin: 0 0 7px; color: var(--p2); font-size: var(--type-1x); font-weight: 400; letter-spacing: 2px; }
+.upgrade-board__panel dl { display: grid; gap: 5px; margin: 0; }
+.upgrade-board__panel dl > div { display: flex; justify-content: space-between; gap: 8px; border-bottom: var(--rule) dotted var(--p0); }
+.upgrade-board__panel dt, .upgrade-board__panel dd { margin: 0; font-size: var(--type-1x); }
+.upgrade-board__panel dt { color: var(--p1); }
+.upgrade-board__panel dd { color: var(--p3); }
+.upgrade-board__panel--hint p { margin: 0; color: var(--p1); font-size: var(--type-1x); line-height: 1.45; }
+
+.upgrade-board__footer { width: 100%; }
+
+.upgrade-board__guide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--n0) 70%, transparent);
+  z-index: 4;
+}
+.upgrade-board__guide-card { position: relative; width: min(24em, calc(100% - 24px)); height: auto; min-height: 17em; cursor: default; }
+.upgrade-board__guide-icon { width: 60px; height: 60px; fill: var(--p2); justify-self: center; }
+.upgrade-board__guide-name { color: var(--n8); font-size: var(--type-2x); }
+.upgrade-board__guide-effect, .upgrade-board__guide-flavour { line-height: 1.45; }
+.upgrade-board__guide-flavour { color: var(--p1); font-style: italic; }
+.upgrade-board__guide-locked, .tech__node-granted { margin: 5px 0; color: var(--p1); font-size: var(--type-1x); letter-spacing: 0.08em; }
+
+@keyframes upgrade-node-commit {
+  35% { transform: scale(1.06); border-color: var(--p3); }
+  70% { transform: scale(0.99); }
+}
+@keyframes upgrade-node-wave { to { inset: -24px; opacity: 0; } }
+
+@media (max-width: 52em) {
+  /* The supported phone frame is landscape. Stacking the inspector under the
+     diagram left a 43px keyhole at 748×336; keep both as side-by-side tools. */
+  .upgrade-board__stage { grid-template-columns: minmax(0, 1fr) 15em; }
+  .upgrade-board__panel--hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upgrade-board__node[data-flash='true'], .upgrade-board__node[data-flash='true']::after { animation: none; }
 }

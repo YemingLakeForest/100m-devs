@@ -1510,31 +1510,22 @@ body {
   padding: 7px 12px;
 }
 
-/*
- * A right-edge drawer, not a modal: §7.1 keeps the swarm visible and pokeable
- * everywhere the panel is not, and §10.5 rule 1 sends a surface back out the
- * edge it came from. Anchored to `--edge-x` so it clears a curved cutoff, and
- * sat directly above the button that opened it so the motion has somewhere
- * obvious to have come from.
- */
+/* The company capability model uses the same full-frame STUDIO_OS window as
+ * the hero and founder boards. The inset keeps the chrome inside the CRT-safe
+ * area while the simulation remains visible around its edge. */
 .hud__upgrades {
   position: absolute;
-  right: var(--edge-x);
-  bottom: calc(var(--edge-y) + 46px);
-  /*
-   * Bounded, so the list inside can scroll rather than climb out of the frame.
-   * The subtraction is the drawer's own offset plus a top margin — §23.4's
-   * design box is 448 px at the reference frame and 336 at the smallest, and
-   * the tree is longer than both.
-   */
-  max-height: calc(100% - var(--edge-y) - 46px - 12px);
-  width: 340px;
-  max-width: calc(100% - 2 * var(--edge-x));
-  /*
-   * Border, ground and clipping now belong to `.os-window` (§10.6a) — this
-   * class is the positioning box and nothing else. Two frames drawn one inside
-   * the other is the doubled rule the shared chrome exists to stop.
-   */
+  inset: var(--edge-y) var(--edge-x);
+  width: auto;
+  max-width: none;
+  max-height: none;
+  z-index: 3;
+}
+
+.hud__upgrades .os-window {
+  width: 100%;
+  height: 100%;
+  background: var(--n0);
 }
 
 .hud__upgrades-body {

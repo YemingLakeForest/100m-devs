@@ -1,0 +1,49 @@
+.purchase-effect {
+  --effect-accent: var(--p2);
+  border: var(--rule) solid var(--effect-accent);
+  background: color-mix(in srgb, var(--n0) 92%, var(--effect-accent));
+  box-shadow: 2px 2px 0 var(--n0), 3px 3px 0 var(--effect-accent);
+  color: var(--n6);
+  font-family: var(--font-terminal);
+  min-width: 0;
+  width: 100%;
+}
+
+.purchase-effect[data-status='deferred'] { --effect-accent: var(--p3); }
+
+.purchase-effect__head {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.55rem 0.7rem;
+  border-bottom: var(--rule) solid var(--effect-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+}
+
+.purchase-effect__head b {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--effect-accent);
+  font-size: 0.78rem;
+}
+
+.purchase-effect__signal { height: 3px; background: var(--n1); overflow: hidden; }
+.purchase-effect__signal i { display: block; height: 100%; width: 12%; background: var(--effect-accent); }
+.purchase-effect[data-phase='propagate'] .purchase-effect__signal i { animation: effect-propagate 320ms steps(6, end) forwards; }
+.purchase-effect[data-phase='prove'] .purchase-effect__signal i { width: 100%; }
+
+.purchase-effect__lines { margin: 0; padding: 0.35rem 0.7rem 0.6rem; }
+.purchase-effect__lines > div { display: grid; gap: 0.15rem; padding: 0.35rem 0; border-bottom: var(--rule) dotted color-mix(in srgb, var(--n4) 45%, transparent); }
+.purchase-effect__lines > div:last-child { border-bottom: 0; }
+.purchase-effect__lines dt { font-size: 0.64rem; letter-spacing: 0.07em; color: var(--n4); }
+.purchase-effect__lines dd { display: flex; align-items: baseline; gap: 0.45rem; margin: 0; font-size: 0.76rem; }
+.purchase-effect__lines s { color: var(--n3); }
+.purchase-effect__lines em { color: var(--p2); font-style: normal; }
+.purchase-effect__lines strong { color: var(--effect-accent); }
+
+@keyframes effect-propagate { to { width: 100%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .purchase-effect__signal i { animation: none !important; width: 100%; }
+}

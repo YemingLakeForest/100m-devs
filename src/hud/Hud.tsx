@@ -64,6 +64,7 @@ import {
   SCENE_FOUNDER_BOARD,
   SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
+  SCENE_JAMES_INSTANT_MESSENGER,
   JAMES_DROPS_AT_LINE,
 } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
@@ -203,7 +204,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [heroTreeOpen, setHeroTreeOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
   const [guidedBoard, setGuidedBoard] = useState<'tech' | 'founder' | 'hero' | null>(null)
-
   /**
    * §10.6b — **no window is open while somebody is talking.**
    *
@@ -251,6 +251,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       setGuidedBoard(null)
     }
   }
+  const [upgradeIntro, setUpgradeIntro] = useState<string | null>(null)
   const roster = heroRoster(state)
   // Resolved once per render: `heroById` rebuilds from `meta` and the run, so
   // asking twice in one frame would build the same six objects twice.
@@ -312,6 +313,18 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const finishDialogue = () => {
     const finished = state.scene
     dismissScene()
+
+    if (finished === SCENE_JAMES_INSTANT_MESSENGER.id) {
+      setTreeOpen(false)
+      setFounderOpen(false)
+      setHeroTreeOpen(false)
+      setGameMenuOpen(false)
+      setGalleryOpen(false)
+      setGuidedBoard(null)
+      setUpgradeIntro('B1')
+      setUpgradesOpen(true)
+      return
+    }
 
     if (finished === SCENE_FOUNDER_BOARD.id) {
       setTreeOpen(false)
@@ -718,12 +731,15 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       <UpgradeBoard
         open={upgradesOpen && !talking}
         guided={guidedBoard === 'tech'}
+        introNodeId={upgradeIntro}
+        onIntroComplete={() => setUpgradeIntro(null)}
         onGuidedComplete={() => {
           setGuidedBoard(null)
           setUpgradesOpen(false)
         }}
         onClose={() => {
           setGuidedBoard(null)
+          setUpgradeIntro(null)
           setUpgradesOpen(false)
         }}
       />

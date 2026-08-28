@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { __resetStore, __setState } from '../game/store.ts'
 import { emptyPermanent, getPermanent, setPermanent } from '../game/save.ts'
@@ -7,7 +7,7 @@ import { writeFounderProfile } from '../game/founderProfile.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 
-vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn() }))
+vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn(), playPurchase: vi.fn() }))
 vi.mock('../audio/sfx.ts', () => ({ playKeyboardClick: vi.fn() }))
 
 beforeEach(() => {
@@ -18,6 +18,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   setPermanent(emptyPermanent())
+  vi.useRealTimers()
 })
 
 describe('manager corner', () => {
@@ -81,6 +82,7 @@ describe('manager corner', () => {
   })
 
   it('offers one first-use purchase and hands control back afterwards', () => {
+    vi.useFakeTimers()
     const p = getPermanent()
     setPermanent({
       ...p,
@@ -99,6 +101,7 @@ describe('manager corner', () => {
 
     expect(screen.getByText(/Buy one skill you can afford/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /^\$400/ }))
+    act(() => vi.advanceTimersByTime(440))
     expect(complete).toHaveBeenCalledOnce()
   })
 })

@@ -107,7 +107,7 @@ import { tapVerb } from '../game/touchMode.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 import type { FounderProfile } from '../game/founderProfile.ts'
-import type { HeroPlacement } from '../sim/heroRoster.ts'
+import { SETTLE_SECONDS, type HeroPlacement } from '../sim/heroRoster.ts'
 import { nominalUnitSize, unitSeats } from '../sim/units.ts'
 
 /** What the HUD needs to draw the breadcrumb and the lift panel. */
@@ -382,12 +382,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // The store charges for the coverage either way — this is the picture
       // being behind the simulation, which is the right way round.
       if (!at || at.rung > LITERAL_RUNG_LIMIT) continue
+      const age = Math.max(0, state.runSeconds - at.placedAt)
+      const settling = heroCoverageOf(hero, state).settling
       postings.push({
         branch: hero.branch,
         colour: branchColour(hero.branch),
         index: at.index,
         reachDevs: hero.reachDevs,
-        settling: heroCoverageOf(hero, state).settling,
+        settling,
+        // A short, seat-ordered activation pass after the eight-second walk.
+        activation: settling ? 0 : Math.min(1, Math.max(0, (age - SETTLE_SECONDS) / 0.8)),
       })
     }
 
@@ -404,6 +408,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // The outline is already the visual grammar for coverage that is not
         // active yet. A preview is deliberately never painted as live work.
         settling: true,
+        activation: 0,
       })
     }
 

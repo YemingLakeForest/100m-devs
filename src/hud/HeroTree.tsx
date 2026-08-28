@@ -52,9 +52,11 @@ import {
 import { OWN_CHAIN_POINTS, heroMastery, heroNodeState, type HeroRuntime } from '../sim/heroRoster.ts'
 import { RATING_WEIGHTS } from '../sim/rating.ts'
 import { heroIcon } from '../render/heroIcons.ts'
-import { buyHeroTreeNode } from '../game/store.ts'
-import { playPurchase } from '../ui/uiSfx.ts'
+import { buyHeroTreeNode, currentHeroFold } from '../game/store.ts'
 import { connector, junctions, worldFor } from './diagramModel.ts'
+import { PurchaseEffect } from './PurchaseEffect.tsx'
+import { usePurchaseEffect } from './usePurchaseEffect.ts'
+import { heroEffectReceipt } from './upgradeEffectModel.ts'
 
 import '../styles/diagram.css'
 import '../styles/heroes.css'
@@ -120,15 +122,7 @@ export function HeroTree({
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
-  /**
-   * §11.4.5 — the node that just resolved, for one frame of flash.
-   *
-   * Held here rather than derived from `owned`, because "owned" is true for
-   * ever and the cue is about the *moment*. The pulse leaves along the
-   * connectors and the adjacent nodes resolve out of silhouette as it reaches
-   * them, so the reward for buying is watching the map grow.
-   */
-  const [flash, setFlash] = useState<string | null>(null)
+  const purchase = usePurchaseEffect()
 
   /*
    * §11.4.1 — the board is bigger than its viewport, so it **opens on the
@@ -321,7 +315,7 @@ export function HeroTree({
                       className="herotree__node uml"
                       data-state={vis}
                       data-kind={node.kind}
-                      data-flash={flash === node.id ? 'true' : 'false'}
+                      data-flash={purchase.effect?.nodeId === node.id ? 'true' : 'false'}
                       data-guide={guidedNode?.id === node.id ? 'true' : 'false'}
                       style={nodeStyle(node)}
                       onClick={() => vis !== 'dark' && setSelected(node.id)}
@@ -463,6 +457,8 @@ export function HeroTree({
                 merely worse at it.
               </p>
             </section>
+
+            <PurchaseEffect effect={purchase.effect} />
           </aside>
         </div>
 
@@ -540,12 +536,15 @@ export function HeroTree({
                    */
                   disabled={selectedState !== 'live' || hero.points < nodePoints(selectedNode.kind)}
                   onClick={() => {
+                    const before = currentHeroFold()
                     if (buyHeroTreeNode(hero.id, selectedNode.id)) {
-                      playPurchase()
-                      setFlash(selectedNode.id)
+                      const after = currentHeroFold()
+                      purchase.begin(
+                        selectedNode.id,
+                        heroEffectReceipt(typeName(selectedNode), before, after),
+                        guided ? onGuidedComplete : undefined,
+                      )
                       setSelected(null)
-                      if (guided) onGuidedComplete?.()
-                      window.setTimeout(() => setFlash(null), 420)
                     }
                   }}
                 >

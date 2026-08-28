@@ -83,10 +83,19 @@
  * its own — said in a picture before it is said in a line of copy.
  */
 .founder__board {
+  position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   min-height: 0;
+}
+
+.founder__effect {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 4;
+  pointer-events: none;
 }
 
 .founder__board-head {
@@ -224,6 +233,30 @@
 
 .founder__node[data-owned='true'] {
   border-color: var(--p2);
+}
+
+.founder__node[data-flash='true'] {
+  z-index: 3;
+  animation: founder-node-commit 440ms steps(4, end);
+}
+
+.founder__node[data-flash='true']::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border: var(--rule) solid var(--p3);
+  animation: founder-node-wave 440ms steps(4, end) forwards;
+}
+
+@keyframes founder-node-commit {
+  35% { transform: scale(1.05); border-color: var(--p3); }
+  70% { transform: scale(0.99); }
+}
+
+@keyframes founder-node-wave { to { inset: -22px; opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .founder__node[data-flash='true'], .founder__node[data-flash='true']::after { animation: none; }
 }
 
 .founder__node[data-owned='true'] .uml__head {

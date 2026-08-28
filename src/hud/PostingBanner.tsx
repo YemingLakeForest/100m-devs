@@ -38,10 +38,24 @@ import {
 } from './heroPlacementModel.ts'
 
 import '../styles/heroes.css'
+import { purchaseHaptic } from '../audio/haptics.ts'
 
 function targetLabel(rung: number, index: number): string {
   if (rung <= 2) return `DESK ${index + 1}`
   return `${unitLabel(rung).toUpperCase()} ${String(index + 1).padStart(2, '0')}`
+}
+
+function appliedFormula(value: string): string {
+  const amount = Number(value.slice(1, -1))
+  if (value.startsWith('-') && value.endsWith('%') && Number.isFinite(amount)) {
+    const factor = Number((1 - amount / 100).toFixed(2))
+    return `100% ×${factor} = ${Math.round(factor * 100)}%`
+  }
+  if (value.startsWith('+') && value.endsWith('%') && Number.isFinite(amount)) {
+    const factor = Number((1 + amount / 100).toFixed(2))
+    return `100% ×${factor} = ${Math.round(factor * 100)}%`
+  }
+  return `0 + ${value} = ${value}`
 }
 
 export function PostingBanner({ state }: { state: GameState }) {
@@ -91,7 +105,7 @@ export function PostingBanner({ state }: { state: GameState }) {
               <span className="posting__hint">CURRENT: {current}</span>
             </div>
             <div className="posting__actions">
-              <Button onClick={confirmHeroPosting}>{armed.placement ? 'CONFIRM MOVE' : 'CONFIRM PLACE'}</Button>
+              <Button onClick={() => { purchaseHaptic(); confirmHeroPosting() }}>{armed.placement ? 'CONFIRM MOVE' : 'CONFIRM PLACE'}</Button>
               <Button onClick={cancelPosting}>CANCEL</Button>
             </div>
           </div>
@@ -144,7 +158,9 @@ export function PostingBanner({ state }: { state: GameState }) {
             {' '}· {benefit.value} {benefit.label}
           </span>
           <span className="posting__hint">
-            {walking ? 'EFFECT AND HERO XP BEGIN AFTER THE WALK' : `LIVE EFFECT · HERO XP SHARE ${percent}%`}
+            {walking
+              ? 'EFFECT AND HERO XP BEGIN AFTER THE WALK'
+              : `LIVE EFFECT · HERO XP SHARE ${percent}% · ${benefit.label}: ${appliedFormula(benefit.value)}`}
           </span>
         </div>
       </div>

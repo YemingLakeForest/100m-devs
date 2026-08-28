@@ -15,8 +15,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { UpgradeBoard } from './UpgradeBoard.tsx'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { TECH_NODE_H, TECH_NODE_W, UpgradeBoard } from './UpgradeBoard.tsx'
 import { __resetStore, __setState, getState } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import { TECH_TREE } from '../sim/techTree.ts'
@@ -50,6 +50,7 @@ afterEach(() => {
   __resetStore()
   setPermanent(emptyPermanent())
   vi.clearAllMocks()
+  vi.useRealTimers()
 })
 
 describe('§11.4.1 — the board is a board', () => {
@@ -135,8 +136,8 @@ describe('§11.4.1 — the board is a board', () => {
       // The style is `left/top` of the box; the point the line is drawn to is
       // its centre. jsdom does no layout, so the box size comes from the same
       // constants the component uses rather than from a measurement.
-      const cx = Math.round(px(node.style.left) + 66 / 2)
-      const cy = Math.round(px(node.style.top) + 66 / 2)
+      const cx = Math.round(px(node.style.left) + TECH_NODE_W / 2)
+      const cy = Math.round(px(node.style.top) + TECH_NODE_H / 2)
       expect(ends.has(`${cx},${cy}`)).toBe(true)
     }
   })
@@ -155,8 +156,8 @@ describe('§11.4.1 — the board is a board', () => {
       // the player can see on a connector and never reach.
       expect(px(node.style.left)).toBeGreaterThanOrEqual(0)
       expect(px(node.style.top)).toBeGreaterThanOrEqual(0)
-      expect(px(node.style.left) + 66).toBeLessThanOrEqual(w)
-      expect(px(node.style.top) + 66).toBeLessThanOrEqual(h)
+      expect(px(node.style.left) + TECH_NODE_W).toBeLessThanOrEqual(w)
+      expect(px(node.style.top) + TECH_NODE_H).toBeLessThanOrEqual(h)
     }
   })
 
@@ -273,6 +274,7 @@ describe('§11.4.3 — tapping a node opens it; it does not buy it', () => {
   })
 
   it('hands a first-use purchase back to the running loop', () => {
+    vi.useFakeTimers()
     shifted(1)
     __setState({ cash: 1_000_000 })
     const complete = vi.fn()
@@ -284,6 +286,7 @@ describe('§11.4.3 — tapping a node opens it; it does not buy it', () => {
     fireEvent.click(firstBuyable(container))
     const buy = container.querySelector('.upgrade-board__guide-card button')!
     fireEvent.click(buy)
+    act(() => vi.advanceTimersByTime(440))
     expect(complete).toHaveBeenCalledOnce()
   })
 
