@@ -66,6 +66,14 @@ import {
   revenueMultiplier,
 } from '../sim/rating.ts'
 import {
+  AUTO_LAUNCH,
+  LAUNCH_WINDOW_COOLDOWN_SECONDS,
+  launchHit,
+  stallSeconds,
+  sweepPeriodMs,
+  type LaunchHit,
+} from '../sim/release.ts'
+import {
   NODE_BY_ID,
   bpFor,
   canAfford,
@@ -151,6 +159,7 @@ import {
   SCENE_MASS_HIRE,
 } from './scenes.ts'
 import {
+  BILLY_SEAT,
   SCENE_BILLY_ARRIVES,
   SCENE_FOUNDER_BOARD,
   SCENE_HERO_BOARD,
@@ -161,6 +170,7 @@ import {
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
 import {
+  SYNC_HALVED,
   arrivalPredicate,
   founderBoardArrives,
   heroBoardArrives,
@@ -534,15 +544,62 @@ export interface GameState {
    */
   peakDevs: number
   /**
-   * The last project to ship, and what it paid — §10.8a.
+   * The last project to ship, and how it was received — §10.8a, §10.8b.
    *
    * Held as an *event* with an id rather than as a flag, so the renderer and
    * the HUD can both notice it exactly once. Shipping is the loop's payoff and
    * it was completely silent: the burn-down reset, the cash readout stepped up,
    * and nothing marked the moment. A player in Act I could ship their first
    * project without realising they had.
+   *
+   * `revenue` is carried for the simulation's own use — §22.5's counters and
+   * the save both read it — and **not for the celebration**: §10.8b took the
+   * money off the toast on purpose and the reason is written there. What the
+   * beat reads is `rating`, `ordinal` and `timing`.
    */
-  ship: { id: number; name: string; revenue: number; at: number } | null
+  ship: {
+    id: number
+    name: string
+    revenue: number
+    at: number
+    /** §4.14's score, so the review reel does not have to go looking for it. */
+    rating: number
+    /** §10.11's career ordinal, so the reviews are the same on every replay. */
+    ordinal: number
+    /** §10.8b — what the launch date was worth, ×1 when nobody attended. */
+    timing: number
+    /** §10.8b's band label, or null for a release that went out on the train. */
+    timingLabel: string | null
+  } | null
+  /**
+   * §10.8b — the finished build, on the shelf, waiting for a release date.
+   *
+   * The burn-down reaching zero used to *be* the ship. It now produces this,
+   * and {@link releaseNow} turns this into the ship. The window it raises is
+   * modal and halts the studio for the same reason §10.7's dialogue does: a
+   * decision the player is being asked to make is not a decision if the
+   * simulation is still charging payroll behind it.
+   *
+   * Ephemeral (§24.2), and deliberately so — it is derivable. A reload with
+   * `burned >= commitment` shelves the build again on the very next tick, so
+   * the state that matters is already persisted and this is only the window.
+   */
+  pendingRelease: {
+    id: number
+    name: string
+    /** One full there-and-back sweep, in ms — `sweepPeriodMs` for this rung. */
+    sweepMs: number
+    /** `performance.now()` when the window opened. The needle's zero. */
+    openedAt: number
+    /**
+     * The release date the player picked, or null while they are still aiming.
+     *
+     * Written the instant the press lands rather than when the window closes,
+     * which is what stops the backstop above from stealing a verdict out from
+     * under the player during the beat that shows it to them.
+     */
+    hit: LaunchHit | null
+  } | null
   /**
    * §4.10e — the back catalogue. Every game still earning, and what it has
    * paid so far.
@@ -737,6 +794,22 @@ export interface GameState {
    */
   ticketsUnservedFor: number
   /**
+   * §21.7.3, Billy — seconds §4.1's sync has been at or below half.
+   *
+   * The second of this file's two sustained-condition clocks, and it exists for
+   * the same reason `ticketsUnservedFor` does: the trigger is about a studio
+   * that is *stuck*, and a threshold can only describe a studio that is
+   * *passing*. §21.7.3's "nothing here needs a new counter" is a rule about not
+   * inventing new **systems** to trigger off, not about refusing to time the
+   * ones already on screen — this times §4.3's gauge, which is the most
+   * looked-at readout in the game.
+   *
+   * Ephemeral (§24.2), like Matt's: restoring a clock whose cause the player
+   * cannot see would make the scene arrive out of nowhere on the first frame
+   * after a reload.
+   */
+  syncHalvedFor: number
+  /**
    * §4.14 — a slow-moving average of recent ratings.
    *
    * Run state, and that is a decision rather than an oversight: reputation is
@@ -929,6 +1002,9 @@ function freshRun(): GameState {
     buffs: [],
     peakDevs: 0,
     ship: null,
+    // §10.8b — nothing on the shelf. A run that has built nothing has nothing
+    // to pick a release date for.
+    pendingRelease: null,
     releases: [],
     seedTaken: false,
     selected: null,
@@ -959,6 +1035,7 @@ function freshRun(): GameState {
     incidentPending: 0,
     tickets: 0,
     ticketsUnservedFor: 0,
+    syncHalvedFor: 0,
     reputation: BASELINE_RATING,
     // §13.8 — everybody starts on the bench, every run. A Paradigm Shift
     // liquidates the floor, so the rungs a hero was standing on stop existing;
@@ -986,6 +1063,17 @@ const snippets = new SnippetBag()
 let nextShipId = 1
 /** §4.10e — one id per game put on sale, so the graph can key its bands. */
 let nextReleaseId = 1
+/** §10.8b — one id per shelved build, so the window can latch on it. */
+let nextShelfId = 1
+/**
+ * §10.8b — when the last launch window opened, on the `performance.now()` clock.
+ *
+ * Module-level rather than run state for the same reason `nextShipId` is: it is
+ * a fact about this *session's wall clock*, not about the studio, and a copy of
+ * it in a save file would be a timestamp from another machine's uptime.
+ * `-Infinity` so the first release of a session always gets its window.
+ */
+let lastLaunchWindowAt = -Infinity
 /** §4.12a — one id per page, so §4.15's chip stack can key and animate them. */
 let nextIncidentId = 1
 
@@ -1156,8 +1244,38 @@ export function inMeeting(s: GameState = state): boolean {
   return inStandup(s.runSeconds, standupsRunning(s))
 }
 
-export function currentEfficiency(s: GameState = state): number {
+/**
+ * §4.1's curve with §13.9's fold on it, and no ceiling or floor yet.
+ *
+ * Split out so {@link currentEfficiency} and {@link structuralEntropy} cannot
+ * drift: they are the same arithmetic with one term's worth of difference, and
+ * a second copy of it here would be the divergence that copy always becomes.
+ *
+ * §13.9 — Billy's Cohesion branch bends §4.1's entropy directly, which is the
+ * one branch that touches the game's central number. Applied to the *entropy*
+ * rather than to the efficiency so a fold of 0.9 means "ten per cent less
+ * entropy" — the sentence §22.8 writes — rather than "ten per cent more
+ * efficiency", which at 99% entropy would be a rounding error and at 1% would
+ * be the whole studio.
+ */
+function foldedEfficiency(s: GameState): number {
   const raw = efficiency(s.devs, effectiveDevCap(s))
+  return 1 - (1 - raw) * s.heroFold.entropy
+}
+
+export function currentEfficiency(s: GameState = state): number {
+  // §18.0 — a live event holds the studio at a ceiling. Applied **before** the
+  // purchased floor below, which is the standing rule for the whole event
+  // system: an event may never undo something the player bought. A studio that
+  // paid for §11.2's B4 cannot be seized by a thread, and that is the node
+  // working rather than the event failing.
+  //
+  // The order is load-bearing and it is the reason `structuralEntropy` below is
+  // not written in terms of this function: `max(floor, min(ceiling, x))` and
+  // `min(ceiling, max(floor, x))` disagree exactly when an event's ceiling is
+  // lower than something the player has bought, which is the one case this rule
+  // exists to decide.
+  const withEvent = Math.min(eventCeiling(s.event), foldedEfficiency(s))
   // §11.2's entropy caps, applied as an efficiency *floor* so the two readouts
   // cannot disagree — `currentEntropy` is defined as one minus this.
   //
@@ -1165,24 +1283,38 @@ export function currentEfficiency(s: GameState = state): number {
   // can never fire again. That is the node working, not a hole. The player paid
   // for a company that cannot seize, and §25.3.2's "none of this may become a
   // fail state" is untouched — this removes one, it does not add one.
-  // §13.9 — Billy's Cohesion branch bends §4.1's entropy directly, which is the
-  // one branch that touches the game's central number. Applied to the *entropy*
-  // rather than to the efficiency so a fold of 0.9 means "ten per cent less
-  // entropy" — the sentence §22.8 writes — rather than "ten per cent more
-  // efficiency", which at 99% entropy would be a rounding error and at 1% would
-  // be the whole studio.
-  const withHeroes = 1 - (1 - raw) * s.heroFold.entropy
-  // §18.0 — a live event holds the studio at a ceiling. Applied **before** the
-  // purchased floor below, which is the standing rule for the whole event
-  // system: an event may never undo something the player bought. A studio that
-  // paid for §11.2's B4 cannot be seized by a thread, and that is the node
-  // working rather than the event failing.
-  const withEvent = Math.min(eventCeiling(s.event), withHeroes)
   return Math.max(1 - techOf(s).entropyCap, withEvent)
 }
 
 export function currentEntropy(s: GameState = state): number {
   return 1 - currentEfficiency(s)
+}
+
+/**
+ * §4.1 as a fact about the **organisation**, with §18.0's event taken back out.
+ *
+ * The same number the speedometer shows, minus the one term in it that is not
+ * about how the company is built: a live event's ceiling. Everything else stays
+ * — §4.1's curve, §13.9's Cohesion fold, §11.2's purchased floor — because
+ * those are all things the player has or has not done about the shape of the
+ * company, which is exactly what this reading is for.
+ *
+ * **Added 2026-08-29, off a walk failure that was a design failure.** §21.7.3's
+ * Billy waits for sync to sit at or below half for twenty seconds, and the clock
+ * was reading `currentEntropy`. §18.0's THE THREAD holds the studio at 25%
+ * output, which is 75% entropy — so the clock filled during the thread and Billy
+ * arrived to a Run 2 garage of **twelve developers**, handing over §13.8's floor
+ * before Mo, before Serena, before anybody had a problem it solves.
+ *
+ * The tempting reading is that the thread *is* a communication collapse and he
+ * should come. He should not, and the distinction is the whole of §21.7.6: a
+ * hero arrives holding the answer to a problem the player *has*. The answer to a
+ * thread is a protocol, on a board §18.0a hands over in the same breath; the
+ * answer to a studio that has outgrown its own capacity is somebody who runs the
+ * floor. **An event is weather. Billy is about the building.**
+ */
+export function structuralEntropy(s: GameState = state): number {
+  return 1 - Math.max(1 - techOf(s).entropyCap, foldedEfficiency(s))
 }
 
 /**
@@ -1314,7 +1446,10 @@ export function founderVelocity(): number {
  * bills directly.
  */
 export function pokeFounder(x = 0, y = 0): number {
-  if (state.scene !== null || state.phase === 'bankrupt') return 0
+  // §10.8b's launch window is inert for the same reason a scene is: the studio
+  // has downed tools for the launch, and a Story Point banked into a project
+  // that is already on the shelf would be work with nowhere to go.
+  if (state.scene !== null || state.pendingRelease !== null || state.phase === 'bankrupt') return 0
 
   const f = founderOf()
   const sp = f.tapValue
@@ -1582,8 +1717,16 @@ function serviceLoad(s: GameState): ServiceLoad {
   }
 }
 
-/** Ship the current project and roll to the next — §21 Act II. */
-function shipProject(s: GameState): Partial<GameState> {
+/**
+ * Ship the current project and roll to the next — §21 Act II, §10.8b.
+ *
+ * `launch` is the release date the player picked. It arrives as
+ * {@link AUTO_LAUNCH} — a plain ×1 — from every path that is not somebody
+ * aiming at the bar: the window timing out, a release inside §10.8b's cooldown,
+ * and §24.6's offline chain-ship. See `sim/release.ts` for why the neutral
+ * value is the honest reading of "nobody attended" rather than a penalty.
+ */
+function shipProject(s: GameState, launch: LaunchHit = AUTO_LAUNCH): Partial<GameState> {
   const tech = techEffects(s.tech)
 
   /**
@@ -1693,11 +1836,17 @@ function shipProject(s: GameState): Partial<GameState> {
   // release's own score, and the studio's standing reputation. Both are applied
   // to the payout rather than to the tail, for the same reason the tech
   // multipliers are — the release must be worth exactly what it says it is.
+  //
+  // §10.8b adds a fifth, and it is the only one of them the player operates
+  // with their hands: the release date. It sits on the payout beside the other
+  // four rather than on the tail, on the same rule — a release must be worth
+  // exactly what it says it is worth.
   const revenue =
     projectRevenue(s.projectIndex, shippedScale(s)) *
     tech.revenueMultiplier *
     revenueMultiplier(rating) *
-    reputationMultiplier(s.reputation)
+    reputationMultiplier(s.reputation) *
+    launch.multiplier
   const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
   const next = PROJECTS[nextIndex]
 
@@ -1726,17 +1875,30 @@ function shipProject(s: GameState): Partial<GameState> {
   return {
     // The bench is clear. Whatever was on it is now the release's problem.
     defects: 0,
+    // §10.8b — the shelf is clear too. Whatever was on it is now on sale.
+    pendingRelease: null,
     reputation: advanceReputation(s.reputation, rating),
     // §10.8a — the moment gets an event. Named with the project that just
     // shipped rather than the one now starting: the celebration is *for* the
     // thing that finished, and by the time it renders `sprintName` has already
     // moved on.
     //
-    // `revenue` here is still the whole §4.10c payout, and the toast still
-    // announces all of it. §4.10e changes when the money *arrives*, not what
-    // the game is worth, and a celebration that read "+$3,200, the rest to
-    // follow" would be describing an accounting policy rather than a launch.
-    ship: { id: nextShipId++, name: s.sprintName, revenue, at: performance.now() },
+    // `revenue` here is still the whole §4.10c payout. §10.8b is what stopped
+    // the celebration from *printing* it — the beat is now about the reception
+    // rather than about the cheque — but the number still travels, because
+    // §22.5's lifetime counters and the cash readout both need it.
+    ship: {
+      id: nextShipId++,
+      name: s.sprintName,
+      revenue,
+      at: performance.now(),
+      rating,
+      ordinal,
+      timing: launch.multiplier,
+      // Null when nobody was at the launch, so the beat can say nothing rather
+      // than print QUIET LAUNCH over a release the player never saw a bar for.
+      timingLabel: launch === AUTO_LAUNCH ? null : launch.label,
+    },
     // §4.10e — no lump. The game goes on sale and starts earning; `tick` banks
     // the tail. The books stay afloat between ships because the *catalogue*
     // covers the burn, which is the whole point of the change.
@@ -1777,6 +1939,79 @@ function shipProject(s: GameState): Partial<GameState> {
 }
 
 /**
+ * The build is done — GDD §10.8b. Now, when does it come out?
+ *
+ * Two answers, and which one the studio gets is a fact about how fast it is
+ * shipping rather than about anything the player has bought:
+ *
+ *  - **A launch window**, if it has been {@link LAUNCH_WINDOW_COOLDOWN_SECONDS}
+ *    since the last one. The build goes on the shelf, the studio stops, and
+ *    `releaseNow` is the only way out. Every Act I release gets this, which is
+ *    where the loop is being taught.
+ *  - **The release train**, otherwise: straight out at ×1. A studio shipping
+ *    every six seconds at the top of §4.10c's ladder is not attending its own
+ *    launches, and a modal that halted it on each one would turn the late game
+ *    into a slideshow of its own celebration.
+ *
+ * §21.0c is deliberately **not** consulted. It gates *instruments* — a readout
+ * for a system the player has nobody to fix — and this is a moment, not an
+ * instrument. Run 1 is four scripted minutes about what a loop feels like, and
+ * a loop with its most tactile beat removed is not the loop the rest of the
+ * game is teaching. The economy is safe from it either way, because the ramp's
+ * mean is exactly ×1 (`sim/release.ts`) and §21's pacing is measured against
+ * the mean.
+ */
+function shelveBuild(s: GameState): Partial<GameState> {
+  const now = performance.now()
+  if (now - lastLaunchWindowAt < LAUNCH_WINDOW_COOLDOWN_SECONDS * 1000) {
+    return shipProject(s)
+  }
+
+  lastLaunchWindowAt = now
+  return {
+    pendingRelease: {
+      id: nextShelfId++,
+      name: s.sprintName,
+      sweepMs: sweepPeriodMs(s.projectIndex, PROJECTS.length),
+      openedAt: now,
+      hit: null,
+    },
+  }
+}
+
+/**
+ * §10.8b — the press. Fixes the release date without shipping yet.
+ *
+ * Two steps rather than one because the verdict needs a beat: the ring lights,
+ * the needle slams home, and *then* the game goes on sale. Locking here is what
+ * makes that beat safe — the simulation's backstop only fires on a window
+ * nobody has answered, so a player who pressed on the last frame cannot have
+ * their launch date replaced by a timeout while they are reading it.
+ *
+ * `null` is the window closing itself, which is {@link AUTO_LAUNCH}'s neutral
+ * ×1 and not wherever the needle was parked. See `release.ts`.
+ */
+export function lockRelease(at: number | null): void {
+  const shelf = state.pendingRelease
+  if (!shelf || shelf.hit !== null) return
+  set({ pendingRelease: { ...shelf, hit: at === null ? AUTO_LAUNCH : launchHit(at) } })
+}
+
+/**
+ * §10.8b — pick the release date and put the thing on sale.
+ *
+ * Ships at whatever {@link lockRelease} fixed, or at {@link AUTO_LAUNCH}'s
+ * neutral ×1 for a window nobody answered. Idempotent on the shelf being empty:
+ * the renderer's timeout and the simulation's backstop can both arrive, and the
+ * loser must not ship the project a second time.
+ */
+export function releaseNow(): void {
+  const shelf = state.pendingRelease
+  if (!shelf) return
+  set(shipProject(state, shelf.hit ?? AUTO_LAUNCH))
+}
+
+/**
  * The Story Points a set of just-expired buffs still owed — GDD §4.5a.
  *
  * A buff of strength `s` on a unit producing `u` per second is worth `s · u ·
@@ -1813,17 +2048,47 @@ function settleDroppedBuffs(dropped: readonly Buff[], s: GameState): number {
  * The one thing that still runs is cosmetic expiry: floaters and bubbles
  * measure their life in wall-clock, and a numeral frozen mid-air for the
  * length of a scene would be a visual bug that outlives the dialogue.
+ *
+ * §10.8b's launch window stops it on exactly the same terms and for exactly the
+ * same reason: the player is being asked for a decision, and a decision made
+ * while payroll is still draining is a decision made under a clock the player
+ * did not agree to. The window's own timeout is the only clock that runs there.
  */
 export function tick(dtSeconds: number): void {
   if (dtSeconds <= 0 || state.phase === 'bankrupt') return
 
-  if (state.scene !== null) {
+  if (state.scene !== null || state.pendingRelease !== null) {
     const now = performance.now()
     const patch: Partial<GameState> = {}
     const floaters = state.floaters.filter((f) => now - f.bornAt < FLOATER_LIFE_MS)
     if (floaters.length !== state.floaters.length) patch.floaters = floaters
     if (state.bubble && now - state.bubble.bornAt > state.bubble.ttl) patch.bubble = null
-    if (patch.floaters !== undefined || patch.bubble !== undefined) set(patch)
+
+    /*
+     * §10.8b's backstop. The shelf is the one halted state that has to be able
+     * to end without anybody pressing anything: a hidden tab has no animation
+     * frames to run the needle on, so without this the studio would freeze
+     * mid-launch until the player came back.
+     *
+     * **On the wall clock, like the two lines above it** — and that is a
+     * finding rather than a preference. It counted `dtSeconds` first, which
+     * §26.1.8's `?speed` multiplies by *repeating whole ticks*: at ×40 the
+     * window opened and closed itself inside a quarter of a second, and the
+     * playthrough walk caught it by shipping a whole garage catalogue without
+     * ever seeing a bar. A debug flag that compresses the simulation must not
+     * compress a decision the player is being asked to make, and everything
+     * else in this branch already knew that.
+     *
+     * Only an *unanswered* window is counted: once `lockRelease` has fixed a
+     * date, the beat that shows it belongs to the renderer.
+     */
+    const shelf = state.pendingRelease
+    if (shelf && shelf.hit === null && now - shelf.openedAt >= stallSeconds(shelf.sweepMs) * 1000) {
+      set({ ...patch, ...shipProject(state, AUTO_LAUNCH) })
+      return
+    }
+
+    if (Object.keys(patch).length > 0) set(patch)
     return
   }
 
@@ -1951,6 +2216,16 @@ export function tick(dtSeconds: number): void {
     open && serviceRatio(state.projectsShipped, defects, support) < 1
   const ticketsUnservedFor = fallingBehind ? state.ticketsUnservedFor + dtSeconds : 0
 
+  // §21.7.3, Billy — the same shape as Matt's clock, on §4.1 instead of §4.13.
+  //
+  // `structuralEntropy` rather than `e`: the hero fold and §11.2's ceilings are
+  // in it, because a studio that bought its way out of the collapse has
+  // genuinely got out of it and must not be handed a scene about a collapse it
+  // is not having — and §18.0's event ceiling is *not*, because an event is
+  // weather. See the function's own note for the walk failure that established
+  // the difference.
+  const syncHalvedFor = structuralEntropy(state) >= SYNC_HALVED ? state.syncHalvedFor + dtSeconds : 0
+
   let patch: Partial<GameState> = {
     localEntropy,
     buffs,
@@ -1959,6 +2234,7 @@ export function tick(dtSeconds: number): void {
     incidentPending: incidents.pending,
     tickets: tickets.queue,
     ticketsUnservedFor,
+    syncHalvedFor,
     // §11.2 B2's meeting clock. Simulated seconds, not wall-clock — see the
     // field's note. Advanced before anything reads it so the standup boundary
     // lands on the same frame the velocity does.
@@ -2018,10 +2294,12 @@ export function tick(dtSeconds: number): void {
 
   if (state.bubble && now - state.bubble.bornAt > state.bubble.ttl) patch.bubble = null
 
-  // Ship, if the burn-down reached zero this frame.
+  // §10.8b — the burn-down reaching zero finishes the *build*. What happens
+  // next is a decision, and `shelveBuild` decides whether the player gets to
+  // make it or whether this one goes out on the release train.
   const merged = { ...state, ...patch } as GameState
   if (merged.burned.gte(merged.commitment)) {
-    patch = { ...patch, ...shipProject(merged) }
+    patch = { ...patch, ...shelveBuild(merged) }
   }
 
   const after = { ...state, ...patch } as GameState
@@ -2166,7 +2444,10 @@ function checkStoryTriggers(s: GameState): void {
     devs: s.devs,
     devCap: effectiveDevCap(s),
     cash: s.cash,
-    entropy: currentEntropy(s),
+    // The organisation's own reading, matching the clock beside it. Both halves
+    // of Billy's predicate must be the same number or it can be half true.
+    entropy: structuralEntropy(s),
+    syncHalvedFor: s.syncHalvedFor,
   }
 
   for (const hero of ARRIVAL_HEROES) {
@@ -2412,7 +2693,10 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
   // inert while a scene is up: the dialogue box is eating those taps for its
   // own advance, and a tap that both advances a page and banks a Story Point
   // is the player being charged Entropy for reading.
-  if (state.scene !== null) {
+  //
+  // §10.8b's shelf is inert on the same argument: the build is finished, the
+  // studio is at the launch, and there is nothing left to burn down.
+  if (state.scene !== null || state.pendingRelease !== null) {
     return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
   }
   if (state.phase === 'bankrupt') {
@@ -3073,6 +3357,11 @@ export function recallHero(id: HeroId): boolean {
  * it is §10.5's bottom-sheet rule failing in the other direction.
  */
 export function beginPosting(id: HeroId): boolean {
+  // §21.7.6 — the floor is an instrument and it arrives with Billy. The same
+  // rule and the same shape as `buyHeroTreeNode`'s board guard: the *mechanism*
+  // — `placeHero`, coverage, the fold — is untouched and still runs, which is
+  // what lets Billy's own arrival seat him before the player has the verb.
+  if (!currentUnlocks().heroPlacement) return false
   if (!arrivedHeroes().has(id)) return false
   set({ posting: id, postingTarget: null, selectedHero: null })
   return true
@@ -3787,7 +4076,45 @@ export function dismissScene(): void {
   // desk. In play the dialogue reaches {@link JAMES_DROPS_AT_LINE} first and
   // this is a no-op.
   if (id === SCENE_JAMES_ARRIVES.id && state.devs === 0) grantJames()
+  // §21.7.3 — and Billy walks straight out onto the floor. See {@link seatBilly}.
+  if (id === SCENE_BILLY_ARRIVES.id) seatBilly()
   set({ scene: null })
+}
+
+/**
+ * §21.7.3 — **Billy is the one hero the game places for you, once.**
+ *
+ * Every other arrival ends with somebody on the bench and the player deciding
+ * where they go. His cannot, and the reason is the shape of the scene rather
+ * than a kindness: the scene *is* the introduction to §13.8, and a tutorial for
+ * a verb that ends by asking the player to perform the verb is a tutorial that
+ * has not shown them anything. §21.7.3's shape rule 2 says a hero fixes nothing
+ * during their scene and the number improves afterwards *from their work* —
+ * this is that rule obeyed literally. He takes a rung, the eight-second walk
+ * runs like anybody else's, the gauge comes back up, and the player watches the
+ * mechanism they are about to be handed do its job on somebody they did not
+ * have to aim.
+ *
+ * **Rung 0, seat 0**, which is the most valuable posting on the board: §13.6.2's
+ * reach counts upward from the seat, so the earliest desk covers the most
+ * people. He is not being modest and the game is not being stingy — the whole
+ * point is that the sync reading visibly recovers, and a demonstration placed
+ * where it does nothing demonstrates nothing. The player can move him the moment
+ * they have the verb, which is about four seconds later.
+ *
+ * He brings no free node with him: §13.9.1 already gives every story hire
+ * {@link STORY_STARTING_DEPTH} nodes of their own branch, pre-bought and unpaid
+ * for, so "his initial upgrade" is three levels of Cohesion he walks in owning.
+ * Granting a fourth here would be a starting bonus for one hero, which is the
+ * thing §13.9.1 is explicitly not.
+ */
+function seatBilly(): void {
+  if (state.heroPlacements.billy) return
+  // Rung 0 is the room itself — §7.7's first rung, and the only one that exists
+  // at the headcount `billyArrives` fires at. `heroBadges.roomSeatMarks` reads
+  // rungs 0-2 as seats and covers upward from the index, so this is a posting
+  // the floor can actually draw a footprint for on the frame it happens.
+  placeHero('billy', 0, BILLY_SEAT)
 }
 
 /** Has this scene been played to the end before? §10.7's replay exception. */
@@ -3827,6 +4154,9 @@ export function __resetStore(): void {
   state = freshRun()
   nextFloaterId = 1
   nextSpawnId = 1
+  // §10.8b — a test that ships twice must get a window both times, and the
+  // cooldown is wall-clock rather than run state.
+  lastLaunchWindowAt = -Infinity
   setPermanent(emptyPermanent())
   pendingSnapshot = null
   for (const fn of listeners) fn()
@@ -3842,6 +4172,7 @@ export function startNewGame(): void {
   state = freshRun()
   nextFloaterId = 1
   nextSpawnId = 1
+  lastLaunchWindowAt = -Infinity
   nextShipId = 1
   nextReleaseId = 1
   setPermanent(emptyPermanent())

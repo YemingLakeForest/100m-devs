@@ -1906,8 +1906,10 @@ project still needs and ask whether it crosses the bankruptcy threshold before t
 lands (<code>isCashCritical</code>). A studio eleven thousand in the red and eighty seconds from a
 half-million-dollar ship is in perfect health, and now reads that way.</p>
 <p>Paired with the missing half of the number: <strong><code>+$550K IN 82s</code></strong>, under the burn, in green —
-the only other green in the interface besides the ship celebration, so green means <em>incoming</em>
-and nothing else.</p>
+so green means <em>incoming</em> and nothing else. It used to share that colour with the ship
+celebration's payout figure; §10.8b took that figure off the celebration
+<em>[amended 2026-08-29]</em>, so this line is now the <strong>only</strong> green in the interface — a
+stronger version of the same rule rather than a weaker one.</p>
 <p>Two cases the predicate has to keep separate, and does:</p>
 <ul>
 <li><strong>The garage.</strong> No burn, so no runway to run out of; the only failure left is the
@@ -6048,6 +6050,165 @@ functioning web app with pixel art in it.</p>
 <p><strong>F1 and F2 are the ones that will actually be violated</strong>, because they are the ones that
 are invisible when you are the person who built the feature and already know it works.</p>
 <hr />
+<h4 id="b-the-release-is-a-decision-canon-added-2026-08-29">10.8b The release is a decision — the launch window and the reviews <strong>[CANON - added 2026-08-29]</strong></h4>
+<p><strong>A finished build is shelved, not shipped.</strong> Until now the burn-down reaching zero
+<em>was</em> the release: one <code>if</code> in <code>tick</code>, resolved at a frame boundary. That is correct
+simulation and it is the loop's payoff arriving as a side effect — the one moment per
+project the player has been working toward happened <em>to</em> them, with nothing to do about it.</p>
+<p>So the loop gains a third beat. Build it, <strong>release it</strong>, and read the press.</p>
+<h5 id="the-launch-window-the-bar-is-a-calendar">The launch window — the bar is a calendar</h5>
+<p>A needle sweeps a market window. Dead centre is the release date the studio wanted; drift
+early and the game goes out half-built, drift late and the season has moved on. <strong>The
+multipliers are symmetric and the labels are not</strong>, because the two ways to miss are
+different jokes:</p>
+<table>
+<thead>
+<tr>
+<th>Ring</th>
+<th>Early</th>
+<th>Late</th>
+<th>On revenue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Perfect</strong></td>
+<td>PERFECT WINDOW</td>
+<td>PERFECT WINDOW</td>
+<td>the ceiling</td>
+</tr>
+<tr>
+<td><strong>Window</strong></td>
+<td>AHEAD OF THE CURVE</td>
+<td>FASHIONABLY LATE</td>
+<td>above neutral</td>
+</tr>
+<tr>
+<td><strong>Soft</strong></td>
+<td>STILL IN BETA</td>
+<td>QUIET LAUNCH</td>
+<td><strong>exactly ×1</strong></td>
+</tr>
+<tr>
+<td><strong>Missed</strong></td>
+<td>SHIPPED HALF A GAME</td>
+<td>MISSED THE SEASON</td>
+<td>the floor, <em>derived</em></td>
+</tr>
+</tbody>
+</table>
+<p><strong>The order is canon. None of the values is</strong> — §25.3.2, the same dodge §4.14 takes with the
+rating weights, and <code>sim/release.ts</code> is where the first pass lives.</p>
+<h5 id="three-properties-and-the-whole-design-is-in-them">Three properties, and the whole design is in them</h5>
+<ol>
+<li><strong>Doing nothing costs nothing.</strong> The neutral ring is ×1 and it is what an unattended
+window pays when it times out — <em>not</em> whichever ring the needle happened to be parked in
+when the clock ran out, which would be one fixed band every single release and therefore a tax
+on not playing a minigame. A player who never engages with this earns precisely what they
+earned before it existed, which is the same argument §4.14.1 makes for deriving the rating's
+baseline from what a garage ships rather than picking it at fifty.</li>
+<li><strong>A blind press is worth nothing either.</strong> The needle is <em>linear</em>, so its position is
+uniform across the bar, and the floor multiplier is <strong>derived</strong> so that the width-weighted
+mean of the whole ramp is exactly ×1. Mashing is not a strategy; aiming is. Both facts are
+arithmetic rather than a comment claiming them, and the test that pins it integrates the ramp
+across the bar.</li>
+<li><strong>Speed changes skill, never the baseline.</strong> The sweep gets faster the further up
+§4.10c's ladder the release is. Because of (2) that cannot re-tune the economy for anybody: a
+faster needle is worth exactly ×1 to a player who is not aiming, at every rung. It only widens
+the gap between a studio that attends its own launches and one that does not.</li>
+</ol>
+<p>The multiplier lands on the <strong>payout</strong>, beside §4.14's rating and reputation terms and §11's
+tech multipliers, never on §4.10e's tail — the standing rule that a release must be worth
+exactly what it says it is worth.</p>
+<h5 id="the-window-halts-the-studio">The window halts the studio, and there is a floor under how often it opens</h5>
+<p><strong>The studio stops while the window is up</strong>, on §10.7a.3's terms exactly: no payroll, no
+burn-down, no clock, and the floor freezes mid-stride. A decision made while payroll is still
+draining is a decision made under a clock the player did not agree to.</p>
+<p>Which is precisely why <strong>a release only gets a window if the last one was more than about half
+a minute ago.</strong> §4.4 paces a garage at a ship a minute and the top of §4.10c's ladder ships
+every six seconds; a modal that halted the studio on every one of those would turn the late
+game into a slideshow of its own celebration. Everything inside that floor goes out on <em>the
+release train</em>, at ×1, with no bar. That is also the truer fiction — a studio shipping ten
+games a minute is not attending its own launches, and what it has automated away is exactly
+the chance to pick the moment. §24.6's offline chain-ships are neutral for the same reason and
+were already outside this path.</p>
+<p><strong>Two readers, and they are not redundant.</strong> The renderer runs the needle off animation
+frames, because that is the clock the player is aiming against. <code>tick</code> watches the same
+elapsed time and releases the build itself if nothing answers — <strong>a hidden tab suspends
+animation frames entirely</strong> (the trap §10.5's panel machinery documents at length, and the one
+that once cost the game its only exit from Run 1), so without a second reader the studio would
+freeze on the shelf until the player came back, having stopped mid-launch rather than
+mid-anything. <strong>The renderer gets first refusal</strong>, because it is the only one of the two that
+can show a verdict before the window goes.</p>
+<p><strong>Both of them read elapsed time, and that is a finding rather than a preference.</strong> The
+simulation's half counted accumulated <code>dt</code> first, which §26.1.8's <code>?speed</code> multiplies by
+<em>repeating whole ticks</em>: at ×40 the window opened and closed itself inside a quarter of a
+second, and §26.1.8's playthrough walk caught it by shipping a whole garage catalogue without
+ever seeing a bar. <strong>A debug flag that compresses the simulation must not compress a decision
+the player is being asked to make</strong> — and everything else in that branch of <code>tick</code>, which is
+where a scene's floaters and speech bubbles expire, already knew it. The consequence is that a
+headless run of the simulation has to answer its own launches, exactly as a player presses the
+button; the harnesses that play the game by pumping <code>tick</code> now do.</p>
+<h5 id="run-1-gets-the-window-too">Run 1 gets the window too</h5>
+<p>§21.0c is deliberately <strong>not</strong> consulted. That gate holds back <em>instruments</em> — a readout for
+a system the player has nobody to fix — and this is a moment, not an instrument. Run 1 is four
+scripted minutes about what a loop feels like, and a loop with its most tactile beat removed
+is not the loop the rest of the game is teaching. The economy is safe from it either way,
+because property (2) fixes the ramp's mean at ×1 and §21's pacing is measured against the mean.</p>
+<h5 id="how-26-3-4-still-holds">§26.3.4 still holds, and it is worth saying how</h5>
+<p>The standing constraint is <em>&quot;no minigame may be the optimal way to play&quot;</em>. This one is on the
+critical path, which no other minigame in the design is, so the constraint has to be answered
+rather than assumed:</p>
+<ul>
+<li>It is <strong>amplitude on a payout the loop already produces</strong>, not a second income. Its ceiling
+is smaller than §4.14's rating spread and its floor is gentler than a rotten defect backlog's.</li>
+<li>It <strong>cannot be farmed.</strong> The release rate belongs to the loop, not to the player: there is
+no way to get a second bar without building a second game.</li>
+<li>It is <strong>never mandatory.</strong> Not acting is a supported way to play, priced at exactly the rate
+that existed before it was built. That is a stronger reading of §26.3.3's <em>&quot;never punishing to
+skip&quot;</em> than the events get, and it has to be, because this one cannot be walked past.</li>
+</ul>
+<h5 id="the-review-reel-and-the-figure-that-is-gone">The review reel — and the figure that is gone</h5>
+<p><strong>§10.8a's ship celebration no longer prints what the release was worth</strong>
+<em>[amended 2026-08-29]</em>. That beat was specified as load-bearing — <em>&quot;the money, in green, large,
+counting up… the one the player must not be able to miss&quot;</em> — and it is removed on the user's
+instruction. The argument for removing it is better than the one that put it there:</p>
+<ul>
+<li>§4.10e already made the payout a <strong>rate</strong>. The money does not arrive at the launch; it
+arrives over the following four minutes. A large green figure at the moment of release was
+announcing an event that had not happened.</li>
+<li>It made <strong>every release the same beat.</strong> The figure only ever goes up, so the celebration
+could not tell the player whether the thing they had just made was any <em>good</em>. §4.14 spent a
+whole section building the one number in this game that can go <strong>down</strong>, and it was on a wall
+in another room.</li>
+</ul>
+<p>So the celebration is about <strong>reception</strong>, and it runs in §10.8a's own summary-screen
+vocabulary with the subject changed — rows revealing one at a time, a bar growing from zero,
+and the total counting <em>last</em>:</p>
+<ol>
+<li><strong>The launch flash</strong> — full-frame, two or three frames. Unchanged.</li>
+<li><strong>The cover, stamped in</strong> — §10.11.3's generated tile, read back from the history record
+written on the same frame, so it is exactly the cover the gallery will show.</li>
+<li><strong>The launch date</strong>, if the player picked one — the band and its multiplier, and the only
+place their aim is ever reported back to them. Absent for a train release, because there was no
+bar to miss.</li>
+<li><strong>Three critics, one at a time</strong>, on a ~120 ms stagger. Each has a masthead, a score out of
+ten and one line of copy, drawn deterministically from the run seed and the release's career
+ordinal — the same contract §7.8.7 uses for faces and §4.14 for reception, so a reload cannot
+reroll a review the player has already read. <strong>The outlets are invented rather than thinly
+veiled:</strong> a parody masthead on a fabricated pan of a fabricated game is a joke, and the same
+joke wearing a real publication's name is that publication's byline on copy it never wrote.</li>
+<li><strong>The aggregate, last</strong> — §4.14's rating, unchanged, counting up beside a bar that grows
+from zero, so it reads as a summation rather than as a lookup. <strong>The critics report the score;
+they never compute one.</strong></li>
+<li><strong>The verdict</strong> — SHOVELWARE / MIXED / ACCLAIMED / MASTERPIECE, stamped, indexed by the
+same §10.11.3 band that tints the cover frame, so the word, the tint and the number are three
+readings of one fact. Sparks on the good bands only: a shovelware release that throws confetti
+is the game congratulating the player for the wrong thing.</li>
+</ol>
+<p>The cash readout in the corner still moves through all of it, and that is where the money now
+lives — <strong>one place instead of two.</strong></p>
+<hr />
 <h3 id="the-title-screen-canon">10.9 The Title Screen <strong>[CANON]</strong></h3>
 <p>The first thing anyone sees, and until now the one screen this document never
 mentioned. It has to do three jobs before the player has pressed anything:
@@ -8520,6 +8681,41 @@ that resolves POKE, its compact face is projected onto that world anchor, and ru
 the candidate footprint as an outline. A second pointer move or tap replaces the candidate,
 so two anchors can be compared without recalling the hero, restarting the walk or losing the
 old assignment.</p>
+<h4 id="d-the-receipt-goes-where-the-finger-is-canon-added-2026-08-29">13.8d The receipt goes where the finger is <strong>[CANON — added 2026-08-29]</strong></h4>
+<p>§13.8c put the receipt <em>on the placement banner</em>, and that turned out to be the wrong half of
+the screen. Reported from a handset as <em>&quot;the hero placement UI prompt is covering middle of the
+screen, it's quite distracting and clunky&quot;</em>, and the measurement agrees: four stacked lines —
+a step counter, an instruction, a best-possible line and a hint — in a 700 px row floated
+126 px off the bottom edge puts its top at y≈222 of §23.4.2's 776×357 design frame. <strong>The banner
+sat across the middle of the floor it was asking the player to tap.</strong></p>
+<p>Two things were wrong and only one of them was the position.</p>
+<ol>
+<li><strong>The wrong size.</strong> It carried five facts at once, and the best-possible reading is
+decision support for a decision §22.9's card already states in as many words.</li>
+<li><strong>The wrong place for what it said.</strong> The live numbers are about <em>a specific person on a
+specific rung</em>, and the player is looking at that person, not at the bottom of the screen.</li>
+</ol>
+<p><strong>So the receipt is split, and each half sits where its question is asked.</strong> The
+plate at the candidate anchor carries what the posting is worth to the <em>studio</em> — covered
+developers and the branch effect — because that is what the player is looking at: this person, on
+this rung. The strip carries the <em>mode</em> and what the posting is worth to the <em>hero</em>:
+who is armed, which rung, the XP share, and the two verbs. XP is the reading that stays on the HUD
+because §13.10 only pays it for work done under coverage, which makes it the reason to move
+somebody who is already working perfectly well where they are.</p>
+<p><strong>One row is about 300 px of copy between a name and two buttons, and the whole receipt
+is twice that</strong> — §23.4.2 measured it drawn straight through <code>CANCEL</code> at
+898×403 on the first attempt. That measurement only exists because the strip was added to the
+gate's component list in the same change: it renders only while somebody is armed, nothing in
+either list matched it, and the four-line version had therefore been passing every frame in the
+design box since the day it shipped. <strong>A surface the gate cannot see is a surface with no
+gate.</strong></p>
+<p>The strip drops to the quiet band above §18.0's event banner, in front of the desks, where
+nothing is ever drawn.</p>
+<p>The requirement §13.8c states is unchanged and is now met twice over: the exact candidate
+receipt must be readable before <code>CONFIRM</code>, and nothing in the simulation moves until it is
+pressed. What §7.7.6b requires is also unchanged — <strong>the mode is said out loud on the HUD
+before the finger lands</strong> — and one branch-coloured row is still the only thing on the rail
+claiming the next tap.</p>
 <h3 id="one-tree-five-branches-and-every-hero-shares-it-canon-added-2026-08-11-r36-r37">13.9 One tree, five branches, and every hero shares it <strong>[CANON - added 2026-08-11]</strong> - R36, R37</h3>
 <p>§13.7 gives each class its own tree — <em>&quot;one grammar, five vocabularies&quot;</em> — and building the
 rest of this batch made the cost of that obvious. <strong>Five trees is five things to balance, five
@@ -8764,6 +8960,17 @@ is never told they have made a mistake; they can just see the hatched area and m
 somebody.</li>
 <li><strong>A settling hero is drawn faded</strong>, with a countdown ring, for §13.8's rule 4 relocation
 period. Coverage costs time, so time is on screen.</li>
+<li><strong>The label is §7.8.13's desk plate, not a card</strong> [amended 2026-08-29]. Reported alongside
+§13.8d as <em>&quot;the placed tag, it's a bit clunky and breaking immersion&quot;</em>, and both halves of
+that are one diagnosis: it was a 78×34 panel carrying a 28 px portrait, the hero's name and
+the word <code>ASSIGNED</code> — <strong>a piece of interface standing in the world.</strong> The portrait is the
+tell, because the person it depicts is drawn eight pixels below it; <code>ASSIGNED</code> is the tell
+twice, because it is machine vocabulary about a database row and nothing in an office is
+labelled that. §7.8.13 already says what a name looks like in this world — <em>a desk plate in
+the branch colour, readable at Desk zoom</em>, which is where §21.7.4's title renders — so it is
+that object: a thin plate, the name, the §22.9.2 role under it, on a leader line down to the
+anchor. About a third of the mass, and two of them side by side read as two desks. While a
+placement is being aimed, the candidate plate carries §13.8d's receipt instead of the role.</li>
 </ul>
 <h4 id="the-roster-strip-who-is-idle">13.11.2 The roster strip — <em>&quot;who is idle?&quot;</em></h4>
 <p>A <strong>single row of small cards</strong> along the bottom edge of the world when the tray is summoned —
@@ -12395,14 +12602,57 @@ this is when each of them walks in.</p>
 </tr>
 <tr>
 <td><strong>Billy</strong> — Cohesion</td>
-<td>The speedometer first reads past <code>CHATTY</code> <strong>outside Run 1</strong></td>
-<td>...met §4.1 as an ongoing condition rather than as Run 1's punchline</td>
+<td>Sync sits at or below <strong>half</strong> for a sustained period, <strong>outside Run 1</strong></td>
+<td>...watched §4.1 take half the company's day and found they had no move</td>
 </tr>
 </tbody>
 </table>
 <p><strong>Every one of those triggers is a system the player already has on screen.</strong> Nothing here
 needs a new counter, and each scene is the first time the game says out loud what a readout has
 been saying quietly.</p>
+<h5 id="billy-arrives-on-a-collapse-that-stayed-collapsed-amended-2026-08-29">Billy arrives on a collapse that <em>stayed</em> collapsed <strong>[amended 2026-08-29]</strong></h5>
+<p>His trigger read <em>&quot;the speedometer first reads past <code>CHATTY</code>&quot;</em> — 10% entropy, roughly the
+sixty-fifth hire on §4.2's base cap. That was wrong in two ways once §13.8's floor moved behind
+him (§21.7.6), and both are worth keeping.</p>
+<p>It was <strong>too early to be a feeling.</strong> §4.3a describes <code>CHATTY</code> in as many words as <em>&quot;the hint
+the player dismisses&quot;</em>, so the scene arrived to explain a problem the player had not yet had.
+And it was <strong>too early to be earned</strong>: the man who hands over the floor should turn up when
+the floor is visibly the problem.</p>
+<p><strong>Half is not a chosen number.</strong> η = 1/(1 + (D/D_cap)^ρ), so η = ½ exactly when D = D_cap —
+<em>sync has halved</em> and <em>the headcount has reached the capacity the studio can sustain</em> are one
+event with two names. At the base cap of 100 that is the hundredth hire, which is where the
+beat lands in Run 2; a studio that has bought §11.2's protocols moves the hire count and not the
+meaning, which is why this is written as a sync reading rather than as a headcount. The player
+has watched the gauge fall from <code>IN SYNC 100%</code> to <code>PRODUCTIVITY BREAKDOWN 50%</code> to get here,
+which is the largest single move that readout ever makes inside one run.</p>
+<p><strong>And it is a clock rather than a threshold, for two reasons.</strong> Melany's trigger — the cap hit
+with cash spare — is arithmetically the <em>same instant</em>, and two people may not walk through
+one door on one frame. So Melany arrives on the event of touching the cap, which is her whole
+pitch, and Billy arrives on the studio still being there twenty seconds later. That also makes
+the scene's premise true on screen: it is about a number that went wrong and <em>stayed</em> wrong,
+and a trigger firing on the first frame past a threshold would play it over a gauge that was,
+as far as the player could tell, mid-wobble.</p>
+<p><strong>This deliberately does not punish correct play.</strong> §4.1's optimum sits below the cap, so a
+player who reads the speedometer and stops short of it never sees this scene — and that is the
+design rather than a hole, because they do not have the problem. §21.7.7's founder board records
+the same lesson from the other side: <em>a trigger that punishes correct play by withholding a
+system has misread which half of the section is the feeling.</em> The difference is that §21.7.7
+needed a second door and this does not: §6's whole thesis is that a studio <em>will</em> outgrow its
+capacity, and every run that grows at all arrives here.</p>
+<h5 id="an-event-is-weather-canon-added-2026-08-29">And the clock reads the building, not the weather <strong>[CANON — added 2026-08-29]</strong></h5>
+<p><strong>The reading is §4.1 with §18.0's event ceiling taken back out.</strong> Everything else stays —
+the curve, §13.9's Cohesion fold, §11.2's purchased floor — because those are all things the
+player has or has not done about the shape of the company, and a studio that bought its way out
+of the collapse has genuinely got out of it.</p>
+<p>Found by §26.1.8's walk, and it was a design failure rather than a walk failure. THE THREAD
+(§18.0a) holds the studio at 25% output, which is 75% entropy on the gauge — so a clock reading
+the gauge filled during a thread, and <strong>Billy arrived to a Run 2 garage of twelve developers</strong>,
+handing over §13.8's floor before Mo, before Serena, before anybody had a problem it solves.</p>
+<p>The tempting reading is that a thread <em>is</em> a communication collapse and he should come. He
+should not, and the distinction is the whole of §21.7.6: a hero arrives holding the answer to a
+problem the player <em>has</em>. The answer to a thread is a protocol, on a board §18.0a hands over in
+the same breath. The answer to a studio that has outgrown its own capacity is somebody who runs
+the floor. <strong>An event is weather; Billy is about the building.</strong></p>
 <p>Three shape rules for these scenes, so the set stays a set:</p>
 <ol>
 <li><strong>Under twelve lines.</strong> §21.7.1 is the length; nothing later is longer. A hero introduction
@@ -12413,6 +12663,33 @@ down. The number improves afterwards, from their work, where the player can see 
 the recurring cast member the player actually knows. His line is always about the <em>tool</em> or
 the <em>process</em>, never about the person — he does not notice people arriving.</li>
 </ol>
+<h5 id="the-one-declared-exception-billy-amended-2026-08-29">The one declared exception — Billy <strong>[amended 2026-08-29]</strong></h5>
+<p><strong>Billy's scene is exempt from all three rules, and the exemption is written down here so the
+rules stay rules.</strong> A rule with an undeclared exception is a rule nobody can rely on; four of
+the five arrivals are still held to the letter of these, in code and in test.</p>
+<p>The three rules describe an <em>arrival</em>. Billy's is a <strong>referral and a hand-over</strong>: James sends
+for him, and the scene ends by giving the player §13.8's floor. Each rule fails for the same
+underlying reason and keeps its substance:</p>
+<ul>
+<li><strong>Length.</strong> Twelve lines is the budget for an introduction. This is an introduction
+<em>and</em> a system hand-over, and the game's two other hand-over scenes (§18.0a's thread,
+§21.7.7b's founder board) run the same length for the same reason. <strong>A scene that gives the
+player a verb has to reach the verb.</strong></li>
+<li><strong>James's single line.</strong> The cap exists because a second James line would compete with the
+person walking in. Here he <em>is</em> the reason anybody walks in, so the cap is what would break
+the scene. The substance holds: he states a process (a fixed time, a fixed order, standing
+up), he names a school as though it were a fact about a rota, and his closing line is a
+supply constraint about the fridge. He is not introducing a friend; he is closing a ticket.</li>
+<li><strong>The door.</strong> <code>APPLICANT AT DOOR</code> still happens — twelve lines in, once James has sent
+for him. The scene opens on the machine reporting the collapse instead, because the collapse
+is the feeling and the applicant is the answer to it.</li>
+</ul>
+<p><strong>The founder is the straight man and Billy is never the butt.</strong> James names the school they
+were both at, once, flatly, expecting no reaction — and the founder guesses a band. Billy is
+not performing and does not know there is anything to perform; the refined register is simply
+the words he has. The comedy is a founder who built a company out of nothing standing in front
+of an apparatus they cannot see the edges of. Anything that makes the joke <em>about Billy being
+posh</em> rather than <em>about the founder not recognising posh</em> is the wrong scene.</p>
 <h4 id="global-head-of-his-desk-canon">21.7.4 Global Head of His Desk <strong>[CANON]</strong></h4>
 <p>Fires when James is promoted onto a management row — §22.2's org chart, the first time a card
 is placed above another card.</p>
@@ -12516,12 +12793,43 @@ the dial.</li>
 <li><strong>§21.7.3, Serena</strong> — incidents run; Serena brings the incident list and SRE on the dial.</li>
 <li><strong>§21.7.3, Matt</strong> — tickets accrue against the catalogue; Matt brings §4.13's bar and Support
 on the dial.</li>
+<li><strong>§21.7.3, Billy</strong> — coverage, reach and the §13.10 cost of a benched hero all run;
+Billy brings <strong>§13.8's floor itself</strong>. See below.</li>
 </ul>
-<p><strong>Melany and Billy are deliberately different, and the difference confirms the rule.</strong> The
-developer cap (§4.2) and the speedometer (§4.3) have been on screen since the first minute of
-Run 1 — they are not systems the player is being introduced to, they are systems the player has
-been fighting. So those two arrive holding a <em>branch</em> rather than an instrument, and nothing
-appears on the HUD when they sit down. <strong>A person only brings what was not already there.</strong></p>
+<p><strong>Melany is the counter-example, and she confirms the rule.</strong> The developer cap (§4.2) has
+been on screen since the first minute of Run 1 — it is not a system the player is being
+introduced to, it is a system the player has been fighting. She arrives holding a <em>branch</em>
+rather than an instrument, and nothing appears on the HUD when she sits down. <strong>A person only
+brings what was not already there.</strong></p>
+<h5 id="placement-is-an-instrument-too-canon-added-2026-08-29">Placement is an instrument too <strong>[CANON — added 2026-08-29]</strong></h5>
+<p><strong>Billy used to be the second half of that paragraph, and is not any more.</strong> The reasoning was
+identical to Melany's and it was right about the <em>speedometer</em>: he hands over no readout,
+because §4.3's gauge is the most looked-at number in the game. What it missed is that he hands
+over something much larger than a readout.</p>
+<p>§21.7.7 found the first hole in this rule — <em>an upgrade board is an instrument too</em> — and
+this is the second and the larger one. <strong>§13.8's placement is the most consequential verb in
+Layer 1</strong>: it is what makes a hero worth anything at all, it is the whole of §13.6.7's
+&quot;management is the minigame&quot;, and it was reachable from the frame anybody had two heroes,
+handed over by nobody.</p>
+<p>The two halves split exactly as the table above draws them. The <strong>mechanism</strong> — coverage,
+reach, §13.10's cost of a benched hero, the XP that only accrues under coverage — has been
+running the whole time. What waited is the <strong>instrument</strong>: the placement verb on §22.9's card,
+the armed gesture, the floor as a thing you can put a person on. §22.9's card itself stays
+ungated, on the rule §21.7.7 already states — <em>a card is who somebody is</em> — and what a
+pre-Billy card loses is one button and a sentence naming what is missing. §13.11.2's strip is
+still summonable, and its window is called <code>PERSONNEL</code> rather than <code>HERO PLACEMENT</code> until
+the verb exists.</p>
+<p>The apparent circle is the same non-circle Mo's is. Placement is not gated on <em>having placed
+somebody</em>; it is gated on the studio having fallen apart in a way a person can fix. The player
+meets §4.1 as a gauge reading half with no handle — and then the man whose entire job is that
+gauge walks in holding one.</p>
+<p><strong>And he does not arrive to an empty floor.</strong> His scene ends with him already posted, on the
+room's first rung, and it is the only automatic placement in the game. §21.7.3's shape rule 2
+says a hero fixes nothing <em>during</em> their scene and the number improves afterwards from their
+work — this is that rule obeyed literally, and it is also the only way a scene can demonstrate
+a verb it is about to hand over. He walks, the eight seconds run, the gauge comes back up, and
+the player watches the mechanism do its job on somebody they did not have to aim. They can move
+him about four seconds later.</p>
 <h4 id="b-what-this-does-to-4.15s-three-colours">21.7.6b What this does to §4.15's three colours</h4>
 <p>§4.15 argues that the three backlogs are one system told in three colours and must be read as a
 set, and §25.7.2a moved them into one column on that argument. <strong>Both survive, and the set now
@@ -12765,8 +13073,13 @@ and is still there, waiting, when the board opens.</p>
 </tr>
 <tr>
 <td>5</td>
-<td>§21.7.3 — Melany, Billy</td>
-<td>the cap, and §4.1 as an ongoing condition</td>
+<td>§21.7.3 — Melany</td>
+<td>the cap, hit with cash spare</td>
+</tr>
+<tr>
+<td>5a</td>
+<td><strong>§21.7.3 — Billy, and §13.8's floor with him</strong></td>
+<td>sync still halved twenty seconds later</td>
 </tr>
 <tr>
 <td>6</td>
@@ -13309,11 +13622,34 @@ of §13.9's board.</strong></p>
 <tr>
 <td><strong>Billy</strong></td>
 <td>Cohesion</td>
-<td>§4.1's <strong>Entropy</strong> directly</td>
-<td>First <code>CHATTY</code> outside Run 1</td>
+<td>§4.1's <strong>Entropy</strong> directly — <em>and §13.8's floor</em> (§21.7.6)</td>
+<td>First sustained half-sync outside Run 1; James sends for him</td>
 </tr>
 </tbody>
 </table>
+<h5 id="billy-canon-added-2026-08-29">Billy — the one who was already there <strong>[CANON — added 2026-08-29]</strong></h5>
+<p>He is <strong>James's contemporary</strong>, and that is the only fact about him that has to be protected.
+They were at the same school; James mentions it the way you mention a rota, and the founder has
+never heard of it. The school is <strong>Winterbourne</strong> — nobody's school, and obviously somebody's
+school. It is named twice in the scene and explained never.</p>
+<p><strong>The register is refined and it is never a bit.</strong> <em>Terribly</em>, <em>shan't</em>, <em>splendid</em>,
+<em>I'm afraid not</em>, <em>a quarter of an hour</em>: those are simply the words he has. Three standing
+facts, each the mirror of one of §21.7.0's five about James, and each usable as a refusal
+without ever being a joke at his expense:</p>
+<ul>
+<li><strong>He has never been to a McDonald's.</strong> Not disapproval — it has not come up.</li>
+<li><strong>He does not drink alcohol, and he does not drink coffee.</strong></li>
+<li><strong>And he does not drink Diet Coke</strong>, which is §21.7.1's establishing detail about James
+coming back four hours later as a logistics constraint about the fridge.</li>
+</ul>
+<p>He is drawn to match, because the scene's joke depends on the founder failing to place a world
+that is standing in front of them: fair hair in a neat crop, clean-shaven, glasses, a light
+blue shirt, slim and tall, and the most upright posture on the floor. The hair colour, the
+shirt colour and the torso silhouette are <strong>his alone</strong> — they sit past the end of §7.8.7's
+roll, on the same rule that gives James his orange and his white tee, so no generated developer
+ever wears them.</p>
+<p>His role line is <code>SCRUM MASTER</code>, which §22.8.1 below has said he <em>is</em> since the old rosters
+were folded into this one.</p>
 <h4 id="what-happens-to-the-other-two-rosters">22.8.1 What happens to the other two rosters</h4>
 <table>
 <thead>
@@ -16047,7 +16383,9 @@ and it is the assertion rather than a milestone read out of the save.
 6. Ship a release bad enough to bring Mo, and watch the defect backlog appear <strong>with her</strong> and
 not before.
 7. Do the same for Serena and Matt.
-8. Hit the developer cap with cash spare, meet Melany; read past <code>CHATTY</code>, meet Billy.
+8. Hit the developer cap with cash spare, meet Melany; sit at that cap with sync halved until
+James sends for Billy — and watch §13.8's floor become placeable as his scene ends, with him
+already standing on it.
 <strong>Items 6, 7 and 8 pass as of 2026-08-18</strong>, and <em>&quot;with her and not before&quot;</em> is checked the
 only way it can be: the walk snapshots the rail on the frame each arrival scene <strong>opens</strong>,
 before the dismissal that grants the unlock. Every one of the three came up empty, and the
@@ -16332,6 +16670,14 @@ studio, the game is about the trading game. Everything in Phase 3 is amplitude o
 already works without it — which is the same rule §13.6.7 applies to heroes, and it applies
 here for the same reason.</p>
 </blockquote>
+<p><strong>One minigame is on the critical path, and it is held to this anyway</strong>
+<em>[amended 2026-08-29]</em>. §10.8b's launch window is not in Phase 3 and cannot be walked past —
+every project goes through it — so &quot;optional to the loop&quot; is not available as its defence. It
+answers the constraint on the constraint's own terms instead: it is amplitude on a payout the
+loop already produces, it cannot be farmed because the release rate belongs to the loop rather
+than to the player, and <strong>not acting is priced at exactly the rate that existed before it was
+built</strong>. §10.8b carries the full argument and the arithmetic that makes the last claim true
+rather than asserted.</p>
 <h4 id="phase-3s-closing-gate">26.3.5 Phase 3's closing gate</h4>
 <ol>
 <li>A developer leaves their desk, does something with a purpose, and comes back — and the

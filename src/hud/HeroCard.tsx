@@ -125,7 +125,20 @@ export function HeroCard({
   const ownDepth = hero
     ? hero.nodes.map((id) => HERO_NODE_BY_ID.get(id)).filter((n) => n?.kind === 'depth').length
     : 0
-  const hasBoard = currentUnlocks().heroBoard
+  const unlocks = currentUnlocks()
+  const hasBoard = unlocks.heroBoard
+  /*
+   * §21.7.6 — **the floor arrives with Billy** (`game/unlocks.ts`).
+   *
+   * Same shape as `hasBoard` beside it and for the same reason: the card is
+   * who somebody is and has never been gated, so what a pre-Billy card loses is
+   * one button, not a screen. §21.7.6b's rule that a silent row is the loudest
+   * kind of furniture means the verb is simply absent rather than greyed —
+   * except that a card reading `BENCHED` in red with nothing at all to press
+   * would be §13.10 scolding the player for a thing the game has not offered
+   * them yet, so the placement block below says who is coming instead.
+   */
+  const canPlace = unlocks.heroPlacement
 
   return (
     <OsWindow
@@ -157,16 +170,22 @@ export function HeroCard({
             {/*
               §13.8 — the verb the card was missing.
 
-              **It is never gated**, unlike SKILLS beside it: a hero who has
-              arrived can be posted, and there is no board to hand over first
-              because the floor is the board. It leads the row because it is
-              what the card is *for* — §13.10 makes a benched hero the one thing
-              on this screen actively costing the player something, and a card
-              that says BENCHED in red and offers no way off the bench is a
-              scolding rather than a control.
+              **And it is gated after all** [amended 2026-08-29]. This comment
+              used to say the opposite, at length: *"it is never gated, unlike
+              SKILLS beside it — a hero who has arrived can be posted, and there
+              is no board to hand over first because the floor is the board."*
+              Every clause of that is true and the conclusion did not follow.
+              The floor being the board is exactly what makes it the largest
+              instrument in Layer 1, and §21.7.6's rule is that an instrument
+              arrives in the hands of the person who solves it. Billy is that
+              person; see `game/unlocks.ts`.
+
+              It still leads the row, because it is what the card is *for*.
             */}
-            <Button onClick={onPost}>{hero.placement ? 'MOVE HERO' : 'PLACE HERO'}</Button>
-            {hero.placement && <Button onClick={onRecall}>RECALL</Button>}
+            {canPlace && (
+              <Button onClick={onPost}>{hero.placement ? 'MOVE HERO' : 'PLACE HERO'}</Button>
+            )}
+            {canPlace && hero.placement && <Button onClick={onRecall}>RECALL</Button>}
             {/*
               §21.7.7 — **the card is not gated and the board is.**
 
@@ -234,7 +253,21 @@ export function HeroCard({
             <span className="herocard__coverage" aria-hidden="true">
               <span style={{ width: `${settling ? queuedPercent : percentCovered}%` }} />
             </span>
-            {!hero.placement && (
+            {/*
+              §21.7.6 — before the floor is handed over, the card still has to
+              answer *"why is this person doing nothing"*, and the honest answer
+              is not "because you have not placed them". It is that nobody here
+              can put anyone anywhere yet. Naming the potential anyway is the
+              point: the number is what makes the bench cost something, which is
+              what makes Billy's scene relief rather than a tutorial.
+            */}
+            {!hero.placement && !canPlace && (
+              <p>
+                WORTH UP TO <strong>{liveBenefit.potential} {liveBenefit.label}</strong>
+                {' '}ON THE FLOOR. NOBODY IS RUNNING THE FLOOR YET.
+              </p>
+            )}
+            {!hero.placement && canPlace && (
               <p>
                 PLACE THIS HERO TO ACTIVATE UP TO <strong>{liveBenefit.potential} {liveBenefit.label}</strong>
                 {' '}AND START EARNING XP.

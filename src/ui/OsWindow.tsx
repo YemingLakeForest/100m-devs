@@ -163,11 +163,34 @@ function useScrollRail(): [(el: HTMLDivElement | null) => void, RailGeometry, ()
             })
       tree?.observe(node, { childList: true, subtree: true, characterData: true })
 
-      // Returned so React tears both down when the body goes away (React 19
+      /*
+       * **And the third change neither observer can see: a transform.**
+       *
+       * A ResizeObserver reports boxes and a MutationObserver reports nodes;
+       * scrollable overflow is neither. §10.8b's launch window stamps its
+       * verdict in from `scale(2.1)`, which grows the body's scroll height for
+       * the length of one animation and not one pixel of anybody's border box —
+       * so the rail switched on mid-stamp and then **stayed on for ever**, on a
+       * window with nothing to scroll, advertising content that was never
+       * there. That is exactly the lie the rail exists to prevent, told by the
+       * rail.
+       *
+       * Measuring on `animationend` closes it for every window at once, which
+       * is why it is here and not in the stylesheet that caused it: any future
+       * overshoot, bounce or slam is the same bug waiting. `Counter` already
+       * clears its own bounce this way, for the same reason.
+       */
+      const settled = () => measure()
+      node.addEventListener('animationend', settled)
+      node.addEventListener('transitionend', settled)
+
+      // Returned so React tears them all down when the body goes away (React 19
       // ref cleanup); the bare `return` above is the "nothing to clean" case.
       return () => {
         sizes.disconnect()
         tree?.disconnect()
+        node.removeEventListener('animationend', settled)
+        node.removeEventListener('transitionend', settled)
       }
     },
     [measure, viewport],

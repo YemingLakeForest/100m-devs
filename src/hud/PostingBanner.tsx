@@ -17,6 +17,40 @@
  *
  * So it appears with somebody armed and leaves with them placed, and while it
  * is up it is the only thing on the rail claiming the next tap.
+ *
+ * ## One row, and the numbers are somewhere else [rewritten 2026-08-29]
+ *
+ * Reported as *"the hero placement UI prompt is covering middle of the screen,
+ * it's quite distracting and clunky"*, and the report is exact. This was four
+ * stacked lines — a step counter, an instruction, a benefit line and a hint —
+ * in a 700 px row, floated 126 px off the bottom edge. Measured on the 776x357
+ * frame §23.4.2 designs against, that puts its top edge at y≈222 of 357: **the
+ * banner sat across the middle of the floor it was asking the player to tap.**
+ *
+ * Two things were wrong and only one of them was the position.
+ *
+ * **It was the wrong size**, because it was carrying five facts at once: who is
+ * armed, what to do, what the best possible posting would be, what the
+ * candidate posting gives, and what the hero's current posting gives. Three of
+ * those are decision support for a decision the player already made on §22.9's
+ * card, which states the potential benefit in as many words.
+ *
+ * **And it was in the wrong place for half of what it said.** What a posting is
+ * worth to the *studio* belongs at the target, because that is where the player
+ * is looking — they are hovering a specific person on a specific rung, asking
+ * what putting him there does. `WorldHeroAssignments` already draws a plate at
+ * exactly that anchor and already renders a `preview` state, so coverage and the
+ * branch effect are answered on the thing being asked about.
+ *
+ * What stays here is the **mode**, and what the posting is worth to the *hero*:
+ * who is armed, which rung, the XP share, and the two verbs. XP keeps its place
+ * on the HUD because §13.10 only pays it for work done under coverage, which
+ * makes it the reason to move somebody who is already working perfectly well
+ * where they are.
+ *
+ * The result is one row of about 26 px, dropped to the quiet band above §18.0's
+ * event banner. It still cannot be missed — it is the only branch-coloured
+ * thing on the HUD — and it no longer stands between the finger and the floor.
  */
 
 import { Button } from '../ui/Button.tsx'
@@ -45,17 +79,36 @@ function targetLabel(rung: number, index: number): string {
   return `${unitLabel(rung).toUpperCase()} ${String(index + 1).padStart(2, '0')}`
 }
 
-function appliedFormula(value: string): string {
-  const amount = Number(value.slice(1, -1))
-  if (value.startsWith('-') && value.endsWith('%') && Number.isFinite(amount)) {
-    const factor = Number((1 - amount / 100).toFixed(2))
-    return `100% ×${factor} = ${Math.round(factor * 100)}%`
-  }
-  if (value.startsWith('+') && value.endsWith('%') && Number.isFinite(amount)) {
-    const factor = Number((1 + amount / 100).toFixed(2))
-    return `100% ×${factor} = ${Math.round(factor * 100)}%`
-  }
-  return `0 + ${value} = ${value}`
+/**
+ * The row, as one component, so the three phases cannot drift apart in shape.
+ *
+ * Every phase is `[who] [what] [verbs]` and the only thing that varies is the
+ * middle. That is what keeps the strip one row tall at every width: the two
+ * fixed ends are short and never wrap, and the middle is the only thing allowed
+ * to ellipsise.
+ */
+function PostingRow({
+  phase,
+  colour,
+  who,
+  detail,
+  actions,
+}: {
+  phase: 'choose' | 'preview' | 'walking' | 'active'
+  colour: string
+  who: string
+  detail: string
+  actions?: React.ReactNode
+}) {
+  return (
+    <div className="posting" role="status" aria-live="polite">
+      <div className="posting__row" data-phase={phase} style={{ ['--branch' as string]: colour }}>
+        <span className="posting__who">{who}</span>
+        <span className="posting__detail">{detail}</span>
+        {actions && <span className="posting__actions">{actions}</span>}
+      </div>
+    </div>
+  )
 }
 
 export function PostingBanner({ state }: { state: GameState }) {
@@ -70,63 +123,67 @@ export function PostingBanner({ state }: { state: GameState }) {
   if (!armed && !showResult) return null
 
   if (armed) {
-    const bestCovered = Math.min(armed.reachDevs, Math.max(0, Math.floor(state.devs)))
-    const bestShare = studioCoverageShare(bestCovered, state.devs)
-    const bestBenefit = placementBenefit(armed, bestShare)
     const target = state.postingTarget
 
     if (target) {
       const candidatePlacement = { ...target, placedAt: state.runSeconds }
+      // Coverage decides the XP share and nothing else on this row: the branch
+      // effect it also drives is drawn on the plate at the anchor.
       const covered = Math.min(armed.reachDevs, devsUnderPlacement(candidatePlacement, state))
-      const share = studioCoverageShare(covered, state.devs)
-      const benefit = placementBenefit(armed, share)
       const xpShare = coveragePercent(covered, state.devs)
       const catchUp = heroCatchUpMultiplier(armed, covered, state)
 
-      const currentCovered = armed.placement
-        ? Math.min(armed.reachDevs, devsUnderPlacement(armed.placement, state))
-        : 0
-      const currentShare = studioCoverageShare(currentCovered, state.devs)
-      const currentBenefit = placementBenefit(armed, currentShare)
-      const current = armed.placement
-        ? `${coverageLabel(currentCovered, state.devs)} · ${currentBenefit.value} ${currentBenefit.label} · XP SHARE ${coveragePercent(currentCovered, state.devs)}%`
-        : 'BENCHED · NO EFFECT · NO XP'
-
       return (
-        <div className="posting" role="status" aria-live="polite">
-          <div className="posting__row" data-phase="preview" style={{ ['--branch' as string]: armed.colour }}>
-            <div className="posting__copy">
-              <span className="posting__step">PLACE {armed.hero.name.toUpperCase()} — STEP 3 OF 3</span>
-              <strong className="posting__line">TARGET {targetLabel(target.rung, target.index)}</strong>
-              <span className="posting__benefit">
-                {coverageLabel(covered, state.devs)} · {benefit.value} {benefit.label} · XP SHARE {xpShare}%
-                {catchUp > 1.005 ? ` · CATCH-UP ×${catchUp.toFixed(2)}` : ''}
-              </span>
-              <span className="posting__hint">CURRENT: {current}</span>
-            </div>
-            <div className="posting__actions">
-              <Button onClick={() => { purchaseHaptic(); confirmHeroPosting() }}>{armed.placement ? 'CONFIRM MOVE' : 'CONFIRM PLACE'}</Button>
+        <PostingRow
+          phase="preview"
+          colour={armed.colour}
+          who={`PLACE ${armed.hero.name.toUpperCase()}`}
+          /*
+           * **Where, and what it is worth to the hero. Not what it is worth to
+           * the studio** — that is on the plate at the anchor, where the finger
+           * already is.
+           *
+           * The split is a measurement rather than a taste. §23.4.2's gate
+           * measures this row now (it never could before, because nothing in its
+           * component list matched a surface that only exists while somebody is
+           * armed), and the first thing it reported was the full receipt drawn
+           * straight through `CANCEL` at 898x403. One row is about 300 px of
+           * copy between a name and two buttons; the receipt is twice that.
+           *
+           * `XP SHARE` is the reading that stays, because it is the one number
+           * here that is about the *hero* rather than about the studio — §13.10
+           * only pays XP for work done under coverage — and it is therefore the
+           * reason a player moves somebody who is already working perfectly well
+           * where they are.
+           */
+          detail={
+            `${targetLabel(target.rung, target.index)} · XP SHARE ${xpShare}%` +
+            (catchUp > 1.005 ? ` · ×${catchUp.toFixed(2)}` : '')
+          }
+          actions={
+            <>
+              <Button onClick={() => { purchaseHaptic(); confirmHeroPosting() }}>
+                {armed.placement ? 'CONFIRM MOVE' : 'CONFIRM PLACE'}
+              </Button>
               <Button onClick={cancelPosting}>CANCEL</Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       )
     }
 
     return (
-      <div className="posting" role="status" aria-live="polite">
-        <div className="posting__row" data-phase="choose" style={{ ['--branch' as string]: armed.colour }}>
-          <div className="posting__copy">
-            <span className="posting__step">PLACE {armed.hero.name.toUpperCase()} — STEP 2 OF 3</span>
-            <strong className="posting__line">HOVER OR TAP A DEVELOPER, FLOOR, OR VISIBLE UNIT</strong>
-            <span className="posting__benefit">
-              BEST POSSIBLE: {coverageLabel(bestCovered, state.devs)} · {bestBenefit.value} {bestBenefit.label}
-            </span>
-            <span className="posting__hint">ROOM: EARLIER DESKS COVER MORE · EMPTY SPACE CANCELS</span>
-          </div>
-          <Button onClick={cancelPosting}>CANCEL</Button>
-        </div>
-      </div>
+      <PostingRow
+        phase="choose"
+        colour={armed.colour}
+        who={`PLACE ${armed.hero.name.toUpperCase()}`}
+        /* The instruction and the way out, which are the only two things a
+           player who has not aimed yet can act on. Short, because the row has
+           to hold a name and a button either side of it — see the note on the
+           preview branch above. */
+        detail="TAP ANYONE · EMPTY SPACE CANCELS"
+        actions={<Button onClick={cancelPosting}>CANCEL</Button>}
+      />
     )
   }
 
@@ -139,31 +196,22 @@ export function PostingBanner({ state }: { state: GameState }) {
   const remaining = Math.max(1, Math.ceil(SETTLE_SECONDS - latestAge))
   const percent = coveragePercent(targetCovered, state.devs)
 
+  /*
+   * The receipt keeps its own phase and its own two readings, because §13.8
+   * rule 4 makes the walk real and a confirmation that claimed the effect was
+   * live during it would be a lie the player can watch. The countdown itself is
+   * drawn on the pin, at the anchor, where the walking is happening.
+   */
   return (
-    <div className="posting" role="status" aria-live="polite">
-      <div
-        className="posting__row"
-        data-phase={walking ? 'walking' : 'active'}
-        style={{ ['--branch' as string]: hero.colour }}
-      >
-        <div className="posting__copy">
-          <span className="posting__step">PLACEMENT CONFIRMED</span>
-          <strong className="posting__line">
-            {walking
-              ? `${hero.hero.name.toUpperCase()} IS MOVING — ACTIVE IN ${remaining}S`
-              : `${hero.hero.name.toUpperCase()} IS ACTIVE`}
-          </strong>
-          <span className="posting__benefit">
-            {walking ? 'WILL COVER' : 'COVERS'} {coverageLabel(targetCovered, state.devs)}
-            {' '}· {benefit.value} {benefit.label}
-          </span>
-          <span className="posting__hint">
-            {walking
-              ? 'EFFECT AND HERO XP BEGIN AFTER THE WALK'
-              : `LIVE EFFECT · HERO XP SHARE ${percent}% · ${benefit.label}: ${appliedFormula(benefit.value)}`}
-          </span>
-        </div>
-      </div>
-    </div>
+    <PostingRow
+      phase={walking ? 'walking' : 'active'}
+      colour={hero.colour}
+      who={`${hero.hero.name.toUpperCase()} ${walking ? 'IS WALKING' : 'IS ACTIVE'}`}
+      detail={
+        walking
+          ? `ACTIVE IN ${remaining}S · WILL COVER ${coverageLabel(targetCovered, state.devs)}`
+          : `COVERS ${coverageLabel(targetCovered, state.devs)} · ${benefit.value} ${benefit.label} · XP ${percent}%`
+      }
+    />
   )
 }

@@ -47,6 +47,15 @@ const AT_MELANY = 4
 const AT_BILLY = 5
 
 /**
+ * §21.7.3 — the seat `store.seatBilly` posts him on when his scene ends.
+ *
+ * Exported so the two cannot drift: the camera cuts to this seat for his lines,
+ * and the floor has to mark the same person a moment later — or the scene
+ * introduces one man and the world labels another.
+ */
+export const BILLY_SEAT = AT_BILLY
+
+/**
  * §21.7.1 — *"Is this seat taken?"* Act I, at §21.0b's fiftieth poke.
  *
  * He is free, he is not hired, and there is no `NEW HERO ACQUIRED` anywhere in
@@ -305,15 +314,107 @@ export const SCENE_MELANY_ARRIVES: Scene = {
   ],
 }
 
-/** Billy — Cohesion. Believes in process, sincerely, and it works. */
+/**
+ * Billy — Cohesion, and **the one arrival that is a referral** [rewritten
+ * 2026-08-29].
+ *
+ * It used to be the shortest scene in the set: `APPLICANT AT DOOR`, five lines,
+ * a man who books fifteen minutes. That was correct for the hero he was — the
+ * speedometer nudged past `CHATTY` and somebody turned up about it — and it is
+ * not correct for the hero he is now, because two things moved.
+ *
+ * **The trigger moved.** `billyArrives` now waits for sync to sit at half or
+ * worse for twenty seconds (§21.7.3): the studio's headcount has reached the
+ * capacity it can sustain, and half of everybody's day is now the company
+ * talking about the company. That is not an applicant-at-the-door feeling. It is
+ * the first time in the game the player looks at §4.1 and has no move.
+ *
+ * **And §13.8's floor moved behind him.** Placement was reachable from the frame
+ * anybody had two heroes and nobody handed it over, which is §21.7.6's own rule
+ * broken in the largest place it could be broken (see `unlocks.ts`). So this
+ * scene now does what §11.5 does for the studio tree and §21.7.7 does for the two
+ * boards: a system arrives in the hands of the person who solves it.
+ *
+ * ## Why James is the door
+ *
+ * §21.7.3's shape rule 3 puts James in every arrival with exactly one line,
+ * about the tool or the process, never about the person — because in the other
+ * four somebody is walking through a door and a second James line would compete
+ * with them. Here he *is* the door, so the rule cannot hold in its shape while
+ * still holding in its substance: he says the process out loud (a fixed time, a
+ * fixed order, standing up), he names a school as though it were a fact about a
+ * rota, and his last line is a supply constraint. He is not introducing a
+ * friend. He is closing a ticket.
+ *
+ * ## The school, and the half of the joke the founder cannot hear
+ *
+ * Winterbourne is nobody's school and is obviously somebody's school. James says
+ * it once, flatly, the way people who went to one say the name of it —
+ * expecting no reaction, because in the world he is briefly describing there
+ * would not be one. The founder guesses a band.
+ *
+ * **The founder is the straight man and Billy is never the butt.** Billy is not
+ * performing and does not know there is anything to perform; *terribly*,
+ * *shan't*, *splendid* and *I'm afraid not* are simply the words he has. The
+ * comedy is a founder who built a company out of nothing standing in front of an
+ * apparatus they cannot see the edges of, and asking whether it is a band.
+ *
+ * ## The Diet Coke
+ *
+ * §21.7.1 spent a line establishing that James lives on Diet Coke and brings his
+ * own. This is that line coming back, four hours of play later, as
+ * **logistics**: James is not commenting on Billy, he is telling the founder
+ * something they would otherwise get wrong about the fridge. He is completely
+ * correct about a small thing while the large thing — half the company's day,
+ * still gone — goes on behind him. §21.7.0 rule 1, unchanged since Act I.
+ *
+ * ## Length
+ *
+ * Longer than §21.7.3's twelve-line handshake, deliberately, and the only
+ * exception in the set. That rule's argument is that an *introduction* is a
+ * handshake and not an act; this is an introduction **and** a system hand-over,
+ * and the game's two other hand-over scenes (§18.0a's thread, §21.7.7's founder
+ * board) run the same length for the same reason. A scene that gives the player
+ * a verb has to reach the verb.
+ */
 export const SCENE_BILLY_ARRIVES: Scene = {
   id: 'scene.run2.billy-arrives',
   script: [
+    // The machine states the reading, and then states what the reading *is* —
+    // which is the one thing the gauge has never said in words.
+    { speaker: OS, text: 'SYNC HELD AT 50% OR BELOW. THE STUDIO IS NOW SPENDING HALF OF ITS DAY ON ITSELF.' },
+    { speaker: PLAYER, text: 'It halved. And then it stayed there.', focus: AT_YOU },
+    { speaker: JAMES, text: 'Everyone is talking to everyone. That is the number.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'So make them stop talking.', focus: AT_YOU },
+    // §21.7.0 rule 2 — sincere, and good news to him. Also, once again, correct.
+    { speaker: JAMES, text: 'You can’t. You can make them do it at a fixed time, in a fixed order, standing up.', focus: AT_JAMES },
+    { speaker: PLAYER, text: '…That’s a meeting.', focus: AT_YOU },
+    { speaker: JAMES, text: 'That’s the fix. I know someone. We were at Winterbourne together.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'At what?', focus: AT_YOU },
+    // Once, flatly, expecting no reaction.
+    { speaker: JAMES, text: 'Winterbourne.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'Is that a band?', focus: AT_YOU },
+    { speaker: JAMES, text: 'It’s a school.', focus: AT_JAMES },
     { speaker: OS, text: 'APPLICANT AT DOOR.' },
-    { speaker: 'BILLY', text: 'I’ve booked fifteen minutes. If we don’t need fifteen minutes, we’ll give them back.', focus: AT_BILLY },
-    { speaker: PLAYER, text: 'Do we have fifteen minutes?', focus: AT_YOU },
-    { speaker: 'BILLY', text: 'You have less. That’s why I booked them.', focus: AT_BILLY },
-    { speaker: JAMES, text: 'A meeting is a tool for talking less, if you do it right.', focus: AT_JAMES },
+    { speaker: 'BILLY', text: 'Good afternoon. Billy. I’m terribly sorry — is this an awkward moment?', focus: AT_BILLY },
+    { speaker: PLAYER, text: 'It’s the worst moment we’ve had.', focus: AT_YOU },
+    // §22.8.2's flavour line, verbatim. Every one of these scenes is written
+    // out of the card's one sentence, and this is his.
+    {
+      speaker: 'BILLY',
+      text: 'Splendid. Then we shan’t waste it. I’ve taken the liberty of booking a quarter of an hour.',
+      focus: AT_BILLY,
+    },
+    // The founder offers hospitality out of the only world they know, and every
+    // single item on the list is wrong.
+    { speaker: PLAYER, text: 'Do you want a coffee? Or a drink? There’s a McDonald’s on the corner.', focus: AT_YOU },
+    { speaker: 'BILLY', text: 'You’re very kind. I don’t, and I haven’t.', focus: AT_BILLY },
+    // Logistics, not commentary. See the note above.
+    { speaker: JAMES, text: 'There’s no point offering him the fridge either. He doesn’t drink Diet Coke.', focus: AT_JAMES },
+    { speaker: 'BILLY', text: 'I’m afraid not. Shall we begin? I’ll want the floor, and a quarter of an hour of everybody.', focus: AT_BILLY },
+    // The hand-over, in the machine's register, and it names the verb.
+    { speaker: OS, text: 'B. — SCRUM MASTER. POSTED TO THE FLOOR.' },
+    { speaker: OS, text: 'PERSONNEL MAY NOW BE POSTED. OPEN HERO, PICK ANYBODY, TAP THE STUDIO.' },
   ],
 }
 

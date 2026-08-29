@@ -41,6 +41,7 @@ export function Roster({
   coverageFor,
   totalDevs,
   showPoints,
+  canPlace,
   onOpen,
   onClose,
 }: {
@@ -58,6 +59,16 @@ export function Roster({
    * else in this file knows what a save is.
    */
   showPoints: boolean
+  /**
+   * §21.7.6 — has Billy handed over the floor (`game/unlocks.ts`)?
+   *
+   * The window's own title says `HERO PLACEMENT`, which is a promise it cannot
+   * keep before he arrives, so the bar reads what the strip actually is until
+   * then: §13.11.2's answer to *"who is idle?"*. A prop rather than a store
+   * read, on the same rule as `showPoints` — nothing in this file knows what a
+   * save is.
+   */
+  canPlace: boolean
   onOpen: (hero: HeroRuntime) => void
   onClose: () => void
 }) {
@@ -67,14 +78,19 @@ export function Roster({
       from="bottom"
       className="roster"
       bodyClassName="os-window__body--flush"
-      title="HERO PLACEMENT"
+      title={canPlace ? 'HERO PLACEMENT' : 'PERSONNEL'}
       /*
         The instruction, in the bar. §13.11.2 keeps this a *strip* — one row of
         cards summoned and dismissed — and the line telling you what a tap does
         was eating a 150px column of it. The bar already exists to say what a
         window is; this is that sentence.
+
+        Both readings are true sentences about the same strip, which is why the
+        title moves with the gate rather than the strip being gated: §13.11.2
+        answers "who is idle?", and it answers it whether or not there is
+        anything to be done about the answer yet.
       */
-      meta="SELECT A HERO TO PLACE, MOVE, OR REVIEW"
+      meta={canPlace ? 'SELECT A HERO TO PLACE, MOVE, OR REVIEW' : 'SELECT A HERO TO REVIEW'}
       onClose={onClose}
     >
       <div className="roster__strip">

@@ -136,19 +136,39 @@ export const STORY_HEROES: readonly StoryHero[] = [
     brings: null,
     role: 'CLOUD PLATFORM',
   },
+  /**
+   * §21.7.3 amended 2026-08-29 — **Billy is the one hero somebody introduces.**
+   *
+   * The other four walk through a door because the player felt a problem. Billy
+   * is walked *in*, by James, because §21.7.6's rule finally has to answer for
+   * the system it had been quietly leaving ungated: §13.8's placement. See
+   * `game/storyTriggers.ts` for the trigger and `game/scenes.ts` for the scene.
+   *
+   * **His voice is refined and he is never doing a bit.** He is not sending
+   * anybody up and he is not aware there is anything to send up — he says
+   * *shan't* and *one* and *terribly* because that is how he was taught to
+   * speak, which is exactly the register §21.7.0 rule 2 asks of James in a
+   * different key. The comedy is the founder's total failure to place any of
+   * it, never Billy being mocked for it.
+   *
+   * `role` is `SCRUM MASTER` and not `DELIVERY` [amended 2026-08-29]. §22.8.1
+   * has said *“'Scrum Master' is what Billy* is” since the old rosters were
+   * folded into this one; the roster entry was the last place still calling him
+   * a department, and a department is not a person.
+   */
   {
     id: 'billy',
     name: 'Billy',
     branch: 'cohesion',
-    flavour: 'I’ve booked fifteen minutes. If we don’t need fifteen minutes, we’ll give them back.',
-    arrives: 'The first time the speedometer reads past CHATTY outside Run 1',
+    flavour: 'I’ve taken the liberty of booking a quarter of an hour. If we shan’t need it, we shall give it back.',
+    arrives: 'The first sustained collapse of sync outside Run 1 — and James knows a chap',
     trait: {
       name: 'FIFTEEN MINUTES',
       text: 'Daily Standups do not pause developers inside Billy’s coverage.',
     },
     idle: 'whiteboard',
     brings: null,
-    role: 'DELIVERY',
+    role: 'SCRUM MASTER',
   },
 ]
 

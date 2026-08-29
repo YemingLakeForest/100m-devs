@@ -133,6 +133,25 @@ export const SHIRT_COLOURS = 5
 export const BODY_SHAPES = 4
 export const FACIAL_HAIR_STYLES = 4
 
+/**
+ * §22.8 — the parts that belong to one person, past the end of the roll.
+ *
+ * Every table above states how many entries a *generated* developer may draw
+ * from, and the renderer's tables are longer than that on purpose: what sits
+ * past the count is somebody's, the way a name is. James owns the first spare
+ * hair colour and the first spare shirt; Billy owns the second of each and the
+ * one torso silhouette that is not on the founder creator.
+ *
+ * Named here rather than written as `HAIR_COLOURS + 1` at the call site because
+ * `render/room.ts` has to switch on the torso by value, and a bare `4` in a
+ * switch that also contains `case 3` is a number nobody can check.
+ */
+export const JAMES_HAIR = HAIR_COLOURS
+export const JAMES_SHIRT = SHIRT_COLOURS
+export const BILLY_HAIR = HAIR_COLOURS + 1
+export const BILLY_SHIRT = SHIRT_COLOURS + 1
+export const BILLY_TORSO = BODY_SHAPES
+
 export function identityFor(seed: number, index: number): Identity {
   const d = (channel: number) => draw(seed, index, channel)
   const stat = (channel: number) => Math.round(d(channel) * 100)
@@ -176,9 +195,9 @@ export const JAMES: Identity = {
     // the room's part tables past {@link HAIR_COLOURS} and {@link SHIRT_COLOURS},
     // so they are his alone — no generated developer ever rolls them.
     hair: 0,
-    hairColour: HAIR_COLOURS,
+    hairColour: JAMES_HAIR,
     skin: 1,
-    shirt: SHIRT_COLOURS,
+    shirt: JAMES_SHIRT,
     body: 1,
     facialHair: 3,
     glasses: true,
@@ -246,11 +265,38 @@ export const HERO_IDENTITIES: Readonly<Record<string, Identity>> = {
     stats: { focus: 63, chatter: 78, seniority: 66 },
     trait: null,
   },
+  /**
+   * §21.7.3 amended 2026-08-29 — **Billy is drawn the way he talks.**
+   *
+   * He used to be a rolled-looking man with a goatee, which was fine for the
+   * hero he was: somebody who turns up because the speedometer nudged past
+   * `CHATTY`. He is now the person James went to school with, and the joke of
+   * that scene is entirely about a world the founder cannot see — so the look
+   * has to carry the half of it that is not spoken. Every field below is one
+   * word of the description, and none of them is a roll:
+   *
+   * | Field | Why |
+   * |---|---|
+   * | `hair: 1` | The `crop` silhouette — the neat short back and sides. It is the only one of the four that is *tidy*; `full`, `tall` and `wide` all read as somebody who has not been to a barber this month |
+   * | `hairColour: BILLY_HAIR` | Fair, and his alone (`art/personPalette.ts`) |
+   * | `skin: 0` | The lightest tone. He does not go outside much and he is not sorry |
+   * | `shirt: BILLY_SHIRT` | Light blue, and his alone |
+   * | `body: BILLY_TORSO` | Slim and tall, with a collar. See `render/room.ts` |
+   * | `facialHair: 0` | Clean-shaven. James is the full beard; the contrast is the point, because they are the same age |
+   * | `glasses: true` | |
+   * | `headphones: false` | §7.8.13 gives him the whiteboard, not a desk to hide at |
+   * | `slouch: -0.45` | The most upright posture on the floor. Everybody else leans into a monitor |
+   *
+   * The stats are unchanged and they were always right: his chatter is the
+   * highest number on this table and §7.8.7 is explicit that it does not enter
+   * §4.1's production maths. Billy talking a lot is not a criticism of Billy —
+   * it is the entire mechanism by which he fixes the studio.
+   */
   billy: {
     name: 'Billy',
     look: {
-      hair: 2, hairColour: 1, skin: 2, shirt: 2, body: 3,
-      facialHair: 2, glasses: false, headphones: false, slouch: -0.2,
+      hair: 1, hairColour: BILLY_HAIR, skin: 0, shirt: BILLY_SHIRT, body: BILLY_TORSO,
+      facialHair: 0, glasses: true, headphones: false, slouch: -0.45,
     },
     stats: { focus: 52, chatter: 96, seniority: 49 },
     trait: null,

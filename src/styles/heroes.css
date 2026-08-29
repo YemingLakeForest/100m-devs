@@ -1048,11 +1048,28 @@
  * Opaque for §22.9's reason — it lands on §21's script block — and `z-index: 3`
  * so it is above the strip it is stacked on rather than interleaved with it.
  */
+/*
+ * §13.8's placement strip — **one row, and out of the floor's way.**
+ *
+ * Rewritten 2026-08-29 off the report quoted in `hud/PostingBanner.tsx`. What
+ * this replaced was four stacked lines in a 700 px row floated 126 px off the
+ * bottom edge, which on §23.4.2's 776x357 design frame put its top edge at
+ * y≈222 of 357 — across the middle of the floor the banner is asking the player
+ * to tap. Three numbers moved to the world plate at the target and the rest
+ * collapsed onto one line, so the whole surface is now about 26 px tall.
+ *
+ * **The vertical position is a measurement, not a taste.** The bottom band of
+ * the frame is spoken for — §18.0's event banner and §21's ticker sit in the
+ * script row — and so is everything above y≈250 in the middle, which is the
+ * room. What is left is the quiet strip between them: the near floor, in front
+ * of the desks, where nothing is ever drawn. `56px` above `--edge-y` lands
+ * there and clears the event banner's tallest state.
+ */
 .posting {
   position: absolute;
   left: var(--edge-x);
   right: var(--edge-x);
-  bottom: calc(var(--edge-y) + 126px);
+  bottom: calc(var(--edge-y) + 56px);
   display: grid;
   justify-items: center;
   /* §7.1 — the HUD is inert and controls opt back in. The row itself stays
@@ -1062,28 +1079,38 @@
   z-index: 3;
 }
 
+/*
+ * `[who] [what] [verbs]`, and only the middle one may shrink.
+ *
+ * The two fixed ends are short by construction — a name and at most two buttons
+ * — so the row's height is a single line at every width in the design box, and
+ * the reading that goes first on a narrow frame is the one the world plate at
+ * the target is already showing.
+ */
 .posting__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  width: min(700px, 100%);
-  padding: 8px 10px;
+  gap: 8px;
+  width: min(560px, 100%);
+  padding: 5px 8px;
   border: var(--rule) solid var(--branch, var(--p2));
   border-left-width: 4px;
   background: var(--n0);
   /* The world remains the target even when this explanation has to sit over a
-     developer on the 640x360 frame. Only CANCEL opts back into hit-testing. */
+     developer on the 640x360 frame. Only the buttons opt back into hit-testing. */
   pointer-events: none;
 }
 
 .posting__row .ui-btn {
   pointer-events: auto;
+  font-size: var(--type-1x);
+  padding: 4px 8px;
 }
 
 .posting__actions {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   pointer-events: auto;
 }
 
@@ -1100,39 +1127,18 @@
   animation: posting-effect-active 700ms steps(6, end);
 }
 
-.posting__copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  pointer-events: none;
-}
-
-.posting__step {
+.posting__who {
   color: var(--branch, var(--p3));
   font-size: var(--type-1x);
   letter-spacing: 2px;
+  white-space: nowrap;
 }
 
-.posting__line {
+.posting__detail {
   color: var(--n8);
   font-size: var(--type-1x);
   letter-spacing: 1px;
-  white-space: normal;
-}
-
-.posting__benefit {
-  color: var(--branch, var(--p3));
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.posting__hint {
-  color: var(--p1);
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1140,26 +1146,23 @@
 
 @media (max-height: 400px) {
   .posting {
-    bottom: calc(var(--edge-y) + 104px);
+    bottom: calc(var(--edge-y) + 46px);
   }
 
   .posting__row {
-    padding-block: 5px;
-  }
-
-  .posting__hint {
-    display: none;
-  }
-
-  .posting__step {
-    display: none;
-  }
-
-  .posting__actions {
-    flex-direction: column;
-    gap: 3px;
+    padding-block: 3px;
   }
 }
+
+/*
+ * **Nothing is hidden on a short frame any more, and that is the point of the
+ * rewrite.** The version this replaced dropped its step counter and its hint at
+ * 400 px because it was four lines tall and had to buy height back. One row
+ * costs the same height at every width, so the only thing a short frame needs
+ * is to sit closer to the edge — and the copy that survives is the copy every
+ * frame gets. Where the *width* runs out, `.posting__detail` ellipsises into
+ * its own column and the plate at the anchor still carries the numbers.
+ */
 
 /* --- §13.11.1 scene ownership ------------------------------------------- */
 
@@ -1236,55 +1239,55 @@
   background: currentColor;
 }
 
-.world-hero-pin__card {
+/*
+ * §21.7.4's **desk plate**, and the reasoning is in `WorldHeroAssignments.tsx`.
+ *
+ * The card this replaced was 78x34 with a 28 px portrait in it and the word
+ * `ASSIGNED` under the name — a piece of HUD standing on the set, depicting a
+ * person who is drawn eight pixels below it. A plate is an object the office
+ * would actually own: a name, a job title, a rule under it, hung off the leader
+ * line. No fill behind the type beyond the wash that keeps it legible, because
+ * the thing it must not do is block the floor it is labelling.
+ */
+.world-hero-pin__plate {
   position: absolute;
   left: 0;
-  bottom: 10px;
+  bottom: 11px;
   display: grid;
-  grid-template-columns: 28px auto;
-  align-items: center;
-  gap: 5px;
-  min-width: 78px;
-  padding: 3px 6px 3px 3px;
-  border: var(--rule) solid currentColor;
+  gap: 0;
+  padding: 2px 6px 3px;
+  border-bottom: 2px solid currentColor;
+  line-height: 1.05;
+  text-align: center;
   color: var(--p1);
-  background: color-mix(in srgb, var(--n0) 90%, transparent);
-  box-shadow: 2px 2px 0 color-mix(in srgb, var(--n0) 64%, transparent);
+  background: color-mix(in srgb, var(--n0) 72%, transparent);
   transform: translateX(-50%);
 }
 
-.world-hero-pin__card::after {
+.world-hero-pin__plate::after {
   content: '';
   position: absolute;
   left: calc(50% - 1px);
   top: 100%;
   width: 1px;
-  height: 10px;
+  height: 11px;
   background: currentColor;
 }
 
-.world-hero-pin__face {
-  width: 28px;
-  height: 28px;
-  border-right: var(--rule) solid currentColor;
-  background: var(--n1);
-}
-
-.world-hero-pin__copy {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-  line-height: 1;
-}
-
-.world-hero-pin__copy strong {
+.world-hero-pin__plate strong {
   color: var(--n8);
   font-size: var(--type-1x);
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   white-space: nowrap;
 }
 
-.world-hero-pin__copy small {
+/*
+ * The role — or, while aiming, the reading the strip gave up to get out of the
+ * middle of the screen. It is deliberately the quieter of the two lines: a
+ * plate is read as a *name*, and the second line is what you look at when you
+ * have already found the name you wanted.
+ */
+.world-hero-pin__plate small {
   color: currentColor;
   font-size: 7px;
   letter-spacing: .7px;
@@ -1304,8 +1307,8 @@
   animation: world-hero-activate 800ms steps(7, end) forwards;
 }
 
-.world-hero-pin[data-activated='true'] .world-hero-pin__card {
-  animation: world-hero-card-activate 800ms steps(5, end);
+.world-hero-pin[data-activated='true'] .world-hero-pin__plate {
+  animation: world-hero-plate-activate 800ms steps(5, end);
 }
 
 .world-hero-pin[data-state='preview'] {
@@ -1323,8 +1326,8 @@
   animation: world-hero-walk 700ms steps(2, end) infinite;
 }
 
-.world-hero-pin[data-edge='true'] .world-hero-pin__card {
-  border-style: dashed;
+.world-hero-pin[data-edge='true'] .world-hero-pin__plate {
+  border-bottom-style: dashed;
 }
 
 @keyframes world-hero-walk {
@@ -1341,7 +1344,7 @@
   to { inset: -34px; opacity: 0; }
 }
 
-@keyframes world-hero-card-activate {
+@keyframes world-hero-plate-activate {
   35% { transform: translateX(-50%) scale(1.08); color: var(--branch, var(--p3)); }
 }
 
@@ -1352,7 +1355,7 @@
 
   .posting__row[data-phase='active'],
   .world-hero-pin[data-activated='true']::after,
-  .world-hero-pin[data-activated='true'] .world-hero-pin__card {
+  .world-hero-pin[data-activated='true'] .world-hero-pin__plate {
     animation: none;
   }
 

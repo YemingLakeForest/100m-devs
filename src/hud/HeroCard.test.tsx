@@ -12,7 +12,7 @@ import { HeroCard } from './HeroCard.tsx'
 import { HeroTree } from './HeroTree.tsx'
 import { __resetStore, heroById, placeHero, selectHero } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
-import { SCENE_HERO_BOARD, SCENE_MO_ARRIVES } from '../game/scenes.ts'
+import { SCENE_BILLY_ARRIVES, SCENE_HERO_BOARD, SCENE_MO_ARRIVES } from '../game/scenes.ts'
 import { xpToReach } from '../sim/heroXp.ts'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 
@@ -40,11 +40,12 @@ function staffed(level = 1, nodes?: string[]) {
     meta: {
       ...p.meta,
       paradigmShifts: 1,
-      // §21.7.7 — the board has been introduced. This file is about what the
-      // card and the board *look like* and how a purchase lands, not about the
-      // gate, which `unlocks.test.ts` owns; a fixture that had never met the
-      // board would be testing the gate in nine places by accident.
-      milestones: [SCENE_MO_ARRIVES.id, SCENE_HERO_BOARD.id],
+      // §21.7.7 — the board has been introduced, and §21.7.6 — so has the
+      // floor. This file is about what the card and the board *look like* and
+      // how a purchase lands, not about either gate, which `unlocks.test.ts`
+      // owns; a fixture that had met neither would be testing the gates in
+      // nine places by accident.
+      milestones: [SCENE_MO_ARRIVES.id, SCENE_HERO_BOARD.id, SCENE_BILLY_ARRIVES.id],
       heroXp: { mo: xpToReach(level) },
       heroNodes: nodes ? { mo: nodes } : {},
     },
@@ -334,11 +335,44 @@ describe('§13.8 — the card is where a hero is put somewhere', () => {
   })
 
   /*
-   * §21.7.7 gates the *board*, not the card. A hero who has arrived can be put
-   * on the floor from the moment they arrive — the floor is the board — so this
-   * is the one action on the card that never waits for a scene.
+   * §21.7.7 gates the *board* and §21.7.6 gates the *floor*, and the two gates
+   * are independent. This is the case that says so in both directions: the
+   * placement verb is here with no board, and — below — the card is whole with
+   * no placement verb.
    */
   it('offers it before the skills board has been handed over', () => {
+    const p = emptyPermanent()
+    setPermanent({
+      ...p,
+      meta: {
+        ...p.meta,
+        paradigmShifts: 1,
+        milestones: [SCENE_MO_ARRIVES.id, SCENE_BILLY_ARRIVES.id],
+      },
+    })
+    render(
+      <HeroCard hero={heroById('mo')!} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
+    )
+    expect(screen.getByRole('button', { name: 'PLACE HERO' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /SPEND|SKILLS/ })).toBeNull()
+  })
+
+  /**
+   * §21.7.6 — **and it waits for Billy** [added 2026-08-29].
+   *
+   * The comment this replaced said placement was *"the one action on the card
+   * that never waits for a scene"*. It does now: the floor is the largest
+   * instrument in Layer 1 and it arrives in the hands of the man whose job it
+   * is (`game/unlocks.ts`).
+   *
+   * The second assertion is the one that keeps the gate from becoming a
+   * scolding. §13.10 makes a benched hero actively expensive, so a card that
+   * says `BENCHED` in red, offers no way off the bench and does not say why
+   * would be the game blaming the player for its own gate. It states the
+   * potential and names the missing thing instead — which is what makes Billy's
+   * scene relief rather than a tutorial.
+   */
+  it('withholds the placement verb until Billy has handed the floor over', () => {
     const p = emptyPermanent()
     setPermanent({
       ...p,
@@ -347,8 +381,10 @@ describe('§13.8 — the card is where a hero is put somewhere', () => {
     render(
       <HeroCard hero={heroById('mo')!} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
     )
-    expect(screen.getByRole('button', { name: 'PLACE HERO' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /SPEND|SKILLS/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /PLACE HERO|MOVE HERO|RECALL/ })).toBeNull()
+    expect(screen.getByText(/NOBODY IS RUNNING THE FLOOR YET/)).toBeInTheDocument()
+    // The card is still the whole card — §21.7.7's rule, unchanged.
+    expect(screen.getByText('Mo')).toBeInTheDocument()
   })
 })
 

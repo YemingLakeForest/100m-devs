@@ -43,7 +43,7 @@ import { createAmbient } from './ambient.ts'
 import { NO_SPOTS, createErrands } from './errands.ts'
 import { bubblesLegible, counterScale, createBubbles } from './bubble.ts'
 import type { Away } from '../sim/slackOff.ts'
-import { developerAt, type Look } from '../sim/identity.ts'
+import { BILLY_TORSO, developerAt, type Look } from '../sim/identity.ts'
 import {
   DEFAULT_FOUNDER,
   founderLook,
@@ -1162,15 +1162,35 @@ export function wallSpot(
 // card draws a person in the DOM, and a second copy of "which ramp entry is
 // James's orange" is the quiet divergence ART_DIRECTION §0 forbids.
 
-/** The four creator silhouettes, shared by generated developers and YOU. */
+/**
+ * The four creator silhouettes, shared by generated developers and YOU — **and
+ * a fifth that only Billy has.**
+ *
+ * The fifth is the same exception the hair and shirt ramps already make for
+ * James (`art/personPalette.ts`): it sits one past `BODY_SHAPES`, so a roll can
+ * never produce it and it belongs to one person. §22.8's roster is six people
+ * who are somebody in particular against a floor of people who are nobody in
+ * particular, and R51 asks for *extremely distinct* — a hero the player can
+ * pick out of a crowd of a thousand without a label, which is the same argument
+ * §7.8.13 makes for giving each of them one permanent idle.
+ *
+ * It exists because the other four cannot say what Billy is. He is slim, he is
+ * tall and he is wearing a proper collared shirt: `tee` is slim and short,
+ * `knit` is tall and ribbed into a turtleneck, `jacket` has the broadest
+ * shoulders in the room, and `hoodie` is boxy. Picking any of them would have
+ * contradicted the description in the silhouette while the colour said
+ * otherwise, and the silhouette is what reads at fifty developers.
+ */
 function torsoShape(look: Look): { w: number; h: number } {
-  switch (look.body % 4) {
+  switch (look.body) {
     // Tee — the narrowest, clearly the smallest silhouette.
     case 1: return { w: 12, h: 18 }
     // Jacket — the broadest shoulders in the room.
     case 2: return { w: 22, h: 18 }
     // Knit — the tallest, a turtleneck body.
     case 3: return { w: 16, h: 22 }
+    // Shirt — Billy's, and nobody else's: narrow *and* full height.
+    case BILLY_TORSO: return { w: 13, h: 23 }
     // Hoodie — boxy, in between.
     default: return { w: 18, h: 19 }
   }
@@ -1178,7 +1198,19 @@ function torsoShape(look: Look): { w: number; h: number } {
 
 /** Details large enough to survive the room scale; no preview-only costume. */
 function drawTorsoDetails(g: Graphics, look: Look, front: boolean) {
-  const body = look.body % 4
+  const body = look.body
+  if (body === BILLY_TORSO) {
+    // Shirt: a collar with a notch at the throat, and a buttoned placket down
+    // the front. Two marks, because at this scale a third is a smudge — and
+    // they are the two that say "this is not a t-shirt" from across the floor.
+    g.rect(-5, -13, 10, 2).fill(c(RAMPS.NEUTRAL[7]))
+    if (front) {
+      g.moveTo(-4.5, -13).lineTo(-0.75, -8).lineTo(-0.75, -13).closePath().fill(c(RAMPS.NEUTRAL[8]))
+      g.moveTo(4.5, -13).lineTo(0.75, -8).lineTo(0.75, -13).closePath().fill(c(RAMPS.NEUTRAL[7]))
+      g.rect(-0.6, -11, 1.2, 14).fill(c(RAMPS.NEUTRAL[7]))
+    }
+    return
+  }
   if (body === 0) {
     // Hoodie: a hood read from behind as a cowl around the neck, the zip on the front.
     if (!front) g.ellipse(0, -11, 8, 5).fill(c(RAMPS.NEUTRAL[2]))

@@ -98,6 +98,21 @@ const COMPONENTS = [
   // §18.0 — a live event's banner is a control in the middle column, which is
   // the one place in the frame nothing else is anchored to an edge.
   '.event-banner',
+  /*
+   * §13.8's placement strip, and it is here because it was never here.
+   *
+   * The strip is the one surface in the game that is deliberately drawn *over
+   * the simulation* while asking the player to tap the simulation, and this
+   * gate could not see it: it renders only while somebody is armed, which is
+   * exactly one screen below, and nothing in either list matched it. So the
+   * four-line, 700 px version — reported from a handset as covering the middle
+   * of the screen — sat across the floor at every frame in §23.4.2's box, and
+   * the gate passed it every time.
+   *
+   * `__row` rather than `.posting`, because the wrapper is a full-width grid
+   * whose only job is to centre the row; the row is the thing that paints.
+   */
+  '.posting__row',
   '.upgrade-board__node',
   '.title__logo',
   '.title__menu',
@@ -117,6 +132,9 @@ const PAINTED = [
   '.hud__block',
   '.backlog',
   '.event-banner',
+  // See the note in COMPONENTS. It has a border and a fill, and the whole
+  // reported defect was what it was drawn on top of.
+  '.posting__row',
   '.touch',
   '.hire-dial',
   '.hud__terminal',
@@ -522,6 +540,29 @@ async function clearScene(page) {
     await page.waitForTimeout(450)
   }
   throw new Error('a scene would not clear')
+}
+
+/**
+ * §10.8b — answer the launch window, if one is up.
+ *
+ * The scenarios run studios of a hundred thousand people, which finish a
+ * project every few seconds, so any leg that lets one of them run for a while
+ * will eventually meet a launch. The window is modal and it halts the studio —
+ * a control behind it is genuinely not pressable, which is the whole point — so
+ * a pass that reached for a HUD button without clearing it first would be
+ * measuring the glass rather than the button.
+ *
+ * Deliberately **not** part of `check`'s standard preamble: most screens are a
+ * fixed fixture with no simulation running under them, and the ones that need
+ * this are the ones that play.
+ */
+async function clearRelease(page) {
+  const catcher = page.locator('.release__catch')
+  if (!(await catcher.count())) return false
+  await catcher.first().click({ timeout: 5_000, force: true }).catch(() => {})
+  await page.waitForFunction(() => !globalThis.__store?.pendingRelease, null, { timeout: 10_000 })
+  await page.waitForTimeout(200)
+  return true
 }
 
 /**
@@ -1050,6 +1091,27 @@ try {
   })
 
   /*
+   * §10.8b's launch window, at both ends of the box.
+   *
+   * It is the only modal in the product whose body is a *fixed-aspect
+   * instrument* — a bar with seven named zones on it — rather than a column of
+   * text that can reflow, so it is the one most likely to be squeezed into
+   * something unaimable rather than something clipped. `?release` parks it with
+   * the verdict already stamped, which is the state with the most type in it.
+   */
+  for (const [width, height] of [[640, 360], [997, 448]]) {
+    await check(page, {
+      name: `the launch window at ${width}x${height}`,
+      width,
+      height,
+      path: '/?notitle&release&nopost',
+      action: async (target) => {
+        await target.locator('.release__track').waitFor({ state: 'visible' })
+      },
+    })
+  }
+
+  /*
    * §15.1a's reboot, on its tallest page.
    *
    * The receipt is six lines at the second rung of the type scale and there is
@@ -1151,14 +1213,17 @@ try {
      * so choosing a floor of building 8 quietly moved the studio to building 1
      * and took the room with it.
      */
+    await clearRelease(page)
     const tower = await aimAt(page, 4, 7)
     if (!tower) throw new Error(`the block at ${width}x${height}: building 8 is not reachable`)
     await tapAt(page, tower.x, tower.y)
+    await clearRelease(page)
     await page.locator('.hud__enter').click()
     await page.waitForTimeout(1_200)
     const storey = await aimAt(page, 3, 5)
     if (!storey) throw new Error(`the block at ${width}x${height}: floor 6 of building 8 is not reachable`)
     await tapAt(page, storey.x, storey.y)
+    await clearRelease(page)
     await page.locator('.hud__enter').click()
     await page.waitForTimeout(1_200)
     const where = await page.evaluate(() => {
@@ -1254,9 +1319,11 @@ try {
       { rung: 3, index: 5, what: 'floor 6 of it' },
     ]
     for (const door of doors) {
+      await clearRelease(page)
       const at = await aimAt(page, door.rung, door.index)
       if (!at) throw new Error(`the park at ${width}x${height}: ${door.what} is not reachable`)
       await tapAt(page, at.x, at.y)
+      await clearRelease(page)
       const enter = page.locator('.hud__enter')
       if (!(await enter.count())) {
         throw new Error(

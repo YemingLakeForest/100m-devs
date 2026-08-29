@@ -38,7 +38,8 @@ import { Panel } from '../ui/Panel.tsx'
 import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
 import { RevenueGraph } from './RevenueGraph.tsx'
-import { ShipToast } from './ShipToast.tsx'
+import { ReleaseReview } from './ReleaseReview.tsx'
+import { ReleaseWindow } from './ReleaseWindow.tsx'
 import { TouchSwitch } from './TouchSwitch.tsx'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
@@ -602,7 +603,11 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         </div>
       </div>
 
-      <ShipToast state={state} />
+      {/* §10.8b — the two halves of a launch. The window is a modal decision
+          the studio is stopped for; the reel is what the press said about it,
+          and it plays over a running floor. */}
+      <ReleaseReview state={state} />
+      <ReleaseWindow state={state} />
       <DevCard state={state} />
 
       {/*
@@ -656,6 +661,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         coverageFor={(hero) => heroCoverageOf(hero, state)}
         totalDevs={state.devs}
         showPoints={unlocks.heroBoard}
+        canPlace={unlocks.heroPlacement}
         onOpen={(hero) => selectHero(hero.id)}
         onClose={() => setRosterOpen(false)}
       />

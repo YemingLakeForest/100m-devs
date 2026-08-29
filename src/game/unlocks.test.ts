@@ -142,18 +142,44 @@ describe('§21.7.6 — a system enters in the hands of the person who solves it'
 
   /**
    * §21.7.6 — "a person only brings what was not already there." Melany bends
-   * §4.2's cap and Billy bends §4.1's entropy, and both of those have been on
-   * screen since Run 1's first minute. They arrive holding a *branch*, and
-   * nothing appears on the HUD when they sit down. The rule is confirmed by the
-   * two heroes it does not apply to.
+   * §4.2's cap, which has been on screen since Run 1's first minute. She arrives
+   * holding a *branch*, and no readout appears when she sits down. The rule is
+   * confirmed by the hero it does not apply to.
+   *
+   * **Billy used to be in this case and is not** [amended 2026-08-29]. The
+   * reasoning was the same and it was right about the *speedometer*: he brings
+   * no instrument either. What it missed is that he brings §13.8's floor, which
+   * is not a readout and is much larger than one.
    */
-  it('gates nothing on Melany or Billy', () => {
+  it('gates no readout on Melany or Billy', () => {
     const neither = unlocksFor(1, NO_HEROES)
     const both = unlocksFor(1, roster('melany', 'billy', 'james'))
     expect(both.defects).toBe(neither.defects)
     expect(both.incidents).toBe(neither.incidents)
     expect(both.tickets).toBe(neither.tickets)
     expect(both.roles).toEqual(neither.roles)
+  })
+
+  /**
+   * §21.7.6 — **§13.8's floor arrives with Billy, and with nobody else.**
+   *
+   * The gate the rule had been missing since it was written. Placement is the
+   * most consequential verb in Layer 1 — it is what makes every hero worth
+   * anything at all — and it was reachable from the frame anybody had two of
+   * them, handed over by no one.
+   */
+  it('hands the floor over with Billy, and only with Billy', () => {
+    expect(unlocksFor(1, NO_HEROES).heroPlacement).toBe(false)
+    expect(unlocksFor(1, roster('james', 'mo', 'serena', 'matt', 'melany')).heroPlacement).toBe(false)
+    expect(unlocksFor(1, roster('billy')).heroPlacement).toBe(true)
+    expect(unlocksFor(1, ALL).heroPlacement).toBe(true)
+  })
+
+  it('keeps the floor shut for the whole of Run 1, Billy or no Billy', () => {
+    // §21.0c's gate runs first and outranks the roster: a save that somehow has
+    // Billy recorded before a shift is a save from a career that prestiged,
+    // and §21.0's four minutes are still four minutes about one lever.
+    expect(unlocksFor(0, ALL).heroPlacement).toBe(false)
   })
 
   it('draws §4.15’s column only once something is in it — §21.7.6b', () => {

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
 import {
-  CHATTY_TOP,
+  BILLY_MIN_SHIFTS,
+  BILLY_SUSTAINED_S,
   FOUNDER_BOARD_MIN_DEVS,
   HERO_BOARD_MIN_LEVEL,
   MATT_SUSTAINED_S,
+  SYNC_HALVED,
   arrivalPredicate,
   billyArrives,
   founderBoardArrives,
@@ -28,6 +30,7 @@ const base: StorySnapshot = {
   devCap: 100,
   cash: 0,
   entropy: 0,
+  syncHalvedFor: 0,
 }
 
 describe('§21.7.3 — a hero arrives the first time you feel the problem', () => {
@@ -51,9 +54,37 @@ describe('§21.7.3 — a hero arrives the first time you feel the problem', () =
     expect(melanyArrives({ ...base, devs: 100, devCap: 100, cash: 0 })).toBe(false)
   })
 
-  it('brings Billy past CHATTY, and only outside Run 1', () => {
-    expect(billyArrives({ ...base, entropy: CHATTY_TOP + 0.01 })).toBe(true)
-    expect(billyArrives({ ...base, paradigmShifts: 0, entropy: CHATTY_TOP + 0.01 })).toBe(false)
+  /*
+   * §21.7.3 — Billy's is the one arrival that is *two* conditions, and each of
+   * these cases is one of the two reasons it had to become two.
+   */
+  it('brings Billy when sync has halved and stayed halved', () => {
+    const collapsed = { ...base, entropy: SYNC_HALVED, syncHalvedFor: BILLY_SUSTAINED_S }
+    expect(billyArrives(collapsed)).toBe(true)
+    expect(billyArrives({ ...collapsed, paradigmShifts: BILLY_MIN_SHIFTS - 1 })).toBe(false)
+  })
+
+  it('does not bring Billy on a dip that recovers', () => {
+    // The old trigger fired at 10% entropy — `CHATTY`, which §4.3a calls "the
+    // hint the player dismisses". Ninety per cent sync is not a collapse.
+    expect(billyArrives({ ...base, entropy: 0.11, syncHalvedFor: 0 })).toBe(false)
+    // And half sync on its own is not either: it is the frame Melany arrives on
+    // (`devs >= devCap` is arithmetically `entropy >= SYNC_HALVED`), so a
+    // threshold alone would put two people through one door on one tick.
+    expect(billyArrives({ ...base, entropy: SYNC_HALVED, syncHalvedFor: 0 })).toBe(false)
+    expect(
+      billyArrives({ ...base, entropy: SYNC_HALVED, syncHalvedFor: BILLY_SUSTAINED_S - 1 }),
+    ).toBe(false)
+  })
+
+  it('agrees with Melany about where the cap is, and arrives after her', () => {
+    // Both read the same instant off §4.1: eta = 1/(1 + (D/D_cap)^rho) is a half
+    // exactly when D = D_cap. The *order* is what this pins — Melany on the
+    // event, Billy on the studio still being there afterwards.
+    const atCap = { ...base, devs: 100, devCap: 100, cash: 1, entropy: SYNC_HALVED }
+    expect(melanyArrives(atCap)).toBe(true)
+    expect(billyArrives(atCap)).toBe(false)
+    expect(billyArrives({ ...atCap, syncHalvedFor: BILLY_SUSTAINED_S })).toBe(true)
   })
 
   it('has a predicate for every hero except James, who needs none', () => {

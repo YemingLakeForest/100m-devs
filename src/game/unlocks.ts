@@ -58,11 +58,18 @@
  * | §13.7.1 founder tree | the founder's own output overtakes a developer's | *"I am the only thing here that still works"* |
  * | §13.9 hero board | the first level, and therefore the first point | *"this person is getting better and I have something to spend"* |
  *
- * **Melany and Billy gate nothing, and the difference confirms the rule.** The
- * developer cap and the speedometer have been on screen since Run 1's first
- * minute — they are not systems the player is being introduced to, they are
- * systems the player has been fighting. A person only brings what was not
- * already there.
+ * **Melany gates nothing, and the difference confirms the rule.** The developer
+ * cap has been on screen since Run 1's first minute — it is not a system the
+ * player is being introduced to, it is a system the player has been fighting. A
+ * person only brings what was not already there.
+ *
+ * **Billy used to be the second half of that sentence, and is not any more**
+ * [amended 2026-08-29]. The reasoning was identical and it was right about the
+ * speedometer: he hands over no readout, because §4.3's gauge has been the most
+ * looked-at number in the game since the garage. What it missed is that he
+ * hands over something much larger than a readout — §13.8's floor. See
+ * {@link Unlocks.heroPlacement}. The rule is unbroken; the audit of what counts
+ * as "a system" was short by one.
  *
  * ## Why this is still not a new flag
  *
@@ -143,6 +150,32 @@ export interface Unlocks {
    */
   heroBoard: boolean
 
+  /**
+   * §21.7.6 — **§13.8's floor, and Billy brings it** [added 2026-08-29].
+   *
+   * This is the rule's own blind spot, closed. §21.7.7 found the first one — an
+   * upgrade board is an instrument too — and placement is the second and larger
+   * one: it is the single most consequential control in Layer 1, it was reachable
+   * from the first frame anybody had two heroes, and nobody handed it over.
+   *
+   * The two halves split exactly as the table at the top of this file draws
+   * them. The **mechanism** — coverage, reach, the §13.10 cost of a benched
+   * hero, the XP that only accrues under coverage — has been running the whole
+   * time. What waited is the **instrument**: the roster strip's placement verb,
+   * the armed gesture, the floor as something you can put a person on.
+   *
+   * And the apparent circle is the same non-circle Mo's is. Placement is not
+   * gated on *having placed somebody*; it is gated on the studio having fallen
+   * apart in a way a person can fix, which is §21.7.3's `billyArrives`. The
+   * player meets §4.1 as a gauge reading half and no handle — and then the man
+   * whose entire job is that gauge walks in holding one.
+   *
+   * §22.9's card stays ungated for the same reason it stayed ungated for the
+   * hero board: a card is who somebody is. What the card loses before this is
+   * one button.
+   */
+  heroPlacement: boolean
+
   /** §21.7.6 — §4.12's backlog, its colour and its density line. Mo brings it. */
   defects: boolean
   /** §21.7.6 — §4.12a's incident list. Serena brings it. */
@@ -182,6 +215,7 @@ const SHUT: Unlocks = {
   manualHire: false,
   founderBoard: false,
   heroBoard: false,
+  heroPlacement: false,
   defects: false,
   incidents: false,
   tickets: false,
@@ -230,6 +264,8 @@ export function unlocksFor(
     manualHire: true,
     founderBoard: boards.founder,
     heroBoard: boards.hero,
+    // §21.7.6 — the floor arrives with the man whose job is the floor.
+    heroPlacement: has('billy'),
     defects: instrument.defects,
     incidents: instrument.incidents,
     tickets: instrument.tickets,

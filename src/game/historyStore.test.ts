@@ -15,6 +15,7 @@ import {
   __resetStore,
   __setState,
   getState,
+  releaseNow,
   tick,
   triggerParadigmShift,
 } from './store.ts'
@@ -33,10 +34,23 @@ function aboutToShip() {
   })
 }
 
+/**
+ * Finish the build and put it on sale — §10.8b.
+ *
+ * Shipping is two steps now: the burn-down reaching zero *shelves* the build,
+ * and a release date puts it on sale. These tests are about the record written
+ * at the second step, so they take the neutral date and move on; `release.ts`
+ * and `releaseWindow.test.ts` are where the date itself is argued about.
+ */
+function shipIt() {
+  tick(1)
+  releaseNow()
+}
+
 describe('the release history — §10.11', () => {
   it('records a shipped game with its build time and labour', () => {
     aboutToShip()
-    tick(1)
+    shipIt()
 
     const history = getState().history
     expect(history.recent).toHaveLength(1)
@@ -84,7 +98,7 @@ describe('the release history — §10.11', () => {
     // no longer exists. Reported as "galleries should not persist across
     // paradigm shifts".
     aboutToShip()
-    tick(1)
+    shipIt()
     expect(getState().history.recent).toHaveLength(1)
 
     triggerParadigmShift()

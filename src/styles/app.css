@@ -1180,75 +1180,14 @@ body {
  * player keeps poking through it; a celebration that blocks the verb it is
  * celebrating is a punishment.
  */
-.ship-toast {
-  position: absolute;
-  inset: 22% 0 auto;
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  pointer-events: none;
-  text-align: center;
-  transition:
-    opacity 180ms linear,
-    transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.ship-toast[data-open='false'] {
-  opacity: 0;
-  /* Leaves upward, the direction money goes. */
-  transform: translateY(-14px);
-}
-
-.ship-toast[data-open='true'] {
-  opacity: 1;
-  transform: none;
-}
-
-.ship-toast__label {
-  margin: 0;
-  font-size: var(--type-1x);
-  letter-spacing: 4px;
-  color: var(--p1);
-}
-
-.ship-toast__name {
-  margin: 0;
-  font-size: var(--type-2x);
-  color: var(--p3);
-}
-
-.ship-toast__heroes {
-  margin: 2px 0 0;
-  color: var(--p2);
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-}
-
 /*
- * The number, and the reason the toast exists. Green, because this is the only
- * place in the game where money moves in the player's favour -- the cash
- * readout spends the whole run in --alarm, counting down. Seeing the same
- * quantity in the opposite colour is what makes shipping feel like relief.
+ * §10.8b moved the ship celebration out of here entirely — the toast became
+ * `styles/release.css`'s review reel, which is a different beat about a
+ * different number. What is left in this file is the launch flash, because it
+ * is a full-frame effect over the *world* rather than part of the reel's
+ * column, and it fires on every release including the ones that go out on the
+ * train with no reel-worthy verdict attached.
  */
-.ship-toast__cash {
-  margin: 2px 0 0;
-  font-size: var(--type-3x);
-  line-height: 1;
-  color: var(--foliage-1);
-  text-shadow: 0 0 14px color-mix(in srgb, var(--foliage-1) 45%, transparent);
-}
-
-/*
- * §10.11.3's cover, brought into the celebration. Larger than the gallery's
- * 48px because this is the one moment per project the picture is allowed to
- * take the middle of the frame; `image-rendering: pixelated` keeps the tile
- * hard-edged at the upscale.
- */
-.ship-toast .cover {
-  width: 72px;
-  height: 72px;
-  margin-bottom: 6px;
-}
 
 /*
  * The launch flash — §10.8a's "placement produces particles" neighbour, a
@@ -1261,6 +1200,9 @@ body {
   inset: 0;
   background: var(--n8);
   pointer-events: none;
+  /* With the reel, and for the same reason — a full-frame flash that the left
+     rail is drawn on top of is not a full-frame flash. */
+  z-index: 1;
   animation: ship-flash 160ms ease-out forwards;
 }
 

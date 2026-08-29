@@ -36,15 +36,94 @@ export interface StorySnapshot {
   devs: number
   devCap: number
   cash: number
-  /** §4.1 — the entropy reading, 0..1. */
+  /**
+   * §4.1 — the entropy reading, 0..1, **as a fact about the organisation**.
+   *
+   * `store.structuralEntropy`, not the gauge: §18.0's event ceiling is taken
+   * back out, so a studio held at 25% output by a thread does not read as a
+   * studio that has outgrown its own capacity. Only {@link billyArrives} reads
+   * it, and that is the only reading it wants — see the store function's note
+   * for the walk that established the difference.
+   */
   entropy: number
+  /** §21.7.3, Billy — seconds that reading has been at or below half. */
+  syncHalvedFor: number
 }
 
 /** §21.7.3 — "a sustained period". A first pass, marked as one. */
 export const MATT_SUSTAINED_S = 30
 
-/** §21.7.3 — "past CHATTY". CHATTY ends at 10% (§4.3a); past it is BOGGED DOWN. */
-export const CHATTY_TOP = 0.1
+/*
+ * `CHATTY_TOP` lived here — §21.7.3, retired 2026-08-29.
+ *
+ * It was Billy's threshold: 10% entropy, the top of §4.3a's second band. See
+ * {@link billyArrives} for why the beat moved to {@link SYNC_HALVED}. Deleted
+ * rather than left standing, on the rule `scenes.ts` states for
+ * `MASS_HIRE_AT_LINE` — a constant with no caller is a rule that quietly comes
+ * back, and this one would come back as a second, earlier door onto the same
+ * scene.
+ */
+
+/**
+ * §21.7.3, Billy — **half the studio's work is now the studio talking to
+ * itself**, and that is not a chosen number.
+ *
+ * η = 1/(1 + (D/D_cap)^ρ), so η = ½ exactly when D = D_cap. Sync is η, so
+ * *sync has halved* and *the headcount has reached the capacity the studio can
+ * actually sustain* are one event with two names. At §4.2's base cap of 100
+ * that is the hundredth hire, which is where the beat lands in Run 2; a studio
+ * that has bought §11.2's protocols moves the hire count and not the meaning,
+ * which is the whole reason this is written as a sync reading and not as a
+ * headcount.
+ *
+ * The player has watched a readout fall from `IN SYNC 100%` to
+ * `PRODUCTIVITY BREAKDOWN 50%` to get here, which is the largest single move
+ * that gauge ever makes inside one run.
+ */
+export const SYNC_HALVED = 0.5
+
+/**
+ * §21.7.3, Billy — and it has to have *stayed* there.
+ *
+ * Two jobs, and the second one is the one that made this a clock rather than a
+ * threshold.
+ *
+ * **It separates Billy from Melany.** `melanyArrives` fires at `devs >= devCap`
+ * with cash spare, and — see {@link SYNC_HALVED} — that is arithmetically the
+ * same instant. Two people cannot walk through the same door on the same frame,
+ * and §21.7.3's shape rules make each arrival a handshake with room around it.
+ * So Melany arrives on the *event* of touching the cap, which is her whole
+ * pitch, and Billy arrives on the studio still being there afterwards.
+ *
+ * **And it makes the scene's premise true on screen.** The scene James opens is
+ * about a number that has gone wrong and stayed wrong. A trigger that fired on
+ * the first frame past the threshold would play it over a gauge that was, as
+ * far as the player could tell, mid-wobble.
+ *
+ * Shorter than {@link MATT_SUSTAINED_S} deliberately: Matt's queue is a bar the
+ * player can ignore, and the speedometer is the one readout they are already
+ * looking at. Twenty seconds is long enough to be a *state* and short enough
+ * that the gauge is still the thing under their eye when James speaks.
+ */
+export const BILLY_SUSTAINED_S = 20
+
+/**
+ * §21.7.3, Billy — **the second reality, not the third.**
+ *
+ * "The second restart" is Run 2: §15.1a's cut scene labels it `REALITY 002` and
+ * it is the first run that has hiring, upgrades, heroes or a capacity worth
+ * outgrowing. Putting Billy a run later would be defensible on story grounds
+ * and is wrong on system grounds — §13.8's placement is gated behind him now,
+ * so Mo, Serena, Matt and Melany would spend the whole of §13.12.2's
+ * hour-and-a-half Run 2 on a bench with no way off it, and §13.13's hero board
+ * (which needs XP, which needs coverage, which needs a placement) would be
+ * unreachable with them.
+ *
+ * A named constant rather than `> 0` inline because it is the one number in
+ * this file that is a *reading of an instruction* rather than a derivation, and
+ * moving the beat a run later should cost one edit here.
+ */
+export const BILLY_MIN_SHIFTS = 1
 
 /**
  * Mo — Quality. A release is rated below baseline *on defects alone*: it shipped
@@ -70,9 +149,26 @@ export function melanyArrives(s: StorySnapshot): boolean {
   return s.devs >= s.devCap && s.cash > 0
 }
 
-/** Billy — Cohesion. Met §4.1 as an ongoing condition, not as Run 1's punchline. */
+/**
+ * Billy — Cohesion. **Sync has halved, and it has stayed halved.**
+ *
+ * Amended 2026-08-29. It read `entropy >= CHATTY_TOP`, which fires at 90% sync
+ * — around the sixty-fifth hire on the base cap — and that was the wrong beat
+ * in two ways once §13.8's placement moved behind this door.
+ *
+ * It was too early to be a *feeling*: `CHATTY` is the label §4.3a explicitly
+ * describes as "the hint the player dismisses", so the scene arrived to explain
+ * a problem the player had not yet had. And it was too early to be *earned*:
+ * the whole of §21.7.6 is that a system enters in the hands of the person who
+ * solves it, and the person who hands over the floor should turn up when the
+ * floor is visibly the problem.
+ *
+ * See {@link SYNC_HALVED} for why half is the honest place and
+ * {@link BILLY_SUSTAINED_S} for why it is a clock.
+ */
 export function billyArrives(s: StorySnapshot): boolean {
-  return s.paradigmShifts > 0 && s.entropy >= CHATTY_TOP
+  if (s.paradigmShifts < BILLY_MIN_SHIFTS) return false
+  return s.entropy >= SYNC_HALVED && s.syncHalvedFor >= BILLY_SUSTAINED_S
 }
 
 /**

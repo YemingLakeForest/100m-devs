@@ -29,6 +29,7 @@ import {
   previewHeroAt,
   recallHero,
   releaseHeroCoverage,
+  releaseNow,
   selectHero,
   tick,
   workingDevs,
@@ -96,7 +97,14 @@ function staffed(...scenes: { id: string }[]) {
  * 16 ms and the question never comes up.
  */
 function settle(seconds = SETTLE_SECONDS + 1) {
-  for (let t = 0; t < seconds; t++) tick(1)
+  for (let t = 0; t < seconds; t++) {
+    tick(1)
+    // §10.8b — forty developers finish a garage project inside the settling
+    // period, and a finished build halts the studio until somebody picks a
+    // release date. A test about somebody walking to their desk has to be a
+    // player who is also answering their own launches.
+    if (getState().pendingRelease) releaseNow()
+  }
 }
 
 /** Bank a hero's XP directly, so a test about levels is not a test about time. */
@@ -410,13 +418,52 @@ describe('§24 — where somebody is standing survives a reload, not a prestige'
 
 describe('§13.8 — the interim placement gesture', () => {
   beforeEach(() => {
-    staffed(SCENE_MO_ARRIVES, SCENE_MELANY_ARRIVES)
+    // §21.7.6 — Billy is in every fixture here now, because he *is* the gesture:
+    // `unlocks.heroPlacement` is his arrival, so a studio without him has no
+    // placement verb to test. The one case below that leaves him out is the one
+    // testing exactly that.
+    staffed(SCENE_MO_ARRIVES, SCENE_MELANY_ARRIVES, SCENE_BILLY_ARRIVES)
     __setState({ devs: 40, runSeconds: 100 })
   })
 
   it('arms nobody the player has not met', () => {
     expect(beginPosting('serena')).toBe(false)
     expect(getState().posting).toBeNull()
+  })
+
+  /**
+   * §21.7.6 — **the floor is an instrument, and Billy hands it over.**
+   *
+   * Two assertions and the second one is the load-bearing half: the *mechanism*
+   * is untouched by the gate. `placeHero` still works before Billy, which is
+   * what lets `dismissScene` seat him on the way out of his own scene — a gate
+   * that stopped the primitive as well as the verb would make his arrival
+   * unable to demonstrate the thing it is arriving to demonstrate.
+   */
+  it('refuses to arm before Billy has handed the floor over', () => {
+    staffed(SCENE_MO_ARRIVES, SCENE_MELANY_ARRIVES)
+    expect(beginPosting('mo')).toBe(false)
+    expect(getState().posting).toBeNull()
+
+    expect(placeHero('mo', 0, 3)).toBe(true)
+    expect(getState().heroPlacements.mo).toMatchObject({ rung: 0, index: 3 })
+  })
+
+  /**
+   * §21.7.3 — and he does not arrive to an empty floor: the scene ends with him
+   * standing on it. See `store.seatBilly` for why this is the one automatic
+   * placement in the game.
+   */
+  it('puts Billy on the floor as his own scene ends', () => {
+    staffed(SCENE_MO_ARRIVES)
+    __setState({ devs: 120, runSeconds: 100, scene: SCENE_BILLY_ARRIVES.id })
+    expect(getState().heroPlacements.billy).toBeUndefined()
+
+    dismissScene()
+
+    expect(getState().heroPlacements.billy).toMatchObject({ rung: 0, placedAt: 100 })
+    // And the verb the scene was about is now the player's.
+    expect(beginPosting('mo')).toBe(true)
   })
 
   it('closes the card it was armed from, because the target is behind it', () => {

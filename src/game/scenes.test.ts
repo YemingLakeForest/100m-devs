@@ -262,13 +262,27 @@ describe('the scene registry', () => {
   })
 })
 
-describe('§21.7.3 — the five story hires', () => {
+/**
+ * §21.7.3's three shape rules — **and the one scene that is exempt from all
+ * three, on purpose** [amended 2026-08-29].
+ *
+ * The rules describe an *arrival*: a handshake under twelve lines, James in it
+ * once, and the machine opening the door. Billy's scene stopped being an arrival
+ * when §13.8's floor moved behind it (`game/unlocks.ts`) — it is now a
+ * hand-over, in which James is the door rather than a bystander and the studio's
+ * own collapse is the thing that opens it.
+ *
+ * The exemption is written here rather than by quietly loosening the assertions,
+ * because a rule with an undeclared exception is a rule nobody can rely on. So
+ * the four arrivals are still held to the letter, and Billy's scene is held to
+ * the things that are *still* true of every scene in the game.
+ */
+describe('§21.7.3 — the four story arrivals', () => {
   const arrivals = [
     SCENE_MO_ARRIVES,
     SCENE_SERENA_ARRIVES,
     SCENE_MATT_ARRIVES,
     SCENE_MELANY_ARRIVES,
-    SCENE_BILLY_ARRIVES,
   ]
 
   it('is a handshake, not an act — under twelve lines', () => {
@@ -300,6 +314,58 @@ describe('§21.7.3 — the five story hires', () => {
       expect(scene.script[0].speaker).toBe('STUDIO_OS')
       expect(scene.script[0].text).toContain('APPLICANT AT DOOR')
     }
+  })
+})
+
+describe('§21.7.3 — Billy, the referral', () => {
+  const script = SCENE_BILLY_ARRIVES.script
+  const said = script.map((l) => l.text).join(' ')
+
+  it('opens on the collapse rather than on the door', () => {
+    // The feeling this scene is written to is a gauge that halved and stayed
+    // there (`storyTriggers.billyArrives`), so the machine reports the reading
+    // and the founder reacts to it. `APPLICANT AT DOOR` still happens — twelve
+    // lines later, once James has sent for him.
+    expect(script[0].speaker).toBe('STUDIO_OS')
+    expect(script[0].text).toContain('50%')
+    expect(said).toContain('APPLICANT AT DOOR')
+    expect(script.findIndex((l) => l.text.includes('APPLICANT AT DOOR'))).toBeGreaterThan(
+      script.findIndex((l) => l.speaker === 'JAMES'),
+    )
+  })
+
+  it('makes James the door, which is the whole exemption', () => {
+    // Shape rule 3 caps James at one line *because* a second would compete with
+    // the person walking in. Here he is the reason anybody walks in, so the cap
+    // is what would break the scene. What has to stay true is that he is not
+    // sentimental about it.
+    const james = script.filter((l) => l.speaker === 'JAMES')
+    expect(james.length).toBeGreaterThan(1)
+    expect(said).toContain('I know someone')
+  })
+
+  it('lands the school on a founder who has never heard of it', () => {
+    // The joke is the founder's, not Billy's: an entire world is named, twice,
+    // and it does not connect to anything.
+    expect(said).toContain('Winterbourne')
+    expect(said).toContain('Is that a band?')
+  })
+
+  it('refuses the coffee, the drink, the McDonald’s and the Diet Coke', () => {
+    // Every one of these is a callback the player has already been taught:
+    // §21.7.1 spent a line on James living off Diet Coke.
+    expect(said).toContain('McDonald')
+    expect(said).toContain('Diet Coke')
+    expect(said).toMatch(/I don’t, and I haven’t/)
+  })
+
+  it('hands over the floor in the machine’s own voice, and names the verb', () => {
+    // §21.7.6 — the scene has to reach the verb, or the hand-over is an
+    // assertion rather than a door. Both closing lines are `STUDIO_OS`, and the
+    // last one is an instruction a player can follow without leaving the frame.
+    expect(script.at(-1)!.speaker).toBe('STUDIO_OS')
+    expect(script.at(-1)!.text).toContain('HERO')
+    expect(said).toContain('SCRUM MASTER')
   })
 })
 

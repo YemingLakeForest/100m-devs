@@ -11,7 +11,7 @@ import {
   previewHeroAt,
 } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
-import { SCENE_MO_ARRIVES } from '../game/scenes.ts'
+import { SCENE_BILLY_ARRIVES, SCENE_MO_ARRIVES } from '../game/scenes.ts'
 import type { StageHandle } from '../render/stage.ts'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 import { WorldHeroAssignments } from './WorldHeroAssignments.tsx'
@@ -21,7 +21,13 @@ function arrived() {
   const p = emptyPermanent()
   setPermanent({
     ...p,
-    meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_MO_ARRIVES.id] },
+    // Billy is in the fixture because §21.7.6 makes him the placement verb —
+    // `beginPosting` is refused without him (`game/unlocks.ts`).
+    meta: {
+      ...p.meta,
+      paradigmShifts: 1,
+      milestones: [SCENE_MO_ARRIVES.id, SCENE_BILLY_ARRIVES.id],
+    },
   })
 }
 
@@ -63,14 +69,23 @@ describe('scene hero assignments', () => {
     expect(assignmentCoversFocus(mo, 12, 40)).toBe(false)
   })
 
-  it('pins a compact hero identity pass onto the assigned scene target', () => {
+  /**
+   * §21.7.4 — **a desk plate, not a card** [amended 2026-08-29].
+   *
+   * The old assertions were `MO` / `ASSIGNED` / two `.world-hero-pin__face`
+   * thumbnails, and every one of them was a fact about the thing that was
+   * reported as clunky and immersion-breaking. What replaces them is the same
+   * two questions asked of the object that replaced it: does it say who, and
+   * does it say it in the world's vocabulary rather than the database's.
+   */
+  it('plates a placed hero with their name and the job on their card', () => {
     arrived()
     __setState({ devs: 40, runSeconds: 100 })
     placeHero('mo', 0, 0)
     __setState({ runSeconds: 109 })
     const state = getState()
 
-    render(
+    const { container } = render(
       <WorldHeroAssignments
         stage={stageAt(0)}
         state={state}
@@ -79,12 +94,26 @@ describe('scene hero assignments', () => {
     )
 
     expect(screen.getByText('MO')).toBeInTheDocument()
-    expect(screen.getByText('ASSIGNED')).toBeInTheDocument()
-    expect(screen.getByLabelText('Mo assigned to DESK 1')).toBeInTheDocument()
+    // §22.9.2's role line, which is a thing an office prints on a desk.
+    expect(screen.getByText('QUALITY ASSURANCE')).toBeInTheDocument()
+    // And not the machine's word for a row in a table.
+    expect(screen.queryByText('ASSIGNED')).not.toBeInTheDocument()
+    // The portrait is gone: the person it depicted is drawn on the floor a few
+    // pixels below it, which is what made it interface standing on the set.
+    expect(container.querySelectorAll('.world-hero-pin__face')).toHaveLength(0)
+    // A placed plate stays a name plate. Numbers belong to the preview.
     expect(screen.queryByText(/DEVS/)).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Mo assigned to DESK 1')).toBeInTheDocument()
   })
 
-  it('keeps the committed pin while drawing a model-reflective candidate pin', () => {
+  /**
+   * The candidate plate is where `PostingBanner`'s three retired lines went.
+   *
+   * This is the assertion that makes the strip's collapse safe: the coverage and
+   * the effect have to be readable *somewhere* while aiming, and the whole
+   * argument for taking them off the HUD is that this is a better somewhere.
+   */
+  it('keeps the committed plate and answers the aimed one with the numbers', () => {
     arrived()
     __setState({ devs: 40, runSeconds: 100 })
     placeHero('mo', 0, 0)
@@ -92,14 +121,15 @@ describe('scene hero assignments', () => {
     previewHeroAt({ rung: 0, index: 20 })
     const state = getState()
 
-    const { container } = render(
+    render(
       <WorldHeroAssignments stage={stageAt(0)} state={state} roster={heroRoster(state)} />,
     )
 
     expect(screen.getByLabelText('Mo assigned to DESK 1')).toBeInTheDocument()
     expect(screen.getByLabelText('Mo preview at DESK 21')).toBeInTheDocument()
-    expect(screen.getByText('ASSIGNED')).toBeInTheDocument()
-    expect(screen.getByText('PREVIEW')).toBeInTheDocument()
-    expect(container.querySelectorAll('.world-hero-pin__face')).toHaveLength(2)
+    expect(screen.getAllByText('MO')).toHaveLength(2)
+    // The reading the strip gave up, at the anchor the finger is on.
+    expect(screen.getByText(/DEVS/)).toBeInTheDocument()
+    expect(screen.getByText(/DEFECT RATE/)).toBeInTheDocument()
   })
 })

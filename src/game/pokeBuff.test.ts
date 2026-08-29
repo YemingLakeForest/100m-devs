@@ -17,7 +17,6 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { BUFF_TAU } from '../sim/buffs.ts'
 import { emptySlack } from '../sim/slackOff.ts'
 import {
-  POKE_PAYOUT_SHARE,
   __resetStore,
   __setState,
   baseVelocity,
@@ -26,6 +25,8 @@ import {
   developerVelocity,
   getState,
   poke,
+  POKE_PAYOUT_SHARE,
+  releaseNow,
   tick,
 } from './store.ts'
 
@@ -41,7 +42,13 @@ function studio(devs = 40) {
 /** Run the clock for `seconds`, at frame rate, poking nothing. */
 function idle(seconds: number) {
   const step = 1 / 60
-  for (let t = 0; t < seconds; t += step) tick(step)
+  for (let t = 0; t < seconds; t += step) {
+    tick(step)
+    // §10.8b — a studio of forty people finishes a project inside these loops,
+    // and the launch window halts `tick` until somebody answers it. The neutral
+    // date pays ×1, so nothing this file measures moves.
+    if (getState().pendingRelease !== null) releaseNow()
+  }
 }
 
 describe('a poke buffs the individual (GDD §4.5a, R14)', () => {

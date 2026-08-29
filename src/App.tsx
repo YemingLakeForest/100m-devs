@@ -25,6 +25,7 @@ import {
 } from './game/founderProfile.ts'
 import { getPermanent, setPermanent } from './game/save.ts'
 import {
+  SCENE_BILLY_ARRIVES,
   SCENE_FOUNDER_BOARD,
   SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
@@ -38,6 +39,7 @@ import ScenarioBar from './dev/ScenarioBar.tsx'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from './dev/debugAccess.ts'
 import { SCENARIOS_UP, applyScenario, scenarioById, scenarioRung } from './game/scenarios.ts'
 import { zAtRung } from './sim/ladder.ts'
+import { launchHit } from './sim/release.ts'
 
 import './styles/title.css'
 
@@ -166,6 +168,19 @@ export default function App() {
             SCENE_SERENA_ARRIVES.id,
             SCENE_MATT_ARRIVES.id,
             /*
+             * §21.7.6 — **and Billy, because he is now the placement verb.**
+             *
+             * He brings no readout, so he changes nothing about the worst frame
+             * the HUD has to draw — which is exactly why he was not in this list
+             * and exactly why leaving him out would have been the same class of
+             * hole as the three above. `unlocks.heroPlacement` is his arrival, so
+             * without him §23.4.2's "a hero armed for placement" screen cannot be
+             * reached at all: `PLACE HERO` is not on the card, `beginPosting`
+             * refuses, and the gate would have started passing by measuring a
+             * frame that no longer existed.
+             */
+            SCENE_BILLY_ARRIVES.id,
+            /*
              * §18.0a and §21.7.7 — **trap 28, applied in the same commit.**
              *
              * Three new scenes can claim this frame. The thread fires on the
@@ -211,6 +226,31 @@ export default function App() {
           remaining: 14,
           age: 42,
           routed: !DEBUG_QUERY.has('event'),
+        },
+      })
+    }
+
+    /*
+     * ?release parks a finished build on §10.8b's shelf, with the date already
+     * picked.
+     *
+     * Same family as `?full` and `?event`, and here for the same reason: the
+     * launch window exists for about five seconds per project and then closes
+     * itself, so there is no way to *hold* the frame long enough to measure it.
+     * The verdict is pre-locked because that is the state with the most text in
+     * it — the band, the multiplier line and the lit ring — which is the frame
+     * §23.4.2 is most likely to overflow, and because a locked window is the
+     * one that stays put: `ReleaseWindow` reads its verdict from the store, and
+     * the simulation's backstop only counts down an *unanswered* window.
+     */
+    if (DEBUG_QUERY.has('release')) {
+      __setState({
+        pendingRelease: {
+          id: 1,
+          name: PROJECTS[0].name,
+          sweepMs: 1_400,
+          openedAt: performance.now(),
+          hit: launchHit(0.5),
         },
       })
     }

@@ -16,6 +16,7 @@ import {
   getState,
   hireDeveloper,
   poke,
+  releaseNow,
   setHireRole,
   tick,
 } from './store.ts'
@@ -38,11 +39,29 @@ function clearScene() {
   if (getState().scene !== null) dismissScene()
 }
 
+/**
+ * §10.8b — answer the launch, the way a player does.
+ *
+ * A finished build is shelved rather than shipped, and the shelf halts `tick`
+ * until somebody picks a release date. The window's own timeout is on the wall
+ * clock (it has to be — `?speed` would otherwise compress a decision), so a
+ * harness that pumps the simulation faster than real time will never reach it
+ * and would sit on the first finished project for ever. Pressing the button is
+ * what a player does, and it is what these loops do.
+ *
+ * The neutral date, deliberately: `releaseNow` with nothing locked pays ×1, so
+ * every figure in this file is the figure it was before the window existed.
+ */
+function answerLaunch() {
+  if (getState().pendingRelease !== null) releaseNow()
+}
+
 function play(seconds: number, pokesPerSecond = 0) {
   const dt = 1 / 30
   let owed = 0
   for (let t = 0; t < seconds; t += dt) {
     clearScene()
+    answerLaunch()
     owed += pokesPerSecond * dt
     while (owed >= 1) {
       poke(0, 0, { rung: 0, index: 0 })
@@ -65,6 +84,7 @@ function playUntilShipped(pokesPerSecond = 0, limit = 4000) {
   let owed = 0
   for (let t = 0; t < limit; t += dt) {
     clearScene()
+    answerLaunch()
     owed += pokesPerSecond * dt
     while (owed >= 1) {
       poke(0, 0, { rung: 0, index: 0 })

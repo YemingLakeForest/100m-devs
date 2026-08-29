@@ -1,0 +1,599 @@
+/*
+ * The §10.8b launch window, and the §10.8b review reel.
+ *
+ * Two halves of one beat, so they share a file: the player picks a release date
+ * on the first and reads the press on the second, and the two have to agree
+ * about what a ring, a band and a verdict look like. Splitting them would be
+ * two stylesheets describing one moment.
+ *
+ * Everything here is on the palette (ART_DIRECTION §2.1, published as CSS
+ * custom properties by `cssTokens.ts`) and on the §10.5 motion budget. The one
+ * thing that deliberately exceeds §10.8 F6's 400 ms is the review reel, which
+ * F6 exempts by name: "a deliberately scored beat".
+ */
+
+/* --- the launch window ---------------------------------------------------- */
+
+/*
+ * Narrower than the boards, and capped in `em` the way §21.0a's term sheet is:
+ * this is one bar and a box, and a bar that spans a tablet is a bar nobody can
+ * miss, which defeats the whole screen.
+ */
+.release-frame {
+  width: min(34em, calc(100% - 2 * var(--edge-x)));
+  max-height: calc(100% - 2 * var(--edge-y));
+}
+
+.release-frame .os-window {
+  background: var(--n0);
+}
+
+.release {
+  padding: 0;
+}
+
+/*
+ * The whole body is the tap target — see the note at the call site. `touch-action:
+ * none` because a thumb that starts a scroll instead of a press has missed a
+ * shot it thought it took, and there is nothing here to scroll.
+ */
+.release__catch {
+  display: grid;
+  /* Tight, and measured against the shortest frame §23.4.2 admits: this window
+     is a fixed instrument, so a scroll rail appearing on it would be the chrome
+     announcing content that is not there. */
+  gap: 10px;
+  padding: 12px 16px 8px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.release__catch[data-locked='true'] {
+  cursor: default;
+}
+
+.release__shelf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.release__shelf .cover {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  /* It is on a shelf, so it sits on one: a hard drop shadow under a tile is
+     the cheapest possible statement that an object has been put down. */
+  box-shadow: 3px 3px 0 var(--n1);
+}
+
+.release__id {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.release__kicker {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 3px;
+  color: var(--p1);
+}
+
+.release__name {
+  margin: 0;
+  font-size: var(--type-2x);
+  line-height: 1.05;
+  color: var(--p3);
+  overflow-wrap: anywhere;
+}
+
+/* --- the bar -------------------------------------------------------------- */
+
+.release__track {
+  position: relative;
+  height: 42px;
+  border: var(--rule) solid var(--p1);
+  background: var(--n0);
+  overflow: hidden;
+}
+
+/*
+ * One ring, drawn as a plate rather than as a tint on a track.
+ *
+ * §10.8a: "filled selection — selection is a shape change, not a colour
+ * change." The same argument holds for the target: the player has to read four
+ * rings at a glance while something is moving across them, and four brightness
+ * steps of one hue are not four things. So each ring is its own slab with its
+ * own edge.
+ */
+.release__zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: var(--rule) solid var(--n1);
+  transition: background 120ms linear;
+}
+
+.release__zone[data-band='missed'] {
+  background: var(--n1);
+}
+
+.release__zone[data-band='soft'] {
+  background: color-mix(in srgb, var(--p0) 70%, var(--n1));
+}
+
+.release__zone[data-band='window'] {
+  background: color-mix(in srgb, var(--p1) 55%, var(--n0));
+}
+
+/*
+ * The centre. Brighter than anything else on the screen, because it is the
+ * thing the player is aiming at and an aim test whose target has to be hunted
+ * for is a reading test.
+ */
+.release__zone[data-band='perfect'] {
+  background: var(--p2);
+  border-right: none;
+}
+
+/* The ring that caught it, lit. Fires once, on the lock. */
+.release__zone[data-hit='true'] {
+  animation: release-ring 620ms ease-out both;
+}
+
+@keyframes release-ring {
+  0% {
+    filter: brightness(3.4);
+  }
+  40% {
+    filter: brightness(1.6);
+  }
+  100% {
+    filter: brightness(1.15);
+  }
+}
+
+/*
+ * The needle. `--at` is written straight to this element inside rAF and is the
+ * only thing that moves — no transition on `left`, deliberately: a tween here
+ * would put the drawn needle behind the one the press is scored against, which
+ * is the exact unfairness this whole screen is about.
+ */
+.release__needle {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: var(--at, 50%);
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--n8);
+  box-shadow: 0 0 8px var(--n8);
+}
+
+.release__needle[data-locked='true'] {
+  /* Slammed home. The needle stops being a pointer and becomes a stamp. */
+  animation: release-slam 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes release-slam {
+  0% {
+    transform: scaleX(4) scaleY(1.3);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.release__track[data-locked='true'] {
+  animation: release-shake 240ms steps(2, end) 2;
+}
+
+/* §10.8a — the frame reacts. Two pixels, twice; more is a bug report. */
+@keyframes release-shake {
+  0% {
+    transform: translateX(-2px);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.release__end {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--n4);
+  pointer-events: none;
+}
+
+.release__end--early {
+  left: 5px;
+}
+
+.release__end--late {
+  right: 5px;
+}
+
+/* --- the verdict ---------------------------------------------------------- */
+
+.release__verdict {
+  margin: 0;
+  text-align: center;
+  font-size: var(--type-2x);
+  line-height: 1.1;
+  letter-spacing: 2px;
+  color: var(--p2);
+  min-height: calc(var(--type-2x) * 1.1);
+}
+
+.release__verdict[data-locked='false'] {
+  /* An instruction, not a headline: it is the quietest thing on the screen
+     until it becomes the loudest. */
+  font-size: var(--type-1x);
+  letter-spacing: 4px;
+  color: var(--p1);
+}
+
+.release__verdict[data-locked='true'] {
+  animation: release-stamp 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.release__verdict[data-band='perfect'] {
+  color: var(--n8);
+  text-shadow: 0 0 12px var(--p3);
+}
+
+.release__verdict[data-band='missed'] {
+  color: var(--alarm-2);
+}
+
+/* A rubber stamp: down hard, overshoot, settle. Never a fade (§10.8a). */
+@keyframes release-stamp {
+  0% {
+    transform: scale(2.1) rotate(-6deg);
+    opacity: 0;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.release__mult {
+  margin: -6px 0 0;
+  text-align: center;
+  font-size: var(--type-1x);
+  letter-spacing: 3px;
+  color: var(--foliage-1);
+  animation: release-stamp 300ms 90ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.release__go {
+  width: 100%;
+}
+
+/* --- the review reel ------------------------------------------------------ */
+
+/*
+ * §10.8b — what a release is *received* as, which is the beat that replaced the
+ * cheque. The whole column is `pointer-events: none`: it plays over a running
+ * studio and the player may keep poking through it.
+ */
+.review {
+  position: absolute;
+  /*
+   * Centred in the frame rather than hung from a percentage of it. The card's
+   * height depends on how many lines the title takes and how long the critics
+   * are, so a fixed top edge is a promise about a height nobody controls — at
+   * 640×360 it put the verdict, which is the last beat and the point of the
+   * whole reel, off the bottom of the phone.
+   */
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  pointer-events: none;
+  text-align: center;
+  /*
+   * Above the rails and §21's script block, below every modal.
+   *
+   * The reel is a *sibling* of the rails inside `.hud`, and it is written into
+   * the tree before the script block is — so at `auto` it painted underneath
+   * Act I's terminal copy, and the first release of a new career, which is the
+   * single most important one there is, arrived as three lines of review text
+   * behind a boot log. `1` clears everything at `auto` and stays under the
+   * scrims at `2`, because a conversation still outranks a celebration.
+   */
+  z-index: 1;
+  /* Inside the frame at every size. The card below is what keeps it legible
+     where it passes over §4.15's rails; this only stops it running off an edge,
+     which is the one failure a wrapping row cannot recover from. */
+  padding: 0 var(--edge-x);
+  transition:
+    opacity 180ms linear,
+    transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.review[data-open='false'] {
+  opacity: 0;
+  transform: translateY(-14px);
+}
+
+.review[data-open='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+ * The plate. Wide enough for a masthead, a score and a line of copy on one row
+ * at the reference frame, and capped in `em` so it grows with the type rather
+ * than with the window. Bordered on the phosphor, because everything else the
+ * machine says is.
+ */
+.review__card {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: min(30em, 100%);
+  padding: 8px 14px 10px;
+  /* Nearly opaque. §10.6 lets the swarm show through a *panel*; this is type
+     over a lit room and eleven words of review copy at 11 px do not survive a
+     silhouette walking behind them. */
+  background: color-mix(in srgb, var(--n0) 97%, transparent);
+  border: var(--rule) solid var(--p1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--n0) 60%, transparent);
+}
+
+/*
+ * §10.11.3's cover, stamped rather than placed. This is the one moment per
+ * project the picture is allowed the middle of the frame.
+ */
+.review .cover {
+  width: 64px;
+  height: 64px;
+  animation: release-stamp 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.review__name {
+  margin: 2px 0 0;
+  font-size: var(--type-2x);
+  line-height: 1;
+  color: var(--p3);
+  /* §4.10c's longest rung is forty characters — "Open-World Survival Craft
+     (Early Access)" — and at the second rung of the type scale that is wider
+     than a 640 px frame. */
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Beat 3 — the launch date, and the hero coverage line beside it. On the same
+ * stagger as everything else in the reel: a line that simply *is* there while
+ * the rows around it arrive is the one thing on this column that does not read
+ * as part of the summary.
+ */
+.review__timing {
+  margin: 0;
+  font-size: var(--type-1x);
+  letter-spacing: 3px;
+  color: var(--p1);
+  animation: review-slide 260ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  animation-delay: var(--in, 0ms);
+}
+
+.review__timing[data-good='true'] {
+  color: var(--foliage-1);
+}
+
+/*
+ * The critics. §10.8a's "rows reveal one at a time" — a day-end table adds its
+ * rows on a stagger, never as a finished table — with the stagger set at the
+ * call site so the three delays are one list rather than three magic numbers.
+ */
+.review__quotes {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review__quote {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  font-size: var(--type-1x);
+  animation: review-slide 260ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  animation-delay: var(--in);
+}
+
+/* In from the side, one at a time. Never a fade (§10.8a, transitions). */
+@keyframes review-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The byline: masthead and score on one row, the line they wrote beneath. */
+.review__by {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+}
+
+.review__outlet {
+  color: var(--n5);
+  letter-spacing: 2px;
+}
+
+.review__score {
+  color: var(--p2);
+}
+
+.review__line {
+  color: var(--p3);
+}
+
+/*
+ * The aggregate, and §10.8a's "the total counts last" — it arrives *after* the
+ * rows have landed, so it reads as a summation rather than as a lookup. It is
+ * §4.14's rating, unchanged; the critics are three readings of it.
+ */
+.review__score-block {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  margin-top: 6px;
+  animation: review-slide 260ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  animation-delay: var(--in);
+}
+
+/*
+ * Scoped under `.review` on purpose: `Counter` renders a `.hud__num`, and the
+ * two class selectors would otherwise be tied on specificity with nothing but
+ * stylesheet order deciding the size of the biggest number on the screen.
+ */
+.review .review__aggregate {
+  font-size: var(--type-3x);
+  line-height: 1;
+  color: var(--p3);
+}
+
+/* §10.8a — "bars grow from zero", with the value counting alongside it. */
+.review__bar {
+  position: relative;
+  width: 168px;
+  height: 6px;
+  border: var(--rule) solid var(--p1);
+  background: var(--n0);
+  overflow: hidden;
+}
+
+.review__bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--fill, 0%);
+  background: var(--p2);
+  animation: review-fill 620ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  animation-delay: var(--in);
+  transform-origin: left center;
+}
+
+@keyframes review-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/*
+ * The one word. Bigger than the score, because a number out of a hundred is a
+ * fact and this is the sentence the player will actually remember about the
+ * game they just made.
+ */
+/* Positioning context for the spark burst, which is drawn behind the word. */
+.review__stamp {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.review__verdict {
+  margin: 4px 0 0;
+  font-size: var(--type-2x);
+  letter-spacing: 5px;
+  color: var(--n8);
+  animation: release-stamp 340ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: var(--in);
+}
+
+.review__verdict[data-band='3'] {
+  color: var(--n8);
+  text-shadow: 0 0 16px var(--p3);
+}
+
+.review__verdict[data-band='2'] {
+  color: var(--p3);
+}
+
+.review__verdict[data-band='1'] {
+  color: var(--warn-2);
+}
+
+.review__verdict[data-band='0'] {
+  color: var(--alarm-2);
+}
+
+/*
+ * §10.8a — "placement produces particles". Eight sparks thrown from behind the
+ * verdict on the good bands only, because a shovelware release that throws
+ * confetti is the game congratulating the player for the wrong thing.
+ */
+.review__sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.review__spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  background: var(--p3);
+  animation: review-spark 620ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  animation-delay: var(--in);
+}
+
+@keyframes review-spark {
+  from {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * §10.5 rule 3 — shorten, never cut. The reel keeps every beat and every
+   * stagger; what goes is the travel, because translation across the frame is
+   * the part that actually provokes.
+   */
+  .review__quote,
+  .review__timing,
+  .review__score-block,
+  .review .cover,
+  .review__verdict,
+  .review__spark {
+    animation-duration: 120ms;
+  }
+
+  .review__spark {
+    display: none;
+  }
+
+  .release__track[data-locked='true'] {
+    animation: none;
+  }
+}

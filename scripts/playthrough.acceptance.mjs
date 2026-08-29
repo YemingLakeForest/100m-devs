@@ -250,6 +250,11 @@ async function pumpGuidedBoard(page) {
  * waited on the simulation without clearing one would wait for ever.
  */
 async function pumpScene(page) {
+  // §10.8b — a finished build stops the studio until somebody picks a release
+  // date, exactly the way a scene does, and for the same reason it has to be
+  // pumped here: `tick` returns early while the shelf is full, so a leg that
+  // waited on the simulation without attending the launch would wait for ever.
+  await pumpRelease(page)
   const id = await page.evaluate(() => globalThis.__store?.scene ?? null)
   if (!id) return pumpGuidedBoard(page)
   if (!beats.some((b) => b.id === id)) {
@@ -262,6 +267,39 @@ async function pumpScene(page) {
   }
   return true
 }
+
+/**
+ * §10.8b — press the launch, and remember what the studio got for it.
+ *
+ * The walk plays this like a player rather than reaching into the store: it
+ * presses the window's own surface and reads the band off the verdict line, so
+ * a bar that stops sweeping, a press that scores nothing, or a window that will
+ * not close all show up here as a leg that stalls rather than as a silent pass.
+ *
+ * The needle is not aimed. That is the point of the reading: a walk that
+ * happened to hit the centre would be evidence about luck, and what item 0
+ * wants to know is that *some* band came out and the release carried it.
+ */
+async function pumpRelease(page) {
+  const catcher = page.locator('.release__catch')
+  if (!(await catcher.count())) return false
+
+  await catcher.first().click({ timeout: 2_000, force: true }).catch(() => {})
+  const verdict = await page
+    .locator('.release__verdict[data-locked="true"]')
+    .first()
+    .textContent()
+    .catch(() => null)
+  if (verdict) launches.push(verdict.trim())
+
+  // The window holds its verdict, then hands over to the review reel. Waiting
+  // it out here keeps every caller's poll from racing the hand-off.
+  await page.waitForFunction(() => !globalThis.__store?.pendingRelease, null, { timeout: 8_000 })
+  return true
+}
+
+/** Every launch band this career landed on, in order. */
+const launches = []
 
 /** Has this scene played at any point in this career? */
 const played = (id) => beats.some((b) => b.id === id)
@@ -644,6 +682,20 @@ async function walkCareerOne(page) {
   }
   saw('shipped the whole garage catalogue with two people and no hire button (§21.0e)')
 
+  /*
+   * §10.8b — **and every one of those releases had a launch date on it.**
+   *
+   * The garage ships three games at a minute apiece, which is outside the
+   * window's cooldown every time, so a Run 1 that reached the term sheet
+   * without a single band is a Run 1 where the minigame never opened — the
+   * failure this whole item cannot otherwise see, because the catalogue still
+   * ships either way.
+   */
+  if (launches.length === 0) {
+    fail(`the garage shipped its catalogue and never once picked a release date — ${await where(page)}`)
+  }
+  saw(`picked a release date on every garage launch — ${launches.join(', ')}`)
+
   // §21.0a — the term sheet, on its own modal now rather than in the action bar.
   await page.locator('.term-sheet').waitFor({ timeout: 10_000 })
   await press(page, /SIGN IT/)
@@ -908,20 +960,43 @@ async function walkItems6to8(page) {
     label: 'the queue outran the studio for §21.7.3’s sustained period; Matt arrived and §4.13’s bar came with him',
   })
 
-  item('item 8 — the cap with cash spare brings Melany; past CHATTY brings Billy')
-  // Both of these are §21.7.6's counter-example and worth saying out loud: they
-  // hand over nothing, because the cap and the speedometer have been on screen
-  // since Run 1's first minute. A person only brings what was not already there.
+  item('item 8 — the cap brings Melany; the collapse that follows brings Billy')
+  // Melany is §21.7.6's counter-example and it is worth saying out loud: she
+  // hands over nothing, because §4.2's cap has been on screen since Run 1's
+  // first minute. A person only brings what was not already there.
   await meets(page, {
     who: 'Melany',
     scene: 'scene.run2.melany-arrives',
     label: 'hit the developer cap with money still in the bank, and met Melany',
   })
+  /*
+   * **Billy is the other kind, and this leg is the one that proves the walk can
+   * still get to him.**
+   *
+   * His trigger is sync at or below half, *held* for `BILLY_SUSTAINED_S` — and
+   * half sync is exactly `devs === devCap`, so it is the same instant Melany
+   * arrives on and the clock is the only thing separating the two legs.
+   *
+   * The part worth watching: `play` stops hiring the moment the gauge reads
+   * under 50, on §4.1's "a player who is paying attention stops at the top of
+   * the curve". That is precisely the state Billy's trigger wants — a studio
+   * sitting at its own capacity and not recovering — so the walk reaches him by
+   * playing *correctly* rather than by playing past the lesson. If this leg ever
+   * times out, the first thing to check is whether the hire rule and the trigger
+   * have drifted onto opposite sides of the same threshold.
+   */
   await meets(page, {
     who: 'Billy',
     scene: 'scene.run2.billy-arrives',
-    label: 'read the speedometer past CHATTY, and met Billy',
+    label: 'sat at the cap with sync halved until James sent for Billy',
   })
+  // §21.7.6 — and the scene is a hand-over rather than a handshake: the man who
+  // handed the floor over is standing on it before the box has closed.
+  await playScenes(page)
+  if (!(await runState(page)).placements.includes('billy')) {
+    fail(`Billy's scene ended without him on the floor — ${await where(page)}`)
+  }
+  saw('Billy took a rung as his own scene ended, which is what §13.8’s hand-over looks like')
 }
 
 /**
@@ -1033,6 +1108,25 @@ async function openFounderScreen(page, size) {
    */
   for (let pull = 0; pull <= 3; pull++) {
     await refuseBankruptcy(page)
+    /*
+     * §10.7a.3 — **and tap through anything that opened since the last leg.**
+     *
+     * The world is genuinely inert while a scene is up: the dialogue scrim eats
+     * the tap, so aiming at the founder and pressing him is a correct tap that
+     * correctly does nothing, and the leg then reported the one failure it is
+     * supposed to reserve for a real bug — *the avatar is in the frame and
+     * tapping it does nothing*.
+     *
+     * It started happening when §21.7.3's Billy began taking a rung as his own
+     * scene ends: a placed hero earns XP, XP is levels, and §21.7.7c's hero
+     * board arrives on the first earned level — which now lands somewhere in the
+     * middle of this leg rather than in item 10 where the walk went looking for
+     * it. That is the systems working. What was wrong is that this leg assumed
+     * nothing could interrupt it, which is the assumption §21.7.3 exists to
+     * break: an arrival fires when the player feels the problem, and never when
+     * a list gets to it.
+     */
+    await playScenes(page)
     const at = await page.evaluate(() => window.__founderAt?.() ?? null)
     const onFrame =
       at && at.x > 4 && at.y > 4 && at.x < size.width - 4 && at.y < size.height - 4
@@ -1142,6 +1236,17 @@ async function walkItems9and10(page, size) {
 async function placeAHero(page, size) {
   const arm = async () => {
     await press(page, 'HERO')
+    /*
+     * §21.7.6 — **the strip is only called `HERO PLACEMENT` once Billy has
+     * handed the floor over**, and before that `PLACE HERO` is not on the card
+     * at all. Named here rather than discovered as a thirty-second Playwright
+     * timeout on a missing button: if the arrival ladder is ever reordered so
+     * that this leg runs before item 8, this says so in one line.
+     */
+    const bar = (await page.locator('.roster .os-window__bar').textContent()) ?? ''
+    if (!bar.includes('HERO PLACEMENT')) {
+      fail(`the floor is not placeable yet — Billy has not handed it over ("${bar.trim()}")`)
+    }
     await tapControl(page, page.locator('.roster__card'), 'the first card on the roster strip')
     await press(page, 'PLACE HERO')
     await page.locator('.posting').waitFor()
@@ -1187,7 +1292,19 @@ async function placeAHero(page, size) {
     await page.waitForTimeout(120)
     const s = await runState(page)
     if (s.postingTarget) {
-      const receipt = (await page.locator('.posting').textContent()) ?? ''
+      /*
+       * The receipt is split across two surfaces on purpose now. The strip says
+       * *where* and what the move is worth to the hero; the plate at the anchor
+       * says what it is worth to the studio — because the four-line block this
+       * replaced sat across the middle of the floor it was asking the player to
+       * tap, and because one row cannot hold both between a name and two
+       * buttons (§23.4.2 measured exactly that). Both are read together here: a
+       * change that moves a number from one to the other is fine, and a change
+       * that loses it from both is what this line catches.
+       */
+      const receipt =
+        `${(await page.locator('.posting').textContent()) ?? ''} ` +
+        `${(await page.locator('.world-hero-pin[data-state="preview"]').textContent()) ?? ''}`
       const branchEffect = /VELOCITY|DEFECT RATE|INCIDENT RATE|ENTROPY|DEVELOPER CAP|TICKET HEADS/.test(receipt)
       if (!receipt.includes('XP SHARE') || !branchEffect) {
         fail(`the candidate target had no exact placement receipt — ${receipt}`)
@@ -1638,11 +1755,27 @@ async function walkTheThread(browser, exit) {
   let last = Number.POSITIVE_INFINITY
   let returned = false
   let cleared = false
-  for (; taps < CLEAR_TAPS + 10; taps++) {
-    // The same rule as everywhere else: whatever the game is saying goes first,
-    // because the scrim owns the tap while it is saying it. Leaving this out is
-    // how thirty taps landed on §18.0a's scene and none on its button.
-    await pumpScene(page)
+  for (let round = 0; round < CLEAR_TAPS + 40; round++) {
+    /*
+     * The same rule as everywhere else: whatever the game is saying goes first,
+     * because the scrim owns the tap while it is saying it. Leaving this out is
+     * how thirty taps landed on §18.0a's scene and none on its button.
+     *
+     * **Drained rather than pumped, and `taps` counts button presses rather than
+     * loop passes** [amended 2026-08-29]. Those were the same thing while every
+     * scene in the game was short: one `pumpScene` per pass turned one page, and
+     * a five-line arrival cost five of a budget of thirty. §21.7.3's Billy is
+     * twenty-two lines — he is a hand-over as well as an introduction — and he
+     * now arrives *inside* this leg, because a placed hero earns XP and the
+     * §21.7.7c board follows. Seventeen taps landed, thirteen went on turning
+     * his pages, and the leg reported "30 taps did not end a thread" about a
+     * thread it had barely touched.
+     *
+     * A player taps through the box and then goes back to the button, which is
+     * what this now does. The assertion is unchanged and is now measuring the
+     * thing it names: presses on `REPLY TO ALL`, against §18.2's twenty.
+     */
+    await playScenes(page)
     const n = await owed()
     if (n === 0) {
       cleared = true
@@ -1655,6 +1788,7 @@ async function walkTheThread(browser, exit) {
     }
     last = n
     await reply.first().click({ timeout: 3_000 }).catch(() => {})
+    taps++
     await page.waitForTimeout(60)
   }
   // Loud, because the failure this replaces was a *silent* one: a loop whose

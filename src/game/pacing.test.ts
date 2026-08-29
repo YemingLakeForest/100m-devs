@@ -38,10 +38,10 @@ import {
   buyFounderNode,
   buyParadigmNode,
   buyTech,
-  currentEntropy,
-  dismissScene,
   commitmentFor,
+  currentEntropy,
   currentVelocity,
+  dismissScene,
   effectiveDevCap,
   founderOf,
   getState,
@@ -49,6 +49,7 @@ import {
   massHire,
   nextHireCost,
   poke,
+  releaseNow,
   takeSeedRound,
   tick,
   triggerParadigmShift,
@@ -302,6 +303,10 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
     buyCheapestFounderNode(buffer)
 
     tick(STEP)
+    // §10.8b — the shelf halts `tick`, and a pacing walk that never answered a
+    // launch would measure a studio that stopped at its first finished build.
+    // The neutral date pays ×1, so §13.12's figures are unmoved by the window.
+    if (getState().pendingRelease !== null) releaseNow()
     t += STEP
 
     const now = getState()
@@ -484,13 +489,19 @@ describe('the step size is honest', () => {
     const coarse = (() => {
       __resetStore()
       __setState({ runSeed: FIXED_SEED, devs: 40, cash: 1e6 })
-      for (let t = 0; t < 120; t += 0.25) tick(0.25)
+      for (let t = 0; t < 120; t += 0.25) {
+        tick(0.25)
+        if (getState().pendingRelease !== null) releaseNow()
+      }
       return getState().lifetimeRevenue
     })()
     const fine = (() => {
       __resetStore()
       __setState({ runSeed: FIXED_SEED, devs: 40, cash: 1e6 })
-      for (let t = 0; t < 120; t += 1 / 30) tick(1 / 30)
+      for (let t = 0; t < 120; t += 1 / 30) {
+        tick(1 / 30)
+        if (getState().pendingRelease !== null) releaseNow()
+      }
       return getState().lifetimeRevenue
     })()
     // Within a percent over two minutes: the integrator is not step-sensitive

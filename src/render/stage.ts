@@ -1707,7 +1707,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // told in behaviour rather than in a number.
     // §10.7a.3 — and while a scene is up the floor holds its breath: `tick`
     // stops the numbers and the frozen room stops the bodies, so the picture
-    // and the ledger agree about time being stopped.
+    // and the ledger agree about time being stopped. §10.8b's launch window
+    // halts the same clock for the same reason, so it freezes the same bodies:
+    // a studio that keeps visibly typing while its own launch is on screen is
+    // a studio the pause has not happened to.
     // §7.8.9 — hand the room this tick's away roster, **before** it animates.
     //
     // Pushed rather than pulled: `render/room.ts` does not import the store and
@@ -1717,7 +1720,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // grabbed spends one frame sitting at their desk before the hand takes
     // hold, which is exactly long enough to see.
     room.setAway(state.slack.away)
-    room.animate(now / 1000, state.dev.state, dt, currentEntropy(state), state.scene !== null)
+    room.animate(
+      now / 1000,
+      state.dev.state,
+      dt,
+      currentEntropy(state),
+      state.scene !== null || state.pendingRelease !== null,
+    )
 
     critPunch = Math.max(0, critPunch - dt * 4)
 

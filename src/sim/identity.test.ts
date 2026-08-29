@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BILLY_HAIR,
+  BILLY_SHIRT,
+  BILLY_TORSO,
+  HERO_IDENTITIES,
   HAIR_COLOURS,
   HAIR_SHAPES,
   BODY_SHAPES,
@@ -174,5 +178,55 @@ describe('James — §21.6', () => {
     // possible. Character as data — he types, he does not talk.
     expect(JAMES.stats.focus).toBeGreaterThan(JAMES.stats.chatter)
     expect(JAMES.stats.chatter).toBe(1)
+  })
+})
+
+/**
+ * §22.8 — **the parts that belong to one person.**
+ *
+ * The tables above say how many entries a *roll* may reach; the renderer's
+ * tables are longer, and what sits past the count is somebody's. This is the
+ * pair of facts that keeps that arrangement honest: the reserved indices are
+ * genuinely out of the roll's reach (`what varies` above proves the other
+ * direction over 3,000 people), and the two people who own them are drawn from
+ * the entries nobody else can have.
+ */
+describe('§22.8 — the reserved parts', () => {
+  it('puts James and Billy past the end of every roll', () => {
+    expect(BILLY_HAIR).toBeGreaterThanOrEqual(HAIR_COLOURS)
+    expect(BILLY_SHIRT).toBeGreaterThanOrEqual(SHIRT_COLOURS)
+    expect(BILLY_TORSO).toBeGreaterThanOrEqual(BODY_SHAPES)
+    // And they do not collide with each other, which is the only way two
+    // written-down people can end up wearing the same unrollable shirt.
+    expect(BILLY_HAIR).not.toBe(JAMES.look.hairColour)
+    expect(BILLY_SHIRT).not.toBe(JAMES.look.shirt)
+  })
+
+  /**
+   * §21.7.3 — Billy is described, not rolled, and every field is one word of
+   * the description: fair, a neat crop, clean-shaven, glasses, a light blue
+   * shirt on a slim tall frame, and the most upright posture on the floor.
+   *
+   * Asserted because the look is doing narrative work his dialogue cannot: the
+   * scene's joke depends on the founder failing to place a world they can see
+   * standing in front of them, and it only lands if he *looks* like it.
+   */
+  it('draws Billy the way §21.7.3 describes him', () => {
+    const billy = HERO_IDENTITIES.billy
+    expect(billy.look.hairColour).toBe(BILLY_HAIR)
+    expect(billy.look.shirt).toBe(BILLY_SHIRT)
+    expect(billy.look.body).toBe(BILLY_TORSO)
+    // The `crop` silhouette — the only tidy one of the four.
+    expect(billy.look.hair).toBe(1)
+    expect(billy.look.facialHair).toBe(0)
+    expect(billy.look.glasses).toBe(true)
+    expect(billy.look.headphones).toBe(false)
+    // Upright. Everybody else on the floor leans into a monitor.
+    expect(billy.look.slouch).toBeLessThan(0)
+
+    // And he is the opposite of James in the two places they are both written
+    // down, which is what makes them read as the same age and nothing else.
+    expect(billy.look.facialHair).not.toBe(JAMES.look.facialHair)
+    expect(billy.look.hair).not.toBe(JAMES.look.hair)
   })
 })

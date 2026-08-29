@@ -31,6 +31,7 @@ import {
   massHire,
   poke,
   pokeFounder,
+  releaseNow,
   showScene,
   takeSeedRound,
   tick,
@@ -85,6 +86,10 @@ function play(seconds: number, pokesPerSecond = 0) {
     // the harness taps through it exactly as a player would. Without this, Act
     // I's arrival scene simply parks the run.
     if (getState().scene !== null) dismissScene()
+    // §10.8b — and the same for a finished build waiting on a release date.
+    // See `releaseNow`: the neutral date pays ×1, so Run 1's measured economy
+    // is the economy this file was written against.
+    if (getState().pendingRelease !== null) releaseNow()
     owed += pokesPerSecond * step
     while (owed >= 1) {
       poke(0, 0)
