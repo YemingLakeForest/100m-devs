@@ -165,7 +165,7 @@ describe('§13.6.2 — a hero is only effective at the reach they have bought', 
     expect(heroCoverage(placed('mo'), 6, 100).complete).toBe(true)
   })
 
-  it('covers nothing at all while it is still walking — §13.8 rule 4', () => {
+  it('covers nothing while its remote channel is connecting — §13.8 rule 4', () => {
     const mo = placed('mo')
     const settling = heroCoverage(mo, 1000, SETTLE_SECONDS - 1)
     expect(settling.settling).toBe(true)

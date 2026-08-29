@@ -54,6 +54,8 @@ import {
   ROOM_OPENS_AT,
   ROOM_OPEN_MARGIN,
   ROOM_TIGHT_MARGIN,
+  TEAM_ROOM_BOUNDS,
+  teamDeskPosition,
 } from './room.ts'
 import {
   ARRIVAL_MS,
@@ -887,6 +889,51 @@ describe('the floor tier shows the studio you have — GDD §7.7.1', () => {
   })
 })
 
+describe('§7.8.12 — the team room is a physical place, not a posting marker', () => {
+  const james = {
+    id: 'james' as const,
+    colour: '#8fd6a0',
+    assigned: false,
+    connecting: false,
+    selected: false,
+  }
+  const mo = {
+    id: 'mo' as const,
+    colour: '#d8d8c0',
+    assigned: false,
+    connecting: false,
+    selected: false,
+  }
+
+  it('waits for the second hero, then grows glass around the manager corner', () => {
+    const room = buildRoom()
+    const architecture = room.container.getChildByLabel('team-room') as Container
+    room.setTeam([james])
+    expect(architecture.visible).toBe(false)
+
+    room.setTeam([james, mo])
+    expect(architecture.visible).toBe(true)
+    expect(room.teamDeskAt('mo')).toEqual(teamDeskPosition('mo'))
+    expect(TEAM_ROOM_BOUNDS.minY).toBeLessThan(teamDeskPosition('mo').y)
+    expect(teamDeskPosition('mo').y).toBeLessThan(teamDeskPosition('james').y)
+    room.container.destroy({ children: true })
+  })
+
+  it('keeps an assigned hero at the same desk and makes that body inspectable', () => {
+    const room = buildRoom()
+    room.setTeam([james, mo])
+    const at = room.teamDeskAt('mo')!
+    expect(room.teamHeroAt(at.x, at.y - 7)).toBe('mo')
+    expect((room.container.getChildByLabel('team-room-heroes') as Container)
+      .getChildByLabel('team-hero:mo')).toBeTruthy()
+
+    room.setTeam([james, { ...mo, assigned: true, connecting: true }])
+    expect(room.teamDeskAt('mo')).toEqual(at)
+    expect(room.teamHeroAt(at.x, at.y - 7)).toBe('mo')
+    room.container.destroy({ children: true })
+  })
+})
+
 describe('§13.11.1 — coverage is drawn on the floor', () => {
   /** The decal layer's bounds, or null while it is empty. */
   function decals(room: ReturnType<typeof buildRoom>) {
@@ -943,23 +990,23 @@ describe('§13.11.1 — coverage is drawn on the floor', () => {
     room.container.destroy({ children: true })
   })
 
-  it('draws a walking hero as an outline, not as coverage — §13.8 rule 4', () => {
+  it('draws a connecting assignment as an outline, not coverage — §13.8 rule 4', () => {
     const settled = buildRoom()
     settled.setHeadcount(20)
     settled.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: false }]]))
-    const walking = buildRoom()
-    walking.setHeadcount(20)
-    walking.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: true }]]))
+    const connecting = buildRoom()
+    connecting.setHeadcount(20)
+    connecting.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: true }]]))
 
     const layerOf = (r: ReturnType<typeof buildRoom>) =>
       (r.container.getChildByLabel('coverage') as Graphics).context.instructions
-    // The settled mark is a fill *and* a stroke; the walking one is a stroke.
-    expect(layerOf(walking).length).toBeLessThan(layerOf(settled).length)
-    expect(layerOf(walking).some((i) => i.action === 'fill')).toBe(false)
+    // The settled mark is a fill and stroke; the connecting one is a stroke.
+    expect(layerOf(connecting).length).toBeLessThan(layerOf(settled).length)
+    expect(layerOf(connecting).some((i) => i.action === 'fill')).toBe(false)
     expect(layerOf(settled).some((i) => i.action === 'fill')).toBe(true)
 
     settled.container.destroy({ children: true })
-    walking.container.destroy({ children: true })
+    connecting.container.destroy({ children: true })
   })
 })
 

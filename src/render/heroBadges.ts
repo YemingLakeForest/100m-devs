@@ -77,7 +77,7 @@ export interface RoomPosting {
   index: number
   /** How many seats they would cover once settled. */
   reachDevs: number
-  /** §13.8 rule 4 — still walking, so covering nothing yet. */
+  /** §13.8 rule 4 — the remote assignment is still connecting. */
   settling: boolean
   /** 0..1 activation sweep after settling. Omitted means an established posting. */
   activation?: number

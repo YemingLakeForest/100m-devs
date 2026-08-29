@@ -4799,7 +4799,7 @@ identical badges.</li>
 A screen-space badge would float free of the city and read as a map pin — which is
 §7.7.7's &quot;never a menu with a picture behind it&quot;.</li>
 </ul>
-<h4 id="the-executive-suite-where-the-heroes-sit-canon-added-2026-08-15-r74">7.8.12 The executive suite — where the heroes sit <strong>[CANON - added 2026-08-15]</strong> - R74</h4>
+<h4 id="the-executive-suite-where-the-heroes-sit-canon-added-2026-08-15-r74">7.8.12 The executive suite — where the heroes sit <strong>[CANON - added 2026-08-15; amended 2026-08-29]</strong> - R74</h4>
 <p>§7.8.10 gives the founder a corner desk and §7.8.11 gives a placed hero a mark on the unit they
 cover. <strong>Neither says where a hero is when they are not covering anything</strong>, and §13.11.2
 answers it with a word — <code>BENCHED</code> — printed on a strip. A word on a strip is the weakest thing
@@ -4840,7 +4840,7 @@ to him.</p>
 </tr>
 <tr>
 <td><strong>One desk per hero</strong></td>
-<td>Added when that hero arrives (§21.7.3), with a nameplate. <strong>The desk stays when the hero is placed</strong> — empty, plated, and visibly waiting</td>
+<td>Added when that hero arrives (§21.7.3), with a nameplate. <strong>The hero and the desk both stay when the hero is assigned</strong>: posting is remote management, not physical relocation</td>
 </tr>
 <tr>
 <td><strong>Glass, not brick</strong></td>
@@ -4852,21 +4852,36 @@ to him.</p>
 </tr>
 </tbody>
 </table>
-<h5 id="the-mechanic-it-carries">The mechanic it carries</h5>
-<p><strong>An unplaced hero is at their desk in the suite. That is what benched looks like</strong>, and it is
-the whole reason to build the room:</p>
+<h5 id="the-mechanic-it-carries">The mechanic it carries <strong>[amended 2026-08-29]</strong></h5>
+<p><strong>Every arrived hero is physically at their desk in the suite, whether benched or assigned.</strong>
+The suite answers where the people are, while the world assignment answers what they are
+responsible for.</p>
 <ul>
 <li>§13.10's &quot;a card in the tray is a person on the bench&quot; becomes a thing you <em>see</em> — somebody
 sitting in a glass room doing nothing while the floor works.</li>
-<li><strong>Placement is a drag out of the suite</strong>, using §7.8.9's existing carry gesture, onto the unit
-they will cover. Recall is a drag back. §13.6.6's &quot;the card board is the world&quot; is satisfied
-without a tray, and §13.6.7's forbidden management screen is not merely avoided — there is
-nowhere to put one.</li>
-<li>§13.8's settling period (rule 4) is a <strong>walk</strong>. A relocated hero covers nothing while they
-cross the floor, so the cost of moving somebody is a thing the player watches rather than a
-timer they are told about. This is §26.3.1's walking system arriving early because heroes
-needed it first; the ambient version inherits it.</li>
+<li><strong>Assignment is posted from the suite onto the world.</strong> Tap the person, choose <code>POST</code>,
+then name the unit they will cover. The hero stays at their desk; their branch-coloured monitor,
+the unit's portrait plate and its coverage footprint light together. §13.6.6's &quot;the card board
+is the world&quot; survives because the decision still ends on the actual seat, floor, building or
+campus rather than on a management grid.</li>
+<li>§13.8's settling period (rule 4) is an eight-second <strong>channel setup</strong>: permissions, context and
+the message history synchronise before the remote effect and XP begin. This preserves the
+anti-hot-swap cost without showing a body leave the room. Recall closes the channel; the person
+never teleports in either direction because they never moved.</li>
 </ul>
+<p><strong>The first remote assignment explains the contradiction once, through James, and never puts a
+tutorial caption where a joke can do the work:</strong></p>
+<pre><code>YOU         James, I assigned someone to the floor. Why are they still in this room?
+JAMES       They have Instant Messenger.
+YOU         That's all they need to manage a team?
+JAMES       It delivers every message instantly.
+YOU         Have they met any of those people?
+JAMES       They have all received a message.
+YOU         That's not the same thing.
+JAMES       No. It scales better.
+</code></pre>
+<p>James is sincere. He is completely correct about delivery latency and has mistaken it for the
+whole of management, which is §21.7.0's voice rule rather than a wink at the player.</p>
 <blockquote>
 <p><strong>The suite is never a screen and never a menu.</strong> It is a room at Desk and Floor zoom, it is
 occluded by the building like anything else, and above rung 3 it stops being drawn at all —
@@ -8555,17 +8570,17 @@ the first thing in the design where the player's job is arranging people rather 
 them.</p>
 <p>The rules, and each one exists to stop a specific way this collapses into a menu:</p>
 <ol>
-<li><strong>A hero occupies a physical place</strong>, dropped onto the floor with §7.8.9's existing carry
-gesture. Not a list — the whole point is that you can see the shape of your coverage
-without opening anything.</li>
+<li><strong>A hero's assignment occupies a physical place in the world; the hero remains physically in
+§7.8.12's suite.</strong> The unit gets their portrait plate and the floor gets their footprint. Not a
+list — the whole point is that you can see the shape of responsibility without opening anything.</li>
 <li><strong>Coverage is drawn, not stated.</strong> §13.6.6 already requires this and it becomes
 load-bearing here: a footprint on the floor, in the class's colour, that visibly does or
 does not contain the rows you care about.</li>
 <li><strong>Overlap is waste, and it is waste you can see.</strong> Two heroes of the same class covering
 the same rows do not stack — §13.6.4's dilution rule applied spatially. This is what makes
 the puzzle a <em>packing</em> problem rather than a stacking one.</li>
-<li><strong>Moving a hero costs time, not money.</strong> A relocation has a settling period during which
-the hero covers nothing. Free instant reassignment would make the optimal play a
+<li><strong>Moving an assignment costs time, not money.</strong> A new remote channel has a settling period
+during which the hero covers nothing. Free instant reassignment would make the optimal play a
 micro-management treadmill, which §13.6.7 already forbids in another form.</li>
 <li><strong>The studio keeps changing under it.</strong> Every hire adds rows (§7.8.1b), and every §7.7
 rung change reshapes the floor entirely — so a placement that was correct an hour ago is
@@ -8577,18 +8592,18 @@ loop rather than a task.</li>
 progress.</strong> §13.6.7's &quot;never a second job&quot; applies with full force. A good placement should
 be worth having and a stale one should cost a percentage — never a wall.</p>
 </blockquote>
-<h4 id="a-the-interim-gesture-arm-then-tap-canon-added-2026-08-17-r84">13.8a The interim gesture — arm, then tap <strong>[CANON — added 2026-08-17]</strong> - R84</h4>
-<p>Rule 1 above says the placement is <strong>a drag out of §7.8.12's suite onto the floor</strong>, and
-§7.8.12 has not been built. The consequence went unnoticed for as long as §13 has existed,
-because everything either side of it was finished:</p>
+<h4 id="a-the-interim-gesture-arm-then-tap-canon-added-2026-08-17-r84">13.8a The posting gesture — arm, then tap <strong>[CANON — added 2026-08-17; amended 2026-08-29]</strong> - R84</h4>
+<p>This was introduced as an interim substitute for dragging a body out of §7.8.12's unbuilt
+suite. The suite amendment above makes the separation the finished design: the person stays in
+the room and the assignment is posted to the world. Everything either side of the gesture was
+already complete:</p>
 <blockquote>
 <p><code>placeHero</code> and <code>recallHero</code> were complete, tested, wired to the fold, wired to §21.7.4's
 promotion scene and persisted through §24's save — <strong>and no line of the game ever called
 either of them.</strong> Every hero in the build was a card with no verb attached, and §26.1.8's
 items 11 and 12 were unreachable by a player at all.</p>
 </blockquote>
-<p>The fix is not to build the suite early, and it is not a grid. It is to split the drag into its
-two halves and let the player say them one at a time:</p>
+<p>The gesture is not a grid. It lets the player say the two nouns one at a time:</p>
 <ol>
 <li><strong>Arm</strong> — <code>POST</code> on §22.9's card. The card closes, because the thing the player must now
 touch is behind it.</li>
@@ -8597,20 +8612,14 @@ uses, so what is being aimed at is genuinely the seat, the floor, the campus. A 
 ground disarms; so does <code>CANCEL</code> on the banner.</li>
 </ol>
 <p><strong>The property this is protecting is §13.6.7's</strong>: <em>&quot;if the player is managing heroes on a grid
-instead of in the world, the entire reason for this design has been thrown away.&quot;</em> A drag and
-an arm-then-tap both end with a finger on the unit, and that is the half that carries the
-design. What the interim gesture loses is the <em>continuous</em> feedback of a card following the
-thumb over the floor — real, and worth the suite, and not worth blocking two gate lines on.</p>
+instead of in the world, the entire reason for this design has been thrown away.&quot;</em> Arm-then-tap
+ends with a finger on the unit, and that is the half that carries the design. The lit monitor in
+the suite and the preview footprint on the world are the two ends of the same remote channel.</p>
 <p>While somebody is armed the finger means one thing only, ahead of POKE, GRAB, INFO and the
 double-tap descend. That is §7.7.6b's rule and it arrives with §7.7.6b's other half: <strong>the mode
 is said out loud, on the HUD, before the finger lands.</strong> The banner is not a fourth latch on
 §7.7.6b's switch, because a latch that empties itself after one use is a broken switch — a
 stance is something you stay in, and a posting is a sentence with one word left in it.</p>
-<blockquote>
-<p><strong>What this owes.</strong> §7.8.12's suite, and with it the drag. When that lands, <code>GameState.posting</code>
-and its banner are deleted and <code>placeHero</code> keeps its signature — the seam is one field, on
-purpose.</p>
-</blockquote>
 <h4 id="b-coverage-on-the-room-floor-canon-added-2026-08-17-r84">13.8b Coverage on the room floor <strong>[CANON — added 2026-08-17]</strong> - R84</h4>
 <p>§13.11.1's footprint, at the only rungs where it can be drawn today. The maths had been in
 <code>render/heroBadges.ts</code> since §13.11 was written, with a note saying a renderer built against it
@@ -8640,7 +8649,7 @@ the furniture standing on it:</p>
 <tr>
 <td><strong>Settling</strong></td>
 <td>The outline alone</td>
-<td>§13.8 rule 4 — coverage costs time, so the time is on screen rather than a footprint that appears from nowhere twenty seconds after the tap</td>
+<td>§13.8 rule 4 — coverage costs time, so the time is on screen rather than a footprint that appears from nowhere eight seconds after the tap</td>
 </tr>
 </tbody>
 </table>
@@ -8667,7 +8676,7 @@ goes flat grey&quot;</em> — which is a change to how every developer is drawn 
 is Phase 2's business at the rungs where it matters most.</p>
 </blockquote>
 <h4 id="c-inspect-compare-then-commit-canon-added-2026-08-26">13.8c Inspect, compare, then commit <strong>[CANON — added 2026-08-26]</strong></h4>
-<p>§13.8a's arm-then-tap gesture made placement reachable and charged the eight-second move on
+<p>§13.8a's arm-then-tap gesture made placement reachable and charged the eight-second channel setup on
 the first target the player touched. That made the committed result legible and the decision
 opaque: comparing two anchors meant paying two delays.</p>
 <p><strong>A world target is now inspected before it is committed.</strong> A pointer hovering a unit and a
@@ -8679,7 +8688,7 @@ the simulation changes yet. <code>CONFIRM PLACE</code> or <code>CONFIRM MOVE</co
 <p>This is still a world placement, never a grid: the candidate comes from the same <code>pickUnit</code>
 that resolves POKE, its compact face is projected onto that world anchor, and rungs 0–2 draw
 the candidate footprint as an outline. A second pointer move or tap replaces the candidate,
-so two anchors can be compared without recalling the hero, restarting the walk or losing the
+so two anchors can be compared without recalling the hero, restarting the channel setup or losing the
 old assignment.</p>
 <h4 id="d-the-receipt-goes-where-the-finger-is-canon-added-2026-08-29">13.8d The receipt goes where the finger is <strong>[CANON — added 2026-08-29]</strong></h4>
 <p>§13.8c put the receipt <em>on the placement banner</em>, and that turned out to be the wrong half of
@@ -8958,8 +8967,8 @@ is learned by looking, not by reading <code>covering 8 of 4,000</code>.</li>
 do not stack — is rendered as <strong>cross-hatching</strong> where the footprints intersect. The player
 is never told they have made a mistake; they can just see the hatched area and move
 somebody.</li>
-<li><strong>A settling hero is drawn faded</strong>, with a countdown ring, for §13.8's rule 4 relocation
-period. Coverage costs time, so time is on screen.</li>
+<li><strong>A connecting assignment is drawn faded</strong>, with a countdown ring, for §13.8's rule 4
+channel-setup period. Coverage costs time, so time is on screen.</li>
 <li><strong>The label is §7.8.13's desk plate, not a card</strong> [amended 2026-08-29]. Reported alongside
 §13.8d as <em>&quot;the placed tag, it's a bit clunky and breaking immersion&quot;</em>, and both halves of
 that are one diagnosis: it was a 78×34 panel carrying a 28 px portrait, the hero's name and
@@ -12827,9 +12836,9 @@ gauge walks in holding one.</p>
 room's first rung, and it is the only automatic placement in the game. §21.7.3's shape rule 2
 says a hero fixes nothing <em>during</em> their scene and the number improves afterwards from their
 work — this is that rule obeyed literally, and it is also the only way a scene can demonstrate
-a verb it is about to hand over. He walks, the eight seconds run, the gauge comes back up, and
-the player watches the mechanism do its job on somebody they did not have to aim. They can move
-him about four seconds later.</p>
+a verb it is about to hand over. His remote channel connects, the eight seconds run, the gauge
+comes back up, and the player watches the mechanism do its job on somebody they did not have to
+aim. They can move his assignment about four seconds later.</p>
 <h4 id="b-what-this-does-to-4.15s-three-colours">21.7.6b What this does to §4.15's three colours</h4>
 <p>§4.15 argues that the three backlogs are one system told in three colours and must be read as a
 set, and §25.7.2a moved them into one column on that argument. <strong>Both survive, and the set now
@@ -16385,7 +16394,7 @@ not before.
 7. Do the same for Serena and Matt.
 8. Hit the developer cap with cash spare, meet Melany; sit at that cap with sync halved until
 James sends for Billy — and watch §13.8's floor become placeable as his scene ends, with him
-already standing on it.
+still in the suite and his assignment already posted to it.
 <strong>Items 6, 7 and 8 pass as of 2026-08-18</strong>, and <em>&quot;with her and not before&quot;</em> is checked the
 only way it can be: the walk snapshots the rail on the frame each arrival scene <strong>opens</strong>,
 before the dismissal that grants the unlock. Every one of the three came up empty, and the
@@ -17532,7 +17541,12 @@ amended.</p>
 <tr>
 <td>Hero posting</td>
 <td><strong>LIVE</strong></td>
-<td>Roster → placement mode → world target → eight-second settle → active effect/XP works. Compact in-world head avatar, name and <code>ASSIGNED</code> marker identify posted heroes at desk, floor and building scales, and remain below every open panel</td>
+<td>Room/card → posting mode → world target → eight-second channel setup → active effect/XP works. Compact in-world head avatar, name and <code>ASSIGNED</code> marker identify remote assignments at desk, floor and building scales, and remain below every open panel</td>
+</tr>
+<tr>
+<td>Team room</td>
+<td><strong>LIVE</strong></td>
+<td>A separate glass bay grows around the founder corner when the second hero arrives. Every arrived hero remains physically at a fixed named desk; branch-lit monitors and Instant Messenger packets show benched, connecting and assigned states, tapping a body opens its staff pass, and the first remote posting triggers James's one-time explanation</td>
 </tr>
 <tr>
 <td>Omni-Lens and scale</td>

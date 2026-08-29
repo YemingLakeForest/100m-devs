@@ -101,7 +101,7 @@ import {
   type TallySource,
 } from './tallies.ts'
 import { createArrivals } from './arrivals.ts'
-import { ROOM_DEV_CAP } from './room.ts'
+import { ROOM_DEV_CAP, type TeamRoomHero } from './room.ts'
 import { exceedsSlop, pickNearest } from './navigation.ts'
 import { tapVerb } from '../game/touchMode.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
@@ -109,6 +109,15 @@ import type { BenchHooks } from '../perf/bench.ts'
 import type { FounderProfile } from '../game/founderProfile.ts'
 import { SETTLE_SECONDS, type HeroPlacement } from '../sim/heroRoster.ts'
 import { nominalUnitSize, unitSeats } from '../sim/units.ts'
+import { STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
+import {
+  SCENE_BILLY_ARRIVES,
+  SCENE_JAMES_ARRIVES,
+  SCENE_MATT_ARRIVES,
+  SCENE_MELANY_ARRIVES,
+  SCENE_MO_ARRIVES,
+  SCENE_SERENA_ARRIVES,
+} from '../game/scenes.ts'
 
 /** What the HUD needs to draw the breadcrumb and the lift panel. */
 export interface NavState {
@@ -204,6 +213,8 @@ export interface StageHandle {
   codeFounder(): number
   /** React hook for opening the founder profile when the world avatar is tapped. */
   setFounderInspect(handler: (() => void) | null): void
+  /** React hook for opening a staff pass from its physical team-room body. */
+  setHeroInspect(handler: ((id: HeroId) => void) | null): void
   /** Replace the default figure once first-start setup has been submitted. */
   setFounderProfile(profile: FounderProfile): void
   /** Everything the GDD §23.3 acceptance run needs to drive and measure the app. */
@@ -220,6 +231,23 @@ export interface StageHandle {
  * where their desk happens to be large.
  */
 const FOUNDER_TOUCH_PX = 22
+
+/** §10.7a uses these six stable focus indices throughout the scene scripts. */
+const DIALOGUE_HEROES: readonly HeroId[] = STORY_HEROES.map((hero) => hero.id)
+
+/**
+ * The person enters with their scene, one frame before that scene becomes a
+ * permanent arrival milestone. Including the current scene is what lets the
+ * walls and the new desk be present behind the actual entrance dialogue.
+ */
+const ARRIVAL_HERO_FOR_SCENE: Readonly<Record<string, HeroId>> = {
+  [SCENE_JAMES_ARRIVES.id]: 'james',
+  [SCENE_MO_ARRIVES.id]: 'mo',
+  [SCENE_SERENA_ARRIVES.id]: 'serena',
+  [SCENE_MATT_ARRIVES.id]: 'matt',
+  [SCENE_MELANY_ARRIVES.id]: 'melany',
+  [SCENE_BILLY_ARRIVES.id]: 'billy',
+}
 
 /** Samples kept for the latency percentile. 120 taps is ~24 s at 5 taps/sec. */
 const LATENCY_WINDOW = 120
@@ -354,9 +382,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * but the third is **time**: §13.8 rule 4's settling period ends on a clock
    * nobody publishes an event for, and a footprint that waited for the next
    * placement to appear would arrive minutes after the hero it belongs to
-   * finished walking.
+   * finished synchronising its remote channel.
    *
-   * Four hertz against a twenty-second settle is invisible, and `setCoverage`
+   * Four hertz against an eight-second setup is invisible, and `setCoverage`
    * throws away the result unless the marks actually moved, so the cost of the
    * poll is six objects and a short string a quarter of a second — not a
    * redraw. §23.3's frame budget never sees it.
@@ -429,6 +457,27 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }
     marks = windowed
     return marks
+  }
+
+  /**
+   * §7.8.12 — the physical room roster, including a hero whose arrival scene
+   * is currently playing but has not yet been committed to milestones.
+   */
+  const teamRoomRoster = (state: GameState): TeamRoomHero[] => {
+    const runtimes = new Map(heroRoster(state).map((hero) => [hero.id, hero]))
+    const arriving = state.scene ? ARRIVAL_HERO_FOR_SCENE[state.scene] : undefined
+    return STORY_HEROES.flatMap((hero): TeamRoomHero[] => {
+      const runtime = runtimes.get(hero.id)
+      if (!runtime && hero.id !== arriving) return []
+      const placement = runtime?.placement ?? state.heroPlacements[hero.id] ?? null
+      return [{
+        id: hero.id,
+        colour: runtime?.colour ?? branchColour(hero.branch),
+        assigned: placement !== null,
+        connecting: placement !== null && state.runSeconds - placement.placedAt < SETTLE_SECONDS,
+        selected: state.selectedHero === hero.id,
+      }]
+    })
   }
 
   /**
@@ -689,6 +738,17 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   let founderInspect: (() => void) | null = null
+  let heroInspect: ((id: HeroId) => void) | null = null
+
+  const teamHeroHit = (x: number, y: number): HeroId | null => {
+    if (!roomIsUp || !(currentFloorScale > 0)) return null
+    const local = room.container.toLocal({ x, y })
+    return room.teamHeroAt(
+      local.x,
+      local.y,
+      18 / Math.max(0.05, currentFloorScale) + 10,
+    )
+  }
 
   /** The whole tap path, shared by real pointers and the §23.3 bench. */
   /**
@@ -702,6 +762,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   const doSelect = (x: number, y: number): boolean => {
     if (!roomIsUp) return false
+    const hero = teamHeroHit(x, y)
+    if (hero) {
+      selectDeveloper(null)
+      playUi('click')
+      heroInspect?.(hero)
+      return true
+    }
     if (founderHit(x, y)) {
       selectDeveloper(null)
       playUi('click')
@@ -721,7 +788,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   /**
-   * §13.8's interim placement gesture — the armed tap.
+   * §13.8's remote posting gesture — the armed tap.
    *
    * Checked before every other verb and before the double-tap descend, because
    * while somebody is armed **the finger means one thing only**. That is the
@@ -1026,12 +1093,21 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * turns them to face the lens for the duration of their line.
    */
   const focusDialogue = (focus: 'founder' | number | null) => {
-    room.setSpeaker(typeof focus === 'number' ? localSeat(focus) : -1)
+    // Scene focus numbers name the six story heroes, not six interchangeable
+    // rank-and-file seats. That was visually harmless before the room existed;
+    // now it is the difference between Serena turning to camera and a random
+    // developer two rows away doing it for her.
+    const hero = typeof focus === 'number' ? DIALOGUE_HEROES[focus] : undefined
+    room.setTeam(teamRoomRoster(getState()))
+    room.setTeamSpeaker(hero ?? null)
+    room.setSpeaker(hero === 'james' ? localSeat(0) : -1)
     // A scene always plays at Desk zoom, so every line that names somebody
     // re-asserts it — and a line with nobody (STUDIO_OS) holds it rather than
     // cutting away.
     if (focus !== null) {
-      const at = typeof focus === 'number' ? room.deskFor(localSeat(focus)) : room.founderDeskAt()
+      const at = hero
+        ? room.teamDeskAt(hero) ?? room.deskFor(localSeat(focus as number))
+        : room.founderDeskAt()
       camera.flyTo(DESK, at ?? undefined)
     }
   }
@@ -1601,6 +1677,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       camera.flyTo(savedSceneCamera.level)
       savedSceneCamera = null
       room.setSpeaker(-1)
+      room.setTeamSpeaker(null)
     }
 
     // §21 Act IV: "a heavy bass-drop THUD shakes the screen as the camera
@@ -1720,6 +1797,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // grabbed spends one frame sitting at their desk before the hand takes
     // hold, which is exactly long enough to see.
     room.setAway(state.slack.away)
+    room.setTeam(teamRoomRoster(state))
     room.animate(
       now / 1000,
       state.dev.state,
@@ -1870,7 +1948,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // is what refills the room.
     room.container.renderable = roomIsUp
     room.setSeed(state.runSeed)
-    room.setSelected(localSeat(state.selected ?? -1))
+    room.setSelected(localSeat(state.selectedHero === 'james' ? 0 : state.selected ?? -1))
     room.setSeatWindow(seatWindowFor())
     room.setHeadcount(Math.min(state.devs, arrivals.revealed))
     room.setCoverage(seatMarks(state))
@@ -2217,6 +2295,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     setFounderInspect(handler: (() => void) | null) {
       founderInspect = handler
+    },
+    setHeroInspect(handler: ((id: HeroId) => void) | null) {
+      heroInspect = handler
     },
     setFounderProfile(profile: FounderProfile) {
       room.setFounderProfile(profile)

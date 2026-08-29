@@ -56,7 +56,8 @@ export interface HeroPlacement {
    *
    * A relocation has a settling period during which the hero covers nothing,
    * because free instant reassignment makes the optimal play a
-   * micro-management treadmill. §7.8.12 renders the period as a *walk*.
+   * micro-management treadmill. §7.8.12 renders the period as a remote channel
+   * synchronising while the hero remains at their desk.
    */
   placedAt: number
 }
@@ -199,7 +200,7 @@ export interface HeroCoverage {
   fraction: number
   /** True once they cover everything under them. */
   complete: boolean
-  /** §13.8 rule 4 — still walking, and covering nothing yet. */
+  /** §13.8 rule 4 — still connecting, and covering nothing yet. */
   settling: boolean
 }
 

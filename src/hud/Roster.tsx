@@ -123,7 +123,7 @@ export function Roster({
                 </span>
                 <span
                   className="roster__impact"
-                  data-state={where === 'BENCHED' ? 'benched' : coverage.settling ? 'walking' : 'active'}
+                  data-state={where === 'BENCHED' ? 'benched' : coverage.settling ? 'connecting' : 'active'}
                 >
                   {impact}
                 </span>

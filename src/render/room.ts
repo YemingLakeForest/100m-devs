@@ -43,7 +43,7 @@ import { createAmbient } from './ambient.ts'
 import { NO_SPOTS, createErrands } from './errands.ts'
 import { bubblesLegible, counterScale, createBubbles } from './bubble.ts'
 import type { Away } from '../sim/slackOff.ts'
-import { BILLY_TORSO, developerAt, type Look } from '../sim/identity.ts'
+import { BILLY_TORSO, developerAt, heroIdentity, type Look } from '../sim/identity.ts'
 import {
   DEFAULT_FOUNDER,
   founderLook,
@@ -51,6 +51,7 @@ import {
 } from '../game/founderProfile.ts'
 import { AVATAR_HAIR, frontAvatarParts, type AvatarRect } from './avatarParts.ts'
 import type { SeatMark } from './heroBadges.ts'
+import type { HeroId } from '../sim/storyHeroes.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -405,6 +406,19 @@ export interface RoomHandle {
   setFounderProfile(profile: FounderProfile): void
   /** §7.8.7 — set the run seed. Rebuilds every developer's appearance. */
   setSeed(seed: number): void
+  /**
+   * §7.8.12 — everybody physically present in the team room.
+   *
+   * Safe every frame: the room folds these to a short key and only rebuilds
+   * the six-desk layer when somebody arrives or their assignment state moves.
+   */
+  setTeam(heroes: readonly TeamRoomHero[]): void
+  /** The room-local desk for a named hero, or null before they arrive. */
+  teamDeskAt(id: HeroId): { x: number; y: number } | null
+  /** The named hero under a room-local point, for world-space card opening. */
+  teamHeroAt(x: number, y: number, reach?: number): HeroId | null
+  /** Which team-room hero is speaking; James continues to use seat 0. */
+  setTeamSpeaker(id: HeroId | null): void
   /**
    * §26.2.2 — which thousand seats of the studio this room is a picture of.
    *
@@ -873,6 +887,46 @@ export const FOUNDER_CORNER_COL = FOUNDER_CORNER_ROW * PITCH_ROW
 
 export function founderDeskPosition(): { x: number; y: number } {
   return isoAt(FOUNDER_CORNER_COL, FOUNDER_CORNER_ROW)
+}
+
+/**
+ * §7.8.12 [amended 2026-08-29] — the fixed desks inside the team room.
+ *
+ * James keeps seat 0: he is still the first developer and every simulation
+ * rule that names that seat stays true. The other five are arranged in two
+ * short banks around the founder's permanent corner rather than appended to
+ * the rank-and-file grid. These coordinates are room-local on purpose: the
+ * suite is architecture, not headcount, so hiring cannot reflow it.
+ */
+const TEAM_DESKS: Readonly<Record<HeroId, { x: number; y: number }>> = {
+  james: seatPosition(0),
+  mo: { x: -68, y: -25 },
+  serena: { x: -68, y: -80 },
+  billy: { x: -68, y: -135 },
+  matt: { x: 68, y: -25 },
+  melany: { x: 68, y: -80 },
+}
+
+/** Where a named hero is physically sitting, assigned or not. */
+export function teamDeskPosition(id: HeroId): { x: number; y: number } {
+  return { ...TEAM_DESKS[id] }
+}
+
+/** The suite's drawn bounds, including its raised glass. */
+export const TEAM_ROOM_BOUNDS = {
+  minX: -142,
+  maxX: 142,
+  minY: -226,
+  maxY: 24,
+} as const
+
+/** The small slice of hero state the renderer needs. */
+export interface TeamRoomHero {
+  id: HeroId
+  colour: string
+  assigned: boolean
+  connecting: boolean
+  selected: boolean
 }
 
 /** Space for the monitor and the founder's head below the north wall seam. */
@@ -2236,6 +2290,20 @@ export function buildRoom(): RoomHandle {
   const deskLayer = new Container()
   const devLayer = new Container()
   const founderLayer = new Container()
+  /**
+   * §7.8.12 — the team room is three depth planes, not a DOM panel.
+   * Architecture sits behind the old founder/James desks, the five additional
+   * bodies sit with them, and the IM activity is the last piece of scenery on
+   * top. Keeping those planes separate is what lets the glass grow around the
+   * two desks without fading the people who were already sitting there.
+   */
+  const teamArchitecture = new Container()
+  const teamFloor = new Graphics()
+  const teamGlass = new Graphics()
+  const teamDeskLayer = new Graphics()
+  const teamPeopleLayer = new Container()
+  const teamSignals = new Graphics()
+  teamArchitecture.addChild(teamFloor, teamGlass, teamDeskLayer)
   /** §13.11.1 — the coverage footprint, painted on the floor under everybody. */
   const coverage = new Graphics()
   // Previous room geometry lives just long enough to cross-fade into an
@@ -2251,6 +2319,9 @@ export function buildRoom(): RoomHandle {
   plates.label = 'plates'
   deskLayer.label = 'desks'
   coverage.label = 'coverage'
+  teamArchitecture.label = 'team-room'
+  teamPeopleLayer.label = 'team-room-heroes'
+  teamSignals.label = 'team-room-signals'
   const ambient = createAmbient()
   /**
    * §7.8.9 — the away population's bodies.
@@ -2287,9 +2358,12 @@ export function buildRoom(): RoomHandle {
     furniture,
     previousDesks,
     deskLayer,
+    teamArchitecture,
     managerDesk,
     devLayer,
     founderLayer,
+    teamPeopleLayer,
+    teamSignals,
     ambient.layer,
     errands.layer,
     speech.layer,
@@ -2307,6 +2381,11 @@ export function buildRoom(): RoomHandle {
   const squadDesks: Graphics[] = []
 
   const devs: Container[] = []
+  let team: TeamRoomHero[] = []
+  let teamDrawnFor = ''
+  let teamSpeaker: HeroId | null = null
+  let teamReveal = 1
+  const teamBodies = new Map<HeroId, Container>()
   let founderProfile = DEFAULT_FOUNDER
   let founder = buildFounderAvatar(founderProfile)
   let founderHopStartedAt = Number.NEGATIVE_INFINITY
@@ -2358,6 +2437,150 @@ export function buildRoom(): RoomHandle {
   const jolts: number[] = []
   const desks: Array<{ x: number; y: number }> = []
   let roomTransition = 1
+
+  /**
+   * §7.8.12 — build the suite around the founder and James, then add one
+   * workstation per arrived hero. The room appears only when the second hero
+   * arrives; James alone is still the garage story and keeps its clean frame.
+   */
+  function rebuildTeam() {
+    teamFloor.clear()
+    teamGlass.clear()
+    teamDeskLayer.clear()
+    teamSignals.clear()
+    for (const body of teamBodies.values()) body.destroy({ children: true })
+    teamBodies.clear()
+    teamPeopleLayer.removeChildren()
+
+    const visible = team.length > 1
+    teamArchitecture.visible = visible
+    teamPeopleLayer.visible = visible
+    teamSignals.visible = visible
+    if (!visible) return
+
+    // A darker inset inside the ordinary slab. It is still the same floor;
+    // the border and the glass, not a second material, make it a room.
+    teamFloor
+      .moveTo(-140, -154)
+      .lineTo(0, -208)
+      .lineTo(140, -138)
+      .lineTo(0, 12)
+      .closePath()
+      .fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.72 })
+      .stroke({ width: 2, color: c(RAMPS.NEUTRAL[5]), alpha: 0.72 })
+
+    // The two back planes are glass, so the rank and file and the corner remain
+    // one composition. Dark panes, bright mullions, and no opaque wall.
+    const glassPlane = (
+      ax: number,
+      ay: number,
+      bx: number,
+      by: number,
+      lit: boolean,
+      height = 52,
+    ) => {
+      const h = height
+      teamGlass
+        .moveTo(ax, ay)
+        .lineTo(bx, by)
+        .lineTo(bx, by - h)
+        .lineTo(ax, ay - h)
+        .closePath()
+        .fill({ color: c(RAMPS.GLOW[0]), alpha: 0.26 })
+        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[lit ? 7 : 6]), alpha: 0.78 })
+      for (let i = 1; i < 4; i++) {
+        const t = i / 4
+        const x = ax + (bx - ax) * t
+        const y = ay + (by - ay) * t
+        teamGlass
+          .moveTo(x, y)
+          .lineTo(x, y - h)
+          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.6 })
+      }
+    }
+    glassPlane(-140, -154, 0, -208, false)
+    glassPlane(0, -208, 140, -138, true)
+    // Low front panes put a real threshold between James and seat 1 without
+    // building an opaque wall across the player’s view. The gap is the only
+    // doorway, and every remote packet below leaves through it.
+    glassPlane(-140, -154, -18, -10, false, 22)
+    glassPlane(18, -10, 140, -138, true, 22)
+
+    // A thin phosphor strip is the room's sign. It is deliberately not text:
+    // structured words belong on the React glass, while this is architecture.
+    teamGlass
+      .moveTo(-34, -218)
+      .lineTo(0, -231)
+      .lineTo(34, -214)
+      .lineTo(0, -201)
+      .closePath()
+      .fill({ color: c(RAMPS.GLOW[1]), alpha: 0.72 })
+
+    for (const hero of team) {
+      const at = TEAM_DESKS[hero.id]
+      const colour = c(hero.colour)
+      // Founder and James already own the two original workstations. Every
+      // other arrival brings one more desk into the room; nobody is duplicated.
+      if (hero.id !== 'james') {
+        const grid = screenToGrid(at.x, at.y)
+        const col = grid.gy / PITCH_COL
+        const row = grid.gx / PITCH_ROW
+        drawDeskBank(teamDeskLayer, col, col, row)
+        drawWorkstation(teamDeskLayer, at.x, at.y, 1200 + teamBodies.size)
+        const identity = heroIdentity(hero.id)
+        if (identity) {
+          const body = buildDeveloper(identity.look)
+          body.label = `team-hero:${hero.id}`
+          body.position.set(at.x, at.y + 6)
+          teamBodies.set(hero.id, body)
+          teamPeopleLayer.addChild(body)
+        }
+      }
+
+      // The branch-coloured nameplate is dim on the bench and live while this
+      // desk owns a remote assignment. It is the suite end of §13.11's plate.
+      teamDeskLayer
+        .roundRect(at.x - 13, at.y - 15, 26, 5, 1)
+        .fill({ color: colour, alpha: hero.assigned ? 0.95 : 0.28 })
+      if (hero.assigned) {
+        teamDeskLayer
+          .circle(at.x + 15, at.y - 21, hero.connecting ? 2.5 : 3.5)
+          .fill({ color: colour, alpha: hero.connecting ? 0.55 : 1 })
+      }
+    }
+  }
+
+  function teamKey(heroes: readonly TeamRoomHero[]): string {
+    return heroes
+      .map((hero) =>
+        [hero.id, hero.colour, hero.assigned ? 1 : 0, hero.connecting ? 1 : 0, hero.selected ? 1 : 0].join(':'),
+      )
+      .join('|')
+  }
+
+  /** The animated Instant Messenger packets leaving the room. */
+  function drawTeamSignals(elapsed: number) {
+    teamSignals.clear()
+    if (team.length <= 1) return
+    const exit = { x: 0, y: 24 }
+    for (let order = 0; order < team.length; order++) {
+      const hero = team[order]
+      if (!hero.assigned) continue
+      const at = TEAM_DESKS[hero.id]
+      const colour = c(hero.colour)
+      const alpha = hero.connecting ? 0.42 : 0.8
+      teamSignals
+        .moveTo(at.x + 10, at.y - 25)
+        .lineTo(exit.x, exit.y)
+        .stroke({ width: 1, color: colour, alpha: alpha * 0.34 })
+      for (let packet = 0; packet < 3; packet++) {
+        const t = (elapsed * (hero.connecting ? 0.32 : 0.58) + packet / 3 + order * 0.13) % 1
+        const x = at.x + 10 + (exit.x - at.x - 10) * t
+        const y = at.y - 25 + (exit.y - at.y + 25) * t
+        teamSignals.rect(x - 2, y - 1, 4, 2).fill({ color: colour, alpha })
+      }
+    }
+  }
 
   function clearPreviousGeometry() {
     for (const layer of [previousShell, previousFurniture, previousDesks]) {
@@ -2498,6 +2721,19 @@ export function buildRoom(): RoomHandle {
       px: foldedFit.px + (openFit.px - foldedFit.px) * k,
       py: foldedFit.py + (openFit.py - foldedFit.py) * k,
     }
+  }
+
+  /** Include the team room in a camera rectangle without moving either world. */
+  function includeTeamInFit(fit: { w: number; h: number; px: number; py: number }) {
+    if (team.length <= 1) return
+    const minX = Math.min(fit.px - fit.w / 2, TEAM_ROOM_BOUNDS.minX - 18)
+    const maxX = Math.max(fit.px + fit.w / 2, TEAM_ROOM_BOUNDS.maxX + 18)
+    const minY = Math.min(fit.py - fit.h / 2, TEAM_ROOM_BOUNDS.minY - 18)
+    const maxY = Math.max(fit.py + fit.h / 2, TEAM_ROOM_BOUNDS.maxY + 18)
+    fit.w = maxX - minX
+    fit.h = maxY - minY
+    fit.px = (minX + maxX) / 2
+    fit.py = (minY + maxY) / 2
   }
 
   function beginFitTransition(target: { w: number; h: number; px: number; py: number }) {
@@ -3462,6 +3698,12 @@ export function buildRoom(): RoomHandle {
       openFit.px = (f.minX + f.maxX) / 2
       openFit.py = (f.minY + f.maxY) / 2 - WALL_H * 0.5
     }
+    // §7.8.12 — once the walls arrive, the resting frame includes the room
+    // they made. This is a union with the existing composition, not a new
+    // camera target, so the rank and file remain the subject and the suite
+    // reads as deliberately off to the corner.
+    includeTeamInFit(foldedFit)
+    if (unfolded) includeTeamInFit(openFit)
     const nextFit = fitAt(Math.max(0, unfoldT))
     if (!fitReady) {
       writeFit(nextFit)
@@ -3692,6 +3934,43 @@ export function buildRoom(): RoomHandle {
       // be shadowed and the hop would read its phase from a boolean.
       const liveElapsed = frozen ? frozenElapsed : elapsed
       if (!frozen) frozenElapsed = elapsed
+      if (team.length > 1) {
+        // §7.8.12 — the glass grows around the original corner rather than the
+        // whole suite popping in. Geometry transitions keep running through a
+        // scene, while the bodies and their IM packets obey its frozen clock.
+        teamReveal = Math.min(1, teamReveal + dt / 0.52)
+        const reveal = 1 - (1 - teamReveal) ** 3
+        const contents = Math.max(0, Math.min(1, (reveal - 0.18) / 0.82))
+        teamFloor.alpha = reveal
+        teamGlass.alpha = reveal
+        teamGlass.pivot.set(0, TEAM_ROOM_BOUNDS.maxY)
+        teamGlass.position.set(0, TEAM_ROOM_BOUNDS.maxY)
+        teamGlass.scale.y = 0.06 + reveal * 0.94
+        teamDeskLayer.alpha = contents
+        teamPeopleLayer.alpha = contents
+        teamSignals.alpha = contents
+        drawTeamSignals(liveElapsed)
+
+        for (let order = 0; order < team.length; order++) {
+          const hero = team[order]
+          if (hero.id === 'james') continue
+          const body = teamBodies.get(hero.id)
+          if (!body) continue
+          const at = TEAM_DESKS[hero.id]
+          const facing = hero.selected || hero.id === teamSpeaker
+          const [back, front] = body.children as Graphics[]
+          back.visible = !facing
+          front.visible = facing
+          // Active heroes type from this desk; benched heroes stay visibly in
+          // the same chair. Connecting is deliberately a slower, tentative
+          // rhythm until the remote channel becomes live.
+          const pulse = hero.assigned
+            ? Math.max(0, Math.sin(liveElapsed * (hero.connecting ? 5 : 8) + order * 1.7))
+            : 0
+          body.alpha = hero.assigned ? 1 : 0.64
+          body.position.set(at.x, at.y + 6 - pulse * (hero.connecting ? 0.7 : 1.25))
+        }
+      }
       if (roomTransition < 1) {
         roomTransition = Math.min(1, roomTransition + dt / 0.42)
         const k = 1 - (1 - roomTransition) ** 3
@@ -3952,6 +4231,43 @@ export function buildRoom(): RoomHandle {
       founder.destroy({ children: true })
       founder = replacement
       founderLayer.addChild(founder)
+    },
+    setTeam(heroes: readonly TeamRoomHero[]) {
+      const key = teamKey(heroes)
+      if (key === teamDrawnFor) return
+      const wasVisible = team.length > 1
+      team = heroes.map((hero) => ({ ...hero }))
+      teamDrawnFor = key
+      const visible = team.length > 1
+      if (!wasVisible && visible) teamReveal = 0
+      rebuildTeam()
+      // The suite changes the room's camera rectangle only when it first
+      // appears or disappears. Assignment lights repaint the suite without
+      // rebuilding the rank-and-file floor.
+      if (visible !== wasVisible && lastDevs >= 0) rebuild(lastDevs)
+    },
+    teamDeskAt(id: HeroId) {
+      if (!team.some((hero) => hero.id === id)) return null
+      return teamDeskPosition(id)
+    },
+    teamHeroAt(x: number, y: number, reach = 24) {
+      if (team.length <= 1) return null
+      let found: HeroId | null = null
+      let nearest = reach * reach
+      for (const hero of team) {
+        const at = TEAM_DESKS[hero.id]
+        const dx = x - at.x
+        const dy = y - (at.y - 7)
+        const distance = dx * dx + dy * dy
+        if (distance <= nearest) {
+          found = hero.id
+          nearest = distance
+        }
+      }
+      return found
+    },
+    setTeamSpeaker(id: HeroId | null) {
+      teamSpeaker = id
     },
     setCoverage(marks: ReadonlyMap<number, SeatMark>) {
       const key = coverageKey(marks)

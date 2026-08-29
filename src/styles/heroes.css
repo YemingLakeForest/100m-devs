@@ -252,7 +252,7 @@
   border-color: var(--alarm-2);
 }
 
-.herocard__placement[data-state='walking'] {
+.herocard__placement[data-state='connecting'] {
   border-color: var(--warn-2);
 }
 
@@ -274,7 +274,7 @@
   color: var(--alarm-2);
 }
 
-.herocard__placement[data-state='walking'] .herocard__placement-head strong {
+.herocard__placement[data-state='connecting'] .herocard__placement-head strong {
   color: var(--warn-2);
 }
 
@@ -1009,7 +1009,7 @@
   color: var(--alarm-2);
 }
 
-.roster__impact[data-state='walking'] {
+.roster__impact[data-state='connecting'] {
   color: var(--warn-2);
 }
 
@@ -1119,7 +1119,7 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--branch, var(--p3)) 35%, transparent);
 }
 
-.posting__row[data-phase='walking'] {
+.posting__row[data-phase='connecting'] {
   border-color: var(--warn-2);
 }
 
@@ -1294,7 +1294,7 @@
   white-space: nowrap;
 }
 
-.world-hero-pin[data-state='walking'] {
+.world-hero-pin[data-state='connecting'] {
   color: var(--warn-2);
 }
 
@@ -1321,16 +1321,16 @@
   border-style: dashed;
 }
 
-.world-hero-pin[data-state='walking'] .world-hero-pin__target {
+.world-hero-pin[data-state='connecting'] .world-hero-pin__target {
   background: var(--n0);
-  animation: world-hero-walk 700ms steps(2, end) infinite;
+  animation: world-hero-connect 700ms steps(2, end) infinite;
 }
 
 .world-hero-pin[data-edge='true'] .world-hero-pin__plate {
   border-bottom-style: dashed;
 }
 
-@keyframes world-hero-walk {
+@keyframes world-hero-connect {
   0% { opacity: .45; }
   100% { opacity: 1; }
 }
@@ -1349,7 +1349,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .world-hero-pin[data-state='walking'] .world-hero-pin__target {
+  .world-hero-pin[data-state='connecting'] .world-hero-pin__target {
     animation: none;
   }
 

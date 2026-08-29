@@ -1,5 +1,5 @@
 /**
- * §13.8's interim placement gesture, said out loud — GDD §7.7.6b.
+ * §13.8's remote posting gesture, said out loud — GDD §7.7.6b.
  *
  * §7.7.6b's finding was not about thresholds. It was that three verbs came off
  * one finger with nothing on screen saying which one was armed, so the player
@@ -94,7 +94,7 @@ function PostingRow({
   detail,
   actions,
 }: {
-  phase: 'choose' | 'preview' | 'walking' | 'active'
+  phase: 'choose' | 'preview' | 'connecting' | 'active'
   colour: string
   who: string
   detail: string
@@ -192,23 +192,23 @@ export function PostingBanner({ state }: { state: GameState }) {
   const targetCovered = Math.min(hero.reachDevs, devsUnderPlacement(placement, state))
   const share = studioCoverageShare(targetCovered, state.devs)
   const benefit = placementBenefit(hero, share)
-  const walking = latestAge < SETTLE_SECONDS
+  const connecting = latestAge < SETTLE_SECONDS
   const remaining = Math.max(1, Math.ceil(SETTLE_SECONDS - latestAge))
   const percent = coveragePercent(targetCovered, state.devs)
 
   /*
    * The receipt keeps its own phase and its own two readings, because §13.8
-   * rule 4 makes the walk real and a confirmation that claimed the effect was
-   * live during it would be a lie the player can watch. The countdown itself is
-   * drawn on the pin, at the anchor, where the walking is happening.
+   * rule 4 makes the channel setup real and a confirmation that claimed the
+   * effect was live during it would be a lie the player can watch. The
+   * countdown itself is drawn on the pin, at the assignment anchor.
    */
   return (
     <PostingRow
-      phase={walking ? 'walking' : 'active'}
+      phase={connecting ? 'connecting' : 'active'}
       colour={hero.colour}
-      who={`${hero.hero.name.toUpperCase()} ${walking ? 'IS WALKING' : 'IS ACTIVE'}`}
+      who={`${hero.hero.name.toUpperCase()} ${connecting ? 'IS CONNECTING' : 'IS ACTIVE'}`}
       detail={
-        walking
+        connecting
           ? `ACTIVE IN ${remaining}S · WILL COVER ${coverageLabel(targetCovered, state.devs)}`
           : `COVERS ${coverageLabel(targetCovered, state.devs)} · ${benefit.value} ${benefit.label} · XP ${percent}%`
       }

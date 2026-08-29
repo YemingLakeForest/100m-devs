@@ -114,16 +114,16 @@ describe('§7.7.6b — the armed gesture is said out loud', () => {
     expect(getState().posting).toBeNull()
   })
 
-  it('confirms the walk, then the live effect', () => {
+  it('confirms the remote channel, then the live effect', () => {
     arrived()
     __setState({ devs: 40, runSeconds: 100 })
     beginPosting('mo')
     postHeroAt({ rung: 0, index: 0 })
 
     const view = render(<PostingBanner state={getState()} />)
-    // §13.8 rule 4 — the walk is real, so the receipt may not claim the effect
-    // is live during it.
-    expect(screen.getByText('MO IS WALKING')).toBeInTheDocument()
+    // §13.8 rule 4 — channel setup is real, so the receipt may not claim the
+    // effect is live during it.
+    expect(screen.getByText('MO IS CONNECTING')).toBeInTheDocument()
     expect(screen.getByText(/ACTIVE IN 8S · WILL COVER 8 \/ 40 DEVS/)).toBeInTheDocument()
 
     __setState({ runSeconds: 109 })

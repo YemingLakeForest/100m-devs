@@ -225,10 +225,10 @@ describe('§21.7.6 — and the scene is where the floor is handed over', () => {
   /**
    * §13.9 — and the work is real: Cohesion is the one branch that bends §4.1's
    * own number, so the gauge the scene was about comes back up once he has
-   * walked to the rung. Not during the walk (§13.8 rule 4), which is why this
-   * plays past `SETTLE_SECONDS` before reading it.
+   * connected to the rung. Not during channel setup (§13.8 rule 4), which is
+   * why this plays past `SETTLE_SECONDS` before reading it.
    */
-  it('brings the sync reading back up once he has settled', () => {
+  it('brings the sync reading back up once his channel is active', () => {
     atTheCap(D_BASE + 20)
     play(BILLY_SUSTAINED_S + 2)
     dismissScene()

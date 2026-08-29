@@ -244,6 +244,37 @@ export const SCENE_JAMES_INSTANT_MESSENGER: Scene = {
 }
 
 /**
+ * §7.8.12 [amended 2026-08-29] — the first remote assignment.
+ *
+ * The team room makes a fact visible that the old walking fiction avoided:
+ * posting somebody onto a floor does not move their body. This scene explains
+ * that once, at the first moment the player can compare the lit assignment in
+ * the world with the same person still sitting behind the glass.
+ *
+ * James is not defending remote work and he is not in on the joke. He is
+ * completely correct that the messages arrive instantly, and sincerely treats
+ * delivery latency as the whole management problem — §21.7.0's voice rule in
+ * the smallest scene that can carry it.
+ */
+export const SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT: Scene = {
+  id: 'scene.run2.team-room-remote-assignment',
+  script: [
+    {
+      speaker: PLAYER,
+      text: 'James, I assigned someone to the floor. Why are they still in this room?',
+      focus: AT_YOU,
+    },
+    { speaker: JAMES, text: 'They have Instant Messenger.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'That’s all they need to manage a team?', focus: AT_YOU },
+    { speaker: JAMES, text: 'It delivers every message instantly.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'Have they met any of those people?', focus: AT_YOU },
+    { speaker: JAMES, text: 'They have all received a message.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'That’s not the same thing.', focus: AT_YOU },
+    { speaker: JAMES, text: 'No. It scales better.', focus: AT_JAMES },
+  ],
+}
+
+/**
  * §21.7.3 — the five story hires. One rule: **a hero arrives the first time the
  * player feels the problem that hero solves.** Each scene is a handshake, not an
  * act — under twelve lines, the hero fixes nothing during it (they sit down, the
@@ -592,6 +623,7 @@ export const SCENES: Record<string, Scene> = {
   [SCENE_JAMES_ARRIVES.id]: SCENE_JAMES_ARRIVES,
   [SCENE_MASS_HIRE.id]: SCENE_MASS_HIRE,
   [SCENE_JAMES_INSTANT_MESSENGER.id]: SCENE_JAMES_INSTANT_MESSENGER,
+  [SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id]: SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
   [SCENE_MO_ARRIVES.id]: SCENE_MO_ARRIVES,
   [SCENE_SERENA_ARRIVES.id]: SCENE_SERENA_ARRIVES,
   [SCENE_MATT_ARRIVES.id]: SCENE_MATT_ARRIVES,

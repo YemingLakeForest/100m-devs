@@ -157,6 +157,7 @@ import {
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_MASS_HIRE,
+  SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
 } from './scenes.ts'
 import {
   BILLY_SEAT,
@@ -751,8 +752,8 @@ export interface GameState {
    *
    * A separate channel from {@link GameState.selected} and not a second way of
    * saying the same thing: `selected` is a *seat*, and §7.8.8 generates the
-   * person at it. A hero is a person first and is at a seat only sometimes —
-   * benched, they are at a desk in §7.8.12's suite and on no rung at all.
+   * person at it. A hero is a person first and always has a physical desk in
+   * §7.8.12's room; an assignment is a remote anchor, not their location.
    *
    * Ephemeral, like `selected`: a card restored from a previous session is a
    * panel the player did not open.
@@ -761,19 +762,11 @@ export interface GameState {
   /**
    * §13.8 — who the next tap on the world will post, or null.
    *
-   * The interim placement gesture, and it is marked interim on purpose.
-   * §13.8 says placement is a **drag out of §7.8.12's suite onto the unit**,
-   * and §7.8.12 does not exist: until it does, `placeHero` has no caller and
-   * §26.1.8 items 11 and 12 are unreachable by a player, which makes every
-   * hero in the game a card with no verb attached.
-   *
-   * So the drag is stood in for by an arm-then-tap, which keeps the one
-   * property §13.6.7 will not trade away — *"if the player is managing heroes
-   * on a grid instead of in the world, the entire reason for this design has
-   * been thrown away."* The target is resolved by the same `pickUnit` a poke
-   * uses, so what is being tapped is genuinely the floor, the tower, the
-   * campus. What is missing is the suite to drag *from*, not the world to drop
-   * *onto*, and swapping the gesture later changes this file and nothing else.
+   * The person is armed from their room/card and the next tap inspects a world
+   * target. This keeps §13.6.7's important property — management happens in
+   * the world, not on a grid — without suggesting the body moved there. The
+   * same `pickUnit` used by POKE names the floor, tower or campus receiving the
+   * assignment.
    *
    * Ephemeral, like `selectedHero`: an armed placement restored from a
    * previous session would be a tap the player does not remember arming.
@@ -3309,13 +3302,26 @@ function refreshHeroFold(): void {
   set({ heroFold: next })
 }
 
+/** Explain §7.8.12 once the room and an assignment can be seen together. */
+function maybeExplainRemoteTeamRoom(): void {
+  const roster = heroRoster()
+  if (
+    roster.length > 1 &&
+    roster.some((hero) => hero.placement !== null) &&
+    hasSeenScene(SCENE_JAMES_INSTANT_MESSENGER.id) &&
+    !hasSeenScene(SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id)
+  ) {
+    showScene(SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id)
+  }
+}
+
 /**
  * §13.8 — put somebody in charge of a rung.
  *
- * Placement is a drag out of §7.8.12's suite onto the unit, and this is what
- * the drop calls. Re-placing somebody already placed restarts the settling
- * period, which is rule 4 working rather than a special case: moving a hero
- * costs time whether they were on the bench or on the third floor.
+ * The person remains at their desk in §7.8.12's team room; this posts their
+ * assignment onto the unit. Re-posting restarts the channel-setup period,
+ * which is rule 4 working rather than a special case: moving responsibility
+ * costs time whether it came from the bench or another floor.
  */
 export function placeHero(id: HeroId, rung: number, index: number): boolean {
   if (!arrivedHeroes().has(id)) return false
@@ -3334,10 +3340,19 @@ export function placeHero(id: HeroId, rung: number, index: number): boolean {
   // clock (§10.7) would otherwise show the player a card whose numbers have not
   // moved, and the game freezes for every arrival scene there is.
   refreshHeroFold()
+  /*
+   * §7.8.12 [amended 2026-08-29] — explain the new physical truth once, on the
+   * first assignment made while there is actually a team room to look at.
+   *
+   * Instant Messenger is the premise, so this cannot fire before James has
+   * handed it over. Two arrived heroes is the room's own build gate: James on
+   * his own is still the garage and has no contradiction to explain.
+   */
+  maybeExplainRemoteTeamRoom()
   return true
 }
 
-/** §13.8 — take somebody off the floor. They walk back to the suite. */
+/** §13.8 — close somebody's remote assignment; their body never left the suite. */
 export function recallHero(id: HeroId): boolean {
   if (!state.heroPlacements[id]) return false
   const next = { ...state.heroPlacements }
@@ -3348,7 +3363,7 @@ export function recallHero(id: HeroId): boolean {
 }
 
 /**
- * Arm the interim placement gesture — see {@link GameState.posting}.
+ * Arm the remote posting gesture — see {@link GameState.posting}.
  *
  * Closes the card in the same `set`, and that is the whole reason this is a
  * store verb rather than a `useState` in the HUD: the card is a right-hand
@@ -4076,9 +4091,15 @@ export function dismissScene(): void {
   // desk. In play the dialogue reaches {@link JAMES_DROPS_AT_LINE} first and
   // this is a no-op.
   if (id === SCENE_JAMES_ARRIVES.id && state.devs === 0) grantJames()
-  // §21.7.3 — and Billy walks straight out onto the floor. See {@link seatBilly}.
+  // §21.7.3 — and Billy's first remote assignment is posted automatically. See
+  // {@link seatBilly}; his body remains in §7.8.12's team room.
   if (id === SCENE_BILLY_ARRIVES.id) seatBilly()
   set({ scene: null })
+  // James may already have been posted while the garage held only him. The
+  // second hero's arrival is then the first frame where the player can see the
+  // physical body and remote assignment together, so it is also a valid door
+  // into §7.8.12's one-time explanation.
+  maybeExplainRemoteTeamRoom()
 }
 
 /**
@@ -4090,17 +4111,17 @@ export function dismissScene(): void {
  * a verb that ends by asking the player to perform the verb is a tutorial that
  * has not shown them anything. §21.7.3's shape rule 2 says a hero fixes nothing
  * during their scene and the number improves afterwards *from their work* —
- * this is that rule obeyed literally. He takes a rung, the eight-second walk
- * runs like anybody else's, the gauge comes back up, and the player watches the
- * mechanism they are about to be handed do its job on somebody they did not
- * have to aim.
+ * this is that rule obeyed literally. His assignment takes a rung, the
+ * eight-second channel setup runs like anybody else's, the gauge comes back up,
+ * and the player watches the mechanism they are about to be handed do its job
+ * on somebody they did not have to aim.
  *
  * **Rung 0, seat 0**, which is the most valuable posting on the board: §13.6.2's
  * reach counts upward from the seat, so the earliest desk covers the most
  * people. He is not being modest and the game is not being stingy — the whole
  * point is that the sync reading visibly recovers, and a demonstration placed
- * where it does nothing demonstrates nothing. The player can move him the moment
- * they have the verb, which is about four seconds later.
+ * where it does nothing demonstrates nothing. The player can move his assignment
+ * the moment they have the verb, which is about four seconds later.
  *
  * He brings no free node with him: §13.9.1 already gives every story hire
  * {@link STORY_STARTING_DEPTH} nodes of their own branch, pre-bought and unpaid

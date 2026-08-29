@@ -29,9 +29,11 @@ import {
   SCENE_FOUNDER_BOARD,
   SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
+  SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_MATT_ARRIVES,
   SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
+  SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
   SCENE_THE_THREAD,
 } from './game/scenes.ts'
 import { THREAD } from './sim/events.ts'
@@ -164,9 +166,14 @@ export default function App() {
             ...p.meta.milestones,
             // He arrived in Act I, so any prestiged save has him.
             SCENE_JAMES_ARRIVES.id,
+            SCENE_JAMES_INSTANT_MESSENGER.id,
             SCENE_MO_ARRIVES.id,
             SCENE_SERENA_ARRIVES.id,
             SCENE_MATT_ARRIVES.id,
+            // The fixture posts James during the browser frame gate. A player
+            // at this point has already seen why the body stays in the room;
+            // recording it keeps the gate on the HUD frame it was built for.
+            SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id,
             /*
              * §21.7.6 — **and Billy, because he is now the placement verb.**
              *

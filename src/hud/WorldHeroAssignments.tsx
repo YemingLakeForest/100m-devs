@@ -117,7 +117,7 @@ export function WorldHeroAssignments({
           <div
             className="world-hero-pin"
             data-edge={edge ? 'true' : 'false'}
-            data-state={isPreview ? 'preview' : coverage?.settling ? 'walking' : 'active'}
+            data-state={isPreview ? 'preview' : coverage?.settling ? 'connecting' : 'active'}
             data-activated={justActivated ? 'true' : 'false'}
             key={`${hero.id}:${isPreview ? 'preview' : 'committed'}`}
             aria-label={`${hero.hero.name} ${isPreview ? 'preview at' : 'assigned to'} ${assignmentLabel(hero)}`}

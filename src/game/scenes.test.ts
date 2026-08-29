@@ -5,6 +5,7 @@ import {
   SCENE_JAMES_ARRIVES,
   SCENE_MASS_HIRE,
   SCENE_JAMES_INSTANT_MESSENGER,
+  SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
   SCENE_JAMES_PROMOTED,
   SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
@@ -84,6 +85,23 @@ describe('§21.6 — the lines are the product', () => {
     // The `hey` lands in the silence he leaves, so the next line is the player
     // having nothing to say.
     expect(script[HEY_AFTER_LINE + 1].text).toBe('…')
+  })
+})
+
+describe('§7.8.12 — the first remote assignment explains the room', () => {
+  const remote = SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.script
+  const all = remote.map((line) => line.text)
+
+  it('names Instant Messenger as the reason the hero stays at their desk', () => {
+    expect(all[0]).toContain('still in this room')
+    expect(all).toContain('They have Instant Messenger.')
+  })
+
+  it('lets James be sincerely correct about delivery and wrong about management', () => {
+    expect(all).toContain('It delivers every message instantly.')
+    expect(all).toContain('They have all received a message.')
+    expect(all.at(-1)).toBe('No. It scales better.')
+    expect(remote.at(-1)!.speaker).toBe('JAMES')
   })
 })
 

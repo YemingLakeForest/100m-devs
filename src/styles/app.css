@@ -3462,6 +3462,25 @@ body {
   .event-banner {
     padding: 3px 7px 4px;
   }
+
+  /*
+   * At the 640x360 end of §23.4.2's box the middle column is only 178px.
+   * Letter spacing made the two head readings occupy separate rows and made
+   * REPLY TO ALL wrap inside an action that already had its own row; together
+   * those extra lines pushed the temporary banner above the viewport. Keep the
+   * same words and controls, but spend less tracking on this one compact strip.
+   */
+  .event-banner__head {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 4px;
+    letter-spacing: 0;
+  }
+
+  .event-banner__actions .ui-btn {
+    padding: 4px 7px;
+    letter-spacing: 0;
+  }
 }
 
 /* --- the lift panel and the address, GDD §10 / §26.2.2 ----------------- */

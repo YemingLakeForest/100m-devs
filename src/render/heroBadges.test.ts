@@ -96,9 +96,9 @@ describe('§13.11.1 — the footprint on the room floor', () => {
     expect(marks.get(0)?.colour).toBe('#8fd6a0')
   })
 
-  it('marks a walking hero settling, and stops as soon as anybody has arrived', () => {
-    const walking = roomSeatMarks([posting({ settling: true })], 10)
-    expect(walking.get(0)?.settling).toBe(true)
+  it('marks a connecting assignment settling, and stops as soon as it is live', () => {
+    const connecting = roomSeatMarks([posting({ settling: true })], 10)
+    expect(connecting.get(0)?.settling).toBe(true)
 
     const both = roomSeatMarks(
       [

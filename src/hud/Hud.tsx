@@ -187,7 +187,7 @@ function rolesAvailable(state: GameState): Role[] {
 function heroPlacedLabel(hero: HeroRuntime | null, state: GameState): string {
   if (!hero?.placement) return 'BENCHED'
   const cov = heroCoverageOf(hero, state)
-  if (cov.settling) return 'WALKING'
+  if (cov.settling) return 'CONNECTING'
   return `${unitLabel(hero.placement.rung).toUpperCase()} ${hero.placement.index + 1}`
 }
 
@@ -368,7 +368,20 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       setTreeOpen(false)
       setFounderOpen(true)
     })
-    return () => stage.setFounderInspect(null)
+    stage.setHeroInspect((id) => {
+      setTreeOpen(false)
+      setUpgradesOpen(false)
+      setFounderOpen(false)
+      setGameMenuOpen(false)
+      setGalleryOpen(false)
+      setHeroTreeOpen(false)
+      setRosterOpen(false)
+      selectHero(id)
+    })
+    return () => {
+      stage.setFounderInspect(null)
+      stage.setHeroInspect(null)
+    }
   }, [stage])
 
   return (
@@ -540,10 +553,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             argument PARADIGM and UPGRADES below already use. It appears the
             first time somebody joins him.
 
-            This is the interim door and it is marked as one — §7.8.12's suite is
-            where a player is meant to reach these people, by looking at them.
-            The strip answers "who is idle?", which the world cannot, and
-            survives; the button is doing double duty until the room exists.
+            §7.8.12's room is the person-first door, reached by looking at them.
+            The strip answers "who is idle?" without making the player hunt
+            six desks. The physical room is the person-first door; this remains
+            the compact status-first door.
           */}
           {roster.length > 1 && (
             <Button onClick={() => setRosterOpen((was) => !was)}>HERO</Button>

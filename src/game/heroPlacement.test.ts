@@ -47,9 +47,11 @@ import {
   SCENE_FOUNDER_BOARD,
   SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
+  SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_JAMES_PROMOTED,
   SCENE_MELANY_ARRIVES,
   SCENE_MO_ARRIVES,
+  SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
 } from './scenes.ts'
 import { SETTLE_SECONDS } from '../sim/heroRoster.ts'
 import { startingNodes } from '../sim/heroTree.ts'
@@ -88,7 +90,7 @@ function staffed(...scenes: { id: string }[]) {
 }
 
 /**
- * Let a placed hero finish walking — §13.8's settling period.
+ * Let a placed hero finish connecting — §13.8's setup period.
  *
  * Ticks rather than writing `runSeconds`, because `state.heroFold` is a cache
  * that `tick` refreshes (see its note): settling ends *with time*, so a test
@@ -159,7 +161,7 @@ describe('§13.8 — placement moves the numbers the simulation reads', () => {
     expect(placeHero('mo', 0, 0)).toBe(true)
   })
 
-  it('covers nothing while the hero is still walking — rule 4', () => {
+  it('covers nothing while the remote channel is still connecting — rule 4', () => {
     placeHero('mo', 0, 0)
     // `placedAt` is the current runSeconds, so nothing has elapsed yet.
     expect(currentHeroFold().defects).toBe(1)
@@ -322,6 +324,35 @@ describe('§13.13 — one level, one point, and a node to spend it on', () => {
   })
 })
 
+describe('§7.8.12 — the first remote assignment explains why nobody moves', () => {
+  beforeEach(() => {
+    staffed(SCENE_JAMES_ARRIVES, SCENE_MO_ARRIVES, SCENE_JAMES_INSTANT_MESSENGER)
+    __setState({ devs: 40, runSeconds: 100 })
+  })
+
+  it('opens the explanation on the first posting with a visible team room', () => {
+    expect(placeHero('mo', 0, 0)).toBe(true)
+    expect(getState().scene).toBe(SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id)
+  })
+
+  it('records the explanation once and never interrupts another posting', () => {
+    placeHero('mo', 0, 0)
+    dismissScene()
+    expect(placeHero('james', 0, 8)).toBe(true)
+    expect(getState().scene).toBeNull()
+  })
+
+  it('also explains an existing James posting when the second hero arrives', () => {
+    staffed(SCENE_JAMES_ARRIVES, SCENE_JAMES_INSTANT_MESSENGER)
+    placeHero('james', 0, 0)
+    expect(getState().scene).toBeNull()
+
+    __setState({ scene: SCENE_MO_ARRIVES.id })
+    dismissScene()
+    expect(getState().scene).toBe(SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id)
+  })
+})
+
 /**
  * §21.7.4 — **Global Head of His Desk**, wired to the only org chart the game
  * has: §7.7's ladder. A hero on a higher rung is standing over the people on
@@ -416,7 +447,7 @@ describe('§24 — where somebody is standing survives a reload, not a prestige'
   })
 })
 
-describe('§13.8 — the interim placement gesture', () => {
+describe('§13.8 — the remote posting gesture', () => {
   beforeEach(() => {
     // §21.7.6 — Billy is in every fixture here now, because he *is* the gesture:
     // `unlocks.heroPlacement` is his arrival, so a studio without him has no

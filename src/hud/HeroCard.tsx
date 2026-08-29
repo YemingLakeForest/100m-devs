@@ -81,22 +81,21 @@ export function HeroCard({
   hero: HeroRuntime | null
   /** Where they are, in words. §13.11.2 — `BENCHED` is the only red word here. */
   placedLabel: string
-  /** Live coverage after §13.8's walking delay. */
+  /** Live coverage after §13.8's remote channel-setup delay. */
   coverage?: HeroCoverage | null
-  /** Coverage this placement will have after the walk; zero while benched. */
+  /** Coverage this placement will have after setup; zero while benched. */
   targetCovered?: number
   totalDevs?: number
-  /** Current simulated run time, used only for the visible walking countdown. */
+  /** Current simulated run time, used only for the visible setup countdown. */
   now?: number
   onClose: () => void
   onOpenTree: () => void
   /**
-   * §13.8 — arm the interim placement gesture. The card closes and the next tap
-   * on the world posts them; see `GameState.posting` for why the drag §13.8
-   * actually specifies is not what this is.
+   * §13.8 — arm the remote posting gesture. The card closes and the next tap
+   * inspects the world target that will receive their assignment.
    */
   onPost: () => void
-  /** §13.8 — take them off the floor. Immediate, because it needs no target. */
+  /** §13.8 — close their world assignment. Immediate; it needs no target. */
   onRecall: () => void
 }) {
   const face = hero ? heroIdentity(hero.id) : null
@@ -244,7 +243,7 @@ export function HeroCard({
 
           <div
             className="herocard__placement"
-            data-state={!hero.placement ? 'benched' : settling ? 'walking' : 'active'}
+            data-state={!hero.placement ? 'benched' : settling ? 'connecting' : 'active'}
           >
             <div className="herocard__placement-head">
               <span>PLACEMENT BENEFIT</span>
