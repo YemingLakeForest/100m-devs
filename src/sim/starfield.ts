@@ -20,10 +20,11 @@
  *     studio of 10^18 developers costs the same to describe as a studio of two
  *     worlds. `galaxy.ts` draws a neighbourhood by asking for indices, and a
  *     save file never carries a star map.
- *  2. **Index order is distance order.** Radius goes as `√i`, which is what
- *     uniform areal density means, so the nearest worlds are also the
- *     lowest-numbered ones and "the neighbours" is a bounded search rather than
- *     a scan over an unbounded set.
+ *  2. **Index order is radius order, and radius bounds distance.** Radius goes
+ *     as `√i`, which is what uniform areal density means, so the nearest worlds
+ *     are also the lowest-numbered ones to within a band — and since two stars
+ *     can never be closer than the difference of their radii, that band is a
+ *     bounded search rather than a scan over an unbounded set.
  *  3. **Sol is 0 and Proxima Centauri is 1**, at the real 4.2465 light-years,
  *     because §21.8's whole scene is about the second one and a beat that names
  *     a star should be standing on the distance to it.
@@ -86,19 +87,30 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
 const ANGLE_SCATTER = 0.22
 
 /**
- * Disc thickness, as a fraction of the radius.
+ * How far off the plane a world may sit, as a fraction of its own radius.
  *
- * The network has to be **three-dimensional** — that is the whole of the
- * gesture at this rung, and a flat sheet of stars cannot be turned to reveal
- * anything. A real galactic disc is around one per cent of its diameter and
- * that reads as flat on a screen this size, so this is exaggerated by about an
- * order of magnitude for the same reason the isometric floor is 2:1 rather
- * than 1:1.7 — the projection is a drawing, not a measurement.
+ * **The neighbourhood is a sphere, not a disc, and that is the true thing as
+ * well as the legible one.** The first pass gave every world a lift of twelve
+ * per cent of its radius — a galactic disc, exaggerated tenfold — and it read
+ * exactly as reported: sixteen stars on one plane, and a rung whose entire
+ * gesture is *you can turn this* with nothing to reveal by turning it.
+ *
+ * The error was applying the galaxy's shape at the neighbourhood's scale. The
+ * Milky Way's disc is something like a thousand light-years thick and the frame
+ * here is about twenty across, so **within it the field is not flattened at
+ * all** — the local stellar neighbourhood really is isotropic, and Sol's own
+ * nearest few dozen stars are scattered in every direction rather than laid out
+ * on a table. Seven tenths of the radius is a roughly spherical cloud, which is
+ * what that looks like.
+ *
+ * It flattens where a disc actually starts to mean something, at
+ * {@link DISC_HALF_LY} — which is past ten thousand worlds, and therefore a
+ * promise about the far field rather than anything the camera is likely to see.
  */
-const DISC_THICKNESS = 0.12
+const LOCAL_ISOTROPY = 0.7
 
-/** The floor under that, so the first few worlds are not coplanar. */
-const MIN_THICKNESS_LY = 1.2
+/** Half the disc's thickness, in light-years. The far field's ceiling. */
+const DISC_HALF_LY = 500
 
 /**
  * Deterministic [0, 1) from an index and a salt.
@@ -147,13 +159,13 @@ export function starAt(index: number): Star {
   const jitter = hash(i, 1) * 0.25
   const r = PROXIMA_LY * Math.sqrt(i + jitter)
   const theta = i * GOLDEN_ANGLE + (hash(i, 2) - 0.5) * ANGLE_SCATTER
-  const lift = Math.max(MIN_THICKNESS_LY, r * DISC_THICKNESS)
+  const lift = Math.min(r * LOCAL_ISOTROPY, DISC_HALF_LY)
   return {
     x: r * Math.cos(theta),
     y: r * Math.sin(theta),
-    // Triangular rather than uniform, so the disc has a middle. Two draws
-    // summed is the cheapest distribution that is denser in the plane than at
-    // the faces, which is what a disc actually looks like edge on.
+    // Triangular rather than uniform, so the cloud has a middle. Two draws
+    // summed is the cheapest distribution that is denser at the centre than at
+    // the edges, which is what a field of stars looks like from inside it.
     z: (hash(i, 3) + hash(i, 4) - 1) * lift,
   }
 }
@@ -215,10 +227,16 @@ export function settledRadiusLy(worlds: number): number {
  * further away, which is exactly the kind of wrong that still looks right.
  *
  * `want` stars occupy a disc of radius `PROXIMA_LY·√want` at this density, so
- * {@link SEARCH_REACH} is how many of those radii the band covers. Two is a
- * doubling of the disc that has to contain the answer.
+ * {@link SEARCH_REACH} is how many of those radii the band covers.
+ *
+ * **Three, not two**, since {@link LOCAL_ISOTROPY} lifted the field off the
+ * plane: a cloud spends part of every separation on the axis the radial law
+ * knows nothing about, so the answer reaches further out in radius than a flat
+ * field's would. Measured across the first four thousand indices at sixteen,
+ * twenty-five and forty neighbours, three finds every one; two missed four in
+ * twenty-five.
  */
-const SEARCH_REACH = 2
+const SEARCH_REACH = 3
 
 /**
  * The most candidates a search will look at either side, whatever the maths says.

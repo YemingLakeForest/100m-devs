@@ -47,15 +47,42 @@ const D2R = Math.PI / 180
 /**
  * How far the eye is from the neighbourhood's centre, in frame radii.
  *
- * `globe.ts` uses 2.22 and gets a planet that bulges. A star field wants the
- * opposite: strong perspective makes the near half of the disc enormous and the
- * far half a smear, and since every node is meant to be comparable in size —
- * they are all the same planet — the depth cue has to come from *dimming and
- * stacking* rather than from size. Three and a bit radii is enough parallax
- * that turning the field reads as turning something solid, and little enough
- * that a world at the back is still a world.
+ * **Two, and the argument for the 3.4 it replaced was written about planets.**
+ * That argument said every node is meant to be comparable in size, so the depth
+ * cue has to come from dimming rather than from perspective — true of sixteen
+ * identical worlds, and false of stars. A near star *is* bigger and brighter
+ * than a far one; that is the only thing distance does to a point of light, so
+ * refusing to draw it threw away the rung's whole depth cue and left the field
+ * looking flat however far off the plane it actually was.
+ *
+ * At two radii the near half of the cloud is about twice the size of the far
+ * half, which is enough parallax that a drag reads as turning something solid
+ * rather than sliding a picture. `globe.ts` sits at 2.22 for the same reason
+ * and gets a planet that bulges.
  */
-const CAMERA_REACH = 3.4
+const CAMERA_REACH = 2
+
+/**
+ * How much the drawn size of a star exaggerates its perspective.
+ *
+ * **Applied to the radius and never to the position**, which is the whole
+ * reason it is allowed to exist. The projection itself has to stay honest: the
+ * world under the camera lands on the origin, and `worldUnder` picks against
+ * the same arithmetic that drew the thing. Size is not load-bearing in either,
+ * so it can be pushed.
+ *
+ * And it needs pushing. With the eye two frame-radii out and the settled cloud
+ * filling most of the frame, true perspective only varies the scale by about
+ * ±40% — which is real depth and reads as none, because a field of dots is
+ * judged on the extremes rather than the average. At 1.8 the nearest star is
+ * about four times the furthest, and the field stops being a pattern and starts
+ * being a volume. `starfield.ts`'s own licence applies: *the projection is a
+ * drawing, not a measurement.*
+ *
+ * The focused world is at `k = 1` and any power of one is one, so the §10.5
+ * hand-off with the globe is untouched at every exponent.
+ */
+const DEPTH_EXAGGERATION = 1.8
 
 /**
  * The default tilt of the disc, in degrees away from face on.
@@ -253,10 +280,17 @@ export function buildGalaxy(): GalaxyHandle {
     return Math.max(0, Math.min(1, left / WORLD_CAP))
   }
 
-  /** Depth to ink: the far side of the field is further away, so it is dimmer. */
+  /**
+   * Depth to ink: the far side of the field is further away, so it is dimmer.
+   *
+   * Deeper than it was — a quarter at the back rather than a third — because
+   * the field is a *cloud* now (`starfield.LOCAL_ISOTROPY`) and there is real
+   * distance for the ramp to describe. Together with the perspective in
+   * {@link CAMERA_REACH} it is what makes a near star obviously near.
+   */
   function depthAlpha(p: Projected): number {
     const t = (p.z + radius) / (2 * radius)
-    return (0.35 + 0.65 * Math.max(0, Math.min(1, t))) * edgeFade(p)
+    return (0.25 + 0.75 * Math.max(0, Math.min(1, t))) * edgeFade(p)
   }
 
   /**
@@ -281,6 +315,17 @@ export function buildGalaxy(): GalaxyHandle {
 
   function visible(p: Projected): boolean {
     return p.z < eye * 0.7 && Math.hypot(p.x, p.y) < radius * 2.4
+  }
+
+  /**
+   * How big a star is drawn — {@link nodeRadius}, through the exaggeration.
+   *
+   * One function, because the picture and the hit box have to be the same size:
+   * a near star drawn four times over with a hit box of one is a target that
+   * misses where it is being aimed at.
+   */
+  function drawnRadius(p: Projected): number {
+    return unit * p.k ** DEPTH_EXAGGERATION
   }
 
   /**
@@ -367,7 +412,7 @@ export function buildGalaxy(): GalaxyHandle {
    * hundred million people who now live under it.
    */
   function drawNode(p: Projected, fill: number, settled: boolean): void {
-    const r = unit * p.k
+    const r = drawnRadius(p)
     const alpha = depthAlpha(p)
     const tint = settled ? classOf(p.index) : RAMPS.NEUTRAL[5]
     // An unsettled world is a cold star, not a black one: the frontier has to
@@ -431,10 +476,11 @@ export function buildGalaxy(): GalaxyHandle {
     const ring = (index: number, colour: string, alpha: number, scale: number) => {
       const p = project(index)
       if (!visible(p)) return
+      const r = drawnRadius(p)
       // Faded with its own star, or the ring outlives the world it is naming as
       // the field slides past — see `edgeFade`.
       marks
-        .circle(p.x, p.y, unit * p.k * scale)
+        .circle(p.x, p.y, r * scale)
         .stroke({
           width: Math.max(0.6, unit * 0.075),
           color: c(colour),
@@ -611,7 +657,7 @@ export function buildGalaxy(): GalaxyHandle {
         // A generous target: §23.4.2 wants 44 px and a node at the back of the
         // field is a few. The nearest node wins ties, so an overlap resolves to
         // whichever world the thumb is actually closer to.
-        if (d < Math.max(unit * p.k * 1.6, unit * 0.9) && d < bestD) {
+        if (d < Math.max(drawnRadius(p) * 1.6, unit * 0.9) && d < bestD) {
           bestD = d
           best = index
         }

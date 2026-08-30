@@ -55,21 +55,42 @@ describe('the star field', () => {
   })
 
   it('finds the true nearest neighbours inside the search window', () => {
-    // The margin `SEARCH_SPREAD` exists for. A brute-force sweep over a much
-    // wider band must not turn up anybody the windowed search missed.
+    // The margin `SEARCH_REACH` exists for. A brute-force sweep over the whole
+    // studio must not turn up anybody the windowed search missed — at more
+    // neighbours than the renderer ever asks for, and from a focus well out
+    // into the field where the radial law is at its loosest.
     const worlds = 4_000
-    const focus = 1_500
-    const want = 25
-    const found = neighbourhood(focus, worlds, want)
-    expect(found[0]).toBe(focus)
-    expect(found).toHaveLength(want)
+    for (const [focus, want] of [
+      [0, 16],
+      [1_500, 16],
+      [1_500, 25],
+      [3_000, 40],
+    ] as const) {
+      const found = neighbourhood(focus, worlds, want)
+      expect(found[0]).toBe(focus)
+      expect(found).toHaveLength(want)
 
-    const brute = Array.from({ length: worlds }, (_, i) => i)
-      .map((i) => ({ i, d: lightYears(focus, i) }))
-      .sort((a, b) => a.d - b.d || a.i - b.i)
-      .slice(0, want)
-      .map((s) => s.i)
-    expect(new Set(found)).toEqual(new Set(brute))
+      const brute = Array.from({ length: worlds }, (_, i) => i)
+        .map((i) => ({ i, d: lightYears(focus, i) }))
+        .sort((a, b) => a.d - b.d || a.i - b.i)
+        .slice(0, want)
+        .map((s) => s.i)
+      expect(new Set(found)).toEqual(new Set(brute))
+    }
+  })
+
+  it('lifts the neighbourhood off the plane', () => {
+    // §7.7.1a — the rung's whole gesture is that it can be turned, and a field
+    // on one plane has nothing to reveal by turning. Measured as the spread in
+    // `z` against the spread in the plane across the nearest worlds: a disc
+    // would read near zero, and a cloud reads within an order of magnitude.
+    const near = neighbourhood(0, 400, 40).map(starAt)
+    const spread = (get: (s: { x: number; y: number; z: number }) => number) => {
+      const values = near.map(get)
+      return Math.max(...values) - Math.min(...values)
+    }
+    const flatness = spread((s) => s.z) / spread((s) => s.x)
+    expect(flatness).toBeGreaterThan(0.35)
   })
 
   it('never returns more neighbours than there are worlds', () => {
