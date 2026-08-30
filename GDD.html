@@ -3337,15 +3337,34 @@ doubles: <strong>another planet, around another star, and then another.</strong>
 table with a last row. Rung 7 is a <em>function</em>, and a function does not run out.</p>
 <h5>What is on screen</h5>
 <ul>
-<li><strong>A world is a node, and a node is the planet.</strong> The disc drawn for the world the address
-is on is exactly the size §7.4a's globe is drawn at, in the same place, so the hand-off
-between them is a swap the player cannot see rather than a cross-fade between two sizes —
-§10.5's rule, kept by construction the way every rung below it keeps it.</li>
+<li><strong>A node is a star</strong> <strong>[amended 2026-08-30]</strong>. It was the planet — a lit sphere the
+size §7.4a's globe is drawn at — and in the hand sixteen of those read as a bowl of tennis
+balls: enormous against their own spacing, all skewed the same way by one screen-fixed
+crescent, and scanlined by §10.6's CRT pass. §7.4's <em>&quot;dev stars&quot;</em> was right and
+this is it: at four light-years, what you see of a world is its sun. A hard core, a soft
+halo, and a colour drawn from its index so the field is not sixteen identical dots.
+<strong>The footprint is unchanged</strong>, which is what keeps the §10.5 hand-off honest — the glow
+still reaches the radius the globe is drawn at, so the thing fading out and the thing fading
+in are the same size in the same place. A planet and a star are different objects trading
+places, which §10.5 allows; two sizes of one object is what it forbids.</li>
+<li><strong>What a hire moves is the glow, and only the glow.</strong> The core is the star, which was
+there before anybody arrived; the halo is the hundred million people now living under it.
+That is §7.7.2's promotion at a rung whose unit is a whole planet.</li>
 <li><strong>It is three-dimensional, and it is the only rung that is.</strong> Everything below is a 2:1
 isometric drawing from one fixed angle, and the globe turns about one axis because a sphere
 looks the same from everywhere. A star field does not: a network drawn flat is a diagram,
 and a network you can turn is a place with depth in it. <strong>A drag at this rung orbits the
 field</strong>, exactly as a drag at the globe spins the planet, and for a stronger reason.</li>
+<li><strong>The orbit is free in both axes</strong> <strong>[amended 2026-08-30]</strong>. It was stopped short of
+the poles on the argument that an edge-on disc is a line and going over the top reads as the
+control letting go; in the hand it read as the opposite — the field came to rest flat, the
+drag hit a wall, and a gesture that had been answering stopped. A direct-manipulation
+control may not do that. The globe below keeps <em>its</em> clamp for a reason that does not
+apply here: <code>frames.ts</code> needs a site's park at a known place, so the planet's orientation is
+load-bearing, while <code>intoGalaxy</code> carries no index and no angle and nothing below
+this rung cares which way the network is turned. For the same reason, naming a world no
+longer snaps the tilt back to the authored one — that would throw away a view the player set,
+for nothing.</li>
 <li><strong>Star positions are procedural and infinite.</strong> Position is a pure function of index —
 nothing is stored, no save carries a star map, and star four thousand can be asked for
 without asking for the four thousand before it. Radius goes as <span class="math">\(\sqrt{i}\)</span>, which is what
@@ -3361,6 +3380,15 @@ move descending into a site makes one rung down, and the same reason: a neighbou
 only ever a neighbourhood of somewhere. What lies past the frame is drawn as haze, which is
 also the honest picture: a hundred settled worlds out of a hundred billion do not trace a
 structure.</li>
+<li><strong>And naming one is a journey, not a cut</strong> <strong>[amended 2026-08-30]</strong>. The address and
+the picture used to move in the same frame, so the whole field jumped to put the new star in
+the middle — and at this rung a cut is four light-years wide, which is the largest one in the
+game. The camera is now a <em>position</em> that eases to the named world while the lens eases
+inward, so the network slides past like something being crossed and comes to rest with the
+new sun exactly on the origin, which is what the §10.5 hand-off needs. Both neighbourhoods
+are drawn while it runs, and the worlds that drop out at the end are already faded to nothing
+at the frame's edge — §10.8's F1 says nothing pops in or out, and a list being trimmed is
+still a pop.</li>
 <li><strong>The frontier is drawn and can be aimed at.</strong> The next unsettled world is ringed and
 unlit. §7.7.2's promotion is the <em>arrival</em>, so it is named without being coloured in.</li>
 </ul>

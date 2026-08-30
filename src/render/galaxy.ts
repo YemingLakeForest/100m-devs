@@ -35,7 +35,6 @@ import {
   galaxyRadius,
   nodeRadius,
 } from './frames.ts'
-import { SKY, TERRAIN, TEMPERATE, POLAR } from './worldMap.ts'
 import { neighbourhood, starAt, worldsFor, WORLD_CAP } from '../sim/starfield.ts'
 
 function c(hex: string): number {
@@ -71,6 +70,41 @@ const CAMERA_REACH = 3.4
  */
 const DEFAULT_PITCH = 34
 const DEFAULT_YAW = -24
+
+/**
+ * How fast the field flies to a world the player has named, per second.
+ *
+ * A little faster than the lens's own {@link EASE_RATE} of 3.4, so the travel
+ * lands *before* the camera finishes descending into the planet — otherwise the
+ * globe fades up at the origin while the star it belongs to is still on its way
+ * there, which is one object in two places.
+ */
+const TRAVEL_RATE = 5.5
+
+/** Below this, in galaxy units, the travel is over and the focus is exact. */
+const TRAVEL_SETTLED = 0.5
+
+/**
+ * The core of a star, as a fraction of {@link nodeRadius}.
+ *
+ * **The node is a star, not the planet**, and that is the correction rather
+ * than a restyle. Drawn as a lit sphere the size of the globe it hands over to,
+ * sixteen worlds read as a bowl of tennis balls: the discs are enormous against
+ * their own spacing, the fixed screen-space crescent skews them all the same
+ * way, and §10.6's CRT pass lays scanlines across every one. §7.4 asked for
+ * *dev stars* and it was right — at four light-years apart, what you see of a
+ * world is its sun.
+ *
+ * The *footprint* is unchanged, and that is what keeps §10.5's hand-off: the
+ * glow still reaches {@link nodeRadius}, so the thing that fades out as the
+ * network arrives is the same size as the thing that fades in. A planet and a
+ * star are different objects trading places at one size, which §10.5 allows —
+ * the same licence `blockChromeAlpha` takes for the park's ground.
+ */
+const STAR_CORE = 0.2
+
+/** How far the glow reaches, as a fraction of {@link nodeRadius}. */
+const STAR_GLOW = 0.95
 
 /**
  * How far the haze reaches past the frame, in frame radii.
@@ -111,6 +145,8 @@ export interface GalaxyHandle {
   /** A top-rung drag orbits the field, in screen pixels. */
   rotateBy(dx: number, dy: number): void
   setChromeAlpha(alpha: number): void
+  /** Advance the travel between worlds — see {@link GalaxyHandle.setFocus}. */
+  update(dt: number): void
   /** Exact node picking, in galaxy space. Returns a world index or −1. */
   worldUnder(x: number, y: number): number
   /** The worlds currently drawn, nearest first — what the HUD lists. */
@@ -156,6 +192,23 @@ export function buildGalaxy(): GalaxyHandle {
   let dirty = true
   let hazeKey = ''
   let drawn: number[] = [0]
+  /**
+   * **Where the camera actually is, in light-years — and it is not the focus.**
+   *
+   * Naming a world used to move the address and the picture in the same frame:
+   * the whole field jumped so the new star was in the middle, which is a cut,
+   * and at this rung a cut across four light-years is the largest one in the
+   * game. Reported as *"it should focus there smoothly like a travel"*.
+   *
+   * So the focus is the *destination* and this is the position, eased toward
+   * `starAt(focus)` at {@link TRAVEL_RATE}. Everything projects relative to
+   * this, so at rest the focused world still lands exactly on the origin —
+   * which is the property §10.5's hand-off with the globe depends on — and in
+   * between, the network slides past like something being crossed.
+   */
+  let eyeAt = { x: 0, y: 0, z: 0 }
+  /** True while {@link eyeAt} has not caught up. Drives the per-frame redraw. */
+  let travelling = false
 
   const radius = galaxyRadius()
   const unit = nodeRadius()
@@ -163,20 +216,19 @@ export function buildGalaxy(): GalaxyHandle {
   const eye = radius * CAMERA_REACH
 
   /**
-   * A star's position relative to the focus, rotated and projected.
+   * A star's position relative to {@link eyeAt}, rotated and projected.
    *
-   * The focus itself projects to exactly (0, 0) at magnification 1 — which is
-   * not a happy accident but the property the whole hand-off rests on. The
-   * globe is drawn at the origin of this space by `frames.ts`'s nesting, so the
-   * node standing for the world the camera is on has to land there too, at the
-   * size {@link nodeRadius} says a world is.
+   * The world under the camera projects to exactly (0, 0) at magnification 1 —
+   * which is not a happy accident but the property the whole hand-off rests on.
+   * The globe is drawn at the origin of this space by `frames.ts`'s nesting, so
+   * the node standing for the world the camera is on has to land there too, at
+   * the size {@link nodeRadius} says a world is.
    */
   function project(index: number): Projected {
-    const here = starAt(focus)
     const there = starAt(index)
-    const dx = (there.x - here.x) * perLy
-    const dy = (there.y - here.y) * perLy
-    const dz = (there.z - here.z) * perLy
+    const dx = (there.x - eyeAt.x) * perLy
+    const dy = (there.y - eyeAt.y) * perLy
+    const dz = (there.z - eyeAt.z) * perLy
 
     const cy = Math.cos(yaw * D2R)
     const sy = Math.sin(yaw * D2R)
@@ -204,7 +256,27 @@ export function buildGalaxy(): GalaxyHandle {
   /** Depth to ink: the far side of the field is further away, so it is dimmer. */
   function depthAlpha(p: Projected): number {
     const t = (p.z + radius) / (2 * radius)
-    return 0.35 + 0.65 * Math.max(0, Math.min(1, t))
+    return (0.35 + 0.65 * Math.max(0, Math.min(1, t))) * edgeFade(p)
+  }
+
+  /**
+   * How lit a star is by how near the edge of the frame it has got.
+   *
+   * Two jobs, and the second is why it is not optional. A field that stops at a
+   * hard circle reads as a disc of stars rather than as a place that carries
+   * on — the haze already runs off every edge and the worlds have to as well.
+   *
+   * And it is what makes the neighbourhood's own boundary invisible. Sixteen
+   * worlds are drawn and a travel changes which sixteen; the ones that drop out
+   * are always at the far edge, so by the time the list is trimmed they are
+   * already at zero. Without this they blink out on the frame the travel lands,
+   * which is §10.8's F1 — *anything pops in or out* — with a stopwatch on it.
+   */
+  function edgeFade(p: Projected): number {
+    const d = Math.hypot(p.x, p.y) / radius
+    const t = (1.45 - d) / 0.45
+    const u = Math.max(0, Math.min(1, t))
+    return u * u * (3 - 2 * u)
   }
 
   function visible(p: Projected): boolean {
@@ -259,41 +331,59 @@ export function buildGalaxy(): GalaxyHandle {
   }
 
   /**
-   * One world: a disc the size of the planet it stands for, lit from one side.
+   * A star's colour, from its index.
    *
-   * The lit side is fixed on screen rather than derived from the star, for
-   * `globe.ts`'s reason about its own form shading: a hundred worlds each with
-   * their own terminator is a hundred different opinions about where the light
-   * is, and the eye reads that as noise rather than as depth.
+   * Deterministic like everything else at this rung, and weighted the way a
+   * real field is: mostly white and blue-white, a few ambers, the occasional
+   * red. It is the one place the network is allowed to be more than one colour,
+   * and it is what stops sixteen identical dots reading as a diagram.
+   */
+  const CLASSES: readonly string[] = [
+    RAMPS.NEUTRAL[8],
+    RAMPS.NEUTRAL[8],
+    RAMPS.CALM[3],
+    RAMPS.GLOW[2],
+    RAMPS.NEUTRAL[7],
+    RAMPS.WARN[3],
+    RAMPS.CALM[3],
+    RAMPS.ALARM[3],
+  ]
+
+  function classOf(index: number): string {
+    const h = Math.imul(Math.floor(index) ^ 0x2545f491, 0x9e3779b1) >>> 0
+    return CLASSES[(h >>> 27) % CLASSES.length]
+  }
+
+  /**
+   * One world, drawn as the star you would actually see from four light-years.
+   *
+   * A hard core and three widening rings of falling alpha — a cheap glow, and
+   * cheap is the point: sixteen of these are redrawn on every frame of a drag,
+   * and §10.6's bloom is doing the expensive half already.
+   *
+   * What changes as the studio hires is the **glow**, and only the glow. That
+   * is §7.7.2's promotion at a rung whose unit is a whole planet: the core is
+   * the star, which was there before anybody arrived, and the halo is the
+   * hundred million people who now live under it.
    */
   function drawNode(p: Projected, fill: number, settled: boolean): void {
     const r = unit * p.k
     const alpha = depthAlpha(p)
-    // An unsettled world is grey rock rather than black: the frontier has to be
-    // *visible* to be aimed at, and §7.7.2's promotion is the arrival — colouring
-    // it green before anybody lives there would spend the beat early.
-    const ground = settled ? TERRAIN[TEMPERATE][1] : TERRAIN[POLAR][1]
-    nodes.circle(p.x, p.y, r).fill({ color: c(ground), alpha })
-    // The lit crescent — one offset disc, clipped by nothing, because at these
-    // sizes an arc and a circle are the same handful of pixels.
-    nodes
-      .circle(p.x - r * 0.26, p.y - r * 0.26, r * 0.62)
-      .fill({ color: c(settled ? TERRAIN[TEMPERATE][3] : RAMPS.NEUTRAL[4]), alpha: alpha * 0.9 })
-    if (settled && fill > 0.02) {
-      // The city glow. A settled world that is *filling* says so — this is the
-      // only thing on the node that changes as the player hires, and it is the
-      // §7.7.2 promotion beat for a rung whose unit is a planet.
-      // Kept deliberately dim. §10.6's bloom pass is on at this rung and a
-      // bright disc inside a bright disc blooms into a ball of light — measured
-      // at 30 px a node, ten worlds read as one smear rather than as ten
-      // planets. The glow is a *tint* on the day side, not a light source.
+    const tint = settled ? classOf(p.index) : RAMPS.NEUTRAL[5]
+    // An unsettled world is a cold star, not a black one: the frontier has to
+    // be visible to be aimed at, and §7.7.2's promotion is the arrival — a
+    // world that lit up before anybody moved there would spend the beat early.
+    const lit = settled ? 0.35 + 0.65 * fill : 0.28
+
+    const halo = r * STAR_GLOW * (settled ? 0.55 + 0.45 * fill : 0.4)
+    for (const ring of [1, 0.62, 0.34]) {
       nodes
-        .circle(p.x - r * 0.2, p.y - r * 0.2, r * (0.15 + 0.34 * fill))
-        .fill({ color: c(RAMPS.CALM[1]), alpha: alpha * (0.1 + 0.2 * fill) })
+        .circle(p.x, p.y, halo * ring)
+        .fill({ color: c(tint), alpha: alpha * lit * 0.16 })
     }
     nodes
-      .circle(p.x, p.y, r)
-      .stroke({ width: Math.max(0.4, r * 0.09), color: c(SKY), alpha: alpha * 0.8 })
+      .circle(p.x, p.y, Math.max(0.8, r * STAR_CORE))
+      .fill({ color: c(tint), alpha: Math.min(1, alpha * (0.5 + 0.5 * lit)) })
   }
 
   function redrawField(devs: number): void {
@@ -317,13 +407,20 @@ export function buildGalaxy(): GalaxyHandle {
         const a = projected[i]
         const b = projected[j]
         if (Math.hypot(a.x - b.x, a.y - b.y) > reach) continue
+        // A relay to a star that is fading out at the frame edge fades with it,
+        // or the line outlives the world at either end of it.
+        if (Math.min(edgeFade(a), edgeFade(b)) < 0.35) continue
         links.moveTo(a.x, a.y)
         links.lineTo(b.x, b.y)
         any = true
       }
     }
     if (any) {
-      links.stroke({ width: Math.max(0.5, unit * 0.06), color: c(RAMPS.CALM[1]), alpha: 0.3 })
+      // Two passes: a wide dim one for the glow and a hairline for the line
+      // itself. Without the first the relays vanish under §10.6's bloom, which
+      // is busy blowing the stars out either side of them.
+      links.stroke({ width: Math.max(1.5, unit * 0.14), color: c(RAMPS.CALM[1]), alpha: 0.16 })
+      links.stroke({ width: Math.max(0.5, unit * 0.045), color: c(RAMPS.CALM[2]), alpha: 0.4 })
     }
 
     for (const p of projected) drawNode(p, fillOf(p.index, devs), p.index < worlds)
@@ -334,9 +431,15 @@ export function buildGalaxy(): GalaxyHandle {
     const ring = (index: number, colour: string, alpha: number, scale: number) => {
       const p = project(index)
       if (!visible(p)) return
+      // Faded with its own star, or the ring outlives the world it is naming as
+      // the field slides past — see `edgeFade`.
       marks
         .circle(p.x, p.y, unit * p.k * scale)
-        .stroke({ width: Math.max(0.6, unit * 0.075), color: c(colour), alpha })
+        .stroke({
+          width: Math.max(0.6, unit * 0.075),
+          color: c(colour),
+          alpha: alpha * edgeFade(p),
+        })
     }
     // The frontier — the next world nobody has settled. Named, never filled in:
     // §7.7.2's promotion is the arrival, and colouring the ground ahead of it
@@ -351,7 +454,10 @@ export function buildGalaxy(): GalaxyHandle {
   function flush(): void {
     if (!dirty) return
     dirty = false
-    const key = `${yaw.toFixed(2)}|${pitch.toFixed(2)}|${focus}`
+    // Keyed on the orientation alone: the haze is a backdrop at infinity, so
+    // crossing four light-years does not move it and a travel must not pay for
+    // five hundred redrawn points a frame.
+    const key = `${yaw.toFixed(2)}|${pitch.toFixed(2)}`
     if (key !== hazeKey) {
       hazeKey = key
       redrawHaze()
@@ -365,11 +471,26 @@ export function buildGalaxy(): GalaxyHandle {
     if (field.visible) flush()
   }
 
-  function refreshNeighbourhood(): void {
-    drawn = neighbourhood(focus, Math.max(worlds, focus + 1), WORLDS_FRAMED)
+  /**
+   * Which worlds are on screen.
+   *
+   * `from` is the world the camera is leaving, and while it is given the list
+   * is the **union of both neighbourhoods** — otherwise the sixteen stars
+   * around the old sun would vanish on the frame the travel started, which is
+   * the cut the travel exists to avoid, moved one step earlier.
+   */
+  function refreshNeighbourhood(from?: number): void {
+    const reach = Math.max(worlds, focus + 1)
+    const next = neighbourhood(focus, reach, WORLDS_FRAMED)
+    if (from !== undefined) {
+      for (const w of neighbourhood(from, Math.max(reach, from + 1), WORLDS_FRAMED)) {
+        if (!next.includes(w)) next.push(w)
+      }
+    }
     // The frontier is drawn even though nobody lives on it yet, so the player
     // can see where the studio goes next — and can aim at it.
-    if (!drawn.includes(worlds) && worlds > 0) drawn.push(worlds)
+    if (!next.includes(worlds) && worlds > 0) next.push(worlds)
+    drawn = next
   }
 
   refreshNeighbourhood()
@@ -400,14 +521,47 @@ export function buildGalaxy(): GalaxyHandle {
     setFocus(world: number) {
       const next = Math.max(0, Math.floor(Number.isFinite(world) ? world : 0))
       if (next === focus) return
+      const from = focus
       focus = next
-      // The tilt is frozen back to the authored one on arrival, exactly as
-      // entering a city freezes the globe to that site's orientation: every
-      // frame below this one is drawn in a space that assumes the network is
-      // where `frames.ts` says it is.
-      yaw = DEFAULT_YAW
-      pitch = DEFAULT_PITCH
-      refreshNeighbourhood()
+      /*
+       * **The tilt is not reset, and that is a decision rather than an
+       * omission.** `globe.ts` freezes its orientation on entering a city
+       * because `frames.ts` needs a site's park to sit at a known place. Nothing
+       * below this rung depends on which way the network is turned —
+       * `intoGalaxy` is a pure scale with no index and no angle in it — so
+       * snapping the field back to the authored tilt would throw away a view
+       * the player set, for nothing.
+       */
+      refreshNeighbourhood(from)
+      // The picture does not jump; `update` walks it there. See `eyeAt`.
+      travelling = true
+      redraw()
+    },
+    /**
+     * Advance the travel one frame — see {@link eyeAt}.
+     *
+     * Called from the stage ticker rather than driven by a clock of its own,
+     * for the same reason every other animation in the renderer is: there is
+     * one ticker, it is the one §23.3 measures, and a second one is a second
+     * thing to be paused wrongly.
+     */
+    update(dt: number) {
+      if (!travelling) return
+      const to = starAt(focus)
+      const k = Math.min(1, Math.max(0, dt) * TRAVEL_RATE)
+      eyeAt = {
+        x: eyeAt.x + (to.x - eyeAt.x) * k,
+        y: eyeAt.y + (to.y - eyeAt.y) * k,
+        z: eyeAt.z + (to.z - eyeAt.z) * k,
+      }
+      const left = Math.hypot(to.x - eyeAt.x, to.y - eyeAt.y, to.z - eyeAt.z) * perLy
+      if (left < TRAVEL_SETTLED) {
+        // Landed. Snapped exactly, because "the focused world is at the origin"
+        // is the hand-off's precondition and not a thing to be nearly true.
+        eyeAt = { x: to.x, y: to.y, z: to.z }
+        travelling = false
+        refreshNeighbourhood()
+      }
       redraw()
     },
     setSelected(world: number) {
@@ -419,11 +573,24 @@ export function buildGalaxy(): GalaxyHandle {
     },
     rotateBy(dx: number, dy: number) {
       if (!Number.isFinite(dx) || !Number.isFinite(dy) || (dx === 0 && dy === 0)) return
-      yaw += dx * 0.3
-      // Stopped short of the poles at both ends. Past 88 the disc is a line and
-      // the next drag reads as the field flipping over, which is a control that
-      // has stopped answering the hand.
-      pitch = Math.max(6, Math.min(88, pitch + dy * 0.26))
+      /*
+       * **Free in both axes, and the clamp that was here is gone.**
+       *
+       * It stopped the pitch at 6° and 88° on the argument that an edge-on disc
+       * is a line and flipping past it reads as the control letting go. In the
+       * hand it read as the opposite: the field came to rest flat, the drag hit
+       * a wall, and a gesture that had been answering suddenly stopped — which
+       * is the one thing a direct-manipulation control may never do.
+       *
+       * The globe one rung down keeps its clamp for a reason that does not
+       * apply here: `frames.ts` needs a site's park to sit at a known place, so
+       * the planet's orientation is load-bearing. `intoGalaxy` carries no index
+       * and no angle, so nothing below this rung cares which way the network is
+       * turned. Free is therefore free — the disc may go over the top, and on
+       * the way it is a line, which is what a disc seen edge on is.
+       */
+      yaw = (yaw + dx * 0.3) % 360
+      pitch = (pitch + dy * 0.26) % 360
       redraw()
     },
     setChromeAlpha(alpha: number) {

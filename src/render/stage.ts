@@ -2007,6 +2007,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const galaxyAlpha = galaxyChromeAlpha(currentLevel)
     galaxy.setHeadcount(state.devs)
     galaxy.setFocus(focusWorld())
+    // §7.7.1a — naming a world is a *journey* across the field, not a cut to
+    // it. The lens eases at the same time; `galaxy.ts` walks the star map.
+    galaxy.update(dt)
     galaxy.setSelected(selectedWorld)
     galaxy.setChromeAlpha(galaxyAlpha)
     // And the planet goes as the network arrives — one container again, because
