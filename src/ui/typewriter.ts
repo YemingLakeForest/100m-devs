@@ -78,6 +78,42 @@ export function charsRevealedAt(timeline: readonly number[], ms: number): number
 }
 
 /**
+ * Where one sentence ends and the next begins.
+ *
+ * A terminator (or a run of them — `...` is one beat, not three), any closing
+ * quote or bracket that belongs to it, and then whitespace. **The whitespace is
+ * required**, which is what keeps `...Fewer?` one sentence, `$1.5M` one number
+ * and `J.` at the end of `ONBOARDED: J.` from splitting the line it ends.
+ *
+ * Deliberately not a general sentence tokeniser. The corpus is `scenes.ts` and
+ * it is authored — an abbreviation mid-line would be a script problem, and a
+ * cleverer regex here would be a second place the script's rhythm is decided.
+ */
+const SENTENCE_END = /([.!?…]+["'’”)\]]*)(\s+)/
+
+/** A paragraph, cut into sentences with their punctuation kept. */
+function sentences(paragraph: string): string[] {
+  const out: string[] = []
+  let rest = paragraph
+
+  for (;;) {
+    const m = SENTENCE_END.exec(rest)
+    if (!m || m.index + m[0].length >= rest.length) break
+    out.push(rest.slice(0, m.index + m[1].length))
+    rest = rest.slice(m.index + m[0].length)
+  }
+
+  if (rest.trim() !== '') out.push(rest)
+  return out
+}
+
+/** A sentence's extent in the wrapped line list, both ends inclusive. */
+interface Span {
+  start: number
+  end: number
+}
+
+/**
  * Break text into pages of at most `maxLines` wrapped lines — §10.7, "3 lines
  * max, then wait for advance".
  *
@@ -87,9 +123,43 @@ export function charsRevealedAt(timeline: readonly number[], ms: number): number
  * not the reflow, because the last word of a line still jumps down as its final
  * character arrives. Pre-wrapping and rendering the result with `white-space:
  * pre` means no glyph ever moves once it has been drawn.
+ *
+ * ## §10.7a.4 — the unit of the box is the **sentence** [added 2026-08-30]
+ *
+ * Greedy word-wrap packed each line to the column and let a sentence begin
+ * wherever the previous one happened to stop. That is correct for a paragraph
+ * of prose being *read*, and wrong for two lines of dialogue being *revealed*,
+ * because the box turns a page mid-clause and the player reads the two halves
+ * of one line as two lines. The scene that made it undeniable is §21.7.1's
+ * closing announcement at twenty-eight columns:
+ *
+ * ```
+ *   STORY POINTS NOW BURN DOWN     STORY POINTS NOW BURN DOWN
+ *   AUTOMATICALLY. NO TAPPING      AUTOMATICALLY.
+ *   ---- tap ----                  ---- tap ----
+ *   REQUIRED.                      NO TAPPING REQUIRED.
+ * ```
+ *
+ * The machine states two facts and the box cut the second one in half. So two
+ * rules, in this order:
+ *
+ * 1. **A sentence starts on a fresh line unless the whole of it fits on the
+ *    one already open.** Sharing a line is allowed — `Fewer. It’s countable.`
+ *    is one line and should be — but only when nothing has to be carried over.
+ * 2. **A sentence that fits inside a page does not straddle one.** A sentence
+ *    wrapping to two lines with one line left on the page starts the next page
+ *    instead. A sentence too long for a page at all is exempt: there is no
+ *    break that would keep it whole, so it packs as before.
+ *
+ * The cost is paid in slack at the bottom of a page, which is the right
+ * currency: §10.7a.2 already spends page turns deliberately, and a half-empty
+ * box that says one whole thing beats a full one that says one and a half.
  */
 export function paginate(text: string, columns: number, maxLines = 3): string[][] {
   const lines: string[] = []
+  // Multi-line sentences only. A sentence that fits on one line cannot straddle
+  // a page, so recording it would be recording a constraint that never binds.
+  const spans: Span[] = []
 
   for (const paragraph of text.split('\n')) {
     if (paragraph.trim() === '') {
@@ -98,34 +168,67 @@ export function paginate(text: string, columns: number, maxLines = 3): string[][
     }
 
     let line = ''
-    for (const word of paragraph.split(/\s+/).filter(Boolean)) {
-      // A word wider than the box (a URL, a long identifier) is hard-split
-      // rather than allowed to overflow the frame.
-      let rest = word
-      while (rest.length > columns) {
-        if (line !== '') {
-          lines.push(line)
-          line = ''
-        }
-        lines.push(rest.slice(0, columns))
-        rest = rest.slice(columns)
+    for (const sentence of sentences(paragraph)) {
+      // Rule 1. An open line keeps the sentence only if it takes all of it.
+      if (line !== '' && line.length + 1 + sentence.length > columns) {
+        lines.push(line)
+        line = ''
       }
 
-      const candidate = line === '' ? rest : `${line} ${rest}`
-      if (candidate.length > columns) {
-        lines.push(line)
-        line = rest
-      } else {
-        line = candidate
+      const startedAt = lines.length
+      for (const word of sentence.split(/\s+/).filter(Boolean)) {
+        // A word wider than the box (a URL, a long identifier) is hard-split
+        // rather than allowed to overflow the frame.
+        let rest = word
+        while (rest.length > columns) {
+          if (line !== '') {
+            lines.push(line)
+            line = ''
+          }
+          lines.push(rest.slice(0, columns))
+          rest = rest.slice(columns)
+        }
+
+        const candidate = line === '' ? rest : `${line} ${rest}`
+        if (candidate.length > columns) {
+          lines.push(line)
+          line = rest
+        } else {
+          line = candidate
+        }
       }
+
+      // The sentence ends on the line still open — index `lines.length`, which
+      // is where `line` will land when it is pushed. An empty `line` means the
+      // last word landed exactly on a boundary and the sentence ended on the
+      // line before it; claiming the open one would hand the next sentence's
+      // first line to this span.
+      const end = line === '' ? lines.length - 1 : lines.length
+      if (end > startedAt) spans.push({ start: startedAt, end })
     }
 
     lines.push(line)
   }
 
+  // Rule 2. A span that would be cut by the end of this page opens the next one
+  // — unless it is longer than a page, in which case no break can save it.
+  const startsAtomically = new Map<number, number>()
+  for (const span of spans) {
+    const height = span.end - span.start + 1
+    if (height <= maxLines) startsAtomically.set(span.start, height)
+  }
+
   const pages: string[][] = []
-  for (let i = 0; i < lines.length; i += maxLines) {
-    pages.push(lines.slice(i, i + maxLines))
+  let i = 0
+  while (i < lines.length) {
+    const page: string[] = []
+    while (i < lines.length && page.length < maxLines) {
+      const height = startsAtomically.get(i)
+      if (height !== undefined && page.length > 0 && page.length + height > maxLines) break
+      page.push(lines[i])
+      i++
+    }
+    pages.push(page)
   }
 
   return pages.length > 0 ? pages : [['']]

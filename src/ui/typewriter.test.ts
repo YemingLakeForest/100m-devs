@@ -111,3 +111,73 @@ describe('pagination — §10.7 "3 lines max, then wait for advance"', () => {
     expect(paginate('', 40)).toHaveLength(1)
   })
 })
+
+describe('§10.7a.4 — a sentence is the unit of the box', () => {
+  /**
+   * The reported defect, verbatim: `STUDIO_OS` announces two facts and the box
+   * cut the second one in half, so the player read `NO TAPPING`, tapped, and
+   * was shown `REQUIRED.` on its own. Pinned against the real line at the real
+   * width, because the whole claim is about how this line lands.
+   */
+  it('does not cut a sentence in half across a page turn', () => {
+    const pages = paginate('STORY POINTS NOW BURN DOWN AUTOMATICALLY. NO TAPPING REQUIRED.', 28, 2)
+
+    expect(pages).toEqual([
+      ['STORY POINTS NOW BURN DOWN', 'AUTOMATICALLY.'],
+      ['NO TAPPING REQUIRED.'],
+    ])
+  })
+
+  it('lets two sentences share a line when the second one fits whole', () => {
+    // Rule 1 is "starts on a fresh line unless *all* of it fits", not "always
+    // starts on a fresh line" — a box holding one short exchange should hold it
+    // as one line, and James's correction is the canonical case.
+    expect(paginate('Fewer. It’s countable.', 28, 2)).toEqual([['Fewer. It’s countable.']])
+  })
+
+  it('starts a sentence on a new line rather than carrying its tail over', () => {
+    expect(paginate('I live off Diet Coke. I have brought my own.', 28, 2)).toEqual([
+      ['I live off Diet Coke.', 'I have brought my own.'],
+    ])
+  })
+
+  it('opens a new page for a sentence that would straddle this one', () => {
+    // Two lines left over one line of room: the sentence moves rather than
+    // splitting, and the page it leaves behind stays short.
+    expect(paginate('HEADCOUNT REVIEW. YOUR SHARE OF THIS SPRINT’S OUTPUT: 2%.', 28, 2)).toEqual([
+      ['HEADCOUNT REVIEW.'],
+      ['YOUR SHARE OF THIS SPRINT’S', 'OUTPUT: 2%.'],
+    ])
+  })
+
+  it('packs a sentence too long for one page rather than deferring it forever', () => {
+    // The exemption. There is no break that would keep this whole, so it wraps
+    // greedily — a rule that cannot be satisfied must not become a rule that
+    // empties every page.
+    const pages = paginate('a'.repeat(12) + ' b'.repeat(30) + '.', 28, 2)
+    expect(pages[0]).toHaveLength(2)
+  })
+
+  it('keeps a decimal, an initial and a leading ellipsis out of the split', () => {
+    // The terminator only counts when whitespace follows it, which is what
+    // keeps these three one sentence each.
+    expect(paginate('...Fewer?', 28, 2)).toEqual([['...Fewer?']])
+    expect(paginate('SHIPPED AT $1.5M.', 28, 2)).toEqual([['SHIPPED AT $1.5M.']])
+    expect(paginate('EMPLOYEE ONBOARDED: J.', 28, 2)).toEqual([['EMPLOYEE ONBOARDED: J.']])
+  })
+
+  it('still loses no words and still respects the frame', () => {
+    const text =
+      'The game. It was never really down. It was degraded. There’s a ' +
+      'difference and it matters.'
+    const pages = paginate(text, 28, 2)
+
+    for (const page of pages) {
+      expect(page.length).toBeLessThanOrEqual(2)
+      for (const line of page) expect(line.length).toBeLessThanOrEqual(28)
+    }
+    expect(pages.flat().join(' ').split(/\s+/).filter(Boolean)).toEqual(
+      text.split(/\s+/).filter(Boolean),
+    )
+  })
+})

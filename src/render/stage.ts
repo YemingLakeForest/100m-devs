@@ -2017,7 +2017,20 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // a floor, and "+1 over each head" has no head to sit over. That is a scope
     // rather than a gap — §8.2b's thinning rule aggregates *within* a floor of
     // people, and the level above it is already the aggregate.
-    if (roomIsUp) {
+    //
+    // §10.7a.3 — **and only while the clock is running** [added 2026-08-30].
+    // Reported as James's head popping `+1.1` through his own arrival scene,
+    // before he has produced a single point. The freeze is already the rule
+    // everywhere else: `tick` banks nothing while a scene or §10.8b's launch
+    // window is up, and `room.animate` holds the bodies on the same predicate
+    // a dozen lines above. The tallies kept emitting because they are computed
+    // from `developerVelocity` — a *rate*, which is still perfectly true — and
+    // nothing was asking whether any time was passing for it to be a rate of.
+    // A numeral rising off a frozen developer is the loudest possible claim
+    // that work is happening, and it is the one claim the pause exists to
+    // withdraw.
+    const frozen = state.scene !== null || state.pendingRelease !== null
+    if (roomIsUp && !frozen) {
       const seats = roomSeats()
       const drawn = room.drawn
       // §4.9a — each seat's share of the studio, so the numerals differ by as

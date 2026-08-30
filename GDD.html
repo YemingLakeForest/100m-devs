@@ -1512,6 +1512,26 @@ part, and is deliberately left open until 4.5a is built and can be felt.</p>
 <p><strong>What it must never be:</strong> an idle generator that plays itself, or a strictly-better
 alternative to hiring. If the optimal play is to fire everyone and code alone, the satire has
 eaten the game.</p>
+<h5 id="the-trickle-waits-for-the-first-hire-amended-2026-08-30">The trickle waits for the first hire <strong>[amended 2026-08-30]</strong></h5>
+<p><strong>While the studio is only you, the passive half of this curve is zero and the burn-down moves
+only when you tap.</strong> The tap (<code>pokeFounder</code>) is never gated — it is the act §21.0b is
+made of. From the first employee onward this section is unchanged: the one rate that is not
+multiplied by the swarm and not divided by §4.1.</p>
+<p>Reported as <em>&quot;when there's only us, the story points should not drop without us clicking&quot;</em>, and
+it is a defect in the <strong>script</strong> before it is one in the economy. §21.7.1 spends its entire
+notification budget on one <code>STUDIO_OS</code> line the moment James sits down —
+<code>STORY POINTS NOW BURN DOWN AUTOMATICALLY. NO TAPPING REQUIRED.</code> — because §21.7.1
+refuses a hire popup and insists that <strong>the second desk and the burn-down moving on its own is
+the whole announcement</strong>. <code>FOUNDER_BASE_RATE</code> is half a developer a second and nothing
+gated it, so the bar had been sliding since the title screen and the machine was announcing a
+change the player had already watched not happen. That is the one thing §21.0's &quot;an assertion
+is not something you can be betrayed by later, and evidence is&quot; cannot survive: the evidence
+was there before the claim.</p>
+<p>Nothing above is retracted to buy it. §4.5d's passive trickle is still half a developer, still
+undilutable, and still the floor under the clicker — it just needs somebody to trickle beside.
+And it strengthens the section's own first failure condition rather than weakening it: the
+garage is now unambiguously <strong>not an idle generator that plays itself</strong>, because before the
+first hire it does not play at all.</p>
 <h3 id="the-fibonacci-estimation-ladder">4.6 The Fibonacci Estimation Ladder</h3>
 <p>Developers estimate in Fibonacci numbers because that is what Agile does, and the numbers
 are arbitrary because they were always arbitrary. Upgrades move you <strong>up the ladder</strong> rather
@@ -5799,6 +5819,68 @@ framed in the <strong>upper half</strong> deliberately, so a box that has grown 
 clear of them, and now does so by construction rather than by luck.</p>
 <p>Everything else in §10.7 is unchanged and unchallenged: the per-character reveal, the tick,
 the 260 ms quiet window, the deliberate advance tap, and <strong>no skip</strong>.</p>
+<h4 id="a.3-the-pause-is-real-and-it-is-written-on-the-glass">10.7a.3 The pause is real, and it is written on the glass <strong>[CANON - added 2026-08-30]</strong></h4>
+<blockquote>
+<p><strong>While a scene is up, the clock is stopped — and nothing on screen may claim otherwise.</strong></p>
+</blockquote>
+<p>Cited by §10.8b and by three files since 2026-08-12 and never actually written down here. It
+is written down now, because the third rule below was being broken precisely because nobody
+could read the first two and check.</p>
+<ol>
+<li><strong>The simulation halts.</strong> Nobody codes, the burn-down does not move, payroll does not run,
+entropy does not decay. The dialogue advances on the player's taps and never on the
+simulation, so the numbers a scene talks about are the numbers the player last saw rather than
+the ones the conversation drifted past.</li>
+<li><strong>The floor halts with it.</strong> §7.8.6's ambient life freezes on the frame the scene opened —
+walkers stop mid-stride — because a studio that keeps visibly working through a conversation is
+one the pause has not happened to.</li>
+<li><strong>Every readout of work halts with it too. [added 2026-08-30]</strong> Reported as James's head
+popping <code>+1.1</code> all the way through his own arrival scene, before he has produced a
+single Story Point. §8.2b's per-head numerals are computed from a <em>rate</em>, which stays
+perfectly true across a pause — and nothing was asking whether any time was passing for it to
+be a rate <em>of</em>. A numeral rising off a frozen developer is the loudest claim the screen can
+make that work is happening, and it is the exact claim this section exists to withdraw. Rules 1
+and 2 are not two implementations of a pause, they are two thirds of one, and anything that
+draws output is the third.</li>
+</ol>
+<p>The one thing that still runs is <strong>cosmetic expiry</strong>: floaters, bubbles and numerals already in
+flight measure their life in wall-clock and are allowed to land, because a numeral frozen
+mid-air for the length of a scene is a rendering fault that outlives the dialogue. Nothing new
+is emitted behind it.</p>
+<h4 id="a.4-a-sentence-is-the-unit-of-the-box">10.7a.4 A sentence is the unit of the box <strong>[CANON - added 2026-08-30]</strong></h4>
+<p>§10.7a.2 fixed the box at ~28 columns and two lines and left the wrapping to greedy
+word-wrap, which packs each line to the column and lets a sentence begin wherever the previous
+one happened to stop. That is right for a paragraph being <em>read</em> and wrong for two lines being
+<em>revealed</em>, because rule 2's deliberate tap then falls in the middle of a clause. §21.7.1's
+closing announcement is the case that named it:</p>
+<table>
+<thead>
+<tr>
+<th>Was</th>
+<th>Now</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>STORY POINTS NOW BURN DOWN</code> / <code>AUTOMATICALLY. NO TAPPING</code> — tap — <code>REQUIRED.</code></td>
+<td><code>STORY POINTS NOW BURN DOWN</code> / <code>AUTOMATICALLY.</code> — tap — <code>NO TAPPING REQUIRED.</code></td>
+</tr>
+</tbody>
+</table>
+<p>The machine states two facts and the box cut the second one in half. Two rules, in order:</p>
+<ol>
+<li><strong>A sentence starts on a fresh line unless the whole of it fits on the line already open.</strong>
+Sharing a line is allowed and wanted — <code>Fewer. It's countable.</code> is one line and should
+be — but only when nothing has to be carried over.</li>
+<li><strong>A sentence that fits inside a page does not straddle one.</strong> Two lines of sentence with one
+line of room left starts the next page instead. A sentence too long for a page at all is
+exempt: no break would keep it whole, so it packs as before rather than deferring for ever.</li>
+</ol>
+<p>The cost is slack at the bottom of a page, and that is the right currency to pay in: §10.7a.2
+already spends page turns deliberately, and a half-empty box that says one whole thing beats a
+full one that says one and a half. Measured across every scene in <code>scenes.ts</code> at 28
+columns the whole script grows from 181 pages to 188 — four per cent more taps for a script
+that never breaks mid-clause.</p>
 <hr />
 <h3 id="the-presentation-gate-what-done-means-canon">10.8 The Presentation Gate — what &quot;done&quot; means <strong>[CANON]</strong></h3>
 <p>§10.5 says how transitions work and §10.6 lists what not to do. <strong>This section makes them a

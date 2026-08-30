@@ -1375,7 +1375,7 @@ export function currentVelocity(s: GameState = state): number {
  * every poke twice. The separation is the point of having two functions.
  */
 export function currentEffectiveVelocity(s: GameState = state): number {
-  return currentVelocity(s) + Math.max(0, s.pokeRate) + founderVelocity()
+  return currentVelocity(s) + Math.max(0, s.pokeRate) + founderPassiveVelocity(s)
 }
 
 /**
@@ -1395,7 +1395,7 @@ export function currentEffectiveVelocity(s: GameState = state): number {
  * while the player maintains their targets and sags when they neglect them.
  */
 export function pokeVelocity(s: GameState = state): number {
-  return Math.max(0, s.pokeRate) + (currentVelocity(s) - baseVelocity(s)) + founderVelocity()
+  return Math.max(0, s.pokeRate) + (currentVelocity(s) - baseVelocity(s)) + founderPassiveVelocity(s)
 }
 
 // --- you — GDD §4.5d, §7.8.10, §13.7.1 -------------------------------------
@@ -1421,6 +1421,33 @@ export function founderOf(): FounderEffects {
  */
 export function founderVelocity(): number {
   return founderOf().rate
+}
+
+/**
+ * The half of your desk that runs **without your thumb** — §4.5d [amended
+ * 2026-08-30].
+ *
+ * Zero while the studio is only you.
+ *
+ * Reported as "when there's only us, the story points should not drop without
+ * us clicking", and it is a defect in the script before it is one in the
+ * economy. §21.7.1's whole closing beat is `STUDIO_OS` announcing *STORY POINTS
+ * NOW BURN DOWN AUTOMATICALLY. NO TAPPING REQUIRED.* the moment James sits
+ * down — and the burn-down had been moving on its own since the title screen,
+ * because `FOUNDER_BASE_RATE` is half a developer a second and nothing gated
+ * it. The machine states a change the player watched not happen, which spends
+ * the one notification §21.7.1 spends instead of a hire popup.
+ *
+ * §4.5d's passive trickle survives intact; it just needs somebody to trickle
+ * beside. The garage before the first hire is a **clicker**, exactly as §21.0b
+ * asks: the fifty pokes that summon James are fifty pokes the player made, not
+ * a bar that would have filled while they watched. From the first employee on,
+ * this is §4.5d unchanged — the one term that does not fall when the studio
+ * does, and the founder's tap (`pokeFounder`) is never gated at all, because a
+ * tap is the thing this act is about.
+ */
+export function founderPassiveVelocity(s: GameState = state): number {
+  return s.devs > 0 ? founderOf().rate : 0
 }
 
 /**
@@ -1499,9 +1526,8 @@ export function pokeFounder(x = 0, y = 0): number {
  * can still feel: the specialist version will shorten time-to-recover; yours
  * just means you never really stopped.
  */
-function offlineFounderVelocity(): number {
-  const f = founderOf()
-  return f.worksOffline ? f.rate : 0
+function offlineFounderVelocity(s: GameState): number {
+  return founderOf().worksOffline ? founderPassiveVelocity(s) : 0
 }
 
 /** §13.7.1 — buy a Management node with cash. The levels are permanent. */
@@ -2099,7 +2125,8 @@ export function tick(dtSeconds: number): void {
   // §4.1 curve entirely, which is the whole point of the section: this is the
   // one term that does not fall when the studio does.
   const gained =
-    currentVelocity({ ...state, localEntropy, buffs }) * dtSeconds + founderVelocity() * dtSeconds
+    currentVelocity({ ...state, localEntropy, buffs }) * dtSeconds +
+    founderPassiveVelocity() * dtSeconds
   // What the buffs that just expired had left to give — see `decayBuffs`. The
   // last few per cent of a poke, paid rather than swallowed, so what a tap is
   // worth does not quietly depend on how big the studio was when it landed.
@@ -2275,7 +2302,7 @@ export function tick(dtSeconds: number): void {
       state.cash -
       currentPayroll() * dtSeconds +
       tail.earned * ticketTax +
-      founderVelocity() * dtSeconds * founderOf().cashPerPoint,
+      founderPassiveVelocity() * dtSeconds * founderOf().cashPerPoint,
     lifetimeRevenue: state.lifetimeRevenue + tail.earned * ticketTax,
     releases: tail.releases,
     burned: gained + settled > 0 ? state.burned.plus(gained + settled) : state.burned,
@@ -4357,7 +4384,8 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       // §7.8.9 — taxed by the *modelled* away share. See `offlineSlackFactor`:
       // the roster does not survive a reload, so counting it here would earn
       // the player a rate that only exists while nobody is looking.
-      velocity: baseVelocity(restored) * offlineSlackFactor(restored) + offlineFounderVelocity(),
+      velocity:
+        baseVelocity(restored) * offlineSlackFactor(restored) + offlineFounderVelocity(restored),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: restored.commitment,
       burned: restored.burned,
@@ -4396,7 +4424,7 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
       // Unbuffed, for the same reason as the restore path above: a player who
       // was mid-poke when they closed the tab must not earn eight hours of a
       // buff that would have faded in fifteen seconds.
-      velocity: baseVelocity(state) * offlineSlackFactor(state) + offlineFounderVelocity(),
+      velocity: baseVelocity(state) * offlineSlackFactor(state) + offlineFounderVelocity(state),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: state.commitment,
       burned: state.burned,

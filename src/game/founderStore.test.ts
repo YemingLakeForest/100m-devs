@@ -16,8 +16,10 @@ import {
   __setState,
   baseVelocity,
   buyFounderNode,
+  currentEffectiveVelocity,
   currentEntropy,
   founderOf,
+  founderPassiveVelocity,
   founderVelocity,
   getPermanent,
   getState,
@@ -71,6 +73,49 @@ describe('the curve nothing can touch — §4.5d', () => {
     // A second of ticks, so a second of your own rate, give or take the swarm's
     // near-zero contribution.
     expect(banked).toBeGreaterThanOrEqual(FOUNDER_BASE_RATE * 0.99)
+  })
+})
+
+describe('the garage is a clicker — §4.5d, amended 2026-08-30', () => {
+  /**
+   * Reported as "when there's only us, the story points should not drop
+   * without us clicking".
+   *
+   * The order is the claim, not the numbers (§25.3.2): before the first hire
+   * the burn-down moves *only* on a tap, and from the first hire on it moves on
+   * its own. §21.7.1's closing announcement — STORY POINTS NOW BURN DOWN
+   * AUTOMATICALLY. NO TAPPING REQUIRED. — is the machine reading these two
+   * assertions out, so if either one flips the scene starts lying.
+   */
+  it('banks nothing while the studio is only you', () => {
+    __setState({ devs: 0 })
+    const before = getState().burned.toNumber()
+    for (let i = 0; i < 60; i++) tick(1 / 60)
+    expect(getState().burned.toNumber()).toBe(before)
+  })
+
+  it('still pays for a tap on your own desk, which is the whole act', () => {
+    // §4.5d failure condition 1 inverted: the trickle waits for a colleague,
+    // the *tap* never waits for anything.
+    __setState({ devs: 0 })
+    const before = getState().burned.toNumber()
+    expect(pokeFounder()).toBeGreaterThan(0)
+    expect(getState().burned.toNumber()).toBeGreaterThan(before)
+  })
+
+  it('starts trickling the moment there is somebody else on the floor', () => {
+    __setState({ devs: 0 })
+    expect(founderPassiveVelocity()).toBe(0)
+    __setState({ devs: 1 })
+    expect(founderPassiveVelocity()).toBe(founderVelocity())
+  })
+
+  it('does not claim a velocity the burn-down is not moving at', () => {
+    // §10.1's readout and the bar have to agree, or the player is told they
+    // are producing while nothing produces.
+    __setState({ devs: 0 })
+    expect(currentEffectiveVelocity()).toBe(0)
+    expect(pokeVelocity()).toBe(0)
   })
 })
 

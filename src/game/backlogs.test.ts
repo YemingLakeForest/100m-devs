@@ -23,7 +23,7 @@ import {
 import { emptyPermanent, setPermanent } from './save.ts'
 import { BETA } from '../sim/defects.ts'
 import { BASELINE_RATING, RATING_WEIGHTS, rateRelease } from '../sim/rating.ts'
-import { countsOf, headcountOf } from '../sim/roles.ts'
+import { addHires, countsOf, headcountOf } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 
 /**
@@ -54,6 +54,23 @@ function clearScene() {
  */
 function answerLaunch() {
   if (getState().pendingRelease !== null) releaseNow()
+}
+
+/**
+ * Somebody at a desk — §4.5d [amended 2026-08-30].
+ *
+ * The founder's passive trickle is gated on the studio having hired somebody:
+ * before the first employee the burn-down moves only on a tap, which is exactly
+ * what §21.7.1's `NO TAPPING REQUIRED.` announces the end of. So a harness that
+ * neither hires nor pokes now runs a studio with nobody in it, and a studio
+ * with nobody in it correctly produces nothing — which is not what the three
+ * tests below are measuring.
+ *
+ * One head, seated rather than bought. `UNPAID_FOUNDERS` is 1, so the first
+ * developer draws no wage and the economy under test is the one it always was.
+ */
+function staff(count = 1) {
+  __setState({ devs: count, roster: addHires(getState().roster, 'dev', count) })
 }
 
 function play(seconds: number, pokesPerSecond = 0) {
@@ -178,6 +195,7 @@ describe('§4.12 — defects accrue from the work itself', () => {
   })
 
   it('accrues while the studio works', () => {
+    staff()
     play(10)
     expect(getState().defects).toBeGreaterThan(0)
   })
@@ -245,8 +263,24 @@ describe('§4.12 / §4.12a — shipping transfers the backlog, it does not forgi
    * to the passive rate, and the rating says so.
    */
   it('rates a hammered project below a patient one', () => {
+    /*
+     * **The same reception for both**, which is what makes this a comparison.
+     *
+     * §4.14's luck is `luckRoll(runSeed, ordinal)` and it is worth up to
+     * `RATING_WEIGHTS.luck` — twelve points of a hundred, against a defect gap
+     * of a few. Two studios rolled from two `Date.now()` seeds were therefore
+     * being asked to prove a claim about defects using a term that has nothing
+     * to do with defects, and it held only while the seeds happened to be kind.
+     * Both studios ship their first release, so one shared seed is one shared
+     * roll and the difference left is the one the section is about.
+     */
+    const seed = 0x5eed
+    __setState({ runSeed: seed })
+    staff()
     const hammered = playUntilShipped(8)
     reset()
+    __setState({ runSeed: seed })
+    staff()
     const patient = playUntilShipped(0)
 
     expect(hammered.defectDensity).toBeGreaterThan(patient.defectDensity)
@@ -274,6 +308,7 @@ describe('§4.12 / §4.12a — shipping transfers the backlog, it does not forgi
      * garage's sync and an average reception lands back on the baseline
      * exactly, which is the original promise with the two new terms held still.
      */
+    staff()
     const first = playUntilShipped(0)
     expect(first.defectDensity).toBeCloseTo(BETA, 3)
 
