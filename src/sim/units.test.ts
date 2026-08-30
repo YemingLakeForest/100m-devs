@@ -26,7 +26,7 @@ describe('what the unit is at each rung (GDD §7.7.1)', () => {
       'building',
       'campus',
       'site',
-      'nation',
+      'world',
       'planet',
       'galaxy',
     ])

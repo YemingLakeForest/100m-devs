@@ -1,0 +1,472 @@
+/*
+ * §21.8 — the launch, in nine shots.
+ *
+ * Everything here is a rectangle, a circle and a transform. That is not
+ * thrift for its own sake: ART_DIRECTION §4 classes everything above the room
+ * as T0 — procedural — and §22.7's art budget is nineteen sprites, none of
+ * which is a rocket. The filing cabinet being drawn out of four grey boxes is
+ * the same joke the scene tells out loud, so the production constraint and the
+ * gag are the same constraint.
+ *
+ * The shot is selected by `[data-art]` on the root and every element decides
+ * for itself what it does in each one. That is more selectors than a keyframe
+ * timeline would be and it is worth it: a tap can jump to any shot at any time
+ * (§10.7 rule 1's impatience gesture), and a timeline cannot be seeked without
+ * a clock the component would then have to own.
+ */
+
+.proxima {
+  position: fixed;
+  inset: 0;
+  z-index: 21; /* above §10.7's scrim, which the scene it follows put up */
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  background: var(--n0);
+  cursor: pointer;
+  /* §7.1 — the HUD is a Layer with pointer-events off, so anything inside it
+     has to opt back in or the taps fall through to the scrim underneath. The
+     §15.1a reboot found this the hard way; see studioBoot.css. */
+  pointer-events: auto;
+  transition: opacity var(--proxima-exit, 420ms) ease-out;
+}
+
+.proxima[data-phase='exit'] {
+  opacity: 0;
+}
+
+/* --- the sky ------------------------------------------------------------ */
+
+/*
+ * Three layers of nothing, so the cut from a lit garage to deep space is not a
+ * cut to a black rectangle. Drawn as repeating radial gradients rather than as
+ * elements, because a hundred and fifty absolutely positioned spans is a
+ * hundred and fifty layout boxes for a backdrop nobody looks at.
+ */
+.proxima__sky {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+}
+
+.proxima__stars {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 600ms ease-out, transform var(--proxima-dwell, 2s) linear;
+}
+
+.proxima__stars--far {
+  background-image: radial-gradient(1px 1px at 12% 22%, var(--n5), transparent 100%),
+    radial-gradient(1px 1px at 68% 14%, var(--n4), transparent 100%),
+    radial-gradient(1px 1px at 34% 71%, var(--n5), transparent 100%),
+    radial-gradient(1px 1px at 82% 63%, var(--n4), transparent 100%),
+    radial-gradient(1px 1px at 51% 41%, var(--n5), transparent 100%);
+  background-size: 220px 160px;
+}
+
+.proxima__stars--mid {
+  background-image: radial-gradient(1px 1px at 23% 55%, var(--n6), transparent 100%),
+    radial-gradient(1px 1px at 77% 31%, var(--glow-2, var(--n6)), transparent 100%),
+    radial-gradient(1px 1px at 44% 88%, var(--n6), transparent 100%);
+  background-size: 340px 250px;
+}
+
+.proxima__stars--near {
+  background-image: radial-gradient(2px 2px at 60% 44%, var(--n7), transparent 100%),
+    radial-gradient(2px 2px at 18% 77%, var(--n7), transparent 100%);
+  background-size: 520px 400px;
+}
+
+/* Lit from the first frame. The pad is a lawn at night — the planet's own
+   horizon covers most of the sky anyway, and a launch that begins under a blank
+   ceiling and then discovers stars is a cut. */
+.proxima__stars {
+  opacity: 1;
+}
+
+/* The cruise is the only shot where the field moves, and it moves *past* — the
+   parallax is the whole of the sense of travel, so the near layer runs fastest.
+   §10.5 rule 3 drops parallax for reduced motion; `--proxima-dwell` is already
+   scaled by the component, so a shortened shot moves proportionally less. */
+.proxima[data-art='cruise'] .proxima__stars--far {
+  transform: translateX(-40px);
+}
+.proxima[data-art='cruise'] .proxima__stars--mid {
+  transform: translateX(-120px);
+}
+.proxima[data-art='cruise'] .proxima__stars--near {
+  transform: translateX(-320px);
+}
+
+/* --- the stage ---------------------------------------------------------- */
+
+/*
+ * Where the ground is, measured from the foot of the stage.
+ *
+ * The horizon circle is 160vw across and pushed down until only its crown is on
+ * screen, so its top lands a fixed distance above the stage floor whatever the
+ * frame is. Everything that *stands on the planet* — the ship, the chair, the
+ * flag — is anchored to this rather than to a percentage of the stage, because
+ * a percentage of the height and a fraction of the width move apart at every
+ * aspect ratio in §23.4.2's box, and the symptom is a rocket hovering.
+ */
+.proxima__stage {
+  position: relative;
+  overflow: hidden;
+  --ground: 46px;
+}
+
+.proxima__stage > * {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 380ms ease-out, transform 900ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/*
+ * Earth — behind the cabinet on the pad, and then the thing that leaves.
+ *
+ * The horizon is a very large circle whose top edge is just below the ship, so
+ * the pad reads as standing on a planet rather than on a floor. In `ignition`
+ * and after, it slides down and away: **the rocket does not move, the planet
+ * does.** One transform, on the object nobody expected to be transformed.
+ */
+.proxima__earth {
+  left: 50%;
+  /*
+   * A horizon, not a backdrop. The circle is a hundred and sixty viewport
+   * widths across and pushed down until only its top sixty pixels are on
+   * screen, which is what makes the pad read as *standing on a planet* rather
+   * than as a cabinet on a purple field — the first pass had it filling the
+   * frame and there was nothing to leave.
+   *
+   * `vw` rather than a percentage because a percentage `bottom` resolves
+   * against the stage's *height* and the diameter is set from its width, so the
+   * two would drift apart at every aspect ratio in §23.4.2's box.
+   */
+  bottom: -154vw;
+  width: 160vw;
+  aspect-ratio: 1;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 18%, var(--n4), var(--n2) 62%, var(--n1) 100%);
+  box-shadow: inset 0 6px 0 0 var(--calm-1, var(--n5));
+  opacity: 1;
+}
+
+.proxima[data-art='ignition'] .proxima__earth {
+  transform: translateY(40px);
+}
+
+.proxima[data-art='cruise'] .proxima__earth,
+.proxima[data-art='arrival'] .proxima__earth,
+.proxima[data-art='flag'] .proxima__earth,
+.proxima[data-art='open'] .proxima__earth,
+.proxima[data-art='standup'] .proxima__earth {
+  transform: translateY(150%) scale(0.02);
+  opacity: 0;
+}
+
+/* Proxima Centauri: a red dwarf, and small. The true thing is also the funnier
+   one — the studio crosses four light-years and arrives at an ember. */
+.proxima__star {
+  right: 14%;
+  top: 18%;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 36%, var(--warn-3, #ffe9b0), var(--alarm-2, #e03c3c) 70%, var(--alarm-1, #8a1f1f) 100%);
+  box-shadow: 0 0 30px 8px rgb(224 60 60 / 35%);
+  transform: scale(0.2);
+}
+
+.proxima[data-art='arrival'] .proxima__star,
+.proxima[data-art='flag'] .proxima__star,
+.proxima[data-art='open'] .proxima__star,
+.proxima[data-art='standup'] .proxima__star {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* The new world, arriving under the ship the way Earth left from under it. */
+.proxima__world {
+  left: 50%;
+  bottom: -154vw;
+  width: 160vw;
+  aspect-ratio: 1;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 58% 20%, var(--n3), var(--n1) 64%, var(--n0) 100%);
+  box-shadow: inset 0 6px 0 0 var(--alarm-2, #e03c3c);
+  transform: translateY(90px);
+}
+
+.proxima[data-art='arrival'] .proxima__world,
+.proxima[data-art='flag'] .proxima__world,
+.proxima[data-art='open'] .proxima__world,
+.proxima[data-art='standup'] .proxima__world {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* The caption sits on the same ground the stage does, so the horizon runs into
+   it rather than stopping at a hard edge halfway down the frame. */
+.proxima__stage {
+  background: linear-gradient(var(--n0) 0%, transparent 30%);
+}
+
+/* --- the vehicle -------------------------------------------------------- */
+
+.proxima__ship {
+  left: 50%;
+  bottom: var(--ground);
+  width: 74px;
+  height: 132px;
+  margin-left: -37px;
+  opacity: 1;
+}
+
+/* Four drawers, grey, one of which is a window. That is the entire design. */
+.proxima__drawer {
+  position: absolute;
+  left: 0;
+  width: 74px;
+  height: 30px;
+  background: var(--n4);
+  border: var(--rule) solid var(--n2);
+  box-shadow: inset 0 -3px 0 0 var(--n3);
+  opacity: 1;
+}
+
+.proxima__drawer:nth-of-type(1) {
+  top: 0;
+}
+.proxima__drawer:nth-of-type(2) {
+  top: 32px;
+}
+.proxima__drawer:nth-of-type(3) {
+  top: 64px;
+}
+.proxima__drawer:nth-of-type(4) {
+  top: 96px;
+}
+
+/* The handle every drawer has, except the one somebody is looking out of. */
+.proxima__drawer:not(.proxima__drawer--porthole)::after {
+  content: '';
+  position: absolute;
+  left: 28px;
+  top: 12px;
+  width: 18px;
+  height: 4px;
+  background: var(--n6);
+}
+
+.proxima__drawer--porthole {
+  background: var(--n1);
+  overflow: hidden;
+}
+
+.proxima__james {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+/* He is visible from `porthole` onward — the whole point of the second shot is
+   that there is a person inside the office furniture. */
+.proxima:not([data-art='pad']) .proxima__james {
+  opacity: 1;
+}
+
+.proxima__james-head {
+  position: absolute;
+  left: 31px;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--n7);
+}
+
+.proxima__james-shirt {
+  position: absolute;
+  left: 25px;
+  top: 18px;
+  width: 24px;
+  height: 12px;
+  background: var(--n8);
+}
+
+/* §2.3 — the hole in the elbow. It outlives the shirt, the studio and the
+   planet, and it is two pixels of `--n1`. */
+.proxima__james-hole {
+  position: absolute;
+  left: 27px;
+  top: 22px;
+  width: 4px;
+  height: 4px;
+  background: var(--n1);
+}
+
+.proxima__fin {
+  position: absolute;
+  bottom: 6px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  opacity: 1;
+}
+
+.proxima__fin--left {
+  left: -18px;
+  border-width: 0 0 30px 18px;
+  border-color: transparent transparent var(--n3) transparent;
+}
+
+.proxima__fin--right {
+  right: -18px;
+  border-width: 0 18px 30px 0;
+  border-color: transparent var(--n3) transparent transparent;
+}
+
+/* The tape holding the fins on. Named in the first caption; it would be a
+   worse joke if it were not actually drawn. */
+.proxima__tape {
+  position: absolute;
+  left: -22px;
+  bottom: 24px;
+  width: 118px;
+  height: 5px;
+  background: var(--warn-2, #e0a52e);
+  opacity: 1;
+}
+
+/*
+ * Below the cabinet, and it has to be pinned by its *top*.
+ *
+ * `bottom` with an animated `height` grows a box upward, so the first pass drew
+ * the exhaust across the two lowest drawers — a rocket on fire rather than a
+ * rocket firing. Anchored at the foot of the stack it grows the way flame does.
+ */
+.proxima__flame {
+  position: absolute;
+  left: 22px;
+  top: 126px;
+  width: 30px;
+  height: 0;
+  background: linear-gradient(var(--warn-3, #ffe9b0), var(--alarm-2, #e03c3c));
+  transition: height 220ms ease-out, opacity 220ms ease-out;
+  opacity: 0;
+}
+
+.proxima[data-art='ignition'] .proxima__flame,
+.proxima[data-art='cruise'] .proxima__flame {
+  opacity: 1;
+  height: 54px;
+}
+
+/* Landed: the flame is out and the cabinet is standing on somebody else's
+   planet, which is the same picture as shot one and is the joke closing. */
+.proxima[data-art='flag'] .proxima__ship,
+.proxima[data-art='open'] .proxima__ship,
+.proxima[data-art='standup'] .proxima__ship {
+  transform: translateX(-46px);
+}
+
+/* --- the props ---------------------------------------------------------- */
+
+/* The calendar invite that holds the launch at T-2. */
+.proxima__invite {
+  right: 12%;
+  top: 26%;
+  padding: 6px 8px;
+  border: var(--rule) solid var(--calm-2, #35c9d9);
+  color: var(--calm-3, #b8f4ff);
+  background: var(--n1);
+  font-size: var(--type-1x);
+  letter-spacing: 0.06em;
+  transform: translateY(-8px);
+}
+
+.proxima[data-art='hold'] .proxima__invite {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* The chair. §7.8.1b's seat that never moves, moved four light-years. */
+.proxima__chair {
+  left: 50%;
+  bottom: var(--ground);
+  width: 22px;
+  height: 26px;
+  margin-left: 54px;
+  background: var(--n5);
+  box-shadow: inset 0 -14px 0 0 var(--n3), 0 0 0 var(--rule) var(--n2);
+  transform: translateY(-14px);
+}
+
+.proxima[data-art='flag'] .proxima__chair,
+.proxima[data-art='open'] .proxima__chair,
+.proxima[data-art='standup'] .proxima__chair {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.proxima__flag {
+  left: 50%;
+  bottom: calc(var(--ground) + 34px);
+  margin-left: 44px;
+  padding: 3px 6px;
+  background: var(--calm-2, #35c9d9);
+  color: var(--n0);
+  font-size: var(--type-1x);
+  letter-spacing: 0.08em;
+  transform: translateY(10px) rotate(-4deg);
+}
+
+.proxima[data-art='flag'] .proxima__flag,
+.proxima[data-art='open'] .proxima__flag,
+.proxima[data-art='standup'] .proxima__flag {
+  opacity: 1;
+  transform: translateY(0) rotate(-4deg);
+}
+
+/* --- the captions ------------------------------------------------------- */
+
+.proxima__caption {
+  padding: 0 var(--edge-x) 4px;
+  min-height: 64px;
+  text-align: center;
+}
+
+.proxima__os,
+.proxima__says {
+  margin: 0 0 4px;
+  font-size: var(--type-1x);
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+}
+
+/* The machine's register, unchanged from every other place it speaks. */
+.proxima__os {
+  color: var(--p2);
+}
+
+.proxima__says {
+  color: var(--n8);
+}
+
+.proxima__who {
+  margin-right: 8px;
+  color: var(--calm-2, #35c9d9);
+}
+
+.proxima__skip {
+  margin: 0 0 var(--edge-y);
+  text-align: center;
+  font-size: var(--type-1x);
+  letter-spacing: 0.12em;
+  color: var(--n4);
+}

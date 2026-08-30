@@ -77,7 +77,9 @@ export function spawnBurst(before: number, after: number): number {
  */
 export function cohortSize(devs: number): number {
   if (!Number.isFinite(devs)) return 1
-  return rungFor(devs).unitSize
+  // The *drawn* rung: one on-screen unit is a world at every headcount past
+  // §13.5's gate, because that is what the network puts on screen.
+  return drawnRungFor(devs).unitSize
 }
 
 /** How many units actually stand on the floor at this headcount. */
@@ -91,8 +93,15 @@ export function visibleSprites(devs: number): number {
  *
  * The studio grows the way a city grows. First you fill a floor with people;
  * then you stop adding people and start adding *floors*, then buildings,
- * campuses, towns, nations, planets, galaxies. At every rung the player is
- * still watching something physically arrive — it is just a bigger thing.
+ * campuses, sites, worlds, systems, galaxies. At every rung the player is still
+ * watching something physically arrive — it is just a bigger thing.
+ *
+ * **The table runs two rungs past what the lens draws, and that is deliberate**
+ * (§7.7.1a). Rungs 8 and 9 are not pictures — §7.4a's ladder stops at the
+ * network — but they are still the top two tiers of §13.6.1's hero reach, whose
+ * ladder is *derived* from this table rather than written down a second time.
+ * {@link DRAWN_RUNG_LIMIT} is where the pictures stop; this is where the
+ * vocabulary does.
  *
  * `unit` is what one arrival *is*, and it is the noun the §7.7.2 construction
  * gag animates: a floor is slapped onto the tower, a building slams down beside
@@ -108,7 +117,14 @@ export const RUNGS = [
   { rung: 4, upTo: 1e5, unit: 'building', unitSize: 1e4, place: 'a block' },
   { rung: 5, upTo: 1e6, unit: 'campus', unitSize: 1e5, place: 'a business park' },
   { rung: 6, upTo: 1e8, unit: 'site', unitSize: 1e6, place: 'a planet filling with campuses' },
-  { rung: 7, upTo: 1e10, unit: 'nation', unitSize: 1e8, place: 'a continent, lit at night' },
+  // **§7.7.1a — rung 7 is a world, not a nation.** The unit was 'nation' with a
+  // continent lit at night behind it, on the assumption that 10^8 developers
+  // still fit on Earth. `frames.globeRadius` then made that assumption false by
+  // deriving it away: a hundred parks of a million *tile the sphere*, so at 10^8
+  // the planet is full and the thing that arrives next is another planet. The
+  // size never moved — 10^8 is what one world holds either way — only the noun,
+  // and the noun is what the HUD says out loud.
+  { rung: 7, upTo: 1e10, unit: 'world', unitSize: 1e8, place: 'a network of stars' },
   { rung: 8, upTo: 1e13, unit: 'planet', unitSize: 1e10, place: 'a system' },
   { rung: 9, upTo: Number.POSITIVE_INFINITY, unit: 'galaxy', unitSize: 1e13, place: 'a cluster' },
 ] as const
@@ -120,6 +136,29 @@ export type Rung = (typeof RUNGS)[number]
  * happens here. Nothing above is allowed to make this stop being true.
  */
 export const LITERAL_RUNG_LIMIT = 2
+
+/**
+ * The highest rung the lens actually draws — §7.4a's eighth stop, §7.7.1a.
+ *
+ * The table above runs to rung 9 because §13.6.1's hero reach is derived from
+ * it, but the *camera* stops at the galactic network and the network's unit is
+ * a **world**. Above 10¹⁰ developers that difference was a visible lie: §7.7.5's
+ * scale bar read **"1 PLANET = 10.0 B DEVS"** over a picture of planets holding
+ * a hundred million each, which is exactly the defect the town-to-site and
+ * nation-to-world renames closed one rung down. A picture whose units silently
+ * changed is a lie; a unit the picture does not contain is a louder one.
+ *
+ * So the bar and the cohort name **what is on screen**, and what is on screen
+ * is a world however many of them there are. The network does not saturate, so
+ * this is a ceiling on the *noun*, not on the studio.
+ */
+export const DRAWN_RUNG_LIMIT = 7
+
+/** The rung the lens is drawing at this headcount — {@link DRAWN_RUNG_LIMIT}. */
+export function drawnRungFor(devs: number): Rung {
+  const rung = rungFor(devs)
+  return rung.rung <= DRAWN_RUNG_LIMIT ? rung : RUNGS[DRAWN_RUNG_LIMIT]
+}
 
 /** Which rung of §7.7.1 a headcount sits on. */
 export function rungFor(devs: number): Rung {
@@ -216,7 +255,7 @@ export function formatCount(n: number): string {
  * been misled by their own game.
  */
 export function scaleBar(devs: number): string | null {
-  const rung = rungFor(devs)
+  const rung = drawnRungFor(devs)
   // Silent while one unit is one person: "1 PERSON = 1 DEVS" is noise.
   if (rung.unitSize <= 1) return null
   return `1 ${rung.unit.toUpperCase()} = ${formatCount(rung.unitSize)} DEVS`

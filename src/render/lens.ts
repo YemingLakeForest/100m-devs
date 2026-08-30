@@ -31,6 +31,7 @@ import {
   BUILDING,
   DESK,
   FLOOR,
+  GALAXY,
   GLOBE,
   PARK,
   TOP_LEVEL,
@@ -39,7 +40,9 @@ import {
   fitScaleFor,
   floorFrame,
   floorToPark,
-  globeFrame,
+  galaxyFrame,
+  globeToGalaxy,
+  intoGalaxy,
   intoGlobe,
   frameFor,
   intoParcel,
@@ -104,20 +107,28 @@ export function panBounds(
   buildings = 1,
   blocks = 1,
   sites = 1,
+  worlds = 1,
 ): Rect {
   const block = blockOf(seat)
   const plot = plotOf(buildingOf(seat))
   if (level < FLOOR + 0.5) {
-    return intoGlobe(intoParcel(intoPlot(intoPlate(floorFrame(), storeyOf(seat)), plot), block))
+    return intoGalaxy(
+      intoGlobe(intoParcel(intoPlot(intoPlate(floorFrame(), storeyOf(seat)), plot), block)),
+    )
   }
   // Between the floor and the block it is the building you are in: you may look
   // anywhere on your own tower and no further, for the same reason the floor
   // holds you to your own storey. Then the block, then the park, then the
-  // planet - which is the last of them, because there is nowhere left to roam.
-  if (level < BLOCK - 0.5) return frameFor(BUILDING, seat, storeys, buildings, blocks, sites)
-  if (level < PARK - 0.5) return frameFor(BLOCK, seat, storeys, buildings, blocks, sites)
-  if (level < GLOBE - 0.5) return frameFor(PARK, seat, storeys, buildings, blocks, sites)
-  return globeFrame(sites, storeys, buildings, blocks)
+  // planet, and then the network — which is the last of them, because there is
+  // nowhere left to roam. The neighbourhood is a fixed frame
+  // (`WORLDS_FRAMED`), so a drag at the top rung is a rotation rather than a
+  // pan, and `stage.ts` routes it that way before it ever reaches here.
+  const at = (l: Level) => frameFor(l, seat, storeys, buildings, blocks, sites, worlds)
+  if (level < BLOCK - 0.5) return at(BUILDING)
+  if (level < PARK - 0.5) return at(BLOCK)
+  if (level < GLOBE - 0.5) return at(PARK)
+  if (level < GALAXY - 0.5) return at(GLOBE)
+  return galaxyFrame(worlds, sites, storeys, buildings, blocks)
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -208,6 +219,8 @@ export class Lens {
   private blocks = 1
   /** How many sites the studio has settled. Only the globe's own frame needs it. */
   private sites = 1
+  /** How many worlds the studio has settled. Only the network's own frame needs it. */
+  private worlds = 1
 
   private _scale = 1
   private _cx = 0
@@ -375,18 +388,27 @@ export class Lens {
    * camera; instead the scale is preserved and only the centre follows, which
    * reads as the building opening at a different floor rather than as a cut.
    */
-  setAddress(seat: number, storeys: number, buildings = 1, blocks = 1, sites = 1): void {
+  setAddress(
+    seat: number,
+    storeys: number,
+    buildings = 1,
+    blocks = 1,
+    sites = 1,
+    worlds = 1,
+  ): void {
     const nextSeat = Math.max(0, Math.floor(Number.isFinite(seat) ? seat : 0))
     const nextStoreys = Math.max(1, Math.floor(Number.isFinite(storeys) ? storeys : 1))
     const nextBuildings = Math.max(1, Math.floor(Number.isFinite(buildings) ? buildings : 1))
     const nextBlocks = Math.max(1, Math.floor(Number.isFinite(blocks) ? blocks : 1))
     const nextSites = Math.max(1, Math.floor(Number.isFinite(sites) ? sites : 1))
+    const nextWorlds = Math.max(1, Math.floor(Number.isFinite(worlds) ? worlds : 1))
     if (
       nextSeat === this.seat &&
       nextStoreys === this.storeys &&
       nextBuildings === this.buildings &&
       nextBlocks === this.blocks &&
-      nextSites === this.sites
+      nextSites === this.sites &&
+      nextWorlds === this.worlds
     ) {
       return
     }
@@ -405,11 +427,20 @@ export class Lens {
     this.buildings = nextBuildings
     this.blocks = nextBlocks
     this.sites = nextSites
+    this.worlds = nextWorlds
     this.dirty = true
     if (moved && !this.commanded) {
       // Follow the focus without changing how close in we are.
       const here = settleLevel(this.level)
-      const frame = frameFor(here, this.seat, this.storeys, this.buildings, this.blocks, this.sites)
+      const frame = frameFor(
+        here,
+        this.seat,
+        this.storeys,
+        this.buildings,
+        this.blocks,
+        this.sites,
+        this.worlds,
+      )
       this._cx = frame.cx
       this._cy = frame.cy
     }
@@ -431,6 +462,7 @@ export class Lens {
       this.buildings,
       this.blocks,
       this.sites,
+      this.worlds,
     )
     if (this.floorRect) base[FLOOR] = fitScaleFor(this.frameOf(FLOOR), this.viewport)
     // The garage is a rectangle that grows and it does not respect the nesting
@@ -517,7 +549,15 @@ export class Lens {
   frameOf(level: Level): Rect {
     const room = this.floorRect ? this.roomFrame(this.floorRect) : null
     if (level === FLOOR && room) return room
-    const own = frameFor(level, this.seat, this.storeys, this.buildings, this.blocks, this.sites)
+    const own = frameFor(
+      level,
+      this.seat,
+      this.storeys,
+      this.buildings,
+      this.blocks,
+      this.sites,
+      this.worlds,
+    )
     if (!room || level > FLOOR) return own
     // A frame that holds *more* than the room fits at a smaller scale than the
     // room does. That is the crossing `nestScales` collapses.
@@ -532,18 +572,22 @@ export class Lens {
    * is assembled by hand at every call site is trap 38 waiting to happen.
    */
   private roomFrame(rect: Rect): Rect {
-    return intoGlobe(
-      intoParcel(
-        intoPlot(intoPlate(rect, storeyOf(this.seat)), plotOf(buildingOf(this.seat))),
-        blockOf(this.seat),
+    return intoGalaxy(
+      intoGlobe(
+        intoParcel(
+          intoPlot(intoPlate(rect, storeyOf(this.seat)), plotOf(buildingOf(this.seat))),
+          blockOf(this.seat),
+        ),
       ),
     )
   }
 
   /** A point on the focused floor, in the camera's own space. */
   private floorPointToWorld(p: { x: number; y: number }): { x: number; y: number } {
-    return parkToGlobe(
-      floorToPark(p, storeyOf(this.seat), plotOf(buildingOf(this.seat)), blockOf(this.seat)),
+    return globeToGalaxy(
+      parkToGlobe(
+        floorToPark(p, storeyOf(this.seat), plotOf(buildingOf(this.seat)), blockOf(this.seat)),
+      ),
     )
   }
 
@@ -700,7 +744,15 @@ export class Lens {
   /** What the camera may roam over — the floor it is in, or the building. */
   private bounds(): Rect {
     if (this.level < FLOOR + 0.5 && this.floorRect) return this.roomFrame(this.floorRect)
-    return panBounds(this.level, this.seat, this.storeys, this.buildings, this.blocks, this.sites)
+    return panBounds(
+      this.level,
+      this.seat,
+      this.storeys,
+      this.buildings,
+      this.blocks,
+      this.sites,
+      this.worlds,
+    )
   }
 
   panBy(dx: number, dy: number, now: number): void {

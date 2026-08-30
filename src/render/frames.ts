@@ -70,6 +70,7 @@ import {
   seatGrid,
 } from './room.ts'
 import { PERSPECTIVE_CENTRE_SCALE, SITES_PER_GLOBE } from './worldMap.ts'
+import { PROXIMA_LY } from '../sim/starfield.ts'
 
 /** The levels, innermost first. Continuous positions between them are legal. */
 export const DESK = 0
@@ -79,9 +80,53 @@ export const BUILDING = 3
 export const BLOCK = 4
 export const PARK = 5
 export const GLOBE = 6
-export type Level = 0 | 1 | 2 | 3 | 4 | 5 | 6
+/**
+ * Rung 7 — the galactic network. GDD §7.7.1a.
+ *
+ * The seventh level, and the first one that is **not a bigger version of the
+ * level below it**. Every division from the plate to the globe puts more of the
+ * same kind of thing in frame; this one puts more *planets* in frame, and the
+ * planet was already declared full at exactly a hundred million by the tiling
+ * (see {@link globeRadius}). There was nowhere left to put a desk, so the ladder
+ * went to the next star.
+ *
+ * Costed exactly like the three before it and the fourth time that claim has
+ * been paid: **one division, one new `TOP_LEVEL`, and no LOD threshold moved.**
+ */
+export const GALAXY = 7
+export type Level = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-export const LEVELS: readonly Level[] = [DESK, SQUAD, FLOOR, BUILDING, BLOCK, PARK, GLOBE]
+/**
+ * How many worlds the galaxy frame holds — **the neighbourhood, not the galaxy.**
+ *
+ * Every level below this one saturates at the thing it fills: ten storeys, ten
+ * plots, a hundred sites. Rung 7 does not, because `starfield.ts` generates
+ * stars from an index and there is no last one. A frame fitted to *all* of them
+ * would therefore grow without bound, and at a modest 10^13 developers the
+ * hundred thousand worlds nearest the camera would already be inside one pixel:
+ * a picture of a number rather than a picture of a place.
+ *
+ * So the top frame is a **fixed volume of sky** and the studio is how full it
+ * is. Travelling is done by entering a node, which recentres the neighbourhood
+ * — the same move descending into a site makes one rung down, and the same
+ * reason: a neighbourhood is only ever a neighbourhood of somewhere.
+ *
+ * Sixteen rather than ten, and that is the disc paying for itself. Ten units to
+ * a rung is a *stack* — ten storeys, ten plots in two rows — and a disc of ten
+ * nodes with the gaps a star field needs reads as almost empty.
+ */
+export const WORLDS_FRAMED = 16
+
+export const LEVELS: readonly Level[] = [
+  DESK,
+  SQUAD,
+  FLOOR,
+  BUILDING,
+  BLOCK,
+  PARK,
+  GLOBE,
+  GALAXY,
+]
 
 /**
  * What each level is called, for the breadcrumb and the debug snapshot.
@@ -99,10 +144,17 @@ export const LEVEL_NAMES: Record<Level, string> = {
   4: 'BLOCK',
   5: 'PARK',
   6: 'GLOBE',
+  7: 'GALAXY',
 }
-export const TOP_LEVEL = GLOBE
+export const TOP_LEVEL = GALAXY
 
-/** How many developers one unit at each level holds. */
+/**
+ * How many developers one unit at each level holds.
+ *
+ * The galaxy's entry is **the neighbourhood**, not the galaxy: `WORLDS_FRAMED`
+ * planets of a hundred million. There is no number that means "one galaxy",
+ * because §7.7.1a's rung does not saturate — see {@link WORLDS_FRAMED}.
+ */
 export const LEVEL_DEVS: readonly number[] = [
   1,
   SQUAD_SIZE,
@@ -111,6 +163,7 @@ export const LEVEL_DEVS: readonly number[] = [
   ROOM_DEV_CAP * 100,
   ROOM_DEV_CAP * 1000,
   ROOM_DEV_CAP * 1000 * SITES_PER_GLOBE,
+  ROOM_DEV_CAP * 1000 * SITES_PER_GLOBE * WORLDS_FRAMED,
 ]
 
 /** §7.7.1's floor, and the room's own cap — the same thousand, by construction. */
@@ -1925,6 +1978,165 @@ export function globeChromeAlpha(level: number): number {
 }
 
 // ---------------------------------------------------------------------------
+// Level 7 — the galactic network
+// ---------------------------------------------------------------------------
+
+/**
+ * How much smaller a planet is when it is one node of the network.
+ *
+ * The fifth nesting constant, and it is **two** like the four before it, for
+ * {@link PARK_DIVISOR}'s reason: keeping every space within an order of
+ * magnitude of its neighbours is what makes a stray coordinate obviously stray.
+ */
+export const GALAXY_DIVISOR = 2
+export const GALAXY_SCALE = 1 / GALAXY_DIVISOR
+
+/**
+ * How far apart two neighbouring worlds are drawn, in node radii.
+ *
+ * **The one number this rung cannot derive, and the one it cannot fake.** A
+ * node has to be exactly the size of the planet inside it — that is what makes
+ * the hand-off at {@link galaxyChromeAlpha}'s band a swap rather than a
+ * cross-fade between two sizes, which is the artefact §10.5 forbids — so the
+ * node is fixed and the *spacing* is the free variable.
+ *
+ * It cannot be the true spacing. Real stars sit about four light-years apart
+ * and a planet is some 10⁻⁴ of that, so a network drawn to scale is an empty
+ * black frame with nothing measurable in it. {@link DISC_THICKNESS} in
+ * `starfield.ts` makes the same trade and gives the same reason: **the
+ * projection is a drawing, not a measurement.**
+ *
+ * Three, so a world's surface clears its neighbour's by a full radius. Below
+ * about 2.4 the discs touch and the field reads as foam; above about four the
+ * links get long enough that the network stops looking connected.
+ */
+export const NODE_PITCH = 3
+
+/**
+ * How far the galaxy frame reaches, in units of one world's own radius.
+ *
+ * **Derived**, from the pitch and the count: {@link WORLDS_FRAMED} worlds at
+ * {@link NODE_PITCH} apiece fill a disc of radius `PITCH·√WORLDS_FRAMED`,
+ * because a count that fills an area goes as the square of the radius.
+ *
+ * What it costs is the one place this rung is not like the rungs below it. They
+ * step out by about ×6.9 apiece and this steps out by twelve, and the reason is
+ * worth stating rather than hiding: below the globe a unit is a **footprint on
+ * the ground**, tiled edge to edge, and here it is a **body in a volume** with
+ * four light-years of nothing around it. The packing changed, so the step did.
+ * A ×12 rung is still one gesture; the ×50 the true spacing would have wanted
+ * is not.
+ */
+export const GALAXY_REACH = NODE_PITCH * Math.sqrt(WORLDS_FRAMED)
+
+/** One world's projected radius, in galaxy space — the globe, one division out. */
+export function nodeRadius(): number {
+  return globeRadius() * GALAXY_SCALE
+}
+
+/**
+ * The neighbourhood's projected radius, in galaxy space.
+ *
+ * Constant, because {@link WORLDS_FRAMED} is. See its note for why the top of
+ * an unbounded ladder has to be a fixed frame rather than a growing one.
+ */
+export function galaxyRadius(): number {
+  return nodeRadius() * GALAXY_REACH
+}
+
+/**
+ * Galaxy-space units per light-year — **derived, not chosen.**
+ *
+ * `starfield.ts` places worlds at a uniform areal density of one per
+ * `π·PROXIMA_LY²`, so a disc holding {@link WORLDS_FRAMED} of them has radius
+ * `PROXIMA_LY·√WORLDS_FRAMED` light-years. That disc is the frame, and the
+ * frame's radius in this space is {@link galaxyRadius}. One division and there
+ * is no tuning knob in it: change the step or the count and the scale follows.
+ */
+export function galaxyPerLy(): number {
+  return galaxyRadius() / (PROXIMA_LY * Math.sqrt(WORLDS_FRAMED))
+}
+
+/**
+ * Where the network's focused node sits, in galaxy space.
+ *
+ * {@link globeOrigin} one division out, for exactly {@link intoGalaxy}'s
+ * reason: the chain below is a pure scale about the origin, so the planet the
+ * address is on has to be drawn at the point that scale carries the globe to.
+ * `galaxy.ts` positions its layers here and the focused star projects to
+ * (0, 0) of them, which is what makes the globe and its node the same object.
+ */
+export function galaxyOrigin(): { x: number; y: number } {
+  const at = globeOrigin()
+  return { x: at.x * GALAXY_SCALE, y: at.y * GALAXY_SCALE }
+}
+
+/**
+ * Map a globe-space rectangle into galaxy space.
+ *
+ * A pure scale about the origin, exactly like the four before it, and — like
+ * {@link intoGlobe} — with no index in it: the network is turned so the world
+ * the address is on is the one facing the camera, and every other world is
+ * somewhere `galaxy.ts` works out.
+ */
+export function intoGalaxy(rect: Rect): Rect {
+  return {
+    cx: rect.cx * GALAXY_SCALE,
+    cy: rect.cy * GALAXY_SCALE,
+    w: rect.w * GALAXY_SCALE,
+    h: rect.h * GALAXY_SCALE,
+  }
+}
+
+/** A globe-space point, in galaxy space. */
+export function globeToGalaxy(p: { x: number; y: number }): { x: number; y: number } {
+  return { x: p.x * GALAXY_SCALE, y: p.y * GALAXY_SCALE }
+}
+
+/** The inverse — a galaxy-space point, in the focused world's globe space. */
+export function galaxyToGlobe(p: { x: number; y: number }): { x: number; y: number } {
+  return { x: p.x / GALAXY_SCALE, y: p.y / GALAXY_SCALE }
+}
+
+/**
+ * The frame rung 7 names — the neighbourhood, in galaxy space.
+ *
+ * A square, for {@link globeFrame}'s reason one rung down: what is in it is a
+ * cloud, and a cloud's silhouette is a circle however it is turned.
+ *
+ * A network of one world *is* that world — the same collapse `globeFrame` makes
+ * for one site and `parkFrame` for one block, and the reason a studio that has
+ * never left Sol has seven rungs rather than eight.
+ */
+export function galaxyFrame(
+  worlds: number,
+  sites: number,
+  storeys: number,
+  buildings: number,
+  blocks: number,
+): Rect {
+  const n = Math.max(1, Math.floor(Number.isFinite(worlds) ? worlds : 1))
+  if (n <= 1) return intoGalaxy(globeFrame(sites, storeys, buildings, blocks))
+  const at = galaxyOrigin()
+  const r = galaxyRadius()
+  return { cx: at.x, cy: at.y, w: 2 * r, h: 2 * r }
+}
+
+/**
+ * How much of a world's own detail is worth drawing, by level.
+ *
+ * {@link globeChromeAlpha} one rung up, and the same hand-off: the planet's
+ * surface fades out across the band below the network as the node's own mark
+ * takes over at the same place and the same size. Two pictures of one object at
+ * different sizes is what §10.5 forbids; these are the same size by
+ * construction, because {@link intoGalaxy} is the scale the globe host is
+ * already carrying.
+ */
+export function galaxyChromeAlpha(level: number): number {
+  return chromeAlpha(level, GLOBE)
+}
+
+// ---------------------------------------------------------------------------
 // Outlines and picking
 // ---------------------------------------------------------------------------
 
@@ -2060,17 +2272,60 @@ export function storeyAtBuilding(x: number, y: number, storeys: number, focus: n
  */
 function seatIn(seat: number): number {
   const s = Math.max(0, Math.floor(Number.isFinite(seat) ? seat : 0))
-  return Math.min(GLOBE_CAP - 1, s)
+  // **No longer clamped to one planet** — §7.7.1a. The address now walks a
+  // network of worlds, so the only ceiling left is arithmetic: past
+  // `MAX_SAFE_INTEGER` a seat number stops being a seat number and starts being
+  // a nearby double, and `siteOf` would answer with somebody else's continent.
+  // Ninety million worlds of a hundred million people each is where that bites,
+  // which is 9×10^15 developers and a long way past anything §16 asks for.
+  return Math.min(Number.MAX_SAFE_INTEGER, s)
 }
 
-/** Which site of the planet holds a global seat - 0 to 99. */
+/**
+ * Which world of the network holds a global seat.
+ *
+ * Unbounded, unlike every other part of the address, and that is
+ * {@link WORLDS_FRAMED}'s point restated: the rungs below divide a fixed thing
+ * into a fixed number of pieces, and this one counts.
+ */
+export function worldOf(seat: number): number {
+  return Math.floor(seatIn(seat) / GLOBE_CAP)
+}
+
+/** The first seat of a world — where descending into a node lands. */
+export function seatOfWorld(world: number): number {
+  return Math.max(0, Math.floor(Number.isFinite(world) ? world : 0)) * GLOBE_CAP
+}
+
+/**
+ * Which site of its own planet holds a global seat — 0 to 99.
+ *
+ * **Local to the world**, and the modulo is the one place the seventh level
+ * changed the meaning of an existing function rather than adding beside it.
+ * The reason is {@link storeyOf}'s, one rung up: a site is only ever a site of
+ * a planet, and every caller that draws or picks one wants the local reading.
+ * The global reading is `worldOf(seat) * SITES_PER_GLOBE + siteOf(seat)`, and
+ * nothing wants it.
+ */
 export function siteOf(seat: number): number {
-  return Math.floor(seatIn(seat) / PARK_CAP)
+  return Math.floor(seatIn(seat) / PARK_CAP) % SITES_PER_GLOBE
 }
 
-/** The first seat of a site - where descending into one lands. */
-export function seatOfSite(site: number): number {
-  return Math.max(0, Math.min(SITES_PER_GLOBE - 1, Math.floor(site))) * PARK_CAP
+/**
+ * The first seat of a site of a world — where descending into one lands.
+ *
+ * **`world` is not optional**, and that is trap 52a paid off a third time. A
+ * default of "the first one" would make every existing call site quietly mean
+ * *Sol* the moment there were two planets — the same silent opt-in that once
+ * moved a floor of building 8 into building 1, and that would here teleport the
+ * camera between star systems. Three call sites and a compiler error each is
+ * the cheap way to find out.
+ */
+export function seatOfSite(site: number, world: number): number {
+  return (
+    seatOfWorld(world) +
+    Math.max(0, Math.min(SITES_PER_GLOBE - 1, Math.floor(site))) * PARK_CAP
+  )
 }
 
 /**
@@ -2119,16 +2374,17 @@ export function storeyOf(seat: number): number {
  * into building 1. Four call sites and a compiler error each is the cheap way to
  * find out; a studio that teleports to the wrong continent is the other one.
  */
-export function seatOfBlock(block: number, site: number): number {
+export function seatOfBlock(block: number, site: number, world: number): number {
   return (
-    seatOfSite(site) + Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block))) * BLOCK_CAP
+    seatOfSite(site, world) +
+    Math.max(0, Math.min(BLOCKS_PER_PARK - 1, Math.floor(block))) * BLOCK_CAP
   )
 }
 
 /** The first seat of a building of a site — {@link seatOfBlock}'s rule about `site`. */
-export function seatOfBuilding(building: number, site: number): number {
+export function seatOfBuilding(building: number, site: number, world: number): number {
   return (
-    seatOfSite(site) +
+    seatOfSite(site, world) +
     Math.max(0, Math.min(BUILDINGS_PER_PARK - 1, Math.floor(building))) * BUILDING_CAP
   )
 }
@@ -2150,8 +2406,8 @@ export function buildingAt(plot: number, block: number): number {
 }
 
 /** The first seat of one plot of one block — the same building, said the other way. */
-export function seatOfPlot(plot: number, block: number, site: number): number {
-  return seatOfBuilding(buildingAt(plot, block), site)
+export function seatOfPlot(plot: number, block: number, site: number, world: number): number {
+  return seatOfBuilding(buildingAt(plot, block), site, world)
 }
 
 /**
@@ -2164,9 +2420,14 @@ export function seatOfPlot(plot: number, block: number, site: number): number {
  * loaded gun pointed at the one caller who forgets. {@link seatOfBlock} has the
  * argument in full.
  */
-export function seatOfStorey(storey: number, building: number, site: number): number {
+export function seatOfStorey(
+  storey: number,
+  building: number,
+  site: number,
+  world: number,
+): number {
   const f = Math.max(0, Math.min(FLOORS_PER_BUILDING - 1, Math.floor(storey)))
-  return seatOfBuilding(building, site) + f * DEVS_PER_FLOOR
+  return seatOfBuilding(building, site, world) + f * DEVS_PER_FLOOR
 }
 
 /** Which of the floor's ten squads a global seat is in. */
@@ -2181,8 +2442,9 @@ export function seatOfSquad(
   squad: number,
   building: number,
   site: number,
+  world: number,
 ): number {
-  return seatOfStorey(storey, building, site) + Math.max(0, Math.floor(squad)) * SQUAD_SIZE
+  return seatOfStorey(storey, building, site, world) + Math.max(0, Math.floor(squad)) * SQUAD_SIZE
 }
 
 /**
@@ -2285,32 +2547,43 @@ export function frameFor(
   buildings = 1,
   blocks = 1,
   sites = 1,
+  worlds = 1,
 ): Rect {
+  // The network is the only frame that is not inside a world, because it *is*
+  // the worlds - the same sentence the globe earned one rung down, and the
+  // reason both of them are the first line rather than the last.
+  if (level === GALAXY) return galaxyFrame(worlds, sites, storeys, buildings, blocks)
+
   // The globe is the only frame that is not inside a site, because it *is* the
   // sites - the same sentence the park earned one rung down, and the reason
   // both of them are the first line rather than the last.
-  if (level === GLOBE) return globeFrame(sites, storeys, buildings, blocks)
+  if (level === GLOBE) return intoGalaxy(globeFrame(sites, storeys, buildings, blocks))
 
   const block = blockOf(seat)
   const plot = plotOf(buildingOf(seat))
   // Everything below the globe gains exactly one more division, which is the
-  // whole cost of the sixth level and the third time that claim has been paid.
-  if (level === PARK) return intoGlobe(parkFrame(blocks, storeys, buildings))
+  // whole cost of the seventh level and the fourth time that claim has been
+  // paid.
+  if (level === PARK) return intoGalaxy(intoGlobe(parkFrame(blocks, storeys, buildings)))
 
   // The tallest tower, which the frame spans: buildings fill in order, so the
   // moment there are two of them the first is full and `storeys` is whichever
   // building the address is in rather than the highest one.
-  if (level === BLOCK) return intoGlobe(intoParcel(ownBlockFrame(storeys, buildings), block))
+  if (level === BLOCK) {
+    return intoGalaxy(intoGlobe(intoParcel(ownBlockFrame(storeys, buildings), block)))
+  }
 
   const focus = storeyOf(seat)
   if (level === BUILDING) {
-    return intoGlobe(intoParcel(intoPlot(buildingFrame(storeys, focus), plot), block))
+    return intoGalaxy(
+      intoGlobe(intoParcel(intoPlot(buildingFrame(storeys, focus), plot), block)),
+    )
   }
 
   const local = Math.max(0, Math.floor(seat)) % DEVS_PER_FLOOR
   const inner =
     level === FLOOR ? floorFrame() : level === SQUAD ? squadFrame(seatFor(local).squad) : deskFrame(local)
-  return intoGlobe(intoParcel(intoPlot(intoPlate(inner, focus), plot), block))
+  return intoGalaxy(intoGlobe(intoParcel(intoPlot(intoPlate(inner, focus), plot), block)))
 }
 
 /** A floor-space point, in building space, through plate `focus`. */
@@ -2378,15 +2651,19 @@ export function levelScales(
   buildings = 1,
   blocks = 1,
   sites = 1,
+  worlds = 1,
 ): Record<Level, number> {
+  const at = (level: Level) =>
+    fitScaleFor(frameFor(level, seat, storeys, buildings, blocks, sites, worlds), viewport)
   return nestScales({
-    0: fitScaleFor(frameFor(DESK, seat, storeys, buildings, blocks, sites), viewport),
-    1: fitScaleFor(frameFor(SQUAD, seat, storeys, buildings, blocks, sites), viewport),
-    2: fitScaleFor(frameFor(FLOOR, seat, storeys, buildings, blocks, sites), viewport),
-    3: fitScaleFor(frameFor(BUILDING, seat, storeys, buildings, blocks, sites), viewport),
-    4: fitScaleFor(frameFor(BLOCK, seat, storeys, buildings, blocks, sites), viewport),
-    5: fitScaleFor(frameFor(PARK, seat, storeys, buildings, blocks, sites), viewport),
-    6: fitScaleFor(frameFor(GLOBE, seat, storeys, buildings, blocks, sites), viewport),
+    0: at(DESK),
+    1: at(SQUAD),
+    2: at(FLOOR),
+    3: at(BUILDING),
+    4: at(BLOCK),
+    5: at(PARK),
+    6: at(GLOBE),
+    7: at(GALAXY),
   })
 }
 
@@ -2488,7 +2765,7 @@ export function scaleAtLevel(level: number, scales: Record<Level, number>): numb
  * unchanged; only this line knows there is another division in the chain.
  */
 export function floorScaleAt(cameraScale: number): number {
-  return cameraScale * PLATE_SCALE * BLOCK_SCALE * PARK_SCALE * GLOBE_SCALE
+  return cameraScale * PLATE_SCALE * BLOCK_SCALE * PARK_SCALE * GLOBE_SCALE * GALAXY_SCALE
 }
 
 /**

@@ -36,7 +36,7 @@ export type UnitKind =
   | 'building'
   | 'campus'
   | 'site'
-  | 'nation'
+  | 'world'
   | 'planet'
   | 'galaxy'
 
@@ -66,7 +66,14 @@ export const UNIT_KINDS: readonly UnitKind[] = [
   // said it was. Only the word changed, and it is a word the HUD says out loud:
   // a hero placed at this rung read `TOWN 3` over a picture of a world.
   'site',
-  'nation',
+  // **A world, and not §7.7.1's nation.** §7.7.1a spends rung 7 on the galactic
+  // network, so the thing that arrives at 10^8 is a *whole planet* — which is
+  // exactly what `BAND_FLOOR[7]` already said it was, and exactly what
+  // `frames.GLOBE_CAP` derives from the tiling. Only the word changed, and it
+  // is a word the HUD says out loud: a hero placed at this rung read
+  // `NATION 3` over a picture of a star field, which is the same defect the
+  // town-to-site rename fixed one rung down.
+  'world',
   'planet',
   'galaxy',
 ]

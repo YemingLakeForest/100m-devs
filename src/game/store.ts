@@ -146,6 +146,8 @@ import {
 import { JAMES_SEAT } from '../sim/identity.ts'
 import { jamesRefusal } from './chatter.ts'
 import { LITERAL_RUNG_LIMIT, rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
+import { WORLD_CAP, worldsFor } from '../sim/starfield.ts'
+import { interstellarSync, meanLagLy } from '../sim/starbound.ts'
 import { SnippetBag } from './snippets.ts'
 import {
   INITIAL_TOUCH_MODE,
@@ -165,6 +167,7 @@ import {
   SCENE_FOUNDER_BOARD,
   SCENE_HERO_BOARD,
   SCENE_JAMES_PROMOTED,
+  SCENE_JAMES_PROXIMA,
   SCENE_MATT_ARRIVES,
   SCENE_MELANY_ARRIVES,
   SCENE_MO_ARRIVES,
@@ -842,6 +845,21 @@ export interface GameState {
   pendingShift: ShiftReport | null
 
   /**
+   * §21.8 — the launch is on screen.
+   *
+   * Set when {@link SCENE_JAMES_PROXIMA} is tapped through and cleared when the
+   * nine shots have played. A flag rather than a report, because unlike
+   * §15.1a's reboot there is nothing to account for: the scene is the argument
+   * and the sequence is the consequence, and neither of them reads a number.
+   *
+   * Run state and **deliberately absent from `RunSave`**, on `pendingShift`'s
+   * rule: a reload mid-interstitial should put the player in their studio, not
+   * replay a cut scene about a thing that has already happened. The permanent
+   * `milestones` union is what remembers it happened.
+   */
+  pendingLaunch: boolean
+
+  /**
    * §11 — levels bought in the in-run tech tree, by node id.
    *
    * In the *run* block rather than the permanent one because §13.2 says a
@@ -1014,6 +1032,7 @@ function freshRun(): GameState {
     history: emptyHistory(),
     // §15.1a — nothing to account for until a shift happens.
     pendingShift: null,
+    pendingLaunch: false,
     tech: {},
     runSeconds: 0,
     projectSeconds: 0,
@@ -1253,7 +1272,64 @@ export function inMeeting(s: GameState = state): boolean {
  */
 function foldedEfficiency(s: GameState): number {
   const raw = efficiency(s.devs, effectiveDevCap(s))
-  return 1 - (1 - raw) * s.heroFold.entropy
+  // §16 — and the light-lag, which is §4.1 again in the one unit the galaxy
+  // introduces. It is exactly 1 while the studio is on one world, so nothing
+  // below §13.5's gate can feel it and no balance below the gate moved.
+  return (1 - (1 - raw) * s.heroFold.entropy) * interstellarSync(worldsFor(s.devs), relayTier(s))
+}
+
+/**
+ * §16 — how far the studio's own comm tech carries a signal, as a relay tier.
+ *
+ * **Derived from `D_cap`, not sold on a board.** The thing §11's tree buys is
+ * *how many people can work together before the talking eats the work*, and at
+ * interstellar distance that is the identical problem with light in it. So the
+ * reach the player has is the capacity the player has earned, measured in
+ * decades above one full planet: a studio whose infrastructure can hold a
+ * hundred million people in one place can hold them across a few light-years,
+ * and one that has outrun its own capacity is behind in both directions at
+ * once — which is the whole game, said at the top of the ladder.
+ *
+ * Zero at and below §13.5's gate, so a studio on one world has a tier and no
+ * lag to spend it on.
+ */
+export function relayTier(s: GameState = state): number {
+  const cap = effectiveDevCap(s)
+  if (!(cap > WORLD_CAP)) return 0
+  return Math.log10(cap / WORLD_CAP)
+}
+
+/** §7.7.1a — how many worlds the studio has settled. */
+export function currentWorlds(s: GameState = state): number {
+  return worldsFor(s.devs)
+}
+
+/** §16 — the mean one-way light-lag across them, in light-years. */
+export function currentLagLy(s: GameState = state): number {
+  return meanLagLy(currentWorlds(s))
+}
+
+/** §16 — what that lag is costing, as a multiplier on §4.1's efficiency. */
+export function currentInterstellarSync(s: GameState = state): number {
+  return interstellarSync(currentWorlds(s), relayTier(s))
+}
+
+/**
+ * §16 — how long one whole project takes, at the studio's current rate.
+ *
+ * The *whole* project rather than what is left of it, because §16's barrier is
+ * about the interval between releases and a half-burnt sprint would make that
+ * interval read as shortening every second whether or not the studio had got
+ * any faster. `commitment / velocity`, and nothing else: a Decimal divided by a
+ * number, which is why it is here and not in a component.
+ *
+ * Infinite when the studio has stopped, which `buildTimeLabel` and
+ * `barrierProgress` both handle as "not moving" rather than as an error.
+ */
+export function projectBuildSeconds(s: GameState = state): number {
+  const rate = currentEffectiveVelocity(s)
+  if (!(rate > 0)) return Number.POSITIVE_INFINITY
+  return s.commitment.div(rate).toNumber()
 }
 
 export function currentEfficiency(s: GameState = state): number {
@@ -2477,6 +2553,21 @@ function checkStoryTriggers(s: GameState): void {
       showScene(sceneId)
       return
     }
+  }
+
+  /*
+   * §21.8 — **the planet is full.** After the people, before the boards.
+   *
+   * It is a headcount and not a feeling, which is the one place §21.7.3's rule
+   * genuinely does not apply — and the reason is that the feeling and the
+   * headcount are the same event here. `frames.globeRadius` derives a hundred
+   * million from the tiling rather than choosing it, so at `WORLD_CAP` the
+   * player has literally nowhere to put the next desk: the thing they would be
+   * told is the thing the screen is already showing them.
+   */
+  if (!hasSeenScene(SCENE_JAMES_PROXIMA.id) && s.devs >= WORLD_CAP) {
+    showScene(SCENE_JAMES_PROXIMA.id)
+    return
   }
 
   // §21.7.7 — the two boards, after the people. A person walking through a door
@@ -4057,6 +4148,12 @@ export function triggerParadigmShift(): void {
  * scene that also mutated the world would be a beat the player could lose by
  * closing the tab in the middle of it.
  */
+/** §21.8 — the nine shots have played. See {@link GameState.pendingLaunch}. */
+export function finishLaunch(): void {
+  if (!state.pendingLaunch) return
+  set({ pendingLaunch: false })
+}
+
 export function dismissShiftReport(): void {
   if (!state.pendingShift) return
   set({ pendingShift: null })
@@ -4121,7 +4218,11 @@ export function dismissScene(): void {
   // §21.7.3 — and Billy's first remote assignment is posted automatically. See
   // {@link seatBilly}; his body remains in §7.8.12's team room.
   if (id === SCENE_BILLY_ARRIVES.id) seatBilly()
-  set({ scene: null })
+  // §21.8 — the scene ends on `STAND CLEAR OF THE FILING CABINET`, and the
+  // launch is the next frame. Raised here rather than from the HUD so the two
+  // cannot be on screen at once: `set` clears the box in the same update.
+  const launching = id === SCENE_JAMES_PROXIMA.id
+  set({ scene: null, pendingLaunch: launching || state.pendingLaunch })
   // James may already have been posted while the garage held only him. The
   // second hero's arrival is then the first frame where the player can see the
   // physical body and remote assignment together, so it is also a valid door

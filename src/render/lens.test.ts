@@ -22,7 +22,10 @@ import {
   fitScaleFor,
   floorFrame,
   floorToPark,
+  GALAXY,
   GLOBE,
+  globeToGalaxy,
+  intoGalaxy,
   intoGlobe,
   parkToGlobe,
   floorScaleAt,
@@ -299,7 +302,7 @@ describe('the park, one rung further out', () => {
     settle(lens)
     const scale = lens.scale
     const before = { ...lens.centre }
-    lens.setAddress(seatOfBlock(7, 0), FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    lens.setAddress(seatOfBlock(7, 0, 0), FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
     settle(lens)
     expect(lens.scale).toBeCloseTo(scale, 4)
     // And it *did* move — a parcel eight blocks along is a long way from parcel
@@ -372,7 +375,7 @@ describe('a gesture arrives where it was going', () => {
 
   it('stays on the ladder at both ends', () => {
     expect(settleTowards(-2, 0)).toBe(DESK)
-    expect(settleTowards(9, 4)).toBe(GLOBE)
+    expect(settleTowards(9, 4)).toBe(GALAXY)
   })
 
   it('falls back to nearest when nothing started the gesture', () => {
@@ -435,7 +438,8 @@ describe("§7.7.1's ceiling", () => {
   // rectangle carried out through the plate, the plot, the parcel and now the
   // site. When the globe arrived this was the one line in the file that had to
   // move, which is the same claim `roomFrame`'s own note makes about itself.
-  const garageFrame = () => intoGlobe(intoParcel(intoPlot(intoPlate(GARAGE, 0), 0), 0))
+  const garageFrame = () =>
+    intoGalaxy(intoGlobe(intoParcel(intoPlot(intoPlate(GARAGE, 0), 0), 0)))
 
   /** A studio of one: the garage, one storey, and the ceiling it has earned. */
   function newGame(): Lens {
@@ -597,7 +601,7 @@ describe("§7.7.1's ceiling", () => {
     lens.flyTo(DESK, founder)
     settle(lens)
     const aimed = lens.centre
-    expect(aimed.cx).toBeCloseTo(parkToGlobe(floorToPark(founder, 0, 0, 0)).x, 3)
+    expect(aimed.cx).toBeCloseTo(globeToGalaxy(parkToGlobe(floorToPark(founder, 0, 0, 0))).x, 3)
 
     // The frames move: the garage grows, and the canvas is laid out again.
     lens.setFloorRect({ ...GARAGE, w: GARAGE.w * 1.2, h: GARAGE.h * 1.2 })
@@ -622,6 +626,53 @@ describe('settleLevel', () => {
     expect(settleLevel(2.4)).toBe(FLOOR)
     expect(settleLevel(2.6)).toBe(BUILDING)
     expect(settleLevel(-4)).toBe(DESK)
-    expect(settleLevel(99)).toBe(GLOBE)
+    expect(settleLevel(99)).toBe(GALAXY)
+  })
+})
+
+describe('the top of the ladder', () => {
+  const REFERENCE = { w: 997, h: 448 }
+
+  /** A studio that has filled its own planet and started on the next one. */
+  function starbound(): Lens {
+    const lens = new Lens(REFERENCE)
+    lens.setAddress(0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK, 100, 40)
+    lens.setCeiling(GALAXY)
+    lens.reframe(GALAXY, true)
+    lens.update(1 / 60, 0)
+    return lens
+  }
+
+  it('lets a studio that has left its own world pull back to the network', () => {
+    const lens = starbound()
+    expect(lens.settledLevel).toBe(GALAXY)
+    // §7.2's Z is still one division of the level, so the ladder's rung 7 and
+    // the camera's level 7 are the same place — which is what keeps the §20.2
+    // audio zones and `sim/units.ts` reading the number they always read.
+    expect(lens.z).toBeCloseTo(7 / 9, 6)
+  })
+
+  it('holds a one-world studio to its own planet', () => {
+    // §7.7.1 at the top: the studio you can see is the studio you have. A
+    // hundred million developers have filled a world and settled no others, so
+    // there is no network to pull back to.
+    const lens = new Lens(REFERENCE)
+    lens.setAddress(0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK, 100, 1)
+    lens.setCeiling(GLOBE)
+    lens.reframe(GALAXY, true)
+    lens.update(1 / 60, 0)
+    expect(lens.settledLevel).toBe(GLOBE)
+    spin(lens, 30)
+    expect(lens.settledLevel).toBe(GLOBE)
+  })
+
+  it('frames the same sky however far the studio has spread', () => {
+    // `WORLDS_FRAMED` is a neighbourhood, so the top rung does not recede. The
+    // studio grows by *entering* nodes, which recentres it.
+    const near = new Lens(REFERENCE)
+    near.setAddress(0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK, 100, 40)
+    const far = new Lens(REFERENCE)
+    far.setAddress(0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK, 100, 1e9)
+    expect(near.scales()[GALAXY]).toBeCloseTo(far.scales()[GALAXY], 9)
   })
 })

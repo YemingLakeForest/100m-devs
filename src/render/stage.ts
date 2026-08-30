@@ -73,7 +73,12 @@ import {
   sitesFor,
   devsOnSite,
   globeChromeAlpha,
+  galaxyChromeAlpha,
+  galaxyToGlobe,
   seatOfSite,
+  seatOfWorld,
+  worldOf,
+  GALAXY,
   GLOBE,
   squadOf,
   storeyAtBuilding,
@@ -83,9 +88,12 @@ import {
 } from './frames.ts'
 import { buildPark } from './park.ts'
 import { buildGlobe } from './globe.ts'
+import { buildGalaxy } from './galaxy.ts'
+import { SITES_PER_GLOBE } from './worldMap.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
 import { LITERAL_RUNG_LIMIT, maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
+import { devsOnWorld, worldsFor } from '../sim/starfield.ts'
 import { branchColour } from '../sim/heroTree.ts'
 import { roomSeatMarks, type RoomPosting, type SeatMark } from './heroBadges.ts'
 import { createCollapse } from './collapse.ts'
@@ -134,6 +142,7 @@ export interface NavState {
    * `BLOCK 03 / BUILDING 07` is naming the seventh tower of the third block,
    * and "building 27" is a number nothing on the screen is labelled with.
    */
+  world: number
   site: number
   block: number
   building: number
@@ -146,8 +155,10 @@ export interface NavState {
   buildings: number
   /** How many blocks stand in the park. */
   blocks: number
-  /** How many sites the studio has settled. */
+  /** How many sites the studio has settled on the world it is looking at. */
   sites: number
+  /** How many worlds the studio has settled. Unbounded — see §7.7.1a. */
+  worlds: number
   /** The storey named but not yet entered, or −1. */
   selected: number
   /** The building named but not yet entered, or −1. */
@@ -156,6 +167,10 @@ export interface NavState {
   selectedBlock: number
   /** The site named but not yet entered, or −1. */
   selectedSite: number
+  /** The world named but not yet entered, or −1. */
+  selectedWorld: number
+  /** The worlds the network is currently drawing, nearest first. */
+  neighbourhood: readonly number[]
   /** Developers on each built storey of this building, ground floor first. */
   occupancy: number[]
   /** Developers in each built building of this block, first plot first. */
@@ -164,6 +179,8 @@ export interface NavState {
   parkOccupancy: number[]
   /** Developers on each settled site of the planet, first site first. */
   globeOccupancy: number[]
+  /** Developers on each world of the drawn neighbourhood, in that order. */
+  galaxyOccupancy: number[]
 }
 
 export interface StageHandle {
@@ -197,6 +214,8 @@ export interface StageHandle {
   enterBlock(block: number): void
   /** Go into a site of the planet — the picker's site rows. */
   enterSite(site: number): void
+  /** Go into a world of the network — the picker's world rows. */
+  enterWorld(world: number): void
   /** Go to a level of the ladder — the breadcrumb. */
   goToLevel(level: Level): void
   /** §7.8.10 Hero Anchor: return smoothly to the manager corner. */
@@ -352,8 +371,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * one facing the camera, which is what lets a park's position inside the globe
    * be a constant and rung 6 be a place the camera can be sent to.
    */
+  /*
+   * **And the network holds the planet.** §7.7.1a, and the fifth link on the
+   * same chain: `intoGalaxy` is a pure scale about the origin, so the whole
+   * studio below rung 7 rides one container whose transform *is* that scale.
+   * The field then turns so the world the address is on is the one at the
+   * centre of it, which is what lets a planet's position inside the network be
+   * a constant and rung 7 be a place the camera can be sent to.
+   */
+  const galaxy = buildGalaxy()
+  world.addChild(galaxy.container)
   const globe = buildGlobe()
-  world.addChild(globe.container)
+  galaxy.globeHost.addChild(globe.container)
   const park = buildPark()
   globe.parkHost.addChild(park.container)
   park.blockAt(0).plotHost(0).addChild(building.container)
@@ -567,7 +596,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * *nine of ten buildings reachable*, which is a much better description of
    * the defect than anything the arithmetic would have said.
    */
-  const inPark = (x: number, y: number) => globeToPark(camera.toWorld(x, y))
+  const inGlobe = (x: number, y: number) => galaxyToGlobe(camera.toWorld(x, y))
+
+  const inPark = (x: number, y: number) => globeToPark(inGlobe(x, y))
 
   /** Screen point -> that point in one block's own space. */
   const inBlock = (x: number, y: number, block: number) => parkToBlock(inPark(x, y), block)
@@ -606,8 +637,21 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * tapping nothing.
    */
   const pickSite = (x: number, y: number): number => {
-    const w = camera.toWorld(x, y)
+    const w = inGlobe(x, y)
     return globe.siteUnder(w.x, w.y)
+  }
+
+  /**
+   * Screen point -> the world of the network under it, or −1.
+   *
+   * Asked of `galaxy.ts` for `pickSite`'s reason one rung up: the field's own
+   * orientation is the only thing that knows where a node currently is, and two
+   * derivations of that is one too many. A nearest search over the worlds it is
+   * actually drawing, so tapping empty sky is tapping nothing.
+   */
+  const pickWorld = (x: number, y: number): number => {
+    const w = camera.toWorld(x, y)
+    return galaxy.worldUnder(w.x, w.y)
   }
 
   /**
@@ -621,12 +665,23 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   const pickUnit = (x: number, y: number): PokeTarget | null => {
     const rung = rungOfLevel(currentLevel)
+    if (rung >= GALAXY) {
+      // The network. A node is a whole planet, and §7.7.1's rung 7 band opens
+      // at 10^8 — which is exactly what a planet holds, so `unitSeats(7, i)`
+      // was already the right window before there was a network to spend it on.
+      const w = pickWorld(x, y)
+      return w < 0 ? null : { rung: 7, index: w }
+    }
     if (rung >= GLOBE) {
       // The planet. A site is a park, and §7.7.1's rung 6 band opens at a
       // million — which is exactly what a park holds, so `unitSeats(6, i)` was
       // already the right window before there was a planet to spend it on.
       const site = pickSite(x, y)
-      return site < 0 ? null : { rung: 6, index: site }
+      // **Across the network, not across the planet.** `siteOf` is local to a
+      // world now (§7.7.1a), and a `PokeTarget` goes to the store, which has
+      // never heard of a world: `unitSeats(6, i)` counts sites from seat zero
+      // of Sol. On a one-world studio this is the same number it always was.
+      return site < 0 ? null : { rung: 6, index: focusWorld() * SITES_PER_GLOBE + site }
     }
     if (rung >= PARK) {
       // The park. A parcel is a block, and §7.7.1's rung 5 unit is exactly the
@@ -921,11 +976,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let selectedBlock = -1
   /** The site named but not yet entered, or −1. */
   let selectedSite = -1
+  /** The world named but not yet entered, or −1. */
+  let selectedWorld = -1
 
   const tapSelectsAFloor = () => settleLevel(currentLevel) === BUILDING
   const tapSelectsABuilding = () => settleLevel(currentLevel) === BLOCK
   const tapSelectsABlock = () => settleLevel(currentLevel) === PARK
   const tapSelectsASite = () => settleLevel(currentLevel) === GLOBE
+  const tapSelectsAWorld = () => settleLevel(currentLevel) === GALAXY
 
   /**
    * **The address** — which part of the studio the lens is over. GDD §26.2.2.
@@ -956,7 +1014,20 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * at a hundred million and every site draws a full park, which is a hundred
    * copies of the same picture and not a world.
    */
-  const hereDevs = (devs: number) => devsOnSite(devs, siteOf(focusSeat))
+  /** Which world of the network the address is on. */
+  const focusWorld = () => worldOf(focusSeat)
+  /**
+   * The developers who are on the *planet* the address is on.
+   *
+   * The one line the seventh level cost, and it is the sixth level's line with
+   * one more call on the front of it: `globe.ts` draws *a planet given a
+   * headcount* and does not learn that a network exists; what changed is that
+   * it is handed this rather than the studio's whole payroll. Hand it
+   * `state.devs` at ten billion and every world draws a full planet, which is a
+   * hundred copies of the same picture and not a galaxy.
+   */
+  const worldDevs = (devs: number) => devsOnWorld(devs, focusWorld())
+  const hereDevs = (devs: number) => devsOnSite(worldDevs(devs), siteOf(focusSeat))
   const seatWindowFor = () => focusStorey() * DEVS_PER_FLOOR
 
   /**
@@ -989,7 +1060,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       storeysIn(hereDevs(devs), buildingOf(focusSeat)),
       buildingsIn(hereDevs(devs), blockOf(focusSeat)),
       blocksFor(hereDevs(devs)),
-      sitesFor(devs),
+      sitesFor(worldDevs(devs)),
+      worldsFor(devs),
     )
   }
 
@@ -1166,7 +1238,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const b = buildingOf(focusSeat)
     const n = storeysIn(hereDevs(getState().devs), b)
     if (!(storey >= 0) || storey >= n) return false
-    setFocus(seatOfStorey(storey, b, siteOf(focusSeat)))
+    setFocus(seatOfStorey(storey, b, siteOf(focusSeat), focusWorld()))
     selectedStorey = storey
     focal = null
     camera.flyTo(FLOOR)
@@ -1188,7 +1260,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const devs = getState().devs
     const block = blockOf(focusSeat)
     if (!(b >= 0) || b >= buildingsIn(hereDevs(devs), block)) return false
-    setFocus(seatOfPlot(b, block, siteOf(focusSeat)))
+    setFocus(seatOfPlot(b, block, siteOf(focusSeat), focusWorld()))
     selectedBuilding = b
     selectedStorey = -1
     focal = null
@@ -1207,7 +1279,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    */
   const enterBlock = (b: number): boolean => {
     if (!(b >= 0) || b >= blocksFor(hereDevs(getState().devs))) return false
-    setFocus(seatOfBlock(b, siteOf(focusSeat)))
+    setFocus(seatOfBlock(b, siteOf(focusSeat), focusWorld()))
     selectedBlock = b
     selectedBuilding = -1
     selectedStorey = -1
@@ -1226,14 +1298,43 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * territory. A block number is only a block number of somewhere.
    */
   const enterSite = (i: number): boolean => {
-    if (!(i >= 0) || i >= sitesFor(getState().devs)) return false
-    setFocus(seatOfSite(i))
+    if (!(i >= 0) || i >= sitesFor(worldDevs(getState().devs))) return false
+    setFocus(seatOfSite(i, focusWorld()))
     selectedSite = i
     selectedBlock = -1
     selectedBuilding = -1
     selectedStorey = -1
     focal = null
     camera.flyTo(PARK)
+    playUi('whoosh')
+    return true
+  }
+
+  /**
+   * Go into a world — the picker's world rows, and the last door on the ladder.
+   *
+   * The same shape as {@link enterSite} one rung further out, and the same rule
+   * about what is *not* carried across: the address lands on the world's first
+   * site rather than keeping whichever territory was open around the last star.
+   * A site number is only a site number of a planet.
+   *
+   * **The frontier is a legal destination.** `worldsFor` counts the worlds that
+   * have somebody on them, and the network deliberately draws one more than
+   * that so the player can see where the studio goes next. Entering it is
+   * allowed and lands on an empty planet — which is the honest picture of a
+   * world nobody has moved to yet, and the one §7.7.2 wants the arrival gag to
+   * happen *on*.
+   */
+  const enterWorld = (i: number): boolean => {
+    if (!(i >= 0) || i > worldsFor(getState().devs)) return false
+    setFocus(seatOfWorld(i))
+    selectedWorld = i
+    selectedSite = -1
+    selectedBlock = -1
+    selectedBuilding = -1
+    selectedStorey = -1
+    focal = null
+    camera.flyTo(GLOBE)
     playUi('whoosh')
     return true
   }
@@ -1339,7 +1440,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // Keep that exception here, at the gesture boundary, so every lower rung
     // retains the fixed affine camera and entering a site can still freeze the
     // globe back to that site's address orientation.
-    if (tapSelectsASite()) globe.rotateBy(dx, dy)
+    if (tapSelectsAWorld()) galaxy.rotateBy(dx, dy)
+    else if (tapSelectsASite()) globe.rotateBy(dx, dy)
     else camera.panBy(dx, dy, t)
     drag.px = ev.clientX
     drag.py = ev.clientY
@@ -1383,6 +1485,24 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // **The park names a block**, and the block names a building, and the
     // building names a floor — one rule, said at every level it applies to: the
     // tap selects and pokes, and the rail is the door.
+    if (tapSelectsAWorld()) {
+      const w = pickWorld(ev.clientX, ev.clientY)
+      if (w < 0) {
+        selectedWorld = -1
+        playUi('close')
+        return
+      }
+      if (w !== selectedWorld) {
+        selectedWorld = w
+        // The address moves to the world, and to nothing inside it: a site
+        // number is only a site number of a planet, so it lands on the first.
+        setFocus(seatOfWorld(w))
+        playUi('click')
+      }
+      doPoke(ev.clientX, ev.clientY, t)
+      return
+    }
+
     if (tapSelectsASite()) {
       const i = pickSite(ev.clientX, ev.clientY)
       if (i < 0) {
@@ -1392,7 +1512,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       }
       if (i !== selectedSite) {
         selectedSite = i
-        setFocus(seatOfSite(i))
+        setFocus(seatOfSite(i, focusWorld()))
         playUi('click')
       }
       doPoke(ev.clientX, ev.clientY, t)
@@ -1408,7 +1528,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       }
       if (b !== selectedBlock) {
         selectedBlock = b
-        setFocus(seatOfBlock(b, siteOf(focusSeat)))
+        setFocus(seatOfBlock(b, siteOf(focusSeat), focusWorld()))
         playUi('click')
       }
       doPoke(ev.clientX, ev.clientY, t)
@@ -1427,7 +1547,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // **In this block.** `pickBuilding` answers in plots because that is
         // what the block draws, and the address is a seat of the whole park —
         // trap 52a's shape exactly, and the reason `seatOfPlot` takes both.
-        setFocus(seatOfPlot(b, blockOf(focusSeat), siteOf(focusSeat)))
+        setFocus(seatOfPlot(b, blockOf(focusSeat), siteOf(focusSeat), focusWorld()))
         playUi('click')
       }
       doPoke(ev.clientX, ev.clientY, t)
@@ -1452,8 +1572,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // planet, so both have to be said. A floor number is only a floor number
         // of something: naming a storey without saying whose tower it is on
         // moved the address to building 1 and took the room with it, and one
-        // rung further out the same omission moves it to another territory.
-        setFocus(seatOfStorey(storey, buildingOf(focusSeat), siteOf(focusSeat)))
+        // rung further out the same omission moves it to another territory —
+        // and one further out again, to another star.
+        setFocus(seatOfStorey(storey, buildingOf(focusSeat), siteOf(focusSeat), focusWorld()))
         playUi('click')
       }
       doPoke(ev.clientX, ev.clientY, t)
@@ -1874,8 +1995,30 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
      * sizes blended together; these are the same size by construction, because
      * `intoGlobe` is the scale the park host is already carrying.
      */
+    /*
+     * --- the network -----------------------------------------------------
+     *
+     * The same hand-off one rung further out, and it is the same *kind* of
+     * hand-off: `galaxy.ts` draws every settled world as one lit disc at the
+     * size `frames.ts` says a planet is, and `globe.ts` draws the address's
+     * detailed planet at exactly that place and that size. What fades is
+     * detail, not subject.
+     */
+    const galaxyAlpha = galaxyChromeAlpha(currentLevel)
+    galaxy.setHeadcount(state.devs)
+    galaxy.setFocus(focusWorld())
+    galaxy.setSelected(selectedWorld)
+    galaxy.setChromeAlpha(galaxyAlpha)
+    // And the planet goes as the network arrives — one container again, because
+    // the globe, its park, the block, the building and the room are all inside
+    // the world that is becoming a node on a map.
+    galaxy.globeHost.alpha = 1 - galaxyAlpha
+    galaxy.globeHost.visible = galaxyAlpha < 0.996
+
     const globeAlpha = globeChromeAlpha(currentLevel)
-    globe.setHeadcount(state.devs)
+    // **The planet's own payroll, not the studio's.** Handing the globe
+    // `state.devs` at ten billion fills every site of every world.
+    globe.setHeadcount(worldDevs(state.devs))
     globe.setFocus(siteOf(focusSeat))
     globe.setSelected(selectedSite)
     globe.setChromeAlpha(globeAlpha)
@@ -2245,14 +2388,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const k = blocksFor(devs)
       const parkOccupancy: number[] = []
       for (let i = 0; i < k; i++) parkOccupancy.push(devsOnBlock(devs, i))
-      const j = sitesFor(all)
+      const here = worldDevs(all)
+      const j = sitesFor(here)
       const globeOccupancy: number[] = []
-      for (let i = 0; i < j; i++) globeOccupancy.push(devsOnSite(all, i))
+      for (let i = 0; i < j; i++) globeOccupancy.push(devsOnSite(here, i))
+      const neighbourhood = galaxy.drawn
+      const galaxyOccupancy: number[] = neighbourhood.map((w) => devsOnWorld(all, w))
       const at = settleLevel(currentLevel)
       return {
         level: currentLevel,
         at,
         name: LEVEL_NAMES[at],
+        world: focusWorld(),
         site: siteOf(focusSeat),
         block,
         building: plotOf(b),
@@ -2263,14 +2410,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         buildings: m,
         blocks: k,
         sites: j,
+        worlds: worldsFor(all),
         selected: selectedStorey,
         selectedBuilding,
         selectedBlock,
         selectedSite,
+        selectedWorld,
+        neighbourhood,
         occupancy,
         blockOccupancy,
         parkOccupancy,
         globeOccupancy,
+        galaxyOccupancy,
       }
     },
     enterFloor(storey: number) {
@@ -2285,6 +2436,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     enterSite(i: number) {
       enterSite(i)
     },
+    enterWorld(i: number) {
+      enterWorld(i)
+    },
     goToLevel(level: Level) {
       // Going *up* is a plain reframe; going down needs an address, and the
       // address is already the one the breadcrumb is naming.
@@ -2292,6 +2446,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       selectedBuilding = level >= BLOCK ? selectedBuilding : plotOf(buildingOf(focusSeat))
       selectedBlock = level >= PARK ? selectedBlock : blockOf(focusSeat)
       selectedSite = level >= GLOBE ? selectedSite : siteOf(focusSeat)
+      selectedWorld = level >= GALAXY ? selectedWorld : focusWorld()
       camera.flyTo(level)
       playUi('whoosh')
     },

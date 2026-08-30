@@ -185,11 +185,20 @@ describe('§21.0c — Run 1 carries one idea', () => {
   it('keeps every other scene in a run that has already collapsed', () => {
     // Nothing outside Run 1's two acts, and nothing at all about a *system*
     // before the shift that opens systems.
+    //
+    // Two namespaces satisfy that and not one, since §21.8: `scene.starbound.`
+    // is everything past §13.5's gate, which is a hundred million developers
+    // and therefore a very long way past the shift. Naming the era rather than
+    // filing it under `run2.` is the point — a hundred-million-developer studio
+    // is not "a run that has collapsed once", and the id is what a save file
+    // carries forever.
     const runOne = Object.keys(SCENES).filter(
       (id) => id.startsWith('scene.act1.') || id.startsWith('scene.act3.'),
     )
     const rest = Object.keys(SCENES).filter((id) => !runOne.includes(id))
-    for (const id of rest) expect(id.startsWith('scene.run2.')).toBe(true)
+    for (const id of rest) {
+      expect(id.startsWith('scene.run2.') || id.startsWith('scene.starbound.')).toBe(true)
+    }
   })
 
   /**

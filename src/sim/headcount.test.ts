@@ -90,7 +90,11 @@ describe('cohortSize — §7.7.5, the scale bar', () => {
     // have to be the same claim.
     expect(cohortSize(1002)).toBe(1e3)
     expect(cohortSize(5e4)).toBe(1e4)
-    expect(cohortSize(4.2e12)).toBe(1e10)
+    // §7.7.1a — and it saturates at the *drawn* rung, which is the network's
+    // world. The table runs two rungs further for §13.6.1's hero reach, and
+    // naming a unit the picture does not contain is the same lie one size up.
+    expect(cohortSize(4.2e12)).toBe(1e8)
+    expect(cohortSize(4.2e18)).toBe(1e8)
   })
 
   it('never claims a unit holds fewer people than a unit', () => {
@@ -127,7 +131,9 @@ describe('cohortSize — §7.7.5, the scale bar', () => {
   it('stays silent while a marker is still a person, and speaks once it is not', () => {
     expect(scaleBar(500)).toBeNull()
     expect(scaleBar(1002)).toBe('1 FLOOR = 1.0 K DEVS')
-    expect(scaleBar(4.2e12)).toBe('1 PLANET = 10.0 B DEVS')
+    expect(scaleBar(2e8)).toBe('1 WORLD = 100 M DEVS')
+    // Still a world at four trillion, because a world is still what is drawn.
+    expect(scaleBar(4.2e12)).toBe('1 WORLD = 100 M DEVS')
   })
 })
 
@@ -159,7 +165,7 @@ describe('the Construction Ladder — §7.7.1', () => {
 
   it('reports the destination, not each rung passed, when a hire skips several', () => {
     // The §6 Mass Hire jumps rungs. One arrival, on the rung landed on.
-    expect(rungCrossed(2, 1e9)?.unit).toBe('nation')
+    expect(rungCrossed(2, 1e9)?.unit).toBe('world')
   })
 
   it('never promotes on a shrinking studio', () => {

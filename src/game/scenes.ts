@@ -615,6 +615,67 @@ export const SCENE_JAMES_PROMOTED: Scene = {
   ],
 }
 
+/**
+ * §21.8 — **the planet is full, so James goes to Proxima Centauri.**
+ *
+ * The one beat the top of the ladder needed and the only honest way to open it.
+ * §13.5's gate is a hundred million developers and `frames.ts` does not put it
+ * there as a milestone — it puts it there as *geometry*: a hundred parks of a
+ * million tile a sphere exactly, the sphere is full, and there is nowhere left
+ * to put a desk. A game whose primary verb is hiring has, at that moment,
+ * nowhere to put the next person.
+ *
+ * §21.6's rule decides who solves it: **every tier gets a James scene where he
+ * introduces it with total sincerity and it is faintly horrifying.** Stand-ups,
+ * ticketing, async-first, neural sync — "the tools get better and the humans get
+ * further apart, and that is the whole arc." Interstellar colonisation is that
+ * arc's last and largest instance, and it is funny for exactly the reason the
+ * others are: he is not being brave, and he does not think he is going
+ * anywhere. He thinks he is filing a desk move.
+ *
+ * Every joke in it is a canon detail cashed in rather than invented. The shirt
+ * with the hole in the elbow is §2.3's — "by the time he's Legendary the shirt
+ * is wreathed in cosmic light and the hole is still there", which is a promise
+ * this scene is allowed to make good on early. The chair is §7.8.1b's seat that
+ * never moves, taken literally. The Thursday stand-up is §21.6's ladder of
+ * protocols reaching the one distance where a protocol cannot help.
+ */
+export const SCENE_JAMES_PROXIMA: Scene = {
+  id: 'scene.starbound.james-proxima',
+  script: [
+    { speaker: OS, text: 'PLANET SATURATED. 100,000,000 DESKS PLACED. 0 REMAINING.' },
+    { speaker: PLAYER, text: 'That’s it. There is physically nowhere to put anybody.', focus: AT_YOU },
+    { speaker: JAMES, text: 'There is. It’s four point two light-years that way.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'James, that’s a different star.', focus: AT_YOU },
+    // The whole scene in one line: he has correctly identified the problem, and
+    // the category he has filed it under is a desk.
+    { speaker: JAMES, text: 'It’s a different site. I’ve raised it as a desk move.', focus: AT_JAMES },
+    { speaker: OS, text: 'DESK MOVE REQUEST #100,000,001 — APPROVED.' },
+    { speaker: PLAYER, text: 'Approved by whom?', focus: AT_YOU },
+    { speaker: OS, text: 'BY THE FORM.' },
+    { speaker: PLAYER, text: 'You would be gone for—', focus: AT_YOU },
+    {
+      speaker: JAMES,
+      text: 'Four point two years each way. I’ve moved the stand-up to Thursdays.',
+      focus: AT_JAMES,
+    },
+    { speaker: PLAYER, text: 'Thursdays do not help with that!', focus: AT_YOU },
+    { speaker: JAMES, text: 'They will in about four years.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'What is the rocket made of.', focus: AT_YOU },
+    // §22.7's art budget is nineteen sprites and this scene is drawn in code.
+    // The joke and the production constraint are the same joke.
+    { speaker: JAMES, text: 'A filing cabinet. It was already the right shape.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'And you’re taking—', focus: AT_YOU },
+    { speaker: JAMES, text: 'My chair. It’s my chair.', focus: AT_JAMES },
+    { speaker: OS, text: 'PAYLOAD: ONE (1) DEVELOPER. ONE (1) CHAIR. ONE (1) SHIRT, WHITE, HOLED.' },
+    { speaker: JAMES, text: 'I’ll mend the elbow on the way. There’s time.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'Please don’t do this.', focus: AT_YOU },
+    // He is quoting the player back at themselves, and he is right.
+    { speaker: JAMES, text: 'You said scale up.', focus: AT_JAMES },
+    { speaker: OS, text: 'LAUNCH WINDOW OPEN. STAND CLEAR OF THE FILING CABINET.' },
+  ],
+}
+
 /** The promotion's title, verbatim — it renders on the card, the chart, the plate. */
 export const JAMES_PROMOTION_TITLE = 'GLOBAL HEAD OF HIS DESK'
 
@@ -634,6 +695,7 @@ export const SCENES: Record<string, Scene> = {
   [SCENE_FOUNDER_BOARD.id]: SCENE_FOUNDER_BOARD,
   [SCENE_HERO_BOARD.id]: SCENE_HERO_BOARD,
   [SCENE_JAMES_PROMOTED.id]: SCENE_JAMES_PROMOTED,
+  [SCENE_JAMES_PROXIMA.id]: SCENE_JAMES_PROXIMA,
 }
 
 /**

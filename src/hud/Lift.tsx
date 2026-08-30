@@ -9,12 +9,15 @@ import {
   DESK,
   DEVS_PER_FLOOR,
   FLOOR,
+  GALAXY,
   GLOBE,
+  GLOBE_CAP,
   PARK,
   PARK_CAP,
   SQUAD,
   type Level,
 } from '../render/frames.ts'
+import { starName } from '../sim/starfield.ts'
 
 /**
  * The lift panel and the breadcrumb — GDD §10's answer to "which floor am I on,
@@ -44,6 +47,21 @@ const buildingName = floorName
 const blockName = floorName
 const siteName = floorName
 
+/**
+ * A world, in the picker — **a number, not its name.**
+ *
+ * `starfield.starName` is the good one and it is on the breadcrumb and on the
+ * door, where there is a line's width to spend. A row of the list has 40 px of
+ * label before the occupancy bar, which fits `07` and does not fit
+ * `KEPLER-4412 c`; ART_DIRECTION §3 rule 3 forbids a label that changes width
+ * beside a bar, and §23.4.2's rail containment is the gate that would catch it
+ * as an overflow rather than as a design decision. So the list is numbered like
+ * every other list in this panel and the name is said where it can be read.
+ */
+function worldName(index: number): string {
+  return String(index).padStart(2, '0')
+}
+
 export function Lift({ stage }: { stage: StageHandle | null }) {
   const [nav, setNav] = useState<NavState | null>(null)
   const here = useRef<HTMLLIElement | null>(null)
@@ -52,6 +70,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
   const building = nav?.building ?? 0
   const block = nav?.block ?? 0
   const site = nav?.site ?? 0
+  const world = nav?.world ?? 0
 
   useEffect(() => {
     if (!stage) return
@@ -78,7 +97,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    */
   useEffect(() => {
     here.current?.scrollIntoView({ block: 'nearest' })
-  }, [storey, building, block, site, at])
+  }, [storey, building, block, site, world, at])
 
   if (!stage || !nav) return null
   /*
@@ -91,7 +110,15 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * is also what keeps the §23.4 rail containment gate honest at 640x360, where
    * the fullest HUD in the game has no spare pixels to lend.
    */
-  if (nav.storeys <= 1 && nav.buildings <= 1 && nav.blocks <= 1 && nav.sites <= 1) return null
+  if (
+    nav.storeys <= 1 &&
+    nav.buildings <= 1 &&
+    nav.blocks <= 1 &&
+    nav.sites <= 1 &&
+    nav.worlds <= 1
+  ) {
+    return null
+  }
 
   /*
    * **The doors and the way back out are never both needed, so only one is
@@ -109,6 +136,7 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * menu for. So Building gets the doors and one line saying where they are,
    * and everything below gets the ladder.
    */
+  const onTheNetwork = nav.at === GALAXY
   const onTheGlobe = nav.at === GLOBE
   const onThePark = nav.at === PARK
   const onTheBlock = nav.at === BLOCK
@@ -128,7 +156,17 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * 136 px rail saying "the studio" twice.
    */
   const ladder: { level: Level; text: string }[] = []
-  if (nav.sites > 1) ladder.push({ level: GLOBE, text: 'EARTH' })
+  /*
+   * §7.7.1a — and the network above the world, on exactly the rule below it: a
+   * rung that names one thing is not a rung, so a studio that has never left
+   * Sol never sees the word. Once it has, the planet rung stops being EARTH and
+   * becomes the star it is orbiting, for the same reason PARK becomes SITE —
+   * `EARTH / SITE 07` around Proxima Centauri is a sentence that is not true.
+   */
+  if (nav.worlds > 1) ladder.push({ level: GALAXY, text: 'NETWORK' })
+  if (nav.sites > 1 || nav.worlds > 1) {
+    ladder.push({ level: GLOBE, text: nav.worlds > 1 ? starName(world) : 'EARTH' })
+  }
   /*
    * **A site *is* a park**, so the two never both appear. Once the studio is on
    * more than one continent the PARK rung is named for the site it is, and until
@@ -172,7 +210,12 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
    * about is not ready to be on screen.
    */
   const door =
-    onTheGlobe && nav.selectedSite >= 0 && nav.selectedSite < nav.sites
+    onTheNetwork && nav.selectedWorld >= 0
+      ? {
+          text: `ENTER ${starName(nav.selectedWorld)}`,
+          go: () => stage.enterWorld(nav.selectedWorld),
+        }
+      : onTheGlobe && nav.selectedSite >= 0 && nav.selectedSite < nav.sites
       ? { text: `ENTER SITE ${siteName(nav.selectedSite)}`, go: () => stage.enterSite(nav.selectedSite) }
       : onThePark && nav.selectedBlock >= 0 && nav.selectedBlock < nav.blocks
       ? { text: `ENTER BLOCK ${blockName(nav.selectedBlock)}`, go: () => stage.enterBlock(nav.selectedBlock) }
@@ -208,6 +251,40 @@ export function Lift({ stage }: { stage: StageHandle | null }) {
         <button type="button" className="hud__enter" onClick={door.go}>
           {door.text}
         </button>
+      )}
+
+      {onTheNetwork && nav.worlds > 1 && (
+        <ol className="hud__floors">
+          {/*
+            Nearest first, which is the order the network draws them in and the
+            order `starfield.neighbourhood` returns. Not "settled first" like
+            the site list one rung down: worlds do not fill a fixed hundred, so
+            the last row is the frontier rather than the end of a list.
+          */}
+          {nav.neighbourhood.map((w, i) => {
+            const devs = nav.galaxyOccupancy[i] ?? 0
+            const onThis = w === nav.world
+            const named = w === nav.selectedWorld
+            return (
+              <li key={w} ref={onThis ? here : null}>
+                <button
+                  type="button"
+                  className={`hud__floor${onThis ? ' is-here' : ''}${named ? ' is-named' : ''}`}
+                  onClick={() => stage.enterWorld(w)}
+                >
+                  <span className="hud__floor-no">{worldName(w)}</span>
+                  <span className="hud__floor-bar">
+                    <span
+                      className="hud__floor-fill"
+                      style={{ width: `${(devs / GLOBE_CAP) * 100}%` }}
+                    />
+                  </span>
+                  <span className="hud__floor-devs">{formatCount(devs)}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ol>
       )}
 
       {onTheGlobe && nav.sites > 1 && (

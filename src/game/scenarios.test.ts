@@ -42,9 +42,13 @@ describe('the list is a ladder', () => {
     }
   })
 
-  it('starts at one developer and stops at §13.5’s gate', () => {
+  it('starts at one developer and stops two rungs past §13.5’s gate', () => {
     expect(SCENARIOS[0].devs).toBe(1)
-    expect(SCENARIOS[SCENARIOS.length - 1].devs).toBe(100_000_000)
+    // §7.7.1a — the gate is no longer the end of the ladder, so it is no longer
+    // the end of the list. It stops at a hundred worlds because every decade
+    // above that is the same picture with a larger number under it, which is
+    // the honest end of a rung that does not saturate.
+    expect(SCENARIOS[SCENARIOS.length - 1].devs).toBe(10_000_000_000)
   })
 
   it('is findable by the name `?scenario=` takes', () => {

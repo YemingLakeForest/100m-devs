@@ -2,14 +2,19 @@ import { entropyLabel } from '../game/vocabulary.ts'
 import {
   baseVelocity,
   currentEffectiveVelocity,
+  currentInterstellarSync,
+  currentLagLy,
   currentPayroll,
+  currentWorlds,
   netCashFlow,
   nextPayout,
   pokeVelocity,
+  projectBuildSeconds,
   secondsToPayout,
   type GameState,
 } from '../game/store.ts'
 import { formatCount, scaleBar } from '../sim/headcount.ts'
+import { barrierProgress, buildTimeLabel, planckLabel } from '../sim/starbound.ts'
 import { secondsUntilBankrupt } from '../sim/economy.ts'
 import { useSpring } from '../ui/useSpring.ts'
 import { SPRING_HEAVY } from '../ui/spring.ts'
@@ -219,5 +224,56 @@ export function Velocity({ state }: { state: GameState }) {
           rather than furniture. */}
       {split && <span className="hud__sub hud__sub--split">{split}</span>}
     </div>
+  )
+}
+
+/* --- the top of the ladder ----------------------------------------------- */
+
+/**
+ * §16 — light-lag, and how far the studio is down the Planck barrier.
+ *
+ * **It does not exist below §13.5's gate**, on this file's own standing rule
+ * that a silent row is the loudest kind of furniture: `interstellarSync` is
+ * exactly 1 while the studio is on one world, so a block reading `100%` at
+ * every headcount under a hundred million would be a readout that has never
+ * once said anything.
+ *
+ * Two lines and they are the two halves of the endgame. The first is the
+ * struggle, and it is the same struggle the speedometer above it reads — §4.1
+ * says output falls because everybody is talking to everybody, and at this rung
+ * the thing that changed is only how long a sentence takes to arrive. The
+ * second is the direction of travel: §16 replaces *how many* with **how fast**,
+ * measured against the one interval nothing can be shorter than.
+ *
+ * The barrier bar is log-scaled by `barrierProgress`, and its note explains
+ * why a linear one would be pinned at full for the whole endgame.
+ */
+export function Starbound({ state }: { state: GameState }) {
+  const worlds = currentWorlds(state)
+  if (worlds <= 1) return null
+
+  const sync = currentInterstellarSync(state)
+  const lag = currentLagLy(state)
+  const build = projectBuildSeconds(state)
+  const progress = barrierProgress(build)
+
+  return (
+    <>
+      <div className="hud__block">
+        <span className="hud__label">LIGHT-LAG</span>
+        <b className="hud__num hud__num--major">{Math.round(sync * 100)}%</b>
+        <span className="hud__sub hud__sub--unit">
+          {lag.toFixed(1)} LY · {formatCount(worlds)} WORLDS
+        </span>
+      </div>
+      <div className="hud__block hud__gauge">
+        <span className="hud__label">PLANCK BARRIER</span>
+        <b className="hud__num hud__num--major">{buildTimeLabel(build)}</b>
+        <div className="hud__gauge-track">
+          <div className="hud__gauge-fill" style={{ width: `${progress * 100}%` }} />
+        </div>
+        <span className="hud__sub hud__sub--unit">1 PROJECT / {planckLabel(build)}</span>
+      </div>
+    </>
   )
 }

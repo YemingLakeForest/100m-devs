@@ -13,6 +13,7 @@ import {
   currentEntropy,
   dismissScene,
   dismissShiftReport,
+  finishLaunch,
   devsUnderPlacement,
   grantJames,
   hasSeenScene,
@@ -52,7 +53,7 @@ import { Lift } from './Lift.tsx'
 import type { HeroRuntime } from '../sim/heroRoster.ts'
 import { unitLabel } from '../sim/units.ts'
 import { HireDial } from './HireDial.tsx'
-import { Cash, Devs, Shipped, Speedometer, Velocity } from './Readouts.tsx'
+import { Cash, Devs, Shipped, Speedometer, Starbound, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
 import { Defects, Incidents, Tickets } from './Backlogs.tsx'
 import { countsOf, type Role } from '../sim/roles.ts'
@@ -73,6 +74,7 @@ import { UpgradeBoard } from './UpgradeBoard.tsx'
 import { EventBanner, EventCard } from './EventCard.tsx'
 import { TermSheet } from './TermSheet.tsx'
 import { ParadigmCutScene } from './ParadigmCutScene.tsx'
+import { ProximaLaunch } from './ProximaLaunch.tsx'
 import { Gallery } from './Gallery.tsx'
 import { ParadigmTree } from './ParadigmTree.tsx'
 import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
@@ -107,6 +109,17 @@ const PREVIEW_OVERNIGHT = DEBUG_QUERY.has('overnight')
 const PREVIEW_OVERNIGHT_CAPPED = DEBUG_QUERY.get('overnight') === 'capped'
 
 const PREVIEW_DIALOGUE = DEBUG_QUERY.has('dialogue')
+
+/**
+ * `?launch` — §21.8's nine shots, without the twenty-one lines in front of them.
+ *
+ * Same family as `?dialogue`, `?overnight` and `?release`, and here for the
+ * reason all three are: the sequence exists for about fourteen seconds once per
+ * career, at a hundred million developers, behind a scene that takes a minute
+ * to tap through. There is no way to *hold* it long enough to look at, and
+ * iterating on a shot by playing to it is not iterating.
+ */
+const PREVIEW_LAUNCH = DEBUG_QUERY.has('launch')
 
 /**
  * §4.11 — which jobs the studio has a reason to hire for yet.
@@ -471,6 +484,14 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           <Speedometer entropy={entropy} />
           <Velocity state={state} />
           {/*
+            §16 — the two readouts the top of the ladder adds, under the two the
+            whole game has had. They are in this rail rather than the right one
+            because they are readings and not verbs, and directly under the
+            speedometer because the first of them is the speedometer's own
+            number in a different unit. Both draw nothing on a one-world studio.
+          */}
+          <Starbound state={state} />
+          {/*
             §23.3's overlay, at the foot of the reading rail.
             **Instrumentation is not a control.** It sat among the play tools in
             the right rail, where it competed with the thumb for the fourteen
@@ -833,6 +854,15 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         the moment the screen lifts.
       */}
       <ParadigmCutScene report={state.pendingShift} onDone={dismissShiftReport} />
+
+      {/*
+        §21.8 — the launch, once. Above the reboot for the same reason the
+        reboot is above everything else: it is the last thing that happened, and
+        the studio it happened to is already behind it.
+      */}
+      {(state.pendingLaunch || PREVIEW_LAUNCH) && (
+        <ProximaLaunch onDone={PREVIEW_LAUNCH ? () => undefined : finishLaunch} />
+      )}
 
       {PREVIEW_OVERNIGHT && (
         <OvernightPreview capped={PREVIEW_OVERNIGHT_CAPPED} adReady={FAKE_AD_READY} />

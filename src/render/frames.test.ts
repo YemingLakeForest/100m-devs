@@ -6,6 +6,16 @@ import {
   BLOCK_CAP,
   BLOCK_COLS,
   BLOCK_SCALE,
+  GALAXY,
+  GALAXY_SCALE,
+  galaxyChromeAlpha,
+  WORLDS_FRAMED,
+  galaxyFrame,
+  galaxyRadius,
+  intoGalaxy,
+  nodeRadius,
+  seatOfWorld,
+  worldOf,
   GLOBE,
   GLOBE_CAP,
   PARK_CAP,
@@ -108,6 +118,7 @@ import { ROOM_SQUAD_COLS, ROOM_SQUAD_ROWS, SQUAD_SIZE, seatPosition } from './ro
 
 /** §23.4.2's largest frame, and the one every measurement in the plan was taken at. */
 import { PERSPECTIVE_CENTRE_SCALE, SITES_PER_GLOBE } from './worldMap.ts'
+import { WORLD_CAP, devsOnWorld } from '../sim/starfield.ts'
 
 const REFERENCE = { w: 997, h: 448 }
 
@@ -232,7 +243,7 @@ describe('the address', () => {
     expect(storeyOf(999)).toBe(0)
     expect(storeyOf(1000)).toBe(1)
     expect(storeyOf(7_400)).toBe(7)
-    expect(seatOfStorey(7, 0, 0)).toBe(7000)
+    expect(seatOfStorey(7, 0, 0, 0)).toBe(7000)
     expect(squadOf(0)).toBe(0)
     expect(squadOf(99)).toBe(0)
     expect(squadOf(100)).toBe(1)
@@ -312,10 +323,10 @@ describe('fitting, at the reference frame', () => {
 
   it('clamps rather than extrapolating past either end', () => {
     expect(levelAtScale(scales[DESK] * 10, scales)).toBe(DESK)
-    // GLOBE and not PARK: a studio on one site collapses the two onto one
-    // scale, the way a park of one block collapses onto that block, so the
-    // outermost rung there *is* the globe and the clamp lands on it.
-    expect(levelAtScale(scales[GLOBE] / 10, scales)).toBe(GLOBE)
+    // GALAXY and not PARK: a studio on one site collapses the outer rungs onto
+    // one scale, the way a park of one block collapses onto that block, so the
+    // outermost rung there *is* the network and the clamp lands on it.
+    expect(levelAtScale(scales[GALAXY] / 10, scales)).toBe(GALAXY)
   })
 })
 
@@ -332,16 +343,21 @@ describe('the block', () => {
     // *four of the second building*, not floor fourteen of anything.
     expect(buildingOf(14_000)).toBe(1)
     expect(storeyOf(14_000)).toBe(4)
-    expect(seatOfBuilding(3, 0)).toBe(3 * BUILDING_CAP)
-    expect(seatOfStorey(2, 3, 0)).toBe(3 * BUILDING_CAP + 2 * DEVS_PER_FLOOR)
-    expect(buildingOf(seatOfStorey(2, 3, 0))).toBe(3)
-    expect(storeyOf(seatOfStorey(2, 3, 0))).toBe(2)
+    expect(seatOfBuilding(3, 0, 0)).toBe(3 * BUILDING_CAP)
+    expect(seatOfStorey(2, 3, 0, 0)).toBe(3 * BUILDING_CAP + 2 * DEVS_PER_FLOOR)
+    expect(buildingOf(seatOfStorey(2, 3, 0, 0))).toBe(3)
+    expect(storeyOf(seatOfStorey(2, 3, 0, 0))).toBe(2)
   })
 
-  it('clamps the address to the studio this scope draws', () => {
+  it('reads a seat past its own park as a seat of the next one', () => {
     expect(buildingOf(-5)).toBe(0)
-    expect(buildingOf(1e9)).toBe(BUILDINGS_PER_PARK - 1)
-    expect(storeyOf(1e9)).toBe(FLOORS_PER_BUILDING - 1)
+    // **No longer clamped**, and that is §7.7.1a rather than a regression: the
+    // address walks a network of worlds, so a seat past the end of one park is
+    // a seat in the next one rather than the last desk of this one. Both parts
+    // of the address are therefore park-relative and neither saturates.
+    expect(buildingOf(BUILDINGS_PER_PARK * BUILDING_CAP)).toBe(0)
+    expect(buildingOf(BUILDINGS_PER_PARK * BUILDING_CAP - 1)).toBe(BUILDINGS_PER_PARK - 1)
+    expect(storeyOf(BUILDING_CAP - 1)).toBe(FLOORS_PER_BUILDING - 1)
   })
 
   it('fills its buildings in order, and only the last one grows', () => {
@@ -519,16 +535,21 @@ describe('the park', () => {
     expect(plotOf(buildingOf(745_000))).toBe(4)
     expect(storeyOf(745_000)).toBe(5)
 
-    expect(seatOfBlock(7, 0)).toBe(7 * BLOCK_CAP)
+    expect(seatOfBlock(7, 0, 0)).toBe(7 * BLOCK_CAP)
     expect(buildingAt(4, 7)).toBe(74)
-    expect(seatOfPlot(4, 7, 0)).toBe(74 * BUILDING_CAP)
-    expect(seatOfStorey(5, buildingAt(4, 7), 0)).toBe(745_000)
+    expect(seatOfPlot(4, 7, 0, 0)).toBe(74 * BUILDING_CAP)
+    expect(seatOfStorey(5, buildingAt(4, 7), 0, 0)).toBe(745_000)
   })
 
-  it('clamps the address to the studio this scope draws', () => {
+  it('reads a seat past its own planet as a seat of the next world', () => {
     expect(blockOf(-5)).toBe(0)
-    expect(blockOf(1e12)).toBe(BLOCKS_PER_PARK - 1)
-    expect(buildingOf(1e12)).toBe(BUILDINGS_PER_PARK - 1)
+    // §7.7.1a again, one rung up: the park, the planet and the world are each
+    // relative to the thing that contains them, and only `worldOf` counts.
+    expect(blockOf(GLOBE_CAP)).toBe(0)
+    expect(blockOf(GLOBE_CAP - 1)).toBe(BLOCKS_PER_PARK - 1)
+    expect(siteOf(GLOBE_CAP)).toBe(0)
+    expect(worldOf(GLOBE_CAP)).toBe(1)
+    expect(worldOf(seatOfWorld(4_000))).toBe(4_000)
   })
 
   it('fills its blocks in order, and only the last one grows', () => {
@@ -979,6 +1000,7 @@ describe('the ladder nests', () => {
     4: 0.55,
     5: 0.24,
     6: 0.12,
+    7: 0.06,
   } as Record<Level, number>
 
   it('pushes a rung out until it holds the one inside it', () => {
@@ -1007,11 +1029,11 @@ describe('the ladder nests', () => {
 
   it('stays continuous and on the ladder across a collapsed rung', () => {
     const nested = nestScales(CROSSED)
-    for (let s = nested[GLOBE] / 2; s < nested[DESK] * 2; s *= 1.05) {
+    for (let s = nested[GALAXY] / 2; s < nested[DESK] * 2; s *= 1.05) {
       const level = levelAtScale(s, nested)
       expect(Number.isFinite(level)).toBe(true)
       expect(level).toBeGreaterThanOrEqual(DESK)
-      expect(level).toBeLessThanOrEqual(GLOBE)
+      expect(level).toBeLessThanOrEqual(GALAXY)
     }
   })
 
@@ -1195,6 +1217,7 @@ describe('the plates are worth looking at', () => {
   // carried down through the parcel and the plot the tower is drawn in.
   const towerPx =
     levelScales(0, FLOORS_PER_BUILDING, REFERENCE)[BUILDING] *
+    GALAXY_SCALE *
     GLOBE_SCALE *
     PARK_SCALE *
     BLOCK_SCALE
@@ -1337,13 +1360,15 @@ describe('the globe', () => {
     // A planet of one site *is* that site, the way a park of one block is that
     // block. It is what keeps a studio that has never left its first park on
     // six rungs rather than showing it an empty world.
-    const one = globeFrame(1, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    const one = intoGalaxy(
+      globeFrame(1, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK),
+    )
     const park = frameFor(PARK, 0, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK, 1)
     expect(one).toEqual(park)
   })
 
   it('numbers the address one rung further out, and still from one seat', () => {
-    const seat = seatOfSite(37) + 7 * BLOCK_CAP + 4 * BUILDING_CAP + 5 * DEVS_PER_FLOOR
+    const seat = seatOfSite(37, 0) + 7 * BLOCK_CAP + 4 * BUILDING_CAP + 5 * DEVS_PER_FLOOR
     expect(siteOf(seat)).toBe(37)
     expect(blockOf(seat)).toBe(7)
     expect(buildingAt(plotOf(buildingOf(seat)), blockOf(seat))).toBe(74)
@@ -1351,8 +1376,8 @@ describe('the globe', () => {
     // The two rungs that were park-wide are park-relative now, so the same
     // block of a different territory is the same block. Getting this wrong is
     // how an address on site 37 draws site 0's tower.
-    expect(blockOf(seat)).toBe(blockOf(seat - seatOfSite(37)))
-    expect(buildingOf(seat)).toBe(buildingOf(seat - seatOfSite(37)))
+    expect(blockOf(seat)).toBe(blockOf(seat - seatOfSite(37, 0)))
+    expect(buildingOf(seat)).toBe(buildingOf(seat - seatOfSite(37, 0)))
   })
 
   it('hands a park only the people who are on it', () => {
@@ -1370,5 +1395,112 @@ describe('the globe', () => {
     expect(globeChromeAlpha(GLOBE)).toBeCloseTo(1, 6)
     expect(globeChromeAlpha(PARK)).toBe(0)
     expect(globeChromeAlpha(BLOCK)).toBe(0)
+  })
+})
+
+describe('the network', () => {
+  it('costs one division and no LOD threshold', () => {
+    // The claim `HANDOFF-2026-08-20.md` §13 made, paid a fourth time: every
+    // threshold in this file is written in floor-space scale, so a new division
+    // in the chain moves every camera scale by exactly that factor and leaves
+    // the questions about how big a desk is on screen answered as they were.
+    const scales = levelScales(0, FLOORS_PER_BUILDING, REFERENCE, BUILDINGS_PER_BLOCK)
+    expect(roomResolved(floorScaleAt(scales[FLOOR]))).toBe(true)
+    expect(roomResolved(floorScaleAt(scales[BLOCK]))).toBe(false)
+  })
+
+  it('nests: a world is a node of the network at exactly the globe scale', () => {
+    // The hand-off `galaxy.ts` depends on. The node drawn for the focused world
+    // and the planet drawn inside it are the same size at the same place, so
+    // the swap between them is a swap the player cannot see — which is the
+    // whole mechanism replacing a cross-fade (§10.5).
+    expect(nodeRadius()).toBeCloseTo(globeRadius() * GALAXY_SCALE, 9)
+    expect(intoGalaxy({ cx: 4, cy: 6, w: 8, h: 10 })).toEqual({
+      cx: 4 * GALAXY_SCALE,
+      cy: 6 * GALAXY_SCALE,
+      w: 8 * GALAXY_SCALE,
+      h: 10 * GALAXY_SCALE,
+    })
+  })
+
+  it('steps out by the same factor the rungs below it do', () => {
+    // The reason `GALAXY_REACH` is the chosen number and the star spacing is
+    // the derived one: a ladder whose last rung is a ×50 lurch is not the same
+    // instrument at the top as it is at the bottom.
+    const scales = levelScales(
+      0,
+      FLOORS_PER_BUILDING,
+      REFERENCE,
+      BUILDINGS_PER_BLOCK,
+      BLOCKS_PER_PARK,
+      SITES_PER_GLOBE,
+      WORLDS_FRAMED,
+    )
+    const step = scales[GLOBE] / scales[GALAXY]
+    const below = scales[PARK] / scales[GLOBE]
+    expect(step).toBeGreaterThan(below / 2)
+    expect(step).toBeLessThan(below * 2)
+  })
+
+  it('collapses onto the planet while the studio is on one world', () => {
+    // A network of one world *is* that world, the way a planet of one site is
+    // that site. It is what keeps a studio that has never left Sol on seven
+    // rungs rather than showing it an empty sky.
+    const one = galaxyFrame(1, SITES_PER_GLOBE, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    const globe = frameFor(
+      GLOBE,
+      0,
+      FLOORS_PER_BUILDING,
+      BUILDINGS_PER_BLOCK,
+      BLOCKS_PER_PARK,
+      SITES_PER_GLOBE,
+      1,
+    )
+    expect(one).toEqual(globe)
+  })
+
+  it('frames the same sky however many worlds there are', () => {
+    // `WORLDS_FRAMED` is a *neighbourhood*, so the top frame does not grow. A
+    // frame fitted to every settled world would be unbounded, and at 10^13
+    // developers the hundred thousand nearest the camera would be one pixel.
+    const at = (worlds: number) =>
+      galaxyFrame(worlds, SITES_PER_GLOBE, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK, BLOCKS_PER_PARK)
+    expect(at(2)).toEqual(at(WORLDS_FRAMED))
+    expect(at(2)).toEqual(at(1e9))
+    expect(at(2).w).toBeCloseTo(2 * galaxyRadius(), 9)
+  })
+
+  it('numbers the address one rung further out, and still from one seat', () => {
+    const seat = seatOfWorld(1_337) + seatOfSite(37, 0) + 7 * BLOCK_CAP + 5 * DEVS_PER_FLOOR
+    expect(worldOf(seat)).toBe(1_337)
+    expect(siteOf(seat)).toBe(37)
+    expect(blockOf(seat)).toBe(7)
+    expect(storeyOf(seat)).toBe(5)
+    // Every rung below the world is world-relative, so the same site of a
+    // different star is the same site. Getting this wrong is how an address at
+    // Proxima draws Sol's continent.
+    expect(siteOf(seat)).toBe(siteOf(seat - seatOfWorld(1_337)))
+    expect(blockOf(seat)).toBe(blockOf(seat - seatOfWorld(1_337)))
+  })
+
+  it('is the simulation’s own world, to the developer', () => {
+    // Two derivations of one number is how a table drifts from the geometry it
+    // was copied out of. `sim/` may not reach into `render/`, so `WORLD_CAP` is
+    // written there and pinned here instead of imported.
+    expect(GLOBE_CAP).toBe(WORLD_CAP)
+    expect(GLOBE_CAP).toBe(1e8)
+  })
+
+  it('hands a planet only the people who are on it', () => {
+    expect(devsOnWorld(GLOBE_CAP * 2.5, 0)).toBe(GLOBE_CAP)
+    expect(devsOnWorld(GLOBE_CAP * 2.5, 2)).toBe(GLOBE_CAP * 0.5)
+    expect(devsOnWorld(GLOBE_CAP * 2.5, 3)).toBe(0)
+    expect(sitesFor(devsOnWorld(GLOBE_CAP * 2.5, 2))).toBe(50)
+  })
+
+  it('fades the network out below its own rung', () => {
+    expect(galaxyChromeAlpha(GALAXY)).toBeCloseTo(1, 6)
+    expect(galaxyChromeAlpha(GLOBE)).toBe(0)
+    expect(galaxyChromeAlpha(PARK)).toBe(0)
   })
 })

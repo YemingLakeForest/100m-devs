@@ -64,9 +64,16 @@ export interface Scenario {
  *
  * Decades rather than round studio sizes because the question a scenario
  * answers is "what does an order of magnitude look like", and because §7.7.1's
- * bands are themselves powers of ten. The list stops at §13.5's gate: a hundred
- * million is the number the game is named after and the largest headcount any
- * part of the design has committed to drawing.
+ * bands are themselves powers of ten.
+ *
+ * **It no longer stops at §13.5's gate**, and the reason it used to is worth
+ * keeping: a hundred million was "the number the game is named after and the
+ * largest headcount any part of the design has committed to drawing". §7.7.1a
+ * commits to the two above it, so they get buttons — one where the network
+ * opens, and one where the neighbourhood is full and the answer to "what is
+ * past the edge" is the haze rather than another rung. There is no button after
+ * that on purpose: every decade above 10^11 is the same picture with a larger
+ * number under it, which is the honest end of a ladder that does not saturate.
  */
 export const SCENARIOS: readonly Scenario[] = [
   { id: 'solo', label: '1', devs: 1, note: 'Act I. You, alone, and the share of one developer is exactly 1.' },
@@ -78,6 +85,8 @@ export const SCENARIOS: readonly Scenario[] = [
   { id: 'town', label: '1 M', devs: 1e6, note: 'One site, on a planet that has not noticed. A park is exactly full here.' },
   { id: 'metro', label: '10 M', devs: 1e7, note: 'Ten sites. The dark side starts being readable as a map.' },
   { id: 'nation', label: '100 M', devs: 1e8, note: '§13.5’s gate. The planet is full and there is nowhere left to put a desk.' },
+  { id: 'starbound', label: '1 B', devs: 1e9, note: '§7.7.1a. Ten worlds. The network opens and Sol stops being the only one.' },
+  { id: 'network', label: '10 B', devs: 1e10, note: 'A hundred worlds — four times the neighbourhood. Past the frame is haze.' },
 ]
 
 /**

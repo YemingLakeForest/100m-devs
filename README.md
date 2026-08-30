@@ -8,9 +8,12 @@ You start alone in a home garage writing a Flappy Bird clone. You end shipping s
 multiverses at one project per Planck time.
 
 **Status:** **Run 1 — The Trap is playable end to end**, and the Omni-Lens now runs
-**seven levels** — desk, squad, floor, building, block, park, **globe** — from one developer to
-**100,000,000 on a hundred sites of a planet**, which is the number on the box. Poke, hire James, ship *Flappy
-Square*, take the mass-hire bait, watch the studio seize at 99.999% entropy, and go
+**eight levels** — desk, squad, floor, building, block, park, **globe**, **network** — from one
+developer to **100,000,000 on a hundred sites of a planet**, which is the number on the box,
+and then past it: the planet is full at exactly 10⁸ because the tiling says so, James is
+put in a filing cabinet and posted to Proxima Centauri, and the ladder becomes a procedural
+3-D star field that does not run out (GDD §7.7.1a, §16.0a, §21.8). Poke, hire James, ship
+*Flappy Square*, take the mass-hire bait, watch the studio seize at 99.999% entropy, and go
 bankrupt in about twenty seconds. Every number in that sequence is produced by the §4
 simulation rather than scripted.
 
@@ -44,7 +47,8 @@ or `::1`. They are inert on deployed HTML, LAN-hosted pages and every Android AP
 | `?post=bloom,crt` | Attach only the named passes (`tilt`, `zoom`, `bloom`, `rgb`, `crt`) |
 | `?bench` | Run the ADR §7.5 acceptance sequence and print a pass/fail table. `?bench=10` shortens the 60s sustained-tap leg. |
 | `?act=act5_bleeding` | Jump the §21 script. Run 1 is paced to take ~4 minutes by design, which is right for a player and unworkable for iterating on Act V's copy. |
-| `?scenarios` | The dev bar: a decade per button, **a box that takes any exact headcount**, and a logarithmic `BATCH` dial that adds 1–100M developers through the real hire/arrival path. The lens follows the resulting rung; `DEVS / RUNG / VIEW / SITES` confirm it. `npm run scenarios` opens it. |
+| `?scenarios` | The dev bar: a decade per button, **a box that takes any exact headcount**, and a logarithmic `BATCH` dial that adds 1–100M developers through the real hire/arrival path. The lens follows the resulting rung; `DEVS / RUNG / VIEW / SITES` confirm it. `npm run scenarios` opens it. `?scenario=starbound` is ten worlds and `?scenario=network` a hundred. |
+| `?launch` | §21.8's nine-shot launch, without the twenty-one lines of scene in front of it |
 | `?devs=250000` | The same headcount, from the URL, without the script retired or the money in the bank |
 | `?speed=40` | Run N simulation ticks per frame — the clock and nothing else. Whole ticks, so it is the same simulation N times over rather than a bigger step. What makes `test:walk` finish. |
 
