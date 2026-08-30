@@ -14262,6 +14262,19 @@ devices — that margin is where the HUD lives, and it is a feature, not waste.<
 <li>HUD elements anchor to <strong>edges</strong>, never to fractions of the width.</li>
 <li>Nothing load-bearing within 5% of the left or right edge — notches, gesture bars, curved
 cutoff.</li>
+<li><strong>Nothing touches. [CANON - added 2026-08-30]</strong> Two things that paint — a readout, a
+chip, a chart, a button's slab — are separated by at least <strong>3 px</strong> of background wherever
+they share an edge. Not overlapping is not the same as not touching: three boxes drawn
+flush are one tall box with hairlines in it, which is what a 1045×465 handset reported of
+the <code>IN SYNC</code> gauge, the <code>VELOCITY</code> readout and the <code>MENU</code> button below them, and what
+the three §4.15 backlogs had been doing since they were written — stacked at exactly zero,
+their three <code>border-left</code> rules joined into the one unbroken mark a <em>combined</em> backlog
+would have. Three is a floor taken from the house's own spacing: the tightest deliberate
+gap in the HUD is 4 px and the rails sit at 5, 6 and 8, so nothing intentional comes near
+it and nothing reaches zero by accident. <strong>A short frame buys its pixels from padding,
+never from the gap</strong> — inside a bordered block the padding is decoration, between two of
+them the gap is what says there are two. Enforced by the clearance pass in
+<code>scripts/ui-frame.acceptance.mjs</code>.</li>
 </ul>
 <h4 id="renderer-gotcha">23.4.3 Renderer gotcha</h4>
 <p>Pixi's <code>resizeTo: host</code> recalculates on <strong>window</strong> resize events and does <strong>not</strong> observe the
@@ -14296,8 +14309,10 @@ landed, so preserving that list as present tense would make this guide actively 
 not merely on the existence of a module or passing unit test. The standing proof stack is:</p>
 <ol>
 <li><code>vitest</code> for simulation and component behaviour;</li>
-<li><code>scripts/ui-frame.acceptance.mjs</code> for the six supported landscape frames, including
-the Pixel 7's 915×412 CSS viewport;</li>
+<li><code>scripts/ui-frame.acceptance.mjs</code> for the seven supported landscape frames, including
+the Pixel 7's 915×412 CSS viewport and — <strong>[amended 2026-08-30]</strong> — 1045×465, five pixels
+under the <code>max-height: 470px</code> breakpoint, so the roomiest phone that still takes every
+trim written for the bottom of the box is measured rather than assumed;</li>
 <li><code>scripts/playthrough.acceptance.mjs</code> for a player reaching the joined-up loop;</li>
 <li><code>scripts/scale.probe.mjs</code> for the 100,000,000-developer architecture;</li>
 <li>handset inspection for touch feel, audio, readability and sustained performance.</li>

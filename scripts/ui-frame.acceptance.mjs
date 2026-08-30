@@ -3,8 +3,9 @@
  *
  * This checks the supported landscape frames, not jsdom's synthetic boxes. It
  * fails when any visible UI component or any actually painted text crosses the
- * game frame, when two things that share a layer are drawn on top of each other,
- * and when a button label disappears into its rendered background.
+ * game frame, when two things that share a layer are drawn on top of each other
+ * *or are merely flush against each other*, and when a button label disappears
+ * into its rendered background.
  *
  * ## Why this file grew, on 2026-08-12
  *
@@ -302,6 +303,57 @@ async function overflowIssues(page) {
       }))
       .filter(({ box }) => box.right > box.left && box.bottom > box.top)
 
+    /* ------------------------------------------------------------------
+       Clearance — **not overlapping is not the same as not touching.**
+
+       Reported from a 1045x465 handset: the IN SYNC gauge, the VELOCITY
+       readout and the MENU button below them were drawn flush, three boxes
+       welded into one tall block with hairlines in it. Every pass in this file
+       passed, correctly and uselessly. Containment: all three inside the
+       frame. Overlap: separated by exactly 0.0 px, which is not a positive
+       intersection, and the two pixels of slack the pass above allows for a
+       shared rule mean it could not have reported them even at -1. Cropping:
+       nothing was clipped.
+
+       So the rectangles were all legal and the screen was still wrong, which
+       is what a gate built entirely out of `intersect()` cannot see. The
+       missing question is the *gap*, and this is it: two things that paint
+       must be separated by enough of the background that a player reads them
+       as two things.
+
+       Three pixels, and the number comes off the house's own spacing rather
+       than off a preference. The tightest deliberate gap anywhere in the HUD
+       is 4 px (`.hud__bottom` at short heights) and the rails and readout
+       columns sit at 5, 6 and 8; so 3 clears every intentional arrangement in
+       the game with a pixel to spare and catches the welded ones. It is a
+       floor, not a target — the point is that nothing reaches zero by
+       accident, the way `.hud__gauges { gap: 0 }` did.
+
+       **Neighbours only.** Two boxes that overlap on both axes are the pass
+       above's business; two that meet at a corner are nobody's, because a
+       diagonal near-miss is not something a player can read as touching. What
+       is left is a pair sharing a real edge — side by side, or stacked — and
+       the gap along that one axis is the measurement.
+    ------------------------------------------------------------------ */
+    const CLEARANCE = 3
+
+    const clearanceBetween = (a, b) => {
+      const gapX = Math.max(a.left, b.left) - Math.min(a.right, b.right)
+      const gapY = Math.max(a.top, b.top) - Math.min(a.bottom, b.bottom)
+      if (gapX >= 0 && gapY >= 0) return null
+      if (gapX < 0 && gapY < 0) return null
+      /* The shared extent on the other axis. Four pixels, so that a box which
+         merely clips the corner of its neighbour is not reported as sitting
+         beside it — the overlap has to be enough edge for the eye to pair the
+         two up in the first place. */
+      if (gapY < 0) {
+        const share = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+        return share > 4 ? { gap: gapX, axis: 'beside' } : null
+      }
+      const share = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+      return share > 4 ? { gap: gapY, axis: 'above/below' } : null
+    }
+
     for (let i = 0; i < painted.length; i += 1) {
       for (let j = i + 1; j < painted.length; j += 1) {
         const a = painted[i]
@@ -310,9 +362,17 @@ async function overflowIssues(page) {
         /* Two pixels of slack: adjacent boxes share a 1px rule, and a skewed
            §10.8a slab's bounding box reaches a little past its own edge. */
         const hit = intersect(a.box, b.box, 2)
-        if (!hit) continue
+        if (hit) {
+          issues.push(
+            `${a.element.className || a.element.tagName} is drawn over ${b.element.className || b.element.tagName} (${hit.w.toFixed(0)}x${hit.h.toFixed(0)}px)`,
+          )
+          continue
+        }
+        const near = clearanceBetween(a.box, b.box)
+        if (!near || near.gap >= CLEARANCE) continue
         issues.push(
-          `${a.element.className || a.element.tagName} is drawn over ${b.element.className || b.element.tagName} (${hit.w.toFixed(0)}x${hit.h.toFixed(0)}px)`,
+          `${a.element.className || a.element.tagName} touches ${b.element.className || b.element.tagName} ` +
+            `(${near.axis}, ${near.gap.toFixed(1)}px apart, needs ${CLEARANCE}px)`,
         )
       }
     }
@@ -818,6 +878,15 @@ try {
     // Pixel 7's 915x412 CSS viewport: the reported gallery and panel-layer frame.
     [915, 412],
     [997, 448],
+    /*
+     * The tall end of the short-frame arrangement, and the frame the gauge
+     * column's zero gap was reported from. 465 is five pixels under the
+     * `max-height: 470px` breakpoint, so this is the roomiest phone that still
+     * gets every trim that query applies — the one place where a rule written
+     * to buy pixels at 336 is spending them against a rail that has 120 to
+     * spare. The list had nothing between 448 and the desktop it never visits.
+     */
+    [1045, 465],
   ]
 
   const openFounderSetup = async (target) => {

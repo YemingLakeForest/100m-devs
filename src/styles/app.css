@@ -480,7 +480,21 @@ body {
   flex: 0 0 auto;
   margin-top: auto;
   display: grid;
-  gap: 2px;
+  /*
+   * **Six, not two — the rail's own spacing, not a special case.**
+   *
+   * This column was the one place in the HUD that packed its blocks tighter
+   * than everything around it (`.hud__resources` is 6, `.hud__controls` is 5,
+   * the rails themselves are 8), and two pixels between a readout and the one
+   * below it is a shared edge with a hairline in it rather than a gap. The
+   * saving was never spent on anything: the column is pinned by `margin-top:
+   * auto`, so every pixel it does not take is given straight back to the empty
+   * space above it, never to the rail's budget. The short-frame query below
+   * still trims this to 4, and even there — 748x336 with the fullest HUD the
+   * game can produce, which is the bottom of §23.4.2's box — the rail finishes
+   * with 6 px of that space unspent.
+   */
+  gap: 6px;
   /* Same elbow room as `.hud__bottom`: the MENU button at the foot of this
      column paints its offset slab past the rail's clip, so it needs the space. */
   padding-bottom: 3px;
@@ -1396,6 +1410,17 @@ body {
      of its own edge. This margin is the skew's room, the same way `.hud__bottom`
      reserves space for the offset slab on the right. */
   margin-left: 4px;
+  /*
+   * **A control is not a third readout.** On top of the column's own gap,
+   * because the two things above this are instruments — you read them — and
+   * this is a door you press. The right rail states the same separation with
+   * `margin-top: auto` on `.hud__bottom`; this column is already pinned to the
+   * foot of the rail, so it has to say it in pixels instead. Reported as the
+   * velocity readout "touching immediately" the MENU, which it was: the short-
+   * frame query below had taken the gap to zero and the button's slab was
+   * drawn straight off the bottom edge of the block above it.
+   */
+  margin-top: 4px;
 }
 
 /* The sizing box. Frame, ground and scroll are the window's (§10.6a). */
@@ -2866,6 +2891,19 @@ body {
   line-height: 1.25;
   padding: 3px 0 3px 6px;
   border-left: var(--rule) solid var(--p1);
+  /*
+   * **The set has to look like three things.** Same margin `.revenue` uses on
+   * the joint above it, and it is the same argument as §4.15's: three stacked
+   * flush share one unbroken `border-left`, which is precisely the drawing a
+   * single combined backlog would have — the thing rule 2 forbids. Separated,
+   * the rule breaks into three marks and the column reads as a set of three.
+   *
+   * It was zero from the day the backlogs were written and nothing reported it,
+   * because a gate built out of `intersect()` cannot see a gap of exactly
+   * nothing. See the clearance pass in `ui-frame.acceptance.mjs`, which found
+   * this while it was being written for the gauge column.
+   */
+  margin-top: 5px;
 }
 
 .backlog__count b {
@@ -3037,9 +3075,18 @@ body {
  * declining to mention that a shipped title is off sale.
  */
 @media (max-height: 470px) {
+  /*
+   * The backlog gives up its **internal** breathing and keeps its **external**
+   * gap, which is the whole trade at this height and it is free: four pixels of
+   * padding come off each of the three, four pixels of margin go between them,
+   * and the column finishes exactly the height it was. Inside a bordered block
+   * the padding is decoration; between two of them the gap is what says there
+   * are two.
+   */
   .backlog {
-    padding: 2px 0 2px 6px;
+    padding: 0 0 0 6px;
     gap: 0;
+    margin-top: 4px;
   }
 
   /* The numeral drops a whole step (§3 rule 2) so the count and its cure fit
@@ -3091,9 +3138,23 @@ body {
     line-height: 1;
   }
 
-  /* The readout column tightens so the MENU at its foot clears the rail's clip. */
+  /*
+   * The readout column tightens — but **not to nothing**, which is what this
+   * rule used to say and what the whole batch of "the readouts are touching the
+   * MENU" reports were. Reported from 1045x465; measured there, and at every
+   * other frame in §23.4.2's box, the two gauges and the button were separated
+   * by exactly 0.0 px.
+   *
+   * Zero never bought anything. The column is pinned by `margin-top: auto`, so
+   * what it gives up goes to the gap *above* it, not to the rail's budget — at
+   * 748x336 with the fullest HUD the game can produce there were still 18 px of
+   * unused rail above these three rows while they sat welded together. Four is
+   * the same step `.hud__bottom` drops to at this height, so the two rails
+   * tighten by the same amount and the column stays legible as a stack of
+   * separate instruments rather than one tall block with rules drawn in it.
+   */
   .hud__gauges {
-    gap: 0;
+    gap: 4px;
     padding-bottom: 3px;
   }
 
