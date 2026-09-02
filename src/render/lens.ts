@@ -654,6 +654,39 @@ export class Lens {
   }
 
   /**
+   * Fly to a **rectangle of the focused floor**, rather than to a level.
+   *
+   * §7.8.12's TEAM control is the caller, and it needs this because the suite is
+   * not the size of any rung. `flyTo` takes its scale from the level it is sent
+   * to, so `flyTo(SQUAD, suiteCentre)` aims correctly and then draws the room at
+   * a hundred-desk scale — the suite ends up a fifth of the frame with ninety
+   * empty seats around it, which is a picture of the floor with the thing you
+   * asked for in the corner of it.
+   *
+   * The level is still recorded, because everything downstream of the lens reads
+   * one: the breadcrumb, §8.2's poke tier, §20.2's audio zones and §4.5b's unit
+   * all ask "where am I". `parked` therefore names the rung this rectangle sits
+   * *in* while the scale is the rectangle's own — which is a state the camera has
+   * always been able to be in (a pinch leaves it between two levels every time)
+   * and is not a new kind of thing to be.
+   */
+  flyToRect(level: Level, rect: Rect): void {
+    level = Math.min(level, this.ceiling) as Level
+    const centre = this.floorPointToWorld({ x: rect.cx, y: rect.cy })
+    this.target = {
+      scale: fitScaleFor(this.roomFrame(rect), this.viewport),
+      cx: centre.x,
+      cy: centre.y,
+    }
+    this.commanded = true
+    this.parked = level
+    this.parkedAt = { x: rect.cx, y: rect.cy }
+    this.gestureFrom = null
+    this.panned = false
+    this.idleSince = Number.POSITIVE_INFINITY
+  }
+
+  /**
    * GDD §7.2's Z, as `?z`, the §23.3 bench and the scenario picker all set it.
    *
    * Continuous rather than snapped to a level, because the bench drives a dolly

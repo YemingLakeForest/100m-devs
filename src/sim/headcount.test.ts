@@ -78,17 +78,20 @@ describe('spawnBurst — §7.7.3, the requirement that hiring stays visible', ()
 
 describe('cohortSize — §7.7.5, the scale bar', () => {
   it('is one developer per unit while the swarm fits on one floor', () => {
+    // §7.8.0 — a floor is a hundred now, so this band is a hundred wide rather
+    // than a thousand. The claim is unchanged: while the room is on screen,
+    // one body is one person.
     expect(cohortSize(1)).toBe(1)
-    expect(cohortSize(999)).toBe(1)
+    expect(cohortSize(99)).toBe(1)
   })
 
   it('is the size of the thing the player is actually looking at', () => {
     // The bug this pins: deriving the cohort independently of the rung put the
     // two on different schedules, and at 1,002 developers the HUD read
-    // "1 FLOOR = 1 DEVS". A floor holds a thousand people, so the cohort at the
-    // floor rung is a thousand. The unit on screen and the number beside it
-    // have to be the same claim.
-    expect(cohortSize(1002)).toBe(1e3)
+    // "1 FLOOR = 1 DEVS". A floor holds a hundred people (§7.8.0), so the
+    // cohort at the floor rung is a hundred. The unit on screen and the number
+    // beside it have to be the same claim.
+    expect(cohortSize(1002)).toBe(100)
     expect(cohortSize(5e4)).toBe(1e4)
     // §7.7.1a — and it saturates at the *drawn* rung, which is the network's
     // world. The table runs two rungs further for §13.6.1's hero reach, and
@@ -120,17 +123,22 @@ describe('cohortSize — §7.7.5, the scale bar', () => {
   })
 
   it('fills each rung from one unit up to a screenful', () => {
-    // Rung 3 runs 1 -> 10 storeys, which is a tower growing. If a rung ever
-    // spanned so many decades that it ended past the sprite budget, the top of
-    // it would be an unrenderable mush.
-    expect(visibleSprites(1e3)).toBe(1)
-    expect(visibleSprites(9.9e3)).toBe(9)
+    // Rungs 2 and 3 run 1 -> 100 storeys, which is a tower growing to its
+    // topping-out. If a rung ever spanned so many decades that it ended past
+    // the sprite budget, the top of it would be an unrenderable mush.
+    expect(visibleSprites(101)).toBe(1)
+    expect(visibleSprites(1e3)).toBe(10)
+    expect(visibleSprites(9.9e3)).toBe(99)
     expect(visibleSprites(9.9e12)).toBeLessThanOrEqual(SPRITE_BUDGET)
   })
 
   it('stays silent while a marker is still a person, and speaks once it is not', () => {
-    expect(scaleBar(500)).toBeNull()
-    expect(scaleBar(1002)).toBe('1 FLOOR = 1.0 K DEVS')
+    expect(scaleBar(50)).toBeNull()
+    // §7.8.0 — a marker stops being a person at a hundred and one, because
+    // that is where the picture stops being a floor and starts being a tower.
+    expect(scaleBar(100)).toBeNull()
+    expect(scaleBar(101)).toBe('1 FLOOR = 100 DEVS')
+    expect(scaleBar(1002)).toBe('1 FLOOR = 100 DEVS')
     expect(scaleBar(2e8)).toBe('1 WORLD = 100 M DEVS')
     // Still a world at four trillion, because a world is still what is drawn.
     expect(scaleBar(4.2e12)).toBe('1 WORLD = 100 M DEVS')
@@ -142,7 +150,8 @@ describe('the Construction Ladder — §7.7.1', () => {
     // §7.7.2's gag animates this noun: a floor is slapped onto the tower, a
     // planet is set down and bounces once.
     expect(rungFor(1).unit).toBe('person')
-    expect(rungFor(500).unit).toBe('person')
+    expect(rungFor(50).unit).toBe('person')
+    expect(rungFor(500).unit).toBe('floor')
     expect(rungFor(5e3).unit).toBe('floor')
     expect(rungFor(5e4).unit).toBe('building')
     expect(rungFor(5e5).unit).toBe('campus')
@@ -150,11 +159,23 @@ describe('the Construction Ladder — §7.7.1', () => {
     expect(rungFor(1e18).unit).toBe('galaxy')
   })
 
-  it('keeps one sprite meaning one person for the whole of Run 1 — §7.7.1', () => {
-    // Run 1 tops out at 1,002 developers (§21 Act IV). The literal rungs have
-    // to cover it, or the game teaches its fiction in the abstract.
+  it('keeps one sprite meaning one person for as long as there is a room — §7.8.0', () => {
+    // **This used to claim the whole of Run 1, up to Act III's 1,002, and
+    // §7.8.0 deliberately gave that up.** A thousand developers is now a
+    // ten-storey tower, so one marker there is a floor.
+    //
+    // That is not a loss to the fiction, it *is* the fiction: §21 Act III is
+    // the mousetrap, and the thing the player buys with the Mass Hire is a
+    // studio they can no longer see the individuals in. A picture that keeps
+    // drawing a thousand nameable people through the collapse is arguing
+    // against its own scene. Acts I and II — every headcount where the game is
+    // still about a person you can poke — are inside the literal band, and the
+    // room the camera can always pinch back into (§7.7.4) is drawn literally at
+    // any headcount.
     expect(isLiteral(1)).toBe(true)
-    expect(isLiteral(999)).toBe(true)
+    expect(isLiteral(20)).toBe(true)
+    expect(isLiteral(100)).toBe(true)
+    expect(isLiteral(101)).toBe(false)
     expect(isLiteral(1e5)).toBe(false)
   })
 
@@ -210,9 +231,16 @@ describe('maxZoomFor — §7.7.1, the studio you can see is the studio you have'
     // Every rung boundary in §7.7.1's table lifts the ceiling by exactly one
     // step, which is what makes `zoomCeilingLifted` a reveal beat rather than
     // an occasional one.
-    expect(maxZoomFor(1e2)).toBe(zAtRung(2))
-    expect(maxZoomFor(1e3)).toBe(zAtRung(3))
-    expect(maxZoomFor(1e4)).toBe(zAtRung(4))
+    // §7.8.0's inclusive boundaries: the ceiling lifts on the developer
+    // *after* the one who completed the room, which is the hire that first has
+    // nowhere in it to sit.
+    expect(maxZoomFor(20)).toBe(zAtRung(1))
+    expect(maxZoomFor(21)).toBe(zAtRung(1))
+    expect(maxZoomFor(1e2)).toBe(zAtRung(1))
+    expect(maxZoomFor(1e2 + 1)).toBe(zAtRung(2))
+    expect(maxZoomFor(1e3)).toBe(zAtRung(2))
+    expect(maxZoomFor(1e4)).toBe(zAtRung(3))
+    expect(maxZoomFor(1e4 + 1)).toBe(zAtRung(4))
     expect(maxZoomFor(1e5)).toBe(zAtRung(5))
     expect(maxZoomFor(1e6)).toBe(zAtRung(6))
     expect(maxZoomFor(1e8)).toBe(zAtRung(7))
@@ -232,8 +260,8 @@ describe('maxZoomFor — §7.7.1, the studio you can see is the studio you have'
   })
 
   it('reports the lift, because gaining a register is a scored beat', () => {
-    expect(zoomCeilingLifted(99, 100)).toBe(true)
-    expect(zoomCeilingLifted(100, 500)).toBe(false)
+    expect(zoomCeilingLifted(100, 101)).toBe(true)
+    expect(zoomCeilingLifted(101, 500)).toBe(false)
     // Act V liquidates the studio. Losing the register is not a beat.
     expect(zoomCeilingLifted(1e6, 2)).toBe(false)
   })

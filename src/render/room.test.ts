@@ -5,13 +5,11 @@ import { describe, expect, it, vi } from 'vitest'
 // never play anything.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: () => {} }))
 import type { Container, Graphics } from 'pixi.js'
+import { PLAN_BLOCKS, PLAN_BOUNDS, PLAN_CAPACITY } from './floorplan.ts'
 import {
-  FLOOR_COLS,
-  FLOOR_ROWS,
   FLOOR_SIZE,
   FOUNDER_CORNER_COL,
   FOUNDER_CORNER_ROW,
-  FOUNDER_NORTH_CLEARANCE,
   HOP_AIRBORNE,
   HOP_HEIGHT,
   HOP_SQUASH,
@@ -30,13 +28,9 @@ import {
   COVER_SPAN,
   seatPosition,
   PITCH_ROW,
-  FLOOR_SQUADS,
   ROOM_DEV_CAP,
-  ROOM_SQUAD_COLS,
-  ROOM_SQUAD_ROWS,
   gridFor,
   founderDeskPosition,
-  foldedRoomCentre,
   hopHeight,
   hopSquash,
   hopSway,
@@ -44,7 +38,6 @@ import {
   panelLight,
   panelOpen,
   panelProgress,
-  plateHalfWidth,
   propsAt,
   seatFor,
   seatGrid,
@@ -54,9 +47,26 @@ import {
   ROOM_OPENS_AT,
   ROOM_OPEN_MARGIN,
   ROOM_TIGHT_MARGIN,
-  TEAM_ROOM_BOUNDS,
   teamDeskPosition,
+  drawnSeatPosition,
+  suiteSeatsIn,
+  isoAt,
+  FLOOR_MIN_COL,
+  FLOOR_MIN_ROW,
+  suitePlot,
+  suiteBox,
+  suiteEastCol,
+  FOUNDER_PLOT,
+  SUITE_BACK_ROW,
+  SUITE_DOOR_COLS,
+  SUITE_FRONT_ROW,
+  SUITE_GLASS_ROW,
+  SUITE_PITCH_COLS,
+  SUITE_SEATS,
+  SUITE_WALL_ROW,
+  SUITE_WEST_COL,
 } from './room.ts'
+import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import {
   ARRIVAL_MS,
   BEAT,
@@ -100,61 +110,61 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
     }
   })
 
-  it('fills row by row at BOTH scales — §7.8.1b', () => {
-    // Seats within a squad, squads within the floor, one reading order.
+  it('fills along a run, then the next run, then the next bank — §7.8.1b', () => {
+    // §7.8.1b's reading order, at the two scales it now has. The *inside* of a
+    // bank is unchanged and still reads exactly as the section writes it: hire
+    // one and they take the next seat in the current row; fill the row and the
+    // next row starts. What changed on 2026-08-31 is the scale above — see
+    // §7.8.1e. A floor is no longer a five-by-two grid of identical squads, so
+    // "the next squad" is "the next bank on the route", and the banks are
+    // different sizes in different arrangements.
     expect(seatFor(0)).toMatchObject({ squad: 0, col: 0, row: 0 })
     expect(seatFor(9)).toMatchObject({ squad: 0, col: 9, row: 0 })
     // The tenth hire starts the next row rather than widening the first.
     expect(seatFor(10)).toMatchObject({ squad: 0, col: 0, row: 1 })
-    // The hundredth fills the squad; the hundred and first starts the next one,
-    // and it starts at *its* first seat, not somewhere in the middle.
+    // The hundredth fills the first bank — §7.8.1c's squad, which does not move
+    // — and the hundred and first starts the next one at *its* first seat.
     expect(seatFor(99)).toMatchObject({ squad: 0, col: 9, row: 9 })
-    expect(seatFor(100)).toMatchObject({ squad: 1, col: 0, row: 0, squadCol: 1, squadRow: 0 })
-    // Squads themselves wrap at **five**, not ten. A full floor is a thousand
-    // people and therefore exactly ten squads; wrapping at ten put all ten in a
-    // single row across the horizon, which is what every room above the first
-    // storey looked like. Five by two is the only arrangement of ten that is
-    // neither a line nor a square with holes in it.
-    expect(ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS * SQUAD_SIZE).toBe(ROOM_DEV_CAP)
-    expect(seatFor(4 * SQUAD_SIZE)).toMatchObject({ squadCol: 4, squadRow: 0 })
-    expect(seatFor(5 * SQUAD_SIZE)).toMatchObject({ squadCol: 0, squadRow: 1 })
-    expect(seatFor(9 * SQUAD_SIZE)).toMatchObject({ squadCol: 4, squadRow: 1 })
-    // The property that matters more than the coordinates: a squad's place is a
-    // function of its index alone, so the next hundred people arriving never
-    // move the hundred already sitting down. §7.8.1b, asked of the squad.
-    for (const squad of [0, 1, 5, 42, 99]) {
-      expect(seatFor(squad * SQUAD_SIZE)).toMatchObject(seatFor(squad * SQUAD_SIZE))
-      expect(seatGrid(squad * SQUAD_SIZE)).toEqual(seatGrid(squad * SQUAD_SIZE))
+    expect(seatFor(100)).toMatchObject({ squad: 1, col: 0, row: 0 })
+    expect(PLAN_BLOCKS[1].from).toBe(SQUAD_SIZE)
+    // The property that matters more than the coordinates: a bank's place is a
+    // fact about the plan and not about the headcount, so the next hundred
+    // people arriving never move the hundred already sitting down. §7.8.1b,
+    // asked of the bank.
+    for (const [i, block] of PLAN_BLOCKS.entries()) {
+      expect(seatFor(block.from).squad).toBe(i)
+      expect(seatFor(block.from + block.count - 1).squad).toBe(i)
     }
   })
 
-  it('puts a corridor between squads, not between desks — §7.8.1a', () => {
-    // Two desks side by side inside a squad are a pitch apart. The desk across
-    // a squad boundary is much further, and that gap is the corridor.
+  it('puts a hallway between banks, not between desks — §7.8.1e', () => {
+    // Two desks side by side inside a run are a pitch apart. The desk across a
+    // bank boundary is much further, and that gap is the hallway.
     const within = seatGrid(1).col - seatGrid(0).col
-    const across = seatGrid(100).col - seatGrid(9).col
+    const across = seatGrid(SQUAD_SIZE).col - seatGrid(SQUAD_SIZE - 1).col
     expect(within).toBe(1)
     expect(across).toBeGreaterThan(within * 2)
   })
 
-  it('holds exactly ten thousand — §7.8.1a', () => {
+  it('gives the room enough desks for the floor it caps at — §7.8.1e', () => {
+    // §7.8.1a's arithmetic is untouched at the tiers above: a squad is a
+    // hundred, a floor of squads is ten thousand, and `building.ts` still counts
+    // in those. What the *room* draws is `ROOM_DEV_CAP` of them, and those seats
+    // come out of the plan — so the one thing that could silently break is the
+    // plan running out, which `planSeat` handles by repeating its last seat
+    // rather than throwing. It is caught here and in `floorplan.test.ts`.
     expect(SQUAD_SIZE).toBe(100)
     expect(FLOOR_SIZE).toBe(10_000)
-    // The last seat on the floor is in the last squad's last row, and it is
-    // still on the grid rather than off the end of it.
-    expect(seatFor(FLOOR_SIZE - 1)).toMatchObject({ squadCol: 4, col: 9, row: 9 })
-    // Every squad has its own plot, and no two share one. Checked across the
-    // whole of §7.8.1a's floor even though the *room* only ever draws
-    // `ROOM_DEV_CAP` of them — the numbering has to stay a bijection past the
-    // point the renderer stops looking, or a seat window opened out there would
-    // sit two squads on one plate.
+    expect(PLAN_CAPACITY).toBeGreaterThanOrEqual(ROOM_DEV_CAP)
+    // And every seat the room can draw is on a distinct plot. Checked here as
+    // well as in `floorplan.test.ts` because this is the consumer: it is the
+    // room that would put two people on one desk.
     const plots = new Set<string>()
-    for (let sq = 0; sq < FLOOR_SQUADS; sq++) {
-      const p = seatFor(sq * SQUAD_SIZE)
-      expect(p.squadCol).toBeLessThan(ROOM_SQUAD_COLS)
-      plots.add(`${p.squadCol},${p.squadRow}`)
+    for (let i = 0; i < ROOM_DEV_CAP; i++) {
+      const g = seatGrid(i)
+      plots.add(`${g.col},${g.row}`)
     }
-    expect(plots.size).toBe(FLOOR_SQUADS)
+    expect(plots.size).toBe(ROOM_DEV_CAP)
   })
 
   it('lays the floor out in rows — wider than it is deep, always', () => {
@@ -288,10 +298,59 @@ describe('the room grows with the headcount — GDD §7.8.1', () => {
 
 describe('your corner desk — GDD §7.8.10', () => {
   it('is included in the first-room camera extent', () => {
+    // **The proxy this used to check stopped being true on purpose.**
+    //
+    // It asserted that the camera extent contained everything the room drew,
+    // which held only while nothing was drawn outside the shell. §7.8.1d's
+    // apron is deliberately wider than the frame — `apronFitTiles` asks for
+    // half the forecourt and lets the carriageway bleed, because framing the
+    // whole road would shrink a full floor by a fifth to show it. Keeping the
+    // old assertion would have meant either framing a road nobody is looking
+    // at or not drawing one.
+    //
+    // So this now asks the question §7.8.10 actually cares about, and it is a
+    // stronger one than the proxy ever was: **is YOUR desk inside the
+    // rectangle the lens frames?**
+    const room = buildRoom()
+    const you = founderDeskPosition()
+    const { cx, cy, w, h } = room.shellRect
+    expect(you.x).toBeGreaterThanOrEqual(cx - w / 2)
+    expect(you.x).toBeLessThanOrEqual(cx + w / 2)
+    expect(you.y).toBeGreaterThanOrEqual(cy - h / 2)
+    expect(you.y).toBeLessThanOrEqual(cy + h / 2)
+    room.container.destroy({ children: true })
+  })
+
+  it('stays in the resting frame as the garage fills — §13.7.1a', () => {
+    // §7.8.1d's apron grows the camera rectangle, and the founder sits at the
+    // room's north vertex — the corner the frame's top edge is nearest. So the
+    // apron has to grow the rectangle **downward only**: it adds ground below
+    // the room and none above it, and a fit that grew symmetrically would push
+    // YOU off the top edge to make room for a road.
+    //
+    // The walk reports a drag here as a tolerated outcome rather than a
+    // failure, which is exactly the kind of slow regression that gets away. So
+    // it is pinned across the band §7.8.10 cares about instead.
+    const room = buildRoom()
+    for (const devs of [1, 2, 6, 12, 30, 99]) {
+      room.setHeadcount(devs)
+      const you = founderDeskPosition()
+      const { cx, cy, w, h } = room.shellRect
+      expect(you.x, `x at ${devs}`).toBeGreaterThanOrEqual(cx - w / 2)
+      expect(you.x, `x at ${devs}`).toBeLessThanOrEqual(cx + w / 2)
+      expect(you.y, `y at ${devs}`).toBeGreaterThanOrEqual(cy - h / 2)
+      expect(you.y, `y at ${devs}`).toBeLessThanOrEqual(cy + h / 2)
+    }
+    room.container.destroy({ children: true })
+  })
+
+  it('stands on ground the frame deliberately runs past — §7.8.1d', () => {
+    // The other half of the amendment above, asserted rather than assumed. If
+    // the drawn room ever fits inside its own camera extent again, the apron
+    // has silently stopped being drawn and the room is back on a void.
     const room = buildRoom()
     const bounds = room.container.getLocalBounds()
-    expect(room.extent.w).toBeGreaterThanOrEqual(bounds.maxX - bounds.minX)
-    expect(room.extent.h).toBeGreaterThanOrEqual(bounds.maxY - bounds.minY)
+    expect(bounds.maxX - bounds.minX).toBeGreaterThan(room.extent.w)
     room.container.destroy({ children: true })
   })
 
@@ -310,12 +369,27 @@ describe('your corner desk — GDD §7.8.10', () => {
     expect(you.y).toBeGreaterThan(first.y - 150)
   })
 
-  it('anchors the room shell to the founder instead of merely placing them high', () => {
-    const halfHeight = 220
-    const centre = foldedRoomCentre(halfHeight)
-    const northVertex = centre.y - halfHeight
-    expect(centre.x).toBe(founderDeskPosition().x)
-    expect(founderDeskPosition().y - northVertex).toBe(FOUNDER_NORTH_CLEARANCE)
+  /**
+   * §7.8.10 + §7.8.12 [rewritten 2026-08-31] — **the room starts where the suite
+   * starts.**
+   *
+   * This used to check that the shell's north *vertex* sat a fixed clearance
+   * above the founder. That is the right rule for a diamond and the wrong
+   * question for a room: a vertex is a point, the suite is a wide box, and no
+   * clearance puts a box in the corner of a point — which is the arrangement
+   * that left the suite floating in the middle of the slab.
+   *
+   * The rule now is that the room's two back sides *are* the suite's, which is
+   * one comparison rather than an offset to tune. The drawn consequence is
+   * measured at every headcount by `npm run test:room`.
+   */
+  it('starts the room at the suite’s own back corner', () => {
+    expect(SUITE_WEST_COL).toBe(FLOOR_MIN_COL)
+    expect(SUITE_WALL_ROW).toBe(FLOOR_MIN_ROW)
+    // And the founder, who may never move, is inside it.
+    expect(FOUNDER_PLOT.col).toBeGreaterThan(SUITE_WEST_COL)
+    expect(FOUNDER_PLOT.row).toBeGreaterThan(SUITE_WALL_ROW)
+    expect(FOUNDER_PLOT.row).toBeLessThan(SUITE_GLASS_ROW)
   })
 
   it('looks back down the row grain at the developers', () => {
@@ -402,53 +476,6 @@ describe('the dressing stands against a wall — §7.8.1', () => {
   })
 })
 
-describe('the desks never leave the plate — GDD §7.8.1a, R6', () => {
-  /**
-   * The plainest "this is broken" in the build: past about forty developers
-   * the corners of the desk block hung over the edge of the floor they were
-   * standing on. Two independent causes, and both are asserted here rather
-   * than through Pixi, because the geometry is what was wrong.
-   */
-  /**
-   * The block's far corner in the plate diamond's own normalised coordinates:
-   * `|x| / W + |y| / H`, which is ≤ 1 exactly when the corner is on the floor.
-   *
-   * `margin` is the tightest the room ever chooses — the crowded floor's — so
-   * this is the worst case rather than a comfortable one.
-   */
-  const contains = (n: number, margin = ROOM_CROWD_MARGIN) => {
-    const { cols, rows } = gridFor(n)
-    const box = blockBox(0, 0, cols - 1, rows - 1)
-    const bw = (box.maxX - box.minX) / 2
-    const bh = (box.maxY - box.minY) / 2
-    const half = plateHalfWidth(bw, bh, margin)
-    return bw / half + bh / (half / 2)
-  }
-
-  it('contains the block at every headcount the room can draw', () => {
-    for (let n = 1; n <= ROOM_DEV_CAP; n++) {
-      expect(contains(n)).toBeLessThanOrEqual(1)
-    }
-  })
-
-  it('is tight — the plate is not simply enormous', () => {
-    // The other half of the fix. A plate ten times too big would pass the test
-    // above and frame the studio as a speck (§23.4.1 fits the tier to the
-    // frame), so the containment has to be nearly exact at zero margin.
-    expect(contains(100, 0)).toBeCloseTo(1, 6)
-  })
-
-  it('holds the corners of a DEEP block, which is where it failed', () => {
-    // A wide flat block is contained by almost any rule; the old
-    // `max(width, height)` was one of them. It broke as the block got deeper,
-    // which is exactly the direction hiring takes it.
-    const box = blockBox(0, 0, SQUAD_COLS - 1, SQUAD_ROWS - 1)
-    const bw = (box.maxX - box.minX) / 2
-    const bh = (box.maxY - box.minY) / 2
-    expect(Math.max(bw, bh * 2) / 2).toBeLessThan(plateHalfWidth(bw, bh, 0))
-  })
-})
-
 describe('the floor unfolds at a hundred — GDD §7.8.1c, R7', () => {
   it('is folded away to nothing before it starts, and flat when it ends', () => {
     expect(panelOpen(0)).toBe(0)
@@ -474,8 +501,10 @@ describe('the floor unfolds at a hundred — GDD §7.8.1c, R7', () => {
   it('finishes every panel by the time the event does', () => {
     // The far corner is the last to start; if its window ran past the end it
     // would snap flat on the final frame.
-    expect(panelProgress(1, FLOOR_COLS - 1, FLOOR_ROWS - 1)).toBe(1)
-    expect(panelProgress(0.99, FLOOR_COLS - 1, FLOOR_ROWS - 1)).toBeLessThan(1)
+    // The far corner of §7.8.1e's plan, which is what the wave is measured
+    // across now — it used to be the corner of the five-by-two squad lattice.
+    expect(panelProgress(1, PLAN_BOUNDS.maxCol, PLAN_BOUNDS.maxRow)).toBe(1)
+    expect(panelProgress(0.99, PLAN_BOUNDS.maxCol, PLAN_BOUNDS.maxRow)).toBeLessThan(1)
   })
 
   it('catches the light edge-on and nowhere else', () => {
@@ -690,9 +719,13 @@ describe('the room actually drives the hop', () => {
    */
   function sampleSeat(frames: number) {
     const room = buildRoom()
-    room.setHeadcount(1)
-    const dev = (room.container.getChildByLabel('developers') as Container).children[0]
-    const desk = room.deskAt(0)!
+    // §7.8.12 — **two, not one.** Seat 0 is James and the suite draws him, so a
+    // studio of one has nobody on the floor at all and this used to sample a
+    // hidden container that never moves. Seat 1 is the first rank-and-file
+    // developer and is what the hop was always about.
+    room.setHeadcount(2)
+    const dev = (room.container.getChildByLabel('developers') as Container).children[1]
+    const desk = room.deskAt(1)!
     const ys: number[] = []
     const xs: number[] = []
     for (let f = 0; f < frames; f++) {
@@ -732,22 +765,32 @@ describe('the room actually drives the hop', () => {
     // mid-motion rather than settling is the message: "frozen in time", not
     // "stopped working".
     const room = buildRoom()
-    room.setHeadcount(1)
-    const dev = (room.container.getChildByLabel('developers') as Container).children[0]
+    // Two, and seat 1: §7.8.12 gives seat 0 to the suite, so a studio of one
+    // puts nobody on the floor for this to freeze.
+    room.setHeadcount(2)
+    const dev = (room.container.getChildByLabel('developers') as Container).children[1]
 
-    room.animate(0.12, 'working', 0)
+    // **Found rather than hard-coded.** This used to freeze at elapsed 0.12,
+    // where seat 0 happened to be mid-air; every seat has its own phase, so a
+    // fixed instant only tests what it claims to for one of them. A planted
+    // developer would make this pass for the wrong reason, so the frame is
+    // chosen by the thing the test is about — the body being off its seat.
+    const rest = room.deskAt(1)!.y + 6
+    let at = 0
+    for (let f = 1; f <= 240 && dev.position.y >= rest - 1; f++) {
+      at = f / 60
+      room.animate(at, 'working', 0)
+    }
     const midHop = dev.position.y
-    // At elapsed 0.12 the phase is ~0.118 of a cycle, which is mid-air — a
-    // planted dev would make this test pass for the wrong reason.
-    expect(midHop).toBeLessThan(room.deskAt(0)!.y + 6)
+    expect(midHop).toBeLessThan(rest - 1)
 
-    for (let f = 1; f <= 30; f++) room.animate(0.12 + f / 60, 'working', 0, 0, true)
+    for (let f = 1; f <= 30; f++) room.animate(at + f / 60, 'working', 0, 0, true)
     expect(dev.position.y).toBe(midHop)
 
     // Unfrozen, the same elapsed resumes moving.
     let moved = false
     for (let f = 1; f <= 10 && !moved; f++) {
-      room.animate(0.62 + f / 60, 'working', 0)
+      room.animate(at + 0.5 + f / 60, 'working', 0)
       moved = dev.position.y !== midHop
     }
     expect(moved).toBe(true)
@@ -847,7 +890,10 @@ describe('arrivals — GDD §7.7.2, hiring is seen', () => {
     expect(arrivals.revealed).toBe(Number.POSITIVE_INFINITY)
 
     const now = 1000
-    arrivals.spawn(4, 6, 1234, now)
+    // `false` — the office floor. This test is about the *withholding* clock and
+    // not about which building the chairs are in; the garage is covered by
+    // `garage.test.ts` and by the resolver test below.
+    arrivals.spawn(4, 6, 1234, now, 0, false)
     expect(arrivals.revealed).toBe(4)
 
     // Mid-flight, still withheld.
@@ -905,18 +951,192 @@ describe('§7.8.12 — the team room is a physical place, not a posting marker',
     selected: false,
   }
 
-  it('waits for the second hero, then grows glass around the manager corner', () => {
+  it('waits for the second hero, then grows glass around the desks already there', () => {
     const room = buildRoom()
     const architecture = room.container.getChildByLabel('team-room') as Container
+    const furniture = room.container.getChildByLabel('team-room-desks') as Container
     room.setTeam([james])
+    // §7.8.12's whole joke: the desks came first and the walls arrived around
+    // them. James alone has a desk and no room; Mo brings the room.
     expect(architecture.visible).toBe(false)
+    expect(furniture.visible).toBe(true)
 
     room.setTeam([james, mo])
     expect(architecture.visible).toBe(true)
     expect(room.teamDeskAt('mo')).toEqual(teamDeskPosition('mo'))
-    expect(TEAM_ROOM_BOUNDS.minY).toBeLessThan(teamDeskPosition('mo').y)
-    expect(teamDeskPosition('mo').y).toBeLessThan(teamDeskPosition('james').y)
     room.container.destroy({ children: true })
+  })
+
+  /**
+   * §7.8.12 [added 2026-08-31] — **the suite is on the floor's own lattice.**
+   *
+   * The regression this exists for was seven desks at hand-picked screen
+   * offsets in a room built from floor tiles: three of four glass planes ran at
+   * screen slopes of −0.39, +1.18 and −1.05 where the only legal values are
+   * ±0.5, and no two hero desks shared a row or a column with each other or
+   * with anything else in the room. None of that is visible from a screenshot
+   * without measuring it by hand, which is how it survived.
+   *
+   * It pins the *claim* rather than the coordinates (§25.3.2): every plot is a
+   * whole number of half-pitches from the founder along the two floor axes.
+   * Re-space the suite and this still holds; go back to typing pixels and it
+   * cannot.
+   */
+  it('puts every plot on the floor grid, measured from the founder', () => {
+    const step = SUITE_PITCH_COLS / 2
+    for (const id of STORY_HEROES.map((hero) => hero.id)) {
+      const plot = suitePlot(id)
+      const cols = (plot.col - FOUNDER_PLOT.col) / step
+      const rows = plot.row - FOUNDER_PLOT.row
+      expect(cols).toBeCloseTo(Math.round(cols), 9)
+      expect(rows).toBeCloseTo(Math.round(rows), 9)
+      // And the plot's screen position is what the projection makes of it,
+      // rather than a number somebody liked the look of.
+      expect(teamDeskPosition(id)).toEqual(isoAt(plot.col, plot.row))
+    }
+  })
+
+  it('runs every wall on one of the two legal screen slopes', () => {
+    // One tile across is half a tile down. There is no third direction a wall
+    // can run in this projection, and the old suite used three of them.
+    const box = suiteBox(suiteEastCol(STORY_HEROES.map((hero) => hero.id)))
+    const along = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.abs((b.y - a.y) / (b.x - a.x))
+    const nw = isoAt(SUITE_WEST_COL, SUITE_WALL_ROW)
+    const ne = isoAt(suiteEastCol(STORY_HEROES.map((h) => h.id)), SUITE_WALL_ROW)
+    const sw = isoAt(SUITE_WEST_COL, SUITE_GLASS_ROW)
+    expect(along(nw, ne)).toBeCloseTo(0.5, 9)
+    expect(along(nw, sw)).toBeCloseTo(0.5, 9)
+    // And the box those walls make holds every desk in the room.
+    for (const id of STORY_HEROES.map((hero) => hero.id)) {
+      const at = teamDeskPosition(id)
+      expect(at.x).toBeGreaterThanOrEqual(box.minX)
+      expect(at.x).toBeLessThanOrEqual(box.maxX)
+      expect(at.y).toBeGreaterThanOrEqual(box.minY)
+      expect(at.y).toBeLessThanOrEqual(box.maxY)
+    }
+  })
+
+  it('seats nobody directly behind anybody, and leaves the doorway a threshold', () => {
+    const back = STORY_HEROES.map((h) => suitePlot(h.id)).filter((p) => p.row === SUITE_BACK_ROW)
+    const front = [FOUNDER_PLOT, ...STORY_HEROES.map((h) => suitePlot(h.id))]
+      .filter((p) => p.row === SUITE_FRONT_ROW)
+    expect(back.length).toBeGreaterThan(0)
+    for (const b of back) {
+      for (const f of front) expect(b.col).not.toBeCloseTo(f.col, 9)
+    }
+    // §7.8.12 — the door is centred on floor plot (0, 0), which `SUITE_SEATS`
+    // holds empty precisely so the room has somewhere to let out.
+    expect(SUITE_SEATS).toBe(1)
+    expect(Math.abs(0) < SUITE_DOOR_COLS / 2).toBe(true)
+  })
+
+  it('draws no suite outside the studio’s own window', () => {
+    // §26.2.2 — block 50 of a nation has no executive suite in it, and its
+    // local seat 0 is an ordinary developer whose desk must not be held empty.
+    const room = buildRoom()
+    room.setTeam([james, mo])
+    room.setSeatWindow(1000)
+    room.setHeadcount(2000)
+    expect((room.container.getChildByLabel('team-room') as Container).visible).toBe(false)
+    expect(room.teamHeroAt(teamDeskPosition('mo').x, teamDeskPosition('mo').y - 7)).toBeNull()
+    room.container.destroy({ children: true })
+  })
+
+  /**
+   * §10.7a.1 — **James turns to camera during his own arrival scene.**
+   *
+   * The regression: the suite's whole animate block was gated on
+   * `team.length > 1`, which is the *glass*'s condition — §7.8.12 does not build
+   * walls until a second hero arrives. So for the entire stretch of Act I where
+   * James is the only person in the room, the line that turns a hero to camera
+   * never ran, and he delivered his introduction facing away.
+   *
+   * The gate was not wrong about the walls. It was answering a different
+   * question from the one it was being asked.
+   */
+  it('turns the first hero to camera before there are any walls', () => {
+    const room = buildRoom()
+    room.setTeam([james])
+    const bodies = room.container.getChildByLabel('team-room-heroes') as Container
+    const body = bodies.getChildByLabel('team-hero:james') as Container
+    const [back, front] = body.children as Graphics[]
+
+    room.animate(0, 'working', 0)
+    expect(front.visible).toBe(false)
+    expect(back.visible).toBe(true)
+
+    room.setTeamSpeaker('james')
+    room.animate(0.1, 'working', 0)
+    expect(front.visible).toBe(true)
+    expect(back.visible).toBe(false)
+
+    // And back again at the end of the line, still with no glass in the room.
+    room.setTeamSpeaker(null)
+    room.animate(0.2, 'working', 0)
+    expect(front.visible).toBe(false)
+    room.container.destroy({ children: true })
+  })
+
+  /**
+   * §7.7.2 — **the falling silhouette lands on the desk its person sits at.**
+   *
+   * The regression: the room drew a suite-held seat at its desk while `deskFor`
+   * and the arrivals both resolved it through the floor lattice, so James was
+   * dropped onto the doorway threshold and then teleported to his chair. Two
+   * answers to one question.
+   *
+   * This pins the *shape* of the fix rather than the coordinates: every route
+   * from a seat to a place goes through {@link drawnSeatPosition}, so moving
+   * anybody into or out of the suite is an edit to `SUITE_SEATED` and nothing
+   * else. Nobody can be dropped in the wrong place again without this failing.
+   */
+  it('resolves a held seat to one place, whoever is asking', () => {
+    const room = buildRoom()
+    room.setTeam([james, mo])
+    room.setHeadcount(4)
+
+    const desk = teamDeskPosition('james')
+    // The suite wins in **either** room. §7.8.0c gave the garage its own plan,
+    // and the one thing that plan may not do is take a seat the suite holds.
+    expect(drawnSeatPosition(0, 0, false)).toEqual(desk)
+    expect(drawnSeatPosition(0, 0, true)).toEqual(desk)
+    expect(room.deskFor(0)).toEqual(desk)
+    expect(room.deskAt(0)).toEqual(desk)
+
+    // The seats after it agree with whichever room is being drawn, and at four
+    // developers that is the garage — so seat 1 is the first chair of the first
+    // pod, not lattice plot 1.
+    //
+    // **The garage shifts past the suite where the floor leaves a hole.** The
+    // office lattice is a hundred wide and one bare plot in it is a threshold
+    // nobody notices; a garage with one of its twenty chairs permanently empty
+    // is a missing chair at a table of four. So ordinary developer 1 is the
+    // garage's ordinary seat 0.
+    const podSeat = drawnSeatPosition(1, 0, true)
+    expect(room.deskFor(1)).toEqual(podSeat)
+    expect(room.deskAt(1)).toEqual(podSeat)
+    expect(podSeat).not.toEqual(seatPosition(1))
+    // And the office gives a *third* answer, because §7.8.0d authored it its own
+    // plan too: seat 1 is the first chair of PLATFORM's first pod. The one thing
+    // all three agree on is seat 0, which the suite holds in every room.
+    const officeSeatAt = drawnSeatPosition(1, 0, false)
+    expect(officeSeatAt).not.toEqual(seatPosition(1))
+    expect(officeSeatAt).not.toEqual(podSeat)
+    room.container.destroy({ children: true })
+  })
+
+  it('holds no seat back in a window the suite is not in', () => {
+    // §26.2.2 — the same resolver, asked about somebody else's floor. Nothing
+    // is held back there, so local seat 0 is an ordinary developer and lands on
+    // the floor plan rather than at a hero's desk.
+    expect(suiteSeatsIn(0)).toBe(SUITE_SEATS)
+    expect(suiteSeatsIn(1000)).toBe(0)
+    expect(drawnSeatPosition(0, 1000, false)).not.toEqual(teamDeskPosition('james'))
+    // And it is the *same* place the studio's own floor would put its first
+    // ordinary developer — a block drawn out of a nation is a floor like any
+    // other, which is the whole of §26.2.2.
+    expect(drawnSeatPosition(0, 1000, false)).toEqual(drawnSeatPosition(1, 0, false))
   })
 
   it('keeps an assigned hero at the same desk and makes that body inspectable', () => {

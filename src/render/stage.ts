@@ -85,6 +85,8 @@ import {
   storeyOf,
   storeysIn,
   type Level,
+  suiteFrame,
+  SUITE_LEVEL,
 } from './frames.ts'
 import { buildPark } from './park.ts'
 import { buildGlobe } from './globe.ts'
@@ -221,6 +223,23 @@ export interface StageHandle {
   /** §7.8.10 Hero Anchor: return smoothly to the manager corner. */
   focusFounder(): void
   /**
+   * §7.8.12 — **TEAM: go back to the room the heroes are in**, from anywhere.
+   *
+   * §7.7.4 promises there is always one control back to where the studio
+   * started, and §4.5d spends a paragraph on it ("at ten thousand developers
+   * your desk is still there"). Until now the only control that kept it was
+   * `focusFounder`, which frames one person; the room the person is in had no
+   * way home at all.
+   *
+   * From above the room this **walks the address home first** — world 0, site 0,
+   * block 0, building 0, storey 0 — and then flies. One flight, not eight taps,
+   * and at §7.7.1a's billion developers it is the only address in the game that
+   * was not generated on demand: everything else on screen at that headcount is
+   * a §26.2.2 unit conjured when somebody looked at it, and the suite has been
+   * in the same place since the first frame.
+   */
+  focusTeam(): void
+  /**
    * §10.7a.1 — point the lens at the dialogue's current speaker. `'founder'`
    * is the corner desk, a number is a seat index, `null` is `STUDIO_OS` (the
    * lens holds where it is). Called by the dialogue box on every page turn;
@@ -234,6 +253,8 @@ export interface StageHandle {
   setFounderInspect(handler: (() => void) | null): void
   /** React hook for opening a staff pass from its physical team-room body. */
   setHeroInspect(handler: ((id: HeroId) => void) | null): void
+  /** §13.11.2 — React hook for the roster strip, opened from the room's sign. */
+  setRosterInspect(handler: (() => void) | null): void
   /** Replace the default figure once first-start setup has been submitted. */
   setFounderProfile(profile: FounderProfile): void
   /** Everything the GDD §23.3 acceptance run needs to drive and measure the app. */
@@ -794,6 +815,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   let founderInspect: (() => void) | null = null
   let heroInspect: ((id: HeroId) => void) | null = null
+  let rosterInspect: (() => void) | null = null
+
+  /** §13.11.2 — is the tap on the sign over the suite's door? */
+  const teamSignHit = (x: number, y: number): boolean => {
+    if (!roomIsUp || !(currentFloorScale > 0)) return false
+    const local = room.container.toLocal({ x, y })
+    return room.teamSignAt(local.x, local.y, 8 / Math.max(0.05, currentFloorScale))
+  }
 
   const teamHeroHit = (x: number, y: number): HeroId | null => {
     if (!roomIsUp || !(currentFloorScale > 0)) return null
@@ -1160,6 +1189,31 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   /**
+   * §7.8.12 — the TEAM control's whole implementation.
+   *
+   * Seat zero is the studio's own first seat, so `setFocus(0)` **is** the walk
+   * home: the address it produces is world 0, site 0, block 0, building 0,
+   * storey 0, and `tellAddress` hands all of it to the lens before the flight
+   * is asked for. That ordering is the same one `enterStorey` and its siblings
+   * use and it is load-bearing for the same reason — `flyTo`'s floor point is
+   * projected through the address, so a stale one aims the camera at the suite's
+   * coordinates in whichever building the player was standing in.
+   *
+   * The selections are cleared because they name units of a place the camera is
+   * leaving. A highlighted storey of a building on another world is not context
+   * carried across; it is a mark on something nobody can see.
+   */
+  const focusTeamCamera = () => {
+    founderFocus = false
+    focal = null
+    selectedStorey = -1
+    selectedBuilding = -1
+    selectedBlock = -1
+    setFocus(0)
+    camera.flyToRect(SUITE_LEVEL, suiteFrame())
+  }
+
+  /**
    * §10.7a.1 — who is talking, in the world. The camera push itself is handled
    * in the frame loop off the store's scene state; this records the speaker and
    * turns them to face the lens for the duration of their line.
@@ -1172,7 +1226,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const hero = typeof focus === 'number' ? DIALOGUE_HEROES[focus] : undefined
     room.setTeam(teamRoomRoster(getState()))
     room.setTeamSpeaker(hero ?? null)
-    room.setSpeaker(hero === 'james' ? localSeat(0) : -1)
+    // §7.8.12 [amended 2026-08-31] — **James is not a floor seat any more.**
+    // He used to be turned to camera through the rank-and-file path because the
+    // room drew him at lattice (0, 0); he is now drawn by the suite like the
+    // other five, and `setTeamSpeaker` above is the whole of it. Leaving the old
+    // line in turned the *threshold* to camera, which is a plot of empty floor.
+    room.setSpeaker(-1)
     // A scene always plays at Desk zoom, so every line that names somebody
     // re-asserts it — and a line with nobody (STUDIO_OS) holds it rather than
     // cutting away.
@@ -1581,6 +1640,27 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return
     }
 
+    /*
+     * §13.11.2 — **the sign over the suite's door opens on any tap.**
+     *
+     * Above the latch switch, deliberately. §7.7.6b's three latches decide what
+     * the finger does *to a person* — poke them, pick them up, or read them —
+     * and a door is not a person. Leaving it inside `doSelect` put the roster
+     * behind a mode change: the strip used to be a button on the rail that
+     * worked whatever the thumb was set to, and moving its door into the world
+     * must not quietly make it cost two gestures instead of one.
+     *
+     * It is the same reasoning `tapSelectsAFloor` above uses one rung out: the
+     * tap is naming a thing in the architecture, and the architecture answers
+     * regardless of what the latch says about people.
+     */
+    if (teamSignHit(ev.clientX, ev.clientY)) {
+      selectDeveloper(null)
+      playUi('click')
+      rosterInspect?.()
+      return
+    }
+
     switch (tapVerb(getState().touchMode, roomIsUp)) {
       case 'inspect':
         doSelect(ev.clientX, ev.clientY)
@@ -1862,7 +1942,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // `?devs=` all leave it null — so the "first observed event" is the
       // player's first hire of the session, and skipping it meant the very
       // first developer anybody hires appeared with no animation at all.
-      arrivals.spawn(from, to, state.runSeed, now)
+      arrivals.spawn(from, to, state.runSeed, now, room.seatWindow, room.inGarage)
       // A hire that buys a whole new register of the lens is a reveal, not a
       // hire. Kick the camera out to show what just opened up. Skipped on the
       // first observed event, which may be a jumped-to phase rather than a
@@ -2094,8 +2174,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // is what refills the room.
     room.container.renderable = roomIsUp
     room.setSeed(state.runSeed)
-    room.setSelected(localSeat(state.selectedHero === 'james' ? 0 : state.selected ?? -1))
+    // §7.8.12 [amended 2026-08-31] — James's selection is the suite's business,
+    // like the other five: `teamRoomRoster` already carries `selected` for him
+    // and the floor no longer has a seat to turn. Mapping him to local seat 0
+    // spun the threshold, which has nobody standing on it.
+    room.setSelected(localSeat(state.selected ?? -1))
     room.setSeatWindow(seatWindowFor())
+    /*
+     * §7.8.13 — how much of a desk plate is worth printing at this distance.
+     *
+     * Read off the *settled* level rather than the continuous one, so a plate
+     * does not flicker between one line and two while the camera is easing
+     * through a boundary. The room does the toggling; this only says which.
+     */
+    // Desk-ish holds both lines; from Squad out the role goes and the name
+    // stays, because a plate is a name over a job and only one of them fits.
+    room.setLabelDetail(currentLevel < SQUAD ? 'full' : currentLevel < FLOOR ? 'name' : 'none')
     room.setHeadcount(Math.min(state.devs, arrivals.revealed))
     room.setCoverage(seatMarks(state))
     // §21 Act IV only. The particle swarm is not a level — the room draws the
@@ -2289,6 +2383,39 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         const p = room.container.toGlobal({ x: at.x, y: at.y - 18 })
         return { x: Math.round(p.x), y: Math.round(p.y) }
       }
+      /*
+       * §7.8.12 — **where the sign over the suite's door is, in screen pixels.**
+       *
+       * The same seam as `__founderAt` above, added for the same reason and by
+       * the same argument. §13.11.2's roster used to open from a button in the
+       * rail, which a gate could press by name; it now opens by tapping a thing
+       * in the world, and a gate with no way to aim at that thing would have to
+       * sweep a grid of taps over the room — where every tap navigates, so five
+       * hundred of them walk the camera somewhere else entirely.
+       *
+       * Aiming also keeps two failures apart that a sweep would conflate: *the
+       * sign is not on screen* (the camera is above the room, or the walls have
+       * not arrived) is a different finding from *the sign is on screen and
+       * tapping it does nothing*, and only the second is a bug.
+       */
+      /*
+       * §7.8.12 — **the drawn room, measured**, for `scripts/room.acceptance.mjs`.
+       *
+       * The same family as `__pick` and `__founderAt`: a question about the
+       * scene that a screenshot cannot answer and that re-deriving from
+       * constants would answer about a room nobody is looking at. What it hands
+       * over is what the renderer *did*, which is the only thing worth
+       * asserting about a renderer.
+       */
+      ;(globalThis as unknown as Record<string, unknown>).__room = () =>
+        roomIsUp ? room.geometry() : null
+      ;(globalThis as unknown as Record<string, unknown>).__signAt = () => {
+        if (!roomIsUp) return null
+        const at = room.teamSignPoint()
+        if (!at) return null
+        const p = room.container.toGlobal(at)
+        return { x: Math.round(p.x), y: Math.round(p.y) }
+      }
       // The one measurement the whole rebuild is answerable to: how much of
       // the frame the *developers* actually cover. It was 48% at a full floor
       // and 28% at a hundred, and both were invisible from a screenshot without
@@ -2453,6 +2580,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       camera.flyTo(level)
       playUi('whoosh')
     },
+    focusTeam() {
+      focusTeamCamera()
+      playUi('whoosh')
+    },
     focusFounder() {
       focusFounderCamera()
     },
@@ -2466,6 +2597,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     setFounderInspect(handler: (() => void) | null) {
       founderInspect = handler
+    },
+    setRosterInspect(handler: (() => void) | null) {
+      rosterInspect = handler
     },
     setHeroInspect(handler: ((id: HeroId) => void) | null) {
       heroInspect = handler

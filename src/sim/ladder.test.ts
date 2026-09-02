@@ -40,15 +40,16 @@ describe('the ladder is the navigation — GDD §7.4a', () => {
     expect(seen).toEqual(VIEWS.map((v) => v.view))
   })
 
-  it('keeps the room a room for the whole hundred-to-a-thousand band', () => {
-    // Rung 2 used to be a separate particle grid with no walls and no
-    // individuals in it, which is most of the game drawn as an abstraction.
-    // The room covers rungs 0, 1 and 2 — a desk, a huddle and a full floor are
-    // the same room from three distances.
+  it('keeps the room a room for the whole garage-to-full-floor band', () => {
+    // §7.8.0 — the room covers rungs 0 and 1: the full garage at twenty and
+    // the full office floor at a hundred are the same room from two distances.
+    // Above that the picture is a tower, because above that the thing that
+    // arrives is a storey and not a person.
     expect(dominantView(zAtRung(0))).toBe('room')
     expect(dominantView(zAtRung(1))).toBe('room')
-    expect(dominantView(zAtRung(2))).toBe('room')
+    expect(dominantView(zAtRung(2))).toBe('tower')
     expect(dominantView(zAtRung(3))).toBe('tower')
+    expect(dominantView(zAtRung(4))).toBe('block')
   })
 
   it('lets a studio of any size see the room it is standing in', () => {

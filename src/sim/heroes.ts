@@ -62,12 +62,29 @@ export interface ReachTier {
  */
 export const REACH_LADDER: readonly ReachTier[] = [
   { index: 0, name: 'row', devs: ROW_DEVS },
-  ...RUNGS.filter((r) => r.unitSize > 1).map((r, i) => ({
-    index: i + 1,
-    name: r.unit,
-    devs: r.unitSize,
-  })),
+  // **One tier per distinct unit, not one per rung**, and §7.8.0 is what made
+  // the difference visible. The filter used to be the whole rule, on the
+  // assumption — true of the old table and never written down — that no two
+  // rungs shared a `unitSize`. Rungs 2 and 3 are now both the tower, ten
+  // storeys then a hundred, so a straight map produced *two* tiers called
+  // `floor` holding the same hundred people: a reach upgrade that cost real GP
+  // and bought nothing, sitting in the middle of the ladder.
+  //
+  // Deriving from §7.7.1 is still the point (a second hand-written ladder is a
+  // second thing that can disagree); the derivation just has to say what a
+  // *tier* is, which is a size of thing you can reach, not a stop on a camera.
+  ...uniqueUnits().map((u, i) => ({ index: i + 1, name: u.unit, devs: u.unitSize })),
 ]
+
+function uniqueUnits(): Array<{ unit: string; unitSize: number }> {
+  const out: Array<{ unit: string; unitSize: number }> = []
+  for (const r of RUNGS) {
+    if (r.unitSize <= 1) continue
+    if (out.some((u) => u.unitSize === r.unitSize)) continue
+    out.push({ unit: r.unit, unitSize: r.unitSize })
+  }
+  return out
+}
 
 export const MAX_REACH = REACH_LADDER.length - 1
 

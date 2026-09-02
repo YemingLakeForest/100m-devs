@@ -49,8 +49,8 @@ import {
   buildDeveloper,
   drawDeskBank,
   drawWorkstation,
-  seatGrid,
-  seatPosition,
+  drawnSeatPlot,
+  isoAt,
 } from './room.ts'
 import { developerAt } from '../sim/identity.ts'
 
@@ -228,7 +228,20 @@ export interface Arrivals {
    * seat and the run — so an arrival knows exactly who is coming and can drop
    * *them* rather than a stand-in.
    */
-  spawn(from: number, to: number, seed: number, now: number): void
+  /**
+   * `windowFrom` is §26.2.2's window, and it is required for the same reason
+   * `drawnSeatPlot` requires it: §7.8.12's suite holds seat 0 of the studio's
+   * own floor and no seat of anywhere else, so a silhouette that does not know
+   * which floor it is falling onto lands on the wrong one.
+   */
+  spawn(
+    from: number,
+    to: number,
+    seed: number,
+    now: number,
+    windowFrom: number,
+    garage: boolean,
+  ): void
   /**
    * How many seats the room may draw — everything below this has landed.
    *
@@ -277,7 +290,7 @@ export function createArrivals(): Arrivals {
       return revealFrom
     },
 
-    spawn(from, to, seed, now) {
+    spawn(from, to, seed, now, windowFrom, garage) {
       const hired = Math.max(0, Math.floor(to) - Math.floor(from))
       const count = Math.min(hired, MAX_ARRIVAL_BODIES)
       if (count === 0) return
@@ -290,8 +303,19 @@ export function createArrivals(): Arrivals {
       const impactStrength = Math.min(1, 0.32 + Math.log2(hired + 1) / 8)
       for (let i = 0; i < count; i++) {
         const seat = from + i
-        const at = seatPosition(seat)
-        const grid = seatGrid(seat)
+        /*
+         * **Where the room will actually draw this seat**, not where the floor
+         * lattice would put it.
+         *
+         * These two were the same thing until §7.8.12 gave James a desk in the
+         * suite, and then they were not: the silhouette fell onto the lattice
+         * plot — which is now the empty doorway threshold — and the person
+         * teleported to his real chair on landing. One resolver, shared with
+         * the room's own build loop, so the thing that falls and the thing that
+         * sits down cannot disagree about where the chair is.
+         */
+        const plot = drawnSeatPlot(seat, windowFrom, garage)
+        const at = isoAt(plot.col, plot.row)
 
         // **The real art, from the first frame.**
         //
@@ -302,7 +326,7 @@ export function createArrivals(): Arrivals {
         // run seed, and both are in hand right here, so the person who is
         // arriving is knowable before they have left the ceiling.
         const deskG = new Graphics()
-        drawDeskBank(deskG, grid.col, grid.col, grid.row)
+        drawDeskBank(deskG, plot.col, plot.col, plot.row)
         anchor(deskG, at.x, at.y)
 
         const kitG = new Graphics()

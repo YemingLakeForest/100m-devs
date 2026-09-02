@@ -108,7 +108,14 @@ await shot('gallery-slid')
 await tap(page.locator('.hud__gallery .os-window__close'), 'the gallery close box')
 
 // --- the hero capability model --------------------------------------------
-await tap(page.getByRole('button', { name: 'HERO', exact: true }), 'the HERO door')
+// §7.8.12 — the roster opens from the sign over the suite's door now, and
+// TEAM is what puts that sign on screen from wherever the camera is.
+await tap(page.getByRole('button', { name: 'TEAM', exact: true }), 'the TEAM anchor')
+await page.waitForTimeout(1800)
+const signAt = await page.evaluate(() => window.__signAt?.() ?? null)
+if (!signAt) throw new Error('the sign over the suite door is not on screen after TEAM')
+await page.mouse.click(signAt.x, signAt.y)
+await page.waitForTimeout(400)
 await tap(page.locator('.roster__card'), 'the first hero on the strip')
 await tap(page.getByRole('button', { name: /^SPEND \d+$/ }), 'SPEND')
 await page.locator('.herotree__frame').waitFor()

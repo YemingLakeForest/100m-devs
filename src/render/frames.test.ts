@@ -82,6 +82,8 @@ import {
   storeysIn,
   towerRect,
   DESK,
+  DESK_REACH_COLS,
+  DESK_REACH_ROWS,
   DEVS_PER_FLOOR,
   FLOOR,
   FLOORS_PER_BUILDING,
@@ -106,15 +108,26 @@ import {
   scaleAtLevel,
   seatOfBuilding,
   seatOfStorey,
+  SQUAD_PAD_COLS,
+  SQUAD_PAD_ROWS,
   squadAtFloor,
   squadFrame,
   squadOf,
+  suiteFrame,
+  SUITE_LEVEL,
   storeyAtBuilding,
   storeyOf,
   towerSurfaceY,
   type Level,
 } from './frames.ts'
-import { ROOM_SQUAD_COLS, ROOM_SQUAD_ROWS, SQUAD_SIZE, seatPosition } from './room.ts'
+import { PLAN_BLOCKS } from './floorplan.ts'
+import {
+  seatPosition,
+  teamDeskPosition,
+  FOUNDER_PLOT,
+  isoAt,
+} from './room.ts'
+import { STORY_HEROES } from '../sim/storyHeroes.ts'
 
 /** §23.4.2's largest frame, and the one every measurement in the plan was taken at. */
 import { PERSPECTIVE_CENTRE_SCALE, SITES_PER_GLOBE } from './worldMap.ts'
@@ -137,8 +150,13 @@ describe('floor space', () => {
     // only one that can fill a landscape frame on both axes at once.
     const seats = floorSeatRect()
     expect(seats.w / seats.h).toBeCloseTo(2, 6)
-    expect(Math.round(seats.w)).toBe(3312)
-    expect(Math.round(seats.h)).toBe(1656)
+    // The literals moved on 2026-08-31 when §7.8.1e re-authored the plan: the
+    // floor is wider and deeper than the five-by-two squad grid was. They are
+    // kept as a canary on the *shape* — the ratio above is the claim, and a
+    // change in these two without a change in the plan means something has
+    // started solving for the floor's size again.
+    expect(Math.round(seats.w)).toBe(3724)
+    expect(Math.round(seats.h)).toBe(1862)
   })
 
   it('the framed floor is 2:1 as well, so the aisle does not skew it', () => {
@@ -150,10 +168,71 @@ describe('floor space', () => {
     // The measured defect: `pad = SQUAD_COLS * 0.45` left the seats covering
     // 74% of the shell at a full floor and 44% at one squad. A constant aisle
     // holds the ratio wherever the studio is.
+    //
+    // 0.84 rather than 0.85 since 2026-08-31: §7.8.12's suite lives behind row 0
+    // and does not fit in two rows, so `FLOOR_BACK_ROWS` makes that one margin
+    // deeper than the other three. **The claim is unchanged and is the reason
+    // the number moved by six thousandths rather than being deleted** — the
+    // surround is still a surround. A regression to the old rule would put this
+    // back in the forties, not the eighties.
     const seats = floorSeatRect()
     const frame = floorFrame()
-    expect(seats.w / frame.w).toBeGreaterThan(0.85)
-    expect(seats.h / frame.h).toBeGreaterThan(0.85)
+    expect(seats.w / frame.w).toBeGreaterThan(0.84)
+    expect(seats.h / frame.h).toBeGreaterThan(0.84)
+  })
+
+  /**
+   * §7.8.12 — the frame the `TEAM` control flies to.
+   *
+   * The suite had no camera stop of its own before 2026-08-31; the only way to
+   * look at it was §7.8.10's Hero Anchor, which frames one *person* at Desk
+   * zoom. These pin the two things that makes wrong: the frame has to hold the
+   * whole room, and the level it is read at has to be the closest one that can.
+   */
+  it('frames the whole suite, founder included', () => {
+    const frame = suiteFrame()
+    const inside = (at: { x: number; y: number }) => {
+      expect(at.x).toBeGreaterThanOrEqual(frame.cx - frame.w / 2)
+      expect(at.x).toBeLessThanOrEqual(frame.cx + frame.w / 2)
+      expect(at.y).toBeGreaterThanOrEqual(frame.cy - frame.h / 2)
+      expect(at.y).toBeLessThanOrEqual(frame.cy + frame.h / 2)
+    }
+    inside(isoAt(FOUNDER_PLOT.col, FOUNDER_PLOT.row))
+    for (const hero of STORY_HEROES) inside(teamDeskPosition(hero.id))
+  })
+
+  it('keeps row 0 in shot, because the coders outside the glass are half of it', () => {
+    // §7.8.12's composition is the CXOs behind the window and the rank and file
+    // in front of it. A frame cropped to the room alone is the isolated glass
+    // box the section spends its opening paragraph refusing to build.
+    const frame = suiteFrame()
+    expect(frame.cy + frame.h / 2).toBeGreaterThan(seatPosition(0).y)
+  })
+
+  it('is a room rather than a desk, and says so with its rung', () => {
+    /*
+     * The suite is wider than a Desk frame, so `TEAM` cannot be Desk zoom — that
+     * would frame one desk of the seven, which is the failure §7.8.10's Hero
+     * Anchor already had and the reason this frame was added at all.
+     *
+     * The *scale* comes from this rectangle (`Lens.flyToRect`), so the level is
+     * a label rather than a fit: it is the rung the breadcrumb, §8.2's poke tier
+     * and §20.2's audio zones read while the camera is parked here. Asserted as
+     * an ordering rather than as a letter (§25.3.2) so re-spacing the suite
+     * moves the answer instead of breaking the test.
+     */
+    expect(suiteFrame().w).toBeGreaterThan(deskFrame(0).w)
+    expect(SUITE_LEVEL).toBeGreaterThan(DESK)
+    expect(SUITE_LEVEL).toBeLessThanOrEqual(FLOOR)
+  })
+
+  it('reaches past the shell on the wall side, and that is the point', () => {
+    // A frame clipped to the floor plate crops the walls off the top of the
+    // room. §7.8.12's suite is a *room*, and the two sides it borrows from the
+    // shell are the two the camera most needs to see standing there.
+    const suite = suiteFrame()
+    const floor = floorFrame()
+    expect(suite.cy - suite.h / 2).toBeLessThan(floor.cy - floor.h / 2)
   })
 
   it('holds every seat of the thousand', () => {
@@ -167,21 +246,35 @@ describe('floor space', () => {
     }
   })
 
-  it('every squad frame sits inside the floor frame', () => {
+  it('every bank frame sits inside the floor frame', () => {
     const floor = floorFrame()
-    for (let s = 0; s < ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS; s++) {
+    for (let s = 0; s < PLAN_BLOCKS.length; s++) {
       expect(contains(floor, squadFrame(s))).toBe(true)
     }
   })
 
-  it('a squad frame holds its own hundred and nobody else', () => {
-    for (let s = 0; s < ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS; s++) {
+  it('a bank frame holds its own people and nobody else — §7.8.1e', () => {
+    // A bank is no longer a hundred seats on a stride: it is between forty-eight
+    // and a hundred and ninety-three, laid out however its arrangement lays it
+    // out. So the count comes off the plan, and the claim is the one that
+    // matters either way — the frame the camera flies to holds the people the
+    // player just asked to look at.
+    for (const [s, block] of PLAN_BLOCKS.entries()) {
       const frame = squadFrame(s)
-      for (let i = 0; i < SQUAD_SIZE; i++) {
-        const at = seatPosition(s * SQUAD_SIZE + i)
-        expect(contains(frame, { cx: at.x, cy: at.y, w: 0, h: 0 })).toBe(true)
+      for (let i = 0; i < block.count; i++) {
+        const at = seatPosition(block.from + i)
+        expect(contains(frame, { cx: at.x, cy: at.y, w: 0, h: 0 }), block.name).toBe(true)
       }
     }
+  })
+
+  it('pads a bank by more than a desk frame reaches, so the levels nest', () => {
+    // The structural version of "the inner ones nest" below. A desk frame is
+    // centred on a seat and reaches past it; a seat can sit on any edge of any
+    // bank; so the bank's pad has to be the larger of the two or the zoom jumps
+    // outward on the way in.
+    expect(SQUAD_PAD_COLS).toBeGreaterThan(DESK_REACH_COLS)
+    expect(SQUAD_PAD_ROWS).toBeGreaterThan(DESK_REACH_ROWS)
   })
 
   it('a desk frame is centred on its own seat', () => {
@@ -247,7 +340,9 @@ describe('the address', () => {
     expect(squadOf(0)).toBe(0)
     expect(squadOf(99)).toBe(0)
     expect(squadOf(100)).toBe(1)
-    expect(squadOf(7_450)).toBe(4)
+    // Bank 3 — INFRASTRUCTURE — because §7.8.1e's banks are not all a hundred
+    // seats, so the bank a seat is in is a lookup and not a division.
+    expect(squadOf(7_450)).toBe(3)
   })
 
   it('every level names a frame, and the inner ones nest', () => {
@@ -481,7 +576,12 @@ describe('the block', () => {
      * by exactly that factor, so **every LOD threshold below stays the number
      * it was** — `floorScaleAt` is the only line that knows the block exists.
      */
-    expect(floorScaleAt(scales[FLOOR])).toBeCloseTo(0.2195, 3)
+    // 0.2146 since 2026-08-31, and **what moved it was not the block.** The
+    // floor's own frame grew at the back to hold §7.8.12's suite, so every
+    // level scale derived from it shifted by that ratio once. The assertion
+    // this test exists for is the *next* two lines — that the room still
+    // resolves at Floor and does not at Building — and they are untouched.
+    expect(floorScaleAt(scales[FLOOR])).toBeCloseTo(0.1943, 3)
     expect(roomResolved(floorScaleAt(scales[FLOOR]))).toBe(true)
     expect(roomResolved(floorScaleAt(scales[BUILDING]))).toBe(false)
     expect(roomResolved(floorScaleAt(scales[BLOCK]))).toBe(false)
@@ -974,7 +1074,12 @@ describe('the park', () => {
      * A desk is the same number of pixels at the floor level as it was before
      * the park existed.
      */
-    expect(floorScaleAt(scales[FLOOR])).toBeCloseTo(0.2195, 3)
+    // 0.2146 since 2026-08-31, and **what moved it was not the park.** The
+    // floor's own frame grew at the back to hold §7.8.12's suite, so every
+    // level scale derived from it shifted by that ratio once — which is a
+    // different cause from the one this test is about, and leaves the claim
+    // below (the room resolves at Floor and not at Park) exactly as it was.
+    expect(floorScaleAt(scales[FLOOR])).toBeCloseTo(0.1943, 3)
     expect(roomResolved(floorScaleAt(scales[FLOOR]))).toBe(true)
     expect(roomResolved(floorScaleAt(scales[PARK]))).toBe(false)
   })
@@ -1139,16 +1244,16 @@ describe('level of detail', () => {
 })
 
 describe('picking', () => {
-  it('a seat is over its own squad', () => {
-    for (let s = 0; s < ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS; s++) {
-      for (const i of [0, 45, 99]) {
-        const at = seatPosition(s * SQUAD_SIZE + i)
-        expect(squadAtFloor(at.x, at.y)).toBe(s)
+  it('a seat is over its own bank', () => {
+    for (const [s, block] of PLAN_BLOCKS.entries()) {
+      for (const t of [0, 0.5, 0.99]) {
+        const at = seatPosition(block.from + Math.floor((block.count - 1) * t))
+        expect(squadAtFloor(at.x, at.y), block.name).toBe(s)
       }
     }
   })
 
-  it("the founder's corner is off the squad lattice, not on squad zero", () => {
+  it("the founder's corner is off the bank lattice, not on bank zero", () => {
     // §7.8.10's desk sits at a negative coordinate outside the grid entirely.
     // Returning 0 for it would make every tap on the manager buff the first
     // hundred developers instead.

@@ -35,13 +35,13 @@
  * art, and it is built so authored sprites drop into the same slots later.
  */
 
-import { Container, Graphics } from 'pixi.js'
+import { Container, Graphics, Text } from 'pixi.js'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
-import { laneFor, type GridPoint, type Lanes } from './walkPath.ts'
+import type { GridPoint, Lanes } from './walkPath.ts'
 import { HAIR_RAMP, SHIRT_RAMP, SKIN_BASE } from '../art/personPalette.ts'
 import { createAmbient } from './ambient.ts'
 import { NO_SPOTS, createErrands } from './errands.ts'
-import { bubblesLegible, counterScale, createBubbles } from './bubble.ts'
+import { bubblesLegible, counterScale, createBubbles, typeAtDesignSize } from './bubble.ts'
 import type { Away } from '../sim/slackOff.ts'
 import { BILLY_TORSO, developerAt, heroIdentity, type Look } from '../sim/identity.ts'
 import {
@@ -51,7 +51,53 @@ import {
 } from '../game/founderProfile.ts'
 import { AVATAR_HAIR, frontAvatarParts, type AvatarRect } from './avatarParts.ts'
 import type { SeatMark } from './heroBadges.ts'
-import type { HeroId } from '../sim/storyHeroes.ts'
+import { CAR_BODIES, car, districtFitTiles, drawDistrict, lamp } from './district.ts'
+import {
+  ATRIUM,
+  OFFICE_AMENITIES,
+  OFFICE_PODS,
+  type OfficeAmenity,
+  OFFICE_SEATS,
+  OFFICE_SPAN,
+  officeSeat,
+  podsUsedFor,
+} from './office.ts'
+import { drawLandmarks, type LandmarkPlot } from './landmarks.ts'
+import { GARAGE_CAP, sceneFor } from '../sim/capacity.ts'
+import {
+  GARAGE_PODS,
+  GARAGE_PROPS,
+  GARAGE_SPAN,
+  type Plot,
+  garageExtentFor,
+  POD_SEATS,
+  POD_STRIDE,
+  garageLaneLines,
+  garageSeat,
+  garageShellRuns,
+} from './garage.ts'
+import {
+  PLAN_AMENITIES,
+  PLAN_BLOCKS,
+  PLAN_BOUNDS,
+  PLAN_PLATES,
+  PLAN_PLAZA,
+  occupiedRuns,
+  planLattice,
+  planSeat,
+  plateOfSeat,
+} from './floorplan.ts'
+import { drawPlaza, statueRung } from './plaza.ts'
+import { HEIGHT_UNIT, isoPatch, isoSolid, type Project } from './isoSolid.ts'
+import {
+  WALL_NEAR,
+  WALL_THICK,
+  drawWallRun,
+  runsAlongGy,
+  type WallPaint,
+  type WallSegment,
+} from './shell.ts'
+import { STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -69,6 +115,48 @@ const TILE_H = 32
  */
 const ROOM_CONTENT_PAD_X = 84
 const ROOM_CONTENT_PAD_Y = 48
+
+/**
+ * §7.8.1e — how much of the district the camera is asked to keep.
+ *
+ * Deliberately not all of it. `districtFitTiles` explains the composition side;
+ * this is the conversion, and the reason it is capped rather than proportional:
+ * the road is the same road at every headcount, so the frame does not have to
+ * grow to hold more of it. A thousand-person floor showing the kerb in its two
+ * near corners is the reference's own composition, and it costs about six per
+ * cent of the fill instead of a fifth.
+ */
+function districtPad(halfBack: number, halfAcross: number): { x: number; y: number } {
+  const t = districtFitTiles(halfBack, halfAcross)
+  return { x: t * TILE_W, y: t * TILE_H * 2 }
+}
+
+/**
+ * How the district's height is split between above the room and below it.
+ *
+ * It used to be all below: the pad was added to the fit's height and the pivot
+ * moved down by exactly half of it, so the top edge of the frame did not move
+ * and every pixel of new ground appeared in front of the building. That was
+ * right when the ground was an L on the two open sides and there was nothing
+ * above the roof to see.
+ *
+ * §7.8.1e put a city up there. A fifth of the pad now goes above the cornice,
+ * which is where the far row of neighbours rises past the two back walls —
+ * enough for a band of lit windows in the top corners, and not so much that the
+ * developers stop being the subject.
+ */
+const SKYLINE_SHARE = 0.2
+
+/**
+ * §7.8.1d — the statue is the founder at this many times life size.
+ *
+ * Two and a half rather than a round two: a statue the same height as the
+ * people looking at it is a mannequin, and past about three it stops fitting
+ * under the ceiling strips. `torsoShape` is in screen pixels — it describes a
+ * sprite — so the conversion to tiles happens here, once, at the only call
+ * site that needs a person measured in floor units.
+ */
+const STATUE_SCALE = 2.5
 
 /**
  * Most developers this tier ever draws individually.
@@ -240,20 +328,49 @@ export const SQUAD_STRIDE_ROWS = SQUAD_ROWS + CORRIDOR_ROWS
  * squads are drawn bare. Growth goes *up*, into storeys, which is what makes
  * the building level mean anything.
  */
-export const FLOOR_MIN_COL = -FLOOR_AISLE_COLS
-export const FLOOR_MIN_ROW = -FLOOR_AISLE_ROWS
-export const FLOOR_MAX_COL =
-  (ROOM_SQUAD_COLS - 1) * SQUAD_STRIDE_COLS + SQUAD_COLS - 1 + FLOOR_AISLE_COLS
-export const FLOOR_MAX_ROW =
-  (ROOM_SQUAD_ROWS - 1) * SQUAD_STRIDE_ROWS + SQUAD_ROWS - 1 + FLOOR_AISLE_ROWS
 /**
- * How much of the corridor the squad's own floor plate takes, each side.
+ * §7.8.12 [amended 2026-08-31] — **how deep the floor is behind row 0**, and the
+ * one constant the executive suite costs the rest of the room.
  *
- * Less than half, so what is left between two plates is a visible gap rather
- * than a seam. That gap *is* the corridor; the plates do not draw it.
+ * The front and side margins are {@link FLOOR_AISLE_ROWS}/{@link
+ * FLOOR_AISLE_COLS}'s two and four. The *back* margin is deeper than either,
+ * because the two rows behind row 0 are not margin: they are the suite, and a
+ * suite two banks deep with a walkway between them does not fit in two rows.
+ *
+ * It is asymmetric on purpose, and the asymmetry is the section's whole joke
+ * stated as a number. §7.8.10 fixes the founder at the north vertex and forbids
+ * them to move, so the room cannot make space for the people who arrived by
+ * shuffling anybody along. **It makes space by pushing the back wall out.** You
+ * did not move into the executive suite; the back wall moved away from you.
+ *
+ * 3.3 is the budget read off the layout rather than a tuned number: 0.7 rows of
+ * clearance behind the back bank, one row of aisle between the banks (the same
+ * aisle the floor gives its own rows), and 1.6 rows from the founder's row to
+ * row 0 — which was already there and is what the glass now stands in.
  */
-const PLATE_PAD_COLS = 0.8
-const PLATE_PAD_ROWS = 0.6
+export const FLOOR_BACK_ROWS = 3.3
+
+export const FLOOR_MIN_COL = -FLOOR_AISLE_COLS
+export const FLOOR_MIN_ROW = -FLOOR_BACK_ROWS
+/*
+ * §7.8.1e — **read off the plan, not off a stride.**
+ *
+ * These were `(ROOM_SQUAD_COLS - 1) * SQUAD_STRIDE_COLS + …`, which is the right
+ * arithmetic for a floor generated from a five-by-two lattice of identical
+ * squads and has no meaning for a floor that is drawn. The plan knows how far
+ * its own desks reach; the room adds its perimeter aisle to that. Deriving it
+ * means moving a bank cannot leave the shell the wrong size, which is a class of
+ * defect `test:room` would only catch after the fact.
+ */
+export const FLOOR_MAX_COL = PLAN_BOUNDS.maxCol + FLOOR_AISLE_COLS
+export const FLOOR_MAX_ROW = PLAN_BOUNDS.maxRow + FLOOR_AISLE_ROWS
+/*
+ * `PLATE_PAD_COLS` / `PLATE_PAD_ROWS` used to live here — how much of the
+ * corridor a squad's plate took on each side, so that ten plates would tile
+ * with a visible seam between them. §7.8.1e moved that into `floorplan.ts`,
+ * which is where the plate outlines are built now, and dropped the corridor
+ * apron entirely: the hallway is the slab, and the slab was always there.
+ */
 
 /** §7.8.1 — the headcount at which the room stops gaining and starts losing. */
 const CROWDING_STARTS = 40
@@ -417,8 +534,45 @@ export interface RoomHandle {
   teamDeskAt(id: HeroId): { x: number; y: number } | null
   /** The named hero under a room-local point, for world-space card opening. */
   teamHeroAt(x: number, y: number, reach?: number): HeroId | null
+  /**
+   * §13.11.2 — is this room-local point on the sign over the suite's door?
+   *
+   * The roster's front door. `Roster.tsx` has said since it was written that it
+   * *"is not the intended front door ... once [the suite] exists the way you
+   * reach Mo is by looking at Mo"*, and this is the other half of that: the
+   * strip answers "who is idle", which is a question about the room rather than
+   * about any one person, so it opens from the room's own name plate. Which is
+   * also what frees the rail slot the `TEAM` button now uses.
+   */
+  teamSignAt(x: number, y: number, reach?: number): boolean
+  /** The sign's room-local centre, or null while it is not drawn. */
+  teamSignPoint(): { x: number; y: number } | null
+  /**
+   * §7.8.12 — **what the room actually drew**, room-local, for `test:room`.
+   *
+   * Three facts a screenshot cannot be asked for and arithmetic cannot be
+   * trusted to reproduce: the slab's four corners, the suite's box, and the
+   * feet of every wall the suite built. The gate that measures them exists
+   * because the two defects this room has now shipped — panes at illegal screen
+   * slopes, and a suite floating in the middle of a slab instead of sitting in
+   * its corner — were both invisible to every check the project had. Neither
+   * was a wrong number in a place somebody could have looked; both were the
+   * *drawn result* of numbers that each looked fine on their own.
+   *
+   * Deliberately a plain data snapshot rather than anything drawable: this is
+   * for measuring, and something that can be rendered would eventually be.
+   */
+  geometry(): RoomGeometry
   /** Which team-room hero is speaking; James continues to use seat 0. */
   setTeamSpeaker(id: HeroId | null): void
+  /**
+   * §7.8.13 — how much of each desk plate to print, from the camera's level.
+   *
+   * Pushed in by `stage.ts` rather than derived here, on the same rule as
+   * {@link setAway}: the room draws, the stage knows where the camera is, and a
+   * renderer that reads the lens is a second camera nobody can find.
+   */
+  setLabelDetail(detail: LabelDetail): void
   /**
    * §26.2.2 — which thousand seats of the studio this room is a picture of.
    *
@@ -434,6 +588,16 @@ export interface RoomHandle {
   setSeatWindow(from: number): void
   /** The global seat index this room's local seat 0 is. */
   readonly seatWindow: number
+  /**
+   * §7.8.0c — is the room drawing the garage rather than the office floor?
+   *
+   * Exposed because §7.7.2's arrivals have to drop a body into the same chair
+   * the room will draw it in, and the two plans put seat 7 in different
+   * buildings. `stage.ts` reads this and hands it to `arrivals.spawn`, which is
+   * the same one-resolver argument §7.8.12 makes about the suite: the thing
+   * that falls and the thing that sits down cannot be allowed to disagree.
+   */
+  readonly inGarage: boolean
   /** §7.8.8 — who is turned round to face the camera. -1 for nobody. */
   setSelected(index: number): void
   /**
@@ -727,12 +891,21 @@ export function gridFor(devs: number): { cols: number; rows: number } {
 
 /** Where seat `index` sits — §7.8.1a's two scales, and §7.8.1b's reading order. */
 export interface SeatPlace {
-  /** Which of the floor's hundred squads. */
+  /**
+   * Which **bank** of the floor — §7.8.1e's blocks, in hiring order.
+   *
+   * Still called `squad` because that is what the zoom ladder calls this level
+   * (§7.7's FLOOR / SQUAD / DESK) and renaming it would have rippled through
+   * `frames.ts`, the lens and four tiers of the map for no gain. What changed is
+   * what one *is*: a hundred desks on a stride, versus a named bank of between
+   * forty-eight and a hundred and ninety-three, laid out however its
+   * arrangement lays it out.
+   */
   squad: number
-  /** Column and row **within** that squad, 0–9. */
+  /** Place along this seat's own run of desks, and which run of the bank. */
   col: number
   row: number
-  /** The squad's own column and row on the floor, 0–9. */
+  /** The bank's own corner on the floor lattice, in seat units. */
   squadCol: number
   squadRow: number
 }
@@ -746,37 +919,40 @@ export interface SeatPlace {
  * which is the point: the rule is meant to read identically at either scale.
  */
 export function seatFor(index: number): SeatPlace {
-  const i = Math.max(0, Math.floor(index))
-  const squad = Math.floor(i / SQUAD_SIZE)
-  const within = i % SQUAD_SIZE
-  // Five across, two back — see {@link ROOM_SQUAD_COLS}. Ten columns put a
-  // full floor in one row across the horizon; square shells left six plots
-  // empty in a four-by-four.
+  const s = planSeat(index)
+  const block = PLAN_BLOCKS[s.block]
   return {
-    squad,
-    col: within % SQUAD_COLS,
-    row: Math.floor(within / SQUAD_COLS),
-    squadCol: squad % ROOM_SQUAD_COLS,
-    squadRow: Math.floor(squad / ROOM_SQUAD_COLS),
-  }
-}
-
-/** Seat `index` as absolute grid coordinates, corridors included. */
-export function seatGrid(index: number): { col: number; row: number } {
-  const p = seatFor(index)
-  return {
-    col: p.squadCol * SQUAD_STRIDE_COLS + p.col,
-    row: p.squadRow * SQUAD_STRIDE_ROWS + p.row,
+    squad: s.block,
+    col: s.inRun,
+    row: s.run - block.firstRun,
+    squadCol: block.minCol,
+    squadRow: block.minRow,
   }
 }
 
 /**
- * Where seat `index` sits, in room-local coordinates — the pure form.
+ * Seat `index` as absolute grid coordinates — §7.8.1e's plan, read out.
  *
- * `RoomHandle.deskFor` is this, and so is the position the build loop lays
- * out. Exported because it is the only honest way to ask "which direction does
- * a row run" without standing up a renderer, and that question has now been got
- * wrong twice.
+ * One line now, and that is the point of the rewrite: where a seat goes is a
+ * *table lookup* rather than three nested strides, so a bank can be any shape
+ * and hiring still cannot move anybody. `floorplan.test.ts` pins both halves.
+ */
+export function seatGrid(index: number): { col: number; row: number } {
+  const s = planSeat(index)
+  return { col: s.col, row: s.row }
+}
+
+/**
+ * Where seat `index` sits **on the floor lattice**, in room-local coordinates.
+ *
+ * Exported because it is the only honest way to ask "which direction does a row
+ * run" without standing up a renderer, and that question has now been got wrong
+ * twice.
+ *
+ * **It is not where the room draws that seat**, and since 2026-08-31 that is a
+ * real difference rather than a pedantic one: §7.8.12's suite holds seat 0, so
+ * the lattice plot this returns for it is the empty doorway threshold. Anything
+ * placing a body, a desk or a camera on a seat wants {@link drawnSeatPosition}.
  */
 export function seatPosition(index: number): { x: number; y: number } {
   const { col, row } = seatGrid(index)
@@ -807,47 +983,401 @@ export function seatPosition(index: number): { x: number; y: number } {
  */
 export function roomLanes(devs: number): Lanes {
   const n = Math.max(0, Math.min(ROOM_DEV_CAP, Math.floor(devs)))
-  const aisles: number[] = []
-  const corridors: number[] = []
-
-  // **The deepest row is not the last seat's row**, and assuming it was is how
-  // the first version of this shipped a lattice that stopped at row three on a
-  // floor whose back squad ran to row nine. §7.8.1b fills squads row by row and
-  // lays the squads out five across, so seat 99 sits nine rows back while seat
-  // 239 sits three — and a seat with no aisle behind it walks out through its
-  // own monitor. Scanned rather than solved: {@link ROOM_DEV_CAP} is a
-  // thousand and this runs once per room rebuild, so the arithmetic that could
-  // be got wrong is not worth the microseconds it would save.
-  let deepest = 0
-  let widest = 0
-  for (let i = 0; i < n; i++) {
-    const g = seatGrid(i)
-    if (g.row > deepest) deepest = g.row
-    if (g.col > widest) widest = g.col
-  }
-
-  // The lane in front of row zero — between the back wall and the first row of
-  // monitors. Props live out there, and so does anybody walking to one.
-  aisles.push(laneFor(-1, PITCH_ROW))
-  for (let row = 0; row <= deepest; row++) aisles.push(laneFor(row, PITCH_ROW))
-
-  // Corridors run along `gy`, so they are indexed in seat columns. One outside
-  // column zero, one past the widest occupied column, and one in each squad gap
-  // that the studio has actually grown into.
-  corridors.push(-FLOOR_AISLE_COLS * 0.5 * PITCH_COL)
-  corridors.push((widest + FLOOR_AISLE_COLS * 0.5) * PITCH_COL)
-  for (let k = 0; k * SQUAD_STRIDE_COLS < widest; k++) {
-    corridors.push((k * SQUAD_STRIDE_COLS + SQUAD_COLS + CORRIDOR_COLS / 2) * PITCH_COL)
-  }
-
+  const plan = planLattice(n)
   return {
-    aisles,
-    corridors,
+    // The plan speaks in seat units and `walkPath.ts` routes in grid tiles, so
+    // this is the whole of the conversion: an aisle is a row position times the
+    // row pitch, a hallway is a column position times the column pitch. The
+    // scan that used to be here — walk every seat, find the deepest row and the
+    // widest column, then reconstruct where the corridors must have been —
+    // exists in `floorplan.ts` now, on the side of the seam that knows the
+    // answer rather than the side that has to infer it.
+    aisles: plan.aisles.map((row) => row * PITCH_ROW),
+    corridors: plan.hallways.map((col) => col * PITCH_COL),
     // A workstation is about a tile deep and a tile wide; half of each is the
     // box a walker must stay out of.
     deskHalfDepth: 0.5,
     deskHalfWidth: PITCH_COL / 2,
   }
+}
+
+/**
+ * §7.8.6 — the walkable lattice **of the garage**, in the same units as
+ * {@link roomLanes}.
+ *
+ * A separate function rather than a branch inside `roomLanes` because the two
+ * are asking different tables: `roomLanes` reads the office plan's aisles, and
+ * the garage's pods are nowhere near them. Routing a garage walker on the
+ * office lattice sends them across three tables on the way to the kettle, which
+ * is not a tuning error but an answer to the wrong question.
+ */
+export function garageLanes(ordinary: number): Lanes {
+  const lines = garageLaneLines(ordinary)
+  return {
+    aisles: lines.aisles,
+    corridors: lines.hallways,
+    // A pod's table is two desks deep, so the box a walker has to stay out of
+    // is twice as deep here as it is on the floor. Half-width is unchanged: a
+    // desk is a desk along its own axis.
+    deskHalfDepth: DESK_DEPTH,
+    deskHalfWidth: PITCH_COL / 2,
+  }
+}
+
+/**
+ * §7.8.0c — **the lamp on a pod's table, and the pool it throws.**
+ *
+ * The canonical concept puts one warm lamp in the middle of every table, and it
+ * is doing something no amount of desk dressing can: it is the **only warm
+ * light in a room lit by screens**, so it separates the pod from the floor and
+ * gives four people a centre to be gathered around. Without it a pod is eight
+ * cyan rectangles and a brown slab.
+ *
+ * The pool is drawn on the table surface rather than on the floor, and that is
+ * the detail that makes it read as a lamp rather than as a glowing disc: light
+ * falls on the nearest surface, and the nearest surface here is the desk.
+ */
+function drawPodLamp(g: Graphics, p: Project, gx: number, gy: number, deskTop: number) {
+  const at = p(gx, gy)
+  const y = at.y - deskTop
+  // The pool first, so everything else sits in it. Two ellipses: a wide dim one
+  // and a tight bright one, which is what a bare bulb over a table does.
+  g.ellipse(at.x, y + 2, 34, 17).fill({ color: c(RAMPS.WARN[1]), alpha: 0.16 })
+  g.ellipse(at.x, y + 2, 19, 9).fill({ color: c(RAMPS.WARN[2]), alpha: 0.22 })
+  // Base, stem, shade — three marks, and the shade is the one that names it.
+  isoBox(g, at.x, y, 9, 3, RAMPS.NEUTRAL, 2, false)
+  g.rect(at.x - 0.9, y - 21, 1.8, 19).fill(c(RAMPS.NEUTRAL[3]))
+  g.moveTo(at.x - 7, y - 21)
+    .lineTo(at.x + 7, y - 21)
+    .lineTo(at.x + 4.5, y - 27)
+    .lineTo(at.x - 4.5, y - 27)
+    .closePath()
+    .fill(c(RAMPS.NEUTRAL[5]))
+  // The bulb, seen under the shade. Two pixels of the warmest tone in the room.
+  g.ellipse(at.x, y - 20, 3.2, 1.8).fill(c(RAMPS.WARN[3]))
+}
+
+/**
+ * §7.8.0d — **the office's amenities, modelled.**
+ *
+ * Same rule as the garage's clutter one room down: give the object the two or
+ * three marks that name it and nothing else. What differs is *why* each is
+ * here, and each one is doing a job the concept assigns it:
+ *
+ * - **Lockers** are the strongest rhythm on the floor. A run of identical tall
+ *   doors against a wall is the one place repetition is the point rather than
+ *   the failure, because it is what the eye measures the room's length with.
+ * - **The server room** is the one near-black volume, with the only cool light
+ *   that is not a monitor. §7.8.1e's read of the reference calls this out: among
+ *   pale rooms one dark room reads as the important one at any zoom.
+ * - **A kitchenette is a counter and a pendant**, and the pendant matters more —
+ *   it is a second warm pool, which is what stops the floor being one flat cyan.
+ * - **Sofas face the statue.** Four of them, on the axes, so they read as a
+ *   square arranged around something rather than as four benches.
+ */
+function drawOfficeAmenity(g: Graphics, p: Project, a: OfficeAmenity) {
+  const w = a.gx1 - a.gx0
+  const d = a.gy1 - a.gy0
+  const box = (
+    bx: number, by: number, bz: number, bw: number, bd: number, bh: number,
+    ramp: readonly string[], base: number, alpha = 1,
+  ) =>
+    isoSolid(g, p, bx, by, bz, bw, bd, bh, {
+      top: ramp[Math.min(ramp.length - 1, base + 2)],
+      left: ramp[Math.min(ramp.length - 1, base + 1)],
+      right: ramp[base],
+    }, alpha)
+
+  switch (a.kind) {
+    case 'lockers': {
+      // A plinth, then a run of doors with a hairline between each. The gaps
+      // are the rhythm; the plinth is what stops them floating.
+      box(a.gx0, a.gy0, 0, w, d, 0.12, RAMPS.NEUTRAL, 1)
+      const DOOR = 0.62
+      for (let y = a.gy0 + 0.05; y + DOOR < a.gy1; y += DOOR) {
+        box(a.gx0 + 0.1, y, 0.12, w - 0.2, DOOR - 0.08, 1.9, RAMPS.CALM, 0)
+      }
+      break
+    }
+    case 'server': {
+      // Racks, and the blue strip down each. Near-black, because being the one
+      // dark object is the whole of what it does.
+      box(a.gx0, a.gy0, 0, w, d, 0.1, RAMPS.NEUTRAL, 0)
+      for (let y = a.gy0 + 0.15; y + 0.7 < a.gy1; y += 0.85) {
+        box(a.gx0 + 0.12, y, 0.1, w - 0.24, 0.7, 2.0, RAMPS.NEUTRAL, 0)
+        box(a.gx0 + 0.08, y + 0.2, 0.7, 0.05, 0.3, 0.9, RAMPS.GLOW, 1)
+      }
+      break
+    }
+    case 'kitchenette': {
+      // Counter, splashback, two stools — and the pendant, which is the point.
+      box(a.gx0, a.gy0, 0, w, d, 0.7, RAMPS.WOOD, 1)
+      box(a.gx0, a.gy0, 0.7, w, d, 0.08, RAMPS.NEUTRAL, 4)
+      const along = w > d
+      const mid = along ? a.gx0 + w / 2 : a.gy0 + d / 2
+      for (const off of [-0.9, 0.9]) {
+        const sx = along ? mid + off : a.gx0 + w / 2
+        const sy = along ? a.gy0 + d / 2 : mid + off
+        box(sx - 0.16, sy - 0.16, 0, 0.32, 0.32, 0.45, RAMPS.NEUTRAL, 2)
+      }
+      // The pendant and its pool. Warm, and the only other one on the floor.
+      const cx2 = a.gx0 + w / 2
+      const cy2 = a.gy0 + d / 2
+      const at = p(cx2, cy2)
+      g.ellipse(at.x, at.y, 30, 15).fill({ color: c(RAMPS.WARN[1]), alpha: 0.15 })
+      g.ellipse(at.x, at.y - 44, 5, 2.6).fill(c(RAMPS.WARN[3]))
+      g.rect(at.x - 0.7, at.y - 72, 1.4, 28).fill(c(RAMPS.NEUTRAL[2]))
+      break
+    }
+    case 'meeting': {
+      // A glass box: a floor plate, a low spandrel, and glazing above it with
+      // dark uprights. Inside, a table and a lit screen.
+      isoPatch(g, p, a.gx0, a.gy0, a.gx1, a.gy1, RAMPS.WOOD[0])
+      box(a.gx0 + w * 0.28, a.gy0 + d * 0.3, 0, w * 0.44, d * 0.4, 0.62, RAMPS.WOOD, 2)
+      box(a.gx0, a.gy0, 0, w, 0.14, 2.3, RAMPS.GLOW, 0, 0.28)
+      box(a.gx0, a.gy1 - 0.14, 0, w, 0.14, 2.3, RAMPS.GLOW, 0, 0.28)
+      box(a.gx0, a.gy0, 0, 0.14, d, 2.3, RAMPS.GLOW, 0, 0.28)
+      for (let y = a.gy0; y <= a.gy1 - 0.9; y += 1.4) {
+        box(a.gx0 - 0.02, y, 0, 0.16, 0.16, 2.4, RAMPS.NEUTRAL, 0)
+      }
+      break
+    }
+    case 'entrance': {
+      // The doors and the sign over them. Bright, because it is the one thing
+      // on this wall the player is meant to find.
+      isoPatch(g, p, a.gx0, a.gy0, a.gx1, a.gy1, RAMPS.NEUTRAL[2])
+      box(a.gx0 + 0.2, a.gy1 - 0.3, 0, w - 0.4, 0.24, 2.4, RAMPS.GLOW, 0, 0.4)
+      box(a.gx0, a.gy1 - 0.42, 2.4, w, 0.4, 0.34, RAMPS.NEUTRAL, 3)
+      box(a.gx0 + w * 0.2, a.gy1 - 0.5, 2.5, w * 0.6, 0.1, 0.22, RAMPS.GLOW, 2)
+      break
+    }
+    case 'sofa': {
+      box(a.gx0, a.gy0, 0, w, d, 0.36, RAMPS.FOLIAGE, 0)
+      // The back, on the side away from the statue.
+      const backOnX = w < d
+      if (backOnX) box(a.gx0, a.gy0, 0, 0.22, d, 0.66, RAMPS.FOLIAGE, 1)
+      else box(a.gx0, a.gy0, 0, w, 0.22, 0.66, RAMPS.FOLIAGE, 1)
+      break
+    }
+    case 'planter': {
+      box(a.gx0, a.gy0, 0, w, d, 0.42, RAMPS.WOOD, 1)
+      const at2 = p(a.gx0 + w / 2, a.gy0 + d / 2)
+      g.ellipse(at2.x, at2.y - 22, 11, 8).fill(c(RAMPS.FOLIAGE[0]))
+      g.ellipse(at2.x - 4, at2.y - 27, 7, 5).fill(c(RAMPS.FOLIAGE[1]))
+      break
+    }
+  }
+}
+
+/**
+ * §7.8.0c — **the clutter, modelled.**
+ *
+ * Every one of these was a single box first, and a garage furnished in identical
+ * grey cuboids is a storage unit. The rule each of them follows is the cheapest
+ * one available and the only one that works at this size: **give the object the
+ * two or three marks that name it, and nothing else.** A workbench is a slab on
+ * legs with a vice on the end. A fridge is a tall box with a door line and a
+ * handle. A sofa is a low block with a back and two arms. At thirty pixels
+ * across, a fourth mark is a smudge — and a third mark that is *wrong* costs
+ * more than the first two buy.
+ *
+ * All of it goes through {@link isoSolid} in the plan's own frame, so a prop is
+ * a solid on the floor rather than a sprite leaning against a wall.
+ */
+function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
+  const w = plot.gx1 - plot.gx0
+  const d = plot.gy1 - plot.gy0
+  const x = plot.gx0
+  const y = plot.gy0
+  const box = (
+    bx: number,
+    by: number,
+    bz: number,
+    bw: number,
+    bd: number,
+    bh: number,
+    ramp: readonly string[],
+    base: number,
+  ) =>
+    isoSolid(g, p, bx, by, bz, bw, bd, bh, {
+      top: ramp[Math.min(ramp.length - 1, base + 2)],
+      left: ramp[Math.min(ramp.length - 1, base + 1)],
+      right: ramp[base],
+    })
+
+  switch (plot.name) {
+    case 'THE SHELVES': {
+      // Uprights and four shelf boards, with boxes standing on two of them. The
+      // gaps between the boards are what makes it a shelf unit rather than a
+      // cupboard, so they are drawn as *space* — no back panel.
+      const TIERS = 4
+      for (let i = 0; i < TIERS; i++) {
+        box(x, y, 0.5 + i * 0.55, w, d, 0.09, RAMPS.WOOD, 1)
+      }
+      box(x, y, 0, 0.16, d, 2.3, RAMPS.WOOD, 0)
+      box(x + w - 0.16, y, 0, 0.16, d, 2.3, RAMPS.WOOD, 0)
+      // Two cardboard boxes and a paint tin, on different shelves. Placed by
+      // hand: three objects at three heights reads as storage, and a row of
+      // identical ones reads as a shop.
+      box(x + 0.4, y + 0.15, 0.59, 0.8, d * 0.6, 0.42, RAMPS.WOOD, 3)
+      box(x + 1.7, y + 0.2, 1.14, 0.6, d * 0.5, 0.34, RAMPS.WOOD, 2)
+      box(x + 2.6, y + 0.15, 1.69, 0.5, d * 0.5, 0.3, RAMPS.NEUTRAL, 4)
+      break
+    }
+    case 'THE TOOL BOARD': {
+      // A pegboard against the wall with tools hung on it. The board is thin —
+      // it is a *board*, and giving it depth turns it into a cabinet.
+      box(x, y, 0.55, w, 0.1, 1.35, RAMPS.NEUTRAL, 2)
+      // The tools: five silhouettes at different heights, in the one tone that
+      // is lighter than the board. Their irregular spacing is the read; a row
+      // of evenly spaced marks is a ruler.
+      const at = [0.25, 0.75, 1.15, 1.85, 2.35]
+      const len = [0.5, 0.34, 0.62, 0.4, 0.28]
+      for (let i = 0; i < at.length; i++) {
+        box(x + at[i], y + 0.02, 1.55 - len[i], 0.12, 0.06, len[i], RAMPS.NEUTRAL, 5)
+      }
+      break
+    }
+    case 'THE WORKBENCH': {
+      // A slab on four legs, with a vice at the near end and a drawer bank
+      // under the far one. The overhang of the top past the legs is what says
+      // "bench" instead of "table with a thick top".
+      box(x + 0.12, y + 0.08, 0, 0.14, 0.14, 0.72, RAMPS.WOOD, 0)
+      box(x + w - 0.26, y + 0.08, 0, 0.14, 0.14, 0.72, RAMPS.WOOD, 0)
+      box(x + 0.12, y + d - 0.22, 0, 0.14, 0.14, 0.72, RAMPS.WOOD, 0)
+      box(x + w - 0.26, y + d - 0.22, 0, 0.14, 0.14, 0.72, RAMPS.WOOD, 0)
+      box(x + 0.9, y + 0.1, 0, 1.1, d - 0.2, 0.7, RAMPS.NEUTRAL, 2)
+      box(x, y, 0.72, w, d, 0.13, RAMPS.WOOD, 2)
+      box(x + w - 0.5, y + d * 0.35, 0.85, 0.34, 0.3, 0.3, RAMPS.NEUTRAL, 5)
+      break
+    }
+    case 'THE BIKE': {
+      // Two wheels, a frame bar and a saddle, leaned against the wall. Wheels
+      // as thin upright boxes rather than ellipses: an ellipse is the one shape
+      // in this room that does not lie in a plane, and at this size the
+      // silhouette is all that survives anyway.
+      box(x + 0.15, y + 0.3, 0, 0.1, 0.62, 0.62, RAMPS.NEUTRAL, 1)
+      box(x + 1.0, y + 0.3, 0, 0.1, 0.62, 0.62, RAMPS.NEUTRAL, 1)
+      box(x + 0.2, y + 0.5, 0.5, 0.9, 0.09, 0.12, RAMPS.ALARM, 1)
+      box(x + 0.22, y + 0.48, 0.32, 0.1, 0.12, 0.3, RAMPS.ALARM, 1)
+      box(x + 0.72, y + 0.42, 0.62, 0.3, 0.2, 0.1, RAMPS.NEUTRAL, 2)
+      break
+    }
+    case 'THE BOXES': {
+      // A stack that has been added to rather than built: three boxes, none
+      // squarely on the one below, the top one open.
+      box(x, y, 0, w, 1.0, 0.55, RAMPS.WOOD, 2)
+      box(x + 0.1, y + 1.1, 0, w - 0.2, 0.9, 0.48, RAMPS.WOOD, 3)
+      box(x - 0.05, y + 0.25, 0.55, w - 0.15, 0.85, 0.5, RAMPS.WOOD, 3)
+      box(x + 0.15, y + 1.35, 0.48, w - 0.4, 0.7, 0.4, RAMPS.WOOD, 2)
+      break
+    }
+    case 'THE BIN': {
+      // A wheelie bin: body, sloped-looking lid a shade lighter, two wheels.
+      box(x + 0.1, y + 0.15, 0, w - 0.25, d - 0.35, 0.78, RAMPS.FOLIAGE, 0)
+      box(x + 0.05, y + 0.1, 0.78, w - 0.15, d - 0.25, 0.1, RAMPS.FOLIAGE, 1)
+      box(x + 0.14, y + 0.2, 0, 0.1, 0.12, 0.1, RAMPS.NEUTRAL, 0)
+      box(x + 0.14, y + d - 0.35, 0, 0.1, 0.12, 0.1, RAMPS.NEUTRAL, 0)
+      break
+    }
+    case 'THE FRIDGE': {
+      // The beer fridge. A tall box, a door line down two thirds of it, a
+      // handle, and one magnet — which is the joke and the only warm mark on
+      // this wall.
+      box(x + 0.1, y + 0.1, 0, w - 0.25, d - 0.25, 1.45, RAMPS.NEUTRAL, 4)
+      box(x + 0.08, y + 0.12, 0.5, 0.05, d - 0.3, 0.04, RAMPS.NEUTRAL, 1)
+      box(x + 0.06, y + d - 0.5, 0.75, 0.06, 0.3, 0.09, RAMPS.NEUTRAL, 6)
+      box(x + 0.07, y + 0.35, 1.05, 0.04, 0.16, 0.16, RAMPS.WARN, 2)
+      break
+    }
+    case 'THE KETTLE': {
+      // A counter with a kettle and two mugs on it. The kettle is the taller
+      // of the three and the one with a spout.
+      box(x + 0.1, y + 0.1, 0, w - 0.25, d - 0.2, 0.62, RAMPS.WOOD, 1)
+      box(x + 0.35, y + 0.25, 0.62, 0.34, 0.34, 0.36, RAMPS.NEUTRAL, 5)
+      box(x + 0.28, y + 0.32, 0.82, 0.12, 0.14, 0.08, RAMPS.NEUTRAL, 4)
+      box(x + 0.3, y + 0.66, 0.62, 0.18, 0.18, 0.18, RAMPS.CALM, 1)
+      box(x + 0.55, y + 0.66, 0.62, 0.18, 0.18, 0.18, RAMPS.ALARM, 1)
+      break
+    }
+    case 'THE SOFA': {
+      // The battered sofa: a low seat block, a back along the wall side, and an
+      // arm at each end. The arms are what make it a sofa rather than a bench,
+      // and they are the two marks worth spending.
+      box(x + 0.35, y + 0.2, 0, w - 0.5, d - 0.4, 0.4, RAMPS.WOOD, 1)
+      box(x + 0.1, y + 0.2, 0, 0.3, d - 0.4, 0.78, RAMPS.WOOD, 0)
+      box(x + 0.35, y + 0.05, 0, w - 0.5, 0.22, 0.6, RAMPS.WOOD, 0)
+      box(x + 0.35, y + d - 0.28, 0, w - 0.5, 0.22, 0.6, RAMPS.WOOD, 0)
+      // Two cushions, sagging — different sizes, because a matched pair on a
+      // battered sofa is a matched pair somebody bought.
+      box(x + 0.5, y + 0.4, 0.4, 0.5, 0.55, 0.12, RAMPS.WOOD, 3)
+      box(x + 0.5, y + 1.1, 0.4, 0.5, 0.7, 0.1, RAMPS.WOOD, 2)
+      break
+    }
+    case 'THE CRATES': {
+      // Milk crates and a stack of flattened card. Two heights, one leaning.
+      box(x + 0.15, y + 0.1, 0, 0.75, 0.75, 0.42, RAMPS.CALM, 0)
+      box(x + 0.15, y + 0.1, 0.42, 0.75, 0.75, 0.42, RAMPS.CALM, 1)
+      box(x + 0.2, y + 1.0, 0, 0.7, 0.7, 0.4, RAMPS.ALARM, 0)
+      box(x + 0.1, y + 0.05, 0.84, 0.85, 0.9, 0.08, RAMPS.WOOD, 2)
+      break
+    }
+    default: {
+      const look = PROP_LOOK[plot.name] ?? { h: 1.1, ramp: RAMPS.NEUTRAL, base: 3 }
+      box(x, y, 0, w, d, look.h, look.ramp, look.base)
+    }
+  }
+}
+
+/**
+ * §7.8.0c — what each named garage prop is made of.
+ *
+ * Keyed by the plan's own name, so adding a plot without a look here gets a
+ * plain grey box rather than a crash, and the table cannot drift out of step
+ * with the plan because the plan is what indexes it. Heights are in tiles: a
+ * person is about 0.9, so 0.7 is a sofa back and 2.3 is a shelf stack you
+ * cannot see over.
+ */
+const PROP_LOOK: Record<string, { h: number; ramp: readonly string[]; base: number }> = {
+  // The workshop half — tall, dark, and against the far wall where it
+  // silhouettes against the one full-height surface in the room.
+  'THE SHELVES': { h: 2.3, ramp: RAMPS.WOOD, base: 0 },
+  'THE TOOL BOARD': { h: 1.9, ramp: RAMPS.NEUTRAL, base: 1 },
+  'THE WORKBENCH': { h: 0.85, ramp: RAMPS.WOOD, base: 1 },
+  'THE BIKE': { h: 1.0, ramp: RAMPS.NEUTRAL, base: 2 },
+  // The left wall — stacked boxes and the bin nobody empties.
+  'THE BOXES': { h: 1.3, ramp: RAMPS.WOOD, base: 2 },
+  'THE BIN': { h: 0.8, ramp: RAMPS.FOLIAGE, base: 0 },
+  // The sitting-down half. Low, so the near wall does not swallow it.
+  'THE FRIDGE': { h: 1.5, ramp: RAMPS.NEUTRAL, base: 4 },
+  'THE KETTLE': { h: 0.9, ramp: RAMPS.NEUTRAL, base: 3 },
+  'THE SOFA': { h: 0.72, ramp: RAMPS.WOOD, base: 1 },
+  'THE CRATES': { h: 1.0, ramp: RAMPS.WOOD, base: 3 },
+}
+
+/**
+ * §7.8.0c — **where the garage plan's origin sits on the room's lattice.**
+ *
+ * The one seam between two coordinate systems, and it is a constant rather than
+ * a conversion because there is exactly one right answer: plan tile (0, 0) is
+ * the room's **inner back corner**, the point where the two full-height walls
+ * meet on the inside. `garage.ts` measures everything from there; the room's
+ * lattice measures everything from `FLOOR_MIN_*`; and these two numbers are the
+ * distance between those two beliefs.
+ *
+ * They exist because the alternative was tried and failed in a way that looked
+ * fine. The plan was in its own tiles and the shell in the shell box's centred
+ * tiles, four columns and three rows apart, so every prop drawn through either
+ * projection landed on one wall — including the fridge and the sofa authored on
+ * the opposite one. Two frames with no stated relationship is not a bug you fix
+ * once; it is a bug you fix once per call site, for ever.
+ */
+export const GARAGE_COL0 = FLOOR_MIN_COL + WALL_THICK
+export const GARAGE_ROW0 = FLOOR_MIN_ROW + WALL_THICK / PITCH_ROW
+
+/** A plan tile, on the room's lattice. */
+export function garagePlot(gx: number, gy: number): { col: number; row: number } {
+  return { col: GARAGE_COL0 + gy / PITCH_COL, row: GARAGE_ROW0 + gx / PITCH_ROW }
 }
 
 /** Seat `index` in the grid axes `walkPath.ts` routes in. */
@@ -890,35 +1420,456 @@ export function founderDeskPosition(): { x: number; y: number } {
 }
 
 /**
- * §7.8.12 [amended 2026-08-29] — the fixed desks inside the team room.
+ * §7.8.12 [amended 2026-08-31] — **the suite is built out of the floor's own
+ * units**, and that one rule is the whole of this rewrite.
  *
- * James keeps seat 0: he is still the first developer and every simulation
- * rule that names that seat stays true. The other five are arranged in two
- * short banks around the founder's permanent corner rather than appended to
- * the rank-and-file grid. These coordinates are room-local on purpose: the
- * suite is architecture, not headcount, so hiring cannot reflow it.
+ * What stood here was seven desks at hand-picked screen offsets — `{ x: -68, y:
+ * -25 }` and five more like it — inside a room where every other object goes
+ * through {@link isoAt}. Everything reported about the suite followed from that
+ * and only from that:
+ *
+ *  - Three of its four glass planes ran at screen slopes of −0.39, +1.18 and
+ *    −1.05. In this projection a wall on the floor plane runs at ±0.50 and there
+ *    are no other legal values, so one pane in four was right. That is what
+ *    "hit and miss" is: a room in which some edges agree with the floor.
+ *  - Its plate was drawn `(-140,-154) (0,-208) (140,-138) (0,12)` — a kite. The
+ *    two side vertices of a level iso floor share a `y`; these differed by 16 px,
+ *    and the south vertex overshot the rhombus by 88. It was the one object in
+ *    the room not lying in the floor plane.
+ *  - Mo, Serena and Billy were stacked at 55 px intervals straight down the
+ *    *monitor*, which on the floor is a diagonal running 1.72 tiles into the far
+ *    corner on both axes at once. Mo and Matt were mirrored about the screen's
+ *    vertical; the room's own mirror is the north–south vertex line, and
+ *    reflecting across it swaps the two floor axes — so they were a matched pair
+ *    on the glass and two unrelated points on the ground.
+ *
+ * None of that is fixable by adjusting the numbers, because the numbers were in
+ * the wrong unit. **No coordinate below is expressed in screen pixels.**
+ *
+ * The lattice is anchored to the founder rather than to the seat grid. §7.8.10's
+ * north vertex lands at `col -3.36, row -1.60`, which is not an integer seat, and
+ * moving the founder onto one is the single thing that section forbids. The
+ * offset is sub-tile and invisible; what matters is that every step from here is
+ * a whole number of floor axes.
  */
-const TEAM_DESKS: Readonly<Record<HeroId, { x: number; y: number }>> = {
-  james: seatPosition(0),
-  mo: { x: -68, y: -25 },
-  serena: { x: -68, y: -80 },
-  billy: { x: -68, y: -135 },
-  matt: { x: 68, y: -25 },
-  melany: { x: 68, y: -80 },
+/**
+ * Desk to desk **inside the suite**, in seat units — twice the floor's.
+ *
+ * §7.8.1's rank and file sit at exactly one {@link PITCH_COL}, shoulder to
+ * shoulder, and get worse as the room fills. The suite is the one place in the
+ * studio that does not, and this is where that is said: two seat pitches per
+ * person, legible at a glance, costing one constant. It is §6's thesis stated in
+ * furniture rather than in a curve — the same argument §7.8.1's crowding bands
+ * make, told from the other end of the company.
+ */
+/*
+ * **1.4, and it was 2 until 2026-09-01.** §7.8.0c.
+ *
+ * The argument below still holds, and is why this is 1.4 rather than the
+ * floor's own 1: the suite is the one place in the studio that does not sit
+ * shoulder to shoulder. What changed is that the number was set against the
+ * *office* and then inherited by a garage a fifth of its size, where seven
+ * plots at two pitches each came to over half the room's width — a corner
+ * office wider than the studio it looks out over.
+ *
+ * The canonical garage concept puts leadership in a small improvised box behind
+ * salvaged glass, and that is the honest picture: you do not get a generous desk
+ * pitch in a garage. You get the desks pushed together behind whatever glazing
+ * somebody found.
+ */
+export const SUITE_PITCH_COLS = 1.4
+/**
+ * The suite's two banks, as rows.
+ *
+ * The front bank is the founder's own row, and it has to be: §7.8.10 has them
+ * facing back down the rows, and a bank of heroes between them and the floor
+ * would take away the view that section spends three paragraphs protecting. So
+ * the glass arrives *in front of* the founder — which is the literal reading of
+ * "the walls arrive around where you were already sitting" — and the second bank
+ * arrives behind, in the depth {@link FLOOR_BACK_ROWS} exists to hold.
+ */
+export const SUITE_FRONT_ROW = FOUNDER_CORNER_ROW
+export const SUITE_BACK_ROW = FOUNDER_CORNER_ROW - 1
+/**
+ * How far the back bank is offset along its row from the front one, in seats.
+ *
+ * Half a suite pitch, so no desk is drawn directly behind another. Two rows of
+ * desks in exact register read as a grid — the "car park" `PITCH_ROW`'s note
+ * warns about — and a stagger is what a real two-row office does for the same
+ * reason: the person behind you should not be looking at the back of your head.
+ */
+export const SUITE_STAGGER_COLS = SUITE_PITCH_COLS / 2
+/**
+ * Where the glass stands, as a row.
+ *
+ * 0.7 rows in front of the founder's bank and 0.9 behind row 0 — so it is a wall
+ * with a walkway on both sides of it rather than a pane bolted to the front of
+ * somebody's desk. The gap on the floor side is the lane `roomLanes` already
+ * builds behind row 0, which is what the doorway opens onto.
+ */
+export const SUITE_GLASS_ROW = SUITE_FRONT_ROW + 0.7
+
+/**
+ * The suite's two opaque sides **are the room's own back walls.**
+ *
+ * The shell is a diamond whose north vertex is `(FLOOR_MIN_COL, FLOOR_MIN_ROW)`,
+ * and the two edges meeting there are the two the suite tucks into. So the suite
+ * builds one glass wall and one end pane, and borrows the other two from the room
+ * the founder was already sitting in. That is §7.8.12's joke made structural
+ * rather than decorative: **most of this room was already here.**
+ */
+export const SUITE_WEST_COL = FLOOR_MIN_COL
+export const SUITE_WALL_ROW = FLOOR_MIN_ROW
+
+/**
+ * How wide the doorway is, in seats — and **where** it is, which is the more
+ * interesting half.
+ *
+ * It is centred on column zero, so it opens onto floor plot `(0, 0)`: the head
+ * of row 0, the plot {@link SUITE_SEATS} holds empty. A door needs somewhere to
+ * let out, and the alternative was the arrangement this replaced, where the only
+ * way between the suite and the floor was a 36 px notch between two panes that
+ * were not on the grid, with a developer sitting in it.
+ *
+ * One and a half seats: wide enough to read as a gap at Squad zoom, narrow
+ * enough that the glass still reads as a wall with a hole in it rather than as
+ * two unrelated screens.
+ */
+export const SUITE_DOOR_COLS = 1.5
+
+/**
+ * What the sign over the door says.
+ *
+ * Not `CXO`, not `EXECUTIVE SUITE`, and not `HEROES`. §13.11.2 already ruled out
+ * that whole class of label — machine vocabulary about a database row, and
+ * nothing in an office is labelled with one. This is the flattest corporate noun
+ * available, which is why it is funny screwed to the wall of a converted garage
+ * containing four people and a beer fridge: it is the sign nobody would think to
+ * question, printed by a company that has just decided it is the kind of company
+ * that has one.
+ */
+export const SUITE_SIGN = 'LEADERSHIP'
+/** How far the sign hangs out past the glass, in rows — the floor's side. */
+export const SUITE_SIGN_OUT = 0.3
+
+/**
+ * The size every word printed inside the room is set at.
+ *
+ * **Departure Mono's design size, and it is not a preference.** It is a pixel
+ * font: its glyphs are drawn on an 11-pixel grid, and asking for any other size
+ * resamples that grid. The first cut of the desk plates used 8 for a name and 6
+ * for a role — reasonable-looking numbers for small type, and both wrong, because
+ * a bitmap glyph at three quarters of its grid is not a lighter version of
+ * itself, it is a different arrangement of pixels. The sign came out of the
+ * renderer reading `I-EANFRAHTP`.
+ *
+ * Held constant on *screen* rather than in the room; see {@link PLATE_RISE} and
+ * the counter-scale in `animate`.
+ */
+export const ROOM_TYPE_SIZE = 11
+/** How far above a desk its plate floats, in room pixels. */
+export const PLATE_RISE = 52
+/** Name to role, in the plate's own units — one line, at the type's own size. */
+export const PLATE_LINE = 12
+/** Breathing room either side of a plate's words, in the plate's own units. */
+export const PLATE_PAD = 3
+/**
+ * One character's advance, as a fraction of the type size.
+ *
+ * Departure Mono is monospace, so a string's width is its length times this and
+ * there is nothing to measure. Same number `bubble.ts` sizes a balloon with.
+ */
+export const CHAR_ADVANCE = 0.6
+
+/** One plot in the suite, in the floor's own seat units. */
+export interface SuitePlot {
+  col: number
+  row: number
+}
+
+/**
+ * The seven plots, fixed for the life of a run.
+ *
+ * Fixed **per hero** rather than filled in arrival order, so Serena's desk is
+ * Serena's desk in every run and a player who learns the room once has learned
+ * it. An unarrived hero's plot is bare floor, not an empty desk — §7.8.12 gives
+ * a desk to a person, and a desk with nobody coming to it is set dressing that
+ * makes a promise the run may not keep.
+ *
+ * Front bank first, then back, alternating, so the room fills outward from the
+ * founder and the walls have somewhere to grow. James is plot 1: **the second
+ * desk in the garage was always a CXO desk** (§7.8.1's table, row 2 — "a second
+ * desk pushed alongside. James") and the code's mistake was to make that object
+ * and rank-and-file seat 0 the same thing. See {@link SUITE_SEATS}.
+ */
+const SUITE_PLOTS: Readonly<Record<HeroId, SuitePlot>> = {
+  james: { col: FOUNDER_CORNER_COL + SUITE_PITCH_COLS, row: SUITE_FRONT_ROW },
+  matt: { col: FOUNDER_CORNER_COL + SUITE_STAGGER_COLS, row: SUITE_BACK_ROW },
+  mo: { col: FOUNDER_CORNER_COL + SUITE_PITCH_COLS * 2, row: SUITE_FRONT_ROW },
+  melany: { col: FOUNDER_CORNER_COL + SUITE_PITCH_COLS + SUITE_STAGGER_COLS, row: SUITE_BACK_ROW },
+  serena: { col: FOUNDER_CORNER_COL + SUITE_PITCH_COLS * 3, row: SUITE_FRONT_ROW },
+  billy: { col: FOUNDER_CORNER_COL + SUITE_PITCH_COLS * 2 + SUITE_STAGGER_COLS, row: SUITE_BACK_ROW },
+}
+
+/** The founder's own plot, in the same units — plot 0 of the front bank. */
+export const FOUNDER_PLOT: SuitePlot = {
+  col: FOUNDER_CORNER_COL,
+  row: SUITE_FRONT_ROW,
+}
+
+/** Where a named hero is physically sitting, on the floor's grid. */
+export function suitePlot(id: HeroId): SuitePlot {
+  return { ...SUITE_PLOTS[id] }
 }
 
 /** Where a named hero is physically sitting, assigned or not. */
 export function teamDeskPosition(id: HeroId): { x: number; y: number } {
-  return { ...TEAM_DESKS[id] }
+  const plot = SUITE_PLOTS[id]
+  return isoAt(plot.col, plot.row)
 }
 
-/** The suite's drawn bounds, including its raised glass. */
-export const TEAM_ROOM_BOUNDS = {
-  minX: -142,
-  maxX: 142,
-  minY: -226,
-  maxY: 24,
-} as const
+/**
+ * §7.8.12 — the suite's footprint, in seat units, for a given east wall.
+ *
+ * **The east wall is the only side that moves.** It stands one seat past the
+ * last occupied plot, so the room is two desks wide when James arrives and the
+ * full seven when Billy does — §7.8.1b's promise ("the people already sitting
+ * down never move") applied to the corner office. The other three sides are
+ * constants: two of them are the shell's, and the glass is where the glass is.
+ *
+ * Depth is deliberately *not* a function of occupancy. A wall that stepped back
+ * on one particular hire would be the camera's fit moving under the player, and
+ * `floorBox` spent a paragraph explaining why the shell stopped doing that.
+ */
+export function suiteBox(eastCol: number): { minX: number; maxX: number; minY: number; maxY: number } {
+  return blockBox(SUITE_WEST_COL, SUITE_WALL_ROW, eastCol, SUITE_GLASS_ROW)
+}
+
+/** The east wall for a suite holding these heroes — one seat past the last plot. */
+export function suiteEastCol(ids: readonly HeroId[]): number {
+  let east = FOUNDER_CORNER_COL
+  for (const id of ids) east = Math.max(east, SUITE_PLOTS[id].col)
+  return east + 1
+}
+
+/** The suite at its full extent — the seven-plot room, for tests and fits. */
+export const TEAM_ROOM_BOUNDS = suiteBox(
+  suiteEastCol(Object.keys(SUITE_PLOTS) as HeroId[]),
+)
+
+/**
+ * §7.8.12 [added 2026-08-31] — **how many of the room's first seats are in the
+ * suite rather than on the floor.**
+ *
+ * One, and it is James. He remains the simulation's seat 0 — `jamesPresent`,
+ * `BILLY_SEAT`, §10.7a's focus indices and every rule that names that seat are
+ * untouched — but the *room* draws him at his suite plot, and the floor's
+ * lattice plot `(0, 0)` is left empty.
+ *
+ * That empty plot is not a hole. It is at the head of row 0, directly in front
+ * of the glass, and it is where the suite's door lets out: **it is the
+ * threshold.** Which is the argument for doing it this way round rather than
+ * shifting every seat index by one. Nothing else in the room has to learn a new
+ * numbering — `seatGrid`, `roomLanes`, `deskFrame`, the arrivals and the
+ * coverage decals all keep the arithmetic they have — and the one visible
+ * consequence is a plot of bare floor that the design wanted anyway.
+ *
+ * Reported as *"we should have considered James in the beginning, that his desk
+ * should be the beginning of forming the CXO space, separated from the rank and
+ * file coders"*, and the report is right about the history: §7.8.1's table has
+ * said "2 — a second desk pushed alongside. James" since before any of this was
+ * built. It was never a description of a rank-and-file seat.
+ */
+export const SUITE_SEATED: readonly HeroId[] = ['james']
+
+/**
+ * How many of a window's first seats the suite holds. One, and it is James.
+ *
+ * **Derived from {@link SUITE_SEATED} rather than written down beside it**, so
+ * the two cannot disagree — which is the same rule the rest of this file applies
+ * to its geometry, applied to its casting.
+ */
+export const SUITE_SEATS = SUITE_SEATED.length
+
+/** The same, for a given §26.2.2 window. Zero anywhere but the studio's own. */
+export function suiteSeatsIn(windowFrom: number): number {
+  return windowFrom === 0 ? SUITE_SEATS : 0
+}
+
+/**
+ * §7.8.12 — **where seat `seat` is actually drawn.** The single authority.
+ *
+ * {@link seatGrid} and {@link seatPosition} answer for the *floor lattice*, and
+ * they are still right about it: they are the reading order §7.8.1b defines and
+ * everything that reasons about rows, aisles and squads goes through them. They
+ * are the wrong question for anything that draws a **person**, because a seat
+ * the suite holds is not on the lattice at all.
+ *
+ * Having two answers to that question is what broke James's arrival on
+ * 2026-08-31: the room drew him at his desk in the suite, `deskFor` and §7.7.2's
+ * falling silhouette both went to `seatPosition(0)`, and he was dropped onto the
+ * doorway threshold and then teleported to his chair. The bug was not that a
+ * call site was wrong; it was that a call site *could* be.
+ *
+ * So this is the one function, and everything that puts a body, a desk or a
+ * camera on a seat resolves through it — the build loop, `deskFor`, `deskAt` and
+ * `arrivals.spawn`. **Moving anybody into or out of the suite is now an edit to
+ * {@link SUITE_SEATED} and nothing else.**
+ *
+ * `windowFrom` is required rather than defaulted, deliberately: the suite exists
+ * in the studio's own first thousand and nowhere else, and a default would let a
+ * caller forget that question rather than answer it.
+ */
+export function drawnSeatPlot(seat: number, windowFrom: number, garage: boolean): SuitePlot {
+  const i = Math.max(0, Math.floor(seat))
+  const held = suiteSeatsIn(windowFrom)
+  if (i < held) return suitePlot(SUITE_SEATED[i])
+  if (garage) {
+    /*
+     * §7.8.0c — the garage's own plan, **shifted past the suite's seats**.
+     *
+     * The office floor leaves the suite's lattice plot bare and starts ordinary
+     * developers at their own index; one hole in a hundred-wide lattice is
+     * invisible and the reading order stays simple. A garage cannot afford that
+     * trade: one bare plot there is a missing chair at a table of four, which
+     * reads as a defect rather than as a threshold. So the twenty pod seats are
+     * filled by the twenty *ordinary* developers and the suite's people are in
+     * addition to them — which is §7.8.0's separation stated as an index shift.
+     *
+     * Tiles to lattice: `col` runs along `gy` and `row` steps along `gx`, so
+     * the conversion is a division by each axis's pitch and nothing else.
+     */
+    const g = garageSeat(i - held)
+    return garagePlot(g.gx, g.gy)
+  }
+  /*
+   * §7.8.0d — **the office floor's own plan**, in the same frame as the
+   * garage's. Both are tiles measured from the room's inner back corner, so
+   * `garagePlot` converts either: the frame is a property of the *room*, not of
+   * which plan is standing in it.
+   *
+   * Past the floor's hundred the room falls back to §7.8.1e's lattice, and that
+   * is the honest interim. Above a hundred ordinary developers the picture is
+   * the tower (§7.8.0), so the only way to be looking at a hundred-and-first
+   * seat in this room is to have pinched all the way in to a storey — and the
+   * storey window has not been rebuilt on the new plan yet. Drawing it on the
+   * old lattice is wrong in a way the player can reach; drawing nothing is
+   * wrong in a way they cannot recover from.
+   */
+  const ordinary = i - held
+  if (ordinary < OFFICE_SEATS) {
+    const o = officeSeat(ordinary)
+    return garagePlot(o.gx, o.gy)
+  }
+  const { col, row } = seatGrid(i)
+  return { col, row }
+}
+
+/** {@link drawnSeatPlot}, projected — room-local screen coordinates. */
+export function drawnSeatPosition(
+  seat: number,
+  windowFrom: number,
+  garage: boolean,
+): { x: number; y: number } {
+  const plot = drawnSeatPlot(seat, windowFrom, garage)
+  return isoAt(plot.col, plot.row)
+}
+
+/**
+ * Does seat `seat` rest facing the camera? — §7.8.0c's facing pods.
+ *
+ * Half of every garage pod looks back across the table, so the front pose is no
+ * longer the exclusive property of a selected developer (§7.8.8, amended
+ * 2026-09-01). It is still true that *turning* is: nobody on the floor ever
+ * changes which way they are looking except by being selected or by speaking.
+ */
+export function seatFacesCamera(seat: number, windowFrom: number, garage: boolean): boolean {
+  const held = suiteSeatsIn(windowFrom)
+  const i = Math.max(0, Math.floor(seat))
+  if (i < held) return false
+  const ordinary = i - held
+  if (garage) return garageSeat(ordinary).facing === 'gx+'
+  // The office's pods face each other too — §7.8.0d is the same furniture at a
+  // different scale, so the same half of every table rests looking back.
+  if (ordinary < OFFICE_SEATS) return officeSeat(ordinary).facing === 'gx+'
+  return false
+}
+
+/**
+ * §7.8.13 [added 2026-08-31] — **how much of a desk plate survives this zoom.**
+ *
+ * Three states, and the middle one is the point. A plate is a name over a role,
+ * and at Squad scale the role is 6 px of type — a smear, not a word. So the role
+ * is *dropped* rather than shrunk, because the name is the half that identifies
+ * and a legible half beats an illegible whole.
+ *
+ * At Floor the plates go entirely and the branch-coloured monitor strip is all
+ * that is left, which is enough: at that size the question has stopped being
+ * "who is that" and become "what is that lit box in the corner", and the sign
+ * over the door answers it. The sign is therefore **not** part of this — it is
+ * the one piece of type in the room that is drawn at every level the room is.
+ */
+export type LabelDetail = 'full' | 'name' | 'none'
+
+/** A wall as drawn — the two ends of its foot, on the floor. */
+export interface WallFoot {
+  a: { x: number; y: number }
+  b: { x: number; y: number }
+}
+
+/**
+ * A rectangle of the seat grid — **the unit containment is decided in.**
+ *
+ * Every room-shaped thing in here is a parallelogram on screen, so its screen
+ * bounding box is a loose over-approximation of it: `blockBox` of the suite
+ * contains the first four seats of row 0, which are outside the suite by two
+ * whole rows. The first version of the `test:room` gate compared screen boxes
+ * and reported the room as broken at nine headcounts out of eleven; the room was
+ * fine and the *question* was in the wrong unit. Grid rectangles nest exactly,
+ * so the claims made of them are exact.
+ */
+export interface GridRect {
+  minCol: number
+  maxCol: number
+  minRow: number
+  maxRow: number
+}
+
+/** A seat or plot, in both units, so a gate can check they agree. */
+export interface PlacedPlot {
+  col: number
+  row: number
+  x: number
+  y: number
+}
+
+/** §7.8.12 — the measured room, for the `test:room` gate. */
+export interface RoomGeometry {
+  shell: {
+    /** The slab's four corners, room-local screen coordinates. */
+    top: { x: number; y: number }
+    left: { x: number; y: number }
+    right: { x: number; y: number }
+    bottom: { x: number; y: number }
+    /** And the same rectangle in the grid it was built from. */
+    grid: GridRect
+  }
+  /** The suite as drawn, or null before its walls arrive. */
+  suite: {
+    box: { minX: number; maxX: number; minY: number; maxY: number }
+    grid: GridRect
+  } | null
+  /** Every wall the suite built for itself, as drawn. */
+  suiteWalls: WallFoot[]
+  /** Where each arrived hero is sitting. */
+  plots: Array<PlacedPlot & { id: HeroId }>
+  founder: PlacedPlot
+  /** Where the room drew each seat it is showing, and which plot that came from. */
+  seats: PlacedPlot[]
+  /** Which of this window's first seats the suite is holding. */
+  heldSeats: number
+  seatWindow: number
+}
 
 /** The small slice of hero state the renderer needs. */
 export interface TeamRoomHero {
@@ -927,19 +1878,6 @@ export interface TeamRoomHero {
   assigned: boolean
   connecting: boolean
   selected: boolean
-}
-
-/** Space for the monitor and the founder's head below the north wall seam. */
-export const FOUNDER_NORTH_CLEARANCE = 72
-
-export function foldedRoomCentre(floorHalfHeight: number): { x: number; y: number } {
-  const founder = founderDeskPosition()
-  return {
-    x: founder.x,
-    // The north floor vertex is centreY - floorHalfHeight. Anchor that vertex
-    // to the founder instead of centring a huge symmetric diamond around zero.
-    y: founder.y - FOUNDER_NORTH_CLEARANCE + floorHalfHeight,
-  }
 }
 
 /**
@@ -972,19 +1910,6 @@ export function blockBox(
   }
 }
 
-/**
- * The half-width of the iso floor diamond that **contains** a block of that
- * size — §7.8.1a, "nothing is ever placed outside the plate".
- *
- * A diamond with half-extents (W, W/2) contains a box of half-extents (bw, bh)
- * only when `bw / W + bh / (W / 2) <= 1`, so the width has to cover the block's
- * height twice over. Sizing it as `max(width, height)` — the previous rule —
- * satisfies that only while the block is nearly flat, which is exactly why the
- * overflow appeared as the studio got deeper rather than wider.
- */
-export function plateHalfWidth(bw: number, bh: number, margin: number): number {
-  return bw + 2 * bh + margin * TILE_W
-}
 
 /**
  * §7.8.1c — the unfold. **The hundredth hire fills the first squad, and the
@@ -1012,8 +1937,13 @@ const UNFOLD_STAGGER = 0.55
  * the squads are being laid down in the order they will be filled.
  */
 export function panelDelay(squadCol: number, squadRow: number): number {
-  const far = FLOOR_COLS - 1 + (FLOOR_ROWS - 1)
-  return ((squadCol + squadRow) / far) * UNFOLD_STAGGER
+  // Measured across the *plan* rather than across a lattice of squads, and in
+  // one unit rather than two: a row step is 2.1 tiles and a column step is one,
+  // so adding raw seat coordinates would have released the deep banks far too
+  // early. The far corner is the last to start and finishes exactly on time.
+  const far = PLAN_BOUNDS.maxCol + PLAN_BOUNDS.maxRow * PITCH_ROW
+  const reach = Math.max(0, squadCol) + Math.max(0, squadRow) * PITCH_ROW
+  return Math.min(1, reach / far) * UNFOLD_STAGGER
 }
 
 /**
@@ -1328,6 +2258,49 @@ function drawFront(g: Graphics, look: Look) {
   for (const part of frontAvatarParts(look)) {
     g.rect(part.x, part.y, part.w, part.h).fill(partColour[part.colour])
   }
+
+  /*
+   * **Forearms, reaching to the desk — and the back pose deliberately has
+   * none.** §7.8.0c [2026-09-01].
+   *
+   * `buildDeveloper` draws elbows and stops, and its comment says exactly why:
+   * *"from behind, the forearms are hidden by the torso and the elbows are the
+   * only part of the arms that reads — which is also true of the real thing."*
+   * That was correct while the front pose was spent on one selected developer
+   * at a time, where the eye is on the face and the pose lasts a moment.
+   *
+   * It stops being correct when **half of every pod rests facing the camera**.
+   * A seated person seen from the front has their forearms on the table in
+   * front of them; leaving them off gives a floor of figures with no arms at
+   * all, which is the single most obvious thing wrong with a crowd. So the
+   * front pose gets what the front actually shows: a shoulder line, two
+   * forearms angled down and outward to where the keyboard is, and a cuff where
+   * the sleeve ends.
+   *
+   * Drawn *after* the face so a hand never covers a chin, and in the same skin
+   * ramp as the head so the two read as one person rather than as a figure
+   * holding two objects.
+   */
+  const reach = torso.w / 2
+  const cuff = c(shirtRamp[Math.max(0, shirtBase - 1)])
+  const flesh = c(RAMPS.SKIN[skin])
+  for (const side of [-1, 1] as const) {
+    // Upper arm: a short band off the shoulder, in the shirt's own shadow tone
+    // so it reads as sleeve rather than as a second torso.
+    g.rect(side === -1 ? -reach - 2.5 : reach - 0.5, -11, 3, 7).fill(cuff)
+    // Forearm: angled in toward the keyboard, which is on the desk's centre
+    // line. Two quads rather than a rotated rect, because everything else in
+    // this room is a polygon in a plane and a rotated sprite would be the one
+    // object that is not.
+    const x0 = side * (reach + 1)
+    const x1 = side * (reach - 3.5)
+    g.moveTo(x0 - 1.4, -4.5)
+      .lineTo(x0 + 1.4, -4.5)
+      .lineTo(x1 + 1.4, 1.5)
+      .lineTo(x1 - 1.4, 1.5)
+      .closePath()
+      .fill(flesh)
+  }
 }
 
 export function buildDeveloper(look: Look): Container {
@@ -1457,8 +2430,8 @@ const DESK_H = 5
 /** Valance depth — the drop from the surface to the underside. */
 const DESK_LIP = 11
 /** The screen offset from a seat to the centre of the desk it sits at. */
-function deskOffset() {
-  return gridToScreen(-DESK_SETBACK, 0)
+function deskOffset(face: 1 | -1 = 1) {
+  return gridToScreen(-DESK_SETBACK * face, 0)
 }
 
 /**
@@ -1497,14 +2470,29 @@ function deskOffset() {
  * has meant since §7.8.1 was written. A real bank of desks is a continuous
  * surface; the individual desk is an accounting fiction.
  */
-export function drawDeskBank(g: Graphics, colFrom: number, colTo: number, row: number) {
+export function drawDeskBank(
+  g: Graphics,
+  colFrom: number,
+  colTo: number,
+  row: number,
+  /**
+   * How deep the surface is and how far it stands back from the seat line.
+   *
+   * Defaulted to the floor's single-sided bank, which is every existing caller.
+   * §7.8.0c's garage pods pass a double depth and **no setback**, because a
+   * facing pod's table is not behind anybody — it is between two people, and
+   * both of them are set back from it in opposite directions.
+   */
+  depth = DESK_DEPTH,
+  setback = DESK_SETBACK,
+) {
   // The run goes along `gy` — the row's axis — and is `DESK_DEPTH` across it.
   const gy0 = colFrom * PITCH_COL - DESK_SPAN / 2
   const gy1 = colTo * PITCH_COL + DESK_SPAN / 2
   // Set back from the seats — see {@link DESK_SETBACK}. This one subtraction is
   // the difference between a person at a desk and a person standing on one.
-  const gx = row * PITCH_ROW - DESK_SETBACK
-  const d = DESK_DEPTH / 2
+  const gx = row * PITCH_ROW - setback
+  const d = depth / 2
 
   // The four corners of a rectangle **on the floor**, projected. Not a
   // screen-space shape that happens to look isometric: a run of desks is a
@@ -1727,8 +2715,60 @@ function deskRoll(seat: number, salt: number): number {
   return (h % 1000) / 1000
 }
 
-/** One person's kit on the bank — the screen they are looking at and the box under it. */
-export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0) {
+/**
+ * **A chair, and only behind somebody facing you.** §7.8.0c [2026-09-01].
+ *
+ * §7.8.1 records three attempts at a chair and rejects all of them, and the
+ * conclusion it draws is exact: *"the honest depth order puts a chair between
+ * the camera and a figure facing away, so it either covers the person or, drawn
+ * behind them, shows only slivers the eye assigns to the person anyway."*
+ *
+ * Every word of that is about a figure **facing away**. It does not apply to
+ * one facing you: their chair is behind them, on the far side, where it
+ * occludes nothing and reads as its own silhouette. §7.8.0c's facing pods put
+ * half the floor in exactly that case, and the canonical concept draws a chair
+ * behind every one of them — a tall dark back, which is the strongest shape in
+ * the whole pod after the screens.
+ *
+ * So the rule is not "chairs are back" but "a chair is drawn where a chair can
+ * be seen", which is what §7.8.1 was really saying. Rank-and-file floors, where
+ * everybody faces away, still have none.
+ *
+ * Drawn into the **back** layer, because behind a camera-facing person is away
+ * from the camera.
+ */
+export function drawChair(g: Graphics, x: number, y: number) {
+  const back = gridToScreen(-0.36, 0)
+  // The back, tall and dark. This is the whole read; the seat under it is a
+  // couple of pixels and exists so the back is not a slab standing on nothing.
+  isoBox(g, x + back.x, y + back.y - 4, 19, 21, RAMPS.NEUTRAL, 1, true)
+  const seat = gridToScreen(-0.16, 0)
+  isoBox(g, x + seat.x, y + seat.y, 17, 4, RAMPS.NEUTRAL, 2, false)
+}
+
+/**
+ * One person's kit on the bank — the screen they are looking at and the box
+ * under it.
+ *
+ * `face` is `1` for the floor's default, a developer seen from behind with the
+ * desk in front of them, and `-1` for one **turned round** — §7.8.0c's facing
+ * pods, where half of every table looks back across it toward the camera.
+ *
+ * The mirror is done on the floor's own axes rather than by flipping the
+ * sprite: `DESK_SETBACK` reverses, the wall plane's slope reverses with it, and
+ * every item on the surface is placed from the same two signed constants. A
+ * horizontal flip would put the light on the wrong side of every object in the
+ * room, which is the one thing ART_DIRECTION §7 will not have.
+ *
+ * The monitor is the one part that is not a mirror but a different object. A
+ * screen turned away from the camera shows its **back** — a dark panel with the
+ * glow escaping round its top edge — and that is what the canonical concepts
+ * draw: bright screens for the people facing away, dark monitor backs with lit
+ * faces above them for the people facing you. Drawing the emissive face on both
+ * sides would put two screens back to back both shining at the camera, which is
+ * not a thing that happens in a room.
+ */
+export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, face: 1 | -1 = 1) {
   // The monitor. A screen is a flat panel, so it is drawn the way every other
   // flat panel in this room is drawn: lying in a plane, not parallel to the
   // glass. Its face is the down-left one — the same plane the wall dressing
@@ -1750,10 +2790,10 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0) {
   // paid: `(sx, sy)` is the point on the desk surface directly in front of the
   // developer, and every item below is a displacement from it in the floor's
   // own axes.
-  const off = deskOffset()
+  const off = deskOffset(face)
   const sx = x + off.x
   const sy = y + off.y - DESK_H
-  const S = -0.5
+  const S = -0.5 * face
 
   // --- what is on the surface, back to front ------------------------------
   //
@@ -1766,8 +2806,8 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0) {
   //
   // Painter order runs back to front, so the mug in front of the keyboard
   // covers a corner of it rather than being swallowed by it.
-  const BACK = -0.14
-  const FRONT = 0.12
+  const BACK = -0.14 * face
+  const FRONT = 0.12 * face
   // Which hand the mouse is under. A floor of a hundred right-handers is a
   // pattern the eye finds, so it is rolled — and everything else on the front
   // row is placed against it, so nobody has their coffee where their mouse is.
@@ -1791,31 +2831,43 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0) {
   // Bezel, then the emissive face. The screen is the room's only light source,
   // so it is the one surface here allowed to ignore the top-left key.
   wallQuad(g, sx, my - 2, 30, 21, S, c(RAMPS.NEUTRAL[2]))
-  wallQuad(g, sx, my, 26, 17, S, c(RAMPS.GLOW[0]))
-  // Code on it. Each line is a strip in the same plane, left-aligned along the
-  // panel, so the text runs across the screen rather than across the viewport.
-  // Indented from the seat rather than from a constant, so no two screens in a
-  // row are showing the same file.
-  for (let i = 0; i < 4; i++) {
-    const w = 5 + ((i * 7 + Math.floor(deskRoll(seat, 2) * 9)) % 13)
-    const line = -(26 - w) / 2 + 2
-    wallQuad(
-      g,
-      sx + line,
-      my + 2 + i * 4 + S * line,
-      w,
-      1.5,
-      S,
-      c(i % 2 === 0 ? RAMPS.GLOW[2] : RAMPS.GLOW[1]),
-    )
+  if (face === 1) {
+    wallQuad(g, sx, my, 26, 17, S, c(RAMPS.GLOW[0]))
+    // Code on it. Each line is a strip in the same plane, left-aligned along the
+    // panel, so the text runs across the screen rather than across the viewport.
+    // Indented from the seat rather than from a constant, so no two screens in a
+    // row are showing the same file.
+    for (let i = 0; i < 4; i++) {
+      const w = 5 + ((i * 7 + Math.floor(deskRoll(seat, 2) * 9)) % 13)
+      const line = -(26 - w) / 2 + 2
+      wallQuad(
+        g,
+        sx + line,
+        my + 2 + i * 4 + S * line,
+        w,
+        1.5,
+        S,
+        c(i % 2 === 0 ? RAMPS.GLOW[2] : RAMPS.GLOW[1]),
+      )
+    }
+  } else {
+    // The back of the panel. Flat, dark, and unlit — a monitor's rear is the
+    // one large surface in this room with nothing on it, which is exactly why
+    // it reads: it is the silhouette that says *there is a screen there and you
+    // are on the wrong side of it*.
+    wallQuad(g, sx, my, 26, 17, S, c(RAMPS.NEUTRAL[1]))
+    // And the light escaping over its top edge, which is the only evidence the
+    // thing is switched on. Two pixels, in the same plane, and it is what puts
+    // the cyan on the face of the person behind it.
+    wallQuad(g, sx, my - 1, 27, 2, S, c(RAMPS.GLOW[1]))
   }
   // The sliver of the monitor's own side that a panel turned away from the
   // camera shows. Two pixels, and it is the whole difference between a screen
-  // and a decal. On the north-east edge, which is the one turning away now.
-  g.moveTo(sx + 15, my - 9.5)
-    .lineTo(sx + 17, my - 8.5)
-    .lineTo(sx + 17, my + 10.5)
-    .lineTo(sx + 15, my + 9.5)
+  // and a decal. On the edge that is turning away, which swaps with `face`.
+  g.moveTo(sx + 15 * face, my - 9.5)
+    .lineTo(sx + 17 * face, my - 8.5)
+    .lineTo(sx + 17 * face, my + 10.5)
+    .lineTo(sx + 15 * face, my + 9.5)
     .closePath()
     .fill(c(RAMPS.NEUTRAL[1]))
   // A sticky note on the bezel, on about half the screens. Four pixels of WARN
@@ -1823,7 +2875,9 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0) {
   // full floor, because it is the only warm colour in a room lit by a blue
   // screen. Stuck *on* the bezel rather than beside it: at `sx - 16` it hung
   // off the edge of the monitor and read as a little pennant.
-  if (deskRoll(seat, 3) < 0.45) {
+  // Only on a screen whose face the camera can see; a sticky note on the back
+  // of a monitor is a note nobody wrote.
+  if (face === 1 && deskRoll(seat, 3) < 0.45) {
     const nx = -11
     wallQuad(g, sx + nx, my + 4 + S * nx, 4.5, 4.5, S, c(RAMPS.WARN[2]))
   }
@@ -2303,7 +3357,32 @@ export function buildRoom(): RoomHandle {
   const teamDeskLayer = new Graphics()
   const teamPeopleLayer = new Container()
   const teamSignals = new Graphics()
-  teamArchitecture.addChild(teamFloor, teamGlass, teamDeskLayer)
+  /**
+   * §7.8.12 [added 2026-08-31] — **the words.**
+   *
+   * Its own container rather than a `Graphics`, because these are `Text` and
+   * text cannot be baked into a shape layer that is cleared and refilled. It
+   * sits above the bodies for the same reason the desk plates in a real office
+   * are at eye level: a name occluded by the person it names is not a name.
+   *
+   * The one thing it must never become is HUD. §7.1 gives the interface its own
+   * pane of glass and this is not on it — these objects are printed, screwed to
+   * furniture, and scale with the room, so they leave the frame when the room
+   * does. `plateFor` and `signFor` below both go through `Text` with a `try`
+   * around construction, on `bubble.ts`'s rule: a missing font must degrade to
+   * the wrong monospace rather than to no words at all.
+   */
+  const teamLabels = new Container()
+  /**
+   * **The walls only.** `teamDeskLayer` used to live in here and does not any
+   * more, because the two now appear at different moments: §7.8.12 builds the
+   * glass when a *second* hero arrives, while the desks inside it are the
+   * founder's and James's and have been there since the garage. Keeping the
+   * furniture inside the architecture meant the first desk could not be drawn
+   * until the room around it existed, which is the wrong way round — the whole
+   * joke is that the desks came first.
+   */
+  teamArchitecture.addChild(teamFloor, teamGlass)
   /** §13.11.1 — the coverage footprint, painted on the floor under everybody. */
   const coverage = new Graphics()
   // Previous room geometry lives just long enough to cross-fade into an
@@ -2322,6 +3401,8 @@ export function buildRoom(): RoomHandle {
   teamArchitecture.label = 'team-room'
   teamPeopleLayer.label = 'team-room-heroes'
   teamSignals.label = 'team-room-signals'
+  teamDeskLayer.label = 'team-room-desks'
+  teamLabels.label = 'team-room-labels'
   const ambient = createAmbient()
   /**
    * §7.8.9 — the away population's bodies.
@@ -2342,6 +3423,17 @@ export function buildRoom(): RoomHandle {
   // shell's diamond and its walls are what the unfold fades away, and the two
   // never overlap on screen because the walls rise from behind the deepest
   // plate.
+  /**
+   * §7.8.0b — the cutaway's **near walls**, drawn over the floor they enclose.
+   *
+   * A cutaway only reads if the wall between the camera and the floor is
+   * actually drawn between them. Put these in `shell` with the far walls and
+   * they are painted first and then covered by every desk in the room, which is
+   * a two-sided room again by a different route.
+   */
+  /** §7.8.0c — the near half of a facing pod's kit. See {@link frontDesks}. */
+  const frontDeskLayer = new Container()
+  const nearWall = new Graphics()
   root.addChild(
     previousShell,
     shell,
@@ -2359,26 +3451,56 @@ export function buildRoom(): RoomHandle {
     previousDesks,
     deskLayer,
     teamArchitecture,
+    teamDeskLayer,
     managerDesk,
     devLayer,
+    // Above the seated people and below the walkers: a monitor on the near side
+    // of a facing pod stands between its owner and the camera, and somebody
+    // crossing the aisle in front of that pod is nearer still.
+    frontDeskLayer,
     founderLayer,
     teamPeopleLayer,
+    teamLabels,
     teamSignals,
     ambient.layer,
     errands.layer,
+    // Above the walkers, so somebody crossing the front of the studio passes
+    // *behind* the near wall rather than over it. Below speech, which is on
+    // §7.1's pane of glass and is not in the room at all.
+    nearWall,
     speech.layer,
   )
 
-  /** One §7.8.1c panel: the plate itself, and the light it catches turning. */
+  /** One §7.8.1c panel: the plate, its lip, and the light it catches turning. */
   interface Panel {
     root: Container
     base: Graphics
+    /** The plate's edge, kept apart from `base` so it can be re-tinted. */
+    lip: Graphics
     sheen: Graphics
+    /** The plate's own corner on the floor lattice, in seat units. */
     squadCol: number
     squadRow: number
   }
   const panels: Panel[] = []
   const squadDesks: Graphics[] = []
+  /**
+   * §7.8.0c — **the kit that stands between a developer and the camera.**
+   *
+   * A facing pod puts half its people on the near side of the table, looking
+   * back across it, and their monitors are therefore *in front of them*. Drawn
+   * in `deskLayer` with everybody else's, those monitors are painted before the
+   * people and then covered by them — so a developer appears to be sitting on
+   * top of their own screen.
+   *
+   * This is not a sorting bug that a depth key would fix. The two halves of a
+   * pod genuinely belong on opposite sides of the people layer, because the
+   * table runs between them; the honest structure is two layers, and which one
+   * a workstation goes into is decided by the same `facing` that decides which
+   * way its owner is drawn. One fact, read twice, rather than two facts that
+   * can disagree.
+   */
+  const frontDesks: Graphics[] = []
 
   const devs: Container[] = []
   let team: TeamRoomHero[] = []
@@ -2418,6 +3540,16 @@ export function buildRoom(): RoomHandle {
    * a room that only ever shows one set of people.
    */
   let windowFrom = 0
+  /**
+   * §7.8.0c — is the room currently drawing the garage?
+   *
+   * Set once per rebuild and read by everything that has to agree with what was
+   * drawn: `deskFor`, the seat report, the resting pose and §7.7.2's arrivals.
+   * It is a *drawn* fact rather than a derived one on purpose — `deskFor` is
+   * asked about a seat that does not exist yet, so re-deriving it from a
+   * headcount there would answer for a different room than the one on screen.
+   */
+  let drawnGarage = false
   /** §13.11.1 — what the decal layer currently shows, as a comparable key. */
   let coverageDrawnFor = coverageKey(new Map())
   /** §7.8.8 — the selected seat, and the spin's clock. */
@@ -2437,108 +3569,225 @@ export function buildRoom(): RoomHandle {
   const jolts: number[] = []
   const desks: Array<{ x: number; y: number }> = []
   let roomTransition = 1
+  /**
+   * §7.8.12 — the suite's current screen box, or null while it has no walls.
+   *
+   * A `let` rather than the {@link TEAM_ROOM_BOUNDS} constant because the east
+   * wall moves: the room is two desks wide when James arrives and seven when
+   * Billy does, and the camera rectangle has to be the room that is actually
+   * standing there. The constant remains the full extent, which is what tests
+   * and `frames.suiteFrame` want.
+   */
+  let teamBox: { minX: number; maxX: number; minY: number; maxY: number } | null = null
+  /** The sign over the door, as a group — its live scale is the hit box's. */
+  let signGroup: Container | null = null
+  /** §7.8.12 — the slab's four corners as last drawn, for {@link RoomHandle.geometry}. */
+  const shellQuad = {
+    top: { x: 0, y: 0 },
+    left: { x: 0, y: 0 },
+    right: { x: 0, y: 0 },
+    bottom: { x: 0, y: 0 },
+  }
+  /** Every wall the suite built for itself as last drawn, in the same units. */
+  let suiteWalls: WallFoot[] = []
+  /** The grid rectangle the slab was last built from — the shell's real shape. */
+  const shellGrid: GridRect = { minCol: 0, maxCol: 0, minRow: 0, maxRow: 0 }
+  /** And the suite's, which shares its two back sides. */
+  let suiteGrid: GridRect | null = null
+  /** §7.8.13 — how much of a desk plate is legible at the current zoom. */
+  let labelDetail: LabelDetail = 'full'
+  /** Whether the room's type is currently landing at its own design size. */
+  let typeLegible = true
 
   /**
-   * §7.8.12 — build the suite around the founder and James, then add one
-   * workstation per arrived hero. The room appears only when the second hero
-   * arrives; James alone is still the garage story and keeps its clean frame.
+   * §7.8.12 — **how many of this window's first seats the suite holds.**
+   *
+   * One in the studio's own window, none anywhere else. §26.2.2's block 50 has
+   * no executive suite in it: its local seat 0 is an ordinary developer with a
+   * rolled face, and holding a plot back for a James who is a hundred thousand
+   * desks away would put a hole in a floor that has no room to explain it.
+   */
+  function suiteSeats(): number {
+    return suiteSeatsIn(windowFrom)
+  }
+
+  /**
+   * §7.8.12 — build the suite on the floor's own lattice.
+   *
+   * Three things arrive in order and the order is the composition: the room
+   * (floor, two borrowed walls, one glass front with a door in it), the desks
+   * and the people, then the words. Only the east wall moves with the
+   * headcount — see {@link suiteBox}.
+   *
+   * The *walls* still appear only when a second hero arrives, which is unchanged
+   * and is §7.8.12's own rule: James alone is the garage story and a glass box
+   * around two people is a punchline told before the setup. The *desks* are the
+   * suite's from the first frame, because they always were — the founder's and
+   * the one pushed alongside it.
    */
   function rebuildTeam() {
     teamFloor.clear()
     teamGlass.clear()
     teamDeskLayer.clear()
     teamSignals.clear()
+    // The reveal below only runs once there are walls to reveal, so a suite
+    // that is still two desks in a garage has to start at full strength rather
+    // than at whatever alpha the last reveal left behind.
+    teamDeskLayer.alpha = 1
+    teamPeopleLayer.alpha = 1
+    teamLabels.alpha = 1
+    teamSignals.alpha = 1
     for (const body of teamBodies.values()) body.destroy({ children: true })
     teamBodies.clear()
     teamPeopleLayer.removeChildren()
+    for (const label of teamLabels.removeChildren()) label.destroy()
 
-    const visible = team.length > 1
-    teamArchitecture.visible = visible
-    teamPeopleLayer.visible = visible
-    teamSignals.visible = visible
-    if (!visible) return
-
-    // A darker inset inside the ordinary slab. It is still the same floor;
-    // the border and the glass, not a second material, make it a room.
-    teamFloor
-      .moveTo(-140, -154)
-      .lineTo(0, -208)
-      .lineTo(140, -138)
-      .lineTo(0, 12)
-      .closePath()
-      .fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.72 })
-      .stroke({ width: 2, color: c(RAMPS.NEUTRAL[5]), alpha: 0.72 })
-
-    // The two back planes are glass, so the rank and file and the corner remain
-    // one composition. Dark panes, bright mullions, and no opaque wall.
-    const glassPlane = (
-      ax: number,
-      ay: number,
-      bx: number,
-      by: number,
-      lit: boolean,
-      height = 52,
-    ) => {
-      const h = height
-      teamGlass
-        .moveTo(ax, ay)
-        .lineTo(bx, by)
-        .lineTo(bx, by - h)
-        .lineTo(ax, ay - h)
-        .closePath()
-        .fill({ color: c(RAMPS.GLOW[0]), alpha: 0.26 })
-        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[lit ? 7 : 6]), alpha: 0.78 })
-      for (let i = 1; i < 4; i++) {
-        const t = i / 4
-        const x = ax + (bx - ax) * t
-        const y = ay + (by - ay) * t
-        teamGlass
-          .moveTo(x, y)
-          .lineTo(x, y - h)
-          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.6 })
-      }
+    // §26.2.2 — the suite exists in the studio's own first thousand and nowhere
+    // else. A block drawn out of a nation is a floor of a company this size; it
+    // is not the floor the founder is sitting on.
+    const here = windowFrom === 0
+    const peopled = here && team.length > 0
+    const walls = here && team.length > 1
+    teamArchitecture.visible = walls
+    teamDeskLayer.visible = peopled
+    teamPeopleLayer.visible = peopled
+    teamSignals.visible = walls
+    teamLabels.visible = walls
+    signGroup = null
+    suiteWalls = []
+    if (!peopled) {
+      teamBox = null
+      suiteGrid = null
+      return
     }
-    glassPlane(-140, -154, 0, -208, false)
-    glassPlane(0, -208, 140, -138, true)
-    // Low front panes put a real threshold between James and seat 1 without
-    // building an opaque wall across the player’s view. The gap is the only
-    // doorway, and every remote packet below leaves through it.
-    glassPlane(-140, -154, -18, -10, false, 22)
-    glassPlane(18, -10, 140, -138, true, 22)
 
-    // A thin phosphor strip is the room's sign. It is deliberately not text:
-    // structured words belong on the React glass, while this is architecture.
-    teamGlass
-      .moveTo(-34, -218)
-      .lineTo(0, -231)
-      .lineTo(34, -214)
-      .lineTo(0, -201)
-      .closePath()
-      .fill({ color: c(RAMPS.GLOW[1]), alpha: 0.72 })
+    const east = suiteEastCol(team.map((hero) => hero.id))
+    teamBox = walls ? suiteBox(east) : null
+    suiteGrid = walls
+      ? { minCol: SUITE_WEST_COL, maxCol: east, minRow: SUITE_WALL_ROW, maxRow: SUITE_GLASS_ROW }
+      : null
 
-    for (const hero of team) {
-      const at = TEAM_DESKS[hero.id]
-      const colour = c(hero.colour)
-      // Founder and James already own the two original workstations. Every
-      // other arrival brings one more desk into the room; nobody is duplicated.
-      if (hero.id !== 'james') {
-        const grid = screenToGrid(at.x, at.y)
-        const col = grid.gy / PITCH_COL
-        const row = grid.gx / PITCH_ROW
-        drawDeskBank(teamDeskLayer, col, col, row)
-        drawWorkstation(teamDeskLayer, at.x, at.y, 1200 + teamBodies.size)
-        const identity = heroIdentity(hero.id)
-        if (identity) {
-          const body = buildDeveloper(identity.look)
-          body.label = `team-hero:${hero.id}`
-          body.position.set(at.x, at.y + 6)
-          teamBodies.set(hero.id, body)
-          teamPeopleLayer.addChild(body)
+    if (walls) {
+      // The floor of the suite, as a parallelogram in the seat grid's own axes —
+      // the same shape `squadPlate` uses and for the same reason. It is a darker
+      // inset in the ordinary slab rather than a second material: the border and
+      // the glass make it a room, not a change of flooring.
+      const nw = isoAt(SUITE_WEST_COL, SUITE_WALL_ROW)
+      const ne = isoAt(east, SUITE_WALL_ROW)
+      const se = isoAt(east, SUITE_GLASS_ROW)
+      const sw = isoAt(SUITE_WEST_COL, SUITE_GLASS_ROW)
+      teamFloor
+        .moveTo(nw.x, nw.y)
+        .lineTo(ne.x, ne.y)
+        .lineTo(se.x, se.y)
+        .lineTo(sw.x, sw.y)
+        .closePath()
+        .fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.72 })
+        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[5]), alpha: 0.5 })
+
+      /**
+       * One pane, standing on a line **between two floor plots**.
+       *
+       * The two endpoints go through {@link isoAt}, so the pane's foot is on the
+       * floor's own axis by construction and its screen slope is whatever the
+       * projection makes of that. It cannot come out at 1.18 the way a pane
+       * given two screen points could, and did.
+       */
+      const pane = (fromCol: number, fromRow: number, toCol: number, toRow: number, h: number) => {
+        const a = isoAt(fromCol, fromRow)
+        const b = isoAt(toCol, toRow)
+        suiteWalls.push({ a: { ...a }, b: { ...b } })
+        // Which way this pane faces, from which way its foot runs. The two
+        // orientations take different mullion values so the room has a lit side
+        // and a shaded one rather than four identical walls.
+        const lit = b.y < a.y
+        teamGlass
+          .moveTo(a.x, a.y)
+          .lineTo(b.x, b.y)
+          .lineTo(b.x, b.y - h)
+          .lineTo(a.x, a.y - h)
+          .closePath()
+          .fill({ color: c(RAMPS.GLOW[0]), alpha: 0.24 })
+          .stroke({ width: 2, color: c(RAMPS.NEUTRAL[lit ? 7 : 6]), alpha: 0.72 })
+        // Mullions every seat, so the glass is divided in the same unit the
+        // floor is. A pane whose divisions do not match the desks behind it
+        // reads as a picture of glass rather than as glass.
+        const spans = Math.max(1, Math.round(Math.abs(toCol - fromCol) + Math.abs(toRow - fromRow)))
+        for (let i = 1; i < spans; i++) {
+          const t = i / spans
+          const x = a.x + (b.x - a.x) * t
+          const y = a.y + (b.y - a.y) * t
+          teamGlass.moveTo(x, y).lineTo(x, y - h).stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.5 })
         }
       }
 
-      // The branch-coloured nameplate is dim on the bench and live while this
-      // desk owns a remote assignment. It is the suite end of §13.11's plate.
+      // The east end — the only wall the suite builds for itself on that side,
+      // and the one that moves. Half height, so it reads as a partition rather
+      // than as the room having been cut off.
+      pane(east, SUITE_WALL_ROW, east, SUITE_GLASS_ROW, 34)
+      // The front, in two runs with the doorway between them. The door is on
+      // the floor's grid too: it opens onto plot (0, 0) — the head of row 0,
+      // which `suiteSeats` holds empty precisely so that it can.
+      pane(SUITE_WEST_COL, SUITE_GLASS_ROW, -SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, 46)
+      if (east > SUITE_DOOR_COLS / 2) {
+        pane(SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, east, SUITE_GLASS_ROW, 46)
+      }
+
+      /*
+       * §7.8.12 — **the sign over the door**, and it is words now.
+       *
+       * The argument this room used to make against that — structured words
+       * belong on the HUD's pane of glass — drew the line in the wrong place. A
+       * sign over a door is architecture; offices have them. What belongs on
+       * the HUD is the *roster*, and tapping this is how the roster opens.
+       *
+       * It hangs on the **floor** side of the glass, because a sign over a door
+       * is for the people who are not in the room yet. That also keeps it clear
+       * of the plates on the desks behind it, which is not a coincidence: every
+       * word in this room is the same eleven pixels tall, so anything sharing
+       * their band collides with them.
+       */
+      const door = isoAt(0, SUITE_GLASS_ROW + SUITE_SIGN_OUT)
+      signGroup = group(door.x, door.y - 62)
+      signGroup.addChild(
+        new Graphics()
+          .roundRect(-38, -9, 76, 18, 2)
+          .fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.94 })
+          .stroke({ width: 1, color: c(RAMPS.GLOW[1]), alpha: 0.8 })
+          .rect(-34, -13, 68, 2)
+          .fill({ color: c(RAMPS.GLOW[2]), alpha: 0.5 }),
+      )
+      // `typeLine`, not `label`: the sign already has a board and does not want
+      // a second plate behind its words.
+      const sign = typeLine(SUITE_SIGN, c(RAMPS.GLOW[2]))
+      if (sign) {
+        sign.label = 'lettering'
+        signGroup.addChild(sign)
+      }
+    }
+
+    for (const hero of team) {
+      const plot = SUITE_PLOTS[hero.id]
+      const at = isoAt(plot.col, plot.row)
+      const colour = c(hero.colour)
+
+      // Every hero brings one desk, James included. He used to be exempt on the
+      // grounds that the floor was already drawing seat 0's; it is not, since
+      // 2026-08-31 that plot is the doorway's threshold and this is his desk.
+      drawDeskBank(teamDeskLayer, plot.col, plot.col, plot.row)
+      drawWorkstation(teamDeskLayer, at.x, at.y, 1200 + teamBodies.size)
+      const identity = heroIdentity(hero.id)
+      if (identity) {
+        const body = buildDeveloper(identity.look)
+        body.label = `team-hero:${hero.id}`
+        body.position.set(at.x, at.y + 6)
+        teamBodies.set(hero.id, body)
+        teamPeopleLayer.addChild(body)
+      }
+
+      // The branch-coloured monitor strip is dim on the bench and live while
+      // this desk owns a remote assignment. It is the suite end of §13.11's
+      // plate and it is the only part of the naming that survives Floor zoom.
       teamDeskLayer
         .roundRect(at.x - 13, at.y - 15, 26, 5, 1)
         .fill({ color: colour, alpha: hero.assigned ? 0.95 : 0.28 })
@@ -2547,7 +3796,194 @@ export function buildRoom(): RoomHandle {
           .circle(at.x + 15, at.y - 21, hero.connecting ? 2.5 : 3.5)
           .fill({ color: colour, alpha: hero.connecting ? 0.55 : 1 })
       }
+
+      if (walls) drawDeskPlate(hero, at, colour)
     }
+
+    if (walls) {
+      // §7.8.10's corner desk gets one too. It is the only plate in the room
+      // whose second line is not a department, because the founder does not
+      // have one — the rail has called this MANAGER CORNER since §4.5d and the
+      // plate says the same thing the button does.
+      plate(
+        isoAt(FOUNDER_PLOT.col, FOUNDER_PLOT.row),
+        founderProfile.name.toUpperCase().slice(0, 12),
+        c(RAMPS.NEUTRAL[8]),
+        'MANAGER CORNER',
+        c(RAMPS.NEUTRAL[5]),
+      )
+    }
+
+    // The plates are rebuilt at full detail and then cut back to whatever the
+    // camera is currently asking for. Doing it in this order means a hero who
+    // arrives while the lens is at Floor gets the same treatment as everyone
+    // else the moment it comes back down.
+    applyLabelDetail()
+  }
+
+  /**
+   * §7.8.13 — a desk plate: the name, the role under it, in the branch colour.
+   *
+   * The object `WorldHeroAssignments.tsx` already specified and argued for, put
+   * where that argument leads. Its note is worth restating because it is the
+   * whole reason this is not a card: *"nothing in an office is labelled
+   * ASSIGNED"* — and the other half of that is that everything in an office
+   * **is** labelled with a name and a job. The suite had a 26x5 px coloured
+   * rectangle with no text on it, which is the entire "no clear signs" gap.
+   *
+   * Two lines at Desk zoom, one at Squad, none at Floor. That is not a fade: the
+   * type is held at a constant size on screen, so at Squad it is the *plates*
+   * that run out of room rather than the letters — two desks are 51 px apart
+   * there and `CUSTOMER SUPPORT` is 106 px wide. The role is dropped rather than
+   * shrunk because the name is the half that identifies, and a legible half
+   * beats an illegible whole. See {@link RoomHandle.setLabelDetail}.
+   */
+  function drawDeskPlate(hero: TeamRoomHero, at: { x: number; y: number }, colour: number) {
+    const story = STORY_HEROES.find((h) => h.id === hero.id)
+    if (!story) return
+    plate(at, story.name.toUpperCase(), colour, story.role, c(RAMPS.NEUTRAL[hero.assigned ? 6 : 5]))
+  }
+
+  /**
+   * A name over a role, printed above one desk — §7.8.13's plate.
+   *
+   * **Both lines are on their own backing**, and that is not decoration. A
+   * branch colour is chosen to be legible as *coverage paint on a dark floor*
+   * (§13.11.1), and four of the six are light: Melany's `#58b0d0` and Billy's
+   * `#b088d0` set straight onto the room's lilac walls came out as two grey
+   * smudges while Matt's green and Serena's red read fine, which is a plate that
+   * works for some of the staff.
+   *
+   * A backing per line rather than one behind the pair, because {@link
+   * LabelDetail} drops the role on its own and a plate left with a hole in it
+   * where the second line used to be is worse than either state.
+   */
+  function plate(
+    at: { x: number; y: number },
+    name: string,
+    nameFill: number,
+    role: string,
+    roleFill: number,
+  ) {
+    const g = group(at.x, at.y - PLATE_RISE)
+    const top = label(name, nameFill)
+    if (top) g.addChild(top)
+    const under = label(role, roleFill)
+    if (under) {
+      // Inside the group, so the gap between the two lines is in the same units
+      // the type is and cannot open up or close as the camera moves.
+      under.position.set(0, PLATE_LINE)
+      under.label = 'role'
+      g.addChild(under)
+    }
+  }
+
+  /**
+   * One counter-scaled group of printed type, anchored to a point in the room.
+   *
+   * **The group is what scales, not the text inside it**, so a plate's two lines
+   * stay one plate at every zoom. `animate` sets the scale each frame from
+   * `bubble.ts`'s `counterScale` — the same rule, and for the same reason a map
+   * label does not grow when you zoom in.
+   */
+  function group(x: number, y: number): Container {
+    const g = new Container()
+    g.position.set(x, y)
+    teamLabels.addChild(g)
+    return g
+  }
+
+  /**
+   * Apply {@link labelDetail} to the type already on the plates.
+   *
+   * A toggle rather than a rebuild, because zoom changes every frame during a
+   * fly-to and rebuilding seven desks per frame to hide fourteen words is the
+   * kind of cost that only shows up on the §23.3 test device.
+   */
+  function applyLabelDetail() {
+    // Words are drawn only where they can be drawn *properly* — the zoom has to
+    // want them and the type has to be landing at its design size.
+    const words = labelDetail !== 'none' && typeLegible
+    teamLabels.visible = teamBox !== null
+    for (const g of teamLabels.children) {
+      if (g === signGroup) continue
+      g.visible = words
+      for (const line of (g as Container).children) {
+        if (line.label === 'role') line.visible = labelDetail === 'full'
+      }
+    }
+    /*
+     * **The sign is the one thing that does not go out — it goes quiet.**
+     *
+     * Its lettering obeys the same rule as the plates, because it is the same
+     * eleven-pixel face and would be resampled into nonsense past the same
+     * point. Its *board* does not: a lit strip in the corner of a floor is
+     * exactly what the room used to have as its only sign, and it is still the
+     * answer to the question that is left once no name is legible — not "who is
+     * that" any more, but "what is that lit box in the corner".
+     *
+     * So the far tier of this object is the object the first build stopped at,
+     * which is a pleasant way for an amendment to land: the old design was not
+     * wrong, it was the last frame of the new one.
+     */
+    if (signGroup) {
+      for (const part of signGroup.children) {
+        if (part.label === 'lettering') part.visible = words
+      }
+    }
+  }
+
+  /**
+   * One line of printed type on its own plate.
+   *
+   * A `Container` rather than a bare `Text` so the backing travels with the
+   * words: the two are one object, they are shown and hidden together, and the
+   * plate is sized from the type it is actually carrying rather than from a
+   * guess about how long a job title is.
+   */
+  function label(text: string, fill: number): Container | null {
+    const t = typeLine(text, fill)
+    if (!t) return null
+    // **Measured from the string, not from the `Text`.** Reading `t.width` makes
+    // Pixi lay the glyphs out through a canvas 2D context, which is a thing the
+    // test environment does not have — the first cut of this threw
+    // `Cannot set properties of null (setting 'font')` out of three suites that
+    // have nothing to do with type. The face is monospace, so the arithmetic is
+    // not an approximation of the measurement; it is the measurement, and
+    // `bubble.ts` sizes its balloons the same way for the same reason.
+    const w = text.length * ROOM_TYPE_SIZE * CHAR_ADVANCE
+    const line = new Container()
+    line.addChild(
+      new Graphics()
+        .roundRect(-w / 2 - PLATE_PAD, -PLATE_LINE / 2, w + PLATE_PAD * 2, PLATE_LINE, 1)
+        .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.62 }),
+      t,
+    )
+    return line
+  }
+
+  /** The words themselves. Null if the renderer has no fonts. */
+  function typeLine(text: string, fill: number): Text | null {
+    let t: Text
+    try {
+      t = new Text({
+        // ART_DIRECTION §3 — the one face, and the generic fallback matters for
+        // the same reason it does in `bubble.ts`.
+        //
+        // **{@link ROOM_TYPE_SIZE}, always.** Departure Mono is a pixel font
+        // with a design size, and the first cut of this drew names at 8 and
+        // roles at 6 — below it. The result was not small type, it was *wrong*
+        // type: the sign reading LEADERSHIP came out of the renderer as
+        // `I-EANFRAHTP`, because a bitmap glyph resampled to three quarters of
+        // its own grid is a different set of pixels rather than a lighter one.
+        style: { fontFamily: 'Departure Mono, monospace', fontSize: ROOM_TYPE_SIZE, fill },
+      })
+    } catch {
+      return null
+    }
+    t.text = text
+    t.anchor.set(0.5, 0.5)
+    return t
   }
 
   function teamKey(heroes: readonly TeamRoomHero[]): string {
@@ -2561,12 +3997,16 @@ export function buildRoom(): RoomHandle {
   /** The animated Instant Messenger packets leaving the room. */
   function drawTeamSignals(elapsed: number) {
     teamSignals.clear()
-    if (team.length <= 1) return
-    const exit = { x: 0, y: 24 }
+    if (!teamBox) return
+    // §7.8.12 — the Instant Messenger packets leave through the doorway,
+    // because that is where the room lets out. They used to converge on a fixed
+    // point below the old plate, which put every remote assignment through the
+    // middle of a pane of glass.
+    const exit = isoAt(0, SUITE_GLASS_ROW)
     for (let order = 0; order < team.length; order++) {
       const hero = team[order]
       if (!hero.assigned) continue
-      const at = TEAM_DESKS[hero.id]
+      const at = teamDeskPosition(hero.id)
       const colour = c(hero.colour)
       const alpha = hero.connecting ? 0.42 : 0.8
       teamSignals
@@ -2725,11 +4165,11 @@ export function buildRoom(): RoomHandle {
 
   /** Include the team room in a camera rectangle without moving either world. */
   function includeTeamInFit(fit: { w: number; h: number; px: number; py: number }) {
-    if (team.length <= 1) return
-    const minX = Math.min(fit.px - fit.w / 2, TEAM_ROOM_BOUNDS.minX - 18)
-    const maxX = Math.max(fit.px + fit.w / 2, TEAM_ROOM_BOUNDS.maxX + 18)
-    const minY = Math.min(fit.py - fit.h / 2, TEAM_ROOM_BOUNDS.minY - 18)
-    const maxY = Math.max(fit.py + fit.h / 2, TEAM_ROOM_BOUNDS.maxY + 18)
+    if (!teamBox) return
+    const minX = Math.min(fit.px - fit.w / 2, teamBox.minX - 18)
+    const maxX = Math.max(fit.px + fit.w / 2, teamBox.maxX + 18)
+    const minY = Math.min(fit.py - fit.h / 2, teamBox.minY - 18)
+    const maxY = Math.max(fit.py + fit.h / 2, teamBox.maxY + 18)
     fit.w = maxX - minX
     fit.h = maxY - minY
     fit.px = (minX + maxX) / 2
@@ -2758,18 +4198,53 @@ export function buildRoom(): RoomHandle {
     // headcount still decides the furniture (`propsAt` below): a block drawn out
     // of a nation is a block in a company that size, not a garage.
     const n = Math.max(0, Math.min(ROOM_DEV_CAP, Math.floor(headcount) - windowFrom))
-    // §7.8.1c — the hundredth hire fills the squad, so the floor has to open.
-    // Once started, never unstarted for this run: the unfold is a one-shot and
-    // the floor does not fold back up if the studio shrinks.
-    if (unfoldT < 0 && n >= SQUAD_SIZE) unfoldT = 0
+    /*
+     * §7.8.0 — **ordinary developers, which is not the headcount.**
+     *
+     * The suite's people (§7.8.12) are in `n` and are not in the seat lattice,
+     * so the scale model has to be asked about the difference. This is the one
+     * place the two are reconciled, and everything downstream reads `ordinary`
+     * rather than re-deriving it: "leadership does not consume capacity" is one
+     * subtraction, made once, or it is a rule that holds in some files.
+     */
+    const heldSeats = suiteSeats()
+    const ordinary = Math.max(0, n - heldSeats)
+    // §7.8.1c [amended 2026-09-01] — the **twentieth** ordinary hire fills the
+    // garage, so the floor has to open on the twenty-first. Once started, never
+    // unstarted for this run: the unfold is a one-shot and the floor does not
+    // fold back up if the studio shrinks.
+    if (unfoldT < 0 && sceneFor(ordinary) !== 'garage') unfoldT = 0
     const unfolded = unfoldT >= 0
-    const { cols, rows } = gridFor(n)
+    // §7.8.0c — the garage is the folded room, and it is only ever the studio's
+    // own window: §26.2.2's blocks are drawn out of a nation, and a block in a
+    // company that size is not somebody's garage.
+    const garage = !unfolded && windowFrom === 0
+    drawnGarage = garage
+    /*
+     * §7.8.1 [amended 2026-09-01] — **the garage does not grow. It is a garage.**
+     *
+     * §7.8.1's table has the walls pushing outward across the 11–30 band, and
+     * for the open-plan floor that is right: an office is a lease, and a studio
+     * that outgrows one takes more of the building. A garage is not a lease. It
+     * is a building somebody already owns, it is the wrong size from the day
+     * they move in, and its walls do not move when you hire somebody. The
+     * canonical concept is one fixed room.
+     *
+     * The growth the player sees is therefore the **pods filling** and the
+     * camera pulling back, not masonry sliding. That is a stronger read of the
+     * same beat: at one developer you are looking at a room far too big for
+     * you, which is exactly the feeling §7.8.1 was reaching for and could not
+     * get from a room that shrank to fit whoever was in it.
+     */
+    const { cols, rows } = garage
+      ? { cols: GARAGE_COL0 + GARAGE_SPAN + 1, rows: GARAGE_ROW0 + GARAGE_SPAN / PITCH_ROW + 1 }
+      : gridFor(n)
     const props = propsAt(headcount)
     currentProps = props
     // §7.8.6 — the walkway lattice is a fact about *this* room, so it is rebuilt
     // with it. A router holding last headcount's aisles walks people down a
     // corridor that is now four desks.
-    currentLanes = roomLanes(n)
+    currentLanes = garage ? garageLanes(ordinary) : roomLanes(n)
 
     shell.clear()
     light.clear()
@@ -2800,11 +4275,6 @@ export function buildRoom(): RoomHandle {
     // negative-margin defect R6 records: once crowding flips the target below
     // {@link ROOM_TIGHT_MARGIN} the clamped form can no longer run away
     // downward and put a floor plate *smaller* than the block standing on it.
-    const margin = roomMargin(n)
-    // Sized from the seats' real screen bounding box, and then from the rule
-    // that actually contains it — see `blockBox` and `plateHalfWidth`. The
-    // previous `max(width, height)` was correct only for a nearly flat block
-    // and let the corners of a deep one hang over the edge of the plate.
     // **The shell encloses whatever the studio actually occupies.**
     //
     // It used to be sized from the block inside a single squad and then faded
@@ -2814,32 +4284,108 @@ export function buildRoom(): RoomHandle {
     // no room. A studio that grows does not stop being in a building; it takes
     // more of one. So past the unfold the shell is sized from the *floor*
     // rather than from the squad, and it stays.
-    const box = unfolded
-      ? floorBox(Math.ceil(n / SQUAD_SIZE))
-      : blockBox(
-          FOUNDER_CORNER_COL - 0.7,
-          FOUNDER_CORNER_ROW - 0.7,
-          cols - 1,
-          rows - 1,
-        )
-    const bw = (box.maxX - box.minX) / 2
-    const bh = (box.maxY - box.minY) / 2
+    /*
+     * §7.8.1 + §7.8.12 — **the shell is a rectangle of the grid, at every
+     * headcount, and its north corner is the suite's back corner.**
+     *
+     * The unfolded branch has worked this way since the "the room is too big"
+     * fix, and the note below records why: a *diamond* that contains a block of
+     * desks has to be about twice the block's width, so the people end up in a
+     * clump in the middle of a slab. The folded branch kept the diamond, and
+     * §7.8.12's suite is what finally made that visible — reported as
+     * *"floating and totally not immersed in the scene"*, which is exactly what
+     * it was.
+     *
+     * **A wide box cannot tuck into a point.** The garage's north corner was a
+     * vertex, and at the height the suite sits the diamond is far wider than the
+     * suite is, so there is no arrangement of margins that puts the suite in the
+     * corner of that shape. Nothing about the numbers caused it; the shape did,
+     * one scale down from where that was learned the first time.
+     *
+     * So both branches now name a grid rectangle, and because
+     * {@link SUITE_WEST_COL} is {@link FLOOR_MIN_COL} and {@link SUITE_WALL_ROW}
+     * is {@link FLOOR_MIN_ROW}, the two agree about where the back of the room
+     * is. The suite is in the corner **by construction** rather than by
+     * arithmetic that has to keep coming out right — see `scripts/room-check.ts`,
+     * which asserts it at every headcount the room can be drawn at.
+     *
+     * The two back sides are architecture and do not move. The two the floor
+     * grows into take §7.8.1's surround, which still opens across the 11–30 band
+     * and closes again past forty — that is the half of `roomMargin` the player
+     * can actually see. Doubled on the column axis for `FLOOR_AISLE_COLS`'
+     * reason: one column step is 32 px across and one row step 67, so equal
+     * screen margins are unequal seat counts.
+     */
+    const surround = roomMargin(n)
+    const shellMinCol = SUITE_WEST_COL
+    /*
+     * §7.8.0d [2026-09-01] — **the leadership suite is bolted onto the outside
+     * of the office floor, not tucked into a corner of it.**
+     *
+     * The canonical concept is unambiguous: `LEADERSHIP` is a glass box hanging
+     * off the building's west corner, outside the shell, attached to it. §7.8.12
+     * built it *inside* the shell's north vertex — "most of this room was
+     * already here", which was the joke and was cheap — and that reads as a
+     * partitioned corner of the open plan rather than as an annex.
+     *
+     * The change is one number rather than a relocation, and that is the whole
+     * reason to make it this way: §7.8.10 fixes the founder at the north vertex
+     * and forbids them to move, so the suite does not move either. **The floor's
+     * far wall moves instead**, back past the suite's depth — so the same glass
+     * box, in the same place, with the same people in it, is now outside the
+     * building it is attached to. The wall arrived between them, which is
+     * §7.8.12's own sentence ("the walls arrive around where you were already
+     * sitting") read one clause further on.
+     *
+     * It also buys the non-rectangular silhouette the concept has and §7.8.1e's
+     * rectangle never could.
+     */
+    const SUITE_CLEAR = 4.6
+    const shellMinRow = unfolded && windowFrom === 0
+      ? GARAGE_ROW0 + SUITE_CLEAR / PITCH_ROW
+      : SUITE_WALL_ROW
+    // The garage takes no surround: the plan already contains its own margins,
+    // and adding §7.8.1's growing border to a room that does not grow would put
+    // a widening strip of bare concrete between the last pod and the wall.
+    /*
+     * §7.8.0d — **the office floor is its own plan's rectangle**, the same way
+     * the garage is. `FLOOR_MAX_COL` sizes §7.8.1e's thousand-seat lattice, and
+     * a hundred people standing in it are a hundred people in a room built for
+     * ten times as many — the exact complaint §7.8.0 exists to answer, left in
+     * place one level up.
+     */
+    const officeShell = unfolded && windowFrom === 0
+    const shellMaxCol = officeShell
+      ? GARAGE_COL0 + OFFICE_SPAN + WALL_THICK
+      : unfolded
+      ? FLOOR_MAX_COL
+      : garage
+        ? Math.max(cols - 1 + WALL_THICK, suiteEastCol(team.map((hero) => hero.id)) + 1)
+        : Math.max(cols - 1, suiteEastCol(team.map((hero) => hero.id)), FOUNDER_CORNER_COL + 2) +
+          surround * 2
+    const shellMaxRow = officeShell
+      ? GARAGE_ROW0 + (OFFICE_SPAN + WALL_THICK) / PITCH_ROW
+      : unfolded
+      ? FLOOR_MAX_ROW
+      : garage
+        ? rows - 1 + WALL_THICK / PITCH_ROW
+        : Math.max(rows - 1, 0) + surround
+    shellGrid.minCol = shellMinCol
+    shellGrid.minRow = shellMinRow
+    shellGrid.maxCol = shellMaxCol
+    shellGrid.maxRow = shellMaxRow
+    const box = blockBox(shellMinCol, shellMinRow, shellMaxCol, shellMaxRow)
     // **The open floor's border is a surround, not a crowding factor.**
     // `roomMargin` returns 0.4 once the studio passes forty — it is §7.8.1's
     // "walls close in as it fills up", and in the folded branch it goes through
-    // `plateHalfWidth`, which treats it as breathing room around a block. Here
-    // it was multiplied straight into the radius that has to *contain* the
-    // block, so the slab was drawn at forty per cent of the desks standing on
-    // it: the floor ended somewhere in the middle of the third row and the
-    // manager's corner hung off the top edge entirely. That is the floor that
-    // looked like it was floating over the old room, and it got worse the
-    // fuller the room got, which is the opposite of what the margin means.
-    //
-    // An open-plan floor is the block plus a walkway. Never less than the block.
-    const floorW = unfolded
-      ? (box.maxX - box.minX) / 2
-      : plateHalfWidth(bw, bh, margin)
-    const floorH = unfolded ? (box.maxY - box.minY) / 2 : floorW / 2
+    // the surround, which is breathing room around the grid rectangle. It used
+    // to be multiplied straight into the radius of a diamond that had to
+    // *contain* the desk block, so the slab came out at forty per cent of the
+    // people standing on it. That whole class of mistake went with the diamond:
+    // a margin is now added to the edges of a rectangle, so it cannot make the
+    // room smaller than the block however it is tuned.
+    const floorW = (box.maxX - box.minX) / 2
+    const floorH = (box.maxY - box.minY) / 2
 
     // **The shell's half-extents in the grid's own axes, and they are not
     // equal.** A garage is a square room, so its floor is a diamond and one
@@ -2848,22 +4394,18 @@ export function buildRoom(): RoomHandle {
     // parallelogram, not a diamond.
     //
     // That distinction is the whole of "the room is too big". A diamond that
-    // **contains** a 2:1 block of desks has to be twice the block's width (see
-    // `plateHalfWidth`), so framing the shell framed a room with the people in
-    // a clump in the middle of it: measured, 483 px of developers inside a
-    // 997 px frame at a full floor and 283 px at one squad. Nothing about the
-    // margins caused that; the shape did.
-    const halfBack = unfolded
-      ? (FLOOR_MAX_ROW - FLOOR_MIN_ROW) * PITCH_ROW * 0.5
-      : floorW / TILE_W
-    const halfAcross = unfolded ? (FLOOR_MAX_COL - FLOOR_MIN_COL) * 0.5 : floorW / TILE_W
+    // **contains** a 2:1 block of desks has to be twice the block's width, so
+    // framing the shell framed a room with the people in a clump in the middle
+    // of it: measured, 483 px of developers inside a 997 px frame at a full
+    // floor and 283 px at one squad. Nothing about the margins caused that; the
+    // shape did — and the garage kept that shape until 2026-08-31, which is how
+    // §7.8.12's suite ended up floating in the middle of a slab.
+    const halfBack = (shellMaxRow - shellMinRow) * PITCH_ROW * 0.5
+    const halfAcross = (shellMaxCol - shellMinCol) * PITCH_COL * 0.5
     const halfW = halfBack
 
-    const centre = unfolded
-      ? { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 }
-      : foldedRoomCentre(floorH)
-    const cx = centre.x
-    const cy = centre.y
+    const cx = (box.minX + box.maxX) / 2
+    const cy = (box.minY + box.maxY) / 2
 
     // The shell's four corners. For the garage these come out exactly where
     // the old diamond's vertices were, so nothing below had to learn a new
@@ -2880,6 +4422,10 @@ export function buildRoom(): RoomHandle {
     const rightY = cy + ee.y
     const botX = cx + ss.x
     const botY = cy + ss.y
+    shellQuad.top = { x: topX, y: topY }
+    shellQuad.left = { x: leftX, y: leftY }
+    shellQuad.right = { x: rightX, y: rightY }
+    shellQuad.bottom = { x: botX, y: botY }
     /** How far the back-left wall runs from the corner, on each axis. */
     const westW = topX - leftX
     const westH = leftY - topY
@@ -2907,6 +4453,24 @@ export function buildRoom(): RoomHandle {
         .closePath()
         .fill(fill)
     }
+    // --- the district ------------------------------------------------------
+    //
+    // §7.8.1e, and it goes first because the room is painted *on* it. Before
+    // this the floor was a lit rectangle on `NEUTRAL[0]` and nothing else at
+    // every headcount, which reads as a UI panel rather than as a building —
+    // the largest single gap between this room and its reference material, and
+    // the cheapest to close.
+    //
+    // The ring closed on 2026-08-31. It used to be an L on the two open sides,
+    // which is where you can see *past* the building — and the void was never
+    // mostly down there. It was above the roofline, in the two upper corners of
+    // the frame, which is where the neighbours now stand with their lights on.
+    const project: Project = (gx, gy) => {
+      const q = gridToScreen(gx, gy)
+      return { x: cx + q.x, y: cy + q.y }
+    }
+    drawDistrict(shell, project, { halfBack, halfAcross })
+
     slab(0, c(RAMPS.NEUTRAL[1]))
     slab(0.004, c(RAMPS.NEUTRAL[2]))
     // Worn scuffs, so the slab reads as poured concrete rather than as a
@@ -2953,23 +4517,382 @@ export function buildRoom(): RoomHandle {
     // than the founder's clearance deserves at low headcounts while still
     // rising to the full cap once the open plan is out.
     const WALL_H = Math.max(34, Math.min(unfolded ? 210 : 112, floorH * 0.48))
-    shell
-      .moveTo(leftX, leftY)
-      .lineTo(topX, topY)
-      .lineTo(topX, topY - WALL_H)
-      .lineTo(leftX, leftY - WALL_H)
-      .closePath()
-      .fill(c(unfolded ? RAMPS.NEUTRAL[2] : RAMPS.WOOD[0]))
-    shell
-      .moveTo(rightX, rightY)
-      .lineTo(topX, topY)
-      .lineTo(topX, topY - WALL_H)
-      .lineTo(rightX, rightY - WALL_H)
-      .closePath()
-      .fill(c(unfolded ? RAMPS.NEUTRAL[3] : RAMPS.WOOD[1]))
-    // The corner seam, so the two planes read as meeting rather than as one
-    // folded shape.
-    shell.moveTo(topX, topY).lineTo(topX, topY - WALL_H).stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]) })
+
+    /*
+     * §7.8.0b/§7.8.0c — **the garage gets four thick walls; the office floor
+     * keeps its two flat planes.**
+     *
+     * The two branches are the migration in progress rather than a permanent
+     * split. The floor's curtain wall, piers, skirting and cornice are a large
+     * piece of drawing with nothing wrong with it except that it is two-sided,
+     * and moving that onto the shell primitives is Loop 6's business. The
+     * garage is the room the canonical concept is *of*, so it goes first.
+     *
+     * Everything below is in the **shell box's own centred tiles** — the space
+     * `nw`/`ww`/`ee`/`ss` are computed in — and goes through the room's one
+     * projection. Nothing here is a screen offset.
+     */
+    nearWall.clear()
+    const shellProject: Project = (gx, gy) => {
+      const q = gridToScreen(gx, gy)
+      return { x: cx + q.x, y: cy + q.y }
+    }
+    if (garage) {
+      // Concrete block. The coping is the lightest surface in the room after a
+      // monitor, because it is the one plane facing straight up into §7's key.
+      const blockFar: WallPaint = {
+        top: RAMPS.NEUTRAL[4],
+        left: RAMPS.NEUTRAL[3],
+        right: RAMPS.NEUTRAL[2],
+      }
+      const blockNear: WallPaint = {
+        top: RAMPS.NEUTRAL[5],
+        left: RAMPS.NEUTRAL[3],
+        right: RAMPS.NEUTRAL[2],
+      }
+      const runs = garageShellRuns(-halfBack, -halfAcross, halfBack, halfAcross)
+      const door = runs.find((r) => r.edge === 'near-left')?.openings?.[0]
+
+      /*
+       * **Block courses**, and they are not texture. §7.8.0c.
+       *
+       * The canonical garage's walls are concrete block, and the courses are
+       * what make them *concrete block* rather than a grey plane: they give the
+       * wall a known unit, so the eye can measure the room's height off it
+       * without anything having to be labelled. They are the same idea as the
+       * floor's bays one surface up, and they cost one stroke per course.
+       *
+       * Drawn on the wall's **visible long face**, which is always the box's
+       * maximum on its thin axis — for a far wall that is the inner face and
+       * for a near wall the outer one. Deriving it rather than listing it per
+       * edge is what keeps this from being four almost-identical branches.
+       */
+      const COURSE = 0.42
+      const courses = (into: Graphics, segs: readonly WallSegment[], alongGy: boolean) => {
+        for (const seg of segs) {
+          for (let z = COURSE; z < seg.h - 0.02; z += COURSE) {
+            const at = seg.gz + z
+            const a = alongGy
+              ? shellProject(seg.gx + seg.w, seg.gy)
+              : shellProject(seg.gx, seg.gy + seg.d)
+            const b2 = alongGy
+              ? shellProject(seg.gx + seg.w, seg.gy + seg.d)
+              : shellProject(seg.gx + seg.w, seg.gy + seg.d)
+            const lift = at * HEIGHT_UNIT
+            into
+              .moveTo(a.x, a.y - lift)
+              .lineTo(b2.x, b2.y - lift)
+              .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.45 })
+          }
+        }
+      }
+
+      // --- the floor: poured concrete, in bays -----------------------------
+      //
+      // The concept's garage floor is not one pour. It is slabs with joints
+      // between them, and the joints are doing more work than they look: they
+      // are the **only regular measure** on a floor whose furniture is
+      // deliberately irregular, so they are what the eye uses to judge how big
+      // the room is and how far apart the pods are. Without them a garage at
+      // one developer and a garage at twenty are the same grey field at
+      // different zooms.
+      //
+      // Four bays each way — about the spacing a floor this size is actually
+      // poured at, and few enough that the joints read as construction rather
+      // than as a tile pattern.
+      const BAYS = 4
+      for (let i = 1; i < BAYS; i++) {
+        const alongGx = -halfBack + (2 * halfBack * i) / BAYS
+        const a = shellProject(alongGx, -halfAcross)
+        const b = shellProject(alongGx, halfAcross)
+        shell
+          .moveTo(a.x, a.y)
+          .lineTo(b.x, b.y)
+          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.5 })
+        const alongGy = -halfAcross + (2 * halfAcross * i) / BAYS
+        const d = shellProject(-halfBack, alongGy)
+        const e = shellProject(halfBack, alongGy)
+        shell
+          .moveTo(d.x, d.y)
+          .lineTo(e.x, e.y)
+          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.5 })
+      }
+
+      /*
+       * **Cables on the floor.** §7.8.0c.
+       *
+       * The canonical garage has leads snaking across the slab between the
+       * pods, and they are doing something none of the furniture can: they are
+       * the only object in the room that **crosses** the grain. Everything else
+       * — desks, walls, bays, pods — lies on one of the two floor axes, which is
+       * what makes the projection read, and is also what makes a floor of them
+       * read as a diagram. One line that wanders is what says somebody set this
+       * up in a hurry and nobody has tidied since.
+       *
+       * Drawn as polylines through the projection, so they lie *on* the floor
+       * rather than across the picture — the same rule §7.8.1 records about the
+       * monitor lead it deleted, which failed because it was a screen-space
+       * stroke and came out as a horizontal bar. These are floor-plane paths
+       * with several segments, so no leg of one is ever screen-horizontal.
+       */
+      const CABLE_RUNS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
+        // From the workbench toward the middle pod, round the back of it.
+        [[10.6, 1.4], [9.4, 3.1], [8.4, 4.6], [8.6, 6.2]],
+        // From the far-left wall to the long table, the long way.
+        [[1.2, 7.4], [2.4, 8.6], [3.2, 9.4]],
+        // One that goes nowhere in particular, which is the honest kind.
+        [[6.4, 11.6], [7.8, 12.2], [9.6, 11.9], [10.8, 12.6]],
+      ]
+      const onPlan = (gx: number, gy: number) => {
+        const at = garagePlot(gx, gy)
+        return isoAt(at.col, at.row)
+      }
+      for (const run of CABLE_RUNS) {
+        const first = onPlan(run[0][0], run[0][1])
+        shell.moveTo(first.x, first.y)
+        for (let i = 1; i < run.length; i++) {
+          const q = onPlan(run[i][0], run[i][1])
+          shell.lineTo(q.x, q.y)
+        }
+        shell.stroke({ width: 2, color: c(RAMPS.NEUTRAL[0]), alpha: 0.7 })
+      }
+
+      // --- the expansion seam ----------------------------------------------
+      //
+      // §7.8.0c's "understated expansion-ready cue", and it is the one thing in
+      // the garage drawn in interface cyan rather than in the room's own
+      // palette. That is deliberate and it is the whole idea: this is not a
+      // thing in the room, it is a **plan for a thing**, surveyed onto the
+      // ground outside the wall the studio is about to go through. The concept
+      // draws it as a dashed outline with corner brackets, which is what a
+      // site plan chalked on a slab looks like, and it is the only moment
+      // before the unfold where the game says *there is more building here*.
+      //
+      // It appears at exactly {@link GARAGE_CAP} and not before, so it is a
+      // reward for filling the fifth pod rather than a permanent promise. It is
+      // drawn into `shell`, under everything, because it is paint on the
+      // ground — §7.1's rule for the coverage layer, one room down.
+      if (ordinary >= GARAGE_CAP) {
+        const SEAM = c(RAMPS.GLOW[2])
+        const y0 = -halfAcross
+        const y1 = halfAcross
+        const x0 = halfBack + 0.9
+        const x1 = halfBack + 8.4
+        // A dashed run between two points on the floor. Sampled through the
+        // projection rather than dashed on screen: a screen-space dash pattern
+        // on an isometric line has a different period on each of the two axes,
+        // which reads as two different fences meeting at a corner.
+        const dashed = (ax: number, ay: number, bx: number, by: number) => {
+          const steps = Math.max(6, Math.round(Math.hypot(bx - ax, by - ay) * 2.2))
+          for (let i = 0; i < steps; i += 2) {
+            const t0 = i / steps
+            const t1 = Math.min(1, (i + 1) / steps)
+            const p0 = shellProject(ax + (bx - ax) * t0, ay + (by - ay) * t0)
+            const p1 = shellProject(ax + (bx - ax) * t1, ay + (by - ay) * t1)
+            shell.moveTo(p0.x, p0.y).lineTo(p1.x, p1.y).stroke({ width: 1.5, color: SEAM, alpha: 0.75 })
+          }
+        }
+        dashed(x0, y0, x1, y0)
+        dashed(x1, y0, x1, y1)
+        dashed(x0, y1, x1, y1)
+        dashed(x0, y0, x0, y1)
+        // The corner brackets — solid where the outline is dashed, which is how
+        // a survey mark differs from a boundary. Four of them, one per corner.
+        const BRACKET = 1.5
+        for (const [bxc, byc, sx2, sy2] of [
+          [x0, y0, 1, 1],
+          [x1, y0, -1, 1],
+          [x0, y1, 1, -1],
+          [x1, y1, -1, -1],
+        ] as const) {
+          const a = shellProject(bxc + BRACKET * sx2, byc)
+          const b = shellProject(bxc, byc)
+          const d2 = shellProject(bxc, byc + BRACKET * sy2)
+          shell
+            .moveTo(a.x, a.y)
+            .lineTo(b.x, b.y)
+            .lineTo(d2.x, d2.y)
+            .stroke({ width: 2, color: SEAM, alpha: 0.95 })
+        }
+      }
+
+      // --- the driveway ----------------------------------------------------
+      //
+      // §7.8.1e's thesis, one room down: *draw the ground once and never change
+      // what it is.* The district already lays a road round the whole plot; the
+      // driveway is the piece that makes the roll-up door mean something by
+      // joining the two. A door onto nothing is a hole in a wall.
+      //
+      // Slightly wider than the opening, because a real apron is — you need
+      // room to swing a car in, and the splay is what says a vehicle uses it.
+      if (door) {
+        isoPatch(
+          shell,
+          shellProject,
+          door.at - 0.9,
+          halfAcross,
+          door.at + door.width + 0.9,
+          halfAcross + 5.5,
+          RAMPS.NEUTRAL[1],
+        )
+        // The kerb line where the apron meets the road, and the pale threshold
+        // strip in the doorway itself — the two edges that stop the driveway
+        // reading as a stain on the pavement.
+        const k0 = shellProject(door.at - 0.9, halfAcross + 5.5)
+        const k1 = shellProject(door.at + door.width + 0.9, halfAcross + 5.5)
+        shell
+          .moveTo(k0.x, k0.y)
+          .lineTo(k1.x, k1.y)
+          .stroke({ width: 2, color: c(RAMPS.NEUTRAL[3]), alpha: 0.8 })
+        isoPatch(
+          shell,
+          shellProject,
+          door.at,
+          halfAcross - WALL_THICK,
+          door.at + door.width,
+          halfAcross,
+          RAMPS.NEUTRAL[3],
+        )
+        /*
+         * **The car and the lamp**, borrowed from `district.ts` rather than
+         * drawn again here.
+         *
+         * §7.8.1e's rule is that the ground outside is drawn once and never
+         * changes what it is, and street furniture is part of that ground. The
+         * garage does not own a car; it *parks on* the same apron the district
+         * lays, so the two objects come from the one module that knows what a
+         * car in this world looks like. Duplicating them here is how the studio
+         * ends up with two subtly different cars a hundred pixels apart.
+         *
+         * Placed the way the canonical concept places them: the car on the
+         * apron beside the door rather than in front of it — nobody parks
+         * across their own roller shutter — and the lamp at the kerb on the
+         * other side, so its pool falls across the threshold. That second light
+         * source is what makes the monitors read as *interior*, which is
+         * `lamp`'s own note one module over.
+         */
+        car(
+          shell,
+          shellProject,
+          door.at - 2.9,
+          halfAcross + 1.6,
+          CAR_BODIES[1],
+          'gx',
+        )
+        lamp(shell, shellProject, door.at + door.width + 1.7, halfAcross + 4.4)
+      }
+
+      for (const run of runs) {
+        const isFar = run.edge === 'far-left' || run.edge === 'far-right'
+        const into = isFar ? shell : nearWall
+        const segs = drawWallRun(into, shellProject, run, isFar ? blockFar : blockNear)
+        courses(into, segs, runsAlongGy(run.edge))
+      }
+      // The roll-up door, standing in the hole the near-left wall left for it.
+      // A shutter is a stack of horizontal slats and nothing else: the
+      // corrugation is the whole read, and it is the one surface in the garage
+      // with a repeating pattern on it.
+      if (door) {
+        // **Lighter than the wall it sits in, not darker.** The first pass drew
+        // the shutter in the wall's own two darkest tones and it disappeared:
+        // a dark panel in a dark reveal against a dark floor is three ways of
+        // saying nothing. A roll-up door is painted steel next to bare block,
+        // so it is the *lighter* object, and the alternating slats give it the
+        // only repeating pattern in the room.
+        const SLATS = 7
+        for (let i = 0; i < SLATS; i++) {
+          isoSolid(
+            nearWall,
+            shellProject,
+            door.at,
+            halfAcross - WALL_THICK * 0.72,
+            (i / SLATS) * WALL_NEAR,
+            door.width,
+            WALL_THICK * 0.42,
+            WALL_NEAR / SLATS - 0.03,
+            {
+              top: RAMPS.NEUTRAL[i % 2 === 0 ? 6 : 5],
+              left: RAMPS.NEUTRAL[i % 2 === 0 ? 5 : 4],
+              right: RAMPS.NEUTRAL[3],
+            },
+          )
+        }
+        // The guide rails either side, in the reveal. Two thin uprights, and
+        // they are what make the shutter read as a door that *moves* rather
+        // than as a panel somebody bolted over the opening.
+        for (const side of [door.at - 0.12, door.at + door.width]) {
+          isoSolid(
+            nearWall,
+            shellProject,
+            side,
+            halfAcross - WALL_THICK * 0.78,
+            0,
+            0.12,
+            WALL_THICK * 0.54,
+            WALL_NEAR,
+            { top: RAMPS.NEUTRAL[3], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] },
+          )
+        }
+      }
+      // --- the clutter -----------------------------------------------------
+      //
+      // §7.8.0c's plots, standing on the floor in the **plan's own frame** —
+      // `garagePlot` is the single conversion, and it is the whole reason the
+      // props are back. Heights and tones per named plot rather than one loop
+      // with one box: a workbench, a fridge and a sofa are the same rectangle on
+      // the plan and three different objects in the room, and a garage where
+      // every prop is the same grey cuboid is a storage unit.
+      const planProject: Project = (gx, gy) => {
+        const at = garagePlot(gx, gy)
+        return isoAt(at.col, at.row)
+      }
+      for (const prop of GARAGE_PROPS) drawGarageProp(furniture, planProject, prop)
+      /*
+       * **Superseded 2026-09-01, kept as the reason the seam above exists.**
+       *
+       * §7.8.0c's ten prop plots exist, are tested for overlap, and are in the
+       * *plan's* coordinates — tiles measured from the garage's own back corner.
+       * The shell above is drawn in the **shell box's centred tiles**, and the
+       * shell box is not the plan's rectangle: §7.8.12 pins its back corner to
+       * `SUITE_WEST_COL`/`SUITE_WALL_ROW` so the executive suite lands in it,
+       * which puts the room's origin four columns and three rows away from the
+       * plan's.
+       *
+       * Drawing the props through either projection therefore puts them all on
+       * one wall — which was tried, and looked plausible enough at a glance to
+       * be worth naming: the workshop props landed against the far wall where
+       * they belong, and so did the fridge and the sofa that are authored on the
+       * opposite one. A layout that is wrong in a way that reads as right is the
+       * worst of the three outcomes.
+       *
+       * The fix is not a third conversion. It is to make the garage's shell
+       * rectangle **be** the plan's rectangle and move the leadership corner
+       * into the garage — which is §7.8.0c's own requirement ("a separate
+       * improvised corner behind reclaimed glass") and needs §7.8.12 amended,
+       * so it is the next slice rather than a line here.
+       */
+    } else {
+      shell
+        .moveTo(leftX, leftY)
+        .lineTo(topX, topY)
+        .lineTo(topX, topY - WALL_H)
+        .lineTo(leftX, leftY - WALL_H)
+        .closePath()
+        .fill(c(unfolded ? RAMPS.NEUTRAL[2] : RAMPS.WOOD[0]))
+      shell
+        .moveTo(rightX, rightY)
+        .lineTo(topX, topY)
+        .lineTo(topX, topY - WALL_H)
+        .lineTo(rightX, rightY - WALL_H)
+        .closePath()
+        .fill(c(unfolded ? RAMPS.NEUTRAL[3] : RAMPS.WOOD[1]))
+      // The corner seam, so the two planes read as meeting rather than as one
+      // folded shape.
+      shell
+        .moveTo(topX, topY)
+        .lineTo(topX, topY - WALL_H)
+        .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]) })
+    }
 
     // --- the skirting -------------------------------------------------------
     //
@@ -3010,8 +4933,81 @@ export function buildRoom(): RoomHandle {
         .lineTo(topX, topY)
         .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]) })
     }
-    skirt(leftX, leftY, 3)
-    skirt(rightX, rightY, 4)
+    if (!garage) {
+      skirt(leftX, leftY, 3)
+      skirt(rightX, rightY, 4)
+    }
+
+    // --- the plaza ----------------------------------------------------------
+    //
+    // §7.8.1d. In the transverse corridor between the two rows of squads, which
+    // is `CORRIDOR_ROWS` row-steps deep and therefore already 4.2 tiles of
+    // floor `gridFor` has never put anything on. **No seat moves for this**,
+    // which is the whole reason it is here rather than anywhere else.
+    //
+    // It does not move as the studio grows, either. Centred on the *floor's*
+    // full width rather than on the occupied part, so at a hundred and one
+    // developers it is an empty ring on an empty floor — which is honest: the
+    // building is built for a thousand and there are a hundred of you.
+    //
+    // Drawn into `furniture` rather than `shell`: it has to sit above the
+    // §7.8.1c plates, whose corridor aprons overlap it, and below the desks and
+    // the people, who walk in front of it.
+    if (unfolded) {
+      // --- the landmarks ---------------------------------------------------
+      //
+      // §7.8.1e. Everything the plan reserved and did not put a desk on: the
+      // meeting rooms and the lift core along the back wall, the kitchenettes
+      // and the nooks, the canteen at the street end. Drawn in tiles through
+      // the room's own projection, with the seat-unit conversion done here — a
+      // module that draws furniture should not also own the table saying how
+      // wide a seat is (the same rule that hands `plaza.ts` a torso).
+      const floorProject: Project = (gx, gy) => gridToScreen(gx, gy)
+      const plots: LandmarkPlot[] = PLAN_AMENITIES.map((a) => ({
+        kind: a.kind,
+        name: a.name,
+        x0: a.minRow * PITCH_ROW,
+        y0: a.minCol * PITCH_COL,
+        x1: a.maxRow * PITCH_ROW,
+        y1: a.maxCol * PITCH_COL,
+      }))
+      /*
+       * §7.8.1e's amenities are plotted on the thousand-seat lattice, which the
+       * office floor no longer stands on — drawn anyway they land *outside* the
+       * building, scattered across the district like furniture left on a
+       * pavement. §7.8.0d has not authored the office's own amenity table yet,
+       * so they are withheld rather than drawn in the wrong place: a floor
+       * missing its meeting rooms is incomplete, and a floor with its meeting
+       * rooms in the road is broken.
+       */
+      if (!officeShell) drawLandmarks(furniture, floorProject, plots, headcount)
+
+      /*
+       * §7.8.0d — **the atrium is where the plan says, not where §7.8.1e's
+       * thousand-seat floor put it.** The concept makes this the centre of the
+       * building at about a third of its width, and every desk on the floor is
+       * arranged around it; `office.ts` is the only table that knows where that
+       * is, so the plaza reads it rather than keeping a second copy.
+       */
+      const atriumAt = officeShell ? garagePlot(ATRIUM.gx, ATRIUM.gy) : null
+      const plazaCol = atriumAt ? atriumAt.col : PLAN_PLAZA.col
+      const plazaRow = atriumAt ? atriumAt.row : PLAN_PLAZA.row
+      const base = isoAt(plazaCol, plazaRow)
+      const plazaProject: Project = (gx, gy) => {
+        const q = gridToScreen(gx, gy)
+        return { x: base.x + q.x, y: base.y + q.y }
+      }
+      const shape = torsoShape(founderLook(founderProfile))
+      drawPlaza(furniture, plazaProject, {
+        cx: 0,
+        cy: 0,
+        rung: statueRung(headcount),
+        torso: {
+          w: (shape.w / TILE_W) * STATUE_SCALE,
+          h: (shape.h / HEIGHT_UNIT) * STATUE_SCALE,
+        },
+      })
+    }
 
     // --- the cornice --------------------------------------------------------
     //
@@ -3040,8 +5036,10 @@ export function buildRoom(): RoomHandle {
         .lineTo(topX, topY - WALL_H + CORNICE_H)
         .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]) })
     }
-    cornice(leftX, leftY - WALL_H, 3)
-    cornice(rightX, rightY - WALL_H, 4)
+    if (!garage) {
+      cornice(leftX, leftY - WALL_H, 3)
+      cornice(rightX, rightY - WALL_H, 4)
+    }
 
     /** Filled by the curtain wall below; empty in a garage, which has none. */
     let officePiers: { x: number; y: number; slope: number }[] = []
@@ -3543,13 +5541,29 @@ export function buildRoom(): RoomHandle {
 
     // One Graphics per occupied squad. Cleared and re-filled rather than
     // rebuilt, so a hire inside squad 0 does not churn squad 1's geometry.
-    const squadsUsed = Math.ceil(n / SQUAD_SIZE)
+    // One per **bank**, not per hundred: §7.8.1e's blocks are between forty-eight
+    // and a hundred and ninety-three seats, so the count comes from the plan.
+    const squadsUsed = garage
+      ? ordinary === 0
+        ? 0
+        : Math.floor((ordinary - 1) / POD_SEATS) + 1
+      : officeShell
+        ? podsUsedFor(ordinary)
+        : n === 0
+          ? 0
+          : planSeat(n - 1).block + 1
     while (squadDesks.length < squadsUsed) {
       const g = new Graphics()
       squadDesks.push(g)
       deskLayer.addChild(g)
     }
+    while (frontDesks.length < squadsUsed) {
+      const g = new Graphics()
+      frontDesks.push(g)
+      frontDeskLayer.addChild(g)
+    }
     for (const g of squadDesks) g.clear()
+    for (const g of frontDesks) g.clear()
 
     // §7.8.1 — **the bank first, then the kit on it.** Consecutive seats that
     // share a squad and a row are one run of desks and are drawn as one shape;
@@ -3560,30 +5574,130 @@ export function buildRoom(): RoomHandle {
     // be under the screens standing on it, so every seat's position must be
     // known before the first shape is drawn. Computing and drawing in one loop
     // put each row's surface on top of its own monitors.
-    for (let i = 0; i < n; i++) {
-      const { col: gcol, row: grow } = seatGrid(i)
-      desks.push(isoAt(gcol, grow))
-    }
-    for (let i = 0; i < n; ) {
-      const place = seatFor(i)
-      let end = i + 1
-      while (end < n && seatFor(end).col !== 0) end++
-      const first = seatGrid(i)
-      const last = seatGrid(end - 1)
-      drawDeskBank(squadDesks[place.squad], first.col, last.col, first.row)
-      i = end
+    // §7.8.12 — **the first plot of row 0 is the suite's threshold, not a seat.**
+    // James is the studio's seat 0 and is drawn at his desk inside the glass, so
+    // the plot the reading order would have given him is left bare: it sits at
+    // the head of row 0 directly outside the door, which is the one place on this
+    // floor that should have nobody sitting in it. See {@link SUITE_SEATS}.
+    //
+    // Only in the studio's own window. §26.2.2's block 50 has no suite in it and
+    // its local seat 0 is an ordinary developer, so the floor there is whole.
+    const held = suiteSeats()
+    // One resolver, so a seat the suite holds is recorded at its real desk
+    // rather than at the lattice plot the reading order would have given it.
+    for (let i = 0; i < n; i++) desks.push(drawnSeatPosition(i, windowFrom, garage))
+    // The plan already knows which seats form a continuous bank — that is what
+    // a run *is* — so the run-detection loop that used to be here (walk forward
+    // until a seat's column is zero again) is gone. It only ever worked because
+    // every row was exactly ten wide.
+    if (garage) {
+      // §7.8.0c — **one table per pod, and it is between the people rather than
+      // behind them.** A facing pod's surface is drawn once at the pod's centre
+      // with no setback and twice the depth of a floor bank, which is what two
+      // desks pushed together actually is. Drawing it as two single banks left
+      // a hairline down the middle of every table where the two shadows met.
+      for (let podIndex = 0; podIndex < squadsUsed; podIndex++) {
+        const pod = GARAGE_PODS[podIndex]
+        drawDeskBank(
+          squadDesks[podIndex],
+          pod.gy - POD_STRIDE / 2,
+          pod.gy + POD_STRIDE / 2,
+          pod.gx / PITCH_ROW,
+          DESK_DEPTH * 2,
+          0,
+        )
+        // One lamp per table, in the middle where all four can see it.
+        const lampAt = garagePlot(pod.gx, pod.gy)
+        drawPodLamp(
+          squadDesks[podIndex],
+          (lx, ly) => isoAt(lampAt.col + ly, lampAt.row + lx),
+          0,
+          0,
+          DESK_H,
+        )
+      }
+    } else if (officeShell) {
+      // §7.8.0d — the same furniture as the garage at a different scale: one
+      // table per pod, drawn once between the two rows rather than as two banks.
+      for (let podIndex = 0; podIndex < squadsUsed; podIndex++) {
+        const pod = OFFICE_PODS[podIndex]
+        const half = (pod.perSide * POD_STRIDE) / 2
+        const at = garagePlot(pod.gx, pod.gy)
+        drawDeskBank(
+          squadDesks[podIndex],
+          at.col - half + POD_STRIDE / 2,
+          at.col + half - POD_STRIDE / 2,
+          at.row,
+          DESK_DEPTH * 2,
+          0,
+        )
+        drawPodLamp(
+          squadDesks[podIndex],
+          (lx, ly) => isoAt(at.col + ly, at.row + lx),
+          0,
+          0,
+          DESK_H,
+        )
+      }
+      // §7.8.0d's amenities, in the plan's own frame — the same single
+      // conversion the pods and the garage's clutter go through.
+      const officeProject: Project = (gx, gy) => {
+        const q = garagePlot(gx, gy)
+        return isoAt(q.col, q.row)
+      }
+      for (const a of OFFICE_AMENITIES) drawOfficeAmenity(furniture, officeProject, a)
+    } else {
+      for (const { run, len } of occupiedRuns(n)) {
+        const skip = Math.max(0, held - run.from)
+        if (skip >= len) continue
+        drawDeskBank(squadDesks[run.block], run.col + skip, run.col + len - 1, run.row)
+      }
     }
 
-    for (let i = 0; i < n; i++) {
-      const place = seatFor(i)
+    for (let i = held; i < n; i++) {
       const { x, y } = desks[i]
-      const g = squadDesks[place.squad]
-      const col = place.col
+      if (garage) {
+        // The far side of every table is turned round to face across it, which
+        // is what a pod *is*. No dividers and no cable tray: both belong to a
+        // bank of desks all pointing the same way, and a panel down the middle
+        // of a facing pod is a wall between four people who were put together
+        // on purpose.
+        const seatInPod = garageSeat(i - held)
+        const toCamera = seatInPod.facing === 'gx+'
+        // A chair only where one can be seen — behind somebody facing you.
+        if (toCamera) drawChair(squadDesks[seatInPod.pod], x, y)
+        drawWorkstation(
+          toCamera ? frontDesks[seatInPod.pod] : squadDesks[seatInPod.pod],
+          x,
+          y,
+          i,
+          toCamera ? -1 : 1,
+        )
+        continue
+      }
+      if (officeShell && i - held < OFFICE_SEATS) {
+        const o = officeSeat(i - held)
+        const toCamera = o.facing === 'gx+'
+        if (toCamera) drawChair(squadDesks[o.pod], x, y)
+        drawWorkstation(
+          toCamera ? frontDesks[o.pod] : squadDesks[o.pod],
+          x,
+          y,
+          i,
+          toCamera ? -1 : 1,
+        )
+        continue
+      }
+      const place = planSeat(i)
+      const g = squadDesks[place.block]
 
-      // A divider needs a neighbour to divide from. Inside the squad that is
-      // the next column along; at the squad's edge the next seat is across a
-      // corridor, and a panel standing in a corridor is a barricade.
-      if (props.dividers && col < SQUAD_COLS - 1 && i + 1 < n) {
+      // A divider needs a neighbour to divide from, and the plan says exactly
+      // when there is one: the next seat along the same *run*. At a run's end
+      // the next seat is across an aisle or in another bank entirely, and a
+      // panel standing in an aisle is a barricade. This used to test the column
+      // against `SQUAD_COLS`, which was the same question only while every run
+      // was ten desks long.
+      if (props.dividers && place.inRun < place.runLen - 1 && i + 1 < n) {
         // A panel standing between two desks, halfway to the next seat *along
         // the row* — the only gap a divider ever fills. Between rows there is
         // an aisle, and a panel across an aisle is a barricade.
@@ -3643,7 +5757,9 @@ export function buildRoom(): RoomHandle {
       devLayer.addChild(d)
     }
     for (let i = 0; i < devs.length; i++) {
-      const visible = i < n
+      // A seat the suite holds has its body drawn by the suite, not by the
+      // floor. Drawing it here as well is the same person twice, once per layer.
+      const visible = i < n && i >= held
       devs[i].visible = visible
       if (visible) devs[i].position.set(desks[i].x, desks[i].y + 6)
     }
@@ -3662,14 +5778,48 @@ export function buildRoom(): RoomHandle {
     // read as the floor *filling up* rather than as the room being rebuilt one
     // squad wider. Rebuilding the plates on every hundredth hire was also a
     // second reason the camera's fit moved under the player.
-    const squadsNeeded = unfolded ? ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS : 0
+    const squadsNeeded = unfolded ? PLAN_PLATES.length : 0
     if (squadsNeeded > panels.length) {
       for (const p of panels) p.root.destroy({ children: true })
       panels.length = 0
       plates.removeChildren()
-      buildPanels(squadsNeeded)
+      buildPanels()
     }
     if (unfolded) applyUnfold(unfoldT)
+    // §7.8.1d — **which plate the next hire lands on.**
+    //
+    // §7.8.1b has always promised that hire *n* takes the next seat in the
+    // current row, and nothing on screen has ever said which row that is. This
+    // is the cheapest possible answer: the plate that is filling — or, when the
+    // last one came out exactly square, the empty plate that is about to — wears
+    // the warning ramp on its lip instead of the neutral. It reads from across
+    // the floor and it costs a tint.
+    // It is one *island* now rather than one plate in ten — six desks in a
+    // cluster bank, or one pair of a spine — which says where the next hire
+    // lands far more precisely than a hundred-seat rectangle ever did.
+    const nextPlate = plateOfSeat(n)
+    for (const [idx, panel] of panels.entries()) {
+      /*
+       * **An empty bay is not a desking bay.**
+       *
+       * Every plate used to be the same board colour whether or not anybody was
+       * on it, so a studio of three hundred stood in the corner of a brown plain
+       * the size of a thousand — which is the picture §7.8.1c's own note calls
+       * "a clump in the corner of an empty brown plane" and thought it had
+       * fixed. It had fixed the *count*; this fixes the reading.
+       *
+       * A fitted-out bay is board. An unfitted one is the slab it is going to be
+       * built on, with its lip still drawn — so the floor plan is visible and
+       * the floor is honestly empty. The building is built for a thousand and
+       * there are three hundred of you, and now you can see both facts at once
+       * instead of one of them.
+       */
+      const fitted = n > PLAN_PLATES[idx].from
+      panel.base.tint = c(fitted ? RAMPS.WOOD[0] : RAMPS.NEUTRAL[2])
+      panel.lip.tint = c(
+        idx === nextPlate ? RAMPS.WARN[1] : fitted ? RAMPS.NEUTRAL[3] : RAMPS.NEUTRAL[2],
+      )
+    }
 
     // The camera fit reads this every frame (§23.4.1), so the room growing is
     // also the camera pulling back — without anyone driving Z.
@@ -3677,26 +5827,96 @@ export function buildRoom(): RoomHandle {
     // floor plus the walls standing behind it, and a pivot at the true centre
     // of that box rather than at the floor's centre. Pivoting on the floor
     // pushes the whole room down the frame by half a wall.
-    foldedFit.w = floorW * 2 + ROOM_CONTENT_PAD_X
-    foldedFit.h = floorH * 2 + WALL_H + ROOM_CONTENT_PAD_Y
+    const pad = districtPad(halfBack, halfAcross)
+    /*
+     * §7.8.1 [amended 2026-09-01] — **the walls are fixed and the frame is not.**
+     *
+     * §7.8.0c's garage does not grow: it is a building somebody already owns and
+     * its walls do not move when you hire somebody. But the *camera* still has
+     * to, and the first version of that section forgot to say so in code — it
+     * framed the whole fourteen-tile shell at every headcount, so at nought
+     * developers the founder was drawn about a third of their proper size and
+     * `test:walk` could not find a single pokeable point on the canvas.
+     *
+     * That is the failure §7.8.1's growth curve exists to prevent, arriving by a
+     * different route, and it is a hard requirement rather than a preference:
+     * §7.7.4's Hero Anchor and the mobile tap target both need the founder to be
+     * a real object at one developer.
+     *
+     * So the frame covers **the back corner and the pods that exist**, and
+     * widens as they fill. The props are scenery the frame reaches on its way
+     * out rather than content it has to contain — and it does reach them: at
+     * twenty the last pod plus this margin already encloses every one of them,
+     * which is checked by arithmetic rather than hoped for.
+     */
+    let fitW = floorW
+    let fitH = floorH
+    let fitCx = cx
+    let fitCy = cy
+    if (garage) {
+      const seen = garageExtentFor(ordinary)
+      const far = garagePlot(seen.maxGx, seen.maxGy)
+      const reach = Math.min(shellMaxCol, far.col + 1.6)
+      /*
+       * **Once the room is full, the frame takes in the street it opens onto.**
+       *
+       * The canonical concept puts the driveway, the parked car and the street
+       * lamp in shot at the bottom-left, and they are a real part of the
+       * composition — the lamp is the second light source that makes the
+       * monitors read as *interior*. But the apron is outside the near wall, so
+       * a frame fitted to the room alone crops all three.
+       *
+       * Widening unconditionally is not the answer: that is exactly what shrank
+       * the founder below the tap target at nought developers. So the frame
+       * reaches out over the apron **only once the pods have grown to within
+       * two columns of the near wall**, which is late in the garage's life and
+       * is its own small beat — the studio fills the room, and the picture pulls
+       * back far enough to show you what it is about to spill into.
+       */
+      const APRON_COLS = 3.4
+      const spilling = reach >= shellMaxCol - 2
+      const framed = blockBox(
+        shellMinCol,
+        shellMinRow,
+        reach + (spilling ? APRON_COLS : 0),
+        Math.min(shellMaxRow, far.row + 0.9),
+      )
+      fitW = (framed.maxX - framed.minX) / 2
+      fitH = (framed.maxY - framed.minY) / 2
+      fitCx = (framed.minX + framed.maxX) / 2
+      fitCy = (framed.minY + framed.maxY) / 2
+    }
+    foldedFit.w = fitW * 2 + ROOM_CONTENT_PAD_X + pad.x
+    foldedFit.h = fitH * 2 + WALL_H + ROOM_CONTENT_PAD_Y + pad.y
     // Biased toward the north corner — the founder and the walls that rise
     // behind it — rather than the true centre of the bounding box. Centring
     // geometrically drops the people low in frame under a slab of empty floor,
     // and biasing the other way (toward the desks) buried the cornice and the
     // windows under the top edge of the frame. Half a wall is the balance.
-    foldedFit.px = cx
-    foldedFit.py = cy - WALL_H * 0.5
+    foldedFit.px = fitCx
+    foldedFit.py = fitCy - WALL_H * 0.5 + pad.y * (0.5 - SKYLINE_SHARE)
     if (unfolded) {
-      const f = floorBox(squadsUsed)
-      openFit.w = f.maxX - f.minX + ROOM_CONTENT_PAD_X
+      /*
+       * §7.8.0d — **the office fits its own shell, not §7.8.1e's.**
+       *
+       * `floorBox` measures the thousand-seat lattice's occupied squads, and a
+       * hundred people on the new plan occupy none of them — so the frame came
+       * out sized for a building ten times larger with the studio pushed into
+       * one corner of it. The office's shell rectangle is the honest extent,
+       * the same way the garage's is.
+       */
+      const f = officeShell
+        ? blockBox(shellMinCol, shellMinRow, shellMaxCol, shellMaxRow)
+        : floorBox(squadsUsed)
+      openFit.w = f.maxX - f.minX + ROOM_CONTENT_PAD_X + pad.x
       // The walls stand *above* the floor's north corner, so they are height
       // the frame has to find rather than scenery it can crop: a room whose
       // cornice is cut off by the top edge reads as a mistake, not as a camera
       // move. They cost about seven per cent of the fill and buy the fact that
       // this is a room.
-      openFit.h = f.maxY - f.minY + WALL_H + ROOM_CONTENT_PAD_Y
+      openFit.h = f.maxY - f.minY + WALL_H + ROOM_CONTENT_PAD_Y + pad.y
       openFit.px = (f.minX + f.maxX) / 2
-      openFit.py = (f.minY + f.maxY) / 2 - WALL_H * 0.5
+      openFit.py = (f.minY + f.maxY) / 2 - WALL_H * 0.5 + pad.y * (0.5 - SKYLINE_SHARE)
     }
     // §7.8.12 — once the walls arrive, the resting frame includes the room
     // they made. This is a union with the existing composition, not a new
@@ -3751,80 +5971,85 @@ export function buildRoom(): RoomHandle {
   }
 
   /**
-   * One squad's plate, as a parallelogram in the seat grid's own axes.
+   * One plate, as a polygon in the seat grid's own axes — §7.8.1e.
    *
-   * **Not a diamond.** The room's plate is a diamond because a room is a box
-   * seen in projection; a hundred squad plates have to *tile*, and the diamond
-   * that contains a squad's block of desks is nearly twice the block's width
-   * (see `plateHalfWidth`) — laid out in a grid they would either overlap into
-   * a blob or leave corridors as wide as the squads. The grid axes are affine
-   * under `isoAt`, so a rectangle in seat units is a parallelogram on screen,
-   * which tiles exactly and still recedes.
+   * **Not a rectangle, and not a diamond either.** The diamond went first, for
+   * `floorBox`'s reason: a diamond that contains a 2:1 block of desks is twice
+   * its width, so the people ended up in a clump in the middle of a slab. The
+   * rectangle went on 2026-08-31, and the argument is the same one a scale up:
+   * ten identical rectangles on a regular grid were the largest shapes in the
+   * frame and they were all the same shape, which is half of why a thousand
+   * developers read as a parade ground.
+   *
+   * `floorplan.ts` builds the outline to follow the desks that are actually on
+   * it — a staircase down a ragged bank, a small square round an island of six,
+   * a long thin pair for a spine — and every edge of it lies on a floor axis,
+   * which `floorplan.test.ts` asserts before anything is ever drawn.
    */
-  function platePoints(squadCol: number, squadRow: number, padCol: number, padRow: number) {
-    const c0 = squadCol * SQUAD_STRIDE_COLS - padCol
-    const r0 = squadRow * SQUAD_STRIDE_ROWS - padRow
-    const c1 = c0 + SQUAD_COLS - 1 + padCol * 2
-    const r1 = r0 + SQUAD_ROWS - 1 + padRow * 2
-    return [isoAt(c0, r0), isoAt(c1, r0), isoAt(c1, r1), isoAt(c0, r1)]
-  }
-
-  function fillPlate(g: Graphics, pts: Array<{ x: number; y: number }>, fill: number) {
-    g.moveTo(pts[0].x, pts[0].y)
-    for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y)
-    g.closePath().fill(fill)
+  function platePath(g: Graphics, points: ReadonlyArray<readonly [number, number]>) {
+    const first = isoAt(points[0][0], points[0][1])
+    g.moveTo(first.x, first.y)
+    for (let i = 1; i < points.length; i++) {
+      const q = isoAt(points[i][0], points[i][1])
+      g.lineTo(q.x, q.y)
+    }
+    g.closePath()
   }
 
   /**
-   * Build one floor plate per **occupied** squad — §7.8.1c.
+   * Build one floor plate per island of desks — §7.8.1c.
    *
    * It built all hundred, every time, whatever the headcount. At a hundred
    * developers that is one squad of people standing in the middle of ninety-nine
    * empty plates, and because `scene.extentOf('room')` measures what is drawn,
    * §23.4.1 then framed *those* — so the studio was a clump in the corner of an
    * empty brown plane, and every complaint about the room at that headcount
-   * starts there.
+   * starts there. It is the whole plan now, all at once, for the reason below.
    *
-   * Rebuilt on demand rather than grown, because the plates are cheap and the
-   * alternative is keeping a count in a second place.
+   * **The corridor apron is gone**, and it is not a loss. Each plate used to
+   * carry a lighter surround so that the plates would tile with no gaps — the
+   * corridor had to be *drawn*, because a hole between two plates showed the
+   * background through the floor. The plan's holes are real now and there are
+   * many more of them, so the hallway is simply the slab: one fill, already
+   * there, already the lighter value, and it cannot fall out of step with the
+   * plates because it is not made of them.
    */
-  function buildPanels(squadsUsed: number) {
-    const used = Math.max(0, Math.min(FLOOR_SQUADS, Math.floor(squadsUsed)))
-    for (let s = 0; s < used; s++) {
-      const squadCol = s % ROOM_SQUAD_COLS
-      const squadRow = Math.floor(s / ROOM_SQUAD_COLS)
-      // Two footprints per panel. The apron takes half the corridor on every
-      // side, so panels **tile with no gaps**: the corridor is a darker band of
-      // floor between two plates rather than a hole through to the background.
-      // §7.8.1a puts §7.8.6's walkers in it, and they cannot walk on a hole.
-      const apron = platePoints(squadCol, squadRow, CORRIDOR_COLS / 2, CORRIDOR_ROWS / 2)
-      const pts = platePoints(squadCol, squadRow, PLATE_PAD_COLS, PLATE_PAD_ROWS)
+  function buildPanels() {
+    for (const plate of PLAN_PLATES) {
+      // Drawn white and tinted per rebuild, like the lip below and for the same
+      // reason: this function runs once for every plate on the floor, and what
+      // colour a plate is depends on whether anybody is sitting on it yet.
       const base = new Graphics()
-      fillPlate(base, apron, c(RAMPS.NEUTRAL[1]))
-      fillPlate(base, pts, c(RAMPS.WOOD[0]))
-      // The plate's own edge, so a squad reads as a plate rather than as a
-      // region of one continuous floor. The corridor is the gap; this is the
-      // lip that makes the gap visible.
-      base
-        .moveTo(pts[0].x, pts[0].y)
-        .lineTo(pts[1].x, pts[1].y)
-        .lineTo(pts[2].x, pts[2].y)
-        .lineTo(pts[3].x, pts[3].y)
-        .closePath()
-        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[2]) })
+      platePath(base, plate.points)
+      base.fill(0xffffff)
+
+      // The plate's own edge, so a bank reads as a plate rather than as a
+      // region of one continuous floor.
+      //
+      // Its own `Graphics`, drawn white and **tinted** per rebuild: this
+      // function runs once for every plate on the floor (see `squadsNeeded` —
+      // all of them, or none), so a colour baked in here could never follow the
+      // headcount, and §7.8.1d's next-hire marker has to.
+      const lip = new Graphics()
+      platePath(lip, plate.points)
+      lip.stroke({ width: 2, color: 0xffffff })
+      lip.tint = c(RAMPS.NEUTRAL[2])
+
       const sheen = new Graphics()
-      fillPlate(sheen, apron, c(RAMPS.GLOW[1]))
+      platePath(sheen, plate.points)
+      sheen.fill(c(RAMPS.GLOW[1]))
       sheen.alpha = 0
 
       const holder = new Container()
-      holder.addChild(base, sheen)
-      // Hinged on the corner facing squad 0, so the panel swings out of its
-      // neighbour rather than growing out of its own middle. Pivot and
-      // position are the same point because the geometry is drawn in room
-      // coordinates — the panel does not move, it opens.
-      holder.pivot.set(apron[0].x, apron[0].y)
-      holder.position.set(apron[0].x, apron[0].y)
-      panels.push({ root: holder, base, sheen, squadCol, squadRow })
+      holder.addChild(base, lip, sheen)
+      // Hinged on the corner facing the origin, so the panel swings out of its
+      // neighbour rather than growing out of its own middle. Pivot and position
+      // are the same point because the geometry is drawn in room coordinates —
+      // the panel does not move, it opens.
+      const hinge = isoAt(plate.hinge[0], plate.hinge[1])
+      holder.pivot.set(hinge.x, hinge.y)
+      holder.position.set(hinge.x, hinge.y)
+      panels.push({ root: holder, base, lip, sheen, squadCol: plate.minCol, squadRow: plate.minRow })
       plates.addChild(holder)
     }
     applyUnfold(unfoldT < 0 ? 0 : unfoldT)
@@ -3832,33 +6057,37 @@ export function buildRoom(): RoomHandle {
 
   /** Put every panel where progress `t` says it is. */
   function applyUnfold(t: number) {
-    for (const p of panels) {
+    for (const [i, p] of panels.entries()) {
+      const plate = PLAN_PLATES[i]
       const u = panelProgress(t, p.squadCol, p.squadRow)
       const open = panelOpen(u)
       // Sideways or forward, whichever direction the panel is mostly opening
-      // in. A single axis is enough: the other one is the hinge.
-      const sideways = p.squadCol >= p.squadRow
+      // in. A single axis is enough: the other one is the hinge. Measured on the
+      // plate's own proportions rather than on a lattice index — a long thin
+      // spine pair and a small cluster island want different answers, and under
+      // the squad grid every plate was the same shape so the question never
+      // came up.
+      const sideways = plate.maxCol - plate.minCol >= (plate.maxRow - plate.minRow) * PITCH_ROW
       p.root.scale.set(sideways ? open : 1, sideways ? 1 : open)
       p.root.visible = u > 0
       p.sheen.alpha = panelLight(u) * 0.35
+      // Block 0 is already open and stays open — §7.8.1c, "the single squad
+      // stays where it is and stays the size it is." It is one plate, because
+      // THE FIRST HUNDRED is one unbroken bank of ten rows of ten.
+      if (plate.block === 0) {
+        p.root.scale.set(1, 1)
+        p.root.visible = true
+        p.sheen.alpha = 0
+      }
     }
-    // Squad 0 is already open and stays open — §7.8.1c, "the single squad
-    // stays where it is and stays the size it is."
-    if (panels.length > 0) {
-      panels[0].root.scale.set(1, 1)
-      panels[0].root.visible = true
-      panels[0].sheen.alpha = 0
-    }
-    // A squad's desks wait for its panel. Landing a desk on a panel that is
+    // A bank's desks wait for its plates. Landing a desk on a panel that is
     // still edge-on is the one thing that would give the trick away.
-    for (let s = 0; s < squadDesks.length; s++) {
-      const p = panels[s]
-      // Squad 0 is exempt: its panel never turns, so its hundred people must
-      // never blink out. They are the reason the floor is opening.
-      squadDesks[s].visible = s === 0 || !p || panelProgress(t, p.squadCol, p.squadRow) >= 0.5
+    for (let b = 0; b < squadDesks.length; b++) {
+      const block = PLAN_BLOCKS[b]
+      squadDesks[b].visible = b === 0 || !block || panelProgress(t, block.minCol, block.minRow) >= 0.5
     }
     for (let i = 0; i < devs.length; i++) {
-      const g = squadDesks[Math.floor(i / SQUAD_SIZE)]
+      const g = squadDesks[planSeat(i).block]
       devs[i].visible = i < desks.length && (!g || g.visible)
     }
     // **The room does not fold away.** It used to: the shell dissolved over the
@@ -3934,42 +6163,95 @@ export function buildRoom(): RoomHandle {
       // be shadowed and the hop would read its phase from a boolean.
       const liveElapsed = frozen ? frozenElapsed : elapsed
       if (!frozen) frozenElapsed = elapsed
-      if (team.length > 1) {
-        // §7.8.12 — the glass grows around the original corner rather than the
-        // whole suite popping in. Geometry transitions keep running through a
-        // scene, while the bodies and their IM packets obey its frozen clock.
+      /*
+       * §7.8.12 — **the walls and the people are two animations, not one.**
+       *
+       * They used to share a gate, and the gate was the walls' condition: a
+       * suite of one had no glass, so `team.length > 1` was false, so *nothing*
+       * in this block ran. That is correct for the glass and wrong for the
+       * person standing inside it — and the person it was wrong for was James
+       * during his own arrival scene, who is the whole of the room for the ten
+       * minutes before anybody joins him. He never turned to camera when he
+       * spoke, because the line that turns him is down here.
+       *
+       * The two conditions are genuinely different and now say so: the glass
+       * exists once a second hero arrives (§7.8.12's own rule), and a body is
+       * animated whenever there is a body.
+       */
+      if (teamBox) {
+        // The glass grows around the original corner rather than the whole
+        // suite popping in. Geometry transitions keep running through a scene,
+        // while the bodies and their IM packets obey its frozen clock.
         teamReveal = Math.min(1, teamReveal + dt / 0.52)
         const reveal = 1 - (1 - teamReveal) ** 3
         const contents = Math.max(0, Math.min(1, (reveal - 0.18) / 0.82))
         teamFloor.alpha = reveal
         teamGlass.alpha = reveal
-        teamGlass.pivot.set(0, TEAM_ROOM_BOUNDS.maxY)
-        teamGlass.position.set(0, TEAM_ROOM_BOUNDS.maxY)
+        // The glass rises from its own front edge, so the reveal reads as
+        // walls going up rather than as a box being scaled.
+        const sill = teamBox ? teamBox.maxY : 0
+        teamGlass.pivot.set(0, sill)
+        teamGlass.position.set(0, sill)
         teamGlass.scale.y = 0.06 + reveal * 0.94
         teamDeskLayer.alpha = contents
         teamPeopleLayer.alpha = contents
         teamSignals.alpha = contents
+        teamLabels.alpha = contents
         drawTeamSignals(liveElapsed)
 
-        for (let order = 0; order < team.length; order++) {
-          const hero = team[order]
-          if (hero.id === 'james') continue
-          const body = teamBodies.get(hero.id)
-          if (!body) continue
-          const at = TEAM_DESKS[hero.id]
-          const facing = hero.selected || hero.id === teamSpeaker
-          const [back, front] = body.children as Graphics[]
-          back.visible = !facing
-          front.visible = facing
-          // Active heroes type from this desk; benched heroes stay visibly in
-          // the same chair. Connecting is deliberately a slower, tentative
-          // rhythm until the remote channel becomes live.
-          const pulse = hero.assigned
-            ? Math.max(0, Math.sin(liveElapsed * (hero.connecting ? 5 : 8) + order * 1.7))
-            : 0
-          body.alpha = hero.assigned ? 1 : 0.64
-          body.position.set(at.x, at.y + 6 - pulse * (hero.connecting ? 0.7 : 1.25))
+        /*
+         * §7.8.13 — **the type is held at a constant size on screen.**
+         *
+         * The plates are parented into the room and would otherwise scale with
+         * the camera, which is exactly the failure `bubble.ts` documents one
+         * layer up: text pinned to a world object has to stay legible rather
+         * than stay proportional, the way a map label does not grow when you
+         * zoom. Reusing that module's curve rather than writing a second one
+         * means the two kinds of words in this room agree about how far away
+         * "far away" is.
+         */
+        const type = counterScale(root.worldTransform.a)
+        for (const g of teamLabels.children) g.scale.set(type)
+        /*
+         * **Never below the design size.** `counterScale` holds the type at
+         * eleven screen pixels while it can and then gives up, so past its clamp
+         * the words start being resampled again — and a resampled pixel font is
+         * not faint, it is wrong (see `label`). The words go out at exactly the
+         * zoom where holding them would start lying about what they say.
+         *
+         * Applied through {@link applyLabelDetail} rather than by hiding the
+         * layer, because the sign's board survives this and its lettering does
+         * not. Only re-applied when the answer changes: this runs every frame
+         * and the answer changes about twice a flight.
+         */
+        const legible = typeAtDesignSize(root.worldTransform.a)
+        if (legible !== typeLegible) {
+          typeLegible = legible
+          applyLabelDetail()
         }
+
+      }
+
+      // §10.7a.1 and §7.8.13 — whoever is in the room, walls or no walls.
+      for (let order = 0; order < team.length; order++) {
+        const hero = team[order]
+        const body = teamBodies.get(hero.id)
+        if (!body) continue
+        const at = teamDeskPosition(hero.id)
+        // **The line that turns a hero to camera.** `selected` is the player's
+        // intent and `teamSpeaker` is the script's; either one faces them.
+        const facing = hero.selected || hero.id === teamSpeaker
+        const [back, front] = body.children as Graphics[]
+        back.visible = !facing
+        front.visible = facing
+        // Active heroes type from this desk; benched heroes stay visibly in
+        // the same chair. Connecting is deliberately a slower, tentative
+        // rhythm until the remote channel becomes live.
+        const pulse = hero.assigned
+          ? Math.max(0, Math.sin(liveElapsed * (hero.connecting ? 5 : 8) + order * 1.7))
+          : 0
+        body.alpha = hero.assigned ? 1 : 0.64
+        body.position.set(at.x, at.y + 6 - pulse * (hero.connecting ? 0.7 : 1.25))
       }
       if (roomTransition < 1) {
         roomTransition = Math.min(1, roomTransition + dt / 0.42)
@@ -4093,8 +6375,20 @@ export function buildRoom(): RoomHandle {
         const d = devs[i]
         if (!d.visible) continue
 
-        const turning = i === selected || i === turningOut || i === speaker || i === speakerOut
-        const facing = i === selected || i === speaker
+        /*
+         * §7.8.0c — **half of every garage pod rests facing the camera**, so
+         * the front pose is no longer the exclusive property of a selected
+         * developer. What is still exclusive, and is the half of §7.8.8 that
+         * was ever load-bearing, is the *turn*: nobody on this floor ever
+         * changes which way they are looking except by being selected or by
+         * speaking. Somebody already facing you does not squash and swap when
+         * you tap them — they are already looking at you — so they are excluded
+         * from `turning` rather than given a turn that plays to the same pose.
+         */
+        const rests = seatFacesCamera(i, windowFrom, drawnGarage)
+        const called = i === selected || i === turningOut || i === speaker || i === speakerOut
+        const turning = called && !rests
+        const facing = rests || i === selected || i === speaker
         const t = turning ? turnT : 1
         // Halfway through the squash there is nothing on screen, so the pose
         // swap is invisible — which is the entire point of the squash.
@@ -4231,31 +6525,43 @@ export function buildRoom(): RoomHandle {
       founder.destroy({ children: true })
       founder = replacement
       founderLayer.addChild(founder)
+      // §7.8.12 — the corner desk's plate carries this name, so setting it
+      // during first-start has to repaint the suite. Cheap: it is seven desks.
+      rebuildTeam()
     },
     setTeam(heroes: readonly TeamRoomHero[]) {
       const key = teamKey(heroes)
       if (key === teamDrawnFor) return
-      const wasVisible = team.length > 1
+      const before = teamBox
       team = heroes.map((hero) => ({ ...hero }))
       teamDrawnFor = key
-      const visible = team.length > 1
-      if (!wasVisible && visible) teamReveal = 0
       rebuildTeam()
-      // The suite changes the room's camera rectangle only when it first
-      // appears or disappears. Assignment lights repaint the suite without
-      // rebuilding the rank-and-file floor.
-      if (visible !== wasVisible && lastDevs >= 0) rebuild(lastDevs)
+      if (!before && teamBox) teamReveal = 0
+      // The suite changes the room's camera rectangle when the walls arrive and
+      // **every time the east wall moves**, which is once per hero. Comparing a
+      // boolean would have caught only the first of those and left the sixth
+      // desk outside the frame the camera was fitting to. Assignment lights
+      // repaint the suite without rebuilding the rank-and-file floor.
+      const moved =
+        (before === null) !== (teamBox === null) ||
+        (before !== null && teamBox !== null && before.maxX !== teamBox.maxX)
+      if (moved && lastDevs >= 0) rebuild(lastDevs)
+    },
+    setLabelDetail(detail: LabelDetail) {
+      if (detail === labelDetail) return
+      labelDetail = detail
+      applyLabelDetail()
     },
     teamDeskAt(id: HeroId) {
       if (!team.some((hero) => hero.id === id)) return null
       return teamDeskPosition(id)
     },
     teamHeroAt(x: number, y: number, reach = 24) {
-      if (team.length <= 1) return null
+      if (team.length === 0 || windowFrom !== 0) return null
       let found: HeroId | null = null
       let nearest = reach * reach
       for (const hero of team) {
-        const at = TEAM_DESKS[hero.id]
+        const at = teamDeskPosition(hero.id)
         const dx = x - at.x
         const dy = y - (at.y - 7)
         const distance = dx * dx + dy * dy
@@ -4265,6 +6571,50 @@ export function buildRoom(): RoomHandle {
         }
       }
       return found
+    },
+    teamSignAt(x: number, y: number, reach = 0) {
+      if (!signGroup || !teamLabels.visible) return false
+      // The board is 76 x 18 in the group's own units and the group is
+      // counter-scaled, so the target grows as the camera pulls back — which is
+      // what keeps it a thumb-sized target at both levels the room is drawn at.
+      const k = signGroup.scale.x
+      return (
+        Math.abs(x - signGroup.position.x) <= 38 * k + reach &&
+        Math.abs(y - signGroup.position.y) <= 9 * k + reach
+      )
+    },
+    teamSignPoint() {
+      if (!signGroup || !teamLabels.visible) return null
+      return { x: signGroup.position.x, y: signGroup.position.y }
+    },
+    geometry(): RoomGeometry {
+      return {
+        shell: {
+          top: { ...shellQuad.top },
+          left: { ...shellQuad.left },
+          right: { ...shellQuad.right },
+          bottom: { ...shellQuad.bottom },
+          grid: { ...shellGrid },
+        },
+        suite: teamBox && suiteGrid ? { box: { ...teamBox }, grid: { ...suiteGrid } } : null,
+        suiteWalls: suiteWalls.map((w) => ({ a: { ...w.a }, b: { ...w.b } })),
+        plots: team.map((hero) => {
+          const plot = suitePlot(hero.id)
+          const at = teamDeskPosition(hero.id)
+          return { id: hero.id, col: plot.col, row: plot.row, x: at.x, y: at.y }
+        }),
+        founder: { ...FOUNDER_PLOT, ...founderDeskPosition() },
+        /*
+         * **Both units, from two different places.** The `x, y` is what the room
+         * laid out; the `col, row` is what {@link drawnSeatPlot} says it should
+         * have been. Handing over both lets the gate assert they agree, which is
+         * the check that would have caught §7.7.2's falling silhouette landing on
+         * the doorway threshold while the person sat down somewhere else.
+         */
+        seats: desks.map((d, i) => ({ ...drawnSeatPlot(i, windowFrom, drawnGarage), x: d.x, y: d.y })),
+        heldSeats: suiteSeats(),
+        seatWindow: windowFrom,
+      }
     },
     setTeamSpeaker(id: HeroId | null) {
       teamSpeaker = id
@@ -4312,6 +6662,10 @@ export function buildRoom(): RoomHandle {
       // never storing any of them — "generated at the moment of the click, and
       // discarded when the camera leaves".
       discardPeople()
+      // §7.8.12 — and the suite comes down with them. It exists in the studio's
+      // own first thousand and nowhere else, so a window that has moved off it
+      // is a floor with no executive suite *and* no held-back threshold.
+      rebuildTeam()
     },
     jolt(i: number) {
       if (i >= 0 && i < jolts.length) jolts[i] = 1
@@ -4330,7 +6684,10 @@ export function buildRoom(): RoomHandle {
       return founderDeskPosition()
     },
     deskFor(i: number) {
-      return seatPosition(i)
+      // §7.7.2's arrivals ask this for a seat that is deliberately not drawn
+      // yet, so it cannot read `desks` — but it must give the same answer, and
+      // it does because both go through the one resolver.
+      return drawnSeatPosition(i, windowFrom, drawnGarage)
     },
 
     deskAt(i: number) {
@@ -4338,6 +6695,9 @@ export function buildRoom(): RoomHandle {
     },
     get drawn() {
       return desks.length
+    },
+    get inGarage() {
+      return drawnGarage
     },
     get seatWindow() {
       return windowFrom

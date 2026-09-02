@@ -95,8 +95,20 @@ export const VIEWS: readonly LadderView[] = [
   // The stop is rung 2 because that is where the *full* floor exactly fits.
   // Pinching in from there over-scales the same geometry toward the desk, which
   // is §7.7.4's Hero Anchor and is exactly how rung 0 already worked.
-  { view: 'room', from: 0, stop: 2, tier: 1, halfWidth: 2.1, halfWidthOut: 1 },
-  { view: 'tower', from: 3, stop: 3, tier: 2, halfWidth: 1.25 },
+  // §7.8.0 [amended 2026-09-01] — **the room's stop moved from rung 2 to rung
+  // 1, and the tower took the rung it vacated.** The room used to be asked to
+  // frame a thousand people, which is the rescale's central complaint: at that
+  // fit a developer is four pixels and the view is a texture rather than a
+  // place. It now frames a hundred — one full floor — and everything above a
+  // hundred is the tower, which is a picture that *gains* from having a
+  // thousand people in it because they are distributed over storeys.
+  //
+  // `from: 0` is unchanged and still load-bearing: a studio of one developer
+  // has earned the room it is sitting in.
+  { view: 'room', from: 0, stop: 1, tier: 1, halfWidth: 1.6, halfWidthOut: 1.25 },
+  // The tower spans rungs 2 and 3 — ten storeys, then a hundred — so it fits
+  // between them, the same way the room used to sit between its own pair.
+  { view: 'tower', from: 2, stop: 2.5, tier: 2, halfWidth: 1.6 },
   { view: 'block', from: 4, stop: 4, tier: 3, halfWidth: 1.15 },
   // **The overlap across the two-decade band stays wide, and that is measured
   // rather than assumed.** §7.7.1 steps from a town at 10⁶ straight to a nation
@@ -176,10 +188,10 @@ export function zAtRung(rung: number): number {
  *
  * | Rung | The frame holds | Which is |
  * |---|---|---|
- * | 0 | 100 | a §7.8.1a squad — the desk |
- * | 1 | ~316 | the same room, half way out |
- * | 2 | 1,000 | the floor, whole |
- * | 3 | 10,000 | the building — ten floors |
+ * | 0 | 20 | the garage, full — §7.8.0 |
+ * | 1 | 100 | one office floor, whole |
+ * | 2 | 1,000 | the tower, ten storeys |
+ * | 3 | 10,000 | the tower topped out — a hundred storeys |
  * | 4 | 10⁵ | the campus — ten buildings |
  * | 5 | 10⁶ | the town — ten campuses |
  * | 6 | 10⁸ | the nation — a hundred towns |
@@ -202,7 +214,7 @@ export function zAtRung(rung: number): number {
  * takes §7.4's fourth tier, §20.7.3's cosmic music bed and §8.2's fourth poke
  * sound with it, and none of that belongs in a commit about the dolly rate.
  */
-const SEATS_FRAMED_LOG10: readonly number[] = [2, 2.5, 3, 4, 5, 6, 8, 9, 10.2, 10.2]
+const SEATS_FRAMED_LOG10: readonly number[] = [1.3, 2, 3, 4, 5, 6, 8, 9, 10.2, 10.2]
 
 export function seatsFramedAt(rung: number): number {
   const at = Math.max(0, Math.min(TOP_RUNG, Number.isFinite(rung) ? rung : 0))

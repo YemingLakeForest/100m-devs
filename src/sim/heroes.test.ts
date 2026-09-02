@@ -62,7 +62,12 @@ describe('the reach ladder — §13.6.1', () => {
       'planet',
       'galaxy',
     ])
-    expect(reachDevs(1)).toBe(1e3)
+    // §7.8.0 — a floor is a hundred people now, so FLOOR reach covers a
+    // hundred. The tier names did not move; the number one of them stands for
+    // did, and that is exactly what deriving the ladder is for. Note also that
+    // there is one `floor` tier and not two: the ladder is one entry per size
+    // of thing, and the tower now spends two rungs on the same size.
+    expect(reachDevs(1)).toBe(100)
     expect(reachDevs(2)).toBe(1e4)
   })
 
@@ -92,7 +97,10 @@ describe('THE rule — a card only works at the tier it can reach (§13.6.2)', (
     // no tutorial anywhere.
     const sm = newHero('scrum-master')
     expect(coverage(sm, 4_000).line).toBe('covering 8 of 4.0 K (0.2%)')
-    expect(upgradePrompt(sm, 4_000)).toBe('Upgrade REACH to FLOOR — 7 GP')
+    // Four GP rather than seven, and the drop is §7.8.0 rather than a nerf:
+    // §13.6.5 prices a step by the *decades* it spans, and row-to-floor is now
+    // 8 → 100 where it used to be 8 → 1,000. A shorter climb costs less.
+    expect(upgradePrompt(sm, 4_000)).toBe('Upgrade REACH to FLOOR — 4 GP')
   })
 
   it('stops nagging once the card covers what it stands on', () => {

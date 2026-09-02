@@ -50,26 +50,27 @@
  * standing up a canvas.
  */
 
+import { PLAN_BLOCKS } from './floorplan.ts'
 import {
   FLOOR_AISLE_COLS,
   FLOOR_AISLE_ROWS,
+  FLOOR_BACK_ROWS,
+  SUITE_GLASS_ROW,
+  SUITE_WALL_ROW,
+  SUITE_WEST_COL,
+  suiteEastCol,
   FLOOR_MAX_COL,
   FLOOR_MAX_ROW,
   PITCH_ROW,
   ROOM_DEV_CAP,
-  ROOM_SQUAD_COLS,
-  ROOM_SQUAD_ROWS,
-  SQUAD_COLS,
-  SQUAD_ROWS,
   SQUAD_SIZE,
-  SQUAD_STRIDE_COLS,
-  SQUAD_STRIDE_ROWS,
   blockBox,
   isoAt,
   seatFor,
   seatGrid,
 } from './room.ts'
 import { PERSPECTIVE_CENTRE_SCALE, SITES_PER_GLOBE } from './worldMap.ts'
+import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import { PROXIMA_LY } from '../sim/starfield.ts'
 
 /** The levels, innermost first. Continuous positions between them are legal. */
@@ -166,7 +167,32 @@ export const LEVEL_DEVS: readonly number[] = [
   ROOM_DEV_CAP * 1000 * SITES_PER_GLOBE * WORLDS_FRAMED,
 ]
 
-/** §7.7.1's floor, and the room's own cap — the same thousand, by construction. */
+/**
+ * **The tower still divides its ten thousand as ten floors of a thousand, and
+ * §7.8.0 says a hundred floors of a hundred.** This is a stated divergence, not
+ * an oversight — §7.8.0e.
+ *
+ * The product is the same either way, so {@link BUILDING_CAP} and everything
+ * above it — the block, the park, the globe, §13.5's 10^8 gate — are correct
+ * and untouched. What is wrong is only how the ten thousand is *divided* inside
+ * one building, and it is wrong in exactly one place: the tower's storey count.
+ *
+ * Swapping the two constants was tried on 2026-09-02 and reverted the same
+ * hour. It is a two-line change that lands correctly and breaks twenty-three
+ * tests, and the tests are right: **a hundred-storey tower is ten times taller
+ * than a ten-storey one**, so the building view's frame grows by ten in one
+ * axis, and every ratio tuned against it goes with it — the block's zoom step,
+ * the park's "a unit is the same footprint as the level below" rule (§7.8.2
+ * rule 1), the plate's thumb-target size, and two stops of the §7.4a lens
+ * ladder. Shrinking the storey to compensate is not the answer either: at a
+ * tenth of the height the curtain wall is three pixels and the one thing the
+ * tower carries information with is gone.
+ *
+ * So it is a piece of camera work rather than a constant, and it belongs in its
+ * own change with its own visual pass. Recording it here so that the next
+ * person to notice the mismatch finds the reason rather than the bug.
+ */
+/** §7.7.1's floor at the tower tier — see the note above. */
 export const DEVS_PER_FLOOR = ROOM_DEV_CAP
 /** Ten storeys to a building — 10,000 people. */
 export const FLOORS_PER_BUILDING = 10
@@ -194,6 +220,14 @@ export interface Rect {
  */
 export const AISLE_COLS = FLOOR_AISLE_COLS
 export const AISLE_ROWS = FLOOR_AISLE_ROWS
+/**
+ * The margin **behind** row 0, which is deeper than the other three.
+ *
+ * §7.8.12's suite lives back there and does not fit in {@link AISLE_ROWS}. Read
+ * off `room.ts` like everything else in this block: the room draws this edge and
+ * the camera frames it, and there is exactly one of them so they cannot drift.
+ */
+export const BACK_ROWS = FLOOR_BACK_ROWS
 
 /** The far corner of the floor's seat lattice — 5 squads across, 2 back. */
 const LAST_SEAT_COL = FLOOR_MAX_COL - FLOOR_AISLE_COLS
@@ -222,7 +256,7 @@ function rectOf(minCol: number, minRow: number, maxCol: number, maxRow: number):
 export function floorFrame(): Rect {
   return rectOf(
     -AISLE_COLS,
-    -AISLE_ROWS,
+    -BACK_ROWS,
     LAST_SEAT_COL + AISLE_COLS,
     LAST_SEAT_ROW + AISLE_ROWS,
   )
@@ -234,22 +268,71 @@ export function floorSeatRect(): Rect {
 }
 
 /**
- * The pad around one squad, in seat units. Smaller than the floor's aisle
- * because a squad's own surround is the corridor it already sits in.
+ * §7.8.12 [added 2026-08-31] — **the frame that holds the executive suite.**
+ *
+ * The camera stop the `TEAM` button flies to, and the thing the suite has never
+ * had. Until now the only way to look at it was `focusFounder`, which frames one
+ * *person* at Desk zoom: the founder is 107 px from James and further still from
+ * the back bank, so that frame held one man and two blurs, and there was
+ * literally nothing for a TEAM control to aim at.
+ *
+ * A room, not a person, so it is padded like the floor rather than like a desk —
+ * and padded asymmetrically toward the floor, because the suite is only half the
+ * picture. The other half is the rank and file standing outside its glass, and a
+ * frame that crops them turns the whole §7.8.12 composition (the CXOs behind the
+ * window, the coders in front of it) back into the isolated box the section
+ * exists to avoid.
  */
-export const SQUAD_PAD_COLS = 1.2
-export const SQUAD_PAD_ROWS = 0.6
+export const SUITE_PAD_COLS = 1.4
+export const SUITE_PAD_ROWS = 0.5
+/** How far past the glass the frame reaches, in rows — the floor's own side. */
+export const SUITE_PAD_FLOOR_ROWS = 1.6
 
-/** One squad of a hundred, framed — floor space. */
-export function squadFrame(squad: number): Rect {
-  const i = Math.max(0, Math.min(ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS - 1, Math.floor(squad)))
-  const col0 = (i % ROOM_SQUAD_COLS) * SQUAD_STRIDE_COLS
-  const row0 = Math.floor(i / ROOM_SQUAD_COLS) * SQUAD_STRIDE_ROWS
+export function suiteFrame(): Rect {
   return rectOf(
-    col0 - SQUAD_PAD_COLS,
-    row0 - SQUAD_PAD_ROWS,
-    col0 + SQUAD_COLS - 1 + SQUAD_PAD_COLS,
-    row0 + SQUAD_ROWS - 1 + SQUAD_PAD_ROWS,
+    SUITE_WEST_COL - SUITE_PAD_COLS,
+    SUITE_WALL_ROW - SUITE_PAD_ROWS,
+    suiteEastCol(STORY_HEROES.map((hero) => hero.id)) + SUITE_PAD_COLS,
+    SUITE_GLASS_ROW + SUITE_PAD_FLOOR_ROWS,
+  )
+}
+
+/**
+ * The pad around one bank, in seat units. Smaller than the floor's aisle
+ * because a bank's own surround is the hallway it already sits beside.
+ *
+ * **Strictly wider than {@link DESK_REACH_COLS} / {@link DESK_REACH_ROWS}**, and
+ * that is a requirement rather than a coincidence. §7.7's zoom ladder promises
+ * the levels nest — a desk frame inside its bank's, its bank's inside the
+ * floor's — and a desk frame is centred on a seat and reaches past it. If the
+ * bank's pad were the smaller of the two, a seat on the bank's own edge would
+ * have a desk frame that stuck out of the bank containing it, and the zoom would
+ * appear to jump outward on the way *in*.
+ *
+ * It used to be 0.6 against a reach of 0.7 and it passed, because under the
+ * five-by-two squad grid the seats that the nesting test happened to sample were
+ * never on a squad's last row. §7.8.1e's banks have seats on every edge of every
+ * one of them, so the relationship is asserted now instead of sampled.
+ */
+export const SQUAD_PAD_COLS = 1.4
+export const SQUAD_PAD_ROWS = 0.85
+
+/**
+ * One bank of the floor, framed — floor space. §7.8.1e.
+ *
+ * The rectangle is the **bank's own**, read off the plan, rather than a cell of
+ * a five-by-two lattice. That is the whole change and it is not cosmetic: the
+ * banks are between forty-eight and a hundred and ninety-three seats and no two
+ * are the same shape, so a frame computed from a stride would have framed the
+ * wrong floor at nine of the ten of them.
+ */
+export function squadFrame(squad: number): Rect {
+  const block = PLAN_BLOCKS[Math.max(0, Math.min(PLAN_BLOCKS.length - 1, Math.floor(squad)))]
+  return rectOf(
+    block.minCol - SQUAD_PAD_COLS,
+    block.minRow - SQUAD_PAD_ROWS,
+    block.maxCol + SQUAD_PAD_COLS,
+    block.maxRow + SQUAD_PAD_ROWS,
   )
 }
 
@@ -275,6 +358,28 @@ export function deskFrame(localSeat: number): Rect {
   )
 }
 
+/**
+ * Which level the suite is looked at from — **derived, not chosen.**
+ *
+ * The suite is a fixed size, so "the closest level that holds it" is a constant
+ * and there is no reason to recompute it per press. It comes out at Squad: the
+ * room measures about 636 x 318 in floor space and a Desk frame is 171 x 85, so
+ * a Desk-zoom TEAM would frame one desk of the seven — which is exactly the
+ * failure `focusFounder` already had and the reason a TEAM button needed a
+ * frame of its own rather than a reuse of that one.
+ *
+ * Computed rather than written down as `SQUAD`, because the numbers it depends
+ * on are all constants somebody may reasonably change (the suite's pitch, its
+ * pads, the desk frame's reach), and a hand-written level would go quietly stale
+ * the first time one of them moved.
+ */
+export const SUITE_LEVEL: Level = (() => {
+  const suite = suiteFrame()
+  const desk = deskFrame(0)
+  return suite.w <= desk.w && suite.h <= desk.h ? DESK : SQUAD
+})()
+
+
 // ---------------------------------------------------------------------------
 // Building space — the exploded stack
 // ---------------------------------------------------------------------------
@@ -298,7 +403,7 @@ export const PLATE_SCALE = 1 / PLATE_DIVISOR
  * constraint is unforgiving and it decided this:
  *
  * - **A column.** Plates clear each other only when `dx + 2·dy >= W` — the same
- *   diamond containment `plateHalfWidth` uses one scale down — so a column
+ *   diamond containment the garage shell used one scale down — so a column
  *   (`dx = 0`) needs `dy >= W/2` and ten of them come out **84 px wide** in a
  *   937x421 box. Not a floor plan, and not a touch target.
  * - **A staircase**, stepping along the plate's own edge. That buys 145 px, and
@@ -2164,19 +2269,24 @@ function outline(
  * instead is what made the room twice the size of the people on it.
  */
 export function floorOutline(): Array<{ x: number; y: number }> {
-  return outline(-AISLE_COLS, -AISLE_ROWS, LAST_SEAT_COL + AISLE_COLS, LAST_SEAT_ROW + AISLE_ROWS)
+  return outline(-AISLE_COLS, -BACK_ROWS, LAST_SEAT_COL + AISLE_COLS, LAST_SEAT_ROW + AISLE_ROWS)
 }
 
-/** One squad's plate, as a parallelogram in floor space. */
+/**
+ * One bank's plate, as a parallelogram in floor space.
+ *
+ * Still the bank's **bounding** parallelogram rather than the ragged outline the
+ * room draws. This is what the §7.7 building tier lights up on a distant tower,
+ * where a bank is about eleven pixels across and its silhouette is not a thing
+ * anybody can see; the room has `PLAN_PLATES` for the case where it is.
+ */
 export function squadOutline(squad: number, pad = 0.9): Array<{ x: number; y: number }> {
-  const i = Math.max(0, Math.min(ROOM_SQUAD_COLS * ROOM_SQUAD_ROWS - 1, Math.floor(squad)))
-  const col0 = (i % ROOM_SQUAD_COLS) * SQUAD_STRIDE_COLS
-  const row0 = Math.floor(i / ROOM_SQUAD_COLS) * SQUAD_STRIDE_ROWS
+  const block = PLAN_BLOCKS[Math.max(0, Math.min(PLAN_BLOCKS.length - 1, Math.floor(squad)))]
   return outline(
-    col0 - pad,
-    row0 - pad * 0.5,
-    col0 + SQUAD_COLS - 1 + pad,
-    row0 + SQUAD_ROWS - 1 + pad * 0.5,
+    block.minCol - pad,
+    block.minRow - pad * 0.5,
+    block.maxCol + pad,
+    block.maxRow + pad * 0.5,
   )
 }
 
@@ -2197,22 +2307,43 @@ export function gridAtFloor(x: number, y: number): { col: number; row: number } 
 }
 
 /**
- * Which squad a floor-space point is over, or −1 off the lattice.
+ * Slack on a containment test, in seat units.
  *
- * The epsilon is not decoration. A squad origin is an exact multiple of the
- * stride in seat units — squad 4 starts at `4 × 12.6 = 50.4` — and `50.4 / 12.6`
- * evaluates to 3.9999999999999996 in doubles, so the *first seat of a squad*
- * floored to the squad before it. Every squad's own corner desk picked its
- * neighbour, which is the worst possible place for a rounding error to live.
+ * It was an epsilon on a division, and the note is worth keeping because the
+ * class of bug is: a squad origin was an exact multiple of the stride — squad 4
+ * started at `4 × 12.6 = 50.4` — and `50.4 / 12.6` evaluates to
+ * 3.9999999999999996 in doubles, so the *first seat of a squad* floored to the
+ * squad before it. Every squad's own corner desk picked its neighbour.
+ *
+ * There is no division any more, because there is no stride: the banks are
+ * looked up. What is left is the boundary case, so the tolerance stays.
  */
 const CELL_EPSILON = 1e-6
 
+/**
+ * Which bank a floor-space point is over, or −1 off the banks.
+ *
+ * **A hallway is now genuinely nothing**, and that is a behaviour change worth
+ * stating. The old lattice tiled the whole floor, so a tap in a corridor landed
+ * on whichever squad's cell the corridor happened to fall inside. §7.8.1e's
+ * floor has real holes in it — hallways, the spine, the nooks, the canteen — and
+ * a tap in one of them belongs to no bank, so it falls through to the floor.
+ * That is the honest answer and it is the one the picture supports.
+ */
 export function squadAtFloor(x: number, y: number): number {
   const { col, row } = gridAtFloor(x, y)
-  const sc = Math.floor((col + CELL_EPSILON) / SQUAD_STRIDE_COLS)
-  const sr = Math.floor((row + CELL_EPSILON) / SQUAD_STRIDE_ROWS)
-  if (sc < 0 || sc >= ROOM_SQUAD_COLS || sr < 0 || sr >= ROOM_SQUAD_ROWS) return -1
-  return sr * ROOM_SQUAD_COLS + sc
+  for (let i = 0; i < PLAN_BLOCKS.length; i++) {
+    const b = PLAN_BLOCKS[i]
+    if (
+      col >= b.minCol - SQUAD_PAD_COLS - CELL_EPSILON &&
+      col <= b.maxCol + SQUAD_PAD_COLS + CELL_EPSILON &&
+      row >= b.minRow - SQUAD_PAD_ROWS - CELL_EPSILON &&
+      row <= b.maxRow + SQUAD_PAD_ROWS + CELL_EPSILON
+    ) {
+      return i
+    }
+  }
+  return -1
 }
 
 /**
@@ -2250,7 +2381,7 @@ export function storeyAtBuilding(x: number, y: number, storeys: number, focus: n
   if (
     local.col >= -AISLE_COLS &&
     local.col <= LAST_SEAT_COL + AISLE_COLS &&
-    local.row >= -AISLE_ROWS &&
+    local.row >= -BACK_ROWS &&
     local.row <= LAST_SEAT_ROW + AISLE_ROWS
   ) {
     return Math.max(0, Math.min(n - 1, Math.floor(focus)))
@@ -2430,7 +2561,7 @@ export function seatOfStorey(
   return seatOfBuilding(building, site, world) + f * DEVS_PER_FLOOR
 }
 
-/** Which of the floor's ten squads a global seat is in. */
+/** Which of the floor's ten banks a global seat is in — §7.8.1e. */
 export function squadOf(seat: number): number {
   const local = Math.max(0, Math.floor(Number.isFinite(seat) ? seat : 0)) % DEVS_PER_FLOOR
   return seatFor(local).squad
@@ -2444,7 +2575,11 @@ export function seatOfSquad(
   site: number,
   world: number,
 ): number {
-  return seatOfStorey(storey, building, site, world) + Math.max(0, Math.floor(squad)) * SQUAD_SIZE
+  // The banks are not all a hundred seats any more, so this is a lookup rather
+  // than a multiplication. Getting it wrong would put the camera on bank 4 and
+  // the selection on somebody in bank 3.
+  const block = PLAN_BLOCKS[Math.max(0, Math.min(PLAN_BLOCKS.length - 1, Math.floor(squad)))]
+  return seatOfStorey(storey, building, site, world) + block.from
 }
 
 /**

@@ -541,7 +541,7 @@ describe('the readouts', () => {
 
     act(() => jumpToPhase('act5_bleeding'))
     rerender(<Hud stage={null} />)
-    expect(container.querySelector('.hud__scale')?.textContent).toBe('1 FLOOR = 1.0 K DEVS')
+    expect(container.querySelector('.hud__scale')?.textContent).toBe('1 FLOOR = 100 DEVS')
   })
 
   it('adds the burn and the runway once payroll starts — §21 Act V', () => {

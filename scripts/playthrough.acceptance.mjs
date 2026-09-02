@@ -505,6 +505,44 @@ async function press(page, name, budget = LEG_MS) {
 }
 
 /**
+ * §13.11.2 — open the roster strip **the way a player does**.
+ *
+ * This used to be `press(page, 'HERO')`. There is no HERO button any more:
+ * §7.8.12 gave that rail slot to `TEAM` and moved the roster's door onto the
+ * sign over the suite's own doorway, on `Roster.tsx`'s own long-standing note
+ * that the strip *"is not the intended front door ... once [the suite] exists
+ * the way you reach Mo is by looking at Mo"*.
+ *
+ * So the walk does both halves: `TEAM` flies the camera home to the room from
+ * wherever it is, and then the sign is tapped in the world. `__signAt` is the
+ * aiming seam (the twin of `__founderAt`, and there for the same reason) — a
+ * sweep of taps over the room would navigate the camera away from the thing it
+ * was hunting long before it found it.
+ */
+async function openRoster(page, budget = LEG_MS) {
+  if (await page.locator('.roster[data-phase="in"]').count()) return
+  await press(page, 'TEAM', budget)
+  const deadline = Date.now() + budget
+  for (;;) {
+    await pumpScene(page)
+    const at = await page.evaluate(() => window.__signAt?.() ?? null)
+    if (at) {
+      await page.mouse.click(at.x, at.y)
+      await page.waitForTimeout(250)
+      if (await page.locator('.roster').count()) return
+    }
+    if (Date.now() > deadline) {
+      fail(
+        at
+          ? `the sign over the suite door is at ${at.x},${at.y} and tapping it does not open the roster`
+          : 'the sign over the suite door is not on screen after pressing TEAM',
+      )
+    }
+    await page.waitForTimeout(120)
+  }
+}
+
+/**
  * Close one §10.6a window by its close box.
  *
  * Every window in the product now carries a box named `CLOSE` in the corner of
@@ -1235,7 +1273,7 @@ async function walkItems9and10(page, size) {
  */
 async function placeAHero(page, size) {
   const arm = async () => {
-    await press(page, 'HERO')
+    await openRoster(page)
     /*
      * §21.7.6 — **the strip is only called `HERO PLACEMENT` once Billy has
      * handed the floor over**, and before that `PLACE HERO` is not on the card
@@ -1347,7 +1385,7 @@ const governed = (page) =>
  * rather than refusing the sale, takes the point, and the node lights up.
  */
 async function spendOffBranch(page) {
-  await press(page, 'HERO')
+  await openRoster(page)
   /*
    * **A specialist, not James** — §13.9.1 amended 2026-08-27.
    *
@@ -1373,7 +1411,7 @@ async function spendOffBranch(page) {
     }
     await closeWindow(page, '.herocard', `${name}'s card`)
     await page.waitForTimeout(150)
-    await press(page, 'HERO')
+    await openRoster(page)
   }
   if (!opened) {
     fail('no specialist on the roster had a point to spend — §13.13 gives every arrival one')

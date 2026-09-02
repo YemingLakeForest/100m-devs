@@ -1,0 +1,1748 @@
+<!--
+  The room scene deck — sketches for GDD §7.8.1d.
+
+  Kept in the repo because §7.8.1d cites it and because the sketches are the
+  argument: the eight isometric drawings are generated from a scene description
+  in the 2:1 projection the game itself uses, so a claim made here about a slope
+  or a pitch is a claim that was drawn rather than asserted.
+
+  Open it in a browser. It is self-contained apart from two Google fonts, and it
+  degrades to a monospace fallback without them.
+
+  What of it is built, as of 2026-08-31: the apron, the plaza, the plinth and
+  its five rungs, the hallway floor finish, and the next-hire plate lip.
+
+  SUPERSEDED IN PART, same day, by GDD §7.8.1e. The deck's own "what is not
+  built" list has since been mostly built, and the sketches it argues from are a
+  snapshot of the floor as it stood before the plan was re-authored — the
+  five-by-two grid of identical squads is gone, the plates are ragged, the
+  apron is a ring with a city across it, and the corridor islands, the meeting
+  rooms, the canteen and the breakout nooks are in. Read §7.8.1e for the floor
+  as built; read this for the argument that got there, which is unchanged.
+  Still outstanding after §7.8.1e: role trim, people actually using the
+  amenities, names on the meeting rooms, and the garage's exterior props.
+-->
+<title>The Studio Has A Street</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@300;400;600;800&family=Archivo:wght@400;500;600&display=swap">
+<style>
+  /* ------------------------------------------------------------------
+     Single-theme by intent. ART_DIRECTION §1 puts the world behind CRT
+     glass — warm neutral, dense, lit from top-left. A brief for this game
+     that rendered white in light mode would be showing the sketches in a
+     palette the game does not own. Every colour is from src/art/palette.ts.
+     ------------------------------------------------------------------ */
+  :root {
+    --void:    #14121a;
+    --panel:   #1b1724;
+    --panel2:  #241f2e;
+    --rule:    #3a3244;
+    --rule2:   #55495e;
+    --dim:     #736579;
+    --mute:    #968a96;
+    --body:    #b8aeb3;
+    --bright:  #f2eee8;
+    --amber:   #e0a52e;
+    --amberdim:#8a5c12;
+    --amberpal:#ffe9b0;
+    --cyan:    #35c9d9;
+    --cyandim: #1a6b78;
+    --red:     #e03c3c;
+    --green:   #4c7a45;
+    --wood:    #96683f;
+
+    --measure: 66ch;
+    --wide: 1160px;
+    --mono: "Azeret Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+    --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--void);
+    color: var(--body);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: var(--wide); margin: 0 auto; padding: 0 24px 130px; }
+  .col  { max-width: var(--measure); margin-left: auto; margin-right: auto; }
+
+  /* ---------- masthead ---------- */
+  .mast { padding: 80px 0 52px; border-bottom: 1px solid var(--rule); }
+  .mast .eyebrow { margin-bottom: 30px; }
+  h1 {
+    font-family: var(--mono); font-weight: 800; font-size: clamp(34px, 6.4vw, 66px);
+    line-height: 0.98; letter-spacing: -0.035em; color: var(--bright);
+    margin: 0 0 22px; text-wrap: balance; max-width: 15ch;
+  }
+  h1 em { font-style: normal; color: var(--amber); }
+  .deck {
+    font-size: clamp(17px, 2.1vw, 21px); line-height: 1.5; color: var(--mute);
+    max-width: 54ch; margin: 0 0 34px; text-wrap: pretty;
+  }
+  .runsheet {
+    display: flex; flex-wrap: wrap; gap: 10px 26px;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 400;
+    letter-spacing: 0.11em; text-transform: uppercase; color: var(--dim);
+  }
+  .runsheet b { color: var(--body); font-weight: 600; }
+
+  /* ---------- section furniture ---------- */
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--amber);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+  .eyebrow .sec { color: var(--amberdim); }
+
+  section { padding-top: 78px; }
+  h2 {
+    font-family: var(--mono); font-weight: 700; font-size: clamp(23px, 3.4vw, 33px);
+    line-height: 1.1; letter-spacing: -0.025em; color: var(--bright);
+    margin: 22px 0 18px; text-wrap: balance; max-width: 23ch;
+  }
+  h3 {
+    font-family: var(--mono); font-weight: 600; font-size: 15px;
+    letter-spacing: 0.01em; color: var(--amberpal); margin: 38px 0 10px;
+  }
+  p { margin: 0 0 18px; text-wrap: pretty; }
+  p strong { color: var(--bright); font-weight: 600; }
+  p em { color: var(--amberpal); font-style: italic; }
+  code {
+    font-family: var(--mono); font-size: 0.86em; color: var(--cyan);
+    background: var(--panel2); padding: 1px 5px; border-radius: 2px;
+  }
+
+  /* ---------- sketch plate ---------- */
+  .plate {
+    margin: 40px 0 12px; background: var(--panel);
+    border: 1px solid var(--rule); position: relative; overflow: hidden;
+  }
+  .plate::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom,
+      rgba(20,18,26,0.26) 0px, rgba(20,18,26,0.26) 1px,
+      transparent 1px, transparent 3px);
+  }
+  .plate .bar {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px;
+    padding: 9px 14px; border-bottom: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--amber);
+    background: var(--panel2);
+  }
+  .plate .bar span { color: var(--dim); font-weight: 400; letter-spacing: 0.1em; }
+  .plate .art { display: block; width: 100%; height: auto; }
+  .cap {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.62;
+    color: var(--dim); margin: 0 0 34px; max-width: 80ch;
+  }
+  .cap b { color: var(--body); font-weight: 600; }
+
+  /* ---------- callouts ---------- */
+  .flag {
+    border-left: 3px solid var(--red); background: rgba(138,31,31,0.13);
+    padding: 20px 24px; margin: 34px 0;
+  }
+  .flag .tag {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.17em; text-transform: uppercase; color: var(--red);
+    display: block; margin-bottom: 10px;
+  }
+  .flag p:last-child { margin-bottom: 0; }
+  .flag q { color: var(--bright); font-style: italic; }
+
+  .note {
+    border-left: 3px solid var(--cyandim); background: rgba(26,107,120,0.11);
+    padding: 20px 24px; margin: 34px 0;
+  }
+  .note .tag {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.17em; text-transform: uppercase; color: var(--cyan);
+    display: block; margin-bottom: 10px;
+  }
+  .note p:last-child { margin-bottom: 0; }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; margin: 34px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 12px 18px 12px 0; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  th {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase; color: var(--amber);
+    border-bottom-color: var(--rule2); white-space: nowrap;
+  }
+  td:first-child { color: var(--bright); font-weight: 500; }
+  td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--mute); white-space: nowrap; }
+
+  /* ---------- program list ---------- */
+  .prog { list-style: none; padding: 0; margin: 26px 0; display: grid; gap: 1px; background: var(--rule); }
+  .prog li { background: var(--panel); padding: 15px 20px; display: grid; grid-template-columns: 132px 1fr; gap: 20px; align-items: baseline; }
+  .prog .where {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--amber); line-height: 1.55;
+  }
+  .prog .what { font-size: 15px; line-height: 1.5; }
+  .prog .what b { color: var(--bright); font-weight: 600; }
+  .prog .what i { font-style: normal; color: var(--dim); font-family: var(--mono); font-size: 11.5px; }
+  @media (max-width: 620px) { .prog li { grid-template-columns: 1fr; gap: 6px; } }
+
+  /* ---------- build order ---------- */
+  ol.build { counter-reset: b; list-style: none; padding: 0; margin: 26px 0; }
+  ol.build li { counter-increment: b; position: relative; padding: 0 0 22px 58px; }
+  ol.build li::before {
+    content: "[" counter(b, decimal-leading-zero) "]"; position: absolute; left: 0; top: 1px;
+    font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--amber);
+  }
+  ol.build b { color: var(--bright); font-weight: 600; display: block; font-family: var(--mono); font-size: 14.5px; margin-bottom: 3px; }
+
+  hr.end { border: 0; border-top: 1px solid var(--rule); margin: 74px 0 0; }
+  .sig { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); padding-top: 20px; line-height: 1.9; }
+
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="mast">
+    <div class="col">
+      <div class="eyebrow"><span class="sec">GDD §7.8.1</span> Level 1 — the room</div>
+      <h1>The studio has a <em>street</em></h1>
+      <p class="deck">Eight isometric sketches: the office floor at a thousand, the amenities that turn it into a place, and the garage it grew out of — all of it standing on one continuous piece of ground.</p>
+      <div class="runsheet">
+        <div><b>8</b> sketches</div>
+        <div>Ref: <b>Convention Expo Tycoon</b></div>
+        <div>Against: <b>room.ts @ 5,217 lines</b></div>
+        <div><b>2026-08-31</b></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">01</span> The read</div>
+      <h2>Six things the reference does, five of which are free</h2>
+      <p>What makes that video read as a <em>place</em> rather than as a diagram is not fidelity — it is nearly all flat colour, and the people are white capsules. It is six compositional decisions, and we are currently doing one and a half of them.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The six techniques <span>· translated into our palette</span></div>
+      <div id="s1"></div>
+    </figure>
+    <p class="cap col"><b>What we already do:</b> the cutaway shell, and half of the structural rhythm. <b>What we do not:</b> the coloured cap strip, the one dark room, crowd read as texture rather than as a thousand individuals, and — the big one — <b>any ground at all outside the slab.</b></p>
+
+    <div class="col">
+      <h3>1 · The shell is cut open, not removed</h3>
+      <p>No roof, but the perimeter is still <em>stated</em>: short wall stubs, a kerb line where the wall would be, and full-height columns standing proud of it. You read a floor plan that has volume. We have two window walls and then nothing — the other two sides just stop, which is why the floor reads as a slab.</p>
+
+      <h3>2 · Every partition wears a coloured cap</h3>
+      <p>Three pixels of saturated colour on the <em>top edge</em> of each low wall. That single strip is what lets forty rooms be told apart in a 960-pixel-wide frame, and it costs one extra quad per wall. It is the highest-value idea in the whole reference and it drops straight into <code>wallQuad()</code>.</p>
+
+      <h3>3 · One dark room</h3>
+      <p>Among pale rooms, one near-black room with a glow in it reads as <em>the important one</em> at any zoom, with no label. We already own the perfect candidate and have not used it this way: the <strong>server room</strong>. Same trick, opposite polarity — in our dark world the special room is the <em>bright</em> one, which is what the LEADERSHIP suite's lit glass should be.</p>
+
+      <h3>4 · Crowd is texture</h3>
+      <p>At the widest zoom the reference stops drawing people and starts drawing <em>density</em>. We draw a thousand real <code>Container</code>s at 59 fps, which is an achievement, and at floor zoom it buys us a grey shimmer. The fix is not fewer people — it is giving the eye something to measure the density <em>against</em>, which is what corridors, islands and columns do.</p>
+
+      <h3>5 · Structural rhythm</h3>
+      <p>Columns on a fixed pitch, tying the whole floor to one building. Our squad grid already has the pitch — <code>SQUAD_STRIDE_COLS</code> — and nothing standing on it.</p>
+
+      <h3>6 · The building never touches the frame edge</h3>
+      <p>There is always road, kerb, tree and parking bay on at least two sides. Not one of those objects is expensive. This is where nearly all of the reference's immersion actually lives, and it is the next section.</p>
+
+      <div class="note">
+        <span class="tag">The one thing not to take</span>
+        <p>The palette. That reference is near-white with saturated signage, and ART_DIRECTION §1 puts our world <em>behind CRT glass</em> — warm, neutral, dense, lit from top-left, with the one-hue-at-a-time saturation reserved for the interface. Take the composition and the density. Leave the white; a bright office would put the HUD's phosphor and the world on the same footing, which is the exact failure §0 of that document exists to prevent.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">02</span> The thesis</div>
+      <h2>One ground plane, from the driveway up</h2>
+      <p>Right now the room floats in pure black. Everything outside the slab is <code>#14121a</code> and nothing else, at every headcount from one developer to a thousand. That void is doing more damage than any missing prop: a lit rectangle on nothing reads as a UI panel, and the moment you put a kerb and a road under it, it reads as a building.</p>
+      <p>So the proposal is not "add an exterior to the office." It is stronger and cheaper than that: <strong>draw the ground once, and never change what it is.</strong> The garage's driveway meets a road. The small office's forecourt meets the same road. The thousand-person floor's car park meets the same road. You never left the street — the building just ate it.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">One road, three headcounts <span>· 2, 30 and 1,000 developers</span></div>
+      <div id="s2"></div>
+    </figure>
+    <p class="cap col">Three moments on one continuous kerb line. <b>Left:</b> the garage, one lamp, one car, night. <b>Centre:</b> the walls have pushed out past the driveway; the car has company; the tree survived. <b>Right:</b> the plot is consumed — bays where the lawn was, the tree line pushed to the boundary, the road unchanged. Same objects throughout. Nothing here is authored twice.</p>
+
+    <div class="col">
+      <p>That continuity buys a second thing for free, and it may be the best idea in this document: <strong>every amenity gets a garage ancestor.</strong> The cafeteria is not a new object at rung 5 — it is the pizza boxes on the car bonnet, promoted five times. Which means the amenity program is not decoration bolted onto the late game; it is the same five jokes told at increasing budget, and the player who sees the barista bar at eight hundred developers has been watching that gag since the kettle on the paint tin.</p>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>Thing</th><th>Garage · 1–5</th><th>Office · 6–100</th><th>Floor · 101–1,000</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Cold storage</td><td>The beer fridge</td><td>Kitchenette island</td><td>Servery + cafeteria run</td></tr>
+            <tr><td>Water</td><td>The garden hose</td><td>One water cooler</td><td>Eight water points, all queued</td></tr>
+            <tr><td>Caffeine</td><td>Kettle on a paint tin</td><td>Coffee machine</td><td>Barista bar with a rope line</td></tr>
+            <tr><td>Food</td><td>Pizza boxes on the bonnet</td><td>A microwave and a sink</td><td>Benches, trays, a queue out the door</td></tr>
+            <tr><td>Leadership</td><td>Tape square, cardboard sign</td><td>Curtained corner</td><td>Glass suite, extruded steel letters</td></tr>
+            <tr><td>Parking</td><td>The car, on the drive</td><td>Six bays</td><td>Forty bays and an overflow row</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">03</span> Canon</div>
+      <h2>This contradicts §7.8.1, and we are doing it anyway</h2>
+    </div>
+    <div class="col">
+      <div class="flag">
+        <span class="tag">GDD §7.8.1 — population steps, the 301–1,000 row</span>
+        <p>The table's last row reads, in the column headed <em>What arrives with it</em>: <q>Nothing. There is no space left to add anything.</q> And the paragraph under it: <q>The props stop arriving and then start disappearing — the dividers go, the plant is gone, the walkway is desks now. The room gets worse as it gets fuller.</q></p>
+        <p>A cafeteria, four kitchenette islands, eight water points and a leadership suite at a thousand developers is the direct opposite of that row. Per CLAUDE.md the latest instruction is canonical, so this is what gets built — and <code>GDD.html</code> §7.8.1 gets amended in the same batch that builds it, not appended to.</p>
+      </div>
+
+      <p>But the amendment should keep the thesis, because the thesis is right and it is §6 of the whole design. The reconciliation is one word: <strong>congestion, not deletion.</strong></p>
+      <p>The room getting worse as it fills was only ever <em>implemented</em> as subtraction. Subtraction is the weakest available reading, and it makes the 301–1,000 band — which is the Act IV image, the picture the game has been climbing toward — the emptiest frame in the product. A floor that has had things taken off it is a floor with less to look at.</p>
+      <p>Whereas: the amenities <em>arrive</em>, and the queues arrive with them. Six people around a kitchenette island meant for two. A water point with a line. A cafeteria bench at four hundred percent occupancy with people eating standing up in the corridor. The corridor crossing that was the floor's one piece of breathing room, jammed solid. <strong>The company keeps installing things and the room keeps getting worse, and those are the same sentence.</strong> That is a far crueller picture than an empty slab, and it is a much better one.</p>
+      <p>It also survives contact with the existing code: <code>propsAt()</code> already has a <code>crowded</code> flag at <code>devs &gt;= 80</code> that currently only adds cardboard boxes. Everything above is that flag, applied to occupancy counts instead of to prop existence.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">04</span> The office</div>
+      <h2>A thousand a floor, and not one seat moved</h2>
+      <p>The floor is already <code>ROOM_SQUAD_COLS = 5</code> by <code>ROOM_SQUAD_ROWS = 2</code> squads of a hundred. Between them run <code>CORRIDOR_COLS = 2.6</code> and <code>CORRIDOR_ROWS = 2.0</code> of empty floor, and around them <code>FLOOR_AISLE_COLS = 4</code> of empty margin. <strong>Almost the whole amenity program fits in space that already exists and is currently blank.</strong></p>
+      <p>Two things do ask for room. The plaza needs the transverse corridor opened from 2.0 to about 5.0 — <em>uniformly</em>, so no plate moves — which costs 3.3 grid units of floor depth. And brick-bonding the back row costs 3.0 units of width. Both are shell growth. Neither is a seat.</p>
+      <p>That matters for more than tidiness. §7.8.1b fixes that developers arrive row by row and seat <em>n</em> is always the same seat; moving the grid to make room for a canteen would move everybody already sitting in it. Putting the program in the hallways and the perimeter costs zero seats, so <code>seatFor()</code>, the hero plots and the <code>test:room</code> containment proofs all stand.</p>
+
+      <div class="note">
+        <span class="tag">Correction — the first sketches had the grain wrong</span>
+        <p>They laid desk rows along the wrong floor axis at a near-uniform pitch, which is exactly a phalanx: a square block of identical figures with no aisle and no front. <strong>The shipped renderer does not do that.</strong></p>
+        <p><code>isoAt(col, row)</code> returns <code>gridToScreen(row * PITCH_ROW, col * PITCH_COL)</code>. A row runs south-west along <code>gy</code> at <code>PITCH_COL = 1</code> — desks butted shoulder to shoulder, no gap — and the next row steps south-east along <code>gx</code> at <code>PITCH_ROW = 2.1</code>, which is the aisle. <strong>One tile along a row, 2.1 behind it.</strong> That ratio is the floor's grain, it is already in the code, and it is most of the answer on its own.</p>
+        <p>It also changes what a plate <em>is</em>. A hundred seats at ten by ten is 10 tiles across and <strong>21 deep</strong> — a ribbon running away from the camera, never a square. Every sketch below is redrawn on it.</p>
+      </div>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">Floor plan at 1,000 <span>· ten plates, no two the same shape, on a spine and four ribs</span></div>
+      <div id="s3"></div>
+    </figure>
+    <p class="cap col">Rows run along <code>gy</code> at one tile a seat; rows step along <code>gx</code> at 2.1 — <code>isoAt()</code>'s own arrangement, so the aisle behind every row is real. <b>No plate is a rectangle:</b> five rows of twelve on QA, seven ragged ones on SRE, a bite out of the eighth for a huddle, and the tenth still filling. The spine runs the width of the floor with the plaza on it; four ribs cross it, each with a kitchenette at the T.</p>
+
+    <div class="col">
+      <h3>The program</h3>
+      <ul class="prog">
+        <li><span class="where">North corner</span><span class="what"><b>Leadership suite</b> — the existing <code>SUITE_WEST_COL</code> / <code>SUITE_WALL_ROW</code> box, grown into a real boardroom with a table, twelve chairs and the extruded sign. <i>Section 08.</i></span></li>
+        <li><span class="where">NE + NW walls</span><span class="what"><b>Server rooms</b> — two glass boxes against the window walls. The dark-room trick, inverted: in our world these are the brightest thing on the floor, LED columns behind glass. <code>serverRack</code> already exists as a prop and is currently one object against a wall.</span></li>
+        <li><span class="where">Middle</span><span class="what"><b>The plaza</b> — an octagon in the widened transverse corridor, a ring of sofas facing inward, and a plinth in the centre. The floor's one destination that is not a desk, a queue or a wall. <i>Sections 06 and 07.</i></span></li>
+        <li><span class="where">4 × T-junctions</span><span class="what"><b>Kitchenette islands</b> — where a longitudinal corridor meets the transverse one. Brick bond turns the old crossroads into T-junctions, which is better for this: a T has a wall behind it and traffic still passes on three sides.</span></li>
+        <li><span class="where">8 × mid-span</span><span class="what"><b>Water points</b> — cooler, two spare bottles, a mat, a puddle of light. One per squad edge on the longitudinal corridors. The cheapest object here and the one that reads soonest as "an office".</span></li>
+        <li><span class="where">Service band</span><span class="what"><b>Cafeteria + servery</b> — across the camera-near edge, in the aisle widened from 2 rows to about 5. The near edge is the most legible real estate on the floor. <i>Section 09.</i></span></li>
+        <li><span class="where">Service band</span><span class="what"><b>Lift core and WCs</b> — two solid blocks. These are the floor's structural anchor and its only opaque interior masses; without them a cutaway floor has nothing to occlude against.</span></li>
+        <li><span class="where">Window walls</span><span class="what"><b>Meeting pods</b> — already canon and never built: §7.8.1 puts <q>meeting pods along one edge, occupied</q> in the 101–300 band. Four-person glass boxes with a table and a wall screen.</span></li>
+        <li><span class="where">Squad corners</span><span class="what"><b>Structural columns</b> — on the <code>SQUAD_STRIDE</code> pitch, running floor to above the cut line. Free vertical rhythm; the single change that most makes a floor read as part of a building.</span></li>
+        <li><span class="where">Near vertex</span><span class="what"><b>Reception</b> — desk, two sofas, a sign. It is where the camera looks first and where the arrival animation should land.</span></li>
+      </ul>
+
+      <h3>The corridor is already empty</h3>
+      <p>Worth seeing on its own, because it is the whole argument for why this is cheap.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">One rib junction <span>· as built, and worked</span></div>
+      <div id="s4"></div>
+    </figure>
+    <p class="cap col"><b>Top:</b> the rib as it draws today — the same floor colour with nothing standing on it, and four plates with no edge. <b>Bottom:</b> a floor finish with a defined edge, an island, a bin, a column, a locker run, and role trim on the plates. Footprint of the island: 1.3 × 0.8. It does not touch a seat and traffic still passes on three sides.</p>
+  </section>
+
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">05</span> Variation</div>
+      <h2>Seven ways to stop a floor reading as a car park</h2>
+      <p>The lattice is the real problem with the floor, and it is not fixed by hanging amenities around the edge of it. Ten identical plates on a regular grid, each of ten identical rows, is a car park of car parks.</p>
+      <p>§7.8.1 already diagnosed this one scale down, and its words fit exactly: a single uniform pitch reads as <q>a lattice of identical objects with no front, no grain, and no indication of which way anyone is meant to move through it.</q> The fix there was to split the pitch — tight along a row, generous behind it. <strong>The fix here is the same fix applied one level up: split the pitch between plates, and give the plates an identity.</strong></p>
+
+      <ul class="prog">
+        <li><span class="where">Pitch</span><span class="what"><b>Brick bond.</b> The back row of plates steps half a stride — 3.0 units — relative to the front. The longitudinal corridors stop being straight canyons running the whole depth of the floor, and the crossroads become T-junctions. <i>Costs 3.0 units of shell width. Costs no seats.</i></span></li>
+        <li><span class="where">Outline</span><span class="what"><b>No plate is a rectangle.</b> Rows run 7 to 12 seats instead of 10 every time, the ends are ragged, and where a hallway meets a plate a bite comes out of it for a two-chair huddle. This is the direct answer to the legion: the grain inside a plate was already right, and it was the plate's <em>outline</em> that made it a formation. <i>The ragged pattern is fixed per row index, not solved per headcount — §7.8.1b's whole point is that a row which widens moves everybody already sitting in it.</i></span></li>
+        <li><span class="where">Colour</span><span class="what"><b>Role trim on the plate edge.</b> §4.9 seats roles together and §4.15 already owns a colour vocabulary; <code>branchColour()</code> has six of them. A QA plate is amber-edged, an SRE plate red, Support green, engineering the cream. This is the reference's cap strip carrying real information: <i>at floor zoom the trim is an org chart.</i></span></li>
+        <li><span class="where">State</span><span class="what"><b>The filling plate looks unfinished.</b> The newest squad draws bare desks with no chairs and a stack of monitor boxes in the corner. §7.8.1b promises that hire <em>n</em> takes the next seat in the row, and nothing on screen currently shows you which seat that is.</span></li>
+        <li><span class="where">Props</span><span class="what"><b>Furniture inside the floor, not only against the walls.</b> <code>wallSpot()</code> puts every prop on a perimeter, which is exactly why the middle is a lattice. A whiteboard at the end of a row, a plant on a plate corner, a coat rack, a recycling station, a printer island in the aisle.</span></li>
+        <li><span class="where">Edge</span><span class="what"><b>The window row is different work.</b> Plates against the glass get standing desks and a ledge facing out. One rule, and it stops the perimeter and the core being the same picture.</span></li>
+        <li><span class="where">Middle</span><span class="what"><b>The plaza.</b> The next two sections.</span></li>
+      </ul>
+
+      <h3>Three widths, and only two of them are hallways</h3>
+      <p>The other half of the fix, and the one that actually shapes the plates. At the moment a "corridor" is <em>an absence of desks</em> — the same floor colour with nothing standing on it. That is not a hallway, it is a gap, and a floor made of gaps between blocks is a parade ground.</p>
+      <p>A hallway becomes an object when it has five things, none of them expensive: <strong>its own floor finish</strong> with a defined edge where it meets a plate; <strong>a run of beams overhead</strong> with light strips in them, which reads even in a cutaway; <strong>a destination at each end</strong>, so it is going somewhere rather than merely being empty; <strong>something along one side</strong> — lockers, a noticeboard, vending, bikes, a printer bay; and <strong>a sign at each junction</strong>, hung, in the colour of the zone it points at.</p>
+      <p>Then there is a hierarchy, which is what stops every gap looking equally important:</p>
+      <ul class="prog">
+        <li><span class="where">Spine · 4.2</span><span class="what"><b>One, running the full width of the floor.</b> The lightest finish, the beam run, the wayfinding. Reception at one end, the lift core at the other, the plaza in the middle of it.</span></li>
+        <li><span class="where">Rib · 1.8</span><span class="what"><b>Four, running front to back off the spine.</b> Plate edge to plate edge, terminating in glass. Where a rib meets the spine you get a T-junction — which is a better place for a kitchenette than a crossroads, because a T has a wall behind it.</span></li>
+        <li><span class="where">Slip · 1.05</span><span class="what"><b>The aisle behind every desk row.</b> <code>PITCH_ROW</code> minus the desk. This is <em>not</em> a hallway and should not be dressed as one — naming it separately is how the other two stay meaningful.</span></li>
+      </ul>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The spine <span>· what turns a gap into a hallway, and the three widths</span></div>
+      <div id="s12"></div>
+    </figure>
+    <p class="cap col">Floor finish, edge, beam run, wall furniture, hung signage — and a plate on each side with its rows running away along <code>gy</code>, which is what a bank of desks actually looks like beside a corridor. <b>The slip is in the key to be excluded from it.</b></p>
+
+    <div class="col">
+
+    <figure class="plate">
+      <div class="bar">One plate <span>· a perfect rectangle, and one that is not</span></div>
+      <div id="s9"></div>
+    </figure>
+    <p class="cap col">Both hold the same hundred seats in the same arrival order, on the same grain. <b>Left:</b> seven rows of ten, no edge, no props — a rectangle, repeated ten times, which is the formation. <b>Right:</b> the same seats with ragged ends, a bite taken out for a two-chair huddle, an amber QA edge, a squad sign on the corner column, and four pieces of furniture standing in the floor rather than against a wall.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">06</span> The plaza</div>
+      <h2>A ring of sofas, and one thing worth looking at</h2>
+      <p>The transverse corridor opens from 2.0 grid units to 5.0 along its whole length — uniformly, so not one plate moves — and the plaza takes the middle of it. Circulation on a floor of a thousand people wants that width anyway; the plaza is what the width is <em>for</em>.</p>
+
+      <h3>Why an octagon</h3>
+      <p>Because it is the only rounded shape this projection gives you for free. An octagon laid out in <em>grid</em> space puts four of its edges on the floor axes — screen slope ±0.50, the only legal value — and four on the floor's own diagonals, which come out exactly vertical and exactly horizontal on screen. Every edge is a real direction in the floor plane. A circle approximated in screen pixels would be the same class of mistake as the kite-shaped floor plate: a shape that is not lying on the ground.</p>
+
+      <h3>What is in the ring</h3>
+      <p>Four sofas, one on each axis edge, backs outward and facing in. Four pouffes on the diagonals, because a sofa cannot sit on a diagonal edge without leaving the projection. Four planters outside the ring on the same diagonals, two low tables, a laptop somebody left open, and a mug nobody has taken back.</p>
+
+      <h3>And it has a job</h3>
+      <p>This is the part that matters mechanically. §7.8.6's errands and the slack-off walkers need somewhere to <em>go</em>, and right now the only destinations on the floor are a water cooler and a wall. The plaza is a real one, and every person sitting in it is a person not at a desk — <strong>the entropy argument standing up and walking across the room</strong>. The cafeteria queue makes the same argument at the edge of the floor. The plaza makes it in the middle, where you cannot miss it.</p>
+      <p>Occupancy is the dial, exactly as it is for the benches: at a hundred developers the ring is half empty and reads as a perk. At a thousand every seat is taken, people are perched on the planter edges, and one side of the ring is closed — which is the next section.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The plaza <span>· sofa ring, planters, and the plinth at rung 4</span></div>
+      <div id="s10"></div>
+    </figure>
+    <p class="cap col">Octagon of radius 2.5 in a corridor 5.0 deep, with the plates either side exactly where they were. The gilded rung brings four floor uplighters and a velvet rope, and <b>the rope closes the south sofa.</b></p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">07</span> The plinth</div>
+      <h2>The founder, cast — and the rope that closes a sofa</h2>
+      <p>The vanity item in the middle is <strong>a statue of you</strong>, and the reason it should be that rather than a fountain or an abstract sculpture is that it is the only object in the game that can be <em>personal without being authored</em>. It is built from the same two boxes a developer is, at 2.4× scale, out of the look the player already chose in <code>game/founderProfile.ts</code> — body shape, hair, shirt. No two runs get the same statue and nothing has to be drawn.</p>
+      <p>It holds the studio's <strong>first shipped release</strong> aloft, gold-plated. The plaque reads that game's real title and its real §4.14 rating, pulled from the save: <code>FLAPPY SQUARE 1.0 — 6/10</code>. And it faces the leadership suite in the north corner. <em>It has its back to the floor.</em></p>
+
+      <h3>Five rungs, one slot</h3>
+      <p>Same device as the LEADERSHIP sign, deliberately — one gag engine, told in materials, is a house style rather than a repeat.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Rung</th><th>Devs</th><th>What is on the plinth</th></tr></thead>
+          <tbody>
+            <tr><td>The empty plinth</td><td class="n">100</td><td>Facilities built it before anybody decided what goes on it. An A4 taped to the front: <code>STATUE — TBD</code>.</td></tr>
+            <tr><td>The standee</td><td class="n">200</td><td>A life-size foamboard cutout of the founder, warping at one corner.</td></tr>
+            <tr><td>The resin bust</td><td class="n">400</td><td>Head and shoulders. The likeness is off, and it is never fixed.</td></tr>
+            <tr><td>The bronze</td><td class="n">700</td><td>Full height, holding the first release. The plaque arrives.</td></tr>
+            <tr><td>The gilded</td><td class="n">1,000</td><td>Gold leaf, four floor uplighters, a velvet rope, and it turns.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flag">
+        <span class="tag">Why the rope is the whole point — §7.8.5</span>
+        <p>The GDD names one detail it explicitly asks to protect: <q>crowding removes the things somebody chose — the plants, the sofa — and adds more of the thing nobody chose, the unpacked cardboard. A room that merely emptied would read as a budget cut.</q></p>
+        <p>The gilded rung is that rule, made specific and made personal. <strong>The sofa is not taken away by crowding. It is taken away by you</strong> — roped off so that a thousand people have somewhere to not sit while they look at a gold statue of the person who hired them. That is a crueller version of the detail the document is protecting, and it survives the amendment §03 already needs.</p>
+      </div>
+
+      <h3>Does it do anything?</h3>
+      <p>No, and it should say so. The plaza has a function — it is where the errand walkers go. The statue has none: it costs real cash, produces nothing measurable, and the purchase card should state that in one line rather than inventing a morale stat to justify it. Keeping the two apart is what makes the joke land, because the useful thing is the sofas and the expensive thing is sitting in the middle of them taking up the room. <em>If you would rather it carried a small entropy effect, say so — but my recommendation is that it does not.</em></p>
+
+      <h3>The plinth is a slot</h3>
+      <p>One geometry, five occupants; the statue is only the default. Whatever stands there is the only object in the middle of the floor, so the choice is visible at floor zoom without a label — which is what makes it worth choosing.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The plinth <span>· five rungs, and five things that could stand on it instead</span></div>
+      <div id="s11"></div>
+    </figure>
+    <p class="cap col"><b>Top row:</b> the statue's five budgets on the same plinth. <b>Bottom row:</b> the alternates. <b>The original desk</b> — the garage desk itself, under glass, monitor still on, which is §02's continuous ground finished as an object. <b>The monolith</b> — a black slab etched with the first commit hash; people touch it going past. <b>The rocket</b> — the release icon from the HUD, three metres, on gimbals. <b>The trophy case</b> — a shelf per shipped title, empty shelves included. <b>The fountain</b> — the only water on the floor that is not a cooler, which finishes the water-point joke.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">08</span> Leadership</div>
+      <h2>Extruded letters, on a wall the projection allows</h2>
+      <p>The sign is asked for as floating 3D text on the wall, and there is exactly one constraint that decides how it is built: <strong>a plane lying in this projection runs at a screen slope of ±0.50 and there is no third legal value.</strong> That is the defect the room shipped once already — three glass panes at slopes of −0.39, +1.18 and −1.05 — and it is what <code>test:room</code> now exists to catch.</p>
+      <p>So the letters are drawn as a sheared text run on the wall's own plane, extruded by repeating it along the wall <em>normal</em> in four to six steps, darkest at the back. That gives real depth, stays exactly on the legal slope, and costs one <code>Text</code> object plus a handful of tinted copies. The sign stands <code>SUITE_SIGN_OUT = 0.3</code> tiles proud of the wall, which is already a constant in <code>room.ts</code> — it just has no depth yet.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The leadership suite <span>· and the sign's five materials</span></div>
+      <div id="s5"></div>
+    </figure>
+    <p class="cap col"><b>Top:</b> the suite at floor scale — glass on two sides, opaque on the two that are the room's own back walls, boardroom table, twelve chairs, a wall screen, and the sign standing off the opaque wall on the legal slope. <b>Bottom:</b> the same word at five budgets. One gag, six hundred developers long.</p>
+
+    <div class="col">
+      <p>The material ladder is the joke and it should be built as one object with five skins, not five objects. Cardboard, sagging, hand-lettered, in the taped square on the garage floor. Then whiteboard marker. Then printed vinyl on the first real partition. Then backlit acrylic. Then, at the top, extruded brushed steel with a rim light, on the glass suite of a floor holding a thousand people — the same word, in the same place, that somebody wrote on a box.</p>
+      <div class="note">
+        <span class="tag">Legibility floor</span>
+        <p>Per §7.8.13's plate rule, the sign is set in the one pixel face <em>at its own design size and never below it</em>. A resampled pixel glyph is not fainter, it is different — the plates came out of the renderer reading <code>I-EANFRAHTP</code> the first time. So <code>LEADERSHIP</code> does not shrink with zoom; it drops to <code>LEAD</code>, then to the lit box alone. At floor zoom the question has already stopped being "what does that say" and become "what is that lit box in the corner", and the box is the answer.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">09</span> Amenity</div>
+      <h2>The cafeteria is a queue with furniture around it</h2>
+      <p>A canteen drawn as empty tables is set dressing. A canteen drawn as a servery with a line coming out of it is a <em>mechanic you can see</em> — and it is where §7.8.6's errands and the slack-off system already want somewhere to go. Every person in that queue is a person not at a desk, which is the entropy argument standing up and walking across the floor.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The service band <span>· servery, benches, kitchenette island, water point</span></div>
+      <div id="s6"></div>
+    </figure>
+    <div class="col">
+      <h3>The kitchenette island</h3>
+      <p>Four of these, one at each T-junction where a rib meets the spine, and they are the most-used object on the floor after a desk. An island is the right shape for the position: people stand on all four sides of it and traffic still passes, which is not true of anything pushed against a wall.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The kitchenette island <span>· counter, run, bins, stools</span></div>
+      <div id="s13"></div>
+    </figure>
+    <p class="cap col"><b>The island:</b> sink and tap, kettle, a mug tree of mismatched mugs, a bowl of fruit nobody eats, a stack of takeaway cups, and a waterfall end. <b>The run behind:</b> tall fridge, worktop, microwave, bean-to-cup machine, wall units. <b>Three bins</b> in a row, colour-capped, and the recycling one is overflowing. <b>Three stools</b> on the hallway side, two of them occupied by people who are not working. Two pendants over the island are the only light source in the vignette — which is what makes it read as a room within a room rather than a counter in a void.</p>
+
+    <p class="cap col">Left to right along the near edge: <b>servery</b> (hot counter, sneeze glass, tray rail, two staff behind), <b>bench seating</b> at 2 × 6 with the far bench already full, <b>kitchenette island</b> with kettle, sink and a bin that is overflowing, <b>water point</b> with two bottles and a queue of three. Occupancy is the dial: at 100 developers the benches are half empty and it looks like a perk; at 1,000 people are eating standing up in the corridor.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">10</span> Outside</div>
+      <h2>Kerb, lane dash, four trees, one lamp</h2>
+      <p>The exterior is a shallow apron ringing the slab, and it is deliberately shallow — this is Level 1, and §7.7.1 gives streets and towers to the block level. What goes here is the <em>immediate</em> ground: enough to say the building stands somewhere, and not one object more.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The apron <span>· what surrounds the slab, and what is behind the glass</span></div>
+      <div id="s7"></div>
+    </figure>
+    <p class="cap col"><b>On the two open sides:</b> forecourt, kerb, footway, road with centre dashes, parking bays, tree line, lamps. <b>Behind the two window walls:</b> a three-layer parallax band — near rooftops, a lit road, distant towers — because the floor is up a tower and the honest view out of it is a view <em>down</em>. Both are strips, not scenes. The tree is four boxes.</p>
+
+    <div class="col">
+      <div class="note">
+        <span class="tag">Scale check</span>
+        <p>At a thousand developers the slab is roughly 66 × 26 grid units. An apron that reads at all needs about 6 units of depth on the two open sides, which is a 10% growth in the camera's content box — inside what <code>ROOM_CONTENT_PAD_X = 84</code> / <code>PAD_Y = 48</code> already reserve for props standing past the shell. The apron should be part of that pad rather than a new fit rule, or the camera will start cropping the founder again.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">11</span> The garage</div>
+      <h2>Simpler, and funnier, and it needs the leadership room most</h2>
+      <p>The garage is where the whole ladder is established, so it earns more than it currently has. It already owns the bones — door, slab, block walls, workbench, shelving, beer fridge. What it is missing is <strong>outside</strong>, and <strong>the joke</strong>.</p>
+    </div>
+
+    <figure class="plate">
+      <div class="bar">The garage <span>· drive, street, and the leadership room at three budgets</span></div>
+      <div id="s8"></div>
+    </figure>
+    <p class="cap col"><b>Outside:</b> cracked drive apron, kerb, road, mailbox, wheelie bin, one tree, one sodium lamp, the neighbour's fence, the hatchback. Night — the lamp and the monitor are the only two light sources in the entire game at this point, which is §7.8.1's first row taken literally. <b>Inside, along the bottom:</b> the leadership room's first three states.</p>
+
+    <div class="col">
+      <h3>The leadership room in a garage</h3>
+      <p>It cannot be a room, which is exactly why it should exist. Three states before the first real wall:</p>
+      <ul class="prog">
+        <li><span class="where">3–5 devs</span><span class="what"><b>A taped rectangle on the concrete.</b> One folding chair inside it. A cardboard sign against the wall, hand-lettered, sagging, with the P running out of room. <i>Nobody sits in it.</i></span></li>
+        <li><span class="where">6–10 devs</span><span class="what"><b>A shower curtain on a rail</b> round the corner by the fridge. The sign is now whiteboard marker, and it has been rewritten straighter. <i>Somebody is in there.</i></span></li>
+        <li><span class="where">11–30 devs</span><span class="what"><b>The first real partition</b> — one glass panel and a door, standing on the concrete with the tape still visible under it. Printed vinyl sign. <i>This is the panel the office suite is built from, and it never leaves.</i></span></li>
+      </ul>
+      <p>The tape staying visible under the glass for the rest of the game is the single cheapest piece of storytelling available to us, and it is one polygon.</p>
+
+      <h3>What else the garage should get</h3>
+      <p>All of these are the garage-grade ancestors from §02, and each one is two or three boxes: the <strong>kettle on an upturned paint tin</strong> beside the fridge; the <strong>garden hose</strong> coiled by the side door, which is the water place; a <strong>tower of pizza boxes on the car bonnet</strong> that grows a box per shipped release; a <strong>whiteboard leaning against the wall</strong> rather than hung, because nobody has drilled it yet; and a <strong>basketball hoop over the up-and-over door</strong>, outside, with no net.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="col">
+      <div class="eyebrow"><span class="sec">12</span> Order</div>
+      <h2>What to build first, and which gate will argue</h2>
+      <p>Ranked by legibility gained per line changed. The first two are most of the effect.</p>
+
+      <ol class="build">
+        <li><b>The ground plane and the kerb</b>Kill the void. A ground quad, a kerb line, a road band with dashes, four trees and two lamps, sized off the shell and growing with it. Largest single change to how the room reads, and it touches no game state. <em>Argues with:</em> the camera fit — fold the apron into <code>ROOM_CONTENT_PAD</code>, don't add a rule.</li>
+        <li><b>The coloured cap strip, carrying role</b>One extra quad on the top edge of every wall, partition and plate kerb, in the role colour where the zone has one. Turns ten grey plates into a readable org chart and the suite, server rooms and pods into four distinguishable objects. <em>Argues with:</em> nothing. Additive, one function.</li>
+        <li><b>The hallways — spine, ribs, and a floor finish</b>The highest-value change on this list after the ground plane, because it is what makes every other zone read as being <em>somewhere</em>. A finish, an edge, a beam run, wall furniture, hung signage. <em>Argues with:</em> <code>walkPath.ts</code>, which should route down these rather than through the desks.</li>
+        <li><b>Ragged plates and brick bond</b>The two changes that kill the formation, and neither moves a seat or reorders an arrival: a fixed per-row length table instead of a constant ten, and the back row stepped half a stride. <em>Argues with:</em> <code>test:room</code> plate containment, and 3.0 units of extra shell width.</li>
+        <li><b>The plaza</b>Widen the transverse corridor to 5.0 uniformly, cut the octagon, ring it with four sofas and four pouffes, and point the errand walkers at it. Useful before the plinth exists. <em>Argues with:</em> <code>CORRIDOR_ROWS</code>, the camera re-fit, and <code>walkPath.ts</code>, which now has a destination worth routing to.</li>
+        <li><b>The plinth, at rung 0</b>Ship the empty plinth and the taped A4 first. It is three boxes, it is funny on its own, and it makes the vanity slot visible before there is anything to put in it.</li>
+        <li><b>Structural columns on the squad pitch</b>Columns floor-to-cut-line on <code>SQUAD_STRIDE</code>, plus the squad sign at the top of each. <em>Argues with:</em> containment — columns stand at plate corners, which is exactly where the plate edge is.</li>
+        <li><b>The statue, rungs 1–4</b>One builder, five branches, reading <code>founderProfile</code> and the first release from the save. The rope closing the south sofa is part of rung 4, not a separate feature.</li>
+        <li><b>The extruded LEADERSHIP sign</b>Shear on the legal ±0.50 slope, five to six tinted copies along the wall normal. <em>Argues with:</em> <code>test:room</code>'s slope assertion, which is the point.</li>
+        <li><b>Corridor program: islands and water points</b>Four islands at the T-junctions, eight coolers at the mid-spans, driven by a zone table rather than <code>propsAt()</code>'s flat list. <em>Argues with:</em> <code>walkPath.ts</code> — the lanes run down those corridors and now have obstacles in them.</li>
+        <li><b>The service band and the cafeteria</b>The one item that needs the near aisle to grow, 2 rows to ~5. <em>Argues with:</em> <code>FLOOR_AISLE_ROWS</code>, <code>roomMargin()</code>, the plate containment inequality, and the camera. Do it last, on its own.</li>
+        <li><b>Garage exterior and the tape square</b>Independent of all of the above, and the first thing a new player sees. Could go first if the goal is the opening ninety seconds rather than the late game.</li>
+      </ol>
+
+      <div class="note">
+        <span class="tag">Open question for you</span>
+        <p>Three of these grow the shell rather than fill it: brick bond takes 3.0 units of width, the plaza takes 3.3 of depth, and the cafeteria takes about 3 more. That is roughly a tenth of the floor in each direction, all of it landing on the constants <code>test:room</code> is built from. It is straightforward work — aisle constants and a re-fit — but it wants deciding <em>once</em>, up front, because items 1 and 11 both size themselves off that shell and the camera has to be told about all of it in one go.</p>
+      </div>
+    </div>
+
+    <hr class="end">
+    <div class="col sig">
+      Sketches drawn in the 2:1 projection at <b>TILE_W 64 / TILE_H 32</b>, from the master palette in <code>src/art/palette.ts</code>.<br>
+      Nothing here is built yet. <code>GDD.html</code> §7.8.1 is unamended and still says the room gains nothing past 300.
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ====================================================================
+   A small isometric renderer, in the projection the game uses: one tile
+   across is half a tile down. A sketch drawn here and a room drawn by
+   room.ts disagree about nothing except fidelity.
+
+   Two things it has to get right, and they are the two things the room
+   itself got wrong the first time round:
+
+   - Everything is declared in GRID UNITS. No object is positioned in
+     screen pixels, because a screen-pixel offset inside an isometric
+     room is how you end up with a wall at a slope of -0.39.
+   - Long boxes are SPLIT before sorting. A painter's algorithm keyed on
+     an object's centre puts a wall spanning the whole floor in front of
+     the floor. Splitting gives each segment a local depth, and the
+     interior faces of a split are suppressed so the seam does not show.
+   ==================================================================== */
+
+const TW = 64, TH = 32, ZH = 32;
+const SPLIT = 2.0;                 /* longest box that sorts as one piece */
+
+const PAL = {
+  void:'#14121a', n1:'#241f2e', n2:'#3a3244', n3:'#55495e', n4:'#736579',
+  n5:'#968a96', n6:'#b8aeb3', n8:'#f2eee8',
+  wood:'#96683f', wood2:'#6b452c', wood3:'#c19366',
+  glow:'#4a8fa8', glow2:'#7fd4e8', glowdk:'#2a4a5c',
+  green:'#4c7a45', green2:'#2e4a2c',
+  amber:'#e0a52e', amberdk:'#8a5c12', amberpal:'#ffe9b0',
+  cyan:'#35c9d9', cyandk:'#1a6b78',
+  red:'#e03c3c', violet:'#6b3a8a',
+};
+
+function hx(h){ return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)]; }
+function rgbs(a){ return '#' + a.map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join(''); }
+/* Mix toward the palette's own endpoints, never toward pure white or
+   black, so a shaded face is still a colour the game owns. */
+function lighten(c,t){ const a=hx(c), b=hx(PAL.n8); return rgbs(a.map((v,i)=>v+(b[i]-v)*t)); }
+function darken(c,t){ const a=hx(c), b=hx(PAL.void); return rgbs(a.map((v,i)=>v+(b[i]-v)*t)); }
+
+function makeScene(scale) {
+  const flat = [];    /* ground: tiles, roads, markings. Always underneath. */
+  const solid = [];   /* boxes, near corner last */
+  const over = [];    /* annotation, always on top */
+
+  const S = {
+    scale,
+    p(gx, gy, gz) { return [ (gx-gy)*(TW/2)*scale, (gx+gy)*(TH/2)*scale - gz*ZH*scale ]; },
+
+    tile(x, y, w, d, c, z, op) {
+      flat.push({ sort: x+y+(z||0), c, op, pts: [[x,y,z||0],[x+w,y,z||0],[x+w,y+d,z||0],[x,y+d,z||0]] });
+      return S;
+    },
+    poly(pts, c, z, op) {
+      const zz = z||0, mn = Math.min.apply(null, pts.map(q=>q[0]+q[1]));
+      flat.push({ sort: mn + zz*4, c, op, pts: pts.map(q => [q[0], q[1], zz]) });
+      return S;
+    },
+
+    /* A box. Split along whichever axes are long, with interior faces
+       suppressed so a split wall still reads as one wall. */
+    box(x, y, z, w, d, h, c, o) {
+      o = o || {};
+      const nx = Math.max(1, Math.ceil(w / SPLIT)), ny = Math.max(1, Math.ceil(d / SPLIT));
+      const sw = w / nx, sd = d / ny;
+      for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+        solid.push({
+          x: x + i*sw, y: y + j*sd, z, w: sw, d: sd, h, c, o,
+          noRight: i < nx - 1, noLeft: j < ny - 1,
+          sort: (x + (i+1)*sw) + (y + (j+1)*sd) + z*0.6 + (o.bias || 0),
+        });
+      }
+      return S;
+    },
+    pane(x, y, z, len, h, axis, c, o) {
+      o = Object.assign({ glass: true }, o || {});
+      return axis === 'x' ? S.box(x, y, z, len, 0.09, h, c, o) : S.box(x, y, z, 0.09, len, h, c, o);
+    },
+
+    /* a person: two boxes, turned away, no face — §7.8.7 */
+    person(x, y, z, sh, hair) {
+      S.box(x, y, z, 0.3, 0.3, 0.42, sh, { bias: 0.03 });
+      S.box(x+0.02, y+0.02, z+0.42, 0.26, 0.26, 0.2, hair || '#3a2a22', { bias: 0.05 });
+      return S;
+    },
+    desk(x, y, z, w) {
+      w = w || 0.86;
+      S.box(x, y, z, w, 0.44, 0.26, PAL.wood2);
+      S.box(x+w*0.26, y+0.07, z+0.26, 0.3, 0.06, 0.24, PAL.glowdk, { emit: PAL.glow2 });
+      return S;
+    },
+    tree(x, y, z, s) {
+      s = s || 1;
+      S.box(x+0.19*s, y+0.19*s, z, 0.13*s, 0.13*s, 0.32*s, PAL.wood2);
+      S.box(x, y, z+0.28*s, 0.5*s, 0.5*s, 0.32*s, PAL.green);
+      S.box(x+0.08*s, y+0.08*s, z+0.56*s, 0.34*s, 0.34*s, 0.28*s, lighten(PAL.green,0.12));
+      S.box(x+0.16*s, y+0.16*s, z+0.80*s, 0.18*s, 0.18*s, 0.22*s, lighten(PAL.green,0.26));
+      return S;
+    },
+    lamp(x, y, z) {
+      S.poly([[x-0.9,y-0.9],[x+1.1,y-0.9],[x+1.1,y+1.1],[x-0.9,y+1.1]], PAL.amber, z+0.004, 0.11);
+      S.box(x, y, z, 0.1, 0.1, 1.5, PAL.n3);
+      S.box(x-0.06, y-0.06, z+1.5, 0.26, 0.26, 0.1, PAL.amberpal, { emit: PAL.amberpal });
+      return S;
+    },
+    car(x, y, z, c, axis) {
+      const w = axis === 'y' ? 0.8 : 1.7, d = axis === 'y' ? 1.7 : 0.8;
+      S.box(x, y, z, w, d, 0.28, c);
+      S.box(x + (axis==='y'?0.07:0.42), y + (axis==='y'?0.42:0.07), z+0.28,
+            axis==='y'?0.66:0.86, axis==='y'?0.86:0.66, 0.24, PAL.glowdk);
+      return S;
+    },
+    label(gx, gy, gz, text, o) {
+      const q = S.p(gx, gy, gz);
+      over.push({ kind:'text', px:q[0], py:q[1], text, o: o || {} });
+      return S;
+    },
+    /* Extruded signage. Sheared onto the wall's own plane — the shear is
+       matrix(1, 0.5, 0, 1), and that 0.5 is the projection's only legal
+       slope — then repeated backwards INTO the wall for depth. */
+    sign(gx, gy, gz, text, o) {
+      const q = S.p(gx, gy, gz);
+      over.push({ kind:'sign', px:q[0], py:q[1], text, o: o || {} });
+      return S;
+    },
+    flat, solid, over,
+  };
+  return S;
+}
+
+function render(el, S, pad) {
+  pad = pad == null ? 30 : pad;
+  const out = [], xs = [], ys = [];
+  const note = (x,y) => { xs.push(x); ys.push(y); };
+  const P = (x,y,z) => S.p(x,y,z||0);
+  const str = arr => arr.map(q => { const r = P(q[0],q[1],q[2]); note(r[0],r[1]); return r[0].toFixed(1)+','+r[1].toFixed(1); }).join(' ');
+
+  S.flat.sort((a,b) => a.sort - b.sort);
+  for (const it of S.flat)
+    out.push('<polygon points="' + str(it.pts) + '" fill="' + it.c + '"' + (it.op!=null?' opacity="'+it.op+'"':'') + '/>');
+
+  S.solid.sort((a,b) => a.sort - b.sort);
+  for (const it of S.solid) {
+    const x=it.x, y=it.y, z=it.z, w=it.w, d=it.d, h=it.h, c=it.c, o=it.o;
+    const op = o.op != null ? ' opacity="'+o.op+'"' : (o.glass ? ' opacity="0.42"' : '');
+    out.push('<polygon points="' + str([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]]) + '" fill="' + lighten(c, o.glass ? 0.16 : 0.26) + '"' + op + '/>');
+    if (o.cap) {
+      /* The reference's single best idea, and it is a STRIP on the top
+         EDGE of a partition — not a painted lid. On a wall thin in one
+         axis the strip is the whole top; on a counter it is 16/100ths of
+         a tile along the near edge, which is what reads at floor zoom. */
+      const cd = Math.min(d, 0.16), cw = Math.min(w, 0.16);
+      if (d <= 0.35 || !it.noLeft)
+        out.push('<polygon points="' + str([[x,y+d-cd,z+h],[x+w,y+d-cd,z+h],[x+w,y+d,z+h],[x,y+d,z+h]]) + '" fill="' + o.cap + '"/>');
+      if (w <= 0.35 || !it.noRight)
+        out.push('<polygon points="' + str([[x+w-cw,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x+w-cw,y+d,z+h]]) + '" fill="' + o.cap + '"/>');
+    }
+    if (!it.noLeft)
+      out.push('<polygon points="' + str([[x,y+d,z],[x+w,y+d,z],[x+w,y+d,z+h],[x,y+d,z+h]]) + '" fill="' + c + '"' + op + '/>');
+    if (!it.noRight)
+      out.push('<polygon points="' + str([[x+w,y,z],[x+w,y+d,z],[x+w,y+d,z+h],[x+w,y,z+h]]) + '" fill="' + darken(c,0.34) + '"' + op + '/>');
+    if (o.emit)
+      out.push('<polygon points="' + str([[x+w*0.1,y+d,z+h*0.16],[x+w*0.9,y+d,z+h*0.16],[x+w*0.9,y+d,z+h*0.86],[x+w*0.1,y+d,z+h*0.86]]) + '" fill="' + o.emit + '" opacity="0.85"/>');
+  }
+
+  for (const it of S.over) {
+    const o = it.o;
+    if (it.kind === 'text') {
+      const size = o.size || 10.5;
+      note(it.px - 8, it.py - 13); note(it.px + Math.max(40, it.text.length * size * 0.74), it.py + 8);
+      out.push('<text x="' + it.px.toFixed(1) + '" y="' + it.py.toFixed(1) + '" fill="' + (o.c || PAL.n5) + '" font-family="Azeret Mono, monospace" font-size="' + size + '" font-weight="' + (o.w||600) + '" letter-spacing="' + (o.ls==null?1.3:o.ls) + '" text-anchor="' + (o.anchor||'start') + '">' + it.text + '</text>');
+    } else {
+      const n = o.depth == null ? 5 : o.depth, size = o.size || 20, step = o.step || 2.6;
+      const back = o.back || darken(o.c || PAL.n5, 0.5);
+      for (let i = n; i >= 1; i--)   /* backwards, into the wall */
+        out.push('<g transform="matrix(1,0.5,0,1,' + (it.px - i*step).toFixed(1) + ',' + (it.py + i*step*0.5).toFixed(1) + ')"><text x="0" y="0" fill="' + back + '" font-family="Azeret Mono, monospace" font-size="' + size + '" font-weight="800" letter-spacing="' + (o.ls==null?2:o.ls) + '" opacity="' + (0.4 + 0.45*(1 - i/n)).toFixed(2) + '">' + it.text + '</text></g>');
+      out.push('<g transform="matrix(1,0.5,0,1,' + it.px.toFixed(1) + ',' + it.py.toFixed(1) + ')"><text x="0" y="0" fill="' + (o.c || PAL.n8) + '" font-family="Azeret Mono, monospace" font-size="' + size + '" font-weight="800" letter-spacing="' + (o.ls==null?2:o.ls) + '">' + it.text + '</text></g>');
+      const run = size * 0.78 * it.text.length;
+      note(it.px - size*0.5, it.py - size*1.2); note(it.px + run, it.py + run*0.5 + size*0.4);
+    }
+  }
+
+  const x0 = Math.min.apply(null, xs)-pad, x1 = Math.max.apply(null, xs)+pad;
+  const y0 = Math.min.apply(null, ys)-pad, y1 = Math.max.apply(null, ys)+pad;
+  el.innerHTML = '<svg class="art" viewBox="' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' ' + (x1-x0).toFixed(1) + ' ' + (y1-y0).toFixed(1) + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="isometric design sketch">' + out.join('') + '</svg>';
+}
+
+/* deterministic, so every reload draws the same sketch */
+function rnd(i){ const s = Math.sin(i*12.9898)*43758.5453; return s - Math.floor(s); }
+const SHIRTS = ['#4a6b8a','#7a4b32','#4c7a45','#6b3a8a','#8a5c12','#55495e','#96683f','#1a6b78'];
+const shirt = i => SHIRTS[Math.floor(rnd(i)*SHIRTS.length)];
+const T = (S,x,y,z,t,c,size) => S.label(x,y,z,t,{ c: c||PAL.amber, size: size||10.5 });
+
+/* ---------------- shared furniture ---------------- */
+
+/** Role trim. §4.9 seats roles together; §4.15 already owns the colours. */
+const ROLE_TRIM = {
+  ENG: '#7d7568', QA: '#e0a03c', SRE: '#d05050', SUP: '#78c078', NEW: '#55495e',
+};
+
+/**
+ * An octagon in GRID space, which is the only rounded shape this projection
+ * gives you for free: four of its edges lie on the floor axes (screen slope
+ * ±0.5) and four on the floor diagonals (screen vertical and horizontal).
+ * Every edge is therefore a real direction in the floor plane, which a circle
+ * approximated in screen pixels would not be.
+ */
+function octagon(cx, cy, r) {
+  const k = r * 0.415;
+  return [[cx-k,cy-r],[cx+k,cy-r],[cx+r,cy-k],[cx+r,cy+k],
+          [cx+k,cy+r],[cx-k,cy+r],[cx-r,cy+k],[cx-r,cy-k]];
+}
+
+/** A sofa: seat plus back, with the back on the outside of the ring. */
+function sofa(S, x, y, len, facing, c) {
+  c = c || PAL.wood;
+  const trim = PAL.n5;
+  if (facing === 'n' || facing === 's') {
+    S.box(x, y, 0, len, 0.5, 0.18, c);
+    S.box(x, facing === 'n' ? y : y + 0.36, 0, len, 0.14, 0.46, c, { cap: trim });
+  } else {
+    S.box(x, y, 0, 0.5, len, 0.18, c);
+    S.box(facing === 'w' ? x : x + 0.36, y, 0, 0.14, len, 0.46, c, { cap: trim });
+  }
+  return S;
+}
+
+/**
+ * The vanity item — **the founder, cast.**
+ *
+ * Built from the same two boxes a developer is, at 2.4x, because the founder's
+ * look is already something the player chose (`game/founderProfile.ts`): no two
+ * runs get the same statue and none of it is authored. `rung` walks the five
+ * budgets, 0 being an empty plinth that facilities put in before anybody had
+ * decided what goes on it.
+ */
+function statue(S, cx, cy, rung, k, look) {
+  k = k || 1;
+  const gold = PAL.amber, bronze = PAL.wood, stone = PAL.n4;
+  const body = look || '#55495e';
+
+  S.box(cx-0.7*k, cy-0.7*k, 0, 1.4*k, 1.4*k, 0.15*k, PAL.n3);           /* two steps */
+  S.box(cx-0.55*k, cy-0.55*k, 0.15*k, 1.1*k, 1.1*k, 0.15*k, PAL.n4);
+  S.box(cx-0.36*k, cy-0.36*k, 0.3*k, 0.72*k, 0.72*k, 0.98*k, stone,
+        rung >= 4 ? { cap: gold } : undefined);
+  const top = 1.28*k;
+  S.box(cx-0.24*k, cy+0.34*k, 0.58*k, 0.48*k, 0.02*k, 0.2*k,            /* the plaque */
+        rung >= 3 ? gold : PAL.n5);
+
+  if (rung === 0) {                       /* an A4, taped on. STATUE — TBD */
+    S.box(cx-0.15*k, cy+0.33*k, 0.86*k, 0.3*k, 0.02*k, 0.24*k, PAL.n6);
+    return S;
+  }
+  if (rung === 1) {                       /* the foamboard standee, warping */
+    S.box(cx-0.28*k, cy+0.02*k, top, 0.56*k, 0.05*k, 0.62*k, PAL.wood);
+    S.box(cx-0.2*k, cy+0.02*k, top+0.62*k, 0.4*k, 0.05*k, 0.34*k, PAL.wood);
+    return S;
+  }
+  if (rung === 2) {                       /* the resin bust. Bad likeness */
+    S.box(cx-0.33*k, cy-0.33*k, top, 0.66*k, 0.66*k, 0.3*k, stone);
+    S.box(cx-0.23*k, cy-0.23*k, top+0.3*k, 0.46*k, 0.46*k, 0.38*k, stone);
+    return S;
+  }
+
+  const m = rung >= 4 ? gold : bronze;    /* bronze, then gilded */
+  S.box(cx-0.3*k, cy-0.3*k, top, 0.6*k, 0.6*k, 0.92*k, m);
+  S.box(cx-0.24*k, cy-0.24*k, top+0.92*k, 0.48*k, 0.48*k, 0.4*k, m);
+  S.box(cx+0.3*k, cy-0.08*k, top+0.62*k, 0.15*k, 0.15*k, 0.86*k, m);    /* the raised arm */
+  S.box(cx+0.2*k, cy-0.18*k, top+1.48*k, 0.35*k, 0.35*k, 0.28*k, gold,  /* the first release */
+        rung >= 4 ? { emit: PAL.amberpal } : undefined);
+
+  if (rung >= 4) {                        /* uplighters, and the velvet rope */
+    S.poly(octagon(cx+0.05*k, cy+0.05*k, 1.45*k), gold, 0.006, 0.13);
+    for (const u of [[-0.6,-0.6],[0.6,-0.6],[-0.6,0.6],[0.6,0.6]])
+      S.box(cx+u[0]*k, cy+u[1]*k, 0, 0.14*k, 0.14*k, 0.09*k, PAL.amberpal, { emit: PAL.amberpal });
+    for (const r of [[-1.1,-1.1],[1.1,-1.1],[1.1,1.1],[-1.1,1.1]])
+      S.box(cx+r[0]*k, cy+r[1]*k, 0, 0.11*k, 0.11*k, 0.5*k, PAL.n3, { cap: gold });
+    S.box(cx-1.1*k, cy-1.08*k, 0.35*k, 2.2*k, 0.06*k, 0.07*k, '#6b3a8a');
+    S.box(cx-1.08*k, cy-1.1*k, 0.35*k, 0.06*k, 2.2*k, 0.07*k, '#6b3a8a');
+  }
+  return S;
+}
+
+/** One squad plate. `bench` draws §-04's back-to-back pairs instead of rows. */
+function plate(S, a, b, SQ, role, opts) {
+  opts = opts || {};
+  const trim = ROLE_TRIM[role] || ROLE_TRIM.ENG;
+  S.tile(a, b, SQ, SQ, opts.dim ? '#252030' : '#2b2534');
+  if (!opts.noTrim) {                                                /* the role trim */
+    S.box(a-0.1, b+SQ, 0, SQ+0.2, 0.1, 0.11, PAL.n2, { cap: trim });
+    S.box(a+SQ, b-0.1, 0, 0.1, SQ+0.2, 0.11, PAL.n2, { cap: trim });
+  }
+  const rows = opts.bench ? 5 : 8, pitch = (SQ - 0.5) / rows;
+  for (let r = 0; r < rows; r++) {
+    const y = b + 0.3 + r * pitch;
+    const fill = opts.fillTo == null ? 1 : Math.max(0, Math.min(1, (opts.fillTo - r / rows) * rows));
+    S.box(a+0.15, y, 0, SQ-0.3, opts.bench ? 0.32 : 0.18, 0.16, PAL.wood2);
+    for (let k = 0; k < 8; k++) {
+      if (r >= rows * (opts.fillTo == null ? 1 : opts.fillTo)) continue;
+      if (opts.bench) {
+        S.person(a+0.22+k*0.46, y-0.2, 0, shirt(a*31+b*7+r*8+k));
+        S.person(a+0.22+k*0.46, y+0.34, 0, shirt(a*13+b*3+r*8+k+400));
+      } else {
+        S.person(a+0.22+k*0.46, y+0.2, 0, shirt(a*31+b*7+r*8+k));
+      }
+    }
+  }
+  return S;
+}
+
+/* ---------------- desk banks, in isoAt()'s own arrangement --------------
+   A row runs along `gy` at PITCH_COL, and the next row steps along `gx` at
+   PITCH_ROW. One tile along a row, 2.1 tiles behind it. That ratio is the
+   floor's whole grain and it is what stops a bank of desks reading as a
+   phalanx — which is exactly what the first pass of these sketches drew,
+   with the rows on the wrong axis at a near-uniform pitch. */
+const SEATP = 0.5, ROWP = SEATP * 2.1;
+
+/** `rows` is one [startSeat, seatCount] per row; rows step toward the camera. */
+function rowbank(S, gx, gy, rows, seed, opts) {
+  opts = opts || {};
+  rows.forEach(function(r, i) {
+    if (!r[1]) return;
+    const x = gx + i * ROWP, y0 = gy + r[0] * SEATP, len = r[1] * SEATP;
+    S.box(x, y0, 0, 0.3, len, 0.14, PAL.wood2);
+    for (let k = 0; k < r[1]; k++) {
+      const y = y0 + k * SEATP;
+      S.box(x + 0.02, y + 0.1, 0.14, 0.05, 0.28, 0.2, PAL.glowdk,
+            opts.bare ? undefined : { emit: PAL.glow2 });
+      if (!opts.bare) S.person(x + 0.34, y + 0.09, 0, shirt(seed + i * 17 + k * 3));
+    }
+  });
+  return S;
+}
+
+/** A plate: a bank, its role trim, and nothing square about it. */
+function plateAt(S, gx, gy, rows, role, seed, opts) {
+  opts = opts || {};
+  const trim = ROLE_TRIM[role] || ROLE_TRIM.ENG;
+  const depth = rows.length * ROWP, width = Math.max.apply(null, rows.map(r => r[0] + r[1])) * SEATP;
+  S.tile(gx - 0.14, gy - 0.14, depth + 0.1, width + 0.28, opts.dim ? '#242030' : '#2b2534');
+  if (!opts.noTrim) {
+    S.box(gx - 0.24, gy - 0.24, 0, depth + 0.3, 0.1, 0.1, PAL.n2, { cap: trim });
+    S.box(gx + depth - 0.06, gy - 0.24, 0, 0.1, width + 0.4, 0.1, PAL.n2, { cap: trim });
+  }
+  rowbank(S, gx, gy, rows, seed, opts);
+  return S;
+}
+
+/* ---------------- 01 · the six techniques ---------------- */
+(function(){
+  const S = makeScene(1.6);
+
+  /* 1 — cut open, not removed */
+  S.tile(0, 0, 3.2, 3.2, PAL.n1);
+  S.box(0, 0, 0, 3.2, 0.1, 0.7, PAL.n2);
+  S.box(0, 0, 0, 0.1, 3.2, 0.7, PAL.n2);
+  S.box(-0.16,-0.16, 0, 0.32, 0.32, 1.8, PAL.n3);
+  S.box(2.84,-0.16, 0, 0.32, 0.32, 1.8, PAL.n3);
+  S.box(-0.16, 2.84, 0, 0.32, 0.32, 1.8, PAL.n3);
+  S.desk(0.9, 1.3, 0); S.person(1.2, 1.85, 0, shirt(3));
+  S.desk(2.0, 1.3, 0); S.person(2.3, 1.85, 0, shirt(7));
+  T(S, 0, 4.0, 0, '1 · CUT OPEN, NOT REMOVED', PAL.amber, 11);
+
+  /* 2 — the coloured cap strip */
+  const b = 5.0;
+  S.tile(b, 0, 3.2, 3.2, PAL.n1);
+  [[0.35, PAL.cyan],[1.45, PAL.amber],[2.55, PAL.violet]].forEach(function(p){
+    S.box(b+0.2, p[0], 0, 2.8, 0.12, 0.5, PAL.n2, { cap: p[1] });
+  });
+  T(S, b, 4.0, 0, '2 · A COLOURED CAP STRIP', PAL.amber, 11);
+
+  /* 3 — one room that glows */
+  const c2 = 10.0;
+  S.tile(c2, 0, 3.2, 3.2, PAL.n1);
+  S.tile(c2+0.25, 0.25, 2.7, 2.7, PAL.glowdk);
+  for (let i=0;i<5;i++) S.box(c2+0.5+i*0.48, 0.6, 0, 0.28, 1.9, 1.0, PAL.glowdk, { emit: PAL.glow2 });
+  S.pane(c2+0.25, 0.25, 0, 2.7, 1.15, 'x', PAL.glow);
+  S.pane(c2+0.25, 0.25, 0, 2.7, 1.15, 'y', PAL.glow);
+  T(S, c2, 4.0, 0, '3 · ONE ROOM THAT GLOWS', PAL.cyan, 11);
+
+  /* 4 — crowd is density */
+  const oy = 5.2;
+  S.tile(0, oy, 3.2, 3.2, PAL.n1);
+  for (let i=0;i<81;i++) S.person(0.2+(i%9)*0.34, oy+0.2+Math.floor(i/9)*0.34, 0, shirt(i));
+  T(S, 0, oy+4.0, 0, '4 · CROWD IS DENSITY', PAL.amber, 11);
+
+  /* 5 — a column pitch */
+  S.tile(b, oy, 3.2, 3.2, PAL.n1);
+  for (let i=0;i<3;i++) for (let j=0;j<3;j++) {
+    for (let k=0;k<4;k++) S.person(b+0.6+i*1.15+(k%2)*0.34, oy+0.5+j*1.15+Math.floor(k/2)*0.34, 0, shirt(i*9+j*3+k+40));
+    S.box(b+0.15+i*1.2, oy+0.15+j*1.2, 0, 0.28, 0.28, 1.7, PAL.n3);
+  }
+  T(S, b, oy+4.0, 0, '5 · A COLUMN PITCH', PAL.amber, 11);
+
+  /* 6 — ground on every side */
+  S.box(c2, oy-1.2, 0, 3.0, 1.5, 1.0, PAL.n1);
+  S.box(c2, oy-1.2, 0, 3.0, 0.1, 1.0, PAL.n2);
+  S.tile(c2-0.7, oy+0.3, 4.6, 1.8, PAL.n2);
+  S.poly([[c2-0.7,oy+2.1],[c2+3.9,oy+2.1],[c2+3.9,oy+2.2],[c2-0.7,oy+2.2]], PAL.n4, 0.02);
+  S.poly([[c2-0.7,oy+2.2],[c2+3.9,oy+2.2],[c2+3.9,oy+3.4],[c2-0.7,oy+3.4]], '#1e1a26');
+  for (let i=0;i<5;i++) S.poly([[c2-0.5+i*0.9,oy+2.74],[c2-0.05+i*0.9,oy+2.74],[c2-0.05+i*0.9,oy+2.82],[c2-0.5+i*0.9,oy+2.82]], PAL.amberpal, 0.01, 0.55);
+  S.car(c2+0.4, oy+0.45, 0, '#4a6b8a', 'y'); S.car(c2+1.5, oy+0.45, 0, '#55495e', 'y');
+  S.tree(c2-1.5, oy+0.6, 0, 1.0); S.tree(c2+3.5, oy+0.6, 0, 1.0);
+  S.lamp(c2+2.9, oy+1.7, 0);
+  T(S, c2-0.7, oy+4.0, 0, '6 · GROUND ON EVERY SIDE', PAL.amber, 11);
+
+  render(document.getElementById('s1'), S, 38);
+})();
+
+/* ---------------- 02 · one road, three headcounts ---------------- */
+(function(){
+  const S = makeScene(1.35);
+  const K = 11.0;                        /* the kerb line. It never moves. */
+
+  S.poly([[-3,K],[42,K],[42,K+0.6],[-3,K+0.6]], PAL.n4, 0.02);
+  S.poly([[-3,K+0.6],[42,K+0.6],[42,K+3.4],[-3,K+3.4]], '#1e1a26');
+  for (let i=0;i<36;i++) S.poly([[-2.6+i*1.25,K+1.94],[-1.9+i*1.25,K+1.94],[-1.9+i*1.25,K+2.06],[-2.6+i*1.25,K+2.06]], PAL.amberpal, 0.01, 0.5);
+
+  /* A · the garage */
+  S.tile(0.4, 5.6, 6.4, 4.6, '#221d2c');
+  S.tile(1.8, 10.2, 3.6, 0.8, '#252030');
+  S.box(0.4, 5.6, 0, 6.4, 0.12, 1.9, PAL.n2);
+  S.box(0.4, 5.6, 0, 0.12, 4.6, 1.9, PAL.n2);
+  S.box(0.4, 10.0, 1.55, 6.4, 0.4, 0.14, PAL.n3);          /* the door, up */
+  S.box(1.9, 5.58, 0.85, 1.4, 0.08, 0.7, PAL.glowdk, { glass:true, op:0.6 });
+  S.box(0.6, 5.85, 0, 1.7, 0.5, 0.5, PAL.wood2);
+  S.box(6.1, 5.9, 0, 0.55, 0.6, 0.85, PAL.cyandk, { cap: PAL.cyan });
+  S.box(6.15, 6.7, 0, 0.3, 0.3, 0.28, PAL.n4);
+  S.box(0.55, 9.2, 0, 0.14, 1.3, 0.9, PAL.n5, { op: 0.7 });
+  S.box(5.9, 9.5, 0, 0.42, 0.4, 0.6, PAL.green2, { cap: PAL.green });
+  S.desk(2.3, 7.6, 0, 1.0); S.person(2.65, 8.15, 0, shirt(1));
+  S.desk(3.6, 7.6, 0, 1.0); S.person(3.95, 8.15, 0, shirt(9));
+  S.car(1.9, 10.3, 0, '#7a4b32', 'x');
+  S.tree(7.6, 9.3, 0, 1.1); S.lamp(8.5, 10.4, 0);
+  T(S, 0.4, 4.7, 1.2, '2 DEVELOPERS · THE GARAGE', PAL.amber, 11);
+
+  /* B · the small office */
+  const bx = 11.6;
+  S.tile(bx, 4.2, 9.4, 6.0, '#221d2c');
+  S.box(bx, 4.2, 0, 9.4, 0.12, 2.1, PAL.n2);
+  S.box(bx, 4.2, 0, 0.12, 6.0, 2.1, PAL.n2);
+  S.box(bx+0.3, 4.32, 0, 2.4, 0.1, 1.2, PAL.n3, { cap: PAL.amber });
+  S.box(bx+0.3, 4.32, 0, 0.1, 1.4, 1.2, PAL.n3, { cap: PAL.amber });
+  S.pane(bx+0.3, 5.63, 0, 2.4, 0.95, 'x', PAL.glow, { op: 0.26 });
+  S.sign(bx+0.42, 4.26, 1.28, 'LEAD', { size: 9, depth: 3, step: 1.4, c: PAL.amberpal, ls: 0.8 });
+  rowbank(S, bx+1.2, 5.4, [[0,8],[0,8],[0,8],[0,7]], 20);
+  S.box(bx+8.6, 4.4, 0, 0.5, 0.5, 0.85, PAL.cyandk, { cap: PAL.cyan });
+  S.tile(bx+2.4, 10.2, 5.6, 0.8, '#252030');
+  S.car(bx+2.5, 10.3, 0, '#4a6b8a', 'x'); S.car(bx+4.4, 10.3, 0, '#55495e', 'x'); S.car(bx+6.3, 10.3, 0, '#2e4a2c', 'x');
+  S.tree(bx+10.2, 9.3, 0, 1.1); S.lamp(bx+11.1, 10.4, 0);
+  T(S, bx, 3.3, 2.0, '30 DEVELOPERS · THE WALLS PUSH PAST THE DRIVE', PAL.amber, 11);
+
+  /* C · the floor */
+  const cx = 24.6;
+  S.tile(cx, 1.6, 15.4, 8.6, '#221d2c');
+  S.box(cx, 1.6, 0, 15.4, 0.12, 2.4, PAL.n2);
+  S.box(cx, 1.6, 0, 0.12, 8.6, 2.4, PAL.n2);
+  S.box(cx+0.3, 1.72, 0, 3.4, 0.1, 1.5, PAL.n3, { cap: PAL.amber });
+  S.box(cx+0.3, 1.72, 0, 0.1, 1.9, 1.5, PAL.n3, { cap: PAL.amber });
+  S.pane(cx+0.3, 3.52, 0, 3.4, 1.2, 'x', PAL.glow, { op: 0.26 });
+  for (let i=0;i<4;i++) S.person(cx+0.8+i*0.6, 2.4, 0, shirt(940+i));
+  S.box(cx+0.8, 2.15, 0, 2.2, 0.7, 0.24, PAL.wood2);
+  S.sign(cx+0.42, 1.66, 1.58, 'LEADERSHIP', { size: 9, depth: 4, step: 1.5, c: PAL.amberpal, ls: 0.5 });
+  for (let i=0;i<3;i++) for (let j=0;j<2;j++)
+    plateAt(S, cx+1.0+i*4.9, 2.2+j*4.0, [[0,7],[0,7],[0,6],[0,6]], j ? 'ENG' : 'QA', i*31+j*17);
+  S.tile(cx+0.6, 10.2, 14.2, 0.8, '#252030');
+  for (let i=0;i<8;i++) S.car(cx+0.8+i*1.75, 10.3, 0, ['#4a6b8a','#55495e','#7a4b32','#2e4a2c'][i%4], 'x');
+  S.tree(cx+15.6, 9.3, 0, 1.1); S.lamp(cx+16.5, 10.4, 0);
+  T(S, cx, 0.7, 2.3, '1,000 DEVELOPERS · THE PLOT IS CONSUMED. THE ROAD IS NOT.', PAL.amber, 11);
+
+  render(document.getElementById('s2'), S, 42);
+})();
+
+/* ---------------- 03 · the floor plan at 1,000 ---------------- */
+(function(){
+  const S = makeScene(1.42);
+  const BACKX = 3.0, SPINE0 = 10.9, SPINE1 = 15.1, FRONTX = 15.4;
+  const BANDX = 23.0, W = 34.4, D = 26.6;
+
+  S.tile(0, 0, D, W, '#1d1926');
+  S.box(0, 0, 0, D, 0.12, 1.9, PAL.n2);
+  S.box(0, 0, 0, 0.12, W, 1.9, PAL.n2);
+  for (let i=0;i<Math.floor(W/1.5);i++) S.box(0.01, 0.5+i*1.5, 0.55, 0.09, 1.0, 1.1, PAL.glowdk, { glass:true, op:0.5 });
+  for (let i=0;i<Math.floor(D/1.5);i++) S.box(0.5+i*1.5, 0.01, 0.55, 1.0, 0.09, 1.1, PAL.glowdk, { glass:true, op:0.5 });
+
+  /* ---- the hallways, drawn as objects rather than as leftover gap ---- */
+  const RIBS = [[5.7,7.5],[13.7,15.5],[20.7,22.5],[27.2,29.0]];
+  for (const r of RIBS) {
+    S.tile(BACKX-0.9, r[0], BANDX-BACKX+1.4, r[1]-r[0], '#272130');
+    S.poly([[BACKX-0.9,r[0]+0.5],[BANDX+0.5,r[0]+0.5],[BANDX+0.5,r[1]-0.5],[BACKX-0.9,r[1]-0.5]], '#2f2839', 0.002);
+  }
+  S.tile(SPINE0, 0.6, SPINE1-SPINE0, W-1.2, '#2c2637');            /* the spine */
+  S.poly([[SPINE0+0.55,0.6],[SPINE1-0.55,0.6],[SPINE1-0.55,W-0.6],[SPINE0+0.55,W-0.6]], '#39304a', 0.002);
+  S.poly([[SPINE0+0.5,0.6],[SPINE0+0.55,0.6],[SPINE0+0.55,W-0.6],[SPINE0+0.5,W-0.6]], PAL.n4, 0.004);
+  S.poly([[SPINE1-0.55,0.6],[SPINE1-0.5,0.6],[SPINE1-0.5,W-0.6],[SPINE1-0.55,W-0.6]], PAL.n4, 0.004);
+  for (let i=0;i<Math.floor((W-1.2)/2.6);i++) {                      /* the beam run overhead */
+    S.box(SPINE0+0.2, 1.0+i*2.6, 1.15, SPINE1-SPINE0-0.4, 0.18, 0.1, PAL.n2);
+    S.box(SPINE0+0.9, 1.28+i*2.6, 1.11, 1.7, 0.1, 0.035, PAL.amber, { emit: PAL.amberpal });
+  }
+
+  /* ---- ten plates, no two the same shape ---- */
+  const PL = [
+    [BACKX,      0.7,  [[0,10],[0,10],[0,10],[0,9],[0,9],[0,8],[0,8]],  'ENG', 11],
+    [BACKX,      7.7,  [[0,12],[0,12],[0,12],[0,11],[0,11]],            'QA',  71],
+    [BACKX+ROWP, 15.7, [[3,7],[3,7],[0,10],[0,10],[0,10],[0,10]],       'ENG', 131],
+    [BACKX,      22.7, [[0,9],[0,9],[0,9],[0,8],[0,8],[0,8],[0,7]],     'SRE', 191],
+    [BACKX,      29.2, [[0,8],[0,8],[0,7],[0,7],[0,7],[0,6]],           'ENG', 251],
+    [FRONTX,      1.7, [[0,10],[0,10],[0,10],[0,10],[0,9],[0,9]],       'SUP', 311],
+    [FRONTX,      8.7, [[0,9],[0,9],[0,9],[0,9],[0,9],[0,9],[0,9]],     'ENG', 371],
+    [FRONTX+ROWP,16.2, [[0,11],[0,11],[0,11],[4,7],[4,7],[4,7]],        'ENG', 431],
+    [FRONTX,     23.2, [[0,8],[0,8],[0,8],[0,7],[0,7],[0,7],[0,7]],     'ENG', 491],
+    [FRONTX,     29.6, [[0,7],[0,7],[0,5],[0,3]],                       'NEW', 551],
+  ];
+  PL.forEach(function(p, i) {
+    plateAt(S, p[0], p[1], p[2], p[3], p[4], { dim: p[3] === 'NEW' });
+    S.box(p[0]-0.5, p[1]-0.5, 0, 0.28, 0.28, 2.4, PAL.n3);
+    S.box(p[0]-0.54, p[1]-0.54, 2.0, 0.36, 0.36, 0.2, PAL.n2, { cap: ROLE_TRIM[p[3]] });
+  });
+  /* the tenth plate is still filling — bare desks, and the boxes */
+  rowbank(S, FRONTX + 4*ROWP, 29.6, [[0,7],[0,7],[0,7]], 9, { bare: true });
+  for (let i=0;i<3;i++) S.box(FRONTX+6.6, 29.8+i*0.06, i*0.26, 0.46, 0.46, 0.24, PAL.wood2);
+
+  /* the huddle in the bite taken out of plate 8 */
+  S.box(FRONTX+ROWP*3.4, 16.4, 0, 0.5, 0.5, 0.2, PAL.wood, { cap: PAL.n5 });
+  S.box(FRONTX+ROWP*4.4, 16.4, 0, 0.5, 0.5, 0.2, PAL.wood, { cap: PAL.n5 });
+  S.box(FRONTX+ROWP*3.9, 17.1, 0, 0.5, 0.5, 0.18, PAL.wood2);
+  S.person(FRONTX+ROWP*3.5, 16.5, 0.2, shirt(1501));
+  S.person(FRONTX+ROWP*4.4, 16.5, 0.2, shirt(1502));
+
+  /* ---- leadership suite, server room ---- */
+  S.tile(0.18, 0.18, 2.4, 6.0, '#302840');
+  S.box(0.18, 0.18, 0, 0.1, 6.0, 1.35, PAL.n3, { cap: PAL.amber });
+  S.box(0.18, 0.18, 0, 2.4, 0.1, 1.35, PAL.n3, { cap: PAL.amber });
+  S.box(0.8, 1.5, 0, 1.05, 3.4, 0.28, PAL.wood2);
+  for (let i=0;i<5;i++) { S.person(0.44, 1.6+i*0.68, 0, shirt(900+i)); S.person(1.95, 1.6+i*0.68, 0, shirt(912+i)); }
+  S.pane(2.5, 0.18, 0, 6.0, 1.05, 'y', PAL.glow, { op: 0.3 });
+  S.pane(0.18, 6.1, 0, 2.4, 1.05, 'x', PAL.glow, { op: 0.3 });
+  S.sign(0.3, 0.1, 1.42, 'LEADERSHIP', { size: 11, depth: 5, step: 1.8, c: PAL.amberpal, back: PAL.amberdk, ls: 0.8 });
+
+  S.tile(0.25, W-4.2, 2.0, 3.8, PAL.glowdk);
+  for (let i=0;i<7;i++) S.box(0.45, W-4.0+i*0.5, 0, 1.6, 0.3, 1.15, PAL.glowdk, { emit: PAL.glow2 });
+  S.pane(0.25, W-4.2, 0, 2.0, 1.3, 'y', PAL.glow, { op: 0.3 });
+  S.pane(2.16, W-4.2, 0, 3.8, 1.3, 'x', PAL.glow, { op: 0.3 });
+  S.pane(0.25, W-0.5, 0, 2.0, 1.3, 'y', PAL.glow, { op: 0.3 });
+
+  /* ---- the plaza, on the spine ---- */
+  const px = (SPINE0+SPINE1)/2, py = 14.6, R = 1.95;
+  S.poly(octagon(px, py, R), '#3a3148');
+  S.poly(octagon(px, py, R-0.24), '#463a58');
+  sofa(S, px-0.72, py-1.62, 1.44, 'n');
+  sofa(S, px-0.72, py+1.18, 1.44, 's');
+  sofa(S, px-1.62, py-0.72, 1.44, 'w');
+  sofa(S, px+1.18, py-0.72, 1.44, 'e');
+  for (const q of [[-1.28,-1.28],[0.88,-1.28],[-1.28,0.88],[0.88,0.88]])
+    S.box(px+q[0], py+q[1], 0, 0.4, 0.4, 0.18, PAL.n3, { cap: PAL.n5 });
+  for (const q of [[-2.3,-0.3],[1.7,-0.3],[-0.3,-2.3],[-0.3,1.7]]) {
+    S.box(px+q[0], py+q[1], 0, 0.6, 0.6, 0.26, PAL.n3, { cap: PAL.n5 });
+    S.box(px+q[0]+0.1, py+q[1]+0.1, 0.26, 0.4, 0.4, 0.4, PAL.green2);
+  }
+  for (let i=0;i<3;i++) S.person(px-0.55+i*0.5, py-1.4, 0.18, shirt(1300+i));
+  S.person(px-1.4, py-0.5, 0.18, shirt(1310)); S.person(px+1.35, py-0.4, 0.18, shirt(1311));
+  statue(S, px, py, 4, 0.5);
+
+  /* ---- kitchenette islands where a rib meets the spine ---- */
+  const KIT = [[SPINE0-1.45, RIBS[0]], [SPINE1+0.45, RIBS[1]], [SPINE0-1.45, RIBS[2]], [SPINE1+0.45, RIBS[3]]];
+  for (const kk of KIT) {
+    const a = kk[0], b = (kk[1][0]+kk[1][1])/2;
+    S.tile(a-0.2, b-1.0, 1.6, 2.0, '#262031');
+    S.box(a, b-0.6, 0, 0.8, 1.3, 0.44, PAL.n3, { cap: PAL.cyan });
+    S.box(a+0.16, b-0.44, 0, 0.24, 0.24, 0.26, PAL.n5);
+    S.box(a+0.16, b+0.72, 0, 0.3, 0.3, 0.44, PAL.n2, { cap: PAL.amber });
+    for (let k=0;k<3;k++) S.person(a+1.0, b-0.5+k*0.46, 0, shirt(700+k+Math.round(b*7)));
+  }
+
+  /* ---- water points at the row ends, in the ribs ---- */
+  for (const r of RIBS) for (const gx of [BACKX+2.0, FRONTX+3.0]) {
+    const b = r[0]+0.35;
+    S.box(gx, b, 0, 0.3, 0.3, 0.6, PAL.cyandk, { cap: PAL.cyan });
+    S.box(gx+0.36, b+0.05, 0, 0.16, 0.16, 0.28, PAL.glow, { glass:true });
+    S.person(gx+0.1, b+0.6, 0, shirt(Math.round(gx*13+b*7)));
+  }
+
+  /* ---- the service band, and the lift core the spine runs into ---- */
+  S.tile(BANDX, 1.4, D-BANDX-0.5, W-2.6, '#231e2d');
+  S.box(BANDX+0.3, 1.8, 0, 0.7, 4.4, 0.62, PAL.n3, { cap: PAL.amber });
+  for (let i=0;i<7;i++) S.person(BANDX+1.4, 2.0+i*0.4, 0, shirt(500+i));
+  for (let r=0;r<2;r++) for (let k=0;k<7;k++) {
+    const a = BANDX+0.6+r*1.35, b = 7.4+k*1.15;
+    S.box(a, b, 0, 0.5, 0.95, 0.26, PAL.wood2);
+    S.person(a-0.36, b+0.12, 0, shirt(600+r*7+k));
+    S.person(a-0.36, b+0.52, 0, shirt(618+r*7+k));
+    if (r === 1) { S.person(a+0.54, b+0.12, 0, shirt(630+k)); S.person(a+0.54, b+0.52, 0, shirt(642+k)); }
+  }
+  S.box(BANDX+0.4, 16.6, 0, 2.0, 2.4, 2.1, PAL.n2, { cap: PAL.violet });
+  S.box(BANDX+0.4, 19.4, 0, 2.0, 1.5, 2.1, PAL.n2, { cap: PAL.n5 });
+  S.box(BANDX+0.6, 21.6, 0, 0.6, 1.7, 0.5, PAL.wood2, { cap: PAL.amber });
+
+  T(S, 0.3, -0.9, 0, 'LEADERSHIP SUITE', PAL.amber, 11);
+  T(S, 0.3, W-4.2, -0.6, 'SERVER ROOM', PAL.cyan, 10.5);
+  T(S, SPINE0-0.4, -1.1, 2.8, 'THE SPINE — 4.2 TILES, ITS OWN FLOOR FINISH, A BEAM RUN OVERHEAD', PAL.amberpal, 11.5);
+  T(S, BACKX-1.0, RIBS[3][0]+0.4, 0, 'RIB — 1.8 TILES, PLATE EDGE TO PLATE EDGE', PAL.n5, 10.5);
+  T(S, SPINE1+0.6, RIBS[1][1]+0.5, 0, 'KITCHENETTE WHERE A RIB MEETS THE SPINE × 4', PAL.cyan, 10.5);
+  T(S, px-2.4, py-3.4, 1.4, 'THE PLAZA', PAL.amberpal, 11.5);
+  T(S, BANDX-0.2, 1.4, 1.6, 'SERVICE BAND — SERVERY · BENCHES · LIFT CORE · WC', PAL.amber, 11);
+  T(S, FRONTX-0.6, 29.6, 0, 'STILL FILLING — BARE DESKS, AND THE BOXES', ROLE_TRIM.NEW, 10.5);
+  T(S, BACKX-0.8, 7.7, 0, 'QA — FIVE ROWS OF TWELVE', ROLE_TRIM.QA, 10.5);
+  T(S, BACKX-0.8, 22.7, 0, 'SRE — RAGGED END', ROLE_TRIM.SRE, 10.5);
+  T(S, FRONTX+ROWP*2.6, 16.2, 0, 'A BITE, FOR A HUDDLE', PAL.n5, 10.5);
+
+  render(document.getElementById('s3'), S, 46);
+})();
+
+/* ---------------- 04 · the rib, empty and worked ---------------- */
+(function(){
+  const S = makeScene(2.4);
+  function junction(ox, oy, filled) {
+    S.tile(ox-0.4, oy+2.6, 9.0, 1.8, '#272130');
+    S.poly([[ox-0.4,oy+3.1],[ox+8.6,oy+3.1],[ox+8.6,oy+3.9],[ox-0.4,oy+3.9]], '#2f2839', 0.002);
+    plateAt(S, ox, oy, [[0,5],[0,5],[0,5],[0,4]], 'ENG', ox*13, { noTrim: !filled });
+    plateAt(S, ox+4.6, oy, [[0,4],[0,5],[0,5],[0,5]], 'ENG', ox*7, { noTrim: !filled });
+    plateAt(S, ox, oy+4.4, [[0,5],[0,5],[0,4],[0,4]], filled ? 'QA' : 'ENG', ox*3, { noTrim: !filled });
+    plateAt(S, ox+4.6, oy+4.4, [[0,4],[0,4],[0,5],[0,5]], 'ENG', ox*11, { noTrim: !filled });
+    if (filled) {
+      const a = ox+3.4, b = oy+2.9;
+      S.box(a, b, 0, 0.8, 1.3, 0.44, PAL.n3, { cap: PAL.cyan });
+      S.box(a+0.16, b+0.16, 0, 0.24, 0.24, 0.26, PAL.n5);
+      S.box(a+0.16, b+1.5, 0, 0.3, 0.3, 0.44, PAL.n2, { cap: PAL.amber });
+      S.box(a-0.9, b-0.5, 0, 0.26, 0.26, 2.2, PAL.n3);
+      for (let k=0;k<3;k++) S.person(a+1.0, b+0.1+k*0.44, 0, shirt(300+k));
+      S.person(a-0.5, b+0.5, 0, shirt(310)); S.person(a+0.4, b+2.0, 0, shirt(311));
+      S.box(ox+7.4, b+0.1, 0, 0.4, 1.0, 0.9, PAL.n2, { cap: PAL.violet });
+    }
+  }
+  junction(0, 0, false);
+  junction(0, 11.0, true);
+  T(S, -0.4, -0.9, 0, 'AS BUILT — THE RIB IS AN ABSENCE OF DESKS', PAL.n5, 12);
+  T(S, -0.4, 10.1, 0, 'WORKED — A FLOOR FINISH, AN ISLAND, LOCKERS. 0 SEATS LOST', PAL.amber, 12);
+  render(document.getElementById('s4'), S, 40);
+})();
+
+/* ---------------- 05 · the suite, and the sign's five materials -------- */
+(function(){
+  const S = makeScene(2.4);
+
+  S.tile(0, 0, 6.6, 4.2, '#302840');
+  S.box(0, 0, 0, 6.6, 0.14, 1.7, PAL.n2, { cap: PAL.amber });   /* the room's own back walls */
+  S.box(0, 0, 0, 0.14, 4.2, 1.7, PAL.n2, { cap: PAL.amber });
+  S.box(1.6, 1.25, 0, 3.6, 1.5, 0.3, PAL.wood2);
+  for (let i=0;i<6;i++) {
+    S.box(1.72+i*0.62, 0.86, 0, 0.3, 0.3, 0.22, PAL.n3);
+    S.person(1.72+i*0.62, 0.84, 0, shirt(400+i));
+    S.box(1.72+i*0.62, 2.9, 0, 0.3, 0.3, 0.22, PAL.n3);
+    if (i % 2 === 0) S.person(1.72+i*0.62, 2.92, 0, shirt(422+i));
+  }
+  S.box(5.9, 1.4, 0.45, 0.1, 1.3, 0.8, PAL.glowdk, { emit: PAL.glow2 });
+  S.box(0.42, 3.3, 0, 0.45, 0.45, 0.5, PAL.green2);
+  S.box(0.47, 3.35, 0.5, 0.35, 0.35, 0.36, PAL.green);
+  S.pane(0, 4.11, 0, 6.6, 1.3, 'x', PAL.glow, { op: 0.2 });     /* glass, toward the floor */
+  S.pane(6.51, 0, 0, 4.2, 1.3, 'y', PAL.glow, { op: 0.2 });
+  S.sign(0.45, -0.28, 1.82, 'LEADERSHIP', { size: 22, depth: 6, step: 3.0, c: PAL.amberpal, back: PAL.amberdk, ls: 2 });
+  T(S, 0.45, -1.7, 2.25, 'SHEARED TO matrix(1, 0.5, 0, 1) — THE ONLY LEGAL SLOPE IN THIS PROJECTION', PAL.n4, 10);
+
+  /* the five materials, on five short stubs */
+  const mats = [
+    ['#b8aeb3', '#4a2f22', 2, 'CARDBOARD · 3 DEVS'],
+    ['#d8d2cf', '#55495e', 2, 'WHITEBOARD MARKER · 6'],
+    ['#f2eee8', '#3a3244', 3, 'PRINTED VINYL · 11'],
+    ['#7fd4e8', '#1a6b78', 4, 'BACKLIT ACRYLIC · 100'],
+    ['#ffe9b0', '#8a5c12', 6, 'EXTRUDED STEEL · 1,000'],
+  ];
+  mats.forEach(function(m, i) {
+    const y = 6.4 + i*1.6;
+    S.box(0, y, 0, 2.6, 0.14, 0.72, PAL.n1, { cap: i === 4 ? PAL.amber : PAL.n2 });
+    S.sign(0.12, y - 0.1, 0.80, 'LEADERSHIP', { size: 10, depth: m[2], step: 1.4, c: m[0], back: m[1], ls: 0.6 });
+    T(S, 2.95, y + 0.55, 0.55, m[3], i === 4 ? PAL.amber : PAL.n4, 10);
+  });
+
+  render(document.getElementById('s5'), S, 44);
+})();
+
+/* ---------------- 06 · the service band ---------------- */
+(function(){
+  const S = makeScene(2.2);
+  S.tile(0, 0, 17.5, 4.6, '#231e2d');
+  S.box(0, 0, 0, 17.5, 0.12, 1.4, PAL.n2);
+
+  /* servery */
+  S.box(0.4, 0.55, 0, 4.4, 0.8, 0.66, PAL.n3, { cap: PAL.amber });
+  for (let i=0;i<4;i++) S.box(0.7+i*1.05, 0.68, 0.6, 0.7, 0.44, 0.08, PAL.amberdk, { emit: PAL.amber });
+  for (let i=0;i<2;i++) S.person(1.2+i*2.0, 0.2, 0, PAL.n5, PAL.n2);
+  S.pane(0.4, 0.55, 0.66, 4.4, 0.42, 'x', PAL.glow, { op: 0.24 });
+  S.box(4.95, 0.62, 0, 0.45, 0.66, 0.5, PAL.n2, { cap: PAL.cyan });
+  for (let i=0;i<8;i++) S.person(0.7+i*0.46, 1.7, 0, shirt(200+i));
+
+  /* benches — the far one already full */
+  for (let r=0;r<2;r++) for (let k=0;k<5;k++) {
+    const a = 6.3+k*1.25, b = 0.7+r*1.8;
+    S.box(a, b, 0, 1.0, 0.55, 0.26, PAL.wood2);
+    S.box(a, b-0.36, 0, 1.0, 0.18, 0.15, PAL.n3);
+    S.box(a, b+0.6, 0, 1.0, 0.18, 0.15, PAL.n3);
+    S.person(a+0.12, b-0.38, 0, shirt(250+r*5+k));
+    S.person(a+0.56, b-0.38, 0, shirt(266+r*5+k));
+    if (r === 1) { S.person(a+0.12, b+0.6, 0, shirt(272+k)); S.person(a+0.56, b+0.6, 0, shirt(285+k)); }
+  }
+
+  /* kitchenette island */
+  S.box(13.1, 1.0, 0, 1.4, 0.9, 0.46, PAL.n3, { cap: PAL.cyan });
+  S.box(13.24, 1.18, 0, 0.26, 0.26, 0.28, PAL.n5);
+  S.box(13.8, 1.16, 0, 0.36, 0.5, 0.05, PAL.n4);
+  S.box(14.7, 0.92, 0, 0.34, 0.34, 0.5, PAL.n2, { cap: PAL.amber });
+  S.box(14.76, 0.98, 0.5, 0.26, 0.26, 0.16, PAL.wood2);
+  for (let k=0;k<3;k++) S.person(13.2+k*0.46, 2.05, 0, shirt(320+k));
+
+  /* water point */
+  S.box(16.3, 1.0, 0, 0.36, 0.36, 0.7, PAL.cyandk, { cap: PAL.cyan });
+  S.box(16.35, 1.05, 0.7, 0.26, 0.26, 0.38, PAL.glow, { glass:true });
+  S.box(16.85, 1.0, 0, 0.26, 0.26, 0.36, PAL.glow, { glass:true });
+  for (let k=0;k<3;k++) S.person(16.2, 1.8+k*0.44, 0, shirt(340+k));
+
+  T(S, 0.4, -0.9, 0, 'SERVERY — HOT COUNTER, SNEEZE GLASS, TRAY RAIL, 2 STAFF', PAL.amber, 11);
+  T(S, 0.7, 2.5, 0, 'THE QUEUE IS THE MECHANIC', PAL.amberpal, 10.5);
+  T(S, 8.0, 3.6, 0.9, 'BENCHES 2 × 5 — THE FAR BENCH IS ALREADY FULL', PAL.n5, 10.5);
+  T(S, 13.1, 2.9, 0, 'KITCHENETTE ISLAND', PAL.cyan, 10.5);
+  T(S, 16.3, 3.4, 0, 'WATER POINT', PAL.cyan, 10.5);
+  render(document.getElementById('s6'), S, 42);
+})();
+
+/* ---------------- 07 · the apron ---------------- */
+(function(){
+  const S = makeScene(1.75);
+
+  /* behind the glass: three parallax bands, because this floor is up a tower */
+  S.box(-1.0, -5.6, 0, 14.5, 0.5, 1.5, '#1b1724');
+  S.box(-1.0, -4.3, 0, 14.5, 0.5, 0.95, '#221d2c');
+  for (let i=0;i<9;i++) S.box(-0.4+i*1.5, -3.2, 0, 0.95, 0.7, 0.4+(i%3)*0.18, '#262031');
+  S.poly([[-1.0,-2.3],[13.5,-2.3],[13.5,-1.7],[-1.0,-1.7]], '#1e1a26');
+  for (let i=0;i<11;i++) S.poly([[-0.6+i*1.25,-2.06],[0.0+i*1.25,-2.06],[0.0+i*1.25,-1.96],[-0.6+i*1.25,-1.96]], PAL.amberpal, 0.01, 0.5);
+  T(S, -1.0, -6.4, 0.9, 'BEHIND THE GLASS — THREE PARALLAX BANDS, NOT A SCENE', PAL.n4, 10.5);
+
+  /* the slab */
+  S.tile(0, 0, 12.4, 7.4, '#1d1926');
+  S.box(0, 0, 0, 12.4, 0.12, 2.1, PAL.n2);
+  S.box(0, 0, 0, 0.12, 7.4, 2.1, PAL.n2);
+  for (let i=0;i<8;i++) S.box(0.4+i*1.5, 0.01, 0.6, 1.0, 0.09, 1.2, PAL.glowdk, { glass:true, op:0.5 });
+  for (let i=0;i<4;i++) S.box(0.01, 0.4+i*1.5, 0.6, 0.09, 1.0, 1.2, PAL.glowdk, { glass:true, op:0.5 });
+  rowbank(S, 1.0, 0.7, [[0,12],[0,12],[0,11],[0,12],[0,11],[0,12],[0,10],[0,11],[0,12]], 5);
+
+  /* the apron on the two open sides */
+  const F = 7.7;
+  S.tile(-0.8, F, 14.0, 1.9, PAL.n2);
+  S.poly([[-0.8,F+1.9],[13.2,F+1.9],[13.2,F+2.0],[-0.8,F+2.0]], PAL.n4, 0.02);
+  S.poly([[-0.8,F+2.0],[13.2,F+2.0],[13.2,F+4.7],[-0.8,F+4.7]], '#1e1a26');
+  for (let i=0;i<11;i++) S.poly([[-0.5+i*1.25,F+3.28],[0.15+i*1.25,F+3.28],[0.15+i*1.25,F+3.4],[-0.5+i*1.25,F+3.4]], PAL.amberpal, 0.01, 0.48);
+  for (let i=0;i<8;i++) {
+    S.poly([[0.15+i*1.5,F+0.15],[0.2+i*1.5,F+0.15],[0.2+i*1.5,F+1.5],[0.15+i*1.5,F+1.5]], PAL.n5, 0.01, 0.5);
+    if (i < 7) S.car(0.3+i*1.5, F+0.25, 0, ['#4a6b8a','#55495e','#7a4b32','#2e4a2c'][i%4], 'y');
+  }
+  S.tree(-2.1, F+0.3, 0, 1.15); S.tree(-2.1, F+1.9, 0, 1.15); S.tree(13.6, F+0.3, 0, 1.15);
+  S.lamp(-1.4, F+1.7, 0); S.lamp(12.9, F+1.7, 0);
+
+  /* the right-hand open side */
+  S.tile(12.5, -0.8, 1.9, 8.5, PAL.n2);
+  S.tree(14.6, 0.8, 0, 1.15); S.tree(14.6, 3.0, 0, 1.15); S.tree(14.6, 5.2, 0, 1.15);
+  S.lamp(13.9, 4.0, 0);
+
+  T(S, -0.8, F+5.4, 0, 'FORECOURT · KERB · FOOTWAY · ROAD · BAYS · TREE LINE · LAMPS', PAL.amber, 11);
+  T(S, -0.8, F+5.4, -0.35, 'ABOUT SIX GRID UNITS DEEP. NOTHING IN IT IS MORE THAN FOUR BOXES.', PAL.n4, 10);
+  render(document.getElementById('s7'), S, 44);
+})();
+
+/* ---------------- 08 · the garage ---------------- */
+(function(){
+  const S = makeScene(2.15);
+
+  /* street */
+  S.tile(-1.6, 9.2, 13.6, 0.9, PAL.n2);
+  S.poly([[-1.6,10.1],[12,10.1],[12,10.2],[-1.6,10.2]], PAL.n4, 0.02);
+  S.poly([[-1.6,10.2],[12,10.2],[12,12.9],[-1.6,12.9]], '#1e1a26');
+  for (let i=0;i<11;i++) S.poly([[-1.3+i*1.25,11.48],[-0.65+i*1.25,11.48],[-0.65+i*1.25,11.6],[-1.3+i*1.25,11.6]], PAL.amberpal, 0.01, 0.5);
+
+  /* the drive, cracked */
+  S.tile(1.0, 6.9, 4.6, 2.3, '#252030');
+  S.poly([[1.9,7.1],[2.15,7.9],[1.98,8.9],[2.12,8.9],[2.3,7.9],[2.06,7.1]], PAL.n1, 0.01, 0.85);
+  S.poly([[3.9,7.0],[4.1,7.7],[4.9,8.0],[4.9,8.11],[4.0,7.82],[3.78,7.0]], PAL.n1, 0.01, 0.85);
+
+  /* the garage */
+  S.tile(0.5, 2.4, 5.8, 4.5, '#221d2c');
+  S.box(0.5, 2.4, 0, 5.8, 0.16, 2.1, PAL.n2);
+  S.box(0.5, 2.4, 0, 0.16, 4.5, 2.1, PAL.n2);
+  S.box(1.9, 2.38, 0.9, 1.4, 0.08, 0.75, PAL.glowdk, { glass:true, op:0.62 });
+  S.box(0.7, 2.66, 0, 1.8, 0.5, 0.55, PAL.wood2);                   /* workbench */
+  S.box(0.7, 2.56, 0.57, 1.8, 0.06, 0.7, PAL.wood);                 /* pegboard */
+  S.box(0.7, 5.6, 0, 0.5, 0.95, 1.3, PAL.wood2);                    /* shelving */
+  S.box(5.5, 2.7, 0, 0.6, 0.65, 0.9, PAL.cyandk, { cap: PAL.cyan }); /* beer fridge */
+  S.box(5.6, 3.55, 0, 0.34, 0.34, 0.3, PAL.n4);                     /* paint tin */
+  S.box(5.66, 3.61, 0.3, 0.24, 0.24, 0.24, PAL.n5);                 /* kettle */
+  S.box(5.6, 5.9, 0, 0.45, 0.45, 0.14, PAL.green2);                 /* the hose */
+  S.desk(2.2, 4.0, 0, 1.0); S.person(2.55, 4.55, 0, shirt(1));
+  S.desk(3.5, 4.0, 0, 1.0); S.person(3.85, 4.55, 0, shirt(9));
+  S.box(0.5, 6.62, 1.86, 5.8, 0.34, 0.14, PAL.n3);                  /* the door, up */
+  S.box(2.9, 6.5, 2.2, 0.1, 0.45, 0.06, PAL.n4);                    /* hoop, no net */
+  S.box(2.8, 6.46, 2.26, 0.28, 0.06, 0.36, PAL.n5);
+  S.car(2.0, 7.3, 0, '#7a4b32', 'x');
+  for (let i=0;i<4;i++) S.box(2.3, 7.4, 0.52+i*0.085, 0.55, 0.55, 0.075, i%2 ? PAL.wood : PAL.wood2);
+
+  /* outside */
+  S.box(6.9, 8.4, 0, 0.12, 0.12, 0.85, PAL.wood2);
+  S.box(6.8, 8.3, 0.85, 0.34, 0.3, 0.24, PAL.n3, { cap: PAL.amber });
+  S.box(0.2, 7.9, 0, 0.5, 0.46, 0.8, PAL.green2, { cap: PAL.green });
+  S.tree(7.7, 7.5, 0, 1.3);
+  S.lamp(8.9, 8.5, 0);
+
+  T(S, 0.5, 1.4, 1.5, 'NIGHT. TWO LIGHT SOURCES IN THE ENTIRE GAME: THE LAMP, AND THE MONITOR.', PAL.n4, 10);
+  T(S, 6.4, 3.5, 0.75, 'KETTLE ON A PAINT TIN', PAL.cyan, 9.5);
+  T(S, 3.1, 8.6, 0.95, 'PIZZA BOXES — ONE PER SHIPPED RELEASE', PAL.cyan, 9.5);
+  T(S, 8.0, 6.9, 0, 'THE TREE THAT SURVIVES TO 1,000', PAL.n4, 9.5);
+
+  /* the leadership room at three budgets */
+  const BY = 14.8;
+  T(S, -1.6, BY - 1.0, 0, 'THE LEADERSHIP ROOM, BEFORE IT IS A ROOM', PAL.amber, 11.5);
+  T(S, -1.6, BY - 1.0, -0.34, 'AND THE TAPE STAYS VISIBLE UNDER THE GLASS FOR THE REST OF THE GAME', PAL.n4, 10);
+  const states = [
+    ['#b8aeb3', '#4a2f22', 2, 'TAPED SQUARE · 3–5 DEVS'],
+    ['#d8d2cf', '#55495e', 2, 'SHOWER CURTAIN · 6–10'],
+    ['#ffe9b0', '#8a5c12', 4, 'FIRST GLASS PANEL · 11+'],
+  ];
+  states.forEach(function(st, i) {
+    const a = -1.6 + i*4.4, b = BY;
+    S.tile(a, b, 3.4, 2.9, '#221d2c');
+    const tape = (x0,y0,x1,y1) => S.poly([[x0,y0],[x1,y0],[x1,y1],[x0,y1]], PAL.amberpal, 0.012, 0.6);
+    tape(a+0.35, b+0.35, a+3.05, b+0.42);
+    tape(a+0.35, b+2.48, a+3.05, b+2.55);
+    tape(a+0.35, b+0.35, a+0.42, b+2.55);
+    tape(a+2.98, b+0.35, a+3.05, b+2.55);
+    S.box(a+1.5, b+1.2, 0, 0.36, 0.36, 0.44, PAL.n3);
+    if (i === 0) S.box(a+0.55, b+0.40, 0, 1.3, 0.07, 0.58, PAL.wood);
+    if (i === 1) { S.box(a+0.35, b+0.35, 0, 0.07, 2.2, 1.5, PAL.n5, { op: 0.45 });
+                   S.box(a+0.35, b+0.35, 0, 2.7, 0.07, 1.5, PAL.n5, { op: 0.45 });
+                   S.person(a+1.7, b+1.3, 0, shirt(77)); }
+    if (i === 2) { S.person(a+1.7, b+1.3, 0, shirt(77)); S.person(a+2.2, b+1.85, 0, shirt(78));
+                   S.box(a+0.35, b+0.35, 0, 2.7, 0.09, 1.6, PAL.n3, { cap: PAL.amber });
+                   S.pane(a+0.35, b+0.35, 0, 2.2, 1.6, 'y', PAL.glow, { op: 0.26 }); }
+    S.sign(a+0.5, b+0.30, i === 0 ? 0.64 : 1.68, i === 0 ? 'LEADERSHP' : 'LEADERSHIP',
+      { size: i === 0 ? 8 : 9, depth: st[2], step: 1.25, c: st[0], back: st[1], ls: 0.3 });
+    T(S, a, b + 3.4, 0, st[3], i === 2 ? PAL.amber : PAL.n4, 10);
+  });
+
+  render(document.getElementById('s8'), S, 44);
+})();
+
+/* ---------------- 09 · the plate, as built and reworked ---------------- */
+(function(){
+  const S = makeScene(2.3);
+  plateAt(S, 0, 0, [[0,10],[0,10],[0,10],[0,10],[0,10],[0,10],[0,10]], 'ENG', 3, { noTrim: true });
+  T(S, -0.4, -1.0, 0, 'AS BUILT — A PERFECT RECTANGLE, SEVEN TIMES', PAL.n5, 11.5);
+
+  const a = 9.6;
+  plateAt(S, a, 0, [[0,10],[0,10],[0,9],[3,6],[3,6],[0,9],[0,8]], 'QA', 77);
+  S.box(a+ROWP*3.1, 0.1, 0, 0.5, 0.5, 0.2, PAL.wood, { cap: PAL.n5 });     /* the huddle in the bite */
+  S.box(a+ROWP*4.1, 0.1, 0, 0.5, 0.5, 0.2, PAL.wood, { cap: PAL.n5 });
+  S.box(a+ROWP*3.6, 0.85, 0, 0.5, 0.5, 0.18, PAL.wood2);
+  S.person(a+ROWP*3.2, 0.2, 0.2, shirt(1601)); S.person(a+ROWP*4.1, 0.2, 0.2, shirt(1602));
+  S.box(a-0.75, 1.4, 0, 0.09, 1.4, 0.7, PAL.n5, { op: 0.8 });               /* whiteboard at a row end */
+  S.box(a-0.7, 3.6, 0, 0.4, 0.4, 0.3, PAL.green2);
+  S.box(a-0.66, 3.64, 0.3, 0.32, 0.32, 0.32, PAL.green);
+  S.box(a+ROWP*7.1, 1.2, 0, 0.6, 0.5, 0.55, PAL.n3);                        /* printer island */
+  S.box(a+ROWP*7.1, 2.4, 0, 0.6, 0.4, 0.55, PAL.n2, { cap: PAL.cyan });     /* recycling */
+  S.box(a+ROWP*7.1, 3.4, 0, 0.16, 0.16, 1.0, PAL.n4);                       /* coat rack */
+  S.box(a-0.5, -0.5, 0, 0.28, 0.28, 2.3, PAL.n3);
+  S.box(a-0.54, -0.54, 1.95, 0.36, 0.36, 0.2, PAL.n2, { cap: ROLE_TRIM.QA });
+  T(S, a-0.4, -1.5, 0, 'REWORKED — RAGGED ENDS, A BITE FOR A HUDDLE, ROLE TRIM, PROPS INSIDE', PAL.amber, 11.5);
+  T(S, a+ROWP*7.6, 1.2, 0, 'PRINTER · RECYCLING · COAT RACK — NOT ON A WALL', PAL.n4, 10);
+  T(S, -0.4, 6.4, 0, 'BOTH HOLD THE SAME HUNDRED, ROW BY ROW. §7.8.1b UNTOUCHED.', PAL.n5, 10);
+  render(document.getElementById('s9'), S, 44);
+})();
+
+/* ---------------- 10 · the plaza ---------------- */
+(function(){
+  const S = makeScene(2.7);
+  const px = 0, py = 0, R = 2.5;
+
+  /* the widened corridor it sits in, and the plates either side */
+  S.tile(-6.6, -5.4, 13.2, 11.0, '#2a2434');
+  for (const gx of [-5.9, 2.9]) for (const gy of [-6.6, -2.0, 2.6])
+    plateAt(S, gx, gy, [[0,8],[0,8],[0,7]], gx < 0 ? 'ENG' : 'SUP', Math.round(gx*7+gy*3));
+
+  /* the inlay */
+  S.poly(octagon(px, py, R), '#3a3148');
+  S.poly(octagon(px, py, R-0.3), '#463a58');
+  S.poly(octagon(px, py, 0.95), '#544567');
+
+  /* four sofas on the axis edges, four pouffes on the diagonals */
+  sofa(S, px-0.9, py-2.05, 1.8, 'n');
+  sofa(S, px-0.9, py+1.55, 1.8, 's');
+  sofa(S, px-2.05, py-0.9, 1.8, 'w');
+  sofa(S, px+1.55, py-0.9, 1.8, 'e');
+  for (const q of [[-1.6,-1.6],[1.1,-1.6],[-1.6,1.1],[1.1,1.1]])
+    S.box(px+q[0], py+q[1], 0, 0.5, 0.5, 0.2, PAL.n3, { cap: PAL.n5 });
+
+  /* low tables, a laptop somebody left open, a mug nobody took back */
+  S.box(px-1.5, py-0.35, 0, 0.55, 0.7, 0.18, PAL.wood2);
+  S.box(px-1.38, py-0.2, 0.18, 0.28, 0.2, 0.03, PAL.glowdk, { emit: PAL.glow2 });
+  S.box(px+1.0, py+0.05, 0, 0.55, 0.7, 0.18, PAL.wood2);
+  S.box(px+1.16, py+0.2, 0.18, 0.12, 0.12, 0.15, PAL.n6);
+
+  /* planters outside the ring, on the diagonals */
+  for (const q of [[-2.95,-0.4],[2.15,-0.4],[-0.4,-2.95],[-0.4,2.15]]) {
+    S.box(px+q[0], py+q[1], 0, 0.8, 0.8, 0.3, PAL.n3, { cap: PAL.n5 });
+    S.box(px+q[0]+0.12, py+q[1]+0.12, 0.3, 0.56, 0.56, 0.44, PAL.green2);
+    S.box(px+q[0]+0.22, py+q[1]+0.22, 0.74, 0.36, 0.36, 0.36, PAL.green);
+  }
+
+  /* the people who are not working. Seated, on the ring itself. */
+  for (let i=0;i<3;i++) S.person(px-0.72+i*0.56, py-1.72, 0.18, shirt(1300+i));
+  S.person(px-1.72, py-0.72, 0.18, shirt(1310)); S.person(px-1.72, py+0.16, 0.18, shirt(1311));
+  S.person(px+1.68, py-0.6, 0.18, shirt(1312));
+  S.person(px-1.55, py-1.55, 0.2, shirt(1314));
+  S.person(px+1.22, py-1.5, 0, shirt(1315));
+
+  statue(S, px, py, 4, 0.62);
+
+  S.label(px-3.1, py-3.9, 2.9, 'THE FOUNDER, CAST — RUNG 4, GILDED', { c: PAL.amber, size: 13 });
+  S.label(px-3.1, py-3.9, 2.56, 'BUILT FROM THE LOOK THE PLAYER ALREADY CHOSE. NO TWO RUNS GET THE SAME STATUE.', { c: PAL.n4, size: 10 });
+  S.label(px+2.7, py+0.4, 0.5, 'THE ROPE CLOSES THE SOUTH SOFA', { c: PAL.red, size: 10.5 });
+  S.label(px-2.2, py-4.4, 0.3, 'OCTAGON IN GRID SPACE — FOUR EDGES ON THE FLOOR AXES, FOUR ON ITS DIAGONALS', { c: PAL.n5, size: 10 });
+  S.label(px-6.5, py+1.4, 0, 'THE PLATES EITHER SIDE DO NOT MOVE', { c: PAL.n4, size: 10 });
+
+  render(document.getElementById('s10'), S, 46);
+})();
+
+/* ---------------- 11 · the plinth, and what stands on it ---------------- */
+(function(){
+  const S = makeScene(2.4);
+  /* Rows run along the grid's own anti-diagonal, which is exactly horizontal
+     on screen — the same reason §7.8.1 lays desk rows that way. */
+  const D = 2.9, ROW2 = 5.4;
+  const at = (i, row) => [i*D + (row ? ROW2 : 0), -i*D + (row ? ROW2 : 0)];
+  const cap = (a, b, t, c, s2) => S.label(a+1.55, b+1.55, 0, t, { c: c || PAL.n5, size: s2 || 10.5, anchor: 'middle' });
+
+  const RUNGS = [['THE EMPTY PLINTH','100 DEVS'],['THE STANDEE','200'],
+                 ['THE RESIN BUST','400'],['THE BRONZE','700'],['THE GILDED','1,000']];
+  RUNGS.forEach(function(r, i) {
+    const q = at(i, 0), a = q[0], b = q[1];
+    S.tile(a-1.35, b-1.35, 2.7, 2.7, '#231e2d');
+    statue(S, a, b, i, 0.95);
+    cap(a, b, r[0], i === 4 ? PAL.amber : PAL.n5, 11);
+    S.label(a+1.9, b+1.9, 0, r[1], { c: PAL.n4, size: 9.5, anchor: 'middle' });
+  });
+  S.label(at(0,0)[0]-1.6, at(0,0)[1]-1.9, 2.4, 'FIVE RUNGS · ONE SLOT · THE SAME PLINTH THROUGHOUT', { c: PAL.amber, size: 12 });
+
+  const ALT = ['THE ORIGINAL DESK','THE MONOLITH','THE ROCKET','THE TROPHY CASE','THE FOUNTAIN'];
+  ALT.forEach(function(name, i) {
+    const q = at(i, 1), a = q[0], b = q[1];
+    S.tile(a-1.35, b-1.35, 2.7, 2.7, '#231e2d');
+    S.box(a-0.7, b-0.7, 0, 1.4, 1.4, 0.15, PAL.n3);
+    S.box(a-0.55, b-0.55, 0.15, 1.1, 1.1, 0.15, PAL.n4);
+    if (i === 0) {                       /* the garage desk, under glass */
+      S.box(a-0.42, b-0.26, 0.3, 0.85, 0.46, 0.24, PAL.wood2);
+      S.box(a-0.14, b-0.2, 0.54, 0.32, 0.06, 0.26, PAL.glowdk, { emit: PAL.glow2 });
+      S.box(a-0.5, b-0.36, 0.3, 0.06, 1.0, 0.95, PAL.glow, { glass:true, op:0.3 });
+      S.box(a-0.5, b+0.58, 0.3, 1.05, 0.06, 0.95, PAL.glow, { glass:true, op:0.3 });
+    }
+    if (i === 1) {                       /* the monolith */
+      S.box(a-0.28, b-0.12, 0.3, 0.56, 0.22, 1.75, '#14121a');
+      S.box(a-0.22, b+0.08, 0.95, 0.44, 0.03, 0.14, PAL.glowdk, { emit: PAL.glow2 });
+      S.person(a+0.55, b+0.75, 0, shirt(1400));
+    }
+    if (i === 2) {                       /* the release rocket, on gimbals */
+      S.box(a-0.26, b-0.26, 0.3, 0.52, 0.52, 0.85, PAL.n6);
+      S.box(a-0.18, b-0.18, 1.15, 0.36, 0.36, 0.45, PAL.n8);
+      S.box(a-0.09, b-0.09, 1.6, 0.18, 0.18, 0.28, PAL.red);
+      S.box(a-0.42, b-0.04, 0.3, 0.14, 0.2, 0.36, PAL.red);
+      S.box(a+0.28, b-0.04, 0.3, 0.14, 0.2, 0.36, PAL.red);
+    }
+    if (i === 3) {                       /* the trophy case, still filling */
+      S.box(a-0.46, b-0.26, 0.3, 0.92, 0.5, 1.5, PAL.n2);
+      for (let t=0;t<3;t++) {
+        S.box(a-0.4, b-0.28, 0.5+t*0.42, 0.8, 0.06, 0.04, PAL.n5);
+        if (t < 2) S.box(a-0.3+t*0.36, b-0.24, 0.54+t*0.42, 0.22, 0.22, 0.2, PAL.amber);
+      }
+      S.box(a-0.46, b+0.2, 0.3, 0.92, 0.06, 1.5, PAL.glow, { glass:true, op:0.24 });
+    }
+    if (i === 4) {                       /* the fountain */
+      S.poly(octagon(a, b, 0.62), PAL.n5, 0.32);
+      S.poly(octagon(a, b, 0.5), PAL.cyandk, 0.34);
+      S.poly(octagon(a, b, 0.36), PAL.glow2, 0.36, 0.8);
+      S.box(a-0.09, b-0.09, 0.34, 0.18, 0.18, 0.62, PAL.n5);
+      S.box(a-0.15, b-0.15, 0.96, 0.3, 0.3, 0.1, PAL.glow2, { emit: PAL.glow2 });
+    }
+    cap(a, b, name, i === 0 ? PAL.cyan : PAL.n5, 11);
+  });
+  S.label(at(0,1)[0]-1.6, at(0,1)[1]-1.2, 2.9, 'THE PLINTH IS A SLOT — THE STATUE IS ONLY ITS DEFAULT OCCUPANT', { c: PAL.cyan, size: 12 });
+
+  render(document.getElementById('s11'), S, 46);
+})();
+/* ---------------- 12 · the hallway ---------------- */
+(function(){
+  const S = makeScene(2.6);
+  const G0 = -0.6, G1 = 4.0, L0 = -0.9, L1 = 9.4;   /* the spine's own extent */
+
+  S.tile(G0, L0, G1-G0, L1-L0, '#2c2637');
+  S.poly([[G0+0.5,L0],[G1-0.5,L0],[G1-0.5,L1],[G0+0.5,L1]], '#39304a', 0.002);
+  S.poly([[G0+0.45,L0],[G0+0.5,L0],[G0+0.5,L1],[G0+0.45,L1]], PAL.n4, 0.004);
+  S.poly([[G1-0.5,L0],[G1-0.45,L0],[G1-0.45,L1],[G1-0.5,L1]], PAL.n4, 0.004);
+
+  /* a plate on each side, rows running away along gy */
+  plateAt(S, -4.6, 0.0, [[0,8],[0,8],[0,7],[0,7]], 'SUP', 41);
+  plateAt(S,  4.4, 0.2, [[0,8],[0,7],[0,7],[0,8]], 'ENG', 91);
+
+  /* the wall run — lockers, a noticeboard, vending, bikes */
+  for (let i=0;i<6;i++) S.box(-0.45, 0.1+i*0.58, 0, 0.42, 0.54, 0.62, PAL.n2, { cap: i%2 ? PAL.cyan : PAL.n5 });
+  S.box(-0.5, 4.1, 0.26, 0.06, 1.3, 0.42, PAL.n6, { op: 0.85 });
+  S.box(-0.45, 5.9, 0, 0.45, 0.8, 0.76, PAL.n2, { cap: PAL.amber });
+  S.box(-0.38, 5.98, 0.3, 0.06, 0.62, 0.4, PAL.glowdk, { emit: PAL.glow2 });
+  for (let i=0;i<4;i++) { S.box(-0.4, 7.5+i*0.42, 0, 0.14, 0.14, 0.34, PAL.n4);
+                          S.box(-0.46, 7.5+i*0.42, 0.34, 0.5, 0.1, 0.22, PAL.n3); }
+
+  /* the beam run, and the light strips in it */
+  for (let i=0;i<6;i++) {
+    const b = L0 + 0.6 + i*1.6;
+    S.box(G0+0.15, b, 1.12, G1-G0-0.3, 0.18, 0.1, PAL.n2);
+    S.box(G0+1.1, b+0.04, 1.08, 2.2, 0.1, 0.035, PAL.amber, { emit: PAL.amberpal });
+  }
+  /* wayfinding, hung at the junctions */
+  S.box(1.5, 3.0, 0.86, 0.05, 1.2, 0.3, PAL.n2, { cap: PAL.cyan });
+  S.box(1.5, 6.9, 0.86, 0.05, 1.2, 0.3, PAL.n2, { cap: PAL.amber });
+
+  /* people, walking */
+  for (const q of [[0.5,0.4],[1.5,1.6],[2.7,2.3],[0.9,3.6],[2.3,4.4],[1.2,5.4],[2.8,6.2],[0.7,7.3],[2.1,8.2],[1.6,9.0]])
+    S.person(q[0], q[1], 0, shirt(Math.round(q[0]*31+q[1]*7)));
+
+  T(S, G0, L0-1.4, 1.7, 'THE SPINE — WHAT TURNS A GAP INTO A HALLWAY', PAL.amber, 12.5);
+  T(S, G0, L0-1.4, 1.36, 'FLOOR FINISH · A DEFINED EDGE · A BEAM RUN · WAYFINDING · SOMETHING ALONG ONE SIDE', PAL.n4, 10);
+  T(S, -1.6, 0.6, 0.9, 'LOCKERS', PAL.n5, 10);
+  T(S, -1.6, 4.2, 0.9, 'NOTICEBOARD', PAL.n5, 10);
+  T(S, -1.6, 6.1, 1.0, 'VENDING', PAL.n5, 10);
+  T(S, -1.6, 7.8, 0.7, 'BIKE RACK', PAL.n5, 10);
+  T(S, 4.2, 3.0, 1.35, 'ZONE SIGN, IN THE ROLE COLOUR', PAL.cyan, 10);
+  T(S, 4.2, 0.4, 1.9, 'BEAM RUN — READS EVEN IN A CUTAWAY', PAL.amberpal, 10);
+
+  /* the three widths, stacked so screen-x holds still */
+  [['SPINE', 4.2, PAL.amber], ['RIB', 1.8, PAL.cyan], ['SLIP', 1.05, PAL.n5]].forEach(function(k, i) {
+    const a = 8.4 + i*1.7, b = 8.4 + i*1.7;
+    S.tile(a, b, k[1], 2.6, '#2c2637');
+    S.box(a, b, 0, 0.06, 2.6, 0.08, PAL.n2, { cap: k[2] });
+    S.box(a + k[1] - 0.06, b, 0, 0.06, 2.6, 0.08, PAL.n2, { cap: k[2] });
+    S.label(a + k[1] + 0.35, b + 2.4, 0, k[0] + ' — ' + k[1].toFixed(k[1] < 2 ? 2 : 1) + ' TILES', { c: k[2], size: 10.5 });
+  });
+  T(S, 8.4, 7.4, 0, 'THREE WIDTHS, AND ONLY TWO OF THEM ARE HALLWAYS', PAL.amberpal, 11.5);
+
+  render(document.getElementById('s12'), S, 44);
+})();
+
+/* ---------------- 13 · the kitchenette island ----------------
+   Proportions checked against the figure: a person is 0.62 units tall, so a
+   counter is 0.34, a fridge 0.72, and a wall unit sits at 0.62. The first
+   pass had the fridge at 1.8, which is a four-metre fridge. */
+(function(){
+  const S = makeScene(4.2);
+
+  S.tile(-1.9, -1.3, 4.6, 5.2, '#2e2739');
+  S.poly([[-1.9,-0.85],[2.7,-0.85],[2.7,3.5],[-1.9,3.5]], '#39304a', 0.002);
+
+  /* the run behind */
+  S.box(-1.75, -1.0, 0, 0.6, 0.72, 0.72, PAL.n2, { cap: PAL.cyan });        /* fridge */
+  S.box(-1.75, -0.15, 0, 0.56, 2.7, 0.34, PAL.n3, { cap: PAL.n5 });         /* worktop */
+  S.box(-1.68, 0.1, 0.34, 0.42, 0.42, 0.14, PAL.n2, { bias: 1.4 });         /* microwave */
+  S.box(-1.62, 0.16, 0.4, 0.3, 0.32, 0.06, PAL.glowdk, { emit: PAL.glow2, bias: 1.5 });
+  S.box(-1.68, 1.05, 0.34, 0.36, 0.36, 0.22, PAL.n2, { cap: PAL.amber, bias: 1.4 });
+  S.box(-1.62, 1.11, 0.56, 0.26, 0.26, 0.04, PAL.amberpal, { emit: PAL.amberpal, bias: 1.5 });
+  S.box(-1.68, 1.9, 0.34, 0.3, 0.5, 0.06, PAL.n5, { bias: 1.4 });           /* draining board */
+  for (let i=0;i<2;i++) S.box(-1.75, 0.0+i*1.15, 0.64, 0.38, 1.0, 0.24, PAL.n1, { cap: PAL.n3 });
+
+  /* the island */
+  S.box(0.05, 0.15, 0, 0.74, 2.2, 0.34, PAL.wood2, { cap: PAL.cyan });      /* timber worktop, grey trim */
+  const ON = { bias: 1.6 };
+  S.box(0.2, 0.34, 0.36, 0.44, 0.58, 0.02, PAL.n5, ON);                     /* sink */
+  S.box(0.25, 0.39, 0.375, 0.34, 0.48, 0.02, '#16252b', { bias: 1.7 });
+  S.box(0.17, 0.25, 0.38, 0.06, 0.06, 0.22, PAL.n6, ON);                    /* tap */
+  S.box(0.17, 0.25, 0.59, 0.06, 0.22, 0.035, PAL.n6, { bias: 1.7 });
+  S.box(0.24, 1.12, 0.36, 0.26, 0.26, 0.24, PAL.n5, ON);                    /* kettle */
+  S.box(0.27, 1.15, 0.6, 0.2, 0.2, 0.035, PAL.n6, { bias: 1.7 });
+  for (let i=0;i<4;i++)                                                     /* mismatched mugs */
+    S.box(0.56, 0.86+i*0.17, 0.36, 0.13, 0.13, 0.14, [PAL.amber,PAL.cyan,PAL.n8,PAL.green][i], ON);
+  S.box(0.22, 1.62, 0.36, 0.28, 0.28, 0.09, PAL.wood, ON);                  /* fruit nobody eats */
+  S.box(0.28, 1.68, 0.45, 0.16, 0.16, 0.08, PAL.green, { bias: 1.7 });
+  S.box(0.55, 1.9, 0.36, 0.16, 0.16, 0.2, PAL.n6, ON);                      /* takeaway cups */
+
+  /* three bins, and the one that is overflowing */
+  [[PAL.n3, PAL.n5], ['#1a6b78', PAL.cyan], ['#2e4a2c', PAL.green]].forEach(function(c, i) {
+    S.box(1.6, -0.75 + i*0.46, 0, 0.34, 0.4, 0.3, c[0], { cap: c[1] });
+    if (i === 1) { S.box(1.64, -0.24, 0.3, 0.26, 0.3, 0.12, PAL.wood2);
+                   S.box(1.68, -0.14, 0.42, 0.18, 0.18, 0.08, PAL.n6); }
+  });
+
+  /* stools on the hallway side, and the people on them */
+  for (let i=0;i<3;i++) S.box(1.12, 0.3+i*0.62, 0, 0.26, 0.26, 0.2, PAL.wood2, { cap: PAL.n5 });
+  S.person(1.14, 0.33, 0.2, shirt(2001));
+  S.person(1.14, 1.54, 0.2, shirt(2002));
+
+  /* two pendants over the island — the only light source in the vignette */
+  for (let i=0;i<2;i++) {
+    S.poly(octagon(0.42, 0.72+i*1.05, 0.55), PAL.amber, 0.005, 0.13);
+    S.box(0.4, 0.7+i*1.05, 0.82, 0.04, 0.04, 0.3, PAL.n4);
+    S.box(0.33, 0.63+i*1.05, 0.74, 0.18, 0.18, 0.08, PAL.amberpal, { emit: PAL.amberpal });
+  }
+
+  /* the people who are not working */
+  S.person(2.15, 0.55, 0, shirt(2003));
+  S.person(2.15, 1.15, 0, shirt(2004));
+  S.person(0.15, 2.75, 0, shirt(2005));
+  S.person(0.75, 2.75, 0, shirt(2006));
+
+  T(S, -1.9, -2.1, 1.5, 'THE KITCHENETTE ISLAND', PAL.amber, 13);
+  T(S, -1.9, -2.1, 1.16, 'PEOPLE STAND ON ALL FOUR SIDES OF IT AND TRAFFIC STILL PASSES — WHICH IS NOT TRUE OF ANYTHING AGAINST A WALL', PAL.n4, 10);
+  T(S, -2.6, -1.0, 0.95, 'FRIDGE', PAL.n5, 9.5);
+  T(S, -2.9, 1.4, 1.05, 'MICROWAVE · BEAN-TO-CUP · WALL UNITS', PAL.n5, 9.5);
+  T(S, 0.1, 3.0, 0.8, 'SINK · TAP · KETTLE · MUG TREE · FRUIT NOBODY EATS', PAL.cyan, 9.5);
+  T(S, 2.1, -0.9, 0.6, 'THREE BINS. THE RECYCLING ONE IS OVERFLOWING.', PAL.amberpal, 9.5);
+  T(S, 1.5, 2.3, 0.5, 'STOOLS ON THE HALLWAY SIDE', PAL.n5, 9.5);
+  T(S, 1.0, -1.1, 1.35, 'TWO PENDANTS — THE ONLY LIGHT SOURCE IN THE VIGNETTE', PAL.amberpal, 9.5);
+
+  render(document.getElementById('s13'), S, 46);
+})();
+</script>

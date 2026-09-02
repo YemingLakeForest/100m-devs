@@ -83,6 +83,26 @@ export function counterScale(worldScale: number): number {
   return Math.min(2.4, 1 / Math.max(0.35, worldScale))
 }
 
+/**
+ * Is counter-scaled type still landing at its **design size**?
+ *
+ * §7.8.13's desk plates are set in Departure Mono at its own 11 px grid, and a
+ * pixel font below its grid is not faint — it is a different set of pixels. So
+ * they have a harder floor than a bubble does: {@link counterScale} holds the
+ * type at exactly one-to-one while it can, and this is the zoom where it stops
+ * being able to and the words have to go instead.
+ *
+ * It lives here rather than in `room.ts` because the clamp it is asking about is
+ * `counterScale`'s, and a second copy of "2.4" in another file is the quiet
+ * divergence that would let one of them move without the other. The epsilon is
+ * not slack: `ws * (1 / ws)` is not exactly 1 in binary, and comparing the
+ * product against 1 hid every plate in the room at the one scale they were
+ * drawn perfectly.
+ */
+export function typeAtDesignSize(worldScale: number): boolean {
+  return worldScale * counterScale(worldScale) >= 1 - 1e-9
+}
+
 /** Is a bubble at this world scale worth drawing at all? */
 export function bubblesLegible(worldScale: number): boolean {
   return worldScale * counterScale(worldScale) >= BUBBLE_MIN_SCALE

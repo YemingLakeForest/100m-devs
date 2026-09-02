@@ -628,8 +628,9 @@ async function clearRelease(page) {
 /**
  * **Every button you can see, you can press.**
  *
- * This pass exists because §13.2's PARADIGM button and §13.11.2's HERO button
- * shipped drawn, correctly positioned, contrast-checked — and completely dead.
+ * This pass exists because §13.2's PARADIGM button and the roster door beside it
+ * (§13.11.2's `HERO`, which §7.8.12 has since replaced with `TEAM`) shipped
+ * drawn, correctly positioned, contrast-checked — and completely dead.
  * `.hud` is `pointer-events: none` by design and each control opts back in; the
  * opt-in had been written on the *containers*, and those two buttons are direct
  * children of a row that never needed pointers, so the canvas sat on top of
@@ -793,6 +794,34 @@ async function aimAt(page, rung, index) {
     },
     { r: rung, i: index },
   )
+}
+
+/**
+ * §13.11.2 — open the roster strip the way a player does.
+ *
+ * The `HERO` button this replaces is gone: §7.8.12 gave that rail slot to
+ * `TEAM` and put the roster's door on the sign over the suite's own doorway.
+ * `TEAM` flies the camera to the room from wherever it is; `__signAt` is the
+ * aiming seam that says where the sign landed, so the gate taps the sign rather
+ * than sweeping the room for it.
+ */
+async function openRoster(target) {
+  // §10.8b — the gesture is three controls and a camera flight now, which is
+  // long enough for a studio running at speed to finish a project underneath it.
+  // A launch window is modal, so clearing it first is the difference between
+  // pressing TEAM and pressing the glass over TEAM.
+  await clearRelease(target)
+  await target.getByRole('button', { name: 'TEAM', exact: true }).click()
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const at = await target.evaluate(() => window.__signAt?.() ?? null)
+    if (at) {
+      await target.mouse.click(at.x, at.y)
+      await target.waitForTimeout(200)
+      if (await target.locator('.roster').count()) return
+    }
+    await target.waitForTimeout(150)
+  }
+  throw new Error('the sign over the suite door never opened the roster')
 }
 
 async function check(
@@ -1032,7 +1061,7 @@ try {
       path: '/?notitle&full&nopost',
       action: async (target) => {
         await clearScene(target)
-        await target.getByRole('button', { name: 'HERO', exact: true }).click()
+        await openRoster(target)
         await target.locator('.roster__card').first().click()
         await target.getByRole('button', { name: 'PLACE HERO', exact: true }).click()
         // The banner, not just the absence of the card: PLACE HERO closes the card
@@ -1090,11 +1119,53 @@ try {
       // than the mounted app's graph, returning success without publishing to
       // this Hud instance — exactly the kind of false fixture this gate exists
       // to avoid.
-      await target.getByRole('button', { name: 'HERO', exact: true }).click()
-      await target.locator('.roster__card').first().click()
-      await target.getByRole('button', { name: 'PLACE HERO', exact: true }).click()
-      await target.mouse.move(458, 206)
-      await target.getByRole('button', { name: 'CONFIRM PLACE', exact: true }).click()
+      /*
+       * **Arm, aim, confirm — and be prepared to do it again.**
+       *
+       * This leg plays a real studio of nine hundred at sixty times speed, so
+       * the simulation is shipping projects and firing §21 events underneath
+       * the gesture. §13.8c's banner exists only while a candidate is under the
+       * pointer, and anything that clears the arming between the aim and the
+       * press takes the CONFIRM button with it.
+       *
+       * That was survivable while the whole gesture was three clicks on the
+       * rail. §7.8.12 moved the roster's door into the world, so it is now a
+       * camera flight and a tap on a sign as well — several seconds longer, and
+       * long enough to lose the race often rather than rarely. `playthrough`'s
+       * own placement leg has looped like this for the same reason: the fix for
+       * racing a live studio is to be re-runnable, not to be quick.
+       */
+      const confirm = target.getByRole('button', { name: 'CONFIRM PLACE', exact: true })
+      let placed = false
+      for (let attempt = 0; attempt < 6 && !placed; attempt += 1) {
+        await clearRelease(target)
+        if (!(await target.evaluate(() => globalThis.__store?.posting ?? null))) {
+          await openRoster(target)
+          await target.locator('.roster__card').first().click()
+          await target.getByRole('button', { name: 'PLACE HERO', exact: true }).click()
+          await target.locator('.posting').waitFor({ state: 'visible' })
+        }
+        // Aim rather than guess: this used to move to a hard-coded (458, 206),
+        // which only worked while the roster's door left the camera where it
+        // found it. `__pick` is the same sanctioned hook the walk aims with and
+        // answers off the model, so it finds a real unit whatever TEAM did.
+        const spot = await target.evaluate(() => {
+          for (let y = 40; y <= 380; y += 8) {
+            for (let x = 200; x <= 780; x += 8) {
+              if (globalThis.__pick?.(x, y)) return { x, y }
+            }
+          }
+          return null
+        })
+        if (!spot) continue
+        await target.mouse.move(spot.x, spot.y)
+        if (!(await confirm.count())) continue
+        placed = await confirm
+          .click({ timeout: 4_000 })
+          .then(() => true)
+          .catch(() => false)
+      }
+      if (!placed) throw new Error('the placement gesture never held long enough to confirm')
       await target.locator('.world-hero-pin').waitFor({ state: 'attached' })
       await galleryDoor.click()
       await target.locator('.gallery').waitFor({ state: 'visible' })

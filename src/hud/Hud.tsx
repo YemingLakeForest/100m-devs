@@ -391,9 +391,22 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       setRosterOpen(false)
       selectHero(id)
     })
+    // §13.11.2 — the roster's door is the sign over the suite's own doorway.
+    // It used to be a button in the right rail; that slot is now TEAM, and
+    // `Roster.tsx` has always said this is where the door belongs.
+    stage.setRosterInspect(() => {
+      setTreeOpen(false)
+      setUpgradesOpen(false)
+      setFounderOpen(false)
+      setGameMenuOpen(false)
+      setGalleryOpen(false)
+      setHeroTreeOpen(false)
+      setRosterOpen(true)
+    })
     return () => {
       stage.setFounderInspect(null)
       stage.setHeroInspect(null)
+      stage.setRosterInspect(null)
     }
   }, [stage])
 
@@ -566,21 +579,25 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           */}
           <FounderDesk stage={stage} />
           {/*
-            §13.11.2 — the roster strip's summon control.
+            §7.8.12 — **TEAM: the way back to the room**, and §7.7.4's Hero
+            Anchor finally built as a control.
 
-            **Gated on there being more than one of them**, which is not a
-            cosmetic condition: James arrives alone in Act I and a `HERO` button
-            over a team of one is the §10.6 web-page tell, on exactly the
-            argument PARADIGM and UPGRADES below already use. It appears the
-            first time somebody joins him.
+            It replaces the `HERO` button that stood here, and the replacement
+            is the point rather than a saving. That button opened the roster
+            strip, which `Roster.tsx` itself calls *"not the intended front
+            door ... once [the suite] exists the way you reach Mo is by looking
+            at Mo"*. The strip now opens from the sign over the suite's door,
+            and the rail slot buys the thing the room never had: a way to get
+            back to it from a hundred million developers away.
 
-            §7.8.12's room is the person-first door, reached by looking at them.
-            The strip answers "who is idle?" without making the player hunt
-            six desks. The physical room is the person-first door; this remains
-            the compact status-first door.
+            **Gated on there being more than one of them**, unchanged and for
+            the unchanged reason: James arrives alone in Act I and §7.8.12 does
+            not build the walls until somebody joins him, so before that there
+            is no room to go back to and a button onto one is the §10.6
+            web-page tell.
           */}
           {roster.length > 1 && (
-            <Button onClick={() => setRosterOpen((was) => !was)}>HERO</Button>
+            <Button onClick={() => stage?.focusTeam()}>TEAM</Button>
           )}
           {/*
             §13.2 — the tree appears only once a Paradigm Shift has happened.

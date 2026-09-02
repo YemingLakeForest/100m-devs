@@ -17,6 +17,7 @@
  * is testable without a renderer.
  */
 
+import { BUILDING_CAP, FLOOR_CAP, GARAGE_CAP } from './capacity.ts'
 import { ceilingZForRung } from './ladder.ts'
 
 /**
@@ -110,10 +111,35 @@ export function visibleSprites(devs: number): number {
  * Upper bound is exclusive; the last rung is open.
  */
 export const RUNGS = [
-  { rung: 0, upTo: 1e1, unit: 'person', unitSize: 1, place: 'one desk, then a huddle' },
-  { rung: 1, upTo: 1e2, unit: 'person', unitSize: 1, place: 'a room of desks' },
-  { rung: 2, upTo: 1e3, unit: 'person', unitSize: 1, place: 'one full floor, rank and file' },
-  { rung: 3, upTo: 1e4, unit: 'floor', unitSize: 1e3, place: 'a tower growing storey by storey' },
+  // §7.8.0 [amended 2026-09-01] — **the bottom four rungs were re-anchored and
+  // the top six were not.** The old table gave rung 0 ten people, rung 1 a
+  // hundred, rung 2 a thousand "rank and file" on one floor, and rung 3 a tower
+  // of thousand-person floors. Three of those four numbers were describing a
+  // floor nobody could read: at a thousand desks in frame a developer is four
+  // pixels, so every hire between 100 and 1,000 was the same event.
+  //
+  // So the garage is twenty, the floor is a hundred, and the tower spends
+  // **two** rungs climbing to a hundred storeys — which is where the old table
+  // already had its 10^4, so rung 4 upward is byte-identical and §13.5's 10^8
+  // gate has not moved. The rescale is entirely below the building.
+  //
+  // **The bottom four bounds are one past their round number and the rest are
+  // not**, and the asymmetry is the scale model rather than a fencepost slip.
+  // Below the building the unit is *completed by a developer the player is
+  // watching*: the twentieth fills the garage, the hundredth fills the floor,
+  // the ten-thousandth tops the building out. A player who has just seen
+  // somebody sit down has to still be in the room they sat down in, so the
+  // boundary is inclusive and the exclusive `upTo` is one higher. Above the
+  // building nobody can see the boundary land — the hundred-thousandth
+  // developer is not visibly anywhere — so those rungs keep the round exclusive
+  // bounds they have always had, and §13.5's 10^8 gate is untouched.
+  { rung: 0, upTo: GARAGE_CAP + 1, unit: 'person', unitSize: 1, place: 'a garage, five pods of four' },
+  { rung: 1, upTo: FLOOR_CAP + 1, unit: 'person', unitSize: 1, place: 'one office floor, filling' },
+  // Rungs 2 and 3 are both the tower, the way 0 and 1 are both the room: ten
+  // storeys, then a hundred. The unit is a floor and a floor is a hundred
+  // people, so the §7.7.2 gag at 101 is a whole storey landing.
+  { rung: 2, upTo: FLOOR_CAP * 10 + 1, unit: 'floor', unitSize: FLOOR_CAP, place: 'a tower, storey by storey' },
+  { rung: 3, upTo: BUILDING_CAP + 1, unit: 'floor', unitSize: FLOOR_CAP, place: 'the tower topping out at a hundred' },
   { rung: 4, upTo: 1e5, unit: 'building', unitSize: 1e4, place: 'a block' },
   { rung: 5, upTo: 1e6, unit: 'campus', unitSize: 1e5, place: 'a business park' },
   { rung: 6, upTo: 1e8, unit: 'site', unitSize: 1e6, place: 'a planet filling with campuses' },
@@ -132,10 +158,19 @@ export const RUNGS = [
 export type Rung = (typeof RUNGS)[number]
 
 /**
- * §7.7.1 rungs 0-2 — one sprite is one person, and the whole of Run 1 (§21)
+ * §7.7.1 rungs 0-1 — one sprite is one person, and the whole of Run 1 (§21)
  * happens here. Nothing above is allowed to make this stop being true.
+ *
+ * **Was 2, and §7.8.0 moved it to 1.** Not a reduction in ambition: the rung it
+ * gave up is the one the rescale took away from the room. Rung 2 used to be "a
+ * thousand people on one floor" and is now "ten storeys", so a sprite there is
+ * a *floor*, and claiming otherwise would put the scale bar and the picture on
+ * different schedules — the exact defect {@link cohortSize} exists to close.
+ * The literal band still covers every headcount the room is drawn at, which is
+ * the promise that was ever being made: while you are looking at a floor, every
+ * body on it is somebody.
  */
-export const LITERAL_RUNG_LIMIT = 2
+export const LITERAL_RUNG_LIMIT = 1
 
 /**
  * The highest rung the lens actually draws — §7.4a's eighth stop, §7.7.1a.
