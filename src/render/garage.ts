@@ -49,7 +49,7 @@
  */
 
 import { GARAGE_CAP } from '../sim/capacity.ts'
-import { PARTITION_THICK, WALL_THICK, type Opening, type WallRun } from './shell.ts'
+import { PARTITION_THICK, WALL_NEAR, WALL_THICK, type Opening, type WallRun } from './shell.ts'
 
 /** How deep and wide the garage's interior is, in tiles. */
 export const GARAGE_SPAN = 14
@@ -104,6 +104,16 @@ export interface Pod {
  * table you can get four people round is about two tiles by three, and that is
  * what these now describe.
  */
+/**
+ * How deep a facing pod's table is, in tiles.
+ *
+ * {@link POD_REACH} puts the two rows of seats 1.6 tiles apart, and the table
+ * has to nearly fill that gap or the people sit a hand's width back from their
+ * own desk with bare floor showing between. It was two desk depths — 0.92 —
+ * which left a third of the gap empty on each side.
+ */
+export const POD_TABLE_DEPTH = 1.45
+
 /** Half the table's depth — how far a seat sits from the table centre. */
 export const POD_REACH = 0.8
 /** Seat-to-seat along the table. */
@@ -334,8 +344,23 @@ export const GARAGE_PROPS: readonly Plot[] = [
  * drawing a band of wall above it would be a lie about the building. The side
  * door in the far-left wall does get one, because there is a storey above it.
  */
-export const ROLLUP_WIDTH = 3.4
+/**
+ * **How wide the roll-up door is** — 4.8 tiles, and it was 3.4.
+ *
+ * Measured off the concept rather than guessed the second time: the gate there
+ * is about three times the side door's width and takes a clear third of the
+ * street wall. At 3.4 it read as a hatch. A garage door is the width of a car
+ * plus the room to get it wrong, and that is the size it has to look.
+ */
+export const ROLLUP_WIDTH = 4.8
 export const SIDE_DOOR_WIDTH = 1.1
+/**
+ * How high the side door's opening reaches, in tiles.
+ *
+ * Two thirds of the street wall, so there is a real band of block above it. A
+ * door the full height of the wall it is in is a gap, not a door.
+ */
+export const SIDE_DOOR_HEAD = WALL_NEAR * 0.66
 
 /**
  * The roll-up door — an opening in the **near-left** wall.
@@ -394,27 +419,37 @@ export function garageShellRuns(
 ): WallRun[] {
   const spanGx = maxGx - minGx
   const spanGy = maxGy - minGy
-  const rollWidth = Math.min(ROLLUP_WIDTH, spanGx * 0.34)
+  const rollWidth = Math.min(ROLLUP_WIDTH, spanGx * 0.44)
   const doorWidth = Math.min(SIDE_DOOR_WIDTH, spanGy * 0.16)
+  const rollAt = minGx + spanGx / 2 - rollWidth / 2
   return [
-    {
-      edge: 'far-left',
-      at: minGx,
-      from: minGy,
-      to: maxGy,
-      // Toward the far end of the wall, past the leadership corner — the
-      // tradesman's door, not the one anybody arrives through.
-      openings: [{ at: minGy + spanGy * 0.68, width: doorWidth, head: 2 }],
-    },
+    { edge: 'far-left', at: minGx, from: minGy, to: maxGy },
     { edge: 'far-right', at: minGy, from: minGx, to: maxGx },
     {
       edge: 'near-left',
       at: maxGy,
       from: minGx,
       to: maxGx,
-      // Centred, and with **no lintel**: this wall is barely taller than the
-      // door, so a band of wall above it would be a lie about the building.
-      openings: [{ at: minGx + spanGx / 2 - rollWidth / 2, width: rollWidth }],
+      /*
+       * **Both doors are in the street wall** [2026-09-02].
+       *
+       * The side door was in the far-left wall, which is the one you cannot
+       * reach from the road — a tradesman's door onto next door's yard. The
+       * canonical concept puts it exactly where a garage really has it: in the
+       * same street frontage as the roll-up, a stride to its left, with a step
+       * and a bin beside it. That is also the only arrangement in which the two
+       * doors are *about* anything — the big one is how the van gets in and the
+       * small one is how people do.
+       *
+       * The roll-up gets no lintel: the wall is the height of the door. The
+       * side door gets one, because a person-sized door in a wall a storey tall
+       * leaves a band of block above it, and that band is what makes it read as
+       * cut through something rather than painted on.
+       */
+      openings: [
+        { at: rollAt - doorWidth - 1.5, width: doorWidth, head: SIDE_DOOR_HEAD },
+        { at: rollAt, width: rollWidth },
+      ],
     },
     { edge: 'near-right', at: maxGx, from: minGy, to: maxGy },
   ]

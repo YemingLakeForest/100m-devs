@@ -259,21 +259,39 @@ describe('the shell', () => {
     expect(new Set(GARAGE_SHELL.map((r) => r.edge)).size).toBe(4)
   })
 
+  it('puts both doors in the street wall, and nothing in the other three', () => {
+    // §7.8.0c — the side door was in the far-left wall, which is the one you
+    // cannot reach from the road. A garage has both its doors in the frontage.
+    for (const edge of ['far-left', 'far-right', 'near-right'] as const) {
+      const run = GARAGE_SHELL.find((r) => r.edge === edge)!
+      expect({ edge, openings: run.openings?.length ?? 0 }).toEqual({ edge, openings: 0 })
+    }
+    const street = GARAGE_SHELL.find((r) => r.edge === 'near-left')!
+    expect(street.openings).toHaveLength(2)
+  })
+
   it('cuts the roll-up door as a real opening', () => {
     const near = GARAGE_SHELL.find((r) => r.edge === 'near-left')!
     const segs = wallSegments(near)
-    expect(segs).toHaveLength(2)
-    // Nothing occupies the doorway at any height — it is a gap in the list of
-    // solids, not a rectangle painted on one.
+    // Nothing occupies the doorway at ground level — it is a gap in the list of
+    // solids, not a rectangle painted on one. Segments above the *side* door's
+    // head are legal and are the lintel, so the test looks at z = 0.
     const mid = GARAGE_ROLLUP.at + GARAGE_ROLLUP.width / 2
-    for (const s of segs) expect(s.gx <= mid && mid < s.gx + s.w).toBe(false)
+    for (const s of segs) {
+      expect({ at: s.gx, covers: s.gz === 0 && s.gx <= mid && mid < s.gx + s.w })
+        .toEqual({ at: s.gx, covers: false })
+    }
   })
 
   it('stands a lintel over the side door but not over the roll-up', () => {
-    const side = wallSegments(GARAGE_SHELL.find((r) => r.edge === 'far-left')!)
-    expect(side.some((s) => s.kind === 'lintel')).toBe(true)
-    const near = wallSegments(GARAGE_SHELL.find((r) => r.edge === 'near-left')!)
-    expect(near.some((s) => s.kind === 'lintel')).toBe(false)
+    const segs = wallSegments(GARAGE_SHELL.find((r) => r.edge === 'near-left')!)
+    const lintels = segs.filter((s) => s.kind === 'lintel')
+    // Exactly one: a person-sized door in a storey-tall wall leaves a band of
+    // block above it. The roll-up is the height of the wall and gets none —
+    // drawing wall above it would be a lie about the building.
+    expect(lintels).toHaveLength(1)
+    const mid = GARAGE_ROLLUP.at + GARAGE_ROLLUP.width / 2
+    expect(lintels[0].gx <= mid && mid < lintels[0].gx + lintels[0].w).toBe(false)
   })
 
   it('keeps every seat and every pod inside the walls', () => {

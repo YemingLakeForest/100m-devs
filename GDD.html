@@ -4219,6 +4219,125 @@ whatever glazing somebody found.</p>
 constant chosen against one room and inherited by another is a constant that has stopped being
 one.</strong> §7.8.1's floor aisle had it first (<code>pad = SQUAD_COLS * 0.45</code>), the pod
 footprint had it an hour ago, and this is the third.</p>
+<h6 id="the-corner-is-bigger-than-the-sketchs-and-that-is-content">The corner is bigger than the sketch's, and that is a difference in content</h6>
+<p><strong>[2026-09-02, attempted and reverted.]</strong> The leadership corner takes about two
+fifths of the garage's width where the canonical concept gives it about a fifth. Three shallower
+banks would square it up, and it was tried. It breaks two of §7.8.12's own rules, both worth more
+than the width:</p>
+<ul>
+<li><strong>Every plot is a whole number of half-steps from the founder</strong> on both floor axes.
+Three banks inside the reserved depth land at 0.7 of a row, which is not on the lattice at all — and
+being on the lattice is the entire fix §7.8.12 records, after a version drawn in screen pixels put
+three of four glass planes at illegal slopes.</li>
+<li><strong>Nobody sits directly behind anybody.</strong> With three banks and a half-pitch stagger
+there is no arrangement of seven plots that keeps every column distinct between the front and back
+rows; something always lines up.</li>
+</ul>
+<p>So the width stays, and the reason is not a compromise: <strong>the concept's sketch has three
+people behind that glass and the game's roster is seven.</strong> A corner sized for seven is bigger
+than a corner drawn for three. That is a difference in the <em>content</em>, not in the drawing, and
+it is the honest place for this one to end.</p>
+<h6 id="the-pools-needed-something-to-be-brighter-than">The pools needed something to be brighter than</h6>
+<p><strong>[2026-09-02.]</strong> The canonical garage is a dark room with warm pools in it — the
+lamps on the tables and the pendant over the workbench are what you see by, and the concrete between
+them falls away. Adding the lamps did not produce that, and the reason was not the lamps.</p>
+<p>At <code>NEUTRAL[2]</code> the slab was bright enough that a pool laid over it barely changed the
+value, so the room came out evenly lit: the right hue and none of the <em>drama</em>, which the
+reference gets almost entirely from contrast. <strong>The garage's slab is now one step darker than
+the office floor's</strong>, and that single step is the whole change. The pools were already
+there; what they lacked was something to be brighter than.</p>
+<p>The workshop end also gained the concept's second source — <strong>one bulb over the bench</strong>.
+§7.8.1's first frame is "a dark home garage, lit only by the monitor", and the table lamps answered
+that for the desks while a third of the room stayed furniture in the dark. One pendant lights the
+tool board behind it and throws a pool on the bench, which is what makes that corner <em>somewhere
+somebody works</em> rather than storage.</p>
+<h6 id="both-doors-are-in-the-street-wall">Both doors are in the street wall</h6>
+<p><strong>[2026-09-02.]</strong> The side door was in the far-left wall, which is the one you cannot
+reach from the road — a tradesman's door onto next door's yard. The canonical concept puts it where a
+garage really has it: in the same frontage as the roll-up, a stride to its left. That is also the
+only arrangement in which the two doors are <em>about</em> anything — the big one is how the van gets
+in, the small one is how people do.</p>
+<p>The roll-up gets no lintel because the wall is the height of the door. The side door gets one,
+because a person-sized door in a storey-tall wall leaves a band of block above it, and that band is
+what makes an opening read as cut through something rather than painted on. Both claims are now
+tested against the same wall run, which is stronger than testing them against two.</p>
+<h6 id="cracks-and-the-oil-stain">Cracks, and the mark that names the room</h6>
+<p>The bay joints and the cracks do the same job by opposite methods: <strong>the joints are regular
+and give the room a measure; the cracks are irregular and give it an age.</strong> A floor with only
+joints reads as newly laid, which is the one thing this building is not. Each crack starts on a joint
+and wanders off it — where concrete actually fails — and none runs on a floor axis, for the same
+reason the cables do not: everything else in the room does.</p>
+<p>The oil stain sits in front of the gate, where a car has stood. It is the one mark that names the
+room a garage before the door has even been read, and it now lives in the plan's frame with the
+cables and the cracks rather than being positioned off the shell's screen box — three marks on one
+floor, through one conversion.</p>
+<h6 id="a-pod-that-reads-as-four-people-at-a-table">A pod that reads as four people at a table</h6>
+<p><strong>[2026-09-02.]</strong> The pods were not wrong in <em>size</em>, which is what a
+side-by-side first suggests. They were wrong in <strong>value</strong>: a chair back and a monitor's
+rear are both dark rectangles at this scale, and both were drawn in the ramp's darkest tone — so
+every camera-facing developer came with two indistinguishable slabs and a pod read as a heap of
+boxes rather than as a team.</p>
+<p>Two objects that resolve to the same shape have to differ by a <em>mark</em>, not by a nudge in
+size. The chair takes it, because it is the cheaper of the two: a pale rail along its top edge,
+which is what an office chair actually shows and is the one line that says <em>back of a chair</em>
+rather than <em>panel</em>. The chair is also narrower than the screen and shorter than the person,
+so the silhouette reads shoulders-above-chair. The monitor's back moved from <code>NEUTRAL[1]</code>
+to <code>[3]</code> on the same argument from the other end — moulded plastic and upholstery are not
+the same colour in the room either.</p>
+<p><strong>The table was too shallow for its own pod.</strong> The two rows of seats sit 1.6 tiles
+apart and the surface between them was 0.92, so everyone sat a hand's width back from their desk with
+bare floor showing through the middle. It is 1.45 now: nearly the full gap, which is what a table
+between two people is.</p>
+<h6 id="the-lamps-go-on-last">The lamps go on last</h6>
+<p>Every pod had a lamp and none of them could be seen. They were drawn with the table at the top of
+the pod loop, and the workstations were painted into the <em>same</em> <code>Graphics</code>
+afterwards and covered them — <strong>within one layer the later call wins regardless of where the
+object stands.</strong> A lamp nobody can see is the same as not having one.</p>
+<p>Last within the desk layer is the right place rather than a later layer: the lamp stands on the
+table between the two rows, so it belongs above the kit and below the people. And it is much stronger
+than the first pass — three pools rather than two, at roughly double the opacity. At 0.16 the lamp
+was technically present and visually absent, which in a room lit by cyan screens is the one thing it
+could not afford to be. The canonical garage is lit by these.</p>
+<h6 id="the-street-wall-and-the-gate">The street wall, and a gate that reads as a gate</h6>
+<p><strong>[2026-09-02, from a side-by-side against the concept.]</strong> Four things were wrong at
+once and they had one root: <strong>the near wall was too short and too dark to be a wall.</strong>
+Its coping was five steps up the ramp and its faces two and three, so against a dark floor the only
+part that read was the lit strip along the top — and a long thin lit strip is a kerb, or a ramp. The
+range is now three steps instead of five. The key is unchanged and still §7's: the top is brightest
+because it faces straight up into it.</p>
+<p><strong>The wall also had to grow, from 1.7 person-heights to 2.15.</strong> A full-width roll-up
+door in a wall three times as long as it is tall comes out a letterbox — nine horizontal slats across
+a band, which reads as decking. The concept's gate is about two to one, and the wall is what has to
+give. The cutaway ratio goes 0.36 → 0.46 with it, and the upper bound in <code>shell.test.ts</code>
+moved from 0.45 to 0.52 with the reason attached: that bound exists so the near wall cannot occlude
+the front row of desks, and the nearest pod stands two and a half tiles back.</p>
+<p><strong>The shutter is one panel with slats drawn on its face, not seven boxes stacked in Z.</strong>
+The stack failed for a reason worth keeping: each slat is a <em>solid</em>, so each showed its own lit
+top, and seven lit tops in a row on a wall we already see the top of came out as a striped ramp
+leaning against the building. Corrugation is a pattern <em>on a surface</em> — so it is drawn the way
+the monitors' code lines are, as marks in the plane of the face. It is full height, and deliberately
+has no lintel (§7.8.0b): this wall is the height of the door.</p>
+<h6 id="the-forecourt-the-kerb-and-where-a-car-goes">The forecourt, the kerb, and where a car goes</h6>
+<p>The apron was drawn in the road's own tone, so it was invisible: a driveway the same colour as the
+carriageway is not a driveway, it is a wider road. It is pale paving now, with joints on the same
+argument the floor's bays make inside, and it stops short of the carriageway instead of swallowing
+it.</p>
+<p><strong>The kerb is a solid, not a line.</strong> A stroke marks where the pavement ends without
+saying that the pavement is <em>higher than the road</em>, which is the only thing a kerb is for. A
+shallow solid along the whole frontage gives it a lit top and a shadowed face.</p>
+<p><strong>The car parks on the road, along the kerb</strong> — it was on the forecourt, which is
+where you put a car if you are drawing a car and not a street. Nobody parks across their own roller
+shutter. Its long axis is the same floor axis the street wall runs on, so it lines up with the kerb
+by construction rather than by a tuned number.</p>
+<h6 id="the-street-is-shown-by-widening-the-frame">The street is shown by widening the frame, not by extending the box</h6>
+<p>Two attempts extended the fit's <code>maxCol</code> over the apron, at 3.4 columns and then 2.0,
+and both were wrong the same way: <strong>the apron is on one side only, so adding it moves the
+frame's centre as well as its width.</strong> The room slid into the top-right corner with a quarter
+of the picture given to empty road, and the far wall clipped against the right edge.</p>
+<p>The concept does something simpler — the garage is <em>centred</em> and fills about four fifths of
+the frame, and the remaining fifth is street on every side, which the district already draws. So the
+fit stays centred on the room and zooms out by 18 per cent once the studio has filled it. Same
+information, no skew.</p>
 <h6 id="the-street-the-garage-opens-onto">The street the garage opens onto</h6>
 <p>The car and the street lamp on the apron are <strong>borrowed from
 <code>district.ts</code></strong> rather than drawn again. §7.8.1e's rule is that the ground outside

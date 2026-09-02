@@ -68,6 +68,7 @@ import {
   GARAGE_PODS,
   GARAGE_PROPS,
   GARAGE_SPAN,
+  POD_TABLE_DEPTH,
   type Plot,
   garageExtentFor,
   POD_SEATS,
@@ -1042,8 +1043,15 @@ function drawPodLamp(g: Graphics, p: Project, gx: number, gy: number, deskTop: n
   const y = at.y - deskTop
   // The pool first, so everything else sits in it. Two ellipses: a wide dim one
   // and a tight bright one, which is what a bare bulb over a table does.
-  g.ellipse(at.x, y + 2, 34, 17).fill({ color: c(RAMPS.WARN[1]), alpha: 0.16 })
-  g.ellipse(at.x, y + 2, 19, 9).fill({ color: c(RAMPS.WARN[2]), alpha: 0.22 })
+  // **Three pools, not two, and much stronger than the first pass.** The
+  // canonical garage is lit by these: a wide amber wash that reaches the floor
+  // either side of the table, a tighter one on the surface, and a hot core
+  // under the shade. At 0.16 and 0.22 the lamp was technically present and
+  // visually absent, which in a room lit by cyan screens is the one thing it
+  // could not afford to be.
+  g.ellipse(at.x, y + 6, 58, 29).fill({ color: c(RAMPS.WARN[0]), alpha: 0.20 })
+  g.ellipse(at.x, y + 2, 34, 17).fill({ color: c(RAMPS.WARN[1]), alpha: 0.34 })
+  g.ellipse(at.x, y + 2, 17, 8).fill({ color: c(RAMPS.WARN[2]), alpha: 0.42 })
   // Base, stem, shade — three marks, and the shade is the one that names it.
   isoBox(g, at.x, y, 9, 3, RAMPS.NEUTRAL, 2, false)
   g.rect(at.x - 0.9, y - 21, 1.8, 19).fill(c(RAMPS.NEUTRAL[3]))
@@ -1489,6 +1497,28 @@ export const SUITE_PITCH_COLS = 1.4
  * arrives behind, in the depth {@link FLOOR_BACK_ROWS} exists to hold.
  */
 export const SUITE_FRONT_ROW = FOUNDER_CORNER_ROW
+/*
+ * **Two banks, and a third was tried and rejected on 2026-09-02.**
+ *
+ * The suite is seven plots at 1.4 pitch, which comes to a corner office taking
+ * two fifths of the garage's width where the canonical concept gives leadership
+ * about a fifth. Three shallower banks would have squared it up — and it breaks
+ * two of this section's own rules, both of which are worth more than the width:
+ *
+ *  - **Every plot is a whole number of half-steps from the founder** on both
+ *    floor axes. Three banks inside the reserved depth land at 0.7 of a row,
+ *    which is not on the lattice at all — and being on the lattice is the
+ *    entire fix §7.8.12 records, after a version drawn in screen pixels put
+ *    three of four glass planes at illegal slopes.
+ *  - **Nobody sits directly behind anybody.** With three banks and a
+ *    half-pitch stagger there is no arrangement of seven plots that keeps every
+ *    column distinct between the front and back rows; something always lines up.
+ *
+ * The width stays, and §7.8.0c records why: the concept's sketch has three
+ * people behind that glass and the game's roster is seven. A corner sized for
+ * seven is bigger than a corner drawn for three, and that is a difference in
+ * the *content*, not in the drawing.
+ */
 export const SUITE_BACK_ROW = FOUNDER_CORNER_ROW - 1
 /**
  * How far the back bank is offset along its row from the front one, in seats.
@@ -2738,12 +2768,28 @@ function deskRoll(seat: number, salt: number): number {
  * from the camera.
  */
 export function drawChair(g: Graphics, x: number, y: number) {
-  const back = gridToScreen(-0.36, 0)
-  // The back, tall and dark. This is the whole read; the seat under it is a
-  // couple of pixels and exists so the back is not a slab standing on nothing.
-  isoBox(g, x + back.x, y + back.y - 4, 19, 21, RAMPS.NEUTRAL, 1, true)
-  const seat = gridToScreen(-0.16, 0)
-  isoBox(g, x + seat.x, y + seat.y, 17, 4, RAMPS.NEUTRAL, 2, false)
+  /*
+   * **Narrower than a monitor, and with a lit rail.** [2026-09-02]
+   *
+   * The first version was 19 by 21 in the same dark tone as a monitor's back,
+   * so every camera-facing developer had two indistinguishable slabs against
+   * them and a pod read as a heap of dark boxes. The fix is not size alone: a
+   * chair back and a screen are both dark rectangles at this scale, so one of
+   * them has to carry a mark the other does not.
+   *
+   * The chair takes the mark, because it is the cheaper of the two: a pale rail
+   * along its top edge, which is what an office chair actually shows — and it
+   * is also the one line that says *back of a chair* rather than *panel*. It is
+   * narrower than the screen and shorter than the person, so the silhouette
+   * reads shoulders-above-chair, which is how a seated figure looks.
+   */
+  const back = gridToScreen(-0.34, 0)
+  isoBox(g, x + back.x, y + back.y - 2, 14, 16, RAMPS.NEUTRAL, 1, true)
+  // The rail. Two pixels, and it is the whole difference between a chair and a
+  // second monitor turned round.
+  g.rect(x + back.x - 7, y + back.y - 19, 14, 2).fill(c(RAMPS.NEUTRAL[4]))
+  const seat = gridToScreen(-0.15, 0)
+  isoBox(g, x + seat.x, y + seat.y, 15, 3, RAMPS.NEUTRAL, 2, false)
 }
 
 /**
@@ -2851,11 +2897,17 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
       )
     }
   } else {
-    // The back of the panel. Flat, dark, and unlit — a monitor's rear is the
-    // one large surface in this room with nothing on it, which is exactly why
-    // it reads: it is the silhouette that says *there is a screen there and you
-    // are on the wrong side of it*.
-    wallQuad(g, sx, my, 26, 17, S, c(RAMPS.NEUTRAL[1]))
+    // The back of the panel. Flat and unlit — a monitor's rear is the one large
+    // surface in this room with nothing on it, which is exactly why it reads:
+    // it is the silhouette that says *there is a screen there and you are on
+    // the wrong side of it*.
+    //
+    // `NEUTRAL[3]`, not `[1]`: at the darkest tone it was the same value as a
+    // chair back, so a camera-facing developer came with two identical slabs
+    // and the pod read as a heap of boxes. A screen's back is moulded plastic
+    // and a chair's is upholstery — they are not the same colour in the room
+    // either.
+    wallQuad(g, sx, my, 26, 17, S, c(RAMPS.NEUTRAL[3]))
     // And the light escaping over its top edge, which is the only evidence the
     // thing is switched on. Two pixels, in the same plane, and it is what puts
     // the cyan on the face of the person behind it.
@@ -4471,8 +4523,23 @@ export function buildRoom(): RoomHandle {
     }
     drawDistrict(shell, project, { halfBack, halfAcross })
 
-    slab(0, c(RAMPS.NEUTRAL[1]))
-    slab(0.004, c(RAMPS.NEUTRAL[2]))
+    /*
+     * **The garage's slab is a step darker than the floor's.** §7.8.0c
+     * [2026-09-02].
+     *
+     * The canonical concept is a dark room with warm pools in it — the lamps on
+     * the tables and the pendant over the workbench are what you see by, and
+     * the concrete between them falls away. At `NEUTRAL[2]` the slab was bright
+     * enough that a lamp pool laid on it barely changed the value, so the room
+     * came out evenly lit and cool: technically the right hue, and none of the
+     * *drama* the reference gets almost entirely from contrast.
+     *
+     * One step down is the whole change. The pools were already there; what
+     * they lacked was something to be brighter than.
+     */
+    const dim = garage ? 1 : 0
+    slab(0, c(RAMPS.NEUTRAL[1 - dim]))
+    slab(0.004, c(RAMPS.NEUTRAL[2 - dim]))
     // Worn scuffs, so the slab reads as poured concrete rather than as a
     // void. A few faint patches, lighter where traffic has polished it.
     shell
@@ -4545,10 +4612,24 @@ export function buildRoom(): RoomHandle {
         left: RAMPS.NEUTRAL[3],
         right: RAMPS.NEUTRAL[2],
       }
+      /*
+       * **The near wall's faces were too dark to be a wall.**
+       *
+       * Its coping was `NEUTRAL[5]` and its two faces `[3]` and `[2]`, so
+       * against a dark floor the only part of it that read was the lit strip
+       * along the top — and a long thin lit strip is a kerb, or a ramp, not a
+       * wall you are looking over. The concept's street wall is a *tall lit
+       * face* with a thin coping on it, which is the opposite emphasis.
+       *
+       * The key is unchanged and still §7's: the top is brightest because it
+       * faces straight up into it. What changed is the *range* — three steps of
+       * the ramp instead of five, so the faces are near enough the top to read
+       * as the same object.
+       */
       const blockNear: WallPaint = {
         top: RAMPS.NEUTRAL[5],
-        left: RAMPS.NEUTRAL[3],
-        right: RAMPS.NEUTRAL[2],
+        left: RAMPS.NEUTRAL[4],
+        right: RAMPS.NEUTRAL[3],
       }
       const runs = garageShellRuns(-halfBack, -halfAcross, halfBack, halfAcross)
       const door = runs.find((r) => r.edge === 'near-left')?.openings?.[0]
@@ -4635,6 +4716,12 @@ export function buildRoom(): RoomHandle {
        * stroke and came out as a horizontal bar. These are floor-plane paths
        * with several segments, so no leg of one is ever screen-horizontal.
        */
+      // One conversion into the plan's frame, shared by the cables, the cracks
+      // and the oil stain — all three are marks on the same floor.
+      const onPlan = (gx: number, gy: number) => {
+        const at = garagePlot(gx, gy)
+        return isoAt(at.col, at.row)
+      }
       const CABLE_RUNS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
         // From the workbench toward the middle pod, round the back of it.
         [[10.6, 1.4], [9.4, 3.1], [8.4, 4.6], [8.6, 6.2]],
@@ -4643,10 +4730,6 @@ export function buildRoom(): RoomHandle {
         // One that goes nowhere in particular, which is the honest kind.
         [[6.4, 11.6], [7.8, 12.2], [9.6, 11.9], [10.8, 12.6]],
       ]
-      const onPlan = (gx: number, gy: number) => {
-        const at = garagePlot(gx, gy)
-        return isoAt(at.col, at.row)
-      }
       for (const run of CABLE_RUNS) {
         const first = onPlan(run[0][0], run[0][1])
         shell.moveTo(first.x, first.y)
@@ -4716,6 +4799,41 @@ export function buildRoom(): RoomHandle {
         }
       }
 
+      /*
+       * **Cracks in the pour.** §7.8.0c.
+       *
+       * The concept's slab is cracked, and the cracks do the same job the bay
+       * joints do with the opposite method: the joints are *regular* and give
+       * the room a measure, and the cracks are irregular and give it an age. A
+       * floor with only joints reads as newly laid, which is the one thing this
+       * building is not.
+       *
+       * Each crack starts on a joint and wanders off it — that is where
+       * concrete actually fails — and none of them runs on a floor axis, for
+       * the same reason the cables do not: everything else in the room does.
+       */
+      const CRACKS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
+        [[3.5, 3.5], [4.6, 4.9], [5.2, 6.4], [4.8, 7.6]],
+        [[10.5, 7.0], [9.4, 8.3], [9.7, 9.9], [8.6, 11.2]],
+        [[7.0, 12.4], [8.2, 12.9], [9.1, 13.4]],
+      ]
+      for (const crack of CRACKS) {
+        const first = onPlan(crack[0][0], crack[0][1])
+        shell.moveTo(first.x, first.y)
+        for (let i = 1; i < crack.length; i++) {
+          const q = onPlan(crack[i][0], crack[i][1])
+          shell.lineTo(q.x, q.y)
+        }
+        shell.stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
+      }
+      // The oil stain, in front of the gate where a car has stood — the one
+      // mark that names the room a garage before the door is even read. Drawn
+      // here rather than with the slab so it lands in the plan's frame with
+      // everything else.
+      const oil = onPlan(GARAGE_SPAN / 2, GARAGE_SPAN - 2.6)
+      shell.ellipse(oil.x, oil.y, 52, 26).fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.42 })
+      shell.ellipse(oil.x + 16, oil.y + 7, 20, 10).fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.3 })
+
       // --- the driveway ----------------------------------------------------
       //
       // §7.8.1e's thesis, one room down: *draw the ground once and never change
@@ -4726,24 +4844,56 @@ export function buildRoom(): RoomHandle {
       // Slightly wider than the opening, because a real apron is — you need
       // room to swing a car in, and the splay is what says a vehicle uses it.
       if (door) {
+        /*
+         * **Pale stone, not asphalt.** The apron was `NEUTRAL[1]` — the road's
+         * own tone — so it was invisible: a driveway the same colour as the
+         * carriageway is not a driveway, it is a wider road. The concept lays
+         * light paving slabs in front of the gate and the change of material is
+         * the whole read.
+         *
+         * It also stops short of the carriageway now. It ran the full depth to
+         * the road before and swallowed the kerb, so the studio appeared to
+         * open straight onto the traffic lane.
+         */
         isoPatch(
           shell,
           shellProject,
-          door.at - 0.9,
+          door.at - 1.1,
           halfAcross,
-          door.at + door.width + 0.9,
-          halfAcross + 5.5,
-          RAMPS.NEUTRAL[1],
+          door.at + door.width + 1.1,
+          halfAcross + 2.4,
+          RAMPS.NEUTRAL[3],
         )
-        // The kerb line where the apron meets the road, and the pale threshold
-        // strip in the doorway itself — the two edges that stop the driveway
-        // reading as a stain on the pavement.
-        const k0 = shellProject(door.at - 0.9, halfAcross + 5.5)
-        const k1 = shellProject(door.at + door.width + 0.9, halfAcross + 5.5)
-        shell
-          .moveTo(k0.x, k0.y)
-          .lineTo(k1.x, k1.y)
-          .stroke({ width: 2, color: c(RAMPS.NEUTRAL[3]), alpha: 0.8 })
+        // The paving joints, on the same argument the floor's bays make inside.
+        for (let i = 1; i < 3; i++) {
+          const gy = halfAcross + (2.4 * i) / 3
+          const j0 = shellProject(door.at - 1.1, gy)
+          const j1 = shellProject(door.at + door.width + 1.1, gy)
+          shell
+            .moveTo(j0.x, j0.y)
+            .lineTo(j1.x, j1.y)
+            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[2]), alpha: 0.6 })
+        }
+        /*
+         * **The kerb**, and it is a solid rather than a line.
+         *
+         * A stroke was what was here, and a stroke is flat: it marked where the
+         * pavement ended without saying that the pavement is *higher than the
+         * road*, which is the only thing a kerb is for. A shallow solid along
+         * the whole street frontage gives it a lit top and a shadowed face, and
+         * that is what separates footway from carriageway at a glance.
+         */
+        isoSolid(
+          shell,
+          shellProject,
+          -halfBack,
+          halfAcross + 2.4,
+          0,
+          halfBack * 2,
+          0.24,
+          0.18,
+          { top: RAMPS.NEUTRAL[4], left: RAMPS.NEUTRAL[3], right: RAMPS.NEUTRAL[1] },
+        )
         isoPatch(
           shell,
           shellProject,
@@ -4771,15 +4921,24 @@ export function buildRoom(): RoomHandle {
          * source is what makes the monitors read as *interior*, which is
          * `lamp`'s own note one module over.
          */
-        car(
-          shell,
-          shellProject,
-          door.at - 2.9,
-          halfAcross + 1.6,
-          CAR_BODIES[1],
-          'gx',
-        )
-        lamp(shell, shellProject, door.at + door.width + 1.7, halfAcross + 4.4)
+        /*
+         * **The car is parked on the road, not on the forecourt.**
+         *
+         * It sat on the apron, which is where you put a car if you are drawing
+         * a car and not a street: nobody parks across their own roller shutter,
+         * and the concept has it at the kerb with its long axis along the
+         * carriageway. `along: 'gx'` is that axis, which is the same one the
+         * street wall runs on — so the car lines up with the kerb for free
+         * rather than by a number somebody tuned.
+         *
+         * Offset along the wall so it is beside the gate rather than in front
+         * of it: the gate has to be visibly usable, and a car across it says
+         * the opposite.
+         */
+        car(shell, shellProject, door.at - 3.4, halfAcross + 3.1, CAR_BODIES[1], 'gx')
+        // The lamp stands on the *footway*, this side of the kerb, so its pool
+        // falls across the threshold rather than into the road.
+        lamp(shell, shellProject, door.at + door.width + 1.6, halfAcross + 1.5)
       }
 
       for (const run of runs) {
@@ -4793,42 +4952,60 @@ export function buildRoom(): RoomHandle {
       // corrugation is the whole read, and it is the one surface in the garage
       // with a repeating pattern on it.
       if (door) {
-        // **Lighter than the wall it sits in, not darker.** The first pass drew
-        // the shutter in the wall's own two darkest tones and it disappeared:
-        // a dark panel in a dark reveal against a dark floor is three ways of
-        // saying nothing. A roll-up door is painted steel next to bare block,
-        // so it is the *lighter* object, and the alternating slats give it the
-        // only repeating pattern in the room.
-        const SLATS = 7
-        for (let i = 0; i < SLATS; i++) {
-          isoSolid(
-            nearWall,
-            shellProject,
-            door.at,
-            halfAcross - WALL_THICK * 0.72,
-            (i / SLATS) * WALL_NEAR,
-            door.width,
-            WALL_THICK * 0.42,
-            WALL_NEAR / SLATS - 0.03,
-            {
-              top: RAMPS.NEUTRAL[i % 2 === 0 ? 6 : 5],
-              left: RAMPS.NEUTRAL[i % 2 === 0 ? 5 : 4],
-              right: RAMPS.NEUTRAL[3],
-            },
-          )
+        /*
+         * **The shutter is one panel with slats drawn on its face, not seven
+         * boxes stacked in Z.**
+         *
+         * The stack was the first attempt and it failed for a reason worth
+         * keeping: each slat is a *solid*, so each one showed its own lit top,
+         * and seven lit tops in a row on a wall we already see the top of came
+         * out as a striped ramp leaning against the building. The corrugation
+         * of a roller shutter is a pattern **on a surface**, not a pile of
+         * objects — so it is drawn the way the monitors' code lines are, as
+         * marks in the plane of the face.
+         *
+         * Full height of the wall, because that is what the concept shows and
+         * what a door you drive through has to be. There is deliberately no
+         * lintel above it (§7.8.0b): this wall is the height of the door.
+         */
+        const reveal = halfAcross - WALL_THICK * 0.86
+        const depth = WALL_THICK * 0.52
+        isoSolid(
+          nearWall,
+          shellProject,
+          door.at,
+          reveal,
+          0,
+          door.width,
+          depth,
+          WALL_NEAR,
+          { top: RAMPS.NEUTRAL[6], left: RAMPS.NEUTRAL[5], right: RAMPS.NEUTRAL[3] },
+        )
+        // The corrugation. Lines across the panel's visible face at a fixed
+        // pitch — the one repeating pattern in the garage, and what names the
+        // object from across the street.
+        const faceGy = reveal + depth
+        const SLAT = WALL_NEAR / 9
+        for (let i = 1; i < 9; i++) {
+          const z = i * SLAT
+          const a2 = shellProject(door.at, faceGy)
+          const b2 = shellProject(door.at + door.width, faceGy)
+          const lift = z * HEIGHT_UNIT
+          nearWall
+            .moveTo(a2.x, a2.y - lift)
+            .lineTo(b2.x, b2.y - lift)
+            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[2]), alpha: 0.85 })
         }
-        // The guide rails either side, in the reveal. Two thin uprights, and
-        // they are what make the shutter read as a door that *moves* rather
-        // than as a panel somebody bolted over the opening.
-        for (const side of [door.at - 0.12, door.at + door.width]) {
+        // The guide rails either side, standing proud of the panel.
+        for (const side of [door.at - 0.16, door.at + door.width]) {
           isoSolid(
             nearWall,
             shellProject,
             side,
-            halfAcross - WALL_THICK * 0.78,
+            reveal - 0.06,
             0,
-            0.12,
-            WALL_THICK * 0.54,
+            0.16,
+            depth + 0.12,
             WALL_NEAR,
             { top: RAMPS.NEUTRAL[3], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] },
           )
@@ -4847,6 +5024,28 @@ export function buildRoom(): RoomHandle {
         return isoAt(at.col, at.row)
       }
       for (const prop of GARAGE_PROPS) drawGarageProp(furniture, planProject, prop)
+      /*
+       * **The pendant over the workbench** — the garage's second warm source.
+       *
+       * §7.8.1's first frame is "a dark home garage, lit only by the monitor",
+       * and the lamps on the tables answered that for the desks. The workshop
+       * end had nothing, so a third of the room was furniture in the dark. The
+       * concept hangs one bulb over the bench, and one bulb is enough: it lights
+       * the tool board behind it and throws a pool on the bench, which is what
+       * makes that corner a *place somebody works* rather than storage.
+       */
+      const bench = planProject(11.0, 0.9)
+      furniture.ellipse(bench.x, bench.y + 4, 66, 33).fill({ color: c(RAMPS.WARN[0]), alpha: 0.22 })
+      furniture.ellipse(bench.x, bench.y, 34, 17).fill({ color: c(RAMPS.WARN[1]), alpha: 0.3 })
+      furniture.rect(bench.x - 0.7, bench.y - 92, 1.4, 34).fill(c(RAMPS.NEUTRAL[2]))
+      furniture
+        .moveTo(bench.x - 8, bench.y - 58)
+        .lineTo(bench.x + 8, bench.y - 58)
+        .lineTo(bench.x + 5, bench.y - 66)
+        .lineTo(bench.x - 5, bench.y - 66)
+        .closePath()
+        .fill(c(RAMPS.NEUTRAL[4]))
+      furniture.ellipse(bench.x, bench.y - 56, 4, 2.2).fill(c(RAMPS.WARN[3]))
       /*
        * **Superseded 2026-09-01, kept as the reason the seam above exists.**
        *
@@ -5598,22 +5797,22 @@ export function buildRoom(): RoomHandle {
       // a hairline down the middle of every table where the two shadows met.
       for (let podIndex = 0; podIndex < squadsUsed; podIndex++) {
         const pod = GARAGE_PODS[podIndex]
+        // **Through `garagePlot`, like everything else on this plan.** This was
+        // the one call site left in the plan's raw tiles after §7.8.0c gave the
+        // two frames a single origin — so the five tables were drawn three
+        // tiles from the people sitting at them, and the pods came out as
+        // twenty developers and their monitors floating on bare concrete. The
+        // seats went through the conversion, the lamp went through it, and the
+        // surface they both stand on did not.
+        const at = garagePlot(pod.gx, pod.gy)
+        const half = POD_STRIDE / 2
         drawDeskBank(
           squadDesks[podIndex],
-          pod.gy - POD_STRIDE / 2,
-          pod.gy + POD_STRIDE / 2,
-          pod.gx / PITCH_ROW,
-          DESK_DEPTH * 2,
+          at.col - half,
+          at.col + half,
+          at.row,
+          POD_TABLE_DEPTH,
           0,
-        )
-        // One lamp per table, in the middle where all four can see it.
-        const lampAt = garagePlot(pod.gx, pod.gy)
-        drawPodLamp(
-          squadDesks[podIndex],
-          (lx, ly) => isoAt(lampAt.col + ly, lampAt.row + lx),
-          0,
-          0,
-          DESK_H,
         )
       }
     } else if (officeShell) {
@@ -5628,15 +5827,8 @@ export function buildRoom(): RoomHandle {
           at.col - half + POD_STRIDE / 2,
           at.col + half - POD_STRIDE / 2,
           at.row,
-          DESK_DEPTH * 2,
+          POD_TABLE_DEPTH,
           0,
-        )
-        drawPodLamp(
-          squadDesks[podIndex],
-          (lx, ly) => isoAt(at.col + ly, at.row + lx),
-          0,
-          0,
-          DESK_H,
         )
       }
       // §7.8.0d's amenities, in the plan's own frame — the same single
@@ -5734,6 +5926,28 @@ export function buildRoom(): RoomHandle {
       }
 
       drawWorkstation(g, x, y, i)
+    }
+
+    /*
+     * §7.8.0c — **the lamps go on last.**
+     *
+     * They were drawn with the table, at the top of the pod loop, and then the
+     * workstations were painted into the same `Graphics` afterwards and covered
+     * them: within one layer the later call wins regardless of where the object
+     * stands. So a pod had a lamp nobody could see, which is the same as not
+     * having one.
+     *
+     * Last within the desk layer is the right place rather than a later layer:
+     * the lamp stands on the table between the two rows, so it belongs above
+     * the kit and below the people.
+     */
+    if (garage || officeShell) {
+      const lampPods = garage
+        ? GARAGE_PODS.slice(0, squadsUsed).map((pod) => garagePlot(pod.gx, pod.gy))
+        : OFFICE_PODS.slice(0, squadsUsed).map((pod) => garagePlot(pod.gx, pod.gy))
+      lampPods.forEach((at, i) => {
+        drawPodLamp(squadDesks[i], (lx, ly) => isoAt(at.col + ly, at.row + lx), 0, 0, DESK_H)
+      })
     }
 
     // §7.8.10 — one non-row workstation, held outside the reading order and
@@ -5873,16 +6087,33 @@ export function buildRoom(): RoomHandle {
        * is its own small beat — the studio fills the room, and the picture pulls
        * back far enough to show you what it is about to spill into.
        */
-      const APRON_COLS = 3.4
+      /*
+       * **The street is shown by widening the frame, not by extending the box
+       * on one side.**
+       *
+       * Extending `maxCol` was the first two attempts, at 3.4 columns and then
+       * 2.0, and both were wrong in the same way: the apron is on one side
+       * only, so adding it moves the frame's *centre* as well as its width. The
+       * room slid into the top-right corner with a quarter of the picture given
+       * to empty road, and the far wall clipped against the right edge.
+       *
+       * The concept does something simpler. The garage is centred and fills
+       * about four fifths of the frame, and the remaining fifth is street on
+       * *every* side — which is what the district already draws. So the fit
+       * stays centred on the room and simply zooms out a little once the studio
+       * has filled it.
+       */
+      const OUTSIDE = 1.18
       const spilling = reach >= shellMaxCol - 2
       const framed = blockBox(
         shellMinCol,
         shellMinRow,
-        reach + (spilling ? APRON_COLS : 0),
+        reach,
         Math.min(shellMaxRow, far.row + 0.9),
       )
-      fitW = (framed.maxX - framed.minX) / 2
-      fitH = (framed.maxY - framed.minY) / 2
+      const zoomOut = spilling ? OUTSIDE : 1
+      fitW = ((framed.maxX - framed.minX) / 2) * zoomOut
+      fitH = ((framed.maxY - framed.minY) / 2) * zoomOut
       fitCx = (framed.minX + framed.maxX) / 2
       fitCy = (framed.minY + framed.maxY) / 2
     }

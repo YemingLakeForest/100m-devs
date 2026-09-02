@@ -70,8 +70,21 @@ export const PERSON_H = 0.9
 
 /** Full-height far wall — 4.7 people. The storey. */
 export const WALL_FULL = 4.7 * PERSON_H
-/** Half-height near wall — 1.7 people. The cutaway. */
-export const WALL_NEAR = 1.7 * PERSON_H
+/**
+ * Half-height near wall — 2.15 people. The cutaway.
+ *
+ * **Was 1.7, and the roll-up door is why.** At 1.7 the street wall's face was
+ * three times as long as it was tall, so a full-width garage door in it came
+ * out a letterbox: nine horizontal slats across a band, which reads as decking
+ * rather than as a shutter. The concept's gate is about two to one, and it is
+ * the wall that has to give.
+ *
+ * The cutaway ratio goes from 0.36 to 0.46 with it. That is still comfortably
+ * short of hiding anything — the nearest pod stands two and a half tiles back
+ * from this wall, and the reason the ratio has an upper bound at all is that
+ * the near wall must not occlude the front row of desks.
+ */
+export const WALL_NEAR = 2.15 * PERSON_H
 /** How thick a load-bearing exterior wall is, in tiles. 0.7 of a person. */
 export const WALL_THICK = 0.7 * PERSON_H
 /** An interior partition — thinner, and it has to read as thinner. */

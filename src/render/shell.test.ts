@@ -46,9 +46,15 @@ describe('the cutaway', () => {
    * survive a retune: much higher and the near wall hides the front row of
    * desks, much lower and it stops reading as a wall.
    */
-  it('keeps the near wall around a third of the far wall', () => {
+  it('keeps the near wall between a third and half of the far wall', () => {
+    // The upper bound exists for one reason — the near wall must not occlude
+    // the front row of desks — and it moved from 0.45 to 0.52 when the roll-up
+    // door forced the wall taller. The nearest pod stands two and a half tiles
+    // back from that wall, so there is room; what there is not room for is a
+    // near wall that approaches the far one, at which point the room stops
+    // being a cutaway and becomes a box with a lid off.
     expect(CUTAWAY_RATIO).toBeGreaterThan(0.28)
-    expect(CUTAWAY_RATIO).toBeLessThan(0.45)
+    expect(CUTAWAY_RATIO).toBeLessThan(0.52)
   })
 
   it('makes an exterior wall thicker than an interior partition', () => {
