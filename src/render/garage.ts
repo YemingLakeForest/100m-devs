@@ -85,6 +85,29 @@ export const GARAGE_SPAN = 16
 export const WALL_CLEAR = 1.5
 
 /**
+ * **How far a prop has to stand back from a near wall to be seen at all.**
+ *
+ * Not taste — arithmetic on the projection. A near wall is cut down to
+ * {@link WALL_NEAR} and stands *between the camera and the room*, and one tile
+ * of floor moves a point 16 px down the screen while one tile of height moves
+ * it 32 up. So an object of height `h` clears the wall's near top edge only
+ * once it is `(WALL_NEAR - h) * 2` tiles back from it — nearly four tiles for
+ * something lying on the floor.
+ *
+ * 1.6 is where that lands for a prop about a person tall, which is the height
+ * the shelves, the fridge and the boxes actually are: they clear completely,
+ * and the sofa and the tea table show their tops. It is a compromise and worth
+ * naming as one — the honest number for a *floor-level* object is 3.9 tiles,
+ * and a sixteen-tile room whose corner already takes 5.2 by 8.6 does not have
+ * that to give on two walls at once.
+ *
+ * What it replaces is nothing at all, and the cost of nothing at all was a
+ * sofa, a fridge, a kettle and a stack of crates drawn every frame behind a
+ * wall — authored, overlap-tested, clearance-tested, and invisible.
+ */
+export const NEAR_CLEAR = 1.6
+
+/**
  * The same lane, but off the leadership glass.
  *
  * Smaller than {@link WALL_CLEAR} on purpose: the glass is a partition inside
@@ -363,23 +386,28 @@ export const GARAGE_PLAN_ORIGIN_NOTE = 'plan (0,0) is the room s inner back corn
  * middle is the route from the door to the corner.
  */
 export const GARAGE_PROPS: readonly Plot[] = [
-  // --- the far-right wall: the workshop half, past the corner --------------
-  { name: 'THE SHELVES', gx0: 5.6, gy0: 0, gx1: 9.0, gy1: 0.55 },
-  { name: 'THE TOOL BOARD', gx0: 9.4, gy0: 0, gx1: 12.2, gy1: 0.55 },
-  { name: 'THE WORKBENCH', gx0: 9.4, gy0: 0.55, gx1: 12.2, gy1: 1.0 },
-  // In the corner where the two far walls meet, which is where a bike lives.
-  // Written off `GARAGE_SPAN` rather than off 14, along with the five below:
-  // **a prop that leans on a wall has to move when the wall does**, and these
-  // are the ones that would otherwise have been left standing in the street.
-  { name: 'THE BIKE', gx0: GARAGE_SPAN - 3.4, gy0: 0, gx1: GARAGE_SPAN - 2.1, gy1: 0.9 },
-  // --- the far-left wall, past the corner ---------------------------------
-  { name: 'THE BOXES', gx0: 0, gy0: 8.9, gx1: 1.1, gy1: 11.4 },
-  { name: 'THE BIN', gx0: 0, gy0: GARAGE_SPAN - 2.2, gx1: 1.1, gy1: GARAGE_SPAN - 0.8 },
-  // --- the near-right wall: the sitting-down half -------------------------
-  { name: 'THE FRIDGE', gx0: GARAGE_SPAN - 1.1, gy0: 3.2, gx1: GARAGE_SPAN, gy1: 4.4 },
-  { name: 'THE KETTLE', gx0: GARAGE_SPAN - 1.1, gy0: 4.8, gx1: GARAGE_SPAN, gy1: 5.8 },
-  { name: 'THE SOFA', gx0: GARAGE_SPAN - 1.1, gy0: 7.0, gx1: GARAGE_SPAN, gy1: 9.6 },
-  { name: 'THE CRATES', gx0: GARAGE_SPAN - 1.1, gy0: 10.4, gx1: GARAGE_SPAN, gy1: 12.2 },
+  // --- the far-right wall (gy 0): workshop first, then the sitting-down end -
+  //
+  // Everything stops at `GARAGE_SPAN - NEAR_CLEAR`. The sofa ran to the corner
+  // once and the near-right wall stood in front of its last third, which is
+  // the whole reason that constant exists.
+  { name: 'THE SHELVES', gx0: 5.4, gy0: 0, gx1: 7.7, gy1: 0.55 },
+  { name: 'THE TOOL BOARD', gx0: 8.0, gy0: 0, gx1: 10.1, gy1: 0.55 },
+  { name: 'THE WORKBENCH', gx0: 8.0, gy0: 0.55, gx1: 10.1, gy1: 1.0 },
+  { name: 'THE BIKE', gx0: 10.4, gy0: 0, gx1: 11.5, gy1: 0.9 },
+  // The sofa runs along the wall the camera looks *at*, which is the only one
+  // a soft furnishing is worth drawing against — and is where the canonical
+  // concept puts it.
+  { name: 'THE SOFA', gx0: 11.9, gy0: 0, gx1: GARAGE_SPAN - NEAR_CLEAR, gy1: 1.1 },
+  // --- the far-left wall (gx 0), past the corner ---------------------------
+  { name: 'THE BOXES', gx0: 0, gy0: 8.9, gx1: 1.1, gy1: 11.0 },
+  { name: 'THE KETTLE', gx0: 0, gy0: 11.3, gx1: 1.1, gy1: 12.3 },
+  { name: 'THE FRIDGE', gx0: 0, gy0: 12.6, gx1: 1.1, gy1: 13.8 },
+  // Second rank, standing in front of the first — the workbench's arrangement,
+  // one wall over. A garage stacks things two deep against a wall; what it
+  // never does is put them where you cannot see them.
+  { name: 'THE CRATES', gx0: 1.1, gy0: 9.2, gx1: 2.1, gy1: 10.5 },
+  { name: 'THE BIN', gx0: 1.1, gy0: 12.4, gx1: 2.2, gy1: 13.6 },
 ]
 
 /**

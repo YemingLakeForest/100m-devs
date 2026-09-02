@@ -12,6 +12,7 @@ import {
   GARAGE_SHELL,
   GARAGE_SPAN,
   GLASS_CLEAR,
+  NEAR_CLEAR,
   POD_SEATS,
   WALL_CLEAR,
   acrossFrom,
@@ -439,30 +440,62 @@ describe('every desk stands off every wall', () => {
    * prop must touch a wall, which is the claim that keeps the perimeter band
    * furniture and the middle band floor.
    */
-  it('keeps every prop against a wall', () => {
-    const onAWall = (p: Plot) =>
-      p.gx0 <= 1e-9 ||
-      p.gy0 <= 1e-9 ||
-      p.gx1 >= GARAGE_SPAN - 1e-9 ||
-      p.gy1 >= GARAGE_SPAN - 1e-9
+  /**
+   * **And against a wall the camera can see over** — which means one of the two
+   * *far* walls, at `gx 0` or `gy 0`.
+   *
+   * This is a fact about the projection and not about taste. The near walls are
+   * cut down (§7.8.0b) and stand **between the camera and the room**, so
+   * anything against one of them is behind it: at 2.15 person-heights the wall
+   * hides everything shorter than about 1.3 tiles, which covered the sofa
+   * completely and left a hand's breadth of the fridge showing. Four of the ten
+   * props were drawn, tested for overlap, tested for clearance, and invisible.
+   *
+   * The far walls are behind their props, so a prop there is lit against a
+   * surface. That is where both canonical concepts put every soft furnishing
+   * they have, and the reason is the same one.
+   */
+  /**
+   * **And far enough back from the near walls to clear them.** Being against a
+   * far wall is not enough on its own: the two near walls run across the front
+   * of the room, and the corner where a far wall meets a near one is behind
+   * both. The sofa ran to that corner and its last third was hidden by a wall
+   * eight tiles away from it — a defect no overlap or containment check can
+   * see, because nothing was overlapping anything.
+   */
+  it('keeps every prop clear of the walls that stand in front of it', () => {
+    for (const prop of GARAGE_PROPS) {
+      expect({
+        prop: prop.name,
+        // An epsilon, because the sofa is written as `GARAGE_SPAN - NEAR_CLEAR`
+        // exactly and 16 - 14.4 does not come back as 1.6 in binary.
+        clear:
+          GARAGE_SPAN - prop.gx1 >= NEAR_CLEAR - 1e-9 &&
+          GARAGE_SPAN - prop.gy1 >= NEAR_CLEAR - 1e-9,
+      }).toEqual({ prop: prop.name, clear: true })
+    }
+  })
+
+  it('keeps every prop against a wall the camera can see over', () => {
+    const onAFarWall = (p: Plot) => p.gx0 <= 1e-9 || p.gy0 <= 1e-9
     for (const prop of GARAGE_PROPS) {
       // Against the block, or against something that is. The workbench stands
       // in front of the tool board and the tool board is on the wall, which is
       // how a workshop is actually arranged — so the rule is *the perimeter
       // band*, one prop deep or two, and not literal contact with masonry.
       const anchored =
-        onAWall(prop) ||
+        onAFarWall(prop) ||
         GARAGE_PROPS.some(
           (other) =>
             other !== prop &&
-            onAWall(other) &&
+            onAFarWall(other) &&
             prop.gx0 < other.gx1 + 1e-9 &&
             prop.gx1 > other.gx0 - 1e-9 &&
             prop.gy0 < other.gy1 + 1e-9 &&
             prop.gy1 > other.gy0 - 1e-9,
         )
-      expect({ prop: prop.name, againstAWall: anchored })
-        .toEqual({ prop: prop.name, againstAWall: true })
+      expect({ prop: prop.name, seen: anchored })
+        .toEqual({ prop: prop.name, seen: true })
     }
   })
 })

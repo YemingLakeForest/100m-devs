@@ -4474,6 +4474,61 @@ door is architecture. So the group is sheared onto the glass's own screen slope.
 along <code>col</code> at a fixed row, and one column step moves 32 px left and 16 down, so that slope
 is &minus;0.5: the projection's only legal value for a line lying in this plane, and the same number
 <code>test:room</code> checks every wall against.</p>
+<h6 id="a-prop-behind-a-wall-2026-09-02">A prop behind a wall is a prop you paid for and cannot see <strong>[CANON - added 2026-09-02]</strong></h6>
+<p>Four of the ten garage props &mdash; the sofa, the fridge, the kettle and the crates &mdash; were
+authored against the <em>near-right</em> wall. They were overlap-tested, containment-tested and, after
+the batch above, clearance-tested. They were also <strong>invisible</strong>, and had been since they
+were written.</p>
+<p>The reason is arithmetic on the projection, not taste. The near walls are cut down (&sect;7.8.0b)
+and stand <em>between the camera and the room</em>. One tile of floor moves a point 16&nbsp;px down the
+screen; one tile of height moves it 32&nbsp;px up. So an object of height <em>h</em> clears a near
+wall's top edge only once it is <code>(WALL_NEAR - h) &times; 2</code> tiles back from it &mdash;
+2.1 tiles for a person, 2.3 for a sofa back, and nearly <strong>four</strong> for anything lying on
+the floor. Against the wall itself, nothing below about 1.3 tiles is drawn at all.</p>
+<p>Both canonical concepts put every soft furnishing against a <strong>far</strong> wall, and this is
+why: a far wall is <em>behind</em> its props, so they are lit against a surface. So the sitting-down
+half moved to the far walls, and two claims went in beside the clearance gate:</p>
+<ul>
+<li><strong>Every prop is against a far wall</strong> (<code>gx 0</code> or <code>gy 0</code>), or
+against a prop that is &mdash; the workbench stands in front of the tool board, and the crates and the
+bin now stand in front of the boxes and the fridge, which is how a garage actually stacks against a
+wall.</li>
+<li><strong>Every prop keeps <code>NEAR_CLEAR</code> &mdash; 1.6 tiles &mdash; off both near
+walls.</strong> Being on a far wall is not sufficient on its own: the corner where a far wall meets a
+near one is behind <em>both</em>. The sofa ran to that corner and lost its last third to a wall eight
+tiles away from it, which no overlap or containment check can see, because nothing overlapped
+anything.</li>
+</ul>
+<p>1.6 is a compromise and is worth naming as one. The honest number for a floor-level object is 3.9
+tiles, and a sixteen-tile room whose corner already takes 5.2 by 8.6 does not have that to give on two
+walls at once. At 1.6 a person-height prop clears completely and a sofa shows its top; below that the
+room starts losing furniture again.</p>
+<h6 id="the-far-wall-is-not-the-subject-2026-09-02">The far wall is not the subject <strong>[amends &sect;7.8.0c, 2026-09-02]</strong></h6>
+<p>The far wall's two faces were <code>NEUTRAL[3]</code> and <code>[2]</code>. It is the largest
+single surface in the garage &mdash; full height, seen across the whole width of the room &mdash; and at
+those values it was also the <em>brightest</em>, so the eye went to a blank rectangle instead of to
+the twenty people in front of it. The concept has it the other way round: its far wall is darker than
+its floor, and the room sits in front of it. The faces come down a step to <code>[2]</code> and
+<code>[1]</code>; only the coping stays, because that plane really does face &sect;7's key.</p>
+<p>Darkening it exposed the other half of the same note &mdash; the wall is <em>empty</em>. Four tiles
+of blank block is the largest surface in the picture with nothing to say, and the concept never leaves
+it that way: conduit along the top, a distribution box hung off it, a poster taped up. They are also
+the only <strong>scale reference</strong> on that surface. Courses give it grain but not size &mdash; a
+wall of courses could be two metres or ten &mdash; and a box the size of a torso at head height is what
+makes the people in front of it read as people rather than as sprites at an arbitrary zoom. All of it
+is drawn as quads <em>in the wall's plane</em>, the way the shutter's corrugation is: a solid stood
+against the wall would show its own lit top and become a shelf.</p>
+<h6 id="two-props-that-were-not-what-they-were-called-2026-09-02">Two props that were not what they were called <strong>[2026-09-02]</strong></h6>
+<p><strong>The tea point was a crate.</strong> One solid filling its plot to 0.62 is, at this scale, a
+waist-high cube a metre square, and it read as exactly that with a kettle balanced on it. The concept
+draws a small table: thin top, four legs, daylight underneath &mdash; the same argument the shelves make
+two cases earlier, that <em>the gaps are the object</em>. The kettle and mugs came down with it; they
+had been sized against the cube and so were enormous against a person.</p>
+<p><strong>The bike was pipework.</strong> Its frame was a 0.9-tile bar in <code>ALARM</code> and its
+wheels were 0.1 thick in the wall's own dark, so it was a red stripe with two smudges &mdash; and a red
+stripe on block reads as conduit, which is what it was taken for. A bicycle is read from its two
+circles and nothing else. The wheels are bigger and <em>lighter than the wall behind them</em>, and the
+red is cut back to a thin top tube.</p>
 <h6 id="the-street-is-shown-by-widening-the-frame">The street is shown by widening the frame, not by extending the box</h6>
 <p>Two attempts extended the fit's <code>maxCol</code> over the apron, at 3.4 columns and then 2.0,
 and both were wrong the same way: <strong>the apron is on one side only, so adding it moves the

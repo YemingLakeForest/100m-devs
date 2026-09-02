@@ -92,6 +92,7 @@ import {
 import { drawPlaza, statueRung } from './plaza.ts'
 import { HEIGHT_UNIT, isoPatch, isoSolid, type Project } from './isoSolid.ts'
 import {
+  WALL_FULL,
   WALL_NEAR,
   WALL_THICK,
   drawWallRun,
@@ -1275,11 +1276,33 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       // as thin upright boxes rather than ellipses: an ellipse is the one shape
       // in this room that does not lie in a plane, and at this size the
       // silhouette is all that survives anyway.
-      box(x + 0.15, y + 0.3, 0, 0.1, 0.62, 0.62, RAMPS.NEUTRAL, 1)
-      box(x + 1.0, y + 0.3, 0, 0.1, 0.62, 0.62, RAMPS.NEUTRAL, 1)
-      box(x + 0.2, y + 0.5, 0.5, 0.9, 0.09, 0.12, RAMPS.ALARM, 1)
-      box(x + 0.22, y + 0.48, 0.32, 0.1, 0.12, 0.3, RAMPS.ALARM, 1)
-      box(x + 0.72, y + 0.42, 0.62, 0.3, 0.2, 0.1, RAMPS.NEUTRAL, 2)
+      /*
+       * **The wheels are the bike.** [2026-09-02]
+       *
+       * The first version gave the frame a 0.9-tile bar in `ALARM` and the
+       * wheels 0.1 of thickness in the wall's own dark, so at this size it was
+       * a red stripe with two smudges — and a red stripe against block reads as
+       * pipework, which is what it was mistaken for. A bicycle is read from its
+       * two circles and nothing else; the frame is what joins them.
+       *
+       * So the wheels are bigger, paler than the wall behind them, and set at
+       * the two ends, and the red is cut back to a thin top tube. `NEUTRAL[4]`
+       * for the rims, because a wheel silhouetted against dark block has to be
+       * the lighter of the two.
+       */
+      box(x + 0.06, y + 0.24, 0, 0.09, 0.7, 0.7, RAMPS.NEUTRAL, 4)
+      box(x + 0.95, y + 0.24, 0, 0.09, 0.7, 0.7, RAMPS.NEUTRAL, 4)
+      // Hubs, a shade darker, so the wheels are not two solid discs.
+      box(x + 0.05, y + 0.46, 0.26, 0.11, 0.24, 0.24, RAMPS.NEUTRAL, 1)
+      box(x + 0.94, y + 0.46, 0.26, 0.11, 0.24, 0.24, RAMPS.NEUTRAL, 1)
+      // The top tube — one thin red line, which is all the colour it needs.
+      box(x + 0.16, y + 0.5, 0.62, 0.78, 0.08, 0.08, RAMPS.ALARM, 1)
+      // Down tube and seat tube, dark, joining the wheels to it.
+      box(x + 0.2, y + 0.52, 0.3, 0.5, 0.07, 0.1, RAMPS.NEUTRAL, 1)
+      box(x + 0.86, y + 0.52, 0.3, 0.09, 0.07, 0.34, RAMPS.NEUTRAL, 1)
+      // Saddle and bars, the two marks that say which way it is facing.
+      box(x + 0.14, y + 0.44, 0.7, 0.2, 0.18, 0.07, RAMPS.NEUTRAL, 2)
+      box(x + 0.9, y + 0.34, 0.7, 0.08, 0.42, 0.07, RAMPS.NEUTRAL, 2)
       break
     }
     case 'THE BOXES': {
@@ -1303,34 +1326,69 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       // The beer fridge. A tall box, a door line down two thirds of it, a
       // handle, and one magnet — which is the joke and the only warm mark on
       // this wall.
+      // Its back is against the far-**left** wall now, so the door, handle and
+      // magnet are on the `gx+` face — the one the camera is on. Mirrored
+      // rather than moved: the same three marks on the wall side would be a
+      // fridge with its door against the block.
       box(x + 0.1, y + 0.1, 0, w - 0.25, d - 0.25, 1.45, RAMPS.NEUTRAL, 4)
-      box(x + 0.08, y + 0.12, 0.5, 0.05, d - 0.3, 0.04, RAMPS.NEUTRAL, 1)
-      box(x + 0.06, y + d - 0.5, 0.75, 0.06, 0.3, 0.09, RAMPS.NEUTRAL, 6)
-      box(x + 0.07, y + 0.35, 1.05, 0.04, 0.16, 0.16, RAMPS.WARN, 2)
+      box(x + w - 0.19, y + 0.12, 0.5, 0.05, d - 0.3, 0.04, RAMPS.NEUTRAL, 1)
+      box(x + w - 0.2, y + d - 0.5, 0.75, 0.06, 0.3, 0.09, RAMPS.NEUTRAL, 6)
+      box(x + w - 0.19, y + 0.35, 1.05, 0.04, 0.16, 0.16, RAMPS.WARN, 2)
       break
     }
     case 'THE KETTLE': {
-      // A counter with a kettle and two mugs on it. The kettle is the taller
-      // of the three and the one with a spout.
-      box(x + 0.1, y + 0.1, 0, w - 0.25, d - 0.2, 0.62, RAMPS.WOOD, 1)
-      box(x + 0.35, y + 0.25, 0.62, 0.34, 0.34, 0.36, RAMPS.NEUTRAL, 5)
-      box(x + 0.28, y + 0.32, 0.82, 0.12, 0.14, 0.08, RAMPS.NEUTRAL, 4)
-      box(x + 0.3, y + 0.66, 0.62, 0.18, 0.18, 0.18, RAMPS.CALM, 1)
-      box(x + 0.55, y + 0.66, 0.62, 0.18, 0.18, 0.18, RAMPS.ALARM, 1)
+      /*
+       * **A table with a kettle on it, not a block with a kettle on it.**
+       * [2026-09-02]
+       *
+       * It was one solid filling the plot to 0.62, which at this scale is a
+       * waist-high cube a metre square — a packing crate, and it read as one.
+       * The tea point in the concept is a *small table*: a thin top, four legs,
+       * daylight underneath. The daylight is the whole difference, exactly as
+       * it is for the shelves two cases up.
+       *
+       * The kettle and mugs came down with it. They were sized against the
+       * cube and so were enormous against a person; a mug is about a fifth of a
+       * tile.
+       */
+      const legH = 0.5
+      for (const [lx, ly] of [
+        [0.14, 0.12],
+        [w - 0.24, 0.12],
+        [0.14, d - 0.22],
+        [w - 0.24, d - 0.22],
+      ]) {
+        box(x + lx, y + ly, 0, 0.1, 0.1, legH, RAMPS.WOOD, 0)
+      }
+      box(x + 0.08, y + 0.06, legH, w - 0.2, d - 0.14, 0.08, RAMPS.WOOD, 2)
+      // The kettle: body and spout, the tallest of the three and the only one
+      // with a mark on it.
+      box(x + 0.3, y + 0.28, legH + 0.08, 0.24, 0.24, 0.26, RAMPS.NEUTRAL, 5)
+      box(x + 0.24, y + 0.34, legH + 0.2, 0.08, 0.1, 0.06, RAMPS.NEUTRAL, 4)
+      // Two mugs, one of each house colour, because nobody owns a matching set.
+      box(x + 0.62, y + 0.24, legH + 0.08, 0.14, 0.14, 0.14, RAMPS.CALM, 1)
+      box(x + 0.6, y + 0.55, legH + 0.08, 0.14, 0.14, 0.14, RAMPS.ALARM, 1)
       break
     }
     case 'THE SOFA': {
       // The battered sofa: a low seat block, a back along the wall side, and an
       // arm at each end. The arms are what make it a sofa rather than a bench,
       // and they are the two marks worth spending.
-      box(x + 0.35, y + 0.2, 0, w - 0.5, d - 0.4, 0.4, RAMPS.WOOD, 1)
-      box(x + 0.1, y + 0.2, 0, 0.3, d - 0.4, 0.78, RAMPS.WOOD, 0)
-      box(x + 0.35, y + 0.05, 0, w - 0.5, 0.22, 0.6, RAMPS.WOOD, 0)
-      box(x + 0.35, y + d - 0.28, 0, w - 0.5, 0.22, 0.6, RAMPS.WOOD, 0)
+      // **It runs along `gx` now**, because it moved from the cut-down wall to
+      // the far one, and the two walls lie on different axes. Every part had to
+      // turn with it: a sofa whose back is on the wrong side of the seat is a
+      // sofa facing the block.
+      box(x + 0.2, y + 0.38, 0, w - 0.4, d - 0.55, 0.4, RAMPS.WOOD, 1)
+      // The back, along the wall side.
+      box(x + 0.2, y + 0.12, 0, w - 0.4, 0.28, 0.78, RAMPS.WOOD, 0)
+      // An arm at each end. They are what make it a sofa rather than a bench,
+      // and they are the two marks worth spending.
+      box(x + 0.04, y + 0.38, 0, 0.22, d - 0.55, 0.6, RAMPS.WOOD, 0)
+      box(x + w - 0.26, y + 0.38, 0, 0.22, d - 0.55, 0.6, RAMPS.WOOD, 0)
       // Two cushions, sagging — different sizes, because a matched pair on a
       // battered sofa is a matched pair somebody bought.
-      box(x + 0.5, y + 0.4, 0.4, 0.5, 0.55, 0.12, RAMPS.WOOD, 3)
-      box(x + 0.5, y + 1.1, 0.4, 0.5, 0.7, 0.1, RAMPS.WOOD, 2)
+      box(x + 0.42, y + 0.5, 0.4, 0.62, d - 0.8, 0.12, RAMPS.WOOD, 3)
+      box(x + 1.25, y + 0.5, 0.4, 0.78, d - 0.8, 0.1, RAMPS.WOOD, 2)
       break
     }
     case 'THE CRATES': {
@@ -4685,12 +4743,23 @@ export function buildRoom(): RoomHandle {
       return { x: cx + q.x, y: cy + q.y }
     }
     if (garage) {
-      // Concrete block. The coping is the lightest surface in the room after a
-      // monitor, because it is the one plane facing straight up into §7's key.
+      /*
+       * Concrete block. The coping is the lightest surface in the room after a
+       * monitor, because it is the one plane facing straight up into §7's key.
+       *
+       * **The two faces came down a step on 2026-09-02**, from `[3]`/`[2]` to
+       * `[2]`/`[1]`. This is the largest single surface in the garage — a
+       * full-height wall seen across the whole width of the room — and at the
+       * old values it was also the *brightest*, so the eye went to a blank
+       * rectangle instead of to the people. The canonical concept has it the
+       * other way round: its far wall is darker than its floor and the room
+       * sits in front of it. Only the coping stays where it was, because that
+       * plane really does face the key.
+       */
       const blockFar: WallPaint = {
         top: RAMPS.NEUTRAL[4],
-        left: RAMPS.NEUTRAL[3],
-        right: RAMPS.NEUTRAL[2],
+        left: RAMPS.NEUTRAL[2],
+        right: RAMPS.NEUTRAL[1],
       }
       /*
        * **The near wall's faces were too dark to be a wall.**
@@ -5029,6 +5098,61 @@ export function buildRoom(): RoomHandle {
         const into = isFar ? shell : nearWall
         const segs = drawWallRun(into, shellProject, run, isFar ? blockFar : blockNear)
         courses(into, segs, runsAlongGy(run.edge))
+      }
+
+      /*
+       * §7.8.0c [2026-09-02] — **the services on the far wall.**
+       *
+       * Darkening the block fixed the wall competing with the people; it did
+       * not fix the other half of the same note, which is that the wall is
+       * *empty*. Four and a bit tiles of blank block across the whole width of
+       * the room is the largest surface in the picture with nothing to say, and
+       * the concept never leaves it that way: it runs conduit along the top,
+       * hangs a distribution box off it, and tapes a poster up.
+       *
+       * They are also the only **scale reference** on that surface. Courses
+       * give it grain but not size — a wall of courses could be two metres or
+       * ten. A box the size of a person's torso and a pipe at head height say
+       * how tall the building is, which is what makes the people in front of it
+       * read as people rather than as sprites at an arbitrary zoom.
+       *
+       * Everything here is a quad **in the wall's own plane**, the way the
+       * shutter's corrugation is: a mark on a surface, not a solid stood
+       * against one. A solid would show its own lit top and turn into a shelf.
+       */
+      {
+        // Plan tile 0 is the room's inner back corner (§7.8.0c), and the shell
+        // box is centred, so this is the one conversion between them.
+        const wallGx = (planGx: number) => -halfBack + WALL_THICK + planGx
+        const faceGy = -halfAcross + WALL_THICK
+        const onWall = (gx0: number, gx1: number, z0: number, z1: number, colour: number, alpha = 1) => {
+          const a = shellProject(wallGx(gx0), faceGy)
+          const b2 = shellProject(wallGx(gx1), faceGy)
+          shell
+            .moveTo(a.x, a.y - z0 * HEIGHT_UNIT)
+            .lineTo(b2.x, b2.y - z0 * HEIGHT_UNIT)
+            .lineTo(b2.x, b2.y - z1 * HEIGHT_UNIT)
+            .lineTo(a.x, a.y - z1 * HEIGHT_UNIT)
+            .closePath()
+            .fill({ color: colour, alpha })
+        }
+        const HEAD = WALL_FULL * 0.78
+        // The conduit run, and the two drops off it. One long horizontal and
+        // two shorts is the whole language of surface-mounted electrics.
+        onWall(5.6, 15.6, HEAD, HEAD + 0.13, c(RAMPS.NEUTRAL[3]))
+        onWall(5.6, 15.6, HEAD - 0.05, HEAD, c(RAMPS.NEUTRAL[1]), 0.6)
+        onWall(12.15, 12.28, 2.7, HEAD, c(RAMPS.NEUTRAL[3]))
+        onWall(9.0, 9.13, 1.5, HEAD, c(RAMPS.NEUTRAL[3]))
+        // The distribution box the near drop feeds — torso-sized, which is the
+        // scale reference, with a pale door and a dark louvre.
+        onWall(11.75, 12.7, 1.75, 2.75, c(RAMPS.NEUTRAL[4]))
+        onWall(11.9, 12.55, 2.1, 2.55, c(RAMPS.NEUTRAL[2]))
+        onWall(12.5, 12.62, 1.95, 2.15, c(RAMPS.WARN[2]))
+        // A poster, taped up and slightly off square — the one warm rectangle
+        // on this wall and the only thing on it a person put there.
+        onWall(6.3, 7.5, 2.2, 3.15, c(RAMPS.WOOD[1]))
+        onWall(6.45, 7.35, 2.75, 3.0, c(RAMPS.WARN[2]), 0.75)
+        onWall(6.45, 7.05, 2.4, 2.55, c(RAMPS.NEUTRAL[4]), 0.5)
       }
       // The roll-up door, standing in the hole the near-left wall left for it.
       // A shutter is a stack of horizontal slats and nothing else: the
