@@ -18,6 +18,7 @@ import {
   opposite,
   plotsOverlap,
   podPlot,
+  type Plot,
 } from './garage.ts'
 import { insideShell, wallSegments } from './shell.ts'
 
@@ -308,6 +309,67 @@ describe('the shell', () => {
       expect(p.gy0).toBeGreaterThan(0)
       expect(p.gx1).toBeLessThan(GARAGE_SPAN)
       expect(p.gy1).toBeLessThan(GARAGE_SPAN)
+    }
+  })
+})
+
+/**
+ * §7.8.0c — **the clash gate.**
+ *
+ * Two objects standing in the same place is the defect this room kept
+ * producing, and every instance of it was found by looking at a screenshot at
+ * four times magnification. That is not a method; it is luck with a deadline.
+ *
+ * What made the instances possible was always the same shape: **two systems
+ * with a claim on the same floor and no shared table.** The plan against the
+ * suite, the plan against the legacy wall ring, the props against the glass. So
+ * the gate is not "does prop X overlap object Y" one pair at a time — it is
+ * *every* rectangle the garage claims, checked against every other, from one
+ * list. A new prop is covered the moment it is added, which is the property a
+ * hand-checked pair can never have.
+ */
+describe('nothing in the garage stands in anything else', () => {
+  /**
+   * Every rectangle the room claims, in the plan's own tiles.
+   *
+   * §7.8.12's suite is included by converting its lattice box back into plan
+   * space, because the suite is the one claimant that is *not* authored here
+   * and is therefore the one most able to disagree.
+   */
+  const claims = (): Plot[] => [
+    ...GARAGE_PROPS,
+    ...GARAGE_PODS.map(podPlot),
+    { ...GARAGE_LEADERSHIP, name: 'THE SUITE (reserved)' },
+  ]
+
+  it('gives every claimant its own floor', () => {
+    const all = claims()
+    for (let i = 0; i < all.length; i++) {
+      for (let j = i + 1; j < all.length; j++) {
+        expect({ a: all[i].name, b: all[j].name, clash: plotsOverlap(all[i], all[j]) })
+          .toEqual({ a: all[i].name, b: all[j].name, clash: false })
+      }
+    }
+  })
+
+  /**
+   * And nothing stands in a wall. A prop half inside the shell is the same
+   * defect as two props in each other, with the building as one of the two —
+   * and it is the one the eye forgives longest, because a shelf against a wall
+   * and a shelf *inside* a wall look identical until you get close.
+   */
+  it('keeps every claimant inside the walls', () => {
+    for (const plot of claims()) {
+      const corners: Array<[number, number]> = [
+        [plot.gx0, plot.gy0],
+        [plot.gx1 - 1e-6, plot.gy0],
+        [plot.gx0, plot.gy1 - 1e-6],
+        [plot.gx1 - 1e-6, plot.gy1 - 1e-6],
+      ]
+      for (const [gx, gy] of corners) {
+        expect({ at: plot.name, inside: insideShell(GARAGE_SHELL, gx, gy) })
+          .toEqual({ at: plot.name, inside: true })
+      }
     }
   })
 })

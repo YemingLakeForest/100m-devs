@@ -4271,6 +4271,39 @@ reason the cables do not: everything else in the room does.</p>
 room a garage before the door has even been read, and it now lives in the plan's frame with the
 cables and the cracks rather than being positioned off the shell's screen box — three marks on one
 floor, through one conversion.</p>
+<h6 id="one-prop-system-per-room">One prop system per room, and a gate that says so</h6>
+<p><strong>[2026-09-02.]</strong> §7.8.1's wall dressing is placed by a <em>ring</em>: workbench,
+shelf, fridge, coffee machine, water cooler, filing cabinet, printer and sofa, spaced evenly along
+the two far walls by arithmetic. That is the right mechanism for the office floor, where the walls
+are long and empty and nothing else has a claim on them.</p>
+<p>In the garage it was wrong twice. It <strong>duplicated</strong> §7.8.0c's authored plots — the
+room had two workbenches, two fridges and two shelf units — and because it knows nothing about what
+else stands on those walls it placed a water cooler <em>inside</em> §7.8.12's glass, with the pane
+drawn straight through it. <strong>A plan and a generator cannot both own the same wall.</strong>
+The plan wins here for the reason §7.8.1e chose an authored floor over a generated one: the concept
+is a drawing, not a rule. §7.8.6's walk targets, which the ring used to supply as a side effect of
+drawing, now come from the plan's own kettle and fridge.</p>
+<p><strong>And the class of defect now has a gate.</strong> Every instance of two objects in the same
+place was found by looking at a screenshot at four times magnification, which is not a method. What
+made them possible was always the same shape — two systems with a claim on one floor and no shared
+table — so the check is not "does prop X overlap object Y" one pair at a time. It is <em>every</em>
+rectangle the garage claims, including §7.8.12's suite converted back into plan space, checked
+against every other from one list, plus a containment check against the shell. A new prop is covered
+the moment it is added, which is the property a hand-checked pair can never have.</p>
+<h6 id="one-vehicle-door">A garage has one vehicle door</h6>
+<p>The <code>!unfolded</code> branch drew an up-and-over door painted flat on the back wall — the
+garage's one statement, until §7.8.0b cut a <em>real</em> roll-up into the street wall with a reveal,
+guide rails, a lintel-free head and a forecourt outside it. Keeping both gave the room two front
+doors on opposite walls, one of which opened onto the neighbour's plot, and the painted one was the
+more prominent. The real one wins, and not because it is newer: because a car could be driven
+through it.</p>
+<p><strong>The gate sits at 0.62 along the frontage rather than at its midpoint</strong>, and the
+reason is not architectural. At this camera the middle of that wall lands under the HUD's left
+column, so the one object in the room the player most needs to see was behind <code>INCIDENT</code>
+and <code>HIRE SUPPORT</code>. The concept puts its gate right of centre with the car and side door
+to its left, which is both the better composition and the only position where the gate is actually
+shown. §7.1's pane-of-glass rule cuts both ways: the interface does not move for the world, so the
+world moves for it.</p>
 <h6 id="a-turned-screen-does-not-turn-its-plane">A turned screen does not turn its plane</h6>
 <p><strong>[2026-09-02, and it is the defect §7.8.0b was written to prevent.]</strong> Mirroring a
 workstation flipped the screen's <em>shear</em> along with its position:

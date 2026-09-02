@@ -421,7 +421,22 @@ export function garageShellRuns(
   const spanGy = maxGy - minGy
   const rollWidth = Math.min(ROLLUP_WIDTH, spanGx * 0.44)
   const doorWidth = Math.min(SIDE_DOOR_WIDTH, spanGy * 0.16)
-  const rollAt = minGx + spanGx / 2 - rollWidth / 2
+  /*
+   * **The gate sits along the wall at 0.62, not at its midpoint.** [2026-09-02]
+   *
+   * Centred is where a garage door goes if you are drawing a garage in
+   * isolation. It is the wrong place here for a reason that has nothing to do
+   * with the building: at this camera the middle of the street wall lands under
+   * the HUD's left column, so the one object in the room the player most needs
+   * to see was behind `INCIDENT` and `HIRE SUPPORT`.
+   *
+   * The concept puts its gate right of centre on that frontage with the car and
+   * the side door to its left, which is both a better composition and — since
+   * the HUD is fixed furniture the world has to live with — the only position
+   * where the gate is actually shown. §7.1's pane-of-glass rule cuts both ways:
+   * the interface does not move for the world, so the world moves for it.
+   */
+  const rollAt = minGx + spanGx * 0.62 - rollWidth / 2
   return [
     { edge: 'far-left', at: minGx, from: minGy, to: maxGy },
     { edge: 'far-right', at: minGy, from: minGx, to: maxGx },

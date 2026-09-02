@@ -3291,40 +3291,6 @@ function drawFridge(g: Graphics, x: number, y: number) {
   g.rect(x - 3.4, y - 18, 1.6, 1.6).fill(c(RAMPS.CALM[2]))
 }
 
-/**
- * The garage door — a segmented panel on the back-right wall.
- *
- * Part of the shell, not a prop: the studio grows *inside* the garage, so the
- * door stays through every expansion. Drawn as five horizontal bands in the
- * wall plane with a handle at the pull end, and it is the single strongest
- * "this is a garage" signal in the room — an office has neither a segmented
- * door nor a concrete slab to roll one over.
- *
- * `(x0, y0)` and `(x1, y1)` are the two ends of the door's floor line; `h` is
- * its height up the wall. The top edge is parallel to the bottom for the same
- * reason the skirting is: anything else would be a shape that does not lie in
- * the wall.
- */
-function drawGarageDoor(g: Graphics, x0: number, y0: number, x1: number, y1: number, h: number) {
-  g.moveTo(x0, y0)
-    .lineTo(x1, y1)
-    .lineTo(x1, y1 - h)
-    .lineTo(x0, y0 - h)
-    .closePath()
-    .fill(c(RAMPS.NEUTRAL[4]))
-  // The track shadow where the door meets the slab.
-  g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: 1.5, color: c(RAMPS.NEUTRAL[0]) })
-  // Five panels, four seams.
-  for (let i = 1; i < 5; i++) {
-    const k = i / 5
-    g.moveTo(x0, y0 - h * k)
-      .lineTo(x1, y1 - h * k)
-      .stroke({ width: 1.5, color: c(RAMPS.NEUTRAL[2]) })
-  }
-  // The lit top edge, and the handle at the pull end.
-  g.moveTo(x0, y0 - h).lineTo(x1, y1 - h).stroke({ width: 1, color: c(RAMPS.NEUTRAL[6]) })
-  g.rect(x1 - 10, y1 - h * 0.62, 3, h * 0.22).fill(c(RAMPS.NEUTRAL[1]))
-}
 
 /**
  * A UPVC window in a back wall — two flat casements in a white frame, the
@@ -5102,6 +5068,18 @@ export function buildRoom(): RoomHandle {
       garageProps.clear()
       for (const prop of GARAGE_PROPS) drawGarageProp(garageProps, planProject, prop)
       /*
+       * §7.8.6's errands need somewhere to walk to, and the ring used to supply
+       * it as a side effect of drawing. With the ring gone in this room the
+       * plan supplies it directly — the kettle and the fridge, which are what a
+       * garage actually sends people to.
+       */
+      for (const name of ['THE KETTLE', 'THE FRIDGE']) {
+        const plot = GARAGE_PROPS.find((prop) => prop.name === name)
+        if (!plot) continue
+        const at = planProject((plot.gx0 + plot.gx1) / 2 - 1.1, (plot.gy0 + plot.gy1) / 2)
+        spots.water.push(standingSpot(at.x, at.y))
+      }
+      /*
        * **The pendant over the workbench** — the garage's second warm source.
        *
        * §7.8.1's first frame is "a dark home garage, lit only by the monitor",
@@ -5550,17 +5528,19 @@ export function buildRoom(): RoomHandle {
             .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.25 })
         }
       }
-      // The garage door, centred on the back-right wall — the right wall's one
-      // statement, and the windows live on the left wall where the brick is.
-      // Drawn after the skirting so it stands on the slab rather than behind it.
-      drawGarageDoor(
-        shell,
-        topX + eastW * 0.3,
-        topY + eastH * 0.3,
-        topX + eastW * 0.7,
-        topY + eastH * 0.7,
-        WALL_H * 0.85,
-      )
+      /*
+       * **The up-and-over door on the back wall is gone.** §7.8.0c [2026-09-02].
+       *
+       * It was painted flat on the far-right wall and it was the garage's one
+       * statement — until §7.8.0b cut a *real* roll-up door into the street
+       * wall, with a reveal, guide rails, a lintel-free head and a forecourt
+       * outside it. Keeping both gave the room two front doors on opposite
+       * walls, one of which opened onto the neighbour's plot, and the painted
+       * one was the more prominent of the two.
+       *
+       * A garage has one vehicle door. The real one won, and the reason it wins
+       * is not that it is newer: it is that a car could be driven through it.
+       */
 
       // --- windows ------------------------------------------------------------
       //
@@ -5771,10 +5751,31 @@ export function buildRoom(): RoomHandle {
     const walls = ['left', 'right'] as const
     const counts = [0, 0]
     for (let i = 0; i < ring.length; i++) counts[i % 2]++
+    /*
+     * §7.8.0c — **the garage has one prop system, not two.**
+     *
+     * This ring places §7.8.1's dressing evenly along the two far walls by
+     * arithmetic: workbench, shelf, fridge, coffee machine, water cooler,
+     * filing cabinet, printer, sofa. It is the right mechanism for the office
+     * floor, where the walls are long and empty and nothing else has a claim on
+     * them.
+     *
+     * In the garage it is the wrong one twice over. It **duplicates**
+     * `GARAGE_PROPS`, which authors the same objects at hand-placed positions
+     * off the canonical concept — so the room had two workbenches, two fridges
+     * and two shelf units. And because it knows nothing about what else stands
+     * on those walls, it put a water cooler **inside §7.8.12's glass**: the
+     * pane was drawn straight through it.
+     *
+     * A plan and a generator cannot both own the same wall. The plan wins here
+     * for the same reason §7.8.1e chose an authored floor over a generated one:
+     * the concept is a drawing, not a rule.
+     */
     const placed = [0, 0]
+    if (garage) ring.length = 0
     // The server rack takes the first slot on the right-hand wall, so the run
     // of props starts after it rather than through it.
-    if (props.serverRack) placed[1] = 1
+    if (props.serverRack && !garage) placed[1] = 1
     for (let i = 0; i < ring.length; i++) {
       const side = i % 2
       const wall = walls[side]
@@ -5788,7 +5789,7 @@ export function buildRoom(): RoomHandle {
       ring[i].draw(at.x, at.y, wall === 'left' ? -WALL_SLOPE : WALL_SLOPE)
     }
 
-    if (props.serverRack) {
+    if (props.serverRack && !garage) {
       // Against the back-right wall by the corner, where a rack goes: it is the
       // one thing in the room that wants a wall behind it, it is never in
       // anybody's way there, and it does not move as the dressing around it
