@@ -4271,6 +4271,47 @@ reason the cables do not: everything else in the room does.</p>
 room a garage before the door has even been read, and it now lives in the plan's frame with the
 cables and the cracks rather than being positioned off the shell's screen box — three marks on one
 floor, through one conversion.</p>
+<h6 id="a-turned-screen-does-not-turn-its-plane">A turned screen does not turn its plane</h6>
+<p><strong>[2026-09-02, and it is the defect §7.8.0b was written to prevent.]</strong> Mirroring a
+workstation flipped the screen's <em>shear</em> along with its position:
+<code>S = -0.5 * face</code>. That is not a mirror of anything in this room. A monitor is a vertical
+panel whose horizontal extent runs along <code>gy</code>, and that is true of every screen on the
+floor whichever way its owner is looking — turning a developer round moves the screen to the other
+side of the desk and points its <em>normal</em> the other way along <code>gx</code>. The plane it
+lies in never changes.</p>
+<p>Flipping it put half the screens in the room on a third slope the 2:1 projection does not have,
+leaning against the desks they stand on. <strong>This is exactly the class of defect
+<code>test:room</code> exists to catch</strong> — it was written after three of four suite glass
+panes ran at illegal slopes — and it got in anyway, because that gate measures walls and this was a
+prop small enough to slip under it. What the facing legitimately changes is where the panel sits,
+which of its faces is lit, and how high it is mounted. Not its geometry.</p>
+<h6 id="a-turned-screen-is-mounted-low">A turned screen is mounted low</h6>
+<p>A monitor is drawn <em>upward</em> from its desk point, and for a developer facing away that is
+right: their desk is further from the camera, so the panel rises behind them and reads as standing on
+it. Mirror the same numbers for a developer facing <em>you</em> and the desk point moves five pixels
+down the screen while the panel still climbs thirty — so it lands <strong>above their head</strong>,
+a screen apparently floating behind the person looking at the back of it.</p>
+<p>No offset fixes that. To push a panel below a person's head by geometry alone the desk would have
+to be two whole tiles nearer the camera, which is wider than the table. The concept shows what
+actually happens: in a facing pod the two rows' screens stand <strong>back to back in the middle of
+the table</strong>, so you see them low, against torsos, never over faces. A turned monitor is
+therefore mounted at desk height on a short neck and drawn smaller — which is also what a screen seen
+from behind looks like.</p>
+<h6 id="the-clutter-belongs-in-front-of-the-glass">The clutter belongs in front of the glass</h6>
+<p>The garage's props were in <code>furniture</code>, which paints <em>before</em>
+<code>teamArchitecture</code> — so §7.8.12's glass went over the top of them and a two-metre shelf
+stack had a pane drawn through it. On the office floor this never showed, because the suite is at the
+back of a room whose desks start several tiles away; a garage is small enough that the shelving
+stands right against the glass, and the glass won.</p>
+<p>It is not a sorting bug inside one layer. The suite is a <em>building</em> and the clutter is
+furniture standing on the floor in front of it, so they belong on opposite sides of it — the same
+argument §7.8.0c makes about the near half of a facing pod's kit, one object larger.</p>
+<h6 id="the-gaps-are-the-shelf">On a shelf unit, the gaps are the object</h6>
+<p>The shelving had a box on nearly every tier at nearly full depth and came out a solid tan slab
+with two lines on it — a cupboard, or a wall. <strong>A shelf unit is read from its voids:</strong>
+you know it is shelving because you can see through it between the boards. The boards are now dark
+and thin, the uprights darker still, and the contents small, sparse and at three depths, with the top
+tier left bare — a shelf with something on every level is a stock room.</p>
 <h6 id="a-pod-that-reads-as-four-people-at-a-table">A pod that reads as four people at a table</h6>
 <p><strong>[2026-09-02.]</strong> The pods were not wrong in <em>size</em>, which is what a
 side-by-side first suggests. They were wrong in <strong>value</strong>: a chair back and a monitor's

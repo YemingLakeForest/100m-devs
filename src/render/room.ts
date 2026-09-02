@@ -1215,21 +1215,31 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
 
   switch (plot.name) {
     case 'THE SHELVES': {
-      // Uprights and four shelf boards, with boxes standing on two of them. The
-      // gaps between the boards are what makes it a shelf unit rather than a
-      // cupboard, so they are drawn as *space* — no back panel.
+      /*
+       * **The gaps are the object.** [2026-09-02]
+       *
+       * The first version put a box on nearly every tier at nearly full depth,
+       * and the result was a solid tan slab with two lines on it — a cupboard,
+       * or a wall. A shelf unit is read from the *voids*: you know it is
+       * shelving because you can see through it between the boards.
+       *
+       * So the boards are dark and thin, the uprights darker still, and the
+       * contents are small, sparse and at three different depths. Four objects
+       * on four tiers, none of them full width, and two tiers left empty.
+       */
       const TIERS = 4
       for (let i = 0; i < TIERS; i++) {
-        box(x, y, 0.5 + i * 0.55, w, d, 0.09, RAMPS.WOOD, 1)
+        box(x, y, 0.42 + i * 0.55, w, d, 0.07, RAMPS.WOOD, 0)
       }
-      box(x, y, 0, 0.16, d, 2.3, RAMPS.WOOD, 0)
-      box(x + w - 0.16, y, 0, 0.16, d, 2.3, RAMPS.WOOD, 0)
-      // Two cardboard boxes and a paint tin, on different shelves. Placed by
-      // hand: three objects at three heights reads as storage, and a row of
-      // identical ones reads as a shop.
-      box(x + 0.4, y + 0.15, 0.59, 0.8, d * 0.6, 0.42, RAMPS.WOOD, 3)
-      box(x + 1.7, y + 0.2, 1.14, 0.6, d * 0.5, 0.34, RAMPS.WOOD, 2)
-      box(x + 2.6, y + 0.15, 1.69, 0.5, d * 0.5, 0.3, RAMPS.NEUTRAL, 4)
+      box(x, y, 0, 0.14, d, 2.3, RAMPS.NEUTRAL, 0)
+      box(x + w - 0.14, y, 0, 0.14, d, 2.3, RAMPS.NEUTRAL, 0)
+      box(x + w / 2 - 0.07, y, 0, 0.14, d, 2.3, RAMPS.NEUTRAL, 0)
+      // Three things, small, on three of the four tiers — and the top one left
+      // bare, because a shelf with something on every level is a stock room.
+      box(x + 0.35, y + 0.16, 0.49, 0.62, d * 0.5, 0.3, RAMPS.WOOD, 3)
+      box(x + 1.9, y + 0.18, 1.04, 0.5, d * 0.45, 0.26, RAMPS.WOOD, 2)
+      box(x + 2.55, y + 0.14, 0.49, 0.4, d * 0.45, 0.24, RAMPS.NEUTRAL, 4)
+      box(x + 1.15, y + 0.2, 1.59, 0.34, d * 0.4, 0.2, RAMPS.CALM, 1)
       break
     }
     case 'THE TOOL BOARD': {
@@ -2839,7 +2849,26 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
   const off = deskOffset(face)
   const sx = x + off.x
   const sy = y + off.y - DESK_H
-  const S = -0.5 * face
+  /*
+   * **The screen's plane does not flip with the facing, and flipping it was the
+   * bug.** §7.8.0c [2026-09-02].
+   *
+   * A monitor is a vertical panel whose horizontal extent runs along `gy` —
+   * that is true of every screen in the room, whichever way its owner is
+   * looking, because turning a developer round moves the screen to the other
+   * side of the desk and points its *normal* the other way along `gx`. The
+   * plane it lies in is unchanged.
+   *
+   * `-0.5 * face` sheared it the other way as well, which is not a mirror of
+   * anything in this room: it put the turned screens on a third slope the 2:1
+   * projection does not have, leaning against the desk they stand on. Exactly
+   * the defect `test:room` exists to catch one scale up, reintroduced inside a
+   * prop small enough to slip under it.
+   *
+   * What the facing *does* change is where the panel sits ({@link deskOffset}),
+   * which of its faces is lit, and how high it is mounted — not its geometry.
+   */
+  const S = -0.5
 
   // --- what is on the surface, back to front ------------------------------
   //
@@ -2869,14 +2898,40 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
     deskQuad(g, sx, sy, BACK - 0.01, -0.33, 0.22, 0.12, c(RAMPS.NEUTRAL[8]))
   }
 
+  /*
+   * **A turned screen is mounted low, and that is not a style choice.**
+   * §7.8.0c [2026-09-02].
+   *
+   * A monitor is drawn *upward* from its desk point, and for a developer facing
+   * away that is right — their desk is further from the camera, so the panel
+   * rises behind them and reads as standing on it. Mirror the same numbers for
+   * a developer facing *you* and the desk point moves only five pixels down the
+   * screen while the panel still climbs thirty, so it lands **above their
+   * head**: a screen apparently floating behind the person who is looking at
+   * the back of it.
+   *
+   * No offset fixes this. To push a panel below a person's head by geometry
+   * alone the desk would have to be two whole tiles nearer the camera, which is
+   * wider than the table.
+   *
+   * The concept shows what actually happens in the room: in a facing pod the
+   * two rows' screens stand **back to back in the middle of the table**, so you
+   * see them low, against people's torsos, never over their faces. So a turned
+   * monitor is mounted at desk height on a short neck and is smaller — which is
+   * also what a screen seen edge-on-ish from behind looks like.
+   */
+  const lift = face === 1 ? 30 : 17
+  const neck = face === 1 ? 14 : 5
   // The monitor's foot, then its neck, then the panel over both.
   isoBox(g, sx, sy - 1, 9, 3, RAMPS.NEUTRAL, 2, false)
-  const my = sy - 30
-  g.rect(sx - 1.5, my + 14, 3, 14).fill(c(RAMPS.NEUTRAL[2]))
+  const my = sy - lift
+  g.rect(sx - 1.5, my + neck, 3, lift - neck - 2).fill(c(RAMPS.NEUTRAL[2]))
 
   // Bezel, then the emissive face. The screen is the room's only light source,
   // so it is the one surface here allowed to ignore the top-left key.
-  wallQuad(g, sx, my - 2, 30, 21, S, c(RAMPS.NEUTRAL[2]))
+  const panelW = face === 1 ? 30 : 25
+  const panelH = face === 1 ? 21 : 15
+  wallQuad(g, sx, my - 2, panelW, panelH, S, c(RAMPS.NEUTRAL[2]))
   if (face === 1) {
     wallQuad(g, sx, my, 26, 17, S, c(RAMPS.GLOW[0]))
     // Code on it. Each line is a strip in the same plane, left-aligned along the
@@ -2907,19 +2962,23 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
     // and the pod read as a heap of boxes. A screen's back is moulded plastic
     // and a chair's is upholstery — they are not the same colour in the room
     // either.
-    wallQuad(g, sx, my, 26, 17, S, c(RAMPS.NEUTRAL[3]))
+    wallQuad(g, sx, my, 21, 11, S, c(RAMPS.NEUTRAL[3]))
     // And the light escaping over its top edge, which is the only evidence the
     // thing is switched on. Two pixels, in the same plane, and it is what puts
     // the cyan on the face of the person behind it.
-    wallQuad(g, sx, my - 1, 27, 2, S, c(RAMPS.GLOW[1]))
+    wallQuad(g, sx, my - 1, 22, 2, S, c(RAMPS.GLOW[1]))
   }
   // The sliver of the monitor's own side that a panel turned away from the
   // camera shows. Two pixels, and it is the whole difference between a screen
   // and a decal. On the edge that is turning away, which swaps with `face`.
-  g.moveTo(sx + 15 * face, my - 9.5)
-    .lineTo(sx + 17 * face, my - 8.5)
-    .lineTo(sx + 17 * face, my + 10.5)
-    .lineTo(sx + 15 * face, my + 9.5)
+  // The sliver of the monitor's own side. It is on the same end whichever way
+  // the screen faces, for the same reason the slope is: the panel has not
+  // moved, only the side of it you are looking at.
+  const half = panelW / 2
+  g.moveTo(sx + half, my - panelH * 0.45)
+    .lineTo(sx + half + 2, my - panelH * 0.4)
+    .lineTo(sx + half + 2, my + panelH * 0.5)
+    .lineTo(sx + half, my + panelH * 0.45)
     .closePath()
     .fill(c(RAMPS.NEUTRAL[1]))
   // A sticky note on the bezel, on about half the screens. Four pixels of WARN
@@ -3483,6 +3542,22 @@ export function buildRoom(): RoomHandle {
    * they are painted first and then covered by every desk in the room, which is
    * a two-sided room again by a different route.
    */
+  /**
+   * §7.8.0c — **the garage's clutter, drawn after the executive suite.**
+   *
+   * The props were in `furniture`, which is painted *before* `teamArchitecture`
+   * — so §7.8.12's glass went over the top of them. On the office floor that
+   * never showed, because the suite is at the back of a room whose desks start
+   * several tiles away. A garage is small enough that the shelving stands right
+   * against the glass, and the glass won: a two-metre shelf stack with a pane
+   * drawn through it.
+   *
+   * It is not a sorting bug inside one layer. The suite is a *building* and the
+   * clutter is furniture standing on the floor in front of it, so they belong
+   * on opposite sides of it — the same argument §7.8.0c makes about the near
+   * half of a facing pod's kit, one object larger.
+   */
+  const garageProps = new Graphics()
   /** §7.8.0c — the near half of a facing pod's kit. See {@link frontDesks}. */
   const frontDeskLayer = new Container()
   const nearWall = new Graphics()
@@ -3504,6 +3579,7 @@ export function buildRoom(): RoomHandle {
     deskLayer,
     teamArchitecture,
     teamDeskLayer,
+    garageProps,
     managerDesk,
     devLayer,
     // Above the seated people and below the walkers: a monitor on the near side
@@ -5023,7 +5099,8 @@ export function buildRoom(): RoomHandle {
         const at = garagePlot(gx, gy)
         return isoAt(at.col, at.row)
       }
-      for (const prop of GARAGE_PROPS) drawGarageProp(furniture, planProject, prop)
+      garageProps.clear()
+      for (const prop of GARAGE_PROPS) drawGarageProp(garageProps, planProject, prop)
       /*
        * **The pendant over the workbench** — the garage's second warm source.
        *
@@ -5035,17 +5112,17 @@ export function buildRoom(): RoomHandle {
        * makes that corner a *place somebody works* rather than storage.
        */
       const bench = planProject(11.0, 0.9)
-      furniture.ellipse(bench.x, bench.y + 4, 66, 33).fill({ color: c(RAMPS.WARN[0]), alpha: 0.22 })
-      furniture.ellipse(bench.x, bench.y, 34, 17).fill({ color: c(RAMPS.WARN[1]), alpha: 0.3 })
-      furniture.rect(bench.x - 0.7, bench.y - 92, 1.4, 34).fill(c(RAMPS.NEUTRAL[2]))
-      furniture
+      garageProps.ellipse(bench.x, bench.y + 4, 66, 33).fill({ color: c(RAMPS.WARN[0]), alpha: 0.22 })
+      garageProps.ellipse(bench.x, bench.y, 34, 17).fill({ color: c(RAMPS.WARN[1]), alpha: 0.3 })
+      garageProps.rect(bench.x - 0.7, bench.y - 92, 1.4, 34).fill(c(RAMPS.NEUTRAL[2]))
+      garageProps
         .moveTo(bench.x - 8, bench.y - 58)
         .lineTo(bench.x + 8, bench.y - 58)
         .lineTo(bench.x + 5, bench.y - 66)
         .lineTo(bench.x - 5, bench.y - 66)
         .closePath()
         .fill(c(RAMPS.NEUTRAL[4]))
-      furniture.ellipse(bench.x, bench.y - 56, 4, 2.2).fill(c(RAMPS.WARN[3]))
+      garageProps.ellipse(bench.x, bench.y - 56, 4, 2.2).fill(c(RAMPS.WARN[3]))
       /*
        * **Superseded 2026-09-01, kept as the reason the seam above exists.**
        *
