@@ -85,6 +85,53 @@ export const GARAGE_SPAN = 16
 export const WALL_CLEAR = 1.5
 
 /**
+ * §7.8.0c [added 2026-09-02] — **the garage's value scheme, as ramp indices.**
+ *
+ * Three of the five garage iterations before this one were value problems that
+ * arrived disguised as size problems, and each was fixed by looking at a
+ * screenshot and moving a number one step. That method produced a picture whose
+ * light ran *backwards*: the near walls were the brightest surface in the frame
+ * and the floor was nearly the darkest.
+ *
+ * This table is the method that replaced it. Sample the canonical concept, map
+ * the samples onto `RAMPS.NEUTRAL`, and write the ordering down where a test can
+ * hold it. What came back, in the concept's own pixels:
+ *
+ * | surface                 | concept RGB | nearest ramp |
+ * |-------------------------|-------------|--------------|
+ * | far wall, inner face    | 82,71,63    | `[3]`        |
+ * | floor, away from a lamp | 55,35,28    | `[2]`        |
+ * | near wall, outer face   | 36,31,40    | `[1]`        |
+ * | carriageway             | 12,11,16    | `[0]`        |
+ *
+ * Four surfaces, four steps, in that order — and the order is the whole point.
+ * A lit room at night is *brighter inside than out*, and the near walls are the
+ * one large thing standing in the dark between the camera and the light. When
+ * they are the palest object in the picture the building reads as a daylit model
+ * of a garage rather than as a garage with the lights on.
+ *
+ * The render had the same four surfaces at `[4]`, `[1]`, `[4]` and `[3]`.
+ *
+ * Only the copings sit off the ramp's ordering, and legitimately: they are the
+ * one plane facing straight up into §7's key, so they are lighter than the faces
+ * below them on both walls.
+ */
+export const GARAGE_VALUES = {
+  /** Full height, behind everything — the lightest large surface in the room. */
+  farWall: { top: 4, left: 3, right: 2 },
+  /** Cut down, in front of everything, outdoors. Dark, and the coping carries it. */
+  nearWall: { top: 3, left: 1, right: 1 },
+  /** Poured concrete: the base pour and the lighter bays polished over it. */
+  floor: { base: 1, bays: 2 },
+  /**
+   * The ground outside, from the wall to the middle of the road. `district.ts`
+   * draws it (§7.8.1e — the ground is drawn once), but the *ordering* is this
+   * room's business, because this is the room the concept is of.
+   */
+  street: { forecourt: 1, kerb: 2, footway: 1, carriageway: 0 },
+} as const
+
+/**
  * **How far a prop has to stand back from a near wall to be seen at all.**
  *
  * Not taste — arithmetic on the projection. A near wall is cut down to

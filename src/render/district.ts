@@ -377,17 +377,28 @@ export function drawDistrict(g: Graphics, p: Project, shell: DistrictShell): voi
   //
   // Shallow, because it is seen almost edge-on. What the frame wants up there
   // is the buildings, not the tarmac.
+  // **The ground outside is darker than the ground inside.** [2026-09-02]
+  //
+  // The kerb line was `[4]` and the far footway `[2]`, which put the brightest
+  // strips in the picture *outside* the building — §7.8.0c measured the
+  // canonical garage and found its carriageway at `[0]` and its footway barely
+  // above it. A studio with the lights on at night is the light source in its
+  // own street, and it was reading as a model on a lit table instead.
   ring(0, back * 0.34, RAMPS.NEUTRAL[1])
-  ring(back * 0.34, back * 0.4, RAMPS.NEUTRAL[4])
+  ring(back * 0.34, back * 0.4, RAMPS.NEUTRAL[2])
   ring(back * 0.4, back * 0.78, RAMPS.NEUTRAL[0])
-  ring(back * 0.78, back, RAMPS.NEUTRAL[2])
+  ring(back * 0.78, back, RAMPS.NEUTRAL[1])
 
   // --- the near side: forecourt, kerb, footway, carriageway ----------------
+  // Same argument on the near side, where it matters most: this is the band the
+  // camera looks across to reach the room. The kerb keeps one step of lift over
+  // the footway, because a kerb that is the same value as the pavement is not a
+  // kerb — but it is a step near the bottom of the ramp now, not near the top.
   nearBand(back, d * FORECOURT, RAMPS.NEUTRAL[1])
-  nearBand(d * FORECOURT, d * KERB, RAMPS.NEUTRAL[4])
-  nearBand(d * KERB, d * FOOTWAY, RAMPS.NEUTRAL[2])
+  nearBand(d * FORECOURT, d * KERB, RAMPS.NEUTRAL[2])
+  nearBand(d * KERB, d * FOOTWAY, RAMPS.NEUTRAL[1])
   nearBand(d * FOOTWAY, d * CARRIAGEWAY, RAMPS.NEUTRAL[0])
-  nearBand(d * CARRIAGEWAY, d, RAMPS.NEUTRAL[2])
+  nearBand(d * CARRIAGEWAY, d, RAMPS.NEUTRAL[1])
 
   // The centre dashes. Dashed rather than solid, because a solid line is a lane
   // edge and a dashed one is a road you may cross — and this is a road the

@@ -11,6 +11,7 @@ import {
   GARAGE_SEATS,
   GARAGE_SHELL,
   GARAGE_SPAN,
+  GARAGE_VALUES,
   GLASS_CLEAR,
   NEAR_CLEAR,
   POD_SEATS,
@@ -497,5 +498,66 @@ describe('every desk stands off every wall', () => {
       expect({ prop: prop.name, seen: anchored })
         .toEqual({ prop: prop.name, seen: true })
     }
+  })
+})
+
+/**
+ * §7.8.0c [added 2026-09-02] — **the value gate.**
+ *
+ * Three of the five garage iterations before this one were value problems that
+ * arrived looking like size problems, and every one was settled by eye against a
+ * single surface. That is how the room ended up brighter outside than in.
+ *
+ * This is the same argument as the clash gate one level up: a property everyone
+ * agrees about in prose, checked by nobody, drifting one step at a time. It
+ * cannot check what a pixel looks like — `test:ui-frame` does that — but it can
+ * hold the *ordering*, which is the part that was wrong and the part a single-
+ * surface judgement can never see.
+ */
+describe('the room is brighter inside than out', () => {
+  const { farWall, nearWall, floor, street } = GARAGE_VALUES
+
+  it('puts the four surfaces in the order the concept has them', () => {
+    // far wall > floor > near wall > carriageway, measured off
+    // garage-layout-concept-20-devs-v1.png at [3], [2], [1] and [0].
+    expect(farWall.left).toBeGreaterThan(floor.bays)
+    expect(floor.bays).toBeGreaterThan(nearWall.left)
+    expect(nearWall.left).toBeGreaterThan(street.carriageway)
+  })
+
+  it('never lets the street outshine the floor inside', () => {
+    // The one claim that says "the lights are on in here": every *area* of
+    // ground outside sits at or below the floor's base pour.
+    //
+    // The kerb is exempt and is the only exemption, for the reason the copings
+    // are: it is a thin lit edge rather than an area, and it is the one thing
+    // out there the concept does draw brighter than the road — a kerb the same
+    // value as its pavement has stopped being a kerb. It still may not beat the
+    // floor's bays, so the brightest ground in the picture is inside.
+    for (const [name, band] of Object.entries(street)) {
+      const ceiling = name === 'kerb' ? floor.bays : floor.base
+      expect({ band: name, dimmerThanTheFloor: band <= ceiling })
+        .toEqual({ band: name, dimmerThanTheFloor: true })
+    }
+  })
+
+  it('keeps each coping lighter than the faces under it', () => {
+    // The one place the ordering is allowed to inverbut — a coping faces straight
+    // up into §7's key, so it is lighter than the wall it caps — on both walls.
+    for (const wall of [farWall, nearWall]) {
+      expect(wall.top).toBeGreaterThan(wall.left)
+      expect(wall.top).toBeGreaterThanOrEqual(wall.right)
+    }
+  })
+
+  it('stays on the ramp', () => {
+    const all = [
+      ...Object.values(farWall),
+      ...Object.values(nearWall),
+      ...Object.values(floor),
+      ...Object.values(street),
+    ]
+    for (const v of all) expect(v).toBeGreaterThanOrEqual(0)
+    for (const v of all) expect(v).toBeLessThan(9)
   })
 })

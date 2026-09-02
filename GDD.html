@@ -4529,6 +4529,51 @@ wheels were 0.1 thick in the wall's own dark, so it was a red stripe with two sm
 stripe on block reads as conduit, which is what it was taken for. A bicycle is read from its two
 circles and nothing else. The wheels are bigger and <em>lighter than the wall behind them</em>, and the
 red is cut back to a thin top tube.</p>
+<h6 id="the-value-scheme-2026-09-02">The value scheme, and the method that produced it <strong>[CANON - added 2026-09-02]</strong></h6>
+<p>Three of the five garage iterations before this one were <strong>value problems that arrived
+disguised as size problems</strong>, and every one of them was settled the same way: look at a
+screenshot, pick the surface that looks wrong, move its ramp index one step. That method is locally
+sensible and globally blind, and what it produced was a picture whose light ran <em>backwards</em> —
+the near walls were the brightest surface in the frame and the floor was nearly the darkest. The
+building read as a daylit model of a garage rather than as a garage with the lights on.</p>
+<p>The method that replaced it: <strong>sample the canonical concept, map the samples onto
+<code>RAMPS.NEUTRAL</code>, and write the ordering down where a test can hold it.</strong> Four
+surfaces carry the whole read, and here is what the concept's own pixels say against what the render
+was doing:</p>
+<table>
+<tr><th>Surface</th><th>Concept RGB</th><th>Nearest ramp</th><th>Render was</th></tr>
+<tr><td>Far wall, inner face</td><td>82, 71, 63</td><td><code>[3]</code></td><td><code>[1]</code></td></tr>
+<tr><td>Floor, away from a lamp</td><td>55, 35, 28</td><td><code>[2]</code></td><td><code>[1]</code></td></tr>
+<tr><td>Near wall, outer face</td><td>36, 31, 40</td><td><code>[1]</code></td><td><code>[4]</code></td></tr>
+<tr><td>Carriageway</td><td>12, 11, 16</td><td><code>[0]</code></td><td><code>[3]</code></td></tr>
+</table>
+<p>Four surfaces, four steps, in that order. <code>GARAGE_VALUES</code> in <code>garage.ts</code> is
+that table, and <code>garage.test.ts</code> holds the ordering: far wall &gt; floor &gt; near wall
+&gt; carriageway, no band of ground outside brighter than the floor's base pour, and each coping
+lighter than the faces under it.</p>
+<p>The copings are the only permitted inversion, and legitimately: they are the one plane facing
+straight up into &sect;7's key. The kerb is the only other exemption &mdash; it is a thin lit
+<em>edge</em> rather than an area, and a kerb the same value as its pavement has stopped being a
+kerb &mdash; but it may not beat the floor's bays, so the brightest ground in the picture is inside.</p>
+<h6 id="two-corrections-the-table-caught">Two corrections the table caught the same day it was written</h6>
+<p><strong>The far wall had been darkened for the right observation about the wrong wall.</strong>
+Earlier in the batch it went from <code>[3]</code>/<code>[2]</code> to <code>[2]</code>/<code>[1]</code>
+because it was the brightest thing in the frame and the eye went to it instead of to the twenty
+people. The observation was true; the cause was not. What was actually too bright was the
+<em>pair of near walls in front of it</em>, standing outdoors at night at <code>[4]</code>. Darkening
+the far wall fixed the symptom by flattening the room, and it is <code>[3]</code> again.</p>
+<p><strong>The garage floor was dimmed a step below the office's</strong> &mdash; <code>[0]</code> and
+<code>[1]</code> &mdash; so the pod lamps would pool on it. They did, and the cost was everything else:
+a floor at <code>[0]</code> is <em>darker than the street outside</em>, which is the one thing a lit
+room at night cannot be, and it is what forced the near walls up to be visible against it at all.
+Both move together here, which is precisely why they now live in one table.</p>
+<p>The lamps were raised with it, and that trade has to be paid explicitly: the pools were tuned
+against a floor two steps darker, so the same alphas went quiet on the new ground. <strong>A lamp's
+contrast comes from being warm against a cool room, not from being bright against a nearly black
+one</strong> &mdash; and warmth needs enough alpha to survive the floor's own value.</p>
+<p>&sect;7.8.1e's rule that <em>the ground outside is drawn once and never changes what it is</em> is
+untouched; <code>district.ts</code> still draws it. What changed is its <em>ordering</em>, which is
+this room's business, because this is the room the concept is of.</p>
 <h6 id="the-street-is-shown-by-widening-the-frame">The street is shown by widening the frame, not by extending the box</h6>
 <p>Two attempts extended the fit's <code>maxCol</code> over the apron, at 3.4 columns and then 2.0,
 and both were wrong the same way: <strong>the apron is on one side only, so adding it moves the

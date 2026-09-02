@@ -66,6 +66,7 @@ import { drawLandmarks, type LandmarkPlot } from './landmarks.ts'
 import { GARAGE_CAP, sceneFor } from '../sim/capacity.ts'
 import {
   GARAGE_PODS,
+  GARAGE_VALUES,
   GARAGE_PROPS,
   GARAGE_SPAN,
   POD_TABLE_DEPTH,
@@ -1051,9 +1052,17 @@ function drawPodLamp(g: Graphics, p: Project, gx: number, gy: number, deskTop: n
   // under the shade. At 0.16 and 0.22 the lamp was technically present and
   // visually absent, which in a room lit by cyan screens is the one thing it
   // could not afford to be.
-  g.ellipse(at.x, y + 6, 58, 29).fill({ color: c(RAMPS.WARN[0]), alpha: 0.20 })
-  g.ellipse(at.x, y + 2, 34, 17).fill({ color: c(RAMPS.WARN[1]), alpha: 0.34 })
-  g.ellipse(at.x, y + 2, 17, 8).fill({ color: c(RAMPS.WARN[2]), alpha: 0.42 })
+  //
+  // **Raised again when the floor came up.** [2026-09-02] The pools were tuned
+  // against a floor at `NEUTRAL[0]`, and §7.8.0c's value scheme moved it to
+  // `[1]`/`[2]` — so the same alphas landed on two steps more ground and went
+  // quiet. This is the trade that change was made on and it has to be paid:
+  // the lamp's contrast comes from being *warm* against a cool room, not from
+  // being bright against a nearly black one, and warmth needs enough alpha to
+  // survive the floor's own value.
+  g.ellipse(at.x, y + 6, 66, 33).fill({ color: c(RAMPS.WARN[1]), alpha: 0.26 })
+  g.ellipse(at.x, y + 2, 36, 18).fill({ color: c(RAMPS.WARN[2]), alpha: 0.34 })
+  g.ellipse(at.x, y + 2, 18, 9).fill({ color: c(RAMPS.WARN[3]), alpha: 0.38 })
   // Base, stem, shade — three marks, and the shade is the one that names it.
   isoBox(g, at.x, y, 9, 3, RAMPS.NEUTRAL, 2, false)
   g.rect(at.x - 0.9, y - 21, 1.8, 19).fill(c(RAMPS.NEUTRAL[3]))
@@ -4672,9 +4681,22 @@ export function buildRoom(): RoomHandle {
      * One step down is the whole change. The pools were already there; what
      * they lacked was something to be brighter than.
      */
-    const dim = garage ? 1 : 0
-    slab(0, c(RAMPS.NEUTRAL[1 - dim]))
-    slab(0.004, c(RAMPS.NEUTRAL[2 - dim]))
+    /*
+     * **The garage floor is not nearly black.** [2026-09-02]
+     *
+     * It was dimmed a step below the office's — `[0]` and `[1]` — so the pod
+     * lamps would pool on it. They did, and the cost was the rest of the
+     * picture: a floor at `[0]` is darker than the street outside, which is the
+     * one thing a lit room at night cannot be, and it is what forced the near
+     * walls up to `[4]` to be visible at all.
+     *
+     * The concept's floor measures `[2]` away from any lamp. So it comes back
+     * up to the office's own values and the lamps get their contrast from the
+     * *walls* going down instead — which is where the contrast was supposed to
+     * come from, since a lamp is warm and a wall is not.
+     */
+    slab(0, c(RAMPS.NEUTRAL[GARAGE_VALUES.floor.base]))
+    slab(0.004, c(RAMPS.NEUTRAL[GARAGE_VALUES.floor.bays]))
     // Worn scuffs, so the slab reads as poured concrete rather than as a
     // void. A few faint patches, lighter where traffic has polished it.
     shell
@@ -4744,41 +4766,50 @@ export function buildRoom(): RoomHandle {
     }
     if (garage) {
       /*
-       * Concrete block. The coping is the lightest surface in the room after a
-       * monitor, because it is the one plane facing straight up into §7's key.
+       * Concrete block, and **both walls now come from one table** —
+       * {@link GARAGE_VALUES}, which is the concept's own four surfaces
+       * measured and mapped onto the ramp.
        *
-       * **The two faces came down a step on 2026-09-02**, from `[3]`/`[2]` to
-       * `[2]`/`[1]`. This is the largest single surface in the garage — a
-       * full-height wall seen across the whole width of the room — and at the
-       * old values it was also the *brightest*, so the eye went to a blank
-       * rectangle instead of to the people. The canonical concept has it the
-       * other way round: its far wall is darker than its floor and the room
-       * sits in front of it. Only the coping stays where it was, because that
-       * plane really does face the key.
+       * The far wall went down to `[2]`/`[1]` earlier the same day on the
+       * grounds that it was the brightest thing in the frame and the eye went
+       * to it instead of to the people. That was the right observation about
+       * the wrong wall: the concept's far wall is `[3]` and *is* the lightest
+       * large surface — what was actually too bright was the pair of near walls
+       * in front of it, at `[4]`, standing outdoors at night. Darkening the far
+       * one fixed the symptom by flattening the room.
+       *
+       * Which is the whole argument for having the table: a value judged
+       * against one surface at a time will keep arriving at a locally sensible
+       * step and a globally inverted picture.
        */
       const blockFar: WallPaint = {
-        top: RAMPS.NEUTRAL[4],
-        left: RAMPS.NEUTRAL[2],
-        right: RAMPS.NEUTRAL[1],
+        top: RAMPS.NEUTRAL[GARAGE_VALUES.farWall.top],
+        left: RAMPS.NEUTRAL[GARAGE_VALUES.farWall.left],
+        right: RAMPS.NEUTRAL[GARAGE_VALUES.farWall.right],
       }
       /*
-       * **The near wall's faces were too dark to be a wall.**
+       * **The near walls are outdoors, at night, in front of the light.**
        *
-       * Its coping was `NEUTRAL[5]` and its two faces `[3]` and `[2]`, so
-       * against a dark floor the only part of it that read was the lit strip
-       * along the top — and a long thin lit strip is a kerb, or a ramp, not a
-       * wall you are looking over. The concept's street wall is a *tall lit
-       * face* with a thin coping on it, which is the opposite emphasis.
+       * They were `[5]`/`[4]`/`[3]` — the palest large surface in the picture,
+       * and between the camera and everything worth looking at. The two of them
+       * together take about a third of the frame, so the composition read as a
+       * pale L with a dim room behind it.
        *
-       * The key is unchanged and still §7's: the top is brightest because it
-       * faces straight up into it. What changed is the *range* — three steps of
-       * the ramp instead of five, so the faces are near enough the top to read
-       * as the same object.
+       * They had been raised there for a real reason, recorded and now
+       * superseded: at `[3]`/`[2]` against a floor at `[0]` the only part that
+       * read was the lit strip along the top, and a long thin lit strip is a
+       * kerb, not a wall. The answer to that was never a brighter wall — it was
+       * a floor that is not nearly black. Both move together here, which is why
+       * they live in one table.
+       *
+       * The key is unchanged and still §7's: the coping is brightest because it
+       * faces straight up into it, and it is now the *only* light thing about
+       * these walls, which is exactly what the concept draws.
        */
       const blockNear: WallPaint = {
-        top: RAMPS.NEUTRAL[5],
-        left: RAMPS.NEUTRAL[4],
-        right: RAMPS.NEUTRAL[3],
+        top: RAMPS.NEUTRAL[GARAGE_VALUES.nearWall.top],
+        left: RAMPS.NEUTRAL[GARAGE_VALUES.nearWall.left],
+        right: RAMPS.NEUTRAL[GARAGE_VALUES.nearWall.right],
       }
       const runs = garageShellRuns(-halfBack, -halfAcross, halfBack, halfAcross)
       const door = rollUpIn(runs)
