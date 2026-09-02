@@ -479,23 +479,35 @@ describe('every desk stands off every wall', () => {
 
   it('keeps every prop against a wall the camera can see over', () => {
     const onAFarWall = (p: Plot) => p.gx0 <= 1e-9 || p.gy0 <= 1e-9
+    const touching = (a: Plot, b: Plot) =>
+      a !== b &&
+      a.gx0 < b.gx1 + 1e-9 &&
+      a.gx1 > b.gx0 - 1e-9 &&
+      a.gy0 < b.gy1 + 1e-9 &&
+      a.gy1 > b.gy0 - 1e-9
+    /*
+     * **Anchored is transitive**, because the perimeter band is two or three
+     * deep and not one.
+     *
+     * The tool chest stands in front of the workbench, the workbench stands in
+     * front of the tool board, and only the tool board touches the block. A
+     * one-hop rule called that homeless, which is wrong about workshops: a
+     * bench with a chest under it is *more* against the wall than either alone.
+     * So this walks the chain back to masonry rather than looking one step.
+     */
+    const anchored = new Set(GARAGE_PROPS.filter(onAFarWall))
+    for (let grew = true; grew; ) {
+      grew = false
+      for (const prop of GARAGE_PROPS) {
+        if (anchored.has(prop)) continue
+        if (GARAGE_PROPS.some((other) => anchored.has(other) && touching(prop, other))) {
+          anchored.add(prop)
+          grew = true
+        }
+      }
+    }
     for (const prop of GARAGE_PROPS) {
-      // Against the block, or against something that is. The workbench stands
-      // in front of the tool board and the tool board is on the wall, which is
-      // how a workshop is actually arranged — so the rule is *the perimeter
-      // band*, one prop deep or two, and not literal contact with masonry.
-      const anchored =
-        onAFarWall(prop) ||
-        GARAGE_PROPS.some(
-          (other) =>
-            other !== prop &&
-            onAFarWall(other) &&
-            prop.gx0 < other.gx1 + 1e-9 &&
-            prop.gx1 > other.gx0 - 1e-9 &&
-            prop.gy0 < other.gy1 + 1e-9 &&
-            prop.gy1 > other.gy0 - 1e-9,
-        )
-      expect({ prop: prop.name, seen: anchored })
+      expect({ prop: prop.name, seen: anchored.has(prop) })
         .toEqual({ prop: prop.name, seen: true })
     }
   })

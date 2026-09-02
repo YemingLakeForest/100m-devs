@@ -1400,6 +1400,60 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       box(x + 1.25, y + 0.5, 0.4, 0.78, d - 0.8, 0.1, RAMPS.WOOD, 2)
       break
     }
+    case 'THE PLANT': {
+      // The one green thing on this side of the room. A pot, a stem and three
+      // leaf masses at different heights — the irregularity is the read, the
+      // same way the tool board's spacing is.
+      box(x + 0.12, y + 0.12, 0, w - 0.28, d - 0.28, 0.26, RAMPS.WOOD, 1)
+      box(x + 0.28, y + 0.26, 0.26, 0.08, 0.08, 0.3, RAMPS.FOLIAGE, 0)
+      box(x + 0.1, y + 0.16, 0.42, 0.34, 0.3, 0.16, RAMPS.FOLIAGE, 1)
+      box(x + 0.3, y + 0.06, 0.52, 0.3, 0.26, 0.14, RAMPS.FOLIAGE, 0)
+      box(x + 0.22, y + 0.3, 0.58, 0.26, 0.22, 0.12, RAMPS.FOLIAGE, 1)
+      break
+    }
+    case 'THE TOOL CHEST': {
+      // A red roller cabinet under the bench. It is the only saturated object
+      // on this wall, which is what a tool chest is in a real workshop too —
+      // and the drawer lines are what stop it being a red box.
+      box(x + 0.06, y + 0.06, 0.08, w - 0.16, d - 0.14, 0.62, RAMPS.ALARM, 1)
+      for (let i = 1; i <= 3; i++) {
+        box(x + 0.04, y + 0.08, 0.08 + i * 0.16, w - 0.12, 0.04, 0.03, RAMPS.NEUTRAL, 0)
+      }
+      // The top, a shade lighter, and two castors so it is a thing on wheels.
+      box(x + 0.04, y + 0.04, 0.7, w - 0.12, d - 0.1, 0.06, RAMPS.NEUTRAL, 2)
+      box(x + 0.1, y + 0.1, 0, 0.09, 0.09, 0.08, RAMPS.NEUTRAL, 0)
+      box(x + w - 0.22, y + 0.1, 0, 0.09, 0.09, 0.08, RAMPS.NEUTRAL, 0)
+      break
+    }
+    case 'THE TYRES': {
+      // A stack of three, leaned rather than squared. Rings, not discs: a tyre
+      // is read from its hole, and at this size the hole is one pale pixel of
+      // the floor showing through the middle.
+      for (let i = 0; i < 3; i++) {
+        const off = i * 0.04
+        box(x + 0.1 + off, y + 0.1, i * 0.19, w - 0.26, d - 0.2, 0.18, RAMPS.NEUTRAL, 0)
+        box(x + 0.28 + off, y + 0.24, i * 0.19 + 0.17, 0.22, d - 0.48, 0.02, RAMPS.NEUTRAL, 2)
+      }
+      break
+    }
+    case 'THE STOOL': {
+      // The folding stool from the concept, by the sofa. A seat and two splayed
+      // legs — three marks, and the splay is the one that says *folding*.
+      box(x + 0.06, y + 0.06, 0.34, w - 0.12, d - 0.12, 0.05, RAMPS.WOOD, 1)
+      box(x + 0.1, y + 0.08, 0, 0.05, 0.05, 0.34, RAMPS.NEUTRAL, 1)
+      box(x + w - 0.17, y + d - 0.15, 0, 0.05, 0.05, 0.34, RAMPS.NEUTRAL, 1)
+      box(x + 0.1, y + d - 0.15, 0, 0.05, 0.05, 0.34, RAMPS.NEUTRAL, 0)
+      break
+    }
+    case 'THE PALLET': {
+      // Flattened card and a pallet, stacked by the boxes. Low, wide and
+      // horizontal — the one thing on this floor that is not standing up, which
+      // is what makes the stack beside it read as tall.
+      box(x + 0.05, y + 0.05, 0, w - 0.1, d - 0.1, 0.1, RAMPS.WOOD, 0)
+      box(x + 0.12, y + 0.1, 0.1, w - 0.3, d - 0.22, 0.06, RAMPS.WOOD, 2)
+      box(x + 0.2, y + 0.16, 0.16, w - 0.42, d - 0.34, 0.05, RAMPS.WOOD, 1)
+      break
+    }
     case 'THE CRATES': {
       // Milk crates and a stack of flattened card. Two heights, one leaning.
       box(x + 0.15, y + 0.1, 0, 0.75, 0.75, 0.42, RAMPS.CALM, 0)
@@ -1438,6 +1492,11 @@ const PROP_LOOK: Record<string, { h: number; ramp: readonly string[]; base: numb
   'THE FRIDGE': { h: 1.5, ramp: RAMPS.NEUTRAL, base: 4 },
   'THE KETTLE': { h: 0.9, ramp: RAMPS.NEUTRAL, base: 3 },
   'THE SOFA': { h: 0.72, ramp: RAMPS.WOOD, base: 1 },
+  'THE PLANT': { h: 0.7, ramp: RAMPS.FOLIAGE, base: 1 },
+  'THE TOOL CHEST': { h: 0.76, ramp: RAMPS.ALARM, base: 1 },
+  'THE TYRES': { h: 0.55, ramp: RAMPS.NEUTRAL, base: 0 },
+  'THE STOOL': { h: 0.39, ramp: RAMPS.WOOD, base: 1 },
+  'THE PALLET': { h: 0.21, ramp: RAMPS.WOOD, base: 0 },
   'THE CRATES': { h: 1.0, ramp: RAMPS.WOOD, base: 3 },
 }
 
@@ -5179,11 +5238,17 @@ export function buildRoom(): RoomHandle {
         onWall(11.75, 12.7, 1.75, 2.75, c(RAMPS.NEUTRAL[4]))
         onWall(11.9, 12.55, 2.1, 2.55, c(RAMPS.NEUTRAL[2]))
         onWall(12.5, 12.62, 1.95, 2.15, c(RAMPS.WARN[2]))
-        // A poster, taped up and slightly off square — the one warm rectangle
-        // on this wall and the only thing on it a person put there.
-        onWall(6.3, 7.5, 2.2, 3.15, c(RAMPS.WOOD[1]))
-        onWall(6.45, 7.35, 2.75, 3.0, c(RAMPS.WARN[2]), 0.75)
-        onWall(6.45, 7.05, 2.4, 2.55, c(RAMPS.NEUTRAL[4]), 0.5)
+        // A poster, taped up — the one warm rectangle on this wall and the only
+        // thing on it a person put there.
+        //
+        // **Over the sofa, not over the shelves.** [2026-09-02] It was at 6.3
+        // and the shelf stack is 2.3 tiles tall and starts at 5.4, so the
+        // poster was hung behind it and drawn every frame into a gap the width
+        // of a shelf upright. The far wall has exactly one clear stretch at
+        // poster height and this is it.
+        onWall(12.9, 14.1, 1.7, 2.65, c(RAMPS.WOOD[1]))
+        onWall(13.05, 13.95, 2.25, 2.5, c(RAMPS.WARN[2]), 0.75)
+        onWall(13.05, 13.65, 1.9, 2.05, c(RAMPS.NEUTRAL[4]), 0.5)
       }
       // The roll-up door, standing in the hole the near-left wall left for it.
       // A shutter is a stack of horizontal slats and nothing else: the

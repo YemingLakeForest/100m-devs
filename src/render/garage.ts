@@ -455,6 +455,25 @@ export const GARAGE_PROPS: readonly Plot[] = [
   // never does is put them where you cannot see them.
   { name: 'THE CRATES', gx0: 1.1, gy0: 9.2, gx1: 2.1, gy1: 10.5 },
   { name: 'THE BIN', gx0: 1.1, gy0: 12.4, gx1: 2.2, gy1: 13.6 },
+  /*
+   * **The rest of the second rank.** [2026-09-02]
+   *
+   * Ten props against sixteen tiles of wall left the perimeter reading as a
+   * shelf, a board and a sofa with gaps between them. The canonical concept has
+   * something like twenty-five objects round its edge, and the density is not
+   * decoration: a wall with one object against it is a wall with an object
+   * against it, and a wall with five is a *workshop*. The middle of the floor
+   * stays empty either way — that is §7.8.0c's circulation and it is untouched.
+   *
+   * All five sit in the 0.55-tile band in front of the first rank, which is the
+   * gap between the props on the wall and the nearest pod's chairs. Nothing
+   * moved to make room for them; the band was already there and empty.
+   */
+  { name: 'THE PLANT', gx0: 5.4, gy0: 0.55, gx1: 6.1, gy1: 1.15 },
+  { name: 'THE TOOL CHEST', gx0: 8.0, gy0: 1.0, gx1: 9.2, gy1: 1.55 },
+  { name: 'THE TYRES', gx0: 10.4, gy0: 0.9, gx1: 11.4, gy1: 1.5 },
+  { name: 'THE STOOL', gx0: 12.2, gy0: 1.1, gx1: 12.9, gy1: 1.55 },
+  { name: 'THE PALLET', gx0: 2.1, gy0: 9.4, gx1: 3.0, gy1: 10.3 },
 ]
 
 /**
