@@ -49,7 +49,14 @@
  */
 
 import { GARAGE_CAP } from '../sim/capacity.ts'
-import { PARTITION_THICK, WALL_NEAR, WALL_THICK, type Opening, type WallRun } from './shell.ts'
+import {
+  PARTITION_THICK,
+  WALL_FULL,
+  WALL_NEAR,
+  WALL_THICK,
+  type Opening,
+  type WallRun,
+} from './shell.ts'
 
 /**
  * How deep and wide the garage's interior is, in tiles.
@@ -119,16 +126,66 @@ export const WALL_CLEAR = 1.5
 export const GARAGE_VALUES = {
   /** Full height, behind everything — the lightest large surface in the room. */
   farWall: { top: 4, left: 3, right: 2 },
-  /** Cut down, in front of everything, outdoors. Dark, and the coping carries it. */
-  nearWall: { top: 3, left: 1, right: 1 },
+  /**
+   * Cut down, in front of everything, outdoors.
+   *
+   * **The coping came down from `[3]` to `[2]` on the second pass**, and the
+   * reason is worth keeping because it contradicts §7 on its face: the
+   * concept's outdoor coping measures *darker* than the wall face below it —
+   * 28 against 32. §7's key comes from above, and at night, outdoors, there is
+   * nothing above. A horizontal surface out there sees the sky; the vertical
+   * one facing the street sees the street lamp. So the rule "the top plane is
+   * the brightest" is an **interior** rule, and the near walls are not
+   * interior.
+   *
+   * It ended at **no lift at all**, which took two passes to accept. At `[2]`
+   * over faces at `[1]` the coping was still the palest band on the frontage,
+   * and because `WALL_THICK` is 0.63 tiles it is a *wide* band — so the wall
+   * read as a lit ledge with a dark skirt under it. Flat is what the concept
+   * measures and flat is what a block wall at night looks like: the thing that
+   * draws its edge is the courses and the shadow of the coping's far side, not
+   * a change of value. The `right` face goes a step **below** the others, which
+   * is the one shading a night street actually has.
+   */
+  nearWall: { top: 1, left: 1, right: 0 },
+  /**
+   * The roll-up door, its guide piers, and the corrugation on its face.
+   *
+   * The shutter was `[6]`/`[5]`/`[3]` — brighter than anything else in the
+   * lower half of the picture, on the argument that a dark panel in a dark
+   * reveal disappears. That argument was made against a wall at `[4]` and a
+   * floor at `[0]`, and both have moved since; inherited unchanged, it left the
+   * building with a headlamp for a front door.
+   *
+   * The concept measures the shutter at `[1]`–`[2]` — **the same value as the
+   * wall it sits in.** What makes it read there is not tone at all. It is the
+   * corrugation, the sign painted across it, and two piers that are *lighter*
+   * than both. So the panel joins the wall, the slats go to the bottom of the
+   * ramp, and the piers take the lift the panel used to have.
+   */
+  gate: { panel: 2, pier: 4, slat: 0 },
+  /**
+   * The four corner piers.
+   *
+   * Same values as the gate's guide piers, and deliberately so: **the building
+   * has piers, and the gate's are two of them.** One tone for every upright on
+   * the shell is what makes them read as structure rather than as five
+   * unrelated grey boxes.
+   */
+  column: { top: 4, left: 3, right: 2 },
   /** Poured concrete: the base pour and the lighter bays polished over it. */
   floor: { base: 1, bays: 2 },
   /**
    * The ground outside, from the wall to the middle of the road. `district.ts`
    * draws it (§7.8.1e — the ground is drawn once), but the *ordering* is this
    * room's business, because this is the room the concept is of.
+   *
+   * The forecourt is the garage's own apron rather than the district's, and it
+   * was the one piece of ground still written as a literal — `NEUTRAL[3]`,
+   * chosen when the floor inside was `[0]`, which by this pass made the
+   * driveway the brightest ground in the frame.
    */
-  street: { forecourt: 1, kerb: 2, footway: 1, carriageway: 0 },
+  street: { forecourt: 2, kerb: 2, footway: 1, carriageway: 0 },
 } as const
 
 /**
@@ -248,18 +305,24 @@ export const POD_HALF_GY = 1.4
 export const GARAGE_PODS: readonly Pod[] = [
   // Straight out in front of the leadership glass — the pod the founder can see
   // from their desk, which is why it is the one James lands in.
-  { id: 0, name: 'THE BENCH', gx: 8.0, gy: 3.2 },
+  //
+  // All four of the pods east of the corner shifted right on 2026-09-02 when
+  // the corner widened to 6.6. `GLASS_CLEAR` and `WALL_CLEAR` between them fix
+  // the band they may occupy — gx 9.1 to 13.0 for a pod centre — and there is
+  // exactly enough of it for two abreast. That is the cost of an uncrowded
+  // corner, stated where it is paid.
+  { id: 0, name: 'THE BENCH', gx: 9.3, gy: 3.2 },
   // Under the tool board, deepest into the workshop end — a lane off it rather
   // than shoved against it, so the board is something you can stand at.
-  { id: 1, name: 'THE TOOL WALL', gx: 11.8, gy: 3.0 },
+  { id: 1, name: 'THE TOOL WALL', gx: 12.5, gy: 3.0 },
   // Past the foot of the corner, in the open end of the room. It used to run
   // along the left wall; it is 2.7 tiles off it now, which is the widest lane
   // in the garage and the one the route from the gate comes up.
   { id: 2, name: 'THE LONG TABLE', gx: 4.2, gy: 12.0 },
   // The middle of the room, and the pod the route from the door runs past.
-  { id: 3, name: 'THE MIDDLE', gx: 8.6, gy: 7.4 },
+  { id: 3, name: 'THE MIDDLE', gx: 9.5, gy: 7.4 },
   // Front right, by the sofa and the fridge. The last pod to fill.
-  { id: 4, name: 'THE SOFA END', gx: 12.2, gy: 8.0 },
+  { id: 4, name: 'THE SOFA END', gx: 12.9, gy: 8.4 },
 ]
 
 /** Four to a pod, five pods — §7.8.0's twenty, expressed as furniture. */
@@ -370,7 +433,11 @@ export const GARAGE_LEADERSHIP: Plot = {
   name: 'THE CORNER',
   gx0: 0,
   gy0: 0,
-  gx1: 5.2,
+  // 6.6, and it was 5.2 [2026-09-02]. `SUITE_PITCH_COLS` went back to 1.8
+  // because at 1.4 the leadership desks were closer together than the rank and
+  // file's, and the width has to follow: the drawn suite reaches plan 6.41 at
+  // seven plots, so the reservation is that plus a hand's breadth.
+  gx1: 6.6,
   gy1: 8.6,
 }
 
@@ -438,14 +505,14 @@ export const GARAGE_PROPS: readonly Plot[] = [
   // Everything stops at `GARAGE_SPAN - NEAR_CLEAR`. The sofa ran to the corner
   // once and the near-right wall stood in front of its last third, which is
   // the whole reason that constant exists.
-  { name: 'THE SHELVES', gx0: 5.4, gy0: 0, gx1: 7.7, gy1: 0.55 },
-  { name: 'THE TOOL BOARD', gx0: 8.0, gy0: 0, gx1: 10.1, gy1: 0.55 },
-  { name: 'THE WORKBENCH', gx0: 8.0, gy0: 0.55, gx1: 10.1, gy1: 1.0 },
-  { name: 'THE BIKE', gx0: 10.4, gy0: 0, gx1: 11.5, gy1: 0.9 },
+  { name: 'THE SHELVES', gx0: 6.7, gy0: 0, gx1: 8.8, gy1: 0.55 },
+  { name: 'THE TOOL BOARD', gx0: 9.0, gy0: 0, gx1: 10.9, gy1: 0.55 },
+  { name: 'THE WORKBENCH', gx0: 9.0, gy0: 0.55, gx1: 10.9, gy1: 1.0 },
+  { name: 'THE BIKE', gx0: 11.1, gy0: 0, gx1: 12.2, gy1: 0.9 },
   // The sofa runs along the wall the camera looks *at*, which is the only one
   // a soft furnishing is worth drawing against — and is where the canonical
   // concept puts it.
-  { name: 'THE SOFA', gx0: 11.9, gy0: 0, gx1: GARAGE_SPAN - NEAR_CLEAR, gy1: 1.1 },
+  { name: 'THE SOFA', gx0: 12.4, gy0: 0, gx1: GARAGE_SPAN - NEAR_CLEAR, gy1: 1.1 },
   // --- the far-left wall (gx 0), past the corner ---------------------------
   { name: 'THE BOXES', gx0: 0, gy0: 8.9, gx1: 1.1, gy1: 11.0 },
   { name: 'THE KETTLE', gx0: 0, gy0: 11.3, gx1: 1.1, gy1: 12.3 },
@@ -469,10 +536,10 @@ export const GARAGE_PROPS: readonly Plot[] = [
    * gap between the props on the wall and the nearest pod's chairs. Nothing
    * moved to make room for them; the band was already there and empty.
    */
-  { name: 'THE PLANT', gx0: 5.4, gy0: 0.55, gx1: 6.1, gy1: 1.15 },
-  { name: 'THE TOOL CHEST', gx0: 8.0, gy0: 1.0, gx1: 9.2, gy1: 1.55 },
-  { name: 'THE TYRES', gx0: 10.4, gy0: 0.9, gx1: 11.4, gy1: 1.5 },
-  { name: 'THE STOOL', gx0: 12.2, gy0: 1.1, gx1: 12.9, gy1: 1.55 },
+  { name: 'THE PLANT', gx0: 6.7, gy0: 0.55, gx1: 7.4, gy1: 1.15 },
+  { name: 'THE TOOL CHEST', gx0: 9.0, gy0: 1.0, gx1: 10.2, gy1: 1.55 },
+  { name: 'THE TYRES', gx0: 11.1, gy0: 0.9, gx1: 12.1, gy1: 1.5 },
+  { name: 'THE STOOL', gx0: 12.5, gy0: 1.1, gx1: 13.2, gy1: 1.55 },
   { name: 'THE PALLET', gx0: 2.1, gy0: 9.4, gx1: 3.0, gy1: 10.3 },
 ]
 
@@ -623,6 +690,61 @@ export function garageShellRuns(
 }
 
 /**
+ * How thick a corner pier is, in tiles — a wall and a half.
+ *
+ * It has to be thicker than the wall or it is not a pier, and it has to stand
+ * proud on both faces or it cannot do its job, which is **covering the mitre**.
+ * Two walls meeting at a corner in this projection produce a join that is only
+ * correct if both runs stop at exactly the right coordinate, and getting it
+ * wrong is invisible in the numbers and obvious in the picture. A pier makes
+ * the question moot: the corner is an object rather than an agreement.
+ */
+export const COLUMN_THICK = WALL_THICK * 1.5
+
+export interface Column {
+  readonly name: string
+  /** Corner-anchored, in the shell box's own coordinates. */
+  readonly gx: number
+  readonly gy: number
+  readonly size: number
+  readonly height: number
+}
+
+/**
+ * §7.8.0b [added 2026-09-02] — **a pier on every corner of the shell.**
+ *
+ * Each one is as tall as **the taller of the two walls it joins**, which is the
+ * whole rule. Three corners have at least one full-height wall on them and get
+ * a full-height pier; the near vertex has two cut-down walls and gets a cut-down
+ * pier, because a storey-tall column standing at the near vertex would be a post
+ * planted between the camera and the room.
+ *
+ * `at` is the outer face on every edge (§7.8.0b), so a low edge's wall occupies
+ * `[c, c + WALL_THICK]` and a high edge's `[c - WALL_THICK, c]`. The pier is
+ * centred on that band and stands proud by the same amount on both sides.
+ */
+export function garageColumns(
+  minGx: number,
+  minGy: number,
+  maxGx: number,
+  maxGy: number,
+): Column[] {
+  const proud = (COLUMN_THICK - WALL_THICK) / 2
+  const lo = (c: number) => c - proud
+  const hi = (c: number) => c - WALL_THICK - proud
+  return [
+    // The far vertex: two full-height walls.
+    { name: 'far', gx: lo(minGx), gy: lo(minGy), size: COLUMN_THICK, height: WALL_FULL },
+    // The two side vertices: one full wall, one cut down. The full one wins.
+    { name: 'left', gx: lo(minGx), gy: hi(maxGy), size: COLUMN_THICK, height: WALL_FULL },
+    { name: 'right', gx: hi(maxGx), gy: lo(minGy), size: COLUMN_THICK, height: WALL_FULL },
+    // The near vertex: two cut-down walls, and the one place a tall pier would
+    // stand in the picture instead of in the building.
+    { name: 'near', gx: hi(maxGx), gy: hi(maxGy), size: COLUMN_THICK, height: WALL_NEAR },
+  ]
+}
+
+/**
  * **The route**, as the points a walker has to be able to reach in order.
  *
  * From the roll-up door, up the middle of the floor past the pods, to the
@@ -643,9 +765,11 @@ export const GARAGE_ROUTE: ReadonlyArray<{ gx: number; gy: number }> = [
   // fraction instead of keeping its own idea of where the way in is.
   { gx: GARAGE_SPAN * 0.62, gy: GARAGE_SPAN - 1.0 },
   // In, and across to the lane between the left-hand pod and the middle one.
-  { gx: 6.4, gy: GARAGE_SPAN - 1.6 },
-  // Straight up that lane, the length of the room.
-  { gx: 6.4, gy: 7.6 },
+  { gx: 7.4, gy: GARAGE_SPAN - 1.6 },
+  // Straight up that lane, the length of the room. It shifted right with the
+  // corner: the lane is between THE LONG TABLE and the four pods east of it,
+  // and both walls of it moved.
+  { gx: 7.4, gy: 7.6 },
   // And in through the corner's mouth. `GLASS_MOUTH` is 6.6, so this leg
   // crosses the glass line at 7.6 — round the end of the partition, not
   // through it, which is what the old route at 4.0 did.

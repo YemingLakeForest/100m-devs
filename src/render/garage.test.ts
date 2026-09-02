@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { GARAGE_CAP } from '../sim/capacity.ts'
 import {
+  COLUMN_THICK,
   GARAGE_GLASS,
   GARAGE_LEADERSHIP,
   GARAGE_PODS,
@@ -14,6 +15,7 @@ import {
   GARAGE_VALUES,
   GLASS_CLEAR,
   NEAR_CLEAR,
+  garageColumns,
   POD_SEATS,
   WALL_CLEAR,
   acrossFrom,
@@ -25,7 +27,7 @@ import {
   podPlot,
   type Plot,
 } from './garage.ts'
-import { insideShell, wallSegments } from './shell.ts'
+import { WALL_FULL, WALL_NEAR, WALL_THICK, insideShell, wallSegments } from './shell.ts'
 
 /**
  * §7.8.0c — the garage plan.
@@ -546,20 +548,55 @@ describe('the room is brighter inside than out', () => {
     // out there the concept does draw brighter than the road — a kerb the same
     // value as its pavement has stopped being a kerb. It still may not beat the
     // floor's bays, so the brightest ground in the picture is inside.
+    // Measured rather than assumed: the concept's pavement (61,42,33) is
+    // fractionally *lighter* than its floor (55,35,28), because a street lamp
+    // stands over one and not the other. So the honest ceiling is the floor's
+    // lit pour and not its base — what actually says "the lights are on in
+    // here" is the lamp pools and the dark near walls, not the bare ground.
     for (const [name, band] of Object.entries(street)) {
-      const ceiling = name === 'kerb' ? floor.bays : floor.base
-      expect({ band: name, dimmerThanTheFloor: band <= ceiling })
+      expect({ band: name, dimmerThanTheFloor: band <= floor.bays })
         .toEqual({ band: name, dimmerThanTheFloor: true })
     }
   })
 
-  it('keeps each coping lighter than the faces under it', () => {
-    // The one place the ordering is allowed to inverbut — a coping faces straight
-    // up into §7's key, so it is lighter than the wall it caps — on both walls.
-    for (const wall of [farWall, nearWall]) {
-      expect(wall.top).toBeGreaterThan(wall.left)
-      expect(wall.top).toBeGreaterThanOrEqual(wall.right)
-    }
+  /**
+   * **A coping is only lighter than its wall indoors**, and that is a fact about
+   * the night rather than about §7.
+   *
+   * §7's key comes from above, so the top plane of a solid is its brightest —
+   * inside. Outside, after dark, there is nothing above: a horizontal surface
+   * sees the sky and the vertical one facing the street sees the street lamp.
+   * The concept measures its outdoor coping at 28 and the wall face under it at
+   * 32, which is that inversion, and it is why the near walls' coping was the
+   * last pale band left on the frontage.
+   */
+  it('lights the far wall from above and the near walls from the street', () => {
+    expect(farWall.top).toBeGreaterThan(farWall.left)
+    expect(farWall.top).toBeGreaterThanOrEqual(farWall.right)
+    // The near coping keeps enough lift to draw the wall's own edge, and no
+    // more: never as bright as the indoor one, never below its own faces.
+    expect(nearWall.top).toBeGreaterThanOrEqual(nearWall.left)
+    expect(nearWall.top).toBeLessThan(farWall.top)
+  })
+
+  /**
+   * **The gate is the wall's own tone**, and it reads by pattern.
+   *
+   * Measured off the concept: shutter `[1]`–`[2]`, the wall beside it `[1]`,
+   * the piers `[2]`. Nothing about a roller shutter is brighter than the
+   * building — what names it is the corrugation, the sign across it, and the
+   * two piers framing it. The render had it at `[5]`, which made the front door
+   * the brightest object in the lower half of the picture.
+   */
+  it('paints the gate in the wall it sits in', () => {
+    const { gate } = GARAGE_VALUES
+    expect(Math.abs(gate.panel - nearWall.left)).toBeLessThanOrEqual(1)
+    // The piers carry the lift the panel used to have, so the opening is framed
+    // rather than lit.
+    expect(gate.pier).toBeGreaterThan(gate.panel)
+    expect(gate.pier).toBeGreaterThan(nearWall.top)
+    // And the corrugation reads as shadow on the panel, not as highlight.
+    expect(gate.slat).toBeLessThan(gate.panel)
   })
 
   it('stays on the ramp', () => {
@@ -571,5 +608,65 @@ describe('the room is brighter inside than out', () => {
     ]
     for (const v of all) expect(v).toBeGreaterThanOrEqual(0)
     for (const v of all) expect(v).toBeLessThan(9)
+  })
+})
+
+/**
+ * §7.8.0b [added 2026-09-02] — **the corner piers.**
+ *
+ * The defect they exist to prevent is a mitre: two wall runs meeting at a
+ * corner join correctly only if both stop at exactly the right coordinate, and
+ * a wrong one shows as an end cap through a face or a sliver of floor between
+ * them — invisible in the numbers, obvious in the picture, and exactly the
+ * class of thing `test:room` was written for one level up.
+ *
+ * So the claims here are the ones that make a pier *cover* the join rather than
+ * sit near it, plus the one rule about height that keeps the near vertex from
+ * planting a storey-tall post between the camera and the room.
+ */
+describe('every corner of the shell has a pier on it', () => {
+  const lo = -WALL_THICK
+  const hi = GARAGE_SPAN + WALL_THICK
+  const columns = garageColumns(lo, lo, hi, hi)
+
+  it('puts one on each of the four corners', () => {
+    expect(columns).toHaveLength(4)
+    expect(new Set(columns.map((c) => c.name)).size).toBe(4)
+  })
+
+  it('makes each one thicker than the wall it caps', () => {
+    // A pier the width of the wall is a length of wall, not a pier — it cannot
+    // hide a join it is exactly flush with.
+    for (const col of columns) {
+      expect({ at: col.name, thicker: col.size > WALL_THICK })
+        .toEqual({ at: col.name, thicker: true })
+      expect(col.size).toBe(COLUMN_THICK)
+    }
+  })
+
+  it('covers the wall band on both axes at its corner', () => {
+    // The real claim: whatever the two runs do at this corner, the pier's
+    // square already contains the whole thickness of both of them.
+    for (const col of columns) {
+      const nearLoGx = Math.abs(col.gx - lo) < GARAGE_SPAN / 2
+      const nearLoGy = Math.abs(col.gy - lo) < GARAGE_SPAN / 2
+      const bandGx = nearLoGx ? [lo, lo + WALL_THICK] : [hi - WALL_THICK, hi]
+      const bandGy = nearLoGy ? [lo, lo + WALL_THICK] : [hi - WALL_THICK, hi]
+      expect({ at: col.name, gx: col.gx <= bandGx[0] + 1e-9 && col.gx + col.size >= bandGx[1] - 1e-9 })
+        .toEqual({ at: col.name, gx: true })
+      expect({ at: col.name, gy: col.gy <= bandGy[0] + 1e-9 && col.gy + col.size >= bandGy[1] - 1e-9 })
+        .toEqual({ at: col.name, gy: true })
+    }
+  })
+
+  it('is as tall as the taller of the two walls it joins', () => {
+    const byName = Object.fromEntries(columns.map((c) => [c.name, c.height]))
+    // Three corners carry at least one full-height wall.
+    expect(byName.far).toBe(WALL_FULL)
+    expect(byName.left).toBe(WALL_FULL)
+    expect(byName.right).toBe(WALL_FULL)
+    // The near vertex has two cut-down walls, and is the one place a tall pier
+    // would stand in the picture rather than in the building.
+    expect(byName.near).toBe(WALL_NEAR)
   })
 })

@@ -67,6 +67,7 @@ import { GARAGE_CAP, sceneFor } from '../sim/capacity.ts'
 import {
   GARAGE_PODS,
   GARAGE_VALUES,
+  garageColumns,
   GARAGE_PROPS,
   GARAGE_SPAN,
   POD_TABLE_DEPTH,
@@ -1622,7 +1623,22 @@ export function founderDeskPosition(): { x: number; y: number } {
  * pitch in a garage. You get the desks pushed together behind whatever glazing
  * somebody found.
  */
-export const SUITE_PITCH_COLS = 1.4
+/*
+ * **1.8 [2026-09-02, at the user's instruction], and it was 1.4.**
+ *
+ * This reverses the 2026-09-01 narrowing recorded immediately above, and the
+ * reason it was wrong is measurable rather than a matter of taste: at 1.4 the
+ * suite's desk pitch was *tighter than the rank and file's own* — §7.8.0c's
+ * pods sit at a 1.45 stride — so the one room in the studio whose whole point
+ * is that it does not crowd was the most crowded thing in the building.
+ *
+ * The argument that produced 1.4 was about the garage's width, and it was a
+ * real constraint. It is paid for on the floor instead: §7.8.0c's leadership
+ * plot widens to 6.6 tiles and the four pods east of it move over. That is the
+ * honest trade — the corner costs floor — and it is better than a corner that
+ * is the wrong size for what it means.
+ */
+export const SUITE_PITCH_COLS = 1.8
 /**
  * The suite's two banks, as rows.
  *
@@ -4001,8 +4017,17 @@ export function buildRoom(): RoomHandle {
        * legal value for a line lying in this plane, and the same number
        * `test:room` checks every wall against.
        */
+      /*
+       * **It hangs from the head of the glass, not 62 px up.** [2026-09-02]
+       *
+       * 62 was chosen when the panes were 46 tall, so the sign floated above
+       * them; the glass is the room's full `WALL_H` now and the suite's desks
+       * moved apart under it, and at 62 the board came down onto the founder's
+       * monitor. A sign over a door hangs from the head of the opening, which
+       * is a number this room already has.
+       */
       const door = isoAt(0, SUITE_GLASS_ROW + SUITE_SIGN_OUT)
-      signGroup = group(door.x, door.y - 62)
+      signGroup = group(door.x, door.y - Math.max(62, drawnWallH * 0.74))
       signGroup.skew.y = Math.atan(-0.5)
       signGroup.addChild(
         new Graphics()
@@ -5104,7 +5129,7 @@ export function buildRoom(): RoomHandle {
           halfAcross,
           door.at + door.width + 1.1,
           halfAcross + 2.4,
-          RAMPS.NEUTRAL[3],
+          RAMPS.NEUTRAL[GARAGE_VALUES.street.forecourt],
         )
         // The paving joints, on the same argument the floor's bays make inside.
         for (let i = 1; i < 3; i++) {
@@ -5114,7 +5139,7 @@ export function buildRoom(): RoomHandle {
           shell
             .moveTo(j0.x, j0.y)
             .lineTo(j1.x, j1.y)
-            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[2]), alpha: 0.6 })
+            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.6 })
         }
         /*
          * **The kerb**, and it is a solid rather than a line.
@@ -5134,7 +5159,11 @@ export function buildRoom(): RoomHandle {
           halfBack * 2,
           0.24,
           0.18,
-          { top: RAMPS.NEUTRAL[4], left: RAMPS.NEUTRAL[3], right: RAMPS.NEUTRAL[1] },
+          {
+            top: RAMPS.NEUTRAL[GARAGE_VALUES.street.kerb + 1],
+            left: RAMPS.NEUTRAL[GARAGE_VALUES.street.kerb],
+            right: RAMPS.NEUTRAL[GARAGE_VALUES.street.kerb - 1],
+          },
         )
         isoPatch(
           shell,
@@ -5188,6 +5217,45 @@ export function buildRoom(): RoomHandle {
         const into = isFar ? shell : nearWall
         const segs = drawWallRun(into, shellProject, run, isFar ? blockFar : blockNear)
         courses(into, segs, runsAlongGy(run.edge))
+      }
+
+      /*
+       * §7.8.0b [added 2026-09-02] — **a pier on every corner.**
+       *
+       * Two walls meeting at a corner in this projection produce a join that is
+       * right only if both runs stop at exactly the right coordinate, and
+       * getting it wrong is invisible in the numbers and obvious in the
+       * picture: one run's end cap shows through the other's face, or a sliver
+       * of floor shows between them. `garageColumns` makes the question moot —
+       * **the corner becomes an object rather than an agreement.**
+       *
+       * They take the gate's own pier tone, because the building has piers and
+       * the gate's are two of them; one tone for every upright on the shell is
+       * what makes them read as structure and not as five unrelated grey boxes.
+       *
+       * Layer follows depth, not convenience. The three full-height piers are
+       * the furthest objects on their corners and go in `shell` with the far
+       * walls, so the room draws over them. The near vertex is in front of the
+       * room and goes in `nearWall`, after the cut-down walls whose join it is
+       * there to cap.
+       */
+      const columnPaint: WallPaint = {
+        top: RAMPS.NEUTRAL[GARAGE_VALUES.column.top],
+        left: RAMPS.NEUTRAL[GARAGE_VALUES.column.left],
+        right: RAMPS.NEUTRAL[GARAGE_VALUES.column.right],
+      }
+      for (const col of garageColumns(-halfBack, -halfAcross, halfBack, halfAcross)) {
+        isoSolid(
+          col.name === 'near' ? nearWall : shell,
+          shellProject,
+          col.gx,
+          col.gy,
+          0,
+          col.size,
+          col.size,
+          col.height,
+          columnPaint,
+        )
       }
 
       /*
@@ -5271,8 +5339,34 @@ export function buildRoom(): RoomHandle {
          * what a door you drive through has to be. There is deliberately no
          * lintel above it (§7.8.0b): this wall is the height of the door.
          */
+        /*
+         * §7.8.0b [amended 2026-09-02, at the user's instruction] — **the gate
+         * is full height and the walls stay cut down.**
+         *
+         * That section said the opposite, and said it with an argument: "there
+         * is deliberately no lintel above it — this wall is the height of the
+         * door." The instruction is to make the door the height of the
+         * *building* instead, and it turns the cutaway into something the
+         * cutaway could not say on its own.
+         *
+         * A half-height wall is a **convention**: the room is not really open
+         * at the waist, it is drawn that way so you can see in. A gate that
+         * rises to the full storey through it is the one place the building
+         * declares its real height on the near side, so the low walls read as
+         * a section cut rather than as a garden wall — and the portal is what
+         * a garage door actually is, a hole the size of a vehicle.
+         *
+         * It is also why the corner piers arrived in the same batch: once one
+         * upright stands to full height on the near side, the corners have to
+         * as well, or the frontage is a tall door in a fence.
+         */
+        const GATE_H = WALL_FULL
         const reveal = halfAcross - WALL_THICK * 0.86
         const depth = WALL_THICK * 0.52
+        // §7.8.0c's value table. The panel is the wall's own tone — see
+        // `GARAGE_VALUES.gate` — and the corrugation, the sign and the piers
+        // are what name it.
+        const gate = GARAGE_VALUES.gate
         isoSolid(
           nearWall,
           shellProject,
@@ -5281,15 +5375,24 @@ export function buildRoom(): RoomHandle {
           0,
           door.width,
           depth,
-          WALL_NEAR,
-          { top: RAMPS.NEUTRAL[6], left: RAMPS.NEUTRAL[5], right: RAMPS.NEUTRAL[3] },
+          GATE_H,
+          {
+            top: RAMPS.NEUTRAL[gate.panel + 1],
+            left: RAMPS.NEUTRAL[gate.panel],
+            right: RAMPS.NEUTRAL[gate.panel - 1],
+          },
         )
         // The corrugation. Lines across the panel's visible face at a fixed
         // pitch — the one repeating pattern in the garage, and what names the
         // object from across the street.
         const faceGy = reveal + depth
+        // One slat pitch, held constant now that the panel is taller: a
+        // shutter's corrugation is a fixed size in the world, so a taller door
+        // gets *more* slats rather than bigger ones. Nine across the old height
+        // is the pitch; the count follows from it.
         const SLAT = WALL_NEAR / 9
-        for (let i = 1; i < 9; i++) {
+        const SLATS = Math.round(GATE_H / SLAT)
+        for (let i = 1; i < SLATS; i++) {
           const z = i * SLAT
           const a2 = shellProject(door.at, faceGy)
           const b2 = shellProject(door.at + door.width, faceGy)
@@ -5297,9 +5400,42 @@ export function buildRoom(): RoomHandle {
           nearWall
             .moveTo(a2.x, a2.y - lift)
             .lineTo(b2.x, b2.y - lift)
-            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[2]), alpha: 0.85 })
+            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[gate.slat]), alpha: 0.8 })
+        }
+        /*
+         * **The sign painted across it**, which the concept has and which does
+         * a job no amount of tone can: it is the only thing on this frontage
+         * that says the building is *somebody's*.
+         *
+         * A band in the panel's own plane, in the warm dark this room keeps for
+         * paint, with a lit edge along the top. No lettering — at this size a
+         * word on a door is four grey pixels, and the band reads as a sign on
+         * its own, the same way the tool board's tools read without being
+         * spanners.
+         */
+        {
+          const bandLo = GATE_H * 0.58
+          const bandHi = GATE_H * 0.76
+          const inset = door.width * 0.08
+          const s0 = shellProject(door.at + inset, faceGy)
+          const s1 = shellProject(door.at + door.width - inset, faceGy)
+          const band = (lo: number, hi: number, colour: number, alpha: number) => {
+            nearWall
+              .moveTo(s0.x, s0.y - lo * HEIGHT_UNIT)
+              .lineTo(s1.x, s1.y - lo * HEIGHT_UNIT)
+              .lineTo(s1.x, s1.y - hi * HEIGHT_UNIT)
+              .lineTo(s0.x, s0.y - hi * HEIGHT_UNIT)
+              .closePath()
+              .fill({ color: colour, alpha })
+          }
+          band(bandLo, bandHi, c(RAMPS.ALARM[0]), 0.9)
+          band(bandHi - 0.03, bandHi, c(RAMPS.WARN[1]), 0.5)
         }
         // The guide rails either side, standing proud of the panel.
+        // The piers either side, and they are the **lighter** element now.
+        // They were darker than the panel, which is the arrangement you get if
+        // the panel is the bright thing; the concept's piers are a step above
+        // both the shutter and the wall, and they are what frames the opening.
         for (const side of [door.at - 0.16, door.at + door.width]) {
           isoSolid(
             nearWall,
@@ -5309,8 +5445,12 @@ export function buildRoom(): RoomHandle {
             0,
             0.16,
             depth + 0.12,
-            WALL_NEAR,
-            { top: RAMPS.NEUTRAL[3], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] },
+            GATE_H,
+            {
+              top: RAMPS.NEUTRAL[gate.pier],
+              left: RAMPS.NEUTRAL[gate.pier - 1],
+              right: RAMPS.NEUTRAL[gate.pier - 2],
+            },
           )
         }
       }
@@ -6382,6 +6522,18 @@ export function buildRoom(): RoomHandle {
     // pushes the whole room down the frame by half a wall.
     const pad = districtPad(halfBack, halfAcross)
     /*
+     * §7.8.0b [2026-09-02] — **the frame budgets the walls that are actually
+     * drawn.**
+     *
+     * `WALL_H` is §7.8.1e's *lattice* wall, and the garage's shell is not built
+     * from it: `WALL_FULL` is 4.23 tiles, which at `HEIGHT_UNIT` is about 135 px
+     * against `WALL_H`'s 112 — and the corner piers and the full-height gate
+     * put real objects at the top of that range. The frame was short by the
+     * difference, so the far corner of the room sat on the top edge of the
+     * picture and the piers ran off it.
+     */
+    const capH = garage ? Math.max(WALL_H, WALL_FULL * HEIGHT_UNIT) : WALL_H
+    /*
      * §7.8.1 [amended 2026-09-01] — **the walls are fixed and the frame is not.**
      *
      * §7.8.0c's garage does not grow: it is a building somebody already owns and
@@ -6457,14 +6609,29 @@ export function buildRoom(): RoomHandle {
       fitCy = (framed.minY + framed.maxY) / 2
     }
     foldedFit.w = fitW * 2 + ROOM_CONTENT_PAD_X + pad.x
-    foldedFit.h = fitH * 2 + WALL_H + ROOM_CONTENT_PAD_Y + pad.y
+    foldedFit.h = fitH * 2 + capH + ROOM_CONTENT_PAD_Y + pad.y
     // Biased toward the north corner — the founder and the walls that rise
     // behind it — rather than the true centre of the bounding box. Centring
     // geometrically drops the people low in frame under a slab of empty floor,
     // and biasing the other way (toward the desks) buried the cornice and the
     // windows under the top edge of the frame. Half a wall is the balance.
     foldedFit.px = fitCx
-    foldedFit.py = fitCy - WALL_H * 0.5 + pad.y * (0.5 - SKYLINE_SHARE)
+    /*
+     * §7.8.0c [2026-09-02] — **the garage splits the district's pad evenly.**
+     *
+     * `SKYLINE_SHARE` is 0.2: of the room the district asks for around the
+     * plot, a fifth goes above and four fifths below, which is right for a
+     * tower — what is above a tower is sky, and what is below it is the street
+     * the player cares about.
+     *
+     * The garage is not a tower. Its walls stand 4.23 tiles at the far corner
+     * and its piers stand on top of that, so the four-fifths bias put the far
+     * vertex of the building *off the top of the picture* while a quarter of
+     * the frame was empty carriageway at the bottom. An even split is the
+     * honest setting for a building the camera can see over.
+     */
+    const skyShare = garage ? 0.5 : SKYLINE_SHARE
+    foldedFit.py = fitCy - capH * 0.5 + pad.y * (0.5 - skyShare)
     if (unfolded) {
       /*
        * §7.8.0d — **the office fits its own shell, not §7.8.1e's.**

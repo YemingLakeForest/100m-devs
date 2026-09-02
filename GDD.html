@@ -4205,7 +4205,9 @@ because the table runs between them — so the honest structure is two layers, a
 workstation goes into is decided by the same <code>facing</code> that decides which way its owner is
 drawn. One fact read twice, rather than two facts that can disagree.</p>
 <h6 id="a-corner-office-wider-than-the-studio">A corner office wider than the studio it looks out over</h6>
-<p><strong>[amends §7.8.12's <code>SUITE_PITCH_COLS</code>, 2026-09-01: 2 → 1.4.]</strong> That
+<p><strong>[amends §7.8.12's <code>SUITE_PITCH_COLS</code>, 2026-09-01: 2 → 1.4 — reversed
+2026-09-02 to 1.8, see “Room for leadership”: at 1.4 the suite's pitch was tighter than the rank
+and file's own 1.45 stride, which is the opposite of what this constant is for.]</strong> That
 section's argument for a generous desk pitch still holds, and is why this is 1.4 rather than the
 floor's own 1 — the suite is the one place in the studio that does not sit shoulder to shoulder,
 and that is §6's thesis stated in furniture rather than in a curve.</p>
@@ -4257,7 +4259,9 @@ reach from the road — a tradesman's door onto next door's yard. The canonical 
 garage really has it: in the same frontage as the roll-up, a stride to its left. That is also the
 only arrangement in which the two doors are <em>about</em> anything — the big one is how the van gets
 in, the small one is how people do.</p>
-<p>The roll-up gets no lintel because the wall is the height of the door. The side door gets one,
+<p>The roll-up gets no lintel because the wall is the height of the door
+<strong>[superseded 2026-09-02: the gate is taller than the wall now, and still gets no lintel —
+there is nothing above it to hold up]</strong>. The side door gets one,
 because a person-sized door in a storey-tall wall leaves a band of block above it, and that band is
 what makes an opening read as cut through something rather than painted on. Both claims are now
 tested against the same wall run, which is stronger than testing them against two.</p>
@@ -4390,7 +4394,9 @@ The stack failed for a reason worth keeping: each slat is a <em>solid</em>, so e
 top, and seven lit tops in a row on a wall we already see the top of came out as a striped ramp
 leaning against the building. Corrugation is a pattern <em>on a surface</em> — so it is drawn the way
 the monitors' code lines are, as marks in the plane of the face. It is full height, and deliberately
-has no lintel (§7.8.0b): this wall is the height of the door.</p>
+has no lintel (§7.8.0b): this wall is the height of the door.
+<strong>[superseded 2026-09-02 — the gate is now the height of the <em>building</em> and the
+wall stays cut down; see “The gate is full height and the walls stay cut down”.]</strong></p>
 <h6 id="the-forecourt-the-kerb-and-where-a-car-goes">The forecourt, the kerb, and where a car goes</h6>
 <p>The apron was drawn in the road's own tone, so it was invisible: a driveway the same colour as the
 carriageway is not a driveway, it is a wider road. It is pale paving now, with joints on the same
@@ -4600,6 +4606,104 @@ upright. This is the near-wall occlusion defect one axis over &mdash; something 
 invisible &mdash; with a prop rather than a wall in the way, and no gate catches it because a mark in
 the wall plane has no plot. It hangs over the sofa now, which is the far wall's one clear stretch at
 poster height.</p>
+<h6 id="the-frontage-joins-the-table-2026-09-02">The frontage joins the table <strong>[amends &sect;7.8.0b and &sect;7.8.0c, 2026-09-02]</strong></h6>
+<p>Three things on the street elevation were still literals chosen against a room that has since moved,
+and all three were among the brightest objects in the picture. Measured off the concept, against what
+the render was doing:</p>
+<table>
+<tr><th>Surface</th><th>Concept</th><th>Render was</th></tr>
+<tr><td>Roller shutter, face</td><td>32&ndash;45 (<code>[1]</code>&ndash;<code>[2]</code>)</td><td>143 (<code>[5]</code>)</td></tr>
+<tr><td>Near-wall coping</td><td>28 (<code>[1]</code>)</td><td>143 (<code>[3]</code>, and the widest band on the frontage)</td></tr>
+<tr><td>Forecourt apron</td><td>47 (<code>[1]</code>&ndash;<code>[2]</code>)</td><td>79 (<code>[3]</code>)</td></tr>
+</table>
+<p><strong>The shutter is the wall's own tone.</strong> It had been raised to <code>[6]</code>/<code>[5]</code>
+on the argument that a dark panel in a dark reveal disappears &mdash; true, and made against a wall at
+<code>[4]</code> and a floor at <code>[0]</code>, neither of which is the case any more. Inherited
+unchanged, it left the building with a headlamp for a front door. The concept measures its shutter at
+the same value as the block beside it, and what names the thing is not tone at all: it is the
+corrugation, the sign painted across it, and <strong>two piers that are lighter than both</strong>. So
+the panel joins the wall, the slats go to the bottom of the ramp, and the piers take the lift the panel
+used to have &mdash; they had been <em>darker</em> than the shutter, which is the arrangement you get
+only if the shutter is the bright thing.</p>
+<p>The sign came with them. A band in the panel's plane, in the warm dark this room keeps for paint,
+with a lit edge along the top &mdash; no lettering, because at this size a word on a door is four grey
+pixels, and the band reads as a sign on its own the way the tool board's tools read without being
+spanners. It is also the only thing on that frontage which says the building is <em>somebody's</em>.</p>
+<h6 id="a-coping-is-only-lighter-indoors">A coping is only lighter than its wall indoors</h6>
+<p>This contradicts &sect;7 on its face and is worth the space. &sect;7's key comes from above, so a
+solid's top plane is its brightest &mdash; <strong>inside</strong>. Outside, after dark, there is nothing
+above: a horizontal surface sees the sky and the vertical one facing the street sees the street lamp.
+The concept measures its outdoor coping at 28 and the wall face under it at 32, which is that
+inversion.</p>
+<p>It matters here because <code>WALL_THICK</code> is 0.63 tiles, so the coping is a <em>wide</em> band,
+and at <code>[3]</code> it was the palest thing on the whole elevation &mdash; the wall read as a lit
+ledge with a dark skirt under it. Two passes were needed to accept the answer: at <code>[2]</code> over
+faces at <code>[1]</code> it was still the brightest band there, and it ended flat. What draws a night
+wall's edge is the courses and the shadow of the coping's far side, not a change of value.
+<code>garage.test.ts</code> now states the rule as it really is &mdash; the far wall is lit from above,
+the near walls from the street.</p>
+<p>One earlier claim relaxed with it. "No band of ground outside brighter than the floor's base pour"
+was asserted rather than measured, and the measurement disagrees: the concept's pavement (61,&nbsp;42,&nbsp;33)
+is fractionally <em>lighter</em> than its floor (55,&nbsp;35,&nbsp;28), because a street lamp stands over
+one and not the other. The ceiling is the floor's lit pour. What actually says <em>the lights are on in
+here</em> is the lamp pools and the dark near walls, not the bare ground &mdash; and the kerb no longer
+needs to be a special case.</p>
+<h6 id="the-gate-is-full-height-2026-09-02">The gate is full height and the walls stay cut down <strong>[amends &sect;7.8.0b, 2026-09-02 &mdash; user instruction]</strong></h6>
+<p>This section said the opposite, and said it with an argument worth quoting before overturning it:
+<em>"There is deliberately no lintel above it: this wall is the height of the door."</em> The
+instruction is to make the door the height of the <em>building</em> instead, and it turns out to say
+something the cutaway could not say on its own.</p>
+<p><strong>A half-height wall is a convention.</strong> The room is not really open at the waist; it is
+drawn that way so the player can see in. A gate that rises through it to the full storey is the one
+place the building declares its real height on the near side &mdash; so the low walls read as a
+<em>section cut</em> rather than as a garden wall, and the opening reads as what a garage door actually
+is, a hole the size of a vehicle. The slat pitch is held constant as the panel grows, because
+corrugation is a fixed size in the world: a taller door gets <em>more</em> slats, not bigger ones.</p>
+<h6 id="a-pier-on-every-corner-2026-09-02">A pier on every corner <strong>[CANON - added 2026-09-02 &mdash; user instruction]</strong></h6>
+<p>Two wall runs meeting at a corner in this projection join correctly only if both stop at exactly the
+right coordinate. Getting it wrong is <strong>invisible in the numbers and obvious in the
+picture</strong> &mdash; one run's end cap shows through the other's face, or a sliver of floor shows
+between them &mdash; which is the same class of defect <code>test:room</code> exists for one level up,
+and the user's report was that the corners were not seamed up.</p>
+<p><code>garageColumns</code> makes the question moot: <strong>the corner becomes an object rather than
+an agreement.</strong> Four square piers, each 1.5 wall-thicknesses so it stands proud on both faces
+and covers the whole mitre, and each <strong>as tall as the taller of the two walls it joins</strong>.
+Three corners carry at least one full-height wall and get a full-height pier; the near vertex has two
+cut-down walls and gets a cut-down one, because a storey-tall column planted at the near vertex would
+stand in the picture rather than in the building.</p>
+<p>They take the gate's own pier tone, because <strong>the building has piers and the gate's are two of
+them</strong>. One tone for every upright on the shell is what makes them read as structure and not as
+five unrelated grey boxes. Layer follows depth: the three full-height piers go in <code>shell</code>
+with the far walls so the room draws over them; the near vertex goes in <code>nearWall</code>, after
+the cut-down walls whose join it is there to cap. <code>garage.test.ts</code> states the covering claim
+directly &mdash; whatever the two runs do at a corner, the pier's square already contains the whole
+thickness of both.</p>
+<h6 id="room-for-leadership-2026-09-02">Room for leadership <strong>[amends &sect;7.8.12 and &sect;7.8.0c, 2026-09-02 &mdash; user instruction]</strong></h6>
+<p><strong>[<code>SUITE_PITCH_COLS</code> 1.4 &rarr; 1.8, reversing the 2026-09-01 narrowing.]</strong>
+The reason that narrowing was wrong is measurable rather than a matter of taste: at 1.4 the suite's
+desk pitch was <em>tighter than the rank and file's own</em> &mdash; &sect;7.8.0c's pods sit at a 1.45
+stride &mdash; so the one room in the studio whose entire point is that it does not crowd was the most
+crowded thing in the building. &sect;7.8.12's original claim, "two seat pitches per person, legible at a
+glance", had been narrowed until it said the opposite of itself.</p>
+<p>The argument that produced 1.4 was about the garage's width, and it was a real constraint. It is
+paid on the floor instead: the leadership plot widens from 5.2 to 6.6 tiles and <strong>all four pods
+east of it move over</strong>, along with every prop on the far-right wall. <code>GLASS_CLEAR</code>
+and <code>WALL_CLEAR</code> between them leave a band from <em>gx</em>&nbsp;9.1 to 13.0 for a pod
+centre, and there is exactly enough of it for two abreast. That is the cost of an uncrowded corner,
+recorded where it is paid.</p>
+<p>Two things moved with it. <strong>The <code>LEADERSHIP</code> sign hangs from the head of the
+glass</strong> rather than 62&nbsp;px up &mdash; 62 was chosen when the panes were 46 tall, and with the
+glass at the room's full height and the desks further apart the board had come down onto the founder's
+monitor. And <strong>the frame budgets the walls that are actually drawn</strong>: <code>WALL_H</code>
+is &sect;7.8.1e's <em>lattice</em> wall at about 112&nbsp;px, while the garage's shell is built from
+<code>WALL_FULL</code> at about 135, and the piers and the tall gate put real objects at the top of
+that range.</p>
+<p>The last of those exposed a second, larger one. <code>SKYLINE_SHARE</code> is 0.2: of the space the
+district asks for round the plot, a fifth goes above and four fifths below &mdash; right for a tower,
+where what is above is sky and what is below is the street the player cares about. <strong>The garage
+is not a tower.</strong> That bias put the far vertex of the building off the top of the picture while
+a quarter of the frame was empty carriageway at the bottom. An even split is the honest setting for a
+building the camera can see over.</p>
 <h6 id="the-street-is-shown-by-widening-the-frame">The street is shown by widening the frame, not by extending the box</h6>
 <p>Two attempts extended the fit's <code>maxCol</code> over the apron, at 3.4 columns and then 2.0,
 and both were wrong the same way: <strong>the apron is on one side only, so adding it moves the
