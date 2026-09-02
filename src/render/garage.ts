@@ -51,8 +51,48 @@
 import { GARAGE_CAP } from '../sim/capacity.ts'
 import { PARTITION_THICK, WALL_NEAR, WALL_THICK, type Opening, type WallRun } from './shell.ts'
 
-/** How deep and wide the garage's interior is, in tiles. */
-export const GARAGE_SPAN = 14
+/**
+ * How deep and wide the garage's interior is, in tiles.
+ *
+ * **Sixteen, and it was fourteen.** [2026-09-02] Not because the building grew
+ * but because {@link WALL_CLEAR} could not be honoured at fourteen: the corner
+ * takes 5.2 by 8.6 of it, the props take a tile off three walls, and what was
+ * left could not hold five pods *and* a lane behind them. The pods were pushed
+ * against the block instead, which is the one thing the canonical concept never
+ * does — every desk there stands in open floor, with walking room behind the
+ * chairs on every side.
+ *
+ * Sixteen is the smallest span at which that is true with these five pods, this
+ * corner and these props, which is the whole argument for the number.
+ */
+export const GARAGE_SPAN = 16
+
+/**
+ * **How much clear floor stands between a pod and any wall**, in tiles.
+ *
+ * The lane behind the chairs. A pod's plot already includes the chairs pulled
+ * out (see {@link POD_HALF_GY}), so this is walking room beyond them, and 1.5
+ * tiles is a person and their elbows — which is what the concept draws, and why
+ * its floor reads as a room with furniture in it rather than as furniture with
+ * a wall drawn round it.
+ *
+ * It is a *constant with a test*, not a habit: `garage.test.ts` measures every
+ * pod against every wall's inner face. Wall clearance is exactly the class of
+ * detail that survives as an intention in a comment while the numbers drift,
+ * which is how four of the five pods came to be within a tile of the block
+ * without any check noticing.
+ */
+export const WALL_CLEAR = 1.5
+
+/**
+ * The same lane, but off the leadership glass.
+ *
+ * Smaller than {@link WALL_CLEAR} on purpose: the glass is a partition inside
+ * one room rather than the edge of the building, and the concept crowds it a
+ * little — the pod in front of the corner is close enough that the founder can
+ * see what is on its screens, which is the point of putting it there.
+ */
+export const GLASS_CLEAR = 1.0
 
 /**
  * Which way a developer is looking, on the floor's own two axes.
@@ -138,15 +178,18 @@ export const POD_HALF_GY = 1.4
 export const GARAGE_PODS: readonly Pod[] = [
   // Straight out in front of the leadership glass — the pod the founder can see
   // from their desk, which is why it is the one James lands in.
-  { id: 0, name: 'THE BENCH', gx: 7.2, gy: 2.6 },
-  // Under the tool board, deepest into the workshop end.
-  { id: 1, name: 'THE TOOL WALL', gx: 11.0, gy: 2.5 },
-  // Along the left wall past the corner, in front of the boxes.
-  { id: 2, name: 'THE LONG TABLE', gx: 3.4, gy: 10.8 },
+  { id: 0, name: 'THE BENCH', gx: 8.0, gy: 3.2 },
+  // Under the tool board, deepest into the workshop end — a lane off it rather
+  // than shoved against it, so the board is something you can stand at.
+  { id: 1, name: 'THE TOOL WALL', gx: 11.8, gy: 3.0 },
+  // Past the foot of the corner, in the open end of the room. It used to run
+  // along the left wall; it is 2.7 tiles off it now, which is the widest lane
+  // in the garage and the one the route from the gate comes up.
+  { id: 2, name: 'THE LONG TABLE', gx: 4.2, gy: 12.0 },
   // The middle of the room, and the pod the route from the door runs past.
-  { id: 3, name: 'THE MIDDLE', gx: 7.8, gy: 7.8 },
+  { id: 3, name: 'THE MIDDLE', gx: 8.6, gy: 7.4 },
   // Front right, by the sofa and the fridge. The last pod to fill.
-  { id: 4, name: 'THE SOFA END', gx: 11.4, gy: 9.6 },
+  { id: 4, name: 'THE SOFA END', gx: 12.2, gy: 8.0 },
 ]
 
 /** Four to a pod, five pods — §7.8.0's twenty, expressed as furniture. */
@@ -324,15 +367,19 @@ export const GARAGE_PROPS: readonly Plot[] = [
   { name: 'THE SHELVES', gx0: 5.6, gy0: 0, gx1: 9.0, gy1: 0.55 },
   { name: 'THE TOOL BOARD', gx0: 9.4, gy0: 0, gx1: 12.2, gy1: 0.55 },
   { name: 'THE WORKBENCH', gx0: 9.4, gy0: 0.55, gx1: 12.2, gy1: 1.0 },
-  { name: 'THE BIKE', gx0: 12.6, gy0: 0, gx1: 13.9, gy1: 0.9 },
+  // In the corner where the two far walls meet, which is where a bike lives.
+  // Written off `GARAGE_SPAN` rather than off 14, along with the five below:
+  // **a prop that leans on a wall has to move when the wall does**, and these
+  // are the ones that would otherwise have been left standing in the street.
+  { name: 'THE BIKE', gx0: GARAGE_SPAN - 3.4, gy0: 0, gx1: GARAGE_SPAN - 2.1, gy1: 0.9 },
   // --- the far-left wall, past the corner ---------------------------------
   { name: 'THE BOXES', gx0: 0, gy0: 8.9, gx1: 1.1, gy1: 11.4 },
-  { name: 'THE BIN', gx0: 0, gy0: 11.8, gx1: 1.1, gy1: 13.2 },
+  { name: 'THE BIN', gx0: 0, gy0: GARAGE_SPAN - 2.2, gx1: 1.1, gy1: GARAGE_SPAN - 0.8 },
   // --- the near-right wall: the sitting-down half -------------------------
-  { name: 'THE FRIDGE', gx0: 12.9, gy0: 3.2, gx1: 14, gy1: 4.4 },
-  { name: 'THE KETTLE', gx0: 12.9, gy0: 4.8, gx1: 14, gy1: 5.8 },
-  { name: 'THE SOFA', gx0: 12.9, gy0: 7.0, gx1: 14, gy1: 9.6 },
-  { name: 'THE CRATES', gx0: 12.9, gy0: 10.0, gx1: 14, gy1: 11.8 },
+  { name: 'THE FRIDGE', gx0: GARAGE_SPAN - 1.1, gy0: 3.2, gx1: GARAGE_SPAN, gy1: 4.4 },
+  { name: 'THE KETTLE', gx0: GARAGE_SPAN - 1.1, gy0: 4.8, gx1: GARAGE_SPAN, gy1: 5.8 },
+  { name: 'THE SOFA', gx0: GARAGE_SPAN - 1.1, gy0: 7.0, gx1: GARAGE_SPAN, gy1: 9.6 },
+  { name: 'THE CRATES', gx0: GARAGE_SPAN - 1.1, gy0: 10.4, gx1: GARAGE_SPAN, gy1: 12.2 },
 ]
 
 /**
@@ -370,17 +417,21 @@ export const SIDE_DOOR_HEAD = WALL_NEAR * 0.66
  * mistake puts the door in the wrong wall while every test that checks a width
  * still passes.
  */
-export const GARAGE_ROLLUP: Opening = {
-  at: GARAGE_SPAN / 2 - ROLLUP_WIDTH / 2,
-  width: ROLLUP_WIDTH,
-}
-
-export const GARAGE_SIDE_DOOR: Opening = {
-  at: 9.6,
-  width: SIDE_DOOR_WIDTH,
-  // Head at two tiles — a door's height, with a storey of wall standing on it.
-  head: 2,
-}
+/*
+ * The two doors are **read back out of the shell**, not written down a second
+ * time. [2026-09-02]
+ *
+ * They were literals — `GARAGE_SPAN / 2 - ROLLUP_WIDTH / 2` for one and a bare
+ * `9.6` for the other — while `garageShellRuns` computed both from the wall's
+ * own span at 0.62 along it. The two agreed only by arithmetic accident, and
+ * the accident held: every test that asked where the gate is was asking the
+ * copy, so none of them could have caught the gate moving. That is the same
+ * two-tables-one-floor defect §7.8.0c keeps producing, so the copy is gone and
+ * these are views on the one table.
+ *
+ * Declared after {@link GARAGE_SHELL} for that reason, which is also why the
+ * non-null assertions are honest: `garageShellRuns` always cuts both.
+ */
 
 /**
  * Four runs on one outer rectangle, so the corners meet without any call site
@@ -400,6 +451,13 @@ export const GARAGE_SHELL: readonly WallRun[] = garageShellRuns(
   GARAGE_OUTER_HI,
   GARAGE_OUTER_HI,
 )
+
+/** The vehicle door, as cut. */
+export const GARAGE_ROLLUP: Opening = rollUpIn(GARAGE_SHELL)!
+/** The personnel door beside it — the opening that stops short of the head. */
+export const GARAGE_SIDE_DOOR: Opening = GARAGE_SHELL.find(
+  (r) => r.edge === 'near-left',
+)!.openings!.find((o) => o.head !== undefined)!
 
 /**
  * The shell of a garage of any size — the room builds this from its own
@@ -486,15 +544,39 @@ export function garageShellRuns(
  */
 export const GARAGE_ROUTE: ReadonlyArray<{ gx: number; gy: number }> = [
   // On the threshold of the roll-up door — a `gx` in the opening, at the near
-  // wall's `gy`.
-  { gx: GARAGE_SPAN / 2, gy: GARAGE_SPAN - 1.0 },
+  // wall's `gy`. The gate sits at 0.62 along the frontage rather than at its
+  // midpoint (see {@link garageShellRuns}), so the route reads the same
+  // fraction instead of keeping its own idea of where the way in is.
+  { gx: GARAGE_SPAN * 0.62, gy: GARAGE_SPAN - 1.0 },
   // In, and across to the lane between the left-hand pod and the middle one.
-  { gx: 5.4, gy: 12.6 },
+  { gx: 6.4, gy: GARAGE_SPAN - 1.6 },
   // Straight up that lane, the length of the room.
-  { gx: 5.4, gy: 5.0 },
-  // And in past the end of the glass.
-  { gx: 3.0, gy: 4.0 },
+  { gx: 6.4, gy: 7.6 },
+  // And in through the corner's mouth. `GLASS_MOUTH` is 6.6, so this leg
+  // crosses the glass line at 7.6 — round the end of the partition, not
+  // through it, which is what the old route at 4.0 did.
+  { gx: 3.0, gy: 7.6 },
 ]
+
+/**
+ * **The vehicle door in a shell's street wall** — the opening with no lintel.
+ *
+ * Both doors are in the same run (§7.8.0c), and `openings[0]` is the side door
+ * because the array is written left to right along the wall. Reading index zero
+ * is what put the shutter, the forecourt, the car and the street lamp all at
+ * the *personnel* door and left the roll-up opening as a four-tile hole in the
+ * front of the building — which is what a hole in a wall looks like, because
+ * that is what it was.
+ *
+ * The discriminator is not an index and not a width: it is that **the vehicle
+ * door reaches the head of the wall and the personnel door does not**. That is
+ * the same fact §7.8.0b uses to decide which opening gets a lintel, so there is
+ * one property doing both jobs rather than two that can disagree.
+ */
+export function rollUpIn(runs: readonly WallRun[]): Opening | undefined {
+  const street = runs.find((run) => run.edge === 'near-left')
+  return street?.openings?.find((opening) => opening.head === undefined)
+}
 
 /** Is a point inside a plot? Corner-anchored, half-open, so plots may abut. */
 export function inPlot(p: Plot, gx: number, gy: number): boolean {

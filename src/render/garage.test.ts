@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { GARAGE_CAP } from '../sim/capacity.ts'
 import {
+  GARAGE_GLASS,
   GARAGE_LEADERSHIP,
   GARAGE_PODS,
   GARAGE_PROPS,
@@ -10,7 +11,9 @@ import {
   GARAGE_SEATS,
   GARAGE_SHELL,
   GARAGE_SPAN,
+  GLASS_CLEAR,
   POD_SEATS,
+  WALL_CLEAR,
   acrossFrom,
   garageSeat,
   garageSeats,
@@ -370,6 +373,96 @@ describe('nothing in the garage stands in anything else', () => {
         expect({ at: plot.name, inside: insideShell(GARAGE_SHELL, gx, gy) })
           .toEqual({ at: plot.name, inside: true })
       }
+    }
+  })
+})
+
+/**
+ * §7.8.0c [added 2026-09-02] — **the clearance gate.**
+ *
+ * The clash gate above asks whether two things are in the same place. This asks
+ * the question one step out: whether there is *room to walk* between a desk and
+ * the wall behind it. Non-overlap was already true when four of the five pods
+ * had their chairs a hand's width off the block, and the room looked like it —
+ * the canonical concept's whole read is open floor round the outside, and a pod
+ * that merely fails to intersect a wall does not produce that.
+ *
+ * It is the same argument as the clash gate and the same failure history: a
+ * property everyone agreed about in prose, checked by nobody, drifting one pod
+ * at a time. So it is measured, in tiles, against the walls the shell actually
+ * cuts — not against `GARAGE_SPAN`, which is a number this file could change
+ * without moving a wall.
+ */
+describe('every desk stands off every wall', () => {
+  /** The four inner faces, as (axis, coordinate, which side the room is on). */
+  const faces = [
+    { name: 'far-right (gy 0)', at: (p: ReturnType<typeof podPlot>) => p.gy0 },
+    { name: 'far-left (gx 0)', at: (p: ReturnType<typeof podPlot>) => p.gx0 },
+    { name: 'near-left (gy max)', at: (p: ReturnType<typeof podPlot>) => GARAGE_SPAN - p.gy1 },
+    { name: 'near-right (gx max)', at: (p: ReturnType<typeof podPlot>) => GARAGE_SPAN - p.gx1 },
+  ]
+
+  it('leaves a walking lane behind every pod on all four sides', () => {
+    for (const pod of GARAGE_PODS) {
+      const plot = podPlot(pod)
+      for (const face of faces) {
+        const gap = face.at(plot)
+        expect({ pod: pod.name, wall: face.name, clear: gap >= WALL_CLEAR })
+          .toEqual({ pod: pod.name, wall: face.name, clear: true })
+      }
+    }
+  })
+
+  /**
+   * And off the reclaimed glass, which is a wall as far as a chair is
+   * concerned. It gets its own smaller number ({@link GLASS_CLEAR}) because it
+   * is a partition inside one room rather than the edge of the building — but
+   * *some* number, because a pod flush against the corner's glazing was one of
+   * the four defects that started this.
+   */
+  it('leaves a lane off the leadership glass', () => {
+    for (const pod of GARAGE_PODS) {
+      const plot = podPlot(pod)
+      // The partition runs along `gy` at a fixed `gx`, so only pods whose `gy`
+      // band overlaps its run are behind it at all.
+      const behind = plot.gy0 < GARAGE_GLASS.to && plot.gy1 > GARAGE_GLASS.from
+      if (!behind) continue
+      expect({ pod: pod.name, clear: plot.gx0 - GARAGE_GLASS.at >= GLASS_CLEAR })
+        .toEqual({ pod: pod.name, clear: true })
+    }
+  })
+
+  /**
+   * The props are the *other* half of the same picture and take the opposite
+   * rule: a shelf, a workbench, a sofa and a bin all lean on a wall, and one
+   * standing out in the floor would read as having been dragged there. So every
+   * prop must touch a wall, which is the claim that keeps the perimeter band
+   * furniture and the middle band floor.
+   */
+  it('keeps every prop against a wall', () => {
+    const onAWall = (p: Plot) =>
+      p.gx0 <= 1e-9 ||
+      p.gy0 <= 1e-9 ||
+      p.gx1 >= GARAGE_SPAN - 1e-9 ||
+      p.gy1 >= GARAGE_SPAN - 1e-9
+    for (const prop of GARAGE_PROPS) {
+      // Against the block, or against something that is. The workbench stands
+      // in front of the tool board and the tool board is on the wall, which is
+      // how a workshop is actually arranged — so the rule is *the perimeter
+      // band*, one prop deep or two, and not literal contact with masonry.
+      const anchored =
+        onAWall(prop) ||
+        GARAGE_PROPS.some(
+          (other) =>
+            other !== prop &&
+            onAWall(other) &&
+            prop.gx0 < other.gx1 + 1e-9 &&
+            prop.gx1 > other.gx0 - 1e-9 &&
+            prop.gy0 < other.gy1 + 1e-9 &&
+            prop.gy1 > other.gy0 - 1e-9,
+        )
+      expect({ prop: prop.name, againstAWall: anchored })
+        .toEqual({ prop: prop.name, againstAWall: true })
     }
   })
 })

@@ -4403,6 +4403,77 @@ shallow solid along the whole frontage gives it a lit top and a shadowed face.</
 where you put a car if you are drawing a car and not a street. Nobody parks across their own roller
 shutter. Its long axis is the same floor axis the street wall runs on, so it lines up with the kerb
 by construction rather than by a tuned number.</p>
+<h6 id="which-opening-is-the-gate-2026-09-02">Which opening is the gate <strong>[CANON - added 2026-09-02]</strong></h6>
+<p>The shutter, the forecourt, the paving joints, the kerb, the parked car and the street lamp were
+all placed at <code>openings[0]</code> of the street wall. <strong>That is the side door.</strong>
+The array is written left to right along the frontage and the personnel door is to the gate's left,
+so every one of those objects assembled itself around a 1.1-tile doorway while the 4.8-tile vehicle
+opening was left as an unfilled hole — which is what a hole in the front of a building looks like,
+because that is what it was. The user's report was exact: <em>"the big opening at the front, that
+where the gate should be I want it fully rendered like in the concept art."</em></p>
+<p>The fix is not to change the index. An index is a fact about the order somebody typed the array
+in, and it will be wrong again the first time a third opening is added. <strong>The discriminator is
+that the vehicle door reaches the head of the wall and the personnel door does not</strong> — which
+is the same property §7.8.0b already uses to decide which opening gets a lintel. One property, two
+jobs, and they cannot disagree. <code>rollUpIn(runs)</code> is that question asked out loud.</p>
+<p>The same batch deleted the last copy of the doors' positions. <code>GARAGE_ROLLUP</code> and
+<code>GARAGE_SIDE_DOOR</code> were literals — <code>GARAGE_SPAN / 2 - ROLLUP_WIDTH / 2</code> and a
+bare <code>9.6</code> — while <code>garageShellRuns</code> computed both from the wall's own span at
+0.62 along it. The two agreed by arithmetic accident, and the accident held: <em>every test that
+asked where the gate is was asking the copy</em>, so none of them could ever have caught the gate
+moving. They are views on the shell now. The oil stain moved with them; it had been sitting at the
+wall's midpoint under a stretch of blank block since the gate went to 0.62.</p>
+<h6 id="desks-stand-off-every-wall-2026-09-02">The desks stand off every wall <strong>[CANON - added 2026-09-02]</strong></h6>
+<p>The canonical concept's floor has a walking lane behind the chairs on every side of every pod, and
+the perimeter band belongs to <em>props</em> — shelves, workbench, sofa, bin, boxes. The
+implementation had four of five pods within about a tile of the block, which passed the §7.8.0c clash
+gate because nothing actually intersected. <strong>Non-overlap is not clearance</strong>, and the
+difference is the whole read: a desk that merely fails to touch a wall still looks like it was pushed
+against it.</p>
+<p>So <code>WALL_CLEAR = 1.5</code> tiles — walking room <em>beyond</em> the chairs, since a pod's
+plot already includes them pulled out — and <code>GLASS_CLEAR = 1.0</code> off the leadership
+partition, which is smaller on purpose: the glass is a wall inside one room rather than the edge of
+the building, and the concept crowds it a little, because the pod in front of the corner is close
+enough that the founder can read its screens. That is why it is there.</p>
+<p><strong>[amends §7.8.0c, 2026-09-02: <code>GARAGE_SPAN</code> 14 → 16.]</strong> Not because the
+building grew but because the lane could not be honoured at fourteen. The corner takes 5.2 by 8.6 of
+it, the props take a tile off three walls, and what remained could not hold five pods <em>and</em> a
+lane behind them — the constraint is arithmetic, not taste. Sixteen is the smallest span at which it
+is satisfiable with these five pods, this corner and these props, which is the entire argument for
+the number. THE LONG TABLE came off the left wall (2.7 tiles clear now, the widest lane in the room
+and the one the route from the gate comes up) and THE TOOL WALL came off the workbench, so the board
+is something you can stand at.</p>
+<p>Six props were re-anchored to <code>GARAGE_SPAN</code> in the same edit, because
+<strong>a prop that leans on a wall has to move when the wall does</strong>. They were literal
+fourteens; the bike, the bin, the fridge, the kettle, the sofa and the crates would have been left
+standing in the street. This is the constant-inherited-by-another-room failure §7.8.0c records,
+arriving through the door marked "the room is a fixed size, so a literal is safe".</p>
+<p><strong>And it has a gate, because the user's complaint was about gating and not about
+instances</strong> — <em>"not happy with details capturing and gating"</em>. Three claims, in
+<code>garage.test.ts</code>: every pod is at least <code>WALL_CLEAR</code> from all four inner
+faces; every pod behind the glass is at least <code>GLASS_CLEAR</code> off it; and every prop touches
+a wall, or touches a prop that does — the workbench stands in front of the tool board, which is how a
+workshop is actually arranged, so the rule is <em>the perimeter band</em> and not literal contact
+with masonry. Together they pin the concept's composition rather than any one pod's coordinates:
+furniture round the outside, floor in the middle.</p>
+<h6 id="glass-full-height-and-a-sign-in-the-wall-2026-09-02">The suite's glass is full height, and its sign lies in the wall <strong>[amends §7.8.12, 2026-09-02]</strong></h6>
+<p>The suite's panes were 34 pixels at the end and 46 at the front, both hard-coded, in a room whose
+walls are about twice that — so <code>LEADERSHIP</code> was a glass box you could see over the top
+of. §7.8.12 defended the end pane as reading <em>"as a partition rather than as the room having been
+cut off"</em>. Both canonical concepts disagree: the office glazes leadership floor to soffit, and the
+garage's reclaimed corner is boarded to the height of the wall it leans on. <strong>Glass that stops
+short does not read as a lighter enclosure; it reads as an unfinished one.</strong> The height is the
+room's own <code>WALL_H</code> now, shared out of the rebuild rather than guessed, because
+<code>rebuildTeam</code> runs separately and had no way to ask — which is how it came to hold two
+numbers of its own in the first place.</p>
+<p><strong>The sign runs along the wall now, not across the screen.</strong> It was a horizontal board
+with horizontal lettering, which is the one orientation nothing else in this room uses: every surface
+here lies in the floor plane or rises out of it, and a flat label pinned over them reads as
+<em>interface</em> — the exact confusion §7.8.12 was trying to avoid when it argued that a sign over a
+door is architecture. So the group is sheared onto the glass's own screen slope. The front glass runs
+along <code>col</code> at a fixed row, and one column step moves 32 px left and 16 down, so that slope
+is &minus;0.5: the projection's only legal value for a line lying in this plane, and the same number
+<code>test:room</code> checks every wall against.</p>
 <h6 id="the-street-is-shown-by-widening-the-frame">The street is shown by widening the frame, not by extending the box</h6>
 <p>Two attempts extended the fit's <code>maxCol</code> over the apron, at 3.4 columns and then 2.0,
 and both were wrong the same way: <strong>the apron is on one side only, so adding it moves the

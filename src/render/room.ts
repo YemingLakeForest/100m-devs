@@ -76,6 +76,7 @@ import {
   garageLaneLines,
   garageSeat,
   garageShellRuns,
+  rollUpIn,
 } from './garage.ts'
 import {
   PLAN_AMENITIES,
@@ -3644,6 +3645,22 @@ export function buildRoom(): RoomHandle {
    * headcount there would answer for a different room than the one on screen.
    */
   let drawnGarage = false
+  /**
+   * §7.8.12 [amended 2026-09-02] — **the height the suite's glass is drawn at.**
+   *
+   * The room's own wall height, shared out of `rebuild` because `rebuildTeam`
+   * runs separately and had no way to ask. It used two hard-coded numbers
+   * instead — 34 for the end pane and 46 for the front — which were a partition
+   * in a room whose walls were about twice that, so the executive suite was a
+   * glass box you could see over the top of.
+   *
+   * That was defended as reading "as a partition rather than as the room having
+   * been cut off". Both canonical concepts disagree: `LEADERSHIP` is glazed
+   * floor to soffit in the office and the garage's reclaimed corner is boarded
+   * to the same height as the wall it leans on. Glass that stops short does not
+   * read as a lighter enclosure — it reads as an unfinished one.
+   */
+  let drawnWallH = 46
   /** §13.11.1 — what the decal layer currently shows, as a comparable key. */
   let coverageDrawnFor = coverageKey(new Map())
   /** §7.8.8 — the selected seat, and the spin's clock. */
@@ -3818,13 +3835,14 @@ export function buildRoom(): RoomHandle {
       // The east end — the only wall the suite builds for itself on that side,
       // and the one that moves. Half height, so it reads as a partition rather
       // than as the room having been cut off.
-      pane(east, SUITE_WALL_ROW, east, SUITE_GLASS_ROW, 34)
+      // Full height, floor to soffit — see {@link drawnWallH}.
+      pane(east, SUITE_WALL_ROW, east, SUITE_GLASS_ROW, drawnWallH)
       // The front, in two runs with the doorway between them. The door is on
       // the floor's grid too: it opens onto plot (0, 0) — the head of row 0,
       // which `suiteSeats` holds empty precisely so that it can.
-      pane(SUITE_WEST_COL, SUITE_GLASS_ROW, -SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, 46)
+      pane(SUITE_WEST_COL, SUITE_GLASS_ROW, -SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, drawnWallH)
       if (east > SUITE_DOOR_COLS / 2) {
-        pane(SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, east, SUITE_GLASS_ROW, 46)
+        pane(SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, east, SUITE_GLASS_ROW, drawnWallH)
       }
 
       /*
@@ -3841,8 +3859,25 @@ export function buildRoom(): RoomHandle {
        * word in this room is the same eleven pixels tall, so anything sharing
        * their band collides with them.
        */
+      /*
+       * **The sign runs along the wall, not across the screen.** [2026-09-02]
+       *
+       * It was a horizontal board with horizontal lettering, which is the one
+       * orientation nothing else in this room uses: every surface here lies in
+       * the floor plane or rises out of it, and a flat label pinned over them
+       * reads as interface rather than as architecture — the exact confusion
+       * §7.8.12 was trying to avoid by calling the sign architecture in the
+       * first place.
+       *
+       * So the whole group is sheared onto the glass's own screen slope. The
+       * front glass runs along `col` at a fixed row, and one column step moves
+       * 32 px left and 16 down, so that slope is −0.5 — the projection's only
+       * legal value for a line lying in this plane, and the same number
+       * `test:room` checks every wall against.
+       */
       const door = isoAt(0, SUITE_GLASS_ROW + SUITE_SIGN_OUT)
       signGroup = group(door.x, door.y - 62)
+      signGroup.skew.y = Math.atan(-0.5)
       signGroup.addChild(
         new Graphics()
           .roundRect(-38, -9, 76, 18, 2)
@@ -4626,6 +4661,9 @@ export function buildRoom(): RoomHandle {
     // than the founder's clearance deserves at low headcounts while still
     // rising to the full cap once the open plan is out.
     const WALL_H = Math.max(34, Math.min(unfolded ? 210 : 112, floorH * 0.48))
+    // §7.8.12 — the suite's glass is drawn to the room's own wall height, and
+    // `rebuildTeam` runs separately, so the number is shared rather than guessed.
+    drawnWallH = WALL_H
 
     /*
      * §7.8.0b/§7.8.0c — **the garage gets four thick walls; the office floor
@@ -4674,7 +4712,7 @@ export function buildRoom(): RoomHandle {
         right: RAMPS.NEUTRAL[3],
       }
       const runs = garageShellRuns(-halfBack, -halfAcross, halfBack, halfAcross)
-      const door = runs.find((r) => r.edge === 'near-left')?.openings?.[0]
+      const door = rollUpIn(runs)
 
       /*
        * **Block courses**, and they are not texture. §7.8.0c.
@@ -4872,7 +4910,10 @@ export function buildRoom(): RoomHandle {
       // mark that names the room a garage before the door is even read. Drawn
       // here rather than with the slab so it lands in the plan's frame with
       // everything else.
-      const oil = onPlan(GARAGE_SPAN / 2, GARAGE_SPAN - 2.6)
+      // At the gate's own `gx`, not the wall's midpoint: the door moved to 0.62
+      // along the frontage and the stain stayed at the middle, so the room had a
+      // car's worth of oil under a stretch of blank block.
+      const oil = onPlan(GARAGE_SPAN * 0.62, GARAGE_SPAN - 2.6)
       shell.ellipse(oil.x, oil.y, 52, 26).fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.42 })
       shell.ellipse(oil.x + 16, oil.y + 7, 20, 10).fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.3 })
 
