@@ -346,9 +346,31 @@ const NIGHT_FOLIAGE = [0, 1].map((i) =>
 )
 const NIGHT_TRUNK = mixHex(RAMPS.WOOD[0], RAMPS.NEUTRAL[0], 0.6)
 
+/**
+ * **The same argument, one street lamp less extreme.** [2026-09-03]
+ *
+ * {@link NIGHT_FOLIAGE} is for the rear band, where nothing is lighting the
+ * trees at all. The kerb's planters *are* lit — that is why they are green in
+ * the concept and why the `dim` flag exists — but they were taking `FOLIAGE`
+ * raw, which is a daylight green, and a sodium lamp is not daylight.
+ *
+ * Measured across the whole frame: every pixel where green leads both other
+ * channels averages **(49,66,40)** in the concept and **(61,96,57)** here, and
+ * covers 0.42% of the concept against 1.17% of ours. So the planters were both
+ * brighter than the concept's greenery and there was nearly three times as much
+ * of it — the two errors compounding into the loudest hue on the frontage.
+ *
+ * The same two-mix recipe as the night band at gentler settings: warm first,
+ * because a lamp is warm and warmth is what keeps this from going grey-green,
+ * then a step of value. Lands the pair on a mean of about (48,63,37).
+ */
+const LAMPLIT_FOLIAGE = [0, 1].map((i) =>
+  mixHex(mixHex(RAMPS.FOLIAGE[i], RAMPS.WARN[0], 0.35), RAMPS.NEUTRAL[0], 0.2),
+)
+
 function tree(g: Graphics, p: Project, gx: number, gy: number, s: number, dim = false) {
-  const leaf1 = dim ? NIGHT_FOLIAGE[1] : RAMPS.FOLIAGE[1]
-  const leaf0 = dim ? NIGHT_FOLIAGE[0] : RAMPS.FOLIAGE[0]
+  const leaf1 = dim ? NIGHT_FOLIAGE[1] : LAMPLIT_FOLIAGE[1]
+  const leaf0 = dim ? NIGHT_FOLIAGE[0] : LAMPLIT_FOLIAGE[0]
   const bark = dim ? NIGHT_TRUNK : RAMPS.WOOD[0]
   const shade = dim ? RAMPS.NEUTRAL[0] : RAMPS.NEUTRAL[1]
   isoSolid(g, p, gx + 0.19 * s, gy + 0.19 * s, 0, 0.13 * s, 0.13 * s, 0.32 * s,
@@ -810,7 +832,15 @@ function planter(g: Graphics, p: Project, gx: number, gy: number, w: number, d: 
  * is also what makes the rhythm read as a rhythm.
  */
 export function bushPlanter(g: Graphics, p: Project, gx: number, gy: number, dim = false) {
-  const W = 0.92
+  /*
+   * **Smaller** [2026-09-03]. At 0.92 with a half-tile bush and a crown on top
+   * these were shrubs the size of a person, three to a lamp, along two visible
+   * kerbs. The concept's are low tubs you could step over. Cutting the
+   * footprint and the crown takes the lit greenery from 1.17% of the frame
+   * toward the concept's 0.42% without touching §7.8.0c's authored rhythm,
+   * which is the part that is gated and the part that is right.
+   */
+  const W = 0.74
   // `dim` is the rear band's shrub: behind a wall, in the dark, keyed like the
   // trees beside it. The kerb's planters keep their colour — they stand under a
   // street lamp, which is the whole reason they are green in the concept.
@@ -819,13 +849,13 @@ export function bushPlanter(g: Graphics, p: Project, gx: number, gy: number, dim
     : { top: RAMPS.NEUTRAL[3], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] }
   const leaf = dim
     ? { top: NIGHT_FOLIAGE[1], left: NIGHT_FOLIAGE[0], right: RAMPS.NEUTRAL[0] }
-    : { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[0], right: RAMPS.NEUTRAL[1] }
-  isoSolid(g, p, gx, gy, 0, W, W, 0.46, tub)
-  isoSolid(g, p, gx + 0.08, gy + 0.08, 0.46, W - 0.16, W - 0.16, 0.5, leaf)
+    : { top: LAMPLIT_FOLIAGE[1], left: LAMPLIT_FOLIAGE[0], right: RAMPS.NEUTRAL[1] }
+  isoSolid(g, p, gx, gy, 0, W, W, 0.4, tub)
+  isoSolid(g, p, gx + 0.07, gy + 0.07, 0.4, W - 0.14, W - 0.14, 0.4, leaf)
   // The crown gets the ramp's own two greens the other way up — `FOLIAGE` has
   // exactly two entries and there is no third to reach for, which is the master
   // palette doing its job rather than a limitation to work around.
-  isoSolid(g, p, gx + 0.24, gy + 0.24, 0.96, W - 0.48, W - 0.48, 0.3, {
+  isoSolid(g, p, gx + 0.2, gy + 0.2, 0.8, W - 0.4, W - 0.4, 0.22, {
     top: leaf.top,
     left: leaf.top,
     right: leaf.left,

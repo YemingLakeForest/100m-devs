@@ -162,6 +162,29 @@ Still open:
 - the **near walls' outer faces have no courses at all** and read as painted
   panels. They are the same masonry as the rear walls and must show it.
 
+### 4b. The frontage was lavender — found and closed 2026-09-03
+
+**Not in the original list, and the largest colour error left in the frame when
+it was found.** The near walls, the piers, the forecourt and the kerb were drawn
+straight off `NEUTRAL`, and `NEUTRAL` is not neutral — `#241f2e` is a
+violet-grey. Measured on v9's near-left wall face: (42,33,28), (34,24,19),
+(29,24,20). Ours: (36,31,46) and (58,50,68). *Same value, opposite side of the
+hue axis*, across about a third of the frame. The footway was the same story.
+
+Two things worth carrying forward:
+
+1. **A value gate cannot fail on hue.** `garage.test.ts`'s brightness-ordering
+   suite exists for exactly this class of defect and compares *indices on one
+   ramp*, so two surfaces of identical value and opposite hue are the same
+   number to every claim in it. The new claim asserts the property directly —
+   red leads blue.
+2. **A claim is only as canonical as the picture it was measured against.** The
+   test that said the street stays cool was anchored on
+   `garage-layout-concept-20-devs-v1.png`. v1 is not the canonical concept. When
+   a reference image is superseded, every number taken off the old one is
+   provisional until it has been taken again — *including the ones sitting green
+   in a test suite*.
+
 ### 5. The leadership room — mostly closed 2026-09-03
 
 Closed:
@@ -247,12 +270,16 @@ opposite hat.*
 Bay joints strengthened and the cable runs thickened, both judged against v9 with
 the CRT off. Done as part of item 7's work, since they are the same surface.
 
-### 9. Camera
+### 9. Camera — withdrawn 2026-09-03, unsupported
 
-The building fills 79% of the frame's width against the concept's ~88%, and sits
-higher, so the rear band takes more of the picture than it should. Close some of
-that gap **without** losing full shell-and-pier containment at 1664×936 and
-997×448, which is gated and must stay true.
+The claim was that the building fills 79% of the frame's width against the
+concept's ~88%. Measured, both are **77.3%**: our shell spans x 189..1475 of
+1664 (`__room().screen.shell`), and the concept's vertices sit at x 176 and 1468
+of 1672. The bottom vertices are within 22px of each other and the side vertices
+within 13px and 7px. The framing already matches.
+
+That makes six eyeball findings in this list disproved by measurement, against
+three confirmed. The instrument is the crop *and a sampler*, not the crop alone.
 
 ## Non-negotiable — do not regress these
 
