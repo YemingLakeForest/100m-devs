@@ -101,6 +101,7 @@ import { roomSeatMarks, type RoomPosting, type SeatMark } from './heroBadges.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
+import { getViewModes, onViewModes } from '../dev/viewModes.ts'
 import { getSimSpeed } from '../dev/simSpeed.ts'
 import {
   capForLevel,
@@ -363,8 +364,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       : new Set(ALL_PASSES)
 
   const post = createPostProcess({ reduceMotion, passes })
-  if (post.worldFilters.length > 0) world.filters = post.worldFilters
-  if (post.filters.length > 0) glass.filters = post.filters
+  /*
+   * §7.6a [2026-09-03] — **the glass goes on and comes off live.**
+   *
+   * `?nopost` decided this once, at load, which meant answering "is that haze
+   * the bloom or is the wall really that colour?" cost a reload — and a reload
+   * throws away the studio you were looking at. The passes are built either
+   * way; attaching them is one assignment, so the switch is free and the chain
+   * is never rebuilt.
+   */
+  const applyGlass = () => {
+    const on = getViewModes().crt
+    world.filters = on ? post.worldFilters : []
+    glass.filters = on ? post.filters : []
+  }
+  applyGlass()
+  const stopWatchingModes = onViewModes(applyGlass)
 
   const scene = buildScene(app.renderer)
   const { floor, room, building } = scene
@@ -2039,6 +2054,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
      * The lens holds it as a bound now; see `Lens.setCeiling`.
      */
     camera.setCeiling(maxZoomFor(state.devs) * 9)
+    // §7.2 — and whether that ceiling, the settle and the inner stop apply at
+    // all. Told every frame rather than subscribed to, for the reason the
+    // ceiling above is: one statement of the camera's rules per frame, in the
+    // one place that already makes all the others.
+    camera.setFreeZoom(getViewModes().freeZoom)
     camera.update(dt, now)
 
     currentLevel = camera.level
@@ -2658,6 +2678,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       tallies.destroy()
       void music.unload()
       typeset.destroy()
+      stopWatchingModes()
       post.destroy()
       app.destroy(true, { children: true })
     },

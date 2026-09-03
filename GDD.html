@@ -4067,6 +4067,22 @@ fixture may carry later progression state for other tests, but the garage render
 five heroes out rather than turning the first room into a preview of the whole cast. Its strongest
 capture therefore proves two independent counts: twenty ordinary developers across five pods, and
 exactly two non-capacity occupants behind the glass.</p>
+<h6 id="two-switches-for-looking-at-the-scene">Two switches for looking at the scene <strong>[CANON - added 2026-09-03]</strong></h6>
+<p>§7.8.0c is converged by comparing pictures, and the two things that most obstruct that comparison
+are §7.6a's post chain and §7.2's magnetic stops. Both are right for play and both are wrong for
+inspection, so both are now switches rather than constants — <code>C</code> takes the CRT glass off
+and <code>V</code> takes the camera off its rails. <code>?nopost</code> still works and is read as the
+switch's <em>initial value</em>, which is the same move <code>simSpeed.ts</code> made for
+<code>?speed</code>: a flag that can only be set at load costs a reload to answer a question, and a
+reload throws away the studio you wanted to look at.</p>
+<p>Free zoom takes three things off together, because they are one idea: the magnetic settle, §7.7.1's
+zoom ceiling, and the inner stop a little past the desk. The settle is the one that actually matters —
+the clamp only bites at the ends of the ladder, but the settle takes the camera off whatever you
+pointed it at about a second after you get there. The pan bounds are deliberately <em>not</em> lifted;
+they keep the camera over the studio, which is a help while inspecting rather than a restriction.</p>
+<p>Both are behind <code>DEBUG_TOOLS_ENABLED</code>, and free zoom especially: §7.7.1's rule is that
+the studio you can see is the studio you have, and a build that let a player past it would be telling
+them the world is a backdrop they are pointing at.</p>
 <h6 id="the-doorway-is-inside-the-room">The doorway is a position in the room, not a plot on the floor <strong>[CANON - added 2026-09-03]</strong></h6>
 <p>§7.8.12 put the suite's doorway at floor plot <strong>0</strong>, absolutely, and that was correct
 for as long as the suite was never narrower than about four plots. §7.8.0c's garage cast is two:

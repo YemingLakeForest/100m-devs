@@ -296,6 +296,20 @@ export class Lens {
    * its own — a test, a bench — is not silently pinned to a desk.
    */
   private ceiling: Level = TOP_LEVEL
+  /**
+   * §7.2 [added 2026-09-03] — **the rails, off.** See `dev/viewModes.ts`.
+   *
+   * Three behaviours go with it and they are one idea: the camera stops
+   * settling onto a rung, stops being held to §7.7.1's ceiling, and may be
+   * pushed a long way past the desk. Each is right for play and each is exactly
+   * wrong for looking at the scene, which is the only thing this is for — the
+   * switch is behind `DEBUG_TOOLS_ENABLED` and a shipped build cannot reach it.
+   *
+   * The pan bounds are deliberately *not* lifted. They keep the camera over the
+   * studio rather than over empty space, which is a help while inspecting
+   * rather than a restriction on it.
+   */
+  private free = false
 
   constructor(viewport?: Viewport) {
     if (viewport) this.viewport = viewport
@@ -561,7 +575,22 @@ export class Lens {
 
   /** The furthest-out scale §7.7.1 allows, for the frames as they are now. */
   private ceilingScale(scales = this.scales()): number {
-    return scaleAtLevel(this.ceiling, scales)
+    // With the rails off there is no ceiling to hold: the far stop becomes the
+    // outermost frame the ladder can express rather than the rung the studio
+    // has earned. `TOP_LEVEL` rather than zero, so the pan bounds and the
+    // level readout still have a finite scale to work from.
+    return scaleAtLevel(this.free ? TOP_LEVEL : this.ceiling, scales)
+  }
+
+  /** §7.2 — take the camera off its rails, or put it back on them. */
+  setFreeZoom(on: boolean): void {
+    if (on === this.free) return
+    this.free = on
+    // A camera that was being held at the ceiling when the rails came off is
+    // already where it should be; one that has the rails put back on is not,
+    // and `update` corrects it on the next frame through the same hold that
+    // exists for the ceiling coming down on a new career.
+    this.dirty = true
   }
 
   /**
@@ -784,7 +813,20 @@ export class Lens {
     // Out stops at §7.7.1's ceiling and in stops a little past the desk. A
     // hard stop rather than a rubber band, because a zoom that travels and then
     // springs back is the thing the settle was just taught not to do.
-    const next = clamp(this._scale * factor, this.ceilingScale(scales), scales[DESK] * 1.6)
+    /*
+     * Out stops at §7.7.1's ceiling and in stops a little past the desk. A
+     * hard stop rather than a rubber band, because a zoom that travels and then
+     * springs back is the thing the settle was just taught not to do.
+     *
+     * With the rails off, in goes a great deal further — the inner stop is
+     * about looking at a person's face rather than about anything the game
+     * needs — and out is the whole ladder.
+     */
+    const next = clamp(
+      this._scale * factor,
+      this.ceilingScale(scales),
+      scales[DESK] * (this.free ? 24 : 1.6),
+    )
     if (focal) {
       const moved = anchorCentre(
         { cx: this._cx, cy: this._cy },
@@ -865,7 +907,11 @@ export class Lens {
       }
     }
 
-    if (this.target === null && now - this.idleSince > SETTLE_DELAY_MS) {
+    // **No magnetic stop with the rails off.** This is the half of free zoom
+    // that is actually asked for: the clamp only bites at the ends of the
+    // ladder, but the settle takes the camera off whatever it was pointed at
+    // about a second after it gets there.
+    if (!this.free && this.target === null && now - this.idleSince > SETTLE_DELAY_MS) {
       // **The magnetic stop.** Nothing between two levels is a picture of
       // anything, so the camera is never left there.
       // Held to the ceiling: `settleTowards` promises a gesture at least one

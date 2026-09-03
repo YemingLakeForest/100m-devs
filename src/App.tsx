@@ -40,6 +40,7 @@ import {
 import { THREAD } from './sim/events.ts'
 import ScenarioBar from './dev/ScenarioBar.tsx'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from './dev/debugAccess.ts'
+import { installViewModeKeys } from './dev/viewModes.ts'
 import { SCENARIOS_UP, applyScenario, scenarioById, scenarioRung } from './game/scenarios.ts'
 import { zAtRung } from './sim/ladder.ts'
 import { launchHit } from './sim/release.ts'
@@ -98,6 +99,18 @@ export default function App() {
   useEffect(() => {
     if (!SKIP_TITLE) markBooted()
   }, [])
+
+  /*
+   * §7.6a / §7.2 — **the two switches for looking at the scene**: `C` takes the
+   * CRT glass off and `V` takes the camera off its rails.
+   *
+   * Installed here rather than in `ScenarioBar` because that bar is behind
+   * `?scenarios` and is a tool for choosing a *headcount*; these are tools for
+   * looking at whatever is already on screen, and the moment you want them is
+   * the moment you are already looking at something. `installViewModeKeys` is
+   * a no-op outside an authorised local session — see `dev/debugAccess.ts`.
+   */
+  useEffect(() => installViewModeKeys(), [])
 
   useEffect(() => {
     stage?.setFounderProfile(founderProfile ?? DEFAULT_FOUNDER)
