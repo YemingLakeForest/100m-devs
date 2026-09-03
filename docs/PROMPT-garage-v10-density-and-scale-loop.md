@@ -123,18 +123,19 @@ the pixel extent of the same object in both images first, and remember that the
 two cameras are not at the same scale. If a resize is still warranted after
 measuring, state the measurement in the commit.
 
-### 3. Workstation proportions
+### 3. Workstation proportions — withdrawn 2026-09-03, unsupported
 
-In v9 a four-person table is a **broad timber slab** with generous surface
-between the two facing rows, and the monitors are modest objects standing on it.
-In the render the table is narrow, the monitors are large enough to dominate both
-the table and the people, and adjacent pods visually collide.
+**This entry claimed the render's tables were narrow and its monitors dominated
+them. Measured, both halves are false.** A four-person table is 191px wide in the
+render against 192px in v9, and the ratio of screen height to table width is 0.35
+in the render against 0.31 in v9 — a difference of four points, in the direction
+of *slightly* larger screens, on an object the eye cannot compare across two
+pictures.
 
-- Widen the table; shrink the monitor relative to it and to the body.
-- The silhouette to aim for is *four people at a table*, not *four monitors with
-  people behind them*.
-- Recheck pod separation afterwards — the current spacing was set against the old
-  proportions.
+That is the third eyeball finding in this list to die on contact with a
+measurement, and the reason the warning at the top of the file is there. Nothing
+to do; kept rather than deleted, because a withdrawn claim is worth more to the
+next loop than a missing one — it says this ground has been checked.
 
 ### 4. Wall material — partly done, and partly mis-stated
 
@@ -161,21 +162,41 @@ Still open:
 - the **near walls' outer faces have no courses at all** and read as painted
   panels. They are the same masonry as the rear walls and must show it.
 
-### 5. The leadership room
+### 5. The leadership room — mostly closed 2026-09-03
 
-- Its footprint is too large for two people: half the room is empty floor. Size
-  it to the two desks plus a walking lane.
-- The rug is a thin strip under one desk. v9's covers the room's floor under
-  both desks, dark warm red with a border.
-- It has no interior furniture. v9 has a whiteboard, a small cabinet or shelf and
-  a plant, all inside the glass.
-- The `LEADERSHIP` sign is large, cyan, and now competes with the two name
-  plates in a room a quarter of the size it was designed for. §7.8.12 keeps the
-  sign — it is §13.11.2's roster door and must stay tappable — so make it
-  smaller and quieter rather than removing it, and keep it clear of both heads
-  and both labels.
-- The glass tint is applied across the room's whole floor area and reads as a
-  fish tank. Tint the **panes**, not the volume.
+Closed:
+
+- the footprint, which was sized for a seven-plot suite and is now sized for the
+  two people actually in it (`gy 0..3.4` by `gx 0..4.9`);
+- the rug, which now covers the box floor and wears the concept's **double gold
+  border and centre panel** instead of three stripes. A stripe crossing a
+  rhombus at one screen slope is indistinguishable from a floor joint, and the
+  slab underneath already has those;
+- the glass. Measured: the concept's floor is (55,33,21) outside its glass and
+  (55,24,21) inside — no shift at all — where ours went (50,35,27) to
+  **(41,51,64)**. The `GLOW[0]` wash drops from 0.44 to 0.12 and the pane keeps
+  the three marks that carry the read: dark frame, bright head rail, sky in the
+  top third;
+- the **floor plate**, which was not in the original list and should have been.
+  `NEUTRAL[1]` at 0.72 is a second material — cool and dark, laid on a warm
+  slab — so the corner read as a platform somebody built. The concept's floor is
+  one unbroken pour, (57,34,22) inside against (60,36,22) outside. A garage does
+  not re-floor a corner it fenced off last week;
+- the sign, which keeps its 76×18 tap target (§13.11.2's roster door) and loses
+  a step of phosphor instead. `GLOW[2]` lettering over a `GLOW[2]` bar, in a room
+  that also carries `YOU`, `JAMES` and a desk plate, was four cyan words inside
+  forty pixels.
+
+**Withdrawn**: the desks. Measured, the widest timber run is 21px against the
+concept's 22, at (150,104,63) against (130,77,48). They were never small.
+
+Still open:
+
+- **interior furniture.** v9 has a dark cabinet or shelf against the back wall
+  inside the glass. Ours has nothing but two desks.
+- **the door leaf.** v9's opening carries a hinged glass door with a dark frame
+  and a handle, standing open. Ours is a gap. The code's comment claims the
+  concept shows a gap; it does not — check the crop before believing it.
 
 ### 6. Rear neighbourhood
 
@@ -183,25 +204,48 @@ Closed on 2026-09-03: every tree's crown carried a `NEUTRAL[4]` top face —
 measured (115,101,121) — which is a highlight when a tree is one object across a
 road and a field of pale lilac dots when the band is dense. It is foliage now.
 
-Still open:
+Also closed on 2026-09-03, and the largest colour error left anywhere in the
+scene: the canopies themselves drew `FOLIAGE[1]` — rgb(76,122,69) — against a
+concept canopy of rgb(26,27,15). **Four and a half times too bright.** Ours now
+measure (37,38,27). The trees grew with it, from 1.35+0.55·rnd to 1.9+0.7·rnd,
+against a measured concept canopy of ~1.07 tiles wide by 2.8 tall. And the
+buildings behind them: `DIM_FACADES` and the dim parapet both took `NEUTRAL[2]`,
+measured (58,50,68) where the concept's rear roofs are (11,8,14) — so the largest
+shapes in the band were also the palest. Now (20,18,26).
 
-- the trees are too small and too sparse. v9's canopy is dense and reaches the
-  wall; the buildings behind are mostly hidden by it.
+**A note on the method, because this one nearly went wrong too.** The first
+measurement of this region said v9 had 0.1% foliage — less than ours — which
+would have made the entry backwards. The detector was wrong, not the concept:
+it tested `g > 40`, and v9's trees are a dark olive that fails it. Re-measured
+with a threshold that admits the actual colour, v9 has the denser band by a wide
+margin. *A measurement is only worth what its threshold is worth*, and a
+detector tuned on the render will always flatter the render.
 
-### 7. Lighting
+### 7. Lighting — closed 2026-09-03, and one claim in it was wrong
 
-- The pod pools are too weak: the concrete between pods is nearly the value of
-  the concrete inside them, so the five teams do not separate.
-- There is no warm light on the workshop wall. v9's wall lamp and pendant throw
-  a real pool onto the tool board and the bench.
-- Judge all of this with the CRT off first, then confirm with it on.
+"The pod pools are too weak" was **not** what the measurement showed: the pools
+peak at p95 150 in the render against 139 in v9, and the pool-to-floor ratio is
+about 1.9 in both. The teams did not separate for a different reason — the floor
+had no *bottom* quartile. v9's slab spans a dark that ours never reached, so
+every pool sat on ground of nearly its own value even though the pools were
+right.
 
-### 8. Floor
+Closed: three fading perimeter bands and a light global wash give the slab its
+dark end back; per-bay tonal variation over a 4×4 grid stops it being one value;
+the pools were left almost alone (0.13/0.22/0.18). A wall lamp and its wash went
+onto the workshop wall with the rest of item 1's dressing.
 
-- The pour bays are faint. v9's are strong dark joints dividing the slab into
-  large squares, and they are a primary read.
-- The cable runs are barely visible. v9's are thick dark leads snaking across the
-  quiet floor.
+**And a warning for the next loop.** The first attempt at this laid a 0.3 global
+wash over the whole slab because a histogram said the floor was too bright. It
+moved p50 from 58 to 47, matched the target, and produced spotlights on a black
+floor. The number was met and the picture was worse. *Trusting a statistic over
+the image is the same error as trusting the eye over a measurement, wearing the
+opposite hat.*
+
+### 8. Floor — closed 2026-09-03
+
+Bay joints strengthened and the cable runs thickened, both judged against v9 with
+the CRT off. Done as part of item 7's work, since they are the same surface.
 
 ### 9. Camera
 

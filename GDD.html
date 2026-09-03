@@ -4108,6 +4108,52 @@ over a door hangs from the head of the opening.</p>
 absolute coordinate inside a container whose size is a function of content will be correct until the
 content shrinks.</strong> The suite's east wall moves with the roster; the doorway had to move with
 it and did not.</p>
+<h6 id="nothing-is-painted-at-its-own-highlight">Nothing is painted at the value of its own highlight <strong>[CANON - added 2026-09-03]</strong></h6>
+<p>The v9 loop ended with every gate green and a scene that was still visibly not the concept, and
+the v10 pass found out why: <strong>every gate in the stack asserts a relationship</strong> —
+non-overlap, containment, ratio, ordering, determinism, reachability — <strong>and none asserts a
+size, a density or a material</strong>. A wall furnished to a fifth of its height, a mortar joint a
+quarter of a step darker than its brick, and a tree wearing a pale grey cap all pass everything.</p>
+<p>What the measurements then found, over and over, was <em>one</em> mistake with six faces. Each of
+these was a surface painted at the value it would have had <em>if something were lighting it</em>,
+in a scene where nothing is:</p>
+<ul>
+<li>the corner piers, pale against a dark shell;</li>
+<li>the conduit and its drops, bare <code>NEUTRAL</code> reading as a lilac band at head height —
+measured (85,73,94) on a wall of (64,47,40);</li>
+<li>every tree's crown, capped in <code>NEUTRAL[4]</code> — (115,101,121);</li>
+<li>the rear canopies themselves, <code>FOLIAGE[1]</code> at (76,122,69) where the concept's are
+(26,27,15): <strong>four and a half times too bright</strong>, and the largest colour error found
+anywhere in the room;</li>
+<li>the rear roofs, <code>NEUTRAL[2]</code> at (58,50,68) against (11,8,14) — so the biggest shapes
+behind the building were also its palest;</li>
+<li>the garage casements, a flat <code>GLOW[1]</code> at (74,143,168), which measurement showed to be
+the concept window's <em>brightest pixel</em> (its average is (38,72,91)), painted edge to edge.</li>
+</ul>
+<p>The rule that falls out of it, and the reason it is canon rather than six fixes: <strong>a surface
+gets the value of what is lighting it, and most surfaces in this room are lit by nothing.</strong>
+Brightness is reserved. The corollary is the one that keeps catching us — <em>a body is not a
+highlight</em>: a window is dark where it shows a dark room and bright only in the band that shows
+the sky, and painting the whole sheet at the bright value is how a casement becomes the loudest
+object on a masonry wall.</p>
+<p>Glass gets its own line, because it went wrong in both directions inside a week. §7.8.1e already
+says the glazing does not take the room's key. The garage's partition was first drawn as a pale wire
+cage, then over-corrected to a <code>GLOW[0]</code> wash at 0.44 — measured, the floor behind it went
+from (50,35,27) to (41,51,64), forty points of blue, and the leadership corner read as an aquarium.
+The concept's floor is (55,33,21) outside its glass and (55,24,21) inside: <strong>no shift at
+all</strong>. What says <em>glass</em> is three marks and no wash — a dark frame, a bright head rail,
+and the sky caught in the top third of the sheet.</p>
+<p><strong>And the method matters as much as the values.</strong> Five findings in the v10 list were
+made by eye, looked obvious, and were false when measured: the fridge (within a tenth of the
+concept's size), the mortar (darker than its brick, not lighter, just not by enough), the pod pools
+(p95 150 against 139), the pod tables (191px against 192px), and the leadership desks (a 21px timber
+run against 22). One measurement was <em>also</em> wrong, which is the sharper lesson: a foliage
+detector thresholded at <code>g &gt; 40</code> reported that the concept had less greenery than the
+render, because the concept's trees are a dark olive that fails it. <em>A measurement is only worth
+what its threshold is worth, and a detector tuned on the render will always flatter the render.</em>
+One over-correction went the other way: a 0.3 wash laid on the slab because a histogram asked for it
+hit the target p50 exactly and produced spotlights on a black floor. Trusting a statistic over the
+image is the same error as trusting the eye over a measurement, wearing the opposite hat.</p>
 <h6 id="what-devs-20-cost">What <code>DEVS 20</code> cost, and what it bought <strong>[CANON - added 2026-09-03]</strong></h6>
 <p>The counter read twenty-one, and it was not a rounding error. §7.8.12 held studio seat 0 for James
 so that no body would be drawn standing in the suite's doorway — the right answer to the question it
