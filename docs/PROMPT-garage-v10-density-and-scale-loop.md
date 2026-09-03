@@ -31,8 +31,17 @@ what they cover:
 - every gate asserts a **relationship** — non-overlap, containment, ratio,
   ordering, determinism, reachability;
 - **no gate asserts a size**, a density or a material;
-- so a fridge twice as tall as a person, a wall furnished to a fifth of its
-  height, and mortar lighter than its own brick all pass everything.
+- so a wall furnished to a fifth of its height, a mortar joint a quarter of a
+  step darker than its brick, and a tree with a pale grey cap on it all pass
+  everything.
+
+**And the same blindness applies to reading a screenshot.** Two of the nine
+findings in the first draft of this list were wrong, both from judging a
+side-by-side by eye: the fridge was said to be twice the size it should be
+(measured, it is within a tenth), and the mortar was said to be lighter than its
+brick (measured, it was darker, just not by enough). Both are corrected in place
+below. **Measure before changing, and say what you measured** — a wrong number
+in a prompt propagates further than a wrong pixel in a render.
 
 A defect was also found by a human looking at a screenshot and asking *"why is
 James in two places?"* — the suite's doorway had fallen outside a room that had
@@ -92,16 +101,27 @@ at its end. The render has a stick-legged table with three small objects on it.
 - Everything stays simple cuboids and short line details (§7.8.0c). Do not import
   richer art than the live game draws.
 
-### 2. Prop scale against a person
+### 2. Prop *detail*, not prop scale — corrected 2026-09-03
 
-Measured against the concept, the render's fridge is about twice the height it
-should be relative to a developer, and the bin about twice. The cardboard boxes
-are pale featureless slabs where v9's are darker, with visible flaps and tape.
+**This entry originally said the fridge was about twice the size it should be.
+It is not, and the correction is the more useful finding.** Measured by pixel
+extent, v9's fridge is 85x80 and the render's 79x87 — within about a tenth of
+each other, and the render's camera is slightly further out, so if anything the
+render's prop is a shade *smaller* in room terms. The impression of wrong scale
+came from comparing two regions whose *contents* differ: v9's fridge stands at
+the end of a fitted counter run and reads as one item in a kitchen, while the
+render's stands alone against blank wall and reads as a monolith.
 
-- **A person is the unit.** Every prop's height must be stated as a fraction of a
-  standing developer and checked against the concept, not chosen in tiles.
-- Add a claim: no prop in `GARAGE_PROPS` exceeds a stated multiple of person
-  height, and the named tall ones (shelving, fridge) sit inside a stated band.
+So the defect is context and surface detail, not size:
+
+- v9's cardboard boxes carry flaps, tape and tone variation; the render's are
+  flat single-value slabs.
+- v9's appliances sit in a run of other things; the render's stand alone.
+
+**Do not resize props on the strength of a side-by-side impression.** Measure
+the pixel extent of the same object in both images first, and remember that the
+two cameras are not at the same scale. If a resize is still warranted after
+measuring, state the measurement in the commit.
 
 ### 3. Workstation proportions
 
@@ -116,18 +136,29 @@ the table and the people, and adjacent pods visually collide.
 - Recheck pod separation afterwards — the current spacing was set against the old
   proportions.
 
-### 4. Wall material
+### 4. Wall material — partly done, and partly mis-stated
 
-The render's brick reads as pale breeze block: evenly spaced mortar lines
-**lighter** than the brick, no tone variation between courses, and no depth at
-the window openings — the panes sit flat on the surface.
+**This entry originally said the render's mortar was lighter than its brick. It
+was not.** Measured on the rear-right face: brick (64,47,40), joint (51,40,43) —
+darker, but only by a quarter of a step, where the concept's joint is about a
+third of its brick's value. The joints were *present and invisible*, which is a
+different fix from the one originally written down.
 
-v9's is warm dark brick with **darker** mortar, visible per-brick tone variation,
-and openings with a real reveal and sill.
+Closed on 2026-09-03:
 
-- Mortar darker than brick; irregular per-brick variation from the existing
-  palette; a reveal on every opening.
-- The **near walls' outer faces have no courses at all** and read as painted
+- joints moved from `NEUTRAL[1]`/0.45 to `NEUTRAL[0]`/0.72 and 0.55, so a course
+  reads as a shadow rather than a tint;
+- per-block tone variation added, deterministic in the block's own position, so
+  the wall spans roughly 47..64 on the red channel instead of a flat 64;
+- the conduit, its drops and the distribution box were bare `NEUTRAL` on a
+  warmed wall — measured (85,73,94) against a block of (64,47,40), a cool lilac
+  band at head height — and now take the wall's own warmth. Same mistake the
+  corner piers made, one object smaller.
+
+Still open:
+
+- the openings have no reveal — the panes sit flat on the wall surface;
+- the **near walls' outer faces have no courses at all** and read as painted
   panels. They are the same masonry as the rear walls and must show it.
 
 ### 5. The leadership room
@@ -148,10 +179,14 @@ and openings with a real reveal and sill.
 
 ### 6. Rear neighbourhood
 
-- The trees are too small and too sparse. v9's canopy is dense and reaches the
+Closed on 2026-09-03: every tree's crown carried a `NEUTRAL[4]` top face —
+measured (115,101,121) — which is a highlight when a tree is one object across a
+road and a field of pale lilac dots when the band is dense. It is foliage now.
+
+Still open:
+
+- the trees are too small and too sparse. v9's canopy is dense and reaches the
   wall; the buildings behind are mostly hidden by it.
-- The rear buildings are too pale and too large. They should read as a value
-  above the carriageway and little more.
 
 ### 7. Lighting
 
@@ -230,8 +265,9 @@ Temporary shots under `tmp/`. Tracked shots only at milestones.
 
 On top of everything already gated:
 
-- every prop's drawn height is inside a stated band expressed in **person
-  heights**, and the band is different for the named tall props;
+- joint contrast: the mortar's drawn value is below a stated fraction of the
+  block's, on both far and near walls;
+- block variation: the wall's drawn values span more than a stated range;
 - the perimeter's furnished fraction — the share of each far wall's length that
   has a prop against it — is above a stated floor on both far walls;
 - wall-hung dressing exists on both far walls above a stated height;
@@ -239,7 +275,6 @@ On top of everything already gated:
 - the leadership room's floor area is within a stated multiple of the two desks
   it holds;
 - the rug covers a stated fraction of that room's floor;
-- mortar is darker than the brick it separates, on both far and near walls;
 - the pod light pools are a stated number of ramp steps above the concrete
   between them;
 - everything in the "do not regress" list above.

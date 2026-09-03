@@ -5438,6 +5438,17 @@ export function buildRoom(): RoomHandle {
        * edge is what keeps this from being four almost-identical branches.
        */
       const COURSE = 0.42
+      /**
+       * Deterministic 0..1 for one block, from where the block is.
+       *
+       * Position rather than an index, so a wall that is re-cut around a new
+       * opening keeps the tone of every block that did not move — an index
+       * would repaint the whole run each time the plan changed.
+       */
+      const blockRoll = (u: number, z: number) => {
+        const n = Math.sin(u * 12.9898 + z * 78.233) * 43758.5453
+        return n - Math.floor(n)
+      }
       const warmInnerFace = (into: Graphics, segs: readonly WallSegment[], alongGy: boolean) => {
         for (const seg of segs) {
           const a = alongGy
@@ -5467,10 +5478,22 @@ export function buildRoom(): RoomHandle {
               ? shellProject(seg.gx + seg.w, seg.gy + seg.d)
               : shellProject(seg.gx + seg.w, seg.gy + seg.d)
             const lift = at * HEIGHT_UNIT
+            /*
+             * §7.8.0c [amended 2026-09-03] — **the joint is a shadow, not a
+             * tint.**
+             *
+             * Measured: the concept's mortar reads about (20,20,17) against a
+             * brick of about (65,52,46) — a third of the block's value. The
+             * render's was `NEUTRAL[1]` at 0.45, which came out (51,40,43)
+             * against (64,47,40): a *quarter* of a step of contrast, so the
+             * courses were present in the geometry and absent in the picture.
+             * A block wall with no readable joint has no unit, which is the one
+             * job §7.8.0c gives it — the eye measures the room's height off it.
+             */
             into
               .moveTo(a.x, a.y - lift)
               .lineTo(b2.x, b2.y - lift)
-              .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.45 })
+              .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.72 })
 
             /*
              * Bed joints alone make horizontal siding. Staggered vertical
@@ -5490,7 +5513,45 @@ export function buildRoom(): RoomHandle {
               into
                 .moveTo(joint.x, joint.y - lift)
                 .lineTo(joint.x, joint.y - (lift - COURSE * HEIGHT_UNIT))
-                .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.34 })
+                .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
+            }
+
+            /*
+             * §7.8.0c [added 2026-09-03] — **and no two blocks are quite the
+             * same colour.**
+             *
+             * The concept's rear wall measures across a range of about thirty
+             * on the red channel — 54, 64, 72, 86 — block by block. The render
+             * measured a single flat 64 for every block on the wall, so the
+             * joints were drawing a grid on a painted plane rather than
+             * separating things. Reclaimed block is not one colour, and at this
+             * scale the variation is most of what says *reclaimed*.
+             *
+             * A translucent quad over about a third of the blocks, deterministic
+             * in the block's own position so the wall does not shimmer when the
+             * room rebuilds — the same rule the cracks and the district follow.
+             * Two washes rather than one: a warm one and a cool one, because a
+             * wall that varies in lightness alone reads as dirt.
+             */
+            for (let u = runStart; u < runEnd - 0.05; u += BLOCK) {
+              const roll = blockRoll(u, at)
+              if (roll < 0.34) continue
+              const lo = alongGy ? shellProject(seg.gx + seg.w, u) : shellProject(u, seg.gy + seg.d)
+              const hiU = Math.min(u + BLOCK, runEnd)
+              const hi = alongGy
+                ? shellProject(seg.gx + seg.w, hiU)
+                : shellProject(hiU, seg.gy + seg.d)
+              const rise = COURSE * HEIGHT_UNIT
+              into
+                .moveTo(lo.x, lo.y - lift)
+                .lineTo(hi.x, hi.y - lift)
+                .lineTo(hi.x, hi.y - lift + rise)
+                .lineTo(lo.x, lo.y - lift + rise)
+                .closePath()
+                .fill({
+                  color: c(roll > 0.72 ? RAMPS.WOOD[1] : RAMPS.NEUTRAL[0]),
+                  alpha: roll > 0.72 ? 0.26 : 0.2,
+                })
             }
           }
         }
@@ -5910,14 +5971,21 @@ export function buildRoom(): RoomHandle {
         const HEAD = WALL_FULL * 0.78
         // The conduit run, and the two drops off it. One long horizontal and
         // two shorts is the whole language of surface-mounted electrics.
-        onWall(5.6, 15.6, HEAD, HEAD + 0.13, c(RAMPS.NEUTRAL[3]))
-        onWall(5.6, 15.6, HEAD - 0.05, HEAD, c(RAMPS.NEUTRAL[1]), 0.6)
-        onWall(12.15, 12.28, 2.7, HEAD, c(RAMPS.NEUTRAL[3]))
-        onWall(9.0, 9.13, 1.5, HEAD, c(RAMPS.NEUTRAL[3]))
+        //
+        // **Warmed with the wall they are screwed to** [2026-09-03]. They were
+        // bare `NEUTRAL`, which on a wall warmed two steps up the ramp measures
+        // (85,73,94) against a block of (64,47,40) — a cool lilac band running
+        // the width of the room at head height. The same mistake the corner
+        // piers made, one object smaller: an object on a warm surface that has
+        // not been warmed reads as belonging to a different picture.
+        onWall(5.6, 15.6, HEAD, HEAD + 0.13, c(warmFar(3)))
+        onWall(5.6, 15.6, HEAD - 0.05, HEAD, c(warmFar(1)), 0.6)
+        onWall(12.15, 12.28, 2.7, HEAD, c(warmFar(3)))
+        onWall(9.0, 9.13, 1.5, HEAD, c(warmFar(3)))
         // The distribution box the near drop feeds — torso-sized, which is the
         // scale reference, with a pale door and a dark louvre.
-        onWall(11.75, 12.7, 1.75, 2.75, c(RAMPS.NEUTRAL[4]))
-        onWall(11.9, 12.55, 2.1, 2.55, c(RAMPS.NEUTRAL[2]))
+        onWall(11.75, 12.7, 1.75, 2.75, c(warmFar(4)))
+        onWall(11.9, 12.55, 2.1, 2.55, c(warmFar(2)))
         onWall(12.5, 12.62, 1.95, 2.15, c(RAMPS.WARN[2]))
         // A poster, taped up — the one warm rectangle on this wall and the only
         // thing on it a person put there.

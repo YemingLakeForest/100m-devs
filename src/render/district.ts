@@ -318,8 +318,18 @@ function tree(g: Graphics, p: Project, gx: number, gy: number, s: number) {
     { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[0], right: RAMPS.NEUTRAL[1] })
   isoSolid(g, p, gx + 0.08 * s, gy + 0.08 * s, 0.56 * s, 0.34 * s, 0.34 * s, 0.28 * s,
     { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[1], right: RAMPS.FOLIAGE[0] })
+  /*
+   * **The crown's top face is foliage, and it was `NEUTRAL[4]`** [2026-09-03].
+   *
+   * A pale neutral cap is a highlight when a tree is one object at the far side
+   * of a road — it catches §7's key and reads as a lit crown. §7.8.0c's rear
+   * band is *dense*, so the same cap became a field of pale lilac dots across
+   * the whole top of the garage frame, measured at (115,101,121) against a
+   * canopy that should be the darkest large mass in the picture. What lights a
+   * tree at night behind a building is nothing at all.
+   */
   isoSolid(g, p, gx + 0.16 * s, gy + 0.16 * s, 0.8 * s, 0.18 * s, 0.18 * s, 0.22 * s,
-    { top: RAMPS.NEUTRAL[4], left: RAMPS.FOLIAGE[1], right: RAMPS.FOLIAGE[0] })
+    { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[1], right: RAMPS.FOLIAGE[0] })
 }
 
 /**
