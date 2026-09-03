@@ -4067,6 +4067,31 @@ fixture may carry later progression state for other tests, but the garage render
 five heroes out rather than turning the first room into a preview of the whole cast. Its strongest
 capture therefore proves two independent counts: twenty ordinary developers across five pods, and
 exactly two non-capacity occupants behind the glass.</p>
+<h6 id="the-doorway-is-inside-the-room">The doorway is a position in the room, not a plot on the floor <strong>[CANON - added 2026-09-03]</strong></h6>
+<p>§7.8.12 put the suite's doorway at floor plot <strong>0</strong>, absolutely, and that was correct
+for as long as the suite was never narrower than about four plots. §7.8.0c's garage cast is two:
+<code>suiteEastCol(['james'])</code> puts the east wall at column −0.56, so plot 0 is
+<strong>outside the room</strong>.</p>
+<p>The drawing then degraded in the quietest way available. The first glass run still drew, from the
+west wall to −0.75. The second was skipped, because <code>east &gt; SUITE_DOOR_COLS / 2</code> reads
+false. What was left was a quarter-column sliver in the corner where an opening should be — and the
+sign, anchored at the same plot 0, hung <em>past</em> the east wall and came down across James, whose
+head it hid. So the room read as a hero with his name over one desk and a headless body behind a sign
+somewhere else. <strong>Nothing threw, no test moved, and both of the walls that were drawn were
+correct.</strong> It was caught by a person looking at a screenshot and asking why James was in two
+places, which is the failure mode §7.8.0c's whole gate stack exists to make rarer and evidently has
+not eliminated.</p>
+<p>So the doorway is <code>suiteDoorCol(east)</code>: plot 0 where it fits, pulled in to keep a full
+door's width off both ends where it does not. The office is unchanged, because 0 is already inside its
+clamp — which is the property that makes this a fix and not a redesign. The sign, the two glass runs
+and §7.8.12's Instant Messenger exit all read it, so there is one answer to "where does this room let
+out" rather than four. The sign also moved from 0.74 of the wall height to 0.94: at two plots the
+front glass is 3.44 columns wide, so wherever the opening goes there is a desk behind it, and a sign
+over a door hangs from the head of the opening.</p>
+<p>The general form is worth keeping, because this file has now produced it three times: <strong>an
+absolute coordinate inside a container whose size is a function of content will be correct until the
+content shrinks.</strong> The suite's east wall moves with the roster; the doorway had to move with
+it and did not.</p>
 <h6 id="what-devs-20-cost">What <code>DEVS 20</code> cost, and what it bought <strong>[CANON - added 2026-09-03]</strong></h6>
 <p>The counter read twenty-one, and it was not a rounding error. §7.8.12 held studio seat 0 for James
 so that no body would be drawn standing in the suite's doorway — the right answer to the question it

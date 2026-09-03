@@ -52,6 +52,7 @@ import {
   suiteSeatsIn,
   garagePlot,
   roomCast,
+  suiteDoorCol,
   isoAt,
   FLOOR_MIN_COL,
   FLOOR_MIN_ROW,
@@ -1500,6 +1501,50 @@ describe('the garage holds the founder and James, and twenty developers', () => 
     expect(room.geometry().screen.piers).toHaveLength(4)
     room.setHeadcount(21)
     expect(room.geometry().screen.piers).toHaveLength(0)
+    room.container.destroy({ children: true })
+  })
+})
+
+
+/**
+ * §7.8.12 [added 2026-09-03] — **the doorway is inside the room.**
+ *
+ * It was floor plot 0 absolutely, which is inside a seven-plot suite and
+ * outside a two-plot one. The failure was silent in the worst way: the first
+ * glass run still drew, the second was skipped by a bounds test that read
+ * false, and what was left was a quarter-column sliver where a doorway should
+ * be — with the sign, anchored at the same plot, hanging past the east wall and
+ * across the hero standing behind it. Two correct walls and no opening.
+ */
+describe('the suite doorway', () => {
+  it('stays at plot 0 for a room wide enough to hold it', () => {
+    const wide = suiteEastCol(STORY_HEROES.map((h) => h.id))
+    expect(suiteDoorCol(wide)).toBe(0)
+  })
+
+  it('pulls inside a room too narrow for plot 0', () => {
+    const narrow = suiteEastCol(['james'])
+    const col = suiteDoorCol(narrow)
+    expect(col).toBeLessThan(0)
+    // A full door's width clear of both ends, which is the whole requirement:
+    // an opening flush with a corner is not an opening.
+    expect(col - SUITE_DOOR_COLS / 2).toBeGreaterThan(SUITE_WEST_COL)
+    expect(col + SUITE_DOOR_COLS / 2).toBeLessThan(narrow)
+  })
+
+  it('draws glass either side of it in both rooms', () => {
+    const room = buildRoom()
+    // The garage: two people, and the narrow room the absolute plot broke.
+    room.setTeam([{ id: 'james', colour: '#fff', assigned: false, connecting: false, selected: false }])
+    room.setHeadcount(20)
+    // One end pane plus two front runs. Two would mean the opening ate a wall.
+    expect(room.geometry().suiteWalls).toHaveLength(3)
+    // And the office, where nothing about this changed.
+    room.setHeadcount(400)
+    room.setTeam(STORY_HEROES.map((h) => ({
+      id: h.id, colour: '#fff', assigned: false, connecting: false, selected: false,
+    })))
+    expect(room.geometry().suiteWalls).toHaveLength(3)
     room.container.destroy({ children: true })
   })
 })

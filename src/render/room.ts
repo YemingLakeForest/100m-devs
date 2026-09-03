@@ -1740,6 +1740,35 @@ export const SUITE_WALL_ROW = FLOOR_MIN_ROW
 export const SUITE_DOOR_COLS = 1.5
 
 /**
+ * §7.8.12 [added 2026-09-03] — **where the doorway is, for a room this wide.**
+ *
+ * It was floor plot **0**, absolutely, and that was fine while the suite was
+ * never narrower than four plots: 0 sat comfortably inside a seven-plot room
+ * and the glass came out as two runs with an opening between them.
+ *
+ * §7.8.0c's garage cast is two. `suiteEastCol(['james'])` puts the east wall at
+ * col −0.56, so plot 0 is **outside the room** — and the drawing degraded in
+ * the quietest possible way. The first pane still ran from the west wall to
+ * −0.75; the second was skipped, because `east > SUITE_DOOR_COLS / 2` is false;
+ * and what was left was a 0.19-column sliver in the corner where a doorway
+ * should be. The sign, anchored at the same plot 0, hung *past* the east wall
+ * and landed across James — so the room read as a hero with his name over one
+ * desk and his body behind a sign somewhere else. Nothing threw, no test moved,
+ * and both of the walls that were drawn were correct.
+ *
+ * So the doorway is a position **inside the room**, not a plot on the floor:
+ * plot 0 where it fits, and pulled in to keep a full door's width off both ends
+ * where it does not. The office is unchanged — 0 is already inside its clamp —
+ * which is the property that makes this a fix rather than a redesign.
+ */
+export function suiteDoorCol(eastCol: number): number {
+  const lo = SUITE_WEST_COL + SUITE_DOOR_COLS
+  const hi = eastCol - SUITE_DOOR_COLS
+  if (!(hi > lo)) return (SUITE_WEST_COL + eastCol) / 2
+  return Math.max(lo, Math.min(hi, 0))
+}
+
+/**
  * What the sign over the door says.
  *
  * Not `CXO`, not `EXECUTIVE SUITE`, and not `HEROES`. §13.11.2 already ruled out
@@ -4370,13 +4399,12 @@ export function buildRoom(): RoomHandle {
       // than as the room having been cut off.
       // Full height, floor to soffit — see {@link drawnWallH}.
       pane(east, SUITE_WALL_ROW, east, SUITE_GLASS_ROW, drawnWallH)
-      // The front, in two runs with the doorway between them. The door is on
-      // the floor's grid too: it opens onto plot (0, 0) — the head of row 0,
-      // which `suiteSeats` holds empty precisely so that it can.
-      pane(SUITE_WEST_COL, SUITE_GLASS_ROW, -SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, drawnWallH)
-      if (east > SUITE_DOOR_COLS / 2) {
-        pane(SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, east, SUITE_GLASS_ROW, drawnWallH)
-      }
+      // The doorway is on the floor's grid, like everything else in this room.
+      // The front, in two runs with the doorway between them — at whichever
+      // column {@link suiteDoorCol} puts it in for a room this wide.
+      const doorCol = suiteDoorCol(east)
+      pane(SUITE_WEST_COL, SUITE_GLASS_ROW, doorCol - SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, drawnWallH)
+      pane(doorCol + SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, east, SUITE_GLASS_ROW, drawnWallH)
 
       /*
        * §7.8.12 — **the sign over the door**, and it is words now.
@@ -4417,8 +4445,19 @@ export function buildRoom(): RoomHandle {
        * monitor. A sign over a door hangs from the head of the opening, which
        * is a number this room already has.
        */
-      const door = isoAt(0, SUITE_GLASS_ROW + SUITE_SIGN_OUT)
-      signGroup = group(door.x, door.y - Math.max(62, drawnWallH * 0.74))
+      const door = isoAt(doorCol, SUITE_GLASS_ROW + SUITE_SIGN_OUT)
+      /*
+       * §7.8.12 [amended 2026-09-03] — **it hangs at the head of the glass, not
+       * three quarters of the way up it.**
+       *
+       * 0.74 cleared every head while the suite was seven plots wide, because
+       * the doorway at plot 0 had nobody standing behind it. §7.8.0c's garage
+       * room is two plots and 3.44 columns of front glass, so wherever the
+       * opening goes there is a desk behind it — and at 0.74 the board came
+       * down across the founder's head. A sign over a door hangs from the head
+       * of the *opening*, and this room's opening is full height.
+       */
+      signGroup = group(door.x, door.y - Math.max(62, drawnWallH * 0.94))
       signGroup.skew.y = Math.atan(-0.5)
       signGroup.addChild(
         new Graphics()
@@ -4673,8 +4712,8 @@ export function buildRoom(): RoomHandle {
     // because that is where the room lets out. They used to converge on a fixed
     // point below the old plate, which put every remote assignment through the
     // middle of a pane of glass.
-    const exit = isoAt(0, SUITE_GLASS_ROW)
     const cast = roomCast(team, drawnGarage)
+    const exit = isoAt(suiteDoorCol(suiteEastCol(cast.map((hero) => hero.id))), SUITE_GLASS_ROW)
     for (let order = 0; order < cast.length; order++) {
       const hero = cast[order]
       if (!hero.assigned) continue
