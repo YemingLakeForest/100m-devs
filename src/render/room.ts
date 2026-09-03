@@ -4544,6 +4544,50 @@ export function buildRoom(): RoomHandle {
       pane(SUITE_WEST_COL, SUITE_GLASS_ROW, doorCol - SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, drawnWallH)
       pane(doorCol + SUITE_DOOR_COLS / 2, SUITE_GLASS_ROW, east, SUITE_GLASS_ROW, drawnWallH)
 
+      if (drawnGarage) {
+        /*
+         * §7.8.0c [added 2026-09-03] — **the door leaf, and a comment that was
+         * wrong about the concept.**
+         *
+         * This file said, for a fortnight: *"It stops short at `GLASS_MOUTH`
+         * rather than having a door cut in it. The concept shows exactly that,
+         * and it is the honest detail: salvaged glazing leaned into place by
+         * people with a deadline, not a fitted partition."* Good argument,
+         * false premise. Cropped and enlarged, the concept's opening carries a
+         * **hinged glass leaf with a dark frame and a handle, standing open** —
+         * which is a better version of the same joke, because a door somebody
+         * bolted onto salvaged glazing is more improvised than no door at all.
+         *
+         * It hangs off the right-hand jamb and swings out into the room, so it
+         * runs along `row` at a fixed `col`: the projection's *other* legal
+         * slope, and the reason the leaf reads as open rather than as one more
+         * pane. It is not pushed into {@link suiteWalls} — a door standing open
+         * is furniture, not enclosure, and `test:room` measures the room.
+         */
+        const hinge = doorCol + SUITE_DOOR_COLS / 2
+        const a = isoAt(hinge, SUITE_GLASS_ROW)
+        const b = isoAt(hinge, SUITE_GLASS_ROW + 0.78)
+        teamGlass
+          .moveTo(a.x, a.y)
+          .lineTo(b.x, b.y)
+          .lineTo(b.x, b.y - drawnWallH)
+          .lineTo(a.x, a.y - drawnWallH)
+          .closePath()
+          .fill({ color: c(RAMPS.GLOW[0]), alpha: 0.14 })
+          .stroke({ width: 3, color: c(RAMPS.NEUTRAL[1]), alpha: 0.95 })
+        // The stile down the leading edge and the handle on it. Two marks, and
+        // between them they are the whole difference between a door and a pane
+        // that happens to be at the wrong angle.
+        teamGlass
+          .moveTo(b.x, b.y)
+          .lineTo(b.x, b.y - drawnWallH)
+          .stroke({ width: 3, color: c(RAMPS.NEUTRAL[2]), alpha: 0.9 })
+        teamGlass
+          .moveTo(b.x - 4, b.y - drawnWallH * 0.46)
+          .lineTo(b.x - 4, b.y - drawnWallH * 0.58)
+          .stroke({ width: 2, color: c(RAMPS.NEUTRAL[5]), alpha: 0.8 })
+      }
+
       /*
        * §7.8.12 — **the sign over the door**, and it is words now.
        *
@@ -4662,6 +4706,36 @@ export function buildRoom(): RoomHandle {
       }
 
       if (walls) drawDeskPlate(hero, at, colour)
+    }
+
+    if (walls && drawnGarage) {
+      /*
+       * §7.8.0c [added 2026-09-03] — **something against the back wall.**
+       *
+       * The corner held two desks, two people and a rug, and nothing else, so
+       * the band between the desks and the back wall was a metre of empty rug
+       * with a glass box round it. The concept puts a dark low cabinet there
+       * with things stacked on it — which is the same argument the workshop
+       * wall got: a room is furnished to the wall, and the gap between the
+       * furniture and the wall is where a scene stops looking inhabited.
+       *
+       * Behind the front row and at the west end, so it is clear of both heads,
+       * both plates and the doorway. Drawn into the desk layer rather than the
+       * floor's, because it is a solid and has to sort with the people.
+       */
+      const cab = isoAt(SUITE_WEST_COL + 1.4, SUITE_WALL_ROW + 0.4)
+      isoBox(teamDeskLayer, cab.x, cab.y, 30, 17, RAMPS.WOOD, 0)
+      // Two drawer lines, which is what makes it a cabinet rather than a crate.
+      for (const dy of [5, 11]) {
+        teamDeskLayer
+          .moveTo(cab.x - 14, cab.y - dy)
+          .lineTo(cab.x - 1, cab.y - dy + 3.2)
+          .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.5 })
+      }
+      // A box file and a mug on top. Ungrounded: they have a contact patch, not
+      // a floor.
+      isoBox(teamDeskLayer, cab.x - 6, cab.y - 17, 11, 8, RAMPS.NEUTRAL, 0, false)
+      isoBox(teamDeskLayer, cab.x + 8, cab.y - 16, 5, 5, RAMPS.CALM, 0, false)
     }
 
     if (walls) {
