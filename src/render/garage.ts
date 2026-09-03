@@ -716,9 +716,9 @@ export const GARAGE_ZONES: readonly Plot[] = [
   // The same wall, past the run: where you sit down is past where you work.
   { name: 'THE LOUNGE', gx0: 10.3, gy0: 0, gx1: 12.8, gy1: 1.6 },
   // The far-left wall, clear of the leadership corner.
-  { name: 'THE KITCHENETTE', gx0: 0, gy0: 4.2, gx1: 2.4, gy1: 8.3 },
+  { name: 'THE KITCHENETTE', gx0: 0, gy0: 4.0, gx1: 2.4, gy1: 9.4 },
   // And the one corner things are stacked in.
-  { name: 'THE STORAGE CORNER', gx0: 0, gy0: 8.3, gx1: 3.2, gy1: 11.0 },
+  { name: 'THE STORAGE CORNER', gx0: 0, gy0: 9.4, gx1: 3.2, gy1: 12.6 },
 ]
 
 export const GARAGE_PROPS: readonly Plot[] = [
@@ -781,13 +781,24 @@ export const GARAGE_PROPS: readonly Plot[] = [
   // down a blank wall with the corner's old footprint of nothing between them
   // — a reservation's worth of empty block, which is what a plot that outlives
   // the thing it was reserved for looks like.
-  { name: 'THE FRIDGE', gx0: 0, gy0: 4.4, gx1: 1.1, gy1: 5.6 },
-  { name: 'THE KETTLE', gx0: 0, gy0: 5.8, gx1: 1.1, gy1: 6.8 },
-  { name: 'THE BIN', gx0: 0, gy0: 7.0, gx1: 0.95, gy1: 8.1 },
+  { name: 'THE FRIDGE', gx0: 0, gy0: 4.3, gx1: 1.1, gy1: 5.5 },
+  /*
+   * [2026-09-03] **A fitted counter, where there was a side table.**
+   *
+   * `THE KETTLE` was a thin top on four legs with a kettle and two mugs on it,
+   * and it was the right object for the room the garage used to be. It is the
+   * wrong one for v9, whose kitchen end is a *run*: base units, a timber
+   * worktop, a sink, a machine, a board. That difference is most of why the
+   * render's fridge read as oversized when it is in fact the same size as the
+   * concept's — a tall appliance beside a small table looks like a monolith,
+   * and beside a counter of its own height it looks like a fridge.
+   */
+  { name: 'THE COUNTER', gx0: 0, gy0: 5.7, gx1: 1.15, gy1: 8.0 },
+  { name: 'THE BIN', gx0: 0, gy0: 8.2, gx1: 0.95, gy1: 9.1 },
   // --- the storage corner: the far end of that wall, and only this ---------
-  { name: 'THE BOXES', gx0: 0, gy0: 8.5, gx1: 1.1, gy1: 10.6 },
-  { name: 'THE CRATES', gx0: 1.1, gy0: 8.8, gx1: 2.1, gy1: 10.1 },
-  { name: 'THE PALLET', gx0: 2.1, gy0: 9.0, gx1: 3.0, gy1: 9.9 },
+  { name: 'THE BOXES', gx0: 0, gy0: 9.6, gx1: 1.1, gy1: 11.7 },
+  { name: 'THE CRATES', gx0: 1.1, gy0: 9.9, gx1: 2.1, gy1: 11.2 },
+  { name: 'THE PALLET', gx0: 2.1, gy0: 10.1, gx1: 3.0, gy1: 11.0 },
 ]
 
 /**

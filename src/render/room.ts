@@ -1327,6 +1327,26 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       box(x + 0.1, y + 1.1, 0, w - 0.2, 0.9, 0.48, RAMPS.WOOD, 1)
       box(x - 0.05, y + 0.25, 0.55, w - 0.15, 0.85, 0.5, RAMPS.WOOD, 1)
       box(x + 0.15, y + 1.35, 0.48, w - 0.4, 0.7, 0.4, RAMPS.WOOD, 0)
+      /*
+       * §7.8.0c [added 2026-09-03] — **the flaps and the tape.**
+       *
+       * Four plain cuboids read as four blank slabs, which is what the concept
+       * does not do: its boxes have a seam down the lid and a strip of tape
+       * across it, and those two marks are the whole difference between a
+       * carton and a block of wood. One thin quad each, laid on the lit top
+       * face — the same construction the shutter's corrugation uses, because a
+       * mark on a surface is not a solid standing on it.
+       */
+      const lid = (bx: number, by: number, bz: number, bw: number, bd: number) => {
+        // The seam where the two flaps meet, down the middle of the long axis.
+        box(bx, by + bd / 2 - 0.02, bz, bw, 0.04, 0.012, RAMPS.WOOD, 0)
+        // And the tape across it, a shade paler than the card.
+        box(bx + bw * 0.32, by, bz, bw * 0.16, bd, 0.014, RAMPS.WOOD, 2)
+      }
+      lid(x, y, 0.55, w, 1.0)
+      lid(x + 0.1, y + 1.1, 0.48, w - 0.2, 0.9)
+      lid(x - 0.05, y + 0.25, 1.05, w - 0.15, 0.85)
+      lid(x + 0.15, y + 1.35, 0.88, w - 0.4, 0.7)
       break
     }
     case 'THE BIN': {
@@ -1349,6 +1369,41 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       box(x + w - 0.19, y + 0.12, 0.5, 0.05, d - 0.3, 0.04, RAMPS.NEUTRAL, 1)
       box(x + w - 0.2, y + d - 0.5, 0.75, 0.06, 0.3, 0.09, RAMPS.NEUTRAL, 6)
       box(x + w - 0.19, y + 0.35, 1.05, 0.04, 0.16, 0.16, RAMPS.WARN, 2)
+      break
+    }
+    case 'THE COUNTER': {
+      /*
+       * §7.8.0c [added 2026-09-03] — **a run, not an object.**
+       *
+       * Base units to worktop height, a timber top that overhangs them, and
+       * four things standing on it. The overhang is the mark that makes it
+       * joinery rather than a box: a worktop is a separate slab laid on
+       * carcasses, and the shadow line under its lip is what says so.
+       *
+       * It runs along `gy` because that is the axis its wall runs on, and every
+       * part below is placed off `d` rather than off a constant, so the run can
+       * be lengthened in the plan without any of this moving.
+       */
+      const TOP = 0.62
+      // The carcasses, set back from the worktop's edge.
+      box(x + 0.08, y + 0.05, 0, w - 0.22, d - 0.1, TOP, RAMPS.NEUTRAL, 1)
+      // A plinth shadow under them, so the run sits on the floor rather than
+      // floating a hair above it.
+      box(x + 0.14, y + 0.1, 0, w - 0.34, d - 0.2, 0.08, RAMPS.NEUTRAL, 0)
+      // Two door lines, which is what turns one carcass into a run of units.
+      for (const t of [0.34, 0.67]) {
+        box(x + 0.08, y + d * t, 0.06, w - 0.22, 0.04, TOP - 0.12, RAMPS.NEUTRAL, 0)
+      }
+      // The worktop, proud on the room side and along both ends.
+      box(x, y, TOP, w - 0.05, d, 0.09, RAMPS.WOOD, 1)
+      // The sink: a dark inset with a tap behind it.
+      box(x + 0.22, y + d * 0.12, TOP + 0.07, w - 0.5, d * 0.26, 0.04, RAMPS.NEUTRAL, 0)
+      box(x + 0.26, y + d * 0.16, TOP + 0.09, 0.05, 0.05, 0.22, RAMPS.NEUTRAL, 4)
+      // The machine, a mug beside it, and a board leaning at the far end.
+      box(x + 0.3, y + d * 0.52, TOP + 0.09, 0.34, 0.3, 0.34, RAMPS.NEUTRAL, 1)
+      box(x + 0.34, y + d * 0.56, TOP + 0.43, 0.26, 0.22, 0.05, RAMPS.NEUTRAL, 4)
+      box(x + 0.72, y + d * 0.5, TOP + 0.09, 0.14, 0.14, 0.16, RAMPS.CALM, 1)
+      box(x + 0.2, y + d * 0.82, TOP + 0.09, 0.06, 0.34, 0.3, RAMPS.WOOD, 2)
       break
     }
     case 'THE KETTLE': {
@@ -1511,6 +1566,7 @@ const PROP_LOOK: Record<string, { h: number; ramp: readonly string[]; base: numb
   // The sitting-down half. Low, so the near wall does not swallow it.
   'THE FRIDGE': { h: 1.5, ramp: RAMPS.NEUTRAL, base: 4 },
   'THE KETTLE': { h: 0.9, ramp: RAMPS.NEUTRAL, base: 3 },
+  'THE COUNTER': { h: 0.71, ramp: RAMPS.WOOD, base: 1 },
   'THE SOFA': { h: 0.72, ramp: RAMPS.WOOD, base: 1 },
   'THE PLANT': { h: 0.7, ramp: RAMPS.FOLIAGE, base: 1 },
   'THE TOOL CHEST': { h: 0.76, ramp: RAMPS.ALARM, base: 1 },
@@ -5953,13 +6009,31 @@ export function buildRoom(): RoomHandle {
        * against one. A solid would show its own lit top and turn into a shelf.
        */
       {
-        // Plan tile 0 is the room's inner back corner (§7.8.0c), and the shell
-        // box is centred, so this is the one conversion between them.
+        /*
+         * Plan tile 0 is the room's inner back corner (§7.8.0c), and the shell
+         * box is centred, so this is the one conversion between them.
+         *
+         * §7.8.0c [2026-09-03] — **and it is a painter per wall now, not one
+         * for the workshop side.** Both far walls are full height and the
+         * camera sees the whole of both; only one of them was ever dressed, so
+         * the left-hand one carried a window, a whiteboard and four tiles of
+         * blank block. Two closures over the same quad rather than two copies
+         * of it: `alongGx` paints the workshop wall at `gy 0` and `alongGy` the
+         * kitchen wall at `gx 0`, and each takes plan coordinates in the axis
+         * its own wall runs on.
+         */
         const wallGx = (planGx: number) => -halfBack + WALL_THICK + planGx
+        const wallGy = (planGy: number) => -halfAcross + WALL_THICK + planGy
         const faceGy = -halfAcross + WALL_THICK
-        const onWall = (gx0: number, gx1: number, z0: number, z1: number, colour: number, alpha = 1) => {
-          const a = shellProject(wallGx(gx0), faceGy)
-          const b2 = shellProject(wallGx(gx1), faceGy)
+        const faceGx = -halfBack + WALL_THICK
+        const quad = (
+          a: { x: number; y: number },
+          b2: { x: number; y: number },
+          z0: number,
+          z1: number,
+          colour: number,
+          alpha: number,
+        ) => {
           shell
             .moveTo(a.x, a.y - z0 * HEIGHT_UNIT)
             .lineTo(b2.x, b2.y - z0 * HEIGHT_UNIT)
@@ -5968,6 +6042,11 @@ export function buildRoom(): RoomHandle {
             .closePath()
             .fill({ color: colour, alpha })
         }
+        const onWall = (gx0: number, gx1: number, z0: number, z1: number, colour: number, alpha = 1) =>
+          quad(shellProject(wallGx(gx0), faceGy), shellProject(wallGx(gx1), faceGy), z0, z1, colour, alpha)
+        /** The same, on the kitchen wall — plan `gy` along, at plan `gx` 0. */
+        const onLeftWall = (gy0: number, gy1: number, z0: number, z1: number, colour: number, alpha = 1) =>
+          quad(shellProject(faceGx, wallGy(gy0)), shellProject(faceGx, wallGy(gy1)), z0, z1, colour, alpha)
         const HEAD = WALL_FULL * 0.78
         // The conduit run, and the two drops off it. One long horizontal and
         // two shorts is the whole language of surface-mounted electrics.
@@ -5998,6 +6077,100 @@ export function buildRoom(): RoomHandle {
         onWall(12.9, 14.1, 1.7, 2.65, c(RAMPS.WOOD[1]))
         onWall(13.05, 13.95, 2.25, 2.5, c(RAMPS.WARN[2]), 0.75)
         onWall(13.05, 13.65, 1.9, 2.05, c(RAMPS.NEUTRAL[4]), 0.5)
+
+        /*
+         * §7.8.0c [added 2026-09-03] — **the band above the furniture.**
+         *
+         * The workshop's props stop at about 1.9 tiles and the wall goes to
+         * 4.23, so two thirds of the largest surface in the room was bare block
+         * with a conduit run across it. The concept's wall is furnished to
+         * shoulder height *and above*: framed prints, a clock, a calendar, a
+         * strip light over the bench, a coat rail. None of it is a solid — a
+         * solid hung on a wall shows its own lit top and reads as a shelf — so
+         * all of it is a mark in the wall's own plane, the way the shutter's
+         * corrugation and the conduit already are.
+         *
+         * Authored as a table rather than a loop with a hash in it. The
+         * §7.8.0c complaint about the floor applies here too: deterministic is
+         * not the same as sensibly placed, and a wall dressed by an algorithm
+         * hangs a picture behind the shelving.
+         */
+        const framed = (
+          paint: (a: number, b: number, z0: number, z1: number, col: number, al?: number) => void,
+          at: number,
+          z: number,
+          w: number,
+          h: number,
+          ink: string,
+        ) => {
+          paint(at, at + w, z, z + h, c(RAMPS.NEUTRAL[1]))
+          paint(at + 0.07, at + w - 0.07, z + 0.06, z + h - 0.06, c(ink), 0.85)
+          // The lit top edge of the frame, which is the mark that says it is
+          // hanging off the wall rather than painted on it.
+          paint(at, at + w, z + h - 0.04, z + h, c(warmFar(4)), 0.7)
+        }
+        // Two prints and a calendar over the bench end, at eye level and above.
+        framed(onWall, 6.1, 2.5, 0.8, 0.62, RAMPS.WOOD[0])
+        framed(onWall, 7.2, 2.95, 0.62, 0.5, RAMPS.CALM[0])
+        framed(onWall, 10.35, 2.35, 0.7, 0.9, RAMPS.NEUTRAL[0])
+        onWall(10.45, 10.95, 3.05, 3.15, c(RAMPS.NEUTRAL[5]), 0.6)
+        // A clock. One pale disc's worth of quad and its two hands — the only
+        // round thing in the room, which is what makes it read at this size.
+        onWall(9.15, 9.55, 2.75, 3.15, c(RAMPS.NEUTRAL[6]), 0.92)
+        onWall(9.3, 9.4, 2.86, 3.02, c(RAMPS.NEUTRAL[0]), 0.9)
+        onWall(9.33, 9.48, 2.92, 2.98, c(RAMPS.NEUTRAL[0]), 0.9)
+        // The strip light over the bench: a fitting and the wash it throws on
+        // the block above it. §7.8.0c's "one restrained warm workshop light".
+        onWall(7.9, 9.8, 2.18, 2.3, c(RAMPS.NEUTRAL[4]))
+        onWall(7.9, 9.8, 2.12, 2.18, c(RAMPS.WARN[3]), 0.55)
+        onWall(7.6, 10.1, 2.3, 3.2, c(RAMPS.WARN[2]), 0.09)
+        // A rail of hanging things past the tool board — aprons, cable, a coil.
+        onWall(11.2, 12.5, 2.62, 2.7, c(warmFar(4)))
+        for (const [at, drop, tone] of [
+          [11.35, 0.5, RAMPS.NEUTRAL[2]],
+          [11.62, 0.34, RAMPS.WOOD[0]],
+          [11.95, 0.62, RAMPS.NEUTRAL[1]],
+          [12.24, 0.4, RAMPS.CALM[0]],
+        ] as Array<[number, number, string]>) {
+          onWall(at, at + 0.17, 2.62 - drop, 2.62, c(tone), 0.9)
+        }
+        // A second, lower conduit drop feeding the bench, so the services read
+        // as a system rather than as one pipe.
+        onWall(5.6, 7.9, 2.02, 2.1, c(warmFar(2)))
+        onWall(7.86, 7.94, 2.1, HEAD, c(warmFar(2)))
+
+        /*
+         * §7.8.0c [added 2026-09-03] — **and the kitchen wall, which had
+         * nothing on it at all** beyond a window and a board. Same band, same
+         * construction, quieter: this is the domestic end of the room and the
+         * concept keeps it plainer than the workshop.
+         */
+        // A pinboard with notes on it, over the counter.
+        onLeftWall(5.6, 7.0, 2.15, 3.0, c(RAMPS.WOOD[0]))
+        for (const [at, w, z] of [
+          [5.75, 0.3, 2.72],
+          [6.15, 0.22, 2.55],
+          [6.5, 0.26, 2.78],
+          [6.2, 0.28, 2.28],
+        ] as Array<[number, number, number]>) {
+          onLeftWall(at, at + w, z, z + 0.2, c(RAMPS.NEUTRAL[6]), 0.85)
+        }
+        framed(onLeftWall, 4.35, 2.6, 0.7, 0.55, RAMPS.WOOD[1])
+        // A first-aid box and an extinguisher — the two things a workshop wall
+        // has that nobody chooses.
+        onLeftWall(8.5, 9.1, 2.2, 2.75, c(RAMPS.NEUTRAL[6]), 0.95)
+        onLeftWall(8.68, 8.92, 2.38, 2.58, c(RAMPS.ALARM[2]), 0.9)
+        onLeftWall(9.5, 9.78, 1.5, 2.15, c(RAMPS.ALARM[1]))
+        onLeftWall(9.5, 9.78, 2.15, 2.25, c(RAMPS.NEUTRAL[2]))
+        // A coat rail with two coats on it, by the personnel end.
+        onLeftWall(11.4, 12.7, 2.35, 2.43, c(warmFar(4)))
+        onLeftWall(11.6, 11.92, 1.55, 2.35, c(RAMPS.NEUTRAL[1]), 0.92)
+        onLeftWall(12.15, 12.45, 1.7, 2.35, c(RAMPS.FOLIAGE[0]), 0.92)
+        // And the conduit run this side, at the same head height as the other
+        // wall's — one building, one set of services.
+        onLeftWall(4.0, 13.0, HEAD, HEAD + 0.13, c(warmFar(3)))
+        onLeftWall(4.0, 13.0, HEAD - 0.05, HEAD, c(warmFar(1)), 0.6)
+        onLeftWall(8.8, 8.92, 2.75, HEAD, c(warmFar(3)))
       }
       // The personnel opening is fitted with a door rather than left as a black
       // hole. The reference makes the two entrances a pair: one painted timber
@@ -6280,7 +6453,7 @@ export function buildRoom(): RoomHandle {
        * plan supplies it directly — the kettle and the fridge, which are what a
        * garage actually sends people to.
        */
-      for (const name of ['THE KETTLE', 'THE FRIDGE']) {
+      for (const name of ['THE COUNTER', 'THE FRIDGE']) {
         const plot = GARAGE_PROPS.find((prop) => prop.name === name)
         if (!plot) continue
         const at = planProject((plot.gx0 + plot.gx1) / 2 - 1.1, (plot.gy0 + plot.gy1) / 2)
