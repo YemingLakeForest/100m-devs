@@ -5233,9 +5233,9 @@ export function buildRoom(): RoomHandle {
     // edge, an oil stain in front of the door, and one crack. Office wood
     // belongs to the open-plan plates that arrive with §7.8.1c; the founder's
     // room never stops being the garage it started as.
-    const slab = (inset: number, fill: number, alpha = 1) => {
+    const slab = (inset: number, fill: number, alpha = 1, into: Graphics = shell) => {
       const k = inset
-      shell
+      into
         .moveTo(topX + (botX - topX) * k, topY + (botY - topY) * k)
         .lineTo(rightX + (leftX - rightX) * k, rightY + (leftY - rightY) * k)
         .lineTo(botX + (topX - botX) * k, botY + (topY - botY) * k)
@@ -5627,6 +5627,43 @@ export function buildRoom(): RoomHandle {
       // poured at, and few enough that the joints read as construction rather
       // than as a tile pattern.
       const BAYS = 4
+      /*
+       * §7.8.0c [added 2026-09-03] — **and no two pours are the same colour.**
+       *
+       * Measured across the floor, the concept's warm pixels run p5=34, p25=50,
+       * p50=57, p75=66 — a continuous spread. The render's, after the falloff
+       * wash below was added, ran 47/47/47/74: a *flat* field with lamps on top,
+       * which is the same defect the block wall had and has the same cause. A
+       * slab poured in bays cures in bays; each one takes up its water
+       * differently, and the tonal difference between them is most of what says
+       * "poured" rather than "filled".
+       *
+       * One low wash per bay, deterministic in the bay's own indices so the
+       * floor does not shimmer when the room rebuilds. Warm and cool in turn,
+       * because a floor that varies in lightness alone reads as dirt — the same
+       * rule the wall's blocks follow.
+       */
+      for (let i = 0; i < BAYS; i++) {
+        for (let j = 0; j < BAYS; j++) {
+          const n = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453
+          const roll = n - Math.floor(n)
+          if (roll < 0.2) continue
+          const gx0 = -halfBack + (2 * halfBack * i) / BAYS
+          const gx1 = -halfBack + (2 * halfBack * (i + 1)) / BAYS
+          const gy0 = -halfAcross + (2 * halfAcross * j) / BAYS
+          const gy1 = -halfAcross + (2 * halfAcross * (j + 1)) / BAYS
+          isoPatch(
+            shell,
+            shellProject,
+            gx0,
+            gy0,
+            gx1,
+            gy1,
+            roll > 0.62 ? RAMPS.WOOD[1] : RAMPS.NEUTRAL[0],
+            roll > 0.62 ? 0.1 + (roll - 0.62) * 0.3 : 0.06 + (0.62 - roll) * 0.28,
+          )
+        }
+      }
       for (let i = 1; i < BAYS; i++) {
         const alongGx = -halfBack + (2 * halfBack * i) / BAYS
         const a = shellProject(alongGx, -halfAcross)
@@ -6984,11 +7021,67 @@ export function buildRoom(): RoomHandle {
        * broad, low amber pool on the concrete; the monitors remain the sharp
        * cyan points sitting inside it.
        */
+      /*
+       * §7.8.0c [added 2026-09-03] — **the concrete has to have somewhere to
+       * fall to.**
+       *
+       * Measured across the floor, the concept's warm pixels run p5=34,
+       * p25=50, p50=57, p95=139; the render's ran p5=54, p25=57, p50=58,
+       * p95=150. The *pools* were never the problem — the two p95s are within
+       * a tenth of each other, and the ratio of pool to floor was already about
+       * 1.9 in both. What the render had no trace of was the concept's **bottom
+       * quartile**: its floor was one flat value with lamps added on top, so
+       * there was no unlit concrete anywhere in the room and the five teams
+       * separated by distance alone.
+       *
+       * So the slab is washed down first and the lamps then pull it back. This
+       * goes in `light` rather than in `shell` because it is a lighting pass on
+       * a surface, not a change to the surface — `GARAGE_VALUES.floor` still
+       * describes what the concrete *is*, which is what the value gate reads,
+       * and this describes how much of it a lamp reaches.
+       *
+       * The diamond rather than an ellipse: `light` is drawn after the walls,
+       * and anything that overspills the slab darkens the block behind it.
+       */
+      /*
+       * **A gentle settle, and then the walls' own shadow** — not a blanket.
+       *
+       * The first cut of this washed the whole slab at 0.3 and pulled the
+       * median from 58 to 47 against the concept's 57. Measured, that was
+       * closer on the *bottom* quartile and wrong about the room: the picture
+       * came out as five spotlights on a black floor where the concept is a
+       * broadly lit floor with gentle pools on it. The concept's dark end is
+       * its **perimeter** — concrete in the lee of a wall — not its middle.
+       *
+       * So: a small overall settle, and a band of shadow inside each wall. That
+       * puts the low values where they belong and leaves the open middle where
+       * it already measured correctly.
+       */
+      slab(0.006, c(RAMPS.NEUTRAL[0]), 0.09, light)
+      {
+        const lo = -halfBack + WALL_THICK
+        const hi = halfBack - WALL_THICK
+        const loY = -halfAcross + WALL_THICK
+        const hiY = halfAcross - WALL_THICK
+        // Three bands per wall, fading inward: a hard line at the skirting is a
+        // painted stripe, and what a wall actually casts is a gradient.
+        for (const [depth, alpha] of [[0.9, 0.16], [2.0, 0.1], [3.4, 0.06]] as Array<[number, number]>) {
+          const dark = RAMPS.NEUTRAL[0]
+          isoPatch(light, shellProject, lo, loY, lo + depth, hiY, dark, alpha)
+          isoPatch(light, shellProject, hi - depth, loY, hi, hiY, dark, alpha)
+          isoPatch(light, shellProject, lo + depth, loY, hi - depth, loY + depth, dark, alpha)
+          isoPatch(light, shellProject, lo + depth, hiY - depth, hi - depth, hiY, dark, alpha)
+        }
+      }
       const used = ordinary === 0 ? 0 : Math.floor((ordinary - 1) / POD_SEATS) + 1
       for (const pod of GARAGE_PODS.slice(0, used)) {
         const at = garagePlot(pod.gx, pod.gy)
         const pool = isoAt(at.col, at.row)
-        light.ellipse(pool.x + 7, pool.y + 12, 92, 44).fill({ color: c(RAMPS.WARN[0]), alpha: 0.24 })
+        // Three rings rather than two, and stronger, because they now have the
+        // wash above to climb out of: a lamp that only matched the unwashed
+        // floor would read as a stain rather than as a light.
+        light.ellipse(pool.x + 9, pool.y + 15, 122, 59).fill({ color: c(RAMPS.WARN[0]), alpha: 0.13 })
+        light.ellipse(pool.x + 7, pool.y + 12, 92, 44).fill({ color: c(RAMPS.WARN[0]), alpha: 0.22 })
         light.ellipse(pool.x + 3, pool.y + 7, 58, 28).fill({ color: c(RAMPS.WARN[1]), alpha: 0.18 })
       }
       // A restrained screen wash binds the separate pools without filling the
