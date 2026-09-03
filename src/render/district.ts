@@ -45,6 +45,7 @@
  */
 import type { Graphics } from 'pixi.js'
 import { RAMPS } from '../art/palette.ts'
+import { mixHex } from '../art/entropyTheme.ts'
 import { isoPatch, isoSolid, type Project } from './isoSolid.ts'
 
 export interface DistrictShell {
@@ -253,9 +254,9 @@ function windows(
  * subject of its own frame. These are a step above the carriageway and no more.
  */
 const DIM_FACADES = [
-  { top: RAMPS.NEUTRAL[2], left: RAMPS.NEUTRAL[1], right: RAMPS.NEUTRAL[0] },
   { top: RAMPS.NEUTRAL[1], left: RAMPS.NEUTRAL[1], right: RAMPS.NEUTRAL[0] },
-  { top: RAMPS.WOOD[0], left: RAMPS.NEUTRAL[1], right: RAMPS.NEUTRAL[0] },
+  { top: RAMPS.NEUTRAL[0], left: RAMPS.NEUTRAL[1], right: RAMPS.NEUTRAL[0] },
+  { top: RAMPS.NEUTRAL[1], left: RAMPS.NEUTRAL[0], right: RAMPS.NEUTRAL[0] },
 ]
 
 function neighbour(
@@ -275,9 +276,18 @@ function neighbour(
   windows(g, p, gx, gy, w, d, h, salt, dim)
   // The parapet — a thin lip standing proud of the roof. One quad, and it is
   // what stops a tower reading as a solid extruded rectangle.
+  /*
+   * §7.8.0c [2026-09-03] — **a roof at night has nothing above it.**
+   *
+   * The dim parapet took `NEUTRAL[2]` and the dim facades' tops with it, and
+   * measured that came out (58,50,68) against the concept's rear roofs at about
+   * (11,8,14) — five times too bright, and cool lilac, so the largest shapes
+   * behind the building were also the palest. §7's key is a rule about an
+   * *interior*; there is nothing over a roof outdoors after dark but sky.
+   */
   isoSolid(g, p, gx - 0.06, gy - 0.06, h, w + 0.12, d + 0.12, 0.16, {
-    top: RAMPS.NEUTRAL[dim ? 2 : 4],
-    left: RAMPS.NEUTRAL[dim ? 1 : 3],
+    top: RAMPS.NEUTRAL[dim ? 0 : 4],
+    left: RAMPS.NEUTRAL[dim ? 0 : 3],
     right: RAMPS.NEUTRAL[dim ? 0 : 1],
   })
   // A roof plant and an aerial belong to a skyline the camera is reading. The
@@ -311,13 +321,42 @@ function neighbour(
  * seen while staying in the same projection as everything else. A billboarded
  * round tree would be the upright-prop mistake again.
  */
-function tree(g: Graphics, p: Project, gx: number, gy: number, s: number) {
+/**
+ * §7.8.0c [added 2026-09-03] — **foliage after dark, for the rear band.**
+ *
+ * Measured, the concept's rear canopy sits at about (26,27,15) with its
+ * brightest leaves near (38,39,20). The render's was `FOLIAGE[1]` as authored —
+ * (76,122,69) — **four and a half times brighter**, and the single largest
+ * colour error in the room: a band of vivid daylight green above a night
+ * street, drawn at its own palette value with nothing keyed to the light it is
+ * standing in. The same mistake as the pale corner piers, the lilac conduit and
+ * the grey tree caps, and by some distance the loudest.
+ *
+ * Two mixes rather than one. Toward `WARN[0]` first, because a tree at night is
+ * olive rather than grey-green and the warm mix is what keeps the hue; then
+ * toward `NEUTRAL[0]` for the value. Both are master-palette entries and the
+ * result is a blend of two of them, which is §7.8.0c's rule for a colour that
+ * falls between entries.
+ *
+ * The *street* trees are untouched: they stand across a lit road on the office
+ * floor, where this value would bury them.
+ */
+const NIGHT_FOLIAGE = [0, 1].map((i) =>
+  mixHex(mixHex(RAMPS.FOLIAGE[i], RAMPS.WARN[0], 0.65), RAMPS.NEUTRAL[0], 0.55),
+)
+const NIGHT_TRUNK = mixHex(RAMPS.WOOD[0], RAMPS.NEUTRAL[0], 0.6)
+
+function tree(g: Graphics, p: Project, gx: number, gy: number, s: number, dim = false) {
+  const leaf1 = dim ? NIGHT_FOLIAGE[1] : RAMPS.FOLIAGE[1]
+  const leaf0 = dim ? NIGHT_FOLIAGE[0] : RAMPS.FOLIAGE[0]
+  const bark = dim ? NIGHT_TRUNK : RAMPS.WOOD[0]
+  const shade = dim ? RAMPS.NEUTRAL[0] : RAMPS.NEUTRAL[1]
   isoSolid(g, p, gx + 0.19 * s, gy + 0.19 * s, 0, 0.13 * s, 0.13 * s, 0.32 * s,
-    { top: RAMPS.WOOD[1], left: RAMPS.WOOD[0], right: RAMPS.NEUTRAL[1] })
+    { top: dim ? NIGHT_TRUNK : RAMPS.WOOD[1], left: bark, right: shade })
   isoSolid(g, p, gx, gy, 0.28 * s, 0.5 * s, 0.5 * s, 0.32 * s,
-    { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[0], right: RAMPS.NEUTRAL[1] })
+    { top: leaf1, left: leaf0, right: shade })
   isoSolid(g, p, gx + 0.08 * s, gy + 0.08 * s, 0.56 * s, 0.34 * s, 0.34 * s, 0.28 * s,
-    { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[1], right: RAMPS.FOLIAGE[0] })
+    { top: leaf1, left: leaf1, right: leaf0 })
   /*
    * **The crown's top face is foliage, and it was `NEUTRAL[4]`** [2026-09-03].
    *
@@ -329,7 +368,7 @@ function tree(g: Graphics, p: Project, gx: number, gy: number, s: number) {
    * tree at night behind a building is nothing at all.
    */
   isoSolid(g, p, gx + 0.16 * s, gy + 0.16 * s, 0.8 * s, 0.18 * s, 0.18 * s, 0.22 * s,
-    { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[1], right: RAMPS.FOLIAGE[0] })
+    { top: leaf1, left: leaf1, right: leaf0 })
 }
 
 /**
@@ -672,7 +711,18 @@ export function garageRearPlan(hb: number, ha: number, back: number): RearProp[]
       band,
       gx,
       gy,
-      size: (band === 'tree' ? 1.35 : 0.6) + rnd(salt) * (band === 'tree' ? 0.55 : 0.16),
+      /*
+       * §7.8.0c [2026-09-03] — **the rear trees are the size the concept's
+       * are**, which is about a third wider and half again as tall as the
+       * street trees they were sized from.
+       *
+       * Measured off v9's rear band: a canopy about 1.07 tiles across and the
+       * whole tree about 2.8 tiles tall, against 0.8 by 1.8 here. A street tree
+       * across a road is a small object because it is far away; these stand
+       * immediately behind a wall the camera is looking over, and at the old
+       * size they read as shrubs on a bank rather than as a tree line.
+       */
+      size: (band === 'tree' ? 1.9 : 0.6) + rnd(salt) * (band === 'tree' ? 0.7 : 0.16),
       depth: 0,
       height: 0,
       salt,
@@ -759,19 +809,26 @@ function planter(g: Graphics, p: Project, gx: number, gy: number, w: number, d: 
  * One model, used for every planter on both sides — which is §7.8.0c's rule and
  * is also what makes the rhythm read as a rhythm.
  */
-export function bushPlanter(g: Graphics, p: Project, gx: number, gy: number) {
+export function bushPlanter(g: Graphics, p: Project, gx: number, gy: number, dim = false) {
   const W = 0.92
-  const tub = { top: RAMPS.NEUTRAL[3], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] }
-  const leaf = { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[0], right: RAMPS.NEUTRAL[1] }
+  // `dim` is the rear band's shrub: behind a wall, in the dark, keyed like the
+  // trees beside it. The kerb's planters keep their colour — they stand under a
+  // street lamp, which is the whole reason they are green in the concept.
+  const tub = dim
+    ? { top: RAMPS.NEUTRAL[1], left: RAMPS.NEUTRAL[1], right: RAMPS.NEUTRAL[0] }
+    : { top: RAMPS.NEUTRAL[3], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] }
+  const leaf = dim
+    ? { top: NIGHT_FOLIAGE[1], left: NIGHT_FOLIAGE[0], right: RAMPS.NEUTRAL[0] }
+    : { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[0], right: RAMPS.NEUTRAL[1] }
   isoSolid(g, p, gx, gy, 0, W, W, 0.46, tub)
   isoSolid(g, p, gx + 0.08, gy + 0.08, 0.46, W - 0.16, W - 0.16, 0.5, leaf)
   // The crown gets the ramp's own two greens the other way up — `FOLIAGE` has
   // exactly two entries and there is no third to reach for, which is the master
   // palette doing its job rather than a limitation to work around.
   isoSolid(g, p, gx + 0.24, gy + 0.24, 0.96, W - 0.48, W - 0.48, 0.3, {
-    top: RAMPS.FOLIAGE[1],
-    left: RAMPS.FOLIAGE[1],
-    right: RAMPS.FOLIAGE[0],
+    top: leaf.top,
+    left: leaf.top,
+    right: leaf.left,
   })
 }
 
@@ -933,9 +990,9 @@ export function drawDistrict(g: Graphics, p: Project, shell: DistrictShell): voi
       if (prop.band === 'building') {
         at(gx, gy, () => neighbour(g, p, gx, gy, prop.size, prop.depth, prop.height, prop.salt, true))
       } else if (prop.band === 'tree') {
-        at(gx, gy, () => tree(g, p, gx, gy, prop.size))
+        at(gx, gy, () => tree(g, p, gx, gy, prop.size, true))
       } else {
-        at(gx, gy, () => bushPlanter(g, p, gx, gy))
+        at(gx, gy, () => bushPlanter(g, p, gx, gy, true))
       }
     }
     const runs = garageKerbRuns(hb, ha, d, back, kerb)
