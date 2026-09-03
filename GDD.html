@@ -4078,8 +4078,25 @@ reload throws away the studio you wanted to look at.</p>
 <p>Free zoom takes three things off together, because they are one idea: the magnetic settle, §7.7.1's
 zoom ceiling, and the inner stop a little past the desk. The settle is the one that actually matters —
 the clamp only bites at the ends of the ladder, but the settle takes the camera off whatever you
-pointed it at about a second after you get there. The pan bounds are deliberately <em>not</em> lifted;
-they keep the camera over the studio, which is a help while inspecting rather than a restriction.</p>
+pointed it at about a second after you get there.</p>
+<p><strong>[amended 2026-09-03] The pan bounds are lifted too — and it turned out they were not a
+design decision at all, they were a bug.</strong> This paragraph used to end <em>"the pan bounds are
+deliberately not lifted; they keep the camera over the studio, which is a help while inspecting
+rather than a restriction."</em> Measured with a scripted drag over the completed garage: the camera
+moved <strong>zero pixels</strong>. Not a little — none. <code>panRange</code> returns
+<code>max(0, (bounds.w − viewport.w / scale) / 2)</code>, and every rung of the ladder is
+<em>fitted</em> to its subject by definition, so at any framed level that expression is zero and the
+clamp put every drag straight back. <code>lens.ts</code> has listed <em>a drag</em> among the three
+ways to move the camera since the file was written; the gesture ran, <code>panBy</code> did its
+arithmetic, and the next line undid it. A test asserted the behaviour under the heading <em>"does not
+slide around, because the park fits the frame"</em>, which is how it survived.</p>
+<p>So <code>PAN_SLACK</code> gives <em>every</em> rung a quarter of a viewport to roam, on the rails
+as well as off them, and free camera raises that to a viewport and a half because it exists to point
+at one prop and a prop can be in a corner. The interest the old sentence was protecting is real and
+is kept by the number: a quarter of a frame is enough to shift a room off centre and look behind
+something, and nowhere near enough to lose the studio. The magnetic settle does not undo it — the
+settle carries the current centre into its target and only changes scale — so a drag stays where the
+finger left it.</p>
 <p>Both are behind <code>DEBUG_TOOLS_ENABLED</code>, and free zoom especially: §7.7.1's rule is that
 the studio you can see is the studio you have, and a build that let a player past it would be telling
 them the world is a backdrop they are pointing at.</p>

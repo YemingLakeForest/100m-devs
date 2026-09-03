@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   Lens,
+  PAN_SLACK,
   SETTLE_DELAY_MS,
   SETTLE_INTENT,
   anchorCentre,
@@ -230,8 +231,11 @@ describe('panning', () => {
     lens.panBy(-100_000, -100_000, 20_000)
     lens.update(1 / 60, 20_000)
     const bounds = panBounds(lens.level, 0, FLOORS_PER_BUILDING)
-    expect(lens.centre.cx).toBeLessThanOrEqual(bounds.cx + bounds.w / 2 + 1e-6)
-    expect(lens.centre.cy).toBeLessThanOrEqual(bounds.cy + bounds.h / 2 + 1e-6)
+    // Plus {@link PAN_SLACK}, which is a quarter of a viewport and is what
+    // makes the drag do anything at all at a fitted rung.
+    const slack = { x: (REFERENCE.w * PAN_SLACK) / lens.scale, y: (REFERENCE.h * PAN_SLACK) / lens.scale }
+    expect(lens.centre.cx).toBeLessThanOrEqual(bounds.cx + bounds.w / 2 + slack.x + 1e-6)
+    expect(lens.centre.cy).toBeLessThanOrEqual(bounds.cy + bounds.h / 2 + slack.y + 1e-6)
   })
 
   it('roams the floor below it and the building above it', () => {
@@ -282,15 +286,34 @@ describe('the park, one rung further out', () => {
     expect(panBounds(BLOCK, ...args).w).toBeLessThan(panBounds(PARK, ...args).w)
   })
 
-  it('does not slide around, because the park fits the frame', () => {
-    // `panRange`'s rule from the start, at the top of the ladder: every level is
-    // fitted to its subject by definition, so there is nowhere for a drag to go.
+  /**
+   * **[amended 2026-09-03] This asserted that a drag does nothing, and it was
+   * right about the code and wrong about the product.**
+   *
+   * It read: *"`panRange`'s rule from the start, at the top of the ladder:
+   * every level is fitted to its subject by definition, so there is nowhere for
+   * a drag to go."* True, and the consequence was that the drag gesture — which
+   * `lens.ts` has documented as one of the three ways to move the camera since
+   * the file was written — moved nothing at any framed rung, including the one
+   * the garage sits at. The handler ran, `panBy` did its arithmetic, and the
+   * clamp on the next line put it all back.
+   *
+   * {@link PAN_SLACK} gives every rung a quarter of a viewport to roam. The
+   * claim worth keeping is the one underneath the old one, and it is now what
+   * this test says: the drag moves the picture, and it cannot lose the studio.
+   */
+  it('slides, and not far enough to lose the subject', () => {
     const lens = millions()
     const before = { ...lens.centre }
     lens.panBy(-400, -400, 20_000)
     settle(lens)
-    expect(lens.centre.cx).toBeCloseTo(before.cx, 6)
-    expect(lens.centre.cy).toBeCloseTo(before.cy, 6)
+    expect(lens.centre.cx).not.toBeCloseTo(before.cx, 3)
+    expect(lens.centre.cy).not.toBeCloseTo(before.cy, 3)
+    // And a shove ten times the frame lands on the slack, not in the void.
+    lens.panBy(-100_000, -100_000, 30_000)
+    lens.update(1 / 60, 30_000)
+    const roam = Math.hypot(lens.centre.cx - before.cx, lens.centre.cy - before.cy) * lens.scale
+    expect(roam).toBeLessThan(Math.hypot(REFERENCE.w, REFERENCE.h) * PAN_SLACK * 1.01)
   })
 
   it('follows the address into another block without changing how close in it is', () => {

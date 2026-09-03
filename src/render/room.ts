@@ -7095,44 +7095,27 @@ export function buildRoom(): RoomHandle {
     // rather than a garage and read as an office without changing a line.
     if (!unfolded) {
       // --- the garage bones ----------------------------------------------------
-      //
-      // Brick courses on the left wall, and the door on the right. The courses
-      // are what make the red fill read as brick rather than as painted plaster:
-      // a fixed number of courses that tile the wall exactly from the skirting to
-      // the cornice, so the pattern stretches with the wall and never leaves a
-      // ragged gap at the top. A horizontal mortar bed between courses plus
-      // staggered vertical joints — the stagger is the whole brick tell, a grid
-      // of vertical joints reads as block. Kept to the left wall only — the
-      // right wall's door is its statement, and a wall that says both says
-      // neither.
-      const BRICK_COURSES = 7
-      const brickBot = SKIRT_H
-      const brickTop = WALL_H - CORNICE_H
-      const course = (brickTop - brickBot) / BRICK_COURSES
-      const brickW = TILE_W * 0.9
-      for (let i = 0; i < BRICK_COURSES; i++) {
-        const bed = brickBot + i * course
-        const bedTop = bed + course
-        // The mortar bed above this course. Skipped above the top course — the
-        // cornice's shadow line already marks that edge.
-        if (i < BRICK_COURSES - 1) {
-          shell
-            .moveTo(leftX, leftY - bedTop)
-            .lineTo(topX, topY - bedTop)
-            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.4 })
-        }
-        // Vertical joints, offset half a brick on every second course. Each joint
-        // runs the full height of its own course, bed to bed, so nothing
-        // overshoots or falls short of the wall.
-        const offset = (i % 2) * brickW * 0.5
-        for (let x = leftX + offset; x < topX; x += brickW) {
-          const bx = leftY - (x - leftX) * WALL_SLOPE
-          shell
-            .moveTo(x, bx - bedTop)
-            .lineTo(x, bx - bed)
-            .stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.25 })
-        }
-      }
+      /*
+       * §7.8.0c [amended 2026-09-03] — **the pale mortar is gone**, on the
+       * user's instruction, and it should have gone with the rest.
+       *
+       * A second, older brick pattern used to be drawn here, on the left wall
+       * only: seven courses of `NEUTRAL[5]` at alpha 0.4 with staggered
+       * verticals at 0.25. Measured on the frame, its beds came out (102,84,81)
+       * over a wall of (70,48,35) — **a third brighter than the brick, and
+       * cooler** — so the largest interior wall carried four pale lines running
+       * its whole length, which is what the report called "the white brick line
+       * on the left top wall".
+       *
+       * It survived because it predates the block courses the shell now draws
+       * for every run, and nothing ever removed it: two mortar systems on one
+       * building, one of them inverted. The GDD's own rule as of today is that
+       * a joint is a shadow and not a tint, and that nothing is painted at the
+       * value of its own highlight — this was both errors in one object.
+       *
+       * The remaining courses are `courses()`' own, at `NEUTRAL[0]` over 0.72
+       * and 0.55, on every wall rather than on one of them.
+       */
       /*
        * **The up-and-over door on the back wall is gone.** §7.8.0c [2026-09-02].
        *

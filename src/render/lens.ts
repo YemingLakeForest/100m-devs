@@ -85,11 +85,40 @@ export const EASE_RATE = 3.4
  * something to pan *at every level below the floor*, because zooming in past a
  * level's own fit genuinely enlarges the picture rather than only cross-fading.
  */
-export function panRange(bounds: Rect, scale: number, viewport: Viewport): { x: number; y: number } {
+/**
+ * How far past a fitted frame a drag may still take the camera, as a fraction
+ * of the viewport. [2026-09-03]
+ *
+ * **This overturns a rule that was here from the start**, and the rule was
+ * wrong in the only way that matters — you could not move the picture. Every
+ * level is fitted to its subject by definition, so `panRange` came out zero at
+ * every rung that was framed, and a drag over the garage moved the camera not
+ * one pixel. `lens.test.ts` asserted exactly that, under the heading *"does not
+ * slide around, because the park fits the frame"*, and the doc comment at the
+ * top of this file has listed **a drag** as one of the three ways to move the
+ * camera the whole time. The gesture existed, the handler ran, `panBy` did its
+ * arithmetic, and the clamp on the next line put it all back.
+ *
+ * A quarter of a viewport is enough to shift a room off centre and look behind
+ * something, and far too little to lose the studio — which is the interest the
+ * old rule was actually protecting. Off the rails it goes to a viewport and a
+ * half, because free camera exists to point at one prop and a prop can be in a
+ * corner.
+ */
+export const PAN_SLACK = 0.26
+/** The same, with the rails off — see {@link Lens.setFreeZoom}. */
+export const PAN_SLACK_FREE = 1.5
+
+export function panRange(
+  bounds: Rect,
+  scale: number,
+  viewport: Viewport,
+  slack = 0,
+): { x: number; y: number } {
   if (!(scale > 0)) return { x: 0, y: 0 }
   return {
-    x: Math.max(0, (bounds.w - viewport.w / scale) / 2),
-    y: Math.max(0, (bounds.h - viewport.h / scale) / 2),
+    x: Math.max(0, (bounds.w - viewport.w / scale) / 2) + (viewport.w * slack) / scale,
+    y: Math.max(0, (bounds.h - viewport.h / scale) / 2) + (viewport.h * slack) / scale,
   }
 }
 
@@ -967,7 +996,15 @@ export class Lens {
     }
 
     const bounds = this.bounds()
-    const range = panRange(bounds, this._scale, this.viewport)
+    // §7.2 [amended 2026-09-03] — with slack, so a drag always moves something.
+    // See {@link PAN_SLACK}: without it every fitted rung pinned the camera and
+    // the drag gesture was dead code with a clamp behind it.
+    const range = panRange(
+      bounds,
+      this._scale,
+      this.viewport,
+      this.free ? PAN_SLACK_FREE : PAN_SLACK,
+    )
     this._cx = clamp(this._cx, bounds.cx - range.x, bounds.cx + range.x)
     this._cy = clamp(this._cy, bounds.cy - range.y, bounds.cy + range.y)
 
