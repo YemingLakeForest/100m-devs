@@ -62,7 +62,27 @@ const POINT_EPS = 0.75
  * and forty straddle the crowding flip, ninety-nine and a hundred straddle
  * §7.8.1c's unfold, and a thousand is `ROOM_DEV_CAP`.
  */
-const HEADCOUNTS = [1, 2, 3, 10, 30, 39, 40, 99, 100, 300, 1000]
+const HEADCOUNTS = [1, 2, 3, 10, 21, 30, 39, 40, 99, 100, 300, 1000]
+
+/**
+ * §7.8.0c [added 2026-09-03] — **the completed garage, and the frames it has to
+ * fit in.**
+ *
+ * Twenty-one rather than twenty: §7.8.12 seats James inside the suite out of
+ * the studio's own headcount, so a studio of twenty is nineteen ordinary
+ * developers and him. The garage is full — five pods of four — on the
+ * twenty-first hire, which is the frame the concept is a picture of.
+ *
+ * The two viewports are the two the game is actually looked at in: §23.4's
+ * desktop reference and the supported compact landscape. Containment is a
+ * property of the *camera*, so it can only be checked at a size — which is why
+ * this pass exists at all rather than being another claim in `measure`.
+ */
+const FULL_GARAGE = 21
+const FRAMES = [
+  { w: 1664, h: 936, name: 'desktop' },
+  { w: 997, h: 448, name: 'compact landscape' },
+]
 
 const failures = []
 let checks = 0
@@ -310,6 +330,109 @@ try {
       continue
     }
     measure(devs, g)
+  }
+
+  /*
+   * §7.8.0c — **the whole building, inside the picture.**
+   *
+   * The garage kept failing this and nothing could see it. Every measurement in
+   * `measure` above is in the room's own pixels, which is the right frame for
+   * every claim about the room's shape and the wrong one for the only claim the
+   * camera can break: at twenty developers and 1664x936 the left pier stood 185
+   * px off the left edge of the frame and the far pier's cap 190 px off the
+   * top, while every slope, join and footprint in the room was correct.
+   *
+   * `geometry().screen` is the same four corners and the same four piers a
+   * second time, through `container.toGlobal` — the live scene graph, not a
+   * reconstruction of it from the lens.
+   */
+  for (const frame of FRAMES) {
+    await page.setViewportSize({ width: frame.w, height: frame.h })
+    await page.goto(`${origin}/?notitle&full&nopost&devs=${FULL_GARAGE}`, { waitUntil: 'load' })
+    await page.waitForFunction(() => window.__room?.() != null, { timeout: 30_000 })
+    // The fit eases in; measure the settled camera rather than a frame of it.
+    await page.waitForTimeout(1_800)
+    const g = await page.evaluate(() => window.__room())
+    const where = `the full garage at ${frame.w}x${frame.h} (${frame.name})`
+    if (!g?.screen) {
+      failures.push(`${where}: the room reports no screen geometry`)
+      continue
+    }
+    const { shell, piers, viewport } = g.screen
+    check(
+      where,
+      'is measured against the viewport it was drawn into',
+      viewport.w === frame.w && Math.abs(viewport.h - frame.h) <= 2,
+      `reported ${viewport.w}x${viewport.h}`,
+    )
+    for (const [name, p] of Object.entries(shell)) {
+      check(
+        where,
+        `the shell's ${name} corner is in frame`,
+        p.x >= 0 && p.x <= frame.w && p.y >= 0 && p.y <= frame.h,
+        `(${Math.round(p.x)}, ${Math.round(p.y)})`,
+      )
+    }
+    check(where, 'draws all four corner piers', piers.length === 4, `${piers.length} pier(s)`)
+    for (const pier of piers) {
+      check(
+        where,
+        `the ${pier.name} pier is in frame, cap included`,
+        pier.minX >= 0 && pier.maxX <= frame.w && pier.minY >= 0 && pier.maxY <= frame.h,
+        `x ${Math.round(pier.minX)}..${Math.round(pier.maxX)} y ${Math.round(pier.minY)}..${Math.round(pier.maxY)}`,
+      )
+    }
+    /*
+     * **And it fills the frame.** Containment alone is satisfiable by a camera
+     * a mile up: §7.8.0c asks for the building at roughly four fifths of the
+     * picture, which is the concept's own proportion and the difference between
+     * a garage and a model of one on a table.
+     */
+    const spanX = Math.max(...piers.map((p) => p.maxX)) - Math.min(...piers.map((p) => p.minX))
+    const spanY = Math.max(...piers.map((p) => p.maxY)) - Math.min(...piers.map((p) => p.minY))
+    const fill = Math.max(spanX / frame.w, spanY / frame.h)
+    check(where, 'fills at least three quarters of its frame', fill >= 0.75, `${Math.round(fill * 100)}%`)
+    // And is centred between the rails rather than pushed against one.
+    const midX = (Math.max(...piers.map((p) => p.maxX)) + Math.min(...piers.map((p) => p.minX))) / 2
+    check(
+      where,
+      'is centred across the frame',
+      Math.abs(midX - frame.w / 2) <= frame.w * 0.04,
+      `centre ${Math.round(midX)} of ${frame.w}`,
+    )
+
+    /*
+     * §7.8.0c — **every developer in the completed garage can be tapped.**
+     *
+     * The scene contract's plainest requirement and the one no other check can
+     * make: "every developer, monitor and desk must be visible in the resting
+     * frame; near walls, the gate, HUD and other people may not hide them."
+     * Visibility at this scale *is* reachability — a body the near wall covers
+     * is a body no thumb can land on — so the claim is asked of `__pick`, which
+     * is the same hit test a real tap goes through.
+     *
+     * The founder's own seat is exempt: §7.8.12 draws them inside the suite and
+     * §13.7.1a already records that the corner desk is deliberately outside the
+     * resting frame at some headcounts. Every ordinary developer is not.
+     */
+    const seats = g.screen.seats ?? []
+    check(where, `draws ${g.seats.length} people`, seats.length === g.seats.length)
+    const held = g.heldSeats ?? 0
+    const missed = []
+    for (let i = held; i < seats.length; i++) {
+      const at = seats[i]
+      const hit = await page.evaluate(
+        ([x, y]) => window.__pick?.(x, y) ?? null,
+        [Math.round(at.x), Math.round(at.y)],
+      )
+      if (!hit || hit.index !== i) missed.push(`${i}@(${Math.round(at.x)},${Math.round(at.y)})`)
+    }
+    check(
+      where,
+      'gives every ordinary developer a usable hit point',
+      missed.length === 0,
+      missed.join(' '),
+    )
   }
 
   /*

@@ -50,6 +50,7 @@ import {
   teamDeskPosition,
   drawnSeatPosition,
   suiteSeatsIn,
+  garagePlot,
   isoAt,
   FLOOR_MIN_COL,
   FLOOR_MIN_ROW,
@@ -66,6 +67,7 @@ import {
   SUITE_WALL_ROW,
   SUITE_WEST_COL,
 } from './room.ts'
+import { GARAGE_ROUTE, GARAGE_SIGN, SUITE_DOOR_GY } from './garage.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import {
   ARRIVAL_MS,
@@ -1288,5 +1290,89 @@ describe('the seat window — GDD §26.2.2, and §26.2.5 lines 2 and 3', () => {
     room.setHeadcount(10_200)
     expect(room.drawn).toBe(200)
     room.container.destroy({ children: true })
+  })
+})
+
+
+/**
+ * §7.8.0c [added 2026-09-03] — **the three seams between the garage's plan and
+ * the room that draws it.**
+ *
+ * `garage.ts` is pure and knows nothing about the floor lattice; `room.ts` owns
+ * the lattice and imports the plan. Every number that has to mean the same
+ * thing on both sides of that line is a place the two can drift apart silently,
+ * and §7.8.0c has already lost two of them — a plan origin four columns from
+ * the shell's, and a copy of where the gate is.
+ */
+describe('the garage plan and the room agree', () => {
+  it('lands the route s last waypoint on the suite s own doorway', () => {
+    // `SUITE_DOOR_GY` is written out in `garage.ts` because `room.ts` owns
+    // `GARAGE_COL0` and already imports it the other way. This is the assertion
+    // that stands in for the import it cannot have.
+    expect(garagePlot(0, SUITE_DOOR_GY).col).toBeCloseTo(0, 6)
+    const end = GARAGE_ROUTE[GARAGE_ROUTE.length - 1]
+    expect(end.gy).toBeCloseTo(SUITE_DOOR_GY, 6)
+  })
+
+  it('draws no chair anywhere in the garage, and does draw them on the floor', () => {
+    const room = buildRoom()
+    // A garage: five pods of four, nobody in an office.
+    room.setTeam([{ id: 'james', colour: '#fff', assigned: false, connecting: false, selected: false }])
+    room.setHeadcount(21)
+    expect(room.geometry().chairs).toBe(0)
+    // And the open-plan floor, where a chair is still the right mark: the
+    // claim is that the garage does not draw them, not that nothing does.
+    room.setHeadcount(120)
+    expect(room.geometry().chairs).toBeGreaterThan(0)
+    room.container.destroy({ children: true })
+  })
+
+  it('says exactly what §7.8.0c fixes on the gate', () => {
+    expect(GARAGE_SIGN).toBe('NO BUGS. JUST FEATURES')
+  })
+
+  /**
+   * **And it lies along the frontage.** The street wall runs on `gx`, and one
+   * `gx` step moves the projection 32 px right and 16 down — so the only slope
+   * a line lying in that plane may take is +0.5, and the sign is skewed onto it
+   * rather than rotated. A rotation is a screen-space transform pretending to
+   * be a plane, and §7.8.0b was written after one of those put half the room's
+   * screens on a slope the projection does not have.
+   */
+  it('lays the gate sign on the frontage s own screen slope', () => {
+    const room = buildRoom()
+    room.setTeam([{ id: 'james', colour: '#fff', assigned: false, connecting: false, selected: false }])
+    room.setHeadcount(21)
+    const sign = room.container.getChildByLabel('gate-sign', true)
+    expect(sign).not.toBeNull()
+    /*
+     * The frontage's slope, read off **the wall the sign is painted on** rather
+     * than written down. The street wall runs from the shell's left vertex to
+     * its near one, so its screen slope is whatever the projection makes of
+     * that — and if the projection ratio is ever retuned, the sign follows it
+     * without this test having to be edited.
+     */
+    const { left, bottom } = room.geometry().shell
+    const slope = (bottom.y - left.y) / (bottom.x - left.x)
+    expect(slope).toBeCloseTo(0.5, 9)
+    expect(sign!.skew.y).toBeCloseTo(Math.atan(slope), 9)
+    room.container.destroy({ children: true })
+  })
+
+  /**
+   * §7.8.0c — **seven work positions in the corner, and seven people in them.**
+   *
+   * The founder plus all six named heroes, every one on its own plot. The
+   * failure this catches is not a missing desk: it is two heroes assigned the
+   * same `col`/`row`, which draws one body on top of another and looks exactly
+   * like a roster that is one short.
+   */
+  it('gives the completed corner seven distinct work positions', () => {
+    const ids = STORY_HEROES.map((hero) => hero.id)
+    expect(ids).toHaveLength(6)
+    const plots = [FOUNDER_PLOT, ...ids.map((id) => suitePlot(id))]
+    expect(plots).toHaveLength(7)
+    const keys = new Set(plots.map((p) => `${p.col.toFixed(3)},${p.row.toFixed(3)}`))
+    expect(keys.size).toBe(7)
   })
 })

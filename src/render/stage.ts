@@ -2409,6 +2409,31 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
        */
       ;(globalThis as unknown as Record<string, unknown>).__room = () =>
         roomIsUp ? room.geometry() : null
+      /*
+       * §7.8.0c — **what the camera is actually doing**, as opposed to what the
+       * frame it was told to fit says it should be.
+       *
+       * Same family as `__room` and `__pick`, and added on 2026-09-03 for the
+       * defect neither of those could see: the garage's resting camera took its
+       * *centre* from the room's rectangle and its *scale* from the squad's,
+       * because only `FLOOR` was routed through `frameOf` and the garage never
+       * reaches `FLOOR`. Every number on both sides was correct. What was wrong
+       * was that they came from different rectangles, and the only way to see
+       * that is to read the ladder, the fitted rectangle and the resulting
+       * transform in the same breath.
+       *
+       * `scales()` is the ladder as the lens computes it; `floorRect` is what
+       * the room asked for; `view` is what was applied. Two of the three
+       * agreeing is the symptom.
+       */
+      ;(globalThis as unknown as Record<string, unknown>).__cam = () => ({
+        z: camera.z,
+        level: camera.level,
+        scale: camera.scale,
+        view: camera.transform(),
+        scales: camera.scales(),
+        floorRect: { ...room.shellRect },
+      })
       ;(globalThis as unknown as Record<string, unknown>).__signAt = () => {
         if (!roomIsUp) return null
         const at = room.teamSignPoint()

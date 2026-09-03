@@ -4043,6 +4043,18 @@ rather than clustered, exterior lamps and planters use one curb rhythm at exactl
 three planters on each visible street side, and the garage frame contains no vehicles. The seven
 leadership occupants are outside the twenty-developer capacity.
 This section is what was taken from the concept and why.</p>
+<p><strong>[added 2026-09-03] The completed garage is twenty-one on the counter, and that is not a
+rounding error.</strong> §7.8.12 seats James inside the suite out of the studio's own headcount, so a
+studio of twenty is nineteen ordinary developers and him; the five pods are full on the twenty-first
+hire, which is the frame this concept is a picture of. <code>GARAGE_SEATS</code> is still twenty and
+still knows nothing about the corner — what the corner costs is a <em>headcount</em>, never a seat.</p>
+<p><strong>And <code>?full</code> now records Melany's arrival.</strong> It was the one arrival missing,
+left out on the sound argument that she brings no HUD readout and so changes nothing about the worst
+frame the interface has to draw. That was the wrong test: <code>?full</code> is also the fixture every
+room gate and every garage capture loads, and this section requires the completed corner to hold the
+founder and <strong>all six</strong> named heroes at seven distinct positions. Without her the
+canonical frame had six people in a room sized for seven, and no gate could see it, because the only
+thing that knew the number was the concept art.</p>
 <h6>Two plans, one address space</h6>
 <p>The obvious economy is to make the garage the first twenty seats of the office floor plan. It
 is wrong, and the reason is the whole point of §7.8.0's transition: <strong>the garage and the office
@@ -4059,11 +4071,24 @@ moved by a hire.</p>
 <li><strong>Five pods of four, staggered — not a grid and not a row.</strong> A loose quincunx with a pod's
 worth of floor between them. A grid of five is a car park at any scale, which is the §7.8.1e
 complaint one room down. Stated as two testable properties rather than as the word “staggered”:
-no two pods share a <code>gx</code> or a <code>gy</code>, and no two footprints overlap.</li>
+no two pods share a <code>gx</code> or a <code>gy</code>, and no two footprints overlap.
+<strong>[amended 2026-09-03]</strong> Those two properties turned out to be satisfiable by a clump: the
+five sat in a loose diagonal with four of them packed into the room's right third and the whole
+left-centre of the floor empty — a quincunx by the letter and a heap in the picture. v6's reads as a
+<em>composition</em>, and it is two bands: a back band a couple of tiles off the workshop wall, a
+front band with the open middle of the floor between them, and no two tables closer than a table's
+width. The band positions are the concept's own, converted into plan tiles and then pulled inside
+<code>WALL_CLEAR</code> — its rightmost table stands about a tile off the near-right block, which is
+a lane a person has to walk.</li>
 <li><strong>A pod is one table with two people each side, facing each other.</strong> The only place in the
 game where developers face one another, and what makes four people read as a <em>team</em> rather than
-as four workstations. The table runs along <code>gy</code> so it presents its long edge to the camera and
-all four faces are visible at once.</li>
+as four workstations. <strong>[amended 2026-09-03]</strong> The table runs along whichever floor axis
+the pod names, and three of the five run along <code>gy</code> with two along <code>gx</code>. The
+original rule was “along <code>gy</code>, so it presents its long edge to the camera and all four
+faces are visible at once”; the second half of that is true of both axes and always was — a table on
+<code>gx</code> presents its long edge just as squarely, mirrored. What it is not true of is a room
+where every table points the same way, which shows the camera twenty screen backs in two rows and no
+<code>gy+</code> or <code>gy-</code> facing anywhere.</li>
 <li><strong>A pod's first two arrivals sit opposite each other</strong>, not side by side. Filling one side
 and then the other gives two strangers looking at an empty bench; a facing pair is the smallest
 thing in this game that reads as a team. The pod also fills completely before the next one
@@ -4266,9 +4291,18 @@ somebody works</em> rather than storage.</p>
 <h6 id="both-doors-are-in-the-street-wall">Both doors are in the street wall</h6>
 <p><strong>[2026-09-02.]</strong> The side door was in the far-left wall, which is the one you cannot
 reach from the road — a tradesman's door onto next door's yard. The canonical concept puts it where a
-garage really has it: in the same frontage as the roll-up, a stride to its left. That is also the
+garage really has it: in the same frontage as the roll-up, a stride away. That is also the
 only arrangement in which the two doors are <em>about</em> anything — the big one is how the van gets
 in, the small one is how people do.</p>
+<p><strong>[amended 2026-09-03]</strong> It is a stride to the roll-up's <em>right</em> — higher
+<code>gx</code>, down-right on screen — and not its left. v6 puts it there, past the near jamb pier,
+with the timber threshold and a lamp between the two, and that is also the better side for this
+camera: the near vertex of the building is the corner closest to the viewer, so a door there is a
+door you see the whole of, where the up-left end of the frontage is the part the wall foreshortens
+hardest. The openings array stays written left to right along the wall, so the personnel door is now
+<code>openings[1]</code>. Nothing reads it by index — <code>rollUpIn</code> asks which opening reaches
+the head of the wall — which is the whole reason that function exists and the reason the move cost
+one expression.</p>
 <p><strong>[amended 2026-09-03]</strong> The roll-up is the frontage's full-height vehicle opening. Its
 shutter runs from the slab to a shallow sign header between two square jamb piers; the header reads
 <strong>“NO BUGS. JUST FEATURES”</strong> and follows the wall's isometric axis exactly. No developer,
@@ -4354,12 +4388,65 @@ stands right against the glass, and the glass won.</p>
 <p>It is not a sorting bug inside one layer. The suite is a <em>building</em> and the clutter is
 furniture standing on the floor in front of it, so they belong on opposite sides of it — the same
 argument §7.8.0c makes about the near half of a facing pod's kit, one object larger.</p>
+<h6 id="the-clutter-is-zoned">The clutter is zoned, not merely spaced <strong>[CANON - added 2026-09-03]</strong></h6>
+<p>Every prop already had a reserved rectangle, every rectangle already cleared every other, and every
+one already touched a wall the camera can see over. All three held, and the far-left wall still came
+out as a fridge, a bin, a two-metre stack of boxes, a pallet and a crate tower in one continuous heap
+— which is not a kitchenette. It is a fly-tip with a kettle in it. <strong>Deterministic is not the
+same as sensibly placed</strong>, and non-clashing is not the same as zoned.</p>
+<p>So the perimeter is four <em>named zones</em>, each a rectangle, and every plot lies wholly inside
+exactly one of them:</p>
+<ul>
+<li><strong>the workshop run</strong>, on the far-right wall, in the order you would build it: shelves,
+board, bench, chest, bike, tyres;</li>
+<li><strong>the lounge</strong>, on the same wall after the run — where you sit down is past where you
+work;</li>
+<li><strong>the kitchenette</strong>, on the far-left wall clear of the leadership corner: a fridge, a
+table with a kettle on it, a bin near them, and nothing else;</li>
+<li><strong>one storage corner</strong>, at the far end of that wall, holding the few things a garage
+genuinely stacks and nothing that belongs to a zone.</li>
+</ul>
+<p>The zones do not overlap, none of them touches a pod or the leadership corner, and all four are
+populated — an empty zone is a zone somebody emptied without deleting, which is how a table stops
+describing the room. The failure this catches is a plot drifting two tiles over three iterations,
+clearing every other plot at every step, and arriving somewhere it does not belong.</p>
+<p>Two of the objects in those zones were also the wrong <em>value</em> rather than the wrong place.
+The box stack sat at <code>WOOD</code> base 2 and 3, so its top faces took the palest colour in the
+ramp and a stack of cardboard was the brightest thing on the whole left-hand wall — lit cardboard at
+night is not cream. The milk crates were <code>CALM</code>, which is the interface phosphor the HUD,
+the monitors and the expansion seam are drawn in, so a solid cyan box on the floor read as a piece of
+UI that had fallen into the room. They are <code>FOLIAGE</code> now, which is where the concept's
+green crate already lives.</p>
+<h6 id="the-slab-is-cracked">The slab is cracked, and the cracks are authored <strong>[CANON - added 2026-09-03]</strong></h6>
+<p>The floor had one crack, drawn in <em>screen</em> pixels off the slab's own half-width — so it did
+not lie on the floor, it lay across the picture, and it moved when the camera fit did. The concept's
+slab has six or seven lines of different lengths that fork and stop, and that is the difference
+between concrete which was poured, walked on and left, and a grey field with a scratch in it.</p>
+<p>Three properties make it a network rather than a texture, and each is a rule the table is written
+to keep. <strong>It is authored, not generated</strong> — the room rebuilds on every hire, and a crack
+network reseeded per rebuild would crawl across the floor as the studio grows. <strong>It forks</strong>
+— a branch leaves a trunk at one of the trunk's own interior points, so a join is a junction rather
+than two lines that happen to touch, which is why the table is two lists. <strong>It crosses the quiet
+floor</strong> — through the open middle and along the empty ends, never round a pod, because a crack
+that traces a footprint reads as a chalk outline and the eye finds it immediately.</p>
+<p>The cables moved out of the draw loop in the same batch and for a harder reason: the gate apron is
+a rectangle of floor nothing may cross, and a <em>path</em> is the one kind of object an overlap test
+on plots will never notice — it can clear the apron at both ends and run straight through the middle
+of it.</p>
 <h6 id="the-gaps-are-the-shelf">On a shelf unit, the gaps are the object</h6>
 <p>The shelving had a box on nearly every tier at nearly full depth and came out a solid tan slab
 with two lines on it — a cupboard, or a wall. <strong>A shelf unit is read from its voids:</strong>
 you know it is shelving because you can see through it between the boards. The boards are now dark
 and thin, the uprights darker still, and the contents small, sparse and at three depths, with the top
 tier left bare — a shelf with something on every level is a stock room.</p>
+<h6 id="the-back-wall-is-mostly-block">The back wall is mostly block <strong>[amended 2026-09-03]</strong></h6>
+<p>The garage's two UPVC casements were 52 px wide and half the wall tall, glazed in <code>GLOW[1]</code>.
+Two of those across a four-tile wall left the back of the building reading as the back of a house, and
+the panes were the brightest objects on that surface — which put the eye on a window instead of on
+the twenty people under it. The concept has one modest casement up there and a louvred vent; these
+take the casement's proportions, and the glass drops to the neutral ramp because there is nothing
+behind that wall but the dark. The wall stays mostly block, which is what lets the shelving and the
+tool board on it read at all. They remain §7.8.9 errand destinations; only their size changed.</p>
 <h6 id="a-pod-that-reads-as-four-people-at-a-table">A pod that reads as four people at a table</h6>
 <p><strong>[amended 2026-09-03.]</strong> The garage draws <strong>no chairs yet</strong>. At this scale a
 chair back and a monitor rear resolve to the same dark rectangle, so adding both makes a pod read as
@@ -4446,6 +4533,16 @@ implementation had four of five pods within about a tile of the block, which pas
 gate because nothing actually intersected. <strong>Non-overlap is not clearance</strong>, and the
 difference is the whole read: a desk that merely fails to touch a wall still looks like it was pushed
 against it.</p>
+<p><strong>[amended 2026-09-03]</strong> And the corner's reservation is the room <em>as drawn</em>
+plus a hand's breadth, which it was not. §7.8.12's suite is measured in the floor's
+<code>col</code>/<code>row</code> and <code>garagePlot</code> maps <code>col</code> onto
+<code>gy</code> and <code>row</code> onto <code>gx</code>; the seven-plot suite reaches plan
+<strong>gy 6.41 by gx 4.41</strong> — a room longer along the back-left wall than it is deep, which is
+what the concept draws. The reservation had it at gx 6.6 by gy 8.6: about right in area, wrong in
+shape, and 2.2 tiles deeper than the glass actually stands. That depth was paid in pods, because
+<code>GLASS_CLEAR</code> is measured off it — every pod sharing the corner's <code>gy</code> band was
+pushed out to gx 9.1, which is why four of the five ended up in the room's right third. It is gx 5.1
+by gy 7.1 now, and the back band has its left-hand table back.</p>
 <p>So <code>WALL_CLEAR = 1.5</code> tiles — walking room <em>beyond</em> the reserved seated-body
 clearance, since a pod's plot already includes it — and <code>GLASS_CLEAR = 1.0</code> off the leadership
 partition, which is smaller on purpose: the glass is a wall inside one room rather than the edge of
@@ -4761,16 +4858,70 @@ frame's centre as well as its width.</strong> The room slid into the top-right c
 of the picture given to empty road, and the far wall clipped against the right edge.</p>
 <p>The concept does something simpler — the garage is <em>centred</em> and fills about four fifths of
 the frame, and the remaining fifth is street on every side, which the district already draws. So the
-fit stays centred on the room and zooms out by 18 per cent once the studio has filled it. Same
-information, no skew.</p>
+fit stays centred on the room.</p>
+<p><strong>[amended 2026-09-03]</strong> The zoom-out is no longer a step, and the frame is no longer
+the furniture. Both halves of that were wrong in the same way and the second one bit hardest.</p>
+<p>The rule was “once the pods reach within two columns of the far wall, frame the shell and zoom out
+18 per cent”. That is a <em>cut</em> in a camera §10.5 says never cuts, and it was keyed on where the
+furniture happens to reach — so re-laying the five pods a tile shy of where they had been silently
+turned the whole-building frame off and dropped the near pier below the bottom edge of the picture. A
+composition rule that depends on the arrangement it is composing is not a rule.</p>
+<p>The frame is now a <strong>lerp on how full the garage is</strong>: at nought developers it is the
+back corner, so the founder is a real object in it (§7.7.4's tap target, which is the whole reason
+the growth curve exists); at twenty it is the shell box exactly, and nothing else. The street margin
+is two tiles across and two down rather than <code>districtPad</code>'s two hundred pixels — that
+budget is right for a tower, where what surrounds the building is the city, and wrong for a building
+whose surroundings are a kerb. Measured at 1664×936 the completed garage fills 79 per cent of the
+width and 87 per cent of the height, which is the concept's own proportion.</p>
+<p><strong>And the rung the studio is pinned to frames the room.</strong> §7.7.1 stops a twenty-person
+studio at the squad, which is right — there is no floor to look at and no tower. But the squad's
+frame is authored from <code>frameFor</code>, a rectangle sized for twenty desks on the open-plan
+lattice, and the garage those twenty people stand in is a <em>building</em> half again as wide. Only
+<code>FLOOR</code> was ever routed through <code>frameOf</code>, and the garage never reaches
+<code>FLOOR</code>: so the resting camera of the whole first act took its <em>centre</em> from the
+room and its <em>scale</em> from the squad, which is the one combination neither can be checked
+against. The left pier stood 185 px off the left edge of the picture and the far pier's cap 190 px
+off the top, with every slope, join and footprint in the room correct. The ceiling rung may not frame
+less than the room it is pinned inside; the rungs below it are untouched, and pinching in to one
+developer still reaches James.</p>
+<p><strong>Containment is measured, not argued.</strong> <code>RoomGeometry.screen</code> carries the
+four slab corners and every pier's drawn box a second time through <code>container.toGlobal</code>,
+beside the viewport they landed in, and <code>test:room</code> asserts that all of it is inside the
+frame at both supported sizes and that the building fills at least three quarters of it. Every other
+measurement in that record is in the room's own pixels, which is the right frame for a shape and the
+wrong one for a camera.</p>
 <h6 id="the-street-the-garage-opens-onto">The street the garage opens onto</h6>
 <p>The street lamps and planters are <strong>borrowed from <code>district.ts</code></strong> rather than
 drawn again. §7.8.1e's rule is that the ground outside is drawn once and never changes what it is,
 and street furniture is part of that ground. <strong>[amended 2026-09-03]</strong> The garage camera
-suppresses district vehicles while preserving the road, kerb, lane marks, lamps and planters. The
-lamp at the kerb on the far side still lets its pool fall over the threshold; that second light
-source is what makes the monitors read as <em>interior</em>, which is <code>lamp</code>'s own note one
-module over.</p>
+suppresses district vehicles while preserving the road, kerb, lane marks, lamps and planters.</p>
+<p><strong>[amended 2026-09-03]</strong> It suppresses the rest of §7.8.1e's street furniture with
+them — the neighbours, the street trees, the parking bays, the bus shelter, the benches and the bike
+hoops. That list is authored for a <em>floor</em>, where the building is large enough that the city
+around it reads as context. At the garage's scale it reads as a competing subject: a row of lit
+facades across the road is brighter and busier than the room the game is about, and the canonical
+concept has none of it. What it has is tarmac, a kerb, a rhythm of lamps and bushes, and dark.</p>
+<p><strong>The kerb is a rhythm, and it is authored.</strong> One lamp then three planters, repeating,
+at one setback per side: two lights and six bushes on the gate frontage, three and nine on the right
+return, each side keeping its own ratio rather than borrowing an object from the other. The obvious
+construction — a uniform pitch along the whole kerb with anything landing in a driveway dropped —
+makes the <em>count</em> depend on where the gate happens to sit, which is the sort of thing that gets
+fixed by nudging the gate until the lamp reappears. So the pitch is uniform in the <strong>free
+measure</strong>: the exclusion spans are cut out first, what remains is laid end to end, and the
+stations are spaced evenly along that. Every side keeps its authored count, no station can be inside
+an exclusion by construction, and the rhythm reads as regular with a gap at the gate. The exclusions
+are the vehicle crossover plus its splay, the personnel threshold, the crossings and both pier
+footprints; the room hands the district its two openings and the district owns everything else, so
+neither module holds a copy of the other's numbers.</p>
+<p>The lamp that used to be placed by name at the kerb beside the threshold is gone with the car it
+stood next to. It was a fourth light on a side that is allowed two, standing exactly where the
+exclusion span says nothing may stand. The frontage's furniture comes from the kerb run with
+everything else on that kerb; the pool over the threshold is whichever light the rhythm puts near it.</p>
+<p><strong>No vehicle is a claim about emission, not about the picture.</strong> A screenshot cannot
+tell an absent car from one drawn in the dark, and matching fill colours would be a test of the
+palette — <code>CAR_BODIES</code> are four colours the street uses for other things too. So the
+vehicles are a list the drawing iterates, and the rule is one assertion: at the garage stop the list
+is empty. There is no second place a car can come from.</p>
 <p><strong>Once the room is full, the frame takes in the street.</strong> The apron is outside the
 near wall, so a frame fitted to the room alone crops all of it. Widening unconditionally is not the
 answer — that is precisely what shrank the founder below the tap target at nought developers. So the

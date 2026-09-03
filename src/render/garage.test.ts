@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { GARAGE_CAP } from '../sim/capacity.ts'
 import {
   COLUMN_THICK,
+  GARAGE_APRON,
+  GARAGE_CABLES,
+  GARAGE_CRACKS,
   GARAGE_GLASS,
   GARAGE_LEADERSHIP,
   GARAGE_PODS,
@@ -13,12 +16,15 @@ import {
   GARAGE_SHELL,
   GARAGE_SPAN,
   GARAGE_VALUES,
+  GARAGE_ZONES,
   GLASS_CLEAR,
   NEAR_CLEAR,
   garageColumns,
   POD_SEATS,
   WALL_CLEAR,
   acrossFrom,
+  facesCamera,
+  garageCrackPaths,
   garageSeat,
   garageSeats,
   inPlot,
@@ -94,12 +100,67 @@ describe('developers on opposite sides of a pod face one another', () => {
       const b = garageSeat(j)
       expect(a.pod).toBe(b.pod)
       expect(b.facing).toBe(opposite(a.facing))
-      // Facing each other means the one looking `gx+` is the one with the
-      // smaller gx, or they are looking at each other's backs.
-      if (a.facing === 'gx+') expect(a.gx).toBeLessThan(b.gx)
-      else expect(a.gx).toBeGreaterThan(b.gx)
+      /*
+       * Facing each other means the one looking `gx+` is the one with the
+       * smaller `gx`, or they are looking at each other's backs — and the same
+       * sentence on `gy` for a table laid on `gx`.
+       *
+       * Stated as *the axis the facing names* rather than as `gx` twice, which
+       * is what it said while every table lay one way: the second pod to be
+       * turned would have passed this test by comparing the coordinate neither
+       * of its two people moved along.
+       */
+      const along = a.facing === 'gx+' || a.facing === 'gx-' ? 'gx' : 'gy'
+      const across = along === 'gx' ? 'gy' : 'gx'
+      const toward = a.facing === 'gx+' || a.facing === 'gy+'
+      if (toward) expect(a[along]).toBeLessThan(b[along])
+      else expect(a[along]).toBeGreaterThan(b[along])
       // And they are across the table, not along it.
-      expect(a.gy).toBeCloseTo(b.gy, 10)
+      expect(a[across]).toBeCloseTo(b[across], 10)
+    }
+  })
+
+  /**
+   * §7.8.0c [2026-09-03] — **all four facings, and they are geometry.**
+   *
+   * The claim is about the *completed* garage: a studio of eight has two pods
+   * and may legitimately show two facings. What may never happen is a finished
+   * room in which half the legal orientations are unreachable, which is what
+   * the plan did while `Pod` had no axis on it and `garageSeat` returned `gx+`
+   * or `gx-` and nothing else.
+   */
+  it('uses all four floor axes across the completed garage', () => {
+    const seen = new Set(garageSeats().map((s) => s.facing))
+    expect([...seen].sort()).toEqual(['gx+', 'gx-', 'gy+', 'gy-'])
+  })
+
+  it('gives a pod on gy the gx facings and a pod on gx the gy ones', () => {
+    for (const pod of GARAGE_PODS) {
+      const seats = garageSeats().filter((s) => s.pod === pod.id)
+      const want = pod.axis === 'gy' ? ['gx+', 'gx-'] : ['gy+', 'gy-']
+      expect({ pod: pod.name, facings: [...new Set(seats.map((s) => s.facing))].sort() })
+        .toEqual({ pod: pod.name, facings: want })
+    }
+  })
+
+  it('uses both legal table axes', () => {
+    const axes = new Set(GARAGE_PODS.map((p) => p.axis))
+    expect([...axes].sort()).toEqual(['gx', 'gy'])
+  })
+
+  /**
+   * The renderer's one question about a facing, and the reason it is a function
+   * rather than a comparison written out at each call site.
+   */
+  it('calls exactly the two facings that point at the camera camera-facing', () => {
+    expect(facesCamera('gx+')).toBe(true)
+    expect(facesCamera('gy+')).toBe(true)
+    expect(facesCamera('gx-')).toBe(false)
+    expect(facesCamera('gy-')).toBe(false)
+    // And every table has exactly one row of each, whichever way it lies.
+    for (const pod of GARAGE_PODS) {
+      const seats = garageSeats().filter((s) => s.pod === pod.id)
+      expect(seats.filter((s) => facesCamera(s.facing))).toHaveLength(POD_SEATS / 2)
     }
   })
 
@@ -259,6 +320,155 @@ describe('walk routes remain clear', () => {
       expect({ pod: pod.name, approaches: open.length > 0 })
         .toEqual({ pod: pod.name, approaches: true })
     }
+  })
+})
+
+/**
+ * §7.8.0c [added 2026-09-03] — **the gate apron is empty floor.**
+ *
+ * The requirement is that a vehicle could actually come through the opening,
+ * and the way that stops being true is never a desk drawn across the door. It
+ * is a prop plot creeping two tiles closer over three iterations while every
+ * overlap test in the file keeps passing, because nothing was claiming that
+ * piece of floor.
+ */
+/**
+ * §7.8.0c [added 2026-09-03] — **the clutter is zoned, not scattered.**
+ *
+ * The overlap gate says no two props are in the same place. This says something
+ * the overlap gate cannot: that each prop is in the place it is *for*. Between
+ * them they are the difference between a perimeter and a heap.
+ */
+describe('every prop belongs to a named zone', () => {
+  const inside = (prop: Plot, zone: Plot) =>
+    prop.gx0 >= zone.gx0 - 1e-9 &&
+    prop.gx1 <= zone.gx1 + 1e-9 &&
+    prop.gy0 >= zone.gy0 - 1e-9 &&
+    prop.gy1 <= zone.gy1 + 1e-9
+
+  it('puts every prop wholly inside exactly one zone', () => {
+    for (const prop of GARAGE_PROPS) {
+      const zones = GARAGE_ZONES.filter((zone) => inside(prop, zone))
+      expect({ prop: prop.name, zones: zones.map((z) => z.name) })
+        .toEqual({ prop: prop.name, zones: [expect.any(String)] })
+    }
+  })
+
+  it('keeps the zones off each other', () => {
+    for (let i = 0; i < GARAGE_ZONES.length; i++) {
+      for (let j = i + 1; j < GARAGE_ZONES.length; j++) {
+        expect({
+          a: GARAGE_ZONES[i].name,
+          b: GARAGE_ZONES[j].name,
+          clash: plotsOverlap(GARAGE_ZONES[i], GARAGE_ZONES[j]),
+        }).toEqual({ a: GARAGE_ZONES[i].name, b: GARAGE_ZONES[j].name, clash: false })
+      }
+    }
+  })
+
+  /**
+   * And every zone is used. An unpopulated zone is a zone somebody emptied
+   * without deleting, which is how a table stops describing the room.
+   */
+  it('fills all four of them', () => {
+    for (const zone of GARAGE_ZONES) {
+      expect({ zone: zone.name, props: GARAGE_PROPS.some((prop) => inside(prop, zone)) })
+        .toEqual({ zone: zone.name, props: true })
+    }
+  })
+
+  it('keeps the zones out of the leadership corner and off every pod', () => {
+    for (const zone of GARAGE_ZONES) {
+      expect({ zone: zone.name, corner: plotsOverlap(zone, GARAGE_LEADERSHIP) })
+        .toEqual({ zone: zone.name, corner: false })
+      for (const pod of GARAGE_PODS) {
+        expect({ zone: zone.name, pod: pod.name, clash: plotsOverlap(zone, podPlot(pod)) })
+          .toEqual({ zone: zone.name, pod: pod.name, clash: false })
+      }
+    }
+  })
+})
+
+describe('the gate apron stays clear', () => {
+  it('lies behind the vehicle opening and nowhere else', () => {
+    expect(GARAGE_APRON.gx0).toBe(GARAGE_ROLLUP.at)
+    expect(GARAGE_APRON.gx1).toBe(GARAGE_ROLLUP.at + GARAGE_ROLLUP.width)
+    // Two character widths deep, measured in from the street wall's inner face.
+    expect(GARAGE_APRON.gy1 - GARAGE_APRON.gy0).toBeGreaterThanOrEqual(2.4)
+    expect(GARAGE_APRON.gy1).toBe(GARAGE_SPAN)
+  })
+
+  it('holds no pod, no seat and no prop', () => {
+    for (const pod of GARAGE_PODS) {
+      expect({ pod: pod.name, on: plotsOverlap(podPlot(pod), GARAGE_APRON) })
+        .toEqual({ pod: pod.name, on: false })
+    }
+    for (const seat of garageSeats()) {
+      expect(inPlot(GARAGE_APRON, seat.gx, seat.gy)).toBe(false)
+    }
+    for (const prop of GARAGE_PROPS) {
+      expect({ prop: prop.name, on: plotsOverlap(prop, GARAGE_APRON) })
+        .toEqual({ prop: prop.name, on: false })
+    }
+  })
+
+  /**
+   * And no cable crosses it, which is the one class of object in this room that
+   * is a *path* rather than a rectangle — so an overlap test on plots would
+   * never have looked at it. Sampled along every leg for the same reason the
+   * route is: a run that clears the apron at both ends can still cross it.
+   */
+  it('is not crossed by a cable run', () => {
+    for (const run of GARAGE_CABLES) {
+      for (let i = 0; i + 1 < run.length; i++) {
+        const [ax, ay] = run[i]
+        const [bx, by] = run[i + 1]
+        for (let t = 0; t <= 1; t += 1 / 64) {
+          expect(inPlot(GARAGE_APRON, ax + (bx - ax) * t, ay + (by - ay) * t)).toBe(false)
+        }
+      }
+    }
+  })
+})
+
+/**
+ * §7.8.0c — **the marks on the slab are authored, not sampled from a clock.**
+ *
+ * The crack network and the cable runs are the two things in this room that
+ * look like noise, and the requirement they carry is the opposite of noise: the
+ * room rebuilds on every single hire, and a slab whose cracks move when
+ * somebody is hired is a slab nobody believes is concrete.
+ */
+describe('the floor marks are deterministic', () => {
+  it('gives the same cracks and cables every time it is asked', () => {
+    expect(GARAGE_CRACKS).toEqual(GARAGE_CRACKS)
+    expect(JSON.stringify(garageCrackPaths())).toBe(JSON.stringify(garageCrackPaths()))
+  })
+
+  it('keeps every crack on the slab', () => {
+    for (const path of garageCrackPaths()) {
+      for (const [gx, gy] of path) {
+        expect({ gx, gy, on: gx >= 0 && gx <= GARAGE_SPAN && gy >= 0 && gy <= GARAGE_SPAN })
+          .toEqual({ gx, gy, on: true })
+      }
+    }
+  })
+
+  /**
+   * **Branches, not a hatch.** A crack network that is five straight lines is a
+   * tile texture with the tiles taken off; what makes the concept's slab read
+   * as old concrete is that the lines fork and the forks are uneven.
+   */
+  it('varies its lengths and forks at least once', () => {
+    const paths = garageCrackPaths()
+    expect(paths.length).toBeGreaterThanOrEqual(5)
+    const lengths = new Set(paths.map((p) => p.length))
+    expect(lengths.size).toBeGreaterThan(1)
+    // A branch shares its first point with a trunk's interior point.
+    const shared = paths.filter((p) =>
+      paths.some((q) => q !== p && q.some(([x, y], i) => i > 0 && x === p[0][0] && y === p[0][1])),
+    )
+    expect(shared.length).toBeGreaterThan(0)
   })
 })
 

@@ -31,6 +31,7 @@ import {
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_MATT_ARRIVES,
+  SCENE_MELANY_ARRIVES,
   SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
   SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
@@ -170,6 +171,22 @@ export default function App() {
             SCENE_MO_ARRIVES.id,
             SCENE_SERENA_ARRIVES.id,
             SCENE_MATT_ARRIVES.id,
+            /*
+             * §7.8.0c [added 2026-09-03] — **and Melany, so the corner is
+             * seven.**
+             *
+             * She was the one arrival missing from this list, and for the
+             * reason the note above gives about Billy: she brings no readout,
+             * so she changes nothing about the worst frame the HUD has to draw.
+             * That was the wrong test. `?full` is also the fixture the room
+             * gates measure — `test:room` and every garage capture load it —
+             * and §7.8.0c requires the completed leadership corner to hold the
+             * founder and **all six** named heroes at seven distinct work
+             * positions. Without her the canonical garage frame had six people
+             * in a room sized for seven, and no gate could see it, because the
+             * only thing that knew the number was the concept art.
+             */
+            SCENE_MELANY_ARRIVES.id,
             // The fixture posts James during the browser frame gate. A player
             // at this point has already seen why the body stays in the room;
             // recording it keeps the gate on the HUD frame it was built for.

@@ -293,6 +293,25 @@ export interface Pod {
   readonly name: string
   readonly gx: number
   readonly gy: number
+  /**
+   * §7.8.0c [added 2026-09-03] — **which floor axis the table lies on.**
+   *
+   * The pod owns its orientation and everything else reads it: `garageSeat`
+   * derives both the seat coordinates and the {@link Facing}, `podPlot`
+   * transposes the footprint, and the room draws the table, the screen plane,
+   * the body pose, the hit target and the depth layer from the same value.
+   *
+   * That single ownership is the requirement, not the variety it produces. A
+   * pod drawn one way and seated another is the defect §7.8.0b was written
+   * after — a workstation whose screen was mirrored in screen space while its
+   * plane stayed put — and four unrelated draw functions is the same mistake
+   * with more places to make it.
+   *
+   * `'gy'` is the table running down-left, which puts its two rows of seats
+   * either side on `gx` and therefore facing `gx+`/`gx-`. `'gx'` is the table
+   * running down-right, seats either side on `gy`, facing `gy+`/`gy-`.
+   */
+  readonly axis: 'gx' | 'gy'
 }
 
 /**
@@ -342,26 +361,55 @@ export const POD_HALF_GY = 1.4
  * once the pods get partitions.
  */
 export const GARAGE_PODS: readonly Pod[] = [
+  /*
+   * [2026-09-03] **Re-laid against v6, and the arrangement is two bands.**
+   *
+   * The previous five sat in a loose diagonal with four of them packed into the
+   * room's right third and the whole left-centre of the floor empty — a
+   * quincunx by the letter of the staggering test and a clump in the picture.
+   * The concept's reads as a composition: a back band a couple of tiles off the
+   * workshop wall, a front band with the open middle of the floor between them,
+   * and no two tables closer than a table's width. That is what makes twenty
+   * people read as five teams with room to grow rather than as one crowd.
+   *
+   * The band positions are the concept's own, converted into plan tiles and
+   * then pulled inside the clearance rules rather than copied as pixels — its
+   * rightmost table stands about a tile off the near-right block, which
+   * WALL_CLEAR does not allow and which is a lane a person has to walk.
+   */
   // Straight out in front of the leadership glass — the pod the founder can see
   // from their desk, which is why it is the one James lands in.
-  //
-  // All four of the pods east of the corner shifted right on 2026-09-02 when
-  // the corner widened to 6.6. `GLASS_CLEAR` and `WALL_CLEAR` between them fix
-  // the band they may occupy — gx 9.1 to 13.0 for a pod centre — and there is
-  // exactly enough of it for two abreast. That is the cost of an uncrowded
-  // corner, stated where it is paid.
-  { id: 0, name: 'THE BENCH', gx: 9.3, gy: 3.2 },
-  // Under the tool board, deepest into the workshop end — a lane off it rather
-  // than shoved against it, so the board is something you can stand at.
-  { id: 1, name: 'THE TOOL WALL', gx: 12.5, gy: 3.0 },
-  // Past the foot of the corner, in the open end of the room. It used to run
-  // along the left wall; it is 2.7 tiles off it now, which is the widest lane
-  // in the garage and the one the route from the gate comes up.
-  { id: 2, name: 'THE LONG TABLE', gx: 4.2, gy: 12.0 },
-  // The middle of the room, and the pod the route from the door runs past.
-  { id: 3, name: 'THE MIDDLE', gx: 9.5, gy: 7.4 },
-  // Front right, by the sofa and the fridge. The last pod to fill.
-  { id: 4, name: 'THE SOFA END', gx: 12.9, gy: 8.4 },
+  // gy 4.0, not 3.3: `WALL_CLEAR` is measured off the *block*, and the first
+  // 1.55 tiles of that wall are the workshop run — so a pod that clears the
+  // wall by a lane can still be a hand's width from the tool chest, which is
+  // what it was. The band moves back until there is somewhere to stand at the
+  // bench.
+  { id: 0, name: 'THE BENCH', gx: 8.0, gy: 4.0, axis: 'gy' },
+  /*
+   * Under the tool board, deepest into the workshop end — a lane off it rather
+   * than shoved against it, so the board is something you can stand at.
+   *
+   * **The first of the two tables laid on `gx`**, and it is here rather than
+   * anywhere else because this is the pod with the most room behind it: its
+   * `gy-` row looks back up the room toward the workshop wall, where there is
+   * nothing to occlude and a lit surface to be seen against.
+   */
+  { id: 1, name: 'THE TOOL WALL', gx: 11.8, gy: 4.3, axis: 'gx' },
+  // Past the foot of the corner, in the open end of the room. It is the pod the
+  // route from the gate comes up beside, and the one furthest from everything.
+  { id: 2, name: 'THE LONG TABLE', gx: 5.4, gy: 10.6, axis: 'gy' },
+  // The middle of the room, between the two bands, and the pod the spine runs
+  // past on its way to the corner.
+  { id: 3, name: 'THE MIDDLE', gx: 9.2, gy: 7.6, axis: 'gy' },
+  /*
+   * Front right, by the sofa. The last pod to fill, and the second `gx` table.
+   *
+   * Two of five rather than one: a single turned pod reads as a mistake, and
+   * three would make the arrangement a chequerboard. Two put a `gy+`/`gy-` pair
+   * in each half of the frame, which is what "easy to see in the canonical
+   * camera" means when the camera is fixed.
+   */
+  { id: 4, name: 'THE SOFA END', gx: 12.4, gy: 10.4, axis: 'gx' },
 ]
 
 /** Four to a pod, five pods — §7.8.0's twenty, expressed as furniture. */
@@ -403,14 +451,41 @@ export function garageSeat(index: number): GarageSeat {
   // *second* bit, so the pod fills front-to-back rather than left-to-right.
   const far = inPod % 2 === 0
   const along = inPod < 2 ? -0.5 : 0.5
+  /*
+   * §7.8.0c [2026-09-03] — **the seat is the pod's axis, resolved.**
+   *
+   * `across` is the offset from the table centre out to a row, on the axis the
+   * table does *not* lie on; `step` is the place down the table. One expression
+   * covering both axes rather than two branches, because what is being asserted
+   * is that a seat's coordinates and its facing come out of the same value — a
+   * second branch is a second chance for them to disagree, which is the shape
+   * of every defect §7.8.0b records.
+   */
+  const across = far ? -POD_REACH : POD_REACH
+  const step = along * POD_STRIDE
+  const onGy = pod.axis === 'gy'
   return {
     index: i,
     pod: pod.id,
     inPod,
-    gx: pod.gx + (far ? -POD_REACH : POD_REACH),
-    gy: pod.gy + along * POD_STRIDE,
-    facing: far ? 'gx+' : 'gx-',
+    gx: pod.gx + (onGy ? across : step),
+    gy: pod.gy + (onGy ? step : across),
+    facing: onGy ? (far ? 'gx+' : 'gx-') : far ? 'gy+' : 'gy-',
   }
+}
+
+/**
+ * Does this facing point **toward the camera** — down-right or down-left?
+ *
+ * The one question the renderer asks of a `Facing` that is not a coordinate:
+ * which of the two rows across a table is the one whose screen you can see,
+ * whose face is drawn front-on and whose monitor is mounted low. It was
+ * `facing === 'gx+'` written out at three call sites while there were only two
+ * facings, and it would have been silently wrong at all three the moment a
+ * table lay on `gx`.
+ */
+export function facesCamera(f: Facing): boolean {
+  return f === 'gx+' || f === 'gy+'
 }
 
 /** Every seat, in hiring order. */
@@ -472,17 +547,33 @@ export const GARAGE_LEADERSHIP: Plot = {
   name: 'THE CORNER',
   gx0: 0,
   gy0: 0,
-  // 6.6, and it was 5.2 [2026-09-02]. `SUITE_PITCH_COLS` went back to 1.8
-  // because at 1.4 the leadership desks were closer together than the rank and
-  // file's, and the width has to follow: the drawn suite reaches plan 6.41 at
-  // seven plots, so the reservation is that plus a hand's breadth.
-  gx1: 6.6,
-  gy1: 8.6,
+  /*
+   * [2026-09-03] **The reservation is the room as drawn plus a hand's breadth,
+   * and it was two tiles too deep on the axis that costs the most.**
+   *
+   * §7.8.12's suite is measured in the floor's `col`/`row`, and `garagePlot`
+   * maps `col` onto `gy` and `row` onto `gx`. The seven-plot suite reaches
+   * `col` 3.04 and `row` -0.9, which is plan **gy 6.41 by gx 4.41** — a room
+   * longer along the back-left wall than it is deep, which is what the concept
+   * draws. The reservation had it at gx 6.6 by gy 8.6: about right in area,
+   * wrong in shape.
+   *
+   * The cost was paid in pods. {@link GLASS_CLEAR} is measured off `gx1`, so a
+   * reservation 2.2 tiles deeper than the glass actually stands pushed every
+   * pod sharing the corner's `gy` band out to gx 9.1 — which is why four of the
+   * five ended up in the room's right third with the middle of the floor empty.
+   * Naming the drawn extent gives the back band its left-hand table back.
+   *
+   * Still generous, and deliberately: `suiteEastCol` moves with the roster, so
+   * this is the seven-plot extent rather than today's.
+   */
+  gx1: 5.1,
+  gy1: 7.1,
 }
 
 /** The reclaimed glass that fences it off, as a run in the shell's language. */
 /** Where the glass stops, leaving the corner's way in. */
-export const GLASS_MOUTH = 6.6
+export const GLASS_MOUTH = GARAGE_LEADERSHIP.gy1
 
 /**
  * The reclaimed glass that fences the corner off, as a run in the shell's
@@ -538,48 +629,86 @@ export const GARAGE_PLAN_ORIGIN_NOTE = 'plan (0,0) is the room s inner back corn
  * circulation: the concept's floor is mostly empty in the middle, and that empty
  * middle is the route from the door to the corner.
  */
+/**
+ * §7.8.0c [added 2026-09-03] — **the four zones the clutter belongs to.**
+ *
+ * A prop's zone is not decoration and it is not a comment: it is the rectangle
+ * of perimeter the prop is allowed to be in, and it is what makes "the workshop
+ * run" a *place* rather than a list of things that happen to be near each
+ * other. The failure it exists to catch has already happened once — a plot
+ * moved two tiles over three iterations, cleared every other plot at every
+ * step, and ended up in the kitchenette.
+ *
+ * Every plot in {@link GARAGE_PROPS} lies wholly inside exactly one of these,
+ * and the zones do not overlap. Both halves are asserted, because either one on
+ * its own is satisfiable by a zone table that has quietly grown to cover the
+ * whole room.
+ */
+export const GARAGE_ZONES: readonly Plot[] = [
+  // The far-right wall, in the order a workshop is actually built along it.
+  { name: 'THE WORKSHOP RUN', gx0: 5.4, gy0: 0, gx1: 11.2, gy1: 1.6 },
+  // The same wall, past the run: where you sit down is past where you work.
+  { name: 'THE LOUNGE', gx0: 11.2, gy0: 0, gx1: 13.7, gy1: 1.6 },
+  // The far-left wall, clear of the leadership corner.
+  { name: 'THE KITCHENETTE', gx0: 0, gy0: 7.4, gx1: 2.4, gy1: 11.5 },
+  // And the one corner things are stacked in.
+  { name: 'THE STORAGE CORNER', gx0: 0, gy0: 11.5, gx1: 3.2, gy1: 14.0 },
+]
+
 export const GARAGE_PROPS: readonly Plot[] = [
-  // --- the far-right wall (gy 0): workshop first, then the sitting-down end -
+  /*
+   * [re-zoned 2026-09-03] **Four named zones, and every plot belongs to one.**
+   *
+   * The table was one perimeter band with ten objects distributed round it, and
+   * it produced the defect §7.8.0c warns about in its own opening line:
+   * *deterministic is not the same as sensibly placed.* Every plot cleared
+   * every other, every one touched a wall, every check passed — and the
+   * far-left wall came out as a fridge, a bin, a two-metre stack of boxes, a
+   * pallet and a crate tower in one continuous heap, which is not a
+   * kitchenette. It is a fly-tip with a kettle in it.
+   *
+   * So the plots are grouped by what the zone is *for*, and the grouping is in
+   * the table rather than in a comment above it:
+   *
+   * - **the workshop run**, on the far-right wall, in the order you would build
+   *   it: shelves, board, bench, chest, bike, tyres;
+   * - **the lounge**, on the same wall after the run — the place you sit down
+   *   is past the place you work;
+   * - **the kitchenette**, on the far-left wall clear of the leadership corner:
+   *   a fridge, a table with a kettle on it, a bin near them and nothing else;
+   * - **one storage corner**, at the far end of that same wall, holding the few
+   *   things a garage genuinely stacks and nothing that belongs to a zone.
+   *
+   * They are still all against a far wall, for the reason {@link NEAR_CLEAR}
+   * records: the near walls stand between the camera and the room, and a prop
+   * behind one is a prop nobody drew.
+   */
+  // --- the workshop run: the far-right wall (gy 0), past the corner --------
+  { name: 'THE SHELVES', gx0: 5.6, gy0: 0, gx1: 7.7, gy1: 0.55 },
+  { name: 'THE PLANT', gx0: 5.6, gy0: 0.55, gx1: 6.3, gy1: 1.15 },
+  { name: 'THE TOOL BOARD', gx0: 7.9, gy0: 0, gx1: 9.8, gy1: 0.55 },
+  // Second rank, standing in front of the first — which is what a workshop
+  // wall is, and why the anchoring test walks the chain back to masonry rather
+  // than looking one step.
+  { name: 'THE WORKBENCH', gx0: 7.9, gy0: 0.55, gx1: 9.8, gy1: 1.0 },
+  { name: 'THE TOOL CHEST', gx0: 7.9, gy0: 1.0, gx1: 9.1, gy1: 1.55 },
+  { name: 'THE BIKE', gx0: 10.0, gy0: 0, gx1: 11.1, gy1: 0.9 },
+  { name: 'THE TYRES', gx0: 10.0, gy0: 0.9, gx1: 11.0, gy1: 1.5 },
+  // --- the lounge: the same wall, after the run ----------------------------
   //
   // Everything stops at `GARAGE_SPAN - NEAR_CLEAR`. The sofa ran to the corner
   // once and the near-right wall stood in front of its last third, which is
   // the whole reason that constant exists.
-  { name: 'THE SHELVES', gx0: 6.7, gy0: 0, gx1: 8.8, gy1: 0.55 },
-  { name: 'THE TOOL BOARD', gx0: 9.0, gy0: 0, gx1: 10.9, gy1: 0.55 },
-  { name: 'THE WORKBENCH', gx0: 9.0, gy0: 0.55, gx1: 10.9, gy1: 1.0 },
-  { name: 'THE BIKE', gx0: 11.1, gy0: 0, gx1: 12.2, gy1: 0.9 },
-  // The sofa runs along the wall the camera looks *at*, which is the only one
-  // a soft furnishing is worth drawing against — and is where the canonical
-  // concept puts it.
-  { name: 'THE SOFA', gx0: 12.4, gy0: 0, gx1: GARAGE_SPAN - NEAR_CLEAR, gy1: 1.1 },
-  // --- the far-left wall (gx 0), past the corner ---------------------------
-  { name: 'THE BOXES', gx0: 0, gy0: 8.9, gx1: 1.1, gy1: 11.0 },
-  { name: 'THE KETTLE', gx0: 0, gy0: 11.3, gx1: 1.1, gy1: 12.3 },
-  { name: 'THE FRIDGE', gx0: 0, gy0: 12.6, gx1: 1.1, gy1: 13.8 },
-  // Second rank, standing in front of the first — the workbench's arrangement,
-  // one wall over. A garage stacks things two deep against a wall; what it
-  // never does is put them where you cannot see them.
-  { name: 'THE CRATES', gx0: 1.1, gy0: 9.2, gx1: 2.1, gy1: 10.5 },
-  { name: 'THE BIN', gx0: 1.1, gy0: 12.4, gx1: 2.2, gy1: 13.6 },
-  /*
-   * **The rest of the second rank.** [2026-09-02]
-   *
-   * Ten props against sixteen tiles of wall left the perimeter reading as a
-   * shelf, a board and a sofa with gaps between them. The canonical concept has
-   * something like twenty-five objects round its edge, and the density is not
-   * decoration: a wall with one object against it is a wall with an object
-   * against it, and a wall with five is a *workshop*. The middle of the floor
-   * stays empty either way — that is §7.8.0c's circulation and it is untouched.
-   *
-   * All five sit in the 0.55-tile band in front of the first rank, which is the
-   * gap between the props on the wall and the nearest pod's chairs. Nothing
-   * moved to make room for them; the band was already there and empty.
-   */
-  { name: 'THE PLANT', gx0: 6.7, gy0: 0.55, gx1: 7.4, gy1: 1.15 },
-  { name: 'THE TOOL CHEST', gx0: 9.0, gy0: 1.0, gx1: 10.2, gy1: 1.55 },
-  { name: 'THE TYRES', gx0: 11.1, gy0: 0.9, gx1: 12.1, gy1: 1.5 },
-  { name: 'THE STOOL', gx0: 12.5, gy0: 1.1, gx1: 13.2, gy1: 1.55 },
-  { name: 'THE PALLET', gx0: 2.1, gy0: 9.4, gx1: 3.0, gy1: 10.3 },
+  { name: 'THE SOFA', gx0: 11.3, gy0: 0, gx1: 13.5, gy1: 1.1 },
+  { name: 'THE STOOL', gx0: 11.4, gy0: 1.1, gx1: 12.1, gy1: 1.55 },
+  // --- the kitchenette: the far-left wall (gx 0), outside the corner -------
+  { name: 'THE FRIDGE', gx0: 0, gy0: 7.6, gx1: 1.1, gy1: 8.8 },
+  { name: 'THE KETTLE', gx0: 0, gy0: 9.0, gx1: 1.1, gy1: 10.0 },
+  { name: 'THE BIN', gx0: 0, gy0: 10.2, gx1: 0.95, gy1: 11.3 },
+  // --- the storage corner: the far end of that wall, and only this ---------
+  { name: 'THE BOXES', gx0: 0, gy0: 11.7, gx1: 1.1, gy1: 13.8 },
+  { name: 'THE CRATES', gx0: 1.1, gy0: 12.0, gx1: 2.1, gy1: 13.3 },
+  { name: 'THE PALLET', gx0: 2.1, gy0: 12.2, gx1: 3.0, gy1: 13.1 },
 ]
 
 /**
@@ -599,6 +728,16 @@ export const GARAGE_PROPS: readonly Plot[] = [
  * street wall. At 3.4 it read as a hatch. A garage door is the width of a car
  * plus the room to get it wrong, and that is the size it has to look.
  */
+/**
+ * §7.8.0c — **what the sign over the gate says**, exactly.
+ *
+ * A constant rather than a literal at the draw site because it is *canon*: the
+ * section fixes the wording, and a string typed into a renderer is a string
+ * nothing can assert. `garage.test.ts` checks it character for character, which
+ * is the only useful test of a piece of authored copy.
+ */
+export const GARAGE_SIGN = 'NO BUGS. JUST FEATURES'
+
 export const ROLLUP_WIDTH = 4.8
 export const SIDE_DOOR_WIDTH = 1.1
 /**
@@ -654,6 +793,37 @@ export const GARAGE_SHELL: readonly WallRun[] = garageShellRuns(
 
 /** The vehicle door, as cut. */
 export const GARAGE_ROLLUP: Opening = rollUpIn(GARAGE_SHELL)!
+
+/**
+ * §7.8.0c [added 2026-09-03] — **how deep the clear apron behind the gate is**,
+ * in tiles.
+ *
+ * Two character widths, which is the requirement stated in the unit that makes
+ * it checkable: a developer's plot is about 1.2 tiles across, so 2.4 is two of
+ * them standing one behind the other. It is not a margin round the door — it is
+ * the piece of floor a vehicle occupies once it is through it, and an opening
+ * the floor plan cannot use is scenery rather than an entrance.
+ */
+export const GATE_APRON_DEPTH = 2.4
+
+/**
+ * The floor behind the gate that nothing may stand on — the inside half of the
+ * driveway, as a plot in the same table every other claim is checked against.
+ *
+ * Written as a `Plot` rather than as a rule inside a test so that "no desk,
+ * person, prop, lamp or loose cable occupies the apron" is one containment
+ * question asked of one rectangle, the way §7.8.0c asks every other clash
+ * question. The *outside* half is the district's business and is an exclusion
+ * span on the frontage kerb; the two are the same driveway seen from either
+ * side of the wall.
+ */
+export const GARAGE_APRON: Plot = {
+  name: 'THE APRON',
+  gx0: GARAGE_ROLLUP.at,
+  gy0: GARAGE_SPAN - GATE_APRON_DEPTH,
+  gx1: GARAGE_ROLLUP.at + GARAGE_ROLLUP.width,
+  gy1: GARAGE_SPAN,
+}
 /** The personnel door beside it — the opening that stops short of the head. */
 export const GARAGE_SIDE_DOOR: Opening = GARAGE_SHELL.find(
   (r) => r.edge === 'near-left',
@@ -719,9 +889,26 @@ export function garageShellRuns(
        * leaves a band of block above it, and that band is what makes it read as
        * cut through something rather than painted on.
        */
+      /*
+       * [amended 2026-09-03] **The personnel door is on the gate's far side.**
+       *
+       * It was a stride to the *left* of the roll-up — lower `gx`, up-left on
+       * screen — on the argument that the concept put it there. v6 does not:
+       * its door is down-right of the shutter, past the near jamb pier, with
+       * the timber threshold and the lamp between the two. That is also the
+       * better arrangement for this camera, because the near vertex of the
+       * building is the corner nearest the viewer and a door there is a door
+       * you can see the whole of, where the up-left end of the frontage is the
+       * part the wall foreshortens hardest.
+       *
+       * The array stays written left to right along the wall, so the door is
+       * now `openings[1]`. Nothing reads it by index — `rollUpIn` asks which
+       * opening reaches the head of the wall — which is the whole reason that
+       * function exists and the reason this move costs one expression.
+       */
       openings: [
-        { at: rollAt - doorWidth - 1.5, width: doorWidth, head: SIDE_DOOR_HEAD },
         { at: rollAt, width: rollWidth },
+        { at: rollAt + rollWidth + 1.5, width: doorWidth, head: SIDE_DOOR_HEAD },
       ],
     },
     { edge: 'near-right', at: maxGx, from: minGy, to: maxGy },
@@ -797,23 +984,133 @@ export function garageColumns(
  * which is both what a garage looks like and what makes twenty people tappable:
  * every pod is one step off the spine.
  */
+/**
+ * Where §7.8.12's suite doorway lands in the garage plan, in tiles.
+ *
+ * The suite's door is at floor plot column 0 and this plan's origin is
+ * `GARAGE_COL0 = FLOOR_MIN_COL + WALL_THICK` columns west of that, so the
+ * doorway is `-(-4 + 0.63) = 3.37` tiles along `gy`. Written out rather than
+ * imported because `room.ts` owns both of those constants and already imports
+ * this file; `room.test.ts` asserts that `garagePlot(0, SUITE_DOOR_GY)` lands
+ * on column 0, which is the seam this number would otherwise drift through.
+ *
+ * It is here at all because the route has to reach the corner **through the
+ * door**, and a waypoint carrying a bare 3.37 is how a door and the path to it
+ * come to disagree.
+ */
+export const SUITE_DOOR_GY = 3.37
+
 export const GARAGE_ROUTE: ReadonlyArray<{ gx: number; gy: number }> = [
   // On the threshold of the roll-up door — a `gx` in the opening, at the near
   // wall's `gy`. The gate sits at 0.62 along the frontage rather than at its
   // midpoint (see {@link garageShellRuns}), so the route reads the same
   // fraction instead of keeping its own idea of where the way in is.
   { gx: GARAGE_SPAN * 0.62, gy: GARAGE_SPAN - 1.0 },
-  // In, and across to the lane between the left-hand pod and the middle one.
-  { gx: 7.4, gy: GARAGE_SPAN - 1.6 },
-  // Straight up that lane, the length of the room. It shifted right with the
-  // corner: the lane is between THE LONG TABLE and the four pods east of it,
-  // and both walls of it moved.
-  { gx: 7.4, gy: 7.6 },
-  // And in through the corner's mouth. `GLASS_MOUTH` is 6.6, so this leg
-  // crosses the glass line at 7.6 — round the end of the partition, not
-  // through it, which is what the old route at 4.0 did.
-  { gx: 3.0, gy: 7.6 },
+  // Straight in over the apron, which is the one piece of floor guaranteed to
+  // be empty — see {@link GARAGE_APRON}.
+  { gx: GARAGE_SPAN * 0.62, gy: 13.0 },
+  // Across the front of the room, below both front-band tables.
+  { gx: 7.3, gy: 13.0 },
+  // Up the middle lane, between THE LONG TABLE on the left and THE MIDDLE on
+  // the right — the widest aisle in the garage, and the one the concept leaves
+  // empty from the gate all the way to the corner.
+  { gx: 7.3, gy: 8.0 },
+  /*
+   * [2026-09-03] **And then along the front of the glass, not over the end of
+   * it.**
+   *
+   * The old last leg crossed the partition line at `gy` 7.6 on the argument
+   * that `GLASS_MOUTH` was 6.6 and the glass had therefore stopped. That was
+   * true of this file's idea of the partition and false of the one §7.8.12
+   * draws: the suite glazes the full width of its corner and cuts a **doorway**
+   * in it at floor plot 0. So the route comes up the lane between the glass and
+   * THE BENCH and turns in where the door actually is.
+   */
+  { gx: 5.8, gy: 8.0 },
+  { gx: 5.8, gy: SUITE_DOOR_GY },
+  { gx: 3.4, gy: SUITE_DOOR_GY },
 ]
+
+/**
+ * §7.8.0c [moved here 2026-09-03] — **the leads on the floor.**
+ *
+ * They were three literals inside `room.ts`'s draw loop, which made them
+ * unreachable to the one check they most need: `GARAGE_APRON` is a rectangle of
+ * floor nothing may cross, and a *path* is the one kind of object an overlap
+ * test on plots will never notice — it can clear the apron at both ends and run
+ * straight through the middle of it.
+ *
+ * What they are for is unchanged and worth keeping: the canonical garage has
+ * leads snaking across the slab between the pods, and they are the only object
+ * in the room that **crosses** the grain. Everything else — desks, walls, bays,
+ * pods — lies on one of the two floor axes, which is what makes the projection
+ * read and is also what makes a floor of them read as a diagram. One line that
+ * wanders is what says somebody set this up in a hurry.
+ *
+ * Three runs, each from perimeter power to a pod, each hugging an aisle edge.
+ * Not five: §7.8.0c asks for "a few", and a lead to every pod is a web.
+ */
+export const GARAGE_CABLES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
+  // From under the workbench, down the lane between the two back-band tables.
+  [[10.4, 1.5], [9.6, 2.6], [9.9, 4.2], [9.6, 5.8]],
+  // From the far-left wall across to THE LONG TABLE, the long way round.
+  [[1.2, 6.2], [2.6, 7.4], [3.4, 8.8], [3.6, 10.2]],
+  // Down the near-right lane to THE SOFA END, behind the sofa rather than
+  // across the aisle in front of it.
+  [[13.9, 3.0], [14.2, 5.4], [13.8, 7.6], [14.0, 9.2]],
+]
+
+/**
+ * §7.8.0c [added 2026-09-03] — **the cracks in the slab, as an authored
+ * network.**
+ *
+ * The floor had one crack, drawn in screen pixels off the slab's own width, and
+ * a scatter of aggregate chips. The concept's has a *network*: lines of
+ * different lengths that fork, wander across the quiet parts of the floor and
+ * stop. That difference is the difference between concrete that has been poured
+ * and cured and a grey field with a scratch on it.
+ *
+ * Three properties make it that rather than a texture, and each is a rule this
+ * table is written to keep:
+ *
+ * - **It is authored, not generated.** The room rebuilds on every hire; a crack
+ *   network reseeded per rebuild would crawl across the floor as the studio
+ *   grows. This is a constant, and `garage.test.ts` asserts it.
+ * - **It forks.** A branch leaves a trunk at one of the trunk's own interior
+ *   points, so the join is a real junction rather than two lines that happen to
+ *   touch. That is why the table is two lists and not one.
+ * - **It crosses the quiet floor.** The cracks run through the open middle and
+ *   along the empty ends — never round a pod. A crack that traces a footprint
+ *   reads as a chalk outline, and the eye finds it immediately.
+ */
+export const GARAGE_CRACKS: {
+  readonly trunks: ReadonlyArray<ReadonlyArray<readonly [number, number]>>
+  readonly branches: ReadonlyArray<ReadonlyArray<readonly [number, number]>>
+} = {
+  trunks: [
+    // The long one: out of the far-left wall, across the empty middle of the
+    // floor between the two pod bands, and away toward the gate.
+    [[1.6, 5.2], [3.4, 6.1], [5.2, 6.4], [7.0, 7.2], [8.1, 9.0], [8.6, 11.4]],
+    // Down the near-right end, behind the workshop run and the sofa.
+    [[14.2, 2.4], [13.6, 5.0], [14.1, 7.3], [13.4, 9.8]],
+    // A short one in the corner by the kitchenette, going nowhere in
+    // particular — which is the honest kind.
+    [[3.2, 13.2], [5.0, 14.0], [6.6, 13.6]],
+  ],
+  branches: [
+    // Off the long trunk where it crosses the middle, heading for the left wall.
+    [[5.2, 6.4], [4.6, 8.2], [4.9, 9.6]],
+    // And again further down, the other way.
+    [[8.1, 9.0], [9.9, 8.6], [11.2, 9.1]],
+    // A hairline off the near-right run.
+    [[14.1, 7.3], [12.9, 6.8]],
+  ],
+}
+
+/** Every crack as one flat list of polylines — what the renderer strokes. */
+export function garageCrackPaths(): ReadonlyArray<ReadonlyArray<readonly [number, number]>> {
+  return [...GARAGE_CRACKS.trunks, ...GARAGE_CRACKS.branches]
+}
 
 /**
  * **The vehicle door in a shell's street wall** — the opening with no lintel.
@@ -840,14 +1137,29 @@ export function inPlot(p: Plot, gx: number, gy: number): boolean {
   return gx >= p.gx0 && gx < p.gx1 && gy >= p.gy0 && gy < p.gy1
 }
 
-/** The footprint a pod occupies on the floor, chairs included. */
+/**
+ * The footprint a pod occupies on the floor — **transposed with its axis.**
+ *
+ * The plot is a table plus the room a seated body needs either side of it, and
+ * which of those is the long side is a fact about the table's orientation. A
+ * fixed rectangle was right while every pod lay on `gy`; applied to a table
+ * lying on `gx` it reserves the floor at ninety degrees to the furniture, which
+ * is a clearance test that passes while two pods overlap.
+ *
+ * §7.8.0c's no-chair rule does not shrink it. The clearance is the space a
+ * person sitting at the table occupies whether or not a chair is drawn under
+ * them, and taking it back would narrow every aisle in the room for a change
+ * that was about a silhouette.
+ */
 export function podPlot(pod: Pod): Plot {
+  const halfGx = pod.axis === 'gy' ? POD_HALF_GX : POD_HALF_GY
+  const halfGy = pod.axis === 'gy' ? POD_HALF_GY : POD_HALF_GX
   return {
     name: pod.name,
-    gx0: pod.gx - POD_HALF_GX,
-    gy0: pod.gy - POD_HALF_GY,
-    gx1: pod.gx + POD_HALF_GX,
-    gy1: pod.gy + POD_HALF_GY,
+    gx0: pod.gx - halfGx,
+    gy0: pod.gy - halfGy,
+    gx1: pod.gx + halfGx,
+    gy1: pod.gy + halfGy,
   }
 }
 
@@ -882,9 +1194,12 @@ export function garageExtentFor(ordinary: number): { maxGx: number; maxGy: numbe
   let maxGx = 0
   let maxGy = 0
   for (let i = 0; i < n; i++) {
-    const pod = GARAGE_PODS[Math.floor(i / POD_SEATS)]
-    maxGx = Math.max(maxGx, pod.gx + POD_HALF_GX)
-    maxGy = Math.max(maxGy, pod.gy + POD_HALF_GY)
+    // Through `podPlot`, so a turned table reports the footprint it actually
+    // has. Reading the two half-extents directly was right while every pod lay
+    // the same way and silently transposed the moment one did not.
+    const plot = podPlot(GARAGE_PODS[Math.floor(i / POD_SEATS)])
+    maxGx = Math.max(maxGx, plot.gx1)
+    maxGy = Math.max(maxGy, plot.gy1)
   }
   return { maxGx, maxGy }
 }

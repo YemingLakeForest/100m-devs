@@ -35,7 +35,7 @@
  * art, and it is built so authored sprites drop into the same slots later.
  */
 
-import { Container, Graphics, Text } from 'pixi.js'
+import { Container, Graphics, Rectangle, Text } from 'pixi.js'
 import { mixHex } from '../art/entropyTheme.ts'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import type { GridPoint, Lanes } from './walkPath.ts'
@@ -52,7 +52,7 @@ import {
 } from '../game/founderProfile.ts'
 import { AVATAR_HAIR, frontAvatarParts, type AvatarRect } from './avatarParts.ts'
 import type { SeatMark } from './heroBadges.ts'
-import { CAR_BODIES, car, districtFitTiles, drawDistrict, lamp } from './district.ts'
+import { districtFitTiles, drawDistrict, garageKerbFor } from './district.ts'
 import {
   ATRIUM,
   OFFICE_AMENITIES,
@@ -66,7 +66,13 @@ import {
 import { drawLandmarks, type LandmarkPlot } from './landmarks.ts'
 import { GARAGE_CAP, sceneFor } from '../sim/capacity.ts'
 import {
+  COLUMN_THICK,
+  facesCamera,
+  GARAGE_CABLES,
+  garageCrackPaths,
   GARAGE_PODS,
+  GARAGE_SEATS,
+  GARAGE_SIGN,
   GARAGE_VALUES,
   garageColumns,
   GARAGE_PROPS,
@@ -1305,12 +1311,22 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       break
     }
     case 'THE BOXES': {
-      // A stack that has been added to rather than built: three boxes, none
-      // squarely on the one below, the top one open.
-      box(x, y, 0, w, 1.0, 0.55, RAMPS.WOOD, 2)
-      box(x + 0.1, y + 1.1, 0, w - 0.2, 0.9, 0.48, RAMPS.WOOD, 3)
-      box(x - 0.05, y + 0.25, 0.55, w - 0.15, 0.85, 0.5, RAMPS.WOOD, 3)
-      box(x + 0.15, y + 1.35, 0.48, w - 0.4, 0.7, 0.4, RAMPS.WOOD, 2)
+      /*
+       * A stack that has been added to rather than built: four boxes, none
+       * squarely on the one below, at two heights.
+       *
+       * **A step darker than it was** [2026-09-03]. At `WOOD` base 2 and 3 the
+       * top faces came out at `WOOD[3]` — the palest colour in the ramp — so a
+       * two-tile stack of cardboard was the brightest object on the whole
+       * left-hand wall and read as a slab of masonry rather than as boxes. The
+       * lit face of cardboard at night is not cream; the base drops to 0 and 1
+       * and the stack falls back behind the fridge, which is the one thing on
+       * that wall that genuinely is white goods.
+       */
+      box(x, y, 0, w, 1.0, 0.55, RAMPS.WOOD, 0)
+      box(x + 0.1, y + 1.1, 0, w - 0.2, 0.9, 0.48, RAMPS.WOOD, 1)
+      box(x - 0.05, y + 0.25, 0.55, w - 0.15, 0.85, 0.5, RAMPS.WOOD, 1)
+      box(x + 0.15, y + 1.35, 0.48, w - 0.4, 0.7, 0.4, RAMPS.WOOD, 0)
       break
     }
     case 'THE BIN': {
@@ -1377,7 +1393,12 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       // the far one, and the two walls lie on different axes. Every part had to
       // turn with it: a sofa whose back is on the wrong side of the seat is a
       // sofa facing the block.
-      box(x + 0.2, y + 0.38, 0, w - 0.4, d - 0.55, 0.4, RAMPS.WOOD, 1)
+      // **A step darker than it was** [2026-09-03]. The seat block at `WOOD`
+      // base 1 took `WOOD[3]` on its top face, and a two-tile pale slab against
+      // the darkest wall in the room read as a workbench rather than as
+      // upholstery — it was the brightest object on the whole right-hand run,
+      // ahead of the tool chest it is meant to sit behind.
+      box(x + 0.2, y + 0.38, 0, w - 0.4, d - 0.55, 0.4, RAMPS.WOOD, 0)
       // The back, along the wall side.
       box(x + 0.2, y + 0.12, 0, w - 0.4, 0.28, 0.78, RAMPS.WOOD, 0)
       // An arm at each end. They are what make it a sofa rather than a bench,
@@ -1386,8 +1407,8 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       box(x + w - 0.26, y + 0.38, 0, 0.22, d - 0.55, 0.6, RAMPS.WOOD, 0)
       // Two cushions, sagging — different sizes, because a matched pair on a
       // battered sofa is a matched pair somebody bought.
-      box(x + 0.42, y + 0.5, 0.4, 0.62, d - 0.8, 0.12, RAMPS.WOOD, 3)
-      box(x + 1.25, y + 0.5, 0.4, 0.78, d - 0.8, 0.1, RAMPS.WOOD, 2)
+      box(x + 0.42, y + 0.5, 0.4, 0.62, d - 0.8, 0.12, RAMPS.WOOD, 2)
+      box(x + 1.25, y + 0.5, 0.4, 0.78, d - 0.8, 0.1, RAMPS.WOOD, 1)
       break
     }
     case 'THE PLANT': {
@@ -1445,11 +1466,20 @@ function drawGarageProp(g: Graphics, p: Project, plot: Plot) {
       break
     }
     case 'THE CRATES': {
-      // Milk crates and a stack of flattened card. Two heights, one leaning.
-      box(x + 0.15, y + 0.1, 0, 0.75, 0.75, 0.42, RAMPS.CALM, 0)
-      box(x + 0.15, y + 0.1, 0.42, 0.75, 0.75, 0.42, RAMPS.CALM, 1)
-      box(x + 0.2, y + 1.0, 0, 0.7, 0.7, 0.4, RAMPS.ALARM, 0)
-      box(x + 0.1, y + 0.05, 0.84, 0.85, 0.9, 0.08, RAMPS.WOOD, 2)
+      /*
+       * Milk crates and a stack of flattened card. Two heights, one leaning.
+       *
+       * **Green rather than cyan** [2026-09-03]. `CALM` is the interface
+       * phosphor — the ramp the HUD, the monitors and the expansion seam are
+       * drawn in — and a solid cyan box on the floor of the garage read as a
+       * piece of UI that had fallen into the room. The concept's crate is
+       * green, `FOLIAGE` is the ramp that colour lives in, and it is already
+       * the bin's.
+       */
+      box(x + 0.15, y + 0.1, 0, 0.75, 0.75, 0.42, RAMPS.FOLIAGE, 0)
+      box(x + 0.15, y + 0.1, 0.42, 0.75, 0.75, 0.42, RAMPS.FOLIAGE, 0)
+      box(x + 0.2, y + 1.0, 0, 0.7, 0.7, 0.4, RAMPS.WOOD, 0)
+      box(x + 0.1, y + 0.05, 0.84, 0.85, 0.9, 0.08, RAMPS.WOOD, 1)
       break
     }
     default: {
@@ -1960,7 +1990,10 @@ export function seatFacesCamera(seat: number, windowFrom: number, garage: boolea
   const i = Math.max(0, Math.floor(seat))
   if (i < held) return false
   const ordinary = i - held
-  if (garage) return garageSeat(ordinary).facing === 'gx+'
+  // §7.8.0c [2026-09-03] — through `facesCamera`, because there are four
+  // facings now and two of them point this way. Written out as `=== 'gx+'` it
+  // would have turned every seat on a `gx` table to face the back wall.
+  if (garage) return facesCamera(garageSeat(ordinary).facing)
   // The office's pods face each other too — §7.8.0d is the same furniture at a
   // different scale, so the same half of every table rests looking back.
   if (ordinary < OFFICE_SEATS) return officeSeat(ordinary).facing === 'gx+'
@@ -2041,6 +2074,48 @@ export interface RoomGeometry {
   /** Which of this window's first seats the suite is holding. */
   heldSeats: number
   seatWindow: number
+  /**
+   * §7.8.0c — how many chair objects the last rebuild drew. **Zero in the
+   * garage**, which is the claim; non-zero on the open-plan floor, which is
+   * what stops that claim being satisfied by a renderer that draws nothing.
+   */
+  chairs: number
+  /**
+   * §7.8.0c — **the shell in canvas pixels, and the canvas it was drawn onto.**
+   *
+   * Everything else in this record is room-local, which is the right frame for
+   * every claim about the room's own shape: a slope, a join, a footprint. It is
+   * the wrong frame for the one claim the garage kept failing — *is the whole
+   * building in the picture* — because that question is about the camera, and
+   * the camera is not in this coordinate system.
+   *
+   * So the four slab corners and every pier's drawn box come back a second time
+   * through `container.toGlobal`, beside the viewport they landed in. Twice the
+   * data and no second derivation: these are the same points, transformed by the
+   * same scene graph the frame was rendered with.
+   */
+  screen: {
+    shell: {
+      top: { x: number; y: number }
+      left: { x: number; y: number }
+      right: { x: number; y: number }
+      bottom: { x: number; y: number }
+    }
+    /** One box per corner pier, `minY` being its cap rather than its foot. */
+    piers: Array<{ name: string; minX: number; minY: number; maxX: number; maxY: number }>
+    /**
+     * Where each drawn seat's **person** is, in canvas pixels — the point a
+     * thumb has to land on.
+     *
+     * §7.8.0c requires every developer in the completed garage to be reachable,
+     * and "reachable" is a question about the canvas: it depends on the camera,
+     * on who is standing in front of whom, and on where the HUD's rails are. The
+     * room-local `seats` above cannot answer it, and a screenshot cannot either
+     * — every body in this room is drawn in the same ten shapes.
+     */
+    seats: Array<{ x: number; y: number }>
+    viewport: { w: number; h: number }
+  }
 }
 
 /** The small slice of hero state the renderer needs. */
@@ -2602,10 +2677,6 @@ const DESK_H = 5
 /** Valance depth — the drop from the surface to the underside. */
 const DESK_LIP = 11
 /** The screen offset from a seat to the centre of the desk it sits at. */
-function deskOffset(face: 1 | -1 = 1) {
-  return gridToScreen(-DESK_SETBACK * face, 0)
-}
-
 /**
  * A desk, the PC on it, and the person's place in front of it.
  *
@@ -2657,29 +2728,63 @@ export function drawDeskBank(
    */
   depth = DESK_DEPTH,
   setback = DESK_SETBACK,
+  /**
+   * §7.8.0c [added 2026-09-03] — **which floor axis the run lies along.**
+   *
+   * `'gy'` is every existing caller: the run goes along the row's axis and is
+   * `depth` across it on `gx`. `'gx'` is a garage pod whose table is turned, and
+   * the two coordinates simply swap — the surface is still a rectangle on the
+   * floor and still projected as one, so nothing here becomes a special case
+   * except which pair of numbers goes into `gridToScreen` first.
+   */
+  axis: 'gx' | 'gy' = 'gy',
 ) {
-  // The run goes along `gy` — the row's axis — and is `DESK_DEPTH` across it.
-  const gy0 = colFrom * PITCH_COL - DESK_SPAN / 2
-  const gy1 = colTo * PITCH_COL + DESK_SPAN / 2
+  /*
+   * The run goes along its own axis and is `DESK_DEPTH` across it.
+   *
+   * **Each axis brings its own pitch.** The lattice is not square — `PITCH_ROW`
+   * is 2.1 and `PITCH_COL` is 1 — so turning a run is not just swapping which
+   * argument goes into `gridToScreen` first: the numbers themselves are in
+   * different units. Applying the row pitch to a column was the first version
+   * of this and it drew a turned pod's table at a fifth of its length, which on
+   * screen is four people sitting round nothing.
+   */
+  const alongPitch = axis === 'gy' ? PITCH_COL : PITCH_ROW
+  const acrossPitch = axis === 'gy' ? PITCH_ROW : PITCH_COL
+  const along0 = colFrom * alongPitch - DESK_SPAN / 2
+  const along1 = colTo * alongPitch + DESK_SPAN / 2
   // Set back from the seats — see {@link DESK_SETBACK}. This one subtraction is
   // the difference between a person at a desk and a person standing on one.
-  const gx = row * PITCH_ROW - setback
+  const across = row * acrossPitch - setback
   const d = depth / 2
+  /** (across, along) in the room's own axes, whichever way this run lies. */
+  const put = (a: number, b: number) =>
+    axis === 'gy' ? gridToScreen(a, b) : gridToScreen(b, a)
 
-  // The four corners of a rectangle **on the floor**, projected. Not a
-  // screen-space shape that happens to look isometric: a run of desks is a
-  // rectangle in the room, so its outline is whatever the projection makes of
-  // one, and its two long edges come out parallel to the wall for free.
-  //
-  // `back` is the topmost corner on screen, `far` the leftmost, `front` the
-  // bottom and `near` the right — so the two edges turned toward the camera are
-  // `far`–`front` (the south-west end cap) and `front`–`near` (the long side).
-  const foot = {
-    back: gridToScreen(gx - d, gy0),
-    far: gridToScreen(gx - d, gy1),
-    front: gridToScreen(gx + d, gy1),
-    near: gridToScreen(gx + d, gy0),
-  }
+  /*
+   * The four corners of a rectangle **on the floor**, projected. Not a
+   * screen-space shape that happens to look isometric: a run of desks is a
+   * rectangle in the room, so its outline is whatever the projection makes of
+   * one, and its two long edges come out parallel to the wall for free.
+   *
+   * **Named by where they land on screen, not by which coordinate is larger**
+   * [2026-09-03]. `back` is the topmost corner, `left` the leftmost, `front`
+   * the bottom and `right` the right — and that has to be a *measurement*
+   * rather than a naming convention, because turning the run swaps which
+   * corner of the plan is which corner of the picture. It was written the other
+   * way, and the first table laid on `gx` would have taken the lit valance on
+   * the edge that faces away from §7's top-left key: the same class of error as
+   * a mirrored sprite, arrived at through the projection instead.
+   */
+  const corners = [
+    put(across - d, along0),
+    put(across - d, along1),
+    put(across + d, along1),
+    put(across + d, along0),
+  ]
+  const byX = [...corners].sort((a, b) => a.x - b.x)
+  const byY = [...corners].sort((a, b) => a.y - b.y)
+  const foot = { back: byY[0], far: byX[0], front: byY[3], near: byX[3] }
   const lift = (p: { x: number; y: number }) => ({ x: p.x, y: p.y - DESK_H })
   const back = lift(foot.back)
   const far = lift(foot.far)
@@ -2737,9 +2842,9 @@ export function drawDeskBank(
   // pushed together rather than as one very long table. Interior joints only —
   // the ends already have the outline.
   for (let col = colFrom + 1; col <= colTo; col++) {
-    const gy = col * PITCH_COL - DESK_SPAN / 2
-    const a = lift(gridToScreen(gx - d, gy))
-    const b = lift(gridToScreen(gx + d, gy))
+    const at = col * alongPitch - DESK_SPAN / 2
+    const a = lift(put(across - d, at))
+    const b = lift(put(across + d, at))
     g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: c(RAMPS.WOOD[1]), alpha: 0.7 })
   }
 }
@@ -2857,9 +2962,16 @@ function deskQuad(
   w: number,
   d: number,
   fill: number,
+  /**
+   * How this desk's two axes map onto the floor's — see `drawWorkstation`.
+   * Defaulted to the floor's own, which is every caller but a turned garage
+   * pod, and taken as an argument rather than as a flag so the caller cannot
+   * hand the keyboard one mapping and the mug another.
+   */
+  put: (a: number, b: number) => { x: number; y: number } = gridToScreen,
 ) {
   const at = (a: number, b: number) => {
-    const p = gridToScreen(across + a, along + b)
+    const p = put(across + a, along + b)
     return { x: sx + p.x, y: sy + p.y }
   }
   const p0 = at(-d / 2, -w / 2)
@@ -2956,7 +3068,34 @@ export function drawChair(g: Graphics, x: number, y: number) {
  * sides would put two screens back to back both shining at the camera, which is
  * not a thing that happens in a room.
  */
-export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, face: 1 | -1 = 1) {
+export function drawWorkstation(
+  g: Graphics,
+  x: number,
+  y: number,
+  seat = 0,
+  face: 1 | -1 = 1,
+  /**
+   * §7.8.0c [added 2026-09-03] — **which floor axis this person faces along.**
+   *
+   * `'gx'` is the floor's default and every existing caller: the person looks
+   * up or down `gx`, the desk is set back along `gx`, and the screen is a panel
+   * whose horizontal extent runs along `gy` at the projection's only other
+   * slope. `'gy'` is a garage pod whose table is turned, and it is the same
+   * construction on the swapped pair — **every** offset in this function goes
+   * through this function's own `put` rather than straight into `gridToScreen`,
+   * and the panel's shear takes the sign belonging to the axis it now lies on.
+   *
+   * That is the whole of it, and it is deliberately not a rotation of a
+   * finished container: §7.8.0b's defect was a screen-space mirror applied to a
+   * plane, and a screen-space *rotation* is the same mistake with a matrix in
+   * front of it. What turns here is the footprint; the projection does the
+   * rest.
+   */
+  axis: 'gx' | 'gy' = 'gx',
+) {
+  /** (across, along) in the floor's axes — swapped for a turned workstation. */
+  const put = (a: number, b: number) =>
+    axis === 'gx' ? gridToScreen(a, b) : gridToScreen(b, a)
   // The monitor. A screen is a flat panel, so it is drawn the way every other
   // flat panel in this room is drawn: lying in a plane, not parallel to the
   // glass. Its face is the down-left one — the same plane the wall dressing
@@ -2978,7 +3117,7 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
   // paid: `(sx, sy)` is the point on the desk surface directly in front of the
   // developer, and every item below is a displacement from it in the floor's
   // own axes.
-  const off = deskOffset(face)
+  const off = put(-DESK_SETBACK * face, 0)
   const sx = x + off.x
   const sy = y + off.y - DESK_H
   /*
@@ -2997,10 +3136,20 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
    * the defect `test:room` exists to catch one scale up, reintroduced inside a
    * prop small enough to slip under it.
    *
-   * What the facing *does* change is where the panel sits ({@link deskOffset}),
+   * What the facing *does* change is where the panel sits (the setback above),
    * which of its faces is lit, and how high it is mounted — not its geometry.
    */
-  const S = -0.5
+  /*
+   * **And its sign is a fact about the axis, not a constant.** [2026-09-03]
+   *
+   * A panel whose horizontal extent runs along `gy` lies at -0.5; one running
+   * along `gx` lies at +0.5. Those are the projection's only two slopes and a
+   * turned workstation genuinely uses the other one — which is the opposite of
+   * the defect above, where a *facing* was allowed to change a slope that a
+   * facing does not change. What changes a screen's plane is turning the table
+   * it stands on ninety degrees, and nothing else does.
+   */
+  const S = axis === 'gx' ? -0.5 : 0.5
 
   // --- what is on the surface, back to front ------------------------------
   //
@@ -3026,8 +3175,8 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
 
   // Papers, pushed to the back corner where they have been for a fortnight.
   if (!lamp && deskRoll(seat, 1) < 0.55) {
-    deskQuad(g, sx, sy, BACK, -0.32, 0.26, 0.16, c(RAMPS.NEUTRAL[7]))
-    deskQuad(g, sx, sy, BACK - 0.01, -0.33, 0.22, 0.12, c(RAMPS.NEUTRAL[8]))
+    deskQuad(g, sx, sy, BACK, -0.32, 0.26, 0.16, c(RAMPS.NEUTRAL[7]), put)
+    deskQuad(g, sx, sy, BACK - 0.01, -0.33, 0.22, 0.12, c(RAMPS.NEUTRAL[8]), put)
   }
 
   /*
@@ -3138,7 +3287,7 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
   // *floating* over it; the tower is the one prop that says the surface is a
   // work surface. Kept small and tucked toward the back of the desk, clear of
   // both the panel and the body in front of it.
-  const stand = gridToScreen(BACK, 0.33)
+  const stand = put(BACK, 0.33)
   const px = sx + stand.x
   const py = sy + stand.y
   // `grounded` is false — it is standing on the desk, so it gets a contact
@@ -3172,7 +3321,7 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
   // A desk lamp on about one desk in five. Vertical interest along a row that
   // is otherwise nine copies of the same silhouette.
   if (lamp) {
-    const at = gridToScreen(BACK, -0.34)
+    const at = put(BACK, -0.34)
     const lx = sx + at.x
     const ly = sy + at.y
     isoBox(g, lx, ly, 7, 2, RAMPS.NEUTRAL, 3, false)
@@ -3191,11 +3340,11 @@ export function drawWorkstation(g: Graphics, x: number, y: number, seat = 0, fac
   // The keyboard, square on to the screen, half a desk wide. Two quads: the
   // case and the key field inset into it, which is the whole of what a keyboard
   // looks like once it is eleven pixels across.
-  deskQuad(g, sx, sy, FRONT, 0, 0.52, 0.15, c(RAMPS.NEUTRAL[2]))
-  deskQuad(g, sx, sy, FRONT, 0, 0.46, 0.1, c(RAMPS.NEUTRAL[4]))
+  deskQuad(g, sx, sy, FRONT, 0, 0.52, 0.15, c(RAMPS.NEUTRAL[2]), put)
+  deskQuad(g, sx, sy, FRONT, 0, 0.46, 0.1, c(RAMPS.NEUTRAL[4]), put)
   // The mouse, to one side of it, and a mat under it.
-  deskQuad(g, sx, sy, FRONT, hand * 0.36, 0.18, 0.14, c(RAMPS.NEUTRAL[1]))
-  deskQuad(g, sx, sy, FRONT, hand * 0.36, 0.08, 0.06, c(RAMPS.NEUTRAL[5]))
+  deskQuad(g, sx, sy, FRONT, hand * 0.36, 0.18, 0.14, c(RAMPS.NEUTRAL[1]), put)
+  deskQuad(g, sx, sy, FRONT, hand * 0.36, 0.08, 0.06, c(RAMPS.NEUTRAL[5]), put)
 
   // The mug, on the other hand's side. Most desks have one, and it is the one
   // object here that says somebody has been sitting at this desk for a while.
@@ -3432,13 +3581,29 @@ function drawFridge(g: Graphics, x: number, y: number) {
  * through it. `(x, y)` is the centre of the frame's top edge, `slope` is the
  * wall's.
  */
-function drawWindow(g: Graphics, x: number, y: number, w: number, h: number, slope: number) {
+function drawWindow(
+  g: Graphics,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  slope: number,
+  /**
+   * What is behind the glass.
+   *
+   * `GLOW[1]` is the office's: a lit floor at night with more building beyond
+   * it. The garage's is a step down the neutral ramp, because there is nothing
+   * behind that wall but the dark — and a steel-blue pane at that size was the
+   * brightest object on the whole back wall, which put the eye on a window
+   * instead of on the twenty people under it.
+   */
+  pane: string = RAMPS.GLOW[1],
+) {
   // The white UPVC frame.
   wallQuad(g, x, y, w, h, slope, c(RAMPS.NEUTRAL[8]))
-  // The glass — a steel blue clearly lighter than the wall, so the pane reads
-  // as glass set into the wall rather than as the wall showing through a white
-  // outline.
-  wallQuad(g, x, y + 3, w - 5, h - 6, slope, c(RAMPS.GLOW[1]))
+  // The glass — clearly lighter than the wall, so the pane reads as glass set
+  // into it rather than as the wall showing through a white outline.
+  wallQuad(g, x, y + 3, w - 5, h - 6, slope, c(pane))
   // The central mullion, splitting the glass into two casements.
   wallQuad(g, x, y + 3, 3, h - 6, slope, c(RAMPS.NEUTRAL[8]))
   // The sill — a wider ledge along the bottom, plus the shadow it casts down
@@ -3659,6 +3824,28 @@ export function buildRoom(): RoomHandle {
   /** §7.8.0c — the near half of a facing pod's kit. See {@link frontDesks}. */
   const frontDeskLayer = new Container()
   const nearWall = new Graphics()
+  /**
+   * §7.8.0c — **the words on the gate's header.**
+   *
+   * A `Container` rather than more marks in {@link nearWall}, because the sign
+   * is type and type is a `Text`. It rides directly above the wall it is
+   * painted on, sheared onto that wall's own screen slope, so it scales with
+   * the room the way paint does — this is the one piece of lettering in the
+   * game that is *in* the world rather than on §7.1's pane of glass, and the
+   * whole point of it is that it is part of the building.
+   */
+  const gateSign = new Container()
+  /*
+   * **It does not enlarge the room.** Two reasons, and both are the same
+   * reason: paint on a wall is not part of the building's extent, and a `Text`
+   * is the one display object in this file whose bounds cannot be computed
+   * without a canvas — `room.test.ts` measures `container.getLocalBounds()` to
+   * check the district is drawn, and in jsdom that walk threw out of Pixi's
+   * font metrics the moment a word appeared in the world. `boundsArea` answers
+   * the question without measuring anything, which is correct for a sign and
+   * incidentally makes the room measurable in a test environment again.
+   */
+  gateSign.boundsArea = new Rectangle(0, 0, 0, 0)
   root.addChild(
     previousShell,
     shell,
@@ -3694,6 +3881,7 @@ export function buildRoom(): RoomHandle {
     // *behind* the near wall rather than over it. Below speech, which is on
     // §7.1's pane of glass and is not in the room at all.
     nearWall,
+    gateSign,
     speech.layer,
   )
 
@@ -3830,6 +4018,37 @@ export function buildRoom(): RoomHandle {
     right: { x: 0, y: 0 },
     bottom: { x: 0, y: 0 },
   }
+  /**
+   * §7.8.0b — **every pier the shell drew, as the box it actually occupies on
+   * screen.**
+   *
+   * Room-local pixels, top edge included: `minY` is the cap, not the foot. It
+   * is recorded at draw time rather than recomputed from `garageColumns`
+   * because the question it exists to answer is a *framing* one — is the whole
+   * building inside the picture — and a second derivation of where a pier is
+   * can be right about the plan while the drawn one runs off the top edge.
+   */
+  /**
+   * §7.8.0c [added 2026-09-03] — **how many chairs the last rebuild drew.**
+   *
+   * "The garage draws no chairs" is a claim about what the renderer *emitted*,
+   * and there is no way to ask a `Graphics` afterwards whether one of the boxes
+   * in it was a chair. Counting them at the call site is the same seam
+   * {@link drawnPiers} is: the room reports what it drew, and a test reads it.
+   *
+   * A boolean flag beside the branch would have been circular — it would assert
+   * that the constant it is testing has the value it has. A count is a fact
+   * about the frame, and it is non-zero on the office floor, which is what
+   * makes zero in the garage mean something.
+   */
+  let drawnChairs = 0
+  let drawnPiers: Array<{
+    name: string
+    minX: number
+    minY: number
+    maxX: number
+    maxY: number
+  }> = []
   /** Every wall the suite built for itself as last drawn, in the same units. */
   let suiteWalls: WallFoot[] = []
   /** The grid rectangle the slab was last built from — the shell's real shape. */
@@ -3985,8 +4204,25 @@ export function buildRoom(): RoomHandle {
         // orientations take different mullion values so the room has a lit side
         // and a shaded one rather than four identical walls.
         const lit = b.y < a.y
+        /*
+         * §7.8.0c [amended 2026-09-03] — **dark frames, tinted glass.**
+         *
+         * The garage's glazing was `NEUTRAL[4]`/`[3]` mullions over `GLOW[0]`
+         * at 0.13, which is a **pale wire cage**: the frame was one of the
+         * lightest things in the room and the glass was almost nothing, so the
+         * corner read as a diagram of a room rather than as a room. The concept
+         * does the opposite on both counts — the frame is the darkest structural
+         * element in the picture and the panes carry a real teal wash you can
+         * see the people through.
+         *
+         * It is the same two decisions the near walls went through in §7.8.0c's
+         * value table, applied to the one object that was still lit as if it
+         * were an office partition. The office keeps its pale frames: that room
+         * is lit from its own ceiling and its glass runs floor to soffit against
+         * a bright floor, where a dark frame would read as a shadow.
+         */
         const frame = drawnGarage
-          ? RAMPS.NEUTRAL[lit ? 4 : 3]
+          ? RAMPS.NEUTRAL[lit ? 2 : 1]
           : RAMPS.NEUTRAL[lit ? 7 : 6]
         teamGlass
           .moveTo(a.x, a.y)
@@ -3994,8 +4230,17 @@ export function buildRoom(): RoomHandle {
           .lineTo(b.x, b.y - h)
           .lineTo(a.x, a.y - h)
           .closePath()
-          .fill({ color: c(RAMPS.GLOW[0]), alpha: drawnGarage ? 0.13 : 0.24 })
+          .fill({ color: c(RAMPS.GLOW[0]), alpha: drawnGarage ? 0.44 : 0.24 })
           .stroke({ width: drawnGarage ? 3 : 2, color: c(frame), alpha: drawnGarage ? 0.92 : 0.72 })
+        if (drawnGarage) {
+          // The head rail catches what light there is, and it is the one line
+          // that says *glass* rather than *gap*: a pane with a dark frame and
+          // nothing bright anywhere on it is indistinguishable from an opening.
+          teamGlass
+            .moveTo(a.x, a.y - h)
+            .lineTo(b.x, b.y - h)
+            .stroke({ width: 1, color: c(RAMPS.GLOW[1]), alpha: 0.5 })
+        }
         // Mullions every seat, so the glass is divided in the same unit the
         // floor is. A pane whose divisions do not match the desks behind it
         // reads as a picture of glass rather than as glass.
@@ -4006,8 +4251,8 @@ export function buildRoom(): RoomHandle {
           const y = a.y + (b.y - a.y) * t
           teamGlass.moveTo(x, y).lineTo(x, y - h).stroke({
             width: drawnGarage ? 2 : 1,
-            color: c(drawnGarage ? RAMPS.NEUTRAL[3] : RAMPS.NEUTRAL[5]),
-            alpha: drawnGarage ? 0.8 : 0.5,
+            color: c(drawnGarage ? RAMPS.NEUTRAL[1] : RAMPS.NEUTRAL[5]),
+            alpha: drawnGarage ? 0.85 : 0.5,
           })
         }
       }
@@ -4538,6 +4783,10 @@ export function buildRoom(): RoomHandle {
     // company that size is not somebody's garage.
     const garage = !unfolded && windowFrom === 0
     drawnGarage = garage
+    // Only a garage has piers; an office floor that inherited last frame's set
+    // would report a shell it never drew.
+    drawnPiers = []
+    drawnChairs = 0
     /*
      * §7.8.1 [amended 2026-09-01] — **the garage does not grow. It is a garage.**
      *
@@ -4787,7 +5036,36 @@ export function buildRoom(): RoomHandle {
       const q = gridToScreen(gx, gy)
       return { x: cx + q.x, y: cy + q.y }
     }
-    drawDistrict(shell, project, { halfBack, halfAcross })
+    /**
+     * The spans the street furniture has to miss, read off **the shell's own
+     * runs** rather than off a second copy of where the gate is.
+     *
+     * `garageShellRuns` is pure and cheap, so calling it here and again for the
+     * walls below costs nothing and buys the one property that matters: there is
+     * exactly one statement in the codebase about where the vehicle door is, and
+     * the lamps and the wall are both reading it.
+     */
+    const kerbFor = (hb: number, ha: number) => {
+      const street = garageShellRuns(-hb, -ha, hb, ha).find((r) => r.edge === 'near-left')
+      const gate = rollUpIn(garageShellRuns(-hb, -ha, hb, ha))
+      const side = street?.openings?.find((o) => o.head !== undefined)
+      if (!gate || !side) return undefined
+      return garageKerbFor(hb, ha, gate, side, COLUMN_THICK / 2)
+    }
+    drawDistrict(shell, project, {
+      halfBack,
+      halfAcross,
+      /*
+       * §7.8.0c [2026-09-03] — **the garage hands the street its exclusions.**
+       *
+       * The district owns the rhythm and the room owns the openings, so the
+       * room is the only thing that can say where the driveway is. It reads the
+       * shell's own runs to do it — the same `garageShellRuns` the walls are cut
+       * from — rather than repeating the gate's position, which is the copy
+       * §7.8.0c already deleted once.
+       */
+      garage: garage ? kerbFor(halfBack, halfAcross) : undefined,
+    })
 
     /*
      * **The garage's slab is a step darker than the floor's.** §7.8.0c
@@ -4860,12 +5138,9 @@ export function buildRoom(): RoomHandle {
     shell
       .ellipse(cx + floorW * 0.56, cy + floorH * 0.5, floorW * 0.07, floorH * 0.035)
       .fill({ color: c(RAMPS.NEUTRAL[0]), alpha: 0.35 })
-    // The crack, running off the stain toward the middle of the room.
-    shell
-      .moveTo(cx + floorW * 0.44, cy + floorH * 0.52)
-      .lineTo(cx + floorW * 0.28, cy + floorH * 0.46)
-      .lineTo(cx + floorW * 0.22, cy + floorH * 0.3)
-      .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
+    // The crack that used to run off the stain toward the middle of the room is
+    // gone: it was a screen-space polyline in a room where nothing else is, and
+    // §7.8.0c's authored network replaces it with lines that lie on the floor.
     }
 
     // The two back walls, rising from the far edges. Red brick, not concrete —
@@ -4905,6 +5180,8 @@ export function buildRoom(): RoomHandle {
      * projection. Nothing here is a screen offset.
      */
     nearWall.clear()
+    for (const child of gateSign.removeChildren()) child.destroy({ children: true })
+    gateSign.visible = false
     const shellProject: Project = (gx, gy) => {
       const q = gridToScreen(gx, gy)
       return { x: cx + q.x, y: cy + q.y }
@@ -5094,15 +5371,7 @@ export function buildRoom(): RoomHandle {
         const at = garagePlot(gx, gy)
         return isoAt(at.col, at.row)
       }
-      const CABLE_RUNS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-        // From the workbench toward the middle pod, round the back of it.
-        [[10.6, 1.4], [9.4, 3.1], [8.4, 4.6], [8.6, 6.2]],
-        // From the far-left wall to the long table, the long way.
-        [[1.2, 7.4], [2.4, 8.6], [3.2, 9.4]],
-        // One that goes nowhere in particular, which is the honest kind.
-        [[6.4, 11.6], [7.8, 12.2], [9.6, 11.9], [10.8, 12.6]],
-      ]
-      for (const run of CABLE_RUNS) {
+      for (const run of GARAGE_CABLES) {
         const first = onPlan(run[0][0], run[0][1])
         shell.moveTo(first.x, first.y)
         for (let i = 1; i < run.length; i++) {
@@ -5110,6 +5379,37 @@ export function buildRoom(): RoomHandle {
           shell.lineTo(q.x, q.y)
         }
         shell.stroke({ width: 2, color: c(RAMPS.NEUTRAL[0]), alpha: 0.7 })
+      }
+
+      /*
+       * §7.8.0c [added 2026-09-03] — **the cracks, and they are a network.**
+       *
+       * There was one crack, and it was drawn in *screen* pixels off the slab's
+       * own half-width — so it did not lie on the floor, it lay across the
+       * picture, and it moved when the camera fit did. The concept's slab has
+       * six or seven lines of different lengths that fork and stop; that is
+       * what makes it read as concrete that was poured, walked on and left,
+       * rather than as a grey field with a scratch in it.
+       *
+       * Drawn through `onPlan` with the cables and the bays, because all three
+       * are marks on the same floor and the one thing they must never do is
+       * disagree about where that floor is. Two strokes per path: a dark core
+       * and a hairline of the wall's own warm grey just off it, which is the
+       * lip of the crack catching §7's key — one line on its own reads as ink.
+       */
+      for (const path of garageCrackPaths()) {
+        const trace = (dx: number, dy: number) => {
+          const first = onPlan(path[0][0], path[0][1])
+          shell.moveTo(first.x + dx, first.y + dy)
+          for (let i = 1; i < path.length; i++) {
+            const q = onPlan(path[i][0], path[i][1])
+            shell.lineTo(q.x + dx, q.y + dy)
+          }
+        }
+        trace(0, 0)
+        shell.stroke({ width: 1.6, color: c(RAMPS.NEUTRAL[0]), alpha: 0.62 })
+        trace(0.9, -0.7)
+        shell.stroke({ width: 1, color: c(RAMPS.WOOD[1]), alpha: 0.24 })
       }
 
       // --- the expansion seam ----------------------------------------------
@@ -5298,41 +5598,25 @@ export function buildRoom(): RoomHandle {
           RAMPS.NEUTRAL[3],
         )
         /*
-         * **The car and the lamp**, borrowed from `district.ts` rather than
-         * drawn again here.
+         * §7.8.0c [amended 2026-09-03] — **nothing stands on the apron, and
+         * the street furniture is the district's.**
          *
-         * §7.8.1e's rule is that the ground outside is drawn once and never
-         * changes what it is, and street furniture is part of that ground. The
-         * garage does not own a car; it *parks on* the same apron the district
-         * lays, so the two objects come from the one module that knows what a
-         * car in this world looks like. Duplicating them here is how the studio
-         * ends up with two subtly different cars a hundred pixels apart.
+         * There was a car at the kerb here and a lamp on the footway beside the
+         * threshold, both borrowed from `district.ts` on the sound argument that
+         * the ground outside is drawn once. The rule they were serving has since
+         * been stated the other way round and it wins: the canonical garage
+         * frame contains **no vehicle at all**, parked, moving or decorative,
+         * and its lamps are on an authored rhythm — one light to three planters
+         * on each visible side, at one setback, missing the driveway and the
+         * threshold. A lamp placed here by name is a fourth light on a side that
+         * is allowed two, standing exactly where the exclusion span says nothing
+         * may stand.
          *
-         * Placed the way the canonical concept places them: the car on the
-         * apron beside the door rather than in front of it — nobody parks
-         * across their own roller shutter — and the lamp at the kerb on the
-         * other side, so its pool falls across the threshold. That second light
-         * source is what makes the monitors read as *interior*, which is
-         * `lamp`'s own note one module over.
+         * So both objects are gone and the frontage's furniture comes from
+         * `garageKerbRuns` with everything else on that kerb. The apron keeps
+         * its paving and its kerb, which is what makes the gate a gate; what it
+         * no longer keeps is anything parked on it.
          */
-        /*
-         * **The car is parked on the road, not on the forecourt.**
-         *
-         * It sat on the apron, which is where you put a car if you are drawing
-         * a car and not a street: nobody parks across their own roller shutter,
-         * and the concept has it at the kerb with its long axis along the
-         * carriageway. `along: 'gx'` is that axis, which is the same one the
-         * street wall runs on — so the car lines up with the kerb for free
-         * rather than by a number somebody tuned.
-         *
-         * Offset along the wall so it is beside the gate rather than in front
-         * of it: the gate has to be visibly usable, and a car across it says
-         * the opposite.
-         */
-        car(shell, shellProject, door.at - 3.4, halfAcross + 3.1, CAR_BODIES[1], 'gx')
-        // The lamp stands on the *footway*, this side of the kerb, so its pool
-        // falls across the threshold rather than into the road.
-        lamp(shell, shellProject, door.at + door.width + 1.6, halfAcross + 1.5)
       }
 
       for (const run of runs) {
@@ -5373,6 +5657,7 @@ export function buildRoom(): RoomHandle {
         left: RAMPS.NEUTRAL[GARAGE_VALUES.column.left],
         right: RAMPS.NEUTRAL[GARAGE_VALUES.column.right],
       }
+      drawnPiers = []
       for (const col of garageColumns(-halfBack, -halfAcross, halfBack, halfAcross)) {
         isoSolid(
           col.name === 'near' ? nearWall : shell,
@@ -5385,6 +5670,24 @@ export function buildRoom(): RoomHandle {
           col.height,
           columnPaint,
         )
+        // The box the pier just occupied, in the room's own pixels. Four feet
+        // and the cap above the highest of them — which is the corner the frame
+        // keeps losing, because it is the one that is not on the slab.
+        const feet = [
+          shellProject(col.gx, col.gy),
+          shellProject(col.gx + col.size, col.gy),
+          shellProject(col.gx, col.gy + col.size),
+          shellProject(col.gx + col.size, col.gy + col.size),
+        ]
+        const xs = feet.map((f) => f.x)
+        const ys = feet.map((f) => f.y)
+        drawnPiers.push({
+          name: col.name,
+          minX: Math.min(...xs),
+          maxX: Math.max(...xs),
+          minY: Math.min(...ys) - col.height * HEIGHT_UNIT,
+          maxY: Math.max(...ys),
+        })
       }
 
       /*
@@ -5538,6 +5841,27 @@ export function buildRoom(): RoomHandle {
          * as well, or the frontage is a tall door in a fence.
          */
         const GATE_H = WALL_FULL
+        /*
+         * §7.8.0b [amended 2026-09-03] — **a shallow header, and the sign is on
+         * it.**
+         *
+         * The sign was a red band painted across the shutter's own face, with
+         * no lettering: "at this size a word on a door is four grey pixels, and
+         * the band reads as a sign on its own". That was measured against a
+         * frame where the garage was two thirds the size it is now — the camera
+         * frames the whole building at about four fifths of the width, the gate
+         * is 4.8 tiles of it, and twenty-two characters at the room's own type
+         * size fit inside that with room to spare.
+         *
+         * So the concept's arrangement, which is also how a real one is built:
+         * the shutter stops a hand's breadth below the head and a **rigid
+         * header** finishes the opening between the two jamb piers, carrying
+         * the words. It is deliberately shallow. A deep band would be a storey
+         * course, and it would lower the usable gate — the opening below it is
+         * still more than three tiles clear, which is a vehicle.
+         */
+        const HEADER_H = 0.62
+        const SHUTTER_H = GATE_H - HEADER_H
         const reveal = halfAcross - WALL_THICK * 0.86
         const depth = WALL_THICK * 0.52
         // §7.8.0c's value table. The panel is the wall's own tone — see
@@ -5552,11 +5876,30 @@ export function buildRoom(): RoomHandle {
           0,
           door.width,
           depth,
-          GATE_H,
+          SHUTTER_H,
           {
             top: RAMPS.NEUTRAL[gate.panel + 1],
             left: RAMPS.NEUTRAL[gate.panel],
             right: RAMPS.NEUTRAL[gate.panel - 1],
+          },
+        )
+        // The header over it: the same footprint, standing on the shutter's
+        // head and reaching the wall's. Paler than the panel and than the
+        // block, because a painted board is the one thing on this frontage that
+        // is meant to be read from the street.
+        isoSolid(
+          nearWall,
+          shellProject,
+          door.at,
+          reveal,
+          SHUTTER_H,
+          door.width,
+          depth,
+          HEADER_H,
+          {
+            top: RAMPS.NEUTRAL[gate.pier + 1],
+            left: RAMPS.NEUTRAL[gate.pier],
+            right: RAMPS.NEUTRAL[gate.pier - 1],
           },
         )
         // The corrugation. Lines across the panel's visible face at a fixed
@@ -5568,7 +5911,7 @@ export function buildRoom(): RoomHandle {
         // gets *more* slats rather than bigger ones. Nine across the old height
         // is the pitch; the count follows from it.
         const SLAT = WALL_NEAR / 9
-        const SLATS = Math.round(GATE_H / SLAT)
+        const SLATS = Math.round(SHUTTER_H / SLAT)
         for (let i = 1; i < SLATS; i++) {
           const z = i * SLAT
           const a2 = shellProject(door.at, faceGy)
@@ -5580,33 +5923,95 @@ export function buildRoom(): RoomHandle {
             .stroke({ width: 1, color: c(RAMPS.NEUTRAL[gate.slat]), alpha: 0.8 })
         }
         /*
-         * **The sign painted across it**, which the concept has and which does
-         * a job no amount of tone can: it is the only thing on this frontage
-         * that says the building is *somebody's*.
+         * §7.8.0b [2026-09-03] — **and the words on it.**
          *
-         * A band in the panel's own plane, in the warm dark this room keeps for
-         * paint, with a lit edge along the top. No lettering — at this size a
-         * word on a door is four grey pixels, and the band reads as a sign on
-         * its own, the same way the tool board's tools read without being
-         * spanners.
+         * {@link GARAGE_SIGN} is the exact string §7.8.0c fixes, laid along the
+         * frontage's own screen slope. The street wall runs on `gx`, and one
+         * `gx` step moves the projection 32 px right and 16 down — so the slope
+         * is **+0.5**, which is the mirror of the suite sign's −0.5 and the
+         * other of the two values a line lying in this plane may take. Skewed
+         * rather than rotated, for the reason §7.8.0b gives about screens: a
+         * rotation is a screen-space transform pretending to be a plane, and it
+         * would put the lettering on a third slope the projection does not have.
+         *
+         * The board itself is the header solid above; this is only the paint on
+         * it, so it goes in a layer over the wall rather than into it.
+         */
+        /*
+         * **The red band across the slats**, which the concept has and which is
+         * not the sign: the sign is a plate on the header above, and this is
+         * paint on the door itself. Two thirds of the way up, where a roller
+         * shutter's colour break actually falls — and it is what keeps the
+         * shutter from reading as nine grey lines once the lettering moved off
+         * it.
          */
         {
-          const bandLo = GATE_H * 0.58
-          const bandHi = GATE_H * 0.76
-          const inset = door.width * 0.08
-          const s0 = shellProject(door.at + inset, faceGy)
-          const s1 = shellProject(door.at + door.width - inset, faceGy)
-          const band = (lo: number, hi: number, colour: number, alpha: number) => {
+          const bandLo = SHUTTER_H * 0.46
+          const bandHi = SHUTTER_H * 0.82
+          const s0 = shellProject(door.at, faceGy)
+          const s1 = shellProject(door.at + door.width, faceGy)
+          nearWall
+            .moveTo(s0.x, s0.y - bandLo * HEIGHT_UNIT)
+            .lineTo(s1.x, s1.y - bandLo * HEIGHT_UNIT)
+            .lineTo(s1.x, s1.y - bandHi * HEIGHT_UNIT)
+            .lineTo(s0.x, s0.y - bandHi * HEIGHT_UNIT)
+            .closePath()
+            .fill({ color: c(RAMPS.ALARM[0]), alpha: 0.92 })
+          // The slats run over the paint, not under it — a shutter is corrugated
+          // whichever colour it has been painted.
+          for (let i = 1; i < SLATS; i++) {
+            const z = i * SLAT
+            if (z < bandLo || z > bandHi) continue
+            const lift = z * HEIGHT_UNIT
             nearWall
-              .moveTo(s0.x, s0.y - lo * HEIGHT_UNIT)
-              .lineTo(s1.x, s1.y - lo * HEIGHT_UNIT)
-              .lineTo(s1.x, s1.y - hi * HEIGHT_UNIT)
-              .lineTo(s0.x, s0.y - hi * HEIGHT_UNIT)
+              .moveTo(s0.x, s0.y - lift)
+              .lineTo(s1.x, s1.y - lift)
+              .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.5 })
+          }
+        }
+        {
+          const mid = shellProject(door.at + door.width / 2, faceGy)
+          /*
+           * The plate the words are on: a dark board with a lit edge, set into
+           * the header's face. Dark with pale lettering, which is the way round
+           * the concept has it and the way round that works at this size — a
+           * pale board is a bright rectangle in the darkest part of the picture,
+           * and the letters have to be dark on it, and dark letters ten pixels
+           * tall against a lit ground close up into mush.
+           */
+          const inset = door.width * 0.045
+          const p0 = shellProject(door.at + inset, faceGy)
+          const p1 = shellProject(door.at + door.width - inset, faceGy)
+          const plate = (lo: number, hi: number, colour: number, alpha: number) => {
+            nearWall
+              .moveTo(p0.x, p0.y - lo * HEIGHT_UNIT)
+              .lineTo(p1.x, p1.y - lo * HEIGHT_UNIT)
+              .lineTo(p1.x, p1.y - hi * HEIGHT_UNIT)
+              .lineTo(p0.x, p0.y - hi * HEIGHT_UNIT)
               .closePath()
               .fill({ color: colour, alpha })
           }
-          band(bandLo, bandHi, c(RAMPS.ALARM[0]), 0.9)
-          band(bandHi - 0.03, bandHi, c(RAMPS.WARN[1]), 0.5)
+          plate(SHUTTER_H + HEADER_H * 0.14, SHUTTER_H + HEADER_H * 0.9, c(RAMPS.NEUTRAL[0]), 0.92)
+          plate(SHUTTER_H + HEADER_H * 0.86, SHUTTER_H + HEADER_H * 0.9, c(RAMPS.NEUTRAL[5]), 0.85)
+          plate(SHUTTER_H + HEADER_H * 0.14, SHUTTER_H + HEADER_H * 0.18, c(RAMPS.NEUTRAL[3]), 0.7)
+          const lettering = typeLine(GARAGE_SIGN, c(RAMPS.NEUTRAL[7]))
+          if (lettering) {
+            gateSign.visible = true
+            gateSign.label = 'gate-sign'
+            gateSign.position.set(mid.x, mid.y - (SHUTTER_H + HEADER_H * 0.53) * HEIGHT_UNIT)
+            gateSign.skew.y = Math.atan(0.5)
+            /*
+             * Sized to the opening rather than left at the room's type size.
+             * The face is monospace, so the advance is arithmetic rather than a
+             * measurement — which is also the only way to size it in the test
+             * environment, where laying a `Text` out needs a canvas that is not
+             * there (see {@link label}).
+             */
+            const run = door.width * TILE_W * 0.5
+            const wanted = GARAGE_SIGN.length * ROOM_TYPE_SIZE * CHAR_ADVANCE
+            lettering.scale.set(Math.min(1, (run * 0.86) / wanted))
+            gateSign.addChild(lettering)
+          }
         }
         // The guide rails either side, standing proud of the panel.
         // The piers either side, and they are the **lighter** element now.
@@ -6126,12 +6531,20 @@ export function buildRoom(): RoomHandle {
       // so the garage is a place with an outside rather than a backroom. They live
       // in the shell beside the door — like the door they are bones of the garage
       // and never leave, whatever the studio grows into.
-      const WIN_W = 52
-      const WIN_H = Math.max(16, WALL_H * 0.5)
+      /*
+       * **Smaller than they were** [2026-09-03]. 52 by half the wall is a
+       * domestic patio window, and two of them at that size across a four-tile
+       * wall left the back of the garage reading as the back of a house. The
+       * concept has one modest casement and a louvred vent up there; these are
+       * the casement's proportions, and the wall keeps being mostly block —
+       * which is what makes the shelving and the tool board on it read.
+       */
+      const WIN_W = 34
+      const WIN_H = Math.max(14, WALL_H * 0.33)
       for (const along of [0.25, 0.65]) {
         const wx = topX - westW * along
         const wy = topY + westH * along
-        drawWindow(shell, wx, wy - WALL_H * 0.75, WIN_W, WIN_H, -WALL_SLOPE)
+        drawWindow(shell, wx, wy - WALL_H * 0.78, WIN_W, WIN_H, -WALL_SLOPE, RAMPS.NEUTRAL[4])
         // §7.8.9 — somewhere to stand and look out of it. The garage's two
         // casements are high on the wall and that is fine: the errand is
         // "staring out of the window", and staring upward at a garage window is
@@ -6485,13 +6898,30 @@ export function buildRoom(): RoomHandle {
         // surface they both stand on did not.
         const at = garagePlot(pod.gx, pod.gy)
         const half = POD_STRIDE / 2
+        /*
+         * §7.8.0c [2026-09-03] — **the table lies on the pod's own axis.**
+         *
+         * `drawDeskBank` runs a bank along `col` and sets it back on `row`, and
+         * `garagePlot` maps `col` onto `gy` and `row` onto `gx` — so the call
+         * below is the `gy` table, and a `gx` one is the same call with its two
+         * plan coordinates handed over the other way round. The *bank* gets
+         * told which axis it is on rather than being fed swapped numbers,
+         * because it has to know: which of its four edges catches §7's key is a
+         * fact about where the run points, not about which argument is bigger.
+         */
+        const onGy = pod.axis === 'gy'
+        // Half the table's length, in the lattice units of the axis it lies on
+        // — cols are tiles and rows are 2.1 of them, so the same table is two
+        // different numbers depending on which way it is turned.
+        const halfAlong = half / (onGy ? PITCH_COL : PITCH_ROW)
         drawDeskBank(
           squadDesks[podIndex],
-          at.col - half,
-          at.col + half,
-          at.row,
+          (onGy ? at.col : at.row) - halfAlong,
+          (onGy ? at.col : at.row) + halfAlong,
+          onGy ? at.row : at.col,
           POD_TABLE_DEPTH,
           0,
+          pod.axis,
         )
       }
     } else if (officeShell) {
@@ -6534,22 +6964,41 @@ export function buildRoom(): RoomHandle {
         // of a facing pod is a wall between four people who were put together
         // on purpose.
         const seatInPod = garageSeat(i - held)
-        const toCamera = seatInPod.facing === 'gx+'
-        // A chair only where one can be seen — behind somebody facing you.
-        if (toCamera) drawChair(squadDesks[seatInPod.pod], x, y)
+        const toCamera = facesCamera(seatInPod.facing)
+        /*
+         * §7.8.0c [amended 2026-09-03] — **the garage draws no chairs yet.**
+         *
+         * There was one behind every camera-facing developer, on the argument
+         * that a chair is only worth drawing where it can be seen. It can be
+         * seen; the trouble is what it resolves to. At this scale a chair back
+         * and a monitor's rear are the same dark rectangle a few pixels apart,
+         * so a camera-facing seat came with two of them and a pod read as a
+         * heap of panels rather than as four people at a table.
+         *
+         * The clearance stays. `podPlot` still reserves the space a seated body
+         * needs on both sides of the table and `WALL_CLEAR` still puts a lane
+         * behind it — removing the *mark* does not remove the aisle, and the
+         * moment the garage earns a chair it has somewhere to stand.
+         */
         drawWorkstation(
           toCamera ? frontDesks[seatInPod.pod] : squadDesks[seatInPod.pod],
           x,
           y,
           i,
           toCamera ? -1 : 1,
+          // A person and their screen share one facing, so the workstation is
+          // turned by the same value the seat was placed with.
+          seatInPod.facing === 'gx+' || seatInPod.facing === 'gx-' ? 'gx' : 'gy',
         )
         continue
       }
       if (officeShell && i - held < OFFICE_SEATS) {
         const o = officeSeat(i - held)
         const toCamera = o.facing === 'gx+'
-        if (toCamera) drawChair(squadDesks[o.pod], x, y)
+        if (toCamera) {
+          drawChair(squadDesks[o.pod], x, y)
+          drawnChairs += 1
+        }
         drawWorkstation(
           toCamera ? frontDesks[o.pod] : squadDesks[o.pod],
           x,
@@ -6794,22 +7243,87 @@ export function buildRoom(): RoomHandle {
        * stays centred on the room and simply zooms out a little once the studio
        * has filled it.
        */
-      const OUTSIDE = 1.18
-      const spilling = reach >= shellMaxCol - 2
+      /*
+       * §7.8.0c [amended 2026-09-03] — **once the studio has filled the room,
+       * the frame is the room. All of it.**
+       *
+       * The clipped box above is right while the garage is filling: a frame
+       * fitted to the whole shell at one developer draws the founder a third of
+       * their proper size, which is the failure the growth curve exists to
+       * prevent. It is wrong the moment the pods reach the far side, and it was
+       * wrong in a way no number in it looked wrong: `reach` stops 1.6 columns
+       * short of the near-right wall and `far.row + 0.9` a little short of the
+       * street wall, so the *centre* of the framed box sits up and to the right
+       * of the building's own centre. Measured at twenty developers and
+       * 1664x936, that put the left pier 185 px off the left edge and the far
+       * pier's cap 190 px off the top while 130 px of road sat unused at the
+       * bottom — a building three per cent too big for the picture and a
+       * quarter of a pier out of it, from a centre nobody had moved on purpose.
+       *
+       * So the same test that already earns the zoom-out earns the full box:
+       * once the pods are within two columns of the far wall, the composition
+       * is the *building*, and the building is `shellMinCol..shellMaxCol` by
+       * `shellMinRow..shellMaxRow`. `screen.piers` in `RoomGeometry` is the
+       * claim that keeps it honest, because this is a camera fact and every
+       * other measurement in this file is in a frame the camera is not in.
+       */
+      /*
+       * **The frame opens onto the whole building as the pods fill it**, and
+       * lands on it exactly when the twentieth developer sits down.
+       *
+       * The previous rule was a step: "once the furniture reaches within two
+       * columns of the far wall, frame the shell and zoom out 18 per cent". It
+       * had two faults and the second is the one that bit. It was a *cut* in a
+       * camera §10.5 says never cuts — and it was keyed on where the furniture
+       * happens to reach, so re-laying the pods a tile shy of where they were
+       * turned the whole-building frame off and put the near pier 13 px below
+       * the bottom edge of the picture. A composition rule that depends on the
+       * arrangement it is composing is not a rule.
+       *
+       * So it is a lerp on the one number that actually means "how full is the
+       * garage": at nought developers the frame is the corner and the founder
+       * is a real object in it (§7.7.4's tap target, which is what the growth
+       * curve exists for); at twenty it is `shellMinCol..shellMaxCol` by
+       * `shellMinRow..shellMaxRow` and nothing else, which is the building, all
+       * of it, with the street margin below doing the rest.
+       */
+      const filled = Math.max(0, Math.min(1, ordinary / GARAGE_SEATS))
+      const lerp = (a: number, b: number) => a + (b - a) * filled
       const framed = blockBox(
         shellMinCol,
         shellMinRow,
-        reach,
-        Math.min(shellMaxRow, far.row + 0.9),
+        lerp(reach, shellMaxCol),
+        lerp(Math.min(shellMaxRow, far.row + 0.9), shellMaxRow),
       )
-      const zoomOut = spilling ? OUTSIDE : 1
-      fitW = ((framed.maxX - framed.minX) / 2) * zoomOut
-      fitH = ((framed.maxY - framed.minY) / 2) * zoomOut
+      fitW = (framed.maxX - framed.minX) / 2
+      fitH = (framed.maxY - framed.minY) / 2
       fitCx = (framed.minX + framed.maxX) / 2
       fitCy = (framed.minY + framed.maxY) / 2
     }
-    foldedFit.w = fitW * 2 + ROOM_CONTENT_PAD_X + pad.x
-    foldedFit.h = fitH * 2 + capH + ROOM_CONTENT_PAD_Y + pad.y
+    /*
+     * §7.8.0c [2026-09-03] — **the garage's street margin is a hand's breadth,
+     * not a district.**
+     *
+     * `ROOM_CONTENT_PAD` and `districtPad` between them ask for about 200 px
+     * either side of the room, which is the right budget for a tower: what
+     * surrounds a tower is the city, and the city is half the picture. What
+     * surrounds this building is a kerb.
+     *
+     * The canonical concept is the argument. Its garage is *height-tight* —
+     * the far corner sits on the top edge and the near vertex a hand above the
+     * bottom — and the width falls out of that at about four fifths of the
+     * frame. The generic pads gave the same building 70 per cent of the width
+     * with a quarter of the picture spent on empty carriageway on each side,
+     * which is not a wider shot of the same composition. It is a different one.
+     *
+     * Two tiles across and two down, which is a pavement and a lane: enough for
+     * the kerb, the lamps and the planters §7.8.0c authors out there, and not
+     * enough for the road to become the subject.
+     */
+    const streetX = garage ? TILE_W * 1.7 : ROOM_CONTENT_PAD_X + pad.x
+    const streetY = garage ? TILE_H * 2.1 : ROOM_CONTENT_PAD_Y + pad.y
+    foldedFit.w = fitW * 2 + streetX
+    foldedFit.h = fitH * 2 + capH + streetY
     // Biased toward the north corner — the founder and the walls that rise
     // behind it — rather than the true centre of the bounding box. Centring
     // geometrically drops the people low in frame under a slab of empty floor,
@@ -6831,7 +7345,7 @@ export function buildRoom(): RoomHandle {
      * honest setting for a building the camera can see over.
      */
     const skyShare = garage ? 0.5 : SKYLINE_SHARE
-    foldedFit.py = fitCy - capH * 0.5 + pad.y * (0.5 - skyShare)
+    foldedFit.py = fitCy - capH * 0.5 + (garage ? 0 : pad.y * (0.5 - skyShare))
     if (unfolded) {
       /*
        * §7.8.0d — **the office fits its own shell, not §7.8.1e's.**
@@ -7525,6 +8039,16 @@ export function buildRoom(): RoomHandle {
       return { x: signGroup.position.x, y: signGroup.position.y }
     },
     geometry(): RoomGeometry {
+      /*
+       * Room-local pixels to canvas pixels. `toGlobal` walks the live scene
+       * graph, so this is the camera's own answer rather than a reconstruction
+       * of it from `shellRect` and the lens — which is the reconstruction that
+       * would have agreed with the arithmetic while the picture was wrong.
+       */
+      const toScreen = (p: { x: number; y: number }) => {
+        const q = root.toGlobal(p)
+        return { x: q.x, y: q.y }
+      }
       return {
         shell: {
           top: { ...shellQuad.top },
@@ -7551,6 +8075,34 @@ export function buildRoom(): RoomHandle {
         seats: desks.map((d, i) => ({ ...drawnSeatPlot(i, windowFrom, drawnGarage), x: d.x, y: d.y })),
         heldSeats: suiteSeats(),
         seatWindow: windowFrom,
+        chairs: drawnChairs,
+        screen: {
+          shell: {
+            top: toScreen(shellQuad.top),
+            left: toScreen(shellQuad.left),
+            right: toScreen(shellQuad.right),
+            bottom: toScreen(shellQuad.bottom),
+          },
+          // Raised off the desk point by the same amount `__founderAt` uses —
+          // that is the torso rather than the floor under it, and the torso is
+          // what `pickDeveloper` is looking for.
+          seats: desks.map((d) => toScreen({ x: d.x, y: d.y - 18 })),
+          piers: drawnPiers.map((pier) => {
+            const a = toScreen({ x: pier.minX, y: pier.minY })
+            const b = toScreen({ x: pier.maxX, y: pier.maxY })
+            return {
+              name: pier.name,
+              minX: Math.min(a.x, b.x),
+              maxX: Math.max(a.x, b.x),
+              minY: Math.min(a.y, b.y),
+              maxY: Math.max(a.y, b.y),
+            }
+          }),
+          viewport: {
+            w: typeof window === 'undefined' ? 0 : window.innerWidth,
+            h: typeof window === 'undefined' ? 0 : window.innerHeight,
+          },
+        },
       }
     },
     setTeamSpeaker(id: HeroId | null) {

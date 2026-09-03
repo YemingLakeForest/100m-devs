@@ -464,7 +464,34 @@ export class Lens {
       this.sites,
       this.worlds,
     )
-    if (this.floorRect) base[FLOOR] = fitScaleFor(this.frameOf(FLOOR), this.viewport)
+    if (this.floorRect) {
+      base[FLOOR] = fitScaleFor(this.frameOf(FLOOR), this.viewport)
+      /*
+       * §7.8.0c [2026-09-03] — **the ceiling frames the room.**
+       *
+       * §7.7.1 stops a twenty-person studio at the squad, which is right: there
+       * is no floor to look at and no tower. But the squad's frame is authored
+       * from `frameFor` — a rectangle sized for twenty desks on the open-plan
+       * lattice — and the garage those twenty people are actually standing in
+       * is a *building*, half again as wide. So the resting camera of the whole
+       * first act framed a rectangle nothing was drawn in: measured at twenty
+       * developers and 1664x936, the left pier stood 185 px off the left edge
+       * of the picture and the far pier's cap 190 px off the top.
+       *
+       * It was invisible from the ladder because only `FLOOR` was ever routed
+       * through {@link frameOf}, and the garage never reaches `FLOOR`. The
+       * *centre* came from the room and the *scale* from the squad, which is
+       * the one combination that cannot be checked by looking at either.
+       *
+       * So the rung the studio is pinned to may not frame less than the room it
+       * is pinned inside. Only that rung: the levels below it are still the
+       * ladder, and pinching all the way in to one developer (§7.7.4) is
+       * untouched.
+       */
+      if (this.ceiling < FLOOR) {
+        base[this.ceiling] = Math.min(base[this.ceiling], base[FLOOR])
+      }
+    }
     // The garage is a rectangle that grows and it does not respect the nesting
     // — for the first thirty developers the room is smaller than the squad
     // that is supposed to contain it. `nestScales` is what keeps the ladder a
@@ -559,6 +586,10 @@ export class Lens {
       this.worlds,
     )
     if (!room || level > FLOOR) return own
+    // The rung the studio is pinned to *is* the room — see `scales()`. Its
+    // centre has to come from the same rectangle as its scale, or the camera
+    // frames the building at the squad's midpoint and loses a corner of it.
+    if (level >= this.ceiling && this.ceiling < FLOOR) return room
     // A frame that holds *more* than the room fits at a smaller scale than the
     // room does. That is the crossing `nestScales` collapses.
     return fitScaleFor(own, this.viewport) < fitScaleFor(room, this.viewport) ? room : own

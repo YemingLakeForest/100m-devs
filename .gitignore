@@ -31,3 +31,6 @@ coverage/
 # Git worktrees created by Claude Code. Full repo checkouts -- never commit these.
 .claude/worktrees/
 
+# §7.8.0c's iteration shots and probe scripts. Temporary captures belong here
+# and only the milestone ones under docs/assets/shots/ are tracked.
+tmp/

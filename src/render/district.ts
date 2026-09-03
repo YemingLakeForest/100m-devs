@@ -52,6 +52,39 @@ export interface DistrictShell {
   readonly halfBack: number
   /** Half-extent along `gy`, in tiles. */
   readonly halfAcross: number
+  /**
+   * §7.8.0c [added 2026-09-03] — **the garage stop's street, which is a
+   * different street.**
+   *
+   * Present only when the room being drawn is the garage. It is not a style
+   * flag; it names two facts about that camera stop that the generic district
+   * cannot satisfy at the same time as its own:
+   *
+   * - **The road is empty.** The canonical garage frame has no vehicle in it,
+   *   parked or moving, and §7.8.0c makes that a rule rather than a taste: the
+   *   near forecourt is the *gate apron*, which has to read as clear, and a
+   *   parked car is the one object that says "this ground is spoken for".
+   * - **The kerb is authored.** The concept's lamps and planters are on a
+   *   rhythm — one lamp to three bushes, at one setback, on both visible sides
+   *   independently — and a scattering at a fixed pitch cannot express that. See
+   *   {@link curbStations}.
+   *
+   * The neighbours go with the cars, for the composition's sake rather than the
+   * rule's: at the garage's scale the row of lit facades across the road is half
+   * the picture, and §7.8.0c wants a narrow frame around the building rather
+   * than a second scene competing with it.
+   */
+  readonly garage?: GarageKerb
+}
+
+/** Spans of a kerb run that nothing may stand in, in that run's own axis. */
+export type ExclusionSpan = readonly [number, number]
+
+export interface GarageKerb {
+  /** Along `gx` — the frontage the gate and the personnel door are in. */
+  readonly frontageExclusions: readonly ExclusionSpan[]
+  /** Along `gy` — the right return. */
+  readonly returnExclusions: readonly ExclusionSpan[]
 }
 
 /**
@@ -264,6 +297,67 @@ export function lamp(g: Graphics, p: Project, gx: number, gy: number) {
     { top: RAMPS.WARN[3], left: RAMPS.WARN[2], right: RAMPS.WARN[1] })
 }
 
+/**
+ * The bays painted on the forecourt, as positions along `gy`.
+ *
+ * **The pitch has to clear the car**, which the first version did not: bays
+ * every 1.55 tiles with a car 1.7 long overlapped every neighbour, so a
+ * thousand-person forecourt came out as one continuous ribbon of bodywork
+ * running the length of the kerb. A car park is only legible as a car park when
+ * you can see the gaps — and the empty bays are what make the others read as
+ * *parked* rather than as a pattern.
+ */
+function parkingBays(ha: number, d: number): number[] {
+  const BAY = 2.15
+  const bays = Math.max(1, Math.floor((ha + d * FORECOURT) / BAY))
+  return Array.from({ length: bays }, (_, i) => -ha + 0.3 + i * BAY)
+}
+
+/**
+ * §7.8.0c [added 2026-09-03] — **every vehicle this district will draw.**
+ *
+ * Pure, and separated from the drawing for one reason: "the garage frame
+ * contains no vehicles" is a claim about what is *emitted*, and a claim about
+ * emission cannot be made against a function whose only output is marks on a
+ * `Graphics`. A test could count fills and match colours, and it would be a
+ * test of the palette rather than of the rule — `CAR_BODIES` are four colours
+ * this street uses for other things too.
+ *
+ * So the vehicles are a list, the drawing iterates it, and the rule is one
+ * assertion: at the garage stop the list is empty. There is no second place a
+ * car can come from, which is the property that makes the claim worth anything.
+ */
+export function districtVehicles(shell: DistrictShell): Array<{
+  gx: number
+  gy: number
+  body: string
+  along: 'gx' | 'gy'
+}> {
+  // §7.8.0c: the canonical garage frame has no vehicle in it, parked, moving or
+  // decorative. The forecourt there is the gate apron, and a car on it
+  // contradicts a driveway that has to read as clear.
+  if (shell.garage) return []
+  const hb = shell.halfBack
+  const ha = shell.halfAcross
+  const d = districtDepth(hb, ha)
+  const out: Array<{ gx: number; gy: number; body: string; along: 'gx' | 'gy' }> = []
+  parkingBays(ha, d).forEach((y, i) => {
+    if (rnd(i * 3 + 1) <= 0.34) return
+    out.push({ gx: hb + 0.45, gy: y + 0.2, body: CAR_BODIES[i % CAR_BODIES.length], along: 'gy' })
+  })
+  // And a couple at the kerb on the other near side, so the street is used on
+  // both sides of the corner rather than only where the car park is.
+  for (let i = 0; i < 3; i++) {
+    out.push({
+      gx: -hb + 1.4 + i * 3.1,
+      gy: ha + d * (FOOTWAY + 0.03),
+      body: CAR_BODIES[(i + 2) % CAR_BODIES.length],
+      along: 'gx',
+    })
+  }
+  return out
+}
+
 /** A parked car: a body and a glasshouse. Two solids, and it is enough. */
 export function car(g: Graphics, p: Project, gx: number, gy: number, body: string, along: 'gx' | 'gy') {
   const w = along === 'gy' ? 0.8 : 1.7
@@ -288,11 +382,237 @@ function bench(g: Graphics, p: Project, gx: number, gy: number, along: 'gx' | 'g
   }
 }
 
+/**
+ * §7.8.0c [added 2026-09-03] — **the kerb's rhythm.**
+ *
+ * One lamp, then three planters, then the next lamp. The ratio is the concept's
+ * and it is authored rather than emergent: the canonical garage has two lights
+ * and six bushes on its frontage and three lights and nine bushes on its right
+ * return, and each side keeps its own ratio — neither borrows an object from
+ * the other to make the arithmetic come out.
+ *
+ * Stated as a constant because the claim the gate makes is a *ratio*, and a
+ * ratio written down in the test and again in the drawing is a ratio that can
+ * drift.
+ */
+export const PLANTERS_PER_LAMP = 3
+/** How many lights the gate frontage carries — the concept's own count. */
+export const FRONTAGE_LAMPS = 2
+/** And the right return, which is the longer side and carries one more. */
+export const RETURN_LAMPS = 3
+
+/**
+ * The crossing, as three numbers — so the stripes and the span the kerb has to
+ * keep clear of them are the same crossing.
+ */
+const CROSSING_STRIPES = 6
+const CROSSING_PITCH = 0.34
+const CROSSING_AT = 0.1
+
+/** Where a near road's crossing lands on that side's axis, with its approach. */
+export function crossingSpan(half: number): ExclusionSpan {
+  const from = -half * CROSSING_AT
+  return [from - 0.5, from + CROSSING_STRIPES * CROSSING_PITCH + 0.5]
+}
+
+/** One kerb run: a straight line of stations at one setback. */
+export interface CurbRun {
+  /** Where the run begins and ends, along its own axis, in tiles. */
+  readonly from: number
+  readonly to: number
+  /** How many lamps stand on it. Planters are {@link PLANTERS_PER_LAMP} times that. */
+  readonly lamps: number
+  /** Spans of it nothing may stand in: doorways, driveways, crossings, piers. */
+  readonly exclusions: readonly ExclusionSpan[]
+}
+
+export interface CurbStation {
+  readonly kind: 'lamp' | 'planter'
+  /** Position along the run's own axis, in tiles. */
+  readonly along: number
+}
+
+/**
+ * The stations on one kerb run — **pure, and the whole of the exterior's
+ * layout.**
+ *
+ * ## Why the exclusions do not cost the side its objects
+ *
+ * The obvious construction is a uniform pitch along the whole kerb with any
+ * station that lands in a driveway dropped. It produces a frontage with one
+ * lamp on it and a gap where the other one should be, and the count then
+ * depends on where the gate happens to sit — which is the sort of thing that is
+ * fixed by nudging the gate until the lamp reappears.
+ *
+ * So the pitch is uniform in the **free measure**: the exclusions are cut out
+ * first, the remaining spans are laid end to end, and the stations are spaced
+ * evenly along *that*. Every side keeps exactly its authored count, no station
+ * can be inside an exclusion by construction, and the rhythm reads as regular
+ * with a gap at the gate — which is what the concept draws.
+ *
+ * Deterministic and total: same run in, same stations out, every rebuild.
+ */
+export function curbStations(run: CurbRun): CurbStation[] {
+  const lamps = Math.max(0, Math.floor(run.lamps))
+  const count = lamps * (1 + PLANTERS_PER_LAMP)
+  if (count === 0 || !(run.to > run.from)) return []
+
+  // The run minus its exclusions, as spans in ascending order. Clipped to the
+  // run and merged, so overlapping exclusions cost their union rather than
+  // their sum.
+  const cuts = run.exclusions
+    .map(([a, b]) => [Math.max(run.from, Math.min(a, b)), Math.min(run.to, Math.max(a, b))] as const)
+    .filter(([a, b]) => b > a)
+    .sort((p, q) => p[0] - q[0])
+  const free: Array<readonly [number, number]> = []
+  let at = run.from
+  for (const [a, b] of cuts) {
+    if (a > at) free.push([at, a])
+    at = Math.max(at, b)
+  }
+  if (at < run.to) free.push([at, run.to])
+
+  const total = free.reduce((sum, [a, b]) => sum + (b - a), 0)
+  if (total <= 0) return []
+  const pitch = total / count
+
+  const stations: CurbStation[] = []
+  for (let i = 0; i < count; i++) {
+    // Half a pitch in, so the first and last stations stand off the ends of
+    // their spans by the same amount they stand off each other.
+    let measure = (i + 0.5) * pitch
+    for (const [a, b] of free) {
+      const len = b - a
+      if (measure <= len) {
+        stations.push({ kind: i % (1 + PLANTERS_PER_LAMP) === 0 ? 'lamp' : 'planter', along: a + measure })
+        break
+      }
+      measure -= len
+    }
+  }
+  return stations
+}
+
+/**
+ * §7.8.0c — **what the garage's kerb has to keep clear of.**
+ *
+ * Assembled here rather than in `room.ts` because half of it is the *street's*
+ * geometry — where the crossings are, how wide the piers stand — and only the
+ * two openings come from the building. The room hands over the openings it cut
+ * and gets back the spans, so neither module has to hold a copy of the other's
+ * numbers.
+ *
+ * The splay either side of the driveway is the apron's, not a margin: a lamp
+ * planted on the edge of a vehicle crossover is a lamp somebody has already
+ * driven into.
+ */
+export function garageKerbFor(
+  halfBack: number,
+  halfAcross: number,
+  gate: { at: number; width: number },
+  door: { at: number; width: number },
+  pierHalf: number,
+): GarageKerb {
+  /** The driveway, plus the splay a vehicle needs to turn into it. */
+  const SPLAY = 1.3
+  /** A threshold somebody walks out of, plus room to stand. */
+  const THRESHOLD = 0.9
+  const piers = (half: number): ExclusionSpan[] => [
+    [-half - pierHalf * 2, -half + pierHalf * 2],
+    [half - pierHalf * 2, half + pierHalf * 2],
+  ]
+  return {
+    frontageExclusions: [
+      [gate.at - SPLAY, gate.at + gate.width + SPLAY],
+      [door.at - THRESHOLD, door.at + door.width + THRESHOLD],
+      crossingSpan(halfBack),
+      ...piers(halfBack),
+    ],
+    returnExclusions: [crossingSpan(halfAcross), ...piers(halfAcross)],
+  }
+}
+
+/**
+ * Where the garage's two visible kerbs are, and what stands on them.
+ *
+ * One setback per side and one axis per side, derived from the same band table
+ * the pavement is painted from — so a lamp is on the footway because the
+ * footway is where `KERB` puts it, not because a number was tuned until it
+ * looked like it was.
+ *
+ * The runs reach a little past the building on both ends. A rhythm that starts
+ * and stops exactly at the corners reads as a decal applied to the plot; the
+ * concept's pavement carries on out of frame, which is what makes it a street.
+ */
+export function garageKerbRuns(
+  hb: number,
+  ha: number,
+  depth: number,
+  back: number,
+  kerb: GarageKerb,
+): {
+  frontage: { setback: number; run: CurbRun }
+  return_: { setback: number; run: CurbRun }
+} {
+  const setback = depth * (KERB + 0.05)
+  const overrun = depth * 0.5
+  return {
+    frontage: {
+      setback: ha + setback,
+      run: {
+        from: -hb - back * 0.5,
+        to: hb + overrun,
+        lamps: FRONTAGE_LAMPS,
+        exclusions: kerb.frontageExclusions,
+      },
+    },
+    return_: {
+      setback: hb + setback,
+      run: {
+        from: -ha - back * 0.5,
+        to: ha + overrun,
+        lamps: RETURN_LAMPS,
+        exclusions: kerb.returnExclusions,
+      },
+    },
+  }
+}
+
 /** A planter — a box with a hedge in it. The green on the near footway. */
 function planter(g: Graphics, p: Project, gx: number, gy: number, w: number, d: number) {
   isoSolid(g, p, gx, gy, 0, w, d, 0.28, { top: RAMPS.NEUTRAL[3], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] })
   isoSolid(g, p, gx + 0.06, gy + 0.06, 0.28, w - 0.12, d - 0.12, 0.3, {
     top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[0], right: RAMPS.NEUTRAL[1],
+  })
+}
+
+/**
+ * §7.8.0c [added 2026-09-03] — **the garage's planter, and it stands up.**
+ *
+ * {@link planter} above is a *hedge*: 1.6 by 0.5 tiles and half a tile tall,
+ * which is the right object on a floor's frontage where it runs along a long
+ * kerb and reads as a strip of green. Borrowed onto the garage's kerb it came
+ * out as a flat bar lying in the gutter — at this camera the whole object is
+ * about twelve pixels of screen and none of them are above the pavement.
+ *
+ * The concept's is a tub with a bush in it: square in plan, about as tall as it
+ * is wide, and stepped so the foliage has a silhouette rather than a top face.
+ * One model, used for every planter on both sides — which is §7.8.0c's rule and
+ * is also what makes the rhythm read as a rhythm.
+ */
+export function bushPlanter(g: Graphics, p: Project, gx: number, gy: number) {
+  const W = 0.92
+  const tub = { top: RAMPS.NEUTRAL[3], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] }
+  const leaf = { top: RAMPS.FOLIAGE[1], left: RAMPS.FOLIAGE[0], right: RAMPS.NEUTRAL[1] }
+  isoSolid(g, p, gx, gy, 0, W, W, 0.46, tub)
+  isoSolid(g, p, gx + 0.08, gy + 0.08, 0.46, W - 0.16, W - 0.16, 0.5, leaf)
+  // The crown gets the ramp's own two greens the other way up — `FOLIAGE` has
+  // exactly two entries and there is no third to reach for, which is the master
+  // palette doing its job rather than a limitation to work around.
+  isoSolid(g, p, gx + 0.24, gy + 0.24, 0.96, W - 0.48, W - 0.48, 0.3, {
+    top: RAMPS.FOLIAGE[1],
+    left: RAMPS.FOLIAGE[1],
+    right: RAMPS.FOLIAGE[0],
   })
 }
 
@@ -413,14 +733,53 @@ export function drawDistrict(g: Graphics, p: Project, shell: DistrictShell): voi
   }
   // A zebra crossing on each near road, opposite the middle of the building —
   // which is also where §7.8.6's walkers would leave if they ever did.
-  for (let i = 0; i < 6; i++) {
-    isoPatch(g, p, hb + d * FOOTWAY, -ha * 0.1 + i * 0.34, hb + d * CARRIAGEWAY, -ha * 0.1 + i * 0.34 + 0.18, RAMPS.NEUTRAL[7], 0.5)
-    isoPatch(g, p, -hb * 0.1 + i * 0.34, ha + d * FOOTWAY, -hb * 0.1 + i * 0.34 + 0.18, ha + d * CARRIAGEWAY, RAMPS.NEUTRAL[7], 0.5)
+  for (let i = 0; i < CROSSING_STRIPES; i++) {
+    const y = -ha * CROSSING_AT + i * CROSSING_PITCH
+    const x = -hb * CROSSING_AT + i * CROSSING_PITCH
+    isoPatch(g, p, hb + d * FOOTWAY, y, hb + d * CARRIAGEWAY, y + 0.18, RAMPS.NEUTRAL[7], 0.5)
+    isoPatch(g, p, x, ha + d * FOOTWAY, x + 0.18, ha + d * CARRIAGEWAY, RAMPS.NEUTRAL[7], 0.5)
   }
 
   // --- everything with volume, in depth order ------------------------------
   const props: Prop[] = []
   const at = (gx: number, gy: number, draw: () => void) => props.push({ depth: gx + gy, draw })
+
+  const kerb = shell.garage
+  if (kerb) {
+    /*
+     * §7.8.0c [2026-09-03] — **the garage's street is the kerb and nothing
+     * else.**
+     *
+     * Everything below this branch — the neighbours, the street trees, the
+     * parking bays, the bus shelter, the benches and the bike hoops — is
+     * §7.8.1e's furniture for a *floor*, where the building is large enough
+     * that the city around it reads as context. At the garage's scale it reads
+     * as a competing subject: a row of lit facades across the road is brighter
+     * and busier than the room the game is about, and the canonical concept
+     * has none of it. What it has is tarmac, a kerb, a rhythm of lamps and
+     * bushes, and dark.
+     *
+     * The cars are a rule rather than a preference and are gone for a second
+     * reason: §7.8.0c reserves the gate apron, and a parked car is the one
+     * object that contradicts a clear driveway.
+     */
+    const runs = garageKerbRuns(hb, ha, d, back, kerb)
+    for (const station of curbStations(runs.frontage.run)) {
+      const x = station.along
+      const y = runs.frontage.setback
+      if (station.kind === 'lamp') at(x, y, () => lamp(g, p, x, y))
+      else at(x, y, () => bushPlanter(g, p, x, y))
+    }
+    for (const station of curbStations(runs.return_.run)) {
+      const x = runs.return_.setback
+      const y = station.along
+      if (station.kind === 'lamp') at(x, y, () => lamp(g, p, x, y))
+      else at(x, y, () => bushPlanter(g, p, x, y))
+    }
+    props.sort((a, b) => a.depth - b.depth)
+    for (const prop of props) prop.draw()
+    return
+  }
 
   // The neighbours, across the far road on both back sides. They run past the
   // corners on purpose: a row that stops exactly where the building stops reads
@@ -457,30 +816,11 @@ export function drawDistrict(g: Graphics, p: Project, shell: DistrictShell): voi
   }
 
   // Parking bays on the forecourt, and cars in about two thirds of them.
-  //
-  // **The pitch has to clear the car**, which the first version did not: bays
-  // every 1.55 tiles with a car 1.7 long overlapped every neighbour, so a
-  // thousand-person forecourt came out as one continuous ribbon of bodywork
-  // running the length of the kerb. A car park is only legible as a car park
-  // when you can see the gaps — and the empty bays are what make the others read
-  // as *parked* rather than as a pattern.
-  const BAY = 2.15
-  const bays = Math.max(1, Math.floor((ha + d * FORECOURT) / BAY))
-  for (let i = 0; i < bays; i++) {
-    const y = -ha + 0.3 + i * BAY
-    isoPatch(g, p, hb + 0.25, y, hb + d * FORECOURT - 0.4, y + 0.06, RAMPS.NEUTRAL[3], 0.5)
-    if (rnd(i * 3 + 1) > 0.34) {
-      const body = CAR_BODIES[i % CAR_BODIES.length]
-      at(hb + 0.45, y + 0.2, () => car(g, p, hb + 0.45, y + 0.2, body, 'gy'))
-    }
+  for (const bay of parkingBays(ha, d)) {
+    isoPatch(g, p, hb + 0.25, bay, hb + d * FORECOURT - 0.4, bay + 0.06, RAMPS.NEUTRAL[3], 0.5)
   }
-  // And a couple at the kerb on the other near side, so the street is used on
-  // both sides of the corner rather than only where the car park is.
-  for (let i = 0; i < 3; i++) {
-    const x = -hb + 1.4 + i * 3.1
-    const gy = ha + d * (FOOTWAY + 0.03)
-    const body = CAR_BODIES[(i + 2) % CAR_BODIES.length]
-    at(x, gy, () => car(g, p, x, gy, body, 'gx'))
+  for (const v of districtVehicles(shell)) {
+    at(v.gx, v.gy, () => car(g, p, v.gx, v.gy, v.body, v.along))
   }
 
   // The near footway's own furniture — the part of the scene at the size the
