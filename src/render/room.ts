@@ -5640,10 +5640,20 @@ export function buildRoom(): RoomHandle {
        * faces straight up into it, and it is now the *only* light thing about
        * these walls, which is exactly what the concept draws.
        */
+      /*
+       * §7.8.0c [amended 2026-09-03] — and warm, see `GARAGE_VALUES.nearWall`.
+       * `NEUTRAL` is a violet ramp; the frontage was lavender at a third of the
+       * frame while the far wall behind it had been warmed a fortnight earlier.
+       */
+      const warmNear = (i: number) =>
+        mixHex(RAMPS.NEUTRAL[i], RAMPS.WARN[0], GARAGE_VALUES.nearWall.warmth)
+      /** The same, for paving — a paler, greyer stone than block. */
+      const warmStreet = (i: number) =>
+        mixHex(RAMPS.NEUTRAL[i], RAMPS.WARN[0], GARAGE_VALUES.street.warmth)
       const blockNear: WallPaint = {
-        top: RAMPS.NEUTRAL[GARAGE_VALUES.nearWall.top],
-        left: RAMPS.NEUTRAL[GARAGE_VALUES.nearWall.left],
-        right: RAMPS.NEUTRAL[GARAGE_VALUES.nearWall.right],
+        top: warmNear(GARAGE_VALUES.nearWall.top),
+        left: warmNear(GARAGE_VALUES.nearWall.left),
+        right: warmNear(GARAGE_VALUES.nearWall.right),
       }
       const runs = garageShellRuns(-halfBack, -halfAcross, halfBack, halfAcross)
       const door = rollUpIn(runs)
@@ -6050,6 +6060,12 @@ export function buildRoom(): RoomHandle {
          * the road before and swallowed the kerb, so the studio appeared to
          * open straight onto the traffic lane.
          */
+        /*
+         * §7.8.0c [amended 2026-09-03] — **the stone out here is warm**, see
+         * `GARAGE_VALUES.street`. Measured, the concept's footway is (60,46,42)
+         * and ours was (58,50,68): the same value, violet. A street lamp is a
+         * warm light and it is the only thing lighting this ground.
+         */
         isoPatch(
           shell,
           shellProject,
@@ -6057,7 +6073,7 @@ export function buildRoom(): RoomHandle {
           halfAcross,
           door.at + door.width + 1.1,
           halfAcross + 2.4,
-          RAMPS.NEUTRAL[GARAGE_VALUES.street.forecourt],
+          warmStreet(GARAGE_VALUES.street.forecourt),
         )
         // The paving joints, on the same argument the floor's bays make inside.
         for (let i = 1; i < 3; i++) {
@@ -6088,9 +6104,9 @@ export function buildRoom(): RoomHandle {
           0.24,
           0.18,
           {
-            top: RAMPS.NEUTRAL[GARAGE_VALUES.street.kerb + 1],
-            left: RAMPS.NEUTRAL[GARAGE_VALUES.street.kerb],
-            right: RAMPS.NEUTRAL[GARAGE_VALUES.street.kerb - 1],
+            top: warmStreet(GARAGE_VALUES.street.kerb + 1),
+            left: warmStreet(GARAGE_VALUES.street.kerb),
+            right: warmStreet(GARAGE_VALUES.street.kerb - 1),
           },
         )
         isoPatch(
@@ -6100,7 +6116,7 @@ export function buildRoom(): RoomHandle {
           halfAcross - WALL_THICK,
           door.at + door.width,
           halfAcross,
-          RAMPS.NEUTRAL[3],
+          warmStreet(3),
         )
         /*
          * §7.8.0c [amended 2026-09-03] — **nothing stands on the apron, and
@@ -6530,9 +6546,9 @@ export function buildRoom(): RoomHandle {
           depth,
           HEADER_H,
           {
-            top: RAMPS.NEUTRAL[gate.pier + 1],
-            left: RAMPS.NEUTRAL[gate.pier],
-            right: RAMPS.NEUTRAL[gate.pier - 1],
+            top: warmNear(gate.pier + 1),
+            left: warmNear(gate.pier),
+            right: warmNear(gate.pier - 1),
           },
         )
         // The corrugation. Lines across the panel's visible face at a fixed
@@ -6635,9 +6651,9 @@ export function buildRoom(): RoomHandle {
             depth + 0.12,
             GATE_H,
             {
-              top: RAMPS.NEUTRAL[gate.pier],
-              left: RAMPS.NEUTRAL[gate.pier - 1],
-              right: RAMPS.NEUTRAL[gate.pier - 2],
+              top: warmNear(gate.pier),
+              left: warmNear(gate.pier - 1),
+              right: warmNear(gate.pier - 2),
             },
           )
         }

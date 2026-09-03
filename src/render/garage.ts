@@ -176,7 +176,28 @@ export const GARAGE_VALUES = {
    * a change of value. The `right` face goes a step **below** the others, which
    * is the one shading a night street actually has.
    */
-  nearWall: { top: 1, left: 1, right: 0 },
+  /*
+   * §7.8.0c [amended 2026-09-03] — **and they are warm, which nobody checked.**
+   *
+   * Every argument above this line is about *value*, and every one of them is
+   * still right. None of them is about hue, and the `NEUTRAL` ramp is not
+   * neutral: `#241f2e` is a violet-grey. Measured on the concept's near-left
+   * wall face — (42,33,28), (34,24,19), (29,24,20) — against ours at (36,31,46)
+   * and (58,50,68). Same value, opposite side of the hue axis, on the two
+   * surfaces that stand between the camera and everything worth looking at.
+   *
+   * The far wall solved this a fortnight ago and the near walls never got the
+   * fix, because the entry that solved it is called `farWall.warmth` and the
+   * bug it fixed was described as "a brown floor under a lavender wall". The
+   * frontage was lavender the whole time, at a third of the frame, and the
+   * value gate below could not see it: it compares indices on one ramp, so two
+   * surfaces of identical value and opposite hue are the same number to it.
+   * That is the hole, and `the outdoor stone is warm` closes it.
+   *
+   * Same 0.6 as the far wall, deliberately: one building, one mortar. What
+   * separates inside from outside here is value and the lamps, not pigment.
+   */
+  nearWall: { top: 1, left: 1, right: 0, warmth: 0.6 },
   /**
    * The roll-up door, its guide piers, and the corrugation on its face.
    *
@@ -279,7 +300,18 @@ export const GARAGE_VALUES = {
    * chosen when the floor inside was `[0]`, which by this pass made the
    * driveway the brightest ground in the frame.
    */
-  street: { forecourt: 2, kerb: 2, footway: 1, carriageway: 0 },
+  /*
+   * §7.8.0c [amended 2026-09-03] — **the pavement is warm too**, and for the
+   * same reason as {@link nearWall}: measured, the concept's footway is
+   * (60,46,42) and (84,67,57) where ours was (58,50,68). A street lamp is a
+   * warm light and it is the only thing out there lighting the ground.
+   *
+   * A shade less than the walls'. Paving is a paler, greyer stone than block
+   * and the concept keeps it that way; at the wall's own 0.6 the footway came
+   * out the same material as the building, which loses the change of surface
+   * that says where the plot ends.
+   */
+  street: { forecourt: 2, kerb: 2, footway: 1, carriageway: 0, warmth: 0.45 },
 } as const
 
 /**

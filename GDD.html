@@ -4154,6 +4154,35 @@ what its threshold is worth, and a detector tuned on the render will always flat
 One over-correction went the other way: a 0.3 wash laid on the slab because a histogram asked for it
 hit the target p50 exactly and produced spotlights on a black floor. Trusting a statistic over the
 image is the same error as trusting the eye over a measurement, wearing the opposite hat.</p>
+<h6 id="the-frontage-was-lavender">The frontage was lavender, and the value gate could not see it <strong>[CANON - added 2026-09-03]</strong></h6>
+<p>The near walls, the piers, the forecourt and the kerb were drawn straight off <code>NEUTRAL</code>,
+and <strong><code>NEUTRAL</code> is not neutral</strong> — <code>#241f2e</code> is a violet-grey.
+Measured on v9's near-left wall face: (42,33,28), (34,24,19), (29,24,20). Measured on ours:
+(36,31,46) and (58,50,68). <em>Same value, opposite side of the hue axis</em>, on the two surfaces
+that stand between the camera and everything worth looking at — about a third of the frame. The
+footway was the same story: (60,46,42) and (84,67,57) in the concept against (58,50,68) here.</p>
+<p>The far wall had been warmed a fortnight earlier under a comment describing the bug as <em>"a brown
+floor under a lavender wall"</em>, and the fix was named <code>farWall.warmth</code>. The frontage
+never got it. <strong>The reason it survived a value gate written for exactly this class of defect is
+worth stating:</strong> every claim in that suite compares <em>indices on one ramp</em>, so two
+surfaces of identical value and opposite hue are the same number to all of them. A gate that models
+one axis cannot fail on another. <code>keeps every large surface on the warm side of neutral</code>
+closes it, and asserts the property directly — red leads blue — rather than an index.</p>
+<p>One prior claim is <strong>overturned</strong>, and its reasoning is kept because half of it was
+right. The suite asserted <em>"the concept's road and near wall sit on <code>NEUTRAL</code> as drawn,
+so nothing out there is washed: the split between warm inside and cool outside is the thing being
+modelled, and washing both would erase it."</em> Its anchor names
+<code>garage-layout-concept-20-devs-v1.png</code> — and v1 is not the canonical concept. §7.8.0c's is
+v9, in which red leads blue by 10 to 27 <em>everywhere</em> outdoors, because a sodium street lamp is
+the warmest light in the picture and the only thing lighting that ground. <strong>The idea being
+protected is real: inside and outside must be told apart.</strong> What v9 tells them apart with is
+value and the lamp pools, not pigment — so the assertion moved onto that, where the evidence is.
+Paving keeps a lower warmth than block (0.45 against 0.6), which is the change of material that says
+where the plot ends.</p>
+<p>The lesson generalises past this wall, and it is the companion to the value rule above:
+<strong>a claim is only as canonical as the picture it was measured against.</strong> When the
+reference image is superseded, every number taken off the old one is provisional until it has been
+taken again — including the ones sitting green in a test suite.</p>
 <h6 id="what-devs-20-cost">What <code>DEVS 20</code> cost, and what it bought <strong>[CANON - added 2026-09-03]</strong></h6>
 <p>The counter read twenty-one, and it was not a rounding error. §7.8.12 held studio seat 0 for James
 so that no body would be drawn standing in the suite's doorway — the right answer to the question it

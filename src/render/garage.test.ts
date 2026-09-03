@@ -829,8 +829,10 @@ describe('the room is brighter inside than out', () => {
      * the brightest object on the frontage.
      */
     const painted = over(RAMPS.ALARM[0], RAMPS.ALARM[1], gate.shutter.left)
-    const wall = hex(RAMPS.NEUTRAL[nearWall.left])
-    const pier = hex(RAMPS.NEUTRAL[gate.pier])
+    // Both off the *warmed* ramp, because that is what gets drawn — see the
+    // hue claim below, and `GARAGE_VALUES.nearWall.warmth`.
+    const wall = over(RAMPS.NEUTRAL[nearWall.left], RAMPS.WARN[0], nearWall.warmth)
+    const pier = over(RAMPS.NEUTRAL[gate.pier], RAMPS.WARN[0], nearWall.warmth)
     const lum = (c: number[]) => c[0] + c[1] + c[2]
     expect(lum(painted)).toBeLessThan(lum(pier))
     // Warm, and warmer than the block it is set into — which is the whole read.
@@ -844,6 +846,54 @@ describe('the room is brighter inside than out', () => {
     expect(gate.pier).toBeGreaterThan(nearWall.top)
     // And the corrugation reads as shadow on the panel, not as highlight.
     expect(gate.slat).toBeLessThan(gate.panel)
+  })
+
+  /**
+   * **The hole this suite had for a fortnight, and the frontage fell through
+   * it.** [added 2026-09-03]
+   *
+   * Every claim above compares *indices on one ramp*, so two surfaces of
+   * identical value and opposite hue are the same number to all of them. And
+   * `NEUTRAL` is not neutral — `#241f2e` is a violet-grey. The far wall was
+   * warmed a fortnight ago, under a comment describing the bug as "a brown
+   * floor under a lavender wall"; the near walls and the pavement were not,
+   * and they are the two surfaces standing between the camera and everything
+   * worth looking at. Measured on the concept: near wall (42,33,28), (34,24,19)
+   * and (29,24,20); footway (60,46,42) and (84,67,57). Ours, before this:
+   * (36,31,46) and (58,50,68).
+   *
+   * So the ordering claims stay exactly as they are and this one is added
+   * beside them. Every large surface of the building and its ground is warm,
+   * and warm means the red channel leads the blue — which is the one property
+   * an index comparison structurally cannot see.
+   */
+  it('keeps every large surface on the warm side of neutral', () => {
+    const warmer = (base: string, t: number) => {
+      const rgb = over(base, RAMPS.WARN[0], t)
+      return rgb[0] - rgb[2]
+    }
+    for (const [name, i] of [
+      ['near wall face', nearWall.left],
+      ['near wall coping', nearWall.top],
+      ['near wall shade', nearWall.right],
+    ] as Array<[string, number]>) {
+      expect({ surface: name, warm: warmer(RAMPS.NEUTRAL[i], nearWall.warmth) > 8 })
+        .toEqual({ surface: name, warm: true })
+    }
+    for (const [name, i] of [
+      ['forecourt', street.forecourt],
+      ['kerb', street.kerb],
+      ['footway', street.footway],
+    ] as Array<[string, number]>) {
+      expect({ surface: name, warm: warmer(RAMPS.NEUTRAL[i], street.warmth) > 4 })
+        .toEqual({ surface: name, warm: true })
+    }
+    // And the far wall, which already had this and is the reason the fix was
+    // findable at all: the frontage's numbers should look like the room's.
+    expect(warmer(RAMPS.NEUTRAL[farWall.left], farWall.warmth)).toBeGreaterThan(8)
+    // Paving is a paler, greyer stone than block. If the two warmths ever meet,
+    // the change of material at the plot's edge is gone.
+    expect(street.warmth).toBeLessThan(nearWall.warmth)
   })
 
   it('stays on the ramp', () => {
@@ -991,11 +1041,42 @@ describe('the floor is warm and the street is not', () => {
     )
   })
 
-  it('leaves the street on the cool ramp', () => {
-    // The concept's road and near wall sit on `NEUTRAL` as drawn, so nothing
-    // out there is washed: the split between warm inside and cool outside is
-    // the thing being modelled, and washing both would erase it.
-    expect(Object.keys(GARAGE_VALUES.street)).not.toContain('warmth')
-    expect(Object.keys(GARAGE_VALUES.nearWall)).not.toContain('warmth')
+  /**
+   * **[amended 2026-09-03] This test asserted the opposite, and it was measured
+   * off the wrong picture.**
+   *
+   * It said: *"The concept's road and near wall sit on `NEUTRAL` as drawn, so
+   * nothing out there is washed: the split between warm inside and cool outside
+   * is the thing being modelled, and washing both would erase it."* The anchor
+   * beside it names `garage-layout-concept-20-devs-v1.png`, and v1 is not the
+   * canonical concept — v9 is, and the far-wall claim above was already
+   * re-measured against it earlier in this loop while this one was not.
+   *
+   * Measured on v9: near-wall face (42,33,28), (34,24,19), (29,24,20); footway
+   * (60,46,42), (84,67,57), (66,49,44). Red leads blue by 10 to 27 everywhere.
+   * There is no cool surface out there at all, and there is no reason for one —
+   * a sodium street lamp is the warmest light in the picture and it is the only
+   * thing lighting that ground.
+   *
+   * **The idea the old claim was protecting is real and is kept**: inside and
+   * outside have to be told apart. What v9 tells them apart *with* is value and
+   * the lamp pools, not pigment. So the assertion moves onto that, where the
+   * evidence actually is.
+   */
+  it('separates inside from outside by value, not by hue', () => {
+    const { farWall, nearWall, street, floor } = GARAGE_VALUES
+    const lum = (rgb: number[]) => rgb[0] + rgb[1] + rgb[2]
+    const drawn = (i: number, t: number) => over(RAMPS.NEUTRAL[i], RAMPS.WARN[0], t)
+    const wall = drawn(nearWall.left, nearWall.warmth)
+    const footway = drawn(street.footway, street.warmth)
+    const inside = drawn(floor.bays, floor.warmth)
+    // Warm out there too — the claim this replaces had it backwards.
+    expect(wall[0] - wall[2]).toBeGreaterThan(8)
+    expect(footway[0] - footway[2]).toBeGreaterThan(4)
+    // And still darker than the room, which is what actually says the lights
+    // are on in here. Both halves of the old split, one of them corrected.
+    expect(lum(wall)).toBeLessThan(lum(inside))
+    expect(lum(footway)).toBeLessThan(lum(inside))
+    expect(lum(drawn(farWall.left, farWall.warmth))).toBeGreaterThan(lum(inside))
   })
 })
