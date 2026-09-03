@@ -3797,7 +3797,7 @@ the headcount; the camera pulls back continuously (§7.2), never in steps.</p>
 <tbody>
 <tr>
 <td><strong>1</strong></td>
-<td>One desk in a dark home garage, lit only by the monitor. A mug. A chair. A workbench against the wall.</td>
+<td>One desk in a dark home garage, lit only by the monitor. A mug. No chair yet. A workbench against the wall.</td>
 <td>—</td>
 </tr>
 <tr>
@@ -4009,8 +4009,11 @@ is the whole of why <code>wallSegments()</code> returns an array: nothing downst
 by accident, a walking route can be tested against the same list the wall was drawn from, and
 the band of wall above a doorway is a <em>lintel</em> — a box like any other rather than a special
 case. A lintel is also the single detail that makes an opening read as cut through something
-solid, which is why the garage's roll-up door deliberately has none: that wall is barely taller
-than the door, so drawing wall above it would be a lie about the building.</p>
+solid. <strong>[amended 2026-09-03]</strong> The garage's roll-up is a full vehicle-height shutter between
+two aligned jamb piers, with only a shallow rigid header carrying the sign
+<strong>“NO BUGS. JUST FEATURES”</strong>. It is not a storey band and it must not lower the usable gate;
+its job is to finish the opening, hold the sign on the wall's axis, and keep the shutter from
+reading as a rectangle painted over block.</p>
 <p><strong>Glass is a frame laid down whole with panes on top</strong>, so the gaps between the panes
 <em>are</em> the mullion grid and the rhythm cannot drift out of step with the glazing. This is the
 construction the §7.8.1e curtain wall already uses one level up, generalised. Both concepts are
@@ -4030,9 +4033,16 @@ claims above are checkable in milliseconds and can be pointed at a line. <code>t
 gate for what was actually <em>drawn</em> — that is its whole value, and it is unaffected — but it
 should no longer be the first place a wrong wall is noticed.</p>
 <h5 id="zero-c-the-garage-canon-added-2026-09-01">7.8.0c The garage — five pods of four, and a corner that costs nothing <strong>[CANON - added 2026-09-01]</strong></h5>
-<p>The authored plan for the first twenty developers. Read the canonical concept
-(<code>docs/assets/concepts/garage-layout-concept-20-devs-v1.png</code>) as the target; this section is
-what was taken from it and why.</p>
+<p>The authored plan for the first twenty developers. <strong>[amended 2026-09-03]</strong> Read the
+engine-faithful, layout-authoritative concept
+(<code>docs/assets/concepts/garage-layout-concept-20-devs-v6-curb-rhythm.png</code>) as the target.
+It supersedes v5 for placement and implementation fidelity: the whole shell is framed, five
+four-person pods are fully visible, the leadership corner contains the founder and all six named
+heroes at seven distinct work positions, the gate apron is empty, perimeter furniture is zoned
+rather than clustered, exterior lamps and planters use one curb rhythm at exactly one lamp per
+three planters on each visible street side, and the garage frame contains no vehicles. The seven
+leadership occupants are outside the twenty-developer capacity.
+This section is what was taken from the concept and why.</p>
 <h6>Two plans, one address space</h6>
 <p>The obvious economy is to make the garage the first twenty seats of the office floor plan. It
 is wrong, and the reason is the whole point of §7.8.0's transition: <strong>the garage and the office
@@ -4259,12 +4269,13 @@ reach from the road — a tradesman's door onto next door's yard. The canonical 
 garage really has it: in the same frontage as the roll-up, a stride to its left. That is also the
 only arrangement in which the two doors are <em>about</em> anything — the big one is how the van gets
 in, the small one is how people do.</p>
-<p>The roll-up gets no lintel because the wall is the height of the door
-<strong>[superseded 2026-09-02: the gate is taller than the wall now, and still gets no lintel —
-there is nothing above it to hold up]</strong>. The side door gets one,
-because a person-sized door in a storey-tall wall leaves a band of block above it, and that band is
-what makes an opening read as cut through something rather than painted on. Both claims are now
-tested against the same wall run, which is stronger than testing them against two.</p>
+<p><strong>[amended 2026-09-03]</strong> The roll-up is the frontage's full-height vehicle opening. Its
+shutter runs from the slab to a shallow sign header between two square jamb piers; the header reads
+<strong>“NO BUGS. JUST FEATURES”</strong> and follows the wall's isometric axis exactly. No developer,
+desk or loose prop occupies the clear apron behind it, because an opening the floor plan cannot use
+is scenery rather than an entrance. The side door gets a conventional lintel because a person-sized
+door leaves a band of block above it. Both openings are tested against the same wall run, which is
+stronger than testing them against two.</p>
 <h6 id="cracks-and-the-oil-stain">Cracks, and the mark that names the room</h6>
 <p>The bay joints and the cracks do the same job by opposite methods: <strong>the joints are regular
 and give the room a measure; the cracks are irregular and give it an age.</strong> A floor with only
@@ -4350,18 +4361,17 @@ you know it is shelving because you can see through it between the boards. The b
 and thin, the uprights darker still, and the contents small, sparse and at three depths, with the top
 tier left bare — a shelf with something on every level is a stock room.</p>
 <h6 id="a-pod-that-reads-as-four-people-at-a-table">A pod that reads as four people at a table</h6>
-<p><strong>[2026-09-02.]</strong> The pods were not wrong in <em>size</em>, which is what a
-side-by-side first suggests. They were wrong in <strong>value</strong>: a chair back and a monitor's
-rear are both dark rectangles at this scale, and both were drawn in the ramp's darkest tone — so
-every camera-facing developer came with two indistinguishable slabs and a pod read as a heap of
-boxes rather than as a team.</p>
-<p>Two objects that resolve to the same shape have to differ by a <em>mark</em>, not by a nudge in
-size. The chair takes it, because it is the cheaper of the two: a pale rail along its top edge,
-which is what an office chair actually shows and is the one line that says <em>back of a chair</em>
-rather than <em>panel</em>. The chair is also narrower than the screen and shorter than the person,
-so the silhouette reads shoulders-above-chair. The monitor's back moved from <code>NEUTRAL[1]</code>
-to <code>[3]</code> on the same argument from the other end — moulded plastic and upholstery are not
-the same colour in the room either.</p>
+<p><strong>[amended 2026-09-03.]</strong> The garage draws <strong>no chairs yet</strong>. At this scale a
+chair back and a monitor rear resolve to the same dark rectangle, so adding both makes a pod read as
+a heap of panels instead of four people working together. The workstation silhouette is the timber
+surface, one monitor and one Minecraft-like body; floor clearance still reserves the space a chair
+would need, so removing the mark does not remove the aisle.</p>
+<p><strong>All four floor-axis facings must appear in the completed garage:</strong>
+<code>gx+</code>, <code>gx-</code>, <code>gy+</code> and <code>gy-</code>. A person's body and monitor share one
+facing, and the seat across the table uses its exact opposite. Pods therefore use both legal table
+axes rather than all presenting the same screen backs to the camera. This is geometry, not variety
+painted on afterward: orientation belongs to the pod and is read by seat placement, workstation
+drawing, body drawing, hit testing and depth order.</p>
 <p><strong>The table was too shallow for its own pod.</strong> The two rows of seats sit 1.6 tiles
 apart and the surface between them was 0.92, so everyone sat a hand's width back from their desk with
 bare floor showing through the middle. It is 1.45 now: nearly the full gap, which is what a table
@@ -4405,12 +4415,12 @@ it.</p>
 <p><strong>The kerb is a solid, not a line.</strong> A stroke marks where the pavement ends without
 saying that the pavement is <em>higher than the road</em>, which is the only thing a kerb is for. A
 shallow solid along the whole frontage gives it a lit top and a shadowed face.</p>
-<p><strong>The car parks on the road, along the kerb</strong> — it was on the forecourt, which is
-where you put a car if you are drawing a car and not a street. Nobody parks across their own roller
-shutter. Its long axis is the same floor axis the street wall runs on, so it lines up with the kerb
-by construction rather than by a tuned number.</p>
+<p><strong>[amended 2026-09-03] The garage frame contains no vehicles for now.</strong> Keep the road,
+lane markings, solid kerb and clear forecourt, but do not instantiate a parked or moving vehicle in
+this camera stop. The empty carriageway keeps the building silhouette legible and leaves the gate
+apron visually unambiguous.</p>
 <h6 id="which-opening-is-the-gate-2026-09-02">Which opening is the gate <strong>[CANON - added 2026-09-02]</strong></h6>
-<p>The shutter, the forecourt, the paving joints, the kerb, the parked car and the street lamp were
+<p>The shutter, the forecourt, the paving joints, the kerb and the street lamp were originally
 all placed at <code>openings[0]</code> of the street wall. <strong>That is the side door.</strong>
 The array is written left to right along the frontage and the personnel door is to the gate's left,
 so every one of those objects assembled itself around a 1.1-tile doorway while the 4.8-tile vehicle
@@ -4430,14 +4440,14 @@ asked where the gate is was asking the copy</em>, so none of them could ever hav
 moving. They are views on the shell now. The oil stain moved with them; it had been sitting at the
 wall's midpoint under a stretch of blank block since the gate went to 0.62.</p>
 <h6 id="desks-stand-off-every-wall-2026-09-02">The desks stand off every wall <strong>[CANON - added 2026-09-02]</strong></h6>
-<p>The canonical concept's floor has a walking lane behind the chairs on every side of every pod, and
+<p>The canonical concept's floor has a walking lane behind the seated bodies on every side of every pod, and
 the perimeter band belongs to <em>props</em> — shelves, workbench, sofa, bin, boxes. The
 implementation had four of five pods within about a tile of the block, which passed the §7.8.0c clash
 gate because nothing actually intersected. <strong>Non-overlap is not clearance</strong>, and the
 difference is the whole read: a desk that merely fails to touch a wall still looks like it was pushed
 against it.</p>
-<p>So <code>WALL_CLEAR = 1.5</code> tiles — walking room <em>beyond</em> the chairs, since a pod's
-plot already includes them pulled out — and <code>GLASS_CLEAR = 1.0</code> off the leadership
+<p>So <code>WALL_CLEAR = 1.5</code> tiles — walking room <em>beyond</em> the reserved seated-body
+clearance, since a pod's plot already includes it — and <code>GLASS_CLEAR = 1.0</code> off the leadership
 partition, which is smaller on purpose: the glass is a wall inside one room rather than the edge of
 the building, and the concept crowds it a little, because the pod in front of the corner is close
 enough that the founder can read its screens. That is why it is there.</p>
@@ -4592,7 +4602,7 @@ which is what a tool chest is in a real one), a stack of <strong>tyres</strong> 
 concept's folding <strong>stool</strong> by the sofa, and a <strong>pallet</strong> of flattened card by
 the boxes &mdash; the one thing on the floor that is lying down, which is what makes the stack beside
 it read as tall. Nothing moved to make room: the band was already there, between the props on the wall
-and the nearest pod's chairs.</p>
+and the nearest pod's people and screens.</p>
 <p><strong>Anchoring had to become transitive to accept them.</strong> The rule that every prop stands
 against a far wall or against a prop that does was one hop deep, and the tool chest is two: it stands
 in front of the workbench, which stands in front of the tool board, which is the only one of the three
@@ -4704,6 +4714,46 @@ where what is above is sky and what is below is the street the player cares abou
 is not a tower.</strong> That bias put the far vertex of the building off the top of the picture while
 a quarter of the frame was empty carriageway at the bottom. An even split is the honest setting for a
 building the camera can see over.</p>
+<h6 id="the-hue-axis-2026-09-02">The axis the value table could not see <strong>[CANON - added 2026-09-02]</strong></h6>
+<p>Five iterations of getting the <em>values</em> right &mdash; the ordering table, the frontage, the
+copings, the street bands &mdash; left a room that still did not look like the concept, and the reason
+is an axis none of that work could measure. <strong><code>RAMPS.NEUTRAL</code> is uniformly cool</strong>,
+so every surface in the garage separated from every other by lightness alone.</p>
+<p>Sampling the concept for hue rather than value says exactly where the problem is, and it is not
+everywhere:</p>
+<table>
+<tr><th>Surface</th><th>Concept</th><th>Nearest <code>NEUTRAL</code></th><th>Verdict</th></tr>
+<tr><td>Near wall, outer face</td><td>36, 31, 40</td><td><code>[1]</code> = 36, 31, 46</td><td>on the ramp</td></tr>
+<tr><td>Carriageway</td><td>12, 11, 16</td><td><code>[0]</code> = 20, 18, 26</td><td>on the ramp</td></tr>
+<tr><td>Floor, away from a lamp</td><td>55, 35, 28</td><td>&mdash;</td><td><strong>nowhere near it</strong></td></tr>
+<tr><td>Far wall, inner face</td><td>82, 71, 63</td><td>&mdash;</td><td><strong>nowhere near it</strong></td></tr>
+</table>
+<p>The concept's <em>cool</em> surfaces sit on our ramp almost exactly. Its <em>warm</em> ones are not
+on it at any step: no <code>NEUTRAL</code> value of that lightness carries a blue channel anything like
+that low. And the split is not decorative &mdash; <strong>it is what a lit room at night is.</strong> The
+light inside is a filament and the light outside is a sodium lamp two streets away. A room whose floor
+is the same hue as its road cannot say that however its values are ordered, which is precisely why five
+iterations of ordering values did not fix it.</p>
+<p>So the floor and the far wall get a wash of <code>WARN[0]</code>, the warmest dark in the palette,
+and <strong>the near walls and the street do not</strong>. The fractions are solved rather than tuned:</p>
+<ul>
+<li><strong>Floor</strong> &mdash; <code>WARN[0]</code> over <code>NEUTRAL[2]</code> at 0.66 lands on
+(50,&nbsp;37,&nbsp;28) against the concept's (55,&nbsp;35,&nbsp;28). The blue channel, which is the one
+that was wrong, is exact. Drawn as an alpha fill over the slab &mdash; the same mechanism the pod lamps
+already use.</li>
+<li><strong>Far wall</strong> &mdash; the same wash at 0.51 over <code>NEUTRAL[4]</code>, landing on
+(80,&nbsp;65,&nbsp;63) against (82,&nbsp;71,&nbsp;63). The indices go up a step to pay for it, because
+the wash darkens as it warms and a wall washed at its old values came out darker than the floor: the
+room lost its back. Computed with <code>mixHex</code> rather than overlaid, because a wall is three
+planes and this is one blend, not three quads a frame.</li>
+</ul>
+<p>The master palette is untouched. Both are the operation <code>fill({ alpha })</code> already
+performs, and <code>mixHex</code> was already in <code>entropyTheme.ts</code> doing it for the phosphor
+ramps &mdash; so the 37-colour gate has nothing to say about either, correctly.</p>
+<p><code>garage.test.ts</code> holds the result the same way the value table is held: it recomputes the
+blend the renderer will produce and checks it against the number measured off the concept, within eight
+on every channel, plus the claim that the floor's red now exceeds its blue &mdash; unwashed
+<code>NEUTRAL</code> is the other way round, and that inversion <em>was</em> the defect.</p>
 <h6 id="the-street-is-shown-by-widening-the-frame">The street is shown by widening the frame, not by extending the box</h6>
 <p>Two attempts extended the fit's <code>maxCol</code> over the apron, at 3.4 columns and then 2.0,
 and both were wrong the same way: <strong>the apron is on one side only, so adding it moves the
@@ -4714,15 +4764,13 @@ the frame, and the remaining fifth is street on every side, which the district a
 fit stays centred on the room and zooms out by 18 per cent once the studio has filled it. Same
 information, no skew.</p>
 <h6 id="the-street-the-garage-opens-onto">The street the garage opens onto</h6>
-<p>The car and the street lamp on the apron are <strong>borrowed from
-<code>district.ts</code></strong> rather than drawn again. §7.8.1e's rule is that the ground outside
-is drawn once and never changes what it is, and street furniture is part of that ground: the garage
-does not own a car, it <em>parks on</em> the same apron the district lays. Drawing them here is how
-a studio ends up with two subtly different cars a hundred pixels apart. They are placed the way the
-concept places them — the car beside the door rather than across it, because nobody parks over their
-own roller shutter, and the lamp at the kerb on the far side so its pool falls over the threshold.
-That second light source is what makes the monitors read as <em>interior</em>, which is
-<code>lamp</code>'s own note one module over.</p>
+<p>The street lamps and planters are <strong>borrowed from <code>district.ts</code></strong> rather than
+drawn again. §7.8.1e's rule is that the ground outside is drawn once and never changes what it is,
+and street furniture is part of that ground. <strong>[amended 2026-09-03]</strong> The garage camera
+suppresses district vehicles while preserving the road, kerb, lane marks, lamps and planters. The
+lamp at the kerb on the far side still lets its pool fall over the threshold; that second light
+source is what makes the monitors read as <em>interior</em>, which is <code>lamp</code>'s own note one
+module over.</p>
 <p><strong>Once the room is full, the frame takes in the street.</strong> The apron is outside the
 near wall, so a frame fitted to the room alone crops all of it. Widening unconditionally is not the
 answer — that is precisely what shrank the founder below the tap target at nought developers. So the

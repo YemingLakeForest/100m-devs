@@ -41,8 +41,15 @@ export interface EntropyTheme {
   glass: GlassParams
 }
 
-/** Linear interpolation between two `#rrggbb` values, in sRGB. */
-function mixHex(a: string, b: string, t: number): string {
+/**
+ * Linear interpolation between two `#rrggbb` values, in sRGB.
+ *
+ * Exported since 2026-09-02 for §7.8.0c's warm wash. It is the same operation
+ * `fill({ alpha })` performs, done once at build time instead of per-frame per
+ * face — a wall is three planes and overlaying three quads on every run to tint
+ * it would cost more than it explains.
+ */
+export function mixHex(a: string, b: string, t: number): string {
   const [ar, ag, ab] = hexToRgb(a)
   const [br, bg, bb] = hexToRgb(b)
   const m = (x: number, y: number) => Math.round(x + (y - x) * t)

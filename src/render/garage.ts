@@ -124,8 +124,22 @@ export const WALL_CLEAR = 1.5
  * below them on both walls.
  */
 export const GARAGE_VALUES = {
-  /** Full height, behind everything — the lightest large surface in the room. */
-  farWall: { top: 4, left: 3, right: 2 },
+  /**
+   * Full height, behind everything — the lightest large surface in the room,
+   * and **warm**, because it is inside.
+   *
+   * The floor's wash (see `floor.warmth`) put the two halves of the room's
+   * biggest surfaces on opposite sides of the hue axis: a brown floor under a
+   * lavender wall, which reads as a room built on somebody else's ground. The
+   * concept's far wall measures 82,71,63 — warm grey, and lighter than its
+   * floor, which is why it is the surface the room sits in front of.
+   *
+   * Solved rather than tuned, the same way: `WARN[0]` over `NEUTRAL[4]` at 0.51
+   * lands on (80,65,63) against (82,71,63). The indices go up a step to pay for
+   * the wash, which darkens as it warms — a wall washed at its old values came
+   * out darker than the floor and the room lost its back.
+   */
+  farWall: { top: 5, left: 4, right: 3, warmth: 0.51 },
   /**
    * Cut down, in front of everything, outdoors.
    *
@@ -173,8 +187,33 @@ export const GARAGE_VALUES = {
    * unrelated grey boxes.
    */
   column: { top: 4, left: 3, right: 2 },
-  /** Poured concrete: the base pour and the lighter bays polished over it. */
-  floor: { base: 1, bays: 2 },
+  /**
+   * Poured concrete: the base pour, the lighter bays polished over it, and the
+   * **warmth** laid over both.
+   *
+   * `warmth` is the one entry in this table that is not a ramp index, and it is
+   * here because the value scheme could not see the defect it fixes. Every
+   * surface in this room separated from every other by *lightness alone*, on a
+   * ramp that is uniformly cool — and the concept does not work that way. Its
+   * cool surfaces match `NEUTRAL` almost exactly (near wall 36,31,40 against
+   * `[1]`'s 36,31,46; road 12,11,16 against `[0]`'s 20,18,26) and its **warm**
+   * ones are nowhere on the ramp at all: the floor measures 55,35,28, whose
+   * blue channel is less than half what any `NEUTRAL` step of that lightness
+   * carries.
+   *
+   * That split is what a lit room at night is: the light inside is a filament
+   * and the light outside is a sodium lamp two hundred feet away. A room whose
+   * floor is the same hue as its road cannot say that, however the values are
+   * ordered — which is why five iterations of ordering values did not fix it.
+   *
+   * So the floor gets a wash of `WARN[0]`, the warmest dark the palette has,
+   * and the fraction is solved rather than tuned. Over `NEUTRAL[2]` (58,50,68)
+   * at 0.66 it lands on (50,37,28) against the concept's (55,35,28) — within
+   * five on every channel, and the blue, which is the channel that was wrong,
+   * is exact. It is an alpha fill and not a new colour: the same mechanism the
+   * pod lamps already use, so the 37-colour master palette is untouched.
+   */
+  floor: { base: 1, bays: 2, warmth: 0.66 },
   /**
    * The ground outside, from the wall to the middle of the road. `district.ts`
    * draws it (§7.8.1e — the ground is drawn once), but the *ordering* is this

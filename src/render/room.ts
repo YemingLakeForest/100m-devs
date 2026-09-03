@@ -36,6 +36,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js'
+import { mixHex } from '../art/entropyTheme.ts'
 import { RAMPS, hexToRgb } from '../art/palette.ts'
 import type { GridPoint, Lanes } from './walkPath.ts'
 import { HAIR_RAMP, SHIRT_RAMP, SKIN_BASE } from '../art/personPalette.ts'
@@ -1045,25 +1046,13 @@ export function garageLanes(ordinary: number): Lanes {
 function drawPodLamp(g: Graphics, p: Project, gx: number, gy: number, deskTop: number) {
   const at = p(gx, gy)
   const y = at.y - deskTop
-  // The pool first, so everything else sits in it. Two ellipses: a wide dim one
-  // and a tight bright one, which is what a bare bulb over a table does.
-  // **Three pools, not two, and much stronger than the first pass.** The
-  // canonical garage is lit by these: a wide amber wash that reaches the floor
-  // either side of the table, a tighter one on the surface, and a hot core
-  // under the shade. At 0.16 and 0.22 the lamp was technically present and
-  // visually absent, which in a room lit by cyan screens is the one thing it
-  // could not afford to be.
-  //
-  // **Raised again when the floor came up.** [2026-09-02] The pools were tuned
-  // against a floor at `NEUTRAL[0]`, and §7.8.0c's value scheme moved it to
-  // `[1]`/`[2]` — so the same alphas landed on two steps more ground and went
-  // quiet. This is the trade that change was made on and it has to be paid:
-  // the lamp's contrast comes from being *warm* against a cool room, not from
-  // being bright against a nearly black one, and warmth needs enough alpha to
-  // survive the floor's own value.
-  g.ellipse(at.x, y + 6, 66, 33).fill({ color: c(RAMPS.WARN[1]), alpha: 0.26 })
-  g.ellipse(at.x, y + 2, 36, 18).fill({ color: c(RAMPS.WARN[2]), alpha: 0.34 })
-  g.ellipse(at.x, y + 2, 18, 9).fill({ color: c(RAMPS.WARN[3]), alpha: 0.38 })
+  // The pool first, so everything else sits in it. The room layer now carries
+  // each pod's broad floor light; keeping this surface pool tight lets the
+  // timber, laptops and four separate chairs remain readable instead of
+  // merging into one yellow lozenge.
+  g.ellipse(at.x, y + 5, 52, 25).fill({ color: c(RAMPS.WARN[1]), alpha: 0.18 })
+  g.ellipse(at.x, y + 2, 30, 14).fill({ color: c(RAMPS.WARN[2]), alpha: 0.26 })
+  g.ellipse(at.x, y + 1, 14, 7).fill({ color: c(RAMPS.WARN[3]), alpha: 0.34 })
   // Base, stem, shade — three marks, and the shade is the one that names it.
   isoBox(g, at.x, y, 9, 3, RAMPS.NEUTRAL, 2, false)
   g.rect(at.x - 0.9, y - 21, 1.8, 19).fill(c(RAMPS.NEUTRAL[3]))
@@ -3938,6 +3927,48 @@ export function buildRoom(): RoomHandle {
         .fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.72 })
         .stroke({ width: 2, color: c(RAMPS.NEUTRAL[5]), alpha: 0.5 })
 
+      if (drawnGarage) {
+        /*
+         * The garage concept gives the improvised leadership corner a worn
+         * rug. It matters compositionally: without it the glass is only an
+         * outline and the suite leaks into the same concrete as the pods. A
+         * dark red field, a timber border and three quiet stripes are enough
+         * to read as inherited domestic furniture at this scale.
+         */
+        const insetCol = 0.38
+        const insetRow = 0.28
+        const rug = [
+          isoAt(SUITE_WEST_COL + insetCol, SUITE_WALL_ROW + insetRow),
+          isoAt(east - insetCol, SUITE_WALL_ROW + insetRow),
+          isoAt(east - insetCol, SUITE_GLASS_ROW - insetRow),
+          isoAt(SUITE_WEST_COL + insetCol, SUITE_GLASS_ROW - insetRow),
+        ]
+        teamFloor
+          .moveTo(rug[0].x, rug[0].y)
+          .lineTo(rug[1].x, rug[1].y)
+          .lineTo(rug[2].x, rug[2].y)
+          .lineTo(rug[3].x, rug[3].y)
+          .closePath()
+          .fill({ color: c(RAMPS.ALARM[0]), alpha: 0.82 })
+          .stroke({ width: 2, color: c(RAMPS.WOOD[2]), alpha: 0.78 })
+        for (let i = 1; i <= 3; i++) {
+          const t = i / 4
+          const a = {
+            x: rug[0].x + (rug[3].x - rug[0].x) * t,
+            y: rug[0].y + (rug[3].y - rug[0].y) * t,
+          }
+          const b = {
+            x: rug[1].x + (rug[2].x - rug[1].x) * t,
+            y: rug[1].y + (rug[2].y - rug[1].y) * t,
+          }
+          teamFloor.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({
+            width: 1,
+            color: c(i % 2 === 0 ? RAMPS.WARN[1] : RAMPS.WOOD[1]),
+            alpha: 0.48,
+          })
+        }
+      }
+
       /**
        * One pane, standing on a line **between two floor plots**.
        *
@@ -3954,14 +3985,17 @@ export function buildRoom(): RoomHandle {
         // orientations take different mullion values so the room has a lit side
         // and a shaded one rather than four identical walls.
         const lit = b.y < a.y
+        const frame = drawnGarage
+          ? RAMPS.NEUTRAL[lit ? 4 : 3]
+          : RAMPS.NEUTRAL[lit ? 7 : 6]
         teamGlass
           .moveTo(a.x, a.y)
           .lineTo(b.x, b.y)
           .lineTo(b.x, b.y - h)
           .lineTo(a.x, a.y - h)
           .closePath()
-          .fill({ color: c(RAMPS.GLOW[0]), alpha: 0.24 })
-          .stroke({ width: 2, color: c(RAMPS.NEUTRAL[lit ? 7 : 6]), alpha: 0.72 })
+          .fill({ color: c(RAMPS.GLOW[0]), alpha: drawnGarage ? 0.13 : 0.24 })
+          .stroke({ width: drawnGarage ? 3 : 2, color: c(frame), alpha: drawnGarage ? 0.92 : 0.72 })
         // Mullions every seat, so the glass is divided in the same unit the
         // floor is. A pane whose divisions do not match the desks behind it
         // reads as a picture of glass rather than as glass.
@@ -3970,7 +4004,11 @@ export function buildRoom(): RoomHandle {
           const t = i / spans
           const x = a.x + (b.x - a.x) * t
           const y = a.y + (b.y - a.y) * t
-          teamGlass.moveTo(x, y).lineTo(x, y - h).stroke({ width: 1, color: c(RAMPS.NEUTRAL[5]), alpha: 0.5 })
+          teamGlass.moveTo(x, y).lineTo(x, y - h).stroke({
+            width: drawnGarage ? 2 : 1,
+            color: c(drawnGarage ? RAMPS.NEUTRAL[3] : RAMPS.NEUTRAL[5]),
+            alpha: drawnGarage ? 0.8 : 0.5,
+          })
         }
       }
 
@@ -4723,7 +4761,7 @@ export function buildRoom(): RoomHandle {
     // edge, an oil stain in front of the door, and one crack. Office wood
     // belongs to the open-plan plates that arrive with §7.8.1c; the founder's
     // room never stops being the garage it started as.
-    const slab = (inset: number, fill: number) => {
+    const slab = (inset: number, fill: number, alpha = 1) => {
       const k = inset
       shell
         .moveTo(topX + (botX - topX) * k, topY + (botY - topY) * k)
@@ -4731,7 +4769,7 @@ export function buildRoom(): RoomHandle {
         .lineTo(botX + (topX - botX) * k, botY + (topY - botY) * k)
         .lineTo(leftX + (rightX - leftX) * k, leftY + (rightY - leftY) * k)
         .closePath()
-        .fill(fill)
+        .fill({ color: fill, alpha })
     }
     // --- the district ------------------------------------------------------
     //
@@ -4781,6 +4819,29 @@ export function buildRoom(): RoomHandle {
      */
     slab(0, c(RAMPS.NEUTRAL[GARAGE_VALUES.floor.base]))
     slab(0.004, c(RAMPS.NEUTRAL[GARAGE_VALUES.floor.bays]))
+    /*
+     * §7.8.0c [2026-09-02] — **and then the floor goes warm.**
+     *
+     * See `GARAGE_VALUES.floor.warmth`. This is one fill over the whole slab
+     * rather than a per-surface change, because what it is modelling is one
+     * thing: the light in here is a filament and the light out there is a
+     * sodium lamp two streets away. It goes on before the joints and the
+     * scuffs so those still read as marks *in* concrete rather than as marks
+     * under a filter — and only in the garage, because the office floor is lit
+     * by its own ceiling and has no business being brown.
+     */
+    if (garage) slab(0, c(RAMPS.WARN[0]), GARAGE_VALUES.floor.warmth)
+    if (garage) {
+      /*
+       * The reference's concrete is warm grey, not the blue-lilac produced by
+       * the structural neutral ramp on its own. This translucent umber pass is
+       * deliberately still made from the master palette: it lets the concrete
+       * keep the value ordering in `GARAGE_VALUES` while borrowing the warmth
+       * of the timber and cardboard around it. The result is one continuous
+       * material rather than five amber tables floating on a cold diagram.
+       */
+      slab(0.007, c(RAMPS.WOOD[0]), 0.34)
+    }
     // Worn scuffs, so the slab reads as poured concrete rather than as a
     // void. A few faint patches, lighter where traffic has polished it.
     shell
@@ -4866,10 +4927,15 @@ export function buildRoom(): RoomHandle {
        * against one surface at a time will keep arriving at a locally sensible
        * step and a globally inverted picture.
        */
+      // Warmed with the floor it stands behind — see `GARAGE_VALUES.farWall`.
+      // `mixHex` rather than an alpha quad because a wall is three planes and
+      // this is one blend, not three overlays a frame.
+      const warmFar = (i: number) =>
+        mixHex(RAMPS.NEUTRAL[i], RAMPS.WARN[0], GARAGE_VALUES.farWall.warmth)
       const blockFar: WallPaint = {
-        top: RAMPS.NEUTRAL[GARAGE_VALUES.farWall.top],
-        left: RAMPS.NEUTRAL[GARAGE_VALUES.farWall.left],
-        right: RAMPS.NEUTRAL[GARAGE_VALUES.farWall.right],
+        top: warmFar(GARAGE_VALUES.farWall.top),
+        left: warmFar(GARAGE_VALUES.farWall.left),
+        right: warmFar(GARAGE_VALUES.farWall.right),
       }
       /*
        * **The near walls are outdoors, at night, in front of the light.**
@@ -4897,6 +4963,9 @@ export function buildRoom(): RoomHandle {
       }
       const runs = garageShellRuns(-halfBack, -halfAcross, halfBack, halfAcross)
       const door = rollUpIn(runs)
+      const sideDoor = runs
+        .find((run) => run.edge === 'near-left')
+        ?.openings?.find((opening) => opening.head !== undefined)
 
       /*
        * **Block courses**, and they are not texture. §7.8.0c.
@@ -4913,9 +4982,27 @@ export function buildRoom(): RoomHandle {
        * edge is what keeps this from being four almost-identical branches.
        */
       const COURSE = 0.42
+      const warmInnerFace = (into: Graphics, segs: readonly WallSegment[], alongGy: boolean) => {
+        for (const seg of segs) {
+          const a = alongGy
+            ? shellProject(seg.gx + seg.w, seg.gy)
+            : shellProject(seg.gx, seg.gy + seg.d)
+          const b2 = shellProject(seg.gx + seg.w, seg.gy + seg.d)
+          const base = seg.gz * HEIGHT_UNIT
+          const top = (seg.gz + seg.h) * HEIGHT_UNIT
+          into
+            .moveTo(a.x, a.y - base)
+            .lineTo(b2.x, b2.y - base)
+            .lineTo(b2.x, b2.y - top)
+            .lineTo(a.x, a.y - top)
+            .closePath()
+            .fill({ color: c(RAMPS.WOOD[0]), alpha: 0.22 })
+        }
+      }
       const courses = (into: Graphics, segs: readonly WallSegment[], alongGy: boolean) => {
         for (const seg of segs) {
-          for (let z = COURSE; z < seg.h - 0.02; z += COURSE) {
+          let courseIndex = 0
+          for (let z = COURSE; z < seg.h - 0.02; z += COURSE, courseIndex++) {
             const at = seg.gz + z
             const a = alongGy
               ? shellProject(seg.gx + seg.w, seg.gy)
@@ -4928,6 +5015,27 @@ export function buildRoom(): RoomHandle {
               .moveTo(a.x, a.y - lift)
               .lineTo(b2.x, b2.y - lift)
               .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.45 })
+
+            /*
+             * Bed joints alone make horizontal siding. Staggered vertical
+             * joints are the second half of a concrete-block wall and the
+             * reference relies on them as its strongest scale cue. They are
+             * derived from each already-clipped segment, so openings remain
+             * openings rather than having mortar drawn across them.
+             */
+            const BLOCK = 1.12
+            const runStart = alongGy ? seg.gy : seg.gx
+            const runEnd = runStart + (alongGy ? seg.d : seg.w)
+            const stagger = (courseIndex % 2) * BLOCK * 0.5
+            for (let u = runStart + BLOCK - stagger; u < runEnd - 0.05; u += BLOCK) {
+              const joint = alongGy
+                ? shellProject(seg.gx + seg.w, u)
+                : shellProject(u, seg.gy + seg.d)
+              into
+                .moveTo(joint.x, joint.y - lift)
+                .lineTo(joint.x, joint.y - (lift - COURSE * HEIGHT_UNIT))
+                .stroke({ width: 1, color: c(RAMPS.NEUTRAL[1]), alpha: 0.34 })
+            }
           }
         }
       }
@@ -5090,6 +5198,21 @@ export function buildRoom(): RoomHandle {
         }
         shell.stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.55 })
       }
+      /*
+       * Small aggregate marks break the four perfect pours without turning the
+       * floor into a tile texture. Their coordinates are deterministic and
+       * deliberately avoid a regular lattice: the reference reads as old,
+       * repaired concrete because every broad quiet area contains a few chips.
+       */
+      for (let i = 0; i < 34; i++) {
+        const gx = 0.8 + ((i * 47) % 139) / 10
+        const gy = 0.9 + ((i * 83 + 17) % 137) / 10
+        const chip = onPlan(gx, gy)
+        const size = 0.9 + (i % 3) * 0.55
+        shell
+          .ellipse(chip.x, chip.y, size, size * 0.48)
+          .fill({ color: c(i % 5 === 0 ? RAMPS.WOOD[1] : RAMPS.NEUTRAL[0]), alpha: 0.34 })
+      }
       // The oil stain, in front of the gate where a car has stood — the one
       // mark that names the room a garage before the door is even read. Drawn
       // here rather than with the slab so it lands in the plan's frame with
@@ -5215,8 +5338,14 @@ export function buildRoom(): RoomHandle {
       for (const run of runs) {
         const isFar = run.edge === 'far-left' || run.edge === 'far-right'
         const into = isFar ? shell : nearWall
+        const alongGy = runsAlongGy(run.edge)
         const segs = drawWallRun(into, shellProject, run, isFar ? blockFar : blockNear)
-        courses(into, segs, runsAlongGy(run.edge))
+        // The reference is old, amber-stained concrete rather than blue-grey
+        // plaster. Keep the measured neutral value ordering, then borrow a
+        // little timber colour on the room-facing rear walls before mortar is
+        // redrawn over it.
+        if (isFar) warmInnerFace(into, segs, alongGy)
+        courses(into, segs, alongGy)
       }
 
       /*
@@ -5317,6 +5446,54 @@ export function buildRoom(): RoomHandle {
         onWall(12.9, 14.1, 1.7, 2.65, c(RAMPS.WOOD[1]))
         onWall(13.05, 13.95, 2.25, 2.5, c(RAMPS.WARN[2]), 0.75)
         onWall(13.05, 13.65, 1.9, 2.05, c(RAMPS.NEUTRAL[4]), 0.5)
+      }
+      // The personnel opening is fitted with a door rather than left as a black
+      // hole. The reference makes the two entrances a pair: one painted timber
+      // door for people, one corrugated shutter for the car. Insets and a warm
+      // handle are the minimum marks that keep the small one legible beside the
+      // much larger gate.
+      if (sideDoor?.head !== undefined) {
+        const reveal = halfAcross - WALL_THICK * 0.86
+        const depth = WALL_THICK * 0.46
+        const head = sideDoor.head
+        isoSolid(
+          nearWall,
+          shellProject,
+          sideDoor.at,
+          reveal,
+          0,
+          sideDoor.width,
+          depth,
+          head * 0.96,
+          { top: RAMPS.WOOD[2], left: RAMPS.WOOD[1], right: RAMPS.WOOD[0] },
+        )
+        const faceGy = reveal + depth
+        const doorPanel = (z0: number, z1: number, inset: number, colour: string, alpha = 1) => {
+          const a = shellProject(sideDoor.at + inset, faceGy)
+          const b2 = shellProject(sideDoor.at + sideDoor.width - inset, faceGy)
+          nearWall
+            .moveTo(a.x, a.y - z0 * HEIGHT_UNIT)
+            .lineTo(b2.x, b2.y - z0 * HEIGHT_UNIT)
+            .lineTo(b2.x, b2.y - z1 * HEIGHT_UNIT)
+            .lineTo(a.x, a.y - z1 * HEIGHT_UNIT)
+            .closePath()
+            .fill({ color: c(colour), alpha })
+        }
+        doorPanel(head * 0.14, head * 0.46, sideDoor.width * 0.15, RAMPS.WOOD[0], 0.78)
+        doorPanel(head * 0.55, head * 0.84, sideDoor.width * 0.15, RAMPS.NEUTRAL[1], 0.62)
+        const handle = shellProject(sideDoor.at + sideDoor.width * 0.76, faceGy)
+        nearWall.circle(handle.x, handle.y - head * HEIGHT_UNIT * 0.5, 2.2).fill(c(RAMPS.WARN[3]))
+        isoSolid(
+          nearWall,
+          shellProject,
+          sideDoor.at - 0.14,
+          halfAcross + 0.03,
+          0,
+          sideDoor.width + 0.28,
+          0.42,
+          0.12,
+          { top: RAMPS.NEUTRAL[4], left: RAMPS.NEUTRAL[2], right: RAMPS.NEUTRAL[1] },
+        )
       }
       // The roll-up door, standing in the hole the near-left wall left for it.
       // A shutter is a stack of horizontal slats and nothing else: the
@@ -5969,9 +6146,32 @@ export function buildRoom(): RoomHandle {
     // §7.8.1: "lit only by the glow of a chunky CRT monitor". The pool is drawn
     // as three stacked ellipses rather than a gradient, because a gradient
     // would introduce colours the §5 quantiser has never seen.
-    for (const [i, alpha] of [0.1, 0.055, 0.03].entries()) {
-      const r = (0.85 + i * 0.55) * TILE_W * Math.max(1, Math.min(3.2, halfW * 0.42))
-      light.ellipse(cx, cy - TILE_H * 0.2, r, r * 0.5).fill({ color: c(RAMPS.GLOW[1]), alpha })
+    if (garage) {
+      /*
+       * Five warm islands are the garage concept's signature. The previous
+       * single cyan ellipse lit the empty middle more strongly than any team
+       * and made the room read as a schematic. Each occupied pod now throws a
+       * broad, low amber pool on the concrete; the monitors remain the sharp
+       * cyan points sitting inside it.
+       */
+      const used = ordinary === 0 ? 0 : Math.floor((ordinary - 1) / POD_SEATS) + 1
+      for (const pod of GARAGE_PODS.slice(0, used)) {
+        const at = garagePlot(pod.gx, pod.gy)
+        const pool = isoAt(at.col, at.row)
+        light.ellipse(pool.x + 7, pool.y + 12, 92, 44).fill({ color: c(RAMPS.WARN[0]), alpha: 0.24 })
+        light.ellipse(pool.x + 3, pool.y + 7, 58, 28).fill({ color: c(RAMPS.WARN[1]), alpha: 0.18 })
+      }
+      // A restrained screen wash binds the separate pools without filling the
+      // whole floor. It is deliberately a quarter of the office version.
+      light.ellipse(cx, cy - TILE_H * 0.15, floorW * 0.42, floorH * 0.28).fill({
+        color: c(RAMPS.GLOW[0]),
+        alpha: 0.035,
+      })
+    } else {
+      for (const [i, alpha] of [0.1, 0.055, 0.03].entries()) {
+        const r = (0.85 + i * 0.55) * TILE_W * Math.max(1, Math.min(3.2, halfW * 0.42))
+        light.ellipse(cx, cy - TILE_H * 0.2, r, r * 0.5).fill({ color: c(RAMPS.GLOW[1]), alpha })
+      }
     }
 
     // The founder's mat. Small, fixed to the manager desk and always inside

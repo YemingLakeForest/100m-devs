@@ -27,6 +27,7 @@ import {
   podPlot,
   type Plot,
 } from './garage.ts'
+import { RAMPS } from '../art/palette.ts'
 import { WALL_FULL, WALL_NEAR, WALL_THICK, insideShell, wallSegments } from './shell.ts'
 
 /**
@@ -668,5 +669,91 @@ describe('every corner of the shell has a pier on it', () => {
     // The near vertex has two cut-down walls, and is the one place a tall pier
     // would stand in the picture rather than in the building.
     expect(byName.near).toBe(WALL_NEAR)
+  })
+})
+
+/**
+ * §7.8.0c [added 2026-09-02] — **the hue gate.**
+ *
+ * The value table above pins how *light* each surface is, and five iterations
+ * of getting that right still left a room that did not look like the concept.
+ * The reason is an axis the table cannot see: `NEUTRAL` is uniformly cool, so
+ * every surface separated from every other by lightness alone.
+ *
+ * The concept's **cool** surfaces sit on that ramp almost exactly — its near
+ * wall measures 36,31,40 against `NEUTRAL[1]`'s 36,31,46, and its road 12,11,16
+ * against `[0]`'s 20,18,26. Its **warm** ones are nowhere on it: the floor is
+ * 55,35,28, and no step of `NEUTRAL` at that lightness carries a blue channel
+ * anywhere near that low.
+ *
+ * So this checks the blend the renderer actually produces against the number
+ * measured off the concept. It is the same method as the value table — sample
+ * the reference, and hold the result where a test can see it — applied to the
+ * one channel the table was blind to.
+ */
+describe('the floor is warm and the street is not', () => {
+  /** What `fill({ alpha })` does, in the one place a test needs to know. */
+  const hex = (h: string) => [
+    parseInt(h.slice(1, 3), 16),
+    parseInt(h.slice(3, 5), 16),
+    parseInt(h.slice(5, 7), 16),
+  ]
+  const over = (base: string, wash: string, t: number) => {
+    const [br, bg, bb] = hex(base)
+    const [wr, wg, wb] = hex(wash)
+    return [br + (wr - br) * t, bg + (wg - bg) * t, bb + (wb - bb) * t]
+  }
+
+  /** Measured off garage-layout-concept-20-devs-v1.png, away from any lamp. */
+  const CONCEPT_FLOOR = [55, 35, 28]
+
+  it('lands the lit pour on the concept s own floor colour', () => {
+    const { floor } = GARAGE_VALUES
+    const drawn = over(RAMPS.NEUTRAL[floor.bays], RAMPS.WARN[0], floor.warmth)
+    for (let i = 0; i < 3; i++) {
+      const off = Math.abs(drawn[i] - CONCEPT_FLOOR[i])
+      expect({ channel: 'rgb'[i], within: off <= 8 }).toEqual({ channel: 'rgb'[i], within: true })
+    }
+  })
+
+  it('takes the blue channel down, which is the one that was wrong', () => {
+    const { floor } = GARAGE_VALUES
+    const bare = hex(RAMPS.NEUTRAL[floor.bays])
+    const drawn = over(RAMPS.NEUTRAL[floor.bays], RAMPS.WARN[0], floor.warmth)
+    // Warm means red over blue. Unwashed `NEUTRAL` is the other way round —
+    // it is a purple ramp — and that is the whole defect.
+    expect(bare[0] - bare[2]).toBeLessThan(0)
+    expect(drawn[0] - drawn[2]).toBeGreaterThan(15)
+  })
+
+  it('warms the wall the room stands in front of, and by the same recipe', () => {
+    // The concept's far wall is warm grey and *lighter* than its floor — that
+    // is what makes it the surface the room sits against rather than a hole
+    // behind it. A brown floor under a lavender wall reads as a room built on
+    // somebody else's ground, which is what the floor wash on its own produced.
+    const { farWall } = GARAGE_VALUES
+    const drawn = over(RAMPS.NEUTRAL[farWall.left], RAMPS.WARN[0], farWall.warmth)
+    const CONCEPT_FAR_WALL = [82, 71, 63]
+    for (let i = 0; i < 3; i++) {
+      const off = Math.abs(drawn[i] - CONCEPT_FAR_WALL[i])
+      expect({ channel: 'rgb'[i], within: off <= 8 }).toEqual({ channel: 'rgb'[i], within: true })
+    }
+    // And it stays the lighter of the two, after both washes.
+    const floorDrawn = over(
+      RAMPS.NEUTRAL[GARAGE_VALUES.floor.bays],
+      RAMPS.WARN[0],
+      GARAGE_VALUES.floor.warmth,
+    )
+    expect(drawn[0] + drawn[1] + drawn[2]).toBeGreaterThan(
+      floorDrawn[0] + floorDrawn[1] + floorDrawn[2],
+    )
+  })
+
+  it('leaves the street on the cool ramp', () => {
+    // The concept's road and near wall sit on `NEUTRAL` as drawn, so nothing
+    // out there is washed: the split between warm inside and cool outside is
+    // the thing being modelled, and washing both would erase it.
+    expect(Object.keys(GARAGE_VALUES.street)).not.toContain('warmth')
+    expect(Object.keys(GARAGE_VALUES.nearWall)).not.toContain('warmth')
   })
 })

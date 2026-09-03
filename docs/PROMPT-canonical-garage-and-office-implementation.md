@@ -3,6 +3,10 @@
 > This is an execution prompt, not an additional design authority. `GDD.html`
 > remains the sole canonical design document. The implementing agent must amend
 > the affected GDD sections in the same batches as the code.
+>
+> **Garage convergence superseded 2026-09-03:** use
+> `docs/PROMPT-garage-v6-implementation-loop.md` for the current single-scene
+> garage goal, including four workstation facings and no garage chairs.
 
 Create and pursue the following implementation goal. Do not stop after planning;
 work through the implementation loop until every acceptance criterion is
@@ -14,7 +18,7 @@ Rebuild the early-scale presentation of *100,000,000 Developers* around two
 canonical concept artworks:
 
 1. Garage, maximum 20 regular developers:
-   `docs/assets/concepts/garage-layout-concept-20-devs-v1.png`
+   `docs/assets/concepts/garage-layout-concept-20-devs-v6-curb-rhythm.png`
 2. Office floor, maximum 100 regular developers:
    `docs/assets/concepts/office-layout-concept-100-devs-v2.png`
 
