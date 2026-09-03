@@ -3764,6 +3764,20 @@ function drawWindow(
   // into it rather than as the wall showing through a white outline.
   wallQuad(g, x, y + 3, w - 5, h - 6, slope, c(pane))
   /*
+   * §7.8.0c [added 2026-09-03] — **and a glint, because the body was the
+   * glint.**
+   *
+   * Measured across both of the concept's casements: the pane averages
+   * (38,72,91) and peaks at (105,145,166). Ours drew a flat `GLOW[1]` —
+   * (74,143,168) — which is the concept's *brightest pixel*, painted edge to
+   * edge. `GLOW[0]` is (42,74,92) and lands on that average almost exactly, so
+   * the body drops a step and only the top third keeps the old value. That is
+   * what a window does: dark where it shows a dark room, bright where it shows
+   * the sky. Painting the whole sheet at the bright value is the same error as
+   * the pale tree caps, one ramp over.
+   */
+  wallQuad(g, x, y + 4, w - 7, (h - 6) * 0.34, slope, c(RAMPS.GLOW[1]))
+  /*
    * The mullions, splitting the glass into casements. **One per 20 px of
    * width** rather than a single central bar: a factory window is a grid, and a
    * sixty-pixel pane with one division in it is a patio door.
@@ -4322,10 +4336,20 @@ export function buildRoom(): RoomHandle {
       : null
 
     if (walls) {
-      // The floor of the suite, as a parallelogram in the seat grid's own axes —
-      // the same shape `squadPlate` uses and for the same reason. It is a darker
-      // inset in the ordinary slab rather than a second material: the border and
-      // the glass make it a room, not a change of flooring.
+      /*
+       * The floor of the suite, as a parallelogram in the seat grid's own axes —
+       * the same shape `squadPlate` uses and for the same reason.
+       *
+       * §7.8.0c [amended 2026-09-03] — **and in the garage the floor does not
+       * change under it.** `NEUTRAL[1]` at 0.72 was a *second material*: cool,
+       * dark, and laid over a warm slab, so the corner read as a tiled platform
+       * somebody had built. Measured, the concept's floor inside the glass is
+       * (57,34,22) and the slab a metre outside it is (60,36,22) — the same
+       * pour, unbroken. What makes that corner a room in the concept is the
+       * glass and the rug, and nothing else; a garage does not re-floor a
+       * corner it fenced off last week. The office keeps its plate, where a
+       * fitted suite genuinely does have its own flooring.
+       */
       const nw = isoAt(SUITE_WEST_COL, SUITE_WALL_ROW)
       const ne = isoAt(east, SUITE_WALL_ROW)
       const se = isoAt(east, SUITE_GLASS_ROW)
@@ -4336,8 +4360,15 @@ export function buildRoom(): RoomHandle {
         .lineTo(se.x, se.y)
         .lineTo(sw.x, sw.y)
         .closePath()
-        .fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.72 })
-        .stroke({ width: 2, color: c(RAMPS.NEUTRAL[5]), alpha: 0.5 })
+        .fill({
+          color: c(drawnGarage ? RAMPS.NEUTRAL[0] : RAMPS.NEUTRAL[1]),
+          alpha: drawnGarage ? 0.14 : 0.72,
+        })
+        .stroke({
+          width: 2,
+          color: c(RAMPS.NEUTRAL[5]),
+          alpha: drawnGarage ? 0.28 : 0.5,
+        })
 
       if (drawnGarage) {
         /*
@@ -4363,22 +4394,41 @@ export function buildRoom(): RoomHandle {
           .closePath()
           .fill({ color: c(RAMPS.ALARM[0]), alpha: 0.82 })
           .stroke({ width: 2, color: c(RAMPS.WOOD[2]), alpha: 0.78 })
-        for (let i = 1; i <= 3; i++) {
-          const t = i / 4
-          const a = {
-            x: rug[0].x + (rug[3].x - rug[0].x) * t,
-            y: rug[0].y + (rug[3].y - rug[0].y) * t,
-          }
-          const b = {
-            x: rug[1].x + (rug[2].x - rug[1].x) * t,
-            y: rug[1].y + (rug[2].y - rug[1].y) * t,
-          }
-          teamFloor.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({
-            width: 1,
-            color: c(i % 2 === 0 ? RAMPS.WARN[1] : RAMPS.WOOD[1]),
-            alpha: 0.48,
+        /*
+         * §7.8.0c [amended 2026-09-03] — **a border, where there were three
+         * stripes.**
+         *
+         * The stripes were a guess at "worn domestic rug" and they read as a
+         * doormat. The concept's is a *bordered* carpet: two thin gold lines
+         * inset from the edge, one inside the other, and a small panel in the
+         * middle of the field. That is the pattern language of every inherited
+         * rug anybody ever dragged into a garage, and it is what makes this one
+         * read as furniture rather than as a painted rectangle — a border
+         * follows the shape of the thing it is on, and a stripe does not.
+         *
+         * Concentric rather than parallel is also the only version that
+         * survives the projection: three lines across a rhombus at one screen
+         * slope look like floor joints, which the slab underneath already has.
+         */
+        const ring = (t: number, colour: string, alpha: number) => {
+          // Each corner walks toward the one diagonally opposite, so the ring
+          // stays a rhombus on the floor's own axes at every inset.
+          const at = (i: number, j: number) => ({
+            x: rug[i].x + (rug[j].x - rug[i].x) * t,
+            y: rug[i].y + (rug[j].y - rug[i].y) * t,
           })
+          const p = [at(0, 2), at(1, 3), at(2, 0), at(3, 1)]
+          teamFloor
+            .moveTo(p[0].x, p[0].y)
+            .lineTo(p[1].x, p[1].y)
+            .lineTo(p[2].x, p[2].y)
+            .lineTo(p[3].x, p[3].y)
+            .closePath()
+            .stroke({ width: 1, color: c(colour), alpha })
         }
+        ring(0.08, RAMPS.WARN[1], 0.7)
+        ring(0.14, RAMPS.WARN[1], 0.45)
+        ring(0.38, RAMPS.WOOD[1], 0.4)
       }
 
       /**
@@ -4417,15 +4467,47 @@ export function buildRoom(): RoomHandle {
         const frame = drawnGarage
           ? RAMPS.NEUTRAL[lit ? 2 : 1]
           : RAMPS.NEUTRAL[lit ? 7 : 6]
+        /*
+         * §7.8.0c [amended 2026-09-03] — **glass is transparent, and 0.44 is a
+         * fish tank.**
+         *
+         * Measured through the corner's front pane: the concept's floor is
+         * (55,33,21) outside the glass and (55,24,21) inside it — the same warm
+         * brown, a shade redder for the rug, *no colour shift at all*. Ours went
+         * from (50,35,27) to **(41,51,64)**: blue-dominant, forty points of blue
+         * added by the pane. The rug and both desks were behind an aquarium.
+         *
+         * The previous amendment was right that a pale wire cage was wrong and
+         * fixed the frame; it then over-corrected the pane, which is the same
+         * mistake in the other direction. What says *glass* in the concept is
+         * three marks and no wash: a dark frame, a bright head rail, and the
+         * sky caught in the top of the sheet. All three are here; the wash is
+         * down to a tenth, which is a breath on the surface rather than a dye.
+         */
         teamGlass
           .moveTo(a.x, a.y)
           .lineTo(b.x, b.y)
           .lineTo(b.x, b.y - h)
           .lineTo(a.x, a.y - h)
           .closePath()
-          .fill({ color: c(RAMPS.GLOW[0]), alpha: drawnGarage ? 0.44 : 0.24 })
+          .fill({ color: c(RAMPS.GLOW[0]), alpha: drawnGarage ? 0.12 : 0.24 })
           .stroke({ width: drawnGarage ? 3 : 2, color: c(frame), alpha: drawnGarage ? 0.92 : 0.72 })
         if (drawnGarage) {
+          /*
+           * What the top of a sheet of glass catches, and the reason a window is
+           * legible in a dark room: a pane is only bright where something above
+           * it is. A band rather than a gradient — the hard edge is how every
+           * other highlight in this scene is drawn, and a soft one would be the
+           * only gradient in the picture.
+           */
+          const sky = 0.62
+          teamGlass
+            .moveTo(a.x, a.y - h * sky)
+            .lineTo(b.x, b.y - h * sky)
+            .lineTo(b.x, b.y - h)
+            .lineTo(a.x, a.y - h)
+            .closePath()
+            .fill({ color: c(RAMPS.GLOW[1]), alpha: 0.12 })
           // The head rail catches what light there is, and it is the one line
           // that says *glass* rather than *gap*: a pane with a dark frame and
           // nothing bright anywhere on it is indistinguishable from an opening.
@@ -4515,17 +4597,33 @@ export function buildRoom(): RoomHandle {
        */
       signGroup = group(door.x, door.y - Math.max(62, drawnWallH * 0.94))
       signGroup.skew.y = Math.atan(-0.5)
+      /*
+       * §7.8.12 [amended 2026-09-03] — **the same board, two steps quieter.**
+       *
+       * The concept has no sign over this door at all. §7.8.12 keeps it anyway,
+       * and that is still right: it is §13.11.2's roster door and it has to be
+       * findable and tappable. But it was lettered in `GLOW[2]` over a `GLOW[2]`
+       * light bar — the brightest cyan in the palette, twice — in a two-person
+       * room that also carries `YOU`, `JAMES` and a desk plate. Four cyan words
+       * inside forty pixels, and the sign won.
+       *
+       * The board keeps its 76×18, because that is the tap target and shrinking
+       * a control to make a picture calmer is the wrong trade. What changes is
+       * how loudly it is lit: one step down the phosphor ramp for the lettering,
+       * the bar down with it, and the frame off the boil. It reads at a glance
+       * and it no longer reads first.
+       */
       signGroup.addChild(
         new Graphics()
           .roundRect(-38, -9, 76, 18, 2)
           .fill({ color: c(RAMPS.NEUTRAL[1]), alpha: 0.94 })
-          .stroke({ width: 1, color: c(RAMPS.GLOW[1]), alpha: 0.8 })
+          .stroke({ width: 1, color: c(RAMPS.GLOW[1]), alpha: 0.55 })
           .rect(-34, -13, 68, 2)
-          .fill({ color: c(RAMPS.GLOW[2]), alpha: 0.5 }),
+          .fill({ color: c(RAMPS.GLOW[1]), alpha: 0.45 }),
       )
       // `typeLine`, not `label`: the sign already has a board and does not want
       // a second plate behind its words.
-      const sign = typeLine(SUITE_SIGN, c(RAMPS.GLOW[2]))
+      const sign = typeLine(SUITE_SIGN, c(RAMPS.GLOW[1]))
       if (sign) {
         sign.label = 'lettering'
         signGroup.addChild(sign)
@@ -6996,7 +7094,10 @@ export function buildRoom(): RoomHandle {
           WIN_W,
           WIN_H,
           -WALL_SLOPE,
-          RAMPS.GLOW[1],
+          // The body of the pane, which `drawWindow` puts a `GLOW[1]` glint
+          // across the top of. `GLOW[0]` is (42,74,92) against the concept's
+          // measured casement average of (38,72,91).
+          RAMPS.GLOW[0],
           RAMPS.NEUTRAL[1],
         )
         // §7.8.9 — somewhere to stand and look out of it. The garage's two
