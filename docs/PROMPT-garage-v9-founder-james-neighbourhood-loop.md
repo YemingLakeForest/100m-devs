@@ -1,10 +1,4 @@
-# Superseded garage v4 implementation loop
-
-> Superseded on 2026-09-03 by
-> `docs/PROMPT-garage-v9-founder-james-neighbourhood-loop.md`, which targets the
-> two-person founder/James room and rear neighbourhood scenery.
-
-# Agent goal and visual convergence loop — garage v4
+# Agent goal and visual convergence loop — garage v9
 
 > This is an execution prompt, not a second design authority. `GDD.html` remains
 > canonical. The target image named below is canonical through GDD §7.8.0c.
@@ -17,7 +11,7 @@ Read `CLAUDE.md` completely before acting, then create and pursue this goal:
 
 > Make the live 20-developer garage scene in *100,000,000 Developers* converge
 > as closely as the runtime renderer permits on
-> `docs/assets/concepts/garage-layout-concept-20-devs-v4-layout-authoritative.png`,
+> `docs/assets/concepts/garage-layout-concept-20-devs-v9-founder-james-neighbourhood.png`,
 > while preserving gameplay, hit testing, walking, deterministic seat identity,
 > the enforced palette and supported-device performance.
 
@@ -28,7 +22,7 @@ blocker is reached. This goal is only the garage scene. Do not redesign the
 
 ## Authority and scope
 
-The v4 image is the spatial and visual target for:
+The v9 image is the spatial and visual target for:
 
 - camera and whole-scene framing;
 - wall, gate, door and pillar geometry;
@@ -38,7 +32,11 @@ The v4 image is the spatial and visual target for:
 - floor value, seams, cracks and cable lines;
 - furniture zoning, scale and palette;
 - interior amber/cyan lighting balance;
-- exterior pavement, lamps, planters and parked cars.
+- exterior pavement, lamps and planters, with no vehicles in the garage frame
+  and exactly one lamp per three planters on each visible street side;
+- a compact two-person glass office occupied only by the founder and James;
+- the trees, shrubs, rear pavement and dim neighbourhood beyond the rear walls;
+- a warm converted-studio reading with no prison or fortress cues.
 
 It is not a raster background to ship. Reproduce it with the current procedural
 Pixi/isometric renderer and reusable primitives. Keep the current Minecraft-like
@@ -52,7 +50,10 @@ Inspect at minimum:
 - `src/render/room.ts`;
 - `src/render/garage.test.ts`;
 - room, shell, camera-fit, walking and frame acceptance tests;
-- the current 1-, 10- and 20-developer garage captures.
+- the current 1-, 10- and 20-developer garage captures;
+- `docs/assets/shots/garage-21.png` as evidence of the rejected starting state,
+  not as a target: its seven-hero room, `DEVS 21`, pale shell and black rear void
+  are mismatches this loop must remove.
 
 Preserve unrelated worktree changes. If implementation reveals a genuine
 conflict with the GDD, amend the conflicting passage in the same batch and mark
@@ -65,7 +66,12 @@ it in the existing house style. Do not create another design document.
 - Exactly 20 ordinary developers at the completed garage.
 - Exactly five pods, four developers per pod.
 - Each pod is one rectangular timber table with two developers facing two.
-- Founder and leadership occupants are physical but do not consume the 20 seats.
+- Founder and James are physical but do not consume the 20 seats or increment
+  the `DEVS` capacity readout. The completed-garage HUD reads exactly `DEVS 20`.
+- The twentieth ordinary developer completes the fifth pod and starts the
+  office transition. Do not wait for a twenty-first ordinary hire.
+- Mo, Serena, Matt, Melany and Billy do not appear anywhere in the garage.
+  Their first physical appearances belong to later office scenes.
 - Every developer, monitor and desk must be visible in the resting 20-developer
   frame. Near walls, the gate, HUD and other people may not hide them.
 - No chairs are rendered in the garage yet. Do not draw chair backs, chair rails
@@ -105,15 +111,23 @@ read that result.
 - Show the entire garage, all exterior corner pillars, both rear wall tops, both
   near cutaway walls, gate, personnel door and a narrow street surround.
 - Garage occupies roughly 75–80% of the frame and is centred between HUD rails.
-- Rear walls are full height. Near walls are thick cutaways and must not hide a
-  workstation.
+- Rear walls are full height. Near walls are thick but visibly lower cutaways
+  and must not hide a workstation.
 - All wall runs use the legal isometric axes, one thickness and one coping
   height. Endpoints meet pillars exactly: no gaps, overlaps or doubled caps.
-- Square pillars stand at every exterior corner. Gate jamb pillars share the
-  same grid, value hierarchy and vertical baseline.
+- Square structural pilasters stand at every exterior corner. They terminate
+  flush with or only slightly above the wall coping; they must not read as
+  guard towers. Gate jambs share the same grid and baseline.
+- Use warm charcoal-brown reclaimed brick or painted block, restrained dark
+  mortar and a narrow dark coping. Do not use pale lavender institutional walls
+  or a bright perimeter cap.
+- Rear windows are broad, low rectangular factory-studio windows with dark
+  frames and cyan-blue panes, not small high security slits.
 - The roll-up gate is the frontage's full vehicle-height opening. Its shutter
   runs from slab to a shallow aligned sign header.
 - The sign reads exactly `NO BUGS. JUST FEATURES` and follows the wall axis.
+- The shutter uses muted oxblood/copper slats and reads as a studio entrance,
+  not a barred security gate.
 - The personnel door is fitted into the same frontage with a real opening,
   jambs, lintel and clear threshold.
 - Reserve an empty gate apron at least two character widths deep. No desk,
@@ -125,18 +139,27 @@ only happen to touch at the target viewport.
 
 ### Leadership room
 
-- Restore the compact leadership room in the far-left/back zone shown by v4.
+- Build the compact two-person leadership room in the rear-left/rear-centre zone
+  shown by v9.
 - It shares the two solid exterior rear walls and uses dark-framed, cyan-tinted
   glass only on its two interior-facing sides.
 - Glass panes and mullions lie on legal isometric axes.
-- Give it a straight opening toward the main floor, a dark warm rug, two simple
-  leadership desks and the currently available leadership occupants.
+- Give it a straight open glass doorway toward the main floor, a dark warm rug,
+  exactly two compact timber workstations, one small cabinet or whiteboard and
+  one plant.
+- Populate it with exactly two non-capacity occupants: the player founder and
+  James. Both must be countable and unobscured.
+- Size the room for two people. Do not preserve seven dormant plots, an empty
+  boardroom footprint or placeholder desks for later heroes.
+- Scene gating is authoritative: even when a debug/full fixture has later hero
+  progression flags, the garage renderer must not materialize Mo, Serena, Matt,
+  Melany or Billy.
 - Keep a real lane between its glass and the nearest developer pod.
 - Keep leadership capacity independent from ordinary-developer capacity.
 
 ### Floor, cracks and cables
 
-- Use the v4 floor's dark warm-brown concrete value, not a pale lilac slab.
+- Use the v9 floor's dark warm-brown concrete value, not a pale lilac slab.
 - Stay inside the master palette. If the target colour falls between entries,
   achieve it through existing palette colours and restrained alpha layering.
 - Draw broad deterministic pour bays first.
@@ -155,8 +178,8 @@ only happen to touch at the target viewport.
 Treat the concept's placement as authored floor-plan data, not random dressing.
 Give every major prop a named plot, footprint and wall/zone relationship.
 
-- Far-right workshop run: open shelves, stored boxes, tool board, workbench,
-  red tool chest, bicycle silhouette and stacked tyres.
+- Far-right workshop run: open shelves, stored boxes, tool boards, workbench
+  and red tool chest. Do not add bicycles, tyres or other vehicle props.
 - Far-left wall outside leadership: compact fridge, kettle table and nearby bin.
 - Right-wall lounge: block sofa and folding stool after the workshop run.
 - One deliberate storage corner: only a few crates and pallets.
@@ -179,26 +202,49 @@ Give every major prop a named plot, footprint and wall/zone relationship.
 - Exterior remains darker than the room.
 - Preserve the master palette, top-left light logic, contact shadows, CRT
   scanlines, restrained bloom and vignette.
+- Reduce the current pale wash and bloom until faces, desk edges and individual
+  monitor silhouettes remain crisp inside every light pool.
 
-### Street lamps, planters and cars
+### Street lamps, planters and vehicle-free roads
 
 - Derive exterior dressing from straight sidewalk/curb runs, not scattered
   coordinates.
 - Street lamps use one model, one curb setback and a regular interval.
 - Bush planters use one model and setback, centred rhythmically between lamps.
+- Maintain a strict one-light-to-three-planter ratio on each visible street side
+  independently. Match v9's authored counts: the gate/frontage side has two
+  lights and six planters; the right return side has three lights and nine
+  planters. Never balance one side by borrowing objects from the other.
 - Exclusion spans keep both out of the gate driveway, personnel threshold,
   crosswalks, road lanes and pillar footprints.
 - Lamps are vertically aligned and planters share the sidewalk axes.
-- Cars sit parallel to lane markings and leave the gate usable.
+- Do not render parked, moving or decorative vehicles anywhere in the garage
+  frame. Preserve the road surface, lane markings and clear kerb geometry.
 - The exterior is a narrow frame for the garage, not a second scene competing
   with it.
+
+### Rear neighbourhood scenery
+
+- Continue the world beyond both full-height rear walls instead of leaving a
+  black void.
+- Use reusable district primitives for a narrow rear pavement, an authored band
+  of modest blocky deciduous trees, several low shrubs or planters and silhouettes
+  of low buildings with only a few warm windows.
+- All scenery is outside and behind the garage. Trees may frame the roofline but
+  may not overlap the playable floor, hide factory windows, obscure the glass
+  office or break camera containment.
+- Keep three depth bands: quiet pavement/shrubs near the wall, darker trees in
+  the middle, lowest-contrast buildings in the distance.
+- The background stays darker and less detailed than the interior. It establishes
+  a neighbourhood; it is not a second management scene.
+- No vehicles, pedestrians, fences, bars, security towers or background signs.
 
 ## Visual convergence loop
 
 Repeat this loop. Work on one mismatch class at a time.
 
 1. **Inspect the target and current frame.**
-   Open v4 at original resolution. Capture the current 20-developer scene at
+   Open v9 at original resolution. Capture the current 20-developer scene at
    1664×936 using the same 16:9 framing. Also capture a `nopost` frame when
    inspecting geometry or palette beneath CRT effects.
 2. **Make a fidelity ledger.**
@@ -239,14 +285,15 @@ comparison under `docs/assets/shots/`.
 ## Recommended loop order
 
 1. Whole-shell plan, wall/pillar joins, openings, gate apron and camera fit.
-2. Leadership-room footprint, glass and reserved capacity.
+2. Two-person founder/James room footprint, glass and scene gating.
 3. Five pod positions and exact no-overlap/no-occlusion clearances.
 4. Four-facing workstation/person geometry and no-chair rendering.
 5. Warm floor material, pour seams, deterministic cracks and cables.
 6. Authored workshop, kitchenette, lounge and storage plots.
 7. Pod/workshop lighting and palette/value balance.
-8. Exterior curb runs, lamps, planters, cars and exclusion spans.
-9. Final composition, compact viewport and interaction pass.
+8. Exterior curb runs, lamps, planters, vehicle suppression and exclusion spans.
+9. Rear pavement, tree/shrub bands and distant-building silhouettes.
+10. Final composition, compact viewport and interaction pass.
 
 ## Required automated claims
 
@@ -264,11 +311,20 @@ Tests must prove at minimum:
 - wall segments terminate inside their intended pillar footprints;
 - gate and personnel openings remain real gaps in wall geometry;
 - sign header and shutter use the frontage axis;
-- leadership plots do not consume ordinary capacity;
+- founder and James do not consume ordinary capacity or increment `DEVS`;
+- the completed leadership room exposes exactly two work plots and occupants:
+  one founder plus James;
+- later hero progression flags never create Mo, Serena, Matt, Melany or Billy
+  while the garage presentation is active;
+- the full garage reads `DEVS 20` and transitions at the twentieth ordinary hire;
 - props stay inside their named zones and never overlap;
 - crack/cable plans are deterministic;
 - lamp and planter positions follow their curb runs with uniform setbacks and
   respect all exclusion spans;
+- each visible street side independently has exactly three planters per lamp;
+- no vehicle display object is emitted for the garage camera stop;
+- the rear tree plan is non-empty and deterministic, remains behind the rear-wall
+  containment line and emits no interactive or collidable floor object;
 - camera containment includes the complete shell and every pillar at 1664×936
   and the supported compact landscape viewport;
 - the 20-developer frame exposes a usable hit point for every developer;
@@ -281,7 +337,7 @@ When visual convergence is genuinely complete:
 
 1. Capture 1-, 10- and 20-developer garage frames at canonical desktop size.
 2. Capture the 20-developer frame at the supported compact landscape size.
-3. Produce a final side-by-side comparison with v4.
+3. Produce a final side-by-side comparison with v9.
 4. Run focused garage/room tests once more.
 5. Run `npm run check` once in full, including room geometry, UI-frame and
    playthrough gates. Let it finish; do not replace it with partial success.
@@ -291,19 +347,29 @@ When visual convergence is genuinely complete:
 
 Do not mark the goal complete until:
 
-- the live 20-developer screenshot is immediately recognizable as v4 without
+- the live 20-developer screenshot is immediately recognizable as v9 without
   relying on HUD labels;
 - all five pods, all 20 ordinary developers and all four facings are visible;
 - no garage chairs are rendered;
 - walls, gate, sign, personnel door and pillars form one coherent shell;
-- the leadership room is attached, contained and independently populated;
+- the leadership room is compact, attached, contained and populated only by the
+  founder and James at two distinct work positions;
+- Mo, Serena, Matt, Melany and Billy are absent from every garage capture;
 - the gate apron and all main aisles are visibly clear and mechanically routed;
 - floor colour, cracks, seams, cables, furniture palette and light hierarchy
-  closely match v4;
+  closely match v9;
 - workshop, kitchenette, lounge and storage props occupy sensible authored
   zones with no overlaps;
 - exterior lamps and planters are aligned, evenly spaced and excluded from
   entrances and roads;
+- the gate/frontage side has two lights and six planters, and the right return
+  side has three lights and nine planters;
+- the exterior roads contain no vehicles;
+- trees, shrubs, rear pavement and dim building silhouettes form a restrained
+  neighbourhood backdrop behind the full-height rear walls;
+- the shell reads as a converted startup garage, not a prison or fortress:
+  pillars are wall-height, coping is narrow/dark, windows are broad factory
+  windows, and no bars, fences or guard-tower silhouettes remain;
 - supported frames contain the whole required composition;
 - remaining visible differences are listed individually with a concrete engine,
   interaction or performance reason;

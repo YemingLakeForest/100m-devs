@@ -62,23 +62,29 @@ const POINT_EPS = 0.75
  * and forty straddle the crowding flip, ninety-nine and a hundred straddle
  * §7.8.1c's unfold, and a thousand is `ROOM_DEV_CAP`.
  */
-const HEADCOUNTS = [1, 2, 3, 10, 21, 30, 39, 40, 99, 100, 300, 1000]
+const HEADCOUNTS = [1, 2, 3, 10, 20, 21, 30, 39, 40, 99, 100, 300, 1000]
 
 /**
- * §7.8.0c [added 2026-09-03] — **the completed garage, and the frames it has to
- * fit in.**
+ * §7.8.0c [amended 2026-09-03] — **the completed garage, and the frames it has
+ * to fit in.**
  *
- * Twenty-one rather than twenty: §7.8.12 seats James inside the suite out of
- * the studio's own headcount, so a studio of twenty is nineteen ordinary
- * developers and him. The garage is full — five pods of four — on the
- * twenty-first hire, which is the frame the concept is a picture of.
+ * **Twenty.** It was twenty-one, because §7.8.12 used to seat James out of the
+ * studio's own headcount and a studio of twenty was nineteen ordinary
+ * developers and him. Nothing is held back now (see `SUITE_SEATED`), so twenty
+ * developers fill five pods of four and the twenty-first is the hire with
+ * nowhere to sit. Asking this pass for twenty-one asks it to measure an office,
+ * which is what it did the first time this ran: *0 pier(s)*, and a containment
+ * claim about a building that is no longer on screen.
+ *
+ * The list above keeps both, because the boundary is worth measuring from each
+ * side: 20 is the last garage and 21 the first floor.
  *
  * The two viewports are the two the game is actually looked at in: §23.4's
  * desktop reference and the supported compact landscape. Containment is a
  * property of the *camera*, so it can only be checked at a size — which is why
  * this pass exists at all rather than being another claim in `measure`.
  */
-const FULL_GARAGE = 21
+const FULL_GARAGE = 20
 const FRAMES = [
   { w: 1664, h: 936, name: 'desktop' },
   { w: 997, h: 448, name: 'compact landscape' },

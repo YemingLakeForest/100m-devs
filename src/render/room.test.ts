@@ -51,6 +51,7 @@ import {
   drawnSeatPosition,
   suiteSeatsIn,
   garagePlot,
+  roomCast,
   isoAt,
   FLOOR_MIN_COL,
   FLOOR_MIN_ROW,
@@ -67,7 +68,8 @@ import {
   SUITE_WALL_ROW,
   SUITE_WEST_COL,
 } from './room.ts'
-import { GARAGE_ROUTE, GARAGE_SIGN, SUITE_DOOR_GY } from './garage.ts'
+import { GARAGE_ROUTE, GARAGE_SEATS, GARAGE_SIGN, SUITE_DOOR_GY } from './garage.ts'
+import type { HeroId } from '../sim/storyHeroes.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import {
   ARRIVAL_MS,
@@ -953,16 +955,34 @@ describe('§7.8.12 — the team room is a physical place, not a posting marker',
     selected: false,
   }
 
-  it('waits for the second hero, then grows glass around the desks already there', () => {
+  it('waits for the second person, then grows glass around the desks already there', () => {
     const room = buildRoom()
     const architecture = room.container.getChildByLabel('team-room') as Container
     const furniture = room.container.getChildByLabel('team-room-desks') as Container
-    room.setTeam([james])
-    // §7.8.12's whole joke: the desks came first and the walls arrived around
-    // them. James alone has a desk and no room; Mo brings the room.
+    /*
+     * §7.8.12's whole joke: the desks came first and the walls arrived around
+     * them. The founder alone has a desk and no room.
+     *
+     * §7.8.0c [amended 2026-09-03] — **and the second person is the test, not
+     * the second hero.** The old rule was `team.length > 1`, which on the floor
+     * means "James is not enough, Mo brings the room" and is right there. In
+     * the garage the cast is two people and both of them are already in it, so
+     * that rule glazed the corner only once Mo arrived — and Mo is not in the
+     * garage at all under v9. The founder counts in the room the founder is
+     * standing in.
+     */
+    room.setTeam([])
     expect(architecture.visible).toBe(false)
+
+    room.setTeam([james])
+    expect(architecture.visible).toBe(true)
     expect(furniture.visible).toBe(true)
 
+    // On the floor it is still the second *hero*, unchanged: James alone is
+    // the garage story, and the office's suite is a room for a leadership team.
+    room.setHeadcount(400)
+    room.setTeam([james])
+    expect(architecture.visible).toBe(false)
     room.setTeam([james, mo])
     expect(architecture.visible).toBe(true)
     expect(room.teamDeskAt('mo')).toEqual(teamDeskPosition('mo'))
@@ -1027,9 +1047,17 @@ describe('§7.8.12 — the team room is a physical place, not a posting marker',
     for (const b of back) {
       for (const f of front) expect(b.col).not.toBeCloseTo(f.col, 9)
     }
-    // §7.8.12 — the door is centred on floor plot (0, 0), which `SUITE_SEATS`
-    // holds empty precisely so the room has somewhere to let out.
-    expect(SUITE_SEATS).toBe(1)
+    /*
+     * §7.8.12 — the door is centred on floor plot (0, 0).
+     *
+     * §7.8.0c [amended 2026-09-03] — **and nothing is held back to keep it
+     * clear any more.** `SUITE_SEATS` was one, and the one was James; the price
+     * was a garage that read `DEVS 21` when five pods of four were full. The
+     * doorway's emptiness is now a property of the plans that draw seats near
+     * it rather than of a reservation in the index space, which is the trade
+     * §7.8.0c records in full at `SUITE_SEATED`.
+     */
+    expect(SUITE_SEATS).toBe(0)
     expect(Math.abs(0) < SUITE_DOOR_COLS / 2).toBe(true)
   })
 
@@ -1093,56 +1121,69 @@ describe('§7.8.12 — the team room is a physical place, not a posting marker',
    * anybody into or out of the suite is an edit to `SUITE_SEATED` and nothing
    * else. Nobody can be dropped in the wrong place again without this failing.
    */
-  it('resolves a held seat to one place, whoever is asking', () => {
+  it('resolves every seat to one place, whoever is asking', () => {
     const room = buildRoom()
     room.setTeam([james, mo])
     room.setHeadcount(4)
 
-    const desk = teamDeskPosition('james')
-    // The suite wins in **either** room. §7.8.0c gave the garage its own plan,
-    // and the one thing that plan may not do is take a seat the suite holds.
-    expect(drawnSeatPosition(0, 0, false)).toEqual(desk)
-    expect(drawnSeatPosition(0, 0, true)).toEqual(desk)
-    expect(room.deskFor(0)).toEqual(desk)
-    expect(room.deskAt(0)).toEqual(desk)
+    /*
+     * The shape of the fix, not its coordinates: every route from a seat to a
+     * place goes through {@link drawnSeatPosition}, so nobody can be dropped in
+     * one spot and drawn in another.
+     *
+     * §7.8.0c [amended 2026-09-03] — **and no seat resolves to a leadership
+     * desk in either room.** The suite's people are on their own plots and
+     * outside the index space entirely, which is what §7.8.0 has always said
+     * and what the held seat quietly contradicted on the rail.
+     */
+    const desks = [
+      founderDeskPosition(),
+      ...STORY_HEROES.map((hero) => teamDeskPosition(hero.id)),
+    ]
+    const podSeat = drawnSeatPosition(0, 0, true)
+    const officeSeatAt = drawnSeatPosition(0, 0, false)
+    for (const at of desks) {
+      expect(podSeat).not.toEqual(at)
+      expect(officeSeatAt).not.toEqual(at)
+    }
 
-    // The seats after it agree with whichever room is being drawn, and at four
-    // developers that is the garage — so seat 1 is the first chair of the first
-    // pod, not lattice plot 1.
-    //
-    // **The garage shifts past the suite where the floor leaves a hole.** The
-    // office lattice is a hundred wide and one bare plot in it is a threshold
-    // nobody notices; a garage with one of its twenty chairs permanently empty
-    // is a missing chair at a table of four. So ordinary developer 1 is the
-    // garage's ordinary seat 0.
-    const podSeat = drawnSeatPosition(1, 0, true)
-    expect(room.deskFor(1)).toEqual(podSeat)
-    expect(room.deskAt(1)).toEqual(podSeat)
-    expect(podSeat).not.toEqual(seatPosition(1))
-    // And the office gives a *third* answer, because §7.8.0d authored it its own
-    // plan too: seat 1 is the first chair of PLATFORM's first pod. The one thing
-    // all three agree on is seat 0, which the suite holds in every room.
-    const officeSeatAt = drawnSeatPosition(1, 0, false)
-    expect(officeSeatAt).not.toEqual(seatPosition(1))
+    // At four developers the room is the garage, so the room's own resolvers
+    // agree with the garage's plan and with each other.
+    expect(room.deskFor(0)).toEqual(podSeat)
+    expect(room.deskAt(0)).toEqual(podSeat)
+    expect(podSeat).not.toEqual(seatPosition(0))
+    // And the office gives a different answer, because §7.8.0d authored it its
+    // own plan: seat 0 is the first chair of PLATFORM's first pod rather than
+    // lattice plot 0.
+    expect(officeSeatAt).not.toEqual(seatPosition(0))
     expect(officeSeatAt).not.toEqual(podSeat)
     room.container.destroy({ children: true })
   })
 
-  it('holds no seat back in a window the suite is not in', () => {
+  it('holds no seat back in any window or either room', () => {
     // §26.2.2 — the same resolver, asked about somebody else's floor. Nothing
     // is held back there, so local seat 0 is an ordinary developer and lands on
     // the floor plan rather than at a hero's desk.
-    expect(suiteSeatsIn(0)).toBe(SUITE_SEATS)
+    //
+    // §7.8.0c [amended 2026-09-03] — and nothing is held back in the studio's
+    // own window either, in either room. See `SUITE_SEATED`.
+    expect(suiteSeatsIn(0)).toBe(0)
     expect(suiteSeatsIn(1000)).toBe(0)
+    expect(suiteSeatsIn(0, true)).toBe(0)
     expect(drawnSeatPosition(0, 1000, false)).not.toEqual(teamDeskPosition('james'))
     // And it is the *same* place the studio's own floor would put its first
     // ordinary developer — a block drawn out of a nation is a floor like any
     // other, which is the whole of §26.2.2.
-    expect(drawnSeatPosition(0, 1000, false)).toEqual(drawnSeatPosition(1, 0, false))
+    expect(drawnSeatPosition(0, 1000, false)).toEqual(drawnSeatPosition(0, 0, false))
   })
 
   it('keeps an assigned hero at the same desk and makes that body inspectable', () => {
     const room = buildRoom()
+    // On the **floor**: §7.8.0c's garage draws the founder and James and nobody
+    // else, so Mo has no body to inspect until the room unfolds. That is the
+    // rule under test one describe block down; this one is about the desk a
+    // hero keeps once they are in a room that has one for them.
+    room.setHeadcount(400)
     room.setTeam([james, mo])
     const at = room.teamDeskAt('mo')!
     expect(room.teamHeroAt(at.x, at.y - 7)).toBe('mo')
@@ -1318,7 +1359,9 @@ describe('the garage plan and the room agree', () => {
     const room = buildRoom()
     // A garage: five pods of four, nobody in an office.
     room.setTeam([{ id: 'james', colour: '#fff', assigned: false, connecting: false, selected: false }])
-    room.setHeadcount(21)
+    // Twenty, not twenty-one: §7.8.0c's garage is full at twenty ordinary
+    // developers and the suite no longer takes one of them out of the count.
+    room.setHeadcount(20)
     expect(room.geometry().chairs).toBe(0)
     // And the open-plan floor, where a chair is still the right mark: the
     // claim is that the garage does not draw them, not that nothing does.
@@ -1342,7 +1385,7 @@ describe('the garage plan and the room agree', () => {
   it('lays the gate sign on the frontage s own screen slope', () => {
     const room = buildRoom()
     room.setTeam([{ id: 'james', colour: '#fff', assigned: false, connecting: false, selected: false }])
-    room.setHeadcount(21)
+    room.setHeadcount(20)
     const sign = room.container.getChildByLabel('gate-sign', true)
     expect(sign).not.toBeNull()
     /*
@@ -1374,5 +1417,89 @@ describe('the garage plan and the room agree', () => {
     expect(plots).toHaveLength(7)
     const keys = new Set(plots.map((p) => `${p.col.toFixed(3)},${p.row.toFixed(3)}`))
     expect(keys.size).toBe(7)
+  })
+})
+
+
+/**
+ * §7.8.0c [added 2026-09-03] — **two people behind the glass, and twenty in
+ * front of it.**
+ *
+ * The three claims v9 turns on, and none of them is about a coordinate. They
+ * are about *who is in the room* and *what the counter says* — which is
+ * precisely the pair that drifted apart, because the renderer and the rail were
+ * reading the same headcount and subtracting different things from it.
+ */
+describe('the garage holds the founder and James, and twenty developers', () => {
+  const hero = (id: HeroId) => ({
+    id,
+    colour: '#fff',
+    assigned: false,
+    connecting: false,
+    selected: false,
+  })
+  const everybody = STORY_HEROES.map((h) => hero(h.id))
+
+  it('gates every later hero out of the garage, whatever the roster says', () => {
+    // The fixture is a career that has met all six. The room still draws two.
+    expect(roomCast(everybody, true).map((h) => h.id)).toEqual(['james'])
+    // And lets all six in once it is a floor, because that is where they live.
+    expect(roomCast(everybody, false)).toHaveLength(6)
+  })
+
+  it('draws exactly two occupants and two plots in the completed garage', () => {
+    const room = buildRoom()
+    room.setTeam(everybody)
+    room.setHeadcount(20)
+    const g = room.geometry()
+    // One hero plot — James — plus the founder, who has never been in `plots`
+    // because the founder is not a hero.
+    expect(g.plots.map((p) => p.id)).toEqual(['james'])
+    expect(g.founder).toBeTruthy()
+    // And the five heroes who are not in the garage have no body in it.
+    const bodies = room.container.getChildByLabel('team-room-heroes') as Container
+    for (const id of ['mo', 'serena', 'matt', 'melany', 'billy'] as HeroId[]) {
+      expect({ id, body: bodies.getChildByLabel(`team-hero:${id}`) }).toEqual({ id, body: null })
+    }
+    room.container.destroy({ children: true })
+  })
+
+  /**
+   * **The counter and the pods agree.** Twenty on the rail is twenty seats
+   * drawn, five pods of four, and neither the founder nor James among them —
+   * which is the whole of "leadership does not consume ordinary capacity",
+   * finally stated in the unit the player reads.
+   */
+  it('draws twenty ordinary developers at DEVS 20 and none of them is a hero', () => {
+    const room = buildRoom()
+    room.setTeam(everybody)
+    room.setHeadcount(20)
+    const g = room.geometry()
+    expect(g.heldSeats).toBe(0)
+    expect(g.seats).toHaveLength(GARAGE_SEATS)
+    const desks = new Set(
+      [founderDeskPosition(), ...STORY_HEROES.map((h) => teamDeskPosition(h.id))].map(
+        (d) => `${d.x.toFixed(3)},${d.y.toFixed(3)}`,
+      ),
+    )
+    for (const seat of g.seats) {
+      expect(desks.has(`${seat.x.toFixed(3)},${seat.y.toFixed(3)}`)).toBe(false)
+    }
+    room.container.destroy({ children: true })
+  })
+
+  /**
+   * And the room it is drawn in is still the garage at twenty and the floor at
+   * twenty-one — the transition starts on the hire with nowhere to sit, not on
+   * a twenty-first that only exists because somebody was held back.
+   */
+  it('is still a garage at twenty and a floor at twenty-one', () => {
+    const room = buildRoom()
+    room.setTeam([hero('james')])
+    room.setHeadcount(20)
+    expect(room.geometry().screen.piers).toHaveLength(4)
+    room.setHeadcount(21)
+    expect(room.geometry().screen.piers).toHaveLength(0)
+    room.container.destroy({ children: true })
   })
 })

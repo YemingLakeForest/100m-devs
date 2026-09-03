@@ -43,6 +43,22 @@ import { WALL_FULL, WALL_NEAR, WALL_THICK, insideShell, wallSegments } from './s
  * table the renderer reads rather than against a screenshot.
  */
 
+/**
+ * Two colour helpers, at module scope because two describe blocks need them:
+ * the floor/wall wash gate and §7.8.0c's painted shutter are the same question
+ * asked of different surfaces — *what does this actually come out as*.
+ */
+const hex = (h: string) => [
+  parseInt(h.slice(1, 3), 16),
+  parseInt(h.slice(3, 5), 16),
+  parseInt(h.slice(5, 7), 16),
+]
+const over = (base: string, wash: string, t: number) => {
+const [br, bg, bb] = hex(base)
+const [wr, wg, wb] = hex(wash)
+  return [br + (wr - br) * t, bg + (wg - bg) * t, bb + (wb - bb) * t]
+}
+
 describe('twenty ordinary seats, and exactly twenty', () => {
   it('is five pods of four', () => {
     expect(GARAGE_PODS).toHaveLength(5)
@@ -801,7 +817,27 @@ describe('the room is brighter inside than out', () => {
    */
   it('paints the gate in the wall it sits in', () => {
     const { gate } = GARAGE_VALUES
-    expect(Math.abs(gate.panel - nearWall.left)).toBeLessThanOrEqual(1)
+    /*
+     * §7.8.0c [amended 2026-09-03] — **and the panel is painted now.**
+     *
+     * The claim was `|gate.panel - nearWall.left| <= 1`: the shutter is the
+     * wall's own tone, and what names it is the corrugation and the piers. That
+     * was the right answer for a *grey* door and it is why the door needed a
+     * red band painted across it to be a door at all. v9 paints the whole
+     * shutter oxblood, so the comparison moves off the neutral ramp and onto
+     * the thing the rule was always about: the front door is not allowed to be
+     * the brightest object on the frontage.
+     */
+    const painted = over(RAMPS.ALARM[0], RAMPS.ALARM[1], gate.shutter.left)
+    const wall = hex(RAMPS.NEUTRAL[nearWall.left])
+    const pier = hex(RAMPS.NEUTRAL[gate.pier])
+    const lum = (c: number[]) => c[0] + c[1] + c[2]
+    expect(lum(painted)).toBeLessThan(lum(pier))
+    // Warm, and warmer than the block it is set into — which is the whole read.
+    expect(painted[0] - painted[2]).toBeGreaterThan(wall[0] - wall[2] + 20)
+    // §7's key, on the door's own three planes.
+    expect(gate.shutter.top).toBeGreaterThan(gate.shutter.left)
+    expect(gate.shutter.left).toBeGreaterThan(gate.shutter.right)
     // The piers carry the lift the panel used to have, so the opening is framed
     // rather than lit.
     expect(gate.pier).toBeGreaterThan(gate.panel)
@@ -903,16 +939,6 @@ describe('every corner of the shell has a pier on it', () => {
  */
 describe('the floor is warm and the street is not', () => {
   /** What `fill({ alpha })` does, in the one place a test needs to know. */
-  const hex = (h: string) => [
-    parseInt(h.slice(1, 3), 16),
-    parseInt(h.slice(3, 5), 16),
-    parseInt(h.slice(5, 7), 16),
-  ]
-  const over = (base: string, wash: string, t: number) => {
-    const [br, bg, bb] = hex(base)
-    const [wr, wg, wb] = hex(wash)
-    return [br + (wr - br) * t, bg + (wg - bg) * t, bb + (wb - bb) * t]
-  }
 
   /** Measured off garage-layout-concept-20-devs-v1.png, away from any lamp. */
   const CONCEPT_FLOOR = [55, 35, 28]
@@ -943,7 +969,13 @@ describe('the floor is warm and the street is not', () => {
     // somebody else's ground, which is what the floor wash on its own produced.
     const { farWall } = GARAGE_VALUES
     const drawn = over(RAMPS.NEUTRAL[farWall.left], RAMPS.WARN[0], farWall.warmth)
-    const CONCEPT_FAR_WALL = [82, 71, 63]
+    /*
+     * Re-measured off v9 [2026-09-03]. The anchor was v6's (82,71,63); v9's
+     * rear wall reads (58,45,42) over a clear run of its back-right face, which
+     * is the same warm grey a step and a half darker. The room did not change
+     * hue — the night outside it did, once there was a neighbourhood in it.
+     */
+    const CONCEPT_FAR_WALL = [58, 45, 42]
     for (let i = 0; i < 3; i++) {
       const off = Math.abs(drawn[i] - CONCEPT_FAR_WALL[i])
       expect({ channel: 'rgb'[i], within: off <= 8 }).toEqual({ channel: 'rgb'[i], within: true })

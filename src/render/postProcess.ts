@@ -15,7 +15,13 @@
  * apply it to only one layer.
  */
 
-import { BloomFilter, CRTFilter, RGBSplitFilter, TiltShiftFilter, ZoomBlurFilter } from 'pixi-filters'
+import {
+  AdvancedBloomFilter,
+  CRTFilter,
+  RGBSplitFilter,
+  TiltShiftFilter,
+  ZoomBlurFilter,
+} from 'pixi-filters'
 import type { Filter } from 'pixi.js'
 import type { GlassParams } from '../art/entropyTheme.ts'
 
@@ -103,8 +109,37 @@ export function createPostProcess({
   // 2. Radial zoom blur — fires on a rapid dolly (GDD §8.1, §20.4).
   const zoomBlur = new ZoomBlurFilter({ strength: 0, radius: -1, innerRadius: 80 })
 
-  // 3. Bloom — rises with strain.
-  const bloom = new BloomFilter({ strength: 2 })
+  /*
+   * 3. Bloom — rises with strain.
+   *
+   * §7.8.0c [amended 2026-09-03] — **and it only picks up what is actually
+   * bright.** `BloomFilter` blurs the whole frame and adds it back, so every
+   * surface in the picture glows a little: measured on the garage's completed
+   * frame it lifted the mean by 48 per cent, which turned a dark room with warm
+   * pools in it into a pale room with warm patches. The pools stopped being
+   * pools, and the faces, desk edges and monitor silhouettes inside them went
+   * soft — the one thing §7.8.0c's lighting section says must not happen.
+   *
+   * `AdvancedBloomFilter` extracts by **threshold** first, so the concrete, the
+   * block and the road contribute nothing and the lamps, the screens and the
+   * glass contribute all of it. That is the same picture the concept draws and
+   * it is what "bloom is a suggestion, not a glow" was always trying to say —
+   * the old filter could only make the suggestion quieter, never narrower.
+   *
+   * It costs a second pass over the frame, which is the honest price and is
+   * paid at the one place §23.3's budget is measured: the same five-filter
+   * chain, one of them now two-stage.
+   */
+  const bloom = new AdvancedBloomFilter({
+    // Above the room's own surfaces and below its lights. The garage's floor
+    // and block sit at the bottom third of the ramp; a lamp pool, a monitor
+    // face and the sign's lettering are the things above this line.
+    threshold: 0.74,
+    bloomScale: 1,
+    brightness: 1,
+    blur: 2,
+    quality: 2,
+  })
 
   // 4. Chromatic aberration — subtle, with a brief punch on crits.
   const rgbSplit = new RGBSplitFilter({ red: { x: 0, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 0, y: 0 } })
@@ -176,11 +211,19 @@ export function createPostProcess({
       zoomBlur.strength = reduceMotion ? 0 : Math.min(0.18, zoomVelocity * 0.45)
       zoomBlur.center = { x: width / 2, y: height / 2 }
 
-      // 3. **Bloom is a suggestion, not a glow** (§7.6a). At `2 + E*10` a strained
-      // studio washed out, and a wash is the same as a blur for anything with
-      // text on it. It still rises with strain — that reading is load-bearing
-      // for §21 Act IV — it just stops arriving as fog.
-      bloom.strength = 1 + glass.bloom * 3.5
+      /*
+       * 3. **Bloom is a suggestion, not a glow** (§7.6a). At `2 + E*10` a
+       * strained studio washed out, and a wash is the same as a blur for
+       * anything with text on it. It still rises with strain — that reading is
+       * load-bearing for §21 Act IV — it just stops arriving as fog.
+       *
+       * The strain now moves `bloomScale`, which is *how much* of the extracted
+       * highlights come back, rather than the blur radius. A calm studio gets a
+       * tight halo on its lamps; a seizing one gets the same lamps blown out,
+       * which is the reading §21 Act IV wants and is a thing that happens to
+       * the lights rather than to the room.
+       */
+      bloom.bloomScale = 0.55 + glass.bloom * 1.5
 
       // 4. Entropy sets the floor, a crit adds a punch on top of it.
       // Fringing is the single worst pass for small text, because it attacks the

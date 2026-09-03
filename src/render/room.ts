@@ -1882,7 +1882,30 @@ export const TEAM_ROOM_BOUNDS = suiteBox(
  * said "2 — a second desk pushed alongside. James" since before any of this was
  * built. It was never a description of a rank-and-file seat.
  */
-export const SUITE_SEATED: readonly HeroId[] = ['james']
+/*
+ * §7.8.0c [amended 2026-09-03] — **and it is nobody now.**
+ *
+ * Holding a seat back was the right answer to the question it was asked: the
+ * floor's suite has a doorway that lets out onto the head of row 0, and a body
+ * standing in a doorway is a defect. It was the wrong answer to a question
+ * nobody asked it — *how many developers has the studio got* — and that is the
+ * one the player reads off the rail.
+ *
+ * §7.8.0c's garage is full at twenty ordinary developers. With James taken out
+ * of the headcount it read `DEVS 21`, and the twenty-first hire then arrived to
+ * a room that drew no new body, because the office took its held seat back at
+ * the same moment. v9 says twenty, and the honest way to get there is for James
+ * to stop consuming a seat **in either room**: he is a hero with a desk in the
+ * suite, exactly like the five who follow him, and the suite's plots have never
+ * been in the seat lattice.
+ *
+ * What that gives up is the empty threshold plot on floors large enough to use
+ * `planSeat`, and it is a real cost — stated here rather than discovered later.
+ * What it buys is one index space across the move: garage seat *n* and office
+ * seat *n* are the same person, and the move is a change of coordinates with no
+ * shift in it at all.
+ */
+export const SUITE_SEATED: readonly HeroId[] = []
 
 /**
  * How many of a window's first seats the suite holds. One, and it is James.
@@ -1893,9 +1916,52 @@ export const SUITE_SEATED: readonly HeroId[] = ['james']
  */
 export const SUITE_SEATS = SUITE_SEATED.length
 
-/** The same, for a given §26.2.2 window. Zero anywhere but the studio's own. */
-export function suiteSeatsIn(windowFrom: number): number {
-  return windowFrom === 0 ? SUITE_SEATS : 0
+/**
+ * The same, for a given §26.2.2 window and presentation. Zero anywhere but the
+ * studio's own — **and zero in the garage.**
+ *
+ * §7.8.0c [amended 2026-09-03]. The rule above is right about the *floor*: the
+ * suite there is a room inside a lattice, its doorway lets out onto the head of
+ * row 0, and holding that plot back is what stops a body being drawn standing
+ * in it. None of that is true of the garage. Its leadership corner is a
+ * free-standing box with its own two desks and its own doorway; the pods are an
+ * authored table of five, not a lattice; and nothing in the garage wants a
+ * reserved plot at all.
+ *
+ * What holding one cost was the number on the rail. §7.8.0c's garage is full at
+ * twenty ordinary developers, and with James taken out of the headcount the
+ * completed garage read `DEVS 21` — a studio that has to hire twenty-one people
+ * to see the picture the section is about. v9 reads `DEVS 20`, which is the
+ * same claim §7.8.0 has always made in prose (*"a leadership hire does not
+ * bring the garage one seat closer to full"*) finally made in the counter too:
+ * the founder and James are physical, and they are outside the twenty.
+ */
+export function suiteSeatsIn(windowFrom: number, garage = false): number {
+  return windowFrom === 0 && !garage ? SUITE_SEATS : 0
+}
+
+/**
+ * §7.8.0c [added 2026-09-03] — **who is physically in the garage.**
+ *
+ * The founder and James, and nobody else. Mo, Serena, Matt, Melany and Billy
+ * are real people in the run from the moment their scenes fire, but their first
+ * *physical appearance* belongs to the office — the garage is the two-desk
+ * story, and a glass box with seven people in it is the punchline of a
+ * different act told early.
+ *
+ * It is a **renderer** rule rather than a store one, deliberately. Progression
+ * flags are set by scenes, by `?full`, by a scenario and by a save from any
+ * point in a career, and every one of those is a way for five extra bodies to
+ * arrive in a room that has no desks for them. The room decides who it draws.
+ */
+export const GARAGE_CAST: readonly HeroId[] = ['james']
+
+/** The heroes this presentation draws, out of the ones the studio has. */
+export function roomCast<T extends { id: HeroId }>(
+  heroes: readonly T[],
+  garage: boolean,
+): T[] {
+  return garage ? heroes.filter((hero) => GARAGE_CAST.includes(hero.id)) : [...heroes]
 }
 
 /**
@@ -1924,7 +1990,7 @@ export function suiteSeatsIn(windowFrom: number): number {
  */
 export function drawnSeatPlot(seat: number, windowFrom: number, garage: boolean): SuitePlot {
   const i = Math.max(0, Math.floor(seat))
-  const held = suiteSeatsIn(windowFrom)
+  const held = suiteSeatsIn(windowFrom, garage)
   if (i < held) return suitePlot(SUITE_SEATED[i])
   if (garage) {
     /*
@@ -1986,7 +2052,7 @@ export function drawnSeatPosition(
  * changes which way they are looking except by being selected or by speaking.
  */
 export function seatFacesCamera(seat: number, windowFrom: number, garage: boolean): boolean {
-  const held = suiteSeatsIn(windowFrom)
+  const held = suiteSeatsIn(windowFrom, garage)
   const i = Math.max(0, Math.floor(seat))
   if (i < held) return false
   const ordinary = i - held
@@ -3598,18 +3664,33 @@ function drawWindow(
    * instead of on the twenty people under it.
    */
   pane: string = RAMPS.GLOW[1],
+  /**
+   * §7.8.0c [2026-09-03] — the frame, which is the half that decides how loud
+   * the window is. The office's is white UPVC. The garage's is a dark steel
+   * factory frame: the same broad pane inside it reads as industrial glazing
+   * rather than as a conservatory, and it stops the opening being the lightest
+   * mark on a masonry wall.
+   */
+  frame: string = RAMPS.NEUTRAL[8],
 ) {
-  // The white UPVC frame.
-  wallQuad(g, x, y, w, h, slope, c(RAMPS.NEUTRAL[8]))
+  // The frame.
+  wallQuad(g, x, y, w, h, slope, c(frame))
   // The glass — clearly lighter than the wall, so the pane reads as glass set
   // into it rather than as the wall showing through a white outline.
   wallQuad(g, x, y + 3, w - 5, h - 6, slope, c(pane))
-  // The central mullion, splitting the glass into two casements.
-  wallQuad(g, x, y + 3, 3, h - 6, slope, c(RAMPS.NEUTRAL[8]))
+  /*
+   * The mullions, splitting the glass into casements. **One per 20 px of
+   * width** rather than a single central bar: a factory window is a grid, and a
+   * sixty-pixel pane with one division in it is a patio door.
+   */
+  const bays = Math.max(2, Math.round(w / 20))
+  for (let i = 1; i < bays; i++) {
+    wallQuad(g, x - w / 2 + (i * w) / bays, y + 3 + slope * (-w / 2 + (i * w) / bays), 2.5, h - 6, slope, c(frame))
+  }
   // The sill — a wider ledge along the bottom, plus the shadow it casts down
   // the wall, so the window ends on a ledge instead of floating.
-  wallQuad(g, x, y + h - 3, w + 8, 4, slope, c(RAMPS.NEUTRAL[7]))
-  wallQuad(g, x, y + h + 1, w + 8, 3, slope, c(RAMPS.NEUTRAL[1]))
+  wallQuad(g, x, y + h - 3, w + 8, 4, slope, c(frame))
+  wallQuad(g, x, y + h + 1, w + 8, 3, slope, c(RAMPS.NEUTRAL[0]))
 }
 
 function drawBin(g: Graphics, x: number, y: number) {
@@ -3655,7 +3736,14 @@ function drawPoster(g: Graphics, x: number, y: number, i: number, slope: number)
 
 function drawWhiteboard(g: Graphics, x: number, y: number, seed: number, slope: number) {
   const W = 60
-  wallQuad(g, x, y, W, 34, slope, c(RAMPS.NEUTRAL[7]))
+  /*
+   * **`[6]`, not `[7]`** [2026-09-03]. §7.6a's bloom extracts by threshold now,
+   * so the brightest surfaces in the room are the ones that glow — and a
+   * whiteboard at `NEUTRAL[7]` is brighter than a desk lamp, so the boards lit
+   * up and the lamps did not. A whiteboard in a dark garage is off-white; the
+   * thing that should be the brightest object in this room is a light.
+   */
+  wallQuad(g, x, y, W, 34, slope, c(RAMPS.NEUTRAL[6]))
   wallQuad(g, x, y + 32, W, 3, slope, c(RAMPS.NEUTRAL[4]))
   // Scrawl. Each line is a wall-plane strip, left-aligned, so the writing runs
   // along the board instead of across the screen in front of it.
@@ -4069,7 +4157,7 @@ export function buildRoom(): RoomHandle {
    * desks away would put a hole in a floor that has no room to explain it.
    */
   function suiteSeats(): number {
-    return suiteSeatsIn(windowFrom)
+    return suiteSeatsIn(windowFrom, drawnGarage)
   }
 
   /**
@@ -4107,8 +4195,28 @@ export function buildRoom(): RoomHandle {
     // else. A block drawn out of a nation is a floor of a company this size; it
     // is not the floor the founder is sitting on.
     const here = windowFrom === 0
-    const peopled = here && team.length > 0
-    const walls = here && team.length > 1
+    /*
+     * §7.8.0c [2026-09-03] — **the room draws its cast, not the studio's
+     * roster.** See {@link roomCast}. Everything below reads `cast`, so the
+     * glass, the east wall, the desks, the bodies, the plates and the packet
+     * animations are all sized and populated from one list — which is the
+     * property that makes "Mo is not in the garage" a fact about the room
+     * rather than a fact about six separate loops.
+     */
+    const cast = roomCast(team, drawnGarage)
+    const peopled = here && cast.length > 0
+    /*
+     * **The garage's box goes up for two**, and it used to want three.
+     *
+     * `team.length > 1` is §7.8.12's rule and it is right on the floor: James
+     * alone is the garage story and a glass box around two people is a
+     * punchline told before the setup. But the garage's cast *is* two — the
+     * founder and James — so on the old test the room only ever glazed itself
+     * once Mo arrived, and v9's two-person office would never have been drawn
+     * at all. In the garage the founder counts toward the pair, because in the
+     * garage the founder is in the room.
+     */
+    const walls = here && cast.length > (drawnGarage ? 0 : 1)
     teamArchitecture.visible = walls
     teamDeskLayer.visible = peopled
     teamPeopleLayer.visible = peopled
@@ -4122,7 +4230,7 @@ export function buildRoom(): RoomHandle {
       return
     }
 
-    const east = suiteEastCol(team.map((hero) => hero.id))
+    const east = suiteEastCol(cast.map((hero) => hero.id))
     teamBox = walls ? suiteBox(east) : null
     suiteGrid = walls
       ? { minCol: SUITE_WEST_COL, maxCol: east, minRow: SUITE_WALL_ROW, maxRow: SUITE_GLASS_ROW }
@@ -4329,7 +4437,7 @@ export function buildRoom(): RoomHandle {
       }
     }
 
-    for (const hero of team) {
+    for (const hero of cast) {
       const plot = SUITE_PLOTS[hero.id]
       const at = isoAt(plot.col, plot.row)
       const colour = c(hero.colour)
@@ -4566,8 +4674,9 @@ export function buildRoom(): RoomHandle {
     // point below the old plate, which put every remote assignment through the
     // middle of a pane of glass.
     const exit = isoAt(0, SUITE_GLASS_ROW)
-    for (let order = 0; order < team.length; order++) {
-      const hero = team[order]
+    const cast = roomCast(team, drawnGarage)
+    for (let order = 0; order < cast.length; order++) {
+      const hero = cast[order]
       if (!hero.assigned) continue
       const at = teamDeskPosition(hero.id)
       const colour = c(hero.colour)
@@ -4762,27 +4871,42 @@ export function buildRoom(): RoomHandle {
     // of a nation is a block in a company that size, not a garage.
     const n = Math.max(0, Math.min(ROOM_DEV_CAP, Math.floor(headcount) - windowFrom))
     /*
+     * §7.8.1c [amended 2026-09-01] — the **twentieth** ordinary hire fills the
+     * garage, so the floor has to open on the twenty-first. Once started, never
+     * unstarted for this run: the unfold is a one-shot and the floor does not
+     * fold back up if the studio shrinks.
+     *
+     * §7.8.0c [amended 2026-09-03] — **and the room is settled before anybody is
+     * counted**, because what the suite holds back is now a property of the
+     * room. Asked in the other order it is circular: `held` would depend on
+     * `garage`, `garage` on `unfolded`, and `unfolded` on an `ordinary` that
+     * needs `held`. Tested against `n` rather than `ordinary`, which is the same
+     * number in the garage — where `held` is zero — and only ever consulted on
+     * the one crossing where that is true.
+     */
+    if (unfoldT < 0 && sceneFor(n) !== 'garage') unfoldT = 0
+    const unfolded = unfoldT >= 0
+    // §7.8.0c — the garage is the folded room, and it is only ever the studio's
+    // own window: §26.2.2's blocks are drawn out of a nation, and a block in a
+    // company that size is not somebody's garage.
+    const garage = !unfolded && windowFrom === 0
+    // The cast changes with the room (§7.8.0c), so the suite has to be redrawn
+    // when the room does — otherwise the five heroes the garage refused to draw
+    // arrive on the office floor a rebuild late, or never.
+    const presentationChanged = garage !== drawnGarage
+    drawnGarage = garage
+    /*
      * §7.8.0 — **ordinary developers, which is not the headcount.**
      *
      * The suite's people (§7.8.12) are in `n` and are not in the seat lattice,
      * so the scale model has to be asked about the difference. This is the one
      * place the two are reconciled, and everything downstream reads `ordinary`
      * rather than re-deriving it: "leadership does not consume capacity" is one
-     * subtraction, made once, or it is a rule that holds in some files.
+     * subtraction, made once, or it is a rule that holds in some files. In the
+     * garage the difference is zero and the counter says so.
      */
     const heldSeats = suiteSeats()
     const ordinary = Math.max(0, n - heldSeats)
-    // §7.8.1c [amended 2026-09-01] — the **twentieth** ordinary hire fills the
-    // garage, so the floor has to open on the twenty-first. Once started, never
-    // unstarted for this run: the unfold is a one-shot and the floor does not
-    // fold back up if the studio shrinks.
-    if (unfoldT < 0 && sceneFor(ordinary) !== 'garage') unfoldT = 0
-    const unfolded = unfoldT >= 0
-    // §7.8.0c — the garage is the folded room, and it is only ever the studio's
-    // own window: §26.2.2's blocks are drawn out of a nation, and a block in a
-    // company that size is not somebody's garage.
-    const garage = !unfolded && windowFrom === 0
-    drawnGarage = garage
     // Only a garage has piers; an office floor that inherited last frame's set
     // would report a shell it never drew.
     drawnPiers = []
@@ -4927,8 +5051,12 @@ export function buildRoom(): RoomHandle {
       : unfolded
       ? FLOOR_MAX_COL
       : garage
-        ? Math.max(cols - 1 + WALL_THICK, suiteEastCol(team.map((hero) => hero.id)) + 1)
-        : Math.max(cols - 1, suiteEastCol(team.map((hero) => hero.id)), FOUNDER_CORNER_COL + 2) +
+        ? Math.max(cols - 1 + WALL_THICK, suiteEastCol(roomCast(team, garage).map((h) => h.id)) + 1)
+        : Math.max(
+              cols - 1,
+              suiteEastCol(roomCast(team, garage).map((h) => h.id)),
+              FOUNDER_CORNER_COL + 2,
+            ) +
           surround * 2
     const shellMaxRow = officeShell
       ? GARAGE_ROW0 + (OFFICE_SPAN + WALL_THICK) / PITCH_ROW
@@ -5164,6 +5292,18 @@ export function buildRoom(): RoomHandle {
     // §7.8.12 — the suite's glass is drawn to the room's own wall height, and
     // `rebuildTeam` runs separately, so the number is shared rather than guessed.
     drawnWallH = WALL_H
+    /*
+     * §7.8.0c [2026-09-03] — **and the suite is repainted when the room
+     * changes underneath it.**
+     *
+     * `rebuildTeam` runs off `setTeam`, which fires when the *roster* changes.
+     * The cast is now a function of the roster **and** the presentation, so the
+     * unfold is a second thing that can change it — and it is the one that
+     * matters, because it is where the five heroes the garage refused to draw
+     * are supposed to arrive. Here rather than earlier in this function because
+     * the suite's glass is drawn to `drawnWallH`, which is the line above.
+     */
+    if (presentationChanged) rebuildTeam()
 
     /*
      * §7.8.0b/§7.8.0c — **the garage gets four thick walls; the office floor
@@ -5652,10 +5792,12 @@ export function buildRoom(): RoomHandle {
        * room and goes in `nearWall`, after the cut-down walls whose join it is
        * there to cap.
        */
+      // Warmed by the same recipe as the wall they cap — see
+      // `GARAGE_VALUES.column`. A cool pier on a warm building is a tower.
       const columnPaint: WallPaint = {
-        top: RAMPS.NEUTRAL[GARAGE_VALUES.column.top],
-        left: RAMPS.NEUTRAL[GARAGE_VALUES.column.left],
-        right: RAMPS.NEUTRAL[GARAGE_VALUES.column.right],
+        top: warmFar(GARAGE_VALUES.column.top),
+        left: warmFar(GARAGE_VALUES.column.left),
+        right: warmFar(GARAGE_VALUES.column.right),
       }
       drawnPiers = []
       for (const col of garageColumns(-halfBack, -halfAcross, halfBack, halfAcross)) {
@@ -5868,6 +6010,8 @@ export function buildRoom(): RoomHandle {
         // `GARAGE_VALUES.gate` — and the corrugation, the sign and the piers
         // are what name it.
         const gate = GARAGE_VALUES.gate
+        // §7.8.0c — the shutter's paint, from `GARAGE_VALUES.shutter`.
+        const oxblood = (t: number) => mixHex(RAMPS.ALARM[0], RAMPS.ALARM[1], t)
         isoSolid(
           nearWall,
           shellProject,
@@ -5878,9 +6022,9 @@ export function buildRoom(): RoomHandle {
           depth,
           SHUTTER_H,
           {
-            top: RAMPS.NEUTRAL[gate.panel + 1],
-            left: RAMPS.NEUTRAL[gate.panel],
-            right: RAMPS.NEUTRAL[gate.panel - 1],
+            top: oxblood(gate.shutter.top),
+            left: oxblood(gate.shutter.left),
+            right: oxblood(gate.shutter.right),
           },
         )
         // The header over it: the same footprint, standing on the shutter's
@@ -5938,37 +6082,10 @@ export function buildRoom(): RoomHandle {
          * it, so it goes in a layer over the wall rather than into it.
          */
         /*
-         * **The red band across the slats**, which the concept has and which is
-         * not the sign: the sign is a plate on the header above, and this is
-         * paint on the door itself. Two thirds of the way up, where a roller
-         * shutter's colour break actually falls — and it is what keeps the
-         * shutter from reading as nine grey lines once the lettering moved off
-         * it.
+         * There is no band across the slats any more. It existed because the
+         * panel was grey and needed something to say it was a door; the panel
+         * is painted now, and a second colour on it is a second door.
          */
-        {
-          const bandLo = SHUTTER_H * 0.46
-          const bandHi = SHUTTER_H * 0.82
-          const s0 = shellProject(door.at, faceGy)
-          const s1 = shellProject(door.at + door.width, faceGy)
-          nearWall
-            .moveTo(s0.x, s0.y - bandLo * HEIGHT_UNIT)
-            .lineTo(s1.x, s1.y - bandLo * HEIGHT_UNIT)
-            .lineTo(s1.x, s1.y - bandHi * HEIGHT_UNIT)
-            .lineTo(s0.x, s0.y - bandHi * HEIGHT_UNIT)
-            .closePath()
-            .fill({ color: c(RAMPS.ALARM[0]), alpha: 0.92 })
-          // The slats run over the paint, not under it — a shutter is corrugated
-          // whichever colour it has been painted.
-          for (let i = 1; i < SLATS; i++) {
-            const z = i * SLAT
-            if (z < bandLo || z > bandHi) continue
-            const lift = z * HEIGHT_UNIT
-            nearWall
-              .moveTo(s0.x, s0.y - lift)
-              .lineTo(s1.x, s1.y - lift)
-              .stroke({ width: 1, color: c(RAMPS.NEUTRAL[0]), alpha: 0.5 })
-          }
-        }
         {
           const mid = shellProject(door.at + door.width / 2, faceGy)
           /*
@@ -6539,12 +6656,32 @@ export function buildRoom(): RoomHandle {
        * the casement's proportions, and the wall keeps being mostly block —
        * which is what makes the shelving and the tool board on it read.
        */
-      const WIN_W = 34
-      const WIN_H = Math.max(14, WALL_H * 0.33)
-      for (const along of [0.25, 0.65]) {
+      /*
+       * §7.8.0c [amended 2026-09-03] — **broad factory windows, not slits.**
+       *
+       * They went to 34 by a third of the wall when the panes were steel blue
+       * and the brightest thing on that surface. The pane was the problem and
+       * the size took the punishment: v9 has *wide, low* studio glazing with
+       * dark frames — the shape of a converted workshop — and it is the dark
+       * frame that keeps it quiet, not the width. A narrow tall opening high in
+       * a masonry wall is a different building entirely, and the word for it is
+       * in the brief: a slit.
+       */
+      const WIN_W = 62
+      const WIN_H = Math.max(16, WALL_H * 0.30)
+      for (const along of [0.26, 0.62]) {
         const wx = topX - westW * along
         const wy = topY + westH * along
-        drawWindow(shell, wx, wy - WALL_H * 0.78, WIN_W, WIN_H, -WALL_SLOPE, RAMPS.NEUTRAL[4])
+        drawWindow(
+          shell,
+          wx,
+          wy - WALL_H * 0.74,
+          WIN_W,
+          WIN_H,
+          -WALL_SLOPE,
+          RAMPS.GLOW[1],
+          RAMPS.NEUTRAL[1],
+        )
         // §7.8.9 — somewhere to stand and look out of it. The garage's two
         // casements are high on the wall and that is fine: the errand is
         // "staring out of the window", and staring upward at a garage window is
@@ -8004,14 +8141,15 @@ export function buildRoom(): RoomHandle {
       applyLabelDetail()
     },
     teamDeskAt(id: HeroId) {
-      if (!team.some((hero) => hero.id === id)) return null
+      if (!roomCast(team, drawnGarage).some((hero) => hero.id === id)) return null
       return teamDeskPosition(id)
     },
     teamHeroAt(x: number, y: number, reach = 24) {
-      if (team.length === 0 || windowFrom !== 0) return null
+      const cast = roomCast(team, drawnGarage)
+      if (cast.length === 0 || windowFrom !== 0) return null
       let found: HeroId | null = null
       let nearest = reach * reach
-      for (const hero of team) {
+      for (const hero of cast) {
         const at = teamDeskPosition(hero.id)
         const dx = x - at.x
         const dy = y - (at.y - 7)
@@ -8059,7 +8197,7 @@ export function buildRoom(): RoomHandle {
         },
         suite: teamBox && suiteGrid ? { box: { ...teamBox }, grid: { ...suiteGrid } } : null,
         suiteWalls: suiteWalls.map((w) => ({ a: { ...w.a }, b: { ...w.b } })),
-        plots: team.map((hero) => {
+        plots: roomCast(team, drawnGarage).map((hero) => {
           const plot = suitePlot(hero.id)
           const at = teamDeskPosition(hero.id)
           return { id: hero.id, col: plot.col, row: plot.row, x: at.x, y: at.y }

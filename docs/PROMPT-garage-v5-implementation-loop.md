@@ -1,8 +1,8 @@
 # Superseded garage v5 implementation loop
 
 > Superseded on 2026-09-03 by
-> `docs/PROMPT-garage-v6-implementation-loop.md`, which adds the exact curbside
-> rhythm of one street light per three planters on both visible sides.
+> `docs/PROMPT-garage-v9-founder-james-neighbourhood-loop.md`, which retains the
+> curb rhythm and corrects the garage roster and rear scenery.
 
 # Agent goal and visual convergence loop — garage v5
 

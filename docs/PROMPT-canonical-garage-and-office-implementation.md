@@ -5,7 +5,7 @@
 > the affected GDD sections in the same batches as the code.
 >
 > **Garage convergence superseded 2026-09-03:** use
-> `docs/PROMPT-garage-v6-implementation-loop.md` for the current single-scene
+> `docs/PROMPT-garage-v9-founder-james-neighbourhood-loop.md` for the current single-scene
 > garage goal, including four workstation facings and no garage chairs.
 
 Create and pursue the following implementation goal. Do not stop after planning;
@@ -18,7 +18,7 @@ Rebuild the early-scale presentation of *100,000,000 Developers* around two
 canonical concept artworks:
 
 1. Garage, maximum 20 regular developers:
-   `docs/assets/concepts/garage-layout-concept-20-devs-v6-curb-rhythm.png`
+   `docs/assets/concepts/garage-layout-concept-20-devs-v9-founder-james-neighbourhood.png`
 2. Office floor, maximum 100 regular developers:
    `docs/assets/concepts/office-layout-concept-100-devs-v2.png`
 
@@ -113,17 +113,20 @@ At 20 regular developers, the garage must closely match the garage concept:
 
 - Five four-person 2×2 facing desk pods.
 - Twenty regular developer workstations total.
-- Founder and leadership figures in a separate improvised corner behind
-  reclaimed glass, excluded from capacity.
+- Only the founder and James in a compact two-person room behind reclaimed
+  glass, both excluded from capacity. Mo, Serena, Matt, Melany and Billy first
+  appear in later office scenes.
 - Thick concrete-block walls with full-height far walls and half-height near
   cutaway walls.
 - A real roll-up garage door, side door and driveway.
 - Cracked concrete, workbench, tool board, shelves, beer fridge, kettle, boxes,
-  cables, bicycle, battered sofa and mismatched furniture.
+  cables, battered sofa and mismatched furniture; no vehicle props.
 - A clear route from the entrance through the five pods to the leadership
   corner.
 - Individual people large enough to tap.
 - A full-garage frame that communicates the need for expansion.
+- A restrained rear neighbourhood of trees, shrubs, pavement and dim low-rise
+  buildings behind the full-height rear walls.
 - The cyan expansion blueprint/seam and an understated expansion-ready cue.
 - No statue, grand atrium, corporate canteen or finished executive suite.
 

@@ -1,3 +1,9 @@
+# Superseded garage v6 implementation loop
+
+> Superseded on 2026-09-03 by
+> `docs/PROMPT-garage-v9-founder-james-neighbourhood-loop.md`. The garage now
+> contains only the founder and James; later heroes first appear in office scenes.
+
 # Agent goal and visual convergence loop — garage v6
 
 > This is an execution prompt, not a second design authority. `GDD.html` remains

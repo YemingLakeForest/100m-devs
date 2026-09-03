@@ -195,7 +195,16 @@ function windows(
   d: number,
   h: number,
   salt: number,
+  dim = false,
 ) {
+  /*
+   * §7.8.0c — `dim` is the garage's rear band. A neighbour there is a
+   * *silhouette*, and a silhouette with half its windows on is a facade. Two
+   * changes: far fewer lit panes, and the lit ones a step down the warm ramp —
+   * enough that the block reads as inhabited and not enough that the eye leaves
+   * the room to look at it.
+   */
+  const litAt = dim ? 0.86 : 0.46
   const floors = Math.max(2, Math.floor(h / 0.62))
   const across = Math.max(2, Math.floor(d / 0.66))
   const back = Math.max(2, Math.floor(w / 0.66))
@@ -205,21 +214,21 @@ function windows(
     // read as reflecting the sky; the shadow face's read as lit from inside,
     // which is why the two ramps below are different.
     for (let i = 0; i < across; i++) {
-      const lit = rnd(salt * 31 + f * 7 + i) > 0.46
+      const lit = rnd(salt * 31 + f * 7 + i) > litAt
       const y = gy + 0.24 + (i * (d - 0.48)) / across
       isoSolid(g, p, gx + w - 0.03, y, z, 0.03, (d - 0.48) / across - 0.16, 0.3, {
         top: RAMPS.NEUTRAL[1],
-        left: lit ? RAMPS.WARN[2] : RAMPS.NEUTRAL[1],
-        right: lit ? RAMPS.WARN[1] : RAMPS.NEUTRAL[0],
+        left: lit ? RAMPS.WARN[dim ? 1 : 2] : RAMPS.NEUTRAL[dim ? 0 : 1],
+        right: lit ? RAMPS.WARN[dim ? 0 : 1] : RAMPS.NEUTRAL[0],
       })
     }
     for (let i = 0; i < back; i++) {
-      const lit = rnd(salt * 53 + f * 11 + i) > 0.52
+      const lit = rnd(salt * 53 + f * 11 + i) > litAt
       const x = gx + 0.24 + (i * (w - 0.48)) / back
       isoSolid(g, p, x, gy + d - 0.03, z, (w - 0.48) / back - 0.16, 0.03, 0.3, {
         top: RAMPS.NEUTRAL[1],
-        left: lit ? RAMPS.WARN[3] : RAMPS.NEUTRAL[2],
-        right: lit ? RAMPS.WARN[2] : RAMPS.NEUTRAL[1],
+        left: lit ? RAMPS.WARN[dim ? 2 : 3] : RAMPS.NEUTRAL[dim ? 0 : 2],
+        right: lit ? RAMPS.WARN[dim ? 1 : 2] : RAMPS.NEUTRAL[dim ? 0 : 1],
       })
     }
   }
@@ -234,15 +243,47 @@ function windows(
  * some lit windows in it. What makes the row read is the *variation in height*,
  * which is free, rather than detail, which is not.
  */
-function neighbour(g: Graphics, p: Project, gx: number, gy: number, w: number, d: number, h: number, salt: number) {
-  const face = FACADES[Math.floor(rnd(salt * 7) * FACADES.length) % FACADES.length]
+/**
+ * Facades for the garage's rear band — **silhouettes, not buildings.**
+ *
+ * The office's `FACADES` sit at `NEUTRAL[2]`–`[4]`, which is the right value
+ * for a row across a road from a building the camera is looking down at. Behind
+ * the garage's rear wall the same values put the brightest large surfaces in
+ * the picture *above and behind* the room, and the studio stopped being the
+ * subject of its own frame. These are a step above the carriageway and no more.
+ */
+const DIM_FACADES = [
+  { top: RAMPS.NEUTRAL[2], left: RAMPS.NEUTRAL[1], right: RAMPS.NEUTRAL[0] },
+  { top: RAMPS.NEUTRAL[1], left: RAMPS.NEUTRAL[1], right: RAMPS.NEUTRAL[0] },
+  { top: RAMPS.WOOD[0], left: RAMPS.NEUTRAL[1], right: RAMPS.NEUTRAL[0] },
+]
+
+function neighbour(
+  g: Graphics,
+  p: Project,
+  gx: number,
+  gy: number,
+  w: number,
+  d: number,
+  h: number,
+  salt: number,
+  dim = false,
+) {
+  const palette = dim ? DIM_FACADES : FACADES
+  const face = palette[Math.floor(rnd(salt * 7) * palette.length) % palette.length]
   isoSolid(g, p, gx, gy, 0, w, d, h, face)
-  windows(g, p, gx, gy, w, d, h, salt)
+  windows(g, p, gx, gy, w, d, h, salt, dim)
   // The parapet — a thin lip standing proud of the roof. One quad, and it is
   // what stops a tower reading as a solid extruded rectangle.
   isoSolid(g, p, gx - 0.06, gy - 0.06, h, w + 0.12, d + 0.12, 0.16, {
-    top: RAMPS.NEUTRAL[4], left: RAMPS.NEUTRAL[3], right: RAMPS.NEUTRAL[1],
+    top: RAMPS.NEUTRAL[dim ? 2 : 4],
+    left: RAMPS.NEUTRAL[dim ? 1 : 3],
+    right: RAMPS.NEUTRAL[dim ? 0 : 1],
   })
+  // A roof plant and an aerial belong to a skyline the camera is reading. The
+  // rear band is a backdrop; giving it silhouettes on top of silhouettes is how
+  // a backdrop becomes a second scene.
+  if (dim) return
   if (rnd(salt * 17) > 0.55) {
     // Roof plant: the water tank, the AC, the thing on top of every real
     // building and no drawn one.
@@ -533,6 +574,114 @@ export function garageKerbFor(
 }
 
 /**
+ * §7.8.0c [added 2026-09-03] — **the neighbourhood behind the rear walls.**
+ *
+ * The garage's two far walls are full height and the camera sees over both of
+ * them, so what is behind them is in the picture whether anything is drawn
+ * there or not. It was a black void: the building read as a model on a table
+ * rather than as a garage on a street, and every warm surface in the frame had
+ * nothing to be warm against.
+ *
+ * §7.8.1e already draws neighbours for the office floor and the garage stop
+ * suppresses them, for the reason recorded there — at this scale a row of lit
+ * facades across the road is brighter and busier than the room the game is
+ * about. That reasoning is about *contrast*, not about emptiness, and this is
+ * the version of it that survives: three bands, each quieter than the one in
+ * front of it, none of them competing.
+ *
+ * - **Shrubs and pavement** in the strip immediately behind the wall — the
+ *   quiet band, and the one that says the wall has a back.
+ * - **Trees** in the middle, dense enough to break the roofline and dark enough
+ *   that they read as mass rather than as objects. Blocky and deciduous: this
+ *   is `tree()`, the same model the office street uses.
+ * - **Low buildings** furthest out, at the bottom of the ramp, with a handful
+ *   of warm windows between them. Silhouettes, not facades.
+ *
+ * Pure and deterministic, because the room rebuilds on every hire and a
+ * neighbourhood that reshuffles when somebody is hired is a neighbourhood
+ * nobody believes. It emits **scenery only** — every entry is behind the rear
+ * wall line by construction, and nothing in it is on the floor, in a lane, or
+ * reachable by a tap.
+ */
+export type RearBand = 'shrub' | 'tree' | 'building'
+
+export interface RearProp {
+  readonly band: RearBand
+  readonly gx: number
+  readonly gy: number
+  /** Trees and shrubs: a scale. Buildings: their width along the run. */
+  readonly size: number
+  /** Buildings only — how deep and how tall. */
+  readonly depth: number
+  readonly height: number
+  /** Deterministic seed for the window pattern. */
+  readonly salt: number
+}
+
+/** How far behind each rear wall the three bands sit, as fractions of `back`. */
+const REAR_BANDS: Record<RearBand, number> = { shrub: 0.24, tree: 0.72, building: 1.8 }
+/** Spacing along each run, in tiles. Trees closest — they are the mass. */
+const REAR_PITCH: Record<RearBand, number> = { shrub: 4.1, tree: 1.95, building: 7.4 }
+
+/**
+ * The scenery behind the two rear walls, for a shell of this size.
+ *
+ * The runs reach well past both corners on purpose. A band that stops where the
+ * building stops reads as a stage flat, and the corner is the one place the eye
+ * can check — which is `drawDistrict`'s own note about the office's neighbours,
+ * one scale down.
+ */
+export function garageRearPlan(hb: number, ha: number, back: number): RearProp[] {
+  const out: RearProp[] = []
+  const runFrom = -Math.max(hb, ha) - back * 2.2
+  /** Along the back-left wall (a `gy`), set back on `gx`, and the mirror. */
+  const push = (band: RearBand, along: number, i: number, side: 0 | 1) => {
+    const set = back * REAR_BANDS[band]
+    // A little scatter across the band so a run does not read as a fence, taken
+    // from the index rather than from a clock.
+    const jitter = (rnd(i * 7 + side * 91 + band.length) - 0.5) * back * 0.16
+    const gx = side === 0 ? -hb - set - jitter : along
+    const gy = side === 0 ? along : -ha - set - jitter
+    const salt = i * 13 + side * 41 + band.length * 7
+    if (band === 'building') {
+      out.push({
+        band,
+        gx,
+        gy,
+        // **Low.** The rear band is a neighbourhood, not a skyline: anything
+        // taller than the garage's own rear wall stops being behind it and
+        // starts being over it.
+        size: 4.2 + rnd(salt) * 3.6,
+        depth: 3.6 + rnd(salt + 3) * 3.0,
+        height: 1.5 + rnd(salt + 5) * 1.8,
+        salt,
+      })
+      return
+    }
+    out.push({
+      band,
+      gx,
+      gy,
+      size: (band === 'tree' ? 1.35 : 0.6) + rnd(salt) * (band === 'tree' ? 0.55 : 0.16),
+      depth: 0,
+      height: 0,
+      salt,
+    })
+  }
+  for (const band of ['building', 'tree', 'shrub'] as const) {
+    const pitch = REAR_PITCH[band]
+    const to = (side: 0 | 1) => (side === 0 ? ha : hb) + back * 1.1
+    for (const side of [0, 1] as const) {
+      let i = 0
+      for (let along = runFrom; along < to(side); along += pitch, i += 1) {
+        push(band, along + rnd(i * 5 + side * 17) * pitch * 0.34, i, side)
+      }
+    }
+  }
+  return out
+}
+
+/**
  * Where the garage's two visible kerbs are, and what stands on them.
  *
  * One setback per side and one axis per side, derived from the same band table
@@ -763,6 +912,22 @@ export function drawDistrict(g: Graphics, p: Project, shell: DistrictShell): voi
      * reason: §7.8.0c reserves the gate apron, and a parked car is the one
      * object that contradicts a clear driveway.
      */
+    /*
+     * The neighbourhood first, and by depth like everything else. It is behind
+     * both rear walls, so the room paints over it — which is what keeps the
+     * trees off the factory windows and out of the glass office without a
+     * single clearance rule: they are simply further away.
+     */
+    for (const prop of garageRearPlan(hb, ha, back)) {
+      const { gx, gy } = prop
+      if (prop.band === 'building') {
+        at(gx, gy, () => neighbour(g, p, gx, gy, prop.size, prop.depth, prop.height, prop.salt, true))
+      } else if (prop.band === 'tree') {
+        at(gx, gy, () => tree(g, p, gx, gy, prop.size))
+      } else {
+        at(gx, gy, () => bushPlanter(g, p, gx, gy))
+      }
+    }
     const runs = garageKerbRuns(hb, ha, d, back, kerb)
     for (const station of curbStations(runs.frontage.run)) {
       const x = station.along

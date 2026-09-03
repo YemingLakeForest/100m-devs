@@ -139,7 +139,22 @@ export const GARAGE_VALUES = {
    * the wash, which darkens as it warms — a wall washed at its old values came
    * out darker than the floor and the room lost its back.
    */
-  farWall: { top: 5, left: 4, right: 3, warmth: 0.51 },
+  /*
+   * **The whole wall came down a step** [2026-09-03], coping included, and the
+   * ordering is untouched.
+   *
+   * The first attempt at v9's darker rear was to drop the coping alone, from
+   * `[5]` to `[3]`. That inverts §7 indoors — a plane facing straight up into
+   * the key cannot be darker than the faces under it — and the value gate said
+   * so immediately, which is what it is for. Sampling the concept settles it:
+   * its rear coping measures (47,43,19) against a face of (31,29,14), so the
+   * coping there *is* the lighter of the two. What is darker in v9 is the wall,
+   * both planes of it, against a night street and a neighbourhood behind.
+   *
+   * So `[4]`/`[3]`/`[2]`. It still clears the floor's lit pour at `[2]`, which
+   * is the claim that says the room stands in front of its own back wall.
+   */
+  farWall: { top: 4, left: 3, right: 2, warmth: 0.6 },
   /**
    * Cut down, in front of everything, outdoors.
    *
@@ -177,7 +192,32 @@ export const GARAGE_VALUES = {
    * than both. So the panel joins the wall, the slats go to the bottom of the
    * ramp, and the piers take the lift the panel used to have.
    */
-  gate: { panel: 2, pier: 4, slat: 0 },
+  gate: {
+    panel: 2,
+    pier: 4,
+    slat: 0,
+    /**
+     * §7.8.0c [added 2026-09-03] — **the shutter's three faces, as mixes along
+     * the `ALARM` ramp.**
+     *
+     * The panel used to be the wall's own neutral with a red band painted across
+     * its middle, which is a grey door with a stripe on it. v9's whole shutter is
+     * one muted oxblood from slab to header — a roller door that has been painted
+     * and repainted — and that is the difference between a studio entrance and a
+     * security shutter: what says *door* is the corrugation and the paint, and a
+     * grey panel needs a stripe precisely because the paint is missing.
+     *
+     * Mixes between `ALARM[0]` and `ALARM[1]` rather than a straight swap onto
+     * the alarm ramp: `ALARM` at full strength is the colour this game reserves
+     * for an entropy lock, and a front door shouting at that volume is a klaxon.
+     * Measured against the concept, whose shutter reads (88,37,19) on the lit
+     * plane, (74,30,16) on the face and (43,14,8) in shadow.
+     *
+     * The ordering is §7's and is checked: the top plane faces the key, the face
+     * turned down-left catches it, and the one turned down-right does not.
+     */
+    shutter: { top: 0.47, left: 0.3, right: 0.1 },
+  },
   /**
    * The four corner piers.
    *
@@ -186,7 +226,22 @@ export const GARAGE_VALUES = {
    * the shell is what makes them read as structure rather than as five
    * unrelated grey boxes.
    */
-  column: { top: 4, left: 3, right: 2 },
+  /*
+   * §7.8.0c [amended 2026-09-03] — **and they are made of the same wall.**
+   *
+   * `[4]`/`[3]`/`[2]` on the cool ramp against far walls that are warmed two
+   * steps up it produced the one read v9 names and forbids: a pale grey column
+   * standing at every corner of a warm brick building, which is a **guard
+   * tower**. Nothing about the height was wrong — measured, the far pier's cap
+   * stands about five pixels above its own coping — and that is the point. It
+   * was reading as a tower because of its *colour*.
+   *
+   * So a pier takes the far wall's recipe and one step down it: warm, and a
+   * shade darker than the block it caps, which is what a brick pilaster is. The
+   * gate's jambs keep the lift, because a jamb has a job the corners do not —
+   * it frames an opening, and an opening you cannot find is not one.
+   */
+  column: { top: 3, left: 2, right: 1, warmth: 0.51 },
   /**
    * Poured concrete: the base pour, the lighter bays polished over it, and the
    * **warmth** laid over both.
@@ -567,8 +622,19 @@ export const GARAGE_LEADERSHIP: Plot = {
    * Still generous, and deliberately: `suiteEastCol` moves with the roster, so
    * this is the seven-plot extent rather than today's.
    */
-  gx1: 5.1,
-  gy1: 7.1,
+  /*
+   * [amended 2026-09-03] **A room for two, reserved for two.**
+   *
+   * v9's leadership box holds the founder and James and nothing else, so
+   * `suiteEastCol` stops one plot past James rather than one past Serena and
+   * the drawn corner is plan **gy 0..2.81 by gx 0..4.41** — a third of the
+   * footprint the seven-plot room needed. Left at the old size the reservation
+   * would have gone on holding five tiles of the far-left wall and a lane in
+   * front of glass that is no longer there, which is the same defect this plot
+   * was corrected for once already: a rectangle that outlives what stood in it.
+   */
+  gx1: 4.9,
+  gy1: 3.4,
 }
 
 /** The reclaimed glass that fences it off, as a run in the shell's language. */
@@ -646,13 +712,13 @@ export const GARAGE_PLAN_ORIGIN_NOTE = 'plan (0,0) is the room s inner back corn
  */
 export const GARAGE_ZONES: readonly Plot[] = [
   // The far-right wall, in the order a workshop is actually built along it.
-  { name: 'THE WORKSHOP RUN', gx0: 5.4, gy0: 0, gx1: 11.2, gy1: 1.6 },
+  { name: 'THE WORKSHOP RUN', gx0: 5.4, gy0: 0, gx1: 10.3, gy1: 1.6 },
   // The same wall, past the run: where you sit down is past where you work.
-  { name: 'THE LOUNGE', gx0: 11.2, gy0: 0, gx1: 13.7, gy1: 1.6 },
+  { name: 'THE LOUNGE', gx0: 10.3, gy0: 0, gx1: 12.8, gy1: 1.6 },
   // The far-left wall, clear of the leadership corner.
-  { name: 'THE KITCHENETTE', gx0: 0, gy0: 7.4, gx1: 2.4, gy1: 11.5 },
+  { name: 'THE KITCHENETTE', gx0: 0, gy0: 4.2, gx1: 2.4, gy1: 8.3 },
   // And the one corner things are stacked in.
-  { name: 'THE STORAGE CORNER', gx0: 0, gy0: 11.5, gx1: 3.2, gy1: 14.0 },
+  { name: 'THE STORAGE CORNER', gx0: 0, gy0: 8.3, gx1: 3.2, gy1: 11.0 },
 ]
 
 export const GARAGE_PROPS: readonly Plot[] = [
@@ -692,23 +758,36 @@ export const GARAGE_PROPS: readonly Plot[] = [
   // than looking one step.
   { name: 'THE WORKBENCH', gx0: 7.9, gy0: 0.55, gx1: 9.8, gy1: 1.0 },
   { name: 'THE TOOL CHEST', gx0: 7.9, gy0: 1.0, gx1: 9.1, gy1: 1.55 },
-  { name: 'THE BIKE', gx0: 10.0, gy0: 0, gx1: 11.1, gy1: 0.9 },
-  { name: 'THE TYRES', gx0: 10.0, gy0: 0.9, gx1: 11.0, gy1: 1.5 },
+  /*
+   * [2026-09-03] **The bike and the tyres are gone.** v9 has no vehicle prop
+   * anywhere in the frame — the same rule that emptied the carriageway, applied
+   * inside the wall. A bicycle leaning on the workshop wall is a small thing to
+   * lose and it was the one object in the run that belonged to a different
+   * story: the garage is a place people write software in, not a place anybody
+   * keeps a vehicle.
+   */
   // --- the lounge: the same wall, after the run ----------------------------
   //
   // Everything stops at `GARAGE_SPAN - NEAR_CLEAR`. The sofa ran to the corner
   // once and the near-right wall stood in front of its last third, which is
   // the whole reason that constant exists.
-  { name: 'THE SOFA', gx0: 11.3, gy0: 0, gx1: 13.5, gy1: 1.1 },
-  { name: 'THE STOOL', gx0: 11.4, gy0: 1.1, gx1: 12.1, gy1: 1.55 },
+  { name: 'THE SOFA', gx0: 10.4, gy0: 0, gx1: 12.6, gy1: 1.1 },
+  { name: 'THE STOOL', gx0: 10.5, gy0: 1.1, gx1: 11.2, gy1: 1.55 },
   // --- the kitchenette: the far-left wall (gx 0), outside the corner -------
-  { name: 'THE FRIDGE', gx0: 0, gy0: 7.6, gx1: 1.1, gy1: 8.8 },
-  { name: 'THE KETTLE', gx0: 0, gy0: 9.0, gx1: 1.1, gy1: 10.0 },
-  { name: 'THE BIN', gx0: 0, gy0: 10.2, gx1: 0.95, gy1: 11.3 },
+  //
+  // [moved 2026-09-03] They start at gy 4.4 rather than 7.6, because the
+  // leadership corner in front of them is a two-person room now and no longer
+  // reaches past 2.81. Left where they were, the kitchenette sat five tiles
+  // down a blank wall with the corner's old footprint of nothing between them
+  // — a reservation's worth of empty block, which is what a plot that outlives
+  // the thing it was reserved for looks like.
+  { name: 'THE FRIDGE', gx0: 0, gy0: 4.4, gx1: 1.1, gy1: 5.6 },
+  { name: 'THE KETTLE', gx0: 0, gy0: 5.8, gx1: 1.1, gy1: 6.8 },
+  { name: 'THE BIN', gx0: 0, gy0: 7.0, gx1: 0.95, gy1: 8.1 },
   // --- the storage corner: the far end of that wall, and only this ---------
-  { name: 'THE BOXES', gx0: 0, gy0: 11.7, gx1: 1.1, gy1: 13.8 },
-  { name: 'THE CRATES', gx0: 1.1, gy0: 12.0, gx1: 2.1, gy1: 13.3 },
-  { name: 'THE PALLET', gx0: 2.1, gy0: 12.2, gx1: 3.0, gy1: 13.1 },
+  { name: 'THE BOXES', gx0: 0, gy0: 8.5, gx1: 1.1, gy1: 10.6 },
+  { name: 'THE CRATES', gx0: 1.1, gy0: 8.8, gx1: 2.1, gy1: 10.1 },
+  { name: 'THE PALLET', gx0: 2.1, gy0: 9.0, gx1: 3.0, gy1: 9.9 },
 ]
 
 /**

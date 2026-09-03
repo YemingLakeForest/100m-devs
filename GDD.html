@@ -3220,7 +3220,20 @@ legibility wins, every time.</p>
 <li><strong>Text is never blurred.</strong> Bubbles, numerals and HUD copy sit above the post chain, or the
 chain does not touch them.</li>
 <li><strong>Bloom is a suggestion, not a glow.</strong> It marks the monitor as the light source; it does not
-wash the room.</li>
+wash the room. <strong>[amended 2026-09-03]</strong> It is a <em>thresholded</em> extract, and it had
+to become one: a filter that blurs the whole frame and adds it back makes every surface glow a little,
+and measured on §7.8.0c's completed garage that lifted the mean by 48 per cent. A dark room with warm
+pools in it became a pale room with warm patches — the pools stopped being pools, and the faces, desk
+edges and monitor silhouettes inside them went soft, which is the one thing that section's lighting
+rules say must not happen. The old filter could make the suggestion quieter; it could never make it
+narrower. Strain now moves how much of the extracted highlight returns rather than the blur radius, so
+a calm studio gets a tight halo on its lamps and a seizing one gets those same lamps blown out — §21
+Act IV's reading, and a thing that happens to the lights rather than to the room. The blur radius and
+quality are held low on purpose: the generous settings cost half the frame rate, and §23.3's budget is
+not negotiable for a look. One consequence is a rule about the world's own props — <strong>nothing
+that is not a light may be brighter than one.</strong> The garage's whiteboard came down a step the
+day this landed, because a board at <code>NEUTRAL[7]</code> glowed and the desk lamp beside it did
+not.</li>
 <li><strong>Readability is tested at the headcount that breaks it</strong>, not at one developer. The failure
 only appears when the floor is full, which is exactly when nobody is looking for it.</li>
 </ul>
@@ -3949,10 +3962,10 @@ The founder (§7.8.10) and the leadership heroes (§7.8.12) stand on dedicated p
 seat lattice, so a leadership arrival does not bring the garage one seat closer to full and
 <em>cannot</em>: the seats it would consume are not in the same address space. <code>sim/capacity.ts</code>
 owns this distinction and <code>capacity.test.ts</code> pins it at 19, 20, 21, 99, 100, 101 and 10,000.</p>
-<p><strong>The boundaries are inclusive at the top, and the ladder's bottom four bounds are one past
-their round number because of it.</strong> The twentieth developer <em>fills</em> the garage and has to be
-standing in it when they do; a player who has just watched somebody sit down must not already
-be looking at a different room. The move happens on the twenty-first. Above the building the
+<p><strong>[amended 2026-09-03] The boundaries are inclusive at the top, but the transition begins
+on the hire that fills the room.</strong> The twentieth ordinary developer <em>fills</em> the garage and
+is first shown landing in it; that completed beat then starts the unfold without requiring another
+hire. The first office frame contains those same twenty people. Above the building the
 bounds stay round and exclusive, because nobody can see the hundred-thousandth developer land
 anywhere — and because §13.5's 10⁸ gate is downstream of those rungs and does not move. <strong>The
 rescale is entirely below 10⁴.</strong> Rung 4 upward is byte-identical to what it was, so the
@@ -4035,26 +4048,63 @@ should no longer be the first place a wrong wall is noticed.</p>
 <h5 id="zero-c-the-garage-canon-added-2026-09-01">7.8.0c The garage — five pods of four, and a corner that costs nothing <strong>[CANON - added 2026-09-01]</strong></h5>
 <p>The authored plan for the first twenty developers. <strong>[amended 2026-09-03]</strong> Read the
 engine-faithful, layout-authoritative concept
-(<code>docs/assets/concepts/garage-layout-concept-20-devs-v6-curb-rhythm.png</code>) as the target.
-It supersedes v5 for placement and implementation fidelity: the whole shell is framed, five
-four-person pods are fully visible, the leadership corner contains the founder and all six named
-heroes at seven distinct work positions, the gate apron is empty, perimeter furniture is zoned
-rather than clustered, exterior lamps and planters use one curb rhythm at exactly one lamp per
-three planters on each visible street side, and the garage frame contains no vehicles. The seven
-leadership occupants are outside the twenty-developer capacity.
-This section is what was taken from the concept and why.</p>
-<p><strong>[added 2026-09-03] The completed garage is twenty-one on the counter, and that is not a
-rounding error.</strong> §7.8.12 seats James inside the suite out of the studio's own headcount, so a
-studio of twenty is nineteen ordinary developers and him; the five pods are full on the twenty-first
-hire, which is the frame this concept is a picture of. <code>GARAGE_SEATS</code> is still twenty and
-still knows nothing about the corner — what the corner costs is a <em>headcount</em>, never a seat.</p>
-<p><strong>And <code>?full</code> now records Melany's arrival.</strong> It was the one arrival missing,
-left out on the sound argument that she brings no HUD readout and so changes nothing about the worst
-frame the interface has to draw. That was the wrong test: <code>?full</code> is also the fixture every
-room gate and every garage capture loads, and this section requires the completed corner to hold the
-founder and <strong>all six</strong> named heroes at seven distinct positions. Without her the
-canonical frame had six people in a room sized for seven, and no gate could see it, because the only
-thing that knew the number was the concept art.</p>
+(<code>docs/assets/concepts/garage-layout-concept-20-devs-v9-founder-james-neighbourhood.png</code>) as the target.
+It supersedes v6 and the interim v8 study for placement and implementation fidelity: the whole shell
+is framed, five four-person pods are fully visible, the compact glass office contains only the
+founder and James at two distinct work positions, the gate apron is empty, perimeter furniture is
+zoned rather than clustered, exterior lamps and planters use one curb rhythm at exactly one lamp per
+three planters on each visible street side, and the garage frame contains no vehicles. Trees, shrubs,
+a rear pavement and dim low-rise buildings continue the neighbourhood behind the rear walls without
+competing with the room. The founder and James are outside the twenty-developer capacity.</p>
+<p><strong>[amended 2026-09-03] The completed garage is twenty on the counter.</strong> The user's
+capacity rule is literal: the founder and leadership/story heroes do not consume an ordinary seat
+and do not increment <code>DEVS</code>. The fifth pod is completed by the twentieth ordinary hire and
+the office transition starts there, not after a twenty-first hire. <code>GARAGE_SEATS</code> remains
+twenty because it describes exactly the population the counter and the five pods expose.</p>
+<p><strong>[amended 2026-09-03] Only the founder and James are ever physically available in the
+garage.</strong> Mo, Serena, Matt, Melany and Billy join in later office scenes. A <code>?full</code>
+fixture may carry later progression state for other tests, but the garage renderer must gate those
+five heroes out rather than turning the first room into a preview of the whole cast. Its strongest
+capture therefore proves two independent counts: twenty ordinary developers across five pods, and
+exactly two non-capacity occupants behind the glass.</p>
+<h6 id="what-devs-20-cost">What <code>DEVS 20</code> cost, and what it bought <strong>[CANON - added 2026-09-03]</strong></h6>
+<p>The counter read twenty-one, and it was not a rounding error. §7.8.12 held studio seat 0 for James
+so that no body would be drawn standing in the suite's doorway — the right answer to the question it
+was asked, and the wrong answer to the one the player reads off the rail. Five pods of four is twenty.
+A garage that has to hire a twenty-first person before it looks full is a garage arguing with its own
+scale model.</p>
+<p>So <code>SUITE_SEATED</code> is <strong>empty</strong>. James is a hero with a desk in the
+leadership box, exactly like the five who follow him, and the suite's plots have never been in the
+seat lattice. <strong>The cost is real and is recorded here rather than discovered later:</strong> the
+empty threshold plot in front of the suite's doorway is gone on floors large enough to use
+<code>planSeat</code>, and keeping the doorway clear is now a property of the plans that draw seats
+near it. <strong>What it buys is one index space across the move</strong> — garage seat <em>n</em> and
+office seat <em>n</em> are the same person with no arithmetic in between, so the twenty-first hire
+adds a body instead of quietly swapping one out, which is what the half-measure of holding the seat
+on the floor and not in the garage would have done.</p>
+<p><strong>The gate is a renderer rule, and deliberately.</strong> Progression flags are set by
+scenes, by <code>?full</code>, by a scenario and by a save from any point in a career, and every one
+of those is a way for five extra bodies to arrive in a room with no desks for them.
+<code>roomCast</code> filters the studio's roster to the presentation's cast, and the glass, the east
+wall, the desks, the bodies, the plates and the Instant Messenger packets all read that one list —
+which is what makes "Mo is not in the garage" a fact about the room rather than about six separate
+loops. The reservation followed the room down: <code>GARAGE_LEADERSHIP</code> is gx 4.9 by gy 3.4
+rather than the seven-plot footprint, which is the second time that plot has needed the same
+correction — <em>a rectangle must not outlive the thing that stood in it</em> — and the kitchenette
+moved five tiles up the far-left wall to close the gap the old footprint had been holding.</p>
+<p>One consequence looks like a regression and is not: <strong>the garage's glass goes up with the
+first hero.</strong> §7.8.12's rule is <code>team.length &gt; 1</code> — James alone is the garage
+story, Mo brings the room — and that is still right on the floor. In the garage the cast <em>is</em>
+two, and both are already in it, so the old test would have glazed the corner only once somebody
+arrived who is not allowed in the building. The founder counts toward the pair in the room the founder
+is standing in.</p>
+<p><strong>[amended 2026-09-03] Thick does not mean fortified.</strong> The rejected pass read as a
+prison because pale coping, tower-height corner posts, small high windows and a cold wall value made
+the shell visually louder than the studio. v9 keeps the structural mass but uses warm charcoal-brown
+brick or painted block, narrow dark coping, modest pilasters that finish with the wall and broad
+factory windows. The oxblood shutter reads as a studio entrance rather than a barred gate, and the
+rear trees and low buildings make this a converted garage in a neighbourhood rather than a compound
+floating in black.</p>
 <h6>Two plans, one address space</h6>
 <p>The obvious economy is to make the garage the first twenty seats of the office floor plan. It
 is wrong, and the reason is the whole point of §7.8.0's transition: <strong>the garage and the office
@@ -4074,7 +4124,7 @@ complaint one room down. Stated as two testable properties rather than as the wo
 no two pods share a <code>gx</code> or a <code>gy</code>, and no two footprints overlap.
 <strong>[amended 2026-09-03]</strong> Those two properties turned out to be satisfiable by a clump: the
 five sat in a loose diagonal with four of them packed into the room's right third and the whole
-left-centre of the floor empty — a quincunx by the letter and a heap in the picture. v6's reads as a
+left-centre of the floor empty — a quincunx by the letter and a heap in the picture. v9's reads as a
 <em>composition</em>, and it is two bands: a back band a couple of tiles off the workshop wall, a
 front band with the open middle of the floor between them, and no two tables closer than a table's
 width. The band positions are the concept's own, converted into plan tiles and then pulled inside
@@ -4133,17 +4183,18 @@ reward for filling the fifth pod rather than a standing promise. It is the only 
 unfold where the game says <em>there is more building here</em>, and it says it without a word of
 interface — which is what §7.8.0c means by an understated cue.</p>
 <h6 id="the-move-out-of-the-garage">The move out of the garage, and what is proven about it</h6>
-<p>The unfold (§7.8.1c, now firing on the twenty-first hire) already animates. What needed proving
+<p><strong>[amended 2026-09-03]</strong> The unfold (§7.8.1c) begins when the twentieth ordinary
+developer completes the garage. What needed proving
 is that it is a change of <em>room</em> and nothing else, and the three claims are tested in
 <code>transition.test.ts</code> rather than in either room's own file — because that is the point:
 neither room can make this claim alone.</p>
 <ul>
 <li><strong>It happens once.</strong> Walking the headcount from 1 to 400 changes the picture
-exactly twice — garage to floor, floor to building — and at 21 and 101. A scene model that
+exactly twice — garage to floor, floor to building — and at 20 and 101. A scene model that
 flickered at a boundary would show up here as a crossing count in the dozens.</li>
 <li><strong>It manufactures nobody.</strong> Both rooms address the same set of seat indices, with
-no gap and no duplicate, and every seat resolves to a distinct plot. A move that invented a
-twenty-first developer would appear as a gap or a collision in one of the two lists.</li>
+no gap and no duplicate, and every seat resolves to a distinct plot. A move that invented an
+extra developer would appear as a gap or a collision in one of the two lists.</li>
 <li><strong>Identity cannot notice.</strong> A developer's face is generated from their seat index
 and nothing else, so the person in seat 7 has the same face in both buildings — the room was never
 an input. The test also asserts that twenty seats give more than ten distinct looks, because
@@ -4214,13 +4265,12 @@ between those two beliefs.</p>
 <p>They exist because the alternative was tried and failed in a way that looked fine — see the note
 below. Two frames with no stated relationship is not a defect you fix once; it is a defect you fix
 once per call site, for ever.</p>
-<p>The leadership corner's <em>size</em> follows from the same discipline. It is §7.8.12's suite
-footprint, not a number chosen here: the suite draws itself at its own geometry, and this plot's
-only job is to keep the pods and the clutter out of the space it will occupy. It was authored
-smaller first and the suite did not fit in it — the plot and the thing standing on it disagreeing,
-which is the same defect one scale down. It is generous on the long axis because
-<code>suiteEastCol</code> widens with the roster, and a corner that is right for one hero and wrong
-for five breaks halfway through Act I.</p>
+<p><strong>[amended 2026-09-03]</strong> The leadership corner's <em>size</em> is garage-specific.
+§7.8.12's expandable office suite still serves the later floor, but importing its complete roster
+footprint here was the category error: this room ever contains only the founder and James. The
+garage plot and the glass it reserves therefore describe two workstations, a clear door lane and
+one small cabinet/plant allowance. Later hero arrivals do not widen this room because they are not
+rendered in this scene.</p>
 <h6 id="orientation-is-more-than-a-pose-swap">Orientation is more than a pose swap</h6>
 <p>Resting half a pod facing the camera turned out to need two things the front pose never had,
 and both were invisible while that pose was spent on one selected developer at a time.</p>
@@ -4239,41 +4289,22 @@ fix.</em> The two halves of a facing pod genuinely belong on opposite sides of t
 because the table runs between them — so the honest structure is two layers, and which one a
 workstation goes into is decided by the same <code>facing</code> that decides which way its owner is
 drawn. One fact read twice, rather than two facts that can disagree.</p>
-<h6 id="a-corner-office-wider-than-the-studio">A corner office wider than the studio it looks out over</h6>
-<p><strong>[amends §7.8.12's <code>SUITE_PITCH_COLS</code>, 2026-09-01: 2 → 1.4 — reversed
-2026-09-02 to 1.8, see “Room for leadership”: at 1.4 the suite's pitch was tighter than the rank
-and file's own 1.45 stride, which is the opposite of what this constant is for.]</strong> That
-section's argument for a generous desk pitch still holds, and is why this is 1.4 rather than the
-floor's own 1 — the suite is the one place in the studio that does not sit shoulder to shoulder,
-and that is §6's thesis stated in furniture rather than in a curve.</p>
-<p>What changed is that the number was set against the <em>office</em> and then inherited by a
-garage a fifth of its size. Seven plots at two pitches each came to over half the garage's width:
-a corner office wider than the studio it looks out over, which is the opposite of the joke §7.8.12
-is telling. The canonical garage concept puts leadership in a small improvised box behind salvaged
-glass — you do not get a generous desk pitch in a garage, you get the desks pushed together behind
-whatever glazing somebody found.</p>
+<h6 id="a-corner-office-wider-than-the-studio">A corner office sized for the people who are actually there <strong>[amended 2026-09-03]</strong></h6>
+<p>§7.8.12's generous <code>SUITE_PITCH_COLS</code> belongs to the later office and its growing
+hero roster. The garage uses a separate two-position plan for the founder and James. It remains
+more comfortable than an ordinary pod, but it cannot reserve five invisible desks for heroes who
+have not joined. That distinction is the fix: one reusable drawing vocabulary, two room plans with
+different occupants and footprints.</p>
 <p>Worth generalising, because it is the second time this exact shape has appeared today: <strong>a
 constant chosen against one room and inherited by another is a constant that has stopped being
 one.</strong> §7.8.1's floor aisle had it first (<code>pad = SQUAD_COLS * 0.45</code>), the pod
 footprint had it an hour ago, and this is the third.</p>
-<h6 id="the-corner-is-bigger-than-the-sketchs-and-that-is-content">The corner is bigger than the sketch's, and that is a difference in content</h6>
-<p><strong>[2026-09-02, attempted and reverted.]</strong> The leadership corner takes about two
-fifths of the garage's width where the canonical concept gives it about a fifth. Three shallower
-banks would square it up, and it was tried. It breaks two of §7.8.12's own rules, both worth more
-than the width:</p>
-<ul>
-<li><strong>Every plot is a whole number of half-steps from the founder</strong> on both floor axes.
-Three banks inside the reserved depth land at 0.7 of a row, which is not on the lattice at all — and
-being on the lattice is the entire fix §7.8.12 records, after a version drawn in screen pixels put
-three of four glass planes at illegal slopes.</li>
-<li><strong>Nobody sits directly behind anybody.</strong> With three banks and a half-pitch stagger
-there is no arrangement of seven plots that keeps every column distinct between the front and back
-rows; something always lines up.</li>
-</ul>
-<p>So the width stays, and the reason is not a compromise: <strong>the concept's sketch has three
-people behind that glass and the game's roster is seven.</strong> A corner sized for seven is bigger
-than a corner drawn for three. That is a difference in the <em>content</em>, not in the drawing, and
-it is the honest place for this one to end.</p>
+<h6 id="the-corner-is-bigger-than-the-sketchs-and-that-is-content">The glass still obeys the lattice <strong>[amended 2026-09-03]</strong></h6>
+<p>Shrinking the roster does not license screen-space glass. Both work plots remain whole
+half-steps from the founder anchor, the two glass runs stay on legal floor axes, neither workstation
+sits directly behind the other in the canonical camera, and the opening remains a real circulation
+gap. The deleted complexity is five absent occupants, not the geometric discipline that keeps the
+room attached.</p>
 <h6 id="the-pools-needed-something-to-be-brighter-than">The pools needed something to be brighter than</h6>
 <p><strong>[2026-09-02.]</strong> The canonical garage is a dark room with warm pools in it — the
 lamps on the tables and the pendant over the workbench are what you see by, and the concrete between
@@ -4295,7 +4326,7 @@ garage really has it: in the same frontage as the roll-up, a stride away. That i
 only arrangement in which the two doors are <em>about</em> anything — the big one is how the van gets
 in, the small one is how people do.</p>
 <p><strong>[amended 2026-09-03]</strong> It is a stride to the roll-up's <em>right</em> — higher
-<code>gx</code>, down-right on screen — and not its left. v6 puts it there, past the near jamb pier,
+<code>gx</code>, down-right on screen — and not its left. v9 puts it there, past the near jamb pier,
 with the timber threshold and a lamp between the two, and that is also the better side for this
 camera: the near vertex of the building is the corner closest to the viewer, so a door there is a
 door you see the whole of, where the up-left end of the frontage is the part the wall foreshortens
@@ -4388,6 +4419,50 @@ stands right against the glass, and the glass won.</p>
 <p>It is not a sorting bug inside one layer. The suite is a <em>building</em> and the clutter is
 furniture standing on the floor in front of it, so they belong on opposite sides of it — the same
 argument §7.8.0c makes about the near half of a facing pod's kit, one object larger.</p>
+<h6 id="the-neighbourhood-behind-the-rear-walls">The neighbourhood behind the rear walls, as built <strong>[CANON - added 2026-09-03]</strong></h6>
+<p>§7.8.1e's neighbours are suppressed at this camera stop and stay suppressed — that reasoning is
+about <em>contrast</em>, and a row of lit facades across a road really is brighter and busier than the
+room the game is about. The rear band is the version of it that survives, and it is three bands, each
+quieter than the one in front of it: <strong>shrubs</strong> on the pavement immediately behind the
+wall, <strong>trees</strong> in the middle dense enough to break the roofline, and <strong>low
+buildings</strong> furthest out with a handful of warm windows between them. The buildings are
+silhouettes rather than facades — a <code>dim</code> palette a step above the carriageway, far fewer
+lit panes, and no roof plant or aerial, because giving a backdrop silhouettes on top of silhouettes is
+how a backdrop becomes a second scene.</p>
+<p><strong>Nothing in the band needs a clearance rule</strong>, and that is the construction rather
+than an oversight: it is behind both rear walls by geometry, it is drawn before the room, and the room
+paints over it. Trees cannot cover a factory window or the glass office because they are further away.
+The plan is pure and deterministic — the room rebuilds on every hire, and a neighbourhood that
+reshuffles when somebody is hired is a neighbourhood nobody believes — and the buildings are held
+below the height of the wall they stand behind, because anything taller stops being behind it and
+starts being over it.</p>
+<h6 id="three-fortress-cues-and-one-of-them-was-size">Three fortress cues, and only one of them was size <strong>[CANON - added 2026-09-03]</strong></h6>
+<p><strong>The corner pilasters were never too tall.</strong> Measured, the far pier's cap stands
+about five pixels above its own coping. They read as guard towers because of their <em>colour</em>:
+<code>NEUTRAL[4]</code>–<code>[2]</code> on the cool ramp, at every corner of a building whose walls
+are warmed two steps up it. A pier takes the far wall's own warmth recipe and one step down it now,
+which is what a brick pilaster is. The gate's jambs keep their lift, because a jamb has a job the
+corners do not — it frames an opening, and an opening you cannot find is not one.</p>
+<p><strong>The rear windows were slits because the pane was wrong and the size took the
+punishment.</strong> They were cut to 34 px by a third of the wall when the glass was steel blue and
+the brightest thing on that surface. It is the dark frame that keeps a window quiet, not the width:
+v9's are wide, low, dark-framed and mullioned, which is the shape of a converted workshop, and a
+narrow tall opening high in masonry is a different building with a different word for it.</p>
+<p><strong>The shutter needed its painted band because it was grey.</strong> The panel was the wall's
+own neutral with an <code>ALARM[0]</code> stripe across the middle, and the stripe was doing the work
+the paint should have done. v9's is one muted oxblood from slab to header — mixes between
+<code>ALARM[0]</code> and <code>ALARM[1]</code> rather than a swap onto the alarm ramp, because
+<code>ALARM</code> at full strength is the colour this game reserves for an entropy lock and a front
+door shouting at that volume is a klaxon. The band went with the grey.</p>
+<p><strong>And the wall values were re-anchored on the concept rather than on taste.</strong> v9's
+rear wall measures (58,45,42) over a clear run of its back-right face, against v6's (82,71,63) — the
+same warm grey a step and a half darker. The room did not change hue; the night outside it did, once
+there was a neighbourhood in it. The first attempt dropped the <em>coping</em> alone, on the reasoning
+that a 0.63-tile top face is a band rather than an edge and was reading as a pale ribbon above the
+room. That inverts §7 indoors, and the value gate said so on the first run — then sampling the
+concept settled it, because its coping is the lighter of the two there as well. The whole wall came
+down a step instead, ordering untouched. <em>The gate was right and the eye was wrong</em>, which is
+the entire reason that table exists.</p>
 <h6 id="the-clutter-is-zoned">The clutter is zoned, not merely spaced <strong>[CANON - added 2026-09-03]</strong></h6>
 <p>Every prop already had a reserved rectangle, every rectangle already cleared every other, and every
 one already touched a wall the camera can see over. All three held, and the far-left wall still came
@@ -4439,14 +4514,12 @@ with two lines on it — a cupboard, or a wall. <strong>A shelf unit is read fro
 you know it is shelving because you can see through it between the boards. The boards are now dark
 and thin, the uprights darker still, and the contents small, sparse and at three depths, with the top
 tier left bare — a shelf with something on every level is a stock room.</p>
-<h6 id="the-back-wall-is-mostly-block">The back wall is mostly block <strong>[amended 2026-09-03]</strong></h6>
-<p>The garage's two UPVC casements were 52 px wide and half the wall tall, glazed in <code>GLOW[1]</code>.
-Two of those across a four-tile wall left the back of the building reading as the back of a house, and
-the panes were the brightest objects on that surface — which put the eye on a window instead of on
-the twenty people under it. The concept has one modest casement up there and a louvred vent; these
-take the casement's proportions, and the glass drops to the neutral ramp because there is nothing
-behind that wall but the dark. The wall stays mostly block, which is what lets the shelving and the
-tool board on it read at all. They remain §7.8.9 errand destinations; only their size changed.</p>
+<h6 id="the-back-wall-is-mostly-block">The back wall belongs to a converted workshop <strong>[amended 2026-09-03]</strong></h6>
+<p>The small high casements in the rejected pass read as security slits, especially against the
+tower-like corner piers. v9 uses a few broader, lower factory-studio windows with dark frames and
+restrained cyan panes. Masonry still occupies most of each wall, leaving the shelving and tool board
+legible, but the apertures now admit the neighbourhood behind them and break the compound silhouette.
+They remain §7.8.9 errand destinations; only their proportion, sill height and value changed.</p>
 <h6 id="a-pod-that-reads-as-four-people-at-a-table">A pod that reads as four people at a table</h6>
 <p><strong>[amended 2026-09-03.]</strong> The garage draws <strong>no chairs yet</strong>. At this scale a
 chair back and a monitor rear resolve to the same dark rectangle, so adding both makes a pod read as
@@ -4786,22 +4859,14 @@ the cut-down walls whose join it is there to cap. <code>garage.test.ts</code> st
 directly &mdash; whatever the two runs do at a corner, the pier's square already contains the whole
 thickness of both.</p>
 <h6 id="room-for-leadership-2026-09-02">Room for leadership <strong>[amends &sect;7.8.12 and &sect;7.8.0c, 2026-09-02 &mdash; user instruction]</strong></h6>
-<p><strong>[<code>SUITE_PITCH_COLS</code> 1.4 &rarr; 1.8, reversing the 2026-09-01 narrowing.]</strong>
-The reason that narrowing was wrong is measurable rather than a matter of taste: at 1.4 the suite's
-desk pitch was <em>tighter than the rank and file's own</em> &mdash; &sect;7.8.0c's pods sit at a 1.45
-stride &mdash; so the one room in the studio whose entire point is that it does not crowd was the most
-crowded thing in the building. &sect;7.8.12's original claim, "two seat pitches per person, legible at a
-glance", had been narrowed until it said the opposite of itself.</p>
-<p>The argument that produced 1.4 was about the garage's width, and it was a real constraint. It is
-paid on the floor instead: the leadership plot widens from 5.2 to 6.6 tiles and <strong>all four pods
-east of it move over</strong>, along with every prop on the far-right wall. <code>GLASS_CLEAR</code>
-and <code>WALL_CLEAR</code> between them leave a band from <em>gx</em>&nbsp;9.1 to 13.0 for a pod
-centre, and there is exactly enough of it for two abreast. That is the cost of an uncrowded corner,
-recorded where it is paid.</p>
-<p>Two things moved with it. <strong>The <code>LEADERSHIP</code> sign hangs from the head of the
-glass</strong> rather than 62&nbsp;px up &mdash; 62 was chosen when the panes were 46 tall, and with the
-glass at the room's full height and the desks further apart the board had come down onto the founder's
-monitor. And <strong>the frame budgets the walls that are actually drawn</strong>: <code>WALL_H</code>
+<p><strong>[amended 2026-09-03]</strong> The 1.8-pitch expandable suite remains the office-floor
+answer; the garage no longer borrows it. Its compact glass room has two authored plots only, one for
+the founder and one for James, with enough separation to read both monitors and a direct lane to the
+opening. Mo, Serena, Matt, Melany and Billy neither reserve plots nor render here.</p>
+<p>The smaller footprint returns the former empty suite area to circulation instead of sliding four
+pods across the floor to pay for absent people. A subtle two-person office needs no oversized
+<code>LEADERSHIP</code> board; the occupants and glass already say what the room is. <strong>The frame
+still budgets the walls that are actually drawn</strong>: <code>WALL_H</code>
 is &sect;7.8.1e's <em>lattice</em> wall at about 112&nbsp;px, while the garage's shell is built from
 <code>WALL_FULL</code> at about 135, and the piers and the tall gate put real objects at the top of
 that range.</p>
@@ -4895,12 +4960,13 @@ wrong one for a camera.</p>
 drawn again. §7.8.1e's rule is that the ground outside is drawn once and never changes what it is,
 and street furniture is part of that ground. <strong>[amended 2026-09-03]</strong> The garage camera
 suppresses district vehicles while preserving the road, kerb, lane marks, lamps and planters.</p>
-<p><strong>[amended 2026-09-03]</strong> It suppresses the rest of §7.8.1e's street furniture with
-them — the neighbours, the street trees, the parking bays, the bus shelter, the benches and the bike
-hoops. That list is authored for a <em>floor</em>, where the building is large enough that the city
-around it reads as context. At the garage's scale it reads as a competing subject: a row of lit
-facades across the road is brighter and busier than the room the game is about, and the canonical
-concept has none of it. What it has is tarmac, a kerb, a rhythm of lamps and bushes, and dark.</p>
+<p><strong>[amended 2026-09-03]</strong> It suppresses the busy floor-scale street kit — parking
+bays, bus shelter, benches, bike hoops, pedestrians and vehicles — but the rear of the garage no
+longer falls into a black void. v9 borrows a restrained neighbourhood layer from the district:
+a narrow rear pavement, an authored band of modest trees, low shrubs and distant low-rise silhouettes with
+only a few warm windows. These sit behind the full-height rear walls in three quiet depth bands and
+remain darker and less detailed than the playable room. They establish an address without becoming
+a second subject or creating interactive floor objects.</p>
 <p><strong>The kerb is a rhythm, and it is authored.</strong> One lamp then three planters, repeating,
 at one setback per side: two lights and six bushes on the gate frontage, three and nine on the right
 return, each side keeping its own ratio rather than borrowing an object from the other. The obvious
@@ -5020,8 +5086,9 @@ pod gets <strong>no dividers and no cable tray</strong> — both belong to a ban
 one way, and a panel down the middle of a pod is a wall between four people who were put together on
 purpose — and the sticky note is drawn only on screens whose face the camera can see.</p>
 <h5 id="zero-d-the-office-floor-canon-added-2026-09-01">7.8.0d The office floor — a hundred, in twenty facing pods around an atrium <strong>[CANON - added 2026-09-01]</strong></h5>
-<p>The authored plan for the room the studio moves into on the twenty-first hire. Read
-<code>docs/assets/concepts/office-layout-concept-100-devs-v2.png</code> as the target.</p>
+<p><strong>[amended 2026-09-03]</strong> The authored plan for the room the studio moves into as
+the twentieth ordinary hire completes the garage. The first office frame preserves those same
+twenty people. Read <code>docs/assets/concepts/office-layout-concept-100-devs-v2.png</code> as the target.</p>
 <h6>Why this is not §7.8.1e's floor plan</h6>
 <p>§7.8.1e authored a thousand-seat floor, and it is a different building: ten banks of
 rank-and-file rows, every desk facing the same way, sized for a capacity §7.8.0 has since cut by a
@@ -5248,17 +5315,17 @@ which is exactly the failure this section names: <em>a scattered fill is indisti
 redraw</em>. Every other band of the table is unaffected, and &quot;2 — a second desk pushed alongside&quot;
 still reads exactly as written.</p>
 <h5 id="c-the-floor-unfolds-at-100-canon-added-2026-08-08-r7">7.8.1c The floor unfolds at 20 <strong>[CANON - added 2026-08-08; amended 2026-09-01 by §7.8.0]</strong> - R7</h5>
-<p><strong>[amended 2026-09-01.]</strong> The unfold is unchanged in every respect except <em>when</em>. It fires on
-the <strong>twenty-first</strong> hire rather than the hundred and first, and what unfolds around the garage
+<p><strong>[amended 2026-09-03.]</strong> The unfold is unchanged in every respect except <em>when</em>. It fires after
+the <strong>twentieth</strong> ordinary hire visibly completes the garage, and what unfolds around the garage
 is <strong>one office floor of a hundred seats</strong> rather than a hundred squad plates. Every argument
 below survives the substitution — the first room stays where it is and the size it is, the panels
 hinge rather than fade, the camera fits the seats that have people in them plus headroom, and it
 happens once and is scored on a rung boundary that was already being scored. Read “100” as
 “20” and “ten thousand” as “one hundred” throughout. The reason it moved is §7.8.0: a
 hundred people in a garage was never a picture of a garage.</p>
-<p><s>The hundredth hire fills the first squad</s> <strong>The twentieth hire fills the garage's fifth pod</strong>,
-and the room has nowhere to put the next one. <strong>So the floor unfolds, like a sheet of paper
-opening out.</strong></p>
+<p><s>The hundredth hire fills the first squad</s> <strong>The twentieth ordinary hire fills the
+garage's fifth pod</strong>; the completed room is shown, then <strong>the floor unfolds around those
+same twenty people, like a sheet of paper opening out.</strong></p>
 <ul>
 <li>The single squad stays where it is and stays the size it is. The <strong>floor unfolds around it</strong>,
 panel by panel, until a hundred squad plates are laid out with their corridors between them.</li>

@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { GARAGE_CAP, sceneFor } from '../sim/capacity.ts'
 import { developerAt } from '../sim/identity.ts'
 import { GARAGE_SEATS } from './garage.ts'
-import { drawnSeatPlot } from './room.ts'
+import { drawnSeatPlot, FOUNDER_PLOT, suitePlot } from './room.ts'
+import { STORY_HEROES } from '../sim/storyHeroes.ts'
 
 /**
  * §7.8.0 Loop 4 — **the move out of the garage.**
@@ -65,14 +66,27 @@ describe('the transition preserves roster identity and count', () => {
    * as a gap or a duplicate in one of the two lists.
    */
   it('draws the same seat indices in both rooms, with no gap and no duplicate', () => {
+    /*
+     * §7.8.0c [amended 2026-09-03] — **and the two index spaces are now the
+     * same one.** The suite used to hold seat 0, so the garage's twenty pod
+     * chairs were studio seats 1..20 and the office's were 1..100; the move
+     * shifted nobody only because both rooms shifted by the same one. Nothing
+     * is held back now, so garage seat *n* and office seat *n* are the same
+     * person with no arithmetic in between.
+     *
+     * The garage list stops at `GARAGE_CAP`, because that is where the garage
+     * stops. Asking it to seat twenty-one is asking about a room the twenty-
+     * first hire is never drawn in — `sceneFor` has moved to the floor by then,
+     * which is the claim two describes up.
+     */
     for (const n of [1, 5, GARAGE_CAP, GARAGE_CAP + 1]) {
-      const garage = Array.from({ length: n }, (_, i) => i).map(inGarage)
+      const garage = Array.from({ length: Math.min(n, GARAGE_CAP) }, (_, i) => i).map(inGarage)
       const office = Array.from({ length: n }, (_, i) => i).map(inOffice)
-      expect(garage).toHaveLength(n)
+      expect(garage).toHaveLength(Math.min(n, GARAGE_CAP))
       expect(office).toHaveLength(n)
       // Distinct plots within each room — nobody is drawn on top of anybody.
       const key = (p: { col: number; row: number }) => `${p.col.toFixed(4)},${p.row.toFixed(4)}`
-      expect(new Set(garage.map(key)).size).toBe(n)
+      expect(new Set(garage.map(key)).size).toBe(Math.min(n, GARAGE_CAP))
       expect(new Set(office.map(key)).size).toBe(n)
     }
   })
@@ -114,12 +128,29 @@ describe('the transition preserves roster identity and count', () => {
   })
 
   /**
-   * §7.8.12 outranks both plans. A seat the suite holds resolves to the suite's
-   * desk in either room, so the leadership roster does not move house at all —
-   * which is the physical form of "leadership plots do not consume ordinary
-   * capacity".
+   * §7.8.0c [amended 2026-09-03] — **the suite is outside both plans**, which is
+   * the physical form of "leadership plots do not consume ordinary capacity".
+   *
+   * It used to be stated as *a seat the suite holds resolves to the suite's
+   * desk in either room*, and that was true while James was studio seat 0. It
+   * was also the reason the completed garage read `DEVS 21`. The stronger claim
+   * is the one that replaces it: **no** seat resolves to a leadership desk, in
+   * either room, at any index — so the roster does not move house because it
+   * was never in the lattice to begin with.
    */
-  it('leaves the suite where it is through the move', () => {
-    expect(inGarage(0)).toEqual(inOffice(0))
+  it('never resolves a seat onto a leadership desk, in either room', () => {
+    const desks = new Set(
+      [FOUNDER_PLOT, ...STORY_HEROES.map((hero) => suitePlot(hero.id))].map(
+        (p) => `${p.col.toFixed(4)},${p.row.toFixed(4)}`,
+      ),
+    )
+    for (let i = 0; i < GARAGE_CAP; i++) {
+      const g = inGarage(i)
+      expect(desks.has(`${g.col.toFixed(4)},${g.row.toFixed(4)}`)).toBe(false)
+    }
+    for (let i = 0; i < 120; i++) {
+      const o = inOffice(i)
+      expect(desks.has(`${o.col.toFixed(4)},${o.row.toFixed(4)}`)).toBe(false)
+    }
   })
 })

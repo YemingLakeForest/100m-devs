@@ -10,6 +10,7 @@ import {
   crossingSpan,
   curbStations,
   districtVehicles,
+  garageRearPlan,
   districtDepth,
   districtFitTiles,
   garageKerbFor,
@@ -282,5 +283,63 @@ describe('vehicles', () => {
   it('is deterministic, so the street does not reshuffle on every hire', () => {
     expect(districtVehicles({ halfBack: 30, halfAcross: 40 }))
       .toEqual(districtVehicles({ halfBack: 30, halfAcross: 40 }))
+  })
+})
+
+
+/**
+ * §7.8.0c [added 2026-09-03] — **the neighbourhood behind the rear walls.**
+ *
+ * Three claims, and the third is the one that matters: the band is scenery. It
+ * is behind both full-height rear walls by construction, so nothing in it can
+ * stand on the floor, block a lane or take a tap — which is why the drawing
+ * needs no clearance rule and why this asserts the geometry instead.
+ */
+describe('the garage rear band', () => {
+  const hb = 8.63
+  const ha = 8.63
+  const back = 3.71
+
+  it('is not empty, and has all three depth bands in it', () => {
+    const plan = garageRearPlan(hb, ha, back)
+    expect(plan.length).toBeGreaterThan(20)
+    for (const band of ['shrub', 'tree', 'building'] as const) {
+      expect({ band, some: plan.some((prop) => prop.band === band) })
+        .toEqual({ band, some: true })
+    }
+    // Trees are the mass: more of them than of either other band.
+    const count = (b: string) => plan.filter((prop) => prop.band === b).length
+    expect(count('tree')).toBeGreaterThan(count('shrub'))
+    expect(count('tree')).toBeGreaterThan(count('building'))
+  })
+
+  it('is deterministic, so the street does not reshuffle on every hire', () => {
+    expect(garageRearPlan(hb, ha, back)).toEqual(garageRearPlan(hb, ha, back))
+  })
+
+  /**
+   * **Everything is behind a rear wall.** The two rear walls stand at `gx =
+   * -hb` and `gy = -ha`; a prop is behind one of them when it is outside that
+   * line on the axis its run is set back along. Nothing may be inside both, and
+   * inside both is exactly the playable floor.
+   */
+  it('never puts anything on the playable floor', () => {
+    for (const prop of garageRearPlan(hb, ha, back)) {
+      const behind = prop.gx < -hb || prop.gy < -ha
+      expect({ band: prop.band, gx: prop.gx, gy: prop.gy, behind })
+        .toEqual({ band: prop.band, gx: prop.gx, gy: prop.gy, behind: true })
+    }
+  })
+
+  /**
+   * And it stays low. A rear band taller than the wall it stands behind is not
+   * behind it any more — it is over the roofline, and the garage stops being
+   * the tallest thing in its own picture.
+   */
+  it('keeps the buildings lower than the rear wall they stand behind', () => {
+    for (const prop of garageRearPlan(hb, ha, back)) {
+      if (prop.band !== 'building') continue
+      expect(prop.height).toBeLessThan(4.23)
+    }
   })
 })
