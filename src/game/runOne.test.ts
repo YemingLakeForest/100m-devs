@@ -35,6 +35,7 @@ import {
   showScene,
   takeSeedRound,
   tick,
+  workingDevs,
 } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { SCENE_JAMES_ARRIVES, SCENE_MASS_HIRE } from './scenes.ts'
@@ -169,8 +170,19 @@ describe('a player who does what the game says does not go broke', () => {
 
     const s = getState()
     expect(s.projectsShipped).toBeGreaterThanOrEqual(FIRST_PAID_RUNG)
-    // James, and nobody else, from the first frame to the mousetrap.
-    expect(s.devs).toBe(1)
+    /*
+     * **James, and nobody else, from the first frame to the mousetrap** — and
+     * [amended 2026-09-04] the counter says nought, which is the same sentence.
+     *
+     * This read `expect(s.devs).toBe(1)`, from when §21.0b's grant was a free
+     * `dev` hire. §7.8.0's rule is that the leadership corner is outside the
+     * twenty, so James is a coding head who is not in `devs`: the counter shows
+     * the floor, the floor is empty, and the studio still ships the whole
+     * garage catalogue. That is exactly Act III's *"two of us shipped three
+     * games"*, and it is now literally true of the numbers.
+     */
+    expect(s.devs).toBe(0)
+    expect(workingDevs()).toBeGreaterThan(0)
     expect(s.phase).toBe('act2_termsheet')
 
     /**

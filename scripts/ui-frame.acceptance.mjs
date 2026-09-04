@@ -173,9 +173,26 @@ async function overflowIssues(page) {
       return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) > 0 && rect.width > 0 && rect.height > 0
     }
 
+    /*
+     * **The element clips too, and this used to start at its parent.**
+     * [2026-09-04]
+     *
+     * `for (let ancestor = element.parentElement; ...)` is what this said, so a
+     * box was clipped by every scroller above it and never by itself — and an
+     * element with `overflow: hidden` on *itself* is exactly how every ellipsis
+     * in the interface is built. The gate therefore measured the full laid-out
+     * width of any truncated text and reported it as painted over whatever sat
+     * to its right.
+     *
+     * Found when §21.0b took James off the floor: the developer card had always
+     * opened on him, his name is the shortest in the game, and the first rolled
+     * name that landed there — `Leila Kowalski` — was flagged as drawn over the
+     * close box. It was not: it renders as `LEILA KOW…`, six pixels clear.
+     * Every other developer in the studio would have tripped it.
+     */
     const clipToAncestors = (element, raw) => {
       const clipped = { left: raw.left, top: raw.top, right: raw.right, bottom: raw.bottom }
-      for (let ancestor = element.parentElement; ancestor && ancestor !== root; ancestor = ancestor.parentElement) {
+      for (let ancestor = element; ancestor && ancestor !== root; ancestor = ancestor.parentElement) {
         const style = getComputedStyle(ancestor)
         const clipsX = style.overflowX !== 'visible'
         const clipsY = style.overflowY !== 'visible'

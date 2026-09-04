@@ -15,6 +15,7 @@ import {
   developerAt,
   draw,
   identityFor,
+  heroIdentity,
 } from './identity.ts'
 
 const SEED = 20260808
@@ -148,10 +149,24 @@ describe('what varies', () => {
 })
 
 describe('James — §21.6', () => {
+  /**
+   * **[amended 2026-09-04] He is a hero, and heroes are not seats.**
+   *
+   * These two used to assert `developerAt(seed, 0) === JAMES` — that seat zero
+   * is him in every run. §7.8.0's leadership corner took him off the floor: he
+   * codes from a desk behind the glass, outside the twenty and outside `devs`,
+   * and every floor seat is a rolled face.
+   *
+   * The claim underneath survives intact and is what is tested now: *he is the
+   * one fixed point in the game — the studio changes, he does not.* It is
+   * `heroIdentity` that answers for him, and it does not take a seed.
+   */
   it('is the same person in every run', () => {
-    // He is the one fixed point in the game: the studio changes, he does not.
-    expect(developerAt(1, 0)).toEqual(JAMES)
-    expect(developerAt(999999, 0)).toEqual(JAMES)
+    expect(heroIdentity('james')).toEqual(JAMES)
+    // And no floor seat is ever him, whatever the run rolled.
+    for (const seed of [1, 999999, SEED]) {
+      for (let i = 0; i < 8; i++) expect(developerAt(seed, i)).not.toEqual(JAMES)
+    }
   })
 
   /**
@@ -167,8 +182,11 @@ describe('James — §21.6', () => {
    * `store.ts` refuses to let seat 0 quit (§22.3 LOYAL). Three files have to
    * agree about one integer, so it is asserted here rather than left implied.
    */
-  it('is the first developer, and the first developer only', () => {
-    expect(developerAt(SEED, 0)).toEqual(JAMES)
+  it('is not on the floor at all, which is where the two Jameses came from', () => {
+    // Four separate reports of "there are two Jameses" traced to this constant
+    // being true while the room drew him in the leadership corner. One authority
+    // now: he is a hero, and `developerAt` only ever rolls strangers.
+    expect(developerAt(SEED, 0)).not.toEqual(JAMES)
     expect(developerAt(SEED, 1)).not.toEqual(JAMES)
     expect(developerAt(SEED, 2)).not.toEqual(JAMES)
   })

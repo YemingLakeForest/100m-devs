@@ -429,12 +429,20 @@ describe('§13.12 — how long a run actually takes', () => {
      * measurement of "Run 1" was of a competent player who quietly declined
      * §21's entire third act. It measured 76 developers and a healthy till.
      *
-     * It measures the real Run 1 now — a thousand and forty developers, an
-     * empty treasury, and §4.10d's payroll finishing the job — which is what
-     * §13.12.2 means by *"a bankruptcy the player cannot avoid"* and is the
-     * reason every comparison below moved to Run 2.
+     * It measures the real Run 1 now — a thousand developers, an empty treasury,
+     * and §4.10d's payroll finishing the job — which is what §13.12.2 means by
+     * *"a bankruptcy the player cannot avoid"* and is the reason every
+     * comparison below moved to Run 2.
+     *
+     * **[amended 2026-09-04] `>=`, not `>`, and the missing one is James.**
+     * This read `toBeGreaterThan` and passed on a peak of 1001: the thousand
+     * the bait buys, plus James, who was hired as developer zero. §21.0b took
+     * him out of the twenty — he is a coding head who is not on the floor and
+     * not in the counter — so the peak is now exactly the number the button
+     * promised. The claim was always *"the player took the bait in full"*, and
+     * a strict inequality only ever expressed it by accident.
      */
-    expect(rows[0].peakDevs).toBeGreaterThan(MASS_HIRE_COUNT)
+    expect(rows[0].peakDevs).toBeGreaterThanOrEqual(MASS_HIRE_COUNT)
     expect(rows[0].cash).toBeLessThan(0)
 
     // **The loop keeps moving.** Before §13.7.1's Recruiting node was wired

@@ -693,8 +693,28 @@ async function walkCareerOne(page) {
   if (!played('scene.act1.james-arrives')) {
     fail(`fifty pokes did not bring James — played ${JSON.stringify(beats.map((b) => b.id))}`)
   }
-  await until(page, 'James at a desk', async (p) => (await devs(p)) >= 1)
-  saw('fifty pokes brought James, and he sat down (§21.7.1)')
+  /*
+   * §21.0b [amended 2026-09-04] — **the counter is the wrong place to look for
+   * him now.**
+   *
+   * This waited on `devs >= 1`, because his arrival used to *be* the studio's
+   * first ordinary hire. §7.8.0's leadership corner took him off the floor: he
+   * codes from behind the glass, outside the twenty and outside `devs`, so the
+   * counter stays at nought through the whole of Act I while he ships games.
+   *
+   * The claim is the same claim and it is asked of the room instead, which is
+   * where the answer was always more honest anyway: **one James, at a desk, and
+   * exactly one.** That is the property four separate reports of "there are two
+   * Jameses" were about, and nothing else in this file was ever in a position
+   * to notice it.
+   */
+  await until(page, 'James at a desk', async (p) => {
+    const drawn = await p.evaluate(() =>
+      (globalThis.__room?.()?.bodies ?? []).filter((b) => b.label === 'team-hero:james'),
+    )
+    return drawn.length === 1
+  })
+  saw('fifty pokes brought James, and he sat down behind the glass — once (§21.7.1)')
 
   /*
    * §21.0e — **Run 1 does not hire, so there is nothing to press here.**
@@ -715,8 +735,24 @@ async function walkCareerOne(page) {
   if (await btn(page, /HIRE DEVELOPER/).count()) {
     fail(`Run 1 offered a hire button — ${await where(page)}`)
   }
-  if ((await devs(page)) !== 1) {
-    fail(`Run 1 reached the term sheet with ${await devs(page)} developers, not just James`)
+  /*
+   * §21.0e [amended 2026-09-04] — **nought on the floor, and James behind the
+   * glass.**
+   *
+   * This asserted `devs === 1`, which was James as developer zero. He is
+   * outside the twenty now (§7.8.0), so the honest reading of *"two of us
+   * shipped three games"* is a floor with nobody on it and one man at a desk in
+   * the leadership corner — which is what the two checks below say, in that
+   * order.
+   */
+  if ((await devs(page)) !== 0) {
+    fail(`Run 1 reached the term sheet with ${await devs(page)} on the floor, not an empty one`)
+  }
+  const jamesAtWork = await page.evaluate(
+    () => (globalThis.__room?.()?.bodies ?? []).filter((b) => b.label === 'team-hero:james').length,
+  )
+  if (jamesAtWork !== 1) {
+    fail(`Run 1 reached the term sheet with ${jamesAtWork} James at a desk, not one`)
   }
   saw('shipped the whole garage catalogue with two people and no hire button (§21.0e)')
 
@@ -753,8 +789,11 @@ async function walkCareerOne(page) {
    * did *not* spring from the scene before it presses the button: the treasury
    * and the headcount have to still be standing when the offer is read.
    */
+  // §21.0b [amended 2026-09-04] — nought, not one: the floor is empty through
+  // Act I because James is outside the twenty. The claim is unchanged — the
+  // scene must not spring the trap by itself — only the number it starts from.
   const beforeSpring = await devs(page)
-  if (beforeSpring !== 1) {
+  if (beforeSpring !== 0) {
     fail(`the pitch scene moved the headcount to ${beforeSpring} by itself — ${await where(page)}`)
   }
   await press(page, /HIRE 1,000 DEVS NOW/)

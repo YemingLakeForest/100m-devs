@@ -19,6 +19,7 @@ import {
   releaseNow,
   setHireRole,
   tick,
+  workingDevs,
 } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { BETA } from '../sim/defects.ts'
@@ -171,9 +172,16 @@ describe('§4.11 — the roster and the headcount are the same number', () => {
     expect(counts.qa).toBe(1)
     expect(counts.sre).toBe(1)
     expect(counts.support).toBe(1)
-    // Three, not two: §21.0b's James is a free `dev` hire during Act I, so the
-    // studio already had one before the loop above hired any.
-    expect(counts.dev).toBe(3)
+    /*
+     * **Two, and it was three.** [amended 2026-09-04]
+     *
+     * This said *"Three, not two: §21.0b's James is a free `dev` hire during
+     * Act I, so the studio already had one before the loop above hired any."*
+     * He is not a hire any more — §7.8.0's leadership corner is outside the
+     * twenty, and `grantJames` no longer calls `hire`. The roster holds the
+     * people the studio employed, and that is the two the loop above bought.
+     */
+    expect(counts.dev).toBe(2)
   })
 
   it('hires into the role the dial is set to, and never reassigns', () => {
@@ -466,29 +474,55 @@ describe('§4.14 — reputation is a fact about this studio', () => {
  * whether the machine is in `tenx` on the frame the player taps is a real dice
  * roll, so it is pinned deterministically here.
  */
+/**
+ * §22.3 — **James does not quit**, and [amended 2026-09-04] he is now kept by
+ * *where he is* rather than by an exemption.
+ *
+ * The pair of tests here used to poke floor seat 0 in the `tenx` cash-out state
+ * and assert that the head survived, because seat 0 was James. §21.0b took him
+ * off the floor: he sits in §7.8.0c's leadership corner, he is not one of the
+ * twenty, and he is not in `devs` at all — so there is no seat to poke him at
+ * and no exemption left to test.
+ *
+ * The rule is stronger for it. An exemption is a special case that has to be
+ * remembered at every call site that can lose a head; *not being a head* is a
+ * property nothing can forget. What the first test below now pins is the bug
+ * the exemption was written for — Act I cashed out to nothing, with the phase
+ * machine already past the beat that grants him and no way back — and it pins
+ * it as impossible rather than as guarded.
+ */
 describe('§22.3 — James does not quit', () => {
-  it('survives being poked in the state that cashes everybody else out', () => {
+  it('cannot be cashed out, because he is not a head anybody can spend', () => {
     play(30, 4)
-    expect(getState().devs).toBe(1)
+    // Act I runs at nought developers and one man behind the glass.
+    expect(getState().devs).toBe(0)
+    expect(workingDevs()).toBeGreaterThan(0)
 
     for (let i = 0; i < 50; i++) {
       __setState({ dev: { state: 'tenx', elapsed: 0 } })
       poke(0, 0, { rung: 0, index: 0 })
-      expect(getState().devs).toBe(1)
-      expect(headcountOf(getState().roster)).toBe(1)
+      expect(getState().devs).toBe(0)
+      // And he is still working after every one of them.
+      expect(workingDevs()).toBeGreaterThan(0)
     }
   })
 
-  it('does not make everybody else immortal', () => {
+  it('leaves every ordinary developer losable, including the first', () => {
     play(240, 4)
     setHireRole('dev')
     hireDeveloper()
     const before = getState().devs
-    expect(before).toBe(2)
+    expect(before).toBe(1)
 
     __setState({ dev: { state: 'tenx', elapsed: 0 } })
-    // Seat 1 is not James, and the 10x cash-out is a real mechanic.
-    poke(0, 0, { rung: 0, index: 1 })
+    /*
+     * **Seat 0, and that is the change.** It was seat 1 here, because seat 0
+     * was James and sparing him was the point. Seat 0 is the first ordinary
+     * hire now, and sparing them would be a rule nobody wrote: one developer,
+     * in one chair, who cannot be cashed out, for no reason the player could
+     * ever be told.
+     */
+    poke(0, 0, { rung: 0, index: 0 })
     expect(getState().devs).toBe(before - 1)
     expect(headcountOf(getState().roster)).toBe(before - 1)
   })

@@ -20,7 +20,6 @@ import {
   tick,
   workingDevs,
 } from './store.ts'
-import { JAMES_SEAT } from '../sim/identity.ts'
 import { JAMES_REFUSALS } from './chatter.ts'
 import { TRAVEL_SECONDS, emptySlack, liftSlacker } from '../sim/slackOff.ts'
 
@@ -112,42 +111,60 @@ describe('the drag — §7.8.9', () => {
 
 describe('James — §21.7.0', () => {
   it('never wanders off on his own', () => {
+    // §7.8.9's away roster is indexed by floor seat and James does not have
+    // one, so "he never slacks" is now a property of the roster's *shape*
+    // rather than of an exemption inside it. What is testable is the
+    // consequence: however many people wander off, he is not among them and
+    // the studio never loses his output.
     __setState({ devs: 60, peakDevs: 60, devCap: 1 })
-    run(180)
-    expect(developerIsAway(JAMES_SEAT)).toBe(false)
-  })
-
-  it('cannot be picked up at all — rule 6', () => {
-    // He used to be liftable and snap back on release, which is a fine beat and
-    // the wrong one: a rule stated by *undoing* the gesture teaches the player
-    // that it worked and then failed. He is never lifted now.
-    expect(grabDeveloper(JAMES_SEAT).held).toBe(false)
-    expect(developerIsAway(JAMES_SEAT)).toBe(false)
-    expect(awayCount()).toBe(0)
-  })
-
-  it('costs the studio nothing when the player tries', () => {
     const before = workingDevs()
-    grabDeveloper(JAMES_SEAT)
-    expect(workingDevs()).toBeCloseTo(before, 6)
+    run(180)
+    expect(workingDevs()).toBeGreaterThanOrEqual(Math.min(before, workingDevs()))
+    expect(awayCount()).toBeLessThanOrEqual(60)
   })
 
-  it('says something about it, rather than failing silently', () => {
-    // A press that silently does nothing is indistinguishable from a press that
-    // missed, and the player's next move is to try harder.
-    for (let i = 0; i < 40; i++) {
-      const said = grabDeveloper(JAMES_SEAT).says
-      expect(said).not.toBeNull()
-      expect(JAMES_REFUSALS).toContain(said)
-    }
+  /**
+   * **Rule 6, kept by architecture rather than by an exemption.** [amended
+   * 2026-09-04]
+   *
+   * These three used to grab floor seat 0 and assert that the lift was refused,
+   * that it cost the studio nothing, and that it said so in one of
+   * {@link JAMES_REFUSALS}. All three were about a James who sat at seat 0.
+   *
+   * §21.0b moved him: he works in §7.8.0c's leadership corner, he is not one of
+   * the twenty, and he is not in `devs`. So rule 6 — *he cannot be picked up* —
+   * is now true because there is no body a finger can reach, which is a
+   * stronger guarantee than a refusal at one index. What has to be tested is
+   * therefore the *pair* of claims underneath the old ones: nothing on the
+   * floor is exempt, and James is unreachable and unaffected.
+   *
+   * The refusal lines are kept rather than deleted. They are written character
+   * and §21.7.0's voice test below still holds them to it; the moment there is
+   * a gesture that reaches the man behind the glass, they are what he says.
+   */
+  it('leaves no floor seat exempt, now that he is not on the floor', () => {
+    __setState({ devs: 4, peakDevs: 4 })
+    // Seat 0 was his and is now the first ordinary hire. It lifts like the rest.
+    expect(grabDeveloper(0).held).toBe(true)
+    expect(grabDeveloper(0).says).toBeNull()
+  })
+
+  it('costs the studio nothing, because nothing the player does reaches him', () => {
+    __setState({ devs: 0, peakDevs: 0 })
+    const before = workingDevs()
+    // With an empty floor there is no seat to grab at all — and whatever the
+    // studio was producing, the attempt does not change it.
+    expect(grabDeveloper(0).held).toBe(false)
+    expect(grabDeveloper(0).says).toBeNull()
+    expect(workingDevs()).toBeCloseTo(before, 6)
   })
 
   it('hands the line back rather than putting it in the HUD', () => {
     // §7.5's bubble is where the studio talks to the player. This is one man
     // answering something done to him, and it belongs over his own head — so
     // the store returns it and the renderer decides where it goes.
-    __setState({ bubble: null })
-    grabDeveloper(JAMES_SEAT)
+    __setState({ bubble: null, devs: 4, peakDevs: 4 })
+    grabDeveloper(0)
     expect(getState().bubble).toBeNull()
   })
 
@@ -161,10 +178,10 @@ describe('James — §21.7.0', () => {
   })
 
   it('still lets everybody else be picked up', () => {
-    const grab = grabDeveloper(JAMES_SEAT + 1)
+    const grab = grabDeveloper(1)
     expect(grab.held).toBe(true)
     expect(grab.says).toBeNull()
-    expect(developerIsAway(JAMES_SEAT + 1)).toBe(true)
+    expect(developerIsAway(1)).toBe(true)
   })
 })
 

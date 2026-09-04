@@ -143,7 +143,6 @@ import {
   pokeHome,
   type SlackState,
 } from '../sim/slackOff.ts'
-import { JAMES_SEAT } from '../sim/identity.ts'
 import { jamesRefusal } from './chatter.ts'
 import { LITERAL_RUNG_LIMIT, rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
 import { WORLD_CAP, worldsFor } from '../sim/starfield.ts'
@@ -1177,7 +1176,21 @@ export function effectiveDevCap(s: GameState = state): number {
  * something that never changes is the kind of thing that shows up in a profile
  * for no reason at all.
  */
-const JAMES_PINNED: readonly number[] = Object.freeze([JAMES_SEAT])
+/**
+ * §21.7.0 rule 6 — the floor seats a hand may not lift.
+ *
+ * **[amended 2026-09-04] Empty.** This was `[JAMES_SEAT]` and it was right
+ * while James sat at floor seat 0. He has a desk behind the glass now and is
+ * not on the floor at all, so pinning seat 0 protects *the first ordinary hire*
+ * and hands them James's refusal lines while it does it.
+ *
+ * Rule 6 is not repealed and does not need to be: it says James cannot be
+ * picked up, and he cannot, because he is not among the bodies a finger can
+ * reach. {@link JAMES_REFUSALS} is kept rather than deleted — it is written
+ * character, and the moment there is a way to prod the man behind the glass it
+ * is the thing to say.
+ */
+const JAMES_PINNED: readonly number[] = Object.freeze([])
 
 /**
  * §7.8.9 — the away population's cost, **modelled rather than counted**, for
@@ -1225,7 +1238,9 @@ export function workingDevs(s: GameState = state): number {
    * negative headcount would propagate into the economy silently.
    */
   const away = Math.min(awayHeads(s.slack), Math.max(0, Math.floor(s.devs) - specialists))
-  const coding = Math.max(0, Math.floor(s.devs) - specialists - away)
+  // §21.0b — plus James, who codes and is not one of the twenty. He is never
+  // `away`: §7.8.9's roster is indexed by floor seat and he does not have one.
+  const coding = Math.max(0, Math.floor(s.devs) - specialists - away) + jamesHead(s)
   const active = t.activeDevFraction
   const meeting = standupFactor(s.runSeconds, standupsRunning(s))
   const protectedHeads = Math.min(
@@ -1270,7 +1285,61 @@ export function inMeeting(s: GameState = state): boolean {
  * efficiency", which at 99% entropy would be a rounding error and at 1% would
  * be the whole studio.
  */
+/**
+ * §21.0b [added 2026-09-04] — **James is a developer who is not one of the
+ * twenty**, and this is the whole of what that means.
+ *
+ * §7.8.0 has always said a leadership hire does not bring the garage one seat
+ * closer to full, and §7.8.0c states it in numbers: *"the founder and James are
+ * physical, and they are outside the twenty."* He still writes code — §21.0e's
+ * act is "two of us shipped three games" — so he is a head the organisation
+ * has, without being a head the floor seats or the counter counts.
+ *
+ * **He carries load as well as output, and that is not a detail.** The first
+ * attempt at this took him out of `devs` and gave him back only his output;
+ * §4.1's Run 1 then stopped on `hire-cost` instead of `entropy`, stably, twice.
+ * The reason is visible one line down: Act I's `devCap` is 1, so a single head
+ * is the *entire* coordination pressure of the act. A producer who costs
+ * nothing to coordinate with is not a developer, it is a subsidy, and it
+ * deletes the trap the first run is built around.
+ *
+ * Not counted for payroll, and that needs no special case: payroll is `devs`,
+ * and he was always free.
+ */
+function jamesHead(s: GameState): number {
+  // §21.7.0 rule 5 — the gym, ten to eleven, every day. A card that is absent
+  // has to be absent from the arithmetic too, or the joke costs nothing.
+  return arrivedHeroes().has('james') && jamesPresent(s.runSeconds) ? 1 : 0
+}
+
+/**
+ * Everybody who is at a desk writing code.
+ *
+ * `state.devs` is the *floor*: the twenty ordinary developers the counter shows
+ * and the room seats. This is that plus {@link jamesHead} — the number for
+ * "is anybody working", and for how much they get done.
+ *
+ * **It is deliberately not §4.1's headcount.** Capacity is about coordination,
+ * and §7.8.0's rule is that a leadership hire does not consume it; see
+ * {@link foldedEfficiency}, which stays on `devs` for exactly that reason.
+ */
+function codingHeads(s: GameState): number {
+  return Math.floor(s.devs) + jamesHead(s)
+}
+
 function foldedEfficiency(s: GameState): number {
+  /*
+   * §7.8.0 [2026-09-04] — **`devs`, not {@link codingHeads}, and that is the
+   * rule rather than an oversight.**
+   *
+   * "A leadership hire does not consume capacity" is the section's own
+   * sentence, and this is the line it is about: §4.1's curve is what capacity
+   * *means*. James writes code (see {@link workingDevs}) and costs the
+   * organisation nothing to coordinate with, which is precisely what the phrase
+   * buys him. Counting him here instead put the studio permanently one head
+   * over its own cap and §4.1 stopped reading exactly half at the base cap,
+   * which `billyArrives.test.ts` catches on the nose.
+   */
   const raw = efficiency(s.devs, effectiveDevCap(s))
   // §16 — and the light-lag, which is §4.1 again in the one unit the galaxy
   // introduces. It is exactly 1 while the studio is on one world, so nothing
@@ -1523,7 +1592,9 @@ export function founderVelocity(): number {
  * tap is the thing this act is about.
  */
 export function founderPassiveVelocity(s: GameState = state): number {
-  return s.devs > 0 ? founderOf().rate : 0
+  // §21.0b — any coding head, James included: the founder pairs with whoever is
+  // at a desk, and in Act I that is James.
+  return codingHeads(s) > 0 ? founderOf().rate : 0
 }
 
 /**
@@ -2404,7 +2475,17 @@ export function tick(dtSeconds: number): void {
   patch.phase = advanceOnboarding(after.phase, {
     seedTaken: after.seedTaken,
     pokeCount: after.pokeCount,
-    devs: after.devs,
+    /*
+     * §21.0b [2026-09-04] — **the working headcount, not the counter.**
+     *
+     * `act1_james` waits on `devs >= 1`, and it means *"is somebody at a desk
+     * writing code yet"*. That used to be the same number as the counter
+     * because James was hired as developer zero; he is outside the twenty now,
+     * so the counter reads nought through the whole of Act I while a man sits
+     * behind the glass shipping games. Passing the counter here stalls the act
+     * on its second beat and the run never reaches §4.1's trap.
+     */
+    devs: codingHeads(after),
     projectsShipped: after.projectsShipped,
     cash: after.cash,
     entropy: currentEntropy(after),
@@ -2500,9 +2581,25 @@ function advanceAct1(from: Phase, to: Phase | undefined): void {
  * he is granted once, and §4.10a's payroll starts at the third head, so this
  * costs the economy nothing.
  */
+/**
+ * §21.0b — James turns up free at the fiftieth poke.
+ *
+ * **[amended 2026-09-04] He is not a hire, and this used to hire one.**
+ *
+ * `set(hire(0, 1, 'dev'))` is what this said, so the beat that introduces James
+ * conjured the studio's first *ordinary* developer: `devs` went nought to one,
+ * §7.7.2's arrival dropped a body onto floor seat 0, and the room drew James at
+ * his desk behind the glass. One event, two people — reported four times, and
+ * every fix before this one moved the second body instead of asking why there
+ * were two.
+ *
+ * He now arrives into the leadership corner and nowhere else. The arrival is
+ * already recorded by the scene's own milestone, which is what
+ * {@link arrivedHeroes} reads, so there is nothing to hire and nothing to set —
+ * {@link jamesHead} is what makes him count from that moment.
+ */
 export function grantJames(): boolean {
-  if (state.devs !== 0) return false
-  set(hire(0, 1, 'dev'))
+  if (state.devs !== 0 || arrivedHeroes().has('james')) return false
   return true
 }
 
@@ -2927,7 +3024,20 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
    * leaves" would be a different rule that happens to cover this case today and
    * would stop covering it the moment somebody is hired.
    */
-  const devLeaves = wouldLeave && seats.from > 0
+  /*
+   * §22.3 [amended 2026-09-04] — **and seat 0 is not James any more.**
+   *
+   * The exemption above was `seats.from > 0`, which spared floor seat 0 because
+   * that seat was James. It is an ordinary hire now, and sparing them is a rule
+   * nobody wrote: the player would find one developer, in one chair, who cannot
+   * be cashed out, for no reason they could ever be told.
+   *
+   * The bug the exemption was added for cannot recur. It was *"a poke cashed
+   * James out, leaving Act I with zero developers, a phase machine already past
+   * the beat that grants him, and no way back"* — and Act I now runs at zero
+   * `devs` with James outside them, so there is no longer a head to lose.
+   */
+  const devLeaves = wouldLeave
 
   const floater: FloatingNumeral = {
     id: nextFloaterId++,
@@ -3834,15 +3944,15 @@ export function selectDeveloper(index: number | null): void {
    * these are two different kinds of object rather than one object with better
    * numbers — which is the whole of R51 answered by a routing decision.
    *
-   * Seat 0 is James (§25.7.2's `developerAt`), and he is the only hero on the
-   * floor by seat: the other five sit in §7.8.12's suite and are selected by
-   * their desks rather than by a rung.
+   * **[amended 2026-09-04] and no rung selects a hero any more.**
+   *
+   * This said *"Seat 0 is James (§25.7.2's `developerAt`), and he is the only
+   * hero on the floor by seat"*, and routed a tap on rung 0 index 0 to
+   * `selectHero('james')`. §7.8.0's corner took him off the floor: seat 0 is an
+   * ordinary hire, and opening James's card from their desk would name one
+   * person and show another. All six heroes are selected by their desks now,
+   * which is the rule the other five already followed.
    */
-  if (next === 0 && arrivedHeroes().has('james')) {
-    set({ selected: null })
-    selectHero('james')
-    return
-  }
 
   if (next === state.selected) return
   set({ selected: next, selectedHero: null })

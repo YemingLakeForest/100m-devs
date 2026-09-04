@@ -324,8 +324,23 @@ export function heroIdentity(id: string): Identity | null {
  * *paid* for a second developer. The one fixed point in the game was missing
  * from the scene that introduces him.
  */
-export const JAMES_SEAT = 0
-
+/**
+ * **[amended 2026-09-04] There isn't one, and that is the change.**
+ *
+ * This was `export const JAMES_SEAT = 0`, and the block above it argued at
+ * length for the *number* — §21.0b made James the first developer, so seat 0
+ * rather than seat 1, and three files had to agree about that integer.
+ *
+ * §7.8.0's leadership corner took him off the floor entirely: he writes code
+ * from a desk behind the glass, outside the twenty, and outside `devs`. So the
+ * question the constant answered no longer has an answer, and the honest thing
+ * is to delete the question rather than to keep a number that is only ever
+ * wrong. Every floor seat is a rolled face now, including the first.
+ *
+ * What the old comment got right is worth carrying: *"three files have to agree
+ * about one integer"*, and they did not, which is how James came to be drawn
+ * twice. The agreement is cheaper to keep when the integer does not exist.
+ */
 export function developerAt(seed: number, index: number): Identity {
-  return index === JAMES_SEAT ? JAMES : identityFor(seed, index)
+  return identityFor(seed, index)
 }

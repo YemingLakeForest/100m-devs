@@ -119,6 +119,23 @@
    a window cannot arrive in the bar in a voice the machine does not have. */
 .os-window__title {
   margin: 0 auto 0 0;
+  /*
+   * **`min-width: 0`, and without it the ellipsis below never fires.**
+   * [2026-09-04]
+   *
+   * A flex item defaults to `min-width: auto`, which refuses to shrink the box
+   * below its own content — so `overflow: hidden` had nothing to hide and a
+   * long title ran straight over the close box instead of ending in a dot dot
+   * dot. Three declarations that read as a complete answer, defeated by a
+   * fourth that is not written down anywhere.
+   *
+   * It went unseen because the one window the frame gate opens is the developer
+   * card, and the developer it opened was always James — five letters, and the
+   * shortest name in the game. §21.0b took him off the floor on 2026-09-04, the
+   * seat rolled `Leila Kowalski`, and the gate found this on the next run. It
+   * was never about James: *every other developer in the studio* had it.
+   */
+  min-width: 0;
   overflow: hidden;
   font-size: var(--type-1x);
   font-weight: 400;

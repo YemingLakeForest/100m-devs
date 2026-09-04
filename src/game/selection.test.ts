@@ -84,14 +84,30 @@ describe('the store', () => {
     }
   })
 
-  it('selects James at seat zero, in every run', () => {
-    // §21.0b — he is the free hire at the fiftieth poke, which lands before the
-    // player has bought anybody, so he is the *first* developer. Tapping the
-    // second desk in Act I has to be him; for one day it was a stranger.
+  /**
+   * **[amended 2026-09-04] Nobody on the floor is James.**
+   *
+   * This read *"selects James at seat zero, in every run"*, and its comment
+   * explained why: §21.0b's free hire lands before the player has bought
+   * anybody, so he was the first developer and seat zero was his.
+   *
+   * §7.8.0's leadership corner took him off the floor — he codes from behind
+   * the glass, outside the twenty and outside `devs` — so tapping a floor desk
+   * has to show whoever is at that desk, and none of them is him. Selecting him
+   * is what `selectHero` is for, which is how the other five have always
+   * worked.
+   */
+  it('selects a floor developer at every seat, and a hero at none', () => {
     selectDeveloper(0)
-    expect(selectedIdentity()?.name).toBe('James')
+    expect(selectedIdentity()?.name).not.toBe('James')
     selectDeveloper(1)
     expect(selectedIdentity()?.name).not.toBe('James')
+    // The seats are still stable people, which is the half of the old claim
+    // that never depended on who sat in the first chair.
+    const first = selectedIdentity()?.name
+    selectDeveloper(0)
+    selectDeveloper(1)
+    expect(selectedIdentity()?.name).toBe(first)
   })
 })
 
