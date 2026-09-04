@@ -49,10 +49,10 @@ import {
   buildDeveloper,
   drawDeskBank,
   drawWorkstation,
+  drawnSeatLook,
   drawnSeatPlot,
   isoAt,
 } from './room.ts'
-import { developerAt } from '../sim/identity.ts'
 
 function c(hex: string): number {
   const [r, g, b] = hexToRgb(hex)
@@ -333,7 +333,16 @@ export function createArrivals(): Arrivals {
         drawWorkstation(kitG, at.x, at.y, seat)
         anchor(kitG, at.x, at.y)
 
-        const dev = buildDeveloper(developerAt(seed, seat).look)
+        /*
+         * **And who this is**, from the same resolver the floor uses.
+         *
+         * This was `developerAt(seed, seat)`, which pins seat 0 to James — so
+         * when James arrived, the room put him at his desk behind the glass and
+         * this dropped a second one onto the floor seat he used to have. It is
+         * the same defect as the plot above it, one field over: two answers to
+         * one question, and the falling thing believing the older one.
+         */
+        const dev = buildDeveloper(drawnSeatLook(seed, seat))
         const dust = new Graphics()
 
         layer.addChild(deskG, kitG, dev, dust)

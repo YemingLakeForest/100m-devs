@@ -44,14 +44,7 @@ import { createAmbient } from './ambient.ts'
 import { NO_SPOTS, createErrands } from './errands.ts'
 import { bubblesLegible, counterScale, createBubbles, typeAtDesignSize } from './bubble.ts'
 import type { Away } from '../sim/slackOff.ts'
-import {
-  BILLY_TORSO,
-  JAMES_SEAT,
-  developerAt,
-  heroIdentity,
-  identityFor,
-  type Look,
-} from '../sim/identity.ts'
+import { BILLY_TORSO, heroIdentity, identityFor, type Look } from '../sim/identity.ts'
 import {
   DEFAULT_FOUNDER,
   founderLook,
@@ -2143,6 +2136,36 @@ export function drawnSeatPosition(
  * 2026-09-01). It is still true that *turning* is: nobody on the floor ever
  * changes which way they are looking except by being selected or by speaking.
  */
+/**
+ * §7.8.12 [added 2026-09-04] — **whose face the floor draws at `seat`.**
+ *
+ * The sibling of {@link drawnSeatPlot}, and it exists for exactly the reason
+ * that one does. `drawnSeatPlot` was written because *where* a seat is drawn
+ * had two answers and they disagreed; this is written because *who* is drawn
+ * there had three, and they disagreed the same way. The room's rebuild loop,
+ * §7.7.2's falling silhouette and the floor's own reuse loop each asked
+ * `developerAt` directly, and `developerAt` pins seat 0 to James.
+ *
+ * That was right for as long as James sat on the floor. §7.8.0c gave him a desk
+ * in the leadership box and `SUITE_SEATED` was then emptied so `DEVS` would read
+ * twenty rather than twenty-one — after which the floor's guard (`i >= held`)
+ * held nothing back, and every one of those three call sites drew him again.
+ * It was reported three times, and the third report named the last one exactly:
+ * *"when james appears, another one dropped to his old place"* — the arrival
+ * silhouette, falling onto the seat he no longer occupies.
+ *
+ * So the floor draws a rolled face at every seat it has, including its first.
+ * **This is a claim about drawing only.** `developerAt` still answers seat 0
+ * with James for the simulation, and three GDD sections depend on that integer:
+ * §21.6's camera goes to seat 0 for his lines, §22.3's LOYAL guard refuses to
+ * let seat 0 quit, and §21.7.0 refuses to let it be picked up. Those are one
+ * question — *where does the game think James is now that he sits behind glass*
+ * — and it is a design question, not a rendering one.
+ */
+export function drawnSeatLook(seed: number, seat: number): Look {
+  return identityFor(seed, seat).look
+}
+
 export function seatFacesCamera(seat: number, windowFrom: number, garage: boolean): boolean {
   const held = suiteSeatsIn(windowFrom, garage)
   const i = Math.max(0, Math.floor(seat))
@@ -4148,14 +4171,6 @@ export function buildRoom(): RoomHandle {
   const frontDesks: Graphics[] = []
 
   const devs: Container[] = []
-  /**
-   * Whether the last floor rebuild was made for a room that draws James.
-   *
-   * A developer's look is fixed when their container is first built, so this is
-   * the one thing that has to be remembered across rebuilds — see the rebuild
-   * in `layOutFloor`. §7.8.0c [2026-09-04].
-   */
-  let builtWithJamesInRoom = false
   let team: TeamRoomHero[] = []
   let teamDrawnFor = ''
   let teamSpeaker: HeroId | null = null
@@ -7820,44 +7835,6 @@ export function buildRoom(): RoomHandle {
     drawFounderWorkstation(managerDesk, founderAt.x, founderAt.y)
     founder.position.set(founderAt.x, founderAt.y + 6)
 
-    /*
-     * §7.8.0c [added 2026-09-04] — **the floor does not draw somebody the room
-     * is already drawing**, and for a fortnight it did.
-     *
-     * The loop below already carried the rule, three lines down: *"A seat the
-     * suite holds has its body drawn by the suite, not by the floor. Drawing it
-     * here as well is the same person twice, once per layer."* It enforced it
-     * through `held` — the count of seats the suite holds — and `SUITE_SEATED`
-     * was emptied so that `DEVS` would read 20 instead of 21. `held` has been
-     * **zero** ever since, so the guard stopped guarding, and the identity at
-     * seat 0 did not move with it: `developerAt` still pins seat 0 to James.
-     *
-     * The result was reported exactly as it looks: *"there are 2 james, one in
-     * leadership room, one coding out there"*. The GDD's §7.8.0c amendment
-     * recorded one cost of emptying `SUITE_SEATED` — the doorway threshold —
-     * and missed this one.
-     *
-     * The count is not what changed here and must not: twenty ordinary
-     * developers is still twenty bodies on the floor. What changes is *who* the
-     * first of them is. James has a desk in the leadership box, so the floor's
-     * seat 0 is an ordinary hire with a rolled face, which is what every other
-     * seat on that floor already was.
-     */
-    const jamesInRoom = roomCast(team, drawnGarage).some((hero) => hero.id === 'james')
-    /*
-     * A developer's look is fixed when their container is first built, so a
-     * cast that changes under a floor that has already been built would leave
-     * seat 0 wearing the answer to the old question. Rebuilding the lot is
-     * heavy-handed and exactly right: it happens once, when James arrives.
-     */
-    if (jamesInRoom !== builtWithJamesInRoom && devs.length > 0) {
-      for (const body of devs) body.destroy({ children: true })
-      devs.length = 0
-      jolts.length = 0
-      devLayer.removeChildren()
-    }
-    builtWithJamesInRoom = jamesInRoom
-
     // Reuse developer containers across rebuilds — a hire should not rebuild
     // ninety-nine sprites that did not change.
     while (devs.length < n) {
@@ -7867,13 +7844,10 @@ export function buildRoom(): RoomHandle {
       // not moved with it.) Containers are reused
       // across rebuilds, so a developer's look is fixed at the moment their
       // seat first exists and never churns underneath them.
-      const seat = windowFrom + devs.length
-      const d = buildDeveloper(
-        (jamesInRoom && seat === JAMES_SEAT
-          ? identityFor(seed, seat)
-          : developerAt(seed, seat)
-        ).look,
-      )
+      // §7.8.12's {@link drawnSeatLook}, not `developerAt`: the floor and the
+      // falling silhouette have to agree about who is arriving, and the room
+      // is already drawing James at his own desk.
+      const d = buildDeveloper(drawnSeatLook(seed, windowFrom + devs.length))
       devs.push(d)
       jolts.push(0)
       devLayer.addChild(d)
