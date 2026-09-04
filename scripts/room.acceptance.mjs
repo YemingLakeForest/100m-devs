@@ -139,6 +139,62 @@ function measure(devs, g) {
     check(where, `the ${name} wall runs on a floor axis`, near(slope, WALL_SLOPE, SLOPE_EPS), `slope ${round(slope)}`)
   }
 
+  /*
+   * --- nobody is drawn twice, and nobody faces two ways -------------------
+   *
+   * "James is in two places" has now been reported twice, and both times every
+   * seam in this file said one James — because every other claim here is about
+   * what the room *meant* to draw, and a duplicate is by definition something
+   * it did not mean to. `bodies` walks the live containers instead.
+   *
+   * Two claims, because there are two ways to get a second person. A container
+   * added twice puts two figures at the same point; a pose flag left set on one
+   * container puts the front and back poses on top of each other, a few pixels
+   * apart, which is the harder one to see and the one no arithmetic catches.
+   */
+  const labels = g.bodies.map((b) => b.label)
+  check(
+    where,
+    'no hero is drawn twice',
+    new Set(labels.filter((l) => l.startsWith('team-hero:'))).size ===
+      labels.filter((l) => l.startsWith('team-hero:')).length,
+    labels.join(', '),
+  )
+  // One claim rather than one per body: at a thousand developers the per-body
+  // form drowned the gate's own count in eighteen hundred identical passes, and
+  // a claim you cannot read is a claim nobody checks.
+  const twoFaced = g.bodies.filter((b) => b.back && b.front)
+  check(
+    where,
+    'nobody faces two ways at once',
+    twoFaced.length === 0,
+    twoFaced.map((b) => `${b.label} at ${b.x},${b.y}`).join('; '),
+  )
+  /*
+   * And no two *named* people stand on the same spot. Eight pixels is under
+   * half a body, so two heroes that close are one hero drawn twice.
+   *
+   * Named only, and that is not a softening: at a thousand developers the floor
+   * legitimately packs ordinary bodies four pixels apart — the first run of this
+   * claim failed on exactly that, which is the gate telling the truth about a
+   * badly aimed question. Heroes have authored plots a metre apart, so for them
+   * the distance is a real invariant rather than a function of the headcount.
+   */
+  const named = g.bodies.filter((b) => !/^developer$/.test(b.label))
+  for (let i = 0; i < named.length; i++) {
+    for (let j = i + 1; j < named.length; j++) {
+      const a = named[i]
+      const b = named[j]
+      const d = Math.hypot(a.x - b.x, a.y - b.y)
+      check(
+        where,
+        'no two bodies stand on the same spot',
+        d > 8,
+        `${a.label} and ${b.label} are ${round(d)}px apart`,
+      )
+    }
+  }
+
   // A headcount that drew no suite has skipped nearly every claim below, and a
   // silent skip is how a gate stops being one. Say so and fail.
   if (!g.suite) {

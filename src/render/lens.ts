@@ -99,15 +99,26 @@ export const EASE_RATE = 3.4
  * camera the whole time. The gesture existed, the handler ran, `panBy` did its
  * arithmetic, and the clamp on the next line put it all back.
  *
- * A quarter of a viewport is enough to shift a room off centre and look behind
- * something, and far too little to lose the studio — which is the interest the
- * old rule was actually protecting. Off the rails it goes to a viewport and a
- * half, because free camera exists to point at one prop and a prop can be in a
- * corner.
+ * **[revised 2026-09-04] A quarter of a viewport was still "can't drag".** The
+ * first number here was 0.26, and measured it does exactly what it says: the
+ * picture moves about 235 px and stops dead, symmetrically, in all four
+ * directions. That is a correct implementation of the wrong quantity — a drag
+ * that hits a wall a third of the way through the gesture reads as broken, not
+ * as bounded, and it was reported as "why can't I drag down".
+ *
+ * The honest quantity is a *purpose*: **you can bring any corner of the subject
+ * to the middle of the screen.** A fitted frame puts its corner half a viewport
+ * from centre, so 0.5 is the floor for that and 0.8 leaves room to look past
+ * the corner at the wall behind it — which is what the camera is for while
+ * §7.8.0c is being converged. It still cannot lose the studio: at 0.8 the far
+ * edge of the subject is still on screen.
+ *
+ * Off the rails it goes to two viewports, because free camera exists to point
+ * at one prop and a prop can be in a corner.
  */
-export const PAN_SLACK = 0.26
+export const PAN_SLACK = 0.8
 /** The same, with the rails off — see {@link Lens.setFreeZoom}. */
-export const PAN_SLACK_FREE = 1.5
+export const PAN_SLACK_FREE = 2
 
 export function panRange(
   bounds: Rect,

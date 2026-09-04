@@ -44,7 +44,14 @@ import { createAmbient } from './ambient.ts'
 import { NO_SPOTS, createErrands } from './errands.ts'
 import { bubblesLegible, counterScale, createBubbles, typeAtDesignSize } from './bubble.ts'
 import type { Away } from '../sim/slackOff.ts'
-import { BILLY_TORSO, developerAt, heroIdentity, type Look } from '../sim/identity.ts'
+import {
+  BILLY_TORSO,
+  JAMES_SEAT,
+  developerAt,
+  heroIdentity,
+  identityFor,
+  type Look,
+} from '../sim/identity.ts'
 import {
   DEFAULT_FOUNDER,
   founderLook,
@@ -2232,6 +2239,23 @@ export interface RoomGeometry {
    */
   chairs: number
   /**
+   * §7.8.0c [added 2026-09-03] — **every body the room is actually drawing.**
+   *
+   * The rest of this record says what the room *meant* to draw. A duplicate is
+   * by definition something it did not mean to, so none of it can see one —
+   * which is how "James is in two places" was reported twice with every seam
+   * green. `back` and `front` are {@link buildDeveloper}'s two poses, and both
+   * true is a defect on its face: nobody faces two ways.
+   */
+  bodies: Array<{
+    label: string
+    x: number
+    y: number
+    back: boolean
+    front: boolean
+    alpha: number
+  }>
+  /**
    * §7.8.0c — **the shell in canvas pixels, and the canvas it was drawn onto.**
    *
    * Everything else in this record is room-local, which is the right frame for
@@ -3324,10 +3348,26 @@ export function drawWorkstation(
   // both in it is where two props intersect.
   const lamp = deskRoll(seat, 4) < 0.2
 
-  // Papers, pushed to the back corner where they have been for a fortnight.
+  /*
+   * Papers, pushed to the back corner where they have been for a fortnight.
+   *
+   * §7.8.0c [amended 2026-09-03] — **and they are not lit from a window.**
+   * These were `NEUTRAL[7]` under `NEUTRAL[8]`: the top of the ramp, pure
+   * white, on a desk in a garage lit by one monitor. Measured in the frame they
+   * came out (242,238,232) — **the brightest pixels in the room**, brighter
+   * than the whiteboard, the lamps and the glass. Two steps down keeps them the
+   * palest small thing on a desk, which is all a sheet of paper has to be, and
+   * puts them at the concept's own interior p99 rather than past its maximum.
+   *
+   * They are also *directly behind the head* of anybody facing the camera, and
+   * that is how this was reported: a white slab and a white mug behind James
+   * silhouetted as a second person, and the report was "there's still 2 james".
+   * The seam added with it says there is exactly one — `bodies` lists one
+   * `team-hero:james`, back pose, and nothing else within eighty pixels.
+   */
   if (!lamp && deskRoll(seat, 1) < 0.55) {
-    deskQuad(g, sx, sy, BACK, -0.32, 0.26, 0.16, c(RAMPS.NEUTRAL[7]), put)
-    deskQuad(g, sx, sy, BACK - 0.01, -0.33, 0.22, 0.12, c(RAMPS.NEUTRAL[8]), put)
+    deskQuad(g, sx, sy, BACK, -0.32, 0.26, 0.16, c(RAMPS.NEUTRAL[5]), put)
+    deskQuad(g, sx, sy, BACK - 0.01, -0.33, 0.22, 0.12, c(RAMPS.NEUTRAL[6]), put)
   }
 
   /*
@@ -3505,7 +3545,11 @@ export function drawWorkstation(
     const cxm = sx + at.x
     const cym = sy + at.y
     const ramp = mug < 0.2 ? RAMPS.ALARM : mug < 0.4 ? RAMPS.CALM : RAMPS.NEUTRAL
-    const base = mug < 0.4 ? 1 : 6
+    // §7.8.0c [amended 2026-09-03] — base 6 put the white mug's lit face at
+    // `NEUTRAL[7]`, which is brighter than every light in the room and, on a
+    // camera-facing desk, sits exactly where a second head would be. Same
+    // argument as the papers above.
+    const base = mug < 0.4 ? 1 : 4
     isoBox(g, cxm, cym, 7, 7, ramp, base, false)
     // The handle, on the side turned toward the camera so it is not a rumour.
     g.rect(cxm + 3, cym - 6, 2, 3.5).fill(c(ramp[Math.max(0, base - 1)]))
@@ -4104,6 +4148,14 @@ export function buildRoom(): RoomHandle {
   const frontDesks: Graphics[] = []
 
   const devs: Container[] = []
+  /**
+   * Whether the last floor rebuild was made for a room that draws James.
+   *
+   * A developer's look is fixed when their container is first built, so this is
+   * the one thing that has to be remembered across rebuilds — see the rebuild
+   * in `layOutFloor`. §7.8.0c [2026-09-04].
+   */
+  let builtWithJamesInRoom = false
   let team: TeamRoomHero[] = []
   let teamDrawnFor = ''
   let teamSpeaker: HeroId | null = null
@@ -7768,6 +7820,44 @@ export function buildRoom(): RoomHandle {
     drawFounderWorkstation(managerDesk, founderAt.x, founderAt.y)
     founder.position.set(founderAt.x, founderAt.y + 6)
 
+    /*
+     * §7.8.0c [added 2026-09-04] — **the floor does not draw somebody the room
+     * is already drawing**, and for a fortnight it did.
+     *
+     * The loop below already carried the rule, three lines down: *"A seat the
+     * suite holds has its body drawn by the suite, not by the floor. Drawing it
+     * here as well is the same person twice, once per layer."* It enforced it
+     * through `held` — the count of seats the suite holds — and `SUITE_SEATED`
+     * was emptied so that `DEVS` would read 20 instead of 21. `held` has been
+     * **zero** ever since, so the guard stopped guarding, and the identity at
+     * seat 0 did not move with it: `developerAt` still pins seat 0 to James.
+     *
+     * The result was reported exactly as it looks: *"there are 2 james, one in
+     * leadership room, one coding out there"*. The GDD's §7.8.0c amendment
+     * recorded one cost of emptying `SUITE_SEATED` — the doorway threshold —
+     * and missed this one.
+     *
+     * The count is not what changed here and must not: twenty ordinary
+     * developers is still twenty bodies on the floor. What changes is *who* the
+     * first of them is. James has a desk in the leadership box, so the floor's
+     * seat 0 is an ordinary hire with a rolled face, which is what every other
+     * seat on that floor already was.
+     */
+    const jamesInRoom = roomCast(team, drawnGarage).some((hero) => hero.id === 'james')
+    /*
+     * A developer's look is fixed when their container is first built, so a
+     * cast that changes under a floor that has already been built would leave
+     * seat 0 wearing the answer to the old question. Rebuilding the lot is
+     * heavy-handed and exactly right: it happens once, when James arrives.
+     */
+    if (jamesInRoom !== builtWithJamesInRoom && devs.length > 0) {
+      for (const body of devs) body.destroy({ children: true })
+      devs.length = 0
+      jolts.length = 0
+      devLayer.removeChildren()
+    }
+    builtWithJamesInRoom = jamesInRoom
+
     // Reuse developer containers across rebuilds — a hire should not rebuild
     // ninety-nine sprites that did not change.
     while (devs.length < n) {
@@ -7777,7 +7867,13 @@ export function buildRoom(): RoomHandle {
       // not moved with it.) Containers are reused
       // across rebuilds, so a developer's look is fixed at the moment their
       // seat first exists and never churns underneath them.
-      const d = buildDeveloper(developerAt(seed, windowFrom + devs.length).look)
+      const seat = windowFrom + devs.length
+      const d = buildDeveloper(
+        (jamesInRoom && seat === JAMES_SEAT
+          ? identityFor(seed, seat)
+          : developerAt(seed, seat)
+        ).look,
+      )
       devs.push(d)
       jolts.push(0)
       devLayer.addChild(d)
@@ -8382,11 +8478,28 @@ export function buildRoom(): RoomHandle {
         // Active heroes type from this desk; benched heroes stay visibly in
         // the same chair. Connecting is deliberately a slower, tentative
         // rhythm until the remote channel becomes live.
-        const pulse = hero.assigned
+        /*
+         * §7.8.0c [added 2026-09-04] — **a hero in the garage is working.**
+         *
+         * `assigned` is §13.11's *remote* assignment: a hero on the office
+         * floor is either driving a branch from their desk or sitting on the
+         * bench, and the bench is drawn at 0.64 with no typing rhythm. The
+         * garage has no remote branches and no bench — it has two people and a
+         * deadline — so James was permanently dimmed and permanently still in
+         * the one room where he is supposed to be the hardest-working person in
+         * it. Reported as "the one in leadership room does not code".
+         *
+         * The office is untouched: there the dimming is the whole readout for
+         * §13.11's roster, and a benched hero has to look benched.
+         */
+        const working = drawnGarage || hero.assigned
+        const pulse = working
           ? Math.max(0, Math.sin(liveElapsed * (hero.connecting ? 5 : 8) + order * 1.7))
           : 0
-        body.alpha = hero.assigned ? 1 : 0.64
+        body.alpha = working ? 1 : 0.64
         body.position.set(at.x, at.y + 6 - pulse * (hero.connecting ? 0.7 : 1.25))
+        // The founder is the other person in that room and is drawn by a
+        // different layer; he keeps his own idle. This is the hero's typing.
       }
       if (roomTransition < 1) {
         roomTransition = Math.min(1, roomTransition + dt / 0.42)
@@ -8761,6 +8874,48 @@ export function buildRoom(): RoomHandle {
         heldSeats: suiteSeats(),
         seatWindow: windowFrom,
         chairs: drawnChairs,
+        /*
+         * §7.8.0c [added 2026-09-03] — **every body the room is actually
+         * drawing, and which way each one is facing.**
+         *
+         * Added because "James is in two places" has now been reported twice,
+         * and both times the geometry seams said one James: `plots` lists what
+         * the room *meant* to draw, and a duplicate is by definition something
+         * it did not mean to. Nothing in `__room()` could see a container, so
+         * the only instrument left was a screenshot — which is how a fortnight
+         * went by with the question open.
+         *
+         * `back`/`front` are the two poses {@link buildDeveloper} builds. Both
+         * true is a defect on its face: a person cannot be facing two ways.
+         */
+        bodies: (() => {
+          const out: Array<{
+            label: string
+            x: number
+            y: number
+            back: boolean
+            front: boolean
+            alpha: number
+          }> = []
+          const walk = (node: Container) => {
+            if (node.label === 'developer' || String(node.label ?? '').startsWith('team-hero:')) {
+              const t = node.worldTransform
+              const [back, front] = node.children as Container[]
+              out.push({
+                label: String(node.label),
+                x: Math.round(t.tx),
+                y: Math.round(t.ty),
+                back: back?.visible ?? false,
+                front: front?.visible ?? false,
+                alpha: +(node.alpha ?? 1).toFixed(2),
+              })
+              return
+            }
+            for (const child of node.children) walk(child as Container)
+          }
+          walk(root)
+          return out
+        })(),
         screen: {
           shell: {
             top: toScreen(shellQuad.top),
