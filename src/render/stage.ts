@@ -9,7 +9,7 @@
  */
 
 import { Application, Container, Sprite, Texture } from 'pixi.js'
-import { createGarageView } from '../vendor/garageView.js'
+import { createGarageView } from '../three/render/garageView.ts'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   arrivedHeroes,
@@ -384,19 +384,25 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const stopWatchingModes = onViewModes(applyGlass)
 
   /*
-   * **PROOF 2026-09-26 — the rebuild's three.js garage under this build's glass.**
+   * **The garage in three.js — 2026-09-26** (`docs/PLAN-2026-09-26-return.md`).
    *
    * *"Can you do me a proof of old game in threejs with the current game
-   * garage?"* The room is drawn by `vendor/garageView.js` (the rebuild's garage,
-   * its people, lights and SSAO) into its own canvas, and that canvas is the
-   * bottom layer of `glass` — so ART_DIRECTION §6's whole stack, bloom to
-   * curvature, goes over it exactly as it went over the Pixi room, and the
-   * interface is this build's, untouched. The Pixi world is hidden rather than
-   * deleted; `?pixiroom` puts it back for comparison.
+   * garage?"*, then *"when you have something stable, I want you to do a push to
+   * main on old repo so I can have a play"*. The room is drawn by
+   * `three/render/garageView.ts` (the rebuild's garage, people, lights and SSAO,
+   * copied here) into its own canvas, and that canvas is the bottom layer of
+   * `glass` — so ART_DIRECTION §6's whole stack goes over it exactly as it went
+   * over the Pixi room, and the interface is this build's, untouched.
    *
-   * What the proof does not do: the lens (zoom, pan, the rungs above the room)
-   * does not drive the 3D camera, taps land on the hidden Pixi people, and the
-   * `+1` numerals are hidden because they were placed on the Pixi room.
+   * **Only the garage era, for now.** While the studio fits the garage the 3D
+   * room is shown and answers taps; past it the Pixi world comes back — floor,
+   * building and every rung above — until the 3D ladder replaces it band by
+   * band. That keeps the build playable end to end in the meantime. `?pixiroom`
+   * shows the Pixi garage too, for comparison.
+   *
+   * Not yet: the lens does not drive the 3D camera (zoom and pan hold the
+   * framing), the `+1` numerals are hidden over the 3D room, and taps near the
+   * frame's edge are a few pixels off (the barrel curvature is not undone).
    */
   const pixiRoom = params.has('pixiroom')
   const garage3d = pixiRoom ? null : createGarageView(app.screen.width, app.screen.height)
@@ -406,19 +412,25 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     garageSprite.width = app.screen.width
     garageSprite.height = app.screen.height
     glass.addChildAt(garageSprite, 0)
-    world.visible = false
     // Pulled back a little: the glass's barrel curvature magnifies the middle.
     garage3d!.setLens(0.8)
   }
   let garageW = app.screen.width, garageH = app.screen.height
+  /** The garage holds twenty developers; past that the studio has moved on. */
+  const GARAGE_3D_DEVS = 20
+  /** Whether the 3D garage is the room on screen this frame. */
+  let showing3d = false
   /**
    * PROOF — who is under client point (x, y) in the 3D garage: a seat, -1 for
    * the founder, null for nobody; `undefined` when the Pixi room is the one
    * drawn, so the old hit tests run as they always did. The glass's barrel
    * curvature is not undone, so taps near the frame's edge land a few pixels off.
    */
+  /** Where seat `seat` (-1 the founder) is on screen in the 3D garage, or null. */
+  const seat3d = (seat: number): { x: number; y: number } | null =>
+    showing3d && garage3d ? garage3d.screenOf(seat) : null
   const pick3d = (x: number, y: number): number | null | undefined => {
-    if (!garage3d) return undefined
+    if (!garage3d || !showing3d) return undefined
     const r = app.canvas.getBoundingClientRect()
     return garage3d.pick((x - r.left) * garageW / r.width, (y - r.top) * garageH / r.height)
   }
@@ -1199,6 +1211,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const point = (x: number, y: number, context = false) =>
       Number.isFinite(x) && Number.isFinite(y) ? { x, y, context } : null
 
+    if (rung <= 2 && showing3d) {
+      const at = seat3d(localSeat(index))
+      return at ? point(at.x, at.y) : null
+    }
     if (rung <= 2 && roomIsUp) {
       const local = localSeat(index)
       const desk = local >= 0 ? room.deskAt(local) : null
@@ -1334,7 +1350,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     take = true,
   }: { t0?: number; sound?: boolean; take?: boolean } = {}): number => {
     const local = room.founderDeskAt()
-    const at = room.container.toGlobal({ x: local.x, y: local.y - 30 })
+    const at = seat3d(-1) ?? room.container.toGlobal({ x: local.x, y: local.y - 30 })
     const paid = pokeFounder(at.x, at.y)
     if (paid <= 0) return 0
 
@@ -1857,8 +1873,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   app.stage.addChild(numerals)
   // The numerals are inside the glass too, so they share the grade.
   glass.addChild(numerals)
-  // PROOF: they were placed on the Pixi room, which is hidden.
-  if (garage3d) numerals.visible = false
 
   // GDD §8.2 + §8.2a. Built once — see pokeText.ts for why nothing here may
   // typeset on the tap frame.
@@ -1911,14 +1925,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     const state = getState()
 
-    // PROOF: the three.js garage follows the store's headcount and James.
-    if (garage3d && garageTexture && garageSprite) {
+    // The three.js garage, while the studio is a garage: it follows the store's
+    // headcount and James, and the Pixi world (and its numerals, which were
+    // placed on the Pixi room) stands in everywhere else.
+    showing3d = garage3d !== null && state.devs <= GARAGE_3D_DEVS
+    world.visible = !showing3d
+    // A poke's numeral is placed where the tap or the founder is, so it is right
+    // over either room; the passive tallies are laid out on the Pixi room's seats.
+    tallies.container.visible = !showing3d
+    if (garageSprite) garageSprite.visible = showing3d
+    if (showing3d && garage3d && garageTexture && garageSprite) {
       if (app.screen.width !== garageW || app.screen.height !== garageH) {
         garageW = app.screen.width; garageH = app.screen.height
         garage3d.resize(garageW, garageH)
         garageSprite.width = garageW; garageSprite.height = garageH
       }
-      garage3d.setHeadcount(Math.min(20, state.devs))
+      garage3d.setHeadcount(state.devs)
       garage3d.setJames(arrivedHeroes().has('james'))
       garage3d.render(now / 1000)
       garageTexture.source.update()
@@ -2460,6 +2482,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
        * the tap miss".
        */
       ;(globalThis as unknown as Record<string, unknown>).__founderAt = () => {
+        if (showing3d) {
+          const at = seat3d(-1)
+          return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
+        }
         if (!roomIsUp) return null
         const at = room.founderDeskAt()
         const p = room.container.toGlobal({ x: at.x, y: at.y - 18 })
@@ -2489,8 +2515,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
        * over is what the renderer *did*, which is the only thing worth
        * asserting about a renderer.
        */
-      ;(globalThis as unknown as Record<string, unknown>).__room = () =>
-        roomIsUp ? room.geometry() : null
+      ;(globalThis as unknown as Record<string, unknown>).__room = () => {
+        if (!roomIsUp) return null
+        const g = room.geometry()
+        // Over the 3D garage the seats a thumb aims at are the drawn ones.
+        if (showing3d) {
+          g.screen.seats = g.seats.map((_, i) => seat3d(i) ?? { x: -1, y: -1 })
+        }
+        return g
+      }
       /*
        * §7.8.0c — **what the camera is actually doing**, as opposed to what the
        * frame it was told to fit says it should be.

@@ -120,7 +120,29 @@ Four ways to get the swarm feel:
 2. Then a spike of whichever the user picks, at 10K, 1M and 100M, with phone frame time measured before
    anything is built on it.
 
-## Decisions for the user
+## Decided — 2026-09-26, later the same day
+
+> *"Satire law, leaving the 5 heroes, yes the machanics we have new repo as canon upgrades etc. but art style as
+> old repo. I want the swarm POC done in old repo all the way to galaxy with the James launch scenematic before we
+> merge to main. We can keep this new repo as reference but no more live changes done"*, then *"when you have
+> something stable, I want you to do a push to main on old repo so I can have a play"*, *"The release game should
+> be ported too the circle dredge fishing game"*, *"Also the art and name generation on the new game should be
+> ported"* and *"The old game office scene was complete out of place the very reason I gave up on pixi hence this
+> should be completely redone"*.
+
+- **Mechanics are the rebuild's.** The satire law (option C), five heroes, upgrades and trees, pipeline and minigames
+  all come from the rebuild. **The art style is this repo's.**
+- **The rebuild is read-only reference.** Its source is copied in under `src/three/` (mirroring its folders), and the
+  copy is the one that changes.
+- **Also ported:**
+  - **The release ring.** The rebuild's circular, Dredge-style release minigame replaces this repo's timing window
+    as what a manual SHIP! press is.
+  - **Cover art and name generation** (the rebuild's `coverPixels` and title generator).
+- **The Pixi office floor is redone completely, in 3D.** It is not kept as a fallback longer than it takes to replace.
+- **Stable builds go to `main` as they land** (which deploys the web build). The swarm POC to the galaxy, with the
+  James launch, continues on the proof branch.
+
+## Decisions for the user (superseded by the section above where they overlap)
 
 1. The satire law: this repo's collapse alone, or the rebuild's option C (square root plus collapse, Ledger slices).
 2. Canon: copy the rebuild's `GDD.html` here as canon (with §12 → ART_DIRECTION), yes or no.
