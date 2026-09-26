@@ -64,8 +64,8 @@ describe('nobody who is sitting down ever moves — §7.8.1b', () => {
 
   it('starts at the plot §7.8.12 holds for the suite doorway', () => {
     // The room draws James inside the glass and leaves this plot bare; it is
-    // the threshold the door opens onto. `room.acceptance.mjs` fails if
-    // anything is ever drawn on it.
+    // the threshold the door opens onto. (`room.acceptance.mjs` failed if
+    // anything was drawn on it, until the gate was deleted on 2026-09-26.)
     expect(SEATS[0]).toMatchObject({ col: 0, row: 0 })
   })
 

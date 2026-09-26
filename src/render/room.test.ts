@@ -386,7 +386,7 @@ describe('your corner desk — GDD §7.8.10', () => {
    *
    * The rule now is that the room's two back sides *are* the suite's, which is
    * one comparison rather than an offset to tune. The drawn consequence is
-   * measured at every headcount by `npm run test:room`.
+   * measured at every headcount by `npm run test:room` until it was deleted on 2026-09-26.
    */
   it('starts the room at the suite’s own back corner', () => {
     expect(SUITE_WEST_COL).toBe(FLOOR_MIN_COL)

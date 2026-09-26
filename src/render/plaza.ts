@@ -20,7 +20,7 @@
  * screen pixels would be the same class of mistake as the kite-shaped floor
  * plate §7.8.12 records: a shape that is not lying on the ground.
  *
- * `test:room` asserts this, and `plaza.test.ts` proves it about the points
+ * `test:room` asserted this until its deletion on 2026-09-26, and `plaza.test.ts` proves it about the points
  * before they are ever drawn.
  *
  * ## And it has a job

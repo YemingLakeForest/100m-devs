@@ -42,17 +42,16 @@ console will mis-render `§` and `—` even when the file is correct.
 
 ## Before saying it works
 
-`npm run check` is the gate: lint, `tsc -b`, vitest, `art:check`, the room
-geometry gate (`test:room`), the real-browser frame gate (`test:ui-frame`) and
-the playthrough walk (`test:walk`). The last three launch Chrome and take
-minutes — run them in the background rather than skipping them, because they are
-the only three that catch layout, geometry and flow defects.
+`npm run check` is the gate: lint, `tsc -b`, vitest, `art:check`, the
+real-browser frame gate (`test:ui-frame`) and the playthrough walk
+(`test:walk`). The last two launch Chrome and take minutes — run them in the
+background rather than skipping them.
 
-**`test:room` measures what the renderer drew**, not what the arithmetic says it
-should have. It exists because the team room shipped two defects that every other
-check was blind to — walls at screen slopes the projection has no room for, and a
-suite floating in the middle of the slab instead of sitting in its corner —
-and neither was a wrong number anybody could have found by reading a number. If
-you change the room's shape, expect this to be the gate that argues with you, and
-read its failure line before assuming it is wrong: it reports in grid units,
-which is the only unit in which containment in this projection is exact.
+**The room geometry gate (`test:room`) is deleted — 2026-09-26, at the user's
+instruction:** *"Delete room gate, that changes all the time and useless."* It
+measured the Pixi room's walls and seats as drawn, and the room it measured is
+being replaced by the three.js garage and office; both of its reds in the batch
+that brought the 3D garage in were the gate aiming at the hidden Pixi room, not
+a defect anybody could see. Nothing now checks room geometry automatically, so
+a claim about walls, seats or clearance (禁止穿模) is made by looking at the
+game and saying what was looked at.

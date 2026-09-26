@@ -53,7 +53,8 @@ unrestyled. The rebuild supplies models, 3D rendering, and a chosen set of syste
 - Undo the barrel curvature in hit-testing, and make James appear.
 - Retire the Pixi room only at parity.
 - Rewrite or retire `test:room`, `test:walk` and `test:ui-frame`, which measure the Pixi room, in the same
-  batch. Say which.
+  batch. Say which. **`test:room` deleted 2026-09-26** at the user's instruction (*"that changes all the
+  time and useless"*); `test:ui-frame` is kept (*"I want to keep UI element display gates"*).
 
 **1 · The economy decision, then the Ledger in legacy widgets.** If option C is chosen:
 - Port `entropy`, `dysfunction`, `losses`, `audience` and `pricing` as pure modules, then re-pin the tests that

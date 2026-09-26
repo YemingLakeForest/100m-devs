@@ -4042,8 +4042,8 @@ free to disagree — and did, which is the class of defect <code>test:room</code
 that moves moves the camera and there is no third number to keep in step.</p>
 <p>The geometry is deliberately separated from the drawing. <code>wallSegments()</code>,
 <code>shellExtent()</code>, <code>insideShell()</code> and <code>paneDivisions()</code> are pure functions of numbers, so the
-claims above are checkable in milliseconds and can be pointed at a line. <code>test:room</code> stays the
-gate for what was actually <em>drawn</em> — that is its whole value, and it is unaffected — but it
+claims above are checkable in milliseconds and can be pointed at a line. <code>test:room</code> stayed the
+gate for what was actually <em>drawn</em> (deleted 2026-09-26, see &quot;The room is measured&quot;) — that is its whole value, and it is unaffected — but it
 should no longer be the first place a wrong wall is noticed.</p>
 <h5 id="zero-c-the-garage-canon-added-2026-09-01">7.8.0c The garage — five pods of four, and a corner that costs nothing <strong>[CANON - added 2026-09-01]</strong></h5>
 <p>The authored plan for the first twenty developers. <strong>[amended 2026-09-03]</strong> Read the
@@ -5122,7 +5122,7 @@ less than the room it is pinned inside; the rungs below it are untouched, and pi
 developer still reaches James.</p>
 <p><strong>Containment is measured, not argued.</strong> <code>RoomGeometry.screen</code> carries the
 four slab corners and every pier's drawn box a second time through <code>container.toGlobal</code>,
-beside the viewport they landed in, and <code>test:room</code> asserts that all of it is inside the
+beside the viewport they landed in, and <code>test:room</code> asserted (until its deletion on 2026-09-26) that all of it is inside the
 frame at both supported sizes and that the building fills at least three quarters of it. Every other
 measurement in that record is in the room's own pixels, which is the right frame for a shape and the
 wrong one for a camera.</p>
@@ -7001,6 +7001,13 @@ exact in the unit the thing was built in.</em></p>
 </blockquote>
 <p>It cannot tell you the room is dull. It can tell you the room is wrong, which is the half
 that was going unnoticed.</p>
+<p><strong>[amended 2026-09-26] The gate is deleted.</strong> <em>"Delete room gate, that changes all
+the time and useless."</em> The argument above was right for a Pixi room whose walls were a second
+calculation beside its camera. That room is being replaced by the three.js garage and office, and
+the gate had become a description of it: both of its failures in the batch that brought the 3D
+garage in were the gate measuring the hidden Pixi room, not anything on screen. The pure geometry
+functions and their unit tests stay. What was <em>drawn</em> is now checked the way the rest of the
+picture is, by looking at it and saying what was looked at; 禁止穿模 is still release-blocking.</p>
 <h5 id="the-dressing-is-deliberately-unfinished-added-2026-08-31">The dressing is deliberately unfinished <strong>[added 2026-08-31]</strong></h5>
 <p><strong>The suite is currently a shoe box, and that is a stopping point rather than a
 design.</strong> Everything above is <em>architecture</em> &#8212; where the walls are, what is
@@ -7012,8 +7019,8 @@ the people, authored <strong>programmatically</strong> from the room&#8217;s own
 than placed by hand. The rule that makes that safe is already written down and now enforced
 &#8212; no coordinate in this room is a screen pixel &#8212; so a plant, a whiteboard for Billy,
 a pacing lane for Melany or a meeting table can be placed by naming plots and will land in the
-floor plane by construction. <code>test:room</code> is what keeps that true while it is being
-authored.</p>
+floor plane by construction. <code>test:room</code> kept that true while it was being
+authored (deleted 2026-09-26: the unit tests on the plot arithmetic remain).</p>
 <h5 id="the-mechanic-it-carries">The mechanic it carries <strong>[amended 2026-08-29]</strong></h5>
 <p><strong>Every arrived hero is physically at their desk in the suite, whether benched or assigned.</strong>
 The suite answers where the people are, while the world assignment answers what they are

@@ -2595,7 +2595,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
        * tapping it does nothing*, and only the second is a bug.
        */
       /*
-       * §7.8.12 — **the drawn room, measured**, for `scripts/room.acceptance.mjs`.
+       * §7.8.12 — **the drawn room, measured**, for the walk
+       * (`scripts/playthrough.acceptance.mjs`), which finds James in it. It was
+       * written for the room gate, deleted 2026-09-26.
        *
        * The same family as `__pick` and `__founderAt`: a question about the
        * scene that a screenshot cannot answer and that re-deriving from

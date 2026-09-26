@@ -192,7 +192,7 @@ export default function App() {
              * reason the note above gives about Billy: she brings no readout,
              * so she changes nothing about the worst frame the HUD has to draw.
              * That was the wrong test. `?full` is also the fixture the room
-             * gates measure — `test:room` and every garage capture load it —
+             * gates measured — `test:room` (deleted 2026-09-26) and every garage capture loaded it —
              * and §7.8.0c requires the completed leadership corner to hold the
              * founder and **all six** named heroes at seven distinct work
              * positions. Without her the canonical garage frame had six people
