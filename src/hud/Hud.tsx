@@ -852,7 +852,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           seen={hasSeenScene(state.scene)}
           onFinished={finishDialogue}
           onFocus={(focus) => stage?.focusDialogue(focus)}
+          holdBefore={state.scene === SCENE_JAMES_ARRIVES.id ? JAMES_DROPS_AT_LINE : undefined}
+          holdUntil={state.scene === SCENE_JAMES_ARRIVES.id && stage ? () => stage.jamesLanded() : undefined}
           onLine={(line) => {
+            stage?.setSceneLine(line)
             // §21.7.1 — "APPLICANT AT DOOR." holds, then James drops in and the
             // lens follows his `Ouch.`. The next line is the founder's, and its
             // focus brings the lens back — so the drop itself needs nothing here

@@ -61,6 +61,14 @@ export interface GarageView {
   panBy(dx: number, dy: number): void
   /** A seat (-1 the founder, -2 James) hops, as a poke answers. */
   hop(seat: number): void
+  /**
+   * Ease the camera to a person — a seat, or -1 the founder, -2 James — for a
+   * line of dialogue, and back to where the player had it on `null`. The
+   * player's own zoom or pan ends it.
+   */
+  focus(seat: number | null): void
+  /** Is anybody at this seat still falling or hopping? */
+  animating(seat: number): boolean
   render(seconds: number): void
   /**
    * Who is under canvas point (x, y), in CSS pixels: a seat index, -1 for the
@@ -78,7 +86,22 @@ const ZOOM_MAX = 7
 /** How far a hire falls, in metres — the rebuild's DROP_FROM. */
 const DROP_FROM = 3.4
 
-interface Anim { seat: number; kind: 'hop' | 'drop'; start: number; delay: number; puffed?: boolean }
+type Piece = 'desk' | 'chair' | 'body'
+interface Anim {
+  seat: number
+  kind: 'hop' | 'drop'
+  start: number
+  delay: number
+  /** A drop's pieces, each falling at its own offset: a hire is desk then person. */
+  pieces?: { piece: Piece; at: number; puffed?: boolean }[]
+}
+/** A hire: the desk, then its developer a beat later. */
+const HIRE_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { piece: 'body', at: .25 }]
+/**
+ * James: *"me: what? then james desk, then chair, then james fall, then, he
+ * said, ouch"* — three landings, each heard before the next begins.
+ */
+const JAMES_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { piece: 'chair', at: .55 }, { piece: 'body', at: 1.1 }]
 interface Rest { position: T.Vector3; scale: T.Vector3 }
 interface Part { key: string; instances: SeatInstance[]; group: T.Object3D | null }
 
@@ -143,6 +166,13 @@ export function createGarageView(width: number, height: number, cast: StudioCast
    */
   let clock = 0
   let lastSeconds: number | null = null
+  /**
+   * A dialogue's focus: the camera eases to the speaker (§10.7a.1, *"camera
+   * should focus on the person when their turn of speech"*), and `saved` is
+   * where the player had it, to go back to when the scene ends.
+   */
+  let focusOn: { pan: T.Vector3; zoom: number } | null = null
+  let saved: { pan: T.Vector3; zoom: number } | null = null
   let shake = 0
   /**
    * Every screen and lamp light, lifted out of its desk into the scene when the
@@ -257,6 +287,24 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     return handle ? { key, instances: handle.instances, group: handle.group } : null
   }
 
+  function chair(seat: number): Part | null {
+    const id = leaderId(seat)
+    const handle = id ? env.props?.get(`chair:${id}`) : undefined
+    return handle ? { key: `chair:${id}`, instances: handle.instances, group: handle.group } : null
+  }
+
+  function pieceParts(seat: number, piece: Piece): Part[] {
+    if (piece === 'body') return body(seat)
+    const part = piece === 'desk' ? desk(seat) : chair(seat)
+    return part ? [part] : []
+  }
+
+  /** Out of the picture until its turn: a desk hanging in the air is not a desk arriving. */
+  function hide(part: Part) {
+    placeInstances(part.instances, new T.Matrix4().makeScale(0, 0, 0))
+    if (part.group) part.group.visible = false
+  }
+
   /** Where a seat stands on the floor, from its hit box: the base a squash is about. */
   function floorAt(seat: number): T.Vector3 | null {
     const t = env.targets.find((target) => target.index === seat)
@@ -277,6 +325,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       .multiply(new T.Matrix4().makeTranslation(-base.x, -base.y, -base.z))
     placeInstances(part.instances, delta)
     if (part.group) {
+      part.group.visible = true
       part.group.position.set(r.position.x, r.position.y + y, r.position.z)
       part.group.scale.set(r.scale.x * sxz, r.scale.y * squash, r.scale.z * sxz)
     }
@@ -293,14 +342,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     shake = Math.max(shake, .12)
   }
 
-  function start(seat: number, kind: 'hop' | 'drop', delay = 0) {
+  function start(seat: number, kind: 'hop' | 'drop', delay = 0, pieces?: Anim['pieces']) {
     // A hop does not interrupt a landing, and a second hop restarts the first.
     const running = anims.findIndex((a) => a.seat === seat)
     if (running >= 0) {
       if (anims[running].kind === 'drop' && kind === 'hop') return
       anims.splice(running, 1)
     }
-    anims.push({ seat, kind, start: clock, delay })
+    anims.push({ seat, kind, start: clock, delay, pieces: pieces?.map((p) => ({ ...p })) })
   }
 
   function animate() {
@@ -309,8 +358,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const t = clock - a.start - a.delay
       const base = floorAt(a.seat)
       if (!base) { anims.splice(i, 1); continue }
-      const parts = body(a.seat)
       if (a.kind === 'hop') {
+        const parts = body(a.seat)
         if (t < 0) continue
         // Crouch, spring, fly, land: under half a second.
         const y = t < .07 || t >= .37 ? 0 : .55 * Math.sin(Math.PI * (t - .07) / .3)
@@ -326,22 +375,21 @@ export function createGarageView(width: number, height: number, cast: StudioCast
        * (`render/arrivals.ts`): an object that eases into the floor reads as a
        * crane lowering it, one that stops dead as a sprite switched on.
        */
-      const d = desk(a.seat)
       const fall = (u: number) =>
-        u <= 0 ? DROP_FROM : u < 1 ? DROP_FROM * (1 - u * u) : u < 1.5 ? .32 * Math.sin(Math.PI * (u - 1) / .5) : 0
+        u < 1 ? DROP_FROM * (1 - u * u) : u < 1.5 ? .32 * Math.sin(Math.PI * (u - 1) / .5) : 0
       const land = (u: number) =>
         u >= 1 && u < 1.15 ? 1 - .24 * Math.sin(Math.PI * (u - 1) / .15)
           : u >= 1.5 && u < 1.62 ? 1 - .12 * Math.sin(Math.PI * (u - 1.5) / .12) : 1
-      const deskT = (t + .25) / .45
-      const bodyT = t / .45
-      if (d) place(d, base, fall(deskT), land(deskT))
-      parts.forEach((p) => place(p, base, fall(bodyT), land(bodyT)))
-      if (bodyT >= 1 && !a.puffed) { a.puffed = true; puff(base) }
-      if (bodyT >= 1.62) {
-        if (d) place(d, base, 0, 1)
-        parts.forEach((p) => place(p, base, 0, 1))
-        anims.splice(i, 1)
+      let done = true
+      for (const piece of a.pieces ?? HIRE_DROP) {
+        const u = (t - piece.at) / .45
+        const these = pieceParts(a.seat, piece.piece)
+        if (u < 0) { these.forEach(hide); done = false; continue }
+        if (u < 1.62) done = false
+        these.forEach((p) => place(p, base, u >= 1.62 ? 0 : fall(u), u >= 1.62 ? 1 : land(u)))
+        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base) }
       }
+      if (done) anims.splice(i, 1)
     }
     for (let i = puffs.length - 1; i >= 0; i--) {
       const p = puffs[i]
@@ -373,7 +421,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       james = here
       cast = { ...cast, heroes: here ? ['james'] : [] }
       build()
-      if (settled && here) start(leaderSeat('james'), 'drop')
+      if (settled && here) start(leaderSeat('james'), 'drop', 0, JAMES_DROP)
       settled = true
     },
     setIdentity(founder, studio) {
@@ -392,7 +440,25 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z))
     },
     get zoom() { return zoom },
+    focus(seat) {
+      if (seat === null) {
+        if (saved) focusOn = saved
+        saved = null
+        return
+      }
+      const t = env.targets.find((target) => target.index === seat)
+      if (!t) return
+      if (!saved) saved = { pan: pan.clone(), zoom }
+      // Look straight at their head; an orthographic view has no distance to fix.
+      const at = t.mesh.getWorldPosition(new T.Vector3())
+      at.y += t.mesh.scale.y * 0.3
+      focusOn = { pan: at.sub(env.focus), zoom: Math.max(zoom, 1.9) }
+    },
+    animating(seat) {
+      return anims.some((a) => a.seat === seat)
+    },
     zoomTo(z, x, y) {
+      focusOn = null; saved = null
       const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z))
       if (next === zoom) return
       const { right, up } = axes()
@@ -408,6 +474,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       view.zoomTo(zoom * factor, x, y)
     },
     panBy(dx, dy) {
+      focusOn = null; saved = null
       const { right, up } = axes()
       const u = span() / w
       pan.addScaledVector(right, -dx * u)
@@ -426,6 +493,13 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         l.light.intensity = on ? l.intensity : 0
       }
       animate()
+      if (focusOn) {
+        // A quick ease rather than a cut: the move and the name plate are one event.
+        const k = 1 - Math.exp(-6 * (1 / 60))
+        pan.lerp(focusOn.pan, k)
+        zoom += (focusOn.zoom - zoom) * k
+        if (pan.distanceTo(focusOn.pan) < .01 && Math.abs(zoom - focusOn.zoom) < .005 && !saved) focusOn = null
+      }
       frame()
       for (const { arm, offset, side } of arms) {
         if (!arm.visible || !arm.parent?.visible) continue

@@ -9,6 +9,7 @@ import * as T from 'three'
 import { box, cylinder, INK, line, sharedMaterial } from './worldArt.ts'
 import { STUDIO_DOOR, STUDIO_GABLE } from '../sim/floorPlan.ts'
 import { dietCoke } from './garageCraft.ts'
+import { OS, OS_SKIN } from '../art/skin.ts'
 
 /**
  * The green the studio signs its own name in.
@@ -353,6 +354,7 @@ function departureRuns(label: string, tracking = NAME_TRACKING): { runs: Run[]; 
  */
 export function heroName(parent: T.Object3D, label: string, y: number,
   colour: string, yaw = 0, sub?: string): T.Group {
+  if (OS_SKIN) return osTag(parent, label, colour, yaw)
   const g = new T.Group()
   g.position.set(0, 0, NAME_FORWARD)
   // The only rotation there is: undo the station's, and stand square to the
@@ -384,6 +386,73 @@ export function heroName(parent: T.Object3D, label: string, y: number,
   for (const at of [-cap * .35 - .04, -cap * .35 + h]) {
     box(panel, 0, at, -.04, w + .06, .04, .1, INK.trim)
   }
+  return g
+}
+
+/**
+ * **The STUDIO_OS name tag** — 2026-09-26.
+ *
+ * *"name tags on top of us and James, now they are not serving the purpose
+ * make something that fits the game OS style but still same orientation and
+ * facing as those"*. The rebuild's plate was a coloured signboard floating over
+ * a full-height person; over this build's shorter people it read as a sign on
+ * the wall behind them, naming the room rather than the person.
+ *
+ * So it is the interface's own label, standing in the world: a dark panel, a
+ * phosphor frame, glowing letters (emissive, so the glass's bloom takes them
+ * like a screen), the person's role colour as a tab on the leading edge, and a
+ * **stalk down to the head** — the same label-on-a-stalk the character screen
+ * draws over the founder, which is what makes it point at somebody. The stalk
+ * stops short of the head: a post through the person it labels is 禁止穿模.
+ *
+ * Orientation and facing are {@link heroName}'s, unchanged: square to the world
+ * grid on {@link NAME_AXIS}, the station's yaw cancelled, never turned to the lens.
+ */
+const TAG_HEAD_TOP = 1.62
+const TAG_GAP = 0.34
+const TAG_CAP = 0.26
+
+/**
+ * Lit like a screen. The letters at a little under unity: at 1.6 the glass's
+ * bloom ran their strokes together (YOU read as YOW), and a name that cannot
+ * be read has stopped being a name tag.
+ */
+function glow(colour: string, strength = 1.6): T.MeshStandardMaterial {
+  return sharedMaterial(`os-glow:${colour}:${strength}`, () => new T.MeshStandardMaterial({
+    color: colour, emissive: colour, emissiveIntensity: strength, roughness: .6,
+  }))
+}
+
+function osTag(parent: T.Object3D, label: string, role: string, yaw: number): T.Group {
+  const g = new T.Group()
+  g.position.set(0, 0, NAME_FORWARD)
+  g.rotation.y = NAME_AXIS - yaw
+  parent.add(g)
+  const cap = TAG_CAP
+  const bottom = TAG_HEAD_TOP + TAG_GAP
+  const panel = new T.Group()
+  panel.position.y = bottom + cap * .45
+  g.add(panel)
+  const letters = new T.Group()
+  panel.add(letters)
+  const width = letterBoxes(letters, label, cap, .03, OS.calm3) || cap * 3
+  letters.traverse((o) => { if (o instanceof T.Mesh) o.material = glow(OS.calm3, .85) })
+  const w = width + cap * 1.3
+  const h = cap * 1.9
+  // The panel: the interface's dark, a hairline frame of phosphor round it.
+  box(panel, 0, -cap * .45, -.05, w, h, .05, OS.n1)
+  const frame = [
+    box(panel, 0, -cap * .45 - .025, -.03, w + .05, .025, .07, OS.calm2),
+    box(panel, 0, -cap * .45 + h, -.03, w + .05, .025, .07, OS.calm2),
+    box(panel, -w / 2 - .0125, -cap * .45, -.03, .025, h, .07, OS.calm2),
+    box(panel, w / 2 + .0125, -cap * .45, -.03, .025, h, .07, OS.calm2),
+  ]
+  for (const bar of frame) bar.material = glow(OS.calm2)
+  // The role's tab, on the leading edge: identity on the object, as §7.1 wants.
+  box(panel, -w / 2 + cap * .18, -cap * .45 + h * .2, -.02, cap * .16, h * .6, .06, role)
+  // The stalk, from the panel's foot to just above the head, never into it.
+  const stalk = box(g, 0, TAG_HEAD_TOP + .1, -.03, .03, bottom - cap * .45 + cap * .45 - (TAG_HEAD_TOP + .1), .03, OS.calm2)
+  stalk.material = glow(OS.calm2)
   return g
 }
 

@@ -95,6 +95,18 @@ export interface DialogueProps {
    */
   onLine?: (lineIndex: number) => void
   /**
+   * [2026-09-26] A line that waits for the world. Until `holdUntil()` answers
+   * true the box will not turn onto line `holdBefore`, however it is tapped;
+   * when it does, the box turns onto it by itself. *"me: what? then james desk,
+   * then chair, then james fall, then, he said, ouch and continues"* — James
+   * cannot say *Ouch.* before he has landed, and the landing is the cue for it.
+   *
+   * A question rather than a flag, asked every frame while the box waits: a
+   * scene stops the simulation, so nothing re-renders the host to tell it.
+   */
+  holdBefore?: number
+  holdUntil?: () => boolean
+  /**
    * §10.7's one exception: dialogue already seen in a previous run fills
    * instantly. It is not a skip — rule 2's deliberate advance tap still applies
    * to every page. First viewing of any line is always fully typed, so this is
@@ -148,6 +160,8 @@ export function Dialogue({
   onFinished,
   onFocus,
   onLine,
+  holdBefore,
+  holdUntil,
   seen = false,
   columns = DEFAULT_COLUMNS,
 }: DialogueProps) {
@@ -204,9 +218,29 @@ export function Dialogue({
     return () => cancelAnimationFrame(frame)
   }, [state.finished, armed, state.page, send])
 
+  // The next page's line, for a hold: a tap that would turn onto a held line
+  // before the world is ready is swallowed, and the world's cue turns it instead.
+  const nextLine = pages[state.page + 1]?.line
+  const held = holdBefore !== undefined && holdUntil !== undefined && nextLine === holdBefore && isComplete(state)
+  const holdRef = useRef(holdUntil)
+  useEffect(() => { holdRef.current = holdUntil }, [holdUntil])
+  useEffect(() => {
+    if (!held || !armed) return
+    let frame = 0
+    let turn = 0
+    const ask = () => {
+      if (holdRef.current?.() ?? true) { turn = window.setTimeout(() => send({ type: 'tap' }), 250); return }
+      frame = requestAnimationFrame(ask)
+    }
+    frame = requestAnimationFrame(ask)
+    return () => { cancelAnimationFrame(frame); window.clearTimeout(turn) }
+  }, [held, armed, send])
+  // While held, the box is the world's to turn: a tap would only race the landing.
+  const waiting = held
+
   // Pointer-down, not click: F2 wants the acknowledgement on the way down, and
   // a `click` only resolves on release, which on a phone is 60–100 ms later.
-  const onPointerDown = useCallback(() => send({ type: 'tap' }), [send])
+  const onPointerDown = useCallback(() => { if (!waiting) send({ type: 'tap' }) }, [send, waiting])
 
   const page = pages[Math.min(state.page, pages.length - 1)]
   const focus = page?.focus ?? null

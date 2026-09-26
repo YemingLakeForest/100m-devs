@@ -56,6 +56,11 @@ export interface PostProcess {
     critPunch: number
     width: number
     height: number
+    /**
+     * [2026-09-26] How much of pass 5's line contrast to draw, 0..1 (default 1):
+     * *"the CRT lines are distorting our character's faces"*. See `update`.
+     */
+    lines?: number
   }): void
   destroy(): void
 }
@@ -179,7 +184,7 @@ export function createPostProcess({
     // Order is §6 order, filtered by what was asked for — never reordered.
     filters: ALL_PASSES.filter((p) => p !== 'tilt' && passes.has(p)).map((p) => byName[p]),
 
-    update({ glass, zoom, zoomVelocity, critPunch, width, height }) {
+    update({ glass, zoom, zoomVelocity, critPunch, width, height, lines = 1 }) {
       elapsed += 1 / 60
 
       // 1. Depth of field belongs to the desk. It fades out as the camera
@@ -242,7 +247,15 @@ export function createPostProcess({
       // loss as entropy climbs.
       crt.time = reduceMotion ? 0 : elapsed * (7.2 + glass.scanlineRoll * 2.0)
       crt.noise = glass.scanlineNoise * 0.09
-      crt.lineContrast = 0.14 + glass.scanlineNoise * 0.1
+      /*
+       * [2026-09-26] **Lines, not bars across a face.** The contrast was set for
+       * a pixel room of 9 px glyphs and 11 px people, where a dark line every
+       * 1.4 px is texture. Over the 3D room a face is a hundred pixels of smooth
+       * shading, and the same line reads as a comb drawn across it — worse as it
+       * rolls. The stage scales it down there (`lines`); the glass stays, the
+       * curvature and vignette (pass 6, the weld) are untouched.
+       */
+      crt.lineContrast = (0.14 + glass.scanlineNoise * 0.1) * Math.max(0, Math.min(1, lines))
 
       // Entropy Lock: horizontal tear. Driving seed rather than curvature
       // keeps the glass itself constant, which §6 requires.

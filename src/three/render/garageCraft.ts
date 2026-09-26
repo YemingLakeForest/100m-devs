@@ -80,14 +80,17 @@ function printed(g: T.Object3D, key: string, w: number, h: number, x: number, y:
     const material = new T.MeshBasicMaterial({ map: t })
     // STUDIO_OS: a screen is the brightest thing in a dark room, so it is lifted
     // past the bloom threshold rather than sitting at paper white.
-    if (OS_SKIN && key.startsWith('screen-')) material.color.setScalar(2.6)
+    if (OS_SKIN && key.startsWith('screen-')) material.color.setScalar(1.7)
     panels.set(key, material)
   }
   const mesh = new T.Mesh(new T.PlaneGeometry(w, h), panels.get(key))
   mesh.position.set(x, y, z); mesh.rotation.y = yaw; mesh.userData.ownGeometry = true; g.add(mesh)
   if (OS_SKIN && key.startsWith('screen-')) {
     // …and it lights its operator: the legacy room's pools came from here.
-    const glow = new T.PointLight(OS.glow2, 1.6, 2.6, 2)
+    // Dimmed 2026-09-26: *"people's face so lit up by the monitor light, dim
+    // them down"* — at 1.6 the face in front of it read as the brightest thing
+    // in the room. A screen should tint its operator, not floodlight them.
+    const glow = new T.PointLight(OS.glow2, .55, 2, 2)
     glow.position.set(x + Math.sin(yaw) * .45, y - .05, z + Math.cos(yaw) * .45)
     g.add(glow)
   }
@@ -159,12 +162,8 @@ export function craftedHeroDesk(g: T.Group, id: string): void {
   box(desk, .46, .94, .48, .085, .04, .12, '#b7bdb9')
   lamp(desk, .89, 1.07)
   if (id === 'founder') {
-    // The camera sees the back of the monitor: give it the founder's best excuse.
-    printed(desk, 'founder-machine-excuse', .73, .32, -.04, 1.36, .958, c => {
-      c.fillStyle = '#f6df85'; c.fillRect(0, 0, 768, 512)
-      c.fillStyle = '#3f514e'; c.textAlign = 'center'; c.font = 'bold 105px sans-serif'
-      c.fillText('IT WORKS ON', 384, 205); c.fillText('MY MACHINE', 384, 345)
-    })
+    // [2026-09-26] The back of the monitor is bare: "I don't want the only works
+    // on my machine note on the back on my PC".
     // A comically oversized release button, safely away from the typing keys.
     box(desk, .70, .92, .74, .38, .065, .32, '#374e50')
     cylinder(desk, .70, .985, .74, .13, .10, '#cf5441')

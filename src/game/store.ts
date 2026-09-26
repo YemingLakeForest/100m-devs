@@ -1665,6 +1665,37 @@ export function pokeFounder(x = 0, y = 0): number {
 }
 
 /**
+ * **Poke James** — 2026-09-26: *"I can't click james to code at the moment"*.
+ *
+ * §21.0b made him unreachable by design: he is the super dev outside the
+ * twenty, so he was left out of every body a finger could land on. The
+ * rebuild's mechanics, now canon here, let you poke him, and a poke on a coder
+ * is code: this is the founder's poke, credited to James. Worth **twice your
+ * tap** — he is the super dev, and a poke on him should feel like one — and
+ * nothing at all while he is at the gym (§21.7.0 rule 5), before he has
+ * arrived, or while the studio has downed tools (a scene, the launch window,
+ * bankruptcy), for the reason {@link pokeFounder} gives.
+ *
+ * Returns the Story Points banked, 0 for a tap that did nothing.
+ */
+export const JAMES_TAP_MULTIPLE = 2
+export function pokeJames(x = 0, y = 0): number {
+  if (state.scene !== null || state.pendingRelease !== null || state.phase === 'bankrupt') return 0
+  if (!arrivedHeroes().has('james') || !jamesPresent(state.runSeconds)) return 0
+  const sp = founderOf().tapValue * JAMES_TAP_MULTIPLE
+  set({
+    burned: state.burned.plus(sp),
+    pokeRate: state.pokeRate + sp / POKE_RATE_TAU,
+    pokeCount: state.pokeCount + 1,
+    floaters: [
+      ...state.floaters,
+      { id: nextFloaterId++, sp, x, y, crit: false, bornAt: performance.now(), snippet: snippets.next('working'), unblocked: false },
+    ],
+  })
+  return sp
+}
+
+/**
  * §13.7.1's Always On Call — what your desk contributes to §24.5's absence.
  *
  * Zero unless the node is owned, which is what makes it a node rather than a

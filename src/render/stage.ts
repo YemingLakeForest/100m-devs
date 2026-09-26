@@ -13,6 +13,7 @@ import { createGarageView } from '../three/render/garageView.ts'
 import { founderLook, readStudioName } from '../game/founderProfile.ts'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
+  pokeJames,
   arrivedHeroes,
   cancelPosting,
   currentEntropy,
@@ -125,6 +126,7 @@ import { SETTLE_SECONDS, type HeroPlacement } from '../sim/heroRoster.ts'
 import { nominalUnitSize, unitSeats } from '../sim/units.ts'
 import { STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
 import {
+  JAMES_DROPS_AT_LINE,
   SCENE_BILLY_ARRIVES,
   SCENE_JAMES_ARRIVES,
   SCENE_MATT_ARRIVES,
@@ -251,6 +253,10 @@ export interface StageHandle {
    * store's scene state, so the box does not need to know the camera exists.
    */
   focusDialogue(focus: 'founder' | number | null): void
+  /** [2026-09-26] The line of the scene now on screen — stage directions key off it. */
+  setSceneLine(line: number | null): void
+  /** Has James finished landing? The dialogue holds his *Ouch.* for it. */
+  jamesLanded(): boolean
   /** Code at your own desk with the standard numeral/snippet feedback. */
   codeFounder(): number
   /** React hook for opening the founder profile when the world avatar is tapped. */
@@ -417,6 +423,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     garage3d!.setLens(0.8)
   }
   let garageW = app.screen.width, garageH = app.screen.height
+  /** James's seat in the 3D garage (`floorPlan.leaderSeat('james')`). */
+  const JAMES_3D_SEAT = -2
+  /** The scene line on screen, and whether a scene has moved the 3D camera. */
+  let sceneLine: number | null = null
+  let sceneFocus3d = false
+  let garage3dHasJames = false
   /** The garage holds twenty developers; past that the studio has moved on. */
   const GARAGE_3D_DEVS = 20
   /** Whether the 3D garage is the room on screen this frame. */
@@ -981,6 +993,15 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   const doPoke = (x: number, y: number, t0: number) => {
+    // 2026-09-26 — James is tappable in the 3D room: a poke on him is code.
+    if (showing3d && garage3d && pick3d(x, y) === JAMES_3D_SEAT) {
+      const at = seat3d(JAMES_3D_SEAT)
+      const paid = pokeJames(at?.x ?? x, at?.y ?? y)
+      garage3d.hop(JAMES_3D_SEAT)
+      if (paid > 0) playKeyboardClick()
+      else playSfx('poke-void')
+      return
+    }
     const founderTarget = founderHit(x, y)
     // The selected tool means the same thing on every person. CODE on the
     // founder codes; INFO (handled by doSelect) opens the profile. The old
@@ -1306,6 +1327,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * turns them to face the lens for the duration of their line.
    */
   const focusDialogue = (focus: 'founder' | number | null) => {
+    // Over the 3D room the lens goes to the speaker; STUDIO_OS has no body, so
+    // the camera holds where it is for its lines (the rule the note below keeps).
+    // A hero the garage does not hold (Mo, Serena …) leaves the lens alone.
+    const seat3dFor = focus === 'founder' ? -1 : focus === 0 ? JAMES_3D_SEAT : null
+    if (showing3d && garage3d && seat3dFor !== null) {
+      garage3d.focus(seat3dFor)
+      sceneFocus3d = true
+    }
     // Scene focus numbers name the six story heroes, not six interchangeable
     // rank-and-file seats. That was visually harmless before the room existed;
     // now it is the difference between Serena turning to camera and a random
@@ -1965,9 +1994,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         garageSprite.width = garageW; garageSprite.height = garageH
       }
       garage3d.setHeadcount(state.devs)
-      // James is in the room from the moment his arrival scene opens, so he
-      // drops in while it plays rather than appearing once it has been read.
-      garage3d.setJames(arrivedHeroes().has('james') || state.scene === SCENE_JAMES_ARRIVES.id)
+      // James arrives on the founder's *What—* (the line before his *Ouch.*):
+      // desk, chair, then him, and the dialogue holds *Ouch.* until he is down.
+      garage3dHasJames = arrivedHeroes().has('james')
+        || (state.scene === SCENE_JAMES_ARRIVES.id && sceneLine !== null && sceneLine >= JAMES_DROPS_AT_LINE - 1)
+      garage3d.setJames(garage3dHasJames)
+      // The scene is over: the lens goes back to where the player had it.
+      if (!state.scene) {
+        sceneLine = null
+        if (sceneFocus3d) { garage3d.focus(null); sceneFocus3d = false }
+      }
       garage3d.render(now / 1000)
       garageTexture.source.update()
     }
@@ -2507,6 +2543,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
        * Null when the room is not drawn, which is itself the answer to "why did
        * the tap miss".
        */
+      // Where James is in the 3D room — the same seam as `__founderAt`, for the
+      // walk and for aiming at him by script.
+      ;(globalThis as unknown as Record<string, unknown>).__jamesAt = () => {
+        const at = seat3d(JAMES_3D_SEAT)
+        return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
+      }
       ;(globalThis as unknown as Record<string, unknown>).__founderAt = () => {
         if (showing3d) {
           const at = seat3d(-1)
@@ -2655,6 +2697,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       critPunch,
       width: app.screen.width,
       height: app.screen.height,
+      // Over the 3D room a third of the line contrast, and less as faces fill the frame.
+      lines: showing3d && garage3d ? Math.max(0.12, 0.35 / Math.max(1, garage3d.zoom)) : 1,
     })
   })
 
@@ -2757,6 +2801,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     focusDialogue(focus) {
       focusDialogue(focus)
+    },
+    setSceneLine(line) {
+      sceneLine = line
+    },
+    jamesLanded() {
+      return !showing3d || !garage3d ? true : !garage3d.animating(JAMES_3D_SEAT) && sceneLine !== null && garage3dHasJames
     },
     codeFounder() {
       // The rail's CODE — YOU, which is §7.7.4's way home as much as it is a

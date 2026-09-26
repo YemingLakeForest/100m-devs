@@ -36,12 +36,24 @@ function ensureKit() {
   if (kit) return kit
   const renderer = new T.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true })
   renderer.setClearColor(0, 0)
+  renderer.outputColorSpace = T.SRGBColorSpace
+  renderer.toneMapping = T.ACESFilmicToneMapping
   const scene = new T.Scene()
-  // The rebuild's portrait light, unchanged.
-  scene.add(new T.HemisphereLight('#ffffff', '#657F8D', 2.6))
-  const light = new T.DirectionalLight('#fff5e7', 3)
-  light.position.set(-3, 5, -4)
-  scene.add(light)
+  /*
+   * [2026-09-26] **The room's night, not a studio flash** — *"the white light
+   * too stabbing"*. The rebuild's rig (a white sky at 2.6 and a white key at 3)
+   * was lit for its daylight garage, and on this build's dark screens it came
+   * out as a figure under a photographer's strobe. This is the garage at dusk:
+   * a warm lamp key from the front, the cool of a monitor on the other cheek, a
+   * dim violet sky, so the person on the card is the person at the desk.
+   */
+  scene.add(new T.HemisphereLight('#8f9ac8', '#241f2e', 1.1))
+  const lamp = new T.DirectionalLight('#ffd68c', 1.7)
+  lamp.position.set(-3, 4, -4)
+  scene.add(lamp)
+  const screen = new T.DirectionalLight('#7fd4e8', 0.9)
+  screen.position.set(4, 2, -3)
+  scene.add(screen)
   kit = { renderer, scene, camera: new T.OrthographicCamera(-1, 1, 1, -1, .1, 40) }
   return kit
 }
@@ -65,8 +77,12 @@ export function personPortrait(look: Look, id?: LeaderId, shot: PortraitFrame = 
   const { renderer, scene, camera } = built
   const [W, H] = SIZE[shot]
   renderer.setSize(W, H)
-  // Built as who they are: the founder's shirt ramp, a hero's own head, whole.
+  // Built as who they are — the founder's shirt ramp, a hero's own head — and
+  // as the room draws them: head and body. *"legs not belong to this world"*,
+  // then *"Hands don't belong in character creation neither, given they are not
+  // in game."* The rebuild's figure, less the limbs this world does not have.
   const model = studioPerson(scene, 0, 0, 0, look, id, true, true)
+  for (const limb of ['leg-1', 'leg1', 'arm-1', 'arm1']) model.getObjectByName(limb)?.removeFromParent()
   try {
     model.updateMatrixWorld(true)
     // Framed from the model's own bounds, so a collar added in `studioPeople`
