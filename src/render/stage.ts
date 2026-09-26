@@ -8,9 +8,11 @@
  * glass — see pokeText.ts.
  */
 
-import { Application, Container } from 'pixi.js'
+import { Application, Container, Sprite, Texture } from 'pixi.js'
+import { createGarageView } from '../vendor/garageView.js'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
+  arrivedHeroes,
   cancelPosting,
   currentEntropy,
   developerVelocity,
@@ -381,6 +383,46 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   applyGlass()
   const stopWatchingModes = onViewModes(applyGlass)
 
+  /*
+   * **PROOF 2026-09-26 — the rebuild's three.js garage under this build's glass.**
+   *
+   * *"Can you do me a proof of old game in threejs with the current game
+   * garage?"* The room is drawn by `vendor/garageView.js` (the rebuild's garage,
+   * its people, lights and SSAO) into its own canvas, and that canvas is the
+   * bottom layer of `glass` — so ART_DIRECTION §6's whole stack, bloom to
+   * curvature, goes over it exactly as it went over the Pixi room, and the
+   * interface is this build's, untouched. The Pixi world is hidden rather than
+   * deleted; `?pixiroom` puts it back for comparison.
+   *
+   * What the proof does not do: the lens (zoom, pan, the rungs above the room)
+   * does not drive the 3D camera, taps land on the hidden Pixi people, and the
+   * `+1` numerals are hidden because they were placed on the Pixi room.
+   */
+  const pixiRoom = params.has('pixiroom')
+  const garage3d = pixiRoom ? null : createGarageView(app.screen.width, app.screen.height)
+  const garageTexture = garage3d ? Texture.from(garage3d.canvas) : null
+  const garageSprite = garageTexture ? new Sprite(garageTexture) : null
+  if (garageSprite) {
+    garageSprite.width = app.screen.width
+    garageSprite.height = app.screen.height
+    glass.addChildAt(garageSprite, 0)
+    world.visible = false
+    // Pulled back a little: the glass's barrel curvature magnifies the middle.
+    garage3d!.setLens(0.8)
+  }
+  let garageW = app.screen.width, garageH = app.screen.height
+  /**
+   * PROOF — who is under client point (x, y) in the 3D garage: a seat, -1 for
+   * the founder, null for nobody; `undefined` when the Pixi room is the one
+   * drawn, so the old hit tests run as they always did. The glass's barrel
+   * curvature is not undone, so taps near the frame's edge land a few pixels off.
+   */
+  const pick3d = (x: number, y: number): number | null | undefined => {
+    if (!garage3d) return undefined
+    const r = app.canvas.getBoundingClientRect()
+    return garage3d.pick((x - r.left) * garageW / r.width, (y - r.top) * garageH / r.height)
+  }
+
   const scene = buildScene(app.renderer)
   const { floor, room, building } = scene
   /*
@@ -582,6 +624,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * the nearest desk.
    */
   const pickDeveloper = (x: number, y: number): number => {
+    // PROOF: the three.js garage answers for the room it is drawing.
+    const picked = pick3d(x, y)
+    if (picked !== undefined) return picked !== null && picked >= 0 ? picked : -1
     // Only where the room is actually drawing people. Below that the plate is
     // showing a plan, and the right answer to "who is under the thumb" is
     // nobody — the same rule as before, asked of the level of detail rather
@@ -789,6 +834,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
 
   const founderHit = (x: number, y: number): 'avatar' | 'desk' | null => {
+    const picked = pick3d(x, y)
+    if (picked !== undefined) return picked === -1 ? 'avatar' : null
     if (!roomIsUp || !(currentFloorScale > 0)) return null
     const local = room.container.toLocal({ x, y })
     const at = room.founderDeskAt()
@@ -1810,6 +1857,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   app.stage.addChild(numerals)
   // The numerals are inside the glass too, so they share the grade.
   glass.addChild(numerals)
+  // PROOF: they were placed on the Pixi room, which is hidden.
+  if (garage3d) numerals.visible = false
 
   // GDD §8.2 + §8.2a. Built once — see pokeText.ts for why nothing here may
   // typeset on the tap frame.
@@ -1861,6 +1910,19 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     for (let step = 0; step < steps; step += 1) tick(dt)
 
     const state = getState()
+
+    // PROOF: the three.js garage follows the store's headcount and James.
+    if (garage3d && garageTexture && garageSprite) {
+      if (app.screen.width !== garageW || app.screen.height !== garageH) {
+        garageW = app.screen.width; garageH = app.screen.height
+        garage3d.resize(garageW, garageH)
+        garageSprite.width = garageW; garageSprite.height = garageH
+      }
+      garage3d.setHeadcount(Math.min(20, state.devs))
+      garage3d.setJames(arrivedHeroes().has('james'))
+      garage3d.render(now / 1000)
+      garageTexture.source.update()
+    }
 
     // §10.7a.1 — a scene pushes to Desk zoom on the way in and returns to where
     // the player was on the way out. Driven off the store's scene id, so the

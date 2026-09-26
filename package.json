@@ -34,11 +34,13 @@
     "@capacitor/android": "^8.1.0",
     "@capacitor/core": "^8.1.0",
     "@capacitor/haptics": "^8.0.2",
+    "@types/three": "^0.180.0",
     "break_infinity.js": "^2.0.0",
     "pixi-filters": "^6.1.4",
     "pixi.js": "^8.6.6",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.1.0",
