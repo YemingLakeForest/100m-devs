@@ -14785,6 +14785,15 @@ large thing goes wrong behind him. If a line of his reads as a wink, it is the w
 <p>Fires at §21.0b's fiftieth poke. James is free.</p>
 <pre><code>STUDIO_OS   &gt; APPLICANT AT DOOR.
 
+YOU         What—
+
+            (The lens goes to the empty spot beside the founder's desk.
+             A desk falls out of the ceiling, then a chair, then James.)
+
+JAMES       Ouch.
+
+            (Back to the founder.)
+
 YOU         Can I help you?
 JAMES       You posted a job.
 YOU         I posted that eleven minutes ago.
@@ -14800,6 +14809,15 @@ JAMES       I'm here eleven to seven. I go to the gym at ten.
 YOU         Every day?
 JAMES       Every single day.
 </code></pre>
+<p><strong>[amended 2026-09-26] The arrival is four beats, in this order, and each waits for the one
+before it.</strong> <em>"We said What. The focus on James, drop desk, chair and James, then he said
+ouch, and focus back on us and continue the conversations."</em> The founder reacts to the door
+first, so the fall is something they see rather than something the box talks over. The camera
+reaches the empty spot before anything falls, so the drop is watched from start to finish. James
+says <em>Ouch.</em> once he has landed, with the lens still on him (a line cannot be tapped onto
+before then). Then the lens goes back to the founder for the conversation. The desk, the chair and
+James land one at a time, each with its own dust, because a hire in this game is furniture arriving
+from above, and his is the first.</p>
 <p>He starts working. Velocity doubles. <strong>No card award popup, no fanfare, no <code>NEW HERO ACQUIRED</code></strong> — the second desk and the burn-down moving twice as fast is the entire
 notification. §22.3's card is awarded silently and found later.</p>
 <h4 id="run-2-act-0-instant-messenger-canon-moved-2026-08-13-r32-r44">21.7.2 Run 2, Act 0 — Instant Messenger <strong>[CANON - moved 2026-08-13]</strong> - R32, R44</h4>
@@ -16342,7 +16360,14 @@ playbook, the playbook is right and this document is stale.</p>
 <ol>
 <li><strong>Poke SFX go through native audio, never Web Audio.</strong> Web Audio in an Android WebView
 can carry 100–300 ms against a 60 ms budget. This is the single largest feel risk in the
-project. Web Audio keeps §20's ambient bus and DSP, where 100 ms is inaudible.</li>
+project. Web Audio keeps §20's ambient bus and DSP, where 100 ms is inaudible.
+<strong>[amended 2026-09-26]</strong> <em>In a browser, the effects are decoded Web Audio buffers.</em>
+The rule is about the Android WebView, and the native app still goes through the Capacitor plugin.
+The web build is how the game is played now, and it had no rule of its own: it played effects
+through a pool of <code>&lt;audio&gt;</code> elements (six per clip), which a phone browser seeks and
+starts on its own schedule, and whose volume iOS ignores. Reported from a phone as <em>"sound effects
+lag"</em>. A buffer decoded once and started on the tap is the shortest path a browser has; the
+element pool remains only for a browser without <code>AudioContext</code>.</li>
 <li><strong>The swarm is a <code>ParticleContainer</code></strong>, dropping to a shader-driven heatmap at Global
 zoom and beyond per §7.5. Not individual display objects.</li>
 <li><strong>The DOM/canvas boundary is fixed:</strong> simulation, camera, particles and scenery in Pixi;

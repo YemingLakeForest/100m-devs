@@ -61,9 +61,74 @@ const VOICES = 6
 
 const isNative = Capacitor.isNativePlatform()
 
-/** Browser fallback pool — dev only. Never the path a pass/fail is measured on. */
+/*
+ * [2026-09-26] **The browser path is Web Audio: decoded buffers, one source per
+ * play.** *"sound effects lag"*, on a phone, playing the web build — which is
+ * how the game is played now, so this is no longer the dev-only path the note
+ * below it was written for. It used to be a pool of six `HTMLAudioElement`s per
+ * clip (120 of them): a phone browser seeks and starts a media element on its
+ * own schedule, a hundred milliseconds and more after the tap, and iOS ignores
+ * an element's `volume` entirely, so the effects slider did nothing there.
+ *
+ * Non-negotiable 1's objection to Web Audio is an Android *WebView*'s output
+ * latency, and the native app still goes through `NativeAudio` above. In a
+ * browser a decoded `AudioBuffer` started on the tap is the shortest path there
+ * is: no decode, no seek, no element. The element pool stays as the fallback
+ * for a browser without `AudioContext`.
+ */
+let webCtx: AudioContext | null = null
+let webGain: GainNode | null = null
+const webBuffers = new Map<SfxId, AudioBuffer>()
+
+/** Browser fallback pool, where Web Audio is unavailable. */
 const webPool = new Map<SfxId, HTMLAudioElement[]>()
 const webCursor = new Map<SfxId, number>()
+
+/**
+ * A browser starts an `AudioContext` suspended until a gesture, and iOS
+ * suspends it again when the page is interrupted. Every gesture asks; one that
+ * finds it running costs a property read.
+ */
+function wakeWebAudio(): void {
+  if (webCtx && webCtx.state !== 'running' && webCtx.state !== 'closed') void webCtx.resume().catch(() => {})
+}
+
+function initWebAudio(): boolean {
+  if (webCtx) return true
+  if (typeof AudioContext === 'undefined' || typeof fetch === 'undefined') return false
+  try {
+    webCtx = new AudioContext({ latencyHint: 'interactive' })
+    webGain = webCtx.createGain()
+    webGain.gain.value = volume
+    webGain.connect(webCtx.destination)
+  } catch {
+    webCtx = null
+    webGain = null
+    return false
+  }
+  for (const type of ['pointerdown', 'touchend', 'click', 'keydown'] as const) {
+    window.addEventListener(type, wakeWebAudio, { capture: true, passive: true })
+  }
+  // Decoded in the background: the bank is ready at once, and a clip plays from
+  // the moment its buffer lands (well before the first scene's first tick).
+  const ctx = webCtx
+  void Promise.all(
+    SFX.map(async (id) => {
+      try {
+        const res = await fetch(assetPath(id))
+        // A clip that is listed but not yet made (`title-start`) comes back as the
+        // site's HTML page, not a 404: nothing to decode, and `uiSfx` routes
+        // around it through its fallback table.
+        if (!res.ok || !(res.headers.get('content-type') ?? '').startsWith('audio')) return
+        webBuffers.set(id, await ctx.decodeAudioData(await res.arrayBuffer()))
+      } catch (err) {
+        // One missing clip must not take the whole audio layer down with it.
+        console.warn(`[sfx] decode failed for ${id}`, err)
+      }
+    }),
+  )
+  return true
+}
 
 let ready = false
 
@@ -82,6 +147,7 @@ let volume = getSettings().sfx
 subscribeSettings((s) => {
   if (s.sfx === volume) return
   volume = s.sfx
+  if (webGain) webGain.gain.value = volume
   applyNativeVolume()
 })
 
@@ -121,7 +187,7 @@ export async function initSfx(): Promise<void> {
         }),
       ),
     )
-  } else {
+  } else if (!initWebAudio()) {
     for (const id of SFX) {
       const voices = Array.from({ length: VOICES }, () => {
         const el = new Audio(assetPath(id))
@@ -151,6 +217,19 @@ export function playSfx(id: SfxId): void {
 
   if (isNative) {
     void NativeAudio.play({ assetId: id })
+    return
+  }
+
+  if (webCtx && webGain) {
+    const buffer = webBuffers.get(id)
+    if (!buffer) return
+    if (webCtx.state !== 'running') wakeWebAudio()
+    // A source node is one play and is thrown away: overlapping taps are
+    // overlapping sources, so there is no pool to exhaust.
+    const source = webCtx.createBufferSource()
+    source.buffer = buffer
+    source.connect(webGain)
+    source.start()
     return
   }
 
@@ -202,5 +281,6 @@ export async function unloadSfx(): Promise<void> {
   }
   webPool.clear()
   webCursor.clear()
+  webBuffers.clear()
   ready = false
 }

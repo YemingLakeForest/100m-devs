@@ -201,6 +201,7 @@ export function createPostProcess({
       // disagree, legibility wins — every time, and without a setting.
       const deskness = Math.max(0, 1 - zoom * 3)
       tiltShift.blur = reduceMotion ? 0 : 2 * deskness
+      tiltShift.enabled = tiltShift.blur > 0.01
       // The band is expressed in the WORLD container's local space, not the
       // screen's — this filter hangs off `world`, whose origin is the focal
       // desk. Using screen coordinates here put the sharp band somewhere above
@@ -214,6 +215,10 @@ export function createPostProcess({
       // movement, not like the picture coming apart, and this pass fires during
       // exactly the gesture the player uses to go and read something.
       zoomBlur.strength = reduceMotion ? 0 : Math.min(0.18, zoomVelocity * 0.45)
+      // [2026-09-26] At rest it is a full-frame pass that returns its input.
+      // Skipped then (Pixi passes over a disabled filter), which is most frames
+      // and every frame of a conversation — measured work on a phone for nothing.
+      zoomBlur.enabled = zoomBlur.strength > 0.001
       zoomBlur.center = { x: width / 2, y: height / 2 }
 
       /*
@@ -238,6 +243,8 @@ export function createPostProcess({
       rgbSplit.red = { x: -split, y: 0 }
       rgbSplit.green = { x: 0, y: 0 }
       rgbSplit.blue = { x: split, y: 0 }
+      // The same for the fringe: a calm studio with no crit has none to draw.
+      rgbSplit.enabled = split > 0.01
 
       // 5. The roll is a slow vertical drift, not an animation loop — under
       // load the picture should look like it is failing to hold sync. The

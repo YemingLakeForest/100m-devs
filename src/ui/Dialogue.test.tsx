@@ -147,3 +147,42 @@ describe('§10.7a.1 — the box reports who is speaking, in the world', () => {
     expect(onLine).toHaveBeenLastCalledWith(2)
   })
 })
+
+/*
+ * §21.7.1 [amended 2026-09-26] — *"We said What. The focus on James, drop desk,
+ * chair and James, then he said ouch"*. The box tells the world when the line
+ * before the hold has been read (the camera goes to James then), will not be
+ * tapped onto the held line, and turns onto it by itself once the world is ready.
+ */
+describe('a line that waits for the world', () => {
+  const ARRIVAL: readonly DialogueLine[] = [
+    { speaker: 'STUDIO_OS', text: 'APPLICANT AT DOOR.' },
+    { speaker: 'YOU', text: 'What—' },
+    { speaker: 'JAMES', text: 'Ouch.' },
+  ]
+  const text = () => document.querySelector('.ui-dialogue__text')?.firstChild?.textContent ?? ''
+
+  it('cues the world once the line before it is read, then turns when the world is ready', () => {
+    let landed = false
+    const onHold = vi.fn()
+    render(<Dialogue script={ARRIVAL} holdBefore={2} holdUntil={() => landed} onHold={onHold} />)
+
+    elapse(2000)
+    expect(onHold).not.toHaveBeenCalled()
+    fireEvent.pointerDown(box())
+    elapse(1500)
+    expect(text()).toBe('What—')
+    // The founder's reaction is on screen and read: the world's beat begins.
+    expect(onHold).toHaveBeenCalledTimes(1)
+
+    // A tap cannot bring James's line on before he has landed.
+    fireEvent.pointerDown(box())
+    elapse(ADVANCE_ARM_MS * 2)
+    expect(text()).toBe('What—')
+
+    landed = true
+    elapse(600)
+    expect(document.querySelector('.ui-dialogue__plate')?.textContent).toBe('JAMES')
+    expect(onHold).toHaveBeenCalledTimes(1)
+  })
+})

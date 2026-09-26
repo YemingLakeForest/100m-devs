@@ -257,6 +257,11 @@ export interface StageHandle {
   setSceneLine(line: number | null): void
   /** Has James finished landing? The dialogue holds his *Ouch.* for it. */
   jamesLanded(): boolean
+  /**
+   * The founder has said *What—*: the lens goes to James's empty spot, and his
+   * desk, chair and James drop once it is there.
+   */
+  cueJames(): void
   /** Code at your own desk with the standard numeral/snippet feedback. */
   codeFounder(): number
   /** React hook for opening the founder profile when the world avatar is tapped. */
@@ -412,7 +417,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * frame's edge are a few pixels off (the barrel curvature is not undone).
    */
   const pixiRoom = params.has('pixiroom')
-  const garage3d = pixiRoom ? null : createGarageView(app.screen.width, app.screen.height)
+  /*
+   * [2026-09-26] **A phone gets the lighter room** — no SSAO pass, one pixel per
+   * CSS pixel, a smaller shadow map (`GarageViewOptions.lite`). *"The
+   * conversation in phone is very clunky"*: a touch screen with a phone's short
+   * side. `?gpu=lite` and `?gpu=full` force either on a local build.
+   */
+  const gpu = params.get('gpu')
+  const lite3d = gpu === 'lite' || (gpu !== 'full'
+    && window.matchMedia('(pointer: coarse)').matches && Math.min(window.screen.width, window.screen.height) < 600)
+  const garage3d = pixiRoom ? null : createGarageView(app.screen.width, app.screen.height, undefined, { lite: lite3d })
   const garageTexture = garage3d ? Texture.from(garage3d.canvas) : null
   const garageSprite = garageTexture ? new Sprite(garageTexture) : null
   if (garageSprite) {
@@ -428,6 +442,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** The scene line on screen, and whether a scene has moved the 3D camera. */
   let sceneLine: number | null = null
   let sceneFocus3d = false
+  /** The founder has said *What—* and the lens has gone to James's spot. */
+  let jamesCued = false
   let garage3dHasJames = false
   /** The garage holds twenty developers; past that the studio has moved on. */
   const GARAGE_3D_DEVS = 20
@@ -1994,18 +2010,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         garageSprite.width = garageW; garageSprite.height = garageH
       }
       garage3d.setHeadcount(state.devs)
-      // James arrives on the founder's *What—* (the line before his *Ouch.*):
-      // desk, chair, then him, and the dialogue holds *Ouch.* until he is down.
+      // James arrives after the founder's *What—*, once the lens has reached his
+      // empty spot (`cueJames`): desk, chair, then him, and the dialogue holds
+      // *Ouch.* until he is down. A scene already past the line has him there.
       garage3dHasJames = arrivedHeroes().has('james')
-        || (state.scene === SCENE_JAMES_ARRIVES.id && sceneLine !== null && sceneLine >= JAMES_DROPS_AT_LINE - 1)
+        || (state.scene === SCENE_JAMES_ARRIVES.id && sceneLine !== null
+          && (sceneLine >= JAMES_DROPS_AT_LINE || (jamesCued && !garage3d.easing)))
       garage3d.setJames(garage3dHasJames)
       // The scene is over: the lens goes back to where the player had it.
       if (!state.scene) {
         sceneLine = null
+        jamesCued = false
         if (sceneFocus3d) { garage3d.focus(null); sceneFocus3d = false }
       }
-      garage3d.render(now / 1000)
-      garageTexture.source.update()
+      // Only a redrawn room is copied into the glass: a still one is left as the
+      // texture already has it.
+      if (garage3d.render(now / 1000)) garageTexture.source.update()
     }
 
     // §10.7a.1 — a scene pushes to Desk zoom on the way in and returns to where
@@ -2804,6 +2824,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     setSceneLine(line) {
       sceneLine = line
+    },
+    cueJames() {
+      if (jamesCued) return
+      jamesCued = true
+      if (showing3d && garage3d) {
+        garage3d.focus(JAMES_3D_SEAT)
+        sceneFocus3d = true
+      }
     },
     jamesLanded() {
       return !showing3d || !garage3d ? true : !garage3d.animating(JAMES_3D_SEAT) && sceneLine !== null && garage3dHasJames

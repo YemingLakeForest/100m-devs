@@ -107,6 +107,14 @@ export interface DialogueProps {
   holdBefore?: number
   holdUntil?: () => boolean
   /**
+   * The hold has begun: the page before it has been read and the box is now
+   * waiting on the world. Fired once per hold. [2026-09-26] *"We said What. The
+   * focus on James, drop desk, chair and James, then he said ouch, and focus
+   * back on us"* — the world's part of the beat starts here, after the line
+   * that reacts to it, not under it.
+   */
+  onHold?: () => void
+  /**
    * §10.7's one exception: dialogue already seen in a previous run fills
    * instantly. It is not a skip — rule 2's deliberate advance tap still applies
    * to every page. First viewing of any line is always fully typed, so this is
@@ -162,6 +170,7 @@ export function Dialogue({
   onLine,
   holdBefore,
   holdUntil,
+  onHold,
   seen = false,
   columns = DEFAULT_COLUMNS,
 }: DialogueProps) {
@@ -224,8 +233,11 @@ export function Dialogue({
   const held = holdBefore !== undefined && holdUntil !== undefined && nextLine === holdBefore && isComplete(state)
   const holdRef = useRef(holdUntil)
   useEffect(() => { holdRef.current = holdUntil }, [holdUntil])
+  const onHoldRef = useRef(onHold)
+  useEffect(() => { onHoldRef.current = onHold }, [onHold])
   useEffect(() => {
     if (!held || !armed) return
+    onHoldRef.current?.()
     let frame = 0
     let turn = 0
     const ask = () => {

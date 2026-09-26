@@ -854,6 +854,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           onFocus={(focus) => stage?.focusDialogue(focus)}
           holdBefore={state.scene === SCENE_JAMES_ARRIVES.id ? JAMES_DROPS_AT_LINE : undefined}
           holdUntil={state.scene === SCENE_JAMES_ARRIVES.id && stage ? () => stage.jamesLanded() : undefined}
+          onHold={state.scene === SCENE_JAMES_ARRIVES.id ? () => stage?.cueJames() : undefined}
           onLine={(line) => {
             stage?.setSceneLine(line)
             // §21.7.1 — "APPLICANT AT DOOR." holds, then James drops in and the

@@ -26,13 +26,26 @@
  * every frame and puts the identity back when it lands. A hire drops its desk
  * and then its developer out of the ceiling; James drops in the same way when
  * he arrives, which is the joke the legacy build told with a falling silhouette.
+ *
+ * **[2026-09-26] It draws only when something changed** — *"The conversation in
+ * phone is very clunky, it comes out slow, and sound effects lag, also the click
+ * to skip lags too."* Measured on a landscape phone emulation (844 × 390 at 3×,
+ * CPU slowed 4×), the dialogue ran at 30 fps over this room and 60 over the old
+ * Pixi one, and nearly all of the difference was this file redrawing a still
+ * room every frame: the shadow map re-rendered (three's `autoUpdate`), the SSAO
+ * pass drawing the whole scene a second time, then the canvas copied into Pixi.
+ * A dialogue is a still room for seconds at a time, so the room is drawn when
+ * the camera, a light or a person moves, and otherwise only as often as the
+ * typing arms need ({@link AMBIENT_HZ}). James no longer rebuilds the room either:
+ * his station is built with it and shown when he lands (3.7 s frozen on the tap
+ * that brings him in, measured, from every shader recompiling for his lights).
  */
 import * as T from 'three'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
-import { buildGarageEnvironment, showGarageSeats } from './garageEnvironment.ts'
+import { buildGarageEnvironment, GARAGE_ASSEMBLED, showGarageSeats, showGarageStations, type GarageStaging } from './garageEnvironment.ts'
 import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import { placeInstances, type SeatInstance } from './worldArt.ts'
@@ -69,7 +82,10 @@ export interface GarageView {
   focus(seat: number | null): void
   /** Is anybody at this seat still falling or hopping? */
   animating(seat: number): boolean
-  render(seconds: number): void
+  /** Is the camera still on its way to a `focus`? A drop waits for it to arrive. */
+  readonly easing: boolean
+  /** Advance and, if anything changed, draw. True when the canvas was redrawn. */
+  render(seconds: number): boolean
   /**
    * Who is under canvas point (x, y), in CSS pixels: a seat index, -1 for the
    * founder, or null for floor, furniture and sky.
@@ -85,6 +101,22 @@ const ZOOM_MIN = 0.45
 const ZOOM_MAX = 7
 /** How far a hire falls, in metres — the rebuild's DROP_FROM. */
 const DROP_FROM = 3.4
+/**
+ * How often a room where nothing but the typing arms moves is redrawn. The arms
+ * swing at under 1.5 Hz through eight hundredths of a radian; 24 frames a second
+ * is film's rate and more than that motion can show, and it is the whole of the
+ * room's cost while a conversation is on screen.
+ */
+const AMBIENT_HZ = 24
+
+export interface GarageViewOptions {
+  /**
+   * A phone: no SSAO pass, one pixel per CSS pixel, a 1024 shadow map. The
+   * glass (CRT lines, curvature, bloom) goes over the room afterwards at the
+   * stage's own resolution, which is what hides the difference.
+   */
+  lite?: boolean
+}
 
 type Piece = 'desk' | 'chair' | 'body'
 interface Anim {
@@ -105,14 +137,21 @@ const JAMES_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { pie
 interface Rest { position: T.Vector3; scale: T.Vector3 }
 interface Part { key: string; instances: SeatInstance[]; group: T.Object3D | null }
 
-export function createGarageView(width: number, height: number, cast: StudioCast = defaultCast()): GarageView {
-  const renderer = new T.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
+export function createGarageView(width: number, height: number, cast: StudioCast = defaultCast(), options: GarageViewOptions = {}): GarageView {
+  const lite = options.lite ?? false
+  // No antialias on the canvas itself: the composer draws into its own
+  // multisampled targets, and the canvas only ever receives the output quad.
+  const renderer = new T.WebGLRenderer({ antialias: false, alpha: false, preserveDrawingBuffer: true })
+  renderer.setPixelRatio(lite ? 1 : Math.min(window.devicePixelRatio || 1, 1.5))
   renderer.outputColorSpace = T.SRGBColorSpace
   renderer.toneMapping = T.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.03
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = T.PCFSoftShadowMap
+  // Redrawn when something that casts a shadow moves (`needsUpdate`), not every
+  // frame: three's default re-rendered the 2048² map sixty times a second over a
+  // room that was standing still.
+  renderer.shadowMap.autoUpdate = false
 
   const scene = new T.Scene()
   const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 300)
@@ -125,7 +164,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   const sun = new T.DirectionalLight('#fff0d6', 2.7)
   sun.position.set(22, 28, 10)
   sun.castShadow = true
-  sun.shadow.mapSize.set(2048, 2048)
+  sun.shadow.mapSize.setScalar(lite ? 1024 : 2048)
   Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 120 })
   sun.shadow.normalBias = 0.025
   sun.shadow.bias = -0.0001
@@ -143,11 +182,16 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   const composer = new EffectComposer(renderer)
   composer.renderTarget1.samples = 4; composer.renderTarget2.samples = 4
   composer.addPass(new RenderPass(scene, camera))
-  const ao = new SSAOPass(scene, camera, width, height, 16)
-  ao.kernelRadius = .65; ao.minDistance = .00012; ao.maxDistance = .009
-  ao.ssaoMaterial.defines.PERSPECTIVE_CAMERA = 0
-  ao.ssaoMaterial.needsUpdate = true
-  composer.addPass(ao)
+  // Off on a phone: it draws the whole scene a second time (normals and depth)
+  // and then samples it sixteen times a pixel, and at night under the glass it
+  // is the contact shade under a desk that nobody on a six-inch screen can see.
+  const ao = lite ? null : new SSAOPass(scene, camera, width, height, 16)
+  if (ao) {
+    ao.kernelRadius = .65; ao.minDistance = .00012; ao.maxDistance = .009
+    ao.ssaoMaterial.defines.PERSPECTIVE_CAMERA = 0
+    ao.ssaoMaterial.needsUpdate = true
+    composer.addPass(ao)
+  }
   composer.addPass(new OutputPass())
 
   let env: Environment
@@ -174,6 +218,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let focusOn: { pan: T.Vector3; zoom: number } | null = null
   let saved: { pan: T.Vector3; zoom: number } | null = null
   let shake = 0
+  /** Something the picture shows has changed since it was last drawn. */
+  let dirty = true
+  let drawnAt = -Infinity
   /**
    * Every screen and lamp light, lifted out of its desk into the scene when the
    * room is built, and switched by intensity rather than visibility. A hidden
@@ -202,7 +249,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       env.root.traverse((o) => { if ((o as T.Mesh).geometry) (o as T.Mesh).geometry.dispose() })
     }
     for (const l of lights) l.light.removeFromParent()
-    env = buildGarageEnvironment(heads, cast)
+    // James's station is built whether or not he has arrived, and `showGarageStations`
+    // decides whether it is drawn: a room whose light count changes when he
+    // lands recompiles every material in it.
+    env = buildGarageEnvironment(heads, withJames(), 'on', false, staging())
     scene.add(env.root)
     env.root.updateMatrixWorld(true)
     lights = []
@@ -218,9 +268,11 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     // a hire first reveals them: three compiles what it has drawn, and an unhired
     // desk has never been drawn (measured: a 283 ms frame on the first hire).
     showGarageSeats(env, 20, 0)
+    showGarageStations(env, GARAGE_ASSEMBLED, withJames())
     frame()
     renderer.compile(scene, camera)
     showGarageSeats(env, heads, 20)
+    showGarageStations(env, staging(), withJames())
     arms = []
     rests.clear()
     anims.length = 0
@@ -229,6 +281,17 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       if (side && !o.parent?.userData.standing) arms.push({ arm: o, offset: arms.length * 1.7, side })
     })
     renderer.shadowMap.needsUpdate = true
+    dirty = true
+  }
+
+  /** The cast the room is built for: whoever the player is, and James's station either way. */
+  function withJames(): StudioCast {
+    return { ...cast, heroes: ['james'] }
+  }
+
+  /** How much of the hero stations is standing: the founder's always, James's once he is here. */
+  function staging(): GarageStaging {
+    return { founder: true, james: james ? 3 : 0 }
   }
 
   /** The frame's width in world units, at the current zoom. */
@@ -402,6 +465,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     shake *= .85
     if (shake < .005) shake = 0
     if (anims.length || puffs.length) renderer.shadowMap.needsUpdate = true
+    if (anims.length || puffs.length || shake > 0) dirty = true
   }
 
   const view: GarageView = {
@@ -415,14 +479,18 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       // A hire is an event: each new desk and developer falls in, a beat apart.
       if (settled && next > was) for (let s = was; s < next; s++) start(s, 'drop', (s - was) * .12)
       renderer.shadowMap.needsUpdate = true
+      dirty = true
     },
     setJames(here) {
       if (james === here) { settled = true; return }
       james = here
-      cast = { ...cast, heroes: here ? ['james'] : [] }
-      build()
-      if (settled && here) start(leaderSeat('james'), 'drop', 0, JAMES_DROP)
+      const seat = leaderSeat('james')
+      for (let i = anims.length - 1; i >= 0; i--) if (anims[i].seat === seat) anims.splice(i, 1)
+      showGarageStations(env, staging(), withJames())
+      if (settled && here) start(seat, 'drop', 0, JAMES_DROP)
       settled = true
+      renderer.shadowMap.needsUpdate = true
+      dirty = true
     },
     setIdentity(founder, studio) {
       const next = { ...cast, founder, studio: studio ?? undefined }
@@ -434,10 +502,12 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       w = Math.max(1, width); h = Math.max(1, height)
       renderer.setSize(w, h, false)
       composer.setSize(w, h)
-      ao.setSize(w, h)
+      ao?.setSize(w, h)
+      dirty = true
     },
     setLens(z) {
       zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z))
+      dirty = true
     },
     get zoom() { return zoom },
     focus(seat) {
@@ -453,9 +523,13 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const at = t.mesh.getWorldPosition(new T.Vector3())
       at.y += t.mesh.scale.y * 0.3
       focusOn = { pan: at.sub(env.focus), zoom: Math.max(zoom, 1.9) }
+      dirty = true
     },
     animating(seat) {
       return anims.some((a) => a.seat === seat)
+    },
+    get easing() {
+      return focusOn !== null && (pan.distanceTo(focusOn.pan) >= .01 || Math.abs(zoom - focusOn.zoom) >= .005)
     },
     zoomTo(z, x, y) {
       focusOn = null; saved = null
@@ -469,6 +543,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       pan.addScaledVector(right, (x - w / 2) * (before - after))
       pan.addScaledVector(up, -(y - h / 2) * (before - after))
       clampPan()
+      dirty = true
     },
     zoomAt(factor, x, y) {
       view.zoomTo(zoom * factor, x, y)
@@ -480,9 +555,11 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       pan.addScaledVector(right, -dx * u)
       pan.addScaledVector(up, dy * u)
       clampPan()
+      dirty = true
     },
     hop(seat) {
       start(seat, 'hop')
+      dirty = true
     },
     render(seconds) {
       clock += lastSeconds === null ? 0 : Math.min(1 / 30, Math.max(0, seconds - lastSeconds))
@@ -490,7 +567,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       for (const l of lights) {
         let on = true
         for (let o: T.Object3D | null = l.owner; o; o = o.parent) if (!o.visible) { on = false; break }
-        l.light.intensity = on ? l.intensity : 0
+        const intensity = on ? l.intensity : 0
+        if (l.light.intensity !== intensity) { l.light.intensity = intensity; dirty = true }
       }
       animate()
       if (focusOn) {
@@ -498,22 +576,35 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         const k = 1 - Math.exp(-6 * (1 / 60))
         pan.lerp(focusOn.pan, k)
         zoom += (focusOn.zoom - zoom) * k
-        if (pan.distanceTo(focusOn.pan) < .01 && Math.abs(zoom - focusOn.zoom) < .005 && !saved) focusOn = null
+        // Arrived: snap the last hair, and stop asking for frames — a camera held
+        // on a speaker is a still picture, however long they talk.
+        if (pan.distanceTo(focusOn.pan) < .01 && Math.abs(zoom - focusOn.zoom) < .005) {
+          pan.copy(focusOn.pan); zoom = focusOn.zoom
+          if (!saved) focusOn = null
+        } else dirty = true
       }
+      // Nothing moved but the typing: draw at the ambient rate, and leave the
+      // canvas (and the texture the stage made of it) as it is in between.
+      if (!dirty && seconds - drawnAt < 1 / AMBIENT_HZ) return false
+      dirty = false
+      drawnAt = seconds
       frame()
       for (const { arm, offset, side } of arms) {
         if (!arm.visible || !arm.parent?.visible) continue
         arm.rotation.x = Math.sin(seconds * 9 + offset + (side > 0 ? Math.PI : 0)) * 0.08
       }
-      const range = camera.far - camera.near
-      ao.minDistance = 0.00012 * 300 / range
-      ao.maxDistance = 0.009 * 300 / range
-      ao.ssaoMaterial.uniforms.cameraProjectionMatrix.value.copy(camera.projectionMatrix)
-      ao.ssaoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(camera.projectionMatrixInverse)
+      if (ao) {
+        const range = camera.far - camera.near
+        ao.minDistance = 0.00012 * 300 / range
+        ao.maxDistance = 0.009 * 300 / range
+        ao.ssaoMaterial.uniforms.cameraProjectionMatrix.value.copy(camera.projectionMatrix)
+        ao.ssaoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(camera.projectionMatrixInverse)
+      }
       const hidden = env.targets.map((t) => t.mesh.visible)
       env.targets.forEach((t) => { t.mesh.visible = false })
       composer.render()
       env.targets.forEach((t, i) => { t.mesh.visible = hidden[i] })
+      return true
     },
     pick(x, y) {
       frame()

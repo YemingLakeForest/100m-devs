@@ -76,8 +76,10 @@ export const SCENE_JAMES_ARRIVES: Scene = {
     // The founder's wordless reaction to the door announcement — before he has
     // seen anything fall out of the ceiling.
     { speaker: PLAYER, text: 'What—', focus: AT_YOU },
-    // §21.7.1 — James drops in on this beat and says so. One word, correct
-    // grammar, delivered mid-fall, and the lens stays on him for it.
+    // §21.7.1 [amended 2026-09-26] — between the line above and this one the
+    // lens goes to his empty spot and his desk, chair and James fall in, one at
+    // a time; the box holds this line until he has landed. One word, correct
+    // grammar, and the lens stays on him for it before going back to you.
     { speaker: JAMES, text: 'Ouch.', focus: AT_JAMES },
     { speaker: PLAYER, text: 'Can I help you?', focus: AT_YOU },
     { speaker: JAMES, text: 'You posted a job.', focus: AT_JAMES },
