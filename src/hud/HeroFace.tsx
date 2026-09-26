@@ -13,52 +13,23 @@
  * same argument.
  */
 
-import { AVATAR_FACE, AVATAR_HAIR, frontAvatarParts, type AvatarRect } from '../render/avatarParts.ts'
-import { RAMPS } from '../art/palette.ts'
-import { hairHex, shirtHex, skinHex } from '../art/personPalette.ts'
+import { useMemo } from 'react'
 import type { Look } from '../sim/identity.ts'
+import { LEADER_IDS, type LeaderId } from '../three/sim/floorPlan.ts'
+import { personPortrait } from '../three/render/portrait.ts'
 
 /**
- * The room's world units, unscaled. The head sits at y −26..−12 and hair reaches
- * a little above it, so the box is the head plus a collar of shoulder — a
- * portrait crop rather than a whole person, which is what a pass carries.
+ * [2026-09-26] **The face is the room's person, framed** — *"any scenes with
+ * arvatar should be the 3d model not the old 2d"*. This was the room's
+ * `frontAvatarParts` redrawn as SVG rects; the room is three.js now, so the
+ * portrait is its `studioPerson()` rendered head-and-shoulders
+ * (`three/render/portrait.ts`), and a hero the room sculpts (James, Billy,
+ * Serena, Matt) gets their own head rather than the crowd's.
  */
-const VIEW = { x: -11, y: -32, w: 22, h: 25 } as const
-
-export function HeroFace({ look, className }: { look: Look; className?: string }) {
-  const hair = AVATAR_HAIR[look.hair % AVATAR_HAIR.length]
-  const hairFill = hairHex(look.hairColour)
-  const skinFill = skinHex(look.skin)
-  const shirtFill = shirtHex(look.shirt)
-
-  const partFill: Record<AvatarRect['colour'], string> = {
-    ink: RAMPS.NEUTRAL[0],
-    mouth: RAMPS.NEUTRAL[1],
-    hair: hairFill,
-    glasses: RAMPS.NEUTRAL[2],
-    'phone-band': RAMPS.NEUTRAL[1],
-    'phone-cup': RAMPS.NEUTRAL[2],
-  }
-
-  return (
-    <svg
-      className={className}
-      viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`}
-      shapeRendering="crispEdges"
-      aria-hidden="true"
-    >
-      {/* Shoulders, so the head is attached to somebody. */}
-      <rect x={-9} y={-12} width={18} height={6} fill={shirtFill} />
-      {/* The face: a flat panel, because it is turned to the camera and its two
-          vertical faces would be edge-on — drawing them would be a lie. */}
-      <rect x={AVATAR_FACE.x} y={AVATAR_FACE.y} width={AVATAR_FACE.w} height={AVATAR_FACE.h} fill={skinFill} />
-      {/* Hair over the crown and down the sides, leaving the face clear. */}
-      <rect x={-hair.w / 2} y={-26 - hair.h + 8} width={hair.w} height={hair.h - 6} fill={hairFill} />
-      <rect x={-hair.w / 2} y={-24} width={2} height={8} fill={hairFill} />
-      <rect x={hair.w / 2 - 2} y={-24} width={2} height={8} fill={hairFill} />
-      {frontAvatarParts(look).map((part, i) => (
-        <rect key={i} x={part.x} y={part.y} width={part.w} height={part.h} fill={partFill[part.colour]} />
-      ))}
-    </svg>
-  )
+export function HeroFace({ look, id, className }: { look: Look; id?: string; className?: string }) {
+  const leader = LEADER_IDS.includes(id as LeaderId) ? (id as LeaderId) : undefined
+  const src = useMemo(() => personPortrait(look, leader, 'head'), [look, leader])
+  return src
+    ? <img className={className} src={src} alt="" aria-hidden="true" />
+    : <span className={className} aria-hidden="true" />
 }

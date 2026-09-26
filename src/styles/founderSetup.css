@@ -129,7 +129,8 @@
 .founder-setup__form {
   grid-area: form;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  /* [2026-09-26] names (founder and studio, one block), traits, actions. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 7px;
   /* 6px of side room so a button's offset slab (box-shadow + skew) at the row's
      edge is not clipped by the screen's own `overflow: hidden`. */
@@ -484,7 +485,15 @@
      inherited: the `1fr` in the four-row template belongs to the traits, and a
      row template naming a row that is `display: none` leaves a gap. */
   .founder-setup__form {
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
     align-content: start;
   }
 }
+
+/* [2026-09-26] Your name and the studio's, one block in the form's first row. */
+.founder-setup__names {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.founder-setup__name-label--studio { margin-top: 6px; }

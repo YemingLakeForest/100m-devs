@@ -113,7 +113,7 @@ export function Roster({
                 style={{ ['--branch' as string]: hero.colour }}
                 onClick={() => onOpen(hero)}
               >
-                {face && <HeroFace look={face.look} className="roster__face" />}
+                {face && <HeroFace look={face.look} id={hero.id} className="roster__face" />}
                 <span className="roster__name">{hero.hero.name}</span>
                 <span className="roster__reach">
                   {REACH_LADDER[hero.reach].name.toUpperCase()} · LV {hero.progress.level}

@@ -4,22 +4,28 @@
  * the one that changes. See docs/PLAN-2026-09-26-return.md.
  */
 /**
- * **The garage, on its own** — a proof, 2026-09-26.
+ * **The garage, on its own** — 2026-09-26.
  *
  * *"The UI port did not land sadly. Can you do me a proof of old game in
- * threejs with the current game garage?"*
+ * threejs with the current game garage?"* — then, playing it: *"I want people
+ * to hop when I click on them, including me"*, *"the zoom should not resist me,
+ * I should be able to zoom in"* and *"james drop scenes are not there neither"*.
  *
- * Everything the garage is, with nothing of this build's shell around it: its
- * geometry and people (`garageEnvironment`), the warm daylight rig and SSAO
- * `worldScene` gives it, and §12.1's true-isometric camera. No store, no clock,
- * no Pixi, no HUD. It draws into its own canvas, which a host — the legacy
- * build's Pixi stage — takes as a texture, so the legacy glass (its bloom,
- * scanlines and curvature) and its whole interface go on over it untouched.
+ * Everything the garage is, with nothing of the rebuild's shell around it: its
+ * geometry and people (`garageEnvironment`), a night rig, SSAO and a
+ * true-isometric camera. No store, no clock, no Pixi, no HUD. It draws into
+ * its own canvas, which the stage takes as a texture under this build's glass.
  *
- * Bundled for the legacy repo with `three` left external (see that repo's
- * `src/vendor/garageView.js`). The numbers below are copied from `worldScene`
- * rather than imported, because that module is the whole application; a real
- * port would give both one home.
+ * **The camera belongs to the player.** Zoom is anchored at the pointer and is
+ * never pulled back: no magnetic stops, no settle, only a floor and a ceiling a
+ * long way apart. Pan is free within the room's reach.
+ *
+ * **People move by transform, not by rebuild.** The garage is batched, so a
+ * body is a set of instance matrices (`worldArt.placeInstances`) plus the few
+ * pieces the batcher declined; a hop or a drop writes a transform over both
+ * every frame and puts the identity back when it lands. A hire drops its desk
+ * and then its developer out of the ceiling; James drops in the same way when
+ * he arrives, which is the joke the legacy build told with a falling silhouette.
  */
 import * as T from 'three'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
@@ -28,42 +34,58 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { buildGarageEnvironment, showGarageSeats } from './garageEnvironment.ts'
 import { defaultCast, type StudioCast } from './studioPeople.ts'
-import type { Environment } from './worldEnvironments.ts'
+import type { Environment, GarageProp } from './worldEnvironments.ts'
+import { placeInstances, type SeatInstance } from './worldArt.ts'
+import { LEADER_IDS, leaderSeat } from '../sim/floorPlan.ts'
 import { OS, OS_SKIN } from '../art/skin.ts'
+import type { Look } from '../sim/identity.ts'
 
 export interface GarageView {
   /** What the host draws. Redrawn by `render`. */
   canvas: HTMLCanvasElement
-  /** Developers in the room (the founder is not one of them). */
+  /** Developers in the room (the founder is not one of them). New ones drop in. */
   setHeadcount(n: number): void
-  /** Whether James has arrived; rebuilds the room, as it does in this build. */
+  /** Whether James has arrived; he drops in when he does. */
   setJames(here: boolean): void
+  /** The founder the player made, and the studio's name on the gable. Rebuild only on change. */
+  setIdentity(founder: Look, studio: string | null): void
   resize(width: number, height: number): void
-  /** Zoom about the room, 1 = framed; and a pan in world metres on the ground. */
-  setLens(zoom: number, panX?: number, panZ?: number): void
+  /** The resting zoom, 1 = the room framed. */
+  setLens(zoom: number): void
+  /** Zoom by `factor` about canvas point (x, y), in CSS pixels. */
+  zoomAt(factor: number, x: number, y: number): void
+  /** Zoom to an absolute value about canvas point (x, y) — a pinch's baseline times its ratio. */
+  zoomTo(zoom: number, x: number, y: number): void
+  readonly zoom: number
+  /** Pan by a drag of (dx, dy) CSS pixels: the room follows the finger. */
+  panBy(dx: number, dy: number): void
+  /** A seat (-1 the founder, -2 James) hops, as a poke answers. */
+  hop(seat: number): void
   render(seconds: number): void
   /**
    * Who is under canvas point (x, y), in CSS pixels: a seat index, -1 for the
-   * founder (`garage.FOUNDER_SEAT`), or null for floor, furniture and sky. The
-   * garage's own invisible hit boxes answer it, so a tap means what it means in
-   * this build.
+   * founder, or null for floor, furniture and sky.
    */
   pick(x: number, y: number): number | null
-  /**
-   * Where a person is on the canvas, in CSS pixels — a seat, or -1 for the
-   * founder — at head height, or null if that seat is empty or off the frame.
-   * The host anchors its interface here (a poke's numeral, a hero card's pin),
-   * so it has to be the drawn person, not a position re-derived from a plan.
-   */
+  /** Where a person is on the canvas, in CSS pixels, or null if absent or off the frame. */
   screenOf(seat: number): { x: number; y: number } | null
   dispose(): void
 }
+
+/** How far the player may zoom: well out past the room, and in to a face. */
+const ZOOM_MIN = 0.45
+const ZOOM_MAX = 7
+/** How far a hire falls, in metres — the rebuild's DROP_FROM. */
+const DROP_FROM = 3.4
+
+interface Anim { seat: number; kind: 'hop' | 'drop'; start: number; delay: number; puffed?: boolean }
+interface Rest { position: T.Vector3; scale: T.Vector3 }
+interface Part { key: string; instances: SeatInstance[]; group: T.Object3D | null }
 
 export function createGarageView(width: number, height: number, cast: StudioCast = defaultCast()): GarageView {
   const renderer = new T.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
   renderer.outputColorSpace = T.SRGBColorSpace
-  // The garage's own grade: ACES and a little over unity (`worldScene`, "warm").
   renderer.toneMapping = T.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.03
   renderer.shadowMap.enabled = true
@@ -72,8 +94,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   const scene = new T.Scene()
   const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 300)
 
-  // The rig `worldScene` gives rank 0: warm key placed by where its shadow lands
-  // (up and to the left), a soft sky, and a cool fill across the room.
+  // The rebuild's rank-0 rig, turned to dusk for this build's glass: a low
+  // violet key placed by where its shadow lands, the legacy neutral sky, and the
+  // room's own screens and lamps doing the rest (`garageCraft`, `garageEnvironment`).
   const sky = new T.HemisphereLight('#fffdf8', '#a5a59a', 1.15)
   scene.add(sky)
   const sun = new T.DirectionalLight('#fff0d6', 2.7)
@@ -88,8 +111,6 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   fill.position.set(-32, 15, -10)
   scene.add(fill)
   if (OS_SKIN) {
-    // Dusk, as `worldScene` gives the STUDIO_OS skin: a low violet key, the
-    // legacy neutral sky, and the room's own screens and lamps doing the rest.
     sun.color.set('#8a93c8'); sun.intensity = .7
     sky.color.set(OS.n3); sky.groundColor.set(OS.n0); sky.intensity = .55
     fill.color.set(OS.calm2); fill.intensity = .12
@@ -108,22 +129,71 @@ export function createGarageView(width: number, height: number, cast: StudioCast
 
   let env: Environment
   let heads = 0
+  let james = false
+  /** The first headcount and James arrive with the save, not as events: no drop. */
+  let settled = false
   let w = width, h = height
   let zoom = 1
   const pan = new T.Vector3()
+  /**
+   * The animations' clock: frame time, capped. A stall (the first hire compiles
+   * a puff's material; James's arrival rebuilds the room) must not eat the
+   * drop it happened during — on the wall clock the whole fall was over before
+   * the next frame was drawn, and the room just had more people in it.
+   */
+  let clock = 0
+  let lastSeconds: number | null = null
+  let shake = 0
+  /**
+   * Every screen and lamp light, lifted out of its desk into the scene when the
+   * room is built, and switched by intensity rather than visibility. A hidden
+   * desk's light used to leave the scene with it, and a change in the number of
+   * lights recompiles every material: measured, a 917 ms frame on each hire.
+   */
+  let lights: { light: T.PointLight; owner: T.Object3D | null; intensity: number }[] = []
   /** Seated arms, for the typing: the room is not a photograph. */
   let arms: { arm: T.Object3D; offset: number; side: number }[] = []
+  const anims: Anim[] = []
+  const rests = new Map<string, Rest>()
+  const puffs: { mesh: T.Mesh; start: number; dir: T.Vector3 }[] = []
+  const puffGeometry = new T.IcosahedronGeometry(0.28, 0)
+  // One puff, never seen, so the material is compiled with the room and not on
+  // the first landing (it was the rest of that frame's stall).
+  const puffWarm = new T.Mesh(puffGeometry, new T.MeshStandardMaterial({ color: '#d8d2cf', roughness: 1, flatShading: true, transparent: true, opacity: 0 }))
+  // In the frame, or the frustum culls it and it is never compiled after all.
+  puffWarm.position.set(0, 1, 1.3)
+  puffWarm.scale.setScalar(0.001)
+  puffWarm.frustumCulled = false
+  scene.add(puffWarm)
 
   function build() {
     if (env) {
       scene.remove(env.root)
       env.root.traverse((o) => { if ((o as T.Mesh).geometry) (o as T.Mesh).geometry.dispose() })
     }
+    for (const l of lights) l.light.removeFromParent()
     env = buildGarageEnvironment(heads, cast)
     scene.add(env.root)
+    env.root.updateMatrixWorld(true)
+    lights = []
+    const found: T.PointLight[] = []
+    env.root.traverse((o) => { if (o instanceof T.PointLight) found.push(o) })
+    for (const light of found) {
+      const owner = light.parent
+      scene.attach(light)
+      lights.push({ light, owner, intensity: light.intensity })
+    }
     scene.background = new T.Color(OS_SKIN ? OS.n0 : env.background)
+    // Compile every seat's materials now, with the room, rather than on the frame
+    // a hire first reveals them: three compiles what it has drawn, and an unhired
+    // desk has never been drawn (measured: a 283 ms frame on the first hire).
+    showGarageSeats(env, 20, 0)
+    frame()
+    renderer.compile(scene, camera)
     showGarageSeats(env, heads, 20)
     arms = []
+    rests.clear()
+    anims.length = 0
     env.root.traverse((o) => {
       const side = o.name === 'arm-1' ? -1 : o.name === 'arm1' ? 1 : 0
       if (side && !o.parent?.userData.standing) arms.push({ arm: o, offset: arms.length * 1.7, side })
@@ -131,34 +201,185 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     renderer.shadowMap.needsUpdate = true
   }
 
+  /** The frame's width in world units, at the current zoom. */
+  const span = () => env.extent / Math.min(1, (w / h) / 1.35) / zoom
+
   function frame() {
     const focus = env.focus.clone().add(pan)
     const direction = new T.Vector3(1, 1, 1).normalize()
     camera.position.copy(focus).addScaledVector(direction, 80)
     camera.up.set(0, 1, 0)
     camera.lookAt(focus)
+    if (shake > 0) camera.position.add(new T.Vector3((Math.random() - .5) * shake, (Math.random() - .5) * shake, 0))
     const aspect = w / h
-    // `worldScene`'s framing: fit the room's extent, wider screens see more ground.
-    const span = env.extent / Math.min(1, aspect / 1.35) / zoom
-    camera.left = -span / 2; camera.right = span / 2
-    camera.top = span / 2 / aspect; camera.bottom = -span / 2 / aspect
+    const s = span()
+    camera.left = -s / 2; camera.right = s / 2
+    camera.top = s / 2 / aspect; camera.bottom = -s / 2 / aspect
     camera.updateProjectionMatrix()
+    camera.updateMatrixWorld()
+  }
+
+  /** The camera's own right and up, in the world — a drag and a zoom anchor move along these. */
+  function axes() {
+    frame()
+    return {
+      right: new T.Vector3().setFromMatrixColumn(camera.matrixWorld, 0),
+      up: new T.Vector3().setFromMatrixColumn(camera.matrixWorld, 1),
+    }
+  }
+
+  /** The pan may reach the room's edge and a little beyond, never off into the dark. */
+  function clampPan() {
+    const reach = env.extent * 0.7
+    if (pan.length() > reach) pan.setLength(reach)
+  }
+
+  // --- who is where: a person is some instances, a group, and a desk -----------
+
+  const leaderId = (seat: number) => LEADER_IDS.find((id) => leaderSeat(id) === seat)
+
+  function body(seat: number): Part[] {
+    const id = leaderId(seat)
+    if (id) {
+      const handle: GarageProp | undefined = env.props?.get(`body:${id}`)
+      return handle ? [{ key: `body:${id}`, instances: handle.instances, group: handle.group }] : []
+    }
+    return [{
+      key: `body:${seat}`,
+      instances: env.seatInstances?.get(seat) ?? [],
+      group: env.people.find((p) => Number(p.userData.seat) === seat) ?? null,
+    }]
+  }
+
+  function desk(seat: number): Part | null {
+    const key = `desk:${leaderId(seat) ?? seat}`
+    const handle = env.props?.get(key)
+    return handle ? { key, instances: handle.instances, group: handle.group } : null
+  }
+
+  /** Where a seat stands on the floor, from its hit box: the base a squash is about. */
+  function floorAt(seat: number): T.Vector3 | null {
+    const t = env.targets.find((target) => target.index === seat)
+    return t ? t.mesh.getWorldPosition(new T.Vector3()).setY(0) : null
+  }
+
+  /** Lift a part by `y` and squash it by `squash` (volume kept) about `base`. */
+  function place(part: Part, base: T.Vector3, y: number, squash: number) {
+    let r = rests.get(part.key)
+    if (!r) {
+      r = { position: part.group ? part.group.position.clone() : new T.Vector3(), scale: part.group ? part.group.scale.clone() : new T.Vector3(1, 1, 1) }
+      rests.set(part.key, r)
+    }
+    const sxz = 1 / Math.sqrt(Math.max(.2, squash))
+    const delta = new T.Matrix4()
+      .makeTranslation(base.x, base.y + y, base.z)
+      .multiply(new T.Matrix4().makeScale(sxz, squash, sxz))
+      .multiply(new T.Matrix4().makeTranslation(-base.x, -base.y, -base.z))
+    placeInstances(part.instances, delta)
+    if (part.group) {
+      part.group.position.set(r.position.x, r.position.y + y, r.position.z)
+      part.group.scale.set(r.scale.x * sxz, r.scale.y * squash, r.scale.z * sxz)
+    }
+  }
+
+  function puff(at: T.Vector3) {
+    for (let k = 0; k < 8; k++) {
+      const a = k / 8 * Math.PI * 2
+      const mesh = new T.Mesh(puffGeometry, new T.MeshStandardMaterial({ color: '#d8d2cf', roughness: 1, flatShading: true, transparent: true, opacity: .8 }))
+      mesh.position.set(at.x + Math.cos(a) * .35, .15, at.z + Math.sin(a) * .35)
+      scene.add(mesh)
+      puffs.push({ mesh, start: clock, dir: new T.Vector3(Math.cos(a), 0, Math.sin(a)) })
+    }
+    shake = Math.max(shake, .12)
+  }
+
+  function start(seat: number, kind: 'hop' | 'drop', delay = 0) {
+    // A hop does not interrupt a landing, and a second hop restarts the first.
+    const running = anims.findIndex((a) => a.seat === seat)
+    if (running >= 0) {
+      if (anims[running].kind === 'drop' && kind === 'hop') return
+      anims.splice(running, 1)
+    }
+    anims.push({ seat, kind, start: clock, delay })
+  }
+
+  function animate() {
+    for (let i = anims.length - 1; i >= 0; i--) {
+      const a = anims[i]
+      const t = clock - a.start - a.delay
+      const base = floorAt(a.seat)
+      if (!base) { anims.splice(i, 1); continue }
+      const parts = body(a.seat)
+      if (a.kind === 'hop') {
+        if (t < 0) continue
+        // Crouch, spring, fly, land: under half a second.
+        const y = t < .07 || t >= .37 ? 0 : .55 * Math.sin(Math.PI * (t - .07) / .3)
+        const s = t < .07 ? 1 - .18 * (t / .07) : t < .37 ? 1.08 : t < .47 ? 1 - .14 * Math.sin(Math.PI * (t - .37) / .1) : 1
+        parts.forEach((p) => place(p, base, y, s))
+        if (t >= .47) { parts.forEach((p) => place(p, base, 0, 1)); anims.splice(i, 1) }
+        continue
+      }
+      /*
+       * A drop: the desk lands first, then its developer on top of it. Free
+       * fall (distance as t², fastest at the floor), **one bounce**, then rest,
+       * with a squash at each contact — the legacy arrivals' physics
+       * (`render/arrivals.ts`): an object that eases into the floor reads as a
+       * crane lowering it, one that stops dead as a sprite switched on.
+       */
+      const d = desk(a.seat)
+      const fall = (u: number) =>
+        u <= 0 ? DROP_FROM : u < 1 ? DROP_FROM * (1 - u * u) : u < 1.5 ? .32 * Math.sin(Math.PI * (u - 1) / .5) : 0
+      const land = (u: number) =>
+        u >= 1 && u < 1.15 ? 1 - .24 * Math.sin(Math.PI * (u - 1) / .15)
+          : u >= 1.5 && u < 1.62 ? 1 - .12 * Math.sin(Math.PI * (u - 1.5) / .12) : 1
+      const deskT = (t + .25) / .45
+      const bodyT = t / .45
+      if (d) place(d, base, fall(deskT), land(deskT))
+      parts.forEach((p) => place(p, base, fall(bodyT), land(bodyT)))
+      if (bodyT >= 1 && !a.puffed) { a.puffed = true; puff(base) }
+      if (bodyT >= 1.62) {
+        if (d) place(d, base, 0, 1)
+        parts.forEach((p) => place(p, base, 0, 1))
+        anims.splice(i, 1)
+      }
+    }
+    for (let i = puffs.length - 1; i >= 0; i--) {
+      const p = puffs[i]
+      const u = (clock - p.start) / .55
+      p.mesh.position.addScaledVector(p.dir, .02)
+      p.mesh.scale.setScalar(.6 + u * 1.2)
+      ;(p.mesh.material as T.MeshStandardMaterial).opacity = Math.max(0, .8 * (1 - u))
+      if (u >= 1) { scene.remove(p.mesh); (p.mesh.material as T.Material).dispose(); puffs.splice(i, 1) }
+    }
+    shake *= .85
+    if (shake < .005) shake = 0
+    if (anims.length || puffs.length) renderer.shadowMap.needsUpdate = true
   }
 
   const view: GarageView = {
     canvas: renderer.domElement,
     setHeadcount(n) {
-      const next = Math.max(0, Math.floor(n))
+      const next = Math.max(0, Math.min(20, Math.floor(n)))
       if (next === heads) return
       const was = heads
       heads = next
       showGarageSeats(env, heads, was)
+      // A hire is an event: each new desk and developer falls in, a beat apart.
+      if (settled && next > was) for (let s = was; s < next; s++) start(s, 'drop', (s - was) * .12)
       renderer.shadowMap.needsUpdate = true
     },
     setJames(here) {
-      const has = cast.heroes.includes('james')
-      if (has === here) return
+      if (james === here) { settled = true; return }
+      james = here
       cast = { ...cast, heroes: here ? ['james'] : [] }
+      build()
+      if (settled && here) start(leaderSeat('james'), 'drop')
+      settled = true
+    },
+    setIdentity(founder, studio) {
+      const next = { ...cast, founder, studio: studio ?? undefined }
+      if (JSON.stringify(next.founder) === JSON.stringify(cast.founder) && next.studio === cast.studio) return
+      cast = next
       build()
     },
     resize(width, height) {
@@ -167,11 +388,44 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       composer.setSize(w, h)
       ao.setSize(w, h)
     },
-    setLens(z, panX = 0, panZ = 0) {
-      zoom = Math.max(0.2, z)
-      pan.set(panX, 0, panZ)
+    setLens(z) {
+      zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z))
+    },
+    get zoom() { return zoom },
+    zoomTo(z, x, y) {
+      const next = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z))
+      if (next === zoom) return
+      const { right, up } = axes()
+      const before = span() / w
+      zoom = next
+      const after = span() / w
+      // Keep the point under the pointer where it is.
+      pan.addScaledVector(right, (x - w / 2) * (before - after))
+      pan.addScaledVector(up, -(y - h / 2) * (before - after))
+      clampPan()
+    },
+    zoomAt(factor, x, y) {
+      view.zoomTo(zoom * factor, x, y)
+    },
+    panBy(dx, dy) {
+      const { right, up } = axes()
+      const u = span() / w
+      pan.addScaledVector(right, -dx * u)
+      pan.addScaledVector(up, dy * u)
+      clampPan()
+    },
+    hop(seat) {
+      start(seat, 'hop')
     },
     render(seconds) {
+      clock += lastSeconds === null ? 0 : Math.min(1 / 30, Math.max(0, seconds - lastSeconds))
+      lastSeconds = seconds
+      for (const l of lights) {
+        let on = true
+        for (let o: T.Object3D | null = l.owner; o; o = o.parent) if (!o.visible) { on = false; break }
+        l.light.intensity = on ? l.intensity : 0
+      }
+      animate()
       frame()
       for (const { arm, offset, side } of arms) {
         if (!arm.visible || !arm.parent?.visible) continue
@@ -212,6 +466,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       return { x: (p.x + 1) * w / 2, y: (1 - p.y) * h / 2 }
     },
     dispose() {
+      puffGeometry.dispose()
       composer.dispose()
       renderer.dispose()
     },

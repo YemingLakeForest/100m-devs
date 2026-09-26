@@ -298,3 +298,34 @@ export function clearFounderProfile(
     // Storage can be blocked; the App still clears its in-memory profile.
   }
 }
+
+/**
+ * [2026-09-26] **The studio's name** — ported from the rebuild's character
+ * screen, where it is chosen beside the founder and painted on the garage's
+ * gable. Kept under its own key rather than inside the profile, so a profile
+ * written before it existed still validates, and so it survives the same way
+ * the founder does: it is who you are, not how the run is going.
+ */
+export const STUDIO_NAME_KEY = 'm100devs_studio_name'
+export { STUDIO_NAME_MAX, randomStudioName } from '../three/game/founderProfile.ts'
+
+export function readStudioName(store: Pick<Storage, 'getItem'> | null = defaultStore()): string | null {
+  try {
+    const raw = store?.getItem(STUDIO_NAME_KEY)
+    const name = raw?.replace(/\s+/g, ' ').trim()
+    return name ? name.slice(0, 28) : null
+  } catch {
+    return null
+  }
+}
+
+export function writeStudioName(name: string, store: Pick<Storage, 'setItem'> | null = defaultStore()): string | null {
+  const clean = name.replace(/\s+/g, ' ').trim().slice(0, 28)
+  if (!clean) return null
+  try {
+    store?.setItem(STUDIO_NAME_KEY, clean)
+  } catch {
+    // A full or blocked store keeps the name for this session only.
+  }
+  return clean
+}

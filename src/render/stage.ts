@@ -10,6 +10,7 @@
 
 import { Application, Container, Sprite, Texture } from 'pixi.js'
 import { createGarageView } from '../three/render/garageView.ts'
+import { founderLook, readStudioName } from '../game/founderProfile.ts'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   arrivedHeroes,
@@ -429,10 +430,17 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** Where seat `seat` (-1 the founder) is on screen in the 3D garage, or null. */
   const seat3d = (seat: number): { x: number; y: number } | null =>
     showing3d && garage3d ? garage3d.screenOf(seat) : null
+  /** Client point -> the 3D canvas's CSS pixels (the sprite covers the whole stage). */
+  const toCanvas3d = (x: number, y: number) => {
+    const r = app.canvas.getBoundingClientRect()
+    return { x: (x - r.left) * garageW / r.width, y: (y - r.top) * garageH / r.height }
+  }
+  /** A pinch's starting 3D zoom, while the 3D room is the one being pinched. */
+  let pinch3d: { distance: number; zoom: number } | null = null
   const pick3d = (x: number, y: number): number | null | undefined => {
     if (!garage3d || !showing3d) return undefined
-    const r = app.canvas.getBoundingClientRect()
-    return garage3d.pick((x - r.left) * garageW / r.width, (y - r.top) * garageH / r.height)
+    const at = toCanvas3d(x, y)
+    return garage3d.pick(at.x, at.y)
   }
 
   const scene = buildScene(app.renderer)
@@ -989,7 +997,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // where nothing is standing.
     const target = pickUnit(x, y)
     if (!target) return
-    if (roomIsUp) room.jolt(localSeat(target.index))
+    if (showing3d) garage3d?.hop(localSeat(target.index))
+    else if (roomIsUp) room.jolt(localSeat(target.index))
 
     const result = poke(x, y, target)
 
@@ -1352,6 +1361,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const local = room.founderDeskAt()
     const at = seat3d(-1) ?? room.container.toGlobal({ x: local.x, y: local.y - 30 })
     const paid = pokeFounder(at.x, at.y)
+    if (showing3d) garage3d?.hop(-1)
     if (paid <= 0) return 0
 
     if (take) focusFounderCamera()
@@ -1577,7 +1587,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // Keep that exception here, at the gesture boundary, so every lower rung
     // retains the fixed affine camera and entering a site can still freeze the
     // globe back to that site's address orientation.
-    if (tapSelectsAWorld()) galaxy.rotateBy(dx, dy)
+    if (showing3d && garage3d) garage3d.panBy(dx * garageW / app.canvas.getBoundingClientRect().width, dy * garageH / app.canvas.getBoundingClientRect().height)
+    else if (tapSelectsAWorld()) galaxy.rotateBy(dx, dy)
     else if (tapSelectsASite()) globe.rotateBy(dx, dy)
     else camera.panBy(dx, dy, t)
     drag.px = ev.clientX
@@ -1829,6 +1840,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // them.
     const ratio = distance / pinchStart.distance
     if (!(ratio > 0) || !Number.isFinite(ratio)) return
+    if (showing3d && garage3d && focal) {
+      if (!pinch3d || pinch3d.distance !== pinchStart.distance) pinch3d = { distance: pinchStart.distance, zoom: garage3d.zoom }
+      const at = toCanvas3d(focal.x, focal.y)
+      garage3d.zoomTo(pinch3d.zoom * ratio, at.x, at.y)
+      return
+    }
     camera.zoomBy((pinchStart.scale * ratio) / camera.scale, focal, now)
   }
 
@@ -1856,6 +1873,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     ev.preventDefault()
     founderFocus = false
     focal = { x: ev.clientX, y: ev.clientY }
+    // Over the 3D room the wheel is the 3D camera's, anchored at the pointer and
+    // never pulled back — "the zoom should not resist me" (2026-09-26).
+    if (showing3d && garage3d) {
+      const at = toCanvas3d(ev.clientX, ev.clientY)
+      garage3d.zoomAt(Math.exp(-ev.deltaY * 0.0016), at.x, at.y)
+      return
+    }
     // Exponential in the delta, so one notch is one constant *proportion* of
     // the scale wherever the camera happens to be. The magnetic stop then
     // catches whatever the last notch left behind.
@@ -1941,7 +1965,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         garageSprite.width = garageW; garageSprite.height = garageH
       }
       garage3d.setHeadcount(state.devs)
-      garage3d.setJames(arrivedHeroes().has('james'))
+      // James is in the room from the moment his arrival scene opens, so he
+      // drops in while it plays rather than appearing once it has been read.
+      garage3d.setJames(arrivedHeroes().has('james') || state.scene === SCENE_JAMES_ARRIVES.id)
       garage3d.render(now / 1000)
       garageTexture.source.update()
     }
@@ -2623,7 +2649,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     post.update({
       glass: entropyTheme(currentEntropy()).glass,
       zoom: camera.z,
-      zoomVelocity: camera.velocity,
+      // Over the 3D room the lens is not what the player sees move: its
+      // velocity would smear a still picture (a hire flies the lens).
+      zoomVelocity: showing3d ? 0 : camera.velocity,
       critPunch,
       width: app.screen.width,
       height: app.screen.height,
@@ -2746,6 +2774,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     setFounderProfile(profile: FounderProfile) {
       room.setFounderProfile(profile)
+      // The 3D room's founder is the one the player made, not the default.
+      garage3d?.setIdentity(founderLook(profile), readStudioName())
     },
     bench: {
       camera,

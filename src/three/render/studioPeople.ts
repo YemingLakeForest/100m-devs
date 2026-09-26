@@ -102,7 +102,16 @@ export function chair(parent: T.Object3D, x: number, z: number, facing: number):
  * needs none — nothing about sitting animates below the waist.
  */
 export function studioPerson(parent: T.Object3D, x: number, z: number, facing: number,
-  look: Look, id?: LeaderId, upright = false): T.Group {
+  look: Look, id?: LeaderId, upright = false,
+  /**
+   * [2026-09-26] The whole person — arms, legs, the rebuild's figure — even
+   * where this build draws the room's people as head-and-body blocks. The
+   * character screen and every portrait use it: *"Why can't you port the exact
+   * same character creation models?"* The room keeps the blocks: *"no feet …
+   * just a head and body hop about"*.
+   */
+  full = false): T.Group {
+  const blocks = OS_SKIN && !full
   const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = facing; parent.add(g)
   g.userData.dynamic = true
   g.userData.identity = { ...look }
@@ -144,7 +153,7 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
    * with hands asks to be cared about one at a time. Standing, the block sits
    * on the floor; seated, it sits on the chair where it always did.
    */
-  const bean = OS_SKIN && standing
+  const bean = blocks && standing
   const torso = new T.Group(); torso.position.y = bean ? 0 : 0.66 + lift; g.add(torso)
   torso.name = 'torso'
   box(torso, 0, 0, 0.04, 0.43 * broad, 0.52, 0.29, shirt)
@@ -165,7 +174,7 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
     box(torso, .14, .049, -.154, .047, .021, .01, INK.glassLight)
   }
   for (const s of [-1, 1]) {
-    if (OS_SKIN) continue
+    if (blocks) continue
     if (standing) {
       // Hung from the hip so the leg can swing about it. The box's `y` is its
       // bottom, so a 0.93 leg whose top is at the hip starts at −0.93.

@@ -227,7 +227,7 @@ export function HeroCard({
           </header>
 
           <div className="herocard__body">
-            <HeroFace look={face.look} className="herocard__portrait" />
+            <HeroFace look={face.look} id={hero.id} className="herocard__portrait" />
             <dl className="herocard__facts">
               <div><dt>REACH</dt><dd>{REACH_LADDER[hero.reach].name.toUpperCase()}</dd></div>
               <div><dt>MAX COVERAGE</dt><dd>{hero.reachDevs.toLocaleString()} DEVS</dd></div>

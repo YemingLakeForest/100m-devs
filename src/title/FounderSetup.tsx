@@ -11,7 +11,11 @@ import {
   cleanFounderName,
   randomFounderLook,
   randomFounderName,
+  randomStudioName,
+  readStudioName,
+  STUDIO_NAME_MAX,
   writeFounderProfile,
+  writeStudioName,
   type FounderAccessory,
   type FounderBody,
   type FounderBodyColour,
@@ -68,6 +72,9 @@ function Dice() {
 
 export function FounderSetup({ onComplete }: FounderSetupProps) {
   const [name, setName] = useState('')
+  // [2026-09-26] The studio is named here too, as in the rebuild's character
+  // screen; the name is painted on the garage's gable.
+  const [studio, setStudio] = useState(() => readStudioName() ?? randomStudioName())
   const [head, setHead] = useState<FounderHead>('crop')
   const [hairColour, setHairColour] = useState<FounderHairColour>(0)
   const [skin, setSkin] = useState<FounderSkin>(2)
@@ -99,7 +106,10 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
       body,
       bodyColour,
     })
-    if (profile) onComplete(profile)
+    if (profile) {
+      writeStudioName(studio.trim() || randomStudioName())
+      onComplete(profile)
+    }
   }
 
   return (
@@ -115,6 +125,7 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
         <h1 id="founder-setup-title">WHO ARE YOU?</h1>
         <p>You still code. For now.</p>
         <FounderAvatar
+          large
           head={head}
           hairColour={hairColour}
           skin={skin}
@@ -136,6 +147,7 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
           submit()
         }}
       >
+        <div className="founder-setup__names">
         <label className="founder-setup__name-label" htmlFor="founder-name">
           YOUR NAME
         </label>
@@ -156,6 +168,29 @@ export function FounderSetup({ onComplete }: FounderSetupProps) {
           >
             <Dice />
           </Button>
+        </div>
+
+        <label className="founder-setup__name-label founder-setup__name-label--studio" htmlFor="studio-name">
+          STUDIO NAME
+        </label>
+        <div className="founder-setup__name-row">
+          <input
+            id="studio-name"
+            value={studio}
+            maxLength={STUDIO_NAME_MAX}
+            autoComplete="organization"
+            placeholder="NAME THE STUDIO_"
+            onChange={(event) => setStudio(event.target.value)}
+          />
+          <Button
+            className="founder-setup__dice-btn"
+            aria-label="Randomise studio name"
+            title="Randomise studio name"
+            onClick={() => setStudio(randomStudioName())}
+          >
+            <Dice />
+          </Button>
+        </div>
         </div>
 
         <div className="founder-setup__traits">

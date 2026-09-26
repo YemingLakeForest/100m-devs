@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type {
   FounderAccessory,
   FounderBody,
@@ -8,15 +9,20 @@ import type {
   FounderSkin,
 } from '../game/founderProfile.ts'
 import { founderLook } from '../game/founderProfile.ts'
-import { AVATAR_FACE, frontAvatarParts } from '../render/avatarParts.ts'
+import { personPortrait } from '../three/render/portrait.ts'
 
 import '../styles/founderAvatar.css'
 
 /**
- * Large UI portrait of the same head/body choices used by the Pixi developer.
- * It is deliberately assembled from square pixel blocks: no rounded portrait,
- * no separate mascot language, just the room character brought close enough
- * to choose parts and read a face.
+ * The founder, previewed — **as the rebuild's person** (2026-09-26).
+ *
+ * *"any scenes with arvatar should be the 3d model not the old 2d"* and *"Why
+ * can't you port the exact same character creation models?"* This was a block
+ * figure assembled from `div`s with an SVG face over it: a second construction
+ * of a person beside the room's, which drifts from it the moment either
+ * changes. It now draws `studioPerson()` whole, exactly as the rebuild's
+ * character screen does (`three/render/portrait.ts`). The name tag stays: a
+ * label on a stalk is how the room names a person.
  */
 export function FounderAvatar({
   head,
@@ -27,6 +33,7 @@ export function FounderAvatar({
   body,
   bodyColour = 1,
   label = 'YOU',
+  large = false,
 }: {
   head: FounderHead
   hairColour?: FounderHairColour
@@ -36,25 +43,18 @@ export function FounderAvatar({
   body: FounderBody
   bodyColour?: FounderBodyColour
   label?: string
+  /** The character screen's size, rather than a card's. */
+  large?: boolean
 }) {
-  // The preview carries the renderer's resolved part indices, not its own
-  // interpretation of the friendly option names. These are the same values
-  // buildDeveloper() receives for the in-room founder.
-  const look = founderLook({
-    name: label,
-    head,
-    hairColour,
-    skin,
-    accessory,
-    facialHair,
-    body,
-    bodyColour,
-  })
-  const faceParts = frontAvatarParts(look)
+  const look = useMemo(
+    () => founderLook({ name: label, head, hairColour, skin, accessory, facialHair, body, bodyColour }),
+    [label, head, hairColour, skin, accessory, facialHair, body, bodyColour],
+  )
+  const src = useMemo(() => personPortrait(look, 'founder', 'figure'), [look])
 
   return (
     <div
-      className="founder-avatar"
+      className={`founder-avatar${large ? ' founder-avatar--large' : ''}`}
       data-head={head}
       data-hair-shape={look.hair}
       data-hair-colour={hairColour}
@@ -64,39 +64,10 @@ export function FounderAvatar({
       data-body={body}
       data-body-shape={look.body}
       data-body-colour={bodyColour}
-      aria-label="Your block avatar"
+      aria-label="Your founder, as they will appear at their desk"
     >
       <div className="founder-avatar__signal">{label}</div>
-      <div className="founder-avatar__person" aria-hidden="true">
-        <div className="founder-avatar__head">
-          <div className="founder-avatar__hair" />
-          <svg
-            className="founder-avatar__face-parts"
-            viewBox={`${AVATAR_FACE.x} ${AVATAR_FACE.y} ${AVATAR_FACE.w} ${AVATAR_FACE.h}`}
-            preserveAspectRatio="none"
-            shapeRendering="crispEdges"
-          >
-            {faceParts.map((part, index) => (
-              <rect
-                key={`${part.colour}-${index}`}
-                className={`founder-avatar__part founder-avatar__part--${part.colour}`}
-                x={part.x}
-                y={part.y}
-                width={part.w}
-                height={part.h}
-              />
-            ))}
-          </svg>
-        </div>
-        <div className="founder-avatar__arm founder-avatar__arm--left" />
-        <div className="founder-avatar__body">
-          <div className="founder-avatar__collar" />
-          <div className="founder-avatar__zip" />
-        </div>
-        <div className="founder-avatar__arm founder-avatar__arm--right" />
-        <div className="founder-avatar__leg founder-avatar__leg--left" />
-        <div className="founder-avatar__leg founder-avatar__leg--right" />
-      </div>
+      {src && <img className="founder-avatar__render" src={src} alt="" aria-hidden="true" />}
     </div>
   )
 }

@@ -259,3 +259,24 @@
 @container frame (max-height: 390px) {
   .founder-avatar { transform: scale(0.82); margin: -10px auto -18px; }
 }
+
+/* [2026-09-26] The person is the rebuild's 3D model (three/render/portrait.ts),
+   rendered to an image in the rebuild's 3:4 portrait frame. */
+.founder-avatar__person { display: none; }
+.founder-avatar__render {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 132px;
+  height: 176px;
+  transform: translateX(-50%);
+  image-rendering: auto;
+}
+.founder-avatar--large {
+  width: 240px;
+  height: 320px;
+}
+.founder-avatar--large .founder-avatar__render {
+  width: 240px;
+  height: 320px;
+}
