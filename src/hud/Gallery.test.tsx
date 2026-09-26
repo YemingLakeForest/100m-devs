@@ -207,7 +207,7 @@ describe('§4.14 — the score, and what it did to the money', () => {
     expect(poor.container.querySelector('.gallery__score')?.getAttribute('data-band')).toBe('down')
   })
 
-  it('breaks the score into the six things that made it', () => {
+  it('breaks the score into the seven things that made it', () => {
     seed(
       recordRelease(
         emptyHistory(),
@@ -216,8 +216,8 @@ describe('§4.14 — the score, and what it did to the money', () => {
     )
     const { container } = render(<Gallery open onClose={() => {}} />)
     const parts = container.querySelectorAll('.gallery__part')
-    expect(parts).toHaveLength(6)
-    for (const label of ['DEFECTS', 'HEROES', 'TEAM SYNC', 'RECEPTION', 'CRAFT', 'TRAITS']) {
+    expect(parts).toHaveLength(7)
+    for (const label of ['DEFECTS', 'HEROES', 'TEAM SYNC', 'LAUNCH', 'RECEPTION', 'CRAFT', 'TRAITS']) {
       expect(container.textContent).toContain(label)
     }
   })

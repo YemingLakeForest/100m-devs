@@ -26,7 +26,7 @@ import {
   getState,
   poke,
   POKE_PAYOUT_SHARE,
-  releaseNow,
+  shipEverything,
   tick,
 } from './store.ts'
 
@@ -47,7 +47,7 @@ function idle(seconds: number) {
     // §10.8b — a studio of forty people finishes a project inside these loops,
     // and the launch window halts `tick` until somebody answers it. The neutral
     // date pays ×1, so nothing this file measures moves.
-    if (getState().pendingRelease !== null) releaseNow()
+    shipEverything()
   }
 }
 

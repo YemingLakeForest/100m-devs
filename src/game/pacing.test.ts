@@ -49,7 +49,7 @@ import {
   massHire,
   nextHireCost,
   poke,
-  releaseNow,
+  shipEverything,
   takeSeedRound,
   tick,
   triggerParadigmShift,
@@ -306,7 +306,7 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
     // §10.8b — the shelf halts `tick`, and a pacing walk that never answered a
     // launch would measure a studio that stopped at its first finished build.
     // The neutral date pays ×1, so §13.12's figures are unmoved by the window.
-    if (getState().pendingRelease !== null) releaseNow()
+    shipEverything()
     t += STEP
 
     const now = getState()
@@ -499,7 +499,7 @@ describe('the step size is honest', () => {
       __setState({ runSeed: FIXED_SEED, devs: 40, cash: 1e6 })
       for (let t = 0; t < 120; t += 0.25) {
         tick(0.25)
-        if (getState().pendingRelease !== null) releaseNow()
+        shipEverything()
       }
       return getState().lifetimeRevenue
     })()
@@ -508,7 +508,7 @@ describe('the step size is honest', () => {
       __setState({ runSeed: FIXED_SEED, devs: 40, cash: 1e6 })
       for (let t = 0; t < 120; t += 1 / 30) {
         tick(1 / 30)
-        if (getState().pendingRelease !== null) releaseNow()
+        shipEverything()
       }
       return getState().lifetimeRevenue
     })()

@@ -23,6 +23,8 @@ function report(over: Partial<OfflineReport> = {}): OfflineReport {
     commitment: new Decimal(1000),
     projectIndex: 0,
     projectsShipped: 0,
+    shelfShipped: 0,
+    built: [],
     revenue: new Decimal(0),
     shipCapReached: false,
     ...over,

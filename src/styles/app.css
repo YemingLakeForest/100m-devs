@@ -734,6 +734,10 @@ body {
   border-bottom: var(--rule) solid var(--p1);
 }
 
+.burndown__short {
+  display: none;
+}
+
 .burndown__ideal,
 .burndown__actual {
   fill: none;
@@ -1871,6 +1875,20 @@ body {
     min-height: 1.25em;
   }
 
+  /*
+   * [2026-09-26] One line of readout. §10.7's belt now sits under it in the
+   * same block, and "STORY POINTS LEFT" wrapped to a second line on every
+   * short frame — the fourteen pixels the belt needed. The unit is dropped,
+   * never abbreviated (§10.2a, R12).
+   */
+  .burndown__long {
+    display: none;
+  }
+
+  .burndown__short {
+    display: inline;
+  }
+
   /* Ten pixels of bands. Below this it stops being a stack and becomes a rule
      that changes colour, and at that point the honest thing would be to drop
      it — but 336 is the bottom of §23.4's design box and it still reads. */
@@ -1993,6 +2011,18 @@ body {
 
   .hud__block--cash {
     grid-column: 1 / -1;
+  }
+}
+
+/*
+ * [2026-09-26] The PROJECT caption goes on the two shortest frames in the box.
+ * The name under it already says what the block is, and §10.7's belt needed the
+ * line: measured at 748x336 mid-collapse, the rail had three pixels left and a
+ * generated title that wraps to two lines took eleven more than that.
+ */
+@media (max-height: 400px) {
+  .burndown > .hud__label {
+    display: none;
   }
 }
 

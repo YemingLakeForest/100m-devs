@@ -40,7 +40,10 @@ import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
 import { RevenueGraph } from './RevenueGraph.tsx'
 import { ReleaseReview } from './ReleaseReview.tsx'
-import { ReleaseWindow } from './ReleaseWindow.tsx'
+import { ReleaseRing } from './ReleaseRing.tsx'
+import { Pipeline } from './Pipeline.tsx'
+import { PipelineBoard } from './PipelineBoard.tsx'
+import { pipelineAdvice } from './pipelineModel.ts'
 import { TouchSwitch } from './TouchSwitch.tsx'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
@@ -217,6 +220,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [heroTreeOpen, setHeroTreeOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
+  // §10.7 — Serena's pipeline board, opened from the belt once she has arrived.
+  const [pipelineBoardOpen, setPipelineBoardOpen] = useState(false)
   const [guidedBoard, setGuidedBoard] = useState<'tech' | 'founder' | 'hero' | null>(null)
   /**
    * §10.6b — **no window is open while somebody is talking.**
@@ -277,6 +282,9 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
+  // §10.7 — the belt takes the advisor's line while it needs the player: the
+  // first build on the shelf, and a full buffer that has stopped the floor.
+  const advisor = pipelineAdvice(state) ?? copy.advisor
   // §18.0 — whatever is happening, resolved once per render like `unlocks`.
   const event = currentEvent(state)
   // §21.0c — read once and passed down, so every gate in this frame agrees
@@ -431,7 +439,14 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       <div className="hud__left">
         {/* Top-left — §10.1's Active Project, "a descending line, not a filling bar". */}
         <div className="hud__project">
-          <BurnDown state={state} />
+          <BurnDown state={state}>
+            {/*
+              §10.7 [2026-09-26] — the belt, inside the burn-down's block because
+              the burn-down feeds it: Build, Test, the buffer's slots, and the
+              key that ships.
+            */}
+            <Pipeline state={state} onBoard={() => setPipelineBoardOpen(true)} />
+          </BurnDown>
           {/*
             §4.10e — the back catalogue, under the burn-down that will join it.
             Directly under on purpose: the two charts are the same story told at
@@ -658,7 +673,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           the studio is stopped for; the reel is what the press said about it,
           and it plays over a running floor. */}
       <ReleaseReview state={state} />
-      <ReleaseWindow state={state} />
+      <ReleaseRing state={state} />
+      <PipelineBoard open={pipelineBoardOpen && !state.launching} state={state} onClose={() => setPipelineBoardOpen(false)} />
       <DevCard state={state} />
 
       {/*
@@ -741,15 +757,15 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         */}
         {copy.terminal && (
           <pre className="hud__terminal">
-            <Typewriter text={copy.terminal.join('\n')} />
+            <Typewriter text={copy.terminal.join('\n').replace('{project}', state.sprintName)} />
           </pre>
         )}
-        {copy.advisor && (
+        {advisor && (
           <p className="hud__advisor">
             {/* The advisor is a character, so its letters land with a tick
                 (§10.7). The banner above is machine output and stays silent —
                 two typewriters ticking at once is a buzz, not a voice. */}
-            <Typewriter text={copy.advisor} sound />
+            <Typewriter text={advisor} sound />
           </p>
         )}
         {/*

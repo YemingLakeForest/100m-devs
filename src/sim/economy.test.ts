@@ -1,3 +1,4 @@
+import { titleFor } from '../three/sim/titles.ts'
 import { describe, expect, it } from 'vitest'
 import {
   BANKRUPTCY_THRESHOLD,
@@ -261,7 +262,8 @@ describe('revenue scales with the studio, not with the Story Point — §4.10c',
     for (let shift = 1; shift <= 3; shift++) {
       triggerParadigmShift()
       expect(getState().projectIndex).toBe(0)
-      expect(getState().sprintName).toBe(PROJECTS[0].name)
+      // The name is the title generator's first for the new run's seed (§10.6.1).
+      expect(getState().sprintName).toBe(titleFor(getState().runSeed, 0).name)
       expect(getState().commitment.toNumber()).toBe(PROJECTS[0].commitment)
     }
   })

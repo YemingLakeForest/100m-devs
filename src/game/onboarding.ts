@@ -176,7 +176,9 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
   act1_poke: {
     terminal: [
       'STUDIO_OS v0.0.1 initialized.',
-      'Project: "Flappy Square 1.0"',
+      // `{project}` is the game on the burn-down, named by the title
+      // generator (`store.ts`'s `projectTitle`) — the HUD fills it in.
+      'Project: "{project}"',
       'Sprint Commitment: 300 story points',
       'Employees: 0 // just you',
     ],

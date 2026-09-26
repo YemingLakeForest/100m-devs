@@ -30,6 +30,9 @@ import {
   poke,
   showScene,
   triggerParadigmShift,
+  projectTitle,
+  shelfBlocked,
+  SHELF_CAPACITY,
 } from './store.ts'
 import { PROJECTS } from './store.ts'
 import { SCENE_JAMES_INSTANT_MESSENGER } from './scenes.ts'
@@ -104,7 +107,8 @@ describe('load', () => {
     expect(s.devs).toBe(40)
     expect(s.cash).toBe(1234)
     expect(s.burned.toNumber()).toBe(900)
-    expect(s.sprintName).toBe(PROJECTS[1].name)
+    // §10.6.1 — named by the title generator from the restored run.
+    expect(s.sprintName).toBe(projectTitle(s).name)
     expect(s.projectsShipped).toBe(3)
     expect(s.pokeCount).toBe(77)
     expect(s.phase).toBe('act3_bait')
@@ -259,15 +263,20 @@ describe('collect — GDD §24.8', () => {
     collectOffline()
     expect(getState().projectsShipped).toBeGreaterThan(0)
     expect(getState().cash).toBeGreaterThan(0)
-    expect(getState().sprintName).toBe(PROJECTS[getState().projectIndex].name)
+    expect(getState().sprintName).toBe(projectTitle().name)
   })
 
-  it('clamps at 100% without CI/CD Autopilot', () => {
+  it('fills the buffer and then clamps, without anything to ship — §10.7 [2026-09-26]', () => {
+    // The buffer is how long the studio can be left: an absence finishes a
+    // project into every free slot, ships none of them (releasing is still the
+    // player's call), and the burn-down stops at 100% once the slots are full.
     seed({ devs: 50, devCap: 100, commitment: new Decimal(1000) }, prestiged(), 8 * HOUR)
     loadGame()
     collectOffline()
-    expect(getState().burned.toNumber()).toBe(1000)
+    expect(getState().shelf).toHaveLength(SHELF_CAPACITY)
     expect(getState().projectsShipped).toBe(0)
+    expect(getState().burned.toNumber()).toBe(getState().commitment.toNumber())
+    expect(shelfBlocked()).toBe(true)
   })
 })
 

@@ -8,6 +8,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
+import { titleFor } from '../three/sim/titles.ts'
 import { BASELINE_RATING } from '../sim/rating.ts'
 import { nextOrdinal } from '../sim/history.ts'
 import {
@@ -15,7 +16,7 @@ import {
   __resetStore,
   __setState,
   getState,
-  releaseNow,
+  shipEverything,
   tick,
   triggerParadigmShift,
 } from './store.ts'
@@ -35,16 +36,17 @@ function aboutToShip() {
 }
 
 /**
- * Finish the build and put it on sale — §10.8b.
+ * Finish the build and put it on sale — §10.7.
  *
- * Shipping is two steps now: the burn-down reaching zero *shelves* the build,
- * and a release date puts it on sale. These tests are about the record written
- * at the second step, so they take the neutral date and move on; `release.ts`
- * and `releaseWindow.test.ts` are where the date itself is argued about.
+ * Shipping is three steps now: the burn-down reaching zero puts the build on
+ * the belt, the belt runs it through Build and Test to the shelf, and SHIP!
+ * puts it on sale. These tests are about the record written at the last step,
+ * so they run the belt out and take the neutral launch; `release.ts` and
+ * `pipelineStore.test.ts` are where the belt and the ring are argued about.
  */
 function shipIt() {
   tick(1)
-  releaseNow()
+  shipEverything()
 }
 
 describe('the release history — §10.11', () => {
@@ -56,7 +58,9 @@ describe('the release history — §10.11', () => {
     expect(history.recent).toHaveLength(1)
 
     const r = history.recent[0]
-    expect(r.name).toBe('Flappy Square 1.0')
+    // §10.6.1 — the title generator's first game for this seed, the name the
+    // burn-down carried while it was being built.
+    expect(r.name).toBe(titleFor(getState().runSeed, 0).name)
     // §21.0c — Run 1 ships at the baseline by construction, so the rating is the
     // garage's, not a live roll.
     expect(r.rating).toBe(BASELINE_RATING)
@@ -81,11 +85,12 @@ describe('the release history — §10.11', () => {
     __setState({ projectIndex: 5, sprintName: PROJECTS[5].name })
     triggerParadigmShift()
 
+    // The first rung, and the first title of the new reality's own seed.
     expect(getState().projectIndex).toBe(0)
-    expect(getState().sprintName).toBe(PROJECTS[0].name)
+    expect(getState().sprintName).toBe(titleFor(getState().runSeed, 0).name)
     // And the receipt agrees with the studio it hands over — §15.1a names the
     // game the next reality opens on and it is the first one again.
-    expect(getState().pendingShift!.nextProject).toBe(PROJECTS[0].name)
+    expect(getState().pendingShift!.nextProject).toBe(getState().sprintName)
   })
 
   it('goes with the run — a Paradigm Shift liquidates the catalogue', () => {

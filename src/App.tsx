@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { initSfx } from './audio/sfx.ts'
 import {
+  __parkBuild,
   __setState,
   jumpToPhase,
   PROJECTS,
@@ -43,7 +44,6 @@ import { DEBUG_TOOLS_ENABLED, debugSearchParams } from './dev/debugAccess.ts'
 import { installViewModeKeys } from './dev/viewModes.ts'
 import { SCENARIOS_UP, applyScenario, scenarioById, scenarioRung } from './game/scenarios.ts'
 import { zAtRung } from './sim/ladder.ts'
-import { launchHit } from './sim/release.ts'
 
 import './styles/title.css'
 
@@ -268,29 +268,16 @@ export default function App() {
     }
 
     /*
-     * ?release parks a finished build on §10.8b's shelf, with the date already
-     * picked.
+     * ?release parks a finished build on §10.7's shelf and opens the release
+     * ring on it [2026-09-26].
      *
      * Same family as `?full` and `?event`, and here for the same reason: the
-     * launch window exists for about five seconds per project and then closes
-     * itself, so there is no way to *hold* the frame long enough to measure it.
-     * The verdict is pre-locked because that is the state with the most text in
-     * it — the band, the multiplier line and the lit ring — which is the frame
-     * §23.4.2 is most likely to overflow, and because a locked window is the
-     * one that stays put: `ReleaseWindow` reads its verdict from the store, and
-     * the simulation's backstop only counts down an *unanswered* window.
+     * ring is up for as long as a player aims at it and then closes, so there
+     * is no way to *hold* the frame long enough to measure it otherwise. The
+     * ring waits for its first press before the clock starts, so the frame it
+     * opens on stays put.
      */
-    if (DEBUG_QUERY.has('release')) {
-      __setState({
-        pendingRelease: {
-          id: 1,
-          name: PROJECTS[0].name,
-          sweepMs: 1_400,
-          openedAt: performance.now(),
-          hit: launchHit(0.5),
-        },
-      })
-    }
+    if (DEBUG_QUERY.has('release')) __parkBuild()
 
     // ?devs=250000 forces a headcount, for looking at the §7.8.2 rungs.
     //

@@ -58,12 +58,12 @@ import { useEffect, useState } from 'react'
 import { getState, subscribe } from '../game/store.ts'
 import { OsWindow } from '../ui/OsWindow.tsx'
 import { Cover } from './Cover.tsx'
-import { coverFor } from '../sim/cover.ts'
+import { coverFor } from '../three/sim/cover.ts'
 import { aggregateRating, type History, type ReleaseRecord } from '../sim/history.ts'
 import { formatBuildTime, formatLabour } from '../sim/labour.ts'
 import { formatMoney } from './hudModel.ts'
 import { earningRate, outstandingByOrdinal, type Release } from '../sim/revenue.ts'
-import { BASELINE_RATING, ratingBreakdown, revenueMultiplier } from '../sim/rating.ts'
+import { BASELINE_RATING, LAUNCH_NEUTRAL, ratingBreakdown, revenueMultiplier } from '../sim/rating.ts'
 import { GARAGE_SYNC } from '../sim/teamSync.ts'
 import { formatRate } from './revenueModel.ts'
 
@@ -225,13 +225,14 @@ function RatingBar({ rating }: { rating: number }) {
   )
 }
 
-/** The six inputs §4.14 scored this release on, in a fixed order. */
-const BREAKDOWN_ORDER = ['defects', 'heroes', 'sync', 'luck', 'craft', 'traits'] as const
+/** The seven inputs §4.14 scored this release on, in a fixed order. §10.7's launch joined them 2026-09-26. */
+const BREAKDOWN_ORDER = ['defects', 'heroes', 'sync', 'launch', 'luck', 'craft', 'traits'] as const
 
 const BREAKDOWN_LABEL: Record<(typeof BREAKDOWN_ORDER)[number], string> = {
   defects: 'DEFECTS',
   heroes: 'HEROES',
   sync: 'TEAM SYNC',
+  launch: 'LAUNCH',
   luck: 'RECEPTION',
   craft: 'CRAFT',
   traits: 'TRAITS',
@@ -250,8 +251,10 @@ function breakdownOf(record: ReleaseRecord): Record<(typeof BREAKDOWN_ORDER)[num
     sync: record.sync ?? GARAGE_SYNC,
     traits: record.traits ?? 0,
     luck: record.luck ?? 0.5,
+    // §10.7 — the ring's verdict, or the neutral a release before the ring scored.
+    launch: record.launch ?? LAUNCH_NEUTRAL,
   })
-  const known = parts.heroes + parts.sync + parts.luck + parts.traits + parts.craft
+  const known = parts.heroes + parts.sync + parts.launch + parts.luck + parts.traits + parts.craft
   return { ...parts, defects: Math.max(0, record.rating - known) }
 }
 

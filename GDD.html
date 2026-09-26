@@ -2685,6 +2685,12 @@ place §6's dilution does not apply, and the exception is what makes the rule vi
 that never fully stops. It is the sound of the back catalogue.</li>
 </ul>
 <h3 id="the-rating-the-only-number-that-judges-a-run-canon-added-2026-08-10-r23">4.14 The Rating — the only number that judges a run <strong>[CANON - added 2026-08-10]</strong> - R23</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] A seventh term: the launch.</strong> Ported with the release ring (§10.8b's amendment):
+readiness (the stage the build went out at) at 60% and the timing band at 40%, weighted level with sync, below heroes
+and defects. Every other weight came down in proportion, so §4.14's order stands, and its neutral is ½ like every
+other term's — a release nobody attended scores exactly what it did before.</p>
+</blockquote>
 <p><strong>Every score in this game measures size.</strong> Cash, headcount, Story Points, the whole
 Construction Ladder — all of them go up and none of them is ever <em>bad</em>. The rating is the
 first quantity in the design that can go <strong>down while everything else goes up</strong>, which is what
@@ -8308,6 +8314,46 @@ functioning web app with pixel art in it.</p>
 are invisible when you are the person who built the feature and already know it works.</p>
 <hr />
 <h4 id="b-the-release-is-a-decision-canon-added-2026-08-29">10.8b The release is a decision — the launch window and the reviews <strong>[CANON - added 2026-08-29]</strong></h4>
+<blockquote>
+<p><strong>[amended 2026-09-26] The launch window is superseded by the rebuild's pipeline and release ring.</strong>
+<em>"The release game should be ported too the circle dredge fishing game"</em>, then <em>"port the release little
+game and the pipeline, it needs to fit the current game aesthetics."</em> The mechanics are the rebuild's, which are
+canon here (<code>docs/PLAN-2026-09-26-return.md</code>); the drawing is this build's.</p>
+<ul>
+<li><strong>The pipeline.</strong> A finished build is no longer shelved on the spot: it enters <strong>Build</strong>,
+then <strong>Test</strong>, then waits on the <strong>shelf</strong> for <strong>SHIP!</strong>, and the next project starts
+at once. Everything past Code counts against <strong>one buffer</strong> (three slots before Serena's board), and
+<strong>a full buffer stops the floor</strong>: velocity, the founder's desk and every poke read zero until something
+ships. The buffer is how long the studio can be left, online and offline (§24, below). Build and Test take a few
+seconds, stretched by the size of the game and by the waiting and handoff slices of the loss.</li>
+<li><strong>SHIP! opens the ring</strong> for the shelf's head, and the clock stops while it is up (§10.7a.3's rule
+for a scene). One ring is one fiscal year; one head sweeps it; the open defects sit on the inner track as bugs; the
+release date is at the top. <strong>One control</strong> means whatever the head is over — fix a bug, ship in the
+window, or nothing. The window is worth less every year the head goes round (four years), so every bug fixed costs
+the best date the build will ever be offered. A clean fix never regresses; a rushed one can reopen the bug.</li>
+<li><strong>What it pays.</strong> The date multiplies the payout (×1.75 perfect … ×⅔ missed, derived so a blind
+press is worth ×1); the stage the build went out at (ALPHA, BETA, RC, GOLD) is §4.14's new <em>launch</em> term; and
+the defects left open are the defects that ship. <strong>Nobody attending costs nothing</strong>: Serena's Auto-Ship
+releases at neutral timing (RC), and a release nobody attended scores exactly what it did before the ring.</li>
+<li><strong>Serena's board.</strong> Once Serena has arrived the belt opens her pipeline board — capacity, speed,
+Test's catch, and Auto-Ship on its own clock with its speed upgraded separately. Until then SHIP! is the player's
+own press.</li>
+</ul>
+<p><strong>What left, and why.</strong> The three-sweep timeout, the simulation-side backstop for a hidden tab and the
+30-second cooldown that sent every other release out on a train all served a modal that <em>halted the studio the
+instant a build finished</em>. The shelf settles them now: a build waits for as long as the player likes, and the only
+thing that forces the question is the buffer filling up.</p>
+<p><strong>The drawing.</strong> The ring is a 96-pixel bitmap at 2× or 3×, in the live phosphor with the bands dimming
+year by year, and the bugs in §4.15's defect ink; it wears the STUDIO_OS window and its whole body is the tap
+target. The belt sits in the PROJECT block under the burn-down — BUILD, TEST, the buffer's slots and a full-width
+SHIP! — with a jammed stage and a full buffer drawn inverted rather than in a new colour.</p>
+<p><strong>Run 1.</strong> §21.0c still stamps every other rating input at the baseline, and the launch term applies
+around it: an unattended release scores exactly the baseline, and the ring lifts or sinks it by its own weight. The
+old window already let the <em>date</em> through the stamp; the ring's other half is the bugs, and a tutorial in which
+fixing them changed nothing would teach the ring's trade as a lie.</p>
+<p>The rest of this section describes the launch window and is kept as history; the review reel after a release is
+unchanged, and now also names the stage.</p>
+</blockquote>
 <p><strong>A finished build is shelved, not shipped.</strong> Until now the burn-down reaching zero
 <em>was</em> the release: one <code>if</code> in <code>tick</code>, resolved at a frame boundary. That is correct
 simulation and it is the loop's payoff arriving as a side effect — the one moment per
@@ -9021,6 +9067,16 @@ its own</strong>, next to what that thing scored and what it earned. The unit is
 reason it earns its pixels is not. E5 stays closed.</p>
 </blockquote>
 <h4 id="cover-art-and-why-it-cannot-be-a-sprite">10.11.3 Cover art, and why it cannot be a sprite</h4>
+<blockquote>
+<p><strong>[amended 2026-09-26] The covers and the names are the rebuild's generators.</strong> <em>"Also the art and name
+generation on the new game should be ported."</em> A project is named by the rebuild's title generator from
+<code>(seed, ordinal)</code> — ten genres, eleven forms, the occasional sequel and <em>(Now With Ads)</em> suffix — so the
+name on the burn-down is the name the belt, the ring, the reel and the gallery carry, and a reload cannot rename a
+game. The ladder keeps the sizes and payouts of §4.10c; <em>Flappy Square 1.0</em> is no longer its first title. The cover
+is the rebuild's 32 × 32 painting (a genre subject, a scene, a ground and a horizon), rolled from the same pair and
+drawn with hard pixel edges; the rating still tints only the frame, in this build's ramp. The paragraphs below
+describe the 48 × 48 sprite-on-swatch it replaced.</p>
+</blockquote>
 <p><strong>Releases are unbounded.</strong> A long run ships dozens and every prestige run ships more, so no
 release may cost an asset — §22.7's hard cap is 19 sprites for the entire collectable system
 and this would be the hole in the bottom of it. Cover art is <strong>generated from the release's own
@@ -16913,6 +16969,13 @@ randomised rewards, there is no trading, and the leaderboards <code>game-cloud</
 wired. The cost of anti-cheat here is false positives on players who genuinely travelled.</p>
 <hr />
 <h3 id="what-accrues-and-what-deliberately-does-not-canon">24.6 What accrues, and what deliberately does not <strong>[CANON]</strong></h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] An absence fills the buffer.</strong> With §10.8b's pipeline a finished project is a build
+waiting for SHIP!, not a release, so an absence without an auto-shipper finishes a project into every free slot of the
+buffer and then goes flat — "one project completes" below now reads "the buffer fills". Releasing is still the player's
+decision (SAVE.md §5.5), and L2-2B still ships everything. Serena's Auto-Ship ships one build per interval of its own
+clock, the builds already waiting first.</p>
+</blockquote>
 <table>
 <thead>
 <tr>

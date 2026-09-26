@@ -620,26 +620,49 @@ async function clearScene(page) {
 }
 
 /**
- * §10.8b — answer the launch window, if one is up.
+ * §10.7 [2026-09-26] — close the release ring, if one is up.
  *
- * The scenarios run studios of a hundred thousand people, which finish a
- * project every few seconds, so any leg that lets one of them run for a while
- * will eventually meet a launch. The window is modal and it halts the studio —
- * a control behind it is genuinely not pressable, which is the whole point — so
- * a pass that reached for a HUD button without clearing it first would be
- * measuring the glass rather than the button.
+ * The old launch window raised itself the moment a build finished, so any leg
+ * that let a big studio run met one. The ring only opens when somebody presses
+ * SHIP!, and a studio nobody ships for fills its buffer and stops rather than
+ * raising a modal — so this now only matters for a leg that opened the ring on
+ * purpose. ESC leaves it without shipping, which is the ring's own exit.
  *
  * Deliberately **not** part of `check`'s standard preamble: most screens are a
- * fixed fixture with no simulation running under them, and the ones that need
- * this are the ones that play.
+ * fixed fixture with no simulation running under them.
  */
 async function clearRelease(page) {
-  const catcher = page.locator('.release__catch')
-  if (!(await catcher.count())) return false
-  await catcher.first().click({ timeout: 5_000, force: true }).catch(() => {})
-  await page.waitForFunction(() => !globalThis.__store?.pendingRelease, null, { timeout: 10_000 })
+  const ring = page.locator('.ring__catch')
+  if (!(await ring.count())) return false
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !globalThis.__store?.launching, null, { timeout: 10_000 })
   await page.waitForTimeout(200)
   return true
+}
+
+/**
+ * §10.7 [2026-09-26] — ship one build the way a player does: SHIP! on the belt,
+ * START on the ring, and a press when the control reads SHIP IT.
+ *
+ * A leg that needs something to have shipped (the gallery's door opens on the
+ * first release) used to get it for free: the old launch window released
+ * itself on a timeout. Nothing ships now unless somebody presses SHIP!, and a
+ * leg that waited for it would wait for ever.
+ */
+async function shipOne(page) {
+  const ship = page.locator('.pipe__ship:not([disabled])')
+  await ship.first().waitFor({ state: 'visible', timeout: 30_000 })
+  await ship.first().click({ timeout: 5_000 })
+  const catcher = page.locator('.ring__catch')
+  await catcher.first().waitFor({ state: 'visible', timeout: 5_000 })
+  await catcher.first().click({ force: true })
+  const verdict = page.locator('.ring__say[data-verdict]')
+  for (let i = 0; i < 200 && !(await verdict.count()); i++) {
+    const label = (await page.locator('.ring__act').first().textContent().catch(() => '')) ?? ''
+    if (label.includes('SHIP IT')) await catcher.first().click({ force: true }).catch(() => {})
+    await page.waitForTimeout(120)
+  }
+  await page.waitForFunction(() => !globalThis.__store?.launching, null, { timeout: 10_000 })
 }
 
 /**
@@ -1124,10 +1147,11 @@ try {
     action: async (target) => {
       await clearScene(target)
       // Run one real project at the inspection speed used by the screenshot
-      // harness. Seeding permanent history after mount would not wake React —
+      // harness, and ship it through the ring (`shipOne`). Seeding permanent history after mount would not wake React —
       // permanent save data intentionally has no subscription of its own — so
       // the Gallery door would remain absent even though the data behind it had
       // changed. A real ship exercises the same publication path as play.
+      await shipOne(target)
       const galleryDoor = target.getByRole('button', { name: 'GALLERY', exact: true })
       await galleryDoor.waitFor({ state: 'visible', timeout: 30_000 })
 
@@ -1248,22 +1272,23 @@ try {
   })
 
   /*
-   * §10.8b's launch window, at both ends of the box.
+   * §10.7's release ring [2026-09-26], at both ends of the box and at its
+   * shortest frame.
    *
-   * It is the only modal in the product whose body is a *fixed-aspect
-   * instrument* — a bar with seven named zones on it — rather than a column of
-   * text that can reflow, so it is the one most likely to be squeezed into
-   * something unaimable rather than something clipped. `?release` parks it with
-   * the verdict already stamped, which is the state with the most type in it.
+   * The one modal whose body is a *fixed-size instrument* — a 96-pixel dial at
+   * an integer scale beside its brief — rather than a column of text that can
+   * reflow, so it is the one most likely to be squeezed into something
+   * unaimable rather than something clipped. `?release` parks a build on the
+   * shelf and opens the ring on it, waiting for its first press.
    */
-  for (const [width, height] of [[640, 360], [997, 448]]) {
+  for (const [width, height] of [[640, 360], [748, 336], [997, 448], [1440, 900]]) {
     await check(page, {
-      name: `the launch window at ${width}x${height}`,
+      name: `the release ring at ${width}x${height}`,
       width,
       height,
       path: '/?notitle&release&nopost',
       action: async (target) => {
-        await target.locator('.release__track').waitFor({ state: 'visible' })
+        await target.locator('.ring__canvas').waitFor({ state: 'visible' })
       },
     })
   }

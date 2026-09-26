@@ -16,7 +16,7 @@ import {
   getState,
   hireDeveloper,
   poke,
-  releaseNow,
+  shipEverything,
   setHireRole,
   tick,
   workingDevs,
@@ -54,7 +54,7 @@ function clearScene() {
  * every figure in this file is the figure it was before the window existed.
  */
 function answerLaunch() {
-  if (getState().pendingRelease !== null) releaseNow()
+  shipEverything()
 }
 
 /**

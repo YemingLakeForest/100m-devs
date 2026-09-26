@@ -18,12 +18,14 @@
  */
 
 import Decimal from 'break_infinity.js'
-import type { GameState } from './store.ts'
+import type { GameState, ShelvedBuild } from './store.ts'
 import type { Phase } from './onboarding.ts'
 import { PHASE_ORDER, RETIRED_PHASES } from './onboarding.ts'
 import { D_BASE } from '../sim/entropy.ts'
 import { TECH_BY_ID } from '../sim/techTree.ts'
-import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR, LUCK_NEUTRAL } from '../sim/rating.ts'
+import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR, LAUNCH_NEUTRAL, LUCK_NEUTRAL } from '../sim/rating.ts'
+import { PIPELINE_BY_ID } from '../sim/pipeline.ts'
+import { GENRES, genreNamed, type Genre } from '../three/sim/titles.ts'
 import { UNKNOWN_ORDINAL } from '../sim/revenue.ts'
 import { GARAGE_SYNC } from '../sim/teamSync.ts'
 import { ROLES, type Role } from '../sim/roles.ts'
@@ -127,6 +129,17 @@ export interface RunSave {
    * was already written has been reinterpreted.
    */
   tech?: Record<string, number>
+  /**
+   * §10.7 [added 2026-09-26] — the pipeline: builds in Build and Test with how
+   * far the head of each lane has got, the shelf, Serena's board and the
+   * auto-ship clock. Additive and optional on the rule `tech` follows: a save
+   * written before the belt describes a studio with nothing on it, and no
+   * `SAVE_VERSION` bump.
+   */
+  pipeline?: { build: { item: ShelvedBuild; progress: number }[]; test: { item: ShelvedBuild; progress: number }[] }
+  shelf?: ShelvedBuild[]
+  pipelineNodes?: Record<string, number>
+  autoShipClock?: number
   /** §11.2 B2's meeting clock, in simulated seconds. Optional for the same reason. */
   runSeconds?: number
   /**
@@ -485,6 +498,13 @@ export function makeSaveData(state: GameState): SaveData {
       seedTaken: state.seedTaken,
       dialUnlocked: state.dialUnlocked,
       tech: { ...state.tech },
+      pipeline: {
+        build: state.pipeline.build.map((f) => ({ item: { ...f.item }, progress: f.progress })),
+        test: state.pipeline.test.map((f) => ({ item: { ...f.item }, progress: f.progress })),
+      },
+      shelf: state.shelf.map((b) => ({ ...b })),
+      pipelineNodes: { ...state.pipelineNodes },
+      autoShipClock: state.autoShipClock,
       runSeconds: state.runSeconds,
       // §4.10e — flattened rather than nested, so the shape cannot arrive back
       // as a half-object that `collectedFraction` would turn into NaN dollars.
@@ -795,6 +815,13 @@ function normaliseRun(value: unknown): RunSave {
     history: normaliseHistory(r.history),
     releases: normaliseReleases(r.releases),
     tech: normaliseTech(r.tech),
+    pipeline: {
+      build: normaliseInFlight(r.pipeline?.build),
+      test: normaliseInFlight(r.pipeline?.test),
+    },
+    shelf: normaliseBuilds(r.shelf),
+    pipelineNodes: normalisePipelineNodes(r.pipelineNodes),
+    autoShipClock: nonNegative(r.autoShipClock, 0),
     runSeconds: nonNegative(r.runSeconds, 0),
     roster: normaliseRoster(r.roster, devs),
     hireRole: ROLE_SET.has(r.hireRole as Role) ? (r.hireRole as Role) : 'dev',
@@ -1009,6 +1036,68 @@ function normaliseReleases(value: unknown): ReleaseSave[] {
  * at least 1, so a folded title cannot report "0 times" and divide its own
  * average by nothing.
  */
+/**
+ * §10.7 — one finished build, defended field by field. A build with no name is
+ * dropped rather than defaulted: its name is the title the release will carry,
+ * and inventing one would put a game in the gallery the player never made.
+ */
+function normaliseBuild(raw: unknown): ShelvedBuild | null {
+  const b = (raw ?? {}) as Partial<ShelvedBuild>
+  if (typeof b.name !== 'string' || b.name.length === 0) return null
+  const unit = (v: unknown, d: number) => Math.min(1, nonNegative(v, d))
+  return {
+    id: Math.floor(nonNegative(b.id, 0)),
+    ordinal: Math.floor(nonNegative(b.ordinal, 0)),
+    name: b.name,
+    // The title's genre, or the one its name gives away, or the first: a
+    // cover has to paint *something*, and a wrong subject is a smaller lie
+    // than a missing box.
+    genre: GENRES.includes(b.genre as Genre) ? (b.genre as Genre) : (genreNamed(b.name) ?? GENRES[0]),
+    projectIndex: Math.floor(nonNegative(b.projectIndex, 0)),
+    revenueBase: nonNegative(b.revenueBase, 0),
+    size: nonNegative(b.size, 0),
+    defects: nonNegative(b.defects, 0),
+    density: nonNegative(b.density, DEFECT_DENSITY_ANCHOR),
+    graded: b.graded === true,
+    heroCoverage: unit(b.heroCoverage, 0),
+    sync: unit(b.sync, GARAGE_SYNC),
+    traits: unit(b.traits, 0),
+    luck: unit(b.luck, LUCK_NEUTRAL),
+    buildSeconds: nonNegative(b.buildSeconds, 0),
+    labourSeconds: nonNegative(b.labourSeconds, 0),
+    shelvedAt: nonNegative(b.shelvedAt, 0),
+  }
+}
+
+function normaliseBuilds(value: unknown): ShelvedBuild[] {
+  if (!Array.isArray(value)) return []
+  return value.map(normaliseBuild).filter((b): b is ShelvedBuild => b !== null)
+}
+
+function normaliseInFlight(value: unknown): { item: ShelvedBuild; progress: number }[] {
+  if (!Array.isArray(value)) return []
+  const out: { item: ShelvedBuild; progress: number }[] = []
+  for (const raw of value) {
+    const f = (raw ?? {}) as { item?: unknown; progress?: unknown }
+    const item = normaliseBuild(f.item)
+    if (item) out.push({ item, progress: Math.min(1, nonNegative(f.progress, 0)) })
+  }
+  return out
+}
+
+/** §10.7 — Serena's board. Unknown node ids are dropped, levels clamp to each node's maximum. */
+function normalisePipelineNodes(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {}
+  if (!value || typeof value !== 'object') return out
+  for (const [id, raw] of Object.entries(value as Record<string, unknown>)) {
+    const node = PIPELINE_BY_ID.get(id)
+    if (!node) continue
+    const level = Math.min(node.maxLevel, Math.floor(nonNegative(raw, 0)))
+    if (level > 0) out[id] = level
+  }
+  return out
+}
+
 function normaliseHistory(value: unknown): History {
   const h = (value ?? {}) as Partial<History>
   const recent: ReleaseRecord[] = []
@@ -1030,6 +1119,7 @@ function normaliseHistory(value: unknown): History {
         sync: Math.min(1, nonNegative(r.sync, GARAGE_SYNC)),
         traits: Math.min(1, nonNegative(r.traits, 0)),
         luck: Math.min(1, nonNegative(r.luck, LUCK_NEUTRAL)),
+        launch: Math.min(1, nonNegative(r.launch, LAUNCH_NEUTRAL)),
         payout: nonNegative(r.payout, 0),
         buildSeconds: nonNegative(r.buildSeconds, 0),
         labourSeconds: nonNegative(r.labourSeconds, 0),

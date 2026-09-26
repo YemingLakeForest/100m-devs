@@ -16,7 +16,7 @@ beforeEach(() => {
 
 function shipEvent(id: number, name: string, rating: number, timingLabel: string | null = null) {
   __setState({
-    ship: { id, name, revenue: 4_200, at: 0, rating, ordinal: 0, timing: 1, timingLabel },
+    ship: { id, name, revenue: 4_200, at: 0, rating, ordinal: 0, timing: 1, timingLabel, stage: null },
   })
 }
 

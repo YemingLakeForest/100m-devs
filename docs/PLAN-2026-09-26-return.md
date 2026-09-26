@@ -54,7 +54,8 @@ unrestyled. The rebuild supplies models, 3D rendering, and a chosen set of syste
 - Retire the Pixi room only at parity.
 - Rewrite or retire `test:room`, `test:walk` and `test:ui-frame`, which measure the Pixi room, in the same
   batch. Say which. **`test:room` deleted 2026-09-26** at the user's instruction (*"that changes all the
-  time and useless"*); `test:ui-frame` is kept (*"I want to keep UI element display gates"*).
+  time and useless"*); `test:ui-frame` is kept (*"I want to keep UI element display gates"*). **`test:walk` deleted
+  2026-09-26** (*"Delete the walk gate, no point now. Game is changing so quickly"*).
 
 **1 · The economy decision, then the Ledger in legacy widgets.** If option C is chosen:
 - Port `entropy`, `dysfunction`, `losses`, `audience` and `pricing` as pure modules, then re-pin the tests that
@@ -63,6 +64,10 @@ unrestyled. The rebuild supplies models, 3D rendering, and a chosen set of syste
 - Record a pacing log at 4 / 20 / 100 / 1K / 10K / 1M / 100M.
 
 **2 · Release pipeline:** buffer, stages, capacity and speed, auto-ship. The belt is drawn in the 3D room.
+**Landed 2026-09-26:** `sim/pipeline.ts` (the belt, one buffer, Serena's board and auto-ship), the release ring
+(`sim/release.ts`, drawn as a pixel dial in `hud/ReleaseRing.tsx`), §4.14's launch term, and the rebuild's cover art
+and title generation (`three/sim/cover.ts`, `three/sim/titles.ts`). The belt is on the HUD under the burn-down; it is
+**not yet drawn in the 3D room**. Serena's board is a STUDIO_OS list until her isometric tree lands in phase 4.
 
 **3 · Minigames:** Service Later, restyled as STUDIO_OS windows.
 

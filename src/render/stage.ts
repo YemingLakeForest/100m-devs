@@ -2185,7 +2185,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       state.dev.state,
       dt,
       currentEntropy(state),
-      state.scene !== null || state.pendingRelease !== null,
+      state.scene !== null || state.launching,
     )
 
     critPunch = Math.max(0, critPunch - dt * 4)
@@ -2455,7 +2455,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // A numeral rising off a frozen developer is the loudest possible claim
     // that work is happening, and it is the one claim the pause exists to
     // withdraw.
-    const frozen = state.scene !== null || state.pendingRelease !== null
+    const frozen = state.scene !== null || state.launching
     if (roomIsUp && !frozen) {
       const seats = roomSeats()
       const drawn = room.drawn

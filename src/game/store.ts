@@ -55,7 +55,9 @@ import {
 import { advanceTickets, catalogueMultiplier, serviceRatio } from '../sim/support.ts'
 import {
   BASELINE_RATING,
+  LAUNCH_NEUTRAL,
   LUCK_NEUTRAL,
+  RATING_WEIGHTS,
   luckRoll,
   traitScore,
   DEFECT_DENSITY_ANCHOR,
@@ -66,13 +68,32 @@ import {
   revenueMultiplier,
 } from '../sim/rating.ts'
 import {
-  AUTO_LAUNCH,
-  LAUNCH_WINDOW_COOLDOWN_SECONDS,
-  launchHit,
-  stallSeconds,
-  sweepPeriodMs,
-  type LaunchHit,
+  TRAIN_LAUNCH,
+  launchScore,
+  pipelineLaunch,
+  type LaunchOutcome,
+  type ReadinessStage,
 } from '../sim/release.ts'
+import {
+  PIPELINE_BY_ID,
+  advancePipeline,
+  emptyPipeline,
+  inFlight,
+  jammed,
+  pipelineCost,
+  pipelineDrag,
+  pipelineEffects,
+  pipelineLevel,
+  pipelineRefusal,
+  stageSeconds,
+  type PipelineEffects,
+  type PipelineRefusal,
+  type PipelineState,
+  type Stage,
+} from '../sim/pipeline.ts'
+import { coordinationLedger } from '../sim/dysfunction.ts'
+import { titleFor, type Genre } from '../three/sim/titles.ts'
+import { eraIndex } from '../sim/eras.ts'
 import {
   NODE_BY_ID,
   bpFor,
@@ -569,40 +590,44 @@ export interface GameState {
     rating: number
     /** §10.11's career ordinal, so the reviews are the same on every replay. */
     ordinal: number
-    /** §10.8b — what the launch date was worth, ×1 when nobody attended. */
+    /** §10.7 — what the launch date was worth, ×1 when nobody attended. */
     timing: number
-    /** §10.8b's band label, or null for a release that went out on the train. */
+    /** §10.7's band label, or null for a release nobody attended. */
     timingLabel: string | null
+    /** §10.7 — the stage it went out at (GOLD, RC…), or null when nobody attended. */
+    stage: ReadinessStage | null
   } | null
   /**
-   * §10.8b — the finished build, on the shelf, waiting for a release date.
+   * §10.7 [amended 2026-09-26] — **the pipeline**: builds in Build and Test.
    *
-   * The burn-down reaching zero used to *be* the ship. It now produces this,
-   * and {@link releaseNow} turns this into the ship. The window it raises is
-   * modal and halts the studio for the same reason §10.7's dialogue does: a
-   * decision the player is being asked to make is not a decision if the
-   * simulation is still charging payroll behind it.
-   *
-   * Ephemeral (§24.2), and deliberately so — it is derivable. A reload with
-   * `burned >= commitment` shelves the build again on the very next tick, so
-   * the state that matters is already persisted and this is only the window.
+   * *"port the release little game and the pipeline, it needs to fit the
+   * current game aesthetics."* The burn-down reaching zero used to raise a
+   * modal launch window on the spot. A finished build now enters Build, then
+   * Test, then waits on the {@link shelf} for SHIP!, and everything past Code
+   * counts against one buffer (`sim/pipeline.ts` has the argument). Run state
+   * and persisted: unlike the old window it is not derivable, it is work.
    */
-  pendingRelease: {
-    id: number
-    name: string
-    /** One full there-and-back sweep, in ms — `sweepPeriodMs` for this rung. */
-    sweepMs: number
-    /** `performance.now()` when the window opened. The needle's zero. */
-    openedAt: number
-    /**
-     * The release date the player picked, or null while they are still aiming.
-     *
-     * Written the instant the press lands rather than when the window closes,
-     * which is what stops the backstop above from stealing a verdict out from
-     * under the player during the beat that shows it to them.
-     */
-    hit: LaunchHit | null
-  } | null
+  pipeline: PipelineState<ShelvedBuild>
+  /** §10.7 — finished builds waiting for SHIP!, oldest first. */
+  shelf: ShelvedBuild[]
+  /**
+   * §10.7 — Serena's pipeline board, levels by node id (`sim/pipeline.ts`).
+   * Run state, like §11's tree: a Paradigm Shift liquidates the studio and the
+   * machines it built on.
+   */
+  pipelineNodes: Record<string, number>
+  /** §10.7 — seconds banked towards the next auto-ship. */
+  autoShipClock: number
+  /**
+   * §10.7 — the release ring is open for the shelf's head.
+   *
+   * The studio is at the launch, so the clock is stopped, on exactly §10.7a.3's
+   * terms for a scene: the player is being asked for a decision, and a decision
+   * made while payroll drains is made under a clock they did not agree to.
+   * Ephemeral (§24.2): a reload lands on the floor with the build still on the
+   * shelf, which is where it was.
+   */
+  launching: boolean
   /**
    * §4.10e — the back catalogue. Every game still earning, and what it has
    * paid so far.
@@ -941,7 +966,10 @@ export function commitmentFor(index: number, s: GameState = state): Decimal {
   // shipping every six seconds. `projectScale` records the two sizings that were
   // tried first and why the cap was the worse of them.
   if (i < terminal) return base
-  const wanted = currentVelocity(s) * TARGET_BUILD_SECONDS
+  // The unblocked rate: §10.7's full buffer stops the floor, and a jam must not
+  // also shrink the next game (the rebuild's `nextProjectFloor` makes the same
+  // argument).
+  const wanted = structuralVelocity(s) * buffMultiplier(s) * TARGET_BUILD_SECONDS
   return wanted > base.toNumber() ? new Decimal(wanted) : base
 }
 
@@ -957,12 +985,36 @@ export function commitmentFor(index: number, s: GameState = state): Decimal {
  * the ladder. The argument for it was a good one and it lost to a louder one —
  * §4.10f carries both, and the retired function's own note is in `economy.ts`.
  */
-function openingProject(): Pick<GameState, 'projectIndex' | 'sprintName' | 'commitment'> {
+function openingProject(seed: number): Pick<GameState, 'projectIndex' | 'sprintName' | 'commitment'> {
   return {
     projectIndex: 0,
-    sprintName: PROJECTS[0].name,
+    sprintName: titleFor(seed, 0).name,
     commitment: new Decimal(PROJECTS[0].commitment),
   }
+}
+
+/**
+ * **What the game on the burn-down is called** — GDD §10.6.1, the rebuild's
+ * title generator [ported 2026-09-26: *"Also the art and name generation on
+ * the new game should be ported"*].
+ *
+ * The ladder's names — *Flappy Square 1.0*, *1.1 (Now With Ads)*, *2.0 (Now
+ * With A Battle Pass)*, then the same deckbuilder for ever — were a good joke
+ * three times and a placeholder after that. `three/sim/titles.ts` names every
+ * release from `(seed, ordinal)`, so the name on the burn-down is the name the
+ * shelf, the ring, the reel and the gallery all carry, and a reload cannot
+ * rename a game the player has read reviews of. `PROJECTS` keeps the sizes and
+ * the payouts; the names are the generator's.
+ *
+ * The ordinal is the history's next one *plus every build already past Code*,
+ * because each of those has claimed its number (see `finishBuild`).
+ */
+export function projectOrdinal(s: GameState = state): number {
+  return nextOrdinal(s.history) + bufferCount(s)
+}
+
+export function projectTitle(s: GameState = state): { name: string; genre: Genre } {
+  return titleFor(s.runSeed, projectOrdinal(s))
 }
 
 /** How much bigger the shipped project was than §4.4's authored terminal rung. */
@@ -982,14 +1034,15 @@ function newSeed(): number {
 }
 
 function freshRun(): GameState {
+  const runSeed = newSeed()
   return {
-    runSeed: newSeed(),
+    runSeed,
     // The founder is modelled separately and starts alone. The first employee
     // only exists after the player presses HIRE.
     devs: 0,
     devCap: D_BASE,
     cash: 0,
-    ...openingProject(),
+    ...openingProject(runSeed),
     burned: new Decimal(0),
     projectsShipped: 0,
     lifetimeRevenue: 0,
@@ -1012,9 +1065,13 @@ function freshRun(): GameState {
     buffs: [],
     peakDevs: 0,
     ship: null,
-    // §10.8b — nothing on the shelf. A run that has built nothing has nothing
-    // to pick a release date for.
-    pendingRelease: null,
+    // §10.7 — nothing on the belt. A run that has built nothing has nothing to
+    // ship, and a new run starts on the garage's own machine.
+    pipeline: emptyPipeline<ShelvedBuild>(),
+    shelf: [],
+    pipelineNodes: {},
+    autoShipClock: 0,
+    launching: false,
     releases: [],
     seedTaken: false,
     selected: null,
@@ -1074,17 +1131,8 @@ const snippets = new SnippetBag()
 let nextShipId = 1
 /** §4.10e — one id per game put on sale, so the graph can key its bands. */
 let nextReleaseId = 1
-/** §10.8b — one id per shelved build, so the window can latch on it. */
-let nextShelfId = 1
-/**
- * §10.8b — when the last launch window opened, on the `performance.now()` clock.
- *
- * Module-level rather than run state for the same reason `nextShipId` is: it is
- * a fact about this *session's wall clock*, not about the studio, and a copy of
- * it in a save file would be a timestamp from another machine's uptime.
- * `-Infinity` so the first release of a session always gets its window.
- */
-let lastLaunchWindowAt = -Infinity
+/** §10.7 — one id per finished build, so the belt and the ring can key on it. */
+let nextBuildId = 1
 /** §4.12a — one id per page, so §4.15's chip stack can key and animate them. */
 let nextIncidentId = 1
 
@@ -1466,6 +1514,22 @@ export function structuralEntropy(s: GameState = state): number {
  * separately rather than their sum.
  */
 export function baseVelocity(s: GameState = state): number {
+  /*
+   * §10.7 [amended 2026-09-26] — **once the buffer is full, nobody codes.** Gated
+   * here rather than at the one `+=` in `tick`, so the readout, the numerals
+   * over the heads and the burn-down all say zero together: a HUD showing a
+   * velocity over a burn-down that has stopped moving is the interface arguing
+   * with itself.
+   */
+  return shelfBlocked(s) ? 0 : structuralVelocity(s)
+}
+
+/**
+ * {@link baseVelocity} before §10.7's buffer is asked. For the two readers that
+ * are about what the studio *could* do: §24's offline walk, which fills and
+ * empties the buffer itself, and the terminal rung's project sizing.
+ */
+export function structuralVelocity(s: GameState = state): number {
   // Not `passiveVelocity(devs, cap)` any more: §11 splits the headcount that
   // *produces* from the headcount that *costs*, so the two arguments come from
   // different places. With an empty tree they are the same two numbers and this
@@ -1593,8 +1657,9 @@ export function founderVelocity(): number {
  */
 export function founderPassiveVelocity(s: GameState = state): number {
   // §21.0b — any coding head, James included: the founder pairs with whoever is
-  // at a desk, and in Act I that is James.
-  return codingHeads(s) > 0 ? founderOf().rate : 0
+  // at a desk, and in Act I that is James. §10.7 — and not while the buffer is
+  // full, for the reason `baseVelocity` gives.
+  return codingHeads(s) > 0 && !shelfBlocked(s) ? founderOf().rate : 0
 }
 
 /**
@@ -1613,10 +1678,13 @@ export function founderPassiveVelocity(s: GameState = state): number {
  * bills directly.
  */
 export function pokeFounder(x = 0, y = 0): number {
-  // §10.8b's launch window is inert for the same reason a scene is: the studio
-  // has downed tools for the launch, and a Story Point banked into a project
-  // that is already on the shelf would be work with nowhere to go.
-  if (state.scene !== null || state.pendingRelease !== null || state.phase === 'bankrupt') return 0
+  // §10.7's release ring is inert for the same reason a scene is: the studio
+  // has downed tools for the launch. A full buffer is inert too, and says so.
+  if (state.scene !== null || state.launching || state.phase === 'bankrupt') return 0
+  if (shelfBlocked()) {
+    nagFullShelf()
+    return 0
+  }
 
   const f = founderOf()
   const sp = f.tapValue
@@ -1680,7 +1748,11 @@ export function pokeFounder(x = 0, y = 0): number {
  */
 export const JAMES_TAP_MULTIPLE = 2
 export function pokeJames(x = 0, y = 0): number {
-  if (state.scene !== null || state.pendingRelease !== null || state.phase === 'bankrupt') return 0
+  if (state.scene !== null || state.launching || state.phase === 'bankrupt') return 0
+  if (shelfBlocked()) {
+    nagFullShelf()
+    return 0
+  }
   if (!arrivedHeroes().has('james') || !jamesPresent(state.runSeconds)) return 0
   const sp = founderOf().tapValue * JAMES_TAP_MULTIPLE
   set({
@@ -1878,18 +1950,6 @@ function showBubble(text: string, ttl = 4000): Partial<GameState> {
 }
 
 /**
- * §10.11 — fold a shipped release into this run's catalogue.
- *
- * It went through `setPermanent` until 2026-08-27, because the history was
- * career-wide. It is run state now (see {@link GameState.history}), so this is
- * an ordinary `set` and the record is liquidated by the next shift along with
- * the tail, the rating and the tickets that belong to it.
- */
-function recordHistoryRelease(record: ReleaseRecord): void {
-  set({ history: recordRelease(state.history, record) })
-}
-
-/**
  * What §4.13's queue and §4.12a's pager are asking of the studio right now.
  *
  * Assembled here rather than inside `teamSync.ts` for the standing reason the
@@ -1914,70 +1974,164 @@ function serviceLoad(s: GameState): ServiceLoad {
   }
 }
 
+// --- §10.7 [amended 2026-09-26] — the pipeline and the release ring ---------
+//
+// *"port the release little game and the pipeline, it needs to fit the current
+// game aesthetics."* The rebuild's mechanics, which are canon here
+// (docs/PLAN-2026-09-26-return.md): Code → Build → Test → the buffer → SHIP!.
+//
+// What left with it: §10.8b's modal launch window, its three-sweep timeout, the
+// simulation-side backstop that fired it for a hidden tab, and the 30-second
+// cooldown that sent every other release out on a train. All four served a
+// window that *halted the studio the instant a build finished*. The shelf is
+// what settles them now — a build waits there for as long as the player likes,
+// and the only thing that forces the question is the buffer filling up.
+
 /**
- * Ship the current project and roll to the next — §21 Act II, §10.8b.
+ * A finished build, between the burn-down and the catalogue — GDD §10.7.
  *
- * `launch` is the release date the player picked. It arrives as
- * {@link AUTO_LAUNCH} — a plain ×1 — from every path that is not somebody
- * aiming at the bar: the window timing out, a release inside §10.8b's cooldown,
- * and §24.6's offline chain-ship. See `sim/release.ts` for why the neutral
- * value is the honest reading of "nobody attended" rather than a penalty.
+ * **The rating inputs are frozen here, as the team that built it.** Everything
+ * except the launch is a fact about the studio at the moment the work was
+ * completed, and freezing them is what stops a build finished by six people
+ * inheriting the hero coverage of the forty who were hired while it waited.
+ *
+ * The ordinal is claimed here too, for the same reason: the name and cover of a
+ * shelved build are the ones the release will carry, and a build that waited
+ * behind two others must not renumber itself when they go out.
  */
-function shipProject(s: GameState, launch: LaunchHit = AUTO_LAUNCH): Partial<GameState> {
+export interface ShelvedBuild {
+  id: number
+  /** §10.11's career ordinal it keeps when it ships — cover and luck hang off it. */
+  ordinal: number
+  name: string
+  /** §10.6.1 — the genre its title names, which is what its cover paints. */
+  genre: Genre
+  /** §4.10c's rung it was built as. */
+  projectIndex: number
+  /** §4.10c's payout for that rung at that size, before the verdict and the date. */
+  revenueBase: number
+  /** Its Story Points. */
+  size: number
+  /** §4.12's bench it carried out of Code, in whole defects. */
+  defects: number
+  /** Defects per Story Point — what §10.7's ring draws its bugs from. */
+  density: number
+  /** §21.0c — built after the first shift, so the full §4.14 rating applies. */
+  graded: boolean
+  heroCoverage: number
+  sync: number
+  traits: number
+  luck: number
+  buildSeconds: number
+  labourSeconds: number
+  /** `runSeconds` when it reached the shelf, for "waiting 12s". */
+  shelvedAt: number
+}
+
+/**
+ * How many finished builds the buffer holds before Serena's board — §10.7.
+ *
+ * Three, the rebuild's figure: enough to walk away for the length of a coffee
+ * in the garage, and few enough that the player learns in Act I that a full
+ * shelf stops the floor.
+ */
+export const SHELF_CAPACITY = 3
+
+/** Serena's pipeline board, folded. `sim/pipeline.ts` owns what each node does. */
+export function pipelineOf(s: GameState = state): PipelineEffects {
+  return pipelineEffects(s.pipelineNodes)
+}
+
+/**
+ * §10.7 — **everything past Code**: builds in Build, in Test and on the shelf.
+ * One number, because the buffer is one capacity, and every reader of "how full
+ * is it" asks here.
+ */
+export function bufferCount(s: GameState = state): number {
+  return s.shelf.length + inFlight(s.pipeline)
+}
+
+/** §10.7 — the buffer's size: the garage's three, plus what Serena's board bought. */
+export function shelfCapacity(s: GameState = state): number {
+  return SHELF_CAPACITY + Math.max(0, Math.floor(pipelineOf(s).slots))
+}
+
+/**
+ * §10.7 — **is the studio stopped?** The buffer is full, so nobody codes.
+ *
+ * One function, because the question has five callers — the velocity, the
+ * founder's desk, the three pokes, the burn-down's finish and the HUD — and
+ * five answers to it would drift the first time capacity changed (§9.2).
+ */
+export function shelfBlocked(s: GameState = state): boolean {
+  return bufferCount(s) >= shelfCapacity(s)
+}
+
+/**
+ * The floor saying why it has stopped, when the player pokes into a full
+ * buffer. A bubble rather than a toast, and only when none is up, so a thumb
+ * hammering a stopped studio reads one sentence rather than a stack of them.
+ */
+function nagFullShelf(): void {
+  if (state.bubble) return
+  set(showBubble('The build machine is full. Somebody press SHIP!', 3000))
+}
+
+/**
+ * The share of the headcount lost to waiting and handoffs — what stretches
+ * Build and Test (§10.7). §2.1's loss is this build's collapse, split into the
+ * ledger's slices by the headcount and by Serena's fixes; in the garage there
+ * is no waiting slice yet, so the belt runs at its authored speed.
+ */
+export function pipelineWaitingShare(s: GameState = state): number {
+  const fx = pipelineOf(s)
+  const w = coordinationLedger(Math.max(0, s.devs), fx.fixes, fx.breakthroughs).weights
+  const lost = 1 - currentEfficiency(s)
+  return Math.min(1, Math.max(0, lost * (w.wait + w.handoff)))
+}
+
+/** Seconds `build` will spend in `stage` at today's speed and drag. */
+export function stageSecondsFor(s: GameState, stage: Stage, build: ShelvedBuild): number {
+  const fx = pipelineOf(s)
+  return stageSeconds(stage, build.size, stage === 'build' ? fx.buildSpeed : fx.testSpeed, pipelineDrag(pipelineWaitingShare(s)))
+}
+
+/**
+ * The project is finished — §10.7. It enters Build; it does not go on sale.
+ *
+ * The rating's inputs are resolved here with the rules `shipProject` used to
+ * apply at the ship (§21.0c's Run 1 stamps, §4.14's luck from the ordinal, the
+ * sync integral, the traits), and the run moves on to the next project at once:
+ * the burn-down restarts while this build travels the belt.
+ */
+function finishBuild(s: GameState): Partial<GameState> {
   const tech = techEffects(s.tech)
+  const size = s.commitment.toNumber()
 
   /**
-   * §4.14 — the only number in this game that can go **down** while everything
-   * else goes up, and the first thing that rewards playing well rather than
-   * playing more.
+   * §21.0c — **Run 1 ships at the baseline by construction**, and the build is
+   * where that is stamped now. See `releaseFrom` for the one term that is
+   * allowed to move a Run 1 verdict.
    *
-   * §4.12: shipping does not forgive the defect backlog, it **transfers** it.
-   * The bench goes to zero and the density leaves with the release, where
-   * §4.12a charges it for as long as anybody is still playing.
-   */
-  /**
-   * §21.0c — **Run 1 ships at the baseline by construction.**
-   *
-   * Not "Run 1 happens to score the baseline because its defect bench is empty".
-   * Those are different claims and only the first one is safe: a bench of zero
-   * is *better* than §4.14.1's anchor, so running the live rating during Run 1
-   * would hand every first-run release a quality bonus and quietly re-tune the
-   * economy §21 is paced against — Flappy Square's $45 is a measured number, and
-   * §25.6.2a measured it. Stamping the anchor and the baseline makes every
-   * multiplier exactly ×1, which is the economy the script was written for.
+   * §4.12: the backlog is **transferred** to the build, not forgiven. The bench
+   * goes to zero and the density leaves with the build, where §10.7's ring is
+   * the one place the player can do anything about it.
    */
   const graded = currentUnlocks().simulated
-  const density = graded
-    ? shipDefects(s.defects, s.commitment.toNumber()).density
-    : DEFECT_DENSITY_ANCHOR
-  const coveredByHeroes = graded ? releaseHeroCoverage(s) : 0
+  const density = graded ? shipDefects(s.defects, size).density : DEFECT_DENSITY_ANCHOR
 
-  // §10.11's career ordinal, resolved **before** the rating rather than beside
-  // the history record, because §4.14's luck is drawn from it: reception has to
-  // be a fact about *which* release this is, so that a reload cannot reroll a
-  // review the player has already read.
-  const ordinal = nextOrdinal(s.history)
+  // §10.11's ordinal, claimed now: the history's next one *plus whatever is
+  // already waiting*, because every build ahead of this one will ship first.
+  const ordinal = nextOrdinal(s.history) + bufferCount(s)
 
   /**
-   * §4.14 — reception. One of six inputs, bounded, and deterministic in the run
-   * seed. See `luckRoll` for the line of §4.10e this is read against.
-   *
-   * §13.7.1's Friends At The Press lifts the floor of the roll and never its
-   * ceiling: the same draw, compressed into the top of the range, so a studio
-   * that has bought it can no longer flop outright and can still be beaten by
-   * one that ships a better game.
+   * §4.14 — reception, from the ordinal, so a reload cannot reroll it. §13.7.1's
+   * Friends At The Press lifts the floor of the roll and never its ceiling.
    */
   const floor = founderOf().luckFloor
   const luck = graded ? floor + (1 - floor) * luckRoll(s.runSeed, ordinal) : LUCK_NEUTRAL
 
-  /**
-   * §4.14 — how in sync the team was, over the whole build.
-   *
-   * This is §6's thesis finally priced. §4.1's entropy already decided how
-   * *much* got built; `teamSync.ts` reads the same curve a second time to
-   * decide how *well*, so a studio that outgrew its own communication
-   * bandwidth now ships worse games and not merely later ones.
-   */
+  /** §4.14 — how in sync the team was, over the whole build (`teamSync.ts`). */
   const sync = graded
     ? teamSync({
         flowSeconds: s.projectFlowSeconds,
@@ -1987,12 +2141,10 @@ function shipProject(s: GameState, launch: LaunchHit = AUTO_LAUNCH): Partial<Gam
     : GARAGE_SYNC
 
   /**
-   * §4.14 — whether the people are any good, as against §13.6's question of
-   * whether they were *there*.
-   *
-   * Heroes are counted over the whole cast and only while placed; see
-   * `rosterMastery`. The founder's half is the Management tree, per node rather
-   * than per level, so You Know A Guy cannot buy a good review.
+   * §4.14 — whether the people are any good. Heroes over the whole cast while
+   * placed (`rosterMastery`); the founder's half per node, so You Know A Guy
+   * cannot buy a good review; §13.9's CRAFT rungs added as the one purchase that
+   * is explicitly about the score.
    */
   const traits = graded
     ? Math.min(
@@ -2000,115 +2152,169 @@ function shipProject(s: GameState, launch: LaunchHit = AUTO_LAUNCH): Partial<Gam
         traitScore(
           founderMastery(getPermanent().meta.founderLevels),
           rosterMastery(heroRoster(s), STORY_HEROES.length),
-        ) +
-          // §13.9's CRAFT rungs, the one purchase on either board that is
-          // explicitly about the score. Added rather than folded into mastery
-          // so the player has a *named* thing to buy for the rating instead of
-          // a statistic that goes up when they buy anything at all.
-          s.heroFold.craft,
+        ) + s.heroFold.craft,
       )
     : 0
 
-  const rating = graded
-    ? rateRelease({
-        defects: s.defects,
-        storyPoints: s.commitment.toNumber(),
-        // §13.6 coverage over the team that built it. Intervals are unioned so
-        // overlapping postings never count the same developer twice.
-        heroCoverage: coveredByHeroes,
-        // §4.9a pins the roster mean at 1.0, and `craftScore` turns that into
-        // ½. The term goes quiet as the studio grows, which §4.14 calls design.
-        craft: 1,
-        sync,
-        traits,
-        luck,
-      })
-    : BASELINE_RATING
-
-  // §11.2 B3 doubles the payout and §11.3 C9 takes the consultants' 10%. Both
-  // land on the ladder's figure rather than on the tail, so §4.10e's integral
-  // still pays out exactly what the release says it is worth.
-  //
-  // §4.14 adds two more, and this is where quality finally becomes money: the
-  // release's own score, and the studio's standing reputation. Both are applied
-  // to the payout rather than to the tail, for the same reason the tech
-  // multipliers are — the release must be worth exactly what it says it is.
-  //
-  // §10.8b adds a fifth, and it is the only one of them the player operates
-  // with their hands: the release date. It sits on the payout beside the other
-  // four rather than on the tail, on the same rule — a release must be worth
-  // exactly what it says it is worth.
-  const revenue =
-    projectRevenue(s.projectIndex, shippedScale(s)) *
-    tech.revenueMultiplier *
-    revenueMultiplier(rating) *
-    reputationMultiplier(s.reputation) *
-    launch.multiplier
-  const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
-  const next = PROJECTS[nextIndex]
-
-  // §10.11 — the permanent record, before the run moves on and forgets the
-  // build time and the labour. Written to permanent state in memory; it is
-  // serialised by the next `saveGame`, on the same cadence the live catalogue
-  // (`releases`) already follows rather than on every ship.
-  recordHistoryRelease({
+  const title = titleFor(s.runSeed, ordinal)
+  const build: ShelvedBuild = {
+    id: nextBuildId++,
     ordinal,
-    run: getPermanent().meta.paradigmShifts,
-    name: s.sprintName,
-    rating,
-    heroCoverage: coveredByHeroes,
-    // §4.14's three additions, carried so §10.11 can show *why* a game scored
-    // what it scored. A rating with no breakdown is a verdict the player cannot
-    // argue with, and §10.11.1 is a screen for arguing with verdicts.
+    name: title.name,
+    genre: title.genre,
+    projectIndex: s.projectIndex,
+    revenueBase: projectRevenue(s.projectIndex, shippedScale(s)),
+    size,
+    defects: graded ? s.defects : density * size,
+    density,
+    graded,
+    // §13.6 coverage over the team that built it.
+    heroCoverage: graded ? releaseHeroCoverage(s) : 0,
     sync,
     traits,
     luck,
-    payout: revenue,
     buildSeconds: s.projectSeconds,
     labourSeconds: s.projectLabourSeconds,
+    shelvedAt: s.runSeconds,
+  }
+
+  const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
+  return {
+    // The bench is clear. Whatever was on it is now the build's problem.
+    defects: 0,
+    pipeline: { build: [...s.pipeline.build, { item: build, progress: 0 }], test: s.pipeline.test },
+    projectIndex: nextIndex,
+    // The next game claims the next ordinal: this build has just taken one.
+    sprintName: titleFor(s.runSeed, ordinal + 1).name,
+    // §11.3 C10 — "it's basically done". A flat 5% off every burn-down.
+    commitment: commitmentFor(nextIndex, s).times(tech.commitmentFraction),
+    burned: new Decimal(0),
+    // §10.11 — the build's clocks left with it; the next project starts at zero.
+    projectSeconds: 0,
+    projectLabourSeconds: 0,
+    projectFlowSeconds: 0,
+  }
+}
+
+/**
+ * How many bugs §10.7's ring draws for a build — the rebuild's rule.
+ *
+ * The backlog is a continuous quantity and the ring is a handful of marks, so
+ * it is scaled against {@link DEFECT_DENSITY_ANCHOR}, the density a studio with
+ * no QA ships at: a build the player has looked after has fewer things to fix
+ * and a neglected one more. A build with no backlog shows an empty ring and
+ * goes out GOLD without a tap. Bounded because the ring is a picture: under
+ * three marks there is no decision, and over seven they stop being aimable.
+ */
+export const RING_DEFECTS_MIN = 3
+export const RING_DEFECTS_MAX = 7
+
+export function ringDefectCount(build: ShelvedBuild): number {
+  if (!(build.density > 0)) return 0
+  const scaled = Math.round((build.density / DEFECT_DENSITY_ANCHOR) * 4)
+  return Math.max(RING_DEFECTS_MIN, Math.min(RING_DEFECTS_MAX, scaled))
+}
+
+/**
+ * Put the oldest shelved build on sale — §10.7, and the only path that does.
+ *
+ * One function for every route off the shelf: the player choosing a moment on
+ * the ring, Serena's auto-ship, and a test standing in for the player. They
+ * differ by the {@link LaunchOutcome} they hand over and by nothing else, which
+ * is what keeps "what is a release worth" from having three answers (§9.2).
+ */
+function releaseFrom(s: GameState, outcome: LaunchOutcome): Partial<GameState> {
+  const build = s.shelf[0]
+  if (!build) return {}
+  const tech = techEffects(s.tech)
+
+  /*
+   * **What the player left open is what ships.** The ring's bugs are a picture
+   * of the backlog, so clearing three of five takes three fifths of the defects
+   * off the release. A session that opened more than it closed ships *more*,
+   * capped so a catastrophic one cannot produce an absurd density.
+   */
+  const left = outcome.initial > 0 ? Math.min(2, Math.max(0, outcome.open) / outcome.initial) : 0
+  const defects = build.defects * left
+  const launch = launchScore(outcome)
+
+  /*
+   * §4.14 plus §10.7's seventh term. **Run 1 keeps its baseline, and the launch
+   * moves it** [2026-09-26]: §21.0c stamps every other input so the scripted
+   * economy is exactly ×1, and §10.8b already let the release *date* through
+   * that stamp ("a loop with its most tactile beat removed is not the loop").
+   * The ring's other half is the bugs, and if fixing them changed nothing in
+   * Run 1 the tutorial would teach the ring's trade as a lie. So the launch term
+   * applies around the baseline: a release nobody attended scores exactly the
+   * baseline, as before, and the ring can lift or sink it by its own weight.
+   */
+  const rating = build.graded
+    ? rateRelease({
+        defects,
+        storyPoints: build.size,
+        heroCoverage: build.heroCoverage,
+        // §4.9a pins the roster mean at 1.0, and `craftScore` turns that into ½.
+        craft: 1,
+        sync: build.sync,
+        traits: build.traits,
+        luck: build.luck,
+        launch,
+      })
+    : BASELINE_RATING + 100 * RATING_WEIGHTS.launch * (launch - LAUNCH_NEUTRAL)
+  const density = build.graded ? build.density * left : DEFECT_DENSITY_ANCHOR
+
+  // §11.2 B3, §11.3 C9, §4.14's verdict and reputation, and §10.7's date — all
+  // on the payout rather than the tail, so §4.10e's integral still pays exactly
+  // what the release says it is worth.
+  const revenue =
+    build.revenueBase *
+    tech.revenueMultiplier *
+    revenueMultiplier(rating) *
+    reputationMultiplier(s.reputation) *
+    outcome.timing.multiplier
+
+  const record: ReleaseRecord = {
+    ordinal: build.ordinal,
+    run: getPermanent().meta.paradigmShifts,
+    name: build.name,
+    rating,
+    heroCoverage: build.heroCoverage,
+    sync: build.sync,
+    traits: build.traits,
+    luck: build.luck,
+    // §10.7 — and what the player did at the launch, for the gallery's breakdown.
+    launch,
+    payout: revenue,
+    buildSeconds: build.buildSeconds,
+    labourSeconds: build.labourSeconds,
     seed: s.runSeed,
-  })
+  }
 
   return {
-    // The bench is clear. Whatever was on it is now the release's problem.
-    defects: 0,
-    // §10.8b — the shelf is clear too. Whatever was on it is now on sale.
-    pendingRelease: null,
+    shelf: s.shelf.slice(1),
+    history: recordRelease(s.history, record),
     reputation: advanceReputation(s.reputation, rating),
-    // §10.8a — the moment gets an event. Named with the project that just
-    // shipped rather than the one now starting: the celebration is *for* the
-    // thing that finished, and by the time it renders `sprintName` has already
-    // moved on.
-    //
-    // `revenue` here is still the whole §4.10c payout. §10.8b is what stopped
-    // the celebration from *printing* it — the beat is now about the reception
-    // rather than about the cheque — but the number still travels, because
-    // §22.5's lifetime counters and the cash readout both need it.
+    // §10.8a — the moment gets an event, named for the build that shipped.
     ship: {
       id: nextShipId++,
-      name: s.sprintName,
+      name: build.name,
       revenue,
       at: performance.now(),
       rating,
-      ordinal,
-      timing: launch.multiplier,
-      // Null when nobody was at the launch, so the beat can say nothing rather
-      // than print QUIET LAUNCH over a release the player never saw a bar for.
-      timingLabel: launch === AUTO_LAUNCH ? null : launch.label,
+      ordinal: build.ordinal,
+      timing: outcome.timing.multiplier,
+      // Null when nobody was at the launch, so the reel says nothing rather
+      // than print QUIET LAUNCH over a release the player never saw a ring for.
+      timingLabel: outcome.attended ? outcome.timing.label : null,
+      stage: outcome.attended ? outcome.stage : null,
     },
-    // §4.10e — no lump. The game goes on sale and starts earning; `tick` banks
-    // the tail. The books stay afloat between ships because the *catalogue*
-    // covers the burn, which is the whole point of the change.
+    // §4.10e — no lump. The game goes on sale and `tick` banks the tail.
     releases: [
       ...s.releases,
       {
         id: nextReleaseId++,
-        // §10.11 — the same career ordinal the history record carries, so the
-        // gallery can ask the live catalogue what a *remembered* release has
-        // actually paid so far. `id` cannot answer that: it is a run-local
-        // counter and the history outlives the run.
-        ordinal,
-        name: s.sprintName,
+        ordinal: build.ordinal,
+        name: build.name,
         payout: revenue,
         age: 0,
         paid: 0,
@@ -2118,94 +2324,177 @@ function shipProject(s: GameState, launch: LaunchHit = AUTO_LAUNCH): Partial<Gam
       },
     ],
     projectsShipped: s.projectsShipped + 1,
-    projectIndex: nextIndex,
-    sprintName: next.name,
-    // §11.3 C10 — "it's basically done". A flat 5% off every burn-down, for
-    // ever. Applied to the commitment itself rather than to the ship test, so
-    // §10.4's burn-down bar still reaches its own end and the player is not
-    // watching a gauge that ships at 95% full.
-    commitment: commitmentFor(nextIndex, s).times(tech.commitmentFraction),
-    burned: new Decimal(0),
-    // §10.11 — the build that just finished is recorded, so the clock starts
-    // again from zero for the next project. The figures themselves left with
-    // the history record a few lines above.
-    projectSeconds: 0,
-    projectLabourSeconds: 0,
-    projectFlowSeconds: 0,
   }
 }
 
 /**
- * The build is done — GDD §10.8b. Now, when does it come out?
- *
- * Two answers, and which one the studio gets is a fact about how fast it is
- * shipping rather than about anything the player has bought:
- *
- *  - **A launch window**, if it has been {@link LAUNCH_WINDOW_COOLDOWN_SECONDS}
- *    since the last one. The build goes on the shelf, the studio stops, and
- *    `releaseNow` is the only way out. Every Act I release gets this, which is
- *    where the loop is being taught.
- *  - **The release train**, otherwise: straight out at ×1. A studio shipping
- *    every six seconds at the top of §4.10c's ladder is not attending its own
- *    launches, and a modal that halted it on each one would turn the late game
- *    into a slideshow of its own celebration.
- *
- * §21.0c is deliberately **not** consulted. It gates *instruments* — a readout
- * for a system the player has nobody to fix — and this is a moment, not an
- * instrument. Run 1 is four scripted minutes about what a loop feels like, and
- * a loop with its most tactile beat removed is not the loop the rest of the
- * game is teaching. The economy is safe from it either way, because the ramp's
- * mean is exactly ×1 (`sim/release.ts`) and §21's pacing is measured against
- * the mean.
+ * Move the belt by `dt` — §10.7. Build and Test advance; what leaves Test is
+ * shelved, with whatever defects Test caught taken off it; and Serena's
+ * auto-ship fires on its own clock, several times in one long step if it is
+ * owed them, never more than the shelf holds.
  */
-function shelveBuild(s: GameState): Partial<GameState> {
-  const now = performance.now()
-  if (now - lastLaunchWindowAt < LAUNCH_WINDOW_COOLDOWN_SECONDS * 1000) {
-    return shipProject(s)
+function advanceBelt(s: GameState, dt: number): Partial<GameState> {
+  const fx = pipelineOf(s)
+  const step = advancePipeline(s.pipeline, dt, (stage, build) => stageSecondsFor(s, stage, build))
+  const shelved = step.done.map((b) => ({
+    ...b,
+    defects: b.defects * (1 - fx.testCatch),
+    density: b.density * (1 - fx.testCatch),
+    shelvedAt: s.runSeconds,
+  }))
+  let patch: Partial<GameState> = {
+    pipeline: step.state,
+    shelf: shelved.length > 0 ? [...s.shelf, ...shelved] : s.shelf,
   }
+  if (!fx.autoShip) {
+    if (s.autoShipClock !== 0) patch.autoShipClock = 0
+    return patch
+  }
+  let now = { ...s, ...patch } as GameState
+  let clock = s.autoShipClock + dt
+  while (clock >= fx.autoShipSeconds && now.shelf.length > 0) {
+    clock -= fx.autoShipSeconds
+    const out = releaseFrom(now, pipelineLaunch())
+    now = { ...now, ...out }
+    patch = { ...patch, ...out }
+  }
+  // An idle shipper does not bank shots: with nothing on the shelf the clock
+  // waits at "ready" rather than accumulating a burst for later.
+  patch.autoShipClock = now.shelf.length === 0 ? Math.min(clock, fx.autoShipSeconds) : clock
+  return patch
+}
 
-  lastLaunchWindowAt = now
+/** §10.7 — the belt as the HUD draws it. One reading, so the HUD cannot count the buffer differently from the rule that stops the studio. */
+export interface BeltView {
+  build: number
+  test: number
+  buildJam: boolean
+  testJam: boolean
+  /** Everything past Code, against the capacity that stops the studio at full. */
+  buffer: number
+  capacity: number
+  /** Builds on the shelf, which SHIP! can reach. */
+  ready: number
+  autoShip: boolean
+  /** Seconds until auto-ship next fires, or null without it. */
+  autoShipIn: number | null
+}
+
+export function beltView(s: GameState = state): BeltView {
+  const fx = pipelineOf(s)
   return {
-    pendingRelease: {
-      id: nextShelfId++,
-      name: s.sprintName,
-      sweepMs: sweepPeriodMs(s.projectIndex, PROJECTS.length),
-      openedAt: now,
-      hit: null,
-    },
+    build: s.pipeline.build.length,
+    test: s.pipeline.test.length,
+    buildJam: jammed(s.pipeline, 'build'),
+    testJam: jammed(s.pipeline, 'test'),
+    buffer: bufferCount(s),
+    capacity: shelfCapacity(s),
+    ready: s.shelf.length,
+    autoShip: fx.autoShip,
+    autoShipIn: fx.autoShip ? Math.max(0, fx.autoShipSeconds - s.autoShipClock) : null,
   }
 }
 
 /**
- * §10.8b — the press. Fixes the release date without shipping yet.
- *
- * Two steps rather than one because the verdict needs a beat: the ring lights,
- * the needle slams home, and *then* the game goes on sale. Locking here is what
- * makes that beat safe — the simulation's backstop only fires on a window
- * nobody has answered, so a player who pressed on the last frame cannot have
- * their launch date replaced by a timeout while they are reading it.
- *
- * `null` is the window closing itself, which is {@link AUTO_LAUNCH}'s neutral
- * ×1 and not wherever the needle was parked. See `release.ts`.
+ * §10.7 — SHIP!. Opens the release ring for the shelf's head, and the studio
+ * stops while it is up. False when there is nothing to ship or something else
+ * owns the screen.
  */
-export function lockRelease(at: number | null): void {
-  const shelf = state.pendingRelease
-  if (!shelf || shelf.hit !== null) return
-  set({ pendingRelease: { ...shelf, hit: at === null ? AUTO_LAUNCH : launchHit(at) } })
+export function openLaunch(): boolean {
+  if (state.launching || state.shelf.length === 0) return false
+  if (state.scene !== null || state.phase === 'bankrupt') return false
+  set({ launching: true })
+  return true
+}
+
+/** §10.7 — leave the ring without releasing. The build stays at the head of the shelf. */
+export function closeLaunch(): void {
+  if (state.launching) set({ launching: false })
+}
+
+/** §10.7 — the ring's verdict: put the head on sale at `outcome` and close the ring. */
+export function launchRelease(outcome: LaunchOutcome): void {
+  if (state.shelf.length === 0) {
+    closeLaunch()
+    return
+  }
+  set({ ...releaseFrom(state, outcome), launching: false })
 }
 
 /**
- * §10.8b — pick the release date and put the thing on sale.
- *
- * Ships at whatever {@link lockRelease} fixed, or at {@link AUTO_LAUNCH}'s
- * neutral ×1 for a window nobody answered. Idempotent on the shelf being empty:
- * the renderer's timeout and the simulation's backstop can both arrive, and the
- * loser must not ship the project a second time.
+ * Release the shelf's head as nobody attending it would — `TRAIN_LAUNCH`,
+ * neutral on every term. For tests and scripts that stand in for a player
+ * pressing SHIP! and walking away; the game itself only releases through the
+ * ring and through Serena's auto-ship.
  */
 export function releaseNow(): void {
-  const shelf = state.pendingRelease
-  if (!shelf) return
-  set(shipProject(state, shelf.hit ?? AUTO_LAUNCH))
+  if (state.shelf.length === 0) return
+  set({ ...releaseFrom(state, TRAIN_LAUNCH), launching: false })
+}
+
+/**
+ * Put every finished build on sale now: the belt runs out instantly and the
+ * shelf is released at {@link TRAIN_LAUNCH}. A test seam, for the many tests
+ * that drive a run through its ships and are not about the belt.
+ */
+export function shipEverything(): void {
+  set(advanceBelt(state, 1e9))
+  while (state.shelf.length > 0) releaseNow()
+}
+
+/**
+ * Debug seam — `?release`. Finish the project on the burn-down, run the belt
+ * out so it is on the shelf, and (by default) open the ring on it. The ring is
+ * the one frame §23.4.2 cannot otherwise hold still long enough to measure.
+ */
+export function __parkBuild(open = true): void {
+  set(finishBuild(state))
+  set(advanceBelt(state, 1e9))
+  if (open) set({ launching: true })
+}
+
+// --- Serena's pipeline board -------------------------------------------------
+
+/** §10.7 — Serena's board is open once she has arrived. SHIP! is yours until then. */
+export function pipelineOpen(): boolean {
+  return arrivedHeroes().has('serena')
+}
+
+export function pipelineRank(id: string, s: GameState = state): number {
+  return pipelineLevel(s.pipelineNodes, id)
+}
+
+/**
+ * §2.7 — the least a pipeline node costs here: three minutes of what the back
+ * catalogue is paying, past the garage. Zero in the garage, whose prices were
+ * set by hand. The rebuild's `techPriceFloor`, read off this build's income.
+ */
+export function pipelinePriceFloor(s: GameState = state): number {
+  if (eraIndex(s.peakDevs) === 0) return 0
+  return 3 * 60 * catalogueRate(s)
+}
+
+export function pipelinePrice(id: string, s: GameState = state): number | null {
+  const node = PIPELINE_BY_ID.get(id)
+  if (!node || pipelineRank(id, s) >= node.maxLevel) return null
+  return pipelineCost(node, pipelineRank(id, s), pipelinePriceFloor(s))
+}
+
+export function pipelineRefusalOf(id: string, s: GameState = state): PipelineRefusal | 'closed' | 'unknown' {
+  const node = PIPELINE_BY_ID.get(id)
+  if (!node) return 'unknown'
+  if (!pipelineOpen()) return 'closed'
+  return pipelineRefusal(node, s.pipelineNodes, s.cash, eraIndex(s.peakDevs), pipelinePriceFloor(s))
+}
+
+export function buyPipeline(id: string): boolean {
+  if (pipelineRefusalOf(id) !== null) return false
+  const price = pipelinePrice(id)!
+  set({
+    cash: state.cash - price,
+    pipelineNodes: { ...state.pipelineNodes, [id]: pipelineRank(id) + 1 },
+  })
+  return true
 }
 
 /**
@@ -2246,45 +2535,21 @@ function settleDroppedBuffs(dropped: readonly Buff[], s: GameState): number {
  * measure their life in wall-clock, and a numeral frozen mid-air for the
  * length of a scene would be a visual bug that outlives the dialogue.
  *
- * §10.8b's launch window stops it on exactly the same terms and for exactly the
+ * §10.7's release ring stops it on exactly the same terms and for exactly the
  * same reason: the player is being asked for a decision, and a decision made
  * while payroll is still draining is a decision made under a clock the player
- * did not agree to. The window's own timeout is the only clock that runs there.
+ * did not agree to. The ring has no timeout of its own to fire here — it runs
+ * its four years on the player's screen, and closing it is always allowed.
  */
 export function tick(dtSeconds: number): void {
   if (dtSeconds <= 0 || state.phase === 'bankrupt') return
 
-  if (state.scene !== null || state.pendingRelease !== null) {
+  if (state.scene !== null || state.launching) {
     const now = performance.now()
     const patch: Partial<GameState> = {}
     const floaters = state.floaters.filter((f) => now - f.bornAt < FLOATER_LIFE_MS)
     if (floaters.length !== state.floaters.length) patch.floaters = floaters
     if (state.bubble && now - state.bubble.bornAt > state.bubble.ttl) patch.bubble = null
-
-    /*
-     * §10.8b's backstop. The shelf is the one halted state that has to be able
-     * to end without anybody pressing anything: a hidden tab has no animation
-     * frames to run the needle on, so without this the studio would freeze
-     * mid-launch until the player came back.
-     *
-     * **On the wall clock, like the two lines above it** — and that is a
-     * finding rather than a preference. It counted `dtSeconds` first, which
-     * §26.1.8's `?speed` multiplies by *repeating whole ticks*: at ×40 the
-     * window opened and closed itself inside a quarter of a second, and the
-     * playthrough walk caught it by shipping a whole garage catalogue without
-     * ever seeing a bar. A debug flag that compresses the simulation must not
-     * compress a decision the player is being asked to make, and everything
-     * else in this branch already knew that.
-     *
-     * Only an *unanswered* window is counted: once `lockRelease` has fixed a
-     * date, the beat that shows it belongs to the renderer.
-     */
-    const shelf = state.pendingRelease
-    if (shelf && shelf.hit === null && now - shelf.openedAt >= stallSeconds(shelf.sweepMs) * 1000) {
-      set({ ...patch, ...shipProject(state, AUTO_LAUNCH) })
-      return
-    }
-
     if (Object.keys(patch).length > 0) set(patch)
     return
   }
@@ -2492,12 +2757,15 @@ export function tick(dtSeconds: number): void {
 
   if (state.bubble && now - state.bubble.bornAt > state.bubble.ttl) patch.bubble = null
 
-  // §10.8b — the burn-down reaching zero finishes the *build*. What happens
-  // next is a decision, and `shelveBuild` decides whether the player gets to
-  // make it or whether this one goes out on the release train.
+  // §10.7 — the belt moves on the same clock: Build and Test advance, what
+  // leaves Test is shelved, and Serena's auto-ship fires if it is owed.
+  patch = { ...patch, ...advanceBelt({ ...state, ...patch } as GameState, dtSeconds) }
+
+  // §10.7 — the burn-down reaching zero finishes the *build*, which goes onto
+  // the belt. Releasing it is a separate decision, made at SHIP!.
   const merged = { ...state, ...patch } as GameState
-  if (merged.burned.gte(merged.commitment)) {
-    patch = { ...patch, ...shelveBuild(merged) }
+  if (merged.burned.gte(merged.commitment) && !shelfBlocked(merged)) {
+    patch = { ...patch, ...finishBuild(merged) }
   }
 
   const after = { ...state, ...patch } as GameState
@@ -2933,9 +3201,13 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
   // own advance, and a tap that both advances a page and banks a Story Point
   // is the player being charged Entropy for reading.
   //
-  // §10.8b's shelf is inert on the same argument: the build is finished, the
-  // studio is at the launch, and there is nothing left to burn down.
-  if (state.scene !== null || state.pendingRelease !== null) {
+  // §10.7's ring is inert on the same argument: the studio is at the launch.
+  // A full buffer is inert because nobody can code into it (`baseVelocity`).
+  if (state.scene !== null || state.launching) {
+    return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
+  }
+  if (shelfBlocked()) {
+    nagFullShelf()
     return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
   }
   if (state.phase === 'bankrupt') {
@@ -4241,7 +4513,7 @@ export function triggerParadigmShift(): void {
      * shift opens on* is a decision this function makes, and a decision only
      * visible as an absence is one the next reader has to reconstruct.
      */
-    ...openingProject(),
+    ...openingProject(run.runSeed),
     // §10.10.2 — "outside Run 1 the dial is simply present from the first
     // frame. The funnel is a first-run device and re-teaching it is an insult."
     // The seed round is the same: it is a story beat, and it has happened.
@@ -4259,7 +4531,7 @@ export function triggerParadigmShift(): void {
       seconds: state.runSeconds,
       learned,
       ledger,
-      nextProject: openingProject().sprintName,
+      nextProject: openingProject(run.runSeed).sprintName,
     },
     // §21.6 — Run 2 opens on James. The scene rather than the bubble carries
     // the beat now; the bubble stays for the runs after this one, when the
@@ -4444,9 +4716,7 @@ export function __resetStore(): void {
   state = freshRun()
   nextFloaterId = 1
   nextSpawnId = 1
-  // §10.8b — a test that ships twice must get a window both times, and the
-  // cooldown is wall-clock rather than run state.
-  lastLaunchWindowAt = -Infinity
+  nextBuildId = 1
   setPermanent(emptyPermanent())
   pendingSnapshot = null
   for (const fn of listeners) fn()
@@ -4462,7 +4732,7 @@ export function startNewGame(): void {
   state = freshRun()
   nextFloaterId = 1
   nextSpawnId = 1
-  lastLaunchWindowAt = -Infinity
+  nextBuildId = 1
   nextShipId = 1
   nextReleaseId = 1
   setPermanent(emptyPermanent())
@@ -4490,6 +4760,58 @@ export function startNewGame(): void {
  * catch us on.
  */
 let pendingSnapshot: { savedAt: number; rateMultiplier: number; capSeconds: number } | null = null
+
+/**
+ * §10.7 — what an absence needs to know about the belt: who ships while nobody
+ * is looking (Serena's clock), what is already waiting, and how many slots are
+ * free. `sim/offline.ts` walks the rest.
+ */
+function offlineBelt(s: GameState): { autoShipSeconds: number; shelved: number; bufferRoom: number } {
+  return {
+    autoShipSeconds: pipelineOf(s).autoShipSeconds,
+    shelved: bufferCount(s),
+    bufferRoom: Math.max(0, shelfCapacity(s) - bufferCount(s)),
+  }
+}
+
+/**
+ * §10.7 — the belt, after the absence `report` describes.
+ *
+ * Everything in Build and Test has had hours, so it is on the shelf. Serena's
+ * auto-ship took the waiting builds first, at her neutral launch; then the
+ * projects the absence finished wait in the buffer for SHIP!, frozen as the
+ * studio that built them — which is the studio the player left.
+ */
+function offlineBeltAfter(s: GameState, report: OfflineReport): Partial<GameState> {
+  const flushed = advancePipeline(s.pipeline, Number.MAX_SAFE_INTEGER, () => 1)
+  let now: GameState = {
+    ...s,
+    pipeline: flushed.state,
+    shelf: [...s.shelf, ...flushed.done.map((b) => ({ ...b, shelvedAt: s.runSeconds }))],
+  }
+  for (let k = 0; k < report.shelfShipped && now.shelf.length > 0; k++) {
+    now = { ...now, ...releaseFrom(now, pipelineLaunch()) }
+  }
+  for (const index of report.built) {
+    const at = Math.min(Math.max(0, index), PROJECTS.length - 1)
+    const done = finishBuild({ ...now, projectIndex: at, commitment: commitmentFor(at, now) })
+    const lane = done.pipeline?.build ?? []
+    const built = lane[lane.length - 1]?.item
+    if (built) now = { ...now, defects: 0, shelf: [...now.shelf, { ...built, shelvedAt: now.runSeconds }] }
+  }
+  return {
+    pipeline: now.pipeline,
+    shelf: now.shelf,
+    defects: now.defects,
+    releases: now.releases,
+    history: now.history,
+    reputation: now.reputation,
+    projectsShipped: now.projectsShipped,
+    // No `ship`: the reel is for a release the player watched go out, and the
+    // §24.8 report is where an absence's releases are told.
+    autoShipClock: 0,
+  }
+}
 
 /** Write the save. Cheap enough to call on any beat worth not losing. */
 export function saveGame(): boolean {
@@ -4526,7 +4848,8 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     devCap: devCapFor(save.permanent.layer1.paradigmLevels),
     cash: r.cash,
     projectIndex: r.projectIndex,
-    sprintName: PROJECTS[Math.min(r.projectIndex, PROJECTS.length - 1)].name,
+    // Named below, once the belt it counts is restored (`projectTitle`).
+    sprintName: '',
     commitment,
     burned: toDecimal(r.burned, new Decimal(0)),
     projectsShipped: r.projectsShipped,
@@ -4547,6 +4870,15 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     // (older documents predate the tree) and a spread of `undefined` would put
     // `undefined` into a field every derived function indexes.
     tech: r.tech ?? {},
+    // §10.7 — the belt comes back as it was: work in Build and Test, and the
+    // builds waiting for SHIP!. `normaliseRun` has already defended each one.
+    pipeline: {
+      build: (r.pipeline?.build ?? []).map((f) => ({ item: { ...f.item }, progress: f.progress })),
+      test: (r.pipeline?.test ?? []).map((f) => ({ item: { ...f.item }, progress: f.progress })),
+    },
+    shelf: (r.shelf ?? []).map((b) => ({ ...b })),
+    pipelineNodes: { ...(r.pipelineNodes ?? {}) },
+    autoShipClock: r.autoShipClock ?? 0,
     runSeconds: r.runSeconds ?? 0,
     // §4.10e — the back catalogue comes back with its ages and its shapes. A
     // reload that wiped five shipped games would take the studio's whole
@@ -4627,7 +4959,7 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       // the roster does not survive a reload, so counting it here would earn
       // the player a rate that only exists while nobody is looking.
       velocity:
-        baseVelocity(restored) * offlineSlackFactor(restored) + offlineFounderVelocity(restored),
+        structuralVelocity(restored) * offlineSlackFactor(restored) + offlineFounderVelocity(restored),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: restored.commitment,
       burned: restored.burned,
@@ -4635,12 +4967,16 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       commitmentFor,
       revenueFor: projectRevenue,
       autoShip: meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT),
+      ...offlineBelt(restored),
     },
     config,
     now,
   )
 
   pendingSnapshot = report.qualifies ? { savedAt: save.savedAt, rateMultiplier, capSeconds } : null
+  restored.sprintName = projectTitle(restored).name
+  // §10.7 — ids after the restored belt's, so a new build cannot share a key.
+  nextBuildId = 1 + Math.max(0, ...[...restored.shelf, ...restored.pipeline.build.map((f) => f.item), ...restored.pipeline.test.map((f) => f.item)].map((b) => b.id))
   state = { ...restored, pendingOffline: report.qualifies ? report : null }
   for (const fn of listeners) fn()
   return state.pendingOffline
@@ -4666,7 +5002,7 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
       // Unbuffed, for the same reason as the restore path above: a player who
       // was mid-poke when they closed the tab must not earn eight hours of a
       // buff that would have faded in fifteen seconds.
-      velocity: baseVelocity(state) * offlineSlackFactor(state) + offlineFounderVelocity(state),
+      velocity: structuralVelocity(state) * offlineSlackFactor(state) + offlineFounderVelocity(state),
       maxProjectIndex: PROJECTS.length - 1,
       commitment: state.commitment,
       burned: state.burned,
@@ -4674,6 +5010,7 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
       commitmentFor,
       revenueFor: projectRevenue,
       autoShip: getPermanent().meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT),
+      ...offlineBelt(state),
     },
     {
       capSeconds: snap.capSeconds,
@@ -4699,12 +5036,15 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
   })
 
   pendingSnapshot = null
+  // §10.7 — the belt after the absence, before the ladder moves on.
+  const belt = offlineBeltAfter(state, report)
   set({
+    ...belt,
     burned: report.burned,
     commitment: report.commitment,
     projectIndex: report.projectIndex,
-    sprintName: PROJECTS[Math.min(report.projectIndex, PROJECTS.length - 1)].name,
-    projectsShipped: state.projectsShipped + report.projectsShipped,
+    sprintName: projectTitle({ ...state, ...belt } as GameState).name,
+    projectsShipped: (belt.projectsShipped ?? state.projectsShipped) + report.projectsShipped,
     cash: state.cash + revenue,
     lifetimeRevenue: state.lifetimeRevenue + revenue,
     pendingOffline: null,
@@ -4783,11 +5123,11 @@ if (import.meta.env?.MODE !== 'test') initPersistence()
  * state the game cannot reach**, and the cash arithmetic in it was being read
  * as if it were real.
  */
-function onProject(index: number): Partial<GameState> {
+function onProject(index: number, seed: number): Partial<GameState> {
   const clamped = Math.min(Math.max(0, Math.floor(index)), PROJECTS.length - 1)
   return {
     projectIndex: clamped,
-    sprintName: PROJECTS[clamped].name,
+    sprintName: titleFor(seed, clamped).name,
     commitment: commitmentFor(clamped),
     burned: new Decimal(0),
   }
@@ -4808,7 +5148,7 @@ export function jumpToPhase(phase: Phase): void {
         devs: STARTING_DEVS,
         projectsShipped: 1,
         cash: 50,
-        ...onProject(1),
+        ...onProject(1, run.runSeed),
         pokeCount: ACT1_POKES_REQUIRED,
       })
       break
@@ -4822,7 +5162,7 @@ export function jumpToPhase(phase: Phase): void {
         devs: STARTING_DEVS,
         projectsShipped: TERM_SHEET_AFTER_SHIPS,
         cash: GARAGE_CATALOGUE_CASH,
-        ...onProject(FIRST_PAID_RUNG),
+        ...onProject(FIRST_PAID_RUNG, run.runSeed),
         pokeCount: ACT1_POKES_REQUIRED,
       })
       break
@@ -4835,7 +5175,7 @@ export function jumpToPhase(phase: Phase): void {
         devs: 10,
         projectsShipped: 2,
         cash: SEED_ROUND_CASH,
-        ...onProject(FIRST_PAID_RUNG),
+        ...onProject(FIRST_PAID_RUNG, run.runSeed),
         seedTaken: true,
         dialUnlocked: true,
       })
@@ -4851,7 +5191,7 @@ export function jumpToPhase(phase: Phase): void {
         devs: STARTING_DEVS,
         projectsShipped: TERM_SHEET_AFTER_SHIPS,
         cash: GARAGE_CATALOGUE_CASH + SEED_ROUND_CASH,
-        ...onProject(FIRST_PAID_RUNG),
+        ...onProject(FIRST_PAID_RUNG, run.runSeed),
         seedTaken: true,
         dialUnlocked: true,
       })
@@ -4864,7 +5204,7 @@ export function jumpToPhase(phase: Phase): void {
         devs: STARTING_DEVS + MASS_HIRE_COUNT,
         projectsShipped: TERM_SHEET_AFTER_SHIPS,
         cash: 50,
-        ...onProject(FIRST_PAID_RUNG),
+        ...onProject(FIRST_PAID_RUNG, run.runSeed),
         seedTaken: true,
         massHired: true,
       })

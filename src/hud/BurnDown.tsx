@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { burnedFraction, remaining, type GameState } from '../game/store.ts'
 import { Kw } from './Kw.tsx'
 
@@ -25,7 +25,11 @@ const HEIGHT = 40
 /** One sample per second of play. 60 samples is the width of the chart. */
 const SAMPLES = 60
 
-export function BurnDown({ state }: { state: GameState }) {
+/**
+ * `children` is what the burn-down feeds — §10.7's belt [2026-09-26], drawn
+ * inside this block because the burn-down *is* the Code stage.
+ */
+export function BurnDown({ state, children }: { state: GameState; children?: ReactNode }) {
   const [history, setHistory] = useState<number[]>([])
   // The chart samples once a second while the store updates at 60 Hz, so the
   // current value is parked in a ref for the sampler to read rather than
@@ -86,8 +90,18 @@ export function BurnDown({ state }: { state: GameState }) {
         {history.length > 1 && <polyline className="burndown__actual" points={points} />}
       </svg>
       <span className="hud__sub burndown__readout">
-        {left.toFixed(0)} / {state.commitment.toFixed(0)} <Kw>STORY POINTS</Kw> LEFT
+        {/* The short form is for short frames (app.css): §10.7's belt took the
+            line this readout used to wrap onto. It drops the unit rather than
+            abbreviating it — §10.2a (R12) forbids "SP" on screen — the way the
+            phone's VELOCITY readout drops its own. */}
+        <span className="burndown__long">
+          {left.toFixed(0)} / {state.commitment.toFixed(0)} <Kw>STORY POINTS</Kw> LEFT
+        </span>
+        <span className="burndown__short">
+          {left.toFixed(0)}/{state.commitment.toFixed(0)} LEFT
+        </span>
       </span>
+      {children}
     </div>
   )
 }

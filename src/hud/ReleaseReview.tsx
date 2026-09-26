@@ -42,7 +42,7 @@ import { motionMs, useReducedMotion } from '../ui/motion.ts'
 import { playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
 import { getState, type GameState } from '../game/store.ts'
-import { coverFor } from '../sim/cover.ts'
+import { coverFor } from '../three/sim/cover.ts'
 import { Cover } from './Cover.tsx'
 import { RATING_WEIGHTS, ratingBand } from '../sim/rating.ts'
 import { reviewsFor, verdictFor } from '../sim/reviews.ts'
@@ -168,18 +168,20 @@ export function ReleaseReview({ state }: { state: GameState }) {
           screen without taking the interface with it.
         */}
         <div className="review__card">
-        {cover && <Cover spec={cover} />}
+        {cover && <Cover spec={cover} title={held.name} />}
         <p className="review__name">{held.name}</p>
 
-        {/* §10.8b — the player's own aim, reported back. Absent for a release
-            that went out on the train, because there was no bar to miss. */}
+        {/* §10.7 — the player's own launch, reported back: the date they picked
+            and the stage they shipped it at. Absent for a release nobody
+            attended (Serena's auto-ship), because there was no ring to play. */}
         {held.timingLabel && (
           <p
             className="review__timing"
             data-good={held.timing > 1 ? 'true' : 'false'}
             style={{ '--in': `${ms(REVIEW_BEATS.timing)}ms` } as React.CSSProperties}
           >
-            {held.timingLabel} · ×{held.timing.toFixed(2)}
+            {held.timingLabel}
+            {held.stage ? ` · ${held.stage}` : ''} · ×{held.timing.toFixed(2)}
           </p>
         )}
 

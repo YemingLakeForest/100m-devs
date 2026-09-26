@@ -29,6 +29,8 @@ function sample(capped: boolean): OfflineReport {
     commitment: new Decimal(1000),
     projectIndex: 3,
     projectsShipped: 4,
+    shelfShipped: 0,
+    built: [],
     revenue: new Decimal(285),
     shipCapReached: false,
   }

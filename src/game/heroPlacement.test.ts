@@ -29,7 +29,7 @@ import {
   previewHeroAt,
   recallHero,
   releaseHeroCoverage,
-  releaseNow,
+  shipEverything,
   selectHero,
   tick,
   workingDevs,
@@ -105,7 +105,7 @@ function settle(seconds = SETTLE_SECONDS + 1) {
     // period, and a finished build halts the studio until somebody picks a
     // release date. A test about somebody walking to their desk has to be a
     // player who is also answering their own launches.
-    if (getState().pendingRelease) releaseNow()
+    shipEverything()
   }
 }
 

@@ -102,6 +102,12 @@ export interface ReleaseRecord {
   sync?: number
   traits?: number
   luck?: number
+  /**
+   * §10.7's launch term — `release.ts`'s `launchScore`, 0..1 [added 2026-09-26].
+   * Optional on the rule above: a record written before the ring is a release
+   * nobody measured a launch for, and it reads as `LAUNCH_NEUTRAL`.
+   */
+  launch?: number
   /** §4.10c's ladder payout — the tail's total, exactly. */
   payout: number
   /** Simulated seconds the build took — §10.11.1's "shipped 4 minutes ago". */

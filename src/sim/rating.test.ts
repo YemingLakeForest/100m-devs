@@ -1,7 +1,14 @@
+/*
+ * Copied from the rebuild (100m-devs-three/src/sim/rating.test.ts) on 2026-09-26 with the
+ * release ring and the pipeline, when the work moved back here: the rebuild is
+ * read-only reference now, so this copy is the one that changes. See
+ * docs/PLAN-2026-09-26-return.md.
+ */
 import { describe, expect, it } from 'vitest'
 import {
   BASELINE_RATING,
   DEFECT_DENSITY_ANCHOR,
+  LAUNCH_NEUTRAL,
   LUCK_NEUTRAL,
   RATING_WEIGHTS,
   REPUTATION_MEMORY,
@@ -17,6 +24,7 @@ import {
   revenueMultiplier,
   traitScore,
 } from './rating.ts'
+import { TRAIN_LAUNCH, launchScore } from './release.ts'
 import { GARAGE_SYNC } from './teamSync.ts'
 
 /**
@@ -48,13 +56,10 @@ describe('§4.14 — the weights', () => {
   })
 
   it('spends the whole hundred, so a perfect release scores 100', () => {
-    const sum =
-      RATING_WEIGHTS.defects +
-      RATING_WEIGHTS.heroes +
-      RATING_WEIGHTS.sync +
-      RATING_WEIGHTS.luck +
-      RATING_WEIGHTS.craft +
-      RATING_WEIGHTS.traits
+    // Summed off the record rather than listed by hand: a term added to the
+    // table and forgotten here would leave the weights adding to less than one
+    // and this test still passing, which is the failure it exists to catch.
+    const sum = Object.values(RATING_WEIGHTS).reduce((a, b) => a + b, 0)
     expect(sum).toBeCloseTo(1, 12)
     expect(
       rateRelease({
@@ -65,8 +70,21 @@ describe('§4.14 — the weights', () => {
         sync: 1,
         traits: 1,
         luck: 1,
+        launch: 1,
       }),
     ).toBeCloseTo(100, 6)
+  })
+
+  /**
+   * §4.14's order survived the launch term being added [2026-09-14]. Every
+   * other weight came down in proportion to make room for it, so the claims
+   * above are unchanged — and this is the one that would have been quietly
+   * broken by taking the room out of defects instead.
+   */
+  it('keeps defects ahead of the launch, and the launch ahead of nothing much', () => {
+    expect(RATING_WEIGHTS.defects).toBeGreaterThan(RATING_WEIGHTS.launch)
+    expect(RATING_WEIGHTS.heroes).toBeGreaterThan(RATING_WEIGHTS.launch)
+    expect(RATING_WEIGHTS.launch).toBeGreaterThan(RATING_WEIGHTS.traits)
   })
 })
 
@@ -319,6 +337,54 @@ describe('§4.14 — luck, and why it is not gambling', () => {
     const cursed = revenueMultiplier(rateRelease({ ...GARAGE, luck: 0 }))
     expect(lucky / cursed).toBeLessThan(1.3)
     expect(lucky).toBeGreaterThan(cursed)
+  })
+})
+
+/**
+ * §4.14's seventh term — the shelf's decision, scored [added 2026-09-14].
+ *
+ * The three claims that matter are all about the *neutral*, because that is
+ * what stops a new mechanic re-tuning §21's measured economy for a player who
+ * never touches it.
+ */
+describe('§4.14 — the launch term', () => {
+  it('scores a garage exactly at the baseline, launch and all', () => {
+    // The fixture omits `launch` entirely, which is the state of every release
+    // record written before the shelf existed.
+    expect(rateRelease(GARAGE)).toBeCloseTo(BASELINE_RATING, 9)
+    // ...and saying the neutral out loud is the same as not saying it.
+    expect(rateRelease({ ...GARAGE, launch: LAUNCH_NEUTRAL })).toBeCloseTo(BASELINE_RATING, 9)
+  })
+
+  /**
+   * The one cross-file claim in this batch: `release.ts` derives what an
+   * unattended launch is worth and `rating.ts` states it as a constant,
+   * because the rating may not import the window's arithmetic. If the two ever
+   * disagree, a train release stops scoring the baseline and the economy moves
+   * under a player who never opened the window.
+   */
+  it('agrees with release.ts about what an unattended launch is worth', () => {
+    expect(launchScore(TRAIN_LAUNCH)).toBe(LAUNCH_NEUTRAL)
+    expect(rateRelease({ ...GARAGE, launch: launchScore(TRAIN_LAUNCH) }))
+      .toBeCloseTo(BASELINE_RATING, 9)
+  })
+
+  it('is worth its weight and not a point more', () => {
+    const perfect = rateRelease({ ...GARAGE, launch: 1 })
+    const worst = rateRelease({ ...GARAGE, launch: 0 })
+    expect(perfect - worst).toBeCloseTo(RATING_WEIGHTS.launch * 100, 6)
+    // Symmetric about the garage, because the neutral is the middle.
+    expect(perfect - BASELINE_RATING).toBeCloseTo(BASELINE_RATING - worst, 6)
+  })
+
+  /**
+   * And it is a *pressure*, not a gate: a studio that ships a perfectly timed
+   * GOLD build of a broken game still scores badly, which is §4.14's whole
+   * position on what the rating is for.
+   */
+  it('cannot rescue a broken game', () => {
+    const broken = { defects: 0.2 * 1000, storyPoints: 1000, heroCoverage: 0, craft: 1 }
+    expect(rateRelease({ ...broken, launch: 1 })).toBeLessThan(BASELINE_RATING)
   })
 })
 

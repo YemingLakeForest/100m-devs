@@ -42,10 +42,20 @@ console will mis-render `§` and `—` even when the file is correct.
 
 ## Before saying it works
 
-`npm run check` is the gate: lint, `tsc -b`, vitest, `art:check`, the
-real-browser frame gate (`test:ui-frame`) and the playthrough walk
-(`test:walk`). The last two launch Chrome and take minutes — run them in the
-background rather than skipping them.
+`npm run check` is the gate: lint, `tsc -b`, vitest, `art:check` and the
+real-browser frame gate (`test:ui-frame`). The last one launches Chrome and
+takes minutes — run it in the background rather than skipping it, and do not
+touch the working tree while it runs (it serves the tree through Vite, so an
+edit or a `git stash` mid-run is measured as if it were the game).
+
+**The playthrough walk (`test:walk`) is deleted — 2026-09-26, at the user's
+instruction:** *"Delete the walk gate, no point now. Game is changing so
+quickly."* It played Acts I–V and the first heroes of Run 2 with a mouse, and
+every mechanic ported from the rebuild (the pipeline and the release ring in
+the batch that deleted it) meant rewriting how it played rather than learning
+anything about the game. Nothing now plays the game end to end automatically:
+a claim that a flow works is made by driving it in the browser and saying what
+was driven.
 
 **The room geometry gate (`test:room`) is deleted — 2026-09-26, at the user's
 instruction:** *"Delete room gate, that changes all the time and useless."* It

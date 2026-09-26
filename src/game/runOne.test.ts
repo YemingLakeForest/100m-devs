@@ -31,7 +31,7 @@ import {
   massHire,
   poke,
   pokeFounder,
-  releaseNow,
+  shipEverything,
   showScene,
   takeSeedRound,
   tick,
@@ -90,7 +90,7 @@ function play(seconds: number, pokesPerSecond = 0) {
     // §10.8b — and the same for a finished build waiting on a release date.
     // See `releaseNow`: the neutral date pays ×1, so Run 1's measured economy
     // is the economy this file was written against.
-    if (getState().pendingRelease !== null) releaseNow()
+    shipEverything()
     owed += pokesPerSecond * step
     while (owed >= 1) {
       poke(0, 0)

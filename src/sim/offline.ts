@@ -110,6 +110,27 @@ export interface OfflineSnapshot {
   revenueFor: (index: number) => number
   /** Does the player own CI/CD Autopilot (§13.3 L2-2B)? See {@link offlineYield}. */
   autoShip: boolean
+  /**
+   * §10.7 [amended 2026-09-26] — Serena's Auto-Ship, as seconds between ships.
+   * `Infinity` (the default) is no auto-shipper. Ignored when {@link autoShip}
+   * is set: the Autopilot ships everything and needs no clock.
+   */
+  autoShipSeconds?: number
+  /**
+   * §10.7 — builds already past Code when the tab closed: in Build, in Test or
+   * on the shelf. Given hours they are all on the shelf, and an auto-shipper
+   * takes them first, in the order they were finished.
+   */
+  shelved?: number
+  /**
+   * §10.7 — free slots in the pipeline's buffer at save time. **This is the
+   * canon reading of the buffer: how long you can walk away.** A project the
+   * absence finishes with no auto-ship to take it waits in a slot, and a full
+   * buffer stops the burn-down exactly as it does in front of the player.
+   * Zero (the default) is this file's older rule, the burn-down clamped at
+   * one finished project.
+   */
+  bufferRoom?: number
 }
 
 export interface OfflineConfig {
@@ -136,6 +157,17 @@ export interface OfflineReport {
   commitment: Decimal
   projectIndex: number
   projectsShipped: number
+  /**
+   * §10.7 — builds that were already waiting when the tab closed and that
+   * Serena's auto-ship released. Priced by the caller, which holds what they
+   * were frozen with; this file only counts them.
+   */
+  shelfShipped: number
+  /**
+   * §10.7 — the ladder indices of projects the absence finished into the
+   * buffer, oldest first. Not shipped and not paid: they wait for SHIP!.
+   */
+  built: number[]
   revenue: Decimal
   /** True if {@link MAX_OFFLINE_SHIPS} stopped the walk early. */
   shipCapReached: boolean
@@ -234,6 +266,13 @@ export function offlineStoryPoints(
  * flat at one project. Shipping is a decision right up until the player buys
  * the thing whose name is "you no longer decide this".
  *
+ * **[amended 2026-09-26] With the pipeline, "one project" is "one buffer".**
+ * A finished build is not a release: it goes into Build, Test and a shelf slot
+ * and waits there for SHIP!, which is still the player's decision. So an
+ * absence fills the buffer's free slots and *then* goes flat — the buffer is
+ * how long the studio can be left (GDD §10.7) — and Serena's Auto-Ship, the
+ * node whose name is also "you no longer decide this", ships on its own clock.
+ *
  * The 2x rewarded offer of MONETISATION §4 R1 is not a separate code path: it
  * is this function with `rateMultiplier` doubled.
  */
@@ -254,22 +293,45 @@ export function offlineYield(
   let projectsShipped = 0
   let revenue = new Decimal(0)
   let shipCapReached = false
+  const built: number[] = []
 
-  if (snap.autoShip) {
-    // A few dozen steps at most, and bounded even against a malformed ladder.
-    while (commitment.gt(0) && burned.gte(commitment)) {
-      if (projectsShipped >= MAX_OFFLINE_SHIPS) {
-        shipCapReached = true
-        break
-      }
-      revenue = revenue.plus(snap.revenueFor(projectIndex))
-      burned = burned.minus(commitment)
-      // Clamped exactly as the online ship path clamps it: the ladder ends,
-      // and its last project repeats rather than the index running past it.
-      projectIndex = Math.min(projectIndex + 1, snap.maxProjectIndex)
-      commitment = snap.commitmentFor(projectIndex)
-      projectsShipped += 1
+  /*
+   * §10.7 [amended 2026-09-26] — who takes a finished project while nobody is
+   * looking. The Autopilot takes all of them (§13.3 L2-2B, unchanged); Serena's
+   * Auto-Ship takes one per interval, and the builds already waiting go first;
+   * anything left over waits in the buffer's free slots; and a full buffer
+   * stops the walk, which is the burn-down clamping at 100% as it always did.
+   */
+  const every = snap.autoShipSeconds
+  let shots = snap.autoShip
+    ? Infinity
+    : every !== undefined && Number.isFinite(every) && every > 0
+    ? Math.floor(paid / every)
+    : 0
+  const waiting = Math.max(0, Math.floor(Number.isFinite(snap.shelved) ? snap.shelved! : 0))
+  const shelfShipped = snap.autoShip ? 0 : Math.min(shots, waiting)
+  shots -= shelfShipped
+  let room = Math.max(0, Math.floor(Number.isFinite(snap.bufferRoom) ? snap.bufferRoom! : 0)) + shelfShipped
+
+  // A few dozen steps at most, and bounded even against a malformed ladder.
+  while (commitment.gt(0) && burned.gte(commitment)) {
+    if (projectsShipped + built.length >= MAX_OFFLINE_SHIPS) {
+      shipCapReached = true
+      break
     }
+    if (shots > 0) {
+      revenue = revenue.plus(snap.revenueFor(projectIndex))
+      shots -= 1
+      projectsShipped += 1
+    } else if (room > 0) {
+      built.push(projectIndex)
+      room -= 1
+    } else break
+    burned = burned.minus(commitment)
+    // Clamped exactly as the online ship path clamps it: the ladder ends,
+    // and its last project repeats rather than the index running past it.
+    projectIndex = Math.min(projectIndex + 1, snap.maxProjectIndex)
+    commitment = snap.commitmentFor(projectIndex)
   }
 
   // Clamp whenever the burn-down cannot advance further: no autopilot, the ship
@@ -288,6 +350,8 @@ export function offlineYield(
     commitment,
     projectIndex,
     projectsShipped,
+    shelfShipped,
+    built,
     revenue,
     shipCapReached,
   }

@@ -22,7 +22,7 @@ import {
   currentUnlocks,
   dismissScene,
   getState,
-  releaseNow,
+  shipEverything,
   tick,
 } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
@@ -100,7 +100,7 @@ function play(seconds: number) {
   const dt = 1 / 30
   for (let t = 0; t < seconds; t += dt) {
     if (getState().scene !== null) return
-    if (getState().pendingRelease !== null) releaseNow()
+    shipEverything()
     tick(dt)
   }
 }

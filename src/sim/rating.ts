@@ -1,3 +1,9 @@
+/*
+ * Copied from the rebuild (100m-devs-three/src/sim/rating.ts) on 2026-09-26 with the
+ * release ring and the pipeline, when the work moved back here: the rebuild is
+ * read-only reference now, so this copy is the one that changes. See
+ * docs/PLAN-2026-09-26-return.md.
+ */
 /**
  * The Rating — the only number that judges a run. GDD §4.14, R23.
  *
@@ -14,14 +20,14 @@
  * takes its coefficient from {@link DEFECT_DENSITY_ANCHOR}, rather than this
  * file being calibrated against whatever β turned out to be.
  *
- * ## Six inputs, three of which §4.14 wrote down
+ * ## Seven inputs, three of which §4.14 wrote down
  *
  * §4.14's table has three rows — defects, hero ability, craft — and it fixes
  * their **order** (defects dominant, hero ability strong, craft moderate) while
  * §25.3.2 explicitly refuses to fix their values. That order is still canon and
  * is still what the tests pin.
  *
- * Three more sit beside them, and each one exists because a thing the player
+ * Four more sit beside them, and each one exists because a thing the player
  * genuinely does was invisible to the score:
  *
  * - **Team sync** — `teamSync.ts`. §6's whole thesis is that a company gets
@@ -35,6 +41,13 @@
  *   nowhere.
  * - **Luck** — reception. See {@link luckRoll} for the one line of §4.10e it
  *   has to be read against, and why it does not break it.
+ * - **Launch** — `release.ts` [added 2026-09-14]. How ready the build was when
+ *   it went out and how well the date was picked. It is here because §10.6's
+ *   shelf makes releasing a *decision* rather than a frame boundary, and a
+ *   decision the player makes every single project that changed nothing about
+ *   the verdict would be a button rather than a mechanic. Its neutral is ½,
+ *   like every other term's, and an unattended release scores exactly that —
+ *   which is what keeps {@link BASELINE_RATING} a fact about the garage.
  *
  * The three additions are sized against one sentence of §4.14 that has to
  * survive them: *"defects are the thing they are choosing to ignore right
@@ -92,16 +105,25 @@ import { GARAGE_SYNC } from './teamSync.ts'
  *   of revenue at the neutral point: enough that two runs of the same ladder
  *   are visibly different games, small enough that the ladder still decides
  *   what a project is worth.
- * - **traits last**, because it is the slowest of the six to move and the one
+ * - **traits last**, because it is the slowest of the seven to move and the one
  *   most nearly a *second* reading of hero coverage. It is the seasoning.
+ * - **launch level with sync** [2026-09-14], and above luck, because it is the
+ *   only term on this list the player decides *at the moment of shipping*. It
+ *   is deliberately not larger than that: §26.3.4 forbids a minigame being the
+ *   optimal way to play, and a launch term that outranked defects would make
+ *   the rating a test of reflexes. Every other weight came down to make room
+ *   for it, in proportion, so §4.14's order is untouched — defects still
+ *   dominate, heroes still beat craft, and defects still beat every added
+ *   term.
  */
 export const RATING_WEIGHTS = {
-  defects: 0.4,
-  heroes: 0.16,
-  sync: 0.14,
-  luck: 0.12,
-  craft: 0.1,
-  traits: 0.08,
+  defects: 0.38,
+  heroes: 0.15,
+  sync: 0.12,
+  launch: 0.12,
+  luck: 0.1,
+  craft: 0.08,
+  traits: 0.05,
 } as const
 
 /**
@@ -200,6 +222,18 @@ export function traitScore(founderMastery: number, heroMastery: number): number 
 export const LUCK_NEUTRAL = 0.5
 
 /**
+ * A release nobody attended — `release.ts`'s `TRAIN_LAUNCH`, scored.
+ *
+ * Stated here as well as derived there because {@link BASELINE_RATING} needs a
+ * number and `rating.ts` may not import the launch window's arithmetic to get
+ * one — `release.test.ts` pins `launchScore(TRAIN_LAUNCH)` against this, so the
+ * two cannot drift. It is ½ for the same reason every other neutral is: the
+ * garage is the origin, and a studio that ignores a mechanic must score
+ * exactly what it scored before the mechanic existed.
+ */
+export const LAUNCH_NEUTRAL = 0.5
+
+/**
  * Reception — §4.14's luck, rolled once and never again.
  *
  * ## The line of §4.10e this has to be read against
@@ -250,15 +284,18 @@ export function luckRoll(seed: number, ordinal: number): number {
  * {@link LUCK_NEUTRAL} because that is the mean of the roll.
  *
  * Every multiplier below is ×1 here. See the file header for why that matters
- * more than the number does — and note that adding three terms did **not**
- * re-tune the economy, precisely because this is a derivation and not a
- * constant somebody would have had to remember to change.
+ * more than the number does — and note that adding four terms and reweighting
+ * the other three did **not** re-tune the economy, precisely because this is a
+ * derivation and not a constant somebody would have had to remember to change.
+ * The *number* moves when the weights move; what does not move is that a
+ * garage ships at it and is paid ×1 for doing so.
  */
 export const BASELINE_RATING =
   100 *
   (RATING_WEIGHTS.defects * 0.5 +
     RATING_WEIGHTS.heroes * 0 +
     RATING_WEIGHTS.sync * GARAGE_SYNC +
+    RATING_WEIGHTS.launch * LAUNCH_NEUTRAL +
     RATING_WEIGHTS.luck * LUCK_NEUTRAL +
     RATING_WEIGHTS.craft * 0.5 +
     RATING_WEIGHTS.traits * 0)
@@ -287,6 +324,14 @@ export interface RatingInputs {
   traits?: number
   /** {@link luckRoll}, 0..1. Defaults to {@link LUCK_NEUTRAL}. */
   luck?: number
+  /**
+   * `release.ts`'s `launchScore`, 0..1. Defaults to {@link LAUNCH_NEUTRAL}.
+   *
+   * On exactly the rule the three above follow: a release written before the
+   * shelf existed is a release nobody measured a launch for, and the honest
+   * reading of "we were not told" is *what an unattended launch is worth*.
+   */
+  launch?: number
 }
 
 /**
@@ -303,10 +348,12 @@ export function rateRelease(inputs: RatingInputs): number {
   const defects = Number.isFinite(inputs.defects) ? Math.max(0, inputs.defects) : 0
   const sync = inputs.sync === undefined ? GARAGE_SYNC : clamp01(inputs.sync)
   const luck = inputs.luck === undefined ? LUCK_NEUTRAL : clamp01(inputs.luck)
+  const launch = inputs.launch === undefined ? LAUNCH_NEUTRAL : clamp01(inputs.launch)
   const score =
     RATING_WEIGHTS.defects * defectScore(defects / sp) +
     RATING_WEIGHTS.heroes * clamp01(inputs.heroCoverage) +
     RATING_WEIGHTS.sync * sync +
+    RATING_WEIGHTS.launch * launch +
     RATING_WEIGHTS.luck * luck +
     RATING_WEIGHTS.craft * craftScore(inputs.craft) +
     RATING_WEIGHTS.traits * clamp01(inputs.traits ?? 0)
@@ -318,13 +365,14 @@ export function rateRelease(inputs: RatingInputs): number {
  * What each input contributed, in rating points — §10.11's breakdown.
  *
  * Derived from the same weights the score is, so the gallery cannot print a
- * bar that adds up to a different number than the one beside it. The six sum to
- * exactly {@link rateRelease}'s answer for any input that does not clamp.
+ * bar that adds up to a different number than the one beside it. The seven sum
+ * to exactly {@link rateRelease}'s answer for any input that does not clamp.
  */
 export interface RatingBreakdown {
   defects: number
   heroes: number
   sync: number
+  launch: number
   luck: number
   craft: number
   traits: number
@@ -335,10 +383,12 @@ export function ratingBreakdown(inputs: RatingInputs): RatingBreakdown {
   const defects = Number.isFinite(inputs.defects) ? Math.max(0, inputs.defects) : 0
   const sync = inputs.sync === undefined ? GARAGE_SYNC : clamp01(inputs.sync)
   const luck = inputs.luck === undefined ? LUCK_NEUTRAL : clamp01(inputs.luck)
+  const launch = inputs.launch === undefined ? LAUNCH_NEUTRAL : clamp01(inputs.launch)
   return {
     defects: 100 * RATING_WEIGHTS.defects * (sp > 0 ? defectScore(defects / sp) : 0.5),
     heroes: 100 * RATING_WEIGHTS.heroes * clamp01(inputs.heroCoverage),
     sync: 100 * RATING_WEIGHTS.sync * sync,
+    launch: 100 * RATING_WEIGHTS.launch * launch,
     luck: 100 * RATING_WEIGHTS.luck * luck,
     craft: 100 * RATING_WEIGHTS.craft * craftScore(inputs.craft),
     traits: 100 * RATING_WEIGHTS.traits * clamp01(inputs.traits ?? 0),
