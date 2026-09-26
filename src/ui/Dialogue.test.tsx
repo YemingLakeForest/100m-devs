@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
-import { ADVANCE_ARM_MS } from './dialogue.ts'
 import { Dialogue, type DialogueLine } from './Dialogue.tsx'
 
 vi.mock('./uiSfx.ts', () => ({ playUi: vi.fn() }))
@@ -70,18 +69,13 @@ describe('the §10.7 box, wired up', () => {
     expect(document.querySelector('.ui-dialogue__plate')?.textContent).toBe('JAMES')
   })
 
-  it('advances only on a deliberate second tap, once the caret is up — rule 2', () => {
+  it('turns the page on the tap after it completes, and the caret is already up — rule 2', () => {
     render(<Dialogue script={SCRIPT} />)
     elapse(100)
     fireEvent.pointerDown(box())
-
-    // The next beat of a 5 Hz burst lands here, and is swallowed.
-    elapse(200)
-    fireEvent.pointerDown(box())
-    expect(document.querySelector('.ui-dialogue__plate')?.textContent).toBe('JAMES')
-
-    elapse(ADVANCE_ARM_MS + 50)
+    // [2026-09-26] Lit the instant the page is complete: no window to wait out.
     expect(caret()).not.toBeNull()
+    expect(document.querySelector('.ui-dialogue__hint')?.hasAttribute('data-armed')).toBe(true)
     fireEvent.pointerDown(box())
     expect(document.querySelector('.ui-dialogue__plate')?.textContent).toBe('ADVISOR')
   })
@@ -115,8 +109,6 @@ describe('§10.7a.1 — the box reports who is speaking, in the world', () => {
 
   function advancePage() {
     elapse(4000)
-    fireEvent.pointerDown(box())
-    elapse(ADVANCE_ARM_MS + 50)
     fireEvent.pointerDown(box())
   }
 
@@ -177,7 +169,7 @@ describe('a line that waits for the world', () => {
 
     // A tap cannot bring James's line on before he has landed.
     fireEvent.pointerDown(box())
-    elapse(ADVANCE_ARM_MS * 2)
+    elapse(600)
     expect(text()).toBe('What—')
 
     landed = true

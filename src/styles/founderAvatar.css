@@ -257,7 +257,7 @@
 }
 
 @container frame (max-height: 390px) {
-  .founder-avatar { transform: scale(0.82); margin: -10px auto -18px; }
+  .founder-avatar:not(.founder-avatar--large) { transform: scale(0.82); margin: -10px auto -18px; }
 }
 
 /* [2026-09-26] The person is the rebuild's 3D model (three/render/portrait.ts),
@@ -272,11 +272,59 @@
   transform: translateX(-50%);
   image-rendering: auto;
 }
+/*
+ * [2026-09-26] **The character screen's figure takes the room its column has,
+ * and turns.** *"the person too big, also make it we can rotate him."* It was a
+ * fixed 240 x 320 still, scaled by 0.82 with negative margins on a phone, which
+ * put the figure over the title above it. The box now grows into whatever the
+ * column has left between the title and the role badge (never over them, never
+ * more than 300 px), and `turntable.ts` frames the figure at two thirds of it.
+ */
 .founder-avatar--large {
-  width: 240px;
-  height: 320px;
+  align-self: stretch;
+  flex: 1 1 0;
+  width: auto;
+  height: auto;
+  min-height: 96px;
+  max-height: 300px;
+  margin: 6px 0 0;
 }
-.founder-avatar--large .founder-avatar__render {
-  width: 240px;
-  height: 320px;
+/* The tag names the person, so it hangs over their head: centred, with the
+   stalk reaching down to where `turntable.ts` frames the crown (about a sixth
+   of the box down). A container, so the stalk can be measured in the box's
+   own height. */
+.founder-avatar--large { container-type: size; }
+.founder-avatar--large .founder-avatar__signal {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+.founder-avatar--large .founder-avatar__signal::after {
+  height: max(4px, calc(16cqh - 22px));
+}
+.founder-avatar__stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* The drag is the figure's; the page must not take it for a scroll or a zoom. */
+  touch-action: none;
+  cursor: grab;
+  outline: none;
+}
+.founder-avatar__stage:active { cursor: grabbing; }
+.founder-avatar__stage:focus-visible { box-shadow: inset 0 0 0 var(--rule) var(--p2); }
+.founder-avatar__turn-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: var(--p1);
+  font-size: 8px;
+  letter-spacing: 2px;
+  pointer-events: none;
 }

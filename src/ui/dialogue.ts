@@ -12,29 +12,22 @@
  * keep it that way is to give the machine no vocabulary for anything else.
  */
 
-/**
- * How long after a page completes before an advance tap is accepted.
+/*
+ * **[amended 2026-09-26] There is no arming window: a complete page turns on
+ * the next tap.** *"the tap to continue light up a moment after the line ends,
+ * this made the experience clunky, make it light immediately so people can
+ * keep clicking though."*
  *
- * Rule 2 says a single tap can never both complete and advance a page. Taken
- * literally that is satisfied by counting taps — but §21 Act I trains the
- * player to tap five times a second, so their second tap lands ~200 ms after
- * the first, and the "deliberate second tap" the rule asks for would in
- * practice be the involuntary next beat of a tap burst. The page would be gone
- * before their eye reached it.
- *
- * So the arming window is 260 ms of *quiet*: longer than the 200 ms gap of a
- * trained 5 Hz thumb, short enough that a player who is deliberately advancing
- * never notices it. Quiet, not merely elapsed — a tap that arrives inside the
- * window is swallowed **and restarts it**, so a sustained burst never advances
- * at all rather than advancing every 260 ms for as long as it lasts. That is
- * the difference between the rule surviving the trained thumb and merely
- * slowing it down.
- *
- * The blinking caret appears exactly when the window closes, so the affordance
- * and the rule are the same event: a tap while the caret is dark is a tap the
- * box has already said would not count.
+ * There used to be 260 ms of enforced quiet after a page completed, and a tap
+ * inside it was swallowed and restarted it — written so that §21 Act I's 5 Hz
+ * thumb could not carry a page away before the eye reached it. It did that, and
+ * it made every page a small wait: the caret and the hint lit a beat after the
+ * line had visibly finished, and a player reading at their own pace felt the
+ * box resist them on every turn. Rules 1 and 3 still hold — a tap mid-page only
+ * fills it in, so no single tap both finishes a page and dismisses it, and a
+ * page still costs its taps — and the caret now lights the instant the page is
+ * complete, which is when the tap that turns it is accepted.
  */
-export const ADVANCE_ARM_MS = 260
 
 export interface DialogueState {
   /** Index into the page list. */
@@ -44,9 +37,6 @@ export interface DialogueState {
   /**
    * `elapsed` at the moment the page finished revealing — by typing itself out
    * or by rule 1's impatience tap. Null while still typing.
-   *
-   * Doubles as the arming reference, and a swallowed tap pushes it forward to
-   * the present: the window measures quiet, not time since completion.
    */
   completedAt: number | null
   /** The script is over. Terminal: no event moves out of it. */
@@ -68,9 +58,9 @@ export function isComplete(s: DialogueState): boolean {
   return s.completedAt !== null
 }
 
-/** Complete, and the arming window has passed — the caret is blinking. */
+/** The next tap turns the page, and the caret says so: the moment the page is complete. */
 export function isArmed(s: DialogueState): boolean {
-  return s.completedAt !== null && s.elapsed - s.completedAt >= ADVANCE_ARM_MS
+  return s.completedAt !== null
 }
 
 /**
@@ -104,12 +94,8 @@ export function dialogueReducer(
         return { ...state, completedAt: state.elapsed }
       }
 
-      // Rule 2 — the deliberate second tap. Anything inside the arming window
-      // is the tail of the burst that completed the page: swallowed, and it
-      // restarts the window, so mashing holds the page open indefinitely
-      // rather than clearing one every 260 ms.
-      if (!isArmed(state)) return { ...state, completedAt: state.elapsed }
-
+      // Rule 2 — the second tap, on a complete page, turns it. At once: see the
+      // note at the top of this file for the window that used to sit here.
       const next = state.page + 1
       if (next >= durations.length) {
         return { ...state, finished: true }

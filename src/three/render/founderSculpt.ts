@@ -60,6 +60,17 @@ export function founderHead(head: T.Group, look: Look, skin: string, hair: strin
   }
 }
 
+/**
+ * The torso's front face: `studioPeople` builds it 0.29 deep, centred at z 0.04.
+ *
+ * [2026-09-26] Everything worn on the chest is placed against it (or against a
+ * layer that is). The founder turns on the character screen now (*"make it we
+ * can rotate him"*), and the badge had hung 4.5 cm in front of the shirt, the
+ * tie 1 cm off the jacket and the knit's collar 2 cm off the jumper: invisible
+ * from the one angle the room ever used, and the first thing a turn shows.
+ */
+const CHEST = -.105
+
 export function founderClothes(torso: T.Group, look: Look, shirt: string) {
   const trim = '#dbe4df'
   const seam = new T.Color(shirt).multiplyScalar(.72).getStyle()
@@ -67,22 +78,23 @@ export function founderClothes(torso: T.Group, look: Look, shirt: string) {
   if (look.body === 0) {
     box(torso, 0, .095, -.125, .29, .115, .043, seam)
     box(torso, 0, .12, -.15, .23, .065, .02, shirt)
-    for (const s of [-1, 1]) box(torso, s * .075, .29, -.13, .017, .15, .021, trim)
+    for (const s of [-1, 1]) box(torso, s * .075, .29, CHEST - .0105, .017, .15, .021, trim)
   } else if (look.body === 2) {
     for (const s of [-1, 1]) {
-      const lapel = box(torso, s * .095, .30, -.135, .075, .19, .035, seam)
+      const lapel = box(torso, s * .095, .30, CHEST - .0175, .075, .19, .035, seam)
       lapel.rotation.z = s * -.23
-      box(torso, s * .14, .14, -.133, .09, .02, .02, trim)
+      box(torso, s * .14, .14, CHEST - .01, .09, .02, .02, trim)
     }
-    box(torso, .018, .09, -.14, .018, .23, .018, '#b6b7ac')
+    // On the shirt panel `studioPeople` lays over the chest (0.018 deep at -0.112).
+    box(torso, .018, .09, -.121 - .009, .018, .23, .018, '#b6b7ac')
   } else if (look.body === 3) {
     for (let i = 0; i < 5; i++) box(torso, -.16 + i * .08, .08, -.113, .013, .30, .018, seam)
-    box(torso, 0, .40, -.137, .025, .10, .017, seam)
+    box(torso, 0, .40, CHEST - .0085, .025, .10, .017, seam)
   } else {
     box(torso, 0, .455, -.115, .19, .04, .025, seam)
   }
   // A little terminal badge identifies the player across all four outfits.
-  box(torso, -.13, .31, -.159, .079, .06, .019, '#dbe4df')
-  box(torso, -.141, .329, -.171, .019, .018, .008, '#344952')
-  box(torso, -.116, .32, -.171, .023, .009, .008, '#344952')
+  box(torso, -.13, .31, CHEST - .0095, .079, .06, .019, '#dbe4df')
+  box(torso, -.141, .329, CHEST - .019 - .004, .019, .018, .008, '#344952')
+  box(torso, -.116, .32, CHEST - .019 - .004, .023, .009, .008, '#344952')
 }

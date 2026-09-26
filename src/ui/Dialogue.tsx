@@ -208,10 +208,10 @@ export function Dialogue({
     [durations],
   )
 
-  // The clock. It runs while the page is still typing and through the rule-2
-  // arming window, then stops — once the caret is blinking nothing else is a
-  // function of time, and a rAF loop left running behind a static box would be
-  // spending frames out of the §23.3 budget for nothing.
+  // The clock. It runs while the page is still typing, then stops — once the
+  // caret is blinking nothing else is a function of time, and a rAF loop left
+  // running behind a static box would be spending frames out of the §23.3
+  // budget for nothing.
   const armed = isArmed(state)
   useEffect(() => {
     if (state.finished || armed) return
@@ -307,12 +307,11 @@ export function Dialogue({
             sound
           />
           {/*
-            The caret is the affordance for rule 2, so it appears exactly when
-            the advance tap arms — not when the page completes. A player who
-            taps while it is dark has their tap swallowed, and the box has
-            already told them why.
+            The caret is the affordance for rule 2: it lights the moment the
+            page is complete, which is the moment a tap turns it [2026-09-26].
+            Dark while the box waits on the world, because a tap then does not.
           */}
-          {armed && <span className="ui-dialogue__caret" aria-hidden="true" />}
+          {armed && !waiting && <span className="ui-dialogue__caret" aria-hidden="true" />}
         </div>
         {/*
           §10.7a.3 — the affordance written out. The scrim already means every
@@ -320,7 +319,7 @@ export function Dialogue({
           this says *where* the tap can land. Dim while the page is still typing
           (a tap would fill it in), full strength once a tap would turn the page.
         */}
-        <div className="ui-dialogue__hint" data-armed={armed ? '' : undefined} aria-hidden="true">
+        <div className="ui-dialogue__hint" data-armed={armed && !waiting ? '' : undefined} aria-hidden="true">
           TAP ANYWHERE TO CONTINUE
         </div>
       </div>

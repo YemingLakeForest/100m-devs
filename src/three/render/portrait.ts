@@ -27,18 +27,16 @@ export type PortraitFrame = 'figure' | 'head'
 const SIZE: Record<PortraitFrame, [number, number]> = { figure: [360, 480], head: [256, 256] }
 
 /** The rebuild's eye: gently off the front, so both held-forward arms read as one pose. */
-const EYE = new T.Vector3(1.15, 1.55, -4).normalize()
+export const EYE = new T.Vector3(1.15, 1.55, -4).normalize()
 
 let kit: { renderer: T.WebGLRenderer; scene: T.Scene; camera: T.OrthographicCamera } | null = null
 const cache = new Map<string, string>()
 
-function ensureKit() {
-  if (kit) return kit
-  const renderer = new T.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true })
-  renderer.setClearColor(0, 0)
-  renderer.outputColorSpace = T.SRGBColorSpace
-  renderer.toneMapping = T.ACESFilmicToneMapping
-  const scene = new T.Scene()
+/**
+ * The character screen's light, shared by the still portraits and the
+ * turntable (`turntable.ts`) so the card and the figure you turn are one person.
+ */
+export function nightRig(scene: T.Scene): void {
   /*
    * [2026-09-26] **The room's night, not a studio flash** — *"the white light
    * too stabbing"*. The rebuild's rig (a white sky at 2.6 and a white key at 3)
@@ -54,6 +52,28 @@ function ensureKit() {
   const screen = new T.DirectionalLight('#7fd4e8', 0.9)
   screen.position.set(4, 2, -3)
   scene.add(screen)
+}
+
+/**
+ * The person as the room draws them, head and body: the rebuild's figure less
+ * the limbs this world does not have (*"legs not belong to this world"*, then
+ * *"Hands don't belong in character creation neither, given they are not in
+ * game."*). Added to `parent`; the caller removes it.
+ */
+export function portraitPerson(parent: T.Object3D, look: Look, id?: LeaderId): T.Object3D {
+  const model = studioPerson(parent, 0, 0, 0, look, id, true, true)
+  for (const limb of ['leg-1', 'leg1', 'arm-1', 'arm1']) model.getObjectByName(limb)?.removeFromParent()
+  return model
+}
+
+function ensureKit() {
+  if (kit) return kit
+  const renderer = new T.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true })
+  renderer.setClearColor(0, 0)
+  renderer.outputColorSpace = T.SRGBColorSpace
+  renderer.toneMapping = T.ACESFilmicToneMapping
+  const scene = new T.Scene()
+  nightRig(scene)
   kit = { renderer, scene, camera: new T.OrthographicCamera(-1, 1, 1, -1, .1, 40) }
   return kit
 }
@@ -78,11 +98,8 @@ export function personPortrait(look: Look, id?: LeaderId, shot: PortraitFrame = 
   const [W, H] = SIZE[shot]
   renderer.setSize(W, H)
   // Built as who they are — the founder's shirt ramp, a hero's own head — and
-  // as the room draws them: head and body. *"legs not belong to this world"*,
-  // then *"Hands don't belong in character creation neither, given they are not
-  // in game."* The rebuild's figure, less the limbs this world does not have.
-  const model = studioPerson(scene, 0, 0, 0, look, id, true, true)
-  for (const limb of ['leg-1', 'leg1', 'arm-1', 'arm1']) model.getObjectByName(limb)?.removeFromParent()
+  // as the room draws them: head and body.
+  const model = portraitPerson(scene, look, id)
   try {
     model.updateMatrixWorld(true)
     // Framed from the model's own bounds, so a collar added in `studioPeople`

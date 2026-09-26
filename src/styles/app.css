@@ -2491,8 +2491,10 @@ body {
  * mid-phosphor line in open air was reported unreadable over the floor.
  *
  * Dim while the page is still typing — a tap then fills the text in, it does
- * not turn the page — and full phosphor once the advance is armed, which is
- * the same instant the caret starts blinking.
+ * not turn the page — and full phosphor the instant the page is complete, the
+ * same instant the caret starts blinking. No fade: [2026-09-26] *"make it light
+ * immediately so people can keep clicking though"* — a 200 ms fade was part of
+ * the beat the box made the player wait on every page.
  */
 .ui-dialogue__hint {
   position: absolute;
@@ -2507,7 +2509,6 @@ body {
   background: color-mix(in srgb, var(--n0) 80%, transparent);
   padding: 3px 10px 4px;
   opacity: 0.55;
-  transition: opacity 200ms;
   /* It is ink, not a control: the scrim above it owns every tap, and a hint
      that intercepted one would break the one rule it is there to explain. */
   pointer-events: none;
@@ -2517,11 +2518,6 @@ body {
   opacity: 1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .ui-dialogue__hint {
-    transition: none;
-  }
-}
 
 /* --- GDD §23.3 acceptance report, `?bench` ----------------------------- */
 

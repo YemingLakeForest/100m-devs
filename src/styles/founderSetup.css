@@ -144,18 +144,19 @@
   align-content: start;
   gap: 5px 10px;
   min-height: 0;
-  /* The one scroller on this screen, and it is a middle row rather than the
-     whole page — so nothing it scrolls past can reach the controls. */
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  /* Room for the scrollbar's gutter so a fieldset's right edge does not sit
-     under it on the platforms that reserve one. */
-  padding-right: 2px;
+  /* [2026-09-26] Nothing on this screen scrolls: every frame in the box fits
+     the whole form (see the short-frame block below). Clipped rather than
+     scrolled if a frame outside the box is ever too short, so it cannot turn
+     back into a scroller unnoticed. */
+  overflow: hidden;
 }
 
 .founder-setup__name-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  /* [2026-09-26] The die's column is as wide as its button needs, never a fixed
+     width it has to fit: *"The name random button don't clip out text outside
+     the button"* — a 46-72 px column cut the closing bracket off at every size. */
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   min-width: 0;
 }
@@ -347,9 +348,7 @@
 }
 
 .founder-setup__dice-btn .ui-btn__face {
-  position: relative;
-  left: -6px;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto auto auto;
   gap: 4px;
 }
 
@@ -368,9 +367,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
-  overflow: hidden;
-  padding-inline: 6px;
+  padding-inline: 9px;
 }
 
 .founder-setup__random .ui-btn__label {
@@ -419,14 +416,34 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/*
+ * [2026-09-26] **A phone's height holds the whole form.** The header rule goes
+ * (the eyebrow over the title already says where you are), and every row gives
+ * up a few pixels: 748 x 336 is the shortest frame in §23.4.2's box and the
+ * one this block is fitted to.
+ */
 @container frame (max-height: 470px) {
-  .founder-setup__dice-btn .ui-btn__face {
-    /* The global short-frame button trim halves the vertical padding. That
-       changes the counter-skew's visual centre, so the desktop correction is
-       no longer needed at keyboard height. */
-    left: 0;
+  .founder-setup {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'preview form';
+    gap: 0 20px;
   }
+  .founder-setup__header { display: none; }
+  .founder-setup__form { gap: 5px; }
+  .founder-setup__names { gap: 2px 10px; }
+  .founder-setup input { height: 34px; font-size: var(--type-1x); }
+  .founder-setup__name-row { gap: 6px; }
+  /* 3px, not 2: §10.8's spacing floor between neighbouring controls (the UI gate's). */
+  .founder-setup__traits { gap: 3px 8px; }
+  .founder-setup fieldset { padding-top: 3px; }
+  .founder-setup legend { line-height: 12px; }
+  .founder-setup__options { gap: 4px; }
+  .founder-setup__option { min-height: 28px; padding: 2px 5px; }
+  .founder-setup__swatch { padding: 3px; }
+  .founder-setup__swatch i { height: 14px; }
+  .founder-setup__actions .ui-btn { min-height: 34px; }
 }
+
 
 @container frame (max-height: 390px) {
   .founder-setup {
@@ -435,15 +452,26 @@
   }
   .founder-setup h1 { font-size: var(--type-2x); }
   .founder-setup__preview > p { display: none; }
-  .founder-avatar { transform: scale(0.82); margin: -10px auto -18px; }
-  .founder-setup__form { gap: 5px; }
   /* Two columns of fieldsets, not three: the fieldsets themselves already
      reflow their options now (see `__options`), and squeezing three fieldsets
      across is what left each one too narrow for its own labels. */
-  .founder-setup__traits { gap: 3px 6px; }
-  .founder-setup__option { min-height: 31px; }
-  .founder-setup input { height: 38px; font-size: var(--type-1x); }
-  .founder-setup__actions .ui-btn { min-height: 36px; }
+  .founder-setup__option { min-height: 26px; }
+  .founder-setup input { height: 32px; }
+  .founder-setup__actions .ui-btn { min-height: 32px; }
+}
+
+/*
+ * [2026-09-26] **A narrow phone holds both columns.** The column floors (240 and
+ * 420 px) plus the CRT-safe edges came to 744 px, so at 640 x 360 the form ran
+ * off the right of the screen, buttons and all. Below 760 px wide the preview
+ * gives up width first: the figure is framed to its box and turns, so a narrow
+ * box shows the same person smaller.
+ */
+@container frame (max-width: 760px) {
+  .founder-setup {
+    grid-template-columns: minmax(140px, 0.55fr) minmax(0, 1.45fr);
+    column-gap: 14px;
+  }
 }
 
 /*
@@ -490,10 +518,16 @@
   }
 }
 
-/* [2026-09-26] Your name and the studio's, one block in the form's first row. */
+/*
+ * [2026-09-26] Your name and the studio's, side by side in the form's first row.
+ * *"I don't want the form scrolling at all at any screens"*: stacked, the two
+ * fields were a hundred pixels the trait grid below them did not have on any
+ * phone, so it scrolled. Label over field, twice across.
+ */
 .founder-setup__names {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  grid-auto-flow: column;
+  gap: 4px 12px;
 }
-.founder-setup__name-label--studio { margin-top: 6px; }

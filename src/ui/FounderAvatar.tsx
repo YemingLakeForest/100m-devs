@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type {
   FounderAccessory,
   FounderBody,
@@ -10,6 +10,8 @@ import type {
 } from '../game/founderProfile.ts'
 import { founderLook } from '../game/founderProfile.ts'
 import { personPortrait } from '../three/render/portrait.ts'
+import { createTurntable, type Turntable } from '../three/render/turntable.ts'
+import type { Look } from '../three/sim/identity.ts'
 
 import '../styles/founderAvatar.css'
 
@@ -50,7 +52,8 @@ export function FounderAvatar({
     () => founderLook({ name: label, head, hairColour, skin, accessory, facialHair, body, bodyColour }),
     [label, head, hairColour, skin, accessory, facialHair, body, bodyColour],
   )
-  const src = useMemo(() => personPortrait(look, 'founder', 'figure'), [look])
+  // The character screen's figure turns (`TurnableFounder`); a card's is a still.
+  const src = useMemo(() => (large ? null : personPortrait(look, 'founder', 'figure')), [look, large])
 
   return (
     <div
@@ -67,7 +70,71 @@ export function FounderAvatar({
       aria-label="Your founder, as they will appear at their desk"
     >
       <div className="founder-avatar__signal">{label}</div>
-      {src && <img className="founder-avatar__render" src={src} alt="" aria-hidden="true" />}
+      {large ? <TurnableFounder look={look} /> : src && <img className="founder-avatar__render" src={src} alt="" aria-hidden="true" />}
     </div>
+  )
+}
+
+/** How far a pixel of drag turns the figure: a full turn across about 520 px. */
+const TURN_PER_PX = 0.012
+
+/**
+ * [2026-09-26] *"make it we can rotate him"* — drag across the figure, or use
+ * the arrow keys on it, and it turns. Drawn by `three/render/turntable.ts`.
+ */
+function TurnableFounder({ look }: { look: Look }) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  const table = useRef<Turntable | null>(null)
+  const drag = useRef<{ id: number; x: number } | null>(null)
+
+  useEffect(() => {
+    const el = canvas.current
+    if (!el) return
+    const t = createTurntable(el)
+    table.current = t
+    if (!t) return
+    const fit = () => t.resize(el.clientWidth, el.clientHeight)
+    fit()
+    const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit)
+    watch?.observe(el)
+    return () => {
+      watch?.disconnect()
+      t.dispose()
+      table.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    table.current?.setLook(look, 'founder')
+  }, [look])
+
+  return (
+    <>
+      <canvas
+        ref={canvas}
+        className="founder-avatar__stage"
+        tabIndex={0}
+        aria-label="Turn your founder: drag, or use the arrow keys"
+        onPointerDown={(e) => {
+          drag.current = { id: e.pointerId, x: e.clientX }
+          e.currentTarget.setPointerCapture(e.pointerId)
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current
+          if (!d || d.id !== e.pointerId) return
+          table.current?.turn((e.clientX - d.x) * TURN_PER_PX)
+          d.x = e.clientX
+        }}
+        onPointerUp={() => { drag.current = null }}
+        onPointerCancel={() => { drag.current = null }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault()
+            table.current?.turn(e.key === 'ArrowLeft' ? -0.3 : 0.3)
+          }
+        }}
+      />
+      <div className="founder-avatar__turn-hint" aria-hidden="true">DRAG TO TURN</div>
+    </>
   )
 }

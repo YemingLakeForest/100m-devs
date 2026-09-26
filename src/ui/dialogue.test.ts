@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  ADVANCE_ARM_MS,
   dialogueReducer,
   initDialogue,
   isArmed,
@@ -45,57 +44,32 @@ describe('§10.7 rule 2 — a single tap can never both complete and advance', (
     const one = run([tick(200), tap])
     expect(one.page).toBe(0)
 
-    const two = run([tick(200), tap, tick(ADVANCE_ARM_MS), tap])
+    const two = run([tick(200), tap, tap])
     expect(two.page).toBe(1)
   })
 
-  it('swallows the follow-up tap of a 5 Hz burst', () => {
-    // §21 Act I trains the player to tap five times a second. The second beat
-    // of that burst lands ~200 ms later and must not carry the page away
-    // before their eye has reached it.
-    const burst = [tick(200), tap, tick(200), tap]
-    expect(run(burst).page).toBe(0)
-  })
-
-  it('holds the page open for as long as the mashing lasts', () => {
-    // The window measures quiet, not elapsed time: a swallowed tap restarts
-    // it. Without that, a sustained burst clears a page every 260 ms and the
-    // rule slows the trained thumb down instead of surviving it.
+  it('turns a complete page on the very next tap — no window to wait out [2026-09-26]', () => {
+    // "make it light immediately so people can keep clicking though": a player
+    // tapping through at 5 Hz reads every page at two taps each.
     const burst: DialogueEvent[] = []
-    for (let i = 0; i < 40; i++) burst.push(tick(200), tap)
-    expect(run(burst).page).toBe(0)
+    for (let i = 0; i < 6; i++) burst.push(tick(200), tap)
+    expect(run(burst).finished).toBe(true)
+    expect(run(burst.slice(0, -2)).finished).toBe(false)
   })
 
-  it('re-arms as soon as the player stops', () => {
-    const burst: DialogueEvent[] = []
-    for (let i = 0; i < 10; i++) burst.push(tick(200), tap)
-    expect(run([...burst, tick(ADVANCE_ARM_MS + 1), tap]).page).toBe(1)
+  it('accepts the advance the same way whether the page was completed by tap or by typing', () => {
+    const typed = run([tick(1000), tap])
+    expect(typed.page).toBe(1)
+    const tapped = run([tick(200), tap, tap])
+    expect(tapped.page).toBe(1)
+    expect(tapped.elapsed).toBe(0)
+    expect(isComplete(tapped)).toBe(false)
   })
 
-  it('accepts the advance once the player has actually paused', () => {
-    const s = run([tick(200), tap, tick(ADVANCE_ARM_MS + 1), tap])
-    expect(s.page).toBe(1)
-    expect(s.elapsed).toBe(0)
-    expect(isComplete(s)).toBe(false)
-  })
-
-  it('arms the same way whether the page was completed by tap or by typing', () => {
-    // Otherwise a page that finished on its own mid-burst would be skipped,
-    // which is the same accident by a different route.
-    const typed = run([tick(1000), tick(100), tap])
-    expect(typed.page).toBe(0)
-
-    const armed = run([tick(1000), tick(ADVANCE_ARM_MS + 1), tap])
-    expect(armed.page).toBe(1)
-  })
-
-  it('shows the caret exactly when the advance arms', () => {
-    // The affordance and the rule are the same event: a tap while the caret is
-    // dark is swallowed, and the box has already said so.
-    const early = run([tick(1000), tick(ADVANCE_ARM_MS - 1)])
-    expect(isArmed(early)).toBe(false)
-    const late = run([tick(1000), tick(ADVANCE_ARM_MS)])
-    expect(isArmed(late)).toBe(true)
+  it('lights the caret the instant the page is complete', () => {
+    expect(isArmed(run([tick(999)]))).toBe(false)
+    expect(isArmed(run([tick(1000)]))).toBe(true)
+    expect(isArmed(run([tick(200), tap]))).toBe(true)
   })
 })
 
@@ -103,7 +77,7 @@ describe('§10.7 rule 3 — there is no skip', () => {
   it('costs two taps per page, every page, to the end of the script', () => {
     const events: DialogueEvent[] = []
     for (let i = 0; i < DURATIONS.length; i++) {
-      events.push(tick(200), tap, tick(ADVANCE_ARM_MS + 1), tap)
+      events.push(tick(200), tap, tap)
     }
     const s = run(events)
     expect(s.finished).toBe(true)
@@ -114,7 +88,7 @@ describe('§10.7 rule 3 — there is no skip', () => {
 
   it('never moves more than one page for one tap', () => {
     let s = initDialogue()
-    for (const e of [tick(2000), tick(ADVANCE_ARM_MS + 1), tap]) {
+    for (const e of [tick(2000), tap, tap]) {
       const before = s.page
       s = dialogueReducer(s, e, DURATIONS)
       expect(s.page - before).toBeLessThanOrEqual(1)
@@ -124,17 +98,7 @@ describe('§10.7 rule 3 — there is no skip', () => {
   it('does nothing at all once the script is over', () => {
     // No auto-advance timer, and no way back in. The caller owns what happens
     // next; the machine is inert.
-    const done = run([
-      tick(2000),
-      tick(ADVANCE_ARM_MS + 1),
-      tap,
-      tick(2000),
-      tick(ADVANCE_ARM_MS + 1),
-      tap,
-      tick(2000),
-      tick(ADVANCE_ARM_MS + 1),
-      tap,
-    ])
+    const done = run([tick(2000), tap, tick(2000), tap, tick(2000), tap])
     expect(done.finished).toBe(true)
     expect(dialogueReducer(done, tap, DURATIONS)).toBe(done)
     expect(dialogueReducer(done, tick(10000), DURATIONS)).toBe(done)
@@ -151,11 +115,10 @@ describe('instant-fill pages — reduce-motion, and the previously-seen replay',
     const s = run([tick(16)], instant)
     expect(isComplete(s)).toBe(true)
     expect(s.page).toBe(0)
-    expect(run([tick(16), tap], instant).page).toBe(0)
   })
 
   it('advances on a genuine second tap, like any other page', () => {
-    const s = run([tick(16), tick(ADVANCE_ARM_MS + 1), tap], instant)
+    const s = run([tick(16), tap], instant)
     expect(s.page).toBe(1)
   })
 })
