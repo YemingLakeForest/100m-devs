@@ -146,6 +146,7 @@ export function UpgradeBoard({
   introNodeId = null,
   onIntroComplete,
   onGuidedComplete,
+  onTrees,
   onClose,
 }: {
   open: boolean
@@ -153,6 +154,8 @@ export function UpgradeBoard({
   introNodeId?: string | null
   onIntroComplete?: () => void
   onGuidedComplete?: () => void
+  /** §8 [2026-09-26] — the five isometric trees, one door along. */
+  onTrees?: () => void
   onClose: () => void
 }) {
   const state = useGameState()
@@ -215,6 +218,12 @@ export function UpgradeBoard({
           <p className="board-teaching" role="status">
             <b>JAMES //</b> Pick any lit node. One purchase clears the thread; then you are back on the floor.
           </p>
+        ) : onTrees ? (
+          // §8 — the way into the isometric trees on a frame whose rail has no
+          // room for their own door (`Hud.tsx` has the measurement).
+          <div className="tech__foot">
+            <Button className="tech__trees" onClick={onTrees}>TREES</Button>
+          </div>
         ) : undefined
       }
     >

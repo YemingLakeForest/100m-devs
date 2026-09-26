@@ -25,6 +25,7 @@ import { D_BASE } from '../sim/entropy.ts'
 import { TECH_BY_ID } from '../sim/techTree.ts'
 import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR, LAUNCH_NEUTRAL, LUCK_NEUTRAL } from '../sim/rating.ts'
 import { PIPELINE_BY_ID } from '../sim/pipeline.ts'
+import { TREE_HEROES, treeKey, treeNode, type TreeHero } from '../sim/upgradeTrees.ts'
 import { GENRES, genreNamed, type Genre } from '../three/sim/titles.ts'
 import { UNKNOWN_ORDINAL } from '../sim/revenue.ts'
 import { GARAGE_SYNC } from '../sim/teamSync.ts'
@@ -139,6 +140,8 @@ export interface RunSave {
   pipeline?: { build: { item: ShelvedBuild; progress: number }[]; test: { item: ShelvedBuild; progress: number }[] }
   shelf?: ShelvedBuild[]
   pipelineNodes?: Record<string, number>
+  /** §8 — the isometric trees' unwired levels, `hero:id`. Optional: absent is nothing bought. */
+  treeLevels?: Record<string, number>
   autoShipClock?: number
   /** §11.2 B2's meeting clock, in simulated seconds. Optional for the same reason. */
   runSeconds?: number
@@ -504,6 +507,7 @@ export function makeSaveData(state: GameState): SaveData {
       },
       shelf: state.shelf.map((b) => ({ ...b })),
       pipelineNodes: { ...state.pipelineNodes },
+      treeLevels: { ...state.treeLevels },
       autoShipClock: state.autoShipClock,
       runSeconds: state.runSeconds,
       // §4.10e — flattened rather than nested, so the shape cannot arrive back
@@ -821,6 +825,7 @@ function normaliseRun(value: unknown): RunSave {
     },
     shelf: normaliseBuilds(r.shelf),
     pipelineNodes: normalisePipelineNodes(r.pipelineNodes),
+    treeLevels: normaliseTreeLevels(r.treeLevels),
     autoShipClock: nonNegative(r.autoShipClock, 0),
     runSeconds: nonNegative(r.runSeconds, 0),
     roster: normaliseRoster(r.roster, devs),
@@ -1094,6 +1099,21 @@ function normalisePipelineNodes(value: unknown): Record<string, number> {
     if (!node) continue
     const level = Math.min(node.maxLevel, Math.floor(nonNegative(raw, 0)))
     if (level > 0) out[id] = level
+  }
+  return out
+}
+
+/** §8 — keeps levels only for real, unwired tree nodes, clamped to their max. */
+function normaliseTreeLevels(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {}
+  if (!value || typeof value !== 'object') return out
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const [hero, id] = key.split(':')
+    if (!(TREE_HEROES as readonly string[]).includes(hero)) continue
+    const node = treeNode(hero as TreeHero, id)
+    if (!node || node.wired || node.kind === 'root' || node.kind === 'link') continue
+    const level = Math.min(node.max, Math.floor(nonNegative(raw, 0)))
+    if (level > 0) out[treeKey(hero as TreeHero, id)] = level
   }
   return out
 }

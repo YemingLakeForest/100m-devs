@@ -430,3 +430,15 @@
 @media (prefers-reduced-motion: reduce) {
   .upgrade-board__node[data-flash='true'], .upgrade-board__node[data-flash='true']::after { animation: none; }
 }
+
+/* §8 [2026-09-26] — the door to the isometric trees, for frames whose rail has no room for theirs. */
+.tech__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px calc(10px + var(--ui-slab)) calc(6px + var(--ui-slab)) 10px;
+}
+
+.ui-btn.tech__trees {
+  padding: 4px 10px;
+  font-size: var(--type-1x);
+}

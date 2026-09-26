@@ -42,7 +42,8 @@ import { RevenueGraph } from './RevenueGraph.tsx'
 import { ReleaseReview } from './ReleaseReview.tsx'
 import { ReleaseRing } from './ReleaseRing.tsx'
 import { Pipeline } from './Pipeline.tsx'
-import { PipelineBoard } from './PipelineBoard.tsx'
+import { UpgradeTrees } from './UpgradeTrees.tsx'
+import { TREE_HEROES, type TreeHero } from '../sim/upgradeTrees.ts'
 import { pipelineAdvice } from './pipelineModel.ts'
 import { TouchSwitch } from './TouchSwitch.tsx'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
@@ -112,6 +113,13 @@ const PREVIEW_OVERNIGHT = DEBUG_QUERY.has('overnight')
 const PREVIEW_OVERNIGHT_CAPPED = DEBUG_QUERY.get('overnight') === 'capped'
 
 const PREVIEW_DIALOGUE = DEBUG_QUERY.has('dialogue')
+
+/** `?trees` or `?trees=serena` — §8's trees, open on arrival, on whoever is named. */
+const PREVIEW_TREES: TreeHero | null = (() => {
+  const v = DEBUG_QUERY.get('trees')
+  if (v === null) return null
+  return (TREE_HEROES as readonly string[]).includes(v) ? (v as TreeHero) : 'you'
+})()
 
 /**
  * `?launch` — §21.8's nine shots, without the twenty-one lines in front of them.
@@ -220,8 +228,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [heroTreeOpen, setHeroTreeOpen] = useState(false)
   const [rosterOpen, setRosterOpen] = useState(false)
-  // §10.7 — Serena's pipeline board, opened from the belt once she has arrived.
-  const [pipelineBoardOpen, setPipelineBoardOpen] = useState(false)
+  // §8 — the five isometric trees. The belt opens Serena's (her pipeline board
+  // is her tree now); the TREES door opens whoever was last looked at.
+  const [treesOpen, setTreesOpen] = useState(PREVIEW_TREES !== null)
+  const [treesHero, setTreesHero] = useState<TreeHero>(PREVIEW_TREES ?? 'you')
   const [guidedBoard, setGuidedBoard] = useState<'tech' | 'founder' | 'hero' | null>(null)
   /**
    * §10.6b — **no window is open while somebody is talking.**
@@ -259,6 +269,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setWasTalking(talking)
     if (talking) {
       setTreeOpen(false)
+      setTreesOpen(false)
       setUpgradesOpen(false)
       setFounderOpen(false)
       setGameMenuOpen(false)
@@ -445,7 +456,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               the burn-down feeds it: Build, Test, the buffer's slots, and the
               key that ships.
             */}
-            <Pipeline state={state} onBoard={() => setPipelineBoardOpen(true)} />
+            <Pipeline
+              state={state}
+              onBoard={() => {
+                setTreesHero('serena')
+                setTreesOpen(true)
+              }}
+            />
           </BurnDown>
           {/*
             §4.10e — the back catalogue, under the burn-down that will join it.
@@ -633,12 +650,13 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               there is one lever, and an upgrade screen is the game promising a
               way to make the trap survivable. */}
           {unlocks.upgrades && (
-            <div className="hud__nav">
+            <div className="hud__nav hud__nav--upgrades">
               <Button
                 onClick={() => {
                   setTreeOpen(false)
                   setFounderOpen(false)
                   setGameMenuOpen(false)
+                  setTreesOpen(false)
                   setUpgradesOpen((was) => !was)
                 }}
                 concept="upgrades"
@@ -647,6 +665,30 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               </Button>
             </div>
           )}
+          {/* §8 [2026-09-26] — the five isometric trees, beside UPGRADES rather
+              than instead of it: the trees came over visual first, and the tech
+              board is still where the studio's real upgrades are bought. Open
+              from the garage, because the founder's tree starts there.
+
+              On a phone-landscape frame with UPGRADES up, TEAM, PARADIGM and
+              UPGRADES fill the controls' last row exactly and a fourth door
+              starts a row the rail does not have (the frame gate, at 640x360).
+              There the door stands down (`trees.css`) and the tech board's own
+              TREES button is the way in. */}
+          <div className="hud__nav hud__nav--trees">
+            <Button
+              onClick={() => {
+                setTreeOpen(false)
+                setFounderOpen(false)
+                setGameMenuOpen(false)
+                setUpgradesOpen(false)
+                setGalleryOpen(false)
+                setTreesOpen((was) => !was)
+              }}
+            >
+              TREES
+            </Button>
+          </div>
           {/* §10.11 — the gallery door, beside UPGRADES. Not gated on the tech
               tree: it is a record of what shipped, and it opens the moment there
               is a record to show, Run 1 included. */}
@@ -658,6 +700,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
                   setFounderOpen(false)
                   setGameMenuOpen(false)
                   setUpgradesOpen(false)
+                  setTreesOpen(false)
                   setGalleryOpen((was) => !was)
                 }}
               >
@@ -674,7 +717,12 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           and it plays over a running floor. */}
       <ReleaseReview state={state} />
       <ReleaseRing state={state} />
-      <PipelineBoard open={pipelineBoardOpen && !state.launching} state={state} onClose={() => setPipelineBoardOpen(false)} />
+      <UpgradeTrees
+        open={treesOpen && !state.launching && !talking}
+        state={state}
+        hero={treesHero}
+        onClose={() => setTreesOpen(false)}
+      />
       <DevCard state={state} />
 
       {/*
@@ -804,6 +852,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       <UpgradeBoard
         open={upgradesOpen && !talking}
         guided={guidedBoard === 'tech'}
+        onTrees={() => {
+          setUpgradesOpen(false)
+          setTreesOpen(true)
+        }}
         introNodeId={upgradeIntro}
         onIntroComplete={() => setUpgradeIntro(null)}
         onGuidedComplete={() => {

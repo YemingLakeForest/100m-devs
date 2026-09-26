@@ -1,0 +1,449 @@
+/*
+ * The five upgrade trees — GDD §8, ART_DIRECTION §1 [2026-09-26].
+ *
+ * The board is a canvas the window stands around: the frame takes the whole
+ * design box less the edge, because an isometric tree is wide and short and a
+ * card-sized window would show a third of it.
+ *
+ * **The board gets the whole width, on every frame.** The first cut gave the
+ * inspector a 264px column on desktop and half a phone, and the answer was
+ * *"the right side description too wide, I want to show more of the upgrade
+ * tree part"*. So the inspector is a narrow sheet standing over the board's
+ * right edge, there only while a node is selected (or the key is asked for),
+ * and the board pans the selected node clear of it.
+ */
+
+.trees-frame {
+  width: calc(100% - 2 * var(--edge-x));
+  height: calc(100% - 2 * var(--edge-y));
+}
+
+.os-window__body.trees {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'stage'
+    'heads';
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* --- the stage ----------------------------------------------------------- */
+
+.trees__stage {
+  grid-area: stage;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+}
+
+.trees__who {
+  padding: 8px 12px 4px;
+  border-bottom: var(--rule) solid var(--p0);
+}
+
+.trees__name {
+  margin: 0;
+  font-size: var(--type-2x);
+  font-weight: normal;
+  line-height: 1;
+  color: var(--p3);
+}
+
+.trees__role {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p1);
+}
+
+.trees__line {
+  margin: 4px 0 0;
+  max-width: 72ch;
+  color: var(--p2);
+  font-size: var(--type-1x);
+  line-height: 1.35;
+}
+
+.trees__progress {
+  margin: 4px 0 0;
+  color: var(--p1);
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+}
+
+.trees__progress b {
+  font-weight: normal;
+  color: var(--p3);
+}
+
+.trees__board {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.trees__canvas {
+  display: block;
+  image-rendering: pixelated;
+  touch-action: none;
+  cursor: grab;
+  outline: none;
+}
+
+.trees__canvas:active {
+  cursor: grabbing;
+}
+
+.trees__canvas:focus-visible {
+  outline: var(--rule) dashed var(--p2);
+  outline-offset: -3px;
+}
+
+.trees__tip {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -100%);
+  padding: 3px 6px;
+  border: var(--rule) solid var(--p1);
+  background: var(--n0);
+  color: var(--p3);
+  font-size: var(--type-1x);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.trees__tip small {
+  font-size: var(--type-1x);
+  color: var(--p1);
+}
+
+/* Bottom left: the inspector sheet stands on the right and would cover them. */
+.trees__zoom {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+/* Every button in the window is the small one: the board is the big thing here. */
+.ui-btn.trees__zoom-btn,
+.ui-btn.trees__buy,
+.ui-btn.trees__deselect,
+.trees__act .ui-btn {
+  padding: 4px 8px;
+  font-size: var(--type-1x);
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.ui-btn.trees__zoom-btn {
+  min-width: 34px;
+}
+
+/* --- the people ---------------------------------------------------------- */
+
+.trees__heads {
+  grid-area: heads;
+  display: flex;
+  gap: 4px;
+  /* Fixed, so the inspector sheet can stop exactly on top of it. */
+  height: 46px;
+  padding: 4px 8px 6px;
+  border-top: var(--rule) solid var(--p0);
+  overflow-x: auto;
+}
+
+.trees__head {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 6px;
+  min-width: 0;
+  padding: 3px 8px 3px 3px;
+  border: var(--rule) solid transparent;
+  background: none;
+  color: var(--p1);
+  font: inherit;
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trees__head[aria-pressed='true'] {
+  border-color: var(--p2);
+  background: var(--p0);
+  color: var(--p3);
+}
+
+.trees__head:focus-visible {
+  outline: var(--rule) dashed var(--p2);
+  outline-offset: 1px;
+}
+
+.trees__face {
+  grid-row: 1 / span 2;
+  width: 33px;
+  height: 33px;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.trees__head-count {
+  color: var(--p1);
+}
+
+/* --- the inspector ------------------------------------------------------- */
+
+.trees__inspector {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 46px;
+  z-index: 3;
+  width: min(224px, 60%);
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px 12px;
+  border-left: var(--rule) solid var(--p2);
+  background: var(--n0);
+  font-size: var(--type-1x);
+  line-height: 1.4;
+}
+
+.trees__inspector[data-empty='true'] {
+  display: none;
+}
+
+.trees__eyebrow {
+  margin: 0 0 4px;
+  color: var(--p1);
+  letter-spacing: 1px;
+}
+
+.trees__title {
+  margin: 0 0 6px;
+  font-size: var(--type-2x);
+  font-weight: normal;
+  line-height: 1.05;
+  color: var(--p3);
+}
+
+.trees__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 8px;
+}
+
+.trees__tag {
+  padding: 1px 5px;
+  border: var(--rule) solid var(--p1);
+  color: var(--p2);
+  letter-spacing: 1px;
+}
+
+.trees__tag[data-kind='key'] {
+  border-color: var(--p3);
+  color: var(--p3);
+}
+
+.trees__text {
+  margin: 0 0 8px;
+  color: var(--p2);
+}
+
+.trees__effect {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border: var(--rule) solid var(--p0);
+  color: var(--p3);
+}
+
+.trees__effect p {
+  margin: 0 0 4px;
+}
+
+.trees__effect[data-wired='false'] {
+  color: var(--p1);
+}
+
+.trees__unwired {
+  color: var(--p2);
+  letter-spacing: 1px;
+}
+
+.trees__effect .trees__unwired:last-child {
+  margin: 0;
+}
+
+.trees__reqs {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.trees__req {
+  margin: 0;
+  color: var(--p1);
+}
+
+.trees__req[data-ok='true'] {
+  color: var(--p3);
+}
+
+.trees__act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  /* The buttons' offset slab paints 3px outside them; make room here. */
+  padding: 0 var(--ui-slab) var(--ui-slab) 0;
+}
+
+.ui-btn.trees__buy {
+  flex: 1 1 auto;
+}
+
+.trees__state {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--p3);
+  letter-spacing: 1px;
+}
+
+.trees__key {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  color: var(--p2);
+  letter-spacing: 1px;
+}
+
+.trees__key li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/*
+ * A tile, flattened to its iso diamond, in the board's own two parts: the
+ * diamond is the edge and the inset diamond is the top, so a tile you can buy
+ * reads here as it does on the board — dark, with a bright rim.
+ */
+.trees__key i {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 12px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--tile-edge, var(--n1));
+}
+
+.trees__key i::after {
+  content: '';
+  position: absolute;
+  inset: 2px 4px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  background: var(--tile-top, var(--n1));
+}
+
+.trees__key i[data-tile='owned'] { --tile-edge: var(--p2); --tile-top: var(--p1); }
+.trees__key i[data-tile='live'] { --tile-edge: var(--p3); --tile-top: var(--n2); }
+.trees__key i[data-tile='short'] { --tile-edge: var(--p1); --tile-top: var(--n2); }
+.trees__key i[data-tile='locked'] { --tile-edge: var(--n1); --tile-top: var(--n1); }
+.trees__key i[data-tile='key'] { --tile-edge: var(--p3); --tile-top: var(--p2); }
+.trees__key i[data-tile='link'] {
+  --tile-top: var(--n1);
+  background: repeating-linear-gradient(90deg, var(--p1) 0 2px, transparent 2px 4px);
+}
+
+.trees__note {
+  margin: 0 0 8px;
+  color: var(--p1);
+}
+
+.trees__note--warn {
+  color: var(--p2);
+}
+
+/* --- narrow and short frames ----------------------------------------------- */
+
+@container frame (max-width: 760px) {
+  .trees__line,
+  .trees__head-count {
+    display: none;
+  }
+}
+
+/* Phone landscape: every row the board does not need goes. */
+@container frame (max-height: 470px) {
+  .trees__who {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 4px 10px;
+  }
+
+  .trees__name {
+    font-size: var(--type-1x);
+    letter-spacing: 1px;
+  }
+
+  .trees__line,
+  .trees__head-count {
+    display: none;
+  }
+
+  .trees__progress {
+    margin: 0;
+  }
+
+  .trees__heads {
+    height: 32px;
+    padding: 2px 6px;
+  }
+
+  .trees__face {
+    width: 22px;
+    height: 22px;
+  }
+
+  .trees__head {
+    grid-template-rows: auto;
+    padding-block: 1px;
+  }
+
+  .trees__inspector {
+    bottom: 32px;
+    width: min(200px, 40%);
+    padding: 8px 10px 10px;
+  }
+
+  .trees__title {
+    font-size: var(--type-1x);
+    letter-spacing: 1px;
+  }
+}
+
+/* --- the doors ------------------------------------------------------------- */
+
+/*
+ * The TREES door stands down on a short frame once UPGRADES is up: the two
+ * would need a row the right rail does not have, and the tech board carries a
+ * TREES button of its own. `Hud.tsx` has the measurement.
+ */
+@container frame (max-height: 470px) {
+  .hud__controls:has(.hud__nav--upgrades) .hud__nav--trees {
+    display: none;
+  }
+}

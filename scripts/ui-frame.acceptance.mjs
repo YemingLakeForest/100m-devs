@@ -721,6 +721,11 @@ async function deadControlIssues(page) {
       if (cx < 0 || cy < 0 || cx >= innerWidth || cy >= innerHeight) continue
       const hit = document.elementFromPoint(cx, cy)
       if (!hit || hit.tagName !== 'CANVAS') continue
+      // [2026-09-26] "The canvas" is the world's. §8's upgrade trees are the
+      // first *interface* canvas — a board painted inside a STUDIO_OS window —
+      // and a window is meant to cover the HUD behind it, exactly as the
+      // drawer above is. A canvas inside a window is that window's content.
+      if (hit.closest('.os-window')) continue
       out.push(
         `dead control: "${label.slice(0, 32)}" is visible at ${Math.round(r.x)},${Math.round(r.y)} ` +
           `but the canvas receives the tap (pointer-events: ${style.pointerEvents})`,
@@ -1291,6 +1296,35 @@ try {
         await target.locator('.ring__canvas').waitFor({ state: 'visible' })
       },
     })
+  }
+
+  /*
+   * §8's five isometric trees [2026-09-26], at the box's ends and its
+   * shortest frame, closed and with a node selected.
+   *
+   * The window takes the whole design box, and on a short frame the inspector
+   * is a sheet standing over the board — the arrangement most likely to put a
+   * BUY under something else. `?trees` opens it on the founder's tree; one
+   * arrow key selects a node through the board's own keyboard.
+   */
+  for (const [width, height] of [[640, 360], [748, 336], [844, 390], [1440, 900]]) {
+    for (const selected of [false, true]) {
+      await check(page, {
+        name: `the upgrade trees at ${width}x${height}${selected ? ', a node selected' : ''}`,
+        width,
+        height,
+        path: '/?notitle&trees&nopost',
+        action: async (target) => {
+          const canvas = target.locator('.trees__canvas')
+          await canvas.waitFor({ state: 'visible' })
+          if (selected) {
+            await canvas.focus()
+            await target.keyboard.press('ArrowRight')
+            await target.locator('.trees__title').waitFor({ state: 'visible' })
+          }
+        },
+      })
+    }
   }
 
   /*

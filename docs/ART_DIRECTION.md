@@ -134,6 +134,15 @@ to this document, made deliberately and dated, not a build-time question.
 The park uses `NEUTRAL[1]` or `WOOD[0]` instead, and WOOD's entry now reads "desks, doors,
 cardboard, crates — and ground above the room."
 
+**[amended 2026-09-26] The upgrade trees' voxel icons borrow three ramps, deliberately.** The
+isometric trees (`art/voxelIcons.ts`) draw each node as a little world object in the world
+ramps, and the world has no red, no yellow and no purple. A big red button, a fire, a rocket
+fin and a Diet Coke can are red for a reason, and a crane and a sticky note are yellow for
+one, so those take `ALARM` and `WARN`; the one purple thing (Billy's shirt, a beanbag) takes
+the `RARITY` violet. The borrowing is confined to icons a few pixels across, on a board whose
+own lines stay in the live phosphor, and a node out of reach is drawn as a phosphor ghost
+rather than a dimmed colour — so no colour outside §2.2 is ever invented to say *locked*.
+
 ### 2.2 Starting values — **v0, validate on a real device before committing**
 
 ```

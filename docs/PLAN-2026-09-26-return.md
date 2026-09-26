@@ -68,6 +68,7 @@ unrestyled. The rebuild supplies models, 3D rendering, and a chosen set of syste
 (`sim/release.ts`, drawn as a pixel dial in `hud/ReleaseRing.tsx`), §4.14's launch term, and the rebuild's cover art
 and title generation (`three/sim/cover.ts`, `three/sim/titles.ts`). The belt is on the HUD under the burn-down; it is
 **not yet drawn in the 3D room**. Serena's board is a STUDIO_OS list until her isometric tree lands in phase 4.
+**Later the same day:** it has — see phase 4.
 
 **3 · Minigames:** Service Later, restyled as STUDIO_OS windows.
 
@@ -75,6 +76,13 @@ and title generation (`three/sim/cover.ts`, `three/sim/titles.ts`). The belt is 
 - Cut the roster to five.
 - Give each hero a tree.
 - Draw the trees isometrically in STUDIO_OS.
+
+**Landed 2026-09-26, visual first:** *"i am not bind to current game's economics/upgrade tree, this needs to be
+reworked. I just want the upgrade tree isometric visual ported first."* The demo's five trees are in the game as the
+`TREES` window (`sim/upgradeTrees.ts`, `hud/isoBoard.ts`, `hud/UpgradeTrees.tsx`). Only Serena's pipeline nodes are
+wired; the rest are bought from the wallet and do nothing yet, and say so. The tech board and the shared hero tree
+still carry the real upgrades. **Next in this phase:** the economy rework that gives the other four trees their
+effects and retires those two screens, and the roster cut.
 
 **5 · Slack off and the catapult:** 3D walkers on real routes, the hop, and a thrown drag.
 

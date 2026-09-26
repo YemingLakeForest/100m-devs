@@ -8337,7 +8337,8 @@ the defects left open are the defects that ship. <strong>Nobody attending costs 
 releases at neutral timing (RC), and a release nobody attended scores exactly what it did before the ring.</li>
 <li><strong>Serena's board.</strong> Once Serena has arrived the belt opens her pipeline board — capacity, speed,
 Test's catch, and Auto-Ship on its own clock with its speed upgraded separately. Until then SHIP! is the player's
-own press.</li>
+own press. <strong>[amended 2026-09-26, later]</strong> The board is her isometric tree now (§11.4's amendment): the
+belt opens the <code>TREES</code> window on Serena, and the flat list of cards is deleted.</li>
 </ul>
 <p><strong>What left, and why.</strong> The three-sweep timeout, the simulation-side backstop for a hidden tab and the
 30-second cooldown that sent every other release out on a train all served a modal that <em>halted the studio the
@@ -9542,6 +9543,30 @@ means more interruption per poke.</p>
 </ul>
 <hr />
 <h3 id="the-tree-is-a-tree-canon-added-2026-08-11-r33-r34-r35">11.4 The tree is a tree <strong>[CANON - added 2026-08-11]</strong> - R33, R34, R35</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] Five isometric trees, ported visual first.</strong> <em>"I want the isometric upgrade
+tree like the one in new game artifact"</em>, then, when the port began fitting itself to this section's board and
+§13.9's points: <em>"i am not bind to current game's economics/upgrade tree, this needs to be reworked. I just want
+the upgrade tree isometric visual ported first."</em> The rebuild's approved demo (its §8: one tree per person, drawn
+isometrically, with pick-one forks, nodes that need every link, levels, era gates, breakthroughs and links into other
+people's trees) is now in the game as the <code>TREES</code> window, beside <code>UPGRADES</code>:
+<code>sim/upgradeTrees.ts</code> is the demo's catalogue, <code>hud/isoBoard.ts</code> paints it pixel by pixel in the
+live phosphor with the icons in the master palette, and <code>hud/UpgradeTrees.tsx</code> is the window.</p>
+<ul>
+<li><strong>Only Serena's pipeline is wired.</strong> Her capacity, speed, quality and flow nodes are §10.8b's pipeline
+catalogue, read rather than copied, and buying one buys the pipeline node; her board is her tree now (the belt opens
+it). Every other node is bought from the one wallet at the demo's prices, keeps its level in the save, and does
+nothing — the inspector says <em>NOT IN THE GAME YET</em>, so the purchase is made knowing it.</li>
+<li><strong>This section's board and §13.9's shared tree still carry the real upgrades</strong> until the economy is
+reworked, which is when the five trees take over their effects and this section is rewritten around them. Two
+upgrade screens side by side is a known, temporary cost of porting the picture first.</li>
+<li><strong>Two layout departures, both forced by the pipeline's real rules</strong>: Serena's Auto-Ship does not wait
+for the founder's Big Red Button, so her tree has no link back to it; and Continuous Everything needs Build Farm and
+Parallel Tests, as the pipeline says, so Orbital Ring and the breakthrough moved cells and the demo's Canary Worlds and
+Builds in Flight stand beside them, unwired. The claim that no connector runs under a tile it does not join is pinned
+by <code>sim/upgradeTrees.test.ts</code> for all five trees.</li>
+</ul>
+</blockquote>
 <p><strong>§11 has always called this a tree and it has always been rendered as two lists.</strong> Two
 columns of cards, every node visible from the first frame, levels hidden inside a <code>3/5</code>
 counter. That is a shop with prerequisites. The thing this genre is actually good at — a board
@@ -11024,6 +11049,12 @@ pressed. What §7.7.6b requires is also unchanged — <strong>the mode is said o
 before the finger lands</strong> — and one branch-coloured row is still the only thing on the rail
 claiming the next tap.</p>
 <h3 id="one-tree-five-branches-and-every-hero-shares-it-canon-added-2026-08-11-r36-r37">13.9 One tree, five branches, and every hero shares it <strong>[CANON - added 2026-08-11]</strong> - R36, R37</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] Direction: a tree per person, as the rebuild decided.</strong> The rebuild reversed
+this section (<em>"There is one tree"</em>) for five people with a tree each, and its mechanics are canon here
+(<code>docs/PLAN-2026-09-26-return.md</code>). The five trees are in the game as a picture first (§11.4's amendment);
+this shared tree keeps running the hero upgrades until the economy rework replaces both.</p>
+</blockquote>
 <p>§13.7 gives each class its own tree — <em>&quot;one grammar, five vocabularies&quot;</em> — and building the
 rest of this batch made the cost of that obvious. <strong>Five trees is five things to balance, five
 things to learn, and five screens</strong>, and the player's actual question is never &quot;what does the

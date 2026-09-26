@@ -22,7 +22,7 @@ import {
   type PermanentSave,
   type SaveData,
 } from './save.ts'
-import { __resetStore, getState } from './store.ts'
+import { __resetStore, __setState, getState } from './store.ts'
 
 function saveAtVersion(version: number): SaveData {
   const base = makeSaveData(getState())
@@ -383,5 +383,25 @@ describe('local storage', () => {
     expect(save.permanent.meta.lifetimeRevenue).toBe(9_000)
     expect(save.permanent.meta.peakDevs).toBe(1_000)
     expect(getPermanent().meta.peakDevs).toBe(1_000)
+  })
+})
+
+describe('§8 — the isometric trees’ unwired levels', () => {
+  it('round-trip, and a save cannot put a level where there is none to have', () => {
+    __setState({ treeLevels: { 'you:y1': 1, 'you:y2': 3 } })
+    const data = makeSaveData(getState())
+    data.run.treeLevels = {
+      ...data.run.treeLevels,
+      // A levelled node past its max, a wired node (the pipeline keeps those),
+      // a root, a link, a stranger and a node that does not exist.
+      'you:y2': 99,
+      'serena:s1': 2,
+      'you:R': 1,
+      'you:gS': 1,
+      'nobody:x': 1,
+      'you:nope': 1,
+    }
+    const back = migrate(deserialize(serialize(data))!)!
+    expect(back.run.treeLevels).toEqual({ 'you:y1': 1, 'you:y2': 3 })
   })
 })

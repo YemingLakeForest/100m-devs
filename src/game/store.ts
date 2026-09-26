@@ -95,6 +95,18 @@ import { coordinationLedger } from '../sim/dysfunction.ts'
 import { titleFor, type Genre } from '../three/sim/titles.ts'
 import { eraIndex } from '../sim/eras.ts'
 import {
+  levelOf,
+  tileStateOf,
+  treeKey,
+  treeNode,
+  treePrice,
+  treeRefusal,
+  type TileState,
+  type TreeHero,
+  type TreeRefusal,
+  type TreeView,
+} from '../sim/upgradeTrees.ts'
+import {
   NODE_BY_ID,
   bpFor,
   canAfford,
@@ -616,6 +628,14 @@ export interface GameState {
    * machines it built on.
    */
   pipelineNodes: Record<string, number>
+  /**
+   * §8 [2026-09-26] — levels bought on the five isometric trees' *unwired*
+   * nodes, keyed `hero:id` (`sim/upgradeTrees.ts`). Serena's pipeline nodes are
+   * not here: they are {@link pipelineNodes}, and her tree reads them. Run
+   * state, as the pipeline's is. These buy nothing yet — the trees came over
+   * visual first, ahead of the economy they will price against.
+   */
+  treeLevels: Record<string, number>
   /** §10.7 — seconds banked towards the next auto-ship. */
   autoShipClock: number
   /**
@@ -1070,6 +1090,7 @@ function freshRun(): GameState {
     pipeline: emptyPipeline<ShelvedBuild>(),
     shelf: [],
     pipelineNodes: {},
+    treeLevels: {},
     autoShipClock: 0,
     launching: false,
     releases: [],
@@ -2493,6 +2514,75 @@ export function buyPipeline(id: string): boolean {
   set({
     cash: state.cash - price,
     pipelineNodes: { ...state.pipelineNodes, [id]: pipelineRank(id) + 1 },
+  })
+  return true
+}
+
+// --- §8, the five isometric trees ---------------------------------------------
+//
+// [2026-09-26] The rebuild's upgrade-trees demo, visual first (`sim/upgradeTrees.ts`
+// has the argument). Serena's pipeline nodes are wired and every question about
+// them is the pipeline's — level, price, refusal and purchase — so her tree and
+// the belt cannot disagree. Every other node keeps a level in `treeLevels`, is
+// priced from the one wallet at the demo's rates, and does nothing yet.
+
+/** A tree node's level: the pipeline's for Serena's wired nodes, the tree's own otherwise. */
+export function treeLevelOf(hero: TreeHero, id: string, s: GameState = state): number {
+  const node = treeNode(hero, id)
+  if (!node || node.kind === 'root' || node.kind === 'link') return 0
+  if (node.wired) return pipelineLevel(s.pipelineNodes, id)
+  return s.treeLevels[treeKey(hero, id)] ?? 0
+}
+
+/** The next level's price, or null when there is none to buy. */
+export function treePriceOf(hero: TreeHero, id: string, s: GameState = state): number | null {
+  const node = treeNode(hero, id)
+  if (!node || node.kind === 'root' || node.kind === 'link') return null
+  if (node.wired) return pipelinePrice(id, s)
+  const level = treeLevelOf(hero, id, s)
+  if (level >= node.max) return null
+  // §2.7's income floor, as the pipeline applies it: past the garage no node
+  // is cheaper than a few minutes of what the back catalogue pays.
+  return treePrice(node, level, pipelinePriceFloor(s))
+}
+
+export function treeView(s: GameState = state): TreeView {
+  return {
+    level: (hero, id) => treeLevelOf(hero, id, s),
+    era: eraIndex(s.peakDevs),
+    cash: s.cash,
+    price: (hero, node) => treePriceOf(hero, node.id, s),
+  }
+}
+
+/** Why a tree node cannot be bought, or null. A wired node asks the pipeline. */
+export function treeRefusalOf(hero: TreeHero, id: string, s: GameState = state): TreeRefusal {
+  const node = treeNode(hero, id)
+  if (!node) return 'requires'
+  if (node.wired) {
+    const why = pipelineRefusalOf(id, s)
+    if (why === 'closed') return 'absent'
+    return why === 'unknown' ? 'requires' : why
+  }
+  return treeRefusal(treeView(s), hero, node)
+}
+
+export function treeTileState(hero: TreeHero, id: string, s: GameState = state): TileState {
+  const node = treeNode(hero, id)
+  if (!node) return 'locked'
+  return tileStateOf(treeRefusalOf(hero, id, s), levelOf(treeView(s), hero, node))
+}
+
+export function buyTreeNode(hero: TreeHero, id: string): boolean {
+  const node = treeNode(hero, id)
+  if (!node) return false
+  if (node.wired) return buyPipeline(id)
+  if (treeRefusalOf(hero, id) !== null) return false
+  const price = treePriceOf(hero, id)!
+  const key = treeKey(hero, id)
+  set({
+    cash: state.cash - price,
+    treeLevels: { ...state.treeLevels, [key]: (state.treeLevels[key] ?? 0) + 1 },
   })
   return true
 }
@@ -4878,6 +4968,7 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     },
     shelf: (r.shelf ?? []).map((b) => ({ ...b })),
     pipelineNodes: { ...(r.pipelineNodes ?? {}) },
+    treeLevels: { ...(r.treeLevels ?? {}) },
     autoShipClock: r.autoShipClock ?? 0,
     runSeconds: r.runSeconds ?? 0,
     // §4.10e — the back catalogue comes back with its ages and its shapes. A

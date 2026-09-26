@@ -198,7 +198,12 @@ export interface PipelineNode {
   /** The demo's line, or ours where the node is new. */
   effect: string
   flavour: string | null
-  /** Board cell. */
+  /**
+   * Board cell — Serena's isometric tree (`sim/upgradeTrees.ts`) reads it from
+   * here. [2026-09-26] Orbital Ring turns the corner to (3, 1) and Continuous
+   * Everything sits at (4, −2): the demo's cells put the breakthrough where
+   * Canary Worlds stands and ran its Build Farm connector through a tile.
+   */
   x: number
   y: number
   /** The era (`sim/audience.ts`) the node opens in. */
@@ -224,7 +229,7 @@ export const PIPELINE_TREE: readonly PipelineNode[] = [
     effect: 'Three more builds per level.', flavour: 'The belt in the room gets longer.' },
   { id: 's3', name: 'Build Farm', family: 'capacity', x: 3, y: 0, era: 2, maxLevel: 5, requires: ['s2'],
     effect: 'Twenty more builds per level.', flavour: 'A warehouse of machines nobody is allowed to reboot.' },
-  { id: 's4', name: 'Orbital Ring', family: 'capacity', x: 4, y: 0, era: 3, maxLevel: 5, requires: ['s3'],
+  { id: 's4', name: 'Orbital Ring', family: 'capacity', x: 3, y: 1, era: 3, maxLevel: 5, requires: ['s3'],
     effect: 'Five hundred more builds per level.', flavour: 'The belt leaves the atmosphere.' },
   // Speed: the stages get faster.
   { id: 'v1', name: 'Faster Laptops', family: 'speed', x: 0, y: -1, era: 0, maxLevel: 5, requires: [],
@@ -249,7 +254,7 @@ export const PIPELINE_TREE: readonly PipelineNode[] = [
   { id: 'a3b', name: 'Ship on Green', family: 'flow', x: 2, y: -2, era: 1, maxLevel: 1, requires: ['a2'], fork: 'E',
     effect: 'Nothing ships twice: duplicate work turns into waiting, and Test catches another 20% of defects.', flavour: 'Everything waits for green.',
     fix: { cuts: 'dup', feeds: 'wait', share: 0.4 } },
-  { id: 'K', name: 'Continuous Everything', family: 'flow', x: 3, y: -2, era: 3, maxLevel: 1, requires: ['s3', 'v3'],
+  { id: 'K', name: 'Continuous Everything', family: 'flow', x: 4, y: -2, era: 3, maxLevel: 1, requires: ['s3', 'v3'],
     effect: 'Breakthrough: 70% of all waiting is gone.', flavour: 'The belt never stops. Nobody remembers what waiting was.',
     breakthrough: 'wait' },
 ]
