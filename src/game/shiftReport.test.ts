@@ -40,7 +40,6 @@ function aRun() {
     runSeconds: 424,
     cash: 66_900_000,
     reputation: BASELINE_RATING + 5,
-    tech: { B1: 1 },
   })
 }
 
@@ -94,7 +93,7 @@ describe('the report is about the reality that ended', () => {
     dismissShiftReport()
 
     // A run that went broke, which is a different wall from Run 1's.
-    __setState({ ...getState(), cash: -2_000_000, phase: 'bankrupt', devs: 40, tech: { B1: 1 } })
+    __setState({ ...getState(), cash: -2_000_000, phase: 'bankrupt', devs: 40 })
     triggerParadigmShift()
 
     expect(getState().pendingShift!.learned).toBe('lesson.payroll')

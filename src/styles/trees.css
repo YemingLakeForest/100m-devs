@@ -1,5 +1,5 @@
 /*
- * The five upgrade trees — GDD §8, ART_DIRECTION §1 [2026-09-26].
+ * A person's upgrade tree — GDD §8, ART_DIRECTION §1 [2026-09-26].
  *
  * The board is a canvas the window stands around: the frame takes the whole
  * design box less the edge, because an isometric tree is wide and short and a
@@ -11,6 +11,9 @@
  * tree part"*. So the inspector is a narrow sheet standing over the board's
  * right edge, there only while a node is selected (or the key is asked for),
  * and the board pans the selected node clear of it.
+ *
+ * There is no row of heads along the bottom any more: the window shows one
+ * person's tree, opened from their card (*"I don't want the heroes tray"*).
  */
 
 .trees-frame {
@@ -22,14 +25,19 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) auto;
-  grid-template-areas:
-    'stage'
-    'heads';
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'stage';
   height: 100%;
   min-height: 0;
   padding: 0;
   overflow: hidden;
+}
+
+/* The wallet, in the title bar: the one figure this window spends. */
+.trees__cash {
+  font-size: var(--type-1x);
+  letter-spacing: 1px;
+  color: var(--p3);
 }
 
 /* --- the stage ----------------------------------------------------------- */
@@ -146,67 +154,13 @@
   min-width: 34px;
 }
 
-/* --- the people ---------------------------------------------------------- */
-
-.trees__heads {
-  grid-area: heads;
-  display: flex;
-  gap: 4px;
-  /* Fixed, so the inspector sheet can stop exactly on top of it. */
-  height: 46px;
-  padding: 4px 8px 6px;
-  border-top: var(--rule) solid var(--p0);
-  overflow-x: auto;
-}
-
-.trees__head {
-  display: grid;
-  grid-template-columns: auto auto;
-  grid-template-rows: auto auto;
-  align-items: center;
-  column-gap: 6px;
-  min-width: 0;
-  padding: 3px 8px 3px 3px;
-  border: var(--rule) solid transparent;
-  background: none;
-  color: var(--p1);
-  font: inherit;
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.trees__head[aria-pressed='true'] {
-  border-color: var(--p2);
-  background: var(--p0);
-  color: var(--p3);
-}
-
-.trees__head:focus-visible {
-  outline: var(--rule) dashed var(--p2);
-  outline-offset: 1px;
-}
-
-.trees__face {
-  grid-row: 1 / span 2;
-  width: 33px;
-  height: 33px;
-  object-fit: cover;
-  image-rendering: pixelated;
-}
-
-.trees__head-count {
-  color: var(--p1);
-}
-
 /* --- the inspector ------------------------------------------------------- */
 
 .trees__inspector {
   position: absolute;
   top: 0;
   right: 0;
-  bottom: 46px;
+  bottom: 0;
   z-index: 3;
   width: min(224px, 60%);
   min-height: 0;
@@ -379,8 +333,7 @@
 /* --- narrow and short frames ----------------------------------------------- */
 
 @container frame (max-width: 760px) {
-  .trees__line,
-  .trees__head-count {
+  .trees__line {
     display: none;
   }
 }
@@ -399,8 +352,7 @@
     letter-spacing: 1px;
   }
 
-  .trees__line,
-  .trees__head-count {
+  .trees__line {
     display: none;
   }
 
@@ -408,23 +360,7 @@
     margin: 0;
   }
 
-  .trees__heads {
-    height: 32px;
-    padding: 2px 6px;
-  }
-
-  .trees__face {
-    width: 22px;
-    height: 22px;
-  }
-
-  .trees__head {
-    grid-template-rows: auto;
-    padding-block: 1px;
-  }
-
   .trees__inspector {
-    bottom: 32px;
     width: min(200px, 40%);
     padding: 8px 10px 10px;
   }
@@ -432,18 +368,5 @@
   .trees__title {
     font-size: var(--type-1x);
     letter-spacing: 1px;
-  }
-}
-
-/* --- the doors ------------------------------------------------------------- */
-
-/*
- * The TREES door stands down on a short frame once UPGRADES is up: the two
- * would need a row the right rail does not have, and the tech board carries a
- * TREES button of its own. `Hud.tsx` has the measurement.
- */
-@container frame (max-height: 470px) {
-  .hud__controls:has(.hud__nav--upgrades) .hud__nav--trees {
-    display: none;
   }
 }

@@ -2430,6 +2430,9 @@ exactly <strong>$50,000/sec</strong>, which is the number the section prints on 
 $1.2M, $3.2M, $66.9M, $286.6M and $7.1B. Run 1 ends where it is supposed to: −$1M and a
 thousand and one developers.</p>
 <h3 id="roles-the-studio-stops-being-one-kind-of-person-canon-added-2026-08-10-r19">4.11 Roles — the studio stops being one kind of person <strong>[CANON - added 2026-08-10]</strong> - R19</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] Cut: one kind of hire.</strong> <em>"Some mechanics in the old game I want remove, hero placement, different types of hires (SRE QA ETC."</em> Every hire is a developer again, and §10.10's dial is the multiplier alone. The jobs the professions did went to the people whose jobs they always were: Mo halves the defects the studio writes, Serena puts one developer in fifty on call for incidents, and Matt puts one in twenty on the help desk for tickets (<code>sim/heroRoster.ts</code>). A <em>share of the headcount</em> rather than a fixed rota, because §4.12a's and §4.13's loads grow with the studio and a flat rota would be enough at twenty and nothing at a million. Before Serena and Matt arrive the founder carries both at a diluted head, which keeps §21.7.6's rule — the problem is felt first, and the person who solves it is relief. The rest of this section is history.</p>
+</blockquote>
 <p><strong>Every developer in the game does the same job, and that is a hole in the middle of the
 premise.</strong> §4.9a made them differ in <em>how much</em> they produce; §7.8.7 made them differ in <em>what
 they look like</em>. Neither made them differ in <strong>what they are for</strong> — so a studio of a hundred
@@ -8338,7 +8341,7 @@ releases at neutral timing (RC), and a release nobody attended scores exactly wh
 <li><strong>Serena's board.</strong> Once Serena has arrived the belt opens her pipeline board — capacity, speed,
 Test's catch, and Auto-Ship on its own clock with its speed upgraded separately. Until then SHIP! is the player's
 own press. <strong>[amended 2026-09-26, later]</strong> The board is her isometric tree now (§11.4's amendment): the
-belt opens the <code>TREES</code> window on Serena, and the flat list of cards is deleted.</li>
+belt opens the <code>TREES</code> window on Serena, and the flat list of cards is deleted. <strong>[amended again 2026-09-26]</strong> The belt opens Serena's card, and her tree is its UPGRADES (§22.9).</li>
 </ul>
 <p><strong>What left, and why.</strong> The three-sweep timeout, the simulation-side backstop for a hidden tab and the
 30-second cooldown that sent every other release out on a train all served a modal that <em>halted the studio the
@@ -8756,6 +8759,9 @@ relationship between an obligation and a build. It is set in the font it license
 ART_DIRECTION §3 rule 1 admits no exception for legal text.</p>
 <hr />
 <h3 id="the-hire-control-the-dial-canon-added-2026-08-08">10.10 The Hire Control — the dial <strong>[CANON — added 2026-08-08]</strong></h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] One row.</strong> The role row (§4.11) went with the professions; the dial is the multiplier.</p>
+</blockquote>
 <p>Hiring is the game's primary verb (§7.7) and for the whole of Run 1 it has exactly one shape:
 a button that hires one developer. That is correct at two developers and absurd at two
 million, and the fix is not a bigger button. <strong>It is a multiplier dial.</strong></p>
@@ -9136,6 +9142,10 @@ explicit that shipping a 12 and making a fortune must stay possible and funny �
 trend in §10.11.2 rule 3 means nothing if the column is curated.</li>
 </ul>
 <h2 id="in-run-tech-tree-purchased-with-cash">11. In-Run Tech Tree (Purchased with Cash <code>$</code>)</h2>
+<blockquote>
+<p><strong>[amended 2026-09-26] Retired: the trees are the upgrades.</strong> <em>"I thought upgrades are trees, did we just mixed the 2 upgrade trees of old game and new games together?"</em>, then <em>"retire the old tree, but the story of james introducing us instant messenger should be how upgrade trees are introduced so we need that back in the new isometric tree."</em> The upgrades are the per-person isometric trees (§11.4's amendment), opened from each person's card after the first Paradigm Shift, and the <code>UPGRADES</code> button on the rail is gone. Two of this board's effects survive, carried by tree roots: Instant Messenger is the root of James's tree (§11.5) and the Daily Standup is the root of Billy's, because his arrival scene is him bringing it (§21.7.3). <code>sim/techTree.ts</code> stays as the vocabulary of effects a tree node can carry (<code>TreeNode.tech</code>, folded by <code>store.techOf</code>); nothing else reaches it until the economy rework wires more nodes. The rest of this section is history.</p>
+<p><strong>[future — noted 2026-09-27] A company-wide upgrade tree.</strong> <em>"I still want company wide upgrade tree, potentially can be something visible to the scene (debug rubber duck for example), put that in GDD for future"</em>. Beside the five people's trees, one tree that belongs to the studio itself, and whose purchases are things you can see in the room — the debug rubber duck on a desk is the example. Not designed yet. When it is: every purchase is an object in the scene (never only a number, the Garage to Galaxy rule that a figure needs a person or a thing on screen), it is drawn the way §11.4's trees are, and it is a door of its own rather than a sixth tab on anybody's card.</p>
+</blockquote>
 <p>The in-run tree features <strong>three parallel branches</strong>. Upgrading Workforce without
 Communication Infra rapidly triggers the <strong>Communication Entropy Trap</strong>.</p>
 <pre><code>[WORKFORCE BRANCH]        [COMMUNICATION INFRA]        [CULTURE &amp; JUICE]
@@ -9557,7 +9567,7 @@ live phosphor with the icons in the master palette, and <code>hud/UpgradeTrees.t
 catalogue, read rather than copied, and buying one buys the pipeline node; her board is her tree now (the belt opens
 it). Every other node is bought from the one wallet at the demo's prices, keeps its level in the save, and does
 nothing — the inspector says <em>NOT IN THE GAME YET</em>, so the purchase is made knowing it.</li>
-<li><strong>This section's board and §13.9's shared tree still carry the real upgrades</strong> until the economy is
+<li><strong>[superseded later on 2026-09-26 — both are retired; see below]</strong> <strong>This section's board and §13.9's shared tree still carry the real upgrades</strong> until the economy is
 reworked, which is when the five trees take over their effects and this section is rewritten around them. Two
 upgrade screens side by side is a known, temporary cost of porting the picture first.</li>
 <li><strong>Two layout departures, both forced by the pipeline's real rules</strong>: Serena's Auto-Ship does not wait
@@ -9566,6 +9576,9 @@ Parallel Tests, as the pipeline says, so Orbital Ring and the breakthrough moved
 Builds in Flight stand beside them, unwired. The claim that no connector runs under a tile it does not join is pinned
 by <code>sim/upgradeTrees.test.ts</code> for all five trees.</li>
 </ul>
+</blockquote>
+<blockquote>
+<p><strong>[amended later on 2026-09-26] One tree at a time, from the person's card.</strong> <em>"what even is a tree? Didn't we have a upgrade button before?"</em>, <em>"it should be opened by heroes info page"</em>, <em>"I don't want the heroes tray"</em> and <em>"upgrades should be shown per heroes introduction, not all trees at once"</em>. The <code>TREES</code> button and the row of heads along the window's foot are gone. UPGRADES on a person's card (§22.9) opens their tree, yours opens from your panel, and only after the first Paradigm Shift; a tree is there for a person once they have arrived. A link tile says whose tree its node is in rather than taking you there. The old board and the shared hero tree are retired (§11's and §13.9's amendments), so these are the only upgrades. Wired today: Serena's pipeline, James's root (Instant Messenger) and Billy's (the Daily Standup); every other node is bought and does nothing, and says so. Mo and Melany have no tree.</p>
 </blockquote>
 <p><strong>§11 has always called this a tree and it has always been rendered as two lists.</strong> Two
 columns of cards, every node visible from the first frame, levels hidden inside a <code>3/5</code>
@@ -9821,6 +9834,9 @@ open must be completable within the run that opened it, or §11 has been turned 
 prestige currency wearing a dollar sign.</p>
 </blockquote>
 <h3 id="instant-messenger-is-the-first-node-canon-added-2026-08-11-r32">11.5 Instant Messenger is the first node <strong>[CANON - added 2026-08-11]</strong> - R32</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] Instant Messenger is the root of James's tree.</strong> It moved into the new trees at the user's instruction (§11's amendment). §21.6's scene ends on James's tree opened at Instant Messenger, over his card, and that is how the trees are introduced. The effect is the one it always had (communication load −5%), from the first Paradigm Shift, as the grant was.</p>
+</blockquote>
 <p>§21.6's scene is the best thing in the script — James introduces asynchronous text messaging,
 with total sincerity, <em>to the person sitting next to him</em> — and the upgrade it introduces
 does not exist. §11.2's first purchase is <strong>Voice Shouting</strong>, which is the thing Instant
@@ -10797,6 +10813,9 @@ tree is untouched and stays the founder's own — it is a diluted copy of the br
 is easier to state now that they are branches.</p>
 </blockquote>
 <h4 id="you-are-the-fifth-tree-and-you-are-worse-at-everything-canon-r20">13.7.1 You are the fifth tree, and you are worse at everything <strong>[CANON]</strong> - R20</h4>
+<blockquote>
+<p><strong>[amended 2026-09-26] Retired with the studio board.</strong> <em>"retire the old tree"</em>. Your upgrades are your tree (§11.4's amendment), opened from your panel. None of its nodes is wired yet, so the founder curve is the base one until the economy rework. §21.7.7b's scene still plays and ends on your tree.</p>
+</blockquote>
 <p>§4.5d gave the founder a desk and a coding curve. <strong>This makes it a class</strong>, and the shape of
 it is the joke:</p>
 <blockquote>
@@ -10885,6 +10904,9 @@ the whole picture down by roughly a quarter of the frame. <strong>That is a diff
 composition, and it is not mine to choose.</strong></li>
 </ol>
 <h3 id="placing-heroes-management-is-the-minigame-canon-added-2026-08-10-r25">13.8 Placing heroes — management <em>is</em> the minigame <strong>[CANON - added 2026-08-10]</strong> - R25</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] Cut.</strong> <em>"Some mechanics in the old game I want remove, hero placement, different types of hires (SRE QA ETC."</em> A hero works for the whole studio from the day they arrive: every signature is at full share (<code>sim/heroRoster.ts</code>). There is no bench, no posting gesture, no coverage paint (§13.11.1), no desk plate in the world and no roster strip (§13.11.2). Two signatures changed shape rather than scale: Billy keeps half the floor working through the stand-up (all of it would hand over §13.2 L1-2A's purchase for free), and Melany's bill is a dollar per developer. The management game this section argued for is gone; each person's tree is what a hero grows by now. The rest of this section, and §13.8a–d, are history.</p>
+</blockquote>
 <p><strong>§13.6.6's tray puts cards in slots. This makes the floor the slots.</strong></p>
 <p>The player has more heroes than places worth putting them, roles that only some heroes help,
 and rows that only sometimes need helping — so placement is a standing puzzle that is
@@ -11054,6 +11076,7 @@ claiming the next tap.</p>
 this section (<em>"There is one tree"</em>) for five people with a tree each, and its mechanics are canon here
 (<code>docs/PLAN-2026-09-26-return.md</code>). The five trees are in the game as a picture first (§11.4's amendment);
 this shared tree keeps running the hero upgrades until the economy rework replaces both.</p>
+<p><strong>[amended later on 2026-09-26] Retired.</strong> Its only currency was XP earned under coverage (§13.10), so it went with placement (§13.8's amendment), and the SKILLS door on the card went with it. The per-person trees replace it.</p>
 </blockquote>
 <p>§13.7 gives each class its own tree — <em>&quot;one grammar, five vocabularies&quot;</em> — and building the
 rest of this batch made the cost of that obvious. <strong>Five trees is five things to balance, five
@@ -11205,6 +11228,9 @@ one:</p>
 but the shipped promise above is the baseline and the payroll readout must include it.</p>
 <h3 id="heroes-earn-xp-where-you-put-them-canon-added-2026-08-11-r39">13.10 Heroes earn XP where you put them <strong>[CANON - added 2026-08-11]</strong> - R39</h3>
 <blockquote>
+<p><strong>[amended 2026-09-26] Retired</strong> with placement and §13.9's board. Nobody earns XP; a hero has no level.</p>
+</blockquote>
+<blockquote>
 <p><strong>Amended 2026-08-15 — §13.13 puts a level between the XP and the node.</strong> Everything in this
 section about <em>how XP is earned</em> is unchanged and load-bearing: coverage, the ξ rate, an
 unplaced hero earning nothing, and REACH paying twice. What changes is the last step —
@@ -11280,6 +11306,9 @@ node their earlier levels bought;</li>
 trade: immediate branch utility plus faster learning against the veteran's higher level and
 established build.</p>
 <h3 id="showing-where-everybody-is-canon-added-2026-08-11-r40">13.11 Showing where everybody is <strong>[CANON - added 2026-08-11]</strong> - R40</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] The coverage paint and the roster strip are gone</strong> with placement. The strip's question — who is here — is answered by the card's arrows (§22.9's amendment).</p>
+</blockquote>
 <p>§13.8 makes placement the management game and §13.6.6 forbids a management screen. <strong>Both are
 right and together they specify nothing</strong>, so this is the missing half: what the player
 actually looks at.</p>
@@ -15092,6 +15121,9 @@ the words he has. The comedy is a founder who built a company out of nothing sta
 of an apparatus they cannot see the edges of. Anything that makes the joke <em>about Billy being
 posh</em> rather than <em>about the founder not recognising posh</em> is the wrong scene.</p>
 <h4 id="global-head-of-his-desk-canon">21.7.4 Global Head of His Desk <strong>[CANON]</strong></h4>
+<blockquote>
+<p><strong>[amended 2026-09-26] It fires the first time James has a colleague in the building.</strong> It read "above" off the placement ladder — James posted on a higher rung than another posted hero — and that ladder is gone. His first colleague is the first person he can be the head <em>of</em>, and the title is no less meaningless for it.</p>
+</blockquote>
 <p>Fires when James is promoted onto a management row — §22.2's org chart, the first time a card
 is placed above another card.</p>
 <pre><code>STUDIO_OS   &gt; ORG CHANGE COMMITTED.
@@ -15141,6 +15173,9 @@ character. §22.5's Yuki quitting is a <em>mechanic</em> and it is pointedly the
 why it lands.</li>
 </ul>
 <h3 id="every-system-enters-through-a-person-canon-added-2026-08-15-r55">21.7.6 Every system enters through a person <strong>[CANON - added 2026-08-15]</strong> - R55</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] Billy hands over the stand-up, not the floor.</strong> From 2026-08-29 his scene handed over §13.8's placement; placement is cut, and the scene now ends on the Daily Standup (the root of his tree) with half the floor working through it. The professions no longer arrive with their instruments either (§4.11's amendment); a hero still brings the readout.</p>
+</blockquote>
 <p><strong>&quot;The defect and support-ticket mechanics should not appear before their heroes are
 introduced.&quot;</strong> Stated as a UI note, and it is not one — it is the general form of a rule this
 document has already discovered twice and written down as two special cases.</p>
@@ -15275,6 +15310,9 @@ present, already merged.</p>
 when its hero walks in.</strong> §21.0c's four-minute argument is untouched — it was always about Run 1
 carrying one idea, and it still does.</p>
 <h3 id="an-upgrade-board-is-an-instrument-too-canon-added-2026-08-16-r83">21.7.7 An upgrade board is an instrument too <strong>[CANON - added 2026-08-16]</strong> - R83</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] The boards are the trees now.</strong> The trees open with the first shift and arrive per person (§11.4's amendment). The founder's scene (21.7.7b) ends on your tree; the hero-board scene (21.7.7c) is retired with §13.9's board.</p>
+</blockquote>
 <p><strong>&quot;Some of the hero upgrades are added prematurely, before the mechanism is introduced. There
 should be story arcs to introduce the upgrades — for heroes, for the founder, and for the
 studio.&quot;</strong> Reported as three UI gaps. It is one, and it is §21.7.6 finding the class of victim
@@ -16167,6 +16205,9 @@ comes from an organisation that cannot hold five correct people at once, which i
 with faces on it.</p>
 </blockquote>
 <h3 id="the-card-face-what-a-hero-card-actually-looks-like-canon-added-2026-08-15-r56">22.9 The card face — what a hero card actually looks like <strong>[CANON - added 2026-08-15]</strong> - R56</h3>
+<blockquote>
+<p><strong>[amended 2026-09-26] Redone without placement.</strong> <em>"redo the info page, I don't want the heroes tray when info page is clicked neither"</em>. The pass stays. It says who the person is, what they are doing for the studio right now (live rows from the same fold the simulation charges), and carries UPGRADES in its foot once the trees are open. ← and → step to the next person who has arrived, replacing the roster strip. TEAM opens it on James, the belt opens Serena's, and a tap on a hero in the room opens theirs. Gone: level, XP bar, reach, coverage, BENCHED, PLACE, RECALL and SKILLS.</p>
+</blockquote>
 <p>§22.1 says heroes are cards, §22.3 writes James's out as a stat block, and §22.4 tiers them by
 rarity. <strong>Nothing says what one looks like</strong>, and the requirement that it be a <em>trading card</em>
 is not decoration — it is the mechanism by which the player understands that a hero is a

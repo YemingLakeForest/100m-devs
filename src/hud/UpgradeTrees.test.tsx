@@ -1,9 +1,9 @@
 /**
- * The five trees' window — GDD §8 [2026-09-26]. `sim/upgradeTrees.test.ts` owns
- * the catalogue and its rules; this pins the seam: the window opens on the tree
- * its door named, an unwired node is bought from the one wallet and says it
- * does nothing yet, Serena's wired node *is* the pipeline's, and a link tile
- * takes you to the tree it stands for.
+ * A person's upgrade tree — GDD §8 [2026-09-26]. `sim/upgradeTrees.test.ts` owns
+ * the catalogue and its rules; this pins the seam: the window shows the one tree
+ * its door named and no other, nothing is bought before the first Paradigm
+ * Shift, an unwired node is bought from the one wallet and says it does nothing
+ * yet, and Serena's wired node *is* the pipeline's.
  */
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
@@ -13,35 +13,53 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
 import { UpgradeTrees } from './UpgradeTrees.tsx'
 import { __resetStore, __setState, buyTreeNode, getState, pipelineRank, treeLevelOf, treePriceOf } from '../game/store.ts'
+import { emptyPermanent, setPermanent } from '../game/save.ts'
+import type { TreeHero } from '../sim/upgradeTrees.ts'
+
+/** A career past its first Paradigm Shift, which is when the trees open. */
+function shifted() {
+  const p = emptyPermanent()
+  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+}
 
 beforeEach(() => {
   __resetStore()
-  // jsdom has no canvas; the board and the portraits both ask for one. The
-  // painting is `isoBoard.test.ts`'s to pin, on a plain buffer.
+  setPermanent(emptyPermanent())
+  // jsdom has no canvas; the board asks for one. The painting is
+  // `isoBoard.test.ts`'s to pin, on a plain buffer.
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
 })
 
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  setPermanent(emptyPermanent())
 })
 
-function draw(hero?: Parameters<typeof UpgradeTrees>[0]['hero']) {
+function draw(hero: TreeHero) {
   return render(<UpgradeTrees open state={getState()} hero={hero} onClose={() => {}} />)
 }
 
-describe('§8 — the five trees', () => {
-  it('opens on the tree its door names, with all five people along the foot', () => {
+describe('§8 — one person’s tree', () => {
+  it('shows the tree its door names, and nobody else’s', () => {
     draw('serena')
     expect(document.querySelector('.trees__name')?.textContent).toContain('Serena')
-    for (const who of ['You', 'James', 'Billy', 'Serena', 'Matt']) {
-      expect(screen.getByRole('button', { name: `${who}'s tree` })).toBeTruthy()
+    expect(document.querySelector('.os-window__title')?.textContent).toBe('UPGRADES // SERENA')
+    // *"I don't want the heroes tray"* — no row of heads to switch trees with.
+    expect(document.querySelector('.trees__heads')).toBeNull()
+    for (const who of ['You', 'James', 'Billy', 'Matt']) {
+      expect(screen.queryByRole('button', { name: `${who}'s tree` })).toBeNull()
     }
-    fireEvent.click(screen.getByRole('button', { name: "Matt's tree" }))
-    expect(document.querySelector('.trees__name')?.textContent).toContain('Matt')
   })
 
-  it('buys an unwired node from the one wallet, and it is marked as doing nothing yet', () => {
+  it('buys nothing before the first Paradigm Shift', () => {
+    __setState({ cash: 10_000 })
+    expect(buyTreeNode('you', 'y1')).toBe(false)
+    expect(getState().cash).toBe(10_000)
+  })
+
+  it('buys an unwired node from the one wallet after it, and it is marked as doing nothing yet', () => {
+    shifted()
     __setState({ cash: 10_000 })
     const price = treePriceOf('you', 'y1')!
     expect(buyTreeNode('you', 'y1')).toBe(true)
@@ -52,12 +70,14 @@ describe('§8 — the five trees', () => {
   })
 
   it('refuses what the rules refuse: a node whose parents are not owned', () => {
+    shifted()
     __setState({ cash: 1e9 })
     expect(buyTreeNode('you', 'p1')).toBe(false)
     expect(treeLevelOf('you', 'p1')).toBe(0)
   })
 
   it('Serena’s wired nodes are the pipeline’s', () => {
+    shifted()
     __setState({ cash: 1e9 })
     // Before she arrives her pipeline cannot be bought, from her tree or anywhere.
     expect(buyTreeNode('serena', 's1')).toBe(false)
@@ -65,14 +85,13 @@ describe('§8 — the five trees', () => {
   })
 
   it('says NOT IN THE GAME YET on an unwired node, and not on a wired one', () => {
+    shifted()
     __setState({ cash: 1e9 })
     const { rerender } = draw('you')
     // The inspector is keyed on selection; select through the board's keyboard.
-    const canvas = document.querySelector('.trees__canvas')!
-    fireEvent.keyDown(canvas, { key: 'ArrowRight' })
+    fireEvent.keyDown(document.querySelector('.trees__canvas')!, { key: 'ArrowRight' })
     expect(document.querySelector('.trees__inspector')?.textContent).toContain('NOT IN THE GAME YET')
     rerender(<UpgradeTrees open state={getState()} hero="serena" onClose={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: "Serena's tree" }))
     fireEvent.keyDown(document.querySelector('.trees__canvas')!, { key: 'ArrowRight' })
     expect(document.querySelector('.trees__title')).toBeTruthy()
     expect(document.querySelector('.trees__inspector')?.textContent).not.toContain('NOT IN THE GAME YET')

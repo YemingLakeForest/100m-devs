@@ -1,56 +1,42 @@
 /**
- * §22.9's card and §13.9's board, as the player meets them.
+ * §22.9's card, as the player meets it [rewritten 2026-09-26].
  *
- * The load-bearing assertion in this file is the *negative* one: the hero card
- * and §7.8.8's dev card must not share a visual element, because if a hero is a
- * personnel record with better numbers then §13's whole command layer is a stat.
+ * The load-bearing assertion in this file is still the *negative* one: the hero
+ * card and §7.8.8's dev card must not share a visual element. The rest pins
+ * what the card became when placement went: who somebody is, what they are
+ * doing for the studio right now, a door to their upgrades, and arrows to the
+ * next person instead of a tray.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { HeroCard } from './HeroCard.tsx'
-import { HeroTree } from './HeroTree.tsx'
-import { __resetStore, heroById, placeHero, selectHero } from '../game/store.ts'
+import { __resetStore, heroById, selectHero } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
-import { SCENE_BILLY_ARRIVES, SCENE_HERO_BOARD, SCENE_MO_ARRIVES } from '../game/scenes.ts'
-import { xpToReach } from '../sim/heroXp.ts'
-import type { HeroRuntime } from '../sim/heroRoster.ts'
+import { SCENE_MATT_ARRIVES, SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES } from '../game/scenes.ts'
+import type { HeroId } from '../sim/storyHeroes.ts'
 
 vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn(), playPurchase: vi.fn() }))
 vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
 
-/**
- * The three callbacks a test is not about, in one spread.
- *
- * `onClose` stays written out at every call site because a few of these tests
- * *are* about it; these three are §13.8's placement verbs and §13.9's board
- * door, and a file about what the card looks like has nothing to say about
- * where any of them go.
- */
+/** The callbacks a test is not about, in one spread. */
 const noop = {
-  onOpenTree: () => {},
-  onPost: () => {},
-  onRecall: () => {},
+  onClose: () => {},
+  onUpgrades: () => {},
+  onStep: () => {},
 }
 
-function staffed(level = 1, nodes?: string[]) {
+function staffed(id: HeroId = 'mo') {
   const p = emptyPermanent()
   setPermanent({
     ...p,
     meta: {
       ...p.meta,
       paradigmShifts: 1,
-      // §21.7.7 — the board has been introduced, and §21.7.6 — so has the
-      // floor. This file is about what the card and the board *look like* and
-      // how a purchase lands, not about either gate, which `unlocks.test.ts`
-      // owns; a fixture that had met neither would be testing the gates in
-      // nine places by accident.
-      milestones: [SCENE_MO_ARRIVES.id, SCENE_HERO_BOARD.id, SCENE_BILLY_ARRIVES.id],
-      heroXp: { mo: xpToReach(level) },
-      heroNodes: nodes ? { mo: nodes } : {},
+      milestones: [SCENE_MO_ARRIVES.id, SCENE_SERENA_ARRIVES.id, SCENE_MATT_ARRIVES.id],
     },
   })
-  return heroById('mo')!
+  return heroById(id)!
 }
 
 beforeEach(() => {
@@ -62,14 +48,12 @@ afterEach(() => {
   cleanup()
   __resetStore()
   setPermanent(emptyPermanent())
-  vi.useRealTimers()
 })
 
 describe('§22.9 — the card is a card, not a personnel record', () => {
   it('carries the pass furniture the dev card has none of', () => {
-    const mo = staffed()
     const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
+      <HeroCard hero={staffed()} devs={40} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />,
     )
     // The lanyard punch is the only round thing on the card and is what makes
     // the object read as a pass rather than as a panel.
@@ -81,310 +65,79 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
     expect(container.querySelector('.devcard__quote')).toBeNull()
   })
 
-  it('names the person, the level and the branch', () => {
-    const mo = staffed(14)
-    render(<HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />)
+  it('names the person and their speciality, and prints the trait as a sentence', () => {
+    render(<HeroCard hero={staffed()} devs={40} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />)
     expect(screen.getByText('Mo')).toBeInTheDocument()
-    expect(screen.getByText(/LV 14/)).toBeInTheDocument()
     expect(screen.getByText('QUALITY')).toBeInTheDocument()
-  })
-
-  it('prints the trait as a sentence — the only thing on the card that is one', () => {
-    const mo = staffed()
-    render(<HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />)
     expect(screen.getByText('READS IT TWICE')).toBeInTheDocument()
-    expect(screen.getByText(/generates half as many defects before release/)).toBeInTheDocument()
-  })
-
-  it('marks BENCHED so §13.10’s cost is visible — §13.11.2', () => {
-    const mo = staffed()
-    const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
-    )
-    expect(container.querySelector('dd[data-benched="true"]')).not.toBeNull()
-
-    cleanup()
-    const placed = render(
-      <HeroCard hero={mo} placedLabel="FLOOR 3" {...noop} onClose={() => {}} />,
-    )
-    expect(placed.container.querySelector('dd[data-benched="true"]')).toBeNull()
-  })
-
-  it('says how many points are waiting, on the button that spends them', () => {
-    render(
-      <HeroCard hero={staffed(4)} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
-    )
-    expect(screen.getByRole('button', { name: /SPEND 4/ })).toBeInTheDocument()
+    expect(screen.getByText('The studio writes half as many defects.')).toBeInTheDocument()
   })
 
   it('is closed when nobody is selected', () => {
     const { container } = render(
-      <HeroCard hero={null} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
+      <HeroCard hero={null} devs={40} canUpgrade={false} place={{ at: 0, of: 0 }} {...noop} />,
     )
     expect(container.querySelector('.herocard__pass')).toBeNull()
   })
 })
 
-describe('§13.9 — every hero opens the same board, from where they already are', () => {
-  function board(hero: HeroRuntime) {
-    return render(<HeroTree hero={hero} open onClose={() => {}} />)
-  }
-
-  it('draws the whole board, including the branches this hero has never touched', () => {
-    const { container } = board(staffed())
-    // 1 trunk + 5 branches x 6 nodes.
-    expect(container.querySelectorAll('.herotree__node')).toHaveLength(36)
-  })
-
-  it('shows §11.4.2’s three states rather than two', () => {
-    const { container } = board(staffed(9))
-    const states = new Set(
-      [...container.querySelectorAll('.herotree__node')].map((n) => n.getAttribute('data-state')),
+describe('what they are doing for the studio, right now', () => {
+  it('reads the live numbers off the headcount — the rota grows with the studio', () => {
+    const { rerender } = render(
+      <HeroCard hero={staffed('serena')} devs={100} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />,
     )
-    expect(states.has('owned')).toBe(true)
-    expect(states.has('live')).toBe(true)
-    expect(states.has('dark')).toBe(true)
-  })
-
-  it('draws a connector for every node, dark ones included', () => {
-    const { container } = board(staffed())
-    expect(container.querySelectorAll('.herotree__links polyline')).toHaveLength(35)
-  })
-
-  /**
-   * §11.4.3 — **tapping a node opens it; it does not buy it.** A purchase that
-   * fires on the same tap that first shows the price is how a player buys the
-   * wrong thing on a phone, once, and stops trusting the screen.
-   */
-  it('opens a guide layer on tap and spends nothing', () => {
-    const mo = staffed(4)
-    const { container } = board(mo)
-    fireEvent.click(screen.getByLabelText('Cloud depth 1'))
-    expect(container.querySelector('.herotree__guide')).not.toBeNull()
-    expect(heroById('mo')!.points).toBe(4)
-    expect(screen.getByRole('button', { name: /1 POINT/ })).toBeInTheDocument()
-  })
-
-  it('buys on the guide’s one button, and the board grows', () => {
-    const mo = staffed(4)
-    board(mo)
-    fireEvent.click(screen.getByLabelText('Cloud depth 1'))
-    fireEvent.click(screen.getByRole('button', { name: /1 POINT/ }))
-    expect(heroById('mo')!.nodes).toContain('cloud:1')
-    expect(heroById('mo')!.points).toBe(3)
-  })
-
-  it('marks one valid first-use node and returns to the floor after purchase', () => {
-    vi.useFakeTimers()
-    const complete = vi.fn()
-    const { container } = render(
-      <HeroTree
-        hero={staffed(4)}
-        open
-        guided
-        onGuidedComplete={complete}
-        onClose={() => {}}
-      />,
+    // One in fifty of a hundred.
+    expect(screen.getByText('ON CALL')).toBeInTheDocument()
+    expect(screen.getByText('2 DEVS')).toBeInTheDocument()
+    rerender(
+      <HeroCard hero={staffed('serena')} devs={5_000} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />,
     )
-    expect(screen.getByText(/Open the pulsing node and spend one point/)).toBeInTheDocument()
-    const guided = container.querySelector<HTMLButtonElement>('.herotree__node[data-guide="true"]')!
-    expect(guided).not.toBeNull()
-    fireEvent.click(guided)
-    fireEvent.click(screen.getByRole('button', { name: /1 POINT/ }))
-    act(() => vi.advanceTimersByTime(440))
-    expect(complete).toHaveBeenCalledOnce()
+    expect(screen.getByText('100 DEVS')).toBeInTheDocument()
   })
 
-  /**
-   * §13.9.1 — "nothing stops Mo going down Cloud. She will be worse at it than
-   * Melany." Said at the moment the decision is made rather than in a rule
-   * nobody reads, and it never refuses the purchase.
-   */
-  it('warns that an off-branch node is worth less, and sells it anyway', () => {
-    board(staffed(4))
-    fireEvent.click(screen.getByLabelText('Cloud depth 1'))
-    expect(screen.getByText(/Not Mo’s branch — worth 50% here/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /1 POINT/ })).not.toBeDisabled()
-  })
-
-  it('says nothing of the sort about her own branch', () => {
-    board(staffed(9))
-    fireEvent.click(screen.getByLabelText('Quality reach 4'))
-    expect(screen.queryByText(/worth 50% here/)).toBeNull()
-  })
-
-  it('prices REACH above DEPTH, so §13.6.4’s invariant is on the button', () => {
-    board(staffed(9))
-    fireEvent.click(screen.getByLabelText('Quality reach 4'))
-    expect(screen.getByRole('button', { name: /3 POINTS/ })).toBeInTheDocument()
-  })
-})
-
-/**
- * §21.7.7 — **the card is not gated and the board is.**
- *
- * A card is who somebody is; the board is an instrument, and until §13.13's
- * first earned level it is a screen of purchases attached to a person the
- * player has never placed. The point pips go with it, because a point is an
- * affordance for a board rather than a fact about a person.
- */
-describe('§21.7.7 — the board arrives with a scene, and the card does not wait for it', () => {
-  /** The same fixture, minus the board introduction. */
-  function unintroduced(level = 4) {
-    const p = emptyPermanent()
-    setPermanent({
-      ...p,
-      meta: {
-        ...p.meta,
-        paradigmShifts: 1,
-        milestones: [SCENE_MO_ARRIVES.id],
-        heroXp: { mo: xpToReach(level) },
-      },
-    })
-    return heroById('mo')!
-  }
-
-  it('still draws the whole card', () => {
-    const mo = unintroduced()
-    const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
-    )
-    expect(screen.getByText('Mo')).toBeInTheDocument()
-    expect(screen.getByText(/LV 4/)).toBeInTheDocument()
-    expect(container.querySelector('.herocard__punch')).not.toBeNull()
-  })
-
-  it('draws no door to the board, and no points to spend on it', () => {
-    const mo = unintroduced()
-    const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
-    )
-    expect(screen.queryByRole('button', { name: /SPEND|SKILLS/ })).toBeNull()
-    expect(container.querySelector('.herocard__points')).toBeNull()
-    // CLOSE is still there — the card is reachable and leavable as always.
-    expect(screen.getByRole('button', { name: 'CLOSE' })).toBeInTheDocument()
-  })
-
-  it('draws both once the scene has played', () => {
-    const mo = staffed(4)
-    const { container } = render(
-      <HeroCard hero={mo} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
-    )
-    expect(screen.getByRole('button', { name: /SPEND 4/ })).toBeInTheDocument()
-    expect(container.querySelector('.herocard__points')).not.toBeNull()
-  })
-})
-
-describe('§13.8 — the card is where a hero is put somewhere', () => {
-  it('offers an explicit placement action, then direct MOVE and RECALL actions', () => {
-    const mo = staffed()
-    const posted = vi.fn()
-    render(
-      <HeroCard
-        hero={mo}
-        placedLabel="BENCHED"
-        onOpenTree={() => {}}
-        onPost={posted}
-        onRecall={() => {}}
-        onClose={() => {}}
-      />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'PLACE HERO' }))
-    expect(posted).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('button', { name: 'RECALL' })).toBeNull()
-
+  it('says what Mo and Matt are doing in the fold’s own numbers', () => {
+    render(<HeroCard hero={staffed('matt')} devs={200} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />)
+    expect(screen.getByText('10 DEVS')).toBeInTheDocument()
+    expect(screen.getByText('−20%')).toBeInTheDocument()
     cleanup()
-    placeHero('mo', 0, 0)
-    const recalled = vi.fn()
-    const moved = vi.fn()
-    render(
-      <HeroCard
-        hero={heroById('mo')!}
-        placedLabel="DEVELOPER 1"
-        onOpenTree={() => {}}
-        onPost={moved}
-        onRecall={recalled}
-        onClose={() => {}}
-      />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'MOVE HERO' }))
-    expect(moved).toHaveBeenCalledOnce()
-    fireEvent.click(screen.getByRole('button', { name: 'RECALL' }))
-    expect(recalled).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('button', { name: 'PLACE HERO' })).toBeNull()
+    render(<HeroCard hero={staffed('mo')} devs={200} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />)
+    expect(screen.getByText('−50%')).toBeInTheDocument()
   })
 
-  it('states the live coverage, effect and XP share instead of only maximum reach', () => {
-    staffed()
-    placeHero('mo', 0, 0)
-    render(
-      <HeroCard
-        hero={heroById('mo')!}
-        placedLabel="DEVELOPER 1"
-        coverage={{ covered: 8, fraction: 1, complete: true, settling: false }}
-        targetCovered={8}
-        totalDevs={40}
-        now={100}
-        {...noop}
-        onClose={() => {}}
-      />,
+  it('has nothing left of placement on it', () => {
+    render(<HeroCard hero={staffed()} devs={40} canUpgrade place={{ at: 1, of: 3 }} {...noop} />)
+    for (const gone of [/BENCHED/, /PLACE HERO/, /RECALL/, /COVERAGE/, /REACH/, /SKILLS/, /SPEND/, /LV \d/]) {
+      expect(screen.queryByText(gone)).toBeNull()
+    }
+  })
+})
+
+describe('the foot — the door to their upgrades, and the next person', () => {
+  it('offers UPGRADES only when there is a tree to open, and opens it', () => {
+    const onUpgrades = vi.fn()
+    const { rerender } = render(
+      <HeroCard hero={staffed()} devs={40} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />,
     )
-    expect(screen.getByText(/8 \/ 40 DEVS/)).toBeInTheDocument()
-    expect(screen.getByText('-8% DEFECT RATE')).toBeInTheDocument()
-    expect(screen.getByText(/HERO XP SHARE 20%/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'UPGRADES' })).toBeNull()
+    rerender(
+      <HeroCard hero={staffed()} devs={40} canUpgrade place={{ at: 1, of: 1 }} {...noop} onUpgrades={onUpgrades} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'UPGRADES' }))
+    expect(onUpgrades).toHaveBeenCalledTimes(1)
   })
 
-  /*
-   * §21.7.7 gates the *board* and §21.7.6 gates the *floor*, and the two gates
-   * are independent. This is the case that says so in both directions: the
-   * placement verb is here with no board, and — below — the card is whole with
-   * no placement verb.
-   */
-  it('offers it before the skills board has been handed over', () => {
-    const p = emptyPermanent()
-    setPermanent({
-      ...p,
-      meta: {
-        ...p.meta,
-        paradigmShifts: 1,
-        milestones: [SCENE_MO_ARRIVES.id, SCENE_BILLY_ARRIVES.id],
-      },
-    })
-    render(
-      <HeroCard hero={heroById('mo')!} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
-    )
-    expect(screen.getByRole('button', { name: 'PLACE HERO' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /SPEND|SKILLS/ })).toBeNull()
+  it('steps to the previous and next person instead of raising a tray', () => {
+    const onStep = vi.fn()
+    render(<HeroCard hero={staffed()} devs={40} canUpgrade={false} place={{ at: 2, of: 3 }} {...noop} onStep={onStep} />)
+    expect(screen.getByText('2 / 3')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous person' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next person' }))
+    expect(onStep.mock.calls).toEqual([[-1], [1]])
   })
 
-  /**
-   * §21.7.6 — **and it waits for Billy** [added 2026-08-29].
-   *
-   * The comment this replaced said placement was *"the one action on the card
-   * that never waits for a scene"*. It does now: the floor is the largest
-   * instrument in Layer 1 and it arrives in the hands of the man whose job it
-   * is (`game/unlocks.ts`).
-   *
-   * The second assertion is the one that keeps the gate from becoming a
-   * scolding. §13.10 makes a benched hero actively expensive, so a card that
-   * says `BENCHED` in red, offers no way off the bench and does not say why
-   * would be the game blaming the player for its own gate. It states the
-   * potential and names the missing thing instead — which is what makes Billy's
-   * scene relief rather than a tutorial.
-   */
-  it('withholds the placement verb until Billy has handed the floor over', () => {
-    const p = emptyPermanent()
-    setPermanent({
-      ...p,
-      meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_MO_ARRIVES.id] },
-    })
-    render(
-      <HeroCard hero={heroById('mo')!} placedLabel="BENCHED" {...noop} onClose={() => {}} />,
-    )
-    expect(screen.queryByRole('button', { name: /PLACE HERO|MOVE HERO|RECALL/ })).toBeNull()
-    expect(screen.getByText(/NOBODY IS RUNNING THE FLOOR YET/)).toBeInTheDocument()
-    // The card is still the whole card — §21.7.7's rule, unchanged.
-    expect(screen.getByText('Mo')).toBeInTheDocument()
+  it('draws no arrows for one person alone', () => {
+    render(<HeroCard hero={staffed()} devs={40} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />)
+    expect(screen.queryByRole('button', { name: 'Next person' })).toBeNull()
   })
 })
 

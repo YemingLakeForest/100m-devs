@@ -19,10 +19,9 @@
  *
  * ## The two coefficients are stated as headcounts, not as rates
  *
- * `roles.ts` sets {@link TICKETS_PER_SUPPORT_PER_SEC} to 1 explicitly so that
- * "the arrival rate in `support.ts` is readable directly as *how many people
- * this catalogue needs*". This file is what honours that, and it is why neither
- * constant below is written as a rate:
+ * {@link TICKETS_PER_SUPPORT_PER_SEC} is 1 explicitly so that the arrival rate
+ * here is readable directly as *how many people this catalogue needs*, and it
+ * is why neither constant below is written as a rate:
  *
  * - {@link GAMES_PER_SUPPORT_HEAD} — **ten shipped games need one support
  *   head, forever.** That is §4.13's floor, stated as the sentence a player
@@ -57,7 +56,28 @@
  * Pure. No store, no clock, no renderer.
  */
 
-import { supportCapacity, TICKETS_PER_SUPPORT_PER_SEC } from './roles.ts'
+/**
+ * Tickets one head closes per second — §4.13.
+ *
+ * One, which makes the arrival rate readable directly as "how many people this
+ * catalogue needs". Moved here from `roles.ts` when the professions were cut
+ * [2026-09-26]: the heads are now the founder's and Matt's help desk
+ * (`heroRoster.ts`), and the rate is a fact about tickets, not about a job.
+ */
+export const TICKETS_PER_SUPPORT_PER_SEC = 1
+
+/**
+ * §4.13 — "Support capacity is headcount, straightforwardly."
+ *
+ * **Linear, at every scale, with no §4.1 term anywhere near it.** This is the
+ * one place in the game where throwing people at a problem simply works, and
+ * the exception is deliberate: it is what makes §6's dilution visible
+ * everywhere else.
+ */
+export function supportCapacity(heads: number): number {
+  const n = Number.isFinite(heads) ? Math.max(0, heads) : 0
+  return n * TICKETS_PER_SUPPORT_PER_SEC
+}
 
 /**
  * Shipped games one support head can carry — §4.13's permanent floor.

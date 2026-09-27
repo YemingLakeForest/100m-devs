@@ -1,8 +1,7 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { __resetStore, __setState } from '../game/store.ts'
-import { emptyPermanent, getPermanent, setPermanent } from '../game/save.ts'
-import { SCENE_FOUNDER_BOARD } from '../game/scenes.ts'
+import { emptyPermanent, setPermanent } from '../game/save.ts'
 import { writeFounderProfile } from '../game/founderProfile.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
@@ -57,51 +56,18 @@ describe('manager corner', () => {
   })
 
   /**
-   * §21.7.7 — **the desk is not gated and the board is.**
-   *
-   * And the board is not *drawn* before its scene rather than drawn and
-   * disabled: §21.7.6b's rule is that a silent row is the loudest kind of
-   * furniture, and a greyed skill tree is a shop the game is telling the player
-   * to come back to.
+   * [2026-09-26] — the Management tree is retired with the studio board
+   * (*"retire the old tree"*). The panel carries the door to your own tree
+   * instead, once the first Paradigm Shift has opened the trees.
    */
-  it('draws no Management tree until §21.7.7 has handed it over', () => {
-    render(<FounderProfilePanel open onClose={() => {}} />)
-    expect(screen.queryByRole('heading', { name: 'MANAGEMENT — YOU' })).toBeNull()
+  it('draws no Management tree, and offers UPGRADES only when given the door', () => {
+    const onUpgrades = vi.fn()
+    const { rerender } = render(<FounderProfilePanel open onClose={() => {}} />)
     expect(screen.queryByText('Touch Typing')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'UPGRADES' })).toBeNull()
+    rerender(<FounderProfilePanel open onClose={() => {}} onUpgrades={onUpgrades} />)
+    fireEvent.click(screen.getByRole('button', { name: 'UPGRADES' }))
+    expect(onUpgrades).toHaveBeenCalledOnce()
   })
 
-  it('draws it once it has', () => {
-    const p = getPermanent()
-    setPermanent({
-      ...p,
-      meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_FOUNDER_BOARD.id] },
-    })
-    render(<FounderProfilePanel open onClose={() => {}} />)
-    expect(screen.getByRole('heading', { name: 'MANAGEMENT — YOU' })).toBeInTheDocument()
-    expect(screen.getByText('Touch Typing')).toBeInTheDocument()
-  })
-
-  it('offers one first-use purchase and hands control back afterwards', () => {
-    vi.useFakeTimers()
-    const p = getPermanent()
-    setPermanent({
-      ...p,
-      meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_FOUNDER_BOARD.id] },
-    })
-    __setState({ cash: 1_000 })
-    const complete = vi.fn()
-    render(
-      <FounderProfilePanel
-        open
-        guided
-        onGuidedComplete={complete}
-        onClose={() => {}}
-      />,
-    )
-
-    expect(screen.getByText(/Buy one skill you can afford/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /^\$400/ }))
-    act(() => vi.advanceTimersByTime(440))
-    expect(complete).toHaveBeenCalledOnce()
-  })
 })

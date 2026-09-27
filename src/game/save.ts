@@ -22,16 +22,13 @@ import type { GameState, ShelvedBuild } from './store.ts'
 import type { Phase } from './onboarding.ts'
 import { PHASE_ORDER, RETIRED_PHASES } from './onboarding.ts'
 import { D_BASE } from '../sim/entropy.ts'
-import { TECH_BY_ID } from '../sim/techTree.ts'
 import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR, LAUNCH_NEUTRAL, LUCK_NEUTRAL } from '../sim/rating.ts'
 import { PIPELINE_BY_ID } from '../sim/pipeline.ts'
 import { TREE_HEROES, treeKey, treeNode, type TreeHero } from '../sim/upgradeTrees.ts'
 import { GENRES, genreNamed, type Genre } from '../three/sim/titles.ts'
 import { UNKNOWN_ORDINAL } from '../sim/revenue.ts'
 import { GARAGE_SYNC } from '../sim/teamSync.ts'
-import { ROLES, type Role } from '../sim/roles.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
-import { STORY_HEROES } from '../sim/storyHeroes.ts'
 import { EVENTS } from '../sim/events.ts'
 import { DEBUG_TOOLS_ENABLED } from '../dev/debugAccess.ts'
 import {
@@ -121,15 +118,10 @@ export interface RunSave {
    * {@link migrate} carries across so nobody loses the run they are in.
    */
   history?: History
-  /**
-   * §11 — levels bought in the in-run tech tree, by node id.
-   *
-   * Additive and optional, on the same rule `releases` follows: a save written
-   * before the tree existed describes a studio that bought nothing, which is
-   * exactly what an absent field means. No `SAVE_VERSION` bump — nothing that
-   * was already written has been reinterpreted.
+  /*
+   * `tech` (§11's studio board levels) was dropped on 2026-09-26 with the board:
+   * its two effects that survive are carried by tree roots (`store.techOf`).
    */
-  tech?: Record<string, number>
   /**
    * §10.7 [added 2026-09-26] — the pipeline: builds in Build and Test with how
    * far the head of each lane has got, the shelf, Serena's board and the
@@ -145,17 +137,12 @@ export interface RunSave {
   autoShipClock?: number
   /** §11.2 B2's meeting clock, in simulated seconds. Optional for the same reason. */
   runSeconds?: number
-  /**
-   * §4.11 — the hire history, run-length encoded, and the dial's role.
-   *
-   * Additive on the same rule as `releases` and `tech`. **An absent roster is a
-   * studio of developers**, which is exactly what every save written before
-   * roles existed describes, so `normaliseRoster` fills it from `devs` rather
-   * than leaving it empty — an empty roster against a non-zero `devs` would put
-   * every existing player's whole studio on the floor with no job.
+  /*
+   * `roster` and `hireRole` (§4.11's hire history and the dial's role) were
+   * dropped on 2026-09-26 with the professions, and `heroPlacements` (§13.8)
+   * with placement. An older document still carries them; `normaliseRun`
+   * ignores both, and every hire in it was a developer from then on anyway.
    */
-  roster?: { role: string; count: number }[]
-  hireRole?: string
   /**
    * §4.12, §4.12a, §4.13, §4.14 — the three backlogs and the studio's standing.
    *
@@ -170,22 +157,6 @@ export interface RunSave {
   reputation?: number
   incidents?: IncidentSave[]
   /**
-   * §13.8 — where each hero is standing, this run.
-   *
-   * **Run state, not permanent**, and the split is the design rather than an
-   * implementation detail: a Paradigm Shift liquidates the studio, so every rung
-   * a hero was placed on stops existing. What survives is the *person* —
-   * `meta.heroXp` and `meta.heroNodes`, §13.10's "a hero you have carried
-   * through nine runs is better than one you just met". Where you put them is a
-   * fact about a floor that no longer exists.
-   *
-   * Additive and optional on the same rule `releases` and `tech` follow: an
-   * absent list is a studio with nobody placed, which is exactly what every save
-   * written before §13.8 describes, and is also the correct opening state of
-   * every run. No `SAVE_VERSION` bump.
-   */
-  heroPlacements?: HeroPlacementSave[]
-  /**
    * §18.0 — the event on the floor, if one is.
    *
    * Persisted for the reason `incidents` is and `buffs` are not: an event is a
@@ -194,8 +165,8 @@ export interface RunSave {
    * the company — and it carries the player's choice of exit, so a reload that
    * dropped that would put a modal back over somebody who had already decided.
    *
-   * Additive and optional on the same rule as `releases`, `tech` and
-   * `heroPlacements`: absent means a quiet floor, which is exactly what every
+   * Additive and optional on the same rule as `releases` and `tech`: absent
+   * means a quiet floor, which is exactly what every
    * save written before §18.0 describes. No `SAVE_VERSION` bump.
    */
   event?: LiveEventSave
@@ -207,15 +178,6 @@ export interface LiveEventSave {
   remaining: number
   age: number
   routed: boolean
-}
-
-/** §13.8 — one hero, and the rung they are standing on. */
-export interface HeroPlacementSave {
-  id: string
-  rung: number
-  index: number
-  /** Simulated seconds, for §13.8's settling period. */
-  placedAt: number
 }
 
 /** §4.12a — one open page, as §24 stores it. */
@@ -351,33 +313,15 @@ export interface MetaSave {
   /** §24.5 gates offline accrual on the first Paradigm Shift. Also §22.6's "every 5th". */
   paradigmShifts: number
 
-  /**
-   * §13.7.1's Management tree — levels per node, merged by **max**.
-   *
-   * In `meta` rather than `layer1`, so it survives a Codebase Fork as well as a
-   * Paradigm Shift. §4.5d is explicit that this curve "grows only because *you*
-   * got better", and a skill you learned is not something a rewrite of the
-   * company's architecture takes away. It is bought with cash — the currency
-   * that is reachable in Run 1, where your desk is sometimes the only thing on
-   * screen — and what persists is the *level*, never the money.
+  /*
+   * `founderLevels` (§13.7.1's Management tree) was dropped on 2026-09-26 with
+   * the studio board; your upgrades are your tree now.
    */
-  founderLevels?: Record<string, number>
-  /**
-   * §13.10 — hero XP, per hero id, merged by **max**.
-   *
-   * Permanent, beside `founderLevels`, so it survives a Paradigm Shift *and* a
-   * Codebase Fork: a hero you have carried through nine runs is better than one
-   * you just met. XP is the in-run currency of §13.9's tree, but the *total* is
-   * a fact about the person, not about the run.
+  /*
+   * `heroXp` and `heroNodes` (§13.10's XP and §13.9's shared hero board) were
+   * retired on 2026-09-26 with placement, which was the only way XP was earned.
+   * An older document's copies are dropped by `normaliseMeta`.
    */
-  heroXp?: Record<string, number>
-  /**
-   * §13.9 — which tree nodes each hero owns, per hero id, merged by **union**.
-   *
-   * The pre-bought starting positions and every purchase since. A node is never
-   * taken away; the hero only ever grows.
-   */
-  heroNodes?: Record<string, string[]>
 }
 
 export interface PermanentSave {
@@ -425,9 +369,6 @@ export function emptyMeta(): MetaSave {
     gpEarnedLifetime: 0,
     pcEarnedLifetime: 0,
     paradigmShifts: 0,
-    founderLevels: {},
-    heroXp: {},
-    heroNodes: {},
   }
 }
 
@@ -500,7 +441,6 @@ export function makeSaveData(state: GameState): SaveData {
       runSeed: state.runSeed,
       seedTaken: state.seedTaken,
       dialUnlocked: state.dialUnlocked,
-      tech: { ...state.tech },
       pipeline: {
         build: state.pipeline.build.map((f) => ({ item: { ...f.item }, progress: f.progress })),
         test: state.pipeline.test.map((f) => ({ item: { ...f.item }, progress: f.progress })),
@@ -532,9 +472,6 @@ export function makeSaveData(state: GameState): SaveData {
         recent: state.history.recent.map((r) => ({ ...r })),
         aggregates: state.history.aggregates.map((a) => ({ ...a })),
       },
-      // §4.11 — the shape of the studio, not just its size.
-      roster: state.roster.map((run) => ({ role: run.role, count: run.count })),
-      hireRole: state.hireRole,
       // §4.12–§4.14. `incidentPending` is deliberately absent: it is at most one
       // incident's worth of fraction and §24.2 ephemeral, and restoring it would
       // be restoring a state the player cannot see the cause of.
@@ -542,15 +479,6 @@ export function makeSaveData(state: GameState): SaveData {
       tickets: state.tickets,
       reputation: state.reputation,
       incidents: state.incidents.map((i) => ({ ...i })),
-      // §13.8 — flattened out of the map, for the same reason `releases` is
-      // flattened: a nested shape can come back half-formed and a half-formed
-      // placement is a hero covering NaN developers.
-      heroPlacements: Object.entries(state.heroPlacements).map(([id, p]) => ({
-        id,
-        rung: p.rung,
-        index: p.index,
-        placedAt: p.placedAt,
-      })),
       // §18.0 — omitted entirely when the floor is quiet, so a save is not
       // carrying `event: null` for the 99% of the game where nothing is
       // happening. An absent key and a null are the same statement here and
@@ -756,16 +684,6 @@ function stringMap(value: unknown): Record<string, string> {
   return out
 }
 
-/** §13.9 — a map of hero id to owned node ids, each list defended like `stringList`. */
-function stringListMap(value: unknown): Record<string, string[]> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  const out: Record<string, string[]> = {}
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    out[k] = stringList(v)
-  }
-  return out
-}
-
 /**
  * §21's phase is a closed union driving a switch with no default. A phase name
  * from a build that had different acts would fall through every case and leave
@@ -784,9 +702,6 @@ function phase(value: unknown): Phase {
 
 function normaliseRun(value: unknown): RunSave {
   const r = (value ?? {}) as Partial<RunSave>
-  // Read once, because the roster has to be reconciled *against* it — see
-  // `normaliseRoster`. Recomputing the expression there would be two places
-  // that have to agree about what a headcount is.
   const devs = Math.max(0, Math.floor(nonNegative(r.devs, 0)))
   return {
     devs,
@@ -818,7 +733,6 @@ function normaliseRun(value: unknown): RunSave {
     // description of a studio that has shipped nothing *this run*.
     history: normaliseHistory(r.history),
     releases: normaliseReleases(r.releases),
-    tech: normaliseTech(r.tech),
     pipeline: {
       build: normaliseInFlight(r.pipeline?.build),
       test: normaliseInFlight(r.pipeline?.test),
@@ -828,13 +742,10 @@ function normaliseRun(value: unknown): RunSave {
     treeLevels: normaliseTreeLevels(r.treeLevels),
     autoShipClock: nonNegative(r.autoShipClock, 0),
     runSeconds: nonNegative(r.runSeconds, 0),
-    roster: normaliseRoster(r.roster, devs),
-    hireRole: ROLE_SET.has(r.hireRole as Role) ? (r.hireRole as Role) : 'dev',
     defects: nonNegative(r.defects, 0),
     tickets: nonNegative(r.tickets, 0),
     reputation: Math.min(100, nonNegative(r.reputation, BASELINE_RATING)),
     incidents: normaliseIncidents(r.incidents),
-    heroPlacements: normaliseHeroPlacements(r.heroPlacements),
     ...(normaliseEvent(r.event) ? { event: normaliseEvent(r.event)! } : {}),
   }
 }
@@ -861,81 +772,6 @@ function normaliseEvent(value: unknown): LiveEventSave | null {
 
 const EVENT_ID_SET = new Set<string>(EVENTS.map((e) => e.id))
 
-/**
- * §13.8 — the placements, filtered to people who exist.
- *
- * An id that is not one of §22.8's six is dropped rather than defaulted: a
- * placement is a claim about a specific person, and there is no sensible person
- * to substitute. A duplicate id is dropped for the same reason a duplicate
- * incident is — a hero cannot be in two places, and silently keeping the last
- * one would make the answer depend on serialisation order.
- */
-function normaliseHeroPlacements(value: unknown): HeroPlacementSave[] {
-  if (!Array.isArray(value)) return []
-  const out: HeroPlacementSave[] = []
-  const seen = new Set<string>()
-  for (const raw of value) {
-    const p = (raw ?? {}) as Partial<HeroPlacementSave>
-    if (typeof p.id !== 'string' || !HERO_ID_SET.has(p.id) || seen.has(p.id)) continue
-    seen.add(p.id)
-    out.push({
-      id: p.id,
-      rung: Math.max(0, Math.floor(nonNegative(p.rung, 0))),
-      index: Math.max(0, Math.floor(nonNegative(p.index, 0))),
-      placedAt: nonNegative(p.placedAt, 0),
-    })
-  }
-  return out
-}
-
-const HERO_ID_SET = new Set<string>(STORY_HEROES.map((h) => h.id))
-
-const ROLE_SET = new Set<Role>(ROLES)
-
-/**
- * §4.11 — the hire history, repaired against the headcount it has to describe.
- *
- * Two things can be wrong with a stored roster and both are silent:
- *
- * 1. **It is missing**, because the document predates roles. Every such studio
- *    was all developers, so that is what it becomes — filling it from `devs`
- *    rather than leaving it empty, which would put an existing player's entire
- *    company on the floor with no job.
- * 2. **It does not sum to `devs`.** The two are kept equal by `hire` being the
- *    only writer, but a save is the one input in this game that can contain
- *    anything at all, and `roleAtSeat` scans the roster while everything else
- *    reads the count. A short roster means seats past the end silently read as
- *    developers; a long one means people who are not there. Reconciled here, by
- *    trimming or by appending developers, so the invariant holds from the first
- *    frame after a load rather than approximately.
- */
-function normaliseRoster(value: unknown, devs: number): { role: Role; count: number }[] {
-  const target = Math.max(0, Math.floor(devs))
-  const out: { role: Role; count: number }[] = []
-  let total = 0
-
-  if (Array.isArray(value)) {
-    for (const raw of value) {
-      const run = (raw ?? {}) as { role?: string; count?: number }
-      const role = ROLE_SET.has(run.role as Role) ? (run.role as Role) : 'dev'
-      const count = Math.min(target - total, Math.max(0, Math.floor(nonNegative(run.count, 0))))
-      if (count <= 0) continue
-      total += count
-      const last = out[out.length - 1]
-      if (last && last.role === role) last.count += count
-      else out.push({ role, count })
-      if (total >= target) break
-    }
-  }
-
-  if (total < target) {
-    const last = out[out.length - 1]
-    if (last && last.role === 'dev') last.count += target - total
-    else out.push({ role: 'dev', count: target - total })
-  }
-  return out
-}
-
 /** §4.12a — open pages, dropped rather than repaired when they name nothing. */
 function normaliseIncidents(value: unknown): IncidentSave[] {
   if (!Array.isArray(value)) return []
@@ -957,28 +793,6 @@ function normaliseIncidents(value: unknown): IncidentSave[] {
       // close on its own and would freeze its release for the rest of the run.
       work: Math.max(1, nonNegative(i.work, INCIDENT_WORK_SECONDS)),
     })
-  }
-  return out
-}
-
-/**
- * §11 — the tech levels, defended.
- *
- * Unknown ids are dropped rather than carried. A save naming a node this build
- * does not have is either hand-edited or written by a *newer* build, and in
- * both cases the honest answer is that this game does not know what it does —
- * keeping it would mean `techEffects` silently ignoring a level the save
- * screen would still have to price. Levels are floored at zero and left
- * unclamped at the top, because the node's own `maxLevel` is what clamps them
- * and `techEffects` already clamps every effect it derives.
- */
-function normaliseTech(value: unknown): Record<string, number> {
-  if (typeof value !== 'object' || value === null) return {}
-  const out: Record<string, number> = {}
-  for (const [id, level] of Object.entries(value as Record<string, unknown>)) {
-    if (!TECH_BY_ID.has(id)) continue
-    const n = Math.floor(nonNegative(level, 0))
-    if (n > 0) out[id] = n
   }
   return out
 }
@@ -1202,10 +1016,7 @@ function normalisePermanent(value: unknown): PermanentSave {
       paradigmShifts: nonNegative(m.paradigmShifts, 0),
       // §13.7.1. Absent on every save written before the Management tree, which
       // correctly describes a founder who has learned nothing yet.
-      founderLevels: numberMap(m.founderLevels),
       // §13.10, §13.9. Absent means no XP earned and no hero nodes bought.
-      heroXp: numberMap(m.heroXp),
-      heroNodes: stringListMap(m.heroNodes),
     },
   }
 }
@@ -1228,17 +1039,6 @@ function maxMap(
 ): Record<string, number> {
   const out: Record<string, number> = { ...a }
   for (const [k, v] of Object.entries(b)) out[k] = Math.max(out[k] ?? 0, v)
-  return out
-}
-
-/** Union merge of a `Record<string, string[]>` — per hero, the node sets join. */
-function unionMap(
-  a: Readonly<Record<string, string[]>>,
-  b: Readonly<Record<string, string[]>>,
-): Record<string, string[]> {
-  const out: Record<string, string[]> = {}
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)])
-  for (const k of keys) out[k] = union(a[k] ?? [], b[k] ?? [])
   return out
 }
 
@@ -1308,11 +1108,8 @@ export function mergePermanent(
       paradigmShifts: Math.max(a.paradigmShifts, b.paradigmShifts),
       // §13.7.1 — max per node, like every other levels map. A skill learned on
       // one device is learned.
-      founderLevels: maxMap(a.founderLevels ?? {}, b.founderLevels ?? {}),
       // §13.10 — max per hero. §13.9 — union per hero, because a node bought on
       // one device is bought.
-      heroXp: maxMap(a.heroXp ?? {}, b.heroXp ?? {}),
-      heroNodes: unionMap(a.heroNodes ?? {}, b.heroNodes ?? {}),
       // §10.11's gallery used to be merged here. It is run state now (see
       // `RunSave.history`), and run state is resolved by `savedAt` rather than
       // unioned — a catalogue is what this studio is selling, not something the

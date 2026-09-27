@@ -15,21 +15,18 @@ import {
   __resetStore,
   __setState,
   baseVelocity,
-  buyFounderNode,
   currentEffectiveVelocity,
   currentEntropy,
   founderOf,
   founderPassiveVelocity,
   founderVelocity,
-  getPermanent,
   getState,
   pokeFounder,
   pokeVelocity,
   tick,
 } from './store.ts'
-import { FOUNDER_BASE_RATE, TYPING_STEP, founderCost, FOUNDER_BY_ID } from '../sim/founder.ts'
+import { FOUNDER_BASE_RATE, NO_FOUNDER } from '../sim/founder.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
-import { SCENE_FOUNDER_BOARD } from './scenes.ts'
 
 beforeEach(() => {
   __resetStore()
@@ -126,14 +123,9 @@ describe('§10.1’s split — the you half is finally you', () => {
     // apart. Until §4.5d there was nothing in it but pokes.
     expect(pokeVelocity()).toBeGreaterThanOrEqual(founderVelocity())
 
-    // The swarm half must be untouched by the founder, however good you get.
-    const swarmOnly = baseVelocity()
-    setPermanent({
-      ...getPermanent(),
-      meta: { ...getPermanent().meta, founderLevels: { 'M-ENG': 10 } },
-    })
-    expect(baseVelocity()).toBe(swarmOnly)
-    // …and the you half moved by exactly the skill that was bought.
+    // The swarm half is untouched by the founder, and the you half is exactly
+    // your desk once the pokes are out of it.
+    expect(baseVelocity()).toBeGreaterThan(0)
     expect(pokeVelocity()).toBeCloseTo(founderVelocity(), 8)
   })
 })
@@ -168,95 +160,14 @@ describe('tapping your own desk — §4.5d', () => {
     expect(pokeFounder()).toBe(0)
   })
 
-  it('does not earn cash until Founder-Led Sales is bought', () => {
-    __setState({ cash: 0 })
-    pokeFounder()
-    expect(getState().cash).toBe(0)
-
-    setPermanent({
-      ...getPermanent(),
-      meta: { ...getPermanent().meta, founderLevels: { 'M-SUP': 1 } },
-    })
-    pokeFounder()
-    expect(getState().cash).toBeGreaterThan(0)
-  })
 })
 
-describe('buying a skill — §13.7.1', () => {
-  /**
-   * §21.7.7 — the board has been handed over.
-   *
-   * The tree is an instrument and it arrives with a scene, so a fresh save
-   * cannot buy from it at all. That is asserted on its own below; every test in
-   * this block is about the *purchase*, so each one starts from a player who
-   * has met their own board.
-   */
-  beforeEach(() => {
-    const p = getPermanent()
-    setPermanent({
-      ...p,
-      meta: {
-        ...p.meta,
-        paradigmShifts: 1,
-        milestones: [...p.meta.milestones, SCENE_FOUNDER_BOARD.id],
-      },
-    })
-  })
-
-  /**
-   * §21.7.7 — and here is the gate itself, from the other side.
-   *
-   * A Run 1 founder has a desk, a CODE button and no board. §21.0c is explicit
-   * that Run 1 carries one idea, and a personal skill tree bought with the
-   * money the trap is about to take is a second one.
-   */
-  it('refuses everything before the board has been introduced', () => {
-    setPermanent(emptyPermanent())
-    __setState({ cash: 1e12 })
-    expect(buyFounderNode('M-ENG')).toBe(false)
+describe('§13.7.1 — the Management tree is retired [2026-09-26]', () => {
+  // *"retire the old tree"* — your upgrades are your tree now (GDD §8), and none
+  // of its nodes is wired yet, so you are the founder you started as, whatever
+  // an older save remembers.
+  it('leaves you at the founder you started as', () => {
+    expect(founderOf()).toEqual(NO_FOUNDER)
     expect(founderVelocity()).toBe(FOUNDER_BASE_RATE)
-  })
-
-  it('refuses what the treasury cannot pay for', () => {
-    const typing = FOUNDER_BY_ID.get('M-ENG')!
-    __setState({ cash: founderCost(typing, 0) - 1 })
-    expect(buyFounderNode('M-ENG')).toBe(false)
-    expect(founderVelocity()).toBe(FOUNDER_BASE_RATE)
-  })
-
-  it('raises your rate the instant it is bought', () => {
-    // Buying a skill and not feeling it until the next run would make the tree a
-    // shopping list rather than a decision — the same rule `buyParadigmNode`
-    // follows for the developer cap.
-    const typing = FOUNDER_BY_ID.get('M-ENG')!
-    __setState({ cash: founderCost(typing, 0) })
-    expect(buyFounderNode('M-ENG')).toBe(true)
-    expect(founderVelocity()).toBeCloseTo(FOUNDER_BASE_RATE + TYPING_STEP, 8)
-    expect(getState().cash).toBe(0)
-  })
-
-  it('refuses an id that is not in the tree', () => {
-    __setState({ cash: 1e12 })
-    expect(buyFounderNode('M-NONSENSE')).toBe(false)
-  })
-
-  it('puts the level somewhere a Paradigm Shift cannot reach', () => {
-    // §4.5d — "it grows only because *you* got better". A skill you learned is
-    // not something a rewrite of the company's architecture takes away, so it
-    // lives in `meta` rather than `layer1`.
-    const typing = FOUNDER_BY_ID.get('M-ENG')!
-    __setState({ cash: founderCost(typing, 0) })
-    buyFounderNode('M-ENG')
-    expect(getPermanent().meta.founderLevels?.['M-ENG']).toBe(1)
-    expect(getPermanent().layer1.paradigmLevels['M-ENG']).toBeUndefined()
-  })
-
-  it('only works offline once Always On Call is bought', () => {
-    expect(founderOf().worksOffline).toBe(false)
-    setPermanent({
-      ...getPermanent(),
-      meta: { ...getPermanent().meta, founderLevels: { 'M-REL': 1 } },
-    })
-    expect(founderOf().worksOffline).toBe(true)
   })
 })

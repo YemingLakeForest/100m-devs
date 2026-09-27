@@ -51,7 +51,6 @@ import {
   type FounderProfile,
 } from '../game/founderProfile.ts'
 import { AVATAR_HAIR, frontAvatarParts, type AvatarRect } from './avatarParts.ts'
-import type { SeatMark } from './heroBadges.ts'
 import { districtFitTiles, drawDistrict, garageKerbFor } from './district.ts'
 import {
   ATRIUM,
@@ -612,15 +611,6 @@ export interface RoomHandle {
   readonly inGarage: boolean
   /** §7.8.8 — who is turned round to face the camera. -1 for nobody. */
   setSelected(index: number): void
-  /**
-   * §13.11.1 — the coverage footprint, one mark per covered seat.
-   *
-   * Safe to call every frame: the marks are folded to a key and the Graphics is
-   * only rebuilt when that key moves, which is a few times a run. The caller
-   * therefore does not have to know when a placement changed, and cannot get
-   * that wrong (`refreshHeroFold` had to, and this is the same trade).
-   */
-  setCoverage(marks: ReadonlyMap<number, SeatMark>): void
   /**
    * §10.7a.1 — who is speaking a line of dialogue, turned to camera for it.
    * -1 for nobody (or for `STUDIO_OS`, which has no body). A seat, not an
@@ -1909,7 +1899,7 @@ export function suitePlot(id: HeroId): SuitePlot {
   return { ...SUITE_PLOTS[id] }
 }
 
-/** Where a named hero is physically sitting, assigned or not. */
+/** Where a named hero is physically sitting. */
 export function teamDeskPosition(id: HeroId): { x: number; y: number } {
   const plot = SUITE_PLOTS[id]
   return isoAt(plot.col, plot.row)
@@ -1949,7 +1939,7 @@ export const TEAM_ROOM_BOUNDS = suiteBox(
  * suite rather than on the floor.**
  *
  * One, and it is James. He remains the simulation's seat 0 — `jamesPresent`,
- * `BILLY_SEAT`, §10.7a's focus indices and every rule that names that seat are
+ * Billy's seat, §10.7a's focus indices and every rule that names that seat are
  * untouched — but the *room* draws him at his suite plot, and the floor's
  * lattice plot `(0, 0)` is left empty.
  *
@@ -2320,8 +2310,6 @@ export interface RoomGeometry {
 export interface TeamRoomHero {
   id: HeroId
   colour: string
-  assigned: boolean
-  connecting: boolean
   selected: boolean
 }
 
@@ -3044,100 +3032,6 @@ export function drawDeskBank(
     const a = lift(put(across - d, at))
     const b = lift(put(across + d, at))
     g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: c(RAMPS.WOOD[1]), alpha: 0.7 })
-  }
-}
-
-/**
- * §13.11.1's coverage decal, in floor tiles.
- *
- * Deliberately smaller than a seat's pitch: the marks must read as **one per
- * person** at desk zoom, and a decal that fills its pitch tiles into a
- * continuous carpet the moment two adjacent seats are covered. The gap is what
- * makes a footprint countable, which is the whole of "the fraction is learned
- * by looking, not by reading `covering 8 of 4,000`".
- */
-export const COVER_SPAN = 0.44
-
-/**
- * The marks, as one comparable string.
- *
- * A string rather than a deep compare because the answer is almost always "the
- * same as last frame" and a string of a few dozen characters is cheaper to
- * build and compare than a walk over two maps. It is never parsed and never
- * stored, so its shape is nobody's business but this file's.
- */
-function coverageKey(marks: ReadonlyMap<number, { colour: string; wasted: boolean; settling: boolean; activation?: number }>): string {
-  let key = ''
-  for (const [seat, m] of marks) {
-    key += `${seat}${m.colour}${m.wasted ? 'w' : ''}${m.settling ? 's' : ''}${(m.activation ?? 1).toFixed(2)};`
-  }
-  return key
-}
-
-/** How many hatch lines cross a wasted seat — §13.8 rule 3. */
-const COVER_HATCH = 3
-
-/**
- * One seat's coverage mark, drawn on the floor — GDD §13.11.1, §7.8.13 rule 2.
- *
- * A square on the ground, which the 2:1 projection turns into a diamond, and
- * the hatch lines run **along a floor axis** for the same reason: a screen-space
- * diagonal across an isometric tile is a shape that does not lie on the floor,
- * and at this size the eye reads that as a rendering fault rather than as a
- * mark. `drawDeskBank` above makes the same argument at greater length.
- *
- * Three states, and each is a rule rather than a style:
- *
- * - **Covered** — filled in the branch colour. §13.11.1: the footprint is drawn.
- * - **Wasted** — filled and then hatched. §13.8 rule 3, and §13.11.1 is explicit
- *   that "the player is never told they have made a mistake; they can just see
- *   the hatched area and move somebody."
- * - **Settling** — the outline alone, because it is not coverage yet. §13.8
- *   rule 4 makes relocation cost time and §13.11.1 wants that time on screen.
- */
-export function drawSeatCoverage(
-  g: Graphics,
-  index: number,
-  mark: { colour: string; wasted: boolean; settling: boolean; activation?: number },
-) {
-  const { col, row } = seatGrid(index)
-  const gx = row * PITCH_ROW
-  const gy = col * PITCH_COL
-  const d = COVER_SPAN / 2
-  const colour = c(mark.colour)
-
-  const back = gridToScreen(gx - d, gy - d)
-  const far = gridToScreen(gx - d, gy + d)
-  const front = gridToScreen(gx + d, gy + d)
-  const near = gridToScreen(gx + d, gy - d)
-
-  const outline = () =>
-    g
-      .moveTo(back.x, back.y)
-      .lineTo(far.x, far.y)
-      .lineTo(front.x, front.y)
-      .lineTo(near.x, near.y)
-      .closePath()
-
-  if (mark.settling) {
-    outline().stroke({ width: 1, color: colour, alpha: 0.55 })
-    return
-  }
-
-  const activation = mark.activation ?? 1
-  outline().fill({ color: colour, alpha: 0.3 * activation })
-  outline().stroke({ width: 1, color: colour, alpha: 0.55 + 0.3 * activation })
-
-  if (!mark.wasted) return
-  // The hatch is drawn in the same colour rather than in a warning red. Nothing
-  // has gone wrong — two heroes of one branch is a legal board that is paying
-  // for one of them twice — and a red mark on the floor would be the scolding
-  // §13.11.1 refuses.
-  for (let i = 1; i <= COVER_HATCH; i++) {
-    const t = -d + (2 * d * i) / (COVER_HATCH + 1)
-    const a = gridToScreen(gx + t, gy - d)
-    const b = gridToScreen(gx + t, gy + d)
-    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 1, color: colour, alpha: 0.9 })
   }
 }
 
@@ -4011,8 +3905,6 @@ export function buildRoom(): RoomHandle {
    * joke is that the desks came first.
    */
   teamArchitecture.addChild(teamFloor, teamGlass)
-  /** §13.11.1 — the coverage footprint, painted on the floor under everybody. */
-  const coverage = new Graphics()
   // Previous room geometry lives just long enough to cross-fade into an
   // expanded room. Developers stay in their real containers, so an old hire
   // never blinks out while the walls move.
@@ -4025,7 +3917,6 @@ export function buildRoom(): RoomHandle {
   founderLayer.label = 'founder'
   plates.label = 'plates'
   deskLayer.label = 'desks'
-  coverage.label = 'coverage'
   teamArchitecture.label = 'team-room'
   teamPeopleLayer.label = 'team-room-heroes'
   teamSignals.label = 'team-room-signals'
@@ -4105,13 +3996,6 @@ export function buildRoom(): RoomHandle {
     shell,
     plates,
     light,
-    // Above the floor it is painted on and below everything standing on it, so
-    // a mark behind a desk is occluded by that desk. That is the correct depth
-    // for a decal and it is why this is not simply drawn last: a footprint that
-    // floated over the furniture would read as a UI overlay projected onto the
-    // room rather than as paint on the floor of it (§7.1's pane-of-glass rule,
-    // applied to the one layer that is *not* on the glass).
-    coverage,
     previousFurniture,
     furniture,
     previousDesks,
@@ -4234,8 +4118,6 @@ export function buildRoom(): RoomHandle {
    * read as a lighter enclosure — it reads as an unfinished one.
    */
   let drawnWallH = 46
-  /** §13.11.1 — what the decal layer currently shows, as a comparable key. */
-  let coverageDrawnFor = coverageKey(new Map())
   /** §7.8.8 — the selected seat, and the spin's clock. */
   let selected = -1
   let turningOut = -1
@@ -4760,17 +4642,13 @@ export function buildRoom(): RoomHandle {
         teamPeopleLayer.addChild(body)
       }
 
-      // The branch-coloured monitor strip is dim on the bench and live while
-      // this desk owns a remote assignment. It is the suite end of §13.11's
-      // plate and it is the only part of the naming that survives Floor zoom.
+      // The branch-coloured monitor strip, always live: a hero works for the
+      // whole studio from the day they arrive (placement and the bench were
+      // cut on 2026-09-26). It is the only part of the naming that survives
+      // Floor zoom.
       teamDeskLayer
         .roundRect(at.x - 13, at.y - 15, 26, 5, 1)
-        .fill({ color: colour, alpha: hero.assigned ? 0.95 : 0.28 })
-      if (hero.assigned) {
-        teamDeskLayer
-          .circle(at.x + 15, at.y - 21, hero.connecting ? 2.5 : 3.5)
-          .fill({ color: colour, alpha: hero.connecting ? 0.55 : 1 })
-      }
+        .fill({ color: colour, alpha: 0.95 })
 
       if (walls) drawDeskPlate(hero, at, colour)
     }
@@ -4846,7 +4724,7 @@ export function buildRoom(): RoomHandle {
   function drawDeskPlate(hero: TeamRoomHero, at: { x: number; y: number }, colour: number) {
     const story = STORY_HEROES.find((h) => h.id === hero.id)
     if (!story) return
-    plate(at, story.name.toUpperCase(), colour, story.role, c(RAMPS.NEUTRAL[hero.assigned ? 6 : 5]))
+    plate(at, story.name.toUpperCase(), colour, story.role, c(RAMPS.NEUTRAL[6]))
   }
 
   /**
@@ -4994,7 +4872,7 @@ export function buildRoom(): RoomHandle {
   function teamKey(heroes: readonly TeamRoomHero[]): string {
     return heroes
       .map((hero) =>
-        [hero.id, hero.colour, hero.assigned ? 1 : 0, hero.connecting ? 1 : 0, hero.selected ? 1 : 0].join(':'),
+        [hero.id, hero.colour, hero.selected ? 1 : 0].join(':'),
       )
       .join('|')
   }
@@ -5011,16 +4889,15 @@ export function buildRoom(): RoomHandle {
     const exit = isoAt(suiteDoorCol(suiteEastCol(cast.map((hero) => hero.id))), SUITE_GLASS_ROW)
     for (let order = 0; order < cast.length; order++) {
       const hero = cast[order]
-      if (!hero.assigned) continue
       const at = teamDeskPosition(hero.id)
       const colour = c(hero.colour)
-      const alpha = hero.connecting ? 0.42 : 0.8
+      const alpha = 0.8
       teamSignals
         .moveTo(at.x + 10, at.y - 25)
         .lineTo(exit.x, exit.y)
         .stroke({ width: 1, color: colour, alpha: alpha * 0.34 })
       for (let packet = 0; packet < 3; packet++) {
-        const t = (elapsed * (hero.connecting ? 0.32 : 0.58) + packet / 3 + order * 0.13) % 1
+        const t = (elapsed * 0.58 + packet / 3 + order * 0.13) % 1
         const x = at.x + 10 + (exit.x - at.x - 10) * t
         const y = at.y - 25 + (exit.y - at.y + 25) * t
         teamSignals.rect(x - 2, y - 1, 4, 2).fill({ color: colour, alpha })
@@ -8449,29 +8326,13 @@ export function buildRoom(): RoomHandle {
         const [back, front] = body.children as Graphics[]
         back.visible = !facing
         front.visible = facing
-        // Active heroes type from this desk; benched heroes stay visibly in
-        // the same chair. Connecting is deliberately a slower, tentative
-        // rhythm until the remote channel becomes live.
-        /*
-         * §7.8.0c [added 2026-09-04] — **a hero in the garage is working.**
-         *
-         * `assigned` is §13.11's *remote* assignment: a hero on the office
-         * floor is either driving a branch from their desk or sitting on the
-         * bench, and the bench is drawn at 0.64 with no typing rhythm. The
-         * garage has no remote branches and no bench — it has two people and a
-         * deadline — so James was permanently dimmed and permanently still in
-         * the one room where he is supposed to be the hardest-working person in
-         * it. Reported as "the one in leadership room does not code".
-         *
-         * The office is untouched: there the dimming is the whole readout for
-         * §13.11's roster, and a benched hero has to look benched.
-         */
-        const working = drawnGarage || hero.assigned
-        const pulse = working
-          ? Math.max(0, Math.sin(liveElapsed * (hero.connecting ? 5 : 8) + order * 1.7))
-          : 0
-        body.alpha = working ? 1 : 0.64
-        body.position.set(at.x, at.y + 6 - pulse * (hero.connecting ? 0.7 : 1.25))
+        // Every hero types from this desk. There used to be a bench — a hero
+        // not posted anywhere sat dimmed and still — and it went with
+        // placement on 2026-09-26: a hero works for the whole studio from the
+        // day they arrive, so every one of them is working.
+        const pulse = Math.max(0, Math.sin(liveElapsed * 8 + order * 1.7))
+        body.alpha = 1
+        body.position.set(at.x, at.y + 6 - pulse * 1.25)
         // The founder is the other person in that room and is drawn by a
         // different layer; he keeps his own idle. This is the hero's typing.
       }
@@ -8921,13 +8782,6 @@ export function buildRoom(): RoomHandle {
     },
     setTeamSpeaker(id: HeroId | null) {
       teamSpeaker = id
-    },
-    setCoverage(marks: ReadonlyMap<number, SeatMark>) {
-      const key = coverageKey(marks)
-      if (key === coverageDrawnFor) return
-      coverageDrawnFor = key
-      coverage.clear()
-      for (const [seat, mark] of marks) drawSeatCoverage(coverage, seat, mark)
     },
     setSelected(index: number) {
       if (index === selected) return

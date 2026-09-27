@@ -36,7 +36,6 @@
   50% { outline-color: var(--warn-3); }
 }
 
-.herotree__node[data-guide='true'],
 .founder__node[data-guide='true'] {
   outline: 2px solid var(--warn-2);
   outline-offset: 2px;
@@ -44,7 +43,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .herotree__node[data-guide='true'],
   .founder__node[data-guide='true'] {
     animation: none;
   }
@@ -2948,28 +2946,6 @@ body {
   letter-spacing: 0.04em;
 }
 
-/*
- * §4.15 rule 1 — it names the cure, in the cure's colour, and only while the
- * cure is missing. The HUD never explains a mechanic in a paragraph; it points
- * at the person who fixes it.
- */
-.backlog__cure {
-  letter-spacing: 0.08em;
-  color: var(--n6);
-}
-
-.backlog__cure--qa {
-  color: #ffe9b0;
-}
-
-.backlog__cure--sre {
-  color: #ffb8b8;
-}
-
-.backlog__cure--support {
-  color: #4a8fa8;
-}
-
 /* --- incidents: the HUD's one animating element ------------------------- */
 
 .backlog__chips {
@@ -3055,19 +3031,6 @@ body {
     animation: none;
     background: color-mix(in srgb, var(--alarm-2) 34%, transparent);
   }
-}
-
-/*
- * §4.11's role row, above §10.10's multiplier row.
- *
- * Same grammar, deliberately: it is the same kind of control making the same
- * kind of choice, and giving it a second visual language would imply it worked
- * differently. Only the type size differs, because DEVELOPER is nine characters
- * where x10 is three and four of them will not fit on the rail otherwise.
- */
-.hire-dial--role {
-  font-size: 9px;
-  letter-spacing: 0;
 }
 
 /* ======================================================================== */
@@ -3217,12 +3180,6 @@ body {
  * reading of something already on screen, never off a first.
  */
 @media (max-height: 470px) {
-  /* A cure is two or three words and must never be the thing that wraps its
-     row into two — the row is the whole readout at this height. */
-  .backlog__cure {
-    white-space: nowrap;
-  }
-
   /* §4.10e's outstanding-revenue line. CASH and NET already say where the
      studio is; this says where it will be in five minutes, and it is the one
      figure in the block that can wait for a taller phone. */

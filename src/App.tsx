@@ -28,14 +28,13 @@ import { getPermanent, setPermanent } from './game/save.ts'
 import {
   SCENE_BILLY_ARRIVES,
   SCENE_FOUNDER_BOARD,
-  SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
+  SCENE_JAMES_PROMOTED,
   SCENE_MATT_ARRIVES,
   SCENE_MELANY_ARRIVES,
   SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
-  SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
   SCENE_THE_THREAD,
 } from './game/scenes.ts'
 import { THREAD } from './sim/events.ts'
@@ -200,22 +199,8 @@ export default function App() {
              * only thing that knew the number was the concept art.
              */
             SCENE_MELANY_ARRIVES.id,
-            // The fixture posts James during the browser frame gate. A player
-            // at this point has already seen why the body stays in the room;
-            // recording it keeps the gate on the HUD frame it was built for.
-            SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id,
-            /*
-             * §21.7.6 — **and Billy, because he is now the placement verb.**
-             *
-             * He brings no readout, so he changes nothing about the worst frame
-             * the HUD has to draw — which is exactly why he was not in this list
-             * and exactly why leaving him out would have been the same class of
-             * hole as the three above. `unlocks.heroPlacement` is his arrival, so
-             * without him §23.4.2's "a hero armed for placement" screen cannot be
-             * reached at all: `PLACE HERO` is not on the card, `beginPosting`
-             * refuses, and the gate would have started passing by measuring a
-             * frame that no longer existed.
-             */
+            // Billy, so the fixture has the whole cast: every card, and every
+            // person's tree once the shift has opened them.
             SCENE_BILLY_ARRIVES.id,
             /*
              * §18.0a and §21.7.7 — **trap 28, applied in the same commit.**
@@ -235,13 +220,14 @@ export default function App() {
              */
             SCENE_THE_THREAD.id,
             SCENE_FOUNDER_BOARD.id,
-            SCENE_HERO_BOARD.id,
+            // §21.7.4 — James's first colleague is his promotion now, so a
+            // career with the whole cast has had it.
+            SCENE_JAMES_PROMOTED.id,
           ],
         },
       })
       __setState({
         devs: 12,
-        roster: [{ role: 'dev', count: 12 }],
         cash: 40_000,
         dialUnlocked: true,
         projectsShipped: 5,

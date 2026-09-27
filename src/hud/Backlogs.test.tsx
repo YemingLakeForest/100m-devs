@@ -4,7 +4,7 @@ import Decimal from 'break_infinity.js'
 import { Defects, Incidents, Tickets } from './Backlogs.tsx'
 import type { GameState } from '../game/store.ts'
 import { conceptsIn } from '../ui/concepts.ts'
-import { newRoster, addHires } from '../sim/roles.ts'
+import { NO_HERO_FOLD, heroFold, heroRuntime } from '../sim/heroRoster.ts'
 
 // Vitest runs without `globals`, so testing-library's own auto-cleanup hook is
 // never installed and renders would otherwise stack up in one document.
@@ -16,7 +16,7 @@ function stateWith(patch: Partial<GameState>): GameState {
     incidents: [],
     tickets: 0,
     projectsShipped: 0,
-    roster: newRoster(0),
+    heroFold: NO_HERO_FOLD,
     commitment: new Decimal(1000),
     ...patch,
   } as GameState
@@ -62,18 +62,13 @@ describe('§4.12 — the defect counter', () => {
   })
 
   /**
-   * §4.15 rule 1 — it names the cure, and only while the cure is missing. A
-   * studio that has already hired QA is being told something it acted on, which
-   * is the definition of nagging.
+   * §4.15 rule 1 [amended 2026-09-26] — it names no cure. It used to say
+   * `HIRE QA`; the professions were cut, and the readout only appears once Mo,
+   * who is the answer, has arrived.
    */
-  it('names QA while there are none, and stops once there are', () => {
+  it('names no hire', () => {
     render(<Defects state={stateWith({ defects: 10 })} />)
-    expect(screen.getByText('HIRE QA')).toBeInTheDocument()
-    cleanup()
-
-    const hired = stateWith({ defects: 10, roster: addHires(newRoster(0), 'qa', 3) })
-    render(<Defects state={hired} />)
-    expect(screen.queryByText('HIRE QA')).not.toBeInTheDocument()
+    expect(screen.queryByText(/HIRE/)).not.toBeInTheDocument()
   })
 })
 
@@ -98,14 +93,14 @@ describe('§4.12a — the incident chips', () => {
 
   it('says what it costs, not how much work is left', () => {
     render(<Incidents state={down} />)
-    // The player does not care how many SRE-seconds remain. They care that a
+    // The player does not care how many on-call seconds remain. They care that a
     // game they shipped is not earning.
     expect(screen.getAllByText('OFF SALE')).toHaveLength(2)
   })
 
-  it('names SRE while there are none', () => {
+  it('names no hire — Serena’s rota is the answer, and she is already here', () => {
     render(<Incidents state={down} />)
-    expect(screen.getByText('HIRE SRE')).toBeInTheDocument()
+    expect(screen.queryByText(/HIRE/)).not.toBeInTheDocument()
   })
 })
 
@@ -131,27 +126,23 @@ describe('§4.13 — the ticket bar', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('speaks up once the catalogue outgrows the founder', () => {
+  it('speaks up once the catalogue outgrows the founder, and names no hire', () => {
     render(<Tickets state={stateWith({ projectsShipped: 40 })} />)
-    // §4.15 rule 1 — it names the cure rather than the problem. The problem is
-    // the bar; the words are for the person who fixes it.
-    expect(screen.getByText('HIRE SUPPORT')).toBeInTheDocument()
     expect(screen.getByText('TICKETS')).toBeInTheDocument()
+    expect(screen.getByText('FALLING BEHIND')).toBeInTheDocument()
+    expect(screen.queryByText(/HIRE/)).not.toBeInTheDocument()
   })
 
   /**
-   * Once Support has been hired the row still exists — the queue is still deep,
-   * and hiding it would be the HUD deciding a solved problem is a finished one —
-   * but it stops naming a cure the player has already bought.
+   * Matt's help desk is counted the way the simulation counts it — through the
+   * store's one authority — so a studio he is keeping up with goes quiet.
    */
-  it('stops nagging once Support exists, without going silent', () => {
-    render(
-      <Tickets
-        state={stateWith({ projectsShipped: 40, roster: addHires(newRoster(0), 'support', 1) })}
-      />,
+  it('goes quiet once Matt’s help desk is keeping up', () => {
+    const matt = heroFold([heroRuntime('matt')!], 400)
+    const { container } = render(
+      <Tickets state={stateWith({ projectsShipped: 40, heroFold: matt })} />,
     )
-    expect(screen.getByText('FALLING BEHIND')).toBeInTheDocument()
-    expect(screen.queryByText('HIRE SUPPORT')).not.toBeInTheDocument()
+    expect(container).toBeEmptyDOMElement()
   })
 })
 

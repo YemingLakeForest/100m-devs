@@ -23,7 +23,7 @@ import {
 } from './founder.ts'
 import { D_BASE, bestOutput, optimalHeadcount, passiveVelocity } from './entropy.ts'
 import { devCapFor } from './prestige.ts'
-import { BRANCHES } from './heroTree.ts'
+import { BRANCHES } from './heroBranches.ts'
 
 describe('the tree itself — §13.7.1', () => {
   it('has no duplicate ids', () => {

@@ -8,7 +8,7 @@
  * Defects are not an event and not bad luck — they are a by-product of
  * production, in proportion to it:
  *
- * $$\\frac{dB}{dt} = \\beta \\cdot V \\cdot \\eta_{\\text{def}}(\\text{QA})$$
+ * $$\\frac{dB}{dt} = \\beta \\cdot V$$
  *
  * **The faster you go, the more you break**, which is §6's thesis restated in a
  * second currency and the only reason this system belongs in the game.
@@ -21,12 +21,14 @@
  * **`β` *is* `rating.ts`'s {@link DEFECT_DENSITY_ANCHOR}.** It is imported, not
  * restated, and the arithmetic that makes that work is one line long:
  *
- * - With no QA, {@link defectSuppression} is exactly 1.
+ * - Nothing suppresses the rate here [amended 2026-09-26]. QA were one of the
+ *   professions cut with *"different types of hires (SRE QA ETC."*; Mo's trait
+ *   halves the rate upstream, on the velocity the store charges.
  * - So `dB/dt = β·V` and `dSP/dt = V`, and the density a studio ships at is
  *   `β`, exactly, at every velocity.
  * - `rating.ts` scores that density at exactly ½.
  *
- * Which means **a studio with no QA always scores exactly half on defects
+ * Which means **a studio nobody is checking always scores exactly half on defects
  * whatever β is.** Retuning how fast bugs arrive changes how quickly a studio
  * reaches §4.12a's incidents and changes *nothing* about what a shipped game is
  * worth. §25.3.2 names β as the batch's one genuinely load-bearing number and
@@ -54,7 +56,6 @@
 
 import { DEFECT_DENSITY_ANCHOR } from './rating.ts'
 import { CONTEXT_SWITCH_COEFFICIENT } from './entropy.ts'
-import { defectSuppression } from './roles.ts'
 
 /**
  * §4.12's `β` — defects per Story Point of ordinary, uninterrupted work.
@@ -88,21 +89,20 @@ function finite(x: number, fallback = 0): number {
  * generate bugs at full rate while producing zero code, which is a second
  * punishment for a state that is already the game's one seizure.
  */
-export function defectRate(velocity: number, qaShare: number): number {
+export function defectRate(velocity: number): number {
   const v = Math.max(0, finite(velocity))
-  return BETA * v * defectSuppression(qaShare)
+  return BETA * v
 }
 
 /**
  * Defects written by one poke worth `sp` Story Points.
  *
- * Charged at `β + ε` rather than at `β`, and suppressed by QA on the same curve
- * as everything else — QA read the code whether a human was interrupted while
- * writing it or not.
+ * Charged at `β + ε` rather than at `β`: interrupting somebody doubles the
+ * bugs in what they write.
  */
-export function defectsFromPoke(sp: number, qaShare: number): number {
+export function defectsFromPoke(sp: number): number {
   const points = Math.max(0, finite(sp))
-  return (BETA + POKE_BETA) * points * defectSuppression(qaShare)
+  return (BETA + POKE_BETA) * points
 }
 
 /**
@@ -112,11 +112,11 @@ export function defectsFromPoke(sp: number, qaShare: number): number {
  * same step without the two paths disagreeing about clamping, and so §24.5's
  * offline resolver can advance a backlog by an hour in one call.
  */
-export function advanceDefects(backlog: number, velocity: number, qaShare: number, dt: number): number {
+export function advanceDefects(backlog: number, velocity: number, dt: number): number {
   const b = Math.max(0, finite(backlog))
   const step = Math.max(0, finite(dt))
   if (step === 0) return b
-  return b + defectRate(velocity, qaShare) * step
+  return b + defectRate(velocity) * step
 }
 
 /**
@@ -157,13 +157,7 @@ export function densityLine(backlog: number, storyPoints: number): string | null
 }
 
 /**
- * Clear defects with QA capacity over `dt`.
- *
- * **QA do not clear the backlog and this is not that function.** §4.12 is
- * explicit — "QA reduce the rate; SRE clear the backlog" — and the thing QA
- * clear is the work in front of them, which is what {@link defectSuppression}
- * already models by slowing arrival. What this exists for is the *ship* moment:
- * a project's backlog leaves with the project.
+ * The *ship* moment: a project's backlog leaves with the project.
  *
  * Shipping resets the bench to zero and hands the density to the release, where
  * §4.12a charges it forever. The backlog is not forgiven — it is **transferred**,

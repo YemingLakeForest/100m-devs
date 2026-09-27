@@ -13,9 +13,9 @@
  * | | Arrives from | Lives on | Acted on by |
  * |---|---|---|---|
  * | **Defect** | The work itself | The project on the bench | QA, who slow the arrival |
- * | **Incident** | The **released** catalogue, forever | Every game you ever shipped | SRE, both ends |
+ * | **Incident** | The **released** catalogue, forever | Every game you ever shipped | Whoever is on call |
  *
- * $$\\frac{dI}{dt} = \\iota \\cdot \\sum_r d_r \\cdot a_r \\cdot \\eta_{\\text{inc}}(\\text{SRE})$$
+ * $$\\frac{dI}{dt} = \\iota \\cdot \\sum_r d_r \\cdot a_r$$
  *
  * **The bugs you chose not to fix become a permanent operational cost, weighted
  * by how many people are still playing.** A game nobody plays cannot page you. A
@@ -45,7 +45,7 @@
  * sentence exact:
  *
  * > **A release shipped at the garage density generates exactly one incident
- * > over its entire lifetime, with no SRE.**
+ * > over its entire lifetime.**
  *
  * Since `∫ a_r dt = 1`, the lifetime count is `ι · d_r`, so `ι = 1 / β`. One
  * incident per shipped game is the correct scale for a thing that is meant to
@@ -65,7 +65,8 @@
  *
  * ## What an incident does, and why it is a freeze rather than a loss
  *
- * §4.12a: "the tail stops entirely until SRE clear it". Taken literally — an
+ * §4.12a: "the tail stops entirely until SRE clear it" (whoever is on call, since
+ * the professions were cut on 2026-09-26). Taken literally — an
  * open incident **freezes its release's age**, so the tail pauses and resumes.
  *
  * That is a stronger choice than destroying the revenue, for a reason that is
@@ -117,29 +118,12 @@ export const INCIDENTS_PER_GARAGE_RELEASE = 0.1
 export const IOTA = INCIDENTS_PER_GARAGE_RELEASE / BETA
 
 /**
- * The SRE share at which the incident arrival rate halves — §4.12a.1.
- *
- * Stated as a half-life for the same reason `roles.ts` states QA's that way:
- * a suppression exponent is a number nobody can picture, and picking one *is*
- * deciding how much SRE a studio needs, which §25.3.2 forbids. This is a share
- * a player can read off the floor.
- *
- * A tenth, against QA's quarter, and the gap is the design. **You need far fewer
- * SRE than QA to matter**, because §4.12a's rate is already small — one incident
- * per shipped game — and a studio that had to staff reliability like quality
- * would be a studio where §4.11's four roles collapse back into one ratio.
- *
- * First pass. Wants a playtest.
- */
-export const INCIDENT_HALVING_SRE_SHARE = 0.1
-
-/**
- * Seconds of one SRE's attention to close one incident.
+ * Seconds of one on-call head's attention to close one incident.
  *
  * The only number here that is a feel rather than a derivation: long enough
- * that a studio with a token SRE presence visibly cannot keep up during a bad
- * week, short enough that hiring two more is a fix the player can see working
- * within a project cycle.
+ * that the founder alone visibly cannot keep up during a bad week, short
+ * enough that Serena's rota is a fix the player can see working within a
+ * project cycle.
  */
 export const INCIDENT_WORK_SECONDS = 45
 
@@ -159,25 +143,12 @@ export interface Incident {
   releaseName: string
   /** Seconds this has been open. Drives §4.15's chip and nothing else. */
   age: number
-  /** SRE-seconds still needed. Counts down; at zero the incident closes. */
+  /** On-call seconds still needed. Counts down; at zero the incident closes. */
   work: number
 }
 
 function finite(x: number, fallback = 0): number {
   return Number.isFinite(x) ? x : fallback
-}
-
-/**
- * §4.12a's `η_inc(SRE)` — the factor SRE apply to the incident arrival rate.
- *
- * `1 / (1 + share / half)`: 1 with no SRE, exactly ½ at the halving share, and
- * **never zero**. The floor is the design rather than a safeguard — a curve that
- * reached zero would let a studio switch the pager off, deleting the thing the
- * section exists to say.
- */
-export function incidentSuppression(sreShare: number): number {
-  const share = Math.max(0, finite(sreShare))
-  return 1 / (1 + share / INCIDENT_HALVING_SRE_SHARE)
 }
 
 /**
@@ -206,7 +177,6 @@ export function audienceShare(release: Release): number {
 export function incidentRate(
   releases: readonly Release[],
   densities: ReadonlyMap<number, number>,
-  sreShare: number,
   open: ReadonlySet<number> = new Set(),
 ): number {
   let sum = 0
@@ -216,7 +186,7 @@ export function incidentRate(
     if (density === 0) continue
     sum += density * audienceShare(release)
   }
-  return IOTA * sum * incidentSuppression(sreShare)
+  return IOTA * sum
 }
 
 /**
@@ -228,8 +198,8 @@ export function incidentRate(
  * will page you about three times" all need the lifetime figure rather than the
  * instantaneous rate. It is also what the anchoring test asserts.
  */
-export function lifetimeIncidents(density: number, sreShare = 0): number {
-  return IOTA * Math.max(0, finite(density)) * incidentSuppression(sreShare)
+export function lifetimeIncidents(density: number): number {
+  return IOTA * Math.max(0, finite(density))
 }
 
 /** Which releases are down. What {@link incidentRate} skips and the tail freezes on. */
@@ -238,15 +208,15 @@ export function suppressedReleases(incidents: readonly Incident[]): Set<number> 
 }
 
 /**
- * SRE clearance capacity, in incident-seconds per second — §4.12a.1.
+ * Clearance capacity, in incident-seconds per second — §4.12a.1.
  *
  * Linear in headcount, like §4.13's support capacity and for the same reason:
  * clearing a queue is the one shape of work where more people simply help. The
  * *arrival* side is where §4.1's dilution lives, and having exactly one of the
  * two ends be linear is what makes the pair legible.
  */
-export function clearanceCapacity(sreHeads: number): number {
-  return Math.max(0, finite(sreHeads))
+export function clearanceCapacity(oncallHeads: number): number {
+  return Math.max(0, finite(oncallHeads))
 }
 
 export interface IncidentStep {

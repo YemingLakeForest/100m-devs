@@ -179,10 +179,10 @@ describe('§10.8 F2 — every control answers the finger first', () => {
     expect(btn.className).toContain('is-pressed')
   })
 
-  it('depresses the upgrades tab', () => {
+  it('depresses the paradigm tab', () => {
     prestiged()
     render(<Hud stage={null} />)
-    const btn = screen.getByRole('button', { name: /UPGRADES/ })
+    const btn = screen.getByRole('button', { name: 'PARADIGM' })
     fireEvent.pointerDown(btn)
     expect(btn.className).toContain('is-pressed')
   })
@@ -199,7 +199,7 @@ describe('§10.8 F2 — every control answers the finger first', () => {
  * was correct in isolation.
  */
 describe('§21.0c — Act I shows one lever', () => {
-  it('offers no job but developer, whatever the studio has been through', () => {
+  it('offers no job but developer, whatever the studio has been through — there are no others', () => {
     // `jumpToPhase` replaces the whole run — it is a seam for reaching a beat,
     // not a patch — so the state it is being asked about has to go on after it.
     jumpToPhase('act2_loop')
@@ -228,14 +228,14 @@ describe('§21.0c — Act I shows one lever', () => {
     expect(container.querySelector('.backlog')).toBeNull()
   })
 
-  it('opens the tree the moment the player prestiges', () => {
+  it('opens the Paradigm tree the moment the player prestiges', () => {
     // The same state, one Paradigm Shift apart — so this is a gate rather than a
     // feature that was never wired.
     prestiged()
     jumpToPhase('act2_loop')
     __setState({ defects: 40, projectsShipped: 3, tickets: 900 })
     render(<Hud stage={null} />)
-    expect(screen.getByRole('button', { name: /UPGRADES/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'PARADIGM' })).toBeInTheDocument()
   })
 
   /**
@@ -259,9 +259,6 @@ describe('§21.0c — Act I shows one lever', () => {
     const { container } = render(<Hud stage={null} />)
 
     expect(container.querySelector('.backlog')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'QA' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'SRE' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'SUPPORT' })).toBeNull()
   })
 
   it('draws each colour when its own hero sits down, and no others', () => {
@@ -275,12 +272,11 @@ describe('§21.0c — Act I shows one lever', () => {
     })
     const { container } = render(<Hud stage={null} />)
 
-    // Mo brings defects, and the role that answers them.
+    // Mo brings defects. Serena and Matt have not arrived, so neither has
+    // their bar — and there is no hire to answer any of it (§4.11, cut).
     expect(container.querySelectorAll('.backlog').length).toBe(1)
-    expect(screen.getByRole('button', { name: 'QA' })).toBeInTheDocument()
-    // Serena and Matt have not arrived, so neither has their bar.
-    expect(screen.queryByRole('button', { name: 'SRE' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'SUPPORT' })).toBeNull()
+    expect(container.querySelector('.backlog--defects')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'QA' })).toBeNull()
   })
 
   it('completes the set once all three have arrived — §21.7.6b', () => {
@@ -295,110 +291,22 @@ describe('§21.0c — Act I shows one lever', () => {
     const { container } = render(<Hud stage={null} />)
 
     expect(container.querySelectorAll('.backlog').length).toBe(3)
-    expect(screen.getByRole('button', { name: 'QA' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'SRE' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'SUPPORT' })).toBeInTheDocument()
   })
 })
 
-/** GDD §11 — the door, and the tree that now stands behind it. */
-describe('the upgrades entry point', () => {
+/**
+ * GDD §8 [2026-09-26] — **there is no UPGRADES door on the rail.** The studio
+ * board it opened is retired (*"I thought upgrades are trees"*); each person's
+ * upgrades open from their own card, and `HeroCard.test.tsx`,
+ * `UpgradeTrees.test.tsx` and `HudTreesIntro.test.tsx` pin that half.
+ */
+describe('the upgrades live on the cards, not the rail', () => {
   beforeEach(prestiged)
 
-  /**
-   * §21.0c — **there is no upgrade screen during Run 1.**
-   *
-   * This test used to read "is present from the first frame, before anything is
-   * buyable", and the argument for that was §10.6: a door that appears partway
-   * through is a door the player has to notice. It is the right argument about
-   * the wrong door. Run 1's entire claim is that there is one lever and it is
-   * hiring, and an UPGRADES button is the interface promising a second one —
-   * §13.2's PARADIGM button has been hidden on exactly this reasoning since it
-   * was written, and this now joins it.
-   */
-  it('does not exist during Run 1', () => {
-    setPermanent(emptyPermanent())
+  it('draws no UPGRADES button on the rail in Run 2 either', () => {
     render(<Hud stage={null} />)
     expect(screen.queryByRole('button', { name: /UPGRADES/ })).toBeNull()
-    // MENU is right beside it and is not gated, so this is the door being shut
-    // rather than the whole nav failing to render.
     expect(screen.getByRole('button', { name: 'MENU' })).toBeInTheDocument()
-  })
-
-  it('is present from the first frame of Run 2, before anything is buyable', () => {
-    render(<Hud stage={null} />)
-    expect(screen.getByRole('button', { name: /UPGRADES/ })).toBeInTheDocument()
-  })
-
-  it('opens a drawer from the edge its button lives on, and closes again', async () => {
-    const { container } = render(<Hud stage={null} />)
-    expect(container.querySelector('.hud__upgrades')).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
-    await frame()
-
-    const drawer = container.querySelector('.hud__upgrades')
-    // §10.5 rule 1 — enters from the edge it belongs to, exits back toward it.
-    expect(drawer?.className).toContain('ui-panel--right')
-    expect(drawer?.getAttribute('data-phase')).toBe('in')
-    // §11.4 — the tree is a centre-out board now, and the centre is Instant
-    // Messenger, given rather than sold.
-    expect(drawer?.textContent).toContain('Instant Messenger')
-    expect(drawer?.querySelector('.upgrade-board__node[data-owned="true"]')).not.toBeNull()
-
-    // §10.6a — the way out is the close box in the window's title bar, named
-    // CLOSE, in the corner every window in the product now puts it.
-    fireEvent.click(screen.getByRole('button', { name: 'CLOSE' }))
-    expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('exit')
-  })
-
-  it('reveals the next purchase and keeps far nodes as a stub — §11.4.2', async () => {
-    const { container } = render(<Hud stage={null} />)
-    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
-    await frame()
-
-    const drawer = container.querySelector('.hud__upgrades')
-    // A node one step from the centre is visible as a silhouette.
-    expect(drawer?.querySelector('.upgrade-board__node[data-state="silhouette"]')).not.toBeNull()
-    // Further out, the board's shape is still there — a stub, never nothing.
-    expect(drawer?.querySelector('.upgrade-board__node[data-state="dark"]')).not.toBeNull()
-    expect(drawer?.querySelector('.upgrade-board__stub')).not.toBeNull()
-  })
-
-  it('prices a node the player cannot yet afford rather than offering a dead button', async () => {
-    __setState({ cash: 0 })
-    const { container } = render(<Hud stage={null} />)
-    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
-    await frame()
-
-    // §11.4.2 — the next purchase carries its price as a silhouette, no text,
-    // and no buy control that would just refuse the player.
-    const silhouette = container.querySelector('.upgrade-board__node[data-state="silhouette"]')
-    expect(silhouette).not.toBeNull()
-    expect(silhouette?.textContent).toMatch(/\$/)
-  })
-
-  /**
-   * §11.5 — Instant Messenger has **no price and no button**. An enabled control
-   * that cannot do anything is worse than no control, and a disabled one priced
-   * at $0 reads as a bug rather than as a gift.
-   */
-  it('never offers the granted node for sale, at any price', async () => {
-    __setState({ cash: 1e9 })
-    const { container } = render(<Hud stage={null} />)
-    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
-    await frame()
-
-    const centre = container.querySelector('.upgrade-board__node[data-owned="true"]')
-    expect(centre?.textContent).toContain('Instant Messenger')
-    expect(screen.queryByRole('button', { name: /^\$0$/ })).toBeNull()
-  })
-
-  it('is a drawer, not a modal — the swarm stays visible and pokeable beside it', async () => {
-    const { container } = render(<Hud stage={null} />)
-    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
-    await frame()
-    expect(container.querySelector('.ui-scrim')).toBeNull()
   })
 })
 
@@ -417,15 +325,16 @@ describe('§10.6b — a conversation clears the desk', () => {
 
   it('shuts a door the player opened, and does not open it again afterwards', async () => {
     const { container } = render(<Hud stage={null} />)
+    const paradigm = () => container.querySelector('.ui-panel.paradigm')
 
-    fireEvent.click(screen.getByRole('button', { name: /UPGRADES/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'PARADIGM' }))
     await frame()
-    expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('in')
+    expect(paradigm()?.getAttribute('data-phase')).toBe('in')
 
     await act(async () => {
       showScene(SCENE_THREAD_CLEARED.id)
     })
-    expect(container.querySelector('.hud__upgrades')?.getAttribute('data-phase')).toBe('exit')
+    expect(paradigm()?.getAttribute('data-phase')).toBe('exit')
 
     // And it stays shut. A window that springs back when the box goes away is
     // the lingering pop-up wearing a delay — so what is checked is that it
@@ -434,7 +343,7 @@ describe('§10.6b — a conversation clears the desk', () => {
       __setState({ scene: null })
     })
     await frame()
-    const after = container.querySelector('.hud__upgrades')
+    const after = paradigm()
     expect(after === null || after.getAttribute('data-phase') === 'exit').toBe(true)
   })
 

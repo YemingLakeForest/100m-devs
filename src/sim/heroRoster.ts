@@ -1,443 +1,170 @@
 /**
- * The six, as the store sees them — GDD §13.6.2, §13.9, §13.10, §13.13, §22.8.
+ * The heroes, as the store sees them — GDD §22.8, §13.8 [amended 2026-09-26].
  *
- * `storyHeroes.ts` says who they are, `heroTree.ts` says what the board looks
- * like and `heroXp.ts` says how a level is reached. **This is the file that
- * turns three tables and two save maps into six people with levels, points,
- * coverage and an effect on the studio**, and it is pure so all of that can be
- * pinned without standing up a store.
+ * `storyHeroes.ts` says who they are. **This file says what they do for the
+ * studio**, and it is pure so that can be pinned without standing up a store.
  *
- * ## Three rules from §13 that this file is the only place to enforce
+ * ## A hero works for the whole studio from the day they arrive
  *
- * **A hero is a starting position, not a role** (§13.9.1). Every hero opens the
- * same board; what differs is where they already are and what a node is worth to
- * them ({@link nodeWeight}). Nothing here refuses a purchase on grounds of
- * branch.
+ * This file used to resolve six people with levels, points, reach and a
+ * *placement*: a hero did nothing until the player posted them onto a unit of
+ * the floor, covered only the developers under that unit, and earned XP to
+ * spend on a shared skill board only while posted. It was cut on 2026-09-26 at
+ * the user's instruction — *"Some mechanics in the old game I want remove, hero
+ * placement, different types of hires (SRE QA ETC."* — and the board went with
+ * it, because XP under coverage was the board's only currency. What a hero can
+ * be upgraded with now lives in their own tree (`upgradeTrees.ts`, GDD §8).
  *
- * **Coverage is a share, not a switch** (§13.6.2). A hero reaches
- * {@link reachDevs} developers of whatever they were placed on, and their effect
- * on the studio is scaled by the share of the studio that is. A hero covering
- * eight of forty delivers a fifth of what they are worth — which is what makes
- * REACH the expensive node and §13.8's placement a decision.
+ * So every term below is at **full share**: the signature a card promises is
+ * the signature the studio gets, the moment the hero is through the door.
  *
- * **Amplitude, never gate** (§13.6.7). Every multiplier this file produces is 1
- * when the roster is empty, and no caller may require otherwise.
+ * ## Who answers the pager and the inbox, now that nobody is hired to
+ *
+ * The same instruction removed §4.11's four professions, and with them the
+ * only people who cleared incidents and answered tickets. Both jobs go to the
+ * hero whose job it always was (the plan put to the user with the removal):
+ *
+ * - **Serena puts the studio on call** — {@link ONCALL_SHARE} of the headcount
+ *   carries the pager, on top of the founder's diluted head.
+ * - **Matt stands up a help desk** — {@link HELPDESK_SHARE} of the headcount
+ *   answers tickets.
+ *
+ * A *share of the headcount* rather than a fixed number of heads, because both
+ * loads grow with the studio (§4.12a's catalogue, §4.13's catalogue and defect
+ * bench) and a flat rota would be enough at twenty and nothing at a million.
+ * Before either arrives the founder carries both at `FOUNDER_ROLE_HEADS`, which
+ * is what makes their arrival relief rather than a tutorial (§21.7.6).
+ *
+ * **Amplitude, never gate** (§13.6.7). Every multiplier here is 1, and every
+ * head count 0, when nobody has arrived.
  */
 
-import { reachDevs } from './heroes.ts'
-import {
-  BRANCH_BY_ID,
-  HERO_NODE_BY_ID,
-  HERO_TREE,
-  TRUNK_NODE,
-  branchFold,
-  heroBoardParent,
-  nodePoints,
-  nodeWeight,
-  startingNodes,
-  type HeroBranch,
-  type HeroTreeNode,
-} from './heroTree.ts'
-import { levelAt, pointsAvailable, type LevelProgress } from './heroXp.ts'
+import { branchColour, type HeroBranch } from './heroBranches.ts'
 import { HERO_BY_ID, type HeroId, type StoryHero } from './storyHeroes.ts'
 
-/**
- * Where a hero is standing — a rung of §7.7's ladder and which unit at it.
- *
- * The same pair `PokeTarget` uses, deliberately: the thing you poke and the
- * thing you put somebody in charge of are the same thing, which is §13.6.1's
- * "the ladder is the progression board as well as the view".
- */
-export interface HeroPlacement {
-  rung: number
-  index: number
-  /**
-   * Simulated seconds at which they were placed — §13.8's rule 4.
-   *
-   * A relocation has a settling period during which the hero covers nothing,
-   * because free instant reassignment makes the optimal play a
-   * micro-management treadmill. §7.8.12 renders the period as a remote channel
-   * synchronising while the hero remains at their desk.
-   */
-  placedAt: number
-}
-
-/** §13.8 rule 4 — how long a hero covers nothing after being moved. */
-export const SETTLE_SECONDS = 8
-
-/** One hero, fully resolved. */
+/** One hero, resolved. */
 export interface HeroRuntime {
   id: HeroId
   hero: StoryHero
   branch: HeroBranch
   colour: string
-  /** Permanent, §13.10. Never spent — {@link progress} is what it is for. */
-  xp: number
-  progress: LevelProgress
-  /** Every node owned, pre-bought and purchased alike. */
-  nodes: readonly string[]
-  /** Points spent. §13.9.1's starting position is free and is not counted. */
-  spent: number
-  /** Points left to spend — §13.13. */
-  points: number
-  /** How many REACH nodes are owned, which is the index into §13.6.2's ladder. */
-  reach: number
-  /** Developers this hero could cover if the unit under them were big enough. */
-  reachDevs: number
-  placement: HeroPlacement | null
 }
 
-function ownedList(nodes: readonly string[] | undefined, branch: HeroBranch): string[] {
-  const start = startingNodes(branch)
-  const out = new Set<string>(start)
-  for (const id of nodes ?? []) if (HERO_NODE_BY_ID.has(id)) out.add(id)
-  return [...out]
-}
-
-/** How many of a hero's owned nodes they actually paid points for. */
-export function pointsSpent(nodes: readonly string[], branch: HeroBranch): number {
-  const free = new Set(startingNodes(branch))
-  let spent = 0
-  for (const id of nodes) {
-    if (free.has(id)) continue
-    const node = HERO_NODE_BY_ID.get(id)
-    if (node) spent += nodePoints(node.kind)
-  }
-  return spent
-}
-
-/**
- * Resolve one hero from what the save holds.
- *
- * Tolerant of every field being absent, because a save written before any of
- * this existed describes a hero who has just walked in — which is the correct
- * reading and needs no migration.
- */
-export function heroRuntime(
-  id: HeroId,
-  xp: number | undefined,
-  nodes: readonly string[] | undefined,
-  placement: HeroPlacement | null | undefined,
-): HeroRuntime | null {
+/** A hero by id, or null for an id that is not one of the cast. */
+export function heroRuntime(id: HeroId): HeroRuntime | null {
   const hero = HERO_BY_ID.get(id)
   if (!hero) return null
-
-  const owned = ownedList(nodes, hero.branch)
-  const banked = Number.isFinite(xp) && (xp as number) > 0 ? (xp as number) : 0
-  const progress = levelAt(banked)
-  const spent = pointsSpent(owned, hero.branch)
-  const reach = owned.filter((n) => HERO_NODE_BY_ID.get(n)?.kind === 'reach').length
-
-  return {
-    id,
-    hero,
-    branch: hero.branch,
-    colour: BRANCH_BY_ID.get(hero.branch)?.colour ?? '#d8d8c0',
-    xp: banked,
-    progress,
-    nodes: owned,
-    spent,
-    points: pointsAvailable(progress.level, spent),
-    reach,
-    reachDevs: reachDevs(reach),
-    placement: placement ?? null,
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Buying a node — §13.13, and §11.4.2's reveal grammar
-// ---------------------------------------------------------------------------
-
-/** §11.4.2's three states, shared with the tech board. One grammar, two boards. */
-export type HeroNodeState = 'owned' | 'live' | 'silhouette' | 'dark'
-
-/**
- * What the player sees of a node, for this hero.
- *
- * Owned; the next purchase, affordable, with everything shown; one step out and
- * unaffordable, in silhouette; further out, a connector and a stub. §11.4.2's
- * argument holds here for the same reason it holds there — planning needs to see
- * the *next* purchase, not six of them.
- */
-export function heroNodeState(runtime: HeroRuntime, nodeId: string): HeroNodeState {
-  const node = HERO_NODE_BY_ID.get(nodeId)
-  if (!node) return 'dark'
-  const owned = new Set(runtime.nodes)
-  if (owned.has(nodeId)) return 'owned'
-
-  const parent = heroBoardParent(nodeId)
-  if (parent !== null && owned.has(parent)) {
-    return runtime.points >= nodePoints(node.kind) ? 'live' : 'silhouette'
-  }
-  return 'dark'
-}
-
-/** Can this hero buy this node right now? */
-export function canBuyHeroNode(runtime: HeroRuntime, nodeId: string): boolean {
-  return heroNodeState(runtime, nodeId) === 'live'
+  return { id, hero, branch: hero.branch, colour: branchColour(hero.branch) }
 }
 
 /**
- * The node list after a purchase, or null if the purchase is refused.
+ * Serena's rota: the share of the headcount on call for incidents.
  *
- * Returns the *list* rather than mutating, so the store can write it straight
- * into the save's `heroNodes` union and nothing has to know how a hero is
- * stored.
+ * One in fifty. §4.12a pins a garage-density release at a tenth of an incident
+ * over its whole life, at 45 seconds of attention each, so a catalogue of fifty
+ * live releases asks for about one head — and a studio of fifty has one on the
+ * rota. First pass; the ratio wants a playtest, and it is one number rather
+ * than a dial precisely so it can be tuned in one place.
  */
-export function buyHeroNode(runtime: HeroRuntime, nodeId: string): string[] | null {
-  if (!canBuyHeroNode(runtime, nodeId)) return null
-  return [...runtime.nodes, nodeId]
-}
-
-// ---------------------------------------------------------------------------
-// Coverage — §13.6.2
-// ---------------------------------------------------------------------------
-
-export interface HeroCoverage {
-  /** Developers actually reached. */
-  covered: number
-  /** Of the unit they were placed on, 0..1. */
-  fraction: number
-  /** True once they cover everything under them. */
-  complete: boolean
-  /** §13.8 rule 4 — still connecting, and covering nothing yet. */
-  settling: boolean
-}
+export const ONCALL_SHARE = 0.02
 
 /**
- * §13.6.2 — a hero is only effective at the reach they have bought.
+ * Matt's help desk: the share of the headcount answering tickets.
  *
- * Placed on a floor of a thousand with a row's reach, they cover eight of it,
- * and §13.11.1's footprint draws exactly that. `now` and the placement's
- * `placedAt` decide §13.8's settling period, during which the answer is zero —
- * coverage costs time, so time is on screen.
+ * One in twenty. §4.13 prices the load at one head per ten shipped games plus
+ * one per hundred defects on the bench, and the bench grows with the studio's
+ * output; a twentieth keeps a thousand-person studio well ahead of both while
+ * leaving a twenty-person garage with a single head, which is about when the
+ * first sustained queue brings him in. First pass.
  */
-export function heroCoverage(runtime: HeroRuntime, devsAtSlot: number, now: number): HeroCoverage {
-  if (!runtime.placement) return { covered: 0, fraction: 0, complete: false, settling: false }
-  const settling = now - runtime.placement.placedAt < SETTLE_SECONDS
-  const slot = Math.max(1, Math.floor(devsAtSlot))
-  const covered = settling ? 0 : Math.min(runtime.reachDevs, slot)
-  return {
-    covered,
-    fraction: covered / slot,
-    complete: !settling && covered >= slot,
-    settling,
-  }
-}
+export const HELPDESK_SHARE = 0.05
 
-// ---------------------------------------------------------------------------
-// What the studio actually gets — §22.8's "bends" column, folded
-// ---------------------------------------------------------------------------
+/**
+ * Billy's FIFTEEN MINUTES: the share of the floor that keeps working through a
+ * Daily Standup.
+ *
+ * Half rather than all. At full share the stand-up would simply stop pausing
+ * anybody the day Billy arrived, which is §13.2 L1-2A's purchase handed over
+ * for free — and that purchase is the Paradigm Tree's best moment.
+ */
+export const STANDUP_KEPT_SHARE = 0.5
 
+/** What the studio gets from the heroes who have arrived. */
 export interface HeroFold {
-  /** Multiplies story-point yield. Above 1 is an improvement. */
-  yield: number
-  /** Multiplies §4.1's entropy. Below 1 is an improvement. */
-  entropy: number
-  /** Multiplies §4.2's developer cap. Above 1 is an improvement. */
+  /** Multiplies §4.2's developer cap. Above 1 is an improvement. Melany. */
   cap: number
-  /** Multiplies §4.12's defect arrival rate. Below 1 is an improvement. */
+  /** Multiplies §4.12's defect arrival rate. Below 1 is an improvement. Mo. */
   defects: number
-  /** Multiplies §4.12a's incident arrival rate. Below 1 is an improvement. */
-  incidents: number
-  /** §4.13 — extra ticket-answering heads, additive. */
-  supportHeads: number
-  /** Serena — work required by a newly opened incident, as a fraction of normal. */
+  /** Work a newly opened incident needs, as a fraction of normal. Serena. */
   incidentStartWork: number
-  /** Matt — multiplier on ticket arrivals from the catalogue. */
+  /** §4.12a — heads clearing incidents, additive. Serena's rota. */
+  oncallHeads: number
+  /** Multiplies ticket arrivals from the catalogue. Matt. */
   ticketRate: number
-  /** James and Billy — coding heads protected from the Daily Standups pause. */
+  /** §4.13 — heads answering tickets, additive. Matt's help desk. */
+  supportHeads: number
+  /** Coding heads the Daily Standups do not pause. James and Billy. */
   standupHeads: number
-  /** Melany — reserved-capacity operating cost, dollars per second. */
+  /** Reserved-capacity operating cost, dollars per second. Melany. */
   operatingCost: number
-  /**
-   * §4.14 — how much the placed bench adds to the *trait* input of the rating,
-   * 0..1, from CRAFT nodes only.
-   *
-   * **Separate from `rosterMastery`, and both are real.** Mastery asks how
-   * developed a hero is and counts every point they have spent; this asks
-   * whether they bought the one node on their branch that is explicitly about
-   * the quality of the thing shipped. A player who wants the rating has a
-   * named purchase to make rather than a statistic to accumulate — which is
-   * the whole difference between a lever and a side effect.
-   *
-   * Coverage-scaled like every other fold term: a hero reaching a tenth of the
-   * studio contributes a tenth of it, because §13.6.2's reach rule is what
-   * makes REACH worth three points and nothing may quietly opt out of it.
-   */
-  craft: number
 }
 
-/** The studio with nobody placed. §13.6.7 — "heroes are amplitude, not gate". */
+/** The studio with nobody through the door. §13.6.7 — "heroes are amplitude, not gate". */
 export const NO_HERO_FOLD: HeroFold = {
-  yield: 1,
-  entropy: 1,
   cap: 1,
   defects: 1,
-  incidents: 1,
-  supportHeads: 0,
   incidentStartWork: 1,
+  oncallHeads: 0,
   ticketRate: 1,
+  supportHeads: 0,
   standupHeads: 0,
   operatingCost: 0,
-  craft: 0,
-}
-
-/** One placed hero's contribution, as the fold needs it. */
-export interface HeroContribution {
-  runtime: HeroRuntime
-  /** Developers covered, from {@link heroCoverage}. */
-  covered: number
-}
-
-function depthNodes(runtime: HeroRuntime): HeroTreeNode[] {
-  return runtime.nodes
-    .map((id) => HERO_NODE_BY_ID.get(id))
-    .filter((n): n is HeroTreeNode => !!n && n.kind === 'depth')
 }
 
 /**
- * What one CRAFT node adds to §4.14's trait input, at full coverage.
+ * Fold every arrived hero into one set of studio terms.
  *
- * Five branches, so a single hero who owned every CRAFT node on the board and
- * covered the entire studio would contribute 0.6 of the term on their own —
- * which is a great deal of board and a great deal of reach for two thirds of
- * the smallest weight in the rating. First pass, on §25.3.2's standing rule.
+ * Each case is the sentence on that hero's card (`storyHeroes.ts`), and the
+ * card is written from this switch rather than the other way round: a card
+ * that promised something this function did not do would be the interface
+ * telling a lie the simulation is not (§10.6).
  */
-export const CRAFT_PER_NODE = 0.12
-
-function craftNodes(runtime: HeroRuntime): HeroTreeNode[] {
-  return runtime.nodes
-    .map((id) => HERO_NODE_BY_ID.get(id))
-    .filter((n): n is HeroTreeNode => !!n && n.kind === 'craft')
-}
-
-/**
- * §13.9.1 — effective depth in a branch, for this hero.
- *
- * A node in the hero's own branch counts fully; one outside it counts
- * {@link nodeWeight}. This is the single line that makes "she will be worse at
- * it than Melany" true, and it is deliberately not a refusal: Mo may buy every
- * Cloud node on the board, and each one is worth half of what it is worth to
- * Melany.
- */
-export function effectiveDepth(runtime: HeroRuntime, branch: HeroBranch): number {
-  let total = 0
-  /*
-   * **The trunk counts as one level of Engineering**, for everybody.
-   *
-   * §13.9 calls the centre "what everybody did, before they specialised" and
-   * §22.8 has James bending "§4.1 velocity, weakly, everywhere" — and without
-   * this line he bends nothing at all, because Engineering has no chain and his
-   * card reads `VELOCITY +0%`. A hero whose own row in the roster table
-   * describes an effect he does not have is a bug in the fiction as much as in
-   * the arithmetic.
-   *
-   * Weighted like any other node, so it is worth {@link JACK_WEIGHT} to James —
-   * full value, since the trunk is the one place he is at home — and the
-   * off-branch rate to everybody else, who left it behind when they
-   * specialised. §13.6.3's joke needs it to be *small*, not absent.
-   */
-  if (branch === 'engineering' && runtime.nodes.includes(TRUNK_NODE)) {
-    total += nodeWeight(runtime.branch, 'engineering')
-  }
-  for (const node of depthNodes(runtime)) {
-    if (node.branch !== branch) continue
-    total += nodeWeight(runtime.branch, node.branch)
-  }
-  return total
-}
-
-/**
- * Fold every placed hero into one set of studio multipliers.
- *
- * **Scaled by the share of the studio each hero actually covers.** A hero
- * reaching eight of a forty-person studio delivers a fifth of what they are
- * worth, which is §13.6.2's reach rule expressed as arithmetic rather than as a
- * nag, and is what makes REACH worth its three points.
- *
- * Every branch, including Support, follows the same coverage grammar. Matt may
- * answer for an old catalogue, but the points invested in his Support branch
- * only become effective over the share of the organisation he is actually
- * leading. The catalogue-specific exception is now Matt's named signature
- * (`ticketRate`) rather than an invisible exception to REACH.
- *
- * The six signature traits are folded here as small rule bends. A signature is
- * active only while its owner is placed and settled — the card's sentence is a
- * simulation promise, not character flavour wearing a number-shaped costume.
- */
-export function heroFold(contributions: readonly HeroContribution[], totalDevs: number): HeroFold {
-  const devs = Math.max(1, Math.floor(totalDevs))
+export function heroFold(heroes: readonly HeroRuntime[], totalDevs: number): HeroFold {
+  const devs = Number.isFinite(totalDevs) ? Math.max(0, Math.floor(totalDevs)) : 0
   const out: HeroFold = { ...NO_HERO_FOLD }
 
-  for (const { runtime, covered } of contributions) {
-    if (!(covered > 0)) continue
-    const share = Math.min(1, covered / devs)
-
-    switch (runtime.id) {
+  for (const { id } of heroes) {
+    switch (id) {
       case 'james':
         // FEWER COMMITMENTS — one person keeps typing through stand-up.
         out.standupHeads += 1
         break
       case 'mo':
-        // READS IT TWICE — work under her review writes half as many defects.
-        out.defects *= 1 + (0.5 - 1) * share
+        // READS IT TWICE — half as many defects written.
+        out.defects *= 0.5
         break
       case 'serena':
-        // WROTE THE RUNBOOK — the first response starts half complete.
-        out.incidentStartWork *= 1 + (0.5 - 1) * share
+        // WROTE THE RUNBOOK — a page starts half worked, and the floor is on call.
+        out.incidentStartWork *= 0.5
+        out.oncallHeads += ONCALL_SHARE * devs
         break
       case 'matt':
-        // KNOWS THEIR NAMES — repeat catalogue questions arrive 20% slower.
-        out.ticketRate *= 1 + (0.8 - 1) * share
+        // KNOWS THEIR NAMES — the catalogue asks a fifth fewer questions, and
+        // somebody is at the desk to answer the rest.
+        out.ticketRate *= 0.8
+        out.supportHeads += HELPDESK_SHARE * devs
         break
       case 'melany':
-        // RESERVED INSTANCES — extra cap is immediate and carries a visible bill.
-        out.cap *= 1 + 0.25 * share
-        out.operatingCost += covered
+        // RESERVED INSTANCES — a quarter more cap, and a dollar a developer a second.
+        out.cap *= 1.25
+        out.operatingCost += devs
         break
       case 'billy':
-        // FIFTEEN MINUTES — everybody in reach keeps producing in stand-up.
-        out.standupHeads += covered
+        // FIFTEEN MINUTES — half the floor keeps working through stand-up.
+        out.standupHeads += STANDUP_KEPT_SHARE * devs
         break
       default:
         break
-    }
-
-    // §4.14's CRAFT rungs. Weighted by §13.9.1's own-branch rule like
-    // everything else — Mo may buy Cloud's craft node and it is worth half.
-    for (const node of craftNodes(runtime)) {
-      out.craft += CRAFT_PER_NODE * nodeWeight(runtime.branch, node.branch) * share
-    }
-
-    for (const [branch, fold] of [...BRANCH_BY_ID.keys()].map((b) => [b, branchFold(b)] as const)) {
-      const depth = effectiveDepth(runtime, branch)
-      if (depth <= 0) continue
-
-      switch (fold.field) {
-        case 'defects':
-        case 'incidents':
-        case 'entropy': {
-          // A multiplier below 1, applied to the covered share only.
-          const full = fold.perNode ** depth
-          const scaled = 1 + (full - 1) * share
-          if (fold.field === 'defects') out.defects *= scaled
-          else if (fold.field === 'incidents') out.incidents *= scaled
-          else out.entropy *= scaled
-          break
-        }
-        case 'cap':
-          out.cap *= 1 + fold.perNode * depth * share
-          break
-        case 'yield':
-          out.yield *= 1 + fold.perNode * depth * share
-          break
-        case 'support':
-          out.supportHeads += fold.perNode * depth * share
-          break
-        default:
-          break
-      }
     }
   }
 
@@ -445,78 +172,14 @@ export function heroFold(contributions: readonly HeroContribution[], totalDevs: 
 }
 
 /**
- * Points that finish a hero's own chain, past §13.9.1's free starting position.
+ * §4.14's hero term — how much of the cast is in the building, 0..1.
  *
- * **Derived from the board rather than written down**, because the board is
- * where it can change: `CHAIN_KINDS` decides which rungs are worth three points
- * and `STORY_STARTING_DEPTH` decides how many are free, and a hard-coded seven
- * here would silently stop meaning "their own branch, finished" the moment
- * either moved.
- *
- * This is the reference §4.14's trait term measures a hero against — not the
- * whole fifty-point board. A hero who has finished their own speciality is a
- * *fully developed hero*; one who has also gone shopping in four other branches
- * is a curiosity, and §13.9.1 is explicit that nothing stops them. Scoring
- * against the whole board would mean the only way to a full trait score was to
- * make all six heroes into the same generalist, which inverts the section.
+ * It was the share of the studio a posted hero covered. With nobody posted the
+ * honest reading is the bench itself: a studio led by four of the six ships
+ * better games than one led by James alone. **Divided by the cast, not by the
+ * arrivals**, so the term climbs with the story instead of peaking in Act I.
  */
-export const OWN_CHAIN_POINTS = (() => {
-  // Quality stands in for every specialist chain: `branchChain` builds all five
-  // from one `CHAIN_KINDS`, so they cost the same and any of them answers.
-  const free = new Set(startingNodes('quality'))
-  let points = 0
-  for (const node of HERO_TREE) {
-    if (node.branch !== 'quality' || free.has(node.id)) continue
-    points += nodePoints(node.kind)
-  }
-  return Math.max(1, points)
-})()
-
-/**
- * How developed one hero is, 0..1 — §4.14's trait term, per person.
- *
- * Points *spent*, not points banked: §13.10's XP is a fact about how long they
- * have been at work, and a hero sitting on twelve unspent points has learned
- * nothing the release can benefit from. Capped at 1, so a generalist who has
- * bought half the board does not print quality the specialist cannot reach.
- */
-export function heroMastery(runtime: HeroRuntime): number {
-  return Math.min(1, Math.max(0, runtime.spent) / OWN_CHAIN_POINTS)
-}
-
-/**
- * §4.14's trait term over the whole leadership bench, 0..1.
- *
- * **Divided by the size of the cast, not by how many have arrived.** Two fully
- * developed heroes out of six is a third of a bench, and averaging over the
- * arrivals would score it the same as six — which would make the term peak in
- * Act I and fall every time somebody new walked in, punishing the player for
- * the game's own story beats.
- *
- * Only *placed* heroes count. §13.6.7's rule that heroes are managed in the
- * world rather than on a grid has an arithmetic half: a hero at their desk in
- * §7.8.12's suite is visibly doing nothing, and a rating that paid for them
- * anyway would say the opposite of what the screen says.
- */
-export function rosterMastery(runtimes: readonly HeroRuntime[], castSize: number): number {
+export function benchShare(heroes: readonly HeroRuntime[], castSize: number): number {
   const cast = Math.max(1, Math.floor(castSize))
-  let sum = 0
-  for (const runtime of runtimes) {
-    if (!runtime.placement) continue
-    sum += heroMastery(runtime)
-  }
-  return Math.min(1, sum / cast)
-}
-
-/**
- * The trunk is owned by everybody — a convenience for callers who only have an
- * id and want to know whether a board is worth opening.
- */
-export function hasAnyNodes(nodes: readonly string[] | undefined): boolean {
-  return (nodes ?? []).some((id) => id !== TRUNK_NODE && HERO_NODE_BY_ID.has(id))
-}
-
-/** Every node on the board, for a renderer that wants to walk it once. */
-export function heroTreeNodes(): readonly HeroTreeNode[] {
-  return HERO_TREE
+  return Math.min(1, heroes.length / cast)
 }

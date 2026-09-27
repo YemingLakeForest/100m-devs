@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   INCIDENTS_PER_GARAGE_RELEASE,
-  INCIDENT_HALVING_SRE_SHARE,
   INCIDENT_WORK_SECONDS,
   IOTA,
   advanceIncidents,
   audienceShare,
   clearanceCapacity,
   incidentRate,
-  incidentSuppression,
   lifetimeIncidents,
   suppressedReleases,
   type Incident,
@@ -52,7 +50,7 @@ describe('§4.12a — ι is anchored to the tail, not chosen', () => {
       const dt = 0.05
       // Past RETIRE_AFTER_SECONDS, so the whole tracked life is covered.
       for (let t = 0; t < 300; t += dt) {
-        total += incidentRate(releases, densities, 0) * dt
+        total += incidentRate(releases, densities) * dt
         releases = advanceTail(releases, dt).releases
       }
       expect(total).toBeLessThanOrEqual(INCIDENTS_PER_GARAGE_RELEASE)
@@ -72,31 +70,19 @@ describe('§4.12a — ι is anchored to the tail, not chosen', () => {
   })
 })
 
-describe('§4.12a.1 — SRE bend the arrival rate', () => {
-  it('is 1 with nobody on it, exactly half at the halving share, never zero', () => {
-    expect(incidentSuppression(0)).toBe(1)
-    expect(incidentSuppression(INCIDENT_HALVING_SRE_SHARE)).toBeCloseTo(0.5, 12)
-    expect(incidentSuppression(1)).toBeGreaterThan(0)
-  })
-
-  it('needs far fewer SRE than QA to matter — the gap is the design', () => {
-    expect(INCIDENT_HALVING_SRE_SHARE).toBeLessThan(0.25)
-  })
-})
-
 describe('§4.12a — the catalogue pages you, unreleased work never does', () => {
   it('raises nothing from an empty catalogue', () => {
-    expect(incidentRate([], new Map(), 0)).toBe(0)
+    expect(incidentRate([], new Map())).toBe(0)
   })
 
   it('raises nothing from a release that shipped clean', () => {
-    expect(incidentRate([release(1)], new Map([[1, 0]]), 0)).toBe(0)
+    expect(incidentRate([release(1)], new Map([[1, 0]]))).toBe(0)
   })
 
   it('weights by audience, so a fresh hit pages harder than an old one', () => {
     const densities = new Map([[1, BETA]])
-    const fresh = incidentRate([release(1, 1_000, 0)], densities, 0)
-    const old = incidentRate([release(1, 1_000, 120)], densities, 0)
+    const fresh = incidentRate([release(1, 1_000, 0)], densities)
+    const old = incidentRate([release(1, 1_000, 120)], densities)
     expect(fresh).toBeGreaterThan(old)
   })
 
@@ -111,7 +97,7 @@ describe('§4.12a — the catalogue pages you, unreleased work never does', () =
    */
   it('does not page about a game that is already off sale', () => {
     const densities = new Map([[1, BETA]])
-    expect(incidentRate([release(1)], densities, 0, new Set([1]))).toBe(0)
+    expect(incidentRate([release(1)], densities, new Set([1]))).toBe(0)
   })
 })
 

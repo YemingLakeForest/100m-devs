@@ -1,25 +1,23 @@
 /**
- * §21.7.3 and §21.7.6, Billy — **the collapse, the referral, and the floor.**
+ * §21.7.3, Billy — **the collapse, the referral, and the stand-up.**
  *
- * `storyTriggers.test.ts` owns the predicate and `unlocks.test.ts` owns the
- * gate. This is the join, and the join is the part that has been wrong before:
- * §26.1.8's whole argument is that a system is not done when its module is done
- * but when a player can reach it, and the two systems this file covers —
- * §13.8's placement and the scene that hands it over — are exactly the shape
- * that went unreachable last time (*"placement with no caller"*).
+ * `storyTriggers.test.ts` owns the predicate. This is the join: every
+ * assertion here goes through the *run* — the clock is advanced by `tick`, the
+ * scene is raised by the store's own trigger sweep, and his effect is read off
+ * the fold the simulation charges.
  *
- * So every assertion here goes through the *run*: the clock is advanced by
- * `tick`, the scene is raised by the store's own trigger sweep, and the verb is
- * asked for the way the HUD asks for it.
+ * Until 2026-09-26 the scene also handed over §13.8's placement and posted him
+ * onto the floor. Placement was cut; what he brings now is that half the floor
+ * keeps working through the stand-up (`heroRoster.ts`).
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   __resetStore,
   __setState,
-  beginPosting,
   currentEntropy,
-  currentUnlocks,
+  currentHeroFold,
+  effectiveDevCap,
   dismissScene,
   getState,
   shipEverything,
@@ -29,7 +27,7 @@ import { emptyPermanent, setPermanent } from './save.ts'
 import {
   SCENE_BILLY_ARRIVES,
   SCENE_FOUNDER_BOARD,
-  SCENE_HERO_BOARD,
+  SCENE_JAMES_PROMOTED,
   SCENE_MATT_ARRIVES,
   SCENE_MELANY_ARRIVES,
   SCENE_MO_ARRIVES,
@@ -71,19 +69,25 @@ function atTheCap(devs: number, extra: string[] = []) {
         // returns early, which is a suite measuring a stopped simulation.
         retiredMilestone(THREAD.id),
         SCENE_FOUNDER_BOARD.id,
-        SCENE_HERO_BOARD.id,
+        // §21.7.4 — James's first colleague is his promotion, and a studio
+        // this size has long since had one.
+        SCENE_JAMES_PROMOTED.id,
         ...extra,
       ],
     },
   })
   __setState({
     devs,
-    roster: [{ role: 'dev', count: devs }],
     devCap: D_BASE,
     cash: 5e7,
     runSeconds: 0,
     projectsShipped: 3,
   })
+  // Instant Messenger (James's root) and Melany both raise the cap now that
+  // nobody has to be posted for it. Hold the *effective* cap at the base cap,
+  // so "a hundred hires" still reads as the studio's own capacity.
+  __setState({ heroFold: currentHeroFold() })
+  __setState({ devCap: (D_BASE * D_BASE) / effectiveDevCap() })
 }
 
 /**
@@ -167,8 +171,8 @@ describe('§21.7.3 — Billy arrives on a collapse that stayed collapsed', () =>
    *
    * This is a walk failure written down as a unit test. THE THREAD holds the
    * studio at 25% output, which is 75% entropy on the gauge, so a clock reading
-   * the gauge filled during a thread and handed §13.8's floor to a Run 2 garage
-   * of twelve developers — before Mo, before Serena, before anybody had a
+   * the gauge filled during a thread and brought Billy to a Run 2 garage of
+   * twelve developers — before Mo, before Serena, before anybody had a
    * problem it solves. `store.structuralEntropy` is the fix and this is the case
    * that would have caught it.
    */
@@ -176,7 +180,6 @@ describe('§21.7.3 — Billy arrives on a collapse that stayed collapsed', () =>
     atTheCap(12)
     __setState({
       devs: 12,
-      roster: [{ role: 'dev', count: 12 }],
       event: { id: THREAD.id, remaining: 20, age: 0, routed: true },
     })
     // The gauge really is reading a collapse — that is the event working.
@@ -198,43 +201,21 @@ describe('§21.7.3 — Billy arrives on a collapse that stayed collapsed', () =>
   })
 })
 
-describe('§21.7.6 — and the scene is where the floor is handed over', () => {
-  it('keeps the placement verb shut until he has spoken', () => {
+describe('§21.7.3 — and afterwards, half the floor keeps working through stand-up', () => {
+  it('changes nothing about the stand-up until he has spoken', () => {
     atTheCap(D_BASE + 20)
-    expect(currentUnlocks().heroPlacement).toBe(false)
-    expect(beginPosting('james')).toBe(false)
+    play(1)
+    // James alone: one person typing through the meeting.
+    expect(getState().heroFold.standupHeads).toBe(1)
   })
 
-  it('opens it, and puts him on the floor to show what it is for', () => {
+  it('keeps half the floor coding once he is here — no placement to make', () => {
     atTheCap(D_BASE + 20)
     play(BILLY_SUSTAINED_S + 2)
     expect(getState().scene).toBe(SCENE_BILLY_ARRIVES.id)
-
     dismissScene()
-
-    // The verb is the player's now.
-    expect(currentUnlocks().heroPlacement).toBe(true)
-    expect(beginPosting('james')).toBe(true)
-
-    // And he did not arrive to a bench. §21.7.3's shape rule 2 — he fixes
-    // nothing *during* the scene, and the number improves afterwards from his
-    // work, where the player can see the cause.
-    expect(getState().heroPlacements.billy).toMatchObject({ rung: 0 })
-  })
-
-  /**
-   * §13.9 — and the work is real: Cohesion is the one branch that bends §4.1's
-   * own number, so the gauge the scene was about comes back up once he has
-   * connected to the rung. Not during channel setup (§13.8 rule 4), which is
-   * why this plays past `SETTLE_SECONDS` before reading it.
-   */
-  it('brings the sync reading back up once his channel is active', () => {
-    atTheCap(D_BASE + 20)
-    play(BILLY_SUSTAINED_S + 2)
-    dismissScene()
-    const collapsed = currentEntropy()
-
-    play(30)
-    expect(currentEntropy()).toBeLessThan(collapsed)
+    play(0.1)
+    const devs = getState().devs
+    expect(getState().heroFold.standupHeads).toBeCloseTo(1 + devs / 2, 6)
   })
 })

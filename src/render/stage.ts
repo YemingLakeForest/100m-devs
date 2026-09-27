@@ -15,18 +15,15 @@ import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   pokeJames,
   arrivedHeroes,
-  cancelPosting,
   currentEntropy,
   developerVelocity,
   grabDeveloper,
   releaseDeveloper,
   FLOATER_LIFE_MS,
   getState,
-  heroCoverageOf,
   heroRoster,
   poke,
   pokeFounder,
-  previewHeroAt,
   selectDeveloper,
   setCameraRung,
   setZoom,
@@ -42,14 +39,12 @@ import { Lens, settleLevel } from './lens.ts'
 import {
   BLOCK,
   BUILDING,
-  bandRect,
   DESK,
   DEVS_PER_FLOOR,
   FLOOR,
   LEVEL_NAMES,
   PARK,
   SQUAD,
-  TOWER_CROWN,
   TOP_LEVEL,
   blockAtPark,
   blockChromeAlpha,
@@ -98,10 +93,9 @@ import { buildGalaxy } from './galaxy.ts'
 import { SITES_PER_GLOBE } from './worldMap.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
-import { LITERAL_RUNG_LIMIT, maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
+import { maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
 import { devsOnWorld, worldsFor } from '../sim/starfield.ts'
-import { branchColour } from '../sim/heroTree.ts'
-import { roomSeatMarks, type RoomPosting, type SeatMark } from './heroBadges.ts'
+import { branchColour } from '../sim/heroBranches.ts'
 import { createCollapse } from './collapse.ts'
 import { createPokeTypeset } from './pokeText.ts'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
@@ -122,8 +116,6 @@ import { tapVerb } from '../game/touchMode.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 import type { FounderProfile } from '../game/founderProfile.ts'
-import { SETTLE_SECONDS, type HeroPlacement } from '../sim/heroRoster.ts'
-import { nominalUnitSize, unitSeats } from '../sim/units.ts'
 import { STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
 import {
   JAMES_DROPS_AT_LINE,
@@ -197,14 +189,6 @@ export interface StageHandle {
   /** p95 tap -> numeral latency in ms. Criterion 1's threshold is 80 ms. */
   readonly latencyP95: number
   readonly camera: Lens
-  /**
-   * Project a hero's assignment into the scene the player is currently seeing.
-   *
-   * `null` means the assignment is outside the visible hierarchy. `context`
-   * means the camera is inside the assigned unit, so the marker describes the
-   * whole current scene rather than one pinpoint target within it.
-   */
-  heroAnchor(placement: HeroPlacement): { x: number; y: number; context: boolean } | null
   /**
    * Where the lens is, for §10's breadcrumb and lift panel.
    *
@@ -529,107 +513,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const camera = new Lens({ w: app.screen.width, h: app.screen.height })
 
   /**
-   * §13.11.1 — who covers which seat, at four hertz.
-   *
-   * Throttled rather than driven by a change signal, and that is the honest
-   * trade rather than the lazy one. Two of the three inputs announce themselves
-   * (`heroPlacements` is a fresh object on every placement, `devs` is a number),
-   * but the third is **time**: §13.8 rule 4's settling period ends on a clock
-   * nobody publishes an event for, and a footprint that waited for the next
-   * placement to appear would arrive minutes after the hero it belongs to
-   * finished synchronising its remote channel.
-   *
-   * Four hertz against an eight-second setup is invisible, and `setCoverage`
-   * throws away the result unless the marks actually moved, so the cost of the
-   * poll is six objects and a short string a quarter of a second — not a
-   * redraw. §23.3's frame budget never sees it.
-   */
-  const COVERAGE_HZ = 4
-  let marksAt = Number.NEGATIVE_INFINITY
-  let marks: ReadonlyMap<number, SeatMark> = new Map()
-  const seatMarks = (state: GameState): ReadonlyMap<number, SeatMark> => {
-    const now = performance.now()
-    if (now - marksAt < 1000 / COVERAGE_HZ) return marks
-    marksAt = now
-
-    const postings: RoomPosting[] = []
-    for (const hero of heroRoster(state)) {
-      // §13.8c — once a candidate is under inspection the floor answers the
-      // proposed move, while the world pin continues to show the committed
-      // anchor. Drawing both footprints would turn a comparison into an
-      // overlap that the simulation will never actually have.
-      if (state.posting === hero.id && state.postingTarget) continue
-      const at = hero.placement
-      // Rungs 0–2 only: above the room a unit is a floor or a town and the
-      // decal belongs on *its* face, which is §13.11.1's badge and is not built.
-      // The store charges for the coverage either way — this is the picture
-      // being behind the simulation, which is the right way round.
-      if (!at || at.rung > LITERAL_RUNG_LIMIT) continue
-      const age = Math.max(0, state.runSeconds - at.placedAt)
-      const settling = heroCoverageOf(hero, state).settling
-      postings.push({
-        branch: hero.branch,
-        colour: branchColour(hero.branch),
-        index: at.index,
-        reachDevs: hero.reachDevs,
-        settling,
-        // A short, seat-ordered activation pass after the eight-second walk.
-        activation: settling ? 0 : Math.min(1, Math.max(0, (age - SETTLE_SECONDS) / 0.8)),
-      })
-    }
-
-    const previewHero = state.posting === null
-      ? null
-      : heroRoster(state).find((hero) => hero.id === state.posting) ?? null
-    const preview = state.postingTarget
-    if (previewHero && preview && preview.rung <= LITERAL_RUNG_LIMIT) {
-      postings.push({
-        branch: previewHero.branch,
-        colour: branchColour(previewHero.branch),
-        index: preview.index,
-        reachDevs: previewHero.reachDevs,
-        // The outline is already the visual grammar for coverage that is not
-        // active yet. A preview is deliberately never painted as live work.
-        settling: true,
-        activation: 0,
-      })
-    }
-
-    // §26.2.2 — the marks come back in the studio's numbering and the room
-    // draws its own chairs, so a window that is not at seat zero has to shift
-    // them and drop the ones that fall outside it. A hero covering a block on
-    // the other side of the company is covering it; they are simply not in
-    // this picture, which is what "on demand" means.
-    const studio = roomSeatMarks(postings, state.devs)
-    if (room.seatWindow === 0) {
-      marks = studio
-      return marks
-    }
-    const windowed = new Map<number, SeatMark>()
-    for (const [seat, mark] of studio) {
-      const local = localSeat(seat)
-      if (local >= 0) windowed.set(local, mark)
-    }
-    marks = windowed
-    return marks
-  }
-
-  /**
    * §7.8.12 — the physical room roster, including a hero whose arrival scene
    * is currently playing but has not yet been committed to milestones.
    */
   const teamRoomRoster = (state: GameState): TeamRoomHero[] => {
-    const runtimes = new Map(heroRoster(state).map((hero) => [hero.id, hero]))
+    const runtimes = new Map(heroRoster().map((hero) => [hero.id, hero]))
     const arriving = state.scene ? ARRIVAL_HERO_FOR_SCENE[state.scene] : undefined
     return STORY_HEROES.flatMap((hero): TeamRoomHero[] => {
       const runtime = runtimes.get(hero.id)
       if (!runtime && hero.id !== arriving) return []
-      const placement = runtime?.placement ?? state.heroPlacements[hero.id] ?? null
       return [{
         id: hero.id,
         colour: runtime?.colour ?? branchColour(hero.branch),
-        assigned: placement !== null,
-        connecting: placement !== null && state.runSeconds - placement.placedAt < SETTLE_SECONDS,
         selected: state.selectedHero === hero.id,
       }]
     })
@@ -981,33 +876,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     return true
   }
 
-  /**
-   * §13.8's remote posting gesture — the armed tap.
-   *
-   * Checked before every other verb and before the double-tap descend, because
-   * while somebody is armed **the finger means one thing only**. That is the
-   * §7.7.6b rule the touch latches are built on, applied to a mode the player
-   * entered from a hero's card one tap ago: a placement that also poked, or
-   * that also flew the camera down a rung, would be the mode reaching past what
-   * the banner says it does.
-   *
-   * A tap on open ground disarms rather than doing nothing, so there is a way
-   * out that does not need the CANCEL button to be under a thumb.
-   */
-  const doPost = (x: number, y: number): void => {
-    const target = pickUnit(x, y)
-    if (!target) {
-      cancelPosting()
-      playUi('close')
-      return
-    }
-    // §13.8c — the world tap names the candidate; it does not start the walk.
-    // The banner owns the explicit confirmation so touch gets the same preview
-    // desktop receives from hover.
-    previewHeroAt(target)
-    playUi('click')
-  }
-
   const doPoke = (x: number, y: number, t0: number) => {
     // 2026-09-26 — James is tappable in the 3D room: a poke on him is code.
     if (showing3d && garage3d && pick3d(x, y) === JAMES_3D_SEAT) {
@@ -1212,88 +1080,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       sitesFor(worldDevs(devs)),
       worldsFor(devs),
     )
-  }
-
-  /**
-   * §13.11.1 — put a hero's name on the unit their placement names.
-   *
-   * Coverage tint answers “how far does the effect travel?” but not “who is
-   * responsible for this place?”. The latter needs an identity marker tied to
-   * the same hierarchy the placement tap used. This projects that hierarchy
-   * into screen space without teaching React any of the scene graph.
-   */
-  const heroAnchor = (
-    placement: HeroPlacement,
-  ): { x: number; y: number; context: boolean } | null => {
-    const rung = Math.max(0, Math.floor(placement.rung))
-    const index = Math.max(0, Math.floor(placement.index))
-    const devs = getState().devs
-    const range = unitSeats(rung, index, devs)
-    const view = settleLevel(currentLevel)
-    const holdsFocus = focusSeat >= range.from && focusSeat < range.to
-
-    // Looking *inside* a floor/building/site that owns the placement: there is
-    // no smaller point to pin because the whole current scene is the target.
-    if (view < rung) {
-      return holdsFocus
-        ? { x: app.screen.width / 2, y: Math.min(92, app.screen.height * 0.26), context: true }
-        : null
-    }
-
-    const firstSeat = index * nominalUnitSize(rung)
-    const targetSite = siteOf(firstSeat)
-    if (targetSite !== siteOf(focusSeat)) return null
-
-    const targetBuilding = buildingOf(firstSeat)
-    const targetBlock = blockOf(firstSeat)
-    const targetStorey = storeyOf(firstSeat)
-
-    // A building view contains one building; a block view contains one block.
-    // Markers elsewhere in the site become the component's explicit AWAY chip
-    // rather than pretending an invisible unit is somewhere in this picture.
-    if (view <= BUILDING && targetBuilding !== buildingOf(focusSeat)) return null
-    if (view === BLOCK && targetBlock !== blockOf(focusSeat)) return null
-
-    const point = (x: number, y: number, context = false) =>
-      Number.isFinite(x) && Number.isFinite(y) ? { x, y, context } : null
-
-    if (rung <= 2 && showing3d) {
-      const at = seat3d(localSeat(index))
-      return at ? point(at.x, at.y) : null
-    }
-    if (rung <= 2 && roomIsUp) {
-      const local = localSeat(index)
-      const desk = local >= 0 ? room.deskAt(local) : null
-      if (desk) {
-        const at = room.container.toGlobal({ x: desk.x, y: desk.y - 30 })
-        return point(at.x, at.y)
-      }
-    }
-
-    if (rung <= 3) {
-      const host = park.blockAt(targetBlock).plotHost(plotOf(targetBuilding))
-      const band = bandRect(targetStorey)
-      const at = host.toGlobal({ x: band.cx, y: band.cy })
-      return point(at.x, at.y)
-    }
-
-    if (rung === 4) {
-      const host = park.blockAt(targetBlock).plotHost(plotOf(targetBuilding))
-      const storeys = storeysIn(hereDevs(devs), targetBuilding)
-      const top = bandRect(Math.max(0, storeys - 1))
-      const at = host.toGlobal({ x: top.cx, y: top.cy - top.h / 2 - TOWER_CROWN * 0.35 })
-      return point(at.x, at.y)
-    }
-
-    if (rung === 5) {
-      const at = park.blockAt(targetBlock).container.toGlobal({ x: 0, y: -80 })
-      return point(at.x, at.y)
-    }
-
-    // A site or anything above it owns the whole current park. At globe scale
-    // the park host is the visible territory; inside it this becomes context.
-    const at = park.container.toGlobal({ x: 0, y: -100 })
-    return point(at.x, at.y, rung > GLOBE)
   }
 
   /** The rail's CODE — YOU action owns the lens until the corner desk lands. */
@@ -1601,13 +1387,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // The grab is checked first and, when it lands, no drag is started at
       // all: the camera must let go of the world the instant the hand takes
       // hold of somebody, or the grab drags the floor along with the developer.
-      // The armed placement outranks GRAB on the press for the same reason it
-      // outranks every verb on the release: a hand that picked somebody up
-      // would eat the tap the banner has just asked the player for.
-      if (
-        getState().posting === null &&
-        tapVerb(getState().touchMode, roomIsUp) === 'grab'
-      ) {
+      if (tapVerb(getState().touchMode, roomIsUp) === 'grab') {
         if (tryGrab(ev.clientX, ev.clientY, ev.pointerId)) return
       }
       drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY, t0: t }
@@ -1669,11 +1449,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     drag = null
 
     if (travelled) return
-
-    if (getState().posting !== null) {
-      doPost(ev.clientX, ev.clientY)
-      return
-    }
 
     // **The park names a block**, and the block names a building, and the
     // building names a floor — one rule, said at every level it applies to: the
@@ -1851,11 +1626,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const onPointerMove = (ev: PointerEvent) => {
     const now = ev.timeStamp || performance.now()
     expireStalePointers(now)
-    // A mouse can compare anchors continuously before committing. Touch gets
-    // the same answer from `doPost` on its first tap, then confirms on the HUD.
-    if (getState().posting !== null && ev.pointerType === 'mouse' && pointers.size === 0) {
-      previewHeroAt(pickUnit(ev.clientX, ev.clientY))
-    }
     if (!pointers.has(ev.pointerId)) return
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, seen: now })
 
@@ -2377,7 +2147,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // stays, because a plate is a name over a job and only one of them fits.
     room.setLabelDetail(currentLevel < SQUAD ? 'full' : currentLevel < FLOOR ? 'name' : 'none')
     room.setHeadcount(Math.min(state.devs, arrivals.revealed))
-    room.setCoverage(seatMarks(state))
     // §21 Act IV only. The particle swarm is not a level — the room draws the
     // people wherever a person is a person — so it shows nobody unless the trap
     // has sprung and there is a thousand-body drop to stage. See scene.ts.
@@ -2732,9 +2501,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return tapLatency.p95
     },
     camera,
-    heroAnchor(placement) {
-      return heroAnchor(placement)
-    },
     nav() {
       const all = getState().devs
       const devs = hereDevs(all)

@@ -3,7 +3,7 @@
  *
  *   node scripts/shot-boards.mjs <base-url> <out-dir> [width] [height]
  *
- * The gallery, the hero capability model and the Management board, each opened
+ * The gallery, the hero card (and its tree) and the Management board, each opened
  * the way a player opens it rather than by being rendered in isolation — a
  * board screenshotted out of the HUD is a picture of a component, and every
  * layout defect this project has shipped lived in the gap between the two.
@@ -107,30 +107,20 @@ await shot('gallery-slid')
 
 await tap(page.locator('.hud__gallery .os-window__close'), 'the gallery close box')
 
-// --- the hero capability model --------------------------------------------
-// §7.8.12 — the roster opens from the sign over the suite's door now, and
-// TEAM is what puts that sign on screen from wherever the camera is.
+// --- the hero card ---------------------------------------------------------
+// TEAM opens the first card [2026-09-26] — the roster strip went with
+// placement — and the card's UPGRADES opens that person's tree once the first
+// Paradigm Shift has opened the trees.
 await tap(page.getByRole('button', { name: 'TEAM', exact: true }), 'the TEAM anchor')
-await page.waitForTimeout(1800)
-const signAt = await page.evaluate(() => window.__signAt?.() ?? null)
-if (!signAt) throw new Error('the sign over the suite door is not on screen after TEAM')
-await page.mouse.click(signAt.x, signAt.y)
-await page.waitForTimeout(400)
-await tap(page.locator('.roster__card'), 'the first hero on the strip')
-await tap(page.getByRole('button', { name: /^SPEND \d+$/ }), 'SPEND')
-await page.locator('.herotree__frame').waitFor()
+await page.locator('.herocard__pass').waitFor()
 await page.waitForTimeout(700)
-await shot('hero-board')
-
-// The node inspector, which is where the UML box is drawn at full size.
-const live = page.locator('.herotree__node[data-state="live"]')
-if (await live.count()) {
-  await tap(live.first(), 'a live node')
-  await page.locator('.herotree__guide-card').waitFor()
-  await page.waitForTimeout(300)
-  await shot('hero-node')
-  await page.locator('.herotree__guide').click({ position: { x: 6, y: 6 } })
-  await page.waitForTimeout(300)
+await shot('hero-card')
+const upgrades = page.locator('.herocard').getByRole('button', { name: 'UPGRADES', exact: true })
+if (await upgrades.count()) {
+  await tap(upgrades, 'UPGRADES on the card')
+  await page.locator('.trees__canvas').waitFor()
+  await page.waitForTimeout(700)
+  await shot('hero-tree')
 }
 
 // --- the Management board --------------------------------------------------

@@ -4,13 +4,11 @@ import {
   BILLY_MIN_SHIFTS,
   BILLY_SUSTAINED_S,
   FOUNDER_BOARD_MIN_DEVS,
-  HERO_BOARD_MIN_LEVEL,
   MATT_SUSTAINED_S,
   SYNC_HALVED,
   arrivalPredicate,
   billyArrives,
   founderBoardArrives,
-  heroBoardArrives,
   jamesPromoted,
   mattArrives,
   melanyArrives,
@@ -100,22 +98,12 @@ const board: BoardSnapshot = {
   founderRate: 0.5,
   swarmRate: 0,
   devs: 0,
-  specialists: 0,
-  heroPoints: 0,
-  heroLevel: 1,
 }
 
-describe('§21.7.7 — the founder’s board, and its two doors', () => {
-  it('opens on the first hire the founder cannot do the job of', () => {
-    // The beat. §4.11's dial only offers a specialist after §21.7.6 has brought
-    // the hero who makes the problem legible, so this door opens behind Mo,
-    // Serena or Matt and never before one of them.
-    expect(founderBoardArrives({ ...board, specialists: 1 })).toBe(true)
-  })
-
-  it('opens anyway once your share of the output is a rounding error', () => {
-    // The guarantee. A player who only ever hires developers must still be able
-    // to reach their own skill board.
+describe('§21.7.7 — the founder’s board', () => {
+  it('opens once your share of the output is a rounding error', () => {
+    // The only door since the professions were cut [2026-09-26]; the first
+    // specialist hire used to be the other.
     const big = { ...board, devs: FOUNDER_BOARD_MIN_DEVS, swarmRate: 20 }
     expect(founderBoardArrives(big)).toBe(true)
     // 0.5 of 5.5 is nine per cent — still a real share of a small company.
@@ -138,7 +126,8 @@ describe('§21.7.7 — the founder’s board, and its two doors', () => {
   })
 
   it('never opens during Run 1', () => {
-    expect(founderBoardArrives({ ...board, paradigmShifts: 0, specialists: 3 })).toBe(false)
+    const big = { ...board, devs: FOUNDER_BOARD_MIN_DEVS * 10, swarmRate: 200 }
+    expect(founderBoardArrives({ ...big, paradigmShifts: 0 })).toBe(false)
   })
 
   it('never divides by an empty studio', () => {
@@ -146,47 +135,19 @@ describe('§21.7.7 — the founder’s board, and its two doors', () => {
   })
 })
 
-describe('§21.7.7 — the hero board, and the level somebody earned', () => {
-  it('waits for a level past the one they walked in with', () => {
-    // Every hero arrives at level 1 holding a point (§13.13), so a points-only
-    // trigger would fire on the frame after James finished speaking at the top
-    // of Run 2 — a pile, which is exactly what §13.12.2 spreads these out to
-    // avoid. It also means XP has accrued, which means somebody is *placed*,
-    // which is what the board's REACH and DEPTH nodes are about.
-    expect(heroBoardArrives({ ...board, heroLevel: 1, heroPoints: 1 })).toBe(false)
-    expect(heroBoardArrives({ ...board, heroLevel: HERO_BOARD_MIN_LEVEL, heroPoints: 1 })).toBe(true)
+describe('§21.7.4 — the org chart is who is in the building', () => {
+  // [2026-09-26] It was the ladder: James posted on a higher rung than another
+  // posted hero. Placement is gone, so his first colleague is the promotion.
+  it('promotes James the first time somebody else has arrived', () => {
+    expect(jamesPromoted(new Set(['james', 'mo']))).toBe(true)
   })
 
-  it('waits for a point, so the board is never a screen with no currency', () => {
-    expect(heroBoardArrives({ ...board, heroLevel: 9, heroPoints: 0 })).toBe(false)
+  it('is not a promotion for being in the building alone', () => {
+    expect(jamesPromoted(new Set(['james']))).toBe(false)
   })
 
-  it('never opens during Run 1', () => {
-    expect(heroBoardArrives({ ...board, paradigmShifts: 0, heroLevel: 9, heroPoints: 4 })).toBe(false)
-  })
-})
-
-describe('§21.7.4 — the ladder is the org chart', () => {
-  it('promotes James the first time somebody is standing below him', () => {
-    expect(jamesPromoted([{ id: 'james', rung: 3 }, { id: 'mo', rung: 0 }])).toBe(true)
-  })
-
-  it('says nothing about two people side by side', () => {
-    // Strictly below. Two heroes on the same rung are colleagues, which is the
-    // whole joke of the title he is about to be given.
-    expect(jamesPromoted([{ id: 'james', rung: 3 }, { id: 'mo', rung: 3 }])).toBe(false)
-  })
-
-  it('says nothing when James is the one being stood over', () => {
-    expect(jamesPromoted([{ id: 'james', rung: 0 }, { id: 'mo', rung: 3 }])).toBe(false)
-  })
-
-  it('needs James to be at work', () => {
-    expect(jamesPromoted([{ id: 'mo', rung: 0 }, { id: 'billy', rung: 3 }])).toBe(false)
-    expect(jamesPromoted([])).toBe(false)
-  })
-
-  it('is not a promotion for standing on the floor alone', () => {
-    expect(jamesPromoted([{ id: 'james', rung: 3 }])).toBe(false)
+  it('needs James', () => {
+    expect(jamesPromoted(new Set(['mo', 'billy']))).toBe(false)
+    expect(jamesPromoted(new Set())).toBe(false)
   })
 })

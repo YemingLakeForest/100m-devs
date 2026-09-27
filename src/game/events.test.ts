@@ -13,8 +13,8 @@ import {
   __resetStore,
   __setState,
   acknowledgeEvent,
-  boughtTechNodes,
-  buyTech,
+  buyTreeNode,
+  upgradesBought,
   clearEventByHand,
   currentEfficiency,
   currentEvent,
@@ -25,10 +25,10 @@ import {
 } from './store.ts'
 import { emptyPermanent, makeSaveData, setPermanent, serialize, deserialize } from './save.ts'
 import { THREAD, THREAD_MIN_DEVS } from '../sim/events.ts'
-import { SCENE_FOUNDER_BOARD, SCENE_HERO_BOARD, SCENE_THE_THREAD } from './scenes.ts'
+import { SCENE_FOUNDER_BOARD, SCENE_THE_THREAD } from './scenes.ts'
 
 /**
- * A Run 2 studio big enough for a thread, with the two board scenes already
+ * A Run 2 studio big enough for a thread, with the founder board's scene already
  * behind it so nothing else claims the frame.
  *
  * The board introductions are recorded rather than suppressed because §21.7.7
@@ -43,7 +43,7 @@ function runTwo(devs = THREAD_MIN_DEVS + 8) {
     meta: {
       ...p.meta,
       paradigmShifts: 1,
-      milestones: [SCENE_FOUNDER_BOARD.id, SCENE_HERO_BOARD.id],
+      milestones: [SCENE_FOUNDER_BOARD.id],
     },
   })
   __setState({ devs, cash: 1e9, phase: 'act2_loop' })
@@ -76,10 +76,10 @@ describe('§18.0a — the first event is mandatory, and it fires on an empty boa
 
   it('never fires at a player who has already bought a node', () => {
     runTwo()
-    // C1 is ring 1 and needs no prerequisite, so it is buyable on the first
-    // frame of Run 2 — which is the whole point: this player opened the board.
-    expect(buyTech('C1')).toBe(true)
-    expect(boughtTechNodes()).toBe(1)
+    // A node straight off your root is buyable on the first frame of Run 2 —
+    // which is the whole point: this player opened a tree.
+    expect(buyTreeNode('you', 'y1')).toBe(true)
+    expect(upgradesBought()).toBe(1)
     for (let i = 0; i < 20; i++) tick(0.25)
     expect(getState().event).toBeNull()
   })
@@ -125,13 +125,13 @@ describe('the two exits', () => {
     runTwo()
     tick(0.25)
     dismissScene()
-    expect(buyTech('C1')).toBe(true)
+    expect(buyTreeNode('you', 'y1')).toBe(true)
     expect(getState().event).toBeNull()
     expect(eventRetired(THREAD.id)).toBe(true)
     expect(getState().scene).toBe(THREAD.resolvedScene)
     // And it never comes back, at any headcount, on any later run.
     dismissScene()
-    __setState({ tech: {}, devs: 400 })
+    __setState({ treeLevels: {}, devs: 400 })
     for (let i = 0; i < 20; i++) tick(0.25)
     expect(getState().event).toBeNull()
   })

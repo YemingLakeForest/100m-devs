@@ -35,15 +35,6 @@ import {
 } from '../sim/history.ts'
 import { lessonFor, ledgerWith } from './lessons.ts'
 import type { ShiftReport } from './paradigmBoot.ts'
-import {
-  addHires,
-  countsOf,
-  newRoster,
-  removeAtSeat,
-  roleShare,
-  type Role,
-  type Roster,
-} from '../sim/roles.ts'
 import { advanceDefects, defectsFromPoke, shipDefects } from '../sim/defects.ts'
 import {
   advanceIncidents,
@@ -95,6 +86,8 @@ import { coordinationLedger } from '../sim/dysfunction.ts'
 import { titleFor, type Genre } from '../three/sim/titles.ts'
 import { eraIndex } from '../sim/eras.ts'
 import {
+  TREES,
+  TREE_HEROES,
   levelOf,
   tileStateOf,
   treeKey,
@@ -136,27 +129,15 @@ import {
   efficiency,
 } from '../sim/entropy.ts'
 import {
-  FOUNDER_BY_ID,
   FOUNDER_ROLE_HEADS,
   MANAGEMENT_DILUTION,
-  canBuyFounder,
-  founderCost,
-  founderEffects,
-  founderLevel,
-  founderMastery,
+  NO_FOUNDER,
   type FounderEffects,
 } from '../sim/founder.ts'
 import {
-  FIRST_PROTOCOL_NODE,
-  TECH_BY_ID,
-  TECH_TREE,
-  boardCost,
-  canBuyTech,
   inStandup,
-  ringOpen,
   standupFactor,
   techEffects,
-  techLevel,
   type TechEffects,
 } from '../sim/techTree.ts'
 import {
@@ -177,7 +158,7 @@ import {
   type SlackState,
 } from '../sim/slackOff.ts'
 import { jamesRefusal } from './chatter.ts'
-import { LITERAL_RUNG_LIMIT, rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
+import { rungCrossed, spawnBurst, type Rung } from '../sim/headcount.ts'
 import { WORLD_CAP, worldsFor } from '../sim/starfield.ts'
 import { interstellarSync, meanLagLy } from '../sim/starbound.ts'
 import { SnippetBag } from './snippets.ts'
@@ -191,13 +172,10 @@ import {
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_MASS_HIRE,
-  SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
 } from './scenes.ts'
 import {
-  BILLY_SEAT,
   SCENE_BILLY_ARRIVES,
   SCENE_FOUNDER_BOARD,
-  SCENE_HERO_BOARD,
   SCENE_JAMES_PROMOTED,
   SCENE_JAMES_PROXIMA,
   SCENE_MATT_ARRIVES,
@@ -209,10 +187,8 @@ import {
   SYNC_HALVED,
   arrivalPredicate,
   founderBoardArrives,
-  heroBoardArrives,
   jamesPromoted,
   type BoardSnapshot,
-  type PlacedAt,
   type StorySnapshot,
 } from './storyTriggers.ts'
 import {
@@ -230,24 +206,13 @@ import { ARRIVAL_HEROES, STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts
 import { GARAGE_SYNC, teamSync, type ServiceLoad } from '../sim/teamSync.ts'
 import {
   NO_HERO_FOLD,
-  buyHeroNode,
-  heroCoverage,
+  benchShare,
   heroFold,
   heroRuntime,
-  rosterMastery,
-  type HeroContribution,
-  type HeroCoverage,
   type HeroFold,
-  type HeroPlacement,
   type HeroRuntime,
 } from '../sim/heroRoster.ts'
-import {
-  catchUpMultiplier,
-  catchUpXpAccrued,
-  unplacedEarnsNothing,
-  xpAccrued,
-} from '../sim/heroXp.ts'
-import { unlocksFor, type BoardIntros, type Unlocks } from './unlocks.ts'
+import { unlocksFor, type Unlocks } from './unlocks.ts'
 import type { DevState, ZoomLevel } from '../sim/poke.ts'
 import { resolvePoke } from '../sim/poke.ts'
 import { BUFF_TAU, addBuff, buffLift, decayBuffs, strengthOnSeat, type Buff } from '../sim/buffs.ts'
@@ -719,30 +684,6 @@ export interface GameState {
   event: LiveEvent | null
 
   /**
-   * §4.11 — who you hired, in the order you hired them.
-   *
-   * The run-length-encoded hire history from `roles.ts`, not four counters:
-   * a seat has to know its own role, and four counters can only derive that by
-   * ordering the roles and laying them out — which relabels every QA above a
-   * newly hired developer. §7.8.7 generates a face from the seat index, so the
-   * player would watch a specific person change jobs because somebody else was
-   * hired.
-   *
-   * `headcountOf(roster)` and {@link GameState.devs} are the same number. The
-   * count is kept because every hot path in the game reads it and a scan per
-   * frame over a list is a scan nobody needs; the roster is the *shape* of that
-   * number. `hire` is the one place both move, which is what keeps them equal.
-   */
-  roster: Roster
-  /**
-   * §4.11, §10.10 — which job the dial is hiring into.
-   *
-   * Persists, like the multiplier and for the same reason: a player who
-   * selected QA meant it, and a control that silently reset to DEVELOPER
-   * between sessions would spend the player's money on the wrong people.
-   */
-  hireRole: Role
-  /**
    * §4.12 — defects on the bench, for the project currently being built.
    *
    * Run state. Reset to zero on ship, because shipping does not forgive the
@@ -770,24 +711,10 @@ export interface GameState {
    */
   incidentPending: number
   /**
-   * §13.8 — where each hero is standing, keyed by id. Absent means benched.
-   *
-   * Run state, and §7.8.12 makes "benched" a place you can look at rather than
-   * a word on a strip: an unplaced hero is at their desk in the executive
-   * suite, visibly doing nothing while the floor works.
-   *
-   * A `Partial<Record>` rather than an array because every question asked of it
-   * is *"where is this person"* — the store asks it per hero, per frame, and a
-   * linear scan of six is six times slower than a lookup for no benefit in
-   * readability.
-   */
-  heroPlacements: Partial<Record<HeroId, HeroPlacement>>
-  /**
    * §22.8's branch effects, folded — the multipliers the simulation reads.
    *
    * **Ephemeral and derived** (§24.2): never serialised, recomputed by
-   * {@link refreshHeroFold} whenever a placement, a purchase or the headcount
-   * moves. It is on the state rather than behind a function because
+   * {@link refreshHeroFold} whenever somebody arrives or the headcount moves. It is on the state rather than behind a function because
    * `effectiveDevCap` and `currentEfficiency` are on the hot path — resolving
    * six heroes, their levels and their coverage inside a getter that `tick`
    * calls a dozen times a frame would allocate a few thousand objects a second
@@ -800,31 +727,12 @@ export interface GameState {
    * A separate channel from {@link GameState.selected} and not a second way of
    * saying the same thing: `selected` is a *seat*, and §7.8.8 generates the
    * person at it. A hero is a person first and always has a physical desk in
-   * §7.8.12's room; an assignment is a remote anchor, not their location.
+   * §7.8.12's room.
    *
    * Ephemeral, like `selected`: a card restored from a previous session is a
    * panel the player did not open.
    */
   selectedHero: HeroId | null
-  /**
-   * §13.8 — who the next tap on the world will post, or null.
-   *
-   * The person is armed from their room/card and the next tap inspects a world
-   * target. This keeps §13.6.7's important property — management happens in
-   * the world, not on a grid — without suggesting the body moved there. The
-   * same `pickUnit` used by POKE names the floor, tower or campus receiving the
-   * assignment.
-   *
-   * Ephemeral, like `selectedHero`: an armed placement restored from a
-   * previous session would be a tap the player does not remember arming.
-   */
-  posting: HeroId | null
-  /**
-   * §13.8c — the world anchor currently being inspected before placement is
-   * confirmed. Ephemeral for the same reason as {@link GameState.posting}: a
-   * reload must never restore half of a gesture.
-   */
-  postingTarget: PokeTarget | null
   /** §4.13 — tickets waiting. Never reaches zero for long, and never can. */
   tickets: number
   /**
@@ -902,15 +810,6 @@ export interface GameState {
    * `milestones` union is what remembers it happened.
    */
   pendingLaunch: boolean
-
-  /**
-   * §11 — levels bought in the in-run tech tree, by node id.
-   *
-   * In the *run* block rather than the permanent one because §13.2 says a
-   * Paradigm Shift "resets Cash, Dev Swarm Count, and In-Run Tech Upgrades".
-   * The tree is what you built this time; the Paradigm Tree is what you learned.
-   */
-  tech: Record<string, number>
 
   /**
    * Seconds of simulated time since this run began — §11.2 B2's meeting clock.
@@ -1110,15 +1009,10 @@ function freshRun(): GameState {
     // §15.1a — nothing to account for until a shift happens.
     pendingShift: null,
     pendingLaunch: false,
-    tech: {},
     runSeconds: 0,
     projectSeconds: 0,
     projectLabourSeconds: 0,
     projectFlowSeconds: 0,
-    // §4.11 — an empty studio. There is no QA in a garage, and the joke §4.11
-    // is making only lands once the player has been given something to protect.
-    roster: newRoster(0),
-    hireRole: 'dev',
     defects: 0,
     incidents: [],
     incidentPending: 0,
@@ -1126,14 +1020,8 @@ function freshRun(): GameState {
     ticketsUnservedFor: 0,
     syncHalvedFor: 0,
     reputation: BASELINE_RATING,
-    // §13.8 — everybody starts on the bench, every run. A Paradigm Shift
-    // liquidates the floor, so the rungs a hero was standing on stop existing;
-    // what survives is the person (§13.10), in `meta`, not the posting.
-    heroPlacements: {},
     heroFold: NO_HERO_FOLD,
     selectedHero: null,
-    posting: null,
-    postingTarget: null,
   }
 }
 
@@ -1207,9 +1095,50 @@ function set(patch: Partial<GameState>): void {
 
 // --- derived ---------------------------------------------------------------
 
-/** §11 — what the in-run tree currently does. One object, computed in one place. */
+/** The tree nodes that carry one of the old studio board's effects (`TreeNode.tech`). */
+const TECH_CARRIERS = TREE_HEROES.flatMap((hero) =>
+  TREES[hero].filter((node) => node.tech !== undefined).map((node) => ({ hero, node })),
+)
+
+let techCache: { milestones: readonly string[]; shifts: number; levels: GameState['treeLevels']; value: TechEffects } | null = null
+
+/**
+ * §11 — what the old studio board's effects are doing now, in one place.
+ *
+ * **Carried by the trees** [2026-09-26]. The board is retired — *"retire the old
+ * tree, but the story of james introducing us instant messenger should be how
+ * upgrade trees are introduced"* — and a tree node that took over one of its
+ * effects names it (`TreeNode.tech`). A root carries its effect while its
+ * person is in the building and the trees are open: James's Instant Messenger
+ * from the first Paradigm Shift, as the old board granted it; Billy's Daily
+ * Standup from the day he arrives, which is what his scene is about. Any other
+ * node carries it at the level bought.
+ *
+ * Memoised on the three things it reads, because `tick` asks many times a
+ * frame and the answer changes a handful of times a run.
+ */
 export function techOf(s: GameState = state): TechEffects {
-  return techEffects(s.tech)
+  const meta = getPermanent().meta
+  if (
+    techCache &&
+    techCache.milestones === meta.milestones &&
+    techCache.shifts === meta.paradigmShifts &&
+    techCache.levels === s.treeLevels
+  ) {
+    return techCache.value
+  }
+  const levels: Record<string, number> = {}
+  if (currentUnlocks().trees) {
+    const arrived = arrivedHeroes()
+    for (const { hero, node } of TECH_CARRIERS) {
+      if (hero !== 'you' && !arrived.has(hero)) continue
+      const level = node.kind === 'root' ? 1 : treeLevelOf(hero, node.id, s)
+      if (level > 0) levels[node.tech!] = level
+    }
+  }
+  const value = techEffects(levels)
+  techCache = { milestones: meta.milestones, shifts: meta.paradigmShifts, levels: s.treeLevels, value }
+  return value
 }
 
 /**
@@ -1285,12 +1214,6 @@ export function offlineSlackFactor(s: GameState = state): number {
 
 export function workingDevs(s: GameState = state): number {
   const t = techOf(s)
-  const roles = countsOf(s.roster)
-  // Direct test/scenario seams sometimes raise `devs` without extending the
-  // roster. Treat unrecorded heads as developers, but every recorded QA, SRE or
-  // Support hire gives up one productive coding head. Specialists now protect
-  // the organisation *instead of* also writing the same Story Points as a dev.
-  const specialists = roles.qa + roles.sre + roles.support
   /**
    * §7.8.6 rule 2, **reversed** on 2026-08-26 — a developer away from their
    * desk produces nothing.
@@ -1302,14 +1225,17 @@ export function workingDevs(s: GameState = state): number {
    * counting them. That is the joke — the studio pays the coordination cost of
    * everybody who wandered off and gets the output of nobody.
    *
-   * Clamped against `coding` rather than trusted, because the roster and the
-   * role counts are advanced by different code on the same tick and a
-   * negative headcount would propagate into the economy silently.
+   * Clamped against the headcount rather than trusted, because the slack
+   * population and the count are advanced by different code on the same tick
+   * and a negative headcount would propagate into the economy silently.
+   *
+   * Every hire codes [2026-09-26]: §4.11's QA, SRE and support hires, who gave
+   * up a coding head each, were cut at the user's instruction.
    */
-  const away = Math.min(awayHeads(s.slack), Math.max(0, Math.floor(s.devs) - specialists))
+  const away = Math.min(awayHeads(s.slack), Math.max(0, Math.floor(s.devs)))
   // §21.0b — plus James, who codes and is not one of the twenty. He is never
   // `away`: §7.8.9's roster is indexed by floor seat and he does not have one.
-  const coding = Math.max(0, Math.floor(s.devs) - specialists - away) + jamesHead(s)
+  const coding = Math.max(0, Math.floor(s.devs) - away) + jamesHead(s)
   const active = t.activeDevFraction
   const meeting = standupFactor(s.runSeconds, standupsRunning(s))
   const protectedHeads = Math.min(
@@ -1413,7 +1339,7 @@ function foldedEfficiency(s: GameState): number {
   // §16 — and the light-lag, which is §4.1 again in the one unit the galaxy
   // introduces. It is exactly 1 while the studio is on one world, so nothing
   // below §13.5's gate can feel it and no balance below the gate moved.
-  return (1 - (1 - raw) * s.heroFold.entropy) * interstellarSync(worldsFor(s.devs), relayTier(s))
+  return raw * interstellarSync(worldsFor(s.devs), relayTier(s))
 }
 
 /**
@@ -1555,15 +1481,11 @@ export function structuralVelocity(s: GameState = state): number {
   // *produces* from the headcount that *costs*, so the two arguments come from
   // different places. With an empty tree they are the same two numbers and this
   // is the same product it always was.
-  // §22.8 — and James's Engineering trunk, which bends velocity weakly and
-  // everywhere. It multiplies the swarm and not §4.5d's founder term: the
-  // founder's own curve is the one thing in the game nothing else may touch.
   return (
     workingDevs(s) *
     currentEfficiency(s) *
     SP_PER_DEV_PER_SEC *
-    devEfficiency(1, s.localEntropy) *
-    s.heroFold.yield
+    devEfficiency(1, s.localEntropy)
   )
 }
 
@@ -1630,9 +1552,16 @@ export function pokeVelocity(s: GameState = state): number {
 
 // --- you — GDD §4.5d, §7.8.10, §13.7.1 -------------------------------------
 
-/** §13.7.1 — the Management tree's current effects. Permanent, never per-run. */
+/**
+ * §13.7.1 — your own curve.
+ *
+ * It was the Management tree's effects. That tree was retired on 2026-09-26
+ * with the studio board (*"retire the old tree"*): your upgrades are your tree
+ * in `upgradeTrees.ts` now, and none of its nodes is wired yet, so you are the
+ * founder you started as.
+ */
 export function founderOf(): FounderEffects {
-  return founderEffects(getPermanent().meta.founderLevels)
+  return NO_FOUNDER
 }
 
 /**
@@ -1801,29 +1730,6 @@ function offlineFounderVelocity(s: GameState): number {
   return founderOf().worksOffline ? founderPassiveVelocity(s) : 0
 }
 
-/** §13.7.1 — buy a Management node with cash. The levels are permanent. */
-export function buyFounderNode(id: string): boolean {
-  // §21.7.7 — the board is an instrument and it arrives with a scene. Refused
-  // at the *transaction* and not only in the interface, on trap 33's rule: a
-  // gate wired to a readout is a lie the interface tells confidently, and this
-  // one has two entry points because `pacing.test.ts` calls the verb directly.
-  if (!currentUnlocks().founderBoard) return false
-  const node = FOUNDER_BY_ID.get(id)
-  if (!node) return false
-  const p = getPermanent()
-  const levels = p.meta.founderLevels ?? {}
-  if (!canBuyFounder(node, levels, state.cash)) return false
-
-  const level = founderLevel(levels, id)
-  setPermanent({
-    ...p,
-    meta: { ...p.meta, founderLevels: { ...levels, [id]: level + 1 } },
-  })
-  set({ cash: state.cash - founderCost(node, level) })
-  saveGame()
-  return true
-}
-
 // --- per-developer output — GDD §4.9a ---------------------------------------
 //
 // The store modelled *one* studio: one velocity, one dev-state machine, one of
@@ -1926,8 +1832,24 @@ export function catalogueRate(s: GameState = state): number {
   // applied somewhere further along: §10.6's rule is that the interface never
   // tells the player something the simulation is not doing.
   const held = suppressedReleases(s.incidents)
-  const support = countsOf(s.roster).support + FOUNDER_ROLE_HEADS
-  return catalogueIncome(s.releases, held) * catalogueMultiplier(s.tickets, support)
+  return catalogueIncome(s.releases, held) * catalogueMultiplier(s.tickets, supportHeads(s))
+}
+
+/**
+ * §4.13 — heads answering tickets: the founder's diluted one, and Matt's help
+ * desk once he has arrived (`heroRoster.ts`).
+ *
+ * One authority [2026-09-26]. The tick, this file's catalogue readout and the
+ * sync score used to count support three ways, and two of them disagreed about
+ * whether Matt's heads were in it. The professions that also fed it are gone.
+ */
+export function supportHeads(s: GameState = state): number {
+  return FOUNDER_ROLE_HEADS + Math.max(0, s.heroFold.supportHeads)
+}
+
+/** §4.12a — heads clearing incidents: the founder's, and Serena's rota once she is here. */
+export function oncallHeads(s: GameState = state): number {
+  return FOUNDER_ROLE_HEADS + Math.max(0, s.heroFold.oncallHeads)
 }
 
 /** §4.10e — money already earned that has not arrived yet. The runway behind the runway. */
@@ -1980,15 +1902,14 @@ function showBubble(text: string, ttl = 4000): Partial<GameState> {
  * game running.
  *
  * The founder is on both counts at {@link FOUNDER_ROLE_HEADS}, exactly as they
- * are in `tick`. Leaving them out here would score a garage as unstaffed for a
+ * are in `tick`, because both read {@link supportHeads} and {@link oncallHeads}. Leaving them out here would score a garage as unstaffed for a
  * catalogue the founder is in fact personally answering the email for, which is
  * §13.7.1's whole point about the manager who can do everything badly.
  */
 function serviceLoad(s: GameState): ServiceLoad {
-  const counts = countsOf(s.roster)
   return {
-    supportHeads: counts.support + FOUNDER_ROLE_HEADS + s.heroFold.supportHeads,
-    sreHeads: counts.sre + FOUNDER_ROLE_HEADS,
+    supportHeads: supportHeads(s),
+    sreHeads: oncallHeads(s),
     catalogue: s.projectsShipped,
     defectBacklog: s.defects,
     openIncidents: s.incidents.length,
@@ -2126,7 +2047,7 @@ export function stageSecondsFor(s: GameState, stage: Stage, build: ShelvedBuild)
  * the burn-down restarts while this build travels the belt.
  */
 function finishBuild(s: GameState): Partial<GameState> {
-  const tech = techEffects(s.tech)
+  const tech = techOf(s)
   const size = s.commitment.toNumber()
 
   /**
@@ -2162,20 +2083,14 @@ function finishBuild(s: GameState): Partial<GameState> {
     : GARAGE_SYNC
 
   /**
-   * §4.14 — whether the people are any good. Heroes over the whole cast while
-   * placed (`rosterMastery`); the founder's half per node, so You Know A Guy
-   * cannot buy a good review; §13.9's CRAFT rungs added as the one purchase that
-   * is explicitly about the score.
+   * §4.14 — whether the people are any good.
+   *
+   * Zero for now [2026-09-26]. It measured the founder's Management tree and
+   * points spent on §13.9's shared hero board, and both are retired: the
+   * board went with placement and the Management tree with the studio board.
+   * It comes back when the trees are wired (GDD §8).
    */
-  const traits = graded
-    ? Math.min(
-        1,
-        traitScore(
-          founderMastery(getPermanent().meta.founderLevels),
-          rosterMastery(heroRoster(s), STORY_HEROES.length),
-        ) + s.heroFold.craft,
-      )
-    : 0
+  const traits = graded ? traitScore(0, 0) : 0
 
   const title = titleFor(s.runSeed, ordinal)
   const build: ShelvedBuild = {
@@ -2189,8 +2104,8 @@ function finishBuild(s: GameState): Partial<GameState> {
     defects: graded ? s.defects : density * size,
     density,
     graded,
-    // §13.6 coverage over the team that built it.
-    heroCoverage: graded ? releaseHeroCoverage(s) : 0,
+    // §4.14's hero term — how much of the cast is in the building.
+    heroCoverage: graded ? benchShare(heroRoster(), STORY_HEROES.length) : 0,
     sync,
     traits,
     luck,
@@ -2247,7 +2162,7 @@ export function ringDefectCount(build: ShelvedBuild): number {
 function releaseFrom(s: GameState, outcome: LaunchOutcome): Partial<GameState> {
   const build = s.shelf[0]
   if (!build) return {}
-  const tech = techEffects(s.tech)
+  const tech = techOf(s)
 
   /*
    * **What the player left open is what ships.** The ring's bugs are a picture
@@ -2574,16 +2489,28 @@ export function treeTileState(hero: TreeHero, id: string, s: GameState = state):
 }
 
 export function buyTreeNode(hero: TreeHero, id: string): boolean {
+  // GDD §8 [2026-09-26] — the trees open after the first Paradigm Shift. Asked
+  // here as well as at the door, so no caller can buy around the gate.
+  if (!currentUnlocks().trees) return false
   const node = treeNode(hero, id)
   if (!node) return false
-  if (node.wired) return buyPipeline(id)
-  if (treeRefusalOf(hero, id) !== null) return false
-  const price = treePriceOf(hero, id)!
-  const key = treeKey(hero, id)
-  set({
-    cash: state.cash - price,
-    treeLevels: { ...state.treeLevels, [key]: (state.treeLevels[key] ?? 0) + 1 },
-  })
+  if (node.wired) {
+    if (!buyPipeline(id)) return false
+  } else {
+    if (treeRefusalOf(hero, id) !== null) return false
+    const price = treePriceOf(hero, id)!
+    const key = treeKey(hero, id)
+    set({
+      cash: state.cash - price,
+      treeLevels: { ...state.treeLevels, [key]: (state.treeLevels[key] ?? 0) + 1 },
+    })
+  }
+  // §18.0a — a purchase is THE THREAD's intended exit, and it is *any*
+  // purchase, exactly as James says in the scene. Resolved here, at the
+  // transaction, rather than in the window's click handler: trap 33 is the
+  // record of what happens when a rule is wired to the interface instead.
+  resolveEventBy('tech-purchase')
+  saveGame()
   return true
 }
 
@@ -2665,21 +2592,9 @@ export function tick(dtSeconds: number): void {
   // worth does not quietly depend on how big the studio was when it landed.
   const settled = settleDroppedBuffs(decayed.dropped, { ...state, localEntropy })
 
-  // §13.10 — the heroes learn from the work that just happened, before anything
-  // reads their effect, so a hero placed this frame is not paid for a frame they
-  // covered nothing of.
-  accrueHeroXp(gained / dtSeconds, dtSeconds)
-  // §22.8's branch effects, resolved once and shared by everything below. The
-  // XP above may have levelled somebody, but a level only becomes an effect
-  // when the player spends it, so the ordering here costs nothing and reads in
-  // the direction the fiction runs.
+  // §22.8 — what the heroes do, resolved once and shared by everything below.
   refreshHeroFold()
   const heroes = state.heroFold
-
-  // §4.11 — who is on the floor, read once and shared by all three backlogs.
-  const counts = countsOf(state.roster)
-  const qaShare = roleShare(counts, 'qa')
-  const sreShare = roleShare(counts, 'sre')
 
   // §21.0c — Run 1 has one lever and it is hiring. The three backlogs are a
   // system, and a system arriving during the four minutes §21 spends teaching
@@ -2709,7 +2624,6 @@ export function tick(dtSeconds: number): void {
         // the same velocity the hero fold is, so Taste and the Quality branch
         // compose rather than being two rules about one number.
         (gained / dtSeconds) * heroes.defects * founderOf().defectScale,
-        qaShare,
         dtSeconds,
       )
     : 0
@@ -2718,12 +2632,11 @@ export function tick(dtSeconds: number): void {
   const incidents = open
     ? advanceIncidents(
         state.incidents,
-        // §22.8 — Serena's Reliability branch bends the arrival rate.
-        incidentRate(tail.releases, densitiesOf(tail.releases), sreShare, held) * heroes.incidents,
-        // §13.7.1 — you carry the pager when nobody else does. Without the founder
-        // term `clearanceCapacity(0)` is zero, an incident never closes, and a
-        // frozen release never comes back: a fail state, which §4.12 forbids.
-        clearanceCapacity(counts.sre + FOUNDER_ROLE_HEADS),
+        incidentRate(tail.releases, densitiesOf(tail.releases), held),
+        // §13.7.1 — you carry the pager until Serena's rota does. Without the
+        // founder term `clearanceCapacity(0)` is zero, an incident never closes,
+        // and a frozen release never comes back: a fail state, which §4.12 forbids.
+        clearanceCapacity(oncallHeads(state)),
         dtSeconds,
         state.incidentPending,
         nextIncidentId,
@@ -2739,10 +2652,9 @@ export function tick(dtSeconds: number): void {
 
   // §4.13 — and the people who bought them write in, forever.
   //
-  // §22.8 — Matt's Support branch adds effective heads here, share-scaled by
-  // his posting like every other branch. His *distinct* catalogue exception is
-  // KNOWS THEIR NAMES: `heroes.ticketRate` slows arrivals separately below.
-  const support = counts.support + FOUNDER_ROLE_HEADS + heroes.supportHeads
+  // §22.8 — Matt's help desk answers them, and KNOWS THEIR NAMES slows the
+  // arrivals separately below (`heroes.ticketRate`).
+  const support = supportHeads(state)
   const tickets = open
     ? advanceTickets(
         state.tickets,
@@ -3063,7 +2975,7 @@ function checkStoryTriggers(s: GameState): void {
 }
 
 /**
- * §21.7.7 — the founder's board and the hero board, each on a feeling.
+ * §21.7.7 — the founder's board, on a feeling; then James's promotion.
  *
  * Same contract as {@link checkStoryTriggers}: the predicates are pure, this
  * builds the snapshot, and `milestones` makes each fire once.
@@ -3076,52 +2988,18 @@ function checkBoardTriggers(s: GameState): void {
     founderRate: founderVelocity(),
     swarmRate: baseVelocity(s),
     devs: s.devs,
-    // §4.11 — everybody on the floor whose job is not "developer". The first
-    // one of those is the founder's board's front door (§21.7.7).
-    specialists: Math.max(0, s.devs - countsOf(s.roster).dev),
-    ...heroHighWater(s),
   }
 
   if (!hasSeenScene(SCENE_FOUNDER_BOARD.id) && founderBoardArrives(snapshot)) {
     showScene(SCENE_FOUNDER_BOARD.id)
     return
   }
-  if (!hasSeenScene(SCENE_HERO_BOARD.id) && heroBoardArrives(snapshot)) {
-    showScene(SCENE_HERO_BOARD.id)
-    return
-  }
 
   // §21.7.4 — the promotion. Last, because it is the one beat in the arc that
   // is about a decision the player made rather than about a system arriving.
-  if (!hasSeenScene(SCENE_JAMES_PROMOTED.id) && jamesPromoted(placedHeroes(s))) {
+  if (!hasSeenScene(SCENE_JAMES_PROMOTED.id) && jamesPromoted(arrivedHeroes())) {
     showScene(SCENE_JAMES_PROMOTED.id)
   }
-}
-
-/** Everybody standing somewhere, and which rung — §21.7.4's org chart. */
-function placedHeroes(s: GameState): PlacedAt[] {
-  const out: PlacedAt[] = []
-  for (const [id, placement] of Object.entries(s.heroPlacements)) {
-    if (placement) out.push({ id, rung: placement.rung })
-  }
-  return out
-}
-
-/**
- * §13.13 — the furthest anybody has got, in one pass over the roster.
- *
- * One pass rather than two `reduce`s over two `heroRoster` calls: the roster is
- * rebuilt from `meta` on every call (see its note), so asking twice would build
- * six objects twice on a path that runs every frame.
- */
-function heroHighWater(s: GameState): { heroPoints: number; heroLevel: number } {
-  let heroPoints = 0
-  let heroLevel = 0
-  for (const hero of heroRoster(s)) {
-    if (hero.points > heroPoints) heroPoints = hero.points
-    if (hero.progress.level > heroLevel) heroLevel = hero.progress.level
-  }
-  return { heroPoints, heroLevel }
 }
 
 // ---------------------------------------------------------------------------
@@ -3152,7 +3030,7 @@ function checkEventTriggers(s: GameState): void {
     devs: s.devs,
     // §11.5 — the granted centre is not a purchase, so it does not count as
     // evidence that this player has ever opened the board.
-    techNodesBought: boughtTechNodes(s),
+    techNodesBought: upgradesBought(s),
     live: s.event !== null,
     retired: eventRetired,
   })
@@ -3165,13 +3043,17 @@ function checkEventTriggers(s: GameState): void {
   if (due.scene && !hasSeenScene(due.scene)) showScene(due.scene)
 }
 
-/** §11 — nodes the player has *bought*. The granted centre is not one. */
-export function boughtTechNodes(s: GameState = state): number {
+/**
+ * Upgrades the player has *bought* this run, in every tree — §18.0a's THE THREAD
+ * waits for a studio with none, and the shift's lesson asks it.
+ *
+ * The roots are not purchases (Instant Messenger is handed over in a scene), so
+ * this counts levels bought: the unwired tree nodes and Serena's pipeline.
+ */
+export function upgradesBought(s: GameState = state): number {
   let n = 0
-  for (const node of TECH_TREE) {
-    if (node.granted) continue
-    n += techLevel(s.tech, node.id)
-  }
+  for (const level of Object.values(s.treeLevels)) n += level
+  for (const level of Object.values(s.pipelineNodes)) n += level
   return n
 }
 
@@ -3485,19 +3367,10 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
     // §21.0c — and not at all during Run 1, where the counter would be the
     // first system on screen and there is nobody to hire against it.
     defects: currentUnlocks().simulated
-      ? state.defects + defectsFromPoke(paidNow, roleShare(countsOf(state.roster), 'qa'))
+      ? state.defects + defectsFromPoke(paidNow)
       : 0,
     // The 10x Engineer quits permanently on the poke that cashes them out.
     devs: devLeaves ? Math.max(0, state.devs - 1) : state.devs,
-    // §4.11 — **and the roster shrinks with them.** `headcountOf(roster)` and
-    // `devs` are the same number, kept equal by there being one writer for each
-    // direction; `hire` is the other one. Without this a departure leaves the
-    // roster describing somebody who is not there, and every role share in
-    // §4.12–§4.13 is divided by a denominator that is too large.
-    //
-    // Found by a test that asserts the two agree, which failed intermittently
-    // because whether seat 0 is a 10x Engineer depends on the run seed.
-    roster: devLeaves ? removeAtSeat(state.roster, seats.from) : state.roster,
   }
 
   // §6.3 — the thesis, delivered by the person being interrupted.
@@ -3520,14 +3393,9 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
  * exactly one place the ladder can be forgotten. The renderer reads `spawn`;
  * nothing else does.
  */
-function hire(before: number, after: number, role: Role = 'dev'): Partial<GameState> {
+function hire(before: number, after: number): Partial<GameState> {
   return {
     devs: after,
-    // §4.11 — the roster and the count move together, here and nowhere else.
-    // Every path that raises headcount goes through this function, which is
-    // what keeps `headcountOf(roster)` equal to `devs` without a reconciliation
-    // step that could disagree.
-    roster: addHires(state.roster, role, Math.max(0, Math.floor(after) - Math.floor(before))),
     peakDevs: Math.max(state.peakDevs, after),
     spawn: {
       id: nextSpawnId++,
@@ -3585,50 +3453,6 @@ let lastShiftBp = 0
 
 export function bpFromLastShift(): number {
   return lastShiftBp
-}
-
-/**
- * §11 — spend cash on an in-run tech node.
- *
- * Saves on purchase, like `buyParadigmNode`: a node bought and then lost to a
- * crash is money the player watched leave and got nothing for, which is the
- * one accounting error an idle game may never make.
- */
-export function buyTech(id: string): boolean {
-  const node = TECH_BY_ID.get(id)
-  if (!node) return false
-  const level = techLevel(state.tech, id)
-  const shifts = getPermanent().meta.paradigmShifts
-  if (!canBuyTech(node, state.tech, state.cash, shifts)) return false
-
-  set({
-    cash: state.cash - boardCost(node, level, shifts),
-    tech: { ...state.tech, [id]: level + 1 },
-  })
-  // §18.0a — a purchase is THE THREAD's intended exit, and it is *any*
-  // purchase, exactly as James says in the scene. Resolved here rather than in
-  // the board's click handler because this is the transaction: trap 33 is the
-  // record of what happens when a rule is wired to the interface instead.
-  resolveEventBy('tech-purchase')
-  saveGame()
-  return true
-}
-
-/** What the next level of a node costs, or null if it cannot be bought at all. */
-export function techQuote(id: string, s: GameState = state) {
-  const node = TECH_BY_ID.get(id)
-  if (!node) return null
-  const level = techLevel(s.tech, id)
-  const shifts = getPermanent().meta.paradigmShifts
-  return {
-    node,
-    level,
-    cost: boardCost(node, level, shifts),
-    maxed: level >= node.maxLevel,
-    unlocked: node.requires === undefined || techLevel(s.tech, node.requires) > 0,
-    ringOpen: ringOpen(node.ring, shifts),
-    affordable: canBuyTech(node, s.tech, s.cash, shifts),
-  }
 }
 
 /**
@@ -3707,30 +3531,11 @@ let unlocksCache: { key: string; value: Unlocks } | null = null
 export function currentUnlocks(): Unlocks {
   const shifts = getPermanent().meta.paradigmShifts
   const arrived = arrivedHeroes()
-  // §21.7.7 — the two board introductions, derived here for the same reason
-  // `arrived` is: `unlocks.ts` does not know what a scene is called, and this
-  // module is where `milestones` is already being read.
-  const boards = introducedBoards()
-  const key = `${shifts}|${[...arrived].sort().join(',')}|${boards.founder ? 'f' : ''}${boards.hero ? 'h' : ''}`
+  const key = `${shifts}|${[...arrived].sort().join(',')}`
   if (unlocksCache?.key === key) return unlocksCache.value
-  const value = unlocksFor(shifts, arrived, boards)
+  const value = unlocksFor(shifts, arrived)
   unlocksCache = { key, value }
   return value
-}
-
-/**
- * §21.7.7 — which of the two gated boards this player has been shown.
- *
- * A scene id apiece, out of the same `milestones` union {@link arrivedHeroes}
- * reads. Not a flag: §21.7.6c's argument is that a second flag is a second
- * thing that can be wrong after a save migration, and it applies here exactly.
- */
-export function introducedBoards(): BoardIntros {
-  const seen = getPermanent().meta.milestones
-  return {
-    founder: seen.includes(SCENE_FOUNDER_BOARD.id),
-    hero: seen.includes(SCENE_HERO_BOARD.id),
-  }
 }
 
 /**
@@ -3752,377 +3557,66 @@ export function arrivedHeroes(): ReadonlySet<HeroId> {
 }
 
 // ---------------------------------------------------------------------------
-// Heroes — GDD §13.6.2, §13.8, §13.10, §13.13, §22.8
+// Heroes — GDD §22.8, §13.8 [amended 2026-09-26]
 // ---------------------------------------------------------------------------
 
 /**
- * §22.8's roster, resolved — everybody who has walked through a door.
+ * §22.8's roster, resolved — everybody who has walked through a door, in the
+ * cast's order.
  *
- * Rebuilt per call from `meta` and the run's placements rather than cached.
- * Six people is six object literals; a cache here would be a second copy of the
- * save that has to be invalidated on every purchase, every level and every
- * placement, which is three more chances to show the player a stale card than
- * the arithmetic is worth.
+ * Derived from `milestones` per call rather than cached: six object literals,
+ * and a cache would be a second copy of the save to invalidate.
  */
-export function heroRoster(s: GameState = state): HeroRuntime[] {
-  const meta = getPermanent().meta
+export function heroRoster(): HeroRuntime[] {
   const arrived = arrivedHeroes()
   const out: HeroRuntime[] = []
   for (const hero of STORY_HEROES) {
     if (!arrived.has(hero.id)) continue
-    const runtime = heroRuntime(
-      hero.id,
-      meta.heroXp?.[hero.id],
-      meta.heroNodes?.[hero.id],
-      s.heroPlacements[hero.id] ?? null,
-    )
+    const runtime = heroRuntime(hero.id)
     if (runtime) out.push(runtime)
   }
   return out
 }
 
 /** One hero, or null if they have not arrived. */
-export function heroById(id: HeroId, s: GameState = state): HeroRuntime | null {
-  return heroRoster(s).find((h) => h.id === id) ?? null
+export function heroById(id: HeroId): HeroRuntime | null {
+  return heroRoster().find((h) => h.id === id) ?? null
 }
 
 /**
- * How many developers a placement can reach *at most* — the anchor's catchment.
+ * §22.8 — what the heroes do for the studio, folded (`heroRoster.ts`).
  *
- * Not simply `unitSizeAt`, and the reason is the whole of Run 2. §7.7.1's unit
- * at rungs 0–2 is **one person** — the three room rungs are "the same picture at
- * three densities" — so reading the unit size there would mean a hero placed on
- * the floor covers exactly one developer, at every reach, for the entire run the
- * story happens in. Buying REACH would change nothing and §13.8's placement
- * puzzle would have no pieces.
- *
- * So a placement is an **anchor**, and §13.6.2's reach decides the footprint
- * outward from it:
- *
- * - **In the room (rungs 0–2)** the anchor is a seat and the catchment is every
- *   seat from it to the end of the studio. A hero at seat 0 of forty covers
- *   forty; the same hero at seat 30 covers ten, which is §13.8's rule 2 —
- *   "a footprint that visibly does or does not contain the rows you care about"
- *   — as arithmetic rather than as a picture.
- * - **Above it** the anchor is a unit and the catchment is that unit. The last
- *   unit at any rung is partial and it matters: a hero on the final floor of a
- *   tower holding 1,400 people is standing over 400, not 1,000, and §13.6.2's
- *   coverage line has to say so.
- */
-export function devsUnderPlacement(p: HeroPlacement, s: GameState = state): number {
-  if (p.rung <= LITERAL_RUNG_LIMIT) return Math.max(0, Math.floor(s.devs) - p.index)
-  return unitSizeAt(p.rung, p.index, s.devs)
-}
-
-/** §13.6.2 — what this hero actually reaches, right now. */
-export function heroCoverageOf(runtime: HeroRuntime, s: GameState = state): HeroCoverage {
-  if (!runtime.placement) return heroCoverage(runtime, 0, s.runSeconds)
-  return heroCoverage(runtime, devsUnderPlacement(runtime.placement, s), s.runSeconds)
-}
-
-/**
- * §13.10a — the XP multiplier a settled placement is earning right now.
- * Coverage remains the source of XP; this only closes part of the permanent
- * gap to the most experienced colleague while the trailing hero is at work.
- */
-export function heroCatchUpMultiplier(
-  runtime: HeroRuntime,
-  covered: number,
-  s: GameState = state,
-): number {
-  if (!(covered > 0) || !(s.devs > 0)) return 1
-  const leaderXp = heroRoster(s).reduce((best, hero) => Math.max(best, hero.xp), 0)
-  return catchUpMultiplier(runtime.xp, leaderXp)
-}
-
-/**
- * §22.8's "bends" column, folded into the multipliers the simulation reads.
- *
- * Every field is 1 (or 0) with nobody placed — §13.6.7's "amplitude, not gate"
- * is enforced at the bottom of the stack, so no caller further up has to
- * remember it.
+ * Every field is 1 (or 0) with nobody through the door — §13.6.7's "amplitude,
+ * not gate" is enforced at the bottom of the stack.
  */
 export function currentHeroFold(s: GameState = state): HeroFold {
-  const contributions: HeroContribution[] = []
-  for (const runtime of heroRoster(s)) {
-    const covered = heroCoverageOf(runtime, s).covered
-    if (covered > 0) contributions.push({ runtime, covered })
-  }
-  if (contributions.length === 0) return NO_HERO_FOLD
-  return heroFold(contributions, s.devs)
-}
-
-/**
- * §4.14 — share of the build team covered by at least one settled hero.
- *
- * Coverage is a union of seat intervals, not a sum of card percentages. Two
- * heroes posted over the same floor still cover that floor once; moving the
- * second to an uncovered unit raises the release score. This is the rating-side
- * payoff for physical posting and keeps overlap from printing free quality.
- */
-export function releaseHeroCoverage(s: GameState = state): number {
-  const devs = Math.max(0, Math.floor(s.devs))
-  if (devs === 0) return 0
-
-  const spans: Array<{ from: number; to: number }> = []
-  for (const runtime of heroRoster(s)) {
-    const placement = runtime.placement
-    if (!placement) continue
-    const coverage = heroCoverageOf(runtime, s)
-    if (!(coverage.covered > 0)) continue
-
-    const from = placement.rung <= LITERAL_RUNG_LIMIT
-      ? Math.min(devs, Math.max(0, Math.floor(placement.index)))
-      : unitSeats(placement.rung, placement.index, devs).from
-    spans.push({ from, to: Math.min(devs, from + coverage.covered) })
-  }
-
-  spans.sort((a, b) => a.from - b.from || a.to - b.to)
-  let covered = 0
-  let from = -1
-  let to = -1
-  for (const span of spans) {
-    if (span.to <= span.from) continue
-    if (span.from > to) {
-      if (to > from) covered += to - from
-      from = span.from
-      to = span.to
-    } else {
-      to = Math.max(to, span.to)
-    }
-  }
-  if (to > from) covered += to - from
-  return Math.min(1, covered / devs)
+  const heroes = heroRoster()
+  if (heroes.length === 0) return NO_HERO_FOLD
+  return heroFold(heroes, s.devs)
 }
 
 /**
  * Recompute {@link GameState.heroFold} and publish it if it moved.
  *
- * Called from `tick`, from every placement and purchase, and after a load.
- * Compares before writing so an untended roster — which is most frames of most
- * runs — costs one comparison and produces no `set`, and therefore no React
- * render.
+ * Called from `tick` and after a load. Compares before writing so a quiet
+ * frame costs one comparison and produces no `set`, and therefore no render.
  */
 function refreshHeroFold(): void {
   const next = currentHeroFold()
   const prev = state.heroFold
   if (
-    next.yield === prev.yield &&
-    next.entropy === prev.entropy &&
     next.cap === prev.cap &&
     next.defects === prev.defects &&
-    next.incidents === prev.incidents &&
-    next.supportHeads === prev.supportHeads &&
     next.incidentStartWork === prev.incidentStartWork &&
+    next.oncallHeads === prev.oncallHeads &&
     next.ticketRate === prev.ticketRate &&
+    next.supportHeads === prev.supportHeads &&
     next.standupHeads === prev.standupHeads &&
     next.operatingCost === prev.operatingCost
   ) {
     return
   }
   set({ heroFold: next })
-}
-
-/** Explain §7.8.12 once the room and an assignment can be seen together. */
-function maybeExplainRemoteTeamRoom(): void {
-  const roster = heroRoster()
-  if (
-    roster.length > 1 &&
-    roster.some((hero) => hero.placement !== null) &&
-    hasSeenScene(SCENE_JAMES_INSTANT_MESSENGER.id) &&
-    !hasSeenScene(SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id)
-  ) {
-    showScene(SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id)
-  }
-}
-
-/**
- * §13.8 — put somebody in charge of a rung.
- *
- * The person remains at their desk in §7.8.12's team room; this posts their
- * assignment onto the unit. Re-posting restarts the channel-setup period,
- * which is rule 4 working rather than a special case: moving responsibility
- * costs time whether it came from the bench or another floor.
- */
-export function placeHero(id: HeroId, rung: number, index: number): boolean {
-  if (!arrivedHeroes().has(id)) return false
-  if (!Number.isFinite(rung) || !Number.isFinite(index)) return false
-  set({
-    heroPlacements: {
-      ...state.heroPlacements,
-      [id]: {
-        rung: Math.max(0, Math.floor(rung)),
-        index: Math.max(0, Math.floor(index)),
-        placedAt: state.runSeconds,
-      },
-    },
-  })
-  // Immediately, not on the next tick: a placement made while a scene holds the
-  // clock (§10.7) would otherwise show the player a card whose numbers have not
-  // moved, and the game freezes for every arrival scene there is.
-  refreshHeroFold()
-  /*
-   * §7.8.12 [amended 2026-08-29] — explain the new physical truth once, on the
-   * first assignment made while there is actually a team room to look at.
-   *
-   * Instant Messenger is the premise, so this cannot fire before James has
-   * handed it over. Two arrived heroes is the room's own build gate: James on
-   * his own is still the garage and has no contradiction to explain.
-   */
-  maybeExplainRemoteTeamRoom()
-  return true
-}
-
-/** §13.8 — close somebody's remote assignment; their body never left the suite. */
-export function recallHero(id: HeroId): boolean {
-  if (!state.heroPlacements[id]) return false
-  const next = { ...state.heroPlacements }
-  delete next[id]
-  set({ heroPlacements: next })
-  refreshHeroFold()
-  return true
-}
-
-/**
- * Arm the remote posting gesture — see {@link GameState.posting}.
- *
- * Closes the card in the same `set`, and that is the whole reason this is a
- * store verb rather than a `useState` in the HUD: the card is a right-hand
- * panel over the world and the next thing the player has to do is tap the
- * world. Arming a gesture whose target is hidden behind the panel that armed
- * it is §10.5's bottom-sheet rule failing in the other direction.
- */
-export function beginPosting(id: HeroId): boolean {
-  // §21.7.6 — the floor is an instrument and it arrives with Billy. The same
-  // rule and the same shape as `buyHeroTreeNode`'s board guard: the *mechanism*
-  // — `placeHero`, coverage, the fold — is untouched and still runs, which is
-  // what lets Billy's own arrival seat him before the player has the verb.
-  if (!currentUnlocks().heroPlacement) return false
-  if (!arrivedHeroes().has(id)) return false
-  set({ posting: id, postingTarget: null, selectedHero: null })
-  return true
-}
-
-/** Disarm it. Tapping open ground counts, which is the cheap way out. */
-export function cancelPosting(): void {
-  if (state.posting === null) return
-  set({ posting: null, postingTarget: null })
-}
-
-/**
- * §13.8c — inspect a world anchor without paying the move delay.
- *
- * Pointer hover and the first touch both call this. Repeating the same target
- * is deliberately a no-op so moving a mouse inside one unit does not publish a
- * fresh game state dozens of times a second.
- */
-export function previewHeroAt(target: PokeTarget | null): boolean {
-  if (state.posting === null) return false
-  const next = target && Number.isFinite(target.rung) && Number.isFinite(target.index)
-    ? { rung: Math.max(0, Math.floor(target.rung)), index: Math.max(0, Math.floor(target.index)) }
-    : null
-  if (
-    state.postingTarget?.rung === next?.rung &&
-    state.postingTarget?.index === next?.index
-  ) return true
-  set({ postingTarget: next })
-  return true
-}
-
-/** Confirm the inspected anchor. No preview means no transaction. */
-export function confirmHeroPosting(): boolean {
-  const target = state.postingTarget
-  if (!target) return false
-  return postHeroAt(target)
-}
-
-/**
- * The armed tap landed on a unit — post them there.
- *
- * Returns false without disarming when there is nobody armed, so the stage can
- * ask this question of every tap and let the answer decide whether the tap was
- * a placement or a poke.
- */
-export function postHeroAt(target: PokeTarget): boolean {
-  const id = state.posting
-  if (id === null) return false
-  // Cleared first and unconditionally: a placement refused by `placeHero` —
-  // a hero who left the roster between arming and tapping — must not leave the
-  // gesture armed, or the next poke silently places somebody instead.
-  set({ posting: null, postingTarget: null })
-  return placeHero(id, target.rung, target.index)
-}
-
-/**
- * §13.13 — spend one of this hero's points on a node.
- *
- * The purchase is permanent (`meta.heroNodes`, §13.10's "a hero you have
- * carried through nine runs is better than one you just met") and the *points*
- * are not stored at all: they are level minus what has been bought, recomputed
- * every time anybody asks. There is therefore no wallet that can drift from the
- * board, which is §13.13's whole argument for levels made structural.
- */
-export function buyHeroTreeNode(id: HeroId, nodeId: string): boolean {
-  // §21.7.7 — same rule, same reason. The card is who somebody is and has never
-  // been gated; the board is an instrument and it arrives with a scene.
-  if (!currentUnlocks().heroBoard) return false
-  const runtime = heroById(id)
-  if (!runtime) return false
-  const next = buyHeroNode(runtime, nodeId)
-  if (!next) return false
-
-  const p = getPermanent()
-  setPermanent({
-    ...p,
-    meta: { ...p.meta, heroNodes: { ...(p.meta.heroNodes ?? {}), [id]: next } },
-  })
-  // A purchase changes the cap, the entropy and three arrival rates, so the
-  // fold has to move before anything reads it — and `refreshHeroFold` publishes
-  // the `set` that tells the HUD a number it is showing has changed.
-  refreshHeroFold()
-  set({})
-  return true
-}
-
-/**
- * §13.10 — a placed hero earns XP from the work done under their coverage.
- *
- * Called from `tick` with the frame's realised velocity. `V_covered` is that
- * velocity restricted to the developers this hero reaches, which is the studio
- * rate scaled by their share of it — the same share {@link heroFold} applies to
- * their effect, so **what a hero is worth and what they learn from are the same
- * number**. §13.10 wanted exactly that: REACH pays twice.
- *
- * Writes straight to `meta.heroXp` rather than accumulating in run state,
- * because XP is permanent and a run that ended without a save would otherwise
- * lose an hour of somebody's career.
- */
-function accrueHeroXp(velocity: number, dtSeconds: number): void {
-  if (!(velocity > 0) || !(dtSeconds > 0)) return
-  const roster = heroRoster()
-  if (roster.length === 0) return
-
-  const devs = Math.max(1, state.devs)
-  const leaderXp = roster.reduce((best, runtime) => Math.max(best, runtime.xp), 0)
-  let touched = false
-  const xp = { ...(getPermanent().meta.heroXp ?? {}) }
-
-  for (const runtime of roster) {
-    const covered = heroCoverageOf(runtime).covered
-    // §13.10 — "an unplaced hero earns nothing. A card in the tray is a person
-    // on the bench." A settling hero covers nothing and so earns nothing, which
-    // is the same rule reaching the same answer for a different reason.
-    if (unplacedEarnsNothing(runtime.placement !== null, covered)) continue
-    const share = Math.min(1, covered / devs)
-    const ordinary = xpAccrued(velocity * share, dtSeconds)
-    const catchUp = catchUpXpAccrued(runtime.xp, leaderXp, velocity * share, dtSeconds)
-    xp[runtime.id] = (xp[runtime.id] ?? 0) + ordinary + catchUp
-    touched = true
-  }
-
-  if (!touched) return
-  const p = getPermanent()
-  setPermanent({ ...p, meta: { ...p.meta, heroXp: xp } })
 }
 
 /**
@@ -4377,24 +3871,6 @@ export function setHireMultiplier(m: Multiplier): void {
 }
 
 /**
- * §4.11 — pick the job the next hire is for.
- *
- * There is deliberately no companion function that *moves* somebody between
- * roles. §4.11: "A role is chosen at hire, not reassigned." Its absence is the
- * design — reassignment would turn every failure into a slider adjustment, and
- * §6's thesis is that you cannot fix an organisation by moving people around
- * after the fact.
- */
-export function setHireRole(role: Role): void {
-  set({ hireRole: role })
-}
-
-/** §4.11 — how many of each kind the studio has. Derived; never stored. */
-export function roleCounts(s: GameState = state) {
-  return countsOf(s.roster)
-}
-
-/**
  * What the dial is currently offering — count, price, and whether it is live.
  *
  * Derived rather than stored, because MAX's count changes on its own as cash
@@ -4436,7 +3912,7 @@ export function hireDeveloper(): boolean {
   // 25 developers, so Act I and Act II behave exactly as they did.
   const { count, cost, affordable } = hireQuote()
   if (!affordable || count <= 0) return false
-  set({ ...hire(state.devs, state.devs + count, state.hireRole), cash: state.cash - cost })
+  set({ ...hire(state.devs, state.devs + count), cash: state.cash - cost })
   return true
 }
 
@@ -4538,7 +4014,7 @@ export function triggerParadigmShift(): void {
     load: state.devs / Math.max(1, effectiveDevCap(state)),
     cash: state.cash,
     reputation: state.reputation,
-    techNodesBought: boughtTechNodes(state),
+    techNodesBought: upgradesBought(state),
   })
   const ledger = ledgerWith(before.meta.lessons, learned)
 
@@ -4566,11 +4042,6 @@ export function triggerParadigmShift(): void {
     // in the game that says who the other survivor is. Reported as "there are 2
     // developers staying, should be just james".
     devs: STARTING_DEVS,
-    // §4.11 — and the roster has to say the same thing. `freshRun()` returns an
-    // empty studio, so leaving this out would hand Run 2 a headcount that
-    // `roleAtSeat` reads as developers by fallback rather than by record — the
-    // two numbers would agree by luck, and stop agreeing at the first hire.
-    roster: newRoster(STARTING_DEVS),
     /**
      * **Run 2 opens on the loop, not on the trap.**
      *
@@ -4626,16 +4097,9 @@ export function triggerParadigmShift(): void {
     // §21.6 — Run 2 opens on James. The scene rather than the bubble carries
     // the beat now; the bubble stays for the runs after this one, when the
     // scene has already played and the line is all that is left of it.
-    scene: SCENE_JAMES_INSTANT_MESSENGER.id,
     // §11.5 / §21.0c — and he arrives holding the thing. Instant Messenger is
-    // the only free node in the game and this is where it is given: the scene
-    // above hands it over in dialogue, and the board it sits at the centre of
-    // opens for the first time on the same frame.
-    //
-    // `run` is `freshRun()`, whose `tech` is `{}`, so this is the whole of Run
-    // 2's tech state and every later shift re-grants it. A node granted once and
-    // carried in `PermanentSave` would be a second place the same fact lives.
-    tech: { [FIRST_PROTOCOL_NODE]: 1 },
+    // the root of his tree, and the trees open with this shift (`techOf`).
+    scene: SCENE_JAMES_INSTANT_MESSENGER.id,
     ...showBubble('So. Same time tomorrow?', 6000),
   })
   // §24.9 — a prestige is the highest-value write in the game. Do not wait for
@@ -4718,55 +4182,11 @@ export function dismissScene(): void {
   // desk. In play the dialogue reaches {@link JAMES_DROPS_AT_LINE} first and
   // this is a no-op.
   if (id === SCENE_JAMES_ARRIVES.id && state.devs === 0) grantJames()
-  // §21.7.3 — and Billy's first remote assignment is posted automatically. See
-  // {@link seatBilly}; his body remains in §7.8.12's team room.
-  if (id === SCENE_BILLY_ARRIVES.id) seatBilly()
   // §21.8 — the scene ends on `STAND CLEAR OF THE FILING CABINET`, and the
   // launch is the next frame. Raised here rather than from the HUD so the two
   // cannot be on screen at once: `set` clears the box in the same update.
   const launching = id === SCENE_JAMES_PROXIMA.id
   set({ scene: null, pendingLaunch: launching || state.pendingLaunch })
-  // James may already have been posted while the garage held only him. The
-  // second hero's arrival is then the first frame where the player can see the
-  // physical body and remote assignment together, so it is also a valid door
-  // into §7.8.12's one-time explanation.
-  maybeExplainRemoteTeamRoom()
-}
-
-/**
- * §21.7.3 — **Billy is the one hero the game places for you, once.**
- *
- * Every other arrival ends with somebody on the bench and the player deciding
- * where they go. His cannot, and the reason is the shape of the scene rather
- * than a kindness: the scene *is* the introduction to §13.8, and a tutorial for
- * a verb that ends by asking the player to perform the verb is a tutorial that
- * has not shown them anything. §21.7.3's shape rule 2 says a hero fixes nothing
- * during their scene and the number improves afterwards *from their work* —
- * this is that rule obeyed literally. His assignment takes a rung, the
- * eight-second channel setup runs like anybody else's, the gauge comes back up,
- * and the player watches the mechanism they are about to be handed do its job
- * on somebody they did not have to aim.
- *
- * **Rung 0, seat 0**, which is the most valuable posting on the board: §13.6.2's
- * reach counts upward from the seat, so the earliest desk covers the most
- * people. He is not being modest and the game is not being stingy — the whole
- * point is that the sync reading visibly recovers, and a demonstration placed
- * where it does nothing demonstrates nothing. The player can move his assignment
- * the moment they have the verb, which is about four seconds later.
- *
- * He brings no free node with him: §13.9.1 already gives every story hire
- * {@link STORY_STARTING_DEPTH} nodes of their own branch, pre-bought and unpaid
- * for, so "his initial upgrade" is three levels of Cohesion he walks in owning.
- * Granting a fourth here would be a starting bonus for one hero, which is the
- * thing §13.9.1 is explicitly not.
- */
-function seatBilly(): void {
-  if (state.heroPlacements.billy) return
-  // Rung 0 is the room itself — §7.7's first rung, and the only one that exists
-  // at the headcount `billyArrives` fires at. `heroBadges.roomSeatMarks` reads
-  // rungs 0-2 as seats and covers upward from the index, so this is a posting
-  // the floor can actually draw a footprint for on the frame it happens.
-  placeHero('billy', 0, BILLY_SEAT)
 }
 
 /** Has this scene been played to the end before? §10.7's replay exception. */
@@ -4955,11 +4375,6 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     seedTaken: r.seedTaken,
     dialUnlocked: r.dialUnlocked,
     massHired: r.massHired,
-    // §11 — the tree you built this run, and the meeting clock that goes with
-    // it. `?? {}` rather than a bare read: the fields are optional on the save
-    // (older documents predate the tree) and a spread of `undefined` would put
-    // `undefined` into a field every derived function indexes.
-    tech: r.tech ?? {},
     // §10.7 — the belt comes back as it was: work in Build and Test, and the
     // builds waiting for SHIP!. `normaliseRun` has already defended each one.
     pipeline: {
@@ -4993,27 +4408,10 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       // payout, which is the honest answer rather than a wrong join.
       ordinal: rel.ordinal ?? UNKNOWN_ORDINAL,
     })),
-    // §4.11 — `normaliseRoster` has already reconciled this against `devs`, so
-    // it is taken as given rather than re-derived here. One repair, in the
-    // module that owns the document.
-    roster: (r.roster ?? [{ role: 'dev' as const, count: r.devs }]).map((run) => ({
-      role: run.role as Role,
-      count: run.count,
-    })),
-    hireRole: (r.hireRole ?? 'dev') as Role,
     defects: r.defects ?? 0,
     tickets: r.tickets ?? 0,
     reputation: r.reputation ?? BASELINE_RATING,
     incidents: (r.incidents ?? []).map((i) => ({ ...i })),
-    // §13.8 — the postings, back where they were. `normaliseHeroPlacements`
-    // has already dropped anybody who is not one of §22.8's six, so this only
-    // has to change the shape.
-    heroPlacements: Object.fromEntries(
-      (r.heroPlacements ?? []).map((p) => [
-        p.id as HeroId,
-        { rung: p.rung, index: p.index, placedAt: p.placedAt },
-      ]),
-    ) as Partial<Record<HeroId, HeroPlacement>>,
     // §18.0 — whatever was happening is still happening. `normaliseEvent` has
     // already dropped an id this build does not have, so an unknown event comes
     // back as a quiet floor rather than as a banner with no card behind it.

@@ -65,11 +65,10 @@ describe('the list is a ladder', () => {
 })
 
 describe('a scenario is a studio you can look at', () => {
-  it('puts the headcount in the store, and a roster under it', () => {
+  it('puts the headcount in the store', () => {
     for (const s of SCENARIOS) {
       applyScenario(s)
       expect(getState().devs).toBe(s.devs)
-      expect(getState().roster.reduce((n, r) => n + r.count, 0)).toBe(s.devs)
       // Not parked on its own ceiling: a studio at the cap reads as one that
       // has stalled, which is a different picture from the one being asked for.
       expect(getState().devCap).toBeGreaterThan(s.devs)
@@ -166,7 +165,6 @@ describe('a batch somebody adds with the testing dial', () => {
 
     const after = getState()
     expect(after.devs).toBe(110)
-    expect(after.roster.reduce((n, r) => n + r.count, 0)).toBe(110)
     expect(after.spawn?.from).toBe(10)
     expect(after.spawn?.to).toBe(110)
     expect(after.spawn?.id).not.toBe(before.spawn?.id)

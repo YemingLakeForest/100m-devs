@@ -11,7 +11,7 @@
  * sentence, and §21.7.3's scenes are written out of it.
  */
 
-import type { HeroBranch } from './heroTree.ts'
+import type { HeroBranch } from './heroBranches.ts'
 
 export type HeroId = 'james' | 'mo' | 'serena' | 'matt' | 'melany' | 'billy'
 
@@ -88,7 +88,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first release rated below the §4.14 baseline on defects alone',
     trait: {
       name: 'READS IT TWICE',
-      text: 'Work inside Mo’s coverage generates half as many defects before release.',
+      text: 'The studio writes half as many defects.',
     },
     idle: 'reading',
     brings: 'defects',
@@ -102,7 +102,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first incident to suppress a release’s tail',
     trait: {
       name: 'WROTE THE RUNBOOK',
-      text: 'A new incident opens up to half worked, scaled by Serena’s coverage.',
+      text: 'A new incident opens half worked, and one developer in fifty is on call to clear it.',
     },
     idle: 'watching',
     brings: 'incidents',
@@ -116,7 +116,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first sustained unserved ticket queue',
     trait: {
       name: 'KNOWS THEIR NAMES',
-      text: 'Catalogue tickets arrive up to 20% slower, scaled by Matt’s coverage.',
+      text: 'Catalogue tickets arrive 20% slower, and one developer in twenty answers them.',
     },
     idle: 'headset',
     brings: 'tickets',
@@ -130,7 +130,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first time the developer cap is hit with cash still in the bank',
     trait: {
       name: 'RESERVED INSTANCES',
-      text: 'Adds up to 25% capacity immediately. Reserved coverage costs $1 per developer each second.',
+      text: 'Adds 25% developer capacity. Reserved capacity costs $1 per developer each second.',
     },
     idle: 'pacing',
     brings: null,
@@ -140,9 +140,10 @@ export const STORY_HEROES: readonly StoryHero[] = [
    * §21.7.3 amended 2026-08-29 — **Billy is the one hero somebody introduces.**
    *
    * The other four walk through a door because the player felt a problem. Billy
-   * is walked *in*, by James, because §21.7.6's rule finally has to answer for
-   * the system it had been quietly leaving ungated: §13.8's placement. See
-   * `game/storyTriggers.ts` for the trigger and `game/scenes.ts` for the scene.
+   * is walked *in*, by James, because the studio has stopped working and James
+   * knows a chap. (From 2026-08-29 he also handed over §13.8's placement; that
+   * was cut on 2026-09-26.) See `game/storyTriggers.ts` for the trigger and
+   * `game/scenes.ts` for the scene.
    *
    * **His voice is refined and he is never doing a bit.** He is not sending
    * anybody up and he is not aware there is anything to send up — he says
@@ -164,7 +165,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'The first sustained collapse of sync outside Run 1 — and James knows a chap',
     trait: {
       name: 'FIFTEEN MINUTES',
-      text: 'Daily Standups do not pause developers inside Billy’s coverage.',
+      text: 'Daily Standups run to fifteen minutes, and half the floor keeps working through them.',
     },
     idle: 'whiteboard',
     brings: null,

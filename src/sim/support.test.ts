@@ -5,15 +5,16 @@ import {
   MIN_CATALOGUE_MULTIPLIER,
   SIGMA,
   TAU,
+  TICKETS_PER_SUPPORT_PER_SEC,
   TICKET_PATIENCE_SECONDS,
   advanceTickets,
   catalogueMultiplier,
   clearanceWait,
   headsNeeded,
   serviceRatio,
+  supportCapacity,
   ticketRate,
 } from './support.ts'
-import { supportCapacity, TICKETS_PER_SUPPORT_PER_SEC } from './roles.ts'
 
 describe('§4.13 — the coefficients are headcounts, and the rates follow', () => {
   it('needs exactly one head per ten shipped games, forever', () => {

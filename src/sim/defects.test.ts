@@ -12,12 +12,11 @@ import {
 } from './defects.ts'
 import { DEFECT_DENSITY_ANCHOR, defectScore, rateRelease, BASELINE_RATING } from './rating.ts'
 import { CONTEXT_SWITCH_COEFFICIENT } from './entropy.ts'
-import { DEFECT_HALVING_QA_SHARE } from './roles.ts'
 
 /**
  * §4.14.1's load-bearing claim, asserted rather than commented.
  *
- * "A studio with no QA therefore always scores exactly half on defects
+ * "A studio nobody is checking therefore always scores exactly half on defects
  * *whatever β is*, so retuning how fast bugs arrive changes how quickly a studio
  * reaches §4.12a's incident threshold and changes nothing about what a shipped
  * game is worth."
@@ -33,7 +32,7 @@ describe('§4.12 / §4.14.1 — β is the rating anchor, not a coefficient anybo
   it('ships a garage studio at exactly the anchor density, at every velocity', () => {
     for (const velocity of [0.5, 1, 40, 1_000, 1e9]) {
       // One second of work with nobody checking.
-      const backlog = defectRate(velocity, 0)
+      const backlog = defectRate(velocity)
       expect(defectDensity(backlog, velocity)).toBeCloseTo(DEFECT_DENSITY_ANCHOR, 12)
     }
   })
@@ -50,7 +49,7 @@ describe('§4.12 / §4.14.1 — β is the rating anchor, not a coefficient anybo
    */
   it('rates a garage release at exactly the baseline', () => {
     const sp = 1_000
-    const backlog = defectRate(sp, 0) // one second at V = sp, i.e. sp points of work
+    const backlog = defectRate(sp) // one second at V = sp, i.e. sp points of work
     const rating = rateRelease({
       defects: backlog,
       storyPoints: sp,
@@ -63,25 +62,20 @@ describe('§4.12 / §4.14.1 — β is the rating anchor, not a coefficient anybo
 
 describe('§4.12 — the faster you go, the more you break', () => {
   it('is linear in velocity', () => {
-    expect(defectRate(20, 0)).toBeCloseTo(2 * defectRate(10, 0), 12)
+    expect(defectRate(20)).toBeCloseTo(2 * defectRate(10), 12)
   })
 
   it('produces nothing when the studio produces nothing', () => {
     // §6.3's lock is the game's one seizure and must not also write bugs.
-    expect(defectRate(0, 0)).toBe(0)
+    expect(defectRate(0)).toBe(0)
   })
 
-  it('halves at the QA halving share, and never reaches zero', () => {
-    expect(defectRate(100, DEFECT_HALVING_QA_SHARE)).toBeCloseTo(defectRate(100, 0) / 2, 12)
-    expect(defectRate(100, 1)).toBeGreaterThan(0)
-    expect(defectRate(100, 1e6)).toBeGreaterThan(0)
-  })
 })
 
 describe('§4.12 — poking is how defects get written', () => {
   it('charges a poke at β + ε, the same ε §4.9 uses for Entropy', () => {
     expect(POKE_BETA).toBe(CONTEXT_SWITCH_COEFFICIENT)
-    expect(defectsFromPoke(1, 0)).toBeCloseTo(BETA + CONTEXT_SWITCH_COEFFICIENT, 12)
+    expect(defectsFromPoke(1)).toBeCloseTo(BETA + CONTEXT_SWITCH_COEFFICIENT, 12)
   })
 
   /**
@@ -91,26 +85,19 @@ describe('§4.12 — poking is how defects get written', () => {
    * than as a broken assertion.
    */
   it('makes a poked point cost more than a passive one', () => {
-    expect(defectsFromPoke(1, 0)).toBeGreaterThan(defectRate(1, 0))
-  })
-
-  it('is suppressed by QA on the same curve — they read it either way', () => {
-    expect(defectsFromPoke(10, DEFECT_HALVING_QA_SHARE)).toBeCloseTo(
-      defectsFromPoke(10, 0) / 2,
-      12,
-    )
+    expect(defectsFromPoke(1)).toBeGreaterThan(defectRate(1))
   })
 })
 
 describe('advanceDefects', () => {
   it('accumulates, and a zero step changes nothing', () => {
-    expect(advanceDefects(5, 100, 0, 0)).toBe(5)
-    expect(advanceDefects(5, 100, 0, 2)).toBeCloseTo(5 + defectRate(100, 0) * 2, 12)
+    expect(advanceDefects(5, 100, 0)).toBe(5)
+    expect(advanceDefects(5, 100, 2)).toBeCloseTo(5 + defectRate(100) * 2, 12)
   })
 
   it('survives a corrupt backlog rather than propagating it', () => {
-    expect(advanceDefects(Number.NaN, 10, 0, 1)).toBeCloseTo(defectRate(10, 0), 12)
-    expect(advanceDefects(-50, 10, 0, 1)).toBeCloseTo(defectRate(10, 0), 12)
+    expect(advanceDefects(Number.NaN, 10, 1)).toBeCloseTo(defectRate(10), 12)
+    expect(advanceDefects(-50, 10, 1)).toBeCloseTo(defectRate(10), 12)
   })
 })
 

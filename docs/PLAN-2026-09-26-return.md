@@ -1,5 +1,8 @@
 # The return — plan, 2026-09-26
 
+> **Read `docs/HANDOFF-2026-09-27.md` first.** It is the record of what this plan became: what came across, what
+> changed, what is still only in the rebuild, and the proposed order for Garage to Galaxy in this game.
+
 > *"Yes commit and push there. And next step will be to plan going back to old repo (what a ride) with some new
 > game elements bringing back (hero upgrades, upgrade tree UI, minigames, slack off, release pipelines) whats yet
 > or decide is the game's scaling up UI style, I still want the swarm feel. But we have not landed perfectly on
@@ -83,6 +86,10 @@ reworked. I just want the upgrade tree isometric visual ported first."* The demo
 wired; the rest are bought from the wallet and do nothing yet, and say so. The tech board and the shared hero tree
 still carry the real upgrades. **Next in this phase:** the economy rework that gives the other four trees their
 effects and retires those two screens, and the roster cut.
+
+**Later the same day, and the next:** the two screens are retired, and so are hero placement, the professions and
+the founder's Management tree. The trees are the only upgrades, opened from each person's card after the first
+Paradigm Shift; James's root is Instant Messenger and Billy's is the Daily Standup. See the handoff's §4.
 
 **5 · Slack off and the catapult:** 3D walkers on real routes, the hop, and a thrown drag.
 

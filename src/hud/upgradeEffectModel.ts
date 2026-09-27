@@ -1,5 +1,4 @@
 import type { FounderEffects } from '../sim/founder.ts'
-import type { HeroFold } from '../sim/heroRoster.ts'
 import type { TechEffects } from '../sim/techTree.ts'
 
 export interface UpgradeEffectLine {
@@ -69,35 +68,6 @@ export function techEffectReceipt(
   for (const errand of after.slackBlocked) {
     if (!before.slackBlocked.includes(errand)) {
       lines.push({ label: `${errand.toUpperCase()} TRIPS`, before: 'ON', after: 'OFF' })
-    }
-  }
-  return { source, status: 'applied', lines }
-}
-
-/** Hero points are permanent; an unplaced hero therefore gets an explicit deferred receipt. */
-export function heroEffectReceipt(
-  source: string,
-  before: HeroFold,
-  after: HeroFold,
-): UpgradeEffectReceipt {
-  const lines: UpgradeEffectLine[] = []
-  changed(lines, 'STORY-POINT YIELD', before.yield, after.yield, multiplier)
-  changed(lines, 'ENTROPY', before.entropy, after.entropy, multiplier)
-  changed(lines, 'DEVELOPER CAP', before.cap, after.cap, multiplier)
-  changed(lines, 'DEFECT ARRIVALS', before.defects, after.defects, multiplier)
-  changed(lines, 'INCIDENT ARRIVALS', before.incidents, after.incidents, multiplier)
-  changed(lines, 'SUPPORT HEADS', before.supportHeads, after.supportHeads, (v) => number(v, ' heads'))
-  changed(lines, 'INCIDENT START WORK', before.incidentStartWork, after.incidentStartWork, percent)
-  changed(lines, 'TICKET ARRIVALS', before.ticketRate, after.ticketRate, multiplier)
-  changed(lines, 'STANDUP-PROTECTED HEADS', before.standupHeads, after.standupHeads, (v) => number(v, ' heads'))
-  changed(lines, 'OPERATING COST', before.operatingCost, after.operatingCost, (v) => `$${number(v)}/s`)
-  changed(lines, 'SHIP CRAFT', before.craft, after.craft, percent)
-
-  if (lines.length === 0) {
-    return {
-      source,
-      status: 'deferred',
-      lines: [{ label: 'PLACEMENT', before: 'BENCHED', after: 'APPLIES WHEN POSTED' }],
     }
   }
   return { source, status: 'applied', lines }

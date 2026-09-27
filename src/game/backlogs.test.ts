@@ -15,16 +15,19 @@ import {
   dismissScene,
   getState,
   hireDeveloper,
+  oncallHeads,
   poke,
   shipEverything,
-  setHireRole,
+  supportHeads,
   tick,
   workingDevs,
 } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { BETA } from '../sim/defects.ts'
 import { BASELINE_RATING, RATING_WEIGHTS, rateRelease } from '../sim/rating.ts'
-import { addHires, countsOf, headcountOf } from '../sim/roles.ts'
+import { FOUNDER_ROLE_HEADS } from '../sim/founder.ts'
+import { HELPDESK_SHARE, ONCALL_SHARE } from '../sim/heroRoster.ts'
+import { SCENE_MATT_ARRIVES, SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES } from './scenes.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 
 /**
@@ -71,7 +74,7 @@ function answerLaunch() {
  * developer draws no wage and the economy under test is the one it always was.
  */
 function staff(count = 1) {
-  __setState({ devs: count, roster: addHires(getState().roster, 'dev', count) })
+  __setState({ devs: count })
 }
 
 function play(seconds: number, pokesPerSecond = 0) {
@@ -127,9 +130,9 @@ function playUntilShipped(pokesPerSecond = 0, limit = 4000) {
  * of setup repeated nineteen times and forgotten on the twentieth, and the
  * symptom of forgetting is a test that passes by measuring zero against zero.
  */
-function prestiged() {
+function prestiged(milestones: string[] = []) {
   const p = emptyPermanent()
-  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1, milestones } })
 }
 
 /**
@@ -149,51 +152,32 @@ beforeEach(reset)
 
 afterEach(() => setPermanent(emptyPermanent()))
 
-describe('§4.11 — the roster and the headcount are the same number', () => {
-  it('starts empty, because there is no QA in a garage', () => {
-    expect(getState().roster).toEqual([])
-    expect(getState().devs).toBe(0)
-  })
-
-  /**
-   * The invariant `hire` exists to keep. `devs` is read on every hot path and
-   * the roster is the *shape* of it; if the two can disagree, `roleAtSeat`
-   * silently reads seats past the end as developers and every share in §4.11 is
-   * computed against the wrong denominator.
-   */
-  it('stays equal to devs through a run of mixed hires', () => {
+/**
+ * §4.11 [amended 2026-09-26] — **one kind of hire.** *"Some mechanics in the old
+ * game I want remove, hero placement, different types of hires (SRE QA ETC."*
+ * The pager and the inbox went to the heroes whose job they always were.
+ */
+describe('§4.11 — every hire is a developer', () => {
+  it('puts every head on the floor at a desk that codes', () => {
     play(240, 4) // ship something, so there is money
-    for (const role of ['dev', 'qa', 'sre', 'support', 'dev'] as const) {
-      setHireRole(role)
-      expect(hireDeveloper()).toBe(true)
-      expect(headcountOf(getState().roster)).toBe(getState().devs)
-    }
-    const counts = countsOf(getState().roster)
-    expect(counts.qa).toBe(1)
-    expect(counts.sre).toBe(1)
-    expect(counts.support).toBe(1)
-    /*
-     * **Two, and it was three.** [amended 2026-09-04]
-     *
-     * This said *"Three, not two: §21.0b's James is a free `dev` hire during
-     * Act I, so the studio already had one before the loop above hired any."*
-     * He is not a hire any more — §7.8.0's leadership corner is outside the
-     * twenty, and `grantJames` no longer calls `hire`. The roster holds the
-     * people the studio employed, and that is the two the loop above bought.
-     */
-    expect(counts.dev).toBe(2)
+    const before = workingDevs()
+    expect(hireDeveloper()).toBe(true)
+    expect(workingDevs()).toBeGreaterThan(before)
   })
 
-  it('hires into the role the dial is set to, and never reassigns', () => {
-    play(240, 4)
-    setHireRole('qa')
-    hireDeveloper()
-    setHireRole('dev')
-    hireDeveloper()
-    // §4.11 — "a role is chosen at hire, not reassigned". The first seat is
-    // still QA after a developer was hired above them; a four-counter roster
-    // could not do this.
-    expect(countsOf(getState().roster).qa).toBe(1)
+  it('leaves the pager and the inbox to the founder until Serena and Matt arrive', () => {
+    staff(200)
+    tick(1 / 30)
+    expect(oncallHeads()).toBe(FOUNDER_ROLE_HEADS)
+    expect(supportHeads()).toBe(FOUNDER_ROLE_HEADS)
+  })
+
+  it('puts a share of the floor on call with Serena, and on the help desk with Matt', () => {
+    prestiged([SCENE_SERENA_ARRIVES.id, SCENE_MATT_ARRIVES.id])
+    staff(200)
+    tick(1 / 30)
+    expect(oncallHeads()).toBeCloseTo(FOUNDER_ROLE_HEADS + 200 * ONCALL_SHARE, 9)
+    expect(supportHeads()).toBeCloseTo(FOUNDER_ROLE_HEADS + 200 * HELPDESK_SHARE, 9)
   })
 })
 
@@ -221,22 +205,19 @@ describe('§4.12 — defects accrue from the work itself', () => {
   })
 
   /**
-   * The store-level half of the QA curve: that the **roster's** share reaches
-   * §4.12's accrual at all. `defects.test.ts` already pins the curve's shape;
-   * what can only be wrong here is the wiring.
+   * The store-level half of Mo's READS IT TWICE: that her arrival reaches
+   * §4.12's accrual at all. It used to be QA's share of the floor.
    *
    * Measured over a short window with a ship guard, because shipping zeroes the
    * bench (§4.12 transfers the backlog rather than forgiving it) — a window that
-   * straddles a ship measures a *negative* delta and says nothing about QA.
+   * straddles a ship measures a *negative* delta and says nothing about Mo.
    */
-  it('is suppressed by hiring QA', () => {
-    function accrualOver(role: 'qa' | 'dev'): number {
-      reset()
-      play(240, 4)
-      for (let i = 0; i < 6; i++) {
-        setHireRole(role)
-        hireDeveloper()
-      }
+  it('is halved once Mo has arrived', () => {
+    function accrualOver(milestones: string[]): number {
+      __resetStore()
+      prestiged(milestones)
+      staff(6)
+      play(2)
       const shippedBefore = getState().projectsShipped
       const before = getState().defects
       play(3)
@@ -244,10 +225,10 @@ describe('§4.12 — defects accrue from the work itself', () => {
       return getState().defects - before
     }
 
-    const withQa = accrualOver('qa')
-    const withDevs = accrualOver('dev')
-    expect(withQa).toBeGreaterThan(0)
-    expect(withDevs).toBeGreaterThan(withQa)
+    const withMo = accrualOver([SCENE_MO_ARRIVES.id])
+    const without = accrualOver([])
+    expect(withMo).toBeGreaterThan(0)
+    expect(withMo / without).toBeCloseTo(0.5, 1)
   })
 })
 
@@ -381,14 +362,15 @@ describe('§4.12a — the catalogue pages you, and a page is a freeze', () => {
 
   /**
    * §4.12's standing warning: "nothing here may become a fail state that stops
-   * the clicker". With no SRE at all, clearance capacity would be zero and a
-   * frozen release would never come back — so §13.7.1's founder carries the
-   * pager, and this is the test that says an incident always ends.
+   * the clicker". Before Serena there is nobody on the rota, and clearance
+   * capacity would be zero and a frozen release would never come back — so
+   * §13.7.1's founder carries the pager, and this is the test that says an
+   * incident always ends.
    */
   it('always ends, even with nobody on the rota', () => {
     play(240, 4)
     const s = getState()
-    expect(countsOf(s.roster).sre).toBe(0)
+    expect(oncallHeads()).toBe(FOUNDER_ROLE_HEADS)
     s.incidents.push({
       id: 1,
       releaseId: s.releases[0].id,
@@ -509,7 +491,6 @@ describe('§22.3 — James does not quit', () => {
 
   it('leaves every ordinary developer losable, including the first', () => {
     play(240, 4)
-    setHireRole('dev')
     hireDeveloper()
     const before = getState().devs
     expect(before).toBe(1)
@@ -524,7 +505,6 @@ describe('§22.3 — James does not quit', () => {
      */
     poke(0, 0, { rung: 0, index: 0 })
     expect(getState().devs).toBe(before - 1)
-    expect(headcountOf(getState().roster)).toBe(before - 1)
   })
 })
 

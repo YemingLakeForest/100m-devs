@@ -1,12 +1,22 @@
 /**
- * The five upgrade trees, drawn — GDD §8 [2026-09-26, visual first].
+ * One person's upgrades, drawn — GDD §8 [2026-09-26, visual first].
  *
  * The rebuild's approved demo, redrawn as a STUDIO_OS window: the isometric
- * board is `hud/isoBoard.ts` painted into a pixel buffer, the people along the
- * bottom are the room's own heads (`HeroFace`, *"any scenes with arvatar should
- * be the 3d model"*), and the inspector is the demo's detail card set in the
- * terminal face. The demo's Ledger card and era switch are not here: the era is
- * the studio's, and the Ledger is its own phase.
+ * board is `hud/isoBoard.ts` painted into a pixel buffer, and the inspector is
+ * the demo's detail card set in the terminal face. The demo's Ledger card and
+ * era switch are not here: the era is the studio's, and the Ledger is its own
+ * phase.
+ *
+ * **One tree at a time, opened from that person's card** [amended later on
+ * 2026-09-26]. The first cut had its own TREES door and a row of heads along
+ * the bottom to switch between all five, and the answer was: *"what even is a
+ * tree? Didn't we have a upgrade button before?"*, *"it should be opened by
+ * heroes info page"*, *"I don't want the heroes tray"* and *"upgrades should
+ * be shown per heroes introduction, not all trees at once"*. So the door is
+ * UPGRADES on the person's card (`HeroCard.tsx`, and the founder's panel for
+ * yours), it opens after the first Paradigm Shift (`unlocks.trees`), and a
+ * tile that belongs to somebody else's tree says so rather than taking you
+ * there.
  *
  * **Most of this does nothing yet, and the window says so** — `sim/upgradeTrees.ts`
  * has why. Serena's pipeline nodes are the real ones, bought through the
@@ -22,7 +32,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 
 import { OsWindow } from '../ui/OsWindow.tsx'
 import { Button } from '../ui/Button.tsx'
-import { HeroFace } from './HeroFace.tsx'
 import { formatMoney } from './hudModel.ts'
 import { purchaseHaptic } from '../audio/haptics.ts'
 import {
@@ -37,7 +46,6 @@ import {
 import {
   SLICE_NAME,
   TREES,
-  TREE_HEROES,
   TREE_HERO_DEFS,
   closedBy,
   levelOf,
@@ -48,8 +56,6 @@ import {
   type TreeRefusal,
 } from '../sim/upgradeTrees.ts'
 import { ERAS } from '../sim/eras.ts'
-import { heroIdentity } from '../sim/identity.ts'
-import { DEFAULT_FOUNDER, founderLook, readFounderProfile } from '../game/founderProfile.ts'
 import { Raster, iso, pack, paintBoard, pickNode, treeBounds, P, type BoardNode, type Ink } from './isoBoard.ts'
 
 import '../styles/trees.css'
@@ -120,33 +126,34 @@ function proposal(node: TreeNode): string[] {
 export interface UpgradeTreesProps {
   open: boolean
   state: GameState
-  /** Whose tree to open on. Changing it while open moves there. */
-  hero?: TreeHero
+  /** Whose tree. The window shows this one and no other. */
+  hero: TreeHero
+  /**
+   * A node to open on, selected — James's scene opens his tree on Instant
+   * Messenger, which is how the trees are introduced (§21.6).
+   */
+  intro?: string | null
+  /** One line of instruction over the board, while a scene has asked for something. */
+  note?: string | null
   onClose: () => void
 }
 
-export function UpgradeTrees({ open, state, hero: start = 'you', onClose }: UpgradeTreesProps) {
-  const [hero, setHero] = useState<TreeHero>(start)
+export function UpgradeTrees({ open, state, hero, intro = null, note = null, onClose }: UpgradeTreesProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [showKey, setShowKey] = useState(false)
   const [openedOn, setOpenedOn] = useState<TreeHero | null>(null)
 
-  // Adjusting state to a prop, during render (React's own pattern): the door
-  // that opened the window decides whose tree it opens on.
-  const key = open ? start : null
+  // Adjusting state to a prop, during render (React's own pattern): a fresh
+  // door, or somebody else's card, starts with nothing selected.
+  const key = open ? hero : null
   if (key !== openedOn) {
     setOpenedOn(key)
     if (key) {
-      setHero(key)
-      setSelected(null)
+      setSelected(intro)
       setShowKey(false)
     }
   }
 
-  const go = useCallback((h: TreeHero, id: string | null = null) => {
-    setHero(h)
-    setSelected(id)
-  }, [])
   // The sheet holds one thing: a selection, or the key.
   const select = useCallback((id: string | null) => {
     setSelected(id)
@@ -154,30 +161,25 @@ export function UpgradeTrees({ open, state, hero: start = 'you', onClose }: Upgr
   }, [])
 
   const def = TREE_HERO_DEFS[hero]
-  const counts = useMemo(() => {
+  const c = useMemo(() => {
     const v = treeView(state)
-    return Object.fromEntries(
-      TREE_HEROES.map((h) => {
-        const real = TREES[h].filter((n) => n.kind !== 'root' && n.kind !== 'link')
-        const keys = real.filter((n) => n.kind === 'key')
-        return [h, {
-          owned: real.filter((n) => levelOf(v, h, n) > 0).length,
-          total: real.length,
-          keys: keys.length,
-          keysOwned: keys.filter((n) => levelOf(v, h, n) > 0).length,
-        }]
-      }),
-    ) as Record<TreeHero, { owned: number; total: number; keys: number; keysOwned: number }>
-  }, [state])
-  const c = counts[hero]
+    const real = TREES[hero].filter((n) => n.kind !== 'root' && n.kind !== 'link')
+    const keys = real.filter((n) => n.kind === 'key')
+    return {
+      owned: real.filter((n) => levelOf(v, hero, n) > 0).length,
+      total: real.length,
+      keys: keys.length,
+      keysOwned: keys.filter((n) => levelOf(v, hero, n) > 0).length,
+    }
+  }, [hero, state])
 
   return (
     <OsWindow
       open={open}
       from="centre"
       modal
-      title="UPGRADE TREES"
-      meta={<span className="tech__cash">{formatMoney(state.cash)}</span>}
+      title={hero === 'you' ? 'UPGRADES // YOU' : `UPGRADES // ${def.name.toUpperCase()}`}
+      meta={<span className="trees__cash">{formatMoney(state.cash)}</span>}
       onClose={onClose}
       className="trees-frame"
       bodyClassName="trees"
@@ -191,6 +193,7 @@ export function UpgradeTrees({ open, state, hero: start = 'you', onClose }: Upgr
           <p className="trees__progress">
             <b>{c.owned}</b> OF {c.total} OWNED · {c.keysOwned}/{c.keys} BREAKTHROUGH{c.keys === 1 ? '' : 'S'}
           </p>
+          {note && <p className="board-teaching" role="status">{note}</p>}
         </header>
         {open && (
           <Board
@@ -210,35 +213,12 @@ export function UpgradeTrees({ open, state, hero: start = 'you', onClose }: Upgr
         id={selected}
         showKey={showKey}
         state={state}
-        onGo={go}
         onClear={() => {
           setSelected(null)
           setShowKey(false)
         }}
       />
-      <nav className="trees__heads" aria-label="Whose tree">
-        {TREE_HEROES.map((h) => (
-          <HeroTab key={h} hero={h} active={h === hero} owned={counts[h].owned} total={counts[h].total} onPick={() => go(h)} />
-        ))}
-      </nav>
     </OsWindow>
-  )
-}
-
-function HeroTab({ hero, active, owned, total, onPick }: { hero: TreeHero; active: boolean; owned: number; total: number; onPick: () => void }) {
-  const look = useMemo(() => (hero === 'you' ? founderLook(readFounderProfile() ?? DEFAULT_FOUNDER) : heroIdentity(hero)?.look ?? null), [hero])
-  return (
-    <button
-      type="button"
-      className="trees__head"
-      aria-pressed={active}
-      aria-label={`${TREE_HERO_DEFS[hero].name}'s tree`}
-      onClick={onPick}
-    >
-      {look ? <HeroFace look={look} id={hero === 'you' ? 'founder' : hero} className="trees__face" /> : <span className="trees__face" />}
-      <span className="trees__head-name">{TREE_HERO_DEFS[hero].name.toUpperCase()}</span>
-      <span className="trees__head-count">{owned}/{total}</span>
-    </button>
   )
 }
 
@@ -572,12 +552,11 @@ function Board({ hero, state, selected, onSelect, onKey }: {
 
 // --- the inspector --------------------------------------------------------------
 
-function Inspector({ hero, id, showKey, state, onGo, onClear }: {
+function Inspector({ hero, id, showKey, state, onClear }: {
   hero: TreeHero
   id: string | null
   showKey: boolean
   state: GameState
-  onGo: (hero: TreeHero, id: string | null) => void
   onClear: () => void
 }) {
   const node = id ? treeNode(hero, id) : undefined
@@ -616,8 +595,8 @@ function Inspector({ hero, id, showKey, state, onGo, onClear }: {
         <h3 className="trees__title">{target.name}</h3>
         <p className="trees__text">{target.text}</p>
         <p className="trees__req" data-ok={on}>{on ? '+ OWNED' : '- NOT OWNED YET'} · {eraName(target.era)}</p>
+        <p className="trees__note">Bought from {owner}’s card.</p>
         <div className="trees__act">
-          <Button onClick={() => onGo(node.to!.hero, node.to!.id)}>GO TO {owner.toUpperCase()}</Button>
           <Button className="trees__deselect" onClick={onClear}>BACK</Button>
         </div>
       </aside>
@@ -646,8 +625,8 @@ function Inspector({ hero, id, showKey, state, onGo, onClear }: {
         {node.all && <span className="trees__tag">NEEDS EVERY LINK</span>}
       </p>
       <p className="trees__text">{node.text}</p>
-      {node.wired && node.effect && <p className="trees__effect">{node.effect}</p>}
-      {!node.wired && node.kind !== 'root' && (
+      {(node.wired || node.tech) && node.effect && <p className="trees__effect">{node.effect}</p>}
+      {!node.wired && !node.tech && node.kind !== 'root' && (
         <div className="trees__effect" data-wired="false">
           {lines.map((l) => <p key={l}>{l}</p>)}
           <p className="trees__unwired">NOT IN THE GAME YET</p>

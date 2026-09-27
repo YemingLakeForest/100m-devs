@@ -46,7 +46,6 @@ import { getPermanent, setPermanent } from './save.ts'
 import { SCENES } from './scenes.ts'
 import { __addScenarioDevelopers, __setState, getState } from './store.ts'
 import { rungFor } from '../sim/headcount.ts'
-import { newRoster } from '../sim/roles.ts'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
 
 export interface Scenario {
@@ -215,7 +214,6 @@ export function applyHeadcount(count: number): void {
 
   __setState({
     devs,
-    roster: newRoster(devs),
     // Twice the headcount, so §6's cap is not the thing on screen. A scenario
     // parked exactly on its own ceiling reads as a studio that has stalled.
     devCap: Math.max(2, devs * 2),

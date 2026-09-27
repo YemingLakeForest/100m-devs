@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { NO_FOUNDER } from '../sim/founder.ts'
-import { NO_HERO_FOLD } from '../sim/heroRoster.ts'
 import { techEffects } from '../sim/techTree.ts'
 import {
   founderEffectReceipt,
-  heroEffectReceipt,
   techEffectReceipt,
 } from './upgradeEffectModel.ts'
 
@@ -24,28 +22,6 @@ describe('applied-effect receipts', () => {
         after: '95%',
         factor: '×0.95',
       }],
-    })
-  })
-
-  it('says when a hero purchase is permanent but has no current placement', () => {
-    expect(heroEffectReceipt('QualityDepth2', NO_HERO_FOLD, NO_HERO_FOLD)).toEqual({
-      source: 'QualityDepth2',
-      status: 'deferred',
-      lines: [{ label: 'PLACEMENT', before: 'BENCHED', after: 'APPLIES WHEN POSTED' }],
-    })
-  })
-
-  it('reports the derived studio multiplier for an active hero', () => {
-    const receipt = heroEffectReceipt(
-      'EngineeringDepth2',
-      NO_HERO_FOLD,
-      { ...NO_HERO_FOLD, yield: 1.06 },
-    )
-    expect(receipt.lines).toContainEqual({
-      label: 'STORY-POINT YIELD',
-      before: '×1',
-      after: '×1.06',
-      factor: '×1.06',
     })
   })
 

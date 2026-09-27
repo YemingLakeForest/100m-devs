@@ -217,57 +217,9 @@ describe('offline progress — §24', () => {
     expect(offlineSlackFactor()).toBeLessThan(calm)
   })
 
-  it('is bought back by §11 Branch D, like the live rate', () => {
-    __setState({ devs: 300, peakDevs: 300, devCap: 1, slack: emptySlack() })
-    const unbought = offlineSlackFactor()
-    __setState({ tech: { D1: 1, D2: 1, D3: 1, D4: 1 } })
-    expect(offlineSlackFactor()).toBeGreaterThan(unbought)
-  })
-
   it('never takes the whole studio', () => {
     __setState({ devs: 300, peakDevs: 300, devCap: 1, slack: emptySlack() })
     expect(offlineSlackFactor()).toBeGreaterThan(0)
   })
 })
 
-describe('§11 Branch D — Focus', () => {
-  it('leaves fewer people away over the same stretch of run', () => {
-    const settle = (levels: Record<string, number> | undefined) => {
-      __resetStore()
-      __setState({ devs: 400, peakDevs: 400, devCap: 1, tech: levels, slack: emptySlack() })
-      let sum = 0
-      let n = 0
-      for (let t = 0; t < 180; t += 1 / 60) {
-        tick(1 / 60)
-        if (t > 60) {
-          sum += awayCount()
-          n++
-        }
-      }
-      return sum / n
-    }
-
-    const unbought = settle(undefined)
-    const wholeBranch = settle({ D1: 1, D2: 1, D3: 1, D4: 1 })
-    expect(wholeBranch).toBeLessThan(unbought)
-  })
-
-  it('can never buy the floor to a standstill — §7.8.9 rule 2', () => {
-    // The whole branch bought, and people still stand up. Every destination the
-    // branch names is gone; standing about and sitting on the sofa are not
-    // destinations anybody can remove, so they are what is left. An automation
-    // upgrade that emptied this would be the game solving its own joke.
-    __setState({
-      devs: 400,
-      peakDevs: 400,
-      devCap: 1,
-      tech: { D1: 1, D2: 1, D3: 1, D4: 1 },
-      slack: emptySlack(),
-    })
-    run(240)
-    expect(awayCount()).toBeGreaterThan(0)
-    for (const a of getState().slack.away) {
-      expect(['water', 'whiteboard', 'window']).not.toContain(a.errand)
-    }
-  })
-})

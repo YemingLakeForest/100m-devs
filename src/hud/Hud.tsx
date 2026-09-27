@@ -1,8 +1,7 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
 import {
   acknowledgeEvent,
-  beginPosting,
   canMassHire,
   clearEventByHand,
   collectOffline,
@@ -14,20 +13,16 @@ import {
   dismissScene,
   dismissShiftReport,
   finishLaunch,
-  devsUnderPlacement,
   grantJames,
   hasSeenScene,
   heroById,
-  heroCoverageOf,
   heroRoster,
   hireDeveloper,
   hireGrowthNow,
   hireQuote,
   massHire,
-  recallHero,
   selectHero,
   setHireMultiplier,
-  setHireRole,
   takeSeedRound,
   triggerParadigmShift,
   type GameState,
@@ -49,18 +44,12 @@ import { TouchSwitch } from './TouchSwitch.tsx'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HeroCard } from './HeroCard.tsx'
-import { HeroTree } from './HeroTree.tsx'
-import { PostingBanner } from './PostingBanner.tsx'
-import { Roster } from './Roster.tsx'
-import { WorldHeroAssignments } from './WorldHeroAssignments.tsx'
 import { Lift } from './Lift.tsx'
-import type { HeroRuntime } from '../sim/heroRoster.ts'
-import { unitLabel } from '../sim/units.ts'
+import type { HeroId } from '../sim/storyHeroes.ts'
 import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Starbound, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
 import { Defects, Incidents, Tickets } from './Backlogs.tsx'
-import { countsOf, type Role } from '../sim/roles.ts'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
 import { Dialogue } from '../ui/Dialogue.tsx'
@@ -68,13 +57,11 @@ import { OsWindow } from '../ui/OsWindow.tsx'
 import {
   SCENES,
   SCENE_FOUNDER_BOARD,
-  SCENE_HERO_BOARD,
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_INSTANT_MESSENGER,
   JAMES_DROPS_AT_LINE,
 } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
-import { UpgradeBoard } from './UpgradeBoard.tsx'
 import { EventBanner, EventCard } from './EventCard.tsx'
 import { TermSheet } from './TermSheet.tsx'
 import { ParadigmCutScene } from './ParadigmCutScene.tsx'
@@ -133,49 +120,6 @@ const PREVIEW_TREES: TreeHero | null = (() => {
 const PREVIEW_LAUNCH = DEBUG_QUERY.has('launch')
 
 /**
- * §4.11 — which jobs the studio has a reason to hire for yet.
- *
- * **Roles arrive when the problem does, never on a headcount.** §4.11's joke —
- * that a studio stops being one kind of person — only lands once the player has
- * been given something to protect, and each of the three support functions has
- * a moment where the player is looking straight at the thing it fixes:
- *
- * | Role | Appears when |
- * |---|---|
- * | **QA** | The defect counter is on screen, which is the first time §4.15 shows one |
- * | **Support** | Something has shipped, so there is a back catalogue to answer for |
- * | **SRE** | A game is actually down |
- *
- * Each row of the dial therefore arrives beside the readout that explains it,
- * and the player never chooses between four jobs they have no information
- * about. Once earned a role stays — a studio that has cleared its incidents has
- * not forgotten how to hire SRE.
- *
- * §21.0c puts a floor under all three: **none of them exists during Run 1.** The
- * conditions above are about *when within a run*, and they were doing their job
- * — a defect really was on screen, something really had shipped. What they could
- * not know is that the run in question was the one whose entire argument is that
- * there is a single lever. `HireDial` renders no row at all for one role, so
- * Act I's control is exactly the button it has always been.
- */
-function rolesAvailable(state: GameState): Role[] {
-  const roles: Role[] = ['dev']
-  // §21.7.6 — **a role arrives with the instrument that makes it legible.**
-  // The in-run conditions below were doing real work and they still are: they
-  // ask *when within a run* the problem has appeared. What they could not know
-  // is who the player would hire against. Offering QA before there is a defect
-  // readout asks somebody to buy a fix for a problem the game has not shown
-  // them — so each row now needs both its condition and its hero.
-  const unlocks = currentUnlocks()
-  if (unlocks.roles.qa && state.defects >= 1) roles.push('qa')
-  if (unlocks.roles.support && state.projectsShipped > 0) roles.push('support')
-  if (unlocks.roles.sre && (state.incidents.length > 0 || countsOf(state.roster).sre > 0)) {
-    roles.push('sre')
-  }
-  return roles
-}
-
-/**
  * The HUD — GDD §7.1, §10.1, §23.4.2, and the §21 script.
  *
  * **The frame is landscape and the layout is anchored to its edges.** §23.4.2
@@ -199,20 +143,9 @@ function rolesAvailable(state: GameState): Role[] {
  * post-process, and it is held together by the palette and the type system
  * instead.
  */
-/**
- * §13.11.2 — where a hero is, in words.
- *
- * `BENCHED` is the only word on the card allowed to be red, because §13.10
- * makes it the one that is actively costing the player something: an unplaced
- * hero earns no XP, so a board left alone falls behind a board that is tended.
- * §7.8.12 gives the word a place to be — they are at their desk in the suite,
- * visibly doing nothing while the floor works.
- */
-function heroPlacedLabel(hero: HeroRuntime | null, state: GameState): string {
-  if (!hero?.placement) return 'BENCHED'
-  const cov = heroCoverageOf(hero, state)
-  if (cov.settling) return 'CONNECTING'
-  return `${unitLabel(hero.placement.rung).toUpperCase()} ${hero.placement.index + 1}`
+/** GDD §8 — the people who have a tree. Mo and Melany do not, yet. */
+function treeOf(id: HeroId): TreeHero | null {
+  return (TREE_HEROES as readonly string[]).includes(id) ? (id as TreeHero) : null
 }
 
 export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMenu?: () => void }) {
@@ -222,17 +155,17 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const reduced = useReducedMotion()
   // §13.2's tree and §11's tree are two doors, and they now hang off one bar.
   const [treeOpen, setTreeOpen] = useState(false)
-  const [upgradesOpen, setUpgradesOpen] = useState(false)
   const [founderOpen, setFounderOpen] = useState(false)
   const [gameMenuOpen, setGameMenuOpen] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
-  const [heroTreeOpen, setHeroTreeOpen] = useState(false)
-  const [rosterOpen, setRosterOpen] = useState(false)
-  // §8 — the five isometric trees. The belt opens Serena's (her pipeline board
-  // is her tree now); the TREES door opens whoever was last looked at.
+  // §8 — a person's upgrade tree, opened from their card (the founder's from
+  // their panel). One tree at a time: `treesHero` is whose.
   const [treesOpen, setTreesOpen] = useState(PREVIEW_TREES !== null)
   const [treesHero, setTreesHero] = useState<TreeHero>(PREVIEW_TREES ?? 'you')
-  const [guidedBoard, setGuidedBoard] = useState<'tech' | 'founder' | 'hero' | null>(null)
+  // The node the tree opens on, and whether THE THREAD sent the player there
+  // (§18.0a) — James's one line then stands over the board until a purchase.
+  const [treesIntro, setTreesIntro] = useState<string | null>(null)
+  const [threadGuide, setThreadGuide] = useState(false)
   /**
    * §10.6b — **no window is open while somebody is talking.**
    *
@@ -270,26 +203,19 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     if (talking) {
       setTreeOpen(false)
       setTreesOpen(false)
-      setUpgradesOpen(false)
       setFounderOpen(false)
       setGameMenuOpen(false)
       setGalleryOpen(false)
-      setHeroTreeOpen(false)
-      setRosterOpen(false)
       // A guided board whose window has been closed is a dangling promise: the
       // flag would put the teaching line on whatever opened next.
-      setGuidedBoard(null)
+      setThreadGuide(false)
     }
   }
-  const [upgradeIntro, setUpgradeIntro] = useState<string | null>(null)
-  const roster = heroRoster(state)
-  // Resolved once per render: `heroById` rebuilds from `meta` and the run, so
-  // asking twice in one frame would build the same six objects twice.
-  const openHero = state.selectedHero === null ? null : heroById(state.selectedHero, state)
-  const openHeroCoverage = openHero ? heroCoverageOf(openHero, state) : null
-  const openHeroTargetCovered = openHero?.placement
-    ? Math.min(openHero.reachDevs, devsUnderPlacement(openHero.placement, state))
-    : 0
+  const roster = heroRoster()
+  // Resolved once per render: `heroById` rebuilds from `meta`, so asking twice
+  // in one frame would build the same six objects twice.
+  const openHero = state.selectedHero === null ? null : heroById(state.selectedHero)
+  const openAt = openHero ? roster.findIndex((h) => h.id === openHero.id) : -1
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
@@ -322,19 +248,42 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   /**
    * §18.0a — the intended exit, which is a *route* and not a resolution.
    *
-   * The event stays live: what ends it is the purchase, and `buyTech` is where
-   * that is wired (trap 33 — a rule wired to the interface is a lie the
-   * interface tells confidently). All this does is put the board in front of
-   * the player and stand the modal down to a banner.
+   * The event stays live: what ends it is the purchase, and `buyTreeNode` is
+   * where that is wired (trap 33 — a rule wired to the interface is a lie the
+   * interface tells confidently). All this does is put James's tree in front of
+   * the player, over his card, and stand the modal down to a banner. It was the
+   * studio board until that was retired [2026-09-26].
    */
   const openBoardForEvent = () => {
     acknowledgeEvent()
+    openTree('james')
+    setThreadGuide(true)
+  }
+
+  /**
+   * §8 — one person's tree, over their card (the founder's panel for yours), so
+   * closing it hands the player back to that person.
+   */
+  const openTree = (hero: TreeHero, intro: string | null = null) => {
     setTreeOpen(false)
-    setFounderOpen(false)
     setGameMenuOpen(false)
     setGalleryOpen(false)
-    setUpgradesOpen(true)
-    setGuidedBoard('tech')
+    if (hero === 'you') {
+      setFounderOpen(true)
+    } else {
+      setFounderOpen(false)
+      selectHero(hero)
+    }
+    setTreesHero(hero)
+    setTreesIntro(intro)
+    setThreadGuide(false)
+    setTreesOpen(true)
+  }
+
+  // THE THREAD's guide stands down the moment the purchase has ended the event.
+  if (threadGuide && treesOpen && event === null) {
+    setThreadGuide(false)
+    setTreesOpen(false)
   }
 
   /**
@@ -347,37 +296,44 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     const finished = state.scene
     dismissScene()
 
+    /*
+     * §21.6 — **this is how the trees are introduced** [2026-09-26]. *"the story
+     * of james introducing us instant messenger should be how upgrade trees are
+     * introduced"*. James hands over Instant Messenger in the scene, and it is
+     * the root of his tree, so the scene ends on that tree opened at that node,
+     * over his card — which is where the player will find it again.
+     */
     if (finished === SCENE_JAMES_INSTANT_MESSENGER.id) {
-      setTreeOpen(false)
-      setFounderOpen(false)
-      setHeroTreeOpen(false)
-      setGameMenuOpen(false)
-      setGalleryOpen(false)
-      setGuidedBoard(null)
-      setUpgradeIntro('B1')
-      setUpgradesOpen(true)
+      openTree('james', 'R')
       return
     }
 
+    // §21.7.7 — "There's a track for that. It's a bit of everyone's job." Your
+    // own tree, over your panel. It was the Management tree until that was
+    // retired with the studio board.
     if (finished === SCENE_FOUNDER_BOARD.id) {
-      setTreeOpen(false)
-      setUpgradesOpen(false)
-      setHeroTreeOpen(false)
-      setFounderOpen(true)
-      setGuidedBoard('founder')
-      return
+      openTree('you')
     }
+  }
 
-    if (finished === SCENE_HERO_BOARD.id) {
-      const learner = [...roster].sort((a, b) => b.points - a.points || a.id.localeCompare(b.id))[0]
-      if (!learner) return
-      setTreeOpen(false)
-      setUpgradesOpen(false)
-      setFounderOpen(false)
-      selectHero(learner.id)
-      setHeroTreeOpen(true)
-      setGuidedBoard('hero')
-    }
+  /**
+   * §22.9 — open somebody's card, with every other window stood down. The
+   * card is the heroes' one surface now: the roster strip that used to rise
+   * under it went with placement (*"I don't want the heroes tray"*).
+   */
+  const openCard = (id: HeroId) => {
+    setTreeOpen(false)
+    setFounderOpen(false)
+    setGameMenuOpen(false)
+    setGalleryOpen(false)
+    setTreesOpen(false)
+    selectHero(id)
+  }
+
+  /** The card the TEAM door and the suite's sign open on: James, or whoever is first. */
+  const openTeam = () => {
+    const first = roster[0]
+    if (first) openCard(first.id)
   }
 
   /**
@@ -393,35 +349,25 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     clearEventByHand()
   }
 
+  // The stage keeps its handlers for its whole life; these refs let them call
+  // this render's closures (which read this render's roster).
+  const openCardRef = useRef(openCard)
+  const openTeamRef = useRef(openTeam)
+  useEffect(() => {
+    openCardRef.current = openCard
+    openTeamRef.current = openTeam
+  })
+
   useEffect(() => {
     if (!stage) return
     stage.setFounderInspect(() => {
-      setUpgradesOpen(false)
       setTreeOpen(false)
       setFounderOpen(true)
     })
-    stage.setHeroInspect((id) => {
-      setTreeOpen(false)
-      setUpgradesOpen(false)
-      setFounderOpen(false)
-      setGameMenuOpen(false)
-      setGalleryOpen(false)
-      setHeroTreeOpen(false)
-      setRosterOpen(false)
-      selectHero(id)
-    })
-    // §13.11.2 — the roster's door is the sign over the suite's own doorway.
-    // It used to be a button in the right rail; that slot is now TEAM, and
-    // `Roster.tsx` has always said this is where the door belongs.
-    stage.setRosterInspect(() => {
-      setTreeOpen(false)
-      setUpgradesOpen(false)
-      setFounderOpen(false)
-      setGameMenuOpen(false)
-      setGalleryOpen(false)
-      setHeroTreeOpen(false)
-      setRosterOpen(true)
-    })
+    stage.setHeroInspect((id) => openCardRef.current(id))
+    // The sign over the suite's doorway used to raise the roster strip. It
+    // opens the first card now, and the card's arrows walk the rest.
+    stage.setRosterInspect(() => openTeamRef.current())
     return () => {
       stage.setFounderInspect(null)
       stage.setHeroInspect(null)
@@ -458,10 +404,9 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             */}
             <Pipeline
               state={state}
-              onBoard={() => {
-                setTreesHero('serena')
-                setTreesOpen(true)
-              }}
+              // §10.7 — the belt is Serena's, so a tap on it opens her card,
+              // and her card is where her upgrades are.
+              onBoard={() => openCard('serena')}
             />
           </BurnDown>
           {/*
@@ -556,7 +501,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             onClick={() => {
               setTreeOpen(false)
               setFounderOpen(false)
-              setUpgradesOpen(false)
               setGameMenuOpen(true)
             }}
           >
@@ -565,7 +509,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         </div>
       </div>
 
-      <WorldHeroAssignments stage={stage} state={state} roster={roster} />
       <Bubble text={state.bubble?.text ?? null} />
 
       {/*
@@ -628,8 +571,21 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             is no room to go back to and a button onto one is the §10.6
             web-page tell.
           */}
+          {/*
+            [2026-09-26] — and it opens the first card as it goes. The room is
+            where the heroes are, but the 3D garage does not seat Mo, Serena or
+            Matt, and the roster strip that reached them went with placement;
+            the card's arrows walk everybody who has arrived.
+          */}
           {roster.length > 1 && (
-            <Button onClick={() => stage?.focusTeam()}>TEAM</Button>
+            <Button
+              onClick={() => {
+                stage?.focusTeam()
+                openTeam()
+              }}
+            >
+              TEAM
+            </Button>
           )}
           {/*
             §13.2 — the tree appears only once a Paradigm Shift has happened.
@@ -639,59 +595,14 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           {hasPrestiged() && (
             <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
           )}
-          {/* §10.1's UPGRADES nav. The founder's personal Management tree now
-              opens from their world avatar; this remains the studio tree.
-
-              §21.0c — and the door is shut for the whole of Run 1, on the same
-              argument §13.2's PARADIGM button above it has always used: a
-              permanently visible button onto a tree the player cannot buy from
-              is the §10.6 web-page tell. It is worse than that here, because the
-              tree is not empty but *forbidden* — Run 1's whole argument is that
-              there is one lever, and an upgrade screen is the game promising a
-              way to make the trap survivable. */}
-          {unlocks.upgrades && (
-            <div className="hud__nav hud__nav--upgrades">
-              <Button
-                onClick={() => {
-                  setTreeOpen(false)
-                  setFounderOpen(false)
-                  setGameMenuOpen(false)
-                  setTreesOpen(false)
-                  setUpgradesOpen((was) => !was)
-                }}
-                concept="upgrades"
-              >
-                UPGRADES
-              </Button>
-            </div>
-          )}
-          {/* §8 [2026-09-26] — the five isometric trees, beside UPGRADES rather
-              than instead of it: the trees came over visual first, and the tech
-              board is still where the studio's real upgrades are bought. Open
-              from the garage, because the founder's tree starts there.
-
-              On a phone-landscape frame with UPGRADES up, TEAM, PARADIGM and
-              UPGRADES fill the controls' last row exactly and a fourth door
-              starts a row the rail does not have (the frame gate, at 640x360).
-              There the door stands down (`trees.css`) and the tech board's own
-              TREES button is the way in. */}
-          <div className="hud__nav hud__nav--trees">
-            <Button
-              onClick={() => {
-                setTreeOpen(false)
-                setFounderOpen(false)
-                setGameMenuOpen(false)
-                setUpgradesOpen(false)
-                setGalleryOpen(false)
-                setTreesOpen((was) => !was)
-              }}
-            >
-              TREES
-            </Button>
-          </div>
-          {/* §10.11 — the gallery door, beside UPGRADES. Not gated on the tech
-              tree: it is a record of what shipped, and it opens the moment there
-              is a record to show, Run 1 included. */}
+          {/*
+            §10.1's UPGRADES door stood here, onto the studio board. The board
+            was retired on 2026-09-26 — *"I thought upgrades are trees"* — and
+            each person's upgrades open from their own card now (GDD §8).
+          */}
+          {/* §10.11 — the gallery door. Not gated on anything but a record: it
+              opens the moment there is something shipped to show, Run 1
+              included. */}
           {hasGallery && (
             <div className="hud__nav">
               <Button
@@ -699,8 +610,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
                   setTreeOpen(false)
                   setFounderOpen(false)
                   setGameMenuOpen(false)
-                  setUpgradesOpen(false)
-                  setTreesOpen(false)
                   setGalleryOpen((was) => !was)
                 }}
               >
@@ -717,12 +626,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           and it plays over a running floor. */}
       <ReleaseReview state={state} />
       <ReleaseRing state={state} />
-      <UpgradeTrees
-        open={treesOpen && !state.launching && !talking}
-        state={state}
-        hero={treesHero}
-        onClose={() => setTreesOpen(false)}
-      />
       <DevCard state={state} />
 
       {/*
@@ -737,48 +640,19 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       */}
       <HeroCard
         hero={openHero}
-        placedLabel={heroPlacedLabel(openHero, state)}
-        coverage={openHeroCoverage}
-        targetCovered={openHeroTargetCovered}
-        totalDevs={state.devs}
-        now={state.runSeconds}
+        devs={state.devs}
+        canUpgrade={openHero !== null && unlocks.trees && treeOf(openHero.id) !== null}
+        place={{ at: openAt + 1, of: roster.length }}
         onClose={() => selectHero(null)}
-        onOpenTree={() => setHeroTreeOpen(true)}
-        onPost={() => {
-          if (openHero) {
-            setRosterOpen(false)
-            beginPosting(openHero.id)
-          }
+        onUpgrades={() => {
+          const tree = openHero ? treeOf(openHero.id) : null
+          if (tree) openTree(tree)
         }}
-        onRecall={() => {
-          if (openHero) recallHero(openHero.id)
+        onStep={(by) => {
+          if (roster.length === 0) return
+          const next = roster[(openAt + by + roster.length) % roster.length]
+          if (next) selectHero(next.id)
         }}
-      />
-      <PostingBanner state={state} />
-      <HeroTree
-        hero={openHero}
-        open={heroTreeOpen && openHero !== null && !talking}
-        guided={guidedBoard === 'hero'}
-        onGuidedComplete={() => {
-          setGuidedBoard(null)
-          setHeroTreeOpen(false)
-          selectHero(null)
-        }}
-        onClose={() => {
-          setGuidedBoard(null)
-          setHeroTreeOpen(false)
-        }}
-      />
-      <Roster
-        open={rosterOpen && openHero === null && !talking}
-        roster={roster}
-        labelFor={(hero) => heroPlacedLabel(hero, state)}
-        coverageFor={(hero) => heroCoverageOf(hero, state)}
-        totalDevs={state.devs}
-        showPoints={unlocks.heroBoard}
-        canPlace={unlocks.heroPlacement}
-        onOpen={(hero) => selectHero(hero.id)}
-        onClose={() => setRosterOpen(false)}
       />
 
       <div
@@ -849,37 +723,27 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         onSign={takeSeedRound}
       />
 
-      <UpgradeBoard
-        open={upgradesOpen && !talking}
-        guided={guidedBoard === 'tech'}
-        onTrees={() => {
-          setUpgradesOpen(false)
-          setTreesOpen(true)
-        }}
-        introNodeId={upgradeIntro}
-        onIntroComplete={() => setUpgradeIntro(null)}
-        onGuidedComplete={() => {
-          setGuidedBoard(null)
-          setUpgradesOpen(false)
-        }}
-        onClose={() => {
-          setGuidedBoard(null)
-          setUpgradeIntro(null)
-          setUpgradesOpen(false)
-        }}
-      />
       <Gallery open={galleryOpen && !talking} onClose={() => setGalleryOpen(false)} />
       <ParadigmTree open={treeOpen && !talking} state={state} onClose={() => setTreeOpen(false)} />
       <FounderProfilePanel
         open={founderOpen && !talking}
-        guided={guidedBoard === 'founder'}
-        onGuidedComplete={() => {
-          setGuidedBoard(null)
-          setFounderOpen(false)
-        }}
+        onClose={() => setFounderOpen(false)}
+        onUpgrades={unlocks.trees ? () => openTree('you') : undefined}
+      />
+      {/*
+        §8 — one person's tree. After the card and the founder's panel in the
+        document, so it stands over whichever of them opened it, and closing it
+        hands the player back to that person.
+      */}
+      <UpgradeTrees
+        open={treesOpen && !state.launching && !talking}
+        state={state}
+        hero={treesHero}
+        intro={treesIntro}
+        note={threadGuide ? 'JAMES // Pick any lit node. One purchase clears the thread; then you are back on the floor.' : null}
         onClose={() => {
-          setGuidedBoard(null)
-          setFounderOpen(false)
+          setThreadGuide(false)
+          setTreesOpen(false)
         }}
       />
       <GameMenu
@@ -1121,20 +985,14 @@ function ActionBar({
         // and *then* committed, so it belongs earlier in the reading order and
         // further from the thumb than the thing it commits.
         //
-        // No longer gated on `dialUnlocked`: that flag is §10.10.2's gate on the
-        // *multiplier*, and the role row has a different answer. A studio of ten
-        // that has just shipped a buggy game needs to be able to hire QA, and it
-        // reaches ten well before it reaches the seed round. `HireDial` renders
-        // the multiplier only when `segmentsFor` offers segments, so passing a
-        // pinned value here changes nothing about §10.10.2.
+        // `HireDial` renders the multiplier only when `segmentsFor` offers
+        // segments, so passing a pinned count before `dialUnlocked` renders
+        // nothing, which is §10.10.2.
         <HireDial
           devs={state.dialUnlocked ? state.devs : 0}
           cash={state.cash}
           value={state.hireMultiplier}
           onChange={setHireMultiplier}
-          role={state.hireRole}
-          onRoleChange={setHireRole}
-          availableRoles={rolesAvailable(state)}
           // §4.10a — the same base the transaction uses. Without it the dial
           // priced its segments off the raw curve, so §13.7.1's Recruiting and
           // §14.8.9's cap normalisation were both invisible on the one control

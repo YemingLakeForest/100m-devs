@@ -33,6 +33,15 @@
  *   says, rather than the demo's Canary Worlds and Builds in Flight. Those two
  *   stay on the board, unwired, where they fit around it.
  *
+ * **And two roots carry the old studio board's effects** [amended later on
+ * 2026-09-26]. *"retire the old tree, but the story of james introducing us
+ * instant messenger should be how upgrade trees are introduced so we need that
+ * back in the new isometric tree."* So James's root is Instant Messenger — the
+ * old board's granted centre, handed over in his Run 2 scene — and Billy's root
+ * is the Daily Standup, because his arrival scene is him bringing it. A node's
+ * `tech` names the effect in `techTree.ts` it carries; the store folds those
+ * into `techOf`, so the old effects arrive through the trees and nowhere else.
+ *
  * Pure — no store, no clock, no renderer.
  */
 
@@ -133,8 +142,14 @@ export interface TreeNode {
   coord?: number
   /** The slice a breakthrough deletes most of. */
   breakthrough?: LossSlice
-  /** True when buying it does something in this build (Serena's pipeline nodes). */
+  /** True when it is one of Serena's pipeline nodes, bought through the pipeline. */
   wired: boolean
+  /**
+   * The old studio board's effect this node carries, by `techTree.ts` id — the
+   * two roots that took over Instant Messenger and the Daily Standup. A node
+   * with one does something in this build; its `effect` says what.
+   */
+  tech?: string
 }
 
 interface Opts {
@@ -148,6 +163,9 @@ interface Opts {
   sl?: LossSlice
   to?: string
   d?: string
+  /** `TreeNode.tech`, and the effect line that goes with it. */
+  tech?: string
+  fx?: string
 }
 
 /** The demo's own constructor, so the table below reads like the demo's. */
@@ -169,6 +187,8 @@ function N(id: string, x: number, y: number, name: string, icon: string, era: nu
     coord: o.k,
     breakthrough: o.sl,
     wired: false,
+    tech: o.tech,
+    effect: o.fx,
   }
 }
 
@@ -237,7 +257,7 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('K2', -5, 2, 'They Already Know the Codebase', 'gradcap', 4, { t: 'key', sl: 'onboarding', p: ['h6', 'h7'], all: true, d: 'Hires arrive onboarded. Nobody asks how.' }),
   ],
   james: [
-    N('R', 0, 0, 'Next to You', 'deskcan', 0, { t: 'root', d: 'His desk is beside yours. Every node on his tree is worth full value to him; he has no speciality to be worse outside of.' }),
+    N('R', 0, 0, 'Instant Messenger', 'monitor', 0, { t: 'root', tech: 'B1', fx: 'Communication load −5%', d: 'He brought it at the start of the run, so you don’t have to speak to each other any more. You are sitting side by side.' }),
     N('j1', 1, 0, 'Diet Coke Stack', 'cans', 0, { p: ['R'], t: 'lvl', max: 5, d: 'Everything in his pod +3% per level. You can see the stack from the door.' }),
     N('j2', 0, 1, 'Pair With the Founder', 'twoheads', 0, { p: ['R'], d: 'Your taps count double near him.' }),
     N('j3', 1, 1, 'Knows a Chap', 'phone', 1, { p: ['j1', 'j2'], d: 'Introduces Billy. Billy’s tree opens.' }),
@@ -262,7 +282,7 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('K2', 0, -5, 'Ansible', 'ansible', 4, { t: 'key', sl: 'lag', p: ['q4', 'q5', 'q6'], all: true, d: 'Faster than light, for one sentence at a time.' }),
   ],
   billy: [
-    N('R', 0, 0, 'Billy’s Board', 'whiteboard', 1, { t: 'root', p: ['gJ'], d: 'He arrives when sync collapses, and James knows a chap.' }),
+    N('R', 0, 0, 'Daily Standup', 'whiteboard', 1, { t: 'root', p: ['gJ'], tech: 'B2', fx: 'Entropy can never pass 80% — but every minute a fifth of the studio stops for 5s, and Billy keeps half the floor working through it', d: 'He arrives when sync collapses, and James knows a chap: fifteen minutes, standing up, in a fixed order.' }),
     N('gJ', 0, -1, 'James · Knows a Chap', '', 1, { t: 'link', to: 'james:j3' }),
     N('c1', 1, 0, 'Sticky Notes', 'sticky', 1, { p: ['R'], t: 'lvl', max: 3, k: 1, d: 'Coordination +1 per level.' }),
     N('c2', 2, 0, 'Kanban', 'kanban', 1, { p: ['c1'], k: 1, d: 'Coordination +1. The columns are Doing, Doing and Done.' }),

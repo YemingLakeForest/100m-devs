@@ -5,7 +5,6 @@ import {
   SCENE_JAMES_ARRIVES,
   SCENE_MASS_HIRE,
   SCENE_JAMES_INSTANT_MESSENGER,
-  SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
   SCENE_JAMES_PROMOTED,
   SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
@@ -15,7 +14,6 @@ import {
   SCENE_THE_THREAD,
   SCENE_THREAD_CLEARED,
   SCENE_FOUNDER_BOARD,
-  SCENE_HERO_BOARD,
 } from './scenes.ts'
 
 const script = SCENE_JAMES_INSTANT_MESSENGER.script
@@ -85,23 +83,6 @@ describe('§21.6 — the lines are the product', () => {
     // The `hey` lands in the silence he leaves, so the next line is the player
     // having nothing to say.
     expect(script[HEY_AFTER_LINE + 1].text).toBe('…')
-  })
-})
-
-describe('§7.8.12 — the first remote assignment explains the room', () => {
-  const remote = SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.script
-  const all = remote.map((line) => line.text)
-
-  it('names Instant Messenger as the reason the hero stays at their desk', () => {
-    expect(all[0]).toContain('still in this room')
-    expect(all).toContain('They have Instant Messenger.')
-  })
-
-  it('lets James be sincerely correct about delivery and wrong about management', () => {
-    expect(all).toContain('It delivers every message instantly.')
-    expect(all).toContain('They have all received a message.')
-    expect(all.at(-1)).toBe('No. It scales better.')
-    expect(remote.at(-1)!.speaker).toBe('JAMES')
   })
 })
 
@@ -386,13 +367,14 @@ describe('§21.7.3 — Billy, the referral', () => {
     expect(said).toMatch(/I don’t, and I haven’t/)
   })
 
-  it('hands over the floor in the machine’s own voice, and names the verb', () => {
-    // §21.7.6 — the scene has to reach the verb, or the hand-over is an
-    // assertion rather than a door. Both closing lines are `STUDIO_OS`, and the
-    // last one is an instruction a player can follow without leaving the frame.
+  it('hands over the stand-up in the machine’s own voice', () => {
+    // [2026-09-26] It handed over §13.8's placement verb until placement was
+    // cut. It closes on what he brings instead: the stand-up, and half the
+    // floor working through it — both lines `STUDIO_OS`, stated as policy.
     expect(script.at(-1)!.speaker).toBe('STUDIO_OS')
-    expect(script.at(-1)!.text).toContain('HERO')
+    expect(script.at(-1)!.text).toContain('HALF OF THE FLOOR')
     expect(said).toContain('SCRUM MASTER')
+    expect(said).not.toMatch(/POSTED|PLACE/)
   })
 })
 
@@ -459,13 +441,13 @@ describe('§21.7.7 — the three boards each arrive with somebody', () => {
     expect(all.at(-1)).toBe('No.')
   })
 
-  it('keeps James on the tool and the process in both board scenes', () => {
+  it('keeps James on the tool and the process in the board scene', () => {
     // §21.7.3 rule 3, in substance. The "exactly one line" half of that rule is
     // a shape rule for *arrival* scenes, where a second James line would
     // compete with the person walking in. Nobody walks in here — so what is
     // asserted is the part that is about him rather than about staging: he
     // never talks about a person.
-    const james = [...SCENE_FOUNDER_BOARD.script, ...SCENE_HERO_BOARD.script].filter(
+    const james = SCENE_FOUNDER_BOARD.script.filter(
       (l) => l.speaker === 'JAMES',
     )
     expect(james.length).toBeGreaterThan(0)
@@ -476,25 +458,8 @@ describe('§21.7.7 — the three boards each arrive with somebody', () => {
     }
   })
 
-  it('introduces the hero board as a board, never as a hero', () => {
-    // The player chooses who to place, so the scene must read the same whoever
-    // levelled first. Naming one would be wrong for five of the six.
-    const all = SCENE_HERO_BOARD.script.map((l) => l.text)
-    for (const hero of ['Mo', 'Serena', 'Matt', 'Melany', 'Billy']) {
-      for (const line of all) expect(line).not.toMatch(new RegExp(`\\b${hero}\\b`))
-    }
-    expect(all.some((t) => t.includes('point'))).toBe(true)
-  })
-
-  it('states §13.9.1 as a fact about a person rather than a starting bonus', () => {
-    const all = SCENE_HERO_BOARD.script.map((l) => l.text)
-    expect(all).toContain('Everyone starts somewhere different on it. That’s what makes them who they are.')
-    // James is the trunk: half as good at everything, everywhere (§13.9.1).
-    expect(all.some((t) => t.includes('Half as good at everything'))).toBe(true)
-  })
-
   it('is a handshake, not an act', () => {
-    for (const scene of [SCENE_FOUNDER_BOARD, SCENE_HERO_BOARD, SCENE_THREAD_CLEARED]) {
+    for (const scene of [SCENE_FOUNDER_BOARD, SCENE_THREAD_CLEARED]) {
       expect(scene.script.length).toBeLessThan(12)
     }
   })

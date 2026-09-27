@@ -245,19 +245,16 @@ describe('the monotonic merge — SAVE.md §3, GDD §24.3', () => {
     expect(m.paradigmLevels).toEqual({ 'L1-1A': 3, 'L1-1B': 2 })
   })
 
-  it('merges hero XP by max and hero nodes by union — §13.10, §13.9', () => {
-    const a = permanent({ heroXp: { james: 40, mo: 12 }, heroNodes: { james: ['engineering:0'], mo: ['quality:1'] } })
-    const b = permanent({ heroXp: { james: 25, mo: 30 }, heroNodes: { james: ['engineering:0'], mo: ['quality:1', 'quality:2'] } })
-    const m = mergePermanent(a, b).meta
-    expect(m.heroXp).toEqual({ james: 40, mo: 30 })
-    expect(m.heroNodes!.james).toEqual(['engineering:0'])
-    expect(m.heroNodes!.mo).toEqual(['quality:1', 'quality:2'])
-  })
-
-  it('defaults hero XP and nodes to empty on a save that predates them', () => {
-    const save = migrate({ version: SAVE_VERSION } as SaveData)!
-    expect(save.permanent.meta.heroXp).toEqual({})
-    expect(save.permanent.meta.heroNodes).toEqual({})
+  it('drops the retired hero XP and board nodes from an older save — §13.10, §13.9 [2026-09-26]', () => {
+    // Placement was the only way XP was earned, so the board went with it. An
+    // older document's copies are ignored rather than carried forever.
+    const old = { heroXp: { james: 40 }, heroNodes: { mo: ['quality:1'] } }
+    const save = migrate({
+      version: SAVE_VERSION,
+      permanent: { ...emptyPermanent(), meta: { ...emptyPermanent().meta, ...old } },
+    } as unknown as SaveData)!
+    expect('heroXp' in save.permanent.meta).toBe(false)
+    expect('heroNodes' in save.permanent.meta).toBe(false)
   })
 })
 

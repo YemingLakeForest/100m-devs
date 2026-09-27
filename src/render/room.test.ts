@@ -25,7 +25,6 @@ import {
   wallSpot,
   blockBox,
   buildRoom,
-  COVER_SPAN,
   seatPosition,
   PITCH_ROW,
   ROOM_DEV_CAP,
@@ -944,15 +943,11 @@ describe('§7.8.12 — the team room is a physical place, not a posting marker',
   const james = {
     id: 'james' as const,
     colour: '#8fd6a0',
-    assigned: false,
-    connecting: false,
     selected: false,
   }
   const mo = {
     id: 'mo' as const,
     colour: '#d8d8c0',
-    assigned: false,
-    connecting: false,
     selected: false,
   }
 
@@ -1178,7 +1173,7 @@ describe('§7.8.12 — the team room is a physical place, not a posting marker',
     expect(drawnSeatPosition(0, 1000, false)).toEqual(drawnSeatPosition(0, 0, false))
   })
 
-  it('keeps an assigned hero at the same desk and makes that body inspectable', () => {
+  it('keeps a hero at the same desk and makes that body inspectable', () => {
     const room = buildRoom()
     // On the **floor**: §7.8.0c's garage draws the founder and James and nobody
     // else, so Mo has no body to inspect until the room unfolds. That is the
@@ -1191,86 +1186,11 @@ describe('§7.8.12 — the team room is a physical place, not a posting marker',
     expect((room.container.getChildByLabel('team-room-heroes') as Container)
       .getChildByLabel('team-hero:mo')).toBeTruthy()
 
-    room.setTeam([james, { ...mo, assigned: true, connecting: true }])
+    // Selecting them turns them to camera; it does not move the desk.
+    room.setTeam([james, { ...mo, selected: true }])
     expect(room.teamDeskAt('mo')).toEqual(at)
     expect(room.teamHeroAt(at.x, at.y - 7)).toBe('mo')
     room.container.destroy({ children: true })
-  })
-})
-
-describe('§13.11.1 — coverage is drawn on the floor', () => {
-  /** The decal layer's bounds, or null while it is empty. */
-  function decals(room: ReturnType<typeof buildRoom>) {
-    const layer = room.container.getChildByLabel('coverage') as Graphics
-    const b = layer.getLocalBounds()
-    return b.width > 0 && b.height > 0 ? b : null
-  }
-
-  it('draws nothing with nobody placed', () => {
-    const room = buildRoom()
-    room.setHeadcount(10)
-    room.setCoverage(new Map())
-    expect(decals(room)).toBeNull()
-    room.container.destroy({ children: true })
-  })
-
-  it('marks the covered seats and nowhere else', () => {
-    const room = buildRoom()
-    room.setHeadcount(20)
-    room.setCoverage(
-      new Map([
-        [0, { colour: '#8fd6a0', wasted: false, settling: false }],
-        [1, { colour: '#8fd6a0', wasted: false, settling: false }],
-      ]),
-    )
-    const drawn = decals(room)!
-    // The paint sits over the two seats it belongs to, give or take the decal's
-    // own span — not over the whole floor, and not over seat 9.
-    const a = seatPosition(0)
-    const b = seatPosition(1)
-    const span = COVER_SPAN * 64
-    expect(drawn.minX).toBeGreaterThan(Math.min(a.x, b.x) - span)
-    expect(drawn.maxX).toBeLessThan(Math.max(a.x, b.x) + span)
-    expect(drawn.maxY).toBeLessThan(seatPosition(9).y)
-    room.container.destroy({ children: true })
-  })
-
-  it('redraws when a mark changes and leaves the layer alone when it does not', () => {
-    const room = buildRoom()
-    room.setHeadcount(20)
-    const layer = room.container.getChildByLabel('coverage') as Graphics
-
-    room.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: false }]]))
-    const plain = layer.context.instructions.length
-    expect(plain).toBeGreaterThan(0)
-
-    // Same marks, new Map: the key is the marks, not the object.
-    room.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: false }]]))
-    expect(layer.context.instructions.length).toBe(plain)
-
-    // §13.8 rule 3 — the hatch is strictly more drawing than the fill alone.
-    room.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: true, settling: false }]]))
-    expect(layer.context.instructions.length).toBeGreaterThan(plain)
-    room.container.destroy({ children: true })
-  })
-
-  it('draws a connecting assignment as an outline, not coverage — §13.8 rule 4', () => {
-    const settled = buildRoom()
-    settled.setHeadcount(20)
-    settled.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: false }]]))
-    const connecting = buildRoom()
-    connecting.setHeadcount(20)
-    connecting.setCoverage(new Map([[0, { colour: '#8fd6a0', wasted: false, settling: true }]]))
-
-    const layerOf = (r: ReturnType<typeof buildRoom>) =>
-      (r.container.getChildByLabel('coverage') as Graphics).context.instructions
-    // The settled mark is a fill and stroke; the connecting one is a stroke.
-    expect(layerOf(connecting).length).toBeLessThan(layerOf(settled).length)
-    expect(layerOf(connecting).some((i) => i.action === 'fill')).toBe(false)
-    expect(layerOf(settled).some((i) => i.action === 'fill')).toBe(true)
-
-    settled.container.destroy({ children: true })
-    connecting.container.destroy({ children: true })
   })
 })
 
@@ -1359,7 +1279,7 @@ describe('the garage plan and the room agree', () => {
   it('draws no chair anywhere in the garage, and does draw them on the floor', () => {
     const room = buildRoom()
     // A garage: five pods of four, nobody in an office.
-    room.setTeam([{ id: 'james', colour: '#fff', assigned: false, connecting: false, selected: false }])
+    room.setTeam([{ id: 'james', colour: '#fff', selected: false }])
     // Twenty, not twenty-one: §7.8.0c's garage is full at twenty ordinary
     // developers and the suite no longer takes one of them out of the count.
     room.setHeadcount(20)
@@ -1385,7 +1305,7 @@ describe('the garage plan and the room agree', () => {
    */
   it('lays the gate sign on the frontage s own screen slope', () => {
     const room = buildRoom()
-    room.setTeam([{ id: 'james', colour: '#fff', assigned: false, connecting: false, selected: false }])
+    room.setTeam([{ id: 'james', colour: '#fff', selected: false }])
     room.setHeadcount(20)
     const sign = room.container.getChildByLabel('gate-sign', true)
     expect(sign).not.toBeNull()
@@ -1435,8 +1355,6 @@ describe('the garage holds the founder and James, and twenty developers', () => 
   const hero = (id: HeroId) => ({
     id,
     colour: '#fff',
-    assigned: false,
-    connecting: false,
     selected: false,
   })
   const everybody = STORY_HEROES.map((h) => hero(h.id))
@@ -1535,14 +1453,14 @@ describe('the suite doorway', () => {
   it('draws glass either side of it in both rooms', () => {
     const room = buildRoom()
     // The garage: two people, and the narrow room the absolute plot broke.
-    room.setTeam([{ id: 'james', colour: '#fff', assigned: false, connecting: false, selected: false }])
+    room.setTeam([{ id: 'james', colour: '#fff', selected: false }])
     room.setHeadcount(20)
     // One end pane plus two front runs. Two would mean the opening ate a wall.
     expect(room.geometry().suiteWalls).toHaveLength(3)
     // And the office, where nothing about this changed.
     room.setHeadcount(400)
     room.setTeam(STORY_HEROES.map((h) => ({
-      id: h.id, colour: '#fff', assigned: false, connecting: false, selected: false,
+      id: h.id, colour: '#fff', selected: false,
     })))
     expect(room.geometry().suiteWalls).toHaveLength(3)
     room.container.destroy({ children: true })

@@ -35,13 +35,13 @@
  * | | Before the hero | With the hero |
  * |---|---|---|
  * | **The mechanism** — accrues, degrades the rating, costs money | **Running, in full** | Running |
- * | **The instrument** — the counter, the colour, the role on the dial | **Absent** | **Arrives with them** |
+ * | **The instrument** — the counter and its colour | **Absent** | **Arrives with them** |
  *
  * The player meets defects as a release they were proud of scoring 31: a problem
  * with no handle, which is what makes the person who turns up holding the handle
  * *relief* rather than a tutorial.
  *
- * ## The three boards — §21.7.7
+ * ## The boards — §21.7.7
  *
  * The rule turned out to have one more class of victim than §21.7.6 counted,
  * and it is the class where it is hardest to notice: **an upgrade board is an
@@ -56,20 +56,21 @@
  * |---|---|---|
  * | §11 studio tree | James, at the first shift | already canon (§11.5) |
  * | §13.7.1 founder tree | the founder's own output overtakes a developer's | *"I am the only thing here that still works"* |
- * | §13.9 hero board | the first level, and therefore the first point | *"this person is getting better and I have something to spend"* |
+ * | GDD §8's hero trees | the first Paradigm Shift, from each person's card | *"these people could be better at this"* |
+ *
+ * §13.9's shared hero board was the third row, and it went with placement on
+ * 2026-09-26: its only currency was XP earned while a hero was posted.
  *
  * **Melany gates nothing, and the difference confirms the rule.** The developer
  * cap has been on screen since Run 1's first minute — it is not a system the
  * player is being introduced to, it is a system the player has been fighting. A
  * person only brings what was not already there.
  *
- * **Billy used to be the second half of that sentence, and is not any more**
- * [amended 2026-08-29]. The reasoning was identical and it was right about the
- * speedometer: he hands over no readout, because §4.3's gauge has been the most
- * looked-at number in the game since the garage. What it missed is that he
- * hands over something much larger than a readout — §13.8's floor. See
- * {@link Unlocks.heroPlacement}. The rule is unbroken; the audit of what counts
- * as "a system" was short by one.
+ * **Billy is the same case** [amended 2026-09-26]. From 2026-08-29 he handed
+ * over §13.8's floor — the verb that posted a hero onto part of the studio —
+ * and placement was cut at the user's instruction (*"Some mechanics in the old
+ * game I want remove, hero placement, different types of hires"*). He brings
+ * nothing new again: stand-ups have been on screen since Run 1.
  *
  * ## Why this is still not a new flag
  *
@@ -83,13 +84,6 @@
 import type { HeroId } from '../sim/storyHeroes.ts'
 import { STORY_HEROES } from '../sim/storyHeroes.ts'
 
-/** §4.11's professions, minus the one everybody starts with. */
-export interface RoleUnlocks {
-  qa: boolean
-  sre: boolean
-  support: boolean
-}
-
 export interface Unlocks {
   /**
    * §21.0c — the systems are *simulated* at all.
@@ -100,15 +94,6 @@ export interface Unlocks {
    * bonus and quietly re-tune the economy §21 is paced against.
    */
   simulated: boolean
-  /**
-   * §11 — the studio tech tree, and §11.5's Instant Messenger with it.
-   *
-   * §15's ladder is a *prestige* ladder. An upgrade screen during Run 1 offers
-   * the player a way to make the trap survivable, which is the one thing Run 1
-   * must not sell them.
-   */
-  upgrades: boolean
-
   /**
    * §21.0e — **can the player hire one developer at a time?**
    *
@@ -129,52 +114,21 @@ export interface Unlocks {
   manualHire: boolean
 
   /**
-   * §21.7.7 — §13.7.1's Management tree, the founder's own board.
+   * GDD §8 — the heroes' upgrade trees, each opened from its person's card.
    *
-   * **Your desk is not gated and never will be.** §4.5d is explicit that the
-   * corner seat is yours from the garage, clickable at every zoom, and it is
-   * the whole clicker layer of Run 1. What is gated is the *board*, which is
-   * §21.7.6's two halves applied to the one system where the person who solves
-   * it is the player: the mechanism (you code, and your curve never dilutes)
-   * has been running since the first tap; the instrument arrives the first time
-   * §4.5d's joke is visible in a readout rather than only in the equations.
+   * *"Upgrades trees should be only available after the first prestige, and it
+   * should be opened by heroes info page"* [2026-09-26]. Only the shift, not a
+   * scene: the tree is shown per person, so it arrives for each hero with that
+   * hero, and the card that carries the door already waits on their arrival.
+   *
+   * It is also the only upgrade gate left. §11's studio board and §13.7.1's
+   * Management tree had one each, and both boards were retired the same day
+   * (*"retire the old tree"*). Their argument carries over whole: §15's ladder
+   * is a *prestige* ladder, and an upgrade screen during Run 1 offers the player
+   * a way to make the trap survivable, which is the one thing Run 1 must not
+   * sell them.
    */
-  founderBoard: boolean
-  /**
-   * §21.7.7 — §13.9's shared skill board, reached from a hero's card.
-   *
-   * Gated on there being a **point to spend**, which is §26.1.6's wall in
-   * miniature: a board full of purchases and no currency is exactly the screen
-   * that could not be built in the 2026-08-13 session. §22.9's card is not
-   * gated — a card is who somebody is, and that has been true since Act I.
-   */
-  heroBoard: boolean
-
-  /**
-   * §21.7.6 — **§13.8's floor, and Billy brings it** [added 2026-08-29].
-   *
-   * This is the rule's own blind spot, closed. §21.7.7 found the first one — an
-   * upgrade board is an instrument too — and placement is the second and larger
-   * one: it is the single most consequential control in Layer 1, it was reachable
-   * from the first frame anybody had two heroes, and nobody handed it over.
-   *
-   * The two halves split exactly as the table at the top of this file draws
-   * them. The **mechanism** — coverage, reach, the §13.10 cost of a benched
-   * hero, the XP that only accrues under coverage — has been running the whole
-   * time. What waited is the **instrument**: the roster strip's placement verb,
-   * the armed gesture, the floor as something you can put a person on.
-   *
-   * And the apparent circle is the same non-circle Mo's is. Placement is not
-   * gated on *having placed somebody*; it is gated on the studio having fallen
-   * apart in a way a person can fix, which is §21.7.3's `billyArrives`. The
-   * player meets §4.1 as a gauge reading half and no handle — and then the man
-   * whose entire job is that gauge walks in holding one.
-   *
-   * §22.9's card stays ungated for the same reason it stayed ungated for the
-   * hero board: a card is who somebody is. What the card loses before this is
-   * one button.
-   */
-  heroPlacement: boolean
+  trees: boolean
 
   /** §21.7.6 — §4.12's backlog, its colour and its density line. Mo brings it. */
   defects: boolean
@@ -183,14 +137,6 @@ export interface Unlocks {
   /** §21.7.6 — §4.13's ticket bar. Matt brings it. */
   tickets: boolean
 
-  /**
-   * §4.11 — which professions §10.10's dial offers.
-   *
-   * Each one arrives with the hero who makes it worth hiring for. Hiring QA
-   * before there is a defect readout is asking the player to buy a fix for a
-   * problem the game has not shown them.
-   */
-  roles: RoleUnlocks
 
   /**
    * Is *any* backlog on screen — i.e. is §4.15's column drawn at all?
@@ -211,15 +157,11 @@ const BRINGS: ReadonlyArray<readonly [HeroId, 'defects' | 'incidents' | 'tickets
 /** Run 1. One lever, and it is the thumb. */
 const SHUT: Unlocks = {
   simulated: false,
-  upgrades: false,
   manualHire: false,
-  founderBoard: false,
-  heroBoard: false,
-  heroPlacement: false,
+  trees: false,
   defects: false,
   incidents: false,
   tickets: false,
-  roles: { qa: false, sre: false, support: false },
   anyBacklog: false,
 }
 
@@ -237,19 +179,6 @@ const SHUT: Unlocks = {
 export function unlocksFor(
   paradigmShifts: number,
   arrived: ReadonlySet<HeroId>,
-  /**
-   * §21.7.7 — which boards have been introduced.
-   *
-   * Derived by the store from `milestones`, exactly as `arrived` is, and for
-   * exactly the same reason: **this file does not know what a scene is called.**
-   * §21.7.6c's argument holds either way — the truth lives in `milestones`,
-   * which §24.3 already unions across saves — and passing the two answers
-   * rather than the ids keeps that fact in one module instead of two.
-   *
-   * Defaulted, so every existing caller keeps compiling and reads the honest
-   * answer for a player who has been introduced to nothing.
-   */
-  boards: BoardIntros = NO_BOARDS,
 ): Unlocks {
   const shifted = Number.isFinite(paradigmShifts) && paradigmShifts > 0
   if (!shifted) return SHUT
@@ -260,30 +189,14 @@ export function unlocksFor(
 
   return {
     simulated: true,
-    upgrades: true,
     manualHire: true,
-    founderBoard: boards.founder,
-    heroBoard: boards.hero,
-    // §21.7.6 — the floor arrives with the man whose job is the floor.
-    heroPlacement: has('billy'),
+    trees: true,
     defects: instrument.defects,
     incidents: instrument.incidents,
     tickets: instrument.tickets,
-    // The role arrives with the instrument that makes it legible. Nothing is
-    // hired against a problem the player cannot see.
-    roles: { qa: instrument.defects, sre: instrument.incidents, support: instrument.tickets },
     anyBacklog: instrument.defects || instrument.incidents || instrument.tickets,
   }
 }
 
 /** The empty roster, for callers that have not got one yet. */
 export const NO_HEROES: ReadonlySet<HeroId> = new Set<HeroId>()
-
-/** §21.7.7 — which of the two gated boards has been handed over. */
-export interface BoardIntros {
-  founder: boolean
-  hero: boolean
-}
-
-/** Nothing introduced, for callers that have not derived it yet. */
-export const NO_BOARDS: BoardIntros = { founder: false, hero: false }

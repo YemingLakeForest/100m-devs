@@ -1,3 +1,10 @@
+/*
+ * [2026-09-26] The Management tree this file describes is retired with the studio
+ * board (*"retire the old tree"*): the founder's upgrades are their tree in
+ * `upgradeTrees.ts`, and `store.founderOf` returns {@link NO_FOUNDER}. The
+ * catalogue and `founderEffects` stay as the vocabulary a tree node can be wired
+ * to in the economy rework; nothing reaches them today.
+ */
 /**
  * You — GDD §4.5d, §7.8.10, §13.7.1. Requirements R16 and R20.
  *

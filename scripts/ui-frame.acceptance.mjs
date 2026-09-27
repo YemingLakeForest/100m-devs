@@ -27,7 +27,7 @@
  *    was not gating anything. It is in `check` now.
  *
  * 3. **`COMPONENTS` was a hand-maintained allowlist**, and the components the
- *    batch added — the three backlogs, the role dial, the action bar of the
+ *    batch added — the three backlogs, the role dial (since cut), the action bar of the
  *    character creator — were never added to it. A list you have to remember to
  *    update is a list that is out of date. It is still a list, because a gate
  *    that measures *everything* reports a hundred true-but-uninteresting nested
@@ -99,22 +99,6 @@ const COMPONENTS = [
   // §18.0 — a live event's banner is a control in the middle column, which is
   // the one place in the frame nothing else is anchored to an edge.
   '.event-banner',
-  /*
-   * §13.8's placement strip, and it is here because it was never here.
-   *
-   * The strip is the one surface in the game that is deliberately drawn *over
-   * the simulation* while asking the player to tap the simulation, and this
-   * gate could not see it: it renders only while somebody is armed, which is
-   * exactly one screen below, and nothing in either list matched it. So the
-   * four-line, 700 px version — reported from a handset as covering the middle
-   * of the screen — sat across the floor at every frame in §23.4.2's box, and
-   * the gate passed it every time.
-   *
-   * `__row` rather than `.posting`, because the wrapper is a full-width grid
-   * whose only job is to centre the row; the row is the thing that paints.
-   */
-  '.posting__row',
-  '.upgrade-board__node',
   '.title__logo',
   '.title__menu',
 ].join(',')
@@ -133,9 +117,6 @@ const PAINTED = [
   '.hud__block',
   '.backlog',
   '.event-banner',
-  // See the note in COMPONENTS. It has a border and a fill, and the whole
-  // reported defect was what it was drawn on top of.
-  '.posting__row',
   '.touch',
   '.hire-dial',
   '.hud__terminal',
@@ -150,7 +131,6 @@ const PAINTED = [
   '.founder-avatar',
   '.burndown__chart',
   '.revenue__chart',
-  '.upgrade-board__node',
 ].join(',')
 
 async function overflowIssues(page) {
@@ -842,31 +822,18 @@ async function aimAt(page, rung, index) {
 }
 
 /**
- * §13.11.2 — open the roster strip the way a player does.
+ * §22.9 — open the first hero's card the way a player does [2026-09-26].
  *
- * The `HERO` button this replaces is gone: §7.8.12 gave that rail slot to
- * `TEAM` and put the roster's door on the sign over the suite's own doorway.
- * `TEAM` flies the camera to the room from wherever it is; `__signAt` is the
- * aiming seam that says where the sign landed, so the gate taps the sign rather
- * than sweeping the room for it.
+ * `TEAM` opens it now. It used to fly the camera to the suite so the gate could
+ * tap the sign over its door and raise the roster strip; the strip went with
+ * placement, and the card's own arrows walk everybody who has arrived.
  */
-async function openRoster(target) {
-  // §10.8b — the gesture is three controls and a camera flight now, which is
-  // long enough for a studio running at speed to finish a project underneath it.
-  // A launch window is modal, so clearing it first is the difference between
-  // pressing TEAM and pressing the glass over TEAM.
+async function openCard(target) {
+  // §10.8b — a launch window is modal, so clearing it first is the difference
+  // between pressing TEAM and pressing the glass over TEAM.
   await clearRelease(target)
   await target.getByRole('button', { name: 'TEAM', exact: true }).click()
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const at = await target.evaluate(() => window.__signAt?.() ?? null)
-    if (at) {
-      await target.mouse.click(at.x, at.y)
-      await target.waitForTimeout(200)
-      if (await target.locator('.roster').count()) return
-    }
-    await target.waitForTimeout(150)
-  }
-  throw new Error('the sign over the suite door never opened the roster')
+  await target.locator('.herocard__pass').waitFor({ state: 'visible' })
 }
 
 async function check(
@@ -992,26 +959,21 @@ try {
     })
 
     /*
-     * §21.0c — Run 1 has no upgrade door, so the drawer has to be opened from a
-     * studio that has prestiged. This case used to load a fresh save and click
-     * UPGRADES, which is a button that no longer exists there.
+     * §18.0a — THE THREAD's route into James's tree [2026-09-26]. The studio
+     * board this leg used to open is retired (the trees are the upgrades), so
+     * the event's `OPEN UPGRADES` is the one door on the rail that reaches a
+     * tree: his, over his card, with his instruction standing over the board.
+     * `?full` carries the event already routed, so the banner is the route.
      */
     await check(page, {
-      name: 'upgrades drawer',
+      name: "THE THREAD, routed into James's tree",
       width,
       height,
       path: '/?notitle&full&nopost',
       action: async (target) => {
-        // `?full` opens on a hero arrival scene; the door cannot open while it
-        // plays, which is the behaviour being gated rather than a bug in the
-        // gate.
         await clearScene(target)
-        // `exact`, because §18.0's event banner is part of this fixture and its
-        // route button is `OPEN UPGRADES`. Two buttons that lead to the same
-        // screen is correct — one is the standing door and one is an
-        // interruption saying to use it — and a substring match cannot tell
-        // them apart.
-        await target.getByRole('button', { name: 'UPGRADES', exact: true }).click()
+        await target.getByRole('button', { name: /OPEN UPGRADES/ }).first().click()
+        await target.locator('.trees__canvas').waitFor({ state: 'visible' })
       },
     })
 
@@ -1089,29 +1051,33 @@ try {
     })
 
     /*
-     * §13.8's placement gesture, all the way from the strip to the armed tap.
+     * §22.9's card, and the door on it to the person's tree [2026-09-26].
      *
-     * Three surfaces in one screen, and the reason they are checked together is
-     * that each one is a control the last session found dead on a different
-     * layer: §13.11.2's strip (a `Panel`), §22.9's card (pinned to the right
-     * edge, over the CASH block), and the banner (its own row, pinned above the
-     * bottom rail). The banner is also the only surface in the game whose width
-     * is set by **a hero's name inside a sentence**, so it is the one that
-     * overflows first when somebody joins the roster with a longer one.
+     * The card is pinned to the right edge, over the CASH block, and its foot
+     * now carries the arrows that replaced the roster strip and the UPGRADES
+     * door that replaced the TREES button. `?full` has had its shift, so the
+     * door is there; the second screen is the tree it opens, over the card.
      */
     await check(page, {
-      name: 'a hero armed for placement',
+      name: "a hero's card",
       width,
       height,
       path: '/?notitle&full&nopost',
       action: async (target) => {
         await clearScene(target)
-        await openRoster(target)
-        await target.locator('.roster__card').first().click()
-        await target.getByRole('button', { name: 'PLACE HERO', exact: true }).click()
-        // The banner, not just the absence of the card: PLACE HERO closes the card
-        // either way, so waiting on the card would pass with the gesture dead.
-        await target.locator('.posting').waitFor({ state: 'visible' })
+        await openCard(target)
+      },
+    })
+    await check(page, {
+      name: "a hero's upgrades, from their card",
+      width,
+      height,
+      path: '/?notitle&full&nopost',
+      action: async (target) => {
+        await clearScene(target)
+        await openCard(target)
+        await target.locator('.herocard').getByRole('button', { name: 'UPGRADES', exact: true }).click()
+        await target.locator('.trees__canvas').waitFor({ state: 'visible' })
       },
     })
 
@@ -1138,14 +1104,14 @@ try {
   }
 
   /*
-   * The exact reported frame, with both ingredients that made the defect real:
-   * a catalogue large enough to draw the cover wall and James assigned in the
-   * world underneath it. The generic frame pass cannot diagnose a cramped
+   * The exact reported frame: a catalogue large enough to draw the cover wall.
+   * (It also had James posted in the world underneath it until placement was
+   * cut on 2026-09-26.) The generic frame pass cannot diagnose a cramped
    * interior — every clipped cover is technically inside the panel — so this
    * screen also asserts the visible height of the focused art.
    */
   await check(page, {
-    name: 'gallery over an assigned hero',
+    name: 'gallery over a running studio',
     width: 915,
     height: 412,
     path: '/?notitle&full&speed=60&devs=900&nopost',
@@ -1159,60 +1125,6 @@ try {
       await shipOne(target)
       const galleryDoor = target.getByRole('button', { name: 'GALLERY', exact: true })
       await galleryDoor.waitFor({ state: 'visible', timeout: 30_000 })
-
-      // And place James through the same three-step gesture as a player. A
-      // direct module call can land in Vite's inspection module graph rather
-      // than the mounted app's graph, returning success without publishing to
-      // this Hud instance — exactly the kind of false fixture this gate exists
-      // to avoid.
-      /*
-       * **Arm, aim, confirm — and be prepared to do it again.**
-       *
-       * This leg plays a real studio of nine hundred at sixty times speed, so
-       * the simulation is shipping projects and firing §21 events underneath
-       * the gesture. §13.8c's banner exists only while a candidate is under the
-       * pointer, and anything that clears the arming between the aim and the
-       * press takes the CONFIRM button with it.
-       *
-       * That was survivable while the whole gesture was three clicks on the
-       * rail. §7.8.12 moved the roster's door into the world, so it is now a
-       * camera flight and a tap on a sign as well — several seconds longer, and
-       * long enough to lose the race often rather than rarely. `playthrough`'s
-       * own placement leg has looped like this for the same reason: the fix for
-       * racing a live studio is to be re-runnable, not to be quick.
-       */
-      const confirm = target.getByRole('button', { name: 'CONFIRM PLACE', exact: true })
-      let placed = false
-      for (let attempt = 0; attempt < 6 && !placed; attempt += 1) {
-        await clearRelease(target)
-        if (!(await target.evaluate(() => globalThis.__store?.posting ?? null))) {
-          await openRoster(target)
-          await target.locator('.roster__card').first().click()
-          await target.getByRole('button', { name: 'PLACE HERO', exact: true }).click()
-          await target.locator('.posting').waitFor({ state: 'visible' })
-        }
-        // Aim rather than guess: this used to move to a hard-coded (458, 206),
-        // which only worked while the roster's door left the camera where it
-        // found it. `__pick` is the same sanctioned hook the walk aims with and
-        // answers off the model, so it finds a real unit whatever TEAM did.
-        const spot = await target.evaluate(() => {
-          for (let y = 40; y <= 380; y += 8) {
-            for (let x = 200; x <= 780; x += 8) {
-              if (globalThis.__pick?.(x, y)) return { x, y }
-            }
-          }
-          return null
-        })
-        if (!spot) continue
-        await target.mouse.move(spot.x, spot.y)
-        if (!(await confirm.count())) continue
-        placed = await confirm
-          .click({ timeout: 4_000 })
-          .then(() => true)
-          .catch(() => false)
-      }
-      if (!placed) throw new Error('the placement gesture never held long enough to confirm')
-      await target.locator('.world-hero-pin').waitFor({ state: 'attached' })
       await galleryDoor.click()
       await target.locator('.gallery').waitFor({ state: 'visible' })
     },
@@ -1299,8 +1211,8 @@ try {
   }
 
   /*
-   * §8's five isometric trees [2026-09-26], at the box's ends and its
-   * shortest frame, closed and with a node selected.
+   * §8's isometric tree [2026-09-26], at the box's ends and its shortest
+   * frame, closed and with a node selected.
    *
    * The window takes the whole design box, and on a short frame the inspector
    * is a sheet standing over the board — the arrangement most likely to put a

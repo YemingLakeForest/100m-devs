@@ -68,7 +68,7 @@ export function Pipeline({ state, onBoard }: { state: GameState; onBoard?: () =>
   return (
     <div className="pipe" data-full={full ? 'true' : 'false'}>
       {board ? (
-        <button type="button" className="pipe__belt pipe__belt--tap" onClick={onBoard} aria-label={`${summary} Open Serena's tree.`}>
+        <button type="button" className="pipe__belt pipe__belt--tap" onClick={onBoard} aria-label={`${summary} Open Serena's card.`}>
           {row}
         </button>
       ) : (

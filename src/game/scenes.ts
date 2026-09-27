@@ -47,15 +47,6 @@ const AT_MELANY = 4
 const AT_BILLY = 5
 
 /**
- * §21.7.3 — the seat `store.seatBilly` posts him on when his scene ends.
- *
- * Exported so the two cannot drift: the camera cuts to this seat for his lines,
- * and the floor has to mark the same person a moment later — or the scene
- * introduces one man and the world labels another.
- */
-export const BILLY_SEAT = AT_BILLY
-
-/**
  * §21.7.1 — *"Is this seat taken?"* Act I, at §21.0b's fiftieth poke.
  *
  * He is free, he is not hired, and there is no `NEW HERO ACQUIRED` anywhere in
@@ -246,37 +237,6 @@ export const SCENE_JAMES_INSTANT_MESSENGER: Scene = {
 }
 
 /**
- * §7.8.12 [amended 2026-08-29] — the first remote assignment.
- *
- * The team room makes a fact visible that the old walking fiction avoided:
- * posting somebody onto a floor does not move their body. This scene explains
- * that once, at the first moment the player can compare the lit assignment in
- * the world with the same person still sitting behind the glass.
- *
- * James is not defending remote work and he is not in on the joke. He is
- * completely correct that the messages arrive instantly, and sincerely treats
- * delivery latency as the whole management problem — §21.7.0's voice rule in
- * the smallest scene that can carry it.
- */
-export const SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT: Scene = {
-  id: 'scene.run2.team-room-remote-assignment',
-  script: [
-    {
-      speaker: PLAYER,
-      text: 'James, I assigned someone to the floor. Why are they still in this room?',
-      focus: AT_YOU,
-    },
-    { speaker: JAMES, text: 'They have Instant Messenger.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'That’s all they need to manage a team?', focus: AT_YOU },
-    { speaker: JAMES, text: 'It delivers every message instantly.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'Have they met any of those people?', focus: AT_YOU },
-    { speaker: JAMES, text: 'They have all received a message.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'That’s not the same thing.', focus: AT_YOU },
-    { speaker: JAMES, text: 'No. It scales better.', focus: AT_JAMES },
-  ],
-}
-
-/**
  * §21.7.3 — the five story hires. One rule: **a hero arrives the first time the
  * player feels the problem that hero solves.** Each scene is a handshake, not an
  * act — under twelve lines, the hero fixes nothing during it (they sit down, the
@@ -362,11 +322,12 @@ export const SCENE_MELANY_ARRIVES: Scene = {
  * talking about the company. That is not an applicant-at-the-door feeling. It is
  * the first time in the game the player looks at §4.1 and has no move.
  *
- * **And §13.8's floor moved behind him.** Placement was reachable from the frame
- * anybody had two heroes and nobody handed it over, which is §21.7.6's own rule
- * broken in the largest place it could be broken (see `unlocks.ts`). So this
- * scene now does what §11.5 does for the studio tree and §21.7.7 does for the two
- * boards: a system arrives in the hands of the person who solves it.
+ * **§13.8's floor moved behind him on 2026-08-29, and away again on
+ * 2026-09-26.** For a month this scene handed over placement — the verb that
+ * posted a hero onto part of the floor — and ended on the machine naming it.
+ * Placement was cut at the user's instruction, so the scene now ends on what
+ * he actually does: the stand-up runs to fifteen minutes, and half the floor
+ * keeps working through it (`heroRoster.ts`).
  *
  * ## Why James is the door
  *
@@ -407,8 +368,7 @@ export const SCENE_MELANY_ARRIVES: Scene = {
  * exception in the set. That rule's argument is that an *introduction* is a
  * handshake and not an act; this is an introduction **and** a system hand-over,
  * and the game's two other hand-over scenes (§18.0a's thread, §21.7.7's founder
- * board) run the same length for the same reason. A scene that gives the player
- * a verb has to reach the verb.
+ * board) run the same length for the same reason.
  */
 export const SCENE_BILLY_ARRIVES: Scene = {
   id: 'scene.run2.billy-arrives',
@@ -444,10 +404,10 @@ export const SCENE_BILLY_ARRIVES: Scene = {
     { speaker: 'BILLY', text: 'You’re very kind. I don’t, and I haven’t.', focus: AT_BILLY },
     // Logistics, not commentary. See the note above.
     { speaker: JAMES, text: 'There’s no point offering him the fridge either. He doesn’t drink Diet Coke.', focus: AT_JAMES },
-    { speaker: 'BILLY', text: 'I’m afraid not. Shall we begin? I’ll want the floor, and a quarter of an hour of everybody.', focus: AT_BILLY },
-    // The hand-over, in the machine's register, and it names the verb.
-    { speaker: OS, text: 'B. — SCRUM MASTER. POSTED TO THE FLOOR.' },
-    { speaker: OS, text: 'PERSONNEL MAY NOW BE POSTED. OPEN HERO, PICK ANYBODY, TAP THE STUDIO.' },
+    { speaker: 'BILLY', text: 'I’m afraid not. Shall we begin? I’ll want a quarter of an hour of everybody.', focus: AT_BILLY },
+    // The hand-over, in the machine's register: what changes, stated as policy.
+    { speaker: OS, text: 'B. — SCRUM MASTER. DAILY STANDUP CAPPED AT FIFTEEN MINUTES.' },
+    { speaker: OS, text: 'HALF OF THE FLOOR WILL NOW KEEP WORKING THROUGH IT.' },
   ],
 }
 
@@ -560,43 +520,6 @@ export const SCENE_FOUNDER_BOARD: Scene = {
 }
 
 /**
- * §21.7.7 — **the hero board arrives with the first point there is to spend.**
- *
- * §13.13 makes a level a point and a point a node, and until this scene the
- * board was open from the moment a hero existed — a screen full of purchases
- * with no currency, which is §26.1.6's wall in miniature and exactly the shape
- * §21.7.6 forbids.
- *
- * So the door is the first level-up. The card is *who somebody is* and it has
- * always been reachable; the board is an instrument and it arrives the frame
- * there is something to put on it.
- *
- * Written so it does not name who levelled, because the player chooses that by
- * choosing who to place — and §13.13's rule that a level-up is a moment rather
- * than a notification means the card flashing is the announcement. This scene
- * announces the *board*.
- */
-export const SCENE_HERO_BOARD: Scene = {
-  id: 'scene.run2.hero-board',
-  script: [
-    { speaker: OS, text: 'PERSONAL DEVELOPMENT MILESTONE REACHED. ONE (1) POINT AWARDED.' },
-    { speaker: PLAYER, text: 'A point. Towards what?', focus: AT_YOU },
-    { speaker: JAMES, text: 'There’s a board. Everyone’s on the same one.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'Everyone shares a skill tree?', focus: AT_YOU },
-    // §13.9's centre-out board, and §13.9.1's pre-bought branch stated as a
-    // fact about a person rather than as a starting bonus.
-    { speaker: JAMES, text: 'Everyone starts somewhere different on it. That’s what makes them who they are.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'Where do you start?', focus: AT_YOU },
-    // §13.9.1 — James is the trunk, half value everywhere, which is his class
-    // as a number. He states it as a preference, because to him it is one.
-    { speaker: JAMES, text: 'In the middle. Half as good at everything, everywhere.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'That sounds like a downside.', focus: AT_YOU },
-    { speaker: JAMES, text: 'It means nobody has to ask me which team I’m on.', focus: AT_JAMES },
-    { speaker: OS, text: 'OPEN ANY STAFF PASS. SPEND THE POINT.' },
-  ],
-}
-
-/**
  * §21.7.4 — **Global Head of His Desk.** The title is real and renders; every
  * subsequent promotion extends it rather than replacing it. The corporate
  * ladder, rendered as a string that only gets longer.
@@ -686,7 +609,6 @@ export const SCENES: Record<string, Scene> = {
   [SCENE_JAMES_ARRIVES.id]: SCENE_JAMES_ARRIVES,
   [SCENE_MASS_HIRE.id]: SCENE_MASS_HIRE,
   [SCENE_JAMES_INSTANT_MESSENGER.id]: SCENE_JAMES_INSTANT_MESSENGER,
-  [SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT.id]: SCENE_TEAM_ROOM_REMOTE_ASSIGNMENT,
   [SCENE_MO_ARRIVES.id]: SCENE_MO_ARRIVES,
   [SCENE_SERENA_ARRIVES.id]: SCENE_SERENA_ARRIVES,
   [SCENE_MATT_ARRIVES.id]: SCENE_MATT_ARRIVES,
@@ -695,7 +617,6 @@ export const SCENES: Record<string, Scene> = {
   [SCENE_THE_THREAD.id]: SCENE_THE_THREAD,
   [SCENE_THREAD_CLEARED.id]: SCENE_THREAD_CLEARED,
   [SCENE_FOUNDER_BOARD.id]: SCENE_FOUNDER_BOARD,
-  [SCENE_HERO_BOARD.id]: SCENE_HERO_BOARD,
   [SCENE_JAMES_PROMOTED.id]: SCENE_JAMES_PROMOTED,
   [SCENE_JAMES_PROXIMA.id]: SCENE_JAMES_PROXIMA,
 }

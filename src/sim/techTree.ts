@@ -1,6 +1,17 @@
 /**
  * The in-run tech tree — GDD §11, bought with cash.
  *
+ * **The board is retired [2026-09-26]; this catalogue is kept as the effects.**
+ * *"retire the old tree, but the story of james introducing us instant messenger
+ * should be how upgrade trees are introduced so we need that back in the new
+ * isometric tree."* The per-person trees (`upgradeTrees.ts`) are the upgrades
+ * now. A tree node that carries one of these effects names it (`TreeNode.tech`)
+ * and the store folds it through {@link techEffects}, so what B1 does is still
+ * written down once, here. Today two do: James's root is Instant Messenger (B1)
+ * and Billy's root is the Daily Standup (B2). The rest of this table is the
+ * vocabulary the economy rework will wire more nodes to, and nothing reaches it
+ * yet — costs, rings and prerequisites included.
+ *
  * **Until this existed, cash had one sink: people.** Every dollar the studio
  * earned could only be spent making the studio worse, which is a joke that
  * lands exactly once and then leaves the player holding a treasury with nothing
