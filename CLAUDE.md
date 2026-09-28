@@ -65,3 +65,21 @@ that brought the 3D garage in were the gate aiming at the hidden Pixi room, not
 a defect anybody could see. Nothing now checks room geometry automatically, so
 a claim about walls, seats or clearance (禁止穿模) is made by looking at the
 game and saying what was looked at.
+
+**Gates that guard the old Pixi scenes are deleted as they are met — 2026-09-28,
+at the user's instruction:** *"if there are any gates protecting old pixi
+scenes, remove them on the go to save time"*, then *"continue to remove the old
+pixi gates"*. The Pixi ladder — the room past twenty, the office unfold, the
+building, block, district, park, globe and star field — is being replaced by
+three.js (`docs/PLAN-2026-09-27-garage-to-galaxy.md`, phases 3–8), and a check
+on how one of those pictures is drawn is a check on something scheduled for
+deletion. Gone in the batch that wrote this: `test:ui-frame`'s block-at-100K
+and park-at-1M passes (the first of them had just gone red on a Pixi frame),
+the `src/render/` suites for the Pixi scenes (room, garage, office, floorplan,
+shell, plaza, walk paths, errands, ambient, bubbles, tallies, the move out of
+the garage, collapse, building, district, park, globe, world map, frames, lens
+and the preview renders), and the Pixi figure's turn in `game/selection.test.ts`.
+What stays is everything that is not a Pixi picture: the HUD, the 3D garage
+(`src/three/`), `sim/`, input handling (`render/navigation.ts`) and the music's
+zoom bands (`render/omniLens.ts`). A claim about a Pixi picture is made by
+looking at it.

@@ -5,7 +5,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { exceedsSlop } from '../render/navigation.ts'
 import { tapVerb } from './touchMode.ts'
-import { turnScale } from '../render/room.ts'
 import { DESK_LINES, deskLine } from './deskLines.ts'
 import { __resetStore, getState, selectDeveloper, selectedIdentity } from './store.ts'
 
@@ -30,30 +29,6 @@ describe('the gesture', () => {
     // opens a panel across the room they were looking at.
     expect(exceedsSlop(40, 0)).toBe(true)
     expect(exceedsSlop(0, 0)).toBe(false)
-  })
-})
-
-describe('the turn — §7.8.8', () => {
-  it('pinches to nothing in the middle and comes back', () => {
-    // A 2D figure turns by being squashed to nothing and returning the other
-    // way round. The pose swaps at the pinch, where there is nothing on screen
-    // to see it happen.
-    expect(turnScale(0)).toBe(1)
-    expect(turnScale(1)).toBe(1)
-    expect(turnScale(0.5)).toBeLessThan(0.1)
-  })
-
-  it('is symmetric, so turning away looks like turning towards', () => {
-    for (const t of [0.1, 0.25, 0.4]) {
-      expect(turnScale(t)).toBeCloseTo(turnScale(1 - t), 6)
-    }
-  })
-
-  it('never inverts or overshoots', () => {
-    for (let t = 0; t <= 1; t += 0.02) {
-      expect(turnScale(t)).toBeGreaterThan(0)
-      expect(turnScale(t)).toBeLessThanOrEqual(1)
-    }
   })
 })
 
