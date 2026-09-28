@@ -478,6 +478,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** Last consumed §10.8a ship, so one ship produces one punch. */
   let lastShipId = 0
   let shipShake = 0
+  /** Storeys landed across the lane that have had their whump. */
+  let landingsHeard = 0
   let lastFrame = performance.now()
   let frameMs = 0
   let raf = 0
@@ -574,6 +576,12 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // the same lamps blown out — the strain moves *how much* comes back.
     garage.setBloom(glass.enabled && bloomOn ? (0.55 + theme.glass.bloom * 1.5) * 0.3 : 0)
     garage.render(now / 1000)
+    // §7.7.2 — a storey landing across the lane is a *whump*: one per landing,
+    // however many landed on this frame (a mass hire drops them close together).
+    if (garage.landings > landingsHeard) {
+      landingsHeard = garage.landings
+      playSfx('collapse-thud')
+    }
     glass.render(garage.renderer, garage.output, numeralsLive ? numeralTexture : null, {
       glass: theme.glass,
       critPunch,
@@ -601,13 +609,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         const at = personAt(JAMES_SEAT)
         return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
       }
+      // Anybody, by seat — the garage's twenty, or the storeys across the lane.
+      g.__seatAt = (seat: number) => {
+        const at = personAt(seat)
+        return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
+      }
       ;(window as unknown as Record<string, unknown>).__stage = {
         z: +(lvl / 9).toFixed(4),
         level: +lvl.toFixed(2),
         zoom: +garage.zoom.toFixed(3),
         easing: garage.easing,
         devs: state.devs,
-        drawn: Math.min(20, state.devs),
+        landings: garage.landings,
         viewport: `${Math.round(w)}x${Math.round(h)}`,
         massHired: state.massHired,
         dt: +dt.toFixed(4),

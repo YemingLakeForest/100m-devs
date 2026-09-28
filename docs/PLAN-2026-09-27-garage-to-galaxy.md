@@ -152,6 +152,12 @@ lane). Also ask about the planet (§0).
 like james across the road or similar"* — designed from the current 3D garage and James's drop (it falls,
 bounces once, throws up dust and shakes the camera), never from the Pixi office.
 
+**Built, first pass (2026-09-28):** `three/render/laneStoreys.ts` and moving day in `garageView.setHeadcount`
+(GDD §7.8.1c's built note). Steps 1 and 2 below are done for the lane plot; step 3's claims hold by construction
+(the same seat numbers, and `workerLook` reads the seat) and `laneStoreys.test.ts` pins the layout. Still open:
+the other eight plots of `lots.ts` once the lane's eighteen storeys are full, and the tower shader's windows for
+storeys far from the camera.
+
 1. `render/stage.ts`: the three.js garage stops being a ≤ 20 mode. It is the scene at the bottom of the
    lens at every headcount, and `GARAGE_3D_DEVS` goes.
 2. If the lane is chosen, port `lots.ts` and the storey drop into `src/three/`: `world.ts`'s `applySet` and
