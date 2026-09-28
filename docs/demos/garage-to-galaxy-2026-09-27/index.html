@@ -1,0 +1,407 @@
+<meta charset="utf-8">
+<title>Garage to Galaxy Lens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+  /*
+   * The brief wears the game's own interface: Departure Mono for every label
+   * and heading (ART_DIRECTION §3, integer multiples of 11 px), the master
+   * palette, 1 px rules and skewed slabs. Body copy is IBM Plex Sans because a
+   * page of reading in a pixel face at 11 px is a punishment. One committed
+   * dark look, like the game.
+   */
+  @font-face { font-family: 'Departure Mono'; src: url('../../../src/assets/fonts/DepartureMono-Regular.woff2') format('woff2'); font-display: swap; }
+  :root {
+    color-scheme: dark;
+    --night: #14121a;
+    --panel: #1c1826;
+    --panel2: #241f2e;
+    --rule: #3a3244;
+    --rule2: #55495e;
+    --muted: #968a96;
+    --ink: #d8d2cf;
+    --ink-hi: #f2eee8;
+    --calm0: #0a2a30;
+    --calm1: #1a6b78;
+    --calm: #35c9d9;
+    --calm3: #b8f4ff;
+    --warn: #e0a52e;
+    --warn0: #2e1f08;
+    --warn3: #ffe9b0;
+    --lamp: #ffd68c;
+    --mono: 'Departure Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--night); color: var(--ink); font: 16px/1.6 var(--sans); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: max(16px, 3vw); padding-block: 40px 80px; display: grid; gap: 56px; }
+  a { color: var(--calm); }
+  img { max-width: 100%; display: block; }
+  .mono { font-family: var(--mono); }
+  .eyebrow { font: 11px/1.4 var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--calm); }
+  .eyebrow .dim { color: var(--rule2); }
+  h1 { font: 33px/1.15 var(--mono); color: var(--ink-hi); margin: 10px 0 0; text-wrap: balance; letter-spacing: -0.5px; }
+  h2 { font: 22px/1.2 var(--mono); color: var(--ink-hi); margin: 0; text-wrap: balance; }
+  h3 { font: 11px/1.4 var(--mono); letter-spacing: 1.5px; text-transform: uppercase; color: var(--calm); margin: 0 0 6px; }
+  p { margin: 0; max-width: 68ch; }
+  .lead { font-size: 18px; color: var(--ink); max-width: 64ch; margin-top: 14px; }
+  .quote { color: var(--lamp); font-style: italic; }
+  .section { display: grid; gap: 18px; }
+  .section > header { display: grid; gap: 8px; border-top: 1px solid var(--rule); padding-top: 18px; }
+
+  /* The new top of the ladder: one big picture, then the steps up to it. */
+  .hero { margin: 0; background: var(--panel); border: 1px solid var(--calm1); }
+  .hero img { width: 100%; }
+  .hero figcaption { padding: 10px 14px; font-size: 14px; line-height: 1.5; }
+  .hero figcaption b { font: 11px var(--mono); letter-spacing: 1px; color: var(--calm); text-transform: uppercase; font-weight: normal; margin-right: 8px; }
+
+  /* The four options, as the game's own cards. */
+  .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .opt { background: var(--panel); border: 1px solid var(--rule); display: grid; grid-template-rows: auto 1fr; }
+  .opt.yours { border-color: var(--calm1); }
+  .opt figure { margin: 0; position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #000; }
+  .opt figure img { width: 100%; height: 100%; object-fit: cover; }
+  .opt .tag { position: absolute; left: 10px; top: 10px; font: 11px var(--mono); letter-spacing: 1px; background: var(--night); color: var(--calm); border: 1px solid var(--calm1); padding: 3px 7px; }
+  .opt .tag.me { color: var(--warn); border-color: #8a5c12; }
+  .opt .body { padding: 16px; display: grid; gap: 12px; align-content: start; }
+  .opt .name { display: flex; align-items: baseline; gap: 10px; }
+  .opt .letter { font: 22px var(--mono); color: var(--calm); }
+  .opt p { font-size: 15px; }
+  .play { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 4px; }
+  .btn { font: 11px var(--mono); letter-spacing: 1px; text-decoration: none; color: var(--night); background: var(--calm); border: 1px solid var(--calm3);
+    padding: 8px 12px; transform: skewX(-4deg); box-shadow: 3px 3px 0 0 var(--calm0); display: inline-block; }
+  .btn span { display: inline-block; transform: skewX(4deg); }
+  .btn:focus-visible, .chip:focus-visible { outline: 1px solid var(--calm3); outline-offset: 3px; }
+  .chip { font: 11px var(--mono); letter-spacing: 1px; color: var(--calm); border: 1px solid var(--calm1); padding: 5px 7px; text-decoration: none; }
+  .chip:hover, .btn:hover { filter: brightness(1.15); }
+
+  .steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .steps figure, .pair figure { margin: 0; background: var(--panel); border: 1px solid var(--rule); }
+  .steps figcaption, .pair figcaption { padding: 10px 12px; font-size: 14px; line-height: 1.45; }
+  .steps figcaption b, .pair figcaption b { display: block; font: 11px var(--mono); letter-spacing: 1px; color: var(--calm); text-transform: uppercase; margin-bottom: 4px; font-weight: normal; }
+
+  .rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; }
+  .rule { display: grid; gap: 4px; align-content: start; }
+  .rule h3 { margin: 0; }
+  .rule p { font-size: 15px; }
+
+  .detail { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr); gap: 22px; align-items: start; background: var(--panel); border: 1px solid var(--rule); padding: 18px; }
+  .detail.yours { border-color: var(--calm1); }
+  .thumbs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .thumbs figure { margin: 0; }
+  .thumbs figcaption { font: 11px var(--mono); letter-spacing: 1px; color: var(--muted); padding-top: 5px; text-transform: uppercase; }
+  .pc { display: grid; gap: 12px; }
+  .pc ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 15px; }
+  .pc li::marker { color: var(--rule2); }
+  .verdict { font: 11px/1.5 var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--warn); }
+
+  .pick { background: var(--warn0); border: 1px solid #8a5c12; padding: 20px; display: grid; gap: 12px; }
+  .pick h2 { color: var(--warn3); }
+  .pick p { color: var(--ink); }
+  .table { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 720px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--rule); }
+  th { font: 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--calm); font-weight: normal; }
+  td:first-child { font-family: var(--mono); font-size: 13px; color: var(--ink-hi); white-space: nowrap; }
+  .st { font: 11px var(--mono); letter-spacing: 1px; white-space: nowrap; }
+  .st.done { color: var(--calm); }
+  .st.open { color: var(--warn); }
+  ol.qs { margin: 0; padding-left: 22px; display: grid; gap: 10px; max-width: 76ch; }
+  ol.qs li::marker { font-family: var(--mono); color: var(--calm); }
+  .gaps { columns: 2; column-gap: 32px; font-size: 14.5px; margin: 0; padding-left: 18px; }
+  .gaps li { break-inside: avoid; margin-bottom: 6px; }
+  code { font: 13px var(--mono); color: var(--calm3); background: var(--panel2); padding: 1px 5px; }
+  pre { margin: 0; background: var(--panel2); border: 1px solid var(--rule); padding: 12px 14px; overflow-x: auto; font: 13px/1.6 var(--mono); color: var(--calm3); }
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 16px; }
+
+  @media (max-width: 900px) {
+    .options, .rules, .detail { grid-template-columns: 1fr; }
+    .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gaps { columns: 1; }
+  }
+  @media (max-width: 520px) {
+    h1 { font-size: 22px; }
+    .steps, .thumbs, .pair { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">100,000,000 Developers <span class="dim">//</span> Garage to Galaxy <span class="dim">//</span> brainstorm, 27 Sep 2026 <span class="dim">//</span> updated: the colony network, your answers, the build plan</div>
+    <h1>Zoom out to a hundred million. Zoom back in to any one of them.</h1>
+    <p class="lead">You picked option A, the monitor, and asked for the top of the ladder to be a Stellaris-style colony network instead of the Milky Way. It's built, and it's the first section below. The four options are still here to compare. They share the near game, the abstract planet, the camera and now the map, so switching between them at the same headcount shows only the part that differs.</p>
+    <p class="lead" style="margin-top:10px">Your answers are in: the border stays, the zoom has no lock, and the garage is the heroes' HQ. The next session's build order is its own page, <a href="https://claude.ai/artifact/G2FDdrzDrr5Trds45v2yUN">the Garage to Galaxy build plan</a>.</p>
+  </header>
+
+  <section class="section" aria-labelledby="network">
+    <header>
+      <div class="eyebrow">New <span class="dim">//</span> your pick, taken further</div>
+      <h2 id="network">The colony network, on the monitor</h2>
+      <p>Past the planet the lens swings over the pole, and the picture becomes a strategy map. Star systems are joined by lanes, the studio's territory sits inside one bright border, and fog lies past the frontier. One glyph is one world of 100,000,000 desks. Zoom into any settled system and the lens flies down to that world, builds it, and keeps going to a desk with a person at it.</p>
+    </header>
+    <figure class="hero"><img src="shots/net-streams.jpg" alt="The colony network in red phosphor: about twenty worlds inside one hatched territory with a bright border, lanes of white packets streaming out from Sol, and rings pinging round the newest colonies"><figcaption><b>AUTO at a billion</b>New hires leave Sol as packets along the lanes to the world being filled. Each new colony pings, and the border moves out to take it in. The hue is the studio's entropy, red at this size.</figcaption></figure>
+    <div class="play"><a class="btn" href="play.html#monitor-1000000000"><span>[ PLAY: ONE BILLION ]</span></a>
+      <a class="chip" href="play.html#monitor-40">FROM THE GARAGE</a><a class="chip" href="play.html#monitor-100000000">100M: LAUNCH JAMES</a><a class="chip" href="play.html#monitor-10000000000">10B: A HUNDRED WORLDS</a></div>
+    <p><b class="mono" style="color:var(--calm)">Try:</b> press <span class="mono">AUTO</span> on the map and watch the lanes fill. Tap any system for its card, then <span class="mono">ZOOM IN</span>. Drag pans the map. Scroll into a lit system to land on its world, then keep going to a desk. The title bar is an address: click <span class="mono">NETWORK</span>, <span class="mono">EARTH</span>, <span class="mono">CITY</span>, <span class="mono">HQ</span> or <span class="mono">GARAGE</span> to jump there.</p>
+    <div class="steps">
+      <figure><img src="shots/net-start.jpg" alt="One developer: Sol alone inside its territory circle in calm cyan, Proxima blinking just outside the border, faint lanes beyond"><figcaption><b>1 · one world</b>Home, and the next world blinking just outside the border.</figcaption></figure>
+      <figure><img src="shots/net-launch.jpg" alt="After the launch: Sol and Proxima's territories joined into one, Alpha Centauri next"><figcaption><b>100,000,001 · two</b>James lands. Proxima joins the border, and Alpha Centauri is next.</figcaption></figure>
+      <figure><img src="shots/a-network.jpg" alt="A billion: ten worlds in three lobes joined along their lanes"><figcaption><b>1B · ten worlds</b>The empire grows along its own lanes, nearest first.</figcaption></figure>
+      <figure><img src="shots/net-full.jpg" alt="Ten billion: a hundred colonies in one coral-shaped territory"><figcaption><b>10B · a hundred</b>The demo's ceiling. The border has holes where nobody settled.</figcaption></figure>
+      <figure><img src="shots/net-card.jpg" alt="A system card for Luyten 726-8: distance, developers, how late its standup reaches HQ, the newest arrival, and ZOOM IN"><figcaption><b>Tap a system</b>Distance, light-lag, how full, who arrived last. ZOOM IN or CLOSE: nothing to manage.</figcaption></figure>
+    </div>
+    <div class="pair">
+      <figure><img src="shots/net-descend.jpg" alt="Barnard's Star b's city on the monitor: rows of full red towers round an empty landing block at the pole"><figcaption><b>Down to a world</b>Scrolled in from the map: Barnard's Star b, built the moment you looked, full at 100M.</figcaption></figure>
+      <figure><img src="shots/net-find.jpg" alt="A cut-open storey on Tau Ceti b with developers at desks, and the card for Nora Duarte, developer 677,144,013, waiting for a handoff"><figcaption><b>Down to a desk</b>Developer #677,144,013 of a billion, 11.9 light-years from the garage, waiting for a handoff.</figcaption></figure>
+    </div>
+    <div class="rules">
+      <div class="rule"><h3>Real stars, then catalogue stars</h3><p>Proxima, Alpha Centauri, Barnard's Star, Sirius, Tau Ceti and about sixty more sit at their real distances from Sol. The map keeps distance and drops height. Past them are procedural catalogue stars (HD, GJ, HIP…). It's all a function of the seed, so nothing is stored.</p></div>
+      <div class="rule"><h3>The lanes decide the order</h3><p>The next world is always the nearest one along the lanes, so the empire grows along its own supply lines. Proxima is still world 1, as §21.8 needs. Lanes never cross: a Gabriel graph, thinned to a strategy map's sparseness.</p></div>
+      <div class="rule"><h3>Territory and fog</h3><p>Each settled system claims 3.4 light-years, and the lanes between them are claimed too. The border is the outline of the whole. Past the frontier the lanes run on as a faint web, so you can see there's more.</p></div>
+      <div class="rule"><h3>Hiring is the only verb</h3><p>A world fills because the studio hires. There's no freight, no governor and no building queue. §7.7.1a's <span class="quote">"not a colony manager"</span> is kept: Stellaris is the look, not the game.</p></div>
+      <div class="rule"><h3>The title bar is the address</h3><p><span class="mono">NETWORK &gt; EARTH &gt; CITY &gt; HQ &gt; GARAGE</span>, with the current stop lit and every stop a jump. It's D's lift panel, moved into the one line a terminal would give it. On the map a legend and a light-year scale bar sit under it.</p></div>
+      <div class="rule"><h3>Pixel art, in the live hue</h3><p>Every glyph is drawn at the monitor's own pixel and snapped to its grid. The whole map follows the entropy ramp: cyan with one world, red at a hundred. A drag pans instead of spinning, which fixes the galaxy's over-sensitive drag.</p></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="play">
+    <header>
+      <div class="eyebrow">Play</div>
+      <h2 id="play">The four options</h2>
+      <p>Each opens in the game's night-lit garage. The number chips start you at that headcount. Inside, the tabs at the top switch to another option at the same headcount.</p>
+    </header>
+    <div class="options">
+      <article class="opt yours">
+        <figure><img src="shots/a-city.jpg" alt="The Monitor: at sixty thousand developers the city is drawn as amber phosphor blocks on a grid, inside a STUDIO_OS window"><span class="tag">YOUR PICK</span></figure>
+        <div class="body">
+          <div class="name"><span class="letter">A</span><h2>The Monitor</h2></div>
+          <p>Up close it's the 3D world. Zoom out past the block and the picture redraws itself as a STUDIO_OS window, top to bottom like a CRT refresh. Buildings become abstract phosphor blocks, and the globe and the colony network are phosphor maps in the live entropy hue. Zoom into any block and you drop back into the building and its people.</p>
+          <div class="play"><a class="btn" href="play.html#monitor-40"><span>[ PLAY A ]</span></a>
+            <a class="chip" href="play.html#monitor-60000">60K</a><a class="chip" href="play.html#monitor-30000000">30M</a><a class="chip" href="play.html#monitor-100000000">100M</a><a class="chip" href="play.html#monitor-1000000000">1B</a></div>
+        </div>
+      </article>
+      <article class="opt">
+        <figure><img src="shots/b-planet.jpg" alt="Little Planet: at thirty million the toy Earth is a third covered by a web of lit streets"><span class="tag me">OPTION</span></figure>
+        <div class="body">
+          <div class="name"><span class="letter">B</span><h2>Little Planet</h2></div>
+          <p>Nothing changes register. The city physically paves a toy planet, spreading from the garage and from satellite hubs until the whole Earth is one city at 100,000,000. From orbit it's a web of lit streets on dark blocks.</p>
+          <div class="play"><a class="btn" href="play.html#planet-40"><span>[ PLAY B ]</span></a>
+            <a class="chip" href="play.html#planet-60000">60K</a><a class="chip" href="play.html#planet-30000000">30M</a><a class="chip" href="play.html#planet-100000000">100M</a></div>
+        </div>
+      </article>
+      <article class="opt">
+        <figure><img src="shots/c-city.jpg" alt="The Swarm: at two million the towers are cyan outlines and every dot inside them is a developer, coloured by what they are doing"><span class="tag me">OPTION</span></figure>
+        <div class="body">
+          <div class="name"><span class="letter">C</span><h2>The Swarm</h2></div>
+          <p>Past the street, buildings drop to outlines and the people become the picture: one dot per developer at their desk, coloured by what they're doing instead of working. A city is a cloud of people in the shape of towers, and a planet is a crust of them. New hires fall in from above.</p>
+          <div class="play"><a class="btn" href="play.html#swarm-40"><span>[ PLAY C ]</span></a>
+            <a class="chip" href="play.html#swarm-2000000">2M</a><a class="chip" href="play.html#swarm-30000000">30M</a><a class="chip" href="play.html#swarm-100000000">100M</a></div>
+        </div>
+      </article>
+      <article class="opt">
+        <figure><img src="shots/d-district.jpg" alt="Dioramas: a round slice of the city on a glowing plinth, with the lift panel of rungs on the right"><span class="tag me">OPTION</span></figure>
+        <div class="body">
+          <div class="name"><span class="letter">D</span><h2>Dioramas</h2></div>
+          <p>The ladder as nested models. Each rung (garage, HQ block, district, city, planet, network) stands alone on a plinth in the dark. Zoom past the edge and the next rung comes out of the dark around you. Zoom into any unit and it becomes the diorama. The lift panel is the address.</p>
+          <div class="play"><a class="btn" href="play.html#dioramas-40"><span>[ PLAY D ]</span></a>
+            <a class="chip" href="play.html#dioramas-3000">3K</a><a class="chip" href="play.html#dioramas-3000000">3M</a><a class="chip" href="play.html#dioramas-100000000">100M</a></div>
+        </div>
+      </article>
+    </div>
+    <p><b class="mono" style="color:var(--calm)">Try in each:</b> press <span class="mono">COLONISE</span> to watch the planet fill from the garage. Press <span class="mono">FIND ANYONE</span> to fly to a random developer and meet them. Try <span class="mono">LOSS VIEW</span>, the <span class="mono">YOU</span> and <span class="mono">JAMES</span> heads, and <span class="mono">LAUNCH JAMES</span> once Earth is full. Scroll or pinch to zoom, drag to move, right-drag to turn.</p>
+  </section>
+
+  <section class="section" aria-labelledby="shared">
+    <header>
+      <div class="eyebrow">The backbone</div>
+      <h2 id="shared">What all four share</h2>
+      <p>The options only disagree about how the far scales look. These parts are the same in every one, and they're what answers <span class="quote">"zoom back in to every level each person is a person"</span>.</p>
+    </header>
+    <div class="steps">
+      <figure><img src="shots/near-40.jpg" alt="Forty developers: the garage full, and the first office storey dropped on the plot across the lane"><figcaption><b>40 · across the lane</b>The garage fills, then a furnished storey drops on the plot behind it.</figcaption></figure>
+      <figure><img src="shots/near-2000.jpg" alt="Two thousand: the plots round the garage have become office towers with warm walls, the garage still at the centre"><figcaption><b>2,000 · the street</b>Storey on storey, plot by plot. The garage never moves.</figcaption></figure>
+      <figure><img src="shots/find.jpg" alt="Find anyone at thirty million: a tower cut open on the developer's storey, with their card"><figcaption><b>Any one of 30M</b>Find anyone: the lens flies there and cuts the tower open at their desk.</figcaption></figure>
+      <figure><img src="shots/crossing.jpg" alt="The filing cabinet crossing to Proxima, trailing a gold line"><figcaption><b>100M · the launch</b>Earth is full. James files a desk move and leaves in a filing cabinet.</figcaption></figure>
+      <figure><img src="shots/proxima.jpg" alt="James alone at his desk under a lamp on Proxima b"><figcaption><b>Proxima b</b>One developer, one chair, one shirt, holed. The next world starts here.</figcaption></figure>
+    </div>
+    <div class="rules">
+      <div class="rule"><h3>A seat is an address</h3><p>Every developer has a place: world, tower, storey, desk. Who they are is the game's own <code>developerAt(seed, i)</code>, so developer 7 in the garage is the same person here as in the game. Nothing is stored. The renderer draws whoever lives where you're looking, at any zoom, on any world.</p></div>
+      <div class="rule"><h3>One window is one developer</h3><p>Each lit window is a specific seat, and a tower is exactly as tall as its filled storeys. The frontier tower is the half-lit one. Up close, towers are cut open below your eye like the garage's cutaway, and anything standing between the lens and the garage is drawn as an outline.</p></div>
+      <div class="rule"><h3>One lens, never a cut</h3><p>Zoom goes where your pointer is. Drag moves over the ground, turns the globe from orbit and pans the map. Flights go up, across and down (Powers of Ten), even between worlds. The YOU and JAMES heads always fly you home (§7.7.4, the Hero Anchor).</p></div>
+      <div class="rule"><h3>Your garage, dropping storeys</h3><p>Your idea, and already canon: §7.7.2 has <span class="quote">"a complete, furnished, already-populated storey drops out of the sky"</span>. It also honours your 25 September line, <span class="quote">"I don't want my garage moved to a building"</span>. The first storey drops across the lane behind the garage, not across the street in front, because the camera looks from the front and a tower there would hide the founder.</p></div>
+      <div class="rule"><h3>An abstract globe, full at 100M</h3><p>Per your note: no real map. The planet is a ball of the city's own square blocks (a cube-sphere, so still no hex), 129,645 towers, holding exactly 100,000,000. It's toy scale on purpose. At true scale a hundred million people are a speck on Earth, and "Earth full" can't be a picture. Every colony is the same kind of ball with its own seed.</p></div>
+      <div class="rule"><h3>The satire is in the light</h3><p>Output grows like √headcount (locked decision 1), and LOSS VIEW colours every window by what that person is doing: meetings, waiting, handoffs and so on. In the garage most people are working. At a hundred million, 0.07% are, and from orbit the planet is a patchwork of meetings (blue, the biggest slice), waiting and duplicate work (ambers) and handoffs (teal).</p></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="detail">
+    <header>
+      <div class="eyebrow">Side by side</div>
+      <h2 id="detail">What each one gets you, and what it costs</h2>
+    </header>
+
+    <article class="detail yours">
+      <div class="thumbs">
+        <figure><img src="shots/a-city.jpg" alt="The Monitor at city scale"><figcaption>City, 60K</figcaption></figure>
+        <figure><img src="shots/a-planet.jpg" alt="The Monitor's globe at thirty million"><figcaption>Globe, 30M</figcaption></figure>
+        <figure><img src="shots/a-network.jpg" alt="The Monitor's colony network at a billion"><figcaption>Network, 1B</figcaption></figure>
+      </div>
+      <div class="pc">
+        <div class="name"><h2>A · The Monitor</h2></div>
+        <div><h3>Gets you</h3><ul>
+          <li>It fixes the part that failed twice. The empire stops trying to be a place (the Pixi globe, the rebuild's city) and becomes the interface you already approved: STUDIO_OS and the isometric trees.</li>
+          <li>A clear rung where you asked for one: the world close up, the dashboard far out. The camera still never cuts.</li>
+          <li>The cheapest at 100M, and one hue at a time, driven by entropy (ART_DIRECTION §1.1).</li>
+          <li>The thesis without a caption: the bigger the studio, the more the founder sees people as a dashboard.</li>
+          <li>A colony map is already an interface, so the top of the ladder is where the monitor is strongest.</li>
+        </ul></div>
+        <div><h3>Risks</h3><ul>
+          <li>Reading as a chart. It holds only while a tap still names a person and a zoom still lands in a building, and in the demo both do on every world.</li>
+          <li>The entropy hue is red by the planet and stays red on the map. That's right by the rules, but is it the late-game mood you want?</li>
+          <li>Two looks to keep in step at the hand-off: the tower and its glyph must be the same size in the same place.</li>
+        </ul></div>
+      </div>
+    </article>
+
+    <article class="detail">
+      <div class="thumbs">
+        <figure><img src="shots/b-city.jpg" alt="Little Planet at city scale"><figcaption>City, 60K</figcaption></figure>
+        <figure><img src="shots/b-planet.jpg" alt="Little Planet at thirty million"><figcaption>Globe, 30M</figcaption></figure>
+        <figure><img src="shots/b-full.jpg" alt="Little Planet full at a hundred million"><figcaption>Full, 100M</figcaption></figure>
+      </div>
+      <div class="pc">
+        <div class="name"><h2>B · Little Planet</h2></div>
+        <div><h3>Gets you</h3><ul>
+          <li>"Colonise the globe" literally: you watch the city pave the planet and can spin it in your hand.</li>
+          <li>One representation all the way. There's no second look to maintain.</li>
+          <li>Physical and night-lit throughout, the approved garage mood.</li>
+        </ul></div>
+        <div><h3>Risks</h3><ul>
+          <li>It's the rebuild's complaint waiting to happen (<span class="quote">"generic"</span>). A planet of towers needs landmarks and authored districts to feel like yours.</li>
+          <li>Heaviest on a phone: 130K towers at once.</li>
+          <li>Fine grids shimmer from orbit. The demo softens it (towers sink into a street-light web), but it takes care.</li>
+        </ul></div>
+      </div>
+    </article>
+
+    <article class="detail">
+      <div class="thumbs">
+        <figure><img src="shots/c-city.jpg" alt="The Swarm at city scale"><figcaption>City, 2M</figcaption></figure>
+        <figure><img src="shots/c-planet.jpg" alt="The Swarm's globe"><figcaption>Globe, 30M</figcaption></figure>
+        <figure><img src="shots/near-2000.jpg" alt="The shared near game"><figcaption>Near: shared</figcaption></figure>
+      </div>
+      <div class="pc">
+        <div class="name"><h2>C · The Swarm</h2></div>
+        <div><h3>Gets you</h3><ul>
+          <li>The most literal <span class="quote">"swarm of devs"</span>: every dot is a person, and the colours are the loss partition at every scale.</li>
+          <li>The satire is always on screen, not behind a toggle.</li>
+          <li>Cheap: a point cloud, capped at 700K dots, with the scale bar saying when one dot stands for more than one person.</li>
+        </ul></div>
+        <div><h3>Risks</h3><ul>
+          <li>The most "data" of the four. It is people, but it looks like a visualisation.</li>
+          <li>Past 700K, one dot is several people. The count is honest, but the picture is sampled.</li>
+        </ul></div>
+      </div>
+    </article>
+
+    <article class="detail">
+      <div class="thumbs">
+        <figure><img src="shots/d-block.jpg" alt="Dioramas: the HQ block"><figcaption>HQ block, 3K</figcaption></figure>
+        <figure><img src="shots/d-district.jpg" alt="Dioramas: a district on its plinth"><figcaption>District, 3M</figcaption></figure>
+        <figure><img src="shots/d-city.jpg" alt="Dioramas: the city rung"><figcaption>City, 3M</figcaption></figure>
+      </div>
+      <div class="pc">
+        <div class="name"><h2>D · Dioramas</h2></div>
+        <div><h3>Gets you</h3><ul>
+          <li>Closest to GDD §7.4a: discrete stops, each an addressable unit. The lift panel is always the address.</li>
+          <li>Every rung is a composed shot you can art-direct and keep free of clipping (禁止穿模), with bounded performance.</li>
+          <li>Diving into any tower or district is explicit, not a zoom you have to aim.</li>
+        </ul></div>
+        <div><h3>Risks</h3><ul>
+          <li>Less infinite and less swarm. The mass is felt one rung at a time.</li>
+          <li>The rung edges are stops you notice, close to the "background shift" you rejected in the rebuild.</li>
+        </ul></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="pick" aria-labelledby="pick">
+    <div class="eyebrow" style="color:var(--warn)">Your pick</div>
+    <h2 id="pick">A, taken further</h2>
+    <p>My pick was A with C's people on its map and D's lift as its address bar, and you chose A. So "further" builds exactly that. C's people are the packets streaming down the lanes, one colour, always moving, so the map is never only a chart. D's lift is the monitor's title bar, an address you can click. And the top of the ladder is the colony map you asked for. B stays the fallback if the monitor ever feels like leaving the game.</p>
+    <p>The near game (the garage, storeys across the lane, find anyone) is the same in every option and is ready to build.</p>
+  </section>
+
+  <section class="section" aria-labelledby="canon">
+    <header>
+      <div class="eyebrow">Canon</div>
+      <h2 id="canon">What moved, and what hasn't yet</h2>
+      <p>Your two choices (the monitor, and a colony network in place of the galaxy) are amended into canon on 27 Sep, in place, dated, with your words, per CLAUDE.md. Each amendment keeps what the old text argued. The rest waits for the near game to be decided.</p>
+    </header>
+    <div class="table"><table>
+      <thead><tr><th>Where</th><th>Status</th><th>Said</th><th>Says now, or would say</th></tr></thead>
+      <tbody>
+        <tr><td>GDD §7.7.1a</td><td class="st done">AMENDED</td><td>The galactic network: a 3D star field you orbit, sixteen worlds round wherever you are, a star with a halo per world.</td><td>The colony network: a flat, Stellaris-style map on the monitor that you pan. Real stars at their true distances, lanes, a territory with a border, fog, and packets for hires. Still not a colony manager.</td></tr>
+        <tr><td>GDD §7.4a</td><td class="st done">AMENDED</td><td>Eight presentation stops, the eighth the galactic network.</td><td>Past the block, every stop is drawn on the monitor, and the monitor's title bar is the address.</td></tr>
+        <tr><td>GDD §7.4a, §7.2, §21.8</td><td class="st done">AMENDED</td><td><span class="quote">"A presentation level the player has not earned is not reachable."</span></td><td>Every stop is reachable at any headcount, and each draws only what the studio has. Your words: <span class="quote">"no we don't keep the lock and we should be able to zoom and down before 100m"</span>.</td></tr>
+        <tr><td>GDD §7.8.1, §7.8.12</td><td class="st done">AMENDED</td><td><span class="quote">"The garage does not grow. It is a garage."</span> At twenty, <span class="quote">"everybody does move."</span></td><td>The garage is the heroes' HQ. It grows one space per hero, never for a hire, and the leaders never move out.</td></tr>
+        <tr><td>GDD Appendix G.3</td><td class="st done">ADDED</td><td>Nothing.</td><td>Two NOT BUILT rows: the monitor and the colony map (the game still has the lock and the old star field), and the heroes' garage.</td></tr>
+        <tr><td>ART_DIRECTION §1.0b</td><td class="st done">ADDED</td><td>§1: the world and the interface are two registers, kept apart.</td><td>Past the block the interface draws the world, never blended: pixel-art marks on the monitor's own grid, in the live hue.</td></tr>
+        <tr><td>Rebuild decision 5</td><td class="st open">HALF</td><td>Moving day carries the team to a new HQ floor, <span class="quote">"home is never the garage"</span>.</td><td>Settled for the leaders: they never leave the garage. Where everyone else goes at twenty-one (a storey across the lane, or the Pixi office) is the build plan's phase 2 question.</td></tr>
+        <tr><td>Rebuild decision 4</td><td class="st open">OPEN</td><td>An endless foggy city, a zoom ceiling of about ten blocks, <span class="quote">"no whole-city shot"</span>.</td><td>A whole-planet view you can watch fill (you asked to <span class="quote">"see a scene we colonise the globe"</span>). The fog and the ceiling go.</td></tr>
+        <tr><td>Globe</td><td class="st open">OPEN</td><td>(Return plan) Night Earth with real continents.</td><td>Abstract, per your note: <span class="quote">"I want abstract globe, not a real world map"</span>.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="section" aria-labelledby="questions">
+    <header>
+      <div class="eyebrow">For you</div>
+      <h2 id="questions">Questions the map raises</h2>
+    </header>
+    <ol class="qs">
+      <li><s>Smooth the border?</s> Answered: <span class="quote">"Border outline is good"</span>.</li>
+      <li><s>Keep the map locked until 100M?</s> Answered: <span class="quote">"no we don't keep the lock"</span>. The GDD is amended, and lifting the game's lock is the build plan's phase 1.</li>
+      <li>Where do Billy, Serena and Matt's spaces go? The build plan draws two layouts to scale and recommends a hero row of bays behind the deck. Frames of both come before any code.</li>
+      <li>Where does everyone else go at twenty-one: a storey dropped across the lane, as here, or the game's Pixi office?</li>
+      <li>The demo stops at a hundred worlds (10 billion developers). The GDD now says the map must not run out, so the game generates further rings. Any limit you want on how far it goes?</li>
+      <li>A colony is Earth's kind of city with another seed. Should colonies look different (a tint, a landing pad at the pole, lower towers), or is sameness the joke?</li>
+      <li>The hue follows entropy, so the map is red from a billion on. Hold it there, or give the map its own calmer ramp?</li>
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="gaps">
+    <header>
+      <div class="eyebrow">Honest</div>
+      <h2 id="gaps">What these demos are not</h2>
+    </header>
+    <ul class="gaps">
+      <li>They're demos, not the game. There's no economy beyond the headcount, and hiring is instant.</li>
+      <li>Tested at 60 fps on a desktop GPU (RTX 3060) and in a phone-sized frame. Not yet on a real phone, where B's 130K towers is the likely problem.</li>
+      <li>The James launch is a camera path with captions. The directed nine-shot scene in §21.8 is still to do, as you said it could wait.</li>
+      <li>A colony world is built in 3D when you first look at it, one at a time besides Proxima b. Leaving one for another lets the first go.</li>
+      <li>The map is a drawing: distance from Sol is real, height isn't, and one light-year is 20 km of the toy planet's space.</li>
+      <li>The border is circles and lane bands, not a smoothed outline, and labels drop out where they would overlap.</li>
+      <li>The cutaway and the x-ray are heuristics. They've been looked at, but not checked seat by seat for clipping.</li>
+      <li>In D, diving works from the district and city rungs. The garage rung only exists at HQ.</li>
+      <li>No sound yet.</li>
+      <li>Billy, Serena and Matt have no spaces in the garage yet. The build plan's phases 2 and 4 draw and then build them.</li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="run">
+    <header>
+      <div class="eyebrow">In the repo</div>
+      <h2 id="run">Running it locally</h2>
+      <p>The sources live in <code>docs/demos/garage-to-galaxy-2026-09-27/</code>. They import the game's real garage and people from <code>src/</code>, pass the repo's lint, and sit outside <code>tsc -b</code>, so <code>npm run check</code> is unaffected. The map is <code>network.ts</code> (pure: stars, lanes, order) and <code>netview.ts</code> (drawing).</p>
+    </header>
+    <pre>npm run dev
+# then open  http://127.0.0.1:5173/docs/demos/garage-to-galaxy-2026-09-27/play.html#monitor-1000000000
+node docs/demos/garage-to-galaxy-2026-09-27/tools/build.mjs     # standalone build into dist/</pre>
+  </section>
+
+  <footer>Built 27 Sep 2026 from the handoff (<code>docs/HANDOFF-2026-09-27.md</code>), the return plan, the rebuild's six locked decisions and GDD §7.7, §7.8, §21.8, and updated the same day with the colony network you asked for, then with your answers and the build plan. The garage, people and identities are the game's own code, unmodified.</footer>
+</div>

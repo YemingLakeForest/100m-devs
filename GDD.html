@@ -3143,21 +3143,33 @@ the map reveals a tiny individual developer frantically typing or getting distra
 <li><strong>Visuals:</strong> swarms and data grids become visible on the surface of planets. Giant holographic projection beams or orbiting satellite arrays connect entire planets. Deep-space connection lines represent inter-galactic protocols.</li>
 <li><strong>Interaction:</strong> managing planet-to-planet latency. Upgrading interstellar Neuro-Relays.</li>
 </ul>
-<h3 id="a-the-lens-has-seven-presentation-stops-through-the-100m-gate-canon-amended-2026-08-25-r8">7.4a The lens has eight presentation stops — seven through the 100M gate, and the network above it <strong>[CANON - amended 2026-08-30]</strong> - R8</h3>
+<h3 id="a-the-lens-has-seven-presentation-stops-through-the-100m-gate-canon-amended-2026-08-25-r8">7.4a The lens has eight presentation stops — seven through the 100M gate, and the network above it <strong>[CANON - amended 2026-08-30, 2026-09-27]</strong> - R8</h3>
 <p><strong>The four rendering tiers above are not navigation stops, and the ten simulation rungs in
 §7.7.1 are not all navigation stops either.</strong> The shipped main arc has seven memorable
 presentation levels: desk, squad, floor, building, block, park and globe. They form one
 continuous lens from one person to the 100,000,000-developer title gate. <strong>Above the gate
-there is an eighth — the galactic network</strong> <strong>[added 2026-08-30]</strong>; see the amendment at
-the foot of this section and §7.7.1a.</p>
+there is an eighth — the colony network</strong> <strong>[added 2026-08-30; the galactic network until
+2026-09-27]</strong>; see the amendments at the foot of this section and §7.7.1a. <strong>Past the
+block, every stop is drawn on the monitor</strong> <strong>[amended 2026-09-27]</strong>.</p>
 <p>The Construction Ladder remains the simulation's address and aggregation vocabulary. Several
 late simulation rungs may be represented inside one presentation level when a separate stop
 would add no new decision. In the main arc, park pulls continuously into the 100-site globe;
 town, nation and system are scale readings inside that transition, not empty screens.</p>
 <p>Three consequences are non-negotiable:</p>
 <ul>
-<li><strong>A presentation level the player has not earned is not reachable.</strong> The headcount ceiling
-stays tied to actual progress.</li>
+<li><s><strong>A presentation level the player has not earned is not reachable.</strong> The headcount ceiling
+stays tied to actual progress.</s> <strong>[amended 2026-09-27] Every stop is reachable at any headcount, and
+each draws only what the studio has.</strong> Asked whether the prototype's open map should close again
+until a hundred million, the user, 2026-09-27: <em>&quot;no we don't keep the lock and we should be able to zoom and down before
+100m&quot;</em>. The ceiling's argument was that a
+camera able to reach galactic zoom over an empty world tells the player the world is a backdrop
+they are pointing at. What the prototype showed is that an empty rung is not a backdrop when it
+draws only what is yours: at one developer the colony map is one lit system, the next world
+blinking just outside its border and a faint web beyond — a goal with a name on it, not
+scenery. So the half of the rule that mattered survives as the second clause (<em>the studio you
+can see is the studio you have</em>, now true at every zoom rather than enforced by a clamp), and
+the half that locked the lens is gone. Pinching all the way in still always reaches James
+(§7.7.4).</li>
 <li><strong>Every stop must change the silhouette and support an addressable unit.</strong> Compression may
 remove an empty stop; it may never turn the lens into a cut or a menu.</li>
 <li><strong>New post-100M stops are earned by mechanics.</strong> Layer 2 may add system and galaxy views only
@@ -3178,6 +3190,43 @@ That is a logistics minigame, and §25.3.2's warning about the top of the ladder
 that it is where this design quietly becomes a different game. <strong>The network is scenery and
 navigation. There is no freight, no routing, no trade and no second economy.</strong> The only
 thing it costs the player is the thing the whole game has always cost them.</p>
+<p><strong>[amended 2026-09-27]</strong> — <strong>past the block, the lens draws on the monitor.</strong> The
+user, after playing four prototypes of the zoom from the garage to the stars
+(<code>docs/demos/garage-to-galaxy-2026-09-27</code>; the monitor was their own idea, and the one
+the prototypes call option A): <em>&quot;I like monitor style lets go further with that
+approach&quot;</em>. Desk, squad, floor, building and block stay the lit world. Above the block
+the picture redraws itself as a STUDIO_OS window, top to bottom like a CRT refresh, and park,
+globe and network are phosphor drawings in the live entropy hue (ART_DIRECTION §1.0b, added
+the same day). The world has not gone anywhere: a zoom into any block on the monitor lands
+back in the building and its people.</p>
+<p>It keeps the three non-negotiables rather than trading one away. The refresh is a wipe over
+one continuous zoom, not a cut. Every stop stays addressable, and now visibly: <strong>the
+monitor's title bar is the address</strong> — <code>NETWORK &gt; EARTH &gt; CITY &gt; HQ &gt;
+GARAGE</code>, the current stop lit and every stop a jump, which is the lift panel of the
+prototypes' option D moved into the one line a terminal would give it. And the eighth stop is
+drawn as a colony map (§7.7.1a), the stop the monitor was always going to draw best: a map is
+already an interface. The prototype let the lens reach the map at any headcount, so a studio
+of one could see its only system — written here that morning as a prototype's licence, and made
+the rule by the user the same day (the first non-negotiable above, amended).</p>
+<p><strong>[built 2026-09-27] — how every stop draws only what the studio has.</strong> The lock was two
+things in the code and both are gone. One was the ceiling on how far out the lens could go
+(<code>maxZoomFor</code>). The other was quieter: a level the studio had not filled collapsed onto the level
+below it — a block of one building <em>was</em> that building, a planet of one site that site, a network of
+one world that world — so at one developer the block, the park, the planet and the network were one
+scale and one picture of one tower, and there was nothing further out to reach even with the ceiling
+lifted. <strong>Every level above the building now frames its whole unit</strong>: the block all ten plots,
+the park all ten parcels, the whole planet, the whole neighbourhood. At every headcount, not only an
+unreached one, because the occupied frame of a few buildings is narrower than a one-building frame
+would have to be to be a stop at all, and a frame that switched at the second building would pull the
+camera <em>in</em> on the hire that built it. The pictures were already honest about the rest — bare ground
+under an unbuilt plot, a silkscreened pad for an unbuilt parcel, one light on a planet of one site, the
+next world ringed and waiting — and the frames now show them. While the studio fits the garage, the
+three.js garage is the lens below the block: zooming out past its widest frame hands the camera to the
+ladder on the block, and coming back in under the block hands it back with the address walked home, so
+pinching all the way in still lands on the founder and James (§7.7.4). A promotion's pull-back is keyed
+on the rung now, and never pulls a player in who is already further out. What the ladder above the garage
+<em>looks</em> like is still the 2026-08 Pixi ladder; the plan replaces it (<code>docs/PLAN-2026-09-27-garage-to-galaxy.md</code>,
+phases 3–6).</p>
 <h3 id="concept-art">7.6 Concept art</h3>
 <table>
 <thead>
@@ -3347,7 +3396,7 @@ piece of it. See §7.7.1a.</p>
 <p><strong>Rungs 0–2 are the same picture at three densities, and that is the point.</strong> This is where
 one sprite means one person, where the fiction is established, and where the entire Run 1
 script (§21) takes place. Nothing above rung 2 is allowed to make this stop being true.</p>
-<h4 id="a-the-galactic-network-the-ladder-stops-being-a-table-canon-added-2026-08-30">7.7.1a The galactic network — where the ladder stops being a table <strong>[CANON — added 2026-08-30]</strong></h4>
+<h4 id="a-the-galactic-network-the-ladder-stops-being-a-table-canon-added-2026-08-30">7.7.1a The colony network — where the ladder stops being a table <strong>[CANON — added 2026-08-30, amended 2026-09-27]</strong></h4>
 <p><strong>At a hundred million developers the planet is full, and that is geometry rather than a
 milestone.</strong> §7.4a's globe is cut into a hundred equal-area territories and each one holds a
 full park of a million, so the sphere is exactly tiled at 10⁸. There is no ninth continent to
@@ -3358,79 +3407,95 @@ this rung exists.</p>
 doubles: <strong>another planet, around another star, and then another.</strong> §7.7.1's rungs were a
 table with a last row. Rung 7 is a <em>function</em>, and a function does not run out.</p>
 <h5>What is on screen</h5>
+<p><strong>[amended 2026-09-27] — a colony map, not a star field.</strong> The user, over a prototype
+that drew the Milky Way at this rung: <em>&quot;the milky way is good but it's kind of unnecssary
+details for us at this point, we can make it a stellaris style colony network&quot;</em>. So the
+rung is drawn the way a strategy map draws an empire: star systems joined by lanes, the
+studio's territory as a shaded field inside one bright border, fog past the frontier, and
+developers streaming out along the lanes to the world being filled — on the monitor (§7.4a),
+in the four values of the live ramp. The bullets below were written for the star field and
+are amended in place. What each argued is kept in a line, because two of the arguments still
+hold and the rest are the record of why the field was tried.</p>
 <ul>
-<li><strong>A node is a star</strong> <strong>[amended 2026-08-30]</strong>. It was the planet — a lit sphere the
-size §7.4a's globe is drawn at — and in the hand sixteen of those read as a bowl of tennis
-balls: enormous against their own spacing, all skewed the same way by one screen-fixed
-crescent, and scanlined by §10.6's CRT pass. §7.4's <em>&quot;dev stars&quot;</em> was right and
-this is it: at four light-years, what you see of a world is its sun. A hard core, a soft
-halo, and a colour drawn from its index so the field is not sixteen identical dots.
-<strong>The footprint is unchanged</strong>, which is what keeps the §10.5 hand-off honest — the glow
-still reaches the radius the globe is drawn at, so the thing fading out and the thing fading
-in are the same size in the same place. A planet and a star are different objects trading
-places, which §10.5 allows; two sizes of one object is what it forbids.</li>
-<li><strong>What a hire moves is the glow, and only the glow.</strong> The core is the star, which was
-there before anybody arrived; the halo is the hundred million people now living under it.
-That is §7.7.2's promotion at a rung whose unit is a whole planet.</li>
-<li><strong>It is three-dimensional, and it is the only rung that is.</strong> Everything below is a 2:1
-isometric drawing from one fixed angle, and the globe turns about one axis because a sphere
-looks the same from everywhere. A star field does not: a network drawn flat is a diagram,
-and a network you can turn is a place with depth in it. <strong>A drag at this rung orbits the
-field</strong>, exactly as a drag at the globe spins the planet, and for a stronger reason.</li>
-<li><strong>The neighbourhood is a cloud, not a disc</strong> <strong>[amended 2026-08-30]</strong>. The first
-pass lifted each world twelve per cent of its radius off the plane — a galactic disc,
-exaggerated tenfold — and it read exactly as reported: sixteen stars on one plane, and a rung
-whose whole gesture is <em>you can turn this</em> with nothing to reveal by turning it. The
-error was applying the <em>galaxy's</em> shape at the <em>neighbourhood's</em> scale. The
-Milky Way's disc is around a thousand light-years thick and this frame is twenty across, so
-inside it the field is not flattened at all: the real local neighbourhood is isotropic, and
-Sol's nearest few dozen stars are scattered in every direction rather than laid on a table.
-Seven tenths of the radius is a roughly spherical cloud, flattening into a disc only past ten
-thousand worlds, where a disc starts to mean something.</li>
-<li><strong>And the perspective was thrown away with it.</strong> The eye sat three and a half frame
-radii out on an argument written about <em>planets</em> — every node is the same size, so the
-depth cue must be dimming rather than perspective. That is false of stars: a near star is
-bigger and brighter, and that is the only thing distance does to a point of light. The eye is
-at two radii now, and the drawn <em>size</em> exaggerates it further so the nearest star is
-about four times the furthest. The exaggeration is on the radius and never on the position —
-the projection stays honest, so the world under the camera still lands exactly on the origin
-and a tap still picks what it is aimed at.</li>
-<li><strong>The orbit is free in both axes</strong> <strong>[amended 2026-08-30]</strong>. It was stopped short of
-the poles on the argument that an edge-on disc is a line and going over the top reads as the
-control letting go; in the hand it read as the opposite — the field came to rest flat, the
-drag hit a wall, and a gesture that had been answering stopped. A direct-manipulation
-control may not do that. The globe below keeps <em>its</em> clamp for a reason that does not
-apply here: <code>frames.ts</code> needs a site's park at a known place, so the planet's orientation is
-load-bearing, while <code>intoGalaxy</code> carries no index and no angle and nothing below
-this rung cares which way the network is turned. For the same reason, naming a world no
-longer snaps the tilt back to the authored one — that would throw away a view the player set,
-for nothing.</li>
-<li><strong>Star positions are procedural and infinite.</strong> Position is a pure function of index —
-nothing is stored, no save carries a star map, and star four thousand can be asked for
-without asking for the four thousand before it. Radius goes as <span class="math">\(\sqrt{i}\)</span>, which is what
-a constant density of worlds means, so the field never thins out and never crowds.</li>
+<li><strong>A node is a glyph</strong> <strong>[amended 2026-09-27]</strong>. It was a star (2026-08-30):
+the lit planet before it read as a bowl of tennis balls, and at four light-years what you see
+of a world is its sun, so a hard core and a soft halo. On a colony map a system is a mark, and
+on the monitor a mark is pixel art at the monitor's own resolution: <strong>home</strong> is a
+bullseye, <strong>a colony</strong> a ring whose core brightens as the world fills, <strong>the
+frontier</strong> a dashed ring that blinks, <strong>a surveyed system</strong> a plus and <strong>an
+uncharted one</strong> a single dim pixel. §10.5's hand-off is kept by place rather than by size:
+the map fades in over the planet with the world's glyph exactly on its centre, the planet
+shrinks under its own mark, and a zoom into the mark lands back on the planet. A planet and a
+glyph are different objects trading places, which §10.5 allows.</li>
+<li><strong>What a hire moves is the core, the border and the lanes</strong> <strong>[amended
+2026-09-27]</strong>. The ring was there before anybody arrived; its core lights as the world
+fills, a new world pings once as it opens, and the border moves out to take it in. Every hire
+past Earth also sets out from Sol as a two-pixel packet on the lanes, along the path the
+empire grew by — §1's swarm of developers arriving, drawn at the one scale where a person is
+too small to draw. That is §7.7.2's promotion at a rung whose unit is a whole planet.</li>
+<li><strong>It is flat, and a drag pans it</strong> <strong>[amended 2026-09-27]</strong>. It was the one
+three-dimensional rung, on the argument that a network drawn flat is a diagram and a network
+you can turn is a place. The user chose the diagram, by name — a <em>&quot;stellaris style
+colony network&quot;</em>. A strategy map is read rather than turned: from above, home in the
+middle, with the border and the lanes telling the story that depth used to. And it was the
+turning that failed in the hand — <em>&quot;the galaxy level drag/spint too sensitive&quot;</em>
+(the user, 2026-09-27, of the prototype's Milky Way) — because a drag that spins a volume is a
+drag that throws the view away. <strong>On the map a drag moves the map under the
+finger.</strong> Between the globe and the map the camera swings over the pole, so the map
+always opens the same way up.</li>
+<li><strong>Distance from Sol is kept, and height is not</strong> <strong>[amended 2026-09-27]</strong>.
+The field was a cloud (2026-08-30), and it was right about the sky: inside a frame twenty
+light-years across the real neighbourhood is isotropic, not a disc. The flat map pays for
+itself with exactly that. A real star is placed at its true distance from Sol, in the
+direction its right ascension points, and its declination is dropped — the map is a drawing
+of a volume, the licence the isometric floor takes at 2:1.</li>
+<li><strong>And every glyph is one size</strong> <strong>[amended 2026-09-27]</strong>. The star field sized a
+star by its distance from the eye, because that is the only thing distance does to a point
+of light. Looking straight down on a plane every system is the same distance away, so a
+glyph's size says what it is and nothing else, and each is snapped to the monitor's pixel
+grid so a colony is the same seven-pixel ring wherever it is on screen.</li>
+<li><strong>There is no orbit</strong> <strong>[amended 2026-09-27]</strong>. It was freed in both axes on
+2026-08-30 because a clamp at the poles read as the control letting go — a direct-manipulation
+control may not stop answering — and that lesson is kept: the pan has no wall but the map's
+own edge. The right-drag turn still turns the map about the view, like a map on a table.</li>
+<li><strong>Real stars first, then procedural ones</strong> <strong>[amended 2026-09-27]</strong>. Positions
+were procedural from index, radius going as <span class="math">\(\sqrt{i}\)</span>. The named neighbours
+come first now — Proxima, Alpha Centauri, Barnard's Star, Wolf 359, Sirius, Tau Ceti and some
+sixty more out to eighty light-years, at their real distances — and past them the map is
+dart-thrown catalogue stars (HD, GJ, HIP, Ross, Wolf…), clustered, never nearer than 3.4
+light-years to a neighbour, so it has both crowds and voids to steer through. <strong>Lanes are
+a Gabriel graph</strong> thinned to a strategy map's sparseness: planar, never crossing, a few per
+system, everything reachable. It is still a pure function of the seed; nothing is stored and
+no save carries a star map. The rung must still not run out (§7.7.1: a function, not a
+table), which on a map means generating it in rings as the territory reaches them — the
+prototype builds 420 systems within 95 light-years and stops at a hundred worlds.</li>
 <li><strong>Sol is world 0 and Proxima Centauri is world 1</strong>, at the real 4.2465 light-years, because
-§21.8's whole scene names a star and states a distance.</li>
-<li><strong>The frame is a neighbourhood, not the galaxy.</strong> Sixteen worlds, always, however many
-the studio has settled. At 10<sup>18</sup> developers there are ten billion worlds and the
-nearest four hundred thousand are inside one pixel; a camera fitted to all of them is a fog
-with a dot in it, which is a picture of a number rather than a picture of a place.
-<strong>Travelling is done by entering a node</strong>, which recentres the neighbourhood — the same
-move descending into a site makes one rung down, and the same reason: a neighbourhood is
-only ever a neighbourhood of somewhere. What lies past the frame is drawn as haze, which is
-also the honest picture: a hundred settled worlds out of a hundred billion do not trace a
-structure.</li>
-<li><strong>And naming one is a journey, not a cut</strong> <strong>[amended 2026-08-30]</strong>. The address and
-the picture used to move in the same frame, so the whole field jumped to put the new star in
-the middle — and at this rung a cut is four light-years wide, which is the largest one in the
-game. The camera is now a <em>position</em> that eases to the named world while the lens eases
-inward, so the network slides past like something being crossed and comes to rest with the
-new sun exactly on the origin, which is what the §10.5 hand-off needs. Both neighbourhoods
-are drawn while it runs, and the worlds that drop out at the end are already faded to nothing
-at the frame's edge — §10.8's F1 says nothing pops in or out, and a list being trimmed is
-still a pop.</li>
+§21.8's whole scene names a star and states a distance. <strong>After that the order is the
+lanes'</strong> <strong>[amended 2026-09-27]</strong>: the next world is the nearest system along the lanes
+from anything settled (a shortest-path tree from Sol), so the empire grows outward along its
+own supply lines, and Proxima, the nearest, is still first.</li>
+<li><strong>The frame is the territory, not a neighbourhood</strong> <strong>[amended 2026-09-27]</strong>. It
+was sixteen worlds, always, recentred by entering one, on the argument that at 10<sup>18</sup>
+developers a camera fitted to ten billion worlds is a fog with a dot in it. A strategy map
+answers the near half of that differently: the lens frames the settled worlds and the
+frontier, and past the frontier the lanes run on as a faint web — fog of war rather than haze,
+so the map shows there is more without drawing it. <strong>Travelling is panning, or zooming
+into a system</strong>, which descends to that world (built the first time anybody looks, from
+its seed) and on down to a desk — the same move descending into a site makes one rung down.
+The far half of the argument still stands: at thousands of worlds the glyphs are below a pixel
+and the territory is the picture. The prototype stops at a hundred and does not answer it.</li>
+<li><strong>And naming one is a journey, not a cut</strong> <strong>[amended 2026-08-30, 2026-09-27]</strong>. At
+this rung a cut is light-years wide, the largest in the game, and the 2026-08-30 fix — a camera
+that eases across instead of a field that jumps — stands. On the map a tap on a system opens
+its card: its standing, its distance, how late its standup reaches HQ (§16.0a's light-lag), how
+full it is and who arrived last. Its ZOOM IN is the Powers of Ten flight the lens uses
+everywhere: up far enough to see both ends, across, and down, so the map slides past like
+something being crossed. §10.8's F1 still holds: nothing pops in or out.</li>
 <li><strong>The frontier is drawn and can be aimed at.</strong> The next unsettled world is ringed and
-unlit. §7.7.2's promotion is the <em>arrival</em>, so it is named without being coloured in.</li>
+unlit. §7.7.2's promotion is the <em>arrival</em>, so it is named without being coloured in.
+<strong>[amended 2026-09-27]</strong> Its ring is dashed and blinks, labelled NEXT, and it waits just
+outside the border: a system's territory reaches 3.4 light-years, short of Proxima's 4.24, so
+before the launch the next world is outside the empire rather than already in it.</li>
 </ul>
 <h5>What it cost, and the one place it is unlike the rungs below it</h5>
 <p>One division, one new top level, and no LOD threshold moved — the same bill the block, the
@@ -3443,6 +3508,12 @@ node cannot shrink — it has to be the planet, or the hand-off breaks — so th
 free variable, and it is drawn at three node-radii rather than the true ten-thousand.
 <strong>The projection is a drawing, not a measurement</strong>, which is the same licence the isometric
 floor takes at 2:1 and the disc thickness takes at ten times life.</p>
+<p><strong>[amended 2026-09-27]</strong> On the colony map the spacing is set by the zoom rather than by
+the node. A planet sits on its system's point, so the worlds share the map's space, and a
+light-year is drawn at about five planet radii — Proxima twenty-three radii out. That is far
+enough that the view as the map opens holds only home, and near enough that Proxima comes
+into frame a few wheel steps later; at the prototype's first spacing, two and a half times
+this, every one of those steps was empty map.</p>
 <h5>§7.7.5's scale bar stops at the world</h5>
 <p>§7.7.1's table still runs two rungs past the network — <em>a system</em> at 10¹⁰ and <em>a
 galaxy</em> at 10¹³ — because §13.6.1's hero reach ladder is <em>derived</em> from that table
@@ -3456,11 +3527,17 @@ picture whose units silently changed is a lie; a unit the picture does not conta
 louder one. So the bar and the cohort name <strong>what is on screen</strong>, and what is on
 screen is a world however many of them there are. This is a ceiling on the <em>noun</em> and
 not on the studio: the network does not saturate.</p>
+<p><strong>[amended 2026-09-27]</strong> On the map the words are <code>1 GLYPH = 1 WORLD = 100,000,000
+DESKS</code>, over a bar in light-years.</p>
 <h5>What it is not</h5>
 <p>Not a trading game, not a logistics layer, not a colony manager. See §7.4a's amendment and
 §16.0a: <strong>the scale is a visual effect and a place to navigate, and the only thing it costs
 the player is §4.1's inefficiency of too many people, measured in light-years instead of in
 heads.</strong></p>
+<p><strong>[amended 2026-09-27] Stellaris is the look, not the game.</strong> A system's card has two
+buttons, ZOOM IN and CLOSE. There is no freight, no routing, no governor and no building queue:
+a world fills because the studio hires, in the order the lanes give, and the only choice the
+map offers is where to look.</p>
 <h4 id="the-arrival-gag-slap-another-floor-on-it">7.7.2 The arrival gag — <em>slap another floor on it</em></h4>
 <p>Every rung change from 3 upward is a <strong>physical construction joke</strong>, and it is the single
 highest-value piece of animation in the game because the player will see it hundreds of
@@ -4109,6 +4186,11 @@ finger left it.</p>
 <p>Both are behind <code>DEBUG_TOOLS_ENABLED</code>, and free zoom especially: §7.7.1's rule is that
 the studio you can see is the studio you have, and a build that let a player past it would be telling
 them the world is a backdrop they are pointing at.</p>
+<p><strong>[amended 2026-09-27]</strong> The zoom ceiling is no longer one of the three things free zoom
+takes off, because play no longer has it: every stop is reachable at any headcount (§7.4a's first
+non-negotiable, amended, with the user's words). Free zoom keeps the other two — the magnetic settle
+and the inner stop — and the rule it protected is kept by what each stop draws rather than by a
+clamp on how far the lens may go.</p>
 <h6 id="the-doorway-is-inside-the-room">The doorway is a position in the room, not a plot on the floor <strong>[CANON - added 2026-09-03]</strong></h6>
 <p>§7.8.12 put the suite's doorway at floor plot <strong>0</strong>, absolutely, and that was correct
 for as long as the suite was never narrower than about four plots. §7.8.0c's garage cast is two:
@@ -4383,6 +4465,17 @@ without that a generator returning one face for everybody would satisfy the firs
 <p>And one assertion in the other direction, which the other three need: <strong>everybody does
 move.</strong> Without it the two plans could be the same plan and every claim above would still
 pass.</p>
+<p><strong>[amended 2026-09-27] — the leaders do not move out.</strong> The user opened the day with
+<em>&quot;stay with our hero in the garage where it progressively upgrades into HQ which serves as our
+origin&quot;</em> and closed it with <em>&quot;I want spaces in our current garage scene which is the head
+quarter for our heroes Serena and Matt and billy&quot;</em>. So the garage is the studio's HQ for the
+whole game: the founder, James and each hero as they arrive work there, in a space of their own
+(§7.8.12, amended). The three claims above still hold for the rank and file — their move happens
+once, manufactures nobody and cannot change a face — and the fourth assertion narrows to them:
+<strong>every ordinary developer moves; the leadership stays.</strong> Where the rank and file go at
+twenty-one is the next build's question (<code>docs/PLAN-2026-09-27-garage-to-galaxy.md</code>). The
+prototype drops a furnished storey across the lane — the user's own <em>&quot;dramatic drop a new office
+floor across the road&quot;</em> — and the garage stays in the middle of the street it started.</p>
 <h6 id="the-concrete-the-driveway-and-a-door-that-reads">The concrete, the driveway, and a door that reads</h6>
 <p><strong>The floor is poured in bays.</strong> The concept's garage floor is not one pour; it is
 slabs with joints between them, and the joints do more work than they look like they do. They are
@@ -4412,6 +4505,16 @@ an office is a lease, and a studio that outgrows one takes more of the building.
 not a lease.</strong> It is a building somebody already owns, it was the wrong size the day they
 moved in, and its walls do not move when you hire somebody. The canonical concept is one fixed
 room.</p>
+<p><strong>[amended 2026-09-27] — it grows by one space per hero, and never for a hire.</strong> The
+user: <em>&quot;I want spaces in our current garage scene which is the head quarter for our heroes
+Serena and Matt and billy&quot;</em>. The walls still do not move when somebody is hired, and every
+argument below about the pods filling a room too big for one person stands. They move when a
+<em>hero</em> arrives: Billy, Serena and Matt each get a space pushed out of the back wall behind
+the hero deck, the move §7.8.12 already makes on the floor — <em>the room cannot make space by
+shuffling anybody along, so it makes space by pushing the back wall out</em>. The back wall is a far
+wall on §12.1's camera, so a space added there adds depth the camera can see and hides no desk.
+A garage with three heroes is the same building with three bays built on, which is what
+<em>&quot;progressively upgrades into HQ&quot;</em> looks like when the building is a garage.</p>
 <p>So the garage's shell is its plan's rectangle at every headcount from one developer to twenty,
 and the growth the player sees is the <strong>pods filling</strong> while the camera pulls back.
 That is a stronger reading of the same beat rather than a weaker one: at one developer you are
@@ -7066,6 +7169,25 @@ occluded by the building like anything else, and above rung 3 it stops being dra
 §7.8.11's portrait plates take over, because a room is not visible from orbit and pretending
 otherwise is §7.7.7's &quot;menu with a picture behind it&quot;.</p>
 </blockquote>
+<h5 id="the-suite-in-the-three-js-garage-amended-2026-09-27">The suite in the three.js garage <strong>[amended 2026-09-27]</strong></h5>
+<p>The user: <em>&quot;I want spaces in our current garage scene which is the head quarter for our heroes
+Serena and Matt and billy&quot;</em>. This section's joke was always that the suite is the room the
+studio started in, and in the three.js garage that room is standing: the founder and James already
+sit on the raised hero deck along its back wall. <strong>The suite is that deck plus one space per
+hero</strong>, each pushed out of the back wall when its hero arrives (§7.8.1's garage, amended the same
+day), each holding the one prop §7.8.13's idle needs:</p>
+<ul>
+<li><strong>Billy</strong> — the board he stands at. The stand-up is his, so the huddle is in front of it.</li>
+<li><strong>Serena</strong> — a wall of dashboards she watches, drawn in the live phosphor, because what she
+watches is the studio's own uptime.</li>
+<li><strong>Matt</strong> — a ticket wall and a desk with a headset, the queue he answers made physical.</li>
+</ul>
+<p>Each gets a plate like the founder's and James's (§12.11). A space is built when its hero arrives
+and never before: an empty bay waiting for somebody would be a promise the story has not made. Mo
+and Melany have no space — the user named three, and the handoff records the rebuild's cut to five
+heroes and five trees as still to happen here. The exact bays are drawn and looked at before they
+are built (<code>docs/PLAN-2026-09-27-garage-to-galaxy.md</code>, phase 2): the garage's layout has been
+argued metre by metre, and 禁止穿模 is checked by looking.</p>
 <h4 id="a-hero-is-the-one-person-on-the-floor-who-never-changes-canon-added-2026-08-15-r51">7.8.13 A hero is the one person on the floor who never changes <strong>[CANON - added 2026-08-15]</strong> - R51</h4>
 <p><strong>&quot;Heroes should be extremely distinct from other developers on the main game&quot;</strong>, and §7.8.11
 answers it at rungs 3 and up with portrait plates. At the rung where it matters most — the
@@ -15627,6 +15749,10 @@ the beats still land in order for a player who asked for less movement.</p>
 rung 7 the moment the planet is full — <strong>the studio you can see is the studio you have</strong> —
 and the network fills in as the player hires past it. The scene is the <em>reason</em>, not the
 key. The first world after Sol is Proxima Centauri because that is where James went.</p>
+<p><strong>[amended 2026-09-27]</strong> There is no ceiling left to lift: the colony map has been
+reachable since the garage (§7.4a, amended), and a studio of one sees Proxima blinking outside its
+border the whole game. What the launch changes is the map rather than the lens — Proxima lights,
+its territory joins Sol's, and the next name blinks further out. The scene is still the reason.</p>
 <h2 id="hero-cards-collectables">22. Hero Cards &amp; Collectables</h2>
 <h3 id="the-system">22.1 The System</h3>
 <p><strong>Hero Cards are unique, named developers you collect and place on your org chart.</strong> Unlike
@@ -20276,6 +20402,18 @@ so a later refactor does not quietly reopen a rule the player has already been t
 <td><strong>PARTIAL</strong> <strong>[2026-08-30]</strong></td>
 <td>§7.7.1a's network is reachable and addressable, and §16.0a's light-lag term is live in the efficiency fold and on the HUD beside a logarithmic Planck-barrier readout; §21.8's launch plays once at the gate</td>
 <td>§16.1's Dimensional Collapse, §16.2's Multiverse Engine Mode and §13.4's Planck Cores. The relay reach is derived from <span class="math">\(D_{cap}\)</span> rather than purchased, which §16.0a states as the decision it is</td>
+</tr>
+<tr>
+<td>The monitor above the block, and the colony map</td>
+<td><strong>NOT BUILT</strong> <strong>[2026-09-27]</strong></td>
+<td>A playable prototype of §7.4a's monitor and §7.7.1a's colony map in <code>docs/demos/garage-to-galaxy-2026-09-27</code>, on the game's own garage, people and <code>developerAt</code>: lanes, territory, frontier, packets, system cards, the address bar, and descent into any colony world down to a desk</td>
+<td>All of it in <code>src/</code>, where the lens still ends at the 2026-08-30 star field (<code>render/galaxy.ts</code>, <code>sim/starfield.ts</code>). The lock is gone from the game [2026-09-27]: every level is reachable at any headcount (§7.4a's built note). The prototype stops at a hundred worlds and is untested on a phone. Its border — discs and lane bands — is approved as drawn (<em>&quot;Border outline is good&quot;</em>, 2026-09-27)</td>
+</tr>
+<tr>
+<td>The heroes' garage</td>
+<td><strong>NOT BUILT</strong> <strong>[2026-09-27]</strong></td>
+<td>The founder's and James's stations on the garage's hero deck (<code>three/sim/floorPlan.ts</code> <code>GARAGE_LEADERS</code>). Billy, Serena and Matt have stations only on the office floor (<code>OFFICE_LEADERS</code>), and the three.js garage is shown only up to twenty developers</td>
+<td>§7.8.12's space per hero in the garage, built as each arrives, and a garage that stays on screen as the HQ past twenty. Concept first, then build: <code>docs/PLAN-2026-09-27-garage-to-galaxy.md</code> phases 2 and 3</td>
 </tr>
 <tr>
 <td>Generated-person history</td>

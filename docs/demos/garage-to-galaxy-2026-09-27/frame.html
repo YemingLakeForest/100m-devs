@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Garage to Galaxy (test frame)</title>
+  <style>html, body { margin: 0; background: #000; }</style>
+</head>
+<body>
+  <!-- Testing only: the demo at a fixed device size, same origin so a console can reach it. -->
+  <iframe id="g" style="border: 0; display: block"></iframe>
+  <script>
+    const q = new URLSearchParams(location.search)
+    const f = document.getElementById('g')
+    f.style.width = (q.get('w') || 1500) + 'px'
+    f.style.height = (q.get('h') || 844) + 'px'
+    f.src = 'play.html?' + (q.get('q') || 'o=monitor')
+  </script>
+</body>
+</html>

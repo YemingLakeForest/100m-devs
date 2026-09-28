@@ -76,6 +76,32 @@ If the split ever reads as two products rather than two planes, the cheap fix is
 scanline and vignette overlay on the HUD layer, approximating the grade without a shader.
 That is a polish item, not a prerequisite.
 
+### 1.0b Past the block, the interface draws the world — **added 2026-09-27**
+
+§1 separates the registers hard, and up close that stands. Past the block it no longer does,
+and on purpose: the user chose the monitor for the zoom from the city up (GDD §7.4a, amended
+2026-09-27: *"I like monitor style lets go further with that approach"*). Above the block
+the world is redrawn *as* the interface — flat, one hue at a time, four values, hard pixel
+edges — inside a STUDIO_OS window, and the colony map above the planet (GDD §7.7.1a) is
+interface through and through. It is also the thesis, drawn: the bigger the studio, the more
+its founder sees people as a dashboard.
+
+The rule it keeps is the one that mattered: **nothing is blended.** At any moment a thing on
+screen is one register or the other, and the hand-off is a CRT refresh wiping top to bottom,
+not a crossfade that would be neither. Three consequences:
+
+- The monitor renders at a third of the screen's resolution and is sampled nearest. Its
+  marks are pixel art at that resolution, snapped to its grid: a glyph is never smoothed,
+  and a colony is the same seven-pixel ring wherever it is.
+- The phosphor is the live Entropy ramp (§1.1), so the map is calm cyan while the studio is
+  small and red by the time it spans a hundred worlds. Value 3 blooms to white on the glass,
+  so a map's borders use value 2, and value 3 is kept for the marks that must read first: the
+  glyphs themselves, and developers in transit.
+- Overlapping marks are laid over, never added. Two glyphs a pixel apart (Proxima and Alpha
+  Centauri are 0.2 light-years) summed to white and bloomed.
+
+A prototype of all of this is in `docs/demos/garage-to-galaxy-2026-09-27/` (option A).
+
 ### 1.1 The interface is alive, and Entropy drives it
 
 This is the part that will read as "a different level," and it costs shader time rather
