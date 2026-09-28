@@ -9,7 +9,7 @@
  */
 
 import { Application, Container, Sprite, Texture } from 'pixi.js'
-import { createGarageView } from '../three/render/garageView.ts'
+import { createGarageView, GARAGE_ZOOM_MIN } from '../three/render/garageView.ts'
 import { founderLook, readStudioName } from '../game/founderProfile.ts'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
@@ -93,7 +93,7 @@ import { buildGalaxy } from './galaxy.ts'
 import { SITES_PER_GLOBE } from './worldMap.ts'
 import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
 import { buildScene } from './scene.ts'
-import { maxZoomFor, rungFor, zoomCeilingLifted } from '../sim/headcount.ts'
+import { rungFor } from '../sim/headcount.ts'
 import { devsOnWorld, worldsFor } from '../sim/starfield.ts'
 import { branchColour } from '../sim/heroBranches.ts'
 import { createCollapse } from './collapse.ts'
@@ -433,6 +433,50 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const GARAGE_3D_DEVS = 20
   /** Whether the 3D garage is the room on screen this frame. */
   let showing3d = false
+  /*
+   * [2026-09-27] **The garage is the bottom of the lens, not a mode of it.**
+   *
+   * GDD §7.4a's first non-negotiable is amended — *"no we don't keep the lock
+   * and we should be able to zoom and down before 100m"* (the user) — so a
+   * studio of one has the whole ladder above its garage. While the studio fits
+   * the garage, the 3D room owns every level below the block (desk, squad,
+   * floor, and the building, which for a garage is the garage on its lot), and
+   * the Pixi ladder owns the block and everything above it. The hinge is at the
+   * block in both directions:
+   *
+   *  - zooming out past the 3D camera's widest frame hands the lens to the
+   *    ladder, parked on the block (`leaveGarage`);
+   *  - the ladder's camera coming in under the block — a pinch, a wheel, or a
+   *    flight to anything closer — hands it back (`enterGarage`), which walks
+   *    the address home, because §7.7.4's pinch-all-the-way-in lands on the
+   *    floor with the founder and James on it and in the garage era that floor
+   *    is the garage.
+   *
+   * The block and not the building, because the ladder's building level holds
+   * the tower's pulled-out plan, and the plan of a garage-era studio is the old
+   * Pixi garage — a second picture of the room the player has just left.
+   *
+   * The swap is a short cross-fade in time, not in zoom: the two pictures are
+   * different objects (a lit 3D street and the ladder's block), which §10.5
+   * allows. `docs/PLAN-2026-09-27-garage-to-galaxy.md` phases 3 and 5 replace
+   * the ladder above the garage with the three.js city, where the garage stays
+   * the garage all the way out.
+   */
+  let inGarage3d = true
+  /** How far into the block a camera must come before the garage takes it back, in levels. */
+  const GARAGE_HINGE = 0.1
+  /** The garage sprite's alpha over the ladder — the swap, eased. */
+  let garageFade = 1
+  /** How long the swap takes, in seconds. */
+  const GARAGE_FADE_S = 0.28
+  /**
+   * The ladder's camera is waiting at the hinge for the garage to finish fading
+   * in over it. What shows through the fade has to be the block the player just
+   * left: parked on the floor straight away, the ladder drew the old Pixi garage
+   * under the new one for the length of the fade — two pictures of one room,
+   * which is the thing the hinge is at the block to avoid.
+   */
+  let parkUnderGarage = false
   /**
    * PROOF — who is under client point (x, y) in the 3D garage: a seat, -1 for
    * the founder, null for nobody; `undefined` when the Pixi room is the one
@@ -1093,6 +1137,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let savedSceneCamera: { level: Level } | null = null
 
   const focusFounderCamera = () => {
+    // In the 3D garage the founder is already in the picture and the hidden
+    // ladder has nowhere to go; from up the ladder this is the dive home, and
+    // the garage takes the camera as it passes the block.
+    if (lensIsGarage()) return
     founderFocus = true
     focal = null
     camera.flyTo(DESK, room.founderDeskAt())
@@ -1120,7 +1168,78 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     selectedBuilding = -1
     selectedBlock = -1
     setFocus(0)
-    camera.flyToRect(SUITE_LEVEL, suiteFrame())
+    // In the 3D garage the suite is the hero deck already in the picture; from
+    // up the ladder this is the dive home (see `inGarage3d`).
+    if (!lensIsGarage()) camera.flyToRect(SUITE_LEVEL, suiteFrame())
+  }
+
+  /** Is the studio still in the garage, and is there a 3D garage to be in? */
+  const garageEra = () => garage3d !== null && getState().devs <= GARAGE_3D_DEVS
+  /**
+   * Is the 3D garage the picture right now? While it is, the ladder's camera is
+   * hidden and nothing flies it — a scene, a speaker and the rail's CODE all
+   * move the 3D camera instead — so it cannot wander into the Pixi room.
+   */
+  const lensIsGarage = () => inGarage3d && garageEra()
+
+  /**
+   * The ladder's camera has come in under the block: the 3D garage takes it.
+   * See `inGarage3d` for the hinge.
+   *
+   * The address walks home first, `focusTeamCamera`'s walk: a camera that named
+   * another world on the way down and then pinched all the way in would
+   * otherwise land in the garage with the address still on that world's empty
+   * block, and §7.7.4 says the bottom of the lens is the floor with the founder
+   * and James on it. The ladder's own camera is held just inside the hinge
+   * while the garage fades in over it, and parked on the floor once it has
+   * (`parkUnderGarage`) — the room, which is the frame the office opens on at
+   * the twenty-first hire.
+   */
+  const enterGarage = () => {
+    if (!garageEra()) return
+    inGarage3d = true
+    showing3d = true
+    selectedStorey = -1
+    selectedBuilding = -1
+    selectedBlock = -1
+    selectedSite = -1
+    selectedWorld = -1
+    setFocus(0)
+    camera.set((BLOCK - 2 * GARAGE_HINGE) / 9)
+    parkUnderGarage = true
+    // Arriving from above, the garage opens at its widest: the frame the
+    // player last saw of it on the way out.
+    garage3d?.setLens(GARAGE_ZOOM_MIN)
+  }
+
+  /** The 3D camera has been zoomed out past its widest frame: the ladder takes it, on the block. */
+  const leaveGarage = () => {
+    inGarage3d = false
+    showing3d = false
+    parkUnderGarage = false
+    camera.reframe(BLOCK, true)
+  }
+
+  /**
+   * §10.7a.1 — a scene has started: remember where the player was, and take the
+   * camera into the room. See the frame loop for why it is a level and not a Z.
+   *
+   * Idempotent, and called from both ends, because the order is not ours: the
+   * dialogue names its first speaker as soon as it renders, which can be before
+   * the frame loop has seen the scene at all. A garage-era studio zoomed out up
+   * the ladder is brought home here, and it has to be *after* the level is
+   * saved, or the scene would end by flying the player back to the hinge rather
+   * than to the network they were looking at.
+   */
+  const beginSceneCamera = () => {
+    if (savedSceneCamera !== null) return
+    // In the garage the hidden ladder's level means nothing (it may be half
+    // way through parking under the fade), and "where the player was" is the
+    // garage: the floor.
+    savedSceneCamera = { level: lensIsGarage() ? FLOOR : settleLevel(camera.level) }
+    if (!inGarage3d) enterGarage()
+    // In the garage the 3D camera plays the scene and the ladder's is left.
+    if (!lensIsGarage()) camera.flyTo(DESK)
   }
 
   /**
@@ -1129,6 +1248,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * turns them to face the lens for the duration of their line.
    */
   const focusDialogue = (focus: 'founder' | number | null) => {
+    // A scene plays in the room, so a studio zoomed out up the ladder is
+    // brought home before the first line rather than dived there under it.
+    if (getState().scene) beginSceneCamera()
     // Over the 3D room the lens goes to the speaker; STUDIO_OS has no body, so
     // the camera holds where it is for its lines (the rule the note below keeps).
     // A hero the garage does not hold (Mo, Serena …) leaves the lens alone.
@@ -1152,8 +1274,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     room.setSpeaker(-1)
     // A scene always plays at Desk zoom, so every line that names somebody
     // re-asserts it — and a line with nobody (STUDIO_OS) holds it rather than
-    // cutting away.
-    if (focus !== null) {
+    // cutting away. Over the 3D garage that is the 3D camera's job, above.
+    if (focus !== null && !lensIsGarage()) {
       const at = hero
         ? room.teamDeskAt(hero) ?? room.deskFor(localSeat(focus as number))
         : room.founderDeskAt()
@@ -1657,11 +1779,26 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if (!(ratio > 0) || !Number.isFinite(ratio)) return
     if (showing3d && garage3d && focal) {
       if (!pinch3d || pinch3d.distance !== pinchStart.distance) pinch3d = { distance: pinchStart.distance, zoom: garage3d.zoom }
+      const zoom = pinch3d.zoom * ratio
+      // Pinched out past the garage's widest frame: the ladder takes the
+      // camera at the block, and the same two fingers carry on out from there.
+      if (zoom < GARAGE_ZOOM_MIN * 0.92) {
+        leaveGarage()
+        pinch3d = null
+        pinchStart = { distance, scale: camera.scale }
+        return
+      }
       const at = toCanvas3d(focal.x, focal.y)
-      garage3d.zoomTo(pinch3d.zoom * ratio, at.x, at.y)
+      garage3d.zoomTo(zoom, at.x, at.y)
       return
     }
     camera.zoomBy((pinchStart.scale * ratio) / camera.scale, focal, now)
+    // Pinched in under the block while the studio is a garage: the garage takes
+    // it back, and the pinch carries on in the room.
+    if (garageEra() && camera.level < BLOCK - GARAGE_HINGE) {
+      enterGarage()
+      pinchStart = { distance, scale: camera.scale }
+    }
   }
 
   const onPointerUp = (ev: PointerEvent) => {
@@ -1688,17 +1825,24 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     ev.preventDefault()
     founderFocus = false
     focal = { x: ev.clientX, y: ev.clientY }
+    // Exponential in the delta, so one notch is one constant *proportion* of
+    // the scale wherever the camera happens to be.
+    const factor = Math.exp(-ev.deltaY * 0.0016)
     // Over the 3D room the wheel is the 3D camera's, anchored at the pointer and
-    // never pulled back — "the zoom should not resist me" (2026-09-26).
+    // never pulled back — "the zoom should not resist me" (2026-09-26) — until
+    // it is at the garage's widest, where the next notch out goes up the ladder.
     if (showing3d && garage3d) {
+      if (factor < 1 && garage3d.zoom <= GARAGE_ZOOM_MIN * 1.001) {
+        leaveGarage()
+        return
+      }
       const at = toCanvas3d(ev.clientX, ev.clientY)
-      garage3d.zoomAt(Math.exp(-ev.deltaY * 0.0016), at.x, at.y)
+      garage3d.zoomAt(factor, at.x, at.y)
       return
     }
-    // Exponential in the delta, so one notch is one constant *proportion* of
-    // the scale wherever the camera happens to be. The magnetic stop then
-    // catches whatever the last notch left behind.
-    camera.zoomBy(Math.exp(-ev.deltaY * 0.0016), focal, ev.timeStamp || performance.now())
+    // The magnetic stop catches whatever the last notch left behind.
+    camera.zoomBy(factor, focal, ev.timeStamp || performance.now())
+    if (garageEra() && camera.level < BLOCK - GARAGE_HINGE) enterGarage()
   }
   app.canvas.addEventListener('wheel', onWheel, { passive: false })
 
@@ -1766,14 +1910,47 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     // The three.js garage, while the studio is a garage: it follows the store's
     // headcount and James, and the Pixi world (and its numerals, which were
-    // placed on the Pixi room) stands in everywhere else.
-    showing3d = garage3d !== null && state.devs <= GARAGE_3D_DEVS
-    world.visible = !showing3d
+    // placed on the Pixi room) stands in everywhere else — above the block, and
+    // past twenty developers.
+    //
+    // The hinge, held from the ladder's side (see `inGarage3d`). The wheel and
+    // the pinch cross it themselves; this catches everything else that moves
+    // the ladder's camera across the block. Sent out past it — `?z`, the end
+    // of a scene flying the player back to where they were — the ladder shows,
+    // and the flight carries on in it. Sent in under it — the rail's CODE,
+    // TEAM — the garage takes the camera and the address walks home.
+    const era = garage3d !== null && state.devs <= GARAGE_3D_DEVS
+    // Not while a scene is up: a scene plays in the room, and the only thing
+    // that may take the camera out of it mid-scene is the player's own hand.
+    if (era && inGarage3d && !state.scene && camera.level >= BLOCK - GARAGE_HINGE) {
+      inGarage3d = false
+    } else if (era && !inGarage3d && camera.level < BLOCK - GARAGE_HINGE) {
+      enterGarage()
+    }
+    showing3d = era && inGarage3d
+    // The swap, eased. Past twenty it is not eased: that swap is the studio
+    // moving out, and it happens on a hire rather than under the player's hand.
+    garageFade = era
+      ? Math.max(0, Math.min(1, garageFade + (showing3d ? dt : -dt) / GARAGE_FADE_S))
+      : 0
+    world.visible = garageFade < 1
+    // The garage is opaque: the hidden ladder can go to the floor now.
+    if (showing3d && parkUnderGarage && garageFade >= 1) {
+      parkUnderGarage = false
+      camera.reframe(FLOOR, true)
+    }
     // A poke's numeral is placed where the tap or the founder is, so it is right
     // over either room; the passive tallies are laid out on the Pixi room's seats.
     tallies.container.visible = !showing3d
-    if (garageSprite) garageSprite.visible = showing3d
-    if (showing3d && garage3d && garageTexture && garageSprite) {
+    if (garageSprite) {
+      garageSprite.visible = garageFade > 0
+      garageSprite.alpha = garageFade
+    }
+    // Drawn while it is visible at all, not only while it owns the lens: the
+    // room fading out over the ladder is still a live room, and a garage that
+    // was never drawn — a save opened straight onto the ladder — compiles its
+    // shaders here rather than on the frame the player comes home.
+    if (garageFade > 0 && garage3d && garageTexture && garageSprite) {
       if (app.screen.width !== garageW || app.screen.height !== garageH) {
         garageW = app.screen.width; garageH = app.screen.height
         garage3d.resize(garageW, garageH)
@@ -1821,12 +1998,17 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
        * enforced from out here by re-cutting the camera every frame, which
        * quietly put it back on a stop — a defect held down by another defect.
        * A level restores through `flyTo`, which is a stop, an ease rather than
-       * a cut (§10.5), and subject to the ceiling like every other flight.
+       * a cut (§10.5). (It was also subject to §7.7.1's ceiling like every
+       * other flight, until the ceiling went on 2026-09-27.)
+       *
+       * `beginSceneCamera` does it, because the dialogue can get there first.
        */
-      savedSceneCamera = { level: settleLevel(camera.level) }
-      camera.flyTo(DESK)
+      beginSceneCamera()
     } else if (!state.scene && savedSceneCamera !== null) {
-      camera.flyTo(savedSceneCamera.level)
+      if (!lensIsGarage() || savedSceneCamera.level >= BLOCK) {
+        parkUnderGarage = false
+        camera.flyTo(savedSceneCamera.level)
+      }
       savedSceneCamera = null
       room.setSpeaker(-1)
       room.setTeamSpeaker(null)
@@ -1901,15 +2083,29 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // §20.7.2 — a rung promotion gets a stinger. One-shot, in key, landing
       // on the beat; the mix underneath it never changes.
       if (!first && state.spawn.promotedTo !== null) void music.playStinger('sting-promotion')
-      if (!first && zoomCeilingLifted(devsBefore, state.devs)) {
-        // A hire that buys a whole new register of the lens is a reveal, not a
-        // hire. Pull back to the level the headcount has just earned.
-        // Capped at the top of the ladder, not at the building: the ten
-        // thousandth hire is the one that buys the block, and a reveal that
-        // stopped at the tower would pull back to the thing the player has
-        // just outgrown.
-        camera.flyTo(settleLevel(Math.min(TOP_LEVEL, maxZoomFor(state.devs) * 9)))
-        playSfx('zoom-out')
+      /*
+       * A hire that promotes the studio to a new unit is a reveal, not a hire:
+       * pull back to the level that frames the unit it has just become. Capped
+       * at the top of the ladder, not at the building: the ten-thousand-and-
+       * first hire is the one that buys the block, and a reveal that stopped
+       * at the tower would pull back to the thing the player has just outgrown.
+       *
+       * [2026-09-27] **Keyed on the rung, and never a pull *in*.** This fired
+       * when §7.7.1's zoom ceiling lifted, and there is no ceiling now (GDD
+       * §7.4a, amended), so the beat is the promotion itself — the rung the
+       * store reports, on the levels the ceiling used to open (rung 1 shares
+       * the room with rung 0, so the twenty-first hire is not one). A player
+       * already further out than the new unit is already looking at it, and
+       * flying them in to it would be the camera taking the view away.
+       */
+      const promoted = state.spawn.promotedTo
+      if (!first && promoted !== null) {
+        const revealAt = (rung: number): Level => settleLevel(Math.max(SQUAD, Math.min(TOP_LEVEL, rung)))
+        const to = revealAt(promoted.rung)
+        if (to > revealAt(rungFor(devsBefore).rung) && settleLevel(camera.level) < to) {
+          camera.flyTo(to)
+          playSfx('zoom-out')
+        }
       }
     }
     devsBefore = state.devs
@@ -1980,20 +2176,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // constant.
     camera.setFloorRect(room.shellRect)
     /*
-     * GDD §7.7.1 — the studio you can see is the studio you have. Told to the
-     * camera rather than done to it, and that is the fix: this used to be
-     * `if (camera.z > ceiling) camera.set(ceiling)` every frame, which is an
-     * opinion about the camera's Z held by something that cannot see the ladder
-     * the Z comes from. On a new game the rungs crossed, the assertion stopped
-     * satisfying itself, and it re-cut the camera every frame for as long as
-     * the game was open — no wheel, pinch or drag survived to the next frame.
-     * The lens holds it as a bound now; see `Lens.setCeiling`.
+     * GDD §7.7.1's zoom ceiling was told to the camera here every frame, as
+     * `camera.setCeiling(maxZoomFor(state.devs) * 9)`, until 2026-09-27: the
+     * studio you can see is the studio you have. §7.4a is amended (*"no we
+     * don't keep the lock"*, the user), so the lens reaches every level at any
+     * headcount and it is `frames.ts` that makes each level draw only what the
+     * studio has.
      */
-    camera.setCeiling(maxZoomFor(state.devs) * 9)
-    // §7.2 — and whether that ceiling, the settle and the inner stop apply at
-    // all. Told every frame rather than subscribed to, for the reason the
-    // ceiling above is: one statement of the camera's rules per frame, in the
-    // one place that already makes all the others.
+    // §7.2 — whether the settle and the inner stop apply. Told every frame
+    // rather than subscribed to: one statement of the camera's rules per
+    // frame, in the one place that already makes all the others.
     camera.setFreeZoom(getViewModes().freeZoom)
     camera.update(dt, now)
 
@@ -2427,7 +2619,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         // "the camera is between two levels" and "the camera is on one".
         level: +currentLevel.toFixed(2),
         at: LEVEL_NAMES[settleLevel(currentLevel)],
-        ceilingRung: rungFor(state.devs).rung,
+        // The studio's own rung. `ceilingRung` until 2026-09-27, when it was
+        // also how far out the lens could go; there is no ceiling now.
+        rung: rungFor(state.devs).rung,
+        // Whether the 3D garage is the room on screen, or the ladder above it,
+        // and how far through the swap between them the picture is.
+        garage3d: showing3d,
+        garage3dAlpha: +garageFade.toFixed(2),
         // §26.2.2 — the address. Which part of the studio the lens is over, and
         // which thousand people the room is a picture of.
         focusSeat,
@@ -2596,6 +2794,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     cueJames() {
       if (jamesCued) return
       jamesCued = true
+      if (getState().scene) beginSceneCamera()
       if (showing3d && garage3d) {
         garage3d.focus(JAMES_3D_SEAT)
         sceneFocus3d = true

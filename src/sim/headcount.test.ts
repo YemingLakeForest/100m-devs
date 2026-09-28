@@ -1,19 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { zAtRung } from './ladder.ts'
 import {
   MAX_BURST,
   MIN_BURST,
   SPRITE_BUDGET,
   cohortSize,
   formatCount,
+  framingRungFor,
   isLiteral,
-  maxZoomFor,
   rungCrossed,
   rungFor,
   scaleBar,
   spawnBurst,
   visibleSprites,
-  zoomCeilingLifted,
 } from './headcount.ts'
 
 describe('spawnBurst — §7.7.3, the requirement that hiring stays visible', () => {
@@ -193,6 +191,39 @@ describe('the Construction Ladder — §7.7.1', () => {
     // Act V liquidates 1,000 developers. That is not a promotion.
     expect(rungCrossed(1e6, 2)).toBeNull()
   })
+
+  it('reports every rung boundary, which is what the lens reveal is keyed on now', () => {
+    // [2026-09-27] The pull-back on a promotion was keyed on the zoom ceiling
+    // lifting, and the ceiling is gone (GDD §7.4a, amended). §7.8.0's inclusive
+    // boundaries still hold: the rung changes on the developer *after* the one
+    // who completed the unit, the first hire with nowhere in it to sit.
+    for (const [full, next] of [
+      [20, 21],
+      [100, 101],
+      [1e3, 1e3 + 1],
+      [1e4, 1e4 + 1],
+    ]) {
+      expect(rungCrossed(full - 1, full)).toBeNull()
+      expect(rungCrossed(full, next)).not.toBeNull()
+    }
+  })
+
+  it('frames a studio that exactly fills a unit as that unit, not as the corner of the next', () => {
+    // [2026-09-28] Above the building the rung bounds are round and exclusive,
+    // so a hundred thousand is already "a business park" — right for the
+    // promotion, and a park with one block in its corner for a camera asked to
+    // show the studio. The framing rung is the rung with every bound inclusive.
+    for (const full of [1e5, 1e6, 1e8, 1e10]) {
+      expect(framingRungFor(full).rung).toBe(rungFor(full - 1).rung)
+      expect(framingRungFor(full + 1).rung).toBe(rungFor(full + 1).rung)
+      expect(framingRungFor(full + 1).rung).toBeGreaterThan(framingRungFor(full).rung)
+    }
+    // Below the building the bounds were inclusive already, and stay put: the
+    // ten-thousand-and-first developer is in a second tower.
+    for (const devs of [1, 20, 21, 100, 101, 1e3, 1e4, 1e4 + 1, 5e4]) {
+      expect(framingRungFor(devs)).toBe(rungFor(devs))
+    }
+  })
 })
 
 describe('formatCount', () => {
@@ -207,67 +238,12 @@ describe('formatCount', () => {
   })
 })
 
-describe('maxZoomFor — §7.7.1, the studio you can see is the studio you have', () => {
-  it('will not let two developers see a galaxy', () => {
-    // The complaint that produced this: the lens could reach cosmic zoom over
-    // an empty world, which tells the player the game is a backdrop they point
-    // at rather than a place they fill.
-    expect(maxZoomFor(1)).toBe(zAtRung(1))
-    expect(maxZoomFor(2)).toBe(zAtRung(1))
-    expect(maxZoomFor(99)).toBe(zAtRung(1))
-  })
-
-  it('stops the camera exactly one rung above nothing, never four — §7.4a', () => {
-    // The whole of R8 in one assertion. The ceiling is the *player's own rung*,
-    // so a studio of three thousand may look at its tower and no further; the
-    // old four-band ceiling let it reach "the global grid", three rungs past
-    // anything it had built, while never showing it the tower it had.
-    for (const devs of [1, 40, 400, 4_000, 40_000, 4e5, 4e6, 4e8, 4e10, 4e13]) {
-      expect(maxZoomFor(devs)).toBe(zAtRung(Math.max(1, rungFor(devs).rung)))
-    }
-  })
-
-  it('opens one rung per rung earned, and each lift is a promotion', () => {
-    // Every rung boundary in §7.7.1's table lifts the ceiling by exactly one
-    // step, which is what makes `zoomCeilingLifted` a reveal beat rather than
-    // an occasional one.
-    // §7.8.0's inclusive boundaries: the ceiling lifts on the developer
-    // *after* the one who completed the room, which is the hire that first has
-    // nowhere in it to sit.
-    expect(maxZoomFor(20)).toBe(zAtRung(1))
-    expect(maxZoomFor(21)).toBe(zAtRung(1))
-    expect(maxZoomFor(1e2)).toBe(zAtRung(1))
-    expect(maxZoomFor(1e2 + 1)).toBe(zAtRung(2))
-    expect(maxZoomFor(1e3)).toBe(zAtRung(2))
-    expect(maxZoomFor(1e4)).toBe(zAtRung(3))
-    expect(maxZoomFor(1e4 + 1)).toBe(zAtRung(4))
-    expect(maxZoomFor(1e5)).toBe(zAtRung(5))
-    expect(maxZoomFor(1e6)).toBe(zAtRung(6))
-    expect(maxZoomFor(1e8)).toBe(zAtRung(7))
-    expect(maxZoomFor(1e10)).toBe(zAtRung(8))
-    expect(maxZoomFor(1e13)).toBe(1)
-    expect(maxZoomFor(1e15)).toBe(1)
-  })
-
-  it('never rises as the studio shrinks, and never exceeds the ladder', () => {
-    let previous = 0
-    for (const devs of [1, 10, 1e2, 1e3, 1e4, 1e6, 1e7, 1e12]) {
-      const z = maxZoomFor(devs)
-      expect(z).toBeGreaterThanOrEqual(previous)
-      expect(z).toBeLessThanOrEqual(1)
-      previous = z
-    }
-  })
-
-  it('reports the lift, because gaining a register is a scored beat', () => {
-    expect(zoomCeilingLifted(100, 101)).toBe(true)
-    expect(zoomCeilingLifted(101, 500)).toBe(false)
-    // Act V liquidates the studio. Losing the register is not a beat.
-    expect(zoomCeilingLifted(1e6, 2)).toBe(false)
-  })
-
-  it('always allows pinching all the way in — §7.7.4 is absolute', () => {
-    // Whatever the ceiling, the floor is 0: James is always reachable.
-    for (const devs of [1, 1e3, 1e12]) expect(maxZoomFor(devs)).toBeGreaterThan(0)
-  })
-})
+/*
+ * "maxZoomFor — §7.7.1, the studio you can see is the studio you have" stood
+ * here until 2026-09-27: six tests that two developers could not see a galaxy,
+ * that the ceiling was the studio's own rung and lifted one rung per rung
+ * earned. The user amended §7.4a (*"no we don't keep the lock and we should be
+ * able to zoom and down before 100m"*) and the function went. What replaced
+ * the claim — every level reachable at any headcount, drawing only what the
+ * studio has, and James one pinch away — is pinned in `render/lens.test.ts`.
+ */

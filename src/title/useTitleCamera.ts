@@ -8,32 +8,32 @@
  * fake the drift and the push-in becomes a hand-off between two cameras, which
  * is a cut wearing a dolly's clothes.
  *
- * The Z band is bounded by the game's own ceiling. `maxZoomFor(1)` is rung 1 —
- * the room — and the stage ticker re-clamps to it every frame, so a drift that
- * reached past it would be silently flattened into a still frame at exactly the
- * moment §10.9.4 forbids one. That is not hypothetical: the band used to be
- * centred on 0.15 against a ceiling of 0.2, and §7.4a's ladder moved the
- * ceiling to 1/9 ≈ 0.111 underneath it. The numbers below are derived from
- * `maxZoomFor(1)` rather than written down, so the next time the ladder moves
- * this file moves with it instead of quietly going still.
+ * The Z band is authored against the room's own rung, the squad's Z, because
+ * the room is what the title is a picture of. It used to be bounded by the
+ * game's zoom ceiling, `maxZoomFor(1)` — the same number — and the stage ticker
+ * re-clamped to it every frame, so a drift that reached past it was silently
+ * flattened into a still frame at exactly the moment §10.9.4 forbids one. The
+ * ceiling went on 2026-09-27 (GDD §7.4a, amended) and the band did not move:
+ * the numbers below are still derived rather than written down, so the next
+ * time the ladder moves this file moves with it instead of quietly going still.
  */
 
 import { useEffect, useRef } from 'react'
 import type { StageHandle } from '../render/stage.ts'
-import { FLOOR } from '../render/frames.ts'
-import { maxZoomFor } from '../sim/headcount.ts'
+import { FLOOR, SQUAD } from '../render/frames.ts'
+import { zAtRung } from '../sim/ladder.ts'
 
-/** The furthest out the lens may go over a one-developer studio — §7.7.1. */
-const CEILING = maxZoomFor(1)
-/** Centre of the drift, and its swing. Both a fraction of the ceiling, so the
+/** The room's rung — the squad — as §7.2's Z. */
+const ROOM_Z = zAtRung(SQUAD)
+/** Centre of the drift, and its swing. Both a fraction of the room's Z, so the
  *  whole band stays comfortably inside it however the ladder is retuned. */
-const DRIFT_Z = CEILING * 0.68
-const DRIFT_AMPLITUDE = CEILING * 0.26
+const DRIFT_Z = ROOM_Z * 0.68
+const DRIFT_AMPLITUDE = ROOM_Z * 0.26
 /** Radians/sec. ~28 s per cycle — movement you notice only if you look for it. */
 const DRIFT_RATE = 0.22
 
 /** Where the push-in lands: the desk, as close as the lens goes. */
-const PUSH_IN_Z = CEILING * 0.18
+const PUSH_IN_Z = ROOM_Z * 0.18
 
 /**
  * Approach rates, per second. The drift is slack enough that arriving at the
@@ -100,15 +100,15 @@ export function useTitleCamera(stage: StageHandle | null, pushIn: boolean): void
        * §7.8.10's corner desk 148 px above the top of the frame — Act I's
        * whole script is TAP TO CODE and there was nobody on the screen to tap.
        *
-       * It hands back to **the frame the lens opens itself on** — the floor,
-       * clamped by §7.7.1's ceiling — rather than to the Desk level the push-in
-       * ended at, and the difference matters most for exactly the studio the
-       * push-in is about. The Desk level frames seat 0, the *first developer's*
-       * chair; §7.8.10's founder sits outside the seat lattice twelve units
-       * away. Handing back to Desk opened a two-person studio on somebody
-       * else's desk with the player's own avatar 395 px above the top of the
-       * screen, and §4.5d's front door is that avatar. Clamped, the one call
-       * lands a garage on the whole garage and a tower on a floor of it.
+       * It hands back to **the frame the lens opens itself on** — the floor —
+       * rather than to the Desk level the push-in ended at, and the difference
+       * matters most for exactly the studio the push-in is about. The Desk
+       * level frames seat 0, the *first developer's* chair; §7.8.10's founder
+       * sits outside the seat lattice twelve units away. Handing back to Desk
+       * opened a two-person studio on somebody else's desk with the player's
+       * own avatar 395 px above the top of the screen, and §4.5d's front door
+       * is that avatar. The floor frames the room the studio is in, so the one
+       * call lands a garage on the whole garage and a tower on a floor of it.
        */
       camera.reframe(FLOOR)
     }

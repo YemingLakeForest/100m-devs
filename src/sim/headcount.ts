@@ -18,7 +18,6 @@
  */
 
 import { BUILDING_CAP, FLOOR_CAP, GARAGE_CAP } from './capacity.ts'
-import { ceilingZForRung } from './ladder.ts'
 
 /**
  * Sprites the renderer will hold. The same 1,000 GDD §23.3 criterion 4
@@ -201,6 +200,32 @@ export function rungFor(devs: number): Rung {
 }
 
 /**
+ * The rung whose picture holds the whole studio — where a camera sent to *show
+ * me this studio* parks. [2026-09-28]
+ *
+ * `rungFor` with every bound inclusive. The bottom four already are (see the
+ * table's note on the asymmetry); above the building the bounds are round and
+ * exclusive, so a studio of exactly a hundred thousand is rung 5, "a business
+ * park", while every one of its developers is in one full block. That is the
+ * right answer for the promotion — the park is the place the studio fills
+ * next, and the hundred-thousandth hire is the one that says so — and the
+ * wrong one for a camera parked on the studio, which would open on a park
+ * with one block in its corner and nine empty parcels.
+ *
+ * Until 2026-09-27 nothing had to know the difference: the park's frame
+ * collapsed to the blocks the studio had, so a park of one block *was* the
+ * block. Every stop draws its whole unit now (GDD §7.4a, amended), and the
+ * difference is a picture.
+ */
+export function framingRungFor(devs: number): Rung {
+  const rung = rungFor(devs)
+  const below = RUNGS[rung.rung - 1]
+  // Rung 4's floor is 10,001 — the ten-thousandth developer tops the building
+  // out and the next starts a second one — so it is already inclusive below.
+  return rung.rung > 4 && devs === below.upTo ? below : rung
+}
+
+/**
  * True while one on-screen developer is one actual developer — §7.7.1 rungs
  * 0-2, where the fiction is established.
  */
@@ -215,6 +240,15 @@ export function isLiteral(devs: number): boolean {
  *
  * Returns the rung *landed on*, not each rung passed: the §6 Mass Hire jumps
  * several at once and that is one arrival, not five.
+ *
+ * **It is also the lens's reveal, now that there is no ceiling to lift**
+ * [2026-09-27]. The pull-back on a promotion used to be keyed on `maxZoomFor`
+ * — the camera gained a register, so the player was shown it. §7.4a's first
+ * non-negotiable is amended (*"no we don't keep the lock and we should be able
+ * to zoom and down before 100m"*, the user), so the lens reaches every stop at
+ * any headcount and there is nothing to gain; the promotion is still a beat,
+ * and it is this rung that names it (`stage.ts`, where the store's
+ * `spawn.promotedTo` is this function's answer).
  */
 export function rungCrossed(before: number, after: number): Rung | null {
   const from = rungFor(before)
@@ -222,37 +256,17 @@ export function rungCrossed(before: number, after: number): Rung | null {
   return to.rung > from.rung ? to : null
 }
 
-/**
- * How far the camera may pull back at this headcount — GDD §7.7.1.
- *
- * **The studio you can see is the studio you have.** With two developers there
- * is no campus to look at, no globe, no galaxy — there is a desk and the person
- * next to you, and the lens must not be able to leave them. A camera that can
- * reach galactic zoom over an empty world tells the player the game is a
- * backdrop they are pointing at rather than a place they are filling.
- *
- * Returned as a maximum Z on the §7.2 ladder, and the ceiling is now **the
- * player's own rung** rather than one of §7.4's four bands. That is §7.4a: the
- * bands were a rendering concept standing in for a navigation one, so a studio
- * of three thousand could pull back to "the global grid" — three rungs past
- * anything it had built — while never being shown the tower it *had*. Each lift
- * is one rung and is a §7.7.2 promotion, so each one should be scored.
- *
- * The floor of 0 is never clamped — pinching all the way *in* is always allowed,
- * because §7.7.4 makes returning to James an absolute guarantee.
+/*
+ * `maxZoomFor` lived here until 2026-09-27: how far the camera could pull back
+ * at a headcount, the player's own rung, on the argument that "a camera that
+ * can reach galactic zoom over an empty world tells the player the game is a
+ * backdrop they are pointing at". The user overturned it (GDD §7.4a, amended),
+ * and the half of the argument that mattered is kept by what each stop *draws*
+ * rather than by how far the lens may go — see `render/frames.ts`, where an
+ * unreached level frames its whole unit and shows what the studio has in it.
+ * It went with its reveal, `zoomCeilingLifted`, rather than staying as a
+ * function that ignores its argument.
  */
-export function maxZoomFor(devs: number): number {
-  if (!Number.isFinite(devs)) return 1
-  return ceilingZForRung(rungFor(devs).rung)
-}
-
-/**
- * Did this hire lift the zoom ceiling? A reveal beat, not a state change —
- * the camera gains a whole register and the player should be shown it.
- */
-export function zoomCeilingLifted(before: number, after: number): boolean {
-  return maxZoomFor(after) > maxZoomFor(before)
-}
 
 const MAGNITUDES = [
   { at: 1e12, suffix: 'T' },

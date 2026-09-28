@@ -1842,33 +1842,56 @@ export function floorToPark(
   return blockToPark(floorToBlock(p, storey, plot), block)
 }
 
-/** The address's own block, framed the way the block level frames it. */
+/**
+ * The address's own block, framed the way the block level frames it — **all ten
+ * plots, whoever has built on them** [amended 2026-09-27].
+ *
+ * It was the *occupied* plots, and a block of one building was that building:
+ * the two levels landed on one scale, and so did every level above them, so a
+ * studio of one developer had four stops and the block, the park, the planet
+ * and the network were one picture of one tower. That collapse was the zoom
+ * ceiling's other half — "the studio you can see is the studio you have",
+ * enforced by there being nothing further out to see — and GDD §7.4a's first
+ * non-negotiable is amended (the user, 2026-09-27: *"no we don't keep the lock
+ * and we should be able to zoom and down before 100m"*): every stop reachable
+ * at any headcount, **each drawing only what the studio has**.
+ *
+ * So the block frames the block. `block.ts` already draws the rest honestly — a
+ * pad under every plot the studio has built and bare ground under the ones it
+ * has not, "§7.7.1 again, at the scale where it is a vacant lot" — and the
+ * frame now shows it. The whole block rather than the occupied plots at every
+ * headcount, not only an unbuilt one, because the occupied frame of a few
+ * buildings is *narrower* than the one-building frame would have to be to be a
+ * stop at all (the building level carries its pulled-out plan), so a frame
+ * that switched at the second building would zoom the camera *in* on the hire
+ * that built it.
+ *
+ * The height is still the tallest tower, for {@link blockFrame}'s reason:
+ * buildings fill in order, so from the second one on it never changes again.
+ */
 function ownBlockFrame(storeys: number, buildings: number): Rect {
-  return blockFrame(buildings, buildings > 1 ? FLOORS_PER_BUILDING : storeys)
+  return blockFrame(BUILDINGS_PER_BLOCK, buildings > 1 ? FLOORS_PER_BUILDING : storeys)
 }
 
 /**
- * The whole park, framed — park space.
+ * The frame of a park of `blocks` blocks — park space.
  *
- * Every occupied parcel is framed as if it held a **full** block, for the reason
+ * Every parcel is framed as if it held a **full** block, for the reason
  * {@link blockFrame} frames every plot as the tallest tower: parcels fill in
  * order, so the moment there are two of them the first is full and the cell
  * never changes again. A park measured off each block's actual size would
  * re-frame itself on every hire anywhere in it.
  *
- * The exception is the studio that has only one block, where the park *is* the
- * block and framing a full one would put a hundred thousand people's worth of
- * empty ground around a single tower. One parcel is framed at its true size, so
- * the two levels land on the same scale and {@link levelAtScale} reads a shared
- * scale as the inner one — the same collapse a single building on a block
- * already has, one level up.
+ * **The park level frames all ten** ({@link parkCell}) [amended 2026-09-27],
+ * for {@link ownBlockFrame}'s reason one level up: this used to frame the
+ * occupied parcels, and a park of one block *was* that block, which is how the
+ * park, the planet and the network collapsed onto one scale for any studio
+ * that had not left its first block. `park.ts` draws every unbuilt parcel as a
+ * silkscreened pad — "this is where the next hundred thousand go, which turns
+ * dead board into a promise" — and the frame now shows the promise.
  */
-export function parkFrame(blocks: number, storeys: number, buildings: number): Rect {
+export function parkFrame(blocks: number): Rect {
   const n = Math.max(1, Math.min(BLOCKS_PER_PARK, Math.floor(blocks)))
-  // A park of one block *is* that block: the same collapse a single building on
-  // a block already has, and the reason the two rungs land on one scale.
-  if (n <= 1) return intoParcel(ownBlockFrame(storeys, buildings), 0)
-
   const cell = blockCell()
   let minX = Number.POSITIVE_INFINITY
   let maxX = Number.NEGATIVE_INFINITY
@@ -1952,7 +1975,7 @@ export const GLOBE_CAP = PARK_CAP * SITES_PER_GLOBE
  * time a block was demolished would move every other campus on it.
  */
 export function parkCell(): Rect {
-  return parkFrame(BLOCKS_PER_PARK, FLOORS_PER_BUILDING, BUILDINGS_PER_BLOCK)
+  return parkFrame(BLOCKS_PER_PARK)
 }
 
 /**
@@ -2056,13 +2079,16 @@ export function globeToPark(p: { x: number; y: number }): { x: number; y: number
  * silhouette is a circle however it is turned. That is the one frame on the
  * ladder that cannot be got wrong by measuring the wrong thing, which is a
  * pleasant change after traps 49, 52 and 53.
+ *
+ * **At every headcount** [amended 2026-09-27]. A planet of one site used to
+ * *be* that site — the collapse `parkFrame` made for one block and
+ * `ownBlockFrame` for one building — "the reason a studio that has never left
+ * its first park has six rungs rather than seven". GDD §7.4a now asks for all
+ * eight at any headcount, each drawing only what the studio has, and `globe.ts`
+ * draws that already: the whole world, and a light on each site that is
+ * settled.
  */
-export function globeFrame(sites: number, storeys: number, buildings: number, blocks: number): Rect {
-  const n = Math.max(1, Math.min(SITES_PER_GLOBE, Math.floor(sites)))
-  // A planet of one site *is* that site: the same collapse `parkFrame` makes
-  // for one block and `ownBlockFrame` for one building, and the reason a studio
-  // that has never left its first park has six rungs rather than seven.
-  if (n <= 1) return intoGlobe(parkFrame(blocks, storeys, buildings))
+export function globeFrame(): Rect {
   const at = globeOrigin()
   const r = globeRadius()
   return { cx: at.x, cy: at.y, w: 2 * r, h: 2 * r }
@@ -2209,19 +2235,14 @@ export function galaxyToGlobe(p: { x: number; y: number }): { x: number; y: numb
  * A square, for {@link globeFrame}'s reason one rung down: what is in it is a
  * cloud, and a cloud's silhouette is a circle however it is turned.
  *
- * A network of one world *is* that world — the same collapse `globeFrame` makes
- * for one site and `parkFrame` for one block, and the reason a studio that has
- * never left Sol has seven rungs rather than eight.
+ * **At every headcount** [amended 2026-09-27]. A network of one world used to
+ * *be* that world, "the reason a studio that has never left Sol has seven rungs
+ * rather than eight". The user, 2026-09-27: *"no we don't keep the lock"* (GDD
+ * §7.4a, amended) — and the argument for showing it is §7.4a's own: at one
+ * developer the network is one lit world and the next one ringed and waiting,
+ * which is a goal with a name on it rather than scenery.
  */
-export function galaxyFrame(
-  worlds: number,
-  sites: number,
-  storeys: number,
-  buildings: number,
-  blocks: number,
-): Rect {
-  const n = Math.max(1, Math.floor(Number.isFinite(worlds) ? worlds : 1))
-  if (n <= 1) return intoGalaxy(globeFrame(sites, storeys, buildings, blocks))
+export function galaxyFrame(): Rect {
   const at = galaxyOrigin()
   const r = galaxyRadius()
   return { cx: at.x, cy: at.y, w: 2 * r, h: 2 * r }
@@ -2680,26 +2701,31 @@ export function frameFor(
   seat: number,
   storeys: number,
   buildings = 1,
-  blocks = 1,
-  sites = 1,
-  worlds = 1,
+  // How many blocks, sites and worlds the studio has. **Not read since
+  // 2026-09-27**, and kept in the signature for the call sites rather than
+  // threaded out of the lens: the levels above the block frame their whole
+  // unit at every headcount (see {@link ownBlockFrame}), and the Pixi ladder
+  // these feed is retired by `docs/PLAN-2026-09-27-garage-to-galaxy.md`.
+  _blocks = 1,
+  _sites = 1,
+  _worlds = 1,
 ): Rect {
   // The network is the only frame that is not inside a world, because it *is*
   // the worlds - the same sentence the globe earned one rung down, and the
   // reason both of them are the first line rather than the last.
-  if (level === GALAXY) return galaxyFrame(worlds, sites, storeys, buildings, blocks)
+  if (level === GALAXY) return galaxyFrame()
 
   // The globe is the only frame that is not inside a site, because it *is* the
   // sites - the same sentence the park earned one rung down, and the reason
   // both of them are the first line rather than the last.
-  if (level === GLOBE) return intoGalaxy(globeFrame(sites, storeys, buildings, blocks))
+  if (level === GLOBE) return intoGalaxy(globeFrame())
 
   const block = blockOf(seat)
   const plot = plotOf(buildingOf(seat))
   // Everything below the globe gains exactly one more division, which is the
   // whole cost of the seventh level and the fourth time that claim has been
-  // paid.
-  if (level === PARK) return intoGalaxy(intoGlobe(parkFrame(blocks, storeys, buildings)))
+  // paid. The park is all ten parcels — see `parkFrame`.
+  if (level === PARK) return intoGalaxy(intoGlobe(parkCell()))
 
   // The tallest tower, which the frame spans: buildings fill in order, so the
   // moment there are two of them the first is full and `storeys` is whichever
@@ -2824,9 +2850,10 @@ export function levelScales(
  * The rule is the honest one: a level that would frame less than the room shows
  * the room. Two levels that then frame the same rectangle **are the same
  * place** — which is true of a garage, where "your squad", "your floor" and
- * "everybody" name one group of people — and the collapsed rungs always land
- * outside §7.7.1's ceiling anyway, because the ceiling is what put the room
- * there.
+ * "everybody" name one group of people. (That used to be the only collapse
+ * that mattered because the collapsed rungs landed outside §7.7.1's ceiling;
+ * the ceiling went on 2026-09-27, and the levels above the building no longer
+ * collapse at all — see `ownBlockFrame`.)
  */
 export function nestScales(scales: Record<Level, number>): Record<Level, number> {
   const out = { ...scales }
@@ -2848,9 +2875,9 @@ export function levelAtScale(scale: number, scales: Record<Level, number>): numb
   if (!(scale > 0)) return TOP_LEVEL
   const s = Math.log(scale)
   // Strictly below, so a tie between the top two rungs falls through to the
-  // band scan and resolves *inward* like every other tie. One building on a
-  // block is exactly that tie: the block and the building are the same picture,
-  // and the camera sitting on it is in the building.
+  // band scan and resolves *inward* like every other tie. (One building on a
+  // block was exactly that tie until 2026-09-27, when every level above the
+  // building began framing its whole unit — see `ownBlockFrame`.)
   if (s < Math.log(scales[TOP_LEVEL])) return TOP_LEVEL
   if (s >= Math.log(scales[DESK])) return DESK
   // Innermost first, so a scale two rungs share is read as the *inner* one.

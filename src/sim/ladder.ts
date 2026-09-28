@@ -26,9 +26,10 @@
  * | 8 | planet | `cosmic` | 4 |
  * | 9 | galaxy | `cosmic` | 4 |
  *
- * Pure and dependency-free — deliberately, because `sim/headcount.ts` reads the
- * ladder to work out how far the camera may pull back, and a navigation model
- * that imported a renderer could not be asked that question.
+ * Pure and dependency-free — deliberately, so a navigation model can be asked
+ * questions without a renderer. (`sim/headcount.ts` used to read it to work out
+ * how far the camera could pull back; that ceiling went on 2026-09-27, GDD
+ * §7.4a amended, and every stop is reachable at any headcount.)
  *
  * The Z parameter is unchanged: §7.2's single continuous [0, 1], now divided
  * into nine equal rung steps rather than four uneven bands.
@@ -44,15 +45,6 @@ export type ViewKind = 'room' | 'tower' | 'block' | 'park' | 'sprawl' | 'grid' |
 
 export interface LadderView {
   view: ViewKind
-  /**
-   * The lowest rung this view covers.
-   *
-   * Separate from {@link stop}, and the separation is load-bearing: `room`
-   * spans rungs 0 to 2 and fits at 2, so "is this view earned" cannot be asked
-   * of the stop. Deriving the gate from the stop said a one-developer studio
-   * had not earned the room it was sitting in.
-   */
-  from: number
   /**
    * The rung this view is the picture of, and the Z at which it exactly fits
    * the frame. Fractional for the two views that span a pair of rungs, so the
@@ -103,13 +95,15 @@ export const VIEWS: readonly LadderView[] = [
   // hundred is the tower, which is a picture that *gains* from having a
   // thousand people in it because they are distributed over storeys.
   //
-  // `from: 0` is unchanged and still load-bearing: a studio of one developer
-  // has earned the room it is sitting in.
-  { view: 'room', from: 0, stop: 1, tier: 1, halfWidth: 1.6, halfWidthOut: 1.25 },
+  // Each view also carried the lowest rung it covered, `from`, which is what
+  // "has the studio earned this view" was asked of. That question went with
+  // the zoom ceiling on 2026-09-27 (GDD §7.4a, amended): every view is
+  // reachable at any headcount.
+  { view: 'room', stop: 1, tier: 1, halfWidth: 1.6, halfWidthOut: 1.25 },
   // The tower spans rungs 2 and 3 — ten storeys, then a hundred — so it fits
   // between them, the same way the room used to sit between its own pair.
-  { view: 'tower', from: 2, stop: 2.5, tier: 2, halfWidth: 1.6 },
-  { view: 'block', from: 4, stop: 4, tier: 3, halfWidth: 1.15 },
+  { view: 'tower', stop: 2.5, tier: 2, halfWidth: 1.6 },
+  { view: 'block', stop: 4, tier: 3, halfWidth: 1.15 },
   // **The overlap across the two-decade band stays wide, and that is measured
   // rather than assumed.** §7.7.1 steps from a town at 10⁶ straight to a nation
   // at 10⁸, so rung 5 to rung 6 is a hundred times the people where every other
@@ -122,19 +116,19 @@ export const VIEWS: readonly LadderView[] = [
   // had not yet faded up enough to fill it, so the emptiest picture in the whole
   // ladder was in the middle of a move rather than at either end of it. An
   // oversized arrival is a zoom; an empty frame is nothing at all.
-  { view: 'park', from: 5, stop: 5, tier: 3, halfWidth: 1.15 },
-  { view: 'sprawl', from: 6, stop: 6, tier: 3, halfWidth: 1.15 },
-  { view: 'grid', from: 7, stop: 7, tier: 3, halfWidth: 1.25 },
+  { view: 'park', stop: 5, tier: 3, halfWidth: 1.15 },
+  { view: 'sprawl', stop: 6, tier: 3, halfWidth: 1.15 },
+  { view: 'grid', stop: 7, tier: 3, halfWidth: 1.25 },
   // **Stop 8, not 8.5.** The cosmos used to sit a rung and a half above the
   // nation, and `dominantView` picks the *nearest* stop — so between them the
   // settled picture was three and a half times off its own fit, which is
   // §23.4.1's promise broken by a gap in a table. One rung, like every other
   // pair, and a narrower window because there is nothing above it to hand over
-  // to. Rungs 8 and 9 are unreachable in any case: the zoom ceiling is the
-  // studio's own rung and §13.5's gate is 10^8. Cutting them outright is the
+  // to. Rungs 8 and 9 are unreachable in any case: the lens's top level is the
+  // network, rung 7 (`frames.ts` `TOP_LEVEL`). Cutting them outright is the
   // right end state and is its own change — it takes §7.4's fourth tier, the
   // §20.7.3 music bed and the §8.2 poke sounds with it.
-  { view: 'cosmic', from: 8, stop: 8, tier: 4, halfWidth: 1.4 },
+  { view: 'cosmic', stop: 8, tier: 4, halfWidth: 1.4 },
 ] as const
 
 export const VIEW_KINDS: readonly ViewKind[] = VIEWS.map((v) => v.view)
@@ -202,8 +196,8 @@ export function zAtRung(rung: number): number {
  * absorbs it without a special case, which is the point of having a rule.
  *
  * **Rungs 8 and 9 hold the same value, and that is an interim.** They are
- * unreachable — the zoom ceiling is the studio's own rung and no run reaches
- * 10¹⁰ developers — and `scene.ts` already says the cosmic tier "is authored at
+ * unreachable — the lens stops at the network, rung 7 — and `scene.ts` already
+ * says the cosmic tier "is authored at
  * screen scale and rides the cross-fade rather than the camera", so there is no
  * headcount for them to describe. Giving them a slope put the emptiest frame in
  * the whole ladder at rung 9: the cosmos a full rung past its own stop, drawn
@@ -310,52 +304,12 @@ export function dominantView(z: number): ViewKind {
   return nearestView(rungAt(z))
 }
 
-/**
- * §7.4a — how far out the ladder a studio of this rung may be looked at.
- *
- * "A rung the player has not earned is not reachable" — so the ceiling is the
- * player's own rung and not one past it. The floor of 1 is not an exception to
- * that: rungs 0 and 1 are the same room, so a studio of one developer can still
- * pull back far enough to see the room they are sitting in.
+/*
+ * Three functions lived here until 2026-09-27 and went with §7.4a's zoom
+ * ceiling (amended that day at the user's instruction): `ceilingZForRung`, how
+ * far out a studio of a rung could look; `viewEarnedAt`, whether a view was
+ * part of the studio it had built; and `earnedViewWeights`, the cross-fade with
+ * the unearned views taken out. Nothing drew with them by then — `frames.ts`
+ * had replaced the cross-faded views — and the rule they served is kept by
+ * what each stop draws rather than by which stops exist.
  */
-export function ceilingZForRung(rung: number): number {
-  return zAtRung(Math.max(1, Math.min(TOP_RUNG, Math.floor(rung))))
-}
-
-/**
- * Is this view part of the studio the player has actually built? — §7.7.1.
- *
- * The ceiling already stops the camera short of an unearned rung, but the
- * cross-fade reaches a rung past wherever it is parked, so without this the
- * campus the player has not built ghosts in behind the block they have.
- */
-export function viewEarnedAt(view: ViewKind, rung: number): boolean {
-  return viewSpec(view).from <= Math.max(1, rung)
-}
-
-/**
- * The cross-fade with the unearned rungs taken out **and the rest renormalised**.
- *
- * The renormalise is the part that is not obvious and is the part that shows.
- * At the ceiling the rung above is carrying real weight — that is what the gate
- * is for — so simply zeroing it leaves the weights summing to less than one,
- * and the studio fades out by about a tenth at exactly the moment it is at its
- * largest. §10.5's constant-brightness rule is about dollies, but a picture
- * that dims because of what is *not* on screen fails it just as visibly.
- */
-export function earnedViewWeights(z: number, rung: number): Record<ViewKind, number> {
-  const raw = viewWeights(z)
-  let total = 0
-  for (const spec of VIEWS) {
-    if (!viewEarnedAt(spec.view, rung)) raw[spec.view] = 0
-    total += raw[spec.view]
-  }
-  if (total <= 0) {
-    // Only reachable if the camera is somehow parked past the ceiling. Showing
-    // the room is wrong; showing nothing is worse.
-    raw.room = 1
-    return raw
-  }
-  for (const spec of VIEWS) raw[spec.view] /= total
-  return raw
-}

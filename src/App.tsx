@@ -300,15 +300,15 @@ export default function App() {
       handle = h
 
       // ?z=0.5 parks the Omni-Lens, so a screenshot can be taken of a tier
-      // rather than of whatever the camera happened to be doing. Clamped by
-      // §7.7.1's zoom ceiling like every other way of moving the lens — the
-      // studio you can see is still the studio you have.
+      // rather than of whatever the camera happened to be doing. (It was
+      // clamped by §7.7.1's zoom ceiling until 2026-09-27; every stop is
+      // reachable now, and each draws only what the studio has.)
       const z = DEBUG_QUERY.get('z')
       if (z !== null && Number.isFinite(Number(z))) h.camera.set(Number(z))
-      // A scenario parks the lens at the rung its headcount has earned, unless
-      // `?z` has asked for somewhere specific. Landing at a hundred million
-      // developers with the camera still on somebody's desk is technically the
-      // studio you asked for and is not the picture you wanted.
+      // A scenario parks the lens on the stop that holds the whole studio,
+      // unless `?z` has asked for somewhere specific. Landing at a hundred
+      // million developers with the camera still on somebody's desk is
+      // technically the studio you asked for and is not the picture you wanted.
       else if (scenario) h.camera.set(zAtRung(scenarioRung(scenario)))
       // Criterion 6's stopwatch stops here: the renderer is up and the first
       // frame is pokeable. Anything after this is the player's own reaction

@@ -3,18 +3,15 @@ import {
   TOP_RUNG,
   VIEWS,
   VIEW_KINDS,
-  ceilingZForRung,
-  earnedViewWeights,
   dominantView,
   rungAt,
   tierForRung,
-  viewEarnedAt,
   viewStopZ,
   viewWeights,
   zAtRung,
   type ViewKind,
 } from './ladder.ts'
-import { RUNGS, maxZoomFor, rungFor } from './headcount.ts'
+import { RUNGS } from './headcount.ts'
 
 describe('the ladder is the navigation — GDD §7.4a', () => {
   it('gives every rung of §7.7.1 a stop the camera can park at', () => {
@@ -50,13 +47,6 @@ describe('the ladder is the navigation — GDD §7.4a', () => {
     expect(dominantView(zAtRung(2))).toBe('tower')
     expect(dominantView(zAtRung(3))).toBe('tower')
     expect(dominantView(zAtRung(4))).toBe('block')
-  })
-
-  it('lets a studio of any size see the room it is standing in', () => {
-    // The gate is the view's *lowest* rung, not its fit. Deriving it from the
-    // stop said a one-developer studio had not earned the room around it, and
-    // blanked the screen at the one headcount the game opens on.
-    for (const rung of RUNGS) expect(viewEarnedAt('room', rung.rung)).toBe(true)
   })
 
   it('puts the building, the campus and the town between the tower and the stars', () => {
@@ -149,71 +139,25 @@ describe('the cross-fade — GDD §10.5, nothing cuts', () => {
   })
 
   it('fails visibly to the room instead of culling every view on invalid input', () => {
-    const weights = earnedViewWeights(Number.NaN, 0)
+    // Asked of the earned-view weights until the zoom ceiling went (GDD §7.4a,
+    // amended 2026-09-27); the claim was always about the fade underneath them.
+    const weights = viewWeights(Number.NaN)
     expect(weights.room).toBeGreaterThan(0)
     expect(Object.values(weights).every(Number.isFinite)).toBe(true)
     expect(Object.values(weights).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10)
   })
 })
 
-describe('the ceiling — §7.4a, a rung you have not earned is not reachable', () => {
-  it('stops exactly at the studiorung, not four bands past it', () => {
-    for (const rung of RUNGS) {
-      expect(ceilingZForRung(rung.rung)).toBe(zAtRung(Math.max(1, rung.rung)))
-    }
-  })
-
-  it('lets a one-developer studio still see the room it is sitting in', () => {
-    // Rungs 0 and 1 are the same room, so the floor of 1 is not an exception to
-    // the rule — it is the rule, applied to a view that spans two rungs.
-    expect(ceilingZForRung(0)).toBe(zAtRung(1))
-    expect(dominantView(ceilingZForRung(0))).toBe('room')
-  })
-
-  it('agrees with maxZoomFor, which is the one the camera actually reads', () => {
-    for (const devs of [1, 9, 10, 99, 100, 999, 1e3, 9999, 1e5, 1e7, 1e9, 1e12, 1e14]) {
-      expect(maxZoomFor(devs)).toBe(ceilingZForRung(rungFor(devs).rung))
-    }
-  })
-
-  it('gates the rung above, which the fade would otherwise ghost in', () => {
-    // The ceiling parks the camera on the studio's top rung, and the fade
-    // reaches a rung past wherever it is parked — so at the ceiling the *next*
-    // view up is carrying real weight and would be drawn. That is the campus
-    // the player has not built, showing behind the block they have.
-    for (const rung of RUNGS) {
-      if (rung.rung >= TOP_RUNG) continue
-      const w = viewWeights(ceilingZForRung(rung.rung))
-      const above = VIEWS.filter((v) => !viewEarnedAt(v.view, rung.rung))
-      for (const spec of above) {
-        // Unearned, and the gate is the only thing stopping it: assert both
-        // halves, or this passes for the wrong reason once the fade narrows.
-        expect(viewEarnedAt(spec.view, rung.rung)).toBe(false)
-        expect(spec.stop).toBeGreaterThan(Math.max(1, rung.rung))
-      }
-      // And whatever the camera is actually looking at is always earned.
-      expect(viewEarnedAt(dominantView(ceilingZForRung(rung.rung)), rung.rung)).toBe(true)
-      expect(w[dominantView(ceilingZForRung(rung.rung))]).toBeGreaterThan(0.002)
-    }
-    expect(viewEarnedAt('cosmic', 2)).toBe(false)
-    expect(viewEarnedAt('room', 0)).toBe(true)
-  })
-
-  it('does not let the studio dim just because it is at the top of its ladder', () => {
-    // Zeroing the gated rung without renormalising leaves the weights summing
-    // to about 0.9 at every ceiling, so the picture fades by a tenth at exactly
-    // the moment the studio is at its largest — a real regression that shipped
-    // in the first pass at this and is invisible in any single screenshot.
-    for (const rung of RUNGS) {
-      const w = earnedViewWeights(ceilingZForRung(rung.rung), rung.rung)
-      const total = Object.values(w).reduce((a, b) => a + b, 0)
-      expect(total).toBeCloseTo(1, 10)
-      for (const spec of VIEWS) {
-        if (!viewEarnedAt(spec.view, rung.rung)) expect(w[spec.view]).toBe(0)
-      }
-    }
-  })
-})
+/*
+ * "The ceiling — §7.4a, a rung you have not earned is not reachable" stood here
+ * until 2026-09-27: five tests that the ceiling stopped at the studio's own
+ * rung, that it agreed with `maxZoomFor`, and that the unearned rung above was
+ * gated out of the fade without dimming the picture. The user amended the rule
+ * (*"no we don't keep the lock"*), the functions went with it, and the claim
+ * that replaced it — every level reachable at any headcount, each drawing only
+ * what the studio has — is pinned where the lens and the frames live
+ * (`render/lens.test.ts`, `render/frames.test.ts`).
+ */
 
 describe('tiers are still tiers — §7.4a keeps the two concepts apart', () => {
   it('draws ten rungs out of four tiers, which is the whole distinction', () => {

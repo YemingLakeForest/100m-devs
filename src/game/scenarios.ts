@@ -45,7 +45,7 @@
 import { getPermanent, setPermanent } from './save.ts'
 import { SCENES } from './scenes.ts'
 import { __addScenarioDevelopers, __setState, getState } from './store.ts'
-import { rungFor } from '../sim/headcount.ts'
+import { framingRungFor } from '../sim/headcount.ts'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
 
 export interface Scenario {
@@ -129,14 +129,20 @@ export function parseHeadcount(text: string): number | null {
   return Number.isSafeInteger(devs) ? devs : null
 }
 
-/** The §7.7.1 rung this headcount has earned — how far out the lens may go. */
+/**
+ * The §7.7.1 rung whose picture holds this whole studio — where the lens parks
+ * for it. It was the rung the headcount had *earned*, how far out the lens
+ * could go, until §7.4a's lock went on 2026-09-27; every stop is reachable now,
+ * so the only question left is which one shows the studio that was asked for
+ * (see `framingRungFor`).
+ */
 export function scenarioRung(s: Scenario): number {
   return rungForCount(s.devs)
 }
 
 /** The same, for a headcount somebody typed rather than one on a button. */
 export function rungForCount(devs: number): number {
-  return rungFor(Math.max(0, Math.floor(Number.isFinite(devs) ? devs : 0))).rung
+  return framingRungFor(Math.max(0, Math.floor(Number.isFinite(devs) ? devs : 0))).rung
 }
 
 /**

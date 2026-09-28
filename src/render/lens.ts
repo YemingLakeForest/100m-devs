@@ -168,7 +168,7 @@ export function panBounds(
   if (level < PARK - 0.5) return at(BLOCK)
   if (level < GLOBE - 0.5) return at(PARK)
   if (level < GALAXY - 0.5) return at(GLOBE)
-  return galaxyFrame(worlds, sites, storeys, buildings, blocks)
+  return galaxyFrame()
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -330,20 +330,14 @@ export class Lens {
    */
   private gestureFrom: number | null = null
   /**
-   * §7.7.1 — the outermost level the camera may reach. See {@link setCeiling}.
-   *
-   * The whole ladder until a headcount says otherwise, so a lens standing on
-   * its own — a test, a bench — is not silently pinned to a desk.
-   */
-  private ceiling: Level = TOP_LEVEL
-  /**
    * §7.2 [added 2026-09-03] — **the rails, off.** See `dev/viewModes.ts`.
    *
-   * Three behaviours go with it and they are one idea: the camera stops
-   * settling onto a rung, stops being held to §7.7.1's ceiling, and may be
-   * pushed a long way past the desk. Each is right for play and each is exactly
-   * wrong for looking at the scene, which is the only thing this is for — the
-   * switch is behind `DEBUG_TOOLS_ENABLED` and a shipped build cannot reach it.
+   * Two behaviours go with it and they are one idea: the camera stops settling
+   * onto a rung, and may be pushed a long way past the desk. (It used to lift
+   * §7.7.1's ceiling as well; there is no ceiling now.) Each is right for play
+   * and each is exactly wrong for looking at the scene, which is the only thing
+   * this is for — the switch is behind `DEBUG_TOOLS_ENABLED` and a shipped
+   * build cannot reach it.
    *
    * The pan bounds are deliberately *not* lifted. They keep the camera over the
    * studio rather than over empty space, which is a help while inspecting
@@ -369,10 +363,10 @@ export class Lens {
      * bankrupted itself while the walk searched for a person the camera had
      * left behind.
      *
-     * §7.7.1's ceiling still owns the other end — `maxZoomFor` pulls a small
-     * studio further in every frame — so a one-developer garage still opens on
-     * the desk it has always opened on. This only decides where a studio big
-     * enough to have a choice comes to rest, and the answer is: among the
+     * The floor frames the room the studio is in, so a one-developer garage
+     * opens on the whole garage. (Until 2026-09-27 §7.7.1's ceiling pulled a
+     * small studio further in every frame; there is no ceiling now.) This only
+     * decides where the camera comes to rest, and the answer is: among the
      * people.
      */
     this.reframe(FLOOR, true)
@@ -426,9 +420,9 @@ export class Lens {
      * because of it; it was found while tracing a cold boot, where the canvas
      * is laid out once before the HUD and once after, and it is fixed on the
      * strength of the invariant rather than of a symptom. What kept it harmless
-     * is not reassuring: §7.7.1's ceiling used to re-cut the camera from
-     * outside the lens every frame, so a parked camera was being re-derived
-     * constantly as a side effect of a different defect.
+     * is not reassuring: §7.7.1's ceiling (gone since 2026-09-27) used to re-cut
+     * the camera from outside the lens every frame, so a parked camera was
+     * being re-derived constantly as a side effect of a different defect.
      */
     this.dirty = true
   }
@@ -519,32 +513,21 @@ export class Lens {
       this.worlds,
     )
     if (this.floorRect) {
-      base[FLOOR] = fitScaleFor(this.frameOf(FLOOR), this.viewport)
       /*
-       * §7.8.0c [2026-09-03] — **the ceiling frames the room.**
+       * The floor *is* the room, whatever the room is: a garage, an unfolding
+       * office, a full floor.
        *
-       * §7.7.1 stops a twenty-person studio at the squad, which is right: there
-       * is no floor to look at and no tower. But the squad's frame is authored
-       * from `frameFor` — a rectangle sized for twenty desks on the open-plan
-       * lattice — and the garage those twenty people are actually standing in
-       * is a *building*, half again as wide. So the resting camera of the whole
-       * first act framed a rectangle nothing was drawn in: measured at twenty
-       * developers and 1664x936, the left pier stood 185 px off the left edge
-       * of the picture and the far pier's cap 190 px off the top.
-       *
-       * It was invisible from the ladder because only `FLOOR` was ever routed
-       * through {@link frameOf}, and the garage never reaches `FLOOR`. The
-       * *centre* came from the room and the *scale* from the squad, which is
-       * the one combination that cannot be checked by looking at either.
-       *
-       * So the rung the studio is pinned to may not frame less than the room it
-       * is pinned inside. Only that rung: the levels below it are still the
-       * ladder, and pinching all the way in to one developer (§7.7.4) is
-       * untouched.
+       * §7.8.0c [2026-09-03] added a second line here, **"the ceiling frames the
+       * room"**: while §7.7.1 pinned a small studio at the squad, the squad's
+       * scale was pushed out to the room's, because the squad's own frame — a
+       * rectangle sized for twenty desks on the open-plan lattice — framed
+       * nothing that was drawn (measured at twenty developers and 1664x936, the
+       * left pier 185 px off the picture). The ceiling went on 2026-09-27 (GDD
+       * §7.4a, amended), so the floor is reachable at every headcount and it is
+       * the floor that frames the room; a squad whose own rectangle is bigger
+       * than the room is held to the room by {@link frameOf} and `nestScales`.
        */
-      if (this.ceiling < FLOOR) {
-        base[this.ceiling] = Math.min(base[this.ceiling], base[FLOOR])
-      }
+      base[FLOOR] = fitScaleFor(this.frameOf(FLOOR), this.viewport)
     }
     // The garage is a rectangle that grows and it does not respect the nesting
     // — for the first thirty developers the room is smaller than the squad
@@ -577,59 +560,36 @@ export class Lens {
     this.dirty = true
   }
 
-  /**
-   * §7.7.1 — how far out the camera may pull back, as a level.
+  /*
+   * `setCeiling` stood here until 2026-09-27: §7.7.1's "the studio you can see
+   * is the studio you have", held as the outermost level the camera could
+   * reach, and every clamp in this class that read it — the zoom, the settle,
+   * each commanded flight. It was moved *into* the lens on 2026-09-03 because
+   * it had been held from outside as `if (camera.z > ceiling)
+   * camera.set(ceiling)` once a frame, and when the rungs crossed (see
+   * `nestScales`) that line stopped converging — thirty wheel notches moved the
+   * camera nothing at all. The lesson outlives the ceiling: a rule about the
+   * camera belongs to the lens, or it fights the lens.
    *
-   * **The studio you can see is the studio you have.** With two developers
-   * there is no floor to look at and no tower, and a lens that can reach them
-   * says the world is a backdrop the player is pointing at rather than a place
-   * they are filling.
-   *
-   * It lives *here* now, and that is the fix rather than a tidy-up. It used to
-   * be held from outside, as `if (camera.z > ceiling) camera.set(ceiling)` once
-   * a frame — a statement about the camera's Z made by something that could not
-   * see the ladder the Z is derived from. When the rungs crossed (see
-   * {@link nestScales}) that line stopped converging: the scale it asserted
-   * reported a level *above* the ceiling, so it fired again on the very next
-   * frame, and every frame after, and each firing threw away the gesture, the
-   * settle and the pan. Thirty wheel notches moved the camera nothing at all,
-   * because every one of them was undone 16 ms later by a rule that could not
-   * satisfy itself.
-   *
-   * Owned by the lens, it is one bound on one clamp: the zoom stops there, the
-   * settle will not target past it, and a commanded flight is held to it. There
-   * is nothing to fight because there is no second opinion.
-   *
-   * Rounded, because a ceiling is a *rung* and rungs are whole. It arrives as
-   * a Z on §7.2's ten-rung ladder and is read back as a level by one
-   * multiplication, and a rung has to survive the round trip in one piece —
-   * truncated, a ceiling a hair under the squad is a studio pinned to its own
-   * desk with no way to see the room it is sitting in.
+   * GDD §7.4a's first non-negotiable is amended (the user: *"no we don't keep
+   * the lock and we should be able to zoom and down before 100m"*), so the lens
+   * reaches every level at any headcount, `frames.ts` makes each level frame
+   * what the studio has, and the out-stop is the top of the ladder.
    */
-  setCeiling(level: number): void {
-    const next = clamp(Math.round(Number.isFinite(level) ? level : TOP_LEVEL), DESK, TOP_LEVEL) as Level
-    if (next === this.ceiling) return
-    this.ceiling = next
-    this.dirty = true
-  }
 
-  /** The furthest-out scale §7.7.1 allows, for the frames as they are now. */
-  private ceilingScale(scales = this.scales()): number {
-    // With the rails off there is no ceiling to hold: the far stop becomes the
-    // outermost frame the ladder can express rather than the rung the studio
-    // has earned. `TOP_LEVEL` rather than zero, so the pan bounds and the
-    // level readout still have a finite scale to work from.
-    return scaleAtLevel(this.free ? TOP_LEVEL : this.ceiling, scales)
+  /**
+   * The furthest-out scale, for the frames as they are now: the top of the
+   * ladder. A finite scale rather than zero, so the pan bounds and the level
+   * readout always have something to work from.
+   */
+  private outerScale(scales = this.scales()): number {
+    return scaleAtLevel(TOP_LEVEL, scales)
   }
 
   /** §7.2 — take the camera off its rails, or put it back on them. */
   setFreeZoom(on: boolean): void {
     if (on === this.free) return
     this.free = on
-    // A camera that was being held at the ceiling when the rails came off is
-    // already where it should be; one that has the rails put back on is not,
-    // and `update` corrects it on the next frame through the same hold that
-    // exists for the ceiling coming down on a new career.
     this.dirty = true
   }
 
@@ -655,12 +615,11 @@ export class Lens {
       this.worlds,
     )
     if (!room || level > FLOOR) return own
-    // The rung the studio is pinned to *is* the room — see `scales()`. Its
-    // centre has to come from the same rectangle as its scale, or the camera
-    // frames the building at the squad's midpoint and loses a corner of it.
-    if (level >= this.ceiling && this.ceiling < FLOOR) return room
     // A frame that holds *more* than the room fits at a smaller scale than the
-    // room does. That is the crossing `nestScales` collapses.
+    // room does. That is the crossing `nestScales` collapses. (Until 2026-09-27
+    // the rung a small studio was pinned to by §7.7.1's ceiling was the room
+    // too, whatever its own frame held; there is no ceiling now, and the floor
+    // is the room.)
     return fitScaleFor(own, this.viewport) < fitScaleFor(room, this.viewport) ? room : own
   }
 
@@ -698,7 +657,6 @@ export class Lens {
    * of a frame nobody has seen yet.
    */
   reframe(level: Level, immediate = false): void {
-    level = Math.min(level, this.ceiling) as Level
     const frame = this.frameOf(level)
     const scale = fitScaleFor(frame, this.viewport)
     if (immediate) {
@@ -737,7 +695,6 @@ export class Lens {
 
   /** Fly to a level, centred on a point in the focused floor's own space. */
   flyTo(level: Level, floorPoint?: { x: number; y: number }): void {
-    level = Math.min(level, this.ceiling) as Level
     const frame = this.frameOf(level)
     const at = floorPoint ? this.floorPointToWorld(floorPoint) : null
     this.target = {
@@ -771,7 +728,6 @@ export class Lens {
    * and is not a new kind of thing to be.
    */
   flyToRect(level: Level, rect: Rect): void {
-    level = Math.min(level, this.ceiling) as Level
     const centre = this.floorPointToWorld({ x: rect.cx, y: rect.cy })
     this.target = {
       scale: fitScaleFor(this.roomFrame(rect), this.viewport),
@@ -795,23 +751,9 @@ export class Lens {
    */
   set(z: number): void {
     if (!Number.isFinite(z)) return
-    /*
-     * **Clamped to the ladder, not to the ceiling — the ceiling arrives a frame
-     * later and pulls it in.**
-     *
-     * Every caller of this sets a headcount and a camera in the same breath,
-     * and the ceiling is derived from the headcount *by the ticker*, one frame
-     * afterwards. Clamping here therefore clamps against the studio the player
-     * had a moment ago: the scenario bar's 100 K button set a hundred thousand
-     * developers and then asked for rung 5, and the lens — still holding the
-     * ceiling of an empty studio — parked it at the squad. Reported as "100k
-     * view does not have any more than 1 building", and the block was there the
-     * whole time, two zoom levels out.
-     *
-     * `update` holds the ceiling every frame, so a Z past it is corrected on
-     * the next one with the right headcount in hand. §7.7.1 is not weakened by
-     * being applied a frame late; it was weakened by being applied early.
-     */
+    // Clamped to the ladder. (It was argued at length here why this must not
+    // clamp to §7.7.1's ceiling, which arrived a frame after the headcount that
+    // earned it; the ceiling went on 2026-09-27 and the argument with it.)
     const level = clamp(z * 9, DESK, TOP_LEVEL)
     const frame = this.frameOf(settleLevel(level))
     this._scale = scaleAtLevel(level, this.scales())
@@ -850,21 +792,19 @@ export class Lens {
       this.gestureFrom = this.target !== null ? this.level : (this.parked ?? this.level)
     }
     const scales = this.scales()
-    // Out stops at §7.7.1's ceiling and in stops a little past the desk. A
-    // hard stop rather than a rubber band, because a zoom that travels and then
-    // springs back is the thing the settle was just taught not to do.
     /*
-     * Out stops at §7.7.1's ceiling and in stops a little past the desk. A
+     * Out stops at the top of the ladder and in stops a little past the desk. A
      * hard stop rather than a rubber band, because a zoom that travels and then
-     * springs back is the thing the settle was just taught not to do.
+     * springs back is the thing the settle was just taught not to do. (Out
+     * stopped at §7.7.1's ceiling until 2026-09-27.)
      *
      * With the rails off, in goes a great deal further — the inner stop is
      * about looking at a person's face rather than about anything the game
-     * needs — and out is the whole ladder.
+     * needs.
      */
     const next = clamp(
       this._scale * factor,
-      this.ceilingScale(scales),
+      this.outerScale(scales),
       scales[DESK] * (this.free ? 24 : 1.6),
     )
     if (focal) {
@@ -954,10 +894,7 @@ export class Lens {
     if (!this.free && this.target === null && now - this.idleSince > SETTLE_DELAY_MS) {
       // **The magnetic stop.** Nothing between two levels is a picture of
       // anything, so the camera is never left there.
-      // Held to the ceiling: `settleTowards` promises a gesture at least one
-      // level in the direction it was going, and outward that promise runs off
-      // the end of the studio the player has built.
-      const to = Math.min(settleTowards(this.level, this.gestureFrom), this.ceiling) as Level
+      const to = settleTowards(this.level, this.gestureFrom)
       const scale = scaleAtLevel(to, this.scales())
       this.parked = to
       this.gestureFrom = null
@@ -990,19 +927,18 @@ export class Lens {
     }
 
     /*
-     * **The ceiling, held.** The zoom already stops there, so the only way to
-     * be outside it is for the world to have moved rather than the camera: the
-     * ceiling itself coming down on a new career, or the frames shifting under
-     * a lens that is sitting still — the garage growing, a storey arriving, the
-     * viewport turning.
+     * **The top of the ladder, held.** The zoom already stops there, so the only
+     * way to be outside it is for the world to have moved rather than the
+     * camera: the frames shifting under a lens that is sitting still — a storey
+     * arriving, the viewport turning. (This held §7.7.1's ceiling until
+     * 2026-09-27, which could also come down on a new career.)
      *
      * After the ease rather than before it, so a flight cannot be clamped on
      * its first frame and then eased straight back out through the bound.
      */
-    const limit = this.ceilingScale()
+    const limit = this.outerScale()
     if (this._scale < limit) {
       this._scale = limit
-      if (this.parked !== null) this.parked = Math.min(this.parked, this.ceiling)
       if (this.target && this.target.scale < limit) this.target = { ...this.target, scale: limit }
     }
 

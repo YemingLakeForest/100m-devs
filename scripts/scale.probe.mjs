@@ -161,7 +161,7 @@ try {
       const stage = await page.evaluate(() => window.__stage)
       rows.push({
         devs,
-        ceilingRung: stage?.ceilingRung,
+        rung: stage?.rung,
         view: stage?.view,
         medianFps: +frames.median.toFixed(1),
         lowFps: +frames.low.toFixed(1),

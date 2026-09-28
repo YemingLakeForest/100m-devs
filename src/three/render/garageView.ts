@@ -96,8 +96,15 @@ export interface GarageView {
   dispose(): void
 }
 
-/** How far the player may zoom: well out past the room, and in to a face. */
-const ZOOM_MIN = 0.45
+/**
+ * How far the player may zoom: well out past the room, and in to a face.
+ *
+ * The out-stop is exported because it is the hinge [2026-09-27]: the garage is
+ * the bottom of the lens while the studio fits it, and a zoom out past its
+ * widest frame hands the camera to the ladder at the block (`render/stage.ts`).
+ */
+export const GARAGE_ZOOM_MIN = 0.45
+const ZOOM_MIN = GARAGE_ZOOM_MIN
 const ZOOM_MAX = 7
 /** How far a hire falls, in metres — the rebuild's DROP_FROM. */
 const DROP_FROM = 3.4

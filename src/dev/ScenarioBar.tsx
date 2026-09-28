@@ -2,8 +2,8 @@
  * The scenario picker — `?scenarios`, and the reason it is not always on.
  *
  * A row of decades across the bottom of the screen. Press one and the studio
- * *is* that size, with the lens already parked at the rung that headcount has
- * earned. Press the next and it is that size instead, without a reload —
+ * *is* that size, with the lens already parked on the stop that holds all of
+ * it. Press the next and it is that size instead, without a reload —
  * which is the whole point, because the question §26.2 keeps asking is
  * comparative ("does a town read as more than a campus, or just as blurrier?")
  * and a comparison you have to reload between is a comparison you do not make.
@@ -145,8 +145,8 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
     setLoaded(s)
     setNote(s.note)
     // The lens, second and separately — `applyScenario` is store-side and does
-    // not know the renderer exists. Parked at the rung the headcount has just
-    // earned, because the alternative is landing at a hundred million
+    // not know the renderer exists. Parked on the stop that holds the whole
+    // studio, because the alternative is landing at a hundred million
     // developers with the camera still on somebody's desk.
     stage?.camera.set(zAtRung(scenarioRung(s)))
   }

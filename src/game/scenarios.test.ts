@@ -57,10 +57,17 @@ describe('the list is a ladder', () => {
     expect(scenarioById('')).toBeNull()
   })
 
-  it('says what the lens is allowed to see, and agrees with §7.7.1', () => {
-    // The picker parks the camera here, so a disagreement with the ceiling
-    // would show up as a lens that snaps back the instant it is let go.
-    for (const s of SCENARIOS) expect(scenarioRung(s)).toBe(rungFor(s.devs).rung)
+  it('parks the lens on the stop that holds the whole studio', () => {
+    // This pinned agreement with §7.7.1's zoom ceiling, which went on
+    // 2026-09-27 (GDD §7.4a, amended). The claim now is only which picture:
+    // the studio's own rung, except where a scenario exactly fills a unit —
+    // a hundred thousand is one full block, not a park with nine empty parcels.
+    for (const s of SCENARIOS) {
+      expect(scenarioRung(s)).toBeLessThanOrEqual(rungFor(s.devs).rung)
+      expect(scenarioRung(s)).toBeGreaterThanOrEqual(rungFor(Math.max(0, s.devs - 1)).rung)
+    }
+    expect(scenarioRung(scenarioById('campus')!)).toBe(rungFor(99_999).rung)
+    expect(scenarioRung(scenarioById('town')!)).toBe(rungFor(999_999).rung)
   })
 })
 
@@ -150,7 +157,7 @@ describe('a headcount somebody typed', () => {
     expect(parseHeadcount('99999t')).toBeNull()
   })
 
-  it('lands the lens on the rung the number has earned', () => {
+  it('lands the lens further out for a bigger studio', () => {
     expect(rungForCount(1)).toBeLessThan(rungForCount(1e6))
     expect(rungForCount(1e6)).toBeLessThan(rungForCount(1e8))
   })
