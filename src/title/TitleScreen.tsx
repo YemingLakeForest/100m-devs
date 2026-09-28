@@ -7,7 +7,6 @@ import {
   type CSSProperties,
   type ReactElement,
 } from 'react'
-import type { StageHandle } from '../render/stage.ts'
 import { Credits } from './Credits.tsx'
 import { Options } from './Options.tsx'
 import { Button } from '../ui/Button.tsx'
@@ -16,7 +15,6 @@ import { Typewriter } from '../ui/Typewriter.tsx'
 import { motionMs, useReducedMotion } from '../ui/motion.ts'
 import { revealTimeline, typingDuration } from '../ui/typewriter.ts'
 import { playUi } from '../ui/uiSfx.ts'
-import { useTitleCamera } from './useTitleCamera.ts'
 import {
   BOOT_EXIT_MS,
   BOOT_TEXT,
@@ -64,12 +62,11 @@ import {
  *
  * **The one thing React drives is the number**, because it is a value and not
  * a transition. That loop stops the moment the count lands (§10.9.4's idle
- * motion is all CSS and the Pixi ticker), so a settled title screen costs no
+ * motion is all CSS and the stage's frame loop), so a settled title screen costs no
  * React frames against the §23.3 budget.
  */
 
 export interface TitleScreenProps {
-  stage: StageHandle | null
   /** Fired on press, before the exit runs — the game may start arriving. */
   onStart: () => void
   /** Reset progress, then take the same continuous-camera hand-off into play. */
@@ -95,7 +92,7 @@ const STUB_SCREEN: Record<Stub, () => ReactElement> = {
   CREDITS: Credits,
 }
 
-export function TitleScreen({ stage, onStart, onNewGame, onExited, firstLaunch }: TitleScreenProps) {
+export function TitleScreen({ onStart, onNewGame, onExited, firstLaunch }: TitleScreenProps) {
   const reduced = useReducedMotion()
   const t = useMemo(() => titleTimeline(firstLaunch, reduced), [firstLaunch, reduced])
 
@@ -108,8 +105,6 @@ export function TitleScreen({ stage, onStart, onNewGame, onExited, firstLaunch }
   // blank on the frame it goes null.
   const [stubShown, setStubShown] = useState<Stub>('OPTIONS')
   const StubScreen = STUB_SCREEN[stubShown]
-
-  useTitleCamera(stage, exiting)
 
   // --- the count — §10.9.1, "and the logo counts" -------------------------
 

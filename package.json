@@ -15,7 +15,6 @@
     "lint": "eslint .",
     "music:generate": "tsx scripts/generate-music.ts",
     "preview": "vite preview",
-    "probe:scale": "node scripts/scale.probe.mjs",
     "scenarios": "vite --open /?scenarios",
     "shot": "node scripts/screenshot.mjs",
     "shot:boards": "node scripts/shot-boards.mjs",
@@ -34,8 +33,6 @@
     "@capacitor/haptics": "^8.0.2",
     "@types/three": "^0.180.0",
     "break_infinity.js": "^2.0.0",
-    "pixi-filters": "^6.1.4",
-    "pixi.js": "^8.6.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "three": "^0.180.0"

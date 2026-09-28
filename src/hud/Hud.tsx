@@ -44,7 +44,6 @@ import { TouchSwitch } from './TouchSwitch.tsx'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HeroCard } from './HeroCard.tsx'
-import { Lift } from './Lift.tsx'
 import type { HeroId } from '../sim/storyHeroes.ts'
 import { HireDial } from './HireDial.tsx'
 import { Cash, Devs, Shipped, Speedometer, Starbound, Velocity } from './Readouts.tsx'
@@ -352,10 +351,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   // The stage keeps its handlers for its whole life; these refs let them call
   // this render's closures (which read this render's roster).
   const openCardRef = useRef(openCard)
-  const openTeamRef = useRef(openTeam)
   useEffect(() => {
     openCardRef.current = openCard
-    openTeamRef.current = openTeam
   })
 
   useEffect(() => {
@@ -365,13 +362,12 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       setFounderOpen(true)
     })
     stage.setHeroInspect((id) => openCardRef.current(id))
-    // The sign over the suite's doorway used to raise the roster strip. It
-    // opens the first card now, and the card's arrows walk the rest.
-    stage.setRosterInspect(() => openTeamRef.current())
+    // The sign over the Pixi suite's doorway raised the roster, and went with
+    // the Pixi room on 2026-09-28; TEAM is the door, and the card's arrows walk
+    // everybody who has arrived.
     return () => {
       stage.setFounderInspect(null)
       stage.setHeroInspect(null)
-      stage.setRosterInspect(null)
     }
   }, [stage])
 
@@ -525,11 +521,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           <Shipped state={state} />
         </div>
         {/*
-          §26.2.2's address, said out loud, and the doors it names. Under the
-          resources because it answers the same question they do — what have I
-          got, and where am I standing in it.
+          §26.2.2's address and its doors (`Lift.tsx`) stood here, over the Pixi
+          ladder. They went with it on 2026-09-28; the monitor's address bar
+          (PLAN-2026-09-27-garage-to-galaxy, phase 6) is their replacement.
         */}
-        <Lift stage={stage} />
         <div className="hud__bottom">
           <ActionBar
             spec={actionFor(state.phase, unlocks.manualHire)}

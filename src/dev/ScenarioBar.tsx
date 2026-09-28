@@ -50,8 +50,7 @@ import {
   scenarioRung,
   type Scenario,
 } from '../game/scenarios.ts'
-import { PARK_CAP } from '../render/frames.ts'
-import { SITES_PER_GLOBE } from '../render/worldMap.ts'
+import { RUNGS } from '../sim/headcount.ts'
 import { getState, subscribe } from '../game/store.ts'
 import {
   SIM_SPEED_MAX,
@@ -67,6 +66,15 @@ import {
 import { dominantView, rungAt, zAtRung } from '../sim/ladder.ts'
 import type { StageHandle } from '../render/stage.ts'
 import '../styles/scenarios.css'
+
+/*
+ * §7.7.1a — a site is a park of a million, and a world holds a hundred of them.
+ * Read off the rung table rather than the Pixi globe that used to draw them
+ * (`render/worldMap.ts`, decommissioned 2026-09-28): the table is where the
+ * sizes are decided, and the picture only ever drew them.
+ */
+const SITE = RUNGS[6].unitSize
+const SITES_PER_WORLD = RUNGS[7].unitSize / RUNGS[6].unitSize
 
 function developerCountLabel(count: number): string {
   return `${count.toLocaleString()} ${count === 1 ? 'developer' : 'developers'}`
@@ -364,7 +372,7 @@ export default function ScenarioBar({ stage }: { stage: StageHandle | null }) {
         <span>
           SITES{' '}
           <b>
-            {Math.max(1, Math.min(SITES_PER_GLOBE, Math.ceil(devs / PARK_CAP)))}/{SITES_PER_GLOBE}
+            {Math.max(1, Math.min(SITES_PER_WORLD, Math.ceil(devs / SITE)))}/{SITES_PER_WORLD}
           </b>
         </span>
         <span className="scenarios__note">

@@ -11,7 +11,6 @@
  * synthesising taps is not something a player should ever have happen to them.
  */
 
-import { FLOOR_SPRITE_COUNT } from '../render/scene.ts'
 import {
   FrameSampler,
   LatencySampler,
@@ -46,6 +45,14 @@ export interface BenchHooks {
    */
   setFloorPopulationOverride: (n: number | null) => void
 }
+
+/**
+ * §23.3 criterion 4's load, 1,000 sprites. It was the Pixi floor's particle
+ * budget (`render/scene.ts`, decommissioned 2026-09-28); the 3D room draws the
+ * people it has, so until the storey across the lane does, the stage takes the
+ * override and draws what it draws.
+ */
+const FLOOR_SPRITE_COUNT = 1000
 
 export interface BenchResult {
   results: CriterionResult[]

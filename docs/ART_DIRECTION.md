@@ -376,6 +376,21 @@ system, so it has nothing to reconcile.
 
 Reduce-motion accessibility (GDD §10.5) shortens passes 2 and 5; it never removes pass 6.
 
+**[amended 2026-09-28] The stack is three.js now.** The Pixi stage it was built on is
+decommissioned (GDD §7.4a's note of that date), and the glass is the last draw of every
+frame (`three/render/glass.ts`), over the room the garage's renderer has drawn:
+
+- **Pass 1, tilt-shift, is not ported.** It hung off the Pixi world container, which was
+  hidden whenever the 3D room was on screen, so it never touched the room.
+- **Pass 2, zoom blur, is not ported.** The stage held it at zero over the 3D room.
+- **Pass 3, bloom,** is in the garage's composer, after its output pass, so the threshold
+  (0.74) still means brightness as displayed.
+- **Passes 4–6** are pixi-filters' shaders, ported line for line, and the poke numerals are
+  composited under the lines, as they were. Pixi's CRT "curvature" bends the scanlines and
+  never warped the image; nothing about that changed.
+
+Pass 6 is still never disabled and still covers all of the world.
+
 ---
 
 ## 7. Asset Acceptance Checklist

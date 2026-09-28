@@ -11,7 +11,6 @@ describe('landing-screen game choices', () => {
     const onStart = vi.fn()
     render(
       <TitleScreen
-        stage={null}
         firstLaunch={false}
         onStart={onStart}
         onNewGame={() => {}}
@@ -29,7 +28,6 @@ describe('landing-screen game choices', () => {
     const onNewGame = vi.fn()
     render(
       <TitleScreen
-        stage={null}
         firstLaunch={false}
         onStart={onStart}
         onNewGame={onNewGame}

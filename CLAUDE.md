@@ -81,5 +81,6 @@ the garage, collapse, building, district, park, globe, world map, frames, lens
 and the preview renders), and the Pixi figure's turn in `game/selection.test.ts`.
 What stays is everything that is not a Pixi picture: the HUD, the 3D garage
 (`src/three/`), `sim/`, input handling (`render/navigation.ts`) and the music's
-zoom bands (`render/omniLens.ts`). A claim about a Pixi picture is made by
-looking at it.
+zoom bands (`render/omniLens.ts`). Later the same day the Pixi stage itself
+was decommissioned (GDD §7.4a, amended 2026-09-28): there is no Pixi scene left
+to guard, and the game is three.js from the garage up.

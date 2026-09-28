@@ -1,186 +1,81 @@
 /**
- * The Pixi stage — simulation canvas, camera, and the post-process weld.
+ * **The stage** — the three.js studio, the hand on it, and the glass over it.
  *
- * GDD §23.2 non-negotiable 3 fixes the boundary: simulation, camera and
- * particles live here; everything with structured text, numbers or navigation
- * is React. Structured text stays there; the poke numeral and its GDD §8.2a
- * code line are drawn here because they are scenery that must sit under the
- * glass — see pokeText.ts.
+ * [rewritten 2026-09-28] **The Pixi stage is decommissioned.** The user:
+ * *"pixi scenes are supposed to be completed decommissioned. we should do that
+ * first if there are gates/validation any productivity drags because of
+ * them"* — after *"I noticed when you hire 25 or more, then game went back to
+ * old pixi 2d scene, this is not wat I wanted"*. This file was a Pixi
+ * `Application` holding the whole §7.4a ladder (room, office, building, block,
+ * district, park, globe and star field, 18,000 lines of `render/`), with the
+ * three.js garage as a texture inside it for the first twenty developers and a
+ * hinge between the two renderers. All of that is gone, and what is left is
+ * the garage, drawn straight to the screen:
+ *
+ * - **The picture** is `three/render/garageView.ts`. It redraws the room only
+ *   when something in it moved, into its composer's targets.
+ * - **The glass** (ART_DIRECTION §6) is `three/render/glass.ts`, the last draw
+ *   of every frame: the room, the poke numerals under the lines, the
+ *   scanlines, the vignette and the colour split. Bloom went into the garage's
+ *   own composer.
+ * - **The hand** is here: a tap pokes, codes, inspects or does nothing by
+ *   §7.7.6b's latch; a drag pans; a pinch and the wheel zoom about the point
+ *   under them. Nothing a finger does on the glass changes *level* any more,
+ *   because there is one level: the room.
+ * - **The lens as the simulation reads it**, §7.2's Z, is the garage's zoom
+ *   mapped onto the room's three stops (desk, squad, floor), so the music, the
+ *   poke sounds and the store's tier still hear the same numbers.
+ *
+ * **What is not drawn now, and is not pretended.** Past twenty the studio's
+ * rank and file are not on screen until the storey across the lane lands in
+ * three.js (PLAN-2026-09-27-garage-to-galaxy, decision 7), and there is
+ * nothing above the street until the three.js city and planet do (phases 5–7).
+ * §21 Act IV's collapse overlay was a Pixi picture of the Pixi office and went
+ * with it; the score's collapse (§20.7.4) is audio and stays.
  */
 
-import { Application, Container, Sprite, Texture } from 'pixi.js'
-import { createGarageView, GARAGE_ZOOM_MIN } from '../three/render/garageView.ts'
+import { createGarageView, GARAGE_REST_ZOOM, GARAGE_ZOOM_MAX, GARAGE_ZOOM_MIN } from '../three/render/garageView.ts'
+import { createGlass, type GlassPasses } from '../three/render/glass.ts'
+import * as T from 'three'
 import { founderLook, readStudioName } from '../game/founderProfile.ts'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
-  pokeJames,
   arrivedHeroes,
   currentEntropy,
-  developerVelocity,
-  grabDeveloper,
-  releaseDeveloper,
   FLOATER_LIFE_MS,
   getState,
-  heroRoster,
   poke,
   pokeFounder,
+  pokeJames,
   selectDeveloper,
   setCameraRung,
   setZoom,
   tick,
-  type GameState,
-  type PokeTarget,
 } from '../game/store.ts'
-import { playKeyboardClick, pokeSfxForZoom, playSfx } from '../audio/sfx.ts'
+import { playKeyboardClick, playSfx, pokeSfxForZoom } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
 import { MusicBus } from '../audio/music.ts'
-import { holdHaptic, pokeHaptic } from '../audio/haptics.ts'
-import { Lens, settleLevel } from './lens.ts'
-import {
-  BLOCK,
-  BUILDING,
-  DESK,
-  DEVS_PER_FLOOR,
-  FLOOR,
-  LEVEL_NAMES,
-  PARK,
-  SQUAD,
-  TOP_LEVEL,
-  blockAtPark,
-  blockChromeAlpha,
-  blockOf,
-  blockToBuilding,
-  blocksFor,
-  buildingAt,
-  buildingAtBlock,
-  buildingChromeAlpha,
-  buildingOf,
-  buildingsIn,
-  devsIn,
-  devsOnBlock,
-  floorScaleAt,
-  floorSeatRect,
-  parkChromeAlpha,
-  parkToBlock,
-  globeToPark,
-  plotOf,
-  roomResolved,
-  seatOfBlock,
-  seatOfPlot,
-  seatOfStorey,
-  siteOf,
-  sitesFor,
-  devsOnSite,
-  globeChromeAlpha,
-  galaxyChromeAlpha,
-  galaxyToGlobe,
-  seatOfSite,
-  seatOfWorld,
-  worldOf,
-  GALAXY,
-  GLOBE,
-  squadOf,
-  storeyAtBuilding,
-  storeyOf,
-  storeysIn,
-  type Level,
-  suiteFrame,
-  SUITE_LEVEL,
-} from './frames.ts'
-import { buildPark } from './park.ts'
-import { buildGlobe } from './globe.ts'
-import { buildGalaxy } from './galaxy.ts'
-import { SITES_PER_GLOBE } from './worldMap.ts'
-import { ALL_PASSES, createPostProcess, type PassName } from './postProcess.ts'
-import { buildScene } from './scene.ts'
-import { rungFor } from '../sim/headcount.ts'
-import { devsOnWorld, worldsFor } from '../sim/starfield.ts'
-import { branchColour } from '../sim/heroBranches.ts'
-import { createCollapse } from './collapse.ts'
-import { createPokeTypeset } from './pokeText.ts'
+import { pokeHaptic } from '../audio/haptics.ts'
+import { exceedsSlop } from './navigation.ts'
+import { createPokeCanvas } from './pokeText.ts'
+import { tapVerb } from '../game/touchMode.ts'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
 import { getViewModes, onViewModes } from '../dev/viewModes.ts'
 import { getSimSpeed } from '../dev/simSpeed.ts'
-import {
-  capForLevel,
-  createTallies,
-  sourceWindow,
-  spanForLevel,
-  tallySources,
-  type TallySource,
-} from './tallies.ts'
-import { createArrivals } from './arrivals.ts'
-import { ROOM_DEV_CAP, type TeamRoomHero } from './room.ts'
-import { exceedsSlop, pickNearest } from './navigation.ts'
-import { tapVerb } from '../game/touchMode.ts'
 import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 import type { FounderProfile } from '../game/founderProfile.ts'
-import { STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
-import {
-  JAMES_DROPS_AT_LINE,
-  SCENE_BILLY_ARRIVES,
-  SCENE_JAMES_ARRIVES,
-  SCENE_MATT_ARRIVES,
-  SCENE_MELANY_ARRIVES,
-  SCENE_MO_ARRIVES,
-  SCENE_SERENA_ARRIVES,
-} from '../game/scenes.ts'
+import type { HeroId } from '../sim/storyHeroes.ts'
+import { JAMES_DROPS_AT_LINE, SCENE_JAMES_ARRIVES } from '../game/scenes.ts'
 
-/** What the HUD needs to draw the breadcrumb and the lift panel. */
-export interface NavState {
-  /** Continuous position on the ladder, 0 desk to 6 globe. */
-  level: number
-  /** The level it would settle on, and the word for it. */
-  at: Level
-  name: string
-  /**
-   * The address, unpacked.
-   *
-   * `building` is the plot of its own block — the number the HUD says out loud
-   * — and not {@link buildingOf}'s park-wide one. A player reading
-   * `BLOCK 03 / BUILDING 07` is naming the seventh tower of the third block,
-   * and "building 27" is a number nothing on the screen is labelled with.
-   */
-  world: number
-  site: number
-  block: number
-  building: number
-  storey: number
-  squad: number
-  seat: number
-  /** How many storeys stand in the building the address is in. */
-  storeys: number
-  /** How many buildings stand on the block the address is in. */
-  buildings: number
-  /** How many blocks stand in the park. */
-  blocks: number
-  /** How many sites the studio has settled on the world it is looking at. */
-  sites: number
-  /** How many worlds the studio has settled. Unbounded — see §7.7.1a. */
-  worlds: number
-  /** The storey named but not yet entered, or −1. */
-  selected: number
-  /** The building named but not yet entered, or −1. */
-  selectedBuilding: number
-  /** The block named but not yet entered, or −1. */
-  selectedBlock: number
-  /** The site named but not yet entered, or −1. */
-  selectedSite: number
-  /** The world named but not yet entered, or −1. */
-  selectedWorld: number
-  /** The worlds the network is currently drawing, nearest first. */
-  neighbourhood: readonly number[]
-  /** Developers on each built storey of this building, ground floor first. */
-  occupancy: number[]
-  /** Developers in each built building of this block, first plot first. */
-  blockOccupancy: number[]
-  /** Developers on each built block of the park, first parcel first. */
-  parkOccupancy: number[]
-  /** Developers on each settled site of the planet, first site first. */
-  globeOccupancy: number[]
-  /** Developers on each world of the drawn neighbourhood, in that order. */
-  galaxyOccupancy: number[]
+/**
+ * The lens, as the things that were written against the Pixi lens still read
+ * it: §7.2's Z, and a door to set it. `?z`, the dev scenarios and the §23.3
+ * bench drive it; the music and the store hear it.
+ */
+export interface StageCamera {
+  readonly z: number
+  set(z: number): void
 }
 
 export interface StageHandle {
@@ -188,56 +83,21 @@ export interface StageHandle {
   readonly frameMs: number
   /** p95 tap -> numeral latency in ms. Criterion 1's threshold is 80 ms. */
   readonly latencyP95: number
-  readonly camera: Lens
+  readonly camera: StageCamera
   /**
-   * Where the lens is, for §10's breadcrumb and lift panel.
-   *
-   * Sampled by React rather than pushed, in the same family as the scenario
-   * bar's two readouts: the camera is not in the store and does not notify, and
-   * a subscription for something a component already re-renders ten times a
-   * second is machinery with nothing to buy.
-   */
-  nav(): NavState
-  /** Go into a storey — the lift panel, and the second tap on a floor. */
-  enterFloor(storey: number): void
-  /** Go into a building of the block — the picker's building rows. */
-  enterBuilding(building: number): void
-  /** Go into a block of the park — the picker's block rows. */
-  enterBlock(block: number): void
-  /** Go into a site of the planet — the picker's site rows. */
-  enterSite(site: number): void
-  /** Go into a world of the network — the picker's world rows. */
-  enterWorld(world: number): void
-  /** Go to a level of the ladder — the breadcrumb. */
-  goToLevel(level: Level): void
-  /** §7.8.10 Hero Anchor: return smoothly to the manager corner. */
-  focusFounder(): void
-  /**
-   * §7.8.12 — **TEAM: go back to the room the heroes are in**, from anywhere.
-   *
-   * §7.7.4 promises there is always one control back to where the studio
-   * started, and §4.5d spends a paragraph on it ("at ten thousand developers
-   * your desk is still there"). Until now the only control that kept it was
-   * `focusFounder`, which frames one person; the room the person is in had no
-   * way home at all.
-   *
-   * From above the room this **walks the address home first** — world 0, site 0,
-   * block 0, building 0, storey 0 — and then flies. One flight, not eight taps,
-   * and at §7.7.1a's billion developers it is the only address in the game that
-   * was not generated on demand: everything else on screen at that headcount is
-   * a §26.2.2 unit conjured when somebody looked at it, and the suite has been
-   * in the same place since the first frame.
+   * §7.8.12 — **TEAM: the way back to the room.** The room is the whole of the
+   * picture now, so this eases the camera back to it framed at rest.
    */
   focusTeam(): void
   /**
    * §10.7a.1 — point the lens at the dialogue's current speaker. `'founder'`
-   * is the corner desk, a number is a seat index, `null` is `STUDIO_OS` (the
-   * lens holds where it is). Called by the dialogue box on every page turn;
-   * the camera push to Desk zoom and the return are handled here, from the
-   * store's scene state, so the box does not need to know the camera exists.
+   * is the corner desk, a number is a story hero's index (0 is James), `null`
+   * is `STUDIO_OS`, which has no body, so the camera holds. Called by the
+   * dialogue box on every page turn; the return when the scene ends is handled
+   * here, from the store's scene state.
    */
   focusDialogue(focus: 'founder' | number | null): void
-  /** [2026-09-26] The line of the scene now on screen — stage directions key off it. */
+  /** The line of the scene now on screen — stage directions key off it. */
   setSceneLine(line: number | null): void
   /** Has James finished landing? The dialogue holds his *Ouch.* for it. */
   jamesLanded(): boolean
@@ -250,10 +110,8 @@ export interface StageHandle {
   codeFounder(): number
   /** React hook for opening the founder profile when the world avatar is tapped. */
   setFounderInspect(handler: (() => void) | null): void
-  /** React hook for opening a staff pass from its physical team-room body. */
+  /** React hook for opening a hero's pass from their body in the room. */
   setHeroInspect(handler: ((id: HeroId) => void) | null): void
-  /** §13.11.2 — React hook for the roster strip, opened from the room's sign. */
-  setRosterInspect(handler: (() => void) | null): void
   /** Replace the default figure once first-start setup has been submitted. */
   setFounderProfile(profile: FounderProfile): void
   /** Everything the GDD §23.3 acceptance run needs to drive and measure the app. */
@@ -261,146 +119,59 @@ export interface StageHandle {
   destroy(): void
 }
 
-/**
- * The smallest §4.5d's "tap yourself" may measure on screen, as a radius.
- *
- * §23.4.2's design box wants a 44 px target; this is half of it, applied to the
- * founder's own hit box so the one person the player is guaranteed to look for
- * is findable at every level of the §7.4 ladder rather than only at the two
- * where their desk happens to be large.
- */
-const FOUNDER_TOUCH_PX = 22
-
-/** §10.7a uses these six stable focus indices throughout the scene scripts. */
-const DIALOGUE_HEROES: readonly HeroId[] = STORY_HEROES.map((hero) => hero.id)
-
-/**
- * The person enters with their scene, one frame before that scene becomes a
- * permanent arrival milestone. Including the current scene is what lets the
- * walls and the new desk be present behind the actual entrance dialogue.
- */
-const ARRIVAL_HERO_FOR_SCENE: Readonly<Record<string, HeroId>> = {
-  [SCENE_JAMES_ARRIVES.id]: 'james',
-  [SCENE_MO_ARRIVES.id]: 'mo',
-  [SCENE_SERENA_ARRIVES.id]: 'serena',
-  [SCENE_MATT_ARRIVES.id]: 'matt',
-  [SCENE_MELANY_ARRIVES.id]: 'melany',
-  [SCENE_BILLY_ARRIVES.id]: 'billy',
-}
+/** James's seat in the 3D garage (`floorPlan.leaderSeat('james')`). */
+const JAMES_SEAT = -2
+/** The founder's. */
+const FOUNDER_SEAT = -1
 
 /** Samples kept for the latency percentile. 120 taps is ~24 s at 5 taps/sec. */
 const LATENCY_WINDOW = 120
 
 /**
- * How long a poke floater lives, and what fraction of that is the fade.
+ * A finger that has not been heard from in this long is not on the glass.
  *
- * Longer and later than the first pass. The numeral reads instantly; the §8.2a
- * code snippet beside it is the payload, and a line of code that starts fading
- * on the frame it appears is a joke told at a volume nobody can hear.
+ * `pointerup` is not guaranteed to arrive: it is lost on alt-tab, on some
+ * pointercancel paths, and whenever a synthetic `pointerdown` arrives with no
+ * partner — which is exactly what browser automation produces. Two leaked
+ * entries put the camera permanently into pinch mode, where every later move
+ * rewrites the zoom; expiring by age fixes it without trusting any event to be
+ * delivered.
  */
-const FLOATER_FADE = 0.3
+const POINTER_STALE_MS = 2000
 
-/** Shared empty list, so a level with no heads does not allocate one per frame. */
-const NO_TALLIES: readonly TallySource[] = []
-
-/**
- * §4.5b's rung, from the lens's level.
+/*
+ * **The room's three stops, as the garage's zoom.**
  *
- * The **simulation keeps its ladder** and only the camera changed, which is
- * what makes this rewrite affordable: `sim/units.ts`, `sim/poke.ts`,
- * `sim/headcount.ts` and the store all still speak in §7.7.1's rungs, and the
- * six levels this scope draws are its first six. A tap at the building level
- * therefore still resolves through `unitSeats(3, storey, devs)` and still
- * covers exactly the thousand seats that storey holds.
+ * §7.2's Z is what the music's zone beds, §8.2's poke sounds and the store's
+ * `zoom` tier are all written against, and the room is the bottom three
+ * levels of it: desk (0), squad (1), floor (2). The garage's zoom is
+ * continuous from a face (`GARAGE_ZOOM_MAX`) to the room with its street
+ * around it (`GARAGE_ZOOM_MIN`), so the mapping is log-linear in two pieces
+ * that meet at the room framed at rest, which is the squad — the level the
+ * room has always been played at, and the one whose poke is a keyboard click.
  */
-const rungOfLevel = (level: number): number => settleLevel(level)
+const SQUAD_LEVEL = 1
+const FLOOR_LEVEL = 2
 
-/**
- * The §7.4 tier a level sounds like — §8.2's poke sounds and §20.2's zones.
- *
- * Three where there were four. The cosmic tier went with the rungs above the
- * building, and giving the building a tier of its own rather than folding it
- * into the floor's keeps the §20.2 register change on a level boundary.
- */
-const tierOfLevel = (level: number): 1 | 2 | 3 =>
-  level < SQUAD + 0.5 ? 1 : level < FLOOR + 0.5 ? 2 : 3
+function levelOfZoom(zoom: number): number {
+  const z = Math.max(GARAGE_ZOOM_MIN, Math.min(GARAGE_ZOOM_MAX, zoom))
+  if (z >= GARAGE_REST_ZOOM) return SQUAD_LEVEL * Math.log(GARAGE_ZOOM_MAX / z) / Math.log(GARAGE_ZOOM_MAX / GARAGE_REST_ZOOM)
+  return SQUAD_LEVEL + (FLOOR_LEVEL - SQUAD_LEVEL) * Math.log(GARAGE_REST_ZOOM / z) / Math.log(GARAGE_REST_ZOOM / GARAGE_ZOOM_MIN)
+}
+
+function zoomOfLevel(level: number): number {
+  const l = Math.max(0, Math.min(FLOOR_LEVEL, level))
+  if (l <= SQUAD_LEVEL) return GARAGE_ZOOM_MAX / Math.pow(GARAGE_ZOOM_MAX / GARAGE_REST_ZOOM, l / SQUAD_LEVEL)
+  return GARAGE_REST_ZOOM / Math.pow(GARAGE_REST_ZOOM / GARAGE_ZOOM_MIN, (l - SQUAD_LEVEL) / (FLOOR_LEVEL - SQUAD_LEVEL))
+}
+
+/** The §7.4 tier a level sounds like — §8.2's poke sounds and §20.2's zones. */
+const tierOfLevel = (level: number): 1 | 2 => (level < SQUAD_LEVEL + 0.5 ? 1 : 2)
 
 export async function createStage(host: HTMLElement): Promise<StageHandle> {
-  const app = new Application()
-
-  await app.init({
-    background: 0x14121a, // NEUTRAL[0]
-    antialias: false, // ART_DIRECTION §7: hard pixels only.
-    resolution: Math.min(window.devicePixelRatio || 1, 2),
-    autoDensity: true,
-    resizeTo: host,
-    // powerPreference matters on the §23.3 test device, where the default can
-    // land on the integrated path and cost the criterion-3 dolly its margin.
-    powerPreference: 'high-performance',
-  })
-
-  host.appendChild(app.canvas)
-
+  const params = debugSearchParams()
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  // World sits behind the glass; the post-process is applied to the container
-  // that holds it, so every tier passes through the same grade.
-  const world = new Container()
-  const glass = new Container()
-  glass.addChild(world)
-  app.stage.addChild(glass)
-
-  // ?nopost drops the glass entirely; ?post=bloom,crt attaches just those
-  // passes. The stack is six passes deep, so being able to bisect it without a
-  // rebuild is what separates "the scene is too heavy" from "one filter is".
-  const params = debugSearchParams()
-  const requested = params.get('post')
-  const passes = params.has('nopost')
-    ? new Set<PassName>()
-    : requested
-      ? new Set(requested.split(',').filter((p): p is PassName => (ALL_PASSES as string[]).includes(p)))
-      : new Set(ALL_PASSES)
-
-  const post = createPostProcess({ reduceMotion, passes })
-  /*
-   * §7.6a [2026-09-03] — **the glass goes on and comes off live.**
-   *
-   * `?nopost` decided this once, at load, which meant answering "is that haze
-   * the bloom or is the wall really that colour?" cost a reload — and a reload
-   * throws away the studio you were looking at. The passes are built either
-   * way; attaching them is one assignment, so the switch is free and the chain
-   * is never rebuilt.
-   */
-  const applyGlass = () => {
-    const on = getViewModes().crt
-    world.filters = on ? post.worldFilters : []
-    glass.filters = on ? post.filters : []
-  }
-  applyGlass()
-  const stopWatchingModes = onViewModes(applyGlass)
-
-  /*
-   * **The garage in three.js — 2026-09-26** (`docs/PLAN-2026-09-26-return.md`).
-   *
-   * *"Can you do me a proof of old game in threejs with the current game
-   * garage?"*, then *"when you have something stable, I want you to do a push to
-   * main on old repo so I can have a play"*. The room is drawn by
-   * `three/render/garageView.ts` (the rebuild's garage, people, lights and SSAO,
-   * copied here) into its own canvas, and that canvas is the bottom layer of
-   * `glass` — so ART_DIRECTION §6's whole stack goes over it exactly as it went
-   * over the Pixi room, and the interface is this build's, untouched.
-   *
-   * **Only the garage era, for now.** While the studio fits the garage the 3D
-   * room is shown and answers taps; past it the Pixi world comes back — floor,
-   * building and every rung above — until the 3D ladder replaces it band by
-   * band. That keeps the build playable end to end in the meantime. `?pixiroom`
-   * shows the Pixi garage too, for comparison.
-   *
-   * Not yet: the lens does not drive the 3D camera (zoom and pan hold the
-   * framing), the `+1` numerals are hidden over the 3D room, and taps near the
-   * frame's edge are a few pixels off (the barrel curvature is not undone).
-   */
-  const pixiRoom = params.has('pixiroom')
   /*
    * [2026-09-26] **A phone gets the lighter room** — no SSAO pass, one pixel per
    * CSS pixel, a smaller shadow map (`GarageViewOptions.lite`). *"The
@@ -408,1341 +179,200 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * side. `?gpu=lite` and `?gpu=full` force either on a local build.
    */
   const gpu = params.get('gpu')
-  const lite3d = gpu === 'lite' || (gpu !== 'full'
+  const lite = gpu === 'lite' || (gpu !== 'full'
     && window.matchMedia('(pointer: coarse)').matches && Math.min(window.screen.width, window.screen.height) < 600)
-  const garage3d = pixiRoom ? null : createGarageView(app.screen.width, app.screen.height, undefined, { lite: lite3d })
-  const garageTexture = garage3d ? Texture.from(garage3d.canvas) : null
-  const garageSprite = garageTexture ? new Sprite(garageTexture) : null
-  if (garageSprite) {
-    garageSprite.width = app.screen.width
-    garageSprite.height = app.screen.height
-    glass.addChildAt(garageSprite, 0)
-    // Pulled back a little: the glass's barrel curvature magnifies the middle.
-    garage3d!.setLens(0.8)
+
+  let w = Math.max(1, host.clientWidth)
+  let h = Math.max(1, host.clientHeight)
+  const garage = createGarageView(w, h, undefined, { lite })
+  const canvas = garage.canvas
+  canvas.style.width = '100%'
+  canvas.style.height = '100%'
+  canvas.style.display = 'block'
+  // The page must not scroll or zoom under a pinch that is meant for the room.
+  canvas.style.touchAction = 'none'
+  host.appendChild(canvas)
+  garage.setLens(GARAGE_REST_ZOOM)
+
+  /*
+   * ?nopost (and `C`, `?crt=off`) takes the glass off; ?post=rgb,crt attaches
+   * just those parts. The switch the Pixi stack had for bisecting a frame
+   * budget, kept for the same reason.
+   */
+  const requested = params.get('post')
+  const passes: GlassPasses = requested
+    ? { rgb: requested.split(',').includes('rgb'), crt: requested.split(',').includes('crt') }
+    : { rgb: true, crt: true }
+  const bloomOn = requested ? requested.split(',').includes('bloom') : true
+  const glass = createGlass(passes, reduceMotion)
+  const applyGlass = () => { glass.enabled = getViewModes().crt }
+  applyGlass()
+  const stopWatchingModes = onViewModes(applyGlass)
+
+  // §8.2 — the numerals, on their own canvas, under the glass's lines.
+  const numerals = createPokeCanvas()
+  const numeralTexture = new T.CanvasTexture(numerals.canvas)
+  numeralTexture.colorSpace = T.NoColorSpace
+  numeralTexture.minFilter = T.NearestFilter
+  numeralTexture.magFilter = T.NearestFilter
+  const sizeNumerals = () => numerals.resize(w, h, garage.renderer.getPixelRatio())
+  sizeNumerals()
+
+  /** Client point -> the canvas's CSS pixels. */
+  const toCanvas = (x: number, y: number) => {
+    const r = canvas.getBoundingClientRect()
+    return { x: (x - r.left) * w / Math.max(1, r.width), y: (y - r.top) * h / Math.max(1, r.height) }
   }
-  let garageW = app.screen.width, garageH = app.screen.height
-  /** James's seat in the 3D garage (`floorPlan.leaderSeat('james')`). */
-  const JAMES_3D_SEAT = -2
-  /** The scene line on screen, and whether a scene has moved the 3D camera. */
+  /** Canvas CSS pixels -> client, for the numerals, which the store holds in client space. */
+  const toClient = (x: number, y: number) => {
+    const r = canvas.getBoundingClientRect()
+    return { x: r.left + x * r.width / Math.max(1, w), y: r.top + y * r.height / Math.max(1, h) }
+  }
+  /** Who is under a client point: a seat, the founder (-1), James (-2), or nobody. */
+  const pickAt = (x: number, y: number): number | null => {
+    const at = toCanvas(x, y)
+    return garage.pick(at.x, at.y)
+  }
+  /** Where a person is, in client pixels, or null if they are not in the frame. */
+  const personAt = (seat: number): { x: number; y: number } | null => {
+    const at = garage.screenOf(seat)
+    return at ? toClient(at.x, at.y) : null
+  }
+
+  // --- the dialogue's camera --------------------------------------------------
+
+  /** The scene line on screen, and whether a scene has moved the camera. */
   let sceneLine: number | null = null
-  let sceneFocus3d = false
+  let sceneFocus = false
   /** The founder has said *What—* and the lens has gone to James's spot. */
   let jamesCued = false
-  let garage3dHasJames = false
-  /** The garage holds twenty developers; past that the studio has moved on. */
-  const GARAGE_3D_DEVS = 20
-  /** Whether the 3D garage is the room on screen this frame. */
-  let showing3d = false
-  /*
-   * [2026-09-27] **The garage is the bottom of the lens, not a mode of it.**
-   *
-   * GDD §7.4a's first non-negotiable is amended — *"no we don't keep the lock
-   * and we should be able to zoom and down before 100m"* (the user) — so a
-   * studio of one has the whole ladder above its garage. While the studio fits
-   * the garage, the 3D room owns every level below the block (desk, squad,
-   * floor, and the building, which for a garage is the garage on its lot), and
-   * the Pixi ladder owns the block and everything above it. The hinge is at the
-   * block in both directions:
-   *
-   *  - zooming out past the 3D camera's widest frame hands the lens to the
-   *    ladder, parked on the block (`leaveGarage`);
-   *  - the ladder's camera coming in under the block — a pinch, a wheel, or a
-   *    flight to anything closer — hands it back (`enterGarage`), which walks
-   *    the address home, because §7.7.4's pinch-all-the-way-in lands on the
-   *    floor with the founder and James on it and in the garage era that floor
-   *    is the garage.
-   *
-   * The block and not the building, because the ladder's building level holds
-   * the tower's pulled-out plan, and the plan of a garage-era studio is the old
-   * Pixi garage — a second picture of the room the player has just left.
-   *
-   * The swap is a short cross-fade in time, not in zoom: the two pictures are
-   * different objects (a lit 3D street and the ladder's block), which §10.5
-   * allows. `docs/PLAN-2026-09-27-garage-to-galaxy.md` phases 3 and 5 replace
-   * the ladder above the garage with the three.js city, where the garage stays
-   * the garage all the way out.
-   */
-  let inGarage3d = true
-  /** How far into the block a camera must come before the garage takes it back, in levels. */
-  const GARAGE_HINGE = 0.1
-  /** The garage sprite's alpha over the ladder — the swap, eased. */
-  let garageFade = 1
-  /** How long the swap takes, in seconds. */
-  const GARAGE_FADE_S = 0.28
-  /**
-   * The ladder's camera is waiting at the hinge for the garage to finish fading
-   * in over it. What shows through the fade has to be the block the player just
-   * left: parked on the floor straight away, the ladder drew the old Pixi garage
-   * under the new one for the length of the fade — two pictures of one room,
-   * which is the thing the hinge is at the block to avoid.
-   */
-  let parkUnderGarage = false
-  /**
-   * PROOF — who is under client point (x, y) in the 3D garage: a seat, -1 for
-   * the founder, null for nobody; `undefined` when the Pixi room is the one
-   * drawn, so the old hit tests run as they always did. The glass's barrel
-   * curvature is not undone, so taps near the frame's edge land a few pixels off.
-   */
-  /** Where seat `seat` (-1 the founder) is on screen in the 3D garage, or null. */
-  const seat3d = (seat: number): { x: number; y: number } | null =>
-    showing3d && garage3d ? garage3d.screenOf(seat) : null
-  /** Client point -> the 3D canvas's CSS pixels (the sprite covers the whole stage). */
-  const toCanvas3d = (x: number, y: number) => {
-    const r = app.canvas.getBoundingClientRect()
-    return { x: (x - r.left) * garageW / r.width, y: (y - r.top) * garageH / r.height }
-  }
-  /** A pinch's starting 3D zoom, while the 3D room is the one being pinched. */
-  let pinch3d: { distance: number; zoom: number } | null = null
-  const pick3d = (x: number, y: number): number | null | undefined => {
-    if (!garage3d || !showing3d) return undefined
-    const at = toCanvas3d(x, y)
-    return garage3d.pick(at.x, at.y)
+  let jamesInRoom = false
+
+  const focusDialogue = (focus: 'founder' | number | null) => {
+    // Over the room the lens goes to the speaker; STUDIO_OS has no body, so the
+    // camera holds where it is for its lines. A hero the garage does not hold
+    // (Mo, Serena …) leaves the lens alone.
+    const seat = focus === 'founder' ? FOUNDER_SEAT : focus === 0 ? JAMES_SEAT : null
+    if (seat === null) return
+    garage.focus(seat)
+    sceneFocus = true
   }
 
-  const scene = buildScene(app.renderer)
-  const { floor, room, building } = scene
-  /*
-   * **One object in the world, and everything else is inside it.** There is no
-   * far-to-near list of views, because there are no longer several pictures of
-   * the same studio to order: the park holds ten parcels, a parcel holds a
-   * block, a block holds ten plots, a plot holds a building, a building holds
-   * ten plates, a plate holds the room, and depth is the scene graph's own
-   * business.
-   *
-   * The building the address is in is parented *into its own plot of its own
-   * block*, so it is drawn at that plot's scale in that plot's place and the
-   * block skips its tower. Descending the whole six-deep chain is one affine
-   * transform and every hand-off is invisible, because both sides of each one
-   * are the same drawing at the same size.
-   */
-  /*
-   * **The planet holds the park, and the park holds everything else.**
-   *
-   * One more link on the same chain, and the reason the park is parented into
-   * the globe rather than beside it: `intoGlobe` is a pure scale about the
-   * origin, so the whole studio below rung 6 rides one container whose transform
-   * *is* that scale. The planet then turns so the site the address is in is the
-   * one facing the camera, which is what lets a park's position inside the globe
-   * be a constant and rung 6 be a place the camera can be sent to.
-   */
-  /*
-   * **And the network holds the planet.** §7.7.1a, and the fifth link on the
-   * same chain: `intoGalaxy` is a pure scale about the origin, so the whole
-   * studio below rung 7 rides one container whose transform *is* that scale.
-   * The field then turns so the world the address is on is the one at the
-   * centre of it, which is what lets a planet's position inside the network be
-   * a constant and rung 7 be a place the camera can be sent to.
-   */
-  const galaxy = buildGalaxy()
-  world.addChild(galaxy.container)
-  const globe = buildGlobe()
-  galaxy.globeHost.addChild(globe.container)
-  const park = buildPark()
-  globe.parkHost.addChild(park.container)
-  park.blockAt(0).plotHost(0).addChild(building.container)
-  let hostedBuilding = 0
-  let hostedBlock = 0
-
-  // §21 Act IV. Its overlay goes inside the glass, above the world and below
-  // the numerals — the badges and chatter are scenery and must never bury the
-  // one piece of feedback the clicker layer depends on (GDD §8.2).
-  const collapse = createCollapse({ renderer: app.renderer, floor, reduceMotion })
-  glass.addChild(collapse.overlay)
-
-  // §7.7.2 — hires arrive on screen. Parented into the room so they share its
-  // transform, and land in room-local coordinates.
-  const arrivals = createArrivals()
-  room.container.addChild(arrivals.layer)
-
-  const camera = new Lens({ w: app.screen.width, h: app.screen.height })
-
-  /**
-   * §7.8.12 — the physical room roster, including a hero whose arrival scene
-   * is currently playing but has not yet been committed to milestones.
-   */
-  const teamRoomRoster = (state: GameState): TeamRoomHero[] => {
-    const runtimes = new Map(heroRoster().map((hero) => [hero.id, hero]))
-    const arriving = state.scene ? ARRIVAL_HERO_FOR_SCENE[state.scene] : undefined
-    return STORY_HEROES.flatMap((hero): TeamRoomHero[] => {
-      const runtime = runtimes.get(hero.id)
-      if (!runtime && hero.id !== arriving) return []
-      return [{
-        id: hero.id,
-        colour: runtime?.colour ?? branchColour(hero.branch),
-        selected: state.selectedHero === hero.id,
-      }]
-    })
-  }
-
-  /**
-   * The view the camera is looking at, and the scale it is drawn at.
-   *
-   * Published out of the ticker because the hit test, the pan limits and the
-   * selection all have to agree with what was last *drawn* — deriving each of
-   * them from the camera independently is three chances to disagree by a frame,
-   * and the one that shows is the poke landing on the wrong developer.
-   */
-  let currentLevel: number = BUILDING
-  /** Effective scale of floor space — what every level-of-detail rule reads. */
-  let currentFloorScale = 0
-  /** True while the room is drawing real people rather than the plate a plan. */
-  let roomIsUp = false
-
-  // --- poke input --------------------------------------------------------
-  //
-  // Bound on the canvas rather than through Pixi's event system: the tap must
-  // reach the store, the sound and the haptic before anything yields, and
-  // going straight to the DOM event removes a layer of dispatch from the path
-  // GDD §23.3 criteria 1 and 2 measure.
+  // --- taps ------------------------------------------------------------------
 
   const tapLatency = new LatencySampler(LATENCY_WINDOW)
   const audioLatency = new LatencySampler(LATENCY_WINDOW)
   const frames = new FrameSampler()
   let critPunch = 0
 
-  /**
-   * Screen point -> the index of the developer under it, or -1.
-   *
-   * §7.7.6 requires that "every one of the 1,000 floor sprites is individually
-   * hit-testable... the actual developer under the thumb", and a
-   * ParticleContainer offers nothing here — particles are not display objects
-   * and Pixi will not test them. So the pick is done in tier-local space:
-   * undo the world translation, the pan and the tier's own scale, then find
-   * the nearest desk.
-   */
-  const pickDeveloper = (x: number, y: number): number => {
-    // PROOF: the three.js garage answers for the room it is drawing.
-    const picked = pick3d(x, y)
-    if (picked !== undefined) return picked !== null && picked >= 0 ? picked : -1
-    // Only where the room is actually drawing people. Below that the plate is
-    // showing a plan, and the right answer to "who is under the thumb" is
-    // nobody — the same rule as before, asked of the level of detail rather
-    // than of a view name.
-    if (!roomIsUp) return -1
-    if (!(currentFloorScale > 0)) return -1
-
-    // Screen -> room-local, **through the plate the room is parented in.**
-    // Pixi composes the whole chain, so this one call already undoes the
-    // camera, the plate's position and `PLATE_SCALE` — which is the payoff for
-    // the room being inside the building rather than beside it.
-    const local = room.container.toLocal({ x, y })
-    const seats = roomSeats()
-    // A generous radius: a fingertip is about 9 mm and the desks are small.
-    // Scaled into room space so it stays a thumb-sized target at any zoom.
-    return pickNearest(seats, local.x, local.y, 26 / Math.max(0.05, currentFloorScale) + 14)
-  }
-
-  /**
-   * Screen point -> the storey under it, or −1 — the building's own hit test.
-   *
-   * Asked of the geometry rather than of a screen offset, so "which floor did I
-   * tap" is answered by the same function the stack is drawn from. The camera's
-   * inverse is one call because the whole world is one transform now.
-   */
-  const pickStorey = (x: number, y: number): number => {
-    // Park space out of the camera, then the parcel, then the plot: the tower
-    // is authored in its own coordinates and stands in a plot of a block of the
-    // park, so the finger has to come back the same way the drawing went out.
-    const b = buildingOf(focusSeat)
-    const w = blockToBuilding(inBlock(x, y, blockOf(focusSeat)), plotOf(b))
-    return storeyAtBuilding(w.x, w.y, storeysIn(hereDevs(getState().devs), b), storeyOf(focusSeat))
-  }
-
-  /**
-   * Screen point -> park space.
-   *
-   * **The camera speaks globe space now**, and this is the one line that knows
-   * it. `toWorld` undoes the camera and lands in whatever the outermost space
-   * is; every picker below wants the park, so the conversion is written once
-   * here rather than at each of the three call sites that used to do it.
-   *
-   * It was not written once, first. `inBlock` and `pickBlock` each called
-   * `toWorld` and fed the result straight to a park-space function, so when the
-   * globe added a division both were silently out by a factor of two — a
-   * uniform scale about the origin, which is exactly the kind of wrong that
-   * still works near the middle of the screen. `test:ui-frame` caught it as
-   * *nine of ten buildings reachable*, which is a much better description of
-   * the defect than anything the arithmetic would have said.
-   */
-  const inGlobe = (x: number, y: number) => galaxyToGlobe(camera.toWorld(x, y))
-
-  const inPark = (x: number, y: number) => globeToPark(inGlobe(x, y))
-
-  /** Screen point -> that point in one block's own space. */
-  const inBlock = (x: number, y: number, block: number) => parkToBlock(inPark(x, y), block)
-
-  /**
-   * Screen point -> the building of the address's own block under it, as a plot
-   * of that block, or −1.
-   *
-   * **Of the address's block**, which is the whole of what the fifth level
-   * changed here: at the block level the camera is inside one parcel, so the
-   * only ten towers a tap can be aimed at are that parcel's ten. Asking the
-   * park would name a tower two parcels away that the frame does not contain.
-   */
-  const pickBuilding = (x: number, y: number): number => {
-    const devs = getState().devs
-    const block = blockOf(focusSeat)
-    const w = inBlock(x, y, block)
-    return buildingAtBlock(w.x, w.y, buildingsIn(hereDevs(devs), block), (i) =>
-      storeysIn(hereDevs(devs), buildingAt(i, block)),
-    )
-  }
-
-  /** Screen point -> the block of the park under it, or −1. */
-  const pickBlock = (x: number, y: number): number => {
-    const w = inPark(x, y)
-    return blockAtPark(w.x, w.y, blocksFor(hereDevs(getState().devs)))
-  }
-
-  /**
-   * Screen point -> the site of the planet under it, or −1.
-   *
-   * Asked of `globe.ts` rather than worked out here, because the planet's own
-   * orientation is the only thing that knows where a site currently is and two
-   * derivations of that is one too many. It is a nearest search over the sites
-   * the studio has actually settled, so tapping ground nobody has bought is
-   * tapping nothing.
-   */
-  const pickSite = (x: number, y: number): number => {
-    const w = inGlobe(x, y)
-    return globe.siteUnder(w.x, w.y)
-  }
-
-  /**
-   * Screen point -> the world of the network under it, or −1.
-   *
-   * Asked of `galaxy.ts` for `pickSite`'s reason one rung up: the field's own
-   * orientation is the only thing that knows where a node currently is, and two
-   * derivations of that is one too many. A nearest search over the worlds it is
-   * actually drawing, so tapping empty sky is tapping nothing.
-   */
-  const pickWorld = (x: number, y: number): number => {
-    const w = camera.toWorld(x, y)
-    return galaxy.worldUnder(w.x, w.y)
-  }
-
-  /**
-   * Screen point -> the §7.7.1 unit under it, or null — GDD §4.5b, R15.
-   *
-   * §4.5b: a tap lands on "whatever unit §7.7.1 says the camera is currently
-   * holding", and the buff applies to everything inside it. The **simulation's
-   * rungs are unchanged** — a person at rungs 0–2, a floor at rung 3 — so this
-   * asks the level what is under the thumb and hands `sim/units.ts` a rung and
-   * a global index exactly as it did before.
-   */
-  const pickUnit = (x: number, y: number): PokeTarget | null => {
-    const rung = rungOfLevel(currentLevel)
-    if (rung >= GALAXY) {
-      // The network. A node is a whole planet, and §7.7.1's rung 7 band opens
-      // at 10^8 — which is exactly what a planet holds, so `unitSeats(7, i)`
-      // was already the right window before there was a network to spend it on.
-      const w = pickWorld(x, y)
-      return w < 0 ? null : { rung: 7, index: w }
-    }
-    if (rung >= GLOBE) {
-      // The planet. A site is a park, and §7.7.1's rung 6 band opens at a
-      // million — which is exactly what a park holds, so `unitSeats(6, i)` was
-      // already the right window before there was a planet to spend it on.
-      const site = pickSite(x, y)
-      // **Across the network, not across the planet.** `siteOf` is local to a
-      // world now (§7.7.1a), and a `PokeTarget` goes to the store, which has
-      // never heard of a world: `unitSeats(6, i)` counts sites from seat zero
-      // of Sol. On a one-world studio this is the same number it always was.
-      return site < 0 ? null : { rung: 6, index: focusWorld() * SITES_PER_GLOBE + site }
-    }
-    if (rung >= PARK) {
-      // The park. A parcel is a block, and §7.7.1's rung 5 unit is exactly the
-      // hundred thousand seats one holds — `unitSeats(5, i)`, which the rung
-      // table has had in it since before there was a park to spend it on.
-      const b = pickBlock(x, y)
-      return b < 0 ? null : { rung: 5, index: b }
-    }
-    if (rung >= BLOCK) {
-      // The block. A slot is a building, and §7.7.1's rung 4 *is* a building —
-      // `unitSeats(4, i)` is exactly the ten thousand seats it holds. The index
-      // goes to the store, and the store counts buildings across the whole
-      // studio: a plot of block 3 is building 30-something, never plot 0-9.
-      const b = pickBuilding(x, y)
-      return b < 0 ? null : { rung: 4, index: buildingAt(b, blockOf(focusSeat)) }
-    }
-    if (rung >= FLOOR + 1) {
-      // The building. A slot is a storey, and a storey is `unitSeats(3, f)` —
-      // exactly the thousand seats that floor holds.
-      const storey = pickStorey(x, y)
-      return storey < 0 ? null : { rung: 3, index: storey }
-    }
-    // Rungs 0–2 — one sprite is one person, and empty floor is a miss. Answered
-    // in the studio's numbering, because a `PokeTarget` goes to the store and
-    // the store has never heard of a window.
-    const seat = pickDeveloper(x, y)
-    return seat < 0 ? null : { rung, index: globalSeat(seat) }
-  }
-
-  /**
-   * The room's desks, in room-local coordinates.
-   *
-   * Cached on the drawn count rather than rebuilt per call. It was rebuilt per
-   * *tap*, which was free; §8.2b's tallies now ask for it every frame, and a
-   * hundred and twenty object literals sixty times a second is a GC churn the
-   * §23.3 frame budget should not be paying for a list that changes only when
-   * somebody is hired.
-   */
-  let seatCache: Array<{ x: number; y: number }> = []
-  let seatCacheFor = -1
-  /**
-   * Room-local seat -> the studio's own seat number, and back — §26.2.2.
-   *
-   * The room draws a *window* of the studio now, so its local index 0 is the
-   * studio's seat `room.seatWindow`. Everything outside this file speaks the
-   * studio's numbering — the store's `selected`, a hero's coverage, a spawn,
-   * §4.9a's shares — and everything inside the room speaks its own.
-   *
-   * **The conversion is here rather than in the room** because the room is the
-   * thing that does not know what a studio is; it draws a thousand chairs and
-   * whoever is in them. Putting the offset on its side would have meant every
-   * one of its methods taking a number in a different space from the geometry
-   * underneath it, which is trap 38's shape — one picture, two coordinate
-   * systems, agreeing only where the offset happens to be zero.
-   */
-  const globalSeat = (local: number) => (local < 0 ? -1 : room.seatWindow + local)
-  const localSeat = (seat: number) => {
-    if (!(seat >= 0)) return -1
-    const i = Math.floor(seat) - room.seatWindow
-    return i >= 0 && i < room.drawn ? i : -1
-  }
-
-  const roomSeats = () => {
-    if (seatCacheFor !== room.drawn) {
-      seatCache = Array.from({ length: room.drawn }, (_, i) => room.deskAt(i)!)
-      seatCacheFor = room.drawn
-    }
-    return seatCache
-  }
-
-  const founderHit = (x: number, y: number): 'avatar' | 'desk' | null => {
-    const picked = pick3d(x, y)
-    if (picked !== undefined) return picked === -1 ? 'avatar' : null
-    if (!roomIsUp || !(currentFloorScale > 0)) return null
-    const local = room.container.toLocal({ x, y })
-    const at = room.founderDeskAt()
-    /*
-     * **A thumb's worth of screen, whatever the zoom.**
-     *
-     * `reach` is in room-local units, and the old `10/s + 4` came out at a
-     * constant ten *screen* pixels — so §4.5d's "tap yourself" was a twenty-one
-     * pixel target at every level of the ladder, on a floor of a thousand
-     * people, next to nine hundred and ninety-nine other desks. §23.4.2's
-     * design box asks for forty-four, and this is the one target in the game
-     * the player is guaranteed to want and cannot search for: it is *them*.
-     *
-     * Found by `test:walk`, which sweeps the frame in 20x28 px steps looking
-     * for the founder and simply stepped over them.
-     *
-     * It stays a *floor* of the reach rather than a replacement, so at Desk
-     * zoom — where the workstation is already hundreds of pixels across — the
-     * geometry below still owns the hit and this contributes nothing.
-     */
-    const s = Math.max(0.05, currentFloorScale)
-    const reach = Math.max(FOUNDER_TOUCH_PX / s, 10 / s + 4)
-
-    // The person owns the upper/front part of the workstation. It is checked
-    // first so tapping YOU opens YOU even where their body overlaps the desk.
-    if (
-      Math.abs(local.x - at.x) <= 12 + reach &&
-      local.y >= at.y - 34 - reach &&
-      local.y <= at.y + 10 + reach
-    ) return 'avatar'
-
-    // The normal developer desk sits north-west of its seat. Keep this a large
-    // thumb target without swallowing the avatar above it.
-    // The founder workstation is mirrored to face the studio.
-    const deskX = at.x + 13
-    const deskY = at.y - 8
-    return Math.hypot(local.x - deskX, local.y - deskY) <= 24 + reach ? 'desk' : null
-  }
-
   let founderInspect: (() => void) | null = null
   let heroInspect: ((id: HeroId) => void) | null = null
-  let rosterInspect: (() => void) | null = null
 
-  /** §13.11.2 — is the tap on the sign over the suite's door? */
-  const teamSignHit = (x: number, y: number): boolean => {
-    if (!roomIsUp || !(currentFloorScale > 0)) return false
-    const local = room.container.toLocal({ x, y })
-    return room.teamSignAt(local.x, local.y, 8 / Math.max(0.05, currentFloorScale))
-  }
-
-  const teamHeroHit = (x: number, y: number): HeroId | null => {
-    if (!roomIsUp || !(currentFloorScale > 0)) return null
-    const local = room.container.toLocal({ x, y })
-    return room.teamHeroAt(
-      local.x,
-      local.y,
-      18 / Math.max(0.05, currentFloorScale) + 10,
-    )
-  }
-
-  /** The whole tap path, shared by real pointers and the §23.3 bench. */
-  /**
-   * §7.8.8 — the neutral mode's tap.
-   *
-   * Rung 2 only. You cannot select a person who is two pixels wide, and
-   * §7.7.4's promise that the player can always zoom back to a floor with
-   * people on it is what makes that a scope rather than a limitation. Tapping
-   * empty floor deselects, which is the only way out that does not need a
-   * close button to be within reach of a thumb.
-   */
-  const doSelect = (x: number, y: number): boolean => {
-    if (!roomIsUp) return false
-    const hero = teamHeroHit(x, y)
-    if (hero) {
-      selectDeveloper(null)
-      playUi('click')
-      heroInspect?.(hero)
-      return true
-    }
-    if (founderHit(x, y)) {
-      selectDeveloper(null)
-      playUi('click')
-      founderInspect?.()
-      return true
-    }
-    const target = pickDeveloper(x, y)
-    selectDeveloper(target < 0 ? null : globalSeat(target))
-    // §26.2.2 — **inspecting somebody makes them the address.** The room is the
-    // bottom of the ladder and a person is the smallest unit on it, so this is
-    // how the last three rungs are steered: pick the person, then zoom, and the
-    // lens holds them instead of holding the middle of the floor. Without it
-    // the descent could name a storey and never anybody in it.
-    if (target >= 0) setFocus(globalSeat(target))
-    playUi(target < 0 ? 'close' : 'whoosh')
-    return true
-  }
-
-  const doPoke = (x: number, y: number, t0: number) => {
-    // 2026-09-26 — James is tappable in the 3D room: a poke on him is code.
-    if (showing3d && garage3d && pick3d(x, y) === JAMES_3D_SEAT) {
-      const at = seat3d(JAMES_3D_SEAT)
-      const paid = pokeJames(at?.x ?? x, at?.y ?? y)
-      garage3d.hop(JAMES_3D_SEAT)
-      if (paid > 0) playKeyboardClick()
-      else playSfx('poke-void')
-      return
-    }
-    const founderTarget = founderHit(x, y)
-    // The selected tool means the same thing on every person. CODE on the
-    // founder codes; INFO (handled by doSelect) opens the profile. The old
-    // avatar-only exception made players learn two meanings for one tap.
-    if (founderTarget === 'avatar' || founderTarget === 'desk') {
-      // The finger is on them; there is nowhere to fly to. See the note there.
-      codeAtFounderDesk({ t0, sound: true, take: false })
-      return
-    }
-
-    // §4.5b — what was actually poked. Null means the tap landed on empty
-    // floor, open ground or sky, which is a miss rather than a free point:
-    // §7.7.6 makes the world addressable, and an addressable world has places
-    // where nothing is standing.
-    const target = pickUnit(x, y)
-    if (!target) return
-    if (showing3d) garage3d?.hop(localSeat(target.index))
-    else if (roomIsUp) room.jolt(localSeat(target.index))
-
-    const result = poke(x, y, target)
-
-    // Sound first: criterion 2's budget is the tightest at 60 ms p95.
-    const tier = tierOfLevel(currentLevel)
-    if (result.crit) playSfx('poke-crit')
-    else if (result.sp === 0) playSfx('poke-void')
-    else if (tier === 1) playKeyboardClick()
-    else playSfx(pokeSfxForZoom(tier))
-    // Only the JS half of the audio path. See the CAVEAT in perf/metrics.ts —
-    // the mixer, buffer, DAC and speaker are invisible from here, so this is a
-    // lower bound and criterion 2 cannot be passed on it alone.
-    audioLatency.push(performance.now() - t0)
-
-    pokeHaptic(getState().dev.state)
-
-    if (result.crit) critPunch = 1
-
-    // Measured on the next frame, which is when the numeral is actually
-    // visible — measuring at dispatch would report the number we want rather
-    // than the one the thumb feels.
-    requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
-  }
-
-  // --- pan, and telling a tap from a drag (GDD §7.7.6, §7.7.6b) ------------
-  //
-  // The poke no longer fires on pointerdown. It fires on pointer*up*, and only
-  // if the pointer barely moved — §7.7.6 is explicit that a pan which pokes
-  // costs the player Entropy every time they look around, and a poke which
-  // pans loses the clicker layer. The cost is that criterion 1's stopwatch now
-  // starts at the release rather than the press, which is the same instant a
-  // player perceives their own tap.
-  //
-  // **What the release then does is the §7.7.6b mode, not the clock.** There is
-  // one question left for a finger to answer — did it travel — and the two
-  // answers are "the camera" and "whatever the HUD says is latched". Every
-  // duration threshold that used to sit here is gone: a slow tap and a quick
-  // tap are the same tap, which is the whole of what was reported as being
-  // hard to control.
-
-  /** The in-progress drag, or null. */
-  let drag: { id: number; x0: number; y0: number; px: number; py: number; t0: number } | null = null
-  /** §7.8.9 — the pointer currently carrying somebody, or -1. */
-  let carryId = -1
+  /** Where the lens is on the room's three stops, continuously. */
+  const level = () => levelOfZoom(garage.zoom)
 
   /**
-   * §7.7.6 — the screen point the lens is zooming toward, or null for the
-   * middle of the frame.
-   *
-   * Without it a pinch scales about the centre of the screen, so zooming in on
-   * a squad at the edge of the floor walks the squad off it — which is exactly
-   * the "zoom to any squad" half of R5 failing for a reason that has nothing to
-   * do with squads. Anchoring the gesture at its own focal point is the whole
-   * fix, and it generalises: it is also what makes a double-tap land on the
-   * building that was tapped.
+   * §4.5d — the founder codes at their own desk. The finger is on them, or the
+   * rail's CODE was pressed; either way the founder is in the picture, so
+   * nothing flies.
    */
-  let focal: { x: number; y: number } | null = null
-
-  /**
-   * §7.7.6 — **the world names things; it does not move the camera.**
-   *
-   * A tap picks: at the building it names a storey, below it it names a person,
-   * and that is the whole of what a finger on the glass does to the lens.
-   * Changing *level* is the pinch, the wheel, and the rail — three controls
-   * that exist for it and cannot be produced by accident.
-   *
-   * This replaces a double-tap descend and a tap-the-selected-floor-again, and
-   * both went for the same reason: **a tap is already §8.2's primary verb.**
-   * POKE is latched from boot over a script that reads TAP TO CODE, a clicker
-   * is played by clicking, and any rule of the form "two taps mean something
-   * else" fires constantly on a player who is simply playing. It ate every
-   * second click and flew the lens onto whoever was under the thumb — three
-   * separate reports, the last of them "double taps should not zoom, only zoom
-   * with pinch".
-   *
-   * What the player asked for originally — *"I need the option to click and
-   * choose which floor to go into"* — is not lost and is arguably clearer: tap
-   * the tower to name a floor, and the lift panel's row for it lights up and is
-   * the door. A picker with a label beats a gesture nobody was told about.
-   */
-
-  /** The storey named but not yet entered, or −1. */
-  let selectedStorey = -1
-  /** The building named but not yet entered, or −1. */
-  let selectedBuilding = -1
-  /** The block named but not yet entered, or −1. */
-  let selectedBlock = -1
-  /** The site named but not yet entered, or −1. */
-  let selectedSite = -1
-  /** The world named but not yet entered, or −1. */
-  let selectedWorld = -1
-
-  const tapSelectsAFloor = () => settleLevel(currentLevel) === BUILDING
-  const tapSelectsABuilding = () => settleLevel(currentLevel) === BLOCK
-  const tapSelectsABlock = () => settleLevel(currentLevel) === PARK
-  const tapSelectsASite = () => settleLevel(currentLevel) === GLOBE
-  const tapSelectsAWorld = () => settleLevel(currentLevel) === GALAXY
-
-  /**
-   * **The address** — which part of the studio the lens is over. GDD §26.2.2.
-   *
-   * One global seat number, and everything on screen is derived from it: the
-   * unit in view at any rung is the one holding this seat, the units *beside*
-   * it are that unit's siblings, and the room is a picture of the thousand
-   * people in the storey containing it. See `sim/units.ts`'s {@link unitWindow}
-   * for why it is a seat and not a path.
-   *
-   * Before this existed every view was fed the studio's own headcount and drew
-   * units 0–9 of it, so the ladder was five unrelated pictures of the studio's
-   * first corner: descending into the third town and then the fifth site gave
-   * site five *of the studio*. Nothing past the tenth unit at any rung had an
-   * address at all.
-   */
-  let focusSeat = 0
-
-  /** Which storey the address is in, and which thousand seats that is. */
-  const focusStorey = () => storeyOf(focusSeat)
-  /**
-   * The developers who are on the site the address is in.
-   *
-   * The one line the sixth level cost every consumer below it. `park.ts`,
-   * `block.ts` and `building.ts` already draw *a park given a headcount* and
-   * none of them learns that a planet exists; what changed is that they are
-   * handed this rather than the studio's whole payroll. Hand them `state.devs`
-   * at a hundred million and every site draws a full park, which is a hundred
-   * copies of the same picture and not a world.
-   */
-  /** Which world of the network the address is on. */
-  const focusWorld = () => worldOf(focusSeat)
-  /**
-   * The developers who are on the *planet* the address is on.
-   *
-   * The one line the seventh level cost, and it is the sixth level's line with
-   * one more call on the front of it: `globe.ts` draws *a planet given a
-   * headcount* and does not learn that a network exists; what changed is that
-   * it is handed this rather than the studio's whole payroll. Hand it
-   * `state.devs` at ten billion and every world draws a full planet, which is a
-   * hundred copies of the same picture and not a galaxy.
-   */
-  const worldDevs = (devs: number) => devsOnWorld(devs, focusWorld())
-  const hereDevs = (devs: number) => devsOnSite(worldDevs(devs), siteOf(focusSeat))
-  const seatWindowFor = () => focusStorey() * DEVS_PER_FLOOR
-
-  /**
-   * Move the address, and tell the lens at once.
-   *
-   * The lens has to know **before** the next `flyTo`, because every frame it
-   * names is derived from the address: sending the camera to the squad level
-   * with a stale seat aims it at the squad you were in a moment ago, which is
-   * exactly the class of bug §26.2.2 exists to close.
-   */
-  const setFocus = (seat: number) => {
-    const next = Math.max(0, Math.floor(seat))
-    if (next === focusSeat) return
-    focusSeat = next
-    tellAddress()
-  }
-
-  /**
-   * Hand the address to the lens: the seat, the storeys of *its* building, and
-   * how many buildings there are.
-   *
-   * Three numbers rather than one because two of them move on their own — a
-   * hire adds a storey and a storey adds a building — and the lens frames every
-   * level from all three.
-   */
-  const tellAddress = () => {
-    const devs = getState().devs
-    camera.setAddress(
-      focusSeat,
-      storeysIn(hereDevs(devs), buildingOf(focusSeat)),
-      buildingsIn(hereDevs(devs), blockOf(focusSeat)),
-      blocksFor(hereDevs(devs)),
-      sitesFor(worldDevs(devs)),
-      worldsFor(devs),
-    )
-  }
-
-  /** The rail's CODE — YOU action owns the lens until the corner desk lands. */
-  let founderFocus = false
-
-  /**
-   * §10.7a.1 — the dialogue's current speaker, and the camera the scene found
-   * itself in. The push to Desk zoom and the per-line re-centre are driven from
-   * here; {@link focusDialogue} just says who is talking.
-   */
-  let savedSceneCamera: { level: Level } | null = null
-
-  const focusFounderCamera = () => {
-    // In the 3D garage the founder is already in the picture and the hidden
-    // ladder has nowhere to go; from up the ladder this is the dive home, and
-    // the garage takes the camera as it passes the block.
-    if (lensIsGarage()) return
-    founderFocus = true
-    focal = null
-    camera.flyTo(DESK, room.founderDeskAt())
-  }
-
-  /**
-   * §7.8.12 — the TEAM control's whole implementation.
-   *
-   * Seat zero is the studio's own first seat, so `setFocus(0)` **is** the walk
-   * home: the address it produces is world 0, site 0, block 0, building 0,
-   * storey 0, and `tellAddress` hands all of it to the lens before the flight
-   * is asked for. That ordering is the same one `enterStorey` and its siblings
-   * use and it is load-bearing for the same reason — `flyTo`'s floor point is
-   * projected through the address, so a stale one aims the camera at the suite's
-   * coordinates in whichever building the player was standing in.
-   *
-   * The selections are cleared because they name units of a place the camera is
-   * leaving. A highlighted storey of a building on another world is not context
-   * carried across; it is a mark on something nobody can see.
-   */
-  const focusTeamCamera = () => {
-    founderFocus = false
-    focal = null
-    selectedStorey = -1
-    selectedBuilding = -1
-    selectedBlock = -1
-    setFocus(0)
-    // In the 3D garage the suite is the hero deck already in the picture; from
-    // up the ladder this is the dive home (see `inGarage3d`).
-    if (!lensIsGarage()) camera.flyToRect(SUITE_LEVEL, suiteFrame())
-  }
-
-  /** Is the studio still in the garage, and is there a 3D garage to be in? */
-  const garageEra = () => garage3d !== null && getState().devs <= GARAGE_3D_DEVS
-  /**
-   * Is the 3D garage the picture right now? While it is, the ladder's camera is
-   * hidden and nothing flies it — a scene, a speaker and the rail's CODE all
-   * move the 3D camera instead — so it cannot wander into the Pixi room.
-   */
-  const lensIsGarage = () => inGarage3d && garageEra()
-
-  /**
-   * The ladder's camera has come in under the block: the 3D garage takes it.
-   * See `inGarage3d` for the hinge.
-   *
-   * The address walks home first, `focusTeamCamera`'s walk: a camera that named
-   * another world on the way down and then pinched all the way in would
-   * otherwise land in the garage with the address still on that world's empty
-   * block, and §7.7.4 says the bottom of the lens is the floor with the founder
-   * and James on it. The ladder's own camera is held just inside the hinge
-   * while the garage fades in over it, and parked on the floor once it has
-   * (`parkUnderGarage`) — the room, which is the frame the office opens on at
-   * the twenty-first hire.
-   */
-  const enterGarage = () => {
-    if (!garageEra()) return
-    inGarage3d = true
-    showing3d = true
-    selectedStorey = -1
-    selectedBuilding = -1
-    selectedBlock = -1
-    selectedSite = -1
-    selectedWorld = -1
-    setFocus(0)
-    camera.set((BLOCK - 2 * GARAGE_HINGE) / 9)
-    parkUnderGarage = true
-    // Arriving from above, the garage opens at its widest: the frame the
-    // player last saw of it on the way out.
-    garage3d?.setLens(GARAGE_ZOOM_MIN)
-  }
-
-  /** The 3D camera has been zoomed out past its widest frame: the ladder takes it, on the block. */
-  const leaveGarage = () => {
-    inGarage3d = false
-    showing3d = false
-    parkUnderGarage = false
-    camera.reframe(BLOCK, true)
-  }
-
-  /**
-   * §10.7a.1 — a scene has started: remember where the player was, and take the
-   * camera into the room. See the frame loop for why it is a level and not a Z.
-   *
-   * Idempotent, and called from both ends, because the order is not ours: the
-   * dialogue names its first speaker as soon as it renders, which can be before
-   * the frame loop has seen the scene at all. A garage-era studio zoomed out up
-   * the ladder is brought home here, and it has to be *after* the level is
-   * saved, or the scene would end by flying the player back to the hinge rather
-   * than to the network they were looking at.
-   */
-  const beginSceneCamera = () => {
-    if (savedSceneCamera !== null) return
-    // In the garage the hidden ladder's level means nothing (it may be half
-    // way through parking under the fade), and "where the player was" is the
-    // garage: the floor.
-    savedSceneCamera = { level: lensIsGarage() ? FLOOR : settleLevel(camera.level) }
-    if (!inGarage3d) enterGarage()
-    // In the garage the 3D camera plays the scene and the ladder's is left.
-    if (!lensIsGarage()) camera.flyTo(DESK)
-  }
-
-  /**
-   * §10.7a.1 — who is talking, in the world. The camera push itself is handled
-   * in the frame loop off the store's scene state; this records the speaker and
-   * turns them to face the lens for the duration of their line.
-   */
-  const focusDialogue = (focus: 'founder' | number | null) => {
-    // A scene plays in the room, so a studio zoomed out up the ladder is
-    // brought home before the first line rather than dived there under it.
-    if (getState().scene) beginSceneCamera()
-    // Over the 3D room the lens goes to the speaker; STUDIO_OS has no body, so
-    // the camera holds where it is for its lines (the rule the note below keeps).
-    // A hero the garage does not hold (Mo, Serena …) leaves the lens alone.
-    const seat3dFor = focus === 'founder' ? -1 : focus === 0 ? JAMES_3D_SEAT : null
-    if (showing3d && garage3d && seat3dFor !== null) {
-      garage3d.focus(seat3dFor)
-      sceneFocus3d = true
-    }
-    // Scene focus numbers name the six story heroes, not six interchangeable
-    // rank-and-file seats. That was visually harmless before the room existed;
-    // now it is the difference between Serena turning to camera and a random
-    // developer two rows away doing it for her.
-    const hero = typeof focus === 'number' ? DIALOGUE_HEROES[focus] : undefined
-    room.setTeam(teamRoomRoster(getState()))
-    room.setTeamSpeaker(hero ?? null)
-    // §7.8.12 [amended 2026-08-31] — **James is not a floor seat any more.**
-    // He used to be turned to camera through the rank-and-file path because the
-    // room drew him at lattice (0, 0); he is now drawn by the suite like the
-    // other five, and `setTeamSpeaker` above is the whole of it. Leaving the old
-    // line in turned the *threshold* to camera, which is a plot of empty floor.
-    room.setSpeaker(-1)
-    // A scene always plays at Desk zoom, so every line that names somebody
-    // re-asserts it — and a line with nobody (STUDIO_OS) holds it rather than
-    // cutting away. Over the 3D garage that is the 3D camera's job, above.
-    if (focus !== null && !lensIsGarage()) {
-      const at = hero
-        ? room.teamDeskAt(hero) ?? room.deskFor(localSeat(focus as number))
-        : room.founderDeskAt()
-      camera.flyTo(DESK, at ?? undefined)
-    }
-  }
-
-  /**
-   * §4.5d — the founder codes at their own desk.
-   *
-   * `take` is whether this also **takes the camera home**, and the two callers
-   * want opposite answers.
-   *
-   * The rail's CODE button does: §7.7.4 promises the way back to your own desk
-   * is always one control away, and it has to work from a floor you are not on.
-   * That is the whole reason the button exists.
-   *
-   * A tap **on the founder, in the world**, does not — the finger is already on
-   * them. Flying to somebody who is under the thumb can only take the picture
-   * away from where the player was looking, and it takes the *person* with it:
-   * the lens walks the corner desk toward the middle of the frame, so the next
-   * tap of a studio whose entire script is TAP TO CODE lands on empty floor.
-   *
-   * `test:walk` found that and worked around it rather than reporting it — see
-   * `pokeAt`, which learned to re-find the founder after every tap because
-   * fifty pokes at a fixed point were arriving as seven. **A gate that
-   * accommodates a defect hides it**, and this one hid it for as long as it
-   * took a player to say "clicking one of us to code, it should not zoom to the
-   * person".
-   */
-  const codeAtFounderDesk = ({
-    t0,
-    sound = false,
-    take = true,
-  }: { t0?: number; sound?: boolean; take?: boolean } = {}): number => {
-    const local = room.founderDeskAt()
-    const at = seat3d(-1) ?? room.container.toGlobal({ x: local.x, y: local.y - 30 })
+  const codeAtFounderDesk = ({ t0, sound = false }: { t0?: number; sound?: boolean } = {}): number => {
+    const at = personAt(FOUNDER_SEAT) ?? { x: w / 2, y: h / 2 }
     const paid = pokeFounder(at.x, at.y)
-    if (showing3d) garage3d?.hop(-1)
+    garage.hop(FOUNDER_SEAT)
     if (paid <= 0) return 0
-
-    if (take) focusFounderCamera()
-    room.joltFounder()
     if (sound) playKeyboardClick()
-    if (t0 !== undefined) {
-      requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
-    }
+    if (t0 !== undefined) requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
     return paid
   }
 
   /**
-   * Go into a storey — the second tap on a selected floor, and the lift panel.
-   *
-   * **Descending names a unit, and everything below becomes a picture of what
-   * is inside it** (§26.2.2). The address moves first, so the frame the lens
-   * flies to is the frame of the floor that was tapped rather than of the one
-   * it was already over.
+   * §7.8.8 — the neutral latch's tap: who is this? The founder opens their
+   * profile, James his pass, anybody else becomes the selected developer, and
+   * empty floor deselects — the only way out that does not need a close button
+   * within reach of a thumb.
    */
-  const enterStorey = (storey: number): boolean => {
-    const b = buildingOf(focusSeat)
-    const n = storeysIn(hereDevs(getState().devs), b)
-    if (!(storey >= 0) || storey >= n) return false
-    setFocus(seatOfStorey(storey, b, siteOf(focusSeat), focusWorld()))
-    selectedStorey = storey
-    focal = null
-    camera.flyTo(FLOOR)
-    playUi('whoosh')
-    return true
-  }
-
-  /**
-   * Go into a building — the lift panel's building rows, one level up.
-   *
-   * The same shape as {@link enterStorey} and for the same reason: the address
-   * moves *first*, so the frame the lens flies to is the frame of the building
-   * that was chosen rather than of the one it was already over. Landing on that
-   * building's ground floor rather than on whichever storey the last building
-   * happened to be open at — a floor number is only a floor number of
-   * something, and carrying it across would name a storey nobody chose.
-   */
-  const enterBuilding = (b: number): boolean => {
-    const devs = getState().devs
-    const block = blockOf(focusSeat)
-    if (!(b >= 0) || b >= buildingsIn(hereDevs(devs), block)) return false
-    setFocus(seatOfPlot(b, block, siteOf(focusSeat), focusWorld()))
-    selectedBuilding = b
-    selectedStorey = -1
-    focal = null
-    camera.flyTo(BUILDING)
-    playUi('whoosh')
-    return true
-  }
-
-  /**
-   * Go into a block — the lift panel's block rows, one level up again.
-   *
-   * The same shape as {@link enterBuilding} and for the same reason, one rung
-   * further out: the address moves first, and it lands on the block's *first*
-   * building rather than carrying the plot number across from whichever block
-   * was open before. A building number is only a building number of something.
-   */
-  const enterBlock = (b: number): boolean => {
-    if (!(b >= 0) || b >= blocksFor(hereDevs(getState().devs))) return false
-    setFocus(seatOfBlock(b, siteOf(focusSeat), focusWorld()))
-    selectedBlock = b
-    selectedBuilding = -1
-    selectedStorey = -1
-    focal = null
-    camera.flyTo(BLOCK)
-    playUi('whoosh')
-    return true
-  }
-
-  /**
-   * Go into a site — the picker's site rows, and the last door on the ladder.
-   *
-   * The same shape as {@link enterBlock} one rung further out, and the same
-   * rule about what is *not* carried across: the address lands on the site's
-   * first block rather than keeping whichever parcel was open on the last
-   * territory. A block number is only a block number of somewhere.
-   */
-  const enterSite = (i: number): boolean => {
-    if (!(i >= 0) || i >= sitesFor(worldDevs(getState().devs))) return false
-    setFocus(seatOfSite(i, focusWorld()))
-    selectedSite = i
-    selectedBlock = -1
-    selectedBuilding = -1
-    selectedStorey = -1
-    focal = null
-    camera.flyTo(PARK)
-    playUi('whoosh')
-    return true
-  }
-
-  /**
-   * Go into a world — the picker's world rows, and the last door on the ladder.
-   *
-   * The same shape as {@link enterSite} one rung further out, and the same rule
-   * about what is *not* carried across: the address lands on the world's first
-   * site rather than keeping whichever territory was open around the last star.
-   * A site number is only a site number of a planet.
-   *
-   * **The frontier is a legal destination.** `worldsFor` counts the worlds that
-   * have somebody on them, and the network deliberately draws one more than
-   * that so the player can see where the studio goes next. Entering it is
-   * allowed and lands on an empty planet — which is the honest picture of a
-   * world nobody has moved to yet, and the one §7.7.2 wants the arrival gag to
-   * happen *on*.
-   */
-  const enterWorld = (i: number): boolean => {
-    if (!(i >= 0) || i > worldsFor(getState().devs)) return false
-    setFocus(seatOfWorld(i))
-    selectedWorld = i
-    selectedSite = -1
-    selectedBlock = -1
-    selectedBuilding = -1
-    selectedStorey = -1
-    focal = null
-    camera.flyTo(GLOBE)
-    playUi('whoosh')
-    return true
-  }
-
-  /**
-   * §7.8.9 — screen coordinates to room-local, for carrying somebody.
-   *
-   * The tier's pivot is baked into its own transform, so `toLocal` is both
-   * shorter and safer than re-deriving the camera's arithmetic here.
-   */
-  const toRoom = (x: number, y: number) => room.container.toLocal({ x, y })
-
-  /**
-   * §7.7.6b — the grab, on the press, because the player already said GRAB.
-   *
-   * **This is `pointerdown` again, and that is not a regression.** §7.7.6a
-   * moved the grab off the press onto a hold timer, and its reasoning was
-   * exactly right *for a game with no mode switch*: a press that silently
-   * picked somebody up taught the player about a mode change by making them
-   * watch a developer they did not mean to touch follow their thumb around.
-   *
-   * With GRAB latched on the HUD, that sentence no longer describes anything.
-   * The mode was entered deliberately, it is lit on screen, and the caption
-   * under it says DRAG PEOPLE — so the press has nothing left to disambiguate
-   * and every millisecond it waits is lag on the only verb the mode has. The
-   * haptic tick §7.7.6a made load-bearing stays: it is now an acknowledgement
-   * rather than an announcement, which is the cheaper job it was always doing
-   * best.
-   *
-   * Returns true if somebody was picked up, in which case the press is not
-   * also the start of a camera drag.
-   */
-  const tryGrab = (x: number, y: number, pointerId: number): boolean => {
-    if (!roomIsUp) return false
-    const who = pickDeveloper(x, y)
-    if (who < 0) return false
-
-    // **The simulation decides, and it says yes to everybody but one.** §7.8.9's
-    // old refusal — nobody mid-behaviour — was overruled on 2026-08-26: a
-    // minigame about dragging wanderers back cannot decline to catch the one who
-    // is walking away. The store call is what makes the lift cost output; the
-    // room call is what makes the body follow the finger.
-    //
-    // §21.7.0 rule 6 is the exception, and the press is still **consumed** when
-    // he refuses. Falling through to a camera drag would answer "I tried to pick
-    // James up" by panning the room, which reads as the game ignoring the input
-    // — and the refusal has already put his line on screen, so something did
-    // happen and the player should be looking at it.
-    const grab = grabDeveloper(who)
-    if (!grab.held) {
-      if (grab.says) room.sayOver(who, grab.says)
-      playUi('close')
-      return true
+  const doSelect = (who: number | null) => {
+    if (who === JAMES_SEAT) {
+      selectDeveloper(null)
+      playUi('click')
+      heroInspect?.('james')
+      return
     }
-    room.hands.hold(who)
+    if (who === FOUNDER_SEAT) {
+      selectDeveloper(null)
+      playUi('click')
+      founderInspect?.()
+      return
+    }
+    selectDeveloper(who === null || who < 0 ? null : who)
+    playUi(who === null || who < 0 ? 'close' : 'whoosh')
+  }
 
-    const at = toRoom(x, y)
-    room.hands.carryTo(at.x, at.y)
-    carryId = pointerId
-    holdHaptic()
-    playUi('click')
-    return true
+  const doPoke = (x: number, y: number, t0: number) => {
+    const who = pickAt(x, y)
+    // James is tappable in the room: a poke on him is code (2026-09-26).
+    if (who === JAMES_SEAT) {
+      const at = personAt(JAMES_SEAT) ?? { x, y }
+      const paid = pokeJames(at.x, at.y)
+      garage.hop(JAMES_SEAT)
+      if (paid > 0) playKeyboardClick()
+      else playSfx('poke-void')
+      return
+    }
+    // The selected tool means the same thing on every person: CODE on the
+    // founder codes.
+    if (who === FOUNDER_SEAT) {
+      codeAtFounderDesk({ t0, sound: true })
+      return
+    }
+    // Empty floor, furniture or sky is a miss rather than a free point:
+    // §7.7.6 makes the world addressable, and an addressable world has places
+    // where nobody is standing.
+    if (who === null || who < 0) return
+    garage.hop(who)
+
+    const lvl = level()
+    const result = poke(x, y, { rung: Math.round(lvl), index: who })
+
+    // Sound first: criterion 2's budget is the tightest at 60 ms p95.
+    const tier = tierOfLevel(lvl)
+    if (result.crit) playSfx('poke-crit')
+    else if (result.sp === 0) playSfx('poke-void')
+    else if (tier === 1) playKeyboardClick()
+    else playSfx(pokeSfxForZoom(tier))
+    // Only the JS half of the audio path — see the CAVEAT in perf/metrics.ts.
+    audioLatency.push(performance.now() - t0)
+    pokeHaptic(getState().dev.state)
+    if (result.crit) critPunch = 1
+    // Measured on the next frame, which is when the numeral is visible.
+    requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
+  }
+
+  // --- the hand: tap, drag, pinch, wheel ---------------------------------------
+  //
+  // §7.7.6 — the tap fires on the *release*, and only if the finger barely
+  // moved: a pan that pokes costs the player Entropy every time they look
+  // around. §7.7.6b — what the release then does is the latch on the HUD, not
+  // a clock.
+
+  let drag: { id: number; x0: number; y0: number; px: number; py: number } | null = null
+  const pointers = new Map<number, { x: number; y: number; seen: number }>()
+  let pinch: { distance: number; zoom: number } | null = null
+
+  const expireStalePointers = (now: number) => {
+    for (const [id, p] of pointers) if (now - p.seen > POINTER_STALE_MS) pointers.delete(id)
+    if (pointers.size < 2) pinch = null
   }
 
   const onPointerDown = (ev: PointerEvent) => {
-    const t = ev.timeStamp || performance.now()
-    // A hand on the world takes the camera back from a scripted Hero Anchor.
-    founderFocus = false
-
-    // Only the first finger drags; a second means a pinch, handled below.
+    const now = ev.timeStamp || performance.now()
+    expireStalePointers(now)
+    // Only the first finger drags; a second means a pinch.
     if (drag === null && pointers.size === 0) {
-      // The grab is checked first and, when it lands, no drag is started at
-      // all: the camera must let go of the world the instant the hand takes
-      // hold of somebody, or the grab drags the floor along with the developer.
-      if (tapVerb(getState().touchMode, roomIsUp) === 'grab') {
-        if (tryGrab(ev.clientX, ev.clientY, ev.pointerId)) return
-      }
-      drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY, t0: t }
+      drag = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, px: ev.clientX, py: ev.clientY }
     }
-  }
-
-  const onDragMove = (ev: PointerEvent) => {
-    if (carryId === ev.pointerId) {
-      const at = toRoom(ev.clientX, ev.clientY)
-      room.hands.carryTo(at.x, at.y)
-      return
-    }
-    if (!drag || ev.pointerId !== drag.id || pointers.size >= 2) return
-    const t = ev.timeStamp || performance.now()
-    const dx = ev.clientX - drag.px
-    const dy = ev.clientY - drag.py
-    // Incremental, because the lens clamps to its own bounds every frame and a
-    // drag rebuilt from its origin would keep pushing against a wall it has
-    // already hit and then jump when the finger came back.
-    //
-    // At the top rung the subject is a sphere: panning it *is* spinning it.
-    // Keep that exception here, at the gesture boundary, so every lower rung
-    // retains the fixed affine camera and entering a site can still freeze the
-    // globe back to that site's address orientation.
-    if (showing3d && garage3d) garage3d.panBy(dx * garageW / app.canvas.getBoundingClientRect().width, dy * garageH / app.canvas.getBoundingClientRect().height)
-    else if (tapSelectsAWorld()) galaxy.rotateBy(dx, dy)
-    else if (tapSelectsASite()) globe.rotateBy(dx, dy)
-    else camera.panBy(dx, dy, t)
-    drag.px = ev.clientX
-    drag.py = ev.clientY
-  }
-
-  const onDragEnd = (ev: PointerEvent) => {
-    if (carryId === ev.pointerId) {
-      carryId = -1
-      // Dropped onto a seat, or onto the floor. `pickDeveloper` answers "whose
-      // desk is under the finger", which is exactly the question.
-      const who = room.hands.carrying
-      const onDesk = pickDeveloper(ev.clientX, ev.clientY) >= 0
-      room.hands.release()
-      if (who >= 0) releaseDeveloper(who, onDesk)
-      // §7.8.5's bum-hits-seat for a landing, the close whisper for a shrug.
-      //
-      // **These now differ by more than a sound.** §7.8.6 rule 2 was reversed:
-      // a landing puts somebody back to work and a shrug leaves them walking
-      // home, not producing, for as long as the walk takes.
-      if (onDesk) playSfx('poke-floor')
-      else playUi('close')
-      return
-    }
-    if (!drag || ev.pointerId !== drag.id) return
-    const t = ev.timeStamp || performance.now()
-    const dx = ev.clientX - drag.x0
-    const dy = ev.clientY - drag.y0
-    // §7.7.6b — one question, and it is not "how long". A finger that travelled
-    // was the camera; a finger that stayed put meant the latched verb, however
-    // long it took to say so.
-    const travelled = exceedsSlop(dx, dy)
-    drag = null
-
-    if (travelled) return
-
-    // **The park names a block**, and the block names a building, and the
-    // building names a floor — one rule, said at every level it applies to: the
-    // tap selects and pokes, and the rail is the door.
-    if (tapSelectsAWorld()) {
-      const w = pickWorld(ev.clientX, ev.clientY)
-      if (w < 0) {
-        selectedWorld = -1
-        playUi('close')
-        return
-      }
-      if (w !== selectedWorld) {
-        selectedWorld = w
-        // The address moves to the world, and to nothing inside it: a site
-        // number is only a site number of a planet, so it lands on the first.
-        setFocus(seatOfWorld(w))
-        playUi('click')
-      }
-      doPoke(ev.clientX, ev.clientY, t)
-      return
-    }
-
-    if (tapSelectsASite()) {
-      const i = pickSite(ev.clientX, ev.clientY)
-      if (i < 0) {
-        selectedSite = -1
-        playUi('close')
-        return
-      }
-      if (i !== selectedSite) {
-        selectedSite = i
-        setFocus(seatOfSite(i, focusWorld()))
-        playUi('click')
-      }
-      doPoke(ev.clientX, ev.clientY, t)
-      return
-    }
-
-    if (tapSelectsABlock()) {
-      const b = pickBlock(ev.clientX, ev.clientY)
-      if (b < 0) {
-        selectedBlock = -1
-        playUi('close')
-        return
-      }
-      if (b !== selectedBlock) {
-        selectedBlock = b
-        setFocus(seatOfBlock(b, siteOf(focusSeat), focusWorld()))
-        playUi('click')
-      }
-      doPoke(ev.clientX, ev.clientY, t)
-      return
-    }
-
-    if (tapSelectsABuilding()) {
-      const b = pickBuilding(ev.clientX, ev.clientY)
-      if (b < 0) {
-        selectedBuilding = -1
-        playUi('close')
-        return
-      }
-      if (b !== selectedBuilding) {
-        selectedBuilding = b
-        // **In this block.** `pickBuilding` answers in plots because that is
-        // what the block draws, and the address is a seat of the whole park —
-        // trap 52a's shape exactly, and the reason `seatOfPlot` takes both.
-        setFocus(seatOfPlot(b, blockOf(focusSeat), siteOf(focusSeat), focusWorld()))
-        playUi('click')
-      }
-      doPoke(ev.clientX, ev.clientY, t)
-      return
-    }
-
-    // **The building names a floor.** The tap selects and pokes — §4.5b's unit
-    // poke, which is what it would have done anyway — and the lift panel's row
-    // for that floor is the door. Tapping the same storey twice selects it
-    // twice; nothing on the glass changes the level.
-    if (tapSelectsAFloor()) {
-      const storey = pickStorey(ev.clientX, ev.clientY)
-      if (storey < 0) {
-        selectedStorey = -1
-        playUi('close')
-        return
-      }
-      if (storey !== selectedStorey) {
-        selectedStorey = storey
-        // **In this building, on this site.** `pickStorey` answers in storeys of
-        // the tower under the thumb and the address is a seat of the whole
-        // planet, so both have to be said. A floor number is only a floor number
-        // of something: naming a storey without saying whose tower it is on
-        // moved the address to building 1 and took the room with it, and one
-        // rung further out the same omission moves it to another territory —
-        // and one further out again, to another star.
-        setFocus(seatOfStorey(storey, buildingOf(focusSeat), siteOf(focusSeat), focusWorld()))
-        playUi('click')
-      }
-      doPoke(ev.clientX, ev.clientY, t)
-      return
-    }
-
-    /*
-     * §13.11.2 — **the sign over the suite's door opens on any tap.**
-     *
-     * Above the latch switch, deliberately. §7.7.6b's three latches decide what
-     * the finger does *to a person* — poke them, pick them up, or read them —
-     * and a door is not a person. Leaving it inside `doSelect` put the roster
-     * behind a mode change: the strip used to be a button on the rail that
-     * worked whatever the thumb was set to, and moving its door into the world
-     * must not quietly make it cost two gestures instead of one.
-     *
-     * It is the same reasoning `tapSelectsAFloor` above uses one rung out: the
-     * tap is naming a thing in the architecture, and the architecture answers
-     * regardless of what the latch says about people.
-     */
-    if (teamSignHit(ev.clientX, ev.clientY)) {
-      selectDeveloper(null)
-      playUi('click')
-      rosterInspect?.()
-      return
-    }
-
-    switch (tapVerb(getState().touchMode, roomIsUp)) {
-      case 'inspect':
-        doSelect(ev.clientX, ev.clientY)
-        break
-      case 'grab':
-        // The press already picked somebody up and the release already put them
-        // down, both above. A release that gets here in GRAB mode landed on
-        // nobody — and doing anything at all with it would be the mode reaching
-        // past what it says it does.
-        break
-      default:
-        // The *first* tap of a descend still pokes, and after R15 that now costs
-        // §4.9 Entropy where it used to cost nothing. Left deliberately: the only
-        // way to avoid it is to hold every poke above the room for
-        // DOUBLE_TAP_MS to see whether a second one is coming, and §23.3
-        // criterion 1 gives the whole tap-to-numeral path eighty milliseconds.
-        // A navigation gesture that also buffs the thing you navigated to is a
-        // far smaller sin than a clicker with 300 ms of input lag.
-        doPoke(ev.clientX, ev.clientY, t)
-    }
-  }
-
-  app.canvas.addEventListener('pointerdown', onPointerDown, { passive: true })
-  app.canvas.addEventListener('pointermove', onDragMove, { passive: true })
-  app.canvas.addEventListener('pointerup', onDragEnd, { passive: true })
-  app.canvas.addEventListener('pointercancel', onDragEnd, { passive: true })
-
-  // --- pinch zoom --------------------------------------------------------
-
-  const pointers = new Map<number, { x: number; y: number; seen: number }>()
-  let pinchStart: { distance: number; scale: number } | null = null
-
-  /**
-   * A finger that has not been heard from in this long is not on the glass.
-   *
-   * `pointerup` is not guaranteed to arrive: it is lost on alt-tab, on some
-   * pointercancel paths, and whenever a synthetic `pointerdown` arrives with
-   * no partner — which is exactly what browser automation produces. A leaked
-   * entry is not harmless, because two of them put the camera permanently into
-   * pinch mode, where every later `pointermove` rewrites Z. The symptom is the
-   * camera drifting on its own and scripted dollies appearing never to arrive,
-   * which is very hard to read from the outside; it cost most of a session
-   * once. Expiring by age fixes it without trusting any event to be delivered.
-   */
-  const POINTER_STALE_MS = 2000
-
-  function expireStalePointers(now: number) {
-    for (const [id, p] of pointers) {
-      if (now - p.seen > POINTER_STALE_MS) pointers.delete(id)
-    }
-    if (pointers.size < 2) pinchStart = null
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, seen: now })
   }
 
   const onPointerMove = (ev: PointerEvent) => {
@@ -1751,1039 +381,262 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if (!pointers.has(ev.pointerId)) return
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, seen: now })
 
-    if (pointers.size !== 2) return
-    const [a, b] = [...pointers.values()]
-    const distance = Math.hypot(a.x - b.x, a.y - b.y)
-
-    // §7.7.6 — the pinch zooms toward the point between the fingers. Updated
-    // every move rather than latched at the start, because a two-finger gesture
-    // drifts and a stale anchor would slowly drag the world away from the hands
-    // holding it.
-    focal = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-
-    if (!pinchStart) {
-      // Two contacts can begin on the same physical pixel (or be coalesced
-      // there by the browser). Latching a zero baseline makes the next ratio
-      // 0/0 or x/0 and used to blank every scene layer via a NaN camera.
-      if (!(distance > 0) || !Number.isFinite(distance)) return
-      pinchStart = { distance, scale: camera.scale }
-      return
-    }
-
-    // **The pinch is now a ratio of scales, not a mapping through Z.** Two
-    // fingers moving apart by a factor of two make the world twice as big, at
-    // every level, which is the one thing a pinch is allowed to mean. Anchored
-    // at the point between the fingers so the thing being pinched stays under
-    // them.
-    const ratio = distance / pinchStart.distance
-    if (!(ratio > 0) || !Number.isFinite(ratio)) return
-    if (showing3d && garage3d && focal) {
-      if (!pinch3d || pinch3d.distance !== pinchStart.distance) pinch3d = { distance: pinchStart.distance, zoom: garage3d.zoom }
-      const zoom = pinch3d.zoom * ratio
-      // Pinched out past the garage's widest frame: the ladder takes the
-      // camera at the block, and the same two fingers carry on out from there.
-      if (zoom < GARAGE_ZOOM_MIN * 0.92) {
-        leaveGarage()
-        pinch3d = null
-        pinchStart = { distance, scale: camera.scale }
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()]
+      const distance = Math.hypot(a.x - b.x, a.y - b.y)
+      // Two contacts can begin on the same pixel (or be coalesced there). A
+      // zero baseline makes the next ratio 0/0, and a NaN zoom blanks the room.
+      if (!pinch) {
+        if (distance > 0 && Number.isFinite(distance)) pinch = { distance, zoom: garage.zoom }
         return
       }
-      const at = toCanvas3d(focal.x, focal.y)
-      garage3d.zoomTo(zoom, at.x, at.y)
+      const ratio = distance / pinch.distance
+      if (!(ratio > 0) || !Number.isFinite(ratio)) return
+      // §7.7.6 — about the point between the fingers, updated every move: a
+      // two-finger gesture drifts, and a stale anchor drags the room away.
+      const at = toCanvas((a.x + b.x) / 2, (a.y + b.y) / 2)
+      garage.zoomTo(pinch.zoom * ratio, at.x, at.y)
+      // The finger left on the glass afterwards pans on from where it is now,
+      // not from where it was when the pinch began.
+      const held = drag ? pointers.get(drag.id) : undefined
+      if (drag && held) {
+        drag.px = held.x
+        drag.py = held.y
+      }
       return
     }
-    camera.zoomBy((pinchStart.scale * ratio) / camera.scale, focal, now)
-    // Pinched in under the block while the studio is a garage: the garage takes
-    // it back, and the pinch carries on in the room.
-    if (garageEra() && camera.level < BLOCK - GARAGE_HINGE) {
-      enterGarage()
-      pinchStart = { distance, scale: camera.scale }
-    }
+
+    if (!drag || ev.pointerId !== drag.id) return
+    const r = canvas.getBoundingClientRect()
+    garage.panBy((ev.clientX - drag.px) * w / Math.max(1, r.width), (ev.clientY - drag.py) * h / Math.max(1, r.height))
+    drag.px = ev.clientX
+    drag.py = ev.clientY
   }
 
   const onPointerUp = (ev: PointerEvent) => {
     pointers.delete(ev.pointerId)
-    if (pointers.size < 2) pinchStart = null
+    if (pointers.size < 2) pinch = null
+    if (!drag || ev.pointerId !== drag.id) return
+    const t = ev.timeStamp || performance.now()
+    const travelled = exceedsSlop(ev.clientX - drag.x0, ev.clientY - drag.y0)
+    drag = null
+    // §7.7.6b — one question, and it is not "how long". A finger that
+    // travelled was the camera; one that stayed put meant the latched verb.
+    if (travelled || ev.type !== 'pointerup') return
+    switch (tapVerb(getState().touchMode, true)) {
+      case 'inspect':
+        doSelect(pickAt(ev.clientX, ev.clientY))
+        break
+      case 'grab':
+        // §7.8.9's carry was drawn by the Pixi room's hands, and the 3D room
+        // has no wanderers to carry yet; a release in DRAG does nothing rather
+        // than reaching past what the latch says.
+        break
+      default:
+        doPoke(ev.clientX, ev.clientY, t)
+    }
   }
 
-  const trackPointer = (ev: PointerEvent) => {
-    const now = ev.timeStamp || performance.now()
-    expireStalePointers(now)
-    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY, seen: now })
-  }
-
-  app.canvas.addEventListener('pointerdown', trackPointer, { passive: true })
-  app.canvas.addEventListener('pointermove', onPointerMove, { passive: true })
-  app.canvas.addEventListener('pointerup', onPointerUp, { passive: true })
-  app.canvas.addEventListener('pointercancel', onPointerUp, { passive: true })
-  app.canvas.addEventListener('pointerleave', onPointerUp, { passive: true })
-
-
-  // Desktop convenience — the dolly needs to be drivable without a touchscreen
-  // while developing. Never the path a pass/fail is measured on.
+  // Desktop convenience — the dolly needs to be drivable without a
+  // touchscreen. Exponential in the delta, so one notch is one constant
+  // proportion wherever the camera is, and anchored at the pointer and never
+  // pulled back — "the zoom should not resist me" (2026-09-26).
   const onWheel = (ev: WheelEvent) => {
     ev.preventDefault()
-    founderFocus = false
-    focal = { x: ev.clientX, y: ev.clientY }
-    // Exponential in the delta, so one notch is one constant *proportion* of
-    // the scale wherever the camera happens to be.
-    const factor = Math.exp(-ev.deltaY * 0.0016)
-    // Over the 3D room the wheel is the 3D camera's, anchored at the pointer and
-    // never pulled back — "the zoom should not resist me" (2026-09-26) — until
-    // it is at the garage's widest, where the next notch out goes up the ladder.
-    if (showing3d && garage3d) {
-      if (factor < 1 && garage3d.zoom <= GARAGE_ZOOM_MIN * 1.001) {
-        leaveGarage()
-        return
-      }
-      const at = toCanvas3d(ev.clientX, ev.clientY)
-      garage3d.zoomAt(factor, at.x, at.y)
-      return
-    }
-    // The magnetic stop catches whatever the last notch left behind.
-    camera.zoomBy(factor, focal, ev.timeStamp || performance.now())
-    if (garageEra() && camera.level < BLOCK - GARAGE_HINGE) enterGarage()
+    const at = toCanvas(ev.clientX, ev.clientY)
+    garage.zoomAt(Math.exp(-ev.deltaY * 0.0016), at.x, at.y)
   }
-  app.canvas.addEventListener('wheel', onWheel, { passive: false })
 
-  // --- floating numerals -------------------------------------------------
-  //
-  // Drawn in Pixi rather than the DOM. GDD §8.2 calls the flying numeral "the
-  // clicker layer's entire feedback loop", and it has to sit *under* the glass
-  // — a DOM numeral would float above the curvature and break the weld.
+  canvas.addEventListener('pointerdown', onPointerDown, { passive: true })
+  canvas.addEventListener('pointermove', onPointerMove, { passive: true })
+  canvas.addEventListener('pointerup', onPointerUp, { passive: true })
+  canvas.addEventListener('pointercancel', onPointerUp, { passive: true })
+  canvas.addEventListener('pointerleave', onPointerUp, { passive: true })
+  canvas.addEventListener('wheel', onWheel, { passive: false })
 
-  const numerals = new Container()
-  app.stage.addChild(numerals)
-  // The numerals are inside the glass too, so they share the grade.
-  glass.addChild(numerals)
+  const resized = new ResizeObserver(() => {
+    const nw = Math.max(1, host.clientWidth)
+    const nh = Math.max(1, host.clientHeight)
+    if (nw === w && nh === h) return
+    w = nw
+    h = nh
+    garage.resize(w, h)
+    sizeNumerals()
+  })
+  resized.observe(host)
 
-  // GDD §8.2 + §8.2a. Built once — see pokeText.ts for why nothing here may
-  // typeset on the tap frame.
-  const typeset = createPokeTypeset(app.renderer)
-  const numeralGfx = new Map<number, Container>()
+  // --- frame loop ----------------------------------------------------------------
 
-  // §8.2b — the passive `+1`s. *Below* the poke numerals in the same container,
-  // so a tap is never buried under the heartbeat it interrupted.
-  const tallies = createTallies(app.renderer)
-  numerals.addChildAt(tallies.container, 0)
-
-  // --- frame loop --------------------------------------------------------
-
-  let lastFrame = performance.now()
-  let dollyFired = false
-  /** Last consumed §7.7.2 spawn, so one hire produces one arrival. */
-  let lastSpawnId = 0
-  let hireShake = 0
-  /** Last consumed §10.8a ship, so one ship produces one camera punch. */
-  let lastShipId = 0
-  let shipShake = 0
+  const music = new MusicBus()
+  // Not awaited: a missing stem set must not hold up the first frame, and the
+  // bus is silent rather than absent until its buffers arrive.
+  void music.init()
   /** §20.7.4 fires once per run; a Paradigm Shift clears `massHired` and this. */
   let musicCollapsed = false
-  const music = new MusicBus()
-  // Not awaited. A missing stem set — which is every stem, until §20.7.6's
-  // paid-plan blocker clears — must not hold up the first frame, and the bus
-  // is silent rather than absent until its buffers arrive.
-  void music.init()
-  let devsBefore = getState().devs
+  /** Last consumed §7.7.2 spawn, so one hire produces one stinger. */
+  let lastSpawnId = 0
+  /** Last consumed §10.8a ship, so one ship produces one punch. */
+  let lastShipId = 0
+  let shipShake = 0
+  let lastFrame = performance.now()
+  let frameMs = 0
+  let raf = 0
+  let numeralsLive = false
 
-  app.ticker.add(() => {
-    const now = performance.now()
+  const frame = (now: number) => {
+    raf = requestAnimationFrame(frame)
     const rawFrameMs = now - lastFrame
     const dt = Math.min(0.1, rawFrameMs / 1000)
     lastFrame = now
+    frameMs = rawFrameMs
     frames.sample(rawFrameMs)
 
-    /*
-     * §26.1.8's `?speed`, now a dial rather than a constant — see
-     * `dev/simSpeed.ts` for why it is repeated whole ticks and never a bigger
-     * `dt`, and for the gate that keeps it out of deployed HTML.
-     *
-     * Read **here**, on the frame, rather than captured once above: the whole
-     * point of moving it onto a control is that the answer changes mid-session,
-     * and a value sampled at stage construction would give the scenario bar a
-     * slider that moved and a studio that did not.
-     */
+    // §26.1.8's `?speed`, a dial rather than a constant: repeated whole ticks,
+    // never a bigger `dt` (`dev/simSpeed.ts`).
     const steps = getSimSpeed()
     for (let step = 0; step < steps; step += 1) tick(dt)
 
     const state = getState()
 
-    // The three.js garage, while the studio is a garage: it follows the store's
-    // headcount and James, and the Pixi world (and its numerals, which were
-    // placed on the Pixi room) stands in everywhere else — above the block, and
-    // past twenty developers.
-    //
-    // The hinge, held from the ladder's side (see `inGarage3d`). The wheel and
-    // the pinch cross it themselves; this catches everything else that moves
-    // the ladder's camera across the block. Sent out past it — `?z`, the end
-    // of a scene flying the player back to where they were — the ladder shows,
-    // and the flight carries on in it. Sent in under it — the rail's CODE,
-    // TEAM — the garage takes the camera and the address walks home.
-    const era = garage3d !== null && state.devs <= GARAGE_3D_DEVS
-    // Not while a scene is up: a scene plays in the room, and the only thing
-    // that may take the camera out of it mid-scene is the player's own hand.
-    if (era && inGarage3d && !state.scene && camera.level >= BLOCK - GARAGE_HINGE) {
-      inGarage3d = false
-    } else if (era && !inGarage3d && camera.level < BLOCK - GARAGE_HINGE) {
-      enterGarage()
-    }
-    showing3d = era && inGarage3d
-    // The swap, eased. Past twenty it is not eased: that swap is the studio
-    // moving out, and it happens on a hire rather than under the player's hand.
-    garageFade = era
-      ? Math.max(0, Math.min(1, garageFade + (showing3d ? dt : -dt) / GARAGE_FADE_S))
-      : 0
-    world.visible = garageFade < 1
-    // The garage is opaque: the hidden ladder can go to the floor now.
-    if (showing3d && parkUnderGarage && garageFade >= 1) {
-      parkUnderGarage = false
-      camera.reframe(FLOOR, true)
-    }
-    // A poke's numeral is placed where the tap or the founder is, so it is right
-    // over either room; the passive tallies are laid out on the Pixi room's seats.
-    tallies.container.visible = !showing3d
-    if (garageSprite) {
-      garageSprite.visible = garageFade > 0
-      garageSprite.alpha = garageFade
-    }
-    // Drawn while it is visible at all, not only while it owns the lens: the
-    // room fading out over the ladder is still a live room, and a garage that
-    // was never drawn — a save opened straight onto the ladder — compiles its
-    // shaders here rather than on the frame the player comes home.
-    if (garageFade > 0 && garage3d && garageTexture && garageSprite) {
-      if (app.screen.width !== garageW || app.screen.height !== garageH) {
-        garageW = app.screen.width; garageH = app.screen.height
-        garage3d.resize(garageW, garageH)
-        garageSprite.width = garageW; garageSprite.height = garageH
+    garage.setHeadcount(state.devs)
+    // James arrives after the founder's *What—*, once the lens has reached his
+    // empty spot (`cueJames`): desk, chair, then him, and the dialogue holds
+    // *Ouch.* until he is down. A scene already past the line has him there.
+    jamesInRoom = arrivedHeroes().has('james')
+      || (state.scene === SCENE_JAMES_ARRIVES.id && sceneLine !== null
+        && (sceneLine >= JAMES_DROPS_AT_LINE || (jamesCued && !garage.easing)))
+    garage.setJames(jamesInRoom)
+    // The scene is over: the lens goes back to where the player had it.
+    if (!state.scene) {
+      sceneLine = null
+      jamesCued = false
+      if (sceneFocus) {
+        garage.focus(null)
+        sceneFocus = false
       }
-      garage3d.setHeadcount(state.devs)
-      // James arrives after the founder's *What—*, once the lens has reached his
-      // empty spot (`cueJames`): desk, chair, then him, and the dialogue holds
-      // *Ouch.* until he is down. A scene already past the line has him there.
-      garage3dHasJames = arrivedHeroes().has('james')
-        || (state.scene === SCENE_JAMES_ARRIVES.id && sceneLine !== null
-          && (sceneLine >= JAMES_DROPS_AT_LINE || (jamesCued && !garage3d.easing)))
-      garage3d.setJames(garage3dHasJames)
-      // The scene is over: the lens goes back to where the player had it.
-      if (!state.scene) {
-        sceneLine = null
-        jamesCued = false
-        if (sceneFocus3d) { garage3d.focus(null); sceneFocus3d = false }
-      }
-      // Only a redrawn room is copied into the glass: a still one is left as the
-      // texture already has it.
-      if (garage3d.render(now / 1000)) garageTexture.source.update()
     }
 
-    // §10.7a.1 — a scene pushes to Desk zoom on the way in and returns to where
-    // the player was on the way out. Driven off the store's scene id, so the
-    // dialogue box needs no knowledge of the camera and a scene can never leave
-    // the player somewhere they did not choose to be.
-    if (state.scene && savedSceneCamera === null) {
-      /*
-       * **A level, not a Z, and the difference is a camera that never comes to
-       * rest.**
-       *
-       * This used to save `camera.z` and restore it with `camera.set`, and
-       * `set` is the continuous door into the lens — it is what `?z` and the
-       * §23.3 bench drive a dolly with, so it parks wherever it is told and
-       * turns the magnetic stop off while it is there. Restoring a Z sampled
-       * while the camera happened to be *moving* therefore parked the studio
-       * permanently between two levels: measured after the prologue, level
-       * 0.35, not settling, and §7.8.10's corner desk 148 px above the top of
-       * the frame. Act I's whole script is TAP TO CODE and there was nobody on
-       * the screen to tap.
-       *
-       * It was invisible until now because the §7.7.1 ceiling used to be
-       * enforced from out here by re-cutting the camera every frame, which
-       * quietly put it back on a stop — a defect held down by another defect.
-       * A level restores through `flyTo`, which is a stop, an ease rather than
-       * a cut (§10.5). (It was also subject to §7.7.1's ceiling like every
-       * other flight, until the ceiling went on 2026-09-27.)
-       *
-       * `beginSceneCamera` does it, because the dialogue can get there first.
-       */
-      beginSceneCamera()
-    } else if (!state.scene && savedSceneCamera !== null) {
-      if (!lensIsGarage() || savedSceneCamera.level >= BLOCK) {
-        parkUnderGarage = false
-        camera.flyTo(savedSceneCamera.level)
-      }
-      savedSceneCamera = null
-      room.setSpeaker(-1)
-      room.setTeamSpeaker(null)
-    }
-
-    // §21 Act IV: "a heavy bass-drop THUD shakes the screen as the camera
-    // violently zooms out to Level 2." Driven here rather than by the store,
-    // because the camera is the renderer's business — the store just says the
-    // swarm arrived.
-    // §20.7.4 — the one scripted override. Fires once, on the frame the trap
-    // springs, and the bus owns the three beats from there.
+    // §20.7.4 — the one scripted override of the score, once per run. The
+    // camera's half of §21 Act IV (the dolly out over the thousand) was the
+    // Pixi office's and is not drawn until the lane is.
     if (state.massHired && !musicCollapsed) {
       musicCollapsed = true
       music.triggerActIV()
     }
-    if (state.massHired && !dollyFired) {
-      dollyFired = true
-      // §21 Act IV — "the camera violently zooms out to Level 2", which is the
-      // *floor*: the thousand developers have just landed on it and the shot is
-      // of them, not of the building they are in.
-      camera.flyTo(FLOOR)
-      playSfx('zoom-out')
-      // Parts 2–4 of the same beat: the swarm falling, the Slack web, the
-      // @everyone flood and the audio shift.
-      collapse.trigger()
-    }
-    // A Paradigm Shift clears massHired for the next run. Without this the
-    // dolly and the whole Act IV beat are one-shot for the lifetime of the
-    // page, so a player who springs the trap again in Run 2 gets silence.
-    if (!state.massHired && dollyFired) {
-      dollyFired = false
-      collapse.reset()
-      // §20.7.4 is once per run, and a Paradigm Shift starts a new one. Without
-      // this the score would stay collapsed for every subsequent run — four
-      // minutes of Act I under a stem written for a seized studio.
-      //
-      // **Both halves, or neither.** Clearing the latch alone left the bus
-      // holding its Act IV start time, so `mix()` went on ducking all four zone
-      // beds to zero and holding the collapse layer at full for the rest of the
-      // session, and the *next* `triggerActIV` was a no-op besides. That is the
-      // "the music never went back" report: the renderer had reset and the
-      // score had not.
+    // A Paradigm Shift clears massHired for the next run: both halves of the
+    // bus reset, or the score stays collapsed through the next Act I.
+    if (!state.massHired && musicCollapsed) {
       musicCollapsed = false
       music.clearActIV()
     }
-    // §7.7.2 — consume the store's SpawnEvent. Until this existed the
-    // headcount changed and the screen did not.
+    // §20.7.2 — a rung promotion gets a stinger, once per spawn event. Skipped
+    // on the first one observed, which may be a jumped-to phase rather than a
+    // hire the player made.
     if (state.spawn && state.spawn.id !== lastSpawnId) {
       const first = lastSpawnId === 0
       lastSpawnId = state.spawn.id
-      // §7.7.2 — the seats this hire actually took, not §7.7.3's ratio-scaled
-      // body count. Handing the weight to something that lands on *seats* is
-      // what dropped a stranger onto the founder on every early hire; see the
-      // header of arrivals.ts. Clamped to the room's cap, because above it the
-      // unit on screen stops being a person and the spectacle belongs to the
-      // floor tier.
-      // §26.2.2 — into this window's numbering, and clipped to it. A hire that
-      // lands in a block the player is not looking at has nothing to animate
-      // here; the seat it took is real and is somewhere else.
-      const from = Math.min(Math.max(0, state.spawn.from - room.seatWindow), ROOM_DEV_CAP)
-      const to = Math.min(Math.max(0, state.spawn.to - room.seatWindow), ROOM_DEV_CAP)
-      // **Not** gated on `first`, unlike the camera reveal below. A spawn event
-      // is only ever published by a real hire — `jumpToPhase`, `loadGame` and
-      // `?devs=` all leave it null — so the "first observed event" is the
-      // player's first hire of the session, and skipping it meant the very
-      // first developer anybody hires appeared with no animation at all.
-      arrivals.spawn(from, to, state.runSeed, now, room.seatWindow, room.inGarage)
-      // A hire that buys a whole new register of the lens is a reveal, not a
-      // hire. Kick the camera out to show what just opened up. Skipped on the
-      // first observed event, which may be a jumped-to phase rather than a
-      // hire the player made.
-      // §20.7.2 — a rung promotion gets a stinger. One-shot, in key, landing
-      // on the beat; the mix underneath it never changes.
       if (!first && state.spawn.promotedTo !== null) void music.playStinger('sting-promotion')
-      /*
-       * A hire that promotes the studio to a new unit is a reveal, not a hire:
-       * pull back to the level that frames the unit it has just become. Capped
-       * at the top of the ladder, not at the building: the ten-thousand-and-
-       * first hire is the one that buys the block, and a reveal that stopped
-       * at the tower would pull back to the thing the player has just outgrown.
-       *
-       * [2026-09-27] **Keyed on the rung, and never a pull *in*.** This fired
-       * when §7.7.1's zoom ceiling lifted, and there is no ceiling now (GDD
-       * §7.4a, amended), so the beat is the promotion itself — the rung the
-       * store reports, on the levels the ceiling used to open (rung 1 shares
-       * the room with rung 0, so the twenty-first hire is not one). A player
-       * already further out than the new unit is already looking at it, and
-       * flying them in to it would be the camera taking the view away.
-       */
-      const promoted = state.spawn.promotedTo
-      if (!first && promoted !== null) {
-        const revealAt = (rung: number): Level => settleLevel(Math.max(SQUAD, Math.min(TOP_LEVEL, rung)))
-        const to = revealAt(promoted.rung)
-        if (to > revealAt(rungFor(devsBefore).rung) && settleLevel(camera.level) < to) {
-          camera.flyTo(to)
-          playSfx('zoom-out')
-        }
-      }
     }
-    devsBefore = state.devs
-    arrivals.update(now)
-    hireShake = Math.max(hireShake, arrivals.consumeImpact())
-
-    // §10.8a — the launch. A ship lands one camera punch, consumed once like
-    // the spawn above; the DOM flash and the toast own the rest of the beat.
-    // The kick decays in the shake sum below.
+    // §10.8a — a ship lands one punch on the glass, consumed once.
     if (state.ship && state.ship.id !== lastShipId) {
       lastShipId = state.ship.id
       shipShake = 1
     }
 
-    // §20.7.3 — the score is a mix, not a playlist. Driven every frame from
-    // the same camera Z the picture uses and the same Entropy the readout
-    // does, so picture, ambience and music change register on the same frame.
-    // Costs a handful of gain writes; `update` skips any that have not moved.
-    music.update(camera.z, currentEntropy(state))
-
-    // §7.8.3 — everybody types. Cheap: one sine per visible developer.
-    // §7.8.6 — and some of them get up. Entropy drives the rate, so the floor
-    // gets visibly busier as the studio gets worse at its job: the §4.1 curve
-    // told in behaviour rather than in a number.
-    // §10.7a.3 — and while a scene is up the floor holds its breath: `tick`
-    // stops the numbers and the frozen room stops the bodies, so the picture
-    // and the ledger agree about time being stopped. §10.8b's launch window
-    // halts the same clock for the same reason, so it freezes the same bodies:
-    // a studio that keeps visibly typing while its own launch is on screen is
-    // a studio the pause has not happened to.
-    // §7.8.9 — hand the room this tick's away roster, **before** it animates.
-    //
-    // Pushed rather than pulled: `render/room.ts` does not import the store and
-    // should not start. This is the one seam where the simulation's opinion
-    // about who is out of their chair reaches the bodies that draw it — and it
-    // has to be on this side of `animate`, or a developer the player has just
-    // grabbed spends one frame sitting at their desk before the hand takes
-    // hold, which is exactly long enough to see.
-    room.setAway(state.slack.away)
-    room.setTeam(teamRoomRoster(state))
-    room.animate(
-      now / 1000,
-      state.dev.state,
-      dt,
-      currentEntropy(state),
-      state.scene !== null || state.launching,
-    )
+    const lvl = level()
+    // §20.7.3 — the score is a mix, driven every frame from the same Z the
+    // picture uses and the same Entropy the readout does.
+    music.update(lvl / 9, currentEntropy(state))
+    const tier = tierOfLevel(lvl)
+    if (tier !== state.zoom) setZoom(tier)
+    setCameraRung(Math.round(lvl))
 
     critPunch = Math.max(0, critPunch - dt * 4)
-
-    // --- the camera --------------------------------------------------------
-    //
-    // **One transform, applied once, to one container.** What was here iterated
-    // seven views, fitted each one to the viewport separately and blended them
-    // by rung distance — which is what drew the same building at 190 px and at
-    // 724 px on the same frame. There is nothing left to blend: the world is a
-    // building, the room is inside a plate of it, and the camera is a scale and
-    // a centre.
-    const viewport = { w: app.screen.width, h: app.screen.height }
-    const focusBlock = blockOf(focusSeat)
-    const focusBuilding = buildingOf(focusSeat)
-    const focusPlot = plotOf(focusBuilding)
-    const storeys = storeysIn(hereDevs(state.devs), focusBuilding)
-    camera.setViewport(viewport)
-    tellAddress()
-    // The room is the authority on its own size, because it is the thing that
-    // draws the walls. Below the unfold that is a garage growing; above it, a
-    // constant.
-    camera.setFloorRect(room.shellRect)
-    /*
-     * GDD §7.7.1's zoom ceiling was told to the camera here every frame, as
-     * `camera.setCeiling(maxZoomFor(state.devs) * 9)`, until 2026-09-27: the
-     * studio you can see is the studio you have. §7.4a is amended (*"no we
-     * don't keep the lock"*, the user), so the lens reaches every level at any
-     * headcount and it is `frames.ts` that makes each level draw only what the
-     * studio has.
-     */
-    // §7.2 — whether the settle and the inner stop apply. Told every frame
-    // rather than subscribed to: one statement of the camera's rules per
-    // frame, in the one place that already makes all the others.
-    camera.setFreeZoom(getViewModes().freeZoom)
-    camera.update(dt, now)
-
-    currentLevel = camera.level
-    currentFloorScale = floorScaleAt(camera.scale)
-    roomIsUp = roomResolved(currentFloorScale)
-
-    const view = camera.transform()
-    world.position.set(view.x, view.y)
-    world.scale.set(view.scale)
-
-    const tier = tierOfLevel(currentLevel)
-    if (tier !== state.zoom) setZoom(tier)
-    // §7.7.1 — and the rung, which the tier cannot stand in for: the desk and
-    // the squad share a tier, and those two are the difference between holding
-    // one developer and holding a hundred.
-    setCameraRung(rungOfLevel(currentLevel))
-
-    // --- the park and the block --------------------------------------------
-    //
-    // Ten parcels, ten blocks, a hundred plots and one door at each level. The
-    // building the address is in is *parented into its plot of its block*, so
-    // when the address moves the container moves with it and the block it left
-    // starts drawing a tower there again. Re-parenting rather than re-drawing
-    // is what keeps any two of them from ever being on screen at once.
-    /*
-     * --- the planet ------------------------------------------------------
-     *
-     * **The hand-off, and it is a cross-fade of one picture rather than two.**
-     *
-     * `globe.ts` draws every settled site as one building on territory ground,
-     * and `park.ts` draws the address's detailed city on that exact same ground
-     * colour — so what fades here is *detail*, not subject. The
-     * artefact §10.5 forbids is two pictures of the same thing at different
-     * sizes blended together; these are the same size by construction, because
-     * `intoGlobe` is the scale the park host is already carrying.
-     */
-    /*
-     * --- the network -----------------------------------------------------
-     *
-     * The same hand-off one rung further out, and it is the same *kind* of
-     * hand-off: `galaxy.ts` draws every settled world as one lit disc at the
-     * size `frames.ts` says a planet is, and `globe.ts` draws the address's
-     * detailed planet at exactly that place and that size. What fades is
-     * detail, not subject.
-     */
-    const galaxyAlpha = galaxyChromeAlpha(currentLevel)
-    galaxy.setHeadcount(state.devs)
-    galaxy.setFocus(focusWorld())
-    // §7.7.1a — naming a world is a *journey* across the field, not a cut to
-    // it. The lens eases at the same time; `galaxy.ts` walks the star map.
-    galaxy.update(dt)
-    galaxy.setSelected(selectedWorld)
-    galaxy.setChromeAlpha(galaxyAlpha)
-    // And the planet goes as the network arrives — one container again, because
-    // the globe, its park, the block, the building and the room are all inside
-    // the world that is becoming a node on a map.
-    galaxy.globeHost.alpha = 1 - galaxyAlpha
-    galaxy.globeHost.visible = galaxyAlpha < 0.996
-
-    const globeAlpha = globeChromeAlpha(currentLevel)
-    // **The planet's own payroll, not the studio's.** Handing the globe
-    // `state.devs` at ten billion fills every site of every world.
-    globe.setHeadcount(worldDevs(state.devs))
-    globe.setFocus(siteOf(focusSeat))
-    globe.setSelected(selectedSite)
-    globe.setChromeAlpha(globeAlpha)
-    // And the studio goes as the planet arrives. One container: the park, its
-    // ten blocks, the building and the room all ride the same fade, because
-    // they are all inside the site that is becoming a mark on a world.
-    globe.parkHost.alpha = 1 - globeAlpha
-    globe.parkHost.visible = globeAlpha < 0.996
-
-    const parkAlpha = parkChromeAlpha(currentLevel)
-    const blockAlpha = blockChromeAlpha(currentLevel)
-    // The ground this park stands on, asked of the planet rather than worked
-    // out twice. It is what stops the studio being a grey mat on a green world.
-    const ground = globe.groundAt(siteOf(focusSeat))
-    park.setTerrain(ground.biome, ground.step)
-    park.setHeadcount(hereDevs(state.devs))
-    park.setFocus(focusBlock, focusPlot)
-    park.setSelected(selectedBlock)
-    park.setChromeAlpha(parkAlpha)
-
-    const block = park.blockAt(focusBlock)
-    block.setSelected(selectedBuilding)
-    block.setChromeAlpha(blockAlpha)
-    if (focusBuilding !== hostedBuilding || focusBlock !== hostedBlock) {
-      hostedBuilding = focusBuilding
-      hostedBlock = focusBlock
-      block.plotHost(focusPlot).addChild(building.container)
-    }
-
-    // --- the building ------------------------------------------------------
-    //
-    // The address decides which plate is open and which plate the room lives
-    // in, and those two are the same number: a floor you are looking into is a
-    // floor you can be inside.
-    const storey = focusStorey()
-    building.setSeat(focusBuilding)
-    building.setHeadcount(devsIn(hereDevs(state.devs), focusBuilding))
-    /*
-     * **No storey is lit while the block is the subject** — `drawTower`'s own
-     * rule, which the ninety-nine cheap towers obey because they are passed
-     * `focus = -1` and which the hosted one did not, because this line was
-     * written when a building was the only thing on screen.
-     *
-     * `building.ts`: *"A block does not light a storey: at that scale a band is
-     * 19 px and the thing being chosen is the building."* At the park it is 9
-     * px, and one tower in a hundred wore a cyan smear across two faces. The
-     * neighbouring `setPlanAlpha` line already guards the *plan* on exactly
-     * this test and nobody carried it across to the lighting.
-     */
-    const litStorey = blockAlpha > 0 ? -1 : storey
-    building.setFocus(litStorey)
-    scene.hostRoomOn(storey)
-    // The plan and the room are the same picture at the size the swap happens,
-    // so this is a swap the player cannot see rather than a fade between two
-    // that never match.
-    building.setPlanHidden(storey, roomIsUp)
-    // And it does not exist at all while the block does: 286 units of plan
-    // against a 130-unit plot stride is a plan drawn through the neighbours.
-    building.setPlanAlpha(1 - blockAlpha)
-    building.setChromeAlpha(buildingChromeAlpha(currentLevel))
-    building.update(now)
-
-    // --- the room ----------------------------------------------------------
-    //
-    // §7.8.1 — rebuilt when the headcount changes, never per frame.
-    // §7.8.7 — identities before headcount, so a rebuild triggered by the seed
-    // does not immediately get overwritten by one triggered by the count.
-    // §26.2.2 — **which** thousand, before how many of them: the window throws
-    // away every generated person, so a `setHeadcount` on the other side of it
-    // is what refills the room.
-    room.container.renderable = roomIsUp
-    room.setSeed(state.runSeed)
-    // §7.8.12 [amended 2026-08-31] — James's selection is the suite's business,
-    // like the other five: `teamRoomRoster` already carries `selected` for him
-    // and the floor no longer has a seat to turn. Mapping him to local seat 0
-    // spun the threshold, which has nobody standing on it.
-    room.setSelected(localSeat(state.selected ?? -1))
-    room.setSeatWindow(seatWindowFor())
-    /*
-     * §7.8.13 — how much of a desk plate is worth printing at this distance.
-     *
-     * Read off the *settled* level rather than the continuous one, so a plate
-     * does not flicker between one line and two while the camera is easing
-     * through a boundary. The room does the toggling; this only says which.
-     */
-    // Desk-ish holds both lines; from Squad out the role goes and the name
-    // stays, because a plate is a name over a job and only one of them fits.
-    room.setLabelDetail(currentLevel < SQUAD ? 'full' : currentLevel < FLOOR ? 'name' : 'none')
-    room.setHeadcount(Math.min(state.devs, arrivals.revealed))
-    // §21 Act IV only. The particle swarm is not a level — the room draws the
-    // people wherever a person is a person — so it shows nobody unless the trap
-    // has sprung and there is a thousand-body drop to stage. See scene.ts.
-    floor.setPopulation(collapse.active ? state.devs : 0)
-
-    // §7.7.6b — the mode owns the hand, so leaving GRAB puts down whoever is in
-    // it. Without this a developer is left stranded in mid-air by a button
-    // press on the other side of the screen, following a finger that is no
-    // longer allowed to be carrying them. `drop(null)` is §7.8.9's escape: they
-    // walk back to their desk, unhurried, rather than teleporting. Zooming out
-    // of the room does the same thing, and for the same reason — there is no
-    // hand at the building.
-    if (carryId >= 0 && tapVerb(state.touchMode, roomIsUp) !== 'grab') {
-      const who = room.hands.carrying
-      room.hands.release()
-      if (who >= 0) releaseDeveloper(who, false)
-      carryId = -1
-    }
-
-
-    // §7.8.10 and §10.7a.1 — the Hero Anchor and the dialogue speaker.
-    //
-    // **Both are one call to the lens now, not a per-frame lerp against a pan
-    // limit.** `flyTo` already carries the camera in *and* centres it, and the
-    // ease is the lens's own, so the two beats cannot arrive at different
-    // speeds or fight the clamp. All that is left here is noticing when the
-    // flight has landed and handing the camera back.
-    if (founderFocus && !camera.settling) founderFocus = false
-
-
-    // §21 Act IV. The sustained level is Entropy rather than a timer: the room
-    // does not calm down in Act V, and reading it off the simulation means the
-    // noise is a symptom of the studio's state rather than a scripted flourish
-    // that happens to coincide with it.
-    const shake = collapse.update({
-      dt,
-      width: app.screen.width,
-      height: app.screen.height,
-      intensity: Math.min(1, currentEntropy() / 0.99),
-    })
-    // Applied to the glass, so the world, the numerals and the Act IV overlay
-    // all shake together. Shaking only the world would slide the picture out
-    // from under its own scanlines.
-    // Every hire has a small physical landing. Batch size increases the
-    // impulse logarithmically, so a thousand hires feel larger without moving
-    // the camera a thousand times farther than one hire.
-    const hireAmp = hireShake * (reduceMotion ? 1.2 : 4.5)
-    const hireX = Math.sin(now * 0.31) * hireAmp
-    const hireY = Math.cos(now * 0.43) * hireAmp * 0.65
-    // §10.8a — the ship's camera punch rides the same glass, a single damped
-    // kick rather than the hire's continuous wobble. Faster and shorter, so a
-    // launch reads as a thump, not as more arrivals.
     const shipAmp = shipShake * (reduceMotion ? 1.5 : 7)
-    const shipX = Math.sin(now * 0.9) * shipAmp
-    const shipY = Math.cos(now * 1.1) * shipAmp * 0.7
-    glass.position.set(shake.x + hireX + shipX, shake.y + hireY + shipY)
-    hireShake *= Math.exp(-dt * 12)
-    shipShake *= Math.exp(-dt * 10)
+    const shake = { x: Math.sin(now * 0.9) * shipAmp, y: Math.cos(now * 1.1) * shipAmp * 0.7 }
+    shipShake *= Math.exp(-dt * 12)
 
-    // §8.2b — the passive `+1`s over each head.
-    //
-    // Only where the room is drawing people: above that the unit on screen is
-    // a floor, and "+1 over each head" has no head to sit over. That is a scope
-    // rather than a gap — §8.2b's thinning rule aggregates *within* a floor of
-    // people, and the level above it is already the aggregate.
-    //
-    // §10.7a.3 — **and only while the clock is running** [added 2026-08-30].
-    // Reported as James's head popping `+1.1` through his own arrival scene,
-    // before he has produced a single point. The freeze is already the rule
-    // everywhere else: `tick` banks nothing while a scene or §10.8b's launch
-    // window is up, and `room.animate` holds the bodies on the same predicate
-    // a dozen lines above. The tallies kept emitting because they are computed
-    // from `developerVelocity` — a *rate*, which is still perfectly true — and
-    // nothing was asking whether any time was passing for it to be a rate of.
-    // A numeral rising off a frozen developer is the loudest possible claim
-    // that work is happening, and it is the one claim the pause exists to
-    // withdraw.
-    const frozen = state.scene !== null || state.launching
-    if (roomIsUp && !frozen) {
-      const seats = roomSeats()
-      const drawn = room.drawn
-      // §4.9a — each seat's share of the studio, so the numerals differ by as
-      // much as the people do. The shares sum to the headcount, so the numerals
-      // on screen add up to the velocity in the readout.
-      //
-      // **Asked of the store rather than reconstructed here**, and after R14
-      // that is load-bearing rather than tidiness. This used to be
-      // `currentVelocity / devs * developerShare(i)`, which was the same number
-      // until §4.5a's buffs existed — a buff raises `currentVelocity`, so the
-      // hand-rolled version spreads one poked developer's lift evenly over
-      // every head on the floor. §4.5c requires the opposite: "modifiers must be
-      // legible on the target, not buried in a panel." `developerVelocity`
-      // carries only that seat's own buff, so the numeral over the person you
-      // poked is the one that speeds up. Pinned in `pokeBuff.test.ts`.
-      //
-      // Capped by the *lens* as well as by the headcount — see `SOURCE_CAP`.
-      // A numeral speaks for the smallest group whose edges are on screen, so
-      // standing outside the floor thins a hundred of them down to one per
-      // squad rather than stacking them over a plan the size of a postcard.
-      const sources = tallySources(seats, drawn, (i) => developerVelocity(globalSeat(i), state), {
-        cap: capForLevel(currentLevel),
-        ...sourceWindow(drawn, focusSeat - room.seatWindow, spanForLevel(currentLevel)),
-      })
-      const container = room.container
-      for (const source of sources) {
-        // View-local -> screen. The offset is applied *before* the transform so
-        // it is measured in desks rather than in pixels: the numeral sits over
-        // the head at every zoom instead of drifting off it as the room grows.
-        //
-        // Clear of the monitor as well as the head. §8.2b says "over the
-        // person, not under the thumb", and at 16 it sat across the screen the
-        // person is typing at — technically above the desk and reading as part
-        // of the furniture.
-        const at = container.toGlobal({ x: source.x, y: source.y - 30 })
-        source.x = at.x
-        source.y = at.y
-      }
-      tallies.update(now, dt, sources)
-    } else {
-      tallies.update(now, dt, NO_TALLIES)
+    // §8.2 — each numeral/snippet callout arcs up and fades. The store holds
+    // them in client pixels; the canvas is drawn in its own. One layout read a
+    // frame, not one per floater.
+    let floaters = state.floaters
+    if (floaters.length > 0) {
+      const r = canvas.getBoundingClientRect()
+      const sx = w / Math.max(1, r.width)
+      const sy = h / Math.max(1, r.height)
+      floaters = floaters.map((f) => ({ ...f, x: (f.x - r.left) * sx, y: (f.y - r.top) * sy }))
     }
+    if (numerals.draw(floaters, performance.now(), FLOATER_LIFE_MS)) numeralTexture.needsUpdate = true
+    numeralsLive = floaters.length > 0
 
-    // Each paired numeral/snippet callout arcs up and fades over one second.
-    const live = new Set<number>()
-    for (const f of state.floaters) {
-      live.add(f.id)
-      let g = numeralGfx.get(f.id)
-      if (!g) {
-        // The real numeral and the §8.2a code line. This was a plain rectangle
-        // during the spike, on the reasoning that text belongs in React — that
-        // holds for the HUD and not for this, which is scenery under the glass.
-        g = typeset.build(f.sp, f.crit, f.snippet, f.unblocked, f.id - 1)
-        numerals.addChild(g)
-        numeralGfx.set(f.id, g)
-      }
-      // §8.2a — the snippet is a *joke*, and a joke has to be finished being
-      // read. At 900 ms fading linearly from the first frame it was gone before
-      // it registered: the numeral is a number and reads instantly, but
-      // `while (true) { }` is four words and needs about a second of full
-      // opacity before it starts leaving.
-      const age = (now - f.bornAt) / FLOATER_LIFE_MS
-      g.position.set(f.x, f.y - age * 58)
-      g.alpha = Math.max(0, Math.min(1, (1 - age) / FLOATER_FADE))
-    }
-    for (const [id, g] of numeralGfx) {
-      if (!live.has(id)) {
-        g.destroy()
-        numeralGfx.delete(id)
-      }
-    }
+    const theme = entropyTheme(currentEntropy(state))
+    // §6 pass 3: a calm studio gets a tight halo on its lamps, a seizing one
+    // the same lamps blown out — the strain moves *how much* comes back.
+    garage.setBloom(glass.enabled && bloomOn ? (0.55 + theme.glass.bloom * 1.5) * 0.3 : 0)
+    garage.render(now / 1000)
+    glass.render(garage.renderer, garage.output, numeralsLive ? numeralTexture : null, {
+      glass: theme.glass,
+      critPunch,
+      // A third of the line contrast over the room, and less as faces fill the frame.
+      lines: Math.max(0.12, 0.35 / Math.max(1, garage.zoom)),
+      shake,
+      seconds: now / 1000,
+      width: w,
+      height: h,
+    })
 
-    // Local-browser-only inspection seam, in the same family as ?bench / ?act / ?nopost.
-    // The Act IV beat is three systems deep — store flag, camera dolly, LOD
-    // weight — and "nothing is on screen" is the same symptom for all three.
+    // Local-browser-only inspection seams, in the same family as ?act and ?bench.
     if (DEBUG_TOOLS_ENABLED) {
-      // §26.2.2 — **ask what is under a point without pressing it.** The
-      // hierarchy is only navigable if a tap lands on the thing that was
-      // pointed at, and "did the tap land on the right unit" is not a question
-      // a screenshot can answer: every unit at every rung is drawn in the same
-      // ten places. Same family as `__store` and `__stage`, and the §26.2.5
-      // walk will need it for the same reason the ladder probe needed `wheelTo`
-      // to fail loudly — a gesture that missed looks exactly like one that
-      // landed somewhere boring.
-      ;(globalThis as unknown as Record<string, unknown>).__pick = (x: number, y: number) =>
-        pickUnit(x, y)
+      const g = globalThis as unknown as Record<string, unknown>
       /*
-       * §4.5d — **where is the founder's own avatar, in screen pixels.**
-       *
-       * Same family as `__pick`, and here for the same reason: §26.1.8 item 9
-       * has to open the founder's screen, §13.6.7 says the door has to be a
-       * person, and the walk's only way to find that person was to tap a grid
-       * over the whole frame until something opened. That was tolerable while a
-       * tap did nothing but select. It is not now — a tap navigates, so five
-       * hundred of them walk the camera down the ladder and away from the thing
-       * being hunted, and "no tap reached the founder" ends up meaning "the
-       * sweep drove the lens to Desk on somebody else's squad".
-       *
-       * Aiming instead of hunting also splits a failure the sweep conflated:
-       * *the avatar is not in the frame* (§13.7.1a's known trade) is a
-       * different finding from *the avatar is in the frame and tapping it does
-       * nothing*, and only the second is a bug.
-       *
-       * Null when the room is not drawn, which is itself the answer to "why did
-       * the tap miss".
+       * §4.5d — **where the founder is, in screen pixels**, and James: aiming
+       * rather than hunting, so "the person is not in the frame" and "the
+       * person is in the frame and tapping does nothing" stay two findings.
        */
-      // Where James is in the 3D room — the same seam as `__founderAt`, for the
-      // walk and for aiming at him by script.
-      ;(globalThis as unknown as Record<string, unknown>).__jamesAt = () => {
-        const at = seat3d(JAMES_3D_SEAT)
+      g.__founderAt = () => {
+        const at = personAt(FOUNDER_SEAT)
         return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
       }
-      ;(globalThis as unknown as Record<string, unknown>).__founderAt = () => {
-        if (showing3d) {
-          const at = seat3d(-1)
-          return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
-        }
-        if (!roomIsUp) return null
-        const at = room.founderDeskAt()
-        const p = room.container.toGlobal({ x: at.x, y: at.y - 18 })
-        return { x: Math.round(p.x), y: Math.round(p.y) }
+      g.__jamesAt = () => {
+        const at = personAt(JAMES_SEAT)
+        return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
       }
-      /*
-       * §7.8.12 — **where the sign over the suite's door is, in screen pixels.**
-       *
-       * The same seam as `__founderAt` above, added for the same reason and by
-       * the same argument. §13.11.2's roster used to open from a button in the
-       * rail, which a gate could press by name; it now opens by tapping a thing
-       * in the world, and a gate with no way to aim at that thing would have to
-       * sweep a grid of taps over the room — where every tap navigates, so five
-       * hundred of them walk the camera somewhere else entirely.
-       *
-       * Aiming also keeps two failures apart that a sweep would conflate: *the
-       * sign is not on screen* (the camera is above the room, or the walls have
-       * not arrived) is a different finding from *the sign is on screen and
-       * tapping it does nothing*, and only the second is a bug.
-       */
-      /*
-       * §7.8.12 — **the drawn room, measured**, for the walk
-       * (`scripts/playthrough.acceptance.mjs`), which finds James in it. It was
-       * written for the room gate, deleted 2026-09-26.
-       *
-       * The same family as `__pick` and `__founderAt`: a question about the
-       * scene that a screenshot cannot answer and that re-deriving from
-       * constants would answer about a room nobody is looking at. What it hands
-       * over is what the renderer *did*, which is the only thing worth
-       * asserting about a renderer.
-       */
-      ;(globalThis as unknown as Record<string, unknown>).__room = () => {
-        if (!roomIsUp) return null
-        const g = room.geometry()
-        // Over the 3D garage the seats a thumb aims at are the drawn ones.
-        if (showing3d) {
-          g.screen.seats = g.seats.map((_, i) => seat3d(i) ?? { x: -1, y: -1 })
-        }
-        return g
-      }
-      /*
-       * §7.8.0c — **what the camera is actually doing**, as opposed to what the
-       * frame it was told to fit says it should be.
-       *
-       * Same family as `__room` and `__pick`, and added on 2026-09-03 for the
-       * defect neither of those could see: the garage's resting camera took its
-       * *centre* from the room's rectangle and its *scale* from the squad's,
-       * because only `FLOOR` was routed through `frameOf` and the garage never
-       * reaches `FLOOR`. Every number on both sides was correct. What was wrong
-       * was that they came from different rectangles, and the only way to see
-       * that is to read the ladder, the fitted rectangle and the resulting
-       * transform in the same breath.
-       *
-       * `scales()` is the ladder as the lens computes it; `floorRect` is what
-       * the room asked for; `view` is what was applied. Two of the three
-       * agreeing is the symptom.
-       */
-      ;(globalThis as unknown as Record<string, unknown>).__cam = () => ({
-        z: camera.z,
-        level: camera.level,
-        scale: camera.scale,
-        view: camera.transform(),
-        scales: camera.scales(),
-        floorRect: { ...room.shellRect },
-      })
-      ;(globalThis as unknown as Record<string, unknown>).__signAt = () => {
-        if (!roomIsUp) return null
-        const at = room.teamSignPoint()
-        if (!at) return null
-        const p = room.container.toGlobal(at)
-        return { x: Math.round(p.x), y: Math.round(p.y) }
-      }
-      // The one measurement the whole rebuild is answerable to: how much of
-      // the frame the *developers* actually cover. It was 48% at a full floor
-      // and 28% at a hundred, and both were invisible from a screenshot without
-      // measuring the seat block by hand.
-      const seatsPx = floorSeatRect().w * currentFloorScale
-      const snapshot = {
-        z: +camera.z.toFixed(4),
-        // Where the camera is on the level ladder, continuously, and which
-        // level that settles to. Reading them apart is the difference between
-        // "the camera is between two levels" and "the camera is on one".
-        level: +currentLevel.toFixed(2),
-        at: LEVEL_NAMES[settleLevel(currentLevel)],
-        // The studio's own rung. `ceilingRung` until 2026-09-27, when it was
-        // also how far out the lens could go; there is no ceiling now.
-        rung: rungFor(state.devs).rung,
-        // Whether the 3D garage is the room on screen, or the ladder above it,
-        // and how far through the swap between them the picture is.
-        garage3d: showing3d,
-        garage3dAlpha: +garageFade.toFixed(2),
-        // §26.2.2 — the address. Which part of the studio the lens is over, and
-        // which thousand people the room is a picture of.
-        focusSeat,
-        block: blockOf(focusSeat),
-        blocks: blocksFor(hereDevs(state.devs)),
-        sites: sitesFor(state.devs),
-        // The plot of its own block, which is the number the HUD says; the
-        // park-wide one is `buildingOf` and is what the store counts in.
-        building: plotOf(buildingOf(focusSeat)),
-        buildings: buildingsIn(hereDevs(state.devs), blockOf(focusSeat)),
-        storey,
-        /*
-         * **Which storey is actually lit on the tower**, which is not the same
-         * number as `storey` and is the only way to see this from outside: a
-         * band 9 px tall drawn in the wrong place is invisible to `__pick`,
-         * which answers off the model, and to a screenshot assertion, which has
-         * no idea which tower is the hosted one.
-         */
-        litStorey,
-        selectedStorey,
-        selectedBuilding,
-        selectedBlock,
-        storeys,
-        seatWindow: room.seatWindow,
-        drawn: room.drawn,
-        roomIsUp,
-        scale: +camera.scale.toFixed(5),
-        floorScale: +currentFloorScale.toFixed(5),
-        // **How much of each level's chrome is on screen.** Here because a
-        // composition hand-off is invisible to every other probe: `__pick`
-        // answers off the model and will happily name ten towers that are being
-        // drawn at alpha zero, which is exactly the state "at 100k still just
-        // one tower" was reported from.
-        parkAlpha: +parkChromeAlpha(currentLevel).toFixed(3),
-        blockAlpha: +blockChromeAlpha(currentLevel).toFixed(3),
-        buildingAlpha: +buildingChromeAlpha(currentLevel).toFixed(3),
-        centre: `${Math.round(camera.centre.cx)},${Math.round(camera.centre.cy)}`,
-        // **The number this rebuild exists to make large.** How wide the seat
-        // block measures on screen, and what fraction of the frame that is.
-        seatsPx: Math.round(seatsPx),
-        fillFrame: +(seatsPx / app.screen.width).toFixed(3),
-        viewport: `${Math.round(app.screen.width)}x${Math.round(app.screen.height)}`,
+      ;(window as unknown as Record<string, unknown>).__stage = {
+        z: +(lvl / 9).toFixed(4),
+        level: +lvl.toFixed(2),
+        zoom: +garage.zoom.toFixed(3),
+        easing: garage.easing,
+        devs: state.devs,
+        drawn: Math.min(20, state.devs),
+        viewport: `${Math.round(w)}x${Math.round(h)}`,
         massHired: state.massHired,
-        settling: camera.settling,
-        dollyFired,
         dt: +dt.toFixed(4),
-        collapseActive: collapse.active,
       }
-      ;(window as unknown as Record<string, unknown>).__stage = snapshot
     }
+  }
+  raf = requestAnimationFrame(frame)
 
-    post.update({
-      glass: entropyTheme(currentEntropy()).glass,
-      zoom: camera.z,
-      // Over the 3D room the lens is not what the player sees move: its
-      // velocity would smear a still picture (a hire flies the lens).
-      zoomVelocity: showing3d ? 0 : camera.velocity,
-      critPunch,
-      width: app.screen.width,
-      height: app.screen.height,
-      // Over the 3D room a third of the line contrast, and less as faces fill the frame.
-      lines: showing3d && garage3d ? Math.max(0.12, 0.35 / Math.max(1, garage3d.zoom)) : 1,
-    })
-  })
+  const camera: StageCamera = {
+    get z() {
+      return level() / 9
+    },
+    set(z: number) {
+      if (!Number.isFinite(z)) return
+      garage.setLens(zoomOfLevel(z * 9))
+    },
+  }
 
   return {
     get frameMs() {
-      return app.ticker.deltaMS
+      return frameMs
     },
     get latencyP95() {
       return tapLatency.p95
     },
     camera,
-    nav() {
-      const all = getState().devs
-      const devs = hereDevs(all)
-      const block = blockOf(focusSeat)
-      const b = buildingOf(focusSeat)
-      const mine = devsIn(devs, b)
-      const n = storeysIn(devs, b)
-      const occupancy: number[] = []
-      for (let f = 0; f < n; f++) {
-        occupancy.push(Math.max(0, Math.min(DEVS_PER_FLOOR, mine - f * DEVS_PER_FLOOR)))
-      }
-      const m = buildingsIn(devs, block)
-      const blockOccupancy: number[] = []
-      for (let i = 0; i < m; i++) blockOccupancy.push(devsIn(devs, buildingAt(i, block)))
-      const k = blocksFor(devs)
-      const parkOccupancy: number[] = []
-      for (let i = 0; i < k; i++) parkOccupancy.push(devsOnBlock(devs, i))
-      const here = worldDevs(all)
-      const j = sitesFor(here)
-      const globeOccupancy: number[] = []
-      for (let i = 0; i < j; i++) globeOccupancy.push(devsOnSite(here, i))
-      const neighbourhood = galaxy.drawn
-      const galaxyOccupancy: number[] = neighbourhood.map((w) => devsOnWorld(all, w))
-      const at = settleLevel(currentLevel)
-      return {
-        level: currentLevel,
-        at,
-        name: LEVEL_NAMES[at],
-        world: focusWorld(),
-        site: siteOf(focusSeat),
-        block,
-        building: plotOf(b),
-        storey: focusStorey(),
-        squad: squadOf(focusSeat),
-        seat: focusSeat,
-        storeys: n,
-        buildings: m,
-        blocks: k,
-        sites: j,
-        worlds: worldsFor(all),
-        selected: selectedStorey,
-        selectedBuilding,
-        selectedBlock,
-        selectedSite,
-        selectedWorld,
-        neighbourhood,
-        occupancy,
-        blockOccupancy,
-        parkOccupancy,
-        globeOccupancy,
-        galaxyOccupancy,
-      }
-    },
-    enterFloor(storey: number) {
-      enterStorey(storey)
-    },
-    enterBuilding(b: number) {
-      enterBuilding(b)
-    },
-    enterBlock(b: number) {
-      enterBlock(b)
-    },
-    enterSite(i: number) {
-      enterSite(i)
-    },
-    enterWorld(i: number) {
-      enterWorld(i)
-    },
-    goToLevel(level: Level) {
-      // Going *up* is a plain reframe; going down needs an address, and the
-      // address is already the one the breadcrumb is naming.
-      selectedStorey = level >= BUILDING ? selectedStorey : focusStorey()
-      selectedBuilding = level >= BLOCK ? selectedBuilding : plotOf(buildingOf(focusSeat))
-      selectedBlock = level >= PARK ? selectedBlock : blockOf(focusSeat)
-      selectedSite = level >= GLOBE ? selectedSite : siteOf(focusSeat)
-      selectedWorld = level >= GALAXY ? selectedWorld : focusWorld()
-      camera.flyTo(level)
-      playUi('whoosh')
-    },
     focusTeam() {
-      focusTeamCamera()
+      garage.home()
       playUi('whoosh')
-    },
-    focusFounder() {
-      focusFounderCamera()
     },
     focusDialogue(focus) {
       focusDialogue(focus)
@@ -2794,63 +647,53 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     cueJames() {
       if (jamesCued) return
       jamesCued = true
-      if (getState().scene) beginSceneCamera()
-      if (showing3d && garage3d) {
-        garage3d.focus(JAMES_3D_SEAT)
-        sceneFocus3d = true
-      }
+      garage.focus(JAMES_SEAT)
+      sceneFocus = true
     },
     jamesLanded() {
-      return !showing3d || !garage3d ? true : !garage3d.animating(JAMES_3D_SEAT) && sceneLine !== null && garage3dHasJames
+      return !garage.animating(JAMES_SEAT) && sceneLine !== null && jamesInRoom
     },
     codeFounder() {
-      // The rail's CODE — YOU, which is §7.7.4's way home as much as it is a
-      // poke, so this one does take the camera.
       return codeAtFounderDesk({ sound: true })
     },
-    setFounderInspect(handler: (() => void) | null) {
+    setFounderInspect(handler) {
       founderInspect = handler
     },
-    setRosterInspect(handler: (() => void) | null) {
-      rosterInspect = handler
-    },
-    setHeroInspect(handler: ((id: HeroId) => void) | null) {
+    setHeroInspect(handler) {
       heroInspect = handler
     },
     setFounderProfile(profile: FounderProfile) {
-      room.setFounderProfile(profile)
-      // The 3D room's founder is the one the player made, not the default.
-      garage3d?.setIdentity(founderLook(profile), readStudioName())
+      // The room's founder is the one the player made, not the default.
+      garage.setIdentity(founderLook(profile), readStudioName())
     },
     bench: {
       camera,
-      tap: () => doPoke(app.screen.width / 2, app.screen.height / 2, performance.now()),
+      tap: () => {
+        const at = toClient(w / 2, h / 2)
+        doPoke(at.x, at.y, performance.now())
+      },
       tapLatency,
       audioLatency,
       frames,
-      // §23.3 criterion 4 names 1,000 sprites. The floor now follows the
-      // headcount, so the bench has to ask for the full load explicitly.
-      setFloorPopulationOverride: (n: number | null) => floor.setPopulationOverride(n),
+      // §23.3 criterion 4 named the Pixi floor's 1,000 sprites. The room draws
+      // what it draws; there is no population to force until the lane does.
+      setFloorPopulationOverride: () => {},
     },
     destroy() {
-      app.canvas.removeEventListener('pointerdown', onPointerDown)
-      app.canvas.removeEventListener('pointermove', onDragMove)
-      app.canvas.removeEventListener('pointerup', onDragEnd)
-      app.canvas.removeEventListener('pointercancel', onDragEnd)
-      app.canvas.removeEventListener('pointerdown', trackPointer)
-      app.canvas.removeEventListener('pointermove', onPointerMove)
-      app.canvas.removeEventListener('pointerup', onPointerUp)
-      app.canvas.removeEventListener('pointercancel', onPointerUp)
-      app.canvas.removeEventListener('pointerleave', onPointerUp)
-      app.canvas.removeEventListener('wheel', onWheel)
-      arrivals.destroy()
-      collapse.destroy()
-      tallies.destroy()
+      cancelAnimationFrame(raf)
+      resized.disconnect()
+      canvas.removeEventListener('pointerdown', onPointerDown)
+      canvas.removeEventListener('pointermove', onPointerMove)
+      canvas.removeEventListener('pointerup', onPointerUp)
+      canvas.removeEventListener('pointercancel', onPointerUp)
+      canvas.removeEventListener('pointerleave', onPointerUp)
+      canvas.removeEventListener('wheel', onWheel)
       void music.unload()
-      typeset.destroy()
       stopWatchingModes()
-      post.destroy()
-      app.destroy(true, { children: true })
+      glass.dispose()
+      numeralTexture.dispose()
+      garage.dispose()
+      canvas.remove()
     },
   }
 }

@@ -13,8 +13,10 @@
  *
  * Everything the garage is, with nothing of the rebuild's shell around it: its
  * geometry and people (`garageEnvironment`), a night rig, SSAO and a
- * true-isometric camera. No store, no clock, no Pixi, no HUD. It draws into
- * its own canvas, which the stage takes as a texture under this build's glass.
+ * true-isometric camera. No store, no clock, no HUD. It draws into its
+ * composer's targets, and the stage's glass (`glass.ts`) puts that on its
+ * canvas — the screen, since the Pixi stage it used to be a texture inside was
+ * decommissioned on 2026-09-28.
  *
  * **The camera belongs to the player.** Zoom is anchored at the pointer and is
  * never pulled back: no magnetic stops, no settle, only a floor and a ceiling a
@@ -45,6 +47,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { buildGarageEnvironment, GARAGE_ASSEMBLED, showGarageSeats, showGarageStations, type GarageStaging } from './garageEnvironment.ts'
 import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
@@ -54,8 +57,23 @@ import { OS, OS_SKIN } from '../art/skin.ts'
 import type { Look } from '../sim/identity.ts'
 
 export interface GarageView {
-  /** What the host draws. Redrawn by `render`. */
+  /**
+   * The renderer's canvas — the screen, since the Pixi stage went on
+   * 2026-09-28. `render` draws the room into {@link output}; the stage's glass
+   * (`glass.ts`) is what puts it on this canvas, every frame.
+   */
   canvas: HTMLCanvasElement
+  /** The renderer, for the stage's glass to draw the last pass with. */
+  readonly renderer: T.WebGLRenderer
+  /** The room as last drawn, tone-mapped and bloomed: the glass's input. */
+  readonly output: T.Texture
+  /**
+   * §6 pass 3 — how much of the room's highlights come back as bloom (0 is
+   * off). Moves with the studio's strain; see `glass.ts`.
+   */
+  setBloom(strength: number): void
+  /** Ease the camera back to the room framed at rest — TEAM's way home. */
+  home(): void
   /** Developers in the room (the founder is not one of them). New ones drop in. */
   setHeadcount(n: number): void
   /** Whether James has arrived; he drops in when he does. */
@@ -99,13 +117,22 @@ export interface GarageView {
 /**
  * How far the player may zoom: well out past the room, and in to a face.
  *
- * The out-stop is exported because it is the hinge [2026-09-27]: the garage is
- * the bottom of the lens while the studio fits it, and a zoom out past its
- * widest frame hands the camera to the ladder at the block (`render/stage.ts`).
+ * Exported because the stage reads the lens off them: §7.2's Z, which the
+ * music, the poke sounds and the store's tier all still speak, is the garage's
+ * zoom mapped onto the room's three stops (`render/stage.ts`).
  */
 export const GARAGE_ZOOM_MIN = 0.45
+export const GARAGE_ZOOM_MAX = 7
+/**
+ * The room framed at rest: pulled back a little from 1, which frames the room
+ * edge to edge. The margin was first given to the Pixi glass, on the belief
+ * that its curvature magnified the middle; it never did (`glass.ts`), but the
+ * framing is the one the game has been played at, and a room with a little
+ * street around it reads as a place rather than a diagram.
+ */
+export const GARAGE_REST_ZOOM = 0.8
 const ZOOM_MIN = GARAGE_ZOOM_MIN
-const ZOOM_MAX = 7
+const ZOOM_MAX = GARAGE_ZOOM_MAX
 /** How far a hire falls, in metres — the rebuild's DROP_FROM. */
 const DROP_FROM = 3.4
 /**
@@ -147,8 +174,10 @@ interface Part { key: string; instances: SeatInstance[]; group: T.Object3D | nul
 export function createGarageView(width: number, height: number, cast: StudioCast = defaultCast(), options: GarageViewOptions = {}): GarageView {
   const lite = options.lite ?? false
   // No antialias on the canvas itself: the composer draws into its own
-  // multisampled targets, and the canvas only ever receives the output quad.
-  const renderer = new T.WebGLRenderer({ antialias: false, alpha: false, preserveDrawingBuffer: true })
+  // multisampled targets, and the canvas only ever receives the glass's quad.
+  // Nothing copies it any more (the Pixi stage did, as a texture, until
+  // 2026-09-28), so it keeps no drawing buffer between frames.
+  const renderer = new T.WebGLRenderer({ antialias: false, alpha: false, preserveDrawingBuffer: false })
   renderer.setPixelRatio(lite ? 1 : Math.min(window.devicePixelRatio || 1, 1.5))
   renderer.outputColorSpace = T.SRGBColorSpace
   renderer.toneMapping = T.ACESFilmicToneMapping
@@ -200,6 +229,17 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     composer.addPass(ao)
   }
   composer.addPass(new OutputPass())
+  /*
+   * §6 pass 3, moved here from the Pixi glass (2026-09-28). After the output
+   * pass, so it thresholds brightness as displayed — AdvancedBloomFilter's
+   * 0.74 kept its meaning: the lamps, the screens and the sign bloom, the
+   * concrete does not (§7.8.0c). The stage sets its strength from entropy.
+   */
+  const bloom = new UnrealBloomPass(new T.Vector2(width, height), 0, 0.2, 0.74)
+  composer.addPass(bloom)
+  // Into the composer's own targets: the stage's glass puts the result on
+  // screen every frame, and this only redraws when the room changed.
+  composer.renderToScreen = false
 
   let env: Environment
   let heads = 0
@@ -477,6 +517,25 @@ export function createGarageView(width: number, height: number, cast: StudioCast
 
   const view: GarageView = {
     canvas: renderer.domElement,
+    renderer,
+    get output() {
+      // After a render, the composer's last pass has left the frame in the read
+      // buffer; between renders it is still there.
+      return composer.readBuffer.texture
+    },
+    setBloom(strength) {
+      const next = Math.max(0, strength)
+      // A change nobody could see is not a reason to redraw the room.
+      if (Math.abs(next - bloom.strength) < 0.01) return
+      bloom.strength = next
+      bloom.enabled = next > 0
+      dirty = true
+    },
+    home() {
+      saved = null
+      focusOn = { pan: new T.Vector3(), zoom: GARAGE_REST_ZOOM }
+      dirty = true
+    },
     setHeadcount(n) {
       const next = Math.max(0, Math.min(20, Math.floor(n)))
       if (next === heads) return
@@ -510,6 +569,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       renderer.setSize(w, h, false)
       composer.setSize(w, h)
       ao?.setSize(w, h)
+      bloom.setSize(w, h)
       dirty = true
     },
     setLens(z) {

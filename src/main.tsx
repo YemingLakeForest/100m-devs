@@ -1,6 +1,5 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { TextureStyle } from 'pixi.js'
 import App from './App.tsx'
 import { installPaletteTokens } from './art/cssTokens.ts'
 import { loadSettings } from './settings/settings.ts'
@@ -19,15 +18,11 @@ installPaletteTokens(document.documentElement)
 // one launch play at the wrong volume and animate at the wrong length.
 loadSettings()
 
-/**
- * Nearest-neighbour everywhere, set before any texture is created.
- *
- * ART_DIRECTION §7: hard pixels only. Pixi's default is linear filtering,
- * which would soften every sprite edge in the game and produce exactly the
- * anti-aliasing the acceptance checklist rejects — from a single default, in
- * one line, invisibly.
+/*
+ * Pixi's texture default (nearest-neighbour, ART_DIRECTION §7) was set here
+ * until the Pixi stage was decommissioned on 2026-09-28. The 3D room's own
+ * textures set their filters where they are made.
  */
-TextureStyle.defaultOptions.scaleMode = 'nearest'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

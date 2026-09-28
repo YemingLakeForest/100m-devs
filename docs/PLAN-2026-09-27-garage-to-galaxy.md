@@ -78,6 +78,24 @@ The one decision that needs no concept and that the user can feel on `main` the 
 **Done when:** at one developer, a scroll goes from the desk to the star field and back, every level
 draws, and James is one pinch away. Push.
 
+### Phase 1b · Decommission the Pixi stage first — 2026-09-28, done
+
+The user: *"pixi scenes are supposed to be completed decommissioned. we should do that first if there
+are gates/validation any productivity drags because of them"*, then *"the old city, campus, globe scenes
+can all be cut made by pixi"* and *"the old pixi office scene was deprecated and cannot be used as
+reference for new"*. Phase 8 moved to the front:
+
+- `render/stage.ts` is three.js only: the garage drawn straight to the screen, the hand (tap, drag,
+  pinch, wheel), the dialogue camera and James's drop, the music, and the store's tier and rung read
+  off the garage's zoom.
+- The glass (ART_DIRECTION §6) is `three/render/glass.ts`; bloom is in the garage's composer; the
+  poke numerals are a canvas composited under the lines (`render/pokeText.ts`).
+- Deleted: every Pixi scene module in `render/` (room, office, building, block, district, park,
+  globe, galaxy, frames, lens, collapse, arrivals, tallies …), `hud/Lift.tsx`, the title's Pixi
+  camera drift, the scale and reach probes, and `pixi.js` / `pixi-filters`.
+- Until phases 3, 5 and 7 land, **the lens is the room**: past twenty the rank and file are not drawn
+  and there is nothing above the street. GDD §7.4a and §7.8.1c say so.
+
 ### Phase 2 · The HQ concept — one round with the user, no game code
 
 Two questions, answered together, drawn in the prototype (it imports the real garage, so bays drawn there
@@ -129,7 +147,10 @@ lane). Also ask about the planet (§0).
 
 ### Phase 3 · The garage stays
 
-After phase 2's answer.
+**Next, after phase 1b** (2026-09-28): the lane is decided (decision 7), so this no longer waits for phase
+2's round. *"My direction is a dramatic funny expansion of the current scene, either a office floor drops
+like james across the road or similar"* — designed from the current 3D garage and James's drop (it falls,
+bounces once, throws up dust and shakes the camera), never from the Pixi office.
 
 1. `render/stage.ts`: the three.js garage stops being a ≤ 20 mode. It is the scene at the bottom of the
    lens at every headcount, and `GARAGE_3D_DEVS` goes.
@@ -227,8 +248,9 @@ and James at their desks, and the rank and file are wherever phase 2 decided. Lo
 
 ### Phase 8 · Retire the Pixi ladder
 
-Delete the Pixi rungs the three.js view replaced, with their tests and `render/stage.ts`'s two-renderer
-glue. Write the retirement into the handoff: what each deleted file did and what replaced it.
+**Done first, as phase 1b (2026-09-28).** Delete the Pixi rungs the three.js view replaced, with their
+tests and `render/stage.ts`'s two-renderer glue. Write the retirement into the handoff: what each deleted
+file did and what replaced it.
 
 ---
 

@@ -3144,6 +3144,22 @@ the map reveals a tiny individual developer frantically typing or getting distra
 <li><strong>Interaction:</strong> managing planet-to-planet latency. Upgrading interstellar Neuro-Relays.</li>
 </ul>
 <h3 id="a-the-lens-has-seven-presentation-stops-through-the-100m-gate-canon-amended-2026-08-25-r8">7.4a The lens has eight presentation stops — seven through the 100M gate, and the network above it <strong>[CANON - amended 2026-08-30, 2026-09-27]</strong> - R8</h3>
+<blockquote>
+<p><strong>[amended 2026-09-28] The Pixi ladder is gone, and until three.js draws it the lens is the room.</strong>
+The user: <em>&quot;pixi scenes are supposed to be completed decommissioned. we should do that first if
+there are gates/validation any productivity drags because of them&quot;</em>, then <em>&quot;the old city, campus,
+globe scenes can all be cut made by pixi&quot;</em>. Every stop above the room — the office unfold, the
+building, the block, the district, the park, the globe and the star field — was a Pixi picture, and
+all of it was deleted in the batch that wrote this, with the Pixi stage that held the 3D garage as a
+texture and the hinge between the two renderers (2026-09-27's).</p>
+<p>Why first rather than last: every change to the lens or the HUD was being made twice, once for each
+renderer, and the gates that guarded the Pixi pictures kept going red on pictures that were scheduled for
+deletion. The price is paid in the open: <strong>until the three.js replacements land</strong>
+(<code>docs/PLAN-2026-09-27-garage-to-galaxy.md</code> — the storey across the lane, then the city, the
+planet, the monitor and the colony map), desk, squad and floor are the garage's own zoom and there is
+nothing above the street. The stops described below are the destination, not the build. The lock stays
+lifted (the 2026-09-27 amendment): when the city arrives, it arrives unlocked.</p>
+</blockquote>
 <p><strong>The four rendering tiers above are not navigation stops, and the ten simulation rungs in
 §7.7.1 are not all navigation stops either.</strong> The shipped main arc has seven memorable
 presentation levels: desk, squad, floor, building, block, park and globe. They form one
@@ -5598,6 +5614,17 @@ which is exactly the failure this section names: <em>a scattered fill is indisti
 redraw</em>. Every other band of the table is unaffected, and &quot;2 — a second desk pushed alongside&quot;
 still reads exactly as written.</p>
 <h5 id="c-the-floor-unfolds-at-100-canon-added-2026-08-08-r7">7.8.1c The floor unfolds at 20 <strong>[CANON - added 2026-08-08; amended 2026-09-01 by §7.8.0]</strong> - R7</h5>
+<blockquote>
+<p><strong>[amended 2026-09-28] Retired with the Pixi room.</strong> The user: <em>&quot;the old pixi office scene
+was deprecated and cannot be used as reference for new. My direction is a dramatic funny expansion of the
+current scene, either a office floor drops like james across the road or similar&quot;</em> — the direction
+first given on 2026-09-27 as <em>&quot;in our first few expansions we can do a dramatic drop a new office floor
+across the road&quot;</em>. The garage never unfolds and never moves (§7.8.1's garage amendments). Past twenty, a
+furnished, populated storey drops out of the sky onto the lot across the lane the way James drops into the
+garage — it falls, it bounces once, it throws up dust and it shakes the camera — and each storey after it
+lands on the one below: §7.7.2's gag, at the scale of a street. What follows is kept as the record of what
+the Pixi floor did; none of it is a reference for the storey.</p>
+</blockquote>
 <p><strong>[amended 2026-09-03.]</strong> The unfold is unchanged in every respect except <em>when</em>. It fires after
 the <strong>twentieth</strong> ordinary hire visibly completes the garage, and what unfolds around the garage
 is <strong>one office floor of a hundred seats</strong> rather than a hundred squad plates. Every argument
@@ -16641,12 +16668,18 @@ starts on its own schedule, and whose volume iOS ignores. Reported from a phone 
 lag"</em>. A buffer decoded once and started on the tap is the shortest path a browser has; the
 element pool remains only for a browser without <code>AudioContext</code>.</li>
 <li><strong>The swarm is a <code>ParticleContainer</code></strong>, dropping to a shader-driven heatmap at Global
-zoom and beyond per §7.5. Not individual display objects.</li>
+zoom and beyond per §7.5. Not individual display objects. <strong>[amended 2026-09-28]</strong> Moot with the Pixi stage (§7.4a):
+the people are three.js instances in the room, and the swarm past it is the lane and the city, batched the
+same way.</li>
 <li><strong>The DOM/canvas boundary is fixed:</strong> simulation, camera, particles and scenery in Pixi;
 everything with structured text, numbers or navigation in React. <strong>Game state lives in
 one store both read from.</strong> Scenery text — floating numerals (§8.2), code snippets
 (§8.2a), Act IV chatter (§21) — is Pixi, because it must sit <em>under</em> the CRT glass and it
-churns several times a second.</li>
+churns several times a second. <strong>[amended 2026-09-28]</strong> The boundary holds and the renderer changed: simulation,
+camera and scenery are three.js (<code>render/stage.ts</code>, <code>three/render/</code>), and the scenery text
+is drawn on its own canvas and composited <em>under</em> the glass (<code>render/pokeText.ts</code>,
+<code>three/render/glass.ts</code>), which is the weld this rule exists for. Act IV's chatter was a Pixi
+overlay of the Pixi office and is not drawn until the lane is.</li>
 <li><strong>The interface is a second pane of glass, not phosphor.</strong> ART_DIRECTION §6's post-process
 stack cannot be applied to DOM. The HUD sits in front of the tube rather than being burned
 into it; this is a deliberate fiction, recorded in ART_DIRECTION §1.0a, and it is why
@@ -16655,7 +16688,8 @@ non-negotiable 3 can hold at all.</li>
 <code>TiltShiftFilter</code> ahead of bloom/RGB-split/CRT in one <code>filters</code> array renders the canvas
 <strong>fully black, with no console error.</strong> It is internally two axis passes whose padding
 does not survive being fed onward. Its <code>start</code>/<code>end</code> band is therefore in <strong>world-local</strong>
-coordinates, not screen coordinates.</li>
+coordinates, not screen coordinates. <strong>[amended 2026-09-28]</strong> Moot: tilt-shift was a Pixi filter on the Pixi world
+container, which was hidden whenever the 3D room was on screen, and it was not ported (ART_DIRECTION §6).</li>
 </ol>
 <h3 id="the-performance-budget-canon">23.3 The performance budget <strong>[CANON]</strong></h3>
 <p>These began as the spike's acceptance gate. They are now the standing budget: any build that

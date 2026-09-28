@@ -360,7 +360,6 @@ export default function App() {
       <div className="app__canvas" ref={hostRef} />
       {titleUp && (
         <TitleScreen
-          stage={stage}
           firstLaunch={firstLaunch && titleVisit === 0}
           onStart={() => {
             // The title still owns the first frame. CONTINUE hands a new install
