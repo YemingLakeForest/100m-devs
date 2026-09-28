@@ -5,7 +5,13 @@
 > The entries below preserve decisions and traps from the sessions in which they were written;
 > their present-tense implementation claims are snapshots and may be obsolete.
 
-> **Current handoff: [`HANDOFF-2026-08-24.md`](HANDOFF-2026-08-24.md)** — **rung 6, redesigned:
+> **Current handoff: [`HANDOFF-2026-09-28.md`](HANDOFF-2026-09-28.md)** — **the grid.** The Pixi stage is
+> gone, the storeys across the lane are built and interim, and the direction for the scene is a SimCity 4 grid:
+> one building to a block, houses falling onto them on thrusters like StarCraft's Terran buildings (GDD §7.7.2,
+> amended 2026-09-28). Previous: [`HANDOFF-2026-09-27.md`](HANDOFF-2026-09-27.md), the migration back to this
+> repository and the standing rules.
+>
+> **Earlier: [`HANDOFF-2026-08-24.md`](HANDOFF-2026-08-24.md)** — **rung 6, redesigned:
 > the jigsaw planet.** A *design* session — **nothing in `src/` changed**. The globe stops being a
 > map with campuses on it and becomes **a hundred interlocking tetromino territories that are the
 > planet**, each one exactly a hundredth of the sphere by construction, which is the number
