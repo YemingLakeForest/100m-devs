@@ -230,9 +230,9 @@ const IDENTITY = new T.Matrix4()
  * entrance; the garage mechanics determine five pods and only two leader desks.
  */
 export function buildGarageEnvironment(count: number, cast: StudioCast, scenery: 'on' | 'off' | 'far' = 'on', shellOnly = false,
-  staging: GarageStaging = GARAGE_ASSEMBLED): Environment {
+  staging: GarageStaging = GARAGE_ASSEMBLED, cityGrid = false): Environment {
   const env: Environment = { root: new T.Group(), targets: [], occluders: [], people: [],
-    focus: new T.Vector3(0, 0.6, 1.3), extent: 24.5, background: '#87966c', seatInstances: new Map(), props: new Map() }
+    focus: new T.Vector3(0, 0.6, 1.3), extent: 24.5, background: cityGrid ? OS.n2 : '#87966c', seatInstances: new Map(), props: new Map() }
   const g = env.root
   // Continuous ground and two joined slabs leave a genuine recessed doorway.
   // A cheap continuous ground plane hides the horizon even on tall screens;
@@ -248,7 +248,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     }
   }
   box(g, 0, -0.48, 1.7, 24, 0.16, 21.2, '#d3d1c5')
-  street(g)
+  if (!cityGrid) street(g)
   for (let x = -12; x <= 12; x += 1.2) box(g, x, -0.315, 10, 0.012, 0.005, 4.5, '#bcbeb6', false)
   for (let z = 8; z <= 12.2; z += 1.2) box(g, 0, -0.315, z, 24, 0.005, 0.012, '#bcbeb6', false)
   slab(g, GARAGE_OUTLINE, -0.3, 0.3, '#e8e2d4')
@@ -579,7 +579,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    */
   for (const f of GARAGE_FURNITURE) if (f.kind === 'planter') leafyPlanter(g, f.x, f.z, f.w)
   if (scenery === 'on') {
-    garageNeighborhood(g)
+    if (!cityGrid) garageNeighborhood(g)
     garageForecourt(g)
     garageBackyard(g)
     const lawn = new T.Group(); lawn.position.y = -.5; g.add(lawn)

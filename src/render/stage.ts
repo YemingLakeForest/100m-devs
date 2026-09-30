@@ -35,6 +35,7 @@
  */
 
 import { createGarageView, GARAGE_REST_ZOOM, GARAGE_ZOOM_MAX, GARAGE_ZOOM_MIN } from '../three/render/garageView.ts'
+import { createStudioAtlas } from '../three/render/studioAtlas.ts'
 import { createGlass, type GlassPasses } from '../three/render/glass.ts'
 import * as T from 'three'
 import { founderLook, readStudioName } from '../game/founderProfile.ts'
@@ -154,12 +155,14 @@ const SQUAD_LEVEL = 1
 const FLOOR_LEVEL = 2
 
 function levelOfZoom(zoom: number): number {
+  if (zoom < GARAGE_ZOOM_MIN) return Math.min(7, 2 + Math.log10(GARAGE_ZOOM_MIN / zoom))
   const z = Math.max(GARAGE_ZOOM_MIN, Math.min(GARAGE_ZOOM_MAX, zoom))
   if (z >= GARAGE_REST_ZOOM) return SQUAD_LEVEL * Math.log(GARAGE_ZOOM_MAX / z) / Math.log(GARAGE_ZOOM_MAX / GARAGE_REST_ZOOM)
   return SQUAD_LEVEL + (FLOOR_LEVEL - SQUAD_LEVEL) * Math.log(GARAGE_REST_ZOOM / z) / Math.log(GARAGE_REST_ZOOM / GARAGE_ZOOM_MIN)
 }
 
 function zoomOfLevel(level: number): number {
+  if (level > 2) return GARAGE_ZOOM_MIN / Math.pow(10, Math.min(7, level) - 2)
   const l = Math.max(0, Math.min(FLOOR_LEVEL, level))
   if (l <= SQUAD_LEVEL) return GARAGE_ZOOM_MAX / Math.pow(GARAGE_ZOOM_MAX / GARAGE_REST_ZOOM, l / SQUAD_LEVEL)
   return GARAGE_REST_ZOOM / Math.pow(GARAGE_REST_ZOOM / GARAGE_ZOOM_MIN, (l - SQUAD_LEVEL) / (FLOOR_LEVEL - SQUAD_LEVEL))
@@ -193,6 +196,23 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   canvas.style.touchAction = 'none'
   host.appendChild(canvas)
   garage.setLens(GARAGE_REST_ZOOM)
+  let atlasZoom: number | null = null
+  const lensZoom = () => atlasZoom ?? garage.zoom
+  const travel = (value: number, seat?: number) => {
+    if (value < 3) {
+      atlasZoom = null
+      if (seat !== undefined) garage.visit(seat)
+      if (seat === -1) garage.home()
+      else garage.setLens(zoomOfLevel(value))
+    } else atlasZoom = zoomOfLevel(value)
+    atlas.setLevel(value)
+  }
+  const atlas = createStudioAtlas(host, travel)
+  const zoomTo = (value: number, x: number, y: number) => {
+    const next = Math.max(zoomOfLevel(7), Math.min(GARAGE_ZOOM_MAX, value)), lvl = levelOfZoom(next)
+    if (lvl >= 3) { if (atlasZoom !== null && ((levelOfZoom(atlasZoom) >= 6 && lvl < 6) || (levelOfZoom(atlasZoom) >= 4.5 && lvl < 4.5))) atlas.descend(x, y); atlasZoom = next; atlas.setLevel(lvl) }
+    else { if (atlasZoom !== null) { atlas.descend(x, y); atlasZoom = null; garage.visit(atlas.entrySeat) }; atlas.setLevel(lvl); garage.zoomTo(next, x, y) }
+  }
 
   /*
    * ?nopost (and `C`, `?crt=off`) takes the glass off; ?post=rgb,crt attaches
@@ -254,6 +274,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // (Mo, Serena …) leaves the lens alone.
     const seat = focus === 'founder' ? FOUNDER_SEAT : focus === 0 ? JAMES_SEAT : null
     if (seat === null) return
+    if (atlasZoom !== null) travel(1, -1)
     garage.focus(seat)
     sceneFocus = true
   }
@@ -269,7 +290,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let heroInspect: ((id: HeroId) => void) | null = null
 
   /** Where the lens is on the room's three stops, continuously. */
-  const level = () => levelOfZoom(garage.zoom)
+  const level = () => levelOfZoom(lensZoom())
 
   /**
    * §4.5d — the founder codes at their own desk. The finger is on them, or the
@@ -387,7 +408,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // Two contacts can begin on the same pixel (or be coalesced there). A
       // zero baseline makes the next ratio 0/0, and a NaN zoom blanks the room.
       if (!pinch) {
-        if (distance > 0 && Number.isFinite(distance)) pinch = { distance, zoom: garage.zoom }
+        if (distance > 0 && Number.isFinite(distance)) pinch = { distance, zoom: lensZoom() }
         return
       }
       const ratio = distance / pinch.distance
@@ -395,7 +416,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       // §7.7.6 — about the point between the fingers, updated every move: a
       // two-finger gesture drifts, and a stale anchor drags the room away.
       const at = toCanvas((a.x + b.x) / 2, (a.y + b.y) / 2)
-      garage.zoomTo(pinch.zoom * ratio, at.x, at.y)
+      zoomTo(pinch.zoom * ratio, at.x, at.y)
       // The finger left on the glass afterwards pans on from where it is now,
       // not from where it was when the pinch began.
       const held = drag ? pointers.get(drag.id) : undefined
@@ -408,7 +429,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     if (!drag || ev.pointerId !== drag.id) return
     const r = canvas.getBoundingClientRect()
-    garage.panBy((ev.clientX - drag.px) * w / Math.max(1, r.width), (ev.clientY - drag.py) * h / Math.max(1, r.height))
+    ;(atlasZoom !== null ? atlas.pan : garage.panBy)((ev.clientX - drag.px) * w / Math.max(1, r.width), (ev.clientY - drag.py) * h / Math.max(1, r.height))
     drag.px = ev.clientX
     drag.py = ev.clientY
   }
@@ -423,6 +444,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // §7.7.6b — one question, and it is not "how long". A finger that
     // travelled was the camera; one that stayed put meant the latched verb.
     if (travelled || ev.type !== 'pointerup') return
+    if (atlasZoom !== null) { const at = toCanvas(ev.clientX, ev.clientY); atlas.tap(at.x, at.y); return }
     switch (tapVerb(getState().touchMode, true)) {
       case 'inspect':
         doSelect(pickAt(ev.clientX, ev.clientY))
@@ -444,7 +466,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const onWheel = (ev: WheelEvent) => {
     ev.preventDefault()
     const at = toCanvas(ev.clientX, ev.clientY)
-    garage.zoomAt(Math.exp(-ev.deltaY * 0.0016), at.x, at.y)
+    zoomTo(lensZoom() * Math.exp(-ev.deltaY * 0.0016), at.x, at.y)
   }
 
   canvas.addEventListener('pointerdown', onPointerDown, { passive: true })
@@ -478,8 +500,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** Last consumed §10.8a ship, so one ship produces one punch. */
   let lastShipId = 0
   let shipShake = 0
-  /** Storeys landed across the lane that have had their whump. */
-  let landingsHeard = 0
+  /** House contacts and ignitions already heard. */
+  let landingsHeard = 0, ignitionsHeard = 0
   let lastFrame = performance.now()
   let frameMs = 0
   let raf = 0
@@ -500,6 +522,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     const state = getState()
 
+    garage.setRunSeed(state.runSeed)
     garage.setHeadcount(state.devs)
     // James arrives after the founder's *What—*, once the lens has reached his
     // empty spot (`cueJames`): desk, chair, then him, and the dialogue holds
@@ -575,14 +598,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // §6 pass 3: a calm studio gets a tight halo on its lamps, a seizing one
     // the same lamps blown out — the strain moves *how much* comes back.
     garage.setBloom(glass.enabled && bloomOn ? (0.55 + theme.glass.bloom * 1.5) * 0.3 : 0)
-    garage.render(now / 1000)
-    // §7.7.2 — a storey landing across the lane is a *whump*: one per landing,
-    // however many landed on this frame (a mass hire drops them close together).
+    if (atlasZoom === null) garage.render(now / 1000)
+    // §7.7.2: existing whoosh/contact clips until bespoke thruster audio is approved.
+    if (garage.ignitions > ignitionsHeard) {
+      ignitionsHeard = garage.ignitions
+      playSfx('ui-whoosh')
+    }
     if (garage.landings > landingsHeard) {
       landingsHeard = garage.landings
-      playSfx('collapse-thud')
+      playSfx('poke-floor')
     }
-    glass.render(garage.renderer, garage.output, numeralsLive ? numeralTexture : null, {
+    const picture = atlas.render(garage.renderer, garage.output, w, h, state.devs, theme.phosphor, now / 1000, reduceMotion)
+    glass.render(garage.renderer, picture, numeralsLive ? numeralTexture : null, {
       glass: theme.glass,
       critPunch,
       // A third of the line contrast over the room, and less as faces fill the frame.
@@ -609,7 +636,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         const at = personAt(JAMES_SEAT)
         return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
       }
-      // Anybody, by seat — the garage's twenty, or the storeys across the lane.
+      // Anybody, by seat — the garage's twenty, or the houses on the grid.
       g.__seatAt = (seat: number) => {
         const at = personAt(seat)
         return at ? { x: Math.round(at.x), y: Math.round(at.y) } : null
@@ -621,6 +648,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         easing: garage.easing,
         devs: state.devs,
         landings: garage.landings,
+        ignitions: garage.ignitions,
         viewport: `${Math.round(w)}x${Math.round(h)}`,
         massHired: state.massHired,
         dt: +dt.toFixed(4),
@@ -635,7 +663,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     set(z: number) {
       if (!Number.isFinite(z)) return
-      garage.setLens(zoomOfLevel(z * 9))
+      travel(z * 9)
     },
   }
 
@@ -648,7 +676,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     camera,
     focusTeam() {
-      garage.home()
+      travel(1, -1)
       playUi('whoosh')
     },
     focusDialogue(focus) {
@@ -705,6 +733,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       stopWatchingModes()
       glass.dispose()
       numeralTexture.dispose()
+      atlas.dispose()
       garage.dispose()
       canvas.remove()
     },

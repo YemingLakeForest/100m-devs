@@ -3526,3 +3526,14 @@ body {
     letter-spacing: 0;
   }
 }
+
+/* The two interstellar readings share a line with their value on a short
+   frame. Four stacked gauges otherwise push MENU beyond the left rail. */
+@media (max-height: 470px) {
+  .hud__block--starbound {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 4px;
+  }
+}

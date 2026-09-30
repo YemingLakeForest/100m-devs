@@ -26,15 +26,15 @@ export type RampName =
 export const RAMPS: Record<RampName, readonly string[]> = {
   /** Walls, floors, desks, monitors, shadow — everything structural. */
   NEUTRAL: [
-    '#14121a',
-    '#241f2e',
-    '#3a3244',
-    '#55495e',
-    '#736579',
-    '#968a96',
-    '#b8aeb3',
-    '#d8d2cf',
-    '#f2eee8',
+    '#181919',
+    '#292a29',
+    '#3c3e3c',
+    '#575a56',
+    '#767970',
+    '#97988f',
+    '#b8b9b0',
+    '#d9d8cd',
+    '#f1efe6',
   ],
   /** Desks, doors, cardboard, crates. */
   WOOD: ['#4a2f22', '#6b452c', '#96683f', '#c19366'],
@@ -63,10 +63,10 @@ export const MASTER_PALETTE: readonly string[] = Object.values(RAMPS).flat()
 
 /** Hero Card rarity frame colours — ART_DIRECTION §2.3, GDD §22.4. */
 export const RARITY_FRAME = {
-  junior: '#55495e',
-  mid: '#968a96',
+  junior: '#575a56',
+  mid: '#97988f',
   senior: '#96683f',
-  staff: '#d8d2cf',
+  staff: '#d9d8cd',
   principal: '#e0a52e',
   distinguished: '#6b3a8a',
   legendary: '#35c9d9',

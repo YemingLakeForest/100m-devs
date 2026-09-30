@@ -26,7 +26,7 @@ export const OS_SKIN = true
 
 /** The legacy ramps this skin draws from, by name. */
 export const OS = {
-  n0: '#14121a', n1: '#241f2e', n2: '#3a3244', n3: '#55495e', n4: '#736579',
+  n0: '#181919', n1: '#292a29', n2: '#3c3e3c', n3: '#575a56', n4: '#767970',
   glow0: '#2a4a5c', glow1: '#4a8fa8', glow2: '#7fd4e8',
   calm1: '#1a6b78', calm2: '#35c9d9', calm3: '#b8f4ff',
   warm: '#e0a52e', lamp: '#ffd68c',

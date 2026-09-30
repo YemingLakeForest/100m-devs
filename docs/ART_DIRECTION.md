@@ -172,7 +172,7 @@ rather than a dimmed colour — so no colour outside §2.2 is ever invented to s
 ### 2.2 Starting values — **v0, validate on a real device before committing**
 
 ```
-NEUTRAL   #14121a  #241f2e  #3a3244  #55495e  #736579  #968a96  #b8aeb3  #d8d2cf  #f2eee8
+NEUTRAL   #181919  #292a29  #3c3e3c  #575a56  #767970  #97988f  #b8b9b0  #d9d8cd  #f1efe6
 WOOD      #4a2f22  #6b452c  #96683f  #c19366
 SKIN      #f0c8a0  #c99a72  #c68a5e  #94603c  #7a4b32  #54321f
 GLOW      #2a4a5c  #4a8fa8  #7fd4e8
@@ -185,16 +185,21 @@ ALARM     #2e0c0c  #8a1f1f  #e03c3c  #ffb8b8
 Store as `assets/palette/master.gpl` **and** `master.png` (a 1px-per-colour strip — the
 quantiser reads the PNG).
 
+**[amended 2026-09-28] Charcoal and warm grey replace the indigo neutral ramp.** The user rejected the purple scene:
+*"indigo purple so hallmark of AI slop, can you change that?"* The master neutral ramp and three.js skin now use
+these greys. The garage and houses remain a material world: plaster, timber, slate and muted brick roofs. Close
+house views cut away to visible developers; the outward zoom still hands over to the OS globe and colony network.
+
 ### 2.3 Rarity frames
 
 The seven Hero Card tiers (GDD §22.4) are palette entries, not new art:
 
 | Tier | Colour |
 |---|---|
-| Junior | `#55495e` dull grey wire |
-| Mid | `#968a96` plain steel |
+| Junior | `#575a56` dull grey wire |
+| Mid | `#97988f` plain steel |
 | Senior | `#96683f` warm bronze |
-| Staff | `#d8d2cf` cool silver |
+| Staff | `#d9d8cd` cool silver |
 | Principal | `#e0a52e` gold |
 | Distinguished | `#8a1f1f` → violet *(add one entry: `#6b3a8a`)* |
 | Legendary | `#35c9d9` cyan, animated scanline |
@@ -472,3 +477,34 @@ production method. Generate to decide what a thing looks like; author it to make
 3. **Isometric dev sprite size at floor zoom.** Needs to be legible at L2 while remaining
    an individual body. Blocked on the ADR 0001 spike, which will settle the real on-device
    scale.
+
+
+### 2026-09-29 — From workshop to monitor
+
+Approved by the user after reviewing the Garage to Galaxy artifact: warm, physical studios close up;
+the OS becomes the picture at district, globe and network scale. Houses retain 100 developers each.
+The near scene uses 30 m blocks and 3 m lanes, occupied paving only, slate/gable, hip and three-bay
+workshop silhouettes, plaster, timber and warm pools over grouped desks. Cutaways expose the same
+people the inspection card names, using the live run seed.
+
+The user's next review rejected the material jump into the monitor (2026-09-29). The garage and
+houses now use a two- or three-CSS-pixel lattice, mild colour quantisation and their existing warm
+light. The district uses the same slate, plaster, timber, foliage and occupied-window palette:
+charcoal #181919, slate #575a56, plaster #b8b9b0, timber #96683f, foliage #2e4a2c and amber #e0a52e.
+Existing terminal type and the 3x5 bitmap map face remain; centred map captions sit below the
+picture, outside the play area. The compositional rule is a miniature lived-in world inside a
+quiet terminal, with entropy colours reserved for activity and navigation.
+
+On 2026-09-30 the user still found the houses disconnected from the next level. Districts now
+use cached views of the actual neighbourhood models: the same roof, porch, garden, windows,
+materials and isometric angle. The nearest-first street address order is shared at both scales;
+occupied paving grows outward around HQ, and each fifty houses earns a street beacon.
+The abstract globe uses projected surface tiles, fictional terrain, warm settlement lights, hub
+masts and an occupancy ring. Population increases drive construction arrivals, light pulses and
+a brief receipt; reduced motion preserves the final state and receipt. The galaxy shows occupied
+territory and its immediate frontier, primary routes and four to seven collision-checked labels.
+Home, selection and the next frontier take priority; a tap reveals a system's full name.
+
+The current implementation uses address jumps between the monitor's scales; cinematic Powers of
+Ten inter-world flights remain future work. No purple atmosphere, starfield wallpaper or
+independent decorative neon palette is introduced.

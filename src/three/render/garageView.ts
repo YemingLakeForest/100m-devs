@@ -53,7 +53,8 @@ import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import { placeInstances, showSeatInstances, type SeatInstance } from './worldArt.ts'
 import { LEADER_IDS, leaderSeat } from '../sim/floorPlan.ts'
-import { createLane, LANE_CLEAR, LANE_STOREYS, STOREY_SEATS } from './laneStoreys.ts'
+import { createCityHouses } from './cityHouses.ts'
+import { CITY_CAPACITY } from './cityGrid.ts'
 import { OS, OS_SKIN } from '../art/skin.ts'
 import type { Look } from '../sim/identity.ts'
 
@@ -75,17 +76,14 @@ export interface GarageView {
   setBloom(strength: number): void
   /** Ease the camera back to the room framed at rest — TEAM's way home. */
   home(): void
-  /** Storeys landed across the lane since the room was made: the stage plays each whump once. */
+  /** Open an address on demand, keeping global developer identities. */
+  visit(seat: number): void
+  /** Houses landed since the room was made; the stage plays each contact once. */
   readonly landings: number
-  /**
-   * The studio's ordinary developers (the founder and the heroes are not among
-   * them). Up to twenty they are in the garage and a hire drops in. Past twenty
-   * they are across the lane (`laneStoreys.ts`): the twenty-first hire drops
-   * the first storey, and the garage's twenty are yanked up out of its roof and
-   * drop into their seats over there — GDD §7.8.1c, amended 2026-09-28: every
-   * ordinary developer moves, and the leadership stays.
-   */
+  readonly ignitions: number
+  /** Ordinary hires fill the garage to twenty, then move to hundred-person houses (§7.7.2). */
   setHeadcount(n: number): void
+  setRunSeed(seed: number): void
   /** Whether James has arrived; he drops in when he does. */
   setJames(here: boolean): void
   /** The founder the player made, and the studio's name on the gable. Rebuild only on change. */
@@ -141,7 +139,6 @@ export const GARAGE_ZOOM_MAX = 7
  * street around it reads as a place rather than a diagram.
  */
 export const GARAGE_REST_ZOOM = 0.8
-const ZOOM_MIN = GARAGE_ZOOM_MIN
 const ZOOM_MAX = GARAGE_ZOOM_MAX
 /** How far a hire falls, in metres — the rebuild's DROP_FROM. */
 const DROP_FROM = 3.4
@@ -168,7 +165,7 @@ interface Anim {
   /**
    * `lift` is a drop run backwards: the person, then their desk, then their
    * chair, yanked up out of the roof. It is how the garage's twenty leave for
-   * the storey across the lane, and it is the move the first Paradigm Shift's
+   * the house on the next block, and it is the move the first Paradigm Shift's
    * liquidation will play (GDD §15.1a).
    */
   kind: 'hop' | 'drop' | 'lift'
@@ -188,8 +185,8 @@ const JAMES_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { pie
 const LIFT_OUT: NonNullable<Anim['pieces']> = [{ piece: 'body', at: 0 }, { piece: 'desk', at: .14 }, { piece: 'chair', at: .24 }]
 /** How high a departure is yanked before it is out of the picture, in metres. */
 const LIFT_TO = 26
-/** Moving day: the garage starts emptying this long after the storey is told to fall — once it has landed. */
-const MOVE_AFTER = 0.8
+/** Moving day: the garage starts emptying this long after the house is told to fall — once it has landed. */
+const MOVE_AFTER = 1.6
 /** …one developer this far after the last. */
 const MOVE_STEP = 0.07
 /** The studio a garage holds: five pods of four (§7.8.0). */
@@ -231,11 +228,12 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   sun.shadow.normalBias = 0.025
   sun.shadow.bias = -0.0001
   scene.add(sun)
+  scene.add(sun.target)
   const fill = new T.DirectionalLight('#e6effa', 0.55)
   fill.position.set(-32, 15, -10)
   scene.add(fill)
   if (OS_SKIN) {
-    sun.color.set('#8a93c8'); sun.intensity = .7
+    sun.color.set('#bdc6cb'); sun.intensity = .7
     sky.color.set(OS.n3); sky.groundColor.set(OS.n0); sky.intensity = .55
     fill.color.set(OS.calm2); fill.intensity = .12
     renderer.toneMappingExposure = 1.1
@@ -269,6 +267,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
 
   let env: Environment
   let heads = 0
+  let addressOffset = 0, visiting: number | null = null
   let james = false
   /** The first headcount and James arrive with the save, not as events: no drop. */
   let settled = false
@@ -305,7 +304,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let arms: { arm: T.Object3D; offset: number; side: number }[] = []
   const anims: Anim[] = []
   const rests = new Map<string, Rest>()
-  /** Dust: a hire's small puff, or `size` times it, rung out round a storey's base. */
+  /** Dust: a hire's small puff, or `size` times it, rung out round a house's base. */
   const puffs: { mesh: T.Mesh; start: number; dir: T.Vector3; size?: number }[] = []
   const puffGeometry = new T.IcosahedronGeometry(0.28, 0)
   // One puff, never seen, so the material is compiled with the room and not on
@@ -317,31 +316,18 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   puffWarm.frustumCulled = false
   scene.add(puffWarm)
 
-  /*
-   * **The studio past twenty: the storeys across the lane** (`laneStoreys.ts`,
-   * GDD §7.7.2 and §7.8.1c, 2026-09-28). In this scene and not beside it: the
-   * garage stays in the middle of the street it started in, and the stack
-   * rises behind it, over its roofline, lit by the same night and shaken by
-   * the same camera.
-   */
-  /** Storeys that have landed since the room was made — the stage plays the whump. */
-  let landings = 0
-  /** What the first storey flattened, kept so an empty lot can have its houses back. */
-  let lotCleared: { mesh: T.InstancedMesh; index: number; matrix: T.Matrix4 }[] | null = null
-  let lotHidden: T.Object3D[] = []
-  const lane = createLane(() => cast, {
-    landed(footprint) {
-      clearLot()
-      dustRing(footprint)
-      renderer.shadowMap.needsUpdate = true
-      dirty = true
-    },
-  })
-  scene.add(lane.root)
-  /** How far out the lens may go, and how far the pan may reach: wider once the lane stands. */
-  let zoomFloor = ZOOM_MIN
-  let laneReach = 0
-  /** The garage and its street, for framing it together with the lane. */
+  /** §7.7.2: each house owns one block, and shares the garage's light and clock. */
+  let landings = 0, ignitions = 0
+  const city = createCityHouses({
+    landed(footprint) { dustRing(footprint); landings += 1 },
+    ignited() { ignitions += 1 },
+    exhaust(footprint) { dustRing(footprint, true) },
+  }, () => cast)
+  scene.add(city.root)
+  /** How far out the lens may go, and how far the pan may reach: wider as the city grows. */
+  let zoomFloor = .005
+  let cityReach = 0
+  /** The garage and its street, for framing it together with the city. */
   const GARAGE_BOX = new T.Box3(new T.Vector3(-12.5, -0.5, -11), new T.Vector3(12.5, 4.2, 12.5))
 
   function build() {
@@ -353,15 +339,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     // James's station is built whether or not he has arrived, and `showGarageStations`
     // decides whether it is drawn: a room whose light count changes when he
     // lands recompiles every material in it.
-    env = buildGarageEnvironment(heads, withJames(), 'on', false, staging())
+    env = buildGarageEnvironment(heads, withJames(), 'on', false, staging(), true)
     scene.add(env.root)
     env.root.updateMatrixWorld(true)
-    // A rebuilt street has its houses back; a lot with a storey on it does not.
-    if (lotCleared) {
-      lotCleared = null
-      lotHidden = []
-      clearLot()
-    }
     lights = []
     const found: T.PointLight[] = []
     env.root.traverse((o) => { if (o instanceof T.PointLight) found.push(o) })
@@ -407,7 +387,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   function frame() {
     const focus = env.focus.clone().add(pan)
     const direction = new T.Vector3(1, 1, 1).normalize()
-    camera.position.copy(focus).addScaledVector(direction, 80)
+    camera.position.copy(focus).addScaledVector(direction, Math.max(80, span() * 1.5))
+    camera.far = Math.max(300, span() * 3)
     camera.up.set(0, 1, 0)
     camera.lookAt(focus)
     if (shake > 0) camera.position.add(new T.Vector3((Math.random() - .5) * shake, (Math.random() - .5) * shake, 0))
@@ -428,9 +409,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     }
   }
 
-  /** The pan may reach the room's edge and a little beyond, never off into the dark — or the lane's stack, once there is one. */
+  /** The pan may reach the room's edge and a little beyond, never off into the dark — or the occupied blocks, once there is one. */
   function clampPan() {
-    const reach = Math.max(env.extent * 0.7, laneReach)
+    const reach = Math.max(env.extent * 0.7, cityReach)
     if (pan.length() > reach) pan.setLength(reach)
   }
 
@@ -458,78 +439,43 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     return { pan: target, zoom: env.extent / Math.min(1, aspect / 1.35) / across }
   }
 
-  /** The garage with whatever stands across the lane. */
+  /** The garage with whatever stands in the city. */
   function studioBox(): T.Box3 {
     const box = GARAGE_BOX.clone()
-    const lot = lane.bounds()
+    const lot = city.bounds()
     if (lot) box.union(lot)
     return box
   }
 
-  /** Let the lens out as far as the whole studio, and the pan as far as the lane. */
+  /** Let the lens out as far as the whole studio, and the pan as far as the city. */
   function reframeLimits() {
-    if (lane.storeys === 0) { zoomFloor = ZOOM_MIN; laneReach = 0; return }
-    const fit = fitTo(studioBox())
-    zoomFloor = Math.min(ZOOM_MIN, fit.zoom * .85)
-    laneReach = fit.pan.length() + 14
+    if (city.count === 0) {
+      zoomFloor = .005; cityReach = 0
+      sun.position.set(22, 28, 10); sun.target.position.set(0, 0, 0)
+      Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 120 })
+      sun.shadow.camera.updateProjectionMatrix()
+      renderer.shadowMap.needsUpdate = true
+      return
+    }
+    const occupied = studioBox()
+    const fit = fitTo(occupied)
+    zoomFloor = Math.min(.005, fit.zoom * .85)
+    // A city grows on every side; distance to its centre is not its reach.
+    cityReach = Math.max(occupied.min.distanceTo(env.focus), occupied.max.distanceTo(env.focus)) + 14
+    const centre = occupied.getCenter(new T.Vector3())
+    const radius = Math.max(35, occupied.getSize(new T.Vector3()).length() / 2)
+    sun.target.position.copy(centre)
+    sun.position.copy(centre).add(new T.Vector3(radius * .7, radius * 1.3, radius * .4))
+    Object.assign(sun.shadow.camera, { left: -radius, right: radius, top: radius, bottom: -radius, near: 1, far: radius * 4 })
+    sun.shadow.camera.updateProjectionMatrix()
+    renderer.shadowMap.needsUpdate = true
   }
 
-  /** A storey is on its way: the camera eases out to show where it will land, and the garage with it. */
+  /** A house is on its way: the camera eases out to show where it will land, and the garage with it. */
   function frameStudio() {
     const fit = fitTo(studioBox())
     saved = null
     focusOn = { pan: fit.pan, zoom: Math.max(zoomFloor, Math.min(ZOOM_MAX, fit.zoom)) }
-    dirty = true
-  }
-
-  /**
-   * The houses on the lot go when the first storey lands, under its dust — the
-   * prototype's `clearLot`. Kept, not destroyed: a studio that liquidates back
-   * to the garage gets its neighbours back.
-   */
-  function clearLot() {
-    if (lotCleared) return
-    const cleared: { mesh: T.InstancedMesh; index: number; matrix: T.Matrix4 }[] = []
-    const hidden: T.Object3D[] = []
-    const [x0, z0, x1, z1] = LANE_CLEAR
-    const inside = (x: number, z: number) => x >= x0 && x <= x1 && z >= z0 && z <= z1
-    const p = new T.Vector3(), s = new T.Vector3(), q = new T.Quaternion(), m = new T.Matrix4()
-    const zero = new T.Matrix4().makeScale(0, 0, 0)
-    env.root.updateMatrixWorld(true)
-    const inverse = env.root.matrixWorld.clone().invert()
-    env.root.traverse((o) => {
-      if (o instanceof T.InstancedMesh) {
-        let changed = false
-        for (let i = 0; i < o.count; i++) {
-          o.getMatrixAt(i, m)
-          m.decompose(p, q, s)
-          // Roads and pavements run the length of the street; they stay.
-          if (Math.max(s.x, s.z) > 18 || !inside(p.x, p.z)) continue
-          cleared.push({ mesh: o, index: i, matrix: m.clone() })
-          o.setMatrixAt(i, zero)
-          changed = true
-        }
-        if (changed) o.instanceMatrix.needsUpdate = true
-      } else if (o instanceof T.Mesh && !o.userData.hit && o.visible) {
-        o.getWorldPosition(p).applyMatrix4(inverse)
-        if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere()
-        const size = o.geometry.boundingSphere?.radius ?? 1
-        if (inside(p.x, p.z) && size * Math.max(o.scale.x, o.scale.z) < 18) { o.visible = false; hidden.push(o) }
-      }
-    })
-    lotCleared = cleared
-    lotHidden = hidden
-    renderer.shadowMap.needsUpdate = true
-    dirty = true
-  }
-
-  function restoreLot() {
-    if (!lotCleared) return
-    for (const c of lotCleared) { c.mesh.setMatrixAt(c.index, c.matrix); c.mesh.instanceMatrix.needsUpdate = true }
-    for (const o of lotHidden) o.visible = true
-    lotCleared = null
-    lotHidden = []
-    renderer.shadowMap.needsUpdate = true
     dirty = true
   }
 
@@ -558,7 +504,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
 
   function chair(seat: number): Part | null {
     // A leader's chair is a prop by name; an ordinary seat's by number, and it
-    // only ever moves when its owner leaves for the storey across the lane.
+    // only ever moves when its owner leaves for the house on the next block.
     const key = `chair:${leaderId(seat) ?? seat}`
     const handle = env.props?.get(key)
     return handle ? { key, instances: handle.instances, group: handle.group } : null
@@ -631,10 +577,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
 
   /**
    * §7.7.2 — *"Dust rings out from the base."* A ring of the hire's puffs round
-   * the storey's footprint, bigger and quicker, pushed outwards, and the
+   * the house's footprint, bigger and quicker, pushed outwards, and the
    * camera takes the whump.
    */
-  function dustRing(footprint: T.Box3) {
+  function dustRing(footprint: T.Box3, exhaust = false) {
     const c = footprint.getCenter(new T.Vector3())
     const hw = (footprint.max.x - footprint.min.x) / 2 + .6
     const hd = (footprint.max.z - footprint.min.z) / 2 + .6
@@ -653,8 +599,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       scene.add(mesh)
       puffs.push({ mesh, start: clock, dir: dir.multiplyScalar(3.2), size: 2.6 })
     }
-    shake = Math.max(shake, .45)
-    landings += 1
+    shake = Math.max(shake, exhaust ? .025 : .12)
   }
 
   function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces']) {
@@ -763,19 +708,32 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       bloom.enabled = next > 0
       dirty = true
     },
+    visit(seat) {
+      const worldBase = Math.floor(Math.max(0, seat) / 100_000_000) * 100_000_000
+      addressOffset = seat < 0 ? 0 : worldBase + Math.floor((seat - worldBase) / CITY_CAPACITY) * CITY_CAPACITY
+      city.setOffset(addressOffset); visiting = seat
+      env.root.visible = addressOffset === 0
+      settled = false
+      dirty = true
+    },
     home() {
+      if (addressOffset !== 0) view.visit(-1)
       saved = null
       focusOn = { pan: new T.Vector3(), zoom: GARAGE_REST_ZOOM }
       dirty = true
     },
-    get landings() {
-      return landings
+    get landings() { return landings },
+    get ignitions() { return ignitions },
+    setRunSeed(seed) {
+      if (cast.seed === seed) return
+      cast = { ...cast, seed }; city.reset(); settled = false; build()
     },
     setHeadcount(n) {
       const total = Math.max(0, Math.floor(n))
-      const inGarage = total <= GARAGE_CAP ? total : 0
-      const across = total > GARAGE_CAP ? Math.min(total, LANE_STOREYS * STOREY_SEATS) : 0
-      const hadStoreys = lane.storeys
+      const inGarage = addressOffset === 0 && total <= GARAGE_CAP ? total : 0
+      const remaining = 100_000_000 - addressOffset % 100_000_000
+      const across = total > GARAGE_CAP ? Math.max(0, Math.min(total - addressOffset, CITY_CAPACITY, remaining)) : 0
+      const hadHouses = city.count
       const wasHeads = heads
       if (inGarage !== heads) {
         heads = inGarage
@@ -784,13 +742,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
           // A hire is an event: each new desk and developer falls in, a beat apart.
           if (settled) for (let s = wasHeads; s < inGarage; s++) start(s, 'drop', (s - wasHeads) * .12)
         } else if (settled && across > 0) {
-          /*
-           * **Moving day** (§7.8.1c, amended 2026-09-28): the storey lands
-           * across the lane with the new hire already in it, then everybody in
-           * the garage is yanked up out of its roof, one after another, and
-           * drops into their own seat over there. Their faces come with them:
-           * a seat's face is its number's, never its room's.
-           */
+          // The house lands first; the ordinary staff leave, leadership stays.
           for (let s = inGarage; s < wasHeads; s++) start(s, 'lift', MOVE_AFTER + s * MOVE_STEP, LIFT_OUT)
         } else {
           for (let i = anims.length - 1; i >= 0; i--) if (anims[i].seat >= inGarage) anims.splice(i, 1)
@@ -799,24 +751,24 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         renderer.shadowMap.needsUpdate = true
         dirty = true
       }
-      lane.setStaff(across, settled)
-      if (settled && across > 0 && hadStoreys === 0) {
-        for (let s = 0; s < Math.min(wasHeads, across); s++) lane.dropIn(s, MOVE_AFTER + s * MOVE_STEP + .5)
-      }
-      if (lane.storeys !== hadStoreys) {
-        // An empty lot has its houses back; a studio that opens across the lane
-        // (a save, a jump) never had them — the landing clears them otherwise.
-        if (lane.storeys === 0) restoreLot()
-        else if (!settled) clearLot()
+      city.setStaff(across, settled)
+      if (city.count !== hadHouses) {
         reframeLimits()
-        if (settled && lane.storeys > hadStoreys) frameStudio()
-        else if (!settled && lane.storeys > 0) {
-          // Opened across the lane: the studio is the picture, not an empty garage in front of it.
+        if (settled && city.count > hadHouses) frameStudio()
+        else if (!settled && city.count > 0) {
+          // Opened in the city: the studio is the picture, not an empty garage in front of it.
           const fit = fitTo(studioBox())
           pan.copy(fit.pan)
           zoom = Math.max(zoomFloor, Math.min(ZOOM_MAX, fit.zoom))
         }
         dirty = true
+      }
+      if (visiting !== null) {
+        const seat = visiting; visiting = null
+        if (seat >= 0) {
+          const at = city.headOf(seat)
+          if (at) { pan.copy(at.sub(env.focus)); zoom = .95; focusOn = null }
+        } else { pan.set(0, 0, 0); zoom = GARAGE_REST_ZOOM }
       }
     },
     setJames(here) {
@@ -858,11 +810,12 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         return
       }
       const t = env.targets.find((target) => target.index === seat)
-      if (!t) return
+      const cityAt = seat >= 0 && heads === 0 ? city.headOf(seat) : null
+      if (!t && !cityAt) return
       if (!saved) saved = { pan: pan.clone(), zoom }
       // Look straight at their head; an orthographic view has no distance to fix.
-      const at = t.mesh.getWorldPosition(new T.Vector3())
-      at.y += t.mesh.scale.y * 0.3
+      const at = cityAt ?? t!.mesh.getWorldPosition(new T.Vector3())
+      if (!cityAt) at.y += t!.mesh.scale.y * 0.3
       focusOn = { pan: at.sub(env.focus), zoom: Math.max(zoom, 1.9) }
       dirty = true
     },
@@ -899,8 +852,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       dirty = true
     },
     hop(seat) {
-      // Past twenty an ordinary seat is across the lane.
-      if (seat >= 0 && heads === 0 && lane.storeys > 0) lane.hop(seat)
+      // Past twenty an ordinary seat is in the city.
+      if (seat >= 0 && heads === 0 && city.count > 0) city.hop(seat)
       else start(seat, 'hop')
       dirty = true
     },
@@ -914,9 +867,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (l.light.intensity !== intensity) { l.light.intensity = intensity; dirty = true }
       }
       animate()
-      // The lane moves on the room's clock: storeys falling, the building's
-      // wobble, and people dropping into their seats.
-      if (lane.update(clock)) {
+      // Houses and their jets move on the same clock as garage arrivals.
+      if (city.update(clock)) {
         dirty = true
         renderer.shadowMap.needsUpdate = true
       }
@@ -932,6 +884,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
           if (!saved) focusOn = null
         } else dirty = true
       }
+      frame()
+      if (city.setView(camera, w / span())) { dirty = true; renderer.shadowMap.needsUpdate = true }
       // Nothing moved but the typing: draw at the ambient rate, and leave the
       // canvas (and the texture the stage made of it) as it is in between.
       if (!dirty && seconds - drawnAt < 1 / AMBIENT_HZ) return false
@@ -965,14 +919,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       })
       const hit = ray.intersectObjects(live.map((t) => t.mesh), false)[0]
       if (hit) return live.find((t) => t.mesh === hit.object)?.index ?? null
-      // Nobody in the garage under the finger: perhaps somebody across the lane.
-      return lane.pick(ray)
+      // Nobody in the garage under the finger: perhaps somebody in the city.
+      return city.pick(ray)
     },
     screenOf(seat) {
       frame()
       let p: T.Vector3 | null = null
-      if (seat >= 0 && heads === 0 && lane.storeys > 0) {
-        p = lane.headOf(seat)
+      if (seat >= 0 && heads === 0 && city.count > 0) {
+        p = city.headOf(seat)
       } else {
         const t = env.targets.find((target) => target.index === seat)
         if (!t) return null
@@ -988,7 +942,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       return { x: (p.x + 1) * w / 2, y: (1 - p.y) * h / 2 }
     },
     dispose() {
-      lane.dispose()
+      city.dispose()
       puffGeometry.dispose()
       composer.dispose()
       renderer.dispose()

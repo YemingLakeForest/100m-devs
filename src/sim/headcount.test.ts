@@ -131,12 +131,13 @@ describe('cohortSize — §7.7.5, the scale bar', () => {
   })
 
   it('stays silent while a marker is still a person, and speaks once it is not', () => {
-    expect(scaleBar(50)).toBeNull()
+    expect(scaleBar(20)).toBeNull()
+    expect(scaleBar(50)).toBe('1 HOUSE = 100 DEVS')
     // §7.8.0 — a marker stops being a person at a hundred and one, because
     // that is where the picture stops being a floor and starts being a tower.
-    expect(scaleBar(100)).toBeNull()
-    expect(scaleBar(101)).toBe('1 FLOOR = 100 DEVS')
-    expect(scaleBar(1002)).toBe('1 FLOOR = 100 DEVS')
+    expect(scaleBar(100)).toBe('1 HOUSE = 100 DEVS')
+    expect(scaleBar(101)).toBe('1 HOUSE = 100 DEVS')
+    expect(scaleBar(1002)).toBe('1 HOUSE = 100 DEVS')
     expect(scaleBar(2e8)).toBe('1 WORLD = 100 M DEVS')
     // Still a world at four trillion, because a world is still what is drawn.
     expect(scaleBar(4.2e12)).toBe('1 WORLD = 100 M DEVS')

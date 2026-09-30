@@ -98,7 +98,7 @@ export function Cash({ state }: { state: GameState }) {
  * suffix would change the width of the headcount row when it arrived.
  */
 export function Devs({ state }: { state: GameState }) {
-  const bar = scaleBar(state.devs)
+  const bar = scaleBar(state.devs, state.cameraRung)
 
   return (
     <div className="hud__block">
@@ -259,14 +259,14 @@ export function Starbound({ state }: { state: GameState }) {
 
   return (
     <>
-      <div className="hud__block">
+      <div className="hud__block hud__block--starbound">
         <span className="hud__label">LIGHT-LAG</span>
         <b className="hud__num hud__num--major">{Math.round(sync * 100)}%</b>
         <span className="hud__sub hud__sub--unit">
           {lag.toFixed(1)} LY · {formatCount(worlds)} WORLDS
         </span>
       </div>
-      <div className="hud__block hud__gauge">
+      <div className="hud__block hud__gauge hud__block--starbound">
         <span className="hud__label">PLANCK BARRIER</span>
         <b className="hud__num hud__num--major">{buildTimeLabel(build)}</b>
         <div className="hud__gauge-track">

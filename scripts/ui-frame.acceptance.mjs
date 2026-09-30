@@ -80,6 +80,8 @@ async function waitForServer() {
 }
 
 const COMPONENTS = [
+  '.studio-address',
+  '.studio-system',
   '.ui-btn',
   '.ui-panel[data-phase="in"]',
   '.hud__block',
@@ -113,6 +115,8 @@ const COMPONENTS = [
  * wrappers sitting inside wrappers.
  */
 const PAINTED = [
+  '.studio-address',
+  '.studio-system',
   '.ui-btn__face',
   '.hud__block',
   '.backlog',
@@ -1214,6 +1218,16 @@ try {
         await boot.click({ position: { x: 12, y: 12 } })
       },
     })
+  }
+
+  // The material atlas has its own address controls at every supported scale.
+  for (const [width, height] of [[640, 360], [748, 336], [1440, 900]]) {
+    for (const [name, z] of [['district', .42], ['globe', .56], ['network', .70]]) {
+      await check(page, { name: 'material atlas ' + name + ' at ' + width + 'x' + height, width, height,
+        path: '/?notitle&scenario=starbound&z=' + z + '&nopost',
+        action: async target => { await target.locator('.studio-address').waitFor({ state: 'visible' }) },
+      })
+    }
   }
 
   /*

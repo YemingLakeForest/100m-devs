@@ -8,7 +8,8 @@
  */
 import * as T from 'three'
 import { OS_SKIN } from '../art/skin.ts'
-import { developerAt, heroIdentity, type Look } from '../sim/identity.ts'
+import { heroIdentity, type Look } from '../sim/identity.ts'
+import { developerAt } from '../../sim/identity.ts'
 import { DEFAULT_FOUNDER, founderLook } from '../game/founderProfile.ts'
 import { AVATAR_HAIR, frontAvatarParts } from './avatarParts.ts'
 import { heroHead } from './heroHead.ts'
