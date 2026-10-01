@@ -1,18 +1,17 @@
-import { RAMPS } from '../../art/palette.ts'
+import { planetKind } from '../../sim/colonyTerrain.ts'
+import { RAMPS, hexToRgb } from '../../art/palette.ts'
 import { mixHex } from '../../art/entropyTheme.ts'
-import { terrainAt, settlementScore } from '../../sim/planetTerrain.ts'
-
+import { terrainAt } from '../../sim/planetTerrain.ts'
 let surface:HTMLCanvasElement|null=null,last=''
-const bases=[RAMPS.GLOW[0],RAMPS.GLOW[1],RAMPS.FOLIAGE[0],RAMPS.FOLIAGE[1],RAMPS.WOOD[2],RAMPS.NEUTRAL[7]]
-const colours=bases.map(c=>Array.from({length:12},(_,i)=>{
-  const hex=mixHex(RAMPS.NEUTRAL[0],c,.18+i/11*.82)
-  return [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]
-}))
-/** A shaded sphere with continuous coastlines. Cache while the camera is still;
- * settlement lights animate independently without repainting the geography. */
-export function paintPlanet(ctx:CanvasRenderingContext2D,cx:number,cy:number,radius:number,yaw:number,tilt:number,frontier:number) {
+const ocean=hexToRgb(mixHex(RAMPS.NEUTRAL[0],RAMPS.GLOW[0],.24))
+const stone=hexToRgb(RAMPS.NEUTRAL[4]),coast=hexToRgb(RAMPS.NEUTRAL[5]),ice=hexToRgb(RAMPS.NEUTRAL[6])
+/** Full-resolution coast silhouette, restrained dusk shading. Population never
+ * changes this surface: the cities above it carry the growth and its rewards. */
+export function paintPlanet(ctx:CanvasRenderingContext2D,cx:number,cy:number,radius:number,yaw:number,tilt:number,worldId=0) {
   surface??=document.createElement('canvas')
-  const r=Math.ceil(radius),size=r*2+2,key=[r,yaw.toFixed(3),tilt.toFixed(3),frontier.toFixed(3)].join(':')
+  const r=Math.ceil(radius*2),size=r*2+2,key=[worldId,r,yaw.toFixed(3),tilt.toFixed(3)].join(':')
+  const kind=planetKind(worldId)
+  const rock=hexToRgb(RAMPS.NEUTRAL[5]),sand=hexToRgb(RAMPS.WOOD[3]),frost=hexToRgb(mixHex(RAMPS.NEUTRAL[7],RAMPS.GLOW[1],.22)),island=hexToRgb(RAMPS.FOLIAGE[1])
   if(key!==last) {
     last=key;surface.width=surface.height=size
     const paint=surface.getContext('2d')!,im=paint.createImageData(size,size)
@@ -21,26 +20,20 @@ export function paintPlanet(ctx:CanvasRenderingContext2D,cx:number,cy:number,rad
       const x=(col-r-.5)/r,y=-(row-r-.5)/r,rr=x*x+y*y
       if(rr>1)continue
       const z=Math.sqrt(1-rr),wy=y*ct+z*st,wz=z*ct-y*st
-      const world=[x*cyaw-wz*sy,wy,wz*cyaw+x*sy]
-      const t=terrainAt(world)
-      const elevation=Math.sin(world[0]*17+world[1]*13)*Math.cos(world[2]*19-world[1]*9)
-      const biome=t.ice?5:t.land?(t.coast<.08?4:elevation>.35?3:2):(t.coast>-.12?1:0)
-      const light=Math.max(0,Math.min(1,-x*.5+y*.42+z*.74))
-      const shade=Math.min(11,Math.floor((.10+light*.9)*11))
-      const rgb=colours[biome][shade].slice(),offset=(row*size+col)*4
-      // A contiguous survey tint follows the same growth order as city sites.
-      // Ocean and ice never become owned tiles, and terrain remains visible.
-      if(t.land&&!t.ice&&frontier>=0) {
-        const distance=settlementScore(world)-frontier
-        if(distance<0) {
-          const edge=distance>-.018,amount=edge?.5:.22
-          const warm=edge?[224,165,46]:[150,104,63]
-          for(let k=0;k<3;k++)rgb[k]=Math.round(rgb[k]*(1-amount)+warm[k]*amount)
-        }
-      }
-      im.data[offset]=rgb[0];im.data[offset+1]=rgb[1];im.data[offset+2]=rgb[2];im.data[offset+3]=255
+      const world=[x*cyaw-wz*sy,wy,wz*cyaw+x*sy],t=terrainAt(world,worldId)
+      const base=kind==='rock'?rock:kind==='desert'?sand:kind==='ice'?frost:kind==='ocean'?(t.land?island:ocean):t.ice&&t.land?ice:t.land?(t.coast<.05?coast:stone):ocean
+      const sun=Math.max(0,-x*.64+y*.43+z*.38)
+      const light=Math.round((.29+sun*.66)*24)/24,relief=1+t.relief*1.4,limb=.6+.4*Math.pow(z,.35)
+      const at=(row*size+col)*4
+      for(let k=0;k<3;k++)im.data[at+k]=Math.round(base[k]*(t.land?light*relief: .75+sun*.35)*limb)
+      im.data[at+3]=255
     }
     paint.putImageData(im,0,0)
   }
-  ctx.imageSmoothingEnabled=false;ctx.drawImage(surface,Math.round(cx-r-1),Math.round(cy-r-1))
+  ctx.save()
+  const glow=ctx.createRadialGradient(cx,cy,radius*.94,cx,cy,radius+4)
+  glow.addColorStop(0,'transparent');glow.addColorStop(.68,'#4a8fa826');glow.addColorStop(1,'transparent')
+  ctx.fillStyle=glow;ctx.beginPath();ctx.arc(cx,cy,radius+4,0,Math.PI*2);ctx.fill()
+  ctx.imageSmoothingEnabled=true;ctx.drawImage(surface,cx-(r+1)/2,cy-(r+1)/2,(r+1),(r+1))
+  ctx.restore()
 }

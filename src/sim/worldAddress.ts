@@ -1,4 +1,4 @@
-import { settlementSites } from './planetTerrain.ts'
+import { settlementLayout, planetHubs } from './planetTerrain.ts'
 /** §7.7: aggregate cells own exact ranges of hundred-person houses. */
 export const WORLD_CAPACITY = 100_000_000
 export const WORLD_REGIONS = 2400
@@ -17,8 +17,14 @@ export function regionPopulation(total: number, world: number, region: number) {
   return Math.max(0, Math.min((end - first) * 100, worldPopulation(total, world) - first * 100))
 }
 /** Stable region IDs index the same land addresses at every headcount. */
-const sites=settlementSites(WORLD_REGIONS)
-export function globeCell(index:number):[number,number,number] { return [...sites[index]] }
+const layouts=new Map<number,ReturnType<typeof settlementLayout>>()
+function layout(world:number) {
+  let sites=layouts.get(world)
+  if(!sites){sites=settlementLayout(WORLD_REGIONS,world);layouts.set(world,sites)}
+  return sites
+}
+export function globeHub(index:number,world=0){return layout(world)[index].hub}
+export function globeCell(index:number,world=0):[number,number,number] { return [...layout(world)[index].point] }
 
-/** Stable, readable addresses shared by globe markers and city headers. */
-export function cityName(region: number): string { return region===0 ? 'Founders Landing' : 'City '+String(region+1).padStart(4,'0') }
+/** Stable addresses include the colony's own settlement names. */
+export function cityName(region:number,world=0):string {return planetHubs(world)[globeHub(region,world)][0]+' / '+String(region+1).padStart(4,'0')}

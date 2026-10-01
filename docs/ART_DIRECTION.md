@@ -520,12 +520,18 @@ glazed engineering atria. Roof gardens, solar fields, concrete bands and warm wi
 in the shared district sprites. Wider avenues separate campus clusters. The far views sit
 in a quiet terminal survey frame; navigation and activity retain the live entropy hue.
 
-The globe is a shaded sphere with continuous fictional coastlines and visible ocean. Stable
-district sites are distributed across habitable land, ordered in regional growth waves.
-Population adds city lights and local connections, never rectangular ownership tiles; full
-occupation leaves the coastline and sea intact. The instrument ring measures headcount.
+The Earth-at-dusk pass (2026-10-01) uses real Natural Earth coastlines, charcoal oceans,
+stone-grey land and a subtle atmosphere. Warm city lights spread around thirty named hubs,
+starting with London, nearby European centres, then overseas offices. Curved connections and
+brief arrival packets reward opening hubs. Land never changes into an ownership stain; the
+instrument ring measures headcount separately. See EARTH_GEOGRAPHY.md for data provenance.
 
-The colonisation pass adds a land-only survey footprint whose boundary follows the same regional
-growth order as city addresses. Sparse city callouts, a selection ring, population card and
-Frontier control make descent discoverable. Passive coding hops and small earned numerals return
-to the 3D people, including James, without changing game production.
+Sparse city callouts, a selection ring, population card and Frontier control make descent
+discoverable. Passive coding hops and small earned numerals remain on the 3D people,
+including James, without changing game production.
+
+Colony identity cut (2026-10-01): Earth alone uses the geographic mask. Colonies use
+world-seeded spherical relief: grey crater basins, ochre folded deserts, green island
+chains on dark oceans, or pale cyan fractured ice. The same family has different
+features on each world. Settlement names and positions belong to that world; the
+first hub is First Landing. Warm growth lights and the terminal frame stay shared.

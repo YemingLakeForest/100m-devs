@@ -1,6 +1,6 @@
-import { terrainAt } from './planetTerrain.ts'
+import { terrainAt, direction, EARTH_HUBS } from './planetTerrain.ts'
 import { describe, it, expect } from 'vitest'
-import { globeCell, houseAddress, regionHouses, regionPopulation, worldPopulation, WORLD_CAPACITY, WORLD_REGIONS } from './worldAddress.ts'
+import { globeCell, globeHub, houseAddress, regionHouses, regionPopulation, worldPopulation, WORLD_CAPACITY, WORLD_REGIONS } from './worldAddress.ts'
 import { buildNetwork, extendNetwork } from './colonyNetwork.ts'
 
 describe('the monitor keeps people addressable', () => {
@@ -19,6 +19,18 @@ describe('the monitor keeps people addressable', () => {
     const sites=Array.from({length:WORLD_REGIONS},(_,id)=>globeCell(id))
     expect(new Set(sites.map(p=>p.join(','))).size).toBe(WORLD_REGIONS)
     for(const p of sites){expect(terrainAt(p).land).toBe(true);expect(terrainAt(p).ice).toBe(false)}
+  })
+  it('anchors growth to Earth geography and reaches every named hub', () => {
+    expect(terrainAt(direction(13.4,52.5)).land).toBe(true)
+    expect(terrainAt(direction(-30,25)).land).toBe(false)
+    expect(globeHub(0)).toBe(0)
+    const hubs = new Set(Array.from({length:WORLD_REGIONS},(_,id)=>globeHub(id)))
+    expect(hubs.size).toBe(EARTH_HUBS.length)
+    for(let id=0;id<WORLD_REGIONS;id++) {
+      const [,lon,lat]=EARTH_HUBS[globeHub(id)],centre=direction(lon,lat)
+      const dot=globeCell(id).reduce((sum,v,i)=>sum+v*centre[i],0)
+      expect(dot).toBeGreaterThan(Math.cos(8*Math.PI/180))
+    }
   })
   it('does not manufacture population at an unearned zoom or on another world', () => {
     for (const n of [0, 1, 20, 21, 100, 101, 1801, 30_000_000, 100_000_001]) {

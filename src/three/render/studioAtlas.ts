@@ -1,3 +1,4 @@
+import { debugSearchParams } from '../../dev/debugAccess.ts'
 import * as T from 'three'
 import { monitorText } from './monitorText.ts'
 import { buildNetwork } from '../../sim/colonyNetwork.ts'
@@ -19,8 +20,9 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   texture.colorSpace = T.NoColorSpace
   const territory = document.createElement('canvas'), mask = territory.getContext('2d')!
   const net = buildNetwork(73)
-  let world = 0, region = 0, level = 1, total = 0, width = 1, height = 1
-  let yaw = -.5, tilt = .2, panX = 0, panY = 0, lastTotal = -1
+  const previewWorld=Number(debugSearchParams().get('surveyWorld')??0)
+  let world = Number.isInteger(previewWorld)&&previewWorld>=0&&previewWorld<73?previewWorld:0, region = 0, level = 1, total = 0, width = 1, height = 1
+  let yaw = -.12, tilt = .40, panX = 0, panY = 0, lastTotal = -1
   const expansions: Expansion[] = []
   let entryHouse = 0
   let chosen = -1, lastText = '', lastDraw = -1
@@ -39,7 +41,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   frontierButton.onclick=()=>{
     let id=0;while(id<WORLD_REGIONS-1&&regionPopulation(total,world,id+1)>0)id++
     if(!worldPopulation(total,world))return
-    const [x,y,z]=globeCell(id);yaw=-Math.atan2(x,z);tilt=Math.asin(y);chosen=id;lastText=''
+    const [x,y,z]=globeCell(id,world);yaw=-Math.atan2(x,z);tilt=Math.asin(y);chosen=id;lastText=''
   }
   bar.append(frontierButton)
   host.append(bar)
@@ -98,7 +100,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       }
       if(chosen>=0&&level>=4.5&&level<6) {
         const r=regionHouses(chosen),pop=regionPopulation(n,world,chosen)
-        const content=cityName(chosen)+'\n'+pop.toLocaleString()+' / '+((r.end-r.first)*100).toLocaleString()+' developers\n'+Math.ceil(pop/100)+' offices · '+(pop/((r.end-r.first)*100)*100).toFixed(1)+'% settled'
+        const content=cityName(chosen,world)+'\n'+pop.toLocaleString()+' / '+((r.end-r.first)*100).toLocaleString()+' developers\n'+Math.ceil(pop/100)+' offices · '+(pop/((r.end-r.first)*100)*100).toFixed(1)+'% settled'
         card.setAttribute('aria-label','Selected city'); dive.textContent='Enter city'
         if(content!==lastText){text.innerText=content;lastText=content;dive.disabled=pop===0}
       }
@@ -132,7 +134,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       else if (level >= 4.5) drawGlobe(frame, yaw, tilt, chosen)
       else { sprites ??= bakeCityImpostors(renderer); drawDistrict(frame, sprites) }
       drawExpansionReceipt(frame)
-      ctx.fillStyle = RAMPS.NEUTRAL[6]; ctx.textAlign = 'center'; label(`${world === 0 ? 'EARTH' : net.systems[net.order[world]]?.name.toUpperCase() ?? `WORLD ${world + 1}`} / ${level >= 6 ? 'NETWORK' : level >= 4.5 ? 'COLONISATION' : cityName(region).toUpperCase()}`, width / 2, 22); ctx.textAlign = 'left'
+      ctx.fillStyle = RAMPS.NEUTRAL[6]; ctx.textAlign = 'center'; label(`${world === 0 ? 'EARTH' : net.systems[net.order[world]]?.name.toUpperCase() ?? `WORLD ${world + 1}`} / ${level >= 6 ? 'NETWORK' : level >= 4.5 ? 'COLONISATION' : cityName(region,world).toUpperCase()}`, width / 2, 22); ctx.textAlign = 'left'
       texture.needsUpdate = true
       }
       shader.uniforms.near.value = near; shader.uniforms.wipe.value = wipe
