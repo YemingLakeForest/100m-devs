@@ -100,6 +100,7 @@ export interface GarageView {
   panBy(dx: number, dy: number): void
   /** A seat (-1 the founder, -2 James) hops, as a poke answers. */
   hop(seat: number): void
+  codingSeats(): number[]
   /**
    * Ease the camera to a person — a seat, or -1 the founder, -2 James — for a
    * line of dialogue, and back to where the player had it on `null`. The
@@ -201,7 +202,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   // Nothing copies it any more (the Pixi stage did, as a texture, until
   // 2026-09-28), so it keeps no drawing buffer between frames.
   const renderer = new T.WebGLRenderer({ antialias: false, alpha: false, preserveDrawingBuffer: false })
-  renderer.setPixelRatio(lite ? 1 : Math.min(window.devicePixelRatio || 1, 1.5))
+  renderer.setPixelRatio(lite ? 1 : Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = T.SRGBColorSpace
   renderer.toneMapping = T.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.03
@@ -851,6 +852,11 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       clampPan()
       dirty = true
     },
+    codingSeats() {
+      if(w/span()<10)return []
+      const seats=env.targets.filter(t=>{for(let o:T.Object3D|null=t.mesh;o;o=o.parent)if(!o.visible)return false;return true}).map(t=>t.index)
+      return [...seats,...city.codingSeats()]
+    },
     hop(seat) {
       // Past twenty an ordinary seat is in the city.
       if (seat >= 0 && heads === 0 && city.count > 0) city.hop(seat)
@@ -903,6 +909,15 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         ao.ssaoMaterial.uniforms.cameraProjectionMatrix.value.copy(camera.projectionMatrix)
         ao.ssaoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(camera.projectionMatrixInverse)
       }
+      // Names remain readable through a modest zoom-out. At city distance the
+      // tags retire rather than swelling into a second interface over the map.
+      const ppm = w / span()
+      env.root.traverse(o => {
+        if (!o.userData.nameCap) return
+        const parentScale = o.parent?.getWorldScale(new T.Vector3()).y ?? 1
+        o.scale.setScalar(Math.max(1, Math.min(2.2, 9 / (o.userData.nameCap * ppm * parentScale * .816))))
+        o.visible = ppm * parentScale >= 14
+      })
       const hidden = env.targets.map((t) => t.mesh.visible)
       env.targets.forEach((t) => { t.mesh.visible = false })
       composer.render()

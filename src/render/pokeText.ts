@@ -102,6 +102,8 @@ export interface PokeFloater {
   bornAt: number
   snippet: string | null
   unblocked: boolean
+  passive?: boolean
+  still?: boolean
 }
 
 export interface PokeCanvas {
@@ -164,12 +166,12 @@ export function createPokeCanvas(): PokeCanvas {
         // full opacity for most of the life, then the fade.
         const alpha = Math.max(0, Math.min(1, (1 - age) / FADE))
         if (alpha <= 0) continue
-        const size = f.crit ? CRIT_SIZE : NUMERAL_SIZE
-        const lane = pokeTextOffsets(size, f.id - 1)
+        const size = f.passive ? 14 : f.crit ? CRIT_SIZE : NUMERAL_SIZE
+        const lane = f.passive ? {numeralX:0,numeralY:-24,snippetX:0,snippetY:0} : pokeTextOffsets(size, f.id - 1)
         const x = f.x
-        const y = f.y - age * RISE
+        const y = f.y - (f.still ? 0 : age * (f.passive ? 30 : RISE))
         c.globalAlpha = alpha
-        text(c, f.unblocked ? 'UNBLOCKED' : formatPokeNumeral(f.sp), x + lane.numeralX, y + lane.numeralY, size, numeralColour(f.sp, f.crit, f.unblocked), 4)
+        text(c, f.unblocked ? 'UNBLOCKED' : formatPokeNumeral(f.sp), x + lane.numeralX, y + lane.numeralY, size, f.passive ? RAMPS.NEUTRAL[7] : numeralColour(f.sp, f.crit, f.unblocked), f.passive ? 3 : 4)
         // §8.2a. Null for an Overwhelmed developer, who has nothing to say —
         // and that silence is the joke, so it is not filled with a default.
         if (f.snippet) {

@@ -1,3 +1,4 @@
+import { settlementSites } from './planetTerrain.ts'
 /** §7.7: aggregate cells own exact ranges of hundred-person houses. */
 export const WORLD_CAPACITY = 100_000_000
 export const WORLD_REGIONS = 2400
@@ -15,11 +16,9 @@ export function regionPopulation(total: number, world: number, region: number) {
   const { first, end } = regionHouses(region)
   return Math.max(0, Math.min((end - first) * 100, worldPopulation(total, world) - first * 100))
 }
-/** Index, rather than a rounded coordinate, is the address even on cube seams. */
-export function globeCell(index: number): [number, number, number] {
-  const face = Math.floor(index / 400), cell = index % 400
-  const a = ((cell % 20) + .5) / 10 - 1, b = (Math.floor(cell / 20) + .5) / 10 - 1
-  const v = [[a, b, 1], [1, b, -a], [-a, b, -1], [-1, b, a], [a, 1, -b], [a, -1, b]][face]
-  const length = Math.hypot(...v)
-  return v.map(n => n / length) as [number, number, number]
-}
+/** Stable region IDs index the same land addresses at every headcount. */
+const sites=settlementSites(WORLD_REGIONS)
+export function globeCell(index:number):[number,number,number] { return [...sites[index]] }
+
+/** Stable, readable addresses shared by globe markers and city headers. */
+export function cityName(region: number): string { return region===0 ? 'Founders Landing' : 'City '+String(region+1).padStart(4,'0') }

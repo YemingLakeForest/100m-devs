@@ -1,7 +1,7 @@
 import * as T from 'three'
 import { OS } from '../art/skin.ts'
 import { box, cylinder, batchArt, disposeArt, sharedMaterial } from './worldArt.ts'
-import { BLOCK_SIZE, BLOCK_PITCH, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, houseLanding } from './cityGrid.ts'
+import { BLOCK_SIZE, BLOCK_PITCH, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, streetAxis, houseLanding } from './cityGrid.ts'
 import { createThrusters } from './thrusters.ts'
 import { createCityHouse, dressCityLot } from './cityHouse.ts'
 import { defaultCast, type StudioCast } from './studioPeople.ts'
@@ -44,7 +44,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
   const tiles: T.Group[] = []
   // Streets are the negative space between square lots, including the garage.
   for (let z = -3; z <= 3; z++) for (let x = -3; x <= 3; x++) {
-    const tile = new T.Group(); tile.position.set(x * BLOCK_PITCH, 0, z * BLOCK_PITCH); ground.add(tile); tiles.push(tile)
+    const tile = new T.Group(); tile.position.set(streetAxis(x), 0, streetAxis(z)); ground.add(tile); tiles.push(tile)
     const base = x === 0 && z === 0 ? -.175 : 0
     box(tile, 0, -.49 + base, 0, BLOCK_PITCH, .05, BLOCK_PITCH, OS.n1, false).material = paving(OS.n1)
     box(tile, 0, -.43 + base, 0, BLOCK_SIZE, .08, BLOCK_SIZE, OS.n3, false)
@@ -153,6 +153,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
       return active
     },
     hop(seat: number) { const b = buildings[Math.floor((seat - offset) / HOUSE_CAPACITY)]; if (b && b.start === null) { if (b.interior?.root.visible) b.interior.hop(seat, clock); else b.hop = clock } },
+    codingSeats() { return buildings.flatMap(b=>b.interior?.root.visible?b.interior.targets.filter(t=>t.visible).map(t=>Number(t.userData.seat)):[]) },
     headOf(seat: number) { const b = buildings[Math.floor((seat - offset) / HOUSE_CAPACITY)]; return b && seat >= offset && seat < offset + staff ? (b.interior?.root.visible ? b.interior.headOf(seat) : b.group.position.clone().add(new T.Vector3(0, 4, 8))) : null },
     pick(ray: T.Raycaster) {
       root.updateMatrixWorld(true)

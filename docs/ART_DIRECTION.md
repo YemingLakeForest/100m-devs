@@ -488,7 +488,7 @@ workshop silhouettes, plaster, timber and warm pools over grouped desks. Cutaway
 people the inspection card names, using the live run seed.
 
 The user's next review rejected the material jump into the monitor (2026-09-29). The garage and
-houses now use a two- or three-CSS-pixel lattice, mild colour quantisation and their existing warm
+houses initially used a two- or three-CSS-pixel lattice (superseded below), mild colour quantisation and their existing warm
 light. The district uses the same slate, plaster, timber, foliage and occupied-window palette:
 charcoal #181919, slate #575a56, plaster #b8b9b0, timber #96683f, foliage #2e4a2c and amber #e0a52e.
 Existing terminal type and the 3x5 bitmap map face remain; centred map captions sit below the
@@ -499,7 +499,7 @@ On 2026-09-30 the user still found the houses disconnected from the next level. 
 use cached views of the actual neighbourhood models: the same roof, porch, garden, windows,
 materials and isometric angle. The nearest-first street address order is shared at both scales;
 occupied paving grows outward around HQ, and each fifty houses earns a street beacon.
-The abstract globe uses projected surface tiles, fictional terrain, warm settlement lights, hub
+The first abstract globe used projected surface tiles, fictional terrain, warm settlement lights, hub
 masts and an occupancy ring. Population increases drive construction arrivals, light pulses and
 a brief receipt; reduced motion preserves the final state and receipt. The galaxy shows occupied
 territory and its immediate frontier, primary routes and four to seven collision-checked labels.
@@ -508,3 +508,24 @@ Home, selection and the next frontier take priority; a tap reveals a system's fu
 The current implementation uses address jumps between the monitor's scales; cinematic Powers of
 Ten inter-world flights remain future work. No purple atmosphere, starfield wallpaper or
 independent decorative neon palette is introduced.
+
+### 2026-09-30 — Crisp offices and an inhabited planet
+
+The user rejected full-screen granular pixels and blurred HQ tags. Near scenes retain device
+resolution: angular geometry, limited materials and stepped light carry the pixel character.
+Tags have a readable minimum at HQ distance, then retire before they crowd the neighbourhood.
+
+Three office forms replace shed-like roofs: courtyard terraces, stepped research rooms and
+glazed engineering atria. Roof gardens, solar fields, concrete bands and warm windows repeat
+in the shared district sprites. Wider avenues separate campus clusters. The far views sit
+in a quiet terminal survey frame; navigation and activity retain the live entropy hue.
+
+The globe is a shaded sphere with continuous fictional coastlines and visible ocean. Stable
+district sites are distributed across habitable land, ordered in regional growth waves.
+Population adds city lights and local connections, never rectangular ownership tiles; full
+occupation leaves the coastline and sea intact. The instrument ring measures headcount.
+
+The colonisation pass adds a land-only survey footprint whose boundary follows the same regional
+growth order as city addresses. Sparse city callouts, a selection ring, population card and
+Frontier control make descent discoverable. Passive coding hops and small earned numerals return
+to the 3D people, including James, without changing game production.

@@ -6,7 +6,7 @@
 /** Architectural details from the garage art: an inhabited workshop and a
  * signed entrance kept forward of the occupied floor in the isometric view. */
 import * as T from 'three'
-import { box, cylinder, INK, line, sharedMaterial } from './worldArt.ts'
+import { box, cylinder, INK, line, sharedMaterial, batchArt } from './worldArt.ts'
 import { STUDIO_DOOR, STUDIO_GABLE } from '../sim/floorPlan.ts'
 import { dietCoke } from './garageCraft.ts'
 import { OS, OS_SKIN } from '../art/skin.ts'
@@ -431,6 +431,8 @@ function osTag(parent: T.Object3D, label: string, role: string, yaw: number): T.
   const cap = TAG_CAP
   const bottom = TAG_HEAD_TOP + TAG_GAP
   const panel = new T.Group()
+  panel.userData.nameCap = cap
+  panel.userData.dynamic = true
   panel.position.y = bottom + cap * .45
   g.add(panel)
   const letters = new T.Group()
@@ -453,6 +455,7 @@ function osTag(parent: T.Object3D, label: string, role: string, yaw: number): T.
   // The stalk, from the panel's foot to just above the head, never into it.
   const stalk = box(g, 0, TAG_HEAD_TOP + .1, -.03, .03, bottom - cap * .45 + cap * .45 - (TAG_HEAD_TOP + .1), .03, OS.calm2)
   stalk.material = glow(OS.calm2)
+  batchArt(panel)
   return g
 }
 

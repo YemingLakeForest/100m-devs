@@ -43,6 +43,7 @@ import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   arrivedHeroes,
   currentEntropy,
+  baseVelocity, developerVelocity, founderPassiveVelocity, shelfBlocked,
   FLOATER_LIFE_MS,
   getState,
   poke,
@@ -58,6 +59,9 @@ import { playUi } from '../ui/uiSfx.ts'
 import { MusicBus } from '../audio/music.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
 import { exceedsSlop } from './navigation.ts'
+import { createPassiveWork } from './passiveWork.ts'
+import { jamesPresent } from '../sim/james.ts'
+import { isAway } from '../sim/slackOff.ts'
 import { createPokeCanvas } from './pokeText.ts'
 import { tapVerb } from '../game/touchMode.ts'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
@@ -506,6 +510,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let frameMs = 0
   let raf = 0
   let numeralsLive = false
+  const passiveWork=createPassiveWork()
+  let workSeats:number[]=[], nextWorkScan=0
 
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame)
@@ -591,6 +597,18 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const sy = h / Math.max(1, r.height)
       floaters = floaters.map((f) => ({ ...f, x: (f.x - r.left) * sx, y: (f.y - r.top) * sy }))
     }
+    const working=atlasZoom===null&&!state.scene&&!state.launching&&state.phase!=='bankrupt'&&!shelfBlocked(state)
+    if(now>=nextWorkScan){workSeats=working?garage.codingSeats():[];nextWorkScan=now+250}
+    const jamesWorking=jamesInRoom&&jamesPresent(state.runSeconds)
+    const jamesRate=jamesWorking?baseVelocity(state)/(state.devs+1):0
+    const people=working?workSeats.flatMap(seat=>{
+      const at=garage.screenOf(seat)
+      if(!at||at.x<w*.17||at.x>w*.83||at.y<h*.1||at.y>h*.82)return []
+      const rate=seat===FOUNDER_SEAT?founderPassiveVelocity(state):seat===JAMES_SEAT?jamesRate:isAway(state.slack,seat)?0:developerVelocity(seat,state)*(jamesWorking?state.devs/(state.devs+1):1)
+      return [{seat,rate,x:at.x+(seat<0?34:0),y:at.y}]
+    }):[]
+    const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat)})
+    floaters=[...floaters,...passive]
     if (numerals.draw(floaters, performance.now(), FLOATER_LIFE_MS)) numeralTexture.needsUpdate = true
     numeralsLive = floaters.length > 0
 

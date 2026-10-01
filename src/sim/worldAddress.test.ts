@@ -1,3 +1,4 @@
+import { terrainAt } from './planetTerrain.ts'
 import { describe, it, expect } from 'vitest'
 import { globeCell, houseAddress, regionHouses, regionPopulation, worldPopulation, WORLD_CAPACITY, WORLD_REGIONS } from './worldAddress.ts'
 import { buildNetwork, extendNetwork } from './colonyNetwork.ts'
@@ -13,6 +14,11 @@ describe('the monitor keeps people addressable', () => {
     }
     expect(end * 100).toBe(WORLD_CAPACITY)
     expect(capacity).toBe(WORLD_CAPACITY)
+  })
+  it('places unique settlement addresses on land while preserving ocean geography', () => {
+    const sites=Array.from({length:WORLD_REGIONS},(_,id)=>globeCell(id))
+    expect(new Set(sites.map(p=>p.join(','))).size).toBe(WORLD_REGIONS)
+    for(const p of sites){expect(terrainAt(p).land).toBe(true);expect(terrainAt(p).ice).toBe(false)}
   })
   it('does not manufacture population at an unearned zoom or on another world', () => {
     for (const n of [0, 1, 20, 21, 100, 101, 1801, 30_000_000, 100_000_001]) {

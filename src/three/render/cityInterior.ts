@@ -105,33 +105,28 @@ export function createCityInterior(index: number, cast: StudioCast) {
     })
   })
   batchArt(furniture); batchArt(peopleRoot, seats)
-  let filled = -1, hopping: number | null = null, started = 0
+  let filled = -1
+  const hopping = new Map<number, number>()
   const identity = new T.Matrix4()
   return {
     root, targets,
     fill(n: number) {
       if (n === filled) return
-      if (hopping !== null && hopping >= n) {
-        const at = houseSeat(hopping); people[hopping].position.set(at.x, at.y, at.z); hopping = null
-      }
+      for(const i of hopping.keys())if(i>=n){placeInstances(seats.get(i)??[],identity);const at=houseSeat(i);people[i].position.set(at.x,at.y,at.z);hopping.delete(i)}
       filled = n
       people.forEach((person, i) => { showSeatInstances(seats.get(i) ?? [], i < n); person.visible = i < n; targets[i].visible = i < n })
     },
-    hop(seat: number, now: number) {
-      if (hopping !== null) {
-        placeInstances(seats.get(hopping) ?? [], identity)
-        const at = houseSeat(hopping); people[hopping].position.set(at.x, at.y, at.z)
-      }
-      hopping = seat % 100; started = now
-    },
+    hop(seat: number, now: number) { hopping.set(seat % 100, now) },
     update(now: number) {
-      if (hopping === null) return false
-      const i = hopping, t = now - started, at = houseSeat(i)
-      const y = t < .4 ? .45 * Math.sin(Math.PI * t / .4) : 0
-      placeInstances(seats.get(i) ?? [], y ? new T.Matrix4().makeTranslation(0, y, 0) : identity)
-      people[i].position.set(at.x, at.y + y, at.z)
-      if (t >= .4) hopping = null
-      return true
+      const active=hopping.size>0
+      for(const [i,started] of hopping) {
+        const t=now-started,at=houseSeat(i),u=Math.max(0,Math.min(1,(t-.05)/.3))
+        const y=t<.35?.38*4*u*(1-u):0
+        placeInstances(seats.get(i)??[],y?new T.Matrix4().makeTranslation(0,y,0):identity)
+        people[i].position.set(at.x,at.y+y,at.z)
+        if(t>=.45)hopping.delete(i)
+      }
+      return active
     },
     headOf(seat: number) { const at = houseSeat(seat % 100); return root.localToWorld(new T.Vector3(at.x, 1.7 + at.y, at.z)) },
     dispose() { disposeArt(root); hitGeometry.dispose(); hitMaterial.dispose() },
