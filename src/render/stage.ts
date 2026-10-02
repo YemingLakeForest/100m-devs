@@ -35,6 +35,7 @@
  */
 
 import { createGarageView, GARAGE_REST_ZOOM, GARAGE_ZOOM_MAX, GARAGE_ZOOM_MIN } from '../three/render/garageView.ts'
+import { maxLensLevelFor } from '../sim/headcount.ts'
 import { createStudioAtlas } from '../three/render/studioAtlas.ts'
 import { createGlass, type GlassPasses } from '../three/render/glass.ts'
 import * as T from 'three'
@@ -205,7 +206,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   garage.setLens(GARAGE_REST_ZOOM)
   let atlasZoom: number | null = null
   const lensZoom = () => atlasZoom ?? garage.zoom
-  const travel = (value: number, seat?: number) => {
+  /** §7.4a — the farthest level this headcount has earned (`maxLensLevelFor`). */
+  const ceilingLevel = () => maxLensLevelFor(getState().devs)
+  const travel = (requested: number, seat?: number) => {
+    // Only the way out is closed: a level below the ceiling, and every seat, stay reachable.
+    const value = Math.min(requested, ceilingLevel())
     if (value < 3) {
       atlasZoom = null
       if (seat !== undefined) garage.visit(seat)
@@ -216,7 +221,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   }
   const atlas = createStudioAtlas(host, travel)
   const zoomTo = (value: number, x: number, y: number) => {
-    const next = Math.max(zoomOfLevel(7), Math.min(GARAGE_ZOOM_MAX, value)), lvl = levelOfZoom(next)
+    // The far bound is the headcount's, not the ladder's: you cannot pinch out past the people you have.
+    const next = Math.max(zoomOfLevel(ceilingLevel()), Math.min(GARAGE_ZOOM_MAX, value)), lvl = levelOfZoom(next)
     if (lvl >= 3) { if (atlasZoom !== null && ((levelOfZoom(atlasZoom) >= 6 && lvl < 6) || (levelOfZoom(atlasZoom) >= 4.5 && lvl < 4.5))) atlas.descend(x, y); atlasZoom = next; atlas.setLevel(lvl) }
     else { if (atlasZoom !== null) { atlas.descend(x, y); atlasZoom = null; garage.visit(atlas.entrySeat) }; atlas.setLevel(lvl); garage.zoomTo(next, x, y) }
   }
@@ -584,6 +590,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       shipShake = 1
     }
 
+    // A new run or a loaded save can have fewer people than the lens was left
+    // out past; the ceiling is told to the lens, so bring it in rather than
+    // show a city to a garage. Not while a scene is up: a scene owns the camera.
+    if (!state.scene && level() > ceilingLevel() + 0.01) travel(ceilingLevel())
     const lvl = level()
     // §20.7.3 — the score is a mix, driven every frame from the same Z the
     // picture uses and the same Entropy the readout does.

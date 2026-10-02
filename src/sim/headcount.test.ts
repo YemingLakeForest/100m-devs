@@ -6,6 +6,7 @@ import {
   cohortSize,
   formatCount,
   framingRungFor,
+  maxLensLevelFor,
   isLiteral,
   rungCrossed,
   rungFor,
@@ -248,3 +249,40 @@ describe('formatCount', () => {
  * the claim — every level reachable at any headcount, drawing only what the
  * studio has, and James one pinch away — is pinned in `render/lens.test.ts`.
  */
+
+describe('maxLensLevelFor — §7.4a, the lens is earned', () => {
+  // The GDD fixes the order and refuses the numbers (§25.3.2): test the order.
+  const headcounts = [0, 1, 20, 21, 100, 101, 1e3, 1e4, 1e4 + 1, 1e5, 1e6, 1e8, 1e10, 1e13, 1e20]
+
+  it('never goes down as the studio grows', () => {
+    const ceilings = headcounts.map(maxLensLevelFor)
+    for (let i = 1; i < ceilings.length; i += 1) expect(ceilings[i]).toBeGreaterThanOrEqual(ceilings[i - 1])
+  })
+
+  it('keeps a garage in its room: the city, globe and network are all out of reach', () => {
+    expect(maxLensLevelFor(1)).toBeLessThan(3)
+    expect(maxLensLevelFor(20)).toBeLessThan(3)
+  })
+
+  it('opens each register only to the rung that has filled the one below', () => {
+    // 3 is where the city starts, 4.5 the globe, 6 the network (stage.ts).
+    expect(maxLensLevelFor(1e3)).toBeGreaterThanOrEqual(3)
+    expect(maxLensLevelFor(1e3)).toBeLessThan(4.5)
+    expect(maxLensLevelFor(5e4)).toBeLessThan(4.5)
+    expect(maxLensLevelFor(5e5)).toBeGreaterThanOrEqual(4.5)
+    expect(maxLensLevelFor(5e7)).toBeLessThan(6)
+    expect(maxLensLevelFor(1e8)).toBeGreaterThanOrEqual(6)
+  })
+
+  it('lifts exactly where a rung is crossed, so the promotion is the reveal', () => {
+    for (let i = 1; i < headcounts.length; i += 1) {
+      const lifted = maxLensLevelFor(headcounts[i]) > maxLensLevelFor(headcounts[i - 1])
+      if (lifted) expect(rungCrossed(headcounts[i - 1], headcounts[i])).not.toBeNull()
+    }
+  })
+
+  it('is finite for a headcount that is not', () => {
+    expect(Number.isFinite(maxLensLevelFor(Number.POSITIVE_INFINITY))).toBe(true)
+    expect(Number.isFinite(maxLensLevelFor(Number.NaN))).toBe(true)
+  })
+})

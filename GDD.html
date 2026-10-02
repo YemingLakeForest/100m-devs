@@ -3143,8 +3143,9 @@ deletion. The price is paid in the open: <strong>until the three.js replacements
 (<code>docs/PLAN-2026-09-27-garage-to-galaxy.md</code> — the storey across the lane, then the city, the
 planet, the monitor and the colony map), desk, squad and floor are the garage's own zoom and there is
 nothing above the street <em>at that cut</em>. <strong>[amended 2026-09-29]</strong> The replacements now connect
-the physical neighbourhood to the OS district, abstract globe and colony map (§7.7.2). Every view is reachable
-at every headcount, including an almost empty world. The lens remains unlocked.</p>
+the physical neighbourhood to the OS district, abstract globe and colony map (§7.7.2). <s>Every view is reachable
+at every headcount, including an almost empty world. The lens remains unlocked.</s>
+<strong>[amended 2026-10-02]</strong> The lens is locked to the rung again (§7.4a's first non-negotiable): each view opens when the studio has the people for it.</p>
 </blockquote>
 <p><strong>The four rendering tiers above are not navigation stops, and the ten simulation rungs in
 §7.7.1 are not all navigation stops either.</strong> The shipped main arc has seven memorable
@@ -3159,9 +3160,19 @@ would add no new decision. In the main arc, park pulls continuously into the 100
 town, nation and system are scale readings inside that transition, not empty screens.</p>
 <p>Three consequences are non-negotiable:</p>
 <ul>
-<li><s><strong>A presentation level the player has not earned is not reachable.</strong> The headcount ceiling
-stays tied to actual progress.</s> <strong>[amended 2026-09-27] Every stop is reachable at any headcount, and
-each draws only what the studio has.</strong> Asked whether the prototype's open map should close again
+<li><strong>A presentation level the player has not earned is not reachable.</strong> The headcount ceiling
+stays tied to actual progress. <strong>[amended 2026-10-02] The lock is back, and it is the rung.</strong>
+The user, turning the 2026-09-27 amendment round: <em>&quot;how far can we zoom should tied to the current stage, you
+can't zoom too far if you don't have those people&quot;</em>. How far out the lens goes is
+<code>maxLensLevelFor(devs)</code> (<code>sim/headcount.ts</code>), keyed on the player's own rung: a garage keeps its
+room, the city opens at the tower, the globe at the park, the network at the world rung, and each ceiling stops
+short of the next register so the promotion (§7.7.2) is what opens it. Pinching <em>in</em> is never restricted.
+The wheel, the pinch, the monitor's address bar and <code>camera.set</code> all go through the same two doors in
+<code>stage.ts</code> and all obey it; a lens left out past a smaller headcount (a new run, a loaded save) is brought
+in. Why the 09-27 argument gave way: an empty rung that draws only what is yours is not a backdrop, but it is also
+not <em>earned</em>, and the player's ask is that the distance be something the studio buys. The numbers are
+placements and the test pins their order (§25.3.2). <s><strong>[amended 2026-09-27] Every stop is reachable at any
+headcount, and each draws only what the studio has.</strong> Asked whether the prototype's open map should close again
 until a hundred million, the user, 2026-09-27: <em>&quot;no we don't keep the lock and we should be able to zoom and down before
 100m&quot;</em>. The ceiling's argument was that a
 camera able to reach galactic zoom over an empty world tells the player the world is a backdrop
@@ -3171,7 +3182,7 @@ blinking just outside its border and a faint web beyond — a goal with a name o
 scenery. So the half of the rule that mattered survives as the second clause (<em>the studio you
 can see is the studio you have</em>, now true at every zoom rather than enforced by a clamp), and
 the half that locked the lens is gone. Pinching all the way in still always reaches James
-(§7.7.4).</li>
+(§7.7.4).</s></li>
 <li><strong>Every stop must change the silhouette and support an addressable unit.</strong> Compression may
 remove an empty stop; it may never turn the lens into a cut or a menu.</li>
 <li><strong>New post-100M stops are earned by mechanics.</strong> Layer 2 may add system and galaxy views only
@@ -4263,7 +4274,7 @@ finger left it.</p>
 the studio you can see is the studio you have, and a build that let a player past it would be telling
 them the world is a backdrop they are pointing at.</p>
 <p><strong>[amended 2026-09-27]</strong> The zoom ceiling is no longer one of the three things free zoom
-takes off, because play no longer has it: every stop is reachable at any headcount (§7.4a's first
+takes off, because play no longer has it: <s>every stop is reachable at any headcount</s> <strong>[amended 2026-10-02: the ceiling is back, keyed on the rung — §7.4a]</strong> (§7.4a's first
 non-negotiable, amended, with the user's words). Free zoom keeps the other two — the magnetic settle
 and the inner stop — and the rule it protected is kept by what each stop draws rather than by a
 clamp on how far the lens may go.</p>
@@ -15858,9 +15869,9 @@ the beats still land in order for a player who asked for less movement.</p>
 rung 7 the moment the planet is full — <strong>the studio you can see is the studio you have</strong> —
 and the network fills in as the player hires past it. The scene is the <em>reason</em>, not the
 key. The first world after Sol is Proxima Centauri because that is where James went.</p>
-<p><strong>[amended 2026-09-27]</strong> There is no ceiling left to lift: the colony map has been
+<p><strong>[amended 2026-09-27]</strong> <s>There is no ceiling left to lift: the colony map has been
 reachable since the garage (§7.4a, amended), and a studio of one sees Proxima blinking outside its
-border the whole game. What the launch changes is the map rather than the lens — Proxima lights,
+border the whole game.</s> <strong>[amended 2026-10-02]</strong> There is a ceiling again, and the colony map is the top of it: the network opens at the world rung (§7.4a), so Proxima blinks outside Sol's border for a studio that has earned the map, not from the garage. What the launch changes is the map rather than the lens — Proxima lights,
 its territory joins Sol's, and the next name blinks further out. The scene is still the reason.</p>
 <h2 id="hero-cards-collectables">22. Hero Cards &amp; Collectables</h2>
 <h3 id="the-system">22.1 The System</h3>
@@ -20523,7 +20534,7 @@ so a later refactor does not quietly reopen a rule the player has already been t
 <td>The monitor above the block, and the colony map</td>
 <td><strong>NOT BUILT</strong> <strong>[2026-09-27]</strong></td>
 <td>A playable prototype of §7.4a's monitor and §7.7.1a's colony map in <code>docs/demos/garage-to-galaxy-2026-09-27</code>, on the game's own garage, people and <code>developerAt</code>: lanes, territory, frontier, packets, system cards, the address bar, and descent into any colony world down to a desk</td>
-<td>All of it in <code>src/</code>, where the lens still ends at the 2026-08-30 star field (<code>render/galaxy.ts</code>, <code>sim/starfield.ts</code>). The lock is gone from the game [2026-09-27]: every level is reachable at any headcount (§7.4a's built note). The prototype stops at a hundred worlds and is untested on a phone. Its border — discs and lane bands — is approved as drawn (<em>&quot;Border outline is good&quot;</em>, 2026-09-27)</td>
+<td>All of it in <code>src/</code>, where the lens still ends at the 2026-08-30 star field (<code>render/galaxy.ts</code>, <code>sim/starfield.ts</code>). The lock was lifted from the game [2026-09-27] and restored [2026-10-02]: the lens reaches only the rung's own level (§7.4a). The prototype stops at a hundred worlds and is untested on a phone. Its border — discs and lane bands — is approved as drawn (<em>&quot;Border outline is good&quot;</em>, 2026-09-27)</td>
 </tr>
 <tr>
 <td>The heroes' garage</td>

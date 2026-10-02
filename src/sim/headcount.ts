@@ -241,14 +241,11 @@ export function isLiteral(devs: number): boolean {
  * Returns the rung *landed on*, not each rung passed: the §6 Mass Hire jumps
  * several at once and that is one arrival, not five.
  *
- * **It is also the lens's reveal, now that there is no ceiling to lift**
- * [2026-09-27]. The pull-back on a promotion used to be keyed on `maxZoomFor`
- * — the camera gained a register, so the player was shown it. §7.4a's first
- * non-negotiable is amended (*"no we don't keep the lock and we should be able
- * to zoom and down before 100m"*, the user), so the lens reaches every stop at
- * any headcount and there is nothing to gain; the promotion is still a beat,
- * and it is this rung that names it (`stage.ts`, where the store's
- * `spawn.promotedTo` is this function's answer).
+ * **It is also the lens's reveal.** A promotion is where {@link maxLensLevelFor}
+ * lifts, so the beat that names the new unit (`stage.ts`, where the store's
+ * `spawn.promotedTo` is this function's answer) is the one that opens the next
+ * register of the lens. It was the only reveal there was until 2026-09-27, when
+ * the ceiling was lifted, and it is back with the ceiling [2026-10-02].
  */
 export function rungCrossed(before: number, after: number): Rung | null {
   const from = rungFor(before)
@@ -256,17 +253,35 @@ export function rungCrossed(before: number, after: number): Rung | null {
   return to.rung > from.rung ? to : null
 }
 
-/*
- * `maxZoomFor` lived here until 2026-09-27: how far the camera could pull back
- * at a headcount, the player's own rung, on the argument that "a camera that
- * can reach galactic zoom over an empty world tells the player the game is a
- * backdrop they are pointing at". The user overturned it (GDD §7.4a, amended),
- * and the half of the argument that mattered is kept by what each stop *draws*
- * rather than by how far the lens may go — see `render/frames.ts`, where an
- * unreached level frames its whole unit and shows what the studio has in it.
- * It went with its reveal, `zoomCeilingLifted`, rather than staying as a
- * function that ignores its argument.
+/**
+ * How far out the lens may go at this headcount, as a level on the stage's own
+ * scale — 0 desk, 1 squad, 2 floor, 3-4.5 the city, 4.5-6 the globe, 6-7 the
+ * network. GDD §7.4a's first non-negotiable, restored [2026-10-02].
+ *
+ * **The studio you can see is the studio you have.** `maxZoomFor` stood here
+ * until 2026-09-27 on that argument, the user overturned it (*"no we don't keep
+ * the lock and we should be able to zoom and down before 100m"*), and five days
+ * later turned it round again: *"how far can we zoom should tied to the current
+ * stage, you can't zoom too far if you don't have those people"*. The newer word
+ * is the rule. What the lifted lock had shown was a world that draws only what
+ * the studio has; what the player said they wanted back is that the lens has to
+ * be *earned* — twenty people do not get to leave the street.
+ *
+ * Keyed on the rung, the player's own unit, and every ceiling stops short of the
+ * next register's first frame so the promotion is what opens it: the globe's
+ * range starts at 4.5, so rung 4 stops at 4.4 and the hundred-thousandth hire
+ * is the one that shows the planet. The numbers are placements, not claims —
+ * what is pinned is the order (never lower with more people, never past the
+ * network) and that the room, the city, the globe and the network are each
+ * closed to the rung below. Pinching *in* is never restricted: §7.7.4 makes the
+ * way back to James an absolute guarantee.
  */
+const LENS_CEILING_BY_RUNG = [2, 2, 3.7, 3.7, 4.4, 5.5, 5.9, 7, 7, 7] as const
+
+export function maxLensLevelFor(devs: number): number {
+  if (!Number.isFinite(devs)) return LENS_CEILING_BY_RUNG[LENS_CEILING_BY_RUNG.length - 1]
+  return LENS_CEILING_BY_RUNG[rungFor(devs).rung]
+}
 
 const MAGNITUDES = [
   { at: 1e12, suffix: 'T' },
