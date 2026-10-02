@@ -536,19 +536,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
               immediately above them instead of moving the tools around. */}
           <div className="hud__controls">
           {/*
-            §7.7.6b — what the finger does, above the nav and under the button,
-            because it is the control the thumb reaches for *between* pokes
-            rather than once a session.
-          */}
-          <TouchSwitch state={state} />
-          {/*
-            §4.5d — your own desk, reachable at every zoom. A direct child of the
-            column, like PARADIGM, because the 336 px media query below places
-            both by hand: the rail's rows were measured at every frame in
-            §23.4's design box and "a new control does not get to evict canon".
-          */}
-          <FounderDesk stage={stage} />
-          {/*
             §7.8.12 — **TEAM: the way back to the room**, and §7.7.4's Hero
             Anchor finally built as a control.
 
@@ -595,23 +582,36 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             was retired on 2026-09-26 — *"I thought upgrades are trees"* — and
             each person's upgrades open from their own card now (GDD §8).
           */}
-          {/* §10.11 — the gallery door. Not gated on anything but a record: it
-              opens the moment there is something shipped to show, Run 1
-              included. */}
-          {hasGallery && (
-            <div className="hud__nav">
-              <Button
-                onClick={() => {
-                  setTreeOpen(false)
-                  setFounderOpen(false)
-                  setGameMenuOpen(false)
-                  setGalleryOpen((was) => !was)
-                }}
-              >
-                GALLERY
-              </Button>
+          {/*
+            [2026-10-02] — **CODE at the foot of the right rail, in MENU's slab,
+            with GALLERY to its left and the touch switch above — the mirror of the left
+            rail, where MENU is the last thing and Velocity sits right over it.
+            The switch (code / move / info) is the reading of what CODE and the
+            finger will do, so it stays touching the button it qualifies; both
+            are pinned last so a new rail control grows upward, never under them.
+          */}
+          <div className="hud__act">
+            <TouchSwitch state={state} />
+            <div className="hud__act-row">
+              {/* §10.11 — the gallery door, now left of CODE. Not gated on
+                  anything but a record: it opens the moment there is something
+                  shipped to show, Run 1 included. */}
+              {hasGallery && (
+                <Button
+                  className="hud__gallery-door"
+                  onClick={() => {
+                    setTreeOpen(false)
+                    setFounderOpen(false)
+                    setGameMenuOpen(false)
+                    setGalleryOpen((was) => !was)
+                  }}
+                >
+                  GALLERY
+                </Button>
+              )}
+              <FounderDesk stage={stage} />
             </div>
-          )}
+          </div>
           </div>
         </div>
       </div>

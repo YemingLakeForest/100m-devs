@@ -34,28 +34,23 @@ import '../styles/founder.css'
  * own world hit target opens the identity/tree screen; CODE remains only CODE.
  */
 export function FounderDesk({ stage }: { stage: StageHandle | null }) {
-  const founder = readFounderProfile() ?? DEFAULT_FOUNDER
-
+  // Same slab as MENU (`.hud__menu`), mirrored to the other foot. The nameplate
+  // that used to sit over it is gone: it repeated a name the player typed, and
+  // the avatar in the room already says it.
   return (
-    <div className="founder__corner">
-      <div className="founder__corner-label">
-        <span>MANAGER CORNER</span>
-        <b>{founder.name.toUpperCase()}</b>
-      </div>
-      <Button
-        className="founder__tap"
-        sound={false}
-        onClick={() => {
-          if (stage) stage.codeFounder()
-          else {
-            playKeyboardClick()
-            pokeFounder()
-          }
-        }}
-      >
-        CODE
-      </Button>
-    </div>
+    <Button
+      className="hud__code"
+      sound={false}
+      onClick={() => {
+        if (stage) stage.codeFounder()
+        else {
+          playKeyboardClick()
+          pokeFounder()
+        }
+      }}
+    >
+      CODE
+    </Button>
   )
 }
 

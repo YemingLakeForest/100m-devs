@@ -31,47 +31,6 @@
   color: var(--p3);
 }
 
-.founder__corner {
-  display: grid;
-  gap: 2px;
-  /* Sized to its content, so §10.1's wrapping control row can seat it beside
-     something else. It was `width: 100%`, which in a wrapping row claims a line
-     of its own whether or not it needs one. */
-  width: auto;
-  min-width: 0;
-  padding-top: 3px;
-  border-top: var(--rule) solid var(--p0);
-  pointer-events: auto;
-}
-
-/*
- * CODE is the thumb's primary verb in the right rail, so it earns a wider slab
- * than the smaller nav buttons beside it.
- */
-.founder__tap {
-  padding: 8px 24px;
-}
-
-.founder__corner-label {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  min-width: 0;
-  color: var(--p1);
-  font-size: 8px;
-  letter-spacing: 1px;
-}
-
-.founder__corner-label b {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--p3);
-  font-weight: 400;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /*
  * §13.7.1's board — a hub with five spokes, drawn in the same UML notation as
  * §13.9's hero tree. `styles/diagram.css` argues the case; this file owns what

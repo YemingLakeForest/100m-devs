@@ -1012,6 +1012,49 @@ body {
 
 /* --- the Paradigm Tree — GDD §13.2, §15.1 ------------------------------ */
 
+/*
+ * CODE — MENU's twin at the foot of the right rail, and the touch switch above
+ * it the way Velocity is above MENU. One column, right-aligned, taking a full
+ * row of the wrapping control row so nothing can sit beside it.
+ */
+.hud__act {
+  flex: 1 0 100%;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.hud__act-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  /* The offset slab paints past the right edge; same elbow room as MENU's. */
+  margin: 4px 4px 0 0;
+}
+
+/*
+ * **One height for the three doors — MENU, GALLERY, CODE.** They are the same
+ * kind of object (a sprung slab at the foot of a rail) and were three sizes:
+ * `.hud__controls .ui-btn` trims padding on short frames and MENU is outside
+ * it. All three now take the same padding at every frame size, and the trim
+ * below is written once for the set so a later query cannot split them again.
+ * CODE and GALLERY keep their [ brackets ] even where the rail's other buttons
+ * lose theirs — they are the verbs the thumb lives on.
+ */
+.ui-btn.hud__menu,
+.ui-btn.hud__code,
+.ui-btn.hud__gallery-door {
+  pointer-events: auto;
+  font-size: var(--type-1x);
+  line-height: 1;
+  padding: 7px 12px;
+}
+
+.hud__controls .hud__act-row .ui-btn__bracket {
+  display: inline;
+}
+
 /* The sizing box. Frame, ground and scroll are the window's (§10.6a). */
 .paradigm {
   width: min(46em, 92vw);
@@ -1939,12 +1982,6 @@ body {
     display: none;
   }
 
-  /* §13.7.1a [2026-10-02]: CODE is the primary action on phones too.
-   * Avatar gestures cannot substitute for a visible, named control. */
-  .founder__corner {
-    display: grid;
-  }
-
   /*
    * §7.7.6b's switch gives up its caption on the shortest frames.
    *
@@ -1957,16 +1994,19 @@ body {
    */
   .touch {
     gap: 6px;
-    padding: 2px 6px 3px 7px;
+    padding: 0 6px 0 7px;
   }
 
-  .founder__corner {
-    padding-top: 0;
-    border-top: 0;
+  /* The CODE row and the switch over it are the tallest thing in the rail at
+     336 px: measured there, the bottom group ran nine pixels past the frame
+     with the slab's own three on top. The gaps go first — the buttons keep one
+     height with MENU, which is the point of the row. */
+  .hud__act {
+    gap: 3px;
   }
 
-  .founder__corner-label {
-    display: none;
+  .hud__act-row {
+    margin-top: 0;
   }
 
   .touch__hint {
@@ -3125,7 +3165,9 @@ body {
 
   /* The MENU shares the UPGRADES button's short-frame trim, so the two nav
      controls stay one size and the rail keeps room for the MENU's slab. */
-  .hud__menu {
+  .ui-btn.hud__menu,
+  .hud__controls .ui-btn.hud__code,
+  .hud__controls .ui-btn.hud__gallery-door {
     padding: 5px 10px;
     line-height: 1;
   }
@@ -3213,10 +3255,6 @@ body {
  * and the dial's segments are legible four pixels shorter.
  */
 @media (max-height: 470px) {
-  .founder__corner-label {
-    display: none;
-  }
-
   .hire-dial__seg {
     min-height: 22px;
     padding: 1px 6px;
@@ -3252,6 +3290,11 @@ body {
    */
   .hud__controls .ui-btn {
     padding: 4px 8px;
+  }
+
+  .hud__controls .ui-btn.hud__code,
+  .hud__controls .ui-btn.hud__gallery-door {
+    padding: 5px 10px;
   }
 }
 
