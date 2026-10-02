@@ -6,10 +6,9 @@
 /** Architectural details from the garage art: an inhabited workshop and a
  * signed entrance kept forward of the occupied floor in the isometric view. */
 import * as T from 'three'
-import { box, cylinder, INK, line, sharedMaterial, batchArt } from './worldArt.ts'
+import { box, cylinder, INK, line, sharedMaterial } from './worldArt.ts'
 import { STUDIO_DOOR, STUDIO_GABLE } from '../sim/floorPlan.ts'
 import { dietCoke } from './garageCraft.ts'
-import { OS, OS_SKIN } from '../art/skin.ts'
 
 /**
  * The green the studio signs its own name in.
@@ -80,74 +79,6 @@ export function nameSign(parent: T.Object3D, label: string, x: number, y: number
  * almost the same way (§9.2).
  */
 /**
- * §12.11 — how high a name floats, **in the station's own units.**
- *
- * Not metres: a hero station is scaled as a whole (1.6 in the garage, 1.3 on
- * the office floor) so that the protagonists read as foreground against the
- * ordinary desks, and a name pinned to a world height would sit on James's head
- * in one room and a metre over it in the other. In body units it keeps the same
- * gap above the same head everywhere.
- *
- * 2.8 clears everything a hero desk builds *on screen* as well as in the
- * arithmetic, which is a stronger requirement and is what moved it: the
- * founder's overhead shelf of task cards tops out at 2.02 but stands a metre
- * and a third nearer the camera, so §12.1's projection lifts it into the same
- * band of the frame. At 2.3 the name was arithmetically clear of the shelf and
- * visually behind it, and at 2.55 the founder's `U` still merged with the
- * shelf's left post. Measured on a 3x crop of the station, not argued from the
- * heights. `NAME_Y_STANDING` is Billy, whose
- * station is the one that is *not* scaled, because he is on his feet at his
- * board rather than seated at a desk.
- */
-export const NAME_Y = 2.8
-export const NAME_Y_STANDING = 2.6
-
-/**
- * The same, on the office floor, where the station has a banner over it.
- *
- * §12.11's letters float in front of the body and the role banner hangs behind
- * it, so nothing intersects — but they are a metre and a half apart in depth on
- * a camera that trades depth for height, and at 2.55 the two landed in the same
- * band of the frame: measured on Serena's station, the last letter of her name
- * sat across the banner's left end. Clearing it is worth the extra height here
- * and would be waste in the garage, whose stations have nothing above them.
- */
-export const NAME_Y_OFFICE = 3.05
-
-/**
- * The plate's cap height, and how far it hangs below the name's anchor.
- *
- * The cap is what the panel is sized from -- everything else in `heroName` is
- * derived, so a longer name grows its own plate rather than being squeezed into
- * a fixed one. At this size a capital is about 20 screen pixels at the garage's
- * default framing: `--t-num-sm`, the smallest thing on the glass meant to be
- * read at a glance rather than examined.
- */
-const NAME_CAP = 0.34
-const NAME_DROP = 0.5
-
-/**
- * Which way the plate faces, **and the face is what decides it** -- §12.11.
- *
- * §12.1's camera stands at `(1, 1, 1)`, so exactly two upright world faces are
- * visible: the one whose normal is +Z, which presents itself **down and to the
- * left**, and the one whose normal is +X, which presents down and to the right.
- * Those are the two sides of every box in this room, and a surface with words
- * on it has to be one of them or it is not in the picture.
- *
- * Zero puts the plate on the **left** face, at the user's instruction. The
- * lettering then runs along world +X, which projects down to the right -- that
- * is not a separate choice, it is what being on that face *means*, and an
- * attempt to make the word climb instead only moved it onto the right-hand
- * face. There are two faces and two reading directions and they are the same
- * decision made once.
- *
- * There is no `lookAt` here and there must not be: turning a sign to the lens
- * is the one thing that stops it belonging to the room.
- */
-const NAME_AXIS = 0
-
-/**
  * The gap between letters, in font cells -- §12.11.
  *
  * Departure Mono's own advance leaves a single cell between strokes, and a
@@ -170,17 +101,6 @@ const NAME_TRACKING = 2
  * by it. Standing it a little forward puts it over the person and in front of
  * their own desk, which is where a label belongs anyway.
  */
-/**
- * How far the plate stands off the station's own origin, along its local z.
- *
- * Published because the garage's two plates are asked to be **collinear on the
- * isometric grid** (§12.11, 2026-09-21) and this is half of where they land:
- * the station's yaw turns it, so the founder's plate sits 0.5625 m behind his
- * station in world z and James's, turned 90°, sits at his exactly.
- * `GARAGE_LEADERS` spends that difference; `environments.test.ts` checks it.
- */
-export const NAME_FORWARD = -0.45
-
 /**
  * The size Departure Mono is rasterised at, in canvas pixels.
  *
@@ -312,151 +232,6 @@ function departureRuns(label: string, tracking = NAME_TRACKING): { runs: Run[]; 
     pen += g.cols + tracking
   }
   return { runs, cols: Math.max(1, pen - tracking), rows }
-}
-
-/**
- * §12.11 — **who that is**, as 3D type floating over their head.
- *
- * [added 2026-09-13, at the user's instruction, and rebuilt 2026-09-13 after
- * the first attempt got it wrong twice.] The names were a Pixi caption on the
- * glass at a fixed 11px: a HUD element pretending to be part of the room. It did
- * not grow when the player zoomed in on a desk, nothing in the room could stand
- * in front of it, and it was the one piece of type in the picture that no light
- * reached. The first replacement was a *sign* — a printed panel on a post,
- * turned to face the camera — which fixed the lighting and the scale and missed
- * the point twice over: it was a board rather than lettering, and turning its
- * face to the lens is the one thing that makes an object stop belonging to an
- * isometric room.
- *
- * So this is the letters and nothing else. Extruded cuboids, one per run of lit
- * pixels in Departure Mono's own raster, standing in the world:
- *
- * - **In the isometric grid, not facing the camera.** The baseline runs along
- *   world +X and the letters stand up along +Y, so the word is drawn in the
- *   room's own XY plane and §12.1's projection shears it 30° exactly like every
- *   desk, wall and parapet around it. A plate yawed to the lens reads as a
- *   sticker on the glass however well it is lit; this reads as type that is
- *   *in* the picture. It is the only orientation that can, and it is why there
- *   is no `lookAt` anywhere in here.
- * - **Departure Mono, which is a pixel face, so its raster is its truth.**
- *   §12.3 gives the game one display face and this is it. Rendering it as boxes
- *   is not a stylisation of the typeface — it is the typeface, at its own
- *   resolution, made of the same cuboids as the people underneath it.
- * - **Floating, with nothing holding it up.** An earlier version hung a plate
- *   from a post and the post came down through the head it was labelling, which
- *   is 禁止穿模 by the letter. Type over a character is a convention the player
- *   already reads; a post is a claim about physics that this is not making.
- *
- * `yaw` is the *parent's* rotation, which the letters cancel out. Hero stations
- * are turned to face their desks and the name must not turn with them; passing
- * the compensation in is cheaper than reaching for a world matrix that does not
- * exist yet while the scene is still being assembled.
- */
-export function heroName(parent: T.Object3D, label: string, y: number,
-  colour: string, yaw = 0, sub?: string): T.Group {
-  if (OS_SKIN) return osTag(parent, label, colour, yaw)
-  const g = new T.Group()
-  g.position.set(0, 0, NAME_FORWARD)
-  // The only rotation there is: undo the station's, and stand square to the
-  // world grid on {@link NAME_AXIS}. No turn toward the lens, ever.
-  g.rotation.y = NAME_AXIS - yaw
-  parent.add(g)
-
-  const cap = NAME_CAP
-  const panel = new T.Group()
-  panel.position.y = y - NAME_DROP
-  g.add(panel)
-  const lift = sub ? cap * .62 : 0
-  const width = letterBoxes(panel, label, cap, .03, INK.paper, lift) || cap * 3
-  /*
-   * The role, small, under the name -- office stations only.
-   *
-   * This is the station's old hanging banner folded into the plate. It read
-   * `SERENA / SRE` on a separate sign slung at the back of the desk, and once
-   * the name became a panel of its own the floor had *two* hanging signs over
-   * one person, in one colour, at one height (&sect;9.2). One panel, two
-   * readings. The role colour still reaches the chair, the drawer face, the
-   * desk apron and the emblem, so &sect;7.1's "identities live on physical
-   * objects" is carried by four things that are not this one.
-   */
-  const subWidth = sub ? letterBoxes(panel, sub, cap * .34, .03, INK.paper, 0) : 0
-  const w = Math.max(width, subWidth) + cap * .9
-  const h = cap + lift + cap * .7
-  box(panel, 0, -cap * .35, -.04, w, h, .07, colour)
-  for (const at of [-cap * .35 - .04, -cap * .35 + h]) {
-    box(panel, 0, at, -.04, w + .06, .04, .1, INK.trim)
-  }
-  return g
-}
-
-/**
- * **The STUDIO_OS name tag** — 2026-09-26.
- *
- * *"name tags on top of us and James, now they are not serving the purpose
- * make something that fits the game OS style but still same orientation and
- * facing as those"*. The rebuild's plate was a coloured signboard floating over
- * a full-height person; over this build's shorter people it read as a sign on
- * the wall behind them, naming the room rather than the person.
- *
- * So it is the interface's own label, standing in the world: a dark panel, a
- * phosphor frame, glowing letters (emissive, so the glass's bloom takes them
- * like a screen), the person's role colour as a tab on the leading edge, and a
- * **stalk down to the head** — the same label-on-a-stalk the character screen
- * draws over the founder, which is what makes it point at somebody. The stalk
- * stops short of the head: a post through the person it labels is 禁止穿模.
- *
- * Orientation and facing are {@link heroName}'s, unchanged: square to the world
- * grid on {@link NAME_AXIS}, the station's yaw cancelled, never turned to the lens.
- */
-const TAG_HEAD_TOP = 1.62
-const TAG_GAP = 0.34
-const TAG_CAP = 0.26
-
-/**
- * Lit like a screen. The letters at a little under unity: at 1.6 the glass's
- * bloom ran their strokes together (YOU read as YOW), and a name that cannot
- * be read has stopped being a name tag.
- */
-function glow(colour: string, strength = 1.6): T.MeshStandardMaterial {
-  return sharedMaterial(`os-glow:${colour}:${strength}`, () => new T.MeshStandardMaterial({
-    color: colour, emissive: colour, emissiveIntensity: strength, roughness: .6,
-  }))
-}
-
-function osTag(parent: T.Object3D, label: string, role: string, yaw: number): T.Group {
-  const g = new T.Group()
-  g.position.set(0, 0, NAME_FORWARD)
-  g.rotation.y = NAME_AXIS - yaw
-  parent.add(g)
-  const cap = TAG_CAP
-  const bottom = TAG_HEAD_TOP + TAG_GAP
-  const panel = new T.Group()
-  panel.userData.nameCap = cap
-  panel.userData.dynamic = true
-  panel.position.y = bottom + cap * .45
-  g.add(panel)
-  const letters = new T.Group()
-  panel.add(letters)
-  const width = letterBoxes(letters, label, cap, .03, OS.calm3) || cap * 3
-  letters.traverse((o) => { if (o instanceof T.Mesh) o.material = glow(OS.calm3, .85) })
-  const w = width + cap * 1.3
-  const h = cap * 1.9
-  // The panel: the interface's dark, a hairline frame of phosphor round it.
-  box(panel, 0, -cap * .45, -.05, w, h, .05, OS.n1)
-  const frame = [
-    box(panel, 0, -cap * .45 - .025, -.03, w + .05, .025, .07, OS.calm2),
-    box(panel, 0, -cap * .45 + h, -.03, w + .05, .025, .07, OS.calm2),
-    box(panel, -w / 2 - .0125, -cap * .45, -.03, .025, h, .07, OS.calm2),
-    box(panel, w / 2 + .0125, -cap * .45, -.03, .025, h, .07, OS.calm2),
-  ]
-  for (const bar of frame) bar.material = glow(OS.calm2)
-  // The role's tab, on the leading edge: identity on the object, as §7.1 wants.
-  box(panel, -w / 2 + cap * .18, -cap * .45 + h * .2, -.02, cap * .16, h * .6, .06, role)
-  // The stalk, from the panel's foot to just above the head, never into it.
-  const stalk = box(g, 0, TAG_HEAD_TOP + .1, -.03, .03, bottom - cap * .45 + cap * .45 - (TAG_HEAD_TOP + .1), .03, OS.calm2)
-  stalk.material = glow(OS.calm2)
-  batchArt(panel)
-  return g
 }
 
 /**

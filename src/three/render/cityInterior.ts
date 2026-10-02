@@ -106,7 +106,7 @@ export function createCityInterior(index: number, cast: StudioCast) {
   })
   batchArt(furniture); batchArt(peopleRoot, seats)
   let filled = -1
-  const hopping = new Map<number, number>()
+  const hopping = new Map<number, { started: number; mild: boolean }>()
   const identity = new T.Matrix4()
   return {
     root, targets,
@@ -116,12 +116,16 @@ export function createCityInterior(index: number, cast: StudioCast) {
       filled = n
       people.forEach((person, i) => { showSeatInstances(seats.get(i) ?? [], i < n); person.visible = i < n; targets[i].visible = i < n })
     },
-    hop(seat: number, now: number) { hopping.set(seat % 100, now) },
+    hop(seat: number, now: number, mild = false) {
+      const i = seat % 100
+      if (mild && hopping.has(i)) return
+      hopping.set(i, { started: now, mild })
+    },
     update(now: number) {
       const active=hopping.size>0
-      for(const [i,started] of hopping) {
+      for(const [i,{ started, mild }] of hopping) {
         const t=now-started,at=houseSeat(i),u=Math.max(0,Math.min(1,(t-.05)/.3))
-        const y=t<.35?.38*4*u*(1-u):0
+        const y=t<.35?(mild ? .08 : .38)*4*u*(1-u):0
         placeInstances(seats.get(i)??[],y?new T.Matrix4().makeTranslation(0,y,0):identity)
         people[i].position.set(at.x,at.y+y,at.z)
         if(t>=.45)hopping.delete(i)

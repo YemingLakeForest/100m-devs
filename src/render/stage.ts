@@ -43,7 +43,7 @@ import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   arrivedHeroes,
   currentEntropy,
-  baseVelocity, developerVelocity, founderPassiveVelocity, shelfBlocked,
+  baseVelocity, developerVelocity, shelfBlocked, burnedFraction, projectOrdinal,
   FLOATER_LIFE_MS,
   getState,
   poke,
@@ -60,6 +60,7 @@ import { MusicBus } from '../audio/music.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
 import { exceedsSlop } from './navigation.ts'
 import { createPassiveWork } from './passiveWork.ts'
+import { coverFor } from '../three/sim/cover.ts'
 import { jamesPresent } from '../sim/james.ts'
 import { isAway } from '../sim/slackOff.ts'
 import { createPokeCanvas } from './pokeText.ts'
@@ -239,7 +240,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   numeralTexture.colorSpace = T.NoColorSpace
   numeralTexture.minFilter = T.NearestFilter
   numeralTexture.magFilter = T.NearestFilter
-  const sizeNumerals = () => numerals.resize(w, h, garage.renderer.getPixelRatio())
+  const sizeNumerals = () => {
+    // A canvas changing size needs fresh GPU storage; otherwise the old larger
+    // overlay can leave duplicate labels behind after a phone rotation.
+    numeralTexture.dispose()
+    numerals.resize(w, h, garage.renderer.getPixelRatio())
+    numeralTexture.needsUpdate = true
+  }
   sizeNumerals()
 
   /** Client point -> the canvas's CSS pixels. */
@@ -304,8 +311,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const codeAtFounderDesk = ({ t0, sound = false }: { t0?: number; sound?: boolean } = {}): number => {
     const at = personAt(FOUNDER_SEAT) ?? { x: w / 2, y: h / 2 }
     const paid = pokeFounder(at.x, at.y)
-    garage.hop(FOUNDER_SEAT)
     if (paid <= 0) return 0
+    garage.hop(FOUNDER_SEAT)
     if (sound) playKeyboardClick()
     if (t0 !== undefined) requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
     return paid
@@ -358,7 +365,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     garage.hop(who)
 
     const lvl = level()
-    const result = poke(x, y, { rung: Math.round(lvl), index: who })
+    const at = personAt(who) ?? { x, y }
+    const result = poke(at.x, at.y, { rung: Math.round(lvl), index: who })
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
     const tier = tierOfLevel(lvl)
@@ -604,19 +612,21 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const people=working?workSeats.flatMap(seat=>{
       const at=garage.screenOf(seat)
       if(!at||at.x<w*.17||at.x>w*.83||at.y<h*.1||at.y>h*.82)return []
-      const rate=seat===FOUNDER_SEAT?founderPassiveVelocity(state):seat===JAMES_SEAT?jamesRate:isAway(state.slack,seat)?0:developerVelocity(seat,state)*(jamesWorking?state.devs/(state.devs+1):1)
+      const rate=seat===FOUNDER_SEAT?0:seat===JAMES_SEAT?jamesRate:isAway(state.slack,seat)?0:developerVelocity(seat,state)*(jamesWorking?state.devs/(state.devs+1):1)
       return [{seat,rate,x:at.x+(seat<0?34:0),y:at.y}]
     }):[]
-    const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat)})
+    const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat, true)})
     floaters=[...floaters,...passive]
-    if (numerals.draw(floaters, performance.now(), FLOATER_LIFE_MS)) numeralTexture.needsUpdate = true
-    numeralsLive = floaters.length > 0
 
     const theme = entropyTheme(currentEntropy(state))
     // §6 pass 3: a calm studio gets a tight halo on its lamps, a seizing one
     // the same lamps blown out — the strain moves *how much* comes back.
     garage.setBloom(glass.enabled && bloomOn ? (0.55 + theme.glass.bloom * 1.5) * 0.3 : 0)
+    garage.setProject(coverFor(state.runSeed, projectOrdinal(state), 0, state.sprintName), state.sprintName, burnedFraction(state))
     if (atlasZoom === null) garage.render(now / 1000)
+    const tags = atlasZoom === null ? garage.nameTags() : []
+    if (numerals.draw(floaters, performance.now(), FLOATER_LIFE_MS, tags)) numeralTexture.needsUpdate = true
+    numeralsLive = floaters.length > 0 || tags.length > 0
     // §7.7.2: existing whoosh/contact clips until bespoke thruster audio is approved.
     if (garage.ignitions > ignitionsHeard) {
       ignitionsHeard = garage.ignitions

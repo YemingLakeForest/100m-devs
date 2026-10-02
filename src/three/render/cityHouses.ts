@@ -152,7 +152,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
       })
       return active
     },
-    hop(seat: number) { const b = buildings[Math.floor((seat - offset) / HOUSE_CAPACITY)]; if (b && b.start === null) { if (b.interior?.root.visible) b.interior.hop(seat, clock); else b.hop = clock } },
+    hop(seat: number, mild = false) { const b = buildings[Math.floor((seat - offset) / HOUSE_CAPACITY)]; if (b && b.start === null) { if (b.interior?.root.visible) b.interior.hop(seat, clock, mild); else if (!mild) b.hop = clock } },
     codingSeats() { return buildings.flatMap(b=>b.interior?.root.visible?b.interior.targets.filter(t=>t.visible).map(t=>Number(t.userData.seat)):[]) },
     headOf(seat: number) { const b = buildings[Math.floor((seat - offset) / HOUSE_CAPACITY)]; return b && seat >= offset && seat < offset + staff ? (b.interior?.root.visible ? b.interior.headOf(seat) : b.group.position.clone().add(new T.Vector3(0, 4, 8))) : null },
     pick(ray: T.Raycaster) {

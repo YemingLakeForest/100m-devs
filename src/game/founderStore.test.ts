@@ -57,19 +57,12 @@ describe('the curve nothing can touch — §4.5d', () => {
     expect(founderVelocity()).toBe(small)
   })
 
-  it('is banked by tick, and it is the only thing moving in a seized studio', () => {
-    // §4.5d: "late game, your own hands are a small but reliable contribution in
-    // a studio where nothing else is reliable."
-    // Cash, or §4.10d's payroll bankrupts a hundred thousand people inside the
-    // first frame and `tick` stops early — which would measure the guard rather
-    // than the founder.
+  it('adds no founder output to a seized studio without clicks', () => {
     __setState({ devs: 100_000, devCap: 100, cash: 1e12 })
     const before = getState().burned.toNumber()
     for (let i = 0; i < 60; i++) tick(1 / 60)
-    const banked = getState().burned.toNumber() - before
-    // A second of ticks, so a second of your own rate, give or take the swarm's
-    // near-zero contribution.
-    expect(banked).toBeGreaterThanOrEqual(FOUNDER_BASE_RATE * 0.99)
+    expect(getState().burned.toNumber() - before).toBeLessThan(FOUNDER_BASE_RATE * .01)
+    expect(founderPassiveVelocity()).toBe(0)
   })
 })
 
@@ -100,11 +93,11 @@ describe('the garage is a clicker — §4.5d, amended 2026-08-30', () => {
     expect(getState().burned.toNumber()).toBeGreaterThan(before)
   })
 
-  it('starts trickling the moment there is somebody else on the floor', () => {
+  it('never produces passive founder points after hiring either', () => {
     __setState({ devs: 0 })
     expect(founderPassiveVelocity()).toBe(0)
     __setState({ devs: 1 })
-    expect(founderPassiveVelocity()).toBe(founderVelocity())
+    expect(founderPassiveVelocity()).toBe(0)
   })
 
   it('does not claim a velocity the burn-down is not moving at', () => {
@@ -121,12 +114,13 @@ describe('§10.1’s split — the you half is finally you', () => {
     __setState({ devs: 40, devCap: 100 })
     // R11 built this split so the player could tell their own contribution
     // apart. Until §4.5d there was nothing in it but pokes.
-    expect(pokeVelocity()).toBeGreaterThanOrEqual(founderVelocity())
+    expect(pokeVelocity()).toBe(0)
 
-    // The swarm half is untouched by the founder, and the you half is exactly
-    // your desk once the pokes are out of it.
+    // The swarm runs on its own; YOU rises only after the player's action.
     expect(baseVelocity()).toBeGreaterThan(0)
-    expect(pokeVelocity()).toBeCloseTo(founderVelocity(), 8)
+    expect(pokeVelocity()).toBe(0)
+    pokeFounder()
+    expect(pokeVelocity()).toBeGreaterThan(0)
   })
 })
 

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { pokeTextOffsets } from './pokeText.ts'
 
 describe('poke numeral and snippet layout', () => {
+  it('launches every code line just above the head, in a compact band', () => {
+    const lanes = Array.from({ length: 5 }, (_, i) => pokeTextOffsets(30, i))
+    for (const lane of lanes) expect(lane.snippetY + 12).toBeLessThan(0)
+    expect(Math.max(...lanes.map(l => l.numeralY)) - Math.min(...lanes.map(l => l.numeralY))).toBeLessThan(30)
+  })
   it('always leaves a visible gap between the numeral and code', () => {
     const first = pokeTextOffsets(20, 0)
     const last = pokeTextOffsets(20, 4)

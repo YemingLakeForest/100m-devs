@@ -12,7 +12,7 @@ import { garageNeighborhood } from './garageNeighborhood.ts'
 import { garageBackyard } from './garageBackyard.ts'
 import { GARAGE_DECK, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_GABLE, type Furniture } from '../sim/floorPlan.ts'
 import { HERO_LABELS, LEADER_COLOURS, leaderLook, studioPerson, workerLook, type StudioCast } from './studioPeople.ts'
-import { entrance, gableSign, garageDeskStory, garageForecourt, heroName, NAME_Y, street } from './garageDetails.ts'
+import { entrance, gableSign, garageDeskStory, garageForecourt, street } from './garageDetails.ts'
 import { craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garagePlatformFloor, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
 
 const hitGeometry = new T.BoxGeometry(1, 1, 1)
@@ -216,6 +216,7 @@ export function showGarageStations(env: Environment, staging: GarageStaging, cas
     placeProp(env.props?.get(`chair:${station.id}`), present >= 2 ? IDENTITY : null)
     const shown = station.id === 'founder' || present >= 3
     placeProp(env.props?.get(`body:${station.id}`), shown ? IDENTITY : null)
+    placeProp(env.props?.get(`name:${station.id}`), shown ? IDENTITY : null)
     const body = env.people.find(p => Number(p.userData.seat) === station.seat)
     if (body) body.visible = shown
     const hit = env.targets.find(t => t.rank === 0 && t.index === station.seat)
@@ -382,17 +383,18 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       /*
        * §12.11 — the name over their head, on a plate built into the room.
        *
-       * Parented to the *body* group rather than to the station, so it arrives
-       * with the person: James's plate drops in with James and there is never a
-       * frame where the garage is labelling an empty chair. `spot` is turned to
-       * face the desk, so the station's own yaw is handed over to be cancelled.
+       * The name belongs to the station, so coding hops cannot shake the text.
+       * Its visibility follows the person through showGarageStations.
        *
        * `HERO_LABELS` rather than the target's label: the person at this desk is
        * the player, and the game calls the player YOU everywhere else it speaks
        * — `scenes.PLAYER`, the dialogue's speaker plate, the portrait dock.
        */
-      heroName(seat, HERO_LABELS[station.id] ?? station.id.toUpperCase(), NAME_Y,
-        LEADER_COLOURS[station.id] ?? INK.teal, (station.rot * Math.PI) / 180)
+      // A transform-only anchor: the HUD paints the tag, so a jumping body
+      // cannot intersect a sign mesh or hide its lettering.
+      const tag = prop(env, spot, `name:${station.id}`)
+      tag.userData.label = HERO_LABELS[station.id] ?? station.id.toUpperCase()
+      tag.userData.colour = LEADER_COLOURS[station.id] ?? INK.teal
       studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, d.rise)
     }
   }

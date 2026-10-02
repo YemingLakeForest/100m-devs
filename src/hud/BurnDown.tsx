@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { burnedFraction, remaining, type GameState } from '../game/store.ts'
+import { burnedFraction, remaining, projectOrdinal, type GameState } from '../game/store.ts'
 import { Kw } from './Kw.tsx'
+import { Cover } from './Cover.tsx'
+import { coverFor } from '../three/sim/cover.ts'
 
 /**
  * The sprint burn-down — GDD §10.1, §10.4.
@@ -79,6 +81,10 @@ export function BurnDown({ state, children }: { state: GameState; children?: Rea
     <div className="burndown hud__block">
       <span className="hud__label">PROJECT</span>
       <div className="burndown__name">{state.sprintName.toUpperCase()}</div>
+      <div className="burndown__visual">
+      <div className="hud__project-cover">
+        <Cover spec={coverFor(state.runSeed, projectOrdinal(state), 0, state.sprintName)} title={state.sprintName} unrated />
+      </div>
       <svg
         className="burndown__chart"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -89,6 +95,7 @@ export function BurnDown({ state, children }: { state: GameState; children?: Rea
         <polyline className="burndown__ideal" points={ideal} />
         {history.length > 1 && <polyline className="burndown__actual" points={points} />}
       </svg>
+      </div>
       <span className="hud__sub burndown__readout">
         {/* The short form is for short frames (app.css): §10.7's belt took the
             line this readout used to wrap onto. It drops the unit rather than

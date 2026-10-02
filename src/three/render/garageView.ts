@@ -57,6 +57,7 @@ import { createCityHouses } from './cityHouses.ts'
 import { CITY_CAPACITY } from './cityGrid.ts'
 import { OS, OS_SKIN } from '../art/skin.ts'
 import type { Look } from '../sim/identity.ts'
+import type { HeroTag } from '../../render/heroTags.ts'
 
 export interface GarageView {
   /**
@@ -98,8 +99,10 @@ export interface GarageView {
   readonly zoom: number
   /** Pan by a drag of (dx, dy) CSS pixels: the room follows the finger. */
   panBy(dx: number, dy: number): void
-  /** A seat (-1 the founder, -2 James) hops, as a poke answers. */
-  hop(seat: number): void
+  /** Click hops include the founder; spontaneous work never does. */
+  hop(seat: number, mild?: boolean): void
+  nameTags(): HeroTag[]
+  setProject(spec: import('../sim/cover.ts').CoverSpec, title: string, progress: number): void
   codingSeats(): number[]
   /**
    * Ease the camera to a person — a seat, or -1 the founder, -2 James — for a
@@ -172,6 +175,7 @@ interface Anim {
   kind: 'hop' | 'drop' | 'lift'
   start: number
   delay: number
+  mild?: boolean
   /** A drop's pieces, each falling at its own offset: a hire is desk then person. */
   pieces?: { piece: Piece; at: number; puffed?: boolean }[]
 }
@@ -603,14 +607,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     shake = Math.max(shake, exhaust ? .025 : .12)
   }
 
-  function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces']) {
+  function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces'], mild = false) {
     // A hop does not interrupt a landing, and a second hop restarts the first.
     const running = anims.findIndex((a) => a.seat === seat)
     if (running >= 0) {
       if (anims[running].kind === 'drop' && kind === 'hop') return
       anims.splice(running, 1)
     }
-    anims.push({ seat, kind, start: clock, delay, pieces: pieces?.map((p) => ({ ...p })) })
+    anims.push({ seat, kind, start: clock, delay, mild, pieces: pieces?.map((p) => ({ ...p })) })
   }
 
   function animate() {
@@ -625,7 +629,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         // Crouch, spring, fly, land: under half a second.
         const y = t < .07 || t >= .37 ? 0 : .55 * Math.sin(Math.PI * (t - .07) / .3)
         const s = t < .07 ? 1 - .18 * (t / .07) : t < .37 ? 1.08 : t < .47 ? 1 - .14 * Math.sin(Math.PI * (t - .37) / .1) : 1
-        parts.forEach((p) => place(p, base, y, s))
+        const strength = a.mild ? .22 : 1
+        parts.forEach((p) => place(p, base, y * strength, 1 + (s - 1) * strength))
         if (t >= .47) { parts.forEach((p) => place(p, base, 0, 1)); anims.splice(i, 1) }
         continue
       }
@@ -857,10 +862,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const seats=env.targets.filter(t=>{for(let o:T.Object3D|null=t.mesh;o;o=o.parent)if(!o.visible)return false;return true}).map(t=>t.index)
       return [...seats,...city.codingSeats()]
     },
-    hop(seat) {
+    setProject(spec, title, progress) {
+      env.projectPlate?.update(spec, title, progress)
+    },
+    hop(seat, mild = false) {
+      if (seat === -1 && mild) return
       // Past twenty an ordinary seat is in the city.
-      if (seat >= 0 && heads === 0 && city.count > 0) city.hop(seat)
-      else start(seat, 'hop')
+      if (seat >= 0 && heads === 0 && city.count > 0) city.hop(seat, mild)
+      else start(seat, 'hop', 0, undefined, mild)
       dirty = true
     },
     render(seconds) {
@@ -909,15 +918,6 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         ao.ssaoMaterial.uniforms.cameraProjectionMatrix.value.copy(camera.projectionMatrix)
         ao.ssaoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(camera.projectionMatrixInverse)
       }
-      // Names remain readable through a modest zoom-out. At city distance the
-      // tags retire rather than swelling into a second interface over the map.
-      const ppm = w / span()
-      env.root.traverse(o => {
-        if (!o.userData.nameCap) return
-        const parentScale = o.parent?.getWorldScale(new T.Vector3()).y ?? 1
-        o.scale.setScalar(Math.max(1, Math.min(2.2, 9 / (o.userData.nameCap * ppm * parentScale * .816))))
-        o.visible = ppm * parentScale >= 14
-      })
       const hidden = env.targets.map((t) => t.mesh.visible)
       env.targets.forEach((t) => { t.mesh.visible = false })
       composer.render()
@@ -936,6 +936,31 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       if (hit) return live.find((t) => t.mesh === hit.object)?.index ?? null
       // Nobody in the garage under the finger: perhaps somebody in the city.
       return city.pick(ray)
+    },
+    nameTags() {
+      const tags: HeroTag[] = []
+      const project = (p: T.Vector3) => {
+        p.project(camera)
+        return { x: (p.x + 1) * w / 2, y: (1 - p.y) * h / 2 }
+      }
+      for (const [key, prop] of env.props ?? []) {
+        if (!key.startsWith('name:')) continue
+        const anchor = prop.group
+        let visible = true
+        for (let o: T.Object3D | null = anchor; o; o = o.parent) if (!o.visible) visible = false
+        const scale = anchor.getWorldScale(new T.Vector3()).y
+        const ppm = w / span() * scale
+        if (!visible || ppm < 14) continue
+        // The bottom of the HUD label stays above the maximum click hop.
+        // Its anchor belongs to the station, never to the animated body.
+        const world = anchor.localToWorld(new T.Vector3(0, 2.3, 0))
+        const at = project(world.clone())
+        if (at.x < 0 || at.x > w || at.y < -40 || at.y > h) continue
+        const right = project(world.clone().add(new T.Vector3(1, 0, 0)))
+        tags.push({ ...at, label: anchor.userData.label, colour: anchor.userData.colour,
+          slope: (right.y - at.y) / (right.x - at.x), size: Math.max(10, Math.min(16, ppm * .26)) })
+      }
+      return tags
     },
     screenOf(seat) {
       frame()

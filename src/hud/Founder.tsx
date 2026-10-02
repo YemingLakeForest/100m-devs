@@ -102,7 +102,7 @@ export function FounderProfilePanel({
         <aside className="founder-profile__identity">
           <FounderAvatar {...founder} label="YOU" />
           <dl>
-            <div><dt>OUTPUT</dt><dd>{founderOf().rate.toFixed(1)} <Kw>STORY POINTS</Kw>/S</dd></div>
+            <div><dt>OUTPUT</dt><dd>ON CLICK</dd></div>
             <div><dt>PER TAP</dt><dd>+{founderOf().tapValue.toFixed(0)} <Kw>STORY POINTS</Kw></dd></div>
             <div><dt>PAYROLL</dt><dd>$0</dd></div>
           </dl>

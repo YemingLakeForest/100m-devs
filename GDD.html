@@ -1512,26 +1512,11 @@ part, and is deliberately left open until 4.5a is built and can be felt.</p>
 <p><strong>What it must never be:</strong> an idle generator that plays itself, or a strictly-better
 alternative to hiring. If the optimal play is to fire everyone and code alone, the satire has
 eaten the game.</p>
-<h5 id="the-trickle-waits-for-the-first-hire-amended-2026-08-30">The trickle waits for the first hire <strong>[amended 2026-08-30]</strong></h5>
-<p><strong>While the studio is only you, the passive half of this curve is zero and the burn-down moves
-only when you tap.</strong> The tap (<code>pokeFounder</code>) is never gated — it is the act §21.0b is
-made of. From the first employee onward this section is unchanged: the one rate that is not
-multiplied by the swarm and not divided by §4.1.</p>
-<p>Reported as <em>&quot;when there's only us, the story points should not drop without us clicking&quot;</em>, and
-it is a defect in the <strong>script</strong> before it is one in the economy. §21.7.1 spends its entire
-notification budget on one <code>STUDIO_OS</code> line the moment James sits down —
-<code>STORY POINTS NOW BURN DOWN AUTOMATICALLY. NO TAPPING REQUIRED.</code> — because §21.7.1
-refuses a hire popup and insists that <strong>the second desk and the burn-down moving on its own is
-the whole announcement</strong>. <code>FOUNDER_BASE_RATE</code> is half a developer a second and nothing
-gated it, so the bar had been sliding since the title screen and the machine was announcing a
-change the player had already watched not happen. That is the one thing §21.0's &quot;an assertion
-is not something you can be betrayed by later, and evidence is&quot; cannot survive: the evidence
-was there before the claim.</p>
-<p>Nothing above is retracted to buy it. §4.5d's passive trickle is still half a developer, still
-undilutable, and still the floor under the clicker — it just needs somebody to trickle beside.
-And it strengthens the section's own first failure condition rather than weakening it: the
-garage is now unambiguously <strong>not an idle generator that plays itself</strong>, because before the
-first hire it does not play at all.</p>
+<h5 id="the-trickle-waits-for-the-first-hire-amended-2026-08-30">The founder codes only on clicks <strong>[amended 2026-10-01]</strong></h5>
+<p>The founder never produces passive story points, even after James or other developers arrive.
+Your points come only from player actions. The founder stays still when idle, but hops when clicked;
+the hop, code and points above the head provide the click response. This keeps YOU attributable to the
+player and makes James's arrival the start of automatic production.</p>
 <h3 id="the-fibonacci-estimation-ladder">4.6 The Fibonacci Estimation Ladder</h3>
 <p>Developers estimate in Fibonacci numbers because that is what Agile does, and the numbers
 are arbitrary because they were always arbitrary. Upgrades move you <strong>up the ladder</strong> rather
@@ -6297,7 +6282,7 @@ from the sprite index by a hash, so it is deterministic and free.</p>
 <p>The room tier's idle was <code>sin(t)</code> on Y, and it spent the whole cycle in the air: never still,
 never in contact with anything, exactly as long going up as coming down. At one developer
 that reads as breathing and at forty it reads as <strong>a field of buoys</strong>.</p>
-<p><strong>[amended 2026-09-30]</strong> Restore this work feedback in the three.js scene, including James: staggered coding hops and small passive point numerals at visible heads, driven by actual production and paused when the studio cannot code. Reduced motion preserves numerals without hops or rising motion.</p>
+<p><strong>[amended 2026-09-30]</strong> Restore this work feedback in the three.js scene, including James: staggered coding hops and small passive point numerals at visible heads, driven by actual production and paused when the studio cannot code. <strong>[amended 2026-10-02]</strong> Passive hops are about a fifth of the click response in height and squash; the founder hops only on clicks and never produces passive points. Hero name tags are HUD overlays rather than in-world sign meshes: dark translucent panels, Departure Mono lettering, cyan hairlines, and a role-colour tab. They preserve the projected isometric orientation and remain anchored to the station above the full click-hop height, so bodies cannot clip through them and labels never bounce. Reduced motion preserves numerals without hops or rising motion.</p>
 <p>A hop is the same one-curve budget spent differently, and <strong>the whole of the difference is
 the contact</strong>:</p>
 <table>
@@ -7461,6 +7446,7 @@ up and fades — this is the clicker layer's entire feedback loop and it has to 
 generous. Crits (Flow State, 10x) spawn a larger numeral with a brief chromatic-aberration
 punch on the HUD.</p>
 <h4 id="a-the-poke-also-emits-a-line-of-code-canon">8.2a The poke also emits a line of code <strong>[CANON]</strong></h4>
+<p><strong>[amended 2026-10-01]</strong> Click numerals and source lines launch in compact, staggered lanes immediately above the coder's head and rise together. Anchor every developer's feedback to their head, not the pointer; wide lanes below or far from the head make the feedback look sparse and disconnected.</p>
 <p>Beside the numeral, every poke throws off <strong>one short line of source code</strong> that arcs, fades
 and is gone in under a second. This is what the developer just wrote because you interrupted
 them, and it is the game's highest-frequency joke delivery: at 4–5 taps a second in the first
@@ -7586,6 +7572,7 @@ from freezing entirely.)</li>
 <hr />
 <h2 id="ui-hud-design">10. UI &amp; HUD Design</h2>
 <h3 id="main-gameplay-screen-component-table-canon">10.1 Main gameplay screen component table <strong>[CANON]</strong></h3>
+<p><strong>[amended 2026-10-02]</strong> The active game's full cover appears immediately to the left of the burn-down chart in the upper-left HUD, sharing its row. The studio whiteboard prints that same cover progressively as story points burn down, followed by its title. Both use the active project's seed and ordinal so the picture stays consistent through hiring, loading, and the next project.</p>
 <table>
 <thead>
 <tr>

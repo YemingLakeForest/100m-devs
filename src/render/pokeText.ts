@@ -18,6 +18,7 @@
  */
 
 import { RAMPS } from '../art/palette.ts'
+import { drawHeroTag, type HeroTag } from './heroTags.ts'
 
 const NUMERAL_SIZE = 20
 const CRIT_SIZE = 30
@@ -36,7 +37,7 @@ export interface PokeTextOffsets {
 }
 
 /**
- * Five callout lanes around the point that was coded. Adjacent lanes are never
+ * Compact callout lanes above the head that coded. Adjacent lanes are never
  * the same, so rapid taps cannot place two successive messages on top of one
  * another. The line of code and its numeral share one anchor inside the lane:
  * they are one event and rise together as one unit.
@@ -46,11 +47,11 @@ export function pokeTextOffsets(
   sequence = 0,
 ): PokeTextOffsets {
   const lanes = [
-    { x: 0, y: -100 },
-    { x: -18, y: -50 },
-    { x: 18, y: 0 },
-    { x: -10, y: 50 },
-    { x: 10, y: 100 },
+    { x: 0, y: -54 },
+    { x: -12, y: -66 },
+    { x: 12, y: -78 },
+    { x: -6, y: -60 },
+    { x: 6, y: -72 },
   ] as const
   const lane = lanes[((Math.floor(sequence) % lanes.length) + lanes.length) % lanes.length]
   return {
@@ -115,7 +116,7 @@ export interface PokeCanvas {
    * frame it is cleared on — so the texture over it is only re-uploaded when
    * there is something new to see.
    */
-  draw(floaters: readonly PokeFloater[], now: number, lifeMs: number): boolean
+  draw(floaters: readonly PokeFloater[], now: number, lifeMs: number, tags?: readonly HeroTag[]): boolean
 }
 
 export function createPokeCanvas(): PokeCanvas {
@@ -148,15 +149,16 @@ export function createPokeCanvas(): PokeCanvas {
       ctx = null
       shown = true
     },
-    draw(floaters, now, lifeMs) {
-      if (floaters.length === 0 && !shown) return false
+    draw(floaters, now, lifeMs, tags = []) {
+      if (floaters.length === 0 && tags.length === 0 && !shown) return false
       ctx ??= canvas.getContext('2d')
       if (!ctx) return false
       const c = ctx
       c.setTransform(1, 0, 0, 1, 0, 0)
       c.clearRect(0, 0, canvas.width, canvas.height)
-      shown = floaters.length > 0
+      shown = floaters.length > 0 || tags.length > 0
       c.setTransform(ratio, 0, 0, ratio, 0, 0)
+      for (const tag of tags) drawHeroTag(c, tag)
       c.textAlign = 'center'
       c.textBaseline = 'top'
       c.lineJoin = 'round'
@@ -169,7 +171,11 @@ export function createPokeCanvas(): PokeCanvas {
         const size = f.passive ? 14 : f.crit ? CRIT_SIZE : NUMERAL_SIZE
         const lane = f.passive ? {numeralX:0,numeralY:-24,snippetX:0,snippetY:0} : pokeTextOffsets(size, f.id - 1)
         const x = f.x
-        const y = f.y - (f.still ? 0 : age * (f.passive ? 30 : RISE))
+        // Clear the stationary name tag in the first beat, then drift slowly
+        // enough to read. All clicks still originate at the head, not in a
+        // scattered ring of distant callouts.
+        const launch = f.passive ? 0 : 64 * (1 - Math.pow(1 - Math.min(1, Math.max(0, (now - f.bornAt) / 180)), 3))
+        const y = f.y - (f.still ? 0 : launch + age * (f.passive ? 30 : RISE))
         c.globalAlpha = alpha
         text(c, f.unblocked ? 'UNBLOCKED' : formatPokeNumeral(f.sp), x + lane.numeralX, y + lane.numeralY, size, f.passive ? RAMPS.NEUTRAL[7] : numeralColour(f.sp, f.crit, f.unblocked), f.passive ? 3 : 4)
         // §8.2a. Null for an Overwhelmed developer, who has nothing to say —

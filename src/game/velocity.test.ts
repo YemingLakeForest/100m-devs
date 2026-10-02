@@ -14,7 +14,6 @@ import {
   __setState,
   baseVelocity,
   currentEffectiveVelocity,
-  founderVelocity,
   currentVelocity,
   getState,
   poke,
@@ -44,13 +43,8 @@ function tap(rate: number, seconds: number) {
 }
 
 describe('effective velocity', () => {
-  it('is the swarm plus your own desk when nobody is poking', () => {
-    // This used to assert equality with `currentVelocity`, and §4.5d is what
-    // changed it: the founder's desk produces whether or not a thumb is on the
-    // glass. The swarm half is unchanged, and the difference is exactly you —
-    // which is also the claim §10.1's `swarm + you` split makes on screen.
-    expect(currentEffectiveVelocity()).toBeCloseTo(currentVelocity() + founderVelocity(), 10)
-    expect(founderVelocity()).toBeGreaterThan(0)
+  it('is only the swarm when nobody is clicking', () => {
+    expect(currentEffectiveVelocity()).toBeCloseTo(currentVelocity(), 10)
   })
 
   it('rises the moment the player starts poking', () => {

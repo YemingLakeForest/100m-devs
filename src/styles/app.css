@@ -508,6 +508,7 @@ body {
 }
 
 .hud__resources {
+  position: relative;
   flex: 0 0 auto;
   display: grid;
   gap: 6px;
@@ -515,6 +516,29 @@ body {
   /* Pinned to the rail, not to the column: the column breathes to fit the
      action button and the readouts must not breathe with it. */
   width: var(--hud-rail);
+}
+
+.burndown {
+  --burndown-height: 40px;
+}
+
+.burndown__visual {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Art and burn-down share a row and the same short-frame height budget. */
+.hud__project-cover {
+  flex: 0 0 var(--burndown-height);
+  width: var(--burndown-height);
+  aspect-ratio: 1;
+}
+
+.hud__project-cover .cover {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .hud__script {
@@ -725,8 +749,10 @@ body {
 
 .burndown__chart {
   display: block;
-  width: 100%;
-  height: 40px;
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  height: var(--burndown-height);
   margin: 2px 0;
   border-left: var(--rule) solid var(--p1);
   border-bottom: var(--rule) solid var(--p1);
@@ -1736,8 +1762,8 @@ body {
  * breakpoint, it is a decoration.
  */
 @media (max-height: 520px) {
-  .burndown__chart {
-    height: 28px;
+  .burndown {
+    --burndown-height: 28px;
   }
 
   /* Both charts give height back on a short frame, and the revenue graph gives
@@ -1855,8 +1881,8 @@ body {
  * where it turns out to have been needed all along.
  */
 @media (max-height: 470px) {
-  .burndown__chart {
-    height: 20px;
+  .burndown {
+    --burndown-height: 20px;
   }
 
   /*
