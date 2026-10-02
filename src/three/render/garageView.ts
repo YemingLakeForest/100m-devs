@@ -110,6 +110,13 @@ export interface GarageView {
    * player's own zoom or pan ends it.
    */
   focus(seat: number | null, screenY?: number): void
+  /**
+   * Turn a person to face the lens while they speak, and back to the desk when
+   * somebody else does or on `null` — the old room's `setSpeaker`. Separate from
+   * `focus` on purpose: the founder is framed for CODE too, and coding is done
+   * with your back to the camera.
+   */
+  setSpeaker(seat: number | null): void
   /** Is anybody at this seat still falling or hopping? */
   animating(seat: number): boolean
   /** Is the camera still on its way to a `focus`? A drop waits for it to arrive. */
@@ -338,6 +345,13 @@ export function createGarageView(width: number, height: number, cast: StudioCast
    * where the player had it, to go back to when the scene ends.
    */
   let focusOn: { pan: T.Vector3; zoom: number } | null = null
+  /**
+   * People turned toward the lens for a line, by the group that turns, with the
+   * yaw it had at its desk. A released one eases home and is dropped once there.
+   */
+  let speaking: T.Object3D | null = null
+  const turned = new Map<T.Object3D, number>()
+  const FACE_RATE = 9
   let saved: { pan: T.Vector3; zoom: number } | null = null
   let shake = 0
   /** Something the picture shows has changed since it was last drawn. */
@@ -451,6 +465,37 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   }
 
   /** The camera's own right and up, in the world — a drag and a zoom anchor move along these. */
+  /**
+   * Ease the speaker round to face the lens and everyone released back to their
+   * desk. The camera looks along a fixed (1, 1, 1), so "toward the lens" is one
+   * world heading, and a figure's front is local -Z (its face is built at
+   * z -0.2). The turning group sits under a station that is itself turned and
+   * holds the person at a yaw of its own, so the heading is worked out against
+   * both rather than assumed.
+   */
+  const FACING = Math.atan2(-1, -1)
+  function turnPeople(dt: number) {
+    const k = 1 - Math.exp(-FACE_RATE * dt)
+    for (const [group, rest] of turned) {
+      let to = rest
+      if (group === speaking) {
+        const parent = group.parent?.getWorldQuaternion(new T.Quaternion()) ?? new T.Quaternion()
+        const parentYaw = new T.Euler().setFromQuaternion(parent, 'YXZ').y
+        const person = group.children.find((c) => c.userData.dynamic) ?? group.children[0]
+        to = FACING - parentYaw - (person?.rotation.y ?? 0)
+      }
+      // The short way round, whatever the angles have accumulated to.
+      const delta = Math.atan2(Math.sin(to - group.rotation.y), Math.cos(to - group.rotation.y))
+      if (Math.abs(delta) < .002) {
+        group.rotation.y = to
+        if (group !== speaking) turned.delete(group)
+      } else {
+        group.rotation.y += delta * k
+        dirty = true
+      }
+    }
+  }
+
   function axes() {
     frame()
     return {
@@ -877,6 +922,13 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       focusOn = { pan: targetPan, zoom: targetZoom }
       dirty = true
     },
+    setSpeaker(seat) {
+      const group = seat === null ? null : body(seat)[0]?.group ?? null
+      if (group === speaking) return
+      speaking = group
+      if (group && !turned.has(group)) turned.set(group, group.rotation.y)
+      dirty = true
+    },
     animating(seat) {
       return anims.some((a) => a.seat === seat)
     },
@@ -951,6 +1003,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
           if (!saved) focusOn = null
         } else dirty = true
       }
+      if (turned.size > 0) turnPeople(1 / 60)
       frame()
       if (city.setView(camera, w / span())) { dirty = true; renderer.shadowMap.needsUpdate = true }
       // Nothing moved but the typing: draw at the ambient rate, and leave the

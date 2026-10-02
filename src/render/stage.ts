@@ -295,6 +295,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if (seat === null) return
     if (atlasZoom !== null) travel(1, -1)
     garage.focus(seat)
+    garage.setSpeaker(seat)
     sceneFocus = true
   }
 
@@ -559,6 +560,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       jamesCued = false
       if (sceneFocus) {
         garage.focus(null)
+        garage.setSpeaker(null)
         sceneFocus = false
       }
     }
@@ -732,6 +734,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     cueJames() {
       if (jamesCued) return
       jamesCued = true
+      // The camera goes to his spot, but the line is still the founder's: they
+      // stay turned to the lens for *What—* and James is turned by his own line.
       garage.focus(JAMES_SEAT)
       sceneFocus = true
     },
