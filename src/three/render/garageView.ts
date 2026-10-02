@@ -196,6 +196,17 @@ const MOVE_AFTER = 1.6
 const MOVE_STEP = 0.07
 /** The studio a garage holds: five pods of four (§7.8.0). */
 const GARAGE_CAP = 20
+/**
+ * Device pixels per pixel of the 3D picture at the resting zoom. The grid
+ * follows the lens (zoomed out it shrinks to one device pixel, so the city
+ * stays readable) but is *capped* at PIXEL_MAX: a grid that kept growing with
+ * the zoom turned the two founders' faces into blobs at the closest lens, so
+ * the finest grain the game has is held there. Whole numbers only: a
+ * fractional ratio magnified with nearest sampling gives uneven pixels.
+ */
+const PIXEL_AT_REST = 2
+const PIXEL_MAX = 2
+const pixelFor = (zoom: number) => Math.max(1, Math.min(PIXEL_MAX, Math.round(PIXEL_AT_REST * zoom / GARAGE_REST_ZOOM)))
 interface Rest { position: T.Vector3; scale: T.Vector3 }
 interface Part { key: string; instances: SeatInstance[]; group: T.Object3D | null }
 
@@ -245,7 +256,41 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   }
 
   const composer = new EffectComposer(renderer)
-  composer.renderTarget1.samples = 4; composer.renderTarget2.samples = 4
+  /*
+   * Pixel-art 3D: the room is drawn into targets `pixel` CSS pixels to the
+   * texel and the glass magnifies them with nearest-neighbour sampling, so the
+   * 3D geometry resolves into chunky, hard-edged pixels. No MSAA for the same
+   * reason — multisampling would blend the stair-stepped edges back to smooth.
+   * `pixel` follows the zoom (`pixelFor`), so the grid is fixed in the world.
+   * At `pixel` 1 there is no grid left to show: the targets go back to the
+   * screen's own device resolution, smoothed and multisampled, so the zoomed-
+   * out city is as sharp as it was before the pixel look, not a 1×-CSS-pixel
+   * picture doubled up on a high-density screen.
+   */
+  let pixel = PIXEL_AT_REST
+  // `pixel` counts device pixels, so a retina screen gets a finer grid than a 1× one.
+  const grainRatio = () => renderer.getPixelRatio() / pixel
+  function setGrain(next: number) {
+    pixel = next
+    composer.setPixelRatio(grainRatio())
+    for (const target of [composer.renderTarget1, composer.renderTarget2]) {
+      const filter = pixel === 1 ? T.LinearFilter : T.NearestFilter
+      target.texture.minFilter = filter
+      target.texture.magFilter = filter
+      target.samples = pixel === 1 ? 4 : 0
+      // A new sample count only takes on a freshly allocated framebuffer.
+      target.dispose()
+    }
+    ao?.setSize(w * grainRatio(), h * grainRatio())
+    bloom.setSize(w * grainRatio(), h * grainRatio())
+  }
+  // The first frame's grain; `setGrain` takes over from the first render.
+  composer.setPixelRatio(grainRatio())
+  for (const target of [composer.renderTarget1, composer.renderTarget2]) {
+    target.samples = 0
+    target.texture.minFilter = T.NearestFilter
+    target.texture.magFilter = T.NearestFilter
+  }
   composer.addPass(new RenderPass(scene, camera))
   // Off on a phone: it draws the whole scene a second time (normals and depth)
   // and then samples it sixteen times a pixel, and at night under the glass it
@@ -798,8 +843,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       w = Math.max(1, width); h = Math.max(1, height)
       renderer.setSize(w, h, false)
       composer.setSize(w, h)
-      ao?.setSize(w, h)
-      bloom.setSize(w, h)
+      ao?.setSize(w * grainRatio(), h * grainRatio())
+      bloom.setSize(w * grainRatio(), h * grainRatio())
       // The frame's shape decides how far out the whole studio needs.
       if (env) reframeLimits()
       dirty = true
@@ -925,6 +970,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         ao.ssaoMaterial.uniforms.cameraProjectionMatrix.value.copy(camera.projectionMatrix)
         ao.ssaoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(camera.projectionMatrixInverse)
       }
+      const wanted = pixelFor(zoom)
+      if (wanted !== pixel) setGrain(wanted)
       const hidden = env.targets.map((t) => t.mesh.visible)
       env.targets.forEach((t) => { t.mesh.visible = false })
       composer.render()
