@@ -182,8 +182,8 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
       'Sprint Commitment: 300 story points',
       'Employees: 0 // just you',
     ],
-    bubble: 'Okay... just need to write 300 lines of code. Simple enough.',
-    advisor: 'Choose CODE, then tap yourself or your desk.',
+    bubble: 'Founder. Developer. Person who forgot the semicolon. All me.',
+    advisor: 'Press CODE to finish your app. Build and Test run automatically; then press SHIP!',
   },
 
   act1_james: {

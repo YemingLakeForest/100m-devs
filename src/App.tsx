@@ -4,7 +4,7 @@ import {
   __parkBuild,
   __setState,
   jumpToPhase,
-  PROJECTS,
+  projectTitle,
   saveGame,
   selectDeveloper,
   startNewGame,
@@ -400,7 +400,8 @@ export default function App() {
       {studioBootUp && founderProfile && (
         <StudioBoot
           founderName={founderProfile.name}
-          projectName={PROJECTS[0].name}
+          projectName={projectTitle().name}
+          stage={stage}
           onDone={() => {
             setStudioBootUp(false)
             setStarted(true)

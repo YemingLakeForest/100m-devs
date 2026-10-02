@@ -40,6 +40,8 @@ export function CutScene({ pages, onDone }: CutSceneProps) {
   const [leaving, setLeaving] = useState(false)
   const exitMs = motionMs(BOOT_EXIT_MS, reduced)
   const last = page >= pages.length - 1
+  const screenRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { screenRef.current?.focus() }, [])
 
   // Latched, for the same reason the title latches its own: an inline arrow
   // from the caller changes identity on every parent render and would restart
@@ -73,10 +75,20 @@ export function CutScene({ pages, onDone }: CutSceneProps) {
 
   return (
     <div
+      ref={screenRef}
+      role="button"
+      tabIndex={0}
+      aria-label="Continue story"
       className="studio-boot"
       data-phase={leaving ? 'exit' : 'in'}
       style={{ '--boot-exit': `${exitMs}ms` } as CSSProperties}
       onClick={handleTap}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          if (!event.repeat) handleTap()
+        }
+      }}
     >
       <div className="studio-boot__scanlines" aria-hidden="true" />
       <pre className="studio-boot__page">
@@ -88,6 +100,7 @@ export function CutScene({ pages, onDone }: CutSceneProps) {
           onComplete={() => setCompleted(true)}
         />
       </pre>
+      <span className="studio-boot__hint">Tap or press Enter to continue</span>
     </div>
   )
 }

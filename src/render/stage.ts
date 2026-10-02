@@ -95,6 +95,8 @@ export interface StageHandle {
    * picture now, so this eases the camera back to it framed at rest.
    */
   focusTeam(): void
+  /** Establish the player's own desk without the dialogue camera's restore. */
+  focusFounder(): void
   /**
    * §10.7a.1 — point the lens at the dialogue's current speaker. `'founder'`
    * is the corner desk, a number is a story hero's index (0 is James), `null`
@@ -706,6 +708,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     focusTeam() {
       travel(1, -1)
       playUi('whoosh')
+    },
+    focusFounder() {
+      if (atlasZoom !== null) travel(1, -1)
+      garage.focus(FOUNDER_SEAT, 0.34)
     },
     focusDialogue(focus) {
       focusDialogue(focus)

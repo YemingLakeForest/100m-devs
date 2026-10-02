@@ -1,0 +1,29 @@
+/* §21 Act I: the desk is the establishing shot; the editor is its caption. */
+.studio-start { position: absolute; inset: 0; z-index: 80; color: var(--p3); font-family: var(--font-terminal); }
+.studio-start__identity { position: absolute; top: 5%; left: 5%; display: grid; gap: 8px; max-width: 90%; padding: 12px; background: var(--n0); border-left: 3px solid var(--p2); font-size: var(--type-1x); }
+.studio-start__identity span, .studio-start__chapter { color: var(--p2); }
+.studio-start__you { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); text-align: center; font-size: var(--type-1x); line-height: 1.8; background: var(--n0); padding: 4px 10px; }
+.studio-start__panel { position: absolute; bottom: 4%; left: 5%; right: 5%; display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; background: var(--n0); border: 1px solid var(--p1); padding: 18px; max-height: 48%; overflow-y: auto; }
+.studio-start__chapter { font-size: var(--type-1x); }
+.studio-start h1 { font-size: var(--type-2x); line-height: 1.25; margin: 8px 0; }
+.studio-start__story p { font-size: var(--type-1x); line-height: 1.6; margin: 8px 0 12px; max-width: 68ch; }
+.studio-start__hint { display: block; font-size: var(--type-1x); line-height: 1.4; margin-top: 10px; color: var(--n6); }
+.studio-start__editor { align-self: center; min-width: 0; border: 1px solid var(--n3); font-size: var(--type-1x); }
+.studio-start__filename { padding: 10px; border-bottom: 1px solid var(--n3); overflow-wrap: anywhere; }
+.studio-start__filename span { display: block; color: var(--n6); margin-top: 5px; }
+.studio-start__editor pre { font: inherit; line-height: 2; margin: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.studio-start__editor pre b { display: inline-block; width: 3ch; color: var(--n4); font-weight: normal; }
+.studio-start__editor p { margin: 10px; color: var(--n6); line-height: 1.5; }
+.studio-start .ui-btn:focus-visible { outline: 2px solid var(--p3); outline-offset: 4px; }
+@media (max-height: 540px) {
+  .studio-start__panel { padding: 10px 14px; gap: 16px; max-height: 48%; bottom: 3%; }
+  .studio-start h1 { font-size: var(--type-1x); margin: 5px 0; }
+  .studio-start__story p { margin: 5px 0 8px; line-height: 1.35; }
+  .studio-start__hint { margin-top: 6px; }
+  .studio-start__editor pre { line-height: 1.6; }
+  .studio-start__identity { top: 3%; padding: 8px; gap: 5px; }
+}
+@media (max-width: 600px) {
+  .studio-start__panel { grid-template-columns: 1fr; }
+  .studio-start__you { width: max-content; max-width: 90%; }
+}

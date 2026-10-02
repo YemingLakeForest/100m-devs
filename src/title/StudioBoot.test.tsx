@@ -1,74 +1,46 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { StageHandle } from '../render/stage.ts'
 import { StudioBoot } from './StudioBoot.tsx'
-import { playUi } from '../ui/uiSfx.ts'
 
 vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn() }))
 
-afterEach(cleanup)
+afterEach(() => { cleanup(); vi.useRealTimers() })
 
-beforeEach(() => {
+function setup(value = 1) {
   vi.useFakeTimers()
-  vi.mocked(playUi).mockClear()
-})
+  const stage = { focusFounder: vi.fn(), codeFounder: vi.fn(() => value) }
+  const onDone = vi.fn()
+  render(<StudioBoot founderName="Anson" projectName="Tiny Moon" stage={stage as unknown as StageHandle} onDone={onDone} />)
+  expect(screen.getAllByText('You had an idea for an app.').length).toBeGreaterThan(0)
+  const prologue = document.querySelector('.studio-boot')!
+  for (let i = 0; i < 6; i++) fireEvent.click(prologue)
+  act(() => vi.advanceTimersByTime(400))
+  return { stage, onDone }
+}
 
-afterEach(() => {
-  vi.useRealTimers()
-})
-
-describe('the STUDIO_OS boot cut scene', () => {
-  // §15.1a — the screen itself is `CutScene` now, and §15.1a's reboot is its
-  // second caller. These stay pointed at `StudioBoot` deliberately: what they
-  // are about is the *boot* — which words, in which order, on the first launch
-  // of an install — and that is still this component's job.
-
-  it('moves through the pages one click at a time', () => {
-    const onDone = vi.fn()
-    const { container } = render(
-      <StudioBoot founderName="Anson" projectName="Flappy Square 1.0" onDone={onDone} />,
-    )
-    const overlay = container.firstElementChild as HTMLElement
-
-    expect(screen.getAllByText(/STUDIO_OS v0\.0\.1 initialized/).length).toBeGreaterThan(0)
-
-    // §10.7 rule 1 — the first click completes the page it interrupts.
-    fireEvent.click(overlay)
-    expect(screen.getAllByText(/STUDIO_OS v0\.0\.1 initialized/).length).toBeGreaterThan(0)
-
-    // A click on a finished page moves on.
-    fireEvent.click(overlay)
-    expect(screen.getAllByText(/project: Flappy Square 1\.0/).length).toBeGreaterThan(0)
-
-    fireEvent.click(overlay)
-    fireEvent.click(overlay)
-    expect(screen.getAllByText(/founder: Anson/).length).toBeGreaterThan(0)
-
-    fireEvent.click(overlay)
-    fireEvent.click(overlay)
-    expect(screen.getAllByText('ready.').length).toBeGreaterThan(0)
+describe('first app opening', () => {
+  it('centres the founder and teaches with real coding before handing over', () => {
+    const { stage, onDone } = setup()
+    expect(stage.focusFounder).toHaveBeenCalledOnce()
+    expect(screen.getByText('Tiny Moon')).toBeInTheDocument()
+    expect(screen.getByText(/Anson, founder/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s write this app' }))
+    expect(stage.codeFounder).not.toHaveBeenCalled()
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'CODE' }))
+    expect(stage.codeFounder).toHaveBeenCalledTimes(3)
+    expect(screen.getByText(/Build and Test run automatically/)).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
-    expect(vi.mocked(playUi)).not.toHaveBeenCalledWith('start')
-
-    // The last page obeys rule 1 like every other: the first click completes
-    // it, and the click on the finished page lights the room up and hands the
-    // desk over.
-    fireEvent.click(overlay)
-    expect(onDone).not.toHaveBeenCalled()
-    fireEvent.click(overlay)
-    expect(vi.mocked(playUi)).toHaveBeenCalledWith('start')
-    act(() => vi.advanceTimersByTime(340))
+    fireEvent.click(screen.getByRole('button', { name: 'Keep coding' }))
     expect(onDone).toHaveBeenCalledOnce()
   })
 
-  it('never advances on its own — the player reads the boot at their own pace', () => {
-    const onDone = vi.fn()
-    render(<StudioBoot founderName="Anson" projectName="Flappy Square 1.0" onDone={onDone} />)
-
-    // Time passes, nothing types past the clock that time owns, and no click
-    // has happened — the first page must still be the only page.
-    act(() => vi.advanceTimersByTime(10_000))
-    expect(screen.getAllByText(/STUDIO_OS v0\.0\.1 initialized/).length).toBeGreaterThan(0)
-    expect(screen.queryByText(/project: Flappy Square 1\.0/)).not.toBeInTheDocument()
+  it('does not claim progress when the game refuses a coding action', () => {
+    const { stage, onDone } = setup(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s write this app' }))
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'CODE' }))
+    expect(stage.codeFounder).toHaveBeenCalledTimes(3)
+    expect(screen.getByText(/0 \/ 3 lines/)).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
   })
 })

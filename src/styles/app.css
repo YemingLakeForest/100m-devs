@@ -1939,33 +1939,10 @@ body {
     display: none;
   }
 
-  /*
-   * §4.5d's corner shortcut gives way, and **one clause of the reason it gave
-   * way is false** — measured 2026-08-18, walking §26.1.8 item 9. See §13.7.1a.
-   *
-   * The original note read: *"the corner is a convenience duplicate of a gesture
-   * the game teaches in its first thirty seconds… tapping your avatar still
-   * opens the Management tree; nothing here is unreachable."* The gesture half
-   * stands. What stops being true at about twelve developers is the *view* it
-   * happens in: §7.8.10 pins the founder's workstation to a fixed point and the
-   * room grows away from it, so a fresh load's frame no longer contains the
-   * corner — measured at 997x448, the largest frame in §23.4.2's box, the
-   * avatar is on screen at 8 developers and at no headcount above it. It stays
-   * reachable by dragging the floor (§7.7.6), and a player who has poked
-   * themselves is already parked there, so this is a discoverability cost
-   * rather than a dead control.
-   *
-   * **Restoring the slab was tried and refused by the rail**, which is why this
-   * rule is still here: at 640x360 with §26.1.8's `?full` fixture the wrap
-   * absorbs the button into an existing row and the row below it — §10.1's
-   * UPGRADES — is then clipped by four pixels. §10.1a's rails are full, "a new
-   * control does not get to evict canon", and shaving the gaps to fit is the
-   * exact pattern the note on `.hud__controls` calls an artefact. The fix that
-   * costs no pixels is a camera bias and that is a composition decision;
-   * §13.7.1a states both options and it is on the blocked-on-a-human list.
-   */
+  /* §13.7.1a [2026-10-02]: CODE is the primary action on phones too.
+   * Avatar gestures cannot substitute for a visible, named control. */
   .founder__corner {
-    display: none;
+    display: grid;
   }
 
   /*

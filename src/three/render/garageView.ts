@@ -109,7 +109,7 @@ export interface GarageView {
    * line of dialogue, and back to where the player had it on `null`. The
    * player's own zoom or pan ends it.
    */
-  focus(seat: number | null): void
+  focus(seat: number | null, screenY?: number): void
   /** Is anybody at this seat still falling or hopping? */
   animating(seat: number): boolean
   /** Is the camera still on its way to a `focus`? A drop waits for it to arrive. */
@@ -809,7 +809,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       dirty = true
     },
     get zoom() { return zoom },
-    focus(seat) {
+    focus(seat, screenY = 0.5) {
       if (seat === null) {
         if (saved) focusOn = saved
         saved = null
@@ -822,7 +822,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       // Look straight at their head; an orthographic view has no distance to fix.
       const at = cityAt ?? t!.mesh.getWorldPosition(new T.Vector3())
       if (!cityAt) at.y += t!.mesh.scale.y * 0.3
-      focusOn = { pan: at.sub(env.focus), zoom: Math.max(zoom, 1.9) }
+      const targetZoom = Math.max(zoom, 1.9)
+      // The opening leaves the lower part of the frame for instructions.
+      // Offset in camera-up space so the founder stays horizontally centred
+      // at every landscape aspect ratio, without changing dialogue framing.
+      const viewHeight = span() * zoom / targetZoom * h / w
+      const targetPan = at.sub(env.focus)
+      if (screenY !== 0.5) targetPan.addScaledVector(axes().up, (screenY - 0.5) * viewHeight)
+      focusOn = { pan: targetPan, zoom: targetZoom }
       dirty = true
     },
     animating(seat) {
