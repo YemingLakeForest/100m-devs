@@ -25,9 +25,11 @@ const CRIT_SIZE = 30
 const SNIPPET_SIZE = 12
 
 /** How far a floater rises over its life, in CSS pixels. */
-const RISE = 58
+const RISE = 24
 /** The last fraction of its life over which a floater fades. */
 const FADE = 0.3
+/** The margin a floater keeps from the frame's edge, in CSS pixels. */
+const EDGE = 12
 
 export interface PokeTextOffsets {
   numeralX: number
@@ -123,6 +125,7 @@ export function createPokeCanvas(): PokeCanvas {
   const canvas = document.createElement('canvas')
   let ctx: CanvasRenderingContext2D | null = null
   let ratio = 1
+  let frameW = Infinity, frameH = Infinity
   let shown = false
 
   // The one face in the product (ART_DIRECTION §3). The generic fallback
@@ -144,6 +147,7 @@ export function createPokeCanvas(): PokeCanvas {
     canvas,
     resize(width, height, pixelRatio) {
       ratio = pixelRatio
+      frameW = width; frameH = height
       canvas.width = Math.max(1, Math.round(width * ratio))
       canvas.height = Math.max(1, Math.round(height * ratio))
       ctx = null
@@ -170,12 +174,25 @@ export function createPokeCanvas(): PokeCanvas {
         if (alpha <= 0) continue
         const size = f.passive ? 14 : f.crit ? CRIT_SIZE : NUMERAL_SIZE
         const lane = f.passive ? {numeralX:0,numeralY:-24,snippetX:0,snippetY:0} : pokeTextOffsets(size, f.id - 1)
-        const x = f.x
         // Clear the stationary name tag in the first beat, then drift slowly
         // enough to read. All clicks still originate at the head, not in a
         // scattered ring of distant callouts.
-        const launch = f.passive ? 0 : 64 * (1 - Math.pow(1 - Math.min(1, Math.max(0, (now - f.bornAt) / 180)), 3))
-        const y = f.y - (f.still ? 0 : launch + age * (f.passive ? 30 : RISE))
+        const launch = f.passive ? 0 : 16 * (1 - Math.pow(1 - Math.min(1, Math.max(0, (now - f.bornAt) / 180)), 3))
+        let y = f.y - (f.still ? 0 : launch + age * (f.passive ? 30 : RISE))
+        // The launch, the rise and the lane added up to ~200px over the head, so a
+        // developer in the upper half of the frame threw their line of code off
+        // the top of the screen. The unit (numeral + snippet) is held inside the
+        // frame as one piece: the rise just stops at the edge and the line fades
+        // there, rather than the two drifting apart or leaving.
+        y = Math.max(y, EDGE - lane.numeralY)
+        y = Math.min(y, frameH - EDGE - lane.snippetY - SNIPPET_SIZE)
+        let x = f.x
+        if (f.snippet) {
+          c.font = font(SNIPPET_SIZE)
+          const half = c.measureText(f.snippet).width / 2
+          const span = Math.max(half, size * 2)
+          x = Math.max(EDGE + span - lane.snippetX, Math.min(frameW - EDGE - span - lane.snippetX, x))
+        }
         c.globalAlpha = alpha
         text(c, f.unblocked ? 'UNBLOCKED' : formatPokeNumeral(f.sp), x + lane.numeralX, y + lane.numeralY, size, f.passive ? RAMPS.NEUTRAL[7] : numeralColour(f.sp, f.crit, f.unblocked), f.passive ? 3 : 4)
         // §8.2a. Null for an Overwhelmed developer, who has nothing to say —
