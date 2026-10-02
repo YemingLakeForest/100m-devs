@@ -1,6 +1,6 @@
 import { debugSearchParams } from '../../dev/debugAccess.ts'
 import * as T from 'three'
-import { monitorText } from './monitorText.ts'
+import { bindMonitorText, monitorText } from './monitorText.ts'
 import { buildNetwork } from '../../sim/colonyNetwork.ts'
 import { houseAddress, regionHouses, regionPopulation, worldPopulation, cityName, globeCell, WORLD_REGIONS } from '../../sim/worldAddress.ts'
 import type { PhosphorRamp } from '../../art/entropyTheme.ts'
@@ -18,6 +18,31 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   const texture = new T.CanvasTexture(canvas)
   texture.minFilter = texture.magFilter = T.NearestFilter
   texture.colorSpace = T.NoColorSpace
+  /*
+   * The lettering layer: the map's labels at device resolution, in the terminal
+   * face the address bar already uses (`monitorText`'s sink). It is composited in
+   * the shader rather than over the glass so the CRT lines, the RGB split and the
+   * bloom land on it like on everything else on the monitor, and it wipes in
+   * with the picture it labels.
+   */
+  const words = document.createElement('canvas'), wctx = words.getContext('2d')!
+  const wordsTexture = new T.CanvasTexture(words)
+  wordsTexture.minFilter = wordsTexture.magFilter = T.NearestFilter
+  wordsTexture.generateMipmaps = false
+  wordsTexture.colorSpace = T.NoColorSpace
+  const face = getComputedStyle(document.documentElement).getPropertyValue('--font-terminal').trim() || 'monospace'
+  void document.fonts?.load(`20px ${face.split(',')[0]}`)
+  /** CSS pixels per map pixel; the map's 4-pixel advance is a 0.6 em cell of this face. */
+  let mapScale = 3
+  bindMonitorText(ctx, {
+    draw(text, x, y, colour, centred) {
+      const left = Math.round(x - (centred ? text.length * 2 : 0))
+      wctx.fillStyle = colour
+      for (let i = 0; i < text.length; i += 1) {
+        if (text[i] !== ' ') wctx.fillText(text[i], (left + i * 4 + 1.5) * mapScale, y * mapScale)
+      }
+    },
+  })
   const territory = document.createElement('canvas'), mask = territory.getContext('2d')!
   const net = buildNetwork(73)
   const previewWorld=Number(debugSearchParams().get('surveyWorld')??0)
@@ -58,11 +83,11 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   card.append(text, dive, close); host.append(card)
   const scene = new T.Scene(), camera = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1)
   const target = new T.WebGLRenderTarget(1, 1)
-  const shader = new T.ShaderMaterial({ uniforms: { near: { value: texture }, far: { value: texture }, wipe: { value: 0 } },
+  const shader = new T.ShaderMaterial({ uniforms: { near: { value: texture }, far: { value: texture }, words: { value: wordsTexture }, wipe: { value: 0 } },
     vertexShader: 'varying vec2 uv0; void main(){uv0=uv;gl_Position=vec4(position.xy,0.,1.);}',
     // Pixel character comes from geometry and stepped light, not downsampling
     // the whole picture. Fine edges and in-world typography retain native detail.
-    fragmentShader: 'uniform sampler2D near; uniform sampler2D far; uniform float wipe; varying vec2 uv0; void main(){vec4 room=texture2D(near,uv0); room.rgb=floor(room.rgb*64.+.5)/64.; float edge=1.-uv0.y; float blend=smoothstep(edge-.08,edge+.08,wipe*1.16-.08); gl_FragColor=mix(room,texture2D(far,uv0),blend);}' })
+    fragmentShader: 'uniform sampler2D near; uniform sampler2D far; uniform sampler2D words; uniform float wipe; varying vec2 uv0; void main(){vec4 room=texture2D(near,uv0); room.rgb=floor(room.rgb*64.+.5)/64.; float edge=1.-uv0.y; float blend=smoothstep(edge-.08,edge+.08,wipe*1.16-.08); vec4 far0=texture2D(far,uv0); vec4 ink=texture2D(words,uv0); far0.rgb=mix(far0.rgb,ink.rgb,ink.a); gl_FragColor=mix(room,far0,blend);}' })
   const quad = new T.Mesh(new T.PlaneGeometry(2, 2), shader); scene.add(quad)
   let sprites: CityImpostors | null = null
   let wipe = 0
@@ -117,7 +142,14 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       lastTotal = total = n
       const nw = Math.max(1, Math.floor(w / 3)), nh = Math.max(1, Math.floor(h / 3))
       if (width !== nw || height !== nh) { width = territory.width = nw; height = territory.height = nh; canvas.width = nw * 2; canvas.height = nh * 2; ctx.setTransform(2, 0, 0, 2, 0, 0); target.setSize(Math.round(w * renderer.getPixelRatio()), Math.round(h * renderer.getPixelRatio())) }
+      // The lettering layer follows the output's own pixels, one for one, and is
+      // redrawn with the map: resizing a canvas resets its state, so the face is set here.
+      const dpr = renderer.getPixelRatio(), pw = Math.max(1, Math.round(w * dpr)), ph = Math.max(1, Math.round(h * dpr))
+      if (words.width !== pw || words.height !== ph) { words.width = pw; words.height = ph }
       if (active) {
+      wctx.setTransform(dpr, 0, 0, dpr, 0, 0); wctx.clearRect(0, 0, w, h)
+      mapScale = w / Math.max(1, width)
+      wctx.font = `${(mapScale * 4 / 0.6).toFixed(2)}px ${face}`; wctx.textAlign = 'center'; wctx.textBaseline = 'alphabetic'
       ctx.fillStyle = RAMPS.NEUTRAL[0]; ctx.fillRect(0, 0, width, height); ctx.font = '5px monospace'; ctx.lineWidth = 1
       // Quiet terminal furniture frames the survey, rather than recolouring
       // the buildings. The corners and prompt connect it to the studio OS.
@@ -135,12 +167,12 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       else { sprites ??= bakeCityImpostors(renderer); drawDistrict(frame, sprites) }
       drawExpansionReceipt(frame)
       ctx.fillStyle = RAMPS.NEUTRAL[6]; ctx.textAlign = 'center'; label(`${world === 0 ? 'EARTH' : net.systems[net.order[world]]?.name.toUpperCase() ?? `WORLD ${world + 1}`} / ${level >= 6 ? 'NETWORK' : level >= 4.5 ? 'COLONISATION' : cityName(region,world).toUpperCase()}`, width / 2, 22); ctx.textAlign = 'left'
-      texture.needsUpdate = true
+      texture.needsUpdate = true; wordsTexture.needsUpdate = true
       }
       shader.uniforms.near.value = near; shader.uniforms.wipe.value = wipe
       renderer.setRenderTarget(target); renderer.render(scene, camera); renderer.setRenderTarget(null)
       return target.texture
     },
-    dispose() { bar.remove(); card.remove(); texture.dispose(); shader.dispose(); quad.geometry.dispose(); target.dispose() },
+    dispose() { bindMonitorText(ctx, null); bar.remove(); card.remove(); texture.dispose(); wordsTexture.dispose(); shader.dispose(); quad.geometry.dispose(); target.dispose() },
   }
 }

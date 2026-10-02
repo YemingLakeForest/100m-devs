@@ -16,8 +16,29 @@ const FONT: Record<string, string> = {
   '%': '101001010100101', "'": '010010000000000', '·': '000000010000000', '○': '000010101010000',
   '—': '000000111000000', '<': '001010100010001', '>': '100010001010100',
 }
+/**
+ * Where lettering goes when the map has a real-resolution layer for it.
+ *
+ * The map is drawn at a third of the screen's pixels on purpose — marks share
+ * one coarse grid — but the bitmap font above inherits that grid, so every
+ * letter was fifteen 3x3-pixel blocks and read as a chunky stamp beside the
+ * terminal font on the address bar. A sink takes the same call (a string on the
+ * map's own 4-pixel advance, baseline at `y`) and sets it in the terminal face
+ * at device resolution, under the glass with everything else. Layout is
+ * untouched: the cell is the same, only what fills it changed.
+ */
+export interface MonitorTextSink {
+  draw(text: string, x: number, y: number, colour: string, centred: boolean): void
+}
+const sinks = new WeakMap<CanvasRenderingContext2D, MonitorTextSink>()
+export function bindMonitorText(ctx: CanvasRenderingContext2D, sink: MonitorTextSink | null) {
+  if (sink) sinks.set(ctx, sink)
+  else sinks.delete(ctx)
+}
 export function monitorText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number) {
   const value = text.toUpperCase()
+  const sink = sinks.get(ctx)
+  if (sink) { sink.draw(value, x, y, String(ctx.fillStyle), ctx.textAlign === 'center'); return }
   let left = Math.round(x - (ctx.textAlign === 'center' ? value.length * 2 : 0))
   const top = Math.round(y) - 5
   for (const char of value) {
