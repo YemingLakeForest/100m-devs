@@ -105,6 +105,100 @@ export const SCENE_JAMES_ARRIVES: Scene = {
 }
 
 /**
+ * §21.0f — **James explains SHIP!** [CANON - added 2026-10-03]
+ *
+ * The first time a build is waiting in the queue in Run 1, with James already
+ * at his desk. Until now the only instruction was one advisor line on the rail
+ * — *"then press SHIP!"* — which says what to press and not why the game has
+ * stopped waiting for you to. The why is the mechanic: **nothing ships itself**,
+ * and a full queue halts the floor.
+ *
+ * He is §21.7.0's James — completely correct about every small thing, sincere,
+ * and without a flicker of irony — and each key he names *lights* on the rail
+ * for exactly the line that names it (`light`), so the player is shown which
+ * button he means while he is saying it rather than being told to go and look.
+ * The jokes are in what he thinks the keys are for. The facts are all true: CODE
+ * is the one you press, BUILD and TEST run on their own, SHIP! is yours, and a
+ * full queue stops the studio.
+ *
+ * Act I's word list holds: no tool, no protocol, nothing to buy. These are the
+ * four buttons the player already has.
+ */
+export const SCENE_JAMES_SHIP: Scene = {
+  id: 'scene.act1.james-ship',
+  script: [
+    { speaker: OS, text: 'BUILD COMPLETE. ONE (1) APP IS WAITING IN THE QUEUE.' },
+    { speaker: PLAYER, text: 'It’s finished. So it just… goes out now?', focus: AT_YOU },
+    { speaker: JAMES, text: 'No. I’ve been meaning to explain the buttons. There are four.', focus: AT_JAMES },
+    {
+      speaker: JAMES,
+      text: 'CODE. You press it. The app gets a little more finished. That is the entire button.',
+      focus: AT_JAMES,
+      light: ['code'],
+    },
+    { speaker: PLAYER, text: 'That’s the one I’ve been pressing.', focus: AT_YOU, light: ['code'] },
+    { speaker: JAMES, text: 'I know. I’ve been counting. It’s a good button.', focus: AT_JAMES, light: ['code'] },
+    {
+      speaker: JAMES,
+      text: 'Then it goes straight into a pipeline up there. BUILD, then TEST. You don’t press those. They happen by themselves, like weather.',
+      focus: AT_JAMES,
+      light: ['queue'],
+    },
+    { speaker: PLAYER, text: 'What does TEST do?', focus: AT_YOU, light: ['queue'] },
+    {
+      speaker: JAMES,
+      text: 'It checks the app works. It has never once been asked to be sure.',
+      focus: AT_JAMES,
+      light: ['queue'],
+    },
+    {
+      speaker: JAMES,
+      text: 'And SHIP! With the exclamation mark. I didn’t want to be the one to take it out.',
+      focus: AT_JAMES,
+      light: ['ship'],
+    },
+    { speaker: PLAYER, text: 'What does it do?', focus: AT_YOU, light: ['ship'] },
+    {
+      speaker: JAMES,
+      text: 'It sends the app to customers, who give you money. It is the only button here with a point.',
+      focus: AT_JAMES,
+      light: ['ship'],
+    },
+    // The mechanic, and the reason the scene exists: it does not do itself.
+    { speaker: PLAYER, text: 'Why doesn’t it just ship on its own?', focus: AT_YOU, light: ['ship'] },
+    { speaker: JAMES, text: 'Then there would be nobody to blame.', focus: AT_JAMES, light: ['ship'] },
+    {
+      speaker: JAMES,
+      text: 'When a pipeline is done, the app waits in the QUEUE. It holds three. Not four. Three.',
+      focus: AT_JAMES,
+      light: ['queue'],
+    },
+    { speaker: PLAYER, text: 'And when it’s full?', focus: AT_YOU, light: ['queue'] },
+    {
+      speaker: JAMES,
+      text: 'Nobody can code. The whole studio just stands there. I find it restful. You won’t.',
+      focus: AT_JAMES,
+      light: ['queue'],
+    },
+    // The mechanic §10.7 is built on, said plainly: two pressures, one job.
+    {
+      speaker: JAMES,
+      text: 'The faster you code, the sooner it fills. Speed against room. That’s the whole job. I’d call it management, but I’ve been asked not to.',
+      focus: AT_JAMES,
+      light: ['queue'],
+    },
+    {
+      speaker: JAMES,
+      text: 'Click the pipelines and you can look inside. It tells you how long until it stops. Like a fuel gauge, for being stuck.',
+      focus: AT_JAMES,
+      light: ['queue'],
+    },
+    { speaker: JAMES, text: 'Press it when you’re ready. Or when you’re not. The customers can’t tell.', focus: AT_JAMES },
+    { speaker: OS, text: 'THE QUEUE WILL WAIT. THE QUEUE IS PATIENT. THE QUEUE HAS NOTHING ELSE ON.' },
+  ],
+}
+
+/**
  * §21 Act III — **the mousetrap, and James pitches it.** R85.
  *
  * The bait used to be a banner and a button: `STUDIO_OS` announced a MASS
@@ -269,6 +363,14 @@ export const SCENE_SERENA_ARRIVES: Scene = {
     {
       speaker: 'SERENA',
       text: 'The game. It was never really down. It was degraded. There’s a difference and it matters.',
+      focus: AT_SERENA,
+    },
+    // §10.7 [2026-10-03] — the build queue is hers to manage: longer, and
+    // eventually self-shipping. Said as an observation about a risk, which is how
+    // she says everything.
+    {
+      speaker: 'SERENA',
+      text: 'Your build queue is three slots and a human. I can make it longer. I can make it ship itself.',
       focus: AT_SERENA,
     },
     { speaker: JAMES, text: 'Incident response is a process. She has the process.', focus: AT_JAMES },
@@ -607,6 +709,7 @@ export const JAMES_PROMOTION_TITLE = 'GLOBAL HEAD OF HIS DESK'
 /** Every scene, by id. */
 export const SCENES: Record<string, Scene> = {
   [SCENE_JAMES_ARRIVES.id]: SCENE_JAMES_ARRIVES,
+  [SCENE_JAMES_SHIP.id]: SCENE_JAMES_SHIP,
   [SCENE_MASS_HIRE.id]: SCENE_MASS_HIRE,
   [SCENE_JAMES_INSTANT_MESSENGER.id]: SCENE_JAMES_INSTANT_MESSENGER,
   [SCENE_MO_ARRIVES.id]: SCENE_MO_ARRIVES,

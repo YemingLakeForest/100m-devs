@@ -8581,6 +8581,42 @@ Test's catch, and Auto-Ship on its own clock with its speed upgraded separately.
 own press. <strong>[amended 2026-09-26, later]</strong> The board is her isometric tree now (§11.4's amendment): the
 belt opens the <code>TREES</code> window on Serena, and the flat list of cards is deleted. <strong>[amended again 2026-09-26]</strong> The belt opens Serena's card, and her tree is its UPGRADES (§22.9).</li>
 </ul>
+<p><strong>[amended 2026-10-03] The buffer is the QUEUE, it is managed, and it is a pipeline board in the top-left PROJECT block.</strong>
+<em>"I envisage this to be managed, that the number of builds in the pipeline is limited, and speed of build and number of
+builds to hold are two contesting struggles the player has to manage. In updates from Serena she can auto ship, increase
+build queue size when we build too fast. I want the base HUD to display the current status of the queue, with clickable to go
+into the queue."</em> Then, on seeing the first drawing: <em>"top hud not changed, the UI is bad. I want pipelines similar to
+gitlab, also don't want in test etc anymore, as soon as game is built, it goes to pipeline, also I find the game hud text a
+bit unreadable for the low vis font ones. Design really hard… look gamey with game juice."</em> A first version put the plate across the top centre of the screen, and it was
+rejected on sight: <em>"don't want the top HUD, it has to be on either side top left or top right."</em> (Which is also what "top hud not
+changed" had meant — the PROJECT block, where the old belt lived.) The mechanic did not have to
+move — one capacity, a full queue stops the floor, Build and Test hold builds inside it, Serena's nodes add slots, speed and
+Auto-Ship — what was missing was the screen saying so. What is canon now:</p>
+<ul>
+<li><strong>Every build is a pipeline run the moment it is built.</strong> The BUILD and TEST counters are gone from the rail: nobody
+could act on <em>BUILD 0</em>. A finished game appears on the <strong>pipeline strip</strong> — a plate in the top-left PROJECT block, under the burn-down that feeds it — as a run: its cover and three connected jobs, BUILD → TEST → SHIP, each a stepped-octagon node in one
+of five states said by shape before colour (hollow = pending, spinner = running, bang = parked behind another build, tick =
+passed, gold arrow = ready for SHIP!). Runs stack as rows on a tall frame (cover, three jobs, and a word: `SHIP!`, `QUEUED` or the seconds left) and sit side by side, nodes only, on a short one,
+because the rail is budgeted to the pixel at 336. Free slots are dashed boxes, so the queue's size is the number of boxes on the plate and a full plate has no gaps. Build and Test still take the seconds <code>sim/pipeline.ts</code> gives them; they are the first two
+jobs of the run, not separate counters.</li>
+<li><strong>The plate says the one number a manager acts on</strong> — <code>QUEUE 2/3</code> and <strong>how long until the queue stops the floor</strong>
+(<code>FULL IN ~42s</code>; <code>AUTO 31s</code> once Auto-Ship keeps pace; <code>FULL</code> blinking when stopped). That time is an estimate off today's
+velocity and the free slots (<code>hud/queueModel.ts</code>): it falls as the studio gets faster and rises with every slot Serena adds,
+which is the whole contest in one figure. <strong>SHIP!</strong> lives under the plate, full width, gold and breathing with a count once something is
+ready. A tap on the plate opens the queue window.</li>
+<li><strong>The queue window is a pipeline graph, GitLab's</strong> (<code>STUDIO_OS // PIPELINES</code>): the slot bar and the big readout, <strong>SPEED against ROOM</strong>
+side by side with what raises each, then one row per run — cover, name, status pill — across the three stage columns, nodes joined
+by lines that fill as each stage passes. Serena's board is a button in its foot, where it used to be the belt's whole tap.</li>
+<li><strong>Game juice, because every state change here is something the player caused or earned</strong> (§10.8 F3): a new run drops in with a
+squash and ticks; a job that passes pops; a ready run is gold and bobs, and the SHIP! count bounces when it changes; a release
+bursts pixel sparks off the key and the run that went flies at it; a <em>tight</em> queue (one slot left) blinks amber, and a <em>full</em> one
+inverts, shakes and blinks — the loudest thing on screen, because the studio has stopped. Motion is stepped, never eased, so it
+reads as a pixel interface and not a web page, and reduce-motion keeps every state and drops the movement.</li>
+<li><strong>The HUD's dim words are bright now</strong> (<code>styles/legibility.css</code>). Labels such as REVENUE, DEVS, SHIPPED, the FPS line and
+<em>1 per 8 SP</em> were drawn in <code>--p1</code> — the colour of a rule, about 3:1 on the plate — over a lit room on plates 58% opaque, and two
+were clipped by a pixel of tracking. They use <code>--p2</code> (the ink their own numerals wear), a 1px dark edge on the glyphs, plates at
+82% (the dialogue box's precedent is 80%), and no tracking. The dim ink is for rules and for what is meant to recede.</li>
+</ul>
 <p><strong>What left, and why.</strong> The three-sweep timeout, the simulation-side backstop for a hidden tab and the
 30-second cooldown that sent every other release out on a train all served a modal that <em>halted the studio the
 instant a build finished</em>. The shelf settles them now: a build waits for as long as the player likes, and the only
@@ -14717,6 +14753,14 @@ better.</p>
 </blockquote>
 <h4 id="c-run-1-carries-one-idea-canon-added-2026-08-13">21.0c Run 1 carries one idea <strong>[CANON - added 2026-08-13]</strong></h4>
 <blockquote>
+<p><strong>Amended 2026-10-03 — Run 1 has a second James scene, and it is about a button, not a system.</strong>
+"Act I gets James sitting down and nothing else" is no longer true: §21.0f has James explain SHIP!
+the first time a build is waiting on the shelf. The user asked for it — <em>"story line, I want to
+have James conversation to introduce the ship! feature tutorial, make it funny"</em> — and the
+argument that survives is the one this section was written for: the table below is a list of
+<em>systems</em> that wait for the shift, and SHIP! is not one. It is the fourth key of the loop Run 1
+already runs, and a player who has been told only <em>"then press SHIP!"</em> has not been told why
+nothing ships itself. The scene names no tool, no protocol and nothing to buy.</p>
 <p><strong>Amended 2026-08-15 — §21.7.6 splits this gate in two.</strong> Everything below holds for Run 1 and
 is unchanged: Run 1 carries one idea, and <code>paradigmShifts &gt; 0</code> is still what opens §11's tree
 and §4.11's dial <em>at all</em>. What this section did not anticipate is <strong>Run 2</strong>, where all four
@@ -14872,6 +14916,33 @@ body had no name: the count said two, the roster drew two desks, and there is no
 the game that says who the other survivor is. Reported as <em>&quot;there are 2 developers staying,
 should be just james&quot;</em>. It is <strong>1</strong>. The founder is not in <code>devs</code> and never was — see §4.10h on
 the same off-by-one in <code>UNPAID_FOUNDERS</code>.</p>
+<h4 id="f-james-explains-ship-canon-added-2026-10-03">21.0f James explains SHIP! <strong>[CANON - added 2026-10-03]</strong></h4>
+<p><strong>What.</strong> The first time a build is sitting on the shelf in Run 1 with James at his desk, a
+scene (<code>scene.act1.james-ship</code>) opens, and he walks the player through the four keys a build
+passes through: CODE, BUILD, TEST and SHIP!. <strong>Each key he names lights on the rail for the line that
+names it</strong> — a script line carries <code>light</code>, the HUD root carries it as <code>data-lit</code>, and the
+glow is the full-buffer key's stepped blink plus an outline so it still reads with motion off. A key is
+lit for its own lines only; a lit key left up after the sentence moved on would be pointing at the
+wrong thing.</p>
+<p><strong>Why a scene and not the advisor line.</strong> The rail's one hint — <em>"Press CODE to finish your app.
+Build and Test run automatically; then press SHIP!"</em> — says what to press and not why the game has
+stopped doing it for you. The why is the mechanic: <strong>nothing ships itself, and a full shelf stops the
+floor.</strong> James is §21.7.0's James — correct about every small thing, sincere, no irony — so the jokes
+are in what he thinks the keys are for (TEST <em>"has never once been asked to be sure"</em>; the
+exclamation mark he <em>"didn't want to be the one to take out"</em>; no auto-ship because <em>"then there
+would be nobody to blame"</em>), and every fact underneath them is true.</p>
+<p><strong>[amended 2026-10-03] He teaches the queue too, and the lit keys are CODE, the pipelines and SHIP!.</strong> BUILD and TEST are not keys any more
+(§10.7): James says <em>"Then it goes straight into a pipeline up there. BUILD, then TEST. You don't press those. They happen by
+themselves, like weather"</em> and the pipeline strip lights. Then the queue — <em>"When a pipeline is done, the app waits in the QUEUE. It holds three.
+Not four. Three."</em>; full means <em>"Nobody can code"</em>; and the contest, plainly — <em>"The faster you code, the sooner it fills. Speed
+against room. That's the whole job. I'd call it management, but I've been asked not to."</em> — and that clicking the pipelines shows
+<em>how long until it stops, "like a fuel gauge, for being stuck."</em> Serena's arrival (§21.7.3) adds the one line about the queue that is hers: she
+can make it longer, and make it ship itself.</p>
+<p><strong>When, and for whom.</strong> Run 1 only, and only before the player has shipped anything: a career that
+has already put a build on sale does not need the button explained, and a Run 2 should not be walked
+through it again. He must have arrived, so a build that finishes before the fiftieth poke waits on the
+shelf and the lesson lands the moment he sits down. Once, through the <code>milestones</code> union like every
+scene; replays are fast, never skipped (§10.7).</p>
 <h4 id="d-the-pitch-is-jamess-the-signature-is-the-players-amended-2026-08-27">21.0d The pitch is James's, the signature is the player's <strong>[amended 2026-08-27]</strong></h4>
 <blockquote>
 <p><strong>Amended 2026-08-27.</strong> §21.0d first said the trap could not be declined: Act III's scene ended

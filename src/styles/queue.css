@@ -1,0 +1,367 @@
+/*
+ * The pipelines window — GDD §10.7 [2026-10-03]. A CI graph in pixels: runs down
+ * the page, jobs across it, nodes joined by lines that fill as each stage
+ * passes (the nodes themselves are `pstrip.css`'s).
+ *
+ * Type is meant to be read. Labels sit in the bright ink (`--p2`), figures at
+ * 2x, and nothing here uses the dim ink for words — it is for rules.
+ */
+
+.hud__queue {
+  position: absolute;
+  inset: var(--edge-y) var(--edge-x);
+}
+
+/* Opaque, as the gallery's is: a graph with the studio behind it is unreadable. */
+.hud__queue .os-window {
+  background: var(--n0);
+}
+
+.queue {
+  display: grid;
+  gap: 12px;
+  padding: 12px 14px;
+  align-content: start;
+  color: var(--p2);
+}
+
+/* --- room, and the clock on it -------------------------------------------- */
+
+.queue__gauge {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 2px solid var(--p2);
+  background: var(--n1);
+}
+
+.queue__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.queue__slots i {
+  display: block;
+  width: 16px;
+  height: 22px;
+  border: 1px dashed var(--p1);
+}
+
+.queue__slots i[data-slot='ready'] {
+  border: 1px solid var(--warn-3);
+  background: var(--warn-2);
+  animation: queue-bob 1s steps(2, end) infinite;
+}
+
+.queue__slots i[data-slot='test'] {
+  border: 1px solid var(--p3);
+  background: repeating-linear-gradient(135deg, var(--p2) 0 2px, transparent 2px 4px);
+}
+
+.queue__line {
+  margin: 0;
+  color: var(--p3);
+  font-size: var(--type-2x);
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue__sub {
+  margin: 0;
+  color: var(--p2);
+}
+
+.queue[data-tone='tight'] .queue__line {
+  color: var(--warn-3);
+  animation: queue-blink 0.7s steps(2, end) infinite;
+}
+
+/* Stopped: the whole gauge inverts and shakes. Shape, not colour (§10.8a). */
+.queue[data-tone='stopped'] .queue__gauge {
+  border-color: var(--alarm-3);
+  background: var(--alarm-2);
+  animation: queue-shake 0.5s steps(4, end) infinite;
+}
+
+.queue[data-tone='stopped'] .queue__line,
+.queue[data-tone='stopped'] .queue__sub {
+  color: var(--n0);
+}
+
+.queue[data-tone='stopped'] .queue__slots i {
+  border: 1px solid var(--n0);
+  background: var(--n0);
+}
+
+@keyframes queue-blink {
+  50% {
+    filter: brightness(1.6);
+  }
+}
+
+@keyframes queue-bob {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes queue-shake {
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+/* --- the contest ---------------------------------------------------------- */
+
+.queue__trade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+}
+
+.queue__stat {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  padding: 8px 10px;
+  border: 1px solid var(--p1);
+  background: var(--n1);
+}
+
+.queue__stat b {
+  color: var(--p3);
+  font-size: var(--type-2x);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue__k {
+  color: var(--p2);
+  letter-spacing: 3px;
+}
+
+.queue__d {
+  color: var(--p2);
+  line-height: 1.3;
+}
+
+.queue__vs {
+  align-self: center;
+  color: var(--warn-3);
+  font-size: var(--type-2x);
+  letter-spacing: 2px;
+}
+
+/* --- the graph ------------------------------------------------------------ */
+
+/* One grid for the head and every row, so a column lines up all the way down. */
+.queue__stagehead,
+.queue__run {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.3fr) repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 10px;
+}
+
+.queue__stagehead {
+  padding: 0 10px;
+  color: var(--p3);
+  letter-spacing: 3px;
+}
+
+.queue__list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.queue__run {
+  min-height: 48px;
+  padding: 5px 10px;
+  border: 1px solid var(--p1);
+  background: var(--n1);
+  animation: pchip-in 0.36s steps(6, end);
+}
+
+.queue__run[data-stage='ready'] {
+  border-color: var(--warn-2);
+  background: color-mix(in srgb, var(--warn-0) 80%, var(--n0));
+  box-shadow: 0 0 0 1px var(--warn-1), 0 0 10px color-mix(in srgb, var(--warn-2) 45%, transparent);
+}
+
+.queue__run--code {
+  grid-template-columns: minmax(150px, 1.3fr) 3fr;
+  border-color: var(--p2);
+  animation: none;
+}
+
+.queue__run--empty {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  border-style: dashed;
+  background: transparent;
+  color: var(--p1);
+  animation: none;
+}
+
+.queue__codenote {
+  color: var(--p2);
+}
+
+.queue__who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.queue__cover .cover {
+  display: block;
+  width: 36px;
+  height: 36px;
+  box-shadow: 3px 3px 0 var(--n0);
+}
+
+.queue__id {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.queue__name {
+  overflow: hidden;
+  color: var(--p3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue__pill {
+  justify-self: start;
+  padding: 0 5px;
+  border: 1px solid var(--p2);
+  color: var(--p2);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.queue__pill[data-stage='ready'] {
+  border-color: var(--warn-3);
+  background: var(--warn-2);
+  color: var(--n0);
+}
+
+/* One job: the line in from the stage before, the node, and what it is doing. */
+.queue__job {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.queue__wire {
+  display: block;
+  flex: 1 1 8px;
+  min-width: 8px;
+  max-width: 48px;
+  height: 2px;
+  background: var(--p1);
+}
+
+.queue__wire[data-done='true'] {
+  background: var(--p3);
+}
+
+.queue__jobtext {
+  overflow: hidden;
+  color: var(--p2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue__job[data-state='ready'] .queue__jobtext {
+  color: var(--warn-3);
+}
+
+.queue__job[data-state='pass'] .queue__jobtext {
+  color: var(--p3);
+}
+
+.queue__more {
+  padding: 2px 10px;
+  color: var(--p2);
+  letter-spacing: 2px;
+}
+
+.queue__bar {
+  display: flex;
+  gap: 2px;
+}
+
+.queue__bar i {
+  display: block;
+  width: 100%;
+  max-width: 12px;
+  height: 7px;
+  border: 1px solid var(--p1);
+}
+
+.queue__bar i[data-on='true'] {
+  border-color: var(--p3);
+  background: var(--p3);
+}
+
+/* --- the foot ------------------------------------------------------------- */
+
+.queue__foot {
+  display: flex;
+  gap: 10px;
+  padding: 8px 14px;
+}
+
+.ui-btn.queue__ship {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  font-size: var(--type-2x);
+}
+
+.ui-btn.queue__board {
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queue__run,
+  .queue__slots i,
+  .queue__line,
+  .queue__gauge {
+    animation: none !important;
+  }
+}
+
+/* Short frames: one line per run, graph columns tighten. */
+@container frame (max-width: 760px) {
+  .queue__stagehead,
+  .queue__run {
+    grid-template-columns: minmax(110px, 1fr) repeat(3, auto);
+  }
+
+  .queue__jobtext {
+    display: none;
+  }
+
+  .queue__trade {
+    grid-template-columns: 1fr;
+  }
+
+  .queue__vs {
+    display: none;
+  }
+}

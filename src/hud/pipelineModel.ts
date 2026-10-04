@@ -8,7 +8,7 @@ import { beltView, type GameState } from '../game/store.ts'
  */
 export function pipelineAdvice(state: GameState): string | null {
   const belt = beltView(state)
-  if (belt.buffer >= belt.capacity && belt.ready > 0) return 'The shelf is full and nobody can code. Press SHIP!'
-  if (belt.ready > 0 && state.projectsShipped === 0) return 'Your build is on the shelf. Press SHIP! to release it.'
+  if (belt.buffer >= belt.capacity && belt.ready > 0) return 'The queue is full and nobody can code. Press SHIP!'
+  if (belt.ready > 0 && state.projectsShipped === 0) return 'Your build is in the queue. Press SHIP! to release it.'
   return null
 }

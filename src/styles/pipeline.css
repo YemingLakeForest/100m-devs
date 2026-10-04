@@ -1,186 +1,44 @@
 /*
- * The pipeline — GDD §10.7 [amended 2026-09-26], under the burn-down.
+ * The SHIP! key and the lit-key glow — GDD §10.7 [2026-09-26, 2026-10-03].
  *
- * Nodes and wires in 1px rules, in the live phosphor, and state said by shape:
- * a jammed stage and a full buffer **invert** (filled plate, dark ink), which
- * is §10.8a's "selection is a shape change, not a colour change" applied to
- * the one warning on this rail that is about the player's own belt. No colour
- * is added — cash owns WARN[2] and entropy owns ALARM[2].
+ * The belt that used to live here (BUILD and TEST counters, wires, a row of
+ * slots, a status line) went with the move to the top strip (`pstrip.css`):
+ * the queue is a row of pipeline runs now, and nobody could act on a counter.
+ * What stays is the key, because it is still the loop's payoff, and the glow
+ * James's scene puts on a key while he is talking about it.
  */
 
-/* Inside the burn-down's block, under its readout: same rule, same backing. */
-.pipe {
-  display: grid;
-  gap: 4px;
-  margin-top: 3px;
-}
-
-.pipe__belt {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--p1);
-  font: inherit;
-  line-height: 1.25;
-  text-align: left;
-}
-
-.pipe__belt--tap {
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.pipe__belt--tap:focus-visible {
-  outline: var(--rule) solid var(--p2);
-  outline-offset: 1px;
-}
-
-.pipe__node {
-  display: inline-flex;
-  gap: 4px;
-  padding: 0 3px;
-  border: var(--rule) solid var(--p1);
-  color: var(--p1);
-  white-space: nowrap;
-}
-
-.pipe__node b {
-  color: var(--p2);
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-
-.pipe__node[data-state='busy'] {
-  border-color: var(--p2);
-  color: var(--p2);
-}
-
-.pipe__node[data-state='busy'] b {
-  color: var(--p3);
-}
-
-/* Somebody is waiting behind the head of this stage. */
-.pipe__node[data-state='jam'],
-.pipe__node[data-state='jam'] b {
-  border-color: var(--p2);
-  background: var(--p2);
-  color: var(--n0);
-}
-
-.pipe__wire {
-  flex: 1 1 4px;
-  min-width: 4px;
-  height: 0;
-  border-top: var(--rule) solid var(--p1);
-}
-
-/* The buffer's slots: solid is ready to ship, outlined bright is on the belt. */
-.pipe__slots {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border: var(--rule) solid var(--p1);
-}
-
-.pipe__slots i {
-  display: block;
-  width: 6px;
-  height: 9px;
-  border: var(--rule) solid var(--p1);
-}
-
-.pipe__slots i[data-slot='flight'] {
-  border-color: var(--p2);
-}
-
-.pipe__slots i[data-slot='ready'] {
-  border-color: var(--p3);
-  background: var(--p3);
-}
-
-.pipe__tally {
-  padding: 0 2px;
-  color: var(--p2);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Full: the belt is barred, and the bar is the whole slot box inverting. */
-.pipe__slots[data-full='true'] {
-  border-color: var(--p2);
-  background: var(--p2);
-}
-
-.pipe__slots[data-full='true'] i {
-  border-color: var(--n0);
-}
-
-.pipe__slots[data-full='true'] i[data-slot='ready'] {
-  background: var(--n0);
-}
-
-.pipe__slots[data-full='true'] .pipe__tally {
-  color: var(--n0);
-}
-
-/*
- * The key. Full width because it is the loop's payoff and a thumb lands on it
- * several times a minute; the margins are the skew's and the slab's room, as
- * `.hud__menu` reserves them, because the rail clips at its own edge.
- */
 .ui-btn.pipe__ship {
   pointer-events: auto;
-  justify-self: stretch;
-  margin: 0 6px 3px 4px;
-  padding: 5px 8px;
-  font-size: var(--type-1x);
-  line-height: 1.25;
   white-space: nowrap;
 }
 
 /*
- * The only motion on the rail besides §4.15's incident chip, and bought the
- * same way: the studio has stopped, and this is the one press that starts it.
+ * A key James is talking about. `DialogueLine.light` names it, the HUD root
+ * carries the names in `data-lit`, and this is the whole of the effect: a
+ * stepped two-frame blink plus an outline so it still reads with motion off.
+ * Shape and brightness, no new colour (§10.8a). The SHIP! key is disabled while
+ * a scene is up, so the rule must not be gated on :not(:disabled) — lit is the
+ * point.
  */
-.ui-btn.pipe__ship[data-full='true']:not(:disabled) {
-  animation: pipe-full 0.9s steps(2, end) infinite;
+.hud[data-lit~='code'] .ui-btn.hud__code,
+.hud[data-lit~='ship'] .ui-btn.pipe__ship,
+.hud[data-lit~='queue'] .pstrip__main {
+  outline: 2px solid var(--p3);
+  outline-offset: 2px;
+  animation: key-lit 0.7s steps(2, end) infinite;
 }
 
-@keyframes pipe-full {
+@keyframes key-lit {
   50% {
-    filter: brightness(1.45);
+    filter: brightness(1.6);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ui-btn.pipe__ship[data-full='true']:not(:disabled) {
+  .hud[data-lit~='code'] .ui-btn.hud__code,
+  .hud[data-lit~='ship'] .ui-btn.pipe__ship,
+  .hud[data-lit~='queue'] .pstrip__main {
     animation: none;
-  }
-}
-
-/*
- * Short frames: one row. The rail's stack is budgeted to the pixel at 336 and
- * 360 px (the MENU slab is the first thing clipped), so the stage labels go
- * and the slots sit beside the key. Nothing is lost: an outlined slot is a
- * build still in Build or Test and a solid one is ready, which is what the
- * two labels were counting.
- */
-@container frame (max-height: 470px) {
-  .pipe {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: 6px;
-  }
-
-  .pipe__node,
-  .pipe__wire {
-    display: none;
-  }
-
-  .ui-btn.pipe__ship {
-    padding: 3px 6px;
   }
 }

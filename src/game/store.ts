@@ -170,6 +170,7 @@ import {
 } from './touchMode.ts'
 import {
   SCENE_JAMES_ARRIVES,
+  SCENE_JAMES_SHIP,
   SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_MASS_HIRE,
 } from './scenes.ts'
@@ -2782,6 +2783,7 @@ export function tick(dtSeconds: number): void {
   advanceAct1(after.phase, patch.phase)
   // §21.7.3 — after `set`, so the snapshot reads the frame's final state.
   checkStoryTriggers(getState())
+  checkShipTutorial(getState())
   // §18.0 — and last, so an event can never land on top of an arrival scene
   // that was raised on this same frame.
   checkEventTriggers(getState())
@@ -2888,6 +2890,23 @@ const HERO_SCENE: Record<HeroId, string> = {
   matt: SCENE_MATT_ARRIVES.id,
   melany: SCENE_MELANY_ARRIVES.id,
   billy: SCENE_BILLY_ARRIVES.id,
+}
+
+/**
+ * §21.0f — James explains SHIP! the first time there is something to ship.
+ *
+ * Run 1 only, and only while the player has shipped nothing: a career that has
+ * already put a build on sale has learned the key the way the advisor line
+ * teaches it, and a Run 2 that reaches its first shelf should not be walked
+ * through the button again. He has to be at his desk, so a build that finishes
+ * before the fiftieth poke simply waits on the shelf and the lesson lands the
+ * moment he arrives. Idempotent through the milestone, like every scene.
+ */
+function checkShipTutorial(s: GameState): void {
+  if (s.scene !== null || s.shelf.length === 0 || s.projectsShipped > 0) return
+  if (getPermanent().meta.paradigmShifts > 0) return
+  if (hasSeenScene(SCENE_JAMES_SHIP.id) || !arrivedHeroes().has('james')) return
+  showScene(SCENE_JAMES_SHIP.id)
 }
 
 /**

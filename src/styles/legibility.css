@@ -1,0 +1,51 @@
+/*
+ * HUD legibility — [2026-10-03], *"I find the game hud text a bit unreadable for
+ * the low vis font ones."*
+ *
+ * Measured on the screen rather than guessed. The labels (REVENUE, DEVS,
+ * SHIPPED, the FPS line, `1 per 8 SP`, the touch caption) were drawn in the
+ * *dim* phosphor, `--p1` — which is the colour of a rule, about 3:1 against the
+ * plate — on an 11px pixel face, over a lit isometric room, on plates that were
+ * 58% opaque. Three weak things stacked, and any one of them is survivable.
+ * Two of the labels were also clipped (`PRODUCTIVITY BREAKDO…`) by the 1px of
+ * tracking the rail had no width for.
+ *
+ * So, in the order of what moves legibility most:
+ *
+ *  1. **Words use the bright phosphor.** `--p2` is the ink the numerals beside
+ *     them already wear; `--p0`/`--p1` are for rules and for what is *meant* to
+ *     recede (the dim `NET` line stays dim on purpose, and is not touched).
+ *  2. **A one-pixel dark edge** on the glyphs, the way a pixel game outlines
+ *     text on a busy background — it keeps the stroke intact where the lit room
+ *     is bright behind it.
+ *  3. **Plates at 82%**, not 58%. The precedent is §10.7's dialogue box, which
+ *     is 80%.
+ *  4. **No tracking on labels.** It bought 22 characters their own width and
+ *     cost the rail its fit.
+ *
+ * Specificity is `.hud .x` so this wins over `app.css` without reordering the
+ * sheets or touching 40 rules in a file other work is editing.
+ */
+
+.hud .hud__label,
+.hud .hud__sub,
+.hud .hud__build,
+.hud .hud__perf,
+.hud .backlog__note,
+.hud .touch__hint {
+  color: var(--p2);
+  text-shadow: 1px 1px 0 var(--n0), -1px 0 0 var(--n0);
+}
+
+.hud .hud__label {
+  letter-spacing: 0;
+}
+
+.hud .hud__block {
+  background: color-mix(in srgb, var(--n0) 82%, transparent);
+}
+
+/* The alarm numerals keep their own ink. */
+.hud .hud__sub.is-bad {
+  color: var(--alarm-2);
+}

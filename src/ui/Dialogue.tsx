@@ -55,6 +55,13 @@ import {
  */
 export type SpeakerFocus = 'founder' | number | null
 
+/**
+ * The HUD keys a line can light — the key a build is made with, the queue it travels through and the key that ships it. Named here
+ * rather than in the HUD because a script has to be able to say them, and
+ * `ui/` may not import `hud/`.
+ */
+export type LitKey = 'code' | 'queue' | 'ship'
+
 export interface DialogueLine {
   /** `JAMES`, `ADVISOR`, `STUDIO_OS`. Rendered as given. */
   speaker: string
@@ -68,6 +75,13 @@ export interface DialogueLine {
    * lookup table from name to seat is a second place the two could disagree.
    */
   focus?: SpeakerFocus
+  /**
+   * Keys on the rail that glow while this line is on screen, and only this
+   * line: a key left lit after the sentence about it has moved on would be
+   * pointing at the wrong thing. Absent is none, so a scene that never mentions
+   * a key never touches one.
+   */
+  light?: readonly LitKey[]
 }
 
 export interface DialogueProps {

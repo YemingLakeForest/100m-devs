@@ -36,7 +36,7 @@ import { BurnDown } from './BurnDown.tsx'
 import { RevenueGraph } from './RevenueGraph.tsx'
 import { ReleaseReview } from './ReleaseReview.tsx'
 import { ReleaseRing } from './ReleaseRing.tsx'
-import { Pipeline } from './Pipeline.tsx'
+import { PipelineStrip } from './PipelineStrip.tsx'
 import { UpgradeTrees } from './UpgradeTrees.tsx'
 import { TREE_HEROES, type TreeHero } from '../sim/upgradeTrees.ts'
 import { pipelineAdvice } from './pipelineModel.ts'
@@ -51,7 +51,10 @@ import { DialoguePreview } from './DialoguePreview.tsx'
 import { Defects, Incidents, Tickets } from './Backlogs.tsx'
 import { OvernightReport } from './OvernightReport.tsx'
 import { OvernightPreview } from './OvernightPreview.tsx'
-import { Dialogue } from '../ui/Dialogue.tsx'
+import { Dialogue, type LitKey } from '../ui/Dialogue.tsx'
+import { QueueWindow } from './QueueWindow.tsx'
+
+import '../styles/legibility.css'
 import { OsWindow } from '../ui/OsWindow.tsx'
 import {
   SCENES,
@@ -156,7 +159,12 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [treeOpen, setTreeOpen] = useState(false)
   const [founderOpen, setFounderOpen] = useState(false)
   const [gameMenuOpen, setGameMenuOpen] = useState(false)
+  // The keys the current scene line is pointing at (`DialogueLine.light`). Only
+  // read while a scene is up, so a scene that ends cannot leave one glowing.
+  const [lit, setLit] = useState<readonly LitKey[]>([])
   const [galleryOpen, setGalleryOpen] = useState(false)
+  // §10.7 [2026-10-03] — the build queue, opened from the rail's gauge.
+  const [queueOpen, setQueueOpen] = useState(false)
   // §8 — a person's upgrade tree, opened from their card (the founder's from
   // their panel). One tree at a time: `treesHero` is whose.
   const [treesOpen, setTreesOpen] = useState(PREVIEW_TREES !== null)
@@ -205,6 +213,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       setFounderOpen(false)
       setGameMenuOpen(false)
       setGalleryOpen(false)
+      setQueueOpen(false)
       // A guided board whose window has been closed is a dangling promise: the
       // flag would put the teaching line on whatever opened next.
       setThreadGuide(false)
@@ -279,6 +288,9 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setTreesOpen(true)
   }
 
+  // One window at a time: the queue stands down when anything else is raised.
+  if (queueOpen && (galleryOpen || treeOpen || founderOpen || gameMenuOpen || treesOpen)) setQueueOpen(false)
+
   // THE THREAD's guide stands down the moment the purchase has ended the event.
   if (threadGuide && treesOpen && event === null) {
     setThreadGuide(false)
@@ -325,6 +337,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setFounderOpen(false)
     setGameMenuOpen(false)
     setGalleryOpen(false)
+    setQueueOpen(false)
     setTreesOpen(false)
     selectHero(id)
   }
@@ -372,7 +385,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   }, [stage])
 
   return (
-    <div className="hud">
+    <div className="hud" data-lit={state.scene ? lit.join(' ') : undefined}>
       {/*
         The left rail — **one column, not two grid rows.**
 
@@ -394,15 +407,21 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         <div className="hud__project">
           <BurnDown state={state}>
             {/*
-              §10.7 [2026-09-26] — the belt, inside the burn-down's block because
-              the burn-down feeds it: Build, Test, the buffer's slots, and the
-              key that ships.
+              §10.7 [2026-10-03] — the queue, in the burn-down's block because the
+              burn-down feeds it: every finished build is a pipeline run here, with
+              the key that ships it. A tap opens `QueueWindow`; Serena's card,
+              where its size and speed are bought, is a button inside that.
             */}
-            <Pipeline
+            <PipelineStrip
               state={state}
-              // §10.7 — the belt is Serena's, so a tap on it opens her card,
-              // and her card is where her upgrades are.
-              onBoard={() => openCard('serena')}
+              onOpen={() => {
+                setTreeOpen(false)
+                setFounderOpen(false)
+                setGameMenuOpen(false)
+                setGalleryOpen(false)
+                setTreesOpen(false)
+                setQueueOpen(true)
+              }}
             />
           </BurnDown>
           {/*
@@ -719,6 +738,12 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       />
 
       <Gallery open={galleryOpen && !talking} onClose={() => setGalleryOpen(false)} />
+      <QueueWindow
+        open={queueOpen && !talking && !state.launching}
+        state={state}
+        onClose={() => setQueueOpen(false)}
+        onBoard={() => openCard('serena')}
+      />
       <ParadigmTree open={treeOpen && !talking} state={state} onClose={() => setTreeOpen(false)} />
       <FounderProfilePanel
         open={founderOpen && !talking}
@@ -784,6 +809,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           onHold={state.scene === SCENE_JAMES_ARRIVES.id ? () => stage?.cueJames() : undefined}
           onLine={(line) => {
             stage?.setSceneLine(line)
+            setLit(SCENES[state.scene!]?.script[line]?.light ?? [])
             // §21.7.1 — "APPLICANT AT DOOR." holds, then James drops in and the
             // lens follows his `Ouch.`. The next line is the founder's, and its
             // focus brings the lens back — so the drop itself needs nothing here

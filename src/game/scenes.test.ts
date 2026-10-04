@@ -3,6 +3,7 @@ import {
   HEY_AFTER_LINE,
   SCENES,
   SCENE_JAMES_ARRIVES,
+  SCENE_JAMES_SHIP,
   SCENE_MASS_HIRE,
   SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_JAMES_PROMOTED,
@@ -153,9 +154,11 @@ describe('§21.0c — Run 1 carries one idea', () => {
    * matters is still the Act I count. Every scene about a *system* still
    * belongs to a run that has been through the trap.
    */
-  it('has one Act I scene, and it is the arrival', () => {
+  it('has two Act I scenes: the arrival, and James explaining the key that ships', () => {
+    // [amended 2026-10-03] §21.0f — the second is a lesson in a button the
+    // player already has, not a second idea, so §21.0c's count moves by one.
     const actOne = Object.keys(SCENES).filter((id) => id.startsWith('scene.act1.'))
-    expect(actOne).toEqual([SCENE_JAMES_ARRIVES.id])
+    expect(actOne).toEqual([SCENE_JAMES_ARRIVES.id, SCENE_JAMES_SHIP.id])
   })
 
   it('has one Act III scene, and it is the trap', () => {
@@ -189,7 +192,7 @@ describe('§21.0c — Run 1 carries one idea', () => {
    * without needing a second scene to do it in.
    */
   it('never names a tool in Act I', () => {
-    for (const line of SCENE_JAMES_ARRIVES.script) {
+    for (const line of [...SCENE_JAMES_ARRIVES.script, ...SCENE_JAMES_SHIP.script]) {
       expect(line.text).not.toMatch(/PROTOCOL|MESSENGER|UPGRADE|CHANNEL/i)
     }
   })
@@ -474,5 +477,39 @@ describe('§21.7.4 — Global Head of His Desk', () => {
   it('is the corporate ladder rendered as a string', () => {
     const os = SCENE_JAMES_PROMOTED.script.find((l) => l.speaker === 'STUDIO_OS')!
     expect(os.text).toContain('GLOBAL HEAD OF HIS DESK')
+  })
+})
+
+describe('§21.0f — James explains SHIP!, and the keys light up as he does', () => {
+  const script = SCENE_JAMES_SHIP.script
+
+  it('lights each key on a line about it, and every key he names', () => {
+    const lit = new Set(script.flatMap((l) => l.light ?? []))
+    expect([...lit].sort()).toEqual(['code', 'queue', 'ship'])
+  })
+
+  it('opens every lit run on a line that names the key', () => {
+    // The glow follows the sentence: a key lights on the line that says its
+    // name and stays for the follow-ups about it (the player's questions, the
+    // joke). A run that opens on a line that never mentions the key is pointing
+    // at the wrong thing.
+    script.forEach((l, i) => {
+      for (const key of l.light ?? []) {
+        if (script[i - 1]?.light?.includes(key)) continue
+        // The queue is also called the pipelines, and James says whichever is funnier.
+        expect(l.text).toMatch(new RegExp(key === 'queue' ? 'queue|pipeline' : key, 'i'))
+      }
+    })
+  })
+
+  it('says the mechanic: nothing ships itself, and a full shelf stops the coding', () => {
+    const all = script.map((l) => l.text).join(' ')
+    expect(all).toMatch(/queue/i)
+    expect(all).toMatch(/nobody can code/i)
+  })
+
+  it('ends on the machine, and never announces itself', () => {
+    expect(script.at(-1)!.speaker).toBe('STUDIO_OS')
+    for (const l of script) expect(l.text).not.toMatch(/ACQUIRED|UNLOCKED|CONGRATULATIONS/i)
   })
 })

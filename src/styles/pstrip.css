@@ -1,0 +1,654 @@
+/*
+ * The pipeline strip — GDD §10.7 [2026-10-03]. A CI board for the studio, drawn
+ * in pixels, across the top centre of the screen.
+ *
+ * Shapes carry state before colour does: nodes are stepped octagons (a pixel
+ * circle), a stopped queue inverts, a ready run is the only gold thing on the
+ * plate. Motion is stepped (`steps()`), because smooth easing on a pixel
+ * interface reads as a web page; every animation is dropped under reduce-motion
+ * and every state survives without it.
+ */
+
+.pstrip {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 4px 3px 3px 0;
+  pointer-events: auto;
+}
+
+/* --- the plate ------------------------------------------------------------ */
+
+.pstrip__main {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 5px 9px 6px;
+  border: 2px solid var(--p2);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  box-shadow: 3px 3px 0 var(--n1), inset 0 0 0 1px var(--n1);
+  color: var(--p3);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pstrip__main:hover,
+.pstrip__main:focus-visible {
+  border-color: var(--p3);
+}
+
+.pstrip__main:active {
+  transform: translate(1px, 1px);
+}
+
+/* Notched corners: a plate cut from a pixel grid, not a web card. */
+.pstrip__main::before,
+.pstrip__main::after {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--p3);
+}
+
+.pstrip__main::before {
+  top: -2px;
+  left: -2px;
+}
+
+.pstrip__main::after {
+  right: -2px;
+  bottom: -2px;
+}
+
+.pstrip__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0 6px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.pstrip__title {
+  color: var(--p2);
+  letter-spacing: 3px;
+  text-shadow: 1px 1px 0 var(--n0);
+}
+
+.pstrip__count {
+  color: var(--p2);
+  font-size: var(--type-2x);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pstrip__count b {
+  display: inline-block;
+  color: var(--p3);
+  font-weight: 400;
+  animation: pstrip-tick 0.28s steps(4, end);
+}
+
+.pstrip__eta {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--p3);
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 1px 1px 0 var(--n0);
+}
+
+.pstrip__in--short {
+  display: none;
+}
+
+.pstrip__eta[data-tone='tight'] {
+  color: var(--warn-3);
+  animation: pstrip-blink 0.7s steps(2, end) infinite;
+}
+
+.pstrip__eta[data-tone='stopped'] {
+  padding: 0 4px;
+  background: var(--alarm-2);
+  color: var(--n0);
+  text-shadow: none;
+  animation: pstrip-blink 0.5s steps(2, end) infinite;
+}
+
+/* --- the runs ------------------------------------------------------------- */
+
+.pstrip__runs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pstrip__more {
+  color: var(--p3);
+  font-size: var(--type-2x);
+  line-height: 1;
+}
+
+.pchip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  min-width: 0;
+  padding: 3px 5px 3px 3px;
+  border: 1px solid var(--p1);
+  background: var(--n1);
+  transform-origin: 50% 0;
+  animation: pchip-in 0.36s steps(6, end);
+}
+
+.pchip__label {
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--p2);
+  font-variant-numeric: tabular-nums;
+  text-overflow: clip;
+  white-space: nowrap;
+  text-shadow: 1px 1px 0 var(--n0);
+}
+
+.pchip[data-stage='ready'] .pchip__label {
+  color: var(--warn-3);
+}
+
+.pchip--empty .pchip__label {
+  color: var(--p1);
+}
+
+.pchip[data-stage='ready'] {
+  border-color: var(--warn-2);
+  background: color-mix(in srgb, var(--warn-0) 80%, var(--n0));
+  box-shadow: 0 0 0 1px var(--warn-1), 0 0 8px color-mix(in srgb, var(--warn-2) 55%, transparent);
+  animation: pchip-in 0.36s steps(6, end), pchip-bob 1s steps(2, end) 0.4s infinite;
+}
+
+.pchip--empty {
+  border-style: dashed;
+  border-color: var(--p1);
+  background: var(--n0);
+  animation: none;
+  opacity: 0.85;
+}
+
+.pchip--empty .pchip__cover {
+  border: 1px dashed var(--p1);
+  background: none;
+}
+
+.pchip__dash {
+  display: block;
+  width: 54px;
+  height: 0;
+  border-top: 2px dashed var(--p1);
+}
+
+.pchip__cover {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+.pchip__jobs {
+  flex: none;
+}
+
+.pchip__cover .cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pchip__jobs {
+  display: flex;
+  align-items: center;
+}
+
+.pchip__job {
+  display: flex;
+  align-items: center;
+}
+
+.pchip__link {
+  display: block;
+  width: 6px;
+  height: 2px;
+  background: var(--p1);
+}
+
+.pchip__link[data-done='true'] {
+  background: var(--p3);
+}
+
+/* A run that has gone: it flies at the SHIP! key and is gone. */
+.pchip[data-out='true'] {
+  pointer-events: none;
+  animation: pchip-out 0.42s steps(6, end) forwards;
+}
+
+/* --- the node ------------------------------------------------------------- */
+
+.pnode {
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  /* A pixel circle: the corners stepped off. */
+  clip-path: polygon(
+    0 3px, 1px 3px, 1px 1px, 3px 1px, 3px 0,
+    calc(100% - 3px) 0, calc(100% - 3px) 1px, calc(100% - 1px) 1px, calc(100% - 1px) 3px, 100% 3px,
+    100% calc(100% - 3px), calc(100% - 1px) calc(100% - 3px), calc(100% - 1px) calc(100% - 1px), calc(100% - 3px) calc(100% - 1px), calc(100% - 3px) 100%,
+    3px 100%, 3px calc(100% - 1px), 1px calc(100% - 1px), 1px calc(100% - 3px), 0 calc(100% - 3px)
+  );
+  background: var(--p1);
+  animation: pnode-pop 0.3s steps(5, end);
+}
+
+.pnode::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: var(--n0);
+}
+
+.pnode svg {
+  position: absolute;
+  inset: 3px;
+  width: 8px;
+  height: 8px;
+  fill: currentColor;
+}
+
+.pnode[data-state='pending'] {
+  animation: none;
+}
+
+.pnode[data-state='run'] {
+  background: var(--p3);
+}
+
+/* The spinner: four dots on a ring, one step per quarter turn. */
+.pnode[data-state='run']::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 2px dotted var(--p3);
+  animation: pnode-spin 0.8s steps(4, end) infinite;
+}
+
+.pnode[data-state='wait'] {
+  background: var(--p1);
+  color: var(--p2);
+  animation: none;
+}
+
+.pnode[data-state='wait']::before {
+  background: var(--n1);
+}
+
+.pnode[data-state='pass'] {
+  background: var(--p2);
+  color: var(--n0);
+}
+
+.pnode[data-state='pass']::before {
+  background: var(--p2);
+}
+
+.pnode[data-state='ready'] {
+  background: var(--warn-3);
+  color: var(--n0);
+  animation: pnode-pop 0.3s steps(5, end), pnode-bob 0.8s steps(2, end) 0.3s infinite;
+}
+
+.pnode[data-state='ready']::before {
+  background: var(--warn-2);
+}
+
+/* --- the key -------------------------------------------------------------- */
+
+.pstrip__shipwrap {
+  position: relative;
+  display: grid;
+}
+
+.ui-btn.pstrip__ship {
+  position: relative;
+  justify-self: stretch;
+  margin: 0 3px 3px 0;
+  padding: 6px 8px;
+  font-size: var(--type-2x);
+  letter-spacing: 1px;
+}
+
+/* Something to ship: the key is lit gold and breathes, so it is the next thing the eye lands on. */
+.ui-btn.pstrip__ship[data-ready='true']:not(:disabled) {
+  animation: pstrip-ready 1s steps(2, end) infinite;
+}
+
+.pstrip__badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  background: var(--warn-3);
+  color: var(--n0);
+  font-size: var(--type-1x);
+  font-weight: 400;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 2px 2px 0 var(--n0);
+  animation: pstrip-badge 0.36s steps(5, end);
+}
+
+/* --- release burst: pixel sparks from the key ------------------------------ */
+
+.pstrip__burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pstrip__burst i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  background: var(--warn-3);
+  opacity: 0;
+  animation: pstrip-spark 0.6s steps(6, end) 1;
+}
+
+.pstrip__burst i:nth-child(even) {
+  background: var(--p3);
+}
+
+/* --- states of the whole plate ---------------------------------------------- */
+
+/* Tight: one gap left. The plate's rule goes amber. */
+.pstrip[data-tone='tight'] .pstrip__main {
+  border-color: var(--warn-2);
+}
+
+/* Stopped: the plate inverts and shakes. The studio has stopped; this is the loudest thing on the screen. */
+.pstrip[data-tone='stopped'] .pstrip__main {
+  border-color: var(--alarm-3);
+  background: color-mix(in srgb, var(--alarm-0) 88%, var(--n0));
+  animation: pstrip-shake 0.5s steps(4, end) infinite;
+}
+
+.pstrip[data-tone='stopped'] .pstrip__title,
+.pstrip[data-tone='stopped'] .pstrip__count {
+  color: var(--alarm-3);
+}
+
+.pstrip[data-tone='stopped'] .ui-btn.pstrip__ship:not(:disabled) {
+  animation: pstrip-ready 0.5s steps(2, end) infinite;
+}
+
+/* --- keyframes -------------------------------------------------------------- */
+
+@keyframes pchip-in {
+  0% {
+    transform: translateY(-18px) scaleY(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(3px) scaleY(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes pchip-out {
+  0% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, 46px) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes pchip-bob {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes pnode-pop {
+  0% {
+    transform: scale(0.4);
+    filter: brightness(2.4);
+  }
+  55% {
+    transform: scale(1.5);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes pnode-bob {
+  50% {
+    transform: translateY(-1px);
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes pnode-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pstrip-tick {
+  0% {
+    transform: translateY(-6px) scale(1.4);
+    filter: brightness(2);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes pstrip-blink {
+  50% {
+    filter: brightness(1.7);
+  }
+}
+
+@keyframes pstrip-ready {
+  50% {
+    filter: brightness(1.5);
+  }
+}
+
+@keyframes pstrip-badge {
+  0% {
+    transform: scale(2.2);
+  }
+  60% {
+    transform: scale(0.85);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes pstrip-spark {
+  0% {
+    opacity: 1;
+    transform: translate(-2px, -2px) scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.4);
+  }
+}
+
+@keyframes pstrip-shake {
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pchip,
+  .pnode,
+  .pstrip__count b,
+  .pstrip__eta,
+  .pstrip__badge,
+  .pstrip__main,
+  .pnode::after,
+  .ui-btn.pstrip__ship {
+    animation: none !important;
+  }
+}
+
+/* --- short frames --------------------------------------------------------- */
+
+/* Four runs are a column on a tall frame; past that, a count. */
+.pchip:nth-child(n + 5) {
+  display: none;
+}
+
+/*
+ * A short frame has no height for a column (the rail is budgeted to the pixel at
+ * 336 and 360): the runs go side by side, nodes only, each taking an equal share
+ * of the plate, and the word on each run goes — the node says it.
+ */
+@container frame (max-height: 470px) {
+  .pstrip {
+    gap: 3px;
+    margin: 1px 3px 2px 0;
+  }
+
+  .pstrip__main {
+    padding: 2px 4px;
+    gap: 0;
+    border-width: 1px;
+  }
+
+  /* No head on a short frame — the rail has no height for a line of words. The
+     plate says how the queue is by its colour and its shake (tight: amber,
+     stopped: red and shaking), and the countdown is in the window. */
+  .pstrip__head {
+    display: none;
+  }
+
+  .pstrip__title {
+    display: none;
+  }
+
+  .pstrip__in:not(.pstrip__in--short) {
+    display: none;
+  }
+
+  .pstrip__in--short {
+    display: inline;
+  }
+
+  .pstrip__head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pstrip__count {
+    font-size: var(--type-1x);
+  }
+
+  .pstrip__eta {
+    grid-column: auto;
+    text-align: right;
+  }
+
+  .pstrip__runs {
+    flex-direction: row;
+    gap: 3px;
+  }
+
+  .pchip {
+    flex: 1 1 0;
+    justify-content: center;
+    height: 20px;
+    padding: 1px 2px;
+  }
+
+  .pchip:nth-child(n + 4) {
+    display: none;
+  }
+
+  .pchip__cover,
+  .pchip__label {
+    display: none;
+  }
+
+  .pchip__jobs {
+    flex: 1 1 auto;
+    justify-content: space-between;
+  }
+
+  .pchip__job:not(:first-child) {
+    flex: 1 1 0;
+  }
+
+  .pchip__link {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 2px;
+  }
+
+  .pchip__dash {
+    width: 100%;
+  }
+
+  .pnode {
+    width: 11px;
+    height: 11px;
+  }
+
+  .pnode svg {
+    inset: 2px;
+    width: 7px;
+    height: 7px;
+  }
+
+  .ui-btn.pstrip__ship {
+    margin: 0 3px 2px 0;
+    padding: 1px 6px;
+    font-size: var(--type-1x);
+    line-height: 1.2;
+  }
+
+  .pstrip__badge {
+    top: -7px;
+    right: -5px;
+    min-width: 14px;
+    height: 14px;
+    font-size: 9px;
+    line-height: 14px;
+  }
+}
