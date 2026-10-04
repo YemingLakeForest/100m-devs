@@ -168,6 +168,12 @@ export interface GarageViewOptions {
    * stage's own resolution, which is what hides the difference.
    */
   lite?: boolean
+  /**
+   * A piece of a drop has hit the floor — the desk, the chair or the person. The
+   * view draws; what it sounds like is the stage's, so `three/` stays free of
+   * the audio layer.
+   */
+  onLand?: (piece: 'desk' | 'chair' | 'body') => void
 }
 
 type Piece = 'desk' | 'chair' | 'body'
@@ -770,7 +776,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (u < 0) { these.forEach(hide); done = false; continue }
         if (u < 1.62) done = false
         these.forEach((p) => place(p, base, u >= 1.62 ? 0 : fall(u), u >= 1.62 ? 1 : land(u)))
-        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base) }
+        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base); options.onLand?.(piece.piece) }
       }
       if (done) anims.splice(i, 1)
     }

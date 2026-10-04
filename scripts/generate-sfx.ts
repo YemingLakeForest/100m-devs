@@ -233,6 +233,43 @@ const SOUNDS: Sfx[] = [
     duration: 0.5,
     influence: 0.85,
   },
+
+  // --- §21.7.1, James falls in ---------------------------------------------
+  //
+  // *"me: what? then james desk, then chair, then james fall, then, he said,
+  // ouch"* — three landings, each heard before the next begins, so three clips
+  // rather than one: the desk is wood and mass, the chair is the comic one
+  // (casters, a rattle, a roll), and the man is a soft body hitting a floor from
+  // a ceiling. The drop was silent, and a thing that falls out of the roof and
+  // lands without a sound reads as a sprite switched on. A hire's desk and
+  // developer use the same clips.
+  {
+    stem: 'drop-desk',
+    prompt:
+      'a heavy wooden office desk dropped onto a concrete garage floor, one solid ' +
+      'thud with a short wooden knock and a small rattle of drawers, one hit only, ' +
+      'no music, no speech, no reverb tail',
+    duration: 1,
+    influence: 0.8,
+  },
+  {
+    stem: 'drop-chair',
+    prompt:
+      'an office swivel chair landing on a concrete floor, a clatter of plastic ' +
+      'and metal, wheels rattling and rolling a short way, comedic cartoon slapstick, ' +
+      'no music, no speech, no reverb tail',
+    duration: 1.2,
+    influence: 0.75,
+  },
+  {
+    stem: 'drop-body',
+    prompt:
+      'a person in a cotton shirt landing flat on a floor after a short fall, a ' +
+      'soft dull body thump with a rustle of cloth and a tiny scuff, comedic ' +
+      'slapstick, no voice, no groan, no music, no reverb tail',
+    duration: 0.8,
+    influence: 0.8,
+  },
 ]
 
 async function loadKey(): Promise<string> {

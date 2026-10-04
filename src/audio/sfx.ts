@@ -38,6 +38,11 @@ export const SFX = [
   'ui-whoosh',
   'ui-close',
   'ui-tick',
+  // §21.7.1 — the landings of a drop: James's desk, his chair and then James,
+  // and a hire's desk and developer on the same clips.
+  'drop-desk',
+  'drop-chair',
+  'drop-body',
   // GDD 10.9.4 - START pressed. Not generated yet; uiSfx.ts routes it through
   // FALLBACK until it is, which is what the fallback table is for.
   'title-start',

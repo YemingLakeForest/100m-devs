@@ -195,7 +195,20 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
   let w = Math.max(1, host.clientWidth)
   let h = Math.max(1, host.clientHeight)
-  const garage = createGarageView(w, h, undefined, { lite })
+  // The drop's landings, heard: James's desk, his chair, then him — and a hire's
+  // desk and developer on the same clips. A batch of hires lands a beat apart per
+  // seat, so a clip is held off for a moment after it plays rather than stacked
+  // into a roar.
+  const lastLand: Record<'desk' | 'chair' | 'body', number> = { desk: -1, chair: -1, body: -1 }
+  const garage = createGarageView(w, h, undefined, {
+    lite,
+    onLand(piece) {
+      const now = performance.now()
+      if (now - lastLand[piece] < 90) return
+      lastLand[piece] = now
+      playSfx(piece === 'desk' ? 'drop-desk' : piece === 'chair' ? 'drop-chair' : 'drop-body')
+    },
+  })
   const canvas = garage.canvas
   canvas.style.width = '100%'
   canvas.style.height = '100%'
