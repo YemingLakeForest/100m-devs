@@ -5,37 +5,22 @@
  * docs/PLAN-2026-09-26-return.md.
  */
 /**
- * **The build pipeline** — GDD §10.7 [amended 2026-09-24, Garage to Galaxy, phase 2].
+ * **The build queue** — GDD §10.7 [amended 2026-10-04, Build and Test decommissioned].
  *
- * *"I want the build pipeline to be a key part of the game, as it's a active
- * thing user had to manage for generation of revenue and a key upgradable
- * mechanism."* and *"the pipeline size is sort of provide some buffer so people
- * can leave more there like teh queue in scrichty scratch"*.
+ * *"Code, Build, Test should be decommissioned. As soon as one sprint is done,
+ * it's in the build queue, waiting to be shipped by the person or
+ * automatically."*
  *
- *     Code → Build → Test → buffer → SHIP!
+ *     Code → the queue → SHIP!
  *
- * ## The buffer is one number
- *
- * A finished project enters Build, then Test, then waits on the shelf for
- * SHIP!. **Everything past Code counts against one capacity** — the buffer —
- * and a full buffer stops the studio writing code (§10.7, canon since
- * 2026-09-16). One number rather than a queue limit per stage, because the
- * question the player is asking is one question: *how long can I walk away?*
- * Build and Test do not add storage; they add **latency**, and a slow stage
- * holds builds inside the buffer where SHIP! cannot reach them. That is how
- * speed matters without a second capacity: a jammed Test is a shorter buffer.
- *
- * Each stage is a single lane: its head progresses, the rest wait. A stage with
- * somebody waiting is **jammed**, and the Ledger draws it orange (§11.4).
- *
- * ## What slows a stage
- *
- * Its base seconds, stretched by the size of the game (a bigger game builds
- * longer, as the log of its size, so an Earth-era build is minutes and not
- * weeks), divided by the speed bought, and multiplied by the **drag**: the
- * waiting and handoff slices of §2.1's loss. A studio that piled its
- * dysfunction into waiting (Written Culture does) feels it here — which is
- * what makes conservation (§2.7) a trade rather than a label.
+ * A finished project goes **straight into the queue** and the next project
+ * starts at once. There is no Build lane and no Test lane any more — they were
+ * latency, and latency was only ever a way of making the queue hold builds the
+ * player could not yet ship. What is left is the contest the queue was always
+ * for, and it is two numbers: how fast the studio turns out games, and how many
+ * it can hold while it waits for somebody to ship them. **A full queue stops the
+ * floor** (canon since 2026-09-16): velocity, the founder's desk and every poke
+ * read zero until something ships.
  *
  * ## SHIP! and auto-ship
  *
@@ -43,142 +28,27 @@
  * upgrade from Serena make it auto"*. SHIP! is the player's press until
  * Serena's second rank, Auto-Ship. It then fires on its own clock, and the
  * clock is upgraded separately: an auto-shipper slower than the studio lets the
- * buffer creep up and eventually stops the floor, which is the Scritchy
- * Scratchy tension kept after automation. No bonus for shipping by hand
- * (assumed in the handoff; to confirm with the user).
+ * queue creep up and eventually stops the floor, which is the Scritchy Scratchy
+ * tension kept after automation. No bonus for shipping by hand (assumed in the
+ * handoff; to confirm with the user).
  *
  * ## Serena's pipeline nodes
  *
  * The board is the pipeline half of Serena's tree in the upgrade-trees demo the
  * user approved for its presentation (`docs/design/garage-to-galaxy-2026-09-24/
- * upgrade-trees/`). Its node *contents* are still a proposal, so this is that
- * proposal taken as phase 2's first pass, with three changes, each recorded:
- * Auto-Ship does not wait for the founder's Big Red Button (the founder's tree
- * has not been rewritten, and a link to a node that does not exist would lock
- * the node for ever); Canary Worlds and Builds in Flight wait for worlds
- * (phase 7), because a node that changes nothing is a defect; and a quality
- * node, Quarantine the Flaky Tests, is added, because the plan names quality as
- * one of the four families and the demo had none on this half.
+ * upgrade-trees/`). Its node *contents* are still a proposal. Capacity (the
+ * queue gets longer), flow (Auto-Ship, and how often) and quality (a check on
+ * the way in, which takes defects off a build as it joins the queue) are what
+ * the queue is. **The build-speed node, Faster Laptops, is deleted** [2026-10-04]:
+ * its only effect was how long a build spent in Build, and there is no Build.
+ * Build Cache and Parallel Tests keep what else they did — they move the
+ * coordination ledger (§2.7) — and lose the line about speeds. Canary Worlds and
+ * Builds in Flight wait for worlds (phase 7), because a node that changes
+ * nothing is a defect.
  *
  * Pure — no store, no clock, no renderer.
  */
 import type { CoordKind, Fix } from './dysfunction.ts'
-
-// --- the stages -------------------------------------------------------------
-
-export type Stage = 'build' | 'test'
-export const STAGES: readonly Stage[] = ['build', 'test']
-
-/**
- * Seconds a garage-sized game spends in each stage at base speed. Short on
- * purpose: the opening's *"on the shelf"* beat must not wait behind a progress
- * bar, and a laptop building a 240-point game is a few seconds.
- */
-export const STAGE_BASE_SECONDS: Record<Stage, number> = { build: 4, test: 6 }
-
-/** The game size the base seconds are for — the first rung of §4.4's ladder. */
-const REFERENCE_SIZE = 240
-
-/** How much longer a bigger game takes: 1 + log10(size / 240), never below 1. */
-export function sizeFactor(size: number): number {
-  const s = Number.isFinite(size) ? size : REFERENCE_SIZE
-  return 1 + Math.log10(Math.max(1, s / REFERENCE_SIZE))
-}
-
-/**
- * How much the waiting and handoff slices stretch a stage. `waitingShare` is
- * the share of the headcount lost to those two slices, 0..1. Three times it,
- * so a studio losing a third of its heads to waiting builds at half speed.
- */
-export function pipelineDrag(waitingShare: number): number {
-  const w = Number.isFinite(waitingShare) ? Math.min(1, Math.max(0, waitingShare)) : 0
-  return 1 + 3 * w
-}
-
-export function stageSeconds(stage: Stage, size: number, speed: number, drag: number): number {
-  const v = Number.isFinite(speed) && speed > 0 ? speed : 1
-  const d = Number.isFinite(drag) && drag >= 1 ? drag : 1
-  return STAGE_BASE_SECONDS[stage] * sizeFactor(size) * d / v
-}
-
-/** One build moving through a stage. `progress` runs 0..1 on the head only. */
-export interface InFlight<T> {
-  item: T
-  progress: number
-}
-
-export interface PipelineState<T> {
-  build: InFlight<T>[]
-  test: InFlight<T>[]
-}
-
-export function emptyPipeline<T>(): PipelineState<T> {
-  return { build: [], test: [] }
-}
-
-export function inFlight(p: PipelineState<unknown>): number {
-  return p.build.length + p.test.length
-}
-
-/** A stage with somebody waiting behind its head. §11.4 draws it orange. */
-export function jammed(p: PipelineState<unknown>, stage: Stage): boolean {
-  return p[stage].length > 1
-}
-
-/**
- * Advance both lanes by `dt` seconds. Returns the new state and every build
- * that left Test, in the order it left — the caller shelves them.
- *
- * `secondsFor` is asked per item and per stage, so the stage time is fixed by
- * the item's own size and by whatever speed and drag hold *now*: a speed
- * bought mid-build speeds up the rest of that build, which is what a player
- * who just paid for it expects to see.
- *
- * A build that finishes Build part-way through the step carries the rest of
- * the step into Test, and a lane that empties passes its leftover time to the
- * next head, so one long step (a backgrounded tab) moves several builds rather
- * than one per frame.
- */
-export function advancePipeline<T>(
-  p: PipelineState<T>,
-  dt: number,
-  secondsFor: (stage: Stage, item: T) => number,
-): { state: PipelineState<T>; done: T[] } {
-  const build = p.build.map(f => ({ ...f }))
-  const test = p.test.map(f => ({ ...f }))
-  const done: T[] = []
-  if (!(dt > 0)) return { state: { build, test }, done }
-
-  // Build first: what it finishes joins Test with the time left over.
-  const entering: { item: T; spare: number }[] = []
-  let spare = dt
-  while (build.length && spare > 0) {
-    const head = build[0]
-    const need = (1 - head.progress) * Math.max(1e-6, secondsFor('build', head.item))
-    if (need > spare) { head.progress += spare / Math.max(1e-6, secondsFor('build', head.item)); spare = 0; break }
-    spare -= need
-    build.shift()
-    entering.push({ item: head.item, spare })
-  }
-
-  // Test runs for the whole step on whatever it already held, and each
-  // arrival from Build can only start once it has arrived.
-  let clock = 0
-  const queue: { item: T; progress: number; readyAt: number }[] = test.map(f => ({ item: f.item, progress: f.progress, readyAt: 0 }))
-  for (const e of entering) queue.push({ item: e.item, progress: 0, readyAt: dt - e.spare })
-  while (queue.length && clock < dt) {
-    const head = queue[0]
-    clock = Math.max(clock, head.readyAt)
-    if (clock >= dt) break
-    const seconds = Math.max(1e-6, secondsFor('test', head.item))
-    const need = (1 - head.progress) * seconds
-    if (need > dt - clock) { head.progress += (dt - clock) / seconds; clock = dt; break }
-    clock += need
-    queue.shift()
-    done.push(head.item)
-  }
-  return { state: { build, test: queue.map(q => ({ item: q.item, progress: q.progress })) }, done }
-}
 
 // --- auto-ship --------------------------------------------------------------
 
@@ -189,7 +59,7 @@ export const AUTO_SHIP_STEP = 1.35
 
 // --- Serena's pipeline nodes ------------------------------------------------
 
-export type PipelineFamily = 'capacity' | 'speed' | 'quality' | 'flow'
+export type PipelineFamily = 'capacity' | 'tooling' | 'quality' | 'flow'
 
 export interface PipelineNode {
   id: string
@@ -231,20 +101,18 @@ export const PIPELINE_TREE: readonly PipelineNode[] = [
     effect: 'Twenty more builds per level.', flavour: 'A warehouse of machines nobody is allowed to reboot.' },
   { id: 's4', name: 'Orbital Ring', family: 'capacity', x: 3, y: 1, era: 3, maxLevel: 5, requires: ['s3'],
     effect: 'Five hundred more builds per level.', flavour: 'The belt leaves the atmosphere.' },
-  // Speed: the stages get faster.
-  { id: 'v1', name: 'Faster Laptops', family: 'speed', x: 0, y: -1, era: 0, maxLevel: 5, requires: [],
-    effect: 'Builds run 20% faster per level.', flavour: null },
-  { id: 'v2', name: 'Build Cache', family: 'speed', x: 0, y: -2, era: 1, maxLevel: 3, requires: ['v1'],
-    effect: 'Builds run 25% faster per level. Waiting turns into handoffs.', flavour: 'Builds reuse what they can. Somebody has to find out who poisoned the cache.',
+  // Coordination: the tooling that moves the §2.7 ledger.
+  { id: 'v2', name: 'Build Cache', family: 'tooling', x: 0, y: -1, era: 1, maxLevel: 3, requires: [],
+    effect: 'Waiting turns into handoffs.', flavour: 'Builds reuse what they can. Somebody has to find out who poisoned the cache.',
     fix: { cuts: 'wait', feeds: 'handoff', share: 0.15 } },
-  { id: 'v3', name: 'Parallel Tests', family: 'speed', x: 0, y: -3, era: 2, maxLevel: 1, requires: ['v2'],
-    effect: 'Tests run twice as fast. Some waiting becomes duplicate work.', flavour: 'Tests run side by side, and some of them run twice.',
+  { id: 'v3', name: 'Parallel Tests', family: 'tooling', x: 0, y: -2, era: 2, maxLevel: 1, requires: ['v2'],
+    effect: 'Some waiting becomes duplicate work.', flavour: 'Tests run side by side, and some of them run twice.',
     fix: { cuts: 'wait', feeds: 'dup', share: 0.3 } },
-  // Quality: Test catches what it can.
-  { id: 'q1', name: 'Quarantine the Flaky Tests', family: 'quality', x: -1, y: -1, era: 0, maxLevel: 3, requires: ['v1'],
-    effect: 'Test catches 15% of a build’s defects per level before it ships.', flavour: 'The test that fails on Tuesdays is moved to a folder called LATER.' },
+  // Quality: the queue checks what joins it.
+  { id: 'q1', name: 'Quarantine the Flaky Tests', family: 'quality', x: 0, y: 1, era: 0, maxLevel: 3, requires: [],
+    effect: 'Catches 15% of a build’s defects per level as it joins the queue.', flavour: 'The test that fails on Tuesdays is moved to a folder called LATER.' },
   // Flow: SHIP! presses itself.
-  { id: 'a1', name: 'Auto-Ship', family: 'flow', rank: 'II', x: 1, y: -1, era: 0, maxLevel: 1, requires: ['s1', 'v1'],
+  { id: 'a1', name: 'Auto-Ship', family: 'flow', rank: 'II', x: 1, y: -1, era: 0, maxLevel: 1, requires: ['s1'],
     effect: `SHIP! presses itself, once every ${AUTO_SHIP_BASE_SECONDS} seconds.`, flavour: 'Rank II. You can stop clicking.' },
   { id: 'a2', name: 'Auto-Ship Speed', family: 'flow', x: 2, y: -1, era: 0, maxLevel: 5, requires: ['a1'],
     effect: `Auto-ship fires ${Math.round((AUTO_SHIP_STEP - 1) * 100)}% more often per level.`, flavour: null },
@@ -252,7 +120,7 @@ export const PIPELINE_TREE: readonly PipelineNode[] = [
     effect: 'Nothing waits: auto-ship twice as often. Waiting turns into handoffs.', flavour: 'Monday goes on handing round the pager.',
     fix: { cuts: 'wait', feeds: 'handoff', share: 0.4 } },
   { id: 'a3b', name: 'Ship on Green', family: 'flow', x: 2, y: -2, era: 1, maxLevel: 1, requires: ['a2'], fork: 'E',
-    effect: 'Nothing ships twice: duplicate work turns into waiting, and Test catches another 20% of defects.', flavour: 'Everything waits for green.',
+    effect: 'Nothing ships twice: duplicate work turns into waiting, and the queue catches another 20% of defects.', flavour: 'Everything waits for green.',
     fix: { cuts: 'dup', feeds: 'wait', share: 0.4 } },
   { id: 'K', name: 'Continuous Everything', family: 'flow', x: 4, y: -2, era: 3, maxLevel: 1, requires: ['s3', 'v3'],
     effect: 'Breakthrough: 70% of all waiting is gone.', flavour: 'The belt never stops. Nobody remembers what waiting was.',
@@ -273,10 +141,8 @@ export function pipelineLevel(levels: PipelineLevels | undefined, id: string): n
 export interface PipelineEffects {
   /** Extra buffer slots on top of the base shelf. */
   slots: number
-  buildSpeed: number
-  testSpeed: number
   /** Share of a build's defects Test removes, 0..1. */
-  testCatch: number
+  catches: number
   autoShip: boolean
   /** Seconds between auto-ships; Infinity without Auto-Ship. */
   autoShipSeconds: number
@@ -299,9 +165,7 @@ export function pipelineEffects(levels: PipelineLevels | undefined): PipelineEff
   const caught = 1 - (1 - 0.15) ** l('q1') * (l('a3b') > 0 ? 0.8 : 1)
   return {
     slots: l('s1') * 1 + l('s2') * 3 + l('s3') * 20 + l('s4') * 500,
-    buildSpeed: 1.2 ** l('v1') * 1.25 ** l('v2'),
-    testSpeed: l('v3') > 0 ? 2 : 1,
-    testCatch: Math.min(0.95, Math.max(0, caught)),
+    catches: Math.min(0.95, Math.max(0, caught)),
     autoShip,
     autoShipSeconds: autoShip
       ? AUTO_SHIP_BASE_SECONDS / AUTO_SHIP_STEP ** l('a2') / (l('a3a') > 0 ? 2 : 1)

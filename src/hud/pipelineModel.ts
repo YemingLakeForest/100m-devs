@@ -1,7 +1,7 @@
 import { beltView, type GameState } from '../game/store.ts'
 
 /**
- * What the advisor says while the belt needs the player — or null when it
+ * What the advisor says while the queue needs the player — or null when it
  * does not. Two moments only: the first build ever to reach the shelf (the
  * control has to be named once), and a full buffer (the studio has stopped,
  * and the one thing that starts it is a press).

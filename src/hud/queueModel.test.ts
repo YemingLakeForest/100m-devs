@@ -1,6 +1,6 @@
 /**
- * §10.7 [2026-10-03] — the queue is read as a contest between how fast the
- * studio turns out builds and how many it can hold. Tests pin the order of that
+ * §10.7 [2026-10-04] — the queue is read as a contest between how fast the
+ * studio turns out games and how many it can hold. Tests pin the order of that
  * contest, not the seconds.
  */
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -22,13 +22,9 @@ describe('queueView', () => {
     expect(queueLine(v)).toMatch(/FULL/)
   })
 
-  it('lists ready builds first, then Test, then Build', () => {
-    __setState({
-      devs: 1,
-      shelf: [build(1)],
-      pipeline: { build: [{ item: build(3), progress: 0.5 }], test: [{ item: build(2), progress: 0.2 }] },
-    })
-    expect(queueView().cells.map((c) => c.stage)).toEqual(['ready', 'test', 'build'])
+  it('lists the games oldest first: the front is the one SHIP! sends', () => {
+    __setState({ devs: 1, shelf: [build(7), build(9)] })
+    expect(queueView().games.map((g) => g.id)).toEqual([7, 9])
   })
 
   it('fills sooner as the studio gets faster, and later as the queue gets longer', () => {
@@ -45,12 +41,12 @@ describe('queueView', () => {
     expect(roomier.fullIn!).toBeGreaterThan(base.fullIn!)
   })
 
-  it('reads Auto-Ship as a drain, and goes steady only when it outpaces the studio', () => {
-    __setState({ devs: 1, pipelineNodes: { s1: 1, v1: 1, a1: 1 } })
+  it('reads Auto-Ship as a drain, and a faster one as a shorter interval', () => {
+    __setState({ devs: 1, pipelineNodes: { s1: 1, a1: 1 } })
     const v = queueView()
     expect(v.autoShip).toBe(true)
     expect(v.autoEvery).not.toBeNull()
-    __setState({ devs: 1, pipelineNodes: { s1: 1, v1: 1, a1: 1, a2: 5 } })
+    __setState({ devs: 1, pipelineNodes: { s1: 1, a1: 1, a2: 5 } })
     expect(queueView().autoEvery!).toBeLessThan(v.autoEvery!)
   })
 })

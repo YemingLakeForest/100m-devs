@@ -3025,9 +3025,8 @@ body {
 
 .backlog__chip-name {
   color: var(--n7);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Wraps; never cut short with an ellipsis. */
+  overflow-wrap: anywhere;
   /*
    * **`min-width: 0`, or none of the three lines above do anything.**
    *

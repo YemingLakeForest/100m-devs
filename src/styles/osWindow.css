@@ -140,7 +140,6 @@
   font-size: var(--type-1x);
   font-weight: 400;
   letter-spacing: 3px;
-  text-overflow: ellipsis;
   text-transform: uppercase;
   color: var(--p3);
 }

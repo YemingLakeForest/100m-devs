@@ -67,22 +67,13 @@ import {
 } from '../sim/release.ts'
 import {
   PIPELINE_BY_ID,
-  advancePipeline,
-  emptyPipeline,
-  inFlight,
-  jammed,
   pipelineCost,
-  pipelineDrag,
   pipelineEffects,
   pipelineLevel,
   pipelineRefusal,
-  stageSeconds,
   type PipelineEffects,
   type PipelineRefusal,
-  type PipelineState,
-  type Stage,
 } from '../sim/pipeline.ts'
-import { coordinationLedger } from '../sim/dysfunction.ts'
 import { titleFor, type Genre } from '../three/sim/titles.ts'
 import { eraIndex } from '../sim/eras.ts'
 import {
@@ -576,17 +567,12 @@ export interface GameState {
     stage: ReadinessStage | null
   } | null
   /**
-   * §10.7 [amended 2026-09-26] — **the pipeline**: builds in Build and Test.
-   *
-   * *"port the release little game and the pipeline, it needs to fit the
-   * current game aesthetics."* The burn-down reaching zero used to raise a
-   * modal launch window on the spot. A finished build now enters Build, then
-   * Test, then waits on the {@link shelf} for SHIP!, and everything past Code
-   * counts against one buffer (`sim/pipeline.ts` has the argument). Run state
-   * and persisted: unlike the old window it is not derivable, it is work.
+   * §10.7 [amended 2026-10-04] — **the build queue**: finished builds waiting for
+   * SHIP!, oldest first. A finished project lands here at once — there is no Build
+   * and no Test any more (`sim/pipeline.ts` has the argument) — and the queue is
+   * the one capacity that stops the studio when it is full. Run state and
+   * persisted: unlike the old window it is not derivable, it is work.
    */
-  pipeline: PipelineState<ShelvedBuild>
-  /** §10.7 — finished builds waiting for SHIP!, oldest first. */
   shelf: ShelvedBuild[]
   /**
    * §10.7 — Serena's pipeline board, levels by node id (`sim/pipeline.ts`).
@@ -987,7 +973,6 @@ function freshRun(): GameState {
     ship: null,
     // §10.7 — nothing on the belt. A run that has built nothing has nothing to
     // ship, and a new run starts on the garage's own machine.
-    pipeline: emptyPipeline<ShelvedBuild>(),
     shelf: [],
     pipelineNodes: {},
     treeLevels: {},
@@ -1962,12 +1947,12 @@ export function pipelineOf(s: GameState = state): PipelineEffects {
 }
 
 /**
- * §10.7 — **everything past Code**: builds in Build, in Test and on the shelf.
- * One number, because the buffer is one capacity, and every reader of "how full
- * is it" asks here.
+ * §10.7 — **everything past Code**: the builds in the queue. One number, because
+ * the queue is one capacity, and every reader of "how full is it" asks here.
+ * (It was the shelf plus whatever was in Build and Test, until those went.)
  */
 export function bufferCount(s: GameState = state): number {
-  return s.shelf.length + inFlight(s.pipeline)
+  return s.shelf.length
 }
 
 /** §10.7 — the buffer's size: the garage's three, plus what Serena's board bought. */
@@ -1997,26 +1982,7 @@ function nagFullShelf(): void {
 }
 
 /**
- * The share of the headcount lost to waiting and handoffs — what stretches
- * Build and Test (§10.7). §2.1's loss is this build's collapse, split into the
- * ledger's slices by the headcount and by Serena's fixes; in the garage there
- * is no waiting slice yet, so the belt runs at its authored speed.
- */
-export function pipelineWaitingShare(s: GameState = state): number {
-  const fx = pipelineOf(s)
-  const w = coordinationLedger(Math.max(0, s.devs), fx.fixes, fx.breakthroughs).weights
-  const lost = 1 - currentEfficiency(s)
-  return Math.min(1, Math.max(0, lost * (w.wait + w.handoff)))
-}
-
-/** Seconds `build` will spend in `stage` at today's speed and drag. */
-export function stageSecondsFor(s: GameState, stage: Stage, build: ShelvedBuild): number {
-  const fx = pipelineOf(s)
-  return stageSeconds(stage, build.size, stage === 'build' ? fx.buildSpeed : fx.testSpeed, pipelineDrag(pipelineWaitingShare(s)))
-}
-
-/**
- * The project is finished — §10.7. It enters Build; it does not go on sale.
+ * The project is finished — §10.7. It joins the queue; it does not go on sale.
  *
  * The rating's inputs are resolved here with the rules `shipProject` used to
  * apply at the ship (§21.0c's Run 1 stamps, §4.14's luck from the ordinal, the
@@ -2090,12 +2056,17 @@ function finishBuild(s: GameState): Partial<GameState> {
     labourSeconds: s.projectLabourSeconds,
     shelvedAt: s.runSeconds,
   }
+  // Serena's quality nodes: the queue checks what joins it, and takes a share of
+  // the defects off as it does. (This was Test's catch, when there was a Test.)
+  const catches = pipelineOf(s).catches
+  build.defects *= 1 - catches
+  build.density *= 1 - catches
 
   const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
   return {
     // The bench is clear. Whatever was on it is now the build's problem.
     defects: 0,
-    pipeline: { build: [...s.pipeline.build, { item: build, progress: 0 }], test: s.pipeline.test },
+    shelf: [...s.shelf, build],
     projectIndex: nextIndex,
     // The next game claims the next ordinal: this build has just taken one.
     sprintName: titleFor(s.runSeed, ordinal + 1).name,
@@ -2241,29 +2212,18 @@ function releaseFrom(s: GameState, outcome: LaunchOutcome): Partial<GameState> {
 }
 
 /**
- * Move the belt by `dt` — §10.7. Build and Test advance; what leaves Test is
- * shelved, with whatever defects Test caught taken off it; and Serena's
- * auto-ship fires on its own clock, several times in one long step if it is
- * owed them, never more than the shelf holds.
+ * Run the queue's clock by `dt` — §10.7. Serena's auto-ship fires on its own
+ * clock, several times in one long step if it is owed them, never more than the
+ * queue holds.
  */
 function advanceBelt(s: GameState, dt: number): Partial<GameState> {
   const fx = pipelineOf(s)
-  const step = advancePipeline(s.pipeline, dt, (stage, build) => stageSecondsFor(s, stage, build))
-  const shelved = step.done.map((b) => ({
-    ...b,
-    defects: b.defects * (1 - fx.testCatch),
-    density: b.density * (1 - fx.testCatch),
-    shelvedAt: s.runSeconds,
-  }))
-  let patch: Partial<GameState> = {
-    pipeline: step.state,
-    shelf: shelved.length > 0 ? [...s.shelf, ...shelved] : s.shelf,
-  }
+  let patch: Partial<GameState> = {}
   if (!fx.autoShip) {
     if (s.autoShipClock !== 0) patch.autoShipClock = 0
     return patch
   }
-  let now = { ...s, ...patch } as GameState
+  let now = s
   let clock = s.autoShipClock + dt
   while (clock >= fx.autoShipSeconds && now.shelf.length > 0) {
     clock -= fx.autoShipSeconds
@@ -2279,11 +2239,7 @@ function advanceBelt(s: GameState, dt: number): Partial<GameState> {
 
 /** §10.7 — the belt as the HUD draws it. One reading, so the HUD cannot count the buffer differently from the rule that stops the studio. */
 export interface BeltView {
-  build: number
-  test: number
-  buildJam: boolean
-  testJam: boolean
-  /** Everything past Code, against the capacity that stops the studio at full. */
+  /** Everything in the queue, against the capacity that stops the studio at full. */
   buffer: number
   capacity: number
   /** Builds on the shelf, which SHIP! can reach. */
@@ -2296,10 +2252,6 @@ export interface BeltView {
 export function beltView(s: GameState = state): BeltView {
   const fx = pipelineOf(s)
   return {
-    build: s.pipeline.build.length,
-    test: s.pipeline.test.length,
-    buildJam: jammed(s.pipeline, 'build'),
-    testJam: jammed(s.pipeline, 'test'),
     buffer: bufferCount(s),
     capacity: shelfCapacity(s),
     ready: s.shelf.length,
@@ -2736,8 +2688,7 @@ export function tick(dtSeconds: number): void {
 
   if (state.bubble && now - state.bubble.bornAt > state.bubble.ttl) patch.bubble = null
 
-  // §10.7 — the belt moves on the same clock: Build and Test advance, what
-  // leaves Test is shelved, and Serena's auto-ship fires if it is owed.
+  // §10.7 — the queue's clock: Serena's auto-ship fires if it is owed.
   patch = { ...patch, ...advanceBelt({ ...state, ...patch } as GameState, dtSeconds) }
 
   // §10.7 — the burn-down reaching zero finishes the *build*, which goes onto
@@ -4280,32 +4231,24 @@ function offlineBelt(s: GameState): { autoShipSeconds: number; shelved: number; 
 }
 
 /**
- * §10.7 — the belt, after the absence `report` describes.
+ * §10.7 — the queue, after the absence `report` describes.
  *
- * Everything in Build and Test has had hours, so it is on the shelf. Serena's
- * auto-ship took the waiting builds first, at her neutral launch; then the
+ * Serena's auto-ship took the waiting builds first, at her neutral launch; then the
  * projects the absence finished wait in the buffer for SHIP!, frozen as the
  * studio that built them — which is the studio the player left.
  */
 function offlineBeltAfter(s: GameState, report: OfflineReport): Partial<GameState> {
-  const flushed = advancePipeline(s.pipeline, Number.MAX_SAFE_INTEGER, () => 1)
-  let now: GameState = {
-    ...s,
-    pipeline: flushed.state,
-    shelf: [...s.shelf, ...flushed.done.map((b) => ({ ...b, shelvedAt: s.runSeconds }))],
-  }
+  let now: GameState = s
   for (let k = 0; k < report.shelfShipped && now.shelf.length > 0; k++) {
     now = { ...now, ...releaseFrom(now, pipelineLaunch()) }
   }
   for (const index of report.built) {
     const at = Math.min(Math.max(0, index), PROJECTS.length - 1)
     const done = finishBuild({ ...now, projectIndex: at, commitment: commitmentFor(at, now) })
-    const lane = done.pipeline?.build ?? []
-    const built = lane[lane.length - 1]?.item
+    const built = done.shelf?.[done.shelf.length - 1]
     if (built) now = { ...now, defects: 0, shelf: [...now.shelf, { ...built, shelvedAt: now.runSeconds }] }
   }
   return {
-    pipeline: now.pipeline,
     shelf: now.shelf,
     defects: now.defects,
     releases: now.releases,
@@ -4370,12 +4313,9 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     seedTaken: r.seedTaken,
     dialUnlocked: r.dialUnlocked,
     massHired: r.massHired,
-    // §10.7 — the belt comes back as it was: work in Build and Test, and the
-    // builds waiting for SHIP!. `normaliseRun` has already defended each one.
-    pipeline: {
-      build: (r.pipeline?.build ?? []).map((f) => ({ item: { ...f.item }, progress: f.progress })),
-      test: (r.pipeline?.test ?? []).map((f) => ({ item: { ...f.item }, progress: f.progress })),
-    },
+    // §10.7 — the queue comes back as it was. `normaliseRun` has already defended
+    // each build, and has already moved any that a save from before Build and Test
+    // were decommissioned left mid-pipeline onto the end of the shelf.
     shelf: (r.shelf ?? []).map((b) => ({ ...b })),
     pipelineNodes: { ...(r.pipelineNodes ?? {}) },
     treeLevels: { ...(r.treeLevels ?? {}) },
@@ -4459,8 +4399,8 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
 
   pendingSnapshot = report.qualifies ? { savedAt: save.savedAt, rateMultiplier, capSeconds } : null
   restored.sprintName = projectTitle(restored).name
-  // §10.7 — ids after the restored belt's, so a new build cannot share a key.
-  nextBuildId = 1 + Math.max(0, ...[...restored.shelf, ...restored.pipeline.build.map((f) => f.item), ...restored.pipeline.test.map((f) => f.item)].map((b) => b.id))
+  // §10.7 — ids after the restored queue's, so a new build cannot share a key.
+  nextBuildId = 1 + Math.max(0, ...restored.shelf.map((b) => b.id))
   state = { ...restored, pendingOffline: report.qualifies ? report : null }
   for (const fn of listeners) fn()
   return state.pendingOffline

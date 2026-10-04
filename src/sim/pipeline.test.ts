@@ -6,43 +6,17 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  advancePipeline, AUTO_SHIP_BASE_SECONDS, emptyPipeline, jammed, PIPELINE_BY_ID, PIPELINE_TREE, pipelineCost,
-  pipelineDrag, pipelineEffects, pipelineRefusal, sizeFactor, stageSeconds,
+  AUTO_SHIP_BASE_SECONDS, PIPELINE_BY_ID, PIPELINE_TREE, pipelineCost, pipelineEffects, pipelineRefusal,
 } from './pipeline.ts'
 
-const secs = (build: number, test: number) => (stage: 'build' | 'test') => (stage === 'build' ? build : test)
-
-describe('the belt — Build then Test, one lane each', () => {
-  it('a build takes Build’s seconds and then Test’s', () => {
-    let p = emptyPipeline<string>()
-    p.build.push({ item: 'a', progress: 0 })
-    let r = advancePipeline(p, 3.9, secs(2, 2))
-    expect(r.done).toEqual([])
-    r = advancePipeline(r.state, 0.2, secs(2, 2))
-    expect(r.done).toEqual(['a'])
-    p = r.state
-    expect(p.build.length + p.test.length).toBe(0)
-  })
-  it('one long step moves several builds, in order, and never faster than the slowest stage', () => {
-    const p = emptyPipeline<number>()
-    for (let i = 0; i < 5; i++) p.build.push({ item: i, progress: 0 })
-    const r = advancePipeline(p, 20, secs(1, 4))
-    // Test is the bottleneck: first out at 5 s, then one every 4 s → 5, 9, 13, 17.
-    expect(r.done).toEqual([0, 1, 2, 3])
-  })
-  it('a stage with somebody waiting is jammed', () => {
-    const p = emptyPipeline<number>()
-    p.test.push({ item: 1, progress: 0.5 }, { item: 2, progress: 0 })
-    expect(jammed(p, 'test')).toBe(true)
-    expect(jammed(p, 'build')).toBe(false)
-  })
-  it('bigger games and more waiting take longer; speed takes less', () => {
-    expect(sizeFactor(24_000)).toBeGreaterThan(sizeFactor(240))
-    expect(sizeFactor(10)).toBe(1)
-    expect(pipelineDrag(0.3)).toBeGreaterThan(pipelineDrag(0))
-    expect(pipelineDrag(0)).toBe(1)
-    expect(stageSeconds('build', 240, 2, 1)).toBeLessThan(stageSeconds('build', 240, 1, 1))
-    expect(stageSeconds('test', 1e6, 1, 1)).toBeGreaterThan(stageSeconds('test', 240, 1, 1))
+describe('the queue — Build and Test are decommissioned [2026-10-04]', () => {
+  it('has no stage to speed up: no Build or Test speed, and no node whose only job was one', () => {
+    const fx = pipelineEffects({ s1: 5, v2: 3, v3: 1, a1: 1, a2: 5 })
+    expect(Object.keys(fx)).not.toContain('buildSpeed')
+    expect(Object.keys(fx)).not.toContain('testSpeed')
+    expect(PIPELINE_BY_ID.has('v1')).toBe(false)
+    // What is left of the old speed family still does something: it moves the ledger.
+    for (const id of ['v2', 'v3']) expect(PIPELINE_BY_ID.get(id)!.fix).toBeDefined()
   })
 })
 
@@ -60,14 +34,14 @@ describe('Serena’s pipeline board', () => {
     expect(pipelineEffects({ a1: 1 }).autoShipSeconds).toBe(AUTO_SHIP_BASE_SECONDS)
     expect(pipelineEffects({ a1: 1, a2: 3 }).autoShipSeconds).toBeLessThan(AUTO_SHIP_BASE_SECONDS)
   })
-  it('Auto-Ship needs a longer shelf and faster laptops first — rank II after rank I', () => {
+  it('Auto-Ship needs a longer queue first — rank II after rank I', () => {
     const a1 = PIPELINE_BY_ID.get('a1')!
     expect(pipelineRefusal(a1, {}, 1e12, 4)).toBe('requires')
-    expect(pipelineRefusal(a1, { s1: 1, v1: 1 }, 1e12, 4)).toBe(null)
+    expect(pipelineRefusal(a1, { s1: 1 }, 1e12, 4)).toBe(null)
   })
   it('a fork is pick-one', () => {
     const green = PIPELINE_BY_ID.get('a3b')!
-    const levels = { s1: 1, v1: 1, a1: 1, a2: 1, a3a: 1 }
+    const levels = { s1: 1, a1: 1, a2: 1, a3a: 1 }
     expect(pipelineRefusal(green, levels, 1e15, 4)).toBe('fork')
   })
   it('a node waits for its era, and for cash', () => {
@@ -85,9 +59,9 @@ describe('Serena’s pipeline board', () => {
     for (const n of PIPELINE_TREE) if (n.fix) expect(n.fix.cuts).not.toBe(n.fix.feeds)
     expect(pipelineEffects({ K: 1 }).breakthroughs).toEqual(['wait'])
   })
-  it('quality: Test catches more defects the more you buy, and never all of them', () => {
-    expect(pipelineEffects({}).testCatch).toBe(0)
-    expect(pipelineEffects({ q1: 2 }).testCatch).toBeGreaterThan(pipelineEffects({ q1: 1 }).testCatch)
-    expect(pipelineEffects({ q1: 3, a3b: 1 }).testCatch).toBeLessThan(1)
+  it('quality: the queue catches more defects the more you buy, and never all of them', () => {
+    expect(pipelineEffects({}).catches).toBe(0)
+    expect(pipelineEffects({ q1: 2 }).catches).toBeGreaterThan(pipelineEffects({ q1: 1 }).catches)
+    expect(pipelineEffects({ q1: 3, a3b: 1 }).catches).toBeLessThan(1)
   })
 })

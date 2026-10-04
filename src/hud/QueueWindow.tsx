@@ -1,114 +1,45 @@
 /**
- * The build queue, opened — GDD §10.7 [amended 2026-10-03].
+ * The build queue, opened — GDD §10.7 [amended 2026-10-04].
  *
- * *"I want pipelines similar to gitlab."* So this is a pipeline graph: one row
- * per run, and across it the jobs the run passes through, each a node joined to
- * the next by a line that fills in as the stage before it passes. The columns
- * are labelled once at the top (BUILD, TEST, SHIP), the way a CI board labels
- * its stages; the rows carry the cover, the name and a status pill.
+ * Built the way the release ring is built — a centred frame, one instrument, the
+ * brief, one chunky button, nothing that scrolls — and the instrument is GitLab's
+ * pipeline graph, drawn thick: *"still too AI-sloppy… I want the general GitLab
+ * pipeline layout, with thick stroke pixelated art style, don't over-complicate
+ * it."* Three stages as columns (CODE, QUEUE, SHIP), a job card for every slot of
+ * the queue, and a square-elbowed line from each stage to the next
+ * (`PipelineGraph.tsx`). The SHIP job is the control: it ships the front game.
  *
- * Above the graph is the managing half — the two pressures the screen exists to
- * show. **How much room is left, and how long until it stops me**, and then
- * SPEED against ROOM side by side, each with what raises it. A player who reads
- * only the top of this window knows what to do; one who reads the graph knows
- * why.
- *
- * Drawn in the release ring's register — 1px rules, stepped bars, whole-pixel
- * covers — at sizes meant to be *read*: figures at 2x, labels in the bright ink
- * rather than the dim one (the dim ink was the complaint about the rest of the
- * HUD, and it is not repeated here).
+ * Under it, the clock on the queue at 2x, and the ring's own rows: the game being
+ * made (its cover, as the ring shows the build it is releasing), ROOM, the rate,
+ * AUTO, and what ships next. No glow, no gradient, no box around anything that is
+ * not a box.
  */
 
 import { coverFor } from '../three/sim/cover.ts'
 import { OsWindow } from '../ui/OsWindow.tsx'
 import { Button } from '../ui/Button.tsx'
-import { openLaunch, pipelineOpen, projectTitle, type GameState } from '../game/store.ts'
+import { openLaunch, pipelineOpen, projectOrdinal, projectTitle, type GameState } from '../game/store.ts'
 import { Cover } from './Cover.tsx'
-import { PipeNode } from './PipeNode.tsx'
-import { JOB_LABELS, jobStates, type NodeState } from './pipeJobs.ts'
-import { clock, queueLine, queueTone, queueView, type CellStage, type QueueCell, type QueueView } from './queueModel.ts'
+import { PipelineGraph } from './PipelineGraph.tsx'
+import { clock, queueLine, queueTone, queueView, type QueueView } from './queueModel.ts'
 
-import '../styles/pstrip.css'
+import '../styles/release.css'
 import '../styles/queue.css'
 
-/** Past this many segments a bar is scaled, not drawn one-per-slot. */
-const MAX_SEGMENTS = 24
-/** Rows of empty slots drawn in the graph before it says how many more. */
-const MAX_EMPTY_ROWS = 3
-const SEGMENTS_PER_BAR = 12
+/** ROOM pips drawn; a longer queue is a count. */
+const PIPS_MAX = 8
 
-const PILL: Record<CellStage, string> = { build: 'BUILDING', test: 'TESTING', ready: 'READY' }
-
-/** One segment per slot (scaled when there are hundreds), in the order they fill. */
-function slotSegments(v: QueueView): ('free' | CellStage)[] {
-  const n = Math.min(v.capacity, MAX_SEGMENTS)
-  const scale = v.capacity / n
-  const counts: Record<CellStage, number> = { ready: 0, test: 0, build: 0 }
-  for (const c of v.cells) counts[c.stage] += 1
-  let ready = Math.round(counts.ready / scale)
-  let flight = Math.round((counts.test + counts.build) / scale)
-  // A non-zero count never rounds away: one build in a slot bar of two hundred
-  // is still one lit segment, or the bar says the queue is empty when it is not.
-  if (counts.ready > 0) ready = Math.max(1, ready)
-  if (counts.test + counts.build > 0) flight = Math.max(1, flight)
-  const out: ('free' | CellStage)[] = []
-  for (let i = 0; i < n; i++) out.push(i < ready ? 'ready' : i < ready + flight ? 'test' : 'free')
-  return out
-}
-
-function Bar({ progress }: { progress: number }) {
-  const on = Math.round(progress * SEGMENTS_PER_BAR)
-  return (
-    <span className="queue__bar" aria-hidden="true">
-      {Array.from({ length: SEGMENTS_PER_BAR }, (_, i) => (
-        <i key={i} data-on={i < on ? 'true' : 'false'} />
-      ))}
-    </span>
-  )
-}
-
-/** The three jobs of one run, joined by lines that fill as each stage passes. */
-function Jobs({ states, detail }: { states: readonly NodeState[]; detail: (i: number) => string }) {
-  return (
-    <>
-      {states.map((s, i) => (
-        <span key={i} className="queue__job" data-state={s}>
-          {i > 0 ? <i className="queue__wire" data-done={states[i - 1] === 'pass' ? 'true' : 'false'} /> : null}
-          <PipeNode key={s} state={s} label={JOB_LABELS[i]} />
-          <span className="queue__jobtext">{detail(i)}</span>
-        </span>
-      ))}
-    </>
-  )
-}
-
-function Run({ cell, seed }: { cell: QueueCell; seed: number }) {
-  const { build } = cell
-  const states = jobStates(cell)
-  const detail = (i: number) => {
-    const s = states[i]
-    if (s === 'pass') return 'PASSED'
-    if (s === 'ready') return 'SHIP ME'
-    if (s === 'wait') return 'QUEUED'
-    if (s === 'run') return cell.secondsLeft !== null ? clock(cell.secondsLeft) : 'RUNNING'
-    return '—'
+function readout(v: QueueView): string {
+  switch (v.flow) {
+    case 'stopped':
+      return 'The queue is full. Nobody can code until something ships.'
+    case 'steady':
+      return 'Auto-Ship leaves as fast as games arrive.'
+    case 'filling':
+      return 'Games are arriving faster than they ship.'
+    default:
+      return 'Nothing is being coded right now.'
   }
-  return (
-    <li className="queue__run" data-stage={cell.stage}>
-      <span className="queue__who">
-        <span className="queue__cover">
-          <Cover spec={coverFor(seed, build.ordinal, 0, build.name, build.genre)} title={build.name} unrated />
-        </span>
-        <span className="queue__id">
-          <span className="queue__name">{build.name}</span>
-          <span className="queue__pill" data-stage={cell.stage}>
-            #{build.ordinal + 1} {PILL[cell.stage]}
-          </span>
-        </span>
-      </span>
-      <Jobs states={states} detail={detail} />
-    </li>
-  )
 }
 
 export function QueueWindow({
@@ -125,107 +56,77 @@ export function QueueWindow({
 }) {
   const v = queueView(state)
   const tone = queueTone(v)
-  const segs = slotSegments(v)
-  const shownEmpty = Math.min(v.free, MAX_EMPTY_ROWS)
-  const coding = projectTitle(state)
-  const ready = v.cells.filter((c) => c.stage === 'ready').length
+  const ready = v.games.length
+  const pips = Math.max(1, Math.min(v.capacity, PIPS_MAX))
   const board = pipelineOpen()
+  const making = projectTitle(state)
+  const cover = coverFor(state.runSeed, projectOrdinal(state), 0, making.name, making.genre)
+
+  const shipFront = () => {
+    if (openLaunch()) onClose()
+  }
 
   return (
     <OsWindow
       open={open}
-      from="top"
-      className="hud__queue"
-      title="PIPELINES"
+      from="centre"
+      modal
+      title="BUILD QUEUE"
       meta={`${v.used}/${v.capacity}`}
       onClose={onClose}
+      className="release-frame ring-frame"
+      bodyClassName="release ring"
       footer={
-        <div className="queue__foot">
-          <Button
-            className="queue__ship"
-            disabled={ready === 0 || state.scene !== null}
-            onClick={() => {
-              if (openLaunch()) onClose()
-            }}
-          >
-            {ready > 0 ? `SHIP! (${ready})` : 'SHIP!'}
-          </Button>
-          {board ? (
-            <Button className="queue__board" onClick={onBoard}>
-              SERENA’S BOARD
-            </Button>
-          ) : null}
-        </div>
+        <Button className="ring__act queue__ship" disabled={ready === 0 || state.scene !== null} onClick={shipFront}>
+          {ready > 0 ? `SHIP! (${ready})` : 'SHIP!'}
+        </Button>
       }
     >
-      <div className="queue" data-tone={tone}>
-        {/* The room, and the clock on it. */}
-        <section className="queue__gauge" aria-label="Queue capacity">
-          <span className="queue__slots" aria-hidden="true">
-            {segs.map((s, i) => (
-              <i key={i} data-slot={s} />
-            ))}
-          </span>
-          <p className="queue__line" role="status">
-            {queueLine(v)}
-          </p>
-          <p className="queue__sub">
-            {v.flow === 'stopped'
-              ? 'The queue is full. Nobody can code until something ships.'
-              : v.flow === 'steady'
-                ? 'Auto-Ship leaves as fast as builds arrive.'
-                : v.flow === 'filling'
-                  ? 'Builds are arriving faster than they ship.'
-                  : 'Nothing is being coded right now.'}
-          </p>
-        </section>
+      <div className="ring__catch queue__catch" data-tone={tone}>
+        <PipelineGraph v={v} state={state} onShip={shipFront} />
 
-        {/* The contest. */}
-        <section className="queue__trade" aria-label="Speed against room">
-          <div className="queue__stat">
-            <span className="queue__k">SPEED</span>
-            <b>{v.cycle === null ? '--' : `1 / ${clock(v.cycle)}`}</b>
-            <span className="queue__d">builds out of Code · Build x{v.buildSpeed.toFixed(2)} · Test x{v.testSpeed.toFixed(2)}</span>
+        <div className="queue__under">
+          <div className="ring__brief">
+            <p className="queue__big" role="status" data-tone={tone}>
+              {queueLine(v)}
+            </p>
+            <div className="ring__shelf">
+              <Cover spec={cover} title={making.name} unrated />
+              <div className="ring__id">
+                <p className="ring__kicker">NOW MAKING</p>
+                <p className="ring__name">{making.name}</p>
+              </div>
+            </div>
+            <p className="ring__say queue__say" data-tone={tone}>
+              {readout(v)}
+            </p>
           </div>
-          <span className="queue__vs" aria-hidden="true">
-            VS
-          </span>
-          <div className="queue__stat">
-            <span className="queue__k">ROOM</span>
-            <b>{v.free} FREE</b>
-            <span className="queue__d">
-              {v.autoShip && v.autoEvery !== null ? `Auto-Ship every ${clock(v.autoEvery)}` : 'you ship by hand'}
-            </span>
+          <div className="ring__brief">
+            <div className="ring__row" aria-label={`Room: ${v.free} free of ${v.capacity}`}>
+              <span className="ring__k">ROOM</span>
+              {Array.from({ length: pips }, (_, i) => (
+                <span key={i} className="ring__pip" data-on={i < v.used ? 'true' : 'false'}>
+                  {i + 1}
+                </span>
+              ))}
+              {v.capacity > PIPS_MAX ? <span className="ring__best">+{v.capacity - PIPS_MAX}</span> : null}
+            </div>
+            <p className="ring__best">
+              A GAME EVERY <b>{v.cycle === null ? 'NEVER' : clock(v.cycle)}</b>
+            </p>
+            <p className="ring__best">
+              AUTO <b>{v.autoShip && v.autoEvery !== null ? `every ${clock(v.autoEvery)}` : 'you ship'}</b>
+            </p>
+            <p className="ring__best">
+              NEXT OUT <b>{ready > 0 ? v.games[0].name : 'nothing yet'}</b>
+            </p>
+            {board ? (
+              <Button className="queue__board" onClick={onBoard}>
+                SERENA’S
+              </Button>
+            ) : null}
           </div>
-        </section>
-
-        {/* The graph. */}
-        <div className="queue__stagehead" aria-hidden="true">
-          <span>PIPELINE</span>
-          {JOB_LABELS.map((l) => (
-            <span key={l}>{l}</span>
-          ))}
         </div>
-        <ul className="queue__list" aria-label="Pipelines in the queue">
-          <li className="queue__run queue__run--code">
-            <span className="queue__who">
-              <span className="queue__id">
-                <span className="queue__name">CODING · {coding.name}</span>
-                <Bar progress={v.coding} />
-              </span>
-            </span>
-            <span className="queue__codenote">{v.nextBuildIn === null ? 'paused' : `build starts in ${clock(v.nextBuildIn)}`}</span>
-          </li>
-          {v.cells.map((c) => (
-            <Run key={c.build.id} cell={c} seed={state.runSeed} />
-          ))}
-          {Array.from({ length: shownEmpty }, (_, i) => (
-            <li key={`e${i}`} className="queue__run queue__run--empty">
-              <span className="queue__name">EMPTY SLOT</span>
-            </li>
-          ))}
-          {v.free > shownEmpty ? <li className="queue__more">+{v.free - shownEmpty} MORE SLOTS FREE</li> : null}
-        </ul>
       </div>
     </OsWindow>
   )

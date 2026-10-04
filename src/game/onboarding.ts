@@ -183,7 +183,7 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
       'Employees: 0 // just you',
     ],
     bubble: 'Founder. Developer. Person who forgot the semicolon. All me.',
-    advisor: 'Press CODE to finish your app. It goes straight into a pipeline; when it comes out, press SHIP!',
+    advisor: 'Press CODE to finish your app. It goes straight into the queue; then press SHIP!',
   },
 
   act1_james: {

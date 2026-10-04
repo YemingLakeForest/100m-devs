@@ -1,16 +1,14 @@
 /**
- * The build queue, read for the screen — GDD §10.7 [amended 2026-10-03].
+ * The build queue, read for the screen — GDD §10.7 [amended 2026-10-04].
  *
- * The mechanic was already the right shape and the screen did not say so: Code,
- * Build and Test all draw from **one** capacity, and a full queue stops the
- * floor. That makes two things the player is always trading — how *fast* the
- * studio turns out builds, and how *many* it can hold while it waits for
- * somebody to ship them — and a tally of slots is not enough to see the trade.
- * What the player needs is the one number a manager actually acts on: **how long
- * until it stops me.** That is {@link QueueView.fullIn}, and it is the whole
- * reason this file exists. It falls as the studio gets faster and rises as the
- * queue gets longer or somebody ships, so speed and room read as the opposed
- * pressures they are.
+ * Build and Test are decommissioned: a finished project joins the queue at once
+ * and waits there for SHIP!, so the queue is a list of games and nothing else.
+ * What is left to read is the contest it exists for — how *fast* the studio
+ * turns out games, against how many it can *hold* while it waits for somebody to
+ * ship them — and the one number a manager acts on: **how long until it stops
+ * me.** That is {@link QueueView.fullIn}. It falls as the studio gets faster and
+ * rises as the queue gets longer or somebody ships, so speed and room read as
+ * the opposed pressures they are.
  *
  * Pure over a state: nothing here writes.
  */
@@ -20,44 +18,30 @@ import {
   bufferCount,
   currentVelocity,
   shelfCapacity,
-  stageSecondsFor,
   pipelineOf,
   type GameState,
   type ShelvedBuild,
 } from '../game/store.ts'
 
-export type CellStage = 'build' | 'test' | 'ready'
-
-export interface QueueCell {
-  build: ShelvedBuild
-  stage: CellStage
-  /** 0..1 through the stage it is in; 1 once it is ready. */
-  progress: number
-  /** Seconds to leave the stage — null while it waits behind another build. */
-  secondsLeft: number | null
-  /** Parked behind the head of its lane: the jam §11.4 draws. */
-  waiting: boolean
-}
-
 /**
  * - `stopped` — the queue is full, nobody codes, and only a ship starts it.
- * - `filling` — builds arrive faster than they leave; `fullIn` is the countdown.
- * - `steady`  — Auto-Ship leaves at least as fast as builds arrive.
+ * - `filling` — games arrive faster than they leave; `fullIn` is the countdown.
+ * - `steady`  — Auto-Ship leaves at least as fast as games arrive.
  * - `idle`    — nothing is being coded (no velocity), so there is no rate to read.
  */
 export type QueueFlow = 'stopped' | 'filling' | 'steady' | 'idle'
 
 export interface QueueView {
-  /** Oldest first: ready, then Test, then Build — the order they will be shippable. */
-  cells: QueueCell[]
+  /** Oldest first: the one at the front is the one SHIP! sends next. */
+  games: ShelvedBuild[]
   used: number
   capacity: number
   free: number
-  /** The project being coded now, 0..1 — the head of the pipe, before Build. */
+  /** The project being coded now, 0..1 — the game that joins the queue next. */
   coding: number
-  /** Seconds until the next build leaves Code. */
+  /** Seconds until it is finished and joins. */
   nextBuildIn: number | null
-  /** Seconds between builds at today's speed. */
+  /** Seconds between games at today's speed. */
   cycle: number | null
   /** Seconds until the queue is full and the floor stops, if nothing ships. */
   fullIn: number | null
@@ -66,31 +50,12 @@ export interface QueueView {
   autoEvery: number | null
   autoIn: number | null
   flow: QueueFlow
-  buildSpeed: number
-  testSpeed: number
 }
 
 export function queueView(s: GameState = getState()): QueueView {
   const fx = pipelineOf(s)
   const capacity = shelfCapacity(s)
   const used = bufferCount(s)
-
-  const lane = (stage: 'build' | 'test'): QueueCell[] =>
-    s.pipeline[stage].map((f, i) => {
-      const seconds = stageSecondsFor(s, stage, f.item)
-      return {
-        build: f.item,
-        stage,
-        progress: Math.min(1, Math.max(0, f.progress)),
-        secondsLeft: i === 0 ? Math.max(0, (1 - f.progress) * seconds) : null,
-        waiting: i > 0,
-      }
-    })
-  const cells: QueueCell[] = [
-    ...s.shelf.map((build): QueueCell => ({ build, stage: 'ready', progress: 1, secondsLeft: 0, waiting: false })),
-    ...lane('test'),
-    ...lane('build'),
-  ]
 
   const commitment = s.commitment.toNumber()
   const left = Math.max(0, commitment - s.burned.toNumber())
@@ -101,8 +66,8 @@ export function queueView(s: GameState = getState()): QueueView {
   const cycle = live && commitment > 0 ? commitment / velocity : null
 
   const free = Math.max(0, capacity - used)
-  // Each free slot takes one more build. The first arrives at `nextBuildIn`,
-  // the rest a cycle apart. An estimate — the next project is a different size —
+  // Each free slot takes one more game. The first arrives at \`nextBuildIn\`, the
+  // rest a cycle apart. An estimate — the next project is a different size —
   // and drawn with a tilde for that reason.
   const fullIn = free === 0 ? 0 : nextBuildIn !== null && cycle !== null ? nextBuildIn + (free - 1) * cycle : null
 
@@ -116,7 +81,7 @@ export function queueView(s: GameState = getState()): QueueView {
   else flow = 'filling'
 
   return {
-    cells,
+    games: s.shelf,
     used,
     capacity,
     free,
@@ -128,8 +93,6 @@ export function queueView(s: GameState = getState()): QueueView {
     autoEvery,
     autoIn,
     flow,
-    buildSpeed: fx.buildSpeed,
-    testSpeed: fx.testSpeed,
   }
 }
 
@@ -152,7 +115,7 @@ export function queueLine(v: QueueView): string {
     case 'filling':
       return v.fullIn === null ? 'FILLING' : `FULL IN ~${clock(v.fullIn)}`
     default:
-      return v.cells.length ? 'WAITING' : 'EMPTY'
+      return v.games.length ? 'WAITING' : 'EMPTY'
   }
 }
 

@@ -29,7 +29,7 @@ describe('first app opening', () => {
     expect(stage.codeFounder).not.toHaveBeenCalled()
     for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'CODE' }))
     expect(stage.codeFounder).toHaveBeenCalledTimes(3)
-    expect(screen.getByText(/Build and Test run automatically/)).toBeInTheDocument()
+    expect(screen.getByText(/goes straight into the queue/)).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Keep coding' }))
     expect(onDone).toHaveBeenCalledOnce()

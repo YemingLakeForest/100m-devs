@@ -41,7 +41,6 @@ import { emptyPermanent, setPermanent } from './save.ts'
 import { SCENE_SERENA_ARRIVES } from './scenes.ts'
 import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
 import { LAUNCH_BANDS, TRAIN_LAUNCH, launchOutcome } from '../sim/release.ts'
-import { STAGE_BASE_SECONDS } from '../sim/pipeline.ts'
 import { titleFor } from '../three/sim/titles.ts'
 
 beforeEach(() => {
@@ -65,41 +64,31 @@ function finish() {
   step(0.5)
 }
 
-/** Run the belt long enough for everything on it to reach the shelf. */
+/** Kept so the calls below read the way they always did: there is nothing left to wait for. */
 function runBelt() {
-  for (let i = 0; i < 40; i++) step(0.5)
+  step(0.5)
 }
 
-describe('§10.7 — a finished build goes onto the belt, not on sale', () => {
-  it('enters Build when the burn-down reaches zero, and the next project starts at once', () => {
+describe('§10.7 [2026-10-04] — a finished build goes straight into the queue, not on sale', () => {
+  it('joins the queue when the burn-down reaches zero, and the next project starts at once', () => {
     const first = getState().sprintName
     finish()
     const s = getState()
-    expect(s.pipeline.build).toHaveLength(1)
-    expect(s.shelf).toHaveLength(0)
+    expect(s.shelf).toHaveLength(1)
     expect(s.projectsShipped).toBe(0)
-    expect(s.pipeline.build[0].item.name).toBe(first)
+    expect(s.shelf[0].name).toBe(first)
     expect(s.burned.toNumber()).toBeLessThan(s.commitment.toNumber())
     expect(s.sprintName).not.toBe(first)
   })
 
-  it('runs Build, then Test, then waits on the shelf', () => {
+  it('has no Build and no Test: the build is shippable the frame it is made, and waits for SHIP!', () => {
     finish()
-    // The order is the claim; the seconds are `sim/pipeline.ts`'s.
-    const seen: string[] = []
-    for (let i = 0; i < 200 && getState().shelf.length === 0; i++) {
-      const s = getState()
-      const where = s.pipeline.build.length ? 'build' : s.pipeline.test.length ? 'test' : 'shelf'
-      if (seen[seen.length - 1] !== where) seen.push(where)
-      step(0.1)
-    }
-    expect(seen).toEqual(['build', 'test'])
     expect(getState().shelf).toHaveLength(1)
-    // A garage build takes its authored seconds, give or take its size.
-    expect(getState().runSeconds).toBeGreaterThan(STAGE_BASE_SECONDS.build + STAGE_BASE_SECONDS.test)
     // And it waits there: nothing ships it but SHIP!.
     for (let i = 0; i < 20; i++) step(1)
     expect(getState().projectsShipped).toBe(0)
+    expect(getState().shelf).toHaveLength(1)
+    expect('pipeline' in getState()).toBe(false)
   })
 
   it('keeps the name, ordinal and genre it was finished with', () => {
@@ -118,7 +107,7 @@ describe('§10.7 — a finished build goes onto the belt, not on sale', () => {
   })
 })
 
-describe('§10.7 — one buffer, and a full one stops the floor', () => {
+describe('§10.7 — one queue, and a full one stops the floor', () => {
   function fill() {
     const shelf: ShelvedBuild[] = []
     for (let i = 0; i < SHELF_CAPACITY; i++) {
@@ -129,13 +118,11 @@ describe('§10.7 — one buffer, and a full one stops the floor', () => {
     return shelf
   }
 
-  it('counts Build, Test and the shelf against one capacity', () => {
+  it('counts every game in the queue against the one capacity', () => {
     finish()
     expect(bufferCount()).toBe(1)
-    tick(STAGE_BASE_SECONDS.build + 0.01)
-    expect(bufferCount()).toBe(1)
-    runBelt()
-    expect(bufferCount()).toBe(1)
+    finish()
+    expect(bufferCount()).toBe(2)
     expect(shelfCapacity()).toBe(SHELF_CAPACITY)
   })
 
@@ -267,7 +254,6 @@ describe("§10.7 — Serena's board", () => {
     withSerena()
     __setState({ cash: 1e9 })
     expect(buyPipeline('s1')).toBe(true)
-    expect(buyPipeline('v1')).toBe(true)
     expect(buyPipeline('a1')).toBe(true)
     finish()
     runBelt()
@@ -277,5 +263,17 @@ describe("§10.7 — Serena's board", () => {
     for (let t = 0; t < every + 2; t += 1) step(1)
     expect(getState().projectsShipped).toBe(1)
     expect(getState().ship?.timingLabel).toBeNull()
+  })
+})
+
+describe('§10.7 [2026-10-04] — Serena’s quality check happens as a game joins the queue', () => {
+  it('takes a share of the defects off the finished build, and none without the node', () => {
+    __setState({ devs: 1, defects: 100 })
+    finish()
+    const plain = getState().shelf[0].defects
+    __resetStore()
+    __setState({ devs: 1, defects: 100, pipelineNodes: { q1: 3 } })
+    finish()
+    expect(getState().shelf[0].defects).toBeLessThan(plain)
   })
 })

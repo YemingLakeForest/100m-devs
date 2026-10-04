@@ -92,12 +92,10 @@
 
 .scenarios__note {
   color: #6e8296;
-  /* Takes the rest of the line and truncates rather than reflowing the bar. */
+  /* Takes the rest of the line and wraps; nothing is cut short with an ellipsis. */
   flex: 1 1 0;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /*

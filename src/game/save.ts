@@ -128,6 +128,10 @@ export interface RunSave {
    * auto-ship clock. Additive and optional on the rule `tech` follows: a save
    * written before the belt describes a studio with nothing on it, and no
    * `SAVE_VERSION` bump.
+   *
+   * **`pipeline` is read and never written** [2026-10-04]: Build and Test were
+   * decommissioned, so a save from before still has games mid-lane, and they
+   * join the end of the queue on load (`normaliseRun`) rather than being lost.
    */
   pipeline?: { build: { item: ShelvedBuild; progress: number }[]; test: { item: ShelvedBuild; progress: number }[] }
   shelf?: ShelvedBuild[]
@@ -441,10 +445,6 @@ export function makeSaveData(state: GameState): SaveData {
       runSeed: state.runSeed,
       seedTaken: state.seedTaken,
       dialUnlocked: state.dialUnlocked,
-      pipeline: {
-        build: state.pipeline.build.map((f) => ({ item: { ...f.item }, progress: f.progress })),
-        test: state.pipeline.test.map((f) => ({ item: { ...f.item }, progress: f.progress })),
-      },
       shelf: state.shelf.map((b) => ({ ...b })),
       pipelineNodes: { ...state.pipelineNodes },
       treeLevels: { ...state.treeLevels },
@@ -733,11 +733,13 @@ function normaliseRun(value: unknown): RunSave {
     // description of a studio that has shipped nothing *this run*.
     history: normaliseHistory(r.history),
     releases: normaliseReleases(r.releases),
-    pipeline: {
-      build: normaliseInFlight(r.pipeline?.build),
-      test: normaliseInFlight(r.pipeline?.test),
-    },
-    shelf: normaliseBuilds(r.shelf),
+    // Oldest first: what was on the shelf, then what had got furthest down the
+    // old lanes (Test), then what had only started (Build).
+    shelf: [
+      ...normaliseBuilds(r.shelf),
+      ...normaliseInFlight(r.pipeline?.test).map((f) => f.item),
+      ...normaliseInFlight(r.pipeline?.build).map((f) => f.item),
+    ],
     pipelineNodes: normalisePipelineNodes(r.pipelineNodes),
     treeLevels: normaliseTreeLevels(r.treeLevels),
     autoShipClock: nonNegative(r.autoShipClock, 0),

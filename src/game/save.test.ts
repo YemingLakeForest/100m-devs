@@ -402,3 +402,41 @@ describe('§8 — the isometric trees’ unwired levels', () => {
     expect(back.run.treeLevels).toEqual({ 'you:y1': 1, 'you:y2': 3 })
   })
 })
+
+describe('§10.7 [2026-10-04] — Build and Test were decommissioned, and a save from before still has games in them', () => {
+  const game = (id: number) => ({
+    id,
+    ordinal: id,
+    name: `Old ${id}`,
+    genre: 'roguelike',
+    projectIndex: 0,
+    revenueBase: 100,
+    size: 300,
+    defects: 0,
+    density: 0,
+    graded: false,
+    heroCoverage: 0,
+    sync: 1,
+    traits: 0,
+    luck: 0.5,
+    buildSeconds: 1,
+    labourSeconds: 1,
+    shelvedAt: 0,
+  })
+
+  it('moves what was mid-lane onto the end of the queue on load, oldest first, and loses nothing', () => {
+    const data = makeSaveData(getState())
+    ;(data.run as unknown as Record<string, unknown>).shelf = [game(1)]
+    ;(data.run as unknown as Record<string, unknown>).pipeline = {
+      build: [{ item: game(3), progress: 0.2 }],
+      test: [{ item: game(2), progress: 0.7 }],
+    }
+    const back = migrate(deserialize(serialize(data))!)!
+    // Shelf first, then what had got furthest (Test), then what had only started (Build).
+    expect(back.run.shelf?.map((b) => b.id)).toEqual([1, 2, 3])
+  })
+
+  it('never writes a pipeline again', () => {
+    expect('pipeline' in makeSaveData(getState()).run).toBe(false)
+  })
+})

@@ -118,8 +118,9 @@ export const SCENE_JAMES_ARRIVES: Scene = {
  * for exactly the line that names it (`light`), so the player is shown which
  * button he means while he is saying it rather than being told to go and look.
  * The jokes are in what he thinks the keys are for. The facts are all true: CODE
- * is the one you press, BUILD and TEST run on their own, SHIP! is yours, and a
- * full queue stops the studio.
+ * is the one you press, a finished app goes straight into the queue (there is no
+ * Build or Test, §10.7 [2026-10-04]), SHIP! is yours, and a full queue stops the
+ * studio.
  *
  * Act I's word list holds: no tool, no protocol, nothing to buy. These are the
  * four buttons the player already has.
@@ -140,14 +141,14 @@ export const SCENE_JAMES_SHIP: Scene = {
     { speaker: JAMES, text: 'I know. I’ve been counting. It’s a good button.', focus: AT_JAMES, light: ['code'] },
     {
       speaker: JAMES,
-      text: 'Then it goes straight into a pipeline up there. BUILD, then TEST. You don’t press those. They happen by themselves, like weather.',
+      text: 'When the app is finished it goes straight into the QUEUE, up there. No build step. No test step. We looked into them and they cost money.',
       focus: AT_JAMES,
       light: ['queue'],
     },
-    { speaker: PLAYER, text: 'What does TEST do?', focus: AT_YOU, light: ['queue'] },
+    { speaker: PLAYER, text: 'Nobody tests it?', focus: AT_YOU, light: ['queue'] },
     {
       speaker: JAMES,
-      text: 'It checks the app works. It has never once been asked to be sure.',
+      text: 'The customers test it. It’s very efficient. They’re also very thorough.',
       focus: AT_JAMES,
       light: ['queue'],
     },
@@ -169,7 +170,7 @@ export const SCENE_JAMES_SHIP: Scene = {
     { speaker: JAMES, text: 'Then there would be nobody to blame.', focus: AT_JAMES, light: ['ship'] },
     {
       speaker: JAMES,
-      text: 'When a pipeline is done, the app waits in the QUEUE. It holds three. Not four. Three.',
+      text: 'The QUEUE holds three. Not four. Three.',
       focus: AT_JAMES,
       light: ['queue'],
     },
@@ -189,7 +190,7 @@ export const SCENE_JAMES_SHIP: Scene = {
     },
     {
       speaker: JAMES,
-      text: 'Click the pipelines and you can look inside. It tells you how long until it stops. Like a fuel gauge, for being stuck.',
+      text: 'Click the queue and you can look inside. It tells you how long until it stops. Like a fuel gauge, for being stuck.',
       focus: AT_JAMES,
       light: ['queue'],
     },

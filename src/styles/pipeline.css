@@ -1,29 +1,175 @@
 /*
- * The SHIP! key and the lit-key glow — GDD §10.7 [2026-09-26, 2026-10-03].
+ * The queue gauge, the SHIP! key and the lit-key outline — GDD §10.7
+ * [2026-09-26, 2026-10-04].
  *
- * The belt that used to live here (BUILD and TEST counters, wires, a row of
- * slots, a status line) went with the move to the top strip (`pstrip.css`):
- * the queue is a row of pipeline runs now, and nobody could act on a counter.
- * What stays is the key, because it is still the loop's payoff, and the glow
- * James's scene puts on a key while he is talking about it.
+ * The gauge is one line of words over the pipeline as a row of nodes
+ * (`PipelineGraph.tsx`, styled in `graph.css`). Nothing here glows: state is said
+ * by shape and by a hard pixel tag, in the same ink the rest of the rail wears.
  */
+
+.qgauge {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  margin: 4px 3px 4px 0;
+  pointer-events: auto;
+}
+
+.qgauge__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0 6px;
+  padding: 0 2px;
+  white-space: nowrap;
+}
+
+.qgauge__title {
+  color: var(--p2);
+  text-shadow: 1px 1px 0 var(--n0);
+}
+
+.qgauge__count {
+  color: var(--p2);
+  font-size: var(--type-2x);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.qgauge__count b {
+  display: inline-block;
+  color: var(--p3);
+  font-weight: 400;
+  animation: qgauge-tick 0.28s steps(4, end);
+}
+
+.qgauge__eta {
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: var(--p3);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 1px 1px 0 var(--n0);
+}
+
+.qgauge__in--short {
+  display: none;
+}
+
+.qgauge__eta[data-tone='tight'] {
+  color: var(--warn-3);
+  animation: qgauge-blink 0.7s steps(2, end) infinite;
+}
+
+.qgauge__eta[data-tone='stopped'] {
+  justify-self: start;
+  padding: 0 4px;
+  background: var(--alarm-2);
+  color: var(--n0);
+  text-shadow: none;
+  animation: qgauge-blink 0.5s steps(2, end) infinite;
+}
+
+@keyframes qgauge-tick {
+  0% {
+    transform: translateY(-6px) scale(1.4);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes qgauge-blink {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* --- the row of nodes --------------------------------------------------------- */
+
+/* CODE and QUEUE are one button that opens the queue; the SHIP key sits after it. */
+.gl__open {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gl__open:focus-visible {
+  outline: 2px solid var(--p3);
+  outline-offset: 2px;
+}
+
+.gl__open:active {
+  transform: translate(1px, 1px);
+}
+
+/* --- the key ------------------------------------------------------------------ */
 
 .ui-btn.pipe__ship {
   pointer-events: auto;
   white-space: nowrap;
 }
 
+.ui-btn.qgauge__ship {
+  position: relative;
+  flex: none;
+  margin: 0 3px 0 0;
+  padding: 3px 8px;
+  font-size: var(--type-1x);
+  line-height: 1.2;
+}
+
+/* The count of games waiting, as a flat tag on the key's corner. */
+.qgauge__badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  background: var(--warn-3);
+  color: var(--n0);
+  font-size: var(--type-1x);
+  font-weight: 400;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 2px 2px 0 var(--n1);
+  animation: qgauge-badge 0.36s steps(5, end);
+}
+
+@keyframes qgauge-badge {
+  0% {
+    transform: scale(2.2);
+  }
+  60% {
+    transform: scale(0.85);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.ui-btn.pipe__ship[data-full='true']:not(:disabled) {
+  animation: qgauge-blink 0.5s steps(2, end) infinite;
+}
+
 /*
  * A key James is talking about. `DialogueLine.light` names it, the HUD root
  * carries the names in `data-lit`, and this is the whole of the effect: a
  * stepped two-frame blink plus an outline so it still reads with motion off.
- * Shape and brightness, no new colour (§10.8a). The SHIP! key is disabled while
- * a scene is up, so the rule must not be gated on :not(:disabled) — lit is the
- * point.
+ * The SHIP! key is disabled while a scene is up, so the rule must not be gated
+ * on :not(:disabled) — lit is the point.
  */
 .hud[data-lit~='code'] .ui-btn.hud__code,
 .hud[data-lit~='ship'] .ui-btn.pipe__ship,
-.hud[data-lit~='queue'] .pstrip__main {
+.hud[data-lit~='queue'] .gl__open {
   outline: 2px solid var(--p3);
   outline-offset: 2px;
   animation: key-lit 0.7s steps(2, end) infinite;
@@ -36,9 +182,46 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .qgauge__count b,
+  .qgauge__eta,
+  .qgauge__badge,
+  .ui-btn.pipe__ship,
   .hud[data-lit~='code'] .ui-btn.hud__code,
-  .hud[data-lit~='ship'] .ui-btn.pipe__ship,
-  .hud[data-lit~='queue'] .pstrip__main {
-    animation: none;
+  .hud[data-lit~='queue'] .gl__open {
+    animation: none !important;
+  }
+}
+
+/* --- short frames ------------------------------------------------------------- */
+
+/*
+ * The rail is budgeted to the pixel at 336 and 360: no head, and the row is the
+ * whole gauge. The queue's mood is still said — the node reds, the key blinks —
+ * and the countdown is in the window.
+ */
+@container frame (max-height: 470px) {
+  .qgauge {
+    margin: 1px 3px 3px 0;
+  }
+
+  .qgauge__head {
+    display: none;
+  }
+
+  .ui-btn.qgauge__ship {
+    padding: 2px 6px 2px 4px;
+  }
+
+  .ui-btn.qgauge__ship .ui-btn__bracket {
+    display: none;
+  }
+
+  .qgauge__badge {
+    top: -7px;
+    right: -5px;
+    min-width: 14px;
+    height: 14px;
+    font-size: 9px;
+    line-height: 14px;
   }
 }

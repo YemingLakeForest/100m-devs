@@ -50,7 +50,7 @@ export function StudioBoot({ founderName, projectName, stage, onDone }: StudioBo
           <p>{[
             'You have a garage, a computer, and an app idea. Your budget went on the computer. Your development team is you.',
             'Press CODE three times. Each press adds real work to your app. The job title says founder. The job is still typing.',
-            'Keep pressing CODE to finish the app. Build and Test run automatically; when it is ready, press SHIP! to launch it and earn money.',
+            'Keep pressing CODE to finish the app. It goes straight into the queue; when you are ready, press SHIP! to launch it and earn money.',
           ][step]}</p>
           <button type="button" className="ui-btn" ref={actionRef} disabled={!stage} onClick={step === 0 ? () => setStep(1) : step === 1 ? code : onDone}>
             {step === 0 ? 'Let’s write this app' : step === 1 ? 'CODE' : 'Keep coding'}

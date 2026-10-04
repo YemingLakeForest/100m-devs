@@ -8581,41 +8581,35 @@ Test's catch, and Auto-Ship on its own clock with its speed upgraded separately.
 own press. <strong>[amended 2026-09-26, later]</strong> The board is her isometric tree now (§11.4's amendment): the
 belt opens the <code>TREES</code> window on Serena, and the flat list of cards is deleted. <strong>[amended again 2026-09-26]</strong> The belt opens Serena's card, and her tree is its UPGRADES (§22.9).</li>
 </ul>
-<p><strong>[amended 2026-10-03] The buffer is the QUEUE, it is managed, and it is a pipeline board in the top-left PROJECT block.</strong>
-<em>"I envisage this to be managed, that the number of builds in the pipeline is limited, and speed of build and number of
-builds to hold are two contesting struggles the player has to manage. In updates from Serena she can auto ship, increase
-build queue size when we build too fast. I want the base HUD to display the current status of the queue, with clickable to go
-into the queue."</em> Then, on seeing the first drawing: <em>"top hud not changed, the UI is bad. I want pipelines similar to
-gitlab, also don't want in test etc anymore, as soon as game is built, it goes to pipeline, also I find the game hud text a
-bit unreadable for the low vis font ones. Design really hard… look gamey with game juice."</em> A first version put the plate across the top centre of the screen, and it was
-rejected on sight: <em>"don't want the top HUD, it has to be on either side top left or top right."</em> (Which is also what "top hud not
-changed" had meant — the PROJECT block, where the old belt lived.) The mechanic did not have to
-move — one capacity, a full queue stops the floor, Build and Test hold builds inside it, Serena's nodes add slots, speed and
-Auto-Ship — what was missing was the screen saying so. What is canon now:</p>
+<p><strong>[amended 2026-10-04] Code, Build and Test are decommissioned; the buffer is the QUEUE, it is managed, and it is a shelf of cartridges.</strong>
+This supersedes the first bullet above (<em>"it enters Build, then Test, then waits on the shelf"</em>) and every Build/Test sentence in this section. The path to it:
+<em>"I envisage this to be managed, that the number of builds in the pipeline is limited, and speed of build and number of builds to hold are two contesting
+struggles the player has to manage. In updates from Serena she can auto ship, increase build queue size when we build too fast. I want the base HUD to display the
+current status of the queue, with clickable to go into the queue."</em> Then <em>"I want pipelines similar to gitlab"</em> (a first version, as nodes in a row, put on the top
+centre of the screen, was rejected on sight: <em>"it has to be on either side top left or top right"</em>), then <em>"I don't want scroll… the screen for pipeline is still very
+much just a web page, design! make it gamey, the ship minigame… nailed the design"</em>, and finally:
+<em>"code build test should be decommissioned, as soon as one SP are done, it's in the build queue, waiting for shipped by person or automatically. I don't like the aurora
+behind the art in the build pipelines, it's very AI-y, also the boxes are unfitting to the game art, design a new pass."</em> What is canon now:</p>
 <ul>
-<li><strong>Every build is a pipeline run the moment it is built.</strong> The BUILD and TEST counters are gone from the rail: nobody
-could act on <em>BUILD 0</em>. A finished game appears on the <strong>pipeline strip</strong> — a plate in the top-left PROJECT block, under the burn-down that feeds it — as a run: its cover and three connected jobs, BUILD → TEST → SHIP, each a stepped-octagon node in one
-of five states said by shape before colour (hollow = pending, spinner = running, bang = parked behind another build, tick =
-passed, gold arrow = ready for SHIP!). Runs stack as rows on a tall frame (cover, three jobs, and a word: `SHIP!`, `QUEUED` or the seconds left) and sit side by side, nodes only, on a short one,
-because the rail is budgeted to the pixel at 336. Free slots are dashed boxes, so the queue's size is the number of boxes on the plate and a full plate has no gaps. Build and Test still take the seconds <code>sim/pipeline.ts</code> gives them; they are the first two
-jobs of the run, not separate counters.</li>
-<li><strong>The plate says the one number a manager acts on</strong> — <code>QUEUE 2/3</code> and <strong>how long until the queue stops the floor</strong>
-(<code>FULL IN ~42s</code>; <code>AUTO 31s</code> once Auto-Ship keeps pace; <code>FULL</code> blinking when stopped). That time is an estimate off today's
-velocity and the free slots (<code>hud/queueModel.ts</code>): it falls as the studio gets faster and rises with every slot Serena adds,
-which is the whole contest in one figure. <strong>SHIP!</strong> lives under the plate, full width, gold and breathing with a count once something is
-ready. A tap on the plate opens the queue window.</li>
-<li><strong>The queue window is a pipeline graph, GitLab's</strong> (<code>STUDIO_OS // PIPELINES</code>): the slot bar and the big readout, <strong>SPEED against ROOM</strong>
-side by side with what raises each, then one row per run — cover, name, status pill — across the three stage columns, nodes joined
-by lines that fill as each stage passes. Serena's board is a button in its foot, where it used to be the belt's whole tap.</li>
-<li><strong>Game juice, because every state change here is something the player caused or earned</strong> (§10.8 F3): a new run drops in with a
-squash and ticks; a job that passes pops; a ready run is gold and bobs, and the SHIP! count bounces when it changes; a release
-bursts pixel sparks off the key and the run that went flies at it; a <em>tight</em> queue (one slot left) blinks amber, and a <em>full</em> one
-inverts, shakes and blinks — the loudest thing on screen, because the studio has stopped. Motion is stepped, never eased, so it
-reads as a pixel interface and not a web page, and reduce-motion keeps every state and drops the movement.</li>
-<li><strong>The HUD's dim words are bright now</strong> (<code>styles/legibility.css</code>). Labels such as REVENUE, DEVS, SHIPPED, the FPS line and
-<em>1 per 8 SP</em> were drawn in <code>--p1</code> — the colour of a rule, about 3:1 on the plate — over a lit room on plates 58% opaque, and two
-were clipped by a pixel of tracking. They use <code>--p2</code> (the ink their own numerals wear), a 1px dark edge on the glyphs, plates at
-82% (the dialogue box's precedent is 80%), and no tracking. The dim ink is for rules and for what is meant to recede.</li>
+<li><strong>A finished game goes straight into the queue.</strong> There is no Build lane and no Test lane (<code>sim/pipeline.ts</code> loses its stages; <code>GameState.pipeline</code> is gone). They were
+latency, and latency was only ever a way of making the queue hold games the player could not yet ship. What is left is the contest the queue was always for, and it is two
+numbers: <strong>how fast the studio turns out games, and how many it can hold while it waits for somebody to ship them.</strong> A full queue stops the floor, as before. Games wait for SHIP!
+or for Serena's Auto-Ship. A save written before this still has games mid-lane; they join the end of the queue on load, oldest first, and nothing is lost.</li>
+<li><strong>Serena's board loses what only existed for the stages.</strong> <em>Faster Laptops</em> (builds run 20% faster) is deleted; its dependants hang from the board's root or from Shelf. <em>Build Cache</em> and
+<em>Parallel Tests</em> keep their effect on the coordination ledger (§2.7) and lose the line about speeds, and the family is now called tooling. <em>Quarantine the Flaky Tests</em> keeps its catch, taken
+off a game's defects as it joins the queue. Capacity (Shelf, Rack, Build Farm, Orbital Ring) and flow (Auto-Ship, how often, Ship on Friday / Ship on Green) are the queue itself.</li>
+<li><strong>The queue is drawn as GitLab draws a pipeline, thick</strong> [amended 2026-10-04, last]. The earlier passes used gold glows and gradient-lit scenes, then a cartridge shelf, then a copy of the ring's roundel, then a canvas drawing of a pipe: each more clever than the last and each answered with some form of
+<em>"still too AI-sloppy… I want the general GitLab pipeline layout, with thick stroke pixelated art style, don't over-complicate it."</em> So it is GitLab's pipeline graph and nothing cleverer (<code>hud/PipelineGraph.tsx</code>, <code>styles/graph.css</code>): <strong>stages are columns, jobs are cards in them, and a line with square elbows runs from each stage to the next</strong>.
+The stages are CODE, QUEUE and SHIP. The CODE job is <em>running</em> (a stepped spinner and a six-segment bar for the sprint) while the studio works, <em>blocked</em> (a red cross) when the queue is full, and idle when nothing is being made. The QUEUE stage has a job for every slot: <em>passed</em> (a tick, the game's cover and its name) when a game is in it, the front one marked with a flat pennant and
+<em>SHIPS NEXT</em>, and an empty dashed card when it is not. The SHIP job is GitLab's manual job, a play button, and it is the control: it ships the front game. The art is blunt on purpose: 3px strokes, notched square corners, a hard offset shadow, chunky pixel icons drawn as rectangles. <strong>No glow, no gradient, no blur, no canvas.</strong></li>
+<li><strong>On the base HUD</strong> — the top-left PROJECT block, under the burn-down it feeds — <code>QUEUE 2/3</code> and the line a manager acts on, <strong>how long until the queue stops the floor</strong>
+(<code>FULL IN ~42s</code>; <code>AUTO 31s</code> once Auto-Ship keeps pace; <code>FULL // SHIP TO CODE</code> inverted when stopped), then the pipeline as GitLab draws one in a list: a short row of nodes, CODE → QUEUE → SHIP. The QUEUE node is a pip for every slot, lit for every game waiting; the SHIP node is the key, with a count. That time is an estimate off today's velocity and the free slots
+(<code>hud/queueModel.ts</code>): it falls as the studio gets faster and rises with every slot Serena adds, which is the whole contest in one figure. A tap on CODE or QUEUE opens the queue window. On a short frame (the rail is budgeted to the pixel at 336) the heading goes and the row is the whole gauge; the node reds and the key blinks when stopped.</li>
+<li><strong>The queue window is built the way the release ring is</strong> — a centred frame, one instrument, the brief, one chunky button, nothing that scrolls (<code>STUDIO_OS // BUILD QUEUE</code>, <code>hud/QueueWindow.tsx</code>) — and the instrument is the pipeline graph above at full size, across the top.
+Under it: the clock at 2x, the game being made with its cover (as the ring shows the build it is releasing), the advice line, and in the ring's own rows ROOM as pips, A GAME EVERY…, AUTO, NEXT OUT, and Serena's board as a button. On a short frame the graph goes left and the brief becomes one column beside it, without the cover and the advice, so nothing scrolls. Tests pin the structure — the three stages, a card for every slot, the front game marked, a line to every job, what the SHIP job does, the blocked state — not the pixels.</li>
+<li><strong>Game juice, kept to what the graph needs</strong> (§10.8 F3): a game arriving in the queue pops into its card with a stepped squash (and clicks, on the rail); the CODE job's spinner turns in steps; a full queue reds the QUEUE cards, their lines and the CODE job's cross, and blinks the rail's line; a tight queue (one slot left) blinks it amber. Motion is stepped, never eased, and reduce-motion keeps every state and drops the movement.</li>
+<li><strong>The HUD's dim words are bright now</strong> (<code>styles/legibility.css</code>). Labels such as REVENUE, DEVS, SHIPPED, the FPS line and <em>1 per 8 SP</em> were drawn in <code>--p1</code> — the colour of a rule, about 3:1 on the plate — over a lit room on plates 58% opaque, and two
+were clipped by a pixel of tracking. They use <code>--p2</code> (the ink their own numerals wear), a 1px dark edge on the glyphs, plates at 82% (the dialogue box's precedent is 80%), and no tracking. The dim ink is for rules and for what is meant to recede.</li>
 </ul>
 <p><strong>What left, and why.</strong> The three-sweep timeout, the simulation-side backstop for a hidden tab and the
 30-second cooldown that sent every other release out on a train all served a modal that <em>halted the studio the
@@ -14931,13 +14925,11 @@ floor.</strong> James is §21.7.0's James — correct about every small thing, s
 are in what he thinks the keys are for (TEST <em>"has never once been asked to be sure"</em>; the
 exclamation mark he <em>"didn't want to be the one to take out"</em>; no auto-ship because <em>"then there
 would be nobody to blame"</em>), and every fact underneath them is true.</p>
-<p><strong>[amended 2026-10-03] He teaches the queue too, and the lit keys are CODE, the pipelines and SHIP!.</strong> BUILD and TEST are not keys any more
-(§10.7): James says <em>"Then it goes straight into a pipeline up there. BUILD, then TEST. You don't press those. They happen by
-themselves, like weather"</em> and the pipeline strip lights. Then the queue — <em>"When a pipeline is done, the app waits in the QUEUE. It holds three.
-Not four. Three."</em>; full means <em>"Nobody can code"</em>; and the contest, plainly — <em>"The faster you code, the sooner it fills. Speed
-against room. That's the whole job. I'd call it management, but I've been asked not to."</em> — and that clicking the pipelines shows
-<em>how long until it stops, "like a fuel gauge, for being stuck."</em> Serena's arrival (§21.7.3) adds the one line about the queue that is hers: she
-can make it longer, and make it ship itself.</p>
+<p><strong>[amended 2026-10-04] He teaches the queue too, and the lit keys are CODE, the queue and SHIP!.</strong> Build and Test are decommissioned (§10.7), so there is nothing between CODE and the
+queue to teach, and James says so: <em>"When the app is finished it goes straight into the QUEUE, up there. No build step. No test step. We looked into them and they cost money."</em> —
+<em>"Nobody tests it?"</em> — <em>"The customers test it. It's very efficient. They're also very thorough."</em> Then SHIP!, and the queue: <em>"The QUEUE holds three. Not four. Three."</em>; full means <em>"Nobody can code"</em>; and the contest,
+plainly — <em>"The faster you code, the sooner it fills. Speed against room. That's the whole job. I'd call it management, but I've been asked not to."</em> — and that clicking the queue shows <em>how long until it stops, "like a fuel gauge, for being stuck."</em>
+The queue gauge lights for those lines. Serena's arrival (§21.7.3) adds the one line about the queue that is hers: she can make it longer, and make it ship itself.</p>
 <p><strong>When, and for whom.</strong> Run 1 only, and only before the player has shipped anything: a career that
 has already put a build on sale does not need the button explained, and a Run 2 should not be walked
 through it again. He must have arrived, so a build that finishes before the fiftieth poke waits on the
