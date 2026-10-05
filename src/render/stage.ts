@@ -147,7 +147,7 @@ const JAMES_SEAT = -2
 const FOUNDER_SEAT = -1
 
 /**
- * The hero row [2026-10-04]: which script focus is which hero, and which scene is
+ * The heroes [2026-10-04]: which script focus is which hero, and which scene is
  * theirs. The lens used to leave these alone because the garage held nobody but
  * the founder and James; it holds all five now.
  */
@@ -157,7 +157,7 @@ const ROW_FOCUS = new Map<number, 'billy' | 'serena' | 'matt'>([
   [AT_MATT, 'matt'],
 ])
 /**
- * Who is at which leader seat, for the three the stage holds. **The door to a hero's card is the
+ * Who is at which leader seat, for the three heroes. **The door to a hero's card is the
  * hero** (§7.8.13 rule 3: *"the way you reach Mo is by looking at Mo"*) — and until the garage
  * seated Billy, Serena and Matt there was nobody to tap, so only James opened a pass. Found by
  * tapping them.
@@ -421,7 +421,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       else playSfx('poke-void')
       return
     }
-    // The three on the stage are not coders: a tap on them is a hop and a click, and the
+    // The three heroes are not coders: a tap on them is a hop and a click, and the
     // INFO latch is how you read their card.
     if (who !== null && HERO_AT_SEAT.has(who)) {
       garage.hop(who)
@@ -624,7 +624,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // §15.1a [2026-10-04] — and *after the cut scene*: James is not in the room while
     // the receipt is up, and drops in when it closes, so Run 2 opens on his landing
     // and on "You again." rather than on a man who was never gone.
-    // The hero row: Billy, Serena and Matt, each at the desk that was waiting.
+    // The heroes: Billy, Serena and Matt, each in the place that was waiting.
     /*
      * §15.1a [2026-10-04] — **the first death's last scene.** Everybody in the
      * garage goes up through the roof and every house lifts off on its thrusters,

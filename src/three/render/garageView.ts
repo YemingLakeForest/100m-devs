@@ -89,7 +89,7 @@ export interface GarageView {
   /** Whether James has arrived; he drops in when he does. */
   setJames(here: boolean): void
   /**
-   * Which of the hero row (Billy, Serena, Matt) have arrived [2026-10-04]. Each
+   * Which of the heroes (Billy, Serena, Matt) have arrived [2026-10-04]. Each
    * drops in when they do, desk then chair then person, like James; a hero who
    * was already here when the room was made is simply there.
    */
@@ -236,17 +236,6 @@ const MOVE_AFTER = 1.6
 const MOVE_STEP = 0.07
 /** The studio a garage holds: five pods of four (§7.8.0). */
 const GARAGE_CAP = 20
-/**
- * Device pixels per pixel of the 3D picture at the resting zoom. The grid
- * follows the lens (zoomed out it shrinks to one device pixel, so the city
- * stays readable) but is *capped* at PIXEL_MAX: a grid that kept growing with
- * the zoom turned the two founders' faces into blobs at the closest lens, so
- * the finest grain the game has is held there. Whole numbers only: a
- * fractional ratio magnified with nearest sampling gives uneven pixels.
- */
-const PIXEL_AT_REST = 2
-const PIXEL_MAX = 2
-const pixelFor = (zoom: number) => Math.max(1, Math.min(PIXEL_MAX, Math.round(PIXEL_AT_REST * zoom / GARAGE_REST_ZOOM)))
 interface Rest { position: T.Vector3; scale: T.Vector3 }
 interface Part { key: string; instances: SeatInstance[]; group: T.Object3D | null }
 
@@ -289,48 +278,30 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   fill.position.set(-32, 15, -10)
   scene.add(fill)
   if (OS_SKIN) {
-    sun.color.set('#bdc6cb'); sun.intensity = .7
-    sky.color.set(OS.n3); sky.groundColor.set(OS.n0); sky.intensity = .55
-    fill.color.set(OS.calm2); fill.intensity = .12
-    renderer.toneMappingExposure = 1.1
+    // [2026-10-05, at the user's instruction: *"make brighter and don't have the screens to be only light emitter"*]
+    // It was a dusk room lit by its own screens: the key at 0.7, the sky a mid grey over a black ground at 0.55, the
+    // fill a whisper. Now the key is a warm low sun through the clerestory, the sky a pale blue-grey over a warm floor
+    // bounce, and the fill a cool lift in the shadows; the lamps and the screens are what is *on top of* that, not
+    // all there is.
+    sun.color.set('#ffe9cf'); sun.intensity = 1.1
+    sky.color.set('#b9c7d0'); sky.groundColor.set('#6a5f52'); sky.intensity = 0.85
+    fill.color.set('#cfe4ee'); fill.intensity = 0.3
+    renderer.toneMappingExposure = 1.12
   }
 
   const composer = new EffectComposer(renderer)
   /*
-   * Pixel-art 3D: the room is drawn into targets `pixel` CSS pixels to the
-   * texel and the glass magnifies them with nearest-neighbour sampling, so the
-   * 3D geometry resolves into chunky, hard-edged pixels. No MSAA for the same
-   * reason — multisampling would blend the stair-stepped edges back to smooth.
-   * `pixel` follows the zoom (`pixelFor`), so the grid is fixed in the world.
-   * At `pixel` 1 there is no grid left to show: the targets go back to the
-   * screen's own device resolution, smoothed and multisampled, so the zoomed-
-   * out city is as sharp as it was before the pixel look, not a 1×-CSS-pixel
-   * picture doubled up on a high-density screen.
+   * **The room is drawn at the screen's own resolution** [2026-10-05, at the user's instruction: *"remove the
+   * pixelated view? that doesn't actually work"*]. It was drawn into targets two device pixels to the texel and
+   * magnified with nearest-neighbour sampling, so the 3D geometry resolved into chunky, hard-edged pixels (and
+   * the grid followed the zoom, changing under the player's hand). On a 1× screen that is a 720 × 380 picture
+   * stretched over a 1440 × 760 one: every edge a staircase, every face a mosaic, and the HUD's crisp type
+   * laid over it. The targets are the composer's own — full device resolution, linear filtering — and
+   * multisampled, so the edges are smooth: the picture the room had before the pixel look, which is also the
+   * only one the rest of the game's art direction (the HUD's pixel font, the pixel icons) never depended on.
+   * A phone keeps the cheaper two samples.
    */
-  let pixel = PIXEL_AT_REST
-  // `pixel` counts device pixels, so a retina screen gets a finer grid than a 1× one.
-  const grainRatio = () => renderer.getPixelRatio() / pixel
-  function setGrain(next: number) {
-    pixel = next
-    composer.setPixelRatio(grainRatio())
-    for (const target of [composer.renderTarget1, composer.renderTarget2]) {
-      const filter = pixel === 1 ? T.LinearFilter : T.NearestFilter
-      target.texture.minFilter = filter
-      target.texture.magFilter = filter
-      target.samples = pixel === 1 ? 4 : 0
-      // A new sample count only takes on a freshly allocated framebuffer.
-      target.dispose()
-    }
-    ao?.setSize(w * grainRatio(), h * grainRatio())
-    bloom.setSize(w * grainRatio(), h * grainRatio())
-  }
-  // The first frame's grain; `setGrain` takes over from the first render.
-  composer.setPixelRatio(grainRatio())
-  for (const target of [composer.renderTarget1, composer.renderTarget2]) {
-    target.samples = 0
-    target.texture.minFilter = T.NearestFilter
-    target.texture.magFilter = T.NearestFilter
-  }
+  for (const target of [composer.renderTarget1, composer.renderTarget2]) target.samples = lite ? 2 : 4
   composer.addPass(new RenderPass(scene, camera))
   // Off on a phone: it draws the whole scene a second time (normals and depth)
   // and then samples it sixteen times a pixel, and at night under the glass it
@@ -359,7 +330,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let heads = 0
   let addressOffset = 0, visiting: number | null = null
   let james = false
-  /** The hero row's arrivals, in the order they came. */
+  /** The heroes' arrivals, in the order they came. */
   let heroRow: LeaderId[] = []
   /** Heroes whose wall is on its way up: arrived, but not yet in the room. */
   const arriving = new Set<LeaderId>()
@@ -439,7 +410,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let zoomFloor = .005
   let cityReach = 0
   /** The garage and its street, for framing it together with the city. */
-  const GARAGE_BOX = new T.Box3(new T.Vector3(-12.5, -0.5, -11), new T.Vector3(12.5, 4.2, 12.5))
+  const GARAGE_BOX = new T.Box3(new T.Vector3(-12.5, -0.5, -11), new T.Vector3(12.5, 5.4, 12.5))
 
   function build() {
     if (env) {
@@ -684,7 +655,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   /** Where a seat stands on the floor, from its hit box: the base a squash is about. */
   function floorAt(seat: number): T.Vector3 | null {
     const t = env.targets.find((target) => target.index === seat)
-    // The floor the person stands on — the deck's, or the stage's — which `studioTarget`
+    // The floor the person stands on — the deck's, a plinth's or a riser's — which `studioTarget`
     // records. Squashing a landing about y = 0 sank everything on the 0.7 m stage into
     // it by a hand's breadth at each contact.
     return t ? t.mesh.getWorldPosition(new T.Vector3()).setY((t.mesh.userData.floor as number | undefined) ?? 0) : null
@@ -803,7 +774,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         for (const piece of a.pieces ?? LIFT_OUT) {
           const u = (t - piece.at) / .5
           const these = pieceParts(a.seat, piece.piece)
-          // A length of wall stands on the garage's floor, whatever the stage it hides.
+          // A length of wall stands on the garage's floor, whatever platform it hides.
           const at = piece.piece === 'wall' ? base.clone().setY(0) : base
           if (u < 0) { done = false; continue }
           if (u >= 1) { these.forEach((p) => { place(p, at, 0, 1); hide(p) }); continue }
@@ -1001,8 +972,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       w = Math.max(1, width); h = Math.max(1, height)
       renderer.setSize(w, h, false)
       composer.setSize(w, h)
-      ao?.setSize(w * grainRatio(), h * grainRatio())
-      bloom.setSize(w * grainRatio(), h * grainRatio())
+      ao?.setSize(w * renderer.getPixelRatio(), h * renderer.getPixelRatio())
+      bloom.setSize(w * renderer.getPixelRatio(), h * renderer.getPixelRatio())
       // The frame's shape decides how far out the whole studio needs.
       if (env) reframeLimits()
       dirty = true
@@ -1139,8 +1110,6 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         ao.ssaoMaterial.uniforms.cameraProjectionMatrix.value.copy(camera.projectionMatrix)
         ao.ssaoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(camera.projectionMatrixInverse)
       }
-      const wanted = pixelFor(zoom)
-      if (wanted !== pixel) setGrain(wanted)
       const hidden = env.targets.map((t) => t.mesh.visible)
       env.targets.forEach((t) => { t.mesh.visible = false })
       composer.render()
@@ -1176,13 +1145,15 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (!visible || ppm < 14) continue
         // The bottom of the HUD label stays above the maximum click hop.
         // Its anchor belongs to the station, never to the animated body.
-        // A station may hang its plate somewhere other than over the head: the stage's
+        // A station may hang its plate somewhere other than over the head: the heroes'
         // heroes put theirs over the wall, as the marquee of their set (`tagOffset`).
         const offset = (anchor.userData.tagOffset as [number, number, number] | undefined) ?? [0, 2.3, 0]
         const world = anchor.localToWorld(new T.Vector3(...offset))
         const at = project(world.clone())
         if (at.x < 0 || at.x > w || at.y < -40 || at.y > h) continue
-        const right = project(world.clone().add(new T.Vector3(1, 0, 0)))
+        // The plate lies along the wall it hangs on: +x for the north wall, −z for the west one.
+        const axis = (anchor.userData.tagAxis as [number, number] | undefined) ?? [1, 0]
+        const right = project(world.clone().add(new T.Vector3(axis[0], 0, axis[1])))
         tags.push({ ...at, label: anchor.userData.label, colour: anchor.userData.colour,
           slope: (right.y - at.y) / (right.x - at.x), size: Math.max(10, Math.min(16, ppm * .26)) })
       }

@@ -7,7 +7,7 @@
 import * as T from 'three'
 import { OS, OS_SKIN } from '../art/skin.ts'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { box, cylinder, INK, line, sharedMaterial, worktable } from './worldArt.ts'
+import { box, cylinder, INK, line, sharedMaterial, sphere, worktable } from './worldArt.ts'
 import { studioFloorContains } from '../sim/floorPlan.ts'
 
 const bevel = new RoundedBoxGeometry(1, 1, 1, 2, .025)
@@ -128,7 +128,7 @@ export function craftedPod(g: T.Group, x: number, z: number, rotation: number): 
   for (const side of [-1, 1]) box(pod, .06, .93, side * .51, .25, .035, .16, '#c3ac80')
 }
 
-function lamp(g: T.Group, x: number, z: number): void {
+export function lamp(g: T.Group, x: number, z: number): void {
   cylinder(g, x, .93, z, .13, .045, INK.metal)
   line(g, [new T.Vector3(x, .97, z), new T.Vector3(x + .08, 1.57, z), new T.Vector3(x - .27, 1.82, z)], INK.metal)
   const stem = box(g, x + .04, .98, z, .045, .6, .045, INK.metal); stem.rotation.z = -.13
@@ -175,6 +175,119 @@ export function craftedHeroDesk(g: T.Group, id: string): void {
   const plant = new T.Group(); plant.position.y = .92; desk.add(plant)
   leafyPlanter(plant, id === 'founder' ? .61 : -.73, 1.14, .19)
   if (id !== 'founder') for (let i = 0; i < 2; i++) box(desk, -.69, .925 + i * .042, .76, .3, .035, .21, i ? INK.paper : '#417174')
+}
+
+/**
+ * **The founder's desk, redesigned** [2026-10-05, at the user's instruction: *"his desk redesigned"*].
+ *
+ * The oak workstation the founder shared with James was a desk with a monitor on it. The boss of a studio that is
+ * going to be a galaxy sits at a desk with *presence*: a walnut top with a green pad edged in brass, a pedestal
+ * either side, a credenza behind the chair with a globe and a trophy on it, a rug under the lot, a tall leather
+ * chair. The jokes are all still here — the duck promoted to CTO and the pizza boxes (`garageDeskStory`), the
+ * oversized SHIP IT button — because they were the point of it.
+ *
+ * It is drawn on the same axes as every station: the occupant at the origin facing +z, the desk in front. The
+ * footprint the sim reads (`floorPlan.BOSS_DESK`) is x −1.15…1.15, the back of the chair at −0.45 and the front of
+ * the desk at +1.33 — and the credenza's back is at −1.43, which is why the station stands 1.48 m off its wall.
+ * (The first cut had an L: a return along the desk's east end carrying a laptop. On the west wall the return
+ * wants to run north, into the corner, and south it reaches James's desk; it is gone, and the laptop with it.)
+ */
+export function craftedBossDesk(g: T.Group): void {
+  // Lighter than the first cut, which read as one dark brown mass under the room's lamps: a mid walnut top over a
+  // deeper carcase, a green pad and brass. The footprint is `floorPlan`'s BOSS_DESK: x −1.15…1.75, desk front at 1.33.
+  const WALNUT = '#7a583d', EDGE = '#5b3f2b', TOP = '#94704c', PAD = '#35523f', BRASS = '#d4ae5a'
+  const desk = new T.Group(); desk.name = 'founder-station'; g.add(desk)
+  const top = .895 // the pad's surface: everything that stands on the desk stands on this
+  // the rug: a deep teal wool with a brass border, under the desk and the chair. **Round**, since 2026-10-05: the desk
+  // stands on the podium's diagonal, and a rectangle turned an eighth in a corner reaches 2.4 m from the station and
+  // out past the rail on two sides, where an octagon of the same weight reaches 1.85 and sits inside it with a hand to spare.
+  // (The octagon is the room's own idiom — Billy's rug is one — and `round` is an eight-sided prism.)
+  for (const [r, y, h, c] of [[1.6, .004, .02, '#2c5558'], [1.48, .022, .006, '#d1b25f'], [1.36, .028, .006, '#2c5558']] as const) {
+    const disc = cylinder(desk, 0, y, .36, r, h, c)
+    disc.castShadow = false
+    disc.rotation.y = Math.PI / 8
+  }
+  // the desk: a top, a deeper apron, a pedestal either side and a kneehole panel on the room side
+  box(desk, 0, .78, .8, 2.3, .1, 1.06, TOP)
+  box(desk, 0, .70, .8, 2.2, .08, .96, EDGE)
+  box(desk, 0, top - .007, .84, 1.5, .012, .62, PAD)
+  box(desk, 0, top - .004, 1.155, 1.56, .008, .02, BRASS)
+  box(desk, -.88, 0, .82, .52, .70, .86, WALNUT)
+  for (let i = 0; i < 3; i++) {
+    box(desk, -.88, .08 + i * .21, .385, .46, .18, .03, EDGE)
+    box(desk, -.88, .155 + i * .21, .36, .16, .025, .025, BRASS)
+  }
+  box(desk, .88, 0, .82, .52, .70, .86, WALNUT)
+  box(desk, .88, .08, .385, .46, .58, .03, EDGE)
+  box(desk, .66, .32, .36, .025, .14, .025, BRASS)
+  box(desk, 0, .24, 1.3, 1.2, .46, .04, WALNUT)
+  // a brass nameplate on the desk's front edge: *the boss*, in a word
+  box(desk, 0, .82, 1.345, .5, .07, .015, BRASS)
+  // a mug at the left hand, where the Diet Coke is not (the pizza boxes are `garageDeskStory`'s, beside it)
+  cylinder(desk, -1.02, top - .012, .92, .055, .1, '#e9e2d0')
+  // the monitor: one wide screen, its back to the room, with the project on it
+  const monitor = new T.Group(); monitor.position.set(0, 0, .95); monitor.rotation.y = Math.PI; desk.add(monitor)
+  box(monitor, 0, top - .012, 0, .3, .03, .22, INK.metal)
+  box(monitor, 0, top + .018, 0, .07, .2, .07, INK.metal)
+  box(monitor, 0, 1.06, 0, 1.15, .5, .055, INK.metal)
+  garageScreen(monitor, 'founder', 0, 1.315, .03, 0, 1.03, .44)
+  // keyboard and mouse
+  box(desk, -.06, top - .012, .48, .63, .025, .22, '#3a4144')
+  for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) box(desk, -.32 + col * .065, top + .013, .415 + row * .06, .045, .007, .037, '#c5c8bd')
+  box(desk, .44, top - .012, .5, .1, .03, .16, '#2b2f33')
+  // a big red button, safely away from the typing keys, and the plain truth about it on its front
+  box(desk, .70, top - .012, .74, .38, .065, .32, '#374e50')
+  cylinder(desk, .70, top + .053, .74, .13, .10, '#cf5441')
+  printed(desk, 'founder-ship-it', .34, .12, .70, top + .05, .907, c => {
+    c.fillStyle = '#f5edda'; c.fillRect(0, 0, 768, 512)
+    c.fillStyle = '#7b352a'; c.textAlign = 'center'; c.font = 'bold 190px sans-serif'; c.fillText('SHIP IT', 384, 320)
+  })
+  lamp(desk, 1.02, 1.12)
+  const plant = new T.Group(); plant.position.y = top; desk.add(plant)
+  leafyPlanter(plant, .52, 1.16, .19)
+  // the credenza behind the chair, under the window: a globe, a trophy, a framed print, a plant
+  box(desk, 0, 0, -.95, 2.1, .78, .38, WALNUT)
+  box(desk, 0, .78, -.95, 2.16, .05, .44, TOP)
+  for (const x of [-.5, .5]) {
+    box(desk, x, .08, -.755, .9, .6, .02, EDGE)
+    box(desk, x + (x < 0 ? .34 : -.34), .36, -.74, .025, .12, .025, BRASS)
+  }
+  cylinder(desk, -.72, .83, -.95, .13, .03, BRASS)
+  cylinder(desk, -.72, .86, -.95, .025, .2, BRASS)
+  sphere(desk, -.72, 1.22, -.95, .19, '#3f7f9f')
+  cylinder(desk, .55, .83, -.95, .06, .05, BRASS)
+  cylinder(desk, .55, .88, -.95, .02, .12, BRASS)
+  cylinder(desk, .55, 1.0, -.95, .1, .12, '#e1c070')
+  box(desk, -.05, .83, -1.1, .36, .42, .03, EDGE)
+  box(desk, -.05, .86, -1.083, .3, .34, .012, INK.paper)
+  box(desk, -.05, .98, -1.074, .2, .14, .01, '#648079')
+  const bloom = new T.Group(); bloom.position.y = .83; desk.add(bloom)
+  leafyPlanter(bloom, .88, -.95, .26)
+}
+
+/**
+ * The founder's chair: tall, leather, tufted, with arms — a hand taller than anybody else's. Authored like
+ * {@link craftedChair}, with the back toward +z, so that a facing of π puts it behind the occupant.
+ */
+export function bossChair(g: T.Group, x: number, z: number, facing: number): T.Group {
+  const chair = new T.Group(); chair.position.set(x, 0, z); chair.rotation.y = facing; g.add(chair)
+  const LEATHER = '#8a5238', DARK = '#3a3938'
+  box(chair, 0, .5, .06, .76, .15, .66, LEATHER)
+  box(chair, 0, .64, .4, .74, .98, .15, LEATHER)
+  box(chair, 0, 1.5, .4, .54, .2, .18, LEATHER)
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) box(chair, (c - 1) * .22, .78 + r * .2, .322, .1, .1, .02, '#5e3624')
+  for (const side of [-1, 1]) {
+    box(chair, side * .42, .56, .05, .1, .06, .54, DARK)
+    box(chair, side * .42, .4, -.02, .05, .17, .05, DARK)
+  }
+  cylinder(chair, 0, .15, .1, .05, .35, INK.metal)
+  for (let i = 0; i < 5; i++) {
+    const angle = i * Math.PI * 2 / 5, xx = Math.cos(angle) * .3, zz = .1 + Math.sin(angle) * .3
+    const spoke = box(chair, xx / 2, .11, (zz + .1) / 2, .34, .045, .045, INK.metal)
+    spoke.rotation.y = -angle
+    cylinder(chair, xx, .045, zz, .052, .08, INK.metal)
+  }
+  return chair
 }
 
 let cokeMaterial: T.MeshStandardMaterial | undefined
@@ -255,16 +368,12 @@ export function garageSurfaceDetails(g: T.Group): void {
       if ((Math.round((x + 10) * 2) + row * 2) % 6 === 0) box(g, x - .247, .013, z, .012, .003, .49, '#99774f', false)
     }
   }
-  // Masonry joints belong to solid wall portions, not windows or doors.
-  for (let y = .45; y < 3.15; y += .45) {
-    for (const [x0, x1] of [[-10, -7.8], [-3.8, 1.5]]) {
-      box(g, (x0 + x1) / 2, y, -6.372, x1 - x0, .009, .007, '#bfb6a5', false)
-      for (let x = x0 + (Math.round(y / .45) % 2 ? .5 : 1); x < x1; x += 1) box(g, x, y - .43, -6.371, .008, .43, .008, '#c6bdac', false)
-    }
-    box(g, 5.75, y, -9.67, 8.4, .01, .007, '#c6bdac', false)
-  }
-  // Window sill plants. The lounge's own cushions travel with it -- see `loungeDressing`.
-  for (const x of [-7.2, -4.4]) { const plant = new T.Group(); plant.position.y = .93; g.add(plant); leafyPlanter(plant, x, -6.27, .32) }
+  // Masonry joints belong to solid wall portions, not windows or doors: here, the kitchen's wall.
+  // [2026-10-05] The joints on the old back wall's south face (z = −6.372) and the plants on its sill
+  // are gone from here: they were hung on the *room*, so when the wall went up through the roof at a
+  // hero's arrival they stayed behind, lines and flowerpots in the air. The joints are the partition's
+  // own now (`garageEnvironment`'s HERO_BAYS); the sill went with the wall it was on.
+  for (let y = .45; y < 3.15; y += .45) box(g, 5.75, y, -9.67, 8.4, .01, .007, '#c6bdac', false)
 }
 
 /**

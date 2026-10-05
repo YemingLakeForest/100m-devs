@@ -67,6 +67,8 @@ export const HERO_LABELS: Record<string, string> = {
  */
 const LEG = 0.78
 const HIP = LEG + 0.16
+/** How much trouser a standing *bean* of Billy's gets under its shirt: see `studioPerson`. */
+export const BILLY_TROUSERS = 0.8
 
 /** Shared by scene people and their selectable HUD portraits. */
 export function personColours(look: Look, id?: LeaderId) {
@@ -155,7 +157,17 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
    * on the floor; seated, it sits on the chair where it always did.
    */
   const bean = blocks && standing
-  const torso = new T.Group(); torso.position.y = bean ? 0 : 0.66 + lift; g.add(torso)
+  /*
+   * **Billy's trousers** [2026-10-05, at the user's instruction: *"billy should face us and he's too short"*]. A
+   * standing bean is a head on a shirt on the floor, 1.1 m tall, and the people it stands among are *seated* beans on
+   * chairs whose heads are at 1.7: the one figure that stands was the shortest in the room, by a head and a half. The
+   * full standing figure is 2.0 m tall (legs, hips, shirt, head), and a bean has no legs by the user's own rule
+   * (*"just a head and body hop about"*), so Billy gets what a bean can have and a leg cannot be: a block of trouser
+   * under the shirt, 0.8 m of it, which takes him to 1.9 — a hand under the standing figure, a head over the seated
+   * ones. The away developers are beans too and stay as they are: nobody stands next to a seated crowd for long.
+   */
+  const trousers = bean && id === 'billy' ? BILLY_TROUSERS : 0
+  const torso = new T.Group(); torso.position.y = bean ? trousers : 0.66 + lift; g.add(torso)
   torso.name = 'torso'
   box(torso, 0, 0, 0.04, 0.43 * broad, 0.52, 0.29, shirt)
   // One extra construction feature carries each clothing silhouette.
@@ -221,7 +233,11 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
       }
     }
   }
-  const head = new T.Group(); head.position.set(0, bean ? 0.52 : 1.18 + lift, 0); g.add(head); head.name = 'head'
+  if (trousers > 0) {
+    box(g, 0, 0.06, 0.02, 0.34 * broad, trousers - 0.06, 0.25, '#343d45')
+    box(g, 0, 0, -0.03, 0.38 * broad, 0.07, 0.34, INK.metal)
+  }
+  const head = new T.Group(); head.position.set(0, bean ? 0.52 + trousers : 1.18 + lift, 0); g.add(head); head.name = 'head'
   const namedHero = id === 'james' || id === 'billy' || id === 'serena' || id === 'matt'
   if (id === 'founder') {
     founderHead(head, look, skin, hair)

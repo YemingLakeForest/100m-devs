@@ -6,15 +6,17 @@
 import * as T from 'three'
 import { OS, OS_SKIN } from '../art/skin.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
-import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, showSeatInstances, slab, tree, wall, type PropInstances } from './worldArt.ts'
+import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, sharedMaterial, showSeatInstances, slab, tree, wall, type PropInstances } from './worldArt.ts'
 import { projectBoard } from './projectPlate.ts'
 import { garageNeighborhood } from './garageNeighborhood.ts'
 import { garageBackyard } from './garageBackyard.ts'
-import { GARAGE_DECK, GARAGE_STAGE, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_GABLE, type Furniture } from '../sim/floorPlan.ts'
+import { BILLY_PLAZA, GARAGE_WALLS, GARAGE_DECK, GARAGE_PODIUM, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, HERO_SITES, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_GABLE, type Furniture, type HeroSite, type HeroSiteId } from '../sim/floorPlan.ts'
 import { HERO_LABELS, LEADER_COLOURS, leaderLook, studioPerson, workerLook, type StudioCast } from './studioPeople.ts'
-import { entrance, gableSign, garageDeskStory, garageForecourt, street } from './garageDetails.ts'
+import { entrance, gableSign, garageDeskStory, garageForecourt, street, studioSign } from './garageDetails.ts'
+import { pool, sconce, standingLamp } from './glowArt.ts'
 import { buildHqSets } from './hqSets.ts'
-import { craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garagePlatformFloor, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
+import { OPS_STEP, heroRiser, opsPlinth, opsStep, ziggurat } from './hqShell.ts'
+import { bossChair, craftedBossDesk, craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
 
 const hitGeometry = new T.BoxGeometry(1, 1, 1)
 // Round hero pick volumes avoid grazing an exact box corner in the isometric ray.
@@ -66,23 +68,6 @@ function placed(parent: T.Object3D, f: Furniture): { g: T.Group; len: number; de
   return { g, len: cs * f.w + sn * f.d, dep: sn * f.w + cs * f.d }
 }
 
-/**
- * A floor from an outline. The garage is an L with a corner cut off it now, and
- * a stepped plan cannot be drawn out of boxes without the joins showing.
- */
-function shelving(g: T.Group, x: number, z: number, rotation = 0): void {
-  const shelf = new T.Group(); shelf.position.set(x, 0, z); shelf.rotation.y = rotation; g.add(shelf)
-  for (const dx of [-0.75, 0.75]) box(shelf, dx, 0, 0, 0.09, 2.3, 0.65, INK.woodEdge)
-  for (let i = 0; i < 4; i++) {
-    box(shelf, 0, 0.12 + i * 0.64, 0, 1.6, 0.08, 0.65, INK.wood)
-    for (let j = 0; j < 3; j++) {
-      const colour = [INK.glassLight, '#61988a', INK.trim, INK.wood][(i + j) % 4]
-      box(shelf, -0.5 + j * 0.49, 0.2 + i * 0.64, 0, 0.39, 0.35, 0.50, colour)
-      box(shelf, -0.5 + j * 0.49, 0.3 + i * 0.64, 0.255, 0.16, 0.075, 0.01, INK.paper)
-    }
-  }
-}
-
 /** Scripted hero arrivals and loose groups used by the delivery animation.
  * Individual workstations furnish the redesigned room; occupants still follow
  * hires, while the founder and James retain their scripted station arrivals. */
@@ -92,7 +77,7 @@ export interface GarageStaging {
   /** How much of James's station stands: 0 nothing, 1 desk, 2 and chair, 3 and him. */
   james: number
   /**
-   * The heroes of the hero row who are in the building [2026-10-04]: their
+   * The heroes (Billy, Serena, Matt) who are in the building [2026-10-04]: their
    * station stands, whole, from the moment they are listed. The drop that
    * delivers it piece by piece is the view's, not the plan's.
    */
@@ -222,6 +207,10 @@ export function showGarageStations(env: Environment, staging: GarageStaging, cas
     // The wall stands until its hero is here, and then it is gone.
     placeProp(env.props?.get(`partition:${bay.id}`), staging.heroes.includes(bay.id) ? null : IDENTITY)
   }
+  // The Ops Room's step stands in front of the old wall, so the wall cannot hide it: it comes with her. So does
+  // Matt's riser, who has no wall at all (and Billy has no riser: he is on the floor).
+  placeProp(env.props?.get('step:serena'), staging.heroes.includes('serena') ? IDENTITY : null)
+  placeProp(env.props?.get('riser:matt'), staging.heroes.includes('matt') ? IDENTITY : null)
   for (const station of GARAGE_LEADERS) {
     const present = station.id === 'founder' ? (staging.founder ? 3 : 0)
       : !cast.heroes.includes(station.id) ? 0
@@ -242,15 +231,34 @@ export function showGarageStations(env: Environment, staging: GarageStaging, cas
 const IDENTITY = new T.Matrix4()
 
 /**
- * The three lengths of wall that stood at z = −6.5, one per bay of the hero row,
- * west to east (Matt, Serena, Billy — see `floorPlan.GARAGE_LEADERS` for why that
- * way round) — the bay each hero's station is in.
- * Serena's keeps the low window the whole run had.
+ * The glass in the clerestory ribbons, which is the one surface in the room that is brighter than the room. It is not
+ * lit by the lamps (a basic material, shared), so a lamp over it cannot make it dull and a shadow cannot darken it:
+ * what it says is *there is a sky out there*, and the sky is a dusk blue a step lighter than the walls it is set in.
+ */
+const SKY = '#6f95a8'
+const skyMaterial = () => sharedMaterial('garage-sky', () => new T.MeshBasicMaterial({ color: SKY }))
+/** A pane of that glass: a box that is not lit. */
+function skyPane(parent: T.Object3D, x: number, y: number, z: number, w: number, h: number, d: number): T.Mesh {
+  const pane = box(parent, x, y, z, w, h, d, SKY, false)
+  pane.material = skyMaterial()
+  return pane
+}
+
+/**
+ * **The old back wall, in one piece**, in front of the Ops Room. It stood at z = −6.5 across the whole of
+ * the room's back until the heroes arrived, and a hero's arrival was that length of it going up through
+ * the roof. It is the Ops Room's alone now: Matt's front desk is *west* of her and comes last, and Billy's
+ * corner is *east* of her and so never behind her wall, so neither needs one — they are risers that come with
+ * them; and the boss is on the west wall, there from the first frame.
+ *
+ * **The wall has an east return**, running back to the north wall, so the bay is a box and not a screen: on
+ * §12.1's camera a sight line from the east end of a plinth passes *east of a wall that stops at the bay's
+ * edge* — the first cut showed a hero's dais, lit foot and all, round the end of the old wall. The return is
+ * the wall's height (3.2 m, not the screen's 3.9): at 3.9 its far end stands 0.7 m up above the north wall's
+ * own top edge, a stub on the skyline.
  */
 export const HERO_BAYS = [
-  { id: 'matt', x0: -10, x1: -5.0, window: false },
-  { id: 'serena', x0: -5.0, x1: -0.4, window: false },
-  { id: 'billy', x0: -0.4, x1: 4.4, window: false },
+  { id: 'serena', x0: 1.98, x1: 6.82 },
 ] as const
 
 /** GDD §§6, 7, 13.1. Architecture is authored geometry, never an atlas plane.
@@ -260,18 +268,20 @@ export const HERO_BAYS = [
 export function buildGarageEnvironment(count: number, cast: StudioCast, scenery: 'on' | 'off' | 'far' = 'on', shellOnly = false,
   staging: GarageStaging = GARAGE_ASSEMBLED, cityGrid = false): Environment {
   const env: Environment = { root: new T.Group(), targets: [], occluders: [], people: [],
-    focus: new T.Vector3(-1.3, 0.6, -2.9), extent: 27, background: cityGrid ? OS.n2 : '#87966c', seatInstances: new Map(), props: new Map() }
+    focus: new T.Vector3(-1.3, 3.0, -2.9), extent: 27, background: cityGrid ? OS.n2 : '#87966c', seatInstances: new Map(), props: new Map() }
   const g = env.root
   // Continuous ground and two joined slabs leave a genuine recessed doorway.
   // A cheap continuous ground plane hides the horizon even on tall screens;
   // camera travel is bounded independently of the scenery's backing surface.
   box(g, 0, -0.6, 0, 512, .1, 512, env.background, false)
   if (OS_SKIN) {
-    // STUDIO_OS: two warm ceiling lamps over the hall and the annex — the room
-    // is a lit box in a dark street, which is the legacy garage's whole picture.
-    for (const [x, z] of [[-3.5, -0.5], [5, -5.5], [-4.3, -8]]) {
-      const lamp = new T.PointLight(OS.lamp, 16, 13, 2)
-      lamp.position.set(x, 3.1, z)
+    // STUDIO_OS: the room's lamps — six, where it had four, and each over something: the podium, the north court, Serena's
+    // plinth, the plaza (the strongest: Billy is under it), the west pods and the east pod. [2026-10-05, at the user's
+    // instruction: *"don't have the screens to be only light emitter"*.] They are the only real lights the room adds; the
+    // lamps you can *see* (the standing lamps, the sconces, the pools on the floor) are unlit art that looks lit.
+    for (const [x, z, power] of [[-7.4, -7.0, 12], [-0.6, -5.0, 14], [4.4, -3.8, 12], [-1.0, 1.9, 15], [-4.8, 2.2, 14], [7.2, 1.8, 12]]) {
+      const lamp = new T.PointLight(OS.lamp, power, 13, 2)
+      lamp.position.set(x, 4.1, z)
       g.add(lamp)
     }
   }
@@ -281,23 +291,21 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   for (let z = 8; z <= 12.2; z += 1.2) box(g, 0, -0.315, z, 24, 0.005, 0.012, '#bcbeb6', false)
   slab(g, GARAGE_OUTLINE, -0.3, 0.3, '#e8e2d4')
   /*
-   * The far wall, stepped. Clerestory over the hall as far as x = 1.5, then the
-   * annex takes over 3.3 m further back. The step is the whole reason the
-   * silhouette stopped being one straight edge across the top of the frame.
+   * [2026-10-04] **The far wall is one straight run, at z = −9.8.** It stepped back 3.3 m at x = 1.5 over the
+   * right-hand 42% of the frontage, to an annex that held a developer pod and the kitchen; the step went when
+   * the back wall was pushed out for the heroes, and the kitchen went on 2026-10-05 (*"we can do without the
+   * kitchen now"*) — the boss's deck is in that corner now, under the same clerestory.
    */
-  /*
-   * [2026-10-04] **The far wall is one straight run now, at the annex's depth**,
-   * and the hero row (Billy, Serena, Matt) stands in front of it — see
-   * `floorPlan.HERO_ROW_Z`. Where this wall used to step at x = 1.5 it keeps the
-   * rhythm it had: solid workshop walls either side of a low-sill window, the
-   * same clerestory header and coping, moved back 3.3 m. The annex's return
-   * wall at x = 1.5 is gone with the step, since there is no annex to return.
-   */
-  // [2026-10-04] Solid from the corner to the annex: the stage hangs the heroes' work on this
-  // wall (the whiteboard, the dashboards, the ticket wall), and a window in the middle of
-  // it was daylight nobody could see for the screens.
-  box(g, -2.8, 0, -9.8, 14.4, 3.2, .24, INK.wall)
-  box(g, -4.25, 3.2, -9.8, 11.9, 0.12, 0.35, INK.trim)
+  // **One run, the full height of the hall** (4.6 m: `GARAGE_WALLS`). The heroes hang their work on this wall — the
+  // dashboards, the ticket wall, the studio's sign — so the glazing is a *ribbon above all of it* (a clerestory, which is
+  // what the word means), not a band the work has to dodge: it was a band from x = 4.4 east, and Serena's wall of
+  // dashboards would have been hung across its panes.
+  const WALL = GARAGE_WALLS.height
+  box(g, 0.06, 0, -9.8, 20.12, WALL, .24, INK.wall)
+  box(g, 0, WALL, -9.8, 20.4, 0.12, 0.35, INK.trim)
+  skyPane(g, 2.4, WALL - 1.0, -9.68, 14.0, 0.8, 0.06)
+  for (let x = -4.4; x <= 9.4; x += 1.4) box(g, x, WALL - 1.0, -9.7, 0.12, 0.8, 0.1, INK.trim)
+  box(g, 2.4, WALL - 1.04, -9.62, 14.2, 0.06, 0.2, INK.trim)
   /*
    * **The old back wall is still standing, in three pieces, until each hero
    * arrives** [2026-10-04] — the gag §7.8.12 asked for: *the room cannot make
@@ -312,31 +320,32 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    */
   for (const bay of HERO_BAYS) {
     const w = bay.x1 - bay.x0
-    const wall = prop(env, g, `partition:${bay.id}`, (bay.x0 + bay.x1) / 2, -6.5)
-    if (bay.window) {
-      box(wall, 0, 0, 0, w, .9, .24, INK.wall)
-      box(wall, 0, 2.8, 0, w, .4, .24, INK.wall)
-      box(wall, 0, .9, 0, w, 1.9, .04, '#a8c7cf', false)
-      for (const dx of [-w / 3, 0, w / 3]) box(wall, dx, .9, .03, .10, 1.9, .18, INK.trim)
-      box(wall, 0, .86, .07, w + .15, .08, .38, INK.trim)
-    } else {
-      box(wall, 0, 0, 0, w, 3.9, .24, INK.wall)
+    // One centimetre proud of the plinth's front face, which is at −6.38: a wall exactly on it would
+    // have its south face and the slab's coplanar for the first 0.9 m, and two colours fight there.
+    const wall = prop(env, g, `partition:${bay.id}`, (bay.x0 + bay.x1) / 2, -6.49)
+    // The screen is a hand lower than the wall behind it: its job is to hide the plinth, whose far edge is 3.2 m back, and
+    // a point 0.9 m up and 3.2 m behind the screen is seen over its top unless the top is above 4.1 m.
+    box(wall, 0, 0, 0, w, WALL - 0.2, .24, INK.wall)
+    box(wall, 0, WALL - 0.2, 0, w + .05, .12, .35, INK.trim)
+    // the east return: from the screen's south-east corner back to the north wall's inner face
+    const ret = -9.68 + 6.49 // local z of the north wall's face, relative to the screen at z = −6.49
+    box(wall, w / 2 - .12, 0, ret / 2 - .06, .24, WALL - 0.2, -ret - .24, INK.wall)
+    box(wall, w / 2 - .12, WALL - 0.2, ret / 2 - .06, .35, .12, -ret - .24, INK.trim)
+    for (let y = .45; y < WALL - 0.2; y += .45) box(wall, w / 2, y, ret / 2 - .06, .007, .009, -ret - .24, '#bfb6a5', false)
+    // The mortar joints are the wall's, so they go up with it: they were hung on the room, in the air
+    // at z = −6.372, and stayed behind as lines across nothing once the wall had left.
+    for (let y = .45; y < WALL - 0.2; y += .45) {
+      box(wall, 0, y, .123, w, .009, .007, '#bfb6a5', false)
+      for (let x = -w / 2 + (Math.round(y / .45) % 2 ? .5 : 1); x < w / 2; x += 1) box(wall, x, y - .43, .124, .008, .43, .008, '#c6bdac', false)
     }
-    box(wall, 0, 3.9, 0, w + .05, .12, .35, INK.trim)
   }
-  box(g, 7.26, 0, -9.8, 5.72, STUDIO.wallHeight, 0.24, INK.wall)
-  box(g, 7.0, 2.05, -9.68, 4.8, 0.85, 0.06, '#a8c7cf', false)
-  for (const x of [4.7, 6.2, 7.8, 9.2]) box(g, x, 2.05, -9.7, 0.13, 0.85, 0.1, INK.trim)
-  box(g, 5.75, 3.2, -9.8, 8.9, 0.12, 0.35, INK.trim)
-  // Low glazing over the annex's east flank. It was cut down for the kitchen,
-  // which stood against it; the kitchen turned on to the back wall in 2026-09,
-  // and the glazing stays because what it now keeps visible is the run itself
-  // and whoever is standing at it — a full-height near wall here would put the
-  // one lit corner of the room behind a slab.
+  // The north-east corner's east flank is the same cutaway parapet as the rest of the east wall. **It carried a pane of
+  // glazing to 1.7 m** (opaque, whatever the colour) that was cut down for the kitchen, which stood against it; with
+  // Billy's corner there now, that pane hid the floor within 1.7 m of it along the camera's diagonal — his legs, in the
+  // first frame it was looked at — so it went, and the wall is knee-high all the way along. A full-height near wall
+  // is the one thing §13.1 forbids on the camera's side of a seat.
   box(g, 10, 0, -8.15, 0.24, 0.55, 3.54, INK.wall)
   box(g, 10, 0.55, -8.15, 0.33, 0.07, 3.54, INK.trim)
-  box(g, 9.98, 0.62, -8.15, 0.05, 1.0, 3.4, '#a8c7cf', false)
-  box(g, 10, 1.62, -8.15, 0.3, 0.08, 3.6, INK.trim)
   // Cutaway near walls: low enough to read seated bodies and leave the door open.
   box(g, 10, 0, 0.75, 0.24, 0.55, 14.5, INK.wall)
   box(g, 10, 0.55, 0.75, 0.33, 0.07, 14.5, INK.trim)
@@ -369,17 +378,21 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   const gable = STUDIO_GABLE
   for (const [from, to] of [
     [[gable.x1, gable.z], [gable.x0, gable.z]],
-    [[gable.x0, gable.z], [gable.x0, 5.5]],
+    [[gable.x0, gable.z], [gable.x0, 8]],
   ] as [readonly [number, number], readonly [number, number]][]) {
     wall(g, from, to, 0, STUDIO.wallHeight, gable.thickness, INK.wall)
     wall(g, from, to, STUDIO.wallHeight, 0.12, 0.35, INK.trim)
   }
   // The former garage gate becomes the project wall, with an oak base.
-  box(g, -10, 0, -2.15, .24, STUDIO.wallHeight, 15.3, INK.wall)
-  box(g, -9.84, 0, .5, .10, .7, 5.3, INK.wood)
-  // Runs to z = 5.5, where the wing's own coping above takes over: the west
-  // wall is one unbroken head now rather than stopping short of its own corner.
-  box(g, -10, 3.2, -2.2, 0.35, 0.12, 15.4, INK.trim)
+  box(g, -10, 0, -0.9, .24, WALL, 17.8, INK.wall)
+  box(g, -9.84, 0, 1.5, .10, .7, 4.3, INK.wood)
+  // Runs to z = 8, where the hall ends and the wing's own, lower wall takes over: the step in the head is the
+  // annex's, and it is where the hall's south parapet meets this wall.
+  box(g, -10, WALL, -0.9, 0.35, 0.12, 17.9, INK.trim)
+  // A ribbon of glazing above the leaders, the west wall's half of the north wall's clerestory.
+  skyPane(g, -9.88, WALL - 1.0, -6.0, 0.06, 0.8, 7.4)
+  for (let z = -9.2; z <= -2.8; z += 1.4) box(g, -9.86, WALL - 1.0, z, 0.1, 0.8, 0.12, INK.trim)
+  box(g, -9.8, WALL - 1.04, -6.0, 0.2, 0.06, 7.6, INK.trim)
   // A plain, straight portal faces the east pavement; no overhead signage.
   const door = entrance(g)
   gableSign(g, cast.studio ?? 'Merciless Software')
@@ -390,18 +403,15 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // Frame-gate isolation: planter foliage is deliberately enclosed by pale
   // concrete too, so detecting architectural holes requires the bare shell.
   if (shellOnly) { finishGarage(g); batchArt(g, env.seatInstances); return env }
-  // One solid, level oak platform supports both complete desk/chair stations.
-  const d = GARAGE_DECK
-  slab(g, [[d.x0, d.z0], [d.x1, d.z0], [d.x1, d.z1], [d.x0, d.z1]], 0, d.rise - .014, INK.woodEdge)
-  garagePlatformFloor(g, d)
-  const deck = new T.Group(); deck.position.y = d.rise; g.add(deck)
-  // The stage: the higher terrace along the north wall, and where the heroes stand.
-  const st = GARAGE_STAGE
-  slab(g, [[st.x0, st.z0], [st.x1, st.z0], [st.x1, st.z1], [st.x0, st.z1]], 0, st.rise - .014, INK.woodEdge)
-  garagePlatformFloor(g, st)
-  // Its front edge: a trim line along the lip, so the step reads as a step.
-  box(g, (st.x0 + st.x1) / 2, st.rise - .02, st.z1 - .02, st.x1 - st.x0, .06, .06, INK.trim, false)
-  const stage = new T.Group(); stage.position.y = st.rise; g.add(stage)
+  // The ziggurat (`hqShell.ts`): the founder's podium and, at its foot, James's deck; and the platform each hero's set
+  // stands on — Serena's is the plinth, Matt's his riser (a prop of its own, so that it comes with him: neither has
+  // an old wall to hide behind), Billy's the floor itself, because he is standing on it with everybody else.
+  const { podium, deck } = ziggurat(g)
+  const platformOf: Record<HeroSiteId, T.Group> = {
+    matt: heroRiser(g, prop(env, g, 'riser:matt'), 'matt'),
+    serena: opsPlinth(g),
+    billy: g,
+  }
   // The workshop wall is reserved for the project drawing board.
   const heroBodies: Partial<Record<'billy' | 'serena' | 'matt', T.Group>> = {}
   for (const station of GARAGE_LEADERS) {
@@ -425,9 +435,10 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     spot.position.set(station.x, 0, station.z)
     spot.scale.setScalar(GARAGE_HERO_SCALE)
     spot.rotation.y = (station.rot * Math.PI) / 180
-    // The heroes stand on the stage; the founder and James on the deck below it.
-    const onStage = station.id !== 'founder' && station.id !== 'james'
-    ;(onStage ? stage : deck).add(spot)
+    // Each hero stands on their own platform (`floorPlan.HERO_SITES`); the founder on the podium, James on the deck.
+    const site = (HERO_SITES as Record<string, HeroSite | undefined>)[station.id]
+    const onStage = site !== undefined
+    ;(site ? platformOf[station.id as HeroSiteId] : station.id === 'founder' ? podium : deck).add(spot)
     if (!cast_in) continue
     // [2026-10-04] Billy stands: his station is the easel and the person at it, and
     // has no desk or chair (he is the one hero who is always at the whiteboard,
@@ -437,9 +448,12 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     // have the desk that the loop draws; Serena and Matt keep their chair in it.
     if (!onStage) {
       const desk = prop(env, spot, `desk:${station.id}`)
-      craftedHeroDesk(desk, station.id)
+      // [2026-10-05] The founder's desk is his own design now (*"his desk redesigned"*); James's is the oak one.
+      if (station.id === 'founder') craftedBossDesk(desk)
+      else craftedHeroDesk(desk, station.id)
       garageDeskStory(desk, station.id)
-      chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
+      if (station.id === 'founder') bossChair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI)
+      else chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
     } else if (station.id !== 'billy') chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
     {
       const seat = prop(env, spot, `body:${station.id}`)
@@ -461,9 +475,26 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       const tag = prop(env, spot, `name:${station.id}`)
       tag.userData.label = HERO_LABELS[station.id] ?? station.id.toUpperCase()
       tag.userData.colour = LEADER_COLOURS[station.id] ?? INK.teal
-      // On the stage the plate is the set's marquee, above the wall and clear of the work.
-      if (onStage) tag.userData.tagOffset = [0, (3.3 - st.rise) / GARAGE_HERO_SCALE, (st.z0 + 0.1 - station.z) / GARAGE_HERO_SCALE]
-      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, onStage ? st.rise : d.rise)
+      // A hero's plate on a wall is the set's marquee: over the middle of its wall, above it and clear of the work,
+      // and lying along the wall it hangs on — the north wall's runs along +x, the west one's along −z. The offset is
+      // in the station's own frame, which is turned and scaled, hence the division. A free-standing hero (Billy) and the
+      // two on the diagonal and the deck have their plate over their heads, laid *across the screen*: the diagonal's
+      // own axis, (1, −1), which is what every sign facing the lens is set along.
+      if (site && site.wall !== 'free') {
+        const along = site.wall === 'north' ? (site.x0 + site.x1) / 2 - station.x : -((site.z0 + site.z1) / 2 - station.z)
+        const toWall = site.wall === 'north' ? site.z0 - station.z : site.x0 - station.x
+        tag.userData.tagOffset = [along / GARAGE_HERO_SCALE, (3.9 - site.rise) / GARAGE_HERO_SCALE, (toWall + 0.1) / GARAGE_HERO_SCALE]
+        tag.userData.tagAxis = site.wall === 'north' ? [1, 0] : [0, -1]
+      } else {
+        // James stands on the west wall facing +x (rot 90), and his plate lies along the wall at his back: toward −z, up and
+        // to the right on §12.1's camera. The others face the lens.
+        tag.userData.tagAxis = station.rot === 90 ? [0, -1] : [1, -1]
+      }
+      // The floor they stand on: the podium's, the deck's, a plinth's or a riser's — and Billy's is his dais, which is not
+      // a platform (the walk grid is closed under it by the easel's footprint, not by a terrace) but is what his feet are on.
+      const floor = station.id === 'founder' ? GARAGE_PODIUM.rise : station.id === 'james' ? GARAGE_DECK.rise
+        : station.id === 'billy' ? BILLY_PLAZA.dais.rise : site!.rise
+      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, floor)
     }
   }
   /*
@@ -472,9 +503,19 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    */
   {
     const present = new Set((['billy', 'serena', 'matt'] as const).filter((id) => cast.heroes.includes(id)))
-    const pos = (id: 'billy' | 'serena' | 'matt') => { const l = GARAGE_LEADERS.find((q) => q.id === id)!; return { x: l.x, z: l.z } }
-    env.hq = buildHqSets({ env, stage, cast, at: { billy: pos('billy'), serena: pos('serena'), matt: pos('matt') }, bodies: heroBodies, present })
+    const pos = (id: HeroSiteId) => { const l = GARAGE_LEADERS.find((q) => q.id === id)!; return { parent: platformOf[id], x: l.x, z: l.z, rot: l.rot } }
+    env.hq = buildHqSets({ env, at: { billy: pos('billy'), serena: pos('serena'), matt: pos('matt') }, bodies: heroBodies, present })
   }
+  /*
+   * **The room's own light, drawn** [2026-10-05, *"make brighter and don't have the screens to be only light emitter,
+   * the company sign needs to be ligth up too"*]: the studio's sign over the founder, lit; a standing lamp at each side
+   * of the podium (on it: the group is at its height); and a sconce on the north wall between each pair of sets and at
+   * the corner, with its wash up the plaster. None adds a light to the scene (`glowArt.ts`).
+   */
+  studioSign(g, cast.studio ?? 'Merciless Software', { wall: 'north', along: -6.9, width: 2.8, y: 2.7, height: 1.2 })
+  standingLamp(podium, -5.9, -9.1)
+  standingLamp(podium, -9.2, -5.85)
+  for (const x of [-4.4, 1.2, 8.4]) sconce(g, x, 2.9, -9.64, 0)
   /*
    * §12.6 — **the room is furnished by hiring, not by the lease.**
    *
@@ -505,6 +546,8 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       const group = prop(env, g, `pod:${i}`, pod.x, pod.z)
       const greenery = new T.Group(); greenery.position.y = .9; group.add(greenery)
       leafyPlanter(greenery, 0, 0, .25)
+      // The light over the desks, as a pool on the floor under them: the pod's own prop, so that it comes and goes with the pod.
+      pool(group, 0, 0, 5.2, 4.8, '#ffd68c', 0.17)
     }
     for (const s of garageSeats().filter(s => s.pod === i)) {
       // Anchored at the seat rather than parented to the pod: a falling prop is
@@ -522,109 +565,34 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   /*
    * Everything below is *placed* from `sim/floorPlan.GARAGE_FURNITURE`.
    *
-   * The shapes are still authored here, because a kitchen run is a dozen boxes
+   * The shapes are still authored here, because a sofa group is a dozen boxes
    * and reducing it to a rectangle would lose the room. What moved is the
    * decision about *where*: a sofa that moves in the picture now moves in the
    * walkability graph on the same edit, which is the whole point of §18.3
    * keeping the layout in `sim/`.
    */
-  // Low book storage and framed notices dress the wall behind James.
-  box(deck, -.65, 0, -6.02, 3.4, .68, .55, INK.wood)
-  for (let i = 0; i < 13; i++) box(deck, -2.1 + i * .23, .12, -5.72, .16, .42 + i % 3 * .06, .28, ['#648079', '#c39955', '#7593a0'][i % 3])
-  for (const x of [-1.9, -.5, .9]) {
-    box(g, x, 1.5, -6.34, .86, .72, .07, INK.wood)
-    box(g, x, 1.57, -6.29, .7, .56, .025, INK.paper)
-    box(g, x, 1.72, -6.265, .43, .2, .012, '#648079')
-  }
+  // [2026-10-05] **The low book storage and the three framed notices that dressed "the wall behind James"
+  // are gone.** That wall is the Ops Room's plinth now, and they stood in the air at z = −6.34: the notices
+  // hung on nothing in front of its face (found by looking at the first screenshot of the plan).
   const at = (kind: string) => GARAGE_FURNITURE.find(f => f.kind === kind)!
-  const shared = at('island')
-  box(g, shared.x, .018, shared.z, shared.w + .25, .016, shared.d + .2, '#a8c2ba')
-  box(g, shared.x, .82, shared.z, shared.w - .8, .12, shared.d - 1.25, INK.wood)
-  for (const dx of [-.8, .8]) for (const dz of [-.8, .8]) box(g, shared.x + dx, .03, shared.z + dz, .10, .8, .10, INK.woodEdge)
-  for (const dz of [-1.35, 1.35]) for (const dx of [-.66, .66]) {
-    cylinder(g, shared.x + dx, .08, shared.z + dz, .07, .43, INK.metal)
-    cylinder(g, shared.x + dx, .51, shared.z + dz, .26, .12, '#648079')
-  }
-  for (let i = 0; i < 3; i++) box(g, shared.x - .45, .95 + i * .055, shared.z + .1, .48, .05, .35, i % 2 ? INK.paper : '#7593a0')
-  box(g, shared.x + .35, .95, shared.z - .3, .58, .025, .44, INK.paper)
-  for (const dx of [-.6, .6]) cylinder(g, shared.x + dx, .95, shared.z + .6, .075, .16, '#c39955')
-  const { g: library, len: libraryLen, dep: libraryDep } = placed(g, at('locker'))
-  box(library, 0, 0, 0, libraryLen, .9, libraryDep, INK.woodEdge)
-  for (let i = 0; i < 11; i++) for (const y of [.12, .52]) box(library, -libraryLen / 2 + .22 + i * .3, y, libraryDep / 2, .21, .3, .06, ['#648079', '#c39955', '#7593a0'][i % 3])
-  box(library, 0, .9, 0, libraryLen + .08, .08, libraryDep + .08, INK.wood)
-  const libraryPlant = new T.Group(); libraryPlant.position.y = .98; library.add(libraryPlant)
-  leafyPlanter(libraryPlant, -libraryLen / 2 + .4, 0, .32)
   const readingBench = at('bench')
   box(g, readingBench.x, 0, readingBench.z, readingBench.w, .55, readingBench.d, INK.wood)
   box(g, readingBench.x, .55, readingBench.z, readingBench.w + .08, .12, readingBench.d + .06, '#829caa')
   for (let i = 0; i < 9; i++) box(g, readingBench.x - 1.25 + i * .29, .08, readingBench.z - .32, .2, .36, .23, ['#648079', '#c39955', '#7593a0'][i % 3])
   /*
-   * The kitchen run, drawn in the piece's own frame — see {@link placed}.
-   *
-   * [2026-09-21] It used to be authored straight into world axes, which meant
-   * it could only ever be the east wall's run: turning it on to the annex's
-   * back wall meant rewriting seventeen boxes and hoping the footprint in
-   * `sim/floorPlan` was rewritten to match. That is exactly the drift §18.3
-   * exists to stop, and it is why the sofa already worked this way.
-   *
-   * `len` is along the run and `dep` is across it, whichever way the piece is
-   * turned, so nothing below knows or cares which wall it is standing on.
-   *
-   * **Two pieces of the old hand-authored run hung off the end of it.** The
-   * doors were pitched at a flat 1.1 m from `0.9` in, which put the fourth one
-   * 0.33 m past the worktop, and the second mug stood 0.18 m past it in mid
-   * air. Neither was visible against the east wall's glazing from §12.1's
-   * angle; both are obvious against a full-height wall. The doors are pitched
-   * `len / 4` now, so they divide the run however long it is.
+   * **There is no kitchen** [2026-10-05, at the user's instruction: *"we can do without the kitchen now"*]. A 4.3 m
+   * run of cupboards, a tall unit and a clerestory over them stood on the north wall's east end. The water errand has a
+   * cooler, in the north-east corner now (it was against the east wall until the fifth pod took the place), with its
+   * taps on the side that faces the room.
    */
-  const { g: kit, len: kitLen, dep: kitDep } = placed(g, at('counter'))
-  /*
-   * The footprint is the *worktop*, which oversails its cupboards by 0.1 at
-   * the front and 0.06 at the open west end — so the carcass is set back
-   * inside it rather than sharing its centre, and `front` is the one number
-   * the doors and handles are hung off. The oversail used to be symmetrical,
-   * which put 0.05 of worktop inside whatever wall the run backed on to. That
-   * was invisible against the east wall, because the east wall is cut down to
-   * 0.55 and the lip passed over it; against a full-height wall it is 4.4 m of
-   * stone tray buried in the plaster.
-   */
-  const front = kitDep / 2 - 0.1
-  box(kit, 0, 0, -0.05, kitLen, 0.90, kitDep - 0.1, INK.wood)
-  box(kit, -0.03, 0.9, 0, kitLen + 0.06, 0.08, kitDep, INK.trim)
-  for (let i = 0; i < 4; i++) {
-    const x = (i + 0.5 - 2) * (kitLen / 4)
-    box(kit, x, 0.08, front + 0.01, 0.86, 0.72, 0.014, INK.woodEdge)
-    box(kit, x, 0.67, front + 0.04, 0.27, 0.045, 0.045, INK.metal)
-  }
-  const kitchenPlant = new T.Group(); kitchenPlant.position.y = .98; kit.add(kitchenPlant)
-  leafyPlanter(kitchenPlant, -1.4, -0.25, .3)
-  box(kit, -0.3, 0.98, -0.05, 0.9, 0.03, 0.65, INK.glassLight)
-  cylinder(kit, 1.2, 0.98, -0.15, 0.18, 0.45, INK.metal)
-  for (const dx of [1.55, 1.85]) cylinder(kit, dx, 0.98, -0.25, 0.075, 0.14, INK.amber)
-  /*
-   * The tall unit turns the corner and stops the run at the east wall.
-   *
-   * **2.0 m, not the 2.25 it was.** The wall it now backs on to carries the
-   * clerestory band, whose sill is at 2.05 (see the annex above), and 2.25
-   * drove the carcass 0.20 m up through the glass. Trimming the unit is the
-   * cheaper half of that trade: the band is four mullions and a sill line the
-   * eye reads as the building, and the unit is a box.
-   *
-   * **Open, and a judgement rather than a defect:** in `INK.trim` and stood in
-   * the corner it now reads as a pale box against the pale east parapet behind
-   * it, which is to say it reads as more wall rather than as a fridge. It had
-   * the same two details on the east wall and they were enough there, because
-   * the wall behind it was glazed. Giving it its own colour is a design call
-   * and has not been made — see `docs/validation/garage-kitchen-2026-09-21.md`.
-   */
-  const { g: tall, len: tallLen, dep: tallDep } = placed(g, at('unit'))
-  box(tall, 0, 0, 0, tallLen, 2.0, tallDep, INK.trim)
-  box(tall, 0, 1.4, tallDep / 2 + 0.008, tallLen - 0.1, 0.025, 0.015, INK.grout)
-  box(tall, -0.35, 0.7, tallDep / 2 + 0.02, 0.05, 0.48, 0.06, INK.metal)
-  const shelf = at('shelving')
-  for (let i = 0; i < Math.round(shelf.d / 1.6); i++) {
-    shelving(deck, shelf.x, shelf.z - shelf.d / 2 + 0.8 + i * 1.6, Math.PI / 2)
-  }
+  const cooler = at('cooler')
+  box(g, cooler.x, 0, cooler.z, 0.46, 0.95, 0.46, '#d9dedd')
+  box(g, cooler.x, 0.95, cooler.z, 0.5, 0.03, 0.5, '#b7bfbd')
+  cylinder(g, cooler.x, 0.98, cooler.z, 0.17, 0.42, '#8dc3da')
+  box(g, cooler.x - 0.1, 0.6, cooler.z + 0.24, 0.05, 0.05, 0.05, '#d1473b')
+  box(g, cooler.x + 0.1, 0.6, cooler.z + 0.24, 0.05, 0.05, 0.05, '#4a7fb0')
+  box(g, cooler.x, 0.4, cooler.z + 0.25, 0.26, 0.03, 0.08, '#8d9594')
+  opsStep(prop(env, g, 'step:serena', OPS_STEP.x, OPS_STEP.z))
   /*
    * The lounge, backed onto the west wall and looking across the floor.
    *

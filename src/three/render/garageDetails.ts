@@ -9,6 +9,7 @@ import * as T from 'three'
 import { box, cylinder, INK, line, sharedMaterial } from './worldArt.ts'
 import { STUDIO_DOOR, STUDIO_GABLE } from '../sim/floorPlan.ts'
 import { dietCoke } from './garageCraft.ts'
+import { emissive, wash } from './glowArt.ts'
 
 /**
  * The green the studio signs its own name in.
@@ -18,6 +19,30 @@ import { dietCoke } from './garageCraft.ts'
  * two nearly identical greens on it (§9.2).
  */
 const SIGN_INK = '#28544f'
+
+/**
+ * **A sign that is lit** [2026-10-05, at the user's instruction: *"the company sign needs to be ligth up too"*]. The
+ * letters of both signs (the street gable's and the one over the founder) are an unlit warm cream, so that they are
+ * the brightest thing on their wall, on a plaque dark enough to make them read. Every mesh under `group` takes the
+ * unlit material and stops casting a shadow: a backlit letter does not shade its own plaque.
+ *
+ * **The cream sits at the bloom's threshold, and the halo is behind the plaque.** The first cut was `#ffe7b0` (a linear
+ * luminance of 0.82 against the pass's 0.74) with its halo — an additive plane — in *front* of the letters, which added
+ * to them: every letter of a sign made of extruded boxes, whose sides are the same flat colour as their faces, bloomed
+ * into its neighbours and the studio's name was one white smear (found by looking at it, twice). A sign is *lit* by
+ * being the brightest thing on a dark plaque with a halo on the wall around it (`glowArt.wash`, hung between the wall
+ * and the plaque, so that the plaque hides the middle of it), and the letters may glow a little but not run.
+ */
+const SIGN_LIT = '#fadf9f'
+const SIGN_AMBER = '#ffb347'
+function lightUp(group: T.Object3D, colour = SIGN_LIT): void {
+  group.traverse((node) => {
+    if (!(node instanceof T.Mesh)) return
+    node.material = emissive(colour)
+    node.castShadow = false
+    node.receiveShadow = false
+  })
+}
 
 /**
  * The studio's name, printed on a surface.
@@ -365,13 +390,17 @@ export function gableSign(g: T.Group, name: string,
     const cap = over > 1 ? fit.cap / over : fit.cap
     const measure = fit.lines.map(line => letterWidth(line, cap))
     const widest = Math.max(...measure)
-    box(face, 0, y, 0, widest, rule, 0.05, INK.amber)
+    const lit = new T.Group()
+    face.add(lit)
+    const ruleBox = box(lit, 0, y, 0, widest, rule, 0.05, INK.amber)
     y += rule + 0.14
     fit.lines.forEach((line, i) => {
       const spread = measure[i] < widest - 0.01 ? justifyTracking(line, cap, widest) : null
-      letterBoxes(face, line, cap, 0.06, SIGN_INK,
+      letterBoxes(lit, line, cap, 0.06, SIGN_INK,
         y + (fit.lines.length - 1 - i) * (cap + gap), spread ?? NAME_TRACKING)
     })
+    lightUp(lit)
+    ruleBox.material = emissive(SIGN_AMBER)
     y += cap * fit.lines.length + gap * (fit.lines.length - 1) + 0.18
   }
   /*
@@ -392,7 +421,56 @@ export function gableSign(g: T.Group, name: string,
     sign.add(plaque)
     const cap = mark * 0.54
     letterBoxes(plaque, initial, cap, 0.04, INK.paper, y + (mark - cap) / 2)
+    lightUp(plaque)
   }
+  // The plaque the lit lettering is read against: deeper than the green of the old wordmark, which was the whole sign
+  // and is now only its mark. It stands a hand behind the letters and a hand proud of the plaster.
+  const back = box(sign, 0, low - 0.08, -0.01, width + 0.3, high - low + 0.16, 0.05, '#143330')
+  back.castShadow = false
+  // and its halo on the wall: the light the sign throws, which is what makes it a lit sign and not a bright one
+  wash(sign, 0, (low + high) / 2, 0.008, width * 1.55, (high - low) * 1.7, 0, '#ffd68c', 0.32)
+  return sign
+}
+
+/**
+ * **The studio's sign inside** [2026-10-05]: the name in lit cream capitals on a deep navy plaque with a lit amber rule
+ * under it, hung on a back wall above the founder, with its halo on the plaster. `wall` says which: the north wall's
+ * face looks along +z and the west one's along +x, and the lettering runs *left to right as a person standing in the
+ * room reads it* — toward +x on the north wall, toward −z on the west one. `along` is the sign's centre along the wall,
+ * `width` its length, `y` its bottom edge.
+ *
+ * It is lettered by the same measurement as the gable's (`signLayout`), which needs a DOM to measure the pixel font:
+ * under jsdom there is a plaque and no name, which is the gable's own rule ("a studio whose name cannot be measured
+ * gets an unlettered board, not a differently shaped entrance").
+ */
+export function studioSign(g: T.Group, name: string, at: { wall: 'north' | 'west'; along: number; width: number; y: number; height?: number }): T.Group {
+  const height = at.height ?? 1.25
+  const sign = new T.Group()
+  sign.name = 'studio-wall-sign'
+  if (at.wall === 'north') sign.position.set(at.along, 0, -9.68 + 0.03)
+  else { sign.position.set(-9.88 + 0.03, 0, at.along); sign.rotation.y = Math.PI / 2 }
+  g.add(sign)
+  const plaque = box(sign, 0, at.y, 0, at.width, height, 0.06, '#101e2b')
+  plaque.castShadow = false
+  const fit = signLayout(name, at.width - 0.5, height - 0.45, 0.1, { maxCap: 0.5, splitBelow: 0.2 })
+  const lit = new T.Group()
+  lit.position.z = 0.05
+  sign.add(lit)
+  let ruleBox: T.Mesh | null = null
+  if (fit) {
+    const measure = fit.lines.map(line => letterWidth(line, fit.cap))
+    const widest = Math.max(...measure)
+    const block = fit.cap * fit.lines.length + 0.1 * (fit.lines.length - 1)
+    const base = at.y + (height - block - 0.12) / 2 + 0.12
+    ruleBox = box(lit, 0, at.y + (height - block - 0.12) / 2, 0, widest, 0.05, 0.04, INK.amber)
+    fit.lines.forEach((line, i) => {
+      const spread = measure[i] < widest - 0.01 ? justifyTracking(line, fit.cap, widest) : null
+      letterBoxes(lit, line, fit.cap, 0.05, SIGN_INK, base + (fit.lines.length - 1 - i) * (fit.cap + 0.1), spread ?? NAME_TRACKING)
+    })
+  }
+  lightUp(lit)
+  if (ruleBox) ruleBox.material = emissive(SIGN_AMBER)
+  wash(sign, 0, at.y + height / 2, -0.02, at.width * 1.6, height * 2.3, 0, '#ffd68c', 0.3)
   return sign
 }
 
@@ -516,10 +594,12 @@ export function garageDeskStory(g: T.Group, id: string): void {
     box(g, -.67, 1.4, 1.03, .3, .045, .26, '#d49a33')
     for (const x of [-.78, -.67, -.56]) box(g, x, 1.445, 1.12, .045, .10, .045, '#e8b541')
     nameSign(g, 'CTO', -.67, 1.01, 1.185, .32, 0, '#5f4c2c')
-    // Pizza boxes are the founder's extremely informal filing system.
+    // Pizza boxes are the founder's extremely informal filing system. [2026-10-05] They were a floor stack
+    // under the desk's open front; the boss's desk has a front panel and a stack inside it is a stack nobody
+    // sees, so they are on the desk, at the left hand, where the papers were.
     for (let i = 0; i < 3; i++) {
-      box(g, .42, .04 + i * .085, .83, .67, .07, .61, i % 2 ? '#c49b68' : '#e3c99a')
-      box(g, .42, .055 + i * .085, 1.14, .39, .035, .012, '#b45338')
+      box(g, -.66, .883 + i * .06, .6, .4, .055, .34, i % 2 ? '#c49b68' : '#e3c99a')
+      box(g, -.66, .895 + i * .06, .775, .24, .03, .012, '#b45338')
     }
 
   }
