@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LESSONS, OPTIMUM_LOAD, ledgerWith, lessonFor, type LessonId, type RunEnding } from './lessons.ts'
+import { LESSONS, OPTIMUM_LOAD, RUN_ONE_WAY_OUT, ledgerWith, lessonFor, type LessonId, type RunEnding } from './lessons.ts'
 import { BASELINE_RATING } from '../sim/rating.ts'
 import { D_BASE, optimalHeadcount } from '../sim/entropy.ts'
 
@@ -22,7 +22,8 @@ describe('§15.1a — what a run taught', () => {
     // produce a lesson about a decision somebody else made for them.
     expect(lessonFor(at({ shift: 1 }))).toBe('lesson.entropy')
     expect(lessonFor(at({ shift: 1, bankrupt: true, load: 10 }))).toBe('lesson.entropy')
-    expect(LESSONS['lesson.entropy']).toContain('Communication Infrastructure')
+    expect(LESSONS['lesson.entropy']).toContain('every hire makes it slower')
+    expect(RUN_ONE_WAY_OUT).toContain('Communication Infrastructure')
   })
 
   it('puts going broke above everything else that was wrong', () => {

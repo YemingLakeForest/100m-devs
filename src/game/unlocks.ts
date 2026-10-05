@@ -27,7 +27,8 @@
  * §21.0c's gate opens onto Run 2, which §13.12.2 makes an hour and a half long,
  * and it would otherwise deliver four systems in the first frame of it. **A
  * system enters the game in the hands of the person who solves it**: defects
- * with Mo, incidents with Serena, tickets with Matt.
+ * with Serena, incidents and tickets with Matt [amended 2026-10-04: Mo is gone, and
+ * Matt took the incident list from Serena].
  *
  * The apparent circle — Mo is triggered *by* defects and defects wait *for* Mo —
  * is not one, because a system has two halves and only one of them is gated:
@@ -130,9 +131,9 @@ export interface Unlocks {
    */
   trees: boolean
 
-  /** §21.7.6 — §4.12's backlog, its colour and its density line. Mo brings it. */
+  /** §21.7.6 — §4.12's backlog, its colour and its density line. Serena brings it. */
   defects: boolean
-  /** §21.7.6 — §4.12a's incident list. Serena brings it. */
+  /** §21.7.6 — §4.12a's incident list. Matt brings it. */
   incidents: boolean
   /** §21.7.6 — §4.13's ticket bar. Matt brings it. */
   tickets: boolean
@@ -151,8 +152,8 @@ export interface Unlocks {
 }
 
 /** Which hero hands over which instrument — read off §22.8's roster, never restated. */
-const BRINGS: ReadonlyArray<readonly [HeroId, 'defects' | 'incidents' | 'tickets']> =
-  STORY_HEROES.filter((h) => h.brings !== null).map((h) => [h.id, h.brings!] as const)
+const BRINGS: ReadonlyArray<readonly [HeroId, readonly ('defects' | 'incidents' | 'tickets')[]]> =
+  STORY_HEROES.filter((h) => h.brings.length > 0).map((h) => [h.id, h.brings] as const)
 
 /** Run 1. One lever, and it is the thumb. */
 const SHUT: Unlocks = {
@@ -185,7 +186,7 @@ export function unlocksFor(
 
   const has = (id: HeroId): boolean => arrived.has(id)
   const instrument = { defects: false, incidents: false, tickets: false }
-  for (const [id, brings] of BRINGS) if (has(id)) instrument[brings] = true
+  for (const [id, brings] of BRINGS) if (has(id)) for (const b of brings) instrument[b] = true
 
   return {
     simulated: true,

@@ -3,9 +3,17 @@
  *
  * §13.6.3's nine cards were *job titles* standing in for people who did not
  * exist, and §22.5's twelve were mostly gated behind late-game milestones nobody
- * reached. **These six are the people.** They are named, each owns a branch of
- * §13.9's board, and each one walks through a door in §21.7.3 the first time the
- * player feels the problem they solve.
+ * reached. **These four are the people** [amended 2026-10-04: six became four —
+ * *"remove them entirely"*, of Mo and Melany]. They are named, each owns a
+ * branch of §13.9's board, and each one walks through a door in §21.7.3 the
+ * first time the player feels the problem they solve.
+ *
+ * Mo (Quality) and Melany (Cloud) are gone, with their scenes, their branches
+ * and their two traits. Their jobs were not left standing: the defect counter
+ * that was Mo's instrument is Serena's (her pipeline already carries the
+ * quality gate that catches a build's defects as it joins the queue), and the
+ * developer cap that was Melany's trait is now bought only through the
+ * Paradigm Tree and the protocols — which is where §4.2 always said it came from.
  *
  * The flavour line is the card's, §22.8.2's, verbatim — it is the voice in one
  * sentence, and §21.7.3's scenes are written out of it.
@@ -13,16 +21,15 @@
 
 import type { HeroBranch } from './heroBranches.ts'
 
-export type HeroId = 'james' | 'mo' | 'serena' | 'matt' | 'melany' | 'billy'
+export type HeroId = 'james' | 'serena' | 'matt' | 'billy'
 
 /**
- * §21.7.6 — the instrument this hero puts on the HUD when they sit down.
+ * §21.7.6 — an instrument this hero puts on the HUD when they sit down.
  *
  * The *mechanism* has been running since the first frame of the run; what waits
- * is the readout, the colour and the role on §10.10's dial. `null` is not an
- * omission — Melany and Billy bend systems the player has been fighting since
- * Run 1 (§4.2's cap, §4.3's speedometer), so there is nothing for them to
- * introduce. **A person only brings what was not already there.**
+ * is the readout, the colour and the role on §10.10's dial. **A person only
+ * brings what was not already there**, and a person may bring more than one:
+ * Matt brings both halves of what lands on the player after a ship.
  */
 export type Instrument = 'defects' | 'incidents' | 'tickets'
 
@@ -34,7 +41,7 @@ export type Instrument = 'defects' | 'incidents' | 'tickets'
  * animation each, and it is how a player learns who Billy is — because Billy is
  * the one at the whiteboard.
  */
-export type HeroIdle = 'typing' | 'reading' | 'watching' | 'headset' | 'pacing' | 'whiteboard'
+export type HeroIdle = 'typing' | 'watching' | 'headset' | 'whiteboard'
 
 export interface StoryHero {
   id: HeroId
@@ -49,14 +56,14 @@ export interface StoryHero {
    *
    * §13.6.4's TRAIT kind is GP-priced (§13.6.5a) and GP is Layer 2, so a
    * purchasable trait would be a permanently unbuyable node on the board. Each
-   * of the six carries theirs instead: it is who they are (§13.9.1), it is the
+   * of the four carries theirs instead: it is who they are (§13.9.1), it is the
    * only thing on §22.9's card written in a sentence, and it cannot be ground.
    */
   trait: { name: string; text: string }
   /** §7.8.13 — what they are always doing, on the floor, forever. */
   idle: HeroIdle
-  /** §21.7.6 — the HUD instrument they hand over, or null if nothing is new. */
-  brings: Instrument | null
+  /** §21.7.6 — the HUD instruments they hand over; empty if nothing is new. */
+  brings: readonly Instrument[]
   /** §22.9.2 — the role line in the card's footer. Promotions extend it, never replace it. */
   role: string
 }
@@ -77,73 +84,64 @@ export const STORY_HEROES: readonly StoryHero[] = [
       text: 'Daily Standups never pause James’s own developer output.',
     },
     idle: 'typing',
-    brings: null,
+    brings: [],
     role: 'ENGINEERING',
   },
-  {
-    id: 'mo',
-    name: 'Mo',
-    branch: 'quality',
-    flavour: 'I’m not blocking it. I’m just asking what happens if someone taps it twice.',
-    arrives: 'The first release rated below the §4.14 baseline on defects alone',
-    trait: {
-      name: 'READS IT TWICE',
-      text: 'The studio writes half as many defects.',
-    },
-    idle: 'reading',
-    brings: 'defects',
-    role: 'QUALITY ASSURANCE',
-  },
+  /**
+   * Serena — and her door moved [amended 2026-10-04]. She used to arrive on the
+   * first incident, forty-odd minutes into Run 2; her scene has been about the
+   * build queue since 2026-10-03, so the trigger now is the queue. She arrives
+   * when the shelf has become what is stopping the studio earning: the floor
+   * held still on a full shelf, or the player's thumb on SHIP! for the umpteenth
+   * time. See `game/storyTriggers.ts`.
+   *
+   * Her trait is the pipeline's. *WROTE THE RUNBOOK* (a page starts half worked,
+   * one developer in fifty on call) went to Matt with the incident list.
+   */
   {
     id: 'serena',
     name: 'Serena',
     branch: 'reliability',
     flavour: 'It’s up. It was never really down. It was degraded. There’s a difference and it matters.',
-    arrives: 'The first incident to suppress a release’s tail',
+    arrives: 'The build queue is the bottleneck: the floor stopped on a full shelf, or SHIP! pressed by hand once too often',
     trait: {
-      name: 'WROTE THE RUNBOOK',
-      text: 'A new incident opens half worked, and one developer in fifty is on call to clear it.',
+      name: 'DEGRADED, NOT DOWN',
+      text: 'The build queue holds two more builds before it stops the floor.',
     },
     idle: 'watching',
-    brings: 'incidents',
+    brings: ['defects'],
     role: 'SITE RELIABILITY',
   },
+  /**
+   * Matt — and he now owns *everything that lands on the player after a ship*
+   * [amended 2026-10-04]: the incident list and the ticket bar, and the runbook
+   * trait that used to be Serena's. He arrives when those are drowning the
+   * studio, which is after the pipeline has been dealt with, on purpose.
+   */
   {
     id: 'matt',
     name: 'Matt',
     branch: 'support',
     flavour: 'Four hundred people wrote in about the same button. I don’t know what it does either.',
-    arrives: 'The first sustained unserved ticket queue',
+    arrives: 'Incidents and tickets are piling up faster than the studio clears them',
     trait: {
       name: 'KNOWS THEIR NAMES',
-      text: 'Catalogue tickets arrive 20% slower, and one developer in twenty answers them.',
+      text: 'Catalogue tickets arrive 20% slower, new incidents open half worked, and one developer in twenty answers the queue.',
     },
     idle: 'headset',
-    brings: 'tickets',
+    brings: ['incidents', 'tickets'],
     role: 'CUSTOMER SUPPORT',
-  },
-  {
-    id: 'melany',
-    name: 'Melany',
-    branch: 'cloud',
-    flavour: 'We can absolutely scale to that. I’d want to talk about the bill afterwards. Afterwards is fine.',
-    arrives: 'The first time the developer cap is hit with cash still in the bank',
-    trait: {
-      name: 'RESERVED INSTANCES',
-      text: 'Adds 25% developer capacity. Reserved capacity costs $1 per developer each second.',
-    },
-    idle: 'pacing',
-    brings: null,
-    role: 'CLOUD PLATFORM',
   },
   /**
    * §21.7.3 amended 2026-08-29 — **Billy is the one hero somebody introduces.**
    *
-   * The other four walk through a door because the player felt a problem. Billy
-   * is walked *in*, by James, because the studio has stopped working and James
-   * knows a chap. (From 2026-08-29 he also handed over §13.8's placement; that
-   * was cut on 2026-09-26.) See `game/storyTriggers.ts` for the trigger and
-   * `game/scenes.ts` for the scene.
+   * The others walk through a door because the player felt a problem. Billy is
+   * walked *in*, by James, because the studio is losing sync to its own
+   * headcount and James knows a chap. [Amended 2026-10-04: the door is the
+   * *first felt cost of growth*, not the collapse — sync falling as the studio
+   * grows is the core of the game, and his meeting tree is how it is pushed
+   * back.] See `game/storyTriggers.ts` for the trigger and `game/scenes.ts` for
+   * the scene.
    *
    * **His voice is refined and he is never doing a bit.** He is not sending
    * anybody up and he is not aware there is anything to send up — he says
@@ -162,18 +160,18 @@ export const STORY_HEROES: readonly StoryHero[] = [
     name: 'Billy',
     branch: 'cohesion',
     flavour: 'I’ve taken the liberty of booking a quarter of an hour. If we shan’t need it, we shall give it back.',
-    arrives: 'The first sustained collapse of sync outside Run 1 — and James knows a chap',
+    arrives: 'Sync first slips as the studio grows — and James knows a chap',
     trait: {
       name: 'FIFTEEN MINUTES',
       text: 'Daily Standups run to fifteen minutes, and half the floor keeps working through them.',
     },
     idle: 'whiteboard',
-    brings: null,
+    brings: [],
     role: 'SCRUM MASTER',
   },
 ]
 
 export const HERO_BY_ID = new Map(STORY_HEROES.map((h) => [h.id, h]))
 
-/** The five who arrive through §21.7.3, in the order the systems decide. */
+/** The three who arrive through §21.7.3, in the order the systems decide. */
 export const ARRIVAL_HEROES: readonly StoryHero[] = STORY_HEROES.filter((h) => h.id !== 'james')

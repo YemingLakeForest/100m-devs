@@ -60,8 +60,11 @@ describe('formatMoney', () => {
 describe('formatVelocity', () => {
   it('stays readable across the whole range the simulation produces', () => {
     expect(formatVelocity(0)).toBe('0')
-    // A seized studio produces numbers no fixed format survives.
-    expect(formatVelocity(1e-6)).toBe('1.00e-6')
+    // A seized studio, and an idle one whose poke buff has decayed, produce
+    // numbers no fixed format survives — and none of them may read as `1e-23`.
+    expect(formatVelocity(1e-6)).toBe('<0.01')
+    expect(formatVelocity(1.14e-23)).toBe('<0.01')
+    expect(formatVelocity(1e-6)).not.toMatch(/e/)
     expect(formatVelocity(4.5)).toBe('4.50')
     expect(formatVelocity(4120)).toBe('4,120')
   })

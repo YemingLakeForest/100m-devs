@@ -53,7 +53,7 @@ export const LEADER_COLOURS: Record<LeaderId, string> = {
  * how the cast refers to each other.
  */
 export const HERO_LABELS: Record<string, string> = {
-  founder: 'YOU', james: 'JAMES', billy: 'BILLY', serena: 'SERENA', matt: 'MATT', melany: 'MELANY', mo: 'MO',
+  founder: 'YOU', james: 'JAMES', billy: 'BILLY', serena: 'SERENA', matt: 'MATT',
 }
 
 /**
@@ -305,8 +305,12 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
 
   // Billy's clipboard and marker. They used to hang off `standing`, which read
   // as "standing people carry clipboards" the moment anybody else stood up.
-  if (id === 'billy') {
-    const arm = g.getObjectByName('arm1')!
+  // [2026-10-04] Only where there are arms to hold it: in STUDIO_OS's head-and-body
+  // blocks there are none, and Billy had never been built in this skin until the
+  // garage gave him a place — it threw on the first frame.
+  const clipboardArm = id === 'billy' ? g.getObjectByName('arm1') : undefined
+  if (clipboardArm) {
+    const arm = clipboardArm
     arm.rotation.x = -.35
     box(arm, 0, -.48, -.11, .25, .33, .034, INK.woodEdge)
     box(arm, 0, -.45, -.133, .21, .26, .012, INK.paper)

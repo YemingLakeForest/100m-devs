@@ -1,5 +1,5 @@
 /**
- * The six hero branches — GDD §22.8.
+ * The four hero branches — GDD §22.8 [amended 2026-10-04: Quality and Cloud went with Mo and Melany].
  *
  * What is left of §13.9's shared hero board [amended 2026-09-26]. The board —
  * one centre-out tree every hero opened, bought with XP earned only while the
@@ -13,20 +13,16 @@
  * the card band, the desk plate and the room's lamps all read them here.
  */
 
-/** §13.9's six branches. The centre is Engineering; the rest are compass headings. */
+/** §13.9's branches, now four. The centre is Engineering; the rest are compass headings. */
 export type HeroBranch =
   | 'engineering'
-  | 'quality'
   | 'reliability'
-  | 'cloud'
   | 'support'
   | 'cohesion'
 
 export const BRANCHES: readonly HeroBranch[] = [
   'engineering',
-  'quality',
   'reliability',
-  'cloud',
   'support',
   'cohesion',
 ]
@@ -44,10 +40,8 @@ export interface BranchDef {
 
 export const BRANCH_DEFS: readonly BranchDef[] = [
   { branch: 'engineering', name: 'Engineering', hero: 'James', bends: '§4.1 velocity, weakly, everywhere', colour: '#d8d8c0' },
-  { branch: 'quality', name: 'Quality', hero: 'Mo', bends: '§4.12 defect arrival rate', colour: '#e0a03c' },
-  { branch: 'reliability', name: 'Reliability', hero: 'Serena', bends: '§4.12a incident arrival rate', colour: '#d05050' },
-  { branch: 'cloud', name: 'Cloud', hero: 'Melany', bends: '§4.2 developer cap — and the bill', colour: '#58b0d0' },
-  { branch: 'support', name: 'Support', hero: 'Matt', bends: '§4.13 ticket capacity, and incident clearance', colour: '#78c078' },
+  { branch: 'reliability', name: 'Reliability', hero: 'Serena', bends: '§10.7 the build queue, and §4.12 the defects it catches', colour: '#d05050' },
+  { branch: 'support', name: 'Support', hero: 'Matt', bends: '§4.13 ticket capacity, and §4.12a incident clearance', colour: '#78c078' },
   { branch: 'cohesion', name: 'Cohesion', hero: 'Billy', bends: '§4.1 Entropy directly', colour: '#b088d0' },
 ]
 

@@ -90,12 +90,32 @@ export const GARAGE_WING_EAST = -6
  * moving or consuming any of the twenty developer seats.
  */
 export const GARAGE_OUTLINE: readonly (readonly [number, number])[] = [
-  [-10, -6.5], [1.5, -6.5], [1.5, -9.8], [10, -9.8], [10, 8],
+  [-10, -9.8], [10, -9.8], [10, 8],
   [GARAGE_WING_EAST, 8], [GARAGE_WING_EAST, 11], [-10, 11],
 ] as const
 
+/**
+ * **The hero row** [2026-10-04, GDD §7.8.12 amended] — the back wall pushed out
+ * to the annex's depth, so the far wall is one straight run at z = −9.8.
+ *
+ * *"we know we have not left places for all heroes except us and james in HQ"* —
+ * found by playing: Billy, Serena and Matt arrived in a dialogue and then had
+ * nowhere to sit. The room cannot make space by shuffling anybody along, so it
+ * makes it by pushing the back wall out (§7.8.12's own move), and the back wall
+ * is a *far* wall on §12.1's camera, so a bay built there adds depth the lens
+ * can see and hides no desk. It costs the annex's step, which the plan called
+ * deliberate ("the plan read as a classroom"); the roofline keeps what it can
+ * and the three desks are the answer to the straight edge.
+ *
+ * The bays are built into the shell, not on each arrival: a wall that moved when
+ * somebody arrived would recompile the room, and what *arrives* is the desk, the
+ * chair and the person, dropped into a bay that has been empty floor until then.
+ * The wall pushing out as they walk in, the gag, is still owed.
+ */
+export const HERO_ROW_Z = -8.7
+
 /** One oak step raises the two hero desks above the main studio floor. */
-export const GARAGE_DECK = { x0: -9.88, z0: -6.38, x1: 1.6, z1: -2.0, rise: 0.24 } as const
+export const GARAGE_DECK = { x0: -9.88, z0: -9.68, x1: 1.6, z1: -2.0, rise: 0.24 } as const
 export const GARAGE_HERO_SCALE = 1.25
 
 /** Four aligned desk groups form two rows; the fifth belongs to the kitchen nook. */
@@ -142,6 +162,21 @@ export const LEADER_STATIONS = LEADER_IDS.map((id, i) => ({ id, seat: leaderSeat
 export const GARAGE_LEADERS = [
   { id: 'founder' as LeaderId, seat: leaderSeat('founder'), x: -5.4, z: -3.9375, rot: 0 },
   { id: 'james' as LeaderId, seat: leaderSeat('james'), x: -.7, z: -4.5, rot: 90 },
+  /*
+   * The hero row, behind the founder and James, facing the lens — **west to east:
+   * Matt, Serena, Billy, which is the reverse of the order they arrive in, and on
+   * purpose.** The plan drew it Billy, Serena, Matt; played, Billy — the first
+   * to arrive — stood in the west bay and was hidden behind Serena's length of
+   * wall, because on §12.1's camera (from +x, +z) a wall hides what is behind it
+   * along (−1, −1), and a bay's neighbour to the *east* is the one in front.
+   * Each hero's bay is only ever in front of walls that have already gone up
+   * through the roof when the order is the reverse of the arrival: Billy in the
+   * east with nothing in front of him, Serena with Billy's wall already gone,
+   * Matt with both.
+   */
+  { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -8.2, z: HERO_ROW_Z, rot: 0 },
+  { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: -4.4, z: HERO_ROW_Z, rot: 0 },
+  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: -.6, z: HERO_ROW_Z, rot: 0 },
 ]
 
 /**

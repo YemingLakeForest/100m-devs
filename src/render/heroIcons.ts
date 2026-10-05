@@ -78,16 +78,6 @@ const ICONS: Record<string, readonly string[]> = {
     ...line(10, 11, 13, 11),
   ]),
 
-  // Quality — a magnifying glass over a line of text. Mo reads everything twice,
-  // and the glass is over the line rather than over a bug: she is looking at the
-  // thing before it is a bug, which is the entire branch.
-  quality: build([
-    ...ring(7, 6, 4),
-    ...line(10, 10, 13, 13),
-    ...line(9, 10, 12, 13),
-    ...line(3, 14, 8, 14),
-  ]),
-
   // Reliability — a pulse that dips and recovers. Serena's graph. It has already
   // come back up by the time you are looking at it, which is her whole voice.
   reliability: build([
@@ -105,16 +95,6 @@ const ICONS: Record<string, readonly string[]> = {
     ...rect(1, 7, 3, 12),
     ...rect(13, 7, 15, 12),
     ...line(4, 12, 8, 14),
-  ]),
-
-  // Cloud — a cloud with a meter under it. Melany can give you infinite capacity
-  // by Thursday; the meter is the part she would like to discuss afterwards.
-  cloud: build([
-    ...ring(6, 6, 3).filter(([, y]) => y <= 7),
-    ...ring(10, 7, 3).filter(([, y]) => y <= 8),
-    ...line(3, 8, 13, 8),
-    ...line(4, 11, 12, 11),
-    ...line(8, 11, 11, 13),
   ]),
 
   // Cohesion — three figures and the circle they are standing in. Billy has

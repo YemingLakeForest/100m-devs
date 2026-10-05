@@ -76,9 +76,9 @@ describe('§18.0a — the first event is mandatory, and it fires on an empty boa
 
   it('never fires at a player who has already bought a node', () => {
     runTwo()
-    // A node straight off your root is buyable on the first frame of Run 2 —
+    // A node straight off James's root is buyable on the first frame of Run 2 —
     // which is the whole point: this player opened a tree.
-    expect(buyTreeNode('you', 'y1')).toBe(true)
+    expect(buyTreeNode('james', 'j1')).toBe(true)
     expect(upgradesBought()).toBe(1)
     for (let i = 0; i < 20; i++) tick(0.25)
     expect(getState().event).toBeNull()
@@ -125,7 +125,7 @@ describe('the two exits', () => {
     runTwo()
     tick(0.25)
     dismissScene()
-    expect(buyTreeNode('you', 'y1')).toBe(true)
+    expect(buyTreeNode('james', 'j1')).toBe(true)
     expect(getState().event).toBeNull()
     expect(eventRetired(THREAD.id)).toBe(true)
     expect(getState().scene).toBe(THREAD.resolvedScene)

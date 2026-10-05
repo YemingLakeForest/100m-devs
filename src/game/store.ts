@@ -81,6 +81,7 @@ import {
   TREE_HEROES,
   levelOf,
   tileStateOf,
+  syncCapMultiplier,
   treeKey,
   treeNode,
   treePrice,
@@ -90,6 +91,7 @@ import {
   type TreeRefusal,
   type TreeView,
 } from '../sim/upgradeTrees.ts'
+import { founderFromTree, withMattTree } from '../sim/treeLevers.ts'
 import {
   NODE_BY_ID,
   bpFor,
@@ -122,7 +124,6 @@ import {
 import {
   FOUNDER_ROLE_HEADS,
   MANAGEMENT_DILUTION,
-  NO_FOUNDER,
   type FounderEffects,
 } from '../sim/founder.ts'
 import {
@@ -171,12 +172,10 @@ import {
   SCENE_JAMES_PROMOTED,
   SCENE_JAMES_PROXIMA,
   SCENE_MATT_ARRIVES,
-  SCENE_MELANY_ARRIVES,
-  SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
 import {
-  SYNC_HALVED,
+  SYNC_FELT,
   arrivalPredicate,
   founderBoardArrives,
   jamesPromoted,
@@ -212,6 +211,9 @@ import { unitSeats, unitSizeAt } from '../sim/units.ts'
 import {
   ACT1_POKES_REQUIRED,
   MASS_HIRE_COUNT,
+  MASS_HIRE_WAVES,
+  MASS_HIRE_WAVE_S,
+  massHireWaveSize,
   SEED_ROUND_CASH,
   TERM_SHEET_AFTER_SHIPS,
   REBUKE_LINE,
@@ -494,6 +496,13 @@ export interface GameState {
   phase: Phase
   /** Set once, so the collapse beat only fires its camera kick a single time. */
   massHired: boolean
+  /**
+   * §21 Act IV — waves of the Mass Hire still to land, and the seconds since the
+   * last one. Persisted, because a reload mid-collapse must not leave a studio
+   * of five hundred standing on a script that expects a thousand.
+   */
+  massHireLeft: number
+  massHireClock: number
   /** §10.10 — the hire dial's selection. Persists; a player who chose MAX meant it. */
   hireMultiplier: Multiplier
   /**
@@ -729,7 +738,8 @@ export interface GameState {
    */
   ticketsUnservedFor: number
   /**
-   * §21.7.3, Billy — seconds §4.1's sync has been at or below half.
+   * §21.7.3, Billy — seconds §4.1's sync has been at or below {@link SYNC_FELT}'s
+   * reading (95%) [was: at or below half, until 2026-10-04].
    *
    * The second of this file's two sustained-condition clocks, and it exists for
    * the same reason `ticketsUnservedFor` does: the trigger is about a studio
@@ -743,7 +753,17 @@ export interface GameState {
    * cannot see would make the scene arrive out of nowhere on the first frame
    * after a reload.
    */
-  syncHalvedFor: number
+  syncSlippedFor: number
+  /**
+   * §10.7, Serena — seconds this run the floor has stood still on a full shelf.
+   * Ephemeral (§24.2), like the clocks above: a restored count with no cause on
+   * screen would bring her in out of nowhere after a reload.
+   */
+  shelfStalledFor: number
+  /** §21.7.3, Matt — seconds since Serena sat down, this run. Ephemeral. */
+  sinceSerena: number
+  /** §10.7, Serena — builds put on sale by the player's own thumb this run. Ephemeral. */
+  handReleases: number
   /**
    * §4.14 — a slow-moving average of recent ratings.
    *
@@ -782,6 +802,16 @@ export interface GameState {
    * that is already over.
    */
   pendingShift: ShiftReport | null
+
+  /**
+   * §15.1a [2026-10-04] — **the liquidation is on screen.** Set when the player
+   * presses TRIGGER PARADIGM SHIFT on the bankruptcy panel and cleared when the
+   * studio has left: the houses lift off on their thrusters and the staff go up
+   * through the roof, James says his line, and *then* the shift lands and the
+   * receipt follows. Ephemeral, like `pendingShift`: a reload mid-liquidation puts
+   * the player back on the bankruptcy panel, which is where the choice is.
+   */
+  liquidating: boolean
 
   /**
    * §21.8 — the launch is on screen.
@@ -966,6 +996,8 @@ function freshRun(): GameState {
     desperateTaps: 0,
     phase: 'act1_poke',
     massHired: false,
+    massHireLeft: 0,
+    massHireClock: 0,
     hireMultiplier: 1,
     pokeRate: 0,
     buffs: [],
@@ -994,6 +1026,7 @@ function freshRun(): GameState {
     history: emptyHistory(),
     // §15.1a — nothing to account for until a shift happens.
     pendingShift: null,
+    liquidating: false,
     pendingLaunch: false,
     runSeconds: 0,
     projectSeconds: 0,
@@ -1004,7 +1037,10 @@ function freshRun(): GameState {
     incidentPending: 0,
     tickets: 0,
     ticketsUnservedFor: 0,
-    syncHalvedFor: 0,
+    syncSlippedFor: 0,
+    shelfStalledFor: 0,
+    sinceSerena: 0,
+    handReleases: 0,
     reputation: BASELINE_RATING,
     heroFold: NO_HERO_FOLD,
     selectedHero: null,
@@ -1134,11 +1170,11 @@ export function techOf(s: GameState = state): TechEffects {
  * §4.1 only ever sees the ratio — see the note on `TechEffects.devCapMultiplier`.
  */
 export function effectiveDevCap(s: GameState = state): number {
-  // §13.9.2 — and Melany's Cloud branch on top, which raises the cap by paying
-  // for capacity you did not have to organise. §11's tree raises it by making
-  // communication cheaper; these are genuinely different moves and they
-  // multiply rather than compete.
-  return s.devCap * techOf(s).devCapMultiplier * s.heroFold.cap
+  // [amended 2026-10-04] Melany's Cloud branch is gone, so the cap is the
+  // Paradigm Tree's (`s.devCap`) times §11's protocols, and nothing else.
+  // Billy's coordination points are the same kind of thing as §11.2's protocols:
+  // less communication load, which §4.1 reads as more capacity.
+  return s.devCap * techOf(s).devCapMultiplier * syncCapMultiplier(s.treeLevels, hasSeenScene(SCENE_BILLY_ARRIVES.id))
 }
 
 /**
@@ -1547,7 +1583,9 @@ export function pokeVelocity(s: GameState = state): number {
  * founder you started as.
  */
 export function founderOf(): FounderEffects {
-  return NO_FOUNDER
+  // [2026-10-04] The tree's three wired nodes (`treeLevers.ts`); NO_FOUNDER for a
+  // save that has bought none of them, which is the founder everyone started as.
+  return founderFromTree(state.treeLevels)
 }
 
 /**
@@ -1773,10 +1811,7 @@ export function nextPayout(s: GameState = state): number {
 }
 
 export function currentPayroll(s: GameState = state): number {
-  const operating = Number.isFinite(s.heroFold.operatingCost)
-    ? Math.max(0, s.heroFold.operatingCost)
-    : 0
-  return payrollPerSecond(s.devs) + operating
+  return payrollPerSecond(s.devs)
 }
 
 /**
@@ -1955,9 +1990,9 @@ export function bufferCount(s: GameState = state): number {
   return s.shelf.length
 }
 
-/** §10.7 — the buffer's size: the garage's three, plus what Serena's board bought. */
+/** §10.7 — the buffer's size: the garage's three, plus what Serena's board bought, plus Serena's two. */
 export function shelfCapacity(s: GameState = state): number {
-  return SHELF_CAPACITY + Math.max(0, Math.floor(pipelineOf(s).slots))
+  return SHELF_CAPACITY + Math.max(0, Math.floor(pipelineOf(s).slots)) + s.heroFold.shelfSlots
 }
 
 /**
@@ -2283,7 +2318,7 @@ export function launchRelease(outcome: LaunchOutcome): void {
     closeLaunch()
     return
   }
-  set({ ...releaseFrom(state, outcome), launching: false })
+  set({ ...releaseFrom(state, outcome), launching: false, handReleases: state.handReleases + 1 })
 }
 
 /**
@@ -2487,6 +2522,28 @@ function settleDroppedBuffs(dropped: readonly Buff[], s: GameState): number {
  * did not agree to. The ring has no timeout of its own to fire here — it runs
  * its four years on the player's screen, and closing it is always allowed.
  */
+/**
+ * §21 Act IV — land whatever waves of the Mass Hire the clock has earned.
+ *
+ * A loop and not an `if`, so a long frame (a tab that was in the background, a
+ * test stepping a second at a time) lands the same thousand by the same time
+ * as sixty short ones.
+ */
+function landMassHireWaves(dtSeconds: number): void {
+  let clock = state.massHireClock + dtSeconds
+  let left = state.massHireLeft
+  let devs = state.devs
+  while (left > 0 && clock >= MASS_HIRE_WAVE_S) {
+    clock -= MASS_HIRE_WAVE_S
+    const next = devs + massHireWaveSize(MASS_HIRE_WAVES - left)
+    left -= 1
+    set({ ...hire(devs, next), massHireLeft: left, massHireClock: clock })
+    devs = next
+  }
+  if (left > 0) set({ massHireClock: clock })
+  else set({ massHireLeft: 0, massHireClock: 0 })
+}
+
 export function tick(dtSeconds: number): void {
   if (dtSeconds <= 0 || state.phase === 'bankrupt') return
 
@@ -2499,6 +2556,10 @@ export function tick(dtSeconds: number): void {
     if (Object.keys(patch).length > 0) set(patch)
     return
   }
+
+  // §21 Act IV — the rest of the Mass Hire, a wave at a time, before anything
+  // below reads the headcount.
+  if (state.massHireLeft > 0) landMassHireWaves(dtSeconds)
 
   const e = currentEntropy()
   const localEntropy = decayLocalEntropy(state.localEntropy, dtSeconds)
@@ -2541,18 +2602,15 @@ export function tick(dtSeconds: number): void {
   // against `gained`, which is realised output *after* §4.1: a studio in §6.3's
   // lock produces nothing and therefore breaks nothing.
   //
-  // §22.8 — and Mo's Quality branch slows the arrival, applied to the velocity
-  // the rate is charged against rather than to the backlog. That is the honest
-  // place for it: quality work means fewer defects *written*, not defects
-  // deleted after the fact, and charging it here keeps `defectsFromPoke` and
-  // this on one curve.
+  // §13.7.1 — the founder's Taste slows the arrival, applied to the velocity
+  // the rate is charged against rather than to the backlog: quality work means
+  // fewer defects *written*, not defects deleted after the fact, and charging
+  // it here keeps `defectsFromPoke` and this on one curve. (Mo's Quality branch
+  // used to sit beside it and went on 2026-10-04.)
   const defects = open
     ? advanceDefects(
         state.defects,
-        // §13.7.1 — and you, at MANAGEMENT_DILUTION of what Mo does. Applied to
-        // the same velocity the hero fold is, so Taste and the Quality branch
-        // compose rather than being two rules about one number.
-        (gained / dtSeconds) * heroes.defects * founderOf().defectScale,
+        (gained / dtSeconds) * founderOf().defectScale,
         dtSeconds,
       )
     : 0
@@ -2618,7 +2676,11 @@ export function tick(dtSeconds: number): void {
   // is not having — and §18.0's event ceiling is *not*, because an event is
   // weather. See the function's own note for the walk failure that established
   // the difference.
-  const syncHalvedFor = structuralEntropy(state) >= SYNC_HALVED ? state.syncHalvedFor + dtSeconds : 0
+  const syncSlippedFor = structuralEntropy(state) >= SYNC_FELT ? state.syncSlippedFor + dtSeconds : 0
+
+  // §10.7, Serena — cumulative over the run, not a streak: a player who lets the
+  // shelf fill, ships, and lets it fill again has met the same wall twice.
+  const shelfStalledFor = open && shelfBlocked(state) ? state.shelfStalledFor + dtSeconds : state.shelfStalledFor
 
   let patch: Partial<GameState> = {
     localEntropy,
@@ -2628,7 +2690,9 @@ export function tick(dtSeconds: number): void {
     incidentPending: incidents.pending,
     tickets: tickets.queue,
     ticketsUnservedFor,
-    syncHalvedFor,
+    syncSlippedFor,
+    shelfStalledFor,
+    sinceSerena: hasSeenScene(SCENE_SERENA_ARRIVES.id) ? state.sinceSerena + dtSeconds : 0,
     // §11.2 B2's meeting clock. Simulated seconds, not wall-clock — see the
     // field's note. Advanced before anything reads it so the standup boundary
     // lands on the same frame the velocity does.
@@ -2836,10 +2900,8 @@ export function grantJames(): boolean {
 /** §21.7.3 — the hero each arrival scene is about, and the scene it plays. */
 const HERO_SCENE: Record<HeroId, string> = {
   james: SCENE_JAMES_ARRIVES.id,
-  mo: SCENE_MO_ARRIVES.id,
   serena: SCENE_SERENA_ARRIVES.id,
   matt: SCENE_MATT_ARRIVES.id,
-  melany: SCENE_MELANY_ARRIVES.id,
   billy: SCENE_BILLY_ARRIVES.id,
 }
 
@@ -2877,17 +2939,16 @@ function checkStoryTriggers(s: GameState): void {
 
   const snapshot: StorySnapshot = {
     paradigmShifts: getPermanent().meta.paradigmShifts,
-    releases: s.releases.map((r) => ({ defectDensity: r.defectDensity })),
-    hasIncident: s.incidents.length > 0,
+    incidents: s.incidents.length,
     tickets: s.tickets,
     ticketsUnservedFor: s.ticketsUnservedFor,
-    devs: s.devs,
-    devCap: effectiveDevCap(s),
-    cash: s.cash,
+    shelfStalledFor: s.shelfStalledFor,
+    handReleases: s.handReleases,
+    sinceSerena: hasSeenScene(SCENE_SERENA_ARRIVES.id) ? s.sinceSerena : 0,
     // The organisation's own reading, matching the clock beside it. Both halves
     // of Billy's predicate must be the same number or it can be half true.
     entropy: structuralEntropy(s),
-    syncHalvedFor: s.syncHalvedFor,
+    syncSlippedFor: s.syncSlippedFor,
   }
 
   for (const hero of ARRIVAL_HEROES) {
@@ -3538,7 +3599,9 @@ export function heroById(id: HeroId): HeroRuntime | null {
 export function currentHeroFold(s: GameState = state): HeroFold {
   const heroes = heroRoster()
   if (heroes.length === 0) return NO_HERO_FOLD
-  return heroFold(heroes, s.devs)
+  const fold = heroFold(heroes, s.devs)
+  // Matt's tree rides on the same fold his card reads — only once he is here.
+  return heroes.some((h) => h.id === 'matt') ? withMattTree(fold, s.treeLevels, s.devs) : fold
 }
 
 /**
@@ -3551,14 +3614,12 @@ function refreshHeroFold(): void {
   const next = currentHeroFold()
   const prev = state.heroFold
   if (
-    next.cap === prev.cap &&
-    next.defects === prev.defects &&
+    next.shelfSlots === prev.shelfSlots &&
     next.incidentStartWork === prev.incidentStartWork &&
     next.oncallHeads === prev.oncallHeads &&
     next.ticketRate === prev.ticketRate &&
     next.supportHeads === prev.supportHeads &&
-    next.standupHeads === prev.standupHeads &&
-    next.operatingCost === prev.operatingCost
+    next.standupHeads === prev.standupHeads
   ) {
     return
   }
@@ -3914,9 +3975,12 @@ export function massHire(): boolean {
   // empty one. Every other spend in the game refuses; this one has to as well.
   if (state.cash < cost) return false
   set({
-    ...hire(state.devs, state.devs + MASS_HIRE_COUNT),
+    // The first wave lands with the signature; `tick` lands the other nine.
+    ...hire(state.devs, state.devs + massHireWaveSize(0)),
     cash: state.cash - cost,
     massHired: true,
+    massHireLeft: MASS_HIRE_WAVES - 1,
+    massHireClock: 0,
     ...showBubble('Wait — who’s writing this function?', 6000),
   })
   return true
@@ -4065,6 +4129,23 @@ export function triggerParadigmShift(): void {
 export function finishLaunch(): void {
   if (!state.pendingLaunch) return
   set({ pendingLaunch: false })
+}
+
+/**
+ * §15.1a [2026-10-04] — begin the first death's last scene. The panel goes, James
+ * says it, and the stage empties the studio; it calls {@link finishLiquidation}
+ * when the last house has gone. Idempotent, and bankrupt-only.
+ */
+export function beginLiquidation(): void {
+  if (state.phase !== 'bankrupt' || state.liquidating) return
+  set({ liquidating: true, ...showBubble('So. Same time tomorrow?', 6000) })
+}
+
+/** The studio has left: take the shift. Called by the stage, or by anything that cannot stage it. */
+export function finishLiquidation(): void {
+  if (!state.liquidating) return
+  set({ liquidating: false })
+  triggerParadigmShift()
 }
 
 export function dismissShiftReport(): void {
@@ -4313,6 +4394,8 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     seedTaken: r.seedTaken,
     dialUnlocked: r.dialUnlocked,
     massHired: r.massHired,
+    massHireLeft: r.massHireLeft ?? 0,
+    massHireClock: 0,
     // §10.7 — the queue comes back as it was. `normaliseRun` has already defended
     // each build, and has already moved any that a save from before Build and Test
     // were decommissioned left mid-pipeline onto the end of the shelf.

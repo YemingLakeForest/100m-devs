@@ -2564,6 +2564,9 @@ already the game's one seizure and it is load-bearing; a second one competing wi
 read as the game being broken rather than as the game making a point.</p>
 </blockquote>
 <h3 id="a-incidents-what-a-shipped-game-does-at-3-a.m.canon-added-2026-08-11-r29">4.12a Incidents — what a shipped game does at 3 a.m. <strong>[CANON - added 2026-08-11]</strong> - R29</h3>
+<blockquote>
+<p><strong>[amended 2026-10-04] ι is six tenths, measured.</strong> <em>Matt arrives when we are drowned with incidents</em> (§21.7.3), and a played hour of Run 2 showed they never could: at a tenth of an incident per garage-density release, the busiest studio the game produces — 61 ships an hour — had <strong>one incident open at its worst</strong>, and never two. The header's own sentence, <em>"a mature one sees them constantly"</em>, described a different game. Swept at 0.3, 0.6 and 1.2 over the same hour: 0.3 still tops out at one open; <strong>0.6 reaches two by the time Serena arrives</strong>; 1.2 reaches three before she does. The cash curve barely moves at any of them, because an open incident freezes a release's tail rather than deleting it, so the cost is runway. 1.0 was "wrong by a mile" in the garage, where the founder alone clears them, and that is why the figure is not simply restored. The anchoring sentence is unchanged in kind — <em>a release shipped at the garage density generates ι·β incidents over its life</em> — and the number in it is now six tenths. Matt's door is two open at once, or one open with the queue unanswered for thirty seconds, and a minute behind Serena's, never on her frame.</p>
+</blockquote>
 <p>§4.12 makes an incident <strong>a defect that crossed a threshold</strong>, and that is the wrong shape. A
 threshold is a state change inside the project on the bench, which confines incidents to the
 thing you are currently building — while the one thing §4.13 is most certain about is that
@@ -4235,7 +4238,7 @@ and do not increment <code>DEVS</code>. The fifth pod is completed by the twenti
 the office transition starts there, not after a twenty-first hire. <code>GARAGE_SEATS</code> remains
 twenty because it describes exactly the population the counter and the five pods expose.</p>
 <p><strong>[amended 2026-09-03] Only the founder and James are ever physically available in the
-garage.</strong> Mo, Serena, Matt, Melany and Billy join in later office scenes. A <code>?full</code>
+garage.</strong> Serena, Matt and Billy join in later office scenes (Mo and Melany removed 2026-10-04). A <code>?full</code>
 fixture may carry later progression state for other tests, but the garage renderer must gate those
 five heroes out rather than turning the first room into a preview of the whole cast. Its strongest
 capture therefore proves two independent counts: twenty ordinary developers across five pods, and
@@ -5232,7 +5235,7 @@ thickness of both.</p>
 <p><strong>[amended 2026-09-03]</strong> The 1.8-pitch expandable suite remains the office-floor
 answer; the garage no longer borrows it. Its compact glass room has two authored plots only, one for
 the founder and one for James, with enough separation to read both monitors and a direct lane to the
-opening. Mo, Serena, Matt, Melany and Billy neither reserve plots nor render here.</p>
+opening. Serena, Matt and Billy neither reserve plots nor render here (Mo and Melany removed 2026-10-04).</p>
 <p>The smaller footprint returns the former empty suite area to circulation instead of sliding four
 pods across the floor to pay for absent people. A subtle two-person office needs no oversized
 <code>LEADERSHIP</code> board; the occupants and glass already say what the room is. <strong>The frame
@@ -6983,6 +6986,24 @@ A screen-space badge would float free of the city and read as a map pin — whic
 §7.7.7's &quot;never a menu with a picture behind it&quot;.</li>
 </ul>
 <h4 id="the-executive-suite-where-the-heroes-sit-canon-added-2026-08-15-r74">7.8.12 The executive suite — where the heroes sit <strong>[CANON - added 2026-08-15; amended 2026-08-29, 2026-08-31]</strong> - R74</h4>
+<blockquote>
+<p><strong>[amended 2026-10-04] The HQ scales from garage to galaxy — CANON, built as far as the survey.</strong> <em>"I want the HQ look and feel scales with how we progress from garage to galaxy."</em> The HQ is the one place on every rung that is recognisably the same place, so what changes with scale is its <strong>materiality</strong>, and what never changes is short: the roll-up door's silhouette, the founder's and James's plates, and <strong>the heroes' colours</strong> — each person who has walked in is a colour (<code>heroBranches.ts</code>) and the colour goes wherever the HQ goes. <code>sim/hqLook.ts</code> owns the ladder; no renderer decides for itself how big the HQ is.</p>
+<table>
+<thead><tr><th>Stage</th><th>Up to</th><th>The HQ is</th></tr></thead>
+<tbody>
+<tr><td><strong>garage</strong></td><td>20</td><td>plywood, a lamp and an extension cord; every bay a different cheap material</td></tr>
+<tr><td><strong>storey</strong></td><td>100</td><td>fitted out: the bays have proper walls and the sign says HQ</td></tr>
+<tr><td><strong>tower</strong></td><td>1,000</td><td>glass and steel, with the garage kept at its foot under glass</td></tr>
+<tr><td><strong>campus</strong></td><td>1,000,000</td><td>the garage at the heart of a campus; each bay grown into a wing in its hero's colour</td></tr>
+<tr><td><strong>capital</strong></td><td>100,000,000</td><td>a lit site on the planet, marked by the roll-up door's glyph, with a crown over it</td></tr>
+<tr><td><strong>origin</strong></td><td>beyond</td><td>Sol: the origin every colony's own HQ echoes, smaller</td></tr>
+</tbody>
+</table>
+<p><strong>Built:</strong> the garage (the hero row above, and the old back wall that goes up as each hero arrives); the survey's HQ mark on the district map, which gains borders as the HQ becomes a place and a crown from the capital up, with one pip under it in each arrived hero's colour; and Sol on the network map, which wears the same colours as points on its ring. <strong>Not built:</strong> the storey, tower and campus <em>as buildings</em> — the 3D city above the lane houses is still the prototype's (<code>endlessCity.ts</code> is not instantiated in the game), so the HQ tower and the heroes' wings there wait for that phase (<code>docs/PLAN-2026-09-27-garage-to-galaxy.md</code>, phase 5).</p>
+</blockquote>
+<blockquote>
+<p><strong>[amended 2026-10-04] The cast is the founder and four.</strong> <em>"remove them entirely"</em> of Mo and Melany: the HQ has five stations — founder, James, Billy, Serena, Matt — and the "seven distinct work positions" and the seats for the other two are gone. <strong>Built 2026-10-04, found by playing:</strong> Billy, Serena and Matt arrived in a dialogue and then had nowhere to sit. The back wall is pushed out to the annex's depth (z = −9.8; the annex's step and its return wall are gone, one straight far wall), the deck runs back with it, and the hero row stands behind the founder and James facing the lens — <strong>Matt at a headset in front of a ticket wall</strong>, <strong>Serena at a desk with three green monitors</strong>, <strong>Billy standing at an easel</strong> (he is the one hero who is always at the whiteboard, §7.8.13), west to east. <strong>That is layout A of <code>docs/PLAN-2026-09-27-garage-to-galaxy.md</code> mirrored, and found by playing:</strong> drawn Billy-west, Billy — the first to arrive — stood hidden behind Serena's length of wall, because on §12.1's camera a wall hides what is behind it along (−1, −1) and a bay's eastern neighbour is the one in front. Reversed, each hero stands in front of walls that have already gone up through the roof: Billy in the east with nothing before him, Serena with his wall gone, Matt with both. The bays are built into the shell rather than on arrival, because a room whose walls change when somebody lands recompiles every material in it; what arrives is the desk, the chair and the person, dropped in as James is, as they take their first line. The wall pushing out as they walk in — the gag — is still owed, and so is the rung-by-rung look below. The HQ is also to <em>look</em> like the rung it is on, garage to galaxy; <code>docs/PLAN-2026-10-04-hero-order-first-prestige-hq.md</code> §6 has that design, as a plan.</p>
+</blockquote>
 <p>§7.8.10 gives the founder a corner desk and §7.8.11 gives a placed hero a mark on the unit they
 cover. <strong>Neither says where a hero is when they are not covering anything</strong>, and §13.11.2
 answers it with a word — <code>BENCHED</code> — printed on a strip. A word on a strip is the weakest thing
@@ -7331,11 +7352,6 @@ does not apply to them, and they are doing the same thing every single time you 
 <td>Engineering — the trunk</td>
 </tr>
 <tr>
-<td><strong>Mo</strong></td>
-<td>Reading. Something on paper, held up, being read twice</td>
-<td>Quality</td>
-</tr>
-<tr>
 <td><strong>Serena</strong></td>
 <td>Watching a graph. It is fine. It has always been fine</td>
 <td>Reliability</td>
@@ -7344,11 +7360,6 @@ does not apply to them, and they are doing the same thing every single time you 
 <td><strong>Matt</strong></td>
 <td>On a headset, talking, gesturing at nobody</td>
 <td>Support</td>
-</tr>
-<tr>
-<td><strong>Melany</strong></td>
-<td>On a call, standing, walking a two-metre circuit and never further</td>
-<td>Cloud</td>
 </tr>
 <tr>
 <td><strong>Billy</strong></td>
@@ -7583,6 +7594,9 @@ from freezing entirely.)</li>
 <hr />
 <h2 id="ui-hud-design">10. UI &amp; HUD Design</h2>
 <h3 id="main-gameplay-screen-component-table-canon">10.1 Main gameplay screen component table <strong>[CANON]</strong></h3>
+<blockquote>
+<p><strong>[amended 2026-10-04] Four things found by playing.</strong> (1) <strong>The touch switch reads TAP | DRAG | INFO, not CODE | DRAG | INFO.</strong> Two controls on the right rail said CODE — the switch (what a tap on a <em>person</em> does) and the founder's button under it — and a first-time player pressed the wrong one for minutes with nothing moving. CODE is the founder's button and only that. (2) <strong>The velocity readout never shows scientific notation.</strong> A poke's buff decays towards zero and the line followed it to <code>1.14e-23</code>; below a hundredth it reads <code>&lt;0.01</code>. (3) <strong>DEVS says who is not in the count</strong> — <em>+ YOU AND JAMES</em> — while it reads 0 with two people on screen. §21.0b's decision stands: they are not developers in the count. (4) <strong>The HIRE button says what the next hire is worth</strong>, beside what it costs: <em>ADDS 0.97</em>, and past §4.1's peak <em>LOSES 0.12</em>. It is the curve the collapse plate draws (§21 Act IV), read at the studio's own headcount, from the fourth developer on; the mousetrap's joke is that it does not say.</p>
+</blockquote>
 <p><strong>[amended 2026-10-02]</strong> The active game's full cover appears immediately to the left of the burn-down chart in the upper-left HUD, sharing its row. The studio whiteboard prints that same cover progressively as story points burn down, followed by its title. Both use the active project's seed and ordinal so the picture stays consistent through hiring, loading, and the next project.</p>
 <table>
 <thead>
@@ -8581,6 +8595,7 @@ Test's catch, and Auto-Ship on its own clock with its speed upgraded separately.
 own press. <strong>[amended 2026-09-26, later]</strong> The board is her isometric tree now (§11.4's amendment): the
 belt opens the <code>TREES</code> window on Serena, and the flat list of cards is deleted. <strong>[amended again 2026-09-26]</strong> The belt opens Serena's card, and her tree is its UPGRADES (§22.9).</li>
 </ul>
+<p><strong>[amended 2026-10-04] Serena arrives for the queue, and brings it.</strong> The pipeline board opens when she does (§21.7.3), and she now arrives when the buffer is what is stopping the studio earning — the floor held still on a full shelf for fifteen cumulative seconds, or SHIP! pressed by hand eight times — not on the first incident. Her trait is the queue's: two more builds before it stops the floor, on top of the garage's three and whatever the board has bought.</p>
 <p><strong>[amended 2026-10-04] Code, Build and Test are decommissioned; the buffer is the QUEUE, it is managed, and it is a shelf of cartridges.</strong>
 This supersedes the first bullet above (<em>"it enters Build, then Test, then waits on the shelf"</em>) and every Build/Test sentence in this section. The path to it:
 <em>"I envisage this to be managed, that the number of builds in the pipeline is limited, and speed of build and number of builds to hold are two contesting
@@ -9821,6 +9836,9 @@ means more interruption per poke.</p>
 </ul>
 <hr />
 <h3 id="the-tree-is-a-tree-canon-added-2026-08-11-r33-r34-r35">11.4 The tree is a tree <strong>[CANON - added 2026-08-11]</strong> - R33, R34, R35</h3>
+<blockquote>
+<p><strong>[amended 2026-10-04] The board sells nothing that does nothing.</strong> Found by playing: most of five trees were a shop for nothing — nodes that were drawn and priced and took the player's money and changed the game not at all, the one thing <code>techTree.ts</code> calls a defect. A node that is not <em>built</em> (a pipeline node, a node that carries an old board effect, a coordination node, or a node wired to a lever) is refused at any price, stays on the board dim with what it proposes, and says so. <strong>What is built now:</strong> Serena's pipeline; Billy's coordination column (thirteen points of 5% off the communication load each, compounding — §4.1 reads less load as more sync), plus one point the day he sits down; James's three era-0 nodes, a little of the same, which is what THE THREAD's cure is made of (<em>"Open UPGRADES. Buy anything"</em> needs something to buy four minutes in); the founder's Second Monitor (+30% own output), Look Over Their Shoulder (a poke interrupts 15% less) and Hiring Dial (the price step of a hire shrinks 12% a level); and Matt's Headset, Inbox, Second Headset, Macros, Incident Inspector and An FAQ People Read (<code>treeLevers.ts</code>). The meeting-ledger nodes (<code>mv</code>) move loss between slices of a ledger the build does not model, and stay unbuilt.</p>
+</blockquote>
 <blockquote>
 <p><strong>[amended 2026-09-26] Five isometric trees, ported visual first.</strong> <em>"I want the isometric upgrade
 tree like the one in new game artifact"</em>, then, when the port began fitting itself to this section's board and
@@ -11383,22 +11401,10 @@ already are on it.</strong></p>
 <td><strong>James</strong> — §22.8's jack of all trades, and the only hero who starts <em>at</em> the centre</td>
 </tr>
 <tr>
-<td>N</td>
-<td><strong>Quality</strong></td>
-<td>§4.12's defect arrival rate</td>
-<td><strong>Mo</strong></td>
-</tr>
-<tr>
 <td>E</td>
 <td><strong>Reliability</strong></td>
 <td>§4.12a's incident arrival rate</td>
 <td><strong>Serena</strong></td>
-</tr>
-<tr>
-<td>S-E</td>
-<td><strong>Cloud</strong></td>
-<td>§4.2's developer cap — and the bill</td>
-<td><strong>Melany</strong></td>
 </tr>
 <tr>
 <td>S-W</td>
@@ -11462,6 +11468,9 @@ you are building, incidents matter once you have shipped — so the answer chang
 studio, which is §13.8's standing requirement restated for the tree.</p>
 </blockquote>
 <h4 id="melany-and-the-cloud-branch-canon-added-2026-08-11">13.9.2 Melany and the Cloud branch <strong>[CANON - added 2026-08-11]</strong></h4>
+<blockquote>
+<p><strong>[removed 2026-10-04] Melany and the Cloud branch are out of the game.</strong> <em>"remove them entirely"</em>. There is no Cloud branch, no <code>RESERVED INSTANCES</code>, and no reserved-capacity bill: the developer cap is raised only by the Paradigm Tree (§4.2) and §11.2's protocols, which is where §4.2 said it came from before a hero offered to sell it. What follows is the record of the design, kept because the argument for a cost on capacity is still the argument against a free one.</p>
+</blockquote>
 <p>Cloud is the branch §13.7 did not have, and it exists because <strong>§4.2's developer cap is the
 only defence against §4.1 and only one system in the game touches it.</strong> §11's protocol tree
 raises the cap by <em>reducing what communication costs</em>. Cloud raises it by <strong>paying for
@@ -12943,6 +12952,12 @@ triggers a full-screen confirmation overlay over the active swarm:</p>
 screen, the camera zooms into a single pixel desk, and the new run begins with permanent
 BP perks applied.</p>
 <h4 id="a-the-reboot-is-a-cut-scene-canon-added-2026-08-27">15.1a The reboot is a cut scene <strong>[CANON — added 2026-08-27]</strong></h4>
+<blockquote>
+<p><strong>[amended 2026-10-04] The first death's last scene is a scene.</strong> TRIGGER PARADIGM SHIFT used to <em>be</em> the shift: one press and the studio was somewhere else. It now begins the liquidation: the bankruptcy panel goes, James says <em>"So. Same time tomorrow?"</em> over the studio, whoever is in the garage goes up through the roof (the hire's drop played backwards) and <strong>every house lifts off on its thrusters</strong>, one after another, leaving empty lots — and when the last has cleared the frame the shift lands and the receipt (above) follows. Then Run 2 opens on a studio with <strong>nobody in it but you</strong>: James is not in the room while the receipt is up, and drops in when it closes, so the first line of Run 2, <em>"James. You again."</em>, is said to a man who has just landed. The camera does not yet zoom to a single pixel desk. The pieces are <code>store.beginLiquidation</code> / <code>finishLiquidation</code>, the stage's driver (at least a beat, at most nine seconds), <code>garageView.liquidate</code> and <code>cityHouses.liquidate</code>.</p>
+</blockquote>
+<blockquote>
+<p><strong>[amended 2026-10-04] The first lesson's words changed.</strong> <code>lesson.entropy</code> now reads <em>"Past what a studio can coordinate, every hire makes it slower."</em> The ledger, the catalogue order and every id are untouched. §21 Act V has the reasoning.</p>
+</blockquote>
 <p>§15.1 above has specified the moment a shift lands since this document was written:</p>
 <blockquote>
 <p>a <strong>CRT monitor reboot animation</strong> wipes the screen, the camera zooms into a single pixel
@@ -15044,6 +15059,9 @@ anyway.)</em></p>
 <p><strong>ADVISOR:</strong> <em>&quot;Math doesn't lie! If 2 devs make games 2× faster, 1,000 devs will make games 1,000× faster! Tap the button. Do it. What could possibly go wrong?&quot;</em></p>
 </blockquote>
 <h3 id="act-iv-the-entropy-collapse-the-trap-triggers">ACT IV: The Entropy Collapse (The Trap Triggers)</h3>
+<blockquote>
+<p><strong>[amended 2026-10-04] The thousand land in waves, and the curve is drawn while they do.</strong> <em>"this is very hard to see, gimme improvement on that"</em>. The collapse was a cliff: a thousand on a cap of a hundred is η = 1e-5, so the speedometer went from fine to seized between two frames and the player never saw <em>why</em>. The lesson Run 1 exists to teach — <strong>past what a studio can coordinate, every hire makes it slower</strong> — is a statement about a curve, and a curve is only visible if you are shown it being walked. The Mass Hire is still one signature for the whole treasury and a thousand heads; only the arrival is spread, as eleven waves (10, 25, 45, 70, 100, 150, 230, 350, 520, 750, 1000, cumulative) seven tenths of a second apart. They are spaced like the plate's axis, which is logarithmic, because a first draft of ten equal waves of a hundred stepped clean over the peak (about 76 developers on the base cap) in its first wave and the climb — half the lesson — was never on screen. A plate (<code>hud/CollapsePlate.tsx</code>) draws <em>work done against developers</em>: a hill, a dot on it that is the studio right now, a dashed line at the peak, and a caption in developers' worth of work (the word <em>entropy</em> stays internal, §4.3a). The dot climbs for four waves, tips over in the fifth, and runs down the far side while the headcount beside it only rises. The 3D drop-in staging (the hire falling from the ceiling, queued 2026-09-28) is separate and still owed.</p>
+</blockquote>
 <p><em>(Player taps <code>[ HIRE 1,000 DEVS NOW ]</code>.)</em></p>
 <p><strong>Visual &amp; Audio Polish Shift:</strong></p>
 <ol>
@@ -15064,6 +15082,9 @@ glowing red spiderweb.</li>
 wall of overlapping notification pings, loud overlapping chatter, and an alarm siren.</li>
 </ol>
 <h3 id="act-v-bankruptcy-the-lesson">ACT V: Bankruptcy &amp; The Lesson</h3>
+<blockquote>
+<p><strong>[amended 2026-10-04] The receipt says the headcount, with the run's own numbers.</strong> It read <em>"Manpower without Communication Infrastructure is Chaos"</em>, a lesson about a missing tool, and the first death exists to teach the headcount. The panel now carries two sums read off the same curve the plate drew — <em>2 developers: 2.0 developers' worth of work; 1,001 developers: 0.01</em> — then <em>"Past what a studio can coordinate, every hire makes it slower."</em> (<code>lesson.entropy</code>; the id is what a save holds, the words are free), then the old line as the way out, which is where Run 2's first beat, Instant Messenger, picks it up. The mock-up below shows the old panel.</p>
+</blockquote>
 <p><em>(The project progress bar freezes completely at 99.9%. The speedometer slams to <strong>99.9% — STUDIO SEIZED</strong>. Per §4.3a the player never reads the word &quot;entropy&quot;; the internal name for this readout is the Entropy Speedometer and it stays internal.)</em></p>
 <p><strong>SYSTEM WARNING (Flashing Red HUD):</strong></p>
 <blockquote>
@@ -15304,7 +15325,15 @@ in every reality holding the next thing that lets people avoid each other</stron
 for any tool in the branch. Run 3 gets one too. So does Run 9.</p>
 </blockquote>
 <h4 id="the-hire-ladder-who-arrives-and-what-it-took-canon">21.7.3 The hire ladder — who arrives, and what it took <strong>[CANON]</strong></h4>
-<p>Five more people, each one gated on a <em>feeling</em> rather than on a number. §22.8 is the roster;
+<blockquote>
+<p><strong>[amended 2026-10-04] Matt's door is incidents, after Serena, and a minute behind her.</strong> Two incidents open at once, or one open with the queue unanswered for thirty seconds — which needed §4.12a's rate raised to be reachable at all (see there) — and only once Serena has been in the building for sixty seconds, so the two never arrive on one frame. Arrivals now <strong>happen in the room</strong>: the length of the old back wall that hides a hero's bay goes up through the roof with a puff of dust, and their desk, chair and person drop into what it uncovered (<code>?arrive=billy|serena|matt</code> plays one).</p>
+</blockquote>
+<blockquote>
+<p><strong>[amended 2026-10-04] Three people, and three doors that moved.</strong> <em>"remove them entirely"</em> — Mo and Melany are out of the game, with their scenes, branches and traits. The remaining three had their doors moved at the user's instruction: <em>Billy "when we know how to increase sync"</em> (and, on being asked: <em>sync decreasing as we have more people is the core mechanic, and Billy's meeting tree is designed to improve it</em>); <em>Serena "where the pipeline is not good enough and we are not earning fast enough because of no auto release"</em>; <em>Matt "when we are drowned with incidents"</em>. The order the player meets them in is Billy, Serena, Matt, and <code>arrivalOrder.test.ts</code> pins that order and no time.</p>
+<p><strong>Billy</strong> used to wait for sync at or below one half, held for twenty seconds, which is D = D_cap. A player who reads the speedometer stops at §4.1's optimum, 0.758 of the cap, and never gets there: measured over two simulated hours the careful player held 80 of 105 and never met him. The one hero who is about sync had become a reward for overhiring. He now arrives the first time growth visibly costs sync — the organisation's own reading (<code>structuralEntropy</code>, not the event-ceilinged gauge) at or above 5% for twenty seconds, outside Run 1. <strong>Serena</strong> used to arrive on the first incident, 43 simulated minutes in; her scene had been about the build queue since 2026-10-03, and the pipeline board waits on her, so for 43 minutes SHIP! was a hand press on a three-slot shelf with nothing to say so. She now arrives when the queue is the bottleneck: the floor has stood still on a full shelf for fifteen cumulative seconds, <em>or</em> the player has released eight builds by hand — two doors, because an attentive player never stalls the shelf and is exactly the player to whom <em>"I can make it ship itself"</em> is relief. <strong>Matt</strong> used to arrive on thirty seconds of unserved tickets, at six developers. He now owns everything that lands on the player after a ship: he arrives once Serena has, when three incidents are open at once, or one is open and the queue has gone unanswered for thirty seconds. Every number is a first pass, marked as one in <code>storyTriggers.ts</code>.</p>
+<p><strong>Billy's tree now does the thing he arrives for.</strong> His coordination column (<em>"Coordination +1 per level"</em>: Sticky Notes, Kanban, Scrum of Scrums, Org Chart, Planetary PI Planning, Interstellar Standup, Team Topologies — thirteen points in all) was drawn and priced and changed nothing; found while checking that the scene had something to hand over. Each point is now the same step Instant Messenger is, five per cent off the communication load, compounding — and §4.1 only ever sees headcount over capacity, so less load <em>is</em> more sync. The whole column is a cap of about 1.9×, bought across three eras. The nodes that move loss between slices of a ledger the build does not model (<code>mv</code>) stay unwired and say so on the board.</p>
+</blockquote>
+<p>Three more people, each one gated on a <em>feeling</em> rather than on a number. §22.8 is the roster;
 this is when each of them walks in.</p>
 <table>
 <thead>
@@ -15316,29 +15345,19 @@ this is when each of them walks in.</p>
 </thead>
 <tbody>
 <tr>
-<td><strong>Mo</strong> — Quality</td>
-<td>A release is rated below the §4.14 baseline <strong>on defects alone</strong></td>
-<td>...watched a game they were proud of score 31 and seen exactly why</td>
-</tr>
-<tr>
 <td><strong>Serena</strong> — Reliability</td>
-<td>An incident (§4.12a) suppresses a release's tail for the first time</td>
-<td>...watched a game that <em>was</em> earning stop earning, overnight, with no input from them</td>
+<td>The build queue is the bottleneck: the floor stands still on a full shelf, or SHIP! has been pressed by hand eight times</td>
+<td>...found that the studio earns at the speed of their thumb</td>
 </tr>
 <tr>
 <td><strong>Matt</strong> — Support</td>
-<td>The ticket queue (§4.13) goes unserved for a sustained period</td>
-<td>...seen the drab grey bar fill up and learned that the back catalogue sends a bill</td>
-</tr>
-<tr>
-<td><strong>Melany</strong> — Cloud</td>
-<td>The studio hits §4.2's developer cap with cash still in the bank</td>
-<td>...tried to solve a problem by hiring and discovered the cap for the first time</td>
+<td>Incidents (§4.12a) and tickets (§4.13) pile up faster than the studio clears them — after Serena</td>
+<td>...been drowned by what a shipped catalogue sends back</td>
 </tr>
 <tr>
 <td><strong>Billy</strong> — Cohesion</td>
-<td>Sync sits at or below <strong>half</strong> for a sustained period, <strong>outside Run 1</strong></td>
-<td>...watched §4.1 take half the company's day and found they had no move</td>
+<td>Sync first <strong>slips below 95%</strong> and stays there, <strong>outside Run 1</strong></td>
+<td>...hired their way into the cost of talking, and wants the way back up</td>
 </tr>
 </tbody>
 </table>
@@ -15360,7 +15379,7 @@ beat lands in Run 2; a studio that has bought §11.2's protocols moves the hire 
 meaning, which is why this is written as a sync reading rather than as a headcount. The player
 has watched the gauge fall from <code>IN SYNC 100%</code> to <code>PRODUCTIVITY BREAKDOWN 50%</code> to get here,
 which is the largest single move that readout ever makes inside one run.</p>
-<p><strong>And it is a clock rather than a threshold, for two reasons.</strong> Melany's trigger — the cap hit
+<p><strong>[superseded 2026-10-04 — Melany is gone and Billy's door is a first slip of sync, not a collapse; see the amendment at the head of §21.7.3.]</strong> <strong>And it is a clock rather than a threshold, for two reasons.</strong> Melany's trigger — the cap hit
 with cash spare — is arithmetically the <em>same instant</em>, and two people may not walk through
 one door on one frame. So Melany arrives on the event of touching the cap, which is her whole
 pitch, and Billy arrives on the studio still being there twenty seconds later. That also makes
@@ -15427,6 +15446,9 @@ of an apparatus they cannot see the edges of. Anything that makes the joke <em>a
 posh</em> rather than <em>about the founder not recognising posh</em> is the wrong scene.</p>
 <h4 id="global-head-of-his-desk-canon">21.7.4 Global Head of His Desk <strong>[CANON]</strong></h4>
 <blockquote>
+<p><strong>[amended 2026-10-04] It fires on the third person in the building, not the second.</strong> With Mo's door, the second arrival landed on the same frame as the first — two scenes back to back, and a joke about <em>global</em> before there was anything global. It now waits until James, Billy and Serena are all here: a team with a head. <em>"yes, this keeps"</em>.</p>
+</blockquote>
+<blockquote>
 <p><strong>[amended 2026-09-26] It fires the first time James has a colleague in the building.</strong> It read "above" off the placement ladder — James posted on a higher rung than another posted hero — and that ladder is gone. His first colleague is the first person he can be the head <em>of</em>, and the title is no less meaningless for it.</p>
 </blockquote>
 <p>Fires when James is promoted onto a management row — §22.2's org chart, the first time a card
@@ -15478,6 +15500,9 @@ character. §22.5's Yuki quitting is a <em>mechanic</em> and it is pointedly the
 why it lands.</li>
 </ul>
 <h3 id="every-system-enters-through-a-person-canon-added-2026-08-15-r55">21.7.6 Every system enters through a person <strong>[CANON - added 2026-08-15]</strong> - R55</h3>
+<blockquote>
+<p><strong>[amended 2026-10-04] Who brings which instrument.</strong> Mo is gone, so <strong>Serena brings the defect counter</strong> (her pipeline's quality gate is where defects are caught), and <strong>Matt brings both the incident list and the ticket bar</strong> — one person for everything that lands on the player after a ship. Nobody brings a readout for the build queue: SHIP! has been in the player's hand since Run 1, and Serena brings the board that automates it (§10.7). The mechanism-before-instrument argument below is unchanged; only the names on it moved.</p>
+</blockquote>
 <blockquote>
 <p><strong>[amended 2026-09-26] Billy hands over the stand-up, not the floor.</strong> From 2026-08-29 his scene handed over §13.8's placement; placement is cut, and the scene now ends on the Daily Standup (the root of his tree) with half the floor working through it. The professions no longer arrive with their instruments either (§4.11's amendment); a hero still brings the readout.</p>
 </blockquote>
@@ -15537,7 +15562,7 @@ on the dial.</li>
 <li><strong>§21.7.3, Billy</strong> — coverage, reach and the §13.10 cost of a benched hero all run;
 Billy brings <strong>§13.8's floor itself</strong>. See below.</li>
 </ul>
-<p><strong>Melany is the counter-example, and she confirms the rule.</strong> The developer cap (§4.2) has
+<p><strong>[superseded 2026-10-04 — Melany is gone and Billy's door is a first slip of sync, not a collapse; see the amendment at the head of §21.7.3.]</strong> <strong>Melany is the counter-example, and she confirms the rule.</strong> The developer cap (§4.2) has
 been on screen since the first minute of Run 1 — it is not a system the player is being
 introduced to, it is a system the player has been fighting. She arrives holding a <em>branch</em>
 rather than an instrument, and nothing appears on the HUD when she sits down. <strong>A person only
@@ -15817,7 +15842,7 @@ and is still there, waiting, when the board opens.</p>
 </tr>
 <tr>
 <td>5</td>
-<td>§21.7.3 — Melany</td>
+<td>§21.7.3 — Melany <em>(removed 2026-10-04)</em></td>
 <td>the cap, hit with cash spare</td>
 </tr>
 <tr>
@@ -16372,13 +16397,16 @@ is the one thing that is off the table.</li>
 </ol>
 <p>Anything that would breach this table needs an explicit decision recorded here first.</p>
 <hr />
-<h3 id="the-story-roster-six-people-one-per-branch-canon-added-2026-08-11-r38">22.8 The story roster — six people, one per branch <strong>[CANON - added 2026-08-11]</strong> - R38</h3>
+<h3 id="the-story-roster-six-people-one-per-branch-canon-added-2026-08-11-r38">22.8 The story roster — four people, one per branch <strong>[CANON - added 2026-08-11]</strong> - R38</h3>
 <p><strong>This design has had three rosters and no people.</strong> §13.6.3 lists nine cards named after
 <em>job titles</em> — Scrum Master, Floor Master, VP of Engineering — which were job descriptions
 standing in for characters who did not exist. §22.5 lists twelve named cards, most of them
 gated behind late-game milestones nobody has reached. §13.9 now needs one hero per branch, and
 §21.7 needs each of them to walk through a door.</p>
-<p><strong>So the six below are the roster. They are people, they are named, and each one owns a branch
+<blockquote>
+<p><strong>[amended 2026-10-04] Four, not six.</strong> <em>"remove them entirely"</em>: Mo (Quality) and Melany (Cloud) are gone, with the Quality and Cloud branches and both traits (<em>READS IT TWICE</em>, <em>RESERVED INSTANCES</em>). Their jobs were not left standing. The defect counter that was Mo's instrument is <strong>Serena's</strong>: her pipeline already carries the quality gate that catches a build's defects as it joins the queue. The developer cap that was Melany's trait is bought only through the Paradigm Tree and the protocols, which is where §4.2 always said it came from. <strong>Serena's trait is now the pipeline's</strong> — <em>DEGRADED, NOT DOWN</em>: the queue holds two more builds before it stops the floor. <strong>Matt took the incident list</strong> and the runbook with it: <em>KNOWS THEIR NAMES</em> now reads tickets 20% slower, new incidents opening half worked, and one developer in twenty answering the queue (one in fifty on call). The rows and paragraphs for the two who left are removed below rather than struck through.</p>
+</blockquote>
+<p><strong>So the four below are the roster. They are people, they are named, and each one owns a branch
 of §13.9's board.</strong></p>
 <table>
 <thead>
@@ -16397,34 +16425,22 @@ of §13.9's board.</strong></p>
 <td>Act I, 50 pokes, free</td>
 </tr>
 <tr>
-<td><strong>Mo</strong></td>
-<td>Quality</td>
-<td>§4.12's <strong>defect arrival rate</strong></td>
-<td>First release rated below baseline on defects</td>
-</tr>
-<tr>
 <td><strong>Serena</strong></td>
 <td>Reliability</td>
 <td>§4.12a's <strong>incident arrival rate</strong></td>
-<td>First incident to kill a release's tail</td>
+<td>The build queue is the bottleneck (§21.7.3)</td>
 </tr>
 <tr>
 <td><strong>Matt</strong></td>
 <td>Support</td>
 <td>§4.13 ticket capacity, and §4.12a <strong>incident clearance</strong></td>
-<td>First sustained unserved queue</td>
-</tr>
-<tr>
-<td><strong>Melany</strong></td>
-<td>Cloud</td>
-<td>§4.2's <strong>developer cap</strong> — and the bill (§13.9.2)</td>
-<td>First time the cap is hit with cash spare</td>
+<td>Incidents and tickets drown the studio, after Serena (§21.7.3)</td>
 </tr>
 <tr>
 <td><strong>Billy</strong></td>
 <td>Cohesion</td>
 <td>§4.1's <strong>Entropy</strong> directly — <em>and §13.8's floor</em> (§21.7.6)</td>
-<td>First sustained half-sync outside Run 1; James sends for him</td>
+<td>Sync first slips under growth, outside Run 1; James sends for him</td>
 </tr>
 </tbody>
 </table>
@@ -16474,15 +16490,9 @@ were folded into this one.</p>
 </tr>
 </tbody>
 </table>
-<h4 id="the-five-briefly-enough-to-write-them-canon">22.8.2 The five, briefly — enough to write them <strong>[CANON]</strong></h4>
+<h4 id="the-five-briefly-enough-to-write-them-canon">22.8.2 The three, briefly — enough to write them <strong>[CANON]</strong></h4>
 <p>Each is one sentence of who they are, one of how they talk, and their card's flavour line.
-§21.7.0 does this for James at length because he is in every scene; these five need less.</p>
-<p><strong>MO — Quality.</strong> <em>Reads everything twice, ships nothing twice.</em> Speaks in short complete
-sentences and asks the question you were avoiding, kindly, at the worst possible moment. Does
-not think of herself as slow.</p>
-<blockquote>
-<p><em>&quot;I'm not blocking it. I'm just asking what happens if someone taps it twice.&quot;</em></p>
-</blockquote>
+§21.7.0 does this for James at length because he is in every scene; these three need less.</p>
 <p><strong>SERENA — Reliability.</strong> <em>Has a runbook for this. She wrote it before this happened.</em> Calm in
 inverse proportion to how bad things are; the more the graph falls, the flatter her voice.
 Deeply uninterested in whose fault it was.</p>
@@ -16495,12 +16505,6 @@ everyone finds annoying and nobody can argue with.</p>
 <blockquote>
 <p><em>&quot;Four hundred people wrote in about the same button. I don't know what it does either.&quot;</em></p>
 </blockquote>
-<p><strong>MELANY — Cloud.</strong> <em>Can give you infinite capacity by Thursday.</em> Enthusiastic, extremely
-competent, allergic to reading an invoice. Solves every problem by making it somebody's
-metered resource.</p>
-<blockquote>
-<p><em>&quot;We can absolutely scale to that. I'd want to talk about the bill afterwards. Afterwards is fine.&quot;</em></p>
-</blockquote>
 <p><strong>BILLY — Cohesion.</strong> <em>Believes in process, sincerely, in a way that is slightly moving.</em>
 Facilitates. Has a deck. Genuinely does reduce Entropy, which is the uncomfortable part —
 §13.6.3's joke was that he fixes communication overhead by adding a meeting, <strong>and it works.</strong></p>
@@ -16508,9 +16512,9 @@ Facilitates. Has a deck. Genuinely does reduce Entropy, which is the uncomfortab
 <p><em>&quot;I've booked fifteen minutes. If we don't need fifteen minutes, we'll give them back.&quot;</em></p>
 </blockquote>
 <blockquote>
-<p><strong>None of these five is a joke at the expense of their job.</strong> §4.11 exists because a studio
+<p><strong>None of these is a joke at the expense of their job.</strong> §4.11 exists because a studio
 needs all four functions and the game is funnier when each of them is <em>right</em>. The comedy
-comes from an organisation that cannot hold five correct people at once, which is §6 again,
+comes from an organisation that cannot hold even three correct people at once, which is §6 again,
 with faces on it.</p>
 </blockquote>
 <h3 id="the-card-face-what-a-hero-card-actually-looks-like-canon-added-2026-08-15-r56">22.9 The card face — what a hero card actually looks like <strong>[CANON - added 2026-08-15]</strong> - R56</h3>
@@ -16632,11 +16636,6 @@ their branch DEPTH. Coverage scales the group effects unless the rule names the 
 <td>Daily Standups never pause James's own one-head developer output</td>
 </tr>
 <tr>
-<td><strong>Mo</strong></td>
-<td>READS IT TWICE</td>
-<td>Covered work generates up to <strong>50% fewer defects</strong></td>
-</tr>
-<tr>
 <td><strong>Serena</strong></td>
 <td>WROTE THE RUNBOOK</td>
 <td>A new incident opens up to <strong>half worked</strong></td>
@@ -16647,11 +16646,6 @@ their branch DEPTH. Coverage scales the group effects unless the rule names the 
 <td>Catalogue tickets arrive up to <strong>20% slower</strong></td>
 </tr>
 <tr>
-<td><strong>Melany</strong></td>
-<td>RESERVED INSTANCES</td>
-<td>Up to <strong>25% immediate cap</strong>; <strong>$1 / covered developer / second</strong> operating cost</td>
-</tr>
-<tr>
 <td><strong>Billy</strong></td>
 <td>FIFTEEN MINUTES</td>
 <td>Daily Standups do not pause developers inside his coverage</td>
@@ -16659,7 +16653,7 @@ their branch DEPTH. Coverage scales the group effects unless the rule names the 
 </tbody>
 </table>
 <p>The card prints these exact rules. Branch benefit, signature benefit, coverage and the
-Melany operating cost must remain visible in the card/receipt; a flavour sentence may not
+[Void 2026-10-04: Melany and her operating cost are gone.] Melany operating cost must remain visible in the card/receipt; a flavour sentence may not
 promise a mechanic that the fold does not execute.</p>
 <h4 id="rules-1">22.9.3 Rules</h4>
 <ul>
@@ -18106,7 +18100,7 @@ below; the owning sections carry the design.</p>
 <td><strong>R38</strong></td>
 <td>The named roster and their effects. <strong>Suggest the Cloud effect</strong></td>
 <td><strong>§22.8</strong> <em>(new)</em>, §13.9.2</td>
-<td><strong>Specified, and it is a proposal.</strong> Melany/Cloud raises §4.2's developer cap and makes hires take effect immediately, paid for by a standing bill that scales superlinearly with headcount. Chosen because the cap is the only defence against §4.1 and only §11 touched it, and because it is the one branch whose upgrades make a line item <em>worse</em></td>
+<td><strong>[Removed 2026-10-04.] Specified, and it is a proposal.</strong> Melany/Cloud raises §4.2's developer cap and makes hires take effect immediately, paid for by a standing bill that scales superlinearly with headcount. Chosen because the cap is the only defence against §4.1 and only §11 touched it, and because it is the one branch whose upgrades make a line item <em>worse</em></td>
 </tr>
 <tr>
 <td><strong>R39</strong></td>
@@ -18538,7 +18532,7 @@ table. §26 is the roadmap. This is the ledger.</p>
 <td><strong>R63</strong></td>
 <td>The six heroes, their classes and their effects; <strong>Melany's effect unspecified</strong></td>
 <td>§22.8, §13.9.2</td>
-<td>Already canon. Melany bends §4.2's cap and invoices for it</td>
+<td>Removed 2026-10-04 (Melany is gone). Was: Melany bends §4.2's cap and invoices for it</td>
 </tr>
 <tr>
 <td><strong>R64</strong></td>
@@ -19223,7 +19217,7 @@ and it is the assertion rather than a milestone read out of the save.
 6. Ship a release bad enough to bring Mo, and watch the defect backlog appear <strong>with her</strong> and
 not before.
 7. Do the same for Serena and Matt.
-8. Hit the developer cap with cash spare, meet Melany; sit at that cap with sync halved until
+8. [2026-10-04: Melany is removed, and Billy now arrives on a first slip of sync rather than a collapse.] Hit the developer cap with cash spare, meet Melany; sit at that cap with sync halved until
 James sends for Billy — and watch §13.8's floor become placeable as his scene ends, with him
 still in the suite and his assignment already posted to it.
 <strong>Items 6, 7 and 8 pass as of 2026-08-18</strong>, and <em>&quot;with her and not before&quot;</em> is checked the

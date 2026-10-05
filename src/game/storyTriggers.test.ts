@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
 import {
   BILLY_MIN_SHIFTS,
   BILLY_SUSTAINED_S,
   FOUNDER_BOARD_MIN_DEVS,
+  JAMES_PROMOTED_AT,
+  MATT_AFTER_SERENA_S,
+  MATT_INCIDENTS,
   MATT_SUSTAINED_S,
-  SYNC_HALVED,
+  SERENA_HAND_RELEASES,
+  SERENA_STALL_S,
+  SYNC_FELT,
   arrivalPredicate,
   billyArrives,
   founderBoardArrives,
   jamesPromoted,
   mattArrives,
-  melanyArrives,
-  moArrives,
   serenaArrives,
   type BoardSnapshot,
   type StorySnapshot,
@@ -20,74 +22,85 @@ import {
 
 const base: StorySnapshot = {
   paradigmShifts: 1,
-  releases: [],
-  hasIncident: false,
+  incidents: 0,
   tickets: 0,
   ticketsUnservedFor: 0,
-  devs: 0,
-  devCap: 100,
-  cash: 0,
   entropy: 0,
-  syncHalvedFor: 0,
+  syncSlippedFor: 0,
+  shelfStalledFor: 0,
+  handReleases: 0,
+  sinceSerena: 0,
 }
 
 describe('§21.7.3 — a hero arrives the first time you feel the problem', () => {
-  it('brings Mo when a release ships below baseline on defects alone', () => {
-    expect(moArrives(base)).toBe(false)
-    expect(moArrives({ ...base, releases: [{ defectDensity: DEFECT_DENSITY_ANCHOR * 2 }] })).toBe(true)
-  })
-
-  it('brings Serena when an incident suppresses a tail', () => {
+  // [amended 2026-10-04] Mo and Melany are gone. The three that remain are
+  // pinned as claims about *what the feeling is*, and the order they come in is
+  // pinned below rather than any time at which they come.
+  it('brings Serena when the floor has stood still on a full shelf', () => {
     expect(serenaArrives(base)).toBe(false)
-    expect(serenaArrives({ ...base, hasIncident: true })).toBe(true)
+    expect(serenaArrives({ ...base, shelfStalledFor: SERENA_STALL_S - 1 })).toBe(false)
+    expect(serenaArrives({ ...base, shelfStalledFor: SERENA_STALL_S })).toBe(true)
   })
 
-  it('brings Matt only after the queue has gone unanswered for a sustained period', () => {
-    expect(mattArrives({ ...base, tickets: 40, ticketsUnservedFor: 10 })).toBe(false)
-    expect(mattArrives({ ...base, tickets: 40, ticketsUnservedFor: MATT_SUSTAINED_S })).toBe(true)
+  it('brings Serena for the player who never lets it stall, on the chore of SHIP!', () => {
+    // An attentive thumb never fills the shelf, so the stall door alone would
+    // leave exactly that player without the person who automates it.
+    expect(serenaArrives({ ...base, handReleases: SERENA_HAND_RELEASES - 1 })).toBe(false)
+    expect(serenaArrives({ ...base, handReleases: SERENA_HAND_RELEASES })).toBe(true)
   })
 
-  it('brings Melany when the cap is hit with cash still in the bank', () => {
-    expect(melanyArrives({ ...base, devs: 100, devCap: 100, cash: 1 })).toBe(true)
-    expect(melanyArrives({ ...base, devs: 100, devCap: 100, cash: 0 })).toBe(false)
+  it('does not bring Serena on an incident — that is Matt’s, now', () => {
+    expect(serenaArrives({ ...base, incidents: 5 })).toBe(false)
   })
 
-  /*
-   * §21.7.3 — Billy's is the one arrival that is *two* conditions, and each of
-   * these cases is one of the two reasons it had to become two.
-   */
-  it('brings Billy when sync has halved and stayed halved', () => {
-    const collapsed = { ...base, entropy: SYNC_HALVED, syncHalvedFor: BILLY_SUSTAINED_S }
-    expect(billyArrives(collapsed)).toBe(true)
-    expect(billyArrives({ ...collapsed, paradigmShifts: BILLY_MIN_SHIFTS - 1 })).toBe(false)
+  it('brings Matt when incidents pile up, and only once Serena is in the building', () => {
+    const drowning = { ...base, incidents: MATT_INCIDENTS }
+    expect(mattArrives(drowning)).toBe(false)
+    expect(mattArrives({ ...drowning, sinceSerena: MATT_AFTER_SERENA_S })).toBe(true)
+    expect(mattArrives({ ...base, sinceSerena: MATT_AFTER_SERENA_S, incidents: MATT_INCIDENTS - 1 })).toBe(false)
   })
 
-  it('does not bring Billy on a dip that recovers', () => {
-    // The old trigger fired at 10% entropy — `CHATTY`, which §4.3a calls "the
-    // hint the player dismisses". Ninety per cent sync is not a collapse.
-    expect(billyArrives({ ...base, entropy: 0.11, syncHalvedFor: 0 })).toBe(false)
-    // And half sync on its own is not either: it is the frame Melany arrives on
-    // (`devs >= devCap` is arithmetically `entropy >= SYNC_HALVED`), so a
-    // threshold alone would put two people through one door on one tick.
-    expect(billyArrives({ ...base, entropy: SYNC_HALVED, syncHalvedFor: 0 })).toBe(false)
-    expect(
-      billyArrives({ ...base, entropy: SYNC_HALVED, syncHalvedFor: BILLY_SUSTAINED_S - 1 }),
-    ).toBe(false)
+  it('gives Serena a minute to herself: never on the frame she arrives', () => {
+    const pile = { ...base, incidents: MATT_INCIDENTS + 5, tickets: 500, ticketsUnservedFor: 1e4 }
+    expect(mattArrives({ ...pile, sinceSerena: 0 })).toBe(false)
+    expect(mattArrives({ ...pile, sinceSerena: MATT_AFTER_SERENA_S - 1 })).toBe(false)
+    expect(mattArrives({ ...pile, sinceSerena: MATT_AFTER_SERENA_S })).toBe(true)
   })
 
-  it('agrees with Melany about where the cap is, and arrives after her', () => {
-    // Both read the same instant off §4.1: eta = 1/(1 + (D/D_cap)^rho) is a half
-    // exactly when D = D_cap. The *order* is what this pins — Melany on the
-    // event, Billy on the studio still being there afterwards.
-    const atCap = { ...base, devs: 100, devCap: 100, cash: 1, entropy: SYNC_HALVED }
-    expect(melanyArrives(atCap)).toBe(true)
-    expect(billyArrives(atCap)).toBe(false)
-    expect(billyArrives({ ...atCap, syncHalvedFor: BILLY_SUSTAINED_S })).toBe(true)
+  it('brings Matt for a smaller pile that nobody has answered for a sustained period', () => {
+    const open = { ...base, sinceSerena: MATT_AFTER_SERENA_S, incidents: 1, tickets: 40 }
+    expect(mattArrives({ ...open, ticketsUnservedFor: MATT_SUSTAINED_S - 1 })).toBe(false)
+    expect(mattArrives({ ...open, ticketsUnservedFor: MATT_SUSTAINED_S })).toBe(true)
+    // A queue with no incident in it is the founder's problem, not a drowning.
+    expect(mattArrives({ ...open, incidents: 0, ticketsUnservedFor: MATT_SUSTAINED_S })).toBe(false)
+  })
+
+  it('brings Billy when growth first costs sync, and it stays costing it', () => {
+    const slipped = { ...base, entropy: SYNC_FELT, syncSlippedFor: BILLY_SUSTAINED_S }
+    expect(billyArrives(slipped)).toBe(true)
+    expect(billyArrives({ ...slipped, paradigmShifts: BILLY_MIN_SHIFTS - 1 })).toBe(false)
+  })
+
+  it('does not bring Billy on a dip that recovers, or on a studio still in sync', () => {
+    expect(billyArrives({ ...base, entropy: SYNC_FELT, syncSlippedFor: 0 })).toBe(false)
+    expect(billyArrives({ ...base, entropy: SYNC_FELT, syncSlippedFor: BILLY_SUSTAINED_S - 1 })).toBe(false)
+    // The clock alone, with the reading back under the line, is not a slip.
+    expect(billyArrives({ ...base, entropy: SYNC_FELT / 2, syncSlippedFor: BILLY_SUSTAINED_S })).toBe(false)
+  })
+
+  it('needs no collapse for Billy: a studio that stops at §4.1’s optimum still meets him', () => {
+    // The old door was entropy ≥ ½, which is D = D_cap. The optimum is 0.758 of
+    // the cap, where the reading is well under that and well over SYNC_FELT.
+    const L = 0.758
+    const entropyAtOptimum = 1 - 1 / (1 + L ** 5)
+    expect(entropyAtOptimum).toBeLessThan(0.5)
+    expect(entropyAtOptimum).toBeGreaterThan(SYNC_FELT)
+    expect(billyArrives({ ...base, entropy: entropyAtOptimum, syncSlippedFor: BILLY_SUSTAINED_S })).toBe(true)
   })
 
   it('has a predicate for every hero except James, who needs none', () => {
     expect(arrivalPredicate('james')).toBeNull()
-    for (const id of ['mo', 'serena', 'matt', 'melany', 'billy'] as const) {
+    for (const id of ['serena', 'matt', 'billy'] as const) {
       expect(arrivalPredicate(id)).not.toBeNull()
     }
   })
@@ -137,17 +150,21 @@ describe('§21.7.7 — the founder’s board', () => {
 
 describe('§21.7.4 — the org chart is who is in the building', () => {
   // [2026-09-26] It was the ladder: James posted on a higher rung than another
-  // posted hero. Placement is gone, so his first colleague is the promotion.
-  it('promotes James the first time somebody else has arrived', () => {
-    expect(jamesPromoted(new Set(['james', 'mo']))).toBe(true)
+  // posted hero. [2026-10-04] It was the second arrival; it is now the third,
+  // because the second landed on the same frame as the first and a head of a
+  // department of one is not yet the joke.
+  it('promotes James once he has a team', () => {
+    expect(jamesPromoted(new Set(['james', 'billy', 'serena']))).toBe(true)
+    expect(JAMES_PROMOTED_AT).toBe(3)
   })
 
-  it('is not a promotion for being in the building alone', () => {
+  it('is not a promotion for being in the building alone, or with one colleague', () => {
     expect(jamesPromoted(new Set(['james']))).toBe(false)
+    expect(jamesPromoted(new Set(['james', 'billy']))).toBe(false)
   })
 
   it('needs James', () => {
-    expect(jamesPromoted(new Set(['mo', 'billy']))).toBe(false)
+    expect(jamesPromoted(new Set(['matt', 'billy', 'serena']))).toBe(false)
     expect(jamesPromoted(new Set())).toBe(false)
   })
 })

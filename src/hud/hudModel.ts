@@ -67,7 +67,11 @@ const SUFFIXES = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'D
 export function formatVelocity(v: number): string {
   if (!Number.isFinite(v)) return '∞'
   if (v === 0) return '0'
-  if (v < 0.001) return v.toExponential(2)
+  // [2026-10-04] Never scientific notation. A poke's buff decays towards zero
+  // and the readout used to follow it down to `1.14e-23` — a number that means
+  // nothing to anybody and looks like a bug. Below a hundredth it is just
+  // "below a hundredth": what a seized studio is producing, and what an idle one is.
+  if (v < 0.01) return '<0.01'
   if (v < 1000) return v.toFixed(2)
   // Not Intl: a localised separator changes the string width, which §3 rule 3
   // forbids beside a monospace face that is counting up.

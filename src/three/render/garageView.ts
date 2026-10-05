@@ -52,7 +52,7 @@ import { buildGarageEnvironment, GARAGE_ASSEMBLED, placeProp, showGarageSeats, s
 import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import { placeInstances, showSeatInstances, type SeatInstance } from './worldArt.ts'
-import { LEADER_IDS, leaderSeat } from '../sim/floorPlan.ts'
+import { LEADER_IDS, leaderSeat, type LeaderId } from '../sim/floorPlan.ts'
 import { createCityHouses } from './cityHouses.ts'
 import { CITY_CAPACITY } from './cityGrid.ts'
 import { OS, OS_SKIN } from '../art/skin.ts'
@@ -87,6 +87,19 @@ export interface GarageView {
   setRunSeed(seed: number): void
   /** Whether James has arrived; he drops in when he does. */
   setJames(here: boolean): void
+  /**
+   * Which of the hero row (Billy, Serena, Matt) have arrived [2026-10-04]. Each
+   * drops in when they do, desk then chair then person, like James; a hero who
+   * was already here when the room was made is simply there.
+   */
+  setHeroes(here: readonly LeaderId[]): void
+  /**
+   * §15.1a [2026-10-04] — the first death's last scene: whoever is in the garage
+   * goes up through the roof and every house lifts off. `liquidating` is true
+   * until the last of them has gone.
+   */
+  liquidate(): void
+  readonly liquidating: boolean
   /** The founder the player made, and the studio's name on the gable. Rebuild only on change. */
   setIdentity(founder: Look, studio: string | null): void
   resize(width: number, height: number): void
@@ -176,7 +189,7 @@ export interface GarageViewOptions {
   onLand?: (piece: 'desk' | 'chair' | 'body') => void
 }
 
-type Piece = 'desk' | 'chair' | 'body'
+type Piece = 'desk' | 'chair' | 'body' | 'wall'
 interface Anim {
   seat: number
   /**
@@ -191,6 +204,13 @@ interface Anim {
   mild?: boolean
   /** A drop's pieces, each falling at its own offset: a hire is desk then person. */
   pieces?: { piece: Piece; at: number; puffed?: boolean }[]
+  /**
+   * A lift that takes something *out* — a length of wall — and leaves the seat's
+   * people alone: without this, finishing a lift empties the seat.
+   */
+  keep?: boolean
+  /** What happens the moment the animation is done: the wall is gone, so the desk drops. */
+  then?: () => void
 }
 /** A hire: the desk, then its developer a beat later. */
 const HIRE_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { piece: 'body', at: .25 }]
@@ -332,6 +352,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let heads = 0
   let addressOffset = 0, visiting: number | null = null
   let james = false
+  /** The hero row's arrivals, in the order they came. */
+  let heroRow: LeaderId[] = []
+  /** Heroes whose wall is on its way up: arrived, but not yet in the room. */
+  const arriving = new Set<LeaderId>()
   /** The first headcount and James arrive with the save, not as events: no drop. */
   let settled = false
   let w = width, h = height
@@ -441,14 +465,20 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     dirty = true
   }
 
-  /** The cast the room is built for: whoever the player is, and James's station either way. */
+  /**
+   * The cast the room is built for: whoever the player is, and *every* hero
+   * station either way [2026-10-04]. A station is built whether or not its hero
+   * has arrived and `showGarageStations` decides what is drawn, because a room
+   * whose light count or contents change when somebody lands recompiles every
+   * material in it.
+   */
   function withJames(): StudioCast {
-    return { ...cast, heroes: ['james'] }
+    return { ...cast, heroes: ['james', 'billy', 'serena', 'matt'] }
   }
 
   /** How much of the hero stations is standing: the founder's always, James's once he is here. */
   function staging(): GarageStaging {
-    return { founder: true, james: james ? 3 : 0 }
+    return { founder: true, james: james ? 3 : 0, heroes: heroRow }
   }
 
   /** The frame's width in world units, at the current zoom. */
@@ -611,8 +641,15 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     return handle ? { key, instances: handle.instances, group: handle.group } : null
   }
 
+  function wall(seat: number): Part | null {
+    const key = `partition:${leaderId(seat)}`
+    const handle = env.props?.get(key)
+    return handle ? { key, instances: handle.instances, group: handle.group } : null
+  }
+
   function pieceParts(seat: number, piece: Piece): Part[] {
     if (piece === 'body') return body(seat)
+    if (piece === 'wall') { const part = wall(seat); return part ? [part] : [] }
     const part = piece === 'desk' ? desk(seat) : chair(seat)
     return part ? [part] : []
   }
@@ -703,14 +740,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     shake = Math.max(shake, exhaust ? .025 : .12)
   }
 
-  function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces'], mild = false) {
+  function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces'], mild = false, extra: Pick<Anim, 'keep' | 'then'> = {}) {
     // A hop does not interrupt a landing, and a second hop restarts the first.
     const running = anims.findIndex((a) => a.seat === seat)
     if (running >= 0) {
       if (anims[running].kind === 'drop' && kind === 'hop') return
       anims.splice(running, 1)
     }
-    anims.push({ seat, kind, start: clock, delay, mild, pieces: pieces?.map((p) => ({ ...p })) })
+    anims.push({ seat, kind, start: clock, delay, mild, pieces: pieces?.map((p) => ({ ...p })), ...extra })
   }
 
   function animate() {
@@ -751,9 +788,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         }
         if (done) {
           anims.splice(i, 1)
-          vacate(a.seat)
+          if (!a.keep) vacate(a.seat)
           // The pods' planters go with the last of their people, not the first.
           if (!anims.some((x) => x.kind === 'lift')) showGarageSeats(env, heads, heads)
+          a.then?.()
         }
         continue
       }
@@ -776,7 +814,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (u < 0) { these.forEach(hide); done = false; continue }
         if (u < 1.62) done = false
         these.forEach((p) => place(p, base, u >= 1.62 ? 0 : fall(u), u >= 1.62 ? 1 : land(u)))
-        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base); options.onLand?.(piece.piece) }
+        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base); if (piece.piece !== 'wall') options.onLand?.(piece.piece) }
       }
       if (done) anims.splice(i, 1)
     }
@@ -880,6 +918,47 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       for (let i = anims.length - 1; i >= 0; i--) if (anims[i].seat === seat) anims.splice(i, 1)
       showGarageStations(env, staging(), withJames())
       if (settled && here) start(seat, 'drop', 0, JAMES_DROP)
+      settled = true
+      renderer.shadowMap.needsUpdate = true
+      dirty = true
+    },
+    liquidate() {
+      for (let s = 0; s < heads; s++) start(s, 'lift', s * 0.07, LIFT_OUT)
+      city.liquidate()
+      dirty = true
+    },
+    get liquidating() { return city.liquidating || anims.some((a) => a.kind === 'lift' && a.seat >= 0) },
+    setHeroes(here) {
+      const next = here.filter((id) => id === 'billy' || id === 'serena' || id === 'matt')
+      const arrived = next.filter((id) => !heroRow.includes(id) && !arriving.has(id))
+      if (arrived.length === 0 && next.length === heroRow.length + arriving.size) { settled = true; return }
+      if (!settled) {
+        // Here when the room was made: simply there, with the wall already gone.
+        heroRow = next
+        showGarageStations(env, staging(), withJames())
+      } else {
+        /*
+         * Somebody came in while the room was running. The wall that was hiding
+         * their bay goes up through the roof, and *then* the desk, the chair and
+         * the person drop into what it uncovered. Until the wall is gone they are
+         * not in the staging, so the bay is still shut and the desk is not in it.
+         */
+        arrived.forEach((id, n) => {
+          arriving.add(id)
+          const seat = leaderSeat(id)
+          start(seat, 'lift', n * 1.8, [{ piece: 'wall', at: 0 }], false, {
+            keep: true,
+            then: () => {
+              arriving.delete(id)
+              heroRow = [...heroRow, id]
+              showGarageStations(env, staging(), withJames())
+              start(seat, 'drop', 0, JAMES_DROP)
+              renderer.shadowMap.needsUpdate = true
+              dirty = true
+            },
+          })
+        })
+      }
       settled = true
       renderer.shadowMap.needsUpdate = true
       dirty = true

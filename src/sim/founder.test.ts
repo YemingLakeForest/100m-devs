@@ -38,7 +38,10 @@ describe('the tree itself — §13.7.1', () => {
     // It read `all four` until §13.9.2 added Cloud as a sixth branch and gave
     // it Melany. §13.7's four were the four that existed when it was written;
     // the rule was never about the number.
-    const branches = new Set(BRANCHES.filter((b) => b !== 'cohesion'))
+    // Quality and Cloud left the cast with Mo and Melany (2026-10-04) and remain
+    // here as retired spines: the founder's Taste and Recruiting are still the
+    // founder's, and are still diluted copies of jobs somebody once did.
+    const branches = new Set<string>([...BRANCHES.filter((b) => b !== 'cohesion'), 'quality', 'cloud'])
     const borrowed = new Set(FOUNDER_TREE.map((n) => n.borrowedFrom))
     for (const b of borrowed) {
       expect(branches.has(b as never), `${b} is not a branch`).toBe(true)

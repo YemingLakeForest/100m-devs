@@ -47,6 +47,10 @@ export function drawNetwork(f: AtlasFrame, net: Network, chosen: number, territo
     if (!live && !next && !nearFrontier.has(q.id)) continue
     const r = q.id === 0 ? 3 : 2
     ctx.fillStyle = live ? A[3] : N[3]; ctx.fillRect(Math.round(q.x)-1,Math.round(q.y)-1,live && height >= 160 ? 2 : 1,live && height >= 160 ? 2 : 1)
+    if (q.id === 0) {
+      // Sol wears the HQ's colours: a point on its ring for each hero who has walked in.
+      f.wings.forEach((wing, k) => { const a = -Math.PI / 2 + (k * TAU) / Math.max(3, f.wings.length); ctx.fillStyle = wing.colour; ctx.fillRect(Math.round(q.x + Math.cos(a) * (r + 4)), Math.round(q.y + Math.sin(a) * (r + 4)), 2, 2) })
+    }
     if (q.id === 0 || next || selected) { ctx.strokeStyle = selected || next ? p[2] : A[2]; ctx.beginPath(); ctx.arc(Math.round(q.x),Math.round(q.y),r + 2,0,TAU); ctx.stroke() }
     f.points.push({ x:q.x, y:q.y, id:q.id, depth:0 })
     if (!f.reduced) for (const e of f.expansions) if (e.from <= q.rank * WORLD_SEATS && e.to > q.rank * WORLD_SEATS) {

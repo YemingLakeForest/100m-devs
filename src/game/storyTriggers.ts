@@ -15,160 +15,140 @@
  * remembers a scene has played. These only answer *would it fire now?*.
  */
 
-import { DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
 import type { HeroId } from '../sim/storyHeroes.ts'
 
-/** What a release carries that a trigger cares about. */
-export interface StoryRelease {
-  defectDensity: number
-}
-
-/** The state a trigger reads. A snapshot, not `GameState`, so it stays testable. */
+/**
+ * The state a trigger reads. A snapshot, not `GameState`, so it stays testable.
+ *
+ * [amended 2026-10-04] Mo and Melany are gone, so the release defect densities,
+ * the developer count, the cap and the cash that their two predicates read are
+ * gone with them; what is here is what Billy, Serena and Matt ask.
+ */
 export interface StorySnapshot {
   paradigmShifts: number
-  releases: readonly StoryRelease[]
-  /** §4.12a — is any release's tail being suppressed right now? */
-  hasIncident: boolean
+  /** §4.12a — incidents open right now. */
+  incidents: number
   /** §4.13 — the queue depth. */
   tickets: number
   /** Seconds the queue has gone unanswered. "Sustained" needs a clock. */
   ticketsUnservedFor: number
-  devs: number
-  devCap: number
-  cash: number
   /**
    * §4.1 — the entropy reading, 0..1, **as a fact about the organisation**.
    *
    * `store.structuralEntropy`, not the gauge: §18.0's event ceiling is taken
    * back out, so a studio held at 25% output by a thread does not read as a
    * studio that has outgrown its own capacity. Only {@link billyArrives} reads
-   * it, and that is the only reading it wants — see the store function's note
-   * for the walk that established the difference.
+   * it, and that is the only reading it wants.
    */
   entropy: number
-  /** §21.7.3, Billy — seconds that reading has been at or below half. */
-  syncHalvedFor: number
+  /** §21.7.3, Billy — seconds that reading has been at or above {@link SYNC_FELT}. */
+  syncSlippedFor: number
+  /** §10.7, Serena — seconds, this run, the floor has stood still on a full shelf. */
+  shelfStalledFor: number
+  /** §10.7, Serena — builds the player has put on sale by hand, this run. */
+  handReleases: number
+  /**
+   * Seconds Serena has been in the building, this run; 0 if she is not. Matt's
+   * door is behind hers, on purpose, **and a little way behind** — see
+   * {@link MATT_AFTER_SERENA_S}.
+   */
+  sinceSerena: number
 }
 
 /** §21.7.3 — "a sustained period". A first pass, marked as one. */
 export const MATT_SUSTAINED_S = 30
 
-/*
- * `CHATTY_TOP` lived here — §21.7.3, retired 2026-08-29.
+/**
+ * §21.7.3, Billy — **the first moment growth visibly costs sync.**
  *
- * It was Billy's threshold: 10% entropy, the top of §4.3a's second band. See
- * {@link billyArrives} for why the beat moved to {@link SYNC_HALVED}. Deleted
- * rather than left standing, on the rule `scenes.ts` states for
- * `MASS_HIRE_AT_LINE` — a constant with no caller is a rule that quietly comes
- * back, and this one would come back as a second, earlier door onto the same
- * scene.
+ * Amended 2026-10-04. Sync falling as the studio grows is the core of the game,
+ * and Billy's meeting tree is how it is pushed back, so he is the answer to the
+ * first *felt* slip and not to a collapse. The previous door (half, held for
+ * twenty seconds) was D = D_cap, which a player who reads the speedometer never
+ * reaches: measured over two simulated hours, the careful player stopped at 80
+ * of 105 and never met him. A scene that rewards overhiring and punishes the
+ * player who was right is the wrong scene for the one hero who is about sync.
+ *
+ * Five per cent is the first reading the gauge shows as something other than
+ * `IN SYNC` that a player would not dismiss — §21.0's measured table has the
+ * wave-away `CHATTY 1%` at forty developers, and this is a few hires past it.
+ * **A first pass, to be tuned against `pacing.test.ts`'s arrival table.**
  */
+export const SYNC_FELT = 0.05
 
 /**
- * §21.7.3, Billy — **half the studio's work is now the studio talking to
- * itself**, and that is not a chosen number.
- *
- * η = 1/(1 + (D/D_cap)^ρ), so η = ½ exactly when D = D_cap. Sync is η, so
- * *sync has halved* and *the headcount has reached the capacity the studio can
- * actually sustain* are one event with two names. At §4.2's base cap of 100
- * that is the hundredth hire, which is where the beat lands in Run 2; a studio
- * that has bought §11.2's protocols moves the hire count and not the meaning,
- * which is the whole reason this is written as a sync reading and not as a
- * headcount.
- *
- * The player has watched a readout fall from `IN SYNC 100%` to
- * `PRODUCTIVITY BREAKDOWN 50%` to get here, which is the largest single move
- * that gauge ever makes inside one run.
- */
-export const SYNC_HALVED = 0.5
-
-/**
- * §21.7.3, Billy — and it has to have *stayed* there.
- *
- * Two jobs, and the second one is the one that made this a clock rather than a
- * threshold.
- *
- * **It separates Billy from Melany.** `melanyArrives` fires at `devs >= devCap`
- * with cash spare, and — see {@link SYNC_HALVED} — that is arithmetically the
- * same instant. Two people cannot walk through the same door on the same frame,
- * and §21.7.3's shape rules make each arrival a handshake with room around it.
- * So Melany arrives on the *event* of touching the cap, which is her whole
- * pitch, and Billy arrives on the studio still being there afterwards.
- *
- * **And it makes the scene's premise true on screen.** The scene James opens is
- * about a number that has gone wrong and stayed wrong. A trigger that fired on
- * the first frame past the threshold would play it over a gauge that was, as
- * far as the player could tell, mid-wobble.
- *
- * Shorter than {@link MATT_SUSTAINED_S} deliberately: Matt's queue is a bar the
- * player can ignore, and the speedometer is the one readout they are already
- * looking at. Twenty seconds is long enough to be a *state* and short enough
- * that the gauge is still the thing under their eye when James speaks.
+ * §21.7.3, Billy — and it has to have *stayed* there, so the scene is about a
+ * state and not a flicker, and the gauge is still under the player's eye when
+ * James speaks. Shorter than {@link MATT_SUSTAINED_S}: the speedometer is the
+ * one readout they are already looking at.
  */
 export const BILLY_SUSTAINED_S = 20
 
 /**
  * §21.7.3, Billy — **the second reality, not the third.**
  *
- * "The second restart" is Run 2: §15.1a's cut scene labels it `REALITY 002` and
- * it is the first run that has hiring, upgrades, heroes or a capacity worth
- * outgrowing. Putting Billy a run later would be defensible on story grounds
- * and is wrong on system grounds — §13.8's placement is gated behind him now,
- * so Mo, Serena, Matt and Melany would spend the whole of §13.12.2's
- * hour-and-a-half Run 2 on a bench with no way off it, and §13.13's hero board
- * (which needs XP, which needs coverage, which needs a placement) would be
- * unreachable with them.
- *
- * A named constant rather than `> 0` inline because it is the one number in
- * this file that is a *reading of an instruction* rather than a derivation, and
- * moving the beat a run later should cost one edit here.
+ * "The second restart" is Run 2: the first run that has hiring, upgrades or
+ * heroes. A named constant rather than `> 0` inline because it is a reading of
+ * an instruction, and moving the beat a run later should cost one edit here.
  */
 export const BILLY_MIN_SHIFTS = 1
 
 /**
- * Mo — Quality. A release is rated below baseline *on defects alone*: it shipped
- * with a density worse than the garage anchor, which is the half of the rating
- * the player watched themselves cause.
+ * §10.7, Serena — **the queue is the bottleneck.** Two doors, because the
+ * feeling has two forms and a player only ever has one of them.
+ *
+ * The *stall*: the floor has stood still on a full shelf for a cumulative
+ * fifteen seconds — a player who walks away from the thumb finds out what a
+ * full buffer is. The *chore*: eight hand-releases, for the player who never
+ * lets it stall and so never meets the first form, and is exactly the player
+ * to whom *"I can make it ship itself"* is relief. Both numbers are first
+ * passes.
  */
-export function moArrives(s: StorySnapshot): boolean {
-  return s.releases.some((r) => r.defectDensity > DEFECT_DENSITY_ANCHOR)
-}
+export const SERENA_STALL_S = 15
+export const SERENA_HAND_RELEASES = 8
 
-/** Serena — Reliability. A game that *was* earning has stopped, overnight. */
+/**
+ * §4.12a, Matt — incidents open at once that count as drowning. Two: one is a
+ * page, two is a bad night. (Three, until it was measured: with the rate then in
+ * force no studio in the game ever had three.) First pass.
+ */
+export const MATT_INCIDENTS = 2
+
+/**
+ * §21.7.3, Matt — the gap behind Serena. Two arrivals on one frame is the failure
+ * §21.7.3's shape rules forbid, and with incidents raised (`incidents.ts`) a
+ * studio that has been paging for ten minutes meets Serena with the pile already
+ * there. A minute is long enough for her scene to have finished and her board to
+ * have been looked at. First pass.
+ */
+export const MATT_AFTER_SERENA_S = 60
+
+/**
+ * Serena — Reliability. The pipeline is not keeping up with the studio: the
+ * floor has stopped waiting for a thumb, or the thumb is tired of it.
+ */
 export function serenaArrives(s: StorySnapshot): boolean {
-  return s.hasIncident
-}
-
-/** Matt — Support. The drab grey bar filled up and nobody is answering it. */
-export function mattArrives(s: StorySnapshot): boolean {
-  return s.tickets > 0 && s.ticketsUnservedFor >= MATT_SUSTAINED_S
-}
-
-/** Melany — Cloud. Tried to solve a problem by hiring and hit the cap with cash spare. */
-export function melanyArrives(s: StorySnapshot): boolean {
-  return s.devs >= s.devCap && s.cash > 0
+  return s.shelfStalledFor >= SERENA_STALL_S || s.handReleases >= SERENA_HAND_RELEASES
 }
 
 /**
- * Billy — Cohesion. **Sync has halved, and it has stayed halved.**
- *
- * Amended 2026-08-29. It read `entropy >= CHATTY_TOP`, which fires at 90% sync
- * — around the sixty-fifth hire on the base cap — and that was the wrong beat
- * in two ways once §13.8's placement moved behind this door.
- *
- * It was too early to be a *feeling*: `CHATTY` is the label §4.3a explicitly
- * describes as "the hint the player dismisses", so the scene arrived to explain
- * a problem the player had not yet had. And it was too early to be *earned*:
- * the whole of §21.7.6 is that a system enters in the hands of the person who
- * solves it, and the person who hands over the floor should turn up when the
- * floor is visibly the problem.
- *
- * See {@link SYNC_HALVED} for why half is the honest place and
- * {@link BILLY_SUSTAINED_S} for why it is a clock.
+ * Matt — Support. Incidents and tickets are landing faster than the studio
+ * clears them. **After Serena**, because the order is the design: the player
+ * fixes how the studio ships, and then finds out what shipping does to them.
+ */
+export function mattArrives(s: StorySnapshot): boolean {
+  if (s.sinceSerena < MATT_AFTER_SERENA_S) return false
+  if (s.incidents >= MATT_INCIDENTS) return true
+  return s.incidents > 0 && s.tickets > 0 && s.ticketsUnservedFor >= MATT_SUSTAINED_S
+}
+
+/**
+ * Billy — Cohesion. **Sync has first slipped from the studio's growth, and has
+ * stayed slipped.** See {@link SYNC_FELT}.
  */
 export function billyArrives(s: StorySnapshot): boolean {
   if (s.paradigmShifts < BILLY_MIN_SHIFTS) return false
-  return s.entropy >= SYNC_HALVED && s.syncHalvedFor >= BILLY_SUSTAINED_S
+  return s.entropy >= SYNC_FELT && s.syncSlippedFor >= BILLY_SUSTAINED_S
 }
 
 /**
@@ -222,27 +202,27 @@ export function founderBoardArrives(s: BoardSnapshot): boolean {
 }
 
 /**
- * §21.7.4 — **Global Head of His Desk**, the first time James has a colleague.
+ * §21.7.4 — **Global Head of His Desk**, once James has a department.
  *
- * The section fires the scene *"the first time a card is placed above another
- * card"*, and this build read "above" off §7.7's ladder: James posted on a
- * higher rung than another posted hero. Placement was cut on 2026-09-26, so
- * the org chart is simply who is in the building — and the first person to
- * arrive after James is the first person he can be the head *of*. The title is
- * no less meaningless for being earned this way, which is the joke.
+ * It fired on the second arrival [amended 2026-10-04], and with Mo's door the
+ * second arrival landed on the same frame as the first — two scenes back to
+ * back, and a joke about *global* before there was anything global. It waits
+ * for the third person in the building: James, Billy and Serena, which is a
+ * team with a head. The title is no less meaningless for being earned this way,
+ * which is the joke.
  */
+export const JAMES_PROMOTED_AT = 3
+
 export function jamesPromoted(arrived: ReadonlySet<HeroId>): boolean {
-  return arrived.has('james') && arrived.size > 1
+  return arrived.has('james') && arrived.size >= JAMES_PROMOTED_AT
 }
 
 /** The predicate for a hero, or null for James (who needs no trigger). */
 export function arrivalPredicate(id: HeroId): ((s: StorySnapshot) => boolean) | null {
   switch (id) {
     case 'james': return null
-    case 'mo': return moArrives
     case 'serena': return serenaArrives
     case 'matt': return mattArrives
-    case 'melany': return melanyArrives
     case 'billy': return billyArrives
   }
 }

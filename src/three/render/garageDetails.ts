@@ -474,6 +474,36 @@ export function garageDeskStory(g: T.Group, id: string): void {
     box(g, -1.3, 0, -.08, .47, .42, .42, '#506565')
     box(g, -1.3, .42, -.08, .39, .012, .34, '#253b3c')
     for (let i = 0; i < 3; i++) dietCoke(g, -1.44 + i * .14, .34, -.08)
+  } else if (id === 'billy') {
+    // [2026-10-04] The hero row. Billy stands: a whiteboard on an easel, a kitchen
+    // timer set to fifteen minutes, and a stack of index cards in a very neat pile.
+    box(g, -1.45, 0, .35, .06, 1.15, .06, INK.metal); box(g, -1.0, 0, .35, .06, 1.15, .06, INK.metal)
+    box(g, -1.22, 1.0, .35, 1.1, .8, .05, '#e9ecea')
+    box(g, -1.22, 1.0, .325, 1.16, .86, .02, INK.trim)
+    for (let i = 0; i < 3; i++) box(g, -1.42 + i * .12, 1.2 + (i % 2) * .15, .385, .08, .04, .01, ['#477671', '#a24a3f', '#b79b45'][i])
+    nameSign(g, 'STANDUP 15:00', -1.22, .72, .395, .8, 0, '#4a5f79')
+    // He stands, so the timer and the cards are on a crate by the easel.
+    box(g, -.55, 0, .5, .42, .46, .42, INK.woodEdge)
+    cylinder(g, -.55, .46, .5, .09, .06, '#b0443a'); box(g, -.55, .52, .5, .03, .02, .02, '#f2ead0')
+    for (let i = 0; i < 4; i++) box(g, -.55, .46 + i * .012, .66, .16, .01, .1, '#efe9d8')
+  } else if (id === 'serena') {
+    // Serena: three more monitors than anyone needs, all of them green.
+    for (const [x, yaw] of [[-.78, .35], [.8, -.35]] as const) {
+      const m = new T.Group(); m.position.set(x, .92, .92); m.rotation.y = Math.PI + yaw; g.add(m)
+      box(m, 0, .1, 0, .06, .2, .05, INK.metal)
+      box(m, 0, .38, 0, .62, .38, .05, INK.metal)
+      box(m, 0, .38, .028, .56, .32, .01, '#1d4a3a')
+      for (let i = 0; i < 5; i++) box(m, -.22 + i * .11, .28 + (i % 3) * .06, .035, .06, .03 + (i * 7 % 5) * .02, .01, '#5fd08a')
+    }
+    nameSign(g, 'IT’S UP', .02, 1.55, 1.18, .5, 0, '#2f6b4a')
+    cylinder(g, -.7, .95, .6, .07, .12, '#cfd3cf')
+  } else if (id === 'matt') {
+    // Matt: a headset on the monitor, and the ticket wall behind him — every
+    // sticky note on it is the same note.
+    box(g, .62, .925, .6, .22, .03, .16, INK.metal); box(g, .62, 1.0, .6, .18, .14, .03, INK.metal)
+    box(g, -.5, 1.5, -.72, 1.9, .95, .05, '#b9a77f')
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) box(g, -1.2 + c * .28, 1.2 + r * .27, -.69, .2, .2, .01, ['#f2d95c', '#f2b05c', '#f08f7a'][(r + c) % 3])
+    nameSign(g, '400 × THE BLUE BUTTON', -.5, 2.05, -.69, 1.2, 0, '#4e7d56')
   } else if (id === 'founder') {
     // The rubber-duck debugger has been promoted to CTO: chunky, crowned, visible.
     box(g, -.67, .92, 1.00, .47, .26, .35, '#edbe47')

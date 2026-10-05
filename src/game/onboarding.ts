@@ -252,6 +252,8 @@ export const PHASE_COPY: Record<Phase, PhaseCopy> = {
       'and zero seconds coding.',
       '',
       'LESSON LEARNED:',
+      // [2026-10-04] the headcount first, then the way out — see lessons.ts.
+      'Past what a studio can coordinate, every hire makes it slower.',
       'Manpower without Communication Infrastructure is Chaos.',
     ],
     action: 'TRIGGER PARADIGM SHIFT',
@@ -311,6 +313,35 @@ export const TERM_SHEET_AFTER_SHIPS = FIRST_PAID_RUNG
 export const SEED_ROUND_CASH = 50_000
 
 export const MASS_HIRE_COUNT = 1000
+
+/**
+ * §21 Act IV [amended 2026-10-04] — **the thousand land in waves, not in one
+ * frame.**
+ *
+ * The collapse used to be a cliff: a thousand people on a cap of a hundred is
+ * η = 1e-5, so the speedometer went from fine to seized between one frame and
+ * the next and the player never saw *why*. The lesson Run 1 exists to teach —
+ * past what a studio can coordinate, every hire makes it slower —
+ * is a statement about a curve, and a curve is only visible if you are shown it
+ * being walked. Eleven waves, seven tenths of a second apart, spaced the way the
+ * plate's axis is (logarithmically: ten, then twenty-five, … then a thousand),
+ * so the dot walks evenly across the hill. **A first draft used ten equal waves
+ * of a hundred, and the first of them stepped clean over the peak at about 76
+ * developers — the climb, which is half the lesson, was never on screen.**
+ * Four waves now land below the peak and the fifth carries the studio through
+ * it, so output is seen to climb, peak, and fall while headcount only rises.
+ *
+ * The transaction is unchanged: one signature, the whole treasury, a thousand
+ * heads, §4.10d's payroll. Only the arrival is spread, which is why the first
+ * wave lands in `massHire()` itself and the rest in `tick`.
+ */
+export const MASS_HIRE_TOTALS: readonly number[] = [10, 25, 45, 70, 100, 150, 230, 350, 520, 750, 1000]
+export const MASS_HIRE_WAVES = MASS_HIRE_TOTALS.length
+/** The developers wave `i` (0-based) adds. */
+export function massHireWaveSize(i: number): number {
+  return MASS_HIRE_TOTALS[i] - (i > 0 ? MASS_HIRE_TOTALS[i - 1] : 0)
+}
+export const MASS_HIRE_WAVE_S = 0.7
 
 /**
  * Phases whose words are a §21.7 **scene** rather than a banner.

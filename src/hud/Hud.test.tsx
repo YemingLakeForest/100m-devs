@@ -14,7 +14,6 @@ import {
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import {
   SCENE_MATT_ARRIVES,
-  SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
   SCENE_THREAD_CLEARED,
 } from '../game/scenes.ts'
@@ -262,7 +261,7 @@ describe('§21.0c — Act I shows one lever', () => {
   })
 
   it('draws each colour when its own hero sits down, and no others', () => {
-    withHeroes(SCENE_MO_ARRIVES)
+    withHeroes(SCENE_SERENA_ARRIVES)
     jumpToPhase('act2_loop')
     __setState({
       defects: 40,
@@ -272,15 +271,15 @@ describe('§21.0c — Act I shows one lever', () => {
     })
     const { container } = render(<Hud stage={null} />)
 
-    // Mo brings defects. Serena and Matt have not arrived, so neither has
-    // their bar — and there is no hire to answer any of it (§4.11, cut).
+    // Serena brings defects. Matt has not arrived, so neither have his two bars —
+    // and there is no hire to answer any of it (§4.11, cut).
     expect(container.querySelectorAll('.backlog').length).toBe(1)
     expect(container.querySelector('.backlog--defects')).not.toBeNull()
     expect(screen.queryByRole('button', { name: 'QA' })).toBeNull()
   })
 
-  it('completes the set once all three have arrived — §21.7.6b', () => {
-    withHeroes(SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES, SCENE_MATT_ARRIVES)
+  it('completes the set once both have arrived — §21.7.6b', () => {
+    withHeroes(SCENE_SERENA_ARRIVES, SCENE_MATT_ARRIVES)
     jumpToPhase('act2_loop')
     __setState({
       defects: 40,
@@ -502,9 +501,13 @@ describe('§10.1’s velocity split after R14 — the "you" half is the whole of
       .map((n) => n.textContent ?? '')
       .find((t) => t.includes('swarm'))
     if (!line) return null
-    const m = line.match(/^([\d,.]+) swarm \+ ([\d,.]+) you$/)
+    const m = line.match(/^(<?[\d,.]+) swarm \+ (<?[\d,.]+) you$/)
     if (!m) throw new Error(`unreadable split: ${line}`)
-    return { swarm: Number(m[1].replace(/,/g, '')), you: Number(m[2].replace(/,/g, '')) }
+    // `<0.01` is formatVelocity's floor [2026-10-04]. The readout only says "below a
+    // hundredth", so the most it can claim is the hundredth: read it as its upper
+    // bound, which keeps "more than the thumb's residue" a claim the display can bear.
+    const read = (t: string) => (t.startsWith('<') ? Number(t.slice(1)) - 1e-6 : Number(t.replace(/,/g, '')))
+    return { swarm: read(m[1]), you: read(m[2]) }
   }
 
   it('counts a buff as the player’s work, not as the swarm’s', () => {

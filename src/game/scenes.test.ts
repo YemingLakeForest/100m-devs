@@ -7,10 +7,8 @@ import {
   SCENE_MASS_HIRE,
   SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_JAMES_PROMOTED,
-  SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
   SCENE_MATT_ARRIVES,
-  SCENE_MELANY_ARRIVES,
   SCENE_BILLY_ARRIVES,
   SCENE_THE_THREAD,
   SCENE_THREAD_CLEARED,
@@ -288,12 +286,10 @@ describe('the scene registry', () => {
  * the four arrivals are still held to the letter, and Billy's scene is held to
  * the things that are *still* true of every scene in the game.
  */
-describe('§21.7.3 — the four story arrivals', () => {
+describe('§21.7.3 — the two story arrivals that walk through the door', () => {
   const arrivals = [
-    SCENE_MO_ARRIVES,
     SCENE_SERENA_ARRIVES,
     SCENE_MATT_ARRIVES,
-    SCENE_MELANY_ARRIVES,
   ]
 
   it('is a handshake, not an act — under twelve lines', () => {
@@ -311,10 +307,10 @@ describe('§21.7.3 — the four story arrivals', () => {
 
   it('has James talk about the tool or the process, never the person', () => {
     // §21.7.3 shape rule 3 — he does not notice people arriving. Word-boundary
-    // matched, because "More capacity" is not a mention of Mo.
+    // matched, so a stray word cannot be mistaken for a name.
     for (const scene of arrivals) {
       const line = scene.script.find((l) => l.speaker === 'JAMES')!
-      for (const hero of ['Mo', 'Serena', 'Matt', 'Melany', 'Billy']) {
+      for (const hero of ['Serena', 'Matt', 'Billy']) {
         expect(line.text).not.toMatch(new RegExp(`\\b${hero}\\b`))
       }
     }
@@ -332,13 +328,13 @@ describe('§21.7.3 — Billy, the referral', () => {
   const script = SCENE_BILLY_ARRIVES.script
   const said = script.map((l) => l.text).join(' ')
 
-  it('opens on the collapse rather than on the door', () => {
-    // The feeling this scene is written to is a gauge that halved and stayed
-    // there (`storyTriggers.billyArrives`), so the machine reports the reading
-    // and the founder reacts to it. `APPLICANT AT DOOR` still happens — twelve
+  it('opens on the reading rather than on the door', () => {
+    // The feeling this scene is written to is a gauge that has first slipped
+    // under growth and stayed there (`storyTriggers.billyArrives`), so the
+    // machine reports the reading and the founder reacts to it. `APPLICANT AT DOOR` still happens — twelve
     // lines later, once James has sent for him.
     expect(script[0].speaker).toBe('STUDIO_OS')
-    expect(script[0].text).toContain('50%')
+    expect(script[0].text).toContain('95%')
     expect(said).toContain('APPLICANT AT DOOR')
     expect(script.findIndex((l) => l.text.includes('APPLICANT AT DOOR'))).toBeGreaterThan(
       script.findIndex((l) => l.speaker === 'JAMES'),
@@ -375,7 +371,9 @@ describe('§21.7.3 — Billy, the referral', () => {
     // cut. It closes on what he brings instead: the stand-up, and half the
     // floor working through it — both lines `STUDIO_OS`, stated as policy.
     expect(script.at(-1)!.speaker).toBe('STUDIO_OS')
-    expect(script.at(-1)!.text).toContain('HALF OF THE FLOOR')
+    // [2026-10-04] and the last line is what his tree is for: sync going back up.
+    expect(script.at(-1)!.text).toContain('SYNC GOES BACK UP')
+    expect(said).toContain('HALF OF THE FLOOR')
     expect(said).toContain('SCRUM MASTER')
     expect(said).not.toMatch(/POSTED|PLACE/)
   })
@@ -455,7 +453,7 @@ describe('§21.7.7 — the three boards each arrive with somebody', () => {
     )
     expect(james.length).toBeGreaterThan(0)
     for (const line of james) {
-      for (const hero of ['Mo', 'Serena', 'Matt', 'Melany', 'Billy']) {
+      for (const hero of ['Serena', 'Matt', 'Billy']) {
         expect(line.text).not.toMatch(new RegExp(`\\b${hero}\\b`))
       }
     }

@@ -150,6 +150,8 @@ export interface TreeNode {
    * with one does something in this build; its `effect` says what.
    */
   tech?: string
+  /** True when a lever in `treeLevers.ts` reads this node's level. */
+  lever?: boolean
 }
 
 interface Opts {
@@ -166,6 +168,8 @@ interface Opts {
   /** `TreeNode.tech`, and the effect line that goes with it. */
   tech?: string
   fx?: string
+  /** Wired to a lever in `treeLevers.ts` — the founder's and Matt's nodes. */
+  lv?: boolean
 }
 
 /** The demo's own constructor, so the table below reads like the demo's. */
@@ -188,8 +192,75 @@ function N(id: string, x: number, y: number, name: string, icon: string, era: nu
     breakthrough: o.sl,
     wired: false,
     tech: o.tech,
-    effect: o.fx,
+    lever: o.lv,
+    // A coordination node says what it does in the player's words: it raises sync.
+    effect: o.fx ?? (o.k ? coordinationLine(o.k) : undefined),
   }
+}
+
+/**
+ * **Billy's coordination points are the sync lever** [2026-10-04, GDD §21.7.3].
+ *
+ * *"sync decreasing as we have more people is the core mechanic, and Billy's
+ * meeting tree is designed to improve it."* The tree's `k` nodes ("Coordination
+ * +1 per level") were drawn and priced and did nothing; they now do the one
+ * thing §4.1 can be moved by from outside. Sync is η = 1/(1 + (D/cap)^ρ), so it
+ * only ever sees the ratio of headcount to capacity, and *raising sync* and
+ * *cutting the communication load* and *raising the effective cap* are one
+ * operation — the same one §11.2's Instant Messenger already is, at −5% load.
+ * A coordination point is that same step, compounding rather than summing so no
+ * number of them can take the load to zero.
+ *
+ * Five per cent and not more because the whole of Billy's coordination column is
+ * thirteen points: 0.95^13 is a load of about half, which is a cap of nearly
+ * twice, bought through three eras of nodes — a real answer to §4.1 and not the
+ * end of it. The `mv` nodes, which move loss between slices of a ledger this
+ * build does not model, stay as they were, unwired and saying so.
+ */
+export const COORD_LOAD_STEP = 0.95
+
+function coordinationLine(k: number): string {
+  const cut = Math.round((1 - COORD_LOAD_STEP ** k) * 100)
+  return `Sync up: communication load −${cut}% per level.`
+}
+
+/**
+ * Coordination points Billy brings with him when he sits down [2026-10-04].
+ *
+ * His root carries the Daily Standup, which is a small standing cost (a fifth of
+ * the studio for five seconds a minute: about 1.7% of output, and half that with
+ * his trait) for a ceiling a studio held at §4.1's optimum never touches. And his
+ * trigger now brings the *careful* player to him. So the arrival has to be a net
+ * gain for exactly that player, or the one hero who is about sync is a tax on
+ * playing well. One point is a 5% cut in load — a cap of about 1.05 — against a
+ * cost of under one per cent.
+ */
+export const BILLY_ARRIVAL_POINTS = 1
+
+/**
+ * The multiplier on §4.2's cap from the coordination points the player owns.
+ *
+ * **Any tree's coordination nodes count** [2026-10-04]: James's three era-0 nodes
+ * carry a little of it. They are what THE THREAD's cure is made of — James says
+ * *"Open UPGRADES. Buy anything. They all make people talk to each other less"*
+ * and, once nodes that change nothing could no longer be bought, had to have
+ * something to sell four minutes in, before Billy or Serena are in the building.
+ */
+export function syncCapMultiplier(
+  levels: Readonly<Record<string, number>> | undefined,
+  billyHere = false,
+): number {
+  let points = billyHere ? BILLY_ARRIVAL_POINTS : 0
+  if (levels) {
+    for (const hero of TREE_HEROES) {
+      for (const node of TREES[hero]) {
+        if (!node.coord) continue
+        const level = Math.min(node.max, Math.max(0, Math.floor(levels[treeKey(hero, node.id)] ?? 0)))
+        points += node.coord * level
+      }
+    }
+  }
+  return 1 / COORD_LOAD_STEP ** points
 }
 
 const COORD_SLICE: Record<CoordKind, LossSlice> = { meet: 'meetings', wait: 'waiting', dup: 'duplicate', handoff: 'handoffs' }
@@ -227,11 +298,11 @@ function fromPipeline(n: PipelineNode): TreeNode {
 export const TREES: Record<TreeHero, readonly TreeNode[]> = {
   you: [
     N('R', 0, 0, 'The Garage', 'garage', 0, { t: 'root', d: 'Four desks, one extension cord. The garage stays, and it can be upgraded.' }),
-    N('y1', 1, 0, 'Second Monitor', 'monitor', 0, { p: ['R'], d: 'Your own desk writes more. It is the one output in the company that never dilutes.' }),
+    N('y1', 1, 0, 'Second Monitor', 'monitor', 0, { p: ['R'], lv: true, fx: 'Your own desk writes 30% more.', d: 'Your own desk writes more. It is the one output in the company that never dilutes.' }),
     N('y2', 0, 1, 'Beanbag Row', 'beanbag', 0, { p: ['R'], t: 'lvl', max: 3, d: 'Two more garage seats per level.' }),
     N('y3', 1, 1, 'The Big Red Button', 'button', 0, { p: ['y1', 'y2'], d: 'SHIP! by hand. It clunks. Every release is your finger until Serena automates it.' }),
     N('gS', 1, 2, 'Serena · Auto-Ship', '', 0, { t: 'link', to: 'serena:a1', p: ['y3'] }),
-    N('p1', 2, 0, 'Look Over Their Shoulder', 'head', 0, { p: ['y1'], d: 'A poke wakes one slacker. The effect wears off, which is what pokes are for.' }),
+    N('p1', 2, 0, 'Look Over Their Shoulder', 'head', 0, { p: ['y1'], lv: true, fx: 'A poke interrupts the person 15% less.', d: 'A poke wakes one slacker. The effect wears off, which is what pokes are for.' }),
     N('p2', 3, 0, 'Walk the Floor', 'shoe', 1, { p: ['p1'], d: 'A poke reaches a whole pod.' }),
     N('p3a', 4, 0, 'All-Hands Email', 'envelope', 2, { p: ['p2'], ex: 'A', mv: ['slacking', 'meetings', 5], d: 'Pokes a whole tower at once. They discuss it in a meeting about the email.' }),
     N('p3b', 3, -1, 'Glass Walls', 'glass', 2, { p: ['p2'], ex: 'A', mv: ['slacking', 'duplicate', 5], d: 'Nobody slacks where you can see them. Two teams build the same thing so they look busy.' }),
@@ -247,7 +318,7 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('m6', 0, -4, 'Launch Pad on the Lawn', 'pad', 3, { p: ['m4'], d: 'Earth is full at 100,000,000. Something on the lawn is fuelled with Diet Coke.' }),
     N('gJ', 1, -4, 'James · Bye, Earthling.', '', 3, { t: 'link', to: 'james:L', p: ['m6'] }),
     N('h1', -1, 0, 'Post on a Forum', 'bubble', 0, { p: ['R'], d: 'Hires two to four.' }),
-    N('h2', -2, 0, 'Hiring Dial', 'dial', 1, { p: ['h1'], t: 'lvl', max: 5, d: 'Hire faster. Every hire joins the square root.' }),
+    N('h2', -2, 0, 'Hiring Dial', 'dial', 1, { p: ['h1'], t: 'lvl', max: 5, lv: true, fx: 'Each hire costs a little less than the last: the price step shrinks 12% per level.', d: 'Hire faster. Every hire joins the square root.' }),
     N('h3', -2, 1, 'Referral Bonus', 'twoheads', 1, { p: ['h2'], mv: ['onboarding', 'slacking', 4], d: 'Friends onboard faster. They also chat.' }),
     N('h4a', -3, 0, 'Bootcamp', 'tent', 2, { p: ['h2'], ex: 'B', mv: ['onboarding', 'duplicate', 5], d: 'New hires learn by building the same to-do app, forty thousand times.' }),
     N('h4b', -3, 1, 'Buddy System', 'buddy', 2, { p: ['h3'], ex: 'B', mv: ['onboarding', 'waiting', 5], d: 'Every hire gets a buddy, and the buddies stop shipping.' }),
@@ -258,11 +329,11 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
   ],
   james: [
     N('R', 0, 0, 'Instant Messenger', 'monitor', 0, { t: 'root', tech: 'B1', fx: 'Communication load −5%', d: 'He brought it at the start of the run, so you don’t have to speak to each other any more. You are sitting side by side.' }),
-    N('j1', 1, 0, 'Diet Coke Stack', 'cans', 0, { p: ['R'], t: 'lvl', max: 5, d: 'Everything in his pod +3% per level. You can see the stack from the door.' }),
-    N('j2', 0, 1, 'Pair With the Founder', 'twoheads', 0, { p: ['R'], d: 'Your taps count double near him.' }),
+    N('j1', 1, 0, 'Diet Coke Stack', 'cans', 0, { p: ['R'], t: 'lvl', max: 5, k: 0.25, d: 'Everything in his pod +3% per level. You can see the stack from the door.' }),
+    N('j2', 0, 1, 'Pair With the Founder', 'twoheads', 0, { p: ['R'], k: 0.5, d: 'Your taps count double near him.' }),
     N('j3', 1, 1, 'Knows a Chap', 'phone', 1, { p: ['j1', 'j2'], d: 'Introduces Billy. Billy’s tree opens.' }),
     N('gB', 2, 1, 'Billy · the Board', '', 1, { t: 'link', to: 'billy:R', p: ['j3'] }),
-    N('j4', -1, 0, 'Torn Elbows', 'jumper', 0, { p: ['R'], d: 'He has worn that jumper since the garage, and it is load-bearing. His pod ships a little faster.' }),
+    N('j4', -1, 0, 'Torn Elbows', 'jumper', 0, { p: ['R'], k: 0.25, d: 'He has worn that jumper since the garage, and it is load-bearing. His pod ships a little faster.' }),
     N('j5a', -2, 0, 'Shared Snippets Folder', 'folder', 1, { p: ['j4'], ex: 'C', mv: ['duplicate', 'handoffs', 4], d: 'Nobody rewrites the date picker, but somebody has to own the folder.' }),
     N('j5b', -1, -1, 'Rewrite It Over the Weekend', 'coffee', 1, { p: ['j4'], ex: 'C', mv: ['duplicate', 'waiting', 4], d: 'Monday morning brings one very large merge.' }),
     N('j6', -2, -1, 'Grep Everything', 'magnifier', 2, { p: ['j5a', 'j5b'], mv: ['duplicate', 'waiting', 3], d: 'Search before you build. The index rebuilds hourly, and everyone waits for it.' }),
@@ -282,7 +353,7 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('K2', 0, -5, 'Ansible', 'ansible', 4, { t: 'key', sl: 'lag', p: ['q4', 'q5', 'q6'], all: true, d: 'Faster than light, for one sentence at a time.' }),
   ],
   billy: [
-    N('R', 0, 0, 'Daily Standup', 'whiteboard', 1, { t: 'root', p: ['gJ'], tech: 'B2', fx: 'Entropy can never pass 80% — but every minute a fifth of the studio stops for 5s, and Billy keeps half the floor working through it', d: 'He arrives when sync collapses, and James knows a chap: fifteen minutes, standing up, in a fixed order.' }),
+    N('R', 0, 0, 'Daily Standup', 'whiteboard', 1, { t: 'root', p: ['gJ'], tech: 'B2', fx: 'Entropy can never pass 80% — but every minute a fifth of the studio stops for 5s, and Billy keeps half the floor working through it. He is also one coordination point: sync goes up the day he sits down.', d: 'He arrives when sync collapses, and James knows a chap: fifteen minutes, standing up, in a fixed order.' }),
     N('gJ', 0, -1, 'James · Knows a Chap', '', 1, { t: 'link', to: 'james:j3' }),
     N('c1', 1, 0, 'Sticky Notes', 'sticky', 1, { p: ['R'], t: 'lvl', max: 3, k: 1, d: 'Coordination +1 per level.' }),
     N('c2', 2, 0, 'Kanban', 'kanban', 1, { p: ['c1'], k: 1, d: 'Coordination +1. The columns are Doing, Doing and Done.' }),
@@ -320,27 +391,27 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
   ],
   matt: [
     N('R', 0, 0, 'Matt’s Ticket Wall', 'ticketwall', 1, { t: 'root', d: 'He arrives with the first ticket queue nobody is serving.' }),
-    N('m1', 1, 0, 'Headset', 'headset', 1, { p: ['R'], d: 'Matt resolving · 0.5 work/s. The ticket flood gets a rescue dock.' }),
+    N('m1', 1, 0, 'Headset', 'headset', 1, { p: ['R'], lv: true, fx: 'Matt takes the incident pager: one more head clearing incidents.', d: 'Matt resolving · 0.5 work/s. The ticket flood gets a rescue dock.' }),
     N('m2', 2, 0, 'Read the Logs', 'scroll', 1, { p: ['m1'], d: '§17 puzzle 1: find the line where it started.' }),
     N('m3', 2, 1, 'Support Triage', 'sort', 2, { p: ['m2'], d: 'Puzzle 2: sort the flood before it sorts you.' }),
     N('m4', 3, 1, 'Draw the UML', 'uml', 2, { p: ['m3'], d: 'Puzzle 3: draw the boxes before you believe the arrows.' }),
     N('m5', 3, 2, 'Rollback', 'cassette', 2, { p: ['m4'], d: 'Puzzle 4: the rollback cards are real builds from Serena’s buffer.' }),
     N('gS', 4, 2, 'Serena · Rollback Button', '', 2, { t: 'link', to: 'serena:r3', p: ['m5'] }),
     N('m6', 4, 1, 'Burning Systems', 'fire', 4, { p: ['m4'], d: 'Incidents show on the galaxy map, on fire.' }),
-    N('t1', 0, 1, 'Inbox', 'inbox', 1, { p: ['R'], t: 'lvl', max: 5, d: 'More tickets answered per second, per level.' }),
-    N('i1', 1, 1, 'Incident Inspector', 'magnifier', 1, { p: ['m1', 't1'], d: 'Diagnose, Runbook, Assign team.' }),
-    N('t2', 0, 2, 'Second Headset', 'headset', 2, { p: ['t1'], t: 'lvl', max: 5, d: 'More support heads per level.' }),
+    N('t1', 0, 1, 'Inbox', 'inbox', 1, { p: ['R'], t: 'lvl', max: 5, lv: true, fx: 'The help desk answers 15% faster per level.', d: 'More tickets answered per second, per level.' }),
+    N('i1', 1, 1, 'Incident Inspector', 'magnifier', 1, { p: ['m1', 't1'], lv: true, fx: 'A new incident opens with 20% less work in it.', d: 'Diagnose, Runbook, Assign team.' }),
+    N('t2', 0, 2, 'Second Headset', 'headset', 2, { p: ['t1'], t: 'lvl', max: 5, lv: true, fx: 'One more developer in a hundred joins the help desk, per level.', d: 'More support heads per level.' }),
     N('t3', -1, 2, 'Call Centre Floor', 'crowd', 2, { p: ['t2'], d: 'A whole HQ floor of headsets.' }),
     N('t4', -1, 3, 'Tickets From Proxima', 'envelope', 4, { p: ['t3'], d: 'Tickets from far worlds arrive late by the light-time.' }),
     N('t5', 0, 3, 'Priority: Urgent', 'hourglass', 4, { p: ['t2', 't4'], d: 'A ticket from the galactic core, filed 26,000 years ago.' }),
     N('gJ', 1, 3, 'James · Out-of-Office Reply', '', 4, { t: 'link', to: 'james:q3', p: ['t5'] }),
-    N('h1', -1, 0, 'Macros', 'stamp', 1, { p: ['R'], mv: ['handoffs', 'duplicate', 4], d: 'The same answer, four hundred times.' }),
+    N('h1', -1, 0, 'Macros', 'stamp', 1, { p: ['R'], lv: true, fx: 'The catalogue asks 10% fewer questions.', mv: ['handoffs', 'duplicate', 4], d: 'The same answer, four hundred times.' }),
     N('h2', -1, -1, 'Ticket Owner', 'badge', 1, { p: ['h1'], mv: ['handoffs', 'waiting', 4], d: 'Whoever picks it up keeps it, however long that takes.' }),
     N('h3a', -2, -1, 'Swarming', 'crowd', 2, { p: ['h2'], ex: 'F', mv: ['handoffs', 'meetings', 5], d: 'Everyone works one ticket at once, in a call.' }),
     N('h3b', -1, -2, 'Follow the Sun', 'sun', 4, { p: ['h2'], ex: 'F', mv: ['handoffs', 'lag', 5], d: 'Tickets pass from world to world, across light-years.' }),
     N('h4', -2, -2, 'Rescue Dock', 'dock', 2, { p: ['h3a', 'h3b'], d: 'Grab a drowning ticket and pull it in.' }),
     N('h5', -3, -1, 'Status Page', 'status', 2, { p: ['h3a'], mv: ['handoffs', 'slacking', 3], d: 'Everyone can see it’s down, so nobody has to ask. Some stop working.' }),
-    N('K', -3, -2, 'An FAQ People Read', 'faq', 3, { t: 'key', sl: 'handoffs', p: ['h4', 'h5'], all: true, d: 'It has never happened before, anywhere.' }),
+    N('K', -3, -2, 'An FAQ People Read', 'faq', 3, { t: 'key', sl: 'handoffs', p: ['h4', 'h5'], all: true, lv: true, fx: 'The catalogue asks half as many questions.', d: 'It has never happened before, anywhere.' }),
   ],
 }
 
@@ -407,12 +478,28 @@ export function closedBy(view: TreeView, hero: TreeHero, node: TreeNode): TreeNo
  * Why a node cannot be bought, or null if it can. `absent` is a wired node
  * whose owner has not arrived; `root` and `link` are not for sale at all.
  */
-export type TreeRefusal = null | 'root' | 'link' | 'maxed' | 'era' | 'fork' | 'requires' | 'cash' | 'absent'
+export type TreeRefusal = null | 'root' | 'link' | 'unbuilt' | 'maxed' | 'era' | 'fork' | 'requires' | 'cash' | 'absent'
+
+/**
+ * Does buying this node change the game? [2026-10-04]
+ *
+ * A pipeline node, a node that carries an old board effect (`tech`) and a
+ * coordination node all do. **The rest were drawn and priced and changed
+ * nothing, and the board sold them anyway** — the one thing `techTree.ts` calls a
+ * defect (*"a node that takes the player's money and changes nothing"*) and
+ * `prestige.ts`'s `EFFECTIVE` already refuses to ship. Found by playing: most of
+ * five trees were a shop for nothing. They stay on the board, dim, with what
+ * they propose, and they cannot be bought until they do something.
+ */
+export function isBuilt(node: TreeNode): boolean {
+  return node.wired || node.tech !== undefined || node.coord !== undefined || node.lever === true
+}
 
 /** The demo's rule, in the demo's order. Wired nodes ask their own system instead. */
 export function treeRefusal(view: TreeView, hero: TreeHero, node: TreeNode): TreeRefusal {
   if (node.kind === 'root') return 'root'
   if (node.kind === 'link') return 'link'
+  if (!isBuilt(node)) return 'unbuilt'
   const level = levelOf(view, hero, node)
   if (level >= node.max) return 'maxed'
   if (node.era > view.era) return 'era'
@@ -451,6 +538,7 @@ export function tileStateOf(refusal: TreeRefusal, level: number): TileState {
     case 'maxed': return 'owned'
     case 'fork': return level > 0 ? 'partial' : 'closed'
     case 'era': return level > 0 ? 'partial' : 'era'
+    case 'unbuilt':
     case 'requires':
     case 'absent': return level > 0 ? 'partial' : 'locked'
     case 'cash': return level > 0 ? 'partial' : 'short'

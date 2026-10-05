@@ -36,15 +36,14 @@ const OS = 'STUDIO_OS'
  */
 const AT_JAMES = 0
 const AT_YOU = 'founder' as const
-// §21.7.3 — the five story hires sit at the desks after James's, in the order
-// the systems bring them in. A seat rather than a name, on the same argument
+// §21.7.3 — the three story hires sit at the desks after James's, in the order
+// the systems bring them in [Mo and Melany went 2026-10-04; the seats stay put
+// so the camera and the identities, which are keyed by seat, do not move]. A seat rather than a name, on the same argument
 // §7.8.8 makes: identities are generated from the seat, so a script costs one
 // integer per line.
-const AT_MO = 1
-const AT_SERENA = 2
-const AT_MATT = 3
-const AT_MELANY = 4
-const AT_BILLY = 5
+export const AT_SERENA = 2
+export const AT_MATT = 3
+export const AT_BILLY = 5
 
 /**
  * §21.7.1 — *"Is this seat taken?"* Act I, at §21.0b's fiftieth poke.
@@ -339,24 +338,15 @@ export const SCENE_JAMES_INSTANT_MESSENGER: Scene = {
  * always about the *tool* or the *process*, never about the person.
  */
 
-/** Mo — Quality. A release scored below baseline on defects, and she asks the question you were avoiding. */
-export const SCENE_MO_ARRIVES: Scene = {
-  id: 'scene.run2.mo-arrives',
-  script: [
-    { speaker: OS, text: 'APPLICANT AT DOOR. REFERENCES: NONE. ATTITUDE: CONCERNING.' },
-    { speaker: 'MO', text: 'I read your release notes. Show me the code.', focus: AT_MO },
-    { speaker: PLAYER, text: 'We’re in the middle of a sprint.', focus: AT_YOU },
-    { speaker: 'MO', text: 'I’m not blocking it. I’m just asking what happens if someone taps it twice.', focus: AT_MO },
-    { speaker: JAMES, text: 'A second pass before ship would catch more defects.', focus: AT_JAMES },
-    { speaker: 'MO', text: 'He’s right. I’ll start with the button.', focus: AT_MO },
-  ],
-}
-
-/** Serena — Reliability. The first incident to stop a release earning, and she is calmest when things are worst. */
+/**
+ * Serena — Reliability. The queue is the bottleneck: the studio is waiting on a
+ * human, and she is calmest when things are worst. [Rewritten 2026-10-04: she
+ * used to arrive on the first incident; see `storyTriggers.serenaArrives`.]
+ */
 export const SCENE_SERENA_ARRIVES: Scene = {
   id: 'scene.run2.serena-arrives',
   script: [
-    { speaker: OS, text: 'APPLICANT AT DOOR.' },
+    { speaker: OS, text: 'APPLICANT AT DOOR. THE STUDIO IS WAITING ON A HUMAN.' },
     { speaker: 'SERENA', text: 'I have a runbook for this. I wrote it before this happened.', focus: AT_SERENA },
     { speaker: PLAYER, text: 'We don’t have a runbook.', focus: AT_YOU },
     { speaker: 'SERENA', text: 'You do now. It’s up.', focus: AT_SERENA },
@@ -374,15 +364,20 @@ export const SCENE_SERENA_ARRIVES: Scene = {
       text: 'Your build queue is three slots and a human. I can make it longer. I can make it ship itself.',
       focus: AT_SERENA,
     },
-    { speaker: JAMES, text: 'Incident response is a process. She has the process.', focus: AT_JAMES },
+    { speaker: JAMES, text: 'A pipeline is a process. She has the process.', focus: AT_JAMES },
+    { speaker: OS, text: 'S. — SITE RELIABILITY. BUILD QUEUE: +2 BUILDS. AUTO-SHIP IS ON HER BOARD.' },
   ],
 }
 
-/** Matt — Support. The only person in the company who has spoken to a player. */
+/**
+ * Matt — Support. The only person in the company who has spoken to a player.
+ * [Rewritten 2026-10-04: he now arrives when incidents and tickets are piling
+ * up, after Serena, and owns both lists.]
+ */
 export const SCENE_MATT_ARRIVES: Scene = {
   id: 'scene.run2.matt-arrives',
   script: [
-    { speaker: OS, text: 'APPLICANT AT DOOR.' },
+    { speaker: OS, text: 'APPLICANT AT DOOR. OPEN INCIDENTS: PAGING. TICKETS: UNREAD.' },
     { speaker: 'MATT', text: 'Hi. Four hundred people wrote in about the same button.', focus: AT_MATT },
     { speaker: PLAYER, text: 'The blue one?', focus: AT_YOU },
     {
@@ -390,23 +385,8 @@ export const SCENE_MATT_ARRIVES: Scene = {
       text: 'I don’t know what it does either. That’s fine. I’ll find out.',
       focus: AT_MATT,
     },
-    { speaker: JAMES, text: 'A ticket queue needs somebody answering it.', focus: AT_JAMES },
-  ],
-}
-
-/** Melany — Cloud. Infinite elasticity, invoiced monthly. */
-export const SCENE_MELANY_ARRIVES: Scene = {
-  id: 'scene.run2.melany-arrives',
-  script: [
-    { speaker: OS, text: 'APPLICANT AT DOOR.' },
-    { speaker: 'MELANY', text: 'I saw you hit your capacity. We can absolutely scale to that.', focus: AT_MELANY },
-    { speaker: PLAYER, text: 'What’s the catch?', focus: AT_YOU },
-    {
-      speaker: 'MELANY',
-      text: 'I’d want to talk about the bill afterwards. Afterwards is fine.',
-      focus: AT_MELANY,
-    },
-    { speaker: JAMES, text: 'More capacity is a product you can buy.', focus: AT_JAMES },
+    { speaker: JAMES, text: 'An incident queue needs somebody answering it.', focus: AT_JAMES },
+    { speaker: OS, text: 'M. — CUSTOMER SUPPORT. INCIDENTS AND TICKETS ARE ON HIS BOARD.' },
   ],
 }
 
@@ -478,8 +458,8 @@ export const SCENE_BILLY_ARRIVES: Scene = {
   script: [
     // The machine states the reading, and then states what the reading *is* —
     // which is the one thing the gauge has never said in words.
-    { speaker: OS, text: 'SYNC HELD AT 50% OR BELOW. THE STUDIO IS NOW SPENDING HALF OF ITS DAY ON ITSELF.' },
-    { speaker: PLAYER, text: 'It halved. And then it stayed there.', focus: AT_YOU },
+    { speaker: OS, text: 'SYNC BELOW 95% AND FALLING. EVERY HIRE NOW COSTS THE STUDIO A LITTLE OF EVERYONE ELSE’S DAY.' },
+    { speaker: PLAYER, text: 'It slips a bit more every time I hire.', focus: AT_YOU },
     { speaker: JAMES, text: 'Everyone is talking to everyone. That is the number.', focus: AT_JAMES },
     { speaker: PLAYER, text: 'So make them stop talking.', focus: AT_YOU },
     // §21.7.0 rule 2 — sincere, and good news to him. Also, once again, correct.
@@ -493,7 +473,7 @@ export const SCENE_BILLY_ARRIVES: Scene = {
     { speaker: JAMES, text: 'It’s a school.', focus: AT_JAMES },
     { speaker: OS, text: 'APPLICANT AT DOOR.' },
     { speaker: 'BILLY', text: 'Good afternoon. Billy. I’m terribly sorry — is this an awkward moment?', focus: AT_BILLY },
-    { speaker: PLAYER, text: 'It’s the worst moment we’ve had.', focus: AT_YOU },
+    { speaker: PLAYER, text: 'It’s getting worse with every hire.', focus: AT_YOU },
     // §22.8.2's flavour line, verbatim. Every one of these scenes is written
     // out of the card's one sentence, and this is his.
     {
@@ -511,6 +491,7 @@ export const SCENE_BILLY_ARRIVES: Scene = {
     // The hand-over, in the machine's register: what changes, stated as policy.
     { speaker: OS, text: 'B. — SCRUM MASTER. DAILY STANDUP CAPPED AT FIFTEEN MINUTES.' },
     { speaker: OS, text: 'HALF OF THE FLOOR WILL NOW KEEP WORKING THROUGH IT.' },
+    { speaker: OS, text: 'HIS MEETING TREE IS OPEN. IT IS HOW SYNC GOES BACK UP.' },
   ],
 }
 
@@ -713,10 +694,8 @@ export const SCENES: Record<string, Scene> = {
   [SCENE_JAMES_SHIP.id]: SCENE_JAMES_SHIP,
   [SCENE_MASS_HIRE.id]: SCENE_MASS_HIRE,
   [SCENE_JAMES_INSTANT_MESSENGER.id]: SCENE_JAMES_INSTANT_MESSENGER,
-  [SCENE_MO_ARRIVES.id]: SCENE_MO_ARRIVES,
   [SCENE_SERENA_ARRIVES.id]: SCENE_SERENA_ARRIVES,
   [SCENE_MATT_ARRIVES.id]: SCENE_MATT_ARRIVES,
-  [SCENE_MELANY_ARRIVES.id]: SCENE_MELANY_ARRIVES,
   [SCENE_BILLY_ARRIVES.id]: SCENE_BILLY_ARRIVES,
   [SCENE_THE_THREAD.id]: SCENE_THE_THREAD,
   [SCENE_THREAD_CLEARED.id]: SCENE_THREAD_CLEARED,

@@ -16,17 +16,20 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { MASS_HIRE_MIN_COST } from '../sim/economy.ts'
-import { MASS_HIRE_COUNT } from './onboarding.ts'
+import { efficiency } from '../sim/entropy.ts'
+import { MASS_HIRE_COUNT, MASS_HIRE_WAVES, MASS_HIRE_WAVE_S, massHireWaveSize } from './onboarding.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import {
   __resetStore,
   __setState as setState,
   canMassHire,
   currentMassHireCost,
+  effectiveDevCap,
   getState,
   hireDeveloper,
   jumpToPhase,
   massHire,
+  tick,
 } from './store.ts'
 
 /** Whatever headcount Act III starts from. Read, never hard-coded — §21.0a
@@ -86,6 +89,9 @@ describe('affordability', () => {
     expect(canMassHire()).toBe(true)
     expect(massHire()).toBe(true)
     expect(getState().cash).toBe(0)
+    // The first wave lands with the signature; the rest as the clock runs.
+    expect(getState().devs).toBe(startDevs + massHireWaveSize(0))
+    tick(MASS_HIRE_WAVES * MASS_HIRE_WAVE_S + 1)
     expect(getState().devs).toBe(startDevs + MASS_HIRE_COUNT)
   })
 
@@ -161,13 +167,49 @@ describe('the spawn event names the seats, not a body count — §7.7.2', () => 
     expect(spawn.bodies).toBeGreaterThan(1)
   })
 
-  it('covers the whole swarm when the trap springs', () => {
+  it('covers the whole swarm when the trap springs — in waves', () => {
     jumpToPhase('act3_bait')
     setState({ cash: 100_000 })
     const before = getState().devs
     massHire()
-    const spawn = getState().spawn!
-    expect(spawn.from).toBe(before)
-    expect(spawn.to).toBe(before + MASS_HIRE_COUNT)
+    // The first wave's burst is the signature's...
+    expect(getState().spawn!.from).toBe(before)
+    expect(getState().spawn!.to).toBe(before + massHireWaveSize(0))
+    // ...and the last wave ends exactly at the thousand the button promised.
+    tick(MASS_HIRE_WAVES * MASS_HIRE_WAVE_S + 1)
+    expect(getState().spawn!.to).toBe(before + MASS_HIRE_COUNT)
+  })
+
+  /**
+   * §21 Act IV [2026-10-04] — **the wave-in is there to be seen**: while the
+   * waves land, the studio's output rises, passes its peak, and falls, even
+   * though the headcount only ever goes up. That is §4.1 as an event, and it is
+   * the whole of the first prestige's lesson.
+   */
+  it('walks the curve: output climbs, peaks, then falls while headcount rises', () => {
+    jumpToPhase('act3_bait')
+    setState({ cash: 100_000 })
+    massHire()
+    const heads: number[] = []
+    const output: number[] = []
+    const sample = () => {
+      const d = getState().devs
+      heads.push(d)
+      output.push(d * efficiency(d, effectiveDevCap()))
+    }
+    sample()
+    for (let w = 0; w < MASS_HIRE_WAVES - 1; w++) {
+      tick(MASS_HIRE_WAVE_S)
+      sample()
+    }
+    // Headcount only rises...
+    for (let i = 1; i < heads.length; i++) expect(heads[i]).toBeGreaterThan(heads[i - 1])
+    // ...but output does not: it peaks before the last wave and ends far below it.
+    const peak = Math.max(...output)
+    expect(output.indexOf(peak)).toBeLessThan(output.length - 1)
+    // And the climb is on screen: several waves land below the peak. The first
+    // draft stepped a hundred at a time and went clean over it in one.
+    expect(output.indexOf(peak)).toBeGreaterThanOrEqual(3)
+    expect(output.at(-1)!).toBeLessThan(peak / 10)
   })
 })

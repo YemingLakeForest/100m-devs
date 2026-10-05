@@ -234,15 +234,6 @@ export const JAMES: Identity = {
  */
 export const HERO_IDENTITIES: Readonly<Record<string, Identity>> = {
   james: JAMES,
-  mo: {
-    name: 'Mo',
-    look: {
-      hair: 2, hairColour: 2, skin: 3, shirt: 1, body: 3,
-      facialHair: 0, glasses: true, headphones: false, slouch: -0.1,
-    },
-    stats: { focus: 88, chatter: 46, seniority: 71 },
-    trait: null,
-  },
   serena: {
     name: 'Serena',
     look: {
@@ -259,15 +250,6 @@ export const HERO_IDENTITIES: Readonly<Record<string, Identity>> = {
       facialHair: 0, glasses: false, headphones: true, slouch: 0.3,
     },
     stats: { focus: 44, chatter: 92, seniority: 55 },
-    trait: null,
-  },
-  melany: {
-    name: 'Melany',
-    look: {
-      hair: 0, hairColour: 0, skin: 0, shirt: 4, body: 1,
-      facialHair: 0, glasses: true, headphones: true, slouch: 0.15,
-    },
-    stats: { focus: 63, chatter: 78, seniority: 66 },
     trait: null,
   },
   /**

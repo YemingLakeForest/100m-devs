@@ -12,6 +12,7 @@ import {
   HELPDESK_SHARE,
   NO_HERO_FOLD,
   ONCALL_SHARE,
+  SERENA_SHELF_SLOTS,
   STANDUP_KEPT_SHARE,
   benchShare,
   heroFold,
@@ -40,28 +41,26 @@ describe('a hero works for the whole studio from the day they arrive', () => {
     // The same multipliers at every headcount: nothing about a hero's worth
     // depends on where anybody is standing.
     for (const devs of [12, 4_000]) {
-      expect(heroFold([hero('mo')], devs).defects).toBe(0.5)
+      expect(heroFold([hero('serena')], devs).shelfSlots).toBe(SERENA_SHELF_SLOTS)
       expect(heroFold([hero('matt')], devs).ticketRate).toBeCloseTo(0.8, 12)
-      expect(heroFold([hero('melany')], devs).cap).toBe(1.25)
-      expect(heroFold([hero('serena')], devs).incidentStartWork).toBe(0.5)
+      expect(heroFold([hero('matt')], devs).incidentStartWork).toBe(0.5)
     }
   })
 
   it('puts a share of the headcount on the pager and the inbox, so both grow with the studio', () => {
     // §4.12a's and §4.13's loads grow with the studio; a flat rota would be
     // enough at twenty and nothing at a million.
-    const small = heroFold([hero('serena'), hero('matt')], 20)
-    const large = heroFold([hero('serena'), hero('matt')], 20_000)
+    const small = heroFold([hero('matt')], 20)
+    const large = heroFold([hero('matt')], 20_000)
     expect(small.oncallHeads).toBeCloseTo(20 * ONCALL_SHARE, 12)
     expect(small.supportHeads).toBeCloseTo(20 * HELPDESK_SHARE, 12)
     expect(large.oncallHeads / small.oncallHeads).toBeCloseTo(1000, 9)
     expect(large.supportHeads / small.supportHeads).toBeCloseTo(1000, 9)
     // And an empty studio has nobody to put on either.
-    expect(heroFold([hero('serena'), hero('matt')], 0).oncallHeads).toBe(0)
+    expect(heroFold([hero('matt')], 0).oncallHeads).toBe(0)
   })
 
-  it('bills Melany’s reserved capacity per developer, and keeps half the floor coding through stand-up for Billy', () => {
-    expect(heroFold([hero('melany')], 300).operatingCost).toBe(300)
+  it('keeps half the floor coding through stand-up for Billy', () => {
     expect(heroFold([hero('billy')], 300).standupHeads).toBe(300 * STANDUP_KEPT_SHARE)
     // James is one person who keeps typing, however large the studio gets.
     expect(heroFold([hero('james')], 300).standupHeads).toBe(1)
@@ -80,18 +79,17 @@ describe('a hero works for the whole studio from the day they arrive', () => {
 describe('§22.9.2 — the card says what the fold does', () => {
   // The sentence is the claim; the constant is its number. If one moves
   // without the other the card is lying.
-  it('names Serena’s and Matt’s rota by the same ratio the fold uses', () => {
-    expect(HERO_BY_ID.get('serena')!.trait.text).toMatch(/one developer in fifty/)
-    expect(ONCALL_SHARE).toBe(1 / 50)
+  it('names Matt’s help desk by the same ratio the fold uses', () => {
     expect(HERO_BY_ID.get('matt')!.trait.text).toMatch(/one developer in twenty/)
     expect(HELPDESK_SHARE).toBe(1 / 20)
     expect(HERO_BY_ID.get('matt')!.trait.text).toMatch(/20% slower/)
   })
 
-  it('says “half” for Mo and for Billy, and 25% for Melany', () => {
-    expect(HERO_BY_ID.get('mo')!.trait.text).toMatch(/half as many defects/)
+  it('says “half” for Billy and Matt’s runbook, and two builds for Serena', () => {
     expect(HERO_BY_ID.get('billy')!.trait.text).toMatch(/half the floor/)
-    expect(HERO_BY_ID.get('melany')!.trait.text).toMatch(/25%/)
+    expect(HERO_BY_ID.get('matt')!.trait.text).toMatch(/half worked/)
+    expect(HERO_BY_ID.get('serena')!.trait.text).toMatch(/two more builds/)
+    expect(SERENA_SHELF_SLOTS).toBe(2)
   })
 
   it('never mentions coverage or placement any more', () => {
@@ -103,7 +101,7 @@ describe('§4.14 — the bench', () => {
   it('is divided by the cast, not by the arrivals, so it climbs with the story', () => {
     const cast = STORY_HEROES.length
     expect(benchShare([hero('james')], cast)).toBeCloseTo(1 / cast, 12)
-    expect(benchShare([hero('james'), hero('mo')], cast)).toBeCloseTo(2 / cast, 12)
+    expect(benchShare([hero('james'), hero('billy')], cast)).toBeCloseTo(2 / cast, 12)
     expect(benchShare(STORY_HEROES.map((h) => hero(h.id)), cast)).toBe(1)
     expect(benchShare([], cast)).toBe(0)
   })

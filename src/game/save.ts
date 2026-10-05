@@ -20,7 +20,7 @@
 import Decimal from 'break_infinity.js'
 import type { GameState, ShelvedBuild } from './store.ts'
 import type { Phase } from './onboarding.ts'
-import { PHASE_ORDER, RETIRED_PHASES } from './onboarding.ts'
+import { MASS_HIRE_WAVES, PHASE_ORDER, RETIRED_PHASES } from './onboarding.ts'
 import { D_BASE } from '../sim/entropy.ts'
 import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR, LAUNCH_NEUTRAL, LUCK_NEUTRAL } from '../sim/rating.ts'
 import { PIPELINE_BY_ID } from '../sim/pipeline.ts'
@@ -139,6 +139,8 @@ export interface RunSave {
   /** §8 — the isometric trees' unwired levels, `hero:id`. Optional: absent is nothing bought. */
   treeLevels?: Record<string, number>
   autoShipClock?: number
+  /** §21 Act IV — waves of the Mass Hire still to land. Optional: absent is none. */
+  massHireLeft?: number
   /** §11.2 B2's meeting clock, in simulated seconds. Optional for the same reason. */
   runSeconds?: number
   /*
@@ -449,6 +451,7 @@ export function makeSaveData(state: GameState): SaveData {
       pipelineNodes: { ...state.pipelineNodes },
       treeLevels: { ...state.treeLevels },
       autoShipClock: state.autoShipClock,
+      massHireLeft: state.massHireLeft,
       runSeconds: state.runSeconds,
       // §4.10e — flattened rather than nested, so the shape cannot arrive back
       // as a half-object that `collectedFraction` would turn into NaN dollars.
@@ -743,6 +746,7 @@ function normaliseRun(value: unknown): RunSave {
     pipelineNodes: normalisePipelineNodes(r.pipelineNodes),
     treeLevels: normaliseTreeLevels(r.treeLevels),
     autoShipClock: nonNegative(r.autoShipClock, 0),
+    massHireLeft: Math.min(MASS_HIRE_WAVES, Math.floor(nonNegative(r.massHireLeft, 0))),
     runSeconds: nonNegative(r.runSeconds, 0),
     defects: nonNegative(r.defects, 0),
     tickets: nonNegative(r.tickets, 0),

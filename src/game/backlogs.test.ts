@@ -27,7 +27,7 @@ import { BETA } from '../sim/defects.ts'
 import { BASELINE_RATING, RATING_WEIGHTS, rateRelease } from '../sim/rating.ts'
 import { FOUNDER_ROLE_HEADS } from '../sim/founder.ts'
 import { HELPDESK_SHARE, ONCALL_SHARE } from '../sim/heroRoster.ts'
-import { SCENE_MATT_ARRIVES, SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES } from './scenes.ts'
+import { SCENE_MATT_ARRIVES, SCENE_SERENA_ARRIVES } from './scenes.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 
 /**
@@ -202,33 +202,6 @@ describe('§4.12 — defects accrue from the work itself', () => {
     reset()
     play(20, 5)
     expect(getState().defects).toBeGreaterThan(passive)
-  })
-
-  /**
-   * The store-level half of Mo's READS IT TWICE: that her arrival reaches
-   * §4.12's accrual at all. It used to be QA's share of the floor.
-   *
-   * Measured over a short window with a ship guard, because shipping zeroes the
-   * bench (§4.12 transfers the backlog rather than forgiving it) — a window that
-   * straddles a ship measures a *negative* delta and says nothing about Mo.
-   */
-  it('is halved once Mo has arrived', () => {
-    function accrualOver(milestones: string[]): number {
-      __resetStore()
-      prestiged(milestones)
-      staff(6)
-      play(2)
-      const shippedBefore = getState().projectsShipped
-      const before = getState().defects
-      play(3)
-      expect(getState().projectsShipped).toBe(shippedBefore)
-      return getState().defects - before
-    }
-
-    const withMo = accrualOver([SCENE_MO_ARRIVES.id])
-    const without = accrualOver([])
-    expect(withMo).toBeGreaterThan(0)
-    expect(withMo / without).toBeCloseTo(0.5, 1)
   })
 })
 

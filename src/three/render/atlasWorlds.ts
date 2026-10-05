@@ -6,6 +6,7 @@ import { districtBlock, BLOCK_PITCH } from './cityGrid.ts'
 import type { CityImpostors } from './cityImpostors.ts'
 import { planetHubs } from '../../sim/planetTerrain.ts'
 import { paintPlanet } from './planetSurface.ts'
+import { hqMarker, type HqWing } from '../../sim/hqLook.ts'
 
 export interface AtlasPoint { x: number; y: number; id: number; depth: number }
 export interface Expansion { from: number; to: number; at: number }
@@ -13,6 +14,30 @@ export interface AtlasFrame {
   ctx: CanvasRenderingContext2D; width: number; height: number; total: number; world: number
   region: number; level: number; panX: number; panY: number; seconds: number; reduced: boolean
   phosphor: PhosphorRamp; points: AtlasPoint[]; expansions: Expansion[]
+  /** The heroes who have walked in — the colours the HQ wears (`sim/hqLook.ts`). */
+  wings: HqWing[]
+}
+
+/**
+ * The HQ's mark on the survey [2026-10-04, GDD §7.8.12]: its label in a box that
+ * gains borders as it becomes a place, a crown over it from the capital up, and
+ * a pip underneath for each hero who has walked in, in the colour that is theirs
+ * on the card, the plate and the garage's bay. Drawn from `hqMarker`, which owns
+ * how big the HQ is at a headcount; this only paints what it says.
+ */
+export function drawHqMark(f: AtlasFrame, cx: number, cy: number, label: string, ink: string) {
+  const { ctx } = f
+  const m = hqMarker(f.total, f.wings.map((w) => w.hero))
+  const w = Math.max(15, label.length * 4 + 3)
+  ctx.fillStyle = N[0]; ctx.fillRect(Math.round(cx - w / 2), Math.round(cy - 5), w, 8)
+  for (let b = 0; b < m.borders; b++) {
+    ctx.strokeStyle = b === 0 ? ink : A[2]
+    ctx.strokeRect(Math.round(cx - w / 2) - b * 2 - .5, Math.round(cy - 5) - b * 2 - .5, w + b * 4 + 1, 8 + b * 4 + 1)
+  }
+  ctx.fillStyle = ink; ctx.textAlign = 'center'; monitorText(ctx, label, cx, cy + 1); ctx.textAlign = 'left'
+  if (m.crown) { ctx.fillStyle = A[3]; ctx.fillRect(Math.round(cx) - 2, Math.round(cy - 5) - m.borders * 2 - 2, 5, 1); ctx.fillRect(Math.round(cx) - 2, Math.round(cy - 5) - m.borders * 2 - 3, 1, 1); ctx.fillRect(Math.round(cx), Math.round(cy - 5) - m.borders * 2 - 3, 1, 1); ctx.fillRect(Math.round(cx) + 2, Math.round(cy - 5) - m.borders * 2 - 3, 1, 1) }
+  const pipsLeft = Math.round(cx - (m.wings.length * 3 - 1) / 2)
+  m.wings.forEach((wing, i) => { ctx.fillStyle = wing.colour; ctx.fillRect(pipsLeft + i * 3, Math.round(cy + 3) + m.borders * 2, 2, 2) })
 }
 const N = RAMPS.NEUTRAL, A = RAMPS.WARN
 const TAU = Math.PI * 2
@@ -102,8 +127,7 @@ export function drawDistrict(f: AtlasFrame, sprites: CityImpostors) {
     }
   }
   if(world===0&&region===0) {
-    ctx.fillStyle=N[0];ctx.fillRect(Math.round(cx-7),Math.round(cy-5),15,8)
-    ctx.fillStyle=p[2];ctx.textAlign='center';monitorText(ctx,'HQ',cx,cy+1);ctx.textAlign='left'
+    drawHqMark(f,cx,cy,'HQ',p[2])
   }
   if(!f.reduced&&occupied>20)for(let car=0;car<Math.min(5,Math.floor(occupied/40));car++){
     const index=1+Math.floor((f.seconds*.4+car*19)%occupied),q=at(index)

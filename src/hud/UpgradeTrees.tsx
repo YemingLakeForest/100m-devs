@@ -96,6 +96,7 @@ function refusalLine(hero: TreeHero, node: TreeNode, why: TreeRefusal, s: GameSt
     case null: return null
     case 'root': return 'WHERE THIS TREE STARTS'
     case 'link': return null
+    case 'unbuilt': return 'NOT BUILT YET — NOTHING TO BUY'
     case 'maxed': return node.max > 1 ? 'ALL LEVELS OWNED' : 'OWNED'
     case 'era': return `OPENS AT ${eraName(node.era)}`
     case 'fork': {
@@ -608,7 +609,7 @@ function Inspector({ hero, id, showKey, state, onClear }: {
   const why = treeRefusalOf(hero, node.id, state)
   const price = treePriceOf(hero, node.id, state)
   const refusal = refusalLine(hero, node, why, state)
-  const lines = node.wired ? [] : proposal(node)
+  const lines = node.wired || node.coord || node.lever ? [] : proposal(node)
   const others = node.fork ? TREES[hero].filter((o) => o !== node && o.fork === node.fork) : []
 
   return (
@@ -625,8 +626,8 @@ function Inspector({ hero, id, showKey, state, onClear }: {
         {node.all && <span className="trees__tag">NEEDS EVERY LINK</span>}
       </p>
       <p className="trees__text">{node.text}</p>
-      {(node.wired || node.tech) && node.effect && <p className="trees__effect">{node.effect}</p>}
-      {!node.wired && !node.tech && node.kind !== 'root' && (
+      {(node.wired || node.tech || node.coord || node.lever) && node.effect && <p className="trees__effect">{node.effect}</p>}
+      {!node.wired && !node.tech && !node.coord && !node.lever && node.kind !== 'root' && (
         <div className="trees__effect" data-wired="false">
           {lines.map((l) => <p key={l}>{l}</p>)}
           <p className="trees__unwired">NOT IN THE GAME YET</p>

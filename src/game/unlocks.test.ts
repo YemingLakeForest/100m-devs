@@ -12,7 +12,7 @@ import type { HeroId } from '../sim/storyHeroes.ts'
 import { NO_HEROES, unlocksFor } from './unlocks.ts'
 
 const roster = (...ids: HeroId[]): ReadonlySet<HeroId> => new Set(ids)
-const ALL = roster('james', 'mo', 'serena', 'matt', 'melany', 'billy')
+const ALL = roster('james', 'serena', 'matt', 'billy')
 
 describe('§21.0c — the first Paradigm Shift is the door', () => {
   it('opens nothing during Run 1, however many heroes are somehow on staff', () => {
@@ -68,7 +68,7 @@ describe('§21.7.6 — a system enters in the hands of the person who solves it'
     // The half that makes the whole rule work: defects accrue, degrade the
     // rating and cost money from the first frame of Run 2. The player meets
     // them as a release they were proud of scoring 31 — a problem with no
-    // handle — which is what makes Mo relief rather than a tutorial.
+    // handle — which is what makes Serena relief rather than a tutorial.
     const u = unlocksFor(1, NO_HEROES)
     expect(u.simulated).toBe(true)
     expect(u.defects).toBe(false)
@@ -77,29 +77,27 @@ describe('§21.7.6 — a system enters in the hands of the person who solves it'
   })
 
   it('hands each instrument over with its own hero, and nobody else’s', () => {
-    expect(unlocksFor(1, roster('mo')).defects).toBe(true)
-    expect(unlocksFor(1, roster('mo')).incidents).toBe(false)
-    expect(unlocksFor(1, roster('mo')).tickets).toBe(false)
+    // [amended 2026-10-04] Mo is gone and her counter is Serena's; Matt took the
+    // incident list as well as the ticket bar.
+    const serena = unlocksFor(1, roster('serena'))
+    expect(serena.defects).toBe(true)
+    expect(serena.incidents).toBe(false)
+    expect(serena.tickets).toBe(false)
 
-    expect(unlocksFor(1, roster('serena')).incidents).toBe(true)
-    expect(unlocksFor(1, roster('serena')).defects).toBe(false)
-
-    expect(unlocksFor(1, roster('matt')).tickets).toBe(true)
-    expect(unlocksFor(1, roster('matt')).defects).toBe(false)
+    const matt = unlocksFor(1, roster('matt'))
+    expect(matt.incidents).toBe(true)
+    expect(matt.tickets).toBe(true)
+    expect(matt.defects).toBe(false)
   })
 
   /**
-   * §21.7.6 — "a person only brings what was not already there." Melany bends
-   * §4.2's cap, which has been on screen since Run 1's first minute. She arrives
-   * holding a *branch*, and no readout appears when she sits down. The rule is
-   * confirmed by the hero it does not apply to.
-   *
-   * **Billy is in this case again** [amended 2026-09-26]. From 2026-08-29 he
-   * brought §13.8's floor, and placement was cut; he brings nothing new.
+   * §21.7.6 — "a person only brings what was not already there." Billy bends
+   * §4.1, whose gauge has been on screen since Run 1; he brings a tree and no
+   * readout. The rule is confirmed by the hero it does not apply to.
    */
-  it('gates no readout on Melany or Billy', () => {
+  it('gates no readout on Billy or James', () => {
     const neither = unlocksFor(1, NO_HEROES)
-    const both = unlocksFor(1, roster('melany', 'billy', 'james'))
+    const both = unlocksFor(1, roster('billy', 'james'))
     expect(both.defects).toBe(neither.defects)
     expect(both.incidents).toBe(neither.incidents)
     expect(both.tickets).toBe(neither.tickets)
@@ -110,13 +108,13 @@ describe('§21.7.6 — a system enters in the hands of the person who solves it'
     // reserves space for two bars that do not exist yet is the set asserted
     // before it exists.
     expect(unlocksFor(1, NO_HEROES).anyBacklog).toBe(false)
-    expect(unlocksFor(1, roster('melany', 'billy')).anyBacklog).toBe(false)
-    expect(unlocksFor(1, roster('mo')).anyBacklog).toBe(true)
+    expect(unlocksFor(1, roster('billy')).anyBacklog).toBe(false)
+    expect(unlocksFor(1, roster('serena')).anyBacklog).toBe(true)
     expect(unlocksFor(1, ALL).anyBacklog).toBe(true)
   })
 
   it('assembles the set one colour at a time, and completes it', () => {
-    const order: HeroId[] = ['mo', 'serena', 'matt']
+    const order: HeroId[] = ['serena', 'matt']
     const held: HeroId[] = []
     const seen: number[] = []
     for (const id of order) {
@@ -124,6 +122,6 @@ describe('§21.7.6 — a system enters in the hands of the person who solves it'
       const u = unlocksFor(1, roster(...held))
       seen.push([u.defects, u.incidents, u.tickets].filter(Boolean).length)
     }
-    expect(seen).toEqual([1, 2, 3])
+    expect(seen).toEqual([1, 3])
   })
 })

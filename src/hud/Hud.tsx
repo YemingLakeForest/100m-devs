@@ -12,6 +12,7 @@ import {
   currentEntropy,
   dismissScene,
   dismissShiftReport,
+  effectiveDevCap,
   finishLaunch,
   grantJames,
   hasSeenScene,
@@ -25,9 +26,16 @@ import {
   setHireMultiplier,
   takeSeedRound,
   triggerParadigmShift,
+  beginLiquidation,
   type GameState,
 } from '../game/store.ts'
 import { MASS_HIRE_COUNT, PHASE_COPY, SEED_ROUND_CASH } from '../game/onboarding.ts'
+import { LESSONS, RUN_ONE_WAY_OUT } from '../game/lessons.ts'
+import { CollapsePlate } from './CollapsePlate.tsx'
+import { marginalHire, plateCaption } from './collapseModel.ts'
+
+/** Founder and James: the two people who did the work before the Mass Hire. */
+const STARTING_HEADS = 2
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
@@ -525,6 +533,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       </div>
 
       <Bubble text={state.bubble?.text ?? null} />
+      {/* §21 Act IV — the curve, while the Mass Hire walks it. Run 1 only, by construction. */}
+      <CollapsePlate state={state} />
 
       {/*
         The right rail, and the same fix for the same defect: the resource
@@ -775,7 +785,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         }}
       />
 
-      <Bankruptcy open={state.phase === 'bankrupt' && !talking} />
+      <Bankruptcy open={state.phase === 'bankrupt' && !talking && !state.liquidating} state={state} />
       {/*
         §24.8 — before the swarm, before the rest of the HUD. `collectOffline`
         clears `pendingOffline`, so this unmounts on collect and the Panel
@@ -940,7 +950,22 @@ function ActionButton({ spec, state }: { spec: ActionSpec; state: GameState }) {
         what tells a broke player what they are waiting for.
       */}
       {spec.note && <small>{spec.note}</small>}
-      {q && <small>{formatMoney(q.cost)}</small>}
+      {/*
+        [2026-10-04] What the hire is worth, on the price line beside what it costs:
+        the §4.1 curve on the button that moves along it. Only once there is a
+        studio for it to be true of, and only on the ordinary hire — the mousetrap's
+        joke is that it does not say. **On the price line, not under it**: a third
+        row made the right rail taller and the frame gate caught the founder's CODE
+        button clipped at 748x336.
+      */}
+      {q && (() => {
+        const worth = spec.priced === 'hire' && state.devs >= 4 ? marginalHire(state.devs, effectiveDevCap(state), q.count) : null
+        return (
+          <small title={worth ? `The next hire ${worth.label.toLowerCase()} developers’ worth of work` : undefined}>
+            {formatMoney(q.cost)}{worth ? ` · ${worth.short}` : ''}
+          </small>
+        )
+      })()}
     </Button>
   )
 }
@@ -1059,7 +1084,14 @@ function Bubble({ text }: { text: string | null }) {
  * scrim, still simulating, which is what makes the bankruptcy land on a place
  * rather than on a screen.
  */
-function Bankruptcy({ open }: { open: boolean }) {
+function Bankruptcy({ open, state }: { open: boolean; state: GameState }) {
+  // §15.1a [2026-10-04] — the lesson with the run's own numbers under it. Two
+  // developers were doing two developers' worth of work; the swarm is doing a
+  // hundredth of one. Read off the same curve the plate drew, at the cap the
+  // studio actually had, so the receipt cannot disagree with what was on screen.
+  const cap = effectiveDevCap(state)
+  const before = plateCaption(STARTING_HEADS, cap).work
+  const after = plateCaption(state.devs, cap).work
   return (
     <OsWindow
       open={open}
@@ -1074,7 +1106,7 @@ function Bankruptcy({ open }: { open: boolean }) {
         run that has ended is not a window you dismiss.
       */
       footer={
-        <Button variant="bait" onClick={triggerParadigmShift}>
+        <Button variant="bait" onClick={beginLiquidation}>
           TRIGGER PARADIGM SHIFT
         </Button>
       }
@@ -1084,10 +1116,17 @@ function Bankruptcy({ open }: { open: boolean }) {
         <ConceptText text="Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds coding." />
       </p>
       <p className="bankruptcy__result">$0 REVENUE — TOTAL LIQUIDATION</p>
+      <p className="bankruptcy__sums">
+        {STARTING_HEADS} DEVELOPERS: {before} DEVELOPERS’ WORTH OF WORK
+        <br />
+        {Math.floor(state.devs).toLocaleString()} DEVELOPERS: {after} DEVELOPERS’ WORTH OF WORK
+      </p>
       <p className="bankruptcy__lesson">
         LESSON LEARNED:
         <br />
-        Manpower without Communication Infrastructure is Chaos.
+        {LESSONS['lesson.entropy']}
+        <br />
+        {RUN_ONE_WAY_OUT}
       </p>
       {/* James survives. Every other developer is liquidated. */}
       <p className="bankruptcy__james">James stayed.</p>

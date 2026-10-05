@@ -9,10 +9,14 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  BILLY_ARRIVAL_POINTS,
+  COORD_LOAD_STEP,
   TREE_HEROES,
   TREES,
   connectorRoute,
+  isBuilt,
   levelOf,
+  syncCapMultiplier,
   tileStateOf,
   treeNode,
   treePrice,
@@ -39,6 +43,13 @@ const node = (hero: TreeHero, id: string): TreeNode => {
   if (!n) throw new Error(`${hero}:${id}`)
   return n
 }
+
+/**
+ * The demo's rules (parents, forks, eras, cash) are about the *board*, not about
+ * what a node does, so they are tested on a node dressed as a built one. Whether
+ * a node is built is its own claim, below.
+ */
+const asBuilt = (n: TreeNode): TreeNode => ({ ...n, coord: n.coord ?? 1 })
 
 describe('§8 — the five trees are well formed', () => {
   for (const hero of TREE_HEROES) {
@@ -115,23 +126,23 @@ describe('§8 — the demo’s rules', () => {
 
   it('opens from its parents: any one, or every one where the tile says so', () => {
     // The Big Red Button needs Second Monitor *or* Beanbag Row.
-    expect(treeRefusal(view(), 'you', node('you', 'y3'))).toBe('requires')
-    expect(treeRefusal(view({ 'you:y2': 1 }), 'you', node('you', 'y3'))).toBeNull()
+    expect(treeRefusal(view(), 'you', asBuilt(node('you', 'y3')))).toBe('requires')
+    expect(treeRefusal(view({ 'you:y2': 1 }), 'you', asBuilt(node('you', 'y3')))).toBeNull()
     // Leave Them Alone needs Hologram Founder *and* Take a Holiday.
     const both = { 'you:p5': 1 }
-    expect(treeRefusal(view(both), 'you', node('you', 'K1'))).toBe('requires')
-    expect(treeRefusal(view({ ...both, 'you:p6': 1 }), 'you', node('you', 'K1'))).toBeNull()
+    expect(treeRefusal(view(both), 'you', asBuilt(node('you', 'K1')))).toBe('requires')
+    expect(treeRefusal(view({ ...both, 'you:p6': 1 }), 'you', asBuilt(node('you', 'K1')))).toBeNull()
   })
 
   it('a pick-one closes the other side', () => {
     const taken = view({ 'you:p2': 1, 'you:p3a': 1 })
-    expect(treeRefusal(taken, 'you', node('you', 'p3b'))).toBe('fork')
+    expect(treeRefusal(taken, 'you', asBuilt(node('you', 'p3b')))).toBe('fork')
     expect(tileStateOf('fork', 0)).toBe('closed')
   })
 
   it('waits for its era, and for the cash', () => {
-    expect(treeRefusal(view({}, { era: 0 }), 'you', node('you', 'm2'))).toBe('era')
-    expect(treeRefusal(view({}, { cash: 0 }), 'you', node('you', 'y1'))).toBe('cash')
+    expect(treeRefusal(view({}, { era: 0 }), 'you', asBuilt(node('you', 'm2')))).toBe('era')
+    expect(treeRefusal(view({}, { cash: 0 }), 'you', asBuilt(node('you', 'y1')))).toBe('cash')
   })
 
   it('a levelled node stays itself while it has levels to buy', () => {
@@ -146,5 +157,94 @@ describe('§8 — the demo’s rules', () => {
     const key = node('you', 'K1')
     expect(treePrice(plain, 1)).toBe(Math.round(treePrice(plain, 0) * 1.6))
     expect(treePrice(key, 0)).toBe(treePrice({ ...key, kind: 'node' }, 0) * 4)
+  })
+})
+
+/**
+ * Billy's meeting tree is the sync lever [2026-10-04, GDD §21.7.3]. The claims
+ * are about shape, not about how much: buying a coordination point never lowers
+ * sync, a node with no coordination does not move it, and nothing can take the
+ * load to zero.
+ */
+describe('Billy’s coordination points raise sync', () => {
+  const coordNodes = TREES.billy.filter((n) => n.coord)
+  const levelsWith = (take: (n: TreeNode) => number) =>
+    Object.fromEntries(coordNodes.map((n) => [`billy:${n.id}`, take(n)]))
+
+  it('is exactly 1 with nothing bought, and for a save that has no tree levels', () => {
+    expect(syncCapMultiplier({})).toBe(1)
+    expect(syncCapMultiplier(undefined)).toBe(1)
+  })
+
+  it('rises with every coordination point', () => {
+    expect(coordNodes.length).toBeGreaterThan(0)
+    for (const n of coordNodes) {
+      const next = syncCapMultiplier({ [`billy:${n.id}`]: 1 })
+      expect(next).toBeGreaterThan(1)
+      expect(next).toBeCloseTo(1 / COORD_LOAD_STEP ** n.coord!, 12)
+    }
+  })
+
+  it('ignores nodes that carry no coordination, and levels past the maximum', () => {
+    const other = TREES.billy.find((n) => !n.coord && n.kind === 'node')!
+    expect(syncCapMultiplier({ [`billy:${other.id}`]: 3 })).toBe(1)
+    const first = coordNodes[0]
+    expect(syncCapMultiplier({ [`billy:${first.id}`]: 99 })).toBe(
+      syncCapMultiplier({ [`billy:${first.id}`]: first.max }),
+    )
+  })
+
+  it('compounds, so the whole column is a big cap and still finite', () => {
+    const all = syncCapMultiplier(levelsWith((n) => n.max))
+    expect(all).toBeGreaterThan(1.5)
+    expect(all).toBeLessThan(4)
+  })
+
+  it('says what it does in the player’s words, so the board does not call it unwired', () => {
+    for (const n of coordNodes) expect(n.effect).toMatch(/Sync up/)
+  })
+})
+
+/**
+ * §8 [2026-10-04] — **a node that takes the player's money and changes nothing
+ * is a defect**, and the board used to sell dozens of them. Found by playing.
+ */
+describe('the board sells nothing that does nothing', () => {
+  const sellable = TREE_HEROES.flatMap((h) =>
+    TREES[h].filter((n) => n.kind !== 'root' && n.kind !== 'link').map((n) => [h, n] as const),
+  )
+
+  it('refuses every node that is not built, however rich the studio is and however far along', () => {
+    for (const [hero, n] of sellable) {
+      if (isBuilt(n)) continue
+      expect(treeRefusal(view({}, { cash: 1e18, era: 4 }), hero, n), `${hero}:${n.id}`).toBe('unbuilt')
+    }
+  })
+
+  it('never refuses a built node as unbuilt', () => {
+    for (const [hero, n] of sellable) {
+      if (!isBuilt(n)) continue
+      expect(treeRefusal(view({}, { cash: 1e18, era: 4 }), hero, n), `${hero}:${n.id}`).not.toBe('unbuilt')
+    }
+  })
+
+  it('leaves something to buy before Billy or Serena are in the building — THE THREAD’s cure', () => {
+    // James says "open UPGRADES, buy anything". At the garage's era and the
+    // price of a garage node, James's own tree has to have something for sale.
+    const early = TREES.james.filter((n) => isBuilt(n) && n.era === 0 && n.kind === 'node')
+    expect(early.length).toBeGreaterThan(0)
+    for (const n of early) {
+      expect(treeRefusal(view({}, { cash: 1e6, era: 0 }), 'james', n), n.id).toBeNull()
+    }
+  })
+
+  it('counts Billy’s arrival as a point, so his root is a net gain for the careful player', () => {
+    expect(syncCapMultiplier({}, true)).toBeCloseTo(1 / COORD_LOAD_STEP ** BILLY_ARRIVAL_POINTS, 12)
+    expect(syncCapMultiplier({}, true)).toBeGreaterThan(syncCapMultiplier({}, false))
+  })
+
+  it('counts every tree’s coordination, James’s included', () => {
+    const j = TREES.james.find((n) => n.coord)!
+    expect(syncCapMultiplier({ [`james:${j.id}`]: 1 })).toBeGreaterThan(1)
   })
 })

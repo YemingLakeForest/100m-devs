@@ -58,7 +58,8 @@ export function heroRuntime(id: HeroId): HeroRuntime | null {
 }
 
 /**
- * Serena's rota: the share of the headcount on call for incidents.
+ * Matt's rota: the share of the headcount on call for incidents [moved from
+ * Serena 2026-10-04, with the runbook trait].
  *
  * One in fifty. §4.12a pins a garage-density release at a tenth of an incident
  * over its whole life, at 45 seconds of attention each, so a catalogue of fifty
@@ -89,15 +90,23 @@ export const HELPDESK_SHARE = 0.05
  */
 export const STANDUP_KEPT_SHARE = 0.5
 
+/**
+ * Serena's DEGRADED, NOT DOWN: builds the queue holds beyond the garage's three.
+ *
+ * Two, which is a first pass chosen against the garage's three: the arrival is
+ * relief for a studio that has just learned a full shelf stops the floor, so it
+ * has to be felt (three becomes five), and it must leave Auto-Ship and the
+ * Shelf node something to sell.
+ */
+export const SERENA_SHELF_SLOTS = 2
+
 /** What the studio gets from the heroes who have arrived. */
 export interface HeroFold {
-  /** Multiplies §4.2's developer cap. Above 1 is an improvement. Melany. */
-  cap: number
-  /** Multiplies §4.12's defect arrival rate. Below 1 is an improvement. Mo. */
-  defects: number
-  /** Work a newly opened incident needs, as a fraction of normal. Serena. */
+  /** §10.7 — builds the queue holds beyond the garage's three, additive. Serena. */
+  shelfSlots: number
+  /** Work a newly opened incident needs, as a fraction of normal. Matt. */
   incidentStartWork: number
-  /** §4.12a — heads clearing incidents, additive. Serena's rota. */
+  /** §4.12a — heads clearing incidents, additive. Matt's rota. */
   oncallHeads: number
   /** Multiplies ticket arrivals from the catalogue. Matt. */
   ticketRate: number
@@ -105,20 +114,16 @@ export interface HeroFold {
   supportHeads: number
   /** Coding heads the Daily Standups do not pause. James and Billy. */
   standupHeads: number
-  /** Reserved-capacity operating cost, dollars per second. Melany. */
-  operatingCost: number
 }
 
 /** The studio with nobody through the door. §13.6.7 — "heroes are amplitude, not gate". */
 export const NO_HERO_FOLD: HeroFold = {
-  cap: 1,
-  defects: 1,
+  shelfSlots: 0,
   incidentStartWork: 1,
   oncallHeads: 0,
   ticketRate: 1,
   supportHeads: 0,
   standupHeads: 0,
-  operatingCost: 0,
 }
 
 /**
@@ -139,25 +144,18 @@ export function heroFold(heroes: readonly HeroRuntime[], totalDevs: number): Her
         // FEWER COMMITMENTS — one person keeps typing through stand-up.
         out.standupHeads += 1
         break
-      case 'mo':
-        // READS IT TWICE — half as many defects written.
-        out.defects *= 0.5
-        break
       case 'serena':
-        // WROTE THE RUNBOOK — a page starts half worked, and the floor is on call.
-        out.incidentStartWork *= 0.5
-        out.oncallHeads += ONCALL_SHARE * devs
+        // DEGRADED, NOT DOWN — the queue holds two more builds before the floor stops.
+        out.shelfSlots += SERENA_SHELF_SLOTS
         break
       case 'matt':
-        // KNOWS THEIR NAMES — the catalogue asks a fifth fewer questions, and
-        // somebody is at the desk to answer the rest.
+        // KNOWS THEIR NAMES — the catalogue asks a fifth fewer questions,
+        // somebody is at the desk to answer the rest, and — the runbook, moved
+        // here from Serena — a page starts half worked with the floor on call.
         out.ticketRate *= 0.8
+        out.incidentStartWork *= 0.5
+        out.oncallHeads += ONCALL_SHARE * devs
         out.supportHeads += HELPDESK_SHARE * devs
-        break
-      case 'melany':
-        // RESERVED INSTANCES — a quarter more cap, and a dollar a developer a second.
-        out.cap *= 1.25
-        out.operatingCost += devs
         break
       case 'billy':
         // FIFTEEN MINUTES — half the floor keeps working through stand-up.
@@ -175,7 +173,7 @@ export function heroFold(heroes: readonly HeroRuntime[], totalDevs: number): Her
  * §4.14's hero term — how much of the cast is in the building, 0..1.
  *
  * It was the share of the studio a posted hero covered. With nobody posted the
- * honest reading is the bench itself: a studio led by four of the six ships
+ * honest reading is the bench itself: a studio led by three of the four ships
  * better games than one led by James alone. **Divided by the cast, not by the
  * arrivals**, so the term climbs with the story instead of peaking in Act I.
  */

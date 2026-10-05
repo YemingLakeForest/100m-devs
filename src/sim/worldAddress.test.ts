@@ -42,6 +42,10 @@ describe('the monitor keeps people addressable', () => {
     expect(houseAddress(1, 0)).toBe(100_000_000)
     expect(houseAddress(1, regionHouses(12).first) % 100).toBe(0)
   })
+  // [2026-10-04] A generous timeout, and only that. It builds the 73-world network twice
+  // (the second to prove determinism) and checks planarity: about two seconds on a quiet
+  // machine and over the default five when the whole suite is running eight files at once —
+  // which is exactly when `npm run check` runs it. It failed the gate three times for being slow.
   it('preserves the reference network: connected, planar, deterministic, Sol then Proxima', () => {
     const net = buildNetwork(73)
     expect(net.order).toHaveLength(net.systems.length)
@@ -56,7 +60,7 @@ describe('the monitor keeps people addressable', () => {
       if (new Set([a, b, c, d]).size < 4) return
       expect(side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0).toBe(false)
     }))
-  })
+  }, 30_000)
   it('extends beyond the prototype without changing an occupied address', () => {
     const net = buildNetwork(73)
     const original = [...net.order], positions = net.systems.map(s => [s.x, s.z])

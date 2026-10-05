@@ -13,7 +13,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { HeroCard } from './HeroCard.tsx'
 import { __resetStore, heroById, selectHero } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
-import { SCENE_MATT_ARRIVES, SCENE_MO_ARRIVES, SCENE_SERENA_ARRIVES } from '../game/scenes.ts'
+import { SCENE_MATT_ARRIVES, SCENE_SERENA_ARRIVES } from '../game/scenes.ts'
 import type { HeroId } from '../sim/storyHeroes.ts'
 
 vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn(), playPurchase: vi.fn() }))
@@ -26,14 +26,14 @@ const noop = {
   onStep: () => {},
 }
 
-function staffed(id: HeroId = 'mo') {
+function staffed(id: HeroId = 'serena') {
   const p = emptyPermanent()
   setPermanent({
     ...p,
     meta: {
       ...p.meta,
       paradigmShifts: 1,
-      milestones: [SCENE_MO_ARRIVES.id, SCENE_SERENA_ARRIVES.id, SCENE_MATT_ARRIVES.id],
+      milestones: [SCENE_SERENA_ARRIVES.id, SCENE_MATT_ARRIVES.id],
     },
   })
   return heroById(id)!
@@ -67,10 +67,10 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
 
   it('names the person and their speciality, and prints the trait as a sentence', () => {
     render(<HeroCard hero={staffed()} devs={40} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />)
-    expect(screen.getByText('Mo')).toBeInTheDocument()
-    expect(screen.getByText('QUALITY')).toBeInTheDocument()
-    expect(screen.getByText('READS IT TWICE')).toBeInTheDocument()
-    expect(screen.getByText('The studio writes half as many defects.')).toBeInTheDocument()
+    expect(screen.getByText('Serena')).toBeInTheDocument()
+    expect(screen.getByText('RELIABILITY')).toBeInTheDocument()
+    expect(screen.getByText('DEGRADED, NOT DOWN')).toBeInTheDocument()
+    expect(screen.getByText('The build queue holds two more builds before it stops the floor.')).toBeInTheDocument()
   })
 
   it('is closed when nobody is selected', () => {
@@ -84,24 +84,24 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
 describe('what they are doing for the studio, right now', () => {
   it('reads the live numbers off the headcount — the rota grows with the studio', () => {
     const { rerender } = render(
-      <HeroCard hero={staffed('serena')} devs={100} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />,
+      <HeroCard hero={staffed('matt')} devs={100} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />,
     )
-    // One in fifty of a hundred.
+    // One in fifty of a hundred, on Matt's rota since the runbook moved to him.
     expect(screen.getByText('ON CALL')).toBeInTheDocument()
     expect(screen.getByText('2 DEVS')).toBeInTheDocument()
     rerender(
-      <HeroCard hero={staffed('serena')} devs={5_000} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />,
+      <HeroCard hero={staffed('matt')} devs={5_000} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />,
     )
     expect(screen.getByText('100 DEVS')).toBeInTheDocument()
   })
 
-  it('says what Mo and Matt are doing in the fold’s own numbers', () => {
+  it('says what Serena and Matt are doing in the fold’s own numbers', () => {
     render(<HeroCard hero={staffed('matt')} devs={200} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />)
     expect(screen.getByText('10 DEVS')).toBeInTheDocument()
     expect(screen.getByText('−20%')).toBeInTheDocument()
     cleanup()
-    render(<HeroCard hero={staffed('mo')} devs={200} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />)
-    expect(screen.getByText('−50%')).toBeInTheDocument()
+    render(<HeroCard hero={staffed('serena')} devs={200} canUpgrade={false} place={{ at: 1, of: 1 }} {...noop} />)
+    expect(screen.getByText('+2 BUILDS')).toBeInTheDocument()
   })
 
   it('has nothing left of placement on it', () => {
@@ -144,8 +144,8 @@ describe('the foot — the door to their upgrades, and the next person', () => {
 describe('§7.8.13 rule 3 — the turn lands on the card, not the record', () => {
   it('refuses to open a card for somebody who has not arrived', () => {
     setPermanent(emptyPermanent())
-    expect(selectHero('mo')).toBe(false)
+    expect(selectHero('serena')).toBe(false)
     staffed()
-    expect(selectHero('mo')).toBe(true)
+    expect(selectHero('serena')).toBe(true)
   })
 })

@@ -7,6 +7,8 @@ import type { PhosphorRamp } from '../../art/entropyTheme.ts'
 import { RAMPS } from '../../art/palette.ts'
 import { drawDistrict, drawGlobe, drawExpansionReceipt, type AtlasFrame, type Expansion } from './atlasWorlds.ts'
 import { drawNetwork } from './atlasNetwork.ts'
+import { hqWings, type HqWing } from '../../sim/hqLook.ts'
+import type { HeroId } from '../../sim/storyHeroes.ts'
 import { bakeCityImpostors, type CityImpostors } from './cityImpostors.ts'
 
 /** The OS draws the studio once the physical desks are too small to read.
@@ -51,6 +53,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   const expansions: Expansion[] = []
   let entryHouse = 0
   let chosen = -1, lastText = '', lastDraw = -1
+  let wings: HqWing[] = []
   let points: { x: number; y: number; id: number; depth: number }[] = []
   const bar = document.createElement('nav'); bar.className = 'studio-address'; bar.setAttribute('aria-label', 'Studio address')
   Object.assign(bar.style, { position: 'absolute', top: '8px', left: '50%', transform: 'translateX(-50%)', display: 'none', gap: '2px', zIndex: '4', maxWidth: '96%', background: '#181919', border: '1px solid currentColor', font: '12px var(--font-terminal), monospace' })
@@ -96,6 +99,8 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
     get world() { return world },
     get entrySeat() { return houseAddress(world, entryHouse || regionHouses(region).first) },
     get active() { return level >= 3 },
+    /** Who has walked in: the colours the HQ wears on the map (`sim/hqLook.ts`). */
+    setHeroes(ids: Iterable<HeroId>) { wings = hqWings(ids) },
     setLevel(value: number) { if ((value >= 6) !== (level >= 6) || (value >= 4.5) !== (level >= 4.5)) { panX = panY = 0; chosen = -1 } level = value },
     pan(dx: number, dy: number) { if (level >= 4.5 && level < 6) { yaw += dx * .008; tilt = Math.max(-1.2, Math.min(1.2, tilt + dy * .005)) } else { panX += dx / 3; panY += dy / 3 } },
     tap(x: number, y: number) {
@@ -161,7 +166,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       }
       if(height>=160){ctx.fillStyle=p[1];label('STUDIO_OS / LIVE SURVEY',left+2,top+9)}
       points = []
-      const frame: AtlasFrame = { ctx, width, height, total, world, region, level, panX, panY, seconds, reduced, phosphor: p, points, expansions }
+      const frame: AtlasFrame = { ctx, width, height, total, world, region, level, panX, panY, seconds, reduced, phosphor: p, points, expansions, wings }
       if (level >= 6) drawNetwork(frame, net, chosen, territory, mask)
       else if (level >= 4.5) drawGlobe(frame, yaw, tilt, chosen)
       else { sprites ??= bakeCityImpostors(renderer); drawDistrict(frame, sprites) }

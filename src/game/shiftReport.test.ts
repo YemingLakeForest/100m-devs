@@ -108,7 +108,7 @@ describe('the report is about the reality that ended', () => {
     const pages = paradigmBootPages(getState().pendingShift!, 'ADA')
     expect(pages[0]).toContain('PARADIGM SHIFT 001')
     expect(pages[1]).toContain('$164.2M')
-    expect(pages.join('\n')).toContain('Manpower without Communication Infrastructure')
+    expect(pages.join('\n')).toContain('every hire makes it slower')
   })
 })
 

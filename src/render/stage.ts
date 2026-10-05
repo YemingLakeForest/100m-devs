@@ -43,6 +43,7 @@ import { founderLook, readStudioName } from '../game/founderProfile.ts'
 import { entropyTheme } from '../art/entropyTheme.ts'
 import {
   arrivedHeroes,
+  finishLiquidation,
   currentEntropy,
   baseVelocity, developerVelocity, shelfBlocked, burnedFraction, projectOrdinal,
   FLOATER_LIFE_MS,
@@ -73,7 +74,18 @@ import { FrameSampler, LatencySampler } from '../perf/metrics.ts'
 import type { BenchHooks } from '../perf/bench.ts'
 import type { FounderProfile } from '../game/founderProfile.ts'
 import type { HeroId } from '../sim/storyHeroes.ts'
-import { JAMES_DROPS_AT_LINE, SCENE_JAMES_ARRIVES } from '../game/scenes.ts'
+import {
+  AT_BILLY,
+  AT_MATT,
+  AT_SERENA,
+  JAMES_DROPS_AT_LINE,
+  SCENE_BILLY_ARRIVES,
+  SCENE_JAMES_ARRIVES,
+  SCENE_MATT_ARRIVES,
+  SCENE_SERENA_ARRIVES,
+  SCENES,
+} from '../game/scenes.ts'
+import { leaderSeat } from '../three/sim/floorPlan.ts'
 
 /**
  * The lens, as the things that were written against the Pixi lens still read
@@ -132,6 +144,22 @@ export interface StageHandle {
 const JAMES_SEAT = -2
 /** The founder's. */
 const FOUNDER_SEAT = -1
+
+/**
+ * The hero row [2026-10-04]: which script focus is which hero, and which scene is
+ * theirs. The lens used to leave these alone because the garage held nobody but
+ * the founder and James; it holds all five now.
+ */
+const ROW_FOCUS = new Map<number, 'billy' | 'serena' | 'matt'>([
+  [AT_BILLY, 'billy'],
+  [AT_SERENA, 'serena'],
+  [AT_MATT, 'matt'],
+])
+const ROW_SCENE = new Map<string, { id: 'billy' | 'serena' | 'matt'; speaker: string }>([
+  [SCENE_BILLY_ARRIVES.id, { id: 'billy', speaker: 'BILLY' }],
+  [SCENE_SERENA_ARRIVES.id, { id: 'serena', speaker: 'SERENA' }],
+  [SCENE_MATT_ARRIVES.id, { id: 'matt', speaker: 'MATT' }],
+])
 
 /** Samples kept for the latency percentile. 120 taps is ~24 s at 5 taps/sec. */
 const LATENCY_WINDOW = 120
@@ -299,12 +327,14 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   /** The founder has said *What—* and the lens has gone to James's spot. */
   let jamesCued = false
   let jamesInRoom = false
+  /** §15.1a — the liquidation is playing, since when. */
+  let liquidationAt: number | null = null
 
   const focusDialogue = (focus: 'founder' | number | null) => {
     // Over the room the lens goes to the speaker; STUDIO_OS has no body, so the
-    // camera holds where it is for its lines. A hero the garage does not hold
-    // (Mo, Serena …) leaves the lens alone.
-    const seat = focus === 'founder' ? FOUNDER_SEAT : focus === 0 ? JAMES_SEAT : null
+    // camera holds where it is for its lines.
+    const row = typeof focus === 'number' ? ROW_FOCUS.get(focus) : undefined
+    const seat = focus === 'founder' ? FOUNDER_SEAT : focus === 0 ? JAMES_SEAT : row ? leaderSeat(row) : null
     if (seat === null) return
     if (atlasZoom !== null) travel(1, -1)
     garage.focus(seat)
@@ -566,7 +596,38 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     jamesInRoom = arrivedHeroes().has('james')
       || (state.scene === SCENE_JAMES_ARRIVES.id && sceneLine !== null
         && (sceneLine >= JAMES_DROPS_AT_LINE || (jamesCued && !garage.easing)))
-    garage.setJames(jamesInRoom)
+    // §15.1a [2026-10-04] — and *after the cut scene*: James is not in the room while
+    // the receipt is up, and drops in when it closes, so Run 2 opens on his landing
+    // and on "You again." rather than on a man who was never gone.
+    garage.setJames(jamesInRoom && !state.pendingShift)
+    // The hero row: Billy, Serena and Matt, each at the desk that was waiting.
+    /*
+     * §15.1a [2026-10-04] — **the first death's last scene.** Everybody in the
+     * garage goes up through the roof and every house lifts off on its thrusters,
+     * James says his line over it, and when the last of them has cleared the frame
+     * the shift lands and the receipt follows. At least a beat and at most nine
+     * seconds, so the line can be read and a stuck animation cannot hold the run.
+     */
+    if (state.liquidating) {
+      const now = performance.now()
+      if (liquidationAt === null) {
+        liquidationAt = now
+        garage.liquidate()
+      } else if (now - liquidationAt > 9000 || (now - liquidationAt > 1500 && !garage.liquidating)) {
+        liquidationAt = null
+        finishLiquidation()
+      }
+    } else liquidationAt = null
+
+    // A hero whose scene is playing drops in as they take their first line, the
+    // way James does, rather than after the box is closed.
+    const speaking = state.scene ? ROW_SCENE.get(state.scene) : undefined
+    const speakingAt = speaking && state.scene ? SCENES[state.scene].script.findIndex((l) => l.speaker === speaking.speaker) : -1
+    garage.setHeroes(
+      (['billy', 'serena', 'matt'] as const).filter(
+        (id) => arrivedHeroes().has(id) || (speaking?.id === id && sceneLine !== null && speakingAt >= 0 && sceneLine >= speakingAt),
+      ),
+    )
     // The scene is over: the lens goes back to where the player had it.
     if (!state.scene) {
       sceneLine = null
@@ -663,6 +724,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       landingsHeard = garage.landings
       playSfx('poke-floor')
     }
+    atlas.setHeroes(arrivedHeroes())
     const picture = atlas.render(garage.renderer, garage.output, w, h, state.devs, theme.phosphor, now / 1000, reduceMotion)
     glass.render(garage.renderer, picture, numeralsLive ? numeralTexture : null, {
       glass: theme.glass,

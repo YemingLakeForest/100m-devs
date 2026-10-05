@@ -7,6 +7,7 @@ import {
   projectTitle,
   saveGame,
   selectDeveloper,
+  showScene,
   startNewGame,
 } from './game/store.ts'
 import { PHASE_ORDER, type Phase } from './game/onboarding.ts'
@@ -32,8 +33,6 @@ import {
   SCENE_JAMES_INSTANT_MESSENGER,
   SCENE_JAMES_PROMOTED,
   SCENE_MATT_ARRIVES,
-  SCENE_MELANY_ARRIVES,
-  SCENE_MO_ARRIVES,
   SCENE_SERENA_ARRIVES,
   SCENE_THE_THREAD,
 } from './game/scenes.ts'
@@ -180,25 +179,8 @@ export default function App() {
             // He arrived in Act I, so any prestiged save has him.
             SCENE_JAMES_ARRIVES.id,
             SCENE_JAMES_INSTANT_MESSENGER.id,
-            SCENE_MO_ARRIVES.id,
             SCENE_SERENA_ARRIVES.id,
             SCENE_MATT_ARRIVES.id,
-            /*
-             * §7.8.0c [added 2026-09-03] — **and Melany, so the corner is
-             * seven.**
-             *
-             * She was the one arrival missing from this list, and for the
-             * reason the note above gives about Billy: she brings no readout,
-             * so she changes nothing about the worst frame the HUD has to draw.
-             * That was the wrong test. `?full` is also the fixture the room
-             * gates measured — `test:room` (deleted 2026-09-26) and every garage capture loaded it —
-             * and §7.8.0c requires the completed leadership corner to hold the
-             * founder and **all six** named heroes at seven distinct work
-             * positions. Without her the canonical garage frame had six people
-             * in a room sized for seven, and no gate could see it, because the
-             * only thing that knew the number was the concept art.
-             */
-            SCENE_MELANY_ARRIVES.id,
             // Billy, so the fixture has the whole cast: every card, and every
             // person's tree once the shift has opened them.
             SCENE_BILLY_ARRIVES.id,
@@ -251,6 +233,40 @@ export default function App() {
           routed: !DEBUG_QUERY.has('event'),
         },
       })
+    }
+
+    /*
+     * ?arrive=billy|serena|matt plays one hero's arrival [2026-10-04].
+     *
+     * Same family as `?full`, and here for the same reason: the frame is real and
+     * the way of getting to it is twenty minutes of Run 2. It prestiges the career,
+     * records everything that would otherwise interrupt (the thread, the founder's
+     * board) and everybody who comes *before* this hero, and opens their scene —
+     * so the wall, the desk and the drop can be looked at, and driven, in a
+     * browser. `?full` is the opposite tool: everybody already in the room.
+     */
+    const arrive = DEBUG_QUERY.get('arrive')
+    const ARRIVALS = { billy: SCENE_BILLY_ARRIVES, serena: SCENE_SERENA_ARRIVES, matt: SCENE_MATT_ARRIVES } as const
+    const BEFORE = { billy: [], serena: [SCENE_BILLY_ARRIVES.id], matt: [SCENE_BILLY_ARRIVES.id, SCENE_SERENA_ARRIVES.id] } as const
+    if (arrive === 'billy' || arrive === 'serena' || arrive === 'matt') {
+      const p = getPermanent()
+      setPermanent({
+        ...p,
+        meta: {
+          ...p.meta,
+          paradigmShifts: 1,
+          milestones: [
+            ...p.meta.milestones,
+            SCENE_JAMES_ARRIVES.id,
+            SCENE_JAMES_INSTANT_MESSENGER.id,
+            SCENE_THE_THREAD.id,
+            SCENE_FOUNDER_BOARD.id,
+            ...BEFORE[arrive],
+          ],
+        },
+      })
+      __setState({ devs: 12, cash: 40_000, dialUnlocked: true, projectsShipped: 5 })
+      showScene(ARRIVALS[arrive].id)
     }
 
     /*

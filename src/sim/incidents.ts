@@ -106,8 +106,27 @@ import { earningRate, type Release } from './revenue.ts'
  * a stated design quantity rather than left implicit in ι, so that retuning it
  * is one edit and reading it is one sentence.
  */
-export const INCIDENTS_PER_GARAGE_RELEASE = 0.1
-
+export const INCIDENTS_PER_GARAGE_RELEASE = 0.6
+/*
+ * **[2026-10-04] Raised from a tenth to six tenths — measured, not argued.**
+ *
+ * Matt arrives when incidents drown the studio (§21.7.3), and a played run
+ * (`arrivalOrder.test.ts`'s player, an hour of Run 2) showed that they never
+ * could: at a tenth the busiest studio the game produces — 61 ships an hour —
+ * had **one incident open at its worst**, and at no point two. The file's own
+ * header says *"a mature one sees them constantly"*, and the number made that a
+ * sentence about a different game. The other direction was tried first too:
+ * 1.0 was "wrong by a mile" in the garage, where the founder alone clears them,
+ * and that is the reason the figure is not simply restored.
+ *
+ * Swept at 0.3, 0.6 and 1.2 over the same hour. The cash curve barely moves at
+ * any of them (about three million dollars at minute twenty, then the same),
+ * because an open incident freezes a release's tail rather than deleting it, so
+ * the cost is runway and not revenue. 0.3 still tops out at one open; 0.6 reaches
+ * two by the time Serena arrives; 1.2 reaches three before she does. Six tenths is
+ * the first that is a pager rather than a footnote, and the first at which a
+ * studio that has not bought Matt's help desk can be seen falling behind.
+ */
 /**
  * §4.12a's `ι`, derived rather than chosen — see the file header.
  *

@@ -55,8 +55,12 @@ export type LessonId =
  * about to leave.
  */
 export const LESSONS: Record<LessonId, string> = {
-  // §6, verbatim from §21's bankruptcy screen. Run 1's, and only Run 1's.
-  'lesson.entropy': 'Manpower without Communication Infrastructure is Chaos.',
+    // [rewritten 2026-10-04 — the id is what a save holds, the words are free.]
+  // It said *Manpower without Communication Infrastructure is Chaos*, which is
+  // a lesson about a missing tool; the first death exists to teach the
+  // headcount, so the line now says that, and the old one is the way out
+  // ({@link RUN_ONE_WAY_OUT}), printed beneath it on the bankruptcy panel.
+  'lesson.entropy': 'Past what a studio can coordinate, every hire makes it slower.',
   'lesson.payroll': 'Payroll is a clock. It does not stop when the studio does.',
   'lesson.protocol': 'Nothing raises the ceiling except the board.',
   'lesson.optimum': 'Past three quarters of capacity, every hire makes the studio slower.',
@@ -64,6 +68,9 @@ export const LESSONS: Record<LessonId, string> = {
   'lesson.quality': 'A game nobody trusts earns like a game nobody played.',
   'lesson.patience': 'A run is over when it stops teaching you anything.',
 }
+
+/** §6's original line, now the second half of Run 1's lesson: what to do about it. */
+export const RUN_ONE_WAY_OUT = 'Manpower without Communication Infrastructure is Chaos.'
 
 /** The state a lesson is read off. A snapshot, not `GameState`, so it stays testable. */
 export interface RunEnding {

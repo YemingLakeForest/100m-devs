@@ -67,7 +67,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
   }
   moonlit(ground)
   tiles.forEach(tile => batchArt(tile))
-  type Building = ReturnType<typeof createCityHouse> & { group: T.Group; lot: T.Group; rig: ReturnType<typeof createThrusters>; marker: T.LineLoop; legs: T.Group; start: number | null; wait: number; landed: boolean; ignited: boolean; dust: boolean; hop: number | null }
+  type Building = ReturnType<typeof createCityHouse> & { leaving: number | null; group: T.Group; lot: T.Group; rig: ReturnType<typeof createThrusters>; marker: T.LineLoop; legs: T.Group; start: number | null; wait: number; landed: boolean; ignited: boolean; dust: boolean; hop: number | null }
   const buildings: Building[] = []
   let clock = 0, staff = 0, offset = 0
   function footprint(i: number) {
@@ -82,6 +82,15 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
     root,
     get count() { return buildings.length },
     reset() { while (buildings.length) remove(buildings.pop()!) },
+    /**
+     * §15.1a [2026-10-04] — **the first death's last shot: every house lifts off.**
+     * The landing played backwards — the thrusters light, the house rises on them
+     * ever faster until it is out of the frame, one after another — and the lot is
+     * left empty. Resolved by `update`, which removes each house when it has gone.
+     */
+    liquidate() { buildings.forEach((b, i) => { if (b.leaving === null) { b.leaving = clock + i * 0.25; b.start = null; b.legs.visible = false; b.marker.visible = false } }) },
+    /** Is a house still on its way out? */
+    get liquidating() { return buildings.some(b => b.leaving !== null) },
     setOffset(next: number) {
       if (next === offset) return
       while (buildings.length) remove(buildings.pop()!)
@@ -103,7 +112,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
           new T.Vector3(-edge, 0, -edge), new T.Vector3(edge, 0, -edge), new T.Vector3(edge, 0, edge), new T.Vector3(-edge, 0, edge),
         ]), new T.LineBasicMaterial({ color: OS.calm2, transparent: true }))
         marker.position.set(at.x, -.29, at.z); root.add(marker)
-        const b: Building = { ...model, group, lot: dressCityLot(root, at.x, at.z), rig, marker, legs, start: animate ? clock : null, wait: queued,
+        const b: Building = { ...model, leaving: null, group, lot: dressCityLot(root, at.x, at.z), rig, marker, legs, start: animate ? clock : null, wait: queued,
           landed: !animate, ignited: false, dust: false, hop: null }
         buildings.push(b); queued += .22
         group.position.y += animate ? 30 : 0
@@ -128,6 +137,17 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
       let active = false
       buildings.forEach((b, i) => {
         if (b.interior?.update(now)) active = true
+        if (b.leaving !== null) {
+          active = true
+          const t = now - b.leaving
+          if (t >= 0) {
+            const rise = 3 + 90 * (t / 2) ** 2
+            b.group.position.y = -.3 + rise
+            b.rig.update(rise, true, now + i)
+            b.body.scale.y = t < .15 ? 1 + .05 * (t / .15) : 1
+          }
+          return
+        }
         if (b.start !== null) {
           active = true
           const t = now - b.start, pose = houseLanding(t, b.wait)
@@ -150,6 +170,11 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
           if (t >= .4) b.hop = null
         }
       })
+      // A house that has cleared the top of the frame is gone, and its lot with it.
+      for (let i = buildings.length - 1; i >= 0; i--) {
+        const b = buildings[i]
+        if (b.leaving !== null && now - b.leaving >= 2.2) { remove(b); buildings.splice(i, 1); active = true }
+      }
       return active
     },
     hop(seat: number, mild = false) { const b = buildings[Math.floor((seat - offset) / HOUSE_CAPACITY)]; if (b && b.start === null) { if (b.interior?.root.visible) b.interior.hop(seat, clock, mild); else if (!mild) b.hop = clock } },

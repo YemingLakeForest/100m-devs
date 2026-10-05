@@ -1,5 +1,6 @@
 import { entropyLabel } from '../game/vocabulary.ts'
 import {
+  arrivedHeroes,
   baseVelocity,
   currentEffectiveVelocity,
   currentInterstellarSync,
@@ -105,6 +106,13 @@ export function Devs({ state }: { state: GameState }) {
       <span className="hud__label"><Kw kind="devs">DEVS</Kw></span>
       <Counter value={state.devs} format={formatCount} bounce />
       {bar && <span className="hud__sub hud__scale"><ConceptText text={bar} /></span>}
+      {/*
+        [2026-10-04] Two people on screen and a counter that says 0 reads as a
+        broken counter. The founder and James are not developers in the count —
+        §21.0b's decision, and a good one — so the readout says who is not in it,
+        for as long as nobody else is.
+      */}
+      {state.devs === 0 && arrivedHeroes().has('james') && <span className="hud__sub">+ YOU AND JAMES</span>}
     </div>
   )
 }

@@ -81,8 +81,15 @@ export function tapVerb(mode: TouchMode, inRoom: boolean): TouchMode {
  * what the finger does: §7.8.9's caption has said DRAG A DEVELOPER underneath
  * this latch since the day it shipped, and the button above it disagreed.
  */
+/**
+ * **TAP, not CODE [2026-10-04].** Two controls on the right rail said CODE: this
+ * latch (what a tap on a *person* does) and the button under it (the founder
+ * typing). A first-time player pressed the wrong one for minutes and nothing
+ * moved — found by playing. The latch is now TAP, which is what it is: the verb
+ * of the finger. CODE is the founder's button and only that.
+ */
 export const TOUCH_LABEL: Record<TouchLatch, string> = {
-  poke: 'CODE',
+  poke: 'TAP',
   grab: 'DRAG',
   inspect: 'INFO',
 }

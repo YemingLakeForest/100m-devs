@@ -69,7 +69,14 @@ import { HIRE_COST_GROWTH } from './economy.ts'
  */
 export const MANAGEMENT_DILUTION = 0.4
 
-/** The four functions §4.11 gives the floor, plus the one that is only yours. */
+/**
+ * The four functions §4.11 gives the floor, plus the one that is only yours.
+ *
+ * `quality` and `cloud` are *retired spines* [2026-10-04]: Mo and Melany are
+ * gone and their branches with them, but the founder's diluted copies of what
+ * they did (Taste, Recruiting) are the founder's own and stay, labelled by the
+ * jobs they were once copied from.
+ */
 export type BorrowedFrom = 'engineering' | 'quality' | 'support' | 'reliability' | 'cloud'
 
 /**

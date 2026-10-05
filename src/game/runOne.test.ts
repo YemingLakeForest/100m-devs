@@ -39,7 +39,7 @@ import {
 } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { SCENE_JAMES_ARRIVES, SCENE_MASS_HIRE } from './scenes.ts'
-import { MASS_HIRE_COUNT } from './onboarding.ts'
+import { MASS_HIRE_COUNT, MASS_HIRE_WAVES, MASS_HIRE_WAVE_S, massHireWaveSize } from './onboarding.ts'
 
 /**
  * §7.8.7's run seed is `Date.now()`-based, so every run of this file gets a
@@ -270,8 +270,13 @@ describe('the trap still springs — §6.1', () => {
 
     expect(massHire()).toBe(true)
     expect(getState().massHired).toBe(true)
-    expect(getState().devs).toBe(1 + MASS_HIRE_COUNT)
     expect(getState().cash).toBe(0)
+    // [2026-10-04] The thousand land in waves (`MASS_HIRE_WAVES`): one with the
+    // signature, the rest as the clock runs, and a thousand by the end.
+    expect(getState().devs).toBe(1 + massHireWaveSize(0))
+    tick(MASS_HIRE_WAVES * MASS_HIRE_WAVE_S + 1)
+    expect(getState().devs).toBe(1 + MASS_HIRE_COUNT)
+    expect(getState().massHireLeft).toBe(0)
   })
 })
 

@@ -1757,6 +1757,12 @@ body {
   letter-spacing: 2px;
 }
 
+/* The two sums the lesson is about, read off the curve the plate drew. */
+.bankruptcy__sums {
+  color: var(--p2);
+  letter-spacing: 1px;
+}
+
 .bankruptcy__lesson {
   border-top: var(--rule) solid var(--p1);
   border-bottom: var(--rule) solid var(--p1);
@@ -3581,4 +3587,84 @@ body {
     align-items: baseline;
     column-gap: 4px;
   }
+}
+
+/* --- the collapse plate, GDD §21 Act IV [2026-10-04] ---------------------- */
+
+/*
+ * The hill the Mass Hire walks. Centred in the middle column, under the bubble
+ * (which is top-aligned in the same cell), so it sits over the floor that is
+ * collapsing and clear of both rails.
+ */
+.collapse-plate {
+  grid-area: bubble;
+  justify-self: center;
+  align-self: center;
+  width: min(100%, 26em);
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  text-align: center;
+  background: color-mix(in srgb, var(--n0) 88%, transparent);
+  border: var(--rule) solid var(--p2);
+  pointer-events: none;
+}
+
+.collapse-plate p {
+  margin: 0;
+}
+
+.collapse-plate__title {
+  color: var(--p2);
+  letter-spacing: 2px;
+}
+
+.collapse-plate__chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.collapse-plate__curve {
+  fill: none;
+  stroke: var(--p2);
+  stroke-width: 2;
+}
+
+.collapse-plate__peak {
+  stroke: var(--p1);
+  stroke-dasharray: 3 3;
+}
+
+.collapse-plate__peak-label {
+  fill: var(--p1);
+  font-size: var(--type-1x);
+}
+
+.collapse-plate__dot {
+  fill: var(--p3);
+  stroke: var(--n0);
+  stroke-width: 2;
+}
+
+.collapse-plate__dot--past {
+  fill: var(--warn-1, var(--p3));
+}
+
+.collapse-plate__read {
+  color: var(--p3);
+}
+
+.collapse-plate__past {
+  color: var(--p3);
+  letter-spacing: 1px;
+  animation: collapse-plate-blink 0.8s steps(2, jump-none) infinite;
+}
+
+@keyframes collapse-plate-blink {
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse-plate__past { animation: none; }
 }

@@ -29,22 +29,14 @@ export function heroDuty(hero: HeroRuntime, devs: number): Array<{ label: string
   switch (hero.id) {
     case 'james':
       return [{ label: 'IN STAND-UP', value: 'KEEPS CODING' }]
-    case 'mo':
-      return [{ label: 'DEFECTS WRITTEN', value: percent(f.defects) }]
     case 'serena':
-      return [
-        { label: 'ON CALL', value: `${heads(f.oncallHeads)} DEVS` },
-        { label: 'NEW INCIDENTS', value: 'HALF WORKED' },
-      ]
+      return [{ label: 'QUEUE', value: `+${f.shelfSlots} BUILDS` }]
     case 'matt':
       return [
         { label: 'HELP DESK', value: `${heads(f.supportHeads)} DEVS` },
+        { label: 'ON CALL', value: `${heads(f.oncallHeads)} DEVS` },
+        { label: 'NEW INCIDENTS', value: 'HALF WORKED' },
         { label: 'TICKETS', value: percent(f.ticketRate) },
-      ]
-    case 'melany':
-      return [
-        { label: 'DEVELOPER CAP', value: percent(f.cap) },
-        { label: 'THE BILL', value: `$${Math.round(f.operatingCost).toLocaleString()}/S` },
       ]
     case 'billy':
       return [{ label: 'CODING IN STAND-UP', value: `${heads(f.standupHeads)} DEVS` }]
