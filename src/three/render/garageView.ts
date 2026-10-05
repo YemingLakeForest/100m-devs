@@ -48,6 +48,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { NO_HQ_READOUTS, type HqReadouts } from './hqSets.ts'
 import { buildGarageEnvironment, GARAGE_ASSEMBLED, placeProp, showGarageSeats, showGarageStations, type GarageStaging } from './garageEnvironment.ts'
 import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
@@ -93,6 +94,12 @@ export interface GarageView {
    * was already here when the room was made is simply there.
    */
   setHeroes(here: readonly LeaderId[]): void
+  /**
+   * The numbers the heroes' sets draw — the queue on Serena's wall, the ticket wall's
+   * notes, Billy's curve [2026-10-04]. The stage reads them off the store each frame;
+   * the view only draws what it is told.
+   */
+  setReadouts(readouts: HqReadouts): void
   /**
    * §15.1a [2026-10-04] — the first death's last scene: whoever is in the garage
    * goes up through the roof and every house lifts off. `liquidating` is true
@@ -162,7 +169,7 @@ export const GARAGE_ZOOM_MAX = 7
  * framing is the one the game has been played at, and a room with a little
  * street around it reads as a place rather than a diagram.
  */
-export const GARAGE_REST_ZOOM = 0.8
+export const GARAGE_REST_ZOOM = 0.84
 const ZOOM_MAX = GARAGE_ZOOM_MAX
 /** How far a hire falls, in metres — the rebuild's DROP_FROM. */
 const DROP_FROM = 3.4
@@ -356,6 +363,16 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let heroRow: LeaderId[] = []
   /** Heroes whose wall is on its way up: arrived, but not yet in the room. */
   const arriving = new Set<LeaderId>()
+  /**
+   * Who the stage last said is in the building. **A rebuild reads this**, because
+   * `build()` throws every animation away: a hero mid-arrival when the room was
+   * rebuilt (it is, whenever the founder's profile lands after the first frame)
+   * stayed marked *arriving* for ever, their wall never went up, and a player
+   * loading a save with all three in it saw an empty room. Found by being sent a
+   * screenshot with no heroes in it.
+   */
+  let wantedHeroes: LeaderId[] = []
+  let readouts: HqReadouts = NO_HQ_READOUTS
   /** The first headcount and James arrive with the save, not as events: no drop. */
   let settled = false
   let w = width, h = height
@@ -426,6 +443,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
 
   function build() {
     if (env) {
+      env.hq?.dispose()
       scene.remove(env.root)
       env.root.traverse((o) => { if ((o as T.Mesh).geometry) (o as T.Mesh).geometry.dispose() })
     }
@@ -452,6 +470,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     showGarageStations(env, GARAGE_ASSEMBLED, withJames())
     frame()
     renderer.compile(scene, camera)
+    // Nothing is mid-arrival in a room that has just been made: whoever is here, is here.
+    arriving.clear()
+    heroRow = [...wantedHeroes]
     showGarageSeats(env, heads, 20)
     showGarageStations(env, staging(), withJames())
     arms = []
@@ -663,7 +684,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   /** Where a seat stands on the floor, from its hit box: the base a squash is about. */
   function floorAt(seat: number): T.Vector3 | null {
     const t = env.targets.find((target) => target.index === seat)
-    return t ? t.mesh.getWorldPosition(new T.Vector3()).setY(0) : null
+    // The floor the person stands on — the deck's, or the stage's — which `studioTarget`
+    // records. Squashing a landing about y = 0 sank everything on the 0.7 m stage into
+    // it by a hand's breadth at each contact.
+    return t ? t.mesh.getWorldPosition(new T.Vector3()).setY((t.mesh.userData.floor as number | undefined) ?? 0) : null
   }
 
   /** Lift a part by `y` and squash it by `squash` (volume kept) about `base`. */
@@ -779,12 +803,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         for (const piece of a.pieces ?? LIFT_OUT) {
           const u = (t - piece.at) / .5
           const these = pieceParts(a.seat, piece.piece)
+          // A length of wall stands on the garage's floor, whatever the stage it hides.
+          const at = piece.piece === 'wall' ? base.clone().setY(0) : base
           if (u < 0) { done = false; continue }
-          if (u >= 1) { these.forEach((p) => { place(p, base, 0, 1); hide(p) }); continue }
+          if (u >= 1) { these.forEach((p) => { place(p, at, 0, 1); hide(p) }); continue }
           done = false
           const stretch = u < .12 ? 1 - .22 * Math.sin(Math.PI * u / .12) : 1.14
-          these.forEach((p) => place(p, base, LIFT_TO * u * u, stretch))
-          if (!piece.puffed) { piece.puffed = true; puff(base) }
+          these.forEach((p) => place(p, at, LIFT_TO * u * u, stretch))
+          if (!piece.puffed) { piece.puffed = true; puff(at) }
         }
         if (done) {
           anims.splice(i, 1)
@@ -928,8 +954,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       dirty = true
     },
     get liquidating() { return city.liquidating || anims.some((a) => a.kind === 'lift' && a.seat >= 0) },
+    setReadouts(next) { readouts = next },
     setHeroes(here) {
       const next = here.filter((id) => id === 'billy' || id === 'serena' || id === 'matt')
+      wantedHeroes = next
       const arrived = next.filter((id) => !heroRow.includes(id) && !arriving.has(id))
       if (arrived.length === 0 && next.length === heroRow.length + arriving.size) { settled = true; return }
       if (!settled) {
@@ -1071,6 +1099,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (l.light.intensity !== intensity) { l.light.intensity = intensity; dirty = true }
       }
       animate()
+      // The heroes' sets: dashboards, ticket wall and whiteboard repaint as the numbers move,
+      // and the people in them never stop (§7.8.13). The ambient redraw below carries it.
+      env.hq?.update(clock, readouts)
       // Houses and their jets move on the same clock as garage arrivals.
       if (city.update(clock)) {
         dirty = true
@@ -1145,7 +1176,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (!visible || ppm < 14) continue
         // The bottom of the HUD label stays above the maximum click hop.
         // Its anchor belongs to the station, never to the animated body.
-        const world = anchor.localToWorld(new T.Vector3(0, 2.3, 0))
+        // A station may hang its plate somewhere other than over the head: the stage's
+        // heroes put theirs over the wall, as the marquee of their set (`tagOffset`).
+        const offset = (anchor.userData.tagOffset as [number, number, number] | undefined) ?? [0, 2.3, 0]
+        const world = anchor.localToWorld(new T.Vector3(...offset))
         const at = project(world.clone())
         if (at.x < 0 || at.x > w || at.y < -40 || at.y > h) continue
         const right = project(world.clone().add(new T.Vector3(1, 0, 0)))
@@ -1174,6 +1208,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       return { x: (p.x + 1) * w / 2, y: (1 - p.y) * h / 2 }
     },
     dispose() {
+      env.hq?.dispose()
       city.dispose()
       puffGeometry.dispose()
       composer.dispose()

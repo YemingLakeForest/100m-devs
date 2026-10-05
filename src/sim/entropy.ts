@@ -146,3 +146,21 @@ export function decayLocalEntropy(localEntropy: number, dtSeconds: number): numb
   const decayed = localEntropy * Math.exp((-4 * dtSeconds) / LOCAL_DECAY_SECONDS)
   return decayed < 1e-4 ? 0 : decayed
 }
+
+/**
+ * Developer-equivalents of work a studio of `devs` gets at `cap`: `D · η`. The
+ * number the speedometer reads backwards, and what the collapse plate and the HQ's
+ * whiteboard draw [moved here from `hud/collapseModel.ts`, 2026-10-04, so that the
+ * 3D room can draw it without importing the HUD].
+ */
+export function workDone(devs: number, cap: number): number {
+  return Math.max(0, devs) * efficiency(devs, cap)
+}
+
+/**
+ * The headcount at which output peaks — `cap · (ρ − 1)^(−1/ρ)`, about 0.758 of the
+ * cap. Derived rather than written down: ρ is the knob most likely to move.
+ */
+export function peakHeads(cap: number): number {
+  return cap * (RHO - 1) ** (-1 / RHO)
+}

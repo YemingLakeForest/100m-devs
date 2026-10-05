@@ -10,9 +10,10 @@ import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, sho
 import { projectBoard } from './projectPlate.ts'
 import { garageNeighborhood } from './garageNeighborhood.ts'
 import { garageBackyard } from './garageBackyard.ts'
-import { GARAGE_DECK, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_GABLE, type Furniture } from '../sim/floorPlan.ts'
+import { GARAGE_DECK, GARAGE_STAGE, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_GABLE, type Furniture } from '../sim/floorPlan.ts'
 import { HERO_LABELS, LEADER_COLOURS, leaderLook, studioPerson, workerLook, type StudioCast } from './studioPeople.ts'
 import { entrance, gableSign, garageDeskStory, garageForecourt, street } from './garageDetails.ts'
+import { buildHqSets } from './hqSets.ts'
 import { craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garagePlatformFloor, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
 
 const hitGeometry = new T.BoxGeometry(1, 1, 1)
@@ -34,6 +35,8 @@ const hitMaterial = new T.MeshBasicMaterial({ transparent: true, opacity: 0, dep
 export function studioTarget(env: Environment, x: number, z: number, seat: number, label: string, scale = 1, elevation = 0): void {
   const mesh = new T.Mesh(seat < 0 ? heroHitGeometry : hitGeometry, hitMaterial)
   mesh.position.set(x, scale + elevation, z); mesh.scale.set(1.1 * scale, 1.75 * scale, 1.1 * scale); mesh.userData.hit = true
+  // The floor under them, for a landing's squash to pivot on (`garageView.floorAt`).
+  mesh.userData.floor = elevation
   env.root.add(mesh)
   env.targets.push({ mesh, rank: 0, index: seat, label, population: 1, radius: 0.4 })
 }
@@ -245,9 +248,9 @@ const IDENTITY = new T.Matrix4()
  * Serena's keeps the low window the whole run had.
  */
 export const HERO_BAYS = [
-  { id: 'matt', x0: -10, x1: -6.2, window: false },
-  { id: 'serena', x0: -6.2, x1: -2.4, window: true },
-  { id: 'billy', x0: -2.4, x1: 1.5, window: false },
+  { id: 'matt', x0: -10, x1: -5.0, window: false },
+  { id: 'serena', x0: -5.0, x1: -0.4, window: false },
+  { id: 'billy', x0: -0.4, x1: 4.4, window: false },
 ] as const
 
 /** GDD §§6, 7, 13.1. Architecture is authored geometry, never an atlas plane.
@@ -257,7 +260,7 @@ export const HERO_BAYS = [
 export function buildGarageEnvironment(count: number, cast: StudioCast, scenery: 'on' | 'off' | 'far' = 'on', shellOnly = false,
   staging: GarageStaging = GARAGE_ASSEMBLED, cityGrid = false): Environment {
   const env: Environment = { root: new T.Group(), targets: [], occluders: [], people: [],
-    focus: new T.Vector3(0, 0.6, -0.2), extent: 27, background: cityGrid ? OS.n2 : '#87966c', seatInstances: new Map(), props: new Map() }
+    focus: new T.Vector3(-1.3, 0.6, -2.9), extent: 27, background: cityGrid ? OS.n2 : '#87966c', seatInstances: new Map(), props: new Map() }
   const g = env.root
   // Continuous ground and two joined slabs leave a genuine recessed doorway.
   // A cheap continuous ground plane hides the horizon even on tall screens;
@@ -290,14 +293,10 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    * same clerestory header and coping, moved back 3.3 m. The annex's return
    * wall at x = 1.5 is gone with the step, since there is no annex to return.
    */
-  // A real low-sill window brings daylight beside solid workshop and storage walls.
-  box(g, -8.9, 0, -9.8, 2.2, 3.2, .24, INK.wall)
-  box(g, -1.15, 0, -9.8, 5.3, 3.2, .24, INK.wall)
-  box(g, -5.8, 0, -9.8, 4, .9, .24, INK.wall)
-  box(g, -5.8, 2.8, -9.8, 4, .4, .24, INK.wall)
-  box(g, -5.8, .9, -9.8, 4, 1.9, .04, '#a8c7cf', false)
-  for (const x of [-7.8, -5.8, -3.8]) box(g, x, .9, -9.77, .10, 1.9, .18, INK.trim)
-  box(g, -5.8, .86, -9.73, 4.15, .08, .38, INK.trim)
+  // [2026-10-04] Solid from the corner to the annex: the stage hangs the heroes' work on this
+  // wall (the whiteboard, the dashboards, the ticket wall), and a window in the middle of
+  // it was daylight nobody could see for the screens.
+  box(g, -2.8, 0, -9.8, 14.4, 3.2, .24, INK.wall)
   box(g, -4.25, 3.2, -9.8, 11.9, 0.12, 0.35, INK.trim)
   /*
    * **The old back wall is still standing, in three pieces, until each hero
@@ -321,13 +320,13 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       for (const dx of [-w / 3, 0, w / 3]) box(wall, dx, .9, .03, .10, 1.9, .18, INK.trim)
       box(wall, 0, .86, .07, w + .15, .08, .38, INK.trim)
     } else {
-      box(wall, 0, 0, 0, w, 3.2, .24, INK.wall)
+      box(wall, 0, 0, 0, w, 3.9, .24, INK.wall)
     }
-    box(wall, 0, 3.2, 0, w + .05, .12, .35, INK.trim)
+    box(wall, 0, 3.9, 0, w + .05, .12, .35, INK.trim)
   }
-  box(g, 5.75, 0, -9.8, 8.74, STUDIO.wallHeight, 0.24, INK.wall)
-  box(g, 5.75, 2.05, -9.68, 7.2, 0.85, 0.06, '#a8c7cf', false)
-  for (const x of [2.6, 5.0, 7.4, 9.2]) box(g, x, 2.05, -9.7, 0.13, 0.85, 0.1, INK.trim)
+  box(g, 7.26, 0, -9.8, 5.72, STUDIO.wallHeight, 0.24, INK.wall)
+  box(g, 7.0, 2.05, -9.68, 4.8, 0.85, 0.06, '#a8c7cf', false)
+  for (const x of [4.7, 6.2, 7.8, 9.2]) box(g, x, 2.05, -9.7, 0.13, 0.85, 0.1, INK.trim)
   box(g, 5.75, 3.2, -9.8, 8.9, 0.12, 0.35, INK.trim)
   // Low glazing over the annex's east flank. It was cut down for the kitchen,
   // which stood against it; the kitchen turned on to the back wall in 2026-09,
@@ -396,7 +395,15 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   slab(g, [[d.x0, d.z0], [d.x1, d.z0], [d.x1, d.z1], [d.x0, d.z1]], 0, d.rise - .014, INK.woodEdge)
   garagePlatformFloor(g, d)
   const deck = new T.Group(); deck.position.y = d.rise; g.add(deck)
+  // The stage: the higher terrace along the north wall, and where the heroes stand.
+  const st = GARAGE_STAGE
+  slab(g, [[st.x0, st.z0], [st.x1, st.z0], [st.x1, st.z1], [st.x0, st.z1]], 0, st.rise - .014, INK.woodEdge)
+  garagePlatformFloor(g, st)
+  // Its front edge: a trim line along the lip, so the step reads as a step.
+  box(g, (st.x0 + st.x1) / 2, st.rise - .02, st.z1 - .02, st.x1 - st.x0, .06, .06, INK.trim, false)
+  const stage = new T.Group(); stage.position.y = st.rise; g.add(stage)
   // The workshop wall is reserved for the project drawing board.
+  const heroBodies: Partial<Record<'billy' | 'serena' | 'matt', T.Group>> = {}
   for (const station of GARAGE_LEADERS) {
     /*
      * §12.6 — how much of this station has turned up.
@@ -418,22 +425,27 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     spot.position.set(station.x, 0, station.z)
     spot.scale.setScalar(GARAGE_HERO_SCALE)
     spot.rotation.y = (station.rot * Math.PI) / 180
-    deck.add(spot)
+    // The heroes stand on the stage; the founder and James on the deck below it.
+    const onStage = station.id !== 'founder' && station.id !== 'james'
+    ;(onStage ? stage : deck).add(spot)
     if (!cast_in) continue
     // [2026-10-04] Billy stands: his station is the easel and the person at it, and
     // has no desk or chair (he is the one hero who is always at the whiteboard,
     // §7.8.13). The easel is what drops in first on his arrival.
-    const standing = station.id === 'billy'
-    {
+    // [2026-10-04] The heroes' sets are `hqSets.ts`'s: Billy's board and audience, Serena's
+    // wall of dashboards, Matt's phones and ticket wall. Only the founder and James still
+    // have the desk that the loop draws; Serena and Matt keep their chair in it.
+    if (!onStage) {
       const desk = prop(env, spot, `desk:${station.id}`)
-      if (!standing) craftedHeroDesk(desk, station.id)
+      craftedHeroDesk(desk, station.id)
       garageDeskStory(desk, station.id)
-    }
-    if (!standing) chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
+      chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
+    } else if (station.id !== 'billy') chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
     {
       const seat = prop(env, spot, `body:${station.id}`)
       const body = studioPerson(seat, 0, 0, Math.PI, leaderLook(cast, station.id), station.id)
       body.userData.seat = station.seat; env.people.push(body)
+      if (station.id === 'billy' || station.id === 'serena' || station.id === 'matt') heroBodies[station.id] = body
       /*
        * §12.11 — the name over their head, on a plate built into the room.
        *
@@ -449,8 +461,19 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       const tag = prop(env, spot, `name:${station.id}`)
       tag.userData.label = HERO_LABELS[station.id] ?? station.id.toUpperCase()
       tag.userData.colour = LEADER_COLOURS[station.id] ?? INK.teal
-      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, d.rise)
+      // On the stage the plate is the set's marquee, above the wall and clear of the work.
+      if (onStage) tag.userData.tagOffset = [0, (3.3 - st.rise) / GARAGE_HERO_SCALE, (st.z0 + 0.1 - station.z) / GARAGE_HERO_SCALE]
+      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, onStage ? st.rise : d.rise)
     }
+  }
+  /*
+   * The heroes' sets, now that their people exist to be moved. Built for whoever is in
+   * the cast; `showGarageStations` decides what has arrived.
+   */
+  {
+    const present = new Set((['billy', 'serena', 'matt'] as const).filter((id) => cast.heroes.includes(id)))
+    const pos = (id: 'billy' | 'serena' | 'matt') => { const l = GARAGE_LEADERS.find((q) => q.id === id)!; return { x: l.x, z: l.z } }
+    env.hq = buildHqSets({ env, stage, cast, at: { billy: pos('billy'), serena: pos('serena'), matt: pos('matt') }, bodies: heroBodies, present })
   }
   /*
    * §12.6 — **the room is furnished by hiring, not by the lease.**

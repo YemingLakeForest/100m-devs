@@ -112,10 +112,42 @@ export const GARAGE_OUTLINE: readonly (readonly [number, number])[] = [
  * chair and the person, dropped into a bay that has been empty floor until then.
  * The wall pushing out as they walk in, the gag, is still owed.
  */
-export const HERO_ROW_Z = -8.7
+export const HERO_ROW_Z = -8.2
 
-/** One oak step raises the two hero desks above the main studio floor. */
-export const GARAGE_DECK = { x0: -9.88, z0: -9.68, x1: 1.6, z1: -2.0, rise: 0.24 } as const
+/** One oak step raises the founder's and James's desks above the main studio floor. */
+export const GARAGE_DECK = { x0: -9.88, z0: -6.38, x1: 1.6, z1: -2.0, rise: 0.24 } as const
+
+/**
+ * **The stage** [2026-10-04, GDD §7.8.12] — a second, higher terrace along the whole
+ * north wall, and where the heroes work.
+ *
+ * Found by being told *"I don't see any heroes … current HQ is rubbish"*: the hero
+ * row stood behind James's desk, at the very top edge of the frame, a metre from
+ * the HUD, at the size of an ordinary developer, doing nothing a player could
+ * read. The stage answers the first of those. It is raised 0.7 m, so that on
+ * §12.1's camera — where height shifts a thing up the screen — the heroes stand
+ * *above* the founder's and James's desks instead of behind them; it runs the width of
+ * the wall they share, so there is room for three vignettes of five metres each
+ * rather than three desks in a row; and it is on the *far* wall, the one whose
+ * inner face is turned square to the lens, so nothing needs to be in front of any
+ * of it. The heroes are on it left to right as Matt, Serena, Billy: the reverse of
+ * the order they arrive in (see {@link GARAGE_LEADERS}).
+ */
+export const GARAGE_STAGE = { x0: -9.88, z0: -9.68, x1: 4.2, z1: -6.38, rise: 0.7 } as const
+
+/**
+ * **Each hero's set owns an interval of the stage, and nothing of it leaves the
+ * interval.** Matt, Serena, Billy, west to east. The stage is 14.08 m wide and a set
+ * is about 4.6, so there is room for the three and a hand's breadth between, and no
+ * two sets share a floor: a first draft let the rugs overlap by a quarter of a metre
+ * and two coplanar carpets z-fight in the one place the eye goes. `hqSets.test.ts`
+ * builds the sets and measures them against these.
+ */
+export const HERO_SLOTS = {
+  matt: { x0: -9.88, x1: -5.2 },
+  serena: { x0: -5.2, x1: -0.5 },
+  billy: { x0: -0.5, x1: 4.2 },
+} as const
 export const GARAGE_HERO_SCALE = 1.25
 
 /** Four aligned desk groups form two rows; the fifth belongs to the kitchen nook. */
@@ -174,9 +206,11 @@ export const GARAGE_LEADERS = [
    * east with nothing in front of him, Serena with Billy's wall already gone,
    * Matt with both.
    */
-  { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -8.2, z: HERO_ROW_Z, rot: 0 },
-  { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: -4.4, z: HERO_ROW_Z, rot: 0 },
-  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: -.6, z: HERO_ROW_Z, rot: 0 },
+  { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -7.5, z: HERO_ROW_Z, rot: 0 },
+  { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: -2.85, z: HERO_ROW_Z, rot: 0 },
+  // Billy stands beside his board, at its east end and close to the wall, so the room
+  // sits south of him: an audience in front, who never hide the board from this camera.
+  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 3.6, z: -8.9, rot: 0 },
 ]
 
 /**
@@ -823,7 +857,9 @@ export function benches(place: Place): { x: number; z: number; w: number; d: num
  * scripted walk on to it passes through a station. */
 export function leaderDesks(place: Place): { seat: number; x: number; z: number; w: number; d: number }[] {
   if (place === 'office') return []
-  return GARAGE_LEADERS.map(s => {
+  // The founder's and James's, on the deck. The heroes work on the stage, whose sets
+  // (`render/hqSets.ts`) are their own footprint, closed to routing as a whole.
+  return GARAGE_LEADERS.filter(s => s.id === 'founder' || s.id === 'james').map(s => {
     // From the back of the chair (station − 0.45) to the far edge of the desk
     // (station + 1.275): centre 0.41 forward, 1.73 deep — along whichever axis
     // the station is turned to.
@@ -896,9 +932,9 @@ function gridFor(place: Place): Grid {
        */
       if (place === 'garage') {
         if (!studioFloorContains(x, z)) { open[r * cols + c] = 0; continue }
-        const d = GARAGE_DECK
         // The wall-side half cells are not an aisle behind the flush platform.
-        if (d.rise > 0.1 && x > d.x0 - CELL / 2 && x < d.x1 && z > d.z0 - CELL / 2 && z < d.z1) { open[r * cols + c] = 0; continue }
+        const platforms = [GARAGE_DECK, GARAGE_STAGE]
+        if (platforms.some((d) => d.rise > 0.1 && x > d.x0 - CELL / 2 && x < d.x1 && z > d.z0 - CELL / 2 && z < d.z1)) { open[r * cols + c] = 0; continue }
       } else if (officeClosed(x, z)) { open[r * cols + c] = 0; continue }
       for (const k of blocks) {
         if (Math.abs(x - k.x) < k.w / 2 + k.pad && Math.abs(z - k.z) < k.d / 2 + k.pad) {

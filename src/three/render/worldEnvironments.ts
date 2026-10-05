@@ -7,6 +7,7 @@ import * as T from 'three'
 import type { SeatInstance, SeatInstances } from './worldArt.ts'
 import type { ProjectPlate } from './projectPlate.ts'
 import type { EndlessCity } from './city/endlessCity.ts'
+import type { HqSets } from './hqSets.ts'
 
 export interface WorldTarget {
   rank: number
@@ -33,6 +34,8 @@ export interface Environment {
   props?: Map<string, GarageProp>
   city?: EndlessCity
   backdrop?: EndlessCity
+  /** The heroes' sets: the whiteboard, the dashboards, the ticket wall (`hqSets.ts`). */
+  hq?: HqSets
 }
 
 export interface GarageProp {

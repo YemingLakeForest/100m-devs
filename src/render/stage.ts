@@ -86,6 +86,7 @@ import {
   SCENES,
 } from '../game/scenes.ts'
 import { leaderSeat } from '../three/sim/floorPlan.ts'
+import { hqReadouts } from './hqReadouts.ts'
 
 /**
  * The lens, as the things that were written against the Pixi lens still read
@@ -590,6 +591,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
 
     garage.setRunSeed(state.runSeed)
     garage.setHeadcount(state.devs)
+    garage.setReadouts(hqReadouts(state))
     // James arrives after the founder's *What—*, once the lens has reached his
     // empty spot (`cueJames`): desk, chair, then him, and the dialogue holds
     // *Ouch.* until he is down. A scene already past the line has him there.
@@ -599,7 +601,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // §15.1a [2026-10-04] — and *after the cut scene*: James is not in the room while
     // the receipt is up, and drops in when it closes, so Run 2 opens on his landing
     // and on "You again." rather than on a man who was never gone.
-    garage.setJames(jamesInRoom && !state.pendingShift)
     // The hero row: Billy, Serena and Matt, each at the desk that was waiting.
     /*
      * §15.1a [2026-10-04] — **the first death's last scene.** Everybody in the
@@ -628,6 +629,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
         (id) => arrivedHeroes().has(id) || (speaking?.id === id && sceneLine !== null && speakingAt >= 0 && sceneLine >= speakingAt),
       ),
     )
+    // **After the hero row, not before it** [2026-10-04]: the first call into the view
+    // is what marks the room *settled*, and everybody who is already in the building
+    // when it opens must be simply there. With James first, the three heroes of a
+    // loaded save were treated as arriving into a running room.
+    garage.setJames(jamesInRoom && !state.pendingShift)
     // The scene is over: the lens goes back to where the player had it.
     if (!state.scene) {
       sceneLine = null

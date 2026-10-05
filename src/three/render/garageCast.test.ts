@@ -41,10 +41,13 @@ describe('the garage holds all five', () => {
     expect(bodyOf('matt').visible).toBe(false)
   })
 
-  it('stands Billy at an easel with no desk and no chair', () => {
+  it('gives Billy a board and an audience, and Serena and Matt a desk and a chair', () => {
     const env = buildGarageEnvironment(3, cast, 'on', false, GARAGE_ASSEMBLED, true)
-    expect(env.props?.get('desk:billy')).toBeDefined() // the easel, which is what drops in first
-    expect(env.props?.get('chair:billy')).toBeUndefined()
+    // Billy's set is `desk:billy` (the board) and his chair is the audience, which drops in with him.
+    expect(env.props?.get('desk:billy')).toBeDefined()
+    expect(env.props?.get('chair:billy')).toBeDefined()
     expect(env.props?.get('chair:serena')).toBeDefined()
+    expect(env.props?.get('chair:matt')).toBeDefined()
+    expect(env.hq).toBeDefined()
   })
 })

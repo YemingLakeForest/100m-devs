@@ -13,21 +13,11 @@
  * the same number the speedometer is reading backwards.
  */
 
-import { RHO, efficiency } from '../sim/entropy.ts'
+import { peakHeads, workDone } from '../sim/entropy.ts'
 
-/** Developer-equivalents of work a studio of `devs` gets at `cap`. */
-export function workDone(devs: number, cap: number): number {
-  return Math.max(0, devs) * efficiency(devs, cap)
-}
-
-/**
- * The headcount at which output peaks — `cap · (ρ − 1)^(−1/ρ)`, about 0.758 of
- * the cap. Derived rather than written down, for the reason `lessons.ts`
- * derives `OPTIMUM_LOAD`: ρ is the knob most likely to move.
- */
-export function peakHeads(cap: number): number {
-  return cap * (RHO - 1) ** (-1 / RHO)
-}
+// Both live in `sim/entropy.ts` now (the 3D room draws the same hill); re-exported so this
+// module's callers and tests are unchanged.
+export { peakHeads, workDone }
 
 /** Where the plate's x axis ends: the thousand the offer promised, with room. */
 export const PLATE_MAX_HEADS = 1100
