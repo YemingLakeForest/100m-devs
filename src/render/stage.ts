@@ -156,6 +156,15 @@ const ROW_FOCUS = new Map<number, 'billy' | 'serena' | 'matt'>([
   [AT_SERENA, 'serena'],
   [AT_MATT, 'matt'],
 ])
+/**
+ * Who is at which leader seat, for the three the stage holds. **The door to a hero's card is the
+ * hero** (§7.8.13 rule 3: *"the way you reach Mo is by looking at Mo"*) — and until the garage
+ * seated Billy, Serena and Matt there was nobody to tap, so only James opened a pass. Found by
+ * tapping them.
+ */
+const HERO_AT_SEAT = new Map<number, 'billy' | 'serena' | 'matt'>(
+  (['billy', 'serena', 'matt'] as const).map((id) => [leaderSeat(id), id]),
+)
 const ROW_SCENE = new Map<string, { id: 'billy' | 'serena' | 'matt'; speaker: string }>([
   [SCENE_BILLY_ARRIVES.id, { id: 'billy', speaker: 'BILLY' }],
   [SCENE_SERENA_ARRIVES.id, { id: 'serena', speaker: 'SERENA' }],
@@ -378,6 +387,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
    * within reach of a thumb.
    */
   const doSelect = (who: number | null) => {
+    const hero = who === null ? undefined : HERO_AT_SEAT.get(who)
+    if (hero) {
+      selectDeveloper(null)
+      playUi('click')
+      heroInspect?.(hero)
+      return
+    }
     if (who === JAMES_SEAT) {
       selectDeveloper(null)
       playUi('click')
@@ -403,6 +419,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       garage.hop(JAMES_SEAT)
       if (paid > 0) playKeyboardClick()
       else playSfx('poke-void')
+      return
+    }
+    // The three on the stage are not coders: a tap on them is a hop and a click, and the
+    // INFO latch is how you read their card.
+    if (who !== null && HERO_AT_SEAT.has(who)) {
+      garage.hop(who)
+      playUi('click')
       return
     }
     // The selected tool means the same thing on every person: CODE on the
