@@ -4,16 +4,17 @@
  * the one that changes. See docs/PLAN-2026-09-26-return.md.
  */
 import * as T from 'three'
-import { OS, OS_SKIN } from '../art/skin.ts'
+import { OS } from '../art/skin.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, sharedMaterial, showSeatInstances, slab, tree, wall, type PropInstances } from './worldArt.ts'
 import { projectBoard } from './projectPlate.ts'
 import { garageNeighborhood } from './garageNeighborhood.ts'
 import { garageBackyard } from './garageBackyard.ts'
-import { BILLY_PLAZA, GARAGE_WALLS, GARAGE_DECK, GARAGE_PODIUM, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, HERO_SITES, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_GABLE, type Furniture, type HeroSite, type HeroSiteId } from '../sim/floorPlan.ts'
+import { BILLY_PLAZA, GARAGE_WALLS, GARAGE_DECK, GARAGE_PODIUM, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, HERO_SITES, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_DOOR, type Furniture, type HeroSite, type HeroSiteId } from '../sim/floorPlan.ts'
 import { HERO_LABELS, LEADER_COLOURS, leaderLook, studioPerson, workerLook, type StudioCast } from './studioPeople.ts'
 import { entrance, gableSign, garageDeskStory, garageForecourt, street, studioSign } from './garageDetails.ts'
-import { pool, sconce, standingLamp } from './glowArt.ts'
+import { sconce, standingLamp } from './glowArt.ts'
+import { hqInterior } from './hqInterior.ts'
 import { buildHqSets } from './hqSets.ts'
 import { OPS_STEP, heroRiser, opsPlinth, opsStep, ziggurat } from './hqShell.ts'
 import { bossChair, craftedBossDesk, craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
@@ -34,9 +35,9 @@ const hitMaterial = new T.MeshBasicMaterial({ transparent: true, opacity: 0, dep
  * them, which is the whole constraint. §18.2's `pickNear` adds a pixel-space
  * fallback on top of this for the zoom levels where even 1.1 m is small.
  */
-export function studioTarget(env: Environment, x: number, z: number, seat: number, label: string, scale = 1, elevation = 0): void {
+export function studioTarget(env: Environment, x: number, z: number, seat: number, label: string, scale = 1, elevation = 0, height = 1.75): void {
   const mesh = new T.Mesh(seat < 0 ? heroHitGeometry : hitGeometry, hitMaterial)
-  mesh.position.set(x, scale + elevation, z); mesh.scale.set(1.1 * scale, 1.75 * scale, 1.1 * scale); mesh.userData.hit = true
+  mesh.position.set(x, (1 + (height - 1.75) / 2) * scale + elevation, z); mesh.scale.set(1.1 * scale, height * scale, 1.1 * scale); mesh.userData.hit = true
   // The floor under them, for a landing's squash to pivot on (`garageView.floorAt`).
   mesh.userData.floor = elevation
   env.root.add(mesh)
@@ -268,24 +269,15 @@ export const HERO_BAYS = [
 export function buildGarageEnvironment(count: number, cast: StudioCast, scenery: 'on' | 'off' | 'far' = 'on', shellOnly = false,
   staging: GarageStaging = GARAGE_ASSEMBLED, cityGrid = false): Environment {
   const env: Environment = { root: new T.Group(), targets: [], occluders: [], people: [],
-    focus: new T.Vector3(-1.3, 3.0, -2.9), extent: 27, background: cityGrid ? OS.n2 : '#87966c', seatInstances: new Map(), props: new Map() }
+    focus: new T.Vector3(1.0, 3.0, -1.5), extent: 34, background: cityGrid ? OS.n2 : '#87966c', seatInstances: new Map(), props: new Map() }
   const g = env.root
   // Continuous ground and two joined slabs leave a genuine recessed doorway.
   // A cheap continuous ground plane hides the horizon even on tall screens;
   // camera travel is bounded independently of the scenery's backing surface.
   box(g, 0, -0.6, 0, 512, .1, 512, env.background, false)
-  if (OS_SKIN) {
-    // STUDIO_OS: the room's lamps — six, where it had four, and each over something: the podium, the north court, Serena's
-    // plinth, the plaza (the strongest: Billy is under it), the west pods and the east pod. [2026-10-05, at the user's
-    // instruction: *"don't have the screens to be only light emitter"*.] They are the only real lights the room adds; the
-    // lamps you can *see* (the standing lamps, the sconces, the pools on the floor) are unlit art that looks lit.
-    for (const [x, z, power] of [[-7.4, -7.0, 12], [-0.6, -5.0, 14], [4.4, -3.8, 12], [-1.0, 1.9, 15], [-4.8, 2.2, 14], [7.2, 1.8, 12]]) {
-      const lamp = new T.PointLight(OS.lamp, power, 13, 2)
-      lamp.position.set(x, 4.1, z)
-      g.add(lamp)
-    }
-  }
-  box(g, 0, -0.48, 1.7, 24, 0.16, 21.2, '#d3d1c5')
+  // §7.8.12 [2026-10-07]: the shared sky/key/fill rig lights the entire room.
+  // Visible diffusers and sconces remain art, so arrivals cannot change a face's illumination.
+  box(g, 1.5, -0.48, 1.1, 33, 0.16, 25, '#d3d1c5')
   if (!cityGrid) street(g)
   for (let x = -12; x <= 12; x += 1.2) box(g, x, -0.315, 10, 0.012, 0.005, 4.5, '#bcbeb6', false)
   for (let z = 8; z <= 12.2; z += 1.2) box(g, 0, -0.315, z, 24, 0.005, 0.012, '#bcbeb6', false)
@@ -339,61 +331,30 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       for (let x = -w / 2 + (Math.round(y / .45) % 2 ? .5 : 1); x < w / 2; x += 1) box(wall, x, y - .43, .124, .008, .43, .008, '#c6bdac', false)
     }
   }
-  // The north-east corner's east flank is the same cutaway parapet as the rest of the east wall. **It carried a pane of
-  // glazing to 1.7 m** (opaque, whatever the colour) that was cut down for the kitchen, which stood against it; with
-  // Billy's corner there now, that pane hid the floor within 1.7 m of it along the camera's diagonal — his legs, in the
-  // first frame it was looked at — so it went, and the wall is knee-high all the way along. A full-height near wall
-  // is the one thing §13.1 forbids on the camera's side of a seat.
-  box(g, 10, 0, -8.15, 0.24, 0.55, 3.54, INK.wall)
-  box(g, 10, 0.55, -8.15, 0.33, 0.07, 3.54, INK.trim)
-  // Cutaway near walls: low enough to read seated bodies and leave the door open.
-  box(g, 10, 0, 0.75, 0.24, 0.55, 14.5, INK.wall)
-  box(g, 10, 0.55, 0.75, 0.33, 0.07, 14.5, INK.trim)
-  // The left entry wing projects beyond the hall. Its diagonal opening faces
-  // +X/+Z, so both the door and the printed sign are frontal in the game view.
-  // Only the opaque perimeter gets a parapet: never bridge the opening in trim.
-  for (const [from, to] of [[[STUDIO_GABLE.x1, 8], [10, 8]]] as const) {
-    wall(g, from, to, 0, 0.55, 0.24, INK.wall)
-    wall(g, from, to, 0.55, 0.07, 0.33, INK.trim)
+  // §7.8.12: the courtyard and both work wings share the simulation's perimeter.
+  // Only the west back faces and the sign's gable stand tall; camera-side edges stay cut away.
+  const edge = (from: readonly [number, number], to: readonly [number, number], h: number) => {
+    wall(g, from, to, 0, h, .24, INK.wall)
+    wall(g, from, to, h, .07, .33, INK.trim)
   }
-  /*
-   * **The two runs left of the door stand full height** — §13.1, amended
-   * 2026-09-14 at the user's instruction, against "other near walls remain cut
-   * down".
-   *
-   * A parapet is a cutaway: you cut a wall down because the camera has to see
-   * over it, and what it has to see is people at desks. There is nobody behind
-   * these two. The wing's return at x = −10 is a *far* wall — its inner face
-   * points +X, straight at the lens — so its height costs the picture nothing
-   * at all, and cutting it produced the one thing the rule exists to prevent:
-   * the west wall arrived full height from the back of the hall, stopped dead
-   * at z = 5.5, and carried on as a knee-high tray. The run at z = 11 closes
-   * the wing over four metres of empty paving; measured along §12.1's (1,1,1)
-   * a 3.2 m wall there sweeps back to (x − 3.2, z − 3.2), which is floor
-   * inside the wing and nothing else.
-   *
-   * That band is why the lounge below stops at z = 7.4 rather than running up
-   * to the corner — see `GARAGE_FURNITURE`.
-   */
-  const gable = STUDIO_GABLE
-  for (const [from, to] of [
-    [[gable.x1, gable.z], [gable.x0, gable.z]],
-    [[gable.x0, gable.z], [gable.x0, 8]],
-  ] as [readonly [number, number], readonly [number, number]][]) {
-    wall(g, from, to, 0, STUDIO.wallHeight, gable.thickness, INK.wall)
-    wall(g, from, to, STUDIO.wallHeight, 0.12, 0.35, INK.trim)
+  for (let i = 1; i < GARAGE_OUTLINE.length; i++) {
+    const from = GARAGE_OUTLINE[i], to = GARAGE_OUTLINE[(i + 1) % GARAGE_OUTLINE.length]
+    if (from[0] === -6 && to[0] === -10 && from[1] === 8) {
+      const half = STUDIO_DOOR.width / (2 * Math.SQRT2)
+      edge(from, [STUDIO_DOOR.x + half, STUDIO_DOOR.z - half], .55)
+      edge([STUDIO_DOOR.x - half, STUDIO_DOOR.z + half], to, .55)
+    } else {
+      const west = from[0] === to[0] && (from[0] === -10 || from[0] === -13)
+      const gable = from[1] === 12 && to[1] === 12
+      edge(from, to, west ? WALL : gable ? STUDIO.wallHeight : .55)
+    }
   }
-  // The former garage gate becomes the project wall, with an oak base.
-  box(g, -10, 0, -0.9, .24, WALL, 17.8, INK.wall)
-  box(g, -9.84, 0, 1.5, .10, .7, 4.3, INK.wood)
-  // Runs to z = 8, where the hall ends and the wing's own, lower wall takes over: the step in the head is the
-  // annex's, and it is where the hall's south parapet meets this wall.
-  box(g, -10, WALL, -0.9, 0.35, 0.12, 17.9, INK.trim)
+  box(g, -9.84, 0, .7, .10, .7, 2.4, INK.wood)
   // A ribbon of glazing above the leaders, the west wall's half of the north wall's clerestory.
   skyPane(g, -9.88, WALL - 1.0, -6.0, 0.06, 0.8, 7.4)
   for (let z = -9.2; z <= -2.8; z += 1.4) box(g, -9.86, WALL - 1.0, z, 0.1, 0.8, 0.12, INK.trim)
   box(g, -9.8, WALL - 1.04, -6.0, 0.2, 0.06, 7.6, INK.trim)
-  // A plain, straight portal faces the east pavement; no overhead signage.
+  // The chamfered portal faces the lens along (+X,+Z), rather than showing its side.
   const door = entrance(g)
   gableSign(g, cast.studio ?? 'Merciless Software')
   // Retain the actual door meshes for both selection occlusion and projected
@@ -489,12 +450,14 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
         // James stands on the west wall facing +x (rot 90), and his plate lies along the wall at his back: toward −z, up and
         // to the right on §12.1's camera. The others face the lens.
         tag.userData.tagAxis = station.rot === 90 ? [0, -1] : [1, -1]
+        // The enlarged legless Billy needs his plate above his crown, too.
+        if (station.id === 'billy') tag.userData.tagOffset = [0, 2.75, 0]
       }
       // The floor they stand on: the podium's, the deck's, a plinth's or a riser's — and Billy's is his dais, which is not
       // a platform (the walk grid is closed under it by the easel's footprint, not by a terrace) but is what his feet are on.
       const floor = station.id === 'founder' ? GARAGE_PODIUM.rise : station.id === 'james' ? GARAGE_DECK.rise
         : station.id === 'billy' ? BILLY_PLAZA.dais.rise : site!.rise
-      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, floor)
+      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, floor, station.id === 'billy' ? 2.3 : 1.75)
     }
   }
   /*
@@ -546,8 +509,6 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       const group = prop(env, g, `pod:${i}`, pod.x, pod.z)
       const greenery = new T.Group(); greenery.position.y = .9; group.add(greenery)
       leafyPlanter(greenery, 0, 0, .25)
-      // The light over the desks, as a pool on the floor under them: the pod's own prop, so that it comes and goes with the pod.
-      pool(group, 0, 0, 5.2, 4.8, '#ffd68c', 0.17)
     }
     for (const s of garageSeats().filter(s => s.pod === i)) {
       // Anchored at the seat rather than parented to the pod: a falling prop is
@@ -575,10 +536,12 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // are gone.** That wall is the Ops Room's plinth now, and they stood in the air at z = −6.34: the notices
   // hung on nothing in front of its face (found by looking at the first screenshot of the plan).
   const at = (kind: string) => GARAGE_FURNITURE.find(f => f.kind === kind)!
-  const readingBench = at('bench')
-  box(g, readingBench.x, 0, readingBench.z, readingBench.w, .55, readingBench.d, INK.wood)
-  box(g, readingBench.x, .55, readingBench.z, readingBench.w + .08, .12, readingBench.d + .06, '#829caa')
-  for (let i = 0; i < 9; i++) box(g, readingBench.x - 1.25 + i * .29, .08, readingBench.z - .32, .2, .36, .23, ['#648079', '#c39955', '#7593a0'][i % 3])
+  for (const bench of GARAGE_FURNITURE.filter(f => f.kind === 'bench')) {
+    const { g: seat, len, dep } = placed(g, bench)
+    box(seat, 0, 0, 0, len, .55, dep, INK.wood)
+    box(seat, 0, .55, 0, len + .08, .12, dep + .06, '#829caa')
+    for (let i = 0; i < 5; i++) box(seat, -len / 2 + .2 + i * (len - .4) / 4, .08, -.2, .18, .36, .23, ['#648079', '#c39955', '#7593a0'][i % 3])
+  }
   /*
    * **There is no kitchen** [2026-10-05, at the user's instruction: *"we can do without the kitchen now"*]. A 4.3 m
    * run of cupboards, a tall unit and a clerestory over them stood on the north wall's east end. The water errand has a
@@ -634,16 +597,16 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     // The helpers grow upward from their parent's origin. Exterior paving
     // and lawn are below the interior floor, and must supply their own origin.
     const groundAt = (x: number, z: number) => Math.abs(x) <= 12 && z >= -8.9 && z <= 12.3 ? pavement : lawn
-    for (const [x, z, size] of [[-12.4, -6, 3.1], [-12.8, -1, 2.7], [-12.5, 4.4, 2.4], [3, -11.7, 2.8], [8, -12, 3.2], [12.8, -7.8, 2.6], [13.3, 1, 2.3]]) {
+    for (const [x, z, size] of [[-15.4, -6, 3.1], [-15.8, -1, 2.7], [-15.5, 4.4, 2.4], [3, -11.7, 2.8], [8, -12, 3.2], [15.2, -7.8, 2.6], [17.5, 2, 2.3]]) {
       tree(groundAt(x, z), x, z, size)
       // Leave the foreground-right tree free of the two small pots.
       if (x !== 13.3) for (const dx of [-.9, .8]) planter(groundAt(x + dx, z + .7), x + dx, z + .7, .6)
     }
     hedge(lawn, 5.7, -10.8, 8.8, .75)
 
-    hedge(pavement, 3.4, 8.85, 11.4, 0.65)
-    hedge(pavement, -8.2, 11.65, 3.5, 0.65)
-    hedge(pavement, 10.8, -0.6, 0.65, 13)
+    hedge(pavement, 8.0, 9.85, 6.0, 0.65)
+    hedge(pavement, -11.6, 12.65, 2.6, 0.65)
+    hedge(pavement, 16.8, .1, .65, 7.0)
     planter(pavement, 10.9, 9, 0.8)
     for (let x = 0; x <= 2.3; x += 1.1) {
       line(g, [new T.Vector3(x, -0.3, 9.6), new T.Vector3(x, 0.8, 9.6),
@@ -652,6 +615,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     }
   }
   garageSurfaceDetails(g)
+  hqInterior(g)
   finishGarage(g)
   /*
    * Each prop's own extents, measured while it is still a group of meshes.
@@ -690,4 +654,3 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   showGarageSeats(env, count, GARAGE_SEATS_BUILT)
   return env
 }
-

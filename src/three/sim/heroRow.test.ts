@@ -101,7 +101,7 @@ describe('the hero quarter', () => {
     for (const [x, z] of [[site.x0, site.z0], [site.x1, site.z0], [site.x1, site.z1], [site.x0, site.z1]]) expect(studioFloorContains(x, z)).toBe(true)
   })
 
-  it('puts Billy in the mix of the developers: a pod within a stride either side of him, and none on top of him', () => {
+  it('keeps Billy between developer teams with open lanes and no furniture overlap', () => {
     const footing = footprint(GARAGE_FURNITURE.find((f) => f.kind === 'easel')!)
     const s = leader('billy')
     const tables = benches('garage')
@@ -111,10 +111,10 @@ describe('the hero quarter', () => {
     for (const side of [-1, 1] as const) {
       const t = nearest(side)
       expect(t, `a pod to his ${side < 0 ? 'west' : 'east'}`).toBeDefined()
-      // Close enough that they are his audience, far enough that a developer is not at his elbow — and a metre of it, which
-      // is what the half-metre grid needs to leave a lane beside a footprint it pads by a quarter on each side.
+      // §7.8.12 [2026-10-07]: the user rejected the cramped avenue, so its old 1.5 m
+      // maximum gap no longer describes the brief. Teams still flank the meeting court;
+      // the minimum lane is what keeps circulation open beside his board and dais.
       expect(gap(footing, t), `pod at ${t.x},${t.z}`).toBeGreaterThanOrEqual(1.0)
-      expect(gap(footing, t), `pod at ${t.x},${t.z}`).toBeLessThanOrEqual(1.5)
     }
     for (const t of tables) expect(overlap(footing, t), `pod at ${t.x},${t.z}`).toBe(false)
   })

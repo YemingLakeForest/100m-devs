@@ -260,9 +260,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   const scene = new T.Scene()
   const camera = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, 300)
 
-  // The rebuild's rank-0 rig, turned to dusk for this build's glass: a low
-  // violet key placed by where its shadow lands, the legacy neutral sky, and the
-  // room's own screens and lamps doing the rest (`garageCraft`, `garageEnvironment`).
+  // One shared rig, so the room's material palette survives a hire or a hero arrival.
   const sky = new T.HemisphereLight('#fffdf8', '#a5a59a', 1.15)
   scene.add(sky)
   const sun = new T.DirectionalLight('#fff0d6', 2.7)
@@ -278,15 +276,12 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   fill.position.set(-32, 15, -10)
   scene.add(fill)
   if (OS_SKIN) {
-    // [2026-10-05, at the user's instruction: *"make brighter and don't have the screens to be only light emitter"*]
-    // It was a dusk room lit by its own screens: the key at 0.7, the sky a mid grey over a black ground at 0.55, the
-    // fill a whisper. Now the key is a warm low sun through the clerestory, the sky a pale blue-grey over a warm floor
-    // bounce, and the fill a cool lift in the shadows; the lamps and the screens are what is *on top of* that, not
-    // all there is.
-    sun.color.set('#ffe9cf'); sun.intensity = 1.1
-    sky.color.set('#b9c7d0'); sky.groundColor.set('#6a5f52'); sky.intensity = 0.85
-    fill.color.set('#cfe4ee'); fill.intensity = 0.3
-    renderer.toneMappingExposure = 1.12
+    // Soft workshop light keeps all five heroes in the same palette, rather than
+    // making every monitor an independently coloured key on somebody's face (§7.8.12).
+    sun.color.set('#f3e5d2'); sun.intensity = .85
+    sky.color.set('#d7dce0'); sky.groundColor.set('#918579'); sky.intensity = 1.35
+    fill.color.set('#dce5e8'); fill.intensity = .4
+    renderer.toneMappingExposure = 1.05
   }
 
   const composer = new EffectComposer(renderer)
@@ -410,7 +405,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let zoomFloor = .005
   let cityReach = 0
   /** The garage and its street, for framing it together with the city. */
-  const GARAGE_BOX = new T.Box3(new T.Vector3(-12.5, -0.5, -11), new T.Vector3(12.5, 5.4, 12.5))
+  const GARAGE_BOX = new T.Box3(new T.Vector3(-15, -0.5, -11), new T.Vector3(18, 5.4, 14))
 
   function build() {
     if (env) {

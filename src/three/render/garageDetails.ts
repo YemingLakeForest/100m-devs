@@ -510,7 +510,7 @@ export function entrance(g: T.Group, placement: {x:number;z:number;width:number;
   const x = 0, z = 0
   const door = new T.Group(); door.name = 'studio-entrance'; g.add(door)
   door.position.set(placement.x, 0, placement.z); door.rotation.y = yaw
-  // Jambs, leaf and threshold share the straight east-facing portal frame.
+  // Jambs, leaf and threshold share the diagonal portal frame facing the lens.
   for (const side of [-1, 1]) {
     box(door, x + side * (width / 2 - 0.13), 0, z, 0.26, height, 0.26, INK.wall)
   }
@@ -521,7 +521,7 @@ export function entrance(g: T.Group, placement: {x:number;z:number;width:number;
   // The glazed leaf is open into the empty entry bay. The opening has no wall,
   // skirting or opaque glass panel stretching across it at knee height.
   const leaf = new T.Group(); leaf.name = 'studio-door-leaf'
-  leaf.position.set(-leafWidth / 2, 0, 0); leaf.rotation.y = Math.PI / 3; door.add(leaf)
+  leaf.position.set(-leafWidth / 2, 0, 0); leaf.rotation.y = -Math.PI / 6; door.add(leaf)
   box(leaf, leafWidth / 2, 0.08, 0, leafWidth, 0.2, 0.09, INK.teal)
   const glass = box(leaf, leafWidth / 2, 0.28, 0, leafWidth, 2.18, 0.045, '#b1c7c8', false)
   glass.material = sharedMaterial('studio-door-glass', () => new T.MeshStandardMaterial({ color: '#b1c7c8', transparent: true, opacity: 0.28, depthWrite: false, roughness: 0.35 }))

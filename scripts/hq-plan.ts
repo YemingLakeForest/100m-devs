@@ -27,6 +27,8 @@ import {
   GARAGE_PODS,
   GARAGE_WALLS,
   HERO_SITES,
+  HQ_FINISHES,
+  HQ_GARDEN,
   STUDIO_DOOR,
   benches,
   destinationsIn,
@@ -38,10 +40,10 @@ import {
 
 const S = 44 // px per metre
 const PAD = 70
-const X0 = -12, X1 = 13, Z0 = -12, Z1 = 13
+const X0 = -15, X1 = 18, Z0 = -12, Z1 = 15
 const px = (x: number) => PAD + (x - X0) * S
 const pz = (z: number) => PAD + (z - Z0) * S
-const W = PAD * 2 + (X1 - X0) * S + 250
+const W = PAD * 2 + (X1 - X0) * S + 440
 const H = PAD * 2 + (Z1 - Z0) * S + 90
 
 const out: string[] = []
@@ -84,9 +86,19 @@ for (let z = Z0; z <= Z1; z += 5) text(X0 - 0.55, z + 0.12, String(z), 10, '#8a8
 
 // the building: the floor, then the zones laid on it
 out.push(`<polygon points="${GARAGE_OUTLINE.map(([x, z]) => `${px(x)},${pz(z)}`).join(' ')}" fill="#fffdf6" stroke="none"/>`)
+for (const f of HQ_FINISHES) {
+  box(f, f.colour)
+  if (f.name === 'Hero gallery') text(2, -4.6, 'Hero gallery · shared circulation', 12, '#344d49', 'middle', 700)
+  if (f.name === 'West promenade') text(-10.7, 3.6, 'Lounge wing', 11, '#344d49', 'middle', 700)
+}
+box(HQ_GARDEN, '#b1c78e', '#718252', 'stroke-width="2"')
+text(1, 6.8, 'Open-air garden court', 14, '#3f5937', 'middle', 700)
+text(1, 7.4, '6 m wide · outside the work floor', 10, '#3f5937')
+rect(1, 8.4, 2.6, .55, '#b6a17a')
+for (const p of GARAGE_PODS) rect(p.x, p.z, p.rot === 90 ? 4.15 : 4.7, p.rot === 90 ? 4.6 : 4.1, '#a9c1b7')
 
 // what the walk grid can reach: a faint tint on every open half-metre cell, so that the lanes show where the floor is open
-for (let x = -9.45; x < 9.7; x += 0.5) for (let z = -10.45; z < 10.7; z += 0.5) {
+for (let x = -12.65; x < 15.9; x += 0.5) for (let z = -10.45; z < 11.9; z += 0.5) {
   if (walkable('garage', x, z)) out.push(`<rect x="${px(x - 0.25)}" y="${pz(z - 0.25)}" width="${0.5 * S}" height="${0.5 * S}" fill="#cfe6d2" fill-opacity="0.35"/>`)
 }
 
@@ -101,7 +113,7 @@ text((GARAGE_DECK.x0 + GARAGE_DECK.x1) / 2, GARAGE_DECK.z1 - 0.12, `JAMES'S DECK
 
 // the three sites, each in its own finish: the plan should read as zones before it reads as furniture
 const SITE_FILL: Record<string, string> = { matt: '#bfd8bd', serena: '#b4c3c9', billy: '#e4d9ee' }
-const SITE_NAME: Record<string, string> = { matt: 'FRONT DESK', serena: 'OPS ROOM', billy: "BILLY'S PLAZA" }
+const SITE_NAME: Record<string, string> = { matt: 'Matt · Client support', serena: 'Serena · SRE', billy: 'Billy · Meetings' }
 const SITE_INK: Record<string, string> = { matt: '#2f6a3d', serena: '#35505b', billy: '#5d3f86' }
 for (const [id, site] of Object.entries(HERO_SITES)) {
   box(site, SITE_FILL[id], SITE_INK[id], `stroke-width="2.5"${site.wall === 'free' ? ' stroke-dasharray="6 4"' : ''}`)
@@ -121,9 +133,6 @@ for (const [id, site] of Object.entries(HERO_SITES)) {
       turned(billy, 1, board.x + side * hw + 0.04, board.z + board.feet), turned(billy, 1, board.x + side * hw - 0.04, board.z + board.feet)], '#3b4240')
   }
   octagon(billy.x, billy.z, dais.apothem, '#c39760', '#5d3f86', 'stroke-width="1.5"')
-  const easel = GARAGE_FURNITURE.find((f) => f.kind === 'easel')!
-  out.push(`<rect x="${px(easel.x - easel.w / 2)}" y="${pz(easel.z - easel.d / 2)}" width="${easel.w * S}" height="${easel.d * S}" fill="none" stroke="#c23b30" stroke-width="1.5" stroke-dasharray="5 3"/>`)
-  text(easel.x, easel.z + easel.d / 2 + 0.35, 'footprint (the grid pads it 0.25 m)', 7.5, '#c23b30')
 }
 // the glazing round the Ops Room: south and east faces, the two the camera sees
 {
@@ -132,9 +141,8 @@ for (const [id, site] of Object.entries(HERO_SITES)) {
   line(o.x1, o.z0, o.x1, o.z1, '#3aa6bf', 5)
 }
 // the old wall, until Serena arrives: one partition with an east return (Matt's place and Billy's have none)
-line(HERO_SITES.serena.x0 - 0.02, -6.49, HERO_SITES.serena.x1 + 0.02, -6.49, '#c23b30', 3, '8 5')
-line(HERO_SITES.serena.x1 + 0.02, -6.49, HERO_SITES.serena.x1 + 0.02, -9.68, '#c23b30', 3, '8 5')
-text((HERO_SITES.serena.x0 + HERO_SITES.serena.x1) / 2, -6.12, 'old wall until she arrives', 8, '#c23b30')
+text(-1.6, -8.7, 'Ticket wall + phones', 11, '#2f6a3d')
+text(4.4, -8.7, 'Dashboard wall', 11, '#35505b')
 // the Ops Room's step, which comes with her: at the east end of the south face
 rect(HERO_SITES.serena.x1 - 0.6, HERO_SITES.serena.z1 + 0.3, 0.95, 0.6, '#8d9a9d', '#35505b')
 
@@ -153,9 +161,11 @@ for (const f of GARAGE_FURNITURE) {
 // pods and seats, with the rectangle the walk grid closes round each table (dashed) under the table itself
 for (const b of benches('garage')) out.push(`<rect x="${px(b.x - b.w / 2)}" y="${pz(b.z - b.d / 2)}" width="${b.w * S}" height="${b.d * S}" fill="none" stroke="#c9b79a" stroke-width="1" stroke-dasharray="3 3"/>`)
 for (const [i, p] of GARAGE_PODS.entries()) {
-  const w = p.rot === 90 ? 1.45 : 3.05, d = p.rot === 90 ? 3.05 : 1.45
-  rect(p.x, p.z, w, d, '#e2d3b4', '#6b5230')
-  text(p.x, p.z + 0.12, `POD ${i}`, 10, '#6b5230', 'middle', 700)
+  for (const s of garageSeats().filter(q => q.pod === i)) {
+    const x = s.x - Math.sin(s.facing) * .72, z = s.z - Math.cos(s.facing) * .72
+    rect(x, z, p.rot === 90 ? .88 : 1.64, p.rot === 90 ? 1.64 : .88, '#e2d3b4', '#6b5230')
+  }
+  text(p.x, p.z + 0.12, `Team ${i + 1}`, 10, '#344d49', 'middle', 700)
 }
 for (const s of garageSeats()) out.push(`<circle cx="${px(s.x)}" cy="${pz(s.z)}" r="${0.27 * S}" fill="#fff" stroke="#368c87" stroke-width="2"/>`)
 
@@ -167,7 +177,7 @@ for (const l of GARAGE_LEADERS) {
   rect(pad.x, pad.z, pad.w, pad.d, l.id === 'founder' ? '#d9bf99' : '#e6d3b0', l.id === 'founder' ? '#6b4a31' : '#8d693f', 'fill-opacity="0.55"')
   const top = heroDesktop('garage', l.seat)!
   rect(top.x, top.z, top.w, top.d, l.id === 'founder' ? '#b99059' : '#d6bd8e', l.id === 'founder' ? '#6b4a31' : '#8d693f')
-  text(top.x, top.z + 0.1, l.id === 'founder' ? 'BOSS DESK' : 'DESK', 7, '#4a3a2a')
+  text(top.x, top.z + 0.1, l.id === 'founder' ? 'You · CEO' : 'James · CTO', 12, '#4a3a2a', 'middle', 700)
 }
 
 // walls, over everything: the thick line a plan has
@@ -175,19 +185,14 @@ out.push(`<polygon points="${GARAGE_OUTLINE.map(([x, z]) => `${px(x)},${pz(z)}`)
 
 // the door
 const d = STUDIO_DOOR
-out.push(`<line x1="${px(d.x)}" y1="${pz(d.z - d.width / 2)}" x2="${px(d.x)}" y2="${pz(d.z + d.width / 2)}" stroke="#e0a52e" stroke-width="10"/>`)
-text(d.x + 0.4, d.z, 'DOOR', 10, '#a07400', 'start', 700)
-
-// circulation: the way in, across the crossing and up either lane beside Billy to the north court and the boss's stair
-arrow(-6.5, 9.5, -4.2, 7.4, '#2f6a3d', 3)
-arrow(-4.2, 7.4, -2.45, 2.55, '#2f6a3d', 3, '4 5')
-arrow(-2.45, 2.55, -2.45, -3.2, '#2f6a3d', 3, '4 5')
-arrow(1.05, 2.55, 1.05, -3.2, '#2f6a3d', 3, '4 5')
-text(-2.45, 3.2, 'lane', 8, '#2f6a3d', 'end', 700)
-text(1.05, 3.2, 'lane', 8, '#2f6a3d', 'start', 700)
-arrow(-2.45, -3.2, -4.7, -7.1, '#2f6a3d', 3, '4 5')
-text(-7.0, 9.0, 'IN', 9, '#2f6a3d', 'end', 700)
-
+const half = d.width / (2 * Math.SQRT2)
+line(d.x - half, d.z + half, d.x + half, d.z - half, '#e0a52e', 10)
+text(d.x + 1.4, d.z + 1.4, 'Entrance facing you', 13, '#a07400', 'start', 700)
+arrow(d.x + 2, d.z + 2, d.x, d.z, '#2f6a3d', 3)
+arrow(-6, 4.1, -2.7, 3.5, '#2f6a3d', 3, '4 5')
+arrow(-2.7, 3.5, -2.7, -3.2, '#2f6a3d', 3, '4 5')
+arrow(2.7, 3.5, 2.7, -3.2, '#2f6a3d', 3, '4 5')
+arrow(2.7, 3.5, 10, 3.5, '#2f6a3d', 3, '4 5')
 // errands (where the studio's own people go)
 for (const dest of destinationsIn('garage')) for (const s of dest.slots) out.push(`<circle cx="${px(s.x)}" cy="${pz(s.z)}" r="4" fill="#c23b30"/>`)
 
@@ -211,6 +216,9 @@ const legend: [string, string][] = [
   ['#b4c3c9', 'Ops Room — Serena: pipeline, incidents'],
   ['#e4d9ee', "Billy's plaza — in the mix, facing the lens"],
   ['#e2d3b4', 'Studio floor: five pods of four'],
+  ['#a9c1b7', 'Woven team islands on an oak floor'],
+  ['#a2ada5', 'Stone gallery and meeting avenue'],
+  ['#b1c78e', 'Open courtyard: planting and an outdoor bench'],
   ['#cfe6d2', 'Open to the walk grid (half-metre cells)'],
 ]
 legend.forEach(([c, t], i) => {
@@ -220,10 +228,10 @@ legend.forEach(([c, t], i) => {
 const n = legend.length
 out.push(`<text x="${lx}" y="${PAD + n * 24 + 22}" font-family="monospace" font-size="10.5" fill="#2f6a3d">- - -  the way in, and the two lanes by Billy</text>`)
 out.push(`<text x="${lx}" y="${PAD + n * 24 + 42}" font-family="monospace" font-size="10.5" fill="#3aa6bf">━  glazing (the camera sees S and E)</text>`)
-out.push(`<text x="${lx}" y="${PAD + n * 24 + 62}" font-family="monospace" font-size="10.5" fill="#c23b30">- - -  old wall, until Serena arrives</text>`)
+out.push(`<text x="${lx}" y="${PAD + n * 24 + 62}" font-family="monospace" font-size="10.5" fill="${INKC}">Soft shared light · screens emit no face light</text>`)
 out.push(`<text x="${lx}" y="${PAD + n * 24 + 82}" font-family="monospace" font-size="10.5" fill="${INKC}">Back walls ${GARAGE_WALLS.height} m (were 3.2); hero scale ${GARAGE_HERO_SCALE}</text>`)
-out.push(`<text x="${PAD}" y="${H - 44}" font-family="monospace" font-size="14" font-weight="700" fill="${INKC}">THE HQ, 2026-10-05 — N up; the camera looks from the SE, so the N and W walls are the backdrop.   1 m = ${S}px.</text>`)
-out.push(`<text x="${PAD}" y="${H - 24}" font-family="monospace" font-size="11" fill="#6b6556">The founder is on a podium in the NW corner, the apex of the picture, with James a step down; Matt and Serena stand against the north wall; Billy stands in the avenue between the pods. Drawn from three/sim/floorPlan.ts.</text>`)
+out.push(`<text x="${PAD}" y="${H - 44}" font-family="monospace" font-size="18" font-weight="700" fill="${INKC}">HQ · The courtyard workshop · 7 October 2026</text>`)
+out.push(`<text x="${PAD}" y="${H - 24}" font-family="monospace" font-size="11" fill="#6b6556">Hero stations retained. Wider work wings surround an open garden court. The diagonal entrance faces the camera. North up; camera from SE.</text>`)
 out.push('</svg>')
 
 writeFileSync(process.argv[2] ?? 'hq-plan.svg', out.join('\n'))

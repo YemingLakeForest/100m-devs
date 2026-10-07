@@ -5,7 +5,7 @@
  */
 /** Tactile garage art: reusable materials and deliberately authored furniture. */
 import * as T from 'three'
-import { OS, OS_SKIN } from '../art/skin.ts'
+import { OS_SKIN } from '../art/skin.ts'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { box, cylinder, INK, line, sharedMaterial, sphere, worktable } from './worldArt.ts'
 import { studioFloorContains } from '../sim/floorPlan.ts'
@@ -78,22 +78,12 @@ function printed(g: T.Object3D, key: string, w: number, h: number, x: number, y:
     const c = canvas.getContext('2d')!; paint(c)
     const t = new T.CanvasTexture(canvas); t.colorSpace = T.SRGBColorSpace
     const material = new T.MeshBasicMaterial({ map: t })
-    // STUDIO_OS: a screen is the brightest thing in a dark room, so it is lifted
-    // past the bloom threshold rather than sitting at paper white.
-    if (OS_SKIN && key.startsWith('screen-')) material.color.setScalar(1.7)
+    // §7.8.12 [2026-10-07]: screens carry information; the shared room rig lights faces.
+    if (OS_SKIN && key.startsWith('screen-')) material.color.setScalar(.9)
     panels.set(key, material)
   }
   const mesh = new T.Mesh(new T.PlaneGeometry(w, h), panels.get(key))
   mesh.position.set(x, y, z); mesh.rotation.y = yaw; mesh.userData.ownGeometry = true; g.add(mesh)
-  if (OS_SKIN && key.startsWith('screen-')) {
-    // …and it lights its operator: the legacy room's pools came from here.
-    // Dimmed 2026-09-26: *"people's face so lit up by the monitor light, dim
-    // them down"* — at 1.6 the face in front of it read as the brightest thing
-    // in the room. A screen should tint its operator, not floodlight them.
-    const glow = new T.PointLight(OS.glow2, .55, 2, 2)
-    glow.position.set(x + Math.sin(yaw) * .45, y - .05, z + Math.cos(yaw) * .45)
-    g.add(glow)
-  }
 }
 
 export function garageScreen(g: T.Object3D, id: string, x: number, y: number, z: number, yaw = 0, width = .81, height = .45): void {
@@ -360,9 +350,9 @@ export function craftedSingleDesk(g: T.Group, index: number): void {
 /** Surface details stay within the architectural slab and authored furniture. */
 export function garageSurfaceDetails(g: T.Group): void {
   // Long, staggered oak boards; seams read as timber rather than square tiles.
-  for (let z = -10.75, row = 0; z < 11; z += .5, row++) {
-    for (let x = -9.75; x < 10; x += .5) {
-      if (!studioFloorContains(x, z)) continue
+  for (let z = -10.75, row = 0; z < 12; z += .5, row++) {
+    for (let x = -12.75; x < 16; x += .5) {
+      if (![[x - .25, z - .25], [x + .25, z - .25], [x + .25, z + .25], [x - .25, z + .25]].every(([px, pz]) => studioFloorContains(px, pz))) continue
       const plank = Math.floor((x + 10 + row % 3) / 3)
       box(g, x, .004, z, .501, .008, .49, ['#b99368', '#c39c70', '#bd9569', '#c7a177'][(plank + row) % 4], false)
       if ((Math.round((x + 10) * 2) + row * 2) % 6 === 0) box(g, x - .247, .013, z, .012, .003, .49, '#99774f', false)

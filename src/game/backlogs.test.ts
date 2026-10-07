@@ -29,6 +29,7 @@ import { FOUNDER_ROLE_HEADS } from '../sim/founder.ts'
 import { HELPDESK_SHARE, ONCALL_SHARE } from '../sim/heroRoster.ts'
 import { SCENE_MATT_ARRIVES, SCENE_SERENA_ARRIVES } from './scenes.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
+import { earningRate } from '../sim/revenue.ts'
 
 /**
  * §21.7 — a scene stops the world, so the harness has to tap through it.
@@ -298,10 +299,14 @@ describe('§4.12a — the catalogue pages you, and a page is a freeze', () => {
     expect(before).toBeGreaterThan(0)
 
     const s = getState()
+    // Four minutes of play can already have paged the oldest release. Freezing
+    // it again changes nothing, so exercise the claim on a healthy earning game.
+    const release = s.releases.find(r => earningRate(r) > 0 && !s.incidents.some(i => i.releaseId === r.id))!
+    expect(release).toBeDefined()
     s.incidents.push({
       id: 1,
-      releaseId: s.releases[0].id,
-      releaseName: s.releases[0].name,
+      releaseId: release.id,
+      releaseName: release.name,
       age: 0,
       work: INCIDENT_WORK_SECONDS,
     })

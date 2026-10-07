@@ -5,8 +5,8 @@
  * The garage was a dark room lit by its own screens. It still has its screens, and now has the rest of what a lit
  * room has: lamps you can see, light you can see *falling* — a pool of it on a floor, a wash of it up a wall — and
  * a sign that is lit rather than painted. None of this adds a light to the scene: every real light in the scene is
- * something every material in the room pays for, per pixel, and the room already has about thirty (a lamp over each
- * pod and a glow at each screen). A pool is a soft additive disc laid just above the floor, a wash the same stood
+ * something every material in the room pays for, per pixel. [2026-10-07] The HQ uses the shared sky/key/fill rig,
+ * with no monitor or ceiling point lights. A pool is a soft additive disc laid just above the floor, a wash the same stood
  * against a wall; they cost one draw each and are what a lamp *looks* like it is doing.
  */
 import * as T from 'three'

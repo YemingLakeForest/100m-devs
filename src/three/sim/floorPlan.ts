@@ -87,26 +87,30 @@ export const GARAGE_WALLS = { height: 4.6 } as const
 export const GARAGE_WING_EAST = -6
 
 /**
- * The garage's outline, anticlockwise from the far-west corner.
- *
- * **It stopped being a rectangle.** §13.1 called it "a 20 × 16 metre cutaway",
- * and a rectangle is what a room is when nothing has argued with it: the plan
- * read as a classroom because every wall was one straight line and every pod
- * sat on the same grid. Two moves fix the silhouette without costing a seat.
- *
- * The far wall **steps back 3.3 m** over the right-hand 42% of the frontage, to
- * an annex that holds a developer pod and the kitchen. The step is on the far side, so it
- * adds depth the camera can see and hides nothing — the return wall at x = 1.5
- * casts its view shadow onto ground that is outside the building.
- *
- * The near-left entry projects toward the street and its outer corner is cut
- * with Δx = −Δz. Its outward normal (+X,+Z) faces the fixed camera, so the sign
- * is readable rather than edge-on. The bay adds circulation area without
- * moving or consuming any of the twenty developer seats.
+ * §7.8.12 [redesigned again 2026-10-07]: a courtyard cut into the frontage,
+ * a chamfered east wing and a projecting west lounge. The former little garden
+ * bay still read as a rectangular hall, and the user found its desks cramped.
+ * More floor only helps if the pods move into it: five teams now spread across
+ * the wings around Billy, while the established leadership stations stay put.
+ * The south-west chamfer's outward normal (+X,+Z) faces the camera and carries
+ * the entrance; drawing every edge from this polygon keeps doors and routes
+ * on the actual shell, rather than the obsolete rectangular wall runs.
  */
 export const GARAGE_OUTLINE: readonly (readonly [number, number])[] = [
-  [-10, -9.8], [10, -9.8], [10, 8],
-  [GARAGE_WING_EAST, 8], [GARAGE_WING_EAST, 11], [-10, 11],
+  [-10, -9.8], [10, -9.8], [16, -3.8], [16, 4], [11, 9],
+  [4, 9], [4, 5], [-2, 5], [-2, 8], [-6, 8], [-10, 12],
+  [-13, 12], [-13, 2], [-10, 2],
+] as const
+
+/** The six-metre outdoor court is a void in the work floor, not another indoor bay. */
+export const HQ_GARDEN = { x0: -2, x1: 4, z0: 5, z1: 9 } as const
+
+/** Flush finishes organise the workshop without adding an obstacle to its two Billy lanes. */
+export const HQ_FINISHES = [
+  { x0: -6.8, x1: 9.8, z0: -5.95, z1: -3.5, colour: '#a2ada5', name: 'Hero gallery' },
+  { x0: -2.6, x1: 2.6, z0: -3.5, z1: 4.85, colour: '#a2ada5', name: 'Meeting avenue' },
+  { x0: -12.85, x1: -3.0, z0: 2.5, z1: 4.4, colour: '#a2ada5', name: 'West promenade' },
+  { x0: 3.1, x1: 13.0, z0: 2.8, z1: 4.5, colour: '#a2ada5', name: 'East promenade' },
 ] as const
 
 /**
@@ -242,18 +246,10 @@ export const BILLY_PLAZA = {
 export const GARAGE_PLATFORMS = [GARAGE_PODIUM, GARAGE_DECK, HERO_SITES.serena, HERO_SITES.matt] as const
 export const GARAGE_HERO_SCALE = 1.25
 
-/**
- * Four aligned desk groups form two rows with a wide avenue between the columns; the fifth stands by the east wall.
- *
- * **The columns were spread** [2026-10-05, *"put billy in the mix of devs"*]: the west column stays at x = −5.0 and
- * the east one moves from 1.4 to 3.6, so the avenue between them is 5.0 m wide (it was 3.1) and the north row moved
- * north a metre and a half so that the crossing south of it is 2.5 m deep (it was 0.9). Billy stands in the avenue's
- * mouth; the aisle across it stays open, 0.9 m wide beside his rug. The fifth pod (the old pod 3) is at (7.7, 1.8),
- * turned, with 0.6 m to either neighbour and 0.5 m to the east wall's parapet.
- */
+/** Five teams spread across the courtyard's two wings; twenty hires retain their pod order (§6). */
 export const GARAGE_PODS: readonly { x: number; z: number; rot: 0 | 90 }[] = [
-  { x: 3.6, z: -1.2, rot: 0 }, { x: -5.0, z: 4.7, rot: 0 }, { x: -5.0, z: -1.2, rot: 0 },
-  { x: 7.7, z: 1.8, rot: 90 }, { x: 3.6, z: 4.7, rot: 0 },
+  { x: 5.0, z: -1.0, rot: 0 }, { x: -9.0, z: 6.4, rot: 0 }, { x: -5.0, z: -0.8, rot: 0 },
+  { x: 12.0, z: 0.1, rot: 90 }, { x: 7.2, z: 6.4, rot: 0 },
 ] as const
 
 export const LEADER_IDS = ['founder', 'james', 'billy', 'serena', 'matt'] as const
@@ -382,8 +378,8 @@ export function stationApproach(place: Place, seat: number, back: number): Point
   const radians = ((station.rot ?? 0) * Math.PI) / 180
   return { x: station.x - Math.sin(radians) * back, z: station.z - Math.cos(radians) * back }
 }
-/** The squared entry faces +X, which projects toward screen bottom-right. */
-export const STUDIO_DOOR = { x: GARAGE_WING_EAST, z: 9.5, width: 3, height: 2.75, yaw: Math.PI / 2 } as const
+/** The entry faces (+X,+Z), square to the fixed camera [2026-10-07, §7.8.12]. */
+export const STUDIO_DOOR = { x: -8, z: 10, width: 3, height: 2.75, yaw: Math.PI / 4 } as const
 
 /**
  * The entry wing's street gable — the run of wall to the left of the door.
@@ -396,9 +392,9 @@ export const STUDIO_DOOR = { x: GARAGE_WING_EAST, z: 9.5, width: 3, height: 2.75
  * camera-side wall the building has, and leaving it empty was the cost of
  * raising it.
  */
-export const STUDIO_GABLE = { x0: -10, x1: GARAGE_WING_EAST, z: 11, thickness: 0.24 } as const
-/** Just inside the portal: 0.9 m in from the wing's east face, on the door's centreline. */
-export const GARAGE_ENTRY_START = { x: GARAGE_WING_EAST - 0.9, z: 9.5 } as const
+export const STUDIO_GABLE = { x0: -13, x1: -10, z: 12, thickness: 0.24 } as const
+/** Just inside the diagonal portal, 0.9 m along its inward normal. */
+export const GARAGE_ENTRY_START = { x: STUDIO_DOOR.x - .9 / Math.SQRT2, z: STUDIO_DOOR.z - .9 / Math.SQRT2 } as const
 /**
  * Where the founder puts the boxes down — the garage's half of
  * {@link OFFICE_ARRIVAL}, and here for the same reason that is.
@@ -604,7 +600,7 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
   // walking footprint; huddle slots stay on its +x side. **3.8 m, not 4.82, and a metre south of where it was**
   // [2026-10-05]: the podium and James's deck took the west wall's north end, and the board's base now starts
   // 0.1 m south of the deck's.
-  { kind: 'board', x: -9.72, z: 1.5, w: .55, d: 3.8, h: 3.2, facing: Math.PI / 2 },
+  { kind: 'board', x: -9.72, z: 0.7, w: .55, d: 2.4, h: 3.2, facing: Math.PI / 2 },
   /*
    * The lounge, backed onto the west wall and looking across the floor.
    *
@@ -624,8 +620,8 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
    * It stops at z = 6.95 and not at the wing's corner: the wing's wall at z = 11 sweeps its silhouette back along
    * (−1, −1) over the floor from z = 7.8 to the corner, and furniture parked in that band is drawn with its feet cut off.
    */
-  { kind: 'sofa', x: -9.46, z: 5.4, w: 0.84, d: 3.1, facing: Math.PI / 2 },
-  { kind: 'coffee-table', x: -7.95, z: 5.4, w: 0.75, d: 1.5, low: true, facing: Math.PI / 2 },
+  { kind: 'sofa', x: -12.46, z: 5.8, w: 0.84, d: 3.1, facing: Math.PI / 2 },
+  { kind: 'coffee-table', x: -11.3, z: 5.8, w: 0.6, d: 1.5, low: true, facing: Math.PI / 2 },
   /*
    * **Billy's easel and Billy** [2026-10-05]: the rolling whiteboard (1.8 m of board, turned to the lens) and the man
    * on his dais beside it, as one footprint — the smallest axis-aligned rectangle that holds both, derived from
@@ -633,7 +629,8 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
    */
   { kind: 'easel', ...billyFootprint() },
   // Planting: one by the south pods' east end; the hub planters are gone (the hub is Billy's).
-  { kind: 'planter', x: 6.4, z: 5.6, w: 1.1, d: 1.1, low: true },
+  { kind: 'planter', x: 3.4, z: 4.1, w: .7, d: .7, low: true },
+  { kind: 'planter', x: 14.7, z: -2.5, w: .8, d: .8, low: true },
   // **The planter that stood in the south corridor, at (4.1, 7.2), is gone, and the reading bench is half a metre further
   // east**: together they shut the corridor between the south-east pod and the wall, and the south-east corner — four
   // metres square, with the other planter and the bench in it — was a room of its own that nobody could walk to
@@ -641,7 +638,7 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
   // The water cooler, in the north-east corner past Serena's plinth: it was against the east wall, and the pod there
   // is where it was.
   { kind: 'cooler', x: 9.3, z: -9.25, w: .7, d: .7 },
-  { kind: 'bench', x: 8.15, z: 7.35, w: 3.1, d: .62, low: true },
+  { kind: 'bench', x: 10.5, z: 7.8, w: 1.8, d: .62, low: true },
 ]
 
 /**
@@ -750,7 +747,7 @@ const GARAGE_DESTINATIONS: readonly Destination[] = [
     slots: [{ x: garageCooler.x, z: garageCooler.z + 0.95 }, { x: garageCooler.x - 0.75, z: garageCooler.z + 0.95 }] },
   // Huddles stand in the clear aisle beside the board, facing it.
   { kind: 'whiteboard', facing: yawToward(-1, 0),
-    slots: [{ x: -8.5, z: 0.5 }, { x: -8.5, z: 1.5 }, { x: -8.5, z: 2.5 }] },
+    slots: [{ x: -8.5, z: -0.5 }, { x: -8.5, z: 0.5 }, { x: -8.5, z: 1.5 }] },
   /*
    * The street door's glass: you stand just inside it and look out. **It was the clerestory band on
    * the far wall**, and then the east glazing past the kitchen; the first was under the first hero terrace (two
@@ -758,13 +755,16 @@ const GARAGE_DESTINATIONS: readonly Destination[] = [
    * under the boss's deck. A destination is a place the room draws and the walk reaches, and the
    * entry wing's door is both — it is also the one place in the room nobody is built over.
    */
-  { kind: 'window', facing: yawToward(1, 0), slots: [{ x: GARAGE_WING_EAST - 0.9, z: 8.8 }, { x: GARAGE_WING_EAST - 0.9, z: 10.2 }] },
+  { kind: 'window', facing: yawToward(1, 1), slots: [
+    { x: GARAGE_ENTRY_START.x - .45, z: GARAGE_ENTRY_START.z + .45 },
+    { x: GARAGE_ENTRY_START.x + .45, z: GARAGE_ENTRY_START.z - .45 },
+  ] },
   // Sitting with your back to the west wall, looking across the floor.
   // Approached between the sofa and its coffee table — see `approach`. The
   // approach is a cell centre on purpose: the gap between the two is 0.7 m and
   // the grid is 0.5, so a spot chosen by eye lands in the sofa's clearance.
-  { kind: 'sofa', facing: yawToward(1, 0), approach: { x: -8.45, z: 5.4 },
-    slots: [{ x: -9.76, z: 4.6 }, { x: -9.76, z: 6.2 }] },
+  { kind: 'sofa', facing: yawToward(1, 0), approach: { x: -11.95, z: 5.8 },
+    slots: [{ x: -12.76, z: 5.0 }, { x: -12.76, z: 6.6 }] },
   // The hub. Where you stand about in a room shaped like this, because it is
   // the one place every route passes.
   { kind: 'loiter', facing: 0, slots: [{ x: -2.4, z: 2.5 }, { x: 2.0, z: -4.2 }, { x: 6.7, z: 4.7 }] },
@@ -869,7 +869,7 @@ interface Grid {
  * 12.2, so there is room to be generous, and being generous is free.
  */
 const BOUNDS: Record<Place, { x0: number; z0: number; x1: number; z1: number }> = {
-  garage: { x0: -9.7, z0: -10.7, x1: 9.7, z1: 10.7 },
+  garage: { x0: -12.9, z0: -10.7, x1: 15.9, z1: 11.9 },
   office: { x0: -17.9, z0: -12.9, x1: 17.9, z1: 12.9 },
 }
 

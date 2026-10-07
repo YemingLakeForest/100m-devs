@@ -42,6 +42,17 @@ describe('the garage holds all five', () => {
     expect(bodyOf('matt').visible).toBe(false)
   })
 
+  it('makes Billy taller with only a head and a body, without a trouser pillar or feet', () => {
+    const env = buildGarageEnvironment(3, cast, 'on', false, GARAGE_ASSEMBLED, true)
+    const bodyOf = (id: 'billy' | 'james') => env.people.find((p) => Number(p.userData.seat) === leaderSeat(id))!
+    const billy = bodyOf('billy')
+    expect(billy.children.map((part) => part.name)).toEqual(['torso', 'head'])
+    expect(billy.getObjectByName('torso')!.position.y).toBe(0)
+    env.root.updateMatrixWorld(true)
+    const height = (id: 'billy' | 'james') => new T.Box3().setFromObject(bodyOf(id)).getSize(new T.Vector3()).y
+    expect(height('billy')).toBeGreaterThan(height('james'))
+  })
+
   it('shows the Ops Room’s step and Matt’s riser only with their heroes, and gives Billy no platform to show', () => {
     // Neither has an old wall to hide behind — the step is in front of Serena's, and Matt has none — so a standing platform
     // with a lit edge was in the early garage with nothing on it (found by looking). Billy stands on the open floor and
