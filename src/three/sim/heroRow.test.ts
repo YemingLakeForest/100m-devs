@@ -178,7 +178,6 @@ describe('the hero quarter', () => {
     const up = (l: { x: number; z: number }) => -l.x - l.z
     const founder = leader('founder'), james = leader('james')
     for (const l of GARAGE_LEADERS) if (l.id !== 'founder') expect(up(founder), l.id).toBeGreaterThan(up(l))
-    expect(founder.rot).toBe(45) // facing us: a corner office is turned to the corner's own diagonal
     expect(james.rot).toBe(90) // along the west wall, facing across the room
     const dist = (l: { x: number; z: number }) => Math.hypot(l.x - founder.x, l.z - founder.z)
     for (const l of GARAGE_LEADERS) if (l.id !== 'founder' && l.id !== 'james') expect(dist(james), l.id).toBeLessThan(dist(l))
@@ -189,6 +188,17 @@ describe('the hero quarter', () => {
     expect(GARAGE_PODIUM.z0).toBe(GARAGE_WALL_FACES.north)
     expect(GARAGE_DECK.x0).toBe(GARAGE_WALL_FACES.west)
     expect(GARAGE_DECK.z0).toBe(GARAGE_PODIUM.z1)
+  })
+
+  it('faces the founder’s whole station the isometric way, as Matt’s and Serena’s are: desk, chair and person', () => {
+    // *"not toward james, I mean facing down right, the isometric way, like matt and serena"* (2026-10-07). A station's `rot`
+    // is its yaw in degrees (0 faces +z, 90 faces +x) and everything in it — the person facing the desk, the desk in front
+    // of them, the credenza behind — is built in that frame, so one number turns all of it. Square to the walls, into the room.
+    const founder = leader('founder')
+    expect(founder.rot).toBe(leader('matt').rot)
+    expect(founder.rot).toBe(leader('serena').rot)
+    // …and not the diagonal the corner office was first built on (turned to the lens), nor an angle between.
+    expect(founder.rot % 90).toBe(0)
   })
 
   it('puts each leader’s desk on their own platform, and both platforms inside the building', () => {

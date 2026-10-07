@@ -37,7 +37,7 @@ const rectOf = (r: { x0: number; x1: number; z0: number; z1: number }) => [[r.x0
  * and south faces (the two the camera sees) and a dimmer one at its foot; its stair is two treads of 0.4 m on the east
  * face, centred on z = −7.1, lit along the nosings; and a brass rail, two bars on posts a metre apart, runs along both
  * seen edges and stops at the stair on one of them. The rail is *thin on purpose*: it is there to say "edge" and not to
- * hide the founder, whose desk's near corners are 0.13 m behind it.
+ * hide the founder, whose desk is most of a metre behind it.
  *
  * The deck is oak, a step up, with a dim amber line at its foot. Nobody walks on either (the walk grid is closed over
  * both): the stair is a picture, and the way on to the podium is a lane the opening will want

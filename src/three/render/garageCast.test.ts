@@ -73,6 +73,21 @@ describe('the garage holds all five', () => {
     expect(Math.max(...ys)).toBeCloseTo(restY('body:founder'), 6)
   })
 
+  it('has the founder look the way Matt and Serena do, in the world: square to the walls, into the room', () => {
+    // *"facing down right, the isometric way, like matt and serena"* (2026-10-07). A person's face is their local −z; the
+    // world heading of that, through the station that turns them, is where they look.
+    const env = buildGarageEnvironment(3, cast, 'on', false, GARAGE_ASSEMBLED, true)
+    env.root.updateMatrixWorld(true)
+    const looks = (id: 'founder' | 'matt' | 'serena' | 'james') => {
+      const body = env.people.find((p) => Number(p.userData.seat) === leaderSeat(id))!
+      return new T.Vector3(0, 0, -1).applyQuaternion(body.getWorldQuaternion(new T.Quaternion())).setY(0).normalize()
+    }
+    // The desk is in front of the person, so it faces the same way: the north wall's heroes look +z, into the room, and so does the boss.
+    for (const id of ['founder', 'matt', 'serena'] as const) expect(looks(id).dot(new T.Vector3(0, 0, 1)), id).toBeGreaterThan(0.999)
+    // James, on the west wall, looks across the room, east.
+    expect(looks('james').dot(new T.Vector3(1, 0, 0))).toBeGreaterThan(0.999)
+  })
+
   it('raises the back walls to the plan’s height, so that the sets hang on them', () => {
     // The bare shell, with no scenery: the highest thing in it is the wall's own cap, a hand above the wall.
     const shell = buildGarageEnvironment(0, cast, 'off', true, GARAGE_ASSEMBLED, true)

@@ -478,7 +478,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       // A hero's plate on a wall is the set's marquee: over the middle of its wall, above it and clear of the work,
       // and lying along the wall it hangs on — the north wall's runs along +x, the west one's along −z. The offset is
       // in the station's own frame, which is turned and scaled, hence the division. A free-standing hero (Billy) and the
-      // two on the diagonal and the deck have their plate over their heads, laid *across the screen*: the diagonal's
+      // two on the podium and the deck have their plate over their heads, laid *across the screen*: the diagonal's
       // own axis, (1, −1), which is what every sign facing the lens is set along.
       if (site && site.wall !== 'free') {
         const along = site.wall === 'north' ? (site.x0 + site.x1) / 2 - station.x : -((site.z0 + site.z1) / 2 - station.z)
@@ -512,9 +512,9 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    * of the podium (on it: the group is at its height); and a sconce on the north wall between each pair of sets and at
    * the corner, with its wash up the plaster. None adds a light to the scene (`glowArt.ts`).
    */
-  studioSign(g, cast.studio ?? 'Merciless Software', { wall: 'north', along: -6.9, width: 2.8, y: 2.7, height: 1.2 })
-  standingLamp(podium, -5.9, -9.1)
-  standingLamp(podium, -9.2, -5.85)
+  studioSign(g, cast.studio ?? 'Merciless Software', { wall: 'north', along: -7.6, width: 2.8, y: 2.7, height: 1.2 })
+  standingLamp(podium, -5.95, -9.25)
+  standingLamp(podium, -9.3, -9.25)
   for (const x of [-4.4, 1.2, 8.4]) sconce(g, x, 2.9, -9.64, 0)
   /*
    * §12.6 — **the room is furnished by hiring, not by the lease.**

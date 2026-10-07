@@ -166,10 +166,12 @@ export const GARAGE_WALL_FACES = { north: -9.68, west: -9.88 } as const
 
 /**
  * **The founder's podium** [2026-10-05, *"I want the me even more promenant, on a platform"*] — the north-west
- * corner, 1.2 m up: 4.58 m along the north wall and 4.48 m along the west one. It is sized by the one thing on it
- * that is not square to the walls: the desk stands on the diagonal, and a 2.9 m desk with a 2.4 m rug turned 45°
- * reaches 2.2 m from the station in each of two directions, with a credenza across the corner behind that reaches
- * 2.0 m back. The station is at (−7.7, −7.6); the podium is the rectangle that holds all of it with a hand to spare.
+ * corner, 1.2 m up: 4.58 m along the north wall and 4.48 m along the west one. It was sized for a desk on the diagonal —
+ * a 2.9 m desk with a rug turned 45° reaches 2.2 m from the station in each of two directions, with a credenza across
+ * the corner behind that reaches 2.0 m back — and the desk is square to the walls now, facing the room as Matt's and
+ * Serena's do (see {@link GARAGE_LEADERS}): the assembly is 2.9 m wide and 3.1 m deep, with a rug a hand beyond it, on a
+ * podium of 4.6 by 4.5 — the same podium holds it with most of a metre of floor either side of the desk, which is the
+ * boss's own lobby.
  */
 export const GARAGE_PODIUM = { x0: GARAGE_WALL_FACES.west, z0: GARAGE_WALL_FACES.north, x1: -5.3, z1: -5.2, rise: 1.2 } as const
 
@@ -271,9 +273,12 @@ export const LEADER_STATIONS = LEADER_IDS.map((id, i) => ({ id, seat: leaderSeat
  * the diagonal (+x, +z) that §12.1's camera looks back along. Every set is authored in its station's own frame
  * (the person at the origin facing local +z, the desk in front of them), so a turn costs a set nothing.
  *
- * - **The founder** (−7.7, −7.6), rot 45: the corner office. The desk's far corners are 2.2 m from the station,
- *   the credenza's 2.0 m back across the corner; the station is placed so that all of it clears both walls
- *   (the credenza's ends are 0.19 and 0.08 m off them) and both podium edges (0.18 and 0.13 m).
+ * - **The founder** (−7.6, −7.9), rot 0: **the whole station — desk, credenza, rug, chair and person — faces the room the
+ *   isometric way, as Matt's and Serena's do.** It was turned to the lens (rot 45: a corner office on the diagonal, which
+ *   read as a different language from the other four stations); then, on *"turn ME towards James so looking at the west
+ *   direction"*, toward James's deck, and the user's answer to that was *"not toward james, I mean facing down right, the
+ *   isometric way, like matt and serena"* [2026-10-07]. The credenza stands 0.32 m off the north wall behind the desk, the
+ *   rug clears both walls and both rails by 0.3 m and more, and the lane from the stair runs behind the desk to the chair.
  * - **James** (−9.0, −3.4), rot 90: on the deck, the desk running along the wall from z −4.8 to −2.0 and his Diet
  *   Coke cabinet at its south end to −1.37. (He was at (−8.4, −4.4), and before that at (−0.7, −4.5).)
  * - **Matt** (−1.6, −8.4) and **Serena** (4.4, −8.3), rot 0, at the middles of their sites.
@@ -282,7 +287,7 @@ export const LEADER_STATIONS = LEADER_IDS.map((id, i) => ({ id, seat: leaderSeat
  *   1.2 m from the east ones, so there is a lane either side of it.
  */
 export const GARAGE_LEADERS = [
-  { id: 'founder' as LeaderId, seat: leaderSeat('founder'), x: -7.7, z: -7.6, rot: 45 },
+  { id: 'founder' as LeaderId, seat: leaderSeat('founder'), x: -7.6, z: -7.9, rot: 0 },
   { id: 'james' as LeaderId, seat: leaderSeat('james'), x: -9.0, z: -3.4, rot: 90 },
   { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -1.6, z: -8.4, rot: 0 },
   { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: 4.4, z: -8.3, rot: 0 },
@@ -415,9 +420,9 @@ export const GARAGE_ARRIVAL_LANDING = { x: -1.7, z: 2.55 } as const
 /**
  * The foot of the founder's stair: the way on to the podium, from the north court. The stair is on the podium's
  * east face (x = −5.3) at z −8.0…−6.2, three treads of 0.4 m, so a walker stepping up from here at x = −4.7 comes
- * out between the desk's front-right corner (x −5.48) and the rail. Straight from the aisle to the chair — which is
- * what {@link route} draws across closed ground — would walk the founder through their own credenza. (Nothing in
- * the game uses this yet; it is the lane the opening will want.)
+ * out east of the desk's end (x −6.2) and walks west along the lane behind the desk, between it and the credenza, to the
+ * chair: 1.3 m wide. Straight from the aisle to the chair — which is what {@link route} draws across closed ground —
+ * would walk the founder through their own desk. (Nothing in the game uses this yet; it is the lane the opening will want.)
  */
 export const GARAGE_DECK_ENTRY = { x: -4.7, z: -7.1 } as const
 

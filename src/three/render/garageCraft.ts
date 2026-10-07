@@ -188,7 +188,7 @@ export function craftedHeroDesk(g: T.Group, id: string): void {
  *
  * It is drawn on the same axes as every station: the occupant at the origin facing +z, the desk in front. The
  * footprint the sim reads (`floorPlan.BOSS_DESK`) is x −1.15…1.15, the back of the chair at −0.45 and the front of
- * the desk at +1.33 — and the credenza's back is at −1.43, which is why the station stands 1.48 m off its wall.
+ * the desk at +1.33 — and the credenza's back is at −1.17, which at the station's 1.25 is the 1.46 m the station stands off the credenza's wall, less the 0.32 m of air behind it.
  * (The first cut had an L: a return along the desk's east end carrying a laptop. On the west wall the return
  * wants to run north, into the corner, and south it reaches James's desk; it is gone, and the laptop with it.)
  */
@@ -198,10 +198,10 @@ export function craftedBossDesk(g: T.Group): void {
   const WALNUT = '#7a583d', EDGE = '#5b3f2b', TOP = '#94704c', PAD = '#35523f', BRASS = '#d4ae5a'
   const desk = new T.Group(); desk.name = 'founder-station'; g.add(desk)
   const top = .895 // the pad's surface: everything that stands on the desk stands on this
-  // the rug: a deep teal wool with a brass border, under the desk and the chair. **Round**, since 2026-10-05: the desk
-  // stands on the podium's diagonal, and a rectangle turned an eighth in a corner reaches 2.4 m from the station and
-  // out past the rail on two sides, where an octagon of the same weight reaches 1.85 and sits inside it with a hand to spare.
-  // (The octagon is the room's own idiom — Billy's rug is one — and `round` is an eight-sided prism.)
+  // the rug: a deep teal wool with a brass border, under the desk and the chair. **An octagon**, since 2026-10-05, when the desk
+  // stood on the podium's diagonal and a rectangle turned an eighth in a corner reached out past the rail on two sides; the desk is
+  // square to the walls now and the octagon stayed — it reaches 1.85 m and clears every edge of the podium by 0.3 m. (It is the
+  // room's own idiom — Billy's rug is one — and `round` is an eight-sided prism.)
   for (const [r, y, h, c] of [[1.6, .004, .02, '#2c5558'], [1.48, .022, .006, '#d1b25f'], [1.36, .028, .006, '#2c5558']] as const) {
     const disc = cylinder(desk, 0, y, .36, r, h, c)
     disc.castShadow = false
