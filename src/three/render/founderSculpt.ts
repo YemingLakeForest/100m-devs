@@ -5,6 +5,7 @@
  */
 import * as T from 'three'
 import type { Look } from '../sim/identity.ts'
+import { sculptFacialHair } from './facialHair.ts'
 import { box } from './worldArt.ts'
 
 /** Hero-level detail, driven by the saved choices in both portrait and world. */
@@ -31,17 +32,7 @@ export function founderHead(head: T.Group, look: Look, skin: string, hair: strin
   if (look.hair === 2) {
     for (let i = 0; i < 3; i++) box(head, -.14 + i * .14, .515, -.11, .115, .075 + (i % 2) * .025, .18, hair)
   }
-  if (look.facialHair === 1 || look.facialHair === 3) {
-    for (const s of [-1, 1]) box(head, s * .056, .113, -.227, .096, .032, .045, hair)
-  }
-  if (look.facialHair === 2) box(head, 0, -.014, -.205, .135, .085, .065, hair)
-  if (look.facialHair === 3) {
-    for (const s of [-1, 1]) {
-      box(head, s * .167, .024, -.193, .093, .17, .06, hair)
-      box(head, s * .221, .07, -.04, .035, .22, .27, hair)
-    }
-    box(head, 0, -.037, -.198, .33, .107, .078, hair)
-  }
+  sculptFacialHair(head, look.facialHair % 4, hair)
   if (look.glasses) {
     for (const s of [-1, 1]) {
       for (const y of [.19, .281]) box(head, s * .092, y, -.229, .145, .014, .02, '#293a42')

@@ -7,9 +7,9 @@
 import * as T from 'three'
 
 export const INK = {
-  paper: '#f3f0e8', wall: '#e1d9c8', trim: '#f5eddb', floor: '#dfd4be',
-  grout: '#c9c0ac', glass: '#48565c', glassLight: '#64737a', wood: '#b99059',
-  woodEdge: '#8d693f', metal: '#393f3d', leaf: '#87934e', leafLight: '#9daa64',
+  paper: '#f3f0e8', wall: '#ced9dc', trim: '#e7eeed', floor: '#78868a',
+  grout: '#a5b1b3', glass: '#344c56', glassLight: '#688f9a', wood: '#ba9263',
+  woodEdge: '#76583d', metal: '#273941', leaf: '#416652', leafLight: '#63836a',
   lawn: '#a3ac72', earth: '#6d7151', water: '#91adbe', land: '#d8d3a7',
   teal: '#368c87', amber: '#d4a24e', navy: '#101e2b', skin: '#d7a87b', hair: '#393329',
   /*
@@ -27,7 +27,8 @@ const materials = new Map<string, T.MeshStandardMaterial>()
 export function material(colour: string): T.MeshStandardMaterial {
   let m = materials.get(colour)
   if (!m) {
-    m = new T.MeshStandardMaterial({ color: colour, roughness: 0.88, metalness: 0, flatShading: true })
+    m = new T.MeshStandardMaterial({ color: colour, roughness: .94,
+      metalness: colour === INK.metal ? .05 : 0, flatShading: true })
     materials.set(colour, m)
   }
   return m
@@ -98,14 +99,20 @@ export function sphere(parent: T.Object3D, x: number, y: number, z: number,
   return mesh
 }
 export function tree(parent: T.Object3D, x: number, z: number, size = 1): void {
-  cylinder(parent, x, 0, z, size * 0.1, size * 0.75, INK.woodEdge)
-  const crown = sphere(parent, x, size * 1.05, z, size * 0.58, INK.leaf, true)
-  crown.scale.y *= 1.35
+  // §7.4a [2026-10-07]: stepped foliage belongs to the same block kit as people;
+  // triangular crowns made the office read as a low-poly architectural model.
+  box(parent, x, 0, z, size * .22, size * .85, size * .22, INK.woodEdge)
+  // Offset clusters make a grown silhouette rather than three centred toy cubes.
+  box(parent, x, size * .65, z, size * .86, size * .60, size * .82, INK.leaf)
+  box(parent, x - size * .22, size * 1.18, z + size * .10, size * .62, size * .48, size * .66, INK.leafLight)
+  box(parent, x + size * .36, size * .92, z - size * .18, size * .58, size * .54, size * .54, INK.leaf)
+  box(parent, x - size * .40, size * .83, z - size * .20, size * .38, size * .38, size * .48, INK.leafLight)
+  box(parent, x + size * .08, size * 1.55, z + size * .04, size * .38, size * .26, size * .42, INK.leafLight)
 }
 export function planter(parent: T.Object3D, x: number, z: number, size = 0.55): void {
   box(parent, x, 0, z, size, size * 0.55, size, INK.trim)
-  const shrub = sphere(parent, x, size, z, size * 0.55, INK.leaf, true)
-  shrub.scale.y *= 1.25
+  box(parent, x, size * .55, z, size * .9, size * .65, size * .9, INK.leaf)
+  box(parent, x - size * .12, size * 1.2, z, size * .55, size * .3, size * .55, INK.leafLight)
 }
 export function hedge(parent: T.Object3D, x: number, z: number, w: number, d: number): void {
   box(parent, x, 0, z, w + 0.15, 0.22, d + 0.15, INK.trim)
@@ -157,14 +164,21 @@ export function worktable(parent: T.Object3D, x: number, z: number, w = 2.65, d 
   const g = new T.Group()
   g.position.set(x, 0, z)
   parent.add(g)
-  box(g, 0, 0.80, 0, w, 0.12, d, INK.wood)
+  box(g, 0, 0.79, 0, w, 0.13, d, INK.wood)
+  box(g, 0, 0.72, 0, w - .12, .07, d - .10, INK.metal)
   for (const dx of [-w / 2 + 0.12, w / 2 - 0.12]) {
-    for (const dz of [-d / 2 + 0.12, d / 2 - 0.12]) box(g, dx, 0, dz, 0.085, 0.8, 0.085, INK.metal)
+    for (const dz of [-d / 2 + 0.12, d / 2 - 0.12]) {
+      box(g, dx, .05, dz, 0.16, 0.67, 0.16, INK.metal)
+      box(g, dx, .015, dz, .22, .035, .22, INK.metal)
+    }
   }
   for (const dx of [-0.66, 0.66]) for (const s of [-1, 1]) {
-    box(g, dx, 0.92, s * 0.11, 0.08, 0.2, 0.12, INK.metal)
-    box(g, dx, 1.05, s * 0.16, 0.57, 0.38, 0.055, INK.metal)
+    box(g, dx, 0.92, s * 0.11, 0.12, 0.2, 0.14, INK.metal)
+    box(g, dx, 1.05, s * 0.16, 0.57, 0.38, 0.09, INK.metal)
     box(g, dx, 1.08, s * 0.20, 0.49, 0.29, 0.015, INK.glassLight)
+    // A small back badge and lower trim make recognisable hardware at game scale.
+    box(g, dx, 1.19, s * .107, .12, .035, .008, INK.grout)
+    box(g, dx, 1.045, s * .208, .54, .025, .012, '#556870')
     box(g, dx, 0.923, s * 0.53, 0.42, 0.018, 0.15, INK.grout)
     cylinder(g, dx + 0.32, 0.923, s * 0.48, 0.055, 0.12, s > 0 ? INK.teal : INK.amber)
   }
@@ -222,7 +236,13 @@ export function showSeatInstances(instances: readonly SeatInstance[], visible: b
     at.mesh.setMatrixAt(at.index, visible ? at.matrix : EMPTY)
     touched.add(at.mesh)
   }
-  for (const mesh of touched) mesh.instanceMatrix.needsUpdate = true
+  for (const mesh of touched) {
+    mesh.instanceMatrix.needsUpdate = true
+    // Hidden instances collapse to the origin. Cached bounds from that frame
+    // would keep an arriving console culled even after its matrices are restored.
+    mesh.boundingSphere = null
+    mesh.boundingBox = null
+  }
 }
 
 export type SeatInstances = Map<number, SeatInstance[]>
@@ -251,7 +271,13 @@ export function placeInstances(instances: readonly SeatInstance[], delta: T.Matr
     at.mesh.setMatrixAt(at.index, out.multiplyMatrices(delta, at.matrix))
     touched.add(at.mesh)
   }
-  for (const mesh of touched) mesh.instanceMatrix.needsUpdate = true
+  for (const mesh of touched) {
+    mesh.instanceMatrix.needsUpdate = true
+    // Hidden instances collapse to the origin. Cached bounds from that frame
+    // would keep an arriving console culled even after its matrices are restored.
+    mesh.boundingSphere = null
+    mesh.boundingBox = null
+  }
 }
 
 export function batchArt(root: T.Group, seats?: SeatInstances, props?: PropInstances): void {
@@ -280,7 +306,7 @@ export function batchArt(root: T.Group, seats?: SeatInstances, props?: PropInsta
     if (node.userData.ownGeometry || Array.isArray(node.material)) return
     if (seat !== undefined) owner.set(node, seat)
     if (prop !== undefined) part.set(node, prop)
-    const key = `${node.geometry.uuid}:${node.material.uuid}:${node.castShadow}`
+    const key = `${node.geometry.uuid}:${node.material.uuid}:${node.castShadow}:${node.receiveShadow}`
     if (!batches.has(key)) batches.set(key, { geometry: node.geometry, material: node.material, meshes: [] })
     batches.get(key)!.meshes.push(node)
   })
@@ -289,7 +315,7 @@ export function batchArt(root: T.Group, seats?: SeatInstances, props?: PropInsta
     if (batch.meshes.length < 2) continue
     const instanced = new T.InstancedMesh(batch.geometry, batch.material, batch.meshes.length)
     instanced.castShadow = batch.meshes[0].castShadow
-    instanced.receiveShadow = true
+    instanced.receiveShadow = batch.meshes[0].receiveShadow
     batch.meshes.forEach((mesh, i) => {
       const matrix = inverse.clone().multiply(mesh.matrixWorld)
       instanced.setMatrixAt(i, matrix)

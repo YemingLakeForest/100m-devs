@@ -5,11 +5,13 @@
  * The garage was a dark room lit by its own screens. It still has its screens, and now has the rest of what a lit
  * room has: lamps you can see, light you can see *falling* — a pool of it on a floor, a wash of it up a wall — and
  * a sign that is lit rather than painted. None of this adds a light to the scene: every real light in the scene is
- * something every material in the room pays for, per pixel. [2026-10-07] The HQ uses the shared sky/key/fill rig,
+ * something every material in the room pays for, per pixel. [2026-10-08] The OS studio skips these additive
+ * pools and washes to preserve consistent material colours; its visible lamp faces are restrained. [2026-10-07] The HQ uses the shared sky/key/fill rig,
  * with no monitor or ceiling point lights. A pool is a soft additive disc laid just above the floor, a wash the same stood
  * against a wall; they cost one draw each and are what a lamp *looks* like it is doing.
  */
 import * as T from 'three'
+import { OS_SKIN } from '../art/skin.ts'
 import { box, cylinder, sharedMaterial } from './worldArt.ts'
 
 /** Canvas drawing exists in a browser and not under jsdom, where these are built bare. */
@@ -34,6 +36,8 @@ function falloffMap(): T.CanvasTexture | null {
 }
 
 const glowMaterial = (colour: string, strength: number) => {
+  // §7.8.12 [2026-10-08]: coloured additive pools bleach local material colours.
+  if (OS_SKIN) return null
   const map = falloffMap()
   return map ? sharedMaterial(`glow:${colour}:${strength}`, () => new T.MeshBasicMaterial({
     map, color: colour, transparent: true, opacity: strength, blending: T.AdditiveBlending, depthWrite: false,
@@ -74,7 +78,7 @@ export function wash(parent: T.Object3D, x: number, y: number, z: number, w: num
 }
 
 /** A shared unlit material in a colour: a lamp's shade, a letter's face. It is what *is* the light, so nothing lights it. */
-export const emissive = (colour: string): T.MeshBasicMaterial => sharedMaterial(`emissive:${colour}`, () => new T.MeshBasicMaterial({ color: colour }))
+export const emissive = (colour: string): T.MeshBasicMaterial => sharedMaterial(`emissive:${colour}`, () => new T.MeshBasicMaterial({ color: new T.Color(colour).multiplyScalar(OS_SKIN ? .60 : 1) }))
 
 /** A box that glows: not batched (it is dynamic), unlit. */
 export function lamp(parent: T.Object3D, x: number, y: number, z: number, w: number, h: number, d: number, colour: string): T.Mesh {

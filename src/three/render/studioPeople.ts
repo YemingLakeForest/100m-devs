@@ -12,6 +12,7 @@ import { heroIdentity, type Look } from '../sim/identity.ts'
 import { developerAt } from '../../sim/identity.ts'
 import { DEFAULT_FOUNDER, founderLook } from '../game/founderProfile.ts'
 import { AVATAR_HAIR, frontAvatarParts } from './avatarParts.ts'
+import { sculptFacialHair } from './facialHair.ts'
 import { heroHead } from './heroHead.ts'
 import { founderHead, founderClothes } from './founderSculpt.ts'
 import { box, cylinder, INK } from './worldArt.ts'
@@ -67,8 +68,6 @@ export const HERO_LABELS: Record<string, string> = {
  */
 const LEG = 0.78
 const HIP = LEG + 0.16
-/** Billy stays a head and shirt, enlarged together above the seated crowd. */
-export const BILLY_BEAN_SCALE = 2
 
 /** Shared by scene people and their selectable HUD portraits. */
 export function personColours(look: Look, id?: LeaderId) {
@@ -113,13 +112,13 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
    * same character creation models?"* The room keeps the blocks: *"no feet …
    * just a head and body hop about"*.
    */
-  full = false): T.Group {
+  full = false, bodyScale = 1): T.Group {
   const blocks = OS_SKIN && !full
   const g = new T.Group(); g.position.set(x, 0, z); g.rotation.y = facing; parent.add(g)
   g.userData.dynamic = true
   g.userData.identity = { ...look }
   const { skin, hair, shirt } = personColours(look, id)
-  const broad = id === 'billy' ? 0.87 : 1
+  const broad = 1
   const standing = id === 'billy' || upright
   /*
    * **How far a standing body rises off its seated construction, and why it is
@@ -157,9 +156,8 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
    * on the floor; seated, it sits on the chair where it always did.
    */
   const bean = blocks && standing
-  // §7.8.12 [amended 2026-10-07]: height comes from a larger head-and-body
-  // silhouette. A trouser pillar read as a leg in a world whose people have none.
-  if (bean && id === 'billy') g.scale.setScalar(BILLY_BEAN_SCALE)
+  // §7.8.12 [2026-10-08]: standing and seated people share one model scale.
+  // Billy's dais and pose give him presence without doubling his head and body.
   const torso = new T.Group(); torso.position.y = bean ? 0 : 0.66 + lift; g.add(torso)
   torso.name = 'torso'
   box(torso, 0, 0, 0.04, 0.43 * broad, 0.52, 0.29, shirt)
@@ -226,7 +224,12 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
       }
     }
   }
-  const head = new T.Group(); head.position.set(0, bean ? 0.52 : 1.18 + lift, 0); g.add(head); head.name = 'head'
+  // §7.4a [2026-10-07]: the review cut gets its bulk from the model, not a
+  // low-resolution screen filter. Scale the complete parts so faces and collars
+  // keep their anchors, and leave the seated height and desk clearance intact.
+  if (blocks) torso.scale.set(1.28, bean ? 1.7 : 1, 1.45)
+  const head = new T.Group(); head.position.set(0, bean ? 0.52 * 1.7 : 1.18 + lift, 0); g.add(head); head.name = 'head'
+  if (blocks) head.scale.set(1.16, 1, 1.16)
   const namedHero = id === 'james' || id === 'billy' || id === 'serena' || id === 'matt'
   if (id === 'founder') {
     founderHead(head, look, skin, hair)
@@ -263,7 +266,7 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
      * is how the seated crowd has always read at distance. Nothing replaces it.
      */
     box(head, 0, 0.14, 0.18, 0.44, 0.24, 0.075, hair)
-    const colours = { ink: '#242c2d', mouth: '#895f48', hair, glasses: '#29302f' }
+    const colours = { ink: '#242c2d', mouth: '#895f48', hair, glasses: '#607574' }
     /*
      * The creator's exact facial parts, mapped onto the front of the 3D head.
      *
@@ -280,11 +283,14 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
     const depth: Record<keyof typeof colours, number> = {
       ink: -0.203, mouth: -0.203, hair: -0.2055, glasses: -0.209,
     }
-    for (const p of frontAvatarParts(look)) {
-      box(head, (p.x + p.w / 2) / 30, (-(p.y + p.h) - 12) / 30,
+    for (const p of frontAvatarParts({ ...look, facialHair: 0 })) {
+      const feature = box(head, (p.x + p.w / 2) / 30, (-(p.y + p.h) - 12) / 30,
         depth[p.colour], p.w / 30, p.h / 30,
-        0.023, colours[p.colour])
+        .008, colours[p.colour])
+      // Tiny rims and chin marks must not cast a dark mask over the face beneath them.
+      feature.castShadow = false; feature.receiveShadow = false
     }
+    sculptFacialHair(head, look.facialHair % 4, hair)
     /*
      * **Headphones, worn on the head rather than printed on the face.**
      *
@@ -324,6 +330,13 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
       .13, .011, .01, INK.grout)
   }
 
+  if (blocks && bodyScale !== 1) {
+    // Enlarge the developer above the seat anchor, rather than lifting the hips
+    // off the chair. This matches the heroes' geometry without scaling furniture.
+    torso.scale.multiplyScalar(bodyScale)
+    head.scale.multiplyScalar(bodyScale)
+    head.position.y = torso.position.y + (head.position.y - torso.position.y) * bodyScale
+  }
   return g
 }
 

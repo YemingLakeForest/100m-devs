@@ -204,12 +204,9 @@ export const GARAGE_SEATS_BUILT = 20
  * their station is not late, it does not exist.
  */
 export function showGarageStations(env: Environment, staging: GarageStaging, cast: StudioCast): void {
-  for (const bay of HERO_BAYS) {
-    // The wall stands until its hero is here, and then it is gone.
-    placeProp(env.props?.get(`partition:${bay.id}`), staging.heroes.includes(bay.id) ? null : IDENTITY)
-  }
-  // The Ops Room's step stands in front of the old wall, so the wall cannot hide it: it comes with her. So does
-  // Matt's riser, who has no wall at all (and Billy has no riser: he is on the floor).
+  placeProp(env.props?.get('ops:studies'), staging.heroes.includes('serena') ? null : IDENTITY)
+  // Open stations arrive with their platforms; no empty dais or hiding cubicle.
+  placeProp(env.props?.get('riser:serena'), staging.heroes.includes('serena') ? IDENTITY : null)
   placeProp(env.props?.get('step:serena'), staging.heroes.includes('serena') ? IDENTITY : null)
   placeProp(env.props?.get('riser:matt'), staging.heroes.includes('matt') ? IDENTITY : null)
   for (const station of GARAGE_LEADERS) {
@@ -236,7 +233,7 @@ const IDENTITY = new T.Matrix4()
  * lit by the lamps (a basic material, shared), so a lamp over it cannot make it dull and a shadow cannot darken it:
  * what it says is *there is a sky out there*, and the sky is a dusk blue a step lighter than the walls it is set in.
  */
-const SKY = '#6f95a8'
+const SKY = '#8ea6af'
 const skyMaterial = () => sharedMaterial('garage-sky', () => new T.MeshBasicMaterial({ color: SKY }))
 /** A pane of that glass: a box that is not lit. */
 function skyPane(parent: T.Object3D, x: number, y: number, z: number, w: number, h: number, d: number): T.Mesh {
@@ -244,23 +241,6 @@ function skyPane(parent: T.Object3D, x: number, y: number, z: number, w: number,
   pane.material = skyMaterial()
   return pane
 }
-
-/**
- * **The old back wall, in one piece**, in front of the Ops Room. It stood at z = −6.5 across the whole of
- * the room's back until the heroes arrived, and a hero's arrival was that length of it going up through
- * the roof. It is the Ops Room's alone now: Matt's front desk is *west* of her and comes last, and Billy's
- * corner is *east* of her and so never behind her wall, so neither needs one — they are risers that come with
- * them; and the boss is on the west wall, there from the first frame.
- *
- * **The wall has an east return**, running back to the north wall, so the bay is a box and not a screen: on
- * §12.1's camera a sight line from the east end of a plinth passes *east of a wall that stops at the bay's
- * edge* — the first cut showed a hero's dais, lit foot and all, round the end of the old wall. The return is
- * the wall's height (3.2 m, not the screen's 3.9): at 3.9 its far end stands 0.7 m up above the north wall's
- * own top edge, a stub on the skyline.
- */
-export const HERO_BAYS = [
-  { id: 'serena', x0: 1.98, x1: 6.82 },
-] as const
 
 /** GDD §§6, 7, 13.1. Architecture is authored geometry, never an atlas plane.
  * The original art supplies plaster, shutter, workshop, blue lounge and planted
@@ -281,7 +261,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   if (!cityGrid) street(g)
   for (let x = -12; x <= 12; x += 1.2) box(g, x, -0.315, 10, 0.012, 0.005, 4.5, '#bcbeb6', false)
   for (let z = 8; z <= 12.2; z += 1.2) box(g, 0, -0.315, z, 24, 0.005, 0.012, '#bcbeb6', false)
-  slab(g, GARAGE_OUTLINE, -0.3, 0.3, '#e8e2d4')
+  slab(g, GARAGE_OUTLINE, -0.3, 0.3, '#aab9ba')
   /*
    * [2026-10-04] **The far wall is one straight run, at z = −9.8.** It stepped back 3.3 m at x = 1.5 over the
    * right-hand 42% of the frontage, to an annex that held a developer pod and the kitchen; the step went when
@@ -298,55 +278,40 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   skyPane(g, 2.4, WALL - 1.0, -9.68, 14.0, 0.8, 0.06)
   for (let x = -4.4; x <= 9.4; x += 1.4) box(g, x, WALL - 1.0, -9.7, 0.12, 0.8, 0.1, INK.trim)
   box(g, 2.4, WALL - 1.04, -9.62, 14.2, 0.06, 0.2, INK.trim)
-  /*
-   * **The old back wall is still standing, in three pieces, until each hero
-   * arrives** [2026-10-04] — the gag §7.8.12 asked for: *the room cannot make
-   * space by shuffling anybody along, so it makes space by pushing the back wall
-   * out.* Each bay is hidden behind its own length of the wall that stood at
-   * z = −6.5 (solid, solid-with-a-window, solid, as it was), and when somebody
-   * arrives the view yanks that length up through the roof, with dust, and the
-   * desk drops into the room it has just opened. Built into the shell rather
-   * than moved, because a room whose walls change recompiles every material in
-   * it; the piece is a prop like the desk is, and `showGarageStations` hides it
-   * for whoever is already here.
-   */
-  for (const bay of HERO_BAYS) {
-    const w = bay.x1 - bay.x0
-    // One centimetre proud of the plinth's front face, which is at −6.38: a wall exactly on it would
-    // have its south face and the slab's coplanar for the first 0.9 m, and two colours fight there.
-    const wall = prop(env, g, `partition:${bay.id}`, (bay.x0 + bay.x1) / 2, -6.49)
-    // The screen is a hand lower than the wall behind it: its job is to hide the plinth, whose far edge is 3.2 m back, and
-    // a point 0.9 m up and 3.2 m behind the screen is seen over its top unless the top is above 4.1 m.
-    box(wall, 0, 0, 0, w, WALL - 0.2, .24, INK.wall)
-    box(wall, 0, WALL - 0.2, 0, w + .05, .12, .35, INK.trim)
-    // the east return: from the screen's south-east corner back to the north wall's inner face
-    const ret = -9.68 + 6.49 // local z of the north wall's face, relative to the screen at z = −6.49
-    box(wall, w / 2 - .12, 0, ret / 2 - .06, .24, WALL - 0.2, -ret - .24, INK.wall)
-    box(wall, w / 2 - .12, WALL - 0.2, ret / 2 - .06, .35, .12, -ret - .24, INK.trim)
-    for (let y = .45; y < WALL - 0.2; y += .45) box(wall, w / 2, y, ret / 2 - .06, .007, .009, -ret - .24, '#bfb6a5', false)
-    // The mortar joints are the wall's, so they go up with it: they were hung on the room, in the air
-    // at z = −6.372, and stayed behind as lines across nothing once the wall had left.
-    for (let y = .45; y < WALL - 0.2; y += .45) {
-      box(wall, 0, y, .123, w, .009, .007, '#bfb6a5', false)
-      for (let x = -w / 2 + (Math.round(y / .45) % 2 ? .5 : 1); x < w / 2; x += 1) box(wall, x, y - .43, .124, .008, .43, .008, '#c6bdac', false)
-    }
-  }
+  // §7.8.12 [2026-10-07]: open floor replaces the arrival enclosure.
+  // The wall finish belongs to the studio; the operations furniture arrives with Serena.
   // §7.8.12: the courtyard and both work wings share the simulation's perimeter.
-  // Only the west back faces and the sign's gable stand tall; camera-side edges stay cut away.
-  const edge = (from: readonly [number, number], to: readonly [number, number], h: number) => {
+  // The rear faces stay solid; camera-facing frontage is full-height glazing above a solid base.
+  const edge = (from: readonly [number, number], to: readonly [number, number], h: number, glazed = false) => {
     wall(g, from, to, 0, h, .24, INK.wall)
     wall(g, from, to, h, .07, .33, INK.trim)
+    if (!glazed) return
+    // A full-height storefront encloses the studio without an opaque wall
+    // between the camera and its people. The court remains open to the sky.
+    const height = WALL, len = Math.hypot(to[0] - from[0], to[1] - from[1])
+    const pane = wall(g, from, to, h + .07, height - h - .07, .055, '#a4cbd0')
+    pane.material = sharedMaterial('hq-front-glazing', () => new T.MeshStandardMaterial({
+      color: '#a4cbd0', transparent: true, opacity: .09, roughness: .35, depthWrite: false,
+    }))
+    pane.castShadow = false
+    wall(g, from, to, height, .09, .12, '#425b62')
+    const bays = Math.ceil(len / 3.4)
+    for (let j = 0; j <= bays; j++) {
+      const t = j / bays
+      box(g, from[0] + (to[0] - from[0]) * t, h + .07, from[1] + (to[1] - from[1]) * t, .08, height - h - .07, .08, '#425b62')
+    }
   }
   for (let i = 1; i < GARAGE_OUTLINE.length; i++) {
     const from = GARAGE_OUTLINE[i], to = GARAGE_OUTLINE[(i + 1) % GARAGE_OUTLINE.length]
     if (from[0] === -6 && to[0] === -10 && from[1] === 8) {
       const half = STUDIO_DOOR.width / (2 * Math.SQRT2)
-      edge(from, [STUDIO_DOOR.x + half, STUDIO_DOOR.z - half], .55)
-      edge([STUDIO_DOOR.x - half, STUDIO_DOOR.z + half], to, .55)
+      edge(from, [STUDIO_DOOR.x + half, STUDIO_DOOR.z - half], 1.05, true)
+      edge([STUDIO_DOOR.x - half, STUDIO_DOOR.z + half], to, 1.05, true)
     } else {
       const west = from[0] === to[0] && (from[0] === -10 || from[0] === -13)
       const gable = from[1] === 12 && to[1] === 12
-      edge(from, to, west ? WALL : gable ? STUDIO.wallHeight : .55)
+      const court = (from[0] === 4 && to[0] === 4) || (from[1] === 5 && to[1] === 5) || (from[0] === -2 && to[0] === -2)
+      edge(from, to, west ? WALL : gable ? STUDIO.wallHeight : 1.05, !west && !gable && !court)
     }
   }
   box(g, -9.84, 0, .7, .10, .7, 2.4, INK.wood)
@@ -365,12 +330,11 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // concrete too, so detecting architectural holes requires the bare shell.
   if (shellOnly) { finishGarage(g); batchArt(g, env.seatInstances); return env }
   // The ziggurat (`hqShell.ts`): the founder's podium and, at its foot, James's deck; and the platform each hero's set
-  // stands on — Serena's is the plinth, Matt's his riser (a prop of its own, so that it comes with him: neither has
-  // an old wall to hide behind), Billy's the floor itself, because he is standing on it with everybody else.
+  // stands on. Both raised hero platforms arrive with their stations; Billy stands on the shared floor.
   const { podium, deck } = ziggurat(g)
   const platformOf: Record<HeroSiteId, T.Group> = {
     matt: heroRiser(g, prop(env, g, 'riser:matt'), 'matt'),
-    serena: opsPlinth(g),
+    serena: opsPlinth(g, prop(env, g, 'riser:serena')),
     billy: g,
   }
   // The workshop wall is reserved for the project drawing board.
@@ -413,8 +377,8 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       if (station.id === 'founder') craftedBossDesk(desk)
       else craftedHeroDesk(desk, station.id)
       garageDeskStory(desk, station.id)
-      if (station.id === 'founder') bossChair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI)
-      else chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
+      if (station.id === 'founder') bossChair(prop(env, spot, `chair:${station.id}`), 0, -.16, Math.PI)
+      else chair(prop(env, spot, `chair:${station.id}`), 0, -.16, Math.PI, true)
     } else if (station.id !== 'billy') chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
     {
       const seat = prop(env, spot, `body:${station.id}`)
@@ -450,14 +414,14 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
         // James stands on the west wall facing +x (rot 90), and his plate lies along the wall at his back: toward −z, up and
         // to the right on §12.1's camera. The others face the lens.
         tag.userData.tagAxis = station.rot === 90 ? [0, -1] : [1, -1]
-        // The enlarged legless Billy needs his plate above his crown, too.
-        if (station.id === 'billy') tag.userData.tagOffset = [0, 2.75, 0]
+        // Billy uses the common body scale; his tag stays above the standing crown.
+        if (station.id === 'billy') tag.userData.tagOffset = [.45, 1.8, .10]
       }
       // The floor they stand on: the podium's, the deck's, a plinth's or a riser's — and Billy's is his dais, which is not
       // a platform (the walk grid is closed under it by the easel's footprint, not by a terrace) but is what his feet are on.
       const floor = station.id === 'founder' ? GARAGE_PODIUM.rise : station.id === 'james' ? GARAGE_DECK.rise
         : station.id === 'billy' ? BILLY_PLAZA.dais.rise : site!.rise
-      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, floor, station.id === 'billy' ? 2.3 : 1.75)
+      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, floor, station.id === 'billy' ? 1.65 : 1.75)
     }
   }
   /*
@@ -518,9 +482,9 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       desk.rotation.y = s.facing + Math.PI
       craftedSingleDesk(desk, s.seat)
       chair(prop(env, g, `chair:${s.seat}`, s.x, s.z), 0, 0, s.facing)
-      const body = studioPerson(g, s.x, s.z, s.facing, workerLook(cast, s.seat))
+      const body = studioPerson(g, s.x, s.z, s.facing, workerLook(cast, s.seat), undefined, false, false, GARAGE_HERO_SCALE)
       body.userData.seat = s.seat; env.people.push(body)
-      studioTarget(env, s.x, s.z, s.seat, `Developer ${s.seat + 1}`)
+      studioTarget(env, s.x, s.z, s.seat, `Developer ${s.seat + 1}`, 1, 0, 2.0)
     }
   }
   /*
@@ -566,7 +530,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    * the drift §18.3 exists to prevent.
    */
   const { g: lounge, len: sofaLen, dep: sofaDep } = placed(g, at('sofa'))
-  box(lounge, 0, 0.01, 0.95, sofaLen + 0.3, 0.018, 2.65, '#829caa')
+  box(lounge, 0, 0.01, 0.95, sofaLen + 0.3, 0.018, 2.65, '#304e54')
   box(lounge, 0, 0.2, 0, sofaLen, 0.4, sofaDep, '#3c6591')
   box(lounge, 0, 0.6, -0.3, sofaLen, 0.52, 0.22, '#345b86')
   for (const dx of [-sofaLen / 2 + 0.16, sofaLen / 2 - 0.16]) {
@@ -615,7 +579,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     }
   }
   garageSurfaceDetails(g)
-  hqInterior(g)
+  hqInterior(g, prop(env, g, 'ops:studies'))
   finishGarage(g)
   /*
    * Each prop's own extents, measured while it is still a group of meshes.
@@ -646,7 +610,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // Clear drawing wall, without the overlapping bench, posters and sprint board.
   const drawingBoard = at('board')
   const boardMount = new T.Group(); boardMount.position.set(drawingBoard.x, 0, drawingBoard.z); boardMount.rotation.y = drawingBoard.facing ?? 0; g.add(boardMount)
-  env.projectPlate = projectBoard(boardMount, 0, .3, 0, drawingBoard.d - .22, false)
+  env.projectPlate = projectBoard(boardMount, 0, 1.5, 0, drawingBoard.d - .22, false)
   // The room is built whole; these two say how much of it has arrived.
   showGarageStations(env, staging, cast)
   // The room is built for twenty; this empties the seats nobody has been hired

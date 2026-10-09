@@ -10,48 +10,46 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { box, cylinder, INK, line, sharedMaterial, sphere, worktable } from './worldArt.ts'
 import { studioFloorContains } from '../sim/floorPlan.ts'
 
-const bevel = new RoundedBoxGeometry(1, 1, 1, 2, .025)
 const finishes = new Map<string, T.MeshStandardMaterial>()
+// Furniture catches a controlled highlight; people and architecture keep hard
+// construction edges. Applying one bevel to everything was the old mismatch.
+const furnitureEdge = new RoundedBoxGeometry(1, 1, 1, 2, .025)
 function grain(kind: 'wood' | 'stone' | 'cloth'): T.DataTexture {
-  const size = 128, bytes = new Uint8Array(size * size * 4)
+  // §7.8.12 [2026-10-07]: restrained grain supports the silhouette. The first
+  // cut's repeating bands made plaster and joinery look like patterned wallpaper.
+  const size = 32, bytes = new Uint8Array(size * size * 4)
   let seed = 71
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
     const noise = (seed >>> 24) / 255
-    const bands = Math.sin(y * .71 + Math.sin(x * .08) * 1.8) * .045 + Math.sin(y * 2.9 + x * .01) * .02
-    const weave = (x % 3 === 0 ? -.1 : 0) + (y % 3 === 0 ? -.08 : 0)
-    const shade = kind === 'wood' ? .9 + bands + noise * .08 : kind === 'cloth' ? .96 + weave + noise * .035 : .92 + noise * .07
+    const shade = kind === 'wood' ? (y % 9 === 0 && noise > .35 ? .94 : noise > .9 ? .97 : 1)
+      : kind === 'cloth' ? ((x + y) % 4 === 0 ? .98 : 1)
+        : (noise > .96 ? .98 : 1)
     const at = (y * size + x) * 4
     bytes[at] = bytes[at + 1] = bytes[at + 2] = Math.min(255, shade * 255); bytes[at + 3] = 255
   }
   const t = new T.DataTexture(bytes, size, size)
-  t.wrapS = t.wrapT = T.RepeatWrapping; t.magFilter = T.LinearFilter; t.minFilter = T.LinearMipmapLinearFilter
+  t.wrapS = t.wrapT = T.RepeatWrapping; t.magFilter = T.NearestFilter; t.minFilter = T.NearestMipmapNearestFilter
   t.generateMipmaps = true; t.needsUpdate = true; return t
 }
 const maps = { wood: grain('wood'), stone: grain('stone'), cloth: grain('cloth') }
-maps.cloth.repeat.set(4, 4)
+maps.cloth.repeat.set(1, 1)
 function finish(colour: string, kind: keyof typeof maps): T.MeshStandardMaterial {
   const key = `${colour}:${kind}`
-  if (!finishes.has(key)) finishes.set(key, new T.MeshStandardMaterial({ color: colour, map: maps[kind],
-    roughness: kind === 'wood' ? .72 : .94, bumpMap: maps[kind], bumpScale: kind === 'wood' ? .018 : .009 }))
+  if (!finishes.has(key)) finishes.set(key, new T.MeshStandardMaterial({ color: colour, map: kind === 'stone' ? null : maps[kind],
+    roughness: .94, flatShading: true }))
   return finishes.get(key)!
 }
 
-/** Alternating parquet blocks distinguish the raised floor from the long main planks. */
+/** Broad tiles keep the floor quieter than the cast in the voxel review cut (§7.4a). */
 export function garagePlatformFloor(g: T.Group, d: { x0: number; x1: number; z0: number; z1: number; rise: number }): void {
-  const block = .84, strip = block / 4
+  const block = 1.4
   for (let x = d.x0, col = 0; x < d.x1; x += block, col++) {
     for (let z = d.z0, row = 0; z < d.z1; z += block, row++) {
-      const turned = (col + row) % 2 === 1
-      for (let i = 0; i < 4; i++) {
-        const x0 = x + (turned ? i * strip : 0), z0 = z + (turned ? 0 : i * strip)
-        const x1 = Math.min(d.x1, x0 + (turned ? strip : block))
-        const z1 = Math.min(d.z1, z0 + (turned ? block : strip))
-        if (x1 <= x0 || z1 <= z0) continue
-        const board = box(g, (x0 + x1) / 2, d.rise - .014, (z0 + z1) / 2,
-          x1 - x0 - .008, .014, z1 - z0 - .008, '#aa7b4d', false)
-        board.material = finish(['#ae8156', '#b68b60', '#a77a51', '#bd9367'][(col + row + i) % 4], 'wood')
-      }
+      const x1 = Math.min(d.x1, x + block), z1 = Math.min(d.z1, z + block)
+      const board = box(g, (x + x1) / 2, d.rise - .010, (z + z1) / 2,
+        x1 - x - .008, .018, z1 - z - .008, '#aa7b4d', false)
+      board.material = finish(['#ae8960', '#b08b62', '#b38d63'][(col + row) % 3], 'wood')
     }
   }
 }
@@ -64,9 +62,11 @@ export function finishGarage(root: T.Group): void {
     const wood = [INK.wood, INK.woodEdge, '#c39760', '#b7a37a'].includes(colour)
     const cloth = ['#3c6591', '#345b86', '#829caa', '#a8c2ba', '#576568', '#393f3d'].includes(colour)
     const stone = [INK.wall, INK.trim, '#e8e2d4', '#d3d1c5'].includes(colour)
-    if (wood || cloth || stone) node.material = finish(colour === INK.wood ? '#b4824e' : colour, wood ? 'wood' : cloth ? 'cloth' : 'stone')
-    // Small bevels catch highlights on furniture and figures, not on architectural seams.
-    if (node.geometry.type === 'BoxGeometry' && !node.userData.ownGeometry && Math.max(...node.scale.toArray()) < 4 && Math.min(...node.scale.toArray()) > .07) node.geometry = bevel
+    if (wood || cloth || stone) node.material = finish(colour, wood ? 'wood' : cloth ? 'cloth' : 'stone')
+    let actor = false
+    for (let p = node.parent; p && p !== root; p = p.parent) if (p.userData.identity) actor = true
+    if (!actor && (wood || cloth) && node.geometry.type === 'BoxGeometry' && !node.userData.ownGeometry
+      && Math.max(...node.scale.toArray()) < 3.5 && Math.min(...node.scale.toArray()) > .08) node.geometry = furnitureEdge
   })
 }
 
@@ -138,18 +138,19 @@ export function craftedHeroDesk(g: T.Group, id: string): void {
     box(desk, -.79, .24 + i * .21, .37, .19, .025, .025, '#b9beb7')
   }
   for (const zz of [.39, 1.2]) box(desk, .9, .02, zz, .1, .76, .1, INK.woodEdge)
-  box(desk, 0, .58, 1.22, 1.7, .18, .08, INK.woodEdge)
+  box(desk, 0, .16, 1.22, 1.7, .54, .08, '#34494f')
+  for (let x = -.75; x < .85; x += .22) box(desk, x, .21, 1.267, .065, .44, .025, INK.wood)
   // Screen, keyboard and seated operator share the desk's local forward axis.
   const monitor = new T.Group(); monitor.position.set(-.04, 0, .92)
   monitor.rotation.y = Math.PI; desk.add(monitor)
   box(monitor, 0, .925, 0, .27, .035, .2, INK.metal)
   box(monitor, 0, .95, 0, .06, .18, .07, INK.metal)
-  box(monitor, 0, 1.08, 0, .91, .55, .055, INK.metal)
-  garageScreen(monitor, id, 0, 1.365, .03)
-  box(desk, -.06, .924, .48, .63, .025, .22, '#747f7b')
-  for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) box(desk, -.32 + col * .065, .95, .415 + row * .06, .045, .007, .037, '#c5c8bd')
-  box(desk, .46, .924, .49, .21, .013, .25, '#385359')
-  box(desk, .46, .94, .48, .085, .04, .12, '#b7bdb9')
+  box(monitor, 0, 1.08, 0, 1.05, .63, .065, INK.metal)
+  garageScreen(monitor, id, 0, 1.395, .038, 0, .96, .55)
+  box(desk, -.06, .936, .48, .63, .025, .22, '#747f7b')
+  for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) box(desk, -.32 + col * .065, .962, .415 + row * .06, .045, .007, .037, '#c5c8bd')
+  box(desk, .46, .936, .49, .21, .018, .25, '#385359')
+  box(desk, .46, .960, .48, .085, .04, .12, '#b7bdb9')
   lamp(desk, .89, 1.07)
   if (id === 'founder') {
     // [2026-09-26] The back of the monitor is bare: "I don't want the only works
@@ -185,7 +186,7 @@ export function craftedHeroDesk(g: T.Group, id: string): void {
 export function craftedBossDesk(g: T.Group): void {
   // Lighter than the first cut, which read as one dark brown mass under the room's lamps: a mid walnut top over a
   // deeper carcase, a green pad and brass. The footprint is `floorPlan`'s BOSS_DESK: x −1.15…1.75, desk front at 1.33.
-  const WALNUT = '#7a583d', EDGE = '#5b3f2b', TOP = '#94704c', PAD = '#35523f', BRASS = '#d4ae5a'
+  const WALNUT = '#76583d', EDGE = '#34494f', TOP = '#ba9263', PAD = '#35523f', BRASS = '#d4ae5a'
   const desk = new T.Group(); desk.name = 'founder-station'; g.add(desk)
   const top = .895 // the pad's surface: everything that stands on the desk stands on this
   // the rug: a deep teal wool with a brass border, under the desk and the chair. **An octagon**, since 2026-10-05, when the desk
@@ -197,43 +198,47 @@ export function craftedBossDesk(g: T.Group): void {
     disc.castShadow = false
     disc.rotation.y = Math.PI / 8
   }
+  // The broader body needs actual clearance at the desk edge; the rug and
+  // credenza keep their footprint on the podium.
+  const worktop = new T.Group(); worktop.name = 'founder-worktop'
+  worktop.position.z = .18; desk.add(worktop)
   // the desk: a top, a deeper apron, a pedestal either side and a kneehole panel on the room side
-  box(desk, 0, .78, .8, 2.3, .1, 1.06, TOP)
-  box(desk, 0, .70, .8, 2.2, .08, .96, EDGE)
-  box(desk, 0, top - .007, .84, 1.5, .012, .62, PAD)
-  box(desk, 0, top - .004, 1.155, 1.56, .008, .02, BRASS)
-  box(desk, -.88, 0, .82, .52, .70, .86, WALNUT)
+  box(worktop, 0, .78, .8, 2.3, .1, 1.06, TOP)
+  box(worktop, 0, .70, .8, 2.2, .08, .96, EDGE)
+  box(worktop, 0, top - .007, .84, 1.5, .012, .62, PAD)
+  box(worktop, 0, top - .004, 1.155, 1.56, .008, .02, BRASS)
+  box(worktop, -.88, 0, .82, .52, .70, .86, WALNUT)
   for (let i = 0; i < 3; i++) {
-    box(desk, -.88, .08 + i * .21, .385, .46, .18, .03, EDGE)
-    box(desk, -.88, .155 + i * .21, .36, .16, .025, .025, BRASS)
+    box(worktop, -.88, .08 + i * .21, .385, .46, .18, .03, EDGE)
+    box(worktop, -.88, .155 + i * .21, .36, .16, .025, .025, BRASS)
   }
-  box(desk, .88, 0, .82, .52, .70, .86, WALNUT)
-  box(desk, .88, .08, .385, .46, .58, .03, EDGE)
-  box(desk, .66, .32, .36, .025, .14, .025, BRASS)
-  box(desk, 0, .24, 1.3, 1.2, .46, .04, WALNUT)
+  box(worktop, .88, 0, .82, .52, .70, .86, WALNUT)
+  box(worktop, .88, .08, .385, .46, .58, .03, EDGE)
+  box(worktop, .66, .32, .36, .025, .14, .025, BRASS)
+  box(worktop, 0, .24, 1.3, 1.2, .46, .04, WALNUT)
   // a brass nameplate on the desk's front edge: *the boss*, in a word
-  box(desk, 0, .82, 1.345, .5, .07, .015, BRASS)
+  box(worktop, 0, .82, 1.345, .5, .07, .015, BRASS)
   // a mug at the left hand, where the Diet Coke is not (the pizza boxes are `garageDeskStory`'s, beside it)
-  cylinder(desk, -1.02, top - .012, .92, .055, .1, '#e9e2d0')
+  cylinder(worktop, -1.02, top - .012, .92, .055, .1, '#e9e2d0')
   // the monitor: one wide screen, its back to the room, with the project on it
-  const monitor = new T.Group(); monitor.position.set(0, 0, .95); monitor.rotation.y = Math.PI; desk.add(monitor)
+  const monitor = new T.Group(); monitor.position.set(0, 0, .95); monitor.rotation.y = Math.PI; worktop.add(monitor)
   box(monitor, 0, top - .012, 0, .3, .03, .22, INK.metal)
   box(monitor, 0, top + .018, 0, .07, .2, .07, INK.metal)
-  box(monitor, 0, 1.06, 0, 1.15, .5, .055, INK.metal)
-  garageScreen(monitor, 'founder', 0, 1.315, .03, 0, 1.03, .44)
+  box(monitor, 0, 1.06, 0, 1.3, .60, .065, INK.metal)
+  garageScreen(monitor, 'founder', 0, 1.36, .038, 0, 1.19, .52)
   // keyboard and mouse
-  box(desk, -.06, top - .012, .48, .63, .025, .22, '#3a4144')
-  for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) box(desk, -.32 + col * .065, top + .013, .415 + row * .06, .045, .007, .037, '#c5c8bd')
-  box(desk, .44, top - .012, .5, .1, .03, .16, '#2b2f33')
+  box(worktop, -.06, top - .012, .48, .63, .025, .22, '#3a4144')
+  for (let row = 0; row < 3; row++) for (let col = 0; col < 9; col++) box(worktop, -.32 + col * .065, top + .013, .415 + row * .06, .045, .007, .037, '#c5c8bd')
+  box(worktop, .44, top - .012, .5, .1, .03, .16, '#2b2f33')
   // a big red button, safely away from the typing keys, and the plain truth about it on its front
-  box(desk, .70, top - .012, .74, .38, .065, .32, '#374e50')
-  cylinder(desk, .70, top + .053, .74, .13, .10, '#cf5441')
-  printed(desk, 'founder-ship-it', .34, .12, .70, top + .05, .907, c => {
+  box(worktop, .70, top - .012, .74, .38, .065, .32, '#374e50')
+  cylinder(worktop, .70, top + .053, .74, .13, .10, '#cf5441')
+  printed(worktop, 'founder-ship-it', .34, .12, .70, top + .05, .907, c => {
     c.fillStyle = '#f5edda'; c.fillRect(0, 0, 768, 512)
     c.fillStyle = '#7b352a'; c.textAlign = 'center'; c.font = 'bold 190px sans-serif'; c.fillText('SHIP IT', 384, 320)
   })
-  lamp(desk, 1.02, 1.12)
-  const plant = new T.Group(); plant.position.y = top; desk.add(plant)
+  lamp(worktop, 1.02, 1.12)
+  const plant = new T.Group(); plant.position.y = top; worktop.add(plant)
   leafyPlanter(plant, .52, 1.16, .19)
   // the credenza behind the chair, under the window: a globe, a trophy, a framed print, a plant
   box(desk, 0, 0, -.95, 2.1, .78, .38, WALNUT)
@@ -304,8 +309,17 @@ export function craftedChair(g: T.Group, x: number, z: number, facing: number, h
   const chair = new T.Group(); chair.position.set(x, 0, z); chair.rotation.y = facing; g.add(chair)
   const w = hero ? .66 : .55
   box(chair, 0, .5, .06, w, .15, .56, '#414c4b')
-  box(chair, 0, .66, .35, w, hero ? .81 : .57, .14, '#414c4b')
-  for (let row = 0; row < (hero ? 4 : 3); row++) for (let col = 0; col < 2; col++) box(chair, (col - .5) * w * .48, .7 + row * .18, .438, w * .46, .165, .026, '#576568')
+  // The larger developer torso needs a deeper chair back, while the seat stays
+  // under the same hips. Hero chairs already sit farther behind their people.
+  const backZ = hero ? .35 : .53
+  box(chair, 0, .66, backZ, w, hero ? .81 : .57, .14, '#414c4b')
+  if (!hero) for (const x of [-.22, .22]) {
+    box(chair, x, .55, .42, .045, .06, .24, INK.metal)
+    box(chair, x, .55, backZ, .045, .19, .045, INK.metal)
+  }
+  // Two designed upholstery panels read as a chair, instead of six raised tiles.
+  box(chair, 0, .69, backZ + .085, w - .08, hero ? .70 : .46, .025, '#526970')
+  box(chair, 0, .69, backZ + .111, .024, hero ? .70 : .46, .006, '#34484f')
   cylinder(chair, 0, .15, .1, .05, .35, INK.metal)
   for (let i = 0; i < 5; i++) {
     const angle = i * Math.PI * 2 / 5, xx = Math.cos(angle) * .29, zz = .1 + Math.sin(angle) * .29
@@ -313,19 +327,19 @@ export function craftedChair(g: T.Group, x: number, z: number, facing: number, h
     cylinder(chair, xx, .045, zz, .052, .08, INK.metal)
   }
   if (hero) for (const side of [-1, 1]) {
-    box(chair, side * .37, .54, .02, .035, .28, .035, INK.metal)
-    box(chair, side * .37, .8, -.04, .1, .045, .32, '#414c4b')
+    box(chair, side * .47, .54, .02, .035, .28, .035, INK.metal)
+    box(chair, side * .47, .8, -.04, .1, .045, .32, '#414c4b')
   }
   return chair
 }
 
 export function leafyPlanter(g: T.Group, x: number, z: number, size = .55): void {
-  box(g, x, 0, z, size, size * .55, size, '#d0c7b5')
+  box(g, x, 0, z, size, size * .55, size, '#394e55')
+  box(g, x, size * .50, z, size * 1.04, size * .06, size * 1.04, '#61767a')
   box(g, x, size * .55, z, size * .83, .025, size * .83, '#60513b')
-  for (let i = 0; i < 9; i++) {
-    const angle = i * Math.PI * 2 / 9
-    const leaf = box(g, x + Math.cos(angle) * size * .23, size * .57, z + Math.sin(angle) * size * .23, size * .14, size * (.8 + i % 3 * .18), size * .1, i % 2 ? '#68804b' : '#8c9d5b')
-    leaf.rotation.set(Math.sin(angle) * .5, angle, -Math.cos(angle) * .5)
+  for (const side of [-1, 0, 1]) {
+    box(g, x + side * size * .24, size * .57, z + side * size * .12,
+      size * .32, size * (side === 0 ? 1.1 : .72), size * .34, side === 0 ? '#74956f' : '#436b51')
   }
 }
 
@@ -337,25 +351,34 @@ export function craftedSingleDesk(g: T.Group, index: number): void {
     box(g, -.62, .1 + i * .22, .365, .33, .19, .025, '#648079')
     box(g, -.62, .22 + i * .22, .342, .12, .025, .025, INK.trim)
   }
-  for (const z of [.38, 1.02]) box(g, .72, .02, z, .07, .76, .07, INK.woodEdge)
-  box(g, 0, .9, .85, .27, .035, .18, INK.metal)
-  box(g, 0, .93, .85, .055, .16, .06, INK.metal)
-  box(g, 0, 1.04, .85, .7, .43, .065, INK.metal)
-  garageScreen(g, 'developer', 0, 1.255, .812, Math.PI, .64, .36)
-  box(g, 0, .905, .45, .52, .025, .19, '#b5b9af')
+  for (const z of [.38, 1.02]) box(g, .72, .02, z, .16, .76, .16, INK.woodEdge)
+  box(g, 0, .9, .87, .34, .035, .22, INK.metal)
+  box(g, 0, .93, .87, .065, .20, .07, INK.metal)
+  box(g, 0, 1.08, .87, .94, .58, .075, INK.metal)
+  garageScreen(g, 'developer', 0, 1.37, .827, Math.PI, .86, .50)
+  // A distinct pad surface and keyboard base avoid near-coplanar flicker.
+  box(g, 0, .904, .46, .96, .010, .36, '#385359', false)
+  box(g, 0, .918, .45, .52, .025, .19, '#b5b9af')
   cylinder(g, .54, .9, .55, .07, .15, index % 2 ? '#c39955' : '#648079')
-  box(g, -.5, .9, .92, .25, .045, .18, INK.paper)
+  box(g, -.58, .9, .92, .22, .045, .18, INK.paper)
+  // A full workstation reads at the room camera: substantial screen, separate tower, tactile keys.
+  for (let row = 0; row < 3; row++) for (let col = 0; col < 8; col++)
+    box(g, -.215 + col * .06, .944, .39 + row * .048, .043, .006, .031, '#667776')
+  box(g, .51, .10, .75, .22, .52, .46, '#31464d')
+  box(g, .51, .12, .512, .17, .46, .012, '#24363d')
+  for (let i = 0; i < 4; i++) box(g, .51, .20 + i * .055, .502, .12, .014, .014, '#596b70')
+  box(g, .51, .54, .502, .035, .026, .014, '#739891')
+  box(g, 0, .71, 1.10, 1.44, .06, .045, '#5f7778')
 }
 
 /** Surface details stay within the architectural slab and authored furniture. */
 export function garageSurfaceDetails(g: T.Group): void {
-  // Long, staggered oak boards; seams read as timber rather than square tiles.
-  for (let z = -10.75, row = 0; z < 12; z += .5, row++) {
-    for (let x = -12.75; x < 16; x += .5) {
-      if (![[x - .25, z - .25], [x + .25, z - .25], [x + .25, z + .25], [x - .25, z + .25]].every(([px, pz]) => studioFloorContains(px, pz))) continue
-      const plank = Math.floor((x + 10 + row % 3) / 3)
-      box(g, x, .004, z, .501, .008, .49, ['#b99368', '#c39c70', '#bd9569', '#c7a177'][(plank + row) % 4], false)
-      if ((Math.round((x + 10) * 2) + row * 2) % 6 === 0) box(g, x - .247, .013, z, .012, .003, .49, '#99774f', false)
+  // Large, low-contrast mineral slabs leave timber for furniture and platforms.
+  // The narrow perimeter remainder exposes the matching substrate, not a gap.
+  for (let z = -10.5, row = 0; z < 12; z += 1, row++) {
+    for (let x = -12.5, col = 0; x < 16; x += 1, col++) {
+      if (![[x - .5, z - .5], [x + .5, z - .5], [x + .5, z + .5], [x - .5, z + .5]].every(([px, pz]) => studioFloorContains(px, pz))) continue
+      box(g, x, .004, z, .996, .008, .996, ['#aab9ba', '#adbbbb', '#acbaba'][(col + row * 2) % 3], false)
     }
   }
   // Masonry joints belong to solid wall portions, not windows or doors: here, the kitchen's wall.
@@ -363,7 +386,7 @@ export function garageSurfaceDetails(g: T.Group): void {
   // are gone from here: they were hung on the *room*, so when the wall went up through the roof at a
   // hero's arrival they stayed behind, lines and flowerpots in the air. The joints are the partition's
   // own now (`garageEnvironment`'s HERO_BAYS); the sill went with the wall it was on.
-  for (let y = .45; y < 3.15; y += .45) box(g, 5.75, y, -9.67, 8.4, .01, .007, '#c6bdac', false)
+  // Plaster is clean; the inherited masonry grid was visual clutter behind heroes.
 }
 
 /**

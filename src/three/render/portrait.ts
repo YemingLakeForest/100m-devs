@@ -61,9 +61,9 @@ export function nightRig(scene: T.Scene): void {
  * game."*). Added to `parent`; the caller removes it.
  */
 export function portraitPerson(parent: T.Object3D, look: Look, id?: LeaderId): T.Object3D {
-  const model = studioPerson(parent, 0, 0, 0, look, id, true, true)
-  for (const limb of ['leg-1', 'leg1', 'arm-1', 'arm1']) model.getObjectByName(limb)?.removeFromParent()
-  return model
+  // §7.4a [2026-10-07]: use the actual standing bean, including its new bulk.
+  // Removing limbs from the full figure left a different torso/head construction.
+  return studioPerson(parent, 0, 0, 0, look, id, true)
 }
 
 function ensureKit() {

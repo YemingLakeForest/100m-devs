@@ -34,7 +34,7 @@ const FACE: readonly AvatarRect[] = [
 ]
 
 function outline(x: number, y: number, w: number, h: number): AvatarRect[] {
-  const t = 0.75
+  const t = 0.45
   return [
     { x, y, w, h: t, colour: 'glasses' },
     { x, y: y + h - t, w, h: t, colour: 'glasses' },
@@ -47,19 +47,23 @@ function facialHair(style: number): AvatarRect[] {
   if (style === 1) {
     // Moustache: two square blocks leave a hard centre notch under the nose.
     return [
-      { x: -4.5, y: -16, w: 4, h: 2.5, colour: 'hair' },
-      { x: 0.5, y: -16, w: 4, h: 2.5, colour: 'hair' },
+      { x: -3.4, y: -16, w: 2.9, h: 1.4, colour: 'hair' },
+      { x: 0.5, y: -16, w: 2.9, h: 1.4, colour: 'hair' },
     ]
   }
   if (style === 2) {
     // Goatee: a compact central chin block, separate from both cheeks.
-    return [{ x: -2, y: -14, w: 4, h: 5, colour: 'hair' }]
+    return [
+      { x: -1.4, y: -14, w: 2.8, h: 1.5, colour: 'hair' },
+      { x: -.85, y: -12.5, w: 1.7, h: .5, colour: 'hair' },
+    ]
   }
   if (style === 3) {
     // Full beard: the same stepped-square construction as the hair crown.
     return [
-      { x: -6, y: -17, w: 12, h: 5, colour: 'hair' },
-      { x: -5, y: -12, w: 10, h: 3, colour: 'hair' },
+      { x: -5.5, y: -17, w: 2.2, h: 4.5, colour: 'hair' },
+      { x: 3.3, y: -17, w: 2.2, h: 4.5, colour: 'hair' },
+      { x: -3.8, y: -13, w: 7.6, h: 1, colour: 'hair' },
     ]
   }
   return []
@@ -68,9 +72,9 @@ function facialHair(style: number): AvatarRect[] {
 function glasses(enabled: boolean): AvatarRect[] {
   if (!enabled) return []
   return [
-    ...outline(-5, -21.5, 4.5, 4.5),
-    ...outline(0.5, -21.5, 4.5, 4.5),
-    { x: -0.5, y: -19.75, w: 1, h: 0.75, colour: 'glasses' },
+    ...outline(-5.3, -21.2, 4.8, 3.8),
+    ...outline(0.5, -21.2, 4.8, 3.8),
+    { x: -0.5, y: -19.75, w: 1, h: 0.45, colour: 'glasses' },
   ]
 }
 
@@ -95,7 +99,8 @@ export function frontAvatarParts(look: {
   glasses: boolean
 }): AvatarRect[] {
   return [
-    ...FACE,
+    ...FACE.map(p => look.glasses && p.colour === 'ink'
+      ? { ...p, x: p.x + .6, y: p.y + .25, w: 1.3, h: 1.5 } : p),
     ...facialHair(look.facialHair % 4),
     ...glasses(look.glasses),
   ]

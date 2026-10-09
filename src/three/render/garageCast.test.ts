@@ -34,6 +34,7 @@ describe('the garage holds all five', () => {
     const env = buildGarageEnvironment(3, cast, 'on', false, GARAGE_ASSEMBLED, true)
     const bodyOf = (id: string) => env.people.find((p) => Number(p.userData.seat) === leaderSeat(id as never))!
     showGarageStations(env, { founder: true, james: 3, heroes: [] }, cast)
+    expect(env.props!.get('ops:studies')!.group.visible).toBe(true)
     expect(bodyOf('serena').visible).toBe(false)
     expect(bodyOf('matt').visible).toBe(false)
     expect(bodyOf('billy').visible).toBe(false)
@@ -42,30 +43,44 @@ describe('the garage holds all five', () => {
     expect(bodyOf('matt').visible).toBe(false)
   })
 
-  it('makes Billy taller with only a head and a body, without a trouser pillar or feet', () => {
+  it('uses comparable head and body sizes for Billy, leaders and developers', () => {
     const env = buildGarageEnvironment(3, cast, 'on', false, GARAGE_ASSEMBLED, true)
-    const bodyOf = (id: 'billy' | 'james') => env.people.find((p) => Number(p.userData.seat) === leaderSeat(id))!
-    const billy = bodyOf('billy')
+    const bodyOf = (seat: number) => env.people.find((p) => Number(p.userData.seat) === seat)!
+    const billy = bodyOf(leaderSeat('billy'))
     expect(billy.children.map((part) => part.name)).toEqual(['torso', 'head'])
     expect(billy.getObjectByName('torso')!.position.y).toBe(0)
     env.root.updateMatrixWorld(true)
-    const height = (id: 'billy' | 'james') => new T.Box3().setFromObject(bodyOf(id)).getSize(new T.Vector3()).y
-    expect(height('billy')).toBeGreaterThan(height('james'))
+    const size = (seat: number, part: string) => {
+      const body = bodyOf(seat)
+      // Measure in the model's axes: Billy faces the lens and the seated crowd
+      // faces their desks, so world-axis boxes inflate their widths differently.
+      return new T.Box3().setFromObject(body.getObjectByName(part)!.clone()).getSize(new T.Vector3())
+        .multiply(body.getWorldScale(new T.Vector3()))
+    }
+    const heads = [leaderSeat('billy'), leaderSeat('james'), 0, 1, 2].map((seat) => size(seat, 'head').y)
+    // Hair may differ; a standing presenter must not become a different-sized species.
+    expect(Math.max(...heads) / Math.min(...heads)).toBeLessThan(1.45)
+    expect(size(0, 'torso').x / size(leaderSeat('james'), 'torso').x).toBeGreaterThan(.9)
+    expect(size(leaderSeat('billy'), 'torso').x / size(0, 'torso').x).toBeLessThan(1.2)
+    expect(bodyOf(0).getObjectByName('torso')!.position.y).toBeCloseTo(.66)
   })
 
-  it('shows the Ops Room’s step and Matt’s riser only with their heroes, and gives Billy no platform to show', () => {
-    // Neither has an old wall to hide behind — the step is in front of Serena's, and Matt has none — so a standing platform
-    // with a lit edge was in the early garage with nothing on it (found by looking). Billy stands on the open floor and
-    // has no platform at all: his board, rug and dais are his *set* (`desk:billy`), which comes with him.
+  it('shows both operations platforms and the access step only with their heroes, and gives Billy no platform to show', () => {
+    // An empty platform must not replace the removed enclosure in the early room.
+    // Billy's board, rug and dais remain his set on the shared floor.
     const env = buildGarageEnvironment(3, cast, 'on', false, GARAGE_ASSEMBLED, true)
     const shown = (key: string) => env.props!.get(key)!.group.visible
     expect(env.props?.get('riser:billy')).toBeUndefined()
+    expect(env.props?.get('partition:serena')).toBeUndefined()
+    expect(shown('ops:studies')).toBe(false)
     showGarageStations(env, { founder: true, james: 3, heroes: [] }, cast)
-    expect([shown('step:serena'), shown('riser:matt'), shown('desk:billy')]).toEqual([false, false, false])
+    expect([shown('step:serena'), shown('riser:serena'), shown('riser:matt'), shown('desk:billy')]).toEqual([false, false, false, false])
     showGarageStations(env, { founder: true, james: 3, heroes: ['billy'] }, cast)
     expect([shown('step:serena'), shown('riser:matt'), shown('desk:billy')]).toEqual([false, false, true])
     showGarageStations(env, { founder: true, james: 3, heroes: ['billy', 'serena'] }, cast)
     expect(shown('step:serena')).toBe(true)
+    expect(shown('riser:serena')).toBe(true)
+    expect(shown('ops:studies')).toBe(false)
     showGarageStations(env, { founder: true, james: 3, heroes: ['billy', 'serena', 'matt'] }, cast)
     expect(shown('riser:matt')).toBe(true)
   })

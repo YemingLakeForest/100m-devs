@@ -9,7 +9,7 @@
  * instrument they brought.** So each set is a readout, drawn from the same
  * numbers the HUD shows:
  *
- * - **Serena's Ops Room** is a raised control room, glazed on the two sides the camera
+ * - **Serena's Ops Room** is an open, raised operations deck. The camera
  *   sees: a wall of six dashboards (the build queue and Auto-Ship, velocity, incidents,
  *   defects, sync, and the line she lives by) the width of the plinth and nearly the height of the
  *   wall under the clerestory, a crescent console, a rack with its lights.
@@ -40,7 +40,7 @@
  */
 
 import * as T from 'three'
-import { box, cylinder, sharedMaterial } from './worldArt.ts'
+import { box, cylinder } from './worldArt.ts'
 import { leafyPlanter } from './garageCraft.ts'
 import { pool } from './glowArt.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
@@ -382,24 +382,6 @@ function glow(parent: T.Object3D, x: number, y: number, z: number, w: number, h:
   return m
 }
 
-/**
- * Glass: a pane that is *there* and lets the room through. The garage's other "glazing" is a pale
- * opaque box, which is right for a clerestory seen edge-on and wrong for a control room, whose whole
- * point is that you can see her through it. One shared geometry and one shared material, so the panes
- * batch with everything else and cost nothing to the frame; it does not write depth, so what is
- * behind it is drawn as it would have been.
- */
-const GLASS_BOX = new T.BoxGeometry(1, 1, 1)
-function glass(parent: T.Object3D, x: number, y: number, z: number, w: number, h: number, d: number): T.Mesh {
-  const m = new T.Mesh(GLASS_BOX, sharedMaterial('hq-glass', () => new T.MeshStandardMaterial({
-    color: '#9ad6e6', transparent: true, opacity: 0.16, roughness: 0.15, metalness: 0, depthWrite: false,
-  })))
-  m.position.set(x, y + h / 2, z)
-  m.scale.set(w, h, d)
-  parent.add(m)
-  return m
-}
-
 export function buildHqSets(input: HqSetInput): HqSets {
   const { env, at, bodies, present } = input
   const faces: Face[] = []
@@ -455,14 +437,14 @@ export function buildHqSets(input: HqSetInput): HqSets {
   // the old 3.2 m's height would be a poster in the bottom half of a tall room.
   if (present.has('matt')) {
     const { set, c } = frame('matt')
-    carpet(set, 'matt', c, '#2c4631')
+    carpet(set, 'matt', c, '#34494f')
     pool(set, 0, (c.z0 + c.z1) / 2, c.x1 - c.x0, c.z1 - c.z0, colourOf('matt'), 0.3)
     const wallZ = c.z0
     const tw = Math.min(4.0, c.x1 - c.x0 - 0.3)
     // the wall it hangs on: the ticket wall, across it, 0.8–2.9 m above the riser (its top is 3.1 m up the wall, and the
     // glazing starts at 3.2)
     const bottom = 0.8, bh = 2.1
-    box(set, 0, bottom, wallZ + 0.07, tw, bh, 0.1, '#4a3b2a')
+    box(set, 0, bottom, wallZ + 0.07, tw, bh, 0.1, '#34494f')
     addFace(face(set, 0, bottom + bh / 2, wallZ + 0.13, tw - 0.2, bh - 0.16, 1200, ticketWall.key, ticketWall.paint, 0.62))
     // the beacon over it, turning while anything is down
     const beacon = glow(set, tw / 2 - 0.3, bottom + bh + 0.04, wallZ + 0.2, 0.18, 0.18, 0.18, RED)
@@ -470,12 +452,15 @@ export function buildHqSets(input: HqSetInput): HqSets {
     // the counter: a top, a closed front in the set's green, a modesty panel on his side
     const cl = Math.min(3.4, tw - 0.4)
     const dz = 0.95, dd = 0.9, front = dz + dd / 2
-    box(set, 0, 0.74, dz, cl, 0.07, dd, '#b99059')
-    box(set, 0, 0, front - 0.035, cl, 0.74, 0.07, '#25402b')
-    for (const x of [-cl / 2 + 0.04, cl / 2 - 0.04]) box(set, x, 0, dz, 0.08, 0.74, dd - 0.1, '#25402b')
-    box(set, 0, 0.12, dz - dd / 2 + 0.05, cl - 0.16, 0.62, 0.06, '#8d693f')
-    box(set, 0, 0.81, front - 0.02, cl + 0.06, 0.03, 0.1, '#d9c58f')
+    box(set, 0, 0.74, dz, cl, 0.07, dd, '#ba9263')
+    box(set, 0, 0, front - 0.035, cl, 0.74, 0.07, '#34494f')
+    for (const x of [-cl / 2 + 0.04, cl / 2 - 0.04]) box(set, x, 0, dz, 0.08, 0.74, dd - 0.1, '#34494f')
+    box(set, 0, 0.12, dz - dd / 2 + 0.05, cl - 0.16, 0.62, 0.06, '#76583d')
+    box(set, 0, 0.81, front - 0.02, cl + 0.06, 0.03, 0.1, '#ba9263')
     addFace(face(set, 0.2, 0.4, front + 0.004, 1.9, 0.55, 900, helpDeskSign.key, helpDeskSign.paint, 0.85))
+    // One cabinetry language across reception and operations, rather than isolated themed counters.
+    for (let x = -cl / 2 + .12; x < cl / 2; x += .22)
+      if (x < -.85 || x > 1.2) box(set, x, .13, front + .008, .065, .54, .025, '#ba9263')
     // three phones and a switchboard, with a lamp for every line
     for (let p = 0; p < 3; p++) {
       const x = -cl / 2 + 0.5 + p * 0.8
@@ -509,22 +494,22 @@ export function buildHqSets(input: HqSetInput): HqSets {
   }
 
   // ======================== SERENA: the ops room ========================
-  // Raised, at the head of the main axis, and glazed on the two sides the camera sees. A control
-  // room wants to look down the floor it watches; the player wants to see her through the glass.
+  // §7.8.12 [2026-10-07]: an open operations deck, with clear views of the
+  // console and dashboard wall. Enclosing it made a studio station read as a cubicle.
   if (present.has('serena')) {
     const { set, c } = frame('serena')
     const wallZ = c.z0
     // graphite floor with a cyan inlay, and the zone's own light
     const fx0 = c.x0 + 0.04, fx1 = c.x1 - 0.04, fz0 = wallZ + 0.04, fz1 = c.z1 - 0.04
-    box(set, (fx0 + fx1) / 2, 0.004, (fz0 + fz1) / 2, fx1 - fx0, 0.02, fz1 - fz0, '#1d2527', false)
-    const CYAN = '#36c3d8'
+    box(set, (fx0 + fx1) / 2, 0.004, (fz0 + fz1) / 2, fx1 - fx0, 0.02, fz1 - fz0, '#34494f', false)
+    const CYAN = '#688f9a'
     glow(set, (fx0 + fx1) / 2, 0.022, fz1 - 0.16, fx1 - fx0 - 0.3, 0.02, 0.035, CYAN)
     glow(set, fx1 - 0.16, 0.022, (fz0 + fz1) / 2, 0.035, 0.02, fz1 - fz0 - 0.3, CYAN)
     glow(set, fx0 + 0.16, 0.022, (fz0 + fz1) / 2, 0.035, 0.02, fz1 - fz0 - 0.3, CYAN)
     pool(set, 0, 0.3, 4.4, 3.2, '#4fd8ee', 0.26)
     // the wall of six: the width of the plinth and, now that the wall is 4.6 m, nearly the height the clerestory
     // leaves it — 2.2 m of video wall from a hand above the plinth to the lit line under the glazing (3.2 m up the wall)
-    box(set, 0, 0.12, wallZ + 0.07, c.x1 - c.x0 - 0.12, 2.18, 0.1, '#1a2022')
+    box(set, 0, 0.12, wallZ + 0.07, c.x1 - c.x0 - 0.12, 2.18, 0.1, '#34494f')
     const kinds = ['queue', 'velocity', 'incidents', 'defects', 'sync', 'status'] as const
     // three columns across whatever width the plinth has (4.8 m: a pitch of 1.47), each a little taller than the
     // paintings' own 1.83 aspect (they are drawn to their canvas, and a taller one is a roomier one)
@@ -537,19 +522,21 @@ export function buildHqSets(input: HqSetInput): HqSets {
     glow(set, 0, 2.3, wallZ + 0.1, c.x1 - c.x0 - 0.3, 0.035, 0.035, CYAN)
     // the console: a crescent, the middle and a wing either side turned in to her
     const cz = 0.95
-    box(set, 0, 0.74, cz, 2.2, 0.07, 0.8, '#2b3433')
-    box(set, 0, 0, cz + 0.37, 2.2, 0.74, 0.06, '#1a2022')
+    box(set, 0, 0.74, cz, 2.2, 0.07, 0.8, '#ba9263')
+    box(set, 0, 0, cz + 0.37, 2.2, 0.74, 0.06, '#34494f')
     for (const side of [-1, 1]) {
       const wing = new T.Group(); wing.position.set(side * 1.3, 0, cz - 0.12); wing.rotation.y = side * 0.55; set.add(wing)
-      box(wing, 0, 0.74, 0, 1.1, 0.07, 0.7, '#2b3433')
-      box(wing, 0, 0, 0.3, 1.1, 0.74, 0.06, '#1a2022')
+      box(wing, 0, 0.74, 0, 1.1, 0.07, 0.7, '#ba9263')
+      box(wing, 0, 0, 0.3, 1.1, 0.74, 0.06, '#34494f')
       box(wing, 0, 0.81, -0.05, 0.54, 0.34, 0.04, '#101516')
       glow(wing, 0, 0.86, -0.075, 0.48, 0.26, 0.015, '#13514a')
     }
     for (const x of [-0.65, 0.65]) {
-      box(set, x, 0.81, 1.0, 0.5, 0.3, 0.04, '#101516')
-      glow(set, x, 0.86, 0.975, 0.44, 0.22, 0.015, '#13514a')
+      box(set, x, 0.81, 1.0, 0.62, 0.39, 0.05, '#101516')
+      glow(set, x, 0.85, 0.967, 0.54, 0.31, 0.015, '#13514a')
     }
+    for (let x = -.95; x < 1.1; x += .22)
+      box(set, x, .12, cz + .41, .065, .54, .025, '#ba9263')
     box(set, 0, 0.81, 1.15, 0.8, 0.03, 0.28, '#3a4543') // keyboard
     cylinder(set, 0.95, 0.81, 1.2, 0.07, 0.1, '#e9e2d0') // a mug
     // a short rack at her east elbow, with its lights and the beacon: **short**, because on this
@@ -560,15 +547,6 @@ export function buildHqSets(input: HqSetInput): HqSets {
     for (let k = 0; k < 6; k++) lamps.push({ mesh: glow(set, rx - 0.22 + (k % 3) * 0.12, 0.2 + Math.floor(k / 3) * 0.3, wallZ + 0.62, 0.06, 0.04, 0.03, DIM), phase: k * 0.6, on: k % 4 ? GREEN : AMBER, off: DIM })
     const beacon = glow(set, rx, 1.0, wallZ + 0.35, 0.2, 0.2, 0.2, AMBER)
     movers.push((s) => { beacon.scale.setScalar(0.8 + 0.4 * Math.abs(Math.sin(s * 2))) })
-    // the glass: a pane along the south edge, left open at the east end for the step up, and one
-    // along the east edge — the two faces the camera sees — with posts and a lit top rail
-    const gz = c.z1 - 0.1, gx = c.x1 - 0.1, gh = 0.95
-    const door = 0.95
-    glass(set, (c.x0 + 0.1 + gx - door) / 2, 0, gz, gx - door - c.x0 - 0.1, gh, 0.035)
-    glass(set, gx, 0, (wallZ + 0.1 + gz) / 2, 0.035, gh, gz - wallZ - 0.1)
-    for (const [px, pz] of [[c.x0 + 0.1, gz], [gx - door, gz], [gx, gz], [gx, wallZ + 0.1]] as const) box(set, px, 0, pz, 0.07, gh + 0.06, 0.07, '#1f2a2c')
-    glow(set, (c.x0 + 0.1 + gx - door) / 2, gh, gz, gx - door - c.x0 - 0.1, 0.035, 0.05, CYAN)
-    glow(set, gx, gh, (wallZ + 0.1 + gz) / 2, 0.05, 0.035, gz - wallZ - 0.1, CYAN)
     const body = bodies.serena
     const head = body?.getObjectByName('head')
     if (body) movers.push((s) => { if (head) head.rotation.y = Math.sin(s * 0.55) * 0.5 + Math.sin(s * 1.3) * 0.08; body.position.y = Math.sin(s * 0.8) * 0.01 })
@@ -579,7 +557,7 @@ export function buildHqSets(input: HqSetInput): HqSets {
   // *"billy should face us and he's too short"*). He was in a corner talking to a wall in every cut before this one. He
   // is on the open floor now, at the mouth of the avenue between the two north pods with a developer's desk either side
   // of him, and everything he has is turned to the lens: the board, and he. The board is a rolling one, 2.0 m wide with
-  // a face 1.8 m tall, on a stand that takes it to 2.9 m; he stands a step in front of its right-hand end — *screen right*
+  // a face 1.2 m tall, on a stand that takes it to 2.9 m; he stands a step in front of its right-hand end — *screen right*
   // is his frame's +x — on a low octagonal dais, because a presenter is a head above the room and the standing figure
   // in this skin has no legs to be tall with. He faces us, and now and then turns to the board. **No crowd**, still:
   // the studio's own, in the pods around him, is the audience. Every number is `floorPlan.BILLY_PLAZA`'s, because the
@@ -597,19 +575,20 @@ export function buildHqSets(input: HqSetInput): HqSets {
       m.castShadow = false
       return m
     }
-    octagon(ctr.x, ctr.z, round.apothem, 0.004, 0.02, '#4a2f66')
-    octagon(ctr.x, ctr.z, round.apothem * 0.78, 0.02, 0.012, '#b9a97f')
-    octagon(ctr.x, ctr.z, round.apothem * 0.58, 0.03, 0.01, '#4a2f66')
+    // A quiet textile bay reads as meeting space; concentric rings made Billy look like a game token.
+    octagon(ctr.x, ctr.z, round.apothem, 0.004, 0.02, '#34494f')
+    octagon(ctr.x, ctr.z, round.apothem - .075, 0.026, 0.008, '#52676a')
     pool(set, ctr.x, ctr.z, round.apothem * 3, round.apothem * 3, colourOf('billy'), 0.2)
     // his dais: a foot in his colour and a top in oak
     octagon(0, 0, dais.apothem + 0.05, 0.03, 0.04, colourOf('billy'))
     octagon(0, 0, dais.apothem, 0.03, dais.rise - 0.03, '#c39760')
     // the board: a frame, a face that is the §4.1 curve, a tray with four markers, and two uprights on feet with castors
-    const by = 1.05, bh = 1.8
+    // §7.8.12 [2026-10-08]: lift the chart above Billy's shoulder line; its feet stay on the floor.
+    const by = 1.65, bh = 1.2
     box(set, board.x, by - 0.06, board.z, board.w, bh + 0.12, 0.1, '#58605d')
     addFace(face(set, board.x, by + bh / 2, board.z + 0.056, board.w - 0.14, bh, 1100, whiteboard.key, whiteboard.paint, 0.55))
     box(set, board.x, by - 0.12, board.z + 0.1, board.w, 0.05, 0.16, '#58605d')
-    for (let k = 0; k < 4; k++) box(set, board.x - 0.65 + k * 0.45, by - 0.07, board.z + 0.12, 0.2, 0.03, 0.03, ['#2f5aa8', '#c23b30', '#2d7d46', '#25303a'][k])
+    for (let k = 0; k < 4; k++) box(set, board.x - 0.55 + k * 0.35, by - 0.07, board.z + 0.12, 0.2, 0.03, 0.03, ['#2f5aa8', '#c23b30', '#2d7d46', '#25303a'][k])
     for (const side of [-1, 1]) {
       const x = board.x + side * (board.w / 2 - 0.03)
       box(set, x, 0.12, board.z, 0.07, by + bh - 0.06, 0.08, '#3b4240')

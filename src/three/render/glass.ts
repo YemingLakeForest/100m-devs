@@ -78,7 +78,9 @@ export interface Glass {
 }
 
 /** §6 pass 5 and 6, as `postProcess.ts` configured pixi-filters' `CRTFilter`. */
-const CRT = { curvature: 3, lineWidth: 1.4, lineContrast: 0.14, vignetting: 0.28, vignettingAlpha: 0.85, vignettingBlur: 0.4 }
+// §7.8.12 [2026-10-07]: the glass supports the terminal fiction without striping
+// every plaster wall and face. Entropy still adds its live noise and disturbance.
+const CRT = { curvature: 3, lineWidth: 1.4, lineContrast: 0.035, vignetting: 0.18, vignettingAlpha: 0.65, vignettingBlur: 0.4 }
 
 const vertexShader = /* glsl */ `
 varying vec2 vUv;
@@ -215,10 +217,9 @@ export function createGlass(passes: GlassPasses, reduceMotion: boolean): Glass {
       // The shake slides the picture and keeps the lines where they are drawn,
       // which is what a shaken container under a fixed scanline pass did.
       u.uShake.value.set(frame.shake.x / Math.max(1, frame.width), -frame.shake.y / Math.max(1, frame.height))
-      // 4. Entropy sets the floor, a crit adds a punch on top of it. Fringing
-      // attacks the edges glyphs are made of, so enough to see on a crit and
-      // not enough to double a letterform (postProcess.ts, pass 4).
-      u.uSplit.value = on && passes.rgb ? frame.glass.chromaticAberration * 2 + frame.critPunch * 3 : 0
+      // §7.4a [2026-10-07]: ordinary work needs clean block silhouettes.
+      // Save the doubled edges for critical entropy and a short crit punch.
+      u.uSplit.value = on && passes.rgb ? Math.max(0, frame.glass.chromaticAberration - .45) * 2 + frame.critPunch * 3 : 0
       u.uCrt.value = on && passes.crt ? 1 : 0
       // 5. The roll is a slow vertical drift, not an animation loop; under load
       // the picture looks like it is failing to hold sync.

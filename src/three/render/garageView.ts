@@ -196,7 +196,7 @@ export interface GarageViewOptions {
   onLand?: (piece: 'desk' | 'chair' | 'body') => void
 }
 
-type Piece = 'desk' | 'chair' | 'body' | 'wall'
+type Piece = 'desk' | 'chair' | 'body'
 interface Anim {
   seat: number
   /**
@@ -211,13 +211,6 @@ interface Anim {
   mild?: boolean
   /** A drop's pieces, each falling at its own offset: a hire is desk then person. */
   pieces?: { piece: Piece; at: number; puffed?: boolean }[]
-  /**
-   * A lift that takes something *out* — a length of wall — and leaves the seat's
-   * people alone: without this, finishing a lift empties the seat.
-   */
-  keep?: boolean
-  /** What happens the moment the animation is done: the wall is gone, so the desk drops. */
-  then?: () => void
 }
 /** A hire: the desk, then its developer a beat later. */
 const HIRE_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { piece: 'body', at: .25 }]
@@ -249,7 +242,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   renderer.setPixelRatio(lite ? 1 : Math.min(window.devicePixelRatio || 1, 2))
   renderer.outputColorSpace = T.SRGBColorSpace
   renderer.toneMapping = T.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1.03
+  renderer.toneMappingExposure = .903
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = T.PCFSoftShadowMap
   // Redrawn when something that casts a shadow moves (`needsUpdate`), not every
@@ -276,12 +269,13 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   fill.position.set(-32, 15, -10)
   scene.add(fill)
   if (OS_SKIN) {
-    // Soft workshop light keeps all five heroes in the same palette, rather than
-    // making every monitor an independently coloured key on somebody's face (§7.8.12).
-    sun.color.set('#f3e5d2'); sun.intensity = .85
-    sky.color.set('#d7dce0'); sky.groundColor.set('#918579'); sky.intensity = 1.35
-    fill.color.set('#dce5e8'); fill.intensity = .4
-    renderer.toneMappingExposure = 1.05
+    // §7.8.12 [2026-10-07]: daylight gives the studio depth and a focal direction.
+    // The first voxel cut's dominant flat fill made every surface equally dull.
+    sun.color.set('#f1f1ed'); sun.intensity = 1.25
+    sun.position.set(-18, 30, -8)
+    sky.color.set('#e6ecea'); sky.groundColor.set('#8d9795'); sky.intensity = 1.25
+    fill.color.set('#e7ebe8'); fill.intensity = .30
+    renderer.toneMappingExposure = 1.0
   }
 
   const composer = new EffectComposer(renderer)
@@ -316,6 +310,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
    * concrete does not (§7.8.0c). The stage sets its strength from entropy.
    */
   const bloom = new UnrealBloomPass(new T.Vector2(width, height), 0, 0.2, 0.74)
+  bloom.enabled = !OS_SKIN
   composer.addPass(bloom)
   // Into the composer's own targets: the stage's glass puts the result on
   // screen every frame, and this only redraws when the room changed.
@@ -327,8 +322,6 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let james = false
   /** The heroes' arrivals, in the order they came. */
   let heroRow: LeaderId[] = []
-  /** Heroes whose wall is on its way up: arrived, but not yet in the room. */
-  const arriving = new Set<LeaderId>()
   /**
    * Who the stage last said is in the building. **A rebuild reads this**, because
    * `build()` throws every animation away: a hero mid-arrival when the room was
@@ -437,7 +430,6 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     frame()
     renderer.compile(scene, camera)
     // Nothing is mid-arrival in a room that has just been made: whoever is here, is here.
-    arriving.clear()
     heroRow = [...wantedHeroes]
     showGarageSeats(env, heads, 20)
     showGarageStations(env, staging(), withJames())
@@ -628,17 +620,20 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     return handle ? { key, instances: handle.instances, group: handle.group } : null
   }
 
-  function wall(seat: number): Part | null {
-    const key = `partition:${leaderId(seat)}`
-    const handle = env.props?.get(key)
-    return handle ? { key, instances: handle.instances, group: handle.group } : null
-  }
-
   function pieceParts(seat: number, piece: Piece): Part[] {
     if (piece === 'body') return body(seat)
-    if (piece === 'wall') { const part = wall(seat); return part ? [part] : [] }
     const part = piece === 'desk' ? desk(seat) : chair(seat)
-    return part ? [part] : []
+    const parts = part ? [part] : []
+    // The deck and access step are part of the station's landing, rather than
+    // appearing on the ground before its furniture has arrived.
+    if (piece === 'desk') {
+      const id = leaderId(seat)
+      for (const key of id === 'serena' ? ['riser:serena', 'step:serena'] : id === 'matt' ? ['riser:matt'] : []) {
+        const handle = env.props?.get(key)
+        if (handle) parts.push({ key, instances: handle.instances, group: handle.group })
+      }
+    }
+    return parts
   }
 
   /** Out of the picture until its turn: a desk hanging in the air is not a desk arriving. */
@@ -730,14 +725,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     shake = Math.max(shake, exhaust ? .025 : .12)
   }
 
-  function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces'], mild = false, extra: Pick<Anim, 'keep' | 'then'> = {}) {
+  function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces'], mild = false) {
     // A hop does not interrupt a landing, and a second hop restarts the first.
     const running = anims.findIndex((a) => a.seat === seat)
     if (running >= 0) {
       if (anims[running].kind === 'drop' && kind === 'hop') return
       anims.splice(running, 1)
     }
-    anims.push({ seat, kind, start: clock, delay, mild, pieces: pieces?.map((p) => ({ ...p })), ...extra })
+    anims.push({ seat, kind, start: clock, delay, mild, pieces: pieces?.map((p) => ({ ...p })) })
   }
 
   function animate() {
@@ -769,8 +764,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         for (const piece of a.pieces ?? LIFT_OUT) {
           const u = (t - piece.at) / .5
           const these = pieceParts(a.seat, piece.piece)
-          // A length of wall stands on the garage's floor, whatever platform it hides.
-          const at = piece.piece === 'wall' ? base.clone().setY(0) : base
+          const at = base
           if (u < 0) { done = false; continue }
           if (u >= 1) { these.forEach((p) => { place(p, at, 0, 1); hide(p) }); continue }
           done = false
@@ -780,10 +774,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         }
         if (done) {
           anims.splice(i, 1)
-          if (!a.keep) vacate(a.seat)
+          vacate(a.seat)
           // The pods' planters go with the last of their people, not the first.
           if (!anims.some((x) => x.kind === 'lift')) showGarageSeats(env, heads, heads)
-          a.then?.()
         }
         continue
       }
@@ -806,7 +799,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (u < 0) { these.forEach(hide); done = false; continue }
         if (u < 1.62) done = false
         these.forEach((p) => place(p, base, u >= 1.62 ? 0 : fall(u), u >= 1.62 ? 1 : land(u)))
-        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base); if (piece.piece !== 'wall') options.onLand?.(piece.piece) }
+        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base); options.onLand?.(piece.piece) }
       }
       if (done) anims.splice(i, 1)
     }
@@ -833,7 +826,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       return composer.readBuffer.texture
     },
     setBloom(strength) {
-      const next = Math.max(0, strength)
+      // The studio palette stays stable through entropy; HUD signals carry urgency.
+      const next = OS_SKIN ? 0 : Math.max(0, strength)
       // A change nobody could see is not a reason to redraw the room.
       if (Math.abs(next - bloom.strength) < 0.01) return
       bloom.strength = next
@@ -924,34 +918,17 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     setHeroes(here) {
       const next = here.filter((id) => id === 'billy' || id === 'serena' || id === 'matt')
       wantedHeroes = next
-      const arrived = next.filter((id) => !heroRow.includes(id) && !arriving.has(id))
-      if (arrived.length === 0 && next.length === heroRow.length + arriving.size) { settled = true; return }
+      const arrived = next.filter((id) => !heroRow.includes(id))
+      if (arrived.length === 0 && next.length === heroRow.length) { settled = true; return }
       if (!settled) {
-        // Here when the room was made: simply there, with the wall already gone.
+        // Here when the room was made: simply there, with their station already settled.
         heroRow = next
         showGarageStations(env, staging(), withJames())
       } else {
-        /*
-         * Somebody came in while the room was running. The wall that was hiding
-         * their bay goes up through the roof, and *then* the desk, the chair and
-         * the person drop into what it uncovered. Until the wall is gone they are
-         * not in the staging, so the bay is still shut and the desk is not in it.
-         */
-        arrived.forEach((id, n) => {
-          arriving.add(id)
-          const seat = leaderSeat(id)
-          start(seat, 'lift', n * 1.8, [{ piece: 'wall', at: 0 }], false, {
-            keep: true,
-            then: () => {
-              arriving.delete(id)
-              heroRow = [...heroRow, id]
-              showGarageStations(env, staging(), withJames())
-              start(seat, 'drop', 0, JAMES_DROP)
-              renderer.shadowMap.needsUpdate = true
-              dirty = true
-            },
-          })
-        })
+        // §7.8.12: the bay stays open. Its furniture lands directly, with no wall-lift prelude.
+        heroRow = next
+        showGarageStations(env, staging(), withJames())
+        arrived.forEach((id, n) => start(leaderSeat(id), 'drop', n * 1.8, JAMES_DROP))
       }
       settled = true
       renderer.shadowMap.needsUpdate = true

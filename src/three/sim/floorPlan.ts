@@ -58,8 +58,8 @@ export const STUDIO = { width: 20, depth: 16, wallHeight: 3.2, entrance: [-6, -4
  * on §12.1's lens a metre of wall is fifty pixels of picture and the corner at the top of the frame was already
  * at the top edge.
  *
- * The near walls (east and south) are untouched: §13.1 cuts them down so that the camera can see seated bodies, and
- * a back wall costs the picture nothing however high it goes — it is behind everything along (−1, −1).
+ * [2026-10-07] The near walls now have a 1.05 m solid base and 3.6 m glazed frontage.
+ * Transparent upper panes preserve the seated bodies while giving the studio a full-height perimeter.
  */
 export const GARAGE_WALLS = { height: 4.6 } as const
 
@@ -219,7 +219,7 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
   // The mouth of the avenue between the two north pods, on the open floor: an octagon of rug 3.2 m across with a
   // rolling board on it facing the lens and a man on a dais facing it too (`BILLY_PLAZA`). The rectangle is the rug's
   // bounding square, which holds the board and the dais with a hand to spare.
-  billy: { wall: 'free', x0: -2.35, x1: 0.95, z0: -1.0, z1: 2.3, rise: 0, round: { x: -0.7, z: 0.65, apothem: 1.6 } },
+  billy: { wall: 'free', x0: -1.05, x1: 2.25, z0: -2.09, z1: 1.21, rise: 0, round: { x: .6, z: -.44, apothem: 1.6 } },
 }
 
 /**
@@ -240,16 +240,17 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
  */
 export const BILLY_PLAZA = {
   dais: { apothem: 0.52, rise: 0.16 },
-  board: { x: -1.2, z: -0.55, w: 1.8, feet: 0.35 },
+  board: { x: -1.45, z: -0.55, w: 1.65, feet: 0.35 },
 } as const
 /** The terraces the walk grid is closed over: reached by a step, which a flat half-metre grid cannot say. */
 export const GARAGE_PLATFORMS = [GARAGE_PODIUM, GARAGE_DECK, HERO_SITES.serena, HERO_SITES.matt] as const
 export const GARAGE_HERO_SCALE = 1.25
 
-/** Five teams spread across the courtyard's two wings; twenty hires retain their pod order (§6). */
+/** §7.8.12 [2026-10-08]: a broad central meeting court and equal two-metre mat aisles between rows.
+ * The entry-wing pod follows the chamfer rather than compressing Billy between desk silhouettes. */
 export const GARAGE_PODS: readonly { x: number; z: number; rot: 0 | 90 }[] = [
-  { x: 5.0, z: -1.0, rot: 0 }, { x: -9.0, z: 6.4, rot: 0 }, { x: -5.0, z: -0.8, rot: 0 },
-  { x: 12.0, z: 0.1, rot: 90 }, { x: 7.2, z: 6.4, rot: 0 },
+  { x: 6.7, z: -.9, rot: 0 }, { x: -8.7, z: 5.8, rot: 0 }, { x: -3.9, z: -.9, rot: 0 },
+  { x: 13.05, z: -.9, rot: 90 }, { x: 6.7, z: 5.8, rot: 0 },
 ] as const
 
 export const LEADER_IDS = ['founder', 'james', 'billy', 'serena', 'matt'] as const
@@ -287,7 +288,7 @@ export const GARAGE_LEADERS = [
   { id: 'james' as LeaderId, seat: leaderSeat('james'), x: -9.0, z: -3.4, rot: 90 },
   { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -1.6, z: -8.4, rot: 0 },
   { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: 4.4, z: -8.3, rot: 0 },
-  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 0.1, z: 0.19, rot: 45 },
+  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 1.4, z: -.9, rot: 45 },
 ]
 
 /**
@@ -444,10 +445,13 @@ export function seatsAtPod(pod: { x: number; z: number; rot: number }, first: nu
   })
 }
 
-/** Four independent desks per staggered team, with a visible gap between tops. */
+/** §7.8.12 [2026-10-08]: identical tabletop gaps in both axes, with chair clearance on every mat. */
+export const GARAGE_POD_LAYOUT = { along: 1.0, across: 1.34, matAlong: 4.0, matAcross: 4.7 } as const
+
+/** Four independent desks per team, using one layout for rotated and unrotated pods. */
 export const garageSeats = () => GARAGE_PODS.flatMap((pod, p) =>
   seatsAtPod(pod, p * 4, p).map((seat, i) => {
-    const along = i % 2 ? .92 : -.92, across = i < 2 ? -1.38 : 1.38
+    const along = (i % 2 ? 1 : -1) * GARAGE_POD_LAYOUT.along, across = (i < 2 ? -1 : 1) * GARAGE_POD_LAYOUT.across
     return { ...seat, x: pod.x + (pod.rot === 90 ? across : along),
       z: pod.z + (pod.rot === 90 ? along : across) }
   }))
@@ -637,6 +641,8 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
   // (`walkableRegions` said four).
   // The water cooler, in the north-east corner past Serena's plinth: it was against the east wall, and the pod there
   // is where it was.
+  // A fitted storage link joins the hero work wall without occupying its front access lane.
+  { kind: 'shelving', x: 1.2, z: -9.15, w: 1.3, d: .8 },
   { kind: 'cooler', x: 9.3, z: -9.25, w: .7, d: .7 },
   { kind: 'bench', x: 10.5, z: 7.8, w: 1.8, d: .62, low: true },
 ]
@@ -891,9 +897,12 @@ export const CLEARANCE = 0.25
  * and a pod are clear of each other. {@link CLEARANCE} is the pad the grid puts
  * either side of both. */
 export function benches(place: Place): { x: number; z: number; w: number; d: number }[] {
-  // `worktable(g, pod.x, pod.z, w, d)`, and a turned pod is the same table with
-  // its axes swapped. The garage's tables are 3.05 long, the office's 2.65.
-  if (place === 'garage') return GARAGE_PODS.map(p => ({ x: p.x, z: p.z, w: p.rot === 90 ? 3.4 : 3.64, d: p.rot === 90 ? 3.64 : 3.4 }))
+  // Reserve the four desktops and chair backs, including the rotated pod.
+  if (place === 'garage') {
+    const along = 2 * GARAGE_POD_LAYOUT.along + 1.64
+    const across = 2 * (GARAGE_POD_LAYOUT.across + .67)
+    return GARAGE_PODS.map(p => ({ x: p.x, z: p.z, w: p.rot === 90 ? across : along, d: p.rot === 90 ? along : across }))
+  }
   return OFFICE_PODS.map(p=>({x:p.x,z:p.z,w:p.rot===90?3.4:3.64,d:p.rot===90?3.64:3.4}))
 }
 
@@ -914,7 +923,7 @@ export function benches(place: Place): { x: number; z: number; w: number; d: num
  * pedestals at ±1.15, the back of the chair at −0.45 and the front of the desk at +1.33.
  * `garageCraft.craftedBossDesk` is drawn to these.
  */
-const BOSS_DESK = { x0: -1.15, x1: 1.15, zBack: -0.45, zFront: 1.33, zDesktop: 0.27 } as const
+const BOSS_DESK = { x0: -1.15, x1: 1.15, zBack: -0.65, zFront: 1.51, zDesktop: 0.45 } as const
 
 /**
  * A rectangle in a station's own frame, as the axis-aligned world rectangle that holds it. **A station's `rot` is its

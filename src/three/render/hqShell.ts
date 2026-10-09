@@ -25,8 +25,8 @@ import { GARAGE_DECK, GARAGE_PODIUM, HERO_SITES } from '../sim/floorPlan.ts'
 const heroColour = (id: 'billy' | 'serena' | 'matt') => branchColour(HERO_BY_ID.get(id)!.branch)
 
 const AMBER = '#e0a52e'
-const BRASS = '#c9a24e'
-const WALNUT = '#5b3f2b'
+const BRASS = '#425b62'
+const WALNUT = '#30444b'
 
 const rectOf = (r: { x0: number; x1: number; z0: number; z1: number }) => [[r.x0, r.z0], [r.x1, r.z0], [r.x1, r.z1], [r.x0, r.z1]] as [number, number][]
 
@@ -73,9 +73,9 @@ export function ziggurat(g: T.Group): { podium: T.Group; deck: T.Group } {
       const t = i / n, x = x0 + (x1 - x0) * t, z = z0 + (z1 - z0) * t
       box(g, x, P.rise, z, 0.06, 0.94, 0.06, BRASS)
     }
-    for (const h of [0.88, 0.45]) {
-      box(g, (x0 + x1) / 2, P.rise + h, (z0 + z1) / 2, along ? len + 0.06 : 0.04, 0.04, along ? 0.04 : len + 0.06, BRASS)
-    }
+    // A single substantial handrail opens the silhouette of the boss's station;
+    // the double bright bars made it look like a fenced industrial platform.
+    box(g, (x0 + x1) / 2, P.rise + .88, (z0 + z1) / 2, along ? len + .06 : .07, .07, along ? .07 : len + .06, BRASS)
   }
   const ex = P.x1 - 0.08, sy = P.z1 - 0.08
   rail(ex, P.z0 + 0.3, ex, sz - sw / 2 - 0.1)
@@ -95,18 +95,18 @@ export function ziggurat(g: T.Group): { podium: T.Group; deck: T.Group } {
  * Serena's plinth. Returns the group her set is built on, at the plinth's height, so that a set's
  * own y = 0 is the floor it stands on.
  */
-export function opsPlinth(g: T.Group): T.Group {
+export function opsPlinth(g: T.Group, baseGroup: T.Group = g): T.Group {
   const s = HERO_SITES.serena
-  slab(g, rectOf(s), 0, s.rise, '#3d4d52')
+  slab(baseGroup, rectOf(s), 0, s.rise, '#3d4d52')
   // the lip: a cyan line along the two faces the camera sees, a hand below the top edge — the room's own
   // light, which is cyan — and, at the foot, a thin line in *her* colour, which is red and which on her own
   // screens means an incident: here it is the emergency lighting at the foot of a control room
   const lip = '#36c3d8', base = heroColour('serena')
   const mx = (s.x0 + s.x1) / 2, mz = (s.z0 + s.z1) / 2
-  lamp(g, mx, s.rise - 0.1, s.z1 + 0.004, s.x1 - s.x0, 0.03, 0.01, lip)
-  lamp(g, s.x1 + 0.004, s.rise - 0.1, mz, 0.01, 0.03, s.z1 - s.z0, lip)
-  lamp(g, mx, 0.06, s.z1 + 0.004, s.x1 - s.x0, 0.025, 0.01, base)
-  lamp(g, s.x1 + 0.004, 0.06, mz, 0.01, 0.025, s.z1 - s.z0, base)
+  lamp(baseGroup, mx, s.rise - 0.1, s.z1 + 0.004, s.x1 - s.x0, 0.03, 0.01, lip)
+  lamp(baseGroup, s.x1 + 0.004, s.rise - 0.1, mz, 0.01, 0.03, s.z1 - s.z0, lip)
+  lamp(baseGroup, mx, 0.06, s.z1 + 0.004, s.x1 - s.x0, 0.025, 0.01, base)
+  lamp(baseGroup, s.x1 + 0.004, 0.06, mz, 0.01, 0.025, s.z1 - s.z0, base)
   const platform = new T.Group()
   platform.position.y = s.rise
   g.add(platform)
@@ -114,13 +114,10 @@ export function opsPlinth(g: T.Group): T.Group {
 }
 
 /**
- * The step up to the Ops Room: two treads, 0.3 m each, at the *east* end of the south face, under the gap
- * the set's glass leaves for a door.
- *
- * **A prop of its own**, because it stands *in front of* the old wall, on the floor, and so the wall cannot
- * hide it: until Serena arrives it was a black block in the middle of the room with nothing to lead to (found
- * by looking at the early-game frame). It is drawn about the group's own origin, which is where
- * {@link OPS_STEP} says; `showGarageStations` shows it with her.
+ * The open operations deck's two access treads stay on its east end.
+ * The step is an arrival prop: an empty staircase would still suggest a
+ * hidden station before Serena arrives. It lands with the deck and console.
+ * {@link OPS_STEP} fixes its place; `showGarageStations` shows it with her.
  */
 export const OPS_STEP = { x: HERO_SITES.serena.x1 - 0.6, z: HERO_SITES.serena.z1 + 0.3 } as const
 export function opsStep(step: T.Group): void {

@@ -4,6 +4,7 @@
  * the one that changes. See docs/PLAN-2026-09-26-return.md.
  */
 import * as T from 'three'
+import { sculptFacialHair } from './facialHair.ts'
 import { box } from './worldArt.ts'
 import type { LeaderId } from '../sim/floorPlan.ts'
 
@@ -60,16 +61,7 @@ export function heroHead(head: T.Group, id: LeaderId, skin: string, hair: string
       box(head, s * .198, bottom, -.187, .043, .405 - bottom, .063, hair)
     }
   }
-  if (james) {
-    // Cheeks, moustache and chin leave a small readable mouth opening.
-    for (const s of [-1, 1]) {
-      box(head, s * .164, .022, -.192, .095, .173, .066, hair)
-      box(head, s * .222, .056, -.051, .035, .21, .25, hair)
-      box(head, s * .069, .112, -.224, .10, .035, .051, hair)
-    }
-    box(head, 0, -.036, -.198, .33, .108, .082, hair)
-    box(head, 0, -.064, -.17, .244, .047, .11, hair)
-  }
+  if (james) sculptFacialHair(head, 3, hair)
   if (james || billy || serena) {
     const rim = james ? .014 : .011
     for (const s of [-1, 1]) {
