@@ -1,51 +1,10 @@
-/**
- * The heroes' sets — GDD §7.8.12 [redesigned 2026-10-04, re-planned 2026-10-05].
- *
- * *"current HQ is rubbish … Billy is at the whiteboard giving a meeting, Serena
- * full of dashboards, Matt always on the phone dealing with issues."* The first
- * HQ gave each hero a desk with a nameplate and one prop, which says *a person
- * works here* and nothing about who. These are the three sets, and the rule
- * behind them is the one §21.7.6 already states for the HUD: **a hero is the
- * instrument they brought.** So each set is a readout, drawn from the same
- * numbers the HUD shows:
- *
- * - **Serena's Ops Room** is an open, raised operations deck. The camera
- *   sees: a wall of six dashboards (the build queue and Auto-Ship, velocity, incidents,
- *   defects, sync, and the line she lives by) the width of the plinth and nearly the height of the
- *   wall under the clerestory, a crescent console, a rack with its lights.
- * - **Matt's Front Desk** is a reception counter on the north wall, on a riser, closed at the front and lettered
- *   *HELP DESK — NOW SERVING*, in front of a four-metre ticket wall that goes up to the glazing and fills with a
- *   sticky note for every few real tickets and pins the open incidents along the top in red; the switchboard blinks
- *   while there is anything to answer, and a low bench along the room edge is where somebody waits.
- * - **Billy's plaza** is the mouth of the avenue between the two north pods, on the open floor, *in the mix of the
- *   developers*: a rolling whiteboard three metres tall with the §4.1 curve on it, turned to the lens, an
- *   octagon of rug, and a man on a low round dais at its right-hand end who faces the lens and glances at the board.
- *
- * *"just line them up like that is boring"*, *"a bit too clustered … Billy is too clusterd you can put him a
- * side, he doesn't need a crowd"* and *"mat got so sqaushed"* (2026-10-05) and, last, *"billy should face us and
- * he's too short … they don't have to be all around the wall, put billy in the mix of devs so he's not just
- * meetinging himself"* (2026-10-05): the first cut was three frontages of one width on one terrace; the second three
- * buildings packed round the founder and James; the third put Matt in a four-metre slot; the fifth put Billy in a
- * corner, talking to a wall. Matt and Serena are two different buildings along the north wall — see
- * `floorPlan.HERO_SITES` — each built in **its own frame**: the wall behind it at the back (−z), the room in
- * front (+z), x along the wall. Billy is built in his station's frame too, which is turned an eighth to face the lens:
- * `frame` knows any turn, and a set on the west wall is the same set turned a quarter.
- *
- * Each person is *always doing it* (§7.8.13): the animations here never stop and
- * never change, which is what makes them an identity and not a cutscene.
- *
- * Pure geometry and canvas drawing — no store. The stage hands the numbers in
- * through {@link HqSets.update}, so this file cannot disagree with the HUD about
- * what the studio is doing.
- */
-
+/** §7.8.12 [2026-10-09]: live instruments in connected floor-level workspaces.
+ * Role-specific boards remain live; common joinery replaces individual stages and floor borders. */
 import * as T from 'three'
 import { box, cylinder } from './worldArt.ts'
-import { leafyPlanter } from './garageCraft.ts'
-import { pool } from './glowArt.ts'
+
 import type { Environment, GarageProp } from './worldEnvironments.ts'
-import { branchColour } from '../../sim/heroBranches.ts'
-import { HERO_BY_ID, type HeroId } from '../../sim/storyHeroes.ts'
+import type { HeroId } from '../../sim/storyHeroes.ts'
 import { BILLY_PLAZA, GARAGE_HERO_SCALE, HERO_SITES } from '../sim/floorPlan.ts'
 import { peakHeads, workDone } from '../../sim/entropy.ts'
 
@@ -391,7 +350,6 @@ export function buildHqSets(input: HqSetInput): HqSets {
   let lastHistory = -1
 
   const addFace = (f: Face | null) => { if (f) faces.push(f) }
-  const colourOf = (id: Id) => branchColour(HERO_BY_ID.get(id)!.branch)
 
   /**
    * A hero's set, in **its own frame**: a group at the station, turned as the station is, so that
@@ -416,17 +374,6 @@ export function buildHqSets(input: HqSetInput): HqSets {
     return { set, c, a, site, local }
   }
 
-  /**
-   * The ground a set stands on: one carpet across its whole site, in the hero's colour and darkened
-   * to sit under the room's lamps, with a bright strip along the edge that faces the room. Built
-   * from the site, not from the station, so two sets can never share a floor.
-   */
-  const carpet = (set: T.Group, id: Id, c: { x0: number; x1: number; z0: number; z1: number }, rug: string, inset = 0.08) => {
-    const x0 = c.x0 + inset, x1 = c.x1 - inset, z0 = c.z0 + 0.06, z1 = c.z1 - 0.06
-    box(set, (x0 + x1) / 2, 0.004, (z0 + z1) / 2, x1 - x0, 0.02, z1 - z0, rug, false)
-    glow(set, (x0 + x1) / 2, 0.022, z1 - 0.02, x1 - x0, 0.03, 0.05, colourOf(id))
-  }
-
   // ======================== MATT: the front desk ========================
   // On the north wall, west of the Ops Room, on a riser: the lobby of the studio, and the first place a stranger walks
   // up to. It was a 3.6 m slot in the north-east and the user's word for it was *squashed* (2026-10-05): this site is
@@ -437,51 +384,42 @@ export function buildHqSets(input: HqSetInput): HqSets {
   // the old 3.2 m's height would be a poster in the bottom half of a tall room.
   if (present.has('matt')) {
     const { set, c } = frame('matt')
-    carpet(set, 'matt', c, '#34494f')
-    pool(set, 0, (c.z0 + c.z1) / 2, c.x1 - c.x0, c.z1 - c.z0, colourOf('matt'), 0.3)
     const wallZ = c.z0
     const tw = Math.min(4.0, c.x1 - c.x0 - 0.3)
     // the wall it hangs on: the ticket wall, across it, 0.8–2.9 m above the riser (its top is 3.1 m up the wall, and the
     // glazing starts at 3.2)
-    const bottom = 0.8, bh = 2.1
+    const bottom = 1.05, bh = 1.75
     box(set, 0, bottom, wallZ + 0.07, tw, bh, 0.1, '#34494f')
     addFace(face(set, 0, bottom + bh / 2, wallZ + 0.13, tw - 0.2, bh - 0.16, 1200, ticketWall.key, ticketWall.paint, 0.62))
     // the beacon over it, turning while anything is down
     const beacon = glow(set, tw / 2 - 0.3, bottom + bh + 0.04, wallZ + 0.2, 0.18, 0.18, 0.18, RED)
     movers.push((s, r) => { beacon.visible = r.incidents.length > 0 && Math.floor(s * 3) % 2 === 0 })
-    // the counter: a top, a closed front in the set's green, a modesty panel on his side
-    const cl = Math.min(3.4, tw - 0.4)
-    const dz = 0.95, dd = 0.9, front = dz + dd / 2
-    box(set, 0, 0.74, dz, cl, 0.07, dd, '#ba9263')
-    box(set, 0, 0, front - 0.035, cl, 0.74, 0.07, '#34494f')
-    for (const x of [-cl / 2 + 0.04, cl / 2 - 0.04]) box(set, x, 0, dz, 0.08, 0.74, dd - 0.1, '#34494f')
-    box(set, 0, 0.12, dz - dd / 2 + 0.05, cl - 0.16, 0.62, 0.06, '#76583d')
-    box(set, 0, 0.81, front - 0.02, cl + 0.06, 0.03, 0.1, '#ba9263')
-    addFace(face(set, 0.2, 0.4, front + 0.004, 1.9, 0.55, 900, helpDeskSign.key, helpDeskSign.paint, 0.85))
-    // One cabinetry language across reception and operations, rather than isolated themed counters.
-    for (let x = -cl / 2 + .12; x < cl / 2; x += .22)
-      if (x < -.85 || x > 1.2) box(set, x, .13, front + .008, .065, .54, .025, '#ba9263')
-    // three phones and a switchboard, with a lamp for every line
-    for (let p = 0; p < 3; p++) {
-      const x = -cl / 2 + 0.5 + p * 0.8
-      box(set, x, 0.81, 1.0, 0.42, 0.08, 0.3, '#2b2f2e')
-      box(set, x, 0.89, 1.0, 0.38, 0.05, 0.1, '#171a19') // the handset, in its cradle
-      for (let k = 0; k < 4; k++) lamps.push({ mesh: glow(set, x - 0.12 + k * 0.08, 0.9, 1.15, 0.05, 0.02, 0.04, DIM), phase: (x + k) * 0.7, on: GREEN, off: DIM })
+    // The support desk faces toward operations, with a clear approach at its open ends.
+    const work = new T.Group(); work.name = 'support-workstation'; work.rotation.y = 0; set.add(work)
+    const dz = .95, cl = 2.35
+    box(work, 0, .90, dz, cl, .10, .88, '#ba9263')
+    box(work, -.90, 0, dz, .45, .90, .72, '#34494f')
+    for (let row = 0; row < 3; row++) {
+      box(work, -.90, .10 + row * .26, dz + .37, .37, .21, .025, '#76583d')
+      box(work, -.90, .20 + row * .26, dz + .39, .16, .018, .015, '#879e9f')
     }
-    const sbx = cl / 2 - 0.45
-    box(set, sbx, 0.81, 0.95, 0.46, 0.06, 0.55, '#2b3a2d') // switchboard
-    for (let k = 0; k < 8; k++) lamps.push({ mesh: glow(set, sbx - 0.15 + (k % 4) * 0.1, 0.87, 0.83 + Math.floor(k / 4) * 0.14, 0.06, 0.02, 0.06, DIM), phase: k * 0.9, on: AMBER, off: DIM })
-    // a coiled cord, a stack of printouts, two filing cabinets against the wall
-    for (let k = 0; k < 6; k++) cylinder(set, -cl / 2 + 0.1 + k * 0.04, 0.82, 0.7 + (k % 2) * 0.05, 0.06, 0.06, '#2b2f2e')
-    for (let k = 0; k < 5; k++) box(set, -0.6 + k * 0.01, 0.81 + k * 0.012, 0.72, 0.34, 0.012, 0.26, '#efe9d8')
-    box(set, c.x0 + 0.45, 0, wallZ + 0.5, 0.55, 1.15, 0.6, '#58605d')
-    box(set, c.x1 - 0.45, 0, wallZ + 0.5, 0.55, 1.15, 0.6, '#58605d')
-    // the lobby: a low bench along the room edge — low, so that it hides nothing of the counter's front from this
-    // camera — with a plant at each end
-    box(set, 0, 0, c.z1 - 0.32, 2.2, 0.3, 0.44, '#3a5a41')
-    box(set, 0, 0.3, c.z1 - 0.32, 2.24, 0.05, 0.48, '#d9c58f')
-    leafyPlanter(set, -1.55, c.z1 - 0.34, 0.45)
-    leafyPlanter(set, 1.55, c.z1 - 0.34, 0.45)
+    for (const z of [.59, 1.31]) box(work, 1.02, 0, z, .065, .90, .065, '#34494f')
+    box(work, .14, .42, 1.34, 1.66, .36, .05, '#34494f')
+    addFace(face(work, .14, .60, 1.369, 1.45, .25, 900, helpDeskSign.key, helpDeskSign.paint, .75))
+    // One proper monitor, two phones and a switch panel replace the old hotel reception frontage.
+    box(work, -.05, 1.01, 1.09, .28, .025, .20, '#34494f')
+    box(work, -.05, 1.04, 1.09, .055, .16, .06, '#34494f')
+    box(work, -.05, 1.18, 1.09, .91, .53, .065, '#34494f')
+    glow(work, -.05, 1.22, 1.051, .83, .45, .012, '#24454d')
+    box(work, -.04, 1.01, .66, .55, .025, .20, '#879e9f')
+    for (const x of [-.77, .77]) {
+      box(work, x, 1.01, .86, .33, .07, .27, '#34494f')
+      box(work, x, 1.08, .86, .31, .06, .085, '#171a19')
+      for (let k = 0; k < 3; k++) lamps.push({ mesh: glow(work, x - .09 + k * .08, 1.08, 1.00, .045, .025, .03, DIM), phase: x + k, on: GREEN, off: DIM })
+    }
+    box(set, 0, 0, wallZ + .42, 3.25, .65, .58, '#34494f')
+    box(set, 0, .65, wallZ + .42, 3.30, .065, .62, '#ba9263')
+    for (const x of [-1.08, 0, 1.08]) box(set, x, .10, wallZ + .73, 1.0, .46, .024, '#76583d')
     // him: the handset against his ear, and a head that never stops
     const body = bodies.matt
     const head = body?.getObjectByName('head')
@@ -499,17 +437,10 @@ export function buildHqSets(input: HqSetInput): HqSets {
   if (present.has('serena')) {
     const { set, c } = frame('serena')
     const wallZ = c.z0
-    // graphite floor with a cyan inlay, and the zone's own light
-    const fx0 = c.x0 + 0.04, fx1 = c.x1 - 0.04, fz0 = wallZ + 0.04, fz1 = c.z1 - 0.04
-    box(set, (fx0 + fx1) / 2, 0.004, (fz0 + fz1) / 2, fx1 - fx0, 0.02, fz1 - fz0, '#34494f', false)
     const CYAN = '#688f9a'
-    glow(set, (fx0 + fx1) / 2, 0.022, fz1 - 0.16, fx1 - fx0 - 0.3, 0.02, 0.035, CYAN)
-    glow(set, fx1 - 0.16, 0.022, (fz0 + fz1) / 2, 0.035, 0.02, fz1 - fz0 - 0.3, CYAN)
-    glow(set, fx0 + 0.16, 0.022, (fz0 + fz1) / 2, 0.035, 0.02, fz1 - fz0 - 0.3, CYAN)
-    pool(set, 0, 0.3, 4.4, 3.2, '#4fd8ee', 0.26)
     // the wall of six: the width of the plinth and, now that the wall is 4.6 m, nearly the height the clerestory
     // leaves it — 2.2 m of video wall from a hand above the plinth to the lit line under the glazing (3.2 m up the wall)
-    box(set, 0, 0.12, wallZ + 0.07, c.x1 - c.x0 - 0.12, 2.18, 0.1, '#34494f')
+    box(set, 0, .80, wallZ + 0.07, c.x1 - c.x0 - 0.12, 2.18, 0.1, '#34494f')
     const kinds = ['queue', 'velocity', 'incidents', 'defects', 'sync', 'status'] as const
     // three columns across whatever width the plinth has (4.8 m: a pitch of 1.47), each a little taller than the
     // paintings' own 1.83 aspect (they are drawn to their canvas, and a taller one is a roomier one)
@@ -517,28 +448,28 @@ export function buildHqSets(input: HqSetInput): HqSets {
     kinds.forEach((kind, i) => {
       const col = i % 3, row = Math.floor(i / 3)
       const spec = dashboard(kind, history)
-      addFace(face(set, (col - 1) * pitch, 1.7 - row * (ph + 0.07), wallZ + 0.13, pw, ph, 420, spec.key, spec.paint, 0.9))
+      addFace(face(set, (col - 1) * pitch, 2.50 - row * (ph + 0.07), wallZ + 0.13, pw, ph, 420, spec.key, spec.paint, 0.9))
     })
-    glow(set, 0, 2.3, wallZ + 0.1, c.x1 - c.x0 - 0.3, 0.035, 0.035, CYAN)
-    // the console: a crescent, the middle and a wing either side turned in to her
-    const cz = 0.95
-    box(set, 0, 0.74, cz, 2.2, 0.07, 0.8, '#ba9263')
-    box(set, 0, 0, cz + 0.37, 2.2, 0.74, 0.06, '#34494f')
-    for (const side of [-1, 1]) {
-      const wing = new T.Group(); wing.position.set(side * 1.3, 0, cz - 0.12); wing.rotation.y = side * 0.55; set.add(wing)
-      box(wing, 0, 0.74, 0, 1.1, 0.07, 0.7, '#ba9263')
-      box(wing, 0, 0, 0.3, 1.1, 0.74, 0.06, '#34494f')
-      box(wing, 0, 0.81, -0.05, 0.54, 0.34, 0.04, '#101516')
-      glow(wing, 0, 0.86, -0.075, 0.48, 0.26, 0.015, '#13514a')
+    glow(set, 0, 3.05, wallZ + 0.1, c.x1 - c.x0 - 0.3, 0.035, 0.035, CYAN)
+    // An inward-facing technical desk has two large screens and an open knee space.
+    const work = new T.Group(); work.name = 'operations-workstation'; work.rotation.y = 0; set.add(work)
+    const cz = .95
+    box(work, 0, .90, cz, 2.80, .10, .92, '#ba9263')
+    for (const x of [-1.28, 1.28]) for (const z of [.55, 1.35])
+      box(work, x, 0, z, .075, .90, .075, '#34494f')
+    box(work, 0, .40, 1.36, 2.45, .38, .05, '#34494f')
+    for (const x of [-.62, .62]) {
+      box(work, x, 1.01, 1.05, .30, .03, .22, '#34494f')
+      box(work, x, 1.04, 1.05, .065, .16, .06, '#34494f')
+      box(work, x, 1.19, 1.05, 1.10, .60, .065, '#34494f')
+      glow(work, x, 1.23, 1.011, 1.02, .52, .012, '#24454d')
     }
-    for (const x of [-0.65, 0.65]) {
-      box(set, x, 0.81, 1.0, 0.62, 0.39, 0.05, '#101516')
-      glow(set, x, 0.85, 0.967, 0.54, 0.31, 0.015, '#13514a')
-    }
-    for (let x = -.95; x < 1.1; x += .22)
-      box(set, x, .12, cz + .41, .065, .54, .025, '#ba9263')
-    box(set, 0, 0.81, 1.15, 0.8, 0.03, 0.28, '#3a4543') // keyboard
-    cylinder(set, 0.95, 0.81, 1.2, 0.07, 0.1, '#e9e2d0') // a mug
+    box(work, -.10, 1.01, .66, .65, .026, .23, '#879e9f')
+    box(work, .65, 1.01, .66, .23, .018, .25, '#3a565e')
+    cylinder(work, 1.17, 1.01, .95, .065, .11, '#d5d4c5')
+    // Two low equipment drawers provide an asymmetrical technical silhouette.
+    box(set, c.x1 - .55, 0, .24, .62, .80, .76, '#34494f')
+    box(set, c.x1 - .55, .80, .24, .66, .06, .80, '#ba9263')
     // a short rack at her east elbow, with its lights and the beacon: **short**, because on this
     // camera a thing stands in front of the wall to its north-west, and a two-metre rack hid the
     // dashboard it was there to serve.
@@ -553,56 +484,33 @@ export function buildHqSets(input: HqSetInput): HqSets {
   }
 
   // ======================== BILLY: the plaza ========================
-  // **In the mix** (the user, 2026-10-05: *"put billy in the mix of devs so he's not just meetinging himself"*, and
-  // *"billy should face us and he's too short"*). He was in a corner talking to a wall in every cut before this one. He
-  // is on the open floor now, at the mouth of the avenue between the two north pods with a developer's desk either side
-  // of him, and everything he has is turned to the lens: the board, and he. The board is a rolling one, 2.0 m wide with
-  // a face 1.2 m tall, on a stand that takes it to 2.9 m; he stands a step in front of its right-hand end — *screen right*
-  // is his frame's +x — on a low octagonal dais, because a presenter is a head above the room and the standing figure
-  // in this skin has no legs to be tall with. He faces us, and now and then turns to the board. **No crowd**, still:
-  // the studio's own, in the pods around him, is the audience. Every number is `floorPlan.BILLY_PLAZA`'s, because the
-  // walk grid closes the footprint those numbers imply.
+  // §7.8.12 [2026-10-09]: the east pod is Billy's audience; his chart sits behind his left shoulder.
   if (present.has('billy')) {
-    const { set, local } = frame('billy')
-    const round = HERO_SITES.billy.round!
-    const ctr = local(round.x, round.z)
+    const { set } = frame('billy')
     const { dais, board } = BILLY_PLAZA
-    // concentric octagons, each a hair above the last: a rug, a ring, a medallion. (The ring is a tan, not a cream: under the
-    // plaza's lamp a cream ring went over the bloom's threshold and was a neon octagon on the floor.)
-    const octagon = (x: number, z: number, apothem: number, y: number, h: number, colour: string) => {
-      const m = cylinder(set, x, y, z, apothem / Math.cos(Math.PI / 8), h, colour)
-      m.rotation.y = Math.PI / 8
-      m.castShadow = false
-      return m
+    // Compact chart storage beside Billy leaves his silhouette and the meeting aisle open.
+    box(set, board.x, .06, board.z, board.w, .78, .54, '#34494f')
+    box(set, board.x, .84, board.z, board.w + .04, .075, .58, '#ba9263')
+    for (const dx of [-.40, .40]) {
+      box(set, board.x + dx, .16, board.z + .285, .73, .59, .025, '#76583d')
+      box(set, board.x + dx + .20, .53, board.z + .304, .025, .12, .022, '#879e9f')
     }
-    // A quiet textile bay reads as meeting space; concentric rings made Billy look like a game token.
-    octagon(ctr.x, ctr.z, round.apothem, 0.004, 0.02, '#34494f')
-    octagon(ctr.x, ctr.z, round.apothem - .075, 0.026, 0.008, '#52676a')
-    pool(set, ctr.x, ctr.z, round.apothem * 3, round.apothem * 3, colourOf('billy'), 0.2)
-    // his dais: a foot in his colour and a top in oak
-    octagon(0, 0, dais.apothem + 0.05, 0.03, 0.04, colourOf('billy'))
-    octagon(0, 0, dais.apothem, 0.03, dais.rise - 0.03, '#c39760')
     // the board: a frame, a face that is the §4.1 curve, a tray with four markers, and two uprights on feet with castors
     // §7.8.12 [2026-10-08]: lift the chart above Billy's shoulder line; its feet stay on the floor.
     const by = 1.65, bh = 1.2
-    box(set, board.x, by - 0.06, board.z, board.w, bh + 0.12, 0.1, '#58605d')
+    box(set, board.x, by - 0.06, board.z, board.w, bh + 0.12, 0.1, '#ba9263')
     addFace(face(set, board.x, by + bh / 2, board.z + 0.056, board.w - 0.14, bh, 1100, whiteboard.key, whiteboard.paint, 0.55))
     box(set, board.x, by - 0.12, board.z + 0.1, board.w, 0.05, 0.16, '#58605d')
     for (let k = 0; k < 4; k++) box(set, board.x - 0.55 + k * 0.35, by - 0.07, board.z + 0.12, 0.2, 0.03, 0.03, ['#2f5aa8', '#c23b30', '#2d7d46', '#25303a'][k])
     for (const side of [-1, 1]) {
       const x = board.x + side * (board.w / 2 - 0.03)
-      box(set, x, 0.12, board.z, 0.07, by + bh - 0.06, 0.08, '#3b4240')
-      box(set, x, 0.08, board.z, 0.07, 0.05, board.feet * 2, '#3b4240')
-      for (const dz of [-board.feet + 0.05, board.feet - 0.05]) cylinder(set, x, 0, board.z + dz, 0.045, 0.08, '#171a19')
+      box(set, x, .915, board.z, .06, by + bh - .915, .06, '#34494f')
     }
-    // him: on the dais, facing the lens, turning to the board now and then and never sitting down. The body's face is its
-    // local −z, so a yaw of π sends it to the station's +z, which is the lens; turning toward the board (to his left, −x)
-    // is a yaw *down* from π, by at most ~55°. The dais is in the set's own unscaled metres and the body is in the
-    // station's scaled ones, hence the division.
+    // The body's face is local −z; π faces the station's +z, toward the east pod after its quarter turn.
     const body = bodies.billy
     if (body) movers.push((s) => {
-      const toBoard = Math.max(0, Math.sin(s * 0.7)) ** 2
-      body.rotation.y = Math.PI - toBoard * 0.95
+      // Stay oriented to the east-pod audience rather than sweeping into empty floor.
+      body.rotation.y = Math.PI + Math.sin(s * .7) * .08
       body.position.y = dais.rise / GARAGE_HERO_SCALE + Math.abs(Math.sin(s * 1.4)) * 0.015
     })
   }

@@ -10,14 +10,14 @@ import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, sha
 import { projectBoard } from './projectPlate.ts'
 import { garageNeighborhood } from './garageNeighborhood.ts'
 import { garageBackyard } from './garageBackyard.ts'
-import { BILLY_PLAZA, GARAGE_WALLS, GARAGE_DECK, GARAGE_PODIUM, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, HERO_SITES, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_DOOR, type Furniture, type HeroSite, type HeroSiteId } from '../sim/floorPlan.ts'
+import { GARAGE_WALLS, GARAGE_DECK, GARAGE_PODIUM, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, HERO_SITES, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_DOOR, type Furniture, type HeroSite, type HeroSiteId } from '../sim/floorPlan.ts'
 import { HERO_LABELS, LEADER_COLOURS, leaderLook, studioPerson, workerLook, type StudioCast } from './studioPeople.ts'
 import { entrance, gableSign, garageDeskStory, garageForecourt, street, studioSign } from './garageDetails.ts'
 import { sconce, standingLamp } from './glowArt.ts'
 import { hqInterior } from './hqInterior.ts'
 import { buildHqSets } from './hqSets.ts'
 import { OPS_STEP, heroRiser, opsPlinth, opsStep, ziggurat } from './hqShell.ts'
-import { bossChair, craftedBossDesk, craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
+import { craftedBossDesk, craftedChair as chair, craftedHeroDesk, craftedSingleDesk, finishGarage, garageSurfaceDetails, leafyPlanter, loungeDressing } from './garageCraft.ts'
 
 const hitGeometry = new T.BoxGeometry(1, 1, 1)
 // Round hero pick volumes avoid grazing an exact box corner in the isometric ray.
@@ -273,8 +273,10 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // what the word means), not a band the work has to dodge: it was a band from x = 4.4 east, and Serena's wall of
   // dashboards would have been hung across its panes.
   const WALL = GARAGE_WALLS.height
-  box(g, 0.06, 0, -9.8, 20.12, WALL, .24, INK.wall)
-  box(g, 0, WALL, -9.8, 20.4, 0.12, 0.35, INK.trim)
+  box(g, 1.4, 0, -9.8, 17.2, WALL, .24, INK.wall)
+  wall(g, GARAGE_OUTLINE[0], GARAGE_OUTLINE[1], 0, WALL, .24, INK.wall)
+  wall(g, GARAGE_OUTLINE[0], GARAGE_OUTLINE[1], WALL, .12, .35, INK.trim)
+  box(g, 1.4, WALL, -9.8, 17.4, 0.12, 0.35, INK.trim)
   skyPane(g, 2.4, WALL - 1.0, -9.68, 14.0, 0.8, 0.06)
   for (let x = -4.4; x <= 9.4; x += 1.4) box(g, x, WALL - 1.0, -9.7, 0.12, 0.8, 0.1, INK.trim)
   box(g, 2.4, WALL - 1.04, -9.62, 14.2, 0.06, 0.2, INK.trim)
@@ -301,7 +303,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
       box(g, from[0] + (to[0] - from[0]) * t, h + .07, from[1] + (to[1] - from[1]) * t, .08, height - h - .07, .08, '#425b62')
     }
   }
-  for (let i = 1; i < GARAGE_OUTLINE.length; i++) {
+  for (let i = 2; i < GARAGE_OUTLINE.length; i++) {
     const from = GARAGE_OUTLINE[i], to = GARAGE_OUTLINE[(i + 1) % GARAGE_OUTLINE.length]
     if (from[0] === -6 && to[0] === -10 && from[1] === 8) {
       const half = STUDIO_DOOR.width / (2 * Math.SQRT2)
@@ -316,9 +318,9 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   }
   box(g, -9.84, 0, .7, .10, .7, 2.4, INK.wood)
   // A ribbon of glazing above the leaders, the west wall's half of the north wall's clerestory.
-  skyPane(g, -9.88, WALL - 1.0, -6.0, 0.06, 0.8, 7.4)
-  for (let z = -9.2; z <= -2.8; z += 1.4) box(g, -9.86, WALL - 1.0, z, 0.1, 0.8, 0.12, INK.trim)
-  box(g, -9.8, WALL - 1.04, -6.0, 0.2, 0.06, 7.6, INK.trim)
+  skyPane(g, -9.88, WALL - 1.0, -4.75, 0.06, 0.8, 4.3)
+  for (let z = -6.5; z <= -2.8; z += 1.4) box(g, -9.86, WALL - 1.0, z, 0.1, 0.8, 0.12, INK.trim)
+  box(g, -9.8, WALL - 1.04, -4.75, 0.2, 0.06, 4.5, INK.trim)
   // The chamfered portal faces the lens along (+X,+Z), rather than showing its side.
   const door = entrance(g)
   gableSign(g, cast.studio ?? 'Merciless Software')
@@ -335,7 +337,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   const platformOf: Record<HeroSiteId, T.Group> = {
     matt: heroRiser(g, prop(env, g, 'riser:matt'), 'matt'),
     serena: opsPlinth(g, prop(env, g, 'riser:serena')),
-    billy: g,
+    billy: opsPlinth(g),
   }
   // The workshop wall is reserved for the project drawing board.
   const heroBodies: Partial<Record<'billy' | 'serena' | 'matt', T.Group>> = {}
@@ -374,11 +376,10 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     if (!onStage) {
       const desk = prop(env, spot, `desk:${station.id}`)
       // [2026-10-05] The founder's desk is his own design now (*"his desk redesigned"*); James's is the oak one.
-      if (station.id === 'founder') craftedBossDesk(desk)
+      if (station.id === 'founder') craftedBossDesk(desk, station.rot * Math.PI / 180)
       else craftedHeroDesk(desk, station.id)
       garageDeskStory(desk, station.id)
-      if (station.id === 'founder') bossChair(prop(env, spot, `chair:${station.id}`), 0, -.16, Math.PI)
-      else chair(prop(env, spot, `chair:${station.id}`), 0, -.16, Math.PI, true)
+      chair(prop(env, spot, `chair:${station.id}`), 0, -.16, Math.PI, true)
     } else if (station.id !== 'billy') chair(prop(env, spot, `chair:${station.id}`), 0, 0, Math.PI, true)
     {
       const seat = prop(env, spot, `body:${station.id}`)
@@ -415,13 +416,13 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
         // to the right on §12.1's camera. The others face the lens.
         tag.userData.tagAxis = station.rot === 90 ? [0, -1] : [1, -1]
         // Billy uses the common body scale; his tag stays above the standing crown.
-        if (station.id === 'billy') tag.userData.tagOffset = [.45, 1.8, .10]
+        if (station.id === 'billy') tag.userData.tagOffset = [.45, 2.2, .10]
       }
       // The floor they stand on: the podium's, the deck's, a plinth's or a riser's — and Billy's is his dais, which is not
       // a platform (the walk grid is closed under it by the easel's footprint, not by a terrace) but is what his feet are on.
       const floor = station.id === 'founder' ? GARAGE_PODIUM.rise : station.id === 'james' ? GARAGE_DECK.rise
-        : station.id === 'billy' ? BILLY_PLAZA.dais.rise : site!.rise
-      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, floor, station.id === 'billy' ? 1.65 : 1.75)
+        : site!.rise
+      studioTarget(env, station.x, station.z, station.seat, station.id === 'founder' ? 'Founder' : station.id[0].toUpperCase() + station.id.slice(1), GARAGE_HERO_SCALE, floor, station.id === 'billy' ? 2.0 : 1.75)
     }
   }
   /*
@@ -439,9 +440,10 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    * of the podium (on it: the group is at its height); and a sconce on the north wall between each pair of sets and at
    * the corner, with its wash up the plaster. None adds a light to the scene (`glowArt.ts`).
    */
-  studioSign(g, cast.studio ?? 'Merciless Software', { wall: 'north', along: -7.6, width: 2.8, y: 2.7, height: 1.2 })
-  standingLamp(podium, -5.95, -9.25)
-  standingLamp(podium, -9.3, -9.25)
+  const founderSign = studioSign(g, cast.studio ?? 'Merciless Software', { wall: 'north', along: -7.6, width: 2.65, y: 3.05, height: .90 })
+  founderSign.position.set(-8.39, 0, -8.19); founderSign.rotation.y = Math.PI / 4
+  standingLamp(podium, -6.95, -8.95)
+  standingLamp(podium, -9.15, -6.75)
   for (const x of [-4.4, 1.2, 8.4]) sconce(g, x, 2.9, -9.64, 0)
   /*
    * §12.6 — **the room is furnished by hiring, not by the lease.**

@@ -183,27 +183,22 @@ export function craftedHeroDesk(g: T.Group, id: string): void {
  * (The first cut had an L: a return along the desk's east end carrying a laptop. On the west wall the return
  * wants to run north, into the corner, and south it reaches James's desk; it is gone, and the laptop with it.)
  */
-export function craftedBossDesk(g: T.Group): void {
+export function craftedBossDesk(g: T.Group, _yaw = 0): void {
   // Lighter than the first cut, which read as one dark brown mass under the room's lamps: a mid walnut top over a
   // deeper carcase, a green pad and brass. The footprint is `floorPlan`'s BOSS_DESK: x −1.15…1.75, desk front at 1.33.
-  const WALNUT = '#76583d', EDGE = '#34494f', TOP = '#ba9263', PAD = '#35523f', BRASS = '#d4ae5a'
+  const WALNUT = '#34494f', EDGE = '#34494f', TOP = '#ba9263', PAD = '#35523f', BRASS = '#d4ae5a'
   const desk = new T.Group(); desk.name = 'founder-station'; g.add(desk)
-  const top = .895 // the pad's surface: everything that stands on the desk stands on this
+  const top = .935 // the pad's surface: everything that stands on the desk stands on this
   // the rug: a deep teal wool with a brass border, under the desk and the chair. **An octagon**, since 2026-10-05, when the desk
   // stood on the podium's diagonal and a rectangle turned an eighth in a corner reached out past the rail on two sides; the desk is
   // square to the walls now and the octagon stayed — it reaches 1.85 m and clears every edge of the podium by 0.3 m. (It is the
   // room's own idiom — Billy's rug is one — and `round` is an eight-sided prism.)
-  for (const [r, y, h, c] of [[1.6, .004, .02, '#2c5558'], [1.48, .022, .006, '#d1b25f'], [1.36, .028, .006, '#2c5558']] as const) {
-    const disc = cylinder(desk, 0, y, .36, r, h, c)
-    disc.castShadow = false
-    disc.rotation.y = Math.PI / 8
-  }
   // The broader body needs actual clearance at the desk edge; the rug and
   // credenza keep their footprint on the podium.
   const worktop = new T.Group(); worktop.name = 'founder-worktop'
   worktop.position.z = .18; desk.add(worktop)
   // the desk: a top, a deeper apron, a pedestal either side and a kneehole panel on the room side
-  box(worktop, 0, .78, .8, 2.3, .1, 1.06, TOP)
+  box(worktop, 0, .78, .8, 2.3, .14, 1.06, TOP)
   box(worktop, 0, .70, .8, 2.2, .08, .96, EDGE)
   box(worktop, 0, top - .007, .84, 1.5, .012, .62, PAD)
   box(worktop, 0, top - .004, 1.155, 1.56, .008, .02, BRASS)
@@ -240,30 +235,22 @@ export function craftedBossDesk(g: T.Group): void {
   lamp(worktop, 1.02, 1.12)
   const plant = new T.Group(); plant.position.y = top; worktop.add(plant)
   leafyPlanter(plant, .52, 1.16, .19)
-  // the credenza behind the chair, under the window: a globe, a trophy, a framed print, a plant
-  box(desk, 0, 0, -.95, 2.1, .78, .38, WALNUT)
-  box(desk, 0, .78, -.95, 2.16, .05, .44, TOP)
-  for (const x of [-.5, .5]) {
-    box(desk, x, .08, -.755, .9, .6, .02, EDGE)
-    box(desk, x + (x < 0 ? .34 : -.34), .36, -.74, .025, .12, .025, BRASS)
+  // Compact fitted storage follows the diagonal rear wall and clears the chair back.
+  const credenza = new T.Group(); credenza.name = 'founder-wall-credenza'; desk.add(credenza)
+  box(credenza, 0, 0, -.78, 1.18, .78, .34, EDGE)
+  box(credenza, 0, .78, -.78, 1.20, .055, .36, TOP)
+  for (const x of [-.29, .29]) {
+    box(credenza, x, .08, -.598, .52, .60, .022, WALNUT)
+    box(credenza, x + (x < 0 ? .18 : -.18), .38, -.58, .025, .12, .018, BRASS)
   }
-  cylinder(desk, -.72, .83, -.95, .13, .03, BRASS)
-  cylinder(desk, -.72, .86, -.95, .025, .2, BRASS)
-  sphere(desk, -.72, 1.22, -.95, .19, '#3f7f9f')
-  cylinder(desk, .55, .83, -.95, .06, .05, BRASS)
-  cylinder(desk, .55, .88, -.95, .02, .12, BRASS)
-  cylinder(desk, .55, 1.0, -.95, .1, .12, '#e1c070')
-  box(desk, -.05, .83, -1.1, .36, .42, .03, EDGE)
-  box(desk, -.05, .86, -1.083, .3, .34, .012, INK.paper)
-  box(desk, -.05, .98, -1.074, .2, .14, .01, '#648079')
-  const bloom = new T.Group(); bloom.position.y = .83; desk.add(bloom)
-  leafyPlanter(bloom, .88, -.95, .26)
+  cylinder(credenza, -.35, .835, -.78, .10, .03, BRASS)
+  sphere(credenza, -.35, 1.06, -.78, .15, '#3f7f9f')
+  cylinder(credenza, .30, .835, -.78, .055, .05, BRASS)
+  cylinder(credenza, .30, .885, -.78, .02, .12, BRASS)
+  cylinder(credenza, .30, 1.005, -.78, .085, .10, '#e1c070')
+
 }
 
-/**
- * The founder's chair: tall, leather, tufted, with arms — a hand taller than anybody else's. Authored like
- * {@link craftedChair}, with the back toward +z, so that a facing of π puts it behind the occupant.
- */
 export function bossChair(g: T.Group, x: number, z: number, facing: number): T.Group {
   const chair = new T.Group(); chair.position.set(x, 0, z); chair.rotation.y = facing; g.add(chair)
   const LEATHER = '#8a5238', DARK = '#3a3938'

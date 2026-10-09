@@ -85,7 +85,7 @@ describe('the garage holds all five', () => {
     expect(shown('riser:matt')).toBe(true)
   })
 
-  it('stands everybody on their own platform: the founder on the podium, James on the deck, each hero on their site', () => {
+  it('places the four desk heroes on the shared timber deck and Billy on the floor', () => {
     // The height a prop comes to rest at is the height of the floor it stands on. The founder's podium is the highest
     // thing in the room — *"I want the me even more promenant, on a platform"* — and James is a step above the floor.
     const env = buildGarageEnvironment(3, cast, 'on', false, GARAGE_ASSEMBLED, true)
@@ -94,12 +94,12 @@ describe('the garage holds all five', () => {
     expect(restY('body:james')).toBeCloseTo(GARAGE_DECK.rise, 6)
     expect(restY('body:serena')).toBeCloseTo(HERO_SITES.serena.rise, 6)
     expect(restY('body:matt')).toBeCloseTo(HERO_SITES.matt.rise, 6)
-    expect(restY('body:billy')).toBeCloseTo(0, 6)
+    expect(restY('body:billy')).toBeCloseTo(HERO_SITES.billy.rise, 6)
     const ys = LEADER_IDS.map((id) => restY(`body:${id}`))
     expect(Math.max(...ys)).toBeCloseTo(restY('body:founder'), 6)
   })
 
-  it('has the founder look the way Matt and Serena do, in the world: square to the walls, into the room', () => {
+  it('resets support and operations while the founder faces screen-down', () => {
     // *"facing down right, the isometric way, like matt and serena"* (2026-10-07). A person's face is their local −z; the
     // world heading of that, through the station that turns them, is where they look.
     const env = buildGarageEnvironment(3, cast, 'on', false, GARAGE_ASSEMBLED, true)
@@ -109,7 +109,14 @@ describe('the garage holds all five', () => {
       return new T.Vector3(0, 0, -1).applyQuaternion(body.getWorldQuaternion(new T.Quaternion())).setY(0).normalize()
     }
     // The desk is in front of the person, so it faces the same way: the north wall's heroes look +z, into the room, and so does the boss.
-    for (const id of ['founder', 'matt', 'serena'] as const) expect(looks(id).dot(new T.Vector3(0, 0, 1)), id).toBeGreaterThan(0.999)
+    expect(looks('founder').dot(new T.Vector3(1, 0, 1).normalize())).toBeGreaterThan(0.999)
+    for (const [id, name] of [['matt', 'support-workstation'], ['serena', 'operations-workstation']] as const) {
+      const desk = env.root.getObjectByName(name)!
+      const forward = new T.Vector3(0, 0, 1).applyQuaternion(desk.getWorldQuaternion(new T.Quaternion()))
+      expect(looks(id).dot(forward), id).toBeGreaterThan(.999)
+    }
+    expect(looks('matt').dot(new T.Vector3(0, 0, 1))).toBeGreaterThan(.999)
+    expect(looks('serena').dot(new T.Vector3(0, 0, 1))).toBeGreaterThan(.999)
     // James, on the west wall, looks across the room, east.
     expect(looks('james').dot(new T.Vector3(1, 0, 0))).toBeGreaterThan(0.999)
   })
@@ -128,8 +135,9 @@ describe('the garage holds all five', () => {
     const sign = env.root.getObjectByName('studio-wall-sign')
     expect(sign, 'the sign').toBeDefined()
     // on the north wall's face, and over the podium (not over the heroes' sites, whose walls are for their own work)
-    expect(sign!.position.z).toBeGreaterThan(-9.7)
-    expect(sign!.position.z).toBeLessThan(-9.5)
+    expect(sign!.rotation.y).toBeCloseTo(Math.PI / 4)
+    expect(sign!.position.x + sign!.position.z).toBeGreaterThan(-17.0)
+    expect(sign!.position.x + sign!.position.z).toBeLessThan(-16.3)
     expect(sign!.position.x).toBeGreaterThan(GARAGE_PODIUM.x0)
     expect(sign!.position.x).toBeLessThan(GARAGE_PODIUM.x1)
   })

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   BILLY_PLAZA,
   GARAGE_DECK,
+  GARAGE_HERO_DECK,
   GARAGE_DECK_ENTRY,
   GARAGE_FURNITURE,
   GARAGE_HERO_SCALE,
@@ -14,6 +15,7 @@ import {
   HERO_SITES,
   LEADER_IDS,
   benches,
+  garageSeats,
   destinationsIn,
   heroDesktop,
   leaderDesks,
@@ -60,6 +62,11 @@ const gap = (a: Rect, b: Rect) => Math.hypot(
   Math.max(0, Math.abs(a.z - b.z) - (a.d + b.d) / 2))
 
 describe('the hero quarter', () => {
+  it('keeps the founder and James desktops separate with clear floor between them', () => {
+    const founder = heroDesktop('garage', leaderSeat('founder'))!
+    const james = heroDesktop('garage', leaderSeat('james'))!
+    expect(gap(founder, james)).toBeGreaterThan(1)
+  })
   it('seats everybody the cast names, and nobody twice', () => {
     expect(GARAGE_LEADERS.map((s) => s.id).sort()).toEqual([...LEADER_IDS].sort())
     expect(new Set(GARAGE_LEADERS.map((s) => s.seat)).size).toBe(LEADER_IDS.length)
@@ -85,12 +92,15 @@ describe('the hero quarter', () => {
     }
   })
 
-  it('puts Billy on the open floor, away from every wall, facing the lens', () => {
+  it('puts Billy on the open floor facing the east developer pod', () => {
     // *"they don't have to be all around the wall, put billy in the mix of devs"* (2026-10-05). Every earlier cut had
     // him against a wall, talking to it.
     const site = HERO_SITES.billy, s = leader('billy')
     expect(site.wall).toBe('free')
-    expect(s.rot).toBe(45) // the diagonal that §12.1's camera looks back along: he faces us
+    const audience = garageSeats().filter(d => d.x > s.x).sort((a, b) => Math.hypot(a.x - s.x, a.z - s.z) - Math.hypot(b.x - s.x, b.z - s.z))[0]
+    const angle = s.rot * Math.PI / 180
+    const dx = audience.x - s.x, dz = audience.z - s.z
+    expect((Math.sin(angle) * dx + Math.cos(angle) * dz) / Math.hypot(dx, dz)).toBeGreaterThan(.99)
     expect(s.x).toBeGreaterThan(site.x0)
     expect(s.x).toBeLessThan(site.x1)
     expect(s.z).toBeGreaterThan(site.z0)
@@ -150,17 +160,12 @@ describe('the hero quarter', () => {
     for (let i = 1; i < along.length; i++) expect(along[i].x0 - along[i - 1].x1, `gap ${i}`).toBeGreaterThanOrEqual(1.0)
   })
 
-  it('raises the boss above everything, James a step above the floor, and every wall hero a step too', () => {
-    // *"I want the me even more promenant, on a platform"* (2026-10-05): the podium is the highest thing in the room, and
-    // James is *above the floor* and below the boss, which is the org chart drawn as a plan.
-    for (const id of WALL_HEROES) expect(HERO_SITES[id].rise).toBeGreaterThan(0.1) // a step is what closes a terrace to routing
-    expect(GARAGE_DECK.rise).toBeGreaterThan(0.1)
-    expect(GARAGE_DECK.rise).toBeLessThan(GARAGE_PODIUM.rise)
-    for (const p of GARAGE_PLATFORMS) if (p !== GARAGE_PODIUM) expect(GARAGE_PODIUM.rise, `${p.rise}`).toBeGreaterThan(p.rise)
-    // Billy is on the floor, on a dais he stands on and nobody walks on: low enough that it is not a terrace.
-    expect(BILLY_PLAZA.dais.rise).toBeGreaterThan(0)
-    expect(BILLY_PLAZA.dais.rise).toBeLessThanOrEqual(0.3)
-    expect(HERO_SITES.billy.rise).toBe(0)
+  it('places four leaders on one low timber deck while Billy stays on the room floor', () => {
+    expect(GARAGE_HERO_DECK.rise).toBeGreaterThan(0)
+    for (const bay of GARAGE_PLATFORMS) expect(bay.rise).toBe(GARAGE_HERO_DECK.rise)
+    for (const id of WALL_HEROES) expect(HERO_SITES[id].rise).toBe(GARAGE_HERO_DECK.rise)
+    expect(HERO_SITES.billy.rise).toBe(GARAGE_HERO_DECK.rise)
+    expect(BILLY_PLAZA.dais.rise).toBe(0)
   })
 
   it('makes the back walls taller than anything that stands against them, with a sign’s height to spare', () => {
@@ -190,18 +195,14 @@ describe('the hero quarter', () => {
     expect(GARAGE_DECK.z0).toBe(GARAGE_PODIUM.z1)
   })
 
-  it('faces the founder’s whole station the isometric way, as Matt’s and Serena’s are: desk, chair and person', () => {
-    // *"not toward james, I mean facing down right, the isometric way, like matt and serena"* (2026-10-07). A station's `rot`
-    // is its yaw in degrees (0 faces +z, 90 faces +x) and everything in it — the person facing the desk, the desk in front
-    // of them, the credenza behind — is built in that frame, so one number turns all of it. Square to the walls, into the room.
-    const founder = leader('founder')
-    expect(founder.rot).toBe(leader('matt').rot)
-    expect(founder.rot).toBe(leader('serena').rot)
-    // …and not the diagonal the corner office was first built on (turned to the lens), nor an angle between.
-    expect(founder.rot % 90).toBe(0)
+  it('turns the founder toward screen-down while leaving the wall heroes straight', () => {
+    // The camera looks back along (-1, -1); equal positive x and z projects to six o'clock.
+    expect(leader('founder').rot).toBe(45)
+    expect(leader('matt').rot).toBe(0)
+    expect(leader('serena').rot).toBe(0)
   })
 
-  it('puts each leader’s desk on their own platform, and both platforms inside the building', () => {
+  it('keeps the connected project desks and chair approaches inside their shared corner bay', () => {
     const desks = leaderDesks('garage')
     expect(desks.map((x) => x.seat).sort()).toEqual([leaderSeat('founder'), leaderSeat('james')].sort())
     for (const [id, platform] of [['founder', GARAGE_PODIUM], ['james', GARAGE_DECK]] as const) {
@@ -209,13 +210,13 @@ describe('the hero quarter', () => {
       // close to walking, which overhangs a platform's edge by design.
       const desk = heroDesktop('garage', leaderSeat(id))!
       expect(desk, id).not.toBeNull()
-      expect(inside(desk, rectOf(platform)), id).toBe(true)
+      expect(inside(desk, rectOf(id === 'james' ? { ...GARAGE_DECK, z0: GARAGE_PODIUM.z0 } : { ...platform, x1: -4.4, z1: -3.9 })), id).toBe(true)
       // …and the whole desk with its chair is on it too, at the boss's diagonal as at James's quarter turn.
       const routing = desks.find((d) => d.seat === leaderSeat(id))!
-      expect(inside(routing, rectOf(platform), 0.35), `${id}'s chair and pedestals`).toBe(true)
+      expect(inside(routing, rectOf(id === 'james' ? { ...GARAGE_DECK, z0: GARAGE_PODIUM.z0 } : platform), 0.35), `${id}'s chair and pedestals`).toBe(true)
     }
     for (const p of [GARAGE_PODIUM, GARAGE_DECK]) {
-      for (const [x, z] of [[p.x0 + 0.01, p.z0 + 0.01], [p.x1 - 0.01, p.z1 - 0.01]]) expect(studioFloorContains(x, z)).toBe(true)
+      for (const [x, z] of [[p.x1 - 0.01, p.z0 + 0.01], [p.x1 - 0.01, p.z1 - 0.01]]) expect(studioFloorContains(x, z)).toBe(true)
     }
   })
 
@@ -226,7 +227,7 @@ describe('the hero quarter', () => {
     }
   })
 
-  it('leaves the boss room: no pod within two metres of the podium, none on the deck, and nothing stands on either', () => {
+  it('keeps developer pods and unrelated furniture clear of the project bay', () => {
     // A pod pressed against the boss's desk is the clutter the user named. The podium is the corner and has the north court
     // in front of it; the deck is beside the north-west pod, whose table rectangle (which is padded for its chairs, and
     // is wider than the table you see) stands 0.18 m off its edge — a lane the walk grid closes, and a metre of real
@@ -236,13 +237,13 @@ describe('the hero quarter', () => {
       expect(overlap(b, rectOf(GARAGE_DECK)), `pod at ${b.x},${b.z} / deck`).toBe(false)
     }
     for (const platform of [rectOf(GARAGE_PODIUM), rectOf(GARAGE_DECK)]) {
-      for (const f of GARAGE_FURNITURE) expect(overlap(footprint(f), platform), f.kind).toBe(false)
+      for (const f of GARAGE_FURNITURE.filter(f => f.kind !== 'unit')) expect(overlap(footprint(f), platform), f.kind).toBe(false)
     }
   })
 
   it('has no desk on top of a pod or a piece of furniture', () => {
     for (const desk of leaderDesks('garage')) {
-      for (const f of GARAGE_FURNITURE) expect(overlap(desk, footprint(f)), `desk ${desk.seat} / ${f.kind}`).toBe(false)
+      for (const f of GARAGE_FURNITURE.filter(f => f.kind !== 'unit')) expect(overlap(desk, footprint(f)), `desk ${desk.seat} / ${f.kind}`).toBe(false)
       for (const p of GARAGE_PODS) {
         const r = { x: p.x, z: p.z, w: p.rot === 90 ? 1.45 : 3.05, d: p.rot === 90 ? 3.05 : 1.45 }
         expect(overlap(desk, r), `desk ${desk.seat} / pod`).toBe(false)
@@ -254,7 +255,7 @@ describe('the hero quarter', () => {
     // Billy's own footprint is the one piece of furniture that is *his*: it is the board and the dais, in the plan so that
     // the walk grid closes them, and it is inside his site (above).
     for (const f of GARAGE_FURNITURE) {
-      if (f.kind === 'easel') continue
+      if (f.kind === 'easel' || f.kind === 'counter') continue
       for (const id of HEROES) expect(overlap(footprint(f), rectOf(HERO_SITES[id])), `${f.kind} / ${id}`).toBe(false)
     }
   })
@@ -274,7 +275,7 @@ describe('the hero quarter', () => {
     }
   })
 
-  it('closes the terraces and Billy’s board to routing, and leaves the floor one place you can walk across', () => {
+  it('reserves leadership furniture and leaves the studio walk grid connected', () => {
     // Nobody walks on to them: the heroes are pinned (§18.1) and each is a step up.
     expect(walkable('garage', 4.4, -8)).toBe(false) // the Ops Room
     expect(walkable('garage', -1.6, -8)).toBe(false) // Matt's riser

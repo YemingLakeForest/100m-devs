@@ -109,14 +109,14 @@ describe('the sets are only built for who is here', () => {
     expect([...props.keys()]).not.toContain('desk:billy')
   })
 
-  it('gives Billy a board and nobody else: he is alone, so there is no stool, no crowd and no chair to drop in', () => {
+  it('gives Billy the planning table and board without adding fictional people or a seated arrival', () => {
     const { props } = build()
     expect(props.get('desk:billy')).toBeDefined()
     expect(props.get('chair:billy')).toBeUndefined()
   })
 })
 
-describe('Billy faces us', () => {
+describe('Billy addresses the developer pod', () => {
   /** A set with a body in it, so that the set can move him; the body is the bare group the garage's builder hands over. */
   function withBilly() {
     const props = new Map()
@@ -134,26 +134,25 @@ describe('Billy faces us', () => {
     return { sets, body, set: props.get('desk:billy')!.group as T.Group }
   }
 
-  it('builds his set in the station’s own frame, turned an eighth to the lens', () => {
+  it('turns Billy’s set toward the east developer pod', () => {
     const { set } = withBilly()
-    expect(set.rotation.y).toBeCloseTo(Math.PI / 4, 9)
+    expect(set.rotation.y).toBeCloseTo(Math.PI / 2, 9)
   })
 
-  it('stands him to the lens at rest and turns him to his board, never to his back or past a quarter', () => {
-    // The body's face is its local −z, so a yaw of π is *toward the lens* in this station's frame, and π/2 is toward his
-    // left, where the board is. He may glance at the board; he may not show us his back.
+  it('keeps Billy addressing the east pod throughout his presentation', () => {
+    // His five-degree presentation sway stays directed at the east-pod audience.
     const { sets, body } = withBilly()
     const seen: number[] = []
     for (let t = 0; t < 40; t += 0.37) { sets.update(t, NO_HQ_READOUTS); seen.push(body.rotation.y) }
-    expect(Math.max(...seen)).toBeCloseTo(Math.PI, 6) // there are moments when he is square to us
-    expect(Math.min(...seen)).toBeLessThan(Math.PI - 0.5) // and moments when he is looking at the board
+    expect(Math.max(...seen)).toBeGreaterThan(Math.PI)
+    expect(Math.min(...seen)).toBeLessThan(Math.PI)
     for (const y of seen) {
-      expect(y).toBeLessThanOrEqual(Math.PI + 1e-9)
-      expect(y).toBeGreaterThanOrEqual(Math.PI / 2)
+      expect(y).toBeLessThanOrEqual(Math.PI + .081)
+      expect(y).toBeGreaterThanOrEqual(Math.PI - .081)
     }
   })
 
-  it('stands him on his dais, and does not sink him into it', () => {
+  it('keeps Billy grounded on his shared timber floor parent', () => {
     const { sets, body } = withBilly()
     for (const t of [0, 1, 2.2, 5]) {
       sets.update(t, NO_HQ_READOUTS)

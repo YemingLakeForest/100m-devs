@@ -518,10 +518,10 @@ export function entrance(g: T.Group, placement: {x:number;z:number;width:number;
   box(door, x, 2.55, z, width, height - 2.55, 0.26, INK.wall)
   // A simple plaster lintel and coping replace the sign and shopfront canopy.
   box(door, x, height, z, width + .1, .10, .32, INK.trim)
-  // The glazed leaf is open into the empty entry bay. The opening has no wall,
+  // The glazed leaf rests closed in the portal. The opening has no wall,
   // skirting or opaque glass panel stretching across it at knee height.
   const leaf = new T.Group(); leaf.name = 'studio-door-leaf'
-  leaf.position.set(-leafWidth / 2, 0, 0); leaf.rotation.y = -Math.PI / 6; door.add(leaf)
+  leaf.position.set(-leafWidth / 2, 0, 0); leaf.rotation.y = 0; door.add(leaf)
   box(leaf, leafWidth / 2, 0.08, 0, leafWidth, 0.2, 0.09, INK.teal)
   const glass = box(leaf, leafWidth / 2, 0.28, 0, leafWidth, 2.18, 0.045, '#b1c7c8', false)
   glass.material = sharedMaterial('studio-door-glass', () => new T.MeshStandardMaterial({ color: '#b1c7c8', transparent: true, opacity: 0.28, depthWrite: false, roughness: 0.35 }))

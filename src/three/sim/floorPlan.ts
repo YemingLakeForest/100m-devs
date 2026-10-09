@@ -97,7 +97,7 @@ export const GARAGE_WING_EAST = -6
  * on the actual shell, rather than the obsolete rectangular wall runs.
  */
 export const GARAGE_OUTLINE: readonly (readonly [number, number])[] = [
-  [-10, -9.8], [10, -9.8], [16, -3.8], [16, 4], [11, 9],
+  [-10, -7.0], [-7.2, -9.8], [10, -9.8], [16, -3.8], [16, 4], [11, 9],
   [4, 9], [4, 5], [-2, 5], [-2, 8], [-6, 8], [-10, 12],
   [-13, 12], [-13, 2], [-10, 2],
 ] as const
@@ -113,79 +113,29 @@ export const HQ_FINISHES = [
   { x0: 3.1, x1: 13.0, z0: 2.8, z1: 4.5, colour: '#a2ada5', name: 'East promenade' },
 ] as const
 
-/**
- * **The hero quarter** [re-planned 2026-10-05, GDD §7.8.12, at the user's instruction]. It has been
- * answered six times, and the answers are the argument:
- *
- * 1. *"I don't see any heroes"* — the first row of desks stood behind James's, at the top edge of the
- *    frame. Answered with one terrace along the whole north wall and three sets on it in a row.
- * 2. *"just line them up like that is boring. can you redesign the room and put them in properly, assume
- *    you are an architect and interior designer"* — three frontages of one width and depth are a shop
- *    window. Answered with a plan: each hero where their work belongs.
- * 3. *"a bit too clustered, the ME should still be top left as the boss, james next to us. Billy is too
- *    clusterd you can put him a side, he doesn't need a crowd."* — answered by leaving the pair alone.
- * 4. *"I asked founder on top right, his desk redesigned, mat got so sqaushed and we can do without the
- *    kitchen now. I still don't like all of these, do another version"* — the boss to the north-east
- *    corner; the kitchen gone; a redesigned desk; Matt given room.
- * 5. *"I want to be at top left, at the top of the topology"* — the boss to the north-west corner, on the
- *    west wall, with James beside; the heroes along the north wall.
- * 6. *"I want the me even more promenant, on a platform. also I see the wall are tool low, make them
- *    higher. billy should face us and he's too short, design again, they don't have to be all around
- *    the wall, put billy in the mix of devs so he's not just meetinging himself, do another cut, you can
- *    enlarge the room if it make sense"* — **this one.**
- *
- * - **The boss has a podium.** The north-west corner is a block 1.2 m high and 4.6 m square, the highest thing in
- *   the room, with a stair on its east face and a brass rail on the two faces the camera sees; the founder's desk
- *   stands on it **on the diagonal, facing the lens** — a corner office, which is what a corner is for — with the
- *   credenza across the corner behind. James is *next to* the boss, on an oak deck at its foot along the west
- *   wall, a step down. (`GARAGE_PODIUM`, `GARAGE_DECK`.)
- * - **The walls are 4.6 m** (`GARAGE_WALLS`), so what hangs on them — the studio's sign above the boss, the ticket
- *   wall, the dashboards, the name plates — hangs *on* them.
- * - **Billy is on the floor, among the developers.** The pods are spread to leave a plaza between the two columns —
- *   the avenue — and he stands at the mouth of it between the two north pods, at a rolling whiteboard whose face is
- *   turned to the lens, facing it himself. Not against a wall, not in a corner, not at a podium: *in the mix.* (He
- *   was against a wall in every cut before this one, and talking to it.)
- * - **Matt and Serena stay on the north wall**, which is where a wall-hung ticket board and a wall of dashboards
- *   belong; they are bigger (Matt 4.0 × 3.7 m, Serena 4.8 × 3.3 m) because the wall behind them is.
- *
- * *The room was not enlarged.* It was considered, and the camera decides: the HUD's message log covers the bottom
- * third of the picture, so a floor added toward the lens would be drawn under it, and a floor added behind the walls
- * is the backyard. What the plan needed was not more floor but the floor re-spent — the pods spread a metre and a
- * half either side of the avenue, the island, the locker and the hub planters gone, the project board shortened by
- * a metre — and that is what happened.
- *
- * *Tried and rejected, by measurement against the real camera.* The boss pair side by side along the north wall
- * (four sets in a line again). Matt in the entry wing (its far corner projects behind the HUD's left column).
- * A hero in the east bay (no back wall, so his back would be to the lens). Billy at the crossing's exact centre (the
- * assembly closes the east–west aisle, and a studio whose west half cannot walk to its east half is two studios).
- *
- * **Arrival order and the old wall.** Billy arrives first, then Serena, then Matt. Only Serena has a wall to hide
- * behind: on §12.1's camera a wall hides what is behind it along (−1, −1), so the partition east of a bay is the one
- * in front of it — and Matt, west of her, comes after it has gone. Billy is on the open floor and his board, rug and
- * lamp drop in with him; the boss is there from the first frame.
- */
+/** §7.8.12 [2026-10-09]: retain the studio plan, replace isolated display stages with
+ * separate desks on the common floor. Founder and James retain a clear gap;
+ * Matt and Serena face inward at open desks; Billy's chart cabinet leaves his front clear.
+ * The bay bounds remain reserved for pinned leadership and their working furniture. */
 
 /** The inner faces of the two back walls, the two the camera sees. Every site is built against one. */
 export const GARAGE_WALL_FACES = { north: -9.68, west: -9.88 } as const
 
-/**
- * **The founder's podium** [2026-10-05, *"I want the me even more promenant, on a platform"*] — the north-west
- * corner, 1.2 m up: 4.58 m along the north wall and 4.48 m along the west one. It was sized for a desk on the diagonal —
- * a 2.9 m desk with a rug turned 45° reaches 2.2 m from the station in each of two directions, with a credenza across
- * the corner behind that reaches 2.0 m back — and the desk is square to the walls now, facing the room as Matt's and
- * Serena's do (see {@link GARAGE_LEADERS}): the assembly is 2.9 m wide and 3.1 m deep, with a rug a hand beyond it, on a
- * podium of 4.6 by 4.5 — the same podium holds it with most of a metre of floor either side of the desk, which is the
- * boss's own lobby.
- */
-export const GARAGE_PODIUM = { x0: GARAGE_WALL_FACES.west, z0: GARAGE_WALL_FACES.north, x1: -5.3, z1: -5.2, rise: 1.2 } as const
+/** §7.8.12 [2026-10-09]: one low timber platform connects all five leadership workspaces.
+ * Its diagonal corner matches the actual rear wall; the west leg keeps the existing mat clearance. */
+export const GARAGE_HERO_DECK = {
+  rise: .24,
+  frontZ: -5.7,
+  outline: [[-9.88, -7.10], [-7.30, -9.68], [8.65, -9.68], [8.65, -5.7],
+    [4, -5.7], [4, 1.8], [3.5, 2.3], [1.5, 2.3], [1, 1.8], [1, -5.7],
+    [-4.4, -5.7], [-6.2, -3.9], [-6.2, 0], [-6.4, .2], [-9.88, .2]] as readonly (readonly [number, number])[],
+} as const
 
-/**
- * **James's deck** — the oak terrace at the podium's foot, along the west wall: 2.9 m wide, which holds a desk, the
- * chair behind it and nothing else, and 4.6 m long, from the podium's south face to a hand short of the project
- * board's base. One step up (0.24 m), against the podium's four: the boss is *above* James, and James is above the
- * floor, which is the org chart.
- */
-export const GARAGE_DECK = { x0: GARAGE_WALL_FACES.west, z0: -5.2, x1: -7.0, z1: -0.6, rise: 0.24 } as const
+/** §7.8.12 [2026-10-09]: the former podium bounds now reserve the floor-level project bay. */
+export const GARAGE_PODIUM = { x0: GARAGE_WALL_FACES.west, z0: GARAGE_WALL_FACES.north, x1: -5.3, z1: -5.2, rise: GARAGE_HERO_DECK.rise } as const
+
+/** The adjoining west arm of the project bay, on the same floor as the founder. */
+export const GARAGE_DECK = { x0: GARAGE_WALL_FACES.west, z0: -5.2, x1: -6.2, z1: 0.2, rise: GARAGE_HERO_DECK.rise } as const
 
 export type HeroSiteId = 'matt' | 'serena' | 'billy'
 
@@ -212,14 +162,14 @@ export interface HeroSite {
 export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
   // The north wall's west part, 4.0 m along it and 3.7 m out, 1.9 m east of the podium's stair: a front desk the size of
   // a front desk, with a lobby in front of it.
-  matt: { wall: 'north', x0: -3.6, x1: 0.4, z0: GARAGE_WALL_FACES.north, z1: -6.0, rise: 0.2 },
+  matt: { wall: 'north', x0: -3.6, x1: 0.4, z0: GARAGE_WALL_FACES.north, z1: -6.0, rise: GARAGE_HERO_DECK.rise },
   // 4.8 m of plinth and glass, 1.6 m east of Matt's riser, with 3.1 m to the east wall for the water cooler and the
   // corner it makes. The wall of six is as wide as the plinth, and the clerestory is above it.
-  serena: { wall: 'north', x0: 2.0, x1: 6.8, z0: GARAGE_WALL_FACES.north, z1: -6.38, rise: 0.9 },
+  serena: { wall: 'north', x0: 2.0, x1: 6.8, z0: GARAGE_WALL_FACES.north, z1: -6.38, rise: GARAGE_HERO_DECK.rise },
   // The mouth of the avenue between the two north pods, on the open floor: an octagon of rug 3.2 m across with a
   // rolling board on it facing the lens and a man on a dais facing it too (`BILLY_PLAZA`). The rectangle is the rug's
   // bounding square, which holds the board and the dais with a hand to spare.
-  billy: { wall: 'free', x0: -1.05, x1: 2.25, z0: -2.09, z1: 1.21, rise: 0, round: { x: .6, z: -.44, apothem: 1.6 } },
+  billy: { wall: 'free', x0: 1.2, x1: 3.6, z0: -.65, z1: 1.7, rise: GARAGE_HERO_DECK.rise },
 }
 
 /**
@@ -239,18 +189,24 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
  * square is twice its length on a side, which is why a shorter board buys a lane and not a shorter wall.)
  */
 export const BILLY_PLAZA = {
-  dais: { apothem: 0.52, rise: 0.16 },
-  board: { x: -1.45, z: -0.55, w: 1.65, feet: 0.35 },
+  dais: { apothem: 0.52, rise: 0 },
+  table: { x: -.30, z: .85, w: 2.10, d: .90 },
+  board: { x: -.65, z: -.80, w: 1.65, feet: 0.35 },
 } as const
-/** The terraces the walk grid is closed over: reached by a step, which a flat half-metre grid cannot say. */
-export const GARAGE_PLATFORMS = [GARAGE_PODIUM, GARAGE_DECK, HERO_SITES.serena, HERO_SITES.matt] as const
+/** Pinned leadership work bays: these protect their desks and chair approaches from errands. */
+export const OPS_WORK_BAY = { x0: HERO_SITES.matt.x0, x1: HERO_SITES.serena.x1,
+  z0: GARAGE_WALL_FACES.north, z1: HERO_SITES.matt.z1, rise: GARAGE_HERO_DECK.rise } as const
+// The shared ops counter and its cabinet-side working space are reserved together,
+// so ordinary errands cannot get trapped behind the joined furniture.
+export const BILLY_WORK_BAY = { x0: 1, x1: 4, z0: GARAGE_HERO_DECK.frontZ, z1: 2.3, rise: GARAGE_HERO_DECK.rise } as const
+export const GARAGE_PLATFORMS = [GARAGE_PODIUM, GARAGE_DECK, OPS_WORK_BAY, BILLY_WORK_BAY] as const
 export const GARAGE_HERO_SCALE = 1.25
 
 /** §7.8.12 [2026-10-08]: a broad central meeting court and equal two-metre mat aisles between rows.
  * The entry-wing pod follows the chamfer rather than compressing Billy between desk silhouettes. */
 export const GARAGE_PODS: readonly { x: number; z: number; rot: 0 | 90 }[] = [
-  { x: 6.7, z: -.9, rot: 0 }, { x: -8.7, z: 5.8, rot: 0 }, { x: -3.9, z: -.9, rot: 0 },
-  { x: 13.05, z: -.9, rot: 90 }, { x: 6.7, z: 5.8, rot: 0 },
+  { x: 7.8, z: -1.25, rot: 0 }, { x: -8.7, z: 5.45, rot: 0 }, { x: -2.8, z: -1.25, rot: 0 },
+  { x: 13.8, z: -1.25, rot: 0 }, { x: 7.8, z: 5.45, rot: 0 },
 ] as const
 
 export const LEADER_IDS = ['founder', 'james', 'billy', 'serena', 'matt'] as const
@@ -284,11 +240,11 @@ export const LEADER_STATIONS = LEADER_IDS.map((id, i) => ({ id, seat: leaderSeat
  *   1.2 m from the east ones, so there is a lane either side of it.
  */
 export const GARAGE_LEADERS = [
-  { id: 'founder' as LeaderId, seat: leaderSeat('founder'), x: -7.6, z: -7.9, rot: 0 },
-  { id: 'james' as LeaderId, seat: leaderSeat('james'), x: -9.0, z: -3.4, rot: 90 },
+  { id: 'founder' as LeaderId, seat: leaderSeat('founder'), x: -7.65, z: -7.45, rot: 45 },
+  { id: 'james' as LeaderId, seat: leaderSeat('james'), x: -9.0, z: -2.6, rot: 90 },
   { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -1.6, z: -8.4, rot: 0 },
   { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: 4.4, z: -8.3, rot: 0 },
-  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 1.4, z: -.9, rot: 45 },
+  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 2.5, z: .09, rot: 90 },
 ]
 
 /**
@@ -604,7 +560,7 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
   // walking footprint; huddle slots stay on its +x side. **3.8 m, not 4.82, and a metre south of where it was**
   // [2026-10-05]: the podium and James's deck took the west wall's north end, and the board's base now starts
   // 0.1 m south of the deck's.
-  { kind: 'board', x: -9.72, z: 0.7, w: .55, d: 2.4, h: 3.2, facing: Math.PI / 2 },
+  { kind: 'board', x: -9.72, z: 1.5, w: .55, d: 2.4, h: 3.2, facing: Math.PI / 2 },
   /*
    * The lounge, backed onto the west wall and looking across the floor.
    *
@@ -643,6 +599,9 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
   // is where it was.
   // A fitted storage link joins the hero work wall without occupying its front access lane.
   { kind: 'shelving', x: 1.2, z: -9.15, w: 1.3, d: .8 },
+  { kind: 'unit', x: -4.55, z: -9.08, w: 1.05, d: .65 },
+  { kind: 'unit', x: 8.0, z: -9.08, w: 1.05, d: .65 },
+  // Shared furniture connects the paired bays without moving the building or developer pods.
   { kind: 'cooler', x: 9.3, z: -9.25, w: .7, d: .7 },
   { kind: 'bench', x: 10.5, z: 7.8, w: 1.8, d: .62, low: true },
 ]
@@ -753,7 +712,7 @@ const GARAGE_DESTINATIONS: readonly Destination[] = [
     slots: [{ x: garageCooler.x, z: garageCooler.z + 0.95 }, { x: garageCooler.x - 0.75, z: garageCooler.z + 0.95 }] },
   // Huddles stand in the clear aisle beside the board, facing it.
   { kind: 'whiteboard', facing: yawToward(-1, 0),
-    slots: [{ x: -8.5, z: -0.5 }, { x: -8.5, z: 0.5 }, { x: -8.5, z: 1.5 }] },
+    slots: [{ x: -8.5, z: 0.5 }, { x: -8.5, z: 1.5 }, { x: -8.5, z: 2.5 }] },
   /*
    * The street door's glass: you stand just inside it and look out. **It was the clerestory band on
    * the far wall**, and then the east glazing past the kitchen; the first was under the first hero terrace (two
@@ -773,7 +732,7 @@ const GARAGE_DESTINATIONS: readonly Destination[] = [
     slots: [{ x: -12.76, z: 5.0 }, { x: -12.76, z: 6.6 }] },
   // The hub. Where you stand about in a room shaped like this, because it is
   // the one place every route passes.
-  { kind: 'loiter', facing: 0, slots: [{ x: -2.4, z: 2.5 }, { x: 2.0, z: -4.2 }, { x: 6.7, z: 4.7 }] },
+  { kind: 'loiter', facing: 0, slots: [{ x: -2.4, z: 2.5 }, { x: 0, z: -4.2 }, { x: 10.9, z: 2.1 }] },
 ]
 
 /** Office destinations are off the main loop: occupied slots never own a junction.
@@ -1053,8 +1012,8 @@ function gridFor(place: Place): Grid {
        */
       if (place === 'garage') {
         if (!studioFloorContains(x, z)) { open[r * cols + c] = 0; continue }
-        // The wall-side half cells are not an aisle behind the flush platform.
-        if (GARAGE_PLATFORMS.some((d) => d.rise > 0.1 && x > d.x0 - CELL / 2 && x < d.x1 && z > d.z0 - CELL / 2 && z < d.z1)) { open[r * cols + c] = 0; continue }
+        // Wall-side half cells are not an aisle behind fitted work bays.
+        if (GARAGE_PLATFORMS.some((d) => x > d.x0 - CELL / 2 && x < d.x1 && z > d.z0 - CELL / 2 && z < d.z1)) { open[r * cols + c] = 0; continue }
       } else if (officeClosed(x, z)) { open[r * cols + c] = 0; continue }
       for (const k of blocks) {
         if (Math.abs(x - k.x) < k.w / 2 + k.pad && Math.abs(z - k.z) < k.d / 2 + k.pad) {

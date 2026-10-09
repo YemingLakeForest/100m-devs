@@ -1,6 +1,6 @@
 /** §7.8.12 [2026-10-07]: a workshop with a gallery and garden, keeping the hero stations intact. */
 import * as T from 'three'
-import { GARAGE_PODS, GARAGE_POD_LAYOUT, GARAGE_FURNITURE, HQ_FINISHES, HQ_GARDEN } from '../sim/floorPlan.ts'
+import { GARAGE_PODS, GARAGE_POD_LAYOUT, GARAGE_FURNITURE, HQ_FINISHES, HQ_GARDEN, GARAGE_HERO_DECK } from '../sim/floorPlan.ts'
 import { box, sharedMaterial } from './worldArt.ts'
 import { lamp } from './glowArt.ts'
 import { leafyPlanter } from './garageCraft.ts'
@@ -32,6 +32,21 @@ function galleryStudy(parent: T.Group, ordinal: number, along: number, north = f
   picture.userData.ownGeometry = true; frame.add(picture)
 }
 
+/** Low-detail books and stepped plants give scale to the working wall at the room camera. */
+function studioBookcase(g: T.Group, x: number, z: number): void {
+  box(g, x, 0, z, 1.05, .10, .65, '#34494f')
+  for (const dx of [-.49, .49]) box(g, x + dx, .10, z, .07, 2.30, .65, '#76583d')
+  box(g, x, .10, z - .29, .96, 2.30, .035, '#34494f')
+  for (const y of [.65, 1.20, 1.75, 2.30]) {
+    box(g, x, y, z, 1.05, .065, .65, '#ba9263')
+    if (y < 2) for (let i = 0; i < 5; i++)
+      box(g, x - .35 + i * .15, y + .065, z + .07, .10, .32 + i % 2 * .08, .30,
+        ['#688f9a', '#b19665', '#61745d', '#a2a99a', '#76583d'][i])
+  }
+  const plant = new T.Group(); plant.position.y = 2.37; g.add(plant)
+  leafyPlanter(plant, x, z, .38)
+}
+
 export function hqInterior(g: T.Group, studies: T.Group): void {
   // Fine inlays show circulation without the oversized carpet cross of the first cut.
   for (const f of HQ_FINISHES) {
@@ -55,31 +70,37 @@ export function hqInterior(g: T.Group, studies: T.Group): void {
   box(g, -12.87, .22, 5.8, .026, 3.14, 3.64, '#947a58', false)
   for (let z = 4.05; z < 7.55; z += .20) box(g, -12.85, .24, z, .026, 3.08, .025, '#6c604d', false)
   for (let i = 0; i < 3; i++) galleryStudy(g, i, 4.6 + i * 1.2)
-  // The backing colours frame work and people; their branch accents can remain small and purposeful.
-  box(g, -7.6, 1.22, -9.655, 4.15, 2.25, .025, '#3a565e', false)
-  for (let x = -9.5; x < -5.55; x += .23) box(g, x, 1.22, -9.62, .045, 2.25, .035, '#b08c5c', false)
-  box(g, -1.6, .22, -9.655, 4, 3.2, .025, '#3a565e', false)
-  box(g, 4.4, .92, -9.655, 4.8, 2.6, .025, '#3a565e', false)
+  // The diagonal backdrop belongs to the real chamfer, aligned with the founder's six-o'clock desk.
+  const backdrop = new T.Group(); backdrop.name = 'founder-diagonal-backdrop'
+  backdrop.position.set(-8.5, 0, -8.3); backdrop.rotation.y = Math.PI / 4; g.add(backdrop)
+  box(backdrop, 0, .24, .08, 3.50, 4.05, .03, '#3a565e', false)
+  for (let x = -1.575; x < 1.7; x += .21) box(backdrop, x, .24, .115, .045, 4.05, .035, '#b08c5c', false)
+  const workwall = new T.Group(); workwall.position.y = GARAGE_HERO_DECK.rise; g.add(workwall)
+  box(workwall, -1.6, .22, -9.655, 4, 3.2, .025, '#3a565e', false)
+  box(workwall, 4.4, .22, -9.655, 4.8, 3.2, .025, '#3a565e', false)
   // A creative wall fills the early bay without an unexplained enclosure.
   // The studies give way to Serena's working dashboards when she arrives.
   for (let i = 0; i < 3; i++) galleryStudy(studies, 3 + i, 3 + i * 1.4, true)
   for (const x of [2.16, 6.64]) {
-    box(g, x, .96, -9.60, .08, 2.5, .055, '#ba9263', false)
+    box(workwall, x, .22, -9.60, .08, 3.1, .055, '#ba9263', false)
   }
   const storage = GARAGE_FURNITURE.find(f => f.kind === 'shelving')!
-  box(g, storage.x, 0, storage.z, storage.w, 1.04, storage.d, '#34494f')
-  box(g, storage.x, 1.04, storage.z, storage.w + .06, .065, storage.d + .04, '#ba9263')
+  box(workwall, storage.x, 0, storage.z, storage.w, 1.04, storage.d, '#34494f')
+  box(workwall, storage.x, 1.04, storage.z, storage.w + .06, .065, storage.d + .04, '#ba9263')
   for (const side of [-1, 1]) {
     const x = storage.x + side * .32
-    box(g, x, .09, storage.z + storage.d / 2 + .015, .59, .84, .025, '#76583d')
-    box(g, x - side * .20, .55, storage.z + storage.d / 2 + .033, .025, .14, .025, '#879e9f')
+    box(workwall, x, .09, storage.z + storage.d / 2 + .015, .59, .84, .025, '#76583d')
+    box(workwall, x - side * .20, .55, storage.z + storage.d / 2 + .033, .025, .14, .025, '#879e9f')
   }
+  // Cohesion comes from the work wall and material system; personal desktops stay separate.
+  studioBookcase(workwall, -4.55, -9.08)
+  studioBookcase(workwall, 8, -9.08)
   // Matching stiles and header join the hero bays into one architectural work wall.
-  for (const x of [-3.55, .35, 2.05, 6.75]) box(g, x, 1.0, -9.59, .07, 2.35, .065, '#ba9263')
-  box(g, 1.6, 3.35, -9.59, 10.5, .08, .065, '#ba9263')
+  for (const x of [-3.55, .35, 2.05, 6.75]) box(workwall, x, 1.0, -9.59, .07, 2.35, .065, '#ba9263')
+  box(workwall, 1.6, 3.35, -9.59, 10.5, .08, .065, '#ba9263')
   // A continuous warm diffuser ties the disparate work areas together, without a coloured light on faces.
-  lamp(g, 2.4, 3.45, -9.56, 14, .045, .055, '#dfd8b9')
-  lamp(g, -9.73, 3.45, -5.95, .055, .045, 7.1, '#dfd8b9')
+  lamp(workwall, 2.4, 3.45, -9.56, 14, .045, .055, '#dfd8b9')
+  lamp(workwall, -9.73, 3.45, -5.95, .055, .045, 7.1, '#dfd8b9')
   // An actual open-air court cuts into the frontage. It is outside the work floor,
   // so the grass and planting cannot become a shortcut through an invisible wall.
   const c = HQ_GARDEN
@@ -117,12 +138,26 @@ export function hqInterior(g: T.Group, studies: T.Group): void {
     box(garden, x + .16, .48, z, .12, .16, .12, '#63836a')
     box(garden, x + .16, .64, z, .13, .08, .13, '#8f8395')
   }
-  for (const x of [-.40, 2.40]) {
-    box(garden, x, 0, 8.8, .13, 2.12, .13, '#76583d')
-    box(garden, x, .01, 8.8, .18, .10, .18, '#34494f')
+  for (const x of [-.40, 2.40]) for (const z of [7.65, 8.8]) {
+    box(garden, x, 0, z, .13, 2.12, .13, '#76583d')
+    box(garden, x, .01, z, .18, .10, .18, '#34494f')
   }
-  box(garden, 1, 2.12, 8.8, 3.12, .13, .15, '#a18b65')
-  for (let x = -.4; x < 2.6; x += .40) box(garden, x, 2.22, 8.40, .08, .09, .94, '#a18b65')
+  for (const z of [7.65, 8.8]) box(garden, 1, 2.12, z, 3.12, .13, .15, '#a18b65')
+  for (let x = -.4; x < 2.6; x += .40) box(garden, x, 2.22, 8.22, .08, .09, 1.50, '#a18b65')
+  // Stepped vine clusters break up the roof without a solid canopy hiding the garden.
+  for (const x of [-.35, .40, 1.65, 2.35]) {
+    box(garden, x, 2.30, 8.75, .42, .16, .46, '#416652')
+    box(garden, x + .12, 2.28, 8.56, .28, .15, .35, '#63836a')
+  }
+  for (const x of [-.40, 2.40]) for (const y of [.50, 1.10, 1.70]) {
+    box(garden, x + .10, y, 8.78, .20, .24, .18, '#416652')
+    box(garden, x - .09, y + .18, 8.75, .18, .19, .20, '#63836a')
+  }
+  // More layered borders, leaving the paved approach and bench front clear.
+  for (const x of [-1.4, 3.4]) for (const z of [5.25, 5.9, 6.55, 7.1]) {
+    box(garden, x - .08, .29, z, .23, .20, .27, '#789078')
+    box(garden, x + .11, .42, z + .06, .14, .10, .13, '#a7a38b')
+  }
   for (const x of [-1.91, 3.91]) box(garden, x, 0, 7, .16, .02, 3.9, '#87938a', false)
 
 }

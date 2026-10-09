@@ -227,8 +227,9 @@ export function studioPerson(parent: T.Object3D, x: number, z: number, facing: n
   // §7.4a [2026-10-07]: the review cut gets its bulk from the model, not a
   // low-resolution screen filter. Scale the complete parts so faces and collars
   // keep their anchors, and leave the seated height and desk clearance intact.
-  if (blocks) torso.scale.set(1.28, bean ? 1.7 : 1, 1.45)
-  const head = new T.Group(); head.position.set(0, bean ? 0.52 * 1.7 : 1.18 + lift, 0); g.add(head); head.name = 'head'
+  const standingBodyHeight = id === 'billy' ? 2.65 : 1.7
+  if (blocks) torso.scale.set(1.28, bean ? standingBodyHeight : 1, 1.45)
+  const head = new T.Group(); head.position.set(0, bean ? 0.52 * standingBodyHeight : 1.18 + lift, 0); g.add(head); head.name = 'head'
   if (blocks) head.scale.set(1.16, 1, 1.16)
   const namedHero = id === 'james' || id === 'billy' || id === 'serena' || id === 'matt'
   if (id === 'founder') {
