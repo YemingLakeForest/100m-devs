@@ -107,6 +107,13 @@ export const GARAGE_OUTLINE: readonly (readonly [number, number])[] = [
   [-13, 12], [-13, 2], [-10, 2],
 ] as const
 
+/**
+ * Where the west wall's solid run ends, as a z on its inner face: the lounge's opening is the vertex (−10, 2), the wall
+ * is 0.24 thick, and the two walls that meet there are mitred (`worldArt.wallCorners`), so the inner face runs a half
+ * thickness past the vertex. Anything hung on that wall has to stop short of it.
+ */
+export const WEST_WALL_END = GARAGE_OUTLINE[14][1] + 0.12
+
 /** The six-metre outdoor court is a void in the work floor, not another indoor bay. */
 export const HQ_GARDEN = { x0: -2, x1: 4, z0: 5, z1: 9 } as const
 
@@ -169,7 +176,7 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
   // a front desk, with a lobby in front of it.
   matt: { wall: 'north', x0: -3.6, x1: 0.4, z0: GARAGE_WALL_FACES.north, z1: -6.0, rise: GARAGE_HERO_DECK.rise },
   // 4.8 m of plinth and glass, 1.6 m east of Matt's riser, with 3.1 m to the east wall for the water cooler and the
-  // corner it makes. The wall of six is as wide as the plinth, and the clerestory is above it.
+  // corner it makes. The wall of six is as wide as the plinth, and the wall's top metre, kept clear for the plates, is above it.
   serena: { wall: 'north', x0: 2.0, x1: 6.8, z0: GARAGE_WALL_FACES.north, z1: -6.38, rise: GARAGE_HERO_DECK.rise },
   // The mouth of the avenue between the two north pods, on the open floor: an octagon of rug 3.2 m across with a
   // rolling board on it facing the lens and a man on a dais facing it too (`BILLY_PLAZA`). The rectangle is the rug's
@@ -569,7 +576,17 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
   // walking footprint; huddle slots stay on its +x side. **3.8 m, not 4.82, and a metre south of where it was**
   // [2026-10-05]: the podium and James's deck took the west wall's north end, and the board's base now starts
   // 0.1 m south of the deck's.
-  { kind: 'board', x: -9.72, z: 1.5, w: .55, d: 2.4, h: 3.2, facing: Math.PI / 2 },
+  //
+  // **[2026-10-11, at the user's instruction: *"the white board is now exceeding and hanging halfly on the wall"*]
+  // It is 1.65 m, and it hangs on the wall and nowhere else.** At 2.4 m it spanned z 0.3 – 2.7 against a wall that ends
+  // at the lounge's opening: the corner at (−10, 2), whose inner face runs to 2.12 once the two walls are mitred. So
+  // 0.6 m of board and its tray hung in the air over the doorway, and the sprint board looked pinned to nothing. There
+  // is no more wall to give it — James's deck takes the north end of it — so it is the board that gives: it starts
+  // where it did, a hand south of the deck, and stops a hand short of the corner, and `garageShell.test.ts` looks for
+  // wall behind every point of it. Its face is drawn to the width it is given (`projectBoard`), so nothing else moves
+  // but the three huddle slots, which stand in front of it.
+  { kind: 'board', x: -9.72, z: (GARAGE_DECK.z1 + 0.1 + WEST_WALL_END - 0.17) / 2, w: .55,
+    d: WEST_WALL_END - 0.17 - (GARAGE_DECK.z1 + 0.1), h: 3.2, facing: Math.PI / 2 },
   /*
    * The lounge, backed onto the west wall and looking across the floor.
    *
@@ -714,14 +731,17 @@ export function yawToward(dx: number, dz: number): number {
  * corner by the fifth pod, which is where you meet anyone in a room this shape.
  */
 const garageCooler = GARAGE_FURNITURE.find(f => f.kind === 'cooler')!
+const garageBoard = GARAGE_FURNITURE.find(f => f.kind === 'board')!
 const GARAGE_DESTINATIONS: readonly Destination[] = [
   // Facing the cooler, which is against the north wall: the standing spots are south of it, 0.95 m off its
   // centre, an arm's length from the front of it and clear of the 0.25 the piece claims.
   { kind: 'water', facing: yawToward(0, -1),
     slots: [{ x: garageCooler.x, z: garageCooler.z + 0.95 }, { x: garageCooler.x - 0.75, z: garageCooler.z + 0.95 }] },
-  // Huddles stand in the clear aisle beside the board, facing it.
+  // Huddles stand in the clear aisle beside the board, facing it: one in front of its middle and one at each end of
+  // it, which is where three people would stand (they were a metre apart on a 2.4 m board, and one of the three would
+  // have been looking at the lounge's doorway once the board stopped at the wall's end).
   { kind: 'whiteboard', facing: yawToward(-1, 0),
-    slots: [{ x: -8.5, z: 0.5 }, { x: -8.5, z: 1.5 }, { x: -8.5, z: 2.5 }] },
+    slots: [-0.65, 0, 0.65].map(dz => ({ x: -8.5, z: garageBoard.z + dz })) },
   /*
    * The street door's glass: you stand just inside it and look out. **It was the clerestory band on
    * the far wall**, and then the east glazing past the kitchen; the first was under the first hero terrace (two

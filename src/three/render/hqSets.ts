@@ -380,7 +380,7 @@ export function buildHqSets(input: HqSetInput): HqSets {
   // 4.0 m along the wall and 3.7 m out, and every piece in it is sized to the site and not to a number. The desk is a
   // counter, closed at the front, lettered, and the one surface of the set the camera sees square; the ticket wall
   // is the wall the old garage gate was in — and **it goes up as far as the wall lets it** (2.1 m of it, from a hand
-  // above the counter to a hand under the clerestory) because the wall is 4.6 m now and a pinboard that stopped at
+  // above the counter to a hand under the name plates' metre) because the wall is 4.6 m now and a pinboard that stopped at
   // the old 3.2 m's height would be a poster in the bottom half of a tall room.
   if (present.has('matt')) {
     const { set, c } = frame('matt')
@@ -438,8 +438,8 @@ export function buildHqSets(input: HqSetInput): HqSets {
     const { set, c } = frame('serena')
     const wallZ = c.z0
     const CYAN = '#688f9a'
-    // the wall of six: the width of the plinth and, now that the wall is 4.6 m, nearly the height the clerestory
-    // leaves it — 2.2 m of video wall from a hand above the plinth to the lit line under the glazing (3.2 m up the wall)
+    // the wall of six: the width of the plinth and, now that the wall is 4.6 m, nearly the height the name plates'
+    // metre leaves it — 2.2 m of video wall from a hand above the plinth to the lit line at the foot of that metre (3.2 m up the wall)
     box(set, 0, .80, wallZ + 0.07, c.x1 - c.x0 - 0.12, 2.18, 0.1, '#34494f')
     const kinds = ['queue', 'velocity', 'incidents', 'defects', 'sync', 'status'] as const
     // three columns across whatever width the plinth has (4.8 m: a pitch of 1.47), each a little taller than the

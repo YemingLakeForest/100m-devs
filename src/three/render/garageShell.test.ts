@@ -2,7 +2,8 @@ import * as T from 'three'
 import { describe, expect, it } from 'vitest'
 import { GARAGE_ASSEMBLED, buildGarageEnvironment } from './garageEnvironment.ts'
 import { defaultCast } from './studioPeople.ts'
-import { GARAGE_OUTLINE, GARAGE_WALLS, STUDIO_DOOR, STUDIO_GABLE } from '../sim/floorPlan.ts'
+import { GARAGE_DECK, GARAGE_OUTLINE, GARAGE_WALLS, STUDIO_DOOR, STUDIO_GABLE, WEST_WALL_END } from '../sim/floorPlan.ts'
+import { FRONT_FRAME, frontGlazing } from './garageDetails.ts'
 
 /**
  * The garage's shell, as built [2026-10-11, at the user's instruction: *"the door and the logo wall on the front is not
@@ -40,6 +41,50 @@ describe('the front stands as tall as the rest of the building', () => {
     // the portal grew; the leaf, the thing a person walks through, did not
     const leaf = new T.Box3().setFromObject(door.getObjectByName('studio-door-leaf')!).max.y
     expect(leaf).toBeLessThan(STUDIO_DOOR.height)
+  })
+
+  it('makes the door of the storefront it is set in: above its head there is only glass and the frontage’s graphite', () => {
+    // The first cut ran plaster piers up to the eave and capped them, and the user's word for it was *funny*: a gate in
+    // a glass wall. Whatever the door is made of above its own head, it is not the wall's plaster.
+    const door = shell.root.getObjectByName('studio-entrance')!
+    const above: T.Mesh[] = []
+    door.traverse((node) => {
+      if (node instanceof T.Mesh && new T.Box3().setFromObject(node).min.y >= STUDIO_DOOR.height - 1e-6) above.push(node)
+    })
+    expect(above.length).toBeGreaterThan(0)
+    for (const mesh of above) {
+      const finish = mesh.material as T.MeshStandardMaterial
+      expect(finish === frontGlazing() || finish.color.getHexString() === FRONT_FRAME.slice(1), 'a plaster member above the door’s head').toBe(true)
+    }
+    // two leaves meet in the middle where there was one very wide one
+    expect(door.getObjectByName('studio-door-leaf-left')).toBeDefined()
+    expect(door.getObjectByName('studio-door-leaf-right')).toBeDefined()
+  })
+})
+
+describe('the project board hangs on the wall', () => {
+  // The board is built after the batcher, so it needs the whole room and not the bare shell.
+  const full = buildGarageEnvironment(3, defaultCast(), 'on', false, GARAGE_ASSEMBLED, true)
+  full.root.updateMatrixWorld(true)
+
+  it('has solid wall behind every point of it, and does not reach into James’s deck', () => {
+    // *"the white board is now exceeding and hanging halfly on the wall"* [2026-10-11]: 0.6 m of it stood over the
+    // lounge's doorway. Look from the room straight at the wall, at the board's mid-height, all along it: whatever a
+    // ray meets first behind the board has to be the west wall's face, not the lounge's far wall twelve feet on.
+    const board = full.root.getObjectByName('garage-project-whiteboard')!
+    const extent = new T.Box3().setFromObject(board)
+    expect(extent.min.z).toBeGreaterThanOrEqual(GARAGE_DECK.z1)
+    expect(extent.max.z).toBeLessThanOrEqual(WEST_WALL_END)
+    const mid = (extent.min.y + extent.max.y) / 2
+    const inBoard = (o: T.Object3D) => { for (let n: T.Object3D | null = o; n; n = n.parent) if (n === board) return true; return false }
+    const steps = 16
+    for (let i = 0; i <= steps; i++) {
+      const z = extent.min.z + 0.005 + ((extent.max.z - extent.min.z - 0.01) * i) / steps
+      const behind = new T.Raycaster(new T.Vector3(-9, mid, z), new T.Vector3(-1, 0, 0))
+        .intersectObjects(full.root.children, true).find((h) => h.object.visible && !inBoard(h.object))
+      expect(behind?.point.x, `what is behind the board at z = ${z.toFixed(2)}`).toBeLessThan(-9.7)
+      expect(behind!.point.x, `what is behind the board at z = ${z.toFixed(2)}`).toBeGreaterThan(-10.2)
+    }
   })
 })
 

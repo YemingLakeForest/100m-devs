@@ -228,20 +228,6 @@ export function showGarageStations(env: Environment, staging: GarageStaging, cas
 
 const IDENTITY = new T.Matrix4()
 
-/**
- * The glass in the clerestory ribbons, which is the one surface in the room that is brighter than the room. It is not
- * lit by the lamps (a basic material, shared), so a lamp over it cannot make it dull and a shadow cannot darken it:
- * what it says is *there is a sky out there*, and the sky is a dusk blue a step lighter than the walls it is set in.
- */
-const SKY = '#8ea6af'
-const skyMaterial = () => sharedMaterial('garage-sky', () => new T.MeshBasicMaterial({ color: SKY }))
-/** A pane of that glass: a box that is not lit. */
-function skyPane(parent: T.Object3D, x: number, y: number, z: number, w: number, h: number, d: number): T.Mesh {
-  const pane = box(parent, x, y, z, w, h, d, SKY, false)
-  pane.material = skyMaterial()
-  return pane
-}
-
 /** GDD §§6, 7, 13.1. Architecture is authored geometry, never an atlas plane.
  * The original art supplies plaster, shutter, workshop, blue lounge and planted
  * entrance; the garage mechanics determine five pods and only two leader desks.
@@ -270,16 +256,14 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
    * [2026-10-04] **The far wall is one straight run, at z = −9.8.** It stepped back 3.3 m at x = 1.5 over the
    * right-hand 42% of the frontage, to an annex that held a developer pod and the kitchen; the step went when
    * the back wall was pushed out for the heroes, and the kitchen went on 2026-10-05 (*"we can do without the
-   * kitchen now"*) — the boss's deck is in that corner now, under the same clerestory.
+   * kitchen now"*) — the boss's deck is in that corner now.
    */
-  // **One run, the full height of the hall** (4.6 m: `GARAGE_WALLS`). The heroes hang their work on this wall — the
-  // dashboards, the ticket wall, the studio's sign — so the glazing is a *ribbon above all of it* (a clerestory, which is
-  // what the word means), not a band the work has to dodge: it was a band from x = 4.4 east, and Serena's wall of
-  // dashboards would have been hung across its panes.
+  // **One run, the full height of the hall** (4.6 m: `GARAGE_WALLS`), and plain plaster to its coping. [2026-10-11, at
+  // the user's instruction: *"I don't like the top fanlights on the back wall"*] A ribbon of glazing ran along the top
+  // metre of both back walls, over everything the heroes hang there, to give a 4.6 m wall its scale. It read as a
+  // bright strip stuck on the plaster rather than as a window set in it — a sill ledge standing out of the face and
+  // no frame at either end — and the wall is plainer, and the work hung on it easier to read, without it.
   const WALL = GARAGE_WALLS.height
-  skyPane(g, 2.4, WALL - 1.0, -9.68, 14.0, 0.8, 0.06)
-  for (let x = -4.4; x <= 9.4; x += 1.4) box(g, x, WALL - 1.0, -9.7, 0.12, 0.8, 0.1, INK.trim)
-  box(g, 2.4, WALL - 1.04, -9.62, 14.2, 0.06, 0.2, INK.trim)
   // §7.8.12 [2026-10-07]: open floor replaces the arrival enclosure.
   // The wall finish belongs to the studio; the operations furniture arrives with Serena.
   // §7.8.12: the courtyard and both work wings share the simulation's perimeter.
@@ -296,7 +280,9 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   const solid: WallRun[] = []
   const glass: WallRun[] = []
   type Joints = { before?: Plan; after?: Plan }
-  const edge = (a: Plan, b: Plan, h: number, joints: Joints, glazed = false) => {
+  /** Which ends of a glazed run stand against solid wall rather than against more glass or the doorway's own jamb. */
+  type Meets = { start: boolean; end: boolean }
+  const edge = (a: Plan, b: Plan, h: number, joints: Joints, glazed = false, meets: Meets = { start: false, end: false }) => {
     // Every run that reaches the eave wears the same coping, the north wall's (.12 × .35); a low one wears the lighter.
     const tall = h >= WALL
     solid.push({ a, b, y: 0, h, t: .24, colour: INK.wall, ...joints })
@@ -304,41 +290,61 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     if (!glazed) return
     // A full-height storefront encloses the studio without an opaque wall
     // between the camera and its people. The court remains open to the sky.
-    const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+    const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz)
     glass.push({ a, b, y: h + .07, h: WALL - h - .07, t: .055, colour: '#a4cbd0', ...joints })
     solid.push({ a, b, y: WALL, h: .09, t: .12, colour: FRONT_FRAME, ...joints })
+    /*
+     * **The uprights stand along their run, and the ones that meet a wall are frames** [2026-10-11, at the user's
+     * instruction: *"window to wall joints can be improved"*]. They were 0.08 m squares dropped on the line, axis-aligned
+     * whatever the run did — a post cocked against a diagonal rail on the chamfers — and the one where the glass meets a
+     * plaster wall was the same thin stub as the ones in the middle of a pane, standing on the vertex with half of it
+     * buried in the wall. Now every one is turned to its run, a mullion is a little deeper than the glass it holds, and
+     * the end that meets a wall is a jamb the width of the door's (0.12 × 0.34, the same graphite) set just inside the
+     * wall's cut, so the glass ends in a frame and not in plaster.
+     */
+    const yaw = -Math.atan2(dz, dx)
     const bays = Math.ceil(len / 3.4)
     for (let j = 0; j <= bays; j++) {
-      const t = j / bays
-      box(g, a[0] + (b[0] - a[0]) * t, h + .07, a[1] + (b[1] - a[1]) * t, .08, WALL - h - .07, .08, FRONT_FRAME)
+      const jamb = (j === 0 && meets.start) || (j === bays && meets.end)
+      // a jamb sits a hand inside the run from the vertex, so that it stands in the glass's bay and not in the wall
+      const t = jamb ? (j === 0 ? .04 : len - .04) / len : j / bays
+      const post = box(g, a[0] + dx * t, h + .07, a[1] + dz * t, jamb ? .12 : .08, WALL - h - .07, jamb ? .34 : .12, FRONT_FRAME)
+      post.rotation.y = yaw
     }
   }
   const outline = GARAGE_OUTLINE
-  outline.forEach((from, i) => {
-    const to = outline[(i + 1) % outline.length]
-    const before = outline[(i + outline.length - 1) % outline.length], after = outline[(i + 2) % outline.length]
-    if (from[0] === -6 && to[0] === -10 && from[1] === 8) {
-      const half = STUDIO_DOOR.width / (2 * Math.SQRT2)
-      edge(from, [STUDIO_DOOR.x + half, STUDIO_DOOR.z - half], 1.05, { before }, true)
-      edge([STUDIO_DOOR.x - half, STUDIO_DOOR.z + half], to, 1.05, { after }, true)
-      return
-    }
-    // The back walls (the north wall and its chamfer, the two the camera sees the inside of), the west wall and the
-    // lounge's outer one, and the street gable all stand the hall's full height; the camera-facing frontage is a low
-    // base under glass, and the courtyard's three sides are the base alone.
+  // What each run of the outline is. The back walls (the north wall and its chamfer, the two the camera sees the inside
+  // of), the west wall and the lounge's outer one, and the street gable all stand the hall's full height; the
+  // camera-facing frontage is a low base under glass, and the courtyard's three sides are the base alone.
+  const kindOf = (i: number) => {
+    const from = outline[i], to = outline[(i + 1) % outline.length]
+    const door = from[0] === -6 && to[0] === -10 && from[1] === 8
     const back = i < 2
     const west = from[0] === to[0] && (from[0] === -10 || from[0] === -13)
     const gable = from[1] === 12 && to[1] === 12
     const court = (from[0] === 4 && to[0] === 4) || (from[1] === 5 && to[1] === 5) || (from[0] === -2 && to[0] === -2)
-    edge(from, to, back || west || gable ? WALL : 1.05, { before, after }, !back && !west && !gable && !court)
+    return { door, tall: back || west || gable, glazed: door || (!back && !west && !gable && !court) }
+  }
+  outline.forEach((from, i) => {
+    const to = outline[(i + 1) % outline.length]
+    const before = outline[(i + outline.length - 1) % outline.length], after = outline[(i + 2) % outline.length]
+    const kind = kindOf(i)
+    // A glazed run's end is against a wall when the run on that side is not glazed too.
+    const meets: Meets = { start: !kindOf((i + outline.length - 1) % outline.length).glazed, end: !kindOf((i + 1) % outline.length).glazed }
+    if (kind.door) {
+      const half = STUDIO_DOOR.width / (2 * Math.SQRT2)
+      // each side's far end is against what the doorway's run is against; its near end is the door's own jamb
+      edge(from, [STUDIO_DOOR.x + half, STUDIO_DOOR.z - half], 1.05, { before }, true, { start: meets.start, end: false })
+      edge([STUDIO_DOOR.x - half, STUDIO_DOOR.z + half], to, 1.05, { after }, true, { start: false, end: meets.end })
+      return
+    }
+    edge(from, to, kind.tall ? WALL : 1.05, { before, after }, kind.glazed, meets)
   })
   wallRuns(g, solid)
   for (const pane of wallRuns(g, glass, false)) pane.material = frontGlazing()
-  box(g, -9.84, 0, .7, .10, .7, 2.4, INK.wood)
-  // A ribbon of glazing above the leaders, the west wall's half of the north wall's clerestory.
-  skyPane(g, -9.88, WALL - 1.0, -4.75, 0.06, 0.8, 4.3)
-  for (let z = -6.5; z <= -2.8; z += 1.4) box(g, -9.86, WALL - 1.0, z, 0.1, 0.8, 0.12, INK.trim)
-  box(g, -9.8, WALL - 1.04, -4.75, 0.2, 0.06, 4.5, INK.trim)
+  // The oak rail along the foot of the west wall, under the project board: it is the board's, so it is the board's length.
+  const sprintBoard = GARAGE_FURNITURE.find(f => f.kind === 'board')!
+  box(g, -9.84, 0, sprintBoard.z, .10, .7, sprintBoard.d, INK.wood)
   // The chamfered portal faces the lens along (+X,+Z), rather than showing its side.
   const door = entrance(g, STUDIO_DOOR, WALL)
   gableSign(g, cast.studio ?? 'Merciless Software')

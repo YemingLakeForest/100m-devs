@@ -56,8 +56,8 @@ describe('a set stays inside its site', () => {
       expect(b.max.x).toBeLessThanOrEqual(site.x1 + 1e-6)
       expect(b.min.z).toBeGreaterThanOrEqual(site.z0 - (site.wall === 'north' ? slack : 0) - 1e-6)
       expect(b.max.z).toBeLessThanOrEqual(site.z1 + 1e-6)
-      // The walls are 4.6 m, and the back wall's clerestory is the top metre of it, centred 3.6 m up: the work hangs
-      // under the glazing and never across it. The set stands on its platform.
+      // The walls are 4.6 m, and the top metre of the back wall is kept clear — the name plates hang in it, and it was
+      // the clerestory until 2026-10-11: the work hangs under that metre and never into it. The set stands on its platform.
       expect(b.max.y).toBeLessThanOrEqual(GARAGE_WALLS.height - 1.0)
       expect(b.min.y).toBeGreaterThanOrEqual(site.rise - 1e-6)
     })

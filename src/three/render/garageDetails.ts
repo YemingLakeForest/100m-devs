@@ -521,15 +521,20 @@ function justifyTracking(label: string, cap: number, width: number): number | nu
 }
 
 /**
- * The studio's door, in a portal that is **as tall as the walls it is set in** [2026-10-11, at the user's instruction:
- * *"the door and the logo wall on the front is not in same size as others"*].
+ * The studio's door, **built out of the storefront it is set in** [2026-10-11, at the user's instruction: *"the door and
+ * the logo wall on the front is not in same size as others"*, and then, of the first answer to it, *"the door looks very
+ * funny, i'll leave it for you to figure out"*].
  *
- * `placement.height` is the opening — the head of the door, 2.75 m — and it was also the whole of the portal: jambs,
- * lintel and coping stopped there, while the storefront bays either side carried their glazing and graphite rail on up
- * to the hall's 4.6 m. The door stood a metre and four-fifths under the line it was supposed to be part of, with the
- * floor tiles showing through the gap above its coping. `eave` is that line. The jambs rise to it, the lintel stays at
- * the head of the door where a lintel belongs, and between the two is a transom of the bays' own glazing under the
- * bays' own rail, so the frontage reads as one run with a door in it rather than as a door with a wall around it.
+ * `placement.height` is the opening — the head of the door, 2.75 m — and it used to be the whole of the portal: plaster
+ * jambs, lintel and coping stopped there while the bays either side carried glazing and a graphite rail on up to the
+ * hall's 4.6 m, so the door stood a metre and four-fifths under the line it was part of. **The first fix was the wrong
+ * one:** it kept the plaster portal and ran its piers up to the eave, capped like walls, with glass between. That was a
+ * gate standing in a glass wall — two white pillars with blocks on their heads and a white bar across the middle —
+ * because the door was still made of a different thing from the bays beside it. The bays are glass in a thin graphite
+ * frame on a plaster base, so the door is now the same: graphite jambs and a graphite head bar, a pair of glazed leaves
+ * where there was one very wide one (a leaf 2.4 m across is a shopfront's double doors with the middle taken out), and
+ * above them a transom of the bays' own glazing split on the same centre line, under the bays' own rail. `eave` is that
+ * rail's height, and everything on the frontage tops out on it.
  */
 export function entrance(g: T.Group, placement: {x:number;z:number;width:number;height:number;yaw:number} = STUDIO_DOOR,
   eave = placement.height): T.Group {
@@ -537,39 +542,45 @@ export function entrance(g: T.Group, placement: {x:number;z:number;width:number;
   const x = 0, z = 0
   const door = new T.Group(); door.name = 'studio-entrance'; g.add(door)
   door.position.set(placement.x, 0, placement.z); door.rotation.y = yaw
-  // Jambs, leaf and threshold share the diagonal portal frame facing the lens.
-  for (const side of [-1, 1]) {
-    const jamb = x + side * (width / 2 - 0.13)
-    box(door, jamb, 0, z, 0.26, eave, 0.26, INK.wall)
-    // The same coping the tall walls wear (.12 × .35), so the pier is capped like the wall it stands in.
-    if (eave > height) box(door, jamb, eave, z, 0.38, .12, .35, INK.trim)
-  }
-  const leafWidth = width - 0.58
-  box(door, x, 2.55, z, width, height - 2.55, 0.26, INK.wall)
-  // A simple plaster lintel and coping replace the sign and shopfront canopy.
-  box(door, x, height, z, width + .1, .10, .32, INK.trim)
-  if (eave > height + .1) {
-    const sill = height + .10, between = width - .52
-    const transom = box(door, x, sill, z, between, eave - sill, .055, '#a4cbd0', false)
+  // The jambs stand against the ends of the bays' plaster base, which is 0.24 m thick under a 0.33 m cap: deep enough
+  // to cover both cuts, and thin along the frontage like every other upright on it.
+  const jambW = .12, jamb = width / 2 - jambW / 2, between = width - jambW * 2
+  for (const side of [-1, 1]) box(door, side * jamb, 0, z, jambW, eave, .34, FRONT_FRAME)
+  // The head bar over the leaves, where the plaster lintel was; the transom stands on it.
+  box(door, x, 2.55, z, between, height - 2.55, .16, FRONT_FRAME)
+  if (eave > height) {
+    const transom = box(door, x, height, z, between, eave - height, .055, '#a4cbd0', false)
     transom.material = frontGlazing()
     transom.castShadow = false
+    // The same centre line as the leaves below it, so the door and its transom read as one bay.
+    box(door, x, height, z, .06, eave - height, .1, FRONT_FRAME)
     // The bays' graphite rail, at the bays' height: the line the whole frontage tops out on.
-    box(door, x, eave, z, between, .09, .12, FRONT_FRAME)
+    box(door, x, eave, z, width, .09, .12, FRONT_FRAME)
   }
-  // The glazed leaf rests closed in the portal. The opening has no wall,
+  // The glazed leaves rest closed in the opening. The opening has no wall,
   // skirting or opaque glass panel stretching across it at knee height.
-  const leaf = new T.Group(); leaf.name = 'studio-door-leaf'
-  leaf.position.set(-leafWidth / 2, 0, 0); leaf.rotation.y = 0; door.add(leaf)
-  box(leaf, leafWidth / 2, 0.08, 0, leafWidth, 0.2, 0.09, INK.teal)
-  const glass = box(leaf, leafWidth / 2, 0.28, 0, leafWidth, 2.18, 0.045, '#b1c7c8', false)
-  glass.material = sharedMaterial('studio-door-glass', () => new T.MeshStandardMaterial({ color: '#b1c7c8', transparent: true, opacity: 0.28, depthWrite: false, roughness: 0.35 }))
-  for (const dx of [0, leafWidth]) box(leaf, dx, 0.08, 0, 0.075, 2.45, 0.1, INK.teal)
-  box(leaf, leafWidth / 2, 2.46, 0, leafWidth, 0.08, 0.1, INK.teal)
-  box(leaf, leafWidth - 0.2, 1.05, 0.1, 0.05, 0.45, 0.06, INK.metal)
-  box(door, x + width / 2 - 0.13, 1.35, z + 0.15, 0.14, 0.22, 0.06, INK.metal)
-  box(door, x, -0.02, z, leafWidth, 0.02, 0.38, INK.trim)
-  box(door, x, -0.3, z + 0.48, leafWidth + 0.2, 0.15, 0.65, INK.trim)
-  box(door, x, -0.315, z + 1.05, leafWidth, 0.025, 0.58, '#556964')
+  const meet = .015, leafWidth = between / 2 - meet
+  const leaves = new T.Group(); leaves.name = 'studio-door-leaf'; door.add(leaves)
+  for (const side of [-1, 1]) {
+    const leaf = new T.Group(); leaf.name = side < 0 ? 'studio-door-leaf-left' : 'studio-door-leaf-right'
+    // The leaf's own frame: its origin is the stile it hangs on, at the jamb, and `toward` points at the middle. Written
+    // out per side rather than mirrored with a negative scale, which turns every face of a mirrored box inside out as
+    // soon as anything batches it.
+    const toward = -side
+    leaf.position.set(side * (between / 2), 0, 0); leaves.add(leaf)
+    box(leaf, toward * leafWidth / 2, 0.08, 0, leafWidth, 0.2, 0.09, INK.teal)
+    const glass = box(leaf, toward * leafWidth / 2, 0.28, 0, leafWidth, 2.18, 0.045, '#b1c7c8', false)
+    glass.material = sharedMaterial('studio-door-glass', () => new T.MeshStandardMaterial({ color: '#b1c7c8', transparent: true, opacity: 0.28, depthWrite: false, roughness: 0.35 }))
+    for (const dx of [0, toward * leafWidth]) box(leaf, dx, 0.08, 0, 0.075, 2.45, 0.1, INK.teal)
+    box(leaf, toward * leafWidth / 2, 2.46, 0, leafWidth, 0.08, 0.1, INK.teal)
+    // a pull on the meeting stile
+    box(leaf, toward * (leafWidth - 0.14), 1.0, 0.1, 0.04, 0.5, 0.06, INK.metal)
+  }
+  // the card reader, on the right jamb's face
+  box(door, jamb, 1.3, z + .17, 0.07, 0.2, 0.04, INK.metal)
+  box(door, x, -0.02, z, between, 0.02, 0.38, INK.trim)
+  box(door, x, -0.3, z + 0.48, between + 0.2, 0.15, 0.65, INK.trim)
+  box(door, x, -0.315, z + 1.05, between, 0.025, 0.58, '#556964')
   return door
 }
 
@@ -644,7 +655,7 @@ export function garageDeskStory(g: T.Group, id: string): void {
 }
 
 /**
- * The workshop bench, under the clerestory on the hall's far wall.
+ * The workshop bench, on the hall's far wall.
  *
  * It used to be a nine-metre strip across the whole back wall with its crates,
  * cabinet and framed posters at fixed coordinates. The far wall is stepped now
@@ -672,7 +683,7 @@ export function workshop(g: T.Group, at: { x: number; z: number; w: number; d: n
   }
   box(g, x + w / 2 - 0.6, 0.96, z + 0.15, 0.62, 0.2, 0.4, '#60766e')
   cylinder(g, x + w / 2 - 0.35, 0.96, z - 0.1, 0.16, 0.42, '#ae6941')
-  // Keep the whole dial below the clerestory and within the supporting wall.
+  // Keep the whole dial below the wall's top metre and within the supporting wall.
   const clockX = x - w / 2 + 0.25, clockY = 1.57, clockZ = z - d / 2 + 0.05
   const clock = cylinder(g, clockX, clockY - 0.03, clockZ, 0.24, 0.06, INK.trim)
   clock.name = 'workshop-wall-clock'
