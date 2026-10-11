@@ -279,7 +279,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       if (atlasZoom !== null) {
         const was = levelOfZoom(atlasZoom)
         if (was >= 6 && lvl < 6) atlas.descend(x, y)
-        // [2026-10-11, demo] The flight to a city starts at the top of its band, so it is aimed there: at the
+        // [2026-10-11] The flight to a city starts at the top of its band, so it is aimed there: at the
         // bottom it would already be a city, and the planet would have turned to the wrong one on the way down.
         else if (was >= BRIDGE_TO && lvl < BRIDGE_TO) atlas.aim(x, y)
       }

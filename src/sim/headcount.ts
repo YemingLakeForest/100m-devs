@@ -284,7 +284,7 @@ export function maxLensLevelFor(devs: number): number {
 }
 
 /**
- * The smallest studio that has earned `level` — {@link maxLensLevelFor} run backwards [2026-10-11, demo].
+ * The smallest studio that has earned `level` — {@link maxLensLevelFor} run backwards [2026-10-11].
  *
  * The address bar drew every stop the same whether or not the studio could reach it, and a click on one it
  * could not reach did nothing at all (`stage.ts`'s `travel` clamps to the ceiling, silently). A control that

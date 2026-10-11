@@ -279,7 +279,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     fill.color.set('#e7ebe8'); fill.intensity = .30
     renderer.toneMappingExposure = 1.0
     if (OS_NIGHT) {
-      // [2026-10-11, demo] The dark room lit by its own screens, in the interface's ramps — see `skin.ts`.
+      // [2026-10-11] The dark room lit by its own screens, in the interface's ramps — see `skin.ts`.
       // Dimmer and cooler than the day on both axes; the key keeps its direction, so the depth the
       // 2026-10-07 daylight bought (a focal side, a shadow to read form by) stays.
       sun.color.set(NIGHT.key); sun.intensity = NIGHT.keyIntensity

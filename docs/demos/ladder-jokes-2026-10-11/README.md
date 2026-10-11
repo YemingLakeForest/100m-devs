@@ -1,6 +1,6 @@
 # Ladder demo — the scene as the interface's own picture, and a voice for the monitor
 
-*2026-10-11, branch `demo/ladder-jokes`. A demo, not a decision: nothing here is on `main`, nothing is pushed.*
+*2026-10-11. This is on `main`. The two switches below stay so any frame can be compared with the daylight room and the old cut; they can go whenever that comparison is no longer wanted.*
 
 Two things the user said, in order:
 
@@ -11,7 +11,6 @@ Two things the user said, in order:
 ## Look at it
 
 ```
-git checkout demo/ladder-jokes
 npm install
 npm run dev
 ```
@@ -19,7 +18,7 @@ npm run dev
 Then, in a loopback browser (the debug flags are loopback-only; use `127.0.0.1` if you do not want to touch your
 `localhost` save):
 
-| What | After (this branch) | Before (`main`'s daylight rig) |
+| What | Now | Before (the daylight rig, `?look=day`) |
 |---|---|---|
 | The garage at rest | `/?scenario=ten&z=0.1111` | same, `&look=day` |
 | 100 developers: HQ and the first house | `/?scenario=squad` | `&look=day` |

@@ -255,7 +255,7 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // A cheap continuous ground plane hides the horizon even on tall screens;
   // camera travel is bounded independently of the scenery's backing surface.
   const horizon = box(g, 0, -0.6, 0, 512, .1, 512, env.background, false)
-  // [2026-10-11, demo] In the OS look the horizon is the survey's own ground — flat, unlit, the interface's
+  // [2026-10-11] In the OS look the horizon is the survey's own ground — flat, unlit, the interface's
   // darkest neutral — so the void under the room is the colour of the void under the monitor and the hand-off
   // at the top of the block changes nothing about what is behind the picture (`osDesktop.ts` draws on it).
   if (OS_NIGHT) horizon.material = sharedMaterial('os:horizon', () => new T.MeshBasicMaterial({ color: OS_HORIZON }))

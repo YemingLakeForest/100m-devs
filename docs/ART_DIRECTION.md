@@ -542,7 +542,7 @@ chains on dark oceans, or pale cyan fractured ice. The same family has different
 features on each world. Settlement names and positions belong to that world; the
 first hub is First Landing. Warm growth lights and the terminal frame stay shared.
 
-### 2026-10-11 — The scene as the interface's own picture (demo, `demo/ladder-jokes`)
+### 2026-10-11 — The scene as the interface's own picture
 
 *"I want the art scene style to fit the UI style as much as we can, UI is a OS system."* This is the third
 time the same complaint has been made in different words (*"no cohesive design and aesthetic"*,

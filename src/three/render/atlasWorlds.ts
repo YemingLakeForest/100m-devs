@@ -59,7 +59,7 @@ export interface AtlasFrame {
 export function drawHqMark(f: AtlasFrame, cx: number, cy: number, label: string, ink: string) {
   const { ctx } = f
   const m = hqMarker(f.total, f.wings.map((w) => w.hero))
-  // [2026-10-11, demo] The mark is the garage (`garageGlyph.ts`) and then the word, in a box that still
+  // [2026-10-11] The mark is the garage (`garageGlyph.ts`) and then the word, in a box that still
   // gains borders and a crown as the HQ becomes a place: the glyph is the one part that never grows.
   const textW = label.length * 4
   const w = 3 + GARAGE_GLYPH_W + 2 + textW + 2

@@ -9,7 +9,7 @@ const stone=hexToRgb(RAMPS.NEUTRAL[4]),coast=hexToRgb(RAMPS.NEUTRAL[5]),ice=hexT
  * changes this surface: the cities above it carry the growth and its rewards. */
 export function paintPlanet(ctx:CanvasRenderingContext2D,cx:number,cy:number,radius:number,yaw:number,tilt:number,worldId=0,rasterRadius=radius) {
   surface??=document.createElement('canvas')
-  // [2026-10-11, demo] The surface is rasterised once, at `rasterRadius`, and *drawn* at `radius`: a flight that
+  // [2026-10-11] The surface is rasterised once, at `rasterRadius`, and *drawn* at `radius`: a flight that
   // changes the planet's size every frame (`sim/lensFlight.ts`) scales the bitmap it has and does not rebuild a
   // per-pixel terrain lookup sixty times a second. At rest the two are the same and nothing changes.
   const r=Math.ceil(rasterRadius*2),size=r*2+2,key=[worldId,r,yaw.toFixed(3),tilt.toFixed(3)].join(':')

@@ -3,7 +3,7 @@ import { RAMPS } from '../../art/palette.ts'
 const N = RAMPS.NEUTRAL, A = RAMPS.WARN
 
 /**
- * **The roll-up door's glyph** — the HQ's mark on every map [2026-10-11, demo; GDD §7.8.12's
+ * **The roll-up door's glyph** — the HQ's mark on every map [2026-10-11; GDD §7.8.12's
  * *"what never changes is short: the roll-up door's silhouette"*, canon since 2026-10-04 and never drawn].
  *
  * The survey marked the HQ with a box that said `HQ` and the network marked Sol with a ring, so the one

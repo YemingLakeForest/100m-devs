@@ -1,6 +1,6 @@
 /**
  * What the monitor says — the captions under the survey, the voice of STUDIO_OS past the block.
- * [2026-10-11 — DEMO, `demo/ladder-jokes`; GDD §7.7.2's "only if those stops acquire mechanics of their own".]
+ * [2026-10-11; GDD §7.7.2's "only if those stops acquire mechanics of their own".]
  *
  * Up to the neighbourhood every object in the game is a gag (a name plate, a mug, a house that
  * arrives on thrusters); past the hand-off the captions were sincere telemetry — `10,000 DEVELOPERS
@@ -52,7 +52,7 @@ export function percentDone(burned: number | null | undefined): number | null {
 const appClause = (done: number | null) => (done === null ? '1 APP' : `1 APP, ${done}% DONE`)
 
 /**
- * What a locked stop on the address bar says when it is pressed [2026-10-11, demo]. It is the interface's
+ * What a locked stop on the address bar says when it is pressed [2026-10-11]. It is the interface's
  * own idiom for a link that is down, it names the price, and it is true to the headcount: the figure
  * comes from `headcountToReach`, the same table the lens's ceiling reads, so the sign cannot disagree
  * with the door.

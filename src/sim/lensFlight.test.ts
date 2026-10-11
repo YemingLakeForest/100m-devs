@@ -19,7 +19,7 @@ import { maxLensLevelFor, rungFor } from './headcount.ts'
 import { globeCell, WORLD_REGIONS } from './worldAddress.ts'
 
 /**
- * The flight from a city to its planet [2026-10-11, demo]. Claims about the *shape* of the flight, not
+ * The flight from a city to its planet [2026-10-11]. Claims about the *shape* of the flight, not
  * its numbers (§25.3.2): that it starts and ends on the plain pictures so nothing pops, never leaves a
  * hole, and only ever moves one way along its length.
  */

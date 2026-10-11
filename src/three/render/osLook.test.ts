@@ -5,7 +5,7 @@ import { BLOCK_PITCH, BLOCK_SIZE } from './cityGrid.ts'
 import { createLotBrackets, createOsDesktop, LOT_BRACKET } from './osDesktop.ts'
 
 /**
- * The scene as the interface's own picture [2026-10-11, demo]. Claims about where things sit and what
+ * The scene as the interface's own picture [2026-10-11]. Claims about where things sit and what
  * they may never do — not about how they look (that is a frame, and a frame is looked at).
  */
 describe('the lot brackets', () => {

@@ -1,5 +1,5 @@
 /**
- * **The flight from a city to its planet** [2026-10-11 — DEMO, `demo/ladder-jokes`; GDD §7.4a's
+ * **The flight from a city to its planet** [2026-10-11; GDD §7.4a's
  * "cinematic Powers-of-Ten flights remain future work", first built here].
  *
  * The lens used to hand the city to the globe on one frame: the district was drawn up to level 4.5 and

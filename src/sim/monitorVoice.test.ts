@@ -14,7 +14,7 @@ import {
 import { cityName, regionHouses, WORLD_CAPACITY, WORLD_REGIONS } from './worldAddress.ts'
 
 /**
- * The monitor's voice [2026-10-11, demo]. The claims are the rule the file keeps — **deadpan, and every
+ * The monitor's voice [2026-10-11]. The claims are the rule the file keeps — **deadpan, and every
  * number true; the instruction never goes** — and the order the bands come in. What a band *says* is
  * copy, and copy is not pinned (§25.3.2).
  */

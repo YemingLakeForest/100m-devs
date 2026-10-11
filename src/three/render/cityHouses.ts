@@ -114,7 +114,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
         ]), new T.LineBasicMaterial({ color: OS.calm2, transparent: true }))
         marker.position.set(at.x, -.29, at.z); root.add(marker)
         const lot = dressCityLot(root, at.x, at.z)
-        // [2026-10-11, demo] Every lot wears the survey frame's corner bracket (`osDesktop.ts`).
+        // [2026-10-11] Every lot wears the survey frame's corner bracket (`osDesktop.ts`).
         if (OS_NIGHT) { const brackets = createLotBrackets(LOT_BRACKET); brackets.position.y = .01; lot.add(brackets) }
         const b: Building = { ...model, leaving: null, group, lot, rig, marker, legs, start: animate ? clock : null, wait: queued,
           landed: !animate, ignited: false, dust: false, hop: null }

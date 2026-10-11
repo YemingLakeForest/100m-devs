@@ -3,7 +3,7 @@ import { OS } from '../art/skin.ts'
 import { BLOCK_PITCH } from './cityGrid.ts'
 
 /**
- * **The desktop the studio sits on** [2026-10-11 — demo, `OS_NIGHT`].
+ * **The desktop the studio sits on** [2026-10-11, `OS_NIGHT`].
  *
  * Past the last lot the world used to be a flat charcoal void with the edge of the paving showing in
  * it, which is nobody's idea of a place. The interface already has a ground for things that are not

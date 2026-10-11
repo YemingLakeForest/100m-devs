@@ -3,7 +3,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 import { NIGHT, OS } from '../art/skin.ts'
 
 /**
- * **The room, graded into the interface's palette** [2026-10-11 — demo, `OS_NIGHT`].
+ * **The room, graded into the interface's palette** [2026-10-11, `OS_NIGHT`].
  *
  * Two jobs, both of them the interface's habits applied to a picture:
  *

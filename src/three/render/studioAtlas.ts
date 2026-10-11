@@ -55,13 +55,13 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   let world = Number.isInteger(previewWorld)&&previewWorld>=0&&previewWorld<73?previewWorld:0, region = 0, level = 1, total = 0, width = 1, height = 1
   let yaw = -.12, tilt = .40, panX = 0, panY = 0, lastTotal = -1
   /*
-   * **The picture's level is not the player's level** [2026-10-11, demo; `sim/lensFlight.ts`]. `level` is where the
+   * **The picture's level is not the player's level** [2026-10-11; `sim/lensFlight.ts`]. `level` is where the
    * lens has been asked to be and everything that is *logic* — the address bar, the cards, what a tap means —
    * keeps reading it. `shown` is where the picture is, and it gets there on its own clock: a wheel notch moves
    * it a little and it follows at once (a scrub), and a jump — the address bar, the dive button — is a timed flight with an ease, because a jump that arrives on one frame is the cut this
    * replaces. Entering or leaving the monitor is the CRT wipe's business and never flies.
    * `?flight=off` turns all of it off (the cut, as before); `?flight=0.2` runs it at a fifth of the speed, for
-   * looking at, and for the frames the demo's page is made of. Loopback only, like every seam in `dev/`.
+   * looking at, and for the frames the review page in `docs/demos/ladder-jokes-2026-10-11/` is made of. Loopback only, like every seam in `dev/`.
    */
   let shown = level, flight: { from: number; to: number; t0: number; dur: number } | null = null
   let anchorPan = { x: 0, y: 0 }
@@ -88,7 +88,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   const buttons = stops.map(([name, value]) => {
     const button = document.createElement('button'); button.textContent = name; button.type = 'button'
     Object.assign(button.style, { color: 'inherit', background: 'transparent', border: '0', padding: '9px 10px', font: 'inherit', cursor: 'pointer' })
-    // [2026-10-11, demo] A stop the headcount has not earned says what it costs, rather than doing nothing.
+    // [2026-10-11] A stop the headcount has not earned says what it costs, rather than doing nothing.
     button.onclick = () => { if (isLocked(value)) { say(lockNote(headcountToReach(value), total)); return } chosen = -1; panX = panY = 0; if (value === 1) { world = region = entryHouse = 0; travel(value, -1) } else travel(value) }
     bar.append(button); return button
   })

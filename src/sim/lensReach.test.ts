@@ -3,7 +3,7 @@ import { headcountToReach, maxLensLevelFor } from './headcount.ts'
 import { lockNote } from './monitorVoice.ts'
 
 /**
- * The sign on a locked stop [2026-10-11, demo] must agree with the door: the price the address bar
+ * The sign on a locked stop [2026-10-11] must agree with the door: the price the address bar
  * names is exactly the studio at which the lens's ceiling lets you through. Order, not numbers (§25.3.2).
  */
 describe('what a stop costs', () => {

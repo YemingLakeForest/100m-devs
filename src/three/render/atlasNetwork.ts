@@ -47,7 +47,7 @@ export function drawNetwork(f: AtlasFrame, net: Network, chosen: number, territo
   for (const q of visible) {
     const live = q.rank < settled, next = q.rank === settled, selected = q.id === chosen
     if (!live && !next && !nearFrontier.has(q.id)) continue
-    // [2026-10-11, demo] Sol is the garage (`garageGlyph.ts`), in a ring wide enough to hold it: the origin
+    // [2026-10-11] Sol is the garage (`garageGlyph.ts`), in a ring wide enough to hold it: the origin
     // every colony's own HQ echoes (§7.8.12), the one mark on the chart that is where it all started.
     const glyph = q.id === 0 && height >= 160
     const r = q.id === 0 ? (glyph ? GARAGE_GLYPH_W / 2 : 3) : 2

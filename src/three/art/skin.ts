@@ -27,7 +27,7 @@ import { debugSearchParams } from '../../dev/debugAccess.ts'
 export const OS_SKIN = true
 
 /**
- * **The scene as the interface's own picture** [2026-10-11 — DEMO, `demo/ladder-jokes`].
+ * **The scene as the interface's own picture** [2026-10-11].
  *
  * *"I want the art scene style to fit the UI style as much as we can, UI is a OS system."*
  * The 2026-10-07 daylight rig answered a real complaint (a flat fill made every surface equally dull) and

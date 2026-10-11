@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { GARAGE_GLYPH, GARAGE_GLYPH_H, GARAGE_GLYPH_W, lampLit } from './garageGlyph.ts'
 
 /**
- * The HQ's glyph [2026-10-11, demo]. Claims about what makes it *the garage* and about the one thing
+ * The HQ's glyph [2026-10-11]. Claims about what makes it *the garage* and about the one thing
  * on it that moves — not about how it is drawn.
  */
 describe('the garage glyph', () => {
