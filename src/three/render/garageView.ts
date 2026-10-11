@@ -56,7 +56,9 @@ import { placeInstances, showSeatInstances, type SeatInstance } from './worldArt
 import { LEADER_IDS, leaderSeat, type LeaderId } from '../sim/floorPlan.ts'
 import { createCityHouses } from './cityHouses.ts'
 import { CITY_CAPACITY } from './cityGrid.ts'
-import { OS, OS_SKIN } from '../art/skin.ts'
+import { NIGHT, OS, OS_NIGHT, OS_SKIN } from '../art/skin.ts'
+import { createOsPass } from './osPass.ts'
+import { createLotBrackets, createOsDesktop, LOT_BRACKET } from './osDesktop.ts'
 import type { Look } from '../sim/identity.ts'
 import type { HeroTag } from '../../render/heroTags.ts'
 
@@ -276,6 +278,15 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     sky.color.set('#e6ecea'); sky.groundColor.set('#8d9795'); sky.intensity = 1.25
     fill.color.set('#e7ebe8'); fill.intensity = .30
     renderer.toneMappingExposure = 1.0
+    if (OS_NIGHT) {
+      // [2026-10-11, demo] The dark room lit by its own screens, in the interface's ramps — see `skin.ts`.
+      // Dimmer and cooler than the day on both axes; the key keeps its direction, so the depth the
+      // 2026-10-07 daylight bought (a focal side, a shadow to read form by) stays.
+      sun.color.set(NIGHT.key); sun.intensity = NIGHT.keyIntensity
+      sky.color.set(NIGHT.sky); sky.groundColor.set(NIGHT.ground); sky.intensity = NIGHT.skyIntensity
+      fill.color.set(NIGHT.fill); fill.intensity = NIGHT.fillIntensity
+      renderer.toneMappingExposure = NIGHT.exposure
+    }
   }
 
   const composer = new EffectComposer(renderer)
@@ -303,6 +314,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     composer.addPass(ao)
   }
   composer.addPass(new OutputPass())
+  // The grade and the interface's one-pixel rules, in display space, before bloom (see `osPass.ts`).
+  if (OS_NIGHT) composer.addPass(createOsPass())
   /*
    * §6 pass 3, moved here from the Pixi glass (2026-09-28). After the output
    * pass, so it thresholds brightness as displayed — AdvancedBloomFilter's
@@ -394,6 +407,11 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     exhaust(footprint) { dustRing(footprint, true) },
   }, () => cast)
   scene.add(city.root)
+  if (OS_NIGHT) {
+    scene.add(createOsDesktop())
+    // The HQ's own lot wears the bracket every house lot wears (`cityHouses.ts`).
+    const hqLot = createLotBrackets(LOT_BRACKET); hqLot.position.set(0, -.29, 0); scene.add(hqLot)
+  }
   /** How far out the lens may go, and how far the pan may reach: wider as the city grows. */
   let zoomFloor = .005
   let cityReach = 0
@@ -827,7 +845,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     },
     setBloom(strength) {
       // The studio palette stays stable through entropy; HUD signals carry urgency.
-      const next = OS_SKIN ? 0 : Math.max(0, strength)
+      const next = OS_SKIN && !OS_NIGHT ? 0 : Math.max(0, strength)
       // A change nobody could see is not a reason to redraw the room.
       if (Math.abs(next - bloom.strength) < 0.01) return
       bloom.strength = next

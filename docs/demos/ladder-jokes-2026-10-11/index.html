@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ladder demo - before and after</title>
+<style>
+  :root {
+    --n0: #181919; --n1: #232524; --n3: #575a56; --n6: #b8b9b0;
+    --cyan: #35c9d9; --cyan-dim: #1a6b78; --amber: #e0a52e; --ink: #d9d8cd;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--n0); color: var(--ink);
+    font: 15px/1.6 Consolas, "Cascadia Mono", "Courier New", monospace;
+  }
+  main { max-width: 1240px; margin: 0 auto; padding: 32px 16px 80px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; color: var(--cyan); }
+  h2 { margin: 56px 0 6px; font-size: 16px; font-weight: 600; color: var(--amber); }
+  p { margin: 0 0 12px; max-width: 78ch; }
+  .lede { color: var(--n6); }
+  .meta { color: var(--n3); font-size: 13px; }
+  figure { margin: 14px 0 0; }
+  figure img { display: block; width: 100%; height: auto; border: 1px solid var(--cyan-dim); background: var(--n1); }
+  figcaption { margin-top: 8px; color: var(--n6); font-size: 13px; max-width: 90ch; }
+  code { color: var(--cyan); }
+  a { color: var(--cyan); }
+  .sides { display: flex; gap: 0; color: var(--n3); font-size: 12px; }
+  .sides span { flex: 1; padding: 0 2px; }
+  hr { border: 0; border-top: 1px solid var(--n1); margin: 40px 0 0; }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ladder demo: the scene as the interface's own picture</h1>
+  <p class="lede">The same game, the same frames, before and after. Before is <code>main</code> (daylight room, telemetry captions);
+  after is <code>demo/ladder-jokes</code>. Captured at 1280 x 620 on the real GPU, scaled here.</p>
+  <p class="meta">A demo, not a decision. Nothing is on <code>main</code> and nothing is pushed. How to run it live is in
+  <a href="README.md">README.md</a>; add <code>&amp;look=day</code> to any scenario URL to see the daylight rig in the same build.</p>
+
+  <h2>The whole ladder, in one look</h2>
+  <p>Six stops from the garage to the star map: garage, HQ at 100, neighbourhood at 1K, city, globe, network. Before above, after below.
+  Look at the seam between the third and fourth column: the 3D room used to be daylight and the monitor night, one scroll apart.</p>
+  <figure>
+    <img src="0-garage-to-galaxy-strip.jpg" alt="Two rows of six frames from the garage to the star map. The top row, from main, has a daylit warm room beside a dark monitor. The bottom row, from the demo, is one dark teal-and-charcoal family from the first frame to the last.">
+  </figure>
+
+  <hr>
+  <h2>1. The garage at rest</h2>
+  <p>The room lit by its own screens, in the interface's ramps. The corner brackets at the edges of the frame are the HQ's lot, drawn the way the survey frame is.</p>
+  <figure><img src="1-garage-at-rest.jpg" alt="Before and after of the garage at rest: left daylit and cream, right teal-lit at night with cyan corner brackets around the lot."></figure>
+
+  <h2>2. 100 developers: the HQ and the first house</h2>
+  <p>Name plates were already interface in the world, which is why they were the bridge. Now the room around them agrees.</p>
+  <figure><img src="2-hq-at-100.jpg" alt="Before and after of the HQ and the first house at 100 developers."></figure>
+
+  <h2>3. 1,000 developers: the neighbourhood</h2>
+  <p>Lot brackets at every corner, one-pixel phosphor rules on the roof seams, and a dot-grid desktop where the world runs out.</p>
+  <figure><img src="3-neighbourhood-at-1k.jpg" alt="Before and after of the neighbourhood at 1,000 developers, the after frame with a dot grid and cyan corner brackets."></figure>
+
+  <h2>4. The last 3D frame before the monitor takes over</h2>
+  <p>The ground here is measured to match the monitor's void (<code>#181818</code> against <code>#191a1a</code>), so the hand-off changes nothing behind the picture.</p>
+  <figure><img src="4-farthest-3d-frame.jpg" alt="Before and after of the farthest 3D frame at 10,000 developers."></figure>
+
+  <hr>
+  <h2>5. City at 10K</h2>
+  <p>The HQ mark is the garage now, in the survey's box. The title says <code>10,000 DEVELOPERS · 1 APP</code>: the one constant that climbs the whole ladder.</p>
+  <figure><img src="5-city-at-10k.jpg" alt="Before and after of the city survey at 10,000 developers; the after frame has a garage glyph beside HQ and the caption ending in 1 APP."></figure>
+
+  <h2>6. A city that is full</h2>
+  <p>The caption now says how much of the studio this city is, <code>41,600 OF 100,000</code>, where the HUD's number used to read as a contradiction. And it says when the city is full.</p>
+  <figure><img src="6-city-full-at-100k.jpg" alt="Before and after of the full city at 100,000 developers."></figure>
+
+  <h2>7. Globe at 1M</h2>
+  <p>The remark is the scenario picker's own note, shipped: <code>ONE PLANET, NOBODY HAS NOTICED</code>. London's pin is the garage.</p>
+  <figure><img src="7-globe-at-1m.jpg" alt="Before and after of the globe at one million developers."></figure>
+
+  <h2>8. Network at 100M</h2>
+  <p>Sol is the garage. The distance to the next desk is the chart's own figure (4.24 light-years), and "1 WORLDS" is now "1 WORLD".</p>
+  <figure><img src="8-network-at-100m.jpg" alt="Before and after of the network map at 100 million developers."></figure>
+
+  <h2>9. Network at 1B</h2>
+  <p><code>EVERY WORLD STILL SHARES ONE BACKLOG</code>, and the title says how done the one app is. In these captures the scenario's project has not been started, so it reads 0% (a real run shows the real figure).</p>
+  <figure><img src="9-network-at-1b.jpg" alt="Before and after of the network map at one billion developers."></figure>
+
+  <hr>
+  <h2>10. A stop you have not earned</h2>
+  <p>At 10,000 developers the Network and World stops are dimmed. Pressing one used to do nothing, silently. It now says what it costs, from the same table as the lens ceiling. This frame is the after only, because there was no before to show.</p>
+  <figure><img src="10-locked-stop.jpg" alt="The address bar at 10,000 developers with Network and World dimmed, and a note reading NO SIGNAL, NEEDS 100 M DEVELOPERS, HAS 10.0 K."></figure>
+</main>
+</body>
+</html>

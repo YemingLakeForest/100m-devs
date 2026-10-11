@@ -41,6 +41,12 @@ glass.
 **The glass unites them.** Scanlines, bloom, slight barrel curvature at the edges,
 chromatic fringe. The world sits *behind* the glass.
 
+**[amended 2026-10-11] The first sentence of this section has been overruled by the user.**
+*"I want the art scene style to fit the UI style as much as we can, UI is a OS system."* The argument
+above is kept for what it was about — *assets that don't agree with each other* (§0), which the
+quantiser (§5) still prevents — and dropped for what it was not: the room's *light*. See the
+2026-10-11 entry at the end of this file for what was moved to the interface's side and what was not.
+
 ### 1.0a Where the interface sits — **amended 2026-08-06**
 
 An earlier draft said the interface is *burned into* the glass, and that both layers pass
@@ -535,3 +541,33 @@ world-seeded spherical relief: grey crater basins, ochre folded deserts, green i
 chains on dark oceans, or pale cyan fractured ice. The same family has different
 features on each world. Settlement names and positions belong to that world; the
 first hub is First Landing. Warm growth lights and the terminal frame stay shared.
+
+### 2026-10-11 — The scene as the interface's own picture (demo, `demo/ladder-jokes`)
+
+*"I want the art scene style to fit the UI style as much as we can, UI is a OS system."* This is the third
+time the same complaint has been made in different words (*"no cohesive design and aesthetic"*,
+2026-09-26; the houses *"disconnected from the next level"*, 2026-09-30) and the first time it has been
+answered in the *light* rather than in the models. The 2026-10-07 daylight rig bought depth and cost
+cohesion: the room was lit like a house at noon behind a dark phosphor glass, and the monitor stops past
+the block were night, so one scroll went day to night.
+
+What moved to the interface's side (`NIGHT`, `osPass.ts`, `osDesktop.ts`; `?look=day` restores the old rig):
+
+- **Light.** The dark room lit by its own screens (§7.8.0c's original brief), from the ramps in §2.2: a cool
+  teal sky and key, not a purple one (2026-09-28). The key keeps its direction, so form still reads.
+- **Edges.** One-pixel phosphor rules where the picture changes brightness sharply — the interface draws
+  in rules, never shading, and the room now has the same seams in the same colour. A floor under the
+  threshold keeps paving grain and soft shadow out of it.
+- **Ground.** The horizon slab is the survey's own void (measured: `#181818` in the room, `#191a1a` at the
+  globe), with a dot grid at the street's pitch and a plus at every block on it; every lot, and the HQ's,
+  wears the survey frame's corner bracket on the kerb.
+
+What did not move: the materials, the silhouettes, the people, the name plates (already interface in the
+world, and the best bridge there was), and the rule that nothing is blended *between* registers at the
+hand-off — the CRT refresh still wipes. The grade is capped at half strength in a test, because a tinted
+scene is the one the 2026-09-28 verdict was about.
+
+**Open:** the grid's ink and the brackets' are fixed cyan; the interface's hue follows Entropy (§1.1), and
+the ground the world stands on should follow it too. Whether the monitor's night houses
+(`cityImpostors.ts`) should be lit warmer now that the neighbourhood above them is night too is a question
+for a frame, not for this file.

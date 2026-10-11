@@ -8,6 +8,8 @@ import { RAMPS } from '../../art/palette.ts'
 import { drawDistrict, drawGlobe, drawExpansionReceipt, type AtlasFrame, type Expansion } from './atlasWorlds.ts'
 import { drawNetwork } from './atlasNetwork.ts'
 import { hqWings, type HqWing } from '../../sim/hqLook.ts'
+import { headcountToReach, maxLensLevelFor } from '../../sim/headcount.ts'
+import { lockNote } from '../../sim/monitorVoice.ts'
 import type { HeroId } from '../../sim/storyHeroes.ts'
 import { bakeCityImpostors, type CityImpostors } from './cityImpostors.ts'
 
@@ -58,10 +60,17 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   const bar = document.createElement('nav'); bar.className = 'studio-address'; bar.setAttribute('aria-label', 'Studio address')
   Object.assign(bar.style, { position: 'absolute', top: '8px', left: '50%', transform: 'translateX(-50%)', display: 'none', gap: '2px', zIndex: '4', maxWidth: '96%', background: '#181919', border: '1px solid currentColor', font: '12px var(--font-terminal), monospace' })
   const stops = [['Network', 6.3], ['World', 5], ['City', 3.6], ['HQ', 1]] as const
+  /** The lens ceiling is the headcount's (`stage.ts`'s `travel` clamps to the same table): a stop above it is locked. */
+  const isLocked = (value: number) => value > maxLensLevelFor(total) + 1e-6
+  const note = document.createElement('div'); note.setAttribute('role', 'status')
+  Object.assign(note.style, { position: 'absolute', top: '46px', left: '50%', transform: 'translateX(-50%)', display: 'none', zIndex: '4', padding: '6px 10px', background: '#181919', border: '1px solid currentColor', font: '12px var(--font-terminal), monospace', whiteSpace: 'nowrap' })
+  let noteTimer = 0
+  const say = (message: string) => { note.textContent = message; note.style.display = 'block'; window.clearTimeout(noteTimer); noteTimer = window.setTimeout(() => { note.style.display = 'none' }, 3200) }
   const buttons = stops.map(([name, value]) => {
     const button = document.createElement('button'); button.textContent = name; button.type = 'button'
     Object.assign(button.style, { color: 'inherit', background: 'transparent', border: '0', padding: '9px 10px', font: 'inherit', cursor: 'pointer' })
-    button.onclick = () => { chosen = -1; panX = panY = 0; if (value === 1) { world = region = entryHouse = 0; travel(value, -1) } else travel(value) }
+    // [2026-10-11, demo] A stop the headcount has not earned says what it costs, rather than doing nothing.
+    button.onclick = () => { if (isLocked(value)) { say(lockNote(headcountToReach(value), total)); return } chosen = -1; panX = panY = 0; if (value === 1) { world = region = entryHouse = 0; travel(value, -1) } else travel(value) }
     bar.append(button); return button
   })
   const frontierButton=document.createElement('button');frontierButton.type='button';frontierButton.textContent='Frontier'
@@ -72,7 +81,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
     const [x,y,z]=globeCell(id,world);yaw=-Math.atan2(x,z);tilt=Math.asin(y);chosen=id;lastText=''
   }
   bar.append(frontierButton)
-  host.append(bar)
+  host.append(bar, note)
   const card = document.createElement('section'); card.className = 'studio-system'; card.setAttribute('aria-label', 'Selected system')
   Object.assign(card.style, { display: 'none', position: 'absolute', left: '50%', bottom: '130px', transform: 'translateX(-50%)', zIndex: '5', width: 'min(290px, 85%)', padding: '14px', border: '1px solid currentColor', background: '#181919', font: '13px var(--font-terminal), monospace', lineHeight: '1.6' })
   const text = document.createElement('div'), dive = document.createElement('button'), close = document.createElement('button')
@@ -117,11 +126,15 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       else if (level >= 4.5 && level < 6 && id >= 0) { region = id; entryHouse = 0 }
       else if (level < 4.5 && id >= 0) entryHouse = id
     },
-    render(renderer: T.WebGLRenderer, near: T.Texture, w: number, h: number, n: number, p: PhosphorRamp, seconds: number, reduced: boolean) {
+    render(renderer: T.WebGLRenderer, near: T.Texture, w: number, h: number, n: number, p: PhosphorRamp, seconds: number, reduced: boolean, done: number | null = null) {
       const active = level >= 3
       frontierButton.style.display=level>=4.5&&level<6?'block':'none'
       bar.style.display = active ? 'flex' : 'none'; bar.style.color = p[2]; card.style.color = p[2]
-      buttons.forEach((b, i) => { b.style.background = (i === 0 && level >= 6) || (i === 1 && level >= 4.5 && level < 6) || (i === 2 && level < 4.5) ? p[1] : 'transparent' })
+      buttons.forEach((b, i) => {
+        b.style.background = (i === 0 && level >= 6) || (i === 1 && level >= 4.5 && level < 6) || (i === 2 && level < 4.5) ? p[1] : 'transparent'
+        const locked = isLocked(stops[i][1]); b.style.opacity = locked ? '.4' : '1'; b.style.cursor = locked ? 'not-allowed' : 'pointer'; b.setAttribute('aria-disabled', String(locked))
+      })
+      note.style.color = p[2]; if (!active) note.style.display = 'none'
       card.style.display = active && chosen >= 0 ? 'block' : 'none'
       if (chosen >= 0 && level >= 6) {
         card.setAttribute('aria-label','Selected system'); dive.textContent='Enter world'
@@ -166,7 +179,7 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       }
       if(height>=160){ctx.fillStyle=p[1];label('STUDIO_OS / LIVE SURVEY',left+2,top+9)}
       points = []
-      const frame: AtlasFrame = { ctx, width, height, total, world, region, level, panX, panY, seconds, reduced, phosphor: p, points, expansions, wings }
+      const frame: AtlasFrame = { ctx, width, height, total, world, region, level, panX, panY, seconds, reduced, phosphor: p, points, expansions, wings, done }
       if (level >= 6) drawNetwork(frame, net, chosen, territory, mask)
       else if (level >= 4.5) drawGlobe(frame, yaw, tilt, chosen)
       else { sprites ??= bakeCityImpostors(renderer); drawDistrict(frame, sprites) }
@@ -178,6 +191,6 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       renderer.setRenderTarget(target); renderer.render(scene, camera); renderer.setRenderTarget(null)
       return target.texture
     },
-    dispose() { bindMonitorText(ctx, null); bar.remove(); card.remove(); texture.dispose(); wordsTexture.dispose(); shader.dispose(); quad.geometry.dispose(); target.dispose() },
+    dispose() { bindMonitorText(ctx, null); window.clearTimeout(noteTimer); bar.remove(); note.remove(); card.remove(); texture.dispose(); wordsTexture.dispose(); shader.dispose(); quad.geometry.dispose(); target.dispose() },
   }
 }

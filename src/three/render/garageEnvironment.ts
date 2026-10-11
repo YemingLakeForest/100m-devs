@@ -4,7 +4,7 @@
  * the one that changes. See docs/PLAN-2026-09-26-return.md.
  */
 import * as T from 'three'
-import { OS } from '../art/skin.ts'
+import { OS, OS_HORIZON, OS_NIGHT } from '../art/skin.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, sharedMaterial, showSeatInstances, slab, tree, wall, type PropInstances } from './worldArt.ts'
 import { projectBoard } from './projectPlate.ts'
@@ -254,7 +254,11 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // Continuous ground and two joined slabs leave a genuine recessed doorway.
   // A cheap continuous ground plane hides the horizon even on tall screens;
   // camera travel is bounded independently of the scenery's backing surface.
-  box(g, 0, -0.6, 0, 512, .1, 512, env.background, false)
+  const horizon = box(g, 0, -0.6, 0, 512, .1, 512, env.background, false)
+  // [2026-10-11, demo] In the OS look the horizon is the survey's own ground — flat, unlit, the interface's
+  // darkest neutral — so the void under the room is the colour of the void under the monitor and the hand-off
+  // at the top of the block changes nothing about what is behind the picture (`osDesktop.ts` draws on it).
+  if (OS_NIGHT) horizon.material = sharedMaterial('os:horizon', () => new T.MeshBasicMaterial({ color: OS_HORIZON }))
   // §7.8.12 [2026-10-07]: the shared sky/key/fill rig lights the entire room.
   // Visible diffusers and sconces remain art, so arrivals cannot change a face's illumination.
   box(g, 1.5, -0.48, 1.1, 33, 0.16, 25, '#d3d1c5')

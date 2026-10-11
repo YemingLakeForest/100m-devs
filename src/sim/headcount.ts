@@ -283,6 +283,20 @@ export function maxLensLevelFor(devs: number): number {
   return LENS_CEILING_BY_RUNG[rungFor(devs).rung]
 }
 
+/**
+ * The smallest studio that has earned `level` — {@link maxLensLevelFor} run backwards [2026-10-11, demo].
+ *
+ * The address bar drew every stop the same whether or not the studio could reach it, and a click on one it
+ * could not reach did nothing at all (`stage.ts`'s `travel` clamps to the ceiling, silently). A control that
+ * looks live and is not is a bug; a control that says what it costs is a signpost. This is the number on the
+ * sign. `Infinity` for a level no studio reaches.
+ */
+export function headcountToReach(level: number): number {
+  const rung = LENS_CEILING_BY_RUNG.findIndex((ceiling) => ceiling >= level)
+  if (rung < 0) return Infinity
+  return rung === 0 ? 0 : RUNGS[rung - 1].upTo
+}
+
 const MAGNITUDES = [
   { at: 1e12, suffix: 'T' },
   { at: 1e9, suffix: 'B' },

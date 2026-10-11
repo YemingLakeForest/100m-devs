@@ -1,5 +1,6 @@
 import * as T from 'three'
-import { OS } from '../art/skin.ts'
+import { OS, OS_NIGHT } from '../art/skin.ts'
+import { createLotBrackets, LOT_BRACKET } from './osDesktop.ts'
 import { box, cylinder, batchArt, disposeArt, sharedMaterial } from './worldArt.ts'
 import { BLOCK_SIZE, BLOCK_PITCH, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, streetAxis, houseLanding } from './cityGrid.ts'
 import { createThrusters } from './thrusters.ts'
@@ -112,7 +113,10 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
           new T.Vector3(-edge, 0, -edge), new T.Vector3(edge, 0, -edge), new T.Vector3(edge, 0, edge), new T.Vector3(-edge, 0, edge),
         ]), new T.LineBasicMaterial({ color: OS.calm2, transparent: true }))
         marker.position.set(at.x, -.29, at.z); root.add(marker)
-        const b: Building = { ...model, leaving: null, group, lot: dressCityLot(root, at.x, at.z), rig, marker, legs, start: animate ? clock : null, wait: queued,
+        const lot = dressCityLot(root, at.x, at.z)
+        // [2026-10-11, demo] Every lot wears the survey frame's corner bracket (`osDesktop.ts`).
+        if (OS_NIGHT) { const brackets = createLotBrackets(LOT_BRACKET); brackets.position.y = .01; lot.add(brackets) }
+        const b: Building = { ...model, leaving: null, group, lot, rig, marker, legs, start: animate ? clock : null, wait: queued,
           landed: !animate, ignited: false, dust: false, hop: null }
         buildings.push(b); queued += .22
         group.position.y += animate ? 30 : 0

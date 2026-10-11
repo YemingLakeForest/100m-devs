@@ -7,6 +7,8 @@ import type { CityImpostors } from './cityImpostors.ts'
 import { planetHubs } from '../../sim/planetTerrain.ts'
 import { paintPlanet } from './planetSurface.ts'
 import { hqMarker, type HqWing } from '../../sim/hqLook.ts'
+import { cityCaption, globeCaption } from '../../sim/monitorVoice.ts'
+import { drawGarageGlyph, GARAGE_GLYPH_W, lampLit } from './garageGlyph.ts'
 
 export interface AtlasPoint { x: number; y: number; id: number; depth: number }
 export interface Expansion { from: number; to: number; at: number }
@@ -16,6 +18,8 @@ export interface AtlasFrame {
   phosphor: PhosphorRamp; points: AtlasPoint[]; expansions: Expansion[]
   /** The heroes who have walked in — the colours the HQ wears (`sim/hqLook.ts`). */
   wings: HqWing[]
+  /** How burned the project in flight is (0–1), for the captions (`sim/monitorVoice.ts`); `null` when there is none to say. */
+  done: number | null
 }
 
 /**
@@ -28,13 +32,18 @@ export interface AtlasFrame {
 export function drawHqMark(f: AtlasFrame, cx: number, cy: number, label: string, ink: string) {
   const { ctx } = f
   const m = hqMarker(f.total, f.wings.map((w) => w.hero))
-  const w = Math.max(15, label.length * 4 + 3)
-  ctx.fillStyle = N[0]; ctx.fillRect(Math.round(cx - w / 2), Math.round(cy - 5), w, 8)
+  // [2026-10-11, demo] The mark is the garage (`garageGlyph.ts`) and then the word, in a box that still
+  // gains borders and a crown as the HQ becomes a place: the glyph is the one part that never grows.
+  const textW = label.length * 4
+  const w = 3 + GARAGE_GLYPH_W + 2 + textW + 2
+  const left = Math.round(cx - w / 2)
+  ctx.fillStyle = N[0]; ctx.fillRect(left, Math.round(cy - 5), w, 8)
   for (let b = 0; b < m.borders; b++) {
     ctx.strokeStyle = b === 0 ? ink : A[2]
     ctx.strokeRect(Math.round(cx - w / 2) - b * 2 - .5, Math.round(cy - 5) - b * 2 - .5, w + b * 4 + 1, 8 + b * 4 + 1)
   }
-  ctx.fillStyle = ink; ctx.textAlign = 'center'; monitorText(ctx, label, cx, cy + 1); ctx.textAlign = 'left'
+  drawGarageGlyph(ctx, left + 3 + GARAGE_GLYPH_W / 2, cy - 1, ink, lampLit(f.seconds, f.reduced))
+  ctx.fillStyle = ink; ctx.textAlign = 'center'; monitorText(ctx, label, left + 3 + GARAGE_GLYPH_W + 2 + textW / 2, cy + 1); ctx.textAlign = 'left'
   if (m.crown) { ctx.fillStyle = A[3]; ctx.fillRect(Math.round(cx) - 2, Math.round(cy - 5) - m.borders * 2 - 2, 5, 1); ctx.fillRect(Math.round(cx) - 2, Math.round(cy - 5) - m.borders * 2 - 3, 1, 1); ctx.fillRect(Math.round(cx), Math.round(cy - 5) - m.borders * 2 - 3, 1, 1); ctx.fillRect(Math.round(cx) + 2, Math.round(cy - 5) - m.borders * 2 - 3, 1, 1) }
   const pipsLeft = Math.round(cx - (m.wings.length * 3 - 1) / 2)
   m.wings.forEach((wing, i) => { ctx.fillStyle = wing.colour; ctx.fillRect(pipsLeft + i * 3, Math.round(cy + 3) + m.borders * 2, 2, 2) })
@@ -135,7 +144,8 @@ export function drawDistrict(f: AtlasFrame, sprites: CityImpostors) {
     ctx.fillStyle=car%2?A[3]:p[2];ctx.fillRect(Math.round(q.x+scale*.5),Math.round(q.y+scale*.29),1,1)
   }
   ctx.restore()
-  atlasCaption(f,`${regionPopulation(total,world,region).toLocaleString()} DEVELOPERS ONLINE`,`${occupied} / ${count} OFFICES ONLINE · SELECT TO VISIT`)
+  const voice=cityCaption({population:regionPopulation(total,world,region),total,occupied,offices:count,city:cityName(region,world).split(' / ')[0]})
+  atlasCaption(f,voice.title,voice.detail)
 }
 
 const worldCells=new Map<number,{id:number;center:[number,number,number]}[]>()
@@ -214,14 +224,18 @@ export function drawGlobe(f: AtlasFrame, yaw: number, tilt: number, selected = -
     const lx=(placed??placements[0]).x,ly=(placed??placements[0]).y
     if(labels.length>=(compact?1:3))break
     labels.push({x:lx,y:ly,w:bw});labelledHubs.add(globeHub(id,world))
-    ctx.strokeStyle=id===selected?A[3]:N[5];ctx.beginPath();ctx.arc(q.x,q.y,id===selected?4:2.5,0,TAU);ctx.stroke()
+    ctx.strokeStyle=id===selected?A[3]:N[5]
+    // Earth's HQ pin is the garage, not a ring (`garageGlyph.ts`): the same nine pixels at every scale.
+    if(id===0&&world===0)drawGarageGlyph(ctx,q.x,q.y,id===selected?A[3]:N[6],lampLit(f.seconds,f.reduced))
+    else{ctx.beginPath();ctx.arc(q.x,q.y,id===selected?4:2.5,0,TAU);ctx.stroke()}
     line(ctx,[q.x+3,q.y],[lx,ly-2],ctx.strokeStyle)
     ctx.fillStyle=N[0];ctx.fillRect(Math.round(lx),Math.round(ly-7),bw,10)
     ctx.fillStyle=id===selected?A[3]:N[6];monitorText(ctx,caption,lx+3,ly)
     // Tapping the callout selects the same address as its surface marker.
     f.points.push({x:lx+bw/2,y:ly-2,id,depth:q.depth})
   }
-  atlasCaption(f,(population<1e6?population.toLocaleString():(population/1e6).toFixed(1)+'M')+' / 100M · '+hubs.length+(hubs.length===1?' HUB':' HUBS'),selected>=0?'SELECTED: '+cityName(selected,world):'> SELECT A CITY · SCROLL TO DESCEND')
+  const voice=globeCaption({population,capacity:1e8,hubs:hubs.length,selected:selected>=0?cityName(selected,world):null})
+  atlasCaption(f,voice.title,voice.detail)
 }
 
 /** A short, action-driven receipt makes an expansion legible even when the

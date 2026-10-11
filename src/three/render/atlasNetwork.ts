@@ -2,6 +2,8 @@ import { RAMPS } from '../../art/palette.ts'
 import { mixHex } from '../../art/entropyTheme.ts'
 import { extendNetwork, WORLD_SEATS, type Network } from '../../sim/colonyNetwork.ts'
 import { atlasCaption, type AtlasFrame } from './atlasWorlds.ts'
+import { networkCaption } from '../../sim/monitorVoice.ts'
+import { drawGarageGlyph, GARAGE_GLYPH_W, lampLit } from './garageGlyph.ts'
 import { monitorText } from './monitorText.ts'
 import { placeMapLabel, type LabelBox } from './mapLabels.ts'
 const N = RAMPS.NEUTRAL, A = RAMPS.WARN, TAU = Math.PI * 2
@@ -45,8 +47,12 @@ export function drawNetwork(f: AtlasFrame, net: Network, chosen: number, territo
   for (const q of visible) {
     const live = q.rank < settled, next = q.rank === settled, selected = q.id === chosen
     if (!live && !next && !nearFrontier.has(q.id)) continue
-    const r = q.id === 0 ? 3 : 2
-    ctx.fillStyle = live ? A[3] : N[3]; ctx.fillRect(Math.round(q.x)-1,Math.round(q.y)-1,live && height >= 160 ? 2 : 1,live && height >= 160 ? 2 : 1)
+    // [2026-10-11, demo] Sol is the garage (`garageGlyph.ts`), in a ring wide enough to hold it: the origin
+    // every colony's own HQ echoes (§7.8.12), the one mark on the chart that is where it all started.
+    const glyph = q.id === 0 && height >= 160
+    const r = q.id === 0 ? (glyph ? GARAGE_GLYPH_W / 2 : 3) : 2
+    if (glyph) drawGarageGlyph(ctx, Math.round(q.x), Math.round(q.y), A[3], lampLit(f.seconds, f.reduced))
+    else { ctx.fillStyle = live ? A[3] : N[3]; ctx.fillRect(Math.round(q.x)-1,Math.round(q.y)-1,live && height >= 160 ? 2 : 1,live && height >= 160 ? 2 : 1) }
     if (q.id === 0) {
       // Sol wears the HQ's colours: a point on its ring for each hero who has walked in.
       f.wings.forEach((wing, k) => { const a = -Math.PI / 2 + (k * TAU) / Math.max(3, f.wings.length); ctx.fillStyle = wing.colour; ctx.fillRect(Math.round(q.x + Math.cos(a) * (r + 4)), Math.round(q.y + Math.sin(a) * (r + 4)), 2, 2) })
@@ -80,5 +86,6 @@ export function drawNetwork(f: AtlasFrame, net: Network, chosen: number, territo
     ctx.fillStyle=q.id === chosen || q.rank === settled ? p[3] : N[6]
     monitorText(ctx,name,box.x+2,box.y+6); labels++
   }
-  atlasCaption(f, `${settled.toLocaleString()} WORLDS CONNECTED`, 'TAP A WORLD · DRAG TO EXPLORE')
+  const voice = networkCaption({ worlds: settled, burned: f.done, nextLy: net.systems[net.order[settled]]?.ly ?? null })
+  atlasCaption(f, voice.title, voice.detail)
 }

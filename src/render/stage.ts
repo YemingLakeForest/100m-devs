@@ -754,7 +754,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       playSfx('poke-floor')
     }
     atlas.setHeroes(arrivedHeroes())
-    const picture = atlas.render(garage.renderer, garage.output, w, h, state.devs, theme.phosphor, now / 1000, reduceMotion)
+    const picture = atlas.render(garage.renderer, garage.output, w, h, state.devs, theme.phosphor, now / 1000, reduceMotion, burnedFraction(state))
     glass.render(garage.renderer, picture, numeralsLive ? numeralTexture : null, {
       glass: theme.glass,
       critPunch,
