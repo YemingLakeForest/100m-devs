@@ -1,8 +1,8 @@
 /** §7.8.12 [2026-10-07]: a workshop with a gallery and garden, keeping the hero stations intact. */
 import * as T from 'three'
-import { GARAGE_PODS, GARAGE_POD_LAYOUT, GARAGE_FURNITURE, HQ_FINISHES, HQ_GARDEN, GARAGE_HERO_DECK } from '../sim/floorPlan.ts'
+import { GARAGE_PODS, GARAGE_POD_LAYOUT, GARAGE_FURNITURE, HQ_FINISHES, GARAGE_HERO_DECK } from '../sim/floorPlan.ts'
 import { box, sharedMaterial } from './worldArt.ts'
-import { lamp } from './glowArt.ts'
+import { courtyardGarden } from './garageGarden.ts'
 import { leafyPlanter } from './garageCraft.ts'
 import { paintCover } from '../art/coverPixels.ts'
 import { coverFor } from '../sim/cover.ts'
@@ -98,66 +98,12 @@ export function hqInterior(g: T.Group, studies: T.Group): void {
   // Matching stiles and header join the hero bays into one architectural work wall.
   for (const x of [-3.55, .35, 2.05, 6.75]) box(workwall, x, 1.0, -9.59, .07, 2.35, .065, '#ba9263')
   box(workwall, 1.6, 3.35, -9.59, 10.5, .08, .065, '#ba9263')
-  // A continuous warm diffuser ties the disparate work areas together, without a coloured light on faces.
-  lamp(workwall, 2.4, 3.45, -9.56, 14, .045, .055, '#dfd8b9')
-  lamp(workwall, -9.73, 3.45, -5.95, .055, .045, 7.1, '#dfd8b9')
+  // [2026-10-11, at the user's instruction: *"don't like the white line on the back and side wall"*] There used to be
+  // a "continuous warm diffuser" here: two 5 cm cream bars of unlit emissive, one 14 m long across the north wall and
+  // one 7 m long down the west one, at 3.45 m. It was meant to tie the work areas together and read as a stripe
+  // drawn on the plaster, stopping and starting at nothing. The sconces and the sky rig are what light the room.
   // An actual open-air court cuts into the frontage. It is outside the work floor,
   // so the grass and planting cannot become a shortcut through an invisible wall.
-  const c = HQ_GARDEN
   const garden = new T.Group(); garden.position.y = -.20; g.add(garden)
-  box(garden, (c.x0 + c.x1) / 2, -.08, (c.z0 + c.z1) / 2, c.x1 - c.x0, .08, c.z1 - c.z0, '#52755a', false)
-  // Continuous paving and planted edges give the courtyard a purpose and ground every object.
-  // A single paving grid prevents the old crossing paths from sharing faces.
-  for (let row = 0; row < 5; row++) for (let col = 0; col < 7; col++) {
-    const x = -.95 + col * .65, z = 5.55 + row * .65
-    if (col === 2 || col === 3 || row === 3 || row === 4 && col > 0 && col < 6)
-      box(garden, x, .01, z, .615, .045, .615, '#aaa58e', false)
-  }
-  for (const x of [-1.45, 3.45]) {
-    box(garden, x, 0, 6.1, .65, .23, 1.85, '#41565b')
-    box(garden, x, .23, 6.1, .57, .035, 1.77, '#60513b')
-    box(garden, x, .23, 6.1, .71, .045, 1.91, '#87938a')
-    box(garden, x, .276, 6.1, .53, .015, 1.73, '#60513b')
-    for (const z of [5.55, 6.1, 6.65]) {
-      box(garden, x, .27, z, .45, .28, .45, '#416652')
-      box(garden, x - .07, .55, z, .33, .16, .34, '#63836a')
-      box(garden, x + .11, .40, z + .11, .23, .20, .25, '#52765b')
-    }
-  }
-  for (const x of [-.15, 2.15]) box(garden, x, .03, 8.37, .10, .41, .48, '#34494f')
-  for (let z = 8.12; z < 8.65; z += .15) box(garden, 1, .44, z, 2.6, .065, .12, '#a18b65')
-  for (const x of [-.15, 2.15]) box(garden, x, .45, 8.62, .07, .53, .07, '#34494f')
-  for (const y of [.66, .84]) box(garden, 1, y, 8.62, 2.6, .12, .06, '#a18b65')
-  leafyPlanter(garden, -1.30, 8.35, .65)
-  leafyPlanter(garden, 3.30, 8.35, .65)
-  // A small garden tree, layered understory and a light timber arbor frame the seating pocket.
-  box(garden, -1.42, .08, 7.48, .11, 1.30, .11, '#76583d')
-  for (const [dx, dy, dz, w, h] of [[0, 1.18, 0, .70, .52], [-.22, 1.45, .07, .49, .36], [.20, 1.40, -.10, .48, .38]])
-    box(garden, -1.42 + dx, dy, 7.48 + dz, w, h, w, '#416652')
-  for (const x of [-1.4, 3.4]) for (const z of [5.65, 6.35]) {
-    box(garden, x + .16, .48, z, .12, .16, .12, '#63836a')
-    box(garden, x + .16, .64, z, .13, .08, .13, '#8f8395')
-  }
-  for (const x of [-.40, 2.40]) for (const z of [7.65, 8.8]) {
-    box(garden, x, 0, z, .13, 2.12, .13, '#76583d')
-    box(garden, x, .01, z, .18, .10, .18, '#34494f')
-  }
-  for (const z of [7.65, 8.8]) box(garden, 1, 2.12, z, 3.12, .13, .15, '#a18b65')
-  for (let x = -.4; x < 2.6; x += .40) box(garden, x, 2.22, 8.22, .08, .09, 1.50, '#a18b65')
-  // Stepped vine clusters break up the roof without a solid canopy hiding the garden.
-  for (const x of [-.35, .40, 1.65, 2.35]) {
-    box(garden, x, 2.30, 8.75, .42, .16, .46, '#416652')
-    box(garden, x + .12, 2.28, 8.56, .28, .15, .35, '#63836a')
-  }
-  for (const x of [-.40, 2.40]) for (const y of [.50, 1.10, 1.70]) {
-    box(garden, x + .10, y, 8.78, .20, .24, .18, '#416652')
-    box(garden, x - .09, y + .18, 8.75, .18, .19, .20, '#63836a')
-  }
-  // More layered borders, leaving the paved approach and bench front clear.
-  for (const x of [-1.4, 3.4]) for (const z of [5.25, 5.9, 6.55, 7.1]) {
-    box(garden, x - .08, .29, z, .23, .20, .27, '#789078')
-    box(garden, x + .11, .42, z + .06, .14, .10, .13, '#a7a38b')
-  }
-  for (const x of [-1.91, 3.91]) box(garden, x, 0, 7, .16, .02, 3.9, '#87938a', false)
-
+  courtyardGarden(garden)
 }

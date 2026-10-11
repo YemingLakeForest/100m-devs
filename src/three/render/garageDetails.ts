@@ -10,6 +10,7 @@ import { box, cylinder, INK, line, sharedMaterial } from './worldArt.ts'
 import { STUDIO_DOOR, STUDIO_GABLE } from '../sim/floorPlan.ts'
 import { dietCoke } from './garageCraft.ts'
 import { emissive, wash } from './glowArt.ts'
+import { forecourtPlanting } from './garageGarden.ts'
 
 /**
  * The green the studio signs its own name in.
@@ -717,9 +718,10 @@ export function street(g: T.Group): void {
   }
 }
 
-/** Small everyday objects on the forecourt; the entrance/crossing stays clear. */
+/** Small everyday objects on the forecourt, and the planting; the entrance/crossing stays clear. */
 export function garageForecourt(g: T.Group): void {
   const yard = new T.Group(); yard.position.y = -.32; g.add(yard)
+  forecourtPlanting(yard)
   // Slatted oak bench beside the hedge, facing the street.
   for (const x of [5.1, 7.1]) box(yard, x, 0, 10.65, .12, .45, .62, INK.metal)
   for (const z of [10.42, 10.62, 10.82]) box(yard, 6.1, .45, z, 2.5, .09, .16, INK.wood)

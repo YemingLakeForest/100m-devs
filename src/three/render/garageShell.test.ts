@@ -62,6 +62,23 @@ describe('the front stands as tall as the rest of the building', () => {
   })
 })
 
+describe('the back walls are plain plaster', () => {
+  it('has no long lit bar stood against them', () => {
+    // *"don't like the white line on the back and side wall"* [2026-10-11]: a "continuous warm diffuser", two 5 cm bars of
+    // unlit cream, 14 m across the north wall and 7 m down the west one. A lit thing that is long in one direction and
+    // thin in the other two is a stripe on the wall, whatever it is called (a screen is thin in one only).
+    const room = buildGarageEnvironment(3, defaultCast(), 'on', false, GARAGE_ASSEMBLED, true)
+    room.root.updateMatrixWorld(true)
+    const bars: string[] = []
+    room.root.traverse((node) => {
+      if (!(node instanceof T.Mesh) || !(node.material instanceof T.MeshBasicMaterial)) return
+      const [thin, middle, long] = new T.Box3().setFromObject(node).getSize(new T.Vector3()).toArray().sort((a, b) => a - b)
+      if (long > 2 && middle < 0.15) bars.push(`${node.name || 'a mesh'} ${long.toFixed(1)} m long, ${thin.toFixed(2)} × ${middle.toFixed(2)}`)
+    })
+    expect(bars).toEqual([])
+  })
+})
+
 describe('the project board hangs on the wall', () => {
   // The board is built after the batcher, so it needs the whole room and not the bare shell.
   const full = buildGarageEnvironment(3, defaultCast(), 'on', false, GARAGE_ASSEMBLED, true)

@@ -6,7 +6,7 @@
 import * as T from 'three'
 import { OS, OS_HORIZON, OS_NIGHT } from '../art/skin.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
-import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, sharedMaterial, showSeatInstances, slab, tree, wallRuns, type Plan, type PropInstances, type WallRun } from './worldArt.ts'
+import { batchArt, box, cylinder, hedge, INK, placeInstances, planter, sharedMaterial, showSeatInstances, slab, tree, wallRuns, type Plan, type PropInstances, type WallRun } from './worldArt.ts'
 import { projectBoard } from './projectPlate.ts'
 import { garageNeighborhood } from './garageNeighborhood.ts'
 import { garageBackyard } from './garageBackyard.ts'
@@ -598,11 +598,8 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
     hedge(pavement, -11.6, 12.65, 2.6, 0.65)
     hedge(pavement, 16.8, .1, .65, 7.0)
     planter(pavement, 10.9, 9, 0.8)
-    for (let x = 0; x <= 2.3; x += 1.1) {
-      line(g, [new T.Vector3(x, -0.3, 9.6), new T.Vector3(x, 0.8, 9.6),
-        new T.Vector3(x + 0.65, 0.8, 9.6), new T.Vector3(x + 0.65, -0.3, 9.6)], INK.metal)
-      for (const dx of [0, 0.65]) cylinder(g, x + dx, -0.3, 9.6, 0.035, 1.05, INK.metal)
-    }
+    // [2026-10-11] The row of wire hoops that stood here, across the court's mouth, is gone: three loops of one-pixel
+    // line on 7 cm posts, which from the camera were a row of stakes in front of the garden.
   }
   garageSurfaceDetails(g)
   hqInterior(g, prop(env, g, 'ops:studies'))
