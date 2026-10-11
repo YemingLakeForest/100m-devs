@@ -36,6 +36,7 @@
 
 import { createGarageView, GARAGE_REST_ZOOM, GARAGE_ZOOM_MAX, GARAGE_ZOOM_MIN } from '../three/render/garageView.ts'
 import { maxLensLevelFor } from '../sim/headcount.ts'
+import { BRIDGE_TO } from '../sim/lensFlight.ts'
 import { createStudioAtlas } from '../three/render/studioAtlas.ts'
 import { createGlass, type GlassPasses } from '../three/render/glass.ts'
 import * as T from 'three'
@@ -274,7 +275,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const zoomTo = (value: number, x: number, y: number) => {
     // The far bound is the headcount's, not the ladder's: you cannot pinch out past the people you have.
     const next = Math.max(zoomOfLevel(ceilingLevel()), Math.min(GARAGE_ZOOM_MAX, value)), lvl = levelOfZoom(next)
-    if (lvl >= 3) { if (atlasZoom !== null && ((levelOfZoom(atlasZoom) >= 6 && lvl < 6) || (levelOfZoom(atlasZoom) >= 4.5 && lvl < 4.5))) atlas.descend(x, y); atlasZoom = next; atlas.setLevel(lvl) }
+    if (lvl >= 3) {
+      if (atlasZoom !== null) {
+        const was = levelOfZoom(atlasZoom)
+        if (was >= 6 && lvl < 6) atlas.descend(x, y)
+        // [2026-10-11, demo] The flight to a city starts at the top of its band, so it is aimed there: at the
+        // bottom it would already be a city, and the planet would have turned to the wrong one on the way down.
+        else if (was >= BRIDGE_TO && lvl < BRIDGE_TO) atlas.aim(x, y)
+      }
+      atlasZoom = next; atlas.setLevel(lvl)
+    }
     else { if (atlasZoom !== null) { atlas.descend(x, y); atlasZoom = null; garage.visit(atlas.entrySeat) }; atlas.setLevel(lvl); garage.zoomTo(next, x, y) }
   }
 

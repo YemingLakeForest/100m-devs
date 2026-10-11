@@ -7,11 +7,36 @@ import type { CityImpostors } from './cityImpostors.ts'
 import { planetHubs } from '../../sim/planetTerrain.ts'
 import { paintPlanet } from './planetSurface.ts'
 import { hqMarker, type HqWing } from '../../sim/hqLook.ts'
-import { cityCaption, globeCaption } from '../../sim/monitorVoice.ts'
+import { cityCaption, globeCaption, type Caption } from '../../sim/monitorVoice.ts'
 import { drawGarageGlyph, GARAGE_GLYPH_W, lampLit } from './garageGlyph.ts'
 
 export interface AtlasPoint { x: number; y: number; id: number; depth: number }
 export interface Expansion { from: number; to: number; at: number }
+/**
+ * A flight between the city and the planet (`sim/lensFlight.ts`) draws each of the two pictures as a *layer*:
+ * the district at a multiple of its size and the planet at a radius the flight chose, centred where the flight
+ * says. A layer is `quiet` — no text, no callouts, no caption, because two layers' lettering laid over each
+ * other is noise — and hands its caption back for the survey to draw once.
+ */
+export interface FlightView {
+  quiet: boolean
+  /** The district's scale, as a multiple of what the lens level gives it. */
+  zoom?: number
+  /** Where the district's HQ block, or the planet's middle, is. */
+  centre?: { x: number; y: number }
+  /** The planet's radius as drawn, and the radius its surface bitmap was built at (`paintPlanet`). */
+  radius?: number
+  rasterRadius?: number
+}
+
+/** The planet's resting radius at a lens level, and where it sits: exported so a flight lands exactly on them. */
+export const globeRadiusAt = (width: number, height: number, level: number) =>
+  Math.min(width * .27, height * (height < 160 ? .205 : .285)) * Math.pow(1.45, 5 - level)
+export const globeCentreAt = (width: number, height: number) => ({ x: width * .5, y: height * (height < 160 ? .48 : .45) })
+/** Where the district's HQ block is, before any flight moves it. */
+export const districtCentreAt = (width: number, height: number, panX: number, panY: number) =>
+  ({ x: width * .5 + panX, y: height * (height < 160 ? .48 : .46) + panY })
+
 export interface AtlasFrame {
   ctx: CanvasRenderingContext2D; width: number; height: number; total: number; world: number
   region: number; level: number; panX: number; panY: number; seconds: number; reduced: boolean
@@ -20,6 +45,8 @@ export interface AtlasFrame {
   wings: HqWing[]
   /** How burned the project in flight is (0–1), for the captions (`sim/monitorVoice.ts`); `null` when there is none to say. */
   done: number | null
+  /** Set while this picture is one layer of a flight between the city and the planet. */
+  view?: FlightView
 }
 
 /**
@@ -81,7 +108,7 @@ function pulse(f: AtlasFrame, x: number, y: number, first: number, end: number) 
 
 /** A district is the same converted workshops seen at a smaller scale. Streets,
  * roof variants and warm occupied windows survive the change in representation. */
-export function drawDistrict(f: AtlasFrame, sprites: CityImpostors) {
+export function drawDistrict(f: AtlasFrame, sprites: CityImpostors): Caption | undefined {
   const { ctx, width, height, total, world, region, level, phosphor: p } = f
   const range = regionHouses(region), count = range.end - range.first, population = worldPopulation(total, world)
   const occupied = Math.max(0, Math.min(count, Math.ceil(population / 100) - range.first))
@@ -91,8 +118,9 @@ export function drawDistrict(f: AtlasFrame, sprites: CityImpostors) {
   const bounds=Array.from({length:Math.max(1,occupied)},(_,i)=>districtBlock(i+1))
   const xs=bounds.map(b=>(b.x-b.z)/BLOCK_PITCH),ys=bounds.map(b=>(b.x+b.z)/BLOCK_PITCH/Math.sqrt(3))
   const fit=Math.min(width*(compact?.47:.60)/(Math.max(...xs)-Math.min(...xs)+3),height*(compact?.35:.56)/(Math.max(...ys)-Math.min(...ys)+3))
-  const scale = Math.min(Math.min(width / (compact ? 38 : 24), height / (compact ? 25 : 16)) * Math.pow(2, 3.2-level),fit*Math.pow(2,3.7-level))
-  const cx=width*.5+f.panX, cy=height*(height<160 ? .48 : .46)+f.panY
+  const scale = Math.min(Math.min(width / (compact ? 38 : 24), height / (compact ? 25 : 16)) * Math.pow(2, 3.2-level),fit*Math.pow(2,3.7-level)) * (f.view?.zoom ?? 1)
+  const centre = f.view?.centre ?? districtCentreAt(width, height, f.panX, f.panY)
+  const cx=centre.x, cy=centre.y
   const at=(i:number)=>{ const b=districtBlock(i); return { x:cx+(b.x-b.z)/BLOCK_PITCH*scale, y:cy+(b.x+b.z)/BLOCK_PITCH*scale/Math.sqrt(3), order:b.x+b.z } }
   const drawWidth=sprites.worldWidth/(BLOCK_PITCH/Math.sqrt(2))*scale, drawHeight=drawWidth*sprites.height/sprites.width
   ctx.save();ctx.beginPath();ctx.rect(width*(compact?.25:.19),34,width*(compact?.5:.62),height*.78-34);ctx.clip()
@@ -135,7 +163,7 @@ export function drawDistrict(f: AtlasFrame, sprites: CityImpostors) {
       line(ctx,[x,y],[x,y-4],N[4]);ctx.fillStyle=A[3];ctx.fillRect(Math.round(x-1),Math.round(y-4),2,1)
     }
   }
-  if(world===0&&region===0) {
+  if(world===0&&region===0&&!f.view?.quiet) {
     drawHqMark(f,cx,cy,'HQ',p[2])
   }
   if(!f.reduced&&occupied>20)for(let car=0;car<Math.min(5,Math.floor(occupied/40));car++){
@@ -145,15 +173,17 @@ export function drawDistrict(f: AtlasFrame, sprites: CityImpostors) {
   }
   ctx.restore()
   const voice=cityCaption({population:regionPopulation(total,world,region),total,occupied,offices:count,city:cityName(region,world).split(' / ')[0]})
+  if(f.view?.quiet)return voice
   atlasCaption(f,voice.title,voice.detail)
 }
 
 const worldCells=new Map<number,{id:number;center:[number,number,number]}[]>()
-export function drawGlobe(f: AtlasFrame, yaw: number, tilt: number, selected = -1) {
+export function drawGlobe(f: AtlasFrame, yaw: number, tilt: number, selected = -1): Caption | undefined {
   const {ctx,width,height,world,total}=f
   const compact=height<160
-  const radius=Math.min(width*.27,height*(compact?.205:.285))*Math.pow(1.45,5-f.level)
-  const cx=width*.5,cy=height*(compact?.48:.45),population=worldPopulation(total,world)
+  const radius=f.view?.radius??globeRadiusAt(width,height,f.level)
+  const centre=f.view?.centre??globeCentreAt(width,height)
+  const cx=centre.x,cy=centre.y,population=worldPopulation(total,world)
   const transform=([a,b,c]:readonly number[])=>{
     const x=a*Math.cos(yaw)+c*Math.sin(yaw),z=c*Math.cos(yaw)-a*Math.sin(yaw)
     const y=b*Math.cos(tilt)-z*Math.sin(tilt),depth=z*Math.cos(tilt)+b*Math.sin(tilt)
@@ -162,7 +192,7 @@ export function drawGlobe(f: AtlasFrame, yaw: number, tilt: number, selected = -
   if(!worldCells.has(world))worldCells.set(world,Array.from({length:WORLD_REGIONS},(_,id)=>({id,center:globeCell(id,world)})))
   const live=worldCells.get(world)!.filter(cell=>regionPopulation(total,world,cell.id)>0)
   const last=live[live.length-1]
-  paintPlanet(ctx,cx,cy,radius,yaw,tilt,world)
+  paintPlanet(ctx,cx,cy,radius,yaw,tilt,world,f.view?.rasterRadius)
   const visible=live.map(cell=>({...cell,at:transform(cell.center)})).filter(c=>c.at.depth>.015)
   const hubs=planetHubs(world).map((_,id)=>{
     const cells=live.filter(c=>globeHub(c.id,world)===id),anchor=cells[0]
@@ -215,7 +245,7 @@ export function drawGlobe(f: AtlasFrame, yaw: number, tilt: number, selected = -
   const candidates=[selected,0,last?.id??-1,...hubs.map(h=>h.anchor.id)]
   const labels:{x:number;y:number;w:number}[]=[]
   const labelledHubs=new Set<number>()
-  for(const id of [...new Set(candidates)]) {
+  for(const id of f.view?.quiet?[]:[...new Set(candidates)]) {
     const city=visible.find(c=>c.id===id);if(!city||labelledHubs.has(globeHub(id,world)))continue
     const q=city.at,name=planetHubs(world)[globeHub(id,world)][0],caption=(id===selected?'> ':id===last?.id&&id!==0?'+ ':'')+name+(id===0&&world===0?' HQ':''),bw=caption.length*4+6
     const placements=[[q.x+7,q.y-8],[q.x-bw-7,q.y+12],[q.x+7,q.y+25],[q.x-bw-7,q.y-24]].map(([x,y])=>({x:Math.max(width*.20,Math.min(width*.80-bw,x)),y:compact?Math.max(46,Math.min(height*.64,y)):y}))
@@ -235,6 +265,7 @@ export function drawGlobe(f: AtlasFrame, yaw: number, tilt: number, selected = -
     f.points.push({x:lx+bw/2,y:ly-2,id,depth:q.depth})
   }
   const voice=globeCaption({population,capacity:1e8,hubs:hubs.length,selected:selected>=0?cityName(selected,world):null})
+  if(f.view?.quiet)return voice
   atlasCaption(f,voice.title,voice.detail)
 }
 

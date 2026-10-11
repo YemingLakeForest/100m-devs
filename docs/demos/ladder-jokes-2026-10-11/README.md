@@ -29,11 +29,14 @@ Then, in a loopback browser (the debug flags are loopback-only; use `127.0.0.1` 
 | Globe at 1M | `/?scenario=town` | |
 | Network at 100M and 1B | `/?scenario=nation`, `/?scenario=starbound` | |
 | A locked stop | `/?scenario=building`, press **Network** | (did nothing) |
+| City to planet, as a flight | `/?scenario=campus&flight=0.25`, press **World**, then **City** | `&flight=off` (the old cut) |
+| The wheel, aimed at a city | `/?scenario=metro`, wheel in over BERLIN | `&flight=off` |
 
 `?look=day` is the 2026-10-07 daylight rig; it exists only so the two can be compared in one build, and goes
 when one is chosen. The monitor captions have no `day` switch: their *before* is in the images.
 
-The `*.jpg` here are the same frames, before beside after. Start with `0-garage-to-galaxy-strip.jpg`.
+The images here are the same frames, before beside after, and `index.html` lays them out (open it in a browser). Start with
+`0-garage-to-galaxy-strip.jpg`; `11-city-to-globe-flight.webp` is the flight, moving.
 
 ## What changed
 
@@ -48,6 +51,15 @@ The `*.jpg` here are the same frames, before beside after. Start with `0-garage-
 - The day-to-night jump at the hand-off is gone: the neighbourhood above the monitor is now the same night as the
   monitor.
 
+**City to planet is a flight** (`src/sim/lensFlight.ts`, drawn in `render/studioAtlas.ts`; GDD §7.7.2 amended, pending adoption). The district
+and the planet used to be two draw functions with a hard switch at lens level 4.5. The flight runs over the band 4.5–5.2, so every
+lens ceiling still stops short of it and a studio that has not earned the planet never sees any of it. It is a match cut that is also a
+dolly: the district falls toward the garage glyph, held at the focus the whole way; the planet rises behind it from 3× and turns to
+face the city you came from; it lands exactly on the plain globe. The wheel scrubs it; a jump (the address bar, the dive button)
+is a timed flight whose clock dwells in the band, because timed evenly the dive was a few frames at the end of a dull approach. A pull-in
+aims at the top of the band, so pulling in over Berlin dives into Berlin. It is deliberately **not** a physical zoom: the planet's surface is
+a per-pixel raster tied to its radius and the true ratio is about seventy to one. `?flight=off` restores the cut; `?flight=0.25` runs it at a quarter speed.
+
 **A voice for the monitor** (`src/sim/monitorVoice.ts`; copy is not pinned, the rule is):
 *deadpan, every number true, the instruction never goes.* One constant climbs the whole ladder, `1 APP`, with how
 done it is from the network up. The bands are the scenario picker's own notes, shipped.
@@ -61,6 +73,7 @@ it now says `NO SIGNAL · NEEDS 100 M DEVELOPERS, HAS 10.0 K`. The figure comes 
 
 ## Not done, and why
 
+- Planet to network is still a cut (at level 6); the same flight would carry it. Garage to monitor stays the CRT wipe, by §1.0b.
 - The CRT wipe still starts as a screen-wide sweep; starting it from the founder's own desk monitor would make
   "you zoomed into your dashboard" literal. It is a motion change, so it wants its own look.
 - Arrival gags for the monitor stops (a district thud, a world dropped onto its lane).

@@ -5,7 +5,9 @@ import { buildNetwork } from '../../sim/colonyNetwork.ts'
 import { houseAddress, regionHouses, regionPopulation, worldPopulation, cityName, globeCell, WORLD_REGIONS } from '../../sim/worldAddress.ts'
 import type { PhosphorRamp } from '../../art/entropyTheme.ts'
 import { RAMPS } from '../../art/palette.ts'
-import { drawDistrict, drawGlobe, drawExpansionReceipt, type AtlasFrame, type Expansion } from './atlasWorlds.ts'
+import { atlasCaption, districtCentreAt, drawDistrict, drawGlobe, drawExpansionReceipt, drawHqMark, globeCentreAt, globeRadiusAt, type AtlasFrame, type Expansion } from './atlasWorlds.ts'
+import { BRIDGE_FROM, BRIDGE_TO, bridgeU, easeInOutSine, facing, flightCost, flightPose, lerpAngle, levelAtCost, project, smoothstep } from '../../sim/lensFlight.ts'
+import { drawGarageGlyph, lampLit } from './garageGlyph.ts'
 import { drawNetwork } from './atlasNetwork.ts'
 import { hqWings, type HqWing } from '../../sim/hqLook.ts'
 import { headcountToReach, maxLensLevelFor } from '../../sim/headcount.ts'
@@ -52,6 +54,23 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   const previewWorld=Number(debugSearchParams().get('surveyWorld')??0)
   let world = Number.isInteger(previewWorld)&&previewWorld>=0&&previewWorld<73?previewWorld:0, region = 0, level = 1, total = 0, width = 1, height = 1
   let yaw = -.12, tilt = .40, panX = 0, panY = 0, lastTotal = -1
+  /*
+   * **The picture's level is not the player's level** [2026-10-11, demo; `sim/lensFlight.ts`]. `level` is where the
+   * lens has been asked to be and everything that is *logic* — the address bar, the cards, what a tap means —
+   * keeps reading it. `shown` is where the picture is, and it gets there on its own clock: a wheel notch moves
+   * it a little and it follows at once (a scrub), and a jump — the address bar, the dive button — is a timed flight with an ease, because a jump that arrives on one frame is the cut this
+   * replaces. Entering or leaving the monitor is the CRT wipe's business and never flies.
+   * `?flight=off` turns all of it off (the cut, as before); `?flight=0.2` runs it at a fifth of the speed, for
+   * looking at, and for the frames the demo's page is made of. Loopback only, like every seam in `dev/`.
+   */
+  let shown = level, flight: { from: number; to: number; t0: number; dur: number } | null = null
+  let anchorPan = { x: 0, y: 0 }
+  const flightParam = debugSearchParams().get('flight')
+  const flightOff = flightParam === 'off'
+  const flightSpeed = flightOff ? 1 : Math.max(0.02, Number(flightParam ?? 1) || 1)
+  /** The two pictures of a flight, drawn separately and laid over each other: each draws with its own alphas. */
+  const layerGlobe = document.createElement('canvas'), gctx = layerGlobe.getContext('2d')!
+  const layerCity = document.createElement('canvas'), cctx = layerCity.getContext('2d')!
   const expansions: Expansion[] = []
   let entryHouse = 0
   let chosen = -1, lastText = '', lastDraw = -1
@@ -104,13 +123,83 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
   let sprites: CityImpostors | null = null
   let wipe = 0
   const label = (s: string, x: number, y: number) => monitorText(ctx, s, x, y)
+
+  /**
+   * **The city becomes its planet** (`sim/lensFlight.ts` is the shape; this is the drawing).
+   *
+   * Both pictures are drawn into layers, quietly, then laid over each other with the alphas the flight gives
+   * them, with the one thing that is the same at both scales on top: the HQ's garage glyph, held at the focus
+   * the whole way, so the eye has something to stay on while a district falls into a hub's lights and a planet
+   * comes up behind it. The planet is turned to face the city you came from (the Frontier button's own turn),
+   * and the pin — where the focus is on screen — is carried from the district's centre to wherever the planet
+   * puts it at rest, so the landing is exactly the plain globe and nothing pops.
+   */
+  function drawFlight(frame: AtlasFrame, u: number, cityKit: CityImpostors) {
+    const pose = flightPose(u)
+    const cell = globeCell(region, world), want = facing(cell)
+    // Turned to the city by the time the planet is half there; handed back to the player's own turn only at the very end.
+    const yawE = lerpAngle(yaw, want.yaw, pose.orient), tiltE = tilt + (want.tilt - tilt) * pose.orient
+    const restOff = (() => { const q = project(cell, yaw, tilt), r = globeRadiusAt(width, height, BRIDGE_TO); return { x: q.x * r, y: -q.y * r } })()
+    // Deep in the flight the planet *stays* facing the city, so the globe it lands as is the one the city belongs to.
+    if (u < .5) { yaw = want.yaw; tilt = want.tilt }
+    const base = globeRadiusAt(width, height, BRIDGE_TO), radius = base * pose.globeMul
+    const natural = globeCentreAt(width, height), anchor = districtCentreAt(width, height, anchorPan.x, anchorPan.y)
+    const q = project(cell, yawE, tiltE)
+    const pin = {
+      x: anchor.x + (natural.x + restOff.x - anchor.x) * pose.pin,
+      y: anchor.y + (natural.y + restOff.y - anchor.y) * pose.pin,
+    }
+    const centre = { x: pin.x - q.x * radius, y: pin.y + q.y * radius }
+
+    for (const [layer, g] of [[layerGlobe, gctx], [layerCity, cctx]] as const) {
+      if (layer.width !== canvas.width || layer.height !== canvas.height) { layer.width = canvas.width; layer.height = canvas.height }
+      g.setTransform(2, 0, 0, 2, 0, 0); g.clearRect(0, 0, width, height); g.font = '5px monospace'; g.lineWidth = 1
+    }
+    const globeCaption = drawGlobe({ ...frame, ctx: gctx, level: BRIDGE_TO, points: [], view: { quiet: true, radius, rasterRadius: base, centre } }, yawE, tiltE, -1)
+    const cityCaption = drawDistrict({ ...frame, ctx: cctx, level: BRIDGE_FROM, points: [], view: { quiet: true, zoom: pose.cityZoom, centre: pin } }, cityKit)
+
+    ctx.save()
+    ctx.globalAlpha = pose.globeAlpha; ctx.drawImage(layerGlobe, 0, 0, width, height)
+    ctx.globalAlpha = pose.cityAlpha; ctx.drawImage(layerCity, 0, 0, width, height)
+    ctx.restore()
+
+    // The constant: the garage, held at the focus. The HQ's own box (the survey's mark for it) lets go first —
+    // its label is lettering, which lives on its own layer and cannot fade, so the box goes without the word —
+    // and the glyph slides from where the box held it to the pin, onto a small plate that goes as the planet's
+    // own pin takes over.
+    const hq = world === 0 && region === 0
+    const lead = hq ? 1 - smoothstep(0, .3, u) : 0
+    const pinX = Math.round(pin.x), pinY = Math.round(pin.y), ink = frame.phosphor[3]
+    if (lead > 0) { ctx.save(); ctx.globalAlpha = lead; drawHqMark(frame, pin.x, pin.y, '  ', frame.phosphor[2]); ctx.restore() }
+    const boxGlyphX = Math.round(pin.x - 12) + 7.5
+    const gx = pin.x + (boxGlyphX - pin.x) * lead
+    ctx.save(); ctx.globalAlpha = (1 - pose.pin) * (1 - lead); ctx.fillStyle = RAMPS.NEUTRAL[0]; ctx.fillRect(Math.round(gx) - 7, pinY - 5, 14, 10); ctx.restore()
+    if (hq) drawGarageGlyph(ctx, gx, pin.y - lead, ink, lampLit(frame.seconds, frame.reduced))
+    else { ctx.strokeStyle = ink; ctx.beginPath(); ctx.arc(pinX, pinY, 3, 0, Math.PI * 2); ctx.stroke() }
+
+    // One caption, from whichever picture is the larger half of the flight; two would be noise.
+    const caption = u < .5 ? cityCaption : globeCaption
+    if (caption) atlasCaption(frame, caption.title, caption.detail)
+  }
+
   return {
     get world() { return world },
     get entrySeat() { return houseAddress(world, entryHouse || regionHouses(region).first) },
     get active() { return level >= 3 },
     /** Who has walked in: the colours the HQ wears on the map (`sim/hqLook.ts`). */
     setHeroes(ids: Iterable<HeroId>) { wings = hqWings(ids) },
-    setLevel(value: number) { if ((value >= 6) !== (level >= 6) || (value >= 4.5) !== (level >= 4.5)) { panX = panY = 0; chosen = -1 } level = value },
+    setLevel(value: number) {
+      if ((value >= 6) !== (level >= 6) || (value >= 4.5) !== (level >= 4.5)) {
+        // The district keeps the place it was panned to while it flies away: the register's own pan resets, the flight's anchor does not.
+        anchorPan = value >= 4.5 ? { x: panX, y: panY } : { x: 0, y: 0 }
+        panX = panY = 0; chosen = -1
+      }
+      const inMonitor = level >= 3 && value >= 3
+      if (!inMonitor) { shown = value; flight = null }
+      else if (!flightOff && Math.abs(value - level) > 0.6) flight = { from: shown, to: value, t0: Number.NaN, dur: (0.5 + 0.35 * Math.abs(flightCost(value) - flightCost(shown))) / flightSpeed }
+      else if (flight) flight.to = value
+      level = value
+    },
     pan(dx: number, dy: number) { if (level >= 4.5 && level < 6) { yaw += dx * .008; tilt = Math.max(-1.2, Math.min(1.2, tilt + dy * .005)) } else { panX += dx / 3; panY += dy / 3 } },
     tap(x: number, y: number) {
       const nearest = points.reduce<typeof points[number] | null>((best, p) => !best || Math.hypot(p.x - x / 3, p.y - y / 3) < Math.hypot(best.x - x / 3, best.y - y / 3) ? p : best, null)
@@ -118,6 +207,16 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       if (level >= 6) { chosen = nearest.id; lastText = '' }
       else if (level >= 4.5) { chosen = nearest.id; lastText = '' }
       else travel(1.6, houseAddress(world, nearest.id))
+    },
+    /**
+     * Pick the city a pull-in is heading for, at the top of the flight rather than at the bottom of it: the flight
+     * to the city has to know where it is going on its first frame, or it re-aims on its last. `descend` still
+     * does this for the other two crossings; this is its globe branch, on its own.
+     */
+    aim(x: number, y: number) {
+      const nearest = points.reduce<typeof points[number] | null>((best, p) => !best || Math.hypot(p.x - x / 3, p.y - y / 3) < Math.hypot(best.x - x / 3, best.y - y / 3) ? p : best, null)
+      const id = chosen >= 0 ? chosen : nearest && Math.hypot(nearest.x - x / 3, nearest.y - y / 3) < 35 ? nearest.id : -1
+      if (level >= 4.5 && level < 6 && id >= 0) { region = id; entryHouse = 0 }
     },
     descend(x: number, y: number) {
       const nearest = points.reduce<typeof points[number] | null>((best, p) => !best || Math.hypot(p.x - x / 3, p.y - y / 3) < Math.hypot(best.x - x / 3, best.y - y / 3) ? p : best, null)
@@ -149,6 +248,20 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       }
       card.style.bottom=h<500?'72px':'130px'
       const dt = lastDraw < 0 ? 0 : Math.min(.1, seconds - lastDraw); lastDraw = seconds
+      if (!active || reduced || flightOff) { shown = level; flight = null }
+      else if (flight) {
+        if (Number.isNaN(flight.t0)) flight.t0 = seconds
+        const t = Math.min(1, (seconds - flight.t0) / flight.dur)
+        // Tween the *cost* of the way, not the level: the flight is brisk to the bridge band and dwells in it (`flightCost`).
+        const from = flightCost(flight.from), to = flightCost(flight.to)
+        shown = levelAtCost(from + (to - from) * easeInOutSine(t))
+        if (t >= 1) { shown = flight.to; flight = null }
+      } else {
+        shown += (level - shown) * (1 - Math.exp(-14 * dt))
+        if (Math.abs(level - shown) < .003) shown = level
+      }
+      /** How far along the city-to-planet flight the *picture* is. With the flight off, the old cut at the planet's register. */
+      const u = flightOff ? (shown >= BRIDGE_FROM ? 1 : 0) : bridgeU(shown)
       wipe = reduced ? Number(active) : Math.max(0, Math.min(1, wipe + (active ? 1 : -1) * dt * 3))
       if (lastTotal >= 0 && n > lastTotal) {
         const recent = expansions[expansions.length - 1]
@@ -179,18 +292,19 @@ export function createStudioAtlas(host: HTMLElement, travel: (level: number, sea
       }
       if(height>=160){ctx.fillStyle=p[1];label('STUDIO_OS / LIVE SURVEY',left+2,top+9)}
       points = []
-      const frame: AtlasFrame = { ctx, width, height, total, world, region, level, panX, panY, seconds, reduced, phosphor: p, points, expansions, wings, done }
-      if (level >= 6) drawNetwork(frame, net, chosen, territory, mask)
-      else if (level >= 4.5) drawGlobe(frame, yaw, tilt, chosen)
-      else { sprites ??= bakeCityImpostors(renderer); drawDistrict(frame, sprites) }
+      const frame: AtlasFrame = { ctx, width, height, total, world, region, level: shown, panX, panY, seconds, reduced, phosphor: p, points, expansions, wings, done }
+      if (shown >= 6) drawNetwork(frame, net, chosen, territory, mask)
+      else if (u >= 1) drawGlobe(frame, yaw, tilt, chosen)
+      else if (u <= 0) { sprites ??= bakeCityImpostors(renderer); drawDistrict(frame, sprites) }
+      else { sprites ??= bakeCityImpostors(renderer); drawFlight(frame, u, sprites) }
       drawExpansionReceipt(frame)
-      ctx.fillStyle = RAMPS.NEUTRAL[6]; ctx.textAlign = 'center'; label(`${world === 0 ? 'EARTH' : net.systems[net.order[world]]?.name.toUpperCase() ?? `WORLD ${world + 1}`} / ${level >= 6 ? 'NETWORK' : level >= 4.5 ? 'COLONISATION' : cityName(region,world).toUpperCase()}`, width / 2, 22); ctx.textAlign = 'left'
+      ctx.fillStyle = RAMPS.NEUTRAL[6]; ctx.textAlign = 'center'; label(`${world === 0 ? 'EARTH' : net.systems[net.order[world]]?.name.toUpperCase() ?? `WORLD ${world + 1}`} / ${shown >= 6 ? 'NETWORK' : u >= .5 ? 'COLONISATION' : cityName(region,world).toUpperCase()}`, width / 2, 22); ctx.textAlign = 'left'
       texture.needsUpdate = true; wordsTexture.needsUpdate = true
       }
       shader.uniforms.near.value = near; shader.uniforms.wipe.value = wipe
       renderer.setRenderTarget(target); renderer.render(scene, camera); renderer.setRenderTarget(null)
       return target.texture
     },
-    dispose() { bindMonitorText(ctx, null); window.clearTimeout(noteTimer); bar.remove(); note.remove(); card.remove(); texture.dispose(); wordsTexture.dispose(); shader.dispose(); quad.geometry.dispose(); target.dispose() },
+    dispose() { bindMonitorText(ctx, null); layerGlobe.width = layerCity.width = 0; window.clearTimeout(noteTimer); bar.remove(); note.remove(); card.remove(); texture.dispose(); wordsTexture.dispose(); shader.dispose(); quad.geometry.dispose(); target.dispose() },
   }
 }

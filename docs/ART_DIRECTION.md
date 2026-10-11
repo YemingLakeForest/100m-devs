@@ -562,6 +562,15 @@ What moved to the interface's side (`NIGHT`, `osPass.ts`, `osDesktop.ts`; `?look
   globe), with a dot grid at the street's pitch and a plus at every block on it; every lot, and the HQ's,
   wears the survey frame's corner bracket on the kerb.
 
+**City to planet is a flight.** §1.0b's rule is that nothing is blended *across* registers, and that stands for
+the room and the monitor: the hand-off is still a CRT wipe. The district and the planet are both the monitor, and
+between two pictures of one register blending is the point. The flight (`sim/lensFlight.ts`) keeps one thing
+fixed while everything else changes scale, the HQ's garage glyph, and lets the district fall into it while the
+planet rises behind, turned to face the city you came from. It is deliberately *not* a physical zoom (the planet's
+surface is a per-pixel raster tied to its radius, and the true ratio is about seventy to one); the planet comes up
+from 3× and the city does most of the shrinking, and the flight is built so that at no point is the frame empty.
+`?flight=off` restores the cut.
+
 What did not move: the materials, the silhouettes, the people, the name plates (already interface in the
 world, and the best bridge there was), and the rule that nothing is blended *between* registers at the
 hand-off — the CRT refresh still wipes. The grade is capped at half strength in a test, because a tinted

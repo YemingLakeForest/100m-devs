@@ -7,9 +7,12 @@ const ocean=hexToRgb(mixHex(RAMPS.NEUTRAL[0],RAMPS.GLOW[0],.24))
 const stone=hexToRgb(RAMPS.NEUTRAL[4]),coast=hexToRgb(RAMPS.NEUTRAL[5]),ice=hexToRgb(RAMPS.NEUTRAL[6])
 /** Full-resolution coast silhouette, restrained dusk shading. Population never
  * changes this surface: the cities above it carry the growth and its rewards. */
-export function paintPlanet(ctx:CanvasRenderingContext2D,cx:number,cy:number,radius:number,yaw:number,tilt:number,worldId=0) {
+export function paintPlanet(ctx:CanvasRenderingContext2D,cx:number,cy:number,radius:number,yaw:number,tilt:number,worldId=0,rasterRadius=radius) {
   surface??=document.createElement('canvas')
-  const r=Math.ceil(radius*2),size=r*2+2,key=[worldId,r,yaw.toFixed(3),tilt.toFixed(3)].join(':')
+  // [2026-10-11, demo] The surface is rasterised once, at `rasterRadius`, and *drawn* at `radius`: a flight that
+  // changes the planet's size every frame (`sim/lensFlight.ts`) scales the bitmap it has and does not rebuild a
+  // per-pixel terrain lookup sixty times a second. At rest the two are the same and nothing changes.
+  const r=Math.ceil(rasterRadius*2),size=r*2+2,key=[worldId,r,yaw.toFixed(3),tilt.toFixed(3)].join(':')
   const kind=planetKind(worldId)
   const rock=hexToRgb(RAMPS.NEUTRAL[5]),sand=hexToRgb(RAMPS.WOOD[3]),frost=hexToRgb(mixHex(RAMPS.NEUTRAL[7],RAMPS.GLOW[1],.22)),island=hexToRgb(RAMPS.FOLIAGE[1])
   if(key!==last) {
@@ -34,6 +37,7 @@ export function paintPlanet(ctx:CanvasRenderingContext2D,cx:number,cy:number,rad
   const glow=ctx.createRadialGradient(cx,cy,radius*.94,cx,cy,radius+4)
   glow.addColorStop(0,'transparent');glow.addColorStop(.68,'#4a8fa826');glow.addColorStop(1,'transparent')
   ctx.fillStyle=glow;ctx.beginPath();ctx.arc(cx,cy,radius+4,0,Math.PI*2);ctx.fill()
-  ctx.imageSmoothingEnabled=true;ctx.drawImage(surface,cx-(r+1)/2,cy-(r+1)/2,(r+1),(r+1))
+  const drawn=radius*2+1
+  ctx.imageSmoothingEnabled=true;ctx.drawImage(surface,cx-drawn/2,cy-drawn/2,drawn,drawn)
   ctx.restore()
 }
