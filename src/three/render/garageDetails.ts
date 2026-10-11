@@ -21,6 +21,17 @@ import { emissive, wash } from './glowArt.ts'
 const SIGN_INK = '#28544f'
 
 /**
+ * The storefront's glass and its graphite frame, for the same reason as {@link SIGN_INK}: the door's transom is the
+ * same glazing as the bays either side of it (`garageEnvironment.ts` draws those) and a second hand-typed pair of
+ * colours is how a doorway ends up a shade off the wall it is set in. The material is shared (`sharedMaterial`), so
+ * the transom and the bays are one finish, not two that happen to match.
+ */
+export const FRONT_FRAME = '#425b62'
+export const frontGlazing = () => sharedMaterial('hq-front-glazing', () => new T.MeshStandardMaterial({
+  color: '#a4cbd0', transparent: true, opacity: .09, roughness: .35, depthWrite: false,
+}))
+
+/**
  * **A sign that is lit** [2026-10-05, at the user's instruction: *"the company sign needs to be ligth up too"*]. The
  * letters of both signs (the street gable's and the one over the founder) are an unlit warm cream, so that they are
  * the brightest thing on their wall, on a plaque dark enough to make them read. Every mesh under `group` takes the
@@ -344,13 +355,17 @@ function signLayout(label: string, maxWidth: number, maxHeight: number, gap: num
 }
 
 export function gableSign(g: T.Group, name: string,
-  gable: { x0: number; x1: number; z: number; thickness: number } = STUDIO_GABLE): T.Group {
+  gable: { x0: number; x1: number; z: number; thickness: number; height: number } = STUDIO_GABLE): T.Group {
   const sign = new T.Group()
   sign.name = 'studio-gable-sign'
   // The outward face of the wall, which is the plane everything here stands on.
   sign.position.set((gable.x0 + gable.x1) / 2, 0, gable.z + gable.thickness / 2)
   g.add(sign)
-  const low = 0.9, high = 3.05
+  // [2026-10-11] The band was 0.9 to 3.05 m on a 3.2 m wall — a hand under the top. The wall is the hall's height now
+  // (4.6 m), and the band keeps its distance from the *top* rather than from the ground (1.15 m, which clears the
+  // planter bench at its foot and leaves the same plaster over the sign as under it), so the plaque sits in the middle
+  // of its wall instead of drifting to the bottom of a taller one.
+  const low = 1.2, high = gable.height - 1.15
   const width = Math.abs(gable.x1 - gable.x0) - 0.6
   const gap = 0.12
   /*
@@ -505,19 +520,42 @@ function justifyTracking(label: string, cap: number, width: number): number | nu
   return tracking > NAME_TRACKING && tracking <= NAME_TRACKING * 3 ? tracking : null
 }
 
-export function entrance(g: T.Group, placement: {x:number;z:number;width:number;height:number;yaw:number} = STUDIO_DOOR): T.Group {
+/**
+ * The studio's door, in a portal that is **as tall as the walls it is set in** [2026-10-11, at the user's instruction:
+ * *"the door and the logo wall on the front is not in same size as others"*].
+ *
+ * `placement.height` is the opening — the head of the door, 2.75 m — and it was also the whole of the portal: jambs,
+ * lintel and coping stopped there, while the storefront bays either side carried their glazing and graphite rail on up
+ * to the hall's 4.6 m. The door stood a metre and four-fifths under the line it was supposed to be part of, with the
+ * floor tiles showing through the gap above its coping. `eave` is that line. The jambs rise to it, the lintel stays at
+ * the head of the door where a lintel belongs, and between the two is a transom of the bays' own glazing under the
+ * bays' own rail, so the frontage reads as one run with a door in it rather than as a door with a wall around it.
+ */
+export function entrance(g: T.Group, placement: {x:number;z:number;width:number;height:number;yaw:number} = STUDIO_DOOR,
+  eave = placement.height): T.Group {
   const { width, height, yaw } = placement
   const x = 0, z = 0
   const door = new T.Group(); door.name = 'studio-entrance'; g.add(door)
   door.position.set(placement.x, 0, placement.z); door.rotation.y = yaw
   // Jambs, leaf and threshold share the diagonal portal frame facing the lens.
   for (const side of [-1, 1]) {
-    box(door, x + side * (width / 2 - 0.13), 0, z, 0.26, height, 0.26, INK.wall)
+    const jamb = x + side * (width / 2 - 0.13)
+    box(door, jamb, 0, z, 0.26, eave, 0.26, INK.wall)
+    // The same coping the tall walls wear (.12 × .35), so the pier is capped like the wall it stands in.
+    if (eave > height) box(door, jamb, eave, z, 0.38, .12, .35, INK.trim)
   }
   const leafWidth = width - 0.58
   box(door, x, 2.55, z, width, height - 2.55, 0.26, INK.wall)
   // A simple plaster lintel and coping replace the sign and shopfront canopy.
   box(door, x, height, z, width + .1, .10, .32, INK.trim)
+  if (eave > height + .1) {
+    const sill = height + .10, between = width - .52
+    const transom = box(door, x, sill, z, between, eave - sill, .055, '#a4cbd0', false)
+    transom.material = frontGlazing()
+    transom.castShadow = false
+    // The bays' graphite rail, at the bays' height: the line the whole frontage tops out on.
+    box(door, x, eave, z, between, .09, .12, FRONT_FRAME)
+  }
   // The glazed leaf rests closed in the portal. The opening has no wall,
   // skirting or opaque glass panel stretching across it at knee height.
   const leaf = new T.Group(); leaf.name = 'studio-door-leaf'

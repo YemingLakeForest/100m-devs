@@ -5,6 +5,7 @@
  */
 /** A single material/light vocabulary for the approved September 5 concept set. */
 import * as T from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 
 export const INK = {
   paper: '#f3f0e8', wall: '#ced9dc', trim: '#e7eeed', floor: '#78868a',
@@ -150,14 +151,91 @@ export function slab(parent: T.Object3D, poly: readonly (readonly [number, numbe
   return mesh
 }
 
-/** A wall as a segment, so a canted one is authored exactly like a square one. */
-export function wall(parent: T.Object3D, a: readonly [number, number], b: readonly [number, number],
-  y: number, h: number, t: number, colour: string, lit = true): T.Mesh {
-  const dx = b[0] - a[0]
-  const dz = b[1] - a[1]
-  const mesh = box(parent, (a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2, Math.hypot(dx, dz), h, t, colour, lit)
-  mesh.rotation.y = -Math.atan2(dz, dx)
-  return mesh
+export type Plan = readonly [number, number]
+
+const unit = (from: Plan, to: Plan): Plan => {
+  const dx = to[0] - from[0], dz = to[1] - from[1], len = Math.hypot(dx, dz)
+  return [dx / len, dz / len]
+}
+const leftOf = (d: Plan): Plan => [-d[1], d[0]]
+
+/**
+ * Where the faces of two runs meet, as an offset from the vertex they share: the corner of a mitre.
+ * `n0` and `n1` are the two runs' left normals and `half` is half the wall's thickness; the point is the one that is
+ * `half` from both runs' centre lines on their left, which is `(n0 + n1) / (1 + n0 · n1)` of the way out. Reversed, it is
+ * the corner on the right. A run that doubles straight back has no mitre (the divisor is zero) and gets a square end.
+ */
+function mitre(n0: Plan, n1: Plan, half: number): Plan {
+  const d = 1 + n0[0] * n1[0] + n0[1] * n1[1]
+  if (d < 1e-6) return [n1[0] * half, n1[1] * half]
+  const k = half / d
+  return [(n0[0] + n1[0]) * k, (n0[1] + n1[1]) * k]
+}
+
+/**
+ * **The four plan corners of one run of wall, cut on the bisector of each joint it makes.**
+ *
+ * [2026-10-11, at the user's instruction: *"the wall joints are done badly, I want continuous finish, I see wall corners
+ * are just chipped into each other"*] A wall used to be a box as long as its centre line, so two of them met end to end
+ * on the vertex and every corner was a notch: a square bite out of the outside of a right angle, a wedge on a chamfer,
+ * and a wider bite still where the 0.33 m cap stood on the 0.24 m wall. The cure is not a pier to hide the join (the old
+ * Pixi room's answer, GDD §7.8.0b): it is to make the join not exist. Each run ends on the plane that bisects the angle it
+ * turns through, so the next run starts on the *same* plane, and between them there is neither a gap nor an overlap, at
+ * any angle and at any height — a 4.6 m wall meeting a 1.05 m one shares the cut exactly as two equal ones do.
+ *
+ * `before` is the vertex the previous run came from and `after` the one the next run goes to; a run with no neighbour on
+ * that side (a doorway's jamb, the end of a wall) is cut square. Returned in order around the run: the start's left
+ * corner, the end's left corner, the end's right corner, the start's right corner.
+ */
+export function wallCorners(a: Plan, b: Plan, t: number, before?: Plan, after?: Plan): [Plan, Plan, Plan, Plan] {
+  const half = t / 2
+  const n = leftOf(unit(a, b))
+  const square: Plan = [n[0] * half, n[1] * half]
+  const ma = before ? mitre(leftOf(unit(before, a)), n, half) : square
+  const mb = after ? mitre(n, leftOf(unit(b, after)), half) : square
+  return [
+    [a[0] + ma[0], a[1] + ma[1]], [b[0] + mb[0], b[1] + mb[1]],
+    [b[0] - mb[0], b[1] - mb[1]], [a[0] - ma[0], a[1] - ma[1]],
+  ]
+}
+
+/** One run of wall, from `a` to `b` in plan, between heights `y` and `y + h`. See {@link wallCorners} for the joints. */
+export interface WallRun {
+  a: Plan; b: Plan; y: number; h: number; t: number; colour: string
+  before?: Plan; after?: Plan
+}
+
+/**
+ * Runs of wall as solids with mitred joints, one mesh per colour.
+ *
+ * Merged rather than one mesh a run: a wall used to be a `box`, and `batchArt` folded every box of one finish into a
+ * single instanced draw. A prism of its own geometry is skipped by the batcher (it cannot be instanced), so left alone
+ * the perimeter would have cost a draw a run, three times over once the caps and rails were counted; merged, it costs
+ * what it did.
+ */
+export function wallRuns(parent: T.Object3D, runs: readonly WallRun[], shadow = true): T.Mesh[] {
+  const byColour = new Map<string, T.BufferGeometry[]>()
+  for (const { a, b, y, h, t, colour, before, after } of runs) {
+    const outline = wallCorners(a, b, t, before, after)
+    const geometry = new T.ExtrudeGeometry(new T.Shape(outline.map(([x, z]) => new T.Vector2(x, z))),
+      { depth: h, bevelEnabled: false })
+    // `slab`'s orientation: the shape's (x, y) lie on the floor as (x, z) and the extrusion hangs down from the origin.
+    geometry.rotateX(Math.PI / 2)
+    geometry.translate(0, y + h, 0)
+    byColour.set(colour, [...byColour.get(colour) ?? [], geometry])
+  }
+  const meshes: T.Mesh[] = []
+  for (const [colour, parts] of byColour) {
+    const geometry = mergeGeometries(parts, false)
+    for (const part of parts) part.dispose()
+    const mesh = new T.Mesh(geometry, material(colour))
+    mesh.castShadow = shadow
+    mesh.receiveShadow = true
+    mesh.userData.ownGeometry = true
+    parent.add(mesh)
+    meshes.push(mesh)
+  }
+  return meshes
 }
 
 export function worktable(parent: T.Object3D, x: number, z: number, w = 2.65, d = 1.45): T.Group {

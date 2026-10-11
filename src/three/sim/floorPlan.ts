@@ -46,17 +46,22 @@ export type Errand = 'water' | 'whiteboard' | 'window' | 'sofa' | 'loiter'
 
 export interface Point { readonly x: number; readonly z: number }
 
-export const STUDIO = { width: 20, depth: 16, wallHeight: 3.2, entrance: [-6, -4] } as const
+export const STUDIO = { width: 20, depth: 16, entrance: [-6, -4] } as const
 
 /**
  * **The hall's back walls** [2026-10-05, at the user's instruction: *"I see the wall are tool low, make them
  * higher"*] — the north and the west, the two whose inner faces the camera sees. They were 3.2 m, the height of the
- * walls round the entry wing (`STUDIO.wallHeight`, which stays: the wing is an annex and a lower roofline is what an
- * annex has), and everything the heroes hang on them — the ticket wall, the dashboards, the name plates, the studio's
- * sign — came to the top of the wall or past it: the plates floated in the dark above the building. 4.6 m is a loft's
- * height, a metre and four tenths more than before; the camera is re-framed for it (`Environment.focus`), because
- * on §12.1's lens a metre of wall is fifty pixels of picture and the corner at the top of the frame was already
- * at the top edge.
+ * walls round the entry wing, and everything the heroes hang on them — the ticket wall, the dashboards, the name
+ * plates, the studio's sign — came to the top of the wall or past it: the plates floated in the dark above the
+ * building. 4.6 m is a loft's height, a metre and four tenths more than before; the camera is re-framed for it
+ * (`Environment.focus`), because on §12.1's lens a metre of wall is fifty pixels of picture and the corner at the top
+ * of the frame was already at the top edge.
+ *
+ * **[2026-10-11] The entry wing is 4.6 m too**, at the user's instruction (*"the door and the logo wall on the front is
+ * not in same size as others"*). The wing kept the old 3.2 m as an annex's lower roofline (`STUDIO.wallHeight`, now
+ * gone), and what that bought was a street gable a metre and four tenths under the west wall it is built into and a
+ * door whose head stood well under the glazing round it. One eave for the whole building: the gable, the portal and the
+ * storefront bays all top out on this number.
  *
  * [2026-10-07] The near walls now have a 1.05 m solid base and 3.6 m glazed frontage.
  * Transparent upper panes preserve the seated bodies while giving the studio a full-height perimeter.
@@ -342,14 +347,18 @@ export const STUDIO_DOOR = { x: -8, z: 10, width: 3, height: 2.75, yaw: Math.PI 
  * The entry wing's street gable — the run of wall to the left of the door.
  *
  * It is here rather than in the renderer because two things now depend on the
- * same four metres and they must not drift (§9.2): the wall is *drawn* from
+ * same numbers and they must not drift (§9.2): the wall is *drawn* from
  * these numbers, and §13.1's studio name is *mounted on it*. It became a
  * surface worth naming on 2026-09-14, when it stopped being a knee-high
- * parapet — a 4 × 3.2 m blank plane facing the street is the only tall
- * camera-side wall the building has, and leaving it empty was the cost of
- * raising it.
+ * parapet — a blank plane facing the street is the only tall camera-side wall
+ * the building has, and leaving it empty was the cost of raising it.
+ *
+ * Its height is the hall's ({@link GARAGE_WALLS}), not a number of its own:
+ * it was 3.2 m until 2026-10-11, when the user asked for the front to be the
+ * same size as the rest, and a second height for the same building is how it
+ * got a metre and four tenths shorter than the wall beside it in the first place.
  */
-export const STUDIO_GABLE = { x0: -13, x1: -10, z: 12, thickness: 0.24 } as const
+export const STUDIO_GABLE = { x0: -13, x1: -10, z: 12, thickness: 0.24, height: GARAGE_WALLS.height } as const
 /** Just inside the diagonal portal, 0.9 m along its inward normal. */
 export const GARAGE_ENTRY_START = { x: STUDIO_DOOR.x - .9 / Math.SQRT2, z: STUDIO_DOOR.z - .9 / Math.SQRT2 } as const
 /**

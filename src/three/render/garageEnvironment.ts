@@ -6,13 +6,13 @@
 import * as T from 'three'
 import { OS, OS_HORIZON, OS_NIGHT } from '../art/skin.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
-import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, sharedMaterial, showSeatInstances, slab, tree, wall, type PropInstances } from './worldArt.ts'
+import { batchArt, box, cylinder, hedge, INK, line, placeInstances, planter, sharedMaterial, showSeatInstances, slab, tree, wallRuns, type Plan, type PropInstances, type WallRun } from './worldArt.ts'
 import { projectBoard } from './projectPlate.ts'
 import { garageNeighborhood } from './garageNeighborhood.ts'
 import { garageBackyard } from './garageBackyard.ts'
-import { GARAGE_WALLS, GARAGE_DECK, GARAGE_PODIUM, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, HERO_SITES, garageSeats, GARAGE_LEADERS, STUDIO, STUDIO_DOOR, type Furniture, type HeroSite, type HeroSiteId } from '../sim/floorPlan.ts'
+import { GARAGE_WALLS, GARAGE_DECK, GARAGE_PODIUM, GARAGE_HERO_SCALE, GARAGE_FURNITURE, GARAGE_OUTLINE, GARAGE_PODS, HERO_SITES, garageSeats, GARAGE_LEADERS, STUDIO_DOOR, type Furniture, type HeroSite, type HeroSiteId } from '../sim/floorPlan.ts'
 import { HERO_LABELS, LEADER_COLOURS, leaderLook, studioPerson, workerLook, type StudioCast } from './studioPeople.ts'
-import { entrance, gableSign, garageDeskStory, garageForecourt, street, studioSign } from './garageDetails.ts'
+import { FRONT_FRAME, entrance, frontGlazing, gableSign, garageDeskStory, garageForecourt, street, studioSign } from './garageDetails.ts'
 import { sconce, standingLamp } from './glowArt.ts'
 import { hqInterior } from './hqInterior.ts'
 import { buildHqSets } from './hqSets.ts'
@@ -277,10 +277,6 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // what the word means), not a band the work has to dodge: it was a band from x = 4.4 east, and Serena's wall of
   // dashboards would have been hung across its panes.
   const WALL = GARAGE_WALLS.height
-  box(g, 1.4, 0, -9.8, 17.2, WALL, .24, INK.wall)
-  wall(g, GARAGE_OUTLINE[0], GARAGE_OUTLINE[1], 0, WALL, .24, INK.wall)
-  wall(g, GARAGE_OUTLINE[0], GARAGE_OUTLINE[1], WALL, .12, .35, INK.trim)
-  box(g, 1.4, WALL, -9.8, 17.4, 0.12, 0.35, INK.trim)
   skyPane(g, 2.4, WALL - 1.0, -9.68, 14.0, 0.8, 0.06)
   for (let x = -4.4; x <= 9.4; x += 1.4) box(g, x, WALL - 1.0, -9.7, 0.12, 0.8, 0.1, INK.trim)
   box(g, 2.4, WALL - 1.04, -9.62, 14.2, 0.06, 0.2, INK.trim)
@@ -288,45 +284,63 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   // The wall finish belongs to the studio; the operations furniture arrives with Serena.
   // §7.8.12: the courtyard and both work wings share the simulation's perimeter.
   // The rear faces stay solid; camera-facing frontage is full-height glazing above a solid base.
-  const edge = (from: readonly [number, number], to: readonly [number, number], h: number, glazed = false) => {
-    wall(g, from, to, 0, h, .24, INK.wall)
-    wall(g, from, to, h, .07, .33, INK.trim)
+  /*
+   * **The whole perimeter is one loop, and every joint in it is cut once** [2026-10-11, at the user's instruction:
+   * *"I want continuous finish, I see wall corners are just chipped into each other"*]. The north wall and its chamfer
+   * were hand-placed boxes, the rest were a loop that began at the third vertex, and each run was as long as its centre
+   * line: so the 0.24 m walls met end to end and every corner had a notch out of it, the 0.35 m coping a bigger one.
+   * Each run is now handed the vertex it comes from and the one it goes to (`wallRuns`), ends on the plane that bisects
+   * the turn, and the neighbour starts on the same plane — a 4.6 m wall into a 1.05 m one, a coping into a coping, at
+   * 90° and at 135° alike. Only the two ends of the doorway are cut square, against the jambs.
+   */
+  const solid: WallRun[] = []
+  const glass: WallRun[] = []
+  type Joints = { before?: Plan; after?: Plan }
+  const edge = (a: Plan, b: Plan, h: number, joints: Joints, glazed = false) => {
+    // Every run that reaches the eave wears the same coping, the north wall's (.12 × .35); a low one wears the lighter.
+    const tall = h >= WALL
+    solid.push({ a, b, y: 0, h, t: .24, colour: INK.wall, ...joints })
+    solid.push({ a, b, y: h, h: tall ? .12 : .07, t: tall ? .35 : .33, colour: INK.trim, ...joints })
     if (!glazed) return
     // A full-height storefront encloses the studio without an opaque wall
     // between the camera and its people. The court remains open to the sky.
-    const height = WALL, len = Math.hypot(to[0] - from[0], to[1] - from[1])
-    const pane = wall(g, from, to, h + .07, height - h - .07, .055, '#a4cbd0')
-    pane.material = sharedMaterial('hq-front-glazing', () => new T.MeshStandardMaterial({
-      color: '#a4cbd0', transparent: true, opacity: .09, roughness: .35, depthWrite: false,
-    }))
-    pane.castShadow = false
-    wall(g, from, to, height, .09, .12, '#425b62')
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+    glass.push({ a, b, y: h + .07, h: WALL - h - .07, t: .055, colour: '#a4cbd0', ...joints })
+    solid.push({ a, b, y: WALL, h: .09, t: .12, colour: FRONT_FRAME, ...joints })
     const bays = Math.ceil(len / 3.4)
     for (let j = 0; j <= bays; j++) {
       const t = j / bays
-      box(g, from[0] + (to[0] - from[0]) * t, h + .07, from[1] + (to[1] - from[1]) * t, .08, height - h - .07, .08, '#425b62')
+      box(g, a[0] + (b[0] - a[0]) * t, h + .07, a[1] + (b[1] - a[1]) * t, .08, WALL - h - .07, .08, FRONT_FRAME)
     }
   }
-  for (let i = 2; i < GARAGE_OUTLINE.length; i++) {
-    const from = GARAGE_OUTLINE[i], to = GARAGE_OUTLINE[(i + 1) % GARAGE_OUTLINE.length]
+  const outline = GARAGE_OUTLINE
+  outline.forEach((from, i) => {
+    const to = outline[(i + 1) % outline.length]
+    const before = outline[(i + outline.length - 1) % outline.length], after = outline[(i + 2) % outline.length]
     if (from[0] === -6 && to[0] === -10 && from[1] === 8) {
       const half = STUDIO_DOOR.width / (2 * Math.SQRT2)
-      edge(from, [STUDIO_DOOR.x + half, STUDIO_DOOR.z - half], 1.05, true)
-      edge([STUDIO_DOOR.x - half, STUDIO_DOOR.z + half], to, 1.05, true)
-    } else {
-      const west = from[0] === to[0] && (from[0] === -10 || from[0] === -13)
-      const gable = from[1] === 12 && to[1] === 12
-      const court = (from[0] === 4 && to[0] === 4) || (from[1] === 5 && to[1] === 5) || (from[0] === -2 && to[0] === -2)
-      edge(from, to, west ? WALL : gable ? STUDIO.wallHeight : 1.05, !west && !gable && !court)
+      edge(from, [STUDIO_DOOR.x + half, STUDIO_DOOR.z - half], 1.05, { before }, true)
+      edge([STUDIO_DOOR.x - half, STUDIO_DOOR.z + half], to, 1.05, { after }, true)
+      return
     }
-  }
+    // The back walls (the north wall and its chamfer, the two the camera sees the inside of), the west wall and the
+    // lounge's outer one, and the street gable all stand the hall's full height; the camera-facing frontage is a low
+    // base under glass, and the courtyard's three sides are the base alone.
+    const back = i < 2
+    const west = from[0] === to[0] && (from[0] === -10 || from[0] === -13)
+    const gable = from[1] === 12 && to[1] === 12
+    const court = (from[0] === 4 && to[0] === 4) || (from[1] === 5 && to[1] === 5) || (from[0] === -2 && to[0] === -2)
+    edge(from, to, back || west || gable ? WALL : 1.05, { before, after }, !back && !west && !gable && !court)
+  })
+  wallRuns(g, solid)
+  for (const pane of wallRuns(g, glass, false)) pane.material = frontGlazing()
   box(g, -9.84, 0, .7, .10, .7, 2.4, INK.wood)
   // A ribbon of glazing above the leaders, the west wall's half of the north wall's clerestory.
   skyPane(g, -9.88, WALL - 1.0, -4.75, 0.06, 0.8, 4.3)
   for (let z = -6.5; z <= -2.8; z += 1.4) box(g, -9.86, WALL - 1.0, z, 0.1, 0.8, 0.12, INK.trim)
   box(g, -9.8, WALL - 1.04, -4.75, 0.2, 0.06, 4.5, INK.trim)
   // The chamfered portal faces the lens along (+X,+Z), rather than showing its side.
-  const door = entrance(g)
+  const door = entrance(g, STUDIO_DOOR, WALL)
   gableSign(g, cast.studio ?? 'Merciless Software')
   // Retain the actual door meshes for both selection occlusion and projected
   // frame checks. Batched geometry would lose the individually testable portal.
