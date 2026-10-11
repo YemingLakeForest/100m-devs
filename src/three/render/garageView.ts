@@ -44,8 +44,8 @@
  */
 import * as T from 'three'
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js'
+import { MsaaScenePass } from './msaaScene.ts'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { NO_HQ_READOUTS, type HqReadouts } from './hqSets.ts'
@@ -297,12 +297,12 @@ export function createGarageView(width: number, height: number, cast: StudioCast
    * the grid followed the zoom, changing under the player's hand). On a 1× screen that is a 720 × 380 picture
    * stretched over a 1440 × 760 one: every edge a staircase, every face a mosaic, and the HUD's crisp type
    * laid over it. The targets are the composer's own — full device resolution, linear filtering — and
-   * multisampled, so the edges are smooth: the picture the room had before the pixel look, which is also the
-   * only one the rest of the game's art direction (the HUD's pixel font, the pixel icons) never depended on.
-   * A phone keeps the cheaper two samples.
+   * the scene is drawn multisampled, so the edges are smooth: the picture the room had before the pixel look,
+   * which is also the only one the rest of the game's art direction (the HUD's pixel font, the pixel icons)
+   * never depended on. A phone keeps the cheaper two samples. They are paid for on the scene alone
+   * (`msaaScene.ts`): the composer's own targets are single-sample, so a post pass costs one pass.
    */
-  for (const target of [composer.renderTarget1, composer.renderTarget2]) target.samples = lite ? 2 : 4
-  composer.addPass(new RenderPass(scene, camera))
+  composer.addPass(new MsaaScenePass(scene, camera, lite ? 2 : 4))
   // Off on a phone: it draws the whole scene a second time (normals and depth)
   // and then samples it sixteen times a pixel, and at night under the glass it
   // is the contact shade under a desk that nobody on a six-inch screen can see.
