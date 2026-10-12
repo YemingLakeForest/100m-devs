@@ -120,3 +120,48 @@ export function assignStreams(
 export function hotSegments(prevOn: number, on: number): { from: number; to: number } | null {
   return on > prevOn ? { from: prevOn, to: on } : null
 }
+
+/** Most packets alive at once: one instanced mesh, one draw call, at a thousand developers or a billion. */
+export const MAX_PACKETS = 48
+
+/**
+ * Most packets launched in a second. Half the instance budget, because a packet is in flight
+ * about a second and a half and the other half is slack for ones still arriving when the rate
+ * jumps; 24 a second is also about the most the eye can tell apart as separate things.
+ */
+export const MAX_PACKETS_PER_SECOND = 24
+
+/**
+ * How a rate of work becomes packets: how many to launch a second, and what each carries.
+ *
+ * **The product is the rate, always.** The same honesty rule as {@link assignStreams}: a flow that
+ * shows a fortieth of the work being done lies more the more the studio grows. Below the cap one
+ * packet is one point, so a lone developer's flow is countable and is the tutorial for what a
+ * worker earns. Once the cap binds the packets get fatter in whole decades (1, 10, 100…) and the
+ * count stays between a tenth of the cap and the cap — the unit changes with the scale, never the
+ * crowd — and a decade is a number a numeral can say without a fraction.
+ */
+export function packetSpec(
+  ratePerSecond: number,
+  maxPerSecond: number = MAX_PACKETS_PER_SECOND,
+): { perSecond: number; value: number } {
+  if (!(ratePerSecond > 0) || !Number.isFinite(ratePerSecond)) return { perSecond: 0, value: 0 }
+  const cap = Math.max(1, maxPerSecond)
+  if (ratePerSecond <= cap) return { perSecond: ratePerSecond, value: 1 }
+  const value = 10 ** Math.ceil(Math.log10(ratePerSecond / cap))
+  return { perSecond: ratePerSecond / value, value }
+}
+
+/**
+ * How high the backlog heap stands, in whole levels from 0 (nothing queued) to `levels - 1`.
+ *
+ * Logarithmic, so the heap reads as "a little, some, a lot, a mountain" and a queue of a billion
+ * is not a skyscraper; it saturates at the top level rather than growing, because a pile that
+ * outgrows the room stops being a picture of a backlog. Any positive queue is at least level 1:
+ * a heap that vanishes while work is waiting would say the work had been done.
+ */
+export function backlogLevel(queued: number, levels = 5): number {
+  if (!(queued > 0)) return 0
+  const top = Math.max(1, Math.floor(levels) - 1)
+  return Math.min(top, 1 + Math.floor(Math.log10(1 + queued)))
+}

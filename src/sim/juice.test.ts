@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_STREAMS, assignStreams, hotSegments, numeralSize, popScale } from './juice.ts'
+import { MAX_PACKETS, MAX_PACKETS_PER_SECOND, MAX_STREAMS, assignStreams, backlogLevel, hotSegments, numeralSize, packetSpec, popScale } from './juice.ts'
 
 /*
  * Tests pin the claim, not the value (CLAUDE.md, house style). The claims here are the ones the
@@ -112,5 +112,63 @@ describe('hot segments: the newly lit part of a bar', () => {
     expect(hotSegments(4, 4)).toBeNull()
     expect(hotSegments(5, 2)).toBeNull()
     expect(hotSegments(7, 0)).toBeNull()
+  })
+})
+
+describe('packets carry the true rate, however few the screen can afford', () => {
+  const rates = [0.3, 1, 10, 1e3, 1e6, 1e9]
+
+  it('launches rate-worth of work every second, whatever the split into packets', () => {
+    for (const r of rates) {
+      const { perSecond, value } = packetSpec(r)
+      expect(perSecond * value).toBeCloseTo(r, 6)
+    }
+  })
+
+  it('never launches more than it may, and a bigger world gets fatter packets, not more of them', () => {
+    let lastValue = 0
+    for (const r of rates) {
+      const { perSecond, value } = packetSpec(r)
+      expect(perSecond).toBeLessThanOrEqual(MAX_PACKETS_PER_SECOND)
+      expect(value).toBeGreaterThanOrEqual(lastValue)
+      lastValue = value
+    }
+    expect(packetSpec(1e9).value).toBeGreaterThan(packetSpec(1).value)
+  })
+
+  it('keeps a single packet worth one point until the cap binds', () => {
+    expect(packetSpec(1).value).toBe(1)
+    expect(packetSpec(MAX_PACKETS_PER_SECOND).value).toBe(1)
+  })
+
+  it('launches nothing for no work, and nothing for a rate that makes no sense', () => {
+    for (const r of [0, -4, NaN, -Infinity]) expect(packetSpec(r)).toEqual({ perSecond: 0, value: 0 })
+  })
+
+  it('can fill a second of flight without outrunning the instance budget', () => {
+    expect(MAX_PACKETS_PER_SECOND).toBeLessThan(MAX_PACKETS)
+  })
+})
+
+describe('the backlog heap rises in a few hard levels', () => {
+  const queued = [0, 1, 3, 10, 100, 1e4, 1e8]
+
+  it('is flat only when nothing is queued', () => {
+    expect(backlogLevel(0)).toBe(0)
+    expect(backlogLevel(-3)).toBe(0)
+    expect(backlogLevel(NaN)).toBe(0)
+    for (const q of queued.slice(1)) expect(backlogLevel(q)).toBeGreaterThan(0)
+  })
+
+  it('never falls as the queue grows, and never rises above the top level', () => {
+    const levels = queued.map((q) => backlogLevel(q, 5))
+    for (let i = 1; i < levels.length; i++) expect(levels[i]).toBeGreaterThanOrEqual(levels[i - 1])
+    for (const l of levels) expect(l).toBeLessThanOrEqual(4)
+    expect(backlogLevel(1e300, 5)).toBe(4)
+    expect(backlogLevel(Infinity, 5)).toBe(4)
+  })
+
+  it('moves in whole levels', () => {
+    for (const q of queued) expect(Number.isInteger(backlogLevel(q))).toBe(true)
   })
 })
