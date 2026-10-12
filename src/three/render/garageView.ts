@@ -129,11 +129,19 @@ export interface GarageView {
   setProject(spec: import('../sim/cover.ts').CoverSpec, title: string, progress: number): void
   codingSeats(): number[]
   /**
-   * Story points a second the people on screen are making, for the packets that carry it to
-   * the project board or the house's door (§8.2a). 0 stops the flow. `backlog` is the story
-   * points still to do, which stands as a heap by the sink and drains as they are done.
+   * Story points a second the people on screen are making, for the stream of points that carries
+   * it to the project board or the house's door (§8.2a). 0 stops the flow. `progress` is how much
+   * of the game being built is built, 0 to 1: the level of the gauge beside the board.
    */
-  setFlow(rate: number, reduced: boolean, backlog: number): void
+  setFlow(rate: number, reduced: boolean, progress: number): void
+  /**
+   * The game is done: a build has gone into the queue, or a release has gone on sale. The board
+   * throws a fountain of points, a ring runs out across the lot, and the gauge flashes full; a
+   * release does it bigger and at every open house as well.
+   */
+  complete(kind: 'build' | 'release'): void
+  /** A click on this person: a short run of points from them to the project, so a tap is seen to go somewhere. */
+  pokeStream(seat: number): void
   /**
    * What landed at the sinks since the last call, where it is on the canvas (CSS pixels), keyed
    * by sink. Landings off the frame are dropped: the numeral is display, not accounting.
@@ -435,9 +443,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     for (let o: T.Object3D | null = plate; o; o = o.parent) if (!o.visible) return []
     const sources = env.targets.filter(t => { for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false; return true })
       .map(t => { const p = t.mesh.getWorldPosition(new T.Vector3()); p.y += t.mesh.scale.y * .3; return p })
-    return [{ sink: plate.getWorldPosition(new T.Vector3()), floor: 0, sources }]
+    return [{ sink: plate.getWorldPosition(new T.Vector3()), floor: 0, gauge: true, sources }]
   }
-  let flowRate = 0, flowBacklog = 0, flowReduced = false, flowClock = 0, flowLotsAt = -1
+  let flowRate = 0, flowProgress = 0, flowReduced = false, flowClock = 0, flowLotsAt = -1
   let flowLots: FlowLot[] = []
   if (OS_NIGHT) {
     scene.add(createOsDesktop())
@@ -1074,7 +1082,20 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const seats=env.targets.filter(t=>{for(let o:T.Object3D|null=t.mesh;o;o=o.parent)if(!o.visible)return false;return true}).map(t=>t.index)
       return [...seats,...city.codingSeats()]
     },
-    setFlow(rate, reduced, backlog) { flowRate = rate; flowReduced = reduced; flowBacklog = backlog },
+    setFlow(rate, reduced, progress) { flowRate = rate; flowReduced = reduced; flowProgress = progress },
+    complete(kind) { flow.complete(flowLots, kind, flowReduced); dirty = true },
+    pokeStream(seat) {
+      const to = flowLots[0]?.sink
+      if (!to) return
+      let from: T.Vector3 | null
+      if (seat >= 0 && heads === 0 && city.count > 0) from = city.headOf(seat)
+      else {
+        const t = env.targets.find((target) => target.index === seat)
+        if (!t) return
+        from = t.mesh.getWorldPosition(new T.Vector3()); from.y += t.mesh.scale.y * .3
+      }
+      if (from) { flow.emit(from, to, 7, flowReduced); dirty = true }
+    },
     flashUnits() {
       unitFlashLayer.start([{ x: 0, z: 0, y: -.31, half: LOT_BRACKET - 1.7 }, ...city.pads()], clock)
     },
@@ -1120,9 +1141,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         flowLotsAt = clock
         flowLots = w / span() >= 8 ? garageLots().concat(city.lots()) : []
       }
-      flow.update(clock - flowClock, flowRate, flowLots, flowReduced, flowBacklog)
+      const levelBefore = flow.level
+      flow.update(clock - flowClock, flowRate, flowLots, flowReduced, flowProgress)
       flowClock = clock
-      if (flow.live > 0) dirty = true
+      if (flow.live > 0 || flow.ringsLive > 0 || flow.level !== levelBefore) dirty = true
       if (unitFlashLayer.update(clock, flowReduced)) dirty = true
       if (focusOn) {
         // A quick ease rather than a cut: the move and the name plate are one event.

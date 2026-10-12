@@ -46,7 +46,7 @@ import {
   arrivedHeroes,
   finishLiquidation,
   currentEntropy,
-  baseVelocity, developerVelocity, shelfBlocked, burnedFraction, remaining, projectOrdinal,
+  baseVelocity, developerVelocity, shelfBlocked, burnedFraction, projectOrdinal,
   FLOATER_LIFE_MS,
   getState,
   poke,
@@ -389,6 +389,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const paid = pokeFounder(at.x, at.y)
     if (paid <= 0) return 0
     garage.hop(FOUNDER_SEAT)
+    garage.pokeStream(FOUNDER_SEAT)
     if (sound) playKeyboardClick()
     if (t0 !== undefined) requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
     return paid
@@ -431,7 +432,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const at = personAt(JAMES_SEAT) ?? { x, y }
       const paid = pokeJames(at.x, at.y)
       garage.hop(JAMES_SEAT)
-      if (paid > 0) playKeyboardClick()
+      if (paid > 0) { garage.pokeStream(JAMES_SEAT); playKeyboardClick() }
       else playSfx('poke-void')
       return
     }
@@ -453,6 +454,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // where nobody is standing.
     if (who === null || who < 0) return
     garage.hop(who)
+    garage.pokeStream(who)
 
     const lvl = level()
     const at = personAt(who) ?? { x, y }
@@ -713,6 +715,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if (state.ship && state.ship.id !== lastShipId) {
       lastShipId = state.ship.id
       shipShake = 1
+      // The release is the bigger of the two completions: the board's fountain, and every open house's.
+      garage.complete('release')
     }
 
     // A new run or a loaded save can have fewer people than the lens was left
@@ -755,10 +759,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if(devsSeen>=0&&crossedMilestone(devsSeen,state.devs)!==null)homeAt=performance.now()+BREATH_MS
     devsSeen=state.devs
     if(homeAt>0&&performance.now()>=homeAt){homeAt=0;if(atlasZoom===null&&!state.scene)garage.focus(FOUNDER_SEAT,0.34)}
-    if(shelfSeen>=0&&state.shelf.length>shelfSeen)garage.flashUnits()
+    if(shelfSeen>=0&&state.shelf.length>shelfSeen){garage.flashUnits();garage.complete('build')}
     shelfSeen=state.shelf.length
     const workRate=people.reduce((sum,p)=>sum+p.rate,0)
-    garage.setFlow(workRate,reduceMotion,remaining(state).toNumber())
+    garage.setFlow(workRate,reduceMotion,burnedFraction(state))
     throughputBed.update(bedLevel(workRate),pullOut(garage.zoom))
     // §8.2a (amended 2026-10-12): up to a dozen people each keep a numeral over their own head, the
     // tutorial for what a worker earns; past that the packets carry the work and the numeral is

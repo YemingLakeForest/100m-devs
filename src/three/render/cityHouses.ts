@@ -197,7 +197,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
      */
     lots(): FlowLot[] {
       return buildings.flatMap(b => b.interior?.root.visible
-        ? [{ sink: b.body.localToWorld(new T.Vector3(0, 1.4, 8.4)), floor: b.body.localToWorld(new T.Vector3(0, .57, 0)).y, heapAt: b.body.localToWorld(new T.Vector3(-3.1, 0, 9.4)), sources: b.interior.targets.filter(t => t.visible).map(t => b.interior!.headOf(Number(t.userData.seat))) }]
+        ? [{ sink: b.body.localToWorld(new T.Vector3(0, 1.4, 8.4)), floor: b.body.localToWorld(new T.Vector3(0, .57, 0)).y, standAt: b.body.localToWorld(new T.Vector3(-3.1, 0, 9.4)), sources: b.interior.targets.filter(t => t.visible).map(t => b.interior!.headOf(Number(t.userData.seat))) }]
         : [])
     },
     headOf(seat: number) { const b = buildings[Math.floor((seat - offset) / HOUSE_CAPACITY)]; return b && seat >= offset && seat < offset + staff ? (b.interior?.root.visible ? b.interior.headOf(seat) : b.group.position.clone().add(new T.Vector3(0, 4, 8))) : null },

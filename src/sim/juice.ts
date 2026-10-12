@@ -121,15 +121,17 @@ export function hotSegments(prevOn: number, on: number): { from: number; to: num
   return on > prevOn ? { from: prevOn, to: on } : null
 }
 
-/** Most packets alive at once: one instanced mesh, one draw call, at a thousand developers or a billion. */
-export const MAX_PACKETS = 48
+/** Most points alive at once, streams and a completion's fountain together: one instanced mesh, one draw call, at a thousand developers or a billion. */
+export const MAX_PACKETS = 900
 
 /**
- * Most packets launched in a second. Half the instance budget, because a packet is in flight
- * about a second and a half and the other half is slack for ones still arriving when the rate
- * jumps; 24 a second is also about the most the eye can tell apart as separate things.
+ * Most points launched in a second by the stream. A point is in the air about a second and a
+ * half, so this keeps the stream to about a third of the instance budget and leaves the rest for
+ * a completion's fountain and for points still arriving when the rate jumps. A stream is not
+ * read as separate things any more (the first version's 24 a second was "the most the eye can
+ * tell apart"), it is read as a river, so the cap is what the screen can afford, not what the eye can count.
  */
-export const MAX_PACKETS_PER_SECOND = 24
+export const MAX_PACKETS_PER_SECOND = 240
 
 /**
  * How a rate of work becomes packets: how many to launch a second, and what each carries.
@@ -150,20 +152,6 @@ export function packetSpec(
   if (ratePerSecond <= cap) return { perSecond: ratePerSecond, value: 1 }
   const value = 10 ** Math.ceil(Math.log10(ratePerSecond / cap))
   return { perSecond: ratePerSecond / value, value }
-}
-
-/**
- * How high the backlog heap stands, in whole levels from 0 (nothing queued) to `levels - 1`.
- *
- * Logarithmic, so the heap reads as "a little, some, a lot, a mountain" and a queue of a billion
- * is not a skyscraper; it saturates at the top level rather than growing, because a pile that
- * outgrows the room stops being a picture of a backlog. Any positive queue is at least level 1:
- * a heap that vanishes while work is waiting would say the work had been done.
- */
-export function backlogLevel(queued: number, levels = 5): number {
-  if (!(queued > 0)) return 0
-  const top = Math.max(1, Math.floor(levels) - 1)
-  return Math.min(top, 1 + Math.floor(Math.log10(1 + queued)))
 }
 
 /** How long each of the unit flash's three colours holds. Three hard steps, as the HUD's hot edge. */

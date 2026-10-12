@@ -72,9 +72,12 @@ export function createPassiveWork() {
       }
       ticks = ticks.filter(t => now - t.bornAt < 1300)
       for (const s of sinks.values()) {
-        if (s.credit <= 0 || now - s.at < ARRIVAL_BEAT_MS) continue
-        ticks.push({ id: ++sequence, sp: s.credit, x: s.x, y: s.y, bornAt: now, crit: false, snippet: null, unblocked: false, passive: true, still: reduced })
-        s.credit = 0; s.at = now
+        // Whole points only: the stream cuts a story point into specks, and a numeral that said
+        // +0.14 would be counting specks. What has not yet made a whole point waits in the sink.
+        if (s.credit < 1 || now - s.at < ARRIVAL_BEAT_MS) continue
+        const whole = Math.floor(s.credit)
+        ticks.push({ id: ++sequence, sp: whole, x: s.x, y: s.y, bornAt: now, crit: false, snippet: null, unblocked: false, passive: true, still: reduced })
+        s.credit -= whole; s.at = now
       }
       return ticks
     },

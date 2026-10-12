@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_PACKETS, MAX_PACKETS_PER_SECOND, MAX_STREAMS, UNIT_FLASH_MS, unitFlash, assignStreams, backlogLevel, hotSegments, numeralSize, packetSpec, popScale } from './juice.ts'
+import { MAX_PACKETS, MAX_PACKETS_PER_SECOND, MAX_STREAMS, UNIT_FLASH_MS, unitFlash, assignStreams, hotSegments, numeralSize, packetSpec, popScale } from './juice.ts'
 
 /*
  * Tests pin the claim, not the value (CLAUDE.md, house style). The claims here are the ones the
@@ -147,29 +147,6 @@ describe('packets carry the true rate, however few the screen can afford', () =>
 
   it('can fill a second of flight without outrunning the instance budget', () => {
     expect(MAX_PACKETS_PER_SECOND).toBeLessThan(MAX_PACKETS)
-  })
-})
-
-describe('the backlog heap rises in a few hard levels', () => {
-  const queued = [0, 1, 3, 10, 100, 1e4, 1e8]
-
-  it('is flat only when nothing is queued', () => {
-    expect(backlogLevel(0)).toBe(0)
-    expect(backlogLevel(-3)).toBe(0)
-    expect(backlogLevel(NaN)).toBe(0)
-    for (const q of queued.slice(1)) expect(backlogLevel(q)).toBeGreaterThan(0)
-  })
-
-  it('never falls as the queue grows, and never rises above the top level', () => {
-    const levels = queued.map((q) => backlogLevel(q, 5))
-    for (let i = 1; i < levels.length; i++) expect(levels[i]).toBeGreaterThanOrEqual(levels[i - 1])
-    for (const l of levels) expect(l).toBeLessThanOrEqual(4)
-    expect(backlogLevel(1e300, 5)).toBe(4)
-    expect(backlogLevel(Infinity, 5)).toBe(4)
-  })
-
-  it('moves in whole levels', () => {
-    for (const q of queued) expect(Number.isInteger(backlogLevel(q))).toBe(true)
   })
 })
 

@@ -95,6 +95,20 @@ describe('the arrival tick at the sink (§8.2a, slice B3)', () => {
     expect(work.arrive([], 1500, false)).toHaveLength(0)
   })
 
+  it('never writes a fraction: specks of a point wait in the sink until they make one, and none is lost', () => {
+    const work = createPassiveWork()
+    const seen = new Set<number>()
+    let shown = 0, fed = 0
+    for (let ms = 0; ms < 20_000; ms += 16) {
+      const speck = ms % 160 === 0 ? [at(0.07)] : []
+      fed += speck.length * 0.07
+      for (const f of work.arrive(speck, ms, false)) if (!seen.has(f.id)) { seen.add(f.id); shown += f.sp; expect(Number.isInteger(f.sp)).toBe(true) }
+    }
+    expect(shown).toBeGreaterThan(0)
+    expect(shown).toBeLessThanOrEqual(fed)
+    expect(shown).toBeGreaterThan(fed - 1.5)
+  })
+
   it('keeps separate sinks separate', () => {
     const work = createPassiveWork()
     const live = work.arrive([at(3), { key: 'board', x: 40, y: 50, value: 4 }], 0, false)
