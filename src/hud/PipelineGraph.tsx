@@ -21,8 +21,10 @@
  *
  * The art is thick and blunt: 3px strokes, notched square corners, a hard offset
  * shadow, chunky pixel icons drawn as rectangles. No glow, no gradient, no blur,
- * no canvas, and no motion beyond a stepped spinner and a stepped pop when a game
- * arrives. (The previous pass — a canvas bitmap of a pipe — was more clever than
+ * no canvas, and no motion beyond a stepped spinner, a stepped pop when a game
+ * arrives and — [2026-10-11] — a stepped hot edge on the CODE bar: the segment
+ * that just lit arrives in the ramp's lightest value and settles in three hard
+ * steps, never a fade (`Segs`, `gl-hot`). (The previous pass — a canvas bitmap of a pipe — was more clever than
  * this and read as less like what it is.)
  *
  * `PipelineGraph` is the window's; `PipelineRow` is the rail's: the same three
@@ -35,6 +37,7 @@ import { coverFor } from '../three/sim/cover.ts'
 import type { GameState } from '../game/store.ts'
 import { Cover } from './Cover.tsx'
 import { clock, queueTone, type QueueView } from './queueModel.ts'
+import { useHotSegments } from './useHotSegments.ts'
 
 import '../styles/graph.css'
 
@@ -69,12 +72,19 @@ function Icon({ kind }: { kind: IconKind }) {
   )
 }
 
-function Segs({ progress }: { progress: number }) {
+/** How far the sprint has got, and which part of that is new (`useHotSegments`). */
+export function Segs({ progress }: { progress: number }) {
   const on = Math.round(Math.min(1, Math.max(0, progress)) * SEGMENTS)
+  const { isHot, clear } = useHotSegments(on)
   return (
     <span className="gl__segs" aria-hidden="true">
       {Array.from({ length: SEGMENTS }, (_, i) => (
-        <i key={i} data-on={i < on ? 'true' : 'false'} />
+        <i
+          key={i}
+          data-on={i < on ? 'true' : 'false'}
+          data-hot={isHot(i) ? 'true' : undefined}
+          onAnimationEnd={isHot(i) ? clear : undefined}
+        />
       ))}
     </span>
   )
@@ -211,6 +221,8 @@ export function PipelineRow({
   const slots = Math.max(1, Math.min(v.capacity, 6))
   const used = v.games.length
   const lit = used >= v.capacity ? slots : used === 0 ? 0 : Math.max(1, Math.round((used * slots) / v.capacity))
+  // The one bar on the rail that goes up in whole steps: a finished build lights a slot hot.
+  const { isHot, clear } = useHotSegments(lit)
   return (
     <span className="gl gl--row" data-size="mini" data-tone={queueTone(v)}>
       <button type="button" className="gl__open" data-key="queue" onClick={onOpen} aria-label={label}>
@@ -223,7 +235,12 @@ export function PipelineRow({
         <i className="gl__line" data-on={code.state === 'run' ? 'true' : 'false'} />
         <span className="gl__node gl__node--queue" data-full={used >= v.capacity ? 'true' : 'false'}>
           {Array.from({ length: slots }, (_, k) => (
-            <i key={k} data-on={k < lit ? 'true' : 'false'} />
+            <i
+              key={k}
+              data-on={k < lit ? 'true' : 'false'}
+              data-hot={isHot(k) ? 'true' : undefined}
+              onAnimationEnd={isHot(k) ? clear : undefined}
+            />
           ))}
         </span>
       </button>

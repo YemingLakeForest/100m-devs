@@ -250,6 +250,36 @@
   background: var(--p3);
 }
 
+/*
+ * The hot edge — GDD §10.8a, "bars squash and stretch", in this window's grammar.
+ *
+ * A segment that has just lit arrives white (`--n8`, the neutral ramp's top, the only white the
+ * palette has) and two pixels taller, holds it, steps down, and settles into its resting phosphor
+ * in three hard frames: 280 ms, the same budget as `qgauge-tick`. `steps(1, end)` is per keyframe
+ * interval, so every frame is a flat palette colour and nothing is ever a blend between two. The
+ * resting `--p3` was already the lightest phosphor, which is why the flash is neutral rather than
+ * "a lighter p3": there is no lighter p3 to be.
+ */
+.gl__segs i[data-hot='true'] {
+  transform-origin: 50% 100%;
+  animation: gl-hot 0.28s steps(1, end);
+}
+
+@keyframes gl-hot {
+  0% {
+    background: var(--n8);
+    transform: scaleY(1.5);
+  }
+  34% {
+    background: var(--n8);
+    transform: scaleY(1.25);
+  }
+  67% {
+    background: var(--p3);
+    transform: none;
+  }
+}
+
 /* --- the lines between stages ---------------------------------------------- */
 
 .gl__link {
@@ -454,6 +484,27 @@
   background: var(--warn-2);
 }
 
+/*
+ * The same hot edge on the rail's queue, colour only: a slot fills its whole node, so there is
+ * no room to grow it. A finished build's slot arrives white, drops to the amber ramp's top, and
+ * settles on the amber it rests in — three flat palette colours, 280 ms, nothing between them.
+ */
+.gl__node--queue i[data-hot='true'] {
+  animation: gl-hot-slot 0.28s steps(1, end);
+}
+
+@keyframes gl-hot-slot {
+  0% {
+    background: var(--n8);
+  }
+  34% {
+    background: var(--warn-3);
+  }
+  67% {
+    background: var(--warn-2);
+  }
+}
+
 .gl__node--queue[data-full='true'] {
   border-color: var(--alarm-2);
 }
@@ -475,7 +526,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .gl__job,
-  .gl__spin {
+  .gl__spin,
+  .gl__segs i,
+  .gl__node--queue i {
     animation: none !important;
   }
 }

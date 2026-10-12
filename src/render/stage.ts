@@ -752,7 +752,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     garage.setProject(coverFor(state.runSeed, projectOrdinal(state), 0, state.sprintName), state.sprintName, burnedFraction(state))
     if (atlasZoom === null) garage.render(now / 1000)
     const tags = atlasZoom === null ? garage.nameTags() : []
-    if (numerals.draw(floaters, performance.now(), FLOATER_LIFE_MS, tags)) numeralTexture.needsUpdate = true
+    if (numerals.draw(floaters, performance.now(), FLOATER_LIFE_MS, tags, reduceMotion)) numeralTexture.needsUpdate = true
     numeralsLive = floaters.length > 0 || tags.length > 0
     // §7.7.2: existing whoosh/contact clips until bespoke thruster audio is approved.
     if (garage.ignitions > ignitionsHeard) {

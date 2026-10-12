@@ -18,10 +18,12 @@
  */
 
 import { RAMPS } from '../art/palette.ts'
+import { numeralSize, popScale } from '../sim/juice.ts'
 import { drawHeroTag, type HeroTag } from './heroTags.ts'
 
 const NUMERAL_SIZE = 20
 const CRIT_SIZE = 30
+const PASSIVE_SIZE = 14
 const SNIPPET_SIZE = 12
 
 /** How far a floater rises over its life, in CSS pixels. */
@@ -109,6 +111,22 @@ export interface PokeFloater {
   still?: boolean
 }
 
+/**
+ * How big a numeral is, and how big it is *this frame*.
+ *
+ * `settled` is the size it rests at: its kind (a crit is bigger than a tap, background output
+ * is smaller) plus a whole even step per decade of yield, so +8 and +8,000 are not the same
+ * sticker. `shown` is `settled` stepped through a 110 ms pop — small, big, rest — which is the
+ * reference game's arrival in this interface's grammar (`sim/juice.ts`). Layout uses `settled`,
+ * so the pop never moves a neighbouring line of code.
+ */
+export function numeralFace(f: PokeFloater, now: number, reduced = false): { settled: number; shown: number } {
+  const settled = numeralSize(f.sp, f.passive ? PASSIVE_SIZE : f.crit ? CRIT_SIZE : NUMERAL_SIZE)
+  // Rounded to a whole even pixel: the face is a pixel face and lives on its grid.
+  const shown = Math.round((settled * popScale(now - f.bornAt, reduced || !!f.still)) / 2) * 2
+  return { settled, shown }
+}
+
 export interface PokeCanvas {
   readonly canvas: HTMLCanvasElement
   /** Match the frame: CSS size and the device pixel ratio the glass samples at. */
@@ -118,7 +136,7 @@ export interface PokeCanvas {
    * frame it is cleared on — so the texture over it is only re-uploaded when
    * there is something new to see.
    */
-  draw(floaters: readonly PokeFloater[], now: number, lifeMs: number, tags?: readonly HeroTag[]): boolean
+  draw(floaters: readonly PokeFloater[], now: number, lifeMs: number, tags?: readonly HeroTag[], reduced?: boolean): boolean
 }
 
 export function createPokeCanvas(): PokeCanvas {
@@ -153,7 +171,7 @@ export function createPokeCanvas(): PokeCanvas {
       ctx = null
       shown = true
     },
-    draw(floaters, now, lifeMs, tags = []) {
+    draw(floaters, now, lifeMs, tags = [], reduced = false) {
       if (floaters.length === 0 && tags.length === 0 && !shown) return false
       ctx ??= canvas.getContext('2d')
       if (!ctx) return false
@@ -172,7 +190,8 @@ export function createPokeCanvas(): PokeCanvas {
         // full opacity for most of the life, then the fade.
         const alpha = Math.max(0, Math.min(1, (1 - age) / FADE))
         if (alpha <= 0) continue
-        const size = f.passive ? 14 : f.crit ? CRIT_SIZE : NUMERAL_SIZE
+        const face = numeralFace(f, now, reduced)
+        const size = face.settled
         const lane = f.passive ? {numeralX:0,numeralY:-24,snippetX:0,snippetY:0} : pokeTextOffsets(size, f.id - 1)
         // Clear the stationary name tag in the first beat, then drift slowly
         // enough to read. All clicks still originate at the head, not in a
@@ -194,7 +213,8 @@ export function createPokeCanvas(): PokeCanvas {
           x = Math.max(EDGE + span - lane.snippetX, Math.min(frameW - EDGE - span - lane.snippetX, x))
         }
         c.globalAlpha = alpha
-        text(c, f.unblocked ? 'UNBLOCKED' : formatPokeNumeral(f.sp), x + lane.numeralX, y + lane.numeralY, size, f.passive ? RAMPS.NEUTRAL[7] : numeralColour(f.sp, f.crit, f.unblocked), f.passive ? 3 : 4)
+        // The pop is drawn bottom-anchored: the glyph steps up and down from a fixed foot.
+        text(c, f.unblocked ? 'UNBLOCKED' : formatPokeNumeral(f.sp), x + lane.numeralX, y + lane.numeralY + (size - face.shown), face.shown, f.passive ? RAMPS.NEUTRAL[7] : numeralColour(f.sp, f.crit, f.unblocked), f.passive ? 3 : 4)
         // §8.2a. Null for an Overwhelmed developer, who has nothing to say —
         // and that silence is the joke, so it is not filled with a default.
         if (f.snippet) {
