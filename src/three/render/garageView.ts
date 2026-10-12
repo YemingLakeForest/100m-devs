@@ -1036,7 +1036,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       dirty = true
     },
     codingSeats() {
-      if(w/span()<10)return []
+      // 8, not 10: a house cut open at 10 stays open down to 8 (`cityHouses.setView`), and its
+      // workers are plainly working in that band, so their numerals must not vanish there.
+      if(w/span()<8)return []
       const seats=env.targets.filter(t=>{for(let o:T.Object3D|null=t.mesh;o;o=o.parent)if(!o.visible)return false;return true}).map(t=>t.index)
       return [...seats,...city.codingSeats()]
     },

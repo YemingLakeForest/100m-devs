@@ -87,4 +87,22 @@ describe('the city blocks (§7.7.2)', () => {
     expect(inside.targets.filter(t => t.visible)).toHaveLength(5)
     inside.dispose()
   })
+  it('hands the city every seat its open house shows, and takes them back when the lens leaves', () => {
+    // The cutaway builds the interior lazily, so the building's `interior` is a
+    // getter; spreading the model froze it at null, and every seat query
+    // (coding, hop, head, pick) behaved as if no house had ever been opened.
+    const city = createCityHouses({ landed() {}, ignited() {}, exhaust() {} })
+    city.setStaff(30, false); city.update(0)
+    const head = city.headOf(0)!
+    const lens = new T.OrthographicCamera(-40, 40, 40, -40, .1, 400)
+    lens.position.set(head.x, 100, head.z - 8); lens.lookAt(head.x, 0, head.z - 8)
+    lens.updateProjectionMatrix(); lens.updateMatrixWorld(true)
+    expect(city.codingSeats()).toEqual([])
+    city.setView(lens, 20)
+    expect(city.codingSeats().sort((a, b) => a - b)).toEqual(Array.from({ length: 30 }, (_, i) => i))
+    expect(city.headOf(0)).not.toEqual(head)
+    city.setView(lens, 2)
+    expect(city.codingSeats()).toEqual([])
+    city.dispose()
+  })
 })

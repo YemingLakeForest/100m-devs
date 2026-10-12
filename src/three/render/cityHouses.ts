@@ -116,7 +116,9 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
         const lot = dressCityLot(root, at.x, at.z)
         // [2026-10-11] Every lot wears the survey frame's corner bracket (`osDesktop.ts`).
         if (OS_NIGHT) { const brackets = createLotBrackets(LOT_BRACKET); brackets.position.y = .01; lot.add(brackets) }
-        const b: Building = { ...model, leaving: null, group, lot, rig, marker, legs, start: animate ? clock : null, wait: queued,
+        // `interior` is a getter (the cutaway builds it lazily); a bare spread would copy
+        // its value at null, once, and every seat query would answer as if no house had opened.
+        const b: Building = { ...model, get interior() { return model.interior }, leaving: null, group, lot, rig, marker, legs, start: animate ? clock : null, wait: queued,
           landed: !animate, ignited: false, dust: false, hop: null }
         buildings.push(b); queued += .22
         group.position.y += animate ? 30 : 0
