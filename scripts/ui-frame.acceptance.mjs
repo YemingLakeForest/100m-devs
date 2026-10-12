@@ -791,6 +791,30 @@ async function openCard(target) {
   await target.locator('.herocard__pass').waitFor({ state: 'visible' })
 }
 
+/**
+ * **Measure the resting frame, not the frame on the way there.** [2026-10-12]
+ *
+ * Panels enter on `cubic-bezier(.34,1.56,.64,1)`, which overshoots: for a
+ * moment the panel is scaled past 1 and its close box sits a pixel or two
+ * outside the root. A fixed 450ms wait is enough on a quiet machine and not on a
+ * busy one, so the same screen (gallery at 915x412, the thread at 748x336)
+ * passed or failed with the load of the run rather than with the layout. The
+ * claim is about where the interface rests, so wait for every finite animation
+ * to end. Infinite ones (carets, the lamp) are the interface being alive, not
+ * arriving, and are not waited for.
+ */
+async function settled(page) {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime ?? Infinity))
+        .map((a) => a.finished.catch(() => {})),
+    ),
+  )
+  await page.waitForTimeout(60)
+}
+
 async function check(
   page,
   { name, width, height, path: urlPath, action, inspect, requireScene = false, keyboard = 0 },
@@ -818,6 +842,7 @@ async function check(
     await page.waitForTimeout(450)
   }
   const measuredHeight = keyboard > 0 ? Math.round(height * keyboard) : height
+  await settled(page)
   const issues = [
     ...await overflowIssues(page),
     ...await deadControlIssues(page),
