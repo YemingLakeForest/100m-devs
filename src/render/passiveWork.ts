@@ -1,6 +1,9 @@
 import { assignStreams } from '../sim/juice.ts'
 import type { PokeFloater } from './pokeText.ts'
 
+/** The shortest gap between two numerals at one sink: ~4 a second, so each can be read. */
+const ARRIVAL_BEAT_MS = 250
+
 export interface WorkingPerson { seat: number; rate: number; x: number; y: number }
 /** Display-only accounting: never pays points into the game. Whole points wait
  * until earned; slow output can show a fraction after four seconds.
@@ -17,8 +20,10 @@ export function createPassiveWork() {
   const hops = new Map<number, number>()
   const accounts = new Map<string, { credit: number; age: number; turn: number }>()
   let floaters: (PokeFloater & { seat: number })[] = [], sequence = 0
+  const sinks = new Map<string, { credit: number; at: number; x: number; y: number }>()
+  let ticks: PokeFloater[] = []
   return {
-    update(people: WorkingPerson[], dt: number, now: number, reduced: boolean, hop: (seat: number) => void) {
+    update(people: WorkingPerson[], dt: number, now: number, reduced: boolean, hop: (seat: number) => void, numerals = true) {
       const visible = new Map(people.map(p => [p.seat, p]))
       for (const seat of hops.keys()) if (!visible.has(seat)) hops.delete(seat)
       for (const p of people) {
@@ -41,7 +46,7 @@ export function createPassiveWork() {
         let a = accounts.get(s.key)
         if (!a) { a = { credit: 0, age: 0, turn: 0 }; accounts.set(s.key, a) }
         a.credit += s.rate * dt; a.age += dt
-        if (a.age < .65 || (a.credit < 1 && a.age < 4) || a.credit < .01 || floaters.length >= 24) continue
+        if (!numerals || a.age < .65 || (a.credit < 1 && a.age < 4) || a.credit < .01 || floaters.length >= 24) continue
         const sp = a.credit >= 1 ? Math.floor(a.credit) : Math.floor(a.credit * 100) / 100
         a.credit -= sp; a.age = 0
         // The numeral rises over each member of the stream in turn, so a crowd's total is read
@@ -51,6 +56,27 @@ export function createPassiveWork() {
         floaters.push({ seat, id: ++sequence, sp, x: at.x, y: at.y, bornAt: now, crit: false, snippet: null, unblocked: false, passive: true, still: reduced })
       }
       return floaters.map(f => { const p = visible.get(f.seat)!; return { ...f, x: p.x, y: p.y } })
+    },
+    /**
+     * The numeral at the sink, when the numerals over heads have been handed to the flow
+     * (§8.2a, amended 2026-10-12): packets land, and the landing is what says `+n`. One numeral
+     * a beat per sink — the packets that landed in between are summed into it, so what is
+     * written is what arrived and never a count of packets — and the pool is as short-lived as
+     * the heads' numerals (1.3 s). `key` names a sink, so a door and a board never merge.
+     */
+    arrive(events: { key: string; x: number; y: number; value: number }[], now: number, reduced: boolean) {
+      for (const e of events) {
+        const s = sinks.get(e.key) ?? { credit: 0, at: -Infinity, x: e.x, y: e.y }
+        s.credit += e.value; s.x = e.x; s.y = e.y
+        sinks.set(e.key, s)
+      }
+      ticks = ticks.filter(t => now - t.bornAt < 1300)
+      for (const s of sinks.values()) {
+        if (s.credit <= 0 || now - s.at < ARRIVAL_BEAT_MS) continue
+        ticks.push({ id: ++sequence, sp: s.credit, x: s.x, y: s.y, bornAt: now, crit: false, snippet: null, unblocked: false, passive: true, still: reduced })
+        s.credit = 0; s.at = now
+      }
+      return ticks
     },
   }
 }

@@ -133,6 +133,11 @@ export interface GarageView {
    */
   setFlow(rate: number, reduced: boolean): void
   /**
+   * What landed at the sinks since the last call, where it is on the canvas (CSS pixels), keyed
+   * by sink. Landings off the frame are dropped: the numeral is display, not accounting.
+   */
+  takeArrivals(): { key: string; x: number; y: number; value: number }[]
+  /**
    * Ease the camera to a person — a seat, or -1 the founder, -2 James — for a
    * line of dialogue, and back to where the player had it on `null`. The
    * player's own zoom or pan ends it.
@@ -413,7 +418,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     exhaust(footprint) { dustRing(footprint, true) },
   }, () => cast)
   scene.add(city.root)
-  const flow = createFlow(scene)
+  const landed: { at: T.Vector3; value: number }[] = []
+  const flow = createFlow(scene, (at, value) => { if (landed.length < 256) landed.push({ at, value }) })
   /** The garage's own lot: its visible people, and the project board they work toward. */
   function garageLots(): FlowLot[] {
     const plate = env.projectPlate?.mesh
@@ -1061,6 +1067,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       return [...seats,...city.codingSeats()]
     },
     setFlow(rate, reduced) { flowRate = rate; flowReduced = reduced },
+    takeArrivals() {
+      frame()
+      return landed.splice(0).flatMap(({ at, value }) => {
+        const p = at.clone().project(camera)
+        if (p.x < -1 || p.x > 1 || p.y < -1 || p.y > 1) return []
+        return [{ key: `${Math.round(at.x)},${Math.round(at.z)}`, x: (p.x + 1) * w / 2, y: (1 - p.y) * h / 2, value }]
+      })
+    },
     setProject(spec, title, progress) {
       env.projectPlate?.update(spec, title, progress)
     },

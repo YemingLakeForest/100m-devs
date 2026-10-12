@@ -62,6 +62,7 @@ import { playUi } from '../ui/uiSfx.ts'
 import { MusicBus } from '../audio/music.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
 import { exceedsSlop } from './navigation.ts'
+import { MAX_STREAMS } from '../sim/juice.ts'
 import { createPassiveWork } from './passiveWork.ts'
 import { coverFor } from '../three/sim/cover.ts'
 import { jamesPresent } from '../sim/james.ts'
@@ -743,8 +744,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       return [{seat,rate,x:at.x+(seat<0?34:0),y:at.y}]
     }):[]
     garage.setFlow(people.reduce((sum,p)=>sum+p.rate,0),reduceMotion)
-    const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat, true)})
-    floaters=[...floaters,...passive]
+    // §8.2a (amended 2026-10-12): up to a dozen people each keep a numeral over their own head, the
+    // tutorial for what a worker earns; past that the packets carry the work and the numeral is
+    // said where it lands. Either way the numerals on screen add up to the work being done.
+    const crowd=people.length>MAX_STREAMS
+    const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat, true)},!crowd)
+    const landings=garage.takeArrivals()
+    floaters=[...floaters,...passive,...(crowd?passiveWork.arrive(landings,now,reduceMotion):[])]
 
     const theme = entropyTheme(currentEntropy(state))
     // §6 pass 3: a calm studio gets a tight halo on its lamps, a seizing one

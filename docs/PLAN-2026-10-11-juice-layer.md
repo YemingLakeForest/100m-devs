@@ -38,9 +38,12 @@ All of the logic that can be pure is in `src/sim/juice.ts`, test-first (`juice.t
 - **White is `--n8`.** The lit CODE segment was already `--p3`, the lightest phosphor, so "arrive lighter" had nowhere to go; the neutral ramp's top is the only white the palette has.
 - **GDD amended** (§8.2a, §10.8a, 2026-10-11): §8.2a anchored feedback to the developer's head, and a stream's numeral rises over each member in turn, so it is still anchored to a head but speaks for several.
 
-## Known gap, found while verifying
+## Slice B as built (2026-10-12)
 
-**House workers never reach passive work.** `garageView.codingSeats()` returns the garage's seats plus `city.codingSeats()`, and inside a 100-developer house the stage still saw 5 seats and 0 people on screen. So streams (move 2) are correct and tested but dormant in the 3D game until houses are fed — which is the same job as move 1, and is the first thing in slice B.
+- **The gap above is closed.** `cityHouses` built each building with `{ ...model }`, and `model.interior` is a lazy getter, so the spread froze it at `null` and `codingSeats`, `hop`, `headOf` and `pick` never saw an open house. Driven at 100 devs: 5 seats before, 105 after, with numerals over the house's workers. The garage's coding-seat gate also moved from 10 to 8 ppm to match the cutaway's own hysteresis.
+- **Packets** (`three/render/flow.ts`, pure budget in `sim/juice.ts`: `packetSpec`, `backlogLevel`). One instanced mesh, 48 alive and 24 launched a second at most, six hard hops, palette amber (`OS.warm`; the lamp colour bloomed into a halo on the glass, which is a gradient light box). Sinks: the project board in the garage, the front door of an open house.
+- **Heads or sink?** Decided: up to twelve visible people keep the numeral over their head (the tutorial); past twelve the numeral is said at the sink on arrival (`passiveWork.arrive`, one a beat per sink, summed). Doing both would count the same work twice. GDD §8.2a amended.
+- **Not built:** the backlog heap (`backlogLevel` is written and tested, nothing draws it); the arrival numeral when no house is cut open; a live drive at 1,000 devs (the `floor` scenario starts with a full queue, so the rate is correctly 0; the cap is covered by tests only); a frame-rate A/B.
 
 ## Next
 

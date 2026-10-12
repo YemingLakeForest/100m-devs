@@ -57,3 +57,60 @@ describe('passive coding feedback', () => {
     }
   })
 })
+
+describe('the arrival tick at the sink (§8.2a, slice B3)', () => {
+  const at = (value: number) => ({ key: 'door', x: 300, y: 200, value })
+
+  it('adds up: every point that landed is on a numeral, however fast the packets come', () => {
+    const work = createPassiveWork()
+    const seen = new Set<number>()
+    let shown = 0, landed = 0
+    for (let ms = 0; ms <= 10_000; ms += 16) {
+      const events = ms % 48 === 0 ? [at(10)] : []
+      landed += events.length * 10
+      for (const f of work.arrive(events, ms, false)) if (!seen.has(f.id)) { seen.add(f.id); shown += f.sp }
+    }
+    for (let ms = 10_016; ms <= 11_000; ms += 16) for (const f of work.arrive([], ms, false)) if (!seen.has(f.id)) { seen.add(f.id); shown += f.sp }
+    expect(shown).toBe(landed)
+  })
+
+  it('speaks once a beat per sink, not once a packet, and never piles past what the glass carries', () => {
+    const work = createPassiveWork()
+    let most = 0
+    const born: number[] = []
+    const seen = new Set<number>()
+    for (let ms = 0; ms <= 5000; ms += 16) {
+      const live = work.arrive([at(1), at(1)], ms, false)
+      most = Math.max(most, live.length)
+      for (const f of live) if (!seen.has(f.id)) { seen.add(f.id); born.push(f.bornAt) }
+    }
+    expect(most).toBeLessThanOrEqual(6)
+    for (let i = 1; i < born.length; i++) expect(born[i] - born[i - 1]).toBeGreaterThanOrEqual(200)
+  })
+
+  it('lets each numeral go inside the time every other numeral lives', () => {
+    const work = createPassiveWork()
+    work.arrive([at(5)], 0, false)
+    expect(work.arrive([], 300, false).length).toBe(1)
+    expect(work.arrive([], 1500, false)).toHaveLength(0)
+  })
+
+  it('keeps separate sinks separate', () => {
+    const work = createPassiveWork()
+    const live = work.arrive([at(3), { key: 'board', x: 40, y: 50, value: 4 }], 0, false)
+    expect(live.map(f => f.sp).sort()).toEqual([3, 4])
+  })
+
+  it('holds still under reduced motion, and can have the head numerals switched off without stopping the hops', () => {
+    const work = createPassiveWork()
+    expect(work.arrive([at(2)], 0, true).every(f => f.still)).toBe(true)
+    const crowd = Array.from({ length: 30 }, (_, seat) => ({ seat, rate: 1, x: seat, y: 20 }))
+    const hops: number[] = []
+    let numerals = 0
+    for (let step = 1; step <= 60; step++) numerals += createPassiveWork().update(crowd, .1, step * 100, false, s => hops.push(s), false).length
+    expect(numerals).toBe(0)
+    const w2 = createPassiveWork(), h2: number[] = []
+    for (let step = 1; step <= 30; step++) w2.update(crowd, .1, step * 100, false, s => h2.push(s), false)
+    expect(h2.length).toBeGreaterThan(0)
+  })
+})
