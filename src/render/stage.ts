@@ -63,6 +63,7 @@ import { MusicBus } from '../audio/music.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
 import { exceedsSlop } from './navigation.ts'
 import { MAX_STREAMS } from '../sim/juice.ts'
+import { BREATH_MS, crossedMilestone } from '../sim/heldBreath.ts'
 import { VoiceBudget, bedLevel, pullOut, tickRate } from '../sim/throughputAudio.ts'
 import { createThroughputBed } from '../audio/throughputBed.ts'
 import { createPassiveWork } from './passiveWork.ts'
@@ -610,6 +611,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const passiveWork=createPassiveWork()
   // A finished project joins the queue (§10.7); the unit it was built in flashes (§10.8a, move 3).
   let shelfSeen=-1
+  // §10.8a, move 6: once a decade's payoff has been held and rolled, the camera comes home to the desk.
+  let devsSeen=-1, homeAt=0
   // §20.5a: the sound of work changes unit with the world — clicks while it is countable, one bed after.
   const throughputBed=createThroughputBed(), tickBudget=new VoiceBudget()
   let workSeats:number[]=[], nextWorkScan=0
@@ -749,6 +752,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const rate=seat===FOUNDER_SEAT?0:seat===JAMES_SEAT?jamesRate:isAway(state.slack,seat)?0:developerVelocity(seat,state)*(jamesWorking?state.devs/(state.devs+1):1)
       return [{seat,rate,x:at.x+(seat<0?34:0),y:at.y}]
     }):[]
+    if(devsSeen>=0&&crossedMilestone(devsSeen,state.devs)!==null)homeAt=performance.now()+BREATH_MS
+    devsSeen=state.devs
+    if(homeAt>0&&performance.now()>=homeAt){homeAt=0;if(atlasZoom===null&&!state.scene)garage.focus(FOUNDER_SEAT,0.34)}
     if(shelfSeen>=0&&state.shelf.length>shelfSeen)garage.flashUnits()
     shelfSeen=state.shelf.length
     const workRate=people.reduce((sum,p)=>sum+p.rate,0)

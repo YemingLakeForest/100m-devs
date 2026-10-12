@@ -15,6 +15,8 @@ import {
   type GameState,
 } from '../game/store.ts'
 import { formatCount, scaleBar } from '../sim/headcount.ts'
+import { useHeldCount } from './useHeldCount.ts'
+import { useReducedMotion } from '../ui/motion.ts'
 import { barrierProgress, buildTimeLabel, planckLabel } from '../sim/starbound.ts'
 import { secondsUntilBankrupt } from '../sim/economy.ts'
 import { useSpring } from '../ui/useSpring.ts'
@@ -100,11 +102,14 @@ export function Cash({ state }: { state: GameState }) {
  */
 export function Devs({ state }: { state: GameState }) {
   const bar = scaleBar(state.devs, state.cameraRung)
+  // §10.8a, move 6: a decade's payoff is withheld, then rolled in hard steps. While it is, the
+  // count is a plain numeral — `Counter`'s spring would ease the very steps the roll is made of.
+  const held = useHeldCount(state.devs, useReducedMotion())
 
   return (
     <div className="hud__block">
       <span className="hud__label"><Kw kind="devs">DEVS</Kw></span>
-      <Counter value={state.devs} format={formatCount} bounce />
+      {held === null ? <Counter value={state.devs} format={formatCount} bounce /> : <b className="hud__num">{formatCount(held)}</b>}
       {bar && <span className="hud__sub hud__scale"><ConceptText text={bar} /></span>}
       {/*
         [2026-10-04] Two people on screen and a counter that says 0 reads as a
