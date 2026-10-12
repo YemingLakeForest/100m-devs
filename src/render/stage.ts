@@ -63,6 +63,8 @@ import { MusicBus } from '../audio/music.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
 import { exceedsSlop } from './navigation.ts'
 import { MAX_STREAMS } from '../sim/juice.ts'
+import { VoiceBudget, bedLevel, pullOut, tickRate } from '../sim/throughputAudio.ts'
+import { createThroughputBed } from '../audio/throughputBed.ts'
 import { createPassiveWork } from './passiveWork.ts'
 import { coverFor } from '../three/sim/cover.ts'
 import { jamesPresent } from '../sim/james.ts'
@@ -608,6 +610,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const passiveWork=createPassiveWork()
   // A finished project joins the queue (§10.7); the unit it was built in flashes (§10.8a, move 3).
   let shelfSeen=-1
+  // §20.5a: the sound of work changes unit with the world — clicks while it is countable, one bed after.
+  const throughputBed=createThroughputBed(), tickBudget=new VoiceBudget()
   let workSeats:number[]=[], nextWorkScan=0
 
   const frame = (now: number) => {
@@ -747,13 +751,16 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     }):[]
     if(shelfSeen>=0&&state.shelf.length>shelfSeen)garage.flashUnits()
     shelfSeen=state.shelf.length
-    garage.setFlow(people.reduce((sum,p)=>sum+p.rate,0),reduceMotion,remaining(state).toNumber())
+    const workRate=people.reduce((sum,p)=>sum+p.rate,0)
+    garage.setFlow(workRate,reduceMotion,remaining(state).toNumber())
+    throughputBed.update(bedLevel(workRate),pullOut(garage.zoom))
     // §8.2a (amended 2026-10-12): up to a dozen people each keep a numeral over their own head, the
     // tutorial for what a worker earns; past that the packets carry the work and the numeral is
     // said where it lands. Either way the numerals on screen add up to the work being done.
     const crowd=people.length>MAX_STREAMS
     const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat, true)},!crowd)
     const landings=garage.takeArrivals()
+    for(const _ of landings)if(tickBudget.admit(performance.now(),tickRate(workRate)))playSfx('ui-tick')
     floaters=[...floaters,...passive,...(crowd?passiveWork.arrive(landings,now,reduceMotion):[])]
 
     const theme = entropyTheme(currentEntropy(state))

@@ -13928,6 +13928,14 @@ dynamically according to mathematical curves:</p>
 </tr>
 </tbody>
 </table>
+<h4 id="a-the-sound-of-work-changes-unit-amended-2026-10-12">20.5a The sound of work changes unit as the world grows <strong>[CANON - added 2026-10-12]</strong></h4>
+<p>The 1 Million Books study (<code>docs/PLAN-2026-10-11-juice-layer.md</code>, move 4) found the same change of unit in the sound that it found in the picture: while the work is countable it is sparse individual clicks, and once it is not it is one continuous bed with the clicks thinning out beneath it (about five a second down to about one). The game now does the same, in <code>sim/throughputAudio.ts</code> (the argument, pure) and <code>audio/throughputBed.ts</code> (the player).</p>
+<ul>
+<li><strong>The clicks</strong> are the packets landing (§8.2a): each arrival asks for a <code>ui-tick</code>, and the voice budget answers. At most four voices sound at once and a click is admitted no more often than <code>tickRate(rate)</code>, which is five a second while the studio makes under a point a second and falls to one a second as it nears a million. A burst of arrivals is thinned to a steady tick and never to a chord; a clip bank was tried and read as a melody, which is why there is still one dry switch (§20.5).</li>
+<li><strong>The bed</strong> is one looping brown-noise rumble through a low-pass, because noise has no pitch to form a tune with. Its level is logarithmic in story points a second (silent at one, full at a million: a thousand developers is three steps up, not a thousand times a lone one), and it opens a little brighter as it grows. It is <em>louder pulled out than close in</em>, by 9 dB (<code>pullOut</code>): from a distance the work is the whole picture and the bed is the sound of that picture; up close it is the clicks' backdrop.</li>
+<li><strong>Web Audio, not the native path.</strong> §23.2 puts pokes on native audio because 100-300 ms of latency breaks a tap. A bed answers nothing, its level moves over seconds, and a looping buffer is what Web Audio is for. It follows the effects volume (§F2.1) and is silent with no work: an audio context is not woken for silence.</li>
+<li><strong>Tested as claims.</strong> The voice cap holds at any arrival rate up to 5,000 a second, the clicks thin and never reach zero while work goes on, and the bed never gets quieter as the work grows. <em>Open:</em> the timbre was written headless and has <strong>never been auditioned</strong>; <code>CEILING</code> and the two cut-off frequencies in <code>throughputBed.ts</code> are the numbers to tune by ear. The study's dip-before-a-milestone-and-swell belongs to the held breath (§8.2a, move 6) and is not here.</li>
+</ul>
 <h3 id="sound-visual-polish-summary">20.6 Sound &amp; visual polish summary</h3>
 <ul>
 <li><strong>Audio Dynamics:</strong> smooth audio crossfading attached to the camera zoom depth.
