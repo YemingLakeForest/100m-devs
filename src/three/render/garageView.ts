@@ -57,6 +57,7 @@ import { LEADER_IDS, leaderSeat, type LeaderId } from '../sim/floorPlan.ts'
 import { createCityHouses } from './cityHouses.ts'
 import { CITY_CAPACITY } from './cityGrid.ts'
 import { NIGHT, OS, OS_NIGHT, OS_SKIN } from '../art/skin.ts'
+import { createFlow, type FlowLot } from './flow.ts'
 import { createOsPass } from './osPass.ts'
 import { createLotBrackets, createOsDesktop, LOT_BRACKET } from './osDesktop.ts'
 import type { Look } from '../sim/identity.ts'
@@ -126,6 +127,11 @@ export interface GarageView {
   nameTags(): HeroTag[]
   setProject(spec: import('../sim/cover.ts').CoverSpec, title: string, progress: number): void
   codingSeats(): number[]
+  /**
+   * Story points a second the people on screen are making, for the packets that carry it to
+   * the project board or the house's door (§8.2a). 0 stops the flow.
+   */
+  setFlow(rate: number, reduced: boolean): void
   /**
    * Ease the camera to a person — a seat, or -1 the founder, -2 James — for a
    * line of dialogue, and back to where the player had it on `null`. The
@@ -407,6 +413,18 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     exhaust(footprint) { dustRing(footprint, true) },
   }, () => cast)
   scene.add(city.root)
+  const flow = createFlow(scene)
+  /** The garage's own lot: its visible people, and the project board they work toward. */
+  function garageLots(): FlowLot[] {
+    const plate = env.projectPlate?.mesh
+    if (!plate) return []
+    for (let o: T.Object3D | null = plate; o; o = o.parent) if (!o.visible) return []
+    const sources = env.targets.filter(t => { for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false; return true })
+      .map(t => { const p = t.mesh.getWorldPosition(new T.Vector3()); p.y += t.mesh.scale.y * .3; return p })
+    return [{ sink: plate.getWorldPosition(new T.Vector3()), sources }]
+  }
+  let flowRate = 0, flowReduced = false, flowClock = 0, flowLotsAt = -1
+  let flowLots: FlowLot[] = []
   if (OS_NIGHT) {
     scene.add(createOsDesktop())
     // The HQ's own lot wears the bracket every house lot wears (`cityHouses.ts`).
@@ -1042,6 +1060,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const seats=env.targets.filter(t=>{for(let o:T.Object3D|null=t.mesh;o;o=o.parent)if(!o.visible)return false;return true}).map(t=>t.index)
       return [...seats,...city.codingSeats()]
     },
+    setFlow(rate, reduced) { flowRate = rate; flowReduced = reduced },
     setProject(spec, title, progress) {
       env.projectPlate?.update(spec, title, progress)
     },
@@ -1070,6 +1089,15 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         dirty = true
         renderer.shadowMap.needsUpdate = true
       }
+      // Work leaving the workers for the board or the door. Sources and sinks are re-read four
+      // times a second, not every frame: a head moves by a hop, not by a metre.
+      if (clock - flowLotsAt > .25 || clock < flowLotsAt) {
+        flowLotsAt = clock
+        flowLots = flowRate > 0 && w / span() >= 8 ? garageLots().concat(city.lots()) : []
+      }
+      flow.update(clock - flowClock, flowRate, flowLots, flowReduced)
+      flowClock = clock
+      if (flow.live > 0) dirty = true
       if (focusOn) {
         // A quick ease rather than a cut: the move and the name plate are one event.
         const k = 1 - Math.exp(-6 * (1 / 60))
@@ -1172,6 +1200,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     },
     dispose() {
       env.hq?.dispose()
+      flow.dispose()
       city.dispose()
       puffGeometry.dispose()
       composer.dispose()

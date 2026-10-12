@@ -742,6 +742,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const rate=seat===FOUNDER_SEAT?0:seat===JAMES_SEAT?jamesRate:isAway(state.slack,seat)?0:developerVelocity(seat,state)*(jamesWorking?state.devs/(state.devs+1):1)
       return [{seat,rate,x:at.x+(seat<0?34:0),y:at.y}]
     }):[]
+    garage.setFlow(people.reduce((sum,p)=>sum+p.rate,0),reduceMotion)
     const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat, true)})
     floaters=[...floaters,...passive]
 
