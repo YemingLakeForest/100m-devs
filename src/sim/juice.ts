@@ -165,3 +165,23 @@ export function backlogLevel(queued: number, levels = 5): number {
   const top = Math.max(1, Math.floor(levels) - 1)
   return Math.min(top, 1 + Math.floor(Math.log10(1 + queued)))
 }
+
+/** How long each of the unit flash's three colours holds. Three hard steps, as the HUD's hot edge. */
+const UNIT_FLASH_STEP_MS = 90
+/** The whole flash: 270 ms, inside §10.8 F6's 400 for an animation that is not a scored beat. */
+export const UNIT_FLASH_MS = UNIT_FLASH_STEP_MS * 3
+
+/**
+ * Which of the flash's three colours a unit wears `ageMs` after its work completed — 0 the
+ * neutral ramp's white, 1 light amber, 2 amber — or null before it begins and once it is over.
+ * The same three steps the HUD's queue slots take (`gl-hot-slot`), moved from a bar to whatever
+ * the lens is showing as the unit (a house, a lot): the reference game flashes the finished
+ * *column*, not each of the people who filled it. Never a blend: a unit is one of the three
+ * colours, or it is not flashing.
+ *
+ * Reduced motion keeps the information and drops the sequence: amber for as long.
+ */
+export function unitFlash(ageMs: number, reduced = false): 0 | 1 | 2 | null {
+  if (!(ageMs >= 0) || ageMs >= UNIT_FLASH_MS) return null
+  return reduced ? 2 : (Math.floor(ageMs / UNIT_FLASH_STEP_MS) as 0 | 1 | 2)
+}

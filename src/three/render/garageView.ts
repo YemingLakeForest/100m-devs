@@ -58,6 +58,7 @@ import { createCityHouses } from './cityHouses.ts'
 import { CITY_CAPACITY } from './cityGrid.ts'
 import { NIGHT, OS, OS_NIGHT, OS_SKIN } from '../art/skin.ts'
 import { createFlow, type FlowLot } from './flow.ts'
+import { createUnitFlash } from './unitFlash.ts'
 import { createOsPass } from './osPass.ts'
 import { createLotBrackets, createOsDesktop, LOT_BRACKET } from './osDesktop.ts'
 import type { Look } from '../sim/identity.ts'
@@ -138,6 +139,11 @@ export interface GarageView {
    * by sink. Landings off the frame are dropped: the numeral is display, not accounting.
    */
   takeArrivals(): { key: string; x: number; y: number; value: number }[]
+  /**
+   * A build has finished: the headquarters' lot and every house's step through the unit flash
+   * (`sim/juice.ts` `unitFlash`) — the whole unit, not the people in it.
+   */
+  flashUnits(): void
   /**
    * Ease the camera to a person — a seat, or -1 the founder, -2 James — for a
    * line of dialogue, and back to where the player had it on `null`. The
@@ -420,6 +426,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   }, () => cast)
   scene.add(city.root)
   const landed: { at: T.Vector3; value: number }[] = []
+  const unitFlashLayer = createUnitFlash(scene)
   const flow = createFlow(scene, (at, value) => { if (landed.length < 256) landed.push({ at, value }) })
   /** The garage's own lot: its visible people, and the project board they work toward. */
   function garageLots(): FlowLot[] {
@@ -1068,6 +1075,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       return [...seats,...city.codingSeats()]
     },
     setFlow(rate, reduced, backlog) { flowRate = rate; flowReduced = reduced; flowBacklog = backlog },
+    flashUnits() {
+      unitFlashLayer.start([{ x: 0, z: 0, y: -.31, half: LOT_BRACKET - 1.7 }, ...city.pads()], clock)
+    },
     takeArrivals() {
       frame()
       return landed.splice(0).flatMap(({ at, value }) => {
@@ -1113,6 +1123,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       flow.update(clock - flowClock, flowRate, flowLots, flowReduced, flowBacklog)
       flowClock = clock
       if (flow.live > 0) dirty = true
+      if (unitFlashLayer.update(clock, flowReduced)) dirty = true
       if (focusOn) {
         // A quick ease rather than a cut: the move and the name plate are one event.
         const k = 1 - Math.exp(-6 * (1 / 60))
@@ -1216,6 +1227,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     dispose() {
       env.hq?.dispose()
       flow.dispose()
+      unitFlashLayer.dispose()
       city.dispose()
       puffGeometry.dispose()
       composer.dispose()

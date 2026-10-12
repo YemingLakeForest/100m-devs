@@ -606,6 +606,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let raf = 0
   let numeralsLive = false
   const passiveWork=createPassiveWork()
+  // A finished project joins the queue (§10.7); the unit it was built in flashes (§10.8a, move 3).
+  let shelfSeen=-1
   let workSeats:number[]=[], nextWorkScan=0
 
   const frame = (now: number) => {
@@ -743,6 +745,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const rate=seat===FOUNDER_SEAT?0:seat===JAMES_SEAT?jamesRate:isAway(state.slack,seat)?0:developerVelocity(seat,state)*(jamesWorking?state.devs/(state.devs+1):1)
       return [{seat,rate,x:at.x+(seat<0?34:0),y:at.y}]
     }):[]
+    if(shelfSeen>=0&&state.shelf.length>shelfSeen)garage.flashUnits()
+    shelfSeen=state.shelf.length
     garage.setFlow(people.reduce((sum,p)=>sum+p.rate,0),reduceMotion,remaining(state).toNumber())
     // §8.2a (amended 2026-10-12): up to a dozen people each keep a numeral over their own head, the
     // tutorial for what a worker earns; past that the packets carry the work and the numeral is

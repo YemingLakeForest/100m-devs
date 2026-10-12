@@ -7,6 +7,7 @@ import { createThrusters } from './thrusters.ts'
 import { createCityHouse, dressCityLot } from './cityHouse.ts'
 import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { FlowLot } from './flow.ts'
+import type { FlashPad } from './unitFlash.ts'
 
 /** Fine, deterministic aggregate in asphalt and concrete, shared across the city. */
 function paving(colour: string) {
@@ -186,6 +187,10 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
     },
     hop(seat: number, mild = false) { const b = buildings[Math.floor((seat - offset) / HOUSE_CAPACITY)]; if (b && b.start === null) { if (b.interior?.root.visible) b.interior.hop(seat, clock, mild); else if (!mild) b.hop = clock } },
     codingSeats() { return buildings.flatMap(b=>b.interior?.root.visible?b.interior.targets.filter(t=>t.visible).map(t=>Number(t.userData.seat)):[]) },
+    /** Every house's lot, nearest the garage first: the units a finished build flashes (move 3). */
+    pads(): FlashPad[] {
+      return buildings.filter(b => b.leaving === null && b.start === null).map(b => ({ x: b.group.position.x, z: b.group.position.z, y: -.31, half: BLOCK_SIZE / 2 - 1 }))
+    },
     /**
      * One flow lot per open house: its front door is where the work lands (§8.2a), and every
      * worker the cutaway shows sends to it. A closed house has no workers on screen to speak for.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_PACKETS, MAX_PACKETS_PER_SECOND, MAX_STREAMS, assignStreams, backlogLevel, hotSegments, numeralSize, packetSpec, popScale } from './juice.ts'
+import { MAX_PACKETS, MAX_PACKETS_PER_SECOND, MAX_STREAMS, UNIT_FLASH_MS, unitFlash, assignStreams, backlogLevel, hotSegments, numeralSize, packetSpec, popScale } from './juice.ts'
 
 /*
  * Tests pin the claim, not the value (CLAUDE.md, house style). The claims here are the ones the
@@ -170,5 +170,29 @@ describe('the backlog heap rises in a few hard levels', () => {
 
   it('moves in whole levels', () => {
     for (const q of queued) expect(Number.isInteger(backlogLevel(q))).toBe(true)
+  })
+})
+
+describe('the unit flash steps through three flat colours and stops', () => {
+  const ages = Array.from({ length: 60 }, (_, i) => i * 10)
+
+  it('starts on the first colour, never goes back, and uses exactly three', () => {
+    const seen = ages.map((a) => unitFlash(a)).filter((s): s is 0 | 1 | 2 => s !== null)
+    expect(seen[0]).toBe(0)
+    for (let i = 1; i < seen.length; i++) expect(seen[i]).toBeGreaterThanOrEqual(seen[i - 1])
+    expect([...new Set(seen)]).toEqual([0, 1, 2])
+  })
+
+  it('is over inside the 400 ms an animation is allowed (§10.8 F6), and silent before and after', () => {
+    expect(unitFlash(-1)).toBeNull()
+    expect(unitFlash(UNIT_FLASH_MS - 1)).not.toBeNull()
+    expect(unitFlash(UNIT_FLASH_MS)).toBeNull()
+    expect(UNIT_FLASH_MS).toBeLessThanOrEqual(400)
+  })
+
+  it('under reduced motion shows the resting colour for as long, and nothing else', () => {
+    const seen = ages.map((a) => unitFlash(a, true)).filter((s): s is 0 | 1 | 2 => s !== null)
+    expect(new Set(seen)).toEqual(new Set([2]))
+    expect(unitFlash(UNIT_FLASH_MS, true)).toBeNull()
   })
 })
