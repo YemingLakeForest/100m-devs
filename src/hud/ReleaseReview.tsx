@@ -39,8 +39,7 @@
 import { useEffect, useState } from 'react'
 import { Counter } from './Counter.tsx'
 import { motionMs, useReducedMotion } from '../ui/motion.ts'
-import { playSfx } from '../audio/sfx.ts'
-import { playUi } from '../ui/uiSfx.ts'
+import { BLIP_SFX, playSfx } from '../audio/sfx.ts'
 import { getState, type GameState } from '../game/store.ts'
 import { coverFor } from '../three/sim/cover.ts'
 import { Cover } from './Cover.tsx'
@@ -102,25 +101,27 @@ export function ReleaseReview({ state }: { state: GameState }) {
 
   useEffect(() => {
     if (!open) return
-    // F3 — a state change this large makes a noise. The crit chime is already
-    // the game's "something good just landed" sound, so a launch borrows it
-    // rather than introducing a second vocabulary for the same feeling.
-    playSfx('poke-crit')
+    // F3 — a state change this large makes a noise. [2026-10-12] It used to be the crit chime
+    // and, at the score, `ui-whoosh`, a rising swoop the user called *"the siuuuu sound of game
+    // release… make something else that is fitting the vibe."* The release has its own sound
+    // now (`release-hit`: a stamp, then a bell arpeggio that climbs and stops) and nothing
+    // sweeps: a studio's operating system confirming a thing, not a firework.
+    playSfx('release-hit')
     const timers = [
       // §10.8 F3 — **the release is a cue, not a clink.** One noise for the
       // largest event in the loop would be the same mistake §10.8a's summary
       // screens are written against: a beat with four movements and one sound
       // reads as a still image with a chime over it. So the reel is *scored*
-      // out of the bank that already exists — a tick under each critic as they
-      // land, a rising note as the total starts counting, and the lock when the
-      // verdict stamps. Nothing new to generate, and the rhythm is the point.
+      // out of the bank — a blip under each critic as they land, climbing the pentatonic
+      // run (E, G, A) so three opinions arriving sound like a phrase, and the lock when the
+      // verdict stamps. The rhythm is the point. [2026-10-12] The rising note under the
+      // total is gone with the whoosh it was.
       ...[0, 1, 2].map((i) =>
         setTimeout(
-          () => playUi('tick'),
+          () => playSfx(BLIP_SFX[2 + i]),
           ms(REVIEW_BEATS.quotes + i * REVIEW_BEATS.quoteStagger),
         ),
       ),
-      setTimeout(() => playUi('whoosh'), ms(REVIEW_BEATS.score)),
       // The aggregate, one frame after its block mounts. See `score` above.
       setTimeout(() => setScore(held?.rating ?? 0), ms(REVIEW_BEATS.score) + 60),
       // The verdict lands on its own sound rather than on the tail of the

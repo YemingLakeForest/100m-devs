@@ -116,6 +116,60 @@ describe('the sets are only built for who is here', () => {
   })
 })
 
+describe('the project sink stands where Billy’s chart stood', () => {
+  const sinkOf = () => {
+    const props = new Map()
+    const root = new T.Group()
+    const env = { props, root, targets: [], occluders: [], people: [] } as unknown as Environment
+    const s = GARAGE_LEADERS.find((l) => l.id === 'billy')!
+    const parent = new T.Group(); root.add(parent)
+    const sets = buildHqSets({
+      env, at: { billy: { parent, x: s.x, z: s.z, rot: s.rot }, serena: { parent, x: 0, z: 0, rot: 0 }, matt: { parent, x: 0, z: 0, rot: 0 } },
+      bodies: {}, present: new Set(['billy']),
+    })
+    return { sets, sink: sets.sink!, set: props.get('desk:billy')!.group as T.Group }
+  }
+  it('exists with Billy, and is not there without him', () => {
+    expect(sinkOf().sink).toBeDefined()
+    const env = { props: new Map(), root: new T.Group(), targets: [], occluders: [], people: [] } as unknown as Environment
+    const parent = new T.Group()
+    const at = { parent, x: 0, z: 0, rot: 0 }
+    expect(buildHqSets({ env, at: { billy: at, serena: at, matt: at }, bodies: {}, present: new Set(['serena']) }).sink).toBeUndefined()
+  })
+
+  it('is the project board: the game print stands at head height, facing the lens, on Billy’s own floor', () => {
+    const { sink, set } = sinkOf()
+    expect(set.children).toContain(sink.plate.mesh)
+    const p = sink.plate.mesh.position
+    expect(p.y).toBeGreaterThan(1.5)
+    expect(p.y).toBeLessThan(GARAGE_WALLS.height - 1.0)
+    // The plate faces the set's +z, the lens: it is in front of the board's frame, never behind it.
+    expect(p.z).toBeGreaterThan(BILLY_PLAZA.board.z)
+    expect(sink.height).toBeGreaterThan(p.y)
+  })
+
+  it('prints its cover as the project is built, and takes it from the HUD’s own project, not a copy', () => {
+    const { sink } = sinkOf()
+    expect(() => sink.plate.update(null, 'TEST', 0.5)).not.toThrow()
+  })
+
+  it('flashes its frame white on a completion and goes back after', () => {
+    const { sink, set } = sinkOf()
+    const rim = set.children.find((c) => c.userData.dynamic && (c as T.Mesh).material instanceof T.MeshBasicMaterial && (c as T.Mesh).geometry instanceof T.BoxGeometry) as T.Mesh
+    const colour = () => (rim.material as T.MeshBasicMaterial).color.getHexString()
+    const rest = colour()
+    sink.setFlash(true)
+    expect(colour()).toBe('ffffff')
+    sink.setFlash(false)
+    expect(colour()).toBe(rest)
+  })
+
+  it('cleans up after itself', () => {
+    const { sets } = sinkOf()
+    expect(() => sets.dispose()).not.toThrow()
+  })
+})
+
 describe('Billy addresses the developer pod', () => {
   /** A set with a body in it, so that the set can move him; the body is the bare group the garage's builder hands over. */
   function withBilly() {
@@ -198,10 +252,5 @@ describe('the paintings', () => {
     expect(sign.key(1, base)).toBe(sign.key(9, base))
     expect(sign.key(1, base)).not.toBe(sign.key(1, { ...base, tickets: 101 }))
     expect(() => sign.key(1, { ...base, tickets: Number.NaN })).not.toThrow()
-  })
-
-  it('moves the whiteboard on with the meeting, and begins it again', () => {
-    const board = HQ_PAINTINGS.find((p) => p.name === 'whiteboard')!
-    expect(board.key(0, NO_HQ_READOUTS)).not.toBe(board.key(8, NO_HQ_READOUTS))
   })
 })

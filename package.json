@@ -20,6 +20,7 @@
     "shot:boards": "node scripts/shot-boards.mjs",
     "sfx:generate": "tsx scripts/generate-sfx.ts",
     "sfx:ui": "tsx scripts/generate-ui-click.ts",
+    "sfx:juice": "tsx scripts/generate-juice-sfx.ts",
     "test": "vitest run",
     "test:ui-frame": "node scripts/ui-frame.acceptance.mjs",
     "test:coverage": "vitest run --coverage",

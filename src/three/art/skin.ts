@@ -48,11 +48,15 @@ export const OS_NIGHT = debugSearchParams().get('look') !== 'day'
  * (a first, darker pass lost the roofs' variety and the warm windows at the 1K stop, so the key and the
  * exposure came back up) and nothing pins them but `osLook.test.ts`'s two ceilings. Colours come from the
  * interface's ramps (`OS`, below) so a wall is never a hue the HUD does not have.
+ *
+ * [2026-10-12] *"the room is just a bit too dark, make it lighter."* The three lights came up (key 1.25 to 1.75, sky
+ * 1.2 to 1.8, fill .25 to .5) and the exposure did not: `OS_HORIZON` is tuned to the exposure, so raising that would have
+ * greyed the void behind the room along with the room. A frame is looked at, not tested; the user is the judge of how much.
  */
 export const NIGHT = {
-  key: '#b4dbe4', keyIntensity: 1.25,
-  sky: '#5b8792', ground: '#1b2527', skyIntensity: 1.2,
-  fill: '#4a8fa8', fillIntensity: 0.25,
+  key: '#b4dbe4', keyIntensity: 1.75,
+  sky: '#5b8792', ground: '#1b2527', skyIntensity: 1.8,
+  fill: '#4a8fa8', fillIntensity: 0.5,
   exposure: 1.35,
   /** The grade and edge pass (`osPass.ts`). */
   tint: 0.38, edge: 0.5, edgeFloor: 0.12,

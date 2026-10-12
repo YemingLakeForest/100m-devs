@@ -2,11 +2,11 @@
  * Role-specific boards remain live; common joinery replaces individual stages and floor borders. */
 import * as T from 'three'
 import { box, cylinder } from './worldArt.ts'
+import { projectPlate, type ProjectPlate } from './projectPlate.ts'
 
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import type { HeroId } from '../../sim/storyHeroes.ts'
 import { BILLY_PLAZA, GARAGE_HERO_SCALE, HERO_SITES } from '../sim/floorPlan.ts'
-import { peakHeads, workDone } from '../../sim/entropy.ts'
 
 /** What the studio is doing, as the sets draw it. All of it is already on the HUD. */
 export interface HqReadouts {
@@ -38,7 +38,28 @@ export const NO_HQ_READOUTS: HqReadouts = {
 export interface HqSets {
   /** Advance the animation and redraw whatever the numbers changed. Always true: the people never stop (§7.8.13). */
   update(seconds: number, readouts: HqReadouts): boolean
+  /** The studio's project sink, standing where Billy's whiteboard stood: present once Billy is. */
+  sink?: HqSink
   dispose(): void
+}
+
+/**
+ * **The project sink** [2026-10-12]: the game-print whiteboard, moved onto Billy's floor and used by him —
+ * *"just move our whiteboard of game print as the real write board and Billy use that one too."* It is the board that
+ * printed the project's cover row by row as the game was built (`projectPlate.ts`), and that print IS the fill: every
+ * point of work flying to it (`render/flow.ts`, GDD §8.2a) is a row of the picture. It stands in the footprint Billy's
+ * chart had, so the walk grid is unchanged. A first attempt at a bigger dark column with a separate fill was dropped for
+ * this at the user's word.
+ */
+export interface HqSink {
+  /** The project's cover, printed row by row as the build goes (`projectPlate.ts`). */
+  plate: ProjectPlate
+  /** At the board's foot, on the floor, turned as the set is: world positions of the sink come from here. */
+  anchor: T.Object3D
+  /** How high the board stands above the floor, for the fountain to leave from the top of. */
+  height: number
+  /** Whether a completion is holding the board's frame white. */
+  setFlash(white: boolean): void
 }
 
 type Id = Extract<HeroId, 'billy' | 'serena' | 'matt'>
@@ -262,47 +283,6 @@ const helpDeskSign: Pick<Face, 'key' | 'paint'> = {
   },
 }
 
-/** Billy's board: the §4.1 hill, drawn in marker while he talks, with the studio's own dot on it. */
-const MEETING_S = 16
-const whiteboard: Pick<Face, 'key' | 'paint'> = {
-  key: (s, r) => `b${Math.floor(s * 3)}${Math.round(r.syncPct)}${r.devs}`,
-  paint(ctx, w, h, s, r) {
-    ctx.fillStyle = '#d9dcd4'; ctx.fillRect(0, 0, w, h)
-    ctx.fillStyle = '#b9bdb4'; ctx.fillRect(0, h - 14, w, 14)
-    const cycle = MEETING_S + 5, t = s % cycle, p = Math.min(1, t / MEETING_S)
-    const marker = '#2352b8', red = '#d1301f', green = '#1f8a45', ink = '#1d2730'
-    text(ctx, 'SYNC', 28, 50, 72, ink)
-    // the stand-up, fifteen minutes long, counted down in sixteen seconds and begun again
-    const left = Math.max(0, 15 * 60 * (1 - p))
-    text(ctx, clock(left), w / 2, 50, 64, left < 120 ? red : green, 'center')
-    text(ctx, `${Math.round(r.syncPct)}%`, w - 28, 50, 72, r.syncPct > 90 ? green : red, 'right')
-    // the axes
-    const x0 = 56, y0 = h - 70, pw = w - 110, ph = h - 220
-    ctx.strokeStyle = ink; ctx.lineWidth = 7; ctx.lineCap = 'round'
-    ctx.beginPath(); ctx.moveTo(x0, 108); ctx.lineTo(x0, y0); ctx.lineTo(x0 + pw, y0); ctx.stroke()
-    // the hill, in marker, drawn left to right as the meeting goes on
-    const cap = Math.max(10, r.devCap), top = Math.max(1e-6, workDone(peakHeads(cap), cap))
-    const maxD = cap * 3, steps = 70, drawn = Math.floor(steps * Math.min(1, p * 1.5))
-    ctx.strokeStyle = marker; ctx.lineWidth = 12; ctx.beginPath()
-    for (let i = 0; i <= drawn; i++) {
-      const d = (i / steps) * maxD, x = x0 + (i / steps) * pw, y = y0 - Math.min(1, workDone(d, cap) / top) * ph
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
-    }
-    ctx.stroke()
-    if (p > 0.45) { // the peak, circled
-      const px = x0 + (peakHeads(cap) / maxD) * pw
-      ctx.strokeStyle = red; ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(px, y0 - ph, 40, 26, 0, 0, 2 * Math.PI); ctx.stroke()
-      text(ctx, 'PEAK', px + 54, y0 - ph - 8, 46, red)
-    }
-    if (p > 0.75) { // and the studio, where it is
-      const dx = x0 + Math.min(1, r.devs / maxD) * pw, dy = y0 - Math.min(1, workDone(r.devs, cap) / top) * ph
-      ctx.fillStyle = green; ctx.beginPath(); ctx.arc(dx, dy, 20, 0, 2 * Math.PI); ctx.fill()
-      text(ctx, 'US', dx, dy - 46, 44, green, 'center')
-    }
-    if (p > 0.9) text(ctx, '15 MIN.', x0 + pw, y0 - 30, 52, ink, 'right')
-  },
-}
-
 /**
  * Every painting, by name — for the tests. A screen that throws on a strange reading (a seized
  * studio's velocity of 1e-23, a cap of zero) would blank the whole room, because the repaint runs
@@ -311,7 +291,6 @@ const whiteboard: Pick<Face, 'key' | 'paint'> = {
 export const HQ_PAINTINGS: ReadonlyArray<{ name: string } & Pick<Face, 'key' | 'paint'>> = [
   { name: 'tickets', ...ticketWall },
   { name: 'helpdesk', ...helpDeskSign },
-  { name: 'whiteboard', ...whiteboard },
   ...(['queue', 'velocity', 'incidents', 'defects', 'sync', 'status'] as const).map((k) => ({ name: k, ...dashboard(k, [1, 2, 3]) })),
 ]
 
@@ -350,6 +329,8 @@ export function buildHqSets(input: HqSetInput): HqSets {
   let lastHistory = -1
 
   const addFace = (f: Face | null) => { if (f) faces.push(f) }
+  let sink: HqSink | undefined
+  const disposers: (() => void)[] = []
 
   /**
    * A hero's set, in **its own frame**: a group at the station, turned as the station is, so that
@@ -488,24 +469,42 @@ export function buildHqSets(input: HqSetInput): HqSets {
   if (present.has('billy')) {
     const { set } = frame('billy')
     const { dais, board } = BILLY_PLAZA
-    // Compact chart storage beside Billy leaves his silhouette and the meeting aisle open.
+    // Compact storage beside Billy leaves his silhouette and the meeting aisle open.
     box(set, board.x, .06, board.z, board.w, .78, .54, '#34494f')
     box(set, board.x, .84, board.z, board.w + .04, .075, .58, '#ba9263')
     for (const dx of [-.40, .40]) {
       box(set, board.x + dx, .16, board.z + .285, .73, .59, .025, '#76583d')
       box(set, board.x + dx + .20, .53, board.z + .304, .025, .12, .022, '#879e9f')
     }
-    // the board: a frame, a face that is the §4.1 curve, a tray with four markers, and two uprights on feet with castors
-    // §7.8.12 [2026-10-08]: lift the chart above Billy's shoulder line; its feet stay on the floor.
-    const by = 1.65, bh = 1.2
-    box(set, board.x, by - 0.06, board.z, board.w, bh + 0.12, 0.1, '#ba9263')
-    addFace(face(set, board.x, by + bh / 2, board.z + 0.056, board.w - 0.14, bh, 1100, whiteboard.key, whiteboard.paint, 0.55))
+    // [2026-10-12] The board: a frame, the project's game print for a face (it was §4.1's hill, drawn in marker), a tray
+    // with four markers, and two uprights on feet. Its face is the garage's own project board moved here, so it is the
+    // same picture the HUD's project bar is counting, and Billy stands at it.
+    const by = 1.65
+    const plate = projectPlate(board.w - 0.14)
+    const plateGeometry = plate.mesh.geometry as T.PlaneGeometry
+    const bh = plateGeometry.parameters.height
+    const frameMaterial = new T.MeshBasicMaterial({ color: '#ba9263' })
+    const rim = new T.Mesh(new T.BoxGeometry(board.w, bh + 0.12, 0.1), frameMaterial)
+    rim.position.set(board.x, by - 0.06 + (bh + 0.12) / 2, board.z)
+    rim.userData.dynamic = true
+    set.add(rim)
+    plate.mesh.position.set(board.x, by + bh / 2, board.z + 0.056)
+    set.add(plate.mesh)
     box(set, board.x, by - 0.12, board.z + 0.1, board.w, 0.05, 0.16, '#58605d')
     for (let k = 0; k < 4; k++) box(set, board.x - 0.55 + k * 0.35, by - 0.07, board.z + 0.12, 0.2, 0.03, 0.03, ['#2f5aa8', '#c23b30', '#2d7d46', '#25303a'][k])
     for (const side of [-1, 1]) {
       const x = board.x + side * (board.w / 2 - 0.03)
       box(set, x, .915, board.z, .06, by + bh - .915, .06, '#34494f')
     }
+    const anchor = new T.Object3D()
+    anchor.position.set(board.x, 0, board.z)
+    set.add(anchor)
+    let white = false
+    sink = {
+      plate, anchor, height: by + bh,
+      setFlash(on) { if (on !== white) { white = on; frameMaterial.color.set(on ? '#ffffff' : '#ba9263') } },
+    }
+    disposers.push(() => { plate.dispose(); rim.geometry.dispose(); frameMaterial.dispose() })
     // The body's face is local −z; π faces the station's +z, toward the east pod after its quarter turn.
     const body = bodies.billy
     if (body) movers.push((s) => {
@@ -538,7 +537,9 @@ export function buildHqSets(input: HqSetInput): HqSets {
       void moved
       return true
     },
+    get sink() { return sink },
     dispose() {
+      for (const d of disposers) d()
       for (const f of faces) { f.texture.dispose(); f.mesh.geometry.dispose(); (f.mesh.material as T.Material).dispose() }
     },
   }

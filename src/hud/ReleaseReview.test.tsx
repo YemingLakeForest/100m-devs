@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 // The Capacitor native-audio plugin cannot initialise under jsdom — see the
 // same mock in Hud.test.tsx.
-vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
+vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn(), BLIP_SFX: ['blip-0', 'blip-1', 'blip-2', 'blip-3', 'blip-4'] }))
 import { ReleaseReview } from './ReleaseReview.tsx'
 import { __resetStore, __setState, getState } from '../game/store.ts'
 import { recordRelease } from '../sim/history.ts'

@@ -122,12 +122,15 @@ describe('the stream (§8.2a)', () => {
 })
 
 describe('a click is seen to go somewhere', () => {
-  it('sends points from the one who coded to the sink, announces nothing (the poke already paid), and is gone after', () => {
+  /** A click's pop of sparks at the person, which is not a blob. */
+  const POP = 6
+
+  it('sends one blob a point from the one who coded to the sink, announces nothing (the poke already paid), and is gone after', () => {
     const arrived: number[] = []
     const flow = createFlow(new T.Group(), (_a, v) => arrived.push(v), counter())
-    flow.emit(new T.Vector3(0, 1.7, 0), new T.Vector3(10, 1, 0), 7, false)
+    flow.emit(new T.Vector3(0, 1.7, 0), new T.Vector3(10, 1, 0), 3, false)
     flow.update(1 / 60, 0, [], false)
-    expect(flow.live).toBe(7)
+    expect(flow.live).toBe(3 + POP)
     for (let t = 0; t < 3; t += 1 / 60) flow.update(1 / 60, 0, [], false)
     expect(flow.live).toBe(0)
     expect(arrived).toEqual([])
@@ -136,10 +139,10 @@ describe('a click is seen to go somewhere', () => {
 
   it('stacks: a second burst is more points, not the same ones redrawn', () => {
     const flow = createFlow(new T.Group(), undefined, counter())
-    flow.emit(new T.Vector3(0, 1.7, 0), new T.Vector3(10, 1, 0), 7, false)
-    flow.emit(new T.Vector3(0, 1.7, 0), new T.Vector3(10, 1, 0), 7, false)
+    flow.emit(new T.Vector3(0, 1.7, 0), new T.Vector3(10, 1, 0), 2, false)
+    flow.emit(new T.Vector3(0, 1.7, 0), new T.Vector3(10, 1, 0), 2, false)
     flow.update(1 / 60, 0, [], false)
-    expect(flow.live).toBe(14)
+    expect(flow.live).toBe(2 * (2 + POP))
     flow.dispose()
   })
 
@@ -148,6 +151,50 @@ describe('a click is seen to go somewhere', () => {
     flow.emit(new T.Vector3(), new T.Vector3(5, 0, 0), 7, true)
     expect(flow.live).toBe(0)
     flow.dispose()
+  })
+})
+
+describe('a blob is a story point, and is as big as what it carries', () => {
+  const biggest = (rate: number) => {
+    const { flow } = run(rate, 6, [lot(40)])
+    const m = new T.Matrix4(), p = new T.Vector3(), q = new T.Quaternion(), sc = new T.Vector3()
+    let max = 0
+    for (let i = 0; i < flow.mesh.count; i++) { flow.mesh.getMatrixAt(i, m); m.decompose(p, q, sc); max = Math.max(max, sc.x) }
+    flow.dispose()
+    return max
+  }
+
+  it('carries exactly one story point while the stream is under its cap', () => {
+    for (const rate of [2, 20, 200]) {
+      const { flow, arrived } = run(rate, 8, [lot(40)])
+      expect(arrived.length).toBeGreaterThan(0)
+      for (const v of arrived) expect(v).toBe(1)
+      flow.dispose()
+    }
+  })
+
+  it('draws a blob larger the more it carries, and never past a size the room can hold', () => {
+    const sizes = [5, 5e3, 5e6, 5e12].map(biggest)
+    for (let i = 1; i < sizes.length; i++) expect(sizes[i]).toBeGreaterThan(sizes[i - 1])
+    // 1.8 m is the cap on a blob's size; each blob varies by up to 15% either way so a stream is not uniform.
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(1.8 * 1.15 + 1e-6)
+  })
+
+  it('makes a bigger tap a bigger blob, and a bigger one more of them', () => {
+    const scaleOf = (sp: number) => {
+      const flow = createFlow(new T.Group(), undefined, counter())
+      flow.emit(new T.Vector3(), new T.Vector3(10, 0, 0), sp, false)
+      flow.update(0.2, 0, [], false)
+      const m = new T.Matrix4(), p = new T.Vector3(), q = new T.Quaternion(), sc = new T.Vector3()
+      let max = 0
+      for (let i = 0; i < flow.mesh.count; i++) { flow.mesh.getMatrixAt(i, m); m.decompose(p, q, sc); max = Math.max(max, sc.x) }
+      const live = flow.live
+      flow.dispose()
+      return { max, live }
+    }
+    const one = scaleOf(1), four = scaleOf(4), huge = scaleOf(4000)
+    expect(four.live).toBeGreaterThan(one.live)
+    expect(huge.max).toBeGreaterThan(one.max)
   })
 })
 
@@ -217,6 +264,26 @@ describe('completion: the game being done is seen (§8.2a)', () => {
     expect(flow.live).toBeGreaterThan(20)
     expect(flow.ringsLive).toBeGreaterThan(0)
     flow.dispose()
+  })
+
+  it('treats a sink that is furniture, not a gauge the flow draws, as the studio’s own: it gets the build’s fountain too', () => {
+    const furniture: FlowLot = { ...lot(20, new T.Vector3(10, 1, 0)), main: true, top: 3.3 }
+    const door = lot(10, new T.Vector3(-30, 1, 5))
+    const throwOn = (l: FlowLot) => {
+      const flow = createFlow(new T.Group(), undefined, counter())
+      flow.complete([l], 'build', false)
+      flow.update(1 / 60, 0, [l], false, 0)
+      const out = { live: flow.live, rings: flow.ringsLive, gauges: flow.gauge.count }
+      flow.dispose()
+      return out
+    }
+    const f = throwOn(furniture)
+    expect(f.live).toBeGreaterThan(20)
+    expect(f.rings).toBeGreaterThan(0)
+    // The furniture draws its own fill; the flow must not draw a second gauge over it.
+    expect(f.gauges).toBe(0)
+    // A house's door waits for a release.
+    expect(throwOn(door).live).toBe(0)
   })
 
   it('a release is bigger than a build, and reaches the open houses too', () => {

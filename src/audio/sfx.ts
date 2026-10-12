@@ -46,11 +46,24 @@ export const SFX = [
   // GDD 10.9.4 - START pressed. Not generated yet; uiSfx.ts routes it through
   // FALLBACK until it is, which is what the fallback table is for.
   'title-start',
+  // The juice layer's own sounds, written as PCM by `scripts/generate-juice-sfx.ts`: a family of
+  // five pitched blips for a point landing at the project (it was `ui-tick`, and a stream of ticks
+  // is a clock), a build going into the queue, and a release going on sale.
+  'work-blip-0',
+  'work-blip-1',
+  'work-blip-2',
+  'work-blip-3',
+  'work-blip-4',
+  'build-done',
+  'release-hit',
 ] as const
 
 export type SfxId = (typeof SFX)[number]
 
-const WAV_SFX = new Set<SfxId>(['ui-click'])
+/** The blip family in pitch order (C D E G A), for the things that choose a note. */
+export const BLIP_SFX = ['work-blip-0', 'work-blip-1', 'work-blip-2', 'work-blip-3', 'work-blip-4'] as const satisfies readonly SfxId[]
+
+const WAV_SFX = new Set<SfxId>(['ui-click', 'work-blip-0', 'work-blip-1', 'work-blip-2', 'work-blip-3', 'work-blip-4', 'build-done', 'release-hit'])
 
 function assetPath(id: SfxId): string {
   return `/sfx/${id}.${WAV_SFX.has(id) ? 'wav' : 'mp3'}`

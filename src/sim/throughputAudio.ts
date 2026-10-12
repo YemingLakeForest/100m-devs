@@ -14,9 +14,22 @@
 /** Clicks a second while the work is countable, and the floor they thin to under the bed. */
 export const TICK_MAX_PER_SECOND = 5
 export const TICK_MIN_PER_SECOND = 1
-/** Voices a click may occupy at once, and how long one sounds (the `ui-tick` clip is short). */
+/** Voices a landing may occupy at once, and how long one sounds (a blip rings about 160 ms; it is inaudible well before). */
 export const MAX_TICK_VOICES = 4
-export const TICK_VOICE_MS = 90
+export const TICK_VOICE_MS = 140
+
+/** The notes in the blip family (`work-blip-0..4`, a pentatonic run). */
+export const BLIP_COUNT = 5
+
+/**
+ * Which blip lands next: never the one just played, otherwise anywhere in the family. A run of
+ * the same pitch is a tick again, which is what the user rejected; five pentatonic notes in any
+ * order are always consonant, so a stream of landings is a figure and not a clock.
+ */
+export function nextBlip(previous: number, random: number): number {
+  const step = 1 + Math.floor(Math.max(0, Math.min(0.999999, random)) * (BLIP_COUNT - 1))
+  return (((Math.floor(previous) % BLIP_COUNT) + BLIP_COUNT) % BLIP_COUNT + step) % BLIP_COUNT
+}
 
 /** Decades of story points a second the bed takes to rise from silence to full: 1 to a million. */
 const BED_FLOOR = 1

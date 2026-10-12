@@ -57,14 +57,14 @@ import {
   setZoom,
   tick,
 } from '../game/store.ts'
-import { playKeyboardClick, playSfx, pokeSfxForZoom } from '../audio/sfx.ts'
+import { BLIP_SFX, playKeyboardClick, playSfx, pokeSfxForZoom } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
 import { MusicBus } from '../audio/music.ts'
 import { pokeHaptic } from '../audio/haptics.ts'
 import { exceedsSlop } from './navigation.ts'
 import { MAX_STREAMS } from '../sim/juice.ts'
 import { BREATH_MS, crossedMilestone } from '../sim/heldBreath.ts'
-import { VoiceBudget, bedLevel, pullOut, tickRate } from '../sim/throughputAudio.ts'
+import { VoiceBudget, bedLevel, nextBlip, pullOut, tickRate } from '../sim/throughputAudio.ts'
 import { createThroughputBed } from '../audio/throughputBed.ts'
 import { createPassiveWork } from './passiveWork.ts'
 import { coverFor } from '../three/sim/cover.ts'
@@ -389,7 +389,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const paid = pokeFounder(at.x, at.y)
     if (paid <= 0) return 0
     garage.hop(FOUNDER_SEAT)
-    garage.pokeStream(FOUNDER_SEAT)
+    garage.pokeStream(FOUNDER_SEAT, paid)
     if (sound) playKeyboardClick()
     if (t0 !== undefined) requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
     return paid
@@ -432,7 +432,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const at = personAt(JAMES_SEAT) ?? { x, y }
       const paid = pokeJames(at.x, at.y)
       garage.hop(JAMES_SEAT)
-      if (paid > 0) { garage.pokeStream(JAMES_SEAT); playKeyboardClick() }
+      if (paid > 0) { garage.pokeStream(JAMES_SEAT, paid); playKeyboardClick() }
       else playSfx('poke-void')
       return
     }
@@ -454,11 +454,11 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // where nobody is standing.
     if (who === null || who < 0) return
     garage.hop(who)
-    garage.pokeStream(who)
 
     const lvl = level()
     const at = personAt(who) ?? { x, y }
     const result = poke(at.x, at.y, { rung: Math.round(lvl), index: who })
+    if (result.sp > 0) garage.pokeStream(who, result.sp)
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
     const tier = tierOfLevel(lvl)
@@ -617,6 +617,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let devsSeen=-1, homeAt=0
   // §20.5a: the sound of work changes unit with the world — clicks while it is countable, one bed after.
   const throughputBed=createThroughputBed(), tickBudget=new VoiceBudget()
+  let blipAt=0
   let workSeats:number[]=[], nextWorkScan=0
 
   const frame = (now: number) => {
@@ -759,7 +760,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if(devsSeen>=0&&crossedMilestone(devsSeen,state.devs)!==null)homeAt=performance.now()+BREATH_MS
     devsSeen=state.devs
     if(homeAt>0&&performance.now()>=homeAt){homeAt=0;if(atlasZoom===null&&!state.scene)garage.focus(FOUNDER_SEAT,0.34)}
-    if(shelfSeen>=0&&state.shelf.length>shelfSeen){garage.flashUnits();garage.complete('build')}
+    if(shelfSeen>=0&&state.shelf.length>shelfSeen){garage.flashUnits();garage.complete('build');playSfx('build-done')}
     shelfSeen=state.shelf.length
     const workRate=people.reduce((sum,p)=>sum+p.rate,0)
     garage.setFlow(workRate,reduceMotion,burnedFraction(state))
@@ -770,7 +771,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const crowd=people.length>MAX_STREAMS
     const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat, true)},!crowd)
     const landings=garage.takeArrivals()
-    for(const _ of landings)if(tickBudget.admit(performance.now(),tickRate(workRate)))playSfx('ui-tick')
+    for(const _ of landings)if(tickBudget.admit(performance.now(),tickRate(workRate))){blipAt=nextBlip(blipAt,Math.random());playSfx(BLIP_SFX[blipAt])}
     floaters=[...floaters,...passive,...(crowd?passiveWork.arrive(landings,now,reduceMotion):[])]
 
     const theme = entropyTheme(currentEntropy(state))

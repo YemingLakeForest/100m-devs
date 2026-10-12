@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BED_PULL_OUT_DB, MAX_TICK_VOICES, TICK_MAX_PER_SECOND, TICK_MIN_PER_SECOND, TICK_VOICE_MS,
-  VoiceBudget, bedLevel, pullOut, tickRate,
+  BLIP_COUNT, VoiceBudget, bedLevel, nextBlip, pullOut, tickRate,
 } from './throughputAudio.ts'
 
 /*
@@ -72,5 +72,25 @@ describe('the voice budget (§20)', () => {
     const b = new VoiceBudget()
     expect(b.admit(0, 0)).toBe(false)
     expect(b.admit(10, 3)).toBe(true)
+  })
+})
+
+describe('the blips never repeat, so a stream of landings is a figure and not a clock', () => {
+  it('always moves to another note, whatever the roll and wherever it was', () => {
+    for (let prev = 0; prev < BLIP_COUNT; prev++) {
+      for (const r of [0, 0.1, 0.25, 0.5, 0.75, 0.999, 1, 5, -3]) {
+        const next = nextBlip(prev, r)
+        expect(next).not.toBe(prev)
+        expect(Number.isInteger(next)).toBe(true)
+        expect(next).toBeGreaterThanOrEqual(0)
+        expect(next).toBeLessThan(BLIP_COUNT)
+      }
+    }
+  })
+
+  it('can reach every other note, so the family is used and not a pair of them', () => {
+    const seen = new Set<number>()
+    for (let i = 0; i < 100; i++) seen.add(nextBlip(2, i / 100))
+    expect([...seen].sort()).toEqual([0, 1, 3, 4])
   })
 })

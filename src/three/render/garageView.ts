@@ -140,8 +140,8 @@ export interface GarageView {
    * release does it bigger and at every open house as well.
    */
   complete(kind: 'build' | 'release'): void
-  /** A click on this person: a short run of points from them to the project, so a tap is seen to go somewhere. */
-  pokeStream(seat: number): void
+  /** A click on this person that paid `sp` story points: that many blobs from them to the project, so a tap is seen to make something. */
+  pokeStream(seat: number, sp: number): void
   /**
    * What landed at the sinks since the last call, where it is on the canvas (CSS pixels), keyed
    * by sink. Landings off the frame are dropped: the numeral is display, not accounting.
@@ -436,8 +436,29 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   const landed: { at: T.Vector3; value: number }[] = []
   const unitFlashLayer = createUnitFlash(scene)
   const flow = createFlow(scene, (at, value) => { if (landed.length < 256) landed.push({ at, value }) })
+  let wallTakenDown = false
   /** The garage's own lot: its visible people, and the project board they work toward. */
   function garageLots(): FlowLot[] {
+    const sinkAt = env.hq?.sink
+    // Once Billy has arrived the sink is the project board standing on the open floor where his chart was
+    // (`hqSets.ts`); the wall board in the corner is the sink until then, and is taken down while his is up. His set exists from the
+    // start of the cast but is hidden until he arrives, and a hidden sink is no sink: this used to
+    // return nothing there, and nothing flew at all.
+    const sinkShown = (() => { for (let o: T.Object3D | null = sinkAt?.anchor ?? null; o; o = o.parent) if (!o.visible) return false; return !!sinkAt })()
+    // Moved, not copied: while Billy's board is up the one on the wall comes down.
+    const wall = env.projectPlate?.mesh.parent
+    if (wall && sinkShown && wall.visible) { wall.visible = false; wallTakenDown = true; dirty = true }
+    else if (wall && !sinkShown && wallTakenDown) { wall.visible = true; wallTakenDown = false; dirty = true }
+    if (sinkAt && sinkShown) {
+      const sources = env.targets.filter(t => { for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false; return true })
+        .map(t => { const p = t.mesh.getWorldPosition(new T.Vector3()); p.y += t.mesh.scale.y * .3; return p })
+      sinkAt.anchor.updateWorldMatrix(true, false)
+      const foot = sinkAt.anchor.localToWorld(new T.Vector3(0, 0, 0))
+      return [{
+        sink: sinkAt.anchor.localToWorld(new T.Vector3(0, sinkAt.height - .5, .4)), floor: foot.y, top: sinkAt.height, main: true,
+        standAt: sinkAt.anchor.localToWorld(new T.Vector3(0, 0, 1.6)), sources,
+      }]
+    }
     const plate = env.projectPlate?.mesh
     if (!plate) return []
     for (let o: T.Object3D | null = plate; o; o = o.parent) if (!o.visible) return []
@@ -1084,7 +1105,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     },
     setFlow(rate, reduced, progress) { flowRate = rate; flowReduced = reduced; flowProgress = progress },
     complete(kind) { flow.complete(flowLots, kind, flowReduced); dirty = true },
-    pokeStream(seat) {
+    pokeStream(seat, sp) {
       const to = flowLots[0]?.sink
       if (!to) return
       let from: T.Vector3 | null
@@ -1094,7 +1115,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (!t) return
         from = t.mesh.getWorldPosition(new T.Vector3()); from.y += t.mesh.scale.y * .3
       }
-      if (from) { flow.emit(from, to, 7, flowReduced); dirty = true }
+      if (from) { flow.emit(from, to, sp, flowReduced); dirty = true }
     },
     flashUnits() {
       unitFlashLayer.start([{ x: 0, z: 0, y: -.31, half: LOT_BRACKET - 1.7 }, ...city.pads()], clock)
@@ -1109,6 +1130,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     },
     setProject(spec, title, progress) {
       env.projectPlate?.update(spec, title, progress)
+      env.hq?.sink?.plate.update(spec, title, progress)
     },
     hop(seat, mild = false) {
       if (seat === -1 && mild) return
@@ -1144,6 +1166,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const levelBefore = flow.level
       flow.update(clock - flowClock, flowRate, flowLots, flowReduced, flowProgress)
       flowClock = clock
+      env.hq?.sink?.setFlash(flow.flashing)
       if (flow.live > 0 || flow.ringsLive > 0 || flow.level !== levelBefore) dirty = true
       if (unitFlashLayer.update(clock, flowReduced)) dirty = true
       if (focusOn) {

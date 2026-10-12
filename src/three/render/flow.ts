@@ -1,7 +1,7 @@
 import * as T from 'three'
 import { RAMPS } from '../art/palette.ts'
 import { OS } from '../art/skin.ts'
-import { MAX_PACKETS, MAX_PACKETS_PER_SECOND, numeralTier, packetSpec } from '../../sim/juice.ts'
+import { MAX_PACKETS, packetSpec } from '../../sim/juice.ts'
 import { sharedMaterial } from './worldArt.ts'
 
 /**
@@ -33,16 +33,18 @@ import { sharedMaterial } from './worldArt.ts'
 /** How long a point is in the air, and how much that varies so a stream is a river and not a march. */
 const FLIGHT_S = 1.5
 const FLIGHT_JITTER = 0.35
-/** Edge of a one-point point, in metres, and what each decade of value adds. Small: it is a speck of work. */
-const SIZE = 0.2
-const SIZE_STEP = 0.06
 /**
- * A story point is shown as up to this many specks, each carrying a share of it, while the stream
- * is under its cap: six points a second is a dotted line, a hundred is a stream. The total delivered
- * is still the rate; only how finely it is cut changes, and it stops being cut at the cap, past
- * which the specks get fatter in decades instead (`packetSpec`).
+ * Edge of a one-point blob, in metres, and how a blob grows with what it carries: *"I want the blob scaled
+ * by story point, roughly 1 point per blob."* Under the stream's cap a blob IS one story point, so the
+ * count on screen is the work being done; past it a blob carries a decade (10, 100, 1,000…) and is larger
+ * by the same measure, so 1,000 points reads as bigger than 1 and never as the same dot a thousand times.
  */
-const DENSITY = 14
+const SIZE = 0.32
+const GROWTH = 0.6
+const MAX_SIZE = 1.8
+function blobSize(value: number): number {
+  return Math.min(MAX_SIZE, SIZE * (1 + GROWTH * Math.log10(Math.max(1, value))))
+}
 /** A stream's arc: its apex stands this fraction of the run above a straight line, and it bows this far to a side. */
 const ARC = 0.16
 const MIN_ARC = 0.8
@@ -74,6 +76,10 @@ export interface FlowLot {
   floor?: number
   /** Where the lot's gauge and rings stand, when beside the sink toward the workers would be out of sight (a house's wall). */
   standAt?: T.Vector3
+  /** How high the sink stands above its floor, where its fountain leaves from. Defaults to the flow's own gauge. */
+  top?: number
+  /** Whether this is the studio's own project sink (a completion throws its big fountain here), as against a house's door. Defaults to whether the flow draws a gauge at it. */
+  main?: boolean
   /** Whether the sink has a gauge: the studio's project board does, a house's door does not (a project is studio-wide). */
   gauge?: boolean
   /** Where it leaves from — one per worker who sends to this sink, in world space. */
@@ -171,7 +177,7 @@ export function createFlow(
     if (lot.sources.length === 0) return
     if (reduced) { onArrive?.(lot.sink, value); return }
     const from = lot.sources[Math.min(lot.sources.length - 1, Math.floor(random() * lot.sources.length))]
-    stream(from, lot.sink, value, SIZE + SIZE_STEP * numeralTier(value), age)
+    stream(from, lot.sink, value, blobSize(value), age)
   }
 
   /** Where a lot's gauge stands, on its floor: toward its workers from the sink, or where the lot says. */
@@ -234,6 +240,8 @@ export function createFlow(
     get ringsLive() { return ringList.length },
     /** Where the gauge's fill stands now, 0 to 1. */
     get level() { return shown },
+    /** Whether a completion is holding the gauge white. */
+    get flashing() { return flash > 0 },
     /**
      * @param rate      Story points per second the workers on screen are making. The layer delivers
      *                  this and no more: {@link packetSpec} splits it into a countable number of
@@ -245,11 +253,7 @@ export function createFlow(
       const total = lots.reduce((n, l) => n + l.sources.length, 0)
       // Reduced motion keeps the ticks and drops the movement, at a pace a tick can be read at.
       const spec = total > 0 ? packetSpec(rate, reduced ? 2 : undefined) : { perSecond: 0, value: 0 }
-      let perSecond = spec.perSecond, value = spec.value
-      if (!reduced && perSecond > 0 && value === 1) {
-        const cut = Math.max(1, Math.min(DENSITY, Math.floor(MAX_PACKETS_PER_SECOND / perSecond)))
-        perSecond *= cut; value /= cut
-      }
+      const perSecond = spec.perSecond, value = spec.value
       owed = perSecond > 0 ? Math.min(owed + perSecond * dt, 12) : 0
       // Each point is born part-way through the frame it was owed in, so a stream is not a row of
       // frame-locked clumps.
@@ -326,7 +330,7 @@ export function createFlow(
     complete(lots: readonly FlowLot[], kind: 'build' | 'release', reduced: boolean) {
       if (reduced) return
       for (const lot of lots) {
-        const main = lot.gauge === true
+        const main = lot.main ?? lot.gauge === true
         if (!main && kind === 'build') continue
         const s = standOf(lot)
         const y = s.y + 0.05
@@ -334,15 +338,23 @@ export function createFlow(
         if (main) {
           ring(s.x, y, s.z, RING_REACH[kind] * 1.5, 0.12)
           if (kind === 'release') ring(s.x, y, s.z, RING_REACH[kind] * 2.1, 0.26)
-          fountain(at.set(s.x, s.y + GAUGE_H, s.z), s.y, SPARKS[kind], SPARK_SPEED[kind])
+          // From the top of the sink itself when it is a piece of furniture (`top`), else from over its gauge.
+          fountain(lot.top === undefined ? at.set(s.x, s.y + GAUGE_H, s.z) : at.set(lot.sink.x, s.y + lot.top, lot.sink.z), s.y, SPARKS[kind], SPARK_SPEED[kind])
         } else fountain(at.set(s.x, s.y + 1, s.z), s.y, SPARKS.house, SPARK_SPEED.build)
       }
       flash = GAUGE_FLASH_S
     },
-    /** A click: a short run of points from the one who coded to the sink, carrying nothing (the poke already paid). */
-    emit(from: T.Vector3, to: T.Vector3, n: number, reduced: boolean) {
+    /**
+     * A click: the story points it paid, as blobs from the one who coded to the sink — one a point, up to
+     * eight, each as large as what it carries — and a small pop of sparks at the person, so the tap is seen
+     * to *make* something and not only to send it. They carry nothing to the sink (the poke already paid, and
+     * said so in its own numeral), so spam stacks into more blobs rather than into more numerals.
+     */
+    emit(from: T.Vector3, to: T.Vector3, sp: number, reduced: boolean) {
       if (reduced) return
-      for (let i = 0; i < n; i++) stream(from, to, 0, SIZE * 1.2, -i * 0.045, FLIGHT_S * 0.7)
+      const n = Math.max(1, Math.min(8, Math.round(sp)))
+      for (let i = 0; i < n; i++) stream(from, to, 0, blobSize(sp / n), -i * 0.06, FLIGHT_S * 0.8)
+      fountain(from, from.y - 0.4, 6, [1.6, 3.2])
     },
     dispose() {
       parent.remove(mesh)
