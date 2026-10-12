@@ -52,11 +52,19 @@ export const OS_NIGHT = debugSearchParams().get('look') !== 'day'
  * [2026-10-12] *"the room is just a bit too dark, make it lighter."* The three lights came up (key 1.25 to 1.75, sky
  * 1.2 to 1.8, fill .25 to .5) and the exposure did not: `OS_HORIZON` is tuned to the exposure, so raising that would have
  * greyed the void behind the room along with the room. A frame is looked at, not tested; the user is the judge of how much.
+ *
+ * [2026-10-12, second pass] *"the scene is too dark for my liking, use your aesthetics."* More light was not enough on its own: the
+ * dark came from the *ground* term (#1b2527, a black bounce under every desk and wall) and from one cool colour doing all
+ * three jobs, so lifting them just made a brighter flat teal. Now the sky and ground are lifted into the survey's mid-neutrals
+ * (the bounce a lit floor throws), the key is nearly white with the cool left in the shadows, and the fill is a muted lamp
+ * amber from behind: a warm edge against cool shade, which is what makes a dark-UI room read as *lit* rather than
+ * merely bright. The grade pass still pulls it back into the interface's teal, so the amber stays a hint. Exposure
+ * stays put for `OS_HORIZON`.
  */
 export const NIGHT = {
-  key: '#b4dbe4', keyIntensity: 1.75,
-  sky: '#5b8792', ground: '#1b2527', skyIntensity: 1.8,
-  fill: '#4a8fa8', fillIntensity: 0.5,
+  key: '#dce9e8', keyIntensity: 2.4,
+  sky: '#86aab2', ground: '#3d4d4f', skyIntensity: 2.4,
+  fill: '#e6c48c', fillIntensity: 0.7,
   exposure: 1.35,
   /** The grade and edge pass (`osPass.ts`). */
   tint: 0.38, edge: 0.5, edgeFloor: 0.12,
