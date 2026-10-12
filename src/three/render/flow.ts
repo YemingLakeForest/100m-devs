@@ -1,6 +1,6 @@
 import * as T from 'three'
 import { OS } from '../art/skin.ts'
-import { MAX_PACKETS, numeralTier, packetSpec } from '../../sim/juice.ts'
+import { MAX_PACKETS, backlogLevel, numeralTier, packetSpec } from '../../sim/juice.ts'
 import { sharedMaterial } from './worldArt.ts'
 
 /**
@@ -31,9 +31,21 @@ const MAX_FRAME_S = 0.25
 export interface FlowLot {
   /** Where the work lands, in world space. */
   sink: T.Vector3
+  /** The floor the lot's heap stands on, in world y. Defaults to a metre under the sink. */
+  floor?: number
+  /** Where the heap stands, when beside the sink toward the workers would be out of sight (a house's wall). */
+  heapAt?: T.Vector3
   /** Where it leaves from — one per worker who sends to this sink, in world space. */
   sources: readonly T.Vector3[]
 }
+
+/** Crates in the heap: four levels above empty, two columns wide, a lot's worth for sixteen lots. */
+const CRATE = 0.42
+const HEAP_LEVELS = 5
+const MAX_HEAP_LOTS = 16
+const MAX_CRATES = MAX_HEAP_LOTS * (HEAP_LEVELS - 1)
+/** How far from the sink, toward its workers, the heap stands. */
+const HEAP_OFFSET = 1.9
 
 interface Packet { from: T.Vector3; to: T.Vector3; age: number; value: number }
 
@@ -54,6 +66,10 @@ export function createFlow(
   // Instances span the whole studio; the mesh's own bounds are the origin's and would cull them.
   mesh.frustumCulled = false
   parent.add(mesh)
+  const heap = new T.InstancedMesh(geometry, sharedMaterial('flow:heap', () => new T.MeshBasicMaterial({ color: OS.glow1 })), MAX_CRATES)
+  heap.count = 0
+  heap.frustumCulled = false
+  parent.add(heap)
 
   const packets: Packet[] = []
   const matrix = new T.Matrix4()
@@ -73,8 +89,39 @@ export function createFlow(
     packets.push({ from: from.clone(), to: lot.sink.clone(), age: 0, value })
   }
 
+  const toward = new T.Vector3()
+  const crate = new T.Vector3(CRATE, CRATE, CRATE)
+
+  /**
+   * The heap beside each sink: crates stacked two to a row, as many as {@link backlogLevel} says.
+   * It stands between the sink and its workers, so it reads as the in-tray work comes out of and
+   * drains as the queue does; a heap that vanished while work was waiting would say it was done.
+   */
+  function stand(lots: readonly FlowLot[], backlog: number) {
+    const level = backlogLevel(backlog, HEAP_LEVELS)
+    let n = 0
+    if (level > 0) for (const lot of lots.slice(0, MAX_HEAP_LOTS)) {
+      if (lot.sources.length === 0) continue
+      toward.set(0, 0, 0)
+      for (const src of lot.sources) toward.add(src)
+      toward.divideScalar(lot.sources.length).sub(lot.sink)
+      toward.y = 0
+      if (toward.length() > 1e-6) toward.normalize()
+      else toward.set(1, 0, 0)
+      const floor = lot.floor ?? lot.sink.y - 1
+      const hx = lot.heapAt?.x ?? lot.sink.x + toward.x * HEAP_OFFSET
+      const hz = lot.heapAt?.z ?? lot.sink.z + toward.z * HEAP_OFFSET
+      for (let i = 0; i < level; i++) {
+        at.set(hx + (i % 2) * CRATE * 1.1, floor + CRATE / 2 + Math.floor(i / 2) * CRATE, hz)
+        heap.setMatrixAt(n++, matrix.compose(at, identity, crate))
+      }
+    }
+    heap.count = n
+    heap.instanceMatrix.needsUpdate = true
+  }
+
   return {
-    mesh,
+    mesh, heap,
     /** Packets in the air. */
     get live() { return packets.length },
     /**
@@ -82,7 +129,7 @@ export function createFlow(
      *              this and no more: {@link packetSpec} splits it into a countable number of
      *              packets, fatter as the rate grows.
      */
-    update(dt: number, rate: number, lots: readonly FlowLot[], reduced: boolean) {
+    update(dt: number, rate: number, lots: readonly FlowLot[], reduced: boolean, backlog = 0) {
       dt = Math.min(MAX_FRAME_S, Math.max(0, dt))
       const total = lots.reduce((n, l) => n + l.sources.length, 0)
       // Reduced motion keeps the ticks and drops the movement, at a pace a tick can be read at.
@@ -107,9 +154,12 @@ export function createFlow(
       })
       mesh.count = packets.length
       mesh.instanceMatrix.needsUpdate = true
+      stand(lots, backlog)
     },
     dispose() {
       parent.remove(mesh)
+      parent.remove(heap)
+      heap.dispose()
       mesh.dispose()
       geometry.dispose()
     },

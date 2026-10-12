@@ -129,9 +129,10 @@ export interface GarageView {
   codingSeats(): number[]
   /**
    * Story points a second the people on screen are making, for the packets that carry it to
-   * the project board or the house's door (§8.2a). 0 stops the flow.
+   * the project board or the house's door (§8.2a). 0 stops the flow. `backlog` is the story
+   * points still to do, which stands as a heap by the sink and drains as they are done.
    */
-  setFlow(rate: number, reduced: boolean): void
+  setFlow(rate: number, reduced: boolean, backlog: number): void
   /**
    * What landed at the sinks since the last call, where it is on the canvas (CSS pixels), keyed
    * by sink. Landings off the frame are dropped: the numeral is display, not accounting.
@@ -427,9 +428,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     for (let o: T.Object3D | null = plate; o; o = o.parent) if (!o.visible) return []
     const sources = env.targets.filter(t => { for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false; return true })
       .map(t => { const p = t.mesh.getWorldPosition(new T.Vector3()); p.y += t.mesh.scale.y * .3; return p })
-    return [{ sink: plate.getWorldPosition(new T.Vector3()), sources }]
+    return [{ sink: plate.getWorldPosition(new T.Vector3()), floor: 0, sources }]
   }
-  let flowRate = 0, flowReduced = false, flowClock = 0, flowLotsAt = -1
+  let flowRate = 0, flowBacklog = 0, flowReduced = false, flowClock = 0, flowLotsAt = -1
   let flowLots: FlowLot[] = []
   if (OS_NIGHT) {
     scene.add(createOsDesktop())
@@ -1066,7 +1067,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const seats=env.targets.filter(t=>{for(let o:T.Object3D|null=t.mesh;o;o=o.parent)if(!o.visible)return false;return true}).map(t=>t.index)
       return [...seats,...city.codingSeats()]
     },
-    setFlow(rate, reduced) { flowRate = rate; flowReduced = reduced },
+    setFlow(rate, reduced, backlog) { flowRate = rate; flowReduced = reduced; flowBacklog = backlog },
     takeArrivals() {
       frame()
       return landed.splice(0).flatMap(({ at, value }) => {
@@ -1107,9 +1108,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       // times a second, not every frame: a head moves by a hop, not by a metre.
       if (clock - flowLotsAt > .25 || clock < flowLotsAt) {
         flowLotsAt = clock
-        flowLots = flowRate > 0 && w / span() >= 8 ? garageLots().concat(city.lots()) : []
+        flowLots = w / span() >= 8 ? garageLots().concat(city.lots()) : []
       }
-      flow.update(clock - flowClock, flowRate, flowLots, flowReduced)
+      flow.update(clock - flowClock, flowRate, flowLots, flowReduced, flowBacklog)
       flowClock = clock
       if (flow.live > 0) dirty = true
       if (focusOn) {

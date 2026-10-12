@@ -46,7 +46,7 @@ import {
   arrivedHeroes,
   finishLiquidation,
   currentEntropy,
-  baseVelocity, developerVelocity, shelfBlocked, burnedFraction, projectOrdinal,
+  baseVelocity, developerVelocity, shelfBlocked, burnedFraction, remaining, projectOrdinal,
   FLOATER_LIFE_MS,
   getState,
   poke,
@@ -743,7 +743,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const rate=seat===FOUNDER_SEAT?0:seat===JAMES_SEAT?jamesRate:isAway(state.slack,seat)?0:developerVelocity(seat,state)*(jamesWorking?state.devs/(state.devs+1):1)
       return [{seat,rate,x:at.x+(seat<0?34:0),y:at.y}]
     }):[]
-    garage.setFlow(people.reduce((sum,p)=>sum+p.rate,0),reduceMotion)
+    garage.setFlow(people.reduce((sum,p)=>sum+p.rate,0),reduceMotion,remaining(state).toNumber())
     // §8.2a (amended 2026-10-12): up to a dozen people each keep a numeral over their own head, the
     // tutorial for what a worker earns; past that the packets carry the work and the numeral is
     // said where it lands. Either way the numerals on screen add up to the work being done.

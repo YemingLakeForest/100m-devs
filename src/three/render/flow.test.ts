@@ -101,3 +101,61 @@ describe('the packet layer (§8.2a, slice B)', () => {
     expect(parent.children).not.toContain(flow.mesh)
   })
 })
+
+describe('the backlog heap (§8.2a, slice B)', () => {
+  const lots = [lot(20), lot(20, new T.Vector3(-30, 1, 5))]
+  const heapOf = (backlog: number, l: FlowLot[] = lots) => {
+    const flow = createFlow(new T.Group(), undefined, counter())
+    flow.update(1 / 60, 0, l, false, backlog)
+    const n = flow.heap.count
+    flow.dispose()
+    return n
+  }
+
+  it('is not there when nothing is waiting, and not there with nowhere to stand', () => {
+    expect(heapOf(0)).toBe(0)
+    expect(heapOf(500, [])).toBe(0)
+  })
+
+  it('stands taller with more waiting, in whole crates, and stops at the top level', () => {
+    const counts = [1, 10, 100, 1e4, 1e8, 1e300].map(q => heapOf(q))
+    for (let i = 1; i < counts.length; i++) expect(counts[i]).toBeGreaterThanOrEqual(counts[i - 1])
+    expect(Math.min(...counts)).toBeGreaterThan(0)
+    expect(counts.at(-1)).toBe(counts.at(-2))
+  })
+
+  it('never needs more instances than it has, however many houses are open', () => {
+    const many = Array.from({ length: 200 }, (_, i) => lot(5, new T.Vector3(i * 30, 1, 0)))
+    expect(heapOf(1e9, many)).toBeLessThanOrEqual(64)
+  })
+
+  it('drains: the heap falls as the queue does', () => {
+    const flow = createFlow(new T.Group(), undefined, counter())
+    flow.update(1 / 60, 0, lots, false, 1e6)
+    const full = flow.heap.count
+    flow.update(1 / 60, 0, lots, false, 3)
+    expect(flow.heap.count).toBeLessThan(full)
+    flow.update(1 / 60, 0, lots, false, 0)
+    expect(flow.heap.count).toBe(0)
+    flow.dispose()
+  })
+
+  it('sits level, not floating: every crate rests on the lot floor or another crate', () => {
+    const flow = createFlow(new T.Group(), undefined, counter())
+    const l = lot(10); l.floor = 0.2
+    flow.update(1 / 60, 0, [l], false, 1e6)
+    const m = new T.Matrix4(), p = new T.Vector3(), s = new T.Vector3(), q = new T.Quaternion()
+    const bottoms: number[] = []
+    for (let i = 0; i < flow.heap.count; i++) { flow.heap.getMatrixAt(i, m); m.decompose(p, q, s); bottoms.push(p.y - s.y / 2) }
+    expect(Math.min(...bottoms)).toBeCloseTo(0.2, 6)
+    flow.dispose()
+  })
+
+  it('goes with the scene when disposed', () => {
+    const parent = new T.Group()
+    const flow = createFlow(parent)
+    expect(parent.children).toContain(flow.heap)
+    flow.dispose()
+    expect(parent.children).not.toContain(flow.heap)
+  })
+})
