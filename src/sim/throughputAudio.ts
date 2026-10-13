@@ -22,6 +22,36 @@ export const TICK_VOICE_MS = 140
 export const BLIP_COUNT = 5
 
 /**
+ * **The run** [2026-10-12, at the user's instruction: *"the pitched sound effects are good but when I click a lot
+ * it should sound more frequent or even melodic like blink blink blink in notes"*]. Spamming the people is the
+ * one place where the sound should answer the hand, so while the player is clicking the cap rises to
+ * {@link RUN_MAX_PER_SECOND} and the landings climb a two-octave pentatonic scale ({@link SCALE_COUNT} notes,
+ * `work-blip-0..9`) instead of hopping about it, turning round at the top and again at the bottom. A gap longer
+ * than {@link RUN_GAP_MS} ends the run and the next landing starts a new one low. The passive work's
+ * landings (never faster than {@link TICK_MAX_PER_SECOND}, so never closer than the gap) stay the random
+ * figure below, and a studio at scale still thins to its bed: only a hand lifts the cap.
+ */
+export const SCALE_COUNT = 10
+export const RUN_MAX_PER_SECOND = 12
+export const RUN_GAP_MS = 170
+
+/** The clicks a second allowed: the rate's own, or the run's cap while the player is clicking. */
+export function runRate(base: number, clicking: boolean): number {
+  return clicking && base > 0 ? Math.max(base, RUN_MAX_PER_SECOND) : base
+}
+
+/** The next note of a run, from the last one, the way it was heading, and the gap since it sounded. */
+export function nextRunNote(previous: number, direction: 1 | -1, gapMs: number, random: number): { note: number; direction: 1 | -1 } {
+  if (!(gapMs <= RUN_GAP_MS) || previous < 0) {
+    return { note: Math.floor(Math.max(0, Math.min(0.999999, random)) * 3), direction: 1 }
+  }
+  const top = SCALE_COUNT - 1
+  let heading = direction
+  if (previous + heading > top || previous + heading < 0) heading = heading === 1 ? -1 : 1
+  return { note: Math.max(0, Math.min(top, previous + heading)), direction: heading }
+}
+
+/**
  * Which blip lands next: never the one just played, otherwise anywhere in the family. A run of
  * the same pitch is a tick again, which is what the user rejected; five pentatonic notes in any
  * order are always consonant, so a stream of landings is a figure and not a clock.

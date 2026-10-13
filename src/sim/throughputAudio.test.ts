@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BED_PULL_OUT_DB, MAX_TICK_VOICES, TICK_MAX_PER_SECOND, TICK_MIN_PER_SECOND, TICK_VOICE_MS,
-  BLIP_COUNT, VoiceBudget, bedLevel, nextBlip, pullOut, tickRate,
+  BLIP_COUNT, RUN_GAP_MS, RUN_MAX_PER_SECOND, SCALE_COUNT, VoiceBudget, bedLevel, nextBlip, nextRunNote, pullOut, runRate, tickRate,
 } from './throughputAudio.ts'
 
 /*
@@ -92,5 +92,56 @@ describe('the blips never repeat, so a stream of landings is a figure and not a 
     const seen = new Set<number>()
     for (let i = 0; i < 100; i++) seen.add(nextBlip(2, i / 100))
     expect([...seen].sort()).toEqual([0, 1, 3, 4])
+  })
+})
+
+describe('the run: a hand on the people is answered with a climbing figure', () => {
+  it('lifts the cap only while the player is clicking, and never invents work out of none', () => {
+    expect(runRate(tickRate(1), true)).toBeGreaterThan(TICK_MAX_PER_SECOND)
+    expect(runRate(tickRate(1), true)).toBe(RUN_MAX_PER_SECOND)
+    expect(runRate(tickRate(1e6), false)).toBe(tickRate(1e6))
+    expect(runRate(0, true)).toBe(0)
+  })
+
+  it('stays inside the voice budget at the run’s own rate', () => {
+    const budget = new VoiceBudget()
+    let live = 0
+    const ends: number[] = []
+    for (let t = 0; t < 3000; t += 5) {
+      if (budget.admit(t, RUN_MAX_PER_SECOND)) ends.push(t + TICK_VOICE_MS)
+      live = Math.max(live, ends.filter((e) => e > t).length)
+    }
+    expect(live).toBeLessThanOrEqual(MAX_TICK_VOICES)
+    expect(ends.length).toBeGreaterThan(TICK_MAX_PER_SECOND * 3)
+  })
+
+  it('climbs while landings keep coming, one step at a time', () => {
+    let note = 0, direction: 1 | -1 = 1
+    const heard = [note]
+    for (let i = 0; i < 6; i++) {
+      ;({ note, direction } = nextRunNote(note, direction, RUN_GAP_MS - 10, 0.5))
+      heard.push(note)
+    }
+    expect(heard).toEqual([0, 1, 2, 3, 4, 5, 6])
+  })
+
+  it('turns round at the top and at the bottom rather than leaving the scale', () => {
+    let note = 0, direction: 1 | -1 = 1
+    const heard: number[] = []
+    for (let i = 0; i < SCALE_COUNT * 3; i++) {
+      ;({ note, direction } = nextRunNote(note, direction, 80, 0.5))
+      heard.push(note)
+    }
+    expect(Math.max(...heard)).toBe(SCALE_COUNT - 1)
+    expect(Math.min(...heard)).toBe(0)
+    expect(heard.every((n, i) => i === 0 || Math.abs(n - heard[i - 1]) === 1)).toBe(true)
+  })
+
+  it('starts a new run low once the gap has been left', () => {
+    for (let r = 0; r < 1; r += 0.1) {
+      const { note, direction } = nextRunNote(8, -1, RUN_GAP_MS + 1, r)
+      expect(note).toBeLessThan(3)
+      expect(direction).toBe(1)
+    }
   })
 })

@@ -5,7 +5,7 @@
  *
  * Three families, each answering something the user said on playing the first pass:
  *
- *  - `work-blip-0..4` — what a point landing at the project sounds like. The first pass used the
+ *  - `work-blip-0..9` — what a point landing at the project sounds like. The first pass used the
  *    interface's `ui-tick` for this, and the user: *"I don't like the tic tic tic sound, make
  *    something else."* A tick is a transient with no pitch, so a stream of them is a clock; a blip
  *    is a short pitched note, and five of them on a pentatonic scale (C D E G A) played in any
@@ -29,8 +29,8 @@ import path from 'node:path'
 const SAMPLE_RATE = 44_100
 const OUT = path.join(import.meta.dirname, '..', 'public', 'sfx')
 
-/** The pentatonic notes of the blip family, in Hz: C5 D5 E5 G5 A5. */
-const BLIP_NOTES = [523.25, 587.33, 659.25, 783.99, 880.0] as const
+/** The pentatonic notes of the blip family, in Hz: C5 D5 E5 G5 A5, then the same an octave up (a run climbs all ten). */
+const BLIP_NOTES = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0] as const
 
 function wav(samples: Float32Array): Buffer {
   const bytes = Buffer.alloc(44 + samples.length * 2)
@@ -157,5 +157,5 @@ if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/')}` || proce
   for (let i = 0; i < BLIP_NOTES.length; i++) await writeFile(path.join(OUT, `work-blip-${i}.wav`), wav(blip(i)))
   await writeFile(path.join(OUT, 'build-done.wav'), wav(buildDone()))
   await writeFile(path.join(OUT, 'release-hit.wav'), wav(releaseHit()))
-  console.log('generated work-blip-0..4, build-done, release-hit')
+  console.log('generated work-blip-0..9, build-done, release-hit')
 }
