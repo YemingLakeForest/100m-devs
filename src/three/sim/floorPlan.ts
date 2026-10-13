@@ -181,7 +181,7 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
   // The mouth of the avenue between the two north pods, on the open floor: an octagon of rug 3.2 m across with a
   // rolling board on it facing the lens and a man on a dais facing it too (`BILLY_PLAZA`). The rectangle is the rug's
   // bounding square, which holds the board and the dais with a hand to spare.
-  billy: { wall: 'free', x0: 1.2, x1: 3.6, z0: -.65, z1: 1.7, rise: GARAGE_HERO_DECK.rise },
+  billy: { wall: 'free', x0: 1.2, x1: 3.6, z0: -.65, z1: 2.0, rise: GARAGE_HERO_DECK.rise },
 }
 
 /**
@@ -199,11 +199,16 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
  * avenue's mouth altogether: the north half of the studio could not walk to the south half. At 2.67 m across, each
  * lane is 1.1 m and the studio is one place again. (A board turned to the lens is a diagonal bar whose bounding
  * square is twice its length on a side, which is why a shorter board buys a lane and not a shorter wall.)
+ *
+ * **The board is 2.4 m now, not 1.65** [2026-10-13, *"make the white board bigger"*]: it is the game's print and the sink the work
+ * flies to (GDD §8.2a), and at 1.65 m it was the smallest thing in the middle of the room. `walkableRegions` still says one
+ * studio, so the lanes the paragraph above counted are not the whole story at this size; Billy's site grew by 0.3 m toward
+ * the lens (`HERO_SITES.billy.z1`, 1.7 to 2.0) to hold the footprint, which the site's own test requires.
  */
 export const BILLY_PLAZA = {
   dais: { apothem: 0.52, rise: 0 },
   table: { x: -.30, z: .85, w: 2.10, d: .90 },
-  board: { x: -.65, z: -.80, w: 1.65, feet: 0.35 },
+  board: { x: -.65, z: -.80, w: 2.4, feet: 0.35 },
 } as const
 /** Pinned leadership work bays: these protect their desks and chair approaches from errands. */
 export const OPS_WORK_BAY = { x0: HERO_SITES.matt.x0, x1: HERO_SITES.serena.x1,
