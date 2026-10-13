@@ -38,7 +38,7 @@ export const NO_HQ_READOUTS: HqReadouts = {
 export interface HqSets {
   /** Advance the animation and redraw whatever the numbers changed. Always true: the people never stop (§7.8.13). */
   update(seconds: number, readouts: HqReadouts): boolean
-  /** The studio's project sink, standing where Billy's whiteboard stood: present once Billy is. */
+  /** The studio's project sink, standing where Billy's whiteboard stood: there from the start of the cast, before Billy is. */
   sink?: HqSink
   dispose(): void
 }
@@ -467,14 +467,23 @@ export function buildHqSets(input: HqSetInput): HqSets {
   // ======================== BILLY: the plaza ========================
   // §7.8.12 [2026-10-09]: the east pod is Billy's audience; his chart sits behind his left shoulder.
   if (present.has('billy')) {
-    const { set } = frame('billy')
+    frame('billy') // registers `desk:billy`, which his arrival still places; the board is not in it (below)
     const { dais, board } = BILLY_PLAZA
+    // [2026-10-13, at the user's instruction: *"the whiteboard is there from the beginning and Billy will appear on it"*]
+    // The board and its cabinet are not Billy's furniture: they are the studio's, and stand in the group below, which no
+    // hero's arrival places or lifts. Billy's own set (the `desk:billy` prop, which waits for him) is only what he does.
+    const home = at.billy
+    const stand = new T.Group()
+    stand.position.set(home.x, 0, home.z)
+    stand.rotation.y = (home.rot * Math.PI) / 180
+    home.parent.add(stand)
+    disposers.push(() => { stand.removeFromParent() })
     // Compact storage beside Billy leaves his silhouette and the meeting aisle open.
-    box(set, board.x, .06, board.z, board.w, .78, .54, '#34494f')
-    box(set, board.x, .84, board.z, board.w + .04, .075, .58, '#ba9263')
+    box(stand, board.x, .06, board.z, board.w, .78, .54, '#34494f')
+    box(stand, board.x, .84, board.z, board.w + .04, .075, .58, '#ba9263')
     for (const dx of [-.40, .40]) {
-      box(set, board.x + dx, .16, board.z + .285, .73, .59, .025, '#76583d')
-      box(set, board.x + dx + .20, .53, board.z + .304, .025, .12, .022, '#879e9f')
+      box(stand, board.x + dx, .16, board.z + .285, .73, .59, .025, '#76583d')
+      box(stand, board.x + dx + .20, .53, board.z + .304, .025, .12, .022, '#879e9f')
     }
     // [2026-10-12] The board: a frame, the project's game print for a face (it was §4.1's hill, drawn in marker), a tray
     // with four markers, and two uprights on feet. Its face is the garage's own project board moved here, so it is the
@@ -487,18 +496,18 @@ export function buildHqSets(input: HqSetInput): HqSets {
     const rim = new T.Mesh(new T.BoxGeometry(board.w, bh + 0.12, 0.1), frameMaterial)
     rim.position.set(board.x, by - 0.06 + (bh + 0.12) / 2, board.z)
     rim.userData.dynamic = true
-    set.add(rim)
+    stand.add(rim)
     plate.mesh.position.set(board.x, by + bh / 2, board.z + 0.056)
-    set.add(plate.mesh)
-    box(set, board.x, by - 0.12, board.z + 0.1, board.w, 0.05, 0.16, '#58605d')
-    for (let k = 0; k < 4; k++) box(set, board.x - 0.55 + k * 0.35, by - 0.07, board.z + 0.12, 0.2, 0.03, 0.03, ['#2f5aa8', '#c23b30', '#2d7d46', '#25303a'][k])
+    stand.add(plate.mesh)
+    box(stand, board.x, by - 0.12, board.z + 0.1, board.w, 0.05, 0.16, '#58605d')
+    for (let k = 0; k < 4; k++) box(stand, board.x - 0.55 + k * 0.35, by - 0.07, board.z + 0.12, 0.2, 0.03, 0.03, ['#2f5aa8', '#c23b30', '#2d7d46', '#25303a'][k])
     for (const side of [-1, 1]) {
       const x = board.x + side * (board.w / 2 - 0.03)
-      box(set, x, .915, board.z, .06, by + bh - .915, .06, '#34494f')
+      box(stand, x, .915, board.z, .06, by + bh - .915, .06, '#34494f')
     }
     const anchor = new T.Object3D()
     anchor.position.set(board.x, 0, board.z)
-    set.add(anchor)
+    stand.add(anchor)
     let white = false
     sink = {
       plate, anchor, height: by + bh,

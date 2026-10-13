@@ -38,6 +38,8 @@ function build() {
       // Precise, from the vertices: Billy's rug is an octagon turned an eighth, and the box of its box is a third wider than it is.
       if (handle) b.union(new T.Box3().setFromObject(handle.group, true))
     }
+    // Billy's board stands in its own group, which no arrival moves (2026-10-13), and is still part of his site.
+    if (id === 'billy' && sets.sink?.plate.mesh.parent) b.union(new T.Box3().setFromObject(sets.sink.plate.mesh.parent, true))
     return b
   }
   return { sets, box, props }
@@ -127,7 +129,7 @@ describe('the project sink stands where Billy’s chart stood', () => {
       env, at: { billy: { parent, x: s.x, z: s.z, rot: s.rot }, serena: { parent, x: 0, z: 0, rot: 0 }, matt: { parent, x: 0, z: 0, rot: 0 } },
       bodies: {}, present: new Set(['billy']),
     })
-    return { sets, sink: sets.sink!, set: props.get('desk:billy')!.group as T.Group }
+    return { sets, sink: sets.sink!, set: props.get('desk:billy')!.group as T.Group, props }
   }
   it('exists with Billy, and is not there without him', () => {
     expect(sinkOf().sink).toBeDefined()
@@ -137,9 +139,17 @@ describe('the project sink stands where Billy’s chart stood', () => {
     expect(buildHqSets({ env, at: { billy: at, serena: at, matt: at }, bodies: {}, present: new Set(['serena']) }).sink).toBeUndefined()
   })
 
+  it('is there from the beginning: no hero’s set, which waits for its hero, holds the board or its cabinet', () => {
+    const { sink, props } = sinkOf()
+    for (const [, prop] of props) {
+      for (let o: T.Object3D | null = sink.anchor; o; o = o.parent) expect(o).not.toBe(prop.group)
+    }
+    for (let o: T.Object3D | null = sink.plate.mesh; o; o = o.parent) expect(o.visible).toBe(true)
+  })
+
   it('is the project board: the game print stands at head height, facing the lens, on Billy’s own floor', () => {
     const { sink, set } = sinkOf()
-    expect(set.children).toContain(sink.plate.mesh)
+    expect(set.children).not.toContain(sink.plate.mesh)
     const p = sink.plate.mesh.position
     expect(p.y).toBeGreaterThan(1.5)
     expect(p.y).toBeLessThan(GARAGE_WALLS.height - 1.0)
@@ -154,8 +164,8 @@ describe('the project sink stands where Billy’s chart stood', () => {
   })
 
   it('flashes its frame white on a completion and goes back after', () => {
-    const { sink, set } = sinkOf()
-    const rim = set.children.find((c) => c.userData.dynamic && (c as T.Mesh).material instanceof T.MeshBasicMaterial && (c as T.Mesh).geometry instanceof T.BoxGeometry) as T.Mesh
+    const { sink } = sinkOf()
+    const rim = sink.plate.mesh.parent!.children.find((c) => c.userData.dynamic && (c as T.Mesh).material instanceof T.MeshBasicMaterial && (c as T.Mesh).geometry instanceof T.BoxGeometry) as T.Mesh
     const colour = () => (rim.material as T.MeshBasicMaterial).color.getHexString()
     const rest = colour()
     sink.setFlash(true)

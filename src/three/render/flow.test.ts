@@ -94,6 +94,22 @@ describe('the stream (§8.2a)', () => {
     expect(seen.size).toBeGreaterThan(frames * 0.9)
   })
 
+  it('carries a dark edge on every point, round it and behind it, so it reads on a lit wall', () => {
+    const a = new T.Matrix4(), b = new T.Matrix4(), pa = new T.Vector3(), pb = new T.Vector3(), sa = new T.Vector3(), sb = new T.Vector3()
+    const seen = { n: 0 }
+    follow(flow => {
+      expect(flow.outline.count).toBe(flow.mesh.count)
+      expect((flow.outline.material as T.MeshBasicMaterial).side).toBe(T.BackSide)
+      if (flow.mesh.count === 0) return
+      flow.mesh.getMatrixAt(0, a); flow.outline.getMatrixAt(0, b)
+      a.decompose(pa, new T.Quaternion(), sa); b.decompose(pb, new T.Quaternion(), sb)
+      expect(pb.distanceTo(pa)).toBeLessThan(1e-6)
+      expect(sb.x).toBeGreaterThan(sa.x)
+      seen.n++
+    })
+    expect(seen.n).toBeGreaterThan(10)
+  })
+
   it('turns from code to points on the way: it leaves one colour and arrives another', () => {
     const c = new T.Color(), colours: string[] = []
     const frames = follow(flow => { flow.mesh.getColorAt(0, c); colours.push(c.getHexString()) })

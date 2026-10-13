@@ -39,7 +39,7 @@ const FLIGHT_JITTER = 0.35
  * count on screen is the work being done; past it a blob carries a decade (10, 100, 1,000…) and is larger
  * by the same measure, so 1,000 points reads as bigger than 1 and never as the same dot a thousand times.
  */
-const SIZE = 0.32
+const SIZE = 0.4
 const GROWTH = 0.6
 const MAX_SIZE = 1.8
 function blobSize(value: number): number {
@@ -52,9 +52,19 @@ const SWAY = 0.45
 /** A frame that took longer than this (a throttled tab) launches no more than a short burst. */
 const MAX_FRAME_S = 0.25
 /** The colour the code leaves the desk in, the colour it arrives in, and where along the run it turns. */
-const CODE = new T.Color(OS.calm2)
+const CODE = new T.Color(OS.glow2)
 const POINTS = new T.Color(OS.warm)
 const FLASH = new T.Color(RAMPS.NEUTRAL[8])
+/**
+ * The outline [2026-10-13, *"with the lighting changes the things are a lot less visible now, can you make the flowing blobs
+ * more visible"*]. Lifting the room (`NIGHT` in skin.ts) put a cyan and an amber cube on pale teal walls and a wooden floor, where
+ * they had been lit points on a dark one. A brighter blob would only meet the wall halfway, so each carries its own dark edge:
+ * the same cube drawn again, bigger, back faces only, in the interface's black — the one-pixel rule the HUD draws round
+ * everything, at a thickness that follows the blob.
+ */
+const OUTLINE = new T.Color(OS.n0)
+const OUTLINE_GROW = 1.28
+const OUTLINE_PAD = 0.045
 const TURN_FROM = 0.3
 const TURN_TO = 0.8
 
@@ -129,6 +139,11 @@ export function createFlow(
   const mesh = new T.InstancedMesh(geometry, material, MAX_PACKETS)
   mesh.count = 0
   mesh.setColorAt(0, CODE)
+  const outline = new T.InstancedMesh(geometry, sharedMaterial('flow:outline', () => new T.MeshBasicMaterial({ color: OUTLINE, side: T.BackSide })), MAX_PACKETS)
+  outline.count = 0
+  outline.frustumCulled = false
+  parent.add(outline)
+  const halo = new T.Vector3()
   // Instances span the whole studio; the mesh's own bounds are the origin's and would cull them.
   mesh.frustumCulled = false
   parent.add(mesh)
@@ -234,7 +249,7 @@ export function createFlow(
   }
 
   return {
-    mesh, rings, gauge,
+    mesh, outline, rings, gauge,
     /** Points in the air, streams and sparks together. */
     get live() { return points.length },
     get ringsLive() { return ringList.length },
@@ -290,8 +305,11 @@ export function createFlow(
         }
         mesh.setMatrixAt(i, matrix.compose(at, identity, scale))
         mesh.setColorAt(i, colour)
+        outline.setMatrixAt(i, matrix.compose(at, identity, halo.setScalar(scale.x * OUTLINE_GROW + OUTLINE_PAD)))
       })
       mesh.count = points.length
+      outline.count = points.length
+      outline.instanceMatrix.needsUpdate = true
       mesh.instanceMatrix.needsUpdate = true
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
 
@@ -358,6 +376,8 @@ export function createFlow(
     },
     dispose() {
       parent.remove(mesh)
+      parent.remove(outline)
+      outline.dispose()
       parent.remove(rings)
       parent.remove(gauge)
       gauge.dispose()

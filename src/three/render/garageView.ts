@@ -440,10 +440,10 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   /** The garage's own lot: its visible people, and the project board they work toward. */
   function garageLots(): FlowLot[] {
     const sinkAt = env.hq?.sink
-    // Once Billy has arrived the sink is the project board standing on the open floor where his chart was
-    // (`hqSets.ts`); the wall board in the corner is the sink until then, and is taken down while his is up. His set exists from the
-    // start of the cast but is hidden until he arrives, and a hidden sink is no sink: this used to
-    // return nothing there, and nothing flew at all.
+    // The sink is the project board on the open floor where Billy's chart was (`hqSets.ts`), there from the start of the cast
+    // [2026-10-13: *"the whiteboard is there from the beginning and Billy will appear on it"*], so it is the sink from the first
+    // frame and the wall board in the corner is taken down for good. The wall board stays the fallback for a room built without
+    // an HQ, because a lot that returns nothing means nothing flies at all.
     const sinkShown = (() => { for (let o: T.Object3D | null = sinkAt?.anchor ?? null; o; o = o.parent) if (!o.visible) return false; return !!sinkAt })()
     // Moved, not copied: while Billy's board is up the one on the wall comes down.
     const wall = env.projectPlate?.mesh.parent
