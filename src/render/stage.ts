@@ -63,7 +63,7 @@ import { pokeHaptic } from '../audio/haptics.ts'
 import { exceedsSlop } from './navigation.ts'
 import { MAX_STREAMS } from '../sim/juice.ts'
 import { BREATH_MS, crossedMilestone } from '../sim/heldBreath.ts'
-import { VoiceBudget, bedLevel, nextBlip, nextRunNote, pullOut, runRate, tickRate } from '../sim/throughputAudio.ts'
+import { RUN_MAX_PER_SECOND, VoiceBudget, bedLevel, nextBlip, nextRunNote, pullOut, tickRate } from '../sim/throughputAudio.ts'
 import { createThroughputBed } from '../audio/throughputBed.ts'
 import { createPassiveWork } from './passiveWork.ts'
 import { coverFor } from '../three/sim/cover.ts'
@@ -384,7 +384,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const paid = pokeFounder(at.x, at.y)
     if (paid <= 0) return 0
     garage.hop(FOUNDER_SEAT)
-    garage.pokeStream(FOUNDER_SEAT, paid); lastPokeMs = performance.now()
+    garage.pokeStream(FOUNDER_SEAT, paid); markPoke()
     if (sound) playKeyboardClick()
     if (t0 !== undefined) requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
     return paid
@@ -397,7 +397,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const at = personAt(JAMES_SEAT) ?? { x, y }
       const paid = pokeJames(at.x, at.y)
       garage.hop(JAMES_SEAT)
-      if (paid > 0) { garage.pokeStream(JAMES_SEAT, paid); lastPokeMs = performance.now(); playKeyboardClick() }
+      if (paid > 0) { garage.pokeStream(JAMES_SEAT, paid); markPoke(); playKeyboardClick() }
       else playSfx('poke-void')
       return
     }
@@ -425,7 +425,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const lvl = level()
     const at = personAt(who) ?? { x, y }
     const result = poke(at.x, at.y, { rung: Math.round(lvl), index: who })
-    if (result.sp > 0) { garage.pokeStream(who, result.sp); lastPokeMs = performance.now() }
+    if (result.sp > 0) { garage.pokeStream(who, result.sp); markPoke() }
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
     const tier = tierOfLevel(lvl)
@@ -576,6 +576,22 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   let blipAt=0, runDir:1|-1=1, lastBlipMs=-Infinity
   // The hand on the people: while a click's points are still in the air the sound is the player's (throughputAudio's run).
   let lastPokeMs=-Infinity
+  /*
+   * [2026-10-14, *"when I click a burst of clicks and see a lot of the blobs, I don't hear a clustered melody ... I want the
+   * spam click reflected in sounds too"*] The run used to be sung by the blobs *landing*, and the landings are the
+   * least reliable clock in the game: they arrive after a flight, in whatever order the flight times put them, and with no
+   * passive work the budget's rate was zero and nothing sounded at all. A click is the one event that is exactly the hand,
+   * so each paid click now plays the next note of the climbing figure itself, at up to `RUN_MAX_PER_SECOND`, and while
+   * the hand is on the people the landings stay quiet rather than muddying it. Passive work still ticks as before.
+   */
+  const markPoke=()=>{
+    const at=performance.now()
+    lastPokeMs=at
+    if(at-lastBlipMs<1000/RUN_MAX_PER_SECOND)return
+    const n=nextRunNote(blipAt,runDir,at-lastBlipMs,Math.random())
+    blipAt=n.note;runDir=n.direction;lastBlipMs=at
+    playSfx(BLIP_SFX[blipAt])
+  }
   let workSeats:number[]=[], nextWorkScan=0
 
   const frame = (now: number) => {
@@ -729,7 +745,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const crowd=people.length>MAX_STREAMS
     const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat, true)},!crowd)
     const landings=garage.takeArrivals()
-    for(const _ of landings){const at=performance.now(),running=at-lastPokeMs<2200;if(tickBudget.admit(at,runRate(tickRate(workRate),running))){if(running){const n=nextRunNote(blipAt,runDir,at-lastBlipMs,Math.random());blipAt=n.note;runDir=n.direction}else blipAt=nextBlip(blipAt%5,Math.random());lastBlipMs=at;playSfx(BLIP_SFX[blipAt])}}
+    for(const _ of landings){const at=performance.now(),running=at-lastPokeMs<2200;if(!running&&tickBudget.admit(at,tickRate(workRate))){blipAt=nextBlip(blipAt%5,Math.random());lastBlipMs=at;playSfx(BLIP_SFX[blipAt])}}
     floaters=[...floaters,...passive,...(crowd?passiveWork.arrive(landings,now,reduceMotion):[])]
 
     const theme = entropyTheme(currentEntropy(state))

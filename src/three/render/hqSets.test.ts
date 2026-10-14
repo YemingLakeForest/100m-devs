@@ -198,9 +198,11 @@ describe('Billy addresses the developer pod', () => {
     return { sets, body, set: props.get('desk:billy')!.group as T.Group }
   }
 
-  it('turns Billy’s set toward the east developer pod', () => {
+  it('stands Billy’s set square to the room, as Matt’s and Serena’s are', () => {
+    // [2026-10-14, *"change Billy's facing to same as Matt and Serena ... so it's sort of facing front"*] It was turned a
+    // quarter to face the east pod; the board and the man are now on the lens's side of the station, like theirs.
     const { set } = withBilly()
-    expect(set.rotation.y).toBeCloseTo(Math.PI / 2, 9)
+    expect(set.rotation.y).toBeCloseTo(0, 9)
   })
 
   it('keeps Billy addressing the east pod throughout his presentation', () => {

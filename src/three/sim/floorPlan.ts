@@ -181,7 +181,7 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
   // The mouth of the avenue between the two north pods, on the open floor: an octagon of rug 3.2 m across with a
   // rolling board on it facing the lens and a man on a dais facing it too (`BILLY_PLAZA`). The rectangle is the rug's
   // bounding square, which holds the board and the dais with a hand to spare.
-  billy: { wall: 'free', x0: 1.2, x1: 3.6, z0: -.65, z1: 2.0, rise: GARAGE_HERO_DECK.rise },
+  billy: { wall: 'free', x0: 0.2, x1: 3.6, z0: -1.15, z1: 2.0, rise: GARAGE_HERO_DECK.rise },
 }
 
 /**
@@ -208,7 +208,7 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
 export const BILLY_PLAZA = {
   dais: { apothem: 0.52, rise: 0 },
   table: { x: -.30, z: .85, w: 2.10, d: .90 },
-  board: { x: -.65, z: -.80, w: 2.4, feet: 0.35 },
+  board: { x: -.95, z: -.80, w: 2.4, feet: 0.35 },
 } as const
 /** Pinned leadership work bays: these protect their desks and chair approaches from errands. */
 export const OPS_WORK_BAY = { x0: HERO_SITES.matt.x0, x1: HERO_SITES.serena.x1,
@@ -252,7 +252,7 @@ export const LEADER_STATIONS = LEADER_IDS.map((id, i) => ({ id, seat: leaderSeat
  * - **James** (−9.0, −3.4), rot 90: on the deck, the desk running along the wall from z −4.8 to −2.0 and his Diet
  *   Coke cabinet at its south end to −1.37. (He was at (−8.4, −4.4), and before that at (−0.7, −4.5).)
  * - **Matt** (−1.6, −8.4) and **Serena** (4.4, −8.3), rot 0, at the middles of their sites.
- * - **Billy** (0.1, 0.19), rot 45: on his dais at the east end of his board, with the lens in front of him. The
+ * - **Billy** (2.5, 0.09), rot 0 [2026-10-14, *"change Billy's facing to same as Matt and Serena ... facing front"*: he and his board were turned a quarter to the east pod, and now face the way theirs do; the board moved to his screen-left and the site grew west to hold it]; before that rot 45: on his dais at the east end of his board, with the lens in front of him. The
  *   assembly (board, feet and dais) is centred in the avenue to within a tenth: 1.1 m from the west pods' tables and
  *   1.2 m from the east ones, so there is a lane either side of it.
  */
@@ -261,7 +261,7 @@ export const GARAGE_LEADERS = [
   { id: 'james' as LeaderId, seat: leaderSeat('james'), x: -9.0, z: -2.6, rot: 90 },
   { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -1.6, z: -8.4, rot: 0 },
   { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: 4.4, z: -8.3, rot: 0 },
-  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 2.5, z: .09, rot: 90 },
+  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 2.5, z: .09, rot: 0 },
 ]
 
 /**

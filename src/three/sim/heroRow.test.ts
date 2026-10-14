@@ -15,7 +15,6 @@ import {
   HERO_SITES,
   LEADER_IDS,
   benches,
-  garageSeats,
   destinationsIn,
   heroDesktop,
   leaderDesks,
@@ -92,15 +91,14 @@ describe('the hero quarter', () => {
     }
   })
 
-  it('puts Billy on the open floor facing the east developer pod', () => {
+  it('puts Billy on the open floor facing front, as Matt and Serena do', () => {
     // *"they don't have to be all around the wall, put billy in the mix of devs"* (2026-10-05). Every earlier cut had
-    // him against a wall, talking to it.
+    // him against a wall, talking to it. [2026-10-14, *"change Billy's facing to same as Matt and Serena"*] He used to be
+    // turned to the east pod (rot 90); he now faces the same way they do, rot 0, with his board.
     const site = HERO_SITES.billy, s = leader('billy')
     expect(site.wall).toBe('free')
-    const audience = garageSeats().filter(d => d.x > s.x).sort((a, b) => Math.hypot(a.x - s.x, a.z - s.z) - Math.hypot(b.x - s.x, b.z - s.z))[0]
-    const angle = s.rot * Math.PI / 180
-    const dx = audience.x - s.x, dz = audience.z - s.z
-    expect((Math.sin(angle) * dx + Math.cos(angle) * dz) / Math.hypot(dx, dz)).toBeGreaterThan(.99)
+    expect(s.rot).toBe(leader('matt').rot)
+    expect(s.rot).toBe(leader('serena').rot)
     expect(s.x).toBeGreaterThan(site.x0)
     expect(s.x).toBeLessThan(site.x1)
     expect(s.z).toBeGreaterThan(site.z0)
