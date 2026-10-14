@@ -24,6 +24,15 @@ export const INK = {
    */
   select: '#24333b',
 } as const
+/**
+ * **The studio shell, dimmed on its own** [2026-10-13, *"the contrast of the scene is too bright, too stabby, dim down the
+ * wall and white bit but not the entire scene"*]. The lights were raised twice on 2026-10-12 so the room would not read
+ * dark, and the plaster, coping and floor slab are the three biggest near-white areas in the picture, so they took the
+ * whole of that lift and blew out against the dark HUD and the people. The lights stay where they are: the people, the
+ * wood and the planting are exactly as bright as they were, and only these surfaces (plaster, coping, the floor's tiles and the apron round the building) come down to a mid grey-teal.
+ * They are a list because `finishGarage` has to recognise them by colour to give them the stone finish.
+ */
+export const SHELL = { wall: '#74888d', trim: '#98a9ab', floor: '#56696d', floorB: '#5a6d71', floorC: '#586b6f', apron: '#6e6c64' } as const
 const materials = new Map<string, T.MeshStandardMaterial>()
 export function material(colour: string): T.MeshStandardMaterial {
   let m = materials.get(colour)

@@ -1,14 +1,18 @@
+import { useMemo } from 'react'
 import { Button } from '../ui/Button.tsx'
 import { OsWindow } from '../ui/OsWindow.tsx'
-import { FounderAvatar } from '../ui/FounderAvatar.tsx'
-import { founderOf, pokeFounder } from '../game/store.ts'
-import { DEFAULT_FOUNDER, readFounderProfile } from '../game/founderProfile.ts'
+import { founderOf, pokeFounder, type GameState } from '../game/store.ts'
+import { DEFAULT_FOUNDER, founderLook, readFounderProfile } from '../game/founderProfile.ts'
+import { HeroFace } from './HeroFace.tsx'
+import { formatMoney } from './hudModel.ts'
+import { TreePane } from './UpgradeTrees.tsx'
 import type { StageHandle } from '../render/stage.ts'
 import { useGameState } from './useGameState.ts'
 import { Kw } from './Kw.tsx'
 import { playKeyboardClick } from '../audio/sfx.ts'
 
 import '../styles/founder.css'
+import '../styles/heroes.css'
 
 /**
  * Your desk — GDD §4.5d, §7.8.10, §13.7.1. R16 and R20.
@@ -68,41 +72,73 @@ export function FounderDesk({ stage }: { stage: StageHandle | null }) {
 export function FounderProfilePanel({
   open,
   onClose,
-  onUpgrades,
+  state,
+  treesOpen = false,
+  intro = null,
+  note = null,
 }: {
   open: boolean
   onClose: () => void
-  /**
-   * GDD §8 — your own upgrade tree, the same door every hero's card has.
-   * Absent until the first Paradigm Shift opens the trees (`unlocks.trees`).
-   */
-  onUpgrades?: () => void
+  /** The wallet and the nodes the tree reads. Absent in the tests that only want the badge. */
+  state?: GameState
+  /** GDD §8 - the first Paradigm Shift has opened the trees (`unlocks.trees`). */
+  treesOpen?: boolean
+  /** A node to open the tree on, selected. */
+  intro?: string | null
+  /** One line over the tree while a scene has asked for something. */
+  note?: string | null
 }) {
   useGameState()
   const founder = readFounderProfile() ?? DEFAULT_FOUNDER
+  const look = useMemo(() => founderLook(founder), [founder])
+  const showTree = state !== undefined && treesOpen
 
+  /*
+    [2026-10-13] *"the you button brings up us but the screen is so bad"*. This
+    was a 232px column of figure and three rows beside a blank board, with
+    UPGRADES in the foot opening a second window. You are a person on the
+    team, so you get the team's screen: the same pass lying across the top
+    (heroes.css) and your own tree, the same board, under it.
+  */
   return (
     <OsWindow
       open={open}
       modal
       from="centre"
-      className="founder-profile"
-      bodyClassName="os-window__body--flush"
+      className="herocard"
+      bodyClassName="herocard__split"
       title={`PERSONNEL // ${founder.name.toUpperCase()}`}
-      meta="FOUNDER · STILL CODES"
+      meta={showTree && state ? <span className="trees__cash">{formatMoney(state.cash)}</span> : 'FOUNDER · STILL CODES'}
       onClose={onClose}
-      footer={onUpgrades ? <Button onClick={onUpgrades}>UPGRADES</Button> : undefined}
     >
-      <div className="founder-profile__body">
-        <aside className="founder-profile__identity">
-          <FounderAvatar {...founder} label="YOU" />
-          <dl>
+      <div className="herocard__side" style={{ ['--branch' as string]: 'var(--p3)' }}>
+        <div className="herocard__pass">
+          <span className="herocard__punch" aria-hidden="true" />
+          <HeroFace look={look} id="founder" shot="head" className="herocard__portrait" />
+          <header className="herocard__band">
+            <h2 className="herocard__name">{founder.name}</h2>
+            <p className="herocard__tags">
+              <span className="herocard__branch">FOUNDER</span>
+              <span className="herocard__employee">
+                EMPLOYEE #000
+                <span className="herocard__gem" aria-hidden="true" />
+              </span>
+            </p>
+          </header>
+          <dl className="herocard__facts">
             <div><dt>OUTPUT</dt><dd>ON CLICK</dd></div>
             <div><dt>PER TAP</dt><dd>+{founderOf().tapValue.toFixed(0)} <Kw>STORY POINTS</Kw></dd></div>
             <div><dt>PAYROLL</dt><dd>$0</dd></div>
           </dl>
-        </aside>
+        </div>
       </div>
+      <section className="herocard__tree" aria-label="Your upgrades">
+        {showTree && state ? (
+          <TreePane open state={state} hero="you" intro={intro} note={note} />
+        ) : (
+          <p className="herocard__locked">UPGRADES OPEN AFTER YOUR FIRST PARADIGM SHIFT</p>
+        )}
+      </section>
     </OsWindow>
   )
 }

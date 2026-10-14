@@ -49,24 +49,20 @@ describe('manager corner', () => {
 
     // §10.6a — who this is, in the window's title bar rather than in a masthead.
     expect(screen.getByRole('heading', { name: 'PERSONNEL // ADA' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Your founder, as they will appear at their desk')).toHaveAttribute('data-head', 'buzz')
-    expect(screen.getByLabelText('Your founder, as they will appear at their desk')).toHaveAttribute('data-accessory', 'headphones')
-    expect(screen.getByLabelText('Your founder, as they will appear at their desk')).toHaveAttribute('data-facial-hair', 'goatee')
+    // The same pass the heroes wear (heroes.css), with the person's face on it.
+    expect(document.querySelector('.herocard__pass')).not.toBeNull()
+    expect(screen.getByText('FOUNDER')).toBeInTheDocument()
   })
 
   /**
-   * [2026-09-26] — the Management tree is retired with the studio board
-   * (*"retire the old tree"*). The panel carries the door to your own tree
-   * instead, once the first Paradigm Shift has opened the trees.
+   * [2026-10-13] — your tree is on your own screen, not behind an UPGRADES door:
+   * there is no second window, and before the first Paradigm Shift the tree's
+   * place says so.
    */
-  it('draws no Management tree, and offers UPGRADES only when given the door', () => {
-    const onUpgrades = vi.fn()
-    const { rerender } = render(<FounderProfilePanel open onClose={() => {}} />)
+  it('has no UPGRADES door, and says when the tree is not open yet', () => {
+    render(<FounderProfilePanel open onClose={() => {}} />)
     expect(screen.queryByText('Touch Typing')).toBeNull()
     expect(screen.queryByRole('button', { name: 'UPGRADES' })).toBeNull()
-    rerender(<FounderProfilePanel open onClose={() => {}} onUpgrades={onUpgrades} />)
-    fireEvent.click(screen.getByRole('button', { name: 'UPGRADES' }))
-    expect(onUpgrades).toHaveBeenCalledOnce()
+    expect(screen.getByText('UPGRADES OPEN AFTER YOUR FIRST PARADIGM SHIFT')).toBeInTheDocument()
   })
-
 })

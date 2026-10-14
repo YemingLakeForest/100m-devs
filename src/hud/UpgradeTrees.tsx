@@ -30,7 +30,6 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 
-import { OsWindow } from '../ui/OsWindow.tsx'
 import { Button } from '../ui/Button.tsx'
 import { formatMoney } from './hudModel.ts'
 import { purchaseHaptic } from '../audio/haptics.ts'
@@ -122,9 +121,9 @@ function proposal(node: TreeNode): string[] {
   return out
 }
 
-// --- the window -----------------------------------------------------------------
+// --- the tree -----------------------------------------------------------------
 
-export interface UpgradeTreesProps {
+export interface TreePaneProps {
   open: boolean
   state: GameState
   /** Whose tree. The window shows this one and no other. */
@@ -136,10 +135,14 @@ export interface UpgradeTreesProps {
   intro?: string | null
   /** One line of instruction over the board, while a scene has asked for something. */
   note?: string | null
-  onClose: () => void
 }
 
-export function UpgradeTrees({ open, state, hero, intro = null, note = null, onClose }: UpgradeTreesProps) {
+/**
+ * One person's tree [2026-10-13]. It used to open in a window of its own;
+ * now it lives inside the person's screen - a hero's card (`HeroCard.tsx`), the
+ * founder's panel (`Founder.tsx`) - so both draw the same board and inspector.
+ */
+export function TreePane({ open, state, hero, intro = null, note = null }: TreePaneProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [showKey, setShowKey] = useState(false)
   const [openedOn, setOpenedOn] = useState<TreeHero | null>(null)
@@ -175,16 +178,7 @@ export function UpgradeTrees({ open, state, hero, intro = null, note = null, onC
   }, [hero, state])
 
   return (
-    <OsWindow
-      open={open}
-      from="centre"
-      modal
-      title={hero === 'you' ? 'UPGRADES // YOU' : `UPGRADES // ${def.name.toUpperCase()}`}
-      meta={<span className="trees__cash">{formatMoney(state.cash)}</span>}
-      onClose={onClose}
-      className="trees-frame"
-      bodyClassName="trees"
-    >
+    <div className="trees-pane">
       <div className="trees__stage">
         <header className="trees__who">
           <h3 className="trees__name">
@@ -219,7 +213,7 @@ export function UpgradeTrees({ open, state, hero, intro = null, note = null, onC
           setShowKey(false)
         }}
       />
-    </OsWindow>
+    </div>
   )
 }
 
@@ -294,7 +288,7 @@ function Board({ hero, state, selected, onSelect, onKey }: {
     const node = treeNode(hero, id)
     if (!host || !node || !size) return
     const board = host.getBoundingClientRect()
-    const sheet = host.closest('.trees')?.querySelector('.trees__inspector')?.getBoundingClientRect()
+    const sheet = host.closest('.trees-pane')?.querySelector('.trees__inspector')?.getBoundingClientRect()
     let right = board.width
     let bottom = board.height
     if (sheet && sheet.width > 0 && sheet.left > board.left + 1 && sheet.left < board.right) right = sheet.left - board.left

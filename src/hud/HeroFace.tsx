@@ -26,9 +26,9 @@ import { personPortrait } from '../three/render/portrait.ts'
  * (`three/render/portrait.ts`), and a hero the room sculpts (James, Billy,
  * Serena, Matt) gets their own head rather than the crowd's.
  */
-export function HeroFace({ look, id, className }: { look: Look; id?: string; className?: string }) {
+export function HeroFace({ look, id, className, shot = 'head' }: { look: Look; id?: string; className?: string; shot?: 'head' | 'figure' }) {
   const leader = LEADER_IDS.includes(id as LeaderId) ? (id as LeaderId) : undefined
-  const src = useMemo(() => personPortrait(look, leader, 'head'), [look, leader])
+  const src = useMemo(() => personPortrait(look, leader, shot), [look, leader, shot])
   return src
     ? <img className={className} src={src} alt="" aria-hidden="true" />
     : <span className={className} aria-hidden="true" />

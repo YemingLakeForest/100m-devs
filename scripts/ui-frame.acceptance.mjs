@@ -1031,32 +1031,20 @@ try {
     })
 
     /*
-     * §22.9's card, and the door on it to the person's tree [2026-09-26].
-     *
-     * The card is pinned to the right edge, over the CASH block, and its foot
-     * now carries the arrows that replaced the roster strip and the UPGRADES
-     * door that replaced the TREES button. `?full` has had its shift, so the
-     * door is there; the second screen is the tree it opens, over the card.
+     * §22.9's hero screen, with the person's tree beside the pass
+     * [2026-10-13]. It is full size, like the tree's window, and its foot
+     * carries the arrows that replaced the roster strip. `?full` has had its
+     * shift, so the tree is drawn: the gate waits for the board as well as the
+     * pass, because a screen whose tree has not laid out is the defect.
      */
     await check(page, {
-      name: "a hero's card",
+      name: "a hero's screen",
       width,
       height,
       path: '/?notitle&full&nopost',
       action: async (target) => {
         await clearScene(target)
         await openCard(target)
-      },
-    })
-    await check(page, {
-      name: "a hero's upgrades, from their card",
-      width,
-      height,
-      path: '/?notitle&full&nopost',
-      action: async (target) => {
-        await clearScene(target)
-        await openCard(target)
-        await target.locator('.herocard').getByRole('button', { name: 'UPGRADES', exact: true }).click()
         await target.locator('.trees__canvas').waitFor({ state: 'visible' })
       },
     })

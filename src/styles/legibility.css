@@ -31,8 +31,7 @@
 .hud .hud__sub,
 .hud .hud__build,
 .hud .hud__perf,
-.hud .backlog__note,
-.hud .touch__hint {
+.hud .backlog__note {
   color: var(--p2);
   text-shadow: 1px 1px 0 var(--n0), -1px 0 0 var(--n0);
 }

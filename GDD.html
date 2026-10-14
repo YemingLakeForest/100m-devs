@@ -3845,6 +3845,17 @@ stands. What changed is the answer: the affordance is built out of a control the
 see rather than out of durations they have to feel.</p>
 </blockquote>
 <h5 id="b-poke-grab-or-check-the-mode-is-on-the-hud-canon-added-2026-08-10-r27">7.7.6b Poke, grab or check — the mode is on the HUD <strong>[CANON - added 2026-08-10]</strong> - R27</h5>
+<blockquote>
+<p><strong>[amended 2026-10-13] The touch switch is gone, and this section's mode with it.</strong> The instruction
+was to remove the <em>move / info / code</em> section as useless. There are no latches and no caption: a tap is
+always a poke (§4.5), and the one thing INFO was for — reading a hero's card — is now what a tap on a hero
+does. <strong>James is the exception</strong>, because a tap on James is code (§8.2) and the card he used to open
+from INFO is reached from <code>TEAM</code> and the card's arrows. The room has no carry (the 3D garage has no
+wanderers to pick up), so DRAG had nothing left to arm. The founder's panel, which the INFO tap on the player's
+own avatar used to open, is a <code>YOU</code> button on the right rail once the trees are open. What follows is
+kept as the record of why the mode existed — a player who could not tell which verb the finger had — and of
+what to ask before bringing a mode back: <em>what does the finger do that it could not do unprompted?</em></p>
+</blockquote>
 <p>Section 7.7.6a built the distinction out of <strong>time</strong>, and it was reported from a phone in one
 sentence: <em>&quot;hard to control how to poke or grab or look at person.&quot;</em></p>
 <p><strong>The thresholds were not the problem.</strong> 380 ms is a reasonable hold and 10 px is a reasonable
@@ -16702,18 +16713,31 @@ promise a mechanic that the fold does not execute.</p>
 <ul>
 <li><strong>The card is the hero screen.</strong> There is no other one. Tapping a hero in the world (§7.8.8's
 turn), tapping their badge on a unit, or tapping their desk in the suite all open this, and
-§13.9's tree opens <em>from</em> it. §13.6.7's forbidden management screen stays forbidden.</li>
+§13.9's tree is <em>on</em> it [amended 2026-10-13]. §13.6.7's forbidden management screen stays forbidden.</li>
 <li><strong>The gem is a tier, never a roll.</strong> §22.4's rarity is earned — promotions, levels, milestones
 — and MONETISATION's no-loot-box position means the gem must never be the most interesting
-thing on the card. It is in the footer for that reason.</li>
+thing on the card. It sits by the employee number, the smallest thing on the pass, for that reason
+[amended 2026-10-13: the footer it used to sit in is gone with the scroll].</li>
 <li><strong>The title string only grows.</strong> §21.7.4's <code>GLOBAL HEAD OF HIS DESK</code> renders in the role slot
 and every promotion extends it. When it no longer fits, <strong>it wraps and the card gets taller</strong> —
 it is never truncated, because a title that outgrows its own card is the entire joke.</li>
-<li><strong>It renders at phone width.</strong> §23.4.2's smallest frame is 748×336 and the card is portrait,
-so at that size it is a §10.5 sheet that scrolls internally. <strong>It never scales down to fit</strong> —
-a card too small to read is a card nobody opens twice. <strong>The buttons do not scroll with it</strong>:
-the title is meant to make this card taller over a career, and a card that grows is a card
-whose primary action walks off the bottom of a 336 px frame.</li>
+<li><strong>It renders at phone width, and it does not scroll. [amended 2026-10-13]</strong> This rule said that at
+§23.4.2's 748×336 the card <em>scrolls internally</em> and <em>never scales down to fit</em>. The user's
+instruction was <em>"Dont allow any scrolls"</em>, so it is reversed: the hero screen scrolls nowhere. The
+figure is the one flexible box and scales to the height the frame has; on short frames the flavour
+line goes first and then the trait's sentence (its name stays), so what is lost is prose and never the
+person, the numbers or the tree. The argument for the old rule — a card too small to read is a card nobody
+opens twice — still holds, which is why the text is <em>dropped</em> rather than shrunk. The title still
+wraps and never truncates (§21.7.4); a title long enough to push the pass past a 336 px frame is a
+problem to solve with a layout, not with a scroll bar.</li>
+<li><strong>The screen is full size, with the tree on it. [CANON - added 2026-10-13]</strong> <em>"I want heroes screen
+redesigned, it should be full size and have the upgrade tree should be there too ... hero avatar should be
+there."</em> It was a 31 em drawer with an UPGRADES button that raised a second window, so the person and what
+could be done for them were never on one screen. It is now one STUDIO_OS // PERSONNEL window the size of the
+tree's: across the top the pass lies on its side (§22.9.1's furniture kept) as a landscape badge: a square head-and-shoulders, the name, the live rows and the trait [amended 2026-10-13: <em>"the long avartar ugly"</em> — a full-length figure in a tall column left a 90 px person in a 400 px box and squeezed a wide, short tree], under it
+that hero's tree — the same board and inspector as §8's, drawn by the same component. The founder's own tree
+still opens in its own window, from <code>YOU</code> on the rail (below). A hero with no tree, or before the
+first Paradigm Shift, gets a line saying so in the tree's place.</li>
 <li><strong>No animation on open beyond §10.5's transition.</strong> A card that flips, shines or deals itself
 is a mobile-game tell, and §10.6 already forbids it in another form.</li>
 </ul>

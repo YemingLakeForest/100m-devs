@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // The Capacitor native-audio plugin cannot initialise under jsdom — see the
 // same mock in Hud.test.tsx.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
-import { UpgradeTrees } from './UpgradeTrees.tsx'
+import { TreePane } from './UpgradeTrees.tsx'
 import { __resetStore, __setState, buyTreeNode, effectiveDevCap, getState, pipelineRank, treeLevelOf, treePriceOf } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import type { TreeHero } from '../sim/upgradeTrees.ts'
@@ -37,14 +37,13 @@ afterEach(() => {
 })
 
 function draw(hero: TreeHero) {
-  return render(<UpgradeTrees open state={getState()} hero={hero} onClose={() => {}} />)
+  return render(<TreePane open state={getState()} hero={hero} />)
 }
 
 describe('§8 — one person’s tree', () => {
   it('shows the tree its door names, and nobody else’s', () => {
     draw('serena')
     expect(document.querySelector('.trees__name')?.textContent).toContain('Serena')
-    expect(document.querySelector('.os-window__title')?.textContent).toBe('UPGRADES // SERENA')
     // *"I don't want the heroes tray"* — no row of heads to switch trees with.
     expect(document.querySelector('.trees__heads')).toBeNull()
     for (const who of ['You', 'James', 'Billy', 'Matt']) {
@@ -95,7 +94,7 @@ describe('§8 — one person’s tree', () => {
     // Left of the founder's root is Post on a Forum, which changes nothing yet.
     fireEvent.keyDown(document.querySelector('.trees__canvas')!, { key: 'ArrowLeft' })
     expect(document.querySelector('.trees__inspector')?.textContent).toContain('NOT IN THE GAME YET')
-    rerender(<UpgradeTrees open state={getState()} hero="serena" onClose={() => {}} />)
+    rerender(<TreePane open state={getState()} hero="serena" />)
     fireEvent.keyDown(document.querySelector('.trees__canvas')!, { key: 'ArrowRight' })
     expect(document.querySelector('.trees__title')).toBeTruthy()
     expect(document.querySelector('.trees__inspector')?.textContent).not.toContain('NOT IN THE GAME YET')

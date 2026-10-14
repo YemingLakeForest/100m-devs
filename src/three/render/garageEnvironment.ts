@@ -6,7 +6,7 @@
 import * as T from 'three'
 import { OS, OS_HORIZON, OS_NIGHT } from '../art/skin.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
-import { batchArt, box, cylinder, hedge, INK, placeInstances, planter, sharedMaterial, showSeatInstances, slab, tree, wallRuns, type Plan, type PropInstances, type WallRun } from './worldArt.ts'
+import { batchArt, box, cylinder, hedge, INK, placeInstances, planter, SHELL, sharedMaterial, showSeatInstances, slab, tree, wallRuns, type Plan, type PropInstances, type WallRun } from './worldArt.ts'
 import { projectBoard } from './projectPlate.ts'
 import { garageNeighborhood } from './garageNeighborhood.ts'
 import { garageBackyard } from './garageBackyard.ts'
@@ -247,11 +247,11 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   if (OS_NIGHT) horizon.material = sharedMaterial('os:horizon', () => new T.MeshBasicMaterial({ color: OS_HORIZON }))
   // §7.8.12 [2026-10-07]: the shared sky/key/fill rig lights the entire room.
   // Visible diffusers and sconces remain art, so arrivals cannot change a face's illumination.
-  box(g, 1.5, -0.48, 1.1, 33, 0.16, 25, '#d3d1c5')
+  box(g, 1.5, -0.48, 1.1, 33, 0.16, 25, SHELL.apron)
   if (!cityGrid) street(g)
   for (let x = -12; x <= 12; x += 1.2) box(g, x, -0.315, 10, 0.012, 0.005, 4.5, '#bcbeb6', false)
   for (let z = 8; z <= 12.2; z += 1.2) box(g, 0, -0.315, z, 24, 0.005, 0.012, '#bcbeb6', false)
-  slab(g, GARAGE_OUTLINE, -0.3, 0.3, '#aab9ba')
+  slab(g, GARAGE_OUTLINE, -0.3, 0.3, SHELL.floor)
   /*
    * [2026-10-04] **The far wall is one straight run, at z = −9.8.** It stepped back 3.3 m at x = 1.5 over the
    * right-hand 42% of the frontage, to an annex that held a developer pod and the kitchen; the step went when
@@ -285,8 +285,8 @@ export function buildGarageEnvironment(count: number, cast: StudioCast, scenery:
   const edge = (a: Plan, b: Plan, h: number, joints: Joints, glazed = false, meets: Meets = { start: false, end: false }) => {
     // Every run that reaches the eave wears the same coping, the north wall's (.12 × .35); a low one wears the lighter.
     const tall = h >= WALL
-    solid.push({ a, b, y: 0, h, t: .24, colour: INK.wall, ...joints })
-    solid.push({ a, b, y: h, h: tall ? .12 : .07, t: tall ? .35 : .33, colour: INK.trim, ...joints })
+    solid.push({ a, b, y: 0, h, t: .24, colour: SHELL.wall, ...joints })
+    solid.push({ a, b, y: h, h: tall ? .12 : .07, t: tall ? .35 : .33, colour: SHELL.trim, ...joints })
     if (!glazed) return
     // A full-height storefront encloses the studio without an opaque wall
     // between the camera and its people. The court remains open to the sky.

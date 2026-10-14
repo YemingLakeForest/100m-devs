@@ -52,7 +52,6 @@ import {
   poke,
   pokeFounder,
   pokeJames,
-  selectDeveloper,
   setCameraRung,
   setZoom,
   tick,
@@ -71,7 +70,6 @@ import { coverFor } from '../three/sim/cover.ts'
 import { jamesPresent } from '../sim/james.ts'
 import { isAway } from '../sim/slackOff.ts'
 import { createPokeCanvas } from './pokeText.ts'
-import { tapVerb } from '../game/touchMode.ts'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from '../dev/debugAccess.ts'
 import { getViewModes, onViewModes } from '../dev/viewModes.ts'
 import { getSimSpeed } from '../dev/simSpeed.ts'
@@ -135,8 +133,6 @@ export interface StageHandle {
   cueJames(): void
   /** Code at your own desk with the standard numeral/snippet feedback. */
   codeFounder(): number
-  /** React hook for opening the founder profile when the world avatar is tapped. */
-  setFounderInspect(handler: (() => void) | null): void
   /** React hook for opening a hero's pass from their body in the room. */
   setHeroInspect(handler: ((id: HeroId) => void) | null): void
   /** Replace the default figure once first-start setup has been submitted. */
@@ -373,7 +369,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const frames = new FrameSampler()
   let critPunch = 0
 
-  let founderInspect: (() => void) | null = null
   let heroInspect: ((id: HeroId) => void) | null = null
 
   /** Where the lens is on the room's three stops, continuously. */
@@ -395,36 +390,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     return paid
   }
 
-  /**
-   * §7.8.8 — the neutral latch's tap: who is this? The founder opens their
-   * profile, James his pass, anybody else becomes the selected developer, and
-   * empty floor deselects — the only way out that does not need a close button
-   * within reach of a thumb.
-   */
-  const doSelect = (who: number | null) => {
-    const hero = who === null ? undefined : HERO_AT_SEAT.get(who)
-    if (hero) {
-      selectDeveloper(null)
-      playUi('click')
-      heroInspect?.(hero)
-      return
-    }
-    if (who === JAMES_SEAT) {
-      selectDeveloper(null)
-      playUi('click')
-      heroInspect?.('james')
-      return
-    }
-    if (who === FOUNDER_SEAT) {
-      selectDeveloper(null)
-      playUi('click')
-      founderInspect?.()
-      return
-    }
-    selectDeveloper(who === null || who < 0 ? null : who)
-    playUi(who === null || who < 0 ? 'close' : 'whoosh')
-  }
-
   const doPoke = (x: number, y: number, t0: number) => {
     const who = pickAt(x, y)
     // James is tappable in the room: a poke on him is code (2026-09-26).
@@ -436,11 +401,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       else playSfx('poke-void')
       return
     }
-    // The three heroes are not coders: a tap on them is a hop and a click, and the
-    // INFO latch is how you read their card.
-    if (who !== null && HERO_AT_SEAT.has(who)) {
-      garage.hop(who)
+    // The heroes are not coders: a tap on one is a hop, a click and their card
+    // [2026-10-13 — the INFO latch it used to hide behind is gone].
+    const hero = who === null ? undefined : HERO_AT_SEAT.get(who)
+    if (hero) {
+      garage.hop(who!)
       playUi('click')
+      heroInspect?.(hero)
       return
     }
     // The selected tool means the same thing on every person: CODE on the
@@ -549,18 +516,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     // travelled was the camera; one that stayed put meant the latched verb.
     if (travelled || ev.type !== 'pointerup') return
     if (atlasZoom !== null) { const at = toCanvas(ev.clientX, ev.clientY); atlas.tap(at.x, at.y); return }
-    switch (tapVerb(getState().touchMode, true)) {
-      case 'inspect':
-        doSelect(pickAt(ev.clientX, ev.clientY))
-        break
-      case 'grab':
-        // §7.8.9's carry was drawn by the Pixi room's hands, and the 3D room
-        // has no wanderers to carry yet; a release in DRAG does nothing rather
-        // than reaching past what the latch says.
-        break
-      default:
-        doPoke(ev.clientX, ev.clientY, t)
-    }
+    doPoke(ev.clientX, ev.clientY, t)
   }
 
   // Desktop convenience — the dolly needs to be drivable without a
@@ -889,9 +845,6 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     },
     codeFounder() {
       return codeAtFounderDesk({ sound: true })
-    },
-    setFounderInspect(handler) {
-      founderInspect = handler
     },
     setHeroInspect(handler) {
       heroInspect = handler

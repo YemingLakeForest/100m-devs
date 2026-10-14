@@ -44,15 +44,15 @@ afterEach(() => {
 })
 
 describe('James hands over Instant Messenger', () => {
-  it('opens his tree on it, over his card, on his final tap', () => {
+  it('opens his tree on it, on his own screen, on his final tap', () => {
     const { container } = render(<Hud stage={null} />)
     fireEvent.click(screen.getByRole('button', { name: 'FINISH JAMES SCENE' }))
 
     const titles = [...container.querySelectorAll('.os-window__title')].map((t) => t.textContent)
-    expect(titles).toContain('UPGRADES // JAMES')
+    // His tree is on his own screen now, not in a second window over it.
+    expect(titles).toEqual(['PERSONNEL'])
     expect(container.querySelector('.trees__title')?.textContent).toBe('Instant Messenger')
     expect(container.querySelector('.trees__effect')?.textContent).toContain('Communication load −5%')
-    // Closing the tree hands the player back to the person it belongs to.
     expect(getState().selectedHero).toBe('james')
   })
 

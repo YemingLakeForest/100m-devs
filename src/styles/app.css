@@ -431,7 +431,7 @@ body {
  * on that rule calls it load-bearing, because the renderer listens on the canvas
  * underneath and anything here that takes pointers without needing them puts a
  * dead patch on the simulation. The opt-in was written on the *containers*:
- * `.hud__nav` has it, `.touch` has it, `.game-menu` has it. These two buttons are
+ * `.hud__nav` has it, `.game-menu` has it. These two buttons are
  * direct children of `.hud__controls`, which has no reason to want pointers and
  * therefore never opted in — so the canvas sat on top of both of them.
  *
@@ -1013,8 +1013,7 @@ body {
 /* --- the Paradigm Tree — GDD §13.2, §15.1 ------------------------------ */
 
 /*
- * CODE — MENU's twin at the foot of the right rail, and the touch switch above
- * it the way Velocity is above MENU. One column, right-aligned, taking a full
+ * CODE — MENU's twin at the foot of the right rail. One column, right-aligned, taking a full
  * row of the wrapping control row so nothing can sit beside it.
  */
 .hud__act {
@@ -1596,108 +1595,6 @@ body {
   white-space: pre-wrap;
 }
 
-/* --- the touch switch, GDD §7.7.6b ------------------------------------- */
-
-/*
- * Two latches and a caption, at the foot of the right rail.
- *
- * **One backed block, not three floating things.** The first cut let the
- * caption sit as bare phosphor over the room and it was E10's complaint
- * verbatim — `--p1` ink on a lit isometric floor is unreadable in exactly the
- * frames where somebody is looking for it, which is while they are wondering
- * why their last tap did nothing. So the whole control takes the §7.1 readout
- * treatment it should have had: the 58% wash, the rail's rule, and the caption
- * *inside* it rather than trailing off the bottom into the §23.3 overlay.
- *
- * Sized to its content and right-aligned with everything else in the rail. It
- * is allowed to be narrower than `--hud-rail` — unlike a readout, whose width
- * is what keeps the column from breathing, this is a control, and one wider
- * than its labels is a bigger tap target carrying no information.
- */
-.touch {
-  pointer-events: auto;
-  display: grid;
-  justify-items: end;
-  gap: 3px;
-  padding: 4px 6px 4px 7px;
-  border-left: var(--rule) solid var(--p1);
-  background: color-mix(in srgb, var(--n0) 58%, transparent);
-}
-
-.touch__latches {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(42px, 1fr));
-  gap: 3px;
-}
-
-/*
- * A latch is a readout that can be pressed, not a §10.8 F2 slab.
- *
- * The unlit state is the rail's own idiom — phosphor ink, a 1px rule, nothing
- * filled — so an untouched control reads as part of the frame rather than as a
- * button demanding attention. The lit state **inverts**: solid phosphor, dark
- * ink. Inversion rather than a brighter fill because this has to be readable at
- * a glance from across a landscape frame while the thumb is somewhere else, and
- * two values of one hue is what the burn-down and the §4.10e bands already
- * spend everywhere else in this rail.
- */
-.touch__latch {
-  appearance: none;
-  margin: 0;
-  display: grid;
-  grid-template-columns: auto auto;
-  place-content: center;
-  align-items: center;
-  gap: 4px;
-  min-height: 34px;
-  padding: 3px 6px 4px;
-  font: inherit;
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-  color: var(--p1);
-  background: transparent;
-  border: var(--rule) solid var(--p1);
-  cursor: pointer;
-  /* §10.6 — the axis-aligned rounded rectangle is the most web-page-looking
-     object available. Corners stay hard. */
-  border-radius: 0;
-  /* ART_DIRECTION §1 — the change is a colour swap on a hard edge, and the
-     `--ui-in` scale is what reduce-motion already shortens. */
-  transition: background-color var(--ui-in, 90ms) linear, color var(--ui-in, 90ms) linear;
-}
-
-.touch__icon {
-  display: inline-grid;
-  place-items: center;
-  min-width: 14px;
-  color: var(--p2);
-  font-size: 9px;
-  line-height: 1;
-}
-
-.touch__latch.is-lit .touch__icon {
-  color: var(--n0);
-}
-
-.touch__latch.is-lit {
-  color: var(--n0);
-  background: var(--p3);
-  border-color: var(--p3);
-}
-
-/*
- * The caption, and the reason the neutral mode is not a dead control.
- *
- * A step down the ramp from the latches, the same way §21's terminal banner
- * sits below its advisor: it is a consequence of the choice above it rather
- * than a second choice.
- */
-.touch__hint {
-  font-size: var(--type-1x);
-  letter-spacing: 1px;
-  color: var(--p2);
-  white-space: nowrap;
-}
 
 /* --- performance overlay, GDD §23.3 ------------------------------------ */
 
@@ -1988,35 +1885,14 @@ body {
     display: none;
   }
 
-  /*
-   * §7.7.6b's switch gives up its caption on the shortest frames.
-   *
-   * The hand-placed two-column arrangement that used to live here is gone — see
-   * the note on `.hud__controls`, which now wraps and therefore needs no
-   * placement at any size. What survives is the *content* decision that block
-   * made, and it was the right one: on the smallest phone the game supports the
-   * latches still name both modes, so all that goes is the sentence explaining
-   * the neutral one.
-   */
-  .touch {
-    gap: 6px;
-    padding: 0 6px 0 7px;
-  }
-
-  /* The CODE row and the switch over it are the tallest thing in the rail at
-     336 px: measured there, the bottom group ran nine pixels past the frame
-     with the slab's own three on top. The gaps go first — the buttons keep one
-     height with MENU, which is the point of the row. */
+  /* The CODE row is the tallest thing in the rail at 336 px; the gaps go
+     first — the buttons keep one height with MENU, which is the point of the row. */
   .hud__act {
     gap: 3px;
   }
 
   .hud__act-row {
     margin-top: 0;
-  }
-
-  .touch__hint {
-    display: none;
   }
 
   /*
@@ -2033,15 +1909,6 @@ body {
    */
   .hud__controls .ui-btn__bracket {
     display: none;
-  }
-
-  .touch__latch {
-    min-height: 29px;
-    padding: 2px 4px 3px;
-  }
-
-  .touch__latch > span:last-child {
-    font-size: 8px;
   }
 
   /*

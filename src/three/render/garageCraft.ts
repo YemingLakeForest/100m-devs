@@ -7,7 +7,7 @@
 import * as T from 'three'
 import { OS_SKIN } from '../art/skin.ts'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { box, cylinder, INK, line, sharedMaterial, sphere, worktable } from './worldArt.ts'
+import { box, cylinder, INK, line, SHELL, sharedMaterial, sphere, worktable } from './worldArt.ts'
 import { studioFloorContains } from '../sim/floorPlan.ts'
 
 const finishes = new Map<string, T.MeshStandardMaterial>()
@@ -61,7 +61,7 @@ export function finishGarage(root: T.Group): void {
     const colour = `#${node.material.color.getHexString()}`
     const wood = [INK.wood, INK.woodEdge, '#c39760', '#b7a37a'].includes(colour)
     const cloth = ['#3c6591', '#345b86', '#829caa', '#a8c2ba', '#576568', '#393f3d'].includes(colour)
-    const stone = [INK.wall, INK.trim, '#e8e2d4', '#d3d1c5'].includes(colour)
+    const stone = [INK.wall, INK.trim, SHELL.wall, SHELL.trim, SHELL.floor, SHELL.floorB, SHELL.floorC, SHELL.apron, '#e8e2d4', '#d3d1c5'].includes(colour)
     if (wood || cloth || stone) node.material = finish(colour, wood ? 'wood' : cloth ? 'cloth' : 'stone')
     let actor = false
     for (let p = node.parent; p && p !== root; p = p.parent) if (p.userData.identity) actor = true
@@ -365,7 +365,7 @@ export function garageSurfaceDetails(g: T.Group): void {
   for (let z = -10.5, row = 0; z < 12; z += 1, row++) {
     for (let x = -12.5, col = 0; x < 16; x += 1, col++) {
       if (![[x - .5, z - .5], [x + .5, z - .5], [x + .5, z + .5], [x - .5, z + .5]].every(([px, pz]) => studioFloorContains(px, pz))) continue
-      box(g, x, .004, z, .996, .008, .996, ['#aab9ba', '#adbbbb', '#acbaba'][(col + row * 2) % 3], false)
+      box(g, x, .004, z, .996, .008, .996, [SHELL.floor, SHELL.floorB, SHELL.floorC][(col + row * 2) % 3], false)
     }
   }
   // Masonry joints belong to solid wall portions, not windows or doors: here, the kitchen's wall.

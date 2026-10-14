@@ -20,8 +20,7 @@
  * still tap poked, a still finger past 380 ms picked somebody up or opened
  * their card — and §7.7.6b replaced the timing half with a mode the player sets
  * on the HUD, because the timing half was reported from a phone as
- * uncontrollable. What a still finger *means* is now `game/touchMode.ts`'s
- * question. All that is left here is whether it stayed still, which is the one
+ * uncontrollable. A still finger is a poke (the card for a hero). All that is left here is whether it stayed still, which is the one
  * distinction the camera has always needed and the only one that never had a
  * threshold a player could miss.
  *

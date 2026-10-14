@@ -45,10 +45,8 @@ import { RevenueGraph } from './RevenueGraph.tsx'
 import { ReleaseReview } from './ReleaseReview.tsx'
 import { ReleaseRing } from './ReleaseRing.tsx'
 import { PipelineStrip } from './PipelineStrip.tsx'
-import { UpgradeTrees } from './UpgradeTrees.tsx'
 import { TREE_HEROES, type TreeHero } from '../sim/upgradeTrees.ts'
 import { pipelineAdvice } from './pipelineModel.ts'
-import { TouchSwitch } from './TouchSwitch.tsx'
 import { FounderDesk, FounderProfilePanel } from './Founder.tsx'
 import { DevCard } from './DevCard.tsx'
 import { HeroCard } from './HeroCard.tsx'
@@ -165,7 +163,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const reduced = useReducedMotion()
   // §13.2's tree and §11's tree are two doors, and they now hang off one bar.
   const [treeOpen, setTreeOpen] = useState(false)
-  const [founderOpen, setFounderOpen] = useState(false)
+  const [founderOpen, setFounderOpen] = useState(PREVIEW_TREES === 'you')
   const [gameMenuOpen, setGameMenuOpen] = useState(false)
   // The keys the current scene line is pointing at (`DialogueLine.light`). Only
   // read while a scene is up, so a scene that ends cannot leave one glowing.
@@ -173,10 +171,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [galleryOpen, setGalleryOpen] = useState(false)
   // §10.7 [2026-10-03] — the build queue, opened from the rail's gauge.
   const [queueOpen, setQueueOpen] = useState(false)
-  // §8 — a person's upgrade tree, opened from their card (the founder's from
-  // their panel). One tree at a time: `treesHero` is whose.
-  const [treesOpen, setTreesOpen] = useState(PREVIEW_TREES !== null)
-  const [treesHero, setTreesHero] = useState<TreeHero>(PREVIEW_TREES ?? 'you')
+  // §8 — a person's upgrade tree lives on their own screen: a hero's card, the
+  // founder's panel [2026-10-13]. There is no separate tree window any more.
   // The node the tree opens on, and whether THE THREAD sent the player there
   // (§18.0a) — James's one line then stands over the board until a purchase.
   const [treesIntro, setTreesIntro] = useState<string | null>(null)
@@ -217,7 +213,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setWasTalking(talking)
     if (talking) {
       setTreeOpen(false)
-      setTreesOpen(false)
       setFounderOpen(false)
       setGameMenuOpen(false)
       setGalleryOpen(false)
@@ -277,33 +272,33 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   }
 
   /**
-   * §8 — one person's tree, over their card (the founder's panel for yours), so
-   * closing it hands the player back to that person.
+   * §8 — one person's tree. A hero's is on their own screen [2026-10-13], beside
+   * their pass; the founder's is on their panel the same way.
    */
   const openTree = (hero: TreeHero, intro: string | null = null) => {
     setTreeOpen(false)
     setGameMenuOpen(false)
     setGalleryOpen(false)
+    setTreesIntro(intro)
+    setThreadGuide(false)
     if (hero === 'you') {
       setFounderOpen(true)
     } else {
       setFounderOpen(false)
       selectHero(hero)
     }
-    setTreesHero(hero)
-    setTreesIntro(intro)
-    setThreadGuide(false)
-    setTreesOpen(true)
   }
 
   // One window at a time: the queue stands down when anything else is raised.
-  if (queueOpen && (galleryOpen || treeOpen || founderOpen || gameMenuOpen || treesOpen)) setQueueOpen(false)
+  if (queueOpen && (galleryOpen || treeOpen || founderOpen || gameMenuOpen)) setQueueOpen(false)
 
   // THE THREAD's guide stands down the moment the purchase has ended the event.
-  if (threadGuide && treesOpen && event === null) {
-    setThreadGuide(false)
-    setTreesOpen(false)
-  }
+  // (A hero's screen is closed by the effect below; it is a store write.)
+  const wasGuiding = useRef(false)
+  useEffect(() => {
+    if (wasGuiding.current && !threadGuide && event === null && state.selectedHero !== null) selectHero(null)
+    wasGuiding.current = threadGuide
+  }, [threadGuide, event, state.selectedHero])
 
   /**
    * §21.7.7e — finish the character beat by putting the instrument they just
@@ -346,7 +341,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setGameMenuOpen(false)
     setGalleryOpen(false)
     setQueueOpen(false)
-    setTreesOpen(false)
+    setTreesIntro(null)
     selectHero(id)
   }
 
@@ -378,16 +373,11 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
 
   useEffect(() => {
     if (!stage) return
-    stage.setFounderInspect(() => {
-      setTreeOpen(false)
-      setFounderOpen(true)
-    })
     stage.setHeroInspect((id) => openCardRef.current(id))
     // The sign over the Pixi suite's doorway raised the roster, and went with
     // the Pixi room on 2026-09-28; TEAM is the door, and the card's arrows walk
     // everybody who has arrived.
     return () => {
-      stage.setFounderInspect(null)
       stage.setHeroInspect(null)
     }
   }, [stage])
@@ -427,7 +417,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
                 setFounderOpen(false)
                 setGameMenuOpen(false)
                 setGalleryOpen(false)
-                setTreesOpen(false)
                 setQueueOpen(true)
               }}
             />
@@ -613,14 +602,31 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           */}
           {/*
             [2026-10-02] — **CODE at the foot of the right rail, in MENU's slab,
-            with GALLERY to its left and the touch switch above — the mirror of the left
-            rail, where MENU is the last thing and Velocity sits right over it.
-            The switch (code / move / info) is the reading of what CODE and the
-            finger will do, so it stays touching the button it qualifies; both
-            are pinned last so a new rail control grows upward, never under them.
+            with GALLERY to its left — the mirror of the left rail, where MENU is
+            the last thing. Pinned last so a new rail control grows upward, never
+            under it. [2026-10-13] The touch switch (TAP / DRAG / INFO) that sat
+            above is gone: a tap pokes, and a hero's tap opens their card.
           */}
           <div className="hud__act">
-            <TouchSwitch state={state} />
+            {/* The founder's panel — your own tree is behind it. It used to be
+                the INFO tap on your avatar; with the touch switch gone
+                [2026-10-13] it is a door of its own, and opens with the trees.
+                Its own row: three buttons do not fit the rail's width. */}
+            {unlocks.trees && (
+              <div className="hud__act-row">
+                <Button
+                  className="hud__gallery-door"
+                  onClick={() => {
+                    setTreeOpen(false)
+                    setGameMenuOpen(false)
+                    setGalleryOpen(false)
+                    setFounderOpen((was) => !was)
+                  }}
+                >
+                  YOU
+                </Button>
+              </div>
+            )}
             <div className="hud__act-row">
               {/* §10.11 — the gallery door, now left of CODE. Not gated on
                   anything but a record: it opens the moment there is something
@@ -664,13 +670,16 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       */}
       <HeroCard
         hero={openHero}
-        devs={state.devs}
-        canUpgrade={openHero !== null && unlocks.trees && treeOf(openHero.id) !== null}
+        state={state}
+        tree={openHero ? treeOf(openHero.id) : null}
+        treesOpen={unlocks.trees}
+        intro={treesIntro}
+        note={threadGuide ? 'JAMES // Pick any lit node. One purchase clears the thread; then you are back on the floor.' : null}
         place={{ at: openAt + 1, of: roster.length }}
-        onClose={() => selectHero(null)}
-        onUpgrades={() => {
-          const tree = openHero ? treeOf(openHero.id) : null
-          if (tree) openTree(tree)
+        onClose={() => {
+          setThreadGuide(false)
+          setTreesIntro(null)
+          selectHero(null)
         }}
         onStep={(by) => {
           if (roster.length === 0) return
@@ -758,24 +767,15 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       <FounderProfilePanel
         open={founderOpen && !talking}
         onClose={() => setFounderOpen(false)}
-        onUpgrades={unlocks.trees ? () => openTree('you') : undefined}
+        state={state}
+        treesOpen={unlocks.trees || PREVIEW_TREES !== null}
+        intro={treesIntro}
       />
       {/*
         §8 — one person's tree. After the card and the founder's panel in the
         document, so it stands over whichever of them opened it, and closing it
         hands the player back to that person.
       */}
-      <UpgradeTrees
-        open={treesOpen && !state.launching && !talking}
-        state={state}
-        hero={treesHero}
-        intro={treesIntro}
-        note={threadGuide ? 'JAMES // Pick any lit node. One purchase clears the thread; then you are back on the floor.' : null}
-        onClose={() => {
-          setThreadGuide(false)
-          setTreesOpen(false)
-        }}
-      />
       <GameMenu
         open={gameMenuOpen && !talking}
         onResume={() => setGameMenuOpen(false)}

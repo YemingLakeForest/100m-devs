@@ -115,10 +115,8 @@ await tap(page.getByRole('button', { name: 'TEAM', exact: true }), 'the TEAM anc
 await page.locator('.herocard__pass').waitFor()
 await page.waitForTimeout(700)
 await shot('hero-card')
-const upgrades = page.locator('.herocard').getByRole('button', { name: 'UPGRADES', exact: true })
-if (await upgrades.count()) {
-  await tap(upgrades, 'UPGRADES on the card')
-  await page.locator('.trees__canvas').waitFor()
+// The tree is on the hero's own screen now [2026-10-13].
+if (await page.locator('.herocard .trees__canvas').count()) {
   await page.waitForTimeout(700)
   await shot('hero-tree')
 }
@@ -138,36 +136,15 @@ await page.waitForTimeout(2500)
 await pumpScenes(page)
 await page.waitForTimeout(600)
 
-/*
- * §13.7.1a's known trade: §7.8.10's corner desk starts just above the frame at
- * the opening lens, so the founder cannot be tapped until the room is panned.
- * §7.7.6b's DRAG latch is what a player uses to do it, so it is what this uses
- * — the point of the shot is the screen, but the way in has to be the real one
- * or the shot is not evidence of anything.
- */
-await tap(page.locator('.touch__latch', { hasText: 'DRAG' }), 'the DRAG latch')
-await page.mouse.move(700, 300)
-await page.mouse.down()
-for (let i = 1; i <= 12; i += 1) {
-  await page.mouse.move(700, 300 + i * 25)
-  await page.waitForTimeout(30)
-}
-await page.mouse.up()
+// §13.7.1's screen opens from YOU on the rail [2026-10-13]: the touch switch and
+// the tap-the-founder door it belonged to are gone.
+await tap(page.getByRole('button', { name: 'YOU', exact: true }), 'the YOU door')
 await page.waitForTimeout(900)
-
-// §13.7.1's screen is opened by tapping the founder in the room, which is the
-// whole of §4.5d's placement rule — so the shot uses the same door.
-await tap(page.locator('.touch__latch', { hasText: 'INFO' }), 'the INFO latch')
-const at = await page.evaluate(() => globalThis.__founderAt?.() ?? null)
-if (at && at.y > 0) {
-  await page.mouse.click(at.x, at.y)
-  await page.waitForTimeout(900)
-}
 if (await page.locator('.founder-profile__tree').count()) {
   await page.waitForTimeout(400)
   await shot('founder-board')
 } else {
-  console.error('founder board did not open — the lens was not on the floor')
+  console.error('founder board did not open')
 }
 
 await browser.close()

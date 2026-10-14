@@ -4,7 +4,6 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import { exceedsSlop } from '../render/navigation.ts'
-import { tapVerb } from './touchMode.ts'
 import { DESK_LINES, deskLine } from './deskLines.ts'
 import { __resetStore, getState, selectDeveloper, selectedIdentity } from './store.ts'
 
@@ -13,16 +12,6 @@ beforeEach(() => {
 })
 
 describe('the gesture', () => {
-  it('is a mode rather than a duration — §7.7.6b', () => {
-    // Selection needed a gesture of its own because §8.2's poke is the primary
-    // verb and fires hundreds of times a session. That gesture used to be a
-    // *slow* tap, told apart from a poke by a 380 ms timer, and it was reported
-    // from a phone as impossible to control. It is now the neutral latch: the
-    // same tap, and the player has said in advance what it means.
-    expect(tapVerb('inspect', true)).toBe('inspect')
-    expect(tapVerb('poke', true)).toBe('poke')
-  })
-
   it('is still the camera if the finger moved', () => {
     // The one distinction left, and the only one that never had a threshold a
     // player could miss. Otherwise a pan that happens to end over somebody

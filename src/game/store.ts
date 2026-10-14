@@ -155,12 +155,6 @@ import { WORLD_CAP, worldsFor } from '../sim/starfield.ts'
 import { interstellarSync, meanLagLy } from '../sim/starbound.ts'
 import { SnippetBag } from './snippets.ts'
 import {
-  INITIAL_TOUCH_MODE,
-  toggleTouch,
-  type TouchLatch,
-  type TouchMode,
-} from './touchMode.ts'
-import {
   SCENE_JAMES_ARRIVES,
   SCENE_JAMES_SHIP,
   SCENE_JAMES_INSTANT_MESSENGER,
@@ -630,16 +624,6 @@ export interface GameState {
    */
   selected: number | null
   /**
-   * §7.7.6b — what a tap on the room means: poke, grab, or check.
-   *
-   * Ephemeral, and deliberately not saved. It is an input *mode*, and a mode
-   * restored from a previous session is a control the player did not set
-   * looking exactly like a game that has stopped responding — you tap a
-   * developer, no numeral appears, and nothing on screen explains why until you
-   * find the switch. Every session opens on {@link INITIAL_TOUCH_MODE}.
-   */
-  touchMode: TouchMode
-  /**
    * §10.10.2 — is the hire dial available?
    *
    * Gated on the Seed Round rather than on a headcount. A capability that
@@ -1013,7 +997,6 @@ function freshRun(): GameState {
     releases: [],
     seedTaken: false,
     selected: null,
-    touchMode: INITIAL_TOUCH_MODE,
     dialUnlocked: false,
     pendingOffline: null,
     scene: null,
@@ -3857,21 +3840,6 @@ export function selectedIdentity(s: GameState = state): Identity | null {
   return s.selected === null ? null : developerAt(s.runSeed, s.selected)
 }
 
-/**
- * §7.7.6b — press a latch on the touch switch.
- *
- * Leaving GRAB drops whoever is in the player's hand — the renderer owns the
- * carry and watches the mode for exactly this, because a developer stuck
- * mid-air because the mode changed under them is the §7.7.6a failure with a new
- * cause. Leaving `inspect` closes the card for the same reason: the panel is a
- * consequence of the mode, so it should not outlive it.
- */
-export function setTouchMode(latch: TouchLatch): void {
-  const next = toggleTouch(state.touchMode, latch)
-  if (next === state.touchMode) return
-  set({ touchMode: next, ...(next === 'inspect' ? {} : { selected: null }) })
-}
-
 /** §10.10 — set the dial. Pure selection; nothing is bought until HIRE. */
 export function setHireMultiplier(m: Multiplier): void {
   set({ hireMultiplier: m })
@@ -4231,10 +4199,8 @@ export function setZoom(zoom: ZoomLevel): void {
  *
  * `zoom` is §7.4's tier and cannot answer this: tier 2 covers rungs 2 and 3,
  * and those two are the difference between standing on a floor and looking at
- * the building it is in. The HUD needs to tell them apart because the caption
- * under the touch switch is a lie above the room — it says "TAP ANY PERSON"
- * where there are no people, and says nothing at all about the gesture that
- * gets you back down to them.
+ * the building it is in. The HUD needs to tell them apart because a tap means something different
+ * above the room, where there are no people to tap.
  *
  * Set by the renderer on the frame the rounded rung changes, so it is a store
  * write on a camera *stop* rather than sixty a second.
