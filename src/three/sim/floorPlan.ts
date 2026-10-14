@@ -181,7 +181,9 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
   // The mouth of the avenue between the two north pods, on the open floor: an octagon of rug 3.2 m across with a
   // rolling board on it facing the lens and a man on a dais facing it too (`BILLY_PLAZA`). The rectangle is the rug's
   // bounding square, which holds the board and the dais with a hand to spare.
-  billy: { wall: 'free', x0: 0.2, x1: 3.6, z0: -1.15, z1: 2.0, rise: GARAGE_HERO_DECK.rise },
+  // The deck's stem, edge to edge (x 1 to 4): the board is centred on it and Billy stands at its right-hand end, so the
+  // site is the whole width of the wood and not a rectangle that stops short of either edge [2026-10-14].
+  billy: { wall: 'free', x0: 1.0, x1: 4.0, z0: -1.15, z1: 2.0, rise: GARAGE_HERO_DECK.rise },
 }
 
 /**
@@ -252,16 +254,20 @@ export const LEADER_STATIONS = LEADER_IDS.map((id, i) => ({ id, seat: leaderSeat
  * - **James** (−9.0, −3.4), rot 90: on the deck, the desk running along the wall from z −4.8 to −2.0 and his Diet
  *   Coke cabinet at its south end to −1.37. (He was at (−8.4, −4.4), and before that at (−0.7, −4.5).)
  * - **Matt** (−1.6, −8.4) and **Serena** (4.4, −8.3), rot 0, at the middles of their sites.
- * - **Billy** (2.5, 0.09), rot 0 [2026-10-14, *"change Billy's facing to same as Matt and Serena ... facing front"*: he and his board were turned a quarter to the east pod, and now face the way theirs do; the board moved to his screen-left and the site grew west to hold it]; before that rot 45: on his dais at the east end of his board, with the lens in front of him. The
- *   assembly (board, feet and dais) is centred in the avenue to within a tenth: 1.1 m from the west pods' tables and
- *   1.2 m from the east ones, so there is a lane either side of it.
+ * - **Billy** (3.45, 0.09), rot 0 [2026-10-14, *"change Billy's facing to same as Matt and Serena ... facing front"*: he and his board were turned a quarter to the east pod, and now face the way theirs do; the board moved to his screen-left]; before that rot 45: on his dais at the east end of his board, with the lens in front of him.
+ *   **He stands at the right-hand end of the board, and the board is what is centred** [2026-10-14, *"the white board is off center to the
+ *   corridor wood floor"*]: the board's middle is on the deck stem's centre line (x 2.5, the stem running x 1 to 4), so it has 0.3 m of
+ *   wood either side. Billy was left on that line (x 2.5) when the board moved to his left, which put the board's middle 0.95 m west of it
+ *   and its west end 0.65 m over the deck's edge; he moved 0.95 m east with the plaza, and his dais ends 0.03 m inside the east edge.
+ *   The assembly (board, feet and dais) is still centred in the avenue to within a seventh of a metre: 2.3 m from the west pods'
+ *   tables and 2.0 m from the east ones, so there is a lane either side of it.
  */
 export const GARAGE_LEADERS = [
   { id: 'founder' as LeaderId, seat: leaderSeat('founder'), x: -7.65, z: -7.45, rot: 45 },
   { id: 'james' as LeaderId, seat: leaderSeat('james'), x: -9.0, z: -2.6, rot: 90 },
   { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -1.6, z: -8.4, rot: 0 },
   { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: 4.4, z: -8.3, rot: 0 },
-  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 2.5, z: .09, rot: 0 },
+  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 3.45, z: .09, rot: 0 },
 ]
 
 /**

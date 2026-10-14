@@ -143,6 +143,28 @@ describe('the hero quarter', () => {
     expect(centre.x - centre.z).toBeLessThan(s.x - s.z)
   })
 
+  it('stands the board in the middle of the deck’s corridor, with Billy on the same wood', () => {
+    // [2026-10-14, *"the white board is off center to the corridor wood floor"*] The deck's stem runs south to Billy and the
+    // board is the biggest thing standing on it. When the board moved to his screen-left (`board.x`) he stayed on the stem's
+    // centre line, so the board went 0.95 m off it and its west end hung over the deck's edge. The claim is the board's —
+    // on the stem, with the same wood either side — and Billy's dais has to stay on the wood too, or the fix would only
+    // move the overhang to him.
+    const s = leader('billy'), { board, dais } = BILLY_PLAZA
+    expect(s.rot).toBe(0) // the station's frame is the world's, so `board.x` is a world offset
+    const cx = s.x + board.x, cz = s.z + board.z
+    // The deck's two edges that run along the board: vertical edges of the outline whose z-span holds the board's centre.
+    const edges = GARAGE_HERO_DECK.outline.flatMap((p, i, all) => {
+      const q = all[(i + 1) % all.length]
+      return p[0] === q[0] && Math.min(p[1], q[1]) < cz && cz < Math.max(p[1], q[1]) ? [p[0]] : []
+    })
+    const west = Math.max(...edges.filter((x) => x < cx)), east = Math.min(...edges.filter((x) => x > cx))
+    expect(cx - board.w / 2, 'the board\'s west end is on the deck').toBeGreaterThan(west)
+    expect(cx + board.w / 2, 'the board\'s east end is on the deck').toBeLessThan(east)
+    expect(Math.abs(cx - (west + east) / 2), 'the board is off the corridor\'s centre line by').toBeLessThan(0.05)
+    expect(s.x - dais.apothem, 'his dais\'s west side is on the deck').toBeGreaterThan(west)
+    expect(s.x + dais.apothem, 'his dais\'s east side is on the deck').toBeLessThan(east)
+  })
+
   it('gives every hero a floor of their own, and the boss a corner of their own', () => {
     // The founder's podium, James's deck and the three sites: no two share a floor.
     const floors: [string, Rect][] = [
