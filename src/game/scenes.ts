@@ -104,7 +104,7 @@ export const SCENE_JAMES_ARRIVES: Scene = {
 }
 
 /**
- * §21.0f — **James explains SHIP!** [CANON - added 2026-10-03]
+ * §21.0f — **James explains SHIP!** [CANON - added 2026-10-03; amended 2026-10-15]
  *
  * The first time a build is waiting in the queue in Run 1, with James already
  * at his desk. Until now the only instruction was one advisor line on the rail
@@ -112,89 +112,54 @@ export const SCENE_JAMES_ARRIVES: Scene = {
  * stopped waiting for you to. The why is the mechanic: **nothing ships itself**,
  * and a full queue halts the floor.
  *
+ * **[amended 2026-10-15, at the user's instruction: *"James talks too much when
+ * first game built, make it simple to the point, yet funny"*]** It was twenty-one
+ * lines, a tour of four buttons with a speech on each, and the player was
+ * reading at the one moment they wanted to be pressing. It is ten now, and it
+ * keeps only what the player cannot work out alone: the queue holds three, a
+ * full queue stops the studio, and SHIP! is theirs. What went: the explanation of
+ * CODE (they have pressed it all game, so it gets one line and a joke), the
+ * no-build-no-test aside (the customers-test-it joke survives inside the SHIP!
+ * line), the fuel-gauge line (the gauge explains itself when clicked) and the
+ * management line.
+ *
  * He is §21.7.0's James — completely correct about every small thing, sincere,
  * and without a flicker of irony — and each key he names *lights* on the rail
  * for exactly the line that names it (`light`), so the player is shown which
  * button he means while he is saying it rather than being told to go and look.
- * The jokes are in what he thinks the keys are for. The facts are all true: CODE
- * is the one you press, a finished app goes straight into the queue (there is no
- * Build or Test, §10.7 [2026-10-04]), SHIP! is yours, and a full queue stops the
- * studio.
- *
- * Act I's word list holds: no tool, no protocol, nothing to buy. These are the
- * four buttons the player already has.
+ * The jokes are in how little he thinks each key needs. Act I's word list
+ * holds: no tool, no protocol, nothing to buy.
  */
 export const SCENE_JAMES_SHIP: Scene = {
   id: 'scene.act1.james-ship',
   script: [
     { speaker: OS, text: 'BUILD COMPLETE. ONE (1) APP IS WAITING IN THE QUEUE.' },
-    { speaker: PLAYER, text: 'It’s finished. So it just… goes out now?', focus: AT_YOU },
-    { speaker: JAMES, text: 'No. I’ve been meaning to explain the buttons. There are four.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'It’s finished. So it just… goes out?', focus: AT_YOU },
     {
       speaker: JAMES,
-      text: 'CODE. You press it. The app gets a little more finished. That is the entire button.',
-      focus: AT_JAMES,
-      light: ['code'],
-    },
-    { speaker: PLAYER, text: 'That’s the one I’ve been pressing.', focus: AT_YOU, light: ['code'] },
-    { speaker: JAMES, text: 'I know. I’ve been counting. It’s a good button.', focus: AT_JAMES, light: ['code'] },
-    {
-      speaker: JAMES,
-      text: 'When the app is finished it goes straight into the QUEUE, up there. No build step. No test step. We looked into them and they cost money.',
-      focus: AT_JAMES,
-      light: ['queue'],
-    },
-    { speaker: PLAYER, text: 'Nobody tests it?', focus: AT_YOU, light: ['queue'] },
-    {
-      speaker: JAMES,
-      text: 'The customers test it. It’s very efficient. They’re also very thorough.',
-      focus: AT_JAMES,
-      light: ['queue'],
-    },
-    {
-      speaker: JAMES,
-      text: 'And SHIP! With the exclamation mark. I didn’t want to be the one to take it out.',
-      focus: AT_JAMES,
-      light: ['ship'],
-    },
-    { speaker: PLAYER, text: 'What does it do?', focus: AT_YOU, light: ['ship'] },
-    {
-      speaker: JAMES,
-      text: 'It sends the app to customers, who give you money. It is the only button here with a point.',
-      focus: AT_JAMES,
-      light: ['ship'],
-    },
-    // The mechanic, and the reason the scene exists: it does not do itself.
-    { speaker: PLAYER, text: 'Why doesn’t it just ship on its own?', focus: AT_YOU, light: ['ship'] },
-    { speaker: JAMES, text: 'Then there would be nobody to blame.', focus: AT_JAMES, light: ['ship'] },
-    {
-      speaker: JAMES,
-      text: 'The QUEUE holds three. Not four. Three.',
+      text: 'No. It waits in the QUEUE. The QUEUE holds three.',
       focus: AT_JAMES,
       light: ['queue'],
     },
     { speaker: PLAYER, text: 'And when it’s full?', focus: AT_YOU, light: ['queue'] },
     {
       speaker: JAMES,
-      text: 'Nobody can code. The whole studio just stands there. I find it restful. You won’t.',
+      text: 'Nobody can code. The whole studio just stands there. I find it restful.',
       focus: AT_JAMES,
       light: ['queue'],
     },
-    // The mechanic §10.7 is built on, said plainly: two pressures, one job.
+    // The one line CODE gets. They have been pressing it since the first poke; the joke is that he has been keeping score.
+    { speaker: JAMES, text: 'CODE fills it. Good button. I’ve been counting.', focus: AT_JAMES, light: ['code'] },
     {
       speaker: JAMES,
-      text: 'The faster you code, the sooner it fills. Speed against room. That’s the whole job. I’d call it management, but I’ve been asked not to.',
+      text: 'SHIP! empties it. The app goes to customers, who test it and give you money.',
       focus: AT_JAMES,
-      light: ['queue'],
+      light: ['ship'],
     },
-    {
-      speaker: JAMES,
-      text: 'Click the queue and you can look inside. It tells you how long until it stops. Like a fuel gauge, for being stuck.',
-      focus: AT_JAMES,
-      light: ['queue'],
-    },
-    { speaker: JAMES, text: 'Press it when you’re ready. Or when you’re not. The customers can’t tell.', focus: AT_JAMES },
-    { speaker: OS, text: 'THE QUEUE WILL WAIT. THE QUEUE IS PATIENT. THE QUEUE HAS NOTHING ELSE ON.' },
+    // The mechanic, and the reason the scene exists: it does not do itself.
+    { speaker: PLAYER, text: 'Why doesn’t it ship itself?', focus: AT_YOU, light: ['ship'] },
+    { speaker: JAMES, text: 'Then there would be nobody to blame.', focus: AT_JAMES, light: ['ship'] },
+    { speaker: OS, text: 'THE QUEUE WILL WAIT. THE QUEUE HAS NOTHING ELSE ON.' },
   ],
 }
 

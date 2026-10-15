@@ -103,9 +103,10 @@ export function ReleaseReview({ state }: { state: GameState }) {
     if (!open) return
     // F3 — a state change this large makes a noise. [2026-10-12] It used to be the crit chime
     // and, at the score, `ui-whoosh`, a rising swoop the user called *"the siuuuu sound of game
-    // release… make something else that is fitting the vibe."* The release has its own sound
-    // now (`release-hit`: a stamp, then a bell arpeggio that climbs and stops) and nothing
-    // sweeps: a studio's operating system confirming a thing, not a firework.
+    // release… make something else that is fitting the vibe."* [2026-10-15] The replacement
+    // climbed too — a stamp, then a bell arpeggio that rose and rang — and the user: *"remove
+    // the siuuuu sound when apps released."* `release-hit` is the stamp alone now, and nothing in
+    // the release rises or sweeps: a studio's operating system confirming a thing, not a firework.
     playSfx('release-hit')
     const timers = [
       // §10.8 F3 — **the release is a cue, not a clink.** One noise for the

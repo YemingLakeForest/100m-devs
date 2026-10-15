@@ -79,6 +79,48 @@ describe('the stream (§8.2a)', () => {
     flow.dispose(); plain.flow.dispose()
   })
 
+  it('sends a routed lot’s work to the sink it is routed to, and counts the arrival there (2026-10-15)', () => {
+    // A house's workers fly to the studio's own sink: the lot keeps its place (for the ring a completion throws), the stream
+    // leaves for somewhere else, and what is announced is where it landed and under whose key.
+    const statue = new T.Vector3(-30, 2, 4)
+    const house = new T.Vector3(40, 1, 0)
+    const arrivals: { at: T.Vector3; key?: string }[] = []
+    const flow = createFlow(new T.Group(), (at, _value, key) => arrivals.push({ at: at.clone(), key }), counter())
+    const routed: FlowLot = { ...lot(20, house), route: { sink: statue, key: 'statue' } }
+    for (let t = 0; t < 8; t += 1 / 60) flow.update(1 / 60, 90, [routed], false)
+    expect(arrivals.length).toBeGreaterThan(20)
+    for (const a of arrivals) {
+      expect(a.at.distanceTo(statue)).toBeLessThan(1e-6)
+      expect(a.key).toBe('statue')
+    }
+    flow.dispose()
+  })
+
+  it('also lands a routed lot’s work at the statue under reduced motion, where there is no flight', () => {
+    const statue = new T.Vector3(-30, 2, 4)
+    const arrivals: T.Vector3[] = []
+    const flow = createFlow(new T.Group(), (at) => arrivals.push(at.clone()), counter())
+    const routed: FlowLot = { ...lot(20, new T.Vector3(40, 1, 0)), route: { sink: statue } }
+    for (let t = 0; t < 2; t += 1 / 60) flow.update(1 / 60, 90, [routed], true)
+    expect(arrivals.length).toBeGreaterThan(0)
+    for (const a of arrivals) expect(a.distanceTo(statue)).toBeLessThan(1e-6)
+    flow.dispose()
+  })
+
+  it('keeps a long haul in the air longer than a short hop, so a house across the street is a river and not a laser', () => {
+    const lands = (from: T.Vector3) => {
+      const times: number[] = []
+      let now = 0
+      const flow = createFlow(new T.Group(), () => times.push(now), () => 0.5)
+      const source: FlowLot = { sink: new T.Vector3(0, 1, 0), sources: [from] }
+      flow.update(0, 1, [source], false)
+      for (now = 0; now < 6 && times.length === 0; now += 1 / 60) flow.update(1 / 60, 1, [source], false)
+      flow.dispose()
+      return times[0]
+    }
+    expect(lands(new T.Vector3(90, 1.7, 0))).toBeGreaterThan(lands(new T.Vector3(8, 1.7, 0)))
+  })
+
   it('has nowhere to send work from nobody: no sources, no points', () => {
     const { flow, peak, arrived } = run(500, 5, [lot(0)])
     expect(peak).toBe(0)

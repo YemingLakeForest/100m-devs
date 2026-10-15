@@ -47,6 +47,10 @@ const MAX_SIZE = 1.8
 function blobSize(value: number): number {
   return Math.min(MAX_SIZE, SIZE * (1 + GROWTH * Math.log10(Math.max(1, value))))
 }
+/** A run longer than this many metres adds a second for every this many more, up to this many seconds: the street between a house and the garage. */
+const LONG_HAUL_FROM = 20
+const LONG_HAUL_PER_S = 60
+const LONG_HAUL_S = 1.5
 /** A stream's arc: its apex stands this fraction of the run above a straight line, and it bows this far to a side. */
 const ARC = 0.16
 const MIN_ARC = 0.8
@@ -102,6 +106,13 @@ export interface FlowLot {
   gauge?: boolean
   /** Where it leaves from — one per worker who sends to this sink, in world space. */
   sources: readonly T.Vector3[]
+  /**
+   * Where this lot's workers' points really fly, when it is not here: **a house sends its work to the studio's own sink**
+   * [2026-10-15, *"I want external office blobs flowing into our voxel figure"*]. The lot still stands where it does for the rings
+   * and sparks a completion throws at every open house; only the stream leaves for somewhere else, and it is the arrival at
+   * that other sink that is counted, so the statue's numeral is the sum of the whole studio.
+   */
+  route?: { sink: T.Vector3; key?: string }
 }
 
 /** The gauge: a dark slab the height of the whole game, and the fill that rises in it. */
@@ -210,9 +221,13 @@ export function createFlow(
     let lot = lots[0]
     for (const l of lots) { lot = l; if ((pick -= l.sources.length) < 0) break }
     if (lot.sources.length === 0) return
-    if (reduced) { onArrive?.(lot.sink, value, lot.key); return }
+    const to = lot.route ?? lot
+    if (reduced) { onArrive?.(to.sink, value, to.key); return }
     const from = lot.sources[Math.min(lot.sources.length - 1, Math.floor(random() * lot.sources.length))]
-    stream(from, lot.sink, value, blobSize(value), age, FLIGHT_S, lot.key)
+    // A long haul is in the air a little longer: a house across the street is a river, not a laser, and the arc (a fraction of
+    // the run) is already proportionate.
+    const flight = FLIGHT_S + Math.min(LONG_HAUL_S, Math.max(0, Math.hypot(to.sink.x - from.x, to.sink.z - from.z) - LONG_HAUL_FROM) / LONG_HAUL_PER_S)
+    stream(from, to.sink, value, blobSize(value), age, flight, to.key)
   }
 
   /** Where a lot's gauge stands, on its floor: toward its workers from the sink, or where the lot says. */

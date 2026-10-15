@@ -14,10 +14,13 @@
  *    have sound effects too"*): a low thump for the weight, then a rising C-E-G arpeggio of the
  *    same marimba, and a bell on top for the last note to hang on.
  *  - `release-hit` — a release going on sale. It used to borrow `ui-whoosh`, a rising swoop the
- *    user called *"the siuuuu sound… make something else that is fitting the vibe."* The vibe is a
- *    studio's operating system, so this is a machine confirming a thing rather than a firework: a
- *    stamp (a short noise burst and a deep drop), then a four-note bell arpeggio that climbs and
- *    stops. No sweep, no whistle, no tail longer than the bell's own ring.
+ *    user called *"the siuuuu sound… make something else that is fitting the vibe."* The first
+ *    replacement was a stamp and then a five-note bell arpeggio that climbed and rang, and the
+ *    user, three days later: *"remove the siuuuu sound when apps released."* Measured, it was the
+ *    same sound: the loudest partial rose 517 → 1314 Hz in 0.4 s and then rang at 2.6 kHz for half
+ *    a second, and a rise followed by a held high note is a siuuu however it is played. So nothing
+ *    rises: a stamp — a short noise burst and a deep drop — and the clip ends. The reel's pitch
+ *    (the critics' blips climbing a pentatonic run) belongs to the review, not to this clip.
  *
  * Everything is synthesised from sines and one seeded noise, so the files are reproducible and
  * need no API key (`generate-sfx.ts` does). Peak levels are normalised here and nowhere else, so
@@ -140,15 +143,9 @@ function buildDone(): Float32Array {
 }
 
 function releaseHit(): Float32Array {
-  const out = buffer(1.7)
+  const out = buffer(0.5)
   snap(out, 0, 0.55, 190, 0x7e1ea5e)
-  thump(out, 0, 130, 42, 1, 6.5)
-  const climb = [523.25, 659.25, 783.99, 1046.5, 1318.5]
-  climb.forEach((hz, i) => {
-    const at = 0.16 + i * 0.085
-    marimba(out, at, hz, 0.55, 7)
-    bell(out, at, hz * 2, 0.22 + i * 0.05, 3.2 - i * 0.2)
-  })
+  thump(out, 0, 130, 42, 1, 9)
   return normalise(out, 0.78)
 }
 

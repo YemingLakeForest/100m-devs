@@ -9,7 +9,7 @@ const N = RAMPS.NEUTRAL, W = RAMPS.WOOD, F = RAMPS.FOLIAGE, G = RAMPS.GLOW
 
 /** One hundred people, three small office campuses. Shared geometry is also the
  * district's art, so a roof terrace remains a terrace at the next scale. */
-export function createCityHouse(index: number, cast: () => StudioCast) {
+export function createCityHouse(index: number, cast: () => StudioCast, reserved = 0) {
   const body = new T.Group()
   const variant = index % 3
   const wall = [N[6], N[4], N[5]][variant], trim = N[6]
@@ -144,9 +144,19 @@ export function createCityHouse(index: number, cast: () => StudioCast) {
   return {
     body: whole, exterior, windows,
     get interior() { return interior },
-    fill(n: number) { filled = n; windows.count = n; interior?.fill(n) },
+    /**
+     * `n` seats are taken, the first `reserved` of them by the garage, so the windows lit are the people actually in here.
+     * `arrive` (the clock) is a hire arriving into a house that is open: the interior drops them in. A closed house has no
+     * interior to fall into, and its hire is told by the city (`cityHouses.ts`).
+     */
+    fill(n: number, arrive?: number) {
+      filled = n; windows.count = Math.max(0, n - reserved)
+      interior?.fill(n, interior.root.visible ? arrive : undefined)
+    },
+    /** Hires that have landed on a desk inside since this was last asked. */
+    takeLandings() { return interior?.takeLandings() ?? 0 },
     cutaway(on: boolean) {
-      if (on && !interior) { interior = createCityInterior(index, cast()); interior.fill(filled); whole.add(interior.root) }
+      if (on && !interior) { interior = createCityInterior(index, cast(), reserved); interior.fill(filled); whole.add(interior.root) }
       const changed = exterior.visible === on
       exterior.visible = !on
       canopy.forEach(piece => { piece.visible = !on })

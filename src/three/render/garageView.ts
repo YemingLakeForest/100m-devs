@@ -240,9 +240,9 @@ interface Anim {
   seat: number
   /**
    * `lift` is a drop run backwards: the person, then their desk, then their
-   * chair, yanked up out of the roof. It is how the garage's twenty leave for
-   * the house on the next block, and it is the move the first Paradigm Shift's
-   * liquidation will play (GDD §15.1a).
+   * chair, yanked up out of the roof. It is the move the first Paradigm Shift's
+   * liquidation plays (GDD §15.1a). It used to be how the garage's twenty left
+   * for the house on the next block too; they stay now (`setHeadcount`).
    */
   kind: 'hop' | 'drop' | 'lift'
   start: number
@@ -262,10 +262,6 @@ const JAMES_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { pie
 const LIFT_OUT: NonNullable<Anim['pieces']> = [{ piece: 'body', at: 0 }, { piece: 'desk', at: .14 }, { piece: 'chair', at: .24 }]
 /** How high a departure is yanked before it is out of the picture, in metres. */
 const LIFT_TO = 26
-/** Moving day: the garage starts emptying this long after the house is told to fall — once it has landed. */
-const MOVE_AFTER = 1.6
-/** …one developer this far after the last. */
-const MOVE_STEP = 0.07
 /** The studio a garage holds: five pods of four (§7.8.0). */
 const GARAGE_CAP = 20
 interface Rest { position: T.Vector3; scale: T.Vector3 }
@@ -369,6 +365,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   let env: Environment
   let heads = 0
   let addressOffset = 0, visiting: number | null = null
+  /** An ordinary seat the garage does not hold, in a city that has houses: its person is in one of them. */
+  const inCity = (seat: number) => seat >= 0 && seat >= heads && city.count > 0
   let james = false
   /** The heroes' arrivals, in the order they came. */
   let heroRow: LeaderId[] = []
@@ -442,6 +440,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     landed(footprint) { dustRing(footprint); landings += 1 },
     ignited() { ignitions += 1 },
     exhaust(footprint) { dustRing(footprint, true) },
+    // Somebody dropped onto a desk in a house: the same thump as the garage's hire (`stage.ts` maps the piece to a clip).
+    hired() { options.onLand?.('body') },
   }, () => cast)
   scene.add(city.root)
   const landed: { at: T.Vector3; value: number; key?: string }[] = []
@@ -478,6 +478,17 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     const sources = env.targets.filter(t => { for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false; return true })
       .map(t => { const p = t.mesh.getWorldPosition(new T.Vector3()); p.y += t.mesh.scale.y * .3; return p })
     return [{ sink: plate.getWorldPosition(new T.Vector3()), floor: 0, gauge: true, sources }]
+  }
+  /**
+   * **The houses work for the statue** [2026-10-15, at the user's instruction: *"I want external office blobs flowing into our voxel
+   * figure"*]. A project is studio-wide (the board has the only gauge), so the points an open house's workers make fly across
+   * the street to the sink in the garage rather than to their own front door, where they used to land on nothing. Each house keeps
+   * its lot, for the ring and the sparks a completion throws at it. With no sink in the garage (it is not on screen: a visit to
+   * another city) a house's work lands at its own door, as before.
+   */
+  function withHousesRouted(home: FlowLot[], houses: FlowLot[]): FlowLot[] {
+    const main = home.find((l) => l.main || l.gauge)
+    return home.concat(main ? houses.map((h) => ({ ...h, route: { sink: main.sink, key: main.key } })) : houses)
   }
   let flowRate = 0, flowProgress = 0, flowReduced = false, flowClock = 0, flowLotsAt = -1
   let flowLots: FlowLot[] = []
@@ -948,7 +959,12 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     },
     setHeadcount(n) {
       const total = Math.max(0, Math.floor(n))
-      const inGarage = addressOffset === 0 && total <= GARAGE_CAP ? total : 0
+      // **The garage keeps its twenty** [2026-10-15, at the user's instruction: *"when we move up to new office space, it now move all
+      // devs up and put them to new office, i don't want that, I want the garage/hq still filled and new people hired in new space"*].
+      // The first twenty ordinary seats are the garage's for good; the twenty-first and on are the city's, so a hire past the
+      // cap drops into a house and nobody is lifted out of the room they were already working in. Away from home (a
+      // visit to another city) the garage is not on screen and holds nobody.
+      const inGarage = addressOffset === 0 ? Math.min(total, GARAGE_CAP) : 0
       const remaining = 100_000_000 - addressOffset % 100_000_000
       const across = total > GARAGE_CAP ? Math.max(0, Math.min(total - addressOffset, CITY_CAPACITY, remaining)) : 0
       const hadHouses = city.count
@@ -959,9 +975,6 @@ export function createGarageView(width: number, height: number, cast: StudioCast
           showGarageSeats(env, heads, wasHeads)
           // A hire is an event: each new desk and developer falls in, a beat apart.
           if (settled) for (let s = wasHeads; s < inGarage; s++) start(s, 'drop', (s - wasHeads) * .12)
-        } else if (settled && across > 0) {
-          // The house lands first; the ordinary staff leave, leadership stays.
-          for (let s = inGarage; s < wasHeads; s++) start(s, 'lift', MOVE_AFTER + s * MOVE_STEP, LIFT_OUT)
         } else {
           for (let i = anims.length - 1; i >= 0; i--) if (anims[i].seat >= inGarage) anims.splice(i, 1)
           showGarageSeats(env, heads, wasHeads)
@@ -1054,7 +1067,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         return
       }
       const t = env.targets.find((target) => target.index === seat)
-      const cityAt = seat >= 0 && heads === 0 ? city.headOf(seat) : null
+      const cityAt = inCity(seat) ? city.headOf(seat) : null
       if (!t && !cityAt) return
       if (!saved) saved = { pan: pan.clone(), zoom }
       // Look straight at their head; an orthographic view has no distance to fix.
@@ -1122,7 +1135,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const to = flowLots[0]?.sink
       if (!to) return false
       let from: T.Vector3 | null
-      if (seat >= 0 && heads === 0 && city.count > 0) from = city.headOf(seat)
+      if (inCity(seat)) from = city.headOf(seat)
       else {
         const t = env.targets.find((target) => target.index === seat)
         if (!t) return false
@@ -1152,7 +1165,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     hop(seat, mild = false) {
       if (seat === -1 && mild) return
       // Past twenty an ordinary seat is in the city.
-      if (seat >= 0 && heads === 0 && city.count > 0) city.hop(seat, mild)
+      if (inCity(seat)) city.hop(seat, mild)
       else start(seat, 'hop', 0, undefined, mild)
       dirty = true
     },
@@ -1178,7 +1191,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       // times a second, not every frame: a head moves by a hop, not by a metre.
       if (clock - flowLotsAt > .25 || clock < flowLotsAt) {
         flowLotsAt = clock
-        flowLots = w / span() >= 8 ? garageLots().concat(city.lots()) : []
+        flowLots = w / span() >= 8 ? withHousesRouted(garageLots(), city.lots()) : []
       }
       const levelBefore = flow.level
       flow.update(clock - flowClock, flowRate, flowLots, flowReduced, flowProgress)
@@ -1269,7 +1282,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     screenOf(seat) {
       frame()
       let p: T.Vector3 | null = null
-      if (seat >= 0 && heads === 0 && city.count > 0) {
+      if (inCity(seat)) {
         p = city.headOf(seat)
       } else {
         const t = env.targets.find((target) => target.index === seat)

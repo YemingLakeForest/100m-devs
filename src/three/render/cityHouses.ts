@@ -5,6 +5,7 @@ import { box, cylinder, batchArt, disposeArt, sharedMaterial } from './worldArt.
 import { BLOCK_SIZE, BLOCK_PITCH, CITY_CAPACITY, HOUSE_CAPACITY, cityBlock, streetAxis, houseLanding } from './cityGrid.ts'
 import { createThrusters } from './thrusters.ts'
 import { createCityHouse, dressCityLot } from './cityHouse.ts'
+import { GARAGE_CAP } from '../../sim/capacity.ts'
 import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { FlowLot } from './flow.ts'
 import type { FlashPad } from './unitFlash.ts'
@@ -40,7 +41,8 @@ function moonlit(group: T.Group) {
   })
 }
 
-interface Events { landed(box: T.Box3): void; ignited(): void; exhaust(box: T.Box3): void }
+/** `hired`: somebody has dropped onto a desk in a house that was already standing. */
+interface Events { landed(box: T.Box3): void; ignited(): void; exhaust(box: T.Box3): void; hired(): void }
 export function createCityHouses(events: Events, cast: () => StudioCast = defaultCast) {
   const root = new T.Group()
   const ground = new T.Group(); root.add(ground)
@@ -70,9 +72,16 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
   }
   moonlit(ground)
   tiles.forEach(tile => batchArt(tile))
-  type Building = ReturnType<typeof createCityHouse> & { leaving: number | null; group: T.Group; lot: T.Group; rig: ReturnType<typeof createThrusters>; marker: T.LineLoop; legs: T.Group; start: number | null; wait: number; landed: boolean; ignited: boolean; dust: boolean; hop: number | null }
+  type Building = ReturnType<typeof createCityHouse> & { leaving: number | null; group: T.Group; lot: T.Group; rig: ReturnType<typeof createThrusters>; marker: T.LineLoop; legs: T.Group; start: number | null; wait: number; landed: boolean; ignited: boolean; dust: boolean; hop: number | null; shown: number }
   const buildings: Building[] = []
   let clock = 0, staff = 0, offset = 0
+  /**
+   * **The garage keeps its twenty** [2026-10-15, at the user's instruction: *"when we move up to new office space, it now move all
+   * devs up and put them to new office, i don't want that, I want the garage/hq still filled and new people hired in new space"*].
+   * In the home city the first house's first twenty seats are the garage's, so they are never drawn here and the first house
+   * stands once there is a twenty-first person to put in it. Every other city (`setOffset`) is all houses.
+   */
+  const reserved = () => (offset === 0 ? GARAGE_CAP : 0)
   function footprint(i: number) {
     const at = cityBlock(i + 1)
     return new T.Box3(new T.Vector3(at.x - 16, -.3, at.z - 14), new T.Vector3(at.x + 16, 9.2, at.z + 17))
@@ -101,11 +110,11 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
     },
     setStaff(n: number, animate: boolean) {
       staff = Math.min(CITY_CAPACITY, Math.max(0, Math.floor(n)))
-      const count = Math.ceil(staff / HOUSE_CAPACITY)
+      const count = staff > reserved() ? Math.ceil(staff / HOUSE_CAPACITY) : 0
       while (buildings.length > count) remove(buildings.pop()!)
       let queued = buildings.reduce((delay, b) => Math.max(delay, b.start === null ? 0 : b.start + 1.5 + b.wait - clock), 0)
       while (buildings.length < count) {
-        const i = buildings.length, at = cityBlock(i + 1), model = createCityHouse(offset / 100 + i, cast)
+        const i = buildings.length, at = cityBlock(i + 1), model = createCityHouse(offset / 100 + i, cast, i === 0 ? reserved() : 0)
         const group = new T.Group(); group.position.set(at.x, -.3, at.z); group.add(model.body); root.add(group)
         const rig = createThrusters(19, 18); group.add(rig.root)
         const legs = new T.Group(); group.add(legs)
@@ -121,13 +130,23 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
         // `interior` is a getter (the cutaway builds it lazily); a bare spread would copy
         // its value at null, once, and every seat query would answer as if no house had opened.
         const b: Building = { ...model, get interior() { return model.interior }, leaving: null, group, lot, rig, marker, legs, start: animate ? clock : null, wait: queued,
-          landed: !animate, ignited: false, dust: false, hop: null }
+          landed: !animate, ignited: false, dust: false, hop: null, shown: -1 }
         buildings.push(b); queued += .22
         group.position.y += animate ? 30 : 0
         marker.visible = animate; legs.visible = false; rig.update(0, false, clock)
       }
       tiles.forEach(tile => { tile.visible = (offset === 0 && tile.position.x === 0 && tile.position.z === 0) || buildings.some(b => Math.abs(b.group.position.x - tile.position.x) < 1 && Math.abs(b.group.position.z - tile.position.z) < 1) })
-      buildings.forEach((b, i) => { b.fill(Math.min(HOUSE_CAPACITY, staff - i * HOUSE_CAPACITY)) })
+      buildings.forEach((b, i) => {
+        const people = Math.min(HOUSE_CAPACITY, staff - i * HOUSE_CAPACITY)
+        // A hire into a house that is standing, not into one still falling out of the sky (its landing is the event) or one
+        // just built around a loaded save (whoever is here, is here).
+        const arrives = animate && b.shown >= 0 && people > b.shown && b.start === null && b.leaving === null
+        b.fill(people, arrives ? clock : undefined)
+        // A house cut open drops them in and tells us as each one lands (`update`); a closed one has nobody to watch, so the
+        // building takes the thump itself.
+        if (arrives && !b.interior?.root.visible) { b.hop = clock; events.hired() }
+        b.shown = people
+      })
     },
     setView(camera: T.Camera, pixelsPerMetre: number) {
       let changed = false
@@ -145,6 +164,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
       let active = false
       buildings.forEach((b, i) => {
         if (b.interior?.update(now)) active = true
+        for (let landed = b.takeLandings(); landed > 0; landed--) events.hired()
         if (b.leaving !== null) {
           active = true
           const t = now - b.leaving
@@ -207,7 +227,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
       buildings.forEach((building, i) => {
         if (building.interior?.root.visible) {
           building.interior.targets.forEach(mesh => { if (mesh.visible) candidates.push({ mesh, seat: Number(mesh.userData.seat) }) })
-        } else candidates.push({ mesh: building.exterior, seat: offset + i * HOUSE_CAPACITY })
+        } else candidates.push({ mesh: building.exterior, seat: offset + Math.max(i * HOUSE_CAPACITY, i === 0 ? reserved() : 0) })
       })
       const hits = ray.intersectObjects(candidates.map(c => c.mesh), true)
       for (const hit of hits) {

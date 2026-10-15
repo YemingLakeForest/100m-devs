@@ -9,7 +9,19 @@ export function houseSeat(i: number) {
   return { y: row < 4 ? 1.5 : 0, x: (col - 4.5) * 1.44 + (Math.floor(col / 2) - 2) * .22 + (col < 5 ? -.4 : .4), z: (Math.floor(row / 2) - 2) * 2.5 + (row % 2 ? .8 : -.8) }
 }
 
-export function createCityInterior(index: number, cast: StudioCast) {
+/** A hire falls this far, in this long, onto the desk it was given: the garage's drop (`garageView.ts`), at a house's scale. */
+const DROP_HEIGHT = 3.4
+const DROP_SECONDS = .45
+/** A batch of hires lands a beat apart, as the garage's does; the rest of a very large batch is simply there. */
+const DROP_STAGGER = .12
+const MAX_DROPS = 12
+
+/**
+ * `reserved` is how many of this house's first seats belong to somebody else — the garage's twenty, in the first house of the
+ * first city (`cityHouses.ts`). Their people are never shown and their desks are never built, so the new space does not open
+ * with two empty rows at the back that are really the garage's.
+ */
+export function createCityInterior(index: number, cast: StudioCast, reserved = 0) {
   const root = new T.Group()
   const N = RAMPS.NEUTRAL, W = RAMPS.WOOD
   box(root, 0, 0, 1, 20, .35, 20, N[4])
@@ -23,6 +35,7 @@ export function createCityInterior(index: number, cast: StudioCast) {
   }
   // Twenty-five four-person islands, alternating woven mats rather than a parade of rows.
   for (let pair = 0; pair < 5; pair++) for (let col = 0; col < 5; col++) {
+    if (pair * 20 + col * 2 + 1 < reserved) continue
     const left = houseSeat(pair * 20 + col * 2), right = houseSeat(pair * 20 + col * 2 + 1)
     box(root, (left.x + right.x) / 2, .397 + left.y, (pair - 2) * 2.5, 3, .018, 2.3, (col + pair) % 2 ? N[3] : W[0], false)
   }
@@ -70,16 +83,18 @@ export function createCityInterior(index: number, cast: StudioCast) {
   const screen = sharedMaterial('city:desk-screen', () => new T.MeshBasicMaterial({ color: RAMPS.GLOW[1] }))
   for (let i = 0; i < 100; i++) {
     const at = houseSeat(i)
-    const desk = new T.Group(); desk.position.set(at.x, at.y, at.z); furniture.add(desk)
-    desk.rotation.y = Math.floor(i / 10) % 2 ? Math.PI : 0
-    // Compact house desks, with the same head-and-body developers as the garage.
-    box(desk, 0, .56, .46, 1.14, .08, .6, W[3])
-    for (const x of [-.47, .47]) box(desk, x, 0, .46, .075, .56, .075, W[1])
-    box(desk, 0, .64, .58, .4, .34, .06, N[1])
-    box(desk, 0, .68, .543, .34, .25, .014, RAMPS.GLOW[1], false).material = screen
-    box(desk, 0, .642, .26, .4, .025, .16, N[5])
-    box(desk, 0, .32, -.08, .46, .09, .4, N[2])
-    box(desk, 0, .4, -.25, .46, .42, .075, N[3])
+    if (i >= reserved) {
+      const desk = new T.Group(); desk.position.set(at.x, at.y, at.z); furniture.add(desk)
+      desk.rotation.y = Math.floor(i / 10) % 2 ? Math.PI : 0
+      // Compact house desks, with the same head-and-body developers as the garage.
+      box(desk, 0, .56, .46, 1.14, .08, .6, W[3])
+      for (const x of [-.47, .47]) box(desk, x, 0, .46, .075, .56, .075, W[1])
+      box(desk, 0, .64, .58, .4, .34, .06, N[1])
+      box(desk, 0, .68, .543, .34, .25, .014, RAMPS.GLOW[1], false).material = screen
+      box(desk, 0, .642, .26, .4, .025, .16, N[5])
+      box(desk, 0, .32, -.08, .46, .09, .4, N[2])
+      box(desk, 0, .4, -.25, .46, .42, .075, N[3])
+    }
     const person = studioPerson(peopleRoot, at.x, at.z, Math.floor(i / 10) % 2 ? 0 : Math.PI, workerLook(cast, index * 100 + i))
     person.position.y = at.y
     person.scale.setScalar(.8)
@@ -107,22 +122,53 @@ export function createCityInterior(index: number, cast: StudioCast) {
   batchArt(furniture); batchArt(peopleRoot, seats)
   let filled = -1
   const hopping = new Map<number, { started: number; mild: boolean }>()
+  /** A hire on its way down: hidden until `started`, then falling. `landed` is so the sound is made once. */
+  const dropping = new Map<number, { started: number; landed: boolean }>()
+  let landings = 0
   const identity = new T.Matrix4()
+  const lift = (i: number, y: number) => {
+    const at = houseSeat(i)
+    placeInstances(seats.get(i) ?? [], y ? new T.Matrix4().makeTranslation(0, y, 0) : identity)
+    people[i].position.set(at.x, at.y + y, at.z)
+  }
   return {
     root, targets,
-    fill(n: number) {
+    /**
+     * Show seats `reserved..n-1`. With `arrive` (the clock, in seconds) the seats that are new since the last call fall in a
+     * beat apart instead of appearing — the interior's half of a hire's drop. A first fill, and a house nobody is looking
+     * into, pass nothing: whoever is here is simply here.
+     */
+    fill(n: number, arrive?: number) {
       if (n === filled) return
-      for(const i of hopping.keys())if(i>=n){placeInstances(seats.get(i)??[],identity);const at=houseSeat(i);people[i].position.set(at.x,at.y,at.z);hopping.delete(i)}
+      const was = filled
+      for (const i of hopping.keys()) if (i >= n) { lift(i, 0); hopping.delete(i) }
+      for (const i of dropping.keys()) if (i >= n) { lift(i, 0); dropping.delete(i) }
       filled = n
-      people.forEach((person, i) => { showSeatInstances(seats.get(i) ?? [], i < n); person.visible = i < n; targets[i].visible = i < n })
+      people.forEach((person, i) => { const on = i >= reserved && i < n; showSeatInstances(seats.get(i) ?? [], on); person.visible = on; targets[i].visible = on })
+      if (arrive === undefined || was < 0 || n <= was) return
+      for (let i = Math.max(was, reserved), k = 0; i < n && k < MAX_DROPS; i++, k++) {
+        // Hidden until its turn: the instance is switched off now and switched on by the first frame of its fall.
+        showSeatInstances(seats.get(i) ?? [], false)
+        dropping.set(i, { started: arrive + k * DROP_STAGGER, landed: false })
+      }
     },
+    /** How many hires have hit a desk since this was last asked. */
+    takeLandings() { const n = landings; landings = 0; return n },
     hop(seat: number, now: number, mild = false) {
       const i = seat % 100
       if (mild && hopping.has(i)) return
       hopping.set(i, { started: now, mild })
     },
     update(now: number) {
-      const active=hopping.size>0
+      const active=hopping.size>0||dropping.size>0
+      for (const [i, d] of dropping) {
+        const u = (now - d.started) / DROP_SECONDS
+        if (u < 0) continue
+        // Free fall, one bounce, rest: the garage's arrival (`garageView.ts`), so the two rooms drop alike.
+        lift(i, u < 1 ? DROP_HEIGHT * (1 - u * u) : u < 1.5 ? .32 * Math.sin(Math.PI * (u - 1) / .5) : 0)
+        if (u >= 1 && !d.landed) { d.landed = true; landings += 1 }
+        if (u >= 1.5) dropping.delete(i)
+      }
       for(const [i,{ started, mild }] of hopping) {
         const t=now-started,at=houseSeat(i),u=Math.max(0,Math.min(1,(t-.05)/.3))
         const y=t<.35?(mild ? .08 : .38)*4*u*(1-u):0
