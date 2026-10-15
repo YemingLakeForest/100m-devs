@@ -16,7 +16,7 @@
  * path here, it is the main path.
  */
 
-import { HIRE_BASE_COST, HIRE_COST_GROWTH } from './economy.ts'
+import { HIRE_BASE_COST, HIRE_COST_GROWTH, secondsUntilBankrupt } from './economy.ts'
 
 /**
  * §10.10.2 — four segments, always. Never five, never a scrolling list.
@@ -121,18 +121,68 @@ export function batchCost(devs: number, count: number, growth = HIRE_COST_GROWTH
 export const MAX_RESERVE_FRACTION = 0.1
 
 /**
+ * **The second half of "leaves the player solvent": MAX never starts the
+ * bankruptcy clock** [amended 2026-10-15].
+ *
+ * The tenth-of-the-treasury rule above is a statement about the *price* and says
+ * nothing about the *wage*, and the wage is what ends a run. Measured with the
+ * real store from a studio of 5,000 on $50M and a cap of 50,000: **one press of
+ * MAX hired 31,000 people and was bankrupt 1.25 seconds later** — a tenth of
+ * $50M is $5M, and 36,000 developers draw $1.8M a second. At 1,000 on $3M the
+ * same press took fifteen. A reserve that is a *fraction of cash* shrinks
+ * relative to the burn exactly as fast as the studio grows, so the control that
+ * promised never to spend the last dollar was the quickest way to the end of
+ * the run, and it did it at the scale where the player is least able to read
+ * what happened.
+ *
+ * So MAX now also refuses any batch after which the studio would be fewer than
+ * this many seconds from {@link secondsUntilBankrupt} — the HUD's own clock, the
+ * one that starts blinking red at ninety. Two minutes is that ninety plus the
+ * half-minute it takes to read it, and a little over a build: §4.4's target is
+ * a game every sixty seconds, so a studio left two minutes from the line is two
+ * paydays from it.
+ *
+ * **Measured from the bankruptcy line, not from zero**, and that is what keeps
+ * §10.10.3's other promise: MAX lights up in Act IIa. A studio of 25 on $400 is
+ * 800 seconds from −$1M however little it holds, so the small studio is bound by
+ * the tenth and the rule above and this one never speaks. It only starts to
+ * matter when the burn is large enough that a million dollars is a minute of it
+ * — which is the scale where it is the only thing standing between one tap and
+ * the liquidation screen.
+ *
+ * Fixed multipliers are deliberately not bound by it. A player who chooses
+ * `x1K` has chosen; they are told what it leaves ({@link runwayAfterHire}) and
+ * that is the difference between a decision and an ambush.
+ */
+export const MAX_RUNWAY_SECONDS = 120
+
+/**
+ * Seconds from the bankruptcy line **after** buying `count` more developers for
+ * `cost` — the number MAX protects and the HIRE button quotes on a risky batch.
+ */
+export function runwayAfterHire(devs: number, cash: number, count: number, cost: number): number {
+  return secondsUntilBankrupt(cash - cost, devs + Math.max(0, count))
+}
+
+/**
  * The largest batch affordable right now.
  *
  * Solved rather than searched. Inverting {@link batchCost} gives a logarithm,
- * so this is O(1) at any headcount — then the reserve is applied by walking
- * *down* from that ceiling, which terminates immediately in practice because
- * the reserve moves the answer by one or two.
+ * so this is O(1) at any headcount for the price. The two reserves are then
+ * applied to that ceiling: the tenth by trimming (it moves the answer by one or
+ * two), the runway by bisection, because it can move it by thousands and a walk
+ * down from 31,000 is a loop on a function the dial calls every frame.
+ *
+ * Bisection is sound because both terms of the runway move the same way with `n`
+ * — the cash left only falls and the payroll only rises — so "leaves the runway"
+ * is true up to some count and false from there on.
  */
 export function maxAffordable(
   devs: number,
   cash: number,
   reserve = MAX_RESERVE_FRACTION,
   growth = HIRE_COST_GROWTH,
+  runway = MAX_RUNWAY_SECONDS,
 ): number {
   if (cash <= 0) return 0
   const g = Number.isFinite(growth) && growth > 1 ? growth : HIRE_COST_GROWTH
@@ -149,7 +199,20 @@ export function maxAffordable(
   // The logarithm can land one over on the boundary through float rounding, so
   // it is trimmed rather than trusted. One step, in practice.
   while (n > 0 && batchCost(devs, n, g) > budget) n--
-  return n
+  if (n <= 0) return 0
+
+  const leavesRunway = (count: number) =>
+    runwayAfterHire(devs, cash, count, batchCost(devs, count, g)) >= runway
+  if (leavesRunway(n)) return n
+
+  let lo = 0
+  let hi = n
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (leavesRunway(mid)) lo = mid
+    else hi = mid
+  }
+  return lo
 }
 
 /**

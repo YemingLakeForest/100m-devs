@@ -680,6 +680,15 @@ body {
   font-size: var(--type-3x);
   color: var(--warn-2);
   text-shadow: 0 0 9px color-mix(in srgb, var(--warn-2) 36%, transparent);
+  /* A numeral never breaks: wrapped, `−$954.4K` shows the sign alone on a line
+     above a number that reads as positive. */
+  white-space: nowrap;
+}
+
+/* Eight glyphs do not fit the rail at the large size — one whole step down,
+   never a clamp (§3 rule 2). See `isLongNumeral`. */
+.hud__block--cash .hud__num--long {
+  font-size: var(--type-2x);
 }
 
 .hud__cash-flow {
@@ -2178,6 +2187,12 @@ body {
   /* A note like "Cost: YOUR ENTIRE TREASURY" must wrap to the rail, not force
      the button wider than it. Same trap 20 minimum as the label above. */
   min-width: 0;
+}
+
+/* The hire that would leave the studio inside the bankruptcy clock's window —
+   the same alarm ink as the clock itself, so the two read as one warning. */
+.ui-btn small.is-bad {
+  color: var(--alarm-2);
 }
 
 /*

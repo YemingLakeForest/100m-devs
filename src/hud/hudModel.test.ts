@@ -10,6 +10,8 @@ import {
   entropyPercent,
   formatMoney,
   formatVelocity,
+  hireRunwayReadout,
+  isLongNumeral,
   offerFor,
   runwayReadout,
   syncPercent,
@@ -113,6 +115,62 @@ describe('the runway clock', () => {
     const seconds = secondsUntilBankrupt(0, 1000 + UNPAID_FOUNDERS)
     expect(seconds).toBe(-BANKRUPTCY_THRESHOLD / 50_000)
     expect(runwayReadout(seconds)).not.toBeNull()
+  })
+})
+
+describe('what a hire leaves, on the button — the invoice at the decision', () => {
+  it('is silent while the hire is nowhere near the line', () => {
+    // A small studio is hundreds of seconds from −$1M however it hires; a
+    // number on every press would train the player to read past the one that
+    // matters.
+    expect(hireRunwayReadout(Number.POSITIVE_INFINITY)).toBeNull()
+    expect(hireRunwayReadout(RUNWAY_WARN_SECONDS)).toBeNull()
+    expect(hireRunwayReadout(800)).toBeNull()
+  })
+
+  it('speaks on exactly the threshold the bankruptcy clock does', () => {
+    // One warning in two places, so it has to be one threshold. Ninety is where
+    // the blinking clock starts; a hire that would start it must say so first.
+    expect(hireRunwayReadout(RUNWAY_WARN_SECONDS - 1)).toBe('89s LEFT')
+    expect(runwayReadout(RUNWAY_WARN_SECONDS - 1)).not.toBeNull()
+  })
+
+  it('bottoms out at zero rather than counting into negative seconds', () => {
+    expect(hireRunwayReadout(-4)).toBe('0s LEFT')
+  })
+})
+
+describe('the cash numeral fits its rail — a minus sign never wraps off the number', () => {
+  it('flags the band that wrapped: negative, three figures, with a decimal and a suffix', () => {
+    // The playthrough that found it: an aggressive hirer lives between −$100K
+    // and −$999K, and there the sign sat alone on a line above a number that
+    // read as positive.
+    for (const cash of [-100_000, -437_100, -954_400, -999_900]) {
+      expect(formatMoney(cash)).toHaveLength(8)
+      expect(isLongNumeral(formatMoney(cash))).toBe(true)
+    }
+  })
+
+  it('leaves everything the rail already holds alone', () => {
+    for (const cash of [0, 36_200, 954_400, -9_900, -99_900, -1_000_000]) {
+      expect(isLongNumeral(formatMoney(cash))).toBe(false)
+    }
+  })
+
+  it('knows the longest the formatter gets, so one step down is always enough', () => {
+    // A sign, a dollar, three figures, a point, two decimals and a two-letter
+    // suffix: `−$999.90Qa`. Ten glyphs at the small size is the most the rail is
+    // ever asked to hold; the browser measurement in the commit that added this
+    // is what says ten fit, and this is what says the formatter never grows past
+    // the ten it was measured at.
+    let longest = 0
+    for (let e = 3; e <= 33; e++) {
+      for (const sign of [1, -1]) {
+        longest = Math.max(longest, formatMoney(sign * 9.999 * 10 ** e).length)
+      }
+    }
+    expect(longest).toBeLessThanOrEqual(10)
+    expect(isLongNumeral('x'.repeat(longest))).toBe(true)
   })
 })
 

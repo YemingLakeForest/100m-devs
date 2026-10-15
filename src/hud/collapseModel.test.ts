@@ -62,6 +62,21 @@ describe('the marginal hire — what the next developer is worth', () => {
     expect(marginalHire(10, D_BASE).short.length).toBeLessThanOrEqual(8)
   })
 
+  it('reads the studio as it actually is — a held studio is not worth a whole developer per hire', () => {
+    // THE THREAD holds output at a quarter. The button said `+1.00` through all
+    // of it, because it read §4.1 alone. With the real efficiency passed in, the
+    // thirteenth hire is worth a quarter of a person, and says so.
+    const held = (d: number) => Math.min(0.25, 1 / (1 + (d / D_BASE) ** 5))
+    const real = marginalHire(12, D_BASE, 1, held).value
+    expect(real).toBeCloseTo(0.25, 2)
+    expect(real).toBeLessThan(marginalHire(12, D_BASE).value / 2)
+  })
+
+  it('is the §4.1 curve, unchanged, when nothing holds the studio down', () => {
+    const free = (d: number) => 1 / (1 + (d / D_BASE) ** 5)
+    expect(marginalHire(30, D_BASE, 1, free).value).toBeCloseTo(marginalHire(30, D_BASE).value, 10)
+  })
+
   it('reads a batch as the whole batch', () => {
     expect(Math.abs(marginalHire(10, D_BASE, 5).value)).toBeGreaterThan(Math.abs(marginalHire(10, D_BASE, 1).value))
   })

@@ -149,6 +149,46 @@ export function payoutReadout(amount: number, seconds: number): string | null {
   return `+${formatMoney(amount)} IN ${Math.max(1, Math.round(seconds))}s`
 }
 
+/**
+ * Does this money string need the next size down to fit the rail? [2026-10-15]
+ *
+ * The cash numeral is the largest type in the frame and the rail holds seven of
+ * its glyphs. The first string that does not fit is `−$954.4K` — a sign, a
+ * dollar, three digits, a point, one decimal and a suffix — and it is always a
+ * *negative* three-figure amount, which is the band a studio that hires hard
+ * spends its life in. Later it is `−$10.00M`, and at the far end `−$999.90Qa`
+ * (ten, the longest the formatter makes); one size down holds all of them. A
+ * string rather than a number, because the rail is fitted to what is drawn, not
+ * to what is held.
+ */
+export const RAIL_NUMERAL_GLYPHS = 7
+export function isLongNumeral(text: string): boolean {
+  return text.length > RAIL_NUMERAL_GLYPHS
+}
+
+/**
+ * What a hire would leave, said on the button that makes it — `14s LEFT`, or
+ * null while the hire is nowhere near the line [2026-10-15].
+ *
+ * §4.10a's own diagnosis of the hire economy is that *"every hire was free at
+ * the moment of the decision and lethal at the moment of the invoice — which is
+ * not a decision, it is an ambush."* The price fixed the first half of that and
+ * nothing fixed the second: the button said what a hire costs and what it adds,
+ * never what it **draws**, so a studio could click `x1K` at scale and learn the
+ * burn from the liquidation screen. This is the invoice, shown at the decision.
+ *
+ * It speaks on the same threshold as {@link runwayReadout} and for the same
+ * reason — above ninety seconds it is trivia, and a number on every press would
+ * train the player to read past the one that matters. A small studio is
+ * hundreds of seconds from −$1M however it hires, so this stays silent for the
+ * whole of the early game and arrives exactly when it starts to be true.
+ */
+export function hireRunwayReadout(secondsAfterHire: number): string | null {
+  if (!Number.isFinite(secondsAfterHire)) return null
+  if (secondsAfterHire >= RUNWAY_WARN_SECONDS) return null
+  return `${Math.max(0, Math.round(secondsAfterHire))}s LEFT`
+}
+
 export function runwayReadout(secondsRemaining: number): string | null {
   if (!Number.isFinite(secondsRemaining)) return null
   if (secondsRemaining >= RUNWAY_WARN_SECONDS) return null

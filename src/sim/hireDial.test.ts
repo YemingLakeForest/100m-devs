@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { hireCostTotal } from './economy.ts'
+import { capAdjustedGrowth, hireCostTotal } from './economy.ts'
 import {
   DIAL_UNLOCKS_AT,
   MAX_RESERVE_FRACTION,
+  MAX_RUNWAY_SECONDS,
   batchCost,
   maxAffordable,
   multiplierLabel,
   quote,
+  runwayAfterHire,
   segmentsFor,
 } from './hireDial.ts'
 
@@ -155,6 +157,67 @@ describe('maxAffordable — GDD §10.10.3 rule 2', () => {
     // frame, so this must degrade to "you cannot afford any" rather than to a
     // NaN, a negative, or a loop that never ends.
     const n = maxAffordable(50_000, 1e12)
+    expect(Number.isFinite(n)).toBe(true)
+    expect(n).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('maxAffordable — MAX never starts the bankruptcy clock', () => {
+  // The studios the 2026-10-15 playthrough measured, each at the growth base the
+  // game actually charges (§14.8.9 normalises it by the cap — the raw 1.08 would
+  // price a hire past five thousand heads at infinity and prove nothing).
+  const STUDIOS = [
+    { devs: 1_000, cap: 5_000, cash: 1.2e7 },
+    { devs: 5_000, cap: 50_000, cash: 2e8 },
+    { devs: 50_000, cap: 1e6, cash: 4e9 },
+  ] as const
+
+  it('leaves the runway standing, whatever the scale', () => {
+    for (const { devs, cap, cash } of STUDIOS) {
+      const g = capAdjustedGrowth(1.08, cap)
+      const n = maxAffordable(devs, cash, MAX_RESERVE_FRACTION, g)
+      expect(n).toBeGreaterThan(0)
+      expect(runwayAfterHire(devs, cash, n, batchCost(devs, n, g))).toBeGreaterThanOrEqual(MAX_RUNWAY_SECONDS)
+    }
+  })
+
+  it('is maximal — one more would break the tenth or the runway', () => {
+    for (const { devs, cap, cash } of STUDIOS) {
+      const g = capAdjustedGrowth(1.08, cap)
+      const n = maxAffordable(devs, cash, MAX_RESERVE_FRACTION, g)
+      const cost = batchCost(devs, n + 1, g)
+      const brokeTenth = cost > cash * (1 - MAX_RESERVE_FRACTION)
+      const brokeRunway = runwayAfterHire(devs, cash, n + 1, cost) < MAX_RUNWAY_SECONDS
+      expect(brokeTenth || brokeRunway).toBe(true)
+    }
+  })
+
+  it('is what stops one tap being the end of the run', () => {
+    // The failure it replaced: a tenth of the treasury is a bigger and bigger
+    // *fraction of a second* of the burn as the studio grows. Without the runway
+    // the same press leaves the studio seconds from the line.
+    for (const { devs, cap, cash } of STUDIOS) {
+      const g = capAdjustedGrowth(1.08, cap)
+      const bound = maxAffordable(devs, cash, MAX_RESERVE_FRACTION, g)
+      const unbound = maxAffordable(devs, cash, MAX_RESERVE_FRACTION, g, 0)
+      expect(bound).toBeLessThan(unbound)
+      expect(runwayAfterHire(devs, cash, unbound, batchCost(devs, unbound, g))).toBeLessThan(MAX_RUNWAY_SECONDS)
+    }
+  })
+
+  it('does not touch a small studio — the bankruptcy line is a million dollars away', () => {
+    // §10.10.3's other promise: MAX lights up in Act IIa. A studio of twenty-five
+    // on four hundred dollars is hundreds of seconds from −$1M, so only the
+    // tenth ever speaks.
+    for (const [devs, cash] of [[25, 400], [30, 900], [40, 3_000]] as const) {
+      expect(maxAffordable(devs, cash)).toBe(maxAffordable(devs, cash, MAX_RESERVE_FRACTION, undefined, 0))
+    }
+  })
+
+  it('terminates at absurd headcounts without a loop that depends on the answer', () => {
+    // Bisection, not a walk: this is priced every frame.
+    const g = capAdjustedGrowth(1.08, 1e9)
+    const n = maxAffordable(5e8, 1e15, MAX_RESERVE_FRACTION, g)
     expect(Number.isFinite(n)).toBe(true)
     expect(n).toBeGreaterThanOrEqual(0)
   })

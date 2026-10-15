@@ -17,6 +17,7 @@ import {
   SCENE_SERENA_ARRIVES,
   SCENE_THREAD_CLEARED,
 } from '../game/scenes.ts'
+import { THREAD } from '../sim/events.ts'
 import { Hud } from './Hud.tsx'
 
 /**
@@ -150,6 +151,65 @@ describe('§10.8 F1 — nothing enters or leaves without motion', () => {
     const bubble = container.querySelector('.hud__bubble')
     expect(bubble?.className).toContain('ui-panel')
     expect(bubble?.getAttribute('data-phase')).toBe('in')
+  })
+})
+
+/**
+ * The invoice, shown at the decision [2026-10-15].
+ *
+ * §4.10a's own diagnosis of hiring is that a hire was *"free at the moment of
+ * the decision and lethal at the moment of the invoice"*. The price fixed the
+ * first half. These pin the second: what a hire **draws** and what it is **worth**
+ * are on the button that makes it, true to the studio that is pressing it.
+ */
+describe('the hire button tells the truth about the hire', () => {
+  function studio(devs: number, cash: number) {
+    prestiged()
+    jumpToPhase('act2_loop')
+    __setState({ devs, devCap: 5_000, cash, dialUnlocked: true, scene: null })
+  }
+  const hireButton = () => screen.getByRole('button', { name: /HIRE DEVELOPER/ })
+
+  it('is silent while the studio is nowhere near the bankruptcy line', () => {
+    // A million dollars a thousand developers' wage is hours away. Nothing to say.
+    studio(2_000, 1e9)
+    render(<Hud stage={null} />)
+    expect(hireButton().textContent).not.toMatch(/LEFT/)
+  })
+
+  it('names the runway, in alarm ink, once the hire would start the clock', () => {
+    // 2,000 developers draw ~$100K a second; two million dollars is twenty of
+    // them. Pressing HIRE here is an ambush unless the button says so.
+    studio(2_000, 1e6)
+    render(<Hud stage={null} />)
+    expect(hireButton().textContent).toMatch(/\d+s LEFT/)
+    const price = hireButton().querySelector('small.is-bad')
+    expect(price).not.toBeNull()
+  })
+
+  it('does not put a runway on a hire the player cannot make', () => {
+    // An unaffordable, disabled button reading "0s LEFT" is noise on top of a
+    // button that is already saying no.
+    studio(2_000, -5)
+    render(<Hud stage={null} />)
+    expect(hireButton()).toBeDisabled()
+    expect(hireButton().textContent).not.toMatch(/LEFT/)
+  })
+
+  it('says a hire is worth a quarter of a person while THE THREAD holds the studio there', () => {
+    // It said +1.00 through the whole of the thread, because it read §4.1 alone.
+    studio(12, 40_000)
+    __setState({ devCap: 100, event: { id: THREAD.id, remaining: 20, age: 0, routed: true } })
+    render(<Hud stage={null} />)
+    expect(hireButton().textContent).toContain('+0.25')
+    expect(hireButton().textContent).not.toContain('+1.00')
+  })
+
+  it('goes back to the §4.1 figure when nothing holds the studio down', () => {
+    studio(12, 40_000)
+    __setState({ devCap: 100, event: null })
+    render(<Hud stage={null} />)
+    expect(hireButton().textContent).toContain('+1.00')
   })
 })
 

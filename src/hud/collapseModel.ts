@@ -53,9 +53,12 @@ export function curvePath(cap: number, width: number, height: number, steps = 60
 
 /** The plate's caption, from the studio's own numbers. */
 export function plateCaption(devs: number, cap: number): { work: string; past: boolean } {
-  const w = workDone(devs, cap)
-  const work = w >= 10 ? w.toFixed(0) : w >= 0.1 ? w.toFixed(1) : w.toFixed(2)
-  return { work, past: devs > peakHeads(cap) }
+  return { work: workLabel(workDone(devs, cap)), past: devs > peakHeads(cap) }
+}
+
+/** Developer-equivalents as the plate and the liquidation receipt both print them. */
+export function workLabel(w: number): string {
+  return w >= 10 ? w.toFixed(0) : w >= 0.1 ? w.toFixed(1) : w.toFixed(2)
 }
 
 /**
@@ -70,9 +73,29 @@ export function plateCaption(devs: number, cap: number): { work: string; past: b
  * `+0.97` at fifty, and — past the peak — negative, which is the lesson itself
  * on the button that causes it.
  */
-export function marginalHire(devs: number, cap: number, count = 1): { value: number; label: string; short: string } {
+export function marginalHire(
+  devs: number,
+  cap: number,
+  count = 1,
+  efficiencyAt?: (devs: number) => number,
+): { value: number; label: string; short: string } {
   const n = Math.max(1, Math.floor(count))
-  const value = workDone(devs + n, cap) - workDone(devs, cap)
+  // [amended 2026-10-15] **The studio's efficiency, not the textbook curve's.**
+  //
+  // This read `workDone(devs, cap)` — §4.1 alone — so while THE THREAD (§18.0a)
+  // held the studio at a quarter of its output the button went on saying
+  // `+1.00`, and a player at twelve developers who had just been told nobody was
+  // writing code was invited to buy the thirteenth on the strength of a promise
+  // of a whole person's work. It delivered a quarter of one, at the full wage.
+  // That is the one moment in Run 2 where the number on the button matters most,
+  // because it is the first time hiring is *not* the answer.
+  //
+  // `efficiencyAt` is the store's real efficiency at a hypothetical headcount —
+  // ceiling, fold and floor included — so every later modifier reaches the
+  // button without this file learning about it. Omitted, it is the §4.1 curve at
+  // `cap`, which is what the collapse plate draws and what Run 1 means.
+  const work = (d: number) => (efficiencyAt ? Math.max(0, d) * efficiencyAt(d) : workDone(d, cap))
+  const value = work(devs + n) - work(devs)
   const text = Math.abs(value) >= 100 ? Math.round(Math.abs(value)).toLocaleString('en-US') : Math.abs(value).toFixed(2)
   // `short` is what fits on the button's price line (the rail is 146 px wide and the
   // frame gate counts every row); `label` is what the tooltip and a screen reader say.

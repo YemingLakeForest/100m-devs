@@ -29,6 +29,7 @@ import {
   cashFlowReadout,
   formatMoney,
   formatVelocity,
+  isLongNumeral,
   payoutReadout,
   runwayReadout,
   syncPercent,
@@ -73,7 +74,13 @@ export function Cash({ state }: { state: GameState }) {
   return (
     <div className="hud__block hud__block--cash">
       <span className="hud__label"><Kw kind="cash">CASH</Kw></span>
-      <b className="hud__num hud__num--major">{formatMoney(state.cash)}</b>
+      {/* [2026-10-15] `−$954.4K` is eight glyphs and the rail holds seven at this size:
+          the minus wrapped onto a line of its own and the player read a positive
+          $954.4K — in the one band (−$100K to −$999K) that an aggressive hirer
+          lives in. It steps down one whole type size instead (§3 rule 2). */}
+      <b className={`hud__num hud__num--major${isLongNumeral(formatMoney(state.cash)) ? ' hud__num--long' : ''}`}>
+        {formatMoney(state.cash)}
+      </b>
       {/* One live figure combines catalogue income and payroll so the HUD never
           labels a gross outflow as the studio's actual cash direction. */}
       <span className={`hud__sub hud__cash-flow${flow > 0 ? ' is-good' : flow < 0 ? ' is-bad' : ''}`}>

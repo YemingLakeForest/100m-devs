@@ -9,6 +9,7 @@ import {
   currentMassHireCost,
   currentUnlocks,
   hasPrestiged,
+  currentEfficiency,
   currentEntropy,
   dismissScene,
   dismissShiftReport,
@@ -30,12 +31,10 @@ import {
   type GameState,
 } from '../game/store.ts'
 import { MASS_HIRE_COUNT, PHASE_COPY, SEED_ROUND_CASH } from '../game/onboarding.ts'
-import { LESSONS, RUN_ONE_WAY_OUT } from '../game/lessons.ts'
 import { CollapsePlate } from './CollapsePlate.tsx'
-import { marginalHire, plateCaption } from './collapseModel.ts'
-
-/** Founder and James: the two people who did the work before the Mass Hire. */
-const STARTING_HEADS = 2
+import { marginalHire } from './collapseModel.ts'
+import { LATER_RUN_TERMINAL, bankruptcyReceipt } from './bankruptcyModel.ts'
+import { payrollPerSecond } from '../sim/economy.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
@@ -76,7 +75,8 @@ import { ParadigmCutScene } from './ParadigmCutScene.tsx'
 import { ProximaLaunch } from './ProximaLaunch.tsx'
 import { Gallery } from './Gallery.tsx'
 import { ParadigmTree } from './ParadigmTree.tsx'
-import { actionFor, formatMoney, offerFor, type ActionSpec } from './hudModel.ts'
+import { actionFor, formatMoney, hireRunwayReadout, offerFor, type ActionSpec } from './hudModel.ts'
+import { runwayAfterHire } from '../sim/hireDial.ts'
 import { useGameState } from './useGameState.ts'
 import { ConceptText } from '../ui/ConceptText.tsx'
 import { Options } from '../title/Options.tsx'
@@ -230,6 +230,10 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const entropy = currentEntropy(state)
   const theme = entropyTheme(entropy)
   const copy = PHASE_COPY[state.phase]
+  // [2026-10-15] `PHASE_COPY.bankrupt` is Run 1's trap, word for word. Every run
+  // after it ends on the same phase, so the rail's terminal told a payroll death
+  // about a thousand developers and Slack under a modal that had stopped saying so.
+  const terminal = state.phase === 'bankrupt' && hasPrestiged() ? LATER_RUN_TERMINAL : copy.terminal
   // §10.7 — the belt takes the advisor's line while it needs the player: the
   // first build on the shelf, and a full buffer that has stopped the floor.
   const advisor = pipelineAdvice(state) ?? copy.advisor
@@ -710,9 +714,9 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           on the rail, not a panel, and unmounting it would restart the
           typewriter and make the advisor re-read its line after every scene.
         */}
-        {copy.terminal && (
+        {terminal && (
           <pre className="hud__terminal">
-            <Typewriter text={copy.terminal.join('\n').replace('{project}', state.sprintName)} />
+            <Typewriter text={terminal.join('\n').replace('{project}', state.sprintName)} />
           </pre>
         )}
         {advisor && (
@@ -959,10 +963,26 @@ function ActionButton({ spec, state }: { spec: ActionSpec; state: GameState }) {
         button clipped at 748x336.
       */}
       {q && (() => {
-        const worth = spec.priced === 'hire' && state.devs >= 4 ? marginalHire(state.devs, effectiveDevCap(state), q.count) : null
+        const worth =
+          spec.priced === 'hire' && state.devs >= 4
+            ? marginalHire(state.devs, effectiveDevCap(state), q.count, (d) => currentEfficiency({ ...state, devs: d }))
+            : null
+        // [2026-10-15] What the hire leaves, on the button that makes it. It
+        // *replaces* the worth rather than joining it: the price line is one row
+        // wide and the frame gate counts rows, and when a hire is within ninety
+        // seconds of the bankruptcy line the runway is the only number on it
+        // that is still the player's decision. The worth stays in the tooltip.
+        const left =
+          spec.priced === 'hire' && q.affordable && q.count > 0
+            ? hireRunwayReadout(runwayAfterHire(state.devs, state.cash, q.count, q.cost))
+            : null
+        const title = worth ? `The next hire ${worth.label.toLowerCase()} developers’ worth of work` : undefined
         return (
-          <small title={worth ? `The next hire ${worth.label.toLowerCase()} developers’ worth of work` : undefined}>
-            {formatMoney(q.cost)}{worth ? ` · ${worth.short}` : ''}
+          <small
+            className={left ? 'is-bad' : undefined}
+            title={left ? `Leaves ${left.replace(' LEFT', '')} before bankruptcy at this payroll${worth ? `. ${title}` : ''}` : title}
+          >
+            {formatMoney(q.cost)}{left ? ` · ${left}` : worth ? ` · ${worth.short}` : ''}
           </small>
         )
       })()}
@@ -1089,9 +1109,17 @@ function Bankruptcy({ open, state }: { open: boolean; state: GameState }) {
   // developers were doing two developers' worth of work; the swarm is doing a
   // hundredth of one. Read off the same curve the plate drew, at the cap the
   // studio actually had, so the receipt cannot disagree with what was on screen.
-  const cap = effectiveDevCap(state)
-  const before = plateCaption(STARTING_HEADS, cap).work
-  const after = plateCaption(state.devs, cap).work
+  // [2026-10-15] Run 1's receipt is the script; every run after it reads the studio
+  // that actually ended — see `bankruptcyModel.ts` for why a Run 2 payroll death
+  // must not be told it had a thousand developers arguing in Slack.
+  const receipt = bankruptcyReceipt({
+    prestiged: hasPrestiged(),
+    devs: state.devs,
+    cap: effectiveDevCap(state),
+    revenue: state.lifetimeRevenue,
+    payroll: payrollPerSecond(state.devs),
+    work: state.devs * currentEfficiency(state),
+  })
   return (
     <OsWindow
       open={open}
@@ -1113,20 +1141,22 @@ function Bankruptcy({ open, state }: { open: boolean; state: GameState }) {
     >
       <h1>BANKRUPTCY</h1>
       <p>
-        <ConceptText text="Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds coding." />
+        <ConceptText text={receipt.story} />
       </p>
-      <p className="bankruptcy__result">$0 REVENUE — TOTAL LIQUIDATION</p>
+      <p className="bankruptcy__result">{receipt.result}</p>
       <p className="bankruptcy__sums">
-        {STARTING_HEADS} DEVELOPERS: {before} DEVELOPERS’ WORTH OF WORK
+        {receipt.sums[0]}
         <br />
-        {Math.floor(state.devs).toLocaleString()} DEVELOPERS: {after} DEVELOPERS’ WORTH OF WORK
+        {receipt.sums[1]}
       </p>
       <p className="bankruptcy__lesson">
         LESSON LEARNED:
-        <br />
-        {LESSONS['lesson.entropy']}
-        <br />
-        {RUN_ONE_WAY_OUT}
+        {receipt.lesson.map((line) => (
+          <span key={line}>
+            <br />
+            {line}
+          </span>
+        ))}
       </p>
       {/* James survives. Every other developer is liquidated. */}
       <p className="bankruptcy__james">James stayed.</p>

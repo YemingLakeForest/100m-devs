@@ -9189,6 +9189,40 @@ for the whole of the act that introduces it. A fraction is always satisfiable an
 scales without tuning. <strong>A segment that never lights up is worse than one that was not
 shipped.</strong></p>
 </blockquote>
+<blockquote>
+<p><strong>[amended 2026-10-15] A fraction of the treasury is not &quot;solvent&quot; once the studio is big,
+and MAX gains a second reserve: a duration, measured from the bankruptcy line rather than from
+zero.</strong> Found by playing, then measured against the real store. From a studio of 5,000 on $50M with
+a cap of 50,000, <strong>one press of MAX hired 31,000 people and the run was over 1.25 seconds later</strong>:
+a tenth of $50M is $5M, and 36,000 developers draw $1.8M a second. From 1,000 on $3M it took fifteen
+seconds. A reserve that is a fraction of cash shrinks, as a share of the burn, exactly as fast as the
+studio grows — so the control that promised never to spend the last dollar was the quickest road to
+§21 Act V, and it took it at the scale where the player can least read what happened. Each half was
+defensible alone; the pair was a one-click liquidation.</p>
+<p><strong>The rule:</strong> MAX also refuses any batch after which the studio would be fewer than
+<code>MAX_RUNWAY_SECONDS</code> = <strong>120</strong> from <code>secondsUntilBankrupt</code> — the HUD's own clock, the one that
+starts blinking red at ninety. Ninety plus the half-minute it takes to read it, and two builds' worth
+at §4.4's sixty seconds a game. MAX therefore <em>never starts the bankruptcy clock</em>, and a second tap
+into the same runway buys nobody (the first spent the headroom), so spamming it is a speed bump
+the player can rely on rather than a ratchet.</p>
+<p><strong>It does not bring back the dead segment.</strong> The first draft's mistake was measuring the wage
+against <em>cash</em>. This measures against the <em>line</em>, which is a million dollars below zero: a studio of
+twenty-five on $400 is 800 seconds from it however little it holds, so there only the tenth binds
+and the segment lights up in Act IIa exactly as before (<code>hireDial.test.ts</code> still pins it). The runway
+only starts to speak when the burn is large enough that a million dollars is a minute of it.</p>
+<p><strong>Fixed multipliers are still the player's to choose, and they are now told what they cost.</strong>
+<code>x1K</code> remains a decision, not a refusal — but the HIRE button's price line carries
+<code>$6.4M · 14s LEFT</code> in the clock's alarm ink whenever the hire would leave fewer than ninety seconds,
+in place of the worth figure (which stays in the tooltip). §4.10a diagnosed a hire as <em>"free at the moment
+of the decision and lethal at the moment of the invoice"</em>; the price fixed the first half and this is the
+second. It is silent for the whole early game, because a small studio is never within ninety seconds of
+−$1M. And the worth figure itself had a bug of the same family: it read §4.1 alone, so under THE THREAD
+(§18.0a) — output held at a quarter — it said <code>+1.00</code> to a player deciding on the thirteenth hire. It
+reads the studio's real efficiency now (ceiling, fold and floor), and says <code>+0.25</code>.</p>
+<p><em>Not changed, on purpose.</em> The bankruptcy threshold stays a flat −$1,000,000 (§4.10, §24). At scale
+that is seconds of payroll, which §24 already states plainly; scaling it would move Run 1's scripted
+Act V and nothing the playthrough found needed it once MAX stopped being the way there.</p>
+</blockquote>
 </li>
 <li><p><strong>Every hire in a batch is a §7.8.5 arrival.</strong> A x100 hire cascades a hundred seats in seat
 order, compressed by <code>cascadeDelay</code> so it stays inside its cap. <strong>The batch is never a
@@ -15173,6 +15207,16 @@ wall of overlapping notification pings, loud overlapping chatter, and an alarm s
 |                 [ TRIGGER PARADIGM SHIFT ]               |
 +----------------------------------------------------------+
 </code></pre>
+<p><strong>[amended 2026-10-15] This screen is Run 1's, and only Run 1's.</strong> Every bankruptcy used to print
+it — the panel <em>and</em> the rail's terminal — so a Run 2 studio of twelve that went under on payroll was told
+<em>&quot;Your 1,000 developers spent 100% of their time arguing in Slack and zero seconds coding&quot;</em> with
+<em>&quot;$0 Revenue&quot;</em>: a thousand people it never had, and a lesson about a trap it never walked into. The
+same rule §15.1a states for the shift now applies to the panel in front of it — <strong>Run 1 teaches §6 and is a
+script; every run after it is a reading of the studio that ended.</strong> From the first Paradigm Shift on, the
+panel prints that run's own headcount, payroll, revenue and the output it was actually getting (THE THREAD's
+quarter included), and the lesson is the one <code>lessonFor</code> already picks for a bankrupt studio after Run 1,
+<em>&quot;Payroll is a clock. It does not stop when the studio does.&quot;</em> The rail's terminal says the same in one
+line with no numbers in it, because it is a typewriter and re-types when its text moves.</p>
 <p><em>(Tapping <code>[ TRIGGER PARADIGM SHIFT ]</code> unlocks the <strong>Layer 1 Prestige Tree</strong> for the first
 time, granting your first <strong>Bandwidth Points (BP)</strong> to begin buying Async Communication
 protocols for Run 2.)</em></p>
