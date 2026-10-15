@@ -19,18 +19,29 @@ import { box, cylinder, INK, sharedMaterial } from './worldArt.ts'
  * is `steps(n, end)` and the user does not want gradients, glows or fades.
  *
  * **The voxels are one instanced mesh.** A statue is 60 to 190 cubes and a queue of five is five more, so a draw call each would be
- * a dozen; instanced, the finished ones are the cube mesh drawn `built` times and the ones not yet standing are a second mesh of
- * smaller dark cubes (the blueprint of what is coming) drawn the other `total − built` times, laid out in reverse so that both are
- * a prefix. Neither is ever rebuilt as the project grows: only `count` moves.
+ * a dozen; instanced, the figure is the cube mesh drawn `built` times, laid out bottom row first so that what stands is a prefix. It
+ * is never rebuilt as the project grows: only `count` moves.
+ *
+ * **It grows; it does not reveal** [2026-10-15, at the user's instruction: *"to voxel statue, make it grow instead of scratching out
+ * the shade?"*]. The ones not yet standing used to be drawn as a second mesh of dark cubes, the blueprint of the finished subject, and
+ * each voxel that stood scratched its own shade out. There is no shade now: nothing is drawn for a voxel that has not been built, so
+ * the plinth starts bare and the figure is, at every moment, exactly as much of the game as is done.
  *
  * **The hot edge** is the concept page's: a voxel arrives white, goes light amber, and is itself. It is set on the voxels that have
- * just stood, a few at a time, and not on a statue that is being loaded or a project that has reset — those stand silently.
+ * just stood, a few at a time, and not on a statue that is being loaded or a project that has reset — those stand silently. And
+ * **a voxel grows into its place**: it arrives at two fifths of its size, is seven tenths a step later and full a step after that, in
+ * hard steps inside the same quarter-second (`grown`), so what was just added is seen to be added and the top of the figure moves.
  */
 
 /** A jump of more than this many voxels in one update is a loaded save or a reset, not work, and does not flash. */
 const HOT_MAX = 8
 const HOT_WHITE_S = 0.1
 const HOT_LAMP_S = 0.26
+/** A new voxel's size as a share of its place, in two hard steps and then full: it grows in, it does not fade in. */
+const GROW_FROM = 0.4
+const GROW_MID = 0.7
+const GROW_STEP_S = 0.09
+export const grown = (age: number): number => (age < GROW_STEP_S ? GROW_FROM : age < GROW_STEP_S * 2 ? GROW_MID : 1)
 const WHITE = new T.Color(RAMPS.NEUTRAL[8])
 const LAMP = new T.Color(OS.lamp)
 /** The statue faces the lens (§12.1 looks back along (+x, +z)), so its sprite is seen square. */
@@ -83,10 +94,9 @@ interface Figure {
 }
 
 const litMaterial = () => sharedMaterial('statue:voxel', () => new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0, flatShading: true }))
-const ghostMaterial = () => sharedMaterial('statue:ghost', () => new T.MeshBasicMaterial({ color: OS.glow0 }))
 
-/** One statue: `model.voxels` laid out once, bottom row first, drawn as many as stand. A `ghost` is the blueprint of the ones that do not. */
-function makeFigure(geometry: T.BoxGeometry, spec: CoverSpec, ghost: boolean): Figure {
+/** One statue: `model.voxels` laid out once, bottom row first, drawn as many as stand. Nothing is drawn for the ones that do not. */
+function makeFigure(geometry: T.BoxGeometry, spec: CoverSpec): Figure {
   const model = statueModel(spec)
   const cell = cellSize(model), depth = cell * STATUE.depthCells, total = model.voxels.length
   const root = new T.Group()
@@ -94,39 +104,34 @@ function makeFigure(geometry: T.BoxGeometry, spec: CoverSpec, ghost: boolean): F
   mesh.count = 0; mesh.frustumCulled = false; mesh.receiveShadow = true
   root.add(mesh)
   const base = model.voxels.map((v) => new T.Color(v.colour))
-  const m = new T.Matrix4(), q = new T.Quaternion(), p = new T.Vector3(), s = new T.Vector3(cell, cell, depth), gs = new T.Vector3(cell * 0.94, cell * 0.94, depth * 0.94)
-  let blueprint: T.InstancedMesh | null = null
-  if (ghost) {
-    blueprint = new T.InstancedMesh(geometry, ghostMaterial(), total)
-    blueprint.count = total; blueprint.frustumCulled = false
-    root.add(blueprint)
-  }
-  model.voxels.forEach((v, i) => {
-    p.set((v.col - (model.cols - 1) / 2) * cell, (v.row + 0.5) * cell, 0)
-    mesh.setMatrixAt(i, m.compose(p, q, s))
-    mesh.setColorAt(i, base[i])
-    // the blueprint is laid out in reverse, so the cells not yet built are its first `total − built`
-    blueprint?.setMatrixAt(total - 1 - i, m.compose(p, q, gs))
-  })
+  const m = new T.Matrix4(), q = new T.Quaternion(), size = new T.Vector3()
+  const centres = model.voxels.map((v) => new T.Vector3((v.col - (model.cols - 1) / 2) * cell, (v.row + 0.5) * cell, 0))
+  /** Voxel `i` at `k` of its place, about its own centre: 1 is a cube that fills it. */
+  const place = (i: number, k: number) => mesh.setMatrixAt(i, m.compose(centres[i], q, size.set(cell * k, cell * k, depth * k)))
+  model.voxels.forEach((_, i) => { place(i, 1); mesh.setColorAt(i, base[i]) })
   mesh.instanceMatrix.needsUpdate = true
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-  if (blueprint) blueprint.instanceMatrix.needsUpdate = true
   const hotAt = new Map<number, number>()
   const paint = (i: number, c: T.Color) => mesh.setColorAt(i, c)
+  /** Every voxel still arriving is stood at once, full size and its own colour. */
+  const settle = () => { for (const i of hotAt.keys()) { paint(i, base[i]); place(i, 1) } hotAt.clear(); mesh.instanceMatrix.needsUpdate = true }
   const figure: Figure = {
     root, model, cell, depth, built: 0,
     setBuilt(n, clock) {
       n = Math.max(0, Math.min(total, n))
       if (n === figure.built) return
-      if (n < figure.built) { for (const i of hotAt.keys()) paint(i, base[i]); hotAt.clear() }
-      else if (clock !== null && n - figure.built <= HOT_MAX) for (let i = figure.built; i < n; i++) hotAt.set(i, clock)
+      if (n < figure.built) settle()
+      else if (clock !== null && n - figure.built <= HOT_MAX) {
+        // it stands at its first step at once: a frame at full size before it shrinks would be a flash, not a growth
+        for (let i = figure.built; i < n; i++) { hotAt.set(i, clock); place(i, GROW_FROM) }
+        mesh.instanceMatrix.needsUpdate = true
+      }
       figure.built = n
       mesh.count = n
-      if (blueprint) blueprint.count = total - n
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     },
     tint(mode) {
-      hotAt.clear()
+      settle()
       for (let i = 0; i < total; i++) paint(i, mode === 'white' ? WHITE : mode === 'lamp' ? LAMP : base[i])
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     },
@@ -134,14 +139,16 @@ function makeFigure(geometry: T.BoxGeometry, spec: CoverSpec, ghost: boolean): F
       if (hotAt.size === 0) return false
       for (const [i, t] of hotAt) {
         const age = clock - t
+        place(i, grown(age))
         if (age < HOT_WHITE_S) paint(i, WHITE)
         else if (age < HOT_LAMP_S) paint(i, LAMP)
         else { paint(i, base[i]); hotAt.delete(i) }
       }
+      mesh.instanceMatrix.needsUpdate = true
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
       return true
     },
-    dispose() { mesh.dispose(); blueprint?.dispose(); root.removeFromParent() },
+    dispose() { mesh.dispose(); root.removeFromParent() },
   }
   return figure
 }
@@ -250,7 +257,7 @@ export function createStatue(parent: T.Object3D): Statue {
     const key = `${spec.genre}/${spec.subject}`
     if (!main || key !== mainKey) {
       main?.dispose()
-      main = makeFigure(geometry, spec, true)
+      main = makeFigure(geometry, spec)
       mainKey = key
       figRoot.add(main.root)
       // loaded, or a new project: it stands as far as it has got without flashing
@@ -261,7 +268,7 @@ export function createStatue(parent: T.Object3D): Statue {
   }
 
   function makeMini(item: QueueItem, index: number): Mini {
-    const fig = makeFigure(geometry, item.spec, false)
+    const fig = makeFigure(geometry, item.spec)
     fig.setBuilt(fig.model.voxels.length, null)
     fig.root.scale.setScalar(QUEUE_SCALE)
     fig.root.rotation.y = FACING

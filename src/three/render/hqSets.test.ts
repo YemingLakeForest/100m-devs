@@ -139,7 +139,11 @@ describe('the project sink is the statue in the middle of the room (§8.2a, 2026
     })
     return { sets, sink: sets.sink!, set: props.get('desk:billy')!.group as T.Group, props, parent }
   }
-  /** What is drawn of the statue on the plinth: voxels standing, and the blueprint of the ones that are not. */
+  /**
+   * What is drawn of the statue on the plinth: voxels standing, and `blueprint`, the dark shade of the ones that are not. The statue
+   * grows rather than reveals (GDD §8.2a, 2026-10-15, *"make it grow instead of scratching out the shade"*), so `blueprint` is a
+   * thing the statue used to draw and is pinned at nothing: anything drawn that is not a standing voxel counts against it.
+   */
   const counts = (statue: { root: T.Object3D }) => {
     let built = 0, blueprint = 0
     statue.root.traverse((o) => {
@@ -180,7 +184,7 @@ describe('the project sink is the statue in the middle of the room (§8.2a, 2026
     expect(HERO_SITES.billy.rise + sink.height).toBeLessThanOrEqual(GARAGE_WALLS.height - 1.0)
   })
 
-  it('is built from the floor up as the project is: the share of the game built is the share of the statue standing, and the rest is its blueprint', () => {
+  it('is built from the floor up as the project is: the share of the game built is the share of the statue standing, and nothing is drawn for the rest', () => {
     const { sink } = sinkOf()
     const n = statueModel(SPEC).voxels.length
     let last = -1
@@ -188,7 +192,7 @@ describe('the project sink is the statue in the middle of the room (§8.2a, 2026
       sink.statue.update(SPEC, 'TEST', p)
       const c = counts(sink.statue)
       expect(c.built, `at ${p}`).toBe(voxelsBuilt(n, p))
-      expect(c.built + c.blueprint, `at ${p}`).toBe(n)
+      expect(c.blueprint, `at ${p}`).toBe(0)
       expect(c.built).toBeGreaterThanOrEqual(last)
       last = c.built
     }
@@ -209,7 +213,7 @@ describe('the project sink is the statue in the middle of the room (§8.2a, 2026
     sink.statue.update(SPEC, 'ONE', 1)
     sink.statue.update(SPEC2, 'TWO', 0.5)
     const n2 = statueModel(SPEC2).voxels.length
-    expect(counts(sink.statue)).toEqual({ built: voxelsBuilt(n2, 0.5), blueprint: n2 - voxelsBuilt(n2, 0.5) })
+    expect(counts(sink.statue)).toEqual({ built: voxelsBuilt(n2, 0.5), blueprint: 0 })
     sink.statue.update(null, '', 0)
     expect(counts(sink.statue)).toEqual({ built: 0, blueprint: 0 })
   })
@@ -246,8 +250,7 @@ describe('the project sink is the statue in the middle of the room (§8.2a, 2026
       expect(counts(sink.statue)).toEqual({ built: n, blueprint: 0 })
       // it has left: the plinth is the next project's, and it is not the finished one
       tick(sink, 1.7, 2.0)
-      const n2 = statueModel(SPEC2).voxels.length
-      expect(counts(sink.statue).built + counts(sink.statue).blueprint).toBe(n2)
+      expect(counts(sink.statue).blueprint).toBe(0)
       expect(counts(sink.statue).built).toBeLessThan(5)
     })
 
