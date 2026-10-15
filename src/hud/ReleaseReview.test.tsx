@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 // The Capacitor native-audio plugin cannot initialise under jsdom — see the
 // same mock in Hud.test.tsx.
 vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn(), BLIP_SFX: ['blip-0', 'blip-1', 'blip-2', 'blip-3', 'blip-4'] }))
+import { playSfx } from '../audio/sfx.ts'
+import { GLIDING_SFX } from '../audio/glides.ts'
 import { ReleaseReview } from './ReleaseReview.tsx'
 import { __resetStore, __setState, getState } from '../game/store.ts'
 import { recordRelease } from '../sim/history.ts'
@@ -106,6 +108,27 @@ describe('§10.8b — the review reel', () => {
     shipEvent(2, 'Flappy Square 1.0', 50, null)
     const train = render(<ReleaseReview state={getState()} />)
     expect(train.container.querySelector('.review__timing')).toBeNull()
+  })
+
+  it('plays the whole reel on sounds that hold their pitch: nothing rises or falls, at the open or at the verdict (2026-10-15)', () => {
+    // The user, three times: *"the siuuuu"*. The verdict was `entropy-lock`, a descending power-down whine, and it played
+    // here as well as at the ring: one siuuu per screen of the release. Run the reel to its end and hear what it played.
+    vi.useFakeTimers()
+    try {
+      seedHistory('Flappy Square 1.0', 90)
+      shipEvent(1, 'Flappy Square 1.0', 90, 'PERFECT WINDOW')
+      vi.mocked(playSfx).mockClear()
+      render(<ReleaseReview state={getState()} />)
+      act(() => {
+        vi.advanceTimersByTime(10_000)
+      })
+      const heard = vi.mocked(playSfx).mock.calls.map(([id]) => id as string)
+      // A stamp as it opens, three critics, a stamp on the total: five sounds, and none of them a glide.
+      expect(heard.length).toBeGreaterThanOrEqual(5)
+      for (const id of heard) expect(GLIDING_SFX as readonly string[]).not.toContain(id)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('still celebrates a ship that has no history record', () => {

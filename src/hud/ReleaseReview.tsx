@@ -114,7 +114,7 @@ export function ReleaseReview({ state }: { state: GameState }) {
       // screens are written against: a beat with four movements and one sound
       // reads as a still image with a chime over it. So the reel is *scored*
       // out of the bank — a blip under each critic as they land, climbing the pentatonic
-      // run (E, G, A) so three opinions arriving sound like a phrase, and the lock when the
+      // run (E, G, A) so three opinions arriving sound like a phrase, and a stamp when the
       // verdict stamps. The rhythm is the point. [2026-10-12] The rising note under the
       // total is gone with the whoosh it was.
       ...[0, 1, 2].map((i) =>
@@ -128,7 +128,9 @@ export function ReleaseReview({ state }: { state: GameState }) {
       // The verdict lands on its own sound rather than on the tail of the
       // launch chime: §10.8a's summary screens put the total *after* the rows,
       // and a total nobody hears arrive is a total that was always there.
-      setTimeout(() => playSfx('entropy-lock'), ms(REVIEW_BEATS.verdict)),
+      // [2026-10-15] It was `entropy-lock`, a descending power-down whine (see `ReleaseRing`'s
+      // verdict), and the total is stamped in on the glass anyway: so it is stamped on the speakers.
+      setTimeout(() => playSfx('release-hit'), ms(REVIEW_BEATS.verdict)),
       setTimeout(() => setOpen(false), ms(REVIEW_BEATS.total)),
     ]
     return () => timers.forEach(clearTimeout)

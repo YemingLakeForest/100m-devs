@@ -10,7 +10,9 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // The Capacitor native-audio plugin cannot initialise under jsdom — see the
 // same mock in Hud.test.tsx.
-vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
+vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn(), BLIP_SFX: Array.from({ length: 10 }, (_, i) => `blip-${i}`) }))
+import { playSfx } from '../audio/sfx.ts'
+import { GLIDING_SFX } from '../audio/glides.ts'
 import { ReleaseRing, VERDICT_HOLD_MS } from './ReleaseRing.tsx'
 import { PROJECTS, __parkBuild, __resetStore, getState, ringDefectCount } from '../game/store.ts'
 import { SHIP_ZONE, turnPeriodMs } from '../sim/release.ts'
@@ -75,5 +77,28 @@ describe('§10.7 — the release ring', () => {
     expect(getState().launching).toBe(false)
     expect(getState().projectsShipped).toBe(1)
     expect(getState().ship?.timingLabel).toBe('PERFECT WINDOW')
+  })
+
+  it('locks the date on sounds that hold their pitch: no rise, no fall, however perfect the date (2026-10-15)', () => {
+    // *"the siuuuu siuuuu still happens when the game is released"*: the lock was `entropy-lock`, a descending power-down whine,
+    // with `poke-crit`, a rising chirp, stacked on a perfect date. The claim is the contract, not the clip chosen to keep it.
+    vi.useFakeTimers()
+    __parkBuild()
+    const build = getState().shelf[0]
+    const period = turnPeriodMs(build.projectIndex, PROJECTS.length, ringDefectCount(build))
+    let now = 10_000
+    vi.spyOn(performance, 'now').mockImplementation(() => now)
+    ring()
+    const catcher = document.querySelector('.ring__catch')!
+    fireEvent.pointerDown(catcher, { button: 0 })
+    vi.mocked(playSfx).mockClear()
+    now += period * (1 - (SHIP_ZONE + 0.01))
+    fireEvent.pointerDown(catcher, { button: 0 })
+    act(() => {
+      vi.advanceTimersByTime(VERDICT_HOLD_MS + 10)
+    })
+    const heard = vi.mocked(playSfx).mock.calls.map(([id]) => id as string)
+    expect(heard.length).toBeGreaterThan(0)
+    for (const id of heard) expect(GLIDING_SFX as readonly string[]).not.toContain(id)
   })
 })

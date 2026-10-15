@@ -37,7 +37,7 @@ import { OsWindow } from '../ui/OsWindow.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Cover } from './Cover.tsx'
 import { coverFor } from '../three/sim/cover.ts'
-import { playSfx } from '../audio/sfx.ts'
+import { BLIP_SFX, playSfx } from '../audio/sfx.ts'
 import { playUi } from '../ui/uiSfx.ts'
 import { purchaseHaptic } from '../audio/haptics.ts'
 import { useReducedMotion } from '../ui/motion.ts'
@@ -174,11 +174,14 @@ function Ring({ build, seed }: { build: ShelvedBuild; seed: number }) {
         chosen: chosen && !clock.expired,
       })
       setVerdict(outcome)
-      // The lock sound is the game's "a number has been fixed" cue, and a
-      // perfect date stacks the crit chime on it — the one moment two clips
-      // are deliberately layered, as they were on the old launch window.
-      playSfx('entropy-lock')
-      if (outcome.timing.band === 'perfect') setTimeout(() => playSfx('poke-crit'), 90)
+      // [2026-10-15, *"the siuuuu siuuuu still happens when the game is released, can you find that?"*] The date was locked
+      // on `entropy-lock`, and a perfect one stacked `poke-crit` on it. Neither is a click: `entropy-lock` is a CRT
+      // powering down — its prompt (`scripts/generate-sfx.ts`) is *"a descending power-down whine"*, a voiced glide from
+      // about 700 Hz to 100 over a second, written for the entropy alarm and borrowed here — and `poke-crit` is a chirp
+      // rising 400 to 800 Hz. Played together, and again at the review's verdict, that is a siuuu up and a siuuu down,
+      // twice. The lock is now the dry desk switch, and a perfect date is one note that holds its pitch on top of it.
+      playSfx('poke-desk')
+      if (outcome.timing.band === 'perfect') setTimeout(() => playSfx(BLIP_SFX[7]), 90)
       setTimeout(() => launchRelease(outcome), VERDICT_HOLD_MS)
     },
     [marks, sample],

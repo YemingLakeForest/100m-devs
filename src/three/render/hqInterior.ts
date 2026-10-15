@@ -1,6 +1,6 @@
 /** §7.8.12 [2026-10-07]: a workshop with a gallery and garden, keeping the hero stations intact. */
 import * as T from 'three'
-import { GARAGE_PODS, GARAGE_POD_LAYOUT, GARAGE_FURNITURE, HQ_FINISHES, GARAGE_HERO_DECK } from '../sim/floorPlan.ts'
+import { GARAGE_FURNITURE, HQ_FINISHES, GARAGE_HERO_DECK } from '../sim/floorPlan.ts'
 import { box, sharedMaterial } from './worldArt.ts'
 import { courtyardGarden } from './garageGarden.ts'
 import { leafyPlanter } from './garageCraft.ts'
@@ -54,17 +54,9 @@ export function hqInterior(g: T.Group, studies: T.Group): void {
     for (const edge of [f.z0, f.z1]) box(g, x, .018, edge, f.x1 - f.x0, .003, .025, '#879e9f', false)
     for (const edge of [f.x0, f.x1]) box(g, edge, .018, z, .025, .003, f.z1 - f.z0, '#879e9f', false)
   }
-  // Oak work bays are architectural insets, not empty carpet rectangles. They
-  // remain ready for the next team without adding fake desks to the headcount.
-  for (const p of GARAGE_PODS) {
-    const w = p.rot === 90 ? GARAGE_POD_LAYOUT.matAcross : GARAGE_POD_LAYOUT.matAlong
-    const d = p.rot === 90 ? GARAGE_POD_LAYOUT.matAlong : GARAGE_POD_LAYOUT.matAcross
-    box(g, p.x, .018, p.z, w, .008, d, '#42575a', false)
-    box(g, p.x, .028, p.z, w - .10, .006, d - .10, '#b0926c', false)
-    for (let z = p.z - d / 2 + .55; z < p.z + d / 2 - .1; z += .55) {
-      box(g, p.x, .037, z, w - .20, .002, .012, '#9a805e', false)
-    }
-  }
+  // [2026-10-15, at the user's instruction: *"remove those mats the devs occupy at the garage"*] There were oak work bays
+  // here, one 4.0 x 4.7 m inset under each pod. They are gone: the developers sit on the room's own floor. The template
+  // still sizes the pod's footprint for the walk grid (`floorPlan.GARAGE_POD_LAYOUT`); only the drawing went.
   // The lounge belongs to a creative studio: oak acoustic backing and framed
   // pixel studies, at eye level and wholly within the existing wall/sofa bay.
   box(g, -12.87, .22, 5.8, .026, 3.14, 3.64, '#947a58', false)
