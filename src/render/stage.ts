@@ -46,7 +46,7 @@ import {
   arrivedHeroes,
   finishLiquidation,
   currentEntropy,
-  baseVelocity, developerVelocity, shelfBlocked, burnedFraction, projectOrdinal,
+  baseVelocity, developerVelocity, shelfBlocked, shelfCapacity, burnedFraction, projectOrdinal,
   FLOATER_LIFE_MS,
   getState,
   poke,
@@ -63,10 +63,10 @@ import { pokeHaptic } from '../audio/haptics.ts'
 import { exceedsSlop } from './navigation.ts'
 import { MAX_STREAMS } from '../sim/juice.ts'
 import { BREATH_MS, crossedMilestone } from '../sim/heldBreath.ts'
-import { RUN_MAX_PER_SECOND, VoiceBudget, bedLevel, nextBlip, nextRunNote, pullOut, tickRate } from '../sim/throughputAudio.ts'
+import { Blips, VoiceBudget, bedLevel, pullOut, tickRate } from '../sim/throughputAudio.ts'
 import { createThroughputBed } from '../audio/throughputBed.ts'
 import { createPassiveWork } from './passiveWork.ts'
-import { coverFor } from '../three/sim/cover.ts'
+import { coverFor, type CoverSpec } from '../three/sim/cover.ts'
 import { jamesPresent } from '../sim/james.ts'
 import { isAway } from '../sim/slackOff.ts'
 import { createPokeCanvas } from './pokeText.ts'
@@ -384,7 +384,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const paid = pokeFounder(at.x, at.y)
     if (paid <= 0) return 0
     garage.hop(FOUNDER_SEAT)
-    garage.pokeStream(FOUNDER_SEAT, paid); markPoke()
+    handClick(FOUNDER_SEAT, paid)
     if (sound) playKeyboardClick()
     if (t0 !== undefined) requestAnimationFrame(() => tapLatency.push(performance.now() - t0))
     return paid
@@ -397,7 +397,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       const at = personAt(JAMES_SEAT) ?? { x, y }
       const paid = pokeJames(at.x, at.y)
       garage.hop(JAMES_SEAT)
-      if (paid > 0) { garage.pokeStream(JAMES_SEAT, paid); markPoke(); playKeyboardClick() }
+      if (paid > 0) { handClick(JAMES_SEAT, paid); playKeyboardClick() }
       else playSfx('poke-void')
       return
     }
@@ -425,7 +425,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const lvl = level()
     const at = personAt(who) ?? { x, y }
     const result = poke(at.x, at.y, { rung: Math.round(lvl), index: who })
-    if (result.sp > 0) { garage.pokeStream(who, result.sp); markPoke() }
+    if (result.sp > 0) handClick(who, result.sp)
 
     // Sound first: criterion 2's budget is the tightest at 60 ms p95.
     const tier = tierOfLevel(lvl)
@@ -569,28 +569,38 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   const passiveWork=createPassiveWork()
   // A finished project joins the queue (§10.7); the unit it was built in flashes (§10.8a, move 3).
   let shelfSeen=-1
+  // The queue is drawn as a line of small statues (`three/render/statue.ts`), each of its game's cover subject: a build's cover is a
+  // fact about the build, so it is rolled once and kept for as long as the build is on the shelf.
+  const queueSpecs=new Map<number,CoverSpec>()
+  const queueItems=(st:ReturnType<typeof getState>)=>{
+    if(queueSpecs.size>64)queueSpecs.clear()
+    return st.shelf.map(b=>{
+      let spec=queueSpecs.get(b.id)
+      if(!spec){spec=coverFor(st.runSeed,b.ordinal,0,b.name,b.genre);queueSpecs.set(b.id,spec)}
+      return {id:b.id,spec,title:b.name}
+    })
+  }
   // §10.8a, move 6: once a decade's payoff has been held and rolled, the camera comes home to the desk.
   let devsSeen=-1, homeAt=0
   // §20.5a: the sound of work changes unit with the world — clicks while it is countable, one bed after.
   const throughputBed=createThroughputBed(), tickBudget=new VoiceBudget()
-  let blipAt=0, runDir:1|-1=1, lastBlipMs=-Infinity
+  const blips=new Blips()
   // The hand on the people: while a click's points are still in the air the sound is the player's (throughputAudio's run).
   let lastPokeMs=-Infinity
   /*
-   * [2026-10-14, *"when I click a burst of clicks and see a lot of the blobs, I don't hear a clustered melody ... I want the
-   * spam click reflected in sounds too"*] The run used to be sung by the blobs *landing*, and the landings are the
-   * least reliable clock in the game: they arrive after a flight, in whatever order the flight times put them, and with no
-   * passive work the budget's rate was zero and nothing sounded at all. A click is the one event that is exactly the hand,
-   * so each paid click now plays the next note of the climbing figure itself, at up to `RUN_MAX_PER_SECOND`, and while
-   * the hand is on the people the landings stay quiet rather than muddying it. Passive work still ticks as before.
+   * [2026-10-15, *"currently when I spam clicks the notes are played when I click, not when received, should be received"*]
+   * A click throws its points at the statue and each of them sings the next note of the climbing run **as it lands** (the room counts
+   * the landings: `garage.takeHandArrivals`, sung in the frame below), at up to `RUN_MAX_PER_SECOND`; the keyboard tap stays at the
+   * fingertip, where a tap is. On 2026-10-14 the run was sung at the click, because landings had been the least reliable clock in the game
+   * (the passive budget's rate was zero with no passive work, and the flight scatter shuffled them); a hand's points have neither fault
+   * now (`flow.ts`), and sound that is not where the eye is following is the thing that was wrong. While the hand is on the people
+   * the passive landings stay quiet rather than muddying it. When no points can be thrown (the lens is too far out to see the room) there is
+   * nothing to wait for, and the click sings its own note, as it did.
    */
-  const markPoke=()=>{
+  const handClick=(seat:number,sp:number)=>{
     const at=performance.now()
     lastPokeMs=at
-    if(at-lastBlipMs<1000/RUN_MAX_PER_SECOND)return
-    const n=nextRunNote(blipAt,runDir,at-lastBlipMs,Math.random())
-    blipAt=n.note;runDir=n.direction;lastBlipMs=at
-    playSfx(BLIP_SFX[blipAt])
+    if(!garage.pokeStream(seat,sp)){const note=blips.hand(at,Math.random());if(note!==null)playSfx(BLIP_SFX[note])}
   }
   let workSeats:number[]=[], nextWorkScan=0
 
@@ -734,6 +744,8 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if(devsSeen>=0&&crossedMilestone(devsSeen,state.devs)!==null)homeAt=performance.now()+BREATH_MS
     devsSeen=state.devs
     if(homeAt>0&&performance.now()>=homeAt){homeAt=0;if(atlasZoom===null&&!state.scene)garage.focus(FOUNDER_SEAT,0.34)}
+    // The queue first, so that in the frame a build lands it is already the tail of the line the statue is about to walk to.
+    garage.setQueue(queueItems(state),shelfCapacity(state))
     if(shelfSeen>=0&&state.shelf.length>shelfSeen){garage.flashUnits();garage.complete('build');playSfx('build-done')}
     shelfSeen=state.shelf.length
     const workRate=people.reduce((sum,p)=>sum+p.rate,0)
@@ -745,7 +757,9 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const crowd=people.length>MAX_STREAMS
     const passive=passiveWork.update(people,dt*steps,now,reduceMotion,seat=>{if(!garage.animating(seat))garage.hop(seat, true)},!crowd)
     const landings=garage.takeArrivals()
-    for(const _ of landings){const at=performance.now(),running=at-lastPokeMs<2200;if(!running&&tickBudget.admit(at,tickRate(workRate))){blipAt=nextBlip(blipAt%5,Math.random());lastBlipMs=at;playSfx(BLIP_SFX[blipAt])}}
+    // The notes a click sings are sung as its points land, one for each; the room has counted them since the last frame.
+    for(let i=0,n=garage.takeHandArrivals();i<n;i++){const note=blips.hand(performance.now(),Math.random());if(note!==null)playSfx(BLIP_SFX[note])}
+    for(const _ of landings){const at=performance.now(),running=at-lastPokeMs<2200;if(!running&&tickBudget.admit(at,tickRate(workRate)))playSfx(BLIP_SFX[blips.passive(at,Math.random())])}
     floaters=[...floaters,...passive,...(crowd?passiveWork.arrive(landings,now,reduceMotion):[])]
 
     const theme = entropyTheme(currentEntropy(state))

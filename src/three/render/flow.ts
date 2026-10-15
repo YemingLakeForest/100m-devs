@@ -33,6 +33,8 @@ import { sharedMaterial } from './worldArt.ts'
 /** How long a point is in the air, and how much that varies so a stream is a river and not a march. */
 const FLIGHT_S = 1.5
 const FLIGHT_JITTER = 0.35
+/** …and a click's, which is nearly none: see `stream`. */
+const HAND_JITTER = 0.06
 /**
  * Edge of a one-point blob, in metres, and how a blob grows with what it carries: *"I want the blob scaled
  * by story point, roughly 1 point per blob."* Under the stream's cap a blob IS one story point, so the
@@ -82,6 +84,12 @@ const MAX_RINGS = 24
 export interface FlowLot {
   /** Where the work lands, in world space. */
   sink: T.Vector3
+  /**
+   * A name for this sink that does not change while `sink` moves. The arrival numerals sum per sink and are keyed by where they
+   * landed; a statue's sink is the voxel being built, which moves up the sprite a cell at a time, and would split one beat's
+   * numeral between two keys. A lot that stands still leaves it out and is keyed by its place, as before.
+   */
+  key?: string
   /** The floor the lot stands on, in world y. Defaults to a metre under the sink. */
   floor?: number
   /** Where the lot's gauge and rings stand, when beside the sink toward the workers would be out of sight (a house's wall). */
@@ -116,6 +124,10 @@ interface Point {
   vx: number; vy: number; vz: number
   age: number; life: number
   value: number
+  /** The lot's own key, when it has one, handed back with the arrival. */
+  key?: string
+  /** A point a click made: announced to `onHand` where it lands, and never to `onArrive`. */
+  hand?: boolean
   /** A stream's sideways bow, signed, in metres. */
   sway: number
   size: number
@@ -125,14 +137,19 @@ interface Point {
 interface Ring { x: number; y: number; z: number; age: number; reach: number }
 
 /**
- * @param onArrive  Called once per point at its sink with what it carried: the arrival tick
- *                  (slice B3). A point that carries nothing (a click's) is not announced.
+ * @param onArrive  Called once per point at its sink with what it carried (and the lot's `key`, if it has one): the
+ *                  arrival tick (slice B3). A point that carries nothing (a click's) is not announced here.
  * @param random    Injected so tests can visit every source deterministically.
+ * @param onHand    Called once per point a click made, **as it lands at the sink** [2026-10-15, *"currently when I spam clicks the
+ *                  notes are played when I click, not when received, should be received"*]. The note a click sings is sung
+ *                  where its points arrive, so the sound is the thing the eye is following and not a second event at the
+ *                  fingertip. Under reduced motion there is no flight and the points land at once.
  */
 export function createFlow(
   parent: T.Object3D,
-  onArrive?: (at: T.Vector3, value: number) => void,
+  onArrive?: (at: T.Vector3, value: number, key?: string) => void,
   random: () => number = Math.random,
+  onHand?: (at: T.Vector3) => void,
 ) {
   const geometry = new T.BoxGeometry(1, 1, 1)
   const material = sharedMaterial('flow:point', () => new T.MeshBasicMaterial({ color: 0xffffff }))
@@ -176,11 +193,14 @@ export function createFlow(
 
   function spawn(p: Point) { if (points.length < MAX_PACKETS) points.push(p) }
 
-  function stream(from: T.Vector3, to: T.Vector3, value: number, size: number, age = 0, life = FLIGHT_S) {
+  function stream(from: T.Vector3, to: T.Vector3, value: number, size: number, age = 0, life = FLIGHT_S, key?: string, hand = false) {
+    // A river's points vary in flight so it is not a march; a click's hardly do, because their landings are the notes and the notes
+    // are the player's own rhythm, which a quarter-second of scatter in the flight would turn into somebody else's.
+    const jitter = hand ? HAND_JITTER : FLIGHT_JITTER
     spawn({
       kind: 0, fx: from.x, fy: from.y, fz: from.z, tx: to.x, ty: to.y, tz: to.z, vx: 0, vy: 0, vz: 0,
-      age, life: life * (1 - FLIGHT_JITTER / 2 + random() * FLIGHT_JITTER), value, sway: (random() * 2 - 1) * SWAY,
-      size: size * (0.85 + random() * 0.3), floor: 0,
+      age, life: life * (1 - jitter / 2 + random() * jitter), value, sway: (random() * 2 - 1) * SWAY,
+      size: size * (0.85 + random() * 0.3), floor: 0, key, hand,
     })
   }
 
@@ -190,9 +210,9 @@ export function createFlow(
     let lot = lots[0]
     for (const l of lots) { lot = l; if ((pick -= l.sources.length) < 0) break }
     if (lot.sources.length === 0) return
-    if (reduced) { onArrive?.(lot.sink, value); return }
+    if (reduced) { onArrive?.(lot.sink, value, lot.key); return }
     const from = lot.sources[Math.min(lot.sources.length - 1, Math.floor(random() * lot.sources.length))]
-    stream(from, lot.sink, value, blobSize(value), age)
+    stream(from, lot.sink, value, blobSize(value), age, FLIGHT_S, lot.key)
   }
 
   /** Where a lot's gauge stands, on its floor: toward its workers from the sink, or where the lot says. */
@@ -279,7 +299,8 @@ export function createFlow(
         p.age += dt
         const done = p.age >= p.life || (p.kind === 1 && p.age > 0.05 && p.fy + p.vy * p.age - 0.5 * GRAVITY * p.age * p.age < p.floor)
         if (done) {
-          if (p.kind === 0 && p.value > 0) onArrive?.(new T.Vector3(p.tx, p.ty, p.tz), p.value)
+          if (p.kind === 0 && p.value > 0) onArrive?.(new T.Vector3(p.tx, p.ty, p.tz), p.value, p.key)
+          else if (p.kind === 0 && p.hand) onHand?.(new T.Vector3(p.tx, p.ty, p.tz))
           points[i] = points[points.length - 1]
           points.pop()
         }
@@ -369,9 +390,10 @@ export function createFlow(
      * said so in its own numeral), so spam stacks into more blobs rather than into more numerals.
      */
     emit(from: T.Vector3, to: T.Vector3, sp: number, reduced: boolean) {
-      if (reduced) return
       const n = Math.max(1, Math.min(8, Math.round(sp)))
-      for (let i = 0; i < n; i++) stream(from, to, 0, blobSize(sp / n), -i * 0.06, FLIGHT_S * 0.8)
+      // No flight under reduced motion, so the points have landed already; the sound does not depend on the picture.
+      if (reduced) { for (let i = 0; i < n; i++) onHand?.(to); return }
+      for (let i = 0; i < n; i++) stream(from, to, 0, blobSize(sp / n), -i * 0.06, FLIGHT_S * 0.8, undefined, true)
       fountain(from, from.y - 0.4, 6, [1.6, 3.2])
     },
     dispose() {

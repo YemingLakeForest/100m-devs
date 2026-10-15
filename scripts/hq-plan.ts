@@ -8,7 +8,7 @@
  * game could not show was the plan. It is a drawing, not a gate — nothing fails
  * on it — and it is cheap enough to regenerate that the habit is to look at it
  * before moving a wall. Redrawn 2026-10-05 for the sixth cut: the founder's podium, James's
- * deck, and Billy on the open floor with the two lanes either side of him.
+ * deck, and Billy on the open floor with the two lanes either side of him; redrawn 2026-10-14 for the statue plaza.
  *
  *   npx tsx scripts/hq-plan.ts [out.svg]
  *
@@ -17,7 +17,6 @@
  */
 import { writeFileSync } from 'node:fs'
 import {
-  BILLY_PLAZA,
   GARAGE_DECK,
   GARAGE_FURNITURE,
   GARAGE_HERO_SCALE,
@@ -29,6 +28,7 @@ import {
   HERO_SITES,
   HQ_FINISHES,
   HQ_GARDEN,
+  STATUE_PLAZA,
   STUDIO_DOOR,
   benches,
   destinationsIn,
@@ -61,11 +61,6 @@ const arrow = (x0: number, z0: number, x1: number, z1: number, stroke: string, w
   const a = Math.atan2(pz(z1) - pz(z0), px(x1) - px(x0)), h = 9
   const hx = px(x1), hy = pz(z1)
   out.push(`<polygon points="${hx},${hy} ${hx - h * Math.cos(a - 0.4)},${hy - h * Math.sin(a - 0.4)} ${hx - h * Math.cos(a + 0.4)},${hy - h * Math.sin(a + 0.4)}" fill="${stroke}"/>`)
-}
-/** A point in a station's own frame (a turn of `rot` degrees, scaled by `k`) as a world point: the one transform every set is built in. */
-const turned = (s: { x: number; z: number; rot: number }, k: number, lx: number, lz: number) => {
-  const a = (s.rot * Math.PI) / 180
-  return { x: s.x + k * (lx * Math.cos(a) + lz * Math.sin(a)), z: s.z + k * (-lx * Math.sin(a) + lz * Math.cos(a)) }
 }
 const poly = (pts: { x: number; z: number }[], fill: string, stroke = 'none', extra = '') =>
   out.push(`<polygon points="${pts.map((p) => `${px(p.x)},${pz(p.z)}`).join(' ')}" fill="${fill}" stroke="${stroke}" ${extra}/>`)
@@ -121,18 +116,16 @@ for (const [id, site] of Object.entries(HERO_SITES)) {
   const cx = (site.x0 + site.x1) / 2
   text(cx, site.wall === 'free' ? site.z1 - 0.15 : site.z0 + 0.4, `${SITE_NAME[id]}${site.rise > 0.3 ? ` +${site.rise.toFixed(2)}` : ''}`, 10, SITE_INK[id], 'middle', 700)
 }
-// Billy's board and dais, drawn from `BILLY_PLAZA` in his own frame (unscaled metres, turned an eighth): the board is a bar on the
-// diagonal with a foot at each end, and the dais an octagon. The blocked rectangle round them is the footprint the walk grid pads.
+// The statue's plinth, Billy's dais and the queue's places, drawn from `STATUE_PLAZA` in the room's own metres: the plinth and the dais are
+// octagons, the queue a line of squares up the stem. The blocked rectangle round the first two is the footprint the walk grid pads.
 {
   const billy = GARAGE_LEADERS.find((l) => l.id === 'billy')!
-  const { board, dais } = BILLY_PLAZA
-  const hw = board.w / 2
-  poly([turned(billy, 1, board.x - hw, board.z - 0.05), turned(billy, 1, board.x + hw, board.z - 0.05), turned(billy, 1, board.x + hw, board.z + 0.05), turned(billy, 1, board.x - hw, board.z + 0.05)], '#58605d', '#2b2f33')
-  for (const side of [-1, 1]) {
-    poly([turned(billy, 1, board.x + side * hw - 0.04, board.z - board.feet), turned(billy, 1, board.x + side * hw + 0.04, board.z - board.feet),
-      turned(billy, 1, board.x + side * hw + 0.04, board.z + board.feet), turned(billy, 1, board.x + side * hw - 0.04, board.z + board.feet)], '#3b4240')
-  }
+  const { plinth, dais, queue } = STATUE_PLAZA
+  octagon(plinth.x, plinth.z, plinth.apothem, '#34494f', '#1b2a2e', 'stroke-width="2"')
+  text(plinth.x, plinth.z + 0.1, 'STATUE', 9, '#d8e6e8', 'middle', 700)
   octagon(billy.x, billy.z, dais.apothem, '#c39760', '#5d3f86', 'stroke-width="1.5"')
+  for (let i = 0; i < queue.shown; i++) rect(queue.x, queue.zHead - i * queue.pitch, queue.width, queue.width, '#4a6a72', '#1b2a2e')
+  text(queue.x, queue.zHead - (queue.shown - 1) * queue.pitch - 0.7, 'QUEUE', 8, '#35505b', 'middle', 700)
 }
 // the glazing round the Ops Room: south and east faces, the two the camera sees
 {
@@ -152,7 +145,7 @@ const FILL: Record<string, string> = {
   island: '#d8c9a8', locker: '#9aa3a0', planter: '#a3b47a', bench: '#c9b79a', screen: '#cfe3e6', banner: '#e0a52e', cooler: '#8dc3da',
 }
 for (const f of GARAGE_FURNITURE) {
-  if (f.kind === 'easel') continue // drawn above, from the numbers it is derived from
+  if (f.kind === 'plinth') continue // drawn above, from the numbers it is derived from
   rect(f.x, f.z, f.w, f.d, FILL[f.kind] ?? '#ccc', '#4a4a45')
   text(f.x, f.z + 0.1, f.kind === 'board' ? 'PROJECT BOARD' : f.kind.toUpperCase(), 7, INKC, 'middle', 400,
     f.kind === 'board' ? `transform="rotate(-90 ${px(f.x)} ${pz(f.z)})"` : '')

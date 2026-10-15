@@ -369,6 +369,16 @@ const SPRITES: Record<string, Sprite> = {
 }
 
 /**
+ * The subject a cover stands on its horizon, as the painter's own rows and colours — for a statue made of it
+ * (`statueModel.ts`). Not a copy: the statue and the cover are the same twelve sprites, so a game's statue is
+ * recognisably the game on its box, and a thirteenth subject added here gets a statue the day it gets a cover.
+ */
+export function subjectSprite(spec: CoverSpec): { readonly rows: readonly string[]; readonly colours: Readonly<Record<string, string>> } {
+  const choices = SUBJECTS[spec.genre]
+  return SPRITES[choices[spec.subject % choices.length]]
+}
+
+/**
  * Which subjects a genre may be drawn with, in spec order.
  *
  * `sim/cover.ts`'s `SUBJECTS_PER_GENRE` is the authority on how many there are

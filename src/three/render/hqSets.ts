@@ -2,11 +2,11 @@
  * Role-specific boards remain live; common joinery replaces individual stages and floor borders. */
 import * as T from 'three'
 import { box, cylinder } from './worldArt.ts'
-import { projectPlate, type ProjectPlate } from './projectPlate.ts'
+import { createStatue, type Statue } from './statue.ts'
 
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import type { HeroId } from '../../sim/storyHeroes.ts'
-import { BILLY_PLAZA, GARAGE_HERO_SCALE, HERO_SITES } from '../sim/floorPlan.ts'
+import { GARAGE_HERO_SCALE, HERO_SITES, STATUE_PLAZA } from '../sim/floorPlan.ts'
 
 /** What the studio is doing, as the sets draw it. All of it is already on the HUD. */
 export interface HqReadouts {
@@ -38,28 +38,29 @@ export const NO_HQ_READOUTS: HqReadouts = {
 export interface HqSets {
   /** Advance the animation and redraw whatever the numbers changed. Always true: the people never stop (§7.8.13). */
   update(seconds: number, readouts: HqReadouts): boolean
-  /** The studio's project sink, standing where Billy's whiteboard stood: there from the start of the cast, before Billy is. */
+  /** The studio's project sink, the statue in the middle of the room: there from the start of the cast, before Billy is. */
   sink?: HqSink
   dispose(): void
 }
 
 /**
- * **The project sink** [2026-10-12]: the game-print whiteboard, moved onto Billy's floor and used by him —
- * *"just move our whiteboard of game print as the real write board and Billy use that one too."* It is the board that
- * printed the project's cover row by row as the game was built (`projectPlate.ts`), and that print IS the fill: every
- * point of work flying to it (`render/flow.ts`, GDD §8.2a) is a row of the picture. It stands in the footprint Billy's
- * chart had, so the walk grid is unchanged. A first attempt at a bigger dark column with a separate fill was dropped for
- * this at the user's word.
+ * **The project sink** [2026-10-12; the statue, 2026-10-14]: the game being built, stood up in the middle of the room.
+ *
+ * It was the game-print whiteboard (*"just move our whiteboard of game print as the real write board and Billy use that one too"*,
+ * 2026-10-12), which printed the project's cover row by row as the game was built (`projectPlate.ts`). The user was shown five things the
+ * points could build instead and chose the third-dimension one: *"voxel statue! put it in the middle of the room and so you need to
+ * move Bill, design a new layout."* It is the cover's own subject as voxels on a plinth, built from the floor up as the project is
+ * (`render/statue.ts`), with the queue of finished builds as a line of small ones up the deck's stem. Billy stands beside the plinth
+ * (`STATUE_PLAZA`, which holds the whole argument for the layout). The board is gone from here; the wall board in the garage is
+ * only the fallback for a room built without an HQ.
  */
 export interface HqSink {
-  /** The project's cover, printed row by row as the build goes (`projectPlate.ts`). */
-  plate: ProjectPlate
-  /** At the board's foot, on the floor, turned as the set is: world positions of the sink come from here. */
+  /** The statue on the plinth and the queue of finished ones: what the work flies at, what completes, what the queue draws. */
+  statue: Statue
+  /** At the plinth's foot, on the deck: world positions of the sink come from here. */
   anchor: T.Object3D
-  /** How high the board stands above the floor, for the fountain to leave from the top of. */
+  /** How high the finished statue's top stands above the deck, for the fountain to leave from the top of. */
   height: number
-  /** Whether a completion is holding the board's frame white. */
-  setFlash(white: boolean): void
 }
 
 type Id = Extract<HeroId, 'billy' | 'serena' | 'matt'>
@@ -465,59 +466,22 @@ export function buildHqSets(input: HqSetInput): HqSets {
   }
 
   // ======================== BILLY: the plaza ========================
-  // §7.8.12 [2026-10-09]: the east pod is Billy's audience; his chart sits behind his left shoulder.
+  // §7.8.12 [2026-10-09, the east pod was his audience and his chart sat behind his left shoulder; 2026-10-14, the statue stands where
+  // the chart was and he stands beside it].
   if (present.has('billy')) {
-    frame('billy') // registers `desk:billy`, which his arrival still places; the board is not in it (below)
-    const { dais, board } = BILLY_PLAZA
-    // [2026-10-13, at the user's instruction: *"the whiteboard is there from the beginning and Billy will appear on it"*]
-    // The board and its cabinet are not Billy's furniture: they are the studio's, and stand in the group below, which no
-    // hero's arrival places or lifts. Billy's own set (the `desk:billy` prop, which waits for him) is only what he does.
-    const home = at.billy
-    const stand = new T.Group()
-    stand.position.set(home.x, 0, home.z)
-    stand.rotation.y = (home.rot * Math.PI) / 180
-    home.parent.add(stand)
-    disposers.push(() => { stand.removeFromParent() })
-    // Compact storage beside Billy leaves his silhouette and the meeting aisle open.
-    box(stand, board.x, .06, board.z, board.w, .78, .54, '#34494f')
-    box(stand, board.x, .84, board.z, board.w + .04, .075, .58, '#ba9263')
-    for (const dx of [-.40, .40]) {
-      box(stand, board.x + dx, .16, board.z + .285, .73, .59, .025, '#76583d')
-      box(stand, board.x + dx + .20, .53, board.z + .304, .025, .12, .022, '#879e9f')
-    }
-    // [2026-10-12] The board: a frame, the project's game print for a face (it was §4.1's hill, drawn in marker), a tray
-    // with four markers, and two uprights on feet. Its face is the garage's own project board moved here, so it is the
-    // same picture the HUD's project bar is counting, and Billy stands at it.
-    const by = 1.65
-    const plate = projectPlate(board.w - 0.14)
-    const plateGeometry = plate.mesh.geometry as T.PlaneGeometry
-    const bh = plateGeometry.parameters.height
-    const frameMaterial = new T.MeshBasicMaterial({ color: '#ba9263' })
-    const rim = new T.Mesh(new T.BoxGeometry(board.w, bh + 0.12, 0.1), frameMaterial)
-    rim.position.set(board.x, by - 0.06 + (bh + 0.12) / 2, board.z)
-    rim.userData.dynamic = true
-    stand.add(rim)
-    plate.mesh.position.set(board.x, by + bh / 2, board.z + 0.056)
-    stand.add(plate.mesh)
-    box(stand, board.x, by - 0.12, board.z + 0.1, board.w, 0.05, 0.16, '#58605d')
-    for (let k = 0; k < 4; k++) box(stand, board.x - 0.55 + k * 0.35, by - 0.07, board.z + 0.12, 0.2, 0.03, 0.03, ['#2f5aa8', '#c23b30', '#2d7d46', '#25303a'][k])
-    for (const side of [-1, 1]) {
-      const x = board.x + side * (board.w / 2 - 0.03)
-      box(stand, x, .915, board.z, .06, by + bh - .915, .06, '#34494f')
-    }
-    const anchor = new T.Object3D()
-    anchor.position.set(board.x, 0, board.z)
-    stand.add(anchor)
-    let white = false
-    sink = {
-      plate, anchor, height: by + bh,
-      setFlash(on) { if (on !== white) { white = on; frameMaterial.color.set(on ? '#ffffff' : '#ba9263') } },
-    }
-    disposers.push(() => { plate.dispose(); rim.geometry.dispose(); frameMaterial.dispose() })
-    // The body's face is local −z; π faces the station's +z, toward the east pod after its quarter turn.
+    frame('billy') // registers `desk:billy`, which his arrival still places; the statue is not in it (below)
+    const { dais } = STATUE_PLAZA
+    // [2026-10-13, at the user's instruction: *"the whiteboard is there from the beginning and Billy will appear on it"*; the same
+    // holds of the statue.] It is not Billy's furniture: it is the studio's, stands in the deck's own group, and no hero's arrival
+    // places or lifts it. Billy's own set (the `desk:billy` prop, which waits for him) is only what he does.
+    const statue = createStatue(at.billy.parent)
+    disposers.push(() => statue.dispose())
+    sink = { statue, anchor: statue.root, height: statue.height }
+    movers.push((s) => statue.tick(s))
+    // The body's face is local −z; π faces the station's +z, toward the lens like Matt's and Serena's.
     const body = bodies.billy
     if (body) movers.push((s) => {
-      // Stay oriented to the east-pod audience rather than sweeping into empty floor.
+      // A little sway, so he is not a statue next to one.
       body.rotation.y = Math.PI + Math.sin(s * .7) * .08
       body.position.y = dais.rise / GARAGE_HERO_SCALE + Math.abs(Math.sin(s * 1.4)) * 0.015
     })

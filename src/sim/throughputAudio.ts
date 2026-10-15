@@ -117,3 +117,43 @@ export class VoiceBudget {
     return true
   }
 }
+
+/**
+ * **Who sings, and when** [2026-10-15, *"currently when I spam clicks the notes are played when I click, not when received, should
+ * be received"*]. One voice for the blips, shared by the two things that make them: the points a click made, which sing the
+ * climbing run, and the passive work's landings, which sing the random figure. A note is sung where a point *lands*, because the
+ * landing is what the eye is following; the hand's points fly with hardly any scatter (`flow.ts`'s `HAND_JITTER`), so the
+ * landings keep the player's own rhythm, a flight later.
+ *
+ * The 2026-10-14 version sang the run at the click itself, because landings had been the least reliable clock in the game. That was
+ * right about the clock and wrong about the sound: a note at the fingertip and a blob arriving a second later are two events, and the
+ * user hears the first and sees the second. What made landings unreliable was the passive budget (a rate of nothing meant silence)
+ * and the flight scatter, and neither applies to a hand's points any more, which are counted by the room and sing at up to
+ * {@link RUN_MAX_PER_SECOND} however many land.
+ */
+export class Blips {
+  private note = 0
+  private direction: 1 | -1 = 1
+  private last = -Infinity
+
+  /**
+   * The note a point a click made sings as it lands at `nowMs`, or null when it lands too soon after the last note to have one of its
+   * own (the run never goes faster than {@link RUN_MAX_PER_SECOND}, which is what keeps a burst a figure and not a chord).
+   */
+  hand(nowMs: number, random: number): number | null {
+    const gap = nowMs - this.last
+    if (gap < 1000 / RUN_MAX_PER_SECOND) return null
+    const next = nextRunNote(this.note, this.direction, gap, random)
+    this.note = next.note
+    this.direction = next.direction
+    this.last = nowMs
+    return next.note
+  }
+
+  /** The note an ordinary landing sings: never the one just sung, and out of the run's reach so it cannot continue it. */
+  passive(nowMs: number, random: number): number {
+    this.note = nextBlip(this.note % BLIP_COUNT, random)
+    this.last = nowMs
+    return this.note
+  }
+}

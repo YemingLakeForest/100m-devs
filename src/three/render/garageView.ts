@@ -127,21 +127,32 @@ export interface GarageView {
   hop(seat: number, mild?: boolean): void
   nameTags(): HeroTag[]
   setProject(spec: import('../sim/cover.ts').CoverSpec, title: string, progress: number): void
+  /**
+   * The builds waiting to ship, head first, and how many places the queue has: the line of small statues up the deck's stem
+   * (`render/statue.ts`). Call it before `complete('build')` in the frame a build lands, so the new one is the tail it is flying to.
+   */
+  setQueue(items: readonly { id: number; spec: import('../sim/cover.ts').CoverSpec; title: string }[], capacity: number): void
   codingSeats(): number[]
   /**
    * Story points a second the people on screen are making, for the stream of points that carries
-   * it to the project board or the house's door (§8.2a). 0 stops the flow. `progress` is how much
-   * of the game being built is built, 0 to 1: the level of the gauge beside the board.
+   * it to the statue on the plinth or the house's door (§8.2a). 0 stops the flow. `progress` is how much
+   * of the game being built is built, 0 to 1: the level of the gauge, where a sink has one.
    */
   setFlow(rate: number, reduced: boolean, progress: number): void
   /**
-   * The game is done: a build has gone into the queue, or a release has gone on sale. The board
-   * throws a fountain of points, a ring runs out across the lot, and the gauge flashes full; a
-   * release does it bigger and at every open house as well.
+   * The game is done: a build has gone into the queue, or a release has gone on sale. The statue
+   * throws a fountain of points, a ring runs out across the lot, and a build also turns the statue round and sends it to
+   * the queue; a release does the fountain and rings bigger and at every open house as well.
    */
   complete(kind: 'build' | 'release'): void
-  /** A click on this person that paid `sp` story points: that many blobs from them to the project, so a tap is seen to make something. */
-  pokeStream(seat: number, sp: number): void
+  /**
+   * A click on this person that paid `sp` story points: that many blobs from them to the project, so a tap is seen to make something.
+   * Returns whether any were thrown: false means there was nowhere to throw them (the lens is too far out to see the room, or the
+   * person is not in it), and the caller should sing the click's note itself instead of waiting for it to land.
+   */
+  pokeStream(seat: number, sp: number): boolean
+  /** How many of those blobs have landed since the last call: the notes a click sings are sung one for each, as it lands. */
+  takeHandArrivals(): number
   /**
    * What landed at the sinks since the last call, where it is on the canvas (CSS pixels), keyed
    * by sink. Landings off the frame are dropped: the numeral is display, not accounting.
@@ -433,30 +444,32 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     exhaust(footprint) { dustRing(footprint, true) },
   }, () => cast)
   scene.add(city.root)
-  const landed: { at: T.Vector3; value: number }[] = []
+  const landed: { at: T.Vector3; value: number; key?: string }[] = []
   const unitFlashLayer = createUnitFlash(scene)
-  const flow = createFlow(scene, (at, value) => { if (landed.length < 256) landed.push({ at, value }) })
+  // A click's own points are counted where they land (`takeHandArrivals`), a few hundred at most between frames.
+  let handLanded = 0
+  const flow = createFlow(scene, (at, value, key) => { if (landed.length < 256) landed.push({ at, value, key }) }, Math.random, () => { handLanded = Math.min(handLanded + 1, 256) })
   let wallTakenDown = false
-  /** The garage's own lot: its visible people, and the project board they work toward. */
+  /** The garage's own lot: its visible people, and the statue they work toward. */
   function garageLots(): FlowLot[] {
     const sinkAt = env.hq?.sink
-    // The sink is the project board on the open floor where Billy's chart was (`hqSets.ts`), there from the start of the cast
-    // [2026-10-13: *"the whiteboard is there from the beginning and Billy will appear on it"*], so it is the sink from the first
-    // frame and the wall board in the corner is taken down for good. The wall board stays the fallback for a room built without
-    // an HQ, because a lot that returns nothing means nothing flies at all.
+    // The sink is the statue on the plinth in the middle of the room (`hqSets.ts`, `statue.ts`), there from the start of the cast
+    // [2026-10-13: *"the whiteboard is there from the beginning and Billy will appear on it"*, and the statue took its place on
+    // 2026-10-14], so it is the sink from the first frame and the wall board in the corner is taken down for good. The wall board
+    // stays the fallback for a room built without an HQ, because a lot that returns nothing means nothing flies at all.
     const sinkShown = (() => { for (let o: T.Object3D | null = sinkAt?.anchor ?? null; o; o = o.parent) if (!o.visible) return false; return !!sinkAt })()
-    // Moved, not copied: while Billy's board is up the one on the wall comes down.
+    // Moved, not copied: while the statue is up the board on the wall comes down.
     const wall = env.projectPlate?.mesh.parent
     if (wall && sinkShown && wall.visible) { wall.visible = false; wallTakenDown = true; dirty = true }
     else if (wall && !sinkShown && wallTakenDown) { wall.visible = true; wallTakenDown = false; dirty = true }
     if (sinkAt && sinkShown) {
       const sources = env.targets.filter(t => { for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false; return true })
         .map(t => { const p = t.mesh.getWorldPosition(new T.Vector3()); p.y += t.mesh.scale.y * .3; return p })
-      sinkAt.anchor.updateWorldMatrix(true, false)
-      const foot = sinkAt.anchor.localToWorld(new T.Vector3(0, 0, 0))
+      const foot = sinkAt.statue.foot(new T.Vector3())
+      // The work lands in front of the voxel that is being built, and the lot is keyed by the statue and not by that voxel, which moves.
       return [{
-        sink: sinkAt.anchor.localToWorld(new T.Vector3(0, sinkAt.height - .5, .4)), floor: foot.y, top: sinkAt.height, main: true,
-        standAt: sinkAt.anchor.localToWorld(new T.Vector3(0, 0, 1.6)), sources,
+        sink: sinkAt.statue.aim(new T.Vector3()), floor: foot.y, top: sinkAt.height, main: true, key: 'statue',
+        standAt: foot, sources,
       }]
     }
     const plate = env.projectPlate?.mesh
@@ -1104,34 +1117,38 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       return [...seats,...city.codingSeats()]
     },
     setFlow(rate, reduced, progress) { flowRate = rate; flowReduced = reduced; flowProgress = progress },
-    complete(kind) { flow.complete(flowLots, kind, flowReduced); dirty = true },
+    complete(kind) { flow.complete(flowLots, kind, flowReduced); env.hq?.sink?.statue.complete(kind, flowReduced); dirty = true },
     pokeStream(seat, sp) {
       const to = flowLots[0]?.sink
-      if (!to) return
+      if (!to) return false
       let from: T.Vector3 | null
       if (seat >= 0 && heads === 0 && city.count > 0) from = city.headOf(seat)
       else {
         const t = env.targets.find((target) => target.index === seat)
-        if (!t) return
+        if (!t) return false
         from = t.mesh.getWorldPosition(new T.Vector3()); from.y += t.mesh.scale.y * .3
       }
-      if (from) { flow.emit(from, to, sp, flowReduced); dirty = true }
+      if (!from) return false
+      flow.emit(from, to, sp, flowReduced); dirty = true
+      return true
     },
+    takeHandArrivals() { const n = handLanded; handLanded = 0; return n },
     flashUnits() {
       unitFlashLayer.start([{ x: 0, z: 0, y: -.31, half: LOT_BRACKET - 1.7 }, ...city.pads()], clock)
     },
     takeArrivals() {
       frame()
-      return landed.splice(0).flatMap(({ at, value }) => {
+      return landed.splice(0).flatMap(({ at, value, key }) => {
         const p = at.clone().project(camera)
         if (p.x < -1 || p.x > 1 || p.y < -1 || p.y > 1) return []
-        return [{ key: `${Math.round(at.x)},${Math.round(at.z)}`, x: (p.x + 1) * w / 2, y: (1 - p.y) * h / 2, value }]
+        return [{ key: key ?? `${Math.round(at.x)},${Math.round(at.z)}`, x: (p.x + 1) * w / 2, y: (1 - p.y) * h / 2, value }]
       })
     },
     setProject(spec, title, progress) {
       env.projectPlate?.update(spec, title, progress)
-      env.hq?.sink?.plate.update(spec, title, progress)
+      env.hq?.sink?.statue.update(spec, title, progress)
     },
+    setQueue(items, capacity) { env.hq?.sink?.statue.setQueue(items, capacity) },
     hop(seat, mild = false) {
       if (seat === -1 && mild) return
       // Past twenty an ordinary seat is in the city.
@@ -1166,7 +1183,6 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       const levelBefore = flow.level
       flow.update(clock - flowClock, flowRate, flowLots, flowReduced, flowProgress)
       flowClock = clock
-      env.hq?.sink?.setFlash(flow.flashing)
       if (flow.live > 0 || flow.ringsLive > 0 || flow.level !== levelBefore) dirty = true
       if (unitFlashLayer.update(clock, flowReduced)) dirty = true
       if (focusOn) {

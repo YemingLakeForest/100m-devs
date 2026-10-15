@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { queueSlot } from './statueBeat.ts'
 import {
-  BILLY_PLAZA,
   GARAGE_DECK,
   GARAGE_HERO_DECK,
   GARAGE_DECK_ENTRY,
   GARAGE_FURNITURE,
   GARAGE_HERO_SCALE,
   GARAGE_LEADERS,
+  GARAGE_OUTLINE,
   GARAGE_PLATFORMS,
   GARAGE_PODIUM,
   GARAGE_PODS,
@@ -14,6 +15,7 @@ import {
   GARAGE_WALL_FACES,
   HERO_SITES,
   LEADER_IDS,
+  STATUE_PLAZA,
   benches,
   destinationsIn,
   heroDesktop,
@@ -51,6 +53,17 @@ const footprint = (f: { x: number; z: number; w: number; d: number }): Rect => (
 const inside = (inner: Rect, outer: Rect, slack = 1e-9) =>
   inner.x - inner.w / 2 >= outer.x - outer.w / 2 - slack && inner.x + inner.w / 2 <= outer.x + outer.w / 2 + slack &&
   inner.z - inner.d / 2 >= outer.z - outer.d / 2 - slack && inner.z + inner.d / 2 <= outer.z + outer.d / 2 + slack
+
+/** Is a point on the timber deck (the one polygon the heroes' platforms are cut from)? */
+const onDeck = (x: number, z: number) => {
+  const poly = GARAGE_HERO_DECK.outline
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, zi] = poly[i], [xj, zj] = poly[j]
+    if ((zi > z) !== (zj > z) && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside
+  }
+  return inside
+}
 
 const HEROES = ['matt', 'serena', 'billy'] as const
 const WALL_HEROES = ['matt', 'serena'] as const
@@ -110,7 +123,7 @@ describe('the hero quarter', () => {
   })
 
   it('keeps Billy between developer teams with open lanes and no furniture overlap', () => {
-    const footing = footprint(GARAGE_FURNITURE.find((f) => f.kind === 'easel')!)
+    const footing = footprint(GARAGE_FURNITURE.find((f) => f.kind === 'plinth')!)
     const s = leader('billy')
     const tables = benches('garage')
     // The nearest pod either side of him along the avenue: the ones whose tables are beside his footprint, not the far column.
@@ -121,48 +134,67 @@ describe('the hero quarter', () => {
       expect(t, `a pod to his ${side < 0 ? 'west' : 'east'}`).toBeDefined()
       // §7.8.12 [2026-10-07]: the user rejected the cramped avenue, so its old 1.5 m
       // maximum gap no longer describes the brief. Teams still flank the meeting court;
-      // the minimum lane is what keeps circulation open beside his board and dais.
+      // the minimum lane is what keeps circulation open beside the plinth and his dais.
       expect(gap(footing, t), `pod at ${t.x},${t.z}`).toBeGreaterThanOrEqual(1.0)
     }
     for (const t of tables) expect(overlap(footing, t), `pod at ${t.x},${t.z}`).toBe(false)
   })
 
-  it('draws his footprint from what he stands on and beside: the dais under him and the board at his side', () => {
-    const footing = footprint(GARAGE_FURNITURE.find((f) => f.kind === 'easel')!)
-    const s = leader('billy')
-    // the dais, an octagon with its flats to the axes, is inside it
-    expect(inside({ x: s.x, z: s.z, w: 2 * BILLY_PLAZA.dais.apothem, d: 2 * BILLY_PLAZA.dais.apothem }, footing, 1e-6)).toBe(true)
-    // …and so is the middle of the board, which is `board.x` to his side and `board.z` behind him, in a frame turned an eighth
-    const a = (s.rot * Math.PI) / 180
-    const centre = { x: s.x + BILLY_PLAZA.board.x * Math.cos(a) + BILLY_PLAZA.board.z * Math.sin(a), z: s.z - BILLY_PLAZA.board.x * Math.sin(a) + BILLY_PLAZA.board.z * Math.cos(a) }
-    expect(inside({ ...centre, w: 0, d: 0 }, footing)).toBe(true)
+  it('draws his footprint from what he stands on and beside: the dais under him and the plinth at his side', () => {
+    const footing = footprint(GARAGE_FURNITURE.find((f) => f.kind === 'plinth')!)
+    const s = leader('billy'), { plinth, dais } = STATUE_PLAZA
+    // the dais, an octagon with its flats to the axes, is inside it…
+    expect(inside({ x: s.x, z: s.z, w: 2 * dais.apothem, d: 2 * dais.apothem }, footing, 1e-6)).toBe(true)
+    // …and so is the plinth, an octagon with its flats to the axes too
+    expect(inside({ x: plinth.x, z: plinth.z, w: 2 * plinth.apothem, d: 2 * plinth.apothem }, footing, 1e-6)).toBe(true)
     // …and the whole of it is Billy's: inside his site
     expect(inside(footing, rectOf(HERO_SITES.billy), 1e-6)).toBe(true)
-    // The board stands to his left and a step behind, on §12.1's lens: screen-left of him, so he is not in front of the face.
-    // Screen-left is toward (−1, +1), so ((x − z) of the board) is less than his.
-    expect(centre.x - centre.z).toBeLessThan(s.x - s.z)
+    // The statue stands to his screen-left and a step in front of him, on §12.1's lens: screen-left is toward (−1, +1), so ((x − z) of
+    // the plinth) is less than his, and he is not in front of the face of it.
+    expect(plinth.x - plinth.z).toBeLessThan(s.x - s.z)
+    // …and he is behind it, toward the heroes: the lens looks along (−1, −1), so what is nearer the heroes is up the picture.
+    expect(s.x + s.z).toBeLessThan(plinth.x + plinth.z)
+    // The two do not touch: a person's width between the edge of his dais and the plinth
+    expect(gap(rectOf({ x0: s.x - dais.apothem, x1: s.x + dais.apothem, z0: s.z - dais.apothem, z1: s.z + dais.apothem }),
+      rectOf({ x0: plinth.x - plinth.apothem, x1: plinth.x + plinth.apothem, z0: plinth.z - plinth.apothem, z1: plinth.z + plinth.apothem }))).toBeGreaterThanOrEqual(0.25)
   })
 
-  it('stands the board in the middle of the deck’s corridor, with Billy on the same wood', () => {
-    // [2026-10-14, *"the white board is off center to the corridor wood floor"*] The deck's stem runs south to Billy and the
-    // board is the biggest thing standing on it. When the board moved to his screen-left (`board.x`) he stayed on the stem's
-    // centre line, so the board went 0.95 m off it and its west end hung over the deck's edge. The claim is the board's —
-    // on the stem, with the same wood either side — and Billy's dais has to stay on the wood too, or the fix would only
-    // move the overhang to him.
-    const s = leader('billy'), { board, dais } = BILLY_PLAZA
-    expect(s.rot).toBe(0) // the station's frame is the world's, so `board.x` is a world offset
-    const cx = s.x + board.x, cz = s.z + board.z
-    // The deck's two edges that run along the board: vertical edges of the outline whose z-span holds the board's centre.
+  it('stands the statue in the middle of the room, in the middle of the deck’s corridor, with Billy on the same wood', () => {
+    // [2026-10-14, *"voxel statue! put it in the middle of the room and so you need to move Bill, design a new layout"*] The claim is the
+    // statue's: it is level with the floor's middle (the middle of its bounding box, which is as close as an irregular room has to
+    // one), on the stem's centre line with the same wood either side, and every corner of its octagon is on the deck. (The board
+    // before it had the same claim for the corridor: *"the white board is off center to the corridor wood floor"*, 2026-10-14.)
+    const s = leader('billy'), { plinth, dais } = STATUE_PLAZA
+    const xs = GARAGE_OUTLINE.map((p) => p[0]), zs = GARAGE_OUTLINE.map((p) => p[1])
+    const middle = { x: (Math.min(...xs) + Math.max(...xs)) / 2, z: (Math.min(...zs) + Math.max(...zs)) / 2 }
+    expect(Math.hypot(plinth.x - middle.x, plinth.z - middle.z), 'the plinth is off the middle of the floor by').toBeLessThan(1.25)
+    // The deck's two edges that run along the stem: vertical edges of the outline whose z-span holds the plinth's middle.
     const edges = GARAGE_HERO_DECK.outline.flatMap((p, i, all) => {
       const q = all[(i + 1) % all.length]
-      return p[0] === q[0] && Math.min(p[1], q[1]) < cz && cz < Math.max(p[1], q[1]) ? [p[0]] : []
+      return p[0] === q[0] && Math.min(p[1], q[1]) < plinth.z && plinth.z < Math.max(p[1], q[1]) ? [p[0]] : []
     })
-    const west = Math.max(...edges.filter((x) => x < cx)), east = Math.min(...edges.filter((x) => x > cx))
-    expect(cx - board.w / 2, 'the board\'s west end is on the deck').toBeGreaterThan(west)
-    expect(cx + board.w / 2, 'the board\'s east end is on the deck').toBeLessThan(east)
-    expect(Math.abs(cx - (west + east) / 2), 'the board is off the corridor\'s centre line by').toBeLessThan(0.05)
+    const west = Math.max(...edges.filter((x) => x < plinth.x)), east = Math.min(...edges.filter((x) => x > plinth.x))
+    expect(Math.abs(plinth.x - (west + east) / 2), 'the plinth is off the corridor\'s centre line by').toBeLessThan(0.05)
+    const R = plinth.apothem / Math.cos(Math.PI / 8)
+    for (let k = 0; k < 8; k++) {
+      const a = Math.PI / 8 + k * Math.PI / 4
+      expect(onDeck(plinth.x + R * Math.sin(a), plinth.z + R * Math.cos(a)), `corner ${k} of the plinth`).toBe(true)
+    }
     expect(s.x - dais.apothem, 'his dais\'s west side is on the deck').toBeGreaterThan(west)
     expect(s.x + dais.apothem, 'his dais\'s east side is on the deck').toBeLessThan(east)
+  })
+
+  it('stands the queue up the stem, clear of the plinth, of Billy and of the heroes, and on the wood', () => {
+    const q = STATUE_PLAZA.queue, { plinth, dais } = STATUE_PLAZA, s = leader('billy')
+    const plinthRect = rectOf({ x0: plinth.x - plinth.apothem, x1: plinth.x + plinth.apothem, z0: plinth.z - plinth.apothem, z1: plinth.z + plinth.apothem })
+    const daisRect = rectOf({ x0: s.x - dais.apothem, x1: s.x + dais.apothem, z0: s.z - dais.apothem, z1: s.z + dais.apothem })
+    for (let i = 0; i < q.shown; i++) {
+      const slot = queueSlot(i), r = { x: slot.x, z: slot.z, w: q.width, d: q.width }
+      for (const [x, z] of [[r.x - r.w / 2, r.z - r.d / 2], [r.x + r.w / 2, r.z - r.d / 2], [r.x + r.w / 2, r.z + r.d / 2], [r.x - r.w / 2, r.z + r.d / 2]]) expect(onDeck(x, z), `place ${i}`).toBe(true)
+      expect(gap(r, plinthRect), `place ${i} / plinth`).toBeGreaterThanOrEqual(0.25)
+      expect(gap(r, daisRect), `place ${i} / Billy`).toBeGreaterThanOrEqual(0.25)
+      for (const id of WALL_HEROES) expect(overlap(r, rectOf(HERO_SITES[id])), `place ${i} / ${id}`).toBe(false)
+    }
   })
 
   it('gives every hero a floor of their own, and the boss a corner of their own', () => {
@@ -185,7 +217,7 @@ describe('the hero quarter', () => {
     for (const bay of GARAGE_PLATFORMS) expect(bay.rise).toBe(GARAGE_HERO_DECK.rise)
     for (const id of WALL_HEROES) expect(HERO_SITES[id].rise).toBe(GARAGE_HERO_DECK.rise)
     expect(HERO_SITES.billy.rise).toBe(GARAGE_HERO_DECK.rise)
-    expect(BILLY_PLAZA.dais.rise).toBe(0)
+    expect(STATUE_PLAZA.dais.rise).toBe(0)
   })
 
   it('makes the back walls taller than anything that stands against them, with a sign’s height to spare', () => {
@@ -272,25 +304,25 @@ describe('the hero quarter', () => {
   })
 
   it('keeps the room’s furniture off the heroes’ sites: nothing it stands there blocks a set', () => {
-    // Billy's own footprint is the one piece of furniture that is *his*: it is the board and the dais, in the plan so that
+    // Billy's own footprint is the one piece of furniture that is *his*: it is the plinth and the dais, in the plan so that
     // the walk grid closes them, and it is inside his site (above).
     for (const f of GARAGE_FURNITURE) {
-      if (f.kind === 'easel' || f.kind === 'counter') continue
+      if (f.kind === 'plinth' || f.kind === 'counter') continue
       for (const id of HEROES) expect(overlap(footprint(f), rectOf(HERO_SITES[id])), `${f.kind} / ${id}`).toBe(false)
     }
   })
 
-  it('never sends anybody on an errand on to a terrace, or into Billy’s board', () => {
+  it('never sends anybody on an errand on to a terrace, or into the statue’s plinth', () => {
     // The window errand was in the clerestory band on the far wall, and the hero stage was built over
     // it: two developers walked up an invisible stair and stood sunk in Billy's terrace. A destination is
     // a place the room draws and the walk reaches, and the terraces are neither.
-    const easel = footprint(GARAGE_FURNITURE.find((f) => f.kind === 'easel')!)
+    const plinth = footprint(GARAGE_FURNITURE.find((f) => f.kind === 'plinth')!)
     for (const dest of destinationsIn('garage')) {
       for (const s of dest.slots) {
         for (const p of GARAGE_PLATFORMS) {
           expect(s.x > p.x0 && s.x < p.x1 && s.z > p.z0 && s.z < p.z1, `${dest.kind} at ${s.x},${s.z}`).toBe(false)
         }
-        expect(overlap({ x: s.x, z: s.z, w: 0, d: 0 }, easel), `${dest.kind} at ${s.x},${s.z}`).toBe(false)
+        expect(overlap({ x: s.x, z: s.z, w: 0, d: 0 }, plinth), `${dest.kind} at ${s.x},${s.z}`).toBe(false)
       }
     }
   })

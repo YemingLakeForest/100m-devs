@@ -1,6 +1,8 @@
 import * as T from 'three'
 import { describe, expect, it } from 'vitest'
-import { BILLY_PLAZA, GARAGE_HERO_SCALE, GARAGE_LEADERS, GARAGE_WALLS, GARAGE_WALL_FACES, HERO_SITES } from '../sim/floorPlan.ts'
+import { statueModel, voxelsBuilt } from '../art/statueModel.ts'
+import { GARAGE_HERO_SCALE, GARAGE_LEADERS, GARAGE_WALLS, GARAGE_WALL_FACES, HERO_SITES, STATUE_PLAZA } from '../sim/floorPlan.ts'
+import { coverFor } from '../sim/cover.ts'
 import { HQ_PAINTINGS, NO_HQ_READOUTS, buildHqSets, type HqReadouts } from './hqSets.ts'
 import type { Environment } from './worldEnvironments.ts'
 
@@ -17,6 +19,9 @@ import type { Environment } from './worldEnvironments.ts'
  * a set built in its station's own frame and measured in the world's is the test of the turn.
  */
 const HEROES = ['matt', 'serena', 'billy'] as const
+/** Two projects with different subjects: a rocket, and a ghost. */
+const SPEC = coverFor(1, 0, 50, 'Hollow Orbit', 'arcade')
+const SPEC2 = coverFor(1, 1, 50, 'Haunted Hollow', 'horror')
 
 function build() {
   const props = new Map()
@@ -30,6 +35,8 @@ function build() {
     return [id, { parent, x: s.x, z: s.z, rot: s.rot }]
   })) as unknown as Parameters<typeof buildHqSets>[0]['at']
   const sets = buildHqSets({ env, at, bodies: {}, present: new Set(HEROES) })
+  // The statue is measured finished, which is the largest it is: the plinth alone is not what has to stay inside the site.
+  sets.sink?.statue.update(SPEC, 'TEST', 1)
   root.updateMatrixWorld(true)
   const box = (id: (typeof HEROES)[number]) => {
     const b = new T.Box3()
@@ -38,8 +45,9 @@ function build() {
       // Precise, from the vertices: Billy's rug is an octagon turned an eighth, and the box of its box is a third wider than it is.
       if (handle) b.union(new T.Box3().setFromObject(handle.group, true))
     }
-    // Billy's board stands in its own group, which no arrival moves (2026-10-13), and is still part of his site.
-    if (id === 'billy' && sets.sink?.plate.mesh.parent) b.union(new T.Box3().setFromObject(sets.sink.plate.mesh.parent, true))
+    // The statue stands in the deck's own group, which no arrival moves (2026-10-13), and is still part of his site. The queue is not: it is
+    // up the stem and measured against its own places (`heroRow.test.ts`).
+    if (id === 'billy' && sets.sink) b.union(new T.Box3().setFromObject(sets.sink.statue.root, true))
     return b
   }
   return { sets, box, props }
@@ -118,7 +126,7 @@ describe('the sets are only built for who is here', () => {
   })
 })
 
-describe('the project sink stands where Billy’s chart stood', () => {
+describe('the project sink is the statue in the middle of the room (§8.2a, 2026-10-14)', () => {
   const sinkOf = () => {
     const props = new Map()
     const root = new T.Group()
@@ -129,8 +137,22 @@ describe('the project sink stands where Billy’s chart stood', () => {
       env, at: { billy: { parent, x: s.x, z: s.z, rot: s.rot }, serena: { parent, x: 0, z: 0, rot: 0 }, matt: { parent, x: 0, z: 0, rot: 0 } },
       bodies: {}, present: new Set(['billy']),
     })
-    return { sets, sink: sets.sink!, set: props.get('desk:billy')!.group as T.Group, props }
+    return { sets, sink: sets.sink!, set: props.get('desk:billy')!.group as T.Group, props, parent }
   }
+  /** What is drawn of the statue on the plinth: voxels standing, and the blueprint of the ones that are not. */
+  const counts = (statue: { root: T.Object3D }) => {
+    let built = 0, blueprint = 0
+    statue.root.traverse((o) => {
+      if (!(o instanceof T.InstancedMesh)) return
+      if (o.material instanceof T.MeshBasicMaterial) blueprint += o.count; else built += o.count
+    })
+    return { built, blueprint }
+  }
+  /** The small statues in the queue: the groups in the queue's own group, each with a pedestal and a figure, that are drawn. */
+  const minis = (sink: { statue: { queueRoot: T.Object3D } }, shown = true) =>
+    sink.statue.queueRoot.children.filter((c) => c instanceof T.Group && (!shown || c.visible))
+  const item = (id: number, spec = SPEC) => ({ id, spec, title: `GAME ${id}` })
+
   it('exists with Billy, and is not there without him', () => {
     expect(sinkOf().sink).toBeDefined()
     const env = { props: new Map(), root: new T.Group(), targets: [], occluders: [], people: [] } as unknown as Environment
@@ -139,44 +161,173 @@ describe('the project sink stands where Billy’s chart stood', () => {
     expect(buildHqSets({ env, at: { billy: at, serena: at, matt: at }, bodies: {}, present: new Set(['serena']) }).sink).toBeUndefined()
   })
 
-  it('is there from the beginning: no hero’s set, which waits for its hero, holds the board or its cabinet', () => {
+  it('is there from the beginning: no hero’s set, which waits for its hero, holds the statue or its queue', () => {
     const { sink, props } = sinkOf()
     for (const [, prop] of props) {
       for (let o: T.Object3D | null = sink.anchor; o; o = o.parent) expect(o).not.toBe(prop.group)
+      for (let o: T.Object3D | null = sink.statue.queueRoot; o; o = o.parent) expect(o).not.toBe(prop.group)
     }
-    for (let o: T.Object3D | null = sink.plate.mesh; o; o = o.parent) expect(o.visible).toBe(true)
+    for (let o: T.Object3D | null = sink.statue.root; o; o = o.parent) expect(o.visible).toBe(true)
   })
 
-  it('is the project board: the game print stands at head height, facing the lens, on Billy’s own floor', () => {
-    const { sink, set } = sinkOf()
-    expect(set.children).not.toContain(sink.plate.mesh)
-    const p = sink.plate.mesh.position
-    expect(p.y).toBeGreaterThan(1.5)
-    expect(p.y).toBeLessThan(GARAGE_WALLS.height - 1.0)
-    // The plate faces the set's +z, the lens: it is in front of the board's frame, never behind it.
-    expect(p.z).toBeGreaterThan(BILLY_PLAZA.board.z)
-    expect(sink.height).toBeGreaterThan(p.y)
-  })
-
-  it('prints its cover as the project is built, and takes it from the HUD’s own project, not a copy', () => {
+  it('stands on its plinth where the plaza says, with its top under the wall’s clear metre', () => {
     const { sink } = sinkOf()
-    expect(() => sink.plate.update(null, 'TEST', 0.5)).not.toThrow()
+    expect(sink.anchor.position.x).toBe(STATUE_PLAZA.plinth.x)
+    expect(sink.anchor.position.z).toBe(STATUE_PLAZA.plinth.z)
+    expect(sink.anchor.position.y).toBe(0)
+    // it is the tallest thing in the middle of the room, and still leaves the top metre of the walls as it leaves it for the heroes
+    expect(sink.height).toBeGreaterThan(2.5)
+    expect(HERO_SITES.billy.rise + sink.height).toBeLessThanOrEqual(GARAGE_WALLS.height - 1.0)
   })
 
-  it('flashes its frame white on a completion and goes back after', () => {
+  it('is built from the floor up as the project is: the share of the game built is the share of the statue standing, and the rest is its blueprint', () => {
     const { sink } = sinkOf()
-    const rim = sink.plate.mesh.parent!.children.find((c) => c.userData.dynamic && (c as T.Mesh).material instanceof T.MeshBasicMaterial && (c as T.Mesh).geometry instanceof T.BoxGeometry) as T.Mesh
-    const colour = () => (rim.material as T.MeshBasicMaterial).color.getHexString()
-    const rest = colour()
-    sink.setFlash(true)
-    expect(colour()).toBe('ffffff')
-    sink.setFlash(false)
-    expect(colour()).toBe(rest)
+    const n = statueModel(SPEC).voxels.length
+    let last = -1
+    for (const p of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+      sink.statue.update(SPEC, 'TEST', p)
+      const c = counts(sink.statue)
+      expect(c.built, `at ${p}`).toBe(voxelsBuilt(n, p))
+      expect(c.built + c.blueprint, `at ${p}`).toBe(n)
+      expect(c.built).toBeGreaterThanOrEqual(last)
+      last = c.built
+    }
+    expect(counts(sink.statue)).toEqual({ built: n, blueprint: 0 })
   })
 
-  it('cleans up after itself', () => {
-    const { sets } = sinkOf()
+  it('stands none of a project that has just begun, and none of a progress that is not a number', () => {
+    const { sink } = sinkOf()
+    sink.statue.update(SPEC, 'TEST', 1)
+    sink.statue.update(SPEC, 'TEST', 0)
+    expect(counts(sink.statue).built).toBe(0)
+    expect(() => sink.statue.update(SPEC, 'TEST', Number.NaN)).not.toThrow()
+    expect(counts(sink.statue).built).toBe(0)
+  })
+
+  it('is a new statue for a new project with a different subject, and a missing project is no statue', () => {
+    const { sink } = sinkOf()
+    sink.statue.update(SPEC, 'ONE', 1)
+    sink.statue.update(SPEC2, 'TWO', 0.5)
+    const n2 = statueModel(SPEC2).voxels.length
+    expect(counts(sink.statue)).toEqual({ built: voxelsBuilt(n2, 0.5), blueprint: n2 - voxelsBuilt(n2, 0.5) })
+    sink.statue.update(null, '', 0)
+    expect(counts(sink.statue)).toEqual({ built: 0, blueprint: 0 })
+  })
+
+  it('says where the next voxel will stand, which climbs with the build and stays over the plinth', () => {
+    const { sink, parent } = sinkOf()
+    sink.statue.update(SPEC, 'TEST', 0); parent.updateMatrixWorld(true)
+    const low = sink.statue.aim(new T.Vector3()), high = (sink.statue.update(SPEC, 'TEST', 0.95), parent.updateMatrixWorld(true), sink.statue.aim(new T.Vector3()))
+    expect(high.y).toBeGreaterThan(low.y + 1)
+    for (const p of [low, high]) {
+      expect(Number.isFinite(p.x + p.y + p.z)).toBe(true)
+      expect(Math.hypot(p.x - STATUE_PLAZA.plinth.x, p.z - STATUE_PLAZA.plinth.z)).toBeLessThan(STATUE_PLAZA.plinth.apothem + 1)
+    }
+    // with no project there is still somewhere to fly at: above the plinth
+    sink.statue.update(null, '', 0)
+    const idle = sink.statue.aim(new T.Vector3())
+    expect(Number.isFinite(idle.y)).toBe(true)
+  })
+
+  describe('when the game is done', () => {
+    const tick = (sink: ReturnType<typeof sinkOf>['sink'], from: number, to: number, project: { progress: number } = { progress: 0.02 }) => {
+      for (let t = from; t <= to + 1e-9; t += 1 / 30) { sink.statue.update(SPEC2, 'NEXT', project.progress); sink.statue.tick(t) }
+    }
+
+    it('holds the finished statue through the beat, and takes the next project when it has left the plinth', () => {
+      const { sink } = sinkOf()
+      const n = statueModel(SPEC).voxels.length
+      sink.statue.update(SPEC, 'DONE', 0.99)
+      sink.statue.setQueue([item(1)], 5)
+      sink.statue.tick(0)
+      sink.statue.complete('build', false)
+      // the stage hands over the next project, nothing built, in the same frame; the plinth still shows the one that is finished
+      tick(sink, 0.05, 1.7)
+      expect(counts(sink.statue)).toEqual({ built: n, blueprint: 0 })
+      // it has left: the plinth is the next project's, and it is not the finished one
+      tick(sink, 1.7, 2.0)
+      const n2 = statueModel(SPEC2).voxels.length
+      expect(counts(sink.statue).built + counts(sink.statue).blueprint).toBe(n2)
+      expect(counts(sink.statue).built).toBeLessThan(5)
+    })
+
+    it('does not stand the new build in the queue until the statue has got there', () => {
+      const { sink } = sinkOf()
+      sink.statue.update(SPEC, 'DONE', 0.99)
+      sink.statue.setQueue([item(1)], 5)
+      sink.statue.tick(0)
+      sink.statue.complete('build', false)
+      expect(minis(sink)).toHaveLength(0)
+      tick(sink, 0.05, 1.0)
+      expect(minis(sink)).toHaveLength(0)
+      tick(sink, 1.0, 3.0)
+      expect(minis(sink)).toHaveLength(1)
+    })
+
+    it('has no beat under reduced motion: the build is in the queue at once and the plinth is the next project’s', () => {
+      const { sink } = sinkOf()
+      sink.statue.update(SPEC, 'DONE', 0.99)
+      sink.statue.setQueue([item(1)], 5)
+      sink.statue.tick(0)
+      sink.statue.complete('build', true)
+      expect(minis(sink)).toHaveLength(1)
+      sink.statue.update(SPEC2, 'NEXT', 0)
+      expect(counts(sink.statue).built).toBe(0)
+    })
+
+    it('never celebrates a release, which is the queue’s head leaving and not a statue arriving', () => {
+      const { sink } = sinkOf()
+      sink.statue.update(SPEC, 'WIP', 0.4)
+      const before = counts(sink.statue)
+      sink.statue.complete('release', false)
+      sink.statue.tick(0); sink.statue.tick(1)
+      expect(counts(sink.statue)).toEqual(before)
+    })
+  })
+
+  describe('the queue', () => {
+    it('is a small statue for each build waiting, as many as there are places and no more', () => {
+      const { sink } = sinkOf()
+      sink.statue.setQueue([], 5)
+      expect(minis(sink)).toHaveLength(0)
+      sink.statue.setQueue([item(1), item(2), item(3)], 5)
+      expect(minis(sink)).toHaveLength(3)
+      sink.statue.setQueue(Array.from({ length: 9 }, (_, i) => item(i + 1)), 9)
+      expect(minis(sink)).toHaveLength(STATUE_PLAZA.queue.shown)
+    })
+
+    it('lets the head go when it is released, and closes up behind it', () => {
+      const { sink } = sinkOf()
+      sink.statue.setQueue([item(1), item(2), item(3)], 5)
+      sink.statue.tick(0)
+      sink.statue.setQueue([item(2), item(3)], 5)
+      // the released statue is still there for a moment, going up; then it is gone
+      expect(minis(sink).length).toBeGreaterThanOrEqual(2)
+      for (let t = 1 / 30; t < 1.2; t += 1 / 30) sink.statue.tick(t)
+      expect(minis(sink)).toHaveLength(2)
+      // and the two that are left stand in the first two places
+      const zs = minis(sink).map((m) => m.position.z).sort((a, b) => b - a)
+      expect(zs[0] - zs[1]).toBeCloseTo(STATUE_PLAZA.queue.pitch, 6)
+      expect(zs[0]).toBeCloseTo(STATUE_PLAZA.queue.zHead, 6)
+    })
+
+    it('marks the places the queue has room for, up to the ones it can show', () => {
+      const { sink } = sinkOf()
+      const marks = () => sink.statue.queueRoot.children.filter((c) => c instanceof T.Mesh && c.visible).length
+      sink.statue.setQueue([], 3)
+      expect(marks()).toBe(3)
+      sink.statue.setQueue([], 500)
+      expect(marks()).toBe(STATUE_PLAZA.queue.shown)
+    })
+  })
+
+  it('cleans up after itself, and takes the queue and the statue with it', () => {
+    const { sets, sink, parent } = sinkOf()
+    sink.statue.update(SPEC, 'X', 0.5); sink.statue.setQueue([item(1)], 5)
+    const root = sink.statue.root, queue = sink.statue.queueRoot
     expect(() => sets.dispose()).not.toThrow()
+    expect(parent.children).not.toContain(root)
+    expect(parent.children).not.toContain(queue)
   })
 })
 
@@ -200,7 +351,7 @@ describe('Billy addresses the developer pod', () => {
 
   it('stands Billy’s set square to the room, as Matt’s and Serena’s are', () => {
     // [2026-10-14, *"change Billy's facing to same as Matt and Serena ... so it's sort of facing front"*] It was turned a
-    // quarter to face the east pod; the board and the man are now on the lens's side of the station, like theirs.
+    // quarter to face the east pod; the man is now on the lens's side of the station, like theirs.
     const { set } = withBilly()
     expect(set.rotation.y).toBeCloseTo(0, 9)
   })
@@ -223,8 +374,8 @@ describe('Billy addresses the developer pod', () => {
     for (const t of [0, 1, 2.2, 5]) {
       sets.update(t, NO_HQ_READOUTS)
       // the body is in the scaled station group and the dais in the set's unscaled metres
-      expect(body.position.y * GARAGE_HERO_SCALE).toBeGreaterThanOrEqual(BILLY_PLAZA.dais.rise - 1e-9)
-      expect(body.position.y * GARAGE_HERO_SCALE).toBeLessThan(BILLY_PLAZA.dais.rise + 0.05)
+      expect(body.position.y * GARAGE_HERO_SCALE).toBeGreaterThanOrEqual(STATUE_PLAZA.dais.rise - 1e-9)
+      expect(body.position.y * GARAGE_HERO_SCALE).toBeLessThan(STATUE_PLAZA.dais.rise + 0.05)
     }
   })
 })

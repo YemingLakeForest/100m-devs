@@ -1,0 +1,774 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product Box Ideas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one dark OS desktop. A header with the studio-size switch, then five demo windows in a two-column grid (one column on a phone), then the pick. Flat fills, 1px rules, square corners, no blur, no gradients: the game's own register. */
+:root {
+  --bg: #181919;
+  --panel: #232424;
+  --bar: #3c3e3c;
+  --line: #575a56;
+  --mute: #a3a89d;
+  --fg: #e1e5dc;
+  --cy: #7fd4e8;
+  --cy-ink: #10282f;
+  --am: #e0a52e;
+  --red: #e0675f;
+  --mono: ui-monospace, "Cascadia Mono", "Departure Mono", Consolas, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.5;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+h1 { font-size: 26px; line-height: 1.15; margin: 0; letter-spacing: .02em; text-wrap: balance; }
+h1 span { color: var(--am); }
+header p { margin: 0; color: var(--mute); max-width: 74ch; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; color: var(--mute); font-size: 13px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border: 1px solid #181919; vertical-align: -1px; margin-right: 6px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; border: 1px solid var(--line); background: var(--panel); padding: 10px 12px; }
+.controls .grp { display: flex; gap: 0; align-items: center; flex-wrap: wrap; }
+.controls .lbl { color: var(--mute); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; margin-right: 10px; }
+button {
+  font: inherit; color: var(--fg); background: var(--bar); border: 1px solid var(--line);
+  padding: 5px 12px; cursor: pointer; border-radius: 0;
+}
+.seg button + button { margin-left: -1px; }
+button:hover { background: #4b4e4a; }
+button[aria-pressed="true"] { background: var(--cy); color: var(--cy-ink); border-color: var(--cy); }
+button:focus-visible { outline: 2px solid var(--cy); outline-offset: 2px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 540px), 1fr)); gap: 20px; }
+.win { border: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-width: 0; }
+.bar { display: flex; align-items: center; gap: 10px; background: var(--bar); border-bottom: 1px solid var(--line); padding: 5px 8px 5px 10px; }
+.bar .id { background: var(--am); color: #181919; font-weight: 700; padding: 0 6px; }
+.bar h2 { margin: 0; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; flex: 1; min-width: 0; }
+.bar button { padding: 2px 8px; font-size: 12px; }
+canvas { display: block; width: 100%; height: auto; aspect-ratio: 360 / 160; image-rendering: pixelated; background: #181919; border-bottom: 1px solid var(--line); }
+dl.spec { margin: 0; padding: 12px 14px 14px; display: grid; gap: 10px; }
+dl.spec div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
+dt { color: var(--mute); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; padding-top: 1px; }
+dd { margin: 0; max-width: 62ch; }
+dd b { color: var(--cy); font-weight: 400; }
+.pick { border: 1px solid var(--am); background: var(--panel); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+.pick h2 { margin: 0; font-size: 14px; color: var(--am); text-transform: uppercase; letter-spacing: .08em; }
+.pick p { margin: 0; max-width: 60ch; }
+.pick ul { margin: 0; padding-left: 18px; max-width: 60ch; color: var(--mute); }
+.pick li + li { margin-top: 4px; }
+@media (max-width: 520px) {
+  dl.spec div { grid-template-columns: 1fr; gap: 2px; }
+  h1 { font-size: 22px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Product box <span>ideas</span></h1>
+    <p>The whiteboard prints a cover row by row. These five build a thing instead: something with volume you can point at and say "that is the game", which is finished with a flash and leaves the room. Each one is running live below, fed by the same blobs as the game.</p>
+    <div class="legend">
+      <span><i style="background:#7fd4e8"></i>code leaves a desk</span>
+      <span><i style="background:#e0a52e"></i>arrives as story points</span>
+      <span>one blob per point, up to a cap, then a blob carries ten</span>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="grp seg" role="group" aria-label="Studio size">
+      <span class="lbl">Studio</span>
+      <button type="button" data-preset="1" aria-pressed="true" id="p1">1 dev</button>
+      <button type="button" data-preset="100" aria-pressed="false" id="p100">100 devs</button>
+      <button type="button" data-preset="10000" aria-pressed="false" id="p10000">10K devs</button>
+    </div>
+    <div class="grp">
+      <button type="button" id="pause">Pause</button>
+      <button type="button" id="finishAll" style="margin-left:8px">Finish all now</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <article class="win">
+      <div class="bar"><span class="id">A</span><h2>The game box</h2><button type="button" data-finish="0">Finish</button></div>
+      <canvas width="360" height="160" aria-label="Demo A: a cardboard game box fills with story points, gets its cover and ships to a shelf"></canvas>
+      <dl class="spec">
+        <div><dt>Builds as</dt><dd>An open cardboard box, drawn as a dotted outline, fills from the bottom one layer at a time. Blobs drop in the open top; the newest layer arrives white-hot and cools.</dd></div>
+        <div><dt>Done</dt><dd>White flash, then the generated cover wraps on in four steps, shrink-wrap glint, a <b>1.0</b> sticker, and the box hops onto the shelf.</dd></div>
+        <div><dt>Why / cost</dt><dd>It is literally a box. The cover generator is reused as is. The shelf is the Release Gallery (§10.11) standing in the garage, so the room remembers the run. One box mesh, one texture, ten slots.</dd></div>
+      </dl>
+    </article>
+
+    <article class="win">
+      <div class="bar"><span class="id">B</span><h2>The voxel statue</h2><button type="button" data-finish="1">Finish</button></div>
+      <canvas width="360" height="160" aria-label="Demo B: a voxel statue of the game's hero is built one voxel per story point and ships to a trophy shelf"></canvas>
+      <dl class="spec">
+        <div><dt>Builds as</dt><dd>A flat ghost of the game's cover subject on a plinth. Each blob flies to the exact voxel it becomes, bottom row first. <b>One point, one voxel</b>, so the work can be counted by eye.</dd></div>
+        <div><dt>Done</dt><dd>Whole statue flashes white then amber, a ring runs across the plinth, it turns round in four steps, a name plate appears, and it goes to the trophy shelf at a smaller size.</dd></div>
+        <div><dt>Why / cost</dt><dd>The only one where the accounting is visible. At 10K a blob carries ten and lights a chunk. Needs each of the cover generator's subjects as a small voxel model.</dd></div>
+      </dl>
+    </article>
+
+    <article class="win">
+      <div class="bar"><span class="id">C</span><h2>The arcade cabinet</h2><button type="button" data-finish="2">Finish</button></div>
+      <canvas width="360" height="160" aria-label="Demo C: an arcade cabinet is assembled part by part, the screen powers on, and it rolls into an arcade row"></canvas>
+      <dl class="spec">
+        <div><dt>Builds as</dt><dd>Body, control panel, bezel, marquee, in that order, each filling from its bottom edge. Last, the screen powers up from static to the cover, rising row by row.</dd></div>
+        <div><dt>Done</dt><dd>Screen flashes, then the game <b>runs</b>: the hero paces, COIN blinks, the marquee lights with the title. The cabinet rolls into the arcade row.</dd></div>
+        <div><dt>Why / cost</dt><dd>The one that is alive when it is done, and the row of cabinets becomes an arcade. Biggest model, and a puzzle or a horror game is still a cabinet.</dd></div>
+      </dl>
+    </article>
+
+    <article class="win">
+      <div class="bar"><span class="id">D</span><h2>The build window</h2><button type="button" data-finish="3">Finish</button></div>
+      <canvas width="360" height="160" aria-label="Demo D: a build log window where every blob is one line of the log, ending in an application icon on the desktop"></canvas>
+      <dl class="spec">
+        <div><dt>Builds as</dt><dd>A terminal. Every blob that lands is one line of the build log, scrolling up; the status bar fills with the same hot edge as the HUD queue.</dd></div>
+        <div><dt>Done</dt><dd>BUILD OK, then the window goes <b>(NOT RESPONDING)</b> for a beat, collapses to an icon with the cover on it, and parks on the desktop grid.</dd></div>
+        <div><dt>Why / cost</dt><dd>The UI is an OS, so the product is an app. Closest link to coding: a blob is a line of code. Cheapest to build. It is not a box, and it reads as UI more than as a thing in the garage.</dd></div>
+      </dl>
+    </article>
+
+    <article class="win">
+      <div class="bar"><span class="id">E</span><h2>The shipping crate</h2><button type="button" data-finish="4">Finish</button></div>
+      <canvas width="360" height="160" aria-label="Demo E: a wooden crate is nailed together plank by plank, stamped SHIP IT and stacked on a pallet"></canvas>
+      <dl class="spec">
+        <div><dt>Builds as</dt><dd>Planks, bottom to top: front, side, lid, then braces. The blob lands at the end of the plank being nailed; the nail at the leading edge is white.</dd></div>
+        <div><dt>Done</dt><dd>Flash, a cover label and a red <b>SHIP IT</b> stamp slap on, the crate bounces twice, then slides onto a pallet stack that keeps growing.</dd></div>
+        <div><dt>Why / cost</dt><dd>Garage-tactile, and the "Ship it!" pun is already the game's button (§A.5). It scales into the joke: crate, pallet, container, freighter. The same object at every rung of the ladder.</dd></div>
+      </dl>
+    </article>
+
+    <section class="pick" aria-label="Recommendation">
+      <h2>My pick</h2>
+      <p><strong>A, the game box.</strong> It is the most direct answer to "a box that signifies a built software product", the cheapest to put in the 3D garage, and it reuses everything the whiteboard already has: the cover generator, the blobs, the completion rings.</p>
+      <p>The shelf is what the whiteboard never gave you. Every release stays in the room, so the run builds up a visible pile. Take <strong>E</strong> instead if you want the ladder joke in one object, or <strong>B</strong> if you want the work countable.</p>
+      <ul>
+        <li>Changes: GDD §8.2a and §7.8.12 (the project board is the sink) would be amended.</li>
+        <li>Stays: <code>flow.ts</code> blobs, <code>unitFlash</code>, the completion rings, the cover grammar (§10.5).</li>
+        <li>Tell me which one, or which two to mix, and I will build it in the garage.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const W = 360, H = 216, FY = 186, OFF = 56; /* the world is 216 tall; the canvas shows the bottom 160 of it */
+const C = { n0:'#181919', n1:'#292a29', n2:'#3c3e3c', n3:'#575a56', n4:'#767970', n6:'#aeb2a8', n8:'#f2f4ee',
+  cy:'#7fd4e8', cyd:'#4a8fa8', cyk:'#2a4a5c', cy3:'#b8f4ff', am:'#e0a52e', lamp:'#ffd68c', amd:'#8a5f17', red:'#d9534f' };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const rnd = Math.random;
+let g = null;
+
+/* ---------- colour helpers ---------- */
+function mixHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = s => Math.round(((pa >> s) & 255) * (1 - t) + ((pb >> s) & 255) * t);
+  return '#' + ((1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).slice(1);
+}
+const face = h => ({ f: h, t: mixHex(h, '#ffffff', .28), s: mixHex(h, '#000000', .38) });
+const FLASHW = { f: C.n8, t: C.n8, s: C.n6 };
+const FLASHL = { f: C.lamp, t: '#fff0cf', s: '#d6b073' };
+const CARD = { f: '#c39955', t: '#e2c487', s: '#94703d' };
+const WOOD = { f: '#a9794a', t: '#c79a68', s: '#7a5632' };
+const PLINTH = { f: C.n2, t: C.n3, s: C.n1 };
+/* the newest piece arrives white and cools through the amber ramp: flat steps, never a blend */
+const hot = age => age < .1 ? C.n8 : age < .26 ? C.lamp : null;
+
+/* ---------- pixel primitives: whole pixels only ---------- */
+function R(x, y, w, h, c) {
+  x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+  if (w <= 0 || h <= 0) return;
+  g.fillStyle = c; g.fillRect(x, y, w, h);
+}
+function P(x, y, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), 1, 1); }
+function line(x0, y0, x1, y1, c, dot) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let e = dx - dy, n = 0; g.fillStyle = c;
+  for (;;) {
+    if (!dot || n % 2 === 0) g.fillRect(x0, y0, 1, 1);
+    n++;
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * e;
+    if (e2 > -dy) { e -= dy; x0 += sx; }
+    if (e2 < dx) { e += dx; y0 += sy; }
+  }
+}
+function poly(pts, c) {
+  let y0 = Infinity, y1 = -Infinity;
+  for (const p of pts) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+  g.fillStyle = c;
+  for (let y = y0; y < y1; y++) {
+    const yc = y + .5; let xa = Infinity, xb = -Infinity;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      if ((a[1] <= yc && b[1] > yc) || (b[1] <= yc && a[1] > yc)) {
+        const x = a[0] + (yc - a[1]) * (b[0] - a[0]) / (b[1] - a[1]);
+        xa = Math.min(xa, x); xb = Math.max(xb, x);
+      }
+    }
+    if (xa <= xb) { const l = Math.round(xa), r = Math.round(xb); if (r > l) g.fillRect(l, y, r - l, 1); }
+  }
+}
+/* oblique box: x,y is the front bottom-left; the back is up and to the right */
+const obd = d => [Math.round(d * .55), Math.round(d * .45)];
+function OB(x, y, w, h, d, col, e) {
+  e = e || C.n0;
+  const [dx, dy] = obd(d), t = y - h;
+  poly([[x + w, y], [x + w + dx, y - dy], [x + w + dx, t - dy], [x + w, t]], col.s);
+  poly([[x, t], [x + w, t], [x + w + dx, t - dy], [x + dx, t - dy]], col.t);
+  R(x, t, w, h, col.f);
+  R(x, t, w, 1, e); R(x, y - 1, w, 1, e); R(x, t, 1, h, e); R(x + w - 1, t, 1, h, e);
+  line(x + w, t, x + w + dx, t - dy, e); line(x, t, x + dx, t - dy, e);
+  line(x + dx, t - dy, x + w + dx, t - dy, e); line(x + w + dx, t - dy, x + w + dx, y - dy, e);
+  line(x + w, y - 1, x + w + dx, y - dy, e);
+}
+function ghostBox(x, y, w, h, d, c) {
+  const [dx, dy] = obd(d), t = y - h;
+  line(x, t, x + w, t, c, 1); line(x, t, x, y, c, 1); line(x + w, t, x + w, y, c, 1); line(x, y, x + w, y, c, 1);
+  line(x, t, x + dx, t - dy, c, 1); line(x + w, t, x + w + dx, t - dy, c, 1);
+  line(x + dx, t - dy, x + w + dx, t - dy, c, 1); line(x + w + dx, t - dy, x + w + dx, y - dy, c, 1);
+  line(x + w, y, x + w + dx, y - dy, c, 1);
+}
+function brackets(x0, y0, x1, y1, c, l) {
+  l = l || 7;
+  R(x0, y0, l, 1, c); R(x0, y0, 1, l, c); R(x1 - l, y0, l, 1, c); R(x1 - 1, y0, 1, l, c);
+  R(x0, y1 - 1, l, 1, c); R(x0, y1 - l, 1, l, c); R(x1 - l, y1 - 1, l, 1, c); R(x1 - 1, y1 - l, 1, l, c);
+}
+/* a ring is four flat bars stepping outward through white, light amber, amber */
+function ring(st, t0, x0, y0, x1, y1) {
+  const t = st.tp - t0; if (t < 0 || t > .48) return;
+  const k = Math.min(3, Math.floor(t / .12)), e = (k + 1) * 7, v = Math.round((k + 1) * 3.5);
+  const c = [C.n8, C.lamp, C.am, C.amd][k];
+  R(x0 - e, y0 - v, x1 - x0 + 2 * e, 2, c); R(x0 - e, y1 + v - 2, x1 - x0 + 2 * e, 2, c);
+  R(x0 - e, y0 - v, 2, y1 - y0 + 2 * v, c); R(x1 + e - 2, y0 - v, 2, y1 - y0 + 2 * v, c);
+}
+
+/* ---------- a 3x5 pixel face ---------- */
+const GL = {A:'010101111101101',B:'110101110101110',C:'011100100100011',D:'110101101101110',E:'111100110100111',F:'111100110100100',G:'011100101101011',H:'101101111101101',I:'111010010010111',J:'001001001101010',K:'101101110101101',L:'100100100100111',M:'101111111101101',N:'110101101101101',O:'010101101101010',P:'110101110100100',Q:'010101101111011',R:'110101110101101',S:'011100010001110',T:'111010010010010',U:'101101101101111',V:'101101101101010',W:'101101111111101',X:'101101010101101',Y:'101101010010010',Z:'111001010100111','0':'111101101101111','1':'010110010010111','2':'110001010100111','3':'110001010001110','4':'101101111001001','5':'111100110001110','6':'011100111101111','7':'111001010010010','8':'111101111101111','9':'111101111001110','.':'000000000000010','!':'010010010000010','-':'000000111000000',':':'000010000010000','(':'001010010010001',')':'100010010010100','+':'000010111010000','?':'110001010000010','/':'001001010100100','%':'101001010100101','_':'000000000000111',' ':'000000000000000'};
+function txt(s, x, y, c, sc) {
+  sc = sc || 1; s = String(s).toUpperCase();
+  for (let i = 0; i < s.length; i++) {
+    const gl = GL[s[i]];
+    if (gl) for (let k = 0; k < 15; k++) if (gl[k] === '1') R(x + (k % 3) * sc, y + Math.floor(k / 3) * sc, sc, sc, c);
+    x += 4 * sc;
+  }
+}
+const tw = (s, sc) => String(s).length * 4 * (sc || 1) - (sc || 1);
+const fmt = n => n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(Math.round(n));
+
+/* ---------- products: a title, a sprite, a colour family. Covers are rolled, never authored. ---------- */
+const SPR = {
+  rocket: ['....w....','...www...','...wcw...','...wcw...','..wwwww..','..wwwww..','.rwwwwwr.','.rwwwwwr.','rr.yyy.rr','...yyy...','....y....'],
+  ghost: ['..wwwww..','.wwwwwww.','wwkwwwkww','wwkwwwkww','wwwwwwwww','wwwwkwwww','wwwwwwwww','wwwwwwwww','wwwwwwwww','ww.www.ww'],
+  sword: ['...c...','...w...','...w...','...w...','...w...','...w...','...w...','yyyyyyy','...b...','...b...','..yyy..'],
+  slime: ['...ggg...','..ggggg..','.ggggggg.','.gkgggkg.','ggkgggkgg','gggkkkggg','ggggggggg']
+};
+const SCOL = { w:'#f2f4ee', k:'#181919', r:'#d9534f', y:'#e0a52e', c:'#7fd4e8', g:'#9be07a', b:'#8a5f17' };
+const VC = {}; for (const k in SCOL) VC[k] = face(SCOL[k]);
+const FAM = [
+  { sky:'#4a8fa8', gnd:'#2a4a5c', lite:'#b8f4ff' },
+  { sky:'#c9568a', gnd:'#6b2a4a', lite:'#f6b4cf' },
+  { sky:'#7e62c8', gnd:'#3f2f73', lite:'#cbbcf6' },
+  { sky:'#d79a2b', gnd:'#7a4f12', lite:'#ffd68c' },
+  { sky:'#4fa56a', gnd:'#235237', lite:'#b4e6c2' }
+];
+const PRODUCTS = [
+  { t:'ZAPPER', s:'rocket', fam:2 }, { t:'SPOOKY', s:'ghost', fam:0 }, { t:'BLADE', s:'sword', fam:1 }, { t:'GLOOP', s:'slime', fam:3 },
+  { t:'ORBIT', s:'rocket', fam:4 }, { t:'HAUNT', s:'ghost', fam:1 }, { t:'CLEAVE', s:'sword', fam:2 }, { t:'SPLAT', s:'slime', fam:1 }
+];
+const PL = PRODUCTS.length;
+function spr(name, x, y, t, flip) {
+  const S = SPR[name];
+  for (let r = 0; r < S.length; r++) for (let c = 0; c < S[r].length; c++) {
+    const ch = S[r][flip ? S[r].length - 1 - c : c];
+    if (ch !== '.') R(x + c * t, y + r * t, t, t, SCOL[ch]);
+  }
+}
+function cover(p, x, y, w, h, t, o) {
+  o = o || {};
+  const f = FAM[p.fam], band = o.band || 0, ph = h - band, gh = Math.max(2, Math.round(ph * .3));
+  g.save(); g.beginPath(); g.rect(x, y, w, o.rows == null ? h : clamp(o.rows, 0, h)); g.clip();
+  R(x, y, w, ph, f.sky);
+  const sz = Math.max(2, Math.round(w * .13)); R(x + w - sz - Math.round(w * .12), y + Math.round(ph * .1), sz, sz, f.lite);
+  R(x, y + ph - gh, w, gh, f.gnd); R(x, y + ph - gh, w, 1, f.lite);
+  const S = SPR[p.s], sw = S[0].length * t, sh = S.length * t;
+  spr(p.s, x + Math.round((w - sw) / 2) + (o.dx || 0), y + ph - gh - sh + t * 2, t);
+  if (band) {
+    R(x, y + ph, w, band, C.n0);
+    if (band >= 7) txt(p.t, x + Math.round((w - tw(p.t)) / 2), y + ph + Math.round((band - 5) / 2), C.n8);
+    else R(x + 2, y + ph + 1, w - 4, 1, f.lite);
+  }
+  g.restore();
+}
+const vcache = {};
+function voxelsOf(name, flip) {
+  const key = name + (flip ? 'f' : ''); if (vcache[key]) return vcache[key];
+  const S = SPR[name], out = [];
+  for (let r = S.length - 1; r >= 0; r--) for (let c = 0; c < S[r].length; c++) {
+    const ch = S[r][flip ? S[r].length - 1 - c : c]; if (ch !== '.') out.push({ c, r, ch });
+  }
+  return (vcache[key] = out);
+}
+function vox(x, y, v, col) {
+  const dx = Math.round(v * .6), dy = Math.round(v * .5);
+  poly([[x + v, y + v], [x + v + dx, y + v - dy], [x + v + dx, y - dy], [x + v, y]], col.s);
+  poly([[x, y], [x + v, y], [x + v + dx, y - dy], [x + dx, y - dy]], col.t);
+  R(x, y, v, v, col.f);
+}
+function sculpt(prod, ox, by, V, o) {
+  o = o || {};
+  const S = SPR[prod.s], Hh = S.length, list = voxelsOf(prod.s, o.flip), n = o.built == null ? list.length : o.built;
+  if (o.ghost) for (let i = n; i < list.length; i++) { const v = list[i]; R(ox + v.c * V, by - (Hh - v.r) * V, V - 1, V - 1, C.n2); }
+  for (let i = 0; i < n; i++) {
+    const v = list[i]; let col = VC[v.ch];
+    if (o.mode === 'w') col = FLASHW; else if (o.mode === 'l') col = FLASHL;
+    else if (o.vt) { const h = hot(o.clock - o.vt[i]); if (h) col = { f: h, t: h, s: mixHex(h, '#000000', .3) }; }
+    vox(ox + v.c * V, by - (Hh - v.r) * V, V, col);
+  }
+}
+
+/* ---------- game-wide numbers: one story point per blob up to a cap, then a blob carries ten ---------- */
+const PRESETS = {
+  '1':     { rate: 3,   carry: 1,  total: 36,   size: 3 },
+  '100':   { rate: 30,  carry: 1,  total: 180,  size: 3 },
+  '10000': { rate: 600, carry: 10, total: 3600, size: 5 }
+};
+let PRE = PRESETS['1'];
+
+/* ---------- the room every demo shares: dot-grid desktop, a floor, three desks ---------- */
+function makeBg() {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const keep = g; g = c.getContext('2d');
+  R(0, 0, W, H, C.n0);
+  for (let y = 6; y < FY; y += 12) for (let x = 6; x < W; x += 12) P(x, y, C.n1);
+  R(0, FY, W, H - FY, '#202121'); R(0, FY, W, 1, C.n3);
+  for (let y = FY + 8; y < H; y += 12) for (let x = 6; x < W; x += 12) P(x, y, C.n2);
+  g = keep; return c;
+}
+const DESK = WOOD, MON = { f: C.n2, t: C.n3, s: C.n1 };
+const SHIRT = ['#668b9e', '#c39955', '#b06a8a'], SKIN = ['#e8b894', '#b9825a', '#f0cba8'], HAIR = ['#3a2a1c', '#181919', '#8a5f17'];
+const deskSrc = i => ({ x: 8 + i * 30 + 17, y: FY - 21 });
+function desks(st) {
+  for (let i = 0; i < 3; i++) {
+    const x = 8 + i * 30, hop = st.phase === 'done' && (Math.floor(st.tp * 6) % 2) ? 3 : 0;
+    R(x + 3, FY - 20 - hop, 8, 10, SHIRT[i]); R(x + 4, FY - 27 - hop, 6, 7, SKIN[i]); R(x + 4, FY - 27 - hop, 6, 2, HAIR[i]);
+    OB(x, FY, 24, 10, 8, DESK);
+    OB(x + 13, FY - 10, 9, 8, 3, MON);
+    const flash = st.clock - (st.fl[i] || -9) < .08;
+    R(x + 14, FY - 17, 7, 5, st.phase !== 'build' ? C.cyk : flash ? C.n8 : C.cy);
+  }
+}
+function hud(st) {
+  const building = st.phase === 'build';
+  txt(building ? 'NOW BUILDING' : 'SHIPPED!', 8, 6, building ? C.n4 : C.lamp);
+  txt(st.prod.t, 8, 14, C.n8);
+  txt(fmt(st.landed) + '/' + fmt(PRE.total) + ' SP', 8, 22, building ? C.cy : C.n4);
+}
+function drawBlobs(st) {
+  const s = PRE.size;
+  for (const b of st.blobs) {
+    const d = st.scene.port(st, b), t = b.t, u = 1 - t;
+    const cx = (b.x0 + d.x) / 2 + b.sway, cy = Math.min(b.y0, d.y) - b.arc;
+    const x = u * u * b.x0 + 2 * u * t * cx + t * t * d.x, y = u * u * b.y0 + 2 * u * t * cy + t * t * d.y;
+    const c = t < .35 ? C.cy : t < .7 ? C.n8 : C.am;
+    R(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2, C.n0); R(x - s / 2, y - s / 2, s, s, c);
+  }
+}
+
+/* ---------- the stage: one product at a time, build, done, ship, next ---------- */
+class Stage {
+  constructor(canvas, scene) {
+    this.cv = canvas; this.ctx = canvas.getContext('2d'); this.ctx.imageSmoothingEnabled = false;
+    this.scene = scene; this.pi = scene.startAt; this.shelf = scene.seed.slice(); this.shipped = this.shelf.length;
+    this.bg = makeBg(); this.vis = true; this.clock = 0; this.begin();
+  }
+  begin() {
+    this.prod = PRODUCTS[this.pi % PL]; this.phase = 'build'; this.tp = 0; this.launched = 0; this.landed = 0;
+    this.blobs = []; this.acc = 0; this.lastLand = -9; this.fl = []; this.scene.init(this);
+  }
+  get p() { return Math.min(1, this.landed / PRE.total); }
+  launch() {
+    const i = (rnd() * 3) | 0, s = this.scene.src(i);
+    this.blobs.push({ x0: s.x, y0: s.y, t: 0, dur: 1.05 + rnd() * .5, idx: this.launched, carry: PRE.carry, j: rnd(), sway: (rnd() - .5) * 34, arc: 26 + rnd() * 16 });
+    this.launched += PRE.carry; this.fl[i] = this.clock;
+  }
+  startDone() { this.phase = 'done'; this.tp = 0; this.blobs = []; }
+  finish() {
+    if (this.phase !== 'build') return;
+    this.blobs = []; this.launched = this.landed = PRE.total; this.lastLand = this.clock;
+    if (this.scene.onLand) this.scene.onLand(this, { carry: 0 });
+    this.startDone();
+  }
+  step(dt) {
+    dt = Math.min(dt, .1); this.clock += dt;
+    if (this.phase === 'build') {
+      if (this.launched < PRE.total) {
+        this.acc += PRE.rate * dt;
+        while (this.acc >= PRE.carry && this.launched < PRE.total) { this.acc -= PRE.carry; this.launch(); }
+      } else this.acc = 0;
+      for (let i = this.blobs.length - 1; i >= 0; i--) {
+        const b = this.blobs[i]; b.t += dt / b.dur;
+        if (b.t >= 1) {
+          this.blobs.splice(i, 1); this.landed = Math.min(PRE.total, this.landed + b.carry); this.lastLand = this.clock;
+          if (this.scene.onLand) this.scene.onLand(this, b);
+        }
+      }
+      if (this.landed >= PRE.total) this.startDone();
+    } else {
+      this.tp += dt;
+      if (this.phase === 'done' && this.tp >= this.scene.doneLen) { this.phase = 'ship'; this.tp = 0; }
+      else if (this.phase === 'ship' && this.tp >= this.scene.shipLen) {
+        this.shelf.push(this.pi); if (this.shelf.length > this.scene.cap) this.shelf.shift();
+        this.shipped++; this.pi++; this.begin();
+      }
+    }
+  }
+  draw() {
+    g = this.ctx; g.save(); g.translate(0, -OFF); g.drawImage(this.bg, 0, 0);
+    desks(this); this.scene.draw(this);
+    if (this.phase === 'build') drawBlobs(this);
+    g.restore(); hud(this);
+  }
+}
+
+/* a ship is six hard steps along a hop, never a glide */
+function shipPose(st, from, to, hop) {
+  const f = Math.min(5, Math.floor(st.tp / st.scene.shipLen * 6)) / 5;
+  return { f, x: lerp(from.x, to.x, f), y: lerp(from.y, to.y, f) - Math.round(Math.sin(Math.PI * f) * hop), small: f >= .6 };
+}
+function shelfUnit(st, label) {
+  R(262, 118, 92, 68, C.n1); R(262, 118, 92, 2, C.n3); R(262, 118, 2, 68, C.n3); R(352, 118, 2, 68, C.n3); R(262, 151, 92, 3, C.n3);
+  txt(label + ' ' + st.shipped, 262, 108, C.n4);
+}
+const shelfSlot = i => ({ x: 266 + (i % 5) * 17, y: i >= 5 ? 150 : 186 });
+const targetSlot = st => shelfSlot(Math.min(st.shelf.length, st.scene.cap - 1));
+
+/* ======================= A. the game box ======================= */
+function boxFull(prod, x, y, w, h, d, o) {
+  o = o || {};
+  OB(x, y, w, h, d, CARD);
+  if (o.rows !== 0) cover(prod, x + 1, y - h + 1, w - 2, h - 2, w > 20 ? 2 : 1, { band: w > 20 ? 9 : 3, rows: o.rows == null ? null : o.rows - 1 });
+  if (o.wrap) { R(x - 1, y - h - 1, w + 2, 1, C.cy3); R(x - 1, y - h - 1, 1, h + 2, C.cy3); line(x + 4, y - h + 20, x + 15, y - h + 9, C.n8); line(x + 7, y - h + 22, x + 18, y - h + 11, C.n8); }
+  if (o.sticker) { if (w > 20) { R(x + w - 14, y - h + 3, 12, 9, C.am); txt('1.0', x + w - 13, y - h + 5, C.n0); } else R(x + w - 5, y - h + 2, 4, 4, C.am); }
+}
+const A = {
+  doneLen: 2.0, shipLen: .9, cap: 10, startAt: 0, seed: [3, 4, 5], BX: 190, BY: 174, BW: 30, BH: 44, BD: 9,
+  init() {}, src: deskSrc, slot: shelfSlot,
+  port(st, b) { const lv = Math.floor(st.landed / PRE.total * 11); return { x: A.BX + 4 + b.j * (A.BW - 8), y: A.BY - lv * 4 - 3 }; },
+  draw(st) {
+    const { BX: x, BY: y, BW: w, BH: h, BD: d } = A;
+    brackets(158, 112, 254, 190, C.n3); shelfUnit(st, 'RELEASES'); OB(172, 186, 66, 12, 14, PLINTH);
+    st.shelf.forEach((pi, i) => { const s = shelfSlot(i); boxFull(PRODUCTS[pi % PL], s.x, s.y, 15, 22, 5, { sticker: 1 }); });
+    if (st.phase === 'build') {
+      const lv = Math.floor(st.p * 11), hh = lv * 4, [dx, dy] = obd(d);
+      ghostBox(x, y, w, h, d, C.n4);
+      if (hh > 0) {
+        poly([[x + w, y], [x + w + dx, y - dy], [x + w + dx, y - hh - dy], [x + w, y - hh]], CARD.s);
+        poly([[x, y - hh], [x + w, y - hh], [x + w + dx, y - hh - dy], [x + dx, y - hh - dy]], CARD.t);
+        R(x, y - hh, w, hh, CARD.f);
+        for (let k = 1; k < lv; k++) R(x, y - k * 4, w, 1, '#a9833f');
+        R(x, y - hh, w, 1, C.n0); R(x, y - hh, 1, hh, C.n0); R(x + w - 1, y - hh, 1, hh, C.n0);
+        const hc = hot(st.clock - st.lastLand); if (hc) R(x + 1, y - hh + 1, w - 2, 3, hc);
+      }
+    } else if (st.phase === 'done') {
+      const t = st.tp;
+      if (t < .12) OB(x, y, w, h, d, FLASHW);
+      else if (t < .24) OB(x, y, w, h, d, FLASHL);
+      else boxFull(st.prod, x, y, w, h, d, { rows: Math.min(h, Math.ceil((t - .24) / .12) * 11), sticker: t > 1.1, wrap: t > .9 && t < 1.15 });
+      ring(st, .24, 172, 176, 238, 188);
+    } else {
+      const q = shipPose(st, { x: A.BX, y: A.BY }, targetSlot(st), 36);
+      if (q.small) boxFull(st.prod, q.x, q.y, 15, 22, 5, { sticker: 1 }); else boxFull(st.prod, q.x, q.y, 30, 44, 9, { sticker: 1 });
+    }
+  }
+};
+
+/* ======================= B. the voxel statue ======================= */
+const B = {
+  doneLen: 2.0, shipLen: .9, cap: 10, startAt: 1, seed: [0, 2, 3], V: 5, BY: 174, CX: 205,
+  init(st) { st.vt = []; st.pb = 0; },
+  src: deskSrc,
+  port(st, b) {
+    const list = voxelsOf(st.prod.s), S = SPR[st.prod.s], i = Math.min(list.length - 1, Math.floor(b.idx / PRE.total * list.length)), v = list[i];
+    return { x: B.CX - S[0].length * B.V / 2 + v.c * B.V + 2, y: B.BY - (S.length - v.r) * B.V + 2 };
+  },
+  draw(st) {
+    const S = SPR[st.prod.s], ox = Math.round(B.CX - S[0].length * B.V / 2);
+    brackets(158, 100, 254, 190, C.n3); shelfUnit(st, 'TROPHIES'); OB(173, 186, 64, 12, 14, PLINTH);
+    st.shelf.forEach((pi, i) => { const s = shelfSlot(i), pr = PRODUCTS[pi % PL]; sculpt(pr, s.x, s.y, 2); });
+    if (st.phase === 'build') {
+      const list = voxelsOf(st.prod.s), built = Math.floor(st.p * list.length);
+      while (st.pb < built) { st.vt[st.pb] = st.clock; st.pb++; }
+      sculpt(st.prod, ox, B.BY, B.V, { ghost: 1, built, vt: st.vt, clock: st.clock });
+    } else if (st.phase === 'done') {
+      const t = st.tp, flip = t > .5 && t < 1.2 && Math.floor((t - .5) / .15) % 2 === 1;
+      sculpt(st.prod, ox, B.BY, B.V, { mode: t < .12 ? 'w' : t < .24 ? 'l' : null, flip });
+      if (t >= .24) { const w = tw(st.prod.t) + 6; R(B.CX - w / 2, 177, w, 7, C.n0); txt(st.prod.t, B.CX - tw(st.prod.t) / 2, 178, C.am); }
+      ring(st, .24, 173, 176, 237, 188);
+      if (t > .3 && t < 1.6) [[-34, -50], [30, -58], [-28, -20], [36, -30]].forEach((q, i) => {
+        if ((Math.floor(t * 8) + i) % 3 === 0) { R(B.CX + q[0] - 2, B.BY + q[1], 5, 1, C.n8); R(B.CX + q[0], B.BY + q[1] - 2, 1, 5, C.n8); }
+      });
+    } else {
+      const q = shipPose(st, { x: ox, y: B.BY }, targetSlot(st), 36);
+      sculpt(st.prod, Math.round(q.x), Math.round(q.y), q.small ? 2 : 5);
+    }
+  }
+};
+
+/* ======================= C. the arcade cabinet ======================= */
+const CAB = { f: '#2a4a5c', t: '#4a8fa8', s: '#1b3340' };
+const hsh = (a, b, c) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return (h ^ (h >>> 16)) >>> 0; };
+const CX = 187, CY = 186, CW = 36, SX = CX + 4, SY = CY - 58, SW = 28, SH = 16;
+const CPARTS = [{ a: 0, b: .28, h: 30 }, { a: .28, b: .40, h: 8 }, { a: .40, b: .55, h: 22 }, { a: .55, b: .68, h: 8 }];
+function cabGeom(p) {
+  let off = 0; const hs = [];
+  for (const q of CPARTS) { const f = clamp((p - q.a) / (q.b - q.a), 0, 1), h = Math.floor(f * q.h / 2) * 2; hs.push([off, h]); off += h; }
+  return { hs, hb: off, hr: Math.floor(clamp((p - .68) / .32, 0, 1) * SH / 2) * 2 };
+}
+function cabPart(i, m, lit) {
+  const f = m === 'w' ? C.n8 : m === 'l' ? C.lamp : null, X = CX, Y = CY;
+  if (i === 0) {
+    R(X, Y - 30, CW, 30, f || CAB.f);
+    if (!f) { R(X, Y - 4, CW, 4, CAB.s); R(X, Y - 26, CW, 2, CAB.t); R(X + 11, Y - 17, 14, 9, C.n0); R(X + 14, Y - 15, 2, 5, C.am); R(X + 20, Y - 15, 2, 5, C.am); }
+  } else if (i === 1) {
+    R(X, Y - 38, CW, 8, f || CAB.t);
+    if (!f) { R(X + 10, Y - 35, 1, 4, C.n6); R(X + 9, Y - 38, 3, 3, C.red); R(X + 19, Y - 35, 3, 3, C.red); R(X + 24, Y - 35, 3, 3, C.cy); R(X + 29, Y - 35, 3, 3, C.am); }
+  } else if (i === 2) {
+    R(X, Y - 60, CW, 22, f || CAB.f);
+    if (!f) R(SX, SY, SW, SH, C.n0);
+  } else {
+    R(X, Y - 68, CW, 8, f || (lit ? '#c9568a' : C.n2));
+  }
+  R(X, Y - CPARTS.slice(0, i + 1).reduce((a, q) => a + q.h, 0), CW, 1, C.n0);
+}
+function cabScreen(st, G, hr, t) {
+  g.save(); g.beginPath(); g.rect(SX, SY + SH - hr, SW, hr); g.clip();
+  if (t != null && t < .36) R(SX, SY, SW, SH, C.n8);
+  else {
+    const bob = t == null ? 0 : [0, 2, 4, 2, 0, -2, -4, -2][Math.floor(t * 5) % 8];
+    cover(st.prod, SX, SY, SW, SH, 1, { dx: bob });
+    if (t != null && Math.floor(t * 3) % 2 === 0) txt('COIN', SX + 7, SY + 10, C.lamp);
+  }
+  if (t == null) { const fr = Math.floor(st.clock * 18); for (let y = 0; y < 2; y++) for (let x = 0; x < SW; x += 2) R(SX + x, SY + SH - hr + y * 2, 2, 2, [C.n3, C.n4, C.n6, C.n1][hsh(x, y, fr) % 4]); }
+  g.restore();
+}
+function cabFull(st, m, lit, G, t) {
+  const [dx, dy] = obd(14), hb = G.hb;
+  poly([[CX + CW, CY], [CX + CW + dx, CY - dy], [CX + CW + dx, CY - hb - dy], [CX + CW, CY - hb]], m === 'w' ? C.n6 : m === 'l' ? '#d6b073' : CAB.s);
+  poly([[CX, CY - hb], [CX + CW, CY - hb], [CX + CW + dx, CY - hb - dy], [CX + dx, CY - hb - dy]], m === 'w' ? C.n8 : m === 'l' ? '#fff0cf' : CAB.t);
+  G.hs.forEach(([off, h], i) => {
+    if (h <= 0) return;
+    g.save(); g.beginPath(); g.rect(CX, CY - off - h, CW, h); g.clip(); cabPart(i, m, lit); g.restore();
+  });
+  R(CX + CW, CY - hb, 1, hb, C.n0);
+  if (G.hr > 0 || t != null) { if (!m) cabScreen(st, G, t != null ? SH : G.hr, t); else R(SX, SY, SW, SH, m === 'w' ? C.n8 : C.lamp); }
+  if (lit && !m) txt(st.prod.t, CX + Math.round((CW - tw(st.prod.t)) / 2), CY - 66, C.n8);
+}
+function miniCab(x, y, prod, on) {
+  OB(x, y, 12, 22, 4, CAB); R(x + 2, y - 18, 8, 5, on ? FAM[prod.fam].sky : C.n0); R(x + 1, y - 21, 10, 2, '#c9568a'); R(x + 2, y - 9, 8, 2, C.cy);
+}
+const C_ = {
+  doneLen: 2.1, shipLen: .9, cap: 10, startAt: 2, seed: [4, 5], init() {}, src: deskSrc,
+  port(st, b) {
+    const G = cabGeom(st.p);
+    if (st.p < .68) return { x: CX + 3 + b.j * 30, y: CY - G.hb - 4 };
+    return { x: SX + 4 + b.j * 20, y: SY + SH - G.hr - 3 };
+  },
+  draw(st) {
+    brackets(168, 104, 250, 190, C.n3); shelfUnit(st, 'ARCADE');
+    st.shelf.forEach((pi, i) => { const s = shelfSlot(i); miniCab(s.x, s.y, PRODUCTS[pi % PL], Math.floor(st.clock * 2 + i) % 3 !== 0); });
+    if (st.phase === 'build') {
+      const G = cabGeom(st.p);
+      ghostBox(CX, CY, CW, 68, 14, C.n4);
+      cabFull(st, null, false, G, null);
+      const hc = hot(st.clock - st.lastLand), tp = G.hs.length ? CY - G.hb : CY;
+      if (hc && st.p < .68) R(CX + 1, tp + 1, CW - 2, 2, hc);
+    } else {
+      const G = cabGeom(1), t = st.phase === 'done' ? st.tp : 9;
+      if (st.phase === 'done') {
+        const m = t < .12 ? 'w' : t < .24 ? 'l' : null;
+        cabFull(st, m, t > .5, G, t < .24 ? null : t - .24 + .0001 > 0 ? t : null);
+        ring(st, .24, CX - 4, CY - 3, CX + CW + 12, CY + 1);
+      } else {
+        const q = shipPose(st, { x: CX, y: CY }, targetSlot(st), 22);
+        if (q.small) miniCab(Math.round(q.x), Math.round(q.y), st.prod, true);
+        else { g.save(); g.translate(Math.round(q.x - CX), Math.round(q.y - CY)); cabFull(st, null, true, G, 9); g.restore(); }
+      }
+    }
+  }
+};
+
+/* ======================= D. the build window ======================= */
+const WX = 124, WY = 62, WW = 140, WH = 100;
+const VERB = ['CC', 'LD', 'AR', 'GEN', 'PACK', 'TEST', 'LINT', 'MIX'], OBJ = ['PLAYER', 'ENEMY', 'AUDIO', 'SPRITE', 'LEVEL', 'INPUT', 'PHYSICS', 'SCORE', 'MENU', 'SAVE', 'SHADER', 'TILEMAP'], EXT = ['.C', '.O', '.PNG', '.WAV'];
+const JOKES = ['WARN REMOVE TODO', 'WARN WORKS ON MY PC', 'WARN FIX LATER', 'WARN COFFEE.DLL LOADED', 'WARN SPLINES RETICULATED', 'WARN ADD MORE ALPHA'];
+function logLine(n) { return n % 11 === 10 ? JOKES[(n / 11 | 0) % JOKES.length] : VERB[(n * 7 + 3) % 8] + ' ' + OBJ[(n * 5 + 1) % 12] + EXT[(n * 3) % 4]; }
+const slotD = i => ({ x: 272 + (i % 3) * 29, y: 72 + Math.floor(i / 3) * 38 });
+function icon(prod, x, y, edge) { R(x, y, 26, 26, edge || C.n6); cover(prod, x + 1, y + 1, 24, 24, 1, {}); txt(prod.t, x + 13 - tw(prod.t) / 2, y + 29, C.n6); }
+const D = {
+  doneLen: 1.9, shipLen: .9, cap: 9, startAt: 3, seed: [4, 5, 6, 7], src: deskSrc,
+  init(st) { st.log = []; st.n = 0; },
+  onLand(st, b) { for (let k = 0; k < b.carry; k++) st.log.push(logLine(st.n++)); if (st.log.length > 40) st.log.splice(0, st.log.length - 40); },
+  port(st, b) { return { x: WX + 12 + b.j * 40, y: WY + WH - 24 }; },
+  draw(st) {
+    brackets(266, 58, 358, 184, C.n3); txt('DESKTOP', 272, 63, C.n4);
+    st.shelf.forEach((pi, i) => { const s = slotD(i); icon(PRODUCTS[pi % PL], s.x, s.y); });
+    const t = st.tp, bodyH = WH - 11;
+    if (st.phase === 'build' || (st.phase === 'done' && t < 1.1)) {
+      const flashC = st.phase === 'done' ? (t < .12 ? C.n8 : t < .24 ? C.lamp : null) : null;
+      R(WX, WY, WW, WH, C.n0); R(WX, WY, WW, 1, C.n4); R(WX, WY + WH - 1, WW, 1, C.n4); R(WX, WY, 1, WH, C.n4); R(WX + WW - 1, WY, 1, WH, C.n4);
+      R(WX + 1, WY + 1, WW - 2, 10, flashC || C.n2);
+      const resp = st.phase === 'done' && t > .5;
+      if (resp) { txt('(NOT RESPONDING)', WX + 5, WY + 4, C.red); }
+      else {
+        txt(st.phase === 'done' ? 'BUILD OK' : 'BUILD ' + st.prod.t, WX + 5, WY + 4, flashC ? C.n0 : C.n8);
+        const pc = Math.round(st.p * 100) + '%'; txt(pc, WX + WW - 24 - tw(pc), WY + 4, flashC ? C.n0 : C.cy);
+      }
+      R(WX + WW - 18, WY + 3, 5, 5, C.n3); R(WX + WW - 11, WY + 3, 5, 5, C.n3);
+      if (st.phase === 'build') {
+        const rows = 11, lines = st.log.slice(-rows);
+        lines.forEach((ln, i) => {
+          const fromBottom = lines.length - 1 - i, y = WY + 14 + (rows - 1 - fromBottom) * 6;
+          const c = fromBottom === 0 && st.clock - st.lastLand < .12 ? C.n8 : fromBottom < 5 ? C.cy : fromBottom < 10 ? C.cyd : C.n4;
+          txt(ln.slice(0, 28), WX + 6, y, c);
+        });
+        txt('>', WX + 6, WY + 14 + rows * 6, C.n6); if (Math.floor(st.clock * 3) % 2) R(WX + 12, WY + 14 + rows * 6, 3, 5, C.n8);
+      } else {
+        txt('BUILD OK', WX + WW / 2 - tw('BUILD OK', 2) / 2, WY + 40, t < .24 ? C.n8 : C.cy, 2);
+        txt('0 ERRORS', WX + WW / 2 - tw('0 ERRORS') / 2, WY + 62, C.n6); txt('7 WARNINGS', WX + WW / 2 - tw('7 WARNINGS') / 2, WY + 70, C.n4);
+      }
+      R(WX + 1, WY + bodyH, WW - 2, 10, C.n1);
+      const seg = Math.floor(st.p * 20), age = st.clock - st.lastLand;
+      for (let i = 0; i < 20; i++) R(WX + 10 + i * 6, WY + bodyH + 3, 5, 4, i < seg ? (i === seg - 1 && st.phase === 'build' && hot(age) ? hot(age) : C.cy) : C.n2);
+    } else if (st.phase === 'done') {
+      const cx = WX + WW / 2, cy = WY + WH / 2;
+      if (t < 1.35) { const k = Math.min(2, Math.floor((t - 1.1) / .0834)), w = WW * [.8, .5, .25][k], h = WH * [.6, .3, .1][k]; R(cx - w / 2, cy - h / 2, w, h, C.n4); R(cx - w / 2 + 1, cy - h / 2 + 1, w - 2, h - 2, C.n2); }
+      else icon(st.prod, cx - 13, cy - 13, t < 1.5 ? C.lamp : C.n6);
+    } else {
+      const q = shipPose(st, { x: WX + WW / 2 - 13, y: WY + WH / 2 - 13 }, slotD(Math.min(st.shelf.length, D.cap - 1)), 30);
+      icon(st.prod, Math.round(q.x), Math.round(q.y));
+    }
+  }
+};
+
+/* ======================= E. the shipping crate ======================= */
+const EX = 180, EY = 186, EW = 46, EH = 30, ED = 18;
+const PLANK = ['#a9794a', '#b6865a'], PD = '#5a3d22';
+const slotE = i => ({ x: 270 + Math.floor(i / 4) * 42, y: 183 - (i % 4) * 16 });
+function miniCrate(prod, x, y) {
+  OB(x, y, 22, 15, 9, WOOD, '#3a2815'); R(x + 1, y - 5, 20, 1, PD); R(x + 1, y - 10, 20, 1, PD);
+  R(x + 4, y - 12, 8, 9, FAM[prod.fam].sky); R(x + 6, y - 9, 4, 4, FAM[prod.fam].lite);
+}
+function crateGeom(p) {
+  const planks = [];
+  for (let k = 0; k < 5; k++) planks.push(clamp((p - k * .1) / .1, 0, 1));
+  return { planks, fs: clamp((p - .5) / .22, 0, 1), fl: clamp((p - .72) / .23, 0, 1), fb: p >= .95 };
+}
+function crateFull(st, m, G, stamp) {
+  const [dx, dy] = obd(ED), hb2 = Math.floor(G.fs * 5) * 6;
+  const sideC = m === 'w' ? C.n6 : m === 'l' ? '#d6b073' : WOOD.s, topC = m === 'w' ? C.n8 : m === 'l' ? '#fff0cf' : WOOD.t;
+  if (hb2 > 0) {
+    poly([[EX + EW, EY], [EX + EW + dx, EY - dy], [EX + EW + dx, EY - hb2 - dy], [EX + EW, EY - hb2]], sideC);
+    if (!m) for (let k = 1; k <= hb2 / 6; k++) line(EX + EW, EY - k * 6, EX + EW + dx, EY - k * 6 - dy, PD);
+    line(EX + EW + dx, EY - dy, EX + EW + dx, EY - hb2 - dy, C.n0);
+  }
+  const strips = Math.ceil(G.fl * 3 - 1e-6);
+  for (let s = 0; s < strips; s++) {
+    const a = s / 3, b = (s + 1) / 3, ty = EY - EH;
+    const pts = [[EX + dx * a, ty - dy * a], [EX + EW + dx * a, ty - dy * a], [EX + EW + dx * b, ty - dy * b], [EX + dx * b, ty - dy * b]];
+    poly(pts, m ? topC : s % 2 ? WOOD.t : '#d3a876');
+    if (!m) line(pts[0][0], pts[0][1], pts[1][0], pts[1][1], PD);
+    line(pts[3][0], pts[3][1], pts[2][0], pts[2][1], C.n0);
+  }
+  for (let k = 0; k < 5; k++) {
+    const f = G.planks[k]; if (f <= 0) continue;
+    const wk = Math.floor(f * 8) / 8 * EW, y = EY - (k + 1) * 6;
+    R(EX, y, wk, 6, m === 'w' ? C.n8 : m === 'l' ? C.lamp : PLANK[k % 2]);
+    if (!m) { R(EX, y + 5, wk, 1, PD); if (f >= 1) { P(EX + 3, y + 3, '#2a1c10'); P(EX + EW - 4, y + 3, '#2a1c10'); } else R(EX + wk - 2, y + 2, 2, 2, C.n8); }
+    R(EX, y, 1, 6, C.n0);
+  }
+  if (G.fb && !m) {
+    R(EX + 3, EY - EH, 4, EH, WOOD.t); R(EX + EW - 7, EY - EH, 4, EH, WOOD.t);
+    for (let o = 0; o < 4; o++) line(EX + 7, EY - 4 - o, EX + EW - 8, EY - EH + 4 - o, WOOD.t);
+  }
+  if (stamp) {
+    const t = stamp;
+    R(EX + 5, EY - 26, 18, 20, C.n8); cover(st.prod, EX + 6, EY - 25, 16, 18, 1, {});
+    if (t > .2) { txt('SHIP', EX + 26, EY - 22, C.red); R(EX + 26, EY - 16, 15, 1, C.red); txt('IT!', EX + 26, EY - 13, C.red); }
+  }
+  if (G.fb || m) { R(EX + EW, EY - EH, 1, EH, C.n0); }
+}
+const E = {
+  doneLen: 2.0, shipLen: .9, cap: 8, startAt: 4, seed: [5, 6, 7], init() {}, src: deskSrc,
+  port(st, b) {
+    const p = st.p, G = crateGeom(p), [dx, dy] = obd(ED);
+    if (p < .5) { const k = Math.min(4, Math.floor(p / .1)); return { x: EX + Math.floor(G.planks[k] * 8) / 8 * EW, y: EY - k * 6 - 4 }; }
+    if (p < .72) return { x: EX + EW + 4 + b.j * (dx - 4), y: EY - Math.floor(G.fs * 5) * 6 - dy * .5 };
+    if (p < .95) return { x: EX + EW / 2 + dx / 2 + (b.j - .5) * 24, y: EY - EH - dy / 2 };
+    return { x: EX + 6 + b.j * (EW - 12), y: EY - EH / 2 };
+  },
+  draw(st) {
+    brackets(164, 118, 256, 192, C.n3);
+    OB(266, 186, 34, 3, 10, WOOD); OB(308, 186, 34, 3, 10, WOOD);
+    st.shelf.forEach((pi, i) => { const s = slotE(i); miniCrate(PRODUCTS[pi % PL], s.x, s.y); });
+    txt('STACK ' + st.shipped, 270, 108, C.n4);
+    if (st.phase === 'build') {
+      ghostBox(EX, EY, EW, EH, ED, C.n4);
+      crateFull(st, null, crateGeom(st.p), 0);
+    } else if (st.phase === 'done') {
+      const t = st.tp, bounce = t > .7 && t < 1.3 ? [-4, 0, -2, 0][Math.min(3, Math.floor((t - .7) / .15))] : 0;
+      g.save(); g.translate(0, bounce);
+      crateFull(st, t < .12 ? 'w' : t < .24 ? 'l' : null, crateGeom(1), t > .3 ? t - .3 : 0);
+      g.restore(); ring(st, .24, EX - 2, EY - 2, EX + EW + 8, EY + 3);
+    } else {
+      const q = shipPose(st, { x: EX, y: EY }, slotE(Math.min(st.shelf.length, E.cap - 1)), 30);
+      if (q.small) miniCrate(st.prod, Math.round(q.x), Math.round(q.y));
+      else { g.save(); g.translate(Math.round(q.x - EX), Math.round(q.y - EY)); crateFull(st, null, crateGeom(1), 1); g.restore(); }
+    }
+  }
+};
+
+/* ---------- boot ---------- */
+const scenes = [A, B, C_, D, E];
+const canvases = document.querySelectorAll('canvas');
+const stages = [...canvases].map((cv, i) => new Stage(cv, scenes[i]));
+const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let paused = reduced;
+const pauseBtn = document.getElementById('pause');
+const syncPause = () => { pauseBtn.textContent = paused ? 'Play' : 'Pause'; };
+syncPause();
+pauseBtn.addEventListener('click', () => { paused = !paused; syncPause(); });
+document.getElementById('finishAll').addEventListener('click', () => stages.forEach(s => s.finish()));
+document.querySelectorAll('[data-finish]').forEach(b => b.addEventListener('click', () => stages[+b.dataset.finish].finish()));
+document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  PRE = PRESETS[b.dataset.preset];
+  document.querySelectorAll('[data-preset]').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+  stages.forEach(s => s.begin());
+}));
+if ('IntersectionObserver' in window) {
+  const io = new IntersectionObserver(es => es.forEach(e => { const s = stages.find(x => x.cv === e.target); if (s) s.vis = e.isIntersecting; }));
+  canvases.forEach(c => io.observe(c));
+}
+/* start part-way through a build so the first frame already shows something under construction */
+stages.forEach(s => { for (let i = 0; i < 165; i++) s.step(1 / 30); s.draw(); });
+let last = performance.now();
+function frame(now) {
+  const dt = (now - last) / 1000; last = now;
+  for (const s of stages) { if (!s.vis) continue; if (!paused) s.step(dt); s.draw(); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>

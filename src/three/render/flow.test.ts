@@ -58,6 +58,27 @@ describe('the stream (§8.2a)', () => {
     flow.dispose()
   })
 
+  it('hands the lot’s key back with every arrival, so a sink that moves up a statue is still one sink (2026-10-14)', () => {
+    // The statue's sink is the voxel being built and it climbs a cell at a time; the arrival numerals sum per sink and are keyed by
+    // where they landed, so without a key of the lot's own one beat's numeral would be split between two places on the sprite.
+    const arrivals: { at: T.Vector3; key?: string }[] = []
+    const flow = createFlow(new T.Group(), (at, _value, key) => arrivals.push({ at: at.clone(), key }), counter())
+    const sink = new T.Vector3(10, 1, 0)
+    const keyed: FlowLot = { ...lot(20, sink), key: 'statue' }
+    for (let t = 0; t < 6; t += 1 / 60) {
+      flow.update(1 / 60, 90, [keyed], false)
+      sink.y += 0.01 // the voxel being built climbs
+    }
+    expect(arrivals.length).toBeGreaterThan(20)
+    for (const a of arrivals) expect(a.key).toBe('statue')
+    // …and it moved: the places they landed at are not one place
+    expect(new Set(arrivals.map((a) => a.at.y.toFixed(2))).size).toBeGreaterThan(1)
+    // a lot that stands still has no key and is keyed by its place, as it always was
+    const plain = run(90, 3, [lot(20)])
+    expect(plain.arrived.length).toBeGreaterThan(0)
+    flow.dispose(); plain.flow.dispose()
+  })
+
   it('has nowhere to send work from nobody: no sources, no points', () => {
     const { flow, peak, arrived } = run(500, 5, [lot(0)])
     expect(peak).toBe(0)
@@ -150,6 +171,49 @@ describe('a click is seen to go somewhere', () => {
     for (let t = 0; t < 3; t += 1 / 60) flow.update(1 / 60, 0, [], false)
     expect(flow.live).toBe(0)
     expect(arrived).toEqual([])
+    flow.dispose()
+  })
+
+  it('announces each of its points to the hand where it LANDS, not when it is thrown, and never to the arrival tick (2026-10-15)', () => {
+    // *"currently when I spam clicks the notes are played when I click, not when received, should be received"*: the note a click
+    // sings is sung by its points arriving, so the flow has to say when they do. Nothing at the click; one landing a blob, a flight later.
+    let now = 0
+    const landedAt: number[] = [], arrived: number[] = []
+    const flow = createFlow(new T.Group(), (_a, v) => arrived.push(v), counter(), () => landedAt.push(now))
+    flow.emit(new T.Vector3(0, 1.7, 0), new T.Vector3(10, 1, 0), 3, false)
+    expect(landedAt).toEqual([])
+    for (; now < 3; now += 1 / 60) flow.update(1 / 60, 0, [], false)
+    expect(landedAt).toHaveLength(3)
+    expect(Math.min(...landedAt)).toBeGreaterThan(1.0)
+    expect(Math.max(...landedAt)).toBeLessThan(1.6)
+    expect(arrived).toEqual([])
+    flow.dispose()
+  })
+
+  it('lands a spam of clicks in the gaps they were clicked in, a flight later and with hardly any scatter', () => {
+    // The notes are the player's own rhythm only if the landings keep it: a river's flight scatter (a quarter second) would shuffle ten
+    // clicks a second into somebody else's tune.
+    const from = new T.Vector3(0, 1.7, 0), to = new T.Vector3(10, 1, 0)
+    let now = 0, next = 0, clicks = 0
+    const landedAt: number[] = [], thrown: number[] = []
+    const flow = createFlow(new T.Group(), undefined, counter(), () => landedAt.push(now))
+    for (; now < 6; now += 1 / 120) {
+      if (clicks < 20 && now >= next) { thrown.push(now); flow.emit(from, to, 1, false); clicks++; next += 0.1 }
+      flow.update(1 / 120, 0, [], false)
+    }
+    expect(landedAt).toHaveLength(20)
+    const lag = landedAt.map((t, i) => t - thrown[i])
+    expect(Math.min(...lag)).toBeGreaterThan(1)
+    expect(Math.max(...lag) - Math.min(...lag)).toBeLessThan(0.1)
+    flow.dispose()
+  })
+
+  it('lands them at once under reduced motion, so the sound does not wait on a picture that is not drawn', () => {
+    let landed = 0
+    const flow = createFlow(new T.Group(), undefined, counter(), () => landed++)
+    flow.emit(new T.Vector3(), new T.Vector3(5, 0, 0), 7, true)
+    expect(landed).toBe(7)
+    expect(flow.live).toBe(0)
     flow.dispose()
   })
 

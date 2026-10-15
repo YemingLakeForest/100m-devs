@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BED_PULL_OUT_DB, MAX_TICK_VOICES, TICK_MAX_PER_SECOND, TICK_MIN_PER_SECOND, TICK_VOICE_MS,
-  BLIP_COUNT, RUN_GAP_MS, RUN_MAX_PER_SECOND, SCALE_COUNT, VoiceBudget, bedLevel, nextBlip, nextRunNote, pullOut, runRate, tickRate,
+  BLIP_COUNT, Blips, RUN_GAP_MS, RUN_MAX_PER_SECOND, SCALE_COUNT, VoiceBudget, bedLevel, nextBlip, nextRunNote, pullOut, runRate, tickRate,
 } from './throughputAudio.ts'
 
 /*
@@ -142,6 +142,62 @@ describe('the run: a hand on the people is answered with a climbing figure', () 
       const { note, direction } = nextRunNote(8, -1, RUN_GAP_MS + 1, r)
       expect(note).toBeLessThan(3)
       expect(direction).toBe(1)
+    }
+  })
+})
+
+describe('the notes are sung where the points land (2026-10-15)', () => {
+  // *"currently when I spam clicks the notes are played when I click, not when received, should be received"*
+  const sing = (landingsPerSecond: number, seconds: number) => {
+    const blips = new Blips()
+    const heard: { t: number; note: number }[] = []
+    for (let t = 0; t < seconds * 1000; t += 1000 / landingsPerSecond) {
+      const note = blips.hand(t, 0.5)
+      if (note !== null) heard.push({ t, note })
+    }
+    return heard
+  }
+
+  it('never sings more than the run’s cap a second, however fast the points land', () => {
+    for (const rate of [5, 11, 24, 240, 5000]) {
+      const heard = sing(rate, 5)
+      expect(heard.length / 5, `${rate} landings a second`).toBeLessThanOrEqual(RUN_MAX_PER_SECOND + 0.5)
+      for (let i = 1; i < heard.length; i++) expect(heard[i].t - heard[i - 1].t).toBeGreaterThanOrEqual(1000 / RUN_MAX_PER_SECOND - 1e-6)
+    }
+  })
+
+  it('climbs through a spam, a note to a landing, and turns at the top rather than leaving the scale', () => {
+    const heard = sing(11, 3).map((h) => h.note)
+    expect(heard.length).toBeGreaterThan(SCALE_COUNT * 2)
+    expect(heard[0]).toBeLessThan(3) // a run starts low
+    expect(heard.every((n, i) => i === 0 || Math.abs(n - heard[i - 1]) === 1)).toBe(true)
+    expect(Math.max(...heard)).toBe(SCALE_COUNT - 1)
+  })
+
+  it('starts a new run low once the points have stopped landing for longer than the run’s gap', () => {
+    const blips = new Blips()
+    for (let t = 0; t < 1000; t += 90) blips.hand(t, 0.5)
+    const after = blips.hand(1000 + RUN_GAP_MS + 200, 0.9)
+    expect(after).not.toBeNull()
+    expect(after!).toBeLessThan(3)
+  })
+
+  it('is one voice with the passive landings: a note too close to the last is not sung, whichever of them sang it', () => {
+    const blips = new Blips()
+    blips.passive(0, 0.5)
+    expect(blips.hand(30, 0.5)).toBeNull()
+    expect(blips.hand(30 + 1000 / RUN_MAX_PER_SECOND, 0.5)).not.toBeNull()
+  })
+
+  it('keeps the passive landings a figure and not a clock: never the same note twice running, always inside the blip family', () => {
+    const blips = new Blips()
+    let last = -1
+    for (let i = 0; i < 200; i++) {
+      const note = blips.passive(i * 250, (i * 0.618) % 1)
+      expect(note).not.toBe(last)
+      expect(note).toBeGreaterThanOrEqual(0)
+      expect(note).toBeLessThan(BLIP_COUNT)
+      last = note
     }
   })
 })

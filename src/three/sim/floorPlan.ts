@@ -178,39 +178,55 @@ export const HERO_SITES: Readonly<Record<HeroSiteId, HeroSite>> = {
   // 4.8 m of plinth and glass, 1.6 m east of Matt's riser, with 3.1 m to the east wall for the water cooler and the
   // corner it makes. The wall of six is as wide as the plinth, and the wall's top metre, kept clear for the plates, is above it.
   serena: { wall: 'north', x0: 2.0, x1: 6.8, z0: GARAGE_WALL_FACES.north, z1: -6.38, rise: GARAGE_HERO_DECK.rise },
-  // The mouth of the avenue between the two north pods, on the open floor: an octagon of rug 3.2 m across with a
-  // rolling board on it facing the lens and a man on a dais facing it too (`BILLY_PLAZA`). The rectangle is the rug's
-  // bounding square, which holds the board and the dais with a hand to spare.
-  // The deck's stem, edge to edge (x 1 to 4): the board is centred on it and Billy stands at its right-hand end, so the
-  // site is the whole width of the wood and not a rectangle that stops short of either edge [2026-10-14].
-  billy: { wall: 'free', x0: 1.0, x1: 4.0, z0: -1.15, z1: 2.0, rise: GARAGE_HERO_DECK.rise },
+  // The room's middle: the tip of the deck's stem, between the two north pods, on the open floor. It holds the statue's plinth and
+  // Billy's dais beside it (`STATUE_PLAZA`), the stem's whole width of wood and no further than the plinth's south edge needs
+  // [2026-10-14: the statue replaced the whiteboard here; the queue of finished statues is a line up the stem's east half, and
+  // is not Billy's: it is in his site's rectangle and he is on the other half.]
+  billy: { wall: 'free', x0: 1.0, x1: 4.0, z0: -3.3, z1: 2.0, rise: GARAGE_HERO_DECK.rise },
 }
 
 /**
- * **Billy's plaza, in his station's own frame** [2026-10-05] — unscaled metres, +z toward the lens, +x screen right, the
- * station at the origin. These are the numbers the set is drawn from (`render/hqSets.ts`) and the footprint the walk
- * grid closes is derived from (`billyFootprint`), so a board that moves in the picture moves in the graph on the same
- * edit: the dais he stands on (an octagon, flats to the axes) and the rolling whiteboard — its centre, its width and the
- * half-length of the feet that carry it. The board is a step behind him and a metre and a fifth to his left, its
- * right-hand end a hand behind his shoulder.
+ * **The statue plaza** [2026-10-14, *"voxel statue! put it in the middle of the room and so you need to move Bill, design a new
+ * layout"*] — in the room's own metres (x east, z toward the lens), not in a station's frame. The game being built stands here
+ * as a statue of its cover's subject on a plinth (`render/statue.ts`, GDD §8.2a): it is the sink the work flies to, so it is the
+ * thing in the middle of the studio, and the floor is arranged around it and not the other way about.
  *
- * **They are as small as they are because of the avenue** [found by `walkableRegions`, not by looking]. The avenue is
- * 4.96 m between the pods' tables, the walk grid pads every table and the board's footprint by a quarter metre and
- * samples at half-metre cells, so a lane beside the board is open only if it is a metre wide. The first cut of the
- * plaza (a 2.0 m board and a 1.3 m dais) was 3.3 m across, left 0.9 on one side and 0.6 on the other, and shut the
- * avenue's mouth altogether: the north half of the studio could not walk to the south half. At 2.67 m across, each
- * lane is 1.1 m and the studio is one place again. (A board turned to the lens is a diagonal bar whose bounding
- * square is twice its length on a side, which is why a shorter board buys a lane and not a shorter wall.)
+ * **The middle is the tip of the deck's stem, which is where the whiteboard was.** The garage floor runs x −13 to 16 and z −9.8 to 12,
+ * so its middle is (1.5, 1.1); the avenue between the two north pods is centred on x 2.5, and the stem (x 1 to 4) is centred on the
+ * same line and ends at z 2.3. A plinth 2.3 m across with its middle at (2.5, 0.75) stands on that line with 0.35 m of wood either side
+ * and 0.4 m before the stem ends, and it is within 1.1 m of the middle of the floor's bounding box (1.5, 1.1), which is as close to a middle as an irregular room has. The plinth is as wide as the
+ * widest statue (`STATUE.width`, 2.1 m) and a hand more, and the statue is 2.7 m, a little taller than Billy and not a head over the
+ * room: it is the biggest thing in the middle of it and it hides nothing a person is standing at.
  *
- * **The board is 2.4 m now, not 1.65** [2026-10-13, *"make the white board bigger"*]: it is the game's print and the sink the work
- * flies to (GDD §8.2a), and at 1.65 m it was the smallest thing in the middle of the room. `walkableRegions` still says one
- * studio, so the lanes the paragraph above counted are not the whole story at this size; Billy's site grew by 0.3 m toward
- * the lens (`HERO_SITES.billy.z1`, 1.7 to 2.0) to hold the footprint, which the site's own test requires.
+ * **Billy moved to the stem's west half, north of the plinth**, because the plinth takes the stem's width where he stood and he is
+ * the one person in the room who is placed and does not walk. §12.1's lens looks along (−1, −1), so a thing's screen position is
+ * its x − z across and its x + z down, and a 2.7 m statue hides everything within its width (2.1 m) up the picture behind it:
+ * at (1.75, −2.6) Billy is 1.8 m of screen to the statue's right, in clear view, and 1.7 m north of the plinth's edge (a room's width
+ * of floor between them reads as a man by a statue, not a man at it). His dais is on the wood with 0.2 m to spare each side
+ * (apothem .52: x 1.23 to 2.27, the stem starts at 1).
+ *
+ * **The queue is a line up the stem** (`queue`): the builds waiting to ship, one small statue each, the head of the queue beside the
+ * plinth and the line growing north toward the heroes, on the stem's east half so that Billy has the west. A finished statue steps
+ * off the plinth into the back of the line, and SHIP! sends the head of it away from beside the statue, which is where the eye is.
+ * A line of statues is a queue in the plain sense of the word, and the HUD's QUEUE n/5 is the same number counted by eye. They are
+ * the stem's own wood and never the avenue's floor, so the lane beside the stem is as wide as it was.
+ *
+ * The walk grid is unchanged by all of it: the stem is a platform and is closed to routing as a whole, and the plinth and the dais
+ * are inside it.
  */
-export const BILLY_PLAZA = {
+export const STATUE_PLAZA = {
+  /** Billy's dais, in his station's own frame: an octagon with its flats to the axes, flush with the deck. */
   dais: { apothem: 0.52, rise: 0 },
-  table: { x: -.30, z: .85, w: 2.10, d: .90 },
-  board: { x: -.95, z: -.80, w: 2.4, feet: 0.35 },
+  /** The plinth: its middle, its apothem (an octagon, flats to the axes) and how high it stands above the deck. */
+  plinth: { x: 2.5, z: 0.75, apothem: 1.15, height: 0.4 },
+  /**
+   * The queue: the stem's east half, head at `zHead` and each place a `pitch` north of the one before. The east half and not the west,
+   * because the lens looks along (−1, −1) and a 2.7 m statue hides what is up the picture behind it: a place on the west half
+   * with its head by the plinth was behind the statue's blueprint, and (found by looking, 2026-10-14) the same place with Billy
+   * on the east half was behind *him*. On the east half every place is clear of the statue's silhouette on screen by more than half
+   * a place, and Billy, who is farther from the lens than the line, is above it and not behind it.
+   */
+  queue: { x: 3.2, zHead: -1.5, pitch: 0.8, shown: 5, width: 0.75 },
 } as const
 /** Pinned leadership work bays: these protect their desks and chair approaches from errands. */
 export const OPS_WORK_BAY = { x0: HERO_SITES.matt.x0, x1: HERO_SITES.serena.x1,
@@ -254,20 +270,18 @@ export const LEADER_STATIONS = LEADER_IDS.map((id, i) => ({ id, seat: leaderSeat
  * - **James** (−9.0, −3.4), rot 90: on the deck, the desk running along the wall from z −4.8 to −2.0 and his Diet
  *   Coke cabinet at its south end to −1.37. (He was at (−8.4, −4.4), and before that at (−0.7, −4.5).)
  * - **Matt** (−1.6, −8.4) and **Serena** (4.4, −8.3), rot 0, at the middles of their sites.
- * - **Billy** (3.45, 0.09), rot 0 [2026-10-14, *"change Billy's facing to same as Matt and Serena ... facing front"*: he and his board were turned a quarter to the east pod, and now face the way theirs do; the board moved to his screen-left]; before that rot 45: on his dais at the east end of his board, with the lens in front of him.
- *   **He stands at the right-hand end of the board, and the board is what is centred** [2026-10-14, *"the white board is off center to the
- *   corridor wood floor"*]: the board's middle is on the deck stem's centre line (x 2.5, the stem running x 1 to 4), so it has 0.3 m of
- *   wood either side. Billy was left on that line (x 2.5) when the board moved to his left, which put the board's middle 0.95 m west of it
- *   and its west end 0.65 m over the deck's edge; he moved 0.95 m east with the plaza, and his dais ends 0.03 m inside the east edge.
- *   The assembly (board, feet and dais) is still centred in the avenue to within a seventh of a metre: 2.3 m from the west pods'
- *   tables and 2.0 m from the east ones, so there is a lane either side of it.
+ * - **Billy** (1.75, −2.6), rot 0 [2026-10-14, *"voxel statue! put it in the middle of the room and so you need to move Bill, design a new
+ *   layout"*]: on his dais on the stem's west half, north of the statue's plinth, facing the way Matt and Serena do. He was at
+ *   (3.45, 0.09) at the right-hand end of the whiteboard, which stood where the plinth is; the whole argument for where the plaza
+ *   is, and why he is where he is, is `STATUE_PLAZA`'s. (He was at (3.3, −1.25) for an hour of that day, and on the lens the queue's
+ *   first two places were behind him.)
  */
 export const GARAGE_LEADERS = [
   { id: 'founder' as LeaderId, seat: leaderSeat('founder'), x: -7.65, z: -7.45, rot: 45 },
   { id: 'james' as LeaderId, seat: leaderSeat('james'), x: -9.0, z: -2.6, rot: 90 },
   { id: 'matt' as LeaderId, seat: leaderSeat('matt'), x: -1.6, z: -8.4, rot: 0 },
   { id: 'serena' as LeaderId, seat: leaderSeat('serena'), x: 4.4, z: -8.3, rot: 0 },
-  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 3.45, z: .09, rot: 0 },
+  { id: 'billy' as LeaderId, seat: leaderSeat('billy'), x: 1.75, z: -2.6, rot: 0 },
 ]
 
 /**
@@ -392,8 +406,8 @@ export const GARAGE_ENTRY_START = { x: STUDIO_DOOR.x - .9 / Math.SQRT2, z: STUDI
  * pods moved in the plan and the one number that had to move with them was in
  * the other module.
  *
- * This is the crossing of the two aisles, south of Billy's rug: the north pods end at z = 0.5 and the south
- * ones begin at 3.0, and x = −1.7 is in the avenue between the columns (−3.2…1.8), clear of the easel's
+ * This is the crossing of the two aisles, south of the statue's plinth: the north pods end at z = 0.5 and the south
+ * ones begin at 3.0, and x = −1.7 is in the avenue between the columns (−3.2…1.8), clear of the plinth's
  * footprint to its east.
  */
 export const GARAGE_ARRIVAL_LANDING = { x: -1.7, z: 2.55 } as const
@@ -536,7 +550,7 @@ export function placeFor(headcount: number): Place {
  */
 export interface Furniture {
   readonly kind: 'counter' | 'sofa' | 'coffee-table' | 'board' | 'shelving' | 'unit' | 'planter'
-    | 'bench' | 'locker' | 'island' | 'screen' | 'banner' | 'cooler' | 'easel'
+    | 'bench' | 'locker' | 'island' | 'screen' | 'banner' | 'cooler' | 'plinth'
   readonly x: number
   readonly z: number
   readonly w: number
@@ -620,11 +634,11 @@ export const GARAGE_FURNITURE: readonly Furniture[] = [
   { kind: 'sofa', x: -12.46, z: 5.8, w: 0.84, d: 3.1, facing: Math.PI / 2 },
   { kind: 'coffee-table', x: -11.3, z: 5.8, w: 0.6, d: 1.5, low: true, facing: Math.PI / 2 },
   /*
-   * **Billy's easel and Billy** [2026-10-05]: the rolling whiteboard (1.8 m of board, turned to the lens) and the man
-   * on his dais beside it, as one footprint — the smallest axis-aligned rectangle that holds both, derived from
-   * `BILLY_PLAZA` and not typed. The walk grid pads it by a quarter metre. The rug is flat and walkable.
+   * **The statue's plinth and Billy** [2026-10-05, the board and the dais; 2026-10-14, the plinth and the dais]: the plinth the game
+   * is built on and the man on his dais beside it, as one footprint — the smallest axis-aligned rectangle that holds both, derived
+   * from `STATUE_PLAZA` and not typed. The walk grid pads it by a quarter metre. The dais is flat and would be walkable on its own.
    */
-  { kind: 'easel', ...billyFootprint() },
+  { kind: 'plinth', ...plazaFootprint() },
   // Planting: one by the south pods' east end; the hub planters are gone (the hub is Billy's).
   { kind: 'planter', x: 3.4, z: 4.1, w: .7, d: .7, low: true },
   { kind: 'planter', x: 14.7, z: -2.5, w: .8, d: .8, low: true },
@@ -940,19 +954,15 @@ function stationRect(s: { x: number; z: number; rot: number }, r: { x0: number; 
 }
 
 /**
- * **Billy's footprint**: the board with its feet, and the dais, as one axis-aligned world rectangle. The set is built in
- * its own *unscaled* metres (it is not in the scaled group the people are), turned an eighth about the station, so the
- * board goes through {@link stationRect} at `k = 1`; the dais is an octagon with its flats to the axes, which an eighth
- * turn leaves where it was (a square of the same apothem, turned, would be a third wider than it is).
+ * **The plaza's footprint**: the plinth and Billy's dais as one axis-aligned world rectangle. The plinth is an octagon with its flats
+ * to the axes, so its bounding square is exactly `2 * apothem`; so is the dais, which is built in the station's frame and the station
+ * is not turned (rot 0).
  */
-function billyFootprint(): { x: number; z: number; w: number; d: number } {
+function plazaFootprint(): { x: number; z: number; w: number; d: number } {
   const s = GARAGE_LEADERS.find((l) => l.id === 'billy')!
-  const { board, dais } = BILLY_PLAZA
-  const half = board.w / 2 + 0.01
-  const b = stationRect(s, { x0: board.x - half, x1: board.x + half, z0: board.z - board.feet, z1: board.z + board.feet }, 1)
-  const d = { x: s.x, z: s.z, w: 2 * dais.apothem, d: 2 * dais.apothem }
-  const x0 = Math.min(b.x - b.w / 2, d.x - d.w / 2), x1 = Math.max(b.x + b.w / 2, d.x + d.w / 2)
-  const z0 = Math.min(b.z - b.d / 2, d.z - d.d / 2), z1 = Math.max(b.z + b.d / 2, d.z + d.d / 2)
+  const { plinth, dais } = STATUE_PLAZA
+  const x0 = Math.min(plinth.x - plinth.apothem, s.x - dais.apothem), x1 = Math.max(plinth.x + plinth.apothem, s.x + dais.apothem)
+  const z0 = Math.min(plinth.z - plinth.apothem, s.z - dais.apothem), z1 = Math.max(plinth.z + plinth.apothem, s.z + dais.apothem)
   return { x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0 }
 }
 
