@@ -15,6 +15,7 @@
 
 import Decimal from 'break_infinity.js'
 import { quote, type Multiplier, type Quote } from '../sim/hireDial.ts'
+import { layoffQuote, type LayoffQuote } from '../sim/layoff.ts'
 import { developerAt, type Identity } from '../sim/identity.ts'
 import { outputShare, shareSum } from '../sim/aggregate.ts'
 import { outputClass, type OutputClass } from '../sim/output.ts'
@@ -3888,6 +3889,49 @@ export function hireDeveloper(): boolean {
   const { count, cost, affordable } = hireQuote()
   if (!affordable || count <= 0) return false
   set({ ...hire(state.devs, state.devs + count), cash: state.cash - cost })
+  return true
+}
+
+/**
+ * What LAY OFF is offering at the dial's setting — §10.10.5.
+ *
+ * The same dial as HIRE, read the same way, and pinned to one below the dial's
+ * unlock for the same reason: a save carried across a shift must not hand a fresh
+ * studio of nine a `x100` that means anything.
+ */
+export function layoffQuoteNow(s: GameState = state): LayoffQuote {
+  return layoffQuote(s.devs, s.cash, s.dialUnlocked ? s.hireMultiplier : 1)
+}
+
+/**
+ * §10.10.5 [CANON - added 2026-10-15] — let people go: the newest paid heads, for
+ * severance, with nothing refunded.
+ *
+ * Headcount only ever went up outside a liquidation, so a player who had hired
+ * past what the studio could pay for — or past §4.1's peak, where every head
+ * makes the studio slower — had no verb for it. See `sim/layoff.ts` for why it
+ * costs money and why it takes the newest seats.
+ *
+ * Gated like hiring, and for the same reason (§21.0e): Run 1 has no manual hire,
+ * and the thousand people who arrive in it are the trap, so it cannot have a way
+ * out of the trap either. Returns false rather than doing a smaller thing — a
+ * refused layoff must leave the studio exactly as it was.
+ */
+export function layOff(): boolean {
+  if (state.scene !== null || state.phase === 'bankrupt') return false
+  if (!currentUnlocks().manualHire) return false
+  const { count, cost, affordable } = layoffQuoteNow()
+  if (!affordable || count <= 0) return false
+  const devs = Math.max(0, state.devs - count)
+  set({
+    devs,
+    cash: state.cash - cost,
+    // `peakDevs` stays: §14.1 pays a run for the studio it built, not the one it
+    // ended on, which is also why letting people go is not a way to lose BP.
+    // A card open on a seat that no longer exists would be a window on nobody.
+    selected: state.selected !== null && state.selected >= devs ? null : state.selected,
+    ...showBubble('This is not a layoff. This is a restructuring.', 5000),
+  })
   return true
 }
 

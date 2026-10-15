@@ -16,6 +16,7 @@ import { emptyPermanent, setPermanent } from './save.ts'
 import {
   __resetStore,
   __setState,
+  dismissScene,
   getState,
   hireDeveloper,
   setHireMultiplier,
@@ -60,8 +61,28 @@ describe('MAX, through the store and the clock', () => {
     atScale(5_000, 50_000, 2e8)
     setHireMultiplier('max')
     hireDeveloper()
-    for (let t = 0; t < MAX_RUNWAY_SECONDS - 5; t += 0.5) tick(0.5)
+    // Every scene answered as it comes: THE THREAD is handed to any studio past
+    // twelve with an empty board, and a scene halts `tick` — without this the
+    // loop simulates nothing and "survives" because time has stopped. The
+    // control below is what proves the clock is really running.
+    for (let t = 0; t < MAX_RUNWAY_SECONDS - 5; t += 0.5) {
+      if (getState().scene !== null) dismissScene()
+      tick(0.5)
+    }
     expect(getState().phase).not.toBe('bankrupt')
+  })
+
+  it('and the clock really runs: the same studio, past the runway, is bankrupt', () => {
+    // The control for the test above. A "survives" assertion is only worth
+    // anything next to one that shows the thing it survived would have killed.
+    atScale(5_000, 50_000, 2e8)
+    setHireMultiplier('max')
+    hireDeveloper()
+    for (let t = 0; t < MAX_RUNWAY_SECONDS + 30; t += 0.5) {
+      if (getState().scene !== null) dismissScene()
+      tick(0.5)
+    }
+    expect(getState().phase).toBe('bankrupt')
   })
 
   it('does not stack — a second tap into the same runway buys nobody', () => {

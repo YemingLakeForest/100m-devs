@@ -13,6 +13,7 @@
 
 import { entropyLabel } from '../game/vocabulary.ts'
 import type { Phase } from '../game/onboarding.ts'
+import { peakHeads } from '../sim/entropy.ts'
 
 /* --- money and rates ----------------------------------------------------- */
 
@@ -187,6 +188,40 @@ export function hireRunwayReadout(secondsAfterHire: number): string | null {
   if (!Number.isFinite(secondsAfterHire)) return null
   if (secondsAfterHire >= RUNWAY_WARN_SECONDS) return null
   return `${Math.max(0, Math.round(secondsAfterHire))}s LEFT`
+}
+
+/**
+ * Should the LAY OFF button be on screen? — GDD §10.10.5 [2026-10-15].
+ *
+ * **Only while keeping people is the thing that hurts.** Two ways it does, and
+ * they are the game's two walls: the money (the bankruptcy clock has started, the
+ * same ninety seconds {@link runwayReadout} blinks at) and the building (the
+ * studio is past §4.1's peak, where every head makes it slower — the very lesson
+ * §6 exists to teach, and for the first time one the player can act on).
+ *
+ * Absent the rest of the time, for the reason the burn readout is: a control that
+ * is always there is furniture, and a button that says LAY OFF beside HIRE in a
+ * healthy studio is a button asking to be pressed. It arrives with the clock and
+ * leaves with it, in the same place and for the same reason.
+ */
+export function layoffOffered(i: { paidHeads: number; runwaySeconds: number; devs: number; cap: number }): boolean {
+  if (!(i.paidHeads > 0)) return false
+  if (i.runwaySeconds < RUNWAY_WARN_SECONDS) return true
+  return i.devs > peakHeads(i.cap)
+}
+
+/**
+ * Seconds as the buttons say them — `140s LEFT`, `12m LEFT` — or null when there
+ * is no clock at all (nobody is on the payroll, so nothing can run out).
+ *
+ * Minutes past ten of them because a layoff's *result* is the interesting number
+ * and it is often long: letting people go can take a studio from forty seconds to
+ * an hour, and `3600s LEFT` is a number nobody can read at a glance.
+ */
+export function runwayLabel(seconds: number): string | null {
+  if (!Number.isFinite(seconds)) return null
+  const s = Math.max(0, Math.round(seconds))
+  return s < 600 ? `${s}s LEFT` : `${Math.round(s / 60)}m LEFT`
 }
 
 export function runwayReadout(secondsRemaining: number): string | null {

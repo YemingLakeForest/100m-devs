@@ -18,6 +18,7 @@ import {
   SCENE_THREAD_CLEARED,
 } from '../game/scenes.ts'
 import { THREAD } from '../sim/events.ts'
+import { BANKRUPTCY_THRESHOLD } from '../sim/economy.ts'
 import { Hud } from './Hud.tsx'
 
 /**
@@ -210,6 +211,70 @@ describe('the hire button tells the truth about the hire', () => {
     __setState({ devCap: 100, event: null })
     render(<Hud stage={null} />)
     expect(hireButton().textContent).toContain('+1.00')
+  })
+})
+
+/**
+ * LAY OFF — §10.10.5 [CANON - added 2026-10-15]. On screen when keeping people is
+ * what hurts, priced in severance, and honest about where it leaves the studio.
+ */
+describe('the LAY OFF button', () => {
+  function studio(devs: number, cash: number, cap = 5_000) {
+    prestiged()
+    jumpToPhase('act2_loop')
+    __setState({ devs, devCap: cap, cash, dialUnlocked: true, scene: null, event: null })
+  }
+  const layoffButton = () => screen.queryByRole('button', { name: /LAY OFF/ })
+
+  it('is not on screen in a healthy studio', () => {
+    studio(200, 1e9)
+    render(<Hud stage={null} />)
+    expect(layoffButton()).toBeNull()
+  })
+
+  it('arrives with the bankruptcy clock, priced and saying where it leaves the studio', () => {
+    // 4,000 paid heads, eighty seconds from the line: the clock is blinking.
+    studio(4_001, BANKRUPTCY_THRESHOLD + 80 * 4_000 * 50, 50_000)
+    __setState({ hireMultiplier: 'max' })
+    render(<Hud stage={null} />)
+    const btn = layoffButton()
+    expect(btn).not.toBeNull()
+    expect(btn).toBeEnabled()
+    // The batch is on the face, and the price line carries severance and the runway it buys.
+    expect(btn!.textContent).toMatch(/LAY OFF\s+x\d+/)
+    expect(btn!.textContent).toMatch(/\$[\d.]+[KM]? · \d+m? ?s? LEFT|\$[\d.]+[KM]? · \d+[sm] LEFT/)
+  })
+
+  it('arrives past the peak even with money in the bank', () => {
+    studio(900, 1e10, 1_000)
+    render(<Hud stage={null} />)
+    expect(layoffButton()).not.toBeNull()
+  })
+
+  it('is disabled, not hidden, when the dial has nothing to cut at this setting', () => {
+    // MAX is the fewest who must go to be safe; a studio past its peak but flush
+    // with cash needs nobody gone for the *money*, so MAX has nothing to say.
+    studio(900, 1e10, 1_000)
+    __setState({ hireMultiplier: 'max' })
+    render(<Hud stage={null} />)
+    expect(layoffButton()).toBeDisabled()
+  })
+
+  it('does not exist in Run 1, which has no hiring and a trap instead', () => {
+    // No `prestiged()`: Run 1. The mass hire's thousand are the trap, and a way
+    // out of it would be the end of §6.
+    jumpToPhase('act2_loop')
+    __setState({ devs: 4_001, devCap: 50_000, cash: BANKRUPTCY_THRESHOLD + 80 * 4_000 * 50, scene: null })
+    render(<Hud stage={null} />)
+    expect(layoffButton()).toBeNull()
+  })
+
+  it('lets them go when pressed', () => {
+    studio(900, 1e10, 1_000)
+    __setState({ hireMultiplier: 10 })
+    render(<Hud stage={null} />)
+    fireEvent.click(layoffButton()!)
+    expect(getState().devs).toBe(890)
   })
 })
 

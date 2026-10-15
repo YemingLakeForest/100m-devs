@@ -12,7 +12,9 @@ import {
   formatVelocity,
   hireRunwayReadout,
   isLongNumeral,
+  layoffOffered,
   offerFor,
+  runwayLabel,
   runwayReadout,
   syncPercent,
 } from './hudModel.ts'
@@ -137,6 +139,51 @@ describe('what a hire leaves, on the button — the invoice at the decision', ()
 
   it('bottoms out at zero rather than counting into negative seconds', () => {
     expect(hireRunwayReadout(-4)).toBe('0s LEFT')
+  })
+})
+
+describe('LAY OFF is offered only while keeping people is what hurts — §10.10.5', () => {
+  const healthy = { paidHeads: 50, runwaySeconds: 5_000, devs: 51, cap: 1_000 }
+
+  it('is absent from a healthy studio', () => {
+    // A button that says LAY OFF beside HIRE in a studio that is fine is a button
+    // asking to be pressed.
+    expect(layoffOffered(healthy)).toBe(false)
+  })
+
+  it('arrives with the bankruptcy clock, on the same ninety seconds', () => {
+    expect(layoffOffered({ ...healthy, runwaySeconds: RUNWAY_WARN_SECONDS })).toBe(false)
+    expect(layoffOffered({ ...healthy, runwaySeconds: RUNWAY_WARN_SECONDS - 1 })).toBe(true)
+    // One warning, one threshold: whenever the clock is blinking the way out is there.
+    expect(runwayReadout(RUNWAY_WARN_SECONDS - 1)).not.toBeNull()
+  })
+
+  it('arrives past §4.1’s peak, where every head makes the studio slower', () => {
+    // The game's own thesis, finally something the player can act on. About 0.758
+    // of the cap is the peak.
+    expect(layoffOffered({ ...healthy, devs: 700, paidHeads: 699 })).toBe(false)
+    expect(layoffOffered({ ...healthy, devs: 800, paidHeads: 799 })).toBe(true)
+  })
+
+  it('is never offered when nobody on the payroll can go', () => {
+    expect(layoffOffered({ ...healthy, paidHeads: 0, runwaySeconds: 3 })).toBe(false)
+    expect(layoffOffered({ ...healthy, paidHeads: 0, devs: 5_000 })).toBe(false)
+  })
+})
+
+describe('runwayLabel — a result that can be an hour long still reads at a glance', () => {
+  it('says seconds while they are countable and minutes once they are not', () => {
+    expect(runwayLabel(45)).toBe('45s LEFT')
+    expect(runwayLabel(599)).toBe('599s LEFT')
+    expect(runwayLabel(3_600)).toBe('60m LEFT')
+  })
+
+  it('has nothing to say when there is no payroll to run out', () => {
+    expect(runwayLabel(Number.POSITIVE_INFINITY)).toBeNull()
+  })
+
+  it('bottoms out at zero', () => {
+    expect(runwayLabel(-3)).toBe('0s LEFT')
   })
 })
 

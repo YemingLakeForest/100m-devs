@@ -9242,7 +9242,54 @@ works because it is obviously a worse deal, not because it was the only option.<
 <li><strong>A slider.</strong> Continuous input for a quantity the player thinks about in orders of magnitude.</li>
 <li><strong>An auto-buyer, in Run 1.</strong> Automation is §11 tech-tree content and it is a <em>reward</em>;
 handing it over as a default deletes the verb.</li>
+<li><strong>A refund.</strong> See §10.10.5: letting people go costs severance and gives nothing back, or hiring
+is risk-free and the price stops being the decision.</li>
 </ul>
+<h4 id="letting-people-go-canon-added-2026-10-15">10.10.5 Letting people go <strong>[CANON - added 2026-10-15]</strong></h4>
+<p><strong>Headcount only ever went up.</strong> Outside a liquidation there was no verb for it, so a player who had
+hired past what the studio could pay for — the playthrough that found MAX's one-tap bankruptcy (§10.10.3) found
+plenty of ways to — could watch the bankruptcy clock blink and touch nothing, until the run ended and took everybody
+anyway. That is not a hard game, it is a game with a verb missing. §4.1's thesis is <em>past the peak every hire
+makes the studio slower</em>, and the only remedy for having crossed it was a bankruptcy screen.</p>
+<p><strong>LAY OFF</strong> sits under HIRE and reads the same dial: <code>x1</code>, <code>x10</code>, <code>x100</code>, and MAX. The face
+carries the batch (<code>LAY OFF  x40</code>) for the reason HIRE's does, and the price line is the severance and
+<em>where it leaves the studio</em> — <code>$60.0K · 140s LEFT</code>, in alarm ink while that is still inside the clock's
+window, which is the honest way to say <em>this does not fix it</em>.</p>
+<ol>
+<li><p><strong>It is not an undo, and the price is the reason.</strong> A layoff that refunded the hire would make hiring
+risk-free — hire a thousand, and if the clock starts, un-hire them — and §4.10a's argument is that the hire price is
+what the player weighs. So it costs <strong>severance of thirty seconds of the wage per head</strong>
+(<code>SEVERANCE_SECONDS</code>, $1,500 a head) and the hire price is gone. Thirty seconds is also a statement about <em>when</em> it
+helps: a head let go stops costing the wage and costs thirty seconds of it once, so <strong>a studio inside thirty seconds
+of the line is made worse by cutting.</strong> That is what gives the clock's ninety seconds a reason to be ninety — the
+window in which there is still something to do.</p></li>
+<li><p><strong>It only appears while keeping people is what hurts</strong> — the bankruptcy clock is under ninety seconds
+(the same threshold the readout blinks at), or the studio is past §4.1's peak (about 0.758 of the cap). Absent from
+a healthy studio, for the reason the burn readout is: a control that is always there is furniture, and LAY OFF beside
+HIRE in a studio that is fine is a button asking to be pressed. Past the peak it is the game's own lesson finally
+being something the player can act on — fewer people, more work.</p></li>
+<li><p><strong>MAX is the fewest who must go to be safe</strong> — the mirror of MAX hire, which is the most you can safely
+add: both stop at the same line, <code>MAX_RUNWAY_SECONDS</code> (§10.10.3), approached from opposite sides. It is closed-form
+(the runway after <em>n</em> cuts is <code>(R − S·n)/(p − n)</code>, whose derivative has the sign of <code>R − S·p</code> and nothing
+else, so it is monotone), zero when the studio is already safe, and zero when it is inside the severance — there is
+nobody whose going helps, and the button does not pretend otherwise. A fixed multiplier it cannot do is shown with its
+true count and cost, and dimmed, never quietly shrunk (§10.10.3 rule 1).</p></li>
+<li><p><strong>Who can go.</strong> Paid heads only — §4.10's unpaid founder stays; nobody lays off James — and the
+<em>newest</em> seats first, because a developer's face and name are a function of their seat (§7.8.7), so taking the end of
+the roster leaves everybody who stays exactly who they were. Severance may be paid from below zero, because the studio
+in the red is who this is for; it may not itself carry the studio over the line, or the button is a bankruptcy
+dressed as a rescue. <code>peakDevs</code> is kept: §14.1 pays a run for the studio it built, so letting people go is not a way
+to lose Blueprint Points.</p></li>
+<li><p><strong>Run 1 has none.</strong> It has no manual hiring (§21.0e) and the thousand who arrive are the trap; a way out of
+the trap would be the end of §6. The same <code>manualHire</code> gate that opens HIRE opens LAY OFF.</p></li>
+</ol>
+<blockquote>
+<p><em>Not built, on purpose.</em> A walk-out: the room has a <code>lift</code> animation that is a hire played backwards, but a
+Paradigm Shift's reset takes the same code path as a layoff in the renderer, and playing it for both would put puffs of
+smoke on seats that were already emptied. Laid-off seats leave the room instantly for now; the bubble — <em>"This is not a
+layoff. This is a restructuring."</em> — carries the joke. It needs a reason threaded to the garage view before it can
+be added safely.</p>
+</blockquote>
 <h3 id="the-release-gallery-what-you-have-actually-made-canon-added-2026-08-10-r28">10.11 The Release Gallery — what you have actually made <strong>[CANON - added 2026-08-10]</strong> - R28</h3>
 <blockquote>
 <p><strong>Amended 2026-08-27 — the gallery goes with the run.</strong> The release history was career-wide and

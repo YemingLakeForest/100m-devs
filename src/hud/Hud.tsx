@@ -22,6 +22,8 @@ import {
   hireDeveloper,
   hireGrowthNow,
   hireQuote,
+  layOff,
+  layoffQuoteNow,
   massHire,
   selectHero,
   setHireMultiplier,
@@ -34,7 +36,7 @@ import { MASS_HIRE_COUNT, PHASE_COPY, SEED_ROUND_CASH } from '../game/onboarding
 import { CollapsePlate } from './CollapsePlate.tsx'
 import { marginalHire } from './collapseModel.ts'
 import { LATER_RUN_TERMINAL, bankruptcyReceipt } from './bankruptcyModel.ts'
-import { payrollPerSecond } from '../sim/economy.ts'
+import { paidHeadcount, payrollPerSecond, secondsUntilBankrupt } from '../sim/economy.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
@@ -75,7 +77,16 @@ import { ParadigmCutScene } from './ParadigmCutScene.tsx'
 import { ProximaLaunch } from './ProximaLaunch.tsx'
 import { Gallery } from './Gallery.tsx'
 import { ParadigmTree } from './ParadigmTree.tsx'
-import { actionFor, formatMoney, hireRunwayReadout, offerFor, type ActionSpec } from './hudModel.ts'
+import {
+  RUNWAY_WARN_SECONDS,
+  actionFor,
+  formatMoney,
+  hireRunwayReadout,
+  layoffOffered,
+  offerFor,
+  runwayLabel,
+  type ActionSpec,
+} from './hudModel.ts'
 import { runwayAfterHire } from '../sim/hireDial.ts'
 import { useGameState } from './useGameState.ts'
 import { ConceptText } from '../ui/ConceptText.tsx'
@@ -1067,7 +1078,63 @@ function ActionBar({
         />
       )}
       {shown && <ActionButton spec={shown} state={state} />}
+
+      {/*
+        §10.10.5 [2026-10-15] — LAY OFF, under HIRE, **only while keeping people is
+        what hurts**: the bankruptcy clock is running, or the studio is past §4.1's
+        peak. `spec` rather than the latched `shown`: it leaves when hiring does, so
+        it can never outlive the dial it reads. Nothing is latched here because
+        nothing is ever null — the button reads the live quote, and on the way out
+        it is merely the last numbers, which is what an exit should show.
+      */}
+      <Panel
+        open={
+          spec?.showsHireCost === true &&
+          layoffOffered({
+            paidHeads: paidHeadcount(state.devs),
+            runwaySeconds: secondsUntilBankrupt(state.cash, state.devs),
+            devs: state.devs,
+            cap: effectiveDevCap(state),
+          })
+        }
+        from="bottom"
+        className="hud__layoff"
+        silent
+      >
+        <LayOffButton state={state} />
+      </Panel>
     </Panel>
+  )
+}
+
+/**
+ * LAY OFF — priced in severance, and **says what it leaves**.
+ *
+ * The same dial as HIRE and the same face rule: at `x40` the label carries the
+ * batch. The price line is what a layoff costs and where it puts the studio,
+ * because the whole case for the button is the second number — and it is in
+ * alarm ink while that number is still inside the clock's window, which is the
+ * honest way to say *this does not fix it*.
+ */
+function LayOffButton({ state }: { state: GameState }) {
+  const q = layoffQuoteNow(state)
+  const left = q.count > 0 ? runwayLabel(q.runwayAfter) : null
+  const still = q.count > 0 && q.runwayAfter < RUNWAY_WARN_SECONDS
+  return (
+    <Button
+      onClick={layOff}
+      disabled={!q.affordable}
+      title={
+        q.count > 0
+          ? `Let ${q.count.toLocaleString()} go: ${formatMoney(q.cost)} severance, nothing refunded${left ? `. Leaves ${left.replace(' LEFT', '')} before bankruptcy` : ''}`
+          : 'Nobody to let go at this setting'
+      }
+    >
+      {q.count > 1 ? `LAY OFF  x${q.count}` : 'LAY OFF'}
+      <small className={still ? 'is-bad' : undefined}>
+        {q.count > 0 ? `${formatMoney(q.cost)}${left ? ` · ${left}` : ''}` : '—'}
+      </small>
+    </Button>
   )
 }
 

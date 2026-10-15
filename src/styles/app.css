@@ -1019,6 +1019,22 @@ body {
   margin-left: 4px;
 }
 
+/*
+ * §10.10.5 — LAY OFF, under HIRE. A Panel of its own, like the offer, so it arrives
+ * and leaves with the clock that summons it and never re-animates a hire button
+ * the player is mid-tap on. Stretched to the rail for the same reason the offer
+ * is: its price line ("$31.5K · 140s LEFT") is the widest thing it says.
+ */
+.hud__layoff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+}
+
+.hud__layoff .ui-btn {
+  margin-left: 4px;
+}
+
 /* --- the Paradigm Tree — GDD §13.2, §15.1 ------------------------------ */
 
 /*
