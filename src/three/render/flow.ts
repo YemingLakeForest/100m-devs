@@ -23,7 +23,7 @@ import { sharedMaterial } from './worldArt.ts'
  * it whose level is how much of the game is built, and it is the same number the HUD's progress
  * reads, so a point arriving is a point of the bar. When the build completes the gauge flashes
  * full, the sink throws a fountain of points and a ring runs out across the lot; a release throws
- * a bigger one and rings at every open house. Nothing here is a decision the sim makes: it is all
+ * a bigger one, of chunkier voxels and with no ring (2026-10-16), and a small one at every open house. Nothing here is a decision the sim makes: it is all
  * picture, fed a rate, a progress and two events.
  *
  * One lot is one place work ends up — the project board, the front door of an open house — and
@@ -80,9 +80,11 @@ const SPARK_SPEED = { build: [4, 8], release: [6, 13] } as const
 const GRAVITY = 15
 const SPARK_LIFE = 1.15
 const SPARK_SIZE = 0.15
+/** A release's fountain is voxels, not sparks [2026-10-16]: chunks of the game thrown up, at twice a build's grain. */
+const RELEASE_GRAIN = 2
 /** The ring that runs out across a lot: how far, how long, and how many may be alive. */
 const RING_LIFE = 0.75
-const RING_REACH = { build: 7, release: 12 }
+const RING_REACH = { build: 7 }
 const MAX_RINGS = 24
 
 export interface FlowLot {
@@ -265,7 +267,7 @@ export function createFlow(
     if (gauge.instanceColor) gauge.instanceColor.needsUpdate = true
   }
 
-  function fountain(from: T.Vector3, floor: number, n: number, [lo, hi]: readonly [number, number]) {
+  function fountain(from: T.Vector3, floor: number, n: number, [lo, hi]: readonly [number, number], grain = 1) {
     for (let i = 0; i < n; i++) {
       // A cone about the vertical, wide enough to read as a burst and narrow enough to read as a fountain.
       const tilt = random() * 0.95
@@ -274,7 +276,7 @@ export function createFlow(
       spawn({
         kind: 1, fx: from.x, fy: from.y, fz: from.z, tx: 0, ty: 0, tz: 0,
         vx: Math.sin(tilt) * Math.cos(turn) * speed, vy: Math.cos(tilt) * speed, vz: Math.sin(tilt) * Math.sin(turn) * speed,
-        age: 0, life: SPARK_LIFE * (0.7 + random() * 0.5), value: 0, sway: 0, size: SPARK_SIZE * (0.8 + random() * 0.5), floor,
+        age: 0, life: SPARK_LIFE * (0.7 + random() * 0.5), value: 0, sway: 0, size: SPARK_SIZE * grain * (0.8 + random() * 0.5), floor,
       })
     }
   }
@@ -388,12 +390,20 @@ export function createFlow(
         if (!main && kind === 'build') continue
         const s = standOf(lot)
         const y = s.y + 0.05
-        ring(s.x, y, s.z, RING_REACH[kind] * (main ? 1 : 0.6))
+        /*
+         * [2026-10-16] **A release runs no ring.** *"the current game juice on game release is too AI sloppy to have a
+         * halo out, something else we can do? camera/visuals?"* Three rings racing out across the floor were the
+         * screensaver's idiom for *something happened here*, and they said it about the floor. The release's weight is
+         * the camera's now (`garageView`'s punch and hit-stop, the glass's letterbox) and the fountain, which is the
+         * work itself flying up. A build keeps its small ring: it was not what was asked about.
+         */
+        if (kind === 'build') {
+          ring(s.x, y, s.z, RING_REACH.build)
+          ring(s.x, y, s.z, RING_REACH.build * 1.5, 0.12)
+        }
         if (main) {
-          ring(s.x, y, s.z, RING_REACH[kind] * 1.5, 0.12)
-          if (kind === 'release') ring(s.x, y, s.z, RING_REACH[kind] * 2.1, 0.26)
           // From the top of the sink itself when it is a piece of furniture (`top`), else from over its gauge.
-          fountain(lot.top === undefined ? at.set(s.x, s.y + GAUGE_H, s.z) : at.set(lot.sink.x, s.y + lot.top, lot.sink.z), s.y, SPARKS[kind], SPARK_SPEED[kind])
+          fountain(lot.top === undefined ? at.set(s.x, s.y + GAUGE_H, s.z) : at.set(lot.sink.x, s.y + lot.top, lot.sink.z), s.y, SPARKS[kind], SPARK_SPEED[kind], kind === 'release' ? RELEASE_GRAIN : 1)
         } else fountain(at.set(s.x, s.y + 1, s.z), s.y, SPARKS.house, SPARK_SPEED.build)
       }
       flash = GAUGE_FLASH_S

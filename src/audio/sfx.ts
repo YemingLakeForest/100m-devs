@@ -61,6 +61,14 @@ export const SFX = [
   'work-blip-9',
   'build-done',
   'release-hit',
+  // §10.8b [2026-10-16] — the ring's own hits and the review's stamp, written as PCM beside the rest of the juice:
+  // what `release-hit` was is `verdict-stamp` now, and `release-hit` is the layered stinger. None of them glides.
+  'verdict-stamp',
+  'ring-fix',
+  'ring-rushed',
+  'ring-crack',
+  'ring-miss',
+  'ring-lock',
 ] as const
 
 export type SfxId = (typeof SFX)[number]
@@ -68,7 +76,7 @@ export type SfxId = (typeof SFX)[number]
 /** The blip family in pitch order (C D E G A), for the things that choose a note. */
 export const BLIP_SFX = ['work-blip-0', 'work-blip-1', 'work-blip-2', 'work-blip-3', 'work-blip-4', 'work-blip-5', 'work-blip-6', 'work-blip-7', 'work-blip-8', 'work-blip-9'] as const satisfies readonly SfxId[]
 
-const WAV_SFX = new Set<SfxId>(['ui-click', 'work-blip-0', 'work-blip-1', 'work-blip-2', 'work-blip-3', 'work-blip-4', 'work-blip-5', 'work-blip-6', 'work-blip-7', 'work-blip-8', 'work-blip-9', 'build-done', 'release-hit'])
+const WAV_SFX = new Set<SfxId>(['ui-click', 'work-blip-0', 'work-blip-1', 'work-blip-2', 'work-blip-3', 'work-blip-4', 'work-blip-5', 'work-blip-6', 'work-blip-7', 'work-blip-8', 'work-blip-9', 'build-done', 'release-hit', 'verdict-stamp', 'ring-fix', 'ring-rushed', 'ring-crack', 'ring-miss', 'ring-lock'])
 
 function assetPath(id: SfxId): string {
   return `/sfx/${id}.${WAV_SFX.has(id) ? 'wav' : 'mp3'}`

@@ -432,10 +432,19 @@
   letter-spacing: 2px;
 }
 
+/*
+ * The brief [2026-10-16] — a console, not a caption. *"the text on the right,
+ * they make very little sense, re-write them"* and *"the release game UI on the
+ * right should be more impactful and studio OS UI fitting."* It reads top to
+ * bottom as an operator reads a status screen: what this build is, what the
+ * window is worth, how much of the year is left, the three numbers the player
+ * is managing, and the log. Labels are the inverted chips the OS uses for a
+ * field name; values are the large type. Motion is stepped, as everywhere.
+ */
 .ring__brief {
   display: grid;
   align-content: center;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -459,10 +468,22 @@
   min-width: 0;
 }
 
+/* The version, in the stage's own ink: an ALPHA is dim, a GOLD is lit. */
 .ring__kicker {
+  justify-self: start;
   margin: 0;
-  color: var(--p1);
-  letter-spacing: 3px;
+  padding: 0 4px;
+  background: var(--p1);
+  color: var(--n0);
+  letter-spacing: 2px;
+}
+
+.ring__kicker[data-stage='RC'] {
+  background: var(--p2);
+}
+
+.ring__kicker[data-stage='GOLD'] {
+  background: var(--warn-3);
 }
 
 .ring__name {
@@ -473,16 +494,114 @@
   overflow-wrap: anywhere;
 }
 
+/* A field name: the inverted chip. */
+.ring__k {
+  padding: 0 3px;
+  background: var(--p0);
+  color: var(--p2);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/*
+ * What the window pays — the biggest number on the brief, because it is the
+ * one that is draining. It drops a year at a time, and each drop is a stepped
+ * knock (keyed on the year, so the animation re-fires).
+ */
+.ring__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  padding-top: 4px;
+  border-top: var(--rule) solid var(--p0);
+}
+
+.ring__x {
+  font-size: var(--type-3x);
+  font-weight: 400;
+  line-height: 0.9;
+  color: var(--p3);
+  font-variant-numeric: tabular-nums;
+  animation: ring-knock 240ms steps(3, end) both;
+}
+
+.ring__x[data-band='window'] {
+  color: var(--p2);
+}
+
+.ring__x[data-band='soft'] {
+  color: var(--p1);
+}
+
+.ring__x[data-band='missed'] {
+  color: var(--alarm-2);
+}
+
+.ring__next {
+  color: var(--p1);
+}
+
+/* The year's clock, as ten cells that go out one by one. The last three turn amber. */
+.ring__clock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ring__bar {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ring__bar i {
+  flex: 1;
+  height: 8px;
+  max-width: 14px;
+  background: var(--n1);
+}
+
+.ring__bar i[data-on='true'] {
+  background: var(--p2);
+}
+
+.ring__bar[data-low='true'] i[data-on='true'] {
+  background: var(--warn-3);
+}
+
+/* The three numbers the player is managing. */
+.ring__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  color: var(--p1);
+}
+
+.ring__stat b {
+  display: inline-block;
+  font-weight: 400;
+  color: var(--p3);
+  font-variant-numeric: tabular-nums;
+}
+
+.ring__stat[data-tone='bug'] b {
+  color: #ffe9b0; /* WARN[3], as `.kw--defects` */
+}
+
+.ring__stat[data-hot='true'] b {
+  color: var(--n0);
+  background: var(--p3);
+  padding: 0 2px;
+  animation: ring-knock 200ms steps(2, end) both;
+}
+
 .ring__row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 3px;
-}
-
-.ring__k {
-  width: 6ch;
-  color: var(--p1);
 }
 
 .ring__pip {
@@ -492,47 +611,99 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ring__pip[data-past='true'] {
-  border-color: var(--n1);
-  color: var(--n3);
-}
-
 .ring__pip[data-on='true'] {
   border-color: var(--p2);
   background: var(--p2);
   color: var(--n0);
 }
 
-.ring__best {
+/*
+ * The log. Older lines above, dim; the newest at the bottom, bright, with the
+ * terminal's prompt. Its tone is what the last press did: amber for a rushed
+ * fix, red for a miss or a regression.
+ */
+.ring__log {
+  display: grid;
+  gap: 1px;
   margin: 0;
-  color: var(--p1);
+  padding: 4px 0 0;
+  border-top: var(--rule) solid var(--p0);
+  list-style: none;
+  color: var(--n3);
 }
 
-.ring__best b {
-  color: var(--p3);
-  font-weight: 400;
+.ring__log li::before,
+.ring__say::before {
+  content: '> ';
+  color: var(--p1);
 }
 
 .ring__say {
   margin: 0;
   min-height: 2.5em;
-  color: var(--p2);
+  color: var(--p3);
   letter-spacing: 1px;
+  animation: ring-type 180ms steps(3, end) both;
+}
+
+.ring__say[data-tone='warn'] {
+  color: var(--warn-3);
+}
+
+.ring__say[data-tone='bad'] {
+  color: var(--alarm-2);
 }
 
 .ring__say[data-verdict] {
-  color: var(--p3);
+  color: var(--n8);
+}
+
+.ring__left {
+  animation: ring-knock 200ms steps(2, end) both;
+}
+
+/* A value changing: knocked a few pixels and back, in hard steps. */
+@keyframes ring-knock {
+  from {
+    transform: translateY(-3px) scale(1.15);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* A log line arriving: typed in from the left in three steps. */
+@keyframes ring-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 .ui-btn.ring__act {
   width: 100%;
 }
 
-/* Short frames: the name drops to the body size so the brief stays beside the dial. */
+@media (prefers-reduced-motion: reduce) {
+  .ring__x,
+  .ring__stat b,
+  .ring__say,
+  .ring__left {
+    animation: none;
+  }
+}
+
+/* Short frames: the name drops to the body size and the log keeps its newest line, so the brief stays beside the dial. */
 @container frame (max-height: 400px) {
   .ring__catch {
     padding: 6px 12px 4px;
     gap: 6px 14px;
+  }
+
+  .ring__brief {
+    gap: 3px;
   }
 
   .ring__name {
@@ -543,5 +714,17 @@
   .ring__shelf .cover {
     width: 33px;
     height: 33px;
+  }
+
+  .ring__x {
+    font-size: var(--type-2x);
+  }
+
+  .ring__log {
+    display: none;
+  }
+
+  .ring__say {
+    min-height: 1.25em;
   }
 }

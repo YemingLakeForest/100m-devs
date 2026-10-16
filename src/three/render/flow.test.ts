@@ -411,8 +411,14 @@ describe('completion: the game being done is seen (§8.2a)', () => {
   it('a release is bigger than a build, and reaches the open houses too', () => {
     const build = after('build'), release = after('release')
     expect(release.live).toBeGreaterThan(build.live)
-    expect(release.ringsLive).toBeGreaterThan(build.ringsLive)
     build.dispose(); release.dispose()
+  })
+
+  it('runs no ring for a release: its weight is the camera’s (2026-10-16)', () => {
+    // *"too AI sloppy to have a halo out, something else we can do? camera/visuals?"* — the rings were the halo.
+    const release = after('release')
+    expect(release.ringsLive).toBe(0)
+    release.dispose()
   })
 
   it('flashes the gauge full the moment it lands, then lets it drain, and the fountain falls and ends', () => {

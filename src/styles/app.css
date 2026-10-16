@@ -1312,15 +1312,68 @@ body {
   /* With the reel, and for the same reason — a full-frame flash that the left
      rail is drawn on top of is not a full-frame flash. */
   z-index: 1;
-  animation: ship-flash 160ms ease-out forwards;
+  /* [2026-10-16] Two hard frames and out, not a fade: a fade is a glow leaving, and a flash is a frame. */
+  animation: ship-flash 120ms steps(2, end) forwards;
 }
 
 @keyframes ship-flash {
   from {
-    opacity: 0.85;
+    opacity: 0.9;
   }
   to {
     opacity: 0;
+  }
+}
+
+/*
+ * [2026-10-16] The release's letterbox: two bars of the interface's black that
+ * slam in from top and bottom in three hard steps, hold for the reel's first
+ * beats, and slam out. The camera punch in the room (`garageView.release`) is
+ * the other half of the same cut.
+ */
+.ship-bars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ship-bars i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11%;
+  background: var(--n0);
+  animation: ship-bar 1600ms steps(1, end) both;
+}
+
+.ship-bars i:first-child {
+  top: 0;
+  transform-origin: top;
+}
+
+.ship-bars i:last-child {
+  bottom: 0;
+  transform-origin: bottom;
+}
+
+@keyframes ship-bar {
+  0% {
+    transform: scaleY(0);
+  }
+  3% {
+    transform: scaleY(0.5);
+  }
+  6%,
+  82% {
+    transform: scaleY(1);
+  }
+  86% {
+    transform: scaleY(0.5);
+  }
+  90%,
+  100% {
+    transform: scaleY(0);
   }
 }
 

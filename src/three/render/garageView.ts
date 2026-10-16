@@ -54,6 +54,7 @@ import { defaultCast, type StudioCast } from './studioPeople.ts'
 import type { Environment, GarageProp } from './worldEnvironments.ts'
 import { placeInstances, showSeatInstances, type SeatInstance } from './worldArt.ts'
 import { LEADER_IDS, leaderSeat, type LeaderId } from '../sim/floorPlan.ts'
+import { workSources } from './workSources.ts'
 import { createCityHouses } from './cityHouses.ts'
 import { CITY_CAPACITY } from './cityGrid.ts'
 import { NIGHT, OS, OS_NIGHT, OS_SKIN } from '../art/skin.ts'
@@ -219,6 +220,11 @@ const DROP_FROM = 3.4
  * room's cost while a conversation is on screen.
  */
 const AMBIENT_HZ = 24
+/** The release's hit-stop, its punch (how much closer the lens gets, and how much of the way to the statue it leans), and how fast it eases back. */
+const RELEASE_HOLD_S = 0.09
+const RELEASE_PUNCH = 0.16
+const RELEASE_PUNCH_PAN = 0.35
+const RELEASE_PUNCH_EASE = 3.2
 
 export interface GarageViewOptions {
   /**
@@ -408,6 +414,18 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   const FACE_RATE = 9
   let saved: { pan: T.Vector3; zoom: number } | null = null
   let shake = 0
+  /**
+   * The release's camera [2026-10-16, at the user's instruction: *"the current game juice on game release is too AI
+   * sloppy to have a halo out, something else we can do? camera/visuals?"*]. The rings that ran out across the floor
+   * are gone (`flow.complete`); in their place the camera does what a camera does when something matters. **Hit-stop**:
+   * the room freezes for {@link RELEASE_HOLD_S}, the frame a fighting game holds on a landed blow, so the release is
+   * felt as an impact before it is seen as an animation. **Punch**: on that same frame the lens is
+   * {@link RELEASE_PUNCH} closer and a third of the way toward the statue, and it eases back out over about a second.
+   * The glass's letterbox (`ReleaseReview`) is the other half of the cut. Reduced motion gets neither.
+   */
+  let punch = 0
+  let hold = 0
+  const punchToward = new T.Vector3()
   /** Something the picture shows has changed since it was last drawn. */
   let dirty = true
   let drawnAt = -Infinity
@@ -463,8 +481,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     if (wall && sinkShown && wall.visible) { wall.visible = false; wallTakenDown = true; dirty = true }
     else if (wall && !sinkShown && wallTakenDown) { wall.visible = true; wallTakenDown = false; dirty = true }
     if (sinkAt && sinkShown) {
-      const sources = env.targets.filter(t => { for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false; return true })
-        .map(t => { const p = t.mesh.getWorldPosition(new T.Vector3()); p.y += t.mesh.scale.y * .3; return p })
+      // Never the founder: you code when you click, and only then (`workSources.ts`).
+      const sources = workSources(env.targets)
       const foot = sinkAt.statue.foot(new T.Vector3())
       // The work lands in front of the voxel that is being built, and the lot is keyed by the statue and not by that voxel, which moves.
       return [{
@@ -475,8 +493,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     const plate = env.projectPlate?.mesh
     if (!plate) return []
     for (let o: T.Object3D | null = plate; o; o = o.parent) if (!o.visible) return []
-    const sources = env.targets.filter(t => { for (let o: T.Object3D | null = t.mesh; o; o = o.parent) if (!o.visible) return false; return true })
-      .map(t => { const p = t.mesh.getWorldPosition(new T.Vector3()); p.y += t.mesh.scale.y * .3; return p })
+    const sources = workSources(env.targets)
     return [{ sink: plate.getWorldPosition(new T.Vector3()), floor: 0, gauge: true, sources }]
   }
   /**
@@ -568,6 +585,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
 
   function frame() {
     const focus = env.focus.clone().add(pan)
+    if (punch > 0) focus.addScaledVector(punchToward, punch * RELEASE_PUNCH_PAN)
     const direction = new T.Vector3(1, 1, 1).normalize()
     camera.position.copy(focus).addScaledVector(direction, Math.max(80, span() * 1.5))
     camera.far = Math.max(300, span() * 3)
@@ -575,7 +593,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     camera.lookAt(focus)
     if (shake > 0) camera.position.add(new T.Vector3((Math.random() - .5) * shake, (Math.random() - .5) * shake, 0))
     const aspect = w / h
-    const s = span()
+    const s = span() / (1 + punch * RELEASE_PUNCH)
     camera.left = -s / 2; camera.right = s / 2
     camera.top = s / 2 / aspect; camera.bottom = -s / 2 / aspect
     camera.updateProjectionMatrix()
@@ -1130,7 +1148,20 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       return [...seats,...city.codingSeats()]
     },
     setFlow(rate, reduced, progress) { flowRate = rate; flowReduced = reduced; flowProgress = progress },
-    complete(kind) { flow.complete(flowLots, kind, flowReduced); env.hq?.sink?.statue.complete(kind, flowReduced); dirty = true },
+    complete(kind) {
+      flow.complete(flowLots, kind, flowReduced)
+      env.hq?.sink?.statue.complete(kind, flowReduced)
+      if (kind === 'release' && !flowReduced) {
+        punch = 1
+        hold = RELEASE_HOLD_S
+        shake = Math.max(shake, .3)
+        const statue = env.hq?.sink?.statue
+        // Toward the statue when there is one (the queue's head leaves from beside it), else straight in.
+        if (statue) punchToward.copy(statue.foot(new T.Vector3())).sub(env.focus).sub(pan).setY(0)
+        else punchToward.set(0, 0, 0)
+      }
+      dirty = true
+    },
     pokeStream(seat, sp) {
       const to = flowLots[0]?.sink
       if (!to) return false
@@ -1170,8 +1201,14 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       dirty = true
     },
     render(seconds) {
-      clock += lastSeconds === null ? 0 : Math.min(1 / 30, Math.max(0, seconds - lastSeconds))
+      const step = lastSeconds === null ? 0 : Math.min(1 / 30, Math.max(0, seconds - lastSeconds))
       lastSeconds = seconds
+      // The hit-stop: the world's clock waits while the camera's runs, so the frame holds and the lens has already punched.
+      if (hold > 0) { hold -= step; dirty = true }
+      else {
+        clock += step
+        if (punch > 0) { punch = punch < .01 ? 0 : punch * Math.exp(-RELEASE_PUNCH_EASE * step); dirty = true }
+      }
       for (const l of lights) {
         let on = true
         for (let o: T.Object3D | null = l.owner; o; o = o.parent) if (!o.visible) { on = false; break }

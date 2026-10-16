@@ -107,6 +107,9 @@ export function ReleaseReview({ state }: { state: GameState }) {
     // climbed too — a stamp, then a bell arpeggio that rose and rang — and the user: *"remove
     // the siuuuu sound when apps released."* `release-hit` is the stamp alone now, and nothing in
     // the release rises or sweeps: a studio's operating system confirming a thing, not a firework.
+    // [2026-10-16] *"the SFX has no meat too simple, not enough satisfaction for the game release."*
+    // `release-hit` is a layered stinger now — two hits, a sub boom, a struck chord, a crash and a room
+    // clapping — every layer at one pitch (`scripts/generate-juice-sfx.ts`). The stamp moved to the verdict.
     playSfx('release-hit')
     const timers = [
       // §10.8 F3 — **the release is a cue, not a clink.** One noise for the
@@ -130,7 +133,7 @@ export function ReleaseReview({ state }: { state: GameState }) {
       // and a total nobody hears arrive is a total that was always there.
       // [2026-10-15] It was `entropy-lock`, a descending power-down whine (see `ReleaseRing`'s
       // verdict), and the total is stamped in on the glass anyway: so it is stamped on the speakers.
-      setTimeout(() => playSfx('release-hit'), ms(REVIEW_BEATS.verdict)),
+      setTimeout(() => playSfx('verdict-stamp'), ms(REVIEW_BEATS.verdict)),
       setTimeout(() => setOpen(false), ms(REVIEW_BEATS.total)),
     ]
     return () => timers.forEach(clearTimeout)
@@ -163,6 +166,16 @@ export function ReleaseReview({ state }: { state: GameState }) {
           staying on: the flash is a single CSS animation, and remounting is
           how it re-fires without a timer to reset. */}
       <div key={`flash-${held.id}`} className="ship-flash" aria-hidden="true" />
+      {/* [2026-10-16] The camera's half of the release (§8.2a): bars slam in top and bottom as the
+          room's camera punches in on the statue, hold while the critics land, and slam out. A cut to
+          widescreen is what a film does when something matters; the halo it replaced was a
+          screensaver's way of saying the same thing. */}
+      {!reduced && (
+        <div key={`bars-${held.id}`} className="ship-bars" aria-hidden="true">
+          <i />
+          <i />
+        </div>
+      )}
       <div key={`reel-${held.id}`} className="review" data-open={open ? 'true' : 'false'} aria-live="polite">
         {/*
           A plate, not floating text. The reel sits over the middle of the frame
