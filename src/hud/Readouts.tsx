@@ -186,7 +186,7 @@ export function Shipped({ state }: { state: GameState }) {
  * Clamped to [0, 1] because a spring overshoots by design, and a speedometer
  * that reads negative sync is a bug rather than a flourish.
  */
-export function Speedometer({ entropy }: { entropy: number }) {
+export function Speedometer({ entropy, pastPeak = null }: { entropy: number; pastPeak?: string | null }) {
   const swept = Math.min(1, Math.max(0, useSpring(entropy, SPRING_HEAVY)))
   const seized = entropy >= 0.99
   // The gauge reports *sync*, not entropy: 100% when the studio is in sync,
@@ -207,6 +207,11 @@ export function Speedometer({ entropy }: { entropy: number }) {
         */}
         <div className="hud__gauge-fill" style={{ width: `${sync * 100}%` }} />
       </div>
+      {/*
+        §11.2 B2 [amended 2026-10-16] — past the peak, the three numbers the
+        percentage hides (`pastPeakReadout`). In alarm ink, and absent otherwise.
+      */}
+      {pastPeak && <span className="hud__sub is-bad">{pastPeak}</span>}
     </div>
   )
 }

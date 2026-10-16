@@ -14,6 +14,7 @@ import {
   isLongNumeral,
   layoffOffered,
   offerFor,
+  pastPeakReadout,
   runwayLabel,
   runwayReadout,
   syncPercent,
@@ -168,6 +169,30 @@ describe('LAY OFF is offered only while keeping people is what hurts — §10.10
   it('is never offered when nobody on the payroll can go', () => {
     expect(layoffOffered({ ...healthy, paidHeads: 0, runwaySeconds: 3 })).toBe(false)
     expect(layoffOffered({ ...healthy, paidHeads: 0, devs: 5_000 })).toBe(false)
+  })
+})
+
+describe('the past-peak line under the speedometer — §11.2 B2 [amended 2026-10-16]', () => {
+  const base = { cap: 1_000, output: 600, peakOutput: 606, wage: 50 }
+
+  it('says nothing at or under the peak, where none of its numbers is true', () => {
+    expect(pastPeakReadout({ ...base, devs: 500 })).toBeNull()
+    expect(pastPeakReadout({ ...base, devs: 758 })).toBeNull()
+  })
+
+  it('names the heads past the peak, the work lost and what they cost a second', () => {
+    const line = pastPeakReadout({ ...base, devs: 1_258, output: 303 })
+    expect(line).not.toBeNull()
+    expect(line).toContain('PAST PEAK')
+    expect(line).toContain('−50%')
+    // 500 heads past a peak of 758, at $50 a second each.
+    expect(line).toContain(formatMoney(500 * 50))
+  })
+
+  it('grows its count and its bill with every head hired past the peak', () => {
+    const at = (devs: number) => pastPeakReadout({ ...base, devs, output: 150 })!
+    const count = (s: string) => Number(s.split(' ')[0].replace(/,/g, ''))
+    expect(count(at(2_000))).toBeGreaterThan(count(at(1_000)))
   })
 })
 

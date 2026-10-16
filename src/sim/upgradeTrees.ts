@@ -352,7 +352,7 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('K2', 0, -5, 'Ansible', 'ansible', 4, { t: 'key', sl: 'lag', p: ['q4', 'q5', 'q6'], all: true, d: 'Faster than light, for one sentence at a time.' }),
   ],
   billy: [
-    N('R', 0, 0, 'Daily Standup', 'whiteboard', 1, { t: 'root', p: ['gJ'], tech: 'B2', fx: 'Entropy can never pass 80% — but every minute a fifth of the studio stops for 5s, and Billy keeps half the floor working through it. He is also one coordination point: sync goes up the day he sits down.', d: 'He arrives when sync collapses, and James knows a chap: fifteen minutes, standing up, in a fixed order.' }),
+    N('R', 0, 0, 'Daily Standup', 'whiteboard', 1, { t: 'root', p: ['gJ'], tech: 'B2', fx: 'The studio never does less than a fifth of its best, however many you hire past the peak — but every minute a fifth of the studio stops for 5s, and Billy keeps half the floor working through it. He is also one coordination point: sync goes up the day he sits down.', d: 'He arrives when sync collapses, and James knows a chap: fifteen minutes, standing up, in a fixed order.' }),
     N('gJ', 0, -1, 'James · Knows a Chap', '', 1, { t: 'link', to: 'james:j3' }),
     N('c1', 1, 0, 'Sticky Notes', 'sticky', 1, { p: ['R'], t: 'lvl', max: 3, k: 1, d: 'Coordination +1 per level.' }),
     N('c2', 2, 0, 'Kanban', 'kanban', 1, { p: ['c1'], k: 1, d: 'Coordination +1. The columns are Doing, Doing and Done.' }),

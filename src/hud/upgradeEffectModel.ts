@@ -55,7 +55,9 @@ export function techEffectReceipt(
   const lines: UpgradeEffectLine[] = []
   // Communication load and developer capacity are reciprocal forms of the same term.
   changed(lines, 'COMMUNICATION LOAD', 1 / before.devCapMultiplier, 1 / after.devCapMultiplier, percent)
-  changed(lines, 'ENTROPY CEILING', before.entropyCap, after.entropyCap, percent)
+  // [amended 2026-10-16] §11.2 B2's number is a floor on the studio's work (a
+  // share of what it does at its peak), not a ceiling on entropy any more.
+  changed(lines, 'WORK FLOOR', 1 - before.entropyCap, 1 - after.entropyCap, percent)
   changed(lines, 'DEVS AT KEYBOARD', before.activeDevFraction, after.activeDevFraction, percent)
   changed(lines, 'REVENUE', before.revenueMultiplier, after.revenueMultiplier, multiplier)
   changed(lines, 'ESTIMATION TIER', before.estimationTier, after.estimationTier, (v) => `TIER ${v}`)

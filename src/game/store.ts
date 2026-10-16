@@ -121,6 +121,7 @@ import {
   decayLocalEntropy,
   devEfficiency,
   efficiency,
+  peakHeads,
 } from '../sim/entropy.ts'
 import {
   FOUNDER_ROLE_HEADS,
@@ -1386,7 +1387,25 @@ export function currentEfficiency(s: GameState = state): number {
   // can never fire again. That is the node working, not a hole. The player paid
   // for a company that cannot seize, and §25.3.2's "none of this may become a
   // fail state" is untouched — this removes one, it does not add one.
-  return Math.max(1 - techOf(s).entropyCap, foldedEfficiency(s))
+  //
+  // [amended 2026-10-16, §11.2 B2] **A floor on the work, not on the share.**
+  // The floor was `η ≥ 0.2` per head, so past a load of about 1.32 output was
+  // `0.2·D` and *rose* with every hire: the studio Billy arrives to fix was one
+  // where over-hiring paid, and the fun-killers audit measured a greedy player
+  // at 174 heads on a cap of 121 still out-earning the careful one per second of
+  // play. The floor is now a fifth of the work the studio does *at its peak*,
+  // spread over however many people are on the payroll — `(1 − cap)·peak/D` past
+  // §4.1's peak, the old share below it. Total output goes flat past the peak and
+  // payroll keeps climbing, so the hire that used to be free money now costs
+  // money (D1 in `docs/PLAN-2026-10-16-fun-killers.md`: Run 2's bankruptcy is
+  // reachable again, by choice). The company still cannot seize — a fifth of its
+  // best is always being done — which is all the ceiling ever promised.
+  const share = 1 - techOf(s).entropyCap
+  if (!(share > 0)) return foldedEfficiency(s)
+  const heads = Math.max(0, s.devs)
+  const peak = peakHeads(effectiveDevCap(s))
+  const floor = share * (heads > peak ? peak / heads : 1)
+  return Math.max(floor, foldedEfficiency(s))
 }
 
 export function currentEntropy(s: GameState = state): number {

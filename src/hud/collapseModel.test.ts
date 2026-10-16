@@ -77,6 +77,18 @@ describe('the marginal hire — what the next developer is worth', () => {
     expect(marginalHire(30, D_BASE, 1, free).value).toBeCloseTo(marginalHire(30, D_BASE).value, 10)
   })
 
+  it('says a hire on a flat floor adds nothing — not a small gain, not a rounding glitch [2026-10-16]', () => {
+    // §11.2 B2's work floor: past the peak the studio does a fixed amount of work
+    // however many people it holds, so the next hire is worth exactly nothing.
+    const peak = peakHeads(D_BASE)
+    const floored = (d: number) => Math.max(0.2 * Math.min(1, peak / d), 1 / (1 + (d / D_BASE) ** 5))
+    const w = marginalHire(D_BASE * 5, D_BASE, 1, floored)
+    expect(w.value).toBe(0)
+    expect(w.label).toBe('ADDS NOTHING')
+    // On the falling stretch between the peak and the floor it still loses.
+    expect(marginalHire(D_BASE * 1.2, D_BASE, 1, floored).value).toBeLessThan(0)
+  })
+
   it('reads a batch as the whole batch', () => {
     expect(Math.abs(marginalHire(10, D_BASE, 5).value)).toBeGreaterThan(Math.abs(marginalHire(10, D_BASE, 1).value))
   })

@@ -93,6 +93,12 @@ export function marginalHire(
   // `cap`, which is what the collapse plate draws and what Run 1 means.
   const work = (d: number) => (efficiencyAt ? Math.max(0, d) * efficiencyAt(d) : workDone(d, cap))
   const value = work(devs + n) - work(devs)
+  // [amended 2026-10-16] §11.2 B2's floor holds total work flat past the peak,
+  // so the hire there adds nothing at all, to floating-point either side of
+  // zero. `+0.00` reads as a small gain and `−0.00` as a rounding glitch; it is
+  // neither. The tolerance is relative and tiny on purpose: §4.1's own tail
+  // (Run 1's thousand) loses a real thousandth a hire and must still say LOSES.
+  if (Math.abs(value) <= 1e-9 * Math.max(1, Math.abs(work(devs)))) return { value: 0, label: 'ADDS NOTHING', short: '±0' }
   const text = Math.abs(value) >= 100 ? Math.round(Math.abs(value)).toLocaleString('en-US') : Math.abs(value).toFixed(2)
   // `short` is what fits on the button's price line (the rail is 146 px wide and the
   // frame gate counts every row); `label` is what the tooltip and a screen reader say.

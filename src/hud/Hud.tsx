@@ -33,7 +33,8 @@ import { MASS_HIRE_COUNT, PHASE_COPY, SEED_ROUND_CASH } from '../game/onboarding
 import { CollapsePlate } from './CollapsePlate.tsx'
 import { marginalHire } from './collapseModel.ts'
 import { LATER_RUN_TERMINAL, bankruptcyReceipt } from './bankruptcyModel.ts'
-import { paidHeadcount, payrollPerSecond, secondsUntilBankrupt } from '../sim/economy.ts'
+import { WAGE_PER_DEV_PER_SEC, paidHeadcount, payrollPerSecond, secondsUntilBankrupt } from '../sim/economy.ts'
+import { peakHeads } from '../sim/entropy.ts'
 import type { StageHandle } from '../render/stage.ts'
 import { Button } from '../ui/Button.tsx'
 import { Panel } from '../ui/Panel.tsx'
@@ -80,6 +81,7 @@ import {
   hireRunwayReadout,
   layoffOffered,
   offerFor,
+  pastPeakReadout,
   runwayLabel,
   type ActionSpec,
 } from './hudModel.ts'
@@ -447,7 +449,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
 
         {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}
         <div className="hud__gauges">
-          <Speedometer entropy={entropy} />
+          <Speedometer entropy={entropy} pastPeak={unlocks.trees ? pastPeakLine(state) : null} />
           <Velocity state={state} />
           {/*
             §16 — the two readouts the top of the ladder adds, under the two the
@@ -859,6 +861,20 @@ function priceOf(spec: ActionSpec | null, state: GameState) {
 }
 
 /**
+ * §11.2 B2 [amended 2026-10-16] — the speedometer's past-peak line, read off the
+ * store's own efficiency at the studio's headcount and at the peak, so the floor
+ * and every fold reach it. Run 2 and later: Run 1's collapse plate already says
+ * this, with a picture, and its lesson is the one moment the HUD must not add to.
+ */
+function pastPeakLine(state: GameState): string | null {
+  const cap = effectiveDevCap(state)
+  const peak = peakHeads(cap)
+  if (!(state.devs > peak)) return null
+  const work = (d: number) => d * currentEfficiency({ ...state, devs: d })
+  return pastPeakReadout({ devs: state.devs, cap, output: work(state.devs), peakOutput: work(peak), wage: WAGE_PER_DEV_PER_SEC })
+}
+
+/**
  * One button, priced and gated.
  *
  * Shared by the primary action and §21.0a's offer, because they are now on
@@ -914,9 +930,13 @@ function ActionButton({ spec, state }: { spec: ActionSpec; state: GameState }) {
             ? hireRunwayReadout(runwayAfterHire(state.devs, state.cash, q.count, q.cost))
             : null
         const title = worth ? `The next hire ${worth.label.toLowerCase()} developers’ worth of work` : undefined
+        // [amended 2026-10-16] §11.2 B2 — a hire that adds no work, or loses
+        // some, is in the same alarm ink as one that runs out the money: past
+        // the peak the studio pays the wage and gets nothing for it.
+        const worthless = worth !== null && worth.value <= 0
         return (
           <small
-            className={left ? 'is-bad' : undefined}
+            className={left || worthless ? 'is-bad' : undefined}
             title={left ? `Leaves ${left.replace(' LEFT', '')} before bankruptcy at this payroll${worth ? `. ${title}` : ''}` : title}
           >
             {formatMoney(q.cost)}{left ? ` · ${left}` : worth ? ` · ${worth.short}` : ''}
@@ -1024,7 +1044,11 @@ function ActionBar({
           })
         }
         from="bottom"
-        className="hud__layoff"
+        // [amended 2026-10-16] §11.2 B2 — past the peak LAY OFF is lit, not just
+        // present: the floor holds the work flat there, so every head let go is
+        // a wage saved for no work lost, and it is the one control that is
+        // plainly right to press.
+        className={state.devs > peakHeads(effectiveDevCap(state)) ? 'hud__layoff hud__layoff--urged' : 'hud__layoff'}
         silent
       >
         <LayOffButton state={state} />

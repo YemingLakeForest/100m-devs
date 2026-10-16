@@ -146,7 +146,7 @@ export const TECH_TREE: readonly TechNode[] = [
     branch: 'protocol',
     name: 'Daily Standups',
     flavour: 'Force developers to stand up so meetings end faster.',
-    effect: 'Entropy can never pass 80% — but every minute, a fifth of the studio stops for 5s',
+    effect: 'The studio never does less than a fifth of its best — but every minute, a fifth of the studio stops for 5s',
     baseCost: 2_500,
     mult: 1.12,
     maxLevel: 1,
@@ -174,7 +174,7 @@ export const TECH_TREE: readonly TechNode[] = [
     branch: 'protocol',
     name: 'JIRA Ticket Flooding',
     flavour: 'Requires three approvals, an epic, and a sprint planning session to change a button colour.',
-    effect: 'Entropy can never pass 60%',
+    effect: 'The studio never does less than two fifths of its best',
     baseCost: 10_000_000,
     mult: 1.15,
     maxLevel: 1,
@@ -590,7 +590,12 @@ export interface TechEffects {
    * the same move `prestige.ts` makes for Async-First Culture.
    */
   devCapMultiplier: number
-  /** §11.2 — entropy is not allowed above this. 1 is uncapped. */
+  /**
+   * §11.2 — the B2/B4 number. Kept under its old name because a save, a receipt
+   * and a test all spell it so; **read it as a work floor** [amended 2026-10-16]:
+   * the studio never does less than `1 − entropyCap` of the work it does at
+   * §4.1's peak (`store.currentEfficiency`). 1 is no floor at all.
+   */
   entropyCap: number
   /** §11.2 B3 — the fraction of the studio actually at a keyboard. */
   activeDevFraction: number

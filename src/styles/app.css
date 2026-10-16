@@ -1016,6 +1016,13 @@ body {
   margin-left: 4px;
 }
 
+/* [amended 2026-10-16] §11.2 B2 — past the peak the button is the right press:
+   a hard alarm-ink rule round it, flat, no glow. */
+.hud__layoff--urged .ui-btn {
+  outline: 2px solid var(--alarm-2);
+  outline-offset: 0;
+}
+
 /* --- the Paradigm Tree — GDD §13.2, §15.1 ------------------------------ */
 
 /*

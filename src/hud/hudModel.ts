@@ -211,6 +211,34 @@ export function layoffOffered(i: { paidHeads: number; runwaySeconds: number; dev
 }
 
 /**
+ * Past the peak, under the speedometer — GDD §11.2 B2 [amended 2026-10-16].
+ *
+ * Once B2 is a floor on the *work* (`store.currentEfficiency`), a studio hired
+ * past §4.1's peak gets nothing for the extra heads and pays for every one of
+ * them. The speedometer alone cannot say that: its percentage is per head, and
+ * per head is exactly the number that hides it. So the gauge carries the three
+ * numbers that make the decision — how many people are past the peak, how much
+ * less the studio does than it did there, and what those people cost a second —
+ * and says nothing at all at or under the peak, where none of them is true.
+ *
+ * `output` and `peakOutput` are the studio's own work at its headcount and at
+ * the peak (the store's efficiency, floor and fold included), so the percentage
+ * is what the player is actually losing and not the textbook curve's.
+ */
+export function pastPeakReadout(i: {
+  devs: number
+  cap: number
+  output: number
+  peakOutput: number
+  wage: number
+}): string | null {
+  const over = Math.floor(i.devs - peakHeads(i.cap))
+  if (!(over >= 1) || !(i.peakOutput > 0)) return null
+  const lost = Math.max(0, Math.round((1 - i.output / i.peakOutput) * 100))
+  return `${over.toLocaleString('en-US')} PAST PEAK · OUTPUT −${lost}% · ${formatMoney(over * i.wage)}/s`
+}
+
+/**
  * Seconds as the buttons say them — `140s LEFT`, `12m LEFT` — or null when there
  * is no clock at all (nobody is on the payroll, so nothing can run out).
  *

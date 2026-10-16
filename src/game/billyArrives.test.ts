@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   __resetStore,
   __setState,
+  currentEfficiency,
   currentEntropy,
   currentHeroFold,
   effectiveDevCap,
@@ -32,7 +33,7 @@ import {
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
 import { BILLY_SUSTAINED_S, SYNC_FELT } from './storyTriggers.ts'
-import { D_BASE } from '../sim/entropy.ts'
+import { D_BASE, efficiency, peakHeads } from '../sim/entropy.ts'
 
 /**
  * Run 2, with every scene that would otherwise interrupt already recorded.
@@ -158,6 +159,47 @@ describe('§21.7.3 — Billy arrives when growth first costs sync, and it stays 
     play(1)
     expect(getState().syncSlippedFor).toBe(0)
     expect(getState().scene).toBeNull()
+  })
+})
+
+describe('§11.2 B2 [amended 2026-10-16] — the stand-up is a floor on the work, not on the share', () => {
+  /**
+   * The old floor was η ≥ 0.2 per head, so past a load of ~1.32 output was
+   * `0.2·D` and every hire past the peak *added* work. These pin the shape the
+   * plan asks for and no value: under the peak nothing moved, past it the total
+   * never rises again, and it never falls below the floor's share of the peak.
+   */
+  const work = (devs: number) => {
+    __setState({ devs })
+    return devs * currentEfficiency()
+  }
+
+  it('leaves the studio under its peak exactly as it was', () => {
+    atTheCap(30, [SCENE_BILLY_ARRIVES.id])
+    const peak = peakHeads(effectiveDevCap())
+    for (const d of [10, 40, Math.floor(peak)]) {
+      __setState({ devs: d })
+      expect(currentEfficiency()).toBeCloseTo(efficiency(d, effectiveDevCap()), 9)
+    }
+  })
+
+  it('holds total output flat past the peak — the hire there is wages for nothing', () => {
+    atTheCap(30, [SCENE_BILLY_ARRIVES.id])
+    const cap = effectiveDevCap()
+    const peak = peakHeads(cap)
+    const atPeak = work(peak)
+    let last = atPeak
+    for (const m of [1, 1.3, 1.6, 2, 4, 10, 100]) {
+      const w = work(cap * m)
+      expect(w).toBeLessThanOrEqual(last + 1e-9)
+      expect(w).toBeGreaterThanOrEqual(0.2 * peak - 1e-9)
+      last = w
+    }
+    // Deep past the peak the floor holds it, and the floor is flat: ten times
+    // the people do the same work as four times.
+    expect(work(cap * 10)).toBeCloseTo(work(cap * 4), 6)
+    // The old per-head floor would have paid 0.2 of every one of them.
+    expect(work(cap * 10)).toBeLessThan(0.2 * cap * 10)
   })
 })
 
