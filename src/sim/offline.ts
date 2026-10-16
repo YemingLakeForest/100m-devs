@@ -71,6 +71,11 @@ const HOUR = 60 * 60
  * a degenerate commitment ladder (a project priced at zero, a NaN that slipped
  * a defensive default) cannot spin the main thread on app open, which is the
  * exact symptom §5.1 is written to prevent.
+ *
+ * [amended 2026-10-16] It bounds the authored rungs only. The terminal rung is
+ * walked in closed form (see {@link offlineYield}), because a cap on *ships*
+ * stopped being a bound on degenerate input and became a cap on pay the moment
+ * §14.8.7 let a big studio's build fall towards thirty seconds.
  */
 export const MAX_OFFLINE_SHIPS = 64
 
@@ -315,6 +320,31 @@ export function offlineYield(
 
   // A few dozen steps at most, and bounded even against a malformed ladder.
   while (commitment.gt(0) && burned.gte(commitment)) {
+    /*
+     * [amended 2026-10-16] **On the terminal rung the walk is closed form.**
+     *
+     * The ladder's last project repeats at one commitment (`commitmentFor`
+     * reads the snapshot's studio, which does not change while it is away), so
+     * once the walk stands on it every further project is the same size and
+     * pays the same: `k = min(floor(burned / commitment), shots + room)`
+     * projects, shipped while there are shots and shelved while there is room.
+     * Walked a step at a time, {@link MAX_OFFLINE_SHIPS} truncated exactly the
+     * absences that matter — §14.8.7's cadence curve shortens a big studio's
+     * build towards thirty seconds, so an Autopilot's eight hours is ~960
+     * projects, and the 65th onward were silently not paid. The cap still
+     * bounds the authored rungs below, where each step is a different size.
+     */
+    if (projectIndex >= snap.maxProjectIndex && commitment.eq(snap.commitmentFor(projectIndex))) {
+      const fits = burned.div(commitment).floor().toNumber()
+      const k = Math.min(fits, shots + room)
+      const shipped = Math.min(k, shots)
+      const shelved = k - shipped
+      revenue = revenue.plus(new Decimal(snap.revenueFor(projectIndex)).times(shipped))
+      projectsShipped += shipped
+      for (let i = 0; i < shelved; i++) built.push(projectIndex)
+      burned = burned.minus(commitment.times(k))
+      break
+    }
     if (projectsShipped + built.length >= MAX_OFFLINE_SHIPS) {
       shipCapReached = true
       break

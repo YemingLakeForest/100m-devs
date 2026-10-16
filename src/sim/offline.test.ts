@@ -257,6 +257,47 @@ describe('what accrues — GDD §24.6', () => {
     expect(report.shipCapReached).toBe(true)
   })
 
+  /**
+   * [2026-10-16] §14.8.7's cadence curve takes a big studio's build towards
+   * thirty seconds, so a night of Autopilot is hundreds of projects — and the
+   * walk used to stop paying at the 65th. On the terminal rung every project is
+   * the same size, so the walk is closed form and nothing truncates it.
+   */
+  it('pays every project of a long absence on the terminal rung, past the step cap', () => {
+    const report = offlineYield(
+      snapshot({
+        velocity: 10, commitment: new Decimal(300), projectIndex: 5, maxProjectIndex: 5,
+        commitmentFor: () => new Decimal(300), autoShip: true,
+      }),
+      config({ capSeconds: 8 * 3600, rateMultiplier: 1 }),
+      T0 + 8 * HOUR,
+    )
+    const fits = (8 * 3600 * 10) / 300
+    expect(fits).toBeGreaterThan(MAX_OFFLINE_SHIPS)
+    expect(report.projectsShipped).toBe(fits)
+    expect(report.shipCapReached).toBe(false)
+    expect(report.revenue.toNumber()).toBe(fits * 50)
+    expect(report.projectIndex).toBe(5)
+  })
+
+  it('splits the terminal rung between shots and shelf slots exactly as the step walk did', () => {
+    // 36 projects' worth of work; Serena's clock owes 12 shots, two of which
+    // take the builds already waiting; seven slots are then free. So 10 ship,
+    // 7 shelve, and the burn-down clamps at one finished project.
+    const report = offlineYield(
+      snapshot({
+        velocity: 10, commitment: new Decimal(1000), projectIndex: 3, maxProjectIndex: 3,
+        autoShipSeconds: 300, shelved: 2, bufferRoom: 5,
+      }),
+      config({ capSeconds: 3600, rateMultiplier: 1 }),
+      T0 + HOUR,
+    )
+    expect(report.shelfShipped).toBe(2)
+    expect(report.projectsShipped).toBe(10)
+    expect(report.built).toEqual(Array(7).fill(3))
+    expect(report.burned.toNumber()).toBe(1000)
+  })
+
   it('does not advance a zero-cost project ladder at all', () => {
     const report = offlineYield(
       snapshot({ commitment: new Decimal(0), commitmentFor: () => new Decimal(0), autoShip: true }),

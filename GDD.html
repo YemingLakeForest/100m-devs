@@ -17699,6 +17699,14 @@ revenue and is <strong>hard-bounded at 64 ships</strong> — a few dozen steps, 
 allows. If a future upgrade makes the offline rate time-varying, it becomes a fixed bucket
 count and the approximation is accepted; consistency across devices matters more than
 precision, and the player cannot tell.</p>
+<p><strong>[amended 2026-10-16] The 64-ship bound covers the authored rungs only; the terminal rung is
+closed form.</strong> Once the walk stands on the ladder's last project, every further project is the
+same size and pays the same (the studio is frozen, so <code>commitmentFor</code> is a constant), and the
+walk is one step: <code>k = min(floor(burned / commitment), shots + room)</code>, shipped while there are
+shots and shelved while there is room. The bound was written against degenerate input and became a
+cap on pay the day §14.8.7's cadence curve let a big studio's build fall towards thirty seconds: an
+Autopilot's eight hours is ~960 projects, and the walk stopped paying at the 65th. The authored
+rungs below are each a different size and stay a bounded walk.</p>
 <p><strong>The property that must hold, and that the tests assert:</strong> integrating one long absence
 yields the same result as summing many short ones, within the cap. If that breaks, the model
 has become device-dependent and two phones will disagree about the same eight hours.</p>
