@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Fun Killers Audit</title>
+<style>
+  :root {
+    --bg: #090d12; --panel: #101720; --ink: #e7ecdf; --muted: #8c9aa3; --line: #273640;
+    --green: #87e64b; --cyan: #4cc9d9; --amber: #f2b84b; --red: #f05a5a; --paper: #d9e2d0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--ink); background: var(--bg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    line-height: 1.6; font-size: 15px;
+  }
+  main { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 96px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 32px; }
+  .eyebrow { color: var(--green); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; margin: 0 0 12px; }
+  h1 { font-size: clamp(28px, 6vw, 52px); letter-spacing: -.04em; text-transform: uppercase; margin: 0; line-height: 1.05; }
+  h1 span { color: var(--green); }
+  h2 { font-size: 20px; text-transform: uppercase; letter-spacing: .04em; margin: 48px 0 16px; color: var(--cyan); }
+  .dek { color: var(--paper); max-width: 760px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip { border: 1px solid var(--line); padding: 3px 10px; font-size: 12px; color: var(--muted); }
+  .finding { border: 1px solid var(--line); background: var(--panel); padding: 18px 20px; margin: 0 0 14px; }
+  .finding h3 { margin: 0 0 10px; font-size: 16px; display: flex; gap: 12px; align-items: baseline; }
+  .finding h3 .n { color: var(--bg); background: var(--amber); padding: 0 8px; font-size: 13px; flex: none; }
+  .finding.sev1 h3 .n { background: var(--red); }
+  .finding.sev3 h3 .n { background: var(--muted); }
+  .finding p, .finding ul { margin: 8px 0; }
+  .finding ul { padding-left: 20px; }
+  .tag { font-size: 11px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+  code { color: var(--green); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 10px 0; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: normal; text-transform: uppercase; font-size: 11px; letter-spacing: .1em; }
+  .scroll { overflow-x: auto; }
+  .note { border-left: 3px solid var(--amber); padding: 4px 14px; color: var(--paper); }
+  ol.top li { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <p class="eyebrow">Audit · 2026-10-16 · main @ 56c56c2</p>
+  <h1>Fun <span>killers</span></h1>
+  <p class="dek">Everything in the current loop that doesn't work, isn't fun, is clunky, or kills the fun. The loop under review:
+  the <b>founder</b> releases games to earn money and hires devs with it; <b>Serena</b> automates release and runs the queue;
+  <b>Billy</b> is "more people, less efficiency"; <b>Matt</b> handles user requests, incidents and bad reviews (refunds stop a game earning);
+  <b>James</b> is a super dev who codes super fast.</p>
+  <div class="chips">
+    <span class="chip">13 findings</span><span class="chip">no code changed</span><a class="chip" href="PLAN-2026-10-16-fun-killers.md">plan: PLAN-2026-10-16-fun-killers.md</a>
+  </div>
+</header>
+
+<h2>How this was measured</h2>
+<p>I read the core loop code (<code>game/store.ts</code> tick, ship queue, release ring, <code>sim/revenue.ts</code>, <code>incidents.ts</code>,
+<code>support.ts</code>, <code>economy.ts</code>, <code>entropy.ts</code>, <code>heroRoster.ts</code>, <code>upgradeTrees.ts</code>), then
+ran a throwaway vitest against the real store. A scripted player went through Run 1 to bankruptcy, took the shift, and played an hour of Run 2,
+logging every simulated minute. It pokes 3 times a second and presses SHIP! 8 seconds after a build lands. There were three variants:</p>
+<ul>
+  <li><b>careful</b>: hires up to 76% of capacity (the game's own best-output point) and buys the cheapest working upgrade it can afford.</li>
+  <li><b>greedy</b>: hires whenever it keeps 30 seconds of payroll in hand.</li>
+  <li><b>manual-only</b>: never buys an upgrade.</li>
+</ul>
+<p class="note">The scripted player flatters the game: it never misses a ship and never misreads the speedometer. Treat every timing below as the best case.
+A headless-browser pass was cut short when the page reloaded during the pull, so this audit rests mostly on the numbers, not on hand play.</p>
+
+<h3 class="tag">Run 2 snapshot, careful player</h3>
+<div class="scroll"><table>
+<tr><th>min</th><th>devs</th><th>cap</th><th>entropy</th><th>cash</th><th>build</th><th>event</th></tr>
+<tr><td>5.3</td><td>25</td><td>117</td><td>0.00</td><td>$37K</td><td>136s</td><td>founder board</td></tr>
+<tr><td>6.3</td><td>70</td><td>117</td><td>0.07</td><td>$89K</td><td>23s</td><td>Billy</td></tr>
+<tr><td>7.8</td><td>94</td><td>123</td><td>0.21</td><td>$74K</td><td>66s</td><td>Serena, then James promoted at 7.9</td></tr>
+<tr><td>8.8</td><td>104</td><td>136</td><td>0.21</td><td>$214K</td><td>65s</td><td>Matt</td></tr>
+<tr><td>12</td><td>115</td><td>151</td><td>0.21</td><td>$2.8M</td><td>66s</td><td>(cap stops growing)</td></tr>
+<tr><td>60</td><td>115</td><td>151</td><td>0.21</td><td>$83M</td><td>66s</td><td>(nothing since minute 9)</td></tr>
+</table></div>
+
+<h2>Findings, worst first</h2>
+
+<div class="finding sev1"><h3><span class="n">01</span>Hiring never makes games ship faster</h3>
+<p>On the last project tier, project size grows with the studio's speed, aiming at <code>TARGET_BUILD_SECONDS = 60</code> (<code>economy.ts</code>, <code>commitmentFor</code>).
+Measured build time was about 66s at 84 devs, 66s at 115 devs, and about 95s at 219 devs.</p>
+<p>"Hire devs → ship faster" is the founder's whole promise, and it is flat: you get bigger numbers at the same rhythm. Only overhiring changes the pace, and it makes it slower.
+The studio never visibly speeds up, so the 1-to-100M fantasy has nothing to show it with.</p>
+<p class="tag">touches GDD §4.10c / terminal rung sizing</p></div>
+
+<div class="finding sev1"><h3><span class="n">02</span>After about minute 10 of Run 2, money stops meaning anything</h3>
+<ul>
+  <li>Manual-only: plateaus at 84 devs with <b>$159M unspent</b> after an hour; the next hire costs $9.5K.</li>
+  <li>Careful: ends on $83M. What limits it is capacity, and the only working capacity upgrades are Billy's, priced at "3 minutes of income" (<code>pipelinePriceFloor</code>). So the loop becomes: wait about 3 minutes, buy one node, hire about 5 people.</li>
+  <li>Greedy: the reverse. The next hire is $2M against about $20K/s income (<code>30 · 1.08^n</code>, cap-normalised). An exponential price wall stops it before the entropy lesson really lands.</li>
+</ul>
+<p>There is no middle where money is a choice.</p></div>
+
+<div class="finding sev1"><h3><span class="n">03</span>About 70% of the upgrade trees do nothing</h3>
+<p>31 of 101 nodes are wired (<code>upgradeTrees.isBuilt</code>):</p>
+<div class="scroll"><table>
+<tr><th>tree</th><th>live</th><th>live nodes</th></tr>
+<tr><td>You</td><td>3 / 26</td><td>Second Monitor, Look Over Their Shoulder, Hiring Dial</td></tr>
+<tr><td>James</td><td>3 / 19</td><td>Diet Coke Stack, Pair With the Founder, Torn Elbows</td></tr>
+<tr><td>Billy</td><td>7 / 18</td><td>Sticky Notes, Kanban, Scrum of Scrums, Org Chart, Planetary PI Planning, Interstellar Standup, Team Topologies</td></tr>
+<tr><td>Serena</td><td>12 / 19</td><td>the whole pipeline catalogue</td></tr>
+<tr><td>Matt</td><td>6 / 19</td><td>Headset, Inbox, Incident Inspector, Second Headset, Macros, An FAQ People Read</td></tr>
+</table></div>
+<p>This is the main thing to spend on in Run 2, and the founder tree in particular is almost all scenery.</p></div>
+
+<div class="finding sev1"><h3><span class="n">04</span>The cast arrives all at once, then nothing happens for 50 minutes</h3>
+<p>Founder board at 5.3, Billy at 6.3, Serena at 7.8, James promoted at 7.9, Matt at 8.8. From minute 9 to 60, nothing new happens.
+Every system arrives in a 3.5-minute burst, and no problem gets time to hurt before its answer walks in.
+Now that THE THREAD is gone (56c56c2), there are no events at all to break up the hour.</p></div>
+
+<div class="finding sev1"><h3><span class="n">05</span>Matt's problems are paper tigers</h3>
+<ul>
+  <li><b>Incidents:</b> never more than 2 open in any run. When an incident hits, the game's tail pays out later instead of being lost, and <code>incidents.ts</code> itself says the cash curve "barely moves". The page also lands on the <i>oldest</i> game still on sale (<code>candidates.find</code> takes the first). That game earns almost nothing, so freezing it costs almost nothing.</li>
+  <li><b>Tickets:</b> can take at most 20% off catalogue income (<code>MIN_CATALOGUE_MULTIPLIER = 0.8</code>). The queue climbed to 105–144, then went to 0 within about a minute of Matt arriving (<code>HELPDESK_SHARE = 0.05</code> of headcount) and stayed there.</li>
+  <li><b>Bad reviews:</b> only affect the payout multiplier and reputation. They show up as a review reel, not as anything that bites.</li>
+  <li>None of this gives the player anything to do. It's pressure you watch, and Matt switches it off permanently.</li>
+</ul></div>
+
+<div class="finding"><h3><span class="n">06</span>Serena automates you out of the best-paid action</h3>
+<p>Auto-Ship starts at one release every 120s (<code>AUTO_SHIP_BASE_SECONDS</code>), which is slower than the roughly 66s builds, so you keep pressing SHIP! anyway.
+Auto-shipped releases count as an unattended launch (<code>pipelineLaunch</code>): ×1 on the date, readiness fixed at RC. A perfect manual ring pays up to ×1.75 plus a better rating.
+So the best play is to keep doing the ring by hand forever, roughly 60 times an hour, each one a modal that stops the studio.
+The 2026-10-16 ring rework makes each ring better, but not the 60th one in an hour. "Automate" ends up meaning you either accept less money or ignore the automation.</p></div>
+
+<div class="finding"><h3><span class="n">07</span>Serena's queue-size upgrades are worthless if you're paying attention</h3>
+<p>A player who ships within 8 seconds was never blocked once in an hour, and the queue never held more than 2.
+The careful player still spent about 10 minutes of income on Shelf and Rack, ending with 25 slots it never used.
+"A full queue stops the floor" only punishes someone who's away, and the trees don't tell you that.</p></div>
+
+<div class="finding"><h3><span class="n">08</span>Cash swings wildly every cycle</h3>
+<p>Most of a release's money arrives in the first ~10 seconds (<code>SPIKE_TAU</code> 4–8s, <code>SPIKE_SHARE</code> 50–68%), so income per second jumps around: 0 → 284K → 5K.
+In one run, cash went from +$146K to −$233K between two ships at 84 devs, about 3 minutes from bankruptcy, while the studio was actually healthy.
+<code>revenue.ts</code> says the payout-over-time model was written to stop the studio crossing zero every project cycle, and it still does.</p></div>
+
+<div class="finding"><h3><span class="n">09</span>More people, less efficiency (Billy's lesson) just turns into a stall</h3>
+<p>Greedy player: entropy sits at about 0.80 for 50 minutes, devs creep from 148 to 219, and the cash balance hovers around $0.5–2M.
+There's no collapse and no bankruptcy in sight, so nothing clearly tells you that you messed up.
+Run 1's trap is the opposite: a scripted bankruptcy about 4 minutes in. One lesson is a cutscene, the other never comes back as a real consequence.</p></div>
+
+<div class="finding"><h3><span class="n">10</span>The scale ladder doesn't move</h3>
+<p>After an hour of Run 2, capacity went from 105 to 151 and headcount topped out at 115–219.
+In a game called 100,000,000 Developers, the screen barely changes in the first hour after the tutorial. The garage-to-galaxy art has nothing to show.</p></div>
+
+<div class="finding"><h3><span class="n">11</span>Run 1 is about 4 minutes, then forced bankruptcy</h3>
+<p>Mass Hire at 3.6 minutes, bankrupt at 4.0. That's three ships, one decision, and a loss you couldn't avoid.
+It's canon in the GDD (§21), but it's where a first-time player decides whether to keep going, and it's mostly cutscenes.</p></div>
+
+<div class="finding"><h3><span class="n">12</span>James is just a click multiplier</h3>
+<p>His tap is 2× the founder's tap (<code>JAMES_TAP_MULTIPLE</code>), and he keeps typing through stand-ups.
+The gym joke is 10:00–11:00 of the studio clock (<code>sim/james.ts</code>), which means about 10 hours into a session, so nobody will ever see it.
+His tree has 3 working nodes. "Super dev who codes super fast" never shows up as speed, for the reason in finding 01.</p></div>
+
+<div class="finding sev3"><h3><span class="n">13</span>Smaller clunk</h3>
+<ul>
+  <li>Clicking anything does nothing while the queue is full, apart from a nag bubble (<code>nagFullShelf</code>). It feels like the game has frozen.</li>
+  <li>At 12 devs the HUD was already showing defects, an incident, queue fill time, net burn, gridlock and an event card: a lot of readouts for decisions the player mostly can't make yet.</li>
+</ul></div>
+
+<h2>If only three get fixed</h2>
+<ol class="top">
+  <li><b>Let hiring speed up the release rhythm</b> (01). That brings back the core feeling.</li>
+  <li><b>Give money a constant job</b> (02, 03): wire the trees so cash always has somewhere to go, and make capacity something you can buy, not something you wait for.</li>
+  <li><b>Give Matt's and Serena's systems a player verb, or let them actually cost something</b> (05, 06). Make automation a real trade, not either a tax or something you ignore.</li>
+</ol>
+<p class="note">Several findings are written into the GDD: 01 (terminal rung sizing), 11 (§21's trap), the ring's ×1.75 and the 0.8 ticket floor. Changing any of them means amending the GDD in the same batch.</p>
+</main>
+</body>
+</html>
