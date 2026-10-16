@@ -357,7 +357,12 @@ describe('§4.12a — the catalogue pages you, and a page is a freeze', () => {
       work: INCIDENT_WORK_SECONDS,
     })
     play(INCIDENT_WORK_SECONDS * 10)
-    expect(getState().incidents).toHaveLength(0)
+    // [2026-10-16] The claim is that *this* page ends, not that the catalogue
+    // stops paging: ten work-lengths of a live studio can raise a fresh one,
+    // and since §4.10e's spike retune moved money onto the tail (and retirement
+    // to five minutes) a release stays on sale — and so able to page — longer.
+    // Asserting an empty list made the test a coin toss on that fresh page.
+    expect(getState().incidents.some((i) => i.id === 1)).toBe(false)
   })
 })
 
