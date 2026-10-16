@@ -382,10 +382,14 @@ function paintTile(r: Raster, scene: BoardScene, b: BoardNode, at: (gx: number, 
   // The tile's right-hand corner is (2s − c)·P from its centre.
   if (state === 'era') lockGlyph(r, cx + Math.round((2 * size - CHAMFER) * P) - 14, cy - 4, p1, n[1])
   if (node.max > 1) {
-    const w = node.max * 5 - 2
+    // A repeatable node (Org Chart) has no last pip to draw: it shows what is
+    // owned, up to four, and always one empty pip for the next level.
+    const pips = Number.isFinite(node.max) ? node.max : Math.min(level, 4) + 1
+    const w = pips * 5 - 2
     const x0 = cx - Math.floor(w / 2)
     const y = cy + Math.round(((2 * size - CHAMFER) * P) / 2) + THICK + 3
-    for (let i = 0; i < node.max; i++) r.rect(x0 + i * 5, y, 3, 3, i < level ? p3 : n[3])
+    const lit = Number.isFinite(node.max) ? level : pips - 1
+    for (let i = 0; i < pips; i++) r.rect(x0 + i * 5, y, 3, 3, i < lit ? p3 : n[3])
   }
 }
 

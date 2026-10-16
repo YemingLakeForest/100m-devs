@@ -152,6 +152,11 @@ export interface TreeNode {
   tech?: string
   /** True when a lever in `treeLevers.ts` reads this node's level. */
   lever?: boolean
+  /**
+   * A repeatable sink [2026-10-16]: no last level (`max` is Infinity), priced on
+   * its own curve ({@link REPEAT_BASE}, {@link REPEAT_STEP}) with no income floor.
+   */
+  repeat?: boolean
 }
 
 interface Opts {
@@ -170,6 +175,8 @@ interface Opts {
   fx?: string
   /** Wired to a lever in `treeLevers.ts` — the founder's and Matt's nodes. */
   lv?: boolean
+  /** `TreeNode.repeat`: no last level, and its own price curve. */
+  rp?: boolean
 }
 
 /** The demo's own constructor, so the table below reads like the demo's. */
@@ -185,7 +192,8 @@ function N(id: string, x: number, y: number, name: string, icon: string, era: nu
     parents: o.p ?? [],
     all: !!o.all,
     fork: o.ex,
-    max: o.max ?? 1,
+    max: o.rp ? Number.POSITIVE_INFINITY : o.max ?? 1,
+    repeat: o.rp,
     text: o.d ?? '',
     move: o.mv ? { from: o.mv[0], to: o.mv[1], units: o.mv[2] } : undefined,
     coord: o.k,
@@ -357,7 +365,10 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('c1', 1, 0, 'Sticky Notes', 'sticky', 1, { p: ['R'], t: 'lvl', max: 3, k: 1, d: 'Coordination +1 per level.' }),
     N('c2', 2, 0, 'Kanban', 'kanban', 1, { p: ['c1'], k: 1, d: 'Coordination +1. The columns are Doing, Doing and Done.' }),
     N('c3', 2, -1, 'Scrum of Scrums', 'guild', 2, { p: ['c2'], k: 1, mv: ['meetings', 'handoffs', 4], d: 'One standup per tower, then a standup of standups.' }),
-    N('c4', 3, -1, 'Org Chart', 'orgchart', 2, { p: ['c3'], t: 'lvl', max: 3, k: 1, mv: ['handoffs', 'meetings', 2], d: 'Coordination +1 per level. Each level is a layer of managers, and managers have meetings.' }),
+    // [amended 2026-10-16] The repeatable capacity sink — plan phase 3.2 (finding
+    // 10). Era 1 under Kanban, no last level, four points a level (a cap of about
+    // ×1.23), on its own price curve. See REPEAT_STEP for why that curve and no floor.
+    N('c4', 3, -1, 'Org Chart', 'orgchart', 1, { p: ['c2'], t: 'lvl', rp: true, k: 4, mv: ['handoffs', 'meetings', 2], d: 'Another layer of managers, as many times as you like. Each layer lets the floor grow by a fifth, and holds its own meetings.' }),
     N('c5', 3, -2, 'Planetary PI Planning', 'planet', 3, { p: ['c4'], k: 2, d: 'Earth stops for thirty seconds to plan the quarter, and then nobody meets for ten minutes.' }),
     N('c6', 4, -2, 'Interstellar Standup', 'antenna', 4, { p: ['c5'], k: 2, mv: ['meetings', 'lag', 5], d: 'Your answer to “what did you do yesterday” arrives in four years.' }),
     N('b1', -1, 0, 'Timebox', 'hourglass', 1, { p: ['R'], mv: ['meetings', 'waiting', 4], d: 'Meetings end on time, and the decisions wait for the next one.' }),
@@ -510,6 +521,36 @@ export function treeRefusal(view: TreeView, hero: TreeHero, node: TreeNode): Tre
 }
 
 /**
+ * **The repeatable sink's price** — Org Chart, plan 2026-10-16 phase 3.2.
+ *
+ * The audit's finding 10: nodes open by `eraIndex(peakDevs)`, era 2 needs more
+ * than a thousand heads, and era 1's whole catalogue tops the cap out near 150.
+ * So about twenty minutes into Run 2 the careful player had bought everything
+ * and banked money with nothing to spend it on, and the studio stood still for
+ * the rest of the hour. A sink with no last level is the answer, and the
+ * question is only its curve.
+ *
+ * Each level is four coordination points, `1/0.95⁴ ≈ ×1.23` cap. A studio that
+ * hires up to the new cap earns at most that much more, so a price step of 1.30
+ * is the least that keeps **minutes of income per level from ever falling**:
+ * nobody can grow into a cheaper level, and the sink gets steadily dearer in
+ * the player's own time rather than in dollars. That is also why there is no
+ * income floor (§14.8.9's three — now a minute and a half — of income per node):
+ * the floor exists so that a node cannot be priced below what the studio
+ * earns, and a curve that outruns income on its own does not need one. With one,
+ * the first levels would cost the same as the twentieth.
+ *
+ * `REPEAT_BASE` is a first pass, measured with `npm run probe:pacing` (GDD
+ * §14.8.9 has the table): at $1.5M the careful player passes a thousand heads
+ * about 26 minutes into Run 2 and keeps climbing to the hour. $1M was an
+ * explosion (48,000 heads by minute 50, the city era spent in half an hour);
+ * $2M stood still for the hour's last thirteen minutes behind one-off nodes
+ * priced under the next level.
+ */
+export const REPEAT_BASE = 1_500_000
+export const REPEAT_STEP = 1.3
+
+/**
  * The demo's price: a few minutes of income in the node's era, four times that
  * for a breakthrough and three for the launch, and 1.6 times more per level.
  * The table is the pipeline's, which is the same demo's, so the two cannot
@@ -517,6 +558,8 @@ export function treeRefusal(view: TreeView, hero: TreeHero, node: TreeNode): Tre
  * applies it.
  */
 export function treePrice(node: TreeNode, level: number, floor = 0): number {
+  // A repeatable sink ignores the floor: its own curve outruns any income.
+  if (node.repeat) return Math.round(REPEAT_BASE * REPEAT_STEP ** Math.max(0, level))
   const base = PIPELINE_ERA_COST[Math.min(Math.max(0, node.era), PIPELINE_ERA_COST.length - 1)]
   const kind = node.kind === 'key' ? 4 : node.kind === 'launch' ? 3 : 1
   const authored = base * kind * PIPELINE_LEVEL_STEP ** Math.max(0, level)

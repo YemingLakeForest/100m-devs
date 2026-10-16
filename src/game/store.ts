@@ -1087,7 +1087,14 @@ const TECH_CARRIERS = TREE_HEROES.flatMap((hero) =>
   TREES[hero].filter((node) => node.tech !== undefined).map((node) => ({ hero, node })),
 )
 
-let techCache: { milestones: readonly string[]; shifts: number; levels: GameState['treeLevels']; value: TechEffects } | null = null
+let techCache: {
+  milestones: readonly string[]
+  shifts: number
+  levels: GameState['treeLevels']
+  value: TechEffects
+  /** `syncCapMultiplier` on the same three keys — see {@link syncCapOf}. */
+  syncCap: number
+} | null = null
 
 /**
  * §11 — what the old studio board's effects are doing now, in one place.
@@ -1105,6 +1112,22 @@ let techCache: { milestones: readonly string[]; shifts: number; levels: GameStat
  * frame and the answer changes a handful of times a run.
  */
 export function techOf(s: GameState = state): TechEffects {
+  return techCached(s).value
+}
+
+/**
+ * Billy's coordination points as a cap multiplier, memoised beside {@link techOf}
+ * [2026-10-16]. `syncCapMultiplier` walks every node of all five trees, and
+ * `effectiveDevCap` asks for it several times a tick — more since §11.2 B2's
+ * floor reads the peak, and Org Chart made the column worth buying by the dozen.
+ * It reads the levels and whether Billy has arrived (a milestone), which are
+ * keys the tech cache already holds.
+ */
+function syncCapOf(s: GameState): number {
+  return techCached(s).syncCap
+}
+
+function techCached(s: GameState): NonNullable<typeof techCache> {
   const meta = getPermanent().meta
   if (
     techCache &&
@@ -1112,7 +1135,7 @@ export function techOf(s: GameState = state): TechEffects {
     techCache.shifts === meta.paradigmShifts &&
     techCache.levels === s.treeLevels
   ) {
-    return techCache.value
+    return techCache
   }
   const levels: Record<string, number> = {}
   if (currentUnlocks().trees) {
@@ -1124,8 +1147,9 @@ export function techOf(s: GameState = state): TechEffects {
     }
   }
   const value = techEffects(levels)
-  techCache = { milestones: meta.milestones, shifts: meta.paradigmShifts, levels: s.treeLevels, value }
-  return value
+  const syncCap = syncCapMultiplier(s.treeLevels, hasSeenScene(SCENE_BILLY_ARRIVES.id))
+  techCache = { milestones: meta.milestones, shifts: meta.paradigmShifts, levels: s.treeLevels, value, syncCap }
+  return techCache
 }
 
 /**
@@ -1139,7 +1163,7 @@ export function effectiveDevCap(s: GameState = state): number {
   // Paradigm Tree's (`s.devCap`) times §11's protocols, and nothing else.
   // Billy's coordination points are the same kind of thing as §11.2's protocols:
   // less communication load, which §4.1 reads as more capacity.
-  return s.devCap * techOf(s).devCapMultiplier * syncCapMultiplier(s.treeLevels, hasSeenScene(SCENE_BILLY_ARRIVES.id))
+  return s.devCap * techOf(s).devCapMultiplier * syncCapOf(s)
 }
 
 /**
@@ -2305,13 +2329,21 @@ export function pipelineRank(id: string, s: GameState = state): number {
 }
 
 /**
- * §2.7 — the least a pipeline node costs here: three minutes of what the back
- * catalogue is paying, past the garage. Zero in the garage, whose prices were
- * set by hand. The rebuild's `techPriceFloor`, read off this build's income.
+ * §2.7 — the least a pipeline node costs here: a minute and a half of what the
+ * back catalogue is paying, past the garage. Zero in the garage, whose prices
+ * were set by hand. The rebuild's `techPriceFloor`, read off this build's income.
+ *
+ * [amended 2026-10-16, plan phase 3.2] It was three minutes. With era 1's nodes
+ * all priced at the floor, three minutes each made the catalogue a wait rather
+ * than a choice, and Org Chart (`REPEAT_BASE`) now takes the money a careful
+ * player has left over — it is exempt from this floor and outruns income on its
+ * own curve. Every one-off node, pipeline or tree, reads this.
  */
+export const PRICE_FLOOR_SECONDS = 90
+
 export function pipelinePriceFloor(s: GameState = state): number {
   if (eraIndex(s.peakDevs) === 0) return 0
-  return 3 * 60 * catalogueRate(s)
+  return PRICE_FLOOR_SECONDS * catalogueRate(s)
 }
 
 export function pipelinePrice(id: string, s: GameState = state): number | null {

@@ -1162,6 +1162,20 @@ are the exact ones. Implementation derives the threshold from <span class="math"
 hard-coding it (<code>capacityForEfficiency</code> in <code>src/sim/entropy.ts</code>), so it stays correct if
 <span class="math">\(\rho\)</span> is retuned — and §4.1 names <span class="math">\(\rho\)</span> as the knob most likely to move.</p>
 </blockquote>
+<p><strong>[amended 2026-10-16] Inside a run, the cap has a sink with no last level.</strong> The ladder above is
+climbed across runs, by Blueprint points, and inside a run the only lever on <span class="math">\(D_{cap}\)</span> was Billy's
+coordination column, thirteen points, about ×1.9 bought across three eras. That ran out. Tree nodes open by
+<code>eraIndex(peakDevs)</code>, era 2 waits for more than a thousand heads, and era 1's whole catalogue held the cap
+near 150, so the fun-killers audit's careful player had bought everything about twenty minutes into Run 2 and
+banked money for the rest of the hour with the studio standing still (finding 10). <strong>Org Chart</strong>
+(Billy's c4) is now the answer: era 1, under Kanban, no last level, four coordination points a level, so each
+level is about ×1.23 cap. It is priced <code>P0·1.30^L</code> with <strong>no income floor</strong>
+(<code>REPEAT_BASE</code>, <code>REPEAT_STEP</code> in <code>sim/upgradeTrees.ts</code>). The step is the argument: a
+studio that hires up to the new cap earns at most ×1.23 more, so a price that grows ×1.30 a level makes
+<em>minutes of income per level</em> rise on every purchase, and nobody can grow into a cheaper level.
+<code>upgradeTrees.test.ts</code> pins that order, and <code>moneyHasAJob.test.ts</code> pins the outcome: the careful
+player always has a node on sale within ten minutes of income and reaches era 2 within the hour. <code>P0</code> is a
+first pass (§14.8.9 records the measurement).</p>
 <p><strong>Verified against the design's own stated figures:</strong></p>
 <table>
 <thead>
@@ -12878,6 +12892,19 @@ the company you have proven you can build.&quot;</em></li>
 cap makes each head cheaper as well as allowed. This is close to §13.7.1's Recruiting node
 and may make that node redundant, which is a reason to be careful rather than a reason not to.</li>
 </ol>
+<p><strong>[amended 2026-10-16] The proposal's sentence is answered inside the run instead.</strong> <em>"So the cap and
+the run grow together from the start"</em> was asked of a Blueprint node and measured above as a knife-edge,
+because a cap bought before the run cannot know what the run will earn. Org Chart (§4.2, plan 2026-10-16
+phase 3.2) is bought <em>with</em> the run's own money, so it cannot outrun the treasury the way an inherited cap
+did: a level is only affordable once the studio earns enough for it, and each level costs more minutes of income
+than the last. Measured with <code>npm run probe:pacing</code> at <code>P0</code> = $1.5M: the careful player passes a
+thousand heads (era 2) at about minute 26 of Run 2 and is at about 14,000 heads by minute 60, against a cap that
+stood at 150 from minute 30 before. $1M took it to 48,000 heads by minute 50, past the city era's middle in half an
+hour; $2M passed a thousand at minute 28 and then stood still for the last thirteen minutes, buying one-off
+pipeline nodes priced under the next level. At the same time the income floor on every one-off node, tree or
+pipeline (<code>PRICE_FLOOR_SECONDS</code> in <code>store.ts</code>), came down from three minutes of what the back catalogue
+pays to a minute and a half: with the sink taking the money a careful player has left over, three minutes a node
+made the one-offs a wait rather than a choice.</p>
 <h4 id="why-runs-36-are-short-and-it-is-not-the-cap-canon-added-2026-08-16-r84">14.8.10 Why runs 3–6 are short, and it is not the cap <strong>[CANON — added 2026-08-16]</strong> - R84</h4>
 <p>The instrument gained two columns — <strong>what the player owned when the run ended</strong> — and the
 answer was in neither of the two places anyone had looked:</p>
@@ -15625,7 +15652,7 @@ for any tool in the branch. Run 3 gets one too. So does Run 9.</p>
 <blockquote>
 <p><strong>[amended 2026-10-04] Three people, and three doors that moved.</strong> <em>"remove them entirely"</em> — Mo and Melany are out of the game, with their scenes, branches and traits. The remaining three had their doors moved at the user's instruction: <em>Billy "when we know how to increase sync"</em> (and, on being asked: <em>sync decreasing as we have more people is the core mechanic, and Billy's meeting tree is designed to improve it</em>); <em>Serena "where the pipeline is not good enough and we are not earning fast enough because of no auto release"</em>; <em>Matt "when we are drowned with incidents"</em>. The order the player meets them in is Billy, Serena, Matt, and <code>arrivalOrder.test.ts</code> pins that order and no time.</p>
 <p><strong>Billy</strong> used to wait for sync at or below one half, held for twenty seconds, which is D = D_cap. A player who reads the speedometer stops at §4.1's optimum, 0.758 of the cap, and never gets there: measured over two simulated hours the careful player held 80 of 105 and never met him. The one hero who is about sync had become a reward for overhiring. He now arrives the first time growth visibly costs sync — the organisation's own reading (<code>structuralEntropy</code>, not the event-ceilinged gauge) at or above 5% for twenty seconds, outside Run 1. <strong>Serena</strong> used to arrive on the first incident, 43 simulated minutes in; her scene had been about the build queue since 2026-10-03, and the pipeline board waits on her, so for 43 minutes SHIP! was a hand press on a three-slot shelf with nothing to say so. She now arrives when the queue is the bottleneck: the floor has stood still on a full shelf for fifteen cumulative seconds, <em>or</em> the player has released eight builds by hand — two doors, because an attentive player never stalls the shelf and is exactly the player to whom <em>"I can make it ship itself"</em> is relief. <strong>Matt</strong> used to arrive on thirty seconds of unserved tickets, at six developers. He now owns everything that lands on the player after a ship: he arrives once Serena has, when three incidents are open at once, or one is open and the queue has gone unanswered for thirty seconds. Every number is a first pass, marked as one in <code>storyTriggers.ts</code>.</p>
-<p><strong>Billy's tree now does the thing he arrives for.</strong> His coordination column (<em>"Coordination +1 per level"</em>: Sticky Notes, Kanban, Scrum of Scrums, Org Chart, Planetary PI Planning, Interstellar Standup, Team Topologies — thirteen points in all) was drawn and priced and changed nothing; found while checking that the scene had something to hand over. Each point is now the same step Instant Messenger is, five per cent off the communication load, compounding — and §4.1 only ever sees headcount over capacity, so less load <em>is</em> more sync. The whole column is a cap of about 1.9×, bought across three eras. The nodes that move loss between slices of a ledger the build does not model (<code>mv</code>) stay unwired and say so on the board.</p>
+<p><strong>Billy's tree now does the thing he arrives for.</strong> His coordination column (<em>"Coordination +1 per level"</em>: Sticky Notes, Kanban, Scrum of Scrums, Org Chart, Planetary PI Planning, Interstellar Standup, Team Topologies — thirteen points in all) was drawn and priced and changed nothing; found while checking that the scene had something to hand over. Each point is now the same step Instant Messenger is, five per cent off the communication load, compounding — and §4.1 only ever sees headcount over capacity, so less load <em>is</em> more sync. The whole column is a cap of about 1.9×, bought across three eras. <strong>[amended 2026-10-16]</strong> Except Org Chart, which has no last level now (§4.2): four points a level, about ×1.23 cap each, priced to get dearer in minutes of income every time. The nodes that move loss between slices of a ledger the build does not model (<code>mv</code>) stay unwired and say so on the board.</p>
 </blockquote>
 <p>Three more people, each one gated on a <em>feeling</em> rather than on a number. §22.8 is the roster;
 this is when each of them walks in.</p>

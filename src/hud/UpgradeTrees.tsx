@@ -610,7 +610,9 @@ function Inspector({ hero, id, showKey, state, onClear }: {
       </p>
       <h3 className="trees__title">{node.name}</h3>
       <p className="trees__tags">
-        {node.max > 1 && <span className="trees__tag">LEVEL {level}/{node.max}</span>}
+        {node.max > 1 && (
+          <span className="trees__tag">{node.repeat ? `LEVEL ${level} · NO LAST LEVEL` : `LEVEL ${level}/${node.max}`}</span>
+        )}
         {node.kind === 'key' && <span className="trees__tag" data-kind="key">BREAKTHROUGH</span>}
         {node.kind === 'launch' && <span className="trees__tag" data-kind="key">LAUNCH</span>}
         {node.fork && <span className="trees__tag">PICK ONE</span>}

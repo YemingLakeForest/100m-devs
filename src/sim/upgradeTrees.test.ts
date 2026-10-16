@@ -195,7 +195,9 @@ describe('Billy’s coordination points raise sync', () => {
   })
 
   it('compounds, so the whole column is a big cap and still finite', () => {
-    const all = syncCapMultiplier(levelsWith((n) => n.max))
+    // [amended 2026-10-16] Every node but the repeatable sink: Org Chart has no
+    // last level by design, and is pinned on its own below.
+    const all = syncCapMultiplier(levelsWith((n) => (n.repeat ? 0 : n.max)))
     expect(all).toBeGreaterThan(1.5)
     expect(all).toBeLessThan(4)
   })
@@ -246,5 +248,45 @@ describe('the board sells nothing that does nothing', () => {
   it('counts every tree’s coordination, James’s included', () => {
     const j = TREES.james.find((n) => n.coord)!
     expect(syncCapMultiplier({ [`james:${j.id}`]: 1 })).toBeGreaterThan(1)
+  })
+})
+
+/**
+ * Org Chart, the repeatable capacity sink — plan 2026-10-16 phase 3.2. The claims
+ * are the curve's shape against the cap it buys, not the dollar figures.
+ */
+describe('Org Chart is a sink with no last level, and it never gets cheaper in the player’s time', () => {
+  const org = node('billy', 'c4')
+
+  it('opens in era 1, under Kanban, and has no last level', () => {
+    expect(org.repeat).toBe(true)
+    expect(org.era).toBe(1)
+    expect(org.parents).toEqual(['c2'])
+    expect(treeRefusal(view({ 'billy:c2': 1, 'billy:c4': 500 }, { era: 1 }), 'billy', org)).toBeNull()
+  })
+
+  it('raises the cap with every level, however many are owned', () => {
+    let last = syncCapMultiplier({})
+    for (const level of [1, 2, 5, 10, 40]) {
+      const cap = syncCapMultiplier({ 'billy:c4': level })
+      expect(cap).toBeGreaterThan(last)
+      last = cap
+    }
+  })
+
+  it('costs more per level than the cap it adds — minutes of income per level never fall', () => {
+    // The best a studio can do with a level is hire up to the new cap and earn in
+    // proportion to it, so income grows by at most the cap's ratio. A price that
+    // grows faster than that is a sink measured in minutes that only lengthen.
+    for (let level = 0; level < 60; level++) {
+      const priceRatio = treePrice(org, level + 1) / treePrice(org, level)
+      const capRatio = syncCapMultiplier({ 'billy:c4': level + 1 }) / syncCapMultiplier({ 'billy:c4': level })
+      expect(priceRatio).toBeGreaterThanOrEqual(capRatio)
+    }
+  })
+
+  it('ignores the income floor, which the one-off nodes keep', () => {
+    expect(treePrice(org, 0, 1e15)).toBe(treePrice(org, 0))
+    expect(treePrice(node('billy', 'c1'), 0, 1e15)).toBe(1e15)
   })
 })
