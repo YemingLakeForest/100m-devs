@@ -75,7 +75,6 @@ export function FounderProfilePanel({
   state,
   treesOpen = false,
   intro = null,
-  note = null,
 }: {
   open: boolean
   onClose: () => void
@@ -85,8 +84,6 @@ export function FounderProfilePanel({
   treesOpen?: boolean
   /** A node to open the tree on, selected. */
   intro?: string | null
-  /** One line over the tree while a scene has asked for something. */
-  note?: string | null
 }) {
   useGameState()
   const founder = readFounderProfile() ?? DEFAULT_FOUNDER
@@ -134,7 +131,7 @@ export function FounderProfilePanel({
       </div>
       <section className="herocard__tree" aria-label="Your upgrades">
         {showTree && state ? (
-          <TreePane open state={state} hero="you" intro={intro} note={note} />
+          <TreePane open state={state} hero="you" intro={intro} />
         ) : (
           <p className="herocard__locked">UPGRADES OPEN AFTER YOUR FIRST PARADIGM SHIFT</p>
         )}

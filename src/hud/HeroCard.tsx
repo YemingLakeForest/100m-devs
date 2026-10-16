@@ -83,7 +83,6 @@ export function HeroCard({
   tree,
   treesOpen,
   intro = null,
-  note = null,
   place,
   onClose,
   onStep,
@@ -97,8 +96,6 @@ export function HeroCard({
   treesOpen: boolean
   /** A node to open the tree on, selected (James's scene opens Instant Messenger). */
   intro?: string | null
-  /** One line over the tree while a scene has asked for something. */
-  note?: string | null
   /** Where this card sits among everybody who has arrived, 1-based. */
   place: { at: number; of: number }
   onClose: () => void
@@ -188,7 +185,7 @@ export function HeroCard({
 
           <section className="herocard__tree" aria-label={`${face.name}'s upgrades`}>
             {showTree ? (
-              <TreePane open state={state} hero={tree} intro={intro} note={note} />
+              <TreePane open state={state} hero={tree} intro={intro} />
             ) : (
               <p className="herocard__locked">
                 {tree === null

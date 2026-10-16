@@ -10,8 +10,6 @@ import {
   SCENE_SERENA_ARRIVES,
   SCENE_MATT_ARRIVES,
   SCENE_BILLY_ARRIVES,
-  SCENE_THE_THREAD,
-  SCENE_THREAD_CLEARED,
   SCENE_FOUNDER_BOARD,
 } from './scenes.ts'
 
@@ -379,58 +377,6 @@ describe('§21.7.3 — Billy, the referral', () => {
   })
 })
 
-describe('§18.0a — THE THREAD', () => {
-  const script = SCENE_THE_THREAD.script
-  const all = script.map((l) => l.text)
-
-  it('opens on the machine and closes on the machine', () => {
-    // The event is a state of the world, so the frame around it is `STUDIO_OS`
-    // — the studio noticing, and then the studio stating the cost. James is
-    // the conversation inside that frame, never the announcement.
-    expect(script[0].speaker).toBe('STUDIO_OS')
-    expect(script.at(-1)!.speaker).toBe('STUDIO_OS')
-    expect(script.at(-1)!.text).toContain('25%')
-  })
-
-  /**
-   * §21.7.0 rule 3, load-bearing for once. The founder says *less people* at
-   * the exact moment they are asking how to have fewer of them talking, and the
-   * correction turns out to be the answer.
-   */
-  it('turns the grammar correction into the mechanic', () => {
-    const less = all.indexOf('Then we need less people talking at once.')
-    expect(less).toBeGreaterThan(-1)
-    expect(all[less + 1]).toBe('Fewer.')
-    // He does not explain it unless asked (rule 3), so the player asks by
-    // saying his name and he finishes the thought in one line.
-    expect(all[less + 2]).toBe('James.')
-    expect(all[less + 3]).toContain('It’s countable.')
-  })
-
-  it('sends the player at the board and does not care which node', () => {
-    // §11.5's recognition tutorial, from the other end: the door is named, the
-    // choice behind it is explicitly the player's, and James has no preference
-    // because to him every node in the branch does the same good thing.
-    expect(all.some((t) => t.includes('Open UPGRADES'))).toBe(true)
-    expect(all.some((t) => t.includes('don’t mind which'))).toBe(true)
-  })
-
-  it('never lets James be in on the joke', () => {
-    // §21.7.0 — "if a line of his reads as a wink, it is the wrong line."
-    // He is unaffected by the thread because interruptions do not land on him,
-    // and he says so as advice rather than as commentary.
-    const james = script.filter((l) => l.speaker === 'JAMES')
-    expect(james.length).toBeGreaterThan(0)
-    for (const line of james) expect(line.text).not.toMatch(/obviously|of course|typical|again/i)
-  })
-
-  it('pays off only on the purchase exit', () => {
-    // The two exits have to feel different or twenty taps is the better one.
-    expect(SCENE_THREAD_CLEARED.script.at(-1)!.speaker).toBe('JAMES')
-    expect(SCENE_THREAD_CLEARED.script.at(-1)!.text).toContain('meeting')
-  })
-})
-
 describe('§21.7.7 — the three boards each arrive with somebody', () => {
   it('opens the founder’s board on being a rounding error in your own company', () => {
     const all = SCENE_FOUNDER_BOARD.script.map((l) => l.text)
@@ -460,9 +406,7 @@ describe('§21.7.7 — the three boards each arrive with somebody', () => {
   })
 
   it('is a handshake, not an act', () => {
-    for (const scene of [SCENE_FOUNDER_BOARD, SCENE_THREAD_CLEARED]) {
-      expect(scene.script.length).toBeLessThan(12)
-    }
+    expect(SCENE_FOUNDER_BOARD.script.length).toBeLessThan(12)
   })
 })
 

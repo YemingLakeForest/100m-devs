@@ -241,9 +241,8 @@ export const BILLY_ARRIVAL_POINTS = 1
  * The multiplier on §4.2's cap from the coordination points the player owns.
  *
  * **Any tree's coordination nodes count** [2026-10-04]: James's three era-0 nodes
- * carry a little of it. They are what THE THREAD's cure is made of — James says
- * *"Open UPGRADES. Buy anything. They all make people talk to each other less"*
- * and, once nodes that change nothing could no longer be bought, had to have
+ * carry a little of it. His tree is the one the game opens first (§21.6), and
+ * once nodes that change nothing could no longer be bought, it had to have
  * something to sell four minutes in, before Billy or Serena are in the building.
  */
 export function syncCapMultiplier(

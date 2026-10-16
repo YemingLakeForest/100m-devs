@@ -15,9 +15,7 @@ import { emptyPermanent, setPermanent } from '../game/save.ts'
 import {
   SCENE_MATT_ARRIVES,
   SCENE_SERENA_ARRIVES,
-  SCENE_THREAD_CLEARED,
 } from '../game/scenes.ts'
-import { THREAD } from '../sim/events.ts'
 import { BANKRUPTCY_THRESHOLD } from '../sim/economy.ts'
 import { Hud } from './Hud.tsx'
 
@@ -197,18 +195,9 @@ describe('the hire button tells the truth about the hire', () => {
     expect(hireButton().textContent).not.toMatch(/LEFT/)
   })
 
-  it('says a hire is worth a quarter of a person while THE THREAD holds the studio there', () => {
-    // It said +1.00 through the whole of the thread, because it read §4.1 alone.
+  it('shows the §4.1 figure when nothing holds the studio down', () => {
     studio(12, 40_000)
-    __setState({ devCap: 100, event: { id: THREAD.id, remaining: 20, age: 0, routed: true } })
-    render(<Hud stage={null} />)
-    expect(hireButton().textContent).toContain('+0.25')
-    expect(hireButton().textContent).not.toContain('+1.00')
-  })
-
-  it('goes back to the §4.1 figure when nothing holds the studio down', () => {
-    studio(12, 40_000)
-    __setState({ devCap: 100, event: null })
+    __setState({ devCap: 100 })
     render(<Hud stage={null} />)
     expect(hireButton().textContent).toContain('+1.00')
   })
@@ -222,7 +211,7 @@ describe('the LAY OFF button', () => {
   function studio(devs: number, cash: number, cap = 5_000) {
     prestiged()
     jumpToPhase('act2_loop')
-    __setState({ devs, devCap: cap, cash, dialUnlocked: true, scene: null, event: null })
+    __setState({ devs, devCap: cap, cash, dialUnlocked: true, scene: null })
   }
   const layoffButton = () => screen.queryByRole('button', { name: /LAY OFF/ })
 
@@ -437,10 +426,9 @@ describe('the upgrades live on the cards, not the rail', () => {
 /**
  * §10.6b — **no window is open while somebody is talking.**
  *
- * The rule exists because of one real sequence: a player who opens §11's board
- * themselves and buys the node that clears THE THREAD gets `thread-cleared`
- * played *over the open board*, so James congratulates them through a tech
- * tree. Every window in the product is covered by the same gate, so the tests
+ * The rule exists because of one real sequence: a scene that played *over* a
+ * board the player had opened themselves, so James congratulated them through a
+ * tech tree. Every window in the product is covered by the same gate, so the tests
  * here take one door the HUD owns and one window a *state* raises — the two
  * halves behave differently on the way out and both halves matter.
  */
@@ -456,7 +444,7 @@ describe('§10.6b — a conversation clears the desk', () => {
     expect(paradigm()?.getAttribute('data-phase')).toBe('in')
 
     await act(async () => {
-      showScene(SCENE_THREAD_CLEARED.id)
+      showScene(SCENE_SERENA_ARRIVES.id)
     })
     expect(paradigm()?.getAttribute('data-phase')).toBe('exit')
 
@@ -483,7 +471,7 @@ describe('§10.6b — a conversation clears the desk', () => {
     expect(container.querySelector('.term-sheet')).not.toBeNull()
 
     await act(async () => {
-      showScene(SCENE_THREAD_CLEARED.id)
+      showScene(SCENE_SERENA_ARRIVES.id)
     })
     expect(container.querySelector('.term-sheet')?.getAttribute('data-phase')).toBe('exit')
 
@@ -503,7 +491,7 @@ describe('§10.6b — a conversation clears the desk', () => {
     expect(getState().selected).toBe(3)
 
     await act(async () => {
-      showScene(SCENE_THREAD_CLEARED.id)
+      showScene(SCENE_SERENA_ARRIVES.id)
     })
     expect(getState().selected).toBeNull()
     expect(getState().selectedHero).toBeNull()

@@ -18,8 +18,7 @@
  * | **A terms table, not a paragraph** | The comedy is in the *form*. `USE OF FUNDS — HEADCOUNT` is the whole trap written down in the investor's own words, three beats before James says it out loud, and a table is the only shape in which a player reads that line as boilerplate rather than as a warning |
  * | **One button, and it says SIGN** | §21.0a: the round is "the only beat in Run 1 that is pure upside, and it still has to be *taken*". There is nothing to weigh, so a DECLINE would be a fake choice — but the tap is still theirs, and the verb is the one you do to a document rather than the one you do to an offer |
  *
- * **No dismiss and no scrim-tap exit**, for the same reason `EventCard` has
- * none: the phase machine is waiting on `seedTaken`, so a dismissable version
+ * **No dismiss and no scrim-tap exit**: the phase machine is waiting on `seedTaken`, so a dismissable version
  * would be a modal the player can put down and a run that never advances.
  *
  * The figure is passed in rather than imported so this file has no opinion

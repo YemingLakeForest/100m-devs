@@ -177,17 +177,6 @@ import {
   type BoardSnapshot,
   type StorySnapshot,
 } from './storyTriggers.ts'
-import {
-  ageEvent,
-  beginEvent,
-  clearOne,
-  definitionOf,
-  eventCeiling,
-  eventDue,
-  retiredMilestone,
-  routeEvent,
-  type LiveEvent,
-} from '../sim/events.ts'
 import { ARRIVAL_HEROES, STORY_HEROES, type HeroId } from '../sim/storyHeroes.ts'
 import { GARAGE_SYNC, teamSync, type ServiceLoad } from '../sim/teamSync.ts'
 import {
@@ -653,18 +642,6 @@ export interface GameState {
   scene: string | null
 
   /**
-   * §18.0 — the event on the floor, or null.
-   *
-   * **Persisted, like an incident and unlike a buff.** §24.2's test is whether
-   * the thing is a state of the world or a fading effect: an event holds the
-   * studio's output down until somebody does something about it, and a reload
-   * that quietly cleared it would be a reload that repaired the company. It
-   * also carries the player's choice of exit (`routed`), so a reload cannot put
-   * a modal back over somebody who had already decided.
-   */
-  event: LiveEvent | null
-
-  /**
    * §4.12 — defects on the bench, for the project currently being built.
    *
    * Run state. Reset to zero on ship, because shipping does not forgive the
@@ -1001,9 +978,6 @@ function freshRun(): GameState {
     dialUnlocked: false,
     pendingOffline: null,
     scene: null,
-    // §18.0 — a run opens with a quiet floor. An event that survived a Paradigm
-    // Shift would be an event about a studio that no longer exists.
-    event: null,
     // §10.11 — a new reality has shipped nothing. This one line is the whole of
     // "galleries do not persist across paradigm shifts": every path that starts
     // a run goes through here.
@@ -1275,10 +1249,6 @@ export function inMeeting(s: GameState = state): boolean {
 /**
  * §4.1's curve with §13.9's fold on it, and no ceiling or floor yet.
  *
- * Split out so {@link currentEfficiency} and {@link structuralEntropy} cannot
- * drift: they are the same arithmetic with one term's worth of difference, and
- * a second copy of it here would be the divergence that copy always becomes.
- *
  * §13.9 — Billy's Cohesion branch bends §4.1's entropy directly, which is the
  * one branch that touches the game's central number. Applied to the *entropy*
  * rather than to the efficiency so a fold of 0.9 means "ten per cent less
@@ -1403,18 +1373,6 @@ export function projectBuildSeconds(s: GameState = state): number {
 }
 
 export function currentEfficiency(s: GameState = state): number {
-  // §18.0 — a live event holds the studio at a ceiling. Applied **before** the
-  // purchased floor below, which is the standing rule for the whole event
-  // system: an event may never undo something the player bought. A studio that
-  // paid for §11.2's B4 cannot be seized by a thread, and that is the node
-  // working rather than the event failing.
-  //
-  // The order is load-bearing and it is the reason `structuralEntropy` below is
-  // not written in terms of this function: `max(floor, min(ceiling, x))` and
-  // `min(ceiling, max(floor, x))` disagree exactly when an event's ceiling is
-  // lower than something the player has bought, which is the one case this rule
-  // exists to decide.
-  const withEvent = Math.min(eventCeiling(s.event), foldedEfficiency(s))
   // §11.2's entropy caps, applied as an efficiency *floor* so the two readouts
   // cannot disagree — `currentEntropy` is defined as one minus this.
   //
@@ -1422,38 +1380,11 @@ export function currentEfficiency(s: GameState = state): number {
   // can never fire again. That is the node working, not a hole. The player paid
   // for a company that cannot seize, and §25.3.2's "none of this may become a
   // fail state" is untouched — this removes one, it does not add one.
-  return Math.max(1 - techOf(s).entropyCap, withEvent)
+  return Math.max(1 - techOf(s).entropyCap, foldedEfficiency(s))
 }
 
 export function currentEntropy(s: GameState = state): number {
   return 1 - currentEfficiency(s)
-}
-
-/**
- * §4.1 as a fact about the **organisation**, with §18.0's event taken back out.
- *
- * The same number the speedometer shows, minus the one term in it that is not
- * about how the company is built: a live event's ceiling. Everything else stays
- * — §4.1's curve, §13.9's Cohesion fold, §11.2's purchased floor — because
- * those are all things the player has or has not done about the shape of the
- * company, which is exactly what this reading is for.
- *
- * **Added 2026-08-29, off a walk failure that was a design failure.** §21.7.3's
- * Billy waits for sync to sit at or below half for twenty seconds, and the clock
- * was reading `currentEntropy`. §18.0's THE THREAD holds the studio at 25%
- * output, which is 75% entropy — so the clock filled during the thread and Billy
- * arrived to a Run 2 garage of **twelve developers**, handing over §13.8's floor
- * before Mo, before Serena, before anybody had a problem it solves.
- *
- * The tempting reading is that the thread *is* a communication collapse and he
- * should come. He should not, and the distinction is the whole of §21.7.6: a
- * hero arrives holding the answer to a problem the player *has*. The answer to a
- * thread is a protocol, on a board §18.0a hands over in the same breath; the
- * answer to a studio that has outgrown its own capacity is somebody who runs the
- * floor. **An event is weather. Billy is about the building.**
- */
-export function structuralEntropy(s: GameState = state): number {
-  return 1 - Math.max(1 - techOf(s).entropyCap, foldedEfficiency(s))
 }
 
 /**
@@ -2453,11 +2384,6 @@ export function buyTreeNode(hero: TreeHero, id: string): boolean {
       treeLevels: { ...state.treeLevels, [key]: (state.treeLevels[key] ?? 0) + 1 },
     })
   }
-  // §18.0a — a purchase is THE THREAD's intended exit, and it is *any*
-  // purchase, exactly as James says in the scene. Resolved here, at the
-  // transaction, rather than in the window's click handler: trap 33 is the
-  // record of what happens when a rule is wired to the interface instead.
-  resolveEventBy('tech-purchase')
   saveGame()
   return true
 }
@@ -2654,13 +2580,10 @@ export function tick(dtSeconds: number): void {
 
   // §21.7.3, Billy — the same shape as Matt's clock, on §4.1 instead of §4.13.
   //
-  // `structuralEntropy` rather than `e`: the hero fold and §11.2's ceilings are
-  // in it, because a studio that bought its way out of the collapse has
-  // genuinely got out of it and must not be handed a scene about a collapse it
-  // is not having — and §18.0's event ceiling is *not*, because an event is
-  // weather. See the function's own note for the walk failure that established
-  // the difference.
-  const syncSlippedFor = structuralEntropy(state) >= SYNC_FELT ? state.syncSlippedFor + dtSeconds : 0
+  // The hero fold and §11.2's ceilings are in `currentEntropy`, because a studio
+  // that bought its way out of the collapse has genuinely got out of it and must
+  // not be handed a scene about a collapse it is not having.
+  const syncSlippedFor = currentEntropy(state) >= SYNC_FELT ? state.syncSlippedFor + dtSeconds : 0
 
   // §10.7, Serena — cumulative over the run, not a streak: a player who lets the
   // shelf fill, ships, and lets it fill again has met the same wall twice.
@@ -2769,11 +2692,6 @@ export function tick(dtSeconds: number): void {
     bankrupt,
   })
 
-  // §18.0 — the clock on whatever is happening. Aged inside the patch rather
-  // than after it, so the card's timer and the frame's output describe the same
-  // instant.
-  if (state.event) patch.event = ageEvent(state.event, dtSeconds)
-
   set(patch)
   // §21.0b — after `set`, because the beat reads the phase the machine just
   // moved to and grants a hire, which is a second write. Running it inside the
@@ -2783,9 +2701,6 @@ export function tick(dtSeconds: number): void {
   // §21.7.3 — after `set`, so the snapshot reads the frame's final state.
   checkStoryTriggers(getState())
   checkShipTutorial(getState())
-  // §18.0 — and last, so an event can never land on top of an arrival scene
-  // that was raised on this same frame.
-  checkEventTriggers(getState())
 }
 
 /**
@@ -2929,9 +2844,9 @@ function checkStoryTriggers(s: GameState): void {
     shelfStalledFor: s.shelfStalledFor,
     handReleases: s.handReleases,
     sinceSerena: hasSeenScene(SCENE_SERENA_ARRIVES.id) ? s.sinceSerena : 0,
-    // The organisation's own reading, matching the clock beside it. Both halves
-    // of Billy's predicate must be the same number or it can be half true.
-    entropy: structuralEntropy(s),
+    // The same reading as the clock beside it. Both halves of Billy's predicate
+    // must be the same number or it can be half true.
+    entropy: currentEntropy(s),
     syncSlippedFor: s.syncSlippedFor,
   }
 
@@ -2993,50 +2908,9 @@ function checkBoardTriggers(s: GameState): void {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Events — GDD §18, §18.0
-// ---------------------------------------------------------------------------
-
 /**
- * §18.0 — has this event already been resolved for good?
- *
- * A milestone, never a flag. §21.7.6c's reasoning, applied to the third thing
- * in the game that needs to remember something once and for ever.
- */
-export function eventRetired(id: string): boolean {
-  return getPermanent().meta.milestones.includes(retiredMilestone(id))
-}
-
-/**
- * §18.0 — should something be happening?
- *
- * Asked once a frame off the same tick that asks §21.7's arrivals, and after
- * them: an event is the loop pushing back, and a person walking through a door
- * is the loop being kind. On a frame that could do both, the person wins.
- */
-function checkEventTriggers(s: GameState): void {
-  if (s.scene !== null) return
-  const due = eventDue({
-    paradigmShifts: getPermanent().meta.paradigmShifts,
-    devs: s.devs,
-    // §11.5 — the granted centre is not a purchase, so it does not count as
-    // evidence that this player has ever opened the board.
-    techNodesBought: upgradesBought(s),
-    live: s.event !== null,
-    retired: eventRetired,
-  })
-  if (!due) return
-
-  set({ event: beginEvent(due) })
-  // The scene plays once, ever. A second firing — which only a player who
-  // hand-cleared the first one can reach — opens straight onto the card, which
-  // is the right register for a thing that is happening again.
-  if (due.scene && !hasSeenScene(due.scene)) showScene(due.scene)
-}
-
-/**
- * Upgrades the player has *bought* this run, in every tree — §18.0a's THE THREAD
- * waits for a studio with none, and the shift's lesson asks it.
+ * Upgrades the player has *bought* this run, in every tree — what the shift's
+ * lesson reads to ask whether this player has ever opened a board.
  *
  * The roots are not purchases (Instant Messenger is handed over in a scene), so
  * this counts levels bought: the unwired tree nodes and Serena's pipeline.
@@ -3046,67 +2920,6 @@ export function upgradesBought(s: GameState = state): number {
   for (const level of Object.values(s.treeLevels)) n += level
   for (const level of Object.values(s.pipelineNodes)) n += level
   return n
-}
-
-/**
- * §18.0 — the player has chosen an exit; the card gives way to a banner.
- *
- * The event does **not** end here. Routing is the difference between "I have
- * not looked at this yet" and "I know, I am dealing with it", and the studio
- * stays at its ceiling either way.
- */
-export function acknowledgeEvent(): boolean {
-  if (!state.event || state.event.routed) return false
-  set({ event: routeEvent(state.event) })
-  return true
-}
-
-/**
- * §18.0 — one reply, by hand.
- *
- * The exit that is always available and never priced in money. It ends *this*
- * instance and leaves the cause in place, so a player who taps their way out of
- * THE THREAD with an empty board will meet it again — which is what makes the
- * purchase the better answer without ever making the tap a wrong one.
- */
-export function clearEventByHand(): boolean {
-  if (!state.event) return false
-  const next = clearOne(state.event)
-  set({ event: next })
-  if (next === null) saveGame()
-  return true
-}
-
-/**
- * §18.0 — the intended exit fired. Retire the event for the whole career.
- *
- * Called from the transaction that resolves it rather than from the interface
- * that offered it (trap 33), and idempotent: a player who buys two nodes on the
- * same frame retires the event once.
- */
-function resolveEventBy(resolution: 'tech-purchase'): void {
-  const def = definitionOf(state.event)
-  if (!def || def.resolvedBy !== resolution) return
-
-  const permanent = getPermanent()
-  const mark = retiredMilestone(def.id)
-  if (!permanent.meta.milestones.includes(mark)) {
-    setPermanent({
-      ...permanent,
-      meta: { ...permanent.meta, milestones: [...permanent.meta.milestones, mark] },
-    })
-  }
-  set({ event: null })
-  // The payoff belongs to this exit alone (§18.0a) — twenty taps ends a thread,
-  // a protocol ends threads — so the scene is only played from here.
-  if (def.resolvedScene && !hasSeenScene(def.resolvedScene)) showScene(def.resolvedScene)
-}
-
-/** The event on the floor, and what it is — for the HUD, resolved in one place. */
-export function currentEvent(s: GameState = state) {
-  const def = definitionOf(s.event)
-  if (!def || !s.event) return null
-  return { live: s.event, def }
 }
 
 /**
@@ -3427,10 +3240,9 @@ export function __addScenarioDevelopers(count: number): number {
     ...hire(before, after),
     devCap: Math.max(state.devCap, after * 2),
     cash: Math.max(state.cash, after * 1e6),
-    // A dev instrument must not put its own result behind a script or event
-    // scrim. `applyHeadcount` makes the same guarantee for absolute jumps.
+    // A dev instrument must not put its own result behind a script's scrim.
+    // `applyHeadcount` makes the same guarantee for absolute jumps.
     scene: null,
-    event: null,
   })
   return added
 }
@@ -4440,10 +4252,6 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     tickets: r.tickets ?? 0,
     reputation: r.reputation ?? BASELINE_RATING,
     incidents: (r.incidents ?? []).map((i) => ({ ...i })),
-    // §18.0 — whatever was happening is still happening. `normaliseEvent` has
-    // already dropped an id this build does not have, so an unknown event comes
-    // back as a quiet floor rather than as a banner with no card behind it.
-    event: r.event ? { ...r.event } : null,
     // §24.2 ephemeral — at most one incident's worth of fraction, and a state
     // the player cannot see the cause of.
     incidentPending: 0,

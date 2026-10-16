@@ -34,9 +34,7 @@ import {
   SCENE_JAMES_PROMOTED,
   SCENE_MATT_ARRIVES,
   SCENE_SERENA_ARRIVES,
-  SCENE_THE_THREAD,
 } from './game/scenes.ts'
-import { THREAD } from './sim/events.ts'
 import ScenarioBar from './dev/ScenarioBar.tsx'
 import { DEBUG_TOOLS_ENABLED, debugSearchParams } from './dev/debugAccess.ts'
 import { installViewModeKeys } from './dev/viewModes.ts'
@@ -185,22 +183,13 @@ export default function App() {
             // person's tree once the shift has opened them.
             SCENE_BILLY_ARRIVES.id,
             /*
-             * §18.0a and §21.7.7 — **trap 28, applied in the same commit.**
-             *
-             * Three new scenes can claim this frame. The thread fires on the
-             * first tick of any Run 2 studio past twelve developers with an
-             * empty board, which is exactly what this fixture is, and a scene
-             * halts the tick and covers the HUD with a dialogue box — so the
-             * gate would have been measuring the §10.7 box rather than the
-             * worst frame the HUD ever has to draw.
-             *
-             * Recorded rather than suppressed, on the same argument the four
-             * arrivals above are recorded: a player at this point in a career
-             * has been through all of them. The event itself is set live and
-             * *routed* below, because §18.0's banner is part of the worst frame
-             * and its modal is a different, simpler one.
+             * §21.7.7 — **trap 28.** The founder's board would otherwise claim
+             * the first tick of this Run 2 studio, and a scene halts the tick
+             * and covers the HUD with a dialogue box — so the gate would have
+             * been measuring the §10.7 box rather than the worst frame the HUD
+             * ever has to draw. Recorded rather than suppressed, on the same
+             * argument the arrivals above are recorded.
              */
-            SCENE_THE_THREAD.id,
             SCENE_FOUNDER_BOARD.id,
             // §21.7.4 — James's first colleague is his promotion now, so a
             // career with the whole cast has had it.
@@ -220,18 +209,6 @@ export default function App() {
         ],
         // Deep enough that §4.13's bar reads FALLING BEHIND and names its cure.
         tickets: 400,
-        // §18.0 — a live event, already routed, so the frame carries the
-        // banner and its two controls. Mid-count, because `REPLY TO ALL · 14`
-        // is a wider label than the first or last reading of it.
-        //
-        // `?full&event` leaves it *unrouted* instead, which is §18.0a's modal —
-        // a different and simpler frame, gated separately.
-        event: {
-          id: THREAD.id,
-          remaining: 14,
-          age: 42,
-          routed: !DEBUG_QUERY.has('event'),
-        },
       })
     }
 
@@ -240,8 +217,8 @@ export default function App() {
      *
      * Same family as `?full`, and here for the same reason: the frame is real and
      * the way of getting to it is twenty minutes of Run 2. It prestiges the career,
-     * records everything that would otherwise interrupt (the thread, the founder's
-     * board) and everybody who comes *before* this hero, and opens their scene —
+     * records everything that would otherwise interrupt (the founder's board)
+     * and everybody who comes *before* this hero, and opens their scene —
      * so the wall, the desk and the drop can be looked at, and driven, in a
      * browser. `?full` is the opposite tool: everybody already in the room.
      */
@@ -259,7 +236,6 @@ export default function App() {
             ...p.meta.milestones,
             SCENE_JAMES_ARRIVES.id,
             SCENE_JAMES_INSTANT_MESSENGER.id,
-            SCENE_THE_THREAD.id,
             SCENE_FOUNDER_BOARD.id,
             ...BEFORE[arrive],
           ],

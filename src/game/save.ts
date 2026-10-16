@@ -29,7 +29,6 @@ import { GENRES, genreNamed, type Genre } from '../three/sim/titles.ts'
 import { UNKNOWN_ORDINAL } from '../sim/revenue.ts'
 import { GARAGE_SYNC } from '../sim/teamSync.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
-import { EVENTS } from '../sim/events.ts'
 import { DEBUG_TOOLS_ENABLED } from '../dev/debugAccess.ts'
 import {
   type History,
@@ -162,28 +161,6 @@ export interface RunSave {
   tickets?: number
   reputation?: number
   incidents?: IncidentSave[]
-  /**
-   * §18.0 — the event on the floor, if one is.
-   *
-   * Persisted for the reason `incidents` is and `buffs` are not: an event is a
-   * **state of the world**. It holds the studio's output at a ceiling until
-   * somebody acts, so a reload that dropped it would be a reload that repaired
-   * the company — and it carries the player's choice of exit, so a reload that
-   * dropped that would put a modal back over somebody who had already decided.
-   *
-   * Additive and optional on the same rule as `releases` and `tech`: absent
-   * means a quiet floor, which is exactly what every
-   * save written before §18.0 describes. No `SAVE_VERSION` bump.
-   */
-  event?: LiveEventSave
-}
-
-/** §18.0 — the live event, flattened. */
-export interface LiveEventSave {
-  id: string
-  remaining: number
-  age: number
-  routed: boolean
 }
 
 /** §4.12a — one open page, as §24 stores it. */
@@ -410,10 +387,7 @@ export function setPermanent(next: PermanentSave): void {
   permanent = next
   // Local-browser-only inspection seam, the twin of `store.ts`'s `__store` and here for
   // the same reason. The run is visible in the HUD and the *career* is not:
-  // "has this event been retired for good, or merely cleared by hand?" and
-  // "which scenes has this player seen?" are both answered only in here, and
-  // §26.1.8's walk has to be able to say which of the two it just watched
-  // happen. Diagnosis only — the walk asserts against what is on screen.
+  // "which scenes has this player seen?" is answered only in here. Diagnosis only — the walk asserts against what is on screen.
   if (DEBUG_TOOLS_ENABLED) {
     ;(globalThis as unknown as Record<string, unknown>).__permanent = permanent
   }
@@ -482,11 +456,6 @@ export function makeSaveData(state: GameState): SaveData {
       tickets: state.tickets,
       reputation: state.reputation,
       incidents: state.incidents.map((i) => ({ ...i })),
-      // §18.0 — omitted entirely when the floor is quiet, so a save is not
-      // carrying `event: null` for the 99% of the game where nothing is
-      // happening. An absent key and a null are the same statement here and
-      // the absent one is smaller.
-      ...(state.event ? { event: { ...state.event } } : {}),
     },
     permanent: {
       layer1: { ...permanent.layer1 },
@@ -752,31 +721,8 @@ function normaliseRun(value: unknown): RunSave {
     tickets: nonNegative(r.tickets, 0),
     reputation: Math.min(100, nonNegative(r.reputation, BASELINE_RATING)),
     incidents: normaliseIncidents(r.incidents),
-    ...(normaliseEvent(r.event) ? { event: normaliseEvent(r.event)! } : {}),
   }
 }
-
-/**
- * §18.0 — the live event, validated against the events this build has.
- *
- * **An id this build does not know is dropped**, not defaulted. `eventCeiling`
- * already refuses to hold a studio down for an unknown id, and this is the
- * second half of the same guarantee: a save naming an event that has since been
- * retired from the registry comes back as a quiet floor rather than as a banner
- * with no card behind it.
- */
-function normaliseEvent(value: unknown): LiveEventSave | null {
-  if (typeof value !== 'object' || value === null) return null
-  const e = value as Partial<LiveEventSave>
-  if (typeof e.id !== 'string' || !EVENT_ID_SET.has(e.id)) return null
-  // A remaining of zero is a studio held at a ceiling with nothing left to tap
-  // — `clearOne` returns null rather than producing one, so a stored zero is a
-  // corrupt document and the honest repair is one more reply.
-  const remaining = Math.max(1, Math.floor(nonNegative(e.remaining, 1)))
-  return { id: e.id, remaining, age: nonNegative(e.age, 0), routed: bool(e.routed, false) }
-}
-
-const EVENT_ID_SET = new Set<string>(EVENTS.map((e) => e.id))
 
 /** §4.12a — open pages, dropped rather than repaired when they name nothing. */
 function normaliseIncidents(value: unknown): IncidentSave[] {

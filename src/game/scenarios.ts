@@ -227,7 +227,6 @@ export function applyHeadcount(count: number): void {
     peakDevs: devs,
     // The scrim, and anything already holding the pointer under it.
     scene: null,
-    event: null,
     // Nothing carried over from whatever was on screen before: a buff or a
     // floater from a studio of ten is a lie about a studio of ten million, and
     // a selected seat may not exist in the new one at all.

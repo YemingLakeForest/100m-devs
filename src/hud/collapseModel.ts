@@ -82,16 +82,13 @@ export function marginalHire(
   const n = Math.max(1, Math.floor(count))
   // [amended 2026-10-15] **The studio's efficiency, not the textbook curve's.**
   //
-  // This read `workDone(devs, cap)` — §4.1 alone — so while THE THREAD (§18.0a)
-  // held the studio at a quarter of its output the button went on saying
-  // `+1.00`, and a player at twelve developers who had just been told nobody was
-  // writing code was invited to buy the thirteenth on the strength of a promise
-  // of a whole person's work. It delivered a quarter of one, at the full wage.
-  // That is the one moment in Run 2 where the number on the button matters most,
-  // because it is the first time hiring is *not* the answer.
+  // This read `workDone(devs, cap)` — §4.1 alone — so while something held the
+  // studio below the curve (it was §18.0a's THE THREAD, retired 2026-10-16) the
+  // button went on promising a whole person's work and delivered a fraction of
+  // one, at the full wage.
   //
   // `efficiencyAt` is the store's real efficiency at a hypothetical headcount —
-  // ceiling, fold and floor included — so every later modifier reaches the
+  // fold and floor included — so every later modifier reaches the
   // button without this file learning about it. Omitted, it is the §4.1 curve at
   // `cap`, which is what the collapse plate draws and what Run 1 means.
   const work = (d: number) => (efficiencyAt ? Math.max(0, d) * efficiencyAt(d) : workDone(d, cap))

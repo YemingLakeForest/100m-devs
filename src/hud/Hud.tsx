@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { applyEntropyTheme, entropyTheme } from '../art/entropyTheme.ts'
 import {
-  acknowledgeEvent,
   canMassHire,
-  clearEventByHand,
   collectOffline,
-  currentEvent,
   currentMassHireCost,
   currentUnlocks,
   hasPrestiged,
@@ -71,7 +68,6 @@ import {
   JAMES_DROPS_AT_LINE,
 } from '../game/scenes.ts'
 import { shouldShowReport } from './overnightModel.ts'
-import { EventBanner, EventCard } from './EventCard.tsx'
 import { TermSheet } from './TermSheet.tsx'
 import { ParadigmCutScene } from './ParadigmCutScene.tsx'
 import { ProximaLaunch } from './ProximaLaunch.tsx'
@@ -184,10 +180,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const [queueOpen, setQueueOpen] = useState(false)
   // §8 — a person's upgrade tree lives on their own screen: a hero's card, the
   // founder's panel [2026-10-13]. There is no separate tree window any more.
-  // The node the tree opens on, and whether THE THREAD sent the player there
-  // (§18.0a) — James's one line then stands over the board until a purchase.
+  // The node the tree opens on.
   const [treesIntro, setTreesIntro] = useState<string | null>(null)
-  const [threadGuide, setThreadGuide] = useState(false)
   /**
    * §10.6b — **no window is open while somebody is talking.**
    *
@@ -195,10 +189,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
    * goes inert, the script block leaves the rail, and the camera belongs to the
    * speaker. A term sheet, an incident card or an upgrade board left standing
    * behind that box is a surface the player can see, cannot use, and did not
-   * ask to still be looking at — and the one that caused this rule is real:
-   * clearing THE THREAD from a board the player opened themselves plays
-   * `thread-cleared` *over the open board*, so James congratulates them through
-   * a tech tree.
+   * ask to still be looking at.
    *
    * Read once here and applied to every window below, rather than each deciding
    * for itself. The two forms it takes are different and both are needed:
@@ -206,8 +197,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
    *   - the doors this component owns are **closed** by the effect below, so
    *     they do not spring back when the scene ends — a window that reappears
    *     after a conversation is the lingering pop-up wearing a delay;
-   *   - the windows a *state* raises — §21.0a's term sheet, §18.0a's card,
-   *     §24.8's report — are **suppressed**, because the state is still true
+   *   - the windows a *state* raises — §21.0a's term sheet, §24.8's report —
+   *     are **suppressed**, because the state is still true
    *     and they must come back the moment the box is gone.
    *
    * `state.selected` and `state.selectedHero` are the store's, and `showScene`
@@ -228,9 +219,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
       setGameMenuOpen(false)
       setGalleryOpen(false)
       setQueueOpen(false)
-      // A guided board whose window has been closed is a dangling promise: the
-      // flag would put the teaching line on whatever opened next.
-      setThreadGuide(false)
     }
   }
   const roster = heroRoster()
@@ -248,8 +236,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   // §10.7 — the belt takes the advisor's line while it needs the player: the
   // first build on the shelf, and a full buffer that has stopped the floor.
   const advisor = pipelineAdvice(state) ?? copy.advisor
-  // §18.0 — whatever is happening, resolved once per render like `unlocks`.
-  const event = currentEvent(state)
   // §21.0c — read once and passed down, so every gate in this frame agrees
   // about the same run rather than each asking separately.
   const unlocks = currentUnlocks()
@@ -272,21 +258,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   }, [theme])
 
   /**
-   * §18.0a — the intended exit, which is a *route* and not a resolution.
-   *
-   * The event stays live: what ends it is the purchase, and `buyTreeNode` is
-   * where that is wired (trap 33 — a rule wired to the interface is a lie the
-   * interface tells confidently). All this does is put James's tree in front of
-   * the player, over his card, and stand the modal down to a banner. It was the
-   * studio board until that was retired [2026-09-26].
-   */
-  const openBoardForEvent = () => {
-    acknowledgeEvent()
-    openTree('james')
-    setThreadGuide(true)
-  }
-
-  /**
    * §8 — one person's tree. A hero's is on their own screen [2026-10-13], beside
    * their pass; the founder's is on their panel the same way.
    */
@@ -295,7 +266,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
     setGameMenuOpen(false)
     setGalleryOpen(false)
     setTreesIntro(intro)
-    setThreadGuide(false)
     if (hero === 'you') {
       setFounderOpen(true)
     } else {
@@ -306,14 +276,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
 
   // One window at a time: the queue stands down when anything else is raised.
   if (queueOpen && (galleryOpen || treeOpen || founderOpen || gameMenuOpen)) setQueueOpen(false)
-
-  // THE THREAD's guide stands down the moment the purchase has ended the event.
-  // (A hero's screen is closed by the effect below; it is a store write.)
-  const wasGuiding = useRef(false)
-  useEffect(() => {
-    if (wasGuiding.current && !threadGuide && event === null && state.selectedHero !== null) selectHero(null)
-    wasGuiding.current = threadGuide
-  }, [threadGuide, event, state.selectedHero])
 
   /**
    * §21.7.7e — finish the character beat by putting the instrument they just
@@ -364,19 +326,6 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
   const openTeam = () => {
     const first = roster[0]
     if (first) openCard(first.id)
-  }
-
-  /**
-   * §18.0 — one reply, by hand, from either surface.
-   *
-   * The first tap also stands the modal down, so a player who chooses this exit
-   * spends their remaining nineteen taps on a banner with the studio visible
-   * behind it rather than on a scrim. Nineteen taps against a dimmed floor
-   * would be a minigame, and §26.3.3 owns those.
-   */
-  const replyToEvent = () => {
-    acknowledgeEvent()
-    clearEventByHand()
   }
 
   // The stage keeps its handlers for its whole life; these refs let them call
@@ -689,10 +638,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
         tree={openHero ? treeOf(openHero.id) : null}
         treesOpen={unlocks.trees}
         intro={treesIntro}
-        note={threadGuide ? 'JAMES // Pick any lit node. One purchase clears the thread; then you are back on the floor.' : null}
         place={{ at: openAt + 1, of: roster.length }}
         onClose={() => {
-          setThreadGuide(false)
           setTreesIntro(null)
           selectHero(null)
         }}
@@ -738,32 +685,11 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             <Typewriter text={advisor} sound />
           </p>
         )}
-        {/*
-          §18.0 — a live event, once the player has decided how to deal with it.
-
-          In this band and not in a rail: §10.1a says both are full, trap 26
-          says a control does not belong in a column of readings, and an event
-          is temporary — furniture is exactly what it must not become. It leaves
-          with the script while a scene is up and comes back the same way, on
-          the `data-phase` contract the block already owns.
-        */}
-        <EventBanner event={event} onRoute={openBoardForEvent} onReply={replyToEvent} />
       </div>
 
       {/*
-        §18.0a — the modal, before the player has chosen an exit. Rendered
-        beside the panels rather than inside the rail: it is a scrim over the
-        whole frame, because the studio has genuinely stopped.
-      */}
-      <EventCard event={talking ? null : event} onRoute={openBoardForEvent} onReply={replyToEvent} />
-
-      {/*
-        §21.0a — the term sheet, beside the event card and for the same reason:
-        it is a scrim over the whole frame, because the decision is about the
-        whole company. It is not an *event* — `sim/events.ts` owns things that
-        cost the studio output and carry a hand-clear, and this costs nothing and
-        has one exit — so it is its own surface rather than a `StudioEvent` with
-        the interesting fields set to no-ops.
+        §21.0a — the term sheet. A scrim over the whole frame, because the
+        decision is about the whole company.
       */}
       <TermSheet
         open={state.phase === 'act2_termsheet' && !state.seedTaken && !talking}

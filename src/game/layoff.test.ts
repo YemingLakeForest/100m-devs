@@ -34,15 +34,15 @@ function prestigedRun() {
 
 /** A Run 2 studio of this size and treasury, with the dial open and nothing in the way. */
 function studio(devs: number, cash: number, cap = 5_000) {
-  __setState({ devs, devCap: cap, cash, dialUnlocked: true, peakDevs: devs, scene: null, event: null })
+  __setState({ devs, devCap: cap, cash, dialUnlocked: true, peakDevs: devs, scene: null })
 }
 
 /**
  * Simulated time, with every scene answered.
  *
  * **Not `tick` alone, and the first draft of this file got that wrong in the way
- * that matters.** A studio past twelve developers with an empty board is handed
- * THE THREAD on its first tick (§18.0a), a scene halts `tick` entirely, and a
+ * that matters.** A Run 2 studio this size is handed a scene on its first tick
+ * (it was §18.0a's THE THREAD, since retired), a scene halts `tick` entirely, and a
  * test that "survived two minutes" was therefore simulating nothing — it passed
  * because time had stopped. The control below (the same studio, unrescued, must
  * die) is what caught it, and is why it exists.
@@ -122,7 +122,7 @@ describe('the transaction', () => {
 
   it('refuses while a scene is up, and once the run has ended', () => {
     studio(50, 5e6)
-    __setState({ scene: 'scene.run2.the-thread' })
+    __setState({ scene: 'scene.run2.founder-board' })
     expect(layOff()).toBe(false)
     __setState({ scene: null, phase: 'bankrupt' })
     expect(layOff()).toBe(false)

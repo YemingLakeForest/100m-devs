@@ -8080,14 +8080,15 @@ left standing behind §10.7's box is a surface the player can see, cannot use, a
 to still be looking at.</p>
 <p><strong>The sequence that named the rule:</strong> a player who opens §11's board themselves and buys
 the node that clears THE THREAD gets <code>thread-cleared</code> played <em>over the open board</em>.
-James congratulates them through a tech tree.</p>
+James congratulates them through a tech tree. (THE THREAD is retired [2026-10-16]; the rule
+stands for every scene.)</p>
 <p>It takes two forms, and both are needed:</p>
 <ul>
 <li><p><strong>A door the player opened is closed</strong> — the gallery, the boards, the roster, the menu,
 and the two selections that raise a personnel record. It does not come back when the scene ends.
 A window that springs back afterwards is the lingering pop-up wearing a delay.</p></li>
 <li><p><strong>A window a <em>state</em> raises is suppressed</strong> — §21.0a's term sheet,
-§18.0a's card, §24.8's report, the bankruptcy screen. The state is still true, so the
+§24.8's report, the bankruptcy screen. The state is still true, so the
 window returns the moment the box is gone. Suppressing is not dismissing: nothing here gives the
 player a way past a decision they still owe.</p></li>
 </ul>
@@ -11538,7 +11539,7 @@ gate's component list in the same change: it renders only while somebody is arme
 either list matched it, and the four-line version had therefore been passing every frame in the
 design box since the day it shipped. <strong>A surface the gate cannot see is a surface with no
 gate.</strong></p>
-<p>The strip drops to the quiet band above §18.0's event banner, in front of the desks, where
+<p>The strip drops to the quiet band above the script block, in front of the desks, where
 nothing is ever drawn.</p>
 <p>The requirement §13.8c states is unchanged and is now met twice over: the exact candidate
 receipt must be readable before <code>CONFIRM</code>, and nothing in the simulation moves until it is
@@ -13524,6 +13525,12 @@ instantly generate <strong>1 hour of offline revenue</strong>.</li>
 <hr />
 <h2 id="random-events-library">18. Random Events Library</h2>
 <h3 id="events-are-a-system-canon-added-2026-08-16-r82">18.0 Events are a system <strong>[CANON — added 2026-08-16]</strong> - R82</h3>
+<p><strong>[amended 2026-10-16] The system is not in the build.</strong> It was built for one event, §18.0a's
+THE THREAD, and went with it when that was retired — a registry with no events in it is machinery
+for nothing, which is §18.0a.2's own argument against stubs turned on the system itself. What
+follows stands as the <em>design</em> an event must meet when §26.3.3's Phase 3 brings the library in,
+and the code that met it (<code>sim/events.ts</code>, the event card and banner, the save field) is in
+the history of the commit that retired it. Nothing in the build today holds output at a ceiling.</p>
 <p><strong>Everything below this section has been a library of jokes and not a system.</strong> §26.1.8's last
 gate line and §3.1.6's item 3 both waited on it, and the state of the build when this was
 written is the evidence: <em>the only thing in it that mentioned §18 was a Paradigm node that
@@ -13598,7 +13605,23 @@ somebody who had already decided what to do.</p>
 <p><strong>Retirement is a milestone, never a new flag</strong> — §21.7.6c's argument, for the third time:
 <code>milestones</code> is already unioned across saves by §24.3, and is already where &quot;this has happened
 to this player, once, for ever&quot; is recorded.</p>
-<h3 id="a-the-first-event-is-a-trap-and-it-is-mandatory-canon-added-2026-08-16-r82">18.0a The first event is a trap, and it is mandatory <strong>[CANON — added 2026-08-16]</strong> - R82</h3>
+<h3 id="a-the-first-event-is-a-trap-and-it-is-mandatory-canon-added-2026-08-16-r82">18.0a The first event is a trap, and it is mandatory <strong>[CANON — added 2026-08-16]</strong> <strong>[amended 2026-10-16 — retired]</strong> - R82</h3>
+<p><strong>[amended 2026-10-16] THE THREAD is retired, at the user's instruction.</strong> Asked what it was
+for, the user said <em>&quot;I don't see the point of it?&quot;</em>, and then <em>&quot;ok. remove it&quot;</em>.</p>
+<p>The section below argues for it entirely from one sentence: <em>&quot;§11's board is the most consequential
+screen in the game and nothing in the build had ever asked a player to open it.&quot;</em> That stopped
+being true on 2026-09-26, when §21.6's Instant Messenger scene became how the trees are introduced
+and started ending on James's tree, opened at its root. By the time this event fired in Run 2 the
+player had already been handed the board once. A second tutorial for it was all cost: an output cap
+the player had not caused and could not have avoided, a twenty-tap busywork exit, and a fourteen-line
+scene. And because the trigger was an empty board at a run's start, it reached nearly every player
+rather than only the ones who had missed the lesson.</p>
+<p>Gone with it: both scenes, the event card and banner, the guided note over James's board, the
+<code>event</code> field in the save (an old save carrying one simply loads without it) and §18.0's system,
+which had no other event. §21.7.3's Billy clock now reads the studio's entropy directly — the
+distinction it drew between the building and the weather has no weather left to exclude. The
+argument below is kept as the record of what was tried; the <em>less/fewer</em> exchange was not moved
+into another scene.</p>
 <blockquote>
 <p><strong>THE THREAD.</strong> <em>&quot;Somebody asked a question in the main channel and everybody answered it.&quot;</em></p>
 </blockquote>
@@ -14799,8 +14822,7 @@ letter about ninety seconds later. Nothing in the game ever calls back to it, wh
 correct amount of calling back.</p>
 <p>One button, and it says <strong>SIGN IT</strong>. There is nothing to weigh, so a DECLINE would be a fake
 choice — but the tap is still theirs, and the verb is the one you do to a document rather than
-the one you do to an offer. No dismiss and no scrim-tap exit, for the same reason §18.0a's card
-has none: the phase machine is waiting on the signature, so a dismissable version would be a
+the one you do to an offer. No dismiss and no scrim-tap exit: the phase machine is waiting on the signature, so a dismissable version would be a
 modal the player can put down and a run that never advances.</p>
 <p>Three things arrive with it, and each one is a <em>capability</em> rather than a number going up:</p>
 <table>
@@ -15602,6 +15624,9 @@ system has misread which half of the section is the feeling.</em> The difference
 needed a second door and this does not: §6's whole thesis is that a studio <em>will</em> outgrow its
 capacity, and every run that grows at all arrives here.</p>
 <h5 id="an-event-is-weather-canon-added-2026-08-29">And the clock reads the building, not the weather <strong>[CANON — added 2026-08-29]</strong></h5>
+<p><strong>[amended 2026-10-16]</strong> With §18.0a retired there is no event ceiling in the build, so the
+clock reads <code>currentEntropy</code> and the separate structural reading is gone. The rule below stands
+for any event that comes back: <strong>it may not move this clock.</strong></p>
 <p><strong>The reading is §4.1 with §18.0's event ceiling taken back out.</strong> Everything else stays —
 the curve, §13.9's Cohesion fold, §11.2's purchased floor — because those are all things the
 player has or has not done about the shape of the company, and a studio that bought its way out
@@ -15634,8 +15659,8 @@ for him, and the scene ends by giving the player §13.8's floor. Each rule fails
 underlying reason and keeps its substance:</p>
 <ul>
 <li><strong>Length.</strong> Twelve lines is the budget for an introduction. This is an introduction
-<em>and</em> a system hand-over, and the game's two other hand-over scenes (§18.0a's thread,
-§21.7.7b's founder board) run the same length for the same reason. <strong>A scene that gives the
+<em>and</em> a system hand-over, and the game's other hand-over scene (§21.7.7b's founder
+board) runs the same length for the same reason. <strong>A scene that gives the
 player a verb has to reach the verb.</strong></li>
 <li><strong>James's single line.</strong> The cap exists because a second James line would compete with the
 person walking in. Here he <em>is</em> the reason anybody walks in, so the cap is what would break
@@ -16035,8 +16060,8 @@ and is still there, waiting, when the board opens.</p>
 </tr>
 <tr>
 <td>2</td>
-<td><strong>§18.0a — THE THREAD</strong></td>
-<td>12 developers, nothing bought</td>
+<td><s>§18.0a — THE THREAD</s> <strong>[retired 2026-10-16]</strong></td>
+<td><s>12 developers, nothing bought</s></td>
 </tr>
 <tr>
 <td>3</td>
@@ -16089,7 +16114,7 @@ instrument it introduced:</p>
 <tbody>
 <tr>
 <td>Studio upgrades</td>
-<td>James routes <code>THE THREAD</code> to the board</td>
+<td><s>James routes <code>THE THREAD</code> to the board</s> <strong>[retired 2026-10-16]</strong> — James's §21.6 scene opens his tree</td>
 <td>Open any lit node and buy it</td>
 <td>The purchase clears the event and closes the board</td>
 </tr>
@@ -19421,7 +19446,7 @@ different origins and drawn three cells apart, and four nodes sat outside the wo
 where no scroll reached them. The board also opened on empty grid. Both halves are fixed
 and <code>UpgradeBoard.test.tsx</code> now asserts the <strong>join</strong> — a node's centre is a connector
 endpoint — which is the only kind of test that could have caught it.
-5. <strong>Reach twelve developers on Run 2 without having bought anything, and meet §18.0a's
+5. <strong>[retired 2026-10-16 with §18.0a]</strong> <strong>Reach twelve developers on Run 2 without having bought anything, and meet §18.0a's
 THE THREAD</strong> — then get out of it both ways: buy a node on one career, tap twenty replies on
 another, and see that only the first one retires it.
 <strong>Item 5 passes as of 2026-08-18, on two careers, because it cannot be said on one.</strong> The
@@ -20793,7 +20818,7 @@ so a later refactor does not quietly reopen a rule the player has already been t
 <tr>
 <td>Full random-event library</td>
 <td><strong>PARTIAL</strong></td>
-<td>THE THREAD is a reachable two-exit event</td>
+<td>[amended 2026-10-16] Nothing in the build: THE THREAD and the system it ran on were retired (§18.0a)</td>
 <td>Remaining event rotation, scheduling, authored consequences and event variety</td>
 </tr>
 <tr>
@@ -20960,7 +20985,7 @@ the game's satire.</p>
 <tr>
 <td>Events</td>
 <td>A small rotating set of two-exit events can create variation without turning into interruption spam</td>
-<td>Add three events sharing THE THREAD's hand-clear/permanent-solution grammar and enforce one-at-a-time scheduling</td>
+<td>Rebuild §18.0's system (retired with THE THREAD, 2026-10-16) and add three events on its hand-clear/permanent-solution grammar with one-at-a-time scheduling</td>
 <td>Players choose different exits, can explain the cost, and do not feel punished for ignoring the optional route</td>
 </tr>
 <tr>

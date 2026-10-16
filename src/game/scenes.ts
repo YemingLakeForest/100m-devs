@@ -415,8 +415,8 @@ export const SCENE_MATT_ARRIVES: Scene = {
  * Longer than §21.7.3's twelve-line handshake, deliberately, and the only
  * exception in the set. That rule's argument is that an *introduction* is a
  * handshake and not an act; this is an introduction **and** a system hand-over,
- * and the game's two other hand-over scenes (§18.0a's thread, §21.7.7's founder
- * board) run the same length for the same reason.
+ * and the game's other hand-over scene (§21.7.7's founder board) runs the same
+ * length for the same reason.
  */
 export const SCENE_BILLY_ARRIVES: Scene = {
   id: 'scene.run2.billy-arrives',
@@ -457,71 +457,6 @@ export const SCENE_BILLY_ARRIVES: Scene = {
     { speaker: OS, text: 'B. — SCRUM MASTER. DAILY STANDUP CAPPED AT FIFTEEN MINUTES.' },
     { speaker: OS, text: 'HALF OF THE FLOOR WILL NOW KEEP WORKING THROUGH IT.' },
     { speaker: OS, text: 'HIS MEETING TREE IS OPEN. IT IS HOW SYNC GOES BACK UP.' },
-  ],
-}
-
-/**
- * §18.0a — **THE THREAD.** The first event in the game, and it is mandatory.
- *
- * The studio has stopped because one question is being answered by everybody at
- * once. It is §6's trap arriving *at* the player rather than because of them,
- * and this time there is an answer — on a board they have never opened.
- *
- * **Every line is James being completely correct about a small thing while the
- * large thing goes wrong behind him** (§21.7.0). He is unaffected: rule 1 says
- * the floor's interruptions do not land on him, so he is the only person in the
- * building still working and he is entirely calm about it. The tool he produces
- * is, as always, a tool for talking to people less, and he presents it as good
- * news, because to him it is.
- *
- * The grammar correction (rule 3) is the hinge of the scene rather than a
- * garnish: the founder says *less people* at the exact moment they are asking
- * how to have fewer of them talking, James corrects it without emphasis, and
- * the correction turns out to be the answer.
- */
-export const SCENE_THE_THREAD: Scene = {
-  id: 'scene.run2.the-thread',
-  script: [
-    { speaker: OS, text: 'UNSTRUCTURED COMMUNICATION EVENT. PARTICIPANTS: ALL. DECISIONS: 0.' },
-    { speaker: PLAYER, text: 'Why has everything stopped?', focus: AT_YOU },
-    { speaker: JAMES, text: 'Somebody asked a question in the main channel.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'What was the question?', focus: AT_YOU },
-    // He answers it completely, without irony, because it is what happened.
-    { speaker: JAMES, text: 'Whether we should have a channel for questions.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'Fine. I’ll poke them. I’ll poke all of them.', focus: AT_YOU },
-    // §21.7.0 rule 1 — he is not distracted, ever, and he cannot see why anyone
-    // would be. This is sincere advice.
-    { speaker: JAMES, text: 'You can. They’re typing. You’d be interrupting them typing.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'Then we need less people talking at once.', focus: AT_YOU },
-    // Rule 3. Once, without emphasis, and he continues his sentence.
-    { speaker: JAMES, text: 'Fewer.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'James.', focus: AT_YOU },
-    { speaker: JAMES, text: 'Fewer people. It’s countable. And yes — that’s the fix.', focus: AT_JAMES },
-    // §11.5's board, handed over as relief rather than as a tutorial. He does
-    // not care which node; every one of them is a way to talk to people less,
-    // which to him makes them interchangeable and all good.
-    { speaker: JAMES, text: 'Open UPGRADES. Buy anything. I genuinely don’t mind which.', focus: AT_JAMES },
-    { speaker: JAMES, text: 'They all do the same thing. They make people talk to each other less.', focus: AT_JAMES },
-    { speaker: OS, text: 'STUDIO OUTPUT HELD AT 25% PENDING COMMUNICATION INFRASTRUCTURE.' },
-  ],
-}
-
-/**
- * §18.0a — the payoff, and **only for the purchase exit.**
- *
- * A player who taps their way out of the thread gets no scene, and that is the
- * design rather than an omission: the two exits have to feel different or the
- * hand-clear is strictly better. Twenty taps ends a thread. A protocol ends
- * threads.
- */
-export const SCENE_THREAD_CLEARED: Scene = {
-  id: 'scene.run2.thread-cleared',
-  script: [
-    { speaker: OS, text: 'THREAD ARCHIVED. 0 PARTICIPANTS. 0 DECISIONS.' },
-    { speaker: PLAYER, text: 'It just… stopped.', focus: AT_YOU },
-    { speaker: JAMES, text: 'They’re all still talking. They’re doing it somewhere I can mute.', focus: AT_JAMES },
-    { speaker: PLAYER, text: 'That’s not the same as solving it.', focus: AT_YOU },
-    { speaker: JAMES, text: 'No. It’s better. Solving it would have been a meeting.', focus: AT_JAMES },
   ],
 }
 
@@ -662,8 +597,6 @@ export const SCENES: Record<string, Scene> = {
   [SCENE_SERENA_ARRIVES.id]: SCENE_SERENA_ARRIVES,
   [SCENE_MATT_ARRIVES.id]: SCENE_MATT_ARRIVES,
   [SCENE_BILLY_ARRIVES.id]: SCENE_BILLY_ARRIVES,
-  [SCENE_THE_THREAD.id]: SCENE_THE_THREAD,
-  [SCENE_THREAD_CLEARED.id]: SCENE_THREAD_CLEARED,
   [SCENE_FOUNDER_BOARD.id]: SCENE_FOUNDER_BOARD,
   [SCENE_JAMES_PROMOTED.id]: SCENE_JAMES_PROMOTED,
   [SCENE_JAMES_PROXIMA.id]: SCENE_JAMES_PROXIMA,

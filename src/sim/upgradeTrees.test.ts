@@ -228,9 +228,9 @@ describe('the board sells nothing that does nothing', () => {
     }
   })
 
-  it('leaves something to buy before Billy or Serena are in the building — THE THREAD’s cure', () => {
-    // James says "open UPGRADES, buy anything". At the garage's era and the
-    // price of a garage node, James's own tree has to have something for sale.
+  it('leaves something to buy before Billy or Serena are in the building', () => {
+    // James's scene opens his tree (§21.6). At the garage's era and the price of
+    // a garage node, his own tree has to have something for sale.
     const early = TREES.james.filter((n) => isBuilt(n) && n.era === 0 && n.kind === 'node')
     expect(early.length).toBeGreaterThan(0)
     for (const n of early) {

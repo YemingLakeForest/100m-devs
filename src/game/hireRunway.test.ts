@@ -61,9 +61,9 @@ describe('MAX, through the store and the clock', () => {
     atScale(5_000, 50_000, 2e8)
     setHireMultiplier('max')
     hireDeveloper()
-    // Every scene answered as it comes: THE THREAD is handed to any studio past
-    // twelve with an empty board, and a scene halts `tick` — without this the
-    // loop simulates nothing and "survives" because time has stopped. The
+    // Every scene answered as it comes: a Run 2 studio this size is handed one
+    // on its first tick, and a scene halts `tick` — without this the loop
+    // simulates nothing and "survives" because time has stopped. The
     // control below is what proves the clock is really running.
     for (let t = 0; t < MAX_RUNWAY_SECONDS - 5; t += 0.5) {
       if (getState().scene !== null) dismissScene()

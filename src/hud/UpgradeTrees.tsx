@@ -133,8 +133,6 @@ export interface TreePaneProps {
    * Messenger, which is how the trees are introduced (§21.6).
    */
   intro?: string | null
-  /** One line of instruction over the board, while a scene has asked for something. */
-  note?: string | null
 }
 
 /**
@@ -142,7 +140,7 @@ export interface TreePaneProps {
  * now it lives inside the person's screen - a hero's card (`HeroCard.tsx`), the
  * founder's panel (`Founder.tsx`) - so both draw the same board and inspector.
  */
-export function TreePane({ open, state, hero, intro = null, note = null }: TreePaneProps) {
+export function TreePane({ open, state, hero, intro = null }: TreePaneProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [showKey, setShowKey] = useState(false)
   const [openedOn, setOpenedOn] = useState<TreeHero | null>(null)
@@ -188,7 +186,6 @@ export function TreePane({ open, state, hero, intro = null, note = null }: TreeP
           <p className="trees__progress">
             <b>{c.owned}</b> OF {c.total} OWNED · {c.keysOwned}/{c.keys} BREAKTHROUGH{c.keys === 1 ? '' : 'S'}
           </p>
-          {note && <p className="board-teaching" role="status">{note}</p>}
         </header>
         {open && (
           <Board

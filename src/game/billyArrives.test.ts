@@ -31,7 +31,6 @@ import {
   SCENE_MATT_ARRIVES,
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
-import { THREAD, retiredMilestone } from '../sim/events.ts'
 import { BILLY_SUSTAINED_S, SYNC_FELT } from './storyTriggers.ts'
 import { D_BASE } from '../sim/entropy.ts'
 
@@ -54,11 +53,10 @@ function atTheCap(devs: number, extra: string[] = []) {
         'scene.act1.james-arrives',
         SCENE_SERENA_ARRIVES.id,
         SCENE_MATT_ARRIVES.id,
-        // §18.0a and §21.7.7 — the three other things a Run 2 studio of a
-        // hundred people would already have been through. Without them the
-        // first tick raises somebody else's scene and every tick after it
-        // returns early, which is a suite measuring a stopped simulation.
-        retiredMilestone(THREAD.id),
+        // §21.7.7 — something else a Run 2 studio of a hundred people would
+        // already have been through. Without it the first tick raises somebody
+        // else's scene and every tick after it returns early, which is a suite
+        // measuring a stopped simulation.
         SCENE_FOUNDER_BOARD.id,
         // §21.7.4 — James's first colleague is his promotion, and a studio
         // this size has long since had one.
@@ -158,32 +156,6 @@ describe('§21.7.3 — Billy arrives when growth first costs sync, and it stays 
     // to forget, or a player who fixed it still gets told they did not.
     __setState({ devCap: D_BASE * 4 })
     play(1)
-    expect(getState().syncSlippedFor).toBe(0)
-    expect(getState().scene).toBeNull()
-  })
-
-  /**
-   * §18.0 — **an event is weather, and Billy is about the building.**
-   *
-   * This is a walk failure written down as a unit test. THE THREAD holds the
-   * studio at 25% output, which is 75% entropy on the gauge, so a clock reading
-   * the gauge filled during a thread and brought Billy to a Run 2 garage of
-   * twelve developers, before anybody had a problem he solves.
-   * `store.structuralEntropy` is the fix and this is the case that would have
-   * caught it.
-   */
-  it('ignores a §18.0 event holding the studio at a ceiling', () => {
-    atTheCap(12)
-    __setState({
-      devs: 12,
-      event: { id: THREAD.id, remaining: 20, age: 0, routed: true },
-    })
-    // The gauge really is reading a collapse — that is the event working.
-    expect(currentEntropy()).toBeGreaterThan(SYNC_FELT)
-
-    play(BILLY_SUSTAINED_S * 2)
-
-    // And the organisation is in perfect shape, so the clock never starts.
     expect(getState().syncSlippedFor).toBe(0)
     expect(getState().scene).toBeNull()
   })

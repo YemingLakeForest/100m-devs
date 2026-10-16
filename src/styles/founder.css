@@ -62,10 +62,6 @@
   gap: 4px;
 }
 
-.founder__board-head .board-teaching {
-  margin: 4px 0 0;
-}
-
 /*
  * The first-use hand-off is an instruction, not another paragraph appended to
  * the board's standing explanation. Keeping all four standing readouts above

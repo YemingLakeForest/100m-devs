@@ -98,9 +98,6 @@ const COMPONENTS = [
   '.hud__controls',
   '.hire-dial',
   '.backlog',
-  // §18.0 — a live event's banner is a control in the middle column, which is
-  // the one place in the frame nothing else is anchored to an edge.
-  '.event-banner',
   '.title__logo',
   '.title__menu',
 ].join(',')
@@ -120,7 +117,6 @@ const PAINTED = [
   '.ui-btn__face',
   '.hud__block',
   '.backlog',
-  '.event-banner',
   '.touch',
   '.hire-dial',
   '.hud__terminal',
@@ -797,7 +793,7 @@ async function openCard(target) {
  * Panels enter on `cubic-bezier(.34,1.56,.64,1)`, which overshoots: for a
  * moment the panel is scaled past 1 and its close box sits a pixel or two
  * outside the root. A fixed 450ms wait is enough on a quiet machine and not on a
- * busy one, so the same screen (gallery at 915x412, the thread at 748x336)
+ * busy one, so the same screen (the gallery at 915x412)
  * passed or failed with the load of the run rather than with the layout. The
  * claim is about where the interface rests, so wait for every finite animation
  * to end. Infinite ones (carets, the lamp) are the interface being alive, not
@@ -939,25 +935,6 @@ try {
     })
 
     /*
-     * §18.0a — THE THREAD's route into James's tree [2026-09-26]. The studio
-     * board this leg used to open is retired (the trees are the upgrades), so
-     * the event's `OPEN UPGRADES` is the one door on the rail that reaches a
-     * tree: his, over his card, with his instruction standing over the board.
-     * `?full` carries the event already routed, so the banner is the route.
-     */
-    await check(page, {
-      name: "THE THREAD, routed into James's tree",
-      width,
-      height,
-      path: '/?notitle&full&nopost',
-      action: async (target) => {
-        await clearScene(target)
-        await target.getByRole('button', { name: /OPEN UPGRADES/ }).first().click()
-        await target.locator('.trees__canvas').waitFor({ state: 'visible' })
-      },
-    })
-
-    /*
      * **The frames where the HUD is full**, which is where every rail defect
      * lives and where this gate had never looked. `?full` is App.tsx's
      * worst-case fixture: prestiged, so §21.0c's roles, backlogs and upgrade
@@ -971,29 +948,6 @@ try {
       width,
       height,
       path: '/?act=act3_bait&full&nopost',
-      action: async (target) => {
-        /*
-         * §18.0 — and the banner really is on this frame.
-         *
-         * Out of flow, so it costs the grid nothing, which is also how it could
-         * silently stop existing without the containment pass noticing. Waiting
-         * for it is the only thing standing between "the worst frame carries a
-         * live event" and trap 28 all over again.
-         */
-        await target.locator('.event-banner').waitFor({ state: 'visible' })
-      },
-    })
-    /*
-     * §18.0a's modal, which is the frame a player actually meets first. A
-     * centred scrim over the fullest HUD there is — the composition most likely
-     * to overflow a 640x360 phone, because nothing else in the game draws a
-     * panel *and* both full rails at once.
-     */
-    await check(page, {
-      name: 'a mandatory event, before the player has chosen an exit',
-      width,
-      height,
-      path: '/?act=act3_bait&full&event&nopost',
     })
     await check(page, {
       name: 'the fullest the HUD gets, mid-collapse',

@@ -33,12 +33,8 @@ export interface StorySnapshot {
   /** Seconds the queue has gone unanswered. "Sustained" needs a clock. */
   ticketsUnservedFor: number
   /**
-   * §4.1 — the entropy reading, 0..1, **as a fact about the organisation**.
-   *
-   * `store.structuralEntropy`, not the gauge: §18.0's event ceiling is taken
-   * back out, so a studio held at 25% output by a thread does not read as a
-   * studio that has outgrown its own capacity. Only {@link billyArrives} reads
-   * it, and that is the only reading it wants.
+   * §4.1 — the entropy reading, 0..1: `store.currentEntropy`, fold and
+   * purchased floor included. Only {@link billyArrives} reads it.
    */
   entropy: number
   /** §21.7.3, Billy — seconds that reading has been at or above {@link SYNC_FELT}. */

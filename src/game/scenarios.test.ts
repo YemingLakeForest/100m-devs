@@ -91,7 +91,6 @@ describe('a scenario is a studio you can look at', () => {
       applyScenario(s)
       for (let i = 0; i < 240; i++) tick(1 / 60)
       expect(getState().scene).toBeNull()
-      expect(getState().event).toBeNull()
     }
   })
 
