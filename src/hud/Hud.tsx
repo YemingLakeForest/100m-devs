@@ -24,6 +24,7 @@ import {
   massHire,
   selectHero,
   setHireMultiplier,
+  shiftPaysNow,
   takeSeedRound,
   triggerParadigmShift,
   beginLiquidation,
@@ -558,9 +559,22 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             Before the first one BP does not exist, and a permanently visible
             button onto an empty currency would be the §10.6 web-page tell.
           */}
-          {hasPrestiged() && (
-            <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
-          )}
+          {/*
+            §13.2, §13.12.4 [2026-10-16] — and it pulses, with what the shift
+            buys under it, when `shiftPaysNow` says the shift is the move: its BP
+            buys the next ×10 of seats, or the run has been stuck past the peak
+            for a minute (or at the cap with nothing to buy for three). It never
+            opens itself; the player still takes the shift.
+          */}
+          {hasPrestiged() &&
+            (shiftPaysNow(state) ? (
+              <Button className="hud__shift-pays" onClick={() => setTreeOpen((was) => !was)}>
+                PARADIGM
+                <small>×10 SEATS</small>
+              </Button>
+            ) : (
+              <Button onClick={() => setTreeOpen((was) => !was)}>PARADIGM</Button>
+            ))}
           {/*
             §10.1's UPGRADES door stood here, onto the studio board. The board
             was retired on 2026-09-26 — *"I thought upgrades are trees"* — and

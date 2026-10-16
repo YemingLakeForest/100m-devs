@@ -80,6 +80,7 @@ import { eraIndex } from '../sim/eras.ts'
 import {
   TREES,
   TREE_HEROES,
+  isBuilt,
   levelOf,
   tileStateOf,
   syncCapMultiplier,
@@ -93,6 +94,7 @@ import {
   type TreeView,
 } from '../sim/upgradeTrees.ts'
 import { founderFromTree, withMattTree } from '../sim/treeLevers.ts'
+import { shiftPays, studioStalled } from '../sim/shiftPrompt.ts'
 import {
   NODE_BY_ID,
   bpFor,
@@ -718,6 +720,14 @@ export interface GameState {
    */
   syncSlippedFor: number
   /**
+   * §13.2 [added 2026-10-16] — seconds the studio has been stuck: past §4.1's
+   * peak, or at it with nothing in the trees it can afford (`studioStalled`).
+   * The clock `shiftPays` reads to light the PARADIGM door. Run 2 and later
+   * only; ephemeral (§24.2) like the clocks above, because a restored stall the
+   * player did not watch accrue would light the door on the first frame.
+   */
+  stalledFor: number
+  /**
    * §10.7, Serena — seconds this run the floor has stood still on a full shelf.
    * Ephemeral (§24.2), like the clocks above: a restored count with no cause on
    * screen would bring her in out of nowhere after a reload.
@@ -1003,6 +1013,7 @@ function freshRun(): GameState {
     tickets: 0,
     ticketsUnservedFor: 0,
     syncSlippedFor: 0,
+    stalledFor: 0,
     shelfStalledFor: 0,
     sinceSerena: 0,
     handReleases: 0,
@@ -2646,6 +2657,10 @@ export function tick(dtSeconds: number): void {
   // shelf fill, ships, and lets it fill again has met the same wall twice.
   const shelfStalledFor = open && shelfBlocked(state) ? state.shelfStalledFor + dtSeconds : state.shelfStalledFor
 
+  // §13.2 [2026-10-16] — the shift prompt's stall clock. Run 2 and later: Run 1
+  // has one way out and it is not this door.
+  const stalledFor = open && stalledNow(state) ? state.stalledFor + dtSeconds : 0
+
   let patch: Partial<GameState> = {
     localEntropy,
     buffs,
@@ -2655,6 +2670,7 @@ export function tick(dtSeconds: number): void {
     tickets: tickets.queue,
     ticketsUnservedFor,
     syncSlippedFor,
+    stalledFor,
     shelfStalledFor,
     sinceSerena: hasSeenScene(SCENE_SERENA_ARRIVES.id) ? state.sinceSerena + dtSeconds : 0,
     // §11.2 B2's meeting clock. Simulated seconds, not wall-clock — see the
@@ -3364,6 +3380,51 @@ export function paradigmShiftOffer(s: GameState = state): ParadigmShiftOffer {
     grossBp,
     available: p.meta.paradigmShifts > 0 && s.phase !== 'bankrupt',
   }
+}
+
+/**
+ * Is there anything in the trees this studio can buy right now? The stall
+ * clock's half of `studioStalled`. Only asked at the cap, which is where the
+ * question means anything — and a careful studio sits there, so the answer is
+ * kept for a simulated second rather than walking five trees every frame. The
+ * clock it feeds is measured in minutes; a second late is nothing.
+ */
+let affordableMemo: { at: number; value: boolean } | null = null
+
+function anythingAffordable(s: GameState): boolean {
+  if (affordableMemo && s.runSeconds >= affordableMemo.at && s.runSeconds - affordableMemo.at < 1) {
+    return affordableMemo.value
+  }
+  const value = TREE_HEROES.some((hero) =>
+    TREES[hero].some((node) => isBuilt(node) && treeRefusalOf(hero, node.id, s) === null),
+  )
+  affordableMemo = { at: s.runSeconds, value }
+  return value
+}
+
+/** §13.2 [2026-10-16] — is the studio stuck, for `stalledFor`? See `shiftPrompt.ts`. */
+function stalledNow(s: GameState): boolean {
+  const cap = effectiveDevCap(s)
+  const peak = peakHeads(cap)
+  if (s.devs > peak) return true
+  if (s.devs + 1 <= peak) return false
+  return studioStalled(s.devs, cap, anythingAffordable(s))
+}
+
+/**
+ * §13.2, §13.12.4 [added 2026-10-16] — should the PARADIGM door pulse? The one
+ * shift prompt (plan 2026-10-16 §1's ruling): the shift's BP buys the next ×10
+ * of seats, or the run has been stuck long enough that the shift is the move.
+ */
+export function shiftPaysNow(s: GameState = state): boolean {
+  const offer = paradigmShiftOffer(s)
+  if (!offer.available) return false
+  const p = getPermanent()
+  const compression = NODE_BY_ID.get('L1-1B')
+  const level = p.layer1.paradigmLevels['L1-1B'] ?? 0
+  const nextCapPrice =
+    compression && level < compression.maxLevel ? nodeCost(compression, level) - p.layer1.bp : Number.POSITIVE_INFINITY
+  return shiftPays(offer.bp, nextCapPrice, s.devs, effectiveDevCap(s), s.stalledFor)
 }
 
 /** §13.2 — has the player ever prestiged? The Paradigm Tree's door. */

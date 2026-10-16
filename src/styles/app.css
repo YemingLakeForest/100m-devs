@@ -1023,6 +1023,20 @@ body {
   outline-offset: 0;
 }
 
+/* [2026-10-16] §13.2 — the PARADIGM door when the shift is the move
+   (`shiftPaysNow`): a hard two-step outline pulse in warn ink, no glow. */
+.hud__shift-pays {
+  outline: 2px solid var(--warn-2);
+  outline-offset: 0;
+  animation: board-guide-pulse 900ms steps(2, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud__shift-pays {
+    animation: none;
+  }
+}
+
 /* --- the Paradigm Tree — GDD §13.2, §15.1 ------------------------------ */
 
 /*

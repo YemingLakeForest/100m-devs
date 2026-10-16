@@ -21,6 +21,7 @@ import {
   catalogueRate,
   effectiveDevCap,
   getState,
+  shiftPaysNow,
   structuralVelocity,
   treePriceOf,
   treeRefusalOf,
@@ -103,5 +104,23 @@ describe('the greedy player is no longer paid for hiring past the peak', () => {
       lastWork = work
       lastPayroll = payroll
     }
+  })
+
+  it('is told to shift: a minute past the peak lights the PARADIGM door (§13.2, phase 3.3)', { timeout: 120_000 }, () => {
+    playRunTwo('greedy', [30], () => {})
+    expect(getState().stalledFor).toBeGreaterThanOrEqual(60)
+    expect(shiftPaysNow()).toBe(true)
+  })
+})
+
+describe('the stall clock is Run 2’s, not Run 1’s', () => {
+  it('stays at zero through Run 1, which has one way out and it is not this door', { timeout: 120_000 }, () => {
+    const p = createPlayer({ policy: 'greedy', shipLatency: 8 })
+    let most = 0
+    for (let t = 0; t < 3 * 3600 && getState().phase !== 'bankrupt'; t += 0.25) {
+      playStep(p)
+      most = Math.max(most, getState().stalledFor)
+    }
+    expect(most).toBe(0)
   })
 })
