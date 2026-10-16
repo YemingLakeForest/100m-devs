@@ -15,6 +15,7 @@
     "lint": "eslint .",
     "music:generate": "tsx scripts/generate-music.ts",
     "preview": "vite preview",
+    "probe:pacing": "vitest run --mode probe --reporter=verbose src/game/pacingProbe.test.ts",
     "scenarios": "vite --open /?scenarios",
     "shot": "node scripts/screenshot.mjs",
     "shot:boards": "node scripts/shot-boards.mjs",

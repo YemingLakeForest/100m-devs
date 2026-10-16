@@ -8,7 +8,7 @@
  * up).** §25.3.2 fixes an order and refuses to fix the numbers, so nothing here
  * asserts a time.
  *
- * The player is `pacing.test.ts`'s — always present, three pokes a second, hires
+ * The player is `test/pacingProbe.ts`'s — always present, three pokes a second, hires
  * to §4.1's optimum — with two differences that matter for this question: they
  * press SHIP! by hand, a few seconds after a build lands, rather than the
  * instant it does (so SHIP! is a chore and not a test seam), and they never
@@ -17,62 +17,38 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import {
-  __resetStore, __setState, dismissScene, effectiveDevCap, getState, hireDeveloper,
-  launchRelease, massHire, nextHireCost, openLaunch, poke, takeSeedRound, tick,
-  triggerParadigmShift,
-} from './store.ts'
+import { __resetStore, __setState, getState, triggerParadigmShift } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
-import { payrollPerSecond } from '../sim/economy.ts'
-import { TRAIN_LAUNCH } from '../sim/release.ts'
 import {
   SCENE_BILLY_ARRIVES,
   SCENE_JAMES_PROMOTED,
   SCENE_MATT_ARRIVES,
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
+import { createPlayer, playStep } from '../test/pacingProbe.ts'
 
-const STEP = 0.25
 /** Seconds between a build landing and the player's thumb getting to SHIP!. */
 const SHIP_LATENCY = 8
 
-/** Scene ids in the order they first opened, with the simulated minute each did. */
+/**
+ * Scene ids in the order they first opened, with the simulated minute each did.
+ *
+ * The player is `test/pacingProbe.ts`'s, and `manualOnly` is the policy that
+ * matches this file's claim: it never opens a tree.
+ */
 function playTwoRuns(run2Seconds: number): Array<{ id: string; minute: number }> {
   const seen: Array<{ id: string; minute: number }> = []
-  for (const run of [1, 2]) {
+  let run = 1
+  let start = 0
+  const p = createPlayer({ policy: 'manualOnly', shipLatency: SHIP_LATENCY }, (id) => {
+    if (run === 2 && !seen.some((x) => x.id === id)) seen.push({ id, minute: (p.t - start) / 60 })
+  })
+  for (; run <= 2; run++) {
     __setState({ runSeed: 0x5eed })
+    start = p.t
     const limit = run === 1 ? 3 * 3600 : run2Seconds
-    let t = 0
-    let owed = 0
-    let waited = 0
-    while (t < limit) {
-      const s = getState()
-      if (s.scene !== null) {
-        if (run === 2 && !seen.some((x) => x.id === s.scene)) seen.push({ id: s.scene, minute: t / 60 })
-        dismissScene()
-      }
-      if (!s.seedTaken) takeSeedRound()
-      if (s.phase === 'act3_bait' && s.scene === null) massHire()
-      owed += 3 * STEP
-      while (owed >= 1) {
-        poke(0, 0, { rung: 0, index: 0 })
-        owed -= 1
-      }
-      for (;;) {
-        const h = getState()
-        if (h.cash - nextHireCost() <= 30 * payrollPerSecond(h.devs + 1)) break
-        if (h.devs >= effectiveDevCap() * 0.758) break
-        if (!hireDeveloper()) break
-      }
-      tick(STEP)
-      if (getState().shelf.length > 0) {
-        waited += STEP
-        if (waited >= SHIP_LATENCY && openLaunch()) {
-          launchRelease(TRAIN_LAUNCH)
-          waited = 0
-        }
-      } else waited = 0
-      t += STEP
+    while (p.t - start < limit) {
+      playStep(p)
       if (run === 1 && getState().phase === 'bankrupt') break
     }
     if (run === 1) triggerParadigmShift()

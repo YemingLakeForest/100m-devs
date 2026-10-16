@@ -44,10 +44,7 @@ import {
   effectiveDevCap,
   founderOf,
   getState,
-  hireDeveloper,
   massHire,
-  nextHireCost,
-  poke,
   shipEverything,
   takeSeedRound,
   tick,
@@ -62,6 +59,7 @@ import { payrollPerSecond } from '../sim/economy.ts'
 import { hireGrowthFor } from '../sim/founder.ts'
 import { quote } from '../sim/hireDial.ts'
 import { MASS_HIRE_COUNT } from './onboarding.ts'
+import { BUFFER_SECONDS, hireWhileAffordable, pokeFor } from '../test/pacingProbe.ts'
 
 /** §7.8.7's shares are seeded; a pacing measurement must not roll dice. */
 const FIXED_SEED = 0x5eed
@@ -89,14 +87,11 @@ const MAX_RUN_SECONDS = 2 * 3600
 /** Growth this stale means the studio has hit its wall — §13.12's "first real wall". */
 const STALL_SECONDS = 180
 
-/**
- * Seconds of payroll a cautious player keeps standing.
- *
- * Probed at 1, 5 and 30 while diagnosing the plateau: headcount came out at
- * ~185 at all three, which is what ruled the harness's own caution out as the
- * cause and sent the search back into the game.
- */
-const BUFFER_SECONDS = 30
+// `BUFFER_SECONDS` — seconds of payroll a cautious player keeps standing — is
+// the shared player's now (`test/pacingProbe.ts`). Probed at 1, 5 and 30 while
+// diagnosing the plateau: headcount came out at ~185 at all three, which is
+// what ruled the harness's own caution out as the cause and sent the search
+// back into the game.
 
 interface RunReport {
   run: number
@@ -213,11 +208,7 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
     // thumb would be refused by the scrim.
     if (s.phase === 'act3_bait' && s.scene === null) massHire()
 
-    owedPokes += pokesPerSecond * STEP
-    while (owedPokes >= 1) {
-      poke(0, 0, { rung: 0, index: 0 })
-      owedPokes -= 1
-    }
+    owedPokes = pokeFor(owedPokes, pokesPerSecond, STEP)
 
     // Hire while it leaves thirty seconds of payroll standing, and while the
     // next head is still worth having — §4.1 turns down past the optimum, so a
@@ -241,13 +232,8 @@ function playRun(run: number, pokesPerSecond = 3): RunReport {
     // That is a **measurement** error and not a balance one. `BUFFER_SECONDS` is
     // documented as "seconds of payroll a cautious player keeps standing", and a
     // cautious player keeps it standing at the headcount they are hiring *to*.
-    for (;;) {
-      const s = getState()
-      const buffer = BUFFER_SECONDS * payrollPerSecond(s.devs + 1)
-      if (s.cash - nextHireCost() <= buffer) break
-      if (s.devs >= effectiveDevCap() * 0.758) break
-      if (!hireDeveloper()) break
-    }
+    // The loop itself is `test/pacingProbe.ts`'s, shared with every probe.
+    hireWhileAffordable(true)
     const buffer = BUFFER_SECONDS * payrollPerSecond(getState().devs + 1)
 
     const node = cheapestUpgrade(buffer)
