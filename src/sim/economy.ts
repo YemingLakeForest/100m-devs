@@ -128,6 +128,11 @@ export function projectRevenue(index: number, scale = 1): number {
  * it ships, floored at the authored rung. It is a fact about the studio as it
  * actually is, it cannot outrun itself, and it holds a game at roughly
  * {@link TARGET_BUILD_SECONDS} at every scale.
+ *
+ * [amended 2026-10-16] *Up to* a scale: past the velocity that fills the
+ * authored rung in that window, {@link targetBuildSeconds} shortens it towards
+ * {@link MIN_BUILD_SECONDS}, because a minute at every scale made hiring ship
+ * nothing sooner.
  */
 /**
  * Measured rather than chosen: 90 starved the early runs (cash went negative in
@@ -138,6 +143,56 @@ export function projectRevenue(index: number, scale = 1): number {
  * the story rungs set rather than imposing a new one.
  */
 export const TARGET_BUILD_SECONDS = 60
+
+/**
+ * §14.8.7 [amended 2026-10-16] — **a bigger studio ships faster, down to a floor.**
+ *
+ * Sixty seconds "at every scale" answered the strobe and created the opposite
+ * fault, the fun-killers audit's first finding: hiring never made a game ship
+ * sooner. Measured, 66 s at 84 developers, 66 s at 115, and slower again past
+ * the optimum — the founder's whole promise, *hire people, ship faster*, was
+ * flat, so the studio got bigger numbers at the same rhythm and the 1-to-100M
+ * fantasy had nothing to show itself with. The user's ruling (plan D5): build
+ * time falls with velocity down to a floor.
+ *
+ * So the target is `T0 · (v0/v)^α` above the velocity that fills the authored
+ * terminal rung in `T0`, and `T0` below it. The pieces:
+ *
+ * - **`v0` is where the old rule started to bite**, so nothing below it moves:
+ *   the garage rungs, Run 1 and every studio too small to outgrow the terminal
+ *   rung's 4,000 points build exactly as they did.
+ * - **α = 0.7** makes a doubling of velocity cut the build by ~38% (×0.62), so a
+ *   doubling is something the player can feel at the next SHIP!, while project
+ *   size still grows as `v^0.3` — the strobe §14.8.7 was written against cannot
+ *   come back, because the burn-down still has more to burn as the studio grows.
+ *   1.0 would hold project size constant and reach the floor in one doubling;
+ *   0.5 is a 29% cut a player reads as noise.
+ * - **The floor is 30 s**, not lower, until the release ring is a held batch
+ *   (plan phase 4): an unbatched ring at a 30 s cadence is already two modals a
+ *   minute.
+ *
+ * The money does not move. `projectRevenue` pays a terminal project in
+ * proportion to its commitment and the commitment is `v · T`, so revenue per
+ * second is `v` times the same constant at every cadence — this is the cadence
+ * changing, not the economy.
+ */
+export const MIN_BUILD_SECONDS = 30
+
+/** α in {@link targetBuildSeconds}. See there for why 0.7. */
+export const BUILD_SPEEDUP_EXPONENT = 0.7
+
+/**
+ * How long a terminal-rung project should take a studio running at `velocity`.
+ *
+ * `terminalCommitment` is the authored terminal rung's size, passed in because
+ * the store owns `PROJECTS`; `v0 = terminalCommitment / TARGET_BUILD_SECONDS`.
+ */
+export function targetBuildSeconds(velocity: number, terminalCommitment: number): number {
+  const v0 = terminalCommitment / TARGET_BUILD_SECONDS
+  // Written as `!(a > b)` so a NaN on either side lands on the old rule.
+  if (!(v0 > 0) || !(velocity > v0)) return TARGET_BUILD_SECONDS
+  return Math.max(MIN_BUILD_SECONDS, TARGET_BUILD_SECONDS * Math.pow(v0 / velocity, BUILD_SPEEDUP_EXPONENT))
+}
 
 export function projectScale(scale: number): number {
   return Number.isFinite(scale) && scale > 1 ? scale : 1

@@ -2407,6 +2407,10 @@ the moment they choose it. <code>HIRE_BASE_COST</code> is <strong>$30</strong>, 
 <code>base · (g^n − 1)/(g − 1)</code>, so reaching 0.758 × the reference cap of 100 costs ≈ $128,000
 against the $130,000 the first paid rung pays. Ship a game, fill the floor, ship the next one
 in sixty seconds.</p>
+<p><strong>[amended 2026-10-16]</strong> Sixty seconds is the window while the studio is small; past the velocity
+that fills the terminal rung in a minute, §14.8.7 shortens it towards thirty. Nothing above changes with
+it: κ is a ratio of dollars per Story Point to wage per head per second, the curve leaves dollars per
+Story Point exactly where they were, and so every break-even load in this section is the same.</p>
 <p>§14.8.9's cap normalisation keeps that true at every capacity and keeps it from becoming a
 wall: the same <em>fraction</em> of any cap costs about the same, so the price fades against income as
 the studio grows — which is what it should do once §4.1 is the only thing left to fight.</p>
@@ -9258,7 +9262,10 @@ defensible alone; the pair was a one-click liquidation.</p>
 <p><strong>The rule:</strong> MAX also refuses any batch after which the studio would be fewer than
 <code>MAX_RUNWAY_SECONDS</code> = <strong>120</strong> from <code>secondsUntilBankrupt</code> — the HUD's own clock, the one that
 starts blinking red at ninety. Ninety plus the half-minute it takes to read it, and two builds' worth
-at §4.4's sixty seconds a game. MAX therefore <em>never starts the bankruptcy clock</em>, and a second tap
+at §4.4's sixty seconds a game. <strong>[amended 2026-10-16]</strong> Past §14.8.7's <code>v0</code> a build is shorter, so
+120 s is up to four builds at the 30 s floor. It stays 120: the runway is measured against the HUD's
+clock, which is what the player reads, not against a count of builds, and a large studio having more
+releases inside the same two minutes only makes the reserve safer. MAX therefore <em>never starts the bankruptcy clock</em>, and a second tap
 into the same runway buys nobody (the first spent the headroom), so spamming it is a speed bump
 the player can rely on rather than a ratchet.</p>
 <p><strong>It does not bring back the dead segment.</strong> The first draft's mistake was measuring the wage
@@ -12628,7 +12635,7 @@ cap went to <strong>150,526 in a single purchase</strong>, and the run outgrew a
 <p><code>devCapFor</code> is geometric now — <code>D_BASE · 10^L</code>, one order of magnitude a level — and §4.2's
 {@link CAP_STEP} carries the reasoning. Every level is worth buying and every level is
 <em>fillable</em>, which the old ×1,001 first level emphatically was not.</p>
-<h4 id="a-project-now-takes-about-a-minute-at-every-scale">14.8.7 A project now takes about a minute, at every scale</h4>
+<h4 id="a-project-now-takes-about-a-minute-at-every-scale">14.8.7 A project takes about a minute, and less as the studio grows <strong>[amended 2026-10-16]</strong></h4>
 <p>The ladder's terminal rung is 4,000 story points and it repeated for ever, so at run 8's 700
 SP/s the studio shipped <strong>every six seconds</strong>: §10.4's burn-down a strobe, §10.11's gallery
 hundreds of identically-named games, and shipping no longer an event.</p>
@@ -12659,6 +12666,34 @@ hundreds of identically-named games, and shipping no longer an event.</p>
 cash and 75 left run 8 collapsing on the hire curve. 60 sits closest to the ~69 s the authored
 ladder already produced in Run 1, so the terminal rung inherits the story's cadence rather than
 imposing one.</p>
+<p><strong>[amended 2026-10-16, at the user's ruling on <code>docs/PLAN-2026-10-16-fun-killers.md</code> D5 — <em>"Hiring
+ships faster: build time falls with velocity down to a floor"</em>, approved with <em>"just do them then"</em>.]
+"At every scale" fixed the strobe and created the opposite fault.</strong> The fun-killers audit (<code>docs/AUDIT-2026-10-16-fun-killers.html</code>, finding 01) measured
+66 s a game at 84 developers, 66 s at 115, and slower again past the optimum: <em>hire people, ship
+faster</em> is the founder's whole promise and it was flat, so a growing studio got bigger numbers at
+the same rhythm and the garage-to-galaxy fantasy had nothing to show itself with. Sixty seconds is
+now the window <em>up to</em> <code>v0</code>, the velocity that fills the authored terminal rung in
+<code>TARGET_BUILD_SECONDS</code>; above it the window is
+<code>targetBuildSeconds(v) = max(MIN_BUILD_SECONDS, T0 · (v0/v)^α)</code> (<code>sim/economy.ts</code>).</p>
+<ul>
+<li><strong>Nothing below <code>v0</code> moves.</strong> The garage, the authored rungs, Run 1 and any studio too
+small to outgrow 4,000 points build exactly as before; <code>runOne.test.ts</code> passes unchanged.</li>
+<li><strong>α = 0.7</strong>: a doubling of velocity cuts the build by ~38%, which a player feels at the next
+SHIP!, while project size still grows as <code>v^0.3</code> — the burn-down keeps more to burn as the studio
+grows, so the six-second strobe above cannot come back. 1.0 would freeze project size and hit the floor
+in one doubling; 0.5 is a 29% cut that reads as noise.</li>
+<li><strong>The floor is 30 s</strong> while every release is a modal ring (§10.7): thirty seconds is already two
+rings a minute. It drops to ~20 s only once the ring is a held batch and rings per hour are capped
+(plan phase 4).</li>
+<li><strong>The money does not move.</strong> A terminal project pays in proportion to its commitment
+(<code>projectRevenue</code>'s <code>scale</code>), and the commitment is <code>v · T</code>, so dollars per second are
+<code>v</code> times the same constant at every cadence. This is a rhythm change, not an economy one, and
+<code>economy.test.ts</code> pins exactly that rather than the exponent.</li>
+</ul>
+<p>Measured (<code>npm run probe:pacing</code>, the careful player, SHIP! at 8 s): 61 s → 46 s at 115 developers,
+cash and headcount within noise of before. The greedy player, past the optimum, still builds slowly — its
+velocity is under <code>v0</code>, so it is on the authored floor, and that slowness is Billy's lesson rather
+than this rule.</p>
 <h4 id="where-it-stands">14.8.8 Where it stands</h4>
 <table>
 <thead>
@@ -12731,6 +12766,10 @@ imposing one.</p>
 </table>
 <p><strong>Every run ends on §4.1</strong>, which is §6.1.3's claim finally being true. Headcount tracks the cap.
 BP climbs 11 → 62 and keeps climbing. Ship cadence is flat at 60–75 s from 58 SP/s to 732.</p>
+<p><strong>[amended 2026-10-16]</strong> That flat cadence was the design at the time and is not any more:
+§14.8.7 now shortens a build above <code>v0</code> towards a 30 s floor, so a run-8 studio at 732 SP/s builds
+in ~30 s rather than 60. The table is kept as it was measured; the cadence column is the one that would
+read differently today, and revenue, BP and headcount would not, because the curve moves no money.</p>
 <p><strong>What is still open</strong> is the shape of the early loop: runs 2–6 are four to seven minutes
 against §13.12.1's fifteen-to-forty-five. The measured curve is <em>geometric</em> — short runs early,
 hours later — which is a good idle shape and not the one the table asks for. §13.12.3 is that

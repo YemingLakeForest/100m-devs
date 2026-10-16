@@ -20,8 +20,13 @@ import {
   capAdjustedGrowth,
   WAGE_HEADROOM,
   WAGE_PER_DEV_PER_SEC,
+  MIN_BUILD_SECONDS,
+  TARGET_BUILD_SECONDS,
+  targetBuildSeconds,
 } from './economy.ts'
-import { PROJECTS, __resetStore, getState, triggerParadigmShift } from '../game/store.ts'
+import {
+  PROJECTS, __resetStore, __setState, buffMultiplier, commitmentFor, getState, structuralVelocity, triggerParadigmShift,
+} from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import {
   D_BASE,
@@ -377,5 +382,74 @@ describe('the Mass Hire takes everything — GDD §21.0', () => {
   it('still charges a broke player something', () => {
     expect(massHireCost(0)).toBeGreaterThan(0)
     expect(massHireCost(-99)).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * §14.8.7 [amended 2026-10-16] — hiring ships faster, down to a floor.
+ *
+ * The audit's first finding was that it did not: 66 s a game at 84 developers
+ * and at 115. These pin the *shape* the plan rules for (D5) — falling, felt per
+ * doubling, floored, untouched below the old rule — and the one thing it must
+ * not move, which is money per second. The exponent and the floor are the
+ * GDD's to retune; a test that pinned 0.7 would only make retuning noisier.
+ */
+describe('§14.8.7 — a bigger studio ships faster, down to a floor', () => {
+  const base = PROJECTS[PROJECTS.length - 1].commitment
+  const v0 = base / TARGET_BUILD_SECONDS
+  const sweep = Array.from({ length: 60 }, (_, i) => v0 * 0.25 * 1.25 ** i)
+
+  it('never lengthens a build as the studio speeds up', () => {
+    for (let i = 1; i < sweep.length; i++) {
+      expect(targetBuildSeconds(sweep[i], base)).toBeLessThanOrEqual(targetBuildSeconds(sweep[i - 1], base))
+    }
+  })
+
+  it('changes nothing at or below the velocity the old rule started at, so Run 1 is untouched', () => {
+    for (const v of sweep.filter((v) => v <= v0)) expect(targetBuildSeconds(v, base)).toBe(TARGET_BUILD_SECONDS)
+    expect(targetBuildSeconds(Number.NaN, base)).toBe(TARGET_BUILD_SECONDS)
+  })
+
+  it('cuts a build by enough to feel at every doubling above it, until the floor', () => {
+    for (const v of sweep.filter((v) => v > v0)) {
+      const now = targetBuildSeconds(v, base)
+      const doubled = targetBuildSeconds(2 * v, base)
+      if (doubled <= MIN_BUILD_SECONDS) continue
+      expect(doubled / now).toBeLessThanOrEqual(1 / 1.6)
+    }
+  })
+
+  it('never goes below the floor, however large the studio', () => {
+    for (const v of [...sweep, 1e12, Infinity]) expect(targetBuildSeconds(v, base)).toBeGreaterThanOrEqual(MIN_BUILD_SECONDS)
+    expect(targetBuildSeconds(1e12, base)).toBe(MIN_BUILD_SECONDS)
+  })
+
+  it('pays the same dollars per second at every cadence — a rhythm change, not an economy one', () => {
+    // A terminal project is `v · T` points and pays in proportion to its size,
+    // so a shorter build is a proportionally smaller cheque.
+    const terminal = PROJECTS.length - 1
+    const perSpPerSec = projectRevenue(terminal) / base
+    for (const v of sweep.filter((v) => v >= v0)) {
+      const t = targetBuildSeconds(v, base)
+      const commitment = Math.max(base, v * t)
+      const perSecond = projectRevenue(terminal, commitment / base) / (commitment / v)
+      expect(perSecond / (v * perSpPerSec)).toBeCloseTo(1, 9)
+    }
+  })
+
+  it('shortens the next build when the studio doubles its heads under the cap', () => {
+    __resetStore()
+    const terminal = PROJECTS.length - 1
+    const buildSeconds = (devs: number) => {
+      __setState({ devs, devCap: devs * 10, peakDevs: devs })
+      const s = getState()
+      return commitmentFor(terminal, s).toNumber() / (structuralVelocity(s) * buffMultiplier(s))
+    }
+    // Large enough that the smaller studio is already past the old rule.
+    let devs = 1
+    while (buildSeconds(devs) >= TARGET_BUILD_SECONDS - 1e-9 && devs < 1e6) devs *= 2
+    expect(devs).toBeLessThan(1e6)
+    expect(buildSeconds(devs * 2)).toBeLessThan(buildSeconds(devs))
+    __resetStore()
   })
 })

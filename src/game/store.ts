@@ -113,7 +113,7 @@ import {
   isBankrupt,
   payrollPerSecond,
   projectRevenue,
-  TARGET_BUILD_SECONDS,
+  targetBuildSeconds,
 } from '../sim/economy.ts'
 import {
   D_BASE,
@@ -867,7 +867,13 @@ export function commitmentFor(index: number, s: GameState = state): Decimal {
   // The unblocked rate: §10.7's full buffer stops the floor, and a jam must not
   // also shrink the next game (the rebuild's `nextProjectFloor` makes the same
   // argument).
-  const wanted = structuralVelocity(s) * buffMultiplier(s) * TARGET_BUILD_SECONDS
+  //
+  // [amended 2026-10-16] And the window shrinks as that velocity grows, down to
+  // a floor (`targetBuildSeconds`, §14.8.7): hiring is meant to ship games
+  // *sooner*, not only bigger. Below the velocity that fills the authored rung
+  // in `TARGET_BUILD_SECONDS` it is that figure, so Run 1 is untouched.
+  const v = structuralVelocity(s) * buffMultiplier(s)
+  const wanted = v * targetBuildSeconds(v, base.toNumber())
   return wanted > base.toNumber() ? new Decimal(wanted) : base
 }
 
