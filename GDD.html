@@ -1946,7 +1946,18 @@ in fact growing. 4.10d recorded this as an open question. This is the answer.</p
 than it already was</strong> - this changes cash <em>flow</em>, not cash.</li>
 <li>The tail is <strong>front-loaded and long</strong>: a launch spike, then a decay, then a floor that never
 quite reaches zero. A back catalogue is a real thing and a studio with five shipped games
-should feel it.</li>
+should feel it.
+<strong>[amended 2026-10-16]</strong> <em>Front-loaded</em> means over a build, not inside ten seconds. The spike was
+4–8 s carrying 50–68% of the payout, so most of a game's money landed in its first ten seconds, and the
+fun-killers audit (finding 08) measured what that does to a healthy studio: income per second
+0 → $284K → $5K across one build, and cash from +$146K to −$233K between two ships at 84 developers —
+three minutes from bankruptcy on the HUD while the books were fine. That is the very lump-and-crash
+this section was written to end, coming back through the spike. It is now 12–20 s carrying 30–45%
+(<code>sim/revenue.ts</code>): about half a game's money is in by the time the next build lands (at §14.8.7's
+30 s floor) and most of it by a minute, so <em>ship, earn, hire</em> still closes, and the cash line still
+jumps at launch — §10.6, the HUD does not smooth — without reading as a studio dying between ships.
+Releases now retire at five minutes rather than four, because the larger tail share left up to 2.3% for
+the retirement lump; five minutes keeps it under one per cent for every draw. No total moves.</li>
 <li>It is <strong>randomised</strong> per project, so two runs of the same ladder do not produce identical
 graphs. Randomised in the <em>shape</em>, never in the <em>total</em> - a player who ships the same game
 must not be able to be unlucky with it. That line is what keeps this from being gambling.</li>
@@ -8877,7 +8888,7 @@ counting up… the one the player must not be able to miss&quot;</em> — and it
 instruction. The argument for removing it is better than the one that put it there:</p>
 <ul>
 <li>§4.10e already made the payout a <strong>rate</strong>. The money does not arrive at the launch; it
-arrives over the following four minutes. A large green figure at the moment of release was
+arrives over the following five minutes <em>[amended 2026-10-16: four, until §4.10e's spike retune]</em>. A large green figure at the moment of release was
 announcing an event that had not happened.</li>
 <li>It made <strong>every release the same beat.</strong> The figure only ever goes up, so the celebration
 could not tell the player whether the thing they had just made was any <em>good</em>. §4.14 spent a

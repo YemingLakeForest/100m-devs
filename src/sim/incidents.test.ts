@@ -12,7 +12,7 @@ import {
   type Incident,
 } from './incidents.ts'
 import { BETA } from './defects.ts'
-import { advanceTail, rollShape, type Release } from './revenue.ts'
+import { RETIRE_AFTER_SECONDS, advanceTail, rollShape, type Release } from './revenue.ts'
 
 function release(id: number, payout = 1_000, age = 0): Release {
   return { id, ordinal: id, name: `Game ${id}`, payout, age, paid: 0, shape: rollShape(1234, id), defectDensity: 0, rating: 50 }
@@ -49,7 +49,7 @@ describe('§4.12a — ι is anchored to the tail, not chosen', () => {
       let total = 0
       const dt = 0.05
       // Past RETIRE_AFTER_SECONDS, so the whole tracked life is covered.
-      for (let t = 0; t < 300; t += dt) {
+      for (let t = 0; t < RETIRE_AFTER_SECONDS + 30; t += dt) {
         total += incidentRate(releases, densities) * dt
         releases = advanceTail(releases, dt).releases
       }

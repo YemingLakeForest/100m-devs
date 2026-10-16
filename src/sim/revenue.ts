@@ -20,9 +20,9 @@
  * single curve for a reason that is the whole design: **one exponential cannot
  * be both front-loaded and long.** Its time constant is the only knob it has,
  * so a launch spike forces a short tail and a real back catalogue forces a
- * launch that is not a launch. Two of them buy both — a fast one that is most
- * of the money in the first few seconds, and a slow one that is still paying
- * out while the next project is in development.
+ * launch that is not a launch. Two of them buy both — a fast one that is the
+ * launch, over most of a build, and a slow one that is still paying out while
+ * the next project is in development.
  *
  * ## The constraint that keeps it from being gambling
  *
@@ -52,29 +52,49 @@ import { draw } from './identity.ts'
 /**
  * The launch spike, in seconds.
  *
- * Short, because §21 Act IIa's loop is *ship, earn, hire, ship faster* and the
- * hire has to be affordable while the player still remembers shipping. Most of
- * a game's money arrives inside the first ten seconds and that is both true of
- * real launches and necessary for the loop to be playable.
+ * Short enough that §21 Act IIa's loop — *ship, earn, hire, ship faster* —
+ * pays for the hire while the player still remembers shipping: about half a
+ * game's money is in by the time the next build lands, and that is what the
+ * spike is for.
+ *
+ * [amended 2026-10-16] It was 4–8 s, with half to two-thirds of the payout in
+ * the spike, so most of the money arrived inside ten seconds. The fun-killers
+ * audit (finding 08) measured what that did to a healthy studio: income per
+ * second went 0 → $284K → $5K across one build, and cash swung from +$146K to
+ * −$233K between two ships at 84 developers — three minutes from bankruptcy on
+ * the HUD while the books were fine. That is the exact failure this file's
+ * header says the tail was written to stop, coming back through the spike.
+ * 12–20 s with a 30–45% share spreads the same money over most of a build, so
+ * the cash line still jumps at launch (§10.6: the HUD does not smooth) but no
+ * longer reads as a studio dying between ships. The total cannot move — the
+ * normalised form above sees to that — so this is cash *flow* again, not cash.
  */
-export const SPIKE_TAU = [4, 8] as const
+export const SPIKE_TAU = [12, 20] as const
 
 /** The back catalogue, in seconds. Still paying while the next one is built. */
 export const TAIL_TAU = [30, 70] as const
 
-/** Share of the payout that arrives in the launch spike rather than the tail. */
-export const SPIKE_SHARE = [0.5, 0.68] as const
+/** Share of the payout that arrives in the launch spike rather than the tail. See {@link SPIKE_TAU}. */
+export const SPIKE_SHARE = [0.3, 0.45] as const
 
 /**
  * When a release stops being tracked, and pays whatever it has left.
  *
- * Four minutes is past five slow-tail time constants, so the remainder handed
- * over at retirement is under one per cent — small enough that the payment is
- * not a visible second lump, and large enough that dropping it would be a leak.
- * It also bounds the array: a long session ships a lot of games and an
- * unbounded catalogue is a slow memory fault dressed as an economy.
+ * Sized so the remainder handed over at retirement is under one per cent for
+ * every shape {@link rollShape} can draw — small enough that the payment is not
+ * a visible second lump, and large enough that dropping it would be a leak. It
+ * also bounds the array: a long session ships a lot of games and an unbounded
+ * catalogue is a slow memory fault dressed as an economy.
+ *
+ * [amended 2026-10-16] Five minutes, from four. The note here said four minutes
+ * was "past five slow-tail time constants"; it was 3.4 of the slowest, and the
+ * one per cent held only because the tail's share was small. The spike retune
+ * ({@link SPIKE_TAU}) moves up to 70% of the payout onto the tail, which left
+ * as much as 2.3% for the lump — the worst case is `0.7 · e^(−T/70)`, and it
+ * is under 1% from T ≈ 297 s. `incidents.test.ts` caught it, because §4.12a's
+ * pager integral truncates at this same horizon.
  */
-export const RETIRE_AFTER_SECONDS = 240
+export const RETIRE_AFTER_SECONDS = 300
 
 export interface ReleaseShape {
   /** Fraction of the payout in the launch spike. */

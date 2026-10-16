@@ -7,8 +7,11 @@ import {
   collectedFraction,
   earningRate,
   rollShape,
+  TAIL_TAU,
   type Release,
+  type ReleaseShape,
 } from './revenue.ts'
+import { MIN_BUILD_SECONDS, TARGET_BUILD_SECONDS } from './economy.ts'
 
 const SEEDS = [1, 9, 77, 4242, 0x9e3779b9]
 
@@ -78,11 +81,32 @@ describe('randomise the SHAPE, never the TOTAL — GDD §4.10e', () => {
 })
 
 describe('front-loaded and long — §4.10e’s two requirements at once', () => {
-  it('lands most of the money at launch, so §21’s loop stays playable', () => {
+  it('lands about half the money inside one build, so §21’s loop stays playable', () => {
     // Act IIa is *ship, earn, hire, ship faster*, and the hire has to be
-    // affordable while the player still remembers shipping.
+    // affordable while the player still remembers shipping. [amended
+    // 2026-10-16] Measured against a build rather than ten seconds: the spike
+    // was retuned to spread over a build (finding 08's cash whiplash), and a
+    // build is never shorter than §14.8.7's floor.
     for (const seed of SEEDS) {
-      expect(collectedFraction(rollShape(seed, 0), 10)).toBeGreaterThan(0.4)
+      expect(collectedFraction(rollShape(seed, 0), MIN_BUILD_SECONDS)).toBeGreaterThan(0.45)
+      expect(collectedFraction(rollShape(seed, 0), TARGET_BUILD_SECONDS)).toBeGreaterThan(0.6)
+    }
+  })
+
+  it('swings less inside one build than the spike the audit measured — finding 08', () => {
+    // Peak income over mean income across one build, for a single release: the
+    // whiplash the HUD's cash line shows. Every shape the retune can roll must
+    // be calmer than the *calmest* shape the old ranges could (any corner of
+    // 4–8 s, 50–68%, and the unchanged tail), so no seed brings it back.
+    const whiplash = (s: ReleaseShape) =>
+      (s.spikeShare / s.spikeTau + (1 - s.spikeShare) / s.tailTau) /
+      (collectedFraction(s, TARGET_BUILD_SECONDS) / TARGET_BUILD_SECONDS)
+    let calmestOld = Infinity
+    for (const spikeShare of [0.5, 0.68]) for (const spikeTau of [4, 8]) for (const tailTau of TAIL_TAU) {
+      calmestOld = Math.min(calmestOld, whiplash({ spikeShare, spikeTau, tailTau }))
+    }
+    for (const seed of SEEDS) for (let ordinal = 0; ordinal < 20; ordinal++) {
+      expect(whiplash(rollShape(seed, ordinal))).toBeLessThan(calmestOld)
     }
   })
 
