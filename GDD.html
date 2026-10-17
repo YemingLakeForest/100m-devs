@@ -15556,6 +15556,25 @@ system on making one developer matter. This is where that starts paying.</li>
 </ul>
 <p><strong>Constraint:</strong> the <code>hey</code> notification is a <strong>procedural pixel icon</strong> with typed text, not an
 emoji and not a system toast (ART_DIRECTION §3.1, GDD §10.6).</p>
+<h3 id="run-2-the-first-hire-canon-added-2026-10-18">21.6a Run 2 — the first hire: &quot;It feels like forever.&quot; <strong>[CANON - added 2026-10-18]</strong></h3>
+<p>At the user's instruction: <em>&quot;I want a story arc to introduce first hire, like me complaining to james it takes forever or something.&quot;</em></p>
+<p><strong>Why it exists.</strong> Run 1 never offers the hire control (§21.0e), and Run 2 used to hand it over on its first frame with nobody saying so. That made hiring — the founder's whole loop, <em>ship, earn, hire, ship faster</em> — the one system in the game that did not enter through a person (§21.7.6). Every other control arrives with somebody who explains why you need it; the most important one arrived as furniture.</p>
+<p><strong>The door.</strong> In Run 2 the HIRE control is withheld until this scene has played. It plays once the player has shipped <strong>two</strong> games with just the two of them and can afford one developer (<code>firstHireArrives</code>, <code>FIRST_HIRE_AFTER_SHIPS</code>). Two rather than one because the first Run 2 game lands while the player is still reading the room, and a complaint about waiting after one wait is not yet a complaint. Affordable rather than a fixed sum, so the scene never ends on a button the player cannot press. It goes through §21.7.3's scene cooldown like every Run 2 beat. Once had, it is had for the career (a milestone, §24.3), so Run 3 onward hires from the first frame; a save or a debug seam that already has a floor of people counts as having found the control.</p>
+<p><strong>The scene</strong> (<code>SCENE_FIRST_HIRE</code>):</p>
+<blockquote>
+<p><strong>YOU:</strong> <em>&quot;James. How long does one game take?&quot;</em><br />
+<strong>JAMES:</strong> <em>&quot;About a minute.&quot;</em><br />
+<strong>YOU:</strong> <em>&quot;It feels like forever.&quot;</em><br />
+<strong>JAMES:</strong> <em>&quot;It's a minute.&quot;</em><br />
+<strong>YOU:</strong> <em>&quot;I've refreshed the burn-down forty times.&quot;</em><br />
+<strong>JAMES:</strong> <em>&quot;You could hire someone.&quot;</em><br />
+<strong>YOU:</strong> <em>&quot;Last time I hired someone it was a thousand people and we went bankrupt.&quot;</em><br />
+<strong>JAMES:</strong> <em>&quot;So hire one.&quot;</em><br />
+<strong>STUDIO_OS:</strong> <code>HIRE DEVELOPER — AVAILABLE. ONE AT A TIME. THEY BRING THEIR OWN CHAIR.</code><br />
+<strong>JAMES:</strong> <em>&quot;Two people ship faster than one.&quot;</em><br />
+<strong>JAMES:</strong> <em>&quot;Up to a point.&quot;</em></p>
+</blockquote>
+<p><strong>Why it is written this way.</strong> It leans on Run 1 on purpose: the last time the founder hired, it was a thousand people at once, and James's whole answer is the number one. He is sincere and completely correct about a small thing (§21.7.0) — it <em>is</em> a minute. His last line is on a page of its own so the player taps into the caveat, and the caveat is the rest of the game: it is the setup for Billy (§21.7.3), and since 2026-10-16 the claim is true in the numbers as well as the joke — hiring shortens the build (§14.8.7) until the studio passes its peak (§11.2 B2).</p>
 <hr />
 <h3 id="the-story-going-forward-people-arrive-because-you-needed-them-canon-added-2026-08-11-r42">21.7 The story going forward — people arrive because you needed them <strong>[CANON - added 2026-08-11]</strong> - R42</h3>
 <p>§21 scripts Run 1 and §21.6 scripts one scene of Run 2. <strong>After that the game has no story at

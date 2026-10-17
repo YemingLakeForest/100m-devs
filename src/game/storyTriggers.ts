@@ -271,6 +271,40 @@ export interface BoardSnapshot {
  * trigger that punishes correct play by withholding a system is a trigger that
  * has misread which half of §4.5d is the feeling.
  */
+/**
+ * §21.6a — **the first hire** [added 2026-10-18]. The feeling is *"this takes
+ * forever"*, and it needs two things to be true before it is a feeling rather
+ * than a script: the player has waited out more than one burn-down alone with
+ * James, and there is money in the till to do something about it.
+ *
+ * Two ships rather than one: the first Run 2 game lands during the opening
+ * minute, while the player is still reading the room, and a complaint about
+ * waiting after one wait is not yet a complaint. Affordability rather than a
+ * fixed sum, so the scene never ends on a button the player cannot press.
+ *
+ * Only while the studio is the two of them (`devs ≤ 1` — James is outside the
+ * count, §21.0b): a save or a debug seam that already has a floor of people has
+ * plainly found the control, and the store treats it as introduced.
+ */
+export const FIRST_HIRE_AFTER_SHIPS = 2
+
+export interface FirstHireSnapshot {
+  paradigmShifts: number
+  /** Games shipped this run. */
+  shipped: number
+  devs: number
+  cash: number
+  /** What the next developer costs right now. */
+  hireCost: number
+}
+
+export function firstHireArrives(s: FirstHireSnapshot): boolean {
+  if (s.paradigmShifts <= 0) return false
+  if (Math.floor(s.devs) > 1) return false
+  if (s.shipped < FIRST_HIRE_AFTER_SHIPS) return false
+  return Number.isFinite(s.hireCost) && s.cash >= s.hireCost
+}
+
 export const FOUNDER_BOARD_MIN_DEVS = 25
 export const FOUNDER_BOARD_SHARE = 0.05
 

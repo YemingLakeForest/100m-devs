@@ -19,6 +19,7 @@ import { MASS_HIRE_MIN_COST } from '../sim/economy.ts'
 import { efficiency } from '../sim/entropy.ts'
 import { MASS_HIRE_COUNT, MASS_HIRE_WAVES, MASS_HIRE_WAVE_S, massHireWaveSize } from './onboarding.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
+import { SCENE_FIRST_HIRE } from './scenes.ts'
 import {
   __resetStore,
   __setState as setState,
@@ -47,7 +48,9 @@ let startDevs = 0
  */
 function prestiged() {
   const p = emptyPermanent()
-  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+  // §21.6a — and James has had the first-hire conversation, so HIRE is offered
+  // at one developer. These tests are about seats, not about that door.
+  setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1, milestones: [...p.meta.milestones, SCENE_FIRST_HIRE.id] } })
 }
 
 beforeEach(() => {

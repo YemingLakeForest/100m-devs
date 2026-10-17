@@ -484,6 +484,41 @@ export const SCENE_BILLY_ARRIVES: Scene = {
  * second James line would compete with the person walking in. Nobody walks in
  * here, so he keeps the exchange that carries the joke.
  */
+/**
+ * §21.6a — **the first hire**, and the HIRE button arrives with it [added
+ * 2026-10-18, at the user's instruction: *"I want a story arc to introduce first
+ * hire, like me complaining to james it takes forever"*].
+ *
+ * Run 1 never offers the control (§21.0e) and Run 2 used to hand it over on the
+ * first frame with nobody saying so, which made hiring the one system in the
+ * game that did not enter through a person (§21.7.6). So the player ships a
+ * couple of games with just the two of them, feels a minute become forever, and
+ * complains — and James answers the complaint with the obvious thing.
+ *
+ * The scene leans on Run 1's bankruptcy on purpose: the last time the founder
+ * hired, it was a thousand people at once. James's whole answer is the number
+ * one. His last line is the setup for Billy (§21.7.3) — sincere, and true, and
+ * the second half of it is the rest of the game.
+ */
+export const SCENE_FIRST_HIRE: Scene = {
+  id: 'scene.run2.first-hire',
+  script: [
+    { speaker: PLAYER, text: 'James. How long does one game take?', focus: AT_YOU },
+    { speaker: JAMES, text: 'About a minute.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'It feels like forever.', focus: AT_YOU },
+    // §21.7.0 — completely correct about a small thing. It is a minute.
+    { speaker: JAMES, text: 'It’s a minute.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'I’ve refreshed the burn-down forty times.', focus: AT_YOU },
+    { speaker: JAMES, text: 'You could hire someone.', focus: AT_JAMES },
+    { speaker: PLAYER, text: 'Last time I hired someone it was a thousand people and we went bankrupt.', focus: AT_YOU },
+    { speaker: JAMES, text: 'So hire one.', focus: AT_JAMES },
+    { speaker: OS, text: 'HIRE DEVELOPER — AVAILABLE. ONE AT A TIME. THEY BRING THEIR OWN CHAIR.' },
+    { speaker: JAMES, text: 'Two people ship faster than one.', focus: AT_JAMES },
+    // The beat is a page of its own, so the player taps into the caveat.
+    { speaker: JAMES, text: 'Up to a point.', focus: AT_JAMES },
+  ],
+}
+
 export const SCENE_FOUNDER_BOARD: Scene = {
   id: 'scene.run2.founder-board',
   script: [
@@ -601,6 +636,7 @@ export const SCENES: Record<string, Scene> = {
   [SCENE_SERENA_ARRIVES.id]: SCENE_SERENA_ARRIVES,
   [SCENE_MATT_ARRIVES.id]: SCENE_MATT_ARRIVES,
   [SCENE_BILLY_ARRIVES.id]: SCENE_BILLY_ARRIVES,
+  [SCENE_FIRST_HIRE.id]: SCENE_FIRST_HIRE,
   [SCENE_FOUNDER_BOARD.id]: SCENE_FOUNDER_BOARD,
   [SCENE_JAMES_PROMOTED.id]: SCENE_JAMES_PROMOTED,
   [SCENE_JAMES_PROXIMA.id]: SCENE_JAMES_PROXIMA,

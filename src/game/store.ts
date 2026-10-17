@@ -170,6 +170,7 @@ import {
 } from './scenes.ts'
 import {
   SCENE_BILLY_ARRIVES,
+  SCENE_FIRST_HIRE,
   SCENE_FOUNDER_BOARD,
   SCENE_JAMES_PROMOTED,
   SCENE_JAMES_PROXIMA,
@@ -182,6 +183,7 @@ import {
   arrivalGapPassed,
   arrivalPredicate,
   founderBoardArrives,
+  firstHireArrives,
   jamesPromoted,
   sceneCooledDown,
   type BoardSnapshot,
@@ -3311,6 +3313,22 @@ function checkBoardTriggers(s: GameState): void {
   // Serena's scene closes (§21.7.3 [2026-10-16]).
   if (!sceneCooledDown(s.runSeconds, s.lastSceneEndedAt)) return
 
+  // §21.6a [2026-10-18] — the first hire. First, because it is the earliest beat
+  // in Run 2 and the founder's board cannot fire before it (it needs 25 people).
+  if (
+    !hasSeenScene(SCENE_FIRST_HIRE.id) &&
+    firstHireArrives({
+      paradigmShifts: getPermanent().meta.paradigmShifts,
+      shipped: s.projectsShipped,
+      devs: s.devs,
+      cash: s.cash,
+      hireCost: nextHireCost(s),
+    })
+  ) {
+    showScene(SCENE_FIRST_HIRE.id)
+    return
+  }
+
   const snapshot: BoardSnapshot = {
     paradigmShifts: getPermanent().meta.paradigmShifts,
     founderRate: founderVelocity(),
@@ -3801,9 +3819,13 @@ let unlocksCache: { key: string; value: Unlocks } | null = null
 export function currentUnlocks(): Unlocks {
   const shifts = getPermanent().meta.paradigmShifts
   const arrived = arrivedHeroes()
-  const key = `${shifts}|${[...arrived].sort().join(',')}`
+  // §21.6a [2026-10-18] — HIRE arrives with James's first-hire conversation. A
+  // studio that already has a floor of people (an old save, a debug seam) has
+  // plainly found the control, so it counts as introduced rather than locked out.
+  const hireIntroduced = hasSeenScene(SCENE_FIRST_HIRE.id) || Math.floor(state.devs) > 1
+  const key = `${shifts}|${[...arrived].sort().join(',')}|${hireIntroduced}`
   if (unlocksCache?.key === key) return unlocksCache.value
-  const value = unlocksFor(shifts, arrived)
+  const value = unlocksFor(shifts, arrived, hireIntroduced)
   unlocksCache = { key, value }
   return value
 }

@@ -201,6 +201,14 @@ const SHUT: Unlocks = {
 export function unlocksFor(
   paradigmShifts: number,
   arrived: ReadonlySet<HeroId>,
+  /**
+   * §21.6a [2026-10-18] — has James's first-hire conversation happened? The
+   * HIRE control arrives with it, so hiring enters through a person like every
+   * other system (§21.7.6). Defaults to true so a caller asking only about the
+   * heroes' instruments is not handed a studio that cannot hire; the store
+   * always passes the real answer.
+   */
+  hireIntroduced = true,
 ): Unlocks {
   const shifted = Number.isFinite(paradigmShifts) && paradigmShifts > 0
   if (!shifted) return SHUT
@@ -211,7 +219,7 @@ export function unlocksFor(
 
   return {
     simulated: true,
-    manualHire: true,
+    manualHire: hireIntroduced,
     trees: true,
     defects: instrument.defects,
     incidents: instrument.incidents,
