@@ -119,6 +119,37 @@ export function withMattTree(fold: HeroFold, levels: Levels, devs: number): Hero
   }
 }
 
+// --- Billy ------------------------------------------------------------------
+
+/**
+ * Timebox and Walking Meeting [2026-10-16, plan phase 6.4]: shares of the floor,
+ * on top of Billy's own half (`heroRoster.STANDUP_KEPT_SHARE`), that keep typing
+ * through the Daily Standup.
+ *
+ * A fifth each, so both together leave a tenth of the floor still stopping:
+ * the stand-up stays a cost his tree shrinks, and §13.2's Meeting Ban stays the
+ * one purchase that deletes it — the comment on `STANDUP_KEPT_SHARE` gives the
+ * reason that matters, and this keeps it.
+ */
+export const TIMEBOX_KEPT_SHARE = 0.2
+export const WALKING_KEPT_SHARE = 0.2
+
+/**
+ * Billy's tree, applied to the fold his card already reads. Returns the fold
+ * untouched for a save that has bought none of it. (His coordination nodes —
+ * Async Standup among them — are `upgradeTrees.syncCapMultiplier`'s.)
+ */
+export function withBillyTree(fold: HeroFold, levels: Levels, devs: number): HeroFold {
+  const timebox = level(levels, 'billy', 'b1', 1)
+  const walking = level(levels, 'billy', 'b2', 1)
+  if (timebox + walking === 0) return fold
+  const heads = Number.isFinite(devs) ? Math.max(0, Math.floor(devs)) : 0
+  return {
+    ...fold,
+    standupHeads: fold.standupHeads + heads * (TIMEBOX_KEPT_SHARE * timebox + WALKING_KEPT_SHARE * walking),
+  }
+}
+
 // --- James ------------------------------------------------------------------
 
 /**

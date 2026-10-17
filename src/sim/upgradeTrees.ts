@@ -377,9 +377,13 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('c4', 3, -1, 'Org Chart', 'orgchart', 1, { p: ['c2'], t: 'lvl', rp: true, k: 4, mv: ['handoffs', 'meetings', 2], d: 'Another layer of managers, as many times as you like. Each layer lets the floor grow by a fifth, and holds its own meetings.' }),
     N('c5', 3, -2, 'Planetary PI Planning', 'planet', 3, { p: ['c4'], k: 2, d: 'Earth stops for thirty seconds to plan the quarter, and then nobody meets for ten minutes.' }),
     N('c6', 4, -2, 'Interstellar Standup', 'antenna', 4, { p: ['c5'], k: 2, mv: ['meetings', 'lag', 5], d: 'Your answer to “what did you do yesterday” arrives in four years.' }),
-    N('b1', -1, 0, 'Timebox', 'hourglass', 1, { p: ['R'], mv: ['meetings', 'waiting', 4], d: 'Meetings end on time, and the decisions wait for the next one.' }),
-    N('b2', -1, 1, 'Walking Meeting', 'shoe', 2, { p: ['b1'], ex: 'D', mv: ['meetings', 'slacking', 5], d: 'Meetings happen outdoors. Some attendees never come back.' }),
-    N('b3', -2, 0, 'Async Standup', 'paper', 2, { p: ['b1'], ex: 'D', mv: ['meetings', 'handoffs', 5], d: 'Standup becomes a written update nobody finishes reading.' }),
+    // [amended 2026-10-16] The meeting half of his tree, wired (plan phase 6.4):
+    // Timebox and Walking Meeting keep more of the floor typing through the
+    // stand-up (`treeLevers.withBillyTree`); Async Standup, the other side of
+    // fork D, is two coordination points instead — the minute back, or the sync.
+    N('b1', -1, 0, 'Timebox', 'hourglass', 1, { p: ['R'], lv: true, fx: 'A fifth more of the floor keeps working through the stand-up.', mv: ['meetings', 'waiting', 4], d: 'Meetings end on time, and the decisions wait for the next one.' }),
+    N('b2', -1, 1, 'Walking Meeting', 'shoe', 2, { p: ['b1'], ex: 'D', lv: true, fx: 'Another fifth of the floor keeps working through the stand-up.', mv: ['meetings', 'slacking', 5], d: 'Meetings happen outdoors. Some attendees never come back.' }),
+    N('b3', -2, 0, 'Async Standup', 'paper', 2, { p: ['b1'], ex: 'D', k: 2, mv: ['meetings', 'handoffs', 5], d: 'Standup becomes a written update nobody finishes reading.' }),
     N('b4', -2, 1, 'No-Meeting Wednesdays', 'calendar', 2, { p: ['b2', 'b3'], mv: ['meetings', 'waiting', 3], d: 'Wednesday’s meetings move to Thursday.' }),
     N('b5', -3, 1, 'Decline by Default', 'xmark', 2, { p: ['b4'], mv: ['meetings', 'duplicate', 4], d: 'Nobody attends, so two teams each decide the same thing alone.' }),
     N('b6', -3, 0, 'Shared Calendar', 'calendar', 2, { p: ['b3'], d: 'Everyone can see everyone’s day, so the meetings find the gaps.' }),

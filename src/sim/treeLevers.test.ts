@@ -15,6 +15,7 @@ import {
   founderFromTree,
   jamesFromTree,
   jamesPokeShare,
+  withBillyTree,
   withMattTree,
 } from './treeLevers.ts'
 
@@ -154,6 +155,26 @@ describe('James’s tree', () => {
   it('pays nothing scale-free for a studio that has stopped', () => {
     expect(jamesPokeShare(0, 0, 2, NO_JAMES_TREE)).toBe(0)
     expect(jamesPokeShare(Number.NaN, 0, 2, NO_JAMES_TREE)).toBe(0)
+  })
+})
+
+/** Billy's meeting nodes [2026-10-16, plan phase 6.4]: more of the floor keeps typing, never all of it. */
+describe('Billy’s tree', () => {
+  const b = (ids: Record<string, number>) =>
+    Object.fromEntries(Object.entries(ids).map(([id, n]) => [treeKey('billy', id), n]))
+
+  it('leaves the fold alone for a save that has bought nothing of his', () => {
+    expect(withBillyTree(NO_HERO_FOLD, {}, 100)).toBe(NO_HERO_FOLD)
+  })
+
+  it('Timebox, then Walking Meeting, keep more of the floor working through the stand-up', () => {
+    const billy = { ...NO_HERO_FOLD, standupHeads: 50 }
+    const timebox = withBillyTree(billy, b({ b1: 1 }), 100).standupHeads
+    const both = withBillyTree(billy, b({ b1: 1, b2: 1 }), 100).standupHeads
+    expect(timebox).toBeGreaterThan(50)
+    expect(both).toBeGreaterThan(timebox)
+    // The Meeting Ban stays the only thing that deletes the stand-up.
+    expect(both).toBeLessThan(100)
   })
 })
 

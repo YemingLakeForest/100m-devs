@@ -95,7 +95,7 @@ import {
   type TreeView,
 } from '../sim/upgradeTrees.ts'
 import { founderFromTree, withMattTree } from '../sim/treeLevers.ts'
-import { founderCapFromTree, jamesFromTree, jamesPokeShare, type JamesEffects } from '../sim/treeLevers.ts'
+import { founderCapFromTree, jamesFromTree, withBillyTree, jamesPokeShare, type JamesEffects } from '../sim/treeLevers.ts'
 import { shiftPays, studioStalled } from '../sim/shiftPrompt.ts'
 import { MILESTONE_LINES, nextMilestoneBeat } from '../sim/milestoneBeats.ts'
 import {
@@ -3946,7 +3946,9 @@ export function heroById(id: HeroId): HeroRuntime | null {
 export function currentHeroFold(s: GameState = state): HeroFold {
   const heroes = heroRoster()
   if (heroes.length === 0) return NO_HERO_FOLD
-  const fold = heroFold(heroes, s.devs)
+  const folded = heroFold(heroes, s.devs)
+  // [2026-10-16] Billy's meeting nodes ride on his card's fold too, once he is here.
+  const fold = heroes.some((h) => h.id === 'billy') ? withBillyTree(folded, s.treeLevels, s.devs) : folded
   // Matt's tree rides on the same fold his card reads — only once he is here.
   return heroes.some((h) => h.id === 'matt') ? withMattTree(fold, s.treeLevels, s.devs) : fold
 }
