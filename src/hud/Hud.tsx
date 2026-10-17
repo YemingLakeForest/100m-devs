@@ -53,7 +53,7 @@ import { DevCard } from './DevCard.tsx'
 import { HeroCard } from './HeroCard.tsx'
 import type { HeroId } from '../sim/storyHeroes.ts'
 import { HireDial } from './HireDial.tsx'
-import { Cash, Devs, Shipped, Speedometer, Starbound, Velocity } from './Readouts.tsx'
+import { Cash, Devs, Shipped, Speedometer, Starbound, StudioClock, Velocity } from './Readouts.tsx'
 import { DialoguePreview } from './DialoguePreview.tsx'
 import { Defects, Incidents, Tickets } from './Backlogs.tsx'
 import { OvernightReport } from './OvernightReport.tsx'
@@ -457,6 +457,8 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
             labelled={unlocks.entropyLabel}
           />
           <Velocity state={state} />
+          {/* §21.7.0 rule 5 — the clock James's gym runs on [2026-10-16]. */}
+          <StudioClock state={state} />
           {/*
             §16 — the two readouts the top of the ladder adds, under the two the
             whole game has had. They are in this rail rather than the right one

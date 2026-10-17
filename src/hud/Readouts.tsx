@@ -20,6 +20,7 @@ import { useHeldCount } from './useHeldCount.ts'
 import { useReducedMotion } from '../ui/motion.ts'
 import { barrierProgress, buildTimeLabel, planckLabel } from '../sim/starbound.ts'
 import { secondsUntilBankrupt } from '../sim/economy.ts'
+import { jamesPresent, studioClockLabel } from '../sim/james.ts'
 import { useSpring } from '../ui/useSpring.ts'
 import { SPRING_HEAVY } from '../ui/spring.ts'
 import { Counter } from './Counter.tsx'
@@ -266,6 +267,27 @@ export function Velocity({ state }: { state: GameState }) {
       {/* Only while the player is actually poking, so the row is an event
           rather than furniture. */}
       {split && <span className="hud__sub hud__sub--split">{split}</span>}
+    </div>
+  )
+}
+
+/**
+ * The studio clock — §21.7.0 rule 5 [amended 2026-10-16].
+ *
+ * A studio hour is a minute of play now, so James's gym comes round every 24
+ * minutes, and an absence the player cannot see coming reads as a bug rather
+ * than as a man who has never once missed leg day. The clock is the warning.
+ * It exists only once he has, since before then there is nobody for it to be
+ * about, and it says where he is for the one hour he is not at his desk.
+ */
+export function StudioClock({ state }: { state: GameState }) {
+  if (!arrivedHeroes().has('james')) return null
+  const gym = !jamesPresent(state.runSeconds)
+  return (
+    <div className="hud__block">
+      <span className="hud__label">STUDIO TIME</span>
+      <b className="hud__num">{studioClockLabel(state.runSeconds)}</b>
+      {gym && <span className="hud__sub is-bad">JAMES IS AT THE GYM</span>}
     </div>
   )
 }

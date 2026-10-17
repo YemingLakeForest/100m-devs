@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { __resetStore, __setState, founderOf, getState, pokeJames } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { SCENE_JAMES_ARRIVES } from './scenes.ts'
-import { GYM_START_HOUR } from '../sim/james.ts'
+import { GYM_START_HOUR, runSecondsAtHour } from '../sim/james.ts'
 
 function jamesHasArrived(yes: boolean) {
   const p = emptyPermanent()
@@ -38,7 +38,7 @@ describe('a poke on James', () => {
 
   it('pays nothing while he is at the gym', () => {
     jamesHasArrived(true)
-    __setState({ runSeconds: (GYM_START_HOUR + 0.5) * 3600 })
+    __setState({ runSeconds: runSecondsAtHour(GYM_START_HOUR + 0.5) })
     expect(pokeJames()).toBe(0)
   })
 })
