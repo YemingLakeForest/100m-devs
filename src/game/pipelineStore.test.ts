@@ -262,7 +262,11 @@ describe("§10.7 — Serena's board", () => {
     expect(every).toBeGreaterThan(0)
     for (let t = 0; t < every + 2; t += 1) step(1)
     expect(getState().projectsShipped).toBe(1)
-    expect(getState().ship?.timingLabel).toBeNull()
+    // §10.8b [amended 2026-10-16] — the reel is for attended releases. An
+    // auto-ship publishes no `ship` event, only the ticker's.
+    expect(getState().ship).toBeNull()
+    expect(getState().autoShipped?.name).toBe(getState().history.recent[0].name)
+    expect(getState().autoShipped?.count).toBe(1)
   })
 })
 

@@ -34,6 +34,10 @@
  *
  * The cash readout in the corner still moves through all of this, and that is
  * where the money now lives — one place instead of two.
+ *
+ * [amended 2026-10-16] Only for a release somebody attended. Serena's
+ * auto-ships publish no `ship` event and get `ShipTicker`'s one line instead:
+ * at a twenty-second cadence this reel was the hour's wallpaper.
  */
 
 import { useEffect, useState } from 'react'

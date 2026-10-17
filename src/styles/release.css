@@ -728,3 +728,30 @@
     min-height: 1.25em;
   }
 }
+
+/*
+ * §10.8b [amended 2026-10-16] — the auto-ship ticker. One line, bottom centre,
+ * on the reel's plate ink, and nothing that moves: Serena's releases are the
+ * studio's background noise, and the reel is for the ones the player played.
+ */
+.ticker {
+  position: absolute;
+  left: 50%;
+  bottom: 56px;
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: calc(100% - 32px);
+  padding: 2px 8px;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--type-1x);
+  color: var(--p2);
+  background: color-mix(in srgb, var(--n0) 92%, transparent);
+  border: var(--rule) solid var(--p1);
+}
+
+.ticker__k {
+  color: var(--p3);
+}

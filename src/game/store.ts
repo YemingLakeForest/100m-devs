@@ -563,6 +563,23 @@ export interface GameState {
     stage: ReadinessStage | null
   } | null
   /**
+   * §10.8b [amended 2026-10-16, plan phase 4.1] — the last release **nobody
+   * attended**: Serena's auto-ship. An event with an id, as {@link ship} is, and
+   * a different one on purpose. The reel is a three-and-a-half-second beat with
+   * the camera's bars; at a twenty-second cadence it played on two of every three
+   * seconds of a big studio's hour, for releases the player never saw a ring for,
+   * and a celebration of nothing the player did is a celebration they learn to
+   * look past. An auto-ship gets one line on the ticker instead.
+   */
+  autoShipped: {
+    id: number
+    name: string
+    rating: number
+    /** Builds that went out on this frame — a long step can owe Serena several. */
+    count: number
+    at: number
+  } | null
+  /**
    * §10.7 [amended 2026-10-04] — **the build queue**: finished builds waiting for
    * SHIP!, oldest first. A finished project lands here at once — there is no Build
    * and no Test any more (`sim/pipeline.ts` has the argument) — and the queue is
@@ -982,6 +999,7 @@ function freshRun(): GameState {
     buffs: [],
     peakDevs: 0,
     ship: null,
+    autoShipped: null,
     // §10.7 — nothing on the belt. A run that has built nothing has nothing to
     // ship, and a new run starts on the garage's own machine.
     shelf: [],
@@ -2116,8 +2134,14 @@ export function ringDefectCount(build: ShelvedBuild): number {
  * the ring, Serena's auto-ship, and a test standing in for the player. They
  * differ by the {@link LaunchOutcome} they hand over and by nothing else, which
  * is what keeps "what is a release worth" from having three answers (§9.2).
+ *
+ * `reel` is whether the release publishes {@link GameState.ship}, the event the
+ * review reel and the camera's punch play on. It is not read off
+ * `outcome.attended`, because a test standing in for SHIP! releases at the train
+ * and still means "the player shipped this"; only the caller knows whether a
+ * person was there [plan phase 4.1].
  */
-function releaseFrom(s: GameState, outcome: LaunchOutcome): Partial<GameState> {
+function releaseFrom(s: GameState, outcome: LaunchOutcome, reel = true): Partial<GameState> {
   const build = s.shelf[0]
   if (!build) return {}
   const tech = techOf(s)
@@ -2188,20 +2212,25 @@ function releaseFrom(s: GameState, outcome: LaunchOutcome): Partial<GameState> {
     shelf: s.shelf.slice(1),
     history: recordRelease(s.history, record),
     reputation: advanceReputation(s.reputation, rating),
-    // §10.8a — the moment gets an event, named for the build that shipped.
-    ship: {
-      id: nextShipId++,
-      name: build.name,
-      revenue,
-      at: performance.now(),
-      rating,
-      ordinal: build.ordinal,
-      timing: outcome.timing.multiplier,
-      // Null when nobody was at the launch, so the reel says nothing rather
-      // than print QUIET LAUNCH over a release the player never saw a ring for.
-      timingLabel: outcome.attended ? outcome.timing.label : null,
-      stage: outcome.attended ? outcome.stage : null,
-    },
+    // §10.8a — the moment gets an event, named for the build that shipped. An
+    // auto-ship gets the ticker's instead (`advanceBelt`).
+    ...(reel
+      ? {
+          ship: {
+            id: nextShipId++,
+            name: build.name,
+            revenue,
+            at: performance.now(),
+            rating,
+            ordinal: build.ordinal,
+            timing: outcome.timing.multiplier,
+            // Null when nobody was at the launch, so the reel says nothing rather
+            // than print QUIET LAUNCH over a release the player never saw a ring for.
+            timingLabel: outcome.attended ? outcome.timing.label : null,
+            stage: outcome.attended ? outcome.stage : null,
+          },
+        }
+      : {}),
     // §4.10e — no lump. The game goes on sale and `tick` banks the tail.
     releases: [
       ...s.releases,
@@ -2235,11 +2264,26 @@ function advanceBelt(s: GameState, dt: number): Partial<GameState> {
   }
   let now = s
   let clock = s.autoShipClock + dt
+  let count = 0
+  let last: ShelvedBuild | null = null
   while (clock >= fx.autoShipSeconds && now.shelf.length > 0) {
     clock -= fx.autoShipSeconds
-    const out = releaseFrom(now, pipelineLaunch())
+    last = now.shelf[0]
+    const out = releaseFrom(now, pipelineLaunch(), false)
     now = { ...now, ...out }
     patch = { ...patch, ...out }
+    count += 1
+  }
+  // §10.8b [amended 2026-10-16] — the ticker, not the reel: nobody was there.
+  if (last && count > 0) {
+    const record = now.history.recent[now.history.recent.length - 1]
+    patch.autoShipped = {
+      id: nextShipId++,
+      name: last.name,
+      rating: record?.rating ?? BASELINE_RATING,
+      count,
+      at: performance.now(),
+    }
   }
   // An idle shipper does not bank shots: with nothing on the shelf the clock
   // waits at "ready" rather than accumulating a burst for later.

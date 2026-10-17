@@ -43,6 +43,7 @@ import { Typewriter } from '../ui/Typewriter.tsx'
 import { BurnDown } from './BurnDown.tsx'
 import { RevenueGraph } from './RevenueGraph.tsx'
 import { ReleaseReview } from './ReleaseReview.tsx'
+import { ShipTicker } from './ShipTicker.tsx'
 import { ReleaseRing } from './ReleaseRing.tsx'
 import { PipelineStrip } from './PipelineStrip.tsx'
 import { TREE_HEROES, type TreeHero } from '../sim/upgradeTrees.ts'
@@ -635,6 +636,7 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
           the studio is stopped for; the reel is what the press said about it,
           and it plays over a running floor. */}
       <ReleaseReview state={state} />
+      <ShipTicker state={state} />
       <ReleaseRing state={state} />
       <DevCard state={state} />
 
