@@ -141,13 +141,13 @@ export interface PipelineNode {
 export const PIPELINE_TREE: readonly PipelineNode[] = [
   // Capacity: the belt gets longer.
   { id: 's1', name: 'Shelf', family: 'capacity', rank: 'I', x: 1, y: 0, era: 0, maxLevel: 5, requires: [],
-    effect: 'The buffer holds one more build per level.', flavour: 'Rank I. A full buffer stops the studio, so a longer one is a longer lunch.' },
+    effect: 'Hold one more build for a launch, per level.', flavour: 'Rank I. A launch is as big as the queue that holds it.' },
   { id: 's2', name: 'Rack', family: 'capacity', x: 2, y: 0, era: 1, maxLevel: 5, requires: ['s1'],
-    effect: 'Three more builds per level.', flavour: 'The belt in the room gets longer.' },
+    effect: 'Hold three more builds for a launch, per level.', flavour: 'The belt in the room gets longer.' },
   { id: 's3', name: 'Build Farm', family: 'capacity', x: 3, y: 0, era: 2, maxLevel: 5, requires: ['s2'],
-    effect: 'Twenty more builds per level.', flavour: 'A warehouse of machines nobody is allowed to reboot.' },
+    effect: 'Hold twenty more builds for a launch, per level.', flavour: 'A warehouse of machines nobody is allowed to reboot.' },
   { id: 's4', name: 'Orbital Ring', family: 'capacity', x: 3, y: 1, era: 3, maxLevel: 5, requires: ['s3'],
-    effect: 'Five hundred more builds per level.', flavour: 'The belt leaves the atmosphere.' },
+    effect: 'Hold five hundred more builds for a launch, per level.', flavour: 'The belt leaves the atmosphere.' },
   // Coordination: the tooling that moves the §2.7 ledger.
   { id: 'v2', name: 'Build Cache', family: 'tooling', x: 0, y: -1, era: 1, maxLevel: 3, requires: [],
     effect: 'Waiting turns into handoffs.', flavour: 'Builds reuse what they can. Somebody has to find out who poisoned the cache.',
@@ -159,15 +159,15 @@ export const PIPELINE_TREE: readonly PipelineNode[] = [
   { id: 'q1', name: 'Quarantine the Flaky Tests', family: 'quality', x: 0, y: 1, era: 0, maxLevel: 3, requires: [],
     effect: 'Catches 15% of a build’s defects per level as it joins the queue.', flavour: 'The test that fails on Tuesdays is moved to a folder called LATER.' },
   // Flow: SHIP! presses itself.
-  { id: 'a1', name: 'Auto-Ship', family: 'flow', rank: 'II', x: 1, y: -1, era: 0, maxLevel: 1, requires: ['s1'],
-    effect: `SHIP! presses itself, ${AUTO_SHIP_DELAY_SECONDS} seconds after a build lands.`, flavour: 'Rank II. You can stop clicking.' },
+  { id: 'a1', name: 'Launch Day', family: 'flow', rank: 'II', x: 1, y: -1, era: 0, maxLevel: 1, requires: ['s1'],
+    effect: 'HOLD: pause Serena and keep what lands, then LAUNCH the held queue as one release.', flavour: 'Rank II. She ships everything anyway. This is for the ones you want to be there for.' },
   { id: 'a2', name: 'Auto-Ship Speed', family: 'flow', x: 2, y: -1, era: 0, maxLevel: 5, requires: ['a1'],
     effect: `Serena ships a build ${Math.round((1 - 1 / AUTO_SHIP_STEP) * 100)}% sooner per level.`, flavour: null },
   { id: 'a3a', name: 'Ship on Friday', family: 'flow', x: 3, y: -1, era: 1, maxLevel: 1, requires: ['a2'], fork: 'E',
     effect: 'Nothing waits: Serena ships in half the time. Waiting turns into handoffs.', flavour: 'Monday goes on handing round the pager.',
     fix: { cuts: 'wait', feeds: 'handoff', share: 0.4 } },
   { id: 'a3b', name: 'Ship on Green', family: 'flow', x: 2, y: -2, era: 1, maxLevel: 1, requires: ['a2'], fork: 'E',
-    effect: 'Nothing ships twice: duplicate work turns into waiting, and the queue catches another 20% of defects.', flavour: 'Everything waits for green.',
+    effect: 'Serena ships one stage further on: GOLD, not RC. Duplicate work turns into waiting, and the queue catches another 20% of defects.', flavour: 'Everything waits for green.',
     fix: { cuts: 'dup', feeds: 'wait', share: 0.4 } },
   { id: 'K', name: 'Continuous Everything', family: 'flow', x: 4, y: -2, era: 3, maxLevel: 1, requires: ['s3', 'v3'],
     effect: 'Breakthrough: 70% of all waiting is gone.', flavour: 'The belt never stops. Nobody remembers what waiting was.',
@@ -196,6 +196,8 @@ export interface PipelineEffects {
   autoShipDelay: number
   /** HOLD exists: the player may pause her and launch the held queue as one ring (a1). */
   launchDay: boolean
+  /** Readiness stages her releases go out above RC (`release.pipelineLaunch`) — Ship on Green. */
+  stagesUp: number
   fixes: readonly Fix[]
   breakthroughs: readonly CoordKind[]
 }
@@ -225,6 +227,9 @@ export function pipelineEffects(levels: PipelineLevels | undefined, serena = fal
       ? AUTO_SHIP_DELAY_SECONDS / AUTO_SHIP_STEP ** l('a2') / (l('a3a') > 0 ? 2 : 1)
       : Infinity,
     launchDay: serena && l('a1') > 0,
+    // [2026-10-16, plan phase 4.6] Ship on Green waits for green, so what she
+    // ships is one stage further on. It was a catch and a ledger move only.
+    stagesUp: l('a3b') > 0 ? 1 : 0,
     fixes,
     breakthroughs,
   }

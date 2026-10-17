@@ -293,6 +293,20 @@ describe("§10.7 — Serena's board", () => {
     expect(getState().projectsShipped).toBeGreaterThanOrEqual(built - 1)
   })
 
+  it('[phase 4.6] ships at GOLD rather than RC once Ship on Green is owned', () => {
+    withSerena()
+    const stageAfterAutoShip = () => {
+      finish()
+      for (let i = 0; i < 40; i++) step(1)
+      return getState().history.recent[getState().history.recent.length - 1].launch!
+    }
+    const rc = stageAfterAutoShip()
+    __resetStore()
+    withSerena()
+    __setState({ pipelineNodes: { a3b: 1 } })
+    expect(stageAfterAutoShip()).toBeGreaterThan(rc)
+  })
+
   it('does nothing before Serena: the queue waits for SHIP!', () => {
     finish()
     for (let i = 0; i < 120; i++) step(1)

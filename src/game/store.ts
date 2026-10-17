@@ -2373,7 +2373,7 @@ function advanceBelt(s: GameState): Partial<GameState> {
   let last: ShelvedBuild | null = null
   while (now.shelf.length > 0 && now.runSeconds - now.shelf[0].shelvedAt >= fx.autoShipDelay) {
     last = now.shelf[0]
-    const out = releaseFrom(now, pipelineLaunch(), false)
+    const out = releaseFrom(now, pipelineLaunch(fx.stagesUp), false)
     now = { ...now, ...out }
     patch = { ...patch, ...out }
     count += 1
@@ -2504,7 +2504,7 @@ export function pressShip(): 'ring' | 'shipped' | null {
   if (state.launching || state.shelf.length === 0) return null
   if (state.scene !== null || state.phase === 'bankrupt') return null
   const head = state.shelf[0]
-  const out = releaseFrom(state, pipelineLaunch(), false)
+  const out = releaseFrom(state, pipelineLaunch(pipelineOf().stagesUp), false)
   const record = out.history?.recent[out.history.recent.length - 1]
   set({
     ...out,
@@ -4513,7 +4513,7 @@ function offlineBelt(s: GameState): { autoShip: boolean; shelved: number; buffer
 function offlineBeltAfter(s: GameState, report: OfflineReport): Partial<GameState> {
   let now: GameState = s
   for (let k = 0; k < report.shelfShipped && now.shelf.length > 0; k++) {
-    now = { ...now, ...releaseFrom(now, pipelineLaunch(), false) }
+    now = { ...now, ...releaseFrom(now, pipelineLaunch(pipelineOf(now).stagesUp), false) }
   }
   for (const index of report.built) {
     const at = Math.min(Math.max(0, index), PROJECTS.length - 1)

@@ -35,6 +35,16 @@ describe('Serena’s pipeline board', () => {
     expect(pipelineEffects({}, true).autoShip).toBe(true)
     expect(pipelineEffects({}, true).autoShipDelay).toBe(AUTO_SHIP_DELAY_SECONDS)
   })
+  it('[2026-10-16, phase 4.6] Launch Day opens HOLD, and Ship on Green ships a stage further on', () => {
+    expect(PIPELINE_BY_ID.get('a1')!.name).toBe('Launch Day')
+    expect(pipelineEffects({ a1: 1 }).launchDay).toBe(false)
+    expect(pipelineEffects({}, true).launchDay).toBe(false)
+    expect(pipelineEffects({ a1: 1 }, true).launchDay).toBe(true)
+    expect(pipelineEffects({}, true).stagesUp).toBe(0)
+    expect(pipelineEffects({ a3b: 1 }, true).stagesUp).toBe(1)
+    // Every capacity node is sold as the size of a launch now.
+    for (const id of ['s1', 's2', 's3', 's4']) expect(PIPELINE_BY_ID.get(id)!.effect).toMatch(/launch/)
+  })
   it('the speed nodes shorten her delay, each level more, and Ship on Friday most', () => {
     const delay = (levels: Record<string, number>) => pipelineEffects(levels, true).autoShipDelay
     expect(delay({ a1: 1, a2: 1 })).toBeLessThan(delay({}))

@@ -308,7 +308,7 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('y1', 1, 0, 'Second Monitor', 'monitor', 0, { p: ['R'], lv: true, fx: 'Your own desk writes 30% more.', d: 'Your own desk writes more. It is the one output in the company that never dilutes.' }),
     N('y2', 0, 1, 'Beanbag Row', 'beanbag', 0, { p: ['R'], t: 'lvl', max: 3, d: 'Two more garage seats per level.' }),
     N('y3', 1, 1, 'The Big Red Button', 'button', 0, { p: ['y1', 'y2'], d: 'SHIP! by hand. It clunks. Every release is your finger until Serena automates it.' }),
-    N('gS', 1, 2, 'Serena · Auto-Ship', '', 0, { t: 'link', to: 'serena:a1', p: ['y3'] }),
+    N('gS', 1, 2, 'Serena · Launch Day', '', 0, { t: 'link', to: 'serena:a1', p: ['y3'] }),
     N('p1', 2, 0, 'Look Over Their Shoulder', 'head', 0, { p: ['y1'], lv: true, fx: 'A poke interrupts the person 15% less.', d: 'A poke wakes one slacker. The effect wears off, which is what pokes are for.' }),
     N('p2', 3, 0, 'Walk the Floor', 'shoe', 1, { p: ['p1'], d: 'A poke reaches a whole pod.' }),
     N('p3a', 4, 0, 'All-Hands Email', 'envelope', 2, { p: ['p2'], ex: 'A', mv: ['slacking', 'meetings', 5], d: 'Pokes a whole tower at once. They discuss it in a meeting about the email.' }),

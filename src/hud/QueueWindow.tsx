@@ -59,7 +59,7 @@ export function QueueWindow({
   open: boolean
   state: GameState
   onClose: () => void
-  /** Serena's card, where capacity, speed and Auto-Ship are bought. */
+  /** Serena's card, where capacity, speed and Launch Day are bought. */
   onBoard: () => void
 }) {
   const v = queueView(state)
