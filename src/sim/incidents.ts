@@ -354,6 +354,65 @@ export function bleedDowned(
   return { releases: next, refunded }
 }
 
+/**
+ * PATCH — seconds of on-call work one tap takes off an incident (§4.15's chip).
+ *
+ * The player's verb on the pager [2026-10-16], answering "none of this gives the
+ * player anything to do" (finding 05). Six: a garage incident is 45 seconds of
+ * work, so eight taps close one the founder would have spent the better part
+ * of a minute on — fast enough that hand-patching is always the cheapest way
+ * out (it shortens the bleed), slow enough to be a decision against poking.
+ */
+export const PATCH_SECONDS = 6
+
+/**
+ * REFUND & MOVE ON — the share of what the release still owes that is given
+ * back to close the incident at once.
+ *
+ * A quarter: the bleed costs the same after about nineteen seconds down
+ * ({@link INCIDENT_REFUND_PER_SEC}), so the button is the right call for an
+ * incident with a long queue in front of it and the wrong one for a short one —
+ * which is a choice rather than a correct answer, §4.5b's standing requirement.
+ */
+export const REFUND_MOVE_ON_SHARE = 0.25
+
+/** Take `seconds` of work off one incident; at zero it closes. */
+export function patchIncident(
+  incidents: readonly Incident[],
+  id: number,
+  seconds = PATCH_SECONDS,
+): { incidents: Incident[]; closed: Incident | null; patched: boolean } {
+  const target = incidents.find((i) => i.id === id)
+  if (!target || !(seconds > 0)) return { incidents: incidents as Incident[], closed: null, patched: false }
+  const work = target.work - seconds
+  if (work <= 0) return { incidents: incidents.filter((i) => i.id !== id), closed: target, patched: true }
+  return { incidents: incidents.map((i) => (i.id === id ? { ...i, work } : i)), closed: null, patched: true }
+}
+
+/**
+ * Matt's policy on an incident that has been open {@link MATT_AUTO_AFTER_S} —
+ * REFUND & MOVE ON when the bleed it will run up before the rota reaches it
+ * costs more than the quarter, otherwise leave it to the rota.
+ *
+ * `ahead` is the on-call work queued in front of it *including its own*, and
+ * `capacity` the rota's clearance per second — the rota works oldest first, so
+ * that ratio is how long this one has left to bleed. **Matt takes the pager off
+ * your desk, not the problem off your books** (§22.8): his answer is the
+ * cheaper of two costs, never free, and a thumb on PATCH beats both by
+ * shortening the bleed itself.
+ */
+export function mattRefunds(keep: number, ahead: number, capacity: number): boolean {
+  const k = Math.min(1, Math.max(0, finite(keep, 1)))
+  if (k <= INCIDENT_KEEP_FLOOR) return false
+  const wait = capacity > 0 ? Math.max(0, finite(ahead)) / capacity : Infinity
+  // Bleed as a share of what is owed now, floored the way the bleed is.
+  const bleed = Math.min(1 - Math.exp(-INCIDENT_REFUND_PER_SEC * wait), 1 - INCIDENT_KEEP_FLOOR / k)
+  return bleed > REFUND_MOVE_ON_SHARE
+}
+
+/** Seconds an incident waits on Matt's desk before his policy looks at it. */
+export const MATT_AUTO_AFTER_S = 10
+
 export interface IncidentStep {
   incidents: Incident[]
   /** Closed over this step. For §4.15's chip leaving and the ship toast. */

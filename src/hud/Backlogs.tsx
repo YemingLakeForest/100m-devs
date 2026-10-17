@@ -29,7 +29,13 @@ import { densityLine } from '../sim/defects.ts'
 import { incidentBleedRate } from '../sim/incidents.ts'
 import { formatMoney } from './hudModel.ts'
 import { serviceRatio } from '../sim/support.ts'
-import { supportHeads, type GameState } from '../game/store.ts'
+import {
+  answerTickets,
+  patchIncident,
+  refundIncident,
+  supportHeads,
+  type GameState,
+} from '../game/store.ts'
 import { Kw } from './Kw.tsx'
 
 /**
@@ -104,6 +110,21 @@ export function Incidents({ state }: { state: GameState }) {
               dollars a second, and gone once the bleed has hit its floor.
             */}
             <Refunding releaseId={incident.releaseId} state={state} />
+            {/*
+              [2026-10-16] The two answers, on the chip they answer. PATCH is
+              the thumb (each tap is seconds of on-call work); REFUND & MOVE ON
+              gives back a quarter of what the game still owes and puts it on
+              sale now. Neither is ever the obviously right one: that depends
+              on how long the rota would take, which is the decision.
+            */}
+            <span className="backlog__verbs">
+              <button type="button" className="backlog__verb" onClick={() => patchIncident(incident.id)}>
+                PATCH
+              </button>
+              <button type="button" className="backlog__verb" onClick={() => refundIncident(incident.id)}>
+                REFUND &amp; MOVE ON
+              </button>
+            </span>
           </li>
         ))}
       </ul>
@@ -167,9 +188,18 @@ export function Tickets({ state }: { state: GameState }) {
         <Kw kind="tickets">TICKETS</Kw>
         <span className="backlog__note">FALLING BEHIND</span>
       </span>
-      <div className="backlog__bar" role="presentation">
-        <div className="backlog__bar-fill" style={{ inlineSize: `${fill * 100}%` }} />
-      </div>
+      {/*
+        [2026-10-16] The bar takes taps: the founder at the inbox, a second and
+        a half of arrivals per tap (`support.ts`). A button rather than a click
+        handler on the bar, so it is a control a keyboard can reach and the rail
+        only takes pointers where there is something to press.
+      */}
+      <button type="button" className="backlog__tap" onClick={() => answerTickets()} aria-label="Answer tickets">
+        <span className="backlog__bar" role="presentation">
+          <span className="backlog__bar-fill" style={{ inlineSize: `${fill * 100}%` }} />
+        </span>
+        <span className="backlog__verb-label">ANSWER</span>
+      </button>
     </div>
   )
 }

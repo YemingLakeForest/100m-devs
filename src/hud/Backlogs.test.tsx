@@ -109,6 +109,12 @@ describe('§4.12a — the incident chips', () => {
     expect(screen.queryByText(/REFUNDING/)).not.toBeInTheDocument()
   })
 
+  it('offers both answers on every chip [2026-10-16]', () => {
+    render(<Incidents state={down} />)
+    expect(screen.getAllByRole('button', { name: 'PATCH' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'REFUND & MOVE ON' })).toHaveLength(2)
+  })
+
   it('names no hire — Serena’s rota is the answer, and she is already here', () => {
     render(<Incidents state={down} />)
     expect(screen.queryByText(/HIRE/)).not.toBeInTheDocument()

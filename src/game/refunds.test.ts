@@ -8,9 +8,18 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { __resetStore, __setState, getState, tick } from './store.ts'
+import {
+  __resetStore,
+  __setState,
+  answerTickets,
+  getState,
+  patchIncident,
+  refundIncident,
+  tick,
+} from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { outstandingOf, rollShape, type Release } from '../sim/revenue.ts'
+import { PATCH_SECONDS, REFUND_MOVE_ON_SHARE } from '../sim/incidents.ts'
 
 function prestiged(milestones: string[] = []) {
   const p = emptyPermanent()
@@ -55,6 +64,58 @@ describe('§4.12a — a downed release refunds while it is down', () => {
     })
     tick(1)
     expect(refundedOn(getState().releases)).toBe(0)
+  })
+})
+
+describe('§4.15 — the player can do something about it', () => {
+  const pageOn = (id: number, work = 45) => ({ id, releaseId: id, releaseName: `Game ${id}`, age: 0, work })
+
+  it('PATCH takes work off the incident it names, and closes it at zero', () => {
+    __setState({ releases: [onSale(1, 1_000)], incidents: [pageOn(1, PATCH_SECONDS * 1.5)] })
+    expect(patchIncident(1)).toBe(true)
+    expect(getState().incidents[0].work).toBeCloseTo(PATCH_SECONDS * 0.5, 9)
+    expect(patchIncident(1)).toBe(true)
+    expect(getState().incidents).toEqual([])
+    expect(patchIncident(1)).toBe(false)
+  })
+
+  it('REFUND & MOVE ON closes it at once and books the quarter on that release', () => {
+    __setState({ releases: [onSale(1, 1_000), onSale(2, 1_000)], incidents: [pageOn(2)] })
+    expect(refundIncident(2)).toBe(true)
+    const [one, two] = getState().releases
+    expect(getState().incidents).toEqual([])
+    expect(one.refunded ?? 0).toBe(0)
+    expect(two.refunded).toBeCloseTo(1_000 * REFUND_MOVE_ON_SHARE, 9)
+    expect(balanced(two)).toBeCloseTo(1_000, 9)
+  })
+
+  it('patching by hand costs less than leaving it to the founder', () => {
+    const run = (taps: boolean) => {
+      __resetStore()
+      prestiged()
+      __setState({ releases: [onSale(1, 1_000_000)], incidents: [pageOn(1)] })
+      for (let t = 0; t < 120 && getState().incidents.length > 0; t += 0.25) {
+        if (taps) patchIncident(1)
+        tick(0.25)
+      }
+      return refundedOn(getState().releases)
+    }
+    expect(run(true)).toBeLessThan(run(false))
+  })
+
+  it('a tap on the ticket bar answers tickets, and does nothing with an empty queue', () => {
+    __setState({ releases: [onSale(1, 1_000)], projectsShipped: 50, tickets: 1_000 })
+    expect(answerTickets()).toBe(true)
+    expect(getState().tickets).toBeLessThan(1_000)
+    __setState({ tickets: 0 })
+    expect(answerTickets()).toBe(false)
+  })
+
+  it('refuses every verb while a scene has the clock stopped', () => {
+    __setState({ releases: [onSale(1, 1_000)], incidents: [pageOn(1)], tickets: 10, launching: true })
+    expect(patchIncident(1)).toBe(false)
+    expect(refundIncident(1)).toBe(false)
+    expect(answerTickets()).toBe(false)
   })
 })
 

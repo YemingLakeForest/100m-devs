@@ -210,6 +210,23 @@ export function catalogueMultiplier(queue: number, supportHeads: number): number
   return Math.max(MIN_CATALOGUE_MULTIPLIER, raw)
 }
 
+/**
+ * A tap on §4.15's ticket bar answers this many seconds of arrivals [2026-10-16].
+ *
+ * The founder at the inbox — the player's verb on the queue, answering finding
+ * 05's "none of this gives the player anything to do". **Stated in seconds of
+ * arrivals rather than in tickets**, so a tap means the same at twenty games and
+ * at two thousand: a thumb at a few taps a second outruns any catalogue, and
+ * every one of those taps is one not spent poking. One and a half seconds.
+ */
+export const TICKET_TAP_SECONDS = 1.5
+
+/** Tickets one tap answers: {@link TICKET_TAP_SECONDS} of arrivals, at least one, never more than are waiting. */
+export function ticketsPerTap(queue: number, arrivalsPerSecond: number): number {
+  const q = Math.max(0, finite(queue))
+  return Math.min(q, Math.max(1, TICKET_TAP_SECONDS * Math.max(0, finite(arrivalsPerSecond))))
+}
+
 /** §4.15's bar — below 1 is falling behind, at or above is keeping up. */
 export function serviceRatio(catalogue: number, defectBacklog: number, supportHeads: number): number {
   const arriving = ticketRate(catalogue, defectBacklog)

@@ -24,6 +24,7 @@ import {
   advanceTail,
   catalogueIncome,
   catalogueOutstanding,
+  refund,
   rollShape,
   type Release,
 } from '../sim/revenue.ts'
@@ -38,14 +39,22 @@ import { lessonFor, ledgerWith } from './lessons.ts'
 import type { ShiftReport } from './paradigmBoot.ts'
 import { advanceDefects, defectsFromPoke, shipDefects } from '../sim/defects.ts'
 import {
+  REFUND_MOVE_ON_SHARE,
   advanceIncidents,
   bleedDowned,
   clearanceCapacity,
   incidentRate,
+  patchIncident as patchWork,
   suppressedReleases,
   type Incident,
 } from '../sim/incidents.ts'
-import { advanceTickets, catalogueMultiplier, serviceRatio } from '../sim/support.ts'
+import {
+  advanceTickets,
+  catalogueMultiplier,
+  serviceRatio,
+  ticketRate,
+  ticketsPerTap,
+} from '../sim/support.ts'
 import {
   BASELINE_RATING,
   LAUNCH_NEUTRAL,
@@ -2003,6 +2012,52 @@ export function burnedFraction(s: GameState = state): number {
 
 export function isLocked(s: GameState = state): boolean {
   return currentEntropy(s) >= 0.99
+}
+
+// --- §4.15 [2026-10-16] — firefighting: the player's verbs on Matt's side ----
+//
+// The fun-killers audit (finding 05): *"None of this gives the player anything
+// to do. It's pressure you watch, and Matt switches it off permanently."* So
+// each problem that costs money now has a thing to press. All three refuse
+// while a scene or the ring has the clock stopped (the world is paused, and a
+// verb that moved money under a pause would be the one thing that did), and
+// there is nothing for them to act on in Run 1: no incident is raised and no
+// ticket arrives while the backlogs are closed.
+
+/** §4.13 — tickets arriving per second: what the bar and a tap are measured in. */
+export function ticketArrivals(s: GameState = state): number {
+  return ticketRate(s.projectsShipped, s.defects) * s.heroFold.ticketRate
+}
+
+/** PATCH — a tap on an incident chip takes `PATCH_SECONDS` of work off it. */
+export function patchIncident(id: number): boolean {
+  if (state.scene !== null || state.launching) return false
+  const step = patchWork(state.incidents, id)
+  if (!step.patched) return false
+  set({ incidents: step.incidents })
+  return true
+}
+
+/**
+ * REFUND & MOVE ON — give back a quarter of what the release still owes and put
+ * it back on sale now. Booked on the release like every other refund.
+ */
+export function refundIncident(id: number): boolean {
+  if (state.scene !== null || state.launching) return false
+  const incident = state.incidents.find((i) => i.id === id)
+  if (!incident) return false
+  set({
+    incidents: state.incidents.filter((i) => i.id !== id),
+    releases: state.releases.map((r) => (r.id === incident.releaseId ? refund(r, REFUND_MOVE_ON_SHARE).release : r)),
+  })
+  return true
+}
+
+/** A tap on the ticket bar — `TICKET_TAP_SECONDS` of arrivals answered. */
+export function answerTickets(): boolean {
+  if (state.scene !== null || state.launching || !(state.tickets > 0)) return false
+  set({ tickets: Math.max(0, state.tickets - ticketsPerTap(state.tickets, ticketArrivals())) })
+  return true
 }
 
 // --- actions ---------------------------------------------------------------
