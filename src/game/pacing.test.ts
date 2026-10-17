@@ -55,7 +55,7 @@ import {
 import { emptyPermanent, getPermanent, setPermanent } from './save.ts'
 import { PARADIGM_TREE, bpFor, nodeCost } from '../sim/prestige.ts'
 import { TREES } from '../sim/upgradeTrees.ts'
-import { payrollPerSecond } from '../sim/economy.ts'
+import { FIRST_PAID_RUNG, payrollPerSecond } from '../sim/economy.ts'
 import { hireGrowthFor } from '../sim/founder.ts'
 import { quote } from '../sim/hireDial.ts'
 import { MASS_HIRE_COUNT } from './onboarding.ts'
@@ -427,9 +427,16 @@ describe('§13.12 — how long a run actually takes', () => {
 
 describe('the step size is honest', () => {
   it('agrees with a frame-rate step over a short window', () => {
+    // [2026-10-16] A forty-developer studio stands on the first paid rung, not in
+    // the garage. It stood at rung 0 of an unprestiged run — a state Run 1 cannot
+    // reach, since it never hires — and when Run 1's garage became five games
+    // that window spent its first half on garage ships, so the two-minute total
+    // hung on whether the $1M rung's first seconds of tail fell inside it (3-5%
+    // apart, from ship timing, not from the integrator).
+    const fixture = { runSeed: FIXED_SEED, devs: 40, cash: 1e6, projectIndex: FIRST_PAID_RUNG, commitment: commitmentFor(FIRST_PAID_RUNG) }
     const coarse = (() => {
       __resetStore()
-      __setState({ runSeed: FIXED_SEED, devs: 40, cash: 1e6 })
+      __setState(fixture)
       for (let t = 0; t < 120; t += 0.25) {
         tick(0.25)
         shipEverything()
@@ -438,7 +445,7 @@ describe('the step size is honest', () => {
     })()
     const fine = (() => {
       __resetStore()
-      __setState({ runSeed: FIXED_SEED, devs: 40, cash: 1e6 })
+      __setState(fixture)
       for (let t = 0; t < 120; t += 1 / 30) {
         tick(1 / 30)
         shipEverything()

@@ -34,10 +34,14 @@
  * Three things this buys back, stated because Act IIa was defended at length and
  * is being retired:
  *
- * 1. **The scene is true.** Two of them, three games, a thousand developers,
+ * 1. **The scene is true.** Two of them, five games, a thousand developers,
  *    five hundred times. Every number James says is checkable on screen.
- * 2. **Run 1 is four minutes again**, which is what §21.0c asks for — Act IIa
- *    had measured at 11.4 minutes and admitted it in §21.0's own note.
+ * 2. **Run 1 is short again**, which is what §21.0c asks for — Act IIa had
+ *    measured at 11.4 minutes and admitted it in §21.0's own note. It was four
+ *    minutes with a three-game garage; [amended 2026-10-16] it is about six with
+ *    five, because four minutes left the release ring — the run's one skill —
+ *    played three times before the trap, and the two extra games are where the
+ *    hands learn it (`RUN_ONE_GARAGE`).
  * 3. **The lesson is not diluted by a second one.** Act IIa taught cash-flow
  *    management; §6 is about communication overhead. Teaching both in the first
  *    four minutes taught neither, and §4.10g records what the first one was
@@ -51,7 +55,7 @@
  * carried one act earlier.
  */
 
-import { FIRST_PAID_RUNG } from '../sim/economy.ts'
+import { RUN_ONE_GARAGE } from '../sim/economy.ts'
 
 export type Phase =
   /** Act I — one dev, one project, learn to poke. */
@@ -288,14 +292,21 @@ export const MOUSETRAP_AT = 40
  * It was ten developers: "the first headcount at which the player has hired
  * enough times to have a habit". §21.0e deletes the habit — nobody hires in Run
  * 1 — so the beat is re-hung on the thing the player *has* been doing, which is
- * shipping. {@link FIRST_PAID_RUNG} games out is the whole garage catalogue:
- * *Flappy Square 1.0*, *1.1 (Now With Ads)* and *2.0 (Now With A Battle Pass)*.
+ * shipping. The whole garage catalogue is out: every rung below
+ * `FIRST_PAID_RUNG`, the *Flappy Square* joke of the same game shipped with
+ * one more monetisation feature each time.
  *
  * That is the same argument the old number made, pointed at the right verb. An
- * investor turns up because you have a catalogue and a release cadence, and
- * three shipped games is the first moment either of those words is true.
+ * investor turns up because you have a catalogue and a release cadence.
+ *
+ * **Five games, not three** [amended 2026-10-16]. It was `FIRST_PAID_RUNG`,
+ * one game per garage rung, and that put the term sheet three and a half
+ * minutes in with the release ring played three times. It is now the length of
+ * {@link RUN_ONE_GARAGE}, which builds rungs 1 and 2 twice — Run 1 only, so
+ * Run 2's garage is the three games it always was — and the two extra rings
+ * are where the player's hands learn the ring before the trap takes the run.
  */
-export const TERM_SHEET_AFTER_SHIPS = FIRST_PAID_RUNG
+export const TERM_SHEET_AFTER_SHIPS = RUN_ONE_GARAGE.length
 
 /**
  * What the round is worth.
@@ -306,7 +317,7 @@ export const TERM_SHEET_AFTER_SHIPS = FIRST_PAID_RUNG
  *
  * §21.0e gives it a second job it did not have and it is the more important one:
  * **it is the whole of the mousetrap's price.** The player reaches Act III with
- * a garage catalogue's $13,550 and this, and the Mass Hire costs the lot — so
+ * a garage catalogue's $27,050 (five games since 2026-10-16) and this, and the Mass Hire costs the lot — so
  * the money that liquidates the company is money somebody handed them for
  * growth, spent on growth, exactly as instructed.
  */
@@ -398,16 +409,17 @@ export function advanceOnboarding(phase: Phase, s: OnboardingSnapshot): Phase {
     case 'act1_ship':
       // **The whole garage catalogue, and then the investor** — §4.10f, §21.0e.
       //
-      // Two unpaid founders ship all three garage games before anything else
+      // Two unpaid founders ship the whole garage before anything else
       // happens: *Flappy Square 1.0* for fifty dollars, then the same game with
       // adverts, then the same game with a battle pass. That is the joke §4.10f
       // built the ladder for, and §21.0e is what finally lets it run to the end
       // — there is no hire prompt waiting to interrupt it after the first ship.
+      // [amended 2026-10-16] Five games on those three rungs, not three: see
+      // {@link TERM_SHEET_AFTER_SHIPS}.
       //
       // {@link TERM_SHEET_AFTER_SHIPS} rather than a literal, because the two
-      // facts are the same fact: the garage is every rung below
-      // {@link FIRST_PAID_RUNG}, and the term sheet arrives when the garage is
-      // finished.
+      // facts are the same fact: the garage is {@link RUN_ONE_GARAGE}, and the
+      // term sheet arrives when the garage is finished.
       return s.projectsShipped >= TERM_SHEET_AFTER_SHIPS ? 'act2_termsheet' : phase
 
     case 'act2_termsheet':

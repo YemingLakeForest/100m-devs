@@ -114,8 +114,10 @@ import {
   STARTING_DEVS,
   capAdjustedGrowth,
   isBankrupt,
+  nextRung,
   payrollPerSecond,
   projectRevenue,
+  RUN_ONE_GARAGE,
   targetBuildSeconds,
 } from '../sim/economy.ts'
 import {
@@ -351,21 +353,19 @@ export const PROJECTS = [
 /**
  * What the garage catalogue pays, all in — §21.0e.
  *
- * Every rung below {@link FIRST_PAID_RUNG}, summed — the *authored* total, not
- * the realised one: §4.10e pays on a tail, so a run standing at the term sheet
- * is still collecting the last of it. It is what Run 1 arrives at the term sheet
- * holding, near enough, and therefore roughly a fifth of what the Mass Hire
- * costs; `jumpToPhase` uses it so the `?act=` seams land on a treasury the run
+ * Every game of Run 1's garage ({@link RUN_ONE_GARAGE}: five games on the rungs
+ * below {@link FIRST_PAID_RUNG}, two of them built twice since 2026-10-16),
+ * summed — the *authored* total, not the realised one: §4.10e pays on a tail,
+ * so a run standing at the term sheet is still collecting the last of it. It is
+ * what Run 1 arrives at the term sheet holding, near enough, and therefore
+ * roughly a third of what the Mass Hire costs; `jumpToPhase` uses it so the `?act=` seams land on a treasury the run
  * could actually have, rather than on a round number chosen for a screenshot.
  *
  * Derived rather than written down, because the ladder is re-priced from time to
  * time (§4.10h did it on 2026-08-27) and a literal here would be a second place
  * that has to be remembered.
  */
-export const GARAGE_CATALOGUE_CASH = PROJECTS.slice(0, FIRST_PAID_RUNG).reduce(
-  (sum, p) => sum + p.payout,
-  0,
-)
+export const GARAGE_CATALOGUE_CASH = RUN_ONE_GARAGE.reduce((sum, rung) => sum + PROJECTS[rung].payout, 0)
 
 
 export interface FloatingNumeral {
@@ -1351,7 +1351,7 @@ export function inMeeting(s: GameState = state): boolean {
  * §7.8.0 has always said a leadership hire does not bring the garage one seat
  * closer to full, and §7.8.0c states it in numbers: *"the founder and James are
  * physical, and they are outside the twenty."* He still writes code — §21.0e's
- * act is "two of us shipped three games" — so he is a head the organisation
+ * act is "two of us shipped five games" — so he is a head the organisation
  * has, without being a head the floor seats or the counter counts.
  *
  * **He carries load as well as output, and that is not a detail.** The first
@@ -2163,7 +2163,12 @@ function finishBuild(s: GameState): Partial<GameState> {
   build.defects *= 1 - catches
   build.density *= 1 - catches
 
-  const nextIndex = Math.min(s.projectIndex + 1, PROJECTS.length - 1)
+  // §21.0e [amended 2026-10-16] — Run 1 walks its own five-game garage
+  // (`RUN_ONE_GARAGE`); every later run climbs one rung a game as it always
+  // has. Counted from the run's own ships plus the queue, not from the ordinal:
+  // the history outlives a run and the `?act=` seams set `projectsShipped`.
+  const built = s.projectsShipped + bufferCount(s) + 1
+  const nextIndex = nextRung(s.projectIndex, built, !hasPrestiged(), PROJECTS.length - 1)
   return {
     // The bench is clear. Whatever was on it is now the build's problem.
     defects: 0,
@@ -4638,7 +4643,7 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     capSeconds,
     rateMultiplier,
     // §24.5 — offline accrual does not exist during Run 1. §21 paces Run 1 at
-    // about four minutes and scripts every beat of it; an overnight summary
+    // about six minutes and scripts every beat of it; an overnight summary
     // landing mid-trap would resolve §6's lesson while the player was asleep.
     unlocked: meta.paradigmShifts > 0,
   }
@@ -4796,8 +4801,8 @@ if (import.meta.env?.MODE !== 'test') initPersistence()
 /**
  * Jump the script to a phase — `?act=act3_bait`.
  *
- * Run 1 is paced to take about four minutes, which §21 intends (James is
- * "proven wrong four minutes from now"). That is right for a player and
+ * Run 1 is paced to take about six minutes, which §21 intends (James is
+ * "proven wrong six minutes from now"). That is right for a player and
  * unworkable for someone iterating on Act V's copy, so the script is
  * addressable. Sets up whatever state the phase assumes, so the jump lands on
  * a coherent run rather than a contradictory one.
@@ -4848,7 +4853,7 @@ export function jumpToPhase(phase: Phase): void {
       break
     case 'act2_termsheet':
       // The catalogue is out and the investor is at the door. The treasury is
-      // exactly what three garage games pay, because the term sheet's whole
+      // exactly what the five garage games pay, because the term sheet's whole
       // rhetorical trick is the size of the number beside it.
       set({
         ...run,

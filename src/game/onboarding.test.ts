@@ -14,7 +14,7 @@ import {
   type Phase,
 } from './onboarding.ts'
 import { efficiency, passiveVelocity } from '../sim/entropy.ts'
-import { FIRST_PAID_RUNG } from '../sim/economy.ts'
+import { FIRST_PAID_RUNG, RUN_ONE_GARAGE } from '../sim/economy.ts'
 
 const base: OnboardingSnapshot = {
   pokeCount: 0,
@@ -118,9 +118,9 @@ describe('Act I — the clicker layer sells itself first', () => {
   })
 
   it('holds the garage open until the whole catalogue is out — §21.0e', () => {
-    // §4.10f, §21.0e. Two unpaid founders ship all three garage games with no
-    // hire button anywhere on screen, which is what makes Act III's arithmetic
-    // ("two of us shipped three games") a thing the player can count rather
+    // §4.10f, §21.0e. Two unpaid founders ship the whole garage with no hire
+    // button anywhere on screen, which is what makes Act III's arithmetic
+    // ("two of us shipped five games") a thing the player can count rather
     // than a claim they can disprove by looking at their own floor.
     for (let shipped = 0; shipped < TERM_SHEET_AFTER_SHIPS; shipped++) {
       expect(advanceOnboarding('act1_ship', at({ devs: 1, projectsShipped: shipped }))).toBe(
@@ -136,8 +136,21 @@ describe('Act I — the clicker layer sells itself first', () => {
   it('hangs the term sheet on the catalogue, not on a headcount — §21.0a', () => {
     // It used to fire at ten developers. §21.0e deletes the hiring that number
     // was about, so the beat is re-hung on the verb the player has actually been
-    // doing, and `FIRST_PAID_RUNG` is the whole garage by definition.
-    expect(TERM_SHEET_AFTER_SHIPS).toBe(FIRST_PAID_RUNG)
+    // doing: the term sheet arrives when Run 1's garage is finished.
+    expect(TERM_SHEET_AFTER_SHIPS).toBe(RUN_ONE_GARAGE.length)
+  })
+
+  it('makes Run 1 five garage games, every one of them unpaid — §21.0e amended 2026-10-16', () => {
+    // The claim is the shape, not the minutes: five games before the investor,
+    // all on rungs below the wage line (nobody is paid in the garage), every
+    // garage rung played, and the ring never getting easier as they go.
+    expect(TERM_SHEET_AFTER_SHIPS).toBe(5)
+    expect(RUN_ONE_GARAGE[0]).toBe(0)
+    for (const rung of RUN_ONE_GARAGE) expect(rung).toBeLessThan(FIRST_PAID_RUNG)
+    for (let rung = 0; rung < FIRST_PAID_RUNG; rung++) expect(RUN_ONE_GARAGE).toContain(rung)
+    for (let i = 1; i < RUN_ONE_GARAGE.length; i++) {
+      expect(RUN_ONE_GARAGE[i]).toBeGreaterThanOrEqual(RUN_ONE_GARAGE[i - 1])
+    }
   })
 })
 

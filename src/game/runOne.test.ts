@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   FIRST_PAID_RUNG,
   PROJECT_PAYOUTS,
+  RUN_ONE_GARAGE,
   WAGE_PER_DEV_PER_SEC,
   isBankrupt,
   payrollPerSecond,
@@ -39,7 +40,13 @@ import {
 } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { SCENE_JAMES_ARRIVES, SCENE_MASS_HIRE } from './scenes.ts'
-import { MASS_HIRE_COUNT, MASS_HIRE_WAVES, MASS_HIRE_WAVE_S, massHireWaveSize } from './onboarding.ts'
+import {
+  MASS_HIRE_COUNT,
+  MASS_HIRE_WAVES,
+  MASS_HIRE_WAVE_S,
+  TERM_SHEET_AFTER_SHIPS,
+  massHireWaveSize,
+} from './onboarding.ts'
 
 /**
  * §7.8.7's run seed is `Date.now()`-based, so every run of this file gets a
@@ -157,19 +164,65 @@ describe('the loop closes — §4.10c', () => {
   })
 })
 
+/**
+ * The rung of each of the run's first `count` games, in the order they were
+ * built — read off the queue, because Run 1's garage repeats rungs and
+ * `projectIndex` alone cannot tell a repeat from a stall.
+ */
+function rungsBuilt(count: number): number[] {
+  const seen = new Map<number, number>()
+  const note = () => {
+    for (const b of getState().shelf) if (!seen.has(b.id)) seen.set(b.id, b.projectIndex)
+  }
+  const step = 1 / 30
+  let owed = 0
+  for (let t = 0; t < 900 && seen.size < count; t += step) {
+    const s = getState()
+    if (s.scene !== null) dismissScene()
+    // The term sheet waits on a signature; the sixth game is built after it.
+    if (s.phase === 'act2_termsheet' && !s.seedTaken) takeSeedRound()
+    note()
+    shipEverything()
+    owed += 4 * step
+    while (owed >= 1) {
+      poke(0, 0)
+      owed -= 1
+    }
+    tick(step)
+    note()
+  }
+  return [...seen.values()].slice(0, count)
+}
+
+describe('the garage — §21.0e amended 2026-10-16', () => {
+  it('builds Run 1’s five garage games, then rejoins the ladder at the first paid rung', () => {
+    // Two of the three garage rungs are played twice, so the release ring gets
+    // two more turns before the trap — and the sixth game is the studio's
+    // first paid one, exactly where it always was.
+    expect(rungsBuilt(RUN_ONE_GARAGE.length + 1)).toEqual([...RUN_ONE_GARAGE, FIRST_PAID_RUNG])
+  })
+
+  it('leaves Run 2’s garage exactly as it was: one game a rung', () => {
+    // The extra games are Run 1's. Every later run shares `PROJECTS` and every
+    // index into it, so the claim is that its first games climb one rung each.
+    prestiged()
+    expect(rungsBuilt(FIRST_PAID_RUNG + 1)).toEqual(Array.from({ length: FIRST_PAID_RUNG + 1 }, (_, i) => i))
+  })
+})
+
 describe('a player who does what the game says does not go broke', () => {
   it('ships the garage catalogue with two people and no hire button — §21.0e', () => {
     // §21 Act I, all of it. Nobody is paid, nothing is hired, and the two of
-    // them work through every rung below `FIRST_PAID_RUNG`. That is what makes
-    // Act III's "two of us shipped three games" a sentence the player can
-    // check against their own floor.
-    for (let i = 0; i < 60 && getState().projectsShipped < FIRST_PAID_RUNG; i++) play(30, 4)
+    // them work through every rung below `FIRST_PAID_RUNG` — five games since
+    // 2026-10-16. That is what makes Act III's "two of us shipped five games" a
+    // sentence the player can check against their own floor.
+    for (let i = 0; i < 60 && getState().projectsShipped < TERM_SHEET_AFTER_SHIPS; i++) play(30, 4)
     // §4.10e pays on a tail, so a treasury read on the frame a game ships is a
     // treasury read before it has been paid. Let the catalogue settle.
     play(120, 4)
 
     const s = getState()
-    expect(s.projectsShipped).toBeGreaterThanOrEqual(FIRST_PAID_RUNG)
+    expect(s.projectsShipped).toBeGreaterThanOrEqual(TERM_SHEET_AFTER_SHIPS)
     /*
      * **James, and nobody else, from the first frame to the mousetrap** — and
      * [amended 2026-09-04] the counter says nought, which is the same sentence.
@@ -178,7 +231,7 @@ describe('a player who does what the game says does not go broke', () => {
      * `dev` hire. §7.8.0's rule is that the leadership corner is outside the
      * twenty, so James is a coding head who is not in `devs`: the counter shows
      * the floor, the floor is empty, and the studio still ships the whole
-     * garage catalogue. That is exactly Act III's *"two of us shipped three
+     * garage catalogue. That is exactly Act III's *"two of us shipped five
      * games"*, and it is now literally true of the numbers.
      */
     expect(s.devs).toBe(0)

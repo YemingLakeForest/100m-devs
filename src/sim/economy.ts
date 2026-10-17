@@ -275,8 +275,9 @@ export const PROJECT_PAYOUTS: readonly number[] = [
 /**
  * The first rung the player ships while paying somebody — §4.10f.
  *
- * §21's phase machine holds `act1_ship` until this many games are out — the
- * whole garage catalogue — and Run 1 never hires at all (§21.0e). Everything
+ * §21's phase machine holds `act1_ship` until the whole garage catalogue is out
+ * — this many rungs, played as {@link RUN_ONE_GARAGE}'s five games since
+ * 2026-10-16 — and Run 1 never hires at all (§21.0e). Everything
  * below this index is garage work at unpaid founders; everything from it upward
  * must clear {@link WAGE_HEADROOM} × W per Story Point, and `economy.test.ts`
  * asserts exactly that split rather than asserting it from rung 1 — which is
@@ -288,6 +289,49 @@ export const PROJECT_PAYOUTS: readonly number[] = [
  * precisely how a player ends up hiring into a loss.
  */
 export const FIRST_PAID_RUNG = 3
+
+/**
+ * **Run 1's garage, game by game** — the rung each of its first games is built
+ * on [CANON - added 2026-10-16, §21.0e amended].
+ *
+ * Run 1 used to ship the three garage rungs once each and meet the investor at
+ * about three and a half minutes. Measured, that was the run's whole skill
+ * window: the release ring was played three times, the first of them as the
+ * tutorial, and the player was a thousand developers deep before their hands
+ * had learned the ring at all. Every other choice for a longer Run 1 (a few
+ * hires before the bait, a brake on the waves) put hiring into the run whose
+ * lesson is that hiring is the trap, so the time goes to the garage instead.
+ *
+ * **Five games, and the two extra ones repeat rungs 1 and 2 rather than adding
+ * rungs.** `PROJECTS` and every index into it are shared with every later run
+ * (the ring's `bugMix` and turn period, the payouts, saves, offline), so a new
+ * rung would move Run 2's garage; a repeat moves nothing outside Run 1. Rungs 1
+ * and 2 rather than 0 because the first rung is the tutorial ring with no
+ * crawlers, and the extra games are there to be the skill: two crawler rings at
+ * the easy turn, then two at the faster one. Each still gets its own title from
+ * the generator, so the player sees five games, not three games twice.
+ *
+ * Its length is the term sheet's trigger (`TERM_SHEET_AFTER_SHIPS`), and every
+ * entry is below {@link FIRST_PAID_RUNG}: the founders are still unpaid.
+ */
+export const RUN_ONE_GARAGE: readonly number[] = [0, 1, 1, 2, 2]
+
+/**
+ * The rung the next game is built on — `built` games are already finished this
+ * run, counting the one that just was.
+ *
+ * Run 2 onward climbs one rung a game to the terminal one, exactly as before.
+ * Run 1 reads {@link RUN_ONE_GARAGE} while the garage lasts and then rejoins
+ * the same climb at {@link FIRST_PAID_RUNG}. Only from a garage rung, and never
+ * downward: a Run 1 state put past the garage (an `?act=` seam, a test fixture)
+ * is not sent back into it by its ship count.
+ */
+export function nextRung(index: number, built: number, runOne: boolean, terminal: number): number {
+  if (runOne && index < FIRST_PAID_RUNG && built < RUN_ONE_GARAGE.length) {
+    return Math.max(index, RUN_ONE_GARAGE[built])
+  }
+  return Math.min(index + 1, terminal)
+}
 
 /*
  * `openingRung` lived here — §4.10f, retired 2026-08-27.

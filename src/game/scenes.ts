@@ -223,9 +223,13 @@ export const SCENE_MASS_HIRE: Scene = {
     // emphatically not two of us. §21.0e is the fix — Run 1 never hires, the
     // garage catalogue is exactly {@link TERM_SHEET_AFTER_SHIPS} games, and
     // every number James says here is now something the player can count.
+    //
+    // **Five** [amended 2026-10-16], for the same reason it became three: the
+    // garage is five games now (`RUN_ONE_GARAGE`, §21.0e), and a line that
+    // undercounts the player's own shelf is as false as one that overcounts it.
     {
       speaker: JAMES,
-      text: 'Two of us shipped three games. A thousand of us is five hundred times that.',
+      text: 'Two of us shipped five games. A thousand of us is five hundred times that.',
       focus: AT_JAMES,
     },
     { speaker: PLAYER, text: 'Is it?', focus: AT_YOU },

@@ -12,6 +12,7 @@ import {
   SCENE_BILLY_ARRIVES,
   SCENE_FOUNDER_BOARD,
 } from './scenes.ts'
+import { TERM_SHEET_AFTER_SHIPS } from './onboarding.ts'
 
 const script = SCENE_JAMES_INSTANT_MESSENGER.script
 
@@ -212,8 +213,12 @@ describe('§21.0d [amended 2026-08-27] — the scene pitches, the button signs',
 
   it('keeps the arithmetic checkable — §21.0e', () => {
     // The line the whole beat is built on: every number in it is countable on
-    // the floor the player is looking at, because Run 1 does not hire.
-    expect(all).toContain('Two of us shipped three games. A thousand of us is five hundred times that.')
+    // the floor the player is looking at, because Run 1 does not hire. The
+    // count is the garage's (five since 2026-10-16), so it is read from the
+    // gate rather than written down: a garage that changes size and a line
+    // that does not is the falsehood §21.0e was written to remove.
+    const games = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'][TERM_SHEET_AFTER_SHIPS]
+    expect(all).toContain(`Two of us shipped ${games} games. A thousand of us is five hundred times that.`)
   })
 
   it('walks James into §4.1 without letting him sign it', () => {
