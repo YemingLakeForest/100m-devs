@@ -67,6 +67,7 @@ import {
   prestigeMultiplier,
   rateRelease,
   reputationMultiplier,
+  refundShare,
   revenueMultiplier,
 } from '../sim/rating.ts'
 import {
@@ -2393,6 +2394,23 @@ export function ringBuild(s: GameState = state): ShelvedBuild | undefined {
  * and still means "the player shipped this"; only the caller knows whether a
  * person was there [plan phase 4.1].
  */
+/**
+ * True while §24's catch-up is releasing builds. The offline walk integrates
+ * and never simulates (§24.7), and none of Matt's refunds happen while nobody
+ * is there to see them — so the review refund below is skipped for an absence.
+ */
+let resolvingOffline = false
+
+/**
+ * §4.14 [amended 2026-10-16] — a bad review refunds at launch, booked on the
+ * release (`refundShare`, zero at or above the baseline). Gated like every
+ * refund: Run 1 books none, and an absence books none.
+ */
+function reviewed(release: Release): Release {
+  if (resolvingOffline || !currentUnlocks().simulated) return release
+  return refund(release, refundShare(release.rating)).release
+}
+
 function releaseFrom(s: GameState, outcome: LaunchOutcome, reel = true): Partial<GameState> {
   const build = s.shelf[0]
   if (!build) return {}
@@ -2486,17 +2504,19 @@ function releaseFrom(s: GameState, outcome: LaunchOutcome, reel = true): Partial
     // §4.10e — no lump. The game goes on sale and `tick` banks the tail.
     releases: [
       ...s.releases,
-      {
-        id: nextReleaseId++,
-        ordinal: build.ordinal,
-        name: build.name,
-        payout: revenue,
-        age: 0,
-        paid: 0,
-        shape: rollShape(s.runSeed, s.projectsShipped),
-        defectDensity: density,
-        rating,
-      },
+      reviewed(
+        {
+          id: nextReleaseId++,
+          ordinal: build.ordinal,
+          name: build.name,
+          payout: revenue,
+          age: 0,
+          paid: 0,
+          shape: rollShape(s.runSeed, s.projectsShipped),
+          defectDensity: density,
+          rating,
+        },
+      ),
     ],
     projectsShipped: s.projectsShipped + 1,
   }
@@ -4776,8 +4796,15 @@ function offlineBelt(s: GameState): { autoShip: boolean; shelved: number; buffer
  */
 function offlineBeltAfter(s: GameState, report: OfflineReport): Partial<GameState> {
   let now: GameState = s
-  for (let k = 0; k < report.shelfShipped && now.shelf.length > 0; k++) {
-    now = { ...now, ...releaseFrom(now, pipelineLaunch(pipelineOf(now).stagesUp), false) }
+  // §24.7 — no refunds for an absence (`reviewed`). try/finally so a throw
+  // cannot leave the live game refusing to refund.
+  resolvingOffline = true
+  try {
+    for (let k = 0; k < report.shelfShipped && now.shelf.length > 0; k++) {
+      now = { ...now, ...releaseFrom(now, pipelineLaunch(pipelineOf(now).stagesUp), false) }
+    }
+  } finally {
+    resolvingOffline = false
   }
   for (const index of report.built) {
     const at = Math.min(Math.max(0, index), PROJECTS.length - 1)

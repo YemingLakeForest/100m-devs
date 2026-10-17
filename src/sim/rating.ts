@@ -433,7 +433,42 @@ function aroundBaseline(score: number, floor: number, ceiling: number): number {
  * outcome the game has — shipping a 12 and making a fortune anyway.
  */
 export function revenueMultiplier(rating: number): number {
-  return aroundBaseline(rating, 0.55, 1.6)
+  return aroundBaseline(rating, REVENUE_FLOOR, 1.6)
+}
+
+/**
+ * What a 0/100 is paid, before its refunds.
+ *
+ * [amended 2026-10-16] 0.7, from 0.55. A bad review now also refunds at launch
+ * ({@link refundShare}), and the two together are the old floor —
+ * `0.7 × (1 − 0.2) = 0.56` — so a bad rating is charged once, half in the
+ * price and half in a refund the player can see on the release. Without the
+ * raise it would have been charged twice, and the satire above would not have
+ * survived it.
+ */
+export const REVENUE_FLOOR = 0.7
+
+/** The most a release can refund at launch for its reviews. A 0/100. */
+export const MAX_REVIEW_REFUND = 0.2
+
+/**
+ * §4.14 [amended 2026-10-16] — the share of a release's payout refunded the
+ * moment it launches, for being bad.
+ *
+ * The fun-killers audit (finding 05): bad reviews "only affect the payout
+ * multiplier and reputation. They show up as a review reel, not as anything
+ * that bites." A multiplier is invisible — the money was never there to lose.
+ * A refund is money on a named release going back to the people who bought it,
+ * logged where §10.11 and the incident chip can see it (`revenue.ts`).
+ *
+ * **Zero at or above the baseline**: a release that scored what a garage
+ * scores has nothing to apologise for, so the economy §21 was tuned against is
+ * untouched. Linear below it to {@link MAX_REVIEW_REFUND} at 0.
+ */
+export function refundShare(rating: number): number {
+  const r = clampScore(rating)
+  if (r >= BASELINE_RATING) return 0
+  return MAX_REVIEW_REFUND * (1 - r / BASELINE_RATING)
 }
 
 /**

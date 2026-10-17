@@ -15,8 +15,10 @@ import {
   getState,
   patchIncident,
   refundIncident,
+  releaseNow,
   tick,
 } from './store.ts'
+import { BASELINE_RATING, refundShare } from '../sim/rating.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { outstandingOf, rollShape, type Release } from '../sim/revenue.ts'
 import { PATCH_SECONDS, REFUND_MOVE_ON_SHARE } from '../sim/incidents.ts'
@@ -116,6 +118,30 @@ describe('§4.15 — the player can do something about it', () => {
     expect(patchIncident(1)).toBe(false)
     expect(refundIncident(1)).toBe(false)
     expect(answerTickets()).toBe(false)
+  })
+})
+
+describe('§4.14 — a bad review refunds at launch', () => {
+  const rushed = {
+    id: 1, ordinal: 1, name: 'Rushed', genre: 'roguelike', projectIndex: 3, revenueBase: 100_000,
+    size: 300, defects: 3_000, density: 10, graded: true, heroCoverage: 0, sync: 0, traits: 0, luck: 0,
+    buildSeconds: 30, labourSeconds: 30, shelvedAt: 0,
+  }
+
+  it('books the review refund on the release the moment it goes on sale', () => {
+    __setState({ shelf: [rushed] as unknown as ReturnType<typeof getState>['shelf'] })
+    releaseNow()
+    const r = getState().releases[0]
+    expect(r.rating).toBeLessThan(BASELINE_RATING)
+    expect(r.refunded).toBeCloseTo(r.payout * refundShare(r.rating), 6)
+    expect(balanced(r)).toBeCloseTo(r.payout, 6)
+  })
+
+  it('books none in Run 1', () => {
+    setPermanent(emptyPermanent())
+    __setState({ shelf: [rushed] as unknown as ReturnType<typeof getState>['shelf'] })
+    releaseNow()
+    expect(refundedOn(getState().releases)).toBe(0)
   })
 })
 

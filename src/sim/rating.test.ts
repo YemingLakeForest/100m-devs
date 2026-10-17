@@ -21,6 +21,8 @@ import {
   ratingBand,
   ratingBreakdown,
   reputationMultiplier,
+  MAX_REVIEW_REFUND,
+  refundShare,
   revenueMultiplier,
   traitScore,
 } from './rating.ts'
@@ -458,6 +460,33 @@ describe('§4.14 — what ratings feed', () => {
     // state by arithmetic — which §25.3.2 forbids outright.
     expect(revenueMultiplier(0)).toBeGreaterThan(0.5)
     expect(revenueMultiplier(12)).toBeGreaterThan(0.6)
+  })
+
+  /**
+   * [2026-10-16] A bad review refunds at launch, and the multiplier's floor was
+   * raised so the two together charge a bad rating once, not twice.
+   */
+  it('refunds only below the baseline, more the worse it is, and never more than a fifth', () => {
+    expect(refundShare(BASELINE_RATING)).toBe(0)
+    expect(refundShare(100)).toBe(0)
+    let last = -Infinity
+    for (let r = BASELINE_RATING; r >= 0; r -= 0.5) {
+      expect(refundShare(r)).toBeGreaterThanOrEqual(last)
+      last = refundShare(r)
+    }
+    expect(refundShare(0)).toBe(MAX_REVIEW_REFUND)
+    expect(MAX_REVIEW_REFUND).toBeLessThanOrEqual(0.2)
+  })
+
+  it('keeps what a release takes home monotonic in its rating, and a 0/100 no worse off than before refunds', () => {
+    const takeHome = (r: number) => revenueMultiplier(r) * (1 - refundShare(r))
+    let last = -Infinity
+    for (let r = 0; r <= 100; r += 0.5) {
+      expect(takeHome(r)).toBeGreaterThan(last)
+      last = takeHome(r)
+    }
+    // The old floor was 0.55 with no refund.
+    expect(takeHome(0)).toBeGreaterThanOrEqual(0.55)
   })
 
   it('scales prestige by reputation, so a run can be good rather than long', () => {
