@@ -8,6 +8,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import Decimal from 'break_infinity.js'
 import { MAX_RUNWAY_SECONDS } from '../sim/hireDial.ts'
 import { SEVERANCE_PER_HEAD } from '../sim/layoff.ts'
 import { BANKRUPTCY_THRESHOLD, UNPAID_FOUNDERS, secondsUntilBankrupt } from '../sim/economy.ts'
@@ -34,7 +35,10 @@ function prestigedRun() {
 
 /** A Run 2 studio of this size and treasury, with the dial open and nothing in the way. */
 function studio(devs: number, cash: number, cap = 5_000) {
-  __setState({ devs, devCap: cap, cash, dialUnlocked: true, peakDevs: devs, scene: null })
+  // "No income at all" is held by a project nobody finishes. It used to be held
+  // by nobody pressing SHIP!, until Serena — who walks in on a studio this size
+  // within two minutes — started shipping on arrival (plan 2026-10-16, D4).
+  __setState({ devs, devCap: cap, cash, dialUnlocked: true, peakDevs: devs, scene: null, commitment: new Decimal(1e300) })
 }
 
 /**

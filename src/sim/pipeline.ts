@@ -26,11 +26,27 @@
  *
  * *"we start of have to manual ship our selves, like the scritchy game, but
  * upgrade from Serena make it auto"*. SHIP! is the player's press until
- * Serena's second rank, Auto-Ship. It then fires on its own clock, and the
- * clock is upgraded separately: an auto-shipper slower than the studio lets the
- * queue creep up and eventually stops the floor, which is the Scritchy Scratchy
- * tension kept after automation. No bonus for shipping by hand (assumed in the
- * handoff; to confirm with the user).
+ * Serena arrives.
+ *
+ * [amended 2026-10-16, plan phase 4.2, the user's D4] **Auto-ship comes with
+ * Serena, and it is a delay, not a clock.** It was her rank-II node firing once
+ * every two minutes, slower than a garage build on purpose; once §14.8.7's
+ * cadence curve took a big studio's build towards thirty seconds a clock that
+ * slow could not keep up at any price the board sold, so the queue filled, the
+ * floor stopped, and the player went back to pressing SHIP! twice a minute for
+ * the rest of the run (finding 06). A delay keeps up at every cadence: a build
+ * ships {@link AUTO_SHIP_DELAY_SECONDS} after it lands (less with the speed
+ * nodes), so a studio whose builds take at least that long never has more than
+ * one game waiting and never stops. What the player trades for it is the date:
+ * an auto-ship goes out at a neutral RC, and the ring's spotlight (×1.75 at
+ * best) is only for a launch somebody plays.
+ *
+ * That settles the line this header carried since the handoff — *"no bonus for
+ * shipping by hand (assumed; to confirm with the user)"*. Confirmed, with the
+ * bonus moved where it belongs: **pressing SHIP! is worth nothing over Serena**
+ * (it ships the head now, at her terms), and **playing the ring is worth what
+ * the ring pays.** Offline, Serena ships every build, because nobody is there
+ * to hold one.
  *
  * ## Serena's pipeline nodes
  *
@@ -52,9 +68,14 @@ import type { CoordKind, Fix } from './dysfunction.ts'
 
 // --- auto-ship --------------------------------------------------------------
 
-/** Seconds between auto-ships at rank II with no speed bought. Slower than a garage build on purpose. */
-export const AUTO_SHIP_BASE_SECONDS = 120
-/** Each Auto-Ship Speed level divides the interval by this. */
+/**
+ * Seconds a build waits in the queue before Serena ships it, with no speed
+ * bought. Under every build time §14.8.7's curve produces until its floor, so
+ * she keeps up from the day she arrives; long enough that a player who wants to
+ * press SHIP! themselves has a moment to.
+ */
+export const AUTO_SHIP_DELAY_SECONDS = 20
+/** Each Auto-Ship Speed level divides the delay by this. */
 export const AUTO_SHIP_STEP = 1.35
 
 // --- Serena's pipeline nodes ------------------------------------------------
@@ -113,11 +134,11 @@ export const PIPELINE_TREE: readonly PipelineNode[] = [
     effect: 'Catches 15% of a build’s defects per level as it joins the queue.', flavour: 'The test that fails on Tuesdays is moved to a folder called LATER.' },
   // Flow: SHIP! presses itself.
   { id: 'a1', name: 'Auto-Ship', family: 'flow', rank: 'II', x: 1, y: -1, era: 0, maxLevel: 1, requires: ['s1'],
-    effect: `SHIP! presses itself, once every ${AUTO_SHIP_BASE_SECONDS} seconds.`, flavour: 'Rank II. You can stop clicking.' },
+    effect: `SHIP! presses itself, ${AUTO_SHIP_DELAY_SECONDS} seconds after a build lands.`, flavour: 'Rank II. You can stop clicking.' },
   { id: 'a2', name: 'Auto-Ship Speed', family: 'flow', x: 2, y: -1, era: 0, maxLevel: 5, requires: ['a1'],
-    effect: `Auto-ship fires ${Math.round((AUTO_SHIP_STEP - 1) * 100)}% more often per level.`, flavour: null },
+    effect: `Serena ships a build ${Math.round((1 - 1 / AUTO_SHIP_STEP) * 100)}% sooner per level.`, flavour: null },
   { id: 'a3a', name: 'Ship on Friday', family: 'flow', x: 3, y: -1, era: 1, maxLevel: 1, requires: ['a2'], fork: 'E',
-    effect: 'Nothing waits: auto-ship twice as often. Waiting turns into handoffs.', flavour: 'Monday goes on handing round the pager.',
+    effect: 'Nothing waits: Serena ships in half the time. Waiting turns into handoffs.', flavour: 'Monday goes on handing round the pager.',
     fix: { cuts: 'wait', feeds: 'handoff', share: 0.4 } },
   { id: 'a3b', name: 'Ship on Green', family: 'flow', x: 2, y: -2, era: 1, maxLevel: 1, requires: ['a2'], fork: 'E',
     effect: 'Nothing ships twice: duplicate work turns into waiting, and the queue catches another 20% of defects.', flavour: 'Everything waits for green.',
@@ -143,16 +164,21 @@ export interface PipelineEffects {
   slots: number
   /** Share of a build's defects Test removes, 0..1. */
   catches: number
+  /** Serena ships on her own — true from the day she arrives (D4). */
   autoShip: boolean
-  /** Seconds between auto-ships; Infinity without Auto-Ship. */
-  autoShipSeconds: number
+  /** Seconds a build waits before she ships it; Infinity without her. */
+  autoShipDelay: number
   fixes: readonly Fix[]
   breakthroughs: readonly CoordKind[]
 }
 
-export function pipelineEffects(levels: PipelineLevels | undefined): PipelineEffects {
+/**
+ * The board, folded. `serena` is whether she has arrived: auto-ship is hers,
+ * not a node's [amended 2026-10-16], so the nodes only make it faster.
+ */
+export function pipelineEffects(levels: PipelineLevels | undefined, serena = false): PipelineEffects {
   const l = (id: string) => pipelineLevel(levels, id)
-  const autoShip = l('a1') > 0
+  const autoShip = serena
   const fixes: Fix[] = []
   const breakthroughs: CoordKind[] = []
   for (const n of PIPELINE_TREE) {
@@ -167,8 +193,8 @@ export function pipelineEffects(levels: PipelineLevels | undefined): PipelineEff
     slots: l('s1') * 1 + l('s2') * 3 + l('s3') * 20 + l('s4') * 500,
     catches: Math.min(0.95, Math.max(0, caught)),
     autoShip,
-    autoShipSeconds: autoShip
-      ? AUTO_SHIP_BASE_SECONDS / AUTO_SHIP_STEP ** l('a2') / (l('a3a') > 0 ? 2 : 1)
+    autoShipDelay: autoShip
+      ? AUTO_SHIP_DELAY_SECONDS / AUTO_SHIP_STEP ** l('a2') / (l('a3a') > 0 ? 2 : 1)
       : Infinity,
     fixes,
     breakthroughs,

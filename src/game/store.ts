@@ -1971,7 +1971,8 @@ export const SHELF_CAPACITY = 3
 
 /** Serena's pipeline board, folded. `sim/pipeline.ts` owns what each node does. */
 export function pipelineOf(s: GameState = state): PipelineEffects {
-  return pipelineEffects(s.pipelineNodes)
+  // [amended 2026-10-16, D4] Auto-ship is Serena's, from the day she arrives.
+  return pipelineEffects(s.pipelineNodes, pipelineOpen())
 }
 
 /**
@@ -2251,23 +2252,35 @@ function releaseFrom(s: GameState, outcome: LaunchOutcome, reel = true): Partial
 }
 
 /**
- * Run the queue's clock by `dt` — §10.7. Serena's auto-ship fires on its own
- * clock, several times in one long step if it is owed them, never more than the
- * queue holds.
+ * §10.7 [amended 2026-10-16, plan phase 4.2] — seconds until Serena ships the
+ * queue's head, or null when she is not shipping (not arrived, or nothing
+ * waiting). A build ships once it has waited her delay, counted on the run's
+ * simulated clock from the frame it landed (`shelvedAt`).
  */
-function advanceBelt(s: GameState, dt: number): Partial<GameState> {
+export function autoShipIn(s: GameState = state): number | null {
   const fx = pipelineOf(s)
-  let patch: Partial<GameState> = {}
-  if (!fx.autoShip) {
-    if (s.autoShipClock !== 0) patch.autoShipClock = 0
-    return patch
-  }
+  const head = s.shelf[0]
+  if (!fx.autoShip || !head) return null
+  return Math.max(0, fx.autoShipDelay - (s.runSeconds - head.shelvedAt))
+}
+
+/**
+ * Serena's auto-ship — §10.7 [amended 2026-10-16, plan phase 4.2].
+ *
+ * **A delay, not a clock.** Every build that has waited her delay ships, oldest
+ * first, as many as are due on this frame. A clock (one ship every N seconds)
+ * falls behind any studio faster than N and stops the floor; a delay keeps up
+ * with every cadence at least as long as itself, which is all of them until
+ * §14.8.7's floor. `autoShipClock` is kept at zero for old saves' sake.
+ */
+function advanceBelt(s: GameState): Partial<GameState> {
+  const fx = pipelineOf(s)
+  let patch: Partial<GameState> = s.autoShipClock !== 0 ? { autoShipClock: 0 } : {}
+  if (!fx.autoShip) return patch
   let now = s
-  let clock = s.autoShipClock + dt
   let count = 0
   let last: ShelvedBuild | null = null
-  while (clock >= fx.autoShipSeconds && now.shelf.length > 0) {
-    clock -= fx.autoShipSeconds
+  while (now.shelf.length > 0 && now.runSeconds - now.shelf[0].shelvedAt >= fx.autoShipDelay) {
     last = now.shelf[0]
     const out = releaseFrom(now, pipelineLaunch(), false)
     now = { ...now, ...out }
@@ -2285,9 +2298,6 @@ function advanceBelt(s: GameState, dt: number): Partial<GameState> {
       at: performance.now(),
     }
   }
-  // An idle shipper does not bank shots: with nothing on the shelf the clock
-  // waits at "ready" rather than accumulating a burst for later.
-  patch.autoShipClock = now.shelf.length === 0 ? Math.min(clock, fx.autoShipSeconds) : clock
   return patch
 }
 
@@ -2299,7 +2309,7 @@ export interface BeltView {
   /** Builds on the shelf, which SHIP! can reach. */
   ready: number
   autoShip: boolean
-  /** Seconds until auto-ship next fires, or null without it. */
+  /** Seconds until Serena ships the head, or null when she is not about to. */
   autoShipIn: number | null
 }
 
@@ -2310,7 +2320,7 @@ export function beltView(s: GameState = state): BeltView {
     capacity: shelfCapacity(s),
     ready: s.shelf.length,
     autoShip: fx.autoShip,
-    autoShipIn: fx.autoShip ? Math.max(0, fx.autoShipSeconds - s.autoShipClock) : null,
+    autoShipIn: autoShipIn(s),
   }
 }
 
@@ -2357,18 +2367,17 @@ export function releaseNow(): void {
  * that drive a run through its ships and are not about the belt.
  */
 export function shipEverything(): void {
-  set(advanceBelt(state, 1e9))
   while (state.shelf.length > 0) releaseNow()
 }
 
 /**
- * Debug seam — `?release`. Finish the project on the burn-down, run the belt
- * out so it is on the shelf, and (by default) open the ring on it. The ring is
- * the one frame §23.4.2 cannot otherwise hold still long enough to measure.
+ * Debug seam — `?release`. Finish the project on the burn-down so it is on the
+ * shelf, and (by default) open the ring on it — always a one-build ring, which
+ * is the frame §23.4.2 measures. The ring is the one frame that cannot
+ * otherwise be held still long enough to measure.
  */
 export function __parkBuild(open = true): void {
   set(finishBuild(state))
-  set(advanceBelt(state, 1e9))
   if (open) set({ launching: true })
 }
 
@@ -2776,8 +2785,8 @@ export function tick(dtSeconds: number): void {
 
   if (state.bubble && now - state.bubble.bornAt > state.bubble.ttl) patch.bubble = null
 
-  // §10.7 — the queue's clock: Serena's auto-ship fires if it is owed.
-  patch = { ...patch, ...advanceBelt({ ...state, ...patch } as GameState, dtSeconds) }
+  // §10.7 — Serena ships whatever has waited her delay.
+  patch = { ...patch, ...advanceBelt({ ...state, ...patch } as GameState) }
 
   // §10.7 — the burn-down reaching zero finishes the *build*, which goes onto
   // the belt. Releasing it is a separate decision, made at SHIP!.
@@ -4284,12 +4293,17 @@ let pendingSnapshot: { savedAt: number; rateMultiplier: number; capSeconds: numb
 
 /**
  * §10.7 — what an absence needs to know about the belt: who ships while nobody
- * is looking (Serena's clock), what is already waiting, and how many slots are
- * free. `sim/offline.ts` walks the rest.
+ * is looking, what is already waiting, and how many slots are free.
+ * `sim/offline.ts` walks the rest.
+ *
+ * [amended 2026-10-16, plan phase 4.2] **With Serena, every build ships.** Her
+ * delay is seconds and an absence is hours, so walking it would only ever say
+ * "all of them, a few seconds late": the snapshot says so directly, the same
+ * flag §13.3's Autopilot has always set.
  */
-function offlineBelt(s: GameState): { autoShipSeconds: number; shelved: number; bufferRoom: number } {
+function offlineBelt(s: GameState): { autoShip: boolean; shelved: number; bufferRoom: number } {
   return {
-    autoShipSeconds: pipelineOf(s).autoShipSeconds,
+    autoShip: getPermanent().meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT) || pipelineOf(s).autoShip,
     shelved: bufferCount(s),
     bufferRoom: Math.max(0, shelfCapacity(s) - bufferCount(s)),
   }
@@ -4305,7 +4319,7 @@ function offlineBelt(s: GameState): { autoShipSeconds: number; shelved: number; 
 function offlineBeltAfter(s: GameState, report: OfflineReport): Partial<GameState> {
   let now: GameState = s
   for (let k = 0; k < report.shelfShipped && now.shelf.length > 0; k++) {
-    now = { ...now, ...releaseFrom(now, pipelineLaunch()) }
+    now = { ...now, ...releaseFrom(now, pipelineLaunch(), false) }
   }
   for (const index of report.built) {
     const at = Math.min(Math.max(0, index), PROJECTS.length - 1)
@@ -4453,7 +4467,6 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       projectIndex: restored.projectIndex,
       commitmentFor,
       revenueFor: projectRevenue,
-      autoShip: meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT),
       ...offlineBelt(restored),
     },
     config,
@@ -4496,7 +4509,6 @@ export function collectOffline(rewardMultiplier = 1, now: number = Date.now()): 
       projectIndex: state.projectIndex,
       commitmentFor,
       revenueFor: projectRevenue,
-      autoShip: getPermanent().meta.forkNodes.includes(NODE_CI_CD_AUTOPILOT),
       ...offlineBelt(state),
     },
     {

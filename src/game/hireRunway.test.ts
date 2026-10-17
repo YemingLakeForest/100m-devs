@@ -10,6 +10,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import Decimal from 'break_infinity.js'
 import { MAX_RUNWAY_SECONDS } from '../sim/hireDial.ts'
 import { secondsUntilBankrupt } from '../sim/economy.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
@@ -37,7 +38,9 @@ afterEach(() => {
 
 /** Run 2 or later, at scale, with a treasury that is comfortably solvent. */
 function atScale(devs: number, cap: number, cash: number) {
-  __setState({ devs, devCap: cap, cash, dialUnlocked: true, peakDevs: devs, scene: null })
+  // No income: a project nobody finishes. Not "nobody presses SHIP!" any more —
+  // Serena ships on arrival (plan 2026-10-16, D4) and arrives inside this clock.
+  __setState({ devs, devCap: cap, cash, dialUnlocked: true, peakDevs: devs, scene: null, commitment: new Decimal(1e300) })
 }
 
 describe('MAX, through the store and the clock', () => {

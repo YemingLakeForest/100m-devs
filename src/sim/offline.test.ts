@@ -298,6 +298,22 @@ describe('what accrues — GDD §24.6', () => {
     expect(report.burned.toNumber()).toBe(1000)
   })
 
+  it('[2026-10-16] ships every build with an auto-shipper owned, the ones already waiting included', () => {
+    // Serena's delay is seconds and an absence is hours (plan phase 4.2): every
+    // build ships, and nothing is left on the shelf for SHIP!.
+    const report = offlineYield(
+      snapshot({
+        velocity: 10, commitment: new Decimal(1000), projectIndex: 3, maxProjectIndex: 3,
+        autoShip: true, shelved: 2, bufferRoom: 1,
+      }),
+      config({ capSeconds: 3600, rateMultiplier: 1 }),
+      T0 + HOUR,
+    )
+    expect(report.shelfShipped).toBe(2)
+    expect(report.projectsShipped).toBe(36)
+    expect(report.built).toEqual([])
+  })
+
   it('does not advance a zero-cost project ladder at all', () => {
     const report = offlineYield(
       snapshot({ commitment: new Decimal(0), commitmentFor: () => new Decimal(0), autoShip: true }),

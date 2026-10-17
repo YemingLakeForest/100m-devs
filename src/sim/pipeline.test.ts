@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
-  AUTO_SHIP_BASE_SECONDS, PIPELINE_BY_ID, PIPELINE_TREE, pipelineCost, pipelineEffects, pipelineRefusal,
+  AUTO_SHIP_DELAY_SECONDS, PIPELINE_BY_ID, PIPELINE_TREE, pipelineCost, pipelineEffects, pipelineRefusal,
 } from './pipeline.ts'
 
 describe('the queue — Build and Test are decommissioned [2026-10-04]', () => {
@@ -28,11 +28,18 @@ describe('Serena’s pipeline board', () => {
     expect(one('s3')).toBeGreaterThan(one('s2'))
     expect(one('s4')).toBeGreaterThan(one('s3'))
   })
-  it('SHIP! is manual until Auto-Ship, and Auto-Ship Speed shortens the interval', () => {
+  it('[2026-10-16, D4] SHIP! is manual until Serena arrives, and no node can buy auto-ship without her', () => {
     expect(pipelineEffects({}).autoShip).toBe(false)
-    expect(pipelineEffects({}).autoShipSeconds).toBe(Infinity)
-    expect(pipelineEffects({ a1: 1 }).autoShipSeconds).toBe(AUTO_SHIP_BASE_SECONDS)
-    expect(pipelineEffects({ a1: 1, a2: 3 }).autoShipSeconds).toBeLessThan(AUTO_SHIP_BASE_SECONDS)
+    expect(pipelineEffects({}).autoShipDelay).toBe(Infinity)
+    expect(pipelineEffects({ a1: 1, a2: 5, a3a: 1 }).autoShip).toBe(false)
+    expect(pipelineEffects({}, true).autoShip).toBe(true)
+    expect(pipelineEffects({}, true).autoShipDelay).toBe(AUTO_SHIP_DELAY_SECONDS)
+  })
+  it('the speed nodes shorten her delay, each level more, and Ship on Friday most', () => {
+    const delay = (levels: Record<string, number>) => pipelineEffects(levels, true).autoShipDelay
+    expect(delay({ a1: 1, a2: 1 })).toBeLessThan(delay({}))
+    expect(delay({ a1: 1, a2: 3 })).toBeLessThan(delay({ a1: 1, a2: 1 }))
+    expect(delay({ a1: 1, a2: 3, a3a: 1 })).toBeLessThan(delay({ a1: 1, a2: 3 }))
   })
   it('Auto-Ship needs a longer queue first — rank II after rank I', () => {
     const a1 = PIPELINE_BY_ID.get('a1')!

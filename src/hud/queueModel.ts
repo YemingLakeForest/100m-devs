@@ -15,6 +15,7 @@
 
 import {
   getState,
+  autoShipIn,
   bufferCount,
   currentVelocity,
   shelfCapacity,
@@ -46,7 +47,11 @@ export interface QueueView {
   /** Seconds until the queue is full and the floor stops, if nothing ships. */
   fullIn: number | null
   autoShip: boolean
-  /** Seconds between auto-ships, and the seconds to the next. */
+  /**
+   * [amended 2026-10-16] Serena's delay — how long a game waits before she
+   * ships it — and the seconds until she ships the front one (null when the
+   * queue is empty).
+   */
   autoEvery: number | null
   autoIn: number | null
   flow: QueueFlow
@@ -71,12 +76,13 @@ export function queueView(s: GameState = getState()): QueueView {
   // and drawn with a tilde for that reason.
   const fullIn = free === 0 ? 0 : nextBuildIn !== null && cycle !== null ? nextBuildIn + (free - 1) * cycle : null
 
-  const autoEvery = fx.autoShip && Number.isFinite(fx.autoShipSeconds) ? fx.autoShipSeconds : null
-  const autoIn = autoEvery !== null ? Math.max(0, autoEvery - s.autoShipClock) : null
+  const autoEvery = fx.autoShip && Number.isFinite(fx.autoShipDelay) ? fx.autoShipDelay : null
+  const autoIn = autoShipIn(s)
 
   let flow: QueueFlow
   if (free === 0) flow = 'stopped'
   else if (cycle === null) flow = 'idle'
+  // A game that ships before the next one lands never queues behind it.
   else if (autoEvery !== null && autoEvery <= cycle) flow = 'steady'
   else flow = 'filling'
 
@@ -111,7 +117,7 @@ export function queueLine(v: QueueView): string {
     case 'stopped':
       return 'FULL // SHIP TO CODE'
     case 'steady':
-      return `AUTO ${clock(v.autoIn ?? 0)}`
+      return v.autoIn === null ? 'AUTO ON' : `AUTO ${clock(v.autoIn)}`
     case 'filling':
       return v.fullIn === null ? 'FILLING' : `FULL IN ~${clock(v.fullIn)}`
     default:

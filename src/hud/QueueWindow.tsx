@@ -34,7 +34,7 @@ function readout(v: QueueView): string {
     case 'stopped':
       return 'The queue is full. Nobody can code until something ships.'
     case 'steady':
-      return 'Auto-Ship leaves as fast as games arrive.'
+      return 'Serena ships every game before the next one lands.'
     case 'filling':
       return 'Games are arriving faster than they ship.'
     default:
@@ -115,7 +115,7 @@ export function QueueWindow({
               A GAME EVERY <b>{v.cycle === null ? 'NEVER' : clock(v.cycle)}</b>
             </p>
             <p className="ring__best">
-              AUTO <b>{v.autoShip && v.autoEvery !== null ? `every ${clock(v.autoEvery)}` : 'you ship'}</b>
+              AUTO <b>{v.autoShip && v.autoEvery !== null ? `after ${clock(v.autoEvery)}` : 'you ship'}</b>
             </p>
             <p className="ring__best">
               NEXT OUT <b>{ready > 0 ? v.games[0].name : 'nothing yet'}</b>

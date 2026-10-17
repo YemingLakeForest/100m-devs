@@ -26,6 +26,7 @@ import {
   getState,
   launchRelease,
   openLaunch,
+  pipelineOf,
   poke,
   pokeFounder,
   projectTitle,
@@ -250,11 +251,8 @@ describe("§10.7 — Serena's board", () => {
     expect(shelfCapacity()).toBe(SHELF_CAPACITY + 1)
   })
 
-  it('ships on its own clock once Auto-Ship is bought, as nobody attending', () => {
+  it('[2026-10-16, D4] ships a build her delay after it lands, with no node bought, as nobody attending', () => {
     withSerena()
-    __setState({ cash: 1e9 })
-    expect(buyPipeline('s1')).toBe(true)
-    expect(buyPipeline('a1')).toBe(true)
     finish()
     runBelt()
     expect(getState().shelf).toHaveLength(1)
@@ -267,6 +265,32 @@ describe("§10.7 — Serena's board", () => {
     expect(getState().ship).toBeNull()
     expect(getState().autoShipped?.name).toBe(getState().history.recent[0].name)
     expect(getState().autoShipped?.count).toBe(1)
+  })
+
+  it('never stops the floor while every build takes at least her delay', () => {
+    // A delay keeps up with any cadence as long as itself; a clock did not
+    // (finding 06). Builds land every delay + ½s for ten minutes.
+    withSerena()
+    const delay = pipelineOf().autoShipDelay
+    let built = 0
+    for (let t = 0; t < 600; t += delay + 0.5) {
+      finish()
+      built += 1
+      expect(shelfBlocked()).toBe(false)
+      for (let k = 0; k < delay; k += 1) {
+        step(1)
+        expect(shelfBlocked()).toBe(false)
+      }
+    }
+    expect(getState().shelf.length).toBeLessThanOrEqual(1)
+    expect(getState().projectsShipped).toBeGreaterThanOrEqual(built - 1)
+  })
+
+  it('does nothing before Serena: the queue waits for SHIP!', () => {
+    finish()
+    for (let i = 0; i < 120; i++) step(1)
+    expect(getState().projectsShipped).toBe(0)
+    expect(beltView().autoShipIn).toBeNull()
   })
 })
 

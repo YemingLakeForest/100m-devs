@@ -5,6 +5,8 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 import { __resetStore, __setState, type ShelvedBuild } from '../game/store.ts'
+import { emptyPermanent, setPermanent } from '../game/save.ts'
+import { SCENE_SERENA_ARRIVES } from '../game/scenes.ts'
 import { queueLine, queueTone, queueView } from './queueModel.ts'
 
 beforeEach(() => __resetStore())
@@ -41,8 +43,11 @@ describe('queueView', () => {
     expect(roomier.fullIn!).toBeGreaterThan(base.fullIn!)
   })
 
-  it('reads Auto-Ship as a drain, and a faster one as a shorter interval', () => {
+  it('reads Serena as a drain once she arrives, and a faster one as a shorter delay', () => {
     __setState({ devs: 1, pipelineNodes: { s1: 1, a1: 1 } })
+    expect(queueView().autoShip).toBe(false)
+    const p = emptyPermanent()
+    setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_SERENA_ARRIVES.id] } })
     const v = queueView()
     expect(v.autoShip).toBe(true)
     expect(v.autoEvery).not.toBeNull()

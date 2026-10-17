@@ -113,7 +113,11 @@ export interface OfflineSnapshot {
    * times less than the same shipping done in front of them.
    */
   revenueFor: (index: number) => number
-  /** Does the player own CI/CD Autopilot (§13.3 L2-2B)? See {@link offlineYield}. */
+  /**
+   * Does every build ship while nobody is looking? CI/CD Autopilot (§13.3
+   * L2-2B), or [amended 2026-10-16] Serena, whose auto-ship is a delay of
+   * seconds against an absence of hours. See {@link offlineYield}.
+   */
   autoShip: boolean
   /**
    * §10.7 [amended 2026-09-26] — Serena's Auto-Ship, as seconds between ships.
@@ -314,7 +318,11 @@ export function offlineYield(
     ? Math.floor(paid / every)
     : 0
   const waiting = Math.max(0, Math.floor(Number.isFinite(snap.shelved) ? snap.shelved! : 0))
-  const shelfShipped = snap.autoShip ? 0 : Math.min(shots, waiting)
+  // [amended 2026-10-16, plan phase 4.2] An auto-shipper that ships everything
+  // ships what was already waiting too. It used to leave those for SHIP!, which
+  // was a reading of the Autopilot nobody chose; with Serena's auto-ship carrying
+  // this flag, "every build ships" has to mean every build.
+  const shelfShipped = snap.autoShip ? waiting : Math.min(shots, waiting)
   shots -= shelfShipped
   let room = Math.max(0, Math.floor(Number.isFinite(snap.bufferRoom) ? snap.bufferRoom! : 0)) + shelfShipped
 
