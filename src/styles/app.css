@@ -3003,6 +3003,18 @@ body {
   flex: 0 0 auto;
 }
 
+/* [2026-10-16] What the downed game is refunding. Its own line under the name,
+   because a dollar rate beside OFF SALE pushed the name into one glyph a row. */
+.backlog__chip {
+  flex-wrap: wrap;
+}
+
+.backlog__chip-refund {
+  flex: 1 0 100%;
+  color: #ffb8b8;
+  font-variant-numeric: tabular-nums;
+}
+
 @keyframes backlog-pulse {
   50% {
     background: color-mix(in srgb, var(--alarm-2) 42%, transparent);

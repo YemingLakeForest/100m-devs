@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import {
   INCIDENTS_PER_GARAGE_RELEASE,
+  INCIDENT_KEEP_FLOOR,
+  INCIDENT_REFUND_PER_SEC,
   INCIDENT_WORK_SECONDS,
   IOTA,
   advanceIncidents,
   audienceShare,
+  bleedDowned,
   clearanceCapacity,
+  incidentBleedRate,
+  incidentBleedShare,
   incidentRate,
+  incidentTarget,
   lifetimeIncidents,
   suppressedReleases,
   type Incident,
 } from './incidents.ts'
 import { BETA } from './defects.ts'
-import { RETIRE_AFTER_SECONDS, advanceTail, rollShape, type Release } from './revenue.ts'
+import { RETIRE_AFTER_SECONDS, advanceTail, outstandingOf, rollShape, type Release } from './revenue.ts'
 
 function release(id: number, payout = 1_000, age = 0): Release {
   return { id, ordinal: id, name: `Game ${id}`, payout, age, paid: 0, shape: rollShape(1234, id), defectDensity: 0, rating: 50 }
@@ -169,5 +175,66 @@ describe('advanceIncidents', () => {
     expect(step.incidents).toBe(open)
     expect(step.pending).toBe(0.4)
     expect(step.cleared).toBe(0)
+  })
+})
+
+/**
+ * §4.12a [amended 2026-10-16] — the page lands where the damage is, and a
+ * downed game refunds. Orders and floors, not dollar figures.
+ */
+describe('§4.12a — incidents aim at d·a and bleed refunds', () => {
+  const aged = (r: Release, t: number) => advanceTail([r], t).releases[0]
+
+  it('raises the page on the release with the largest d·a, not the oldest', () => {
+    const old = aged({ ...release(1), defectDensity: BETA }, 200)
+    const fresh = aged({ ...release(2), defectDensity: BETA }, 2)
+    const clean = aged({ ...release(3), defectDensity: 0 }, 1)
+    expect(incidentTarget([old, fresh, clean])?.id).toBe(2)
+    // A rushed launch outranks a clean one at the same age.
+    const rushed = aged({ ...release(4), defectDensity: 3 * BETA }, 2)
+    expect(incidentTarget([fresh, rushed])?.id).toBe(4)
+    const step = advanceIncidents([], 1, 0, 1, 0, 1, [old, fresh, clean])
+    expect(step.incidents[0].releaseId).toBe(2)
+  })
+
+  it('skips a release that is already down, and keeps catalogue order when nothing can be weighed', () => {
+    const a = aged({ ...release(1), defectDensity: BETA }, 2)
+    const b = aged({ ...release(2), defectDensity: BETA }, 50)
+    expect(incidentTarget([a, b], new Set([1]))?.id).toBe(2)
+    expect(incidentTarget([{ id: 8, name: 'x' }, { id: 9, name: 'y' }])?.id).toBe(8)
+  })
+
+  it('bleeds a downed release into its refunds, books balanced, and never below the floor', () => {
+    let live = [aged(release(1, 10_000), 5)]
+    const open: Incident[] = [{ id: 1, releaseId: 1, releaseName: 'Game 1', age: 0, work: 45 }]
+    let refunded = 0
+    let last = Infinity
+    for (let t = 0; t < 600; t += 0.5) {
+      const step = bleedDowned(live, open, 0.5)
+      live = step.releases
+      refunded += step.refunded
+      const r = live[0]
+      expect(r.paid + (r.refunded ?? 0) + outstandingOf(r)).toBeCloseTo(10_000, 6)
+      expect(r.keep ?? 1).toBeGreaterThanOrEqual(INCIDENT_KEEP_FLOOR - 1e-12)
+      expect(incidentBleedRate(r)).toBeLessThanOrEqual(last)
+      last = incidentBleedRate(r)
+    }
+    expect(refunded).toBeGreaterThan(0)
+    // At the floor it stops: no rate, no further refund.
+    expect(incidentBleedRate(live[0])).toBe(0)
+    expect(bleedDowned(live, open, 10).refunded).toBe(0)
+  })
+
+  it('touches nothing that is not down', () => {
+    const live = [aged(release(1), 5), aged(release(2), 5)]
+    const step = bleedDowned(live, [{ id: 1, releaseId: 2, releaseName: 'Game 2', age: 0, work: 45 }], 1)
+    expect(step.releases[0]).toBe(live[0])
+    expect(step.releases[1].refunded ?? 0).toBeGreaterThan(0)
+  })
+
+  it('a longer outage costs more, and the share per second is the stated one', () => {
+    expect(incidentBleedShare(1, 1)).toBeCloseTo(1 - Math.exp(-INCIDENT_REFUND_PER_SEC), 12)
+    expect(incidentBleedShare(1, 20)).toBeGreaterThan(incidentBleedShare(1, 10))
+    expect(incidentBleedShare(INCIDENT_KEEP_FLOOR, 10)).toBe(0)
   })
 })

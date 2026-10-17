@@ -26,6 +26,8 @@
  */
 
 import { densityLine } from '../sim/defects.ts'
+import { incidentBleedRate } from '../sim/incidents.ts'
+import { formatMoney } from './hudModel.ts'
 import { serviceRatio } from '../sim/support.ts'
 import { supportHeads, type GameState } from '../game/store.ts'
 import { Kw } from './Kw.tsx'
@@ -95,11 +97,26 @@ export function Incidents({ state }: { state: GameState }) {
             */}
             <span className="backlog__chip-name">{incident.releaseName}</span>
             <span className="backlog__chip-state">OFF SALE</span>
+            {/*
+              [2026-10-16] And what it is giving back, while it is. A downed
+              game refunds its players (§4.12a's bleed), and the number is the
+              reason to touch the chip at all — so it is on the chip, in
+              dollars a second, and gone once the bleed has hit its floor.
+            */}
+            <Refunding releaseId={incident.releaseId} state={state} />
           </li>
         ))}
       </ul>
     </div>
   )
+}
+
+/** §4.12a — "−$X/s REFUNDING" for a downed release that is still bleeding. */
+function Refunding({ releaseId, state }: { releaseId: number; state: GameState }) {
+  const release = state.releases.find((r) => r.id === releaseId)
+  const rate = release ? incidentBleedRate(release) : 0
+  if (!(rate > 0)) return null
+  return <span className="backlog__chip-refund">−{formatMoney(rate)}/s REFUNDING</span>
 }
 
 /**

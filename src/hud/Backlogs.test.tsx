@@ -14,6 +14,7 @@ function stateWith(patch: Partial<GameState>): GameState {
   return {
     defects: 0,
     incidents: [],
+    releases: [],
     tickets: 0,
     projectsShipped: 0,
     heroFold: NO_HERO_FOLD,
@@ -96,6 +97,16 @@ describe('§4.12a — the incident chips', () => {
     // The player does not care how many on-call seconds remain. They care that a
     // game they shipped is not earning.
     expect(screen.getAllByText('OFF SALE')).toHaveLength(2)
+  })
+
+  it('says what the downed game is refunding, in dollars a second, while it bleeds [2026-10-16]', () => {
+    const release = { id: 7, ordinal: 7, name: 'Flappy Square', payout: 100_000, age: 1, paid: 0, shape: { spikeShare: 0.4, spikeTau: 15, tailTau: 50 }, defectDensity: 0, rating: 50 }
+    render(<Incidents state={stateWith({ ...down, releases: [release] })} />)
+    expect(screen.getByText(/REFUNDING/)).toHaveTextContent('/s REFUNDING')
+    // At the floor the bleed has stopped, and so has the line.
+    cleanup()
+    render(<Incidents state={stateWith({ ...down, releases: [{ ...release, keep: 0.3 }] })} />)
+    expect(screen.queryByText(/REFUNDING/)).not.toBeInTheDocument()
   })
 
   it('names no hire — Serena’s rota is the answer, and she is already here', () => {

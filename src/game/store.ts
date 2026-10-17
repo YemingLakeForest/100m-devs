@@ -39,6 +39,7 @@ import type { ShiftReport } from './paradigmBoot.ts'
 import { advanceDefects, defectsFromPoke, shipDefects } from '../sim/defects.ts'
 import {
   advanceIncidents,
+  bleedDowned,
   clearanceCapacity,
   incidentRate,
   suppressedReleases,
@@ -2982,6 +2983,11 @@ export function tick(dtSeconds: number): void {
   // an id, which §4.15's chip stack keys on.
   for (const i of incidents.incidents) nextIncidentId = Math.max(nextIncidentId, i.id + 1)
 
+  // §4.12a [amended 2026-10-16] — a downed game's players ask for their money
+  // back. Booked on the release as a refund (`revenue.ts`), floored so neglect
+  // is priced and never fatal. `open` already gates it: Run 1 has no incidents.
+  const bled = bleedDowned(tail.releases, incidents.incidents, dtSeconds)
+
   // §4.13 — and the people who bought them write in, forever.
   //
   // §22.8 — Matt's help desk answers them, and KNOWS THEIR NAMES slows the
@@ -3098,7 +3104,7 @@ export function tick(dtSeconds: number): void {
     // §14.1 — BP is paid on what reached the till. `tail.earned` is already
     // net of every refund, so a refunded dollar is never prestige.
     lifetimeRevenue: state.lifetimeRevenue + tail.earned,
-    releases: tail.releases,
+    releases: bled.releases,
     burned: gained + settled > 0 ? state.burned.plus(gained + settled) : state.burned,
   }
 

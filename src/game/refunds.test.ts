@@ -34,6 +34,30 @@ afterEach(() => {
   setPermanent(emptyPermanent())
 })
 
+describe('§4.12a — a downed release refunds while it is down', () => {
+  it('books the bleed on the release the incident names, and nowhere else', () => {
+    __setState({
+      releases: [onSale(1, 1_000_000), onSale(2, 1_000_000)],
+      incidents: [{ id: 1, releaseId: 2, releaseName: 'Game 2', age: 0, work: 1e6 }],
+    })
+    tick(1)
+    const [up, down] = getState().releases
+    expect(up.refunded ?? 0).toBe(0)
+    expect(down.refunded ?? 0).toBeGreaterThan(0)
+    expect(balanced(down)).toBeCloseTo(1_000_000, 4)
+  })
+
+  it('books none in Run 1, where nothing pages', () => {
+    setPermanent(emptyPermanent())
+    __setState({
+      releases: [onSale(1, 1_000_000)],
+      incidents: [{ id: 1, releaseId: 1, releaseName: 'Game 1', age: 0, work: 1e6 }],
+    })
+    tick(1)
+    expect(refundedOn(getState().releases)).toBe(0)
+  })
+})
+
 describe('§4.13 — the ticket tax is a logged refund, not a silent deletion', () => {
   it('books the taxed share on the release, and only the rest reaches the till', () => {
     __setState({ releases: [onSale(1, 1_000_000)], tickets: 1e9, cash: 0, lifetimeRevenue: 0 })

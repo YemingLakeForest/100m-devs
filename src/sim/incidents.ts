@@ -82,11 +82,22 @@
  * costs almost nothing. "Weighted by how many people are still playing" turns
  * out to be true of the punishment as well as of the arrival rate.
  *
+ * **[amended 2026-10-16] — and a refund as well.** The freeze stays, and the
+ * argument for it above is the reason refunds became a logged primitive in
+ * `revenue.ts` rather than a deletion here: the invariant now reads
+ * `paid + refunded + outstanding === payout`, and an open incident bleeds
+ * {@link INCIDENT_REFUND_PER_SEC} of what its release still owes into the
+ * `refunded` column, floored at {@link INCIDENT_KEEP_FLOOR}. A freeze alone was
+ * measured as costing almost nothing (fun-killers audit, finding 05); runway
+ * was the currency, and a studio with runway did not pay it. The page also
+ * lands where the damage is — {@link incidentTarget} — rather than on the
+ * oldest game, which was the cheapest one to lose.
+ *
  * Pure. No store, no clock, no renderer.
  */
 
 import { BETA } from './defects.ts'
-import { earningRate, type Release } from './revenue.ts'
+import { outstandingOf, refund, unitRate, type Release } from './revenue.ts'
 
 /**
  * **The anchoring sentence, as a number.** How many times a release shipped at
@@ -182,7 +193,10 @@ function finite(x: number, fallback = 0): number {
  */
 export function audienceShare(release: Release): number {
   if (!(release.payout > 0)) return 0
-  return earningRate(release) / release.payout
+  // The shape alone, not the refunded rate [2026-10-16]: a game that gave money
+  // back still has its players, and a refund that quietened its pager would let
+  // a buggy release page you *less* for being buggy.
+  return unitRate(release.shape, release.age)
 }
 
 /**
@@ -238,6 +252,108 @@ export function clearanceCapacity(oncallHeads: number): number {
   return Math.max(0, finite(oncallHeads))
 }
 
+/**
+ * A release an incident could land on. A full {@link Release} from the store; a
+ * test may pass a bare id and name, which weighs nothing and so falls back to
+ * catalogue order.
+ */
+export type IncidentCandidate = Pick<Release, 'id' | 'name'> &
+  Partial<Pick<Release, 'payout' | 'age' | 'shape' | 'defectDensity'>>
+
+/**
+ * Which release the next page is about — the one with the largest `d·a`.
+ *
+ * [amended 2026-10-16] It was the first candidate, which is the *oldest* game
+ * still on sale: the fun-killers audit (finding 05) noted that game earns
+ * almost nothing, so freezing it cost almost nothing, and the pager was a
+ * footnote. The arrival rate is already `ι·Σ d·a`, so the release contributing
+ * the most of it is the honest answer to "which one broke" — the rushed launch
+ * everybody is playing this week — and it is also the one an outage costs most.
+ * Ties (and a candidate that cannot be weighed) keep catalogue order.
+ */
+export function incidentTarget<C extends IncidentCandidate>(
+  candidates: readonly C[],
+  down: ReadonlySet<number> = new Set(),
+): C | null {
+  let best: C | null = null
+  let bestWeight = -1
+  for (const c of candidates) {
+    if (down.has(c.id)) continue
+    const weight =
+      c.shape && c.payout !== undefined && c.age !== undefined
+        ? Math.max(0, finite(c.defectDensity ?? 0)) * (c.payout > 0 ? unitRate(c.shape, c.age) : 0)
+        : 0
+    if (weight > bestWeight) {
+      best = c
+      bestWeight = weight
+    }
+  }
+  return best
+}
+
+/**
+ * Share of what a downed release still owes that it refunds per second —
+ * §4.12a [amended 2026-10-16].
+ *
+ * An open incident used to only *freeze* a tail, and the money all arrived
+ * later; the 2026-10-04 sweep recorded that the cash curve "barely moves" at
+ * any ι, and the fun-killers audit called the pager a paper tiger. Players of a
+ * game that is down ask for their money back, so while an incident is open its
+ * release bleeds this share of what it is still owed, every second, logged as a
+ * refund (`revenue.ts`).
+ *
+ * One and a half per cent. An incident left to the founder's 45 seconds costs a
+ * release about half its remaining money; one Matt's desk clears in ten costs
+ * about a seventh; and the break-even against REFUND & MOVE ON's quarter is
+ * about nineteen seconds of being down — which is the choice the chip offers.
+ */
+export const INCIDENT_REFUND_PER_SEC = 0.015
+
+/**
+ * The bleed stops when a release is down to this share of its unrefunded tail.
+ *
+ * §4.12's standing warning: the backlogs never become a second seizure. A game
+ * forgotten under an incident gives back most of its money and never all of
+ * it, so neglect is priced and never fatal. Only the bleed is floored; a
+ * refund the player chooses is a choice.
+ */
+export const INCIDENT_KEEP_FLOOR = 0.3
+
+/** The bleed's share over `dt` for a release at `keep`, stopping at the floor. */
+export function incidentBleedShare(keep: number, dt: number): number {
+  const k = Math.min(1, Math.max(0, finite(keep, 1)))
+  if (k <= INCIDENT_KEEP_FLOOR || !(dt > 0)) return 0
+  const share = 1 - Math.exp(-INCIDENT_REFUND_PER_SEC * dt)
+  return Math.min(share, 1 - INCIDENT_KEEP_FLOOR / k)
+}
+
+/** Dollars a second a downed release is refunding right now — the chip's `−$/s`. */
+export function incidentBleedRate(release: Release): number {
+  if ((release.keep ?? 1) <= INCIDENT_KEEP_FLOOR) return 0
+  return outstandingOf(release) * INCIDENT_REFUND_PER_SEC
+}
+
+/**
+ * Bleed every release with an incident open, over `dt`. Returns the catalogue
+ * with the refunds booked on it and what they came to.
+ */
+export function bleedDowned(
+  releases: readonly Release[],
+  incidents: readonly Incident[],
+  dt: number,
+): { releases: Release[]; refunded: number } {
+  if (incidents.length === 0 || !(dt > 0)) return { releases: releases as Release[], refunded: 0 }
+  const down = suppressedReleases(incidents)
+  let refunded = 0
+  const next = releases.map((r) => {
+    if (!down.has(r.id)) return r
+    const cut = refund(r, incidentBleedShare(r.keep ?? 1, dt))
+    refunded += cut.amount
+    return cut.release
+  })
+  return { releases: next, refunded }
+}
+
 export interface IncidentStep {
   incidents: Incident[]
   /** Closed over this step. For §4.15's chip leaving and the ship toast. */
@@ -267,7 +383,7 @@ export function advanceIncidents(
   dt: number,
   pending: number,
   nextId: number,
-  candidates: readonly { id: number; name: string }[],
+  candidates: readonly IncidentCandidate[],
   newIncidentWorkFraction = 1,
 ): IncidentStep {
   const step = Math.max(0, finite(dt))
@@ -285,7 +401,7 @@ export function advanceIncidents(
   // about a game that is already off sale is noise, and §4.15's chip stack has
   // nowhere to put it.
   while (carry >= 1 && candidates.length > 0) {
-    const target = candidates.find((c) => !alreadyDown.has(c.id))
+    const target = incidentTarget(candidates, alreadyDown)
     if (!target) break
     carry -= 1
     alreadyDown.add(target.id)
