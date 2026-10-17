@@ -646,8 +646,8 @@ export function tileStateOf(refusal: TreeRefusal, level: number): TileState {
     case 'link': return 'link'
     case 'maxed': return 'owned'
     case 'fork': return level > 0 ? 'partial' : 'closed'
-    case 'era':
     // A future node is drawn as the era lock draws it: dim, and out of reach.
+    case 'era':
     case 'future': return level > 0 ? 'partial' : 'era'
     case 'unbuilt':
     case 'requires':
