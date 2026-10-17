@@ -245,9 +245,13 @@ describe('the board sells nothing that does nothing', () => {
     expect(syncCapMultiplier({}, true)).toBeGreaterThan(syncCapMultiplier({}, false))
   })
 
-  it('counts every tree’s coordination, James’s included', () => {
-    const j = TREES.james.find((n) => n.coord)!
-    expect(syncCapMultiplier({ [`james:${j.id}`]: 1 })).toBeGreaterThan(1)
+  // [amended 2026-10-16] James's era-0 nodes do what their cards say
+  // (`treeLevers.jamesFromTree`); the coordination column is Billy's alone.
+  it('leaves sync to Billy: James’s nodes are levers of their own, not coordination', () => {
+    for (const n of TREES.james.filter((n) => n.lever)) {
+      expect(n.coord, n.id).toBeUndefined()
+      expect(syncCapMultiplier({ [`james:${n.id}`]: 1 })).toBe(1)
+    }
   })
 })
 

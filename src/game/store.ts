@@ -95,6 +95,7 @@ import {
   type TreeView,
 } from '../sim/upgradeTrees.ts'
 import { founderFromTree, withMattTree } from '../sim/treeLevers.ts'
+import { jamesFromTree, jamesPokeShare, type JamesEffects } from '../sim/treeLevers.ts'
 import { shiftPays, studioStalled } from '../sim/shiftPrompt.ts'
 import { MILESTONE_LINES, nextMilestoneBeat } from '../sim/milestoneBeats.ts'
 import {
@@ -966,7 +967,16 @@ export function commitmentFor(index: number, s: GameState = state): Decimal {
   // in `TARGET_BUILD_SECONDS` it is that figure, so Run 1 is untouched.
   const v = structuralVelocity(s) * buffMultiplier(s)
   const wanted = v * targetBuildSeconds(v, base.toNumber())
-  return wanted > base.toNumber() ? new Decimal(wanted) : base
+  const sized = wanted > base.toNumber() ? new Decimal(wanted) : base
+  // [2026-10-16] James's Torn Elbows and Grep Everything: the same game for less
+  // work. {@link shippedScale} divides it back out, so it pays the full game.
+  const less = commitmentScaleOf(s)
+  return less === 1 ? sized : sized.times(less)
+}
+
+/** The terminal rung's work, as a share of the game it pays for (James's j4, j6). */
+function commitmentScaleOf(s: GameState): number {
+  return jamesTreeOf(s)?.commitmentScale ?? 1
 }
 
 /**
@@ -1015,7 +1025,10 @@ export function projectTitle(s: GameState = state): { name: string; genre: Genre
 
 /** How much bigger the shipped project was than §4.4's authored terminal rung. */
 function shippedScale(s: GameState): number {
-  return s.commitment.toNumber() / PROJECTS[PROJECTS.length - 1].commitment
+  // Divided by James's commitment scale [2026-10-16]: the game is the size it
+  // would have been, and less of it had to be written. Read at ship, so a node
+  // bought mid-build pays its first game a shade early; the next is exact.
+  return s.commitment.toNumber() / PROJECTS[PROJECTS.length - 1].commitment / commitmentScaleOf(s)
 }
 
 /**
@@ -1415,6 +1428,24 @@ function jamesHead(s: GameState): number {
 }
 
 /**
+ * James's tree, as it reaches the studio [2026-10-16, plan phase 6.2]. Run 1 has
+ * no trees and gets nothing from here — not even the base share — so §21's
+ * four minutes are paced exactly as they were.
+ */
+function jamesTreeOf(s: GameState): JamesEffects | null {
+  return currentUnlocks().trees ? jamesFromTree(s.treeLevels) : null
+}
+
+/**
+ * His share of the studio, while he is at his desk ({@link structuralVelocity}).
+ * The gym takes it with him: rule 5's hour is missing from the arithmetic too.
+ */
+function jamesLift(s: GameState): number {
+  if (!jamesHead(s)) return 0
+  return jamesTreeOf(s)?.lift ?? 0
+}
+
+/**
  * Everybody who is at a desk writing code.
  *
  * `state.devs` is the *floor*: the twenty ordinary developers the counter shows
@@ -1567,11 +1598,16 @@ export function structuralVelocity(s: GameState = state): number {
   // *produces* from the headcount that *costs*, so the two arguments come from
   // different places. With an empty tree they are the same two numbers and this
   // is the same product it always was.
+  //
+  // [2026-10-16] Times James's share of the studio (`treeLevers.JAMES_LIFT`):
+  // here, so it is in the velocity the terminal rung is sized by and shows up as
+  // games that ship sooner, which is what "codes super fast" was never doing.
   return (
     workingDevs(s) *
     currentEfficiency(s) *
     SP_PER_DEV_PER_SEC *
-    devEfficiency(1, s.localEntropy)
+    devEfficiency(1, s.localEntropy) *
+    (1 + jamesLift(s))
   )
 }
 
@@ -1649,7 +1685,11 @@ export function pokeVelocity(s: GameState = state): number {
 export function founderOf(): FounderEffects {
   // [2026-10-04] The tree's three wired nodes (`treeLevers.ts`); NO_FOUNDER for a
   // save that has bought none of them, which is the founder everyone started as.
-  return founderFromTree(state.treeLevels)
+  const f = founderFromTree(state.treeLevels)
+  // [2026-10-16] James's Pair With the Founder: your taps count double *near
+  // him*, so not while he is at the gym.
+  const pairing = jamesHead(state) ? jamesTreeOf(state)?.founderTapScale ?? 1 : 1
+  return pairing === 1 ? f : { ...f, tapValue: f.tapValue * pairing }
 }
 
 /**
@@ -1759,8 +1799,16 @@ export function pokeFounder(x = 0, y = 0): number {
  * bankruptcy), for the reason {@link pokeFounder} gives.
  *
  * Returns the Story Points banked, 0 for a tap that did nothing.
+ *
+ * [amended 2026-10-16, plan phase 6.2] **From the first shift the poke is a share
+ * of the studio**: a quarter-second of its velocity (`treeLevers.jamesPokeShare`),
+ * so it is worth the same at forty heads and at forty million, and poking him as
+ * fast as a thumb can goes at most one studio's worth over. Twice your tap is
+ * the floor under it, and it is all of the poke in Run 1.
  */
 export const JAMES_TAP_MULTIPLE = 2
+/** The leaky average of what pokes on James have banked, for the cap. Ephemeral. */
+let jamesPokeLoad = { rate: 0, at: 0 }
 export function pokeJames(x = 0, y = 0): number {
   if (state.scene !== null || state.launching || state.phase === 'bankrupt') return 0
   if (shelfBlocked()) {
@@ -1768,7 +1816,13 @@ export function pokeJames(x = 0, y = 0): number {
     return 0
   }
   if (!arrivedHeroes().has('james') || !jamesPresent(state.runSeconds)) return 0
-  const sp = founderOf().tapValue * JAMES_TAP_MULTIPLE
+  const floor = founderOf().tapValue * JAMES_TAP_MULTIPLE
+  const tree = jamesTreeOf(state)
+  // A new run starts its clock at zero; a clock that went backwards is a new load.
+  const since = state.runSeconds - jamesPokeLoad.at
+  const recent = since >= 0 ? jamesPokeLoad.rate * Math.exp(-since / POKE_RATE_TAU) : 0
+  const sp = tree ? Math.max(floor, jamesPokeShare(structuralVelocity(), recent, POKE_RATE_TAU, tree)) : floor
+  jamesPokeLoad = { rate: recent + sp / POKE_RATE_TAU, at: state.runSeconds }
   set({
     burned: state.burned.plus(sp),
     pokeRate: state.pokeRate + sp / POKE_RATE_TAU,
@@ -4573,6 +4627,7 @@ export function __resetStore(): void {
   nextFloaterId = 1
   nextSpawnId = 1
   nextBuildId = 1
+  jamesPokeLoad = { rate: 0, at: 0 }
   setPermanent(emptyPermanent())
   pendingSnapshot = null
   for (const fn of listeners) fn()

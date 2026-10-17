@@ -248,10 +248,10 @@ export const BILLY_ARRIVAL_POINTS = 1
 /**
  * The multiplier on §4.2's cap from the coordination points the player owns.
  *
- * **Any tree's coordination nodes count** [2026-10-04]: James's three era-0 nodes
- * carry a little of it. His tree is the one the game opens first (§21.6), and
- * once nodes that change nothing could no longer be bought, it had to have
- * something to sell four minutes in, before Billy or Serena are in the building.
+ * **Any tree's coordination nodes count** [2026-10-04]. James's three era-0
+ * nodes carried a little of it, so his tree had something to sell before Billy
+ * or Serena were in the building; [amended 2026-10-16] they do what their cards
+ * say now (`treeLevers.jamesFromTree`), and the coordination column is Billy's.
  */
 export function syncCapMultiplier(
   levels: Readonly<Record<string, number>> | undefined,
@@ -336,14 +336,20 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
   ],
   james: [
     N('R', 0, 0, 'Instant Messenger', 'monitor', 0, { t: 'root', tech: 'B1', fx: 'Communication load −5%', d: 'He brought it at the start of the run, so you don’t have to speak to each other any more. You are sitting side by side.' }),
-    N('j1', 1, 0, 'Diet Coke Stack', 'cans', 0, { p: ['R'], t: 'lvl', max: 5, k: 0.25, d: 'Everything in his pod +3% per level. You can see the stack from the door.' }),
-    N('j2', 0, 1, 'Pair With the Founder', 'twoheads', 0, { p: ['R'], k: 0.5, d: 'Your taps count double near him.' }),
+    // [amended 2026-10-16] James's era-0 nodes do what their cards say (plan phase
+    // 6.2): they were a quarter and a half of a coordination point each, which is
+    // Billy's job, sold four minutes in because nothing else was built. Their
+    // levers are in `treeLevers.ts` (`jamesFromTree`).
+    N('j1', 1, 0, 'Diet Coke Stack', 'cans', 0, { p: ['R'], t: 'lvl', max: 5, lv: true, fx: 'James adds 3% more of the studio’s speed per level, while he is at his desk.', d: 'Everything in his pod +3% per level. You can see the stack from the door.' }),
+    N('j2', 0, 1, 'Pair With the Founder', 'twoheads', 0, { p: ['R'], lv: true, fx: 'Your own taps count double while he is at his desk.', d: 'Your taps count double near him.' }),
     N('j3', 1, 1, 'Knows a Chap', 'phone', 1, { p: ['j1', 'j2'], d: 'Introduces Billy. Billy’s tree opens.' }),
     N('gB', 2, 1, 'Billy · the Board', '', 1, { t: 'link', to: 'billy:R', p: ['j3'] }),
-    N('j4', -1, 0, 'Torn Elbows', 'jumper', 0, { p: ['R'], k: 0.25, d: 'He has worn that jumper since the garage, and it is load-bearing. His pod ships a little faster.' }),
-    N('j5a', -2, 0, 'Shared Snippets Folder', 'folder', 1, { p: ['j4'], ex: 'C', mv: ['duplicate', 'handoffs', 4], d: 'Nobody rewrites the date picker, but somebody has to own the folder.' }),
-    N('j5b', -1, -1, 'Rewrite It Over the Weekend', 'coffee', 1, { p: ['j4'], ex: 'C', mv: ['duplicate', 'waiting', 4], d: 'Monday morning brings one very large merge.' }),
-    N('j6', -2, -1, 'Grep Everything', 'magnifier', 2, { p: ['j5a', 'j5b'], mv: ['duplicate', 'waiting', 3], d: 'Search before you build. The index rebuilds hourly, and everyone waits for it.' }),
+    N('j4', -1, 0, 'Torn Elbows', 'jumper', 0, { p: ['R'], lv: true, fx: 'Every game is 5% less work for the same game: they ship a little sooner.', d: 'He has worn that jumper since the garage, and it is load-bearing. His pod ships a little faster.' }),
+    // Fork C [2026-10-16]: the hand or the weekend. j5a makes a poke on him worth
+    // half as much again; j5b makes him worth more with nobody touching him.
+    N('j5a', -2, 0, 'Shared Snippets Folder', 'folder', 1, { p: ['j4'], ex: 'C', lv: true, fx: 'A poke on James is worth half as much again, and so is the most poking him can add.', mv: ['duplicate', 'handoffs', 4], d: 'Nobody rewrites the date picker, but somebody has to own the folder.' }),
+    N('j5b', -1, -1, 'Rewrite It Over the Weekend', 'coffee', 1, { p: ['j4'], ex: 'C', lv: true, fx: 'James adds another 10% of the studio’s speed, without a poke.', mv: ['duplicate', 'waiting', 4], d: 'Monday morning brings one very large merge.' }),
+    N('j6', -2, -1, 'Grep Everything', 'magnifier', 2, { p: ['j5a', 'j5b'], lv: true, fx: 'Every game is 10% less work for the same game.', mv: ['duplicate', 'waiting', 3], d: 'Search before you build. The index rebuilds hourly, and everyone waits for it.' }),
     N('j7', -3, -1, 'Inner Source', 'guild', 2, { p: ['j6'], mv: ['duplicate', 'meetings', 5], d: 'Any team may use any team’s code, once the review guild has met.' }),
     N('j8', -2, -2, 'The Diet Coke Pyramid', 'pyramid', 3, { p: ['j6'], d: 'The stack reaches the HQ ceiling. Someone asks what it is for.' }),
     N('K1', -3, -2, 'Someone Already Wrote That', 'book', 3, { t: 'key', sl: 'duplicate', p: ['j7', 'j8'], all: true, d: 'One library, every world. Mostly.' }),

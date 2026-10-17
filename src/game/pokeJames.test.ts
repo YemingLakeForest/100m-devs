@@ -6,7 +6,7 @@
  * takes him away for an hour a day (§21.7.0 rule 5).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { __resetStore, __setState, founderOf, getState, pokeJames } from './store.ts'
+import { POKE_RATE_TAU, __resetStore, __setState, founderOf, getState, pokeJames, structuralVelocity } from './store.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { SCENE_JAMES_ARRIVES } from './scenes.ts'
 import { GYM_START_HOUR, runSecondsAtHour } from '../sim/james.ts'
@@ -40,5 +40,55 @@ describe('a poke on James', () => {
     jamesHasArrived(true)
     __setState({ runSeconds: runSecondsAtHour(GYM_START_HOUR + 0.5) })
     expect(pokeJames()).toBe(0)
+  })
+})
+
+/**
+ * James as a share of the studio [2026-10-16, plan phase 6.2]. Run 2 only: the
+ * claims are that his presence lifts the studio and the gym takes it away, that
+ * the poke is a share of the studio rather than of your tap, and that hammering
+ * him adds no more than one studio's worth.
+ */
+describe('James in Run 2 is a share of the studio', () => {
+  function runTwo() {
+    const p = emptyPermanent()
+    setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_JAMES_ARRIVES.id] } })
+  }
+  beforeEach(() => __resetStore())
+  afterEach(() => { jamesHasArrived(false); __resetStore() })
+
+  it('lifts the studio while he is at his desk, and the gym takes it with him', () => {
+    runTwo()
+    __setState({ devs: 40, runSeconds: 100 })
+    const here = structuralVelocity()
+    __setState({ runSeconds: runSecondsAtHour(GYM_START_HOUR + 0.5) })
+    const gym = structuralVelocity()
+    // More than his one head is worth: 41 coders against 40.
+    expect(here / gym).toBeGreaterThan(41 / 40)
+  })
+
+  it('a poke on him grows with the studio, not with your tap', () => {
+    runTwo()
+    __setState({ devs: 10, runSeconds: 100 })
+    const small = pokeJames()
+    __resetStore()
+    runTwo()
+    __setState({ devs: 400, devCap: 1000, runSeconds: 100 })
+    const big = pokeJames()
+    expect(big).toBeGreaterThan(small * 10)
+    expect(big).toBeGreaterThan(founderOf().tapValue * 2)
+  })
+
+  it('hammering him adds at most about one studio of speed', () => {
+    runTwo()
+    __setState({ devs: 400, devCap: 1000, runSeconds: 100 })
+    const v = structuralVelocity()
+    let banked = 0
+    // Fifty taps on one frame: the cap, not the thumb, decides. The old tap floor
+    // is still paid on each, which is a rounding error at this size.
+    for (let i = 0; i < 50; i++) banked += pokeJames()
+    const floor = 50 * founderOf().tapValue * 2
+    expect(banked).toBeLessThanOrEqual(v * POKE_RATE_TAU * 1.000001 + floor)
+    expect(banked).toBeGreaterThan(v)
   })
 })

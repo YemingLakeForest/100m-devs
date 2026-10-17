@@ -7,9 +7,13 @@ import {
   HEADSET_ONCALL_HEADS,
   INBOX_SUPPORT_STEP,
   INSPECTOR_START_WORK,
+  JAMES_POKE_CAP,
   MACROS_TICKET_RATE,
+  NO_JAMES_TREE,
   SECOND_MONITOR_RATE,
   founderFromTree,
+  jamesFromTree,
+  jamesPokeShare,
   withMattTree,
 } from './treeLevers.ts'
 
@@ -70,6 +74,68 @@ describe('Matt’s tree', () => {
     const all = withMattTree(base, bought('matt', { t1: 5, t2: 5, h1: 1, K: 1 }), 1000)
     expect(all.ticketRate).toBeGreaterThan(0)
     expect(all.supportHeads).toBeGreaterThan(base.supportHeads)
+  })
+})
+
+/**
+ * James is a share of the studio [2026-10-16, plan phase 6.2]. The claims: an
+ * empty save is the base share and nothing else, every node moves its own field
+ * the way its card says, the poke is scale-free, and sustained poking is capped
+ * at one studio's worth (j5a raising that cap is the fork's point).
+ */
+describe('James’s tree', () => {
+  const at = (ids: Record<string, number>) =>
+    jamesFromTree(Object.fromEntries(Object.entries(ids).map(([id, n]) => [treeKey('james', id), n])))
+
+  it('is the base share and nothing else for a save that has bought nothing of his', () => {
+    expect(jamesFromTree({})).toBe(NO_JAMES_TREE)
+    expect(jamesFromTree(undefined)).toBe(NO_JAMES_TREE)
+    expect(NO_JAMES_TREE.lift).toBeGreaterThan(0)
+    expect(NO_JAMES_TREE.lift).toBeLessThan(0.5)
+  })
+
+  it('each node moves its own field the way its card says', () => {
+    let last = NO_JAMES_TREE.lift
+    for (let l = 1; l <= 5; l++) {
+      const lift = at({ j1: l }).lift
+      expect(lift).toBeGreaterThan(last)
+      last = lift
+    }
+    expect(at({ j2: 1 }).founderTapScale).toBeGreaterThan(1)
+    expect(at({ j3: 1 }).callsBilly).toBe(true)
+    expect(at({ j4: 1 }).commitmentScale).toBeLessThan(1)
+    expect(at({ j5a: 1 }).pokeScale).toBeGreaterThan(1)
+    expect(at({ j5b: 1 }).lift).toBeGreaterThan(NO_JAMES_TREE.lift)
+    expect(at({ j6: 1 }).commitmentScale).toBeLessThan(at({ j4: 1 }).commitmentScale)
+    expect(at({ j4: 1, j6: 1 }).commitmentScale).toBeLessThan(at({ j6: 1 }).commitmentScale)
+  })
+
+  it('a poke on him is the same share of the studio at any size', () => {
+    const small = jamesPokeShare(40, 0, 2, NO_JAMES_TREE)
+    const big = jamesPokeShare(4e7, 0, 2, NO_JAMES_TREE)
+    expect(small).toBeGreaterThan(0)
+    expect(big / 4e7).toBeCloseTo(small / 40, 12)
+  })
+
+  it('poking him as fast as a thumb can adds at most one studio, and the snippets folder raises both', () => {
+    const v = 1000
+    const tau = 2
+    for (const fx of [NO_JAMES_TREE, at({ j5a: 1 })]) {
+      // A thumb at twenty taps a second, for a minute: the same leaky average the store keeps.
+      let rate = 0
+      for (let i = 0; i < 1200; i++) {
+        rate *= Math.exp(-0.05 / tau)
+        rate += jamesPokeShare(v, rate, tau, fx) / tau
+      }
+      expect(rate).toBeLessThanOrEqual(JAMES_POKE_CAP * fx.pokeScale * v * (1 + 1e-9))
+      expect(rate).toBeGreaterThan(0.9 * JAMES_POKE_CAP * fx.pokeScale * v)
+    }
+    expect(jamesPokeShare(v, 0, tau, at({ j5a: 1 }))).toBeGreaterThan(jamesPokeShare(v, 0, tau, NO_JAMES_TREE))
+  })
+
+  it('pays nothing scale-free for a studio that has stopped', () => {
+    expect(jamesPokeShare(0, 0, 2, NO_JAMES_TREE)).toBe(0)
+    expect(jamesPokeShare(Number.NaN, 0, 2, NO_JAMES_TREE)).toBe(0)
   })
 })
 
