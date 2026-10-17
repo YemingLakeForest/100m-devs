@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { NO_FOUNDER } from './founder.ts'
 import { NO_HERO_FOLD } from './heroRoster.ts'
-import { TREES, isBuilt, treeKey } from './upgradeTrees.ts'
+import { TREES, TREE_HEROES, isBuilt, syncCapMultiplier, treeKey } from './upgradeTrees.ts'
 import {
   FAQ_TICKET_RATE,
   HEADSET_ONCALL_HEADS,
@@ -176,6 +176,40 @@ describe('Billy’s tree', () => {
     // The Meeting Ban stays the only thing that deletes the stand-up.
     expect(both).toBeLessThan(100)
   })
+})
+
+/**
+ * Plan 2026-10-16 phase 6 — **every node the board sells moves some fold, and
+ * an empty save moves none of them.** One table of folds, every reader of a
+ * tree level the economy has; a lever wired somewhere else must be added here,
+ * which is the point: a node whose effect nobody can find is a shop for nothing.
+ * Serena's pipeline nodes (`wired`) are the pipeline's own claim and its tests'.
+ */
+describe('every built node moves some fold', () => {
+  const fold = { ...NO_HERO_FOLD, supportHeads: 5, ticketRate: 0.8, oncallHeads: 2, incidentStartWork: 0.5, standupHeads: 50 }
+  const FOLDS: readonly ((levels: Record<string, number> | undefined) => unknown)[] = [
+    (l) => founderFromTree(l),
+    (l) => founderCapFromTree(l),
+    (l) => jamesFromTree(l),
+    (l) => withBillyTree(fold, l, 100),
+    (l) => withMattTree(fold, l, 100),
+    (l) => syncCapMultiplier(l),
+  ]
+  const readings = (levels: Record<string, number> | undefined) => FOLDS.map((f) => JSON.stringify(f(levels)))
+  const empty = readings({})
+
+  it('an empty save is the same studio as no save at all', () => {
+    expect(readings(undefined)).toEqual(empty)
+  })
+
+  for (const hero of TREE_HEROES) {
+    for (const n of TREES[hero]) {
+      if (n.kind === 'root' || n.kind === 'link' || n.wired || !isBuilt(n)) continue
+      it(`${hero}:${n.id} ${n.name}`, () => {
+        expect(readings({ [treeKey(hero, n.id)]: 1 }), `${hero}:${n.id}`).not.toEqual(empty)
+      })
+    }
+  }
 })
 
 describe('both trees are really built', () => {

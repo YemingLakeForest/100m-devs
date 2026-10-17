@@ -11,6 +11,8 @@ import { describe, expect, it } from 'vitest'
 import {
   BILLY_ARRIVAL_POINTS,
   COORD_LOAD_STEP,
+  FUTURE_ERA,
+  HIDDEN_NODES,
   TREE_HEROES,
   TREES,
   connectorRoute,
@@ -219,15 +221,23 @@ describe('the board sells nothing that does nothing', () => {
   it('refuses every node that is not built, however rich the studio is and however far along', () => {
     for (const [hero, n] of sellable) {
       if (isBuilt(n)) continue
-      expect(treeRefusal(view({}, { cash: 1e18, era: 4 }), hero, n), `${hero}:${n.id}`).toBe('unbuilt')
+      // [2026-10-16] An unbuilt node of the stars says *future* rather than *not built*.
+      const why = n.era >= FUTURE_ERA ? 'future' : 'unbuilt'
+      expect(treeRefusal(view({}, { cash: 1e18, era: 4 }), hero, n), `${hero}:${n.id}`).toBe(why)
     }
   })
 
-  it('never refuses a built node as unbuilt', () => {
+  it('never refuses a built node as unbuilt or future', () => {
     for (const [hero, n] of sellable) {
       if (!isBuilt(n)) continue
-      expect(treeRefusal(view({}, { cash: 1e18, era: 4 }), hero, n), `${hero}:${n.id}`).not.toBe('unbuilt')
+      const why = treeRefusal(view({}, { cash: 1e18, era: 4 }), hero, n)
+      expect(why, `${hero}:${n.id}`).not.toBe('unbuilt')
+      expect(why, `${hero}:${n.id}`).not.toBe('future')
     }
+  })
+
+  it('draws a future node dim, as the era lock does', () => {
+    expect(tileStateOf('future', 0)).toBe('era')
   })
 
   it('leaves something to buy before Billy or Serena are in the building', () => {
@@ -292,5 +302,34 @@ describe('Org Chart is a sink with no last level, and it never gets cheaper in t
   it('ignores the income floor, which the one-off nodes keep', () => {
     expect(treePrice(org, 0, 1e15)).toBe(treePrice(org, 0))
     expect(treePrice(node('billy', 'c1'), 0, 1e15)).toBe(1e15)
+  })
+})
+
+/**
+ * Plan 2026-10-16 phase 6.5 — the triage. Cut nodes are gone, hidden ones wait
+ * off the board without stranding anything drawn, and the edges that ran
+ * through a hidden node still lead somewhere on the board.
+ */
+describe('the triage', () => {
+  it('cuts the loss-slice-only nodes no system is coming for', () => {
+    const cut = { you: ['m3', 'h5'], james: ['j7', 'j8'], billy: ['d2', 'd3', 'b6', 'b7'] } as const
+    for (const [hero, ids] of Object.entries(cut) as [TreeHero, readonly string[]][]) {
+      for (const id of ids) expect(treeNode(hero, id), `${hero}:${id}`).toBeUndefined()
+    }
+  })
+
+  it('hides Matt’s puzzles, Serena’s rollback and the links between them, and keeps them', () => {
+    const hidden = { matt: ['m2', 'm3', 'm4', 'm5', 'gS'], serena: ['r3', 'r4', 'gM'] } as const
+    for (const [hero, ids] of Object.entries(hidden) as [TreeHero, readonly string[]][]) {
+      for (const id of ids) {
+        expect(treeNode(hero, id), `${hero}:${id}`).toBeUndefined()
+        expect(HIDDEN_NODES[hero].some((n) => n.id === id), `${hero}:${id}`).toBe(true)
+      }
+    }
+  })
+
+  it('passes an edge through a hidden node to that node’s parents', () => {
+    expect(node('serena', 'r5').parents).toEqual(['r2'])
+    expect(node('matt', 'm6').parents).toEqual(['m1'])
   })
 })

@@ -96,6 +96,7 @@ function refusalLine(hero: TreeHero, node: TreeNode, why: TreeRefusal, s: GameSt
     case 'root': return 'WHERE THIS TREE STARTS'
     case 'link': return null
     case 'unbuilt': return 'NOT BUILT YET — NOTHING TO BUY'
+    case 'future': return 'FUTURE — ARRIVES WITH THE STARS'
     case 'maxed': return node.max > 1 ? 'ALL LEVELS OWNED' : 'OWNED'
     case 'era': return `OPENS AT ${eraName(node.era)}`
     case 'fork': {

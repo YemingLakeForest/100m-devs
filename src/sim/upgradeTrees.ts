@@ -157,6 +157,12 @@ export interface TreeNode {
    * its own curve ({@link REPEAT_BASE}, {@link REPEAT_STEP}) with no income floor.
    */
   repeat?: boolean
+  /**
+   * Off the board until its system exists [2026-10-16, plan phase 6.5]: Matt's
+   * four §17 puzzles, Serena's Rollback Button and Error Budget, and the two
+   * links between them. Kept in {@link HIDDEN_NODES} so they come back as written.
+   */
+  hidden?: boolean
 }
 
 interface Opts {
@@ -173,10 +179,12 @@ interface Opts {
   /** `TreeNode.tech`, and the effect line that goes with it. */
   tech?: string
   fx?: string
-  /** Wired to a lever in `treeLevers.ts` — the founder's and Matt's nodes. */
+  /** Wired to a lever in `treeLevers.ts` — the founder's, James's, Billy's and Matt's nodes. */
   lv?: boolean
   /** `TreeNode.repeat`: no last level, and its own price curve. */
   rp?: boolean
+  /** `TreeNode.hidden`: off the board until its system exists. */
+  hd?: boolean
 }
 
 /** The demo's own constructor, so the table below reads like the demo's. */
@@ -194,6 +202,7 @@ function N(id: string, x: number, y: number, name: string, icon: string, era: nu
     fork: o.ex,
     max: o.rp ? Number.POSITIVE_INFINITY : o.max ?? 1,
     repeat: o.rp,
+    hidden: o.hd,
     text: o.d ?? '',
     move: o.mv ? { from: o.mv[0], to: o.mv[1], units: o.mv[2] } : undefined,
     coord: o.k,
@@ -302,7 +311,16 @@ function fromPipeline(n: PipelineNode): TreeNode {
   }
 }
 
-export const TREES: Record<TreeHero, readonly TreeNode[]> = {
+/*
+ * [2026-10-16, plan phase 6.5] **Cut**: the nodes whose only effect was a move
+ * between loss slices this build does not model, and that no system is coming
+ * for — Billy's Retro, Definition of Done, Shared Calendar and Calendar Tetris;
+ * James's Inner Source and Diet Coke Pyramid; the founder's Corner Office and
+ * Day-One Laptops. Their children hang off the nearest node that stays. The
+ * board's other unbuilt nodes stay drawn, dim, because each is a promise about
+ * a system that exists (§11.4's triage table says which).
+ */
+const CATALOGUE: Record<TreeHero, readonly TreeNode[]> = {
   you: [
     N('R', 0, 0, 'The Garage', 'garage', 0, { t: 'root', d: 'Four desks, one extension cord. The garage stays, and it can be upgraded.' }),
     N('y1', 1, 0, 'Second Monitor', 'monitor', 0, { p: ['R'], lv: true, fx: 'Your own desk writes 30% more.', d: 'Your own desk writes more. It is the one output in the company that never dilutes.' }),
@@ -319,7 +337,6 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('K1', 5, -2, 'Leave Them Alone', 'hammock', 4, { t: 'key', sl: 'slacking', p: ['p5', 'p6'], all: true, d: 'The only upgrade that works by you doing less.' }),
     N('m1', 0, -1, 'Garage Loft', 'ladder', 0, { p: ['R'], t: 'lvl', max: 2, d: 'The garage grows up instead of out. Two more seats per level.' }),
     N('m2', 0, -2, 'Moving Day', 'truck', 1, { p: ['m1'], lv: true, fx: 'Capacity ×1.5: the HQ floor holds half as many again before the talking eats the work.', d: 'The team moves to the HQ floor, the top storey of the first tower. The garage is kept exactly as it was.' }),
-    N('m3', -1, -2, 'Corner Office', 'glassbox', 1, { p: ['m2'], mv: ['slacking', 'handoffs', 3], d: 'A glass box on the HQ floor. You can see everyone, and everything goes through your door.' }),
     N('m4', 0, -3, 'Buy the Block', 'tower', 2, { p: ['m2'], d: 'The city fills outward from HQ in square rings.' }),
     N('m5', 1, -3, 'Cranes', 'crane', 2, { p: ['m4'], t: 'lvl', max: 3, d: 'Frontier towers rise a floor faster per level.' }),
     N('m6', 0, -4, 'Launch Pad on the Lawn', 'pad', 3, { p: ['m4'], d: 'Earth is full at 100,000,000. Something on the lawn is fuelled with Diet Coke.' }),
@@ -329,9 +346,8 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('h3', -2, 1, 'Referral Bonus', 'twoheads', 1, { p: ['h2'], mv: ['onboarding', 'slacking', 4], d: 'Friends onboard faster. They also chat.' }),
     N('h4a', -3, 0, 'Bootcamp', 'tent', 2, { p: ['h2'], ex: 'B', mv: ['onboarding', 'duplicate', 5], d: 'New hires learn by building the same to-do app, forty thousand times.' }),
     N('h4b', -3, 1, 'Buddy System', 'buddy', 2, { p: ['h3'], ex: 'B', mv: ['onboarding', 'waiting', 5], d: 'Every hire gets a buddy, and the buddies stop shipping.' }),
-    N('h5', -4, 1, 'Day-One Laptops', 'laptop', 2, { p: ['h4a', 'h4b'], d: 'Every hire has a working laptop on the first morning. It costs a fortune.' }),
-    N('h6', -5, 1, 'Hire Where You Look', 'flag', 4, { p: ['h5'], d: 'Hiring lands on the world in view.' }),
-    N('h7', -4, 2, 'Recruiters on Every World', 'planet', 4, { p: ['h5'], t: 'lvl', max: 3, d: 'Colony hiring runs faster per level.' }),
+    N('h6', -5, 1, 'Hire Where You Look', 'flag', 4, { p: ['h4a', 'h4b'], d: 'Hiring lands on the world in view.' }),
+    N('h7', -4, 2, 'Recruiters on Every World', 'planet', 4, { p: ['h4a', 'h4b'], t: 'lvl', max: 3, d: 'Colony hiring runs faster per level.' }),
     N('K2', -5, 2, 'They Already Know the Codebase', 'gradcap', 4, { t: 'key', sl: 'onboarding', p: ['h6', 'h7'], all: true, d: 'Hires arrive onboarded. Nobody asks how.' }),
   ],
   james: [
@@ -350,9 +366,7 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('j5a', -2, 0, 'Shared Snippets Folder', 'folder', 1, { p: ['j4'], ex: 'C', lv: true, fx: 'A poke on James is worth half as much again, and so is the most poking him can add.', mv: ['duplicate', 'handoffs', 4], d: 'Nobody rewrites the date picker, but somebody has to own the folder.' }),
     N('j5b', -1, -1, 'Rewrite It Over the Weekend', 'coffee', 1, { p: ['j4'], ex: 'C', lv: true, fx: 'James adds another 10% of the studio’s speed, without a poke.', mv: ['duplicate', 'waiting', 4], d: 'Monday morning brings one very large merge.' }),
     N('j6', -2, -1, 'Grep Everything', 'magnifier', 2, { p: ['j5a', 'j5b'], lv: true, fx: 'Every game is 10% less work for the same game.', mv: ['duplicate', 'waiting', 3], d: 'Search before you build. The index rebuilds hourly, and everyone waits for it.' }),
-    N('j7', -3, -1, 'Inner Source', 'guild', 2, { p: ['j6'], mv: ['duplicate', 'meetings', 5], d: 'Any team may use any team’s code, once the review guild has met.' }),
-    N('j8', -2, -2, 'The Diet Coke Pyramid', 'pyramid', 3, { p: ['j6'], d: 'The stack reaches the HQ ceiling. Someone asks what it is for.' }),
-    N('K1', -3, -2, 'Someone Already Wrote That', 'book', 3, { t: 'key', sl: 'duplicate', p: ['j7', 'j8'], all: true, d: 'One library, every world. Mostly.' }),
+    N('K1', -3, -2, 'Someone Already Wrote That', 'book', 3, { t: 'key', sl: 'duplicate', p: ['j6'], d: 'One library, every world. Mostly.' }),
     N('d1', 0, -1, 'Takes His Desk With Him', 'crate', 3, { p: ['R'], d: 'He used to never leave his desk. Now he takes it with him.' }),
     N('gP', 1, -2, 'You · Launch Pad', '', 3, { t: 'link', to: 'you:m6' }),
     N('L', 0, -2, 'Bye, Earthling.', 'rocket', 3, { t: 'launch', p: ['d1', 'gP'], all: true, d: 'The first launch, and it always goes to Proxima b. He waves a can on the way up. JAMES!!! His head reads “Proxima b · 4.24 ly” from now on.' }),
@@ -386,14 +400,10 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('b3', -2, 0, 'Async Standup', 'paper', 2, { p: ['b1'], ex: 'D', k: 2, mv: ['meetings', 'handoffs', 5], d: 'Standup becomes a written update nobody finishes reading.' }),
     N('b4', -2, 1, 'No-Meeting Wednesdays', 'calendar', 2, { p: ['b2', 'b3'], mv: ['meetings', 'waiting', 3], d: 'Wednesday’s meetings move to Thursday.' }),
     N('b5', -3, 1, 'Decline by Default', 'xmark', 2, { p: ['b4'], mv: ['meetings', 'duplicate', 4], d: 'Nobody attends, so two teams each decide the same thing alone.' }),
-    N('b6', -3, 0, 'Shared Calendar', 'calendar', 2, { p: ['b3'], d: 'Everyone can see everyone’s day, so the meetings find the gaps.' }),
-    N('b7', -4, 0, 'Calendar Tetris', 'blocks', 3, { p: ['b6'], mv: ['meetings', 'onboarding', 3], d: 'New hires spend their first week finding a free slot.' }),
-    N('K', -4, 1, 'It Could Have Been an Email, and It Was', 'envelope', 3, { t: 'key', sl: 'meetings', p: ['b5', 'b7'], all: true, d: '“If we shan’t need it, we shall give it back.” He gives it back.' }),
+    N('K', -4, 1, 'It Could Have Been an Email, and It Was', 'envelope', 3, { t: 'key', sl: 'meetings', p: ['b5'], d: '“If we shan’t need it, we shall give it back.” He gives it back.' }),
     N('d1', 0, 1, 'Loss on the Wall', 'chart', 1, { p: ['R'], d: 'Billy draws the seven slices on his board, and the loss bar is read off it.' }),
-    N('d2', 0, 2, 'Retro', 'sticky', 1, { p: ['d1'], d: 'Every sprint the team names the slice that hurt most. Nothing else happens.' }),
     N('d4', 1, 1, 'Team Topologies', 'blocks', 2, { p: ['c1', 'd1'], k: 1, mv: ['handoffs', 'meetings', 3], d: 'Coordination +1. Teams are redrawn around the work, in a series of workshops.' }),
-    N('d3', 1, 2, 'Definition of Done', 'check', 2, { p: ['d2', 'd4'], mv: ['duplicate', 'meetings', 3], d: 'Everyone agrees what “finished” means, at length.' }),
-    N('gS', 2, 2, 'Serena · Ship on Green', '', 2, { t: 'link', to: 'serena:a3b', p: ['d3'] }),
+    N('gS', 2, 2, 'Serena · Ship on Green', '', 2, { t: 'link', to: 'serena:a3b', p: ['d4'] }),
   ],
   serena: [
     N('R', 0, 0, 'Serena’s Dashboards', 'dashboard', 0, { t: 'root', d: 'The pipeline is a buffer: how long you can walk away. Capacity and speed are upgraded separately.' }),
@@ -404,19 +414,19 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     // Reliability, the half of her tree the pipeline does not cover.
     N('r1', -1, 0, 'Wrote the Runbook', 'book', 1, { p: ['R'], d: 'A new incident opens half worked.' }),
     N('r2', -2, 0, 'On-Call Rota', 'phone', 1, { p: ['r1'], mv: ['waiting', 'slacking', 3], d: 'Incidents get answered at 3 a.m., and on-call sleeps at their desk the next day.' }),
-    N('r3', -2, 1, 'Rollback Button', 'cassette', 2, { p: ['r2'], d: 'A rollback spends a real build from the buffer.' }),
-    N('gM', -2, 2, 'Matt · Rollback puzzle', '', 2, { t: 'link', to: 'matt:m5', p: ['r3'] }),
-    N('r4', -3, 0, 'Error Budget', 'coins', 2, { p: ['r2'], t: 'lvl', max: 3, d: 'How often an incident may happen before shipping pauses.' }),
+    N('r3', -2, 1, 'Rollback Button', 'cassette', 2, { p: ['r2'], hd: true, d: 'A rollback spends a real build from the buffer.' }),
+    N('gM', -2, 2, 'Matt · Rollback puzzle', '', 2, { t: 'link', to: 'matt:m5', p: ['r3'], hd: true }),
+    N('r4', -3, 0, 'Error Budget', 'coins', 2, { p: ['r2'], hd: true, t: 'lvl', max: 3, d: 'How often an incident may happen before shipping pauses.' }),
     N('r5', -4, 0, 'It Was Degraded', 'shield', 3, { p: ['r4'], d: 'Incidents no longer stop the belt. “There’s a difference, and it matters.”' }),
   ],
   matt: [
     N('R', 0, 0, 'Matt’s Ticket Wall', 'ticketwall', 1, { t: 'root', d: 'He arrives with the first ticket queue nobody is serving.' }),
     N('m1', 1, 0, 'Headset', 'headset', 1, { p: ['R'], lv: true, fx: 'Matt takes the incident pager: one more head clearing incidents.', d: 'Matt resolving · 0.5 work/s. The ticket flood gets a rescue dock.' }),
-    N('m2', 2, 0, 'Read the Logs', 'scroll', 1, { p: ['m1'], d: '§17 puzzle 1: find the line where it started.' }),
-    N('m3', 2, 1, 'Support Triage', 'sort', 2, { p: ['m2'], d: 'Puzzle 2: sort the flood before it sorts you.' }),
-    N('m4', 3, 1, 'Draw the UML', 'uml', 2, { p: ['m3'], d: 'Puzzle 3: draw the boxes before you believe the arrows.' }),
-    N('m5', 3, 2, 'Rollback', 'cassette', 2, { p: ['m4'], d: 'Puzzle 4: the rollback cards are real builds from Serena’s buffer.' }),
-    N('gS', 4, 2, 'Serena · Rollback Button', '', 2, { t: 'link', to: 'serena:r3', p: ['m5'] }),
+    N('m2', 2, 0, 'Read the Logs', 'scroll', 1, { p: ['m1'], hd: true, d: '§17 puzzle 1: find the line where it started.' }),
+    N('m3', 2, 1, 'Support Triage', 'sort', 2, { p: ['m2'], hd: true, d: 'Puzzle 2: sort the flood before it sorts you.' }),
+    N('m4', 3, 1, 'Draw the UML', 'uml', 2, { p: ['m3'], hd: true, d: 'Puzzle 3: draw the boxes before you believe the arrows.' }),
+    N('m5', 3, 2, 'Rollback', 'cassette', 2, { p: ['m4'], hd: true, d: 'Puzzle 4: the rollback cards are real builds from Serena’s buffer.' }),
+    N('gS', 4, 2, 'Serena · Rollback Button', '', 2, { t: 'link', to: 'serena:r3', p: ['m5'], hd: true }),
     N('m6', 4, 1, 'Burning Systems', 'fire', 4, { p: ['m4'], d: 'Incidents show on the galaxy map, on fire.' }),
     N('t1', 0, 1, 'Inbox', 'inbox', 1, { p: ['R'], t: 'lvl', max: 5, lv: true, fx: 'The help desk answers 15% faster per level.', d: 'More tickets answered per second, per level.' }),
     N('i1', 1, 1, 'Incident Inspector', 'magnifier', 1, { p: ['m1', 't1'], lv: true, fx: 'A new incident opens with 20% less work in it.', d: 'Diagnose, Runbook, Assign team.' }),
@@ -434,6 +444,45 @@ export const TREES: Record<TreeHero, readonly TreeNode[]> = {
     N('K', -3, -2, 'An FAQ People Read', 'faq', 3, { t: 'key', sl: 'handoffs', p: ['h4', 'h5'], all: true, lv: true, fx: 'The catalogue asks half as many questions.', d: 'It has never happened before, anywhere.' }),
   ],
 }
+
+/**
+ * A tree without its hidden nodes [2026-10-16]. An edge that ran through a
+ * hidden node is passed on to that node's own parents, so what stays on the
+ * board stays reachable from where it was: Serena's It Was Degraded hangs off
+ * the On-Call Rota while Error Budget waits, and Matt's Burning Systems off his
+ * Headset while the four puzzles do.
+ */
+function withoutHidden(tree: readonly TreeNode[]): TreeNode[] {
+  const all = new Map(tree.map((n) => [n.id, n]))
+  const through = (id: string, seen: Set<string>): string[] => {
+    const n = all.get(id)
+    if (!n?.hidden) return [id]
+    if (seen.has(id)) return []
+    seen.add(id)
+    return n.parents.flatMap((p) => through(p, seen))
+  }
+  return tree
+    .filter((n) => !n.hidden)
+    .map((n) =>
+      n.parents.some((p) => all.get(p)?.hidden)
+        ? { ...n, parents: [...new Set(n.parents.flatMap((p) => through(p, new Set())))] }
+        : n,
+    )
+}
+
+const mapTrees = (f: (tree: readonly TreeNode[]) => TreeNode[]): Record<TreeHero, readonly TreeNode[]> => ({
+  you: f(CATALOGUE.you),
+  james: f(CATALOGUE.james),
+  billy: f(CATALOGUE.billy),
+  serena: f(CATALOGUE.serena),
+  matt: f(CATALOGUE.matt),
+})
+
+/** The board: every node that is drawn. */
+export const TREES: Record<TreeHero, readonly TreeNode[]> = mapTrees(withoutHidden)
+
+/** The nodes waiting off the board for their systems (§17's puzzles, Serena's rollback). */
+export const HIDDEN_NODES: Record<TreeHero, readonly TreeNode[]> = mapTrees((t) => t.filter((n) => n.hidden))
 
 const byId = (h: TreeHero): ReadonlyMap<string, TreeNode> => new Map(TREES[h].map((n) => [n.id, n]))
 
@@ -498,7 +547,15 @@ export function closedBy(view: TreeView, hero: TreeHero, node: TreeNode): TreeNo
  * Why a node cannot be bought, or null if it can. `absent` is a wired node
  * whose owner has not arrived; `root` and `link` are not for sale at all.
  */
-export type TreeRefusal = null | 'root' | 'link' | 'unbuilt' | 'maxed' | 'era' | 'fork' | 'requires' | 'cash' | 'absent'
+export type TreeRefusal = null | 'root' | 'link' | 'unbuilt' | 'future' | 'maxed' | 'era' | 'fork' | 'requires' | 'cash' | 'absent'
+
+/**
+ * The era whose unbuilt nodes are labelled *future* rather than *not built*
+ * [2026-10-16, plan phase 6.5]: the stars. Colony worlds, light-lag and the
+ * rest are a later phase of the ladder (`docs/PLAN-2026-09-27-garage-to-galaxy.md`),
+ * so their nodes are a promise about a system that is coming, not a gap.
+ */
+export const FUTURE_ERA = 4
 
 /**
  * Does buying this node change the game? [2026-10-04]
@@ -519,7 +576,7 @@ export function isBuilt(node: TreeNode): boolean {
 export function treeRefusal(view: TreeView, hero: TreeHero, node: TreeNode): TreeRefusal {
   if (node.kind === 'root') return 'root'
   if (node.kind === 'link') return 'link'
-  if (!isBuilt(node)) return 'unbuilt'
+  if (!isBuilt(node)) return node.era >= FUTURE_ERA ? 'future' : 'unbuilt'
   const level = levelOf(view, hero, node)
   if (level >= node.max) return 'maxed'
   if (node.era > view.era) return 'era'
@@ -589,7 +646,9 @@ export function tileStateOf(refusal: TreeRefusal, level: number): TileState {
     case 'link': return 'link'
     case 'maxed': return 'owned'
     case 'fork': return level > 0 ? 'partial' : 'closed'
-    case 'era': return level > 0 ? 'partial' : 'era'
+    case 'era':
+    // A future node is drawn as the era lock draws it: dim, and out of reach.
+    case 'future': return level > 0 ? 'partial' : 'era'
     case 'unbuilt':
     case 'requires':
     case 'absent': return level > 0 ? 'partial' : 'locked'
