@@ -2928,8 +2928,20 @@ export function tick(dtSeconds: number): void {
   // Computed before the tail so all three agree about the same frame.
   const held = suppressedReleases(state.incidents)
 
+  // §4.13 — unanswered tickets tax the **catalogue**, never the current
+  // project. You are losing money on the games you already made, which is the
+  // whole sentence, and a player in trouble can always still ship their way out.
+  //
+  // Exactly 1 during Run 1, which is the same number a studio keeping up gets:
+  // §21's economy was tuned against an untaxed catalogue and must stay tuned.
+  //
+  // [amended 2026-10-16] Read off the queue as the frame found it — the number
+  // `catalogueRate` quotes — and handed to the tail, which books the taxed share
+  // as a refund on each release instead of the store multiplying it away unseen.
+  const ticketTax = open ? catalogueMultiplier(state.tickets, supportHeads(state)) : 1
+
   // §4.10e — the back catalogue pays first, before anything reads the cash.
-  const tail = advanceTail(state.releases, dtSeconds, held)
+  const tail = advanceTail(state.releases, dtSeconds, held, ticketTax)
 
   // §4.12 — defects accrue from the work itself, in proportion to it. Charged
   // against `gained`, which is realised output *after* §4.1: a studio in §6.3's
@@ -2985,14 +2997,6 @@ export function tick(dtSeconds: number): void {
         heroes.ticketRate,
       )
     : { queue: 0, served: 0 }
-
-  // §4.13 — unanswered tickets tax the **catalogue**, never the current
-  // project. You are losing money on the games you already made, which is the
-  // whole sentence, and a player in trouble can always still ship their way out.
-  //
-  // Exactly 1 during Run 1, which is the same number a studio keeping up gets:
-  // §21's economy was tuned against an untaxed catalogue and must stay tuned.
-  const ticketTax = open ? catalogueMultiplier(tickets.queue, support) : 1
 
   // §21.7.3, Matt — the queue is "unserved" while the studio is falling behind:
   // arrival outruns capacity (§4.15's bar reads below 1). Tracked as a running
@@ -3089,9 +3093,11 @@ export function tick(dtSeconds: number): void {
     cash:
       state.cash -
       currentPayroll() * dtSeconds +
-      tail.earned * ticketTax +
+      tail.earned +
       founderPassiveVelocity() * dtSeconds * founderOf().cashPerPoint,
-    lifetimeRevenue: state.lifetimeRevenue + tail.earned * ticketTax,
+    // §14.1 — BP is paid on what reached the till. `tail.earned` is already
+    // net of every refund, so a refunded dollar is never prestige.
+    lifetimeRevenue: state.lifetimeRevenue + tail.earned,
     releases: tail.releases,
     burned: gained + settled > 0 ? state.burned.plus(gained + settled) : state.burned,
   }
@@ -4818,6 +4824,11 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
       // is not one of the ones I am tracking" and falls back to the recorded
       // payout, which is the honest answer rather than a wrong join.
       ordinal: rel.ordinal ?? UNKNOWN_ORDINAL,
+      // §4.10e [2026-10-16] — never-refunded for a save from before refunds.
+      refunded: rel.refunded ?? 0,
+      keep: rel.keep ?? 1,
+      cutPaid: rel.cutPaid ?? 0,
+      cutAge: rel.cutAge ?? 0,
     })),
     defects: r.defects ?? 0,
     tickets: r.tickets ?? 0,

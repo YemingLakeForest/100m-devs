@@ -42,6 +42,16 @@
  * exact remainder ({@link RETIRE_AFTER_SECONDS}). Over a run the books balance
  * to the ladder to the cent rather than to within a slow leak.
  *
+ * **[amended 2026-10-16] — refunds.** The total cannot move *by luck*; it can
+ * move by what happened to the game (the user's ruling D3 in
+ * `docs/PLAN-2026-10-16-fun-killers.md`). The fun-killers audit (finding 05)
+ * found Matt's three problems costing nothing: an incident only delayed money,
+ * the ticket tax deleted it unlogged, and a bad review was a multiplier nobody
+ * saw. Each is now a {@link refund} on a named release, and the invariant moves
+ * with it rather than away from it: `paid + refunded + outstanding === payout`,
+ * to the cent, for every release. The shape is still drawn at random and still
+ * cannot move the total; a refund is never drawn.
+ *
  * Pure — no store, no clock. Everything takes the age of a release as an
  * argument, which is what lets the same functions serve the live tick, the §24
  * offline catch-up and a test that fast-forwards a fortnight.
@@ -159,6 +169,31 @@ export interface Release {
   defectDensity: number
   /** §4.14's score out of 100, fixed at ship. Also inert here; §10.11 tints by it. */
   rating: number
+  /*
+   * §4.10e [amended 2026-10-16] — refunds. The four below are optional, and an
+   * absent one reads as a release nobody has ever refunded (0, 1, 0, 0), which
+   * is exactly what every release written before refunds existed was. That is
+   * the whole load default for old saves, and it means a fixture or a save that
+   * never mentions refunds is still a correct release rather than a NaN.
+   */
+  /** Dollars this release gave back — §4.12a's bleed, §4.13's tax, §4.14's bad reviews. Logged, never silent. */
+  refunded?: number
+  /** Share of the *unrefunded* tail still owed, 0..1. Each refund multiplies it down. */
+  keep?: number
+  /** `paid + refunded` at the last refund — where the closed-form tail restarts. */
+  cutPaid?: number
+  /** `age` at the last refund. */
+  cutAge?: number
+}
+
+/** A release's refund fields with the never-refunded defaults filled in. */
+function books(release: Release): { refunded: number; keep: number; cutPaid: number; cutAge: number } {
+  return {
+    refunded: release.refunded ?? 0,
+    keep: release.keep ?? 1,
+    cutPaid: release.cutPaid ?? 0,
+    cutAge: release.cutAge ?? 0,
+  }
 }
 
 function lerp(range: readonly [number, number], t: number): number {
@@ -201,18 +236,94 @@ export function collectedFraction(shape: ReleaseShape, t: number): number {
  * disagree with the ladder.
  */
 export function earningRate(release: Release): number {
-  const { shape, payout, age } = release
-  if (age >= RETIRE_AFTER_SECONDS) return 0
+  return release.payout * books(release).keep * unitRate(release.shape, release.age)
+}
+
+/**
+ * The tail's density for a payout of one dollar, before any refund — the shape
+ * alone. Its integral over a life is exactly 1.
+ *
+ * Split out [2026-10-16] so §4.12a's audience can read it without the refunds:
+ * a game that gave a fifth of its money back to bad reviewers still has every
+ * one of its players, and an audience that shrank with the refund would let a
+ * buggy release page you *less* for being buggy.
+ */
+export function unitRate(shape: ReleaseShape, age: number): number {
+  if (!(age >= 0) || age >= RETIRE_AFTER_SECONDS) return 0
   const spike = (shape.spikeShare / shape.spikeTau) * Math.exp(-age / shape.spikeTau)
   const tail = ((1 - shape.spikeShare) / shape.tailTau) * Math.exp(-age / shape.tailTau)
-  return payout * (spike + tail)
+  return spike + tail
+}
+
+/**
+ * What a release has settled — paid plus refunded — by age `t`, closed form.
+ *
+ * **Piecewise** [amended 2026-10-16]: the tail restarts at every refund, from
+ * what had settled at that moment (`cutPaid`) and at that age (`cutAge`), on the
+ * same cumulative scaled by what is left (`keep`). Still a difference of
+ * cumulatives rather than an accumulating subtraction, so the frame rate cannot
+ * leak into the books — the reason this file never integrated in the first
+ * place — and it reaches exactly `payout` at infinity whatever was refunded:
+ * `cutPaid + keep·payout·(1 − F(cutAge))` is the payout by the invariant
+ * {@link refund} keeps.
+ */
+function settledBy(release: Release, t: number): number {
+  const b = books(release)
+  return b.cutPaid + b.keep * release.payout * (collectedFraction(release.shape, t) - collectedFraction(release.shape, b.cutAge))
+}
+
+/** Dollars still owed by a release: `payout − paid − refunded`. Never negative. */
+export function outstandingOf(release: Release): number {
+  return Math.max(0, release.payout - release.paid - books(release).refunded)
+}
+
+export interface Refund {
+  release: Release
+  /** Dollars given back. */
+  amount: number
+}
+
+/**
+ * Give back `share` of what a release still owes — §4.10e [amended 2026-10-16].
+ *
+ * The one primitive every refund goes through: §4.12a's bleed while an incident
+ * is open, the player's REFUND & MOVE ON, Matt's policy, and §4.14's bad reviews
+ * at launch. The invariant it keeps is the books':
+ *
+ *     paid + refunded + outstanding === payout
+ *
+ * The total a release *pays* can now move — §4.10e's "the total cannot move"
+ * became "the total cannot move by *luck*" (the user's ruling D3). What moved it
+ * is always a thing the player did or did not do, and it is always logged here
+ * rather than deleted somewhere further along, which is what the ticket tax used
+ * to do.
+ */
+export function refund(release: Release, share: number): Refund {
+  const s = Number.isFinite(share) ? Math.min(1, Math.max(0, share)) : 0
+  const owed = outstandingOf(release)
+  if (s === 0 || owed === 0) return { release, amount: 0 }
+  const b = books(release)
+  const amount = owed * s
+  const refunded = b.refunded + amount
+  return {
+    release: {
+      ...release,
+      refunded,
+      keep: b.keep * (1 - s),
+      cutPaid: release.paid + refunded,
+      cutAge: release.age,
+    },
+    amount,
+  }
 }
 
 export interface TailStep {
   /** The catalogue, aged forward. Retired releases are gone from it. */
   releases: Release[]
-  /** Dollars earned across every release over this step. */
+  /** Dollars banked across every release over this step — after the ticket tax. */
   earned: number
+  /** Dollars the ticket tax turned into refunds over this step. Logged on each release. */
+  refunded: number
 }
 
 /**
@@ -232,18 +343,28 @@ export interface TailStep {
  * A held release is also excluded from retirement, so a game cannot quietly go
  * off sale while it is down and hand over its remainder as a reward for
  * neglecting it.
+ *
+ * `bank` is §4.13's ticket tax [amended 2026-10-16]: the share of what settles
+ * this step that reaches the till. The rest is **refunded on that release**,
+ * where the player and §10.11 can see it, instead of being multiplied away in
+ * the store after the fact — the tax used to delete money silently, and a
+ * catalogue whose books do not add up is the one thing this file exists to
+ * prevent. 1 (no tax) books exactly what it always did.
  */
 export function advanceTail(
   releases: readonly Release[],
   dt: number,
   held: ReadonlySet<number> = new Set(),
+  bank = 1,
 ): TailStep {
   if (!(dt > 0) || releases.length === 0) {
-    return { releases: releases as Release[], earned: 0 }
+    return { releases: releases as Release[], earned: 0, refunded: 0 }
   }
+  const keepShare = Number.isFinite(bank) ? Math.min(1, Math.max(0, bank)) : 1
 
   const next: Release[] = []
   let earned = 0
+  let refunded = 0
 
   for (const release of releases) {
     if (held.has(release.id)) {
@@ -251,19 +372,27 @@ export function advanceTail(
       continue
     }
     const age = release.age + dt
+    const already = release.refunded ?? 0
+    const settled = release.paid + already
 
-    if (age >= RETIRE_AFTER_SECONDS) {
-      // Off sale. Hand over whatever the asymptote never got round to.
-      earned += release.payout - release.paid
-      continue
-    }
+    // Off sale: hand over whatever the asymptote never got round to. Otherwise
+    // the closed form says how much more has settled since the last step.
+    const retiring = age >= RETIRE_AFTER_SECONDS
+    const delta = Math.max(0, retiring ? release.payout - settled : settledBy(release, age) - settled)
+    const banked = delta * keepShare
+    const taxed = delta - banked
+    earned += banked
+    refunded += taxed
+    if (retiring) continue
 
-    const paid = release.payout * collectedFraction(release.shape, age)
-    earned += paid - release.paid
-    next.push({ ...release, age, paid })
+    next.push(
+      taxed > 0
+        ? { ...release, age, paid: release.paid + banked, refunded: already + taxed }
+        : { ...release, age, paid: release.paid + banked },
+    )
   }
 
-  return { releases: next, earned }
+  return { releases: next, earned, refunded }
 }
 
 /**
@@ -289,7 +418,14 @@ export function catalogueIncome(
 /** What is still owed across the catalogue, for the runway readout. */
 export function catalogueOutstanding(releases: readonly Release[]): number {
   let total = 0
-  for (const release of releases) total += release.payout - release.paid
+  for (const release of releases) total += outstandingOf(release)
+  return total
+}
+
+/** Dollars refunded across what is still on sale — §4.10e's refund log, summed. */
+export function catalogueRefunded(releases: readonly Release[]): number {
+  let total = 0
+  for (const release of releases) total += release.refunded ?? 0
   return total
 }
 
@@ -318,6 +454,9 @@ export function outstandingByOrdinal(releases: readonly Release[]): Map<number, 
   const out = new Map<number, number>()
   for (const release of releases) {
     if (release.ordinal < 0) continue
+    // Refunded money is not arriving either [2026-10-16]: it is counted out
+    // here with what is still owed, so the gallery's "arrived" is what reached
+    // the till, never what was given back.
     const left = release.payout - release.paid
     if (left > 0) out.set(release.ordinal, left)
   }

@@ -207,6 +207,17 @@ export interface ReleaseSave {
    * inventing a join.
    */
   ordinal?: number
+  /**
+   * §4.10e [amended 2026-10-16] — the refund log and where the tail restarts.
+   *
+   * Optional, additive: a document without them is a release nobody has ever
+   * refunded, which is every release written before refunds existed, and the
+   * tail reads an absent field exactly that way (`revenue.ts`).
+   */
+  refunded?: number
+  keep?: number
+  cutPaid?: number
+  cutAge?: number
 }
 
 /**
@@ -444,6 +455,10 @@ export function makeSaveData(state: GameState): SaveData {
         defectDensity: r.defectDensity,
         rating: r.rating,
         ordinal: r.ordinal,
+        refunded: r.refunded ?? 0,
+        keep: r.keep ?? 1,
+        cutPaid: r.cutPaid ?? 0,
+        cutAge: r.cutAge ?? 0,
       })),
       // §10.11 — the catalogue this studio is selling. Copied a level down
       // rather than by reference so a save cannot alias live state, and read
@@ -772,14 +787,23 @@ function normaliseReleases(value: unknown): ReleaseSave[] {
     const r = (raw ?? {}) as Partial<ReleaseSave>
     const payout = nonNegative(r.payout, 0)
     if (!(payout > 0)) continue
+    const paid = Math.min(payout, nonNegative(r.paid, 0))
+    const age = nonNegative(r.age, 0)
     out.push({
       id: Math.max(0, Math.floor(nonNegative(r.id, 0))),
       name: typeof r.name === 'string' ? r.name : 'A Shipped Game',
       payout,
-      age: nonNegative(r.age, 0),
+      age,
       // Clamped to the payout: a `paid` above it would make the next tick's
       // difference negative and *charge* the player for owning a back catalogue.
-      paid: Math.min(payout, nonNegative(r.paid, 0)),
+      paid,
+      // §4.10e's refunds, defaulted to "never refunded" and clamped so the
+      // books cannot claim more than the payout settled: `paid + refunded`
+      // above it is a release owing a negative sum.
+      refunded: Math.min(payout - paid, nonNegative(r.refunded, 0)),
+      keep: Math.min(1, nonNegative(r.keep, 1)),
+      cutPaid: Math.min(payout, nonNegative(r.cutPaid, 0)),
+      cutAge: Math.min(age, nonNegative(r.cutAge, 0)),
       spikeShare: Math.min(1, Math.max(0, num(r.spikeShare, 0.6))),
       spikeTau: Math.max(0.5, nonNegative(r.spikeTau, 6)),
       tailTau: Math.max(1, nonNegative(r.tailTau, 50)),

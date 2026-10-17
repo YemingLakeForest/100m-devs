@@ -6,6 +6,8 @@ import {
   catalogueOutstanding,
   collectedFraction,
   earningRate,
+  outstandingOf,
+  refund,
   rollShape,
   TAIL_TAU,
   type Release,
@@ -197,5 +199,62 @@ describe('the catalogue — several games at once', () => {
     expect(advanceTail(live, 0).earned).toBe(0)
     expect(advanceTail(live, -1).earned).toBe(0)
     expect(advanceTail([], 1).earned).toBe(0)
+  })
+})
+
+/**
+ * §4.10e [amended 2026-10-16] — refunds move the total, and the books still
+ * balance. The claim is the invariant, not a dollar figure.
+ */
+describe('refunds keep the books — paid + refunded + outstanding === payout', () => {
+  const balanced = (r: Release) => r.paid + (r.refunded ?? 0) + outstandingOf(r)
+
+  it('holds through refunds at random ages and a taxed tail, to retirement', () => {
+    for (const seed of SEEDS) {
+      let live = [release(seed, 3, 40_000)]
+      let banked = 0
+      let refunded = 0
+      for (let t = 0; t < RETIRE_AFTER_SECONDS + 5; t += 0.25) {
+        if (live.length === 1 && Math.abs(t % 37) < 0.25) {
+          const cut = refund(live[0], 0.1)
+          refunded += cut.amount
+          live = [cut.release]
+          expect(balanced(live[0])).toBeCloseTo(40_000, 6)
+        }
+        const step = advanceTail(live, 0.25, new Set(), t > 100 ? 0.7 : 1)
+        banked += step.earned
+        refunded += step.refunded
+        live = step.releases
+        for (const r of live) expect(balanced(r)).toBeCloseTo(40_000, 6)
+      }
+      expect(live).toEqual([])
+      // Every dollar of the payout either reached the till or was refunded.
+      expect(banked + refunded).toBeCloseTo(40_000, 5)
+      expect(refunded).toBeGreaterThan(0)
+      expect(banked).toBeLessThan(40_000)
+    }
+  })
+
+  it('a refund takes its share of what is still owed, and slows the tail by the same share', () => {
+    const one = advanceTail([release(9, 1, 10_000)], 20).releases[0]
+    const owed = outstandingOf(one)
+    const cut = refund(one, 0.25)
+    expect(cut.amount).toBeCloseTo(owed * 0.25, 9)
+    expect(outstandingOf(cut.release)).toBeCloseTo(owed * 0.75, 9)
+    expect(earningRate(cut.release)).toBeCloseTo(earningRate(one) * 0.75, 9)
+  })
+
+  it('an untaxed tail with no refunds books exactly what it always did', () => {
+    const step = advanceTail([release(77, 2, 5_000)], 30)
+    expect(step.refunded).toBe(0)
+    expect(step.releases[0].refunded ?? 0).toBe(0)
+    expect(step.releases[0].paid).toBeCloseTo(5_000 * collectedFraction(rollShape(77, 2), 30), 9)
+  })
+
+  it('refunds nothing for a nonsense share, and nothing on a release that owes nothing', () => {
+    const r = release(1, 0, 1_000)
+    expect(refund(r, Number.NaN).amount).toBe(0)
+    expect(refund(r, -1).amount).toBe(0)
+    expect(refund({ ...r, paid: 1_000 }, 0.5).amount).toBe(0)
   })
 })
