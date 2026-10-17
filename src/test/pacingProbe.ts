@@ -27,11 +27,13 @@ import {
   getState,
   hireDeveloper,
   launchRelease,
+  launchView,
   massHire,
   nextHireCost,
-  openLaunch,
   poke,
+  pressShip,
   projectOrdinal,
+  setHolding,
   shelfBlocked,
   takeSeedRound,
   tick,
@@ -244,9 +246,29 @@ export function playStep(p: ProbePlayer, dt = PROBE_STEP): void {
   }
   p.ordinal = ordinal
 
+  /*
+   * [plan 2026-10-16, phase 4.5] SHIP!, as a player who has read the button
+   * would press it. Before Serena: every build is a ring, pressed after the
+   * latency. With Serena: pressing gains nothing over her (she ships at her
+   * terms, a few seconds later), so the player leaves it to her — unless Launch
+   * Day is owned and the queue can hold a launch, when they HOLD and launch the
+   * batch as soon as it is big enough. The ring is answered at the train, as it
+   * always was here: this player measures time, not aim.
+   */
+  const launch = launchView()
+  if (launch.mode !== 'ring') {
+    const wantHold = launch.canHold && launch.reachable
+    if (getState().holding !== wantHold) setHolding(wantHold)
+    if (getState().holding && launchView().ready && pressShip() === 'ring') {
+      p.counters.rings += 1
+      launchRelease(TRAIN_LAUNCH)
+    }
+    p.shelfWait = 0
+    return
+  }
   if (getState().shelf.length > 0) {
     p.shelfWait += dt
-    if (p.shelfWait >= p.settings.shipLatency && openLaunch()) {
+    if (p.shelfWait >= p.settings.shipLatency && pressShip() === 'ring') {
       p.counters.rings += 1
       launchRelease(TRAIN_LAUNCH)
       p.shelfWait = 0

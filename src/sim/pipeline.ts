@@ -78,6 +78,32 @@ export const AUTO_SHIP_DELAY_SECONDS = 20
 /** Each Auto-Ship Speed level divides the delay by this. */
 export const AUTO_SHIP_STEP = 1.35
 
+// --- HOLD and the launch ----------------------------------------------------
+
+/**
+ * [plan 2026-10-16, phase 4.5] **The least studio time one launch may cover.**
+ *
+ * With Serena shipping on her own, the ring is no longer every build's door; it
+ * is a held batch the player chooses to launch, LAUNCH ×N, one ring for all of
+ * it. A ring is a modal that stops the studio, and §14.8.7's cadence curve puts
+ * a big studio's build at twenty seconds: one ring a build would be three a
+ * minute (§10.8b's "slideshow of its own celebration", which the old thirty-
+ * second train existed to prevent). So a launch must hold at least this much
+ * work, which caps rings at 3600 / 240 = 15 an hour at any cadence, while a
+ * garage-speed studio (two-minute builds) launches pairs.
+ */
+export const LAUNCH_HOLD_SECONDS = 240
+
+/**
+ * The smallest batch a launch may be, for builds of `buildSeconds` each: enough
+ * of them to cover {@link LAUNCH_HOLD_SECONDS}. At least one; a studio with no
+ * measurable cadence launches what it has.
+ */
+export function minimumBatch(buildSeconds: number): number {
+  if (!(buildSeconds > 0) || !Number.isFinite(buildSeconds)) return 1
+  return Math.max(1, Math.ceil(LAUNCH_HOLD_SECONDS / buildSeconds - 1e-9))
+}
+
 // --- Serena's pipeline nodes ------------------------------------------------
 
 export type PipelineFamily = 'capacity' | 'tooling' | 'quality' | 'flow'
@@ -168,6 +194,8 @@ export interface PipelineEffects {
   autoShip: boolean
   /** Seconds a build waits before she ships it; Infinity without her. */
   autoShipDelay: number
+  /** HOLD exists: the player may pause her and launch the held queue as one ring (a1). */
+  launchDay: boolean
   fixes: readonly Fix[]
   breakthroughs: readonly CoordKind[]
 }
@@ -196,6 +224,7 @@ export function pipelineEffects(levels: PipelineLevels | undefined, serena = fal
     autoShipDelay: autoShip
       ? AUTO_SHIP_DELAY_SECONDS / AUTO_SHIP_STEP ** l('a2') / (l('a3a') > 0 ? 2 : 1)
       : Infinity,
+    launchDay: serena && l('a1') > 0,
     fixes,
     breakthroughs,
   }

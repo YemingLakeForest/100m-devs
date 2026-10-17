@@ -67,6 +67,7 @@ import {
   PROJECTS,
   closeLaunch,
   launchRelease,
+  ringBuild,
   ringDefectCount,
   type GameState,
   type ShelvedBuild,
@@ -169,13 +170,16 @@ function toneFor(e: RingEvent): Tone {
  * ring rather than the first one's backlog.
  */
 export function ReleaseRing({ state }: { state: GameState }) {
-  const build = state.launching ? state.shelf[0] : undefined
-  return build ? <Ring key={build.id} build={build} seed={state.runSeed} /> : null
+  const build = ringBuild(state)
+  // [plan 2026-10-16, phase 4.5] A LAUNCH ×N is one ring for the held queue,
+  // drawn for the head with the batch's bugs.
+  const batch = build ? Math.max(1, Math.min(state.launchBatch, state.shelf.length)) : 1
+  return build ? <Ring key={`${build.id}-${batch}`} build={build} batch={batch} seed={state.runSeed} /> : null
 }
 
-function Ring({ build, seed }: { build: ShelvedBuild; seed: number }) {
+function Ring({ build, batch, seed }: { build: ShelvedBuild; batch: number; seed: number }) {
   const reduced = useReducedMotion()
-  const marks = useMemo(() => ringDefectCount(build), [build])
+  const marks = useMemo(() => ringDefectCount(build, batch), [build, batch])
   const period = useMemo(
     () => turnPeriodMs(build.projectIndex, PROJECTS.length, marks) * (reduced ? REDUCED_SWEEP_SCALE : 1),
     [build.projectIndex, marks, reduced],
@@ -454,7 +458,7 @@ function Ring({ build, seed }: { build: ShelvedBuild; seed: number }) {
       open
       from="centre"
       modal
-      title="RELEASE"
+      title={batch > 1 ? `LAUNCH ×${batch}` : 'RELEASE'}
       meta={HYPE[read.year - 1]}
       onClose={verdict ? undefined : () => closeLaunch()}
       className="release-frame ring-frame"
@@ -491,7 +495,10 @@ function Ring({ build, seed }: { build: ShelvedBuild; seed: number }) {
             <Cover spec={cover} title={build.name} unrated />
             <div className="ring__id">
               <p className="ring__kicker" data-stage={shown}>{VERSION[shown]}</p>
-              <p className="ring__name">{build.name}</p>
+              <p className="ring__name">
+                {build.name}
+                {batch > 1 ? ` +${batch - 1}` : ''}
+              </p>
             </div>
           </div>
 

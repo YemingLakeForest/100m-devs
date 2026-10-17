@@ -40,7 +40,7 @@ export function ShipTicker({ state }: { state: GameState }) {
   if (!held || !open) return null
   return (
     <p className="ticker" role="status" aria-live="polite" data-testid="ship-ticker">
-      <span className="ticker__k">AUTO-SHIPPED</span> {held.name}
+      <span className="ticker__k">{held.hand ? 'SHIPPED' : 'AUTO-SHIPPED'}</span> {held.name}
       {held.count > 1 ? ` +${held.count - 1}` : ''} · {Math.round(held.rating)}/100
     </p>
   )

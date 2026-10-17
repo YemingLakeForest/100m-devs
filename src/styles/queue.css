@@ -115,3 +115,17 @@
     font-size: var(--type-1x);
   }
 }
+
+/*
+ * [plan 2026-10-16, phase 4.5] Launch Day's HOLD. Lit means Serena is paused and
+ * the queue is being kept for one ring; drawn inverted, as a full queue is,
+ * rather than in a new colour.
+ */
+.ui-btn.queue__hold {
+  white-space: nowrap;
+}
+
+.ui-btn.queue__hold[data-on='true'] {
+  color: var(--n0);
+  background: var(--p2);
+}

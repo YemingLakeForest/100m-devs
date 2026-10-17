@@ -68,6 +68,7 @@ import {
 } from '../sim/release.ts'
 import {
   PIPELINE_BY_ID,
+  minimumBatch,
   pipelineCost,
   pipelineEffects,
   pipelineLevel,
@@ -566,6 +567,8 @@ export interface GameState {
     timingLabel: string | null
     /** §10.7 — the stage it went out at (GOLD, RC…), or null when nobody attended. */
     stage: ReadinessStage | null
+    /** §10.7 [2026-10-16] — builds this one ring launched, the named one first. 1 when absent. */
+    batch?: number
   } | null
   /**
    * §10.8b [amended 2026-10-16, plan phase 4.1] — the last release **nobody
@@ -583,6 +586,11 @@ export interface GameState {
     /** Builds that went out on this frame — a long step can owe Serena several. */
     count: number
     at: number
+    /**
+     * True when the player pressed SHIP! with Serena on staff and nothing held:
+     * the head goes now on her terms (plan phase 4.5), so it is her line, not a reel.
+     */
+    hand?: boolean
   } | null
   /**
    * §10.7 [amended 2026-10-04] — **the build queue**: finished builds waiting for
@@ -618,6 +626,19 @@ export interface GameState {
    * shelf, which is where it was.
    */
   launching: boolean
+  /**
+   * §10.7 [plan 2026-10-16, phase 4.5] — how many builds the open ring is
+   * releasing: 1 for a one-build ring, the held queue for a LAUNCH ×N. Ephemeral,
+   * with {@link launching}.
+   */
+  launchBatch: number
+  /**
+   * §10.7 [plan 2026-10-16, phase 4.5] — **HOLD**: Serena is paused and the queue
+   * is being kept for a launch. Bought with Launch Day; persisted, because a
+   * reload that quietly released a held batch at RC would spend the player's
+   * launch for them.
+   */
+  holding: boolean
   /**
    * §4.10e — the back catalogue. Every game still earning, and what it has
    * paid so far.
@@ -1012,6 +1033,8 @@ function freshRun(): GameState {
     treeLevels: {},
     autoShipClock: 0,
     launching: false,
+    launchBatch: 1,
+    holding: false,
     releases: [],
     seedTaken: false,
     selected: null,
@@ -2171,10 +2194,28 @@ function finishBuild(s: GameState): Partial<GameState> {
 export const RING_DEFECTS_MIN = 3
 export const RING_DEFECTS_MAX = 7
 
-export function ringDefectCount(build: ShelvedBuild): number {
+export function ringDefectCount(build: ShelvedBuild, batch = 1): number {
   if (!(build.density > 0)) return 0
-  const scaled = Math.round((build.density / DEFECT_DENSITY_ANCHOR) * 4)
+  // [plan 2026-10-16, phase 4.5] A LAUNCH ×N draws from the batch's backlog, so
+  // a bigger launch has more to fix — by √N rather than N, because seven marks is
+  // the most a ring can aim at and a batch of three would otherwise always be
+  // seven. One build is exactly the rule it always was.
+  const scaled = Math.round((build.density / DEFECT_DENSITY_ANCHOR) * 4 * Math.sqrt(Math.max(1, batch)))
   return Math.max(RING_DEFECTS_MIN, Math.min(RING_DEFECTS_MAX, scaled))
+}
+
+/**
+ * The build the open ring is drawn for: the queue's head, or for a LAUNCH ×N
+ * the head standing for the batch, at the batch's mean density (the cover and
+ * the name are the head's, the bugs are everybody's). Undefined when no ring is up.
+ */
+export function ringBuild(s: GameState = state): ShelvedBuild | undefined {
+  if (!s.launching) return undefined
+  const n = Math.max(1, Math.min(s.launchBatch, s.shelf.length))
+  const head = s.shelf[0]
+  if (!head || n === 1) return head
+  const batch = s.shelf.slice(0, n)
+  return { ...head, density: batch.reduce((sum, b) => sum + b.density, 0) / n }
 }
 
 /**
@@ -2325,7 +2366,8 @@ export function autoShipIn(s: GameState = state): number | null {
 function advanceBelt(s: GameState): Partial<GameState> {
   const fx = pipelineOf(s)
   let patch: Partial<GameState> = s.autoShipClock !== 0 ? { autoShipClock: 0 } : {}
-  if (!fx.autoShip) return patch
+  // HOLD pauses her: the queue is being kept for a launch (plan phase 4.5).
+  if (!fx.autoShip || s.holding) return patch
   let now = s
   let count = 0
   let last: ShelvedBuild | null = null
@@ -2374,29 +2416,132 @@ export function beltView(s: GameState = state): BeltView {
 }
 
 /**
- * §10.7 — SHIP!. Opens the release ring for the shelf's head, and the studio
- * stops while it is up. False when there is nothing to ship or something else
- * owns the screen.
+ * §10.7 [plan 2026-10-16, phase 4.5] — the smallest launch the held queue may
+ * be, at the cadence that filled it: {@link minimumBatch} of the mean build time
+ * of what is waiting, or of today's build time when nothing is.
+ */
+export function launchMinimum(s: GameState = state): number {
+  const mean = s.shelf.length > 0 ? s.shelf.reduce((sum, b) => sum + b.buildSeconds, 0) / s.shelf.length : projectBuildSeconds(s)
+  return minimumBatch(mean)
+}
+
+/** §10.7 [plan 2026-10-16, phase 4.5] — what SHIP! will do if pressed now. */
+export interface LaunchView {
+  /**
+   * - `ring` — before Serena: one build, one ring (Run 1's tutorial, unchanged).
+   * - `instant` — Serena is shipping and nothing is held: the head goes now, at
+   *   her terms, with no modal.
+   * - `launch` — HOLD is on: one ring for the whole held queue, LAUNCH ×N.
+   */
+  mode: 'ring' | 'instant' | 'launch'
+  /** Launch Day is owned, so HOLD can be switched on. */
+  canHold: boolean
+  held: number
+  /** The least a launch may be, and whether the queue can ever hold that many. */
+  minimum: number
+  reachable: boolean
+  /** A press would do something. */
+  ready: boolean
+}
+
+export function launchView(s: GameState = state): LaunchView {
+  const fx = pipelineOf(s)
+  const held = s.shelf.length
+  const minimum = launchMinimum(s)
+  const mode = !fx.autoShip ? 'ring' : s.holding ? 'launch' : 'instant'
+  return {
+    mode,
+    canHold: fx.launchDay,
+    held,
+    minimum,
+    reachable: minimum <= shelfCapacity(s),
+    ready: held > 0 && (mode !== 'launch' || held >= minimum),
+  }
+}
+
+/**
+ * §10.7 [plan 2026-10-16, phase 4.5] — HOLD. Pauses Serena so the queue keeps
+ * what lands, for a launch. Needs Launch Day; switching it off hands the queue
+ * back to her at once (each build ships when it has waited her delay, which the
+ * held ones already have).
+ */
+export function setHolding(on: boolean): boolean {
+  if (on && !pipelineOf().launchDay) return false
+  if (state.holding !== on) set({ holding: on })
+  return true
+}
+
+/**
+ * §10.7 — open the release ring, and the studio stops while it is up. False
+ * when there is nothing to ship or something else owns the screen.
+ *
+ * [plan 2026-10-16, phase 4.5] With HOLD on it opens one ring for the whole held
+ * queue — refused below {@link launchMinimum}, which is what keeps rings to
+ * fifteen an hour — and otherwise a one-build ring, as it always did: before
+ * Serena that is every SHIP!, and `__parkBuild`'s `?release` frame is one too.
  */
 export function openLaunch(): boolean {
   if (state.launching || state.shelf.length === 0) return false
   if (state.scene !== null || state.phase === 'bankrupt') return false
-  set({ launching: true })
+  const held = state.holding && pipelineOf().autoShip
+  if (held && state.shelf.length < launchMinimum()) return false
+  set({ launching: true, launchBatch: held ? state.shelf.length : 1 })
   return true
+}
+
+/**
+ * §10.7 [plan 2026-10-16, phase 4.5] — **SHIP!, the button.** What it does
+ * depends on who is on staff ({@link launchView}): before Serena it opens the
+ * ring; with Serena and nothing held it ships the head at once, at her terms,
+ * with no modal and no reel (the ticker says so); with HOLD on it opens the
+ * LAUNCH ×N ring, or refuses below the minimum batch.
+ *
+ * Returns what happened, so a caller can close the window it was pressed in.
+ */
+export function pressShip(): 'ring' | 'shipped' | null {
+  const view = launchView()
+  if (view.mode !== 'instant') return openLaunch() ? 'ring' : null
+  if (state.launching || state.shelf.length === 0) return null
+  if (state.scene !== null || state.phase === 'bankrupt') return null
+  const head = state.shelf[0]
+  const out = releaseFrom(state, pipelineLaunch(), false)
+  const record = out.history?.recent[out.history.recent.length - 1]
+  set({
+    ...out,
+    handReleases: state.handReleases + 1,
+    autoShipped: { id: nextShipId++, name: head.name, rating: record?.rating ?? BASELINE_RATING, count: 1, at: performance.now(), hand: true },
+  })
+  return 'shipped'
 }
 
 /** §10.7 — leave the ring without releasing. The build stays at the head of the shelf. */
 export function closeLaunch(): void {
-  if (state.launching) set({ launching: false })
+  if (state.launching) set({ launching: false, launchBatch: 1 })
 }
 
-/** §10.7 — the ring's verdict: put the head on sale at `outcome` and close the ring. */
+/**
+ * §10.7 — the ring's verdict: put the head on sale at `outcome` and close the
+ * ring. [plan 2026-10-16, phase 4.5] For a LAUNCH ×N, every build in the batch,
+ * oldest first, at the same outcome — the same date, and the same share of its
+ * own bugs left open — under one reel, which names the head and counts the rest.
+ */
 export function launchRelease(outcome: LaunchOutcome): void {
   if (state.shelf.length === 0) {
     closeLaunch()
     return
   }
-  set({ ...releaseFrom(state, outcome), launching: false, handReleases: state.handReleases + 1 })
+  const n = Math.max(1, Math.min(state.launchBatch, state.shelf.length))
+  let now: GameState = state
+  let patch: Partial<GameState> = {}
+  let revenue = 0
+  for (let i = 0; i < n; i++) {
+    const out = releaseFrom(now, outcome, i === 0)
+    revenue += out.releases?.[out.releases.length - 1]?.payout ?? 0
+    now = { ...now, ...out }
+    patch = { ...patch, ...out }
+  }
+  if (patch.ship && n > 1) patch.ship = { ...patch.ship, revenue, batch: n }
+  set({ ...patch, launching: false, launchBatch: 1, handReleases: state.handReleases + n })
 }
 
 /**
@@ -2427,7 +2572,7 @@ export function shipEverything(): void {
  */
 export function __parkBuild(open = true): void {
   set(finishBuild(state))
-  if (open) set({ launching: true })
+  if (open) set({ launching: true, launchBatch: 1 })
 }
 
 // --- Serena's pipeline board -------------------------------------------------
@@ -4450,6 +4595,7 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     pipelineNodes: { ...(r.pipelineNodes ?? {}) },
     treeLevels: { ...(r.treeLevels ?? {}) },
     autoShipClock: r.autoShipClock ?? 0,
+    holding: r.holding ?? false,
     runSeconds: r.runSeconds ?? 0,
     // §4.10e — the back catalogue comes back with its ages and its shapes. A
     // reload that wiped five shipped games would take the studio's whole

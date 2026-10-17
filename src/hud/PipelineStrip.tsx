@@ -21,7 +21,7 @@ import { useEffect, useRef } from 'react'
 
 import { Button } from '../ui/Button.tsx'
 import { playUi } from '../ui/uiSfx.ts'
-import { currentUnlocks, openLaunch, type GameState } from '../game/store.ts'
+import { currentUnlocks, launchView, pressShip, type GameState } from '../game/store.ts'
 import { PipelineRow } from './PipelineGraph.tsx'
 import { queueLine, queueTone, queueView } from './queueModel.ts'
 
@@ -34,6 +34,10 @@ export function PipelineStrip({ state, onOpen }: { state: GameState; onOpen: () 
   const ready = q.games.length
   const line = queueLine(q)
   const showEta = currentUnlocks().queueEta || tone !== 'calm'
+  // [plan 2026-10-16, phase 4.5] The key is pressShip: a ring before Serena, the
+  // head at once with her, LAUNCH ×N with HOLD on. The label stays SHIP! — the
+  // rail is budgeted to the pixel — and the queue window says which.
+  const launch = launchView(state)
 
   // Sound, from the diff: a click when a game joins the queue. Refs only —
   // nothing here sets state.
@@ -80,12 +84,17 @@ export function PipelineStrip({ state, onOpen }: { state: GameState; onOpen: () 
           data-key="ship"
           data-ready={ready > 0 ? 'true' : 'false'}
           data-full={full ? 'true' : 'false'}
-          disabled={ready === 0 || state.scene !== null}
-          onClick={() => openLaunch()}
+          disabled={!launch.ready || state.scene !== null}
+          data-mode={launch.mode}
+          onClick={() => pressShip()}
           aria-label={
             ready === 0
               ? `Ship. Nothing ready yet.${q.autoIn !== null ? ` Auto-ship in ${Math.ceil(q.autoIn)} seconds.` : ''}`
-              : `Ship ${state.shelf[0]?.name ?? ''}. ${ready} ready.${full ? ' The queue is full.' : ''}`
+              : launch.mode === 'launch'
+                ? launch.ready
+                  ? `Launch ${ready} held games in one release.`
+                  : `Holding ${ready} of the ${launch.minimum} a launch needs.`
+                : `Ship ${state.shelf[0]?.name ?? ''}. ${ready} ready.${full ? ' The queue is full.' : ''}`
           }
         >
           {q.autoIn !== null && ready === 0 ? `AUTO ${Math.ceil(q.autoIn)}s` : 'SHIP!'}

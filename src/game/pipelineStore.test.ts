@@ -16,7 +16,12 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   POLISH_CAP,
   SHELF_CAPACITY,
+  __parkBuild,
   __resetStore,
+  launchMinimum,
+  launchView,
+  pressShip,
+  setHolding,
   __setState,
   beltView,
   bufferCount,
@@ -44,6 +49,7 @@ import { SCENE_SERENA_ARRIVES } from './scenes.ts'
 import { BASELINE_RATING, DEFECT_DENSITY_ANCHOR } from '../sim/rating.ts'
 import { LAUNCH_BANDS, TRAIN_LAUNCH, launchOutcome } from '../sim/release.ts'
 import { titleFor } from '../three/sim/titles.ts'
+import { LAUNCH_HOLD_SECONDS, minimumBatch } from '../sim/pipeline.ts'
 
 beforeEach(() => {
   __resetStore()
@@ -292,6 +298,119 @@ describe("§10.7 — Serena's board", () => {
     for (let i = 0; i < 120; i++) step(1)
     expect(getState().projectsShipped).toBe(0)
     expect(beltView().autoShipIn).toBeNull()
+  })
+})
+
+describe('§10.7 [2026-10-16, plan phase 4.5] — SHIP!, HOLD and the launch', () => {
+  function serena() {
+    const p = emptyPermanent()
+    setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1, milestones: [SCENE_SERENA_ARRIVES.id] } })
+  }
+  /** Land `n` builds that each took `seconds` to make. */
+  function land(n: number, seconds: number) {
+    for (let i = 0; i < n; i++) {
+      __setState({ projectSeconds: seconds })
+      finish()
+    }
+  }
+  function holdWithLaunchDay() {
+    serena()
+    __setState({ pipelineNodes: { s1: 5, a1: 1 } })
+    expect(setHolding(true)).toBe(true)
+  }
+
+  it('before Serena, every SHIP! is still a one-build ring', () => {
+    land(3, 130)
+    expect(launchView().mode).toBe('ring')
+    expect(pressShip()).toBe('ring')
+    expect(getState().launching).toBe(true)
+    expect(getState().launchBatch).toBe(1)
+  })
+
+  it('with Serena and nothing held, SHIP! ships the head at once: no ring, no reel', () => {
+    serena()
+    land(2, 130)
+    const head = getState().shelf[0].name
+    expect(pressShip()).toBe('shipped')
+    expect(getState().launching).toBe(false)
+    expect(getState().ship).toBeNull()
+    expect(getState().autoShipped?.hand).toBe(true)
+    expect(getState().history.recent[0].name).toBe(head)
+    expect(getState().shelf).toHaveLength(1)
+  })
+
+  it('HOLD needs Launch Day, and pauses Serena while it is on', () => {
+    serena()
+    expect(setHolding(true)).toBe(false)
+    __setState({ pipelineNodes: { a1: 1 } })
+    expect(setHolding(true)).toBe(true)
+    land(1, 130)
+    for (let i = 0; i < 120; i++) step(1)
+    expect(getState().projectsShipped).toBe(0)
+    setHolding(false)
+    step(1)
+    expect(getState().projectsShipped).toBe(1)
+  })
+
+  it('launches the held batch oldest first, under one reel', () => {
+    holdWithLaunchDay()
+    land(3, 130)
+    const names = getState().shelf.map((b) => b.name)
+    expect(launchView().ready).toBe(true)
+    expect(pressShip()).toBe('ring')
+    expect(getState().launchBatch).toBe(3)
+    const outcome = launchOutcome({ turn: 0, year: 1, open: 0, initial: 4, chosen: true })
+    launchRelease(outcome)
+    const s = getState()
+    expect(s.shelf).toHaveLength(0)
+    expect(s.history.recent.slice(-3).map((r) => r.name)).toEqual(names)
+    expect(s.ship?.name).toBe(names[0])
+    expect(s.ship?.batch).toBe(3)
+    // Every build in the batch went out on the one date the ring chose.
+    expect(new Set(s.history.recent.slice(-3).map((r) => r.launch)).size).toBe(1)
+  })
+
+  it('refuses a launch below the minimum batch', () => {
+    holdWithLaunchDay()
+    land(2, 30)
+    expect(launchMinimum()).toBeGreaterThan(2)
+    expect(launchView().ready).toBe(false)
+    expect(openLaunch()).toBe(false)
+    expect(pressShip()).toBeNull()
+    expect(getState().launching).toBe(false)
+  })
+
+  it('draws a bigger backlog on a bigger launch, and one build exactly as before', () => {
+    land(1, 130)
+    const b = getState().shelf[0]
+    expect(ringDefectCount(b, 1)).toBe(ringDefectCount(b))
+    expect(ringDefectCount(b, 3)).toBeGreaterThan(ringDefectCount(b))
+  })
+
+  it('keeps `?release` a one-build ring, even with HOLD on', () => {
+    holdWithLaunchDay()
+    land(2, 130)
+    __parkBuild()
+    expect(getState().launching).toBe(true)
+    expect(getState().launchBatch).toBe(1)
+  })
+
+  it('keeps rings to fifteen an hour for builds of 20 to 120 seconds', () => {
+    for (let seconds = 20; seconds <= 120; seconds += 1) {
+      const perHour = 3600 / (minimumBatch(seconds) * seconds)
+      expect(perHour).toBeLessThanOrEqual(3600 / LAUNCH_HOLD_SECONDS + 1e-9)
+    }
+  })
+
+  it('pays a blind launch ×1 on average, batch or not', () => {
+    // §26.3.4 — the date's ramp averages ×1 for a press at a uniform moment, and
+    // the batch carries one date for every build, so the mean is unchanged.
+    const n = 4000
+    let sum = 0
+    for (let i = 0; i < n; i++) {
+      sum += launchOutcome({ turn: (i + 0.5) / n, year: 1, open: 0, initial: 0, chosen: true }).timing.multiplier
+    }
+    expect(sum / n).toBeCloseTo(1, 2)
   })
 })
 

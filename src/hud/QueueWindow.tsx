@@ -18,7 +18,15 @@
 import { coverFor } from '../three/sim/cover.ts'
 import { OsWindow } from '../ui/OsWindow.tsx'
 import { Button } from '../ui/Button.tsx'
-import { openLaunch, pipelineOpen, projectOrdinal, projectTitle, type GameState } from '../game/store.ts'
+import {
+  launchView,
+  pipelineOpen,
+  pressShip,
+  projectOrdinal,
+  projectTitle,
+  setHolding,
+  type GameState,
+} from '../game/store.ts'
 import { Cover } from './Cover.tsx'
 import { PipelineGraph } from './PipelineGraph.tsx'
 import { clock, queueLine, queueTone, queueView, type QueueView } from './queueModel.ts'
@@ -62,9 +70,20 @@ export function QueueWindow({
   const making = projectTitle(state)
   const cover = coverFor(state.runSeed, projectOrdinal(state), 0, making.name, making.genre)
 
+  const launch = launchView(state)
+  // [plan 2026-10-16, phase 4.5] The ring closes this window; an instant ship
+  // with Serena does not, so the player sees the queue empty by one.
   const shipFront = () => {
-    if (openLaunch()) onClose()
+    if (pressShip() === 'ring') onClose()
   }
+  const shipLabel =
+    launch.mode === 'launch'
+      ? launch.ready
+        ? `LAUNCH ×${ready}`
+        : `HOLDING ${ready}/${launch.minimum}`
+      : ready > 0
+        ? `SHIP! (${ready})`
+        : 'SHIP!'
 
   return (
     <OsWindow
@@ -77,9 +96,22 @@ export function QueueWindow({
       className="release-frame ring-frame"
       bodyClassName="release ring"
       footer={
-        <Button className="ring__act queue__ship" disabled={ready === 0 || state.scene !== null} onClick={shipFront}>
-          {ready > 0 ? `SHIP! (${ready})` : 'SHIP!'}
-        </Button>
+        <>
+          {/* Launch Day's HOLD: Serena pauses and the queue is kept for one ring. */}
+          {launch.canHold && (
+            <Button
+              className="queue__hold"
+              data-on={state.holding ? 'true' : 'false'}
+              aria-pressed={state.holding}
+              onClick={() => setHolding(!state.holding)}
+            >
+              {state.holding ? 'HOLDING' : 'HOLD'}
+            </Button>
+          )}
+          <Button className="ring__act queue__ship" disabled={!launch.ready || state.scene !== null} onClick={shipFront}>
+            {shipLabel}
+          </Button>
+        </>
       }
     >
       <div className="ring__catch queue__catch" data-tone={tone}>

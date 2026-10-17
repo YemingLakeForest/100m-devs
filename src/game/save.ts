@@ -138,6 +138,8 @@ export interface RunSave {
   /** §8 — the isometric trees' unwired levels, `hero:id`. Optional: absent is nothing bought. */
   treeLevels?: Record<string, number>
   autoShipClock?: number
+  /** §10.7 [2026-10-16] — HOLD is on: Serena is paused for a launch. Optional: absent is off. */
+  holding?: boolean
   /** §21 Act IV — waves of the Mass Hire still to land. Optional: absent is none. */
   massHireLeft?: number
   /** §11.2 B2's meeting clock, in simulated seconds. Optional for the same reason. */
@@ -425,6 +427,7 @@ export function makeSaveData(state: GameState): SaveData {
       pipelineNodes: { ...state.pipelineNodes },
       treeLevels: { ...state.treeLevels },
       autoShipClock: state.autoShipClock,
+      holding: state.holding,
       massHireLeft: state.massHireLeft,
       runSeconds: state.runSeconds,
       // §4.10e — flattened rather than nested, so the shape cannot arrive back
@@ -715,6 +718,7 @@ function normaliseRun(value: unknown): RunSave {
     pipelineNodes: normalisePipelineNodes(r.pipelineNodes),
     treeLevels: normaliseTreeLevels(r.treeLevels),
     autoShipClock: nonNegative(r.autoShipClock, 0),
+    holding: r.holding === true,
     massHireLeft: Math.min(MASS_HIRE_WAVES, Math.floor(nonNegative(r.massHireLeft, 0))),
     runSeconds: nonNegative(r.runSeconds, 0),
     defects: nonNegative(r.defects, 0),

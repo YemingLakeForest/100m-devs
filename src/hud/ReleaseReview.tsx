@@ -191,6 +191,12 @@ export function ReleaseReview({ state }: { state: GameState }) {
         <div className="review__card">
         {cover && <Cover spec={cover} title={held.name} />}
         <p className="review__name">{held.name}</p>
+        {/* [2026-10-16] A LAUNCH ×N is one reel: the head is named, the rest counted. */}
+        {(held.batch ?? 1) > 1 && (
+          <p className="review__timing" style={{ '--in': `${ms(REVIEW_BEATS.timing)}ms` } as React.CSSProperties}>
+            LAUNCH ×{held.batch} · {(held.batch ?? 1) - 1} MORE ON SALE
+          </p>
+        )}
 
         {/* §10.7 — the player's own launch, reported back: the date they picked
             and the stage they shipped it at. Absent for a release nobody
