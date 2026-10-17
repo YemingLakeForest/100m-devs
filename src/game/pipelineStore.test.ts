@@ -14,6 +14,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  POLISH_CAP,
   SHELF_CAPACITY,
   __resetStore,
   __setState,
@@ -291,6 +292,47 @@ describe("§10.7 — Serena's board", () => {
     for (let i = 0; i < 120; i++) step(1)
     expect(getState().projectsShipped).toBe(0)
     expect(beltView().autoShipIn).toBeNull()
+  })
+})
+
+describe('§10.7 [2026-10-16, plan phase 4.3] — a poke into a full queue polishes the next game out', () => {
+  function fullRunTwoQueue() {
+    const p = emptyPermanent()
+    setPermanent({ ...p, meta: { ...p.meta, paradigmShifts: 1 } })
+    for (let i = 0; i < SHELF_CAPACITY; i++) {
+      __setState({ defects: 100 })
+      finish()
+    }
+    expect(shelfBlocked()).toBe(true)
+  }
+
+  it('takes defects off the front build, and the floor stays stopped', () => {
+    fullRunTwoQueue()
+    const before = getState().shelf[0].defects
+    const second = getState().shelf[1].defects
+    const burned = getState().burned.toNumber()
+    expect(poke(10, 10).sp).toBe(0)
+    expect(pokeFounder(10, 10)).toBe(0)
+    expect(getState().shelf[0].defects).toBeLessThan(before)
+    expect(getState().shelf[1].defects).toBe(second)
+    expect(getState().burned.toNumber()).toBe(burned)
+    expect(currentVelocity()).toBe(0)
+    expect(getState().floaters.some((f) => f.label === 'POLISH')).toBe(true)
+  })
+
+  it('never takes more than half of what the build was shelved with', () => {
+    fullRunTwoQueue()
+    const before = getState().shelf[0].defects
+    for (let i = 0; i < 100; i++) poke(0, 0)
+    expect(getState().shelf[0].defects).toBeCloseTo(before * (1 - POLISH_CAP), 6)
+  })
+
+  it('leaves Run 1’s stamped builds alone and says why the floor stopped', () => {
+    for (let i = 0; i < SHELF_CAPACITY; i++) finish()
+    const before = getState().shelf[0].defects
+    poke(0, 0)
+    expect(getState().shelf[0].defects).toBe(before)
+    expect(getState().bubble?.text).toMatch(/SHIP!/)
   })
 })
 

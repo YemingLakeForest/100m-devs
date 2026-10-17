@@ -107,6 +107,8 @@ export interface PokeFloater {
   bornAt: number
   snippet: string | null
   unblocked: boolean
+  /** A word instead of the numeral (POLISH). */
+  label?: string
   passive?: boolean
   still?: boolean
 }
@@ -214,7 +216,9 @@ export function createPokeCanvas(): PokeCanvas {
         }
         c.globalAlpha = alpha
         // The pop is drawn bottom-anchored: the glyph steps up and down from a fixed foot.
-        text(c, f.unblocked ? 'UNBLOCKED' : formatPokeNumeral(f.sp), x + lane.numeralX, y + lane.numeralY + (size - face.shown), face.shown, f.passive ? RAMPS.NEUTRAL[7] : numeralColour(f.sp, f.crit, f.unblocked), f.passive ? 3 : 4)
+        // A labelled poke (POLISH, a tap into a full queue) says what it did in the
+        // UNBLOCKED amber: an event of a different kind from points.
+        text(c, f.label ?? (f.unblocked ? 'UNBLOCKED' : formatPokeNumeral(f.sp)), x + lane.numeralX, y + lane.numeralY + (size - face.shown), face.shown, f.passive ? RAMPS.NEUTRAL[7] : numeralColour(f.sp, f.crit, f.unblocked || f.label !== undefined), f.passive ? 3 : 4)
         // §8.2a. Null for an Overwhelmed developer, who has nothing to say —
         // and that silence is the joke, so it is not filled with a default.
         if (f.snippet) {

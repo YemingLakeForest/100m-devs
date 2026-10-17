@@ -393,6 +393,11 @@ export interface FloatingNumeral {
    * studio is seized would be a worse lie than the one being fixed.
    */
   unblocked: boolean
+  /**
+   * A word to draw instead of the numeral, for a poke whose point was not
+   * points — POLISH, a tap into a full queue (§10.7, plan phase 4.3).
+   */
+  label?: string
 }
 
 /** Shared by simulation expiry and render motion so a floater fades before removal. */
@@ -1625,7 +1630,7 @@ export function pokeFounder(x = 0, y = 0): number {
   // has downed tools for the launch. A full buffer is inert too, and says so.
   if (state.scene !== null || state.launching || state.phase === 'bankrupt') return 0
   if (shelfBlocked()) {
-    nagFullShelf()
+    polishFullShelf(x, y)
     return 0
   }
 
@@ -1693,7 +1698,7 @@ export const JAMES_TAP_MULTIPLE = 2
 export function pokeJames(x = 0, y = 0): number {
   if (state.scene !== null || state.launching || state.phase === 'bankrupt') return 0
   if (shelfBlocked()) {
-    nagFullShelf()
+    polishFullShelf(x, y)
     return 0
   }
   if (!arrivedHeroes().has('james') || !jamesPresent(state.runSeconds)) return 0
@@ -1958,6 +1963,12 @@ export interface ShelvedBuild {
   labourSeconds: number
   /** `runSeconds` when it reached the shelf, for "waiting 12s". */
   shelvedAt: number
+  /**
+   * Share of the defects it was shelved with that pokes into a full queue have
+   * taken off since, 0..{@link POLISH_CAP} [plan 2026-10-16, phase 4.3].
+   * Optional so a save from before it reads as unpolished.
+   */
+  polished?: number
 }
 
 /**
@@ -2001,13 +2012,51 @@ export function shelfBlocked(s: GameState = state): boolean {
 }
 
 /**
- * The floor saying why it has stopped, when the player pokes into a full
- * buffer. A bubble rather than a toast, and only when none is up, so a thumb
- * hammering a stopped studio reads one sentence rather than a stack of them.
+ * §10.7 [amended 2026-10-16, plan phase 4.3] — **a poke into a full queue
+ * polishes the next game out.** Each one takes {@link POLISH_PER_POKE} of the
+ * defects the front build was shelved with off it, until {@link POLISH_CAP} of
+ * them are gone, and throws a POLISH floater where it landed.
+ *
+ * It was a nag — *"The build machine is full. Somebody press SHIP!"* — and a
+ * tap that does nothing but tell the player off is the cheapest way to teach
+ * them to stop tapping. The floor is still stopped (velocity stays zero, no
+ * Story Point is banked: this is not a way round §10.7's wall), but the thumb
+ * that is there anyway now buys what the ring would: fewer bugs on the
+ * release. Capped at half so it never replaces the ring, and §4.12's backlog
+ * is never forgiven by mashing.
+ *
+ * Run 1's builds are stamped at the anchor density (§21.0c) and their defects
+ * move nothing, so there the nag stays: polishing a number the release does not
+ * read would be a floater that lies. Past the cap the floor says why too.
  */
-function nagFullShelf(): void {
-  if (state.bubble) return
-  set(showBubble('The build machine is full. Somebody press SHIP!', 3000))
+export const POLISH_PER_POKE = 0.05
+export const POLISH_CAP = 0.5
+
+function polishFullShelf(x = 0, y = 0): void {
+  const head = state.shelf[0]
+  const done = head?.polished ?? 0
+  if (!head || !head.graded || done >= POLISH_CAP) {
+    if (state.bubble) return
+    set(
+      showBubble(
+        head?.graded ? 'That one is as polished as it gets. Somebody press SHIP!' : 'The build machine is full. Somebody press SHIP!',
+        3000,
+      ),
+    )
+    return
+  }
+  const step = Math.min(POLISH_PER_POKE, POLISH_CAP - done)
+  // Both are the shelved figure times (1 − polished), so the ratio moves them
+  // from the old share to the new one.
+  const keep = (1 - done - step) / (1 - done)
+  const polished: ShelvedBuild = { ...head, defects: head.defects * keep, density: head.density * keep, polished: done + step }
+  set({
+    shelf: [polished, ...state.shelf.slice(1)],
+    floaters: [
+      ...state.floaters,
+      { id: nextFloaterId++, sp: 0, x, y, crit: false, bornAt: performance.now(), snippet: null, unblocked: false, label: 'POLISH' },
+    ],
+  })
 }
 
 /**
@@ -3109,7 +3158,7 @@ export function poke(x: number, y: number, target: PokeTarget | null = null) {
     return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
   }
   if (shelfBlocked()) {
-    nagFullShelf()
+    polishFullShelf(x, y)
     return { sp: 0, localEntropyAdded: 0, crit: false, quits: false }
   }
   if (state.phase === 'bankrupt') {

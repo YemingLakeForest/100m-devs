@@ -837,6 +837,7 @@ function normaliseBuild(raw: unknown): ShelvedBuild | null {
     buildSeconds: nonNegative(b.buildSeconds, 0),
     labourSeconds: nonNegative(b.labourSeconds, 0),
     shelvedAt: nonNegative(b.shelvedAt, 0),
+    polished: unit(b.polished, 0),
   }
 }
 
