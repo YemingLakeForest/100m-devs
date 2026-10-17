@@ -245,6 +245,22 @@ export function offlineRateMultiplier(
 }
 
 /**
+ * The founder's Take a Holiday [2026-10-16, plan phase 6.3] — *"You leave for a
+ * week. Output doesn't drop. Nobody mentions it."*
+ *
+ * The card's sentence, taken literally: the base offline rate is the active
+ * rate, so the halving {@link OFFLINE_BASE_RATE} exists for is undone, and the
+ * other upgrades stack on top as they always did. It is still inside SAVE.md
+ * §5.3's 50–100% band at base, and it is an Earth-era node — a studio of a
+ * million people, which by then has very much been told to keep opening the
+ * game. `FounderEffects.worksOffline` is the seam, and this is the only reader
+ * that pays (the founder's own desk codes only on a tap, §4.5d).
+ */
+export function holidayRate(rateMultiplier: number, worksOffline: boolean): number {
+  return worksOffline ? rateMultiplier / OFFLINE_BASE_RATE : rateMultiplier
+}
+
+/**
  * The closed form. **This is the whole accrual model** (§24.7).
  *
  * Kept separate from {@link offlineYield} because it is the piece with the

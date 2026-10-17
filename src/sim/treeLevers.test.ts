@@ -11,6 +11,7 @@ import {
   MACROS_TICKET_RATE,
   NO_JAMES_TREE,
   SECOND_MONITOR_RATE,
+  founderCapFromTree,
   founderFromTree,
   jamesFromTree,
   jamesPokeShare,
@@ -50,6 +51,23 @@ describe('the founder’s tree', () => {
 
   it('a poke over the shoulder interrupts less', () => {
     expect(founderFromTree(bought('you', { p1: 1 })).contextSwitchScale).toBeLessThan(1)
+  })
+
+  // [2026-10-16, plan phase 6.3] The founder batch.
+  it('Walk the Floor reaches a row past your own desk', () => {
+    expect(founderFromTree(bought('you', { p2: 1 })).reachRows).toBeGreaterThan(0)
+  })
+
+  it('Take a Holiday keeps the studio working while you are away, and nothing else', () => {
+    const f = founderFromTree(bought('you', { p6: 1 }))
+    expect(f.worksOffline).toBe(true)
+    expect(f.rate).toBe(NO_FOUNDER.rate)
+  })
+
+  it('Moving Day raises the cap, and only once it is bought', () => {
+    expect(founderCapFromTree({})).toBe(1)
+    expect(founderCapFromTree(undefined)).toBe(1)
+    expect(founderCapFromTree(bought('you', { m2: 1 }))).toBeGreaterThan(1)
   })
 })
 

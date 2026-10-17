@@ -222,3 +222,20 @@ describe('§21.7.4 — the org chart is who is in the building', () => {
     expect(jamesPromoted(new Set())).toBe(false)
   })
 })
+
+/**
+ * James's Knows a Chap [2026-10-16, plan phase 6.3]: the purchase that calls
+ * Billy in before sync slips. A separate term of Billy's predicate, so it is
+ * pinned on its own: it opens the door in Run 2 whatever the speedometer says,
+ * and never in Run 1.
+ */
+describe('Knows a Chap', () => {
+  it('brings Billy without a slip once it is owned', () => {
+    expect(billyArrives({ ...base, knowsAChap: true })).toBe(true)
+    expect(billyArrives({ ...base, knowsAChap: false })).toBe(false)
+  })
+
+  it('cannot open his door before the second reality', () => {
+    expect(billyArrives({ ...base, knowsAChap: true, paradigmShifts: BILLY_MIN_SHIFTS - 1 })).toBe(false)
+  })
+})

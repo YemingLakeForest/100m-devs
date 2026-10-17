@@ -95,7 +95,7 @@ import {
   type TreeView,
 } from '../sim/upgradeTrees.ts'
 import { founderFromTree, withMattTree } from '../sim/treeLevers.ts'
-import { jamesFromTree, jamesPokeShare, type JamesEffects } from '../sim/treeLevers.ts'
+import { founderCapFromTree, jamesFromTree, jamesPokeShare, type JamesEffects } from '../sim/treeLevers.ts'
 import { shiftPays, studioStalled } from '../sim/shiftPrompt.ts'
 import { MILESTONE_LINES, nextMilestoneBeat } from '../sim/milestoneBeats.ts'
 import {
@@ -223,6 +223,7 @@ import {
   NODE_CI_CD_AUTOPILOT,
   offlineCapSeconds,
   offlineRateMultiplier,
+  holidayRate,
   offlineYield,
   type OfflineReport,
 } from '../sim/offline.ts'
@@ -1276,7 +1277,9 @@ export function effectiveDevCap(s: GameState = state): number {
   // Paradigm Tree's (`s.devCap`) times §11's protocols, and nothing else.
   // Billy's coordination points are the same kind of thing as §11.2's protocols:
   // less communication load, which §4.1 reads as more capacity.
-  return s.devCap * techOf(s).devCapMultiplier * syncCapOf(s)
+  //
+  // [2026-10-16] And the founder's Moving Day: the HQ move, as room (`treeLevers.MOVING_DAY_CAP`).
+  return s.devCap * techOf(s).devCapMultiplier * syncCapOf(s) * founderCapFromTree(s.treeLevels)
 }
 
 /**
@@ -2775,6 +2778,9 @@ export function treeRefusalOf(hero: TreeHero, id: string, s: GameState = state):
     if (why === 'closed') return 'absent'
     return why === 'unknown' ? 'requires' : why
   }
+  // [2026-10-16] Knows a Chap is an introduction, and once Billy is in the
+  // building there is nobody left to introduce: it is not for sale.
+  if (hero === 'james' && id === 'j3' && arrivedHeroes().has('billy')) return 'maxed'
   return treeRefusal(treeView(s), hero, node)
 }
 
@@ -3321,6 +3327,8 @@ function checkStoryTriggers(s: GameState): void {
     // must be the same number or it can be half true.
     entropy: currentEntropy(s),
     syncSlippedFor: s.syncSlippedFor,
+    // [2026-10-16] James's Knows a Chap — Billy called in early (`storyTriggers.knowsAChap`).
+    knowsAChap: jamesFromTree(s.treeLevels).callsBilly,
   }
 
   const gapPassed = arrivalGapPassed(s.runSeconds, s.lastArrivalAt)
@@ -4823,7 +4831,11 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
   }
 
   const capSeconds = offlineCapSeconds(layer1.paradigmNodes, meta.entitlements)
-  const rateMultiplier = offlineRateMultiplier(layer1.paradigmLevels, meta.entitlements)
+  // [2026-10-16] The founder's Take a Holiday: the studio runs as hard without you.
+  const rateMultiplier = holidayRate(
+    offlineRateMultiplier(layer1.paradigmLevels, meta.entitlements),
+    founderFromTree(restored.treeLevels).worksOffline,
+  )
   const config = {
     capSeconds,
     rateMultiplier,

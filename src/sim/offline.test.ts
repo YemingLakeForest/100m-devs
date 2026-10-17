@@ -9,6 +9,7 @@ import {
   OFFLINE_BASE_RATE,
   OFFLINE_MIN_SECONDS,
   elapsedSeconds,
+  holidayRate,
   offlineCapSeconds,
   offlineRateMultiplier,
   offlineStoryPoints,
@@ -338,5 +339,29 @@ describe('the 2x rewarded offer is the same code path — MONETISATION §4 R1', 
     const doubled = offlineYield(snap, config({ capSeconds: 1500, rateMultiplier: 2 }), T0 + HOUR)
     expect(single.projectsShipped).toBe(1)
     expect(doubled.projectsShipped).toBe(3)
+  })
+})
+
+/**
+ * The founder's Take a Holiday [2026-10-16, plan phase 6.3] — "output doesn't
+ * drop". The claims: the base offline rate becomes the active rate, the other
+ * offline upgrades still stack on it, a founder without it is untouched, and an
+ * absence earns more with it than without.
+ */
+describe('Take a Holiday — the studio runs as hard without you', () => {
+  it('lifts the base offline rate to the active rate, and leaves everyone else alone', () => {
+    expect(holidayRate(OFFLINE_BASE_RATE, true)).toBe(1)
+    expect(holidayRate(OFFLINE_BASE_RATE, false)).toBe(OFFLINE_BASE_RATE)
+  })
+
+  it('keeps the other offline upgrades on top of it', () => {
+    const upgraded = offlineRateMultiplier({ [NODE_OFFLINE_RATE]: 2 }, [])
+    expect(holidayRate(upgraded, true)).toBeGreaterThan(holidayRate(OFFLINE_BASE_RATE, true))
+  })
+
+  it('pays an absence more than the same absence without it', () => {
+    const away = offlineYield(snapshot(), config(), T0 + HOUR)
+    const holiday = offlineYield(snapshot(), config({ rateMultiplier: holidayRate(OFFLINE_BASE_RATE, true) }), T0 + HOUR)
+    expect(holiday.storyPoints.toNumber()).toBeGreaterThan(away.storyPoints.toNumber())
   })
 })

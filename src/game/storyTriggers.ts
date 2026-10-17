@@ -65,6 +65,11 @@ export interface StorySnapshot {
    * {@link MATT_AFTER_SERENA_S}.
    */
   sinceSerena: number
+  /**
+   * James's Knows a Chap is owned — see {@link knowsAChap}. Optional so a
+   * snapshot built without it is the old snapshot.
+   */
+  knowsAChap?: boolean
 }
 
 /**
@@ -229,7 +234,27 @@ export function mattArrives(s: StorySnapshot): boolean {
  */
 export function billyArrives(s: StorySnapshot): boolean {
   if (s.paradigmShifts < BILLY_MIN_SHIFTS) return false
+  // [2026-10-16] James's Knows a Chap waives the dwell and the wall, not the clocks.
+  if (knowsAChap(s)) return true
   return s.entropy >= SYNC_FELT && s.syncSlippedFor >= BILLY_SUSTAINED_S && s.atCapFor >= BILLY_AT_CAP_S
+}
+
+/**
+ * James's **Knows a Chap** [2026-10-16, plan phase 6.3] — *"Introduces Billy.
+ * Billy's tree opens."*
+ *
+ * The one purchase that is allowed to open a door early, because it is not a
+ * clock: it is the player deciding they have felt the problem already and asking
+ * James for the chap. A separate term of {@link billyArrives}, so whatever else
+ * that predicate is asked to wait for, this answers only whether the player
+ * paid for the introduction: it skips the three minutes of slip and the minute
+ * at the wall, and nothing else. {@link SCENE_COOLDOWN_S} and
+ * {@link ARRIVAL_GAP_S} are asked by the store around every predicate, so they
+ * still hold the door — a clock may hold a door shut, and a purchase is not a
+ * clock, so this is the one thing allowed to open it early.
+ */
+export function knowsAChap(s: StorySnapshot): boolean {
+  return s.knowsAChap === true
 }
 
 /**

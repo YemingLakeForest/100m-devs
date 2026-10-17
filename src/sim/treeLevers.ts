@@ -36,6 +36,19 @@ export const SECOND_MONITOR_RATE = 1.3
 export const SHOULDER_CONTEXT_SCALE = 0.85
 /** Hiring Dial: each level takes this much off the *step* of §4.10a's hire-cost growth. */
 export const HIRING_DIAL_STEP = 0.88
+/**
+ * Walk the Floor [2026-10-16]: rows a tap at your own desk also nudges — the
+ * `reachRows` seam `store.pokeFounder` has carried since the Management tree,
+ * at that tree's diluted share. One row: "a poke reaches a whole pod".
+ */
+export const WALK_THE_FLOOR_ROWS = 1
+/**
+ * Moving Day [2026-10-16]: the HQ move, as capacity. Half as many again, and a
+ * single purchase, because a move is a step and not a slope (Org Chart is the
+ * slope). It multiplies §4.2's cap beside Billy's points, so it is the same
+ * kind of thing §4.1 already reads: more room before the talking eats the work.
+ */
+export const MOVING_DAY_CAP = 1.5
 
 /**
  * The founder, with the tree on them. `NO_FOUNDER` for an empty save — which is
@@ -45,7 +58,9 @@ export function founderFromTree(levels: Levels): FounderEffects {
   const monitor = level(levels, 'you', 'y1', 1)
   const shoulder = level(levels, 'you', 'p1', 1)
   const dial = level(levels, 'you', 'h2', 5)
-  if (monitor + shoulder + dial === 0) return NO_FOUNDER
+  const walk = level(levels, 'you', 'p2', 1)
+  const holiday = level(levels, 'you', 'p6', 1)
+  if (monitor + shoulder + dial + walk + holiday === 0) return NO_FOUNDER
   const rate = FOUNDER_BASE_RATE * (monitor ? SECOND_MONITOR_RATE : 1)
   return {
     ...NO_FOUNDER,
@@ -55,7 +70,16 @@ export function founderFromTree(levels: Levels): FounderEffects {
     // The *base* of the growth, not a discount (see `FounderEffects.hireGrowth`):
     // the step above 1 shrinks by a constant factor per level and never reaches 1.
     hireGrowth: 1 + (HIRE_COST_GROWTH - 1) * HIRING_DIAL_STEP ** dial,
+    reachRows: walk ? WALK_THE_FLOOR_ROWS : 0,
+    // Take a Holiday: the studio runs as hard with you gone as with you there —
+    // `offline.holidayRate` reads it.
+    worksOffline: holiday > 0,
   }
+}
+
+/** The founder's moves, as a multiplier on §4.2's cap. 1 for a save that has not moved. */
+export function founderCapFromTree(levels: Levels): number {
+  return level(levels, 'you', 'm2', 1) ? MOVING_DAY_CAP : 1
 }
 
 // --- Matt -------------------------------------------------------------------
