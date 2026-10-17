@@ -96,6 +96,7 @@ import {
 } from '../sim/upgradeTrees.ts'
 import { founderFromTree, withMattTree } from '../sim/treeLevers.ts'
 import { shiftPays, studioStalled } from '../sim/shiftPrompt.ts'
+import { MILESTONE_LINES, nextMilestoneBeat } from '../sim/milestoneBeats.ts'
 import {
   NODE_BY_ID,
   bpFor,
@@ -810,6 +811,12 @@ export interface GameState {
    */
   handShipSeconds: number
   /**
+   * §21.7.8 [added 2026-10-16] — the milestone lines James has said this run
+   * (`milestoneBeats.ts`). Ephemeral: a line repeated after a reload costs the
+   * player a second of reading; a line lost costs nothing.
+   */
+  beatsSaid: string[]
+  /**
    * §4.14 — a slow-moving average of recent ratings.
    *
    * Run state, and that is a decision rather than an oversight: reputation is
@@ -1096,6 +1103,7 @@ function freshRun(): GameState {
     lastArrivalAt: null,
     atCapFor: 0,
     handShipSeconds: 0,
+    beatsSaid: [],
     reputation: BASELINE_RATING,
     heroFold: NO_HERO_FOLD,
     selectedHero: null,
@@ -3074,6 +3082,37 @@ export function tick(dtSeconds: number): void {
   // §21.7.3 — after `set`, so the snapshot reads the frame's final state.
   checkStoryTriggers(getState())
   checkShipTutorial(getState())
+  // §21.7.8 — after the scenes, so a line never lands on the frame one opens.
+  checkMilestoneBeats(getState())
+}
+
+/**
+ * §21.7.8 [added 2026-10-16] — the hour between people: one line from James at
+ * a milestone the player can already see. Run 2 and later (Run 1 is §21.0e's
+ * script), never over a scene, and never over a bubble already speaking — the
+ * beat stays due and is said on the first frame the bubble is free.
+ */
+function checkMilestoneBeats(s: GameState): void {
+  if (getPermanent().meta.paradigmShifts <= 0) return
+  if (s.scene !== null || s.bubble !== null) return
+  const said = new Set(s.beatsSaid)
+  let bestPayout = 0
+  for (const r of s.releases) bestPayout = Math.max(bestPayout, r.payout)
+  const next = nextMilestoneBeat(
+    {
+      devs: s.devs,
+      bestPayout,
+      terminalRung: s.projectIndex >= PROJECTS.length - 1,
+      // The dearest read here, so it is asked only while its line is unsaid.
+      shiftPays: !said.has('shift-pays') && shiftPaysNow(s),
+    },
+    said,
+  )
+  if (!next) return
+  set({
+    beatsSaid: [...s.beatsSaid, ...next.spent, next.beat],
+    ...showBubble(MILESTONE_LINES[next.beat], 5000),
+  })
 }
 
 /**

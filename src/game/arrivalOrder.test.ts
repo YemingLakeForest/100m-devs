@@ -26,7 +26,7 @@ import {
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
 import { ARRIVAL_GAP_S, SCENE_COOLDOWN_S } from './storyTriggers.ts'
-import { PROBE_STEP, createPlayer, playStep } from '../test/pacingProbe.ts'
+import { PROBE_STEP, createPlayer, pinClocks, playStep } from '../test/pacingProbe.ts'
 
 /** Seconds between a build landing and the player's thumb getting to SHIP!. */
 const SHIP_LATENCY = 8
@@ -35,9 +35,13 @@ const SHIP_LATENCY = 8
  * Scene ids in the order they first opened, with the simulated minute each did.
  *
  * The player is `test/pacingProbe.ts`'s, and `manualOnly` is the policy that
- * matches this file's claim: it never opens a tree.
+ * matches this file's claim: it never opens a tree. `beats`, if given, collects
+ * §21.7.8's milestone lines the same way.
  */
-function playTwoRuns(run2Seconds: number): Array<{ id: string; minute: number }> {
+function playTwoRuns(
+  run2Seconds: number,
+  beats?: Array<{ id: string; minute: number }>,
+): Array<{ id: string; minute: number }> {
   const seen: Array<{ id: string; minute: number }> = []
   let run = 1
   let start = 0
@@ -51,13 +55,23 @@ function playTwoRuns(run2Seconds: number): Array<{ id: string; minute: number }>
     while (p.t - start < limit) {
       playStep(p)
       if (run === 1 && getState().phase === 'bankrupt') break
+      const said = getState().beatsSaid
+      if (run === 2 && beats && said.length > 0 && !beats.some((b) => b.id === said[said.length - 1])) {
+        beats.push({ id: said[said.length - 1], minute: (p.t - start) / 60 })
+      }
     }
     if (run === 1) triggerParadigmShift()
   }
   return seen
 }
 
+// The probe's clocks, not the machine's: a speech bubble ages on
+// `performance.now`, and §21.7.8's lines wait for the bubble to be free, so an
+// unpinned clock would let a fast machine starve them.
+let unpin: () => void = () => {}
+
 beforeEach(() => {
+  unpin = pinClocks()
   __resetStore()
   setPermanent(emptyPermanent())
   __setState({ runSeed: 0x5eed })
@@ -66,6 +80,7 @@ beforeEach(() => {
 afterEach(() => {
   __resetStore()
   setPermanent(emptyPermanent())
+  unpin()
 })
 
 describe('§21.7.3 — the order the cast arrives in', () => {
@@ -103,7 +118,8 @@ describe('§21.7.3 — the order the cast arrives in', () => {
    * scene opened is, to a step, the minute the one before it closed.
    */
   it('spaces the people by the arrival gap, and every scene by the cooldown', { timeout: 120_000 }, () => {
-    const seen = playTwoRuns(3600)
+    const beats: Array<{ id: string; minute: number }> = []
+    const seen = playTwoRuns(3600, beats)
     const step = PROBE_STEP / 60
 
     const people = [SCENE_BILLY_ARRIVES.id, SCENE_SERENA_ARRIVES.id, SCENE_MATT_ARRIVES.id]
@@ -117,8 +133,9 @@ describe('§21.7.3 — the order the cast arrives in', () => {
     }
 
     // Printed, not asserted (§25.3.2 fixes orders, not numbers): the longest
-    // stretch of the hour with nothing said to the player.
-    const marks = [0, ...seen.map((x) => x.minute), 60]
+    // stretch of the hour with nothing said to the player — a scene, or one of
+    // §21.7.8's milestone lines.
+    const marks = [0, ...[...seen, ...beats].map((x) => x.minute).sort((a, b) => a - b), 60]
     let longest = 0
     let from = 0
     for (let i = 1; i < marks.length; i++) {
@@ -126,6 +143,7 @@ describe('§21.7.3 — the order the cast arrives in', () => {
     }
     console.log(
       `arrivals: ${seen.map((x) => `${x.id.replace('scene.run2.', '')} ${x.minute.toFixed(1)}`).join(', ')}\n` +
+        `milestones: ${beats.map((x) => `${x.id} ${x.minute.toFixed(1)}`).join(', ')}\n` +
         `longest beatless stretch: ${longest.toFixed(1)} min, from minute ${from.toFixed(1)}`,
     )
   })

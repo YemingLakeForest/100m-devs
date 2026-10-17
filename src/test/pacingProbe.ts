@@ -352,6 +352,7 @@ export function probeRunTwo(settings: ProbeSettings, minutes: number): ProbeMinu
   let rings = c.rings
   let blocked = c.blocked
   let refunded = refundedSoFar()
+  let beatsSeen = getState().beatsSaid.length
   c.intervalSum = 0
   c.intervalCount = 0
 
@@ -363,6 +364,10 @@ export function probeRunTwo(settings: ProbeSettings, minutes: number): ProbeMinu
       elapsed += PROBE_STEP
     }
     const s = getState()
+    // §21.7.8's milestone lines share the column: the probe's question is what
+    // the player was told, and when, and a line is something they were told.
+    for (const beat of s.beatsSaid.slice(beatsSeen)) scenes.push(`beat:${beat}`)
+    beatsSeen = s.beatsSaid.length
     const refundNow = refundedSoFar()
     const handNow = s.handReleases - hand
     rows.push({
