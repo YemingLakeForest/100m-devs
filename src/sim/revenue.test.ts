@@ -87,8 +87,15 @@ describe('front-loaded and long — §4.10e’s two requirements at once', () =>
     // 2026-10-16] Measured against a build rather than ten seconds: the spike
     // was retuned to spread over a build (finding 08's cash whiplash), and a
     // build is never shorter than §14.8.7's floor.
+    //
+    // [amended 2026-10-16, plan phase 4.7] The half is the garage's claim: Act
+    // IIa's builds are a minute (`TARGET_BUILD_SECONDS`), and well over half
+    // lands inside one. At the floor (20 s since phase 4.7) a build is a third of
+    // that and three tails overlap at once, so what the claim needs there is only
+    // that the money is still front-loaded — two-fifths in the first build, where
+    // a flat spread over a tail of minutes would be under a tenth.
     for (const seed of SEEDS) {
-      expect(collectedFraction(rollShape(seed, 0), MIN_BUILD_SECONDS)).toBeGreaterThan(0.45)
+      expect(collectedFraction(rollShape(seed, 0), MIN_BUILD_SECONDS)).toBeGreaterThan(0.4)
       expect(collectedFraction(rollShape(seed, 0), TARGET_BUILD_SECONDS)).toBeGreaterThan(0.6)
     }
   })

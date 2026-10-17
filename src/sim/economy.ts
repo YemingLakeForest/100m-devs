@@ -167,16 +167,22 @@ export const TARGET_BUILD_SECONDS = 60
  *   come back, because the burn-down still has more to burn as the studio grows.
  *   1.0 would hold project size constant and reach the floor in one doubling;
  *   0.5 is a 29% cut a player reads as noise.
- * - **The floor is 30 s**, not lower, until the release ring is a held batch
- *   (plan phase 4): an unbatched ring at a 30 s cadence is already two modals a
- *   minute.
+ * - **The floor is 20 s** [plan phase 4.7]. It was 30 s while every build was
+ *   a ring, because an unbatched ring at a 30 s cadence is already two modals a
+ *   minute. Phase 4 took the ring off the cadence: Serena ships every build on
+ *   her delay (also 20 s, so she still keeps up at the floor) and the ring is a
+ *   held LAUNCH ×N of at least four minutes of builds, fifteen an hour at most
+ *   whatever the build time. With the modal capped by the batch and not by the
+ *   build, the floor is free to come down to where a big studio's games pop out
+ *   about three a minute, and stops there because the queue's twenty-second
+ *   ticker line is the shortest beat the HUD can show without stacking.
  *
  * The money does not move. `projectRevenue` pays a terminal project in
  * proportion to its commitment and the commitment is `v · T`, so revenue per
  * second is `v` times the same constant at every cadence — this is the cadence
  * changing, not the economy.
  */
-export const MIN_BUILD_SECONDS = 30
+export const MIN_BUILD_SECONDS = 20
 
 /** α in {@link targetBuildSeconds}. See there for why 0.7. */
 export const BUILD_SPEEDUP_EXPONENT = 0.7
