@@ -4,6 +4,7 @@ import {
   SCENE_COOLDOWN_S,
   arrivalGapPassed,
   sceneCooledDown,
+  BILLY_AT_CAP_S,
   BILLY_MIN_SHIFTS,
   BILLY_SUSTAINED_S,
   FOUNDER_BOARD_MIN_DEVS,
@@ -11,7 +12,7 @@ import {
   MATT_AFTER_SERENA_S,
   MATT_INCIDENTS,
   MATT_SUSTAINED_S,
-  SERENA_HAND_RELEASES,
+  SERENA_HAND_SHIP_S,
   SERENA_STALL_S,
   SYNC_FELT,
   arrivalPredicate,
@@ -27,12 +28,14 @@ import {
 const base: StorySnapshot = {
   paradigmShifts: 1,
   incidents: 0,
+  incidentsHeld: 0,
   tickets: 0,
   ticketsUnservedFor: 0,
   entropy: 0,
   syncSlippedFor: 0,
+  atCapFor: 0,
   shelfStalledFor: 0,
-  handReleases: 0,
+  handShipSeconds: 0,
   sinceSerena: 0,
 }
 
@@ -49,8 +52,9 @@ describe('§21.7.3 — a hero arrives the first time you feel the problem', () =
   it('brings Serena for the player who never lets it stall, on the chore of SHIP!', () => {
     // An attentive thumb never fills the shelf, so the stall door alone would
     // leave exactly that player without the person who automates it.
-    expect(serenaArrives({ ...base, handReleases: SERENA_HAND_RELEASES - 1 })).toBe(false)
-    expect(serenaArrives({ ...base, handReleases: SERENA_HAND_RELEASES })).toBe(true)
+    // [2026-10-16] Minutes of it, not presses: a faster cadence must not bring her sooner.
+    expect(serenaArrives({ ...base, handShipSeconds: SERENA_HAND_SHIP_S - 1 })).toBe(false)
+    expect(serenaArrives({ ...base, handShipSeconds: SERENA_HAND_SHIP_S })).toBe(true)
   })
 
   it('does not bring Serena on an incident — that is Matt’s, now', () => {
@@ -58,14 +62,26 @@ describe('§21.7.3 — a hero arrives the first time you feel the problem', () =
   })
 
   it('brings Matt when incidents pile up, and only once Serena is in the building', () => {
-    const drowning = { ...base, incidents: MATT_INCIDENTS }
+    const drowning = { ...base, incidents: MATT_INCIDENTS, incidentsHeld: MATT_INCIDENTS }
     expect(mattArrives(drowning)).toBe(false)
     expect(mattArrives({ ...drowning, sinceSerena: MATT_AFTER_SERENA_S })).toBe(true)
-    expect(mattArrives({ ...base, sinceSerena: MATT_AFTER_SERENA_S, incidents: MATT_INCIDENTS - 1 })).toBe(false)
+    expect(
+      mattArrives({ ...base, sinceSerena: MATT_AFTER_SERENA_S, incidents: MATT_INCIDENTS - 1, incidentsHeld: MATT_INCIDENTS - 1 }),
+    ).toBe(false)
   })
 
-  it('gives Serena a minute to herself: never on the frame she arrives', () => {
-    const pile = { ...base, incidents: MATT_INCIDENTS + 5, tickets: 500, ticketsUnservedFor: 1e4 }
+  it('needs the pile to have sat: two pages raised this second are a studio coping', () => {
+    // [2026-10-16] Each incident's own age, so a pile cleared and re-raised does
+    // not count as one that stayed.
+    const fresh = { ...base, sinceSerena: MATT_AFTER_SERENA_S, incidents: MATT_INCIDENTS + 3 }
+    expect(mattArrives({ ...fresh, incidentsHeld: MATT_INCIDENTS - 1 })).toBe(false)
+    expect(mattArrives({ ...fresh, incidentsHeld: MATT_INCIDENTS })).toBe(true)
+  })
+
+  it('gives Serena her stretch: never on the frame she arrives, nor soon after', () => {
+    const pile = {
+      ...base, incidents: MATT_INCIDENTS + 5, incidentsHeld: MATT_INCIDENTS + 5, tickets: 500, ticketsUnservedFor: 1e4,
+    }
     expect(mattArrives({ ...pile, sinceSerena: 0 })).toBe(false)
     expect(mattArrives({ ...pile, sinceSerena: MATT_AFTER_SERENA_S - 1 })).toBe(false)
     expect(mattArrives({ ...pile, sinceSerena: MATT_AFTER_SERENA_S })).toBe(true)
@@ -80,16 +96,25 @@ describe('§21.7.3 — a hero arrives the first time you feel the problem', () =
   })
 
   it('brings Billy when growth first costs sync, and it stays costing it', () => {
-    const slipped = { ...base, entropy: SYNC_FELT, syncSlippedFor: BILLY_SUSTAINED_S }
+    const slipped = { ...base, entropy: SYNC_FELT, syncSlippedFor: BILLY_SUSTAINED_S, atCapFor: BILLY_AT_CAP_S }
     expect(billyArrives(slipped)).toBe(true)
     expect(billyArrives({ ...slipped, paradigmShifts: BILLY_MIN_SHIFTS - 1 })).toBe(false)
   })
 
   it('does not bring Billy on a dip that recovers, or on a studio still in sync', () => {
-    expect(billyArrives({ ...base, entropy: SYNC_FELT, syncSlippedFor: 0 })).toBe(false)
-    expect(billyArrives({ ...base, entropy: SYNC_FELT, syncSlippedFor: BILLY_SUSTAINED_S - 1 })).toBe(false)
+    const wall = { ...base, atCapFor: BILLY_AT_CAP_S }
+    expect(billyArrives({ ...wall, entropy: SYNC_FELT, syncSlippedFor: 0 })).toBe(false)
+    expect(billyArrives({ ...wall, entropy: SYNC_FELT, syncSlippedFor: BILLY_SUSTAINED_S - 1 })).toBe(false)
     // The clock alone, with the reading back under the line, is not a slip.
-    expect(billyArrives({ ...base, entropy: SYNC_FELT / 2, syncSlippedFor: BILLY_SUSTAINED_S })).toBe(false)
+    expect(billyArrives({ ...wall, entropy: SYNC_FELT / 2, syncSlippedFor: BILLY_SUSTAINED_S })).toBe(false)
+  })
+
+  it('does not bring Billy to a studio that can still hire its way forward (D6: dwell plus the wall)', () => {
+    // [2026-10-16] A slip below the wall is a cost the next hire still pays for.
+    const slipped = { ...base, entropy: SYNC_FELT, syncSlippedFor: BILLY_SUSTAINED_S }
+    expect(billyArrives({ ...slipped, atCapFor: 0 })).toBe(false)
+    expect(billyArrives({ ...slipped, atCapFor: BILLY_AT_CAP_S - 1 })).toBe(false)
+    expect(billyArrives({ ...slipped, atCapFor: BILLY_AT_CAP_S })).toBe(true)
   })
 
   it('needs no collapse for Billy: a studio that stops at §4.1’s optimum still meets him', () => {
@@ -99,7 +124,9 @@ describe('§21.7.3 — a hero arrives the first time you feel the problem', () =
     const entropyAtOptimum = 1 - 1 / (1 + L ** 5)
     expect(entropyAtOptimum).toBeLessThan(0.5)
     expect(entropyAtOptimum).toBeGreaterThan(SYNC_FELT)
-    expect(billyArrives({ ...base, entropy: entropyAtOptimum, syncSlippedFor: BILLY_SUSTAINED_S })).toBe(true)
+    expect(
+      billyArrives({ ...base, entropy: entropyAtOptimum, syncSlippedFor: BILLY_SUSTAINED_S, atCapFor: BILLY_AT_CAP_S }),
+    ).toBe(true)
   })
 
   it('has a predicate for every hero except James, who needs none', () => {

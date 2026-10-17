@@ -11957,7 +11957,7 @@ stated here rather than left to be inferred:</p>
 </tr>
 <tr>
 <td><strong>The first steered run</strong></td>
-<td><strong>Run 2.</strong> Every system and all five remaining heroes arrive here, paced across the hour §21.7.3's five triggers need to breathe</td>
+<td><strong>Run 2.</strong> Every system and all three remaining heroes arrive here, paced across the hour by §21.7.3's triggers and its two clocks <strong>[amended 2026-10-16]</strong></td>
 </tr>
 <tr>
 <td><strong>The early loop</strong></td>
@@ -11981,6 +11981,9 @@ is the arc §21.7 describes. <strong>The gate and the pacing were always the sam
 <p><strong>Run 2's actual length has never been measured</strong>, and asserting it here would be exactly the
 mistake §26.0 describes. Measuring it is Phase 1 work (§26.1.8 item 9), and if it comes in at
 twenty minutes the answer is to move a target, not to move this table.</p>
+</blockquote>
+<blockquote>
+<p><strong>[amended 2026-10-16] The pile was measured, and it was the failure this section predicted.</strong> The fun-killers probe (<code>npm run probe:pacing</code>) found every Run 2 beat — board, Billy, Serena, the promotion and Matt — landing between minutes 6 and 9, two on one frame, and nothing for the rest of the hour. The arrivals were each a true feeling; they were true together because a growing studio meets its problems together. §21.7.3 now holds them apart with a scene cooldown (one minute) and an arrival gap (five minutes) — a clock may hold a door shut, never open one — and gives each door a dwell, so the people land at roughly 9, 15 and 23 minutes, with §21.7.8's milestone lines in between. The run's length is still not asserted here.</p>
 </blockquote>
 <h4 id="the-measured-curve-is-geometric-and-the-tables-first-row-may-be-wrong-resolved-2026-08-16-see-13.12.4">13.12.3 The measured curve is geometric, and the table's first row may be wrong <strong>[RESOLVED 2026-08-16 — see §13.12.4]</strong></h4>
 <p><strong>§13.12.1's numbers came from general idle-genre guidance rather than from this game</strong>, which
@@ -15695,6 +15698,7 @@ for any tool in the branch. Run 3 gets one too. So does Run 9.</p>
 <h4 id="the-hire-ladder-who-arrives-and-what-it-took-canon">21.7.3 The hire ladder — who arrives, and what it took <strong>[CANON]</strong></h4>
 <blockquote>
 <p><strong>[amended 2026-10-16] A clock may hold a door shut; it may never open one.</strong> The fun-killers audit (<code>docs/AUDIT-2026-10-16-fun-killers.html</code>, finding 04) measured every Run 2 beat landing between minutes 6 and 9 — the founder's board, Billy, Serena, the promotion and Matt, two of them on one frame — and then nothing for the rest of the hour. Each door was a true feeling; they were all true together, because the problems they answer arrive together in a studio that is growing. So two clocks now space them, and neither can bring anybody in. A scene needs its predicate to be true, <em>and</em> a minute of play since the last scene closed (<code>SCENE_COOLDOWN_S</code>), so a hand-over has time to be used before the next one interrupts it. A person (Billy, Serena, Matt) also needs five minutes since the last person sat down (<code>ARRIVAL_GAP_S</code>), so each has a stretch of the run that is theirs. Both clocks start when a scene <em>ends</em>, so a slow reader is not charged their reading time, and both run on <code>runSeconds</code>, so a backgrounded tab cannot serve the wait. A reload restarts the gap rather than clearing it. Run 1's scenes are exempt: §21.0e's four minutes are a script, not a ladder.</p>
+<p><strong>[amended 2026-10-16] And each door now wants the feeling to have been lived with, not just met.</strong> The gap alone would have queued the same pile of doors five minutes apart in whatever order they happened to come true, so each predicate gained a dwell. <strong>Billy</strong>: sync slipped for three minutes (was twenty seconds) <em>and</em> a minute at the cap wall, where one more hire would pass §4.1's peak. At twenty seconds he arrived on the first slip, before the studio had met the wall that makes sync the question; at the wall, <em>&quot;how do we get more sync?&quot;</em> is the only question left. No node purchase is needed (plan 2026-10-16, D6): dwell plus the wall is the door, standing in for THE THREAD's old anchor. <strong>Serena</strong>: the chore door is eight <em>minutes</em> of pressing SHIP! by hand, not eight presses (plan §1's ruling). Hiring ships faster since the same batch (§14.8.7), so any count arrived sooner the better the player did; minutes are the chore whatever the cadence. They count only at the cap wall, because while HIRE still buys output the thumb has a better job than SHIP!, and once it does not, SHIP! is all the thumb is for. That also keeps her behind Billy without naming him: his door wants one minute of the same wall, hers wants eight. The stall door (fifteen seconds of a full shelf) is unchanged. <strong>Matt</strong>: two incidents each open for thirty seconds (read off each incident's own age, so a pile cleared and re-raised is not a pile that sat), and eight minutes after Serena rather than one. A minute behind her was the frame-collision rule and nothing more; it left her board one minute of being the newest thing in the building. <strong>The promotion</strong> waits out the cooldown like any scene, so it is a minute behind Serena rather than on the frame her scene closes. Measured by <code>arrivalOrder.test.ts</code>'s player (careful, never opens a tree, SHIP! eight seconds late): board 5.3, Billy 9.4, Serena 14.7, promotion 15.7, Matt 22.6 minutes into Run 2. The test pins the order and the spacing, not those minutes.</p>
 </blockquote>
 <blockquote>
 <p><strong>[amended 2026-10-04] Matt's door is incidents, after Serena, and a minute behind her.</strong> Two incidents open at once, or one open with the queue unanswered for thirty seconds — which needed §4.12a's rate raised to be reachable at all (see there) — and only once Serena has been in the building for sixty seconds, so the two never arrive on one frame. [amended 2026-10-07] Arrivals <strong>happen in the open room</strong>: each station and its platform drop directly into the bay, followed by the chair and person; there is no hiding wall or wall-lift prelude (<code>?arrive=billy|serena|matt</code> plays one).</p>
@@ -15717,17 +15721,17 @@ this is when each of them walks in.</p>
 <tbody>
 <tr>
 <td><strong>Serena</strong> — Reliability</td>
-<td>The build queue is the bottleneck: the floor stands still on a full shelf, or SHIP! has been pressed by hand eight times. <strong>[amended 2026-10-16]</strong> She brings auto-ship with her (§10.8b): the problem she solves is the thumb, so she arrives solving it, not selling the fix as a node.</td>
+<td>The build queue is the bottleneck: the floor stands still on a full shelf, or SHIP! has been pressed by hand for eight minutes at the cap wall <strong>[amended 2026-10-16]</strong>. <strong>[amended 2026-10-16]</strong> She brings auto-ship with her (§10.8b): the problem she solves is the thumb, so she arrives solving it, not selling the fix as a node.</td>
 <td>...found that the studio earns at the speed of their thumb</td>
 </tr>
 <tr>
 <td><strong>Matt</strong> — Support</td>
-<td>Incidents (§4.12a) and tickets (§4.13) pile up faster than the studio clears them — after Serena</td>
+<td>Incidents (§4.12a) and tickets (§4.13) pile up faster than the studio clears them: two incidents open for thirty seconds each — eight minutes after Serena <strong>[amended 2026-10-16]</strong></td>
 <td>...been drowned by what a shipped catalogue sends back</td>
 </tr>
 <tr>
 <td><strong>Billy</strong> — Cohesion</td>
-<td>Sync first <strong>slips below 95%</strong> and stays there, <strong>outside Run 1</strong></td>
+<td>Sync first <strong>slips below 95%</strong> and stays there for three minutes, with a minute at the cap wall, <strong>outside Run 1</strong> <strong>[amended 2026-10-16]</strong></td>
 <td>...hired their way into the cost of talking, and wants the way back up</td>
 </tr>
 </tbody>
@@ -16190,14 +16194,15 @@ the floor a person covers, and how hard — introduced to a player who has never
 the floor would be a screen about a thing they have not done.</p>
 <p>§13.13's <em>&quot;arrives with one decision attached&quot;</em> survives intact: the point is granted at level 1
 and is still there, waiting, when the board opens.</p>
-<h4 id="d-what-this-does-to-run-2s-ladder">21.7.7d What this does to Run 2's ladder</h4>
-<p>Run 2 now has a stated order, and every step of it is a feeling rather than a number:</p>
+<h4 id="d-what-this-does-to-run-2s-ladder">21.7.7d What this does to Run 2's ladder <strong>[amended 2026-10-16]</strong></h4>
+<p><strong>[amended 2026-10-16]</strong> The table this section carried still listed Mo, THE THREAD and Melany, all three gone (Mo and Melany 2026-10-04, the thread 2026-10-16), and described an order that was really <em>whatever the studio breaks first</em> — which, measured, was everything inside three minutes (§21.7.3's head). Rewritten as the ladder the build plays. Every step is still a feeling; §21.7.3's two clocks only hold each one shut until the one before it has had its stretch. The minutes are one measured player (<code>arrivalOrder.test.ts</code>: careful, never opens a tree, SHIP! eight seconds late) and are not canon; the order and the spacing are.</p>
 <table>
 <thead>
 <tr>
 <th></th>
 <th>Beat</th>
 <th>Trigger</th>
+<th>Measured</th>
 </tr>
 </thead>
 <tbody>
@@ -16205,47 +16210,42 @@ and is still there, waiting, when the board opens.</p>
 <td>1</td>
 <td>§21.6 — James, and Instant Messenger</td>
 <td>the first frame after the first shift</td>
+<td>0</td>
 </tr>
 <tr>
 <td>2</td>
-<td><s>§18.0a — THE THREAD</s> <strong>[retired 2026-10-16]</strong></td>
-<td><s>12 developers, nothing bought</s></td>
+<td><strong>§21.7.7b — the founder's board</strong></td>
+<td>your share of the output falls past a twentieth</td>
+<td>5.3</td>
 </tr>
 <tr>
 <td>3</td>
-<td>§21.7.3 — Mo, Serena, Matt, in whatever order the studio breaks</td>
-<td>a bad release, an incident, an unanswered queue</td>
+<td><strong>§21.7.3 — Billy</strong></td>
+<td>sync slipped for three minutes, and a minute at the cap wall</td>
+<td>9.4</td>
 </tr>
 <tr>
 <td>4</td>
-<td><strong>§21.7.7b — the founder's board</strong></td>
-<td>the first specialist hire, or a twentieth share</td>
+<td><strong>§21.7.3 — Serena</strong></td>
+<td>a stalled shelf, or eight minutes of hand-shipping at the wall — and five minutes after Billy</td>
+<td>14.7</td>
 </tr>
 <tr>
 <td>5</td>
-<td>§21.7.3 — Melany <em>(removed 2026-10-04)</em></td>
-<td>the cap, hit with cash spare</td>
-</tr>
-<tr>
-<td>5a</td>
-<td><strong>§21.7.3 — Billy, and §13.8's floor with him</strong></td>
-<td>sync still halved twenty seconds later</td>
+<td>§21.7.4 — the promotion</td>
+<td>a third person in the building, a minute after the last scene</td>
+<td>15.7</td>
 </tr>
 <tr>
 <td>6</td>
-<td><strong>§21.7.7c — the hero board</strong></td>
-<td>the first earned level</td>
-</tr>
-<tr>
-<td>7</td>
-<td>§21.7.4 — the promotion</td>
-<td>James placed above somebody</td>
+<td><strong>§21.7.3 — Matt</strong></td>
+<td>two incidents that sat for thirty seconds, eight minutes after Serena</td>
+<td>22.6</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Steps 2, 4 and 6 are new and they are what makes the other four legible.</strong> Before them, a
-player reaching step 3 had three boards open, no reason to have opened any of them, and a
-prestige tree whose currency they had never spent.</p>
+<p>Between the people, §21.7.8's milestone lines: James saying one thing as the studio crosses a size, ships its first million-dollar game, reaches the last rung of the project ladder, or can afford its next shift. They are not scenes and do not wait on the clocks.</p>
+<p><strong>The founder's board is still what makes the rest legible.</strong> Before it, a player meeting the first hero had boards open, no reason to have opened any of them, and a prestige tree whose currency they had never spent.</p>
 <h4 id="e-the-hand-off-finishes-on-one-action-canon-added-2026-08-26">21.7.7e The hand-off finishes on one action <strong>[CANON — added 2026-08-26]</strong></h4>
 <p>A scene that names a board and leaves the player to find its door is an announcement, not a
 first-use path. Each post-Run-1 board therefore finishes the character beat inside the

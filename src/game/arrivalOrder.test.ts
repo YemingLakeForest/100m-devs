@@ -25,7 +25,8 @@ import {
   SCENE_MATT_ARRIVES,
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
-import { createPlayer, playStep } from '../test/pacingProbe.ts'
+import { ARRIVAL_GAP_S, SCENE_COOLDOWN_S } from './storyTriggers.ts'
+import { PROBE_STEP, createPlayer, playStep } from '../test/pacingProbe.ts'
 
 /** Seconds between a build landing and the player's thumb getting to SHIP!. */
 const SHIP_LATENCY = 8
@@ -87,8 +88,45 @@ describe('§21.7.3 — the order the cast arrives in', () => {
     expect(serena!).toBeLessThan(matt!)
 
     // The third person in the building is the promotion — so it cannot precede
-    // Serena, who is the third.
+    // Serena, who is the third. [2026-10-16] And it goes through the cooldown,
+    // so it is strictly after her, and before Matt.
     expect(promoted, 'James was never promoted').toBeDefined()
-    expect(promoted!).toBeGreaterThanOrEqual(serena!)
+    expect(promoted!).toBeGreaterThan(serena!)
+    expect(promoted!).toBeLessThan(matt!)
+  })
+
+  /**
+   * §21.7.3 [amended 2026-10-16] — a clock may hold a door shut; it may never
+   * open one. The audit measured every Run 2 beat inside three minutes; these
+   * pin the spacing as a floor, and leave where the beats land to the probe.
+   * The player dismisses each scene on the step after it opens, so the minute a
+   * scene opened is, to a step, the minute the one before it closed.
+   */
+  it('spaces the people by the arrival gap, and every scene by the cooldown', { timeout: 120_000 }, () => {
+    const seen = playTwoRuns(3600)
+    const step = PROBE_STEP / 60
+
+    const people = [SCENE_BILLY_ARRIVES.id, SCENE_SERENA_ARRIVES.id, SCENE_MATT_ARRIVES.id]
+    const arrivals = seen.filter((x) => people.includes(x.id))
+    expect(arrivals.length).toBe(people.length)
+    for (let i = 1; i < arrivals.length; i++) {
+      expect(arrivals[i].minute - arrivals[i - 1].minute).toBeGreaterThanOrEqual(ARRIVAL_GAP_S / 60 - step)
+    }
+    for (let i = 1; i < seen.length; i++) {
+      expect(seen[i].minute - seen[i - 1].minute).toBeGreaterThanOrEqual(SCENE_COOLDOWN_S / 60 - step)
+    }
+
+    // Printed, not asserted (§25.3.2 fixes orders, not numbers): the longest
+    // stretch of the hour with nothing said to the player.
+    const marks = [0, ...seen.map((x) => x.minute), 60]
+    let longest = 0
+    let from = 0
+    for (let i = 1; i < marks.length; i++) {
+      if (marks[i] - marks[i - 1] > longest) [longest, from] = [marks[i] - marks[i - 1], marks[i - 1]]
+    }
+    console.log(
+      `arrivals: ${seen.map((x) => `${x.id.replace('scene.run2.', '')} ${x.minute.toFixed(1)}`).join(', ')}\n` +
+        `longest beatless stretch: ${longest.toFixed(1)} min, from minute ${from.toFixed(1)}`,
+    )
   })
 })

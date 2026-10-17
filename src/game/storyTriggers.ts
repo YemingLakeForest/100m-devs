@@ -28,6 +28,12 @@ export interface StorySnapshot {
   paradigmShifts: number
   /** §4.12a — incidents open right now. */
   incidents: number
+  /**
+   * §4.12a [added 2026-10-16] — of those, how many have been open at least
+   * {@link MATT_SUSTAINED_S}. Read off each incident's own `age`, so a pile that
+   * is cleared and re-raised does not count as one that sat there.
+   */
+  incidentsHeld: number
   /** §4.13 — the queue depth. */
   tickets: number
   /** Seconds the queue has gone unanswered. "Sustained" needs a clock. */
@@ -39,10 +45,20 @@ export interface StorySnapshot {
   entropy: number
   /** §21.7.3, Billy — seconds that reading has been at or above {@link SYNC_FELT}. */
   syncSlippedFor: number
+  /**
+   * §21.7.3, Billy [added 2026-10-16] — seconds the studio has stood at the cap
+   * wall: one more hire would pass §4.1's peak, so hiring has stopped buying
+   * output. The wall is where "how do we get more sync" becomes a question.
+   */
+  atCapFor: number
   /** §10.7, Serena — seconds, this run, the floor has stood still on a full shelf. */
   shelfStalledFor: number
-  /** §10.7, Serena — builds the player has put on sale by hand, this run. */
-  handReleases: number
+  /**
+   * §10.7, Serena [added 2026-10-16, replaces the hand-release count] —
+   * seconds, this run, spent pressing SHIP! by hand at the cap wall (see
+   * {@link atCapFor}): the stretch when SHIP! is all the thumb is for.
+   */
+  handShipSeconds: number
   /**
    * Seconds Serena has been in the building, this run; 0 if she is not. Matt's
    * door is behind hers, on purpose, **and a little way behind** — see
@@ -112,8 +128,22 @@ export const SYNC_FELT = 0.05
  * state and not a flicker, and the gauge is still under the player's eye when
  * James speaks. Shorter than {@link MATT_SUSTAINED_S}: the speedometer is the
  * one readout they are already looking at.
+ *
+ * [amended 2026-10-16] Twenty seconds became three minutes, and the cap wall
+ * ({@link BILLY_AT_CAP_S}) was added. At twenty seconds he arrived on the first
+ * slip, at minute 7, before the studio had met the wall that makes sync the
+ * question; the audit measured him landing in the same two minutes as the
+ * board, Serena and Matt. Three minutes is a slip the player has lived with.
+ * D6 of the plan: no node purchase is needed — dwell plus the wall is the door.
  */
-export const BILLY_SUSTAINED_S = 20
+export const BILLY_SUSTAINED_S = 180
+
+/**
+ * §21.7.3, Billy [added 2026-10-16] — seconds at the cap wall. A minute: long
+ * enough that the HIRE button has been looked at and declined (or pressed and
+ * regretted), short enough that he arrives while it is still the problem.
+ */
+export const BILLY_AT_CAP_S = 60
 
 /**
  * §21.7.3, Billy — **the second reality, not the third.**
@@ -130,13 +160,21 @@ export const BILLY_MIN_SHIFTS = 1
  *
  * The *stall*: the floor has stood still on a full shelf for a cumulative
  * fifteen seconds — a player who walks away from the thumb finds out what a
- * full buffer is. The *chore*: eight hand-releases, for the player who never
- * lets it stall and so never meets the first form, and is exactly the player
- * to whom *"I can make it ship itself"* is relief. Both numbers are first
- * passes.
+ * full buffer is. The *chore*: eight minutes of pressing SHIP! by hand, for the
+ * player who never lets it stall and so never meets the first form, and is
+ * exactly the player to whom *"I can make it ship itself"* is relief. The
+ * minutes count only at the cap wall, where hiring has stopped and SHIP! is
+ * the thumb's one job; that also keeps her behind Billy, whose door wants one
+ * minute of the same wall.
+ *
+ * [amended 2026-10-16] The chore was eight hand-releases. Plan 2026-10-16 §1's
+ * ruling restated it in minutes: phase 2 made hiring ship faster, so any count
+ * arrives sooner the better the player does, and eight releases became about
+ * five minutes of play. Minutes are the chore whatever the cadence. Both
+ * numbers are first passes.
  */
 export const SERENA_STALL_S = 15
-export const SERENA_HAND_RELEASES = 8
+export const SERENA_HAND_SHIP_S = 8 * 60
 
 /**
  * §4.12a, Matt — incidents open at once that count as drowning. Two: one is a
@@ -151,35 +189,47 @@ export const MATT_INCIDENTS = 2
  * studio that has been paging for ten minutes meets Serena with the pile already
  * there. A minute is long enough for her scene to have finished and her board to
  * have been looked at. First pass.
+ *
+ * [amended 2026-10-16] Eight minutes, not one. A minute behind her was the
+ * frame-collision rule and nothing more: the audit measured Matt at minute 9,
+ * sixty seconds after Serena, so her pipeline board had one minute of being the
+ * newest thing in the building. Eight minutes gives her stretch of the run to
+ * her, and the arrival gap (`ARRIVAL_GAP_S`) is still the floor under it.
  */
-export const MATT_AFTER_SERENA_S = 60
+export const MATT_AFTER_SERENA_S = 8 * 60
 
 /**
  * Serena — Reliability. The pipeline is not keeping up with the studio: the
  * floor has stopped waiting for a thumb, or the thumb is tired of it.
  */
 export function serenaArrives(s: StorySnapshot): boolean {
-  return s.shelfStalledFor >= SERENA_STALL_S || s.handReleases >= SERENA_HAND_RELEASES
+  return s.shelfStalledFor >= SERENA_STALL_S || s.handShipSeconds >= SERENA_HAND_SHIP_S
 }
 
 /**
  * Matt — Support. Incidents and tickets are landing faster than the studio
  * clears them. **After Serena**, because the order is the design: the player
  * fixes how the studio ships, and then finds out what shipping does to them.
+ *
+ * [amended 2026-10-16] The pile has to have *sat*: {@link MATT_INCIDENTS} open
+ * for {@link MATT_SUSTAINED_S} each, not two on one frame. Two pages that clear
+ * in ten seconds are a studio coping; two that are still open half a minute
+ * later are the drowning his scene is about.
  */
 export function mattArrives(s: StorySnapshot): boolean {
   if (s.sinceSerena < MATT_AFTER_SERENA_S) return false
-  if (s.incidents >= MATT_INCIDENTS) return true
+  if (s.incidentsHeld >= MATT_INCIDENTS) return true
   return s.incidents > 0 && s.tickets > 0 && s.ticketsUnservedFor >= MATT_SUSTAINED_S
 }
 
 /**
  * Billy — Cohesion. **Sync has first slipped from the studio's growth, and has
- * stayed slipped.** See {@link SYNC_FELT}.
+ * stayed slipped.** See {@link SYNC_FELT}. [amended 2026-10-16] **And the studio
+ * is at the wall**, so the answer to "hire more" has already stopped being yes.
  */
 export function billyArrives(s: StorySnapshot): boolean {
   if (s.paradigmShifts < BILLY_MIN_SHIFTS) return false
-  return s.entropy >= SYNC_FELT && s.syncSlippedFor >= BILLY_SUSTAINED_S
+  return s.entropy >= SYNC_FELT && s.syncSlippedFor >= BILLY_SUSTAINED_S && s.atCapFor >= BILLY_AT_CAP_S
 }
 
 /**

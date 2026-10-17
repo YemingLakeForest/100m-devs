@@ -176,6 +176,7 @@ import {
   SCENE_SERENA_ARRIVES,
 } from './scenes.ts'
 import {
+  MATT_SUSTAINED_S,
   SYNC_FELT,
   arrivalGapPassed,
   arrivalPredicate,
@@ -796,6 +797,19 @@ export interface GameState {
    */
   lastArrivalAt: number | null
   /**
+   * §21.7.3, Billy [added 2026-10-16] — seconds at the cap wall: one more hire
+   * would pass §4.1's peak. A streak, reset when the studio leaves the wall.
+   * Ephemeral, like the clocks above.
+   */
+  atCapFor: number
+  /**
+   * §10.7, Serena [added 2026-10-16] — seconds this run spent at the cap wall
+   * with SHIP! pressed by hand, until she arrives: the chore measured in minutes
+   * rather than in presses, so a faster cadence does not bring her sooner.
+   * Ephemeral.
+   */
+  handShipSeconds: number
+  /**
    * §4.14 — a slow-moving average of recent ratings.
    *
    * Run state, and that is a decision rather than an oversight: reputation is
@@ -1080,6 +1094,8 @@ function freshRun(): GameState {
     handReleases: 0,
     lastSceneEndedAt: null,
     lastArrivalAt: null,
+    atCapFor: 0,
+    handShipSeconds: 0,
     reputation: BASELINE_RATING,
     heroFold: NO_HERO_FOLD,
     selectedHero: null,
@@ -2930,6 +2946,19 @@ export function tick(dtSeconds: number): void {
   // has one way out and it is not this door.
   const stalledFor = open && stalledNow(state) ? state.stalledFor + dtSeconds : 0
 
+  // §21.7.3 [2026-10-16] — Billy's wall and Serena's chore, both in seconds.
+  // The wall is a streak, like the sync clock beside it. The chore is
+  // cumulative and counts only *at* the wall: while HIRE still buys output the
+  // thumb has a better job than SHIP!, and once it does not, SHIP! is all the
+  // thumb is for. That is also what keeps her behind Billy without naming him —
+  // his door wants a minute at the wall, hers wants eight.
+  const atWall = open && state.devs + 1 > peakHeads(effectiveDevCap(state))
+  const atCapFor = atWall ? state.atCapFor + dtSeconds : 0
+  const handShipSeconds =
+    atWall && state.handReleases > 0 && !hasSeenScene(SCENE_SERENA_ARRIVES.id)
+      ? state.handShipSeconds + dtSeconds
+      : state.handShipSeconds
+
   let patch: Partial<GameState> = {
     localEntropy,
     buffs,
@@ -2940,6 +2969,8 @@ export function tick(dtSeconds: number): void {
     ticketsUnservedFor,
     syncSlippedFor,
     stalledFor,
+    atCapFor,
+    handShipSeconds,
     shelfStalledFor,
     sinceSerena: hasSeenScene(SCENE_SERENA_ARRIVES.id) ? state.sinceSerena + dtSeconds : 0,
     // §11.2 B2's meeting clock. Simulated seconds, not wall-clock — see the
@@ -3184,10 +3215,12 @@ function checkStoryTriggers(s: GameState): void {
   const snapshot: StorySnapshot = {
     paradigmShifts: getPermanent().meta.paradigmShifts,
     incidents: s.incidents.length,
+    incidentsHeld: s.incidents.filter((i) => i.age >= MATT_SUSTAINED_S).length,
     tickets: s.tickets,
     ticketsUnservedFor: s.ticketsUnservedFor,
     shelfStalledFor: s.shelfStalledFor,
-    handReleases: s.handReleases,
+    handShipSeconds: s.handShipSeconds,
+    atCapFor: s.atCapFor,
     sinceSerena: hasSeenScene(SCENE_SERENA_ARRIVES.id) ? s.sinceSerena : 0,
     // The same reading as the clock beside it. Both halves of Billy's predicate
     // must be the same number or it can be half true.
