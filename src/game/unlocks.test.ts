@@ -103,6 +103,18 @@ describe('§21.7.6 — a system enters in the hands of the person who solves it'
     expect(both.tickets).toBe(neither.tickets)
   })
 
+  it('[2026-10-16] shows the queue ETA with Serena and the gauge’s name with Billy, and Run 1 all three', () => {
+    const run1 = unlocksFor(0, NO_HEROES)
+    expect([run1.queueEta, run1.runway, run1.entropyLabel]).toEqual([true, true, true])
+    const bare = unlocksFor(1, NO_HEROES)
+    expect(bare.queueEta).toBe(false)
+    expect(bare.entropyLabel).toBe(false)
+    expect(unlocksFor(1, roster('serena')).queueEta).toBe(true)
+    expect(unlocksFor(1, roster('serena')).entropyLabel).toBe(false)
+    expect(unlocksFor(1, roster('billy')).entropyLabel).toBe(true)
+    expect(unlocksFor(1, roster('billy')).queueEta).toBe(false)
+  })
+
   it('draws §4.15’s column only once something is in it — §21.7.6b', () => {
     // "A bar with no hero is not drawn at all, empty or otherwise." A rail that
     // reserves space for two bars that do not exist yet is the set asserted

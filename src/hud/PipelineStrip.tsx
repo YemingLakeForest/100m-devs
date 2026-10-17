@@ -21,7 +21,7 @@ import { useEffect, useRef } from 'react'
 
 import { Button } from '../ui/Button.tsx'
 import { playUi } from '../ui/uiSfx.ts'
-import { openLaunch, type GameState } from '../game/store.ts'
+import { currentUnlocks, openLaunch, type GameState } from '../game/store.ts'
 import { PipelineRow } from './PipelineGraph.tsx'
 import { queueLine, queueTone, queueView } from './queueModel.ts'
 
@@ -33,6 +33,7 @@ export function PipelineStrip({ state, onOpen }: { state: GameState; onOpen: () 
   const full = q.flow === 'stopped'
   const ready = q.games.length
   const line = queueLine(q)
+  const showEta = currentUnlocks().queueEta || tone !== 'calm'
 
   // Sound, from the diff: a click when a game joins the queue. Refs only —
   // nothing here sets state.
@@ -54,6 +55,10 @@ export function PipelineStrip({ state, onOpen }: { state: GameState; onOpen: () 
         <span className="qgauge__count">
           <b key={ready}>{ready}</b>/{q.capacity}
         </span>
+        {/* [amended 2026-10-16, §21.7.6b] The ETA arrives with Serena, or the
+            moment the queue is tight — whichever comes first. A countdown to a
+            wall the garage never meets is furniture. */}
+        {showEta && (
         <span className="qgauge__eta" data-tone={tone}>
           {/* "FULL IN ~49s" on a tall frame, "FULL ~49s" on a short one. */}
           {line.startsWith('FULL IN ') ? (
@@ -66,6 +71,7 @@ export function PipelineStrip({ state, onOpen }: { state: GameState; onOpen: () 
             line
           )}
         </span>
+        )}
       </span>
 
       <PipelineRow v={q} onOpen={onOpen} label={`${summary} Open the queue.`}>

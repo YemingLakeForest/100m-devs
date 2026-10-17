@@ -6,6 +6,7 @@ import {
   currentInterstellarSync,
   currentLagLy,
   currentPayroll,
+  currentUnlocks,
   currentWorlds,
   netCashFlow,
   nextPayout,
@@ -90,7 +91,11 @@ export function Cash({ state }: { state: GameState }) {
           there is a burn to explain rather than only when the balance is
           negative: the point is context, not consolation. */}
       {payroll > 0 && payout && <span className="hud__sub is-good">{payout}</span>}
-      {payroll > 0 && runway && <span className="hud__sub is-bad hud__sub--blink">{runway}</span>}
+      {/* [amended 2026-10-16, §21.7.6b] After the first hire, or while the studio
+          is bleeding — not from Run 2's first frame, when there is nothing to run out of. */}
+      {payroll > 0 && runway && currentUnlocks().runway && (state.devs > 0 || flow < 0) && (
+        <span className="hud__sub is-bad hud__sub--blink">{runway}</span>
+      )}
       {/* §10.8a's gain stack — the money that just landed, in green. */}
       <GainStack state={state} />
     </div>
@@ -186,7 +191,20 @@ export function Shipped({ state }: { state: GameState }) {
  * Clamped to [0, 1] because a spring overshoots by design, and a speedometer
  * that reads negative sync is a bug rather than a flourish.
  */
-export function Speedometer({ entropy, pastPeak = null }: { entropy: number; pastPeak?: string | null }) {
+export function Speedometer({
+  entropy,
+  pastPeak = null,
+  labelled = true,
+}: {
+  entropy: number
+  pastPeak?: string | null
+  /**
+   * [amended 2026-10-16, §21.7.6b] The escalating name (§4.3a) arrives with
+   * Billy, whose problem it names; until then the gauge reads plain SYNC. The
+   * gauge itself stays from Run 1 on, as §21.7.6 says it must.
+   */
+  labelled?: boolean
+}) {
   const swept = Math.min(1, Math.max(0, useSpring(entropy, SPRING_HEAVY)))
   const seized = entropy >= 0.99
   // The gauge reports *sync*, not entropy: 100% when the studio is in sync,
@@ -197,7 +215,7 @@ export function Speedometer({ entropy, pastPeak = null }: { entropy: number; pas
 
   return (
     <div className={`hud__block hud__gauge${seized ? ' is-seized' : ''}`}>
-      <span className="hud__label">{entropyLabel(swept)}</span>
+      <span className="hud__label">{labelled ? entropyLabel(swept) : 'SYNC'}</span>
       <b className="hud__num hud__num--major">{syncPercent(swept)}</b>
       <div className="hud__gauge-track">
         {/*

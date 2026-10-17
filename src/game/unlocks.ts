@@ -149,6 +149,24 @@ export interface Unlocks {
    * exactly.
    */
   anyBacklog: boolean
+
+  /*
+   * [amended 2026-10-16, plan phase 4.4] — §21.7.6b's rule, applied to the three
+   * readouts that were on screen from Run 2's first frame whether or not their
+   * problem existed yet. Each is a gate the HUD combines with what the run is
+   * doing: a readout appears when its hero arrives **or** when its problem is on
+   * screen, whichever is first, because a tight queue with no ETA is a wall
+   * nobody was warned about.
+   *
+   * Run 1 keeps all three. Its four minutes are scripted against the HUD they
+   * were tuned with, and the speedometer's escalating name *is* §6's punchline.
+   */
+  /** The queue's FULL IN line — once Serena arrives (or, in the HUD, once the queue is tight). */
+  queueEta: boolean
+  /** The runway line under cash — once there is a payroll to run out (the HUD adds: hired, or bleeding). */
+  runway: boolean
+  /** The speedometer's escalating name (§4.3a) — once Billy, whose problem it names, arrives. */
+  entropyLabel: boolean
 }
 
 /** Which hero hands over which instrument — read off §22.8's roster, never restated. */
@@ -164,6 +182,9 @@ const SHUT: Unlocks = {
   incidents: false,
   tickets: false,
   anyBacklog: false,
+  queueEta: true,
+  runway: true,
+  entropyLabel: true,
 }
 
 /**
@@ -196,6 +217,9 @@ export function unlocksFor(
     incidents: instrument.incidents,
     tickets: instrument.tickets,
     anyBacklog: instrument.defects || instrument.incidents || instrument.tickets,
+    queueEta: has('serena'),
+    runway: true,
+    entropyLabel: has('billy'),
   }
 }
 

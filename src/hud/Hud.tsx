@@ -451,7 +451,11 @@ export function Hud({ stage, onMainMenu }: { stage: StageHandle | null; onMainMe
 
         {/* Mid-left — §10.1 puts the speedometer here and velocity directly under it. */}
         <div className="hud__gauges">
-          <Speedometer entropy={entropy} pastPeak={unlocks.trees ? pastPeakLine(state) : null} />
+          <Speedometer
+            entropy={entropy}
+            pastPeak={unlocks.trees ? pastPeakLine(state) : null}
+            labelled={unlocks.entropyLabel}
+          />
           <Velocity state={state} />
           {/*
             §16 — the two readouts the top of the ladder adds, under the two the
