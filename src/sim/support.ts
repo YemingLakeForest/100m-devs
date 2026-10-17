@@ -91,6 +91,39 @@ export const GAMES_PER_SUPPORT_HEAD = 10
 /** Outstanding defects one support head can absorb — the `σ·B` term. */
 export const DEFECTS_PER_SUPPORT_HEAD = 100
 
+/**
+ * What one player paid — §4.13's "lifetime players" counted from the money.
+ *
+ * [2026-10-16] Tickets followed the *number of games* shipped, so a $50 garage
+ * game wrote in exactly as often as a $2.6M hit, and a studio's support load
+ * stopped growing the day its ladder topped out (fun-killers finding 05). §4.13
+ * always said `τ · (lifetime players)`; this is how many there are.
+ */
+export const DOLLARS_PER_PLAYER = 10
+
+/**
+ * Players who write in as much as one of {@link GAMES_PER_SUPPORT_HEAD}'s
+ * "games" does — the unit that keeps τ, the support tests and §13.11's
+ * service score speaking in games while the load follows players.
+ *
+ * Seventy-five thousand ($750K of sales), measured with `npm run
+ * probe:pacing`: the founder's diluted head keeps up with the garage and the
+ * first paid rungs, the queue sits unanswered by the time incidents bring Matt
+ * in, and his flat desk of eight is about what that catalogue needs — relief,
+ * and not for ever, because the catalogue keeps selling.
+ */
+export const PLAYERS_PER_GAME = 75_000
+
+/** Players a release brings in over its life. */
+export function playersFor(payout: number): number {
+  return Math.max(0, finite(payout)) / DOLLARS_PER_PLAYER
+}
+
+/** Lifetime players, as the game-equivalents τ and {@link ticketRate} are written in. */
+export function catalogueOf(lifetimePlayers: number): number {
+  return Math.max(0, finite(lifetimePlayers)) / PLAYERS_PER_GAME
+}
+
 /** §4.13's `τ`. Derived from {@link GAMES_PER_SUPPORT_HEAD}, never written directly. */
 export const TAU = TICKETS_PER_SUPPORT_PER_SEC / GAMES_PER_SUPPORT_HEAD
 
@@ -113,8 +146,15 @@ export const TICKET_PATIENCE_SECONDS = 300
  * Four-fifths. Deliberately mild: this is a standing tax on money the player has
  * already earned, applied to games they finished long ago, and a harsh one would
  * make the correct play "stop shipping", which inverts the entire game.
+ *
+ * [amended 2026-10-16] Three-fifths. At four-fifths the worst a queue nobody
+ * answered could do was a fifth of the catalogue, which the fun-killers audit
+ * (finding 05) measured as pressure you watch. The argument above still holds
+ * at 0.6 — the tax is on the *catalogue*, never on what the player ships next,
+ * so shipping is always still the way out — and the taxed share is now a
+ * refund booked on each release (`revenue.ts`), so the player can see it.
  */
-export const MIN_CATALOGUE_MULTIPLIER = 0.8
+export const MIN_CATALOGUE_MULTIPLIER = 0.6
 
 function finite(x: number, fallback = 0): number {
   return Number.isFinite(x) ? x : fallback

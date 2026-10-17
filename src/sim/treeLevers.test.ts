@@ -17,6 +17,11 @@ import {
   jamesPokeShare,
   withBillyTree,
   withMattTree,
+  withSerenaTree,
+  itWasDegraded,
+  callCentreHeads,
+  CALL_CENTRE_GROWTH,
+  RUNBOOK_START_WORK,
 } from './treeLevers.ts'
 
 /**
@@ -76,6 +81,46 @@ describe('Matt’s tree', () => {
   it('leaves the fold alone for a save that has bought nothing of his', () => {
     expect(withMattTree(NO_HERO_FOLD, {}, 100)).toBe(NO_HERO_FOLD)
   })
+
+  /**
+   * [2026-10-16] Nothing of Matt's is a share of the headcount — the plan's
+   * ruling, because a share grows with the problem it answers.
+   */
+  it('grows the help desk the same at twenty heads as at twenty thousand', () => {
+    const base = { ...NO_HERO_FOLD, supportHeads: 8 }
+    const all = bought('matt', { t1: 3, t2: 5, t3: 4 })
+    expect(withMattTree(base, all, 20).supportHeads).toBe(withMattTree(base, all, 20_000).supportHeads)
+  })
+
+  it('builds every Call Centre Floor bigger than the last, by the step its price climbs', () => {
+    let last = 0
+    let lastFloor = 0
+    for (let floors = 1; floors <= 12; floors++) {
+      const heads = callCentreHeads(floors)
+      const floor = heads - last
+      expect(floor).toBeGreaterThan(lastFloor)
+      if (lastFloor > 0) expect(floor / lastFloor).toBeCloseTo(CALL_CENTRE_GROWTH, 9)
+      last = heads
+      lastFloor = floor
+    }
+    expect(callCentreHeads(0)).toBe(0)
+  })
+})
+
+describe('Serena’s reliability half [2026-10-16]', () => {
+  it('Wrote the Runbook halves a new incident, and nothing else', () => {
+    const base = { ...NO_HERO_FOLD, incidentStartWork: 0.5 }
+    expect(withSerenaTree(base, {})).toBe(base)
+    expect(withSerenaTree(base, { [treeKey('serena', 'r1')]: 1 }).incidentStartWork).toBeCloseTo(0.5 * RUNBOOK_START_WORK, 12)
+  })
+
+  it('It Was Degraded is off until it is bought', () => {
+    expect(itWasDegraded({})).toBe(false)
+    expect(itWasDegraded({ [treeKey('serena', 'r5')]: 1 })).toBe(true)
+  })
+})
+
+describe('Matt’s tree, levers', () => {
 
   it('each wired node moves its own lever the right way', () => {
     const base = { ...NO_HERO_FOLD, supportHeads: 5, ticketRate: 0.8, oncallHeads: 2, incidentStartWork: 0.5 }
@@ -193,6 +238,8 @@ describe('every built node moves some fold', () => {
     (l) => jamesFromTree(l),
     (l) => withBillyTree(fold, l, 100),
     (l) => withMattTree(fold, l, 100),
+    (l) => withSerenaTree(fold, l),
+    (l) => itWasDegraded(l),
     (l) => syncCapMultiplier(l),
   ]
   const readings = (levels: Record<string, number> | undefined) => FOLDS.map((f) => JSON.stringify(f(levels)))

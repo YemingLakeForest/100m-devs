@@ -5,6 +5,7 @@ import { Defects, Incidents, Tickets } from './Backlogs.tsx'
 import type { GameState } from '../game/store.ts'
 import { conceptsIn } from '../ui/concepts.ts'
 import { NO_HERO_FOLD, heroFold, heroRuntime } from '../sim/heroRoster.ts'
+import { PLAYERS_PER_GAME } from '../sim/support.ts'
 
 // Vitest runs without `globals`, so testing-library's own auto-cleanup hook is
 // never installed and renders would otherwise stack up in one document.
@@ -17,6 +18,7 @@ function stateWith(patch: Partial<GameState>): GameState {
     releases: [],
     tickets: 0,
     projectsShipped: 0,
+    lifetimePlayers: 0,
     heroFold: NO_HERO_FOLD,
     commitment: new Decimal(1000),
     ...patch,
@@ -139,12 +141,12 @@ describe('§4.13 — the ticket bar', () => {
    * FALLING BEHIND.
    */
   it('says nothing for a garage, because the founder answers the email', () => {
-    const { container } = render(<Tickets state={stateWith({ projectsShipped: 1 })} />)
+    const { container } = render(<Tickets state={stateWith({ lifetimePlayers: 1 * PLAYERS_PER_GAME })} />)
     expect(container).toBeEmptyDOMElement()
   })
 
   it('speaks up once the catalogue outgrows the founder, and names no hire', () => {
-    render(<Tickets state={stateWith({ projectsShipped: 40 })} />)
+    render(<Tickets state={stateWith({ lifetimePlayers: 40 * PLAYERS_PER_GAME })} />)
     expect(screen.getByText('TICKETS')).toBeInTheDocument()
     expect(screen.getByText('FALLING BEHIND')).toBeInTheDocument()
     expect(screen.queryByText(/HIRE/)).not.toBeInTheDocument()
@@ -157,7 +159,7 @@ describe('§4.13 — the ticket bar', () => {
   it('goes quiet once Matt’s help desk is keeping up', () => {
     const matt = heroFold([heroRuntime('matt')!], 400)
     const { container } = render(
-      <Tickets state={stateWith({ projectsShipped: 40, heroFold: matt })} />,
+      <Tickets state={stateWith({ lifetimePlayers: 40 * PLAYERS_PER_GAME, heroFold: matt })} />,
     )
     expect(container).toBeEmptyDOMElement()
   })

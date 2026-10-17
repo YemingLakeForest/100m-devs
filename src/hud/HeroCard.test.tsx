@@ -15,6 +15,7 @@ import { __resetStore, getState, heroById, selectHero } from '../game/store.ts'
 import { emptyPermanent, setPermanent } from '../game/save.ts'
 import { SCENE_MATT_ARRIVES, SCENE_SERENA_ARRIVES } from '../game/scenes.ts'
 import type { HeroId } from '../sim/storyHeroes.ts'
+import { MATT_DESK_HEADS, MATT_ONCALL_HEADS } from '../sim/heroRoster.ts'
 
 vi.mock('../ui/uiSfx.ts', () => ({ playUi: vi.fn(), playPurchase: vi.fn() }))
 vi.mock('../audio/sfx.ts', () => ({ playSfx: vi.fn() }))
@@ -86,22 +87,21 @@ describe('§22.9 — the card is a card, not a personnel record', () => {
 })
 
 describe('what they are doing for the studio, right now', () => {
-  it('reads the live numbers off the headcount — the rota grows with the studio', () => {
+  it('reads the live numbers off the fold — and Matt’s rota is flat, whatever the headcount [2026-10-16]', () => {
     const { rerender } = render(
       <HeroCard hero={staffed('matt')} state={at(100)} tree={null} treesOpen={false} place={{ at: 1, of: 1 }} {...noop} />,
     )
-    // One in fifty of a hundred, on Matt's rota since the runbook moved to him.
     expect(screen.getByText('ON CALL')).toBeInTheDocument()
-    expect(screen.getByText('2 DEVS')).toBeInTheDocument()
+    expect(screen.getByText(`${MATT_ONCALL_HEADS} DEVS`)).toBeInTheDocument()
     rerender(
       <HeroCard hero={staffed('matt')} state={at(5_000)} tree={null} treesOpen={false} place={{ at: 1, of: 1 }} {...noop} />,
     )
-    expect(screen.getByText('100 DEVS')).toBeInTheDocument()
+    expect(screen.getByText(`${MATT_ONCALL_HEADS} DEVS`)).toBeInTheDocument()
   })
 
   it('says what Serena and Matt are doing in the fold’s own numbers', () => {
     render(<HeroCard hero={staffed('matt')} state={at(200)} tree={null} treesOpen={false} place={{ at: 1, of: 1 }} {...noop} />)
-    expect(screen.getByText('10 DEVS')).toBeInTheDocument()
+    expect(screen.getByText(`${MATT_DESK_HEADS} DEVS`)).toBeInTheDocument()
     expect(screen.getByText('−20%')).toBeInTheDocument()
     cleanup()
     render(<HeroCard hero={staffed('serena')} state={at(200)} tree={null} treesOpen={false} place={{ at: 1, of: 1 }} {...noop} />)

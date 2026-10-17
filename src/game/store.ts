@@ -42,6 +42,7 @@ import {
   REFUND_MOVE_ON_SHARE,
   advanceIncidents,
   bleedDowned,
+  mattPolicy,
   clearanceCapacity,
   incidentRate,
   patchIncident as patchWork,
@@ -54,6 +55,8 @@ import {
   serviceRatio,
   ticketRate,
   ticketsPerTap,
+  catalogueOf,
+  playersFor,
 } from '../sim/support.ts'
 import {
   BASELINE_RATING,
@@ -105,7 +108,7 @@ import {
   type TreeRefusal,
   type TreeView,
 } from '../sim/upgradeTrees.ts'
-import { founderFromTree, withMattTree } from '../sim/treeLevers.ts'
+import { founderFromTree, itWasDegraded, withMattTree, withSerenaTree } from '../sim/treeLevers.ts'
 import { founderCapFromTree, jamesFromTree, withBillyTree, jamesPokeShare, type JamesEffects } from '../sim/treeLevers.ts'
 import { shiftPays, studioStalled } from '../sim/shiftPrompt.ts'
 import { MILESTONE_LINES, nextMilestoneBeat } from '../sim/milestoneBeats.ts'
@@ -759,6 +762,13 @@ export interface GameState {
   /** §4.13 — tickets waiting. Never reaches zero for long, and never can. */
   tickets: number
   /**
+   * §4.13 [2026-10-16] — everybody who ever bought a game this run:
+   * Σ payout / `DOLLARS_PER_PLAYER`, added at each release. What §4.13's
+   * `τ · (lifetime players)` always said the tickets follow; it was the count
+   * of games, which made a $50 garage game write in as often as a hit.
+   */
+  lifetimePlayers: number
+  /**
    * §21.7.3, Matt — seconds the ticket queue has gone unanswered. Ephemeral
    * (§24.2): it is a *sustained* condition the trigger needs, and restoring a
    * clock the player cannot see the cause of would be a mystery.
@@ -1120,6 +1130,7 @@ function freshRun(): GameState {
     incidents: [],
     incidentPending: 0,
     tickets: 0,
+    lifetimePlayers: 0,
     ticketsUnservedFor: 0,
     syncSlippedFor: 0,
     stalledFor: 0,
@@ -1960,8 +1971,17 @@ export function catalogueRate(s: GameState = state): number {
   // what the rest earn, and both have to be *in* this number rather than
   // applied somewhere further along: §10.6's rule is that the interface never
   // tells the player something the simulation is not doing.
-  const held = suppressedReleases(s.incidents)
-  return catalogueIncome(s.releases, held) * catalogueMultiplier(s.tickets, supportHeads(s))
+  return catalogueIncome(s.releases, heldReleases(s)) * catalogueMultiplier(s.tickets, supportHeads(s))
+}
+
+/**
+ * §4.12a — the releases whose tails are frozen: every one with an incident
+ * open, unless Serena's It Was Degraded (r5) is bought, in which case none —
+ * a degraded game stays on sale while it refunds [2026-10-16].
+ */
+export function heldReleases(s: GameState = state): Set<number> {
+  if (itWasDegraded(s.treeLevels) && arrivedHeroes().has('serena')) return new Set()
+  return suppressedReleases(s.incidents)
 }
 
 /**
@@ -2027,7 +2047,16 @@ export function isLocked(s: GameState = state): boolean {
 
 /** §4.13 — tickets arriving per second: what the bar and a tap are measured in. */
 export function ticketArrivals(s: GameState = state): number {
-  return ticketRate(s.projectsShipped, s.defects) * s.heroFold.ticketRate
+  return ticketRate(ticketCatalogue(s), s.defects) * s.heroFold.ticketRate
+}
+
+/**
+ * §4.13 [2026-10-16] — the catalogue the tickets come from: lifetime players,
+ * in the game-equivalents `support.ts` is written in. One authority, read by
+ * the tick, the bar, the sync score and Matt's door alike.
+ */
+export function ticketCatalogue(s: GameState = state): number {
+  return catalogueOf(s.lifetimePlayers)
 }
 
 /** PATCH — a tap on an incident chip takes `PATCH_SECONDS` of work off it. */
@@ -2085,7 +2114,7 @@ function serviceLoad(s: GameState): ServiceLoad {
   return {
     supportHeads: supportHeads(s),
     sreHeads: oncallHeads(s),
-    catalogue: s.projectsShipped,
+    catalogue: ticketCatalogue(s),
     defectBacklog: s.defects,
     openIncidents: s.incidents.length,
   }
@@ -2518,6 +2547,8 @@ function releaseFrom(s: GameState, outcome: LaunchOutcome, reel = true): Partial
         },
       ),
     ],
+    // §4.13 — everybody who bought it, who will write in forever.
+    lifetimePlayers: s.lifetimePlayers + playersFor(revenue),
     projectsShipped: s.projectsShipped + 1,
   }
 }
@@ -3003,6 +3034,9 @@ export function tick(dtSeconds: number): void {
   // §4.12a — a downed release does not age, does not earn, and does not page.
   // Computed before the tail so all three agree about the same frame.
   const held = suppressedReleases(state.incidents)
+  // [2026-10-16] Serena's It Was Degraded (r5): the tail keeps running while it
+  // is down. Paging still skips it (`held` above) — it is already on fire.
+  const frozen = heldReleases(state)
 
   // §4.13 — unanswered tickets tax the **catalogue**, never the current
   // project. You are losing money on the games you already made, which is the
@@ -3017,7 +3051,7 @@ export function tick(dtSeconds: number): void {
   const ticketTax = open ? catalogueMultiplier(state.tickets, supportHeads(state)) : 1
 
   // §4.10e — the back catalogue pays first, before anything reads the cash.
-  const tail = advanceTail(state.releases, dtSeconds, held, ticketTax)
+  const tail = advanceTail(state.releases, dtSeconds, frozen, ticketTax)
 
   // §4.12 — defects accrue from the work itself, in proportion to it. Charged
   // against `gained`, which is realised output *after* §4.1: a studio in §6.3's
@@ -3061,7 +3095,17 @@ export function tick(dtSeconds: number): void {
   // §4.12a [amended 2026-10-16] — a downed game's players ask for their money
   // back. Booked on the release as a refund (`revenue.ts`), floored so neglect
   // is priced and never fatal. `open` already gates it: Run 1 has no incidents.
-  const bled = bleedDowned(tail.releases, incidents.incidents, dtSeconds)
+  let bled = bleedDowned(tail.releases, incidents.incidents, dtSeconds)
+
+  // §22.8 [2026-10-16] — Matt's policy. Once he is here, an incident that has
+  // sat MATT_AUTO_AFTER_S is refunded and moved on when the rota would take long
+  // enough to bleed more than the quarter; otherwise the rota keeps it. Matt
+  // takes the pager off your desk, not the problem off your books.
+  if (incidents.incidents.length > 0 && arrivedHeroes().has('matt')) {
+    const policy = mattPolicy(incidents.incidents, bled.releases, clearanceCapacity(oncallHeads(state)))
+    incidents.incidents = policy.incidents
+    bled = { releases: policy.releases, refunded: bled.refunded }
+  }
 
   // §4.13 — and the people who bought them write in, forever.
   //
@@ -3071,7 +3115,7 @@ export function tick(dtSeconds: number): void {
   const tickets = open
     ? advanceTickets(
         state.tickets,
-        state.projectsShipped,
+        ticketCatalogue(state),
         defects,
         support,
         dtSeconds,
@@ -3083,7 +3127,7 @@ export function tick(dtSeconds: number): void {
   // arrival outruns capacity (§4.15's bar reads below 1). Tracked as a running
   // clock so the trigger can demand a *sustained* period rather than a spike.
   const fallingBehind =
-    open && serviceRatio(state.projectsShipped, defects, support) < 1
+    open && serviceRatio(ticketCatalogue(state), defects, support) < 1
   const ticketsUnservedFor = fallingBehind ? state.ticketsUnservedFor + dtSeconds : 0
 
   // §21.7.3, Billy — the same shape as Matt's clock, on §4.1 instead of §4.13.
@@ -4033,9 +4077,11 @@ export function heroById(id: HeroId): HeroRuntime | null {
 export function currentHeroFold(s: GameState = state): HeroFold {
   const heroes = heroRoster()
   if (heroes.length === 0) return NO_HERO_FOLD
-  const folded = heroFold(heroes, s.devs)
+  const base = heroFold(heroes, s.devs)
   // [2026-10-16] Billy's meeting nodes ride on his card's fold too, once he is here.
-  const fold = heroes.some((h) => h.id === 'billy') ? withBillyTree(folded, s.treeLevels, s.devs) : folded
+  const folded = heroes.some((h) => h.id === 'billy') ? withBillyTree(base, s.treeLevels, s.devs) : base
+  // Serena's runbook (r1) [2026-10-16] — only once she is here, like Matt's tree.
+  const fold = heroes.some((h) => h.id === 'serena') ? withSerenaTree(folded, s.treeLevels) : folded
   // Matt's tree rides on the same fold his card reads — only once he is here.
   return heroes.some((h) => h.id === 'matt') ? withMattTree(fold, s.treeLevels, s.devs) : fold
 }
@@ -4819,6 +4865,7 @@ function offlineBeltAfter(s: GameState, report: OfflineReport): Partial<GameStat
     history: now.history,
     reputation: now.reputation,
     projectsShipped: now.projectsShipped,
+    lifetimePlayers: now.lifetimePlayers,
     // No `ship`: the reel is for a release the player watched go out, and the
     // §24.8 report is where an absence's releases are told.
     autoShipClock: 0,
@@ -4920,6 +4967,10 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     })),
     defects: r.defects ?? 0,
     tickets: r.tickets ?? 0,
+    // §4.13 — a save from before players were counted knows only what is still
+    // on sale; that is a floor on the truth, and the closest honest guess.
+    lifetimePlayers:
+      r.lifetimePlayers ?? (r.releases ?? []).reduce((a, rel) => a + playersFor(rel.payout), 0),
     reputation: r.reputation ?? BASELINE_RATING,
     incidents: (r.incidents ?? []).map((i) => ({ ...i })),
     // §24.2 ephemeral — at most one incident's worth of fraction, and a state

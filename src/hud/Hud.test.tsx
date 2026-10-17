@@ -17,6 +17,7 @@ import {
   SCENE_SERENA_ARRIVES,
 } from '../game/scenes.ts'
 import { BANKRUPTCY_THRESHOLD } from '../sim/economy.ts'
+import { PLAYERS_PER_GAME } from '../sim/support.ts'
 import { Hud } from './Hud.tsx'
 
 /**
@@ -398,6 +399,9 @@ describe('§21.0c — Act I shows one lever', () => {
     __setState({
       defects: 40,
       projectsShipped: 3,
+      // §4.13 [2026-10-16] — tickets follow lifetime players, and Matt's desk is
+      // flat: a catalogue that has outgrown his eight heads.
+      lifetimePlayers: 200 * PLAYERS_PER_GAME,
       tickets: 900,
       incidents: [{ id: 1, releaseId: 1, releaseName: 'Flappy Square', age: 1, work: 10 }],
     })

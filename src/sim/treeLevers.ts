@@ -86,8 +86,40 @@ export function founderCapFromTree(levels: Levels): number {
 
 /** Inbox: the help desk answers this much faster, per level, compounding. */
 export const INBOX_SUPPORT_STEP = 1.15
-/** Second Headset: this share of the headcount joins the help desk, per level. */
-export const HEADSET_SHARE = 0.01
+/**
+ * Second Headset: heads that join the help desk, per level — flat.
+ *
+ * [amended 2026-10-16] It was a hundredth of the headcount per level. The plan's
+ * ruling (`docs/PLAN-2026-10-16-fun-killers.md` §1): if any of Matt's levers is
+ * a share of the headcount, he goes back to being a permanent off-switch,
+ * because a share grows with the very studio whose catalogue he is answering.
+ */
+export const HEADSET_HEADS = 2
+
+/**
+ * Call Centre Floor (matt:t3): the first floor's heads. **Repeatable**, and each
+ * floor is this much bigger than the last ({@link CALL_CENTRE_GROWTH}).
+ *
+ * [2026-10-16] The ruling made t3 "+N flat heads per level". Measured with
+ * `npm run probe:pacing`, an hour of Run 2 sells to about 2,500 times as many
+ * players at the end as when Matt arrives, and a fixed N per level against the
+ * repeat price curve (`REPEAT_STEP`, ×1.3 a level) cannot keep pace with that
+ * however much is spent: the price grows geometrically and the help desk
+ * linearly. So each floor is still a flat number of heads — never a share of
+ * the studio — but the next floor is built bigger, at the same ×1.3 the price
+ * climbs. Heads bought per dollar stay level, and a studio that spends a steady
+ * share of its income on the call centre keeps pace with the players that
+ * income came from; one that does not pays the difference in refunds.
+ */
+export const CALL_CENTRE_HEADS = 10
+/** Each Call Centre Floor is this much bigger than the one before. The repeat price step. */
+export const CALL_CENTRE_GROWTH = 1.3
+
+/** Heads on `floors` Call Centre Floors: a geometric sum, flat in the headcount. */
+export function callCentreHeads(floors: number): number {
+  const n = Number.isFinite(floors) ? Math.max(0, Math.floor(floors)) : 0
+  return (CALL_CENTRE_HEADS * (CALL_CENTRE_GROWTH ** n - 1)) / (CALL_CENTRE_GROWTH - 1)
+}
 /** Macros: the catalogue asks this fraction as many questions. */
 export const MACROS_TICKET_RATE = 0.9
 /** Matt resolving (Headset): heads clearing incidents, flat. */
@@ -101,18 +133,21 @@ export const FAQ_TICKET_RATE = 0.5
  * Matt's tree, applied to the fold his card already reads. Returns the fold
  * untouched for a save that has bought nothing of his.
  */
-export function withMattTree(fold: HeroFold, levels: Levels, devs: number): HeroFold {
+export function withMattTree(fold: HeroFold, levels: Levels, _devs?: number): HeroFold {
   const inbox = level(levels, 'matt', 't1', 5)
   const headsets = level(levels, 'matt', 't2', 5)
+  const floors = level(levels, 'matt', 't3', Number.POSITIVE_INFINITY)
   const macros = level(levels, 'matt', 'h1', 1)
   const headset = level(levels, 'matt', 'm1', 1)
   const inspector = level(levels, 'matt', 'i1', 1)
   const faq = level(levels, 'matt', 'K', 1)
-  if (inbox + headsets + macros + headset + inspector + faq === 0) return fold
-  const heads = Number.isFinite(devs) ? Math.max(0, Math.floor(devs)) : 0
+  if (inbox + headsets + floors + macros + headset + inspector + faq === 0) return fold
+  // `_devs` is no longer read [2026-10-16]: nothing of Matt's is a share of the
+  // headcount. Kept in the signature so the store's call is unchanged.
   return {
     ...fold,
-    supportHeads: (fold.supportHeads + HEADSET_SHARE * heads * headsets) * INBOX_SUPPORT_STEP ** inbox,
+    supportHeads:
+      (fold.supportHeads + HEADSET_HEADS * headsets + callCentreHeads(floors)) * INBOX_SUPPORT_STEP ** inbox,
     ticketRate: fold.ticketRate * (macros ? MACROS_TICKET_RATE : 1) * (faq ? FAQ_TICKET_RATE : 1),
     oncallHeads: fold.oncallHeads + (headset ? HEADSET_ONCALL_HEADS : 0),
     incidentStartWork: fold.incidentStartWork * (inspector ? INSPECTOR_START_WORK : 1),
@@ -248,4 +283,29 @@ export function jamesPokeShare(velocity: number, recentRate: number, tau: number
   const share = JAMES_POKE_SECONDS * v * fx.pokeScale
   const headroom = Math.max(0, (JAMES_POKE_CAP * fx.pokeScale * v - rate) * Math.max(0, tau))
   return Math.min(share, headroom)
+}
+
+// --- Serena's reliability half ----------------------------------------------
+//
+// [wired 2026-10-16] The plan's ruling (§1): r1 and r5 ship with Matt's phase,
+// because they are levers on the refund and incident model and are tuned
+// against it. Her other nodes are the pipeline's and are bought there.
+
+/** Wrote the Runbook (serena:r1): a new incident opens this fraction as much work. */
+export const RUNBOOK_START_WORK = 0.5
+
+/** Serena's tree, applied to the fold. The fold untouched for a save without the runbook. */
+export function withSerenaTree(fold: HeroFold, levels: Levels): HeroFold {
+  if (level(levels, 'serena', 'r1', 1) === 0) return fold
+  return { ...fold, incidentStartWork: fold.incidentStartWork * RUNBOOK_START_WORK }
+}
+
+/**
+ * It Was Degraded (serena:r5): **an incident no longer takes its game off
+ * sale.** The release keeps ageing and earning while it is down, and it still
+ * refunds (§4.12a's bleed) until somebody fixes it — degraded, not down.
+ * "There's a difference, and it matters": the difference is the frozen tail.
+ */
+export function itWasDegraded(levels: Levels): boolean {
+  return level(levels, 'serena', 'r5', 1) > 0
 }

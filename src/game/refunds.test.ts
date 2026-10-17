@@ -17,11 +17,15 @@ import {
   refundIncident,
   releaseNow,
   tick,
+  ticketArrivals,
 } from './store.ts'
+import { SCENE_MATT_ARRIVES, SCENE_SERENA_ARRIVES } from './scenes.ts'
+import { PLAYERS_PER_GAME } from '../sim/support.ts'
+import { treeKey } from '../sim/upgradeTrees.ts'
 import { BASELINE_RATING, refundShare } from '../sim/rating.ts'
 import { emptyPermanent, setPermanent } from './save.ts'
 import { outstandingOf, rollShape, type Release } from '../sim/revenue.ts'
-import { PATCH_SECONDS, REFUND_MOVE_ON_SHARE } from '../sim/incidents.ts'
+import { MATT_AUTO_AFTER_S, PATCH_SECONDS, REFUND_MOVE_ON_SHARE } from '../sim/incidents.ts'
 
 function prestiged(milestones: string[] = []) {
   const p = emptyPermanent()
@@ -32,7 +36,14 @@ function onSale(id: number, payout: number, defectDensity = 0): Release {
   return { id, ordinal: id, name: `Game ${id}`, payout, age: 0, paid: 0, shape: rollShape(7, id), defectDensity, rating: 50 }
 }
 
-const refundedOn = (rs: readonly Release[]) => rs.reduce((a, r) => a + (r.refunded ?? 0), 0)
+/** A graded build shipped with a bench full of defects: rated well below the baseline. */
+const rushedBuild = {
+  id: 1, ordinal: 1, name: 'Rushed', genre: 'roguelike', projectIndex: 3, revenueBase: 100_000,
+  size: 300, defects: 3_000, density: 10, graded: true, heroCoverage: 0, sync: 0, traits: 0, luck: 0,
+  buildSeconds: 30, labourSeconds: 30, shelvedAt: 0,
+}
+
+const refundedOn =(rs: readonly Release[]) => rs.reduce((a, r) => a + (r.refunded ?? 0), 0)
 const balanced = (r: Release) => r.paid + (r.refunded ?? 0) + outstandingOf(r)
 
 beforeEach(() => {
@@ -122,11 +133,7 @@ describe('§4.15 — the player can do something about it', () => {
 })
 
 describe('§4.14 — a bad review refunds at launch', () => {
-  const rushed = {
-    id: 1, ordinal: 1, name: 'Rushed', genre: 'roguelike', projectIndex: 3, revenueBase: 100_000,
-    size: 300, defects: 3_000, density: 10, graded: true, heroCoverage: 0, sync: 0, traits: 0, luck: 0,
-    buildSeconds: 30, labourSeconds: 30, shelvedAt: 0,
-  }
+  const rushed = rushedBuild
 
   it('books the review refund on the release the moment it goes on sale', () => {
     __setState({ shelf: [rushed] as unknown as ReturnType<typeof getState>['shelf'] })
@@ -142,6 +149,64 @@ describe('§4.14 — a bad review refunds at launch', () => {
     __setState({ shelf: [rushed] as unknown as ReturnType<typeof getState>['shelf'] })
     releaseNow()
     expect(refundedOn(getState().releases)).toBe(0)
+  })
+})
+
+describe('§4.13, §22.8 — Matt, rescaled', () => {
+  const page = (id: number, age: number, work: number) => ({ id, releaseId: id, releaseName: `Game ${id}`, age, work })
+
+  it('tickets follow lifetime players, not the count of games', () => {
+    __setState({ projectsShipped: 10, lifetimePlayers: 0 })
+    const few = ticketArrivals()
+    __setState({ projectsShipped: 10, lifetimePlayers: 100 * PLAYERS_PER_GAME })
+    expect(ticketArrivals()).toBeGreaterThan(few)
+  })
+
+  it('counts the players of every release that goes on sale', () => {
+    const before = getState().lifetimePlayers
+    __setState({ shelf: [{ ...rushedBuild }] as unknown as ReturnType<typeof getState>['shelf'] })
+    releaseNow()
+    expect(getState().lifetimePlayers).toBeGreaterThan(before)
+  })
+
+  it('once Matt is here, a page with a long queue in front of it is refunded and moved on; a short one is left to the rota', () => {
+    prestiged([SCENE_SERENA_ARRIVES.id, SCENE_MATT_ARRIVES.id])
+    __setState({
+      releases: [onSale(1, 1_000_000), onSale(2, 1_000_000)],
+      incidents: [page(1, MATT_AUTO_AFTER_S + 1, 10_000), page(2, MATT_AUTO_AFTER_S + 1, 1)],
+    })
+    tick(1 / 30)
+    // The first is behind ten thousand seconds of work: refunded. The second
+    // has the rota's attention: kept (or closed by it), never refunded the quarter.
+    expect(getState().incidents.find((i) => i.id === 1)).toBeUndefined()
+    const [one, two] = getState().releases
+    expect(one.refunded ?? 0).toBeGreaterThan(0.2 * 1_000_000 * 0.9)
+    expect(two.refunded ?? 0).toBeLessThan(0.01 * 1_000_000)
+  })
+
+  it('leaves the pager alone before Matt arrives', () => {
+    __setState({ releases: [onSale(1, 1_000_000)], incidents: [page(1, 60, 10_000)] })
+    tick(1 / 30)
+    expect(getState().incidents).toHaveLength(1)
+  })
+
+  it('It Was Degraded keeps a downed game on sale, still refunding', () => {
+    prestiged([SCENE_SERENA_ARRIVES.id])
+    const run = (degraded: boolean) => {
+      __setState({
+        releases: [onSale(1, 1_000_000)],
+        incidents: [page(1, 0, 1e6)],
+        treeLevels: degraded ? { [treeKey('serena', 'r5')]: 1 } : {},
+      })
+      tick(1)
+      return getState().releases[0]
+    }
+    const down = run(false)
+    const degraded = run(true)
+    expect(down.age).toBe(0)
+    expect(degraded.age).toBeGreaterThan(0)
+    expect(degraded.paid).toBeGreaterThan(0)
+    expect(degraded.refunded ?? 0).toBeGreaterThan(0)
   })
 })
 

@@ -126,7 +126,7 @@ export const STORY_HEROES: readonly StoryHero[] = [
     arrives: 'Incidents and tickets are piling up faster than the studio clears them',
     trait: {
       name: 'KNOWS THEIR NAMES',
-      text: 'Catalogue tickets arrive 20% slower, new incidents open half worked, and one developer in twenty answers the queue.',
+      text: 'Catalogue tickets arrive 20% slower, new incidents open half worked, a desk of eight answers the queue, and two more take the pager.',
     },
     idle: 'headset',
     brings: ['incidents', 'tickets'],

@@ -9,9 +9,9 @@
 
 import { describe, expect, it } from 'vitest'
 import {
-  HELPDESK_SHARE,
+  MATT_DESK_HEADS,
+  MATT_ONCALL_HEADS,
   NO_HERO_FOLD,
-  ONCALL_SHARE,
   SERENA_SHELF_SLOTS,
   STANDUP_KEPT_SHARE,
   benchShare,
@@ -47,17 +47,16 @@ describe('a hero works for the whole studio from the day they arrive', () => {
     }
   })
 
-  it('puts a share of the headcount on the pager and the inbox, so both grow with the studio', () => {
-    // §4.12a's and §4.13's loads grow with the studio; a flat rota would be
-    // enough at twenty and nothing at a million.
+  it('puts a flat desk on the pager and the inbox, the same at twenty heads as at twenty thousand [2026-10-16]', () => {
+    // A share of the headcount grows with the problem it answers, which made
+    // Matt an off-switch (fun-killers finding 05). His help grows only through
+    // his tree (`treeLevers.ts`).
     const small = heroFold([hero('matt')], 20)
     const large = heroFold([hero('matt')], 20_000)
-    expect(small.oncallHeads).toBeCloseTo(20 * ONCALL_SHARE, 12)
-    expect(small.supportHeads).toBeCloseTo(20 * HELPDESK_SHARE, 12)
-    expect(large.oncallHeads / small.oncallHeads).toBeCloseTo(1000, 9)
-    expect(large.supportHeads / small.supportHeads).toBeCloseTo(1000, 9)
-    // And an empty studio has nobody to put on either.
-    expect(heroFold([hero('matt')], 0).oncallHeads).toBe(0)
+    expect(small.oncallHeads).toBe(MATT_ONCALL_HEADS)
+    expect(small.supportHeads).toBe(MATT_DESK_HEADS)
+    expect(large.oncallHeads).toBe(small.oncallHeads)
+    expect(large.supportHeads).toBe(small.supportHeads)
   })
 
   it('keeps half the floor coding through stand-up for Billy', () => {
@@ -79,9 +78,11 @@ describe('a hero works for the whole studio from the day they arrive', () => {
 describe('§22.9.2 — the card says what the fold does', () => {
   // The sentence is the claim; the constant is its number. If one moves
   // without the other the card is lying.
-  it('names Matt’s help desk by the same ratio the fold uses', () => {
-    expect(HERO_BY_ID.get('matt')!.trait.text).toMatch(/one developer in twenty/)
-    expect(HELPDESK_SHARE).toBe(1 / 20)
+  it('names Matt’s help desk and rota by the same numbers the fold uses', () => {
+    expect(HERO_BY_ID.get('matt')!.trait.text).toMatch(/a desk of eight/)
+    expect(MATT_DESK_HEADS).toBe(8)
+    expect(HERO_BY_ID.get('matt')!.trait.text).toMatch(/two more take the pager/)
+    expect(MATT_ONCALL_HEADS).toBe(2)
     expect(HERO_BY_ID.get('matt')!.trait.text).toMatch(/20% slower/)
   })
 

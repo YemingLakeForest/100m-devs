@@ -24,14 +24,16 @@
  * only people who cleared incidents and answered tickets. Both jobs go to the
  * hero whose job it always was (the plan put to the user with the removal):
  *
- * - **Serena puts the studio on call** — {@link ONCALL_SHARE} of the headcount
- *   carries the pager, on top of the founder's diluted head.
- * - **Matt stands up a help desk** — {@link HELPDESK_SHARE} of the headcount
- *   answers tickets.
+ * - **Matt puts people on call** — {@link MATT_ONCALL_HEADS} carry the pager,
+ *   on top of the founder's diluted head.
+ * - **Matt stands up a help desk** — {@link MATT_DESK_HEADS} answer tickets.
  *
- * A *share of the headcount* rather than a fixed number of heads, because both
- * loads grow with the studio (§4.12a's catalogue, §4.13's catalogue and defect
- * bench) and a flat rota would be enough at twenty and nothing at a million.
+ * [amended 2026-10-16] These were *shares of the headcount*, on the argument
+ * that both loads grow with the studio and a flat rota would be enough at
+ * twenty and nothing at a million. That is exactly what made Matt an
+ * off-switch (fun-killers finding 05): a share grows with the problem, so the
+ * problem never outgrows it. Flat now, growing through his tree
+ * (`treeLevers.ts`) — keeping up is bought, and falling behind costs refunds.
  * Before either arrives the founder carries both at `FOUNDER_ROLE_HEADS`, which
  * is what makes their arrival relief rather than a tutorial (§21.7.6).
  *
@@ -58,27 +60,33 @@ export function heroRuntime(id: HeroId): HeroRuntime | null {
 }
 
 /**
- * Matt's rota: the share of the headcount on call for incidents [moved from
- * Serena 2026-10-04, with the runbook trait].
+ * Matt's rota: heads on call for incidents [moved from Serena 2026-10-04, with
+ * the runbook trait; flat since 2026-10-16].
  *
- * One in fifty. §4.12a pins a garage-density release at a tenth of an incident
- * over its whole life, at 45 seconds of attention each, so a catalogue of fifty
- * live releases asks for about one head — and a studio of fifty has one on the
- * rota. First pass; the ratio wants a playtest, and it is one number rather
- * than a dial precisely so it can be tuned in one place.
+ * It was one in fifty of the headcount (`ONCALL_SHARE`), cut for the reason
+ * {@link MATT_DESK_HEADS} gives. Two — see there.
  */
-export const ONCALL_SHARE = 0.02
+export const MATT_ONCALL_HEADS = 2
 
 /**
- * Matt's help desk: the share of the headcount answering tickets.
+ * Matt's help desk: heads answering tickets, **flat** [amended 2026-10-16].
  *
- * One in twenty. §4.13 prices the load at one head per ten shipped games plus
- * one per hundred defects on the bench, and the bench grows with the studio's
- * output; a twentieth keeps a thousand-person studio well ahead of both while
- * leaving a twenty-person garage with a single head, which is about when the
- * first sustained queue brings him in. First pass.
+ * It was a twentieth of the headcount (`HELPDESK_SHARE`), and the fun-killers
+ * audit (finding 05) measured what a share does: the queue climbed to 105–144,
+ * went to zero within a minute of Matt arriving, and stayed there for the rest
+ * of the run. A share of the studio grows with the studio, so the problem it
+ * answers can never outgrow it — Matt was an off-switch. The plan's ruling
+ * (`docs/PLAN-2026-10-16-fun-killers.md` §1): **flat bases, and they grow only
+ * through his tree** (Inbox, Second Headset, Call Centre Floor), so keeping up
+ * with a catalogue that keeps selling is a thing the player buys.
+ *
+ * Eight: about the load of the catalogue a studio has when the pile first sits
+ * long enough to bring him in, so his arrival is relief, and not for ever. The
+ * on-call base is two for the same reason — with the founder's head and Matt's
+ * half-worked pages, a fresh incident clears in about ten seconds, the point
+ * where his own policy starts looking at it.
  */
-export const HELPDESK_SHARE = 0.05
+export const MATT_DESK_HEADS = 8
 
 /**
  * Billy's FIFTEEN MINUTES: the share of the floor that keeps working through a
@@ -154,8 +162,8 @@ export function heroFold(heroes: readonly HeroRuntime[], totalDevs: number): Her
         // here from Serena — a page starts half worked with the floor on call.
         out.ticketRate *= 0.8
         out.incidentStartWork *= 0.5
-        out.oncallHeads += ONCALL_SHARE * devs
-        out.supportHeads += HELPDESK_SHARE * devs
+        out.oncallHeads += MATT_ONCALL_HEADS
+        out.supportHeads += MATT_DESK_HEADS
         break
       case 'billy':
         // FIFTEEN MINUTES — half the floor keeps working through stand-up.

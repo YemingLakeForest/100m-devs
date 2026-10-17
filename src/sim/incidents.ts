@@ -413,6 +413,39 @@ export function mattRefunds(keep: number, ahead: number, capacity: number): bool
 /** Seconds an incident waits on Matt's desk before his policy looks at it. */
 export const MATT_AUTO_AFTER_S = 10
 
+/**
+ * Apply {@link mattRefunds} across the open queue, oldest first. Returns the
+ * incidents still open and the catalogue with any refunds booked.
+ */
+export function mattPolicy(
+  incidents: readonly Incident[],
+  releases: readonly Release[],
+  capacity: number,
+): { incidents: Incident[]; releases: Release[]; refunded: number } {
+  let ahead = 0
+  let refunded = 0
+  let next = releases as Release[]
+  const open: Incident[] = []
+  for (const incident of incidents) {
+    ahead += incident.work
+    if (incident.age < MATT_AUTO_AFTER_S) {
+      open.push(incident)
+      continue
+    }
+    const release = next.find((r) => r.id === incident.releaseId)
+    if (!release || !mattRefunds(release.keep ?? 1, ahead, capacity)) {
+      open.push(incident)
+      continue
+    }
+    const cut = refund(release, REFUND_MOVE_ON_SHARE)
+    refunded += cut.amount
+    next = next.map((r) => (r.id === release.id ? cut.release : r))
+    // Closed: the rota no longer has its work in front of the next one.
+    ahead -= incident.work
+  }
+  return { incidents: open, releases: next, refunded }
+}
+
 export interface IncidentStep {
   incidents: Incident[]
   /** Closed over this step. For §4.15's chip leaving and the ship toast. */

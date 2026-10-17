@@ -412,12 +412,14 @@ const CATALOGUE: Record<TreeHero, readonly TreeNode[]> = {
     N('f1', 4, 1, 'Builds in Flight', 'crate', 4, { p: ['s4'], d: 'Colony builds cross space to Sol, and they count as buffer while they travel.' }),
     N('a4', 3, -2, 'Canary Worlds', 'bird', 4, { p: ['a3a', 'a3b'], d: 'A release lands on one colony first.' }),
     // Reliability, the half of her tree the pipeline does not cover.
-    N('r1', -1, 0, 'Wrote the Runbook', 'book', 1, { p: ['R'], d: 'A new incident opens half worked.' }),
+    N('r1', -1, 0, 'Wrote the Runbook', 'book', 1, { p: ['R'], lv: true, fx: 'A new incident opens with half the work in it.', d: 'A new incident opens half worked.' }),
     N('r2', -2, 0, 'On-Call Rota', 'phone', 1, { p: ['r1'], mv: ['waiting', 'slacking', 3], d: 'Incidents get answered at 3 a.m., and on-call sleeps at their desk the next day.' }),
     N('r3', -2, 1, 'Rollback Button', 'cassette', 2, { p: ['r2'], hd: true, d: 'A rollback spends a real build from the buffer.' }),
     N('gM', -2, 2, 'Matt · Rollback puzzle', '', 2, { t: 'link', to: 'matt:m5', p: ['r3'], hd: true }),
     N('r4', -3, 0, 'Error Budget', 'coins', 2, { p: ['r2'], hd: true, t: 'lvl', max: 3, d: 'How often an incident may happen before shipping pauses.' }),
-    N('r5', -4, 0, 'It Was Degraded', 'shield', 3, { p: ['r4'], d: 'Incidents no longer stop the belt. “There’s a difference, and it matters.”' }),
+    // [2026-10-16] Off r1: r4 is hidden and r2 only moves loss (not built), so
+    // a wired r5 behind either would be a node nobody can reach.
+    N('r5', -4, 0, 'It Was Degraded', 'shield', 3, { p: ['r1'], lv: true, fx: 'A game with an incident open stays on sale: it keeps earning while it refunds.', d: 'Incidents no longer take a game off sale. “There’s a difference, and it matters.”' }),
   ],
   matt: [
     N('R', 0, 0, 'Matt’s Ticket Wall', 'ticketwall', 1, { t: 'root', d: 'He arrives with the first ticket queue nobody is serving.' }),
@@ -430,8 +432,11 @@ const CATALOGUE: Record<TreeHero, readonly TreeNode[]> = {
     N('m6', 4, 1, 'Burning Systems', 'fire', 4, { p: ['m4'], d: 'Incidents show on the galaxy map, on fire.' }),
     N('t1', 0, 1, 'Inbox', 'inbox', 1, { p: ['R'], t: 'lvl', max: 5, lv: true, fx: 'The help desk answers 15% faster per level.', d: 'More tickets answered per second, per level.' }),
     N('i1', 1, 1, 'Incident Inspector', 'magnifier', 1, { p: ['m1', 't1'], lv: true, fx: 'A new incident opens with 20% less work in it.', d: 'Diagnose, Runbook, Assign team.' }),
-    N('t2', 0, 2, 'Second Headset', 'headset', 2, { p: ['t1'], t: 'lvl', max: 5, lv: true, fx: 'One more developer in a hundred joins the help desk, per level.', d: 'More support heads per level.' }),
-    N('t3', -1, 2, 'Call Centre Floor', 'crowd', 2, { p: ['t2'], d: 'A whole HQ floor of headsets.' }),
+    // [2026-10-16] Both flat, never a share of the headcount (plan §1's ruling),
+    // and both era 1, so the help desk can grow from the day Matt arrives: era 2
+    // opens past a thousand heads, which the measured hour reaches at minute 34.
+    N('t2', 0, 2, 'Second Headset', 'headset', 1, { p: ['t1'], t: 'lvl', max: 5, lv: true, fx: 'Two more heads join the help desk, per level.', d: 'More support heads per level.' }),
+    N('t3', -1, 2, 'Call Centre Floor', 'crowd', 1, { p: ['t2'], t: 'lvl', rp: true, lv: true, fx: 'Another floor of headsets, as many as you like: ten heads, and each floor 30% bigger than the last.', d: 'A whole HQ floor of headsets.' }),
     N('t4', -1, 3, 'Tickets From Proxima', 'envelope', 4, { p: ['t3'], d: 'Tickets from far worlds arrive late by the light-time.' }),
     N('t5', 0, 3, 'Priority: Urgent', 'hourglass', 4, { p: ['t2', 't4'], d: 'A ticket from the galactic core, filed 26,000 years ago.' }),
     N('gJ', 1, 3, 'James · Out-of-Office Reply', '', 4, { t: 'link', to: 'james:q3', p: ['t5'] }),

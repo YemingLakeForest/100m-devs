@@ -26,7 +26,7 @@ import { emptyPermanent, setPermanent } from './save.ts'
 import { BETA } from '../sim/defects.ts'
 import { BASELINE_RATING, RATING_WEIGHTS, rateRelease } from '../sim/rating.ts'
 import { FOUNDER_ROLE_HEADS } from '../sim/founder.ts'
-import { HELPDESK_SHARE, ONCALL_SHARE } from '../sim/heroRoster.ts'
+import { MATT_DESK_HEADS, MATT_ONCALL_HEADS } from '../sim/heroRoster.ts'
 import { SCENE_MATT_ARRIVES, SCENE_SERENA_ARRIVES } from './scenes.ts'
 import { INCIDENT_WORK_SECONDS } from '../sim/incidents.ts'
 import { earningRate } from '../sim/revenue.ts'
@@ -173,12 +173,12 @@ describe('§4.11 — every hire is a developer', () => {
     expect(supportHeads()).toBe(FOUNDER_ROLE_HEADS)
   })
 
-  it('puts a share of the floor on call with Serena, and on the help desk with Matt', () => {
+  it('puts a flat desk on call and on the help desk with Matt, whatever the headcount [2026-10-16]', () => {
     prestiged([SCENE_SERENA_ARRIVES.id, SCENE_MATT_ARRIVES.id])
     staff(200)
     tick(1 / 30)
-    expect(oncallHeads()).toBeCloseTo(FOUNDER_ROLE_HEADS + 200 * ONCALL_SHARE, 9)
-    expect(supportHeads()).toBeCloseTo(FOUNDER_ROLE_HEADS + 200 * HELPDESK_SHARE, 9)
+    expect(oncallHeads()).toBeCloseTo(FOUNDER_ROLE_HEADS + MATT_ONCALL_HEADS, 9)
+    expect(supportHeads()).toBeCloseTo(FOUNDER_ROLE_HEADS + MATT_DESK_HEADS, 9)
   })
 })
 

@@ -161,6 +161,8 @@ export interface RunSave {
    */
   defects?: number
   tickets?: number
+  /** §4.13 [2026-10-16] — lifetime players. Optional: absent is estimated from what is on sale. */
+  lifetimePlayers?: number
   reputation?: number
   incidents?: IncidentSave[]
 }
@@ -472,6 +474,7 @@ export function makeSaveData(state: GameState): SaveData {
       // be restoring a state the player cannot see the cause of.
       defects: state.defects,
       tickets: state.tickets,
+      lifetimePlayers: state.lifetimePlayers,
       reputation: state.reputation,
       incidents: state.incidents.map((i) => ({ ...i })),
     },
@@ -738,6 +741,7 @@ function normaliseRun(value: unknown): RunSave {
     runSeconds: nonNegative(r.runSeconds, 0),
     defects: nonNegative(r.defects, 0),
     tickets: nonNegative(r.tickets, 0),
+    ...(r.lifetimePlayers === undefined ? {} : { lifetimePlayers: nonNegative(r.lifetimePlayers, 0) }),
     reputation: Math.min(100, nonNegative(r.reputation, BASELINE_RATING)),
     incidents: normaliseIncidents(r.incidents),
   }

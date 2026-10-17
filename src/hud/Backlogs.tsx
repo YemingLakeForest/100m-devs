@@ -34,6 +34,7 @@ import {
   patchIncident,
   refundIncident,
   supportHeads,
+  ticketCatalogue,
   type GameState,
 } from '../game/store.ts'
 import { Kw } from './Kw.tsx'
@@ -155,7 +156,7 @@ function Refunding({ releaseId, state }: { releaseId: number; state: GameState }
 export function Tickets({ state }: { state: GameState }) {
   // Drawn against the capacity the simulation charges — the founder's head and
   // Matt's help desk — by asking the one function that knows it.
-  const ratio = serviceRatio(state.projectsShipped, state.defects, supportHeads(state))
+  const ratio = serviceRatio(ticketCatalogue(state), state.defects, supportHeads(state))
 
   // Nothing arriving is not "keeping up", it is nothing at all. Act I has no
   // catalogue and this row has nothing to say until something ships.

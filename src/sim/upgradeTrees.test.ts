@@ -329,7 +329,8 @@ describe('the triage', () => {
   })
 
   it('passes an edge through a hidden node to that node’s parents', () => {
-    expect(node('serena', 'r5').parents).toEqual(['r2'])
+    // (serena:r5 was the other example; it hangs off r1 since it was wired
+    // [2026-10-16], because r2 is not built and would have stranded it.)
     expect(node('matt', 'm6').parents).toEqual(['m1'])
   })
 })
