@@ -51,6 +51,41 @@ export interface StorySnapshot {
   sinceSerena: number
 }
 
+/**
+ * §21.7.3 [amended 2026-10-16] — **a clock may hold a door shut; it may never
+ * open one.**
+ *
+ * The audit (`docs/AUDIT-2026-10-16-fun-killers.html`, finding 04) measured
+ * every Run 2 beat landing between minutes 6 and 9 — board, Billy, Serena, the
+ * promotion and Matt, two of them on one frame — and then nothing for the rest
+ * of the hour. Each door was a true feeling; they were all true at once because
+ * the problems they answer arrive together in a studio that is growing. So two
+ * clocks space them out, and neither can bring anybody in: a predicate still
+ * has to be true, and the clocks only say *not yet*.
+ *
+ * {@link SCENE_COOLDOWN_S} is the floor under every Run 2 scene: a minute of
+ * play after one closes before the next can open, so a hand-over has time to be
+ * used before the next one interrupts it. {@link ARRIVAL_GAP_S} is the longer
+ * one between *people* (Billy, Serena, Matt): five minutes, so each has a stretch
+ * of the run that is theirs. Run 1's scenes are exempt — §21.0e's four minutes
+ * are a script, not a ladder, and nothing in them is waiting on a feeling.
+ */
+export const SCENE_COOLDOWN_S = 60
+export const ARRIVAL_GAP_S = 300
+
+/**
+ * Has the cooldown passed since the last scene closed? `endedAt` and `now` are
+ * the run's own clock (`runSeconds`); null means no scene has closed this run.
+ */
+export function sceneCooledDown(now: number, endedAt: number | null): boolean {
+  return endedAt === null || now - endedAt >= SCENE_COOLDOWN_S
+}
+
+/** Has the gap passed since the last person walked in? Same clock as above. */
+export function arrivalGapPassed(now: number, arrivedAt: number | null): boolean {
+  return arrivedAt === null || now - arrivedAt >= ARRIVAL_GAP_S
+}
+
 /** §21.7.3 — "a sustained period". A first pass, marked as one. */
 export const MATT_SUSTAINED_S = 30
 

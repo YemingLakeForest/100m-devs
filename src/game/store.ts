@@ -177,9 +177,11 @@ import {
 } from './scenes.ts'
 import {
   SYNC_FELT,
+  arrivalGapPassed,
   arrivalPredicate,
   founderBoardArrives,
   jamesPromoted,
+  sceneCooledDown,
   type BoardSnapshot,
   type StorySnapshot,
 } from './storyTriggers.ts'
@@ -781,6 +783,19 @@ export interface GameState {
   /** §10.7, Serena — builds put on sale by the player's own thumb this run. Ephemeral. */
   handReleases: number
   /**
+   * §21.7.3 [added 2026-10-16] — `runSeconds` when the last scene closed this
+   * run, or null. The cooldown (`SCENE_COOLDOWN_S`) reads it: a clock may hold a
+   * door shut, never open one. Ephemeral; `runSeconds` is the clock because a
+   * wall clock would let a backgrounded tab serve the wait without the player.
+   */
+  lastSceneEndedAt: number | null
+  /**
+   * §21.7.3 [added 2026-10-16] — `runSeconds` when the last *person* (Billy,
+   * Serena, Matt) sat down this run, for `ARRIVAL_GAP_S`. A reload restores it
+   * to the moment of the reload, so the gap restarts rather than vanishing.
+   */
+  lastArrivalAt: number | null
+  /**
    * §4.14 — a slow-moving average of recent ratings.
    *
    * Run state, and that is a decision rather than an oversight: reputation is
@@ -1063,6 +1078,8 @@ function freshRun(): GameState {
     shelfStalledFor: 0,
     sinceSerena: 0,
     handReleases: 0,
+    lastSceneEndedAt: null,
+    lastArrivalAt: null,
     reputation: BASELINE_RATING,
     heroFold: NO_HERO_FOLD,
     selectedHero: null,
@@ -3160,6 +3177,9 @@ function checkShipTutorial(s: GameState): void {
 function checkStoryTriggers(s: GameState): void {
   if (getPermanent().meta.paradigmShifts <= 0) return
   if (s.scene !== null) return
+  // §21.7.3 [2026-10-16] — a clock may hold a door shut; it may never open one.
+  // Every Run 2 scene waits out the cooldown; the people also wait out the gap.
+  if (!sceneCooledDown(s.runSeconds, s.lastSceneEndedAt)) return
 
   const snapshot: StorySnapshot = {
     paradigmShifts: getPermanent().meta.paradigmShifts,
@@ -3175,7 +3195,9 @@ function checkStoryTriggers(s: GameState): void {
     syncSlippedFor: s.syncSlippedFor,
   }
 
+  const gapPassed = arrivalGapPassed(s.runSeconds, s.lastArrivalAt)
   for (const hero of ARRIVAL_HEROES) {
+    if (!gapPassed) break
     const predicate = arrivalPredicate(hero.id)
     const sceneId = HERO_SCENE[hero.id]
     if (predicate && predicate(snapshot) && !hasSeenScene(sceneId)) {
@@ -3213,6 +3235,9 @@ function checkStoryTriggers(s: GameState): void {
  */
 function checkBoardTriggers(s: GameState): void {
   if (s.scene !== null) return
+  // The promotion goes through the cooldown too, so it never lands on the frame
+  // Serena's scene closes (§21.7.3 [2026-10-16]).
+  if (!sceneCooledDown(s.runSeconds, s.lastSceneEndedAt)) return
 
   const snapshot: BoardSnapshot = {
     paradigmShifts: getPermanent().meta.paradigmShifts,
@@ -4407,7 +4432,15 @@ export function dismissScene(): void {
   // launch is the next frame. Raised here rather than from the HUD so the two
   // cannot be on screen at once: `set` clears the box in the same update.
   const launching = id === SCENE_JAMES_PROXIMA.id
-  set({ scene: null, pendingLaunch: launching || state.pendingLaunch })
+  // §21.7.3 [2026-10-16] — the two clocks start when a scene *ends*, so a slow
+  // reader is not charged their reading time against the next beat's wait.
+  const arrival = id !== SCENE_JAMES_ARRIVES.id && Object.values(HERO_SCENE).includes(id)
+  set({
+    scene: null,
+    pendingLaunch: launching || state.pendingLaunch,
+    lastSceneEndedAt: state.runSeconds,
+    lastArrivalAt: arrival ? state.runSeconds : state.lastArrivalAt,
+  })
 }
 
 /** Has this scene been played to the end before? §10.7's replay exception. */
@@ -4602,6 +4635,9 @@ export function loadGame(now: number = Date.now()): OfflineReport | null {
     autoShipClock: r.autoShipClock ?? 0,
     holding: r.holding ?? false,
     runSeconds: r.runSeconds ?? 0,
+    // §21.7.3 [2026-10-16] — the arrival gap restarts at a reload rather than
+    // vanishing: the clocks only hold doors shut, and a null here would open one.
+    lastArrivalAt: r.runSeconds ?? 0,
     // §4.10e — the back catalogue comes back with its ages and its shapes. A
     // reload that wiped five shipped games would take the studio's whole
     // runway with it, and would be reported as exactly the §4.10d bug the

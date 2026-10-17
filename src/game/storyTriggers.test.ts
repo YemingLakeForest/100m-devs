@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ARRIVAL_GAP_S,
+  SCENE_COOLDOWN_S,
+  arrivalGapPassed,
+  sceneCooledDown,
   BILLY_MIN_SHIFTS,
   BILLY_SUSTAINED_S,
   FOUNDER_BOARD_MIN_DEVS,
@@ -103,6 +107,29 @@ describe('§21.7.3 — a hero arrives the first time you feel the problem', () =
     for (const id of ['serena', 'matt', 'billy'] as const) {
       expect(arrivalPredicate(id)).not.toBeNull()
     }
+  })
+})
+
+describe('§21.7.3 [2026-10-16] — a clock may hold a door shut; it may never open one', () => {
+  it('holds every scene for the cooldown after the last one closed, and not after', () => {
+    expect(sceneCooledDown(0, null)).toBe(true)
+    expect(sceneCooledDown(100 + SCENE_COOLDOWN_S - 1, 100)).toBe(false)
+    expect(sceneCooledDown(100 + SCENE_COOLDOWN_S, 100)).toBe(true)
+  })
+
+  it('holds the next person for the arrival gap, which is longer than the cooldown', () => {
+    expect(ARRIVAL_GAP_S).toBeGreaterThan(SCENE_COOLDOWN_S)
+    expect(arrivalGapPassed(0, null)).toBe(true)
+    expect(arrivalGapPassed(100 + ARRIVAL_GAP_S - 1, 100)).toBe(false)
+    expect(arrivalGapPassed(100 + ARRIVAL_GAP_S, 100)).toBe(true)
+  })
+
+  it('opens nothing on its own: a passed clock with no feeling brings nobody', () => {
+    // The clocks are separate functions from the predicates and are only ever
+    // ANDed with them; this pins that the predicates alone stay shut at rest.
+    expect(arrivalGapPassed(1e6, null) && serenaArrives(base)).toBe(false)
+    expect(arrivalGapPassed(1e6, null) && billyArrives(base)).toBe(false)
+    expect(arrivalGapPassed(1e6, null) && mattArrives(base)).toBe(false)
   })
 })
 
