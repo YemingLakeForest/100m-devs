@@ -130,6 +130,34 @@ describe('the city blocks (§7.7.2)', () => {
     inside.dispose()
   })
 
+  it('welcomes a hire: neighbours hop after the landing, and the hire hops twice once settled (2026-10-18)', () => {
+    // *"I want more satisfaction when hiring devs."* The claim is the order — contact, then the room, then the hire — not the heights.
+    const inside = createCityInterior(0, defaultCast(), 20)
+    inside.fill(40)
+    inside.fill(41, 10)
+    const people: T.Object3D[] = []
+    inside.root.traverse(o => { if (typeof o.userData.seat === 'number' && !(o instanceof T.Mesh)) people.push(o) })
+    const hire = people.find(o => o.userData.seat === 40)!
+    const neighbours = people.filter(o => o.visible && o !== hire)
+    const lifted = () => neighbours.some(o => o.position.y > .05)
+    let contact = -1, firstNeighbour = -1
+    const hireHops: number[] = []
+    let wasUp = false
+    for (let t = 10; t < 12.5; t += 1 / 120) {
+      inside.update(t)
+      if (contact < 0 && inside.takeLandings() > 0) contact = t
+      if (contact >= 0 && firstNeighbour < 0 && lifted()) firstNeighbour = t
+      const up = contact >= 0 && t > contact + .23 && hire.position.y > .05
+      if (up && !wasUp) hireHops.push(t)
+      wasUp = up
+    }
+    expect(contact).toBeGreaterThan(0)
+    expect(firstNeighbour).toBeGreaterThan(contact)
+    expect(hireHops).toHaveLength(2)
+    expect(inside.update(13)).toBe(false)
+    inside.dispose()
+  })
+
   it('fits a hundred distinct workstations inside the house with space between desk tops', () => {
     const desks = Array.from({ length: HOUSE_CAPACITY }, (_, i) => {
       const at = houseSeat(i)

@@ -162,7 +162,19 @@ export function createCityInterior(index: number, cast: StudioCast, reserved = 0
   for (const pane of panes) pane.material = frontGlazing()
   batchArt(furniture); batchArt(peopleRoot, seats)
   let filled = -1
-  const hopping = new Map<number, { started: number; mild: boolean }>()
+  /** `again`: hops still to come after this one — a hire's cheer is two. */
+  const hopping = new Map<number, { started: number; mild: boolean; again?: number }>()
+  /** A hire has hit their desk: the islands around it hop in a ripple out from it, and the hire hops twice once settled (`garageView.welcome`). */
+  const welcome = (i: number, now: number) => {
+    const at = houseSeat(i)
+    people
+      .map((_, j) => ({ j, d: Math.hypot(houseSeat(j).x - at.x, houseSeat(j).z - at.z) }))
+      .filter(n => n.j !== i && people[n.j].visible && !dropping.has(n.j) && n.d < 4.5)
+      .sort((a, b) => a.d - b.d).slice(0, 8)
+      .forEach(n => hopping.set(n.j, { started: now + .05 + n.d * .06, mild: false }))
+    // The bounce runs to u = 1.5 (.225 s after contact); the cheer starts once it has.
+    hopping.set(i, { started: now + .26, mild: false, again: 1 })
+  }
   /** A hire on its way down: hidden until `started`, then falling. `landed` is so the sound is made once. */
   const dropping = new Map<number, { started: number; landed: boolean }>()
   let landings = 0
@@ -207,15 +219,18 @@ export function createCityInterior(index: number, cast: StudioCast, reserved = 0
         if (u < 0) continue
         // Free fall, one bounce, rest: the garage's arrival (`garageView.ts`), so the two rooms drop alike.
         lift(i, u < 1 ? DROP_HEIGHT * (1 - u * u) : u < 1.5 ? .32 * Math.sin(Math.PI * (u - 1) / .5) : 0)
-        if (u >= 1 && !d.landed) { d.landed = true; landings += 1 }
+        if (u >= 1 && !d.landed) { d.landed = true; landings += 1; welcome(i, now) }
         if (u >= 1.5) dropping.delete(i)
       }
-      for(const [i,{ started, mild }] of hopping) {
+      for(const [i,{ started, mild, again }] of hopping) {
         const t=now-started,at=houseSeat(i),u=Math.max(0,Math.min(1,(t-.05)/.3))
-        const y=t<.35?(mild ? .08 : .38)*4*u*(1-u):0
+        // Not yet: a hop queued behind a ripple or a landing must not pin the seat to the floor while it waits.
+        if(t<0)continue
+        // A working hop is .26 m against a click's .38 (2026-10-18: *"hophophop when coding"*; it was .08).
+        const y=t<.35?(mild ? .26 : .38)*4*u*(1-u):0
         placeInstances(seats.get(i)??[],y?new T.Matrix4().makeTranslation(0,y,0):identity)
         people[i].position.set(at.x,at.y+y,at.z)
-        if(t>=.45)hopping.delete(i)
+        if(t>=.45){if(again)hopping.set(i,{started:now+.05,mild,again:again-1});else hopping.delete(i)}
       }
       return active
     },

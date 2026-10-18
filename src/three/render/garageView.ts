@@ -443,6 +443,17 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   /** Dust: a hire's small puff, or `size` times it, rung out round a house's base. */
   const puffs: { mesh: T.Mesh; start: number; dir: T.Vector3; size?: number }[] = []
   const puffGeometry = new T.IcosahedronGeometry(0.28, 0)
+  /*
+   * **A hire is welcomed** [2026-10-18, at the user's instruction: *"I want more satisfaction when hiring devs"*]. The
+   * drop already had its puff, thump and shake; what it lacked was the room noticing. Three beats now follow the body's
+   * contact: the lens leans in toward the new desk (the release's punch, at a quarter of its size), the nearest
+   * colleagues hop in a ripple that spreads from the desk, and the hire, once the bounce has settled, hops twice. Not a
+   * ring on the floor: rings running out were the release's, and the user threw them out as slop (2026-10-16).
+   */
+  const HIRE_PUNCH = .28
+  const cheers: { seat: number; at: number }[] = []
+  const WELCOME_REACH = 7
+  const WELCOME_MAX = 8
   // One puff, never seen, so the material is compiled with the room and not on
   // the first landing (it was the rest of that frame's stall).
   const puffWarm = new T.Mesh(puffGeometry, new T.MeshStandardMaterial({ color: '#d8d2cf', roughness: 1, flatShading: true, transparent: true, opacity: 0 }))
@@ -846,6 +857,21 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     shake = Math.max(shake, exhaust ? .025 : .12)
   }
 
+  /** The room notices a hire: the lens leans in, the neighbours ripple, and the hire hops twice once settled. */
+  function welcome(seat: number, at: T.Vector3) {
+    // A batch lands a beat apart; the lens leans toward whichever landed last, and never further than one hire's lean.
+    if (punch < HIRE_PUNCH) { punch = HIRE_PUNCH; punchToward.copy(at).sub(env.focus).sub(pan).setY(0) }
+    const near = env.targets
+      .filter((t) => t.index !== seat && t.mesh.visible && !anims.some((a) => a.seat === t.index && a.kind !== 'hop'))
+      .map((t) => ({ seat: t.index, d: t.mesh.getWorldPosition(new T.Vector3()).setY(at.y).distanceTo(at) }))
+      .filter((n) => n.d < WELCOME_REACH)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, WELCOME_MAX)
+    for (const n of near) start(n.seat, 'hop', .05 + n.d * .06)
+    // The bounce ends .28 s after contact (`fall`, u = 1.62); the first cheer waits for it.
+    cheers.push({ seat, at: clock + .32 }, { seat, at: clock + .8 })
+  }
+
   function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces'], mild = false) {
     // A hop does not interrupt a landing, and a second hop restarts the first.
     const running = anims.findIndex((a) => a.seat === seat)
@@ -857,6 +883,12 @@ export function createGarageView(width: number, height: number, cast: StudioCast
   }
 
   function animate() {
+    for (let i = cheers.length - 1; i >= 0; i--) {
+      const c = cheers[i]
+      if (clock < c.at) continue
+      cheers.splice(i, 1)
+      if (!anims.some((a) => a.seat === c.seat && a.kind !== 'hop')) start(c.seat, 'hop')
+    }
     for (let i = anims.length - 1; i >= 0; i--) {
       const a = anims[i]
       const t = clock - a.start - a.delay
@@ -868,7 +900,9 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         // Crouch, spring, fly, land: under half a second.
         const y = t < .07 || t >= .37 ? 0 : .55 * Math.sin(Math.PI * (t - .07) / .3)
         const s = t < .07 ? 1 - .18 * (t / .07) : t < .37 ? 1.08 : t < .47 ? 1 - .14 * Math.sin(Math.PI * (t - .37) / .1) : 1
-        const strength = a.mild ? .22 : 1
+        // [2026-10-18, at the user's instruction: *"I want the devs to still hophophop when coding"*] A working hop is
+        // three-fifths of a click's, up from a fifth (2026-10-02), at which a coding room read as sitting still.
+        const strength = a.mild ? .6 : 1
         parts.forEach((p) => place(p, base, y * strength, 1 + (s - 1) * strength))
         if (t >= .47) { parts.forEach((p) => place(p, base, 0, 1)); anims.splice(i, 1) }
         continue
@@ -920,7 +954,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         if (u < 0) { these.forEach(hide); done = false; continue }
         if (u < 1.62) done = false
         these.forEach((p) => place(p, base, u >= 1.62 ? 0 : fall(u), u >= 1.62 ? 1 : land(u)))
-        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base); options.onLand?.(piece.piece) }
+        if (u >= 1 && !piece.puffed) { piece.puffed = true; puff(base); options.onLand?.(piece.piece); if (piece.piece === 'body') welcome(a.seat, base) }
       }
       if (done) anims.splice(i, 1)
     }
@@ -935,7 +969,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     shake *= .85
     if (shake < .005) shake = 0
     if (anims.length || puffs.length) renderer.shadowMap.needsUpdate = true
-    if (anims.length || puffs.length || shake > 0) dirty = true
+    if (anims.length || puffs.length || shake > 0 || cheers.length) dirty = true
   }
 
   const view: GarageView = {
