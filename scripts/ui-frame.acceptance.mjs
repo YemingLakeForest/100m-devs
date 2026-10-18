@@ -632,9 +632,21 @@ async function clearRelease(page) {
 async function shipOne(page) {
   const ship = page.locator('.pipe__ship:not([disabled])')
   await ship.first().waitFor({ state: 'visible', timeout: 30_000 })
+  const shippedBefore = await page.evaluate(() => globalThis.__store?.projectsShipped ?? 0)
   await ship.first().click({ timeout: 5_000 })
   const catcher = page.locator('.ring__catch')
-  await catcher.first().waitFor({ state: 'visible', timeout: 5_000 })
+  // GDD §10.8b [amended 2026-10-16]: once Serena is in, SHIP! without HOLD is an
+  // instant release with no ring. `?full` has the whole cast, so either the ring
+  // opens or the build has already gone out — both are a shipped game.
+  const ringed = await catcher.first().waitFor({ state: 'visible', timeout: 5_000 }).then(() => true, () => false)
+  if (!ringed) {
+    await page.waitForFunction(
+      (n) => (globalThis.__store?.projectsShipped ?? 0) > n,
+      shippedBefore,
+      { timeout: 10_000 },
+    )
+    return
+  }
   await catcher.first().click({ force: true })
   const verdict = page.locator('.ring__say[data-verdict]')
   for (let i = 0; i < 200 && !(await verdict.count()); i++) {

@@ -113,7 +113,9 @@ describe('§4.12a — the incident chips', () => {
 
   it('offers both answers on every chip [2026-10-16]', () => {
     render(<Incidents state={down} />)
-    expect(screen.getAllByRole('button', { name: 'PATCH' })).toHaveLength(2)
+    // [2026-10-18] The game's name is the PATCH button.
+    expect(screen.getAllByRole('button', { name: /^PATCH / })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'PATCH Flappy Square' })).toHaveTextContent('Flappy Square')
     expect(screen.getAllByRole('button', { name: 'REFUND & MOVE ON' })).toHaveLength(2)
   })
 

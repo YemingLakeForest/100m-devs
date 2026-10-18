@@ -4,11 +4,25 @@ import {
   GYM_START_HOUR,
   STUDIO_HOUR_SECONDS,
   atGym,
+  gymNear,
   jamesPresent,
   runSecondsAtHour,
   studioClockLabel,
   studioHourOf,
 } from './james.ts'
+
+describe('§21.7.0 rule 5 — the clock warns before the gym, and only then', () => {
+  it('is near during the gym and the hour before it', () => {
+    expect(gymNear(runSecondsAtHour(GYM_START_HOUR) + 1)).toBe(true)
+    expect(gymNear(runSecondsAtHour(GYM_START_HOUR - 0.5))).toBe(true)
+  })
+
+  it('is not near for the rest of the studio day, so the readout is an event', () => {
+    expect(gymNear(0)).toBe(false) // the run opens as the gym ends
+    expect(gymNear(runSecondsAtHour(GYM_END_HOUR + 6))).toBe(false)
+    expect(gymNear(runSecondsAtHour(GYM_START_HOUR - 2))).toBe(false)
+  })
+})
 
 describe('§21.7.0 rule 5 — the gym, ten to eleven, every day', () => {
   it('is absent for exactly one hour of the studio clock', () => {

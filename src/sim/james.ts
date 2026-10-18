@@ -55,6 +55,19 @@ export function atGym(studioHour: number): boolean {
   return studioHour >= GYM_START_HOUR && studioHour < GYM_END_HOUR
 }
 
+/**
+ * How many studio hours ahead the HUD starts warning — one, a minute of play.
+ * Long enough to see the clock tick towards ten, short enough that the readout
+ * is an event rather than a permanent row in a column a phone cannot spare.
+ */
+export const GYM_WARNING_HOURS = 1
+
+/** Is the gym coming up, or on? The studio clock's window [2026-10-18]. */
+export function gymNear(runSeconds: number): boolean {
+  const hour = studioHourOf(runSeconds)
+  return hour >= GYM_START_HOUR - GYM_WARNING_HOURS && hour < GYM_END_HOUR
+}
+
 /** Is James at his desk right now, given the run's clock? */
 export function jamesPresent(runSeconds: number): boolean {
   return !atGym(studioHourOf(runSeconds))

@@ -1,6 +1,7 @@
 import { entropyLabel } from '../game/vocabulary.ts'
 import {
   arrivedHeroes,
+  hasPrestiged,
   baseVelocity,
   currentEffectiveVelocity,
   currentInterstellarSync,
@@ -20,7 +21,7 @@ import { useHeldCount } from './useHeldCount.ts'
 import { useReducedMotion } from '../ui/motion.ts'
 import { barrierProgress, buildTimeLabel, planckLabel } from '../sim/starbound.ts'
 import { secondsUntilBankrupt } from '../sim/economy.ts'
-import { jamesPresent, studioClockLabel } from '../sim/james.ts'
+import { gymNear, jamesPresent, studioClockLabel } from '../sim/james.ts'
 import { useSpring } from '../ui/useSpring.ts'
 import { SPRING_HEAVY } from '../ui/spring.ts'
 import { Counter } from './Counter.tsx'
@@ -279,9 +280,18 @@ export function Velocity({ state }: { state: GameState }) {
  * than as a man who has never once missed leg day. The clock is the warning.
  * It exists only once he has, since before then there is nobody for it to be
  * about, and it says where he is for the one hour he is not at his desk.
+ *
+ * **Only around the gym, and not in Run 1** [2026-10-18]. As a permanent row it
+ * pushed the left column past a 640x360 frame and clipped MENU
+ * (`test:ui-frame`), and a clock that reads 14:32 says nothing the player can
+ * act on. So it appears a studio hour before ten — a minute of warning — stays
+ * through the gym, and goes. Run 1 is about six minutes and the first gym is at
+ * minute ~23, so there it would only ever warn about something that cannot
+ * happen.
  */
 export function StudioClock({ state }: { state: GameState }) {
-  if (!arrivedHeroes().has('james')) return null
+  if (!hasPrestiged() || !arrivedHeroes().has('james')) return null
+  if (!gymNear(state.runSeconds)) return null
   const gym = !jamesPresent(state.runSeconds)
   return (
     <div className="hud__block">

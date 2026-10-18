@@ -102,8 +102,37 @@ export function Incidents({ state }: { state: GameState }) {
               counter: the player does not care how many on-call seconds remain,
               they care that a game they shipped is not earning.
             */}
-            <span className="backlog__chip-name">{incident.releaseName}</span>
-            <span className="backlog__chip-state">OFF SALE</span>
+            {/*
+              [2026-10-18] The name is PATCH: tap the game that is down to
+              firefight it, the way the ticket bar is the tap that answers
+              tickets. A separate PATCH button gave the chip a third row, and on
+              a 748x336 frame that row pushed MENU out of the left column.
+              REFUND & MOVE ON sits under OFF SALE: it gives back a quarter of
+              what the game still owes and puts it on sale now. Neither answer is
+              ever the obviously right one — that depends on how long the rota
+              would take, which is the decision [2026-10-16].
+            */}
+            <button
+              type="button"
+              className="backlog__chip-name backlog__patch"
+              aria-label={`PATCH ${incident.releaseName}`}
+              title="PATCH: tap to put out the fire"
+              onClick={() => patchIncident(incident.id)}
+            >
+              {incident.releaseName}
+            </button>
+            <span className="backlog__chip-side">
+              <span className="backlog__chip-state">OFF SALE</span>
+              <button
+                type="button"
+                className="backlog__verb"
+                aria-label="REFUND & MOVE ON"
+                title="REFUND & MOVE ON"
+                onClick={() => refundIncident(incident.id)}
+              >
+                REFUND
+              </button>
+            </span>
             {/*
               [2026-10-16] And what it is giving back, while it is. A downed
               game refunds its players (§4.12a's bleed), and the number is the
@@ -111,21 +140,6 @@ export function Incidents({ state }: { state: GameState }) {
               dollars a second, and gone once the bleed has hit its floor.
             */}
             <Refunding releaseId={incident.releaseId} state={state} />
-            {/*
-              [2026-10-16] The two answers, on the chip they answer. PATCH is
-              the thumb (each tap is seconds of on-call work); REFUND & MOVE ON
-              gives back a quarter of what the game still owes and puts it on
-              sale now. Neither is ever the obviously right one: that depends
-              on how long the rota would take, which is the decision.
-            */}
-            <span className="backlog__verbs">
-              <button type="button" className="backlog__verb" onClick={() => patchIncident(incident.id)}>
-                PATCH
-              </button>
-              <button type="button" className="backlog__verb" onClick={() => refundIncident(incident.id)}>
-                REFUND &amp; MOVE ON
-              </button>
-            </span>
           </li>
         ))}
       </ul>

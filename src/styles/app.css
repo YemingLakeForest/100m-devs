@@ -2974,9 +2974,13 @@ body {
  * "this one is different" rather than as nothing at all.
  */
 .backlog__chip {
-  display: flex;
-  gap: 6px;
-  justify-content: space-between;
+  /* [2026-10-18] The name (which is PATCH) on the left, OFF SALE over REFUND on
+     the right: two rows whatever the name's length, so firefighting costs the
+     left column no height it did not already spend on the chip. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0 6px;
   padding: 1px 4px;
   background: color-mix(in srgb, var(--alarm-2) 18%, transparent);
   animation: backlog-pulse 1.6s ease-in-out infinite;
@@ -3003,27 +3007,36 @@ body {
   flex: 0 0 auto;
 }
 
-/* [2026-10-16] What the downed game is refunding. Its own line under the name,
-   because a dollar rate beside OFF SALE pushed the name into one glyph a row. */
-.backlog__chip {
-  flex-wrap: wrap;
+/* The name is the PATCH button, so it drops the button's chrome and keeps the
+   name's look; the chip's pulse says it is the thing to touch. */
+.backlog__patch {
+  pointer-events: auto;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
+.backlog__chip-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+/* [2026-10-16] What the downed game is refunding. Its own line under the name,
+   because a dollar rate beside OFF SALE pushed the name into one glyph a row. */
 .backlog__chip-refund {
-  flex: 1 0 100%;
+  grid-column: 1 / -1;
   color: #ffb8b8;
   font-variant-numeric: tabular-nums;
 }
 
-/* PATCH and REFUND & MOVE ON. Flat, hard-edged, and the only parts of the chip
-   that take pointers (`.hud` is pointer-events: none; see `.hud__controls`). */
-.backlog__verbs {
-  flex: 1 0 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-}
-
+/* REFUND & MOVE ON. Flat, hard-edged, and with the name the only parts of the
+   chip that take pointers (`.hud` is pointer-events: none; see `.hud__controls`). */
 .backlog__verb,
 .backlog__tap {
   pointer-events: auto;
