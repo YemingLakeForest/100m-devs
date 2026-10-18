@@ -46,8 +46,8 @@ export function createCityHouse(index: number, cast: () => StudioCast, reserved 
     planter(-5,-3.8,4.5,4.2);planter(5.8,4.8,3.5,1.6)
     box(body,1,5.1,-2.8,6,.8,4,N[4]);box(body,1,5.9,-2.8,5.7,.18,3.7,G[0])
     for(let x=-1.5;x<=3.5;x++)box(body,x,6.1,-2.8,.06,.08,3.7,N[5])
-    for(const x of [-6.8,-2.2])for(const z of [1.8,5.7])box(body,x,5.1,z,.13,1.8,.13,W[1])
-    for(let x=-7;x<=-2;x+=.65)box(body,x,6.9,3.8,.22,.12,4.4,W[2])
+    // [2026-10-18] A second bed, where a slatted pergola stood: at this distance its slats were more beams across.
+    planter(-4.5,2.4,4.4,2.2)
     box(body,-4.5,5.1,4.5,3,.6,.7,W[2]);solar(3.2,-6,2)
   } else if(variant===1) {
     // Research office: a stepped rooftop meeting room and a solar field.
@@ -57,9 +57,8 @@ export function createCityHouse(index: number, cast: () => StudioCast, reserved 
     box(body,-3,7.3,-2.7,9.6,.25,7,N[3]);solar(3.4,-5,4)
     planter(-6,4.8,4,1.8);box(body,-.5,5.1,4.5,4,.65,.7,W[2])
   } else {
-    // Engineering studio: long glass atrium with copper fins, green roof wings.
+    // Engineering studio: a long glass atrium and green roof wings (its copper fins went with the beams, 2026-10-18).
     box(body,0,5.1,-.6,4,1.3,12,N[4]);box(body,0,6.4,-.6,3.8,.15,11.8,G[0])
-    for(let z=-6;z<=5;z+=1.4)box(body,0,6.58,z,4.2,.15,.1,W[2])
     planter(-6,-2,3.2,8);solar(4,-5,3)
     for(const x of [-6,6])box(body,x,5.1,5.5,3,.6,.65,W[2])
   }
@@ -68,13 +67,15 @@ export function createCityHouse(index: number, cast: () => StudioCast, reserved 
 
   const porchStart = body.children.length
   // A deep, supported porch: doors, steps and lamps make the frontage unmistakable.
-  box(body, 0, .35, 9, 6.3, .22, 3.7, N[6])
-  for (const [z, y, width] of [[11.1, .08, 3.4], [10.65, .24, 2.9]]) box(body, 0, y, z, width, .15, .65, N[6])
+  // [2026-10-18] The slab and steps were the lightest plaster, lit, and bloomed into a white sheet in front of the cutaway.
+  box(body, 0, .35, 9, 6.3, .22, 3.7, N[4])
+  for (const [z, y, width] of [[11.1, .08, 3.4], [10.65, .24, 2.9]]) box(body, 0, y, z, width, .15, .65, N[5])
+  // The posts go with the canopy they hold up: opened, the house left two bare white columns standing on its porch.
+  const canopyStart = body.children.length
   for (const x of [-2.7, 2.7]) {
     box(body, x, .57, 10.25, .24, 2.8, .24, trim)
     box(body, x, .57, 10.25, .5, .3, .5, N[5])
   }
-  const canopyStart = body.children.length
   box(body,0,3.65,9.2,6.4,.18,3.8,N[5])
   box(body,0,3.83,9.2,5.8,.04,3.2,G[0])
   const canopy = body.children.slice(canopyStart)

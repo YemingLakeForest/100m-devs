@@ -138,7 +138,7 @@ describe('the city blocks (§7.7.2)', () => {
     expect(new Set(desks.map(d => `${d.x},${d.y},${d.z}`)).size).toBe(HOUSE_CAPACITY)
     desks.forEach((d, i) => {
       expect(Math.abs(d.x) + .57).toBeLessThan(8.87)
-      // The central stair and its handrails occupy x ±.51.
+      // The centre aisle, x ±.51, stays clear of desks.
       expect(Math.abs(d.x) - .57).toBeGreaterThan(.51)
       expect(Math.abs(d.z) + .3).toBeLessThan(7.37)
       desks.slice(0, i).forEach(other => {

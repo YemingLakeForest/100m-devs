@@ -1,12 +1,13 @@
 import * as T from 'three'
 import { RAMPS } from '../../art/palette.ts'
-import { batchArt, box, cylinder, disposeArt, placeInstances, sharedMaterial, showSeatInstances, type SeatInstance } from './worldArt.ts'
+import { batchArt, box, disposeArt, placeInstances, sharedMaterial, showSeatInstances, type SeatInstance } from './worldArt.ts'
 import { studioPerson, workerLook, type StudioCast } from './studioPeople.ts'
+import { FRONT_FRAME, frontGlazing } from './garageDetails.ts'
 
-/** A hundred compact stations with two cross aisles, inside one converted house. */
+/** A hundred compact stations on one floor, with a centre aisle and cross aisles between the islands. */
 export function houseSeat(i: number) {
   const col = i % 10, row = Math.floor(i / 10)
-  return { y: row < 4 ? 1.5 : 0, x: (col - 4.5) * 1.44 + (Math.floor(col / 2) - 2) * .22 + (col < 5 ? -.4 : .4), z: (Math.floor(row / 2) - 2) * 2.5 + (row % 2 ? .8 : -.8) }
+  return { y: 0, x: (col - 4.5) * 1.44 + (Math.floor(col / 2) - 2) * .22 + (col < 5 ? -.4 : .4), z: (Math.floor(row / 2) - 2) * 2.5 + (row % 2 ? .8 : -.8) }
 }
 
 /** A hire falls this far, in this long, onto the desk it was given: the garage's drop (`garageView.ts`), at a house's scale. */
@@ -24,47 +25,85 @@ const MAX_DROPS = 12
 export function createCityInterior(index: number, cast: StudioCast, reserved = 0) {
   const root = new T.Group()
   const N = RAMPS.NEUTRAL, W = RAMPS.WOOD
+  /*
+   * **One floor, open to the sky, and nothing across it** [2026-10-18, at the user's instruction: *"I am not a big fan of
+   * those offices outside our HQ ... I specially hate those beams across, they are very questionable"*]. The cutaway had
+   * two timber beams spanning the room at eave height, carrying four pendant lamps; with the ceiling and the near walls
+   * cut away they ran from the far wall into thin air, and from the game's camera they were two brown rails ruled
+   * diagonally through the desks. Under them was a split level: forty desks on a 1.5 m deck, a stair up its middle and
+   * handrails — a lecture theatre seen from above, with a brown cliff face across the room. All of it is gone. A
+   * dollhouse with its lid off has no ceiling to hang a lamp from; the warm pools are baked into the materials below and
+   * need no fixture to explain them.
+   */
   box(root, 0, 0, 1, 20, .35, 20, N[4])
   box(root, 0, .35, 0, 18, .04, 15, W[1])
-  // A split-level conversion: forty desks on the old rear workshop's raised floor.
-  for (const x of [-4.65, 4.65]) box(root, x, .39, -4.35, 8.5, 1.5, 6.3, W[1])
-  box(root, 0, .39, -4.9, .8, 1.5, 5, W[1])
-  for (let step = 0; step < 10; step++) box(root, 0, .39, .9 - step * .35, .76, (step + 1) * .15, .36, W[2])
-  for (const x of [-.48, .48]) for (let step = 0; step < 10; step += 3) {
-    box(root, x, .39 + (step + 1) * .15, .9 - step * .35, .055, .7, .055, N[3])
-  }
+  for (let x = -8; x < 9; x += .55) box(root, x, .392, 0, .018, .012, 14.6, W[0], false)
   // Twenty-five four-person islands, alternating woven mats rather than a parade of rows.
   for (let pair = 0; pair < 5; pair++) for (let col = 0; col < 5; col++) {
     if (pair * 20 + col * 2 + 1 < reserved) continue
     const left = houseSeat(pair * 20 + col * 2), right = houseSeat(pair * 20 + col * 2 + 1)
-    box(root, (left.x + right.x) / 2, .397 + left.y, (pair - 2) * 2.5, 3, .018, 2.3, (col + pair) % 2 ? N[3] : W[0], false)
+    box(root, (left.x + right.x) / 2, .397, (pair - 2) * 2.5, 3, .018, 2.3, (col + pair) % 2 ? N[3] : W[0], false)
   }
-  // Only the far walls stand tall. The near parapets preserve the house boundary.
-  box(root, 0, .39, -7.45, 18, 4.1, .16, N[6])
-  box(root, -8.95, .39, 0, .16, 4.1, 15, N[6])
-  box(root, 0, .39, 7.45, 18, .45, .16, N[6])
-  box(root, 8.95, .39, 0, .16, .45, 15, N[6])
-  for (let x = -8; x < 9; x += .55) {
-    box(root, x, .392, 3.1, .018, .012, 8.5, W[0], false)
-    box(root, x, 1.892, -4.4, .018, .012, 6.1, W[0], false)
+  /*
+   * **The walls are the garage's walls** (`garageEnvironment.ts`): the two the camera sees the inside of stand the full
+   * height, and the two that face it are a low base under glass in graphite frames, with a head along the top. The
+   * near side was a 0.45 m kerb — the "unfinished" low perimeter the user already turned down in the garage (§7.8.12) —
+   * and the porch's door stood up out of it on its own. The far walls had five small framed holes each, staggered for a
+   * deck that is gone; they are one ribbon window now, the band of light the house shows from the street.
+   */
+  const H = 4.1, BASE = 1.05, FLOOR = .39
+  box(root, 0, FLOOR, -7.45, 18, H, .16, N[6])
+  box(root, -8.95, FLOOR, 0, .16, H, 15, N[6])
+  box(root, 0, FLOOR + H, -7.45, 18.2, .1, .3, N[5])
+  box(root, -8.95, FLOOR + H, 0, .3, .1, 15, N[5])
+  // A sill, a dark band of glass and a mullion every 1.6 m — the exterior's rhythm (`cityHouse.ts`), from the inside.
+  const ribbon = (along: 'x' | 'z', from: number, to: number) => {
+    const piece = (u: number, y: number, w: number, h: number, d: number, colour: string) => along === 'x'
+      ? box(root, u, y, -7.33, w, h, d, colour) : box(root, -8.83, y, u, d, h, w, colour)
+    const mid = (from + to) / 2, len = to - from, bays = Math.round(len / 1.6)
+    piece(mid, FLOOR + 1.75, len + .2, .1, .22, N[5])
+    piece(mid, FLOOR + 1.85, len, 1.45, .04, N[2])
+    for (let j = 0; j <= bays; j++) piece(from + len * j / bays, FLOOR + 1.85, .09, 1.45, .1, N[5])
   }
-  for (const x of [-6.4, -3.2, 0, 3.2, 6.4]) {
-    box(root, x, 2.8, -7.33, 2.05, 1.25, .12, N[7])
-    box(root, x, 2.93, -7.24, 1.79, .99, .04, N[2])
-    box(root, x, 2.93, -7.19, .055, .99, .04, N[6])
-    box(root, -8.82, 1.3 + (x < -1.25 ? 1.5 : 0), x, .12, 1.25, 2.05, N[7])
-    box(root, -8.73, 1.43 + (x < -1.25 ? 1.5 : 0), x, .04, .99, 1.79, N[2])
-  }
-  box(root, 0, 4.45, -7.4, 18, .18, .3, W[1])
-  box(root, -8.9, 4.45, 0, .3, .18, 15, W[1])
-  const lampFinish = sharedMaterial('city:work-lamp', () => new T.MeshBasicMaterial({ color: RAMPS.WARN[3] }))
-  for (const z of [-4.5, 3.5]) {
-    box(root, 0, 4.45, z, 18, .2, .18, W[1])
-    for (const x of [-4.5, 4.5]) {
-      cylinder(root, x, 3.85, z, .025, .6, N[2])
-      cylinder(root, x, 3.77, z, .25, .12, N[3])
-      cylinder(root, x, 3.73, z, .2, .04, RAMPS.WARN[3]).material = lampFinish
+  ribbon('x', -8, 8)
+  ribbon('z', -6.9, 1.4)
+  const front: { a: [number, number]; b: [number, number] }[] = [
+    { a: [-9, 7.45], b: [-1.15, 7.45] }, { a: [1.15, 7.45], b: [9, 7.45] }, { a: [8.95, -7.5], b: [8.95, 7.5] },
+  ]
+  const panes: T.Mesh[] = []
+  for (const { a, b } of front) {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]), alongX = a[1] === b[1]
+    const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2
+    const dims = (w: number, h: number, d: number) => alongX ? [w, h, d] as const : [d, h, w] as const
+    box(root, mx, FLOOR, mz, ...dims(len, BASE, .2), N[6])
+    box(root, mx, FLOOR + BASE, mz, ...dims(len + .02, .07, .3), N[5])
+    panes.push(box(root, mx, FLOOR + BASE + .07, mz, ...dims(len, H - BASE - .07, .05), N[6], false))
+    const bays = Math.ceil(len / 3.2)
+    for (let j = 0; j <= bays; j++) {
+      const t = j / bays
+      box(root, a[0] + (b[0] - a[0]) * t, FLOOR + BASE + .07, a[1] + (b[1] - a[1]) * t, ...dims(.08, H - BASE - .07, .12), FRONT_FRAME)
     }
+  }
+  // The doorway: the porch's door (`cityHouse.ts`) stands in this gap, between two jambs, under a transom of the same glass.
+  for (const x of [-1.15, 1.15]) box(root, x, FLOOR, 7.45, .12, H, .34, FRONT_FRAME)
+  panes.push(box(root, 0, FLOOR + 2.96, 7.45, 2.18, H - 2.96, .05, N[6], false))
+  box(root, 0, FLOOR + H, 7.45, 18.1, .09, .14, FRONT_FRAME)
+  box(root, 8.95, FLOOR + H, 0, .14, .09, 15.1, FRONT_FRAME)
+  /*
+   * **The garage's twenty are a break area here** [2026-10-18]. The first house's back two rows are the garage's seats
+   * and are never filled (2026-10-15), so with the deck gone they were a bare strip of floor that looked like a bug.
+   * Three big pieces fill it: a kitchen counter on the back wall, a ping-pong table, a sofa — all behind the third row.
+   */
+  if (reserved >= 20) {
+    box(root, -4.2, FLOOR, -6.98, 7, .88, .7, N[5])
+    box(root, -4.2, FLOOR + .88, -6.98, 7.1, .06, .76, W[3])
+    box(root, -6.8, FLOOR + .94, -7.05, .45, .5, .4, N[1])
+    box(root, 4, FLOOR, -5.7, .12, .7, 1.2, N[2])
+    box(root, 4, FLOOR + .7, -5.7, 2.74, .06, 1.52, RAMPS.FOLIAGE[1])
+    box(root, 4, FLOOR + .76, -5.7, .04, .15, 1.6, N[7])
+    box(root, -4.2, FLOOR, -5.0, 2.6, .42, .8, N[3])
+    box(root, -4.2, FLOOR, -4.7, 2.6, .85, .22, N[3])
+    for (const x of [-5.6, -2.8]) box(root, x, FLOOR, -5.0, .22, .6, .8, N[3])
   }
   // The domestic wall has become the team's planning board, above chair height.
   box(root, -8.78, 2.5, 3.2, .12, 1.3, 2.5, W[1])
@@ -119,6 +158,8 @@ export function createCityInterior(index: number, cast: StudioCast, reserved = 0
       return lit
     })
   })
+  // The garage's own storefront glass, so the two buildings are glazed alike; set after the bake, which would light it.
+  for (const pane of panes) pane.material = frontGlazing()
   batchArt(furniture); batchArt(peopleRoot, seats)
   let filled = -1
   const hopping = new Map<number, { started: number; mild: boolean }>()
