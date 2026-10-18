@@ -119,12 +119,18 @@ describe('the city blocks (§7.7.2)', () => {
     inside.fill(23, 10)
     const heights = () => inside.targets.slice(21, 23).map(t => t.visible)
     expect(heights()).toEqual([true, true])
+    // Each desk lands first, then its developer .25 s later (2026-10-18): two hires .12 s apart, four contacts in that order.
     inside.update(10.05)
     inside.update(10.5)
+    expect(inside.takeDeskLandings()).toBe(1)
+    expect(inside.takeLandings()).toBe(0)
+    inside.update(10.62)
+    expect(inside.takeDeskLandings()).toBe(1)
+    inside.update(10.75)
     expect(inside.takeLandings()).toBe(1)
-    inside.update(10.7)
+    inside.update(10.87)
     expect(inside.takeLandings()).toBe(1)
-    for (let t = 11; t < 12; t += 1 / 30) inside.update(t)
+    for (let t = 11; t < 12.5; t += 1 / 30) inside.update(t)
     expect(inside.update(13)).toBe(false)
     expect(inside.takeLandings()).toBe(0)
     inside.dispose()
@@ -136,7 +142,8 @@ describe('the city blocks (§7.7.2)', () => {
     inside.fill(40)
     inside.fill(41, 10)
     const people: T.Object3D[] = []
-    inside.root.traverse(o => { if (typeof o.userData.seat === 'number' && !(o instanceof T.Mesh)) people.push(o) })
+    // People only: a desk carries its seat's number too, and stays put while its instances fall.
+    inside.root.traverse(o => { if (typeof o.userData.seat === 'number' && !(o instanceof T.Mesh) && o.userData.dynamic === false) people.push(o) })
     const hire = people.find(o => o.userData.seat === 40)!
     const neighbours = people.filter(o => o.visible && o !== hire)
     const lifted = () => neighbours.some(o => o.position.y > .05)

@@ -471,6 +471,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     exhaust(footprint) { dustRing(footprint, true) },
     // Somebody dropped onto a desk in a house: the same thump as the garage's hire (`stage.ts` maps the piece to a clip).
     hired() { options.onLand?.('body') },
+    deskLanded() { options.onLand?.('desk') },
   }, () => cast)
   scene.add(city.root)
   const landed: { at: T.Vector3; value: number; key?: string }[] = []

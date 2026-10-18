@@ -42,7 +42,8 @@ function moonlit(group: T.Group) {
 }
 
 /** `hired`: somebody has dropped onto a desk in a house that was already standing. */
-interface Events { landed(box: T.Box3): void; ignited(): void; exhaust(box: T.Box3): void; hired(): void }
+/** `deskLanded`: a hire's desk has hit the floor of an open house, a beat before its developer (`cityInterior.ts`, 2026-10-18). */
+interface Events { landed(box: T.Box3): void; ignited(): void; exhaust(box: T.Box3): void; hired(): void; deskLanded?(): void }
 export function createCityHouses(events: Events, cast: () => StudioCast = defaultCast) {
   const root = new T.Group()
   const ground = new T.Group(); root.add(ground)
@@ -164,6 +165,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
       let active = false
       buildings.forEach((b, i) => {
         if (b.interior?.update(now)) active = true
+        for (let landed = b.takeDeskLandings(); landed > 0; landed--) events.deskLanded?.()
         for (let landed = b.takeLandings(); landed > 0; landed--) events.hired()
         if (b.leaving !== null) {
           active = true

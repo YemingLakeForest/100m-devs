@@ -156,6 +156,7 @@ export function createCityHouse(index: number, cast: () => StudioCast, reserved 
     },
     /** Hires that have landed on a desk inside since this was last asked. */
     takeLandings() { return interior?.takeLandings() ?? 0 },
+    takeDeskLandings() { return interior?.takeDeskLandings() ?? 0 },
     cutaway(on: boolean) {
       if (on && !interior) { interior = createCityInterior(index, cast(), reserved); interior.fill(filled); whole.add(interior.root) }
       const changed = exterior.visible === on
