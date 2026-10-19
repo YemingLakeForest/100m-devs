@@ -89,7 +89,11 @@ export interface GarageView {
   readonly landings: number
   readonly ignitions: number
   /** Ordinary hires fill the garage to twenty, then move to hundred-person houses (§7.7.2). */
-  setHeadcount(n: number): void
+  /**
+   * `laidOff`: the fall in headcount is §10.10.5's LAY OFF, not a reset — the seats leave on screen (2026-10-19). Every other
+   * fall (a Paradigm Shift's liquidation has already lifted them, a run starting over, a save loading) empties them at once.
+   */
+  setHeadcount(n: number, laidOff?: boolean): void
   setRunSeed(seed: number): void
   /** Whether James has arrived; he drops in when he does. */
   setJames(here: boolean): void
@@ -239,6 +243,8 @@ export interface GarageViewOptions {
    * the audio layer.
    */
   onLand?: (piece: 'desk' | 'chair' | 'body') => void
+  /** Somebody laid off has just been yanked out of their seat (2026-10-19): the sound is the stage's, as a landing's is. */
+  onLeave?: () => void
 }
 
 type Piece = 'desk' | 'chair' | 'body'
@@ -254,6 +260,10 @@ interface Anim {
   start: number
   delay: number
   mild?: boolean
+  /** A hop that is a flinch: the neighbours of somebody laid off duck where they sit, and do not leave the floor. */
+  duck?: boolean
+  /** A lift that is a layoff: a gulp where they sit first, and the room flinches as they go. */
+  laidOff?: boolean
   /** A drop's pieces, each falling at its own offset: a hire is desk then person. */
   pieces?: { piece: Piece; at: number; puffed?: boolean }[]
 }
@@ -266,6 +276,17 @@ const HIRE_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { piec
 const JAMES_DROP: NonNullable<Anim['pieces']> = [{ piece: 'desk', at: 0 }, { piece: 'chair', at: .55 }, { piece: 'body', at: 1.1 }]
 /** A departure: the developer, then their desk, then their chair — a hire played backwards. */
 const LIFT_OUT: NonNullable<Anim['pieces']> = [{ piece: 'body', at: 0 }, { piece: 'desk', at: .14 }, { piece: 'chair', at: .24 }]
+/**
+ * **A layoff is seen** [2026-10-19, at the user's instruction: *"I want some game juice to show the layoff as well"*]. The seats
+ * used to empty between two frames (§10.10.5's note: the lift was shared with the liquidation, and nothing told the view which
+ * it was). Now a layoff is the departure with a beat in front of it: the developer gulps where they sit — a quiver, `GULP`
+ * seconds — and *then* is yanked through the roof, desk and chair after them, and the people nearby flinch as it happens.
+ * The gulp is the joke: they know before they go. Nobody cheers, which is the difference from a hire.
+ */
+const GULP = .42
+const LAYOFF_OUT: NonNullable<Anim['pieces']> = LIFT_OUT.map((p) => ({ ...p, at: p.at + GULP }))
+/** A layoff of many goes newest first, a beat apart: faster than a hire's .12, because a cut is a decision and not a welcome. */
+const LAYOFF_STAGGER = .09
 /** How high a departure is yanked before it is out of the picture, in metres. */
 const LIFT_TO = 26
 /** The studio a garage holds: five pods of four (§7.8.0). */
@@ -472,6 +493,8 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     // Somebody dropped onto a desk in a house: the same thump as the garage's hire (`stage.ts` maps the piece to a clip).
     hired() { options.onLand?.('body') },
     deskLanded() { options.onLand?.('desk') },
+    // Somebody laid off has been yanked out of a house, or a whole house has lifted off its lot: the garage's jolt and sound.
+    left() { shake = Math.max(shake, .06); options.onLeave?.() },
   }, () => cast)
   scene.add(city.root)
   const landed: { at: T.Vector3; value: number; key?: string }[] = []
@@ -873,14 +896,29 @@ export function createGarageView(width: number, height: number, cast: StudioCast
     cheers.push({ seat, at: clock + .32 }, { seat, at: clock + .8 })
   }
 
-  function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces'], mild = false) {
-    // A hop does not interrupt a landing, and a second hop restarts the first.
+  /** Somebody laid off has gone: the people near them duck in a ripple out from the seat, and the room takes a small jolt. */
+  function flinch(seat: number, at: T.Vector3) {
+    shake = Math.max(shake, .06)
+    options.onLeave?.()
+    env.targets
+      .filter((t) => t.index !== seat && t.mesh.visible && !anims.some((a) => a.seat === t.index && a.kind !== 'hop'))
+      .map((t) => ({ seat: t.index, d: t.mesh.getWorldPosition(new T.Vector3()).setY(at.y).distanceTo(at) }))
+      .filter((n) => n.d < WELCOME_REACH)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, WELCOME_MAX)
+      .forEach((n) => { const a = start(n.seat, 'hop', .04 + n.d * .05); if (a) a.duck = true })
+  }
+
+  function start(seat: number, kind: 'hop' | 'drop' | 'lift', delay = 0, pieces?: Anim['pieces'], mild = false): Anim | null {
+    // A hop does not interrupt a landing or a departure, and a second hop restarts the first.
     const running = anims.findIndex((a) => a.seat === seat)
     if (running >= 0) {
-      if (anims[running].kind === 'drop' && kind === 'hop') return
+      if (anims[running].kind !== 'hop' && kind === 'hop') return null
       anims.splice(running, 1)
     }
-    anims.push({ seat, kind, start: clock, delay, mild, pieces: pieces?.map((p) => ({ ...p })) })
+    const a: Anim = { seat, kind, start: clock, delay, mild, pieces: pieces?.map((p) => ({ ...p })) }
+    anims.push(a)
+    return a
   }
 
   function animate() {
@@ -898,6 +936,13 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       if (a.kind === 'hop') {
         const parts = body(a.seat)
         if (t < 0) continue
+        if (a.duck) {
+          // A flinch: down and wide for a third of a second, then back. It never leaves the floor, so it does not read as a hop.
+          const s = t < .3 ? 1 - .2 * Math.sin(Math.PI * t / .3) : 1
+          parts.forEach((p) => place(p, base, 0, s))
+          if (t >= .3) anims.splice(i, 1)
+          continue
+        }
         // Crouch, spring, fly, land: under half a second.
         const y = t < .07 || t >= .37 ? 0 : .55 * Math.sin(Math.PI * (t - .07) / .3)
         const s = t < .07 ? 1 - .18 * (t / .07) : t < .37 ? 1.08 : t < .47 ? 1 - .14 * Math.sin(Math.PI * (t - .37) / .1) : 1
@@ -917,11 +962,17 @@ export function createGarageView(width: number, height: number, cast: StudioCast
          * when somebody is next hired into it.
          */
         let done = true
+        if (a.laidOff && t >= 0 && t < GULP) {
+          // The gulp: a quick shiver of squash where they sit, three wobbles, before anything moves.
+          const s = 1 + .08 * Math.sin(Math.PI * 2 * 3 * t / GULP) * (1 - t / GULP)
+          body(a.seat).forEach((p) => place(p, base, 0, s))
+        }
         for (const piece of a.pieces ?? LIFT_OUT) {
           const u = (t - piece.at) / .5
           const these = pieceParts(a.seat, piece.piece)
           const at = base
           if (u < 0) { done = false; continue }
+          if (a.laidOff && piece.piece === 'body' && !piece.puffed) flinch(a.seat, base)
           if (u >= 1) { these.forEach((p) => { place(p, at, 0, 1); hide(p) }); continue }
           done = false
           const stretch = u < .12 ? 1 - .22 * Math.sin(Math.PI * u / .12) : 1.14
@@ -1010,7 +1061,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
       if (cast.seed === seed) return
       cast = { ...cast, seed }; city.reset(); settled = false; build()
     },
-    setHeadcount(n) {
+    setHeadcount(n, laidOff = false) {
       const total = Math.max(0, Math.floor(n))
       // **The garage keeps its twenty** [2026-10-15, at the user's instruction: *"when we move up to new office space, it now move all
       // devs up and put them to new office, i don't want that, I want the garage/hq still filled and new people hired in new space"*].
@@ -1028,6 +1079,19 @@ export function createGarageView(width: number, height: number, cast: StudioCast
           showGarageSeats(env, heads, wasHeads)
           // A hire is an event: each new desk and developer falls in, a beat apart.
           if (settled) for (let s = wasHeads; s < inGarage; s++) start(s, 'drop', (s - wasHeads) * .12)
+        } else if (laidOff && settled) {
+          // Newest first, each still at their desk until their turn; nobody can be clicked once they have been let go.
+          for (let s = wasHeads - 1, k = 0; s >= inGarage; s--, k++) {
+            const running = anims.find((a) => a.seat === s), base = floorAt(s)
+            // Hired a moment ago and still in the air, or already on the way out: there is nobody sitting there to see go.
+            if (running && running.kind !== 'hop') { anims.splice(anims.indexOf(running), 1); vacate(s); continue }
+            if (base) body(s).forEach((p) => place(p, base, 0, 1))
+            const a = start(s, 'lift', k * LAYOFF_STAGGER, LAYOFF_OUT)
+            if (a) a.laidOff = true
+            const hit = env.targets.find((t) => t.rank === 0 && t.index === s)
+            if (hit) hit.mesh.visible = false
+          }
+          if (!anims.some((x) => x.kind === 'lift')) showGarageSeats(env, heads, heads)
         } else {
           for (let i = anims.length - 1; i >= 0; i--) if (anims[i].seat >= inGarage) anims.splice(i, 1)
           showGarageSeats(env, heads, wasHeads)
@@ -1035,7 +1099,7 @@ export function createGarageView(width: number, height: number, cast: StudioCast
         renderer.shadowMap.needsUpdate = true
         dirty = true
       }
-      city.setStaff(across, settled)
+      city.setStaff(across, settled, laidOff && settled)
       if (city.count !== hadHouses) {
         reframeLimits()
         if (settled && city.count > hadHouses) frameStudio()

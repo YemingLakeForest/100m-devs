@@ -165,6 +165,55 @@ describe('the city blocks (§7.7.2)', () => {
     inside.dispose()
   })
 
+  it('plays a layoff: a gulp in the seat, then out through the roof, the neighbours duck, and the seat ends empty (2026-10-19)', () => {
+    // *"I want some game juice to show the layoff as well."* The claim is the order — sitting, gulp, yank, flinch — not the heights.
+    const inside = createCityInterior(0, defaultCast(), 20)
+    inside.fill(40)
+    const people: T.Object3D[] = []
+    inside.root.traverse(o => { if (typeof o.userData.seat === 'number' && !(o instanceof T.Mesh) && o.userData.dynamic === false) people.push(o) })
+    const gone = people.find(o => o.userData.seat === 39)!
+    const neighbours = people.filter(o => o.visible && o !== gone)
+    inside.fill(39, undefined, 10)
+    // Let go, but still sitting there until their turn; nobody can click them.
+    expect(gone.visible).toBe(true)
+    expect(inside.targets[39].visible).toBe(false)
+    let yank = -1, firstDuck = -1, gulped = false
+    for (let t = 10; t < 12; t += 1 / 120) {
+      inside.update(t)
+      if (yank < 0 && gone.scale.y !== .8 && gone.position.y < .01) gulped = true
+      if (yank < 0 && inside.takeDepartures() > 0) yank = t
+      if (yank >= 0 && firstDuck < 0 && neighbours.some(o => o.scale.y < .79)) firstDuck = t
+    }
+    expect(gulped).toBe(true)
+    expect(yank).toBeGreaterThan(10.3)
+    expect(firstDuck).toBeGreaterThan(yank)
+    expect(neighbours.every(o => o.position.y === 0)).toBe(true)
+    expect(gone.visible).toBe(false)
+    expect(inside.update(13)).toBe(false)
+    // A fall that is not a layoff (a reset, a load) empties the seat at once.
+    inside.fill(30)
+    expect(people.find(o => o.userData.seat === 35)!.visible).toBe(false)
+    inside.dispose()
+  })
+
+  it('lifts a house a layoff empties off its lot, and removes one a reset empties at once (2026-10-19)', () => {
+    const left: number[] = []
+    let now = 0
+    const city = createCityHouses({ landed() {}, ignited() {}, exhaust() {}, hired() {}, left: () => left.push(now) })
+    city.setStaff(250, false); city.update(0)
+    expect(city.count).toBe(3)
+    city.setStaff(150, true, true)
+    expect(city.count).toBe(2)
+    expect(left).toHaveLength(2)
+    let rose = false
+    for (now = 0; now < 3; now += 1 / 30) { city.update(now); city.root.traverse(o => { if (o.position.y > 20) rose = true }) }
+    expect(rose).toBe(true)
+    city.setStaff(50, true)
+    expect(city.count).toBe(1)
+    expect(left).toHaveLength(2)
+    city.dispose()
+  })
+
   it('fits a hundred distinct workstations inside the house with space between desk tops', () => {
     const desks = Array.from({ length: HOUSE_CAPACITY }, (_, i) => {
       const at = houseSeat(i)

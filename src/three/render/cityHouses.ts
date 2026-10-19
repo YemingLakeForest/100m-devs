@@ -43,7 +43,8 @@ function moonlit(group: T.Group) {
 
 /** `hired`: somebody has dropped onto a desk in a house that was already standing. */
 /** `deskLanded`: a hire's desk has hit the floor of an open house, a beat before its developer (`cityInterior.ts`, 2026-10-18). */
-interface Events { landed(box: T.Box3): void; ignited(): void; exhaust(box: T.Box3): void; hired(): void; deskLanded?(): void }
+/** `left`: somebody laid off has been yanked out of a house, or a house a layoff emptied has lifted off its lot (2026-10-19). */
+interface Events { landed(box: T.Box3): void; ignited(): void; exhaust(box: T.Box3): void; hired(): void; deskLanded?(): void; left?(): void }
 export function createCityHouses(events: Events, cast: () => StudioCast = defaultCast) {
   const root = new T.Group()
   const ground = new T.Group(); root.add(ground)
@@ -73,8 +74,13 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
   }
   moonlit(ground)
   tiles.forEach(tile => batchArt(tile))
-  type Building = ReturnType<typeof createCityHouse> & { leaving: number | null; group: T.Group; lot: T.Group; rig: ReturnType<typeof createThrusters>; marker: T.LineLoop; legs: T.Group; start: number | null; wait: number; landed: boolean; ignited: boolean; dust: boolean; hop: number | null; shown: number }
+  type Building = ReturnType<typeof createCityHouse> & { leaving: number | null; group: T.Group; lot: T.Group; rig: ReturnType<typeof createThrusters>; marker: T.LineLoop; legs: T.Group; start: number | null; wait: number; landed: boolean; ignited: boolean; dust: boolean; hop: number | null; sag: number | null; shown: number }
   const buildings: Building[] = []
+  /**
+   * Houses a layoff emptied, on their way up: the liquidation's lift-off (`liquidate`), one house at a time. Out of `buildings`
+   * at once, so the lot they leave is free for the next hire and nothing counts, picks or flashes a house that is leaving.
+   */
+  const departing: Building[] = []
   let clock = 0, staff = 0, offset = 0
   /**
    * **The garage keeps its twenty** [2026-10-15, at the user's instruction: *"when we move up to new office space, it now move all
@@ -94,7 +100,7 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
   return {
     root,
     get count() { return buildings.length },
-    reset() { while (buildings.length) remove(buildings.pop()!) },
+    reset() { while (buildings.length) remove(buildings.pop()!); while (departing.length) remove(departing.pop()!) },
     /**
      * §15.1a [2026-10-04] — **the first death's last shot: every house lifts off.**
      * The landing played backwards — the thrusters light, the house rises on them
@@ -107,12 +113,20 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
     setOffset(next: number) {
       if (next === offset) return
       while (buildings.length) remove(buildings.pop()!)
+      while (departing.length) remove(departing.pop()!)
       offset = next
     },
-    setStaff(n: number, animate: boolean) {
+    /** `laidOff`: the staff fell to §10.10.5's LAY OFF, so the people go on screen and an emptied house lifts off (`garageView`). */
+    setStaff(n: number, animate: boolean, laidOff = false) {
       staff = Math.min(CITY_CAPACITY, Math.max(0, Math.floor(n)))
       const count = staff > reserved() ? Math.ceil(staff / HOUSE_CAPACITY) : 0
-      while (buildings.length > count) remove(buildings.pop()!)
+      for (let k = 0; buildings.length > count; k++) {
+        const b = buildings.pop()!
+        if (!laidOff || b.start !== null || b.leaving !== null) { remove(b); continue }
+        // The outermost house goes first, as it was the last to land.
+        b.leaving = clock + k * .25; b.legs.visible = false; b.marker.visible = false; b.cutaway(false)
+        departing.push(b); events.left?.()
+      }
       let queued = buildings.reduce((delay, b) => Math.max(delay, b.start === null ? 0 : b.start + 1.5 + b.wait - clock), 0)
       while (buildings.length < count) {
         const i = buildings.length, at = cityBlock(i + 1), model = createCityHouse(offset / 100 + i, cast, i === 0 ? reserved() : 0)
@@ -131,21 +145,24 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
         // `interior` is a getter (the cutaway builds it lazily); a bare spread would copy
         // its value at null, once, and every seat query would answer as if no house had opened.
         const b: Building = { ...model, get interior() { return model.interior }, leaving: null, group, lot, rig, marker, legs, start: animate ? clock : null, wait: queued,
-          landed: !animate, ignited: false, dust: false, hop: null, shown: -1 }
+          landed: !animate, ignited: false, dust: false, hop: null, sag: null, shown: -1 }
         buildings.push(b); queued += .22
         group.position.y += animate ? 30 : 0
         marker.visible = animate; legs.visible = false; rig.update(0, false, clock)
       }
-      tiles.forEach(tile => { tile.visible = (offset === 0 && tile.position.x === 0 && tile.position.z === 0) || buildings.some(b => Math.abs(b.group.position.x - tile.position.x) < 1 && Math.abs(b.group.position.z - tile.position.z) < 1) })
+      tiles.forEach(tile => { tile.visible = (offset === 0 && tile.position.x === 0 && tile.position.z === 0) || buildings.concat(departing).some(b => Math.abs(b.group.position.x - tile.position.x) < 1 && Math.abs(b.group.position.z - tile.position.z) < 1) })
       buildings.forEach((b, i) => {
         const people = Math.min(HOUSE_CAPACITY, staff - i * HOUSE_CAPACITY)
         // A hire into a house that is standing, not into one still falling out of the sky (its landing is the event) or one
         // just built around a loaded save (whoever is here, is here).
         const arrives = animate && b.shown >= 0 && people > b.shown && b.start === null && b.leaving === null
-        b.fill(people, arrives ? clock : undefined)
+        const leaves = laidOff && b.shown >= 0 && people < b.shown && b.start === null && b.leaving === null
+        b.fill(people, arrives ? clock : undefined, leaves ? clock : undefined)
         // A house cut open drops them in and tells us as each one lands (`update`); a closed one has nobody to watch, so the
         // building takes the thump itself.
         if (arrives && !b.interior?.root.visible) { b.hop = clock; events.hired() }
+        // And a closed house a layoff thins sags on its lot, where a hire's would bounce.
+        if (leaves && !b.interior?.root.visible) { b.sag = clock; events.left?.() }
         b.shown = people
       })
     },
@@ -163,19 +180,31 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
     update(now: number) {
       clock = now
       let active = false
+      const lift = (b: Building, i: number) => {
+        const t = now - b.leaving!
+        if (t < 0) return
+        const rise = 3 + 90 * (t / 2) ** 2
+        b.group.position.y = -.3 + rise
+        b.rig.update(rise, true, now + i)
+        b.body.scale.y = t < .15 ? 1 + .05 * (t / .15) : 1
+      }
+      departing.forEach((b, i) => { active = true; lift(b, i) })
+      for (let i = departing.length - 1; i >= 0; i--) if (now - departing[i].leaving! >= 2.2) { remove(departing[i]); departing.splice(i, 1) }
       buildings.forEach((b, i) => {
         if (b.interior?.update(now)) active = true
         for (let landed = b.takeDeskLandings(); landed > 0; landed--) events.deskLanded?.()
         for (let landed = b.takeLandings(); landed > 0; landed--) events.hired()
+        for (let gone = b.takeDepartures(); gone > 0; gone--) events.left?.()
+        if (b.sag !== null) {
+          active = true
+          // Down a little and back, slower than a hire's bounce: the house takes the loss, it does not celebrate it.
+          const t = now - b.sag
+          b.body.scale.y = t < .5 ? 1 - .07 * Math.sin(Math.PI * t / .5) : 1
+          if (t >= .5) b.sag = null
+        }
         if (b.leaving !== null) {
           active = true
-          const t = now - b.leaving
-          if (t >= 0) {
-            const rise = 3 + 90 * (t / 2) ** 2
-            b.group.position.y = -.3 + rise
-            b.rig.update(rise, true, now + i)
-            b.body.scale.y = t < .15 ? 1 + .05 * (t / .15) : 1
-          }
+          lift(b, i)
           return
         }
         if (b.start !== null) {
@@ -241,6 +270,6 @@ export function createCityHouses(events: Events, cast: () => StudioCast = defaul
       return null
     },
     bounds() { return buildings.length ? buildings.reduce((bounds, _, i) => bounds.union(footprint(i)), new T.Box3()) : null },
-    dispose() { buildings.forEach(remove); disposeArt(ground) },
+    dispose() { buildings.forEach(remove); departing.forEach(remove); disposeArt(ground) },
   }
 }

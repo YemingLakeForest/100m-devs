@@ -9421,11 +9421,18 @@ to lose Blueprint Points.</p></li>
 the trap would be the end of §6. The same <code>manualHire</code> gate that opens HIRE opens LAY OFF.</p></li>
 </ol>
 <blockquote>
-<p><em>Not built, on purpose.</em> A walk-out: the room has a <code>lift</code> animation that is a hire played backwards, but a
-Paradigm Shift's reset takes the same code path as a layoff in the renderer, and playing it for both would put puffs of
-smoke on seats that were already emptied. Laid-off seats leave the room instantly for now; the bubble — <em>"This is not a
-layoff. This is a restructuring."</em> — carries the joke. It needs a reason threaded to the garage view before it can
-be added safely.</p>
+<p><strong>A layoff is seen [amended 2026-10-19]</strong>, at the user's instruction: <em>"I want some game juice to show the
+layoff as well."</em> This note used to say it was not built, on purpose: the room's <code>lift</code> (a hire played backwards)
+was shared with a Paradigm Shift's reset, and playing it on every fall in headcount would put puffs of smoke on seats the
+liquidation had already emptied. The reason it needed is threaded now: <code>layOff</code> counts itself (<code>layoffCount</code>, never
+saved), and the stage tells the view a fall is a layoff only when that count moved; every other fall (a liquidation, a
+run starting over, a save loading) still empties the seats at once. What plays, newest first and a beat apart: <strong>the
+developer gulps where they sit</strong> (a short quiver, the joke being that they know before they go), then is yanked up
+through the roof with their desk and chair after them, a puff where each left the floor; <strong>the people nearby flinch</strong>,
+ducking where they sit in a ripple out from the seat, never a hop, because nobody cheers; the room takes a small jolt and
+a whoosh. In an open office the same, at the house's scale; a closed house that is thinned sags on its lot where a hire's
+would bounce; and a house a layoff empties lifts off on its thrusters, the liquidation's exit, one house at a time. The
+bubble (<em>"This is not a layoff. This is a restructuring."</em>) still carries the line.</p>
 </blockquote>
 <h3 id="the-release-gallery-what-you-have-actually-made-canon-added-2026-08-10-r28">10.11 The Release Gallery — what you have actually made <strong>[CANON - added 2026-08-10]</strong> - R28</h3>
 <blockquote>

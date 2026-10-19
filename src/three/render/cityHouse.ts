@@ -150,12 +150,15 @@ export function createCityHouse(index: number, cast: () => StudioCast, reserved 
      * `arrive` (the clock) is a hire arriving into a house that is open: the interior drops them in. A closed house has no
      * interior to fall into, and its hire is told by the city (`cityHouses.ts`).
      */
-    fill(n: number, arrive?: number) {
+    /** `leave`: the clock, when the seats this empties were laid off and somebody is looking in to see them go. */
+    fill(n: number, arrive?: number, leave?: number) {
       filled = n; windows.count = Math.max(0, n - reserved)
-      interior?.fill(n, interior.root.visible ? arrive : undefined)
+      interior?.fill(n, interior.root.visible ? arrive : undefined, interior.root.visible ? leave : undefined)
     },
     /** Hires that have landed on a desk inside since this was last asked. */
     takeLandings() { return interior?.takeLandings() ?? 0 },
+    /** People laid off who have been yanked out of their seats since this was last asked. */
+    takeDepartures() { return interior?.takeDepartures() ?? 0 },
     takeDeskLandings() { return interior?.takeDeskLandings() ?? 0 },
     cutaway(on: boolean) {
       if (on && !interior) { interior = createCityInterior(index, cast(), reserved); interior.fill(filled); whole.add(interior.root) }

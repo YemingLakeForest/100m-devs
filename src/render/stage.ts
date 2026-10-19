@@ -49,6 +49,7 @@ import {
   baseVelocity, developerVelocity, shelfBlocked, shelfCapacity, burnedFraction, projectOrdinal,
   FLOATER_LIFE_MS,
   getState,
+  layoffCount,
   poke,
   pokeFounder,
   pokeJames,
@@ -239,6 +240,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
   // seat, so a clip is held off for a moment after it plays rather than stacked
   // into a roar.
   const lastLand: Record<'desk' | 'chair' | 'body', number> = { desk: -1, chair: -1, body: -1 }
+  let lastLeave = -1
   const garage = createGarageView(w, h, undefined, {
     lite,
     onLand(piece) {
@@ -246,6 +248,13 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
       if (now - lastLand[piece] < 90) return
       lastLand[piece] = now
       playSfx(piece === 'desk' ? 'drop-desk' : piece === 'chair' ? 'drop-chair' : 'drop-body')
+    },
+    // Somebody laid off, yanked out (2026-10-19): the interface's whoosh, held off like a landing so a cut of twenty is not a gale.
+    onLeave() {
+      const now = performance.now()
+      if (now - lastLeave < 90) return
+      lastLeave = now
+      playSfx('ui-whoosh')
     },
   })
   const canvas = garage.canvas
@@ -603,6 +612,7 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     if(!garage.pokeStream(seat,sp)){const note=blips.hand(at,Math.random());if(note!==null)playSfx(BLIP_SFX[note])}
   }
   let workSeats:number[]=[], nextWorkScan=0
+  let layoffsSeen=layoffCount()
 
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame)
@@ -620,7 +630,10 @@ export async function createStage(host: HTMLElement): Promise<StageHandle> {
     const state = getState()
 
     garage.setRunSeed(state.runSeed)
-    garage.setHeadcount(state.devs)
+    // A layoff since the last frame is the one fall in headcount the room plays (2026-10-19); any other empties seats at once.
+    const laidOff = layoffCount() !== layoffsSeen
+    layoffsSeen = layoffCount()
+    garage.setHeadcount(state.devs, laidOff)
     garage.setReadouts(hqReadouts(state))
     // James arrives after the founder's *What—*, once the lens has reached his
     // empty spot (`cueJames`): desk, chair, then him, and the dialogue holds

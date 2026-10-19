@@ -23,6 +23,15 @@ const MAX_DROPS = 12
  * (`garageView.ts`, `HIRE_DROP`). The house does the same now, at the same beat: an empty seat is bare floor on its island's mat.
  */
 const DESK_LEAD = .25
+/**
+ * **A layoff is the drop played backwards, with a gulp in front** [2026-10-19, at the user's instruction: *"I want some game
+ * juice to show the layoff as well"*] — the garage's (`garageView.ts`, `GULP`), at a house's scale: a shiver where they sit,
+ * then up and out through the open roof, their desk after them, while the islands around them flinch.
+ */
+const GULP = .42
+const LIFT_HEIGHT = 16
+const LIFT_SECONDS = .5
+const DESK_LAG = .14
 
 /**
  * `reserved` is how many of this house's first seats belong to somebody else — the garage's twenty, in the first house of the
@@ -171,14 +180,14 @@ export function createCityInterior(index: number, cast: StudioCast, reserved = 0
   for (const pane of panes) pane.material = frontGlazing()
   batchArt(furniture, desks); batchArt(peopleRoot, seats)
   let filled = -1
-  /** `again`: hops still to come after this one — a hire's cheer is two. */
-  const hopping = new Map<number, { started: number; mild: boolean; again?: number }>()
+  /** `again`: hops still to come after this one — a hire's cheer is two. `duck`: a flinch where they sit, for a layoff next door. */
+  const hopping = new Map<number, { started: number; mild: boolean; again?: number; duck?: boolean }>()
   /** A hire has hit their desk: the islands around it hop in a ripple out from it, and the hire hops twice once settled (`garageView.welcome`). */
   const welcome = (i: number, now: number) => {
     const at = houseSeat(i)
     people
       .map((_, j) => ({ j, d: Math.hypot(houseSeat(j).x - at.x, houseSeat(j).z - at.z) }))
-      .filter(n => n.j !== i && people[n.j].visible && !dropping.has(n.j) && n.d < 4.5)
+      .filter(n => n.j !== i && people[n.j].visible && !dropping.has(n.j) && !leaving.has(n.j) && n.d < 4.5)
       .sort((a, b) => a.d - b.d).slice(0, 8)
       .forEach(n => hopping.set(n.j, { started: now + .05 + n.d * .06, mild: false }))
     // The bounce runs to u = 1.5 (.225 s after contact); the cheer starts once it has.
@@ -194,6 +203,26 @@ export function createCityInterior(index: number, cast: StudioCast, reserved = 0
     people[i].position.set(at.x, at.y + y, at.z)
   }
   const liftDesk = (i: number, y: number) => placeInstances(desks.get(i) ?? [], y ? new T.Matrix4().makeTranslation(0, y, 0) : identity)
+  /** A person raised by `y` and squashed by `s` about their own feet, volume kept: the gulp, the stretch and the flinch. */
+  const pose = (i: number, y: number, s: number) => {
+    const at = houseSeat(i), sxz = 1 / Math.sqrt(Math.max(.2, s))
+    placeInstances(seats.get(i) ?? [], new T.Matrix4().makeTranslation(at.x, y, at.z)
+      .multiply(new T.Matrix4().makeScale(sxz, s, sxz)).multiply(new T.Matrix4().makeTranslation(-at.x, 0, -at.z)))
+    people[i].position.set(at.x, at.y + y, at.z)
+    people[i].scale.set(.8 * sxz, .8 * s, .8 * sxz)
+  }
+  /** Laid off and on the way out; `gone` once the yank has begun, so the departure is told once. */
+  const leaving = new Map<number, { started: number; gone: boolean }>()
+  let departures = 0
+  /** Somebody has been yanked out: the people around them duck, nearest first. */
+  const flinch = (i: number, now: number) => {
+    const at = houseSeat(i)
+    people
+      .map((_, j) => ({ j, d: Math.hypot(houseSeat(j).x - at.x, houseSeat(j).z - at.z) }))
+      .filter(n => n.j !== i && people[n.j].visible && !dropping.has(n.j) && !leaving.has(n.j) && n.d < 4.5)
+      .sort((a, b) => a.d - b.d).slice(0, 8)
+      .forEach(n => hopping.set(n.j, { started: now + .04 + n.d * .05, mild: false, duck: true }))
+  }
   /** Free fall, one bounce, rest: the garage's arrival (`garageView.ts`), so the two rooms drop alike. */
   const fall = (u: number) => u < 1 ? DROP_HEIGHT * (1 - u * u) : u < 1.5 ? .32 * Math.sin(Math.PI * (u - 1) / .5) : 0
   return {
@@ -203,17 +232,25 @@ export function createCityInterior(index: number, cast: StudioCast, reserved = 0
      * beat apart instead of appearing — the interior's half of a hire's drop. A first fill, and a house nobody is looking
      * into, pass nothing: whoever is here is simply here.
      */
-    fill(n: number, arrive?: number) {
+    fill(n: number, arrive?: number, leave?: number) {
       if (n === filled) return
       const was = filled
+      // Laid off, newest first, a beat apart, while they are still sitting there: not anybody still falling in, and not more
+      // than a hire's batch — the rest of a very large cut are simply gone, as the rest of a very large hire are simply there.
+      const going = leave === undefined || was < 0 ? [] : Array.from({ length: Math.max(0, was - Math.max(n, reserved)) }, (_, k) => was - 1 - k)
+        .filter(i => !dropping.has(i) && !leaving.has(i)).slice(0, MAX_DROPS)
       for (const i of hopping.keys()) if (i >= n) { lift(i, 0); hopping.delete(i) }
       for (const i of dropping.keys()) if (i >= n) { lift(i, 0); liftDesk(i, 0); dropping.delete(i) }
+      // Hired back into a seat whose last occupant is still on the way out: the new hire's drop draws it from here.
+      for (const i of leaving.keys()) if (i < n) { pose(i, 0, 1); liftDesk(i, 0); leaving.delete(i) }
+      going.forEach((i, k) => { pose(i, 0, 1); leaving.set(i, { started: leave! + k * DROP_STAGGER, gone: false }) })
       filled = n
       people.forEach((person, i) => {
         const on = i >= reserved && i < n
         // A seat still falling is drawn by `update`; showing it here would stand a queued desk on the floor before its turn.
-        const drawn = on && !dropping.has(i)
-        showSeatInstances(seats.get(i) ?? [], drawn); showSeatInstances(desks.get(i) ?? [], drawn); person.visible = on; targets[i].visible = on
+        // One still leaving is drawn by `update` too, and nobody can click on somebody who has been let go.
+        const drawn = (on && !dropping.has(i)) || leaving.has(i)
+        showSeatInstances(seats.get(i) ?? [], drawn); showSeatInstances(desks.get(i) ?? [], drawn); person.visible = on || leaving.has(i); targets[i].visible = on
       })
       if (arrive === undefined || was < 0 || n <= was) return
       for (let i = Math.max(was, reserved), k = 0; i < n && k < MAX_DROPS; i++, k++) {
@@ -226,13 +263,28 @@ export function createCityInterior(index: number, cast: StudioCast, reserved = 0
     takeLandings() { const n = landings; landings = 0; return n },
     /** How many hires' desks have hit the floor since this was last asked: the garage's desk thump. */
     takeDeskLandings() { const n = deskLandings; deskLandings = 0; return n },
+    /** How many people laid off have been yanked out of their seats since this was last asked. */
+    takeDepartures() { const n = departures; departures = 0; return n },
     hop(seat: number, now: number, mild = false) {
       const i = seat % 100
+      if (leaving.has(i) || dropping.has(i)) return
       if (mild && hopping.has(i)) return
       hopping.set(i, { started: now, mild })
     },
     update(now: number) {
-      const active=hopping.size>0||dropping.size>0
+      const active=hopping.size>0||dropping.size>0||leaving.size>0
+      for (const [i, l] of leaving) {
+        const t = now - l.started
+        if (t < 0) continue
+        if (t < GULP) { pose(i, 0, 1 + .08 * Math.sin(Math.PI * 6 * t / GULP) * (1 - t / GULP)); continue }
+        if (!l.gone) { l.gone = true; departures += 1; flinch(i, now) }
+        // Up and away, accelerating — a free fall reversed — stretched tall, the desk a beat behind.
+        const u = (t - GULP) / LIFT_SECONDS, v = (t - GULP - DESK_LAG) / LIFT_SECONDS
+        if (u < 1) pose(i, LIFT_HEIGHT * u * u, u < .12 ? 1 - .22 * Math.sin(Math.PI * u / .12) : 1.14)
+        else { pose(i, 0, 1); showSeatInstances(seats.get(i) ?? [], false); people[i].visible = false }
+        if (v > 0 && v < 1) liftDesk(i, LIFT_HEIGHT * v * v)
+        if (v >= 1) { liftDesk(i, 0); showSeatInstances(desks.get(i) ?? [], false); leaving.delete(i) }
+      }
       for (const [i, d] of dropping) {
         const desk = (now - d.started) / DROP_SECONDS, u = (now - d.started - DESK_LEAD) / DROP_SECONDS
         if (desk < 0) continue
@@ -243,10 +295,12 @@ export function createCityInterior(index: number, cast: StudioCast, reserved = 0
         if (u >= 1 && !d.landed) { d.landed = true; landings += 1; welcome(i, now) }
         if (u >= 1.5) { liftDesk(i, 0); dropping.delete(i) }
       }
-      for(const [i,{ started, mild, again }] of hopping) {
+      for(const [i,{ started, mild, again, duck }] of hopping) {
         const t=now-started,at=houseSeat(i),u=Math.max(0,Math.min(1,(t-.05)/.3))
         // Not yet: a hop queued behind a ripple or a landing must not pin the seat to the floor while it waits.
         if(t<0)continue
+        // A flinch: down and wide for a third of a second where they sit, and back.
+        if(duck){pose(i,0,t<.3?1-.2*Math.sin(Math.PI*t/.3):1);if(t>=.3)hopping.delete(i);continue}
         // A working hop is .26 m against a click's .38 (2026-10-18: *"hophophop when coding"*; it was .08).
         const y=t<.35?(mild ? .26 : .38)*4*u*(1-u):0
         placeInstances(seats.get(i)??[],y?new T.Matrix4().makeTranslation(0,y,0):identity)

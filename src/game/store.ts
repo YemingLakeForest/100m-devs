@@ -4415,12 +4415,23 @@ export function layoffQuoteNow(s: GameState = state): LayoffQuote {
  * out of the trap either. Returns false rather than doing a smaller thing — a
  * refused layoff must leave the studio exactly as it was.
  */
+/**
+ * How many layoffs this session has made — not state, and never saved: a counter the stage compares against so that the
+ * view can tell a fall in headcount that **is** a layoff, which it plays (2026-10-19), from every other (a liquidation, a run
+ * starting over, a save loading), which empties the seats at once. §10.10.5's note asked for exactly this thread.
+ */
+let layoffsMade = 0
+export function layoffCount(): number {
+  return layoffsMade
+}
+
 export function layOff(): boolean {
   if (state.scene !== null || state.phase === 'bankrupt') return false
   if (!currentUnlocks().manualHire) return false
   const { count, cost, affordable } = layoffQuoteNow()
   if (!affordable || count <= 0) return false
   const devs = Math.max(0, state.devs - count)
+  layoffsMade += 1
   set({
     devs,
     cash: state.cash - cost,
