@@ -1,0 +1,968 @@
+<title>Studio OS Redesign</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a page drawn as Studio OS itself - one scaled 1280x720 game frame per screen, BEFORE/AFTER toggle, notes under it.
+   Single dark theme on purpose: this is the game's CRT world, palette straight from src/art/palette.ts. */
+@font-face { font-family: 'Departure Mono'; src: url('assets/departure.woff2') format('woff2'); font-display: block; }
+:root {
+  color-scheme: dark;
+  --n0: #181919; --n1: #292a29; --n2: #3c3e3c; --n3: #575a56; --n4: #767970; --n5: #97988f; --n6: #b8b9b0; --n7: #d9d8cd; --n8: #f1efe6;
+  --calm0: #0a2a30; --calm1: #1a6b78; --calm2: #35c9d9; --calm3: #b8f4ff;
+  --warn1: #8a5c12; --warn2: #e0a52e; --warn3: #ffe9b0;
+  --alarm1: #8a1f1f; --alarm2: #e03c3c; --alarm3: #ffb8b8;
+  --glow1: #4a8fa8;
+  --eng: #d8d8c0; --rel: #d05050; --sup: #78c078; --coh: #b088d0;
+  --mono: 'Departure Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --t1: 11px; --t2: 22px; --t3: 33px;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--n0); color: var(--n7); }
+body { font-family: var(--mono); font-size: var(--t1); line-height: 1.5; -webkit-font-smoothing: none; font-smooth: never; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 1px solid var(--warn2); outline-offset: 2px; }
+
+.page { max-width: 1440px; margin: 0 auto; padding-block: 20px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 14px; }
+.masthead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; border-bottom: 1px solid var(--calm1); padding-bottom: 10px; }
+.masthead h1 { margin: 0; font-size: var(--t2); font-weight: 400; color: var(--n8); letter-spacing: .04em; }
+.masthead h1 span { color: var(--calm1); }
+.masthead p { margin: 0; color: var(--n5); max-width: 70ch; }
+
+/* Page controls obey the rule being demoed: outline = clickable, fill = selected. */
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.tabs, .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: transparent; border: 1px solid var(--calm1); color: var(--calm2); padding: 6px 12px; cursor: pointer; letter-spacing: .08em; text-transform: uppercase; }
+.chip:hover { border-color: var(--calm2); }
+.chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--calm2); border-color: var(--calm2); color: var(--n0); }
+.chip .num { color: inherit; opacity: .6; margin-right: 6px; }
+
+.stage { position: relative; width: 100%; aspect-ratio: 1280 / 720; overflow: hidden; border: 1px solid var(--calm1); background: var(--n0); }
+.frame { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; transform: scale(var(--k, 1)); overflow: hidden; }
+.before-img { position: absolute; left: 0; top: -66.5px; width: 1280px; height: auto; image-rendering: auto; }
+.room { position: absolute; inset: 0; background: url('assets/room.jpg') center / cover no-repeat; }
+.scrim { position: absolute; inset: 0; background: rgba(24, 25, 25, .78); }
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.note { border: 1px solid var(--n2); padding: 12px 14px; min-width: 0; }
+.note h2 { margin: 0 0 8px; font-size: var(--t1); font-weight: 400; letter-spacing: .12em; color: var(--calm2); }
+.note ul { margin: 0; padding-left: 16px; display: grid; gap: 6px; }
+.note p { margin: 0; color: var(--n6); }
+.note .gdd { color: var(--warn2); }
+.note b { color: var(--n8); font-weight: 400; }
+.note .chip { margin-top: 10px; }
+
+/* ---------- inside the frame ---------- */
+.y { color: var(--warn2); }
+.dim { color: var(--n4); }
+.lbl { color: var(--n5); letter-spacing: .1em; text-transform: uppercase; }
+
+/* status bar */
+.status { position: absolute; left: 0; right: 0; top: 0; height: 40px; background: var(--n0); border-bottom: 1px solid var(--calm1); display: flex; align-items: stretch; z-index: 5; }
+.status .logo { display: flex; align-items: center; gap: 8px; padding: 0 14px; border-right: 1px solid var(--n2); color: var(--calm2); letter-spacing: .12em; }
+.status .proj { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-right: 1px solid var(--n2); cursor: default; }
+.steps { display: inline-flex; gap: 2px; }
+.steps i { width: 6px; height: 8px; background: var(--n2); }
+.steps i.on { background: var(--calm2); }
+.read { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-right: 1px solid var(--n2); cursor: default; white-space: nowrap; }
+.mrow .segm { justify-self: start; }
+.verbs { padding-right: 18px !important; }
+.read svg { flex: none; }
+.read b { font-weight: 400; font-size: var(--t2); line-height: 1; color: var(--n8); }
+.read .sub { color: var(--n5); }
+.read.cash b { color: var(--warn2); }
+.read.warn b { color: var(--warn2); }
+.read:hover, .proj:hover { background: var(--n1); }
+.status .clock { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 0 14px; color: var(--n5); border-left: 1px solid var(--n2); }
+
+/* hero rail + owned strip */
+.row2 { position: absolute; left: 12px; right: 12px; top: 46px; height: 50px; display: flex; gap: 10px; align-items: flex-start; z-index: 4; }
+.rail, .owned { display: flex; gap: 4px; background: var(--n0); border: 1px solid var(--n2); padding: 4px; }
+.face { position: relative; width: 40px; height: 40px; padding: 0; border: 1px solid var(--n3); background: var(--n1); cursor: pointer; }
+.face img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.face::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--hc); }
+.face:hover { border-color: var(--calm2); }
+.face .ctr { position: absolute; right: -1px; top: -1px; background: var(--n0); color: var(--hc); border: 1px solid var(--hc); padding: 0 3px; line-height: 12px; font-size: var(--t1); }
+.relic { position: relative; width: 40px; height: 40px; border: 1px solid var(--n2); background: var(--n1); display: grid; place-items: center; cursor: default; }
+.relic:hover { border-color: var(--calm2); }
+.relic .n { position: absolute; right: 1px; bottom: -1px; color: var(--warn2); }
+.owned .cap { align-self: center; padding: 0 6px; color: var(--n5); }
+
+.bubble { position: absolute; left: 50%; top: 104px; transform: translateX(-50%); background: var(--n0); border: 1px solid var(--n7); padding: 8px 16px; font-size: var(--t2); color: var(--n8); white-space: nowrap; z-index: 3; }
+.bubble small { display: block; font-size: var(--t1); color: var(--n5); }
+.ticker { position: absolute; left: 12px; bottom: 52px; background: var(--n0); border-left: 2px solid var(--calm2); padding: 4px 10px; color: var(--n7); z-index: 3; }
+
+/* taskbar */
+.task { position: absolute; left: 0; right: 0; bottom: 0; height: 46px; background: var(--n0); border-top: 1px solid var(--calm1); display: flex; align-items: stretch; z-index: 6; }
+.start { display: flex; align-items: center; gap: 8px; padding: 0 14px; color: var(--calm2); border-right: 1px solid var(--n2); letter-spacing: .12em; }
+.app { position: relative; display: flex; align-items: center; gap: 8px; padding: 0 14px; background: transparent; border: 0; border-right: 1px solid var(--n2); color: var(--n6); cursor: pointer; letter-spacing: .08em; }
+.app:hover { background: var(--n1); color: var(--n8); }
+.app[aria-current="true"] { background: var(--calm2); color: var(--n0); }
+.app[aria-current="true"] svg rect { fill: var(--n0) !important; }
+.badge { background: var(--warn2); color: var(--n0); padding: 0 4px; line-height: 14px; }
+.app[aria-current="true"] .badge { background: var(--n0); color: var(--warn2); }
+.verbs { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 0 12px; }
+
+/* §10.8a buttons: skewed, flat slab. Outline = can press. Fill = THE thing to press. */
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 32px; padding: 4px 16px; background: transparent; border: 1px solid var(--calm2); color: var(--calm2); transform: skewX(-4deg); cursor: pointer; letter-spacing: .1em; text-transform: uppercase; }
+.btn > * { transform: skewX(4deg); }
+.btn:hover { background: var(--calm0); }
+.btn.primary { background: var(--calm2); color: var(--n0); box-shadow: 3px 3px 0 0 var(--calm1); }
+.btn.primary:hover { background: var(--calm3); }
+.btn.big { min-height: 36px; font-size: var(--t2); padding: 2px 20px; }
+.btn .s { font-size: var(--t1); opacity: .75; }
+.btn.danger { border-color: var(--alarm2); color: var(--alarm2); }
+.btn.danger:hover { background: var(--alarm1); color: var(--alarm3); }
+.btn.danger.armed { background: var(--alarm2); color: var(--n0); }
+.btn[disabled] { border-color: var(--n3); color: var(--n4); cursor: not-allowed; background: transparent; box-shadow: none; }
+.btn.press { animation: press 160ms steps(2, end); }
+@keyframes press { 50% { transform: skewX(-4deg) translate(2px, 2px); box-shadow: 1px 1px 0 0 var(--calm1); } }
+
+/* window */
+.win { position: absolute; left: 16px; right: 16px; top: 46px; bottom: 52px; background: var(--n0); border: 1px solid var(--calm2); display: flex; flex-direction: column; z-index: 5; animation: winin 280ms steps(4, end); }
+.win.narrow { left: 50%; right: auto; width: var(--w, 700px); transform: translateX(-50%); }
+@keyframes winin { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 0 0); } }
+.win > header { height: 28px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 0 0 12px; border-bottom: 1px solid var(--calm1); letter-spacing: .14em; }
+.win > header .path { color: var(--calm1); }
+.win > header .path b { color: var(--n8); font-weight: 400; }
+.win > header .meta { margin-left: auto; color: var(--warn2); letter-spacing: .04em; }
+.win > header .x { width: 28px; height: 27px; border: 0; border-left: 1px solid var(--calm1); background: transparent; color: var(--calm2); cursor: pointer; }
+.win > header .x:hover { background: var(--calm2); color: var(--n0); }
+.win .body { flex: 1; min-height: 0; }
+
+/* tooltip */
+.tip { position: absolute; z-index: 20; width: 270px; background: var(--n0); border: 1px solid var(--calm2); animation: tipin 120ms steps(2, end); }
+.tip.chain { border-color: var(--warn2); width: 230px; }
+@keyframes tipin { from { clip-path: inset(0 0 60% 0); } to { clip-path: inset(0); } }
+.tip .th { display: flex; justify-content: space-between; gap: 8px; padding: 5px 8px; border-bottom: 1px solid var(--n2); }
+.tip .th b { color: var(--n8); font-weight: 400; }
+.tip .tag { color: var(--n5); letter-spacing: .1em; }
+.tip .tag.hero { color: var(--hc); }
+.tip .rows { padding: 4px 8px; border-bottom: 1px solid var(--n2); display: grid; gap: 1px; }
+.tip .rows div { display: flex; justify-content: space-between; gap: 10px; }
+.tip .rows span:first-child { color: var(--n5); }
+.tip .tb { padding: 6px 8px; color: var(--n7); }
+.tip .hint { padding: 0 8px 6px; color: var(--n4); }
+.kw { color: var(--calm2); border-bottom: 1px dotted var(--calm1); cursor: help; }
+
+/* ---------- PERSONNEL ---------- */
+.ptabs { display: flex; gap: 0; border-bottom: 1px solid var(--n2); flex: none; }
+.ptab { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 4px; border: 0; border-right: 1px solid var(--n2); background: transparent; color: var(--n6); cursor: pointer; letter-spacing: .1em; }
+.ptab img { width: 26px; height: 26px; image-rendering: pixelated; border-bottom: 2px solid var(--hc); }
+.ptab:hover { background: var(--n1); }
+.ptab[aria-selected="true"] { background: var(--calm2); color: var(--n0); }
+.ptab .sp { color: var(--warn2); }
+.ptab[aria-selected="true"] .sp { color: var(--n0); }
+.pgrid { display: grid; grid-template-columns: 300px 1fr 290px; height: 100%; min-height: 0; }
+.pass { position: relative; border-right: 1px solid var(--n2); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.pass::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--hc); }
+.punch { position: absolute; top: 8px; right: 12px; width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--n4); }
+.who { display: flex; gap: 12px; align-items: flex-start; }
+.who img { width: 84px; height: 84px; image-rendering: pixelated; border: 1px solid var(--n3); background: var(--hc); }
+.who h3 { margin: 0; font-size: var(--t3); font-weight: 400; line-height: 1; color: var(--n8); }
+.who .tagrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.branch { background: var(--hc); color: var(--n0); padding: 0 6px; letter-spacing: .1em; }
+.emp { color: var(--n5); letter-spacing: .08em; }
+.gem { display: inline-block; width: 8px; height: 8px; background: var(--hc); transform: rotate(45deg); margin-left: 4px; }
+.role { color: var(--calm2); margin-top: 4px; letter-spacing: .08em; }
+.live { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--n2); }
+.live div { padding: 4px 8px; }
+.live div + div { border-left: 1px solid var(--n2); }
+.live b { display: block; color: var(--n8); font-weight: 400; }
+.band { border: 1px solid var(--n2); }
+.band .bh { display: flex; align-items: center; gap: 8px; padding: 0 8px 0 0; background: var(--bc); color: var(--n0); letter-spacing: .1em; }
+.band .bh .ic { width: 22px; height: 22px; display: grid; place-items: center; background: var(--n0); }
+.band .bh .k { margin-left: auto; opacity: .7; }
+.band .bb { padding: 6px 8px; color: var(--n8); }
+.band .fl { padding: 0 8px 6px; color: var(--n5); }
+.cut { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%); }
+.ownedgrid { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; }
+.ownedgrid .relic { width: 36px; height: 36px; cursor: pointer; }
+.ownedgrid .relic.new { animation: land 360ms steps(4, end); }
+@keyframes land { 0% { transform: translateY(-10px); background: var(--calm2); } 100% { transform: none; } }
+.progress { display: flex; align-items: center; gap: 8px; }
+.progress .steps i { width: 9px; }
+
+.treepane { position: relative; min-width: 0; min-height: 0; }
+.treepane svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.treepane .legend { position: absolute; left: 10px; bottom: 8px; display: flex; gap: 12px; color: var(--n5); }
+.treepane .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; }
+.node { cursor: pointer; }
+.node .top { stroke-width: 1; }
+.node.owned .top { fill: var(--calm1); stroke: var(--calm2); }
+.node.owned .side { fill: var(--calm0); }
+.node.avail .top { fill: var(--n1); stroke: var(--calm2); }
+.node.avail .side { fill: var(--n0); }
+.node.avail .top { animation: blink 1.2s steps(2, end) infinite; }
+@keyframes blink { 50% { stroke: var(--calm1); } }
+.node.locked .top { fill: var(--n1); stroke: var(--n2); }
+.node.locked .side { fill: var(--n0); }
+.node.locked .ico { opacity: .35; }
+.node.key .top { stroke: var(--warn2); }
+.node.sel .top { stroke: var(--warn2); stroke-width: 2; }
+.node:hover .top { stroke: var(--n8); }
+.edge { stroke: var(--n3); stroke-width: 1; fill: none; }
+.edge.live { stroke: var(--calm1); }
+.nlabel { fill: var(--n6); font: 11px var(--mono); }
+
+.insp { border-left: 1px solid var(--n2); display: flex; flex-direction: column; min-height: 0; }
+.insp .ih { display: flex; gap: 10px; padding: 12px; border-bottom: 1px solid var(--n2); align-items: flex-start; }
+.insp .ih .big { width: 52px; height: 52px; display: grid; place-items: center; background: var(--n1); border: 1px solid var(--n3); flex: none; }
+.insp h4 { margin: 0; font-size: var(--t2); line-height: 1.1; font-weight: 400; color: var(--n8); text-wrap: balance; }
+.insp .chips { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.st { padding: 0 5px; border: 1px solid currentColor; letter-spacing: .1em; }
+.st.owned { color: var(--calm2); } .st.avail { color: var(--warn2); } .st.locked { color: var(--n4); } .st.key { color: var(--warn2); background: var(--warn1); border-color: var(--warn1); color: var(--warn3); }
+.insp .rows { padding: 8px 12px; display: grid; gap: 2px; border-bottom: 1px solid var(--n2); }
+.insp .rows div { display: flex; justify-content: space-between; }
+.insp .rows span:first-child { color: var(--n5); }
+.ba { margin: 10px 12px 0; border: 1px solid var(--n2); }
+.ba .bah { padding: 2px 8px; background: var(--n1); color: var(--n5); letter-spacing: .1em; }
+.ba .bab { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 8px; gap: 6px; }
+.ba .from { color: var(--n5); font-size: var(--t2); text-align: center; }
+.ba .to { color: var(--warn2); font-size: var(--t2); text-align: center; }
+.ba .arrow { color: var(--n4); }
+.ba .what { grid-column: 1 / -1; text-align: center; color: var(--n6); }
+.insp .eff { padding: 10px 12px 0; color: var(--n8); }
+.insp .flav { padding: 6px 12px 0; color: var(--n5); }
+.insp .act { margin-top: auto; padding: 12px; border-top: 1px solid var(--n2); display: grid; gap: 6px; }
+.insp .act .btn { width: 100%; }
+.insp .act .why { color: var(--n5); text-align: center; }
+
+/* ---------- PARADIGM ---------- */
+.pdm { display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: 100%; }
+.pdm .col { padding: 12px 14px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.pdm .col + .col { border-left: 1px solid var(--n2); }
+.card { border: 1px solid var(--n2); display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 8px 10px; }
+.card.afford { border-color: var(--calm1); }
+.card h5 { margin: 0; font-size: var(--t1); font-weight: 400; color: var(--n8); letter-spacing: .04em; }
+.card .lv { color: var(--n5); text-align: right; }
+.card .lv .steps i { width: 5px; height: 6px; }
+.card .fx { grid-column: 1 / -1; color: var(--n6); }
+.card .ba2 { grid-column: 1; color: var(--n5); }
+.card .ba2 .y { font-size: var(--t1); }
+.card .cost { grid-column: 2; align-self: end; }
+.card .cost .btn { min-height: 26px; padding: 2px 12px; }
+.card .soon { grid-column: 1 / -1; color: var(--warn2); }
+.grp { color: var(--calm2); letter-spacing: .14em; }
+.ledger { border: 1px solid var(--n2); }
+.ledger div { display: flex; justify-content: space-between; padding: 3px 8px; }
+.ledger div + div { border-top: 1px solid var(--n1); }
+.ledger .sum { border-top: 1px solid var(--n3) !important; color: var(--n8); }
+.ledger .sum b { color: var(--warn2); font-weight: 400; font-size: var(--t2); }
+.kr { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--n2); }
+.kr > div { padding: 6px 8px; }
+.kr > div + div { border-left: 1px solid var(--n2); }
+.kr h6 { margin: 0 0 4px; font-size: var(--t1); font-weight: 400; letter-spacing: .12em; }
+.kr .keep h6 { color: var(--calm2); } .kr .lose h6 { color: var(--alarm2); }
+.kr ul { margin: 0; padding-left: 14px; color: var(--n6); }
+
+/* ---------- RUN REPORT ---------- */
+.rr { display: grid; grid-template-columns: 330px 1fr; height: 100%; }
+.rr .l { border-right: 1px solid var(--n2); padding: 16px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.bigpass { position: relative; width: 250px; border: 1px solid var(--n3); background: var(--n1); padding: 16px 14px 12px; display: grid; justify-items: center; gap: 6px; }
+.bigpass::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--calm2); }
+.bigpass img { width: 128px; height: 128px; image-rendering: pixelated; border: 1px solid var(--n3); }
+.bigpass .nm { font-size: var(--t2); color: var(--n8); }
+.stamp { position: absolute; left: 50%; top: 58px; translate: -50% 0; rotate: -12deg; border: 3px solid var(--alarm2); color: var(--alarm2); padding: 2px 10px; font-size: var(--t2); letter-spacing: .08em; background: rgba(24,25,25,.6); white-space: nowrap; }
+.stamp small { display: block; font-size: var(--t1); text-align: center; letter-spacing: .14em; }
+.stamp.go { animation: stamp 400ms steps(4, end) both; }
+@keyframes stamp { 0% { scale: 2.2; opacity: 0; } 50% { scale: 1.3; opacity: 1; } 75% { scale: .94; } 100% { scale: 1; } }
+.mvps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
+.mvp { border: 1px solid var(--n2); padding: 4px; display: grid; justify-items: center; gap: 2px; text-align: center; }
+.mvp img { width: 36px; height: 36px; image-rendering: pixelated; border-bottom: 2px solid var(--hc); }
+.mvp b { color: var(--warn2); font-weight: 400; }
+.mvp span { color: var(--n5); }
+.rr .r { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rr .head { display: flex; align-items: baseline; gap: 12px; }
+.rr .head h3 { margin: 0; font-size: var(--t3); font-weight: 400; color: var(--n8); line-height: 1; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--n2); }
+.stats div { display: flex; justify-content: space-between; padding: 4px 10px; border-bottom: 1px solid var(--n1); }
+.stats div:nth-child(odd) { border-right: 1px solid var(--n2); }
+.stats span:first-child { color: var(--n5); }
+.stats b { color: var(--n8); font-weight: 400; }
+.pms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pm { position: relative; border: 1px solid var(--n3); background: var(--n7); color: var(--n0); padding: 8px 10px; }
+.pm .ph { letter-spacing: .2em; border-bottom: 2px solid var(--n0); padding-bottom: 2px; }
+.pm .pt { font-size: var(--t2); line-height: 1.1; margin: 6px 0 4px; }
+.pm .pd { color: var(--n3); }
+.pm .ck { position: absolute; right: 8px; bottom: 6px; width: 34px; height: 34px; border: 3px solid var(--alarm2); border-radius: 50%; color: var(--alarm2); display: grid; place-items: center; font-size: var(--t2); rotate: -10deg; }
+.rr .foot { margin-top: auto; display: flex; gap: 12px; justify-content: flex-end; align-items: center; }
+
+/* ---------- MENU ---------- */
+.menu { padding: 14px 16px; display: grid; gap: 12px; }
+.mrow { display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 10px; }
+.meter { display: flex; align-items: center; gap: 8px; }
+.meter .steps i { width: 10px; height: 14px; }
+.sq { width: 28px; height: 28px; border: 1px solid var(--calm2); background: transparent; color: var(--calm2); cursor: pointer; }
+.sq:hover { background: var(--calm0); }
+.segm { display: inline-flex; border: 1px solid var(--calm2); }
+.segm button { background: transparent; border: 0; color: var(--calm2); padding: 5px 14px; cursor: pointer; letter-spacing: .1em; }
+.segm button + button { border-left: 1px solid var(--calm1); }
+.segm button[aria-pressed="true"] { background: var(--calm2); color: var(--n0); }
+.mfoot { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--n2); padding-top: 12px; }
+.danger-zone { border: 1px dashed var(--alarm1); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--n5); }
+
+/* ---------- GALLERY ---------- */
+.gal { display: grid; grid-template-rows: 1fr auto; height: 100%; }
+.flow { position: relative; display: flex; align-items: center; justify-content: center; gap: 14px; }
+.cover { width: 176px; height: 176px; background-image: url('assets/before-gallery.jpg'); background-size: 1560px 1040px; border: 3px solid var(--warn2); box-shadow: 0 10px 0 0 var(--n1), 0 18px 0 0 var(--n0); image-rendering: auto; }
+.cover.main { background-position: -692px -315px; }
+.mini { width: 76px; height: 112px; background-image: url('assets/before-gallery.jpg'); background-size: 1560px 1040px; border: 2px solid var(--warn1); box-shadow: 0 8px 0 0 var(--n1); opacity: .8; }
+.gfoot { border-top: 1px solid var(--n2); padding: 12px 16px; display: grid; gap: 8px; }
+.gfoot .t { display: flex; align-items: baseline; gap: 14px; }
+.gfoot h3 { margin: 0; font-size: var(--t2); font-weight: 400; color: var(--n8); }
+.score { font-size: var(--t3); color: var(--n8); line-height: 1; }
+.stack { display: flex; height: 22px; border: 1px solid var(--n3); }
+.stack div { height: 100%; cursor: default; }
+.stack div + div { border-left: 1px solid var(--n0); }
+.stack .rest { background: var(--n1); }
+.slabels { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.slabels span i { display: inline-block; width: 8px; height: 8px; margin-right: 5px; }
+.slabels b { color: var(--warn2); font-weight: 400; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; } }
+</style>
+
+<div class="page">
+  <header class="masthead">
+    <h1><span>STUDIO_OS //</span> REDESIGN DEMO</h1>
+    <p>Ideas borrowed from Lonestar's UI and applied to Studio OS. Every AFTER screen is a mock you can click. The BEFORE screens are the game as it stood on 2026-10-20.</p>
+  </header>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="seg" role="group" aria-label="Compare">
+      <button class="chip" id="vb" aria-pressed="false">Before</button>
+      <button class="chip" id="va" aria-pressed="true">After</button>
+    </div>
+  </div>
+
+  <div class="stage" id="stage"><div class="frame" id="frame"></div></div>
+
+  <div class="notes" id="notes"></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const money = (n) => n >= 1e9 ? '$' + (n / 1e9).toFixed(2) + 'B' : n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? '$' + (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + 'K' : '$' + Math.round(n);
+
+/* ---------- 8x8 pixel icons (stand-ins for the game's voxel icons) ---------- */
+const BM = {
+  monitor: ['########','#++++++#','#++++++#','#++++++#','########','...##...','..####..','........'],
+  cans:    ['.##..##.','#++##++#','#++##++#','#++##++#','#++##++#','#++##++#','.##..##.','........'],
+  twoheads:['.##..##.','####.###','.##..##.','........','####.###','#++#.#+#','#++#.#+#','........'],
+  phone:   ['..####..','.#++++#.','.#+##+#.','.#++++#.','.#++++#.','.#++++#.','.#+##+#.','..####..'],
+  jumper:  ['.##..##.','########','#++++++#','.#++++#.','.#++++#.','.#++++#.','.######.','........'],
+  folder:  ['###.....','#++####.','#++++++#','#++++++#','#++++++#','#++++++#','########','........'],
+  coffee:  ['..#.#...','.#.#....','######..','#++++###','#++++#.#','#++++###','.####...','........'],
+  magnifier:['.####...','#++++#..','#++++#..','#++++#..','.####...','....##..','.....##.','......##'],
+  book:    ['.######.','#+++++##','#+##++##','#+++++##','#+##++##','#+++++##','.#######','........'],
+  rocket:  ['...##...','..#++#..','..#++#..','..#++#..','.##++##.','#.#++#.#','...##...','..#..#..'],
+  whiteboard:['########','#++++++#','#+##+#+#','#++++++#','########','.#....#.','.#....#.','........'],
+  hourglass:['########','.#++++#.','..#++#..','...##...','..#..#..','.#.++.#.','########','........'],
+  shield:  ['########','#++++++#','#++++++#','#++++++#','.#++++#.','.#++++#.','..#++#..','...##...'],
+  headset: ['..####..','.#....#.','#......#','##....##','##....##','##...###','.....##.','........'],
+  garage:  ['...##...','..#++#..','.#++++#.','########','#+#++#+#','#+#++#+#','#+####+#','........'],
+  crate:   ['########','#+#++#+#','##+##+##','#+#++#+#','##+##+##','#+#++#+#','########','........'],
+  shelf:   ['########','#.#.#..#','########','#..#.#.#','########','#......#','#......#','........'],
+  sticky:  ['######..','#++++#..','#++++###','####+++#','...#+++#','...#+++#','...#####','........'],
+  chart:   ['#.......','#.....#.','#...#.#.','#.#.#.#.','#.#.#.#.','#.#.#.#.','########','........'],
+  envelope:['########','##++++##','#+#++#+#','#++##++#','#++++++#','#++++++#','########','........'],
+  key:     ['..####..','.#++++#.','#++##++#','#+#..#+#','#++##++#','.#++++#.','..####..','........'],
+  dashboard:['########','#+#++++#','#+#+##+#','#+#++++#','#+######','#++++++#','########','........'],
+  ticket:  ['########','#++#+++#','.++#+++.','#++#+++#','.++#+++.','#++#+++#','########','........'],
+  chip:    ['.#.##.#.','########','.#++++#.','##+##+##','##+##+##','.#++++#.','########','.#.##.#.'],
+  coin:    ['..####..','.#++++#.','#++##++#','#+#++++#','#++##++#','#++++#+#','.#++++#.','..####..'],
+  people:  ['.##..##.','####.###','.##..##.','........','####.###','####.###','####.###','........'],
+  box:     ['..####..','.#++++#.','########','#++++++#','#++##++#','#++++++#','########','........'],
+};
+const ALIAS = { can: 'cans', dome: 'garage', sunset: 'garage', antenna: 'headset', ansible: 'key', sticky: 'sticky', kanban: 'whiteboard', guild: 'people', orgchart: 'chart', planet: 'coin', shoe: 'jumper', paper: 'envelope', calendar: 'dashboard', xmark: 'shield', blocks: 'crate', rack: 'shelf', farm: 'shelf', ring: 'coin', laptop: 'monitor', cache: 'crate', parallel: 'shelf', robotarm: 'chip', gauge: 'dashboard', traffic: 'chip', belt: 'shelf', bird: 'envelope', cassette: 'box', coins: 'coin', ticketwall: 'ticket', scroll: 'book', sort: 'chart', uml: 'chart', fire: 'chip', inbox: 'envelope', crowd: 'people', stamp: 'box', badge: 'shield', sun: 'coin', dock: 'box', status: 'dashboard', faq: 'book', beanbag: 'box', button: 'coin', head: 'people', glass: 'monitor', podium: 'whiteboard', suitcase: 'box', holo: 'people', hammock: 'box', ladder: 'shelf', truck: 'crate', tower: 'shelf', crane: 'chip', pad: 'rocket', bubble: 'envelope', dial: 'coin', tent: 'garage', buddy: 'twoheads', flag: 'whiteboard', gradcap: 'book', cash: 'coin', devs: 'people', shipped: 'box', velocity: 'chart', defects: 'chip', sync: 'hourglass', queue: 'shelf', personnel: 'people', paradigm: 'key', gallery: 'box', menu: 'chip', report: 'book' };
+function icon(name, size = 16, c1 = 'var(--calm2)', c2 = 'var(--calm0)') {
+  const bm = BM[name] || BM[ALIAS[name]] || BM.chip;
+  const u = size / 8; let r = '';
+  bm.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === '#') r += `<rect x="${x * u}" y="${y * u}" width="${u}" height="${u}" style="fill:${c1}"/>`;
+    else if (ch === '+') r += `<rect x="${x * u}" y="${y * u}" width="${u}" height="${u}" style="fill:${c2}"/>`;
+  }));
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" aria-hidden="true">${r}</svg>`;
+}
+const steps = (n, on, cls = '') => `<span class="steps ${cls}">${Array.from({ length: n }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('')}</span>`;
+
+/* ---------- real content (src/sim/storyHeroes.ts, upgradeTrees.ts, pipeline.ts) ---------- */
+const HEROES = {
+  you:    { name: 'You', branch: 'FOUNDER', colour: 'var(--calm2)', emp: '#000', role: 'FOUNDER', face: 'face-you.png',
+            trait: { name: 'YOUR OWN DESK', text: 'Output on click: <span class="y">+1</span> [[sp|story point]] per tap. Payroll <span class="y">$0</span>.' }, flavour: 'You are the fifth tree, and you are worse at everything.',
+            live: [['OUTPUT', 'ON CLICK'], ['PAYROLL', '$0']] },
+  james:  { name: 'James', branch: 'ENGINEERING', colour: 'var(--eng)', emp: '#001', role: 'ENGINEERING', face: 'face-james.png',
+            trait: { name: 'FEWER COMMITMENTS', text: '[[standup|Daily Standups]] never pause James’s own developer output.' }, flavour: 'No speciality. Point him at anything; he does it properly.',
+            live: [['IN STAND-UP', 'KEEPS CODING'], ['HIS POD', '+9% SPEED']], ctr: '✓' },
+  serena: { name: 'Serena', branch: 'RELIABILITY', colour: 'var(--rel)', emp: '#002', role: 'SITE RELIABILITY', face: 'face-serena.png',
+            trait: { name: 'DEGRADED, NOT DOWN', text: 'The [[queue|build queue]] holds <span class="y">two</span> more builds before it stops the floor.' }, flavour: 'It’s up. It was never really down. It was degraded. There’s a difference and it matters.',
+            live: [['QUEUE', '+2 BUILDS'], ['DEFECTS CAUGHT', '15% / BUILD']], ctr: '+2' },
+  matt:   { name: 'Matt', branch: 'SUPPORT', colour: 'var(--sup)', emp: '#003', role: 'CUSTOMER SUPPORT', face: 'face-matt.png',
+            trait: { name: 'KNOWS THEIR NAMES', text: 'Catalogue tickets arrive <span class="y">20%</span> slower, new incidents open half worked, a desk of <span class="y">eight</span> answers the queue, and <span class="y">two</span> more take the pager.' }, flavour: 'Four hundred people wrote in about the same button. I don’t know what it does either.',
+            live: [['HELP DESK', '8 HEADS'], ['PAGER', '+2']], ctr: '8' },
+  billy:  { name: 'Billy', branch: 'COHESION', colour: 'var(--coh)', emp: '#004', role: 'SCRUM MASTER', face: 'face-billy.png',
+            trait: { name: 'FIFTEEN MINUTES', text: '[[standup|Daily Standups]] run to fifteen minutes, and <span class="y">half</span> the floor keeps working through them.' }, flavour: 'I’ve taken the liberty of booking a quarter of an hour. If we shan’t need it, we shall give it back.',
+            live: [['STAND-UP', '15 MIN'], ['[[sync|SYNC]]', '+5%']], ctr: '½' },
+};
+const ORDER = ['you', 'james', 'serena', 'matt', 'billy'];
+
+const T = (id, x, y, name, ic, era, o = {}) => ({ id, x, y, name, ic, era, p: o.p || [], max: o.max || 1, kind: o.t || 'node', all: !!o.all, fx: o.fx || '', d: o.d || '' });
+const TREES = {
+  you: [
+    T('R', 0, 0, 'The Garage', 'garage', 0, { t: 'root', d: 'Four desks, one extension cord. The garage stays, and it can be upgraded.' }),
+    T('y1', 1, 0, 'Second Monitor', 'monitor', 0, { p: ['R'], fx: 'Your own desk writes 30% more.', d: 'It is the one output in the company that never dilutes.' }),
+    T('y2', 0, 1, 'Beanbag Row', 'beanbag', 0, { p: ['R'], max: 3, fx: 'Two more garage seats per level.' }),
+    T('y3', 1, 1, 'The Big Red Button', 'button', 0, { p: ['y1', 'y2'], d: 'SHIP! by hand. It clunks. Every release is your finger until Serena automates it.' }),
+    T('p1', 2, 0, 'Look Over Their Shoulder', 'head', 0, { p: ['y1'], fx: 'A poke interrupts the person 15% less.', d: 'A poke wakes one slacker. The effect wears off, which is what pokes are for.' }),
+    T('p2', 3, 0, 'Walk the Floor', 'shoe', 1, { p: ['p1'], fx: 'A tap at your own desk also nudges the nearest row.', d: 'A poke reaches a whole pod.' }),
+    T('p3a', 4, 0, 'All-Hands Email', 'envelope', 2, { p: ['p2'], d: 'Pokes a whole tower at once. They discuss it in a meeting about the email.' }),
+    T('p3b', 3, -1, 'Glass Walls', 'glass', 2, { p: ['p2'], d: 'Nobody slacks where you can see them. Two teams build the same thing so they look busy.' }),
+    T('p4', 4, -1, 'Keynote', 'podium', 3, { p: ['p3a', 'p3b'], d: 'Pokes all of Earth. A hundred million people rewatch it at 1.5×.' }),
+    T('p6', 4, -2, 'Take a Holiday', 'suitcase', 3, { p: ['p4'], fx: 'While the game is closed the studio earns at its full rate, not half.', d: 'You leave for a week. Output doesn’t drop. Nobody mentions it.' }),
+    T('p5', 5, -1, 'Hologram Founder', 'holo', 4, { p: ['p4'], d: 'Your pokes reach colony worlds, years late.' }),
+    T('K1', 5, -2, 'Leave Them Alone', 'hammock', 4, { t: 'key', p: ['p5', 'p6'], all: true, d: 'The only upgrade that works by you doing less.' }),
+    T('m1', 0, -1, 'Garage Loft', 'ladder', 0, { p: ['R'], max: 2, fx: 'Two more seats per level.', d: 'The garage grows up instead of out.' }),
+    T('m2', 0, -2, 'Moving Day', 'truck', 1, { p: ['m1'], fx: 'Capacity ×1.5: the HQ floor holds half as many again before the talking eats the work.', d: 'The garage is kept exactly as it was.' }),
+    T('m4', 0, -3, 'Buy the Block', 'tower', 2, { p: ['m2'], d: 'The city fills outward from HQ in square rings.' }),
+    T('m5', 1, -3, 'Cranes', 'crane', 2, { p: ['m4'], max: 3, fx: 'Frontier towers rise a floor faster per level.' }),
+    T('m6', 0, -4, 'Launch Pad on the Lawn', 'pad', 3, { p: ['m4'], d: 'Earth is full at 100,000,000. Something on the lawn is fuelled with Diet Coke.' }),
+    T('h1', -1, 0, 'Post on a Forum', 'bubble', 0, { p: ['R'], d: 'Hires two to four.' }),
+    T('h2', -2, 0, 'Hiring Dial', 'dial', 1, { p: ['h1'], max: 5, fx: 'Each hire costs a little less than the last: the price step shrinks 12% per level.', d: 'Hire faster. Every hire joins the square root.' }),
+    T('h3', -2, 1, 'Referral Bonus', 'twoheads', 1, { p: ['h2'], d: 'Friends onboard faster. They also chat.' }),
+    T('h4a', -3, 0, 'Bootcamp', 'tent', 2, { p: ['h2'], d: 'New hires learn by building the same to-do app, forty thousand times.' }),
+    T('h4b', -3, 1, 'Buddy System', 'buddy', 2, { p: ['h3'], d: 'Every hire gets a buddy, and the buddies stop shipping.' }),
+    T('h6', -5, 1, 'Hire Where You Look', 'flag', 4, { p: ['h4a', 'h4b'], d: 'Hiring lands on the world in view.' }),
+    T('h7', -4, 2, 'Recruiters on Every World', 'planet', 4, { p: ['h4a', 'h4b'], max: 3, d: 'Colony hiring runs faster per level.' }),
+    T('K2', -5, 2, 'They Already Know the Codebase', 'gradcap', 4, { t: 'key', p: ['h6', 'h7'], all: true, d: 'Hires arrive onboarded. Nobody asks how.' }),
+  ],
+  james: [
+    T('R', 0, 0, 'Instant Messenger', 'monitor', 0, { t: 'root', fx: 'Communication load −5%.', d: 'He brought it at the start of the run, so you don’t have to speak to each other any more. You are sitting side by side.' }),
+    T('j1', 1, 0, 'Diet Coke Stack', 'cans', 0, { p: ['R'], max: 5, fx: 'James adds 3% more of the studio’s speed per level, while he is at his desk.', d: 'You can see the stack from the door.' }),
+    T('j2', 0, 1, 'Pair With the Founder', 'twoheads', 0, { p: ['R'], fx: 'Your own taps count double while he is at his desk.', d: 'Your taps count double near him.' }),
+    T('j3', 1, 1, 'Knows a Chap', 'phone', 1, { p: ['j1', 'j2'], fx: 'Billy is called in without waiting for sync to slip.', d: 'Introduces Billy. Billy’s tree opens.' }),
+    T('j4', -1, 0, 'Torn Elbows', 'jumper', 0, { p: ['R'], fx: 'Every game is 5% less work for the same game: they ship a little sooner.', d: 'He has worn that jumper since the garage, and it is load-bearing.' }),
+    T('j5a', -2, 0, 'Shared Snippets Folder', 'folder', 1, { p: ['j4'], fx: 'A poke on James is worth half as much again, and so is the most poking him can add.', d: 'Nobody rewrites the date picker, but somebody has to own the folder.' }),
+    T('j5b', -1, -1, 'Rewrite It Over the Weekend', 'coffee', 1, { p: ['j4'], fx: 'James adds another 10% of the studio’s speed, without a poke.', d: 'Monday morning brings one very large merge.' }),
+    T('j6', -2, -1, 'Grep Everything', 'magnifier', 2, { p: ['j5a', 'j5b'], fx: 'Every game is 10% less work for the same game.', d: 'Search before you build. The index rebuilds hourly, and everyone waits for it.' }),
+    T('K1', -3, -2, 'Someone Already Wrote That', 'book', 3, { t: 'key', p: ['j6'], d: 'One library, every world. Mostly.' }),
+    T('d1', 0, -1, 'Takes His Desk With Him', 'crate', 3, { p: ['R'], d: 'He used to never leave his desk. Now he takes it with him.' }),
+    T('L', 0, -2, 'Bye, Earthling.', 'rocket', 3, { p: ['d1'], d: 'The first launch, and it always goes to Proxima b. He waves a can on the way up.' }),
+    T('q1', 0, -3, 'Forgot My Diet Coke', 'can', 4, { p: ['L'], d: 'Message from Proxima b, arriving in 4 years, 3 months. Builds in flight travel faster.' }),
+    T('q2', -1, -3, 'Local Studio', 'dome', 4, { p: ['q1'], d: 'Proxima builds its own games: less lag, and a second copy of everything HQ already made.' }),
+    T('q3', 1, -3, 'Out-of-Office Reply', 'envelope', 4, { p: ['q1'], d: 'His tickets arrive four years late and perfectly answered.' }),
+    T('q4', 0, -4, 'Dome Two', 'dome', 4, { p: ['q1'], max: 3, d: 'More seats under the twilight.' }),
+    T('q5', -1, -4, 'Tidal-Lock Timezone', 'sunset', 4, { p: ['q2'], d: 'It is always dusk on Proxima b, so standup is whenever someone says so.' }),
+    T('q6', 1, -4, 'Relay Buoy', 'antenna', 4, { p: ['q3'], max: 3, d: 'Lag drops along a lane, and builds queue at the buoy instead.' }),
+    T('K2', 0, -5, 'Ansible', 'ansible', 4, { t: 'key', p: ['q4', 'q5', 'q6'], all: true, d: 'Faster than light, for one sentence at a time.' }),
+  ],
+  serena: [
+    T('R', 0, 0, 'Serena’s Dashboards', 'dashboard', 0, { t: 'root', d: 'The pipeline is a buffer: how long you can walk away. Capacity and speed are upgraded separately.' }),
+    T('s1', 1, 0, 'Shelf', 'shelf', 0, { p: ['R'], max: 5, fx: 'Hold one more build for a launch, per level.', d: 'A launch is as big as the queue that holds it.' }),
+    T('s2', 2, 0, 'Rack', 'rack', 1, { p: ['s1'], max: 5, fx: 'Hold three more builds for a launch, per level.', d: 'The belt in the room gets longer.' }),
+    T('s3', 3, 0, 'Build Farm', 'farm', 2, { p: ['s2'], max: 5, fx: 'Hold twenty more builds for a launch, per level.', d: 'A warehouse of machines nobody is allowed to reboot.' }),
+    T('s4', 3, 1, 'Orbital Ring', 'ring', 3, { p: ['s3'], max: 5, fx: 'Hold five hundred more builds for a launch, per level.', d: 'The belt leaves the atmosphere.' }),
+    T('v2', 0, -1, 'Build Cache', 'cache', 1, { p: ['R'], max: 3, fx: 'Waiting turns into handoffs.', d: 'Somebody has to find out who poisoned the cache.' }),
+    T('v3', 0, -2, 'Parallel Tests', 'parallel', 2, { p: ['v2'], fx: 'Some waiting becomes duplicate work.', d: 'Tests run side by side, and some of them run twice.' }),
+    T('q1', 0, 1, 'Quarantine the Flaky Tests', 'magnifier', 0, { p: ['R'], max: 3, fx: 'Catches 15% of a build’s defects per level as it joins the queue.', d: 'The test that fails on Tuesdays is moved to a folder called LATER.' }),
+    T('a1', 1, -1, 'Launch Day', 'rocket', 0, { p: ['s1'], fx: 'HOLD: pause Serena and keep what lands, then LAUNCH the held queue as one release.', d: 'She ships everything anyway. This is for the ones you want to be there for.' }),
+    T('a2', 2, -1, 'Auto-Ship Speed', 'gauge', 0, { p: ['a1'], max: 5, fx: 'Serena ships a build 15% sooner per level.' }),
+    T('a3a', 3, -1, 'Ship on Friday', 'calendar', 1, { p: ['a2'], fx: 'Nothing waits: Serena ships in half the time. Waiting turns into handoffs.', d: 'Monday goes on handing round the pager.' }),
+    T('a3b', 2, -2, 'Ship on Green', 'traffic', 1, { p: ['a2'], fx: 'Serena ships one stage further on: GOLD, not RC. The queue catches another 20% of defects.', d: 'Everything waits for green.' }),
+    T('K', 4, -2, 'Continuous Everything', 'belt', 3, { t: 'key', p: ['s3', 'v3'], all: true, fx: 'Breakthrough: 70% of all waiting is gone.', d: 'The belt never stops. Nobody remembers what waiting was.' }),
+    T('f1', 4, 1, 'Builds in Flight', 'crate', 4, { p: ['s4'], d: 'Colony builds cross space to Sol, and they count as buffer while they travel.' }),
+    T('a4', 3, -2, 'Canary Worlds', 'bird', 4, { p: ['a3a', 'a3b'], d: 'A release lands on one colony first.' }),
+    T('r1', -1, 0, 'Wrote the Runbook', 'book', 1, { p: ['R'], fx: 'A new incident opens with half the work in it.', d: 'A new incident opens half worked.' }),
+    T('r2', -2, 0, 'On-Call Rota', 'phone', 1, { p: ['r1'], d: 'Incidents get answered at 3 a.m., and on-call sleeps at their desk the next day.' }),
+    T('r5', -2, -1, 'It Was Degraded', 'shield', 3, { p: ['r1'], fx: 'A game with an incident open stays on sale: it keeps earning while it refunds.', d: '“There’s a difference, and it matters.”' }),
+  ],
+  matt: [
+    T('R', 0, 0, 'Matt’s Ticket Wall', 'ticketwall', 1, { t: 'root', d: 'He arrives with the first ticket queue nobody is serving.' }),
+    T('m1', 1, 0, 'Headset', 'headset', 1, { p: ['R'], fx: 'Matt takes the incident pager: one more head clearing incidents.', d: 'The ticket flood gets a rescue dock.' }),
+    T('m6', 2, 0, 'Burning Systems', 'fire', 4, { p: ['m1'], d: 'Incidents show on the galaxy map, on fire.' }),
+    T('t1', 0, 1, 'Inbox', 'inbox', 1, { p: ['R'], max: 5, fx: 'The help desk answers 15% faster per level.', d: 'More tickets answered per second, per level.' }),
+    T('i1', 1, 1, 'Incident Inspector', 'magnifier', 1, { p: ['m1', 't1'], fx: 'A new incident opens with 20% less work in it.', d: 'Diagnose, Runbook, Assign team.' }),
+    T('t2', 0, 2, 'Second Headset', 'headset', 1, { p: ['t1'], max: 5, fx: 'Two more heads join the help desk, per level.' }),
+    T('t3', -1, 2, 'Call Centre Floor', 'crowd', 1, { p: ['t2'], max: 9, fx: 'Another floor of headsets: ten heads, and each floor 30% bigger than the last.', d: 'A whole HQ floor of headsets.' }),
+    T('t4', -1, 3, 'Tickets From Proxima', 'envelope', 4, { p: ['t3'], d: 'Tickets from far worlds arrive late by the light-time.' }),
+    T('t5', 0, 3, 'Priority: Urgent', 'hourglass', 4, { p: ['t2', 't4'], d: 'A ticket from the galactic core, filed 26,000 years ago.' }),
+    T('h1', -1, 0, 'Macros', 'stamp', 1, { p: ['R'], fx: 'The catalogue asks 10% fewer questions.', d: 'The same answer, four hundred times.' }),
+    T('h2', -1, -1, 'Ticket Owner', 'badge', 1, { p: ['h1'], d: 'Whoever picks it up keeps it, however long that takes.' }),
+    T('h3a', -2, -1, 'Swarming', 'crowd', 2, { p: ['h2'], d: 'Everyone works one ticket at once, in a call.' }),
+    T('h3b', -1, -2, 'Follow the Sun', 'sun', 4, { p: ['h2'], d: 'Tickets pass from world to world, across light-years.' }),
+    T('h4', -2, -2, 'Rescue Dock', 'dock', 2, { p: ['h3a', 'h3b'], d: 'Grab a drowning ticket and pull it in.' }),
+    T('h5', -3, -1, 'Status Page', 'status', 2, { p: ['h3a'], d: 'Everyone can see it’s down, so nobody has to ask. Some stop working.' }),
+    T('K', -3, -2, 'An FAQ People Read', 'faq', 3, { t: 'key', p: ['h4', 'h5'], all: true, fx: 'The catalogue asks half as many questions.', d: 'It has never happened before, anywhere.' }),
+  ],
+  billy: [
+    T('R', 0, 0, 'Daily Standup', 'whiteboard', 1, { t: 'root', fx: 'Every minute a fifth of the studio stops for 5s, and Billy keeps half the floor working through it. Sync goes up the day he sits down.', d: 'Fifteen minutes, standing up, in a fixed order.' }),
+    T('c1', 1, 0, 'Sticky Notes', 'sticky', 1, { p: ['R'], max: 3, fx: 'Sync up: communication load −5% per level.' }),
+    T('c2', 2, 0, 'Kanban', 'kanban', 1, { p: ['c1'], fx: 'Sync up: communication load −5%.', d: 'The columns are Doing, Doing and Done.' }),
+    T('c3', 2, -1, 'Scrum of Scrums', 'guild', 2, { p: ['c2'], fx: 'Sync up: communication load −5%.', d: 'One standup per tower, then a standup of standups.' }),
+    T('c4', 3, -1, 'Org Chart', 'orgchart', 1, { p: ['c2'], max: 9, fx: 'Each layer lets the floor grow by a fifth.', d: 'Another layer of managers, as many times as you like. Each one holds its own meetings.' }),
+    T('c5', 3, -2, 'Planetary PI Planning', 'planet', 3, { p: ['c4'], d: 'Earth stops for thirty seconds to plan the quarter, and then nobody meets for ten minutes.' }),
+    T('c6', 4, -2, 'Interstellar Standup', 'antenna', 4, { p: ['c5'], d: 'Your answer to “what did you do yesterday” arrives in four years.' }),
+    T('b1', -1, 0, 'Timebox', 'hourglass', 1, { p: ['R'], fx: 'A fifth more of the floor keeps working through the stand-up.', d: 'Meetings end on time, and the decisions wait for the next one.' }),
+    T('b2', -1, 1, 'Walking Meeting', 'shoe', 2, { p: ['b1'], fx: 'Another fifth of the floor keeps working through the stand-up.', d: 'Meetings happen outdoors. Some attendees never come back.' }),
+    T('b3', -2, 0, 'Async Standup', 'paper', 2, { p: ['b1'], fx: 'Two coordination points.', d: 'Standup becomes a written update nobody finishes reading.' }),
+    T('b4', -2, 1, 'No-Meeting Wednesdays', 'calendar', 2, { p: ['b2', 'b3'], d: 'Wednesday’s meetings move to Thursday.' }),
+    T('b5', -3, 1, 'Decline by Default', 'xmark', 2, { p: ['b4'], d: 'Nobody attends, so two teams each decide the same thing alone.' }),
+    T('K', -4, 1, 'It Could Have Been an Email, and It Was', 'envelope', 3, { t: 'key', p: ['b5'], d: '“If we shan’t need it, we shall give it back.” He gives it back.' }),
+    T('d1', 0, 1, 'Loss on the Wall', 'chart', 1, { p: ['R'], d: 'Billy draws the seven slices on his board, and the loss bar is read off it.' }),
+    T('d4', 1, 1, 'Team Topologies', 'blocks', 2, { p: ['c1', 'd1'], fx: 'Sync up: communication load −5%.', d: 'Teams are redrawn around the work, in a series of workshops.' }),
+  ],
+};
+// Example state. Prices are invented for the demo; the game prices by era and level.
+const OWN = {
+  you: { R: 1, y1: 1, y2: 2, h1: 1, p1: 1 },
+  james: { R: 1, j1: 3, j2: 1, j4: 1 },
+  serena: { R: 1, s1: 2, q1: 1, a1: 1, r1: 1 },
+  matt: { R: 1, m1: 1, t1: 2 },
+  billy: { R: 1, c1: 1, b1: 1 },
+};
+const ERA_COST = [2e3, 4e4, 6e5, 9e6, 1.5e8];
+const S = { tab: 'hud', view: 'after', hero: 'james', sel: { you: 'y3', james: 'j1', serena: 's1', matt: 't1', billy: 'c1' }, cash: 1.25e6, shipReady: false, fresh: null };
+
+const nodeOf = (h, id) => TREES[h].find((n) => n.id === id);
+const lvl = (h, id) => OWN[h][id] || 0;
+const cost = (h, n) => Math.round(ERA_COST[n.era] * Math.pow(1.6, lvl(h, n.id)));
+function state(h, n) {
+  const l = lvl(h, n.id);
+  if (l >= n.max) return 'owned';
+  const ok = n.p.length === 0 || (n.all ? n.p.every((p) => lvl(h, p) > 0) : n.p.some((p) => lvl(h, p) > 0));
+  if (!ok) return 'locked';
+  return l > 0 ? 'owned-part' : 'avail';
+}
+
+/* ---------- keywords + tooltips ---------- */
+const KW = {
+  sp: { name: 'STORY POINT', tag: 'UNIT', body: 'One unit of work. A game needs a fixed number of them, and [[velocity|velocity]] is how fast the floor writes them.' },
+  velocity: { name: 'VELOCITY', tag: 'RATE', body: 'Story points per second, across the whole floor. Falls when [[sync|sync]] slips.' },
+  sync: { name: 'SYNC', tag: 'STAT', body: 'How much of the floor’s talking is still useful. Every hire adds communication load; Billy’s tree pushes it back.' },
+  standup: { name: 'DAILY STANDUP', tag: 'EVENT', body: 'Every minute a fifth of the studio stops for five seconds. Billy brings it, and it sets a floor under how badly a big studio can do.' },
+  queue: { name: 'BUILD QUEUE', tag: 'SYSTEM', body: 'Finished builds wait here for SHIP!. When it is full, the floor stops.' },
+  defects: { name: 'DEFECTS', tag: 'STAT', body: 'Bugs that shipped. They cost reception, and Serena’s queue catches some before they leave.' },
+  bp: { name: 'BANDWIDTH POINTS', tag: 'CURRENCY', body: 'Earned when you take a Paradigm Shift. They buy permanent upgrades that survive every run.' },
+  capacity: { name: 'DEVELOPER CAPACITY', tag: 'STAT', body: 'How many people the studio holds before the talking eats the work.' },
+};
+const kwHtml = (s) => String(s).replace(/\[\[(\w+)\|([^\]]+)\]\]/g, (_, k, t) => `<span class="kw" data-kw="${k}">${t}</span>`);
+const TIPS = {
+  cash: { name: 'CASH', tag: 'WALLET', rows: [['NET', '+$16.9K/s'], ['NEXT RELEASE', '+$2.60M in 206s'], ['PAYROLL', '$550/s']], body: 'What hires and upgrades cost. Released games keep earning after they ship.' },
+  devs: { name: 'DEVELOPERS', tag: 'HEADCOUNT', rows: [['ON THE FLOOR', '12'], ['HEROES', '4'], ['[[capacity|CAPACITY]]', '100']], body: 'Each hire writes [[sp|story points]]; each hire also adds to the talking.' },
+  shipped: { name: 'SHIPPED', tag: 'RUN', rows: [['THIS RUN', '9'], ['BEST', '63 / 100']], body: 'Games released this run. Each one keeps earning until it is forgotten.' },
+  velocity: { name: 'VELOCITY', tag: 'RATE', rows: [['FLOOR', '14.30 SP/s'], ['YOUR TAPS', '+1 SP each']], body: '[[sp|Story points]] per second across the floor. [[sync|Sync]] multiplies it.' },
+  defects: { name: 'DEFECTS', tag: 'WARNING', rows: [['OPEN', '11'], ['RATE', '1 per 305 SP']], body: 'Bugs that shipped. [[queue|The queue]] catches some on the way out.' },
+  sync: { name: 'IN SYNC', tag: 'STAT', rows: [['NOW', '100%'], ['LOAD', '−5% from Instant Messenger']], body: 'Falls as the studio grows. Billy and the [[standup|Daily Standup]] push it back.' },
+  project: { name: 'LABYRINTH OF THE SLOW RIVER', tag: 'IN PROGRESS', rows: [['WRITTEN', '2,945 / 3,500 SP'], ['ETA', '39s at 14.30 SP/s']], body: 'The game being written now. When it is done it joins [[queue|the queue]].' },
+  hire: { name: 'HIRE DEVELOPER', tag: 'ACTION', rows: [['COST', '$64'], ['ADDS', '+1.00 SP/s'], ['AFTER', '13 devs']], body: 'Takes a desk. Watch [[sync|sync]] as the floor grows.' },
+  ship: { name: 'SHIP!', tag: 'ACTION', rows: [['IN QUEUE', '1 build'], ['AUTO', 'in 28s']], body: 'Release the waiting build now. Serena will do it anyway when the timer runs out.' },
+  personnel: { name: 'PERSONNEL', tag: 'APP', rows: [['PEOPLE', '5'], ['NODES YOU CAN BUY', '2']], body: 'Everybody who works here, and their trees.' },
+  paradigm: { name: 'PARADIGM', tag: 'APP', rows: [['ON SHIFT', '+10 [[bp|BP]]'], ['BUYS', 'Async-First Culture']], body: 'Start the run again, stronger.' },
+  queue: { name: 'BUILD QUEUE', tag: 'APP', rows: [['SLOTS', '0 / 5'], ['AUTO', 'ON']], body: 'Builds waiting to ship.' },
+  gallery: { name: 'GALLERY', tag: 'APP', rows: [['TITLES', '10'], ['LIFETIME', '$21.04M']], body: 'Every game you have released, across every run.' },
+  menu: { name: 'GAME MENU', tag: 'APP', rows: [], body: 'Sound, motion and your save. The studio keeps working while it is open.' },
+};
+for (const h of ORDER) if (h !== 'you') TIPS['hero-' + h] = { hero: h };
+
+const frame = $('#frame'), stage = $('#stage');
+let tipEl = null, chainEl = null;
+function tipHtml(t, chain) {
+  if (t.hero) {
+    const H = HEROES[t.hero];
+    return `<div class="th"><b>${H.name.toUpperCase()}</b><span class="tag hero" style="--hc:${H.colour}">${H.branch}</span></div>
+      <div class="rows">${H.live.map(([k, v]) => `<div><span>${kwHtml(k)}</span><span>${v}</span></div>`).join('')}</div>
+      <div class="tb"><span class="y">${H.trait.name}</span><br>${kwHtml(H.trait.text)}</div><div class="hint">CLICK TO OPEN THEIR PASS</div>`;
+  }
+  return `<div class="th"><b>${esc(t.name)}</b><span class="tag">${esc(t.tag || '')}</span></div>
+    ${t.rows && t.rows.length ? `<div class="rows">${t.rows.map(([k, v]) => `<div><span>${kwHtml(k)}</span><span>${kwHtml(v)}</span></div>`).join('')}</div>` : ''}
+    <div class="tb">${kwHtml(t.body)}</div>${!chain && /\[\[/.test(JSON.stringify(t)) ? '<div class="hint">HOVER A <span style="color:var(--calm2)">KEYWORD</span> FOR MORE</div>' : ''}`;
+}
+const K = () => parseFloat(getComputedStyle(frame).getPropertyValue('--k')) || stage.clientWidth / 1280;
+function place(el, target, side) {
+  const k = K(), fr = frame.getBoundingClientRect(), r = target.getBoundingClientRect();
+  let x = (r.left - fr.left) / k, y = (r.bottom - fr.top) / k + 6;
+  if (side) { x = (r.right - fr.left) / k + 6; y = (r.top - fr.top) / k - 6; }
+  frame.appendChild(el);
+  const w = el.offsetWidth, h = el.offsetHeight;
+  if (x + w > 1272) x = side ? (r.left - fr.left) / k - w - 6 : 1272 - w;
+  if (y + h > 712) y = (r.top - fr.top) / k - h - 6;
+  el.style.left = Math.max(8, x) + 'px'; el.style.top = Math.max(8, y) + 'px';
+}
+function showTip(target) {
+  hideTip();
+  let t = TIPS[target.dataset.tip];
+  if (target.dataset.node) { const [h, id] = target.dataset.node.split(':'); const n = nodeOf(h, id); t = { name: n.name.toUpperCase(), tag: n.kind === 'key' ? 'BREAKTHROUGH' : 'LV ' + lvl(h, id) + '/' + n.max, rows: [], body: n.fx || n.d }; }
+  if (!t) return;
+  tipEl = document.createElement('div'); tipEl.className = 'tip'; tipEl.innerHTML = tipHtml(t);
+  place(tipEl, target);
+}
+let current = null, hideT = null;
+function hideTip() { clearTimeout(hideT); tipEl?.remove(); chainEl?.remove(); tipEl = chainEl = current = null; }
+const cancel = () => { clearTimeout(hideT); hideT = null; };
+const later = () => { cancel(); hideT = setTimeout(hideTip, 220); };
+function showChain(kwEl) {
+  chainEl?.remove();
+  const d = KW[kwEl.dataset.kw]; if (!d) return;
+  chainEl = document.createElement('div'); chainEl.className = 'tip chain'; chainEl.innerHTML = tipHtml(d, true);
+  place(chainEl, tipEl || kwEl, true);
+}
+// A tip stays up while the pointer travels into it, so its keywords can open a second tip beside it.
+frame.addEventListener('mouseover', (e) => {
+  const inTip = e.target.closest('.tip');
+  const kw = e.target.closest('.kw');
+  if (inTip) { cancel(); if (kw && !e.target.closest('.tip.chain')) showChain(kw); return; }
+  if (kw) { cancel(); if (!tipEl) current = kw; showChain(kw); return; }
+  const t = e.target.closest('[data-tip],[data-node-tip]');
+  if (t) {
+    cancel();
+    if (t !== current) { hideTip(); current = t; if (t.dataset.nodeTip) t.dataset.node = t.dataset.nodeTip; showTip(t); current = t; }
+  }
+});
+frame.addEventListener('mouseout', (e) => {
+  const from = e.target.closest('[data-tip],[data-node-tip],.tip,.kw');
+  if (from && !(e.relatedTarget && from.contains(e.relatedTarget))) later();
+});
+
+/* ---------- shared chrome: status bar, rail, taskbar ---------- */
+function statusBar() {
+  const R = (cls, tip, ic, val, sub) => `<div class="read ${cls}" data-tip="${tip}">${icon(ic, 16, cls === 'cash' || cls === 'warn' ? 'var(--warn2)' : 'var(--calm2)', 'var(--n1)')}<b>${val}</b>${sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
+  return `<div class="status">
+    <div class="logo" aria-label="STUDIO_OS">${icon('chip', 16)}</div>
+    <div class="proj" data-tip="project">${icon('box', 16, 'var(--n7)', 'var(--n2)')}<span style="white-space:nowrap">SLOW RIVER</span>${steps(12, 10)}</div>
+    ${R('cash', 'cash', 'cash', '$1.25M', '+16.9K/s')}
+    ${R('', 'devs', 'devs', '12', 'DEVS')}
+    ${R('', 'shipped', 'shipped', '9', 'SHIPPED')}
+    ${R('', 'velocity', 'velocity', '14.30', 'SP/s')}
+    ${R('warn', 'defects', 'defects', '11', 'DEFECTS')}
+    ${R('', 'sync', 'sync', '100%', 'SYNC')}
+    <div class="clock">08:40 <span class="y">×60</span></div>
+  </div>`;
+}
+function row2() {
+  const owned = [['james', 'R'], ['james', 'j1'], ['you', 'y1'], ['you', 'y2'], ['serena', 's1'], ['serena', 'q1'], ['serena', 'a1'], ['matt', 't1'], ['billy', 'c1'], ['billy', 'b1']];
+  return `<div class="row2">
+    <div class="rail" aria-label="Heroes">${['james', 'serena', 'matt', 'billy'].map((h) => `<button class="face" style="--hc:${HEROES[h].colour}" data-tip="hero-${h}" data-go="personnel:${h}" aria-label="${HEROES[h].name}"><img src="assets/${HEROES[h].face}" alt=""><span class="ctr">${HEROES[h].ctr}</span></button>`).join('')}</div>
+    <div class="owned" aria-label="Upgrades you own">${owned.map(([h, id]) => { const n = nodeOf(h, id); const l = lvl(h, id); return `<div class="relic" data-node-tip="${h}:${id}">${icon(n.ic, 24, HEROES[h].colour, 'var(--n2)')}${n.max > 1 ? `<span class="n">${l}</span>` : ''}</div>`; }).join('')}<span class="cap">+ ${Object.values(OWN).reduce((a, o) => a + Object.keys(o).length, 0) - owned.length} MORE</span></div>
+  </div>`;
+}
+function taskbar(active) {
+  const A = (id, label, ic, badge) => `<button class="app" data-go="${id}" data-tip="${id === 'report' ? 'paradigm' : id}" aria-current="${active === id || (active === 'report' && id === 'paradigm')}">${icon(ic, 16)}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+  const hire = `<button class="btn ${S.shipReady ? '' : 'primary big'}" data-tip="hire" id="hireBtn"><span>HIRE DEVELOPER</span><span class="s">$64 · +1.00</span></button>`;
+  const ship = `<button class="btn ${S.shipReady ? 'primary big' : ''}" data-tip="ship" id="shipBtn"><span>SHIP!</span>${S.shipReady ? '<span class="s">1 READY</span>' : ''}</button>`;
+  return `<div class="task">
+    <div class="start" data-go="hud" style="cursor:pointer">${icon('chip', 16)}HOME</div>
+    ${A('personnel', 'PERSONNEL', 'personnel', '2')}
+    ${A('paradigm', 'PARADIGM', 'paradigm', '10 BP')}
+    ${A('queue', 'QUEUE', 'queue', '')}
+    ${A('gallery', 'GALLERY', 'gallery', '10')}
+    ${A('menu', 'MENU', 'menu', '')}
+    <div class="verbs">${ship}${hire}</div>
+  </div>`;
+}
+
+/* ---------- screens ---------- */
+function hud() {
+  return `<div class="room"></div>${statusBar()}${row2()}
+    <div class="bubble">That’s as big as a game gets. From here we just make more of them.<small>JAMES</small></div>
+    <div class="ticker">Capacity unlocked. Spend it however you like.</div>${taskbar('hud')}`;
+}
+
+function personnel() {
+  const h = S.hero, H = HEROES[h], tree = TREES[h];
+  const selId = S.sel[h], n = nodeOf(h, selId);
+  const ownedNodes = tree.filter((x) => lvl(h, x.id) > 0 && x.kind !== 'root');
+  const total = tree.filter((x) => x.kind !== 'root').length;
+  const keys = tree.filter((x) => x.kind === 'key'), keysOwned = keys.filter((x) => lvl(h, x.id) > 0).length;
+  const affordable = (hh) => TREES[hh].filter((x) => { const s = state(hh, x); return (s === 'avail' || s === 'owned-part') && cost(hh, x) <= S.cash; }).length;
+  const tabs = ORDER.map((id) => { const c = affordable(id); return `<button class="ptab" role="tab" aria-selected="${id === h}" data-hero="${id}" style="--hc:${HEROES[id].colour}"><img src="assets/${HEROES[id].face}" alt="">${HEROES[id].name.toUpperCase()}${c ? ` <span class="sp">${c}</span>` : ''}</button>`; }).join('');
+
+  return `<div class="room"></div><div class="scrim"></div>${statusBar()}
+  <section class="win" aria-label="Personnel">
+    <header><span class="path">STUDIO_OS // <b>PERSONNEL</b> // <b>${H.name.toUpperCase()}</b></span><span class="meta">${money(S.cash)}</span><button class="x" data-go="hud" aria-label="Close">X</button></header>
+    <div class="ptabs" role="tablist">${tabs}</div>
+    <div class="body"><div class="pgrid">
+      <div class="pass" style="--hc:${H.colour}">
+        <span class="punch" aria-hidden="true"></span>
+        <div class="who"><img src="assets/${H.face}" alt="${H.name}"><div>
+          <h3>${H.name}</h3>
+          <div class="tagrow"><span class="branch">${H.branch}</span><span class="emp">EMPLOYEE ${H.emp}<span class="gem"></span></span></div>
+          ${H.role !== H.branch ? `<div class="role">${H.role}</div>` : ''}
+        </div></div>
+        <div class="live">${H.live.map(([k, v]) => `<div><span class="lbl">${kwHtml(k)}</span><b>${v}</b></div>`).join('')}</div>
+        <div class="band cut" style="--bc:${H.colour}">
+          <div class="bh"><span class="ic">${icon('key', 16, H.colour, 'var(--n2)')}</span>${H.trait.name}<span class="k">TRAIT</span></div>
+          <div class="bb">${kwHtml(H.trait.text)}</div>
+          <div class="fl">“${H.flavour}”</div>
+        </div>
+        <div class="band cut" style="--bc:var(--calm1)">
+          <div class="bh" style="color:var(--n8)"><span class="ic">${icon('box', 16)}</span>OWNED THIS RUN<span class="k">${ownedNodes.length} / ${total}</span></div>
+          <div class="ownedgrid">${ownedNodes.length ? ownedNodes.map((x) => `<button class="relic ${S.fresh === h + ':' + x.id ? 'new' : ''}" data-pick="${x.id}" data-node-tip="${h}:${x.id}" aria-label="${esc(x.name)}">${icon(x.ic, 22, H.colour, 'var(--n2)')}${x.max > 1 ? `<span class="n">${lvl(h, x.id)}</span>` : ''}</button>`).join('') : '<span class="dim" style="padding:4px">Nothing yet. Buy a lit node in the tree.</span>'}</div>
+        </div>
+        <div class="progress"><span class="lbl">BREAKTHROUGHS</span>${steps(Math.max(keys.length, 1), keysOwned)}<span class="y">${keysOwned}/${keys.length}</span></div>
+      </div>
+      <div class="treepane" id="treepane">${treeSvg(h)}
+        <div class="legend"><span><i style="background:var(--calm1)"></i>OWNED</span><span><i style="border:1px solid var(--calm2)"></i>CAN BUY</span><span><i style="background:var(--n1);border:1px solid var(--n2)"></i>LOCKED</span><span><i style="border:1px solid var(--warn2)"></i>BREAKTHROUGH</span></div>
+      </div>
+      ${inspector(h, n)}
+    </div></div>
+  </section>${taskbar('personnel')}`;
+}
+
+function treeSvg(h) {
+  const tree = TREES[h], W = 64, Hh = 32, D = 7;
+  const pos = (n) => [(n.x - n.y) * 52, (n.x + n.y) * 30];
+  const xs = tree.map((n) => pos(n)[0]), ys = tree.map((n) => pos(n)[1]);
+  const pad = 52, minx = Math.min(...xs) - pad, maxx = Math.max(...xs) + pad, miny = Math.min(...ys) - pad, maxy = Math.max(...ys) + pad + 20;
+  let edges = '', nodes = '';
+  for (const n of tree) for (const p of n.p) {
+    const a = pos(n), b = pos(nodeOf(h, p)); const live = lvl(h, p) > 0;
+    edges += `<path class="edge ${live ? 'live' : ''}" d="M${b[0]} ${b[1]} L${(a[0] + b[0]) / 2} ${b[1]} L${(a[0] + b[0]) / 2} ${a[1]} L${a[0]} ${a[1]}"/>`;
+  }
+  for (const n of tree) {
+    const [x, y] = pos(n), s = state(h, n), big = n.kind === 'key' || n.kind === 'root' ? 1.25 : 1;
+    const w = W * big / 2, hh = Hh * big / 2;
+    const cls = ['node', s === 'owned' || s === 'owned-part' ? 'owned' : s, n.kind === 'key' ? 'key' : '', S.sel[h] === n.id ? 'sel' : ''].join(' ');
+    const ic = icon(n.ic, 20, s === 'locked' ? 'var(--n4)' : HEROES[h].colour, s === 'locked' ? 'var(--n2)' : 'var(--n1)');
+    nodes += `<g class="${cls}" data-pick="${n.id}" data-node-tip="${h}:${n.id}" tabindex="0" role="button" aria-label="${esc(n.name)}">
+      <polygon class="side" points="${x - w},${y} ${x},${y + hh} ${x + w},${y} ${x + w},${y + D} ${x},${y + hh + D} ${x - w},${y + D}"/>
+      <polygon class="top" points="${x - w},${y} ${x},${y - hh} ${x + w},${y} ${x},${y + hh}"/>
+      <g class="ico" transform="translate(${x - 10},${y - 18})">${ic}</g>
+      ${n.max > 1 ? `<text class="nlabel" x="${x + w - 4}" y="${y + hh + D + 10}" text-anchor="end" style="fill:${lvl(h, n.id) ? 'var(--warn2)' : 'var(--n4)'}">${lvl(h, n.id)}/${n.max}</text>` : ''}
+      ${s === 'locked' ? `<g transform="translate(${x + 10},${y - 4})"><rect x="0" y="3" width="8" height="6" style="fill:var(--n3)"/><rect x="2" y="0" width="4" height="3" style="fill:none;stroke:var(--n3)"/></g>` : ''}
+    </g>`;
+  }
+  return `<svg viewBox="${minx} ${miny} ${maxx - minx} ${maxy - miny}" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges">${edges}${nodes}</svg>`;
+}
+
+function beforeAfter(h, n) {
+  const l = lvl(h, n.id), m = (n.fx || '').match(/(\d+)%/);
+  if (l >= n.max) return `<div class="ba"><div class="bah">MAXED</div><div class="bab"><div class="what">Level ${l} of ${n.max}. Nothing left to buy here.</div></div></div>`;
+  if (m && n.max > 1) { const v = +m[1]; return `<div class="ba"><div class="bah">IF YOU BUY LEVEL ${l + 1}</div><div class="bab"><div class="from">+${v * l}%</div><div class="arrow">→</div><div class="to">+${v * (l + 1)}%</div><div class="what">${esc(n.fx.replace(/ per level\.?/, '.'))}</div></div></div>`; }
+  if (n.max > 1) return `<div class="ba"><div class="bah">IF YOU BUY LEVEL ${l + 1}</div><div class="bab"><div class="from">${l}</div><div class="arrow">→</div><div class="to">${l + 1}</div><div class="what">levels of ${esc(n.name)}</div></div></div>`;
+  return `<div class="ba"><div class="bah">IF YOU BUY IT</div><div class="bab"><div class="from">OFF</div><div class="arrow">→</div><div class="to">ON</div></div></div>`;
+}
+function inspector(h, n) {
+  const s = state(h, n), l = lvl(h, n.id), c = cost(h, n), H = HEROES[h];
+  const stName = { owned: 'OWNED', 'owned-part': 'CAN BUY', avail: 'CAN BUY', locked: 'LOCKED' }[s];
+  const stCls = { owned: 'owned', 'owned-part': 'avail', avail: 'avail', locked: 'locked' }[s];
+  const needs = n.p.map((p) => nodeOf(h, p)).filter((p) => lvl(h, p.id) === 0).map((p) => p.name);
+  let act;
+  if (s === 'owned') act = `<button class="btn" disabled><span>OWNED</span></button>`;
+  else if (s === 'locked') act = `<button class="btn" disabled><span>LOCKED</span></button><div class="why">Needs ${needs.join(n.all ? ' and ' : ' or ')}</div>`;
+  else if (c > S.cash) act = `<button class="btn" disabled><span>${money(c)}</span></button><div class="why">${money(c - S.cash)} short</div>`;
+  else act = `<button class="btn primary big" id="buy"><span>BUY</span><span class="s">${money(c)}</span></button><div class="why">Leaves ${money(S.cash - c)}</div>`;
+  return `<aside class="insp" aria-label="Selected upgrade">
+    <div class="ih"><div class="big">${icon(n.ic, 40, s === 'locked' ? 'var(--n4)' : H.colour, 'var(--n2)')}</div><div>
+      <h4>${esc(n.name)}</h4>
+      <div class="chips"><span class="st ${stCls}">${stName}</span>${n.kind === 'key' ? '<span class="st key">BREAKTHROUGH</span>' : ''}${n.kind === 'root' ? '<span class="st owned">ROOT</span>' : ''}</div>
+    </div></div>
+    <div class="rows"><div><span>LEVEL</span><span>${l} / ${n.max}</span></div><div><span>ERA</span><span>${n.era}</span></div><div><span>NEXT COST</span><span class="${s === 'owned' ? 'dim' : c <= S.cash ? 'y' : ''}" style="${s !== 'owned' && c > S.cash ? 'color:var(--alarm2)' : ''}">${s === 'owned' ? '—' : money(c)}</span></div></div>
+    ${beforeAfter(h, n)}
+    ${n.fx ? `<div class="eff">${kwHtml(n.fx)}</div>` : ''}
+    ${n.d ? `<div class="flav">${esc(n.d)}</div>` : ''}
+    <div class="act">${act}</div>
+  </aside>`;
+}
+
+function paradigm() {
+  const C = (name, lvl, max, fx, from, to, what, cost, afford) => `<div class="card ${afford ? 'afford' : ''}">
+    <h5>${name}</h5><div class="lv">${steps(Math.min(max, 10), lvl)} ${lvl}/${max}</div>
+    <div class="fx">${kwHtml(fx)}</div>
+    <div class="ba2">${what} <span class="dim">${from}</span> → <span class="y">${to}</span></div>
+    <div class="cost"><button class="btn" ${afford ? '' : 'disabled'}><span>${cost} BP</span></button></div>
+    ${afford ? '<div class="soon">YOU CAN AFFORD THIS AFTER THE SHIFT</div>' : ''}
+  </div>`;
+  return kwHtml(`<div class="room"></div><div class="scrim"></div>${statusBar()}
+  <section class="win narrow" style="--w:1000px" aria-label="Paradigm">
+    <header><span class="path">STUDIO_OS // <b>PARADIGM TREE</b></span><span class="meta">0 BP · +10 ON SHIFT</span><button class="x" data-go="hud" aria-label="Close">X</button></header>
+    <div class="body"><div class="pdm">
+      <div class="col">
+        <div class="grp">ASYNC MASTERY</div>
+        ${C('Async-First Culture', 0, 5, '−10% communication load per level.', '100%', '90%', 'LOAD', 10, true)}
+        ${C('Meeting Ban', 0, 1, 'Cancels the [[standup|Daily Standups]] pause. You keep the ceiling; they lose the meeting.', 'PAUSE 5s', 'NONE', 'STANDUP', 330, false)}
+        ${C('Zero-Trust Architecture', 0, 1, 'Nobody goes rogue. The refactor into a dead language never happens again.', 'POSSIBLE', 'NEVER', 'ROGUE REFACTOR', '12,100', false)}
+        <div class="grp" style="margin-top:6px">PROTOCOL ENGINE</div>
+        ${C('Telepathic Compression', 0, 10, '+10× [[capacity|developer capacity]] per level.', '100', '1,000', 'CAPACITY', 25, false)}
+        ${C('Chained Poke Reaction', 0, 3, 'A poke shockwaves into 1 more row of developers per level.', '1 ROW', '2 ROWS', 'POKE', '1,100', false)}
+      </div>
+      <div class="col">
+        <div class="grp">WHAT THE SHIFT PAYS</div>
+        <div class="ledger">
+          <div><span>RUN PROGRESS</span><span>9</span></div>
+          <div><span>× REPUTATION</span><span>1.14</span></div>
+          <div class="sum"><span>NEW [[bp|BP]]</span><b>+10</b></div>
+        </div>
+        <div class="kr">
+          <div class="keep"><h6>YOU KEEP</h6><ul><li>Every [[bp|BP]] upgrade</li><li>Your heroes and their trait</li><li>The gallery and its royalties</li><li>Developer capacity 100</li></ul></div>
+          <div class="lose"><h6>STARTS AGAIN</h6><ul><li>Cash ($1.25M)</li><li>12 developers</li><li>Tree nodes bought this run</li><li>The game in progress</li></ul></div>
+        </div>
+        <div class="dim">NEXT BUY: Async-First Culture. 10 BP, and you will have exactly 10.</div>
+        <div style="margin-top:auto;display:flex;justify-content:flex-end;gap:10px">
+          <button class="btn" data-go="hud"><span>NOT YET</span></button>
+          <button class="btn primary big" data-go="report"><span>PARADIGM SHIFT</span></button>
+        </div>
+      </div>
+    </div></div>
+  </section>${taskbar('paradigm')}`);
+}
+
+function report() {
+  const M = (h, v, what) => `<div class="mvp" style="--hc:${HEROES[h].colour}"><img src="assets/${HEROES[h].face}" alt="${HEROES[h].name}"><b>${v}</b><span>${what}</span></div>`;
+  const P = (title, game, how) => `<div class="pm"><div class="ph">POSTMORTEM</div><div class="pt">${title}</div><div class="pd">${game}<br>${how}</div><div class="ck">✓</div></div>`;
+  return `<div class="room"></div><div class="scrim"></div>${statusBar()}
+  <section class="win" aria-label="Run report">
+    <header><span class="path">STUDIO_OS // <b>RUN REPORT</b> // <b>RUN 2</b></span><span class="meta">+10 BP</span><button class="x" data-go="paradigm" aria-label="Close">X</button></header>
+    <div class="body"><div class="rr">
+      <div class="l">
+        <div class="bigpass"><img src="assets/face-you.png" alt="You"><div class="nm">You</div><div class="dim">FOUNDER · EMPLOYEE #000</div>
+          <div class="stamp go" id="stamp"><small>RUN 2</small>SHIPPED 16</div></div>
+        <div class="lbl" style="align-self:flex-start">WHO CARRIED IT</div>
+        <div class="mvps">${M('james', '+9%', 'pod speed')}${M('serena', '212', 'builds shipped')}${M('matt', '1,840', 'tickets')}${M('billy', '½', 'floor in standup')}</div>
+        <button class="btn" id="restamp" style="margin-top:auto"><span>STAMP AGAIN</span></button>
+      </div>
+      <div class="r">
+        <div class="head"><h3>Run 2, shipped.</h3><span class="dim">38:12 · LABYRINTH OF THE SLOW RIVER was the last game out</span></div>
+        <div class="stats">
+          <div><span>GAMES SHIPPED</span><b>16</b></div><div><span>RUN TIME</span><b>38:12</b></div>
+          <div><span>BEST GAME</span><b>Preserve of the Third Winter · <span class="y">63</span></b></div><div><span>PEAK DEVELOPERS</span><b>12</b></div>
+          <div><span>REVENUE THIS RUN</span><b class="y">$6.42M</b></div><div><span>DEFECTS CAUGHT</span><b>214</b></div>
+          <div><span>INCIDENTS CLOSED</span><b>3</b></div><div><span>TAPS</span><b>4,108</b></div>
+        </div>
+        <div class="lbl">INCIDENTS YOU CLOSED</div>
+        <div class="pms">${P('Checkout is down', 'Flappy Square', 'Matt’s desk, 41s')}${P('Save files eaten', 'Calculator Pro', 'Rolled back, 1m 12s')}${P('Login loops', 'Barn Story', 'Half worked on open, 18s')}</div>
+        <div class="foot"><span class="dim">RUN PROGRESS 9 × REPUTATION 1.14 = <span class="y">+10 BP</span></span><button class="btn" data-go="paradigm"><span>BACK</span></button><button class="btn primary big" data-go="hud"><span>START RUN 3</span></button></div>
+      </div>
+    </div></div>
+  </section>${taskbar('report')}`;
+}
+
+const M = { music: 6, fx: 8, haptics: 'on', motion: 'system', armed: false };
+function menu() {
+  const seg = (key, opts) => `<span class="segm">${opts.map((o) => `<button aria-pressed="${M[key] === o}" data-m="${key}:${o}">${o.toUpperCase()}</button>`).join('')}</span>`;
+  const meter = (key) => `<span class="meter"><button class="sq" data-v="${key}:-1" aria-label="Lower">−</button>${steps(10, M[key])}<button class="sq" data-v="${key}:1" aria-label="Raise">+</button><span class="y">${M[key] * 10}%</span></span>`;
+  return `<div class="room"></div><div class="scrim"></div>${statusBar()}
+  <section class="win narrow" style="--w:520px;bottom:auto;top:110px" aria-label="Game menu">
+    <header><span class="path">STUDIO_OS // <b>GAME MENU</b></span><button class="x" data-go="hud" aria-label="Close" style="margin-left:auto">X</button></header>
+    <div class="menu">
+      <div class="dim">Your studio keeps working while this menu is open.</div>
+      <div class="mrow"><span class="lbl">MUSIC</span>${meter('music')}</div>
+      <div class="mrow"><span class="lbl">EFFECTS</span>${meter('fx')}</div>
+      <div class="mrow"><span class="lbl">HAPTICS</span>${seg('haptics', ['on', 'off'])}</div>
+      <div class="mrow"><span class="lbl">MOTION</span>${seg('motion', ['system', 'full', 'reduced'])}</div>
+      <div class="danger-zone"><span>${M.armed ? 'This erases every run. Press again to confirm.' : 'Erase your save and start from the garage.'}</span><button class="btn danger ${M.armed ? 'armed' : ''}" id="erase"><span>${M.armed ? 'ERASE FOR GOOD' : 'ERASE PROGRESS'}</span></button></div>
+      <div class="mfoot"><button class="btn"><span>MAIN SCREEN</span></button><button class="btn primary big" data-go="hud"><span>RESUME</span></button></div>
+    </div>
+  </section>${taskbar('menu')}`;
+}
+
+function gallery() {
+  const seg = [['DEFECTS', 19, 'var(--calm3)'], ['HEROES', 15, 'var(--calm2)'], ['TEAM SYNC', 12, 'var(--sup)'], ['LAUNCH', 8, 'var(--n6)'], ['RECEPTION', 7, 'var(--warn2)'], ['CRAFT', 4, 'var(--glow1)'], ['TRAITS', 0, 'var(--coh)']];
+  return `<div class="room"></div><div class="scrim"></div>${statusBar()}
+  <section class="win" aria-label="Gallery">
+    <header><span class="path">STUDIO_OS // <b>GALLERY</b></span><span class="meta">10 TITLES · $21.04M LIFETIME</span><button class="x" data-go="hud" aria-label="Close">X</button></header>
+    <div class="body"><div class="gal">
+      <div class="flow"><div class="cover main" role="img" aria-label="Rocket Frenzy cover"></div><div class="mini" style="background-position:-876px -354px"></div>${[9, 8, 7].map((n) => `<div class="mini" style="background:var(--n1);display:grid;place-items:center;color:var(--n4)">#${n}</div>`).join('')}</div>
+      <div class="gfoot">
+        <div class="t"><h3>Rocket Frenzy</h3><span class="score">65<span class="dim" style="font-size:11px">/100</span></span><span class="dim">#10 · RUN 2 · BUILT IN 4m · ×1.22 ON REVENUE</span></div>
+        <div class="stack" aria-label="What made the score">${seg.filter((s) => s[1]).map(([k, v, c]) => `<div style="width:${v}%;background:${c}" title="${k} +${v}"></div>`).join('')}<div class="rest" style="flex:1" title="Points left on the table: 35"></div></div>
+        <div class="slabels">${seg.map(([k, v, c]) => `<span><i style="background:${c}"></i>${k} <b>+${v}</b></span>`).join('')}<span class="dim">LEFT ON THE TABLE 35</span></div>
+        <div><span class="lbl">LIFETIME REVENUE</span> <span class="y" style="font-size:22px">$2.99M</span> <span class="dim">$11.8K/s, still earning</span></div>
+      </div>
+    </div></div>
+  </section>${taskbar('gallery')}`;
+}
+
+/* ---------- tabs, notes, before images ---------- */
+const TABS = [
+  { id: 'hud', label: 'HUD', before: 'before-hud.jpg', render: hud,
+    notes: [
+      ['WHAT CHANGED', '<ul><li><b>A status bar</b> of icon + number pairs replaces readouts spread over four corners.</li><li><b>Hero faces and owned upgrades</b> stay on screen. Click a face to open that person’s pass.</li><li><b>A STUDIO_OS taskbar</b> replaces the stack of six cyan buttons. Badges say when something wants you.</li><li><b>One filled verb.</b> HIRE is the big button, and SHIP! takes over when a build is waiting.</li></ul>'],
+      ['TRY', '<ul><li>Hover CASH, a hero face or an owned upgrade: every tooltip has the same shape.</li><li>Move into a tooltip and hover a cyan keyword: a second tip opens beside it.</li><li>Click PERSONNEL, PARADIGM, GALLERY or MENU in the taskbar.</li></ul><button class="chip" id="shipToggle" aria-pressed="false">Simulate a finished build</button>'],
+      ['FROM LONESTAR', '<p>The pilot’s portrait and abilities sit top-left for the whole run, the relics collect along the top, and there is exactly one big action button (end turn).</p><p class="gdd" style="margin-top:8px">GDD: replaces the right-rail button stack (§10 HUD sections). Those lines would be amended when this is built.</p>'],
+    ] },
+  { id: 'personnel', label: 'Personnel', before: 'before-personnel.jpg', render: personnel,
+    notes: [
+      ['WHAT CHANGED', '<ul><li><b>Name tabs</b> with faces replace the ← → pager. The number is how many nodes you can buy now.</li><li><b>The trait</b> is a band in the branch colour, the loudest thing on the pass.</li><li><b>OWNED THIS RUN</b> fills up as you buy, like a relic strip.</li><li><b>The tree fills its pane</b>, with the inspector always docked: state, cost, before → after, and one BUY.</li></ul>'],
+      ['TRY', '<ul><li>Click lit nodes and buy them (prices are examples). The owned grid, tab counts and cash update.</li><li>Click a locked node: the inspector says what it needs.</li><li>Switch to Billy or Serena: each tree refits its pane.</li></ul>'],
+      ['FROM LONESTAR', '<p>Pilot cards split the fixed talent (orange band) from the run’s random talents (blue bands), with numbers in yellow. Tooltips name the rarity in the corner and list stat rows before the prose.</p>'],
+    ] },
+  { id: 'paradigm', label: 'Paradigm', before: 'before-paradigm.jpg', render: paradigm,
+    notes: [
+      ['WHAT CHANGED', '<ul><li>Every card shows <b>before → after</b> in the number it changes.</li><li>Cost buttons are outlined when you could afford them after the shift and dim when you could not, so <b>10 BP and 12,100 BP no longer look alike</b>.</li><li>A <b>YOU KEEP / STARTS AGAIN</b> list says what the shift costs.</li><li>The BP sum is written out as a ledger.</li></ul>'],
+      ['TRY', '<ul><li>Press PARADIGM SHIFT to see the run report.</li></ul>'],
+      ['FROM LONESTAR', '<p>The bounty reward panel lists exactly what you get, one line each, before you take it.</p>'],
+    ] },
+  { id: 'report', label: 'Run report', before: null, render: report,
+    notes: [
+      ['WHAT CHANGED', '<ul><li>New: a <b>run report</b> between PARADIGM SHIFT and the next run.</li><li>A rubber stamp lands on your pass: flat, stepped in four frames, no glow. It is what a laminated staff pass would actually get.</li><li><b>WHO CARRIED IT</b> gives each hero one number.</li><li>Closed incidents come back as postmortem printouts with a check.</li></ul>'],
+      ['TRY', '<ul><li>Press STAMP AGAIN.</li></ul>'],
+      ['FROM LONESTAR', '<p>The victory screen stamps the pilot’s portrait, shows each defeated boss as a WANTED poster with a check, and lists the run’s stats beside it.</p><p class="gdd" style="margin-top:8px">GDD: adds a page to the shift (§13.2, §13.12.6). The shift gets one click longer.</p>'],
+    ] },
+  { id: 'menu', label: 'Menu', before: 'before-menu.png', render: menu,
+    notes: [
+      ['WHAT CHANGED', '<ul><li><b>Fill means selected.</b> ON/OFF and SYSTEM/FULL/REDUCED are segmented, and only the chosen one is filled.</li><li>Volume is a stepped meter with small outlined − and +.</li><li><b>RESUME</b> is the only filled button.</li><li>Erasing is red, set apart, and needs a second press.</li></ul>'],
+      ['TRY', '<ul><li>Change settings, then press ERASE PROGRESS twice. It does nothing here.</li></ul>'],
+      ['FROM LONESTAR', '<p>Buttons are outlined. Fill is kept for the selected option or the one thing to press next.</p>'],
+    ] },
+  { id: 'gallery', label: 'Gallery', before: 'before-gallery.jpg', render: gallery,
+    notes: [
+      ['WHAT CHANGED', '<ul><li>The cover’s fading reflection becomes <b>two flat stepped slabs</b> under it (no gradients).</li><li>The score breakdown is <b>a stacked bar</b>: you can see what made the 63 and how much was left on the table.</li><li>Numbers in yellow, labels in grey.</li></ul>'],
+      ['FROM LONESTAR', '<p>Numbers that matter are yellow inside otherwise plain text, so the eye finds them first.</p>'],
+    ] },
+];
+TABS.find((t) => t.id === 'paradigm').alias = ['queue'];
+
+function renderTabs() {
+  $('#tabs').innerHTML = TABS.map((t) => `<button class="chip" role="tab" aria-selected="${S.tab === t.id}" data-tab="${t.id}">${t.label}</button>`).join('');
+}
+function renderNotes() {
+  const t = TABS.find((x) => x.id === S.tab);
+  $('#notes').innerHTML = t.notes.map(([h, body]) => `<div class="note"><h2>${h}</h2>${body}</div>`).join('');
+  const st = $('#shipToggle'); if (st) st.setAttribute('aria-pressed', S.shipReady);
+}
+function render() {
+  hideTip();
+  const t = TABS.find((x) => x.id === S.tab);
+  const showBefore = S.view === 'before' && t.before;
+  frame.innerHTML = showBefore ? `<img class="before-img" src="assets/${t.before}" alt="The current ${t.label} screen">` : t.render();
+  $('#vb').setAttribute('aria-pressed', S.view === 'before'); $('#va').setAttribute('aria-pressed', S.view === 'after');
+  $('#vb').disabled = !t.before; $('#vb').title = t.before ? '' : 'New screen: there is no before';
+  if (S.view === 'before' && !t.before) { S.view = 'after'; return render(); }
+  renderTabs(); renderNotes();
+  S.fresh = null;
+}
+function go(id) {
+  if (id.startsWith('personnel:')) { S.hero = id.split(':')[1]; id = 'personnel'; }
+  if (id === 'queue') id = 'paradigm';
+  S.tab = id; S.view = 'after'; render();
+}
+
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-tab]'); if (tab) { S.tab = tab.dataset.tab; render(); return; }
+  if (e.target.closest('#vb')) { S.view = 'before'; render(); return; }
+  if (e.target.closest('#va')) { S.view = 'after'; render(); return; }
+  if (e.target.closest('#shipToggle')) { S.shipReady = !S.shipReady; if (S.tab === 'hud') render(); else renderNotes(); return; }
+  const g = e.target.closest('[data-go]'); if (g) { go(g.dataset.go); return; }
+  const hero = e.target.closest('[data-hero]'); if (hero) { S.hero = hero.dataset.hero; render(); return; }
+  const pick = e.target.closest('[data-pick]'); if (pick) { S.sel[S.hero] = pick.dataset.pick; render(); return; }
+  if (e.target.closest('#buy')) {
+    const n = nodeOf(S.hero, S.sel[S.hero]); const c = cost(S.hero, n);
+    if (c <= S.cash) { S.cash -= c; OWN[S.hero][n.id] = lvl(S.hero, n.id) + 1; render(); S.fresh = null; const el = frame.querySelector(`.ownedgrid [data-pick="${n.id}"]`); if (el) { el.classList.add('new'); } }
+    return;
+  }
+  const btn = e.target.closest('.btn'); if (btn && !btn.disabled) { btn.classList.remove('press'); void btn.offsetWidth; btn.classList.add('press'); }
+  if (e.target.closest('#restamp')) { const s = $('#stamp'); s.classList.remove('go'); void s.offsetWidth; s.classList.add('go'); return; }
+  const m = e.target.closest('[data-m]'); if (m) { const [k, v] = m.dataset.m.split(':'); M[k] = v; render(); return; }
+  const v = e.target.closest('[data-v]'); if (v) { const [k, d] = v.dataset.v.split(':'); M[k] = Math.max(0, Math.min(10, M[k] + +d)); render(); return; }
+  if (e.target.closest('#erase')) { M.armed = !M.armed; render(); return; }
+});
+frame.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-pick]')) { e.preventDefault(); e.target.dispatchEvent(new MouseEvent('click', { bubbles: true })); } });
+
+const fit = () => frame.style.setProperty('--k', stage.clientWidth / 1280);
+new ResizeObserver(fit).observe(stage); fit();
+try { const t = location.hash.slice(1); if (TABS.some((x) => x.id === t)) S.tab = t; } catch {}
+render();
+})();
+</script>
